@@ -1,0 +1,607 @@
+# CLAUDE.md — NeuroPulse Design Programme
+**Project:** NeuroPulse — closed-loop multi-modal neuromodulation wearable platform  
+**Revision:** 3 (current)  
+**Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
+
+---
+
+## 1. PRODUCT OVERVIEW
+
+Two-tier platform sharing a single chassis, processor stack, app, and USB-C connectivity.
+
+| Tier | Name | Regulatory | Modalities | Price range | Timeline |
+|------|------|-----------|------------|-------------|----------|
+| T1 | NeuroPulse Home | FDA-exempt wellness | 8 | $449–$1,199 | 12–18 months |
+| T2 | NeuroPulse Pro | FDA 510(k) target | 11 | $4,999–$13,999 + $1,800/yr | 18–36 months post T1 |
+
+**Founding design principles:**
+- Shared platform (one production line, two markets)
+- Wired-first USB-C default (zero RF at scalp)
+- Autonomous closed-loop EEG-adaptive stimulation without phone (primary competitive moat)
+- 5-layer EMF shielding + active Helmholtz cancellation (only consumer brain wearable with measured shielding)
+- Modular field-upgradeability via snap-in zone modules
+- No mandatory subscription — all core functions offline-capable permanently
+- UHDR/SHDR data separation (user health data never accessed by NeuroPulse)
+
+---
+
+## 2. CONFIGURATIONS + PRICING (all locked)
+
+### 2.1 Integrated system configurations
+
+| Config | BOM | COGS | Retail | GM% | Modalities included |
+|--------|-----|------|--------|-----|---------------------|
+| Core — EEG only | $168–169 | $258–260 | $449 | 42% | 4-ch EEG · all connectivity · EMF shielding · processor stack · 8GB eMMC |
+| Home Lite | $265–266 | $370–372 | $599 | 38% | Core + PBM 5 zones (660+810nm, 600 LEDs) · 8-ch EEG · VNS+HRV clip |
+| Home Standard ★ (flagship) | $405 | $540 | $849 | 36% | All T1 modalities (see §3) |
+| Home Premium | $460 | $622 | $1,199 | 48% | All T1 + EC lens (+$89 value) · 2yr warranty · priority support |
+| Pro Entry | $833 | $1,365 | $4,999 | 73% | All T1 + 21-ch qEEG · 1170nm deep PBM · clinical tACS · HIPAA cloud · sLORETA |
+| Pro Full | $1,506 | $2,628 | $13,999 | 81% | All T2 + TMS hub · multi-patient dashboard · scripting API · FHIR R4 · $1,800/yr service |
+
+**★ Home Standard box contents:** All T1 modules · hard clamshell case · braided aramid USB-C cable (spare in box) · **45W NeuroPulse branded GaN charger** · S1 opaque shade · interface covers (installed + spare set each type) · mesh cleaning brush · Boa replacement cable + hook tool · moisture-barrier electrode tip hydration caps · humidity indicator card · pre-impregnated cleaning cloth packets
+
+### 2.2 Charger policy (locked)
+
+Charger scaled to peak draw of configuration. Auto-included at every upgrade by serial number tracking. Upfront 65W upgrade option ($19 at-cost) offered at checkout as intent signal.
+
+| Config | Charger included | BOM |
+|--------|-----------------|-----|
+| Core | 15W USB-C (unbranded) | $3–4 |
+| Home Lite | 30W GaN (unbranded) | $5–6 |
+| Home Standard ★ | 45W NeuroPulse GaN (branded) | $10 |
+| Home Premium | 45W NeuroPulse GaN (branded) | $10 |
+| Pro Entry | 65W NeuroPulse GaN (branded) | $13 |
+| Pro Full | 65W NeuroPulse GaN (branded) × 2 | $26 |
+
+**Charger upgrade intent signals:**
+- Core buyer selects 30W upfront → PBM intent → 14-day follow-up
+- Core buyer selects 45W upfront → Full T1 intent → 7-day completion bundle offer
+- Any buyer selects 65W upfront → T2 intent → human clinical sales call within 48 hours
+
+**EU note:** Chargers are branded recommendations, not proprietary requirements. Any PD-compliant charger must work. App displays "power level: reduced" informatively, never blocks.
+
+### 2.3 Consumables + recurring revenue
+
+| Item | Price | Interval | GM% | Notes |
+|------|-------|----------|-----|-------|
+| Intranasal sleeves (30-pack) | $19/pack or $19/mo sub | Single use | 68–79% | Only authenticated consumable. COGS $4–6. Primary MRR driver. |
+| Electrode hydrogel tips (8-pack) | $12–16 or $9.99/mo sub | 30–60 sessions | 60–72% | App impedance trend prompts. Bayonet snap, zero training. |
+| VNS clip pads (2-pack) | $8/pack | 20–40 sessions | 65% | Electrochemical degradation from VNS current. |
+| Audio cup foam (set) | $24/set | 6–12 months | 58% | Calendar reminder. |
+| Audio cup mesh frame (pair) | $9.99/pair | Annual | 62% | App driver impedance flags fouling. Snap-in, user-replaceable. |
+| Interface protection covers (complete kit) | $22.99 or $19.99/yr bundle | Annual / as lost | 70% | All tethered — loss prevention by design. |
+| S3 prescription Rx insert | $49–139 | 12–24 months | Variable | Optician partner network. Zero marginal marketing cost per renewal. |
+| T2 service contract | $1,800/yr | Annual | ~75% | Same-day loaner, priority support, annual calibration. |
+
+---
+
+## 3. MODALITY STACK (all locked)
+
+### T1 — 8 modalities
+
+**1. PBM Transcranial**
+- 660–670nm + 808–830nm LEDs
+- 5 independently addressable zones
+- **600 total LEDs: 300×660nm + 300×808–830nm** on FPC strips (launches at 600 from day one — no Rev A/Rev B)
+- 6mm inter-LED pitch → ±15–25% irradiance variation (near-uniform field)
+- 120–180mA per LED → L70 80,000–100,000 hours
+- **400 mW/cm² peak pulsed** (≤25% duty cycle, firmware-enforced) / 200 mW/cm² CW max
+- Closed-loop photodiode per zone + **reference photodiode behind PDMS window** (detects LED aging AND window fouling)
+- Plasma-activated anti-fouling PDMS optical windows
+- Real-time J/cm² dose metering — primary differentiator over Vielight
+- 7 frequency presets: Gamma clarity (40Hz), Alpha calm (10Hz), Theta memory (6Hz), Sleep deep (2Hz), Gamma+theta coupled (40+6Hz split-zone), Focus prime (20Hz), Vascular baseline (CW)
+
+**2. PBM Intranasal**
+- Bilateral Y-probe · 660nm + 808–830nm per probe
+- 15/20/25mm silicone over-moulded depth stop rings (wear-resistant)
+- Photodiode contact/dose sensing + reference LED at probe base
+- Optical code + pogo pin resistive sleeve authentication (no NFC, no EMF)
+- Hub dock storage (in hub tooling from day one — prevents Y-junction fracture)
+- Hygiene sleeve consumable: 30-pack $19/pack or $19/mo subscription
+- Silicone over-mould at Y-junction for impact protection
+
+**3. EEG Neurofeedback**
+- 8-ch semi-dry hydrogel · Fp1/2, F3/4, C3/4, P3/4
+- 500Hz · 24-bit ADC (ADS1299)
+- **ADS1299 internal reference self-calibration at every session start** (eliminates gain/offset drift)
+- Spring-decoupled electrode pods: 80–120g contact force, ±12mm travel, independent of dial tension
+- Replaceable hydrogel tips: snap-off bayonet, 30–60 sessions, $12–16/8-pack
+- Moisture-barrier silicone hydration caps (WVTR <0.5 g/m²/day) — extend storage life to 24+ months
+
+**4. BES / tACS (consumer name: Brainwave Entrainment Stimulation)**
+- 0.5–40Hz · ≤1mA · charge-balanced biphasic
+- Per-electrode impedance monitoring
+- Adaptive EMF notch firmware prevents Helmholtz cancellation of therapeutic signal
+- Regulatory naming avoids FDA medical device classification trigger
+
+**5. tDCS (consumer name: Cortical Priming Stimulation)**
+- 0.1–2mA DC · 40µC/cm² hardware limit (safety MCU enforced, app cannot override)
+- 30s ramp up/down (hardware-enforced)
+- ≤3 electrode pairs
+
+**6. VNS + HRV**
+- Auricular clip · auricular branch CN X
+- 1–25Hz · ≤2mA · biphasic charge-balanced
+- PPG HRV (808–830nm) in same clip
+- **A1/A2 EEG references on clip contact pads** (2 spare conductors in existing 6-pin cable, +$15 BOM)
+- PDMS hydrogel pads: 20–40 sessions, $8/2-pack
+- Force contact confirmation
+
+**7. Neural Audio Entrainment**
+- Over-ear planar magnetic 40mm + bone conduction at mastoid
+- Binaural beats + isochronic tones + pink/brown noise
+- EEG-adaptive frequency (closed-loop)
+- **User-replaceable snap-in mesh frame** (silver-coated nylon, 40dB RF, $9.99/pair annual)
+- Aluminium bayonet mount (replaces plastic — wear-resistant)
+- Driver impedance monitors mesh fouling (detects both acoustic degradation AND RF shielding loss simultaneously)
+- Mesh cleaning brush in box
+- Silicone isolator for bone conduction piezoelectric element
+
+**8. Visual Stimulation**
+- 108 micro-LEDs per lens (660nm + 808–830nm) · 6 zones per eye
+- Inner PDMS diffuser film (plasma-activated anti-fouling)
+- **AgNW (silver nanowire) outer conductive coating** — replaces ITO (ITO has 0.5% strain-to-failure; AgNW tolerates 5–10% flex)
+- IR proximity sensors (940nm) — eye-open detection
+- Hall sensor: goggle lift = instant LED cutoff
+- IEC 62471 hardware MPE limit (50% of exempt group threshold)
+- Photoparoxysmal EEG detection at Oz → goggle halt <200ms
+- **Mode F (invisible NIR retinal walk):** 808–830nm daily retinal PBM during normal-looking wear
+- EMDR L/R alternation · photic driving 0.5–100Hz
+
+**Snap-on shade system:**
+- S1 opaque (<0.5% VLT, included in box, instant cutoff for immersive sessions)
+- S2 polarising (~12% VLT, $24, standard lens only)
+- S3 prescription clip ($49 carrier + $49–139 Rx insert, compatible with both standard and EC lenses, 12–24 month renewal)
+- 6× N42 neodymium magnets in lens rim (N42 not N52 — better impact tolerance, −$0.80 BOM)
+- Sliding rail lens mount (user self-install, eliminates alignment jig requirement, +$1.20 BOM)
+
+**EC lens (premium, +$89 upgrade / $129 standalone):**
+- Bistable electrochromic 5–75% VLT · 2s transition · ~15mW hold
+- Clears to 75% on power restore (safety failsafe)
+- 3–5µm hard coat over EC film (scratch protection, standard in automotive EC mirrors)
+- EC driver monitors transition time as contact resistance proxy (detects rim contact corrosion)
+
+### T2 additions
+
+- **21-ch qEEG wet gel:** Full 10-20 + FC3/FC4 (M1 TMS targeting) + Oz (photoparoxysmal detection) + A1/A2 (linked-ear normative reference, on VNS clips)
+- **TMS focal figure-8 coil:** 0.1–0.5T · rTMS + TBS · non-conductive CFRP window at coil site · TMS-gated EMF cancellation (safety MCU gates Helmholtz off 5ms pre-pulse, 50ms post-pulse hold)
+- **1170nm deep PBM:** Laser diodes · 35–40mm subcortical depth · TEC stabilisation · ≤1,000 mW/cm²
+- **Clinical tACS:** ≤4mA · 16-ch arbitrary waveform
+- **HIPAA cloud + EHR:** FHIR R4 · multi-patient dashboard · sLORETA source imaging · LSL streaming · scripting API
+- **Anonymised session tag:** Random session identifier for clinical multi-patient environments — clinic holds patient-to-tag mapping, NeuroPulse cannot cross-reference
+
+---
+
+## 4. HARDWARE SPECIFICATIONS (all locked)
+
+### 4.1 Processor stack
+- **Main:** NXP i.MX RT1062 · Cortex-M7 · 600MHz · FPU+DSP+SIMD · 1MB on-chip SRAM + 32MB LPSDR4 · USB-HS OTG · FreeRTOS · ~1.1% CPU at full load (98.9% headroom for future ML)
+- **Safety MCU:** STM32G071 (NOT G031 — G031 has only 8KB SRAM, insufficient for EMF firmware) · Cortex-M0+ · 64MHz · 36KB SRAM · 128KB flash · bare-metal · owns all stimulation GPIO enable lines · +$0.45 BOM
+- **Storage:** 8GB industrial eMMC (SLC cache, 30,000+ P/E cycles) · LittleFS filesystem · firmware partition write-protected · separate UHDR/SHDR partitions from first firmware line
+- **Connectivity:** USB-C 3.2 Gen1 (default, zero RF, <1ms) · BT 5.3 LE Audio · Wi-Fi 6 · antennas in control hub NOT headset · single rear toggle
+
+### 4.2 Safety architecture
+- Safety MCU physically owns all stimulation enable GPIO — app crash cannot cause unsafe stimulation
+- SPI heartbeat from main processor every 200ms; 1.5s watchdog → all-stimulation cutoff <50ms
+- Dual-processor isolation: IEC 62304 Class C (safety MCU, ~500 lines bare-metal) + Class B (main processor) separately certified
+- Session protocol cryptographically signed by app — headset rejects unsigned or corrupted protocols
+
+**Modality-specific interlocks:**
+| Modality | Interlock | Implementation |
+|----------|-----------|----------------|
+| EEG + Visual | Photoparoxysmal detection → goggle halt | Oz electrode, <200ms, clinician-unlock for 3–30Hz |
+| BES / tDCS | 40µC/cm² charge density limit | Safety MCU hardware — app cannot override |
+| Visual / retinal | IEC 62471 MPE ceiling | IR proximity + Hall sensor + hardware current limit (3 independent layers) |
+| PBM scalp | IEC 60601 42°C limit | NTC per zone → hardware current throttle at 62°C junction |
+| TMS | Coil protection | EMF cancellation gated off 5ms before pulse, 50ms hold |
+| VNS | Contact confirmation | Safety MCU reads impedance; holds if contacts not confirmed |
+| All | Firmware anti-fragility | CSPRNG session protocol signing |
+
+### 4.3 EMF shielding (5-layer passive + active)
+- Layer 1: CFRP outer (30–50dB RF)
+- Layer 2: 0.2mm mu-metal liner (15–25dB ELF magnetic) — PETG laminate encapsulation, silicone RTV sealant at all cutout edges
+- Layer 3: **Palladium-coated polyester** inner liner (replaces silver — tarnish-immune for device lifetime, 40–60dB RF) — permanent shielding claim, verified by fleet SHDR attenuation monitoring
+- Layer 4: Carbon-loaded EMI absorber foam (cavity resonance suppression)
+- Layer 5: USB-C + accessory port filters (30–50dB)
+- **Active:** 3-axis fluxgate magnetometers + Helmholtz coil pairs · Combined: 35–45dB ELF magnetic, 40–60dB RF
+- Shell bonded to EEG DRL output (active EEG shield)
+- Non-conductive CFRP window at TMS coil site (prevents eddy current field loss)
+- Three firmware additions: TMS-gated cancellation · adaptive notch at BES/tACS stimulus frequency · synchronous Helmholtz subtraction from EEG
+
+### 4.4 Fit system
+- Boa-style occipital dial · 10cm range · 0.5mm/click · 50,000-cycle rated · enclosed PTFE-lined cable channel (prevents hair entanglement) · Boa replacement cable + tool in box · regrease kit available ($4.99 accessory)
+- 5-position forehead bridge (5mm steps)
+- Spring-decoupled electrode pods (80–120g, ±12mm, Shore 30A silicone)
+- Temporal stability wings (snap-on, stored in hub dock)
+- 1 adult SKU covers 52–62cm heads
+
+### 4.5 Power
+| Mode | Draw | Min USB-C PD | Power bank runtime (10,000mAh) |
+|------|------|-------------|-------------------------------|
+| Standby | 1W | 5V/0.5A | ~330 hours |
+| EEG only | 2.5W | 5V/1A | ~130 hours |
+| Standard T1 ★ | ~17–20W | 15V/2A (45W) | ~95–110 min |
+| T1 peak | ~45–50W | 20V/3A (65W) | ~38–42 min |
+| T2 standard | ~44–46W | 20V/3A (65W) | ~41–43 min |
+| T2 peak | ~70–74W | 20V/5A (100W EPR) | ~24–27 min |
+
+- 22F supercapacitor in control hub (absorbs LED duty-cycle transients, allows 50% aging over 5 years)
+- Hub NTC thermistor for supercapacitor aging estimation (logged in SHDR)
+
+### 4.6 Operating modes
+- **Mode 1 Connected:** Real-time streaming <1ms
+- **Mode 2 Programming:** App uploads session protocol <5s
+- **Mode 3 Autonomous:** Pre-programmed, runs from any USB-C PD power bank, full closed-loop EEG-adaptive operation without phone or app
+- **Mode 4 Download:** USB-C reconnect → EDF+ + parameter logs to app
+
+### 4.7 Status indicators
+- Left temple: green power LED (breathes at idle)
+- Right temple: amber in-use LED (pulse rate mirrors session frequency — caregiver can confirm correct protocol across room)
+- Fault: power LED red blink
+- Stealth mode: app-controlled suppress (safety faults always fire)
+
+---
+
+## 5. DATA ARCHITECTURE — UHDR / SHDR (all locked)
+
+### 5.1 Definitions
+
+**UHDR — User Health Data Record**
+- Owner: user unconditionally
+- NeuroPulse access: **NEVER** — not for support, engineering, research, or regulatory submission
+- Clinician access: per-element, per-use-case, time-limited, audited, revocable
+- Researcher access: anonymised aggregate only, separate IRB + explicit research consent
+- Defining test: does this record tell us something about the **person**? If yes → UHDR
+- Contents: EEG waveforms (all channels) · HRV time series · PPG optical signal · neurofeedback performance scores · session timestamps and duration · protocol parameters used · closed-loop adaptation events · PBM dose (J/cm²) per zone · user-entered symptom/outcome logs · eye-open/closed state during sessions
+- Storage: on-device eMMC UHDR partition, AES-256 encrypted with user biometric-derived key (NeuroPulse does not hold decryption key)
+- Backup: automated nightly incremental backup to USB-C local or E2E encrypted cloud (user-held key) when on USB-C power
+
+**SHDR — System Health Data Record**
+- Owner: NeuroPulse
+- Linked to: device ID + warranty owner ID **only** — never to user identity
+- Defining test: does this tell us about the **device's condition**, with nothing that reveals user biology? If yes → SHDR
+- Contents: LED output ratio per zone · NTC temperature profiles · EMF shielding attenuation ratio · device session count (unsigned integer, no timestamps) · consumable session counts · USB-C insertion counter · PD negotiation log · impact events (g-force, orientation — between sessions only) · fan RPM · supercapacitor cycles · firmware version history · OTA log · accessory authentication pass/fail · calibration coefficient history
+- Storage: on-device eMMC SHDR partition, separate encryption from UHDR
+- Upload: to NeuroPulse fleet database on USB-C connect (warranty consent required)
+
+**Boundary case resolution rule:** When in doubt → UHDR. Reclassification requires positive demonstration of no user biology content.
+
+Specific boundary resolutions:
+- Raw EEG impedance → UHDR; derived trend slope → SHDR
+- Accelerometer during active sessions → UHDR; impact events between sessions → SHDR
+- Raw ambient light → UHDR; cumulative UV exposure index → SHDR
+- Raw VNS impedance → UHDR; contact resistance trend → SHDR
+- IR eye state during sessions → UHDR; safety interlock log → SHDR
+- Device session count (unsigned integer) → SHDR; session timestamps → UHDR
+
+### 5.2 Predictive maintenance system (SHDR-based)
+
+Three phases:
+- **Phase 1** (0–1,000 devices, Year 1): Population-average survival analysis on time-to-failure data
+- **Phase 2** (1,000–10,000 devices, Year 2): Fleet-trained LSTM on HDR sensor trajectories
+- **Phase 3** (10,000+ devices, Year 3+): Bayesian personalisation — continuously revised RUL predictions
+
+All models version-stamped by hardware revision. New revision falls back to Phase 1 until fleet data accumulates. Models deployed back to devices via OTA — competitive moat grows automatically with fleet size.
+
+**Reminder engine rules:**
+- Safety-critical: cannot be dismissed — blocks session start
+- Performance-critical: snooze max 3×
+- Comfort/longevity: snooze max 5×
+- All reminders measurement-triggered, not calendar-triggered
+- Every reminder includes measured data that triggered it + one-tap order link
+
+---
+
+## 6. CLINICAL CONSENT ENGINE (all locked)
+
+### 6.1 Use case subscription tiers
+
+| Tier | Price | Use cases | UHDR elements | Target clinician |
+|------|-------|-----------|---------------|-----------------|
+| Monitor | $49/mo/patient | Adherence monitoring, protocol compliance | Session timestamps, duration, protocol parameters | Primary care, wellness, coordinators |
+| Assess | $149/mo/patient | All Monitor + EEG review, neurofeedback, efficacy | Adds EEG waveforms, neurofeedback scores, dose logs | Neurologists, psychiatrists |
+| Full Clinical | $299/mo/patient | All Assess + HRV, closed-loop events, outcomes | Adds HRV, PPG, adaptation events, outcome logs | TMS clinics, neuromodulation programmes |
+| Research | $599/mo/study | IRB-defined custom (NeuroPulse review required) | IRB-approved minimum, k≥10 anonymisation, no IDs | Academic trials, observational studies |
+
+**Key principle:** Clinicians select **use cases** (not data elements). System determines minimum necessary UHDR elements. Users receive plain-language decision support document listing what clinician CAN learn, CANNOT learn, and privacy implications per element.
+
+**Expansion workflow:** Differential consent document → persistent user notification → user approves/denies/asks questions → retroactive access is a separate decision. Retroactive and prospective access presented as separate consent decisions even if made simultaneously.
+
+### 6.2 A priori research consent (4 onboarding screens)
+
+| Layer | Question | If yes | If no | Brand ambassador mechanism |
+|-------|----------|--------|-------|--------------------------|
+| L1 — Contact consent | Can we reach you about future research opportunities? | Provide contact method + frequency limit. POA holders upload POA (human review, 3 business days, jurisdiction-flagged, annual re-verification) | No contact. All features unchanged. | Being asked creates perceived agency → trust baseline |
+| L2 — Category consent | Which research areas? (9 categories: AD/dementia, Depression, PTSD, TBI, Sleep, Attention, Parkinson's, Healthy ageing, Visual health) | Per-project contact for selected categories only. Each project is a fresh decision. | Not contacted for that category. | Personal category choice deepens engagement |
+| L3 — Blanket consent | Pre-approve all NeuroPulse-reviewed research? | Data included in all studies. **Still receives per-study engagement notifications** (not consent requests — maintains engagement, can opt out per-study). Anonymisation: k≥10, no IDs, no sub-weekly timestamps. | Per-category and per-project process applies. | Blanket patients kept engaged — not taken for granted |
+| L4 — Results + community | Hear study results? Join suggestion portal? | Plain-language results notification per study (including null results) + paper link + "suggest next steps" link. Access to suggestion/voting/pledge portal. | No results contact, no portal. | Results notification is the highest-value brand moment |
+
+**POA workflow:** POA holder uploads executed healthcare POA → human review 3 business days → jurisdiction flagging → scope limitation noted → annual re-verification. If patient regains capacity, all proxy consent decisions presented for ratification or revocation. Research contact goes to POA holder only.
+
+**Vulnerable population disclosure:** At per-project consent time, explicitly state: "Once your anonymised data is included in a study, individual withdrawal is not possible — but future data contributions can always be stopped immediately." Required by Common Rule (45 CFR 46).
+
+### 6.3 Research suggestion portal (three functions)
+
+1. **Patient research agenda:** Patients submit study ideas in plain language, community votes ("interested"), comments, expresses participation intent. Top suggestions visible to researcher community.
+
+2. **Pre-identified subject pool:** "Would participate" intent flag creates pre-screened, device-familiar, motivated cohort. Researcher portal shows willing participant count, geographic distribution, anonymised device usage profiles per suggestion. Solves researchers' hardest problem (recruitment = 40–60% of trial cost) before grant is written.
+
+3. **Crowdfunding catalyst:** Pledges ($10–$100+) are intent, not charges. When researcher confirms pilot feasibility, formal campaign activates. Escrow held until target met; refunded if not. Released to institution research account. NeuroPulse contribution matching for strategic studies. Pilot data (even n=20–30) supports NIH SBIR/R21 application. Funders receive results notification + paper acknowledgement as "NeuroPulse Patient Research Fund contributors."
+
+**Per-project contact workflow:**
+1. NeuroPulse reviews study (use case library, minimum necessary data, IRB verification)
+2. Eligible patient list generated by device ID + contact prefs only (no UHDR)
+3. Personalised invitation from NeuroPulse (not researcher) — personal tone, specific about study, explicit about what researchers CAN and CANNOT see
+4. Patient decision: Yes / No / Ask a question (secure message to NeuroPulse liaison, 2 business day response)
+5. Results notification closes loop for all who opted in
+
+---
+
+## 7. DURABILITY + MAINTENANCE (all locked)
+
+### 7.1 Critical design changes (must be in tooling specifications before first cut)
+
+| Change | BOM delta | Why critical |
+|--------|-----------|-------------|
+| ITO → AgNW conductive lens coating | +$8–12/lens | ITO: 0.5% strain-to-failure, cracks on flex or point impact. AgNW: 5–10% flex, compatible with hard coat, maintains 85–90% transmission |
+| Hard clamshell case (replaces soft pouch) | +$8–14 | Lens scratching certain within first month without case. Includes probe dock. Doubles as shipping container. |
+| Intranasal probe hub dock (moulded) | Hub retool | Y-probe dropped probe-first fractures junction. Cannot be retrofitted. |
+| Reference photodiode per zone (behind PDMS window) | +$2 total | Detects LED aging AND PDMS window fouling simultaneously. Eliminates 3-year service calibration visit. Protects J/cm² dose metering claim. |
+| Zone module connectors: 1,000-cycle rated (Molex SlimStack) | +$2.00 | Standard connectors rated 100–500 cycles. Must specify before PCB layout. |
+| Lever-actuated ZIF for zone modules | Included above | Standard ZIF requires tools. Lever ZIF enables user self-service zone module swaps. |
+| Interface protection covers (all tethered) | +$8–9 total | Anchor posts moulded into shell at zero cost if specified before first cut. |
+| Sliding rail lens mount | +$1.20 | Eliminates alignment jig. User self-install. |
+| Dual-bank OTA firmware + USB-C DFU recovery | $0 (software) | Must be in bootloader from first firmware line. Cannot be added later. |
+| Separate UHDR/SHDR eMMC partitions | $0 (firmware) | Must be in firmware specification before any storage architecture is written. |
+
+### 7.2 Other locked design changes
+
+| Change | BOM delta | Rationale |
+|--------|-----------|-----------|
+| Palladium-coated EMF shielding fabric | +$6/headset | Silver tarnishes 12–18 months. Palladium tarnish-immune for device lifetime. Fleet SHDR verifies stable attenuation — marketable, measurable claim. |
+| N52 → N42 magnets in lens rim | −$0.80 | N52 brittle under corner drop. N42 more impact-tolerant, ≥1mm polymer wall required on all faces. |
+| Braided aramid USB-C cable + dual silicone strain relief | +$3–4/cable | Commodity cables fail at strain relief within 6–18 months. 50,000+ flex cycle rating. Spare in box. |
+| MagSafe hard gold contacts (>0.5µm cobalt-alloyed) | +$1.20 | Oxidised contacts → power throttling. Contact resistance monitored in SHDR. |
+| 22F supercapacitor (from 10F) | +$1.80 | Allows 50% degradation over 5 years while maintaining transient absorption. |
+| Industrial eMMC + LittleFS | +$2.40 | 30,000+ P/E cycles. Write endurance monitored in SHDR. |
+| Bone conduction driver silicone isolator | +$1.80 | Piezoelectric element brittle — Shore 20–30A silicone mount absorbs impact. |
+| Silicone over-mould at Y-probe junction | +$1.20 | Flex without fracture. Minimum 20mm bend radius marked on probe shaft. |
+| Silicone potting for micro-LED array | +$2.40/lens | 1,800+ thermal cycles over device lifetime without delamination. |
+| Hard coat on EC lens (3–5µm silicone) | +$4.00/lens | Standard in automotive EC mirrors. Prevents scratch damage to active EC layer. |
+| Aluminium bayonet for audio cups | +$1.60 | Plastic detent flattens at 500–1,000 cycles. Metal-to-metal rated for device lifetime. |
+| Moisture-barrier electrode tip hydration caps (WVTR <0.5) | +$0.80 | Extends factory-sealed electrode storage life to 24+ months. |
+| Audio cup user-replaceable snap-in mesh frame | +$0.60 | Snap-in frame; user pops out, rinses, reinserts or replaces ($9.99/pair). |
+| Mesh cleaning brush in box | Minimal | Standard maintenance tool for mesh surfaces. |
+| Hub air filter (30-micron foam, snap-out) | +$0.45 | Captures carpet fibres in clinical environments. Hub NTC temperature trend flags cleaning need. |
+| Automated nightly UHDR backup (incremental) | $0 | When on USB-C power. Failure becomes hardware swap not data loss. |
+| ADS1299 self-calibration at session start | $0 | Internal reference routed to all channels. Eliminates EEG amplitude drift. Coefficients in SHDR. |
+| Plasma-activated PDMS for optical windows | Minimal | Hydrophilic surface repels sebum. Anti-fouling without additional parts. |
+| EC rim contact hard gold plating | Included in contact spec | EC driver monitors transition time as contact resistance proxy. Cleaning prompt when >3s transition. |
+| Hub NTC thermistor | +$0.15 | Cross-calibrates headset NTCs, monitors supercapacitor aging, enables hub temperature-based SHDR alerts. |
+| Enclosed PTFE-lined Boa cable channel | $0 (tooling) | Prevents hair entanglement — must be in occipital arch tooling. |
+| Tool-free hub fan (quarter-turn captive fastener) | +$0.80 | No screwdriver required for fan replacement. |
+| Humidity indicator card in box | +$0.30 | Visual confirmation package integrity during shipping and storage. |
+| IPX4 rating target for headset | Testing cost | Splash-proof from all directions. Enables "workout-safe" marketing claim. |
+
+### 7.3 Calibration self-maintenance
+
+| Sensor | Self-calibration method | Residual service requirement |
+|--------|------------------------|------------------------------|
+| PBM photodiode | Reference photodiode behind each zone PDMS window — ratio trend detects drift AND fouling | None — eliminated by reference photodiode |
+| EEG amplifier (ADS1299) | Internal reference routed to all channels at session start — gain/offset correction applied | None — fully self-calibrating |
+| NTC thermistors | Hub NTC cross-calibration: compare headset NTCs vs hub reference at ambient equilibrium (>10 min since last session) | None — flag at ±1.5°C offset |
+| Fluxgate magnetometers | Zero-field nulling at session start + geomagnetic field magnitude comparison via phone GPS | **3–5 year Tier B service visit** (scale factor drift requires Helmholtz test coil) |
+| EC lens contacts | EC driver monitors transition time — flag when >3 seconds (vs 2s spec) | Cleaning prompt; no service visit |
+| Audio cup mesh | Driver impedance monitoring — detects fouling pattern | User-replaceable snap-in frame — no service visit |
+
+---
+
+## 8. SERVICE NETWORK (all locked)
+
+### 8.1 Partner tiers
+
+| Tier | Examples | Service tasks | Certification | Equipment | Revenue/yr at scale | Launch timing |
+|------|----------|---------------|---------------|-----------|---------------------|---------------|
+| A — Optical centers | LensCrafters, Pearle Vision, independent opticians | S3 Rx clip manufacture + fitting (primary) · Lens replacement (standard + EC) · Calibration (secondary) | 4-hr initial · 1-hr annual online | $400–600 calibration reference (loaned) + $80–120 jig (optional with sliding rail) | $8K–35K/yr | Year 1 — already engaged via S3 programme |
+| B — Electronics repair | uBreakiFix/Asurion · iFixit partners | Zone module FPC swap · DFU recovery · eMMC data recovery · Impact inspection · Fluxgate calibration | 6-hr initial · 2-hr annual practical | ESD workstation (existing) + eMMC adapter ($150–200) + DFU software (downloaded) | $4K–18K/yr | Year 2 — major metros first |
+| C — Retail triage | Best Buy Geek Squad · Apple Authorized Service | Warranty intake + triage · Routing to Tier A/B · Consumable sales | 2-hr initial · 30-min annual online | None — partner app access only | $1K–7K/yr | Year 1–2 broadly — legitimacy signal |
+| Depot — NeuroPulse mail-in | Backstop | All tasks · T2 same-day loaner · Precision fluxgate calibration | Full internal training | All in-house | Highest margin per task — backstop not primary | Day 1 |
+
+### 8.2 Design changes that reduce service dependency
+
+- Reference photodiode → eliminates 3-year PBM calibration service visit
+- Sliding rail lens mount → user self-install, eliminates Tier A lens installation visit
+- Lever ZIF connectors → user zone module swap, eliminates Tier B visit for upgrades
+- Tool-free hub fan → user self-service
+- Automated nightly UHDR backup → eliminates most data recovery emergencies
+
+**Residual mandatory service per T1 user over 5 years:** 2–5 optician visits (Rx clip, already part of their workflow) + 0–1 fluxgate calibration + 0–2 damage-driven events.
+
+### 8.3 Interface protection covers
+
+Three cover types, all tethered to headset:
+
+| Cover type | Material | Retention | Count in box | Replacement |
+|-----------|----------|-----------|-------------|-------------|
+| Zone slot plugs (5 per headset) | Shore 30A medical silicone, 5 colours (position-coded) | Friction/compression in slot, IP54 | 5 installed + 5 spare | 5-pack $9.99 |
+| Accessory port covers (3 per headset) | Shore 40A TPE + encapsulated steel disc + Shore 20A silicone fins | N42 magnetic attraction via steel disc, ~400g pull | 3 installed + 2 spare | 3-pack $7.99 |
+| Lens rim guards (2 per headset) | Shore 85A UV-stable TPU, clear | Mechanical snap-fit over rim profile | 2 installed + 1 spare pair | Pair $6.99 |
+
+**Anchor posts:** Moulded into headset shell at zero incremental tooling cost if specified before first cut. All tethered — cannot be permanently lost without deliberate cutting.
+
+---
+
+## 9. COMPETITIVE POSITION
+
+| Feature | NeuroPulse Home | NeuroPulse Pro | Vielight Neuro Pro 2 (~$5K) | Neuronic 1070 ($3K–5K) | Sens.ai (~$1.5–2K + sub) |
+|---------|----------------|----------------|------------------------------|------------------------|--------------------------|
+| PBM wavelengths | 660+810nm (2λ) | 660+810+1170nm (3λ) | 810nm (1λ) | 1070nm (1λ) | ~810nm (1λ) |
+| Total LED count | 600 (300/wavelength) | 600 + 1170nm LDs | ~12 transcranial | 256–300 (1 wavelength) | ~7 midline |
+| Peak irradiance | 400 mW/cm² pulsed* | 400 + 1,000 mW/cm² | 400 mW/cm² | Not specified | Not specified |
+| Real-time dose (J/cm²) | Yes — per zone | Yes | No | No | No |
+| EEG channels | 8 semi-dry 24-bit | 21 wet gel 24-bit | None | None | 3 dry midline |
+| Closed-loop EEG | Yes — autonomous | Yes — all modalities | No | No | EEG→PBM only |
+| BES/tACS | Yes | Yes clinical | No | No | No |
+| tDCS | Yes | Yes + HD-tDCS | No | No | No |
+| TMS | No | Yes focal | No | No | No |
+| VNS + HRV | Auricular electrical + PPG | + cervical option | Optical VNS (separate) | No | HRV only |
+| Audio entrainment | Binaural + bone conduction | + clinical EMDR | No | No | No |
+| Visual stimulation | 108 LEDs/lens + EMDR + retinal PBM + Mode F | + EEG-adaptive, seizure detection | No | No | No |
+| EMF shielding | 5-layer palladium + active | Same | None | None | None |
+| Autonomous mobile | Yes — power bank | Yes | BT only | BT only | BT only |
+| No mandatory subscription | Yes | Yes | Yes | Paywall on PLUS | Required $99–199/yr |
+| Published clinical trials | None (new product)* | None (new product)* | 35+ RCTs | Limited | Ongoing |
+
+*See §10 for pending actions on irradiance claim and evidence gap.
+
+**Key competitive claims:**
+- "50× more transcranial LEDs than Vielight at 17% of the price"
+- "300 LEDs per wavelength — matching Neuronic's total LED count at each of the two CCO absorption peaks they don't cover"
+- "Real-time J/cm² dose metering — the only device that shows you the exact dose your brain received"
+- "Only consumer brain device with palladium-fabric EMF shielding verified by continuous fleet monitoring"
+- "Autonomous closed-loop operation from any power bank — no phone required"
+
+---
+
+## 10. REGULATORY STRATEGY
+
+### T1 — FDA-exempt wellness pathway
+- General wellness device (same category as Muse, sens.ai, Apollo Neuro)
+- Consumer naming: "Brainwave entrainment stimulation" (not tACS), "Cortical priming stimulation" (not tDCS)
+- Required standards: IEC 60601-1, IEC 60601-2-10, IEC 62471, IEC 62133, FCC Part 15
+- Cybersecurity: SBOM, vulnerability disclosure policy, documented OTA update approach
+- FTC claims substantiation: 33-entry bibliography maps each marketing claim to supporting citations
+
+### T2 — FDA 510(k)
+- Modular predicate: TMS (NeuroStar K083538, BrainsWay K122288) + tACS (Soterix K142485, Neuroelectrics K173185) + taVNS (electroCore K163334, K173323)
+- Timeline: 18–36 months from T1 launch, $2–5M budget
+- QMS (21 CFR Part 820 / ISO 13485:2016): must begin NOW — cannot be retroactive
+- Pre-Submission (Q-Sub) meeting with FDA at ~Month 20: free, prevents filing on avoidable grounds
+- IEC 62304 software classification: Safety MCU → Class C · Main processor → Class B · App → Class B
+- Clinical data: required for TMS modality; seeded T2 units into research institutions (Years 2–3) generate this data
+- Human factors engineering (FDA 2016 HFE Guidance): URRA + formative + summative testing
+
+---
+
+## 11. CLINICAL TRIAL RESEARCHER CANDIDATES
+
+Priority first contacts (in order):
+
+1. **Neda Rashidi-Ranjbar** (neda.rashidi-ranjbar@unityhealth.to) — St. Michael's Hospital Toronto · 2025 MCI PBM RCT PI · early-career, device-ready, motivated collaborator · CIHR funding pathway · most direct PBM upgrade path
+2. **Mayank Jog** (mjog@mednet.ucla.edu) — UCLA Brain Mapping Center · active K99/R00 NIH (MH128572) aligned to HD-tDCS protocols · JAMA Network Open 2025 RCT PI
+3. **Mark George** (georgem@musc.edu, 843-876-5142) — MUSC Brain Stimulation Lab · highest-credibility TMS infrastructure · 55 active studies · 15 TMS machines on-site
+4. **Margaret Naeser** (mnaeser@bu.edu) — VA Boston · foundational TBI/PTSD PBM cohort · 47 years VA-funded · existing veteran patient cohort
+
+**SAB priority:**
+- **Li-Huei Tsai** (617-324-0305, MIT Picower) — SAB role ONLY (Cognito Therapeutics conflict prevents PI role) · founded GENUS field · Nature 2016 paper is scientific basis for 40Hz visual protocol
+- **Glen Jeffery** (g.jeffery@ucl.ac.uk, UCL Institute of Ophthalmology) — world's leading retinal PBM researcher · foundational 670nm human studies
+
+Full researcher candidate list (12 researchers, 7 modalities, contact info, cost estimates, funding sources): `neuropulse_researchers.docx`
+
+---
+
+## 12. CLINICAL EVIDENCE BIBLIOGRAPHY
+
+33-entry bibliography across 11 modality sections available: `neuropulse_bibliography.docx`
+
+**Evidence summary:**
+- TMS for depression: strongest — FDA pivotal trial (n=301), CPT reimbursement codes, 50–55% response rate
+- EMDR for PTSD: strong — WHO recommendation, multiple meta-analyses
+- EEG neurofeedback for ADHD: strong — 21 RCTs, n=1,261
+- Transcranial PBM: good but concentrated in Vielight/BU/Toronto group — Rashidi-Ranjbar 2025 RCT (n=20, multimodal neuroimaging) is strongest
+- taVNS: good — scoping review 109 studies (n=3,231), largest epilepsy RCT (n=150)
+- 40Hz gamma: foundational animal study (Nature 2016) + Phase 2A human RCT (n=15 AD)
+- **Critical gap:** No RCT of combined multi-modal protocol (PBM + BES + VNS + audio + visual simultaneously) exists anywhere
+
+---
+
+## 13. REMAINING WEAKNESSES + OPEN ITEMS
+
+### 13.1 Critical — action required immediately
+
+| Issue | Action | Cost/Timeline |
+|-------|--------|---------------|
+| **Zero published clinical trials** — 35-trial gap vs Vielight | Commission SBIR Phase I at company formation. First contacts: Rashidi-Ranjbar → Jog → Naeser | 2–3 years to published data |
+| **400 mW/cm² regulatory opinion not obtained** — cannot appear in ANY public material until cleared | Commission outside regulatory counsel (PBM/digital health specialist). Also assess Vielight comparison claim under FTC implied claim doctrine | $8,000–15,000 · 3–5 weeks |
+| **"NeuroPulse" is an uncleared placeholder** — trademark not searched | Trademark search and clearance: US, EU, Canada, Australia. Required before ANY external conversation. | $15,000–25,000 |
+
+### 13.2 Moderate
+
+| Issue | Status |
+|-------|--------|
+| SAB not formed — no scientific credentialing | Tsai outreach at 617-324-0305 (SAB role only). Jeffery and Naeser natural SAB candidates. Budget $50,000–80,000/yr for 5-person SAB. |
+| Vulnerable population withdrawal edge case in research consent | Add to per-project consent: "Once anonymised data is included in a study, individual withdrawal is not possible — future contributions can always be stopped." Required by Common Rule. |
+| 45W charger in box | **Decided and locked** — included in BOM across all configurations at appropriate wattage. Weakness resolved. |
+
+### 13.3 Structural (accepted, managed)
+
+| Issue | Mitigation |
+|-------|-----------|
+| Fluxgate calibration requires Tier B service visit (every 3–5 years) | Geomagnetic comparison detects severe drift. Fleet SHDR predicts need with months of lead time. 3–5 year interval means Tier B network established before first visits needed. |
+| iOS/Android OS update dependency | Apple/Google developer beta participation. 7-day OS compatibility SLA. Autonomous Mode 3 as structural fallback. |
+
+### 13.4 Pending decisions — must resolve before tooling is cut
+
+- [ ] Product name trademark clearance
+- [ ] 400 mW/cm² regulatory opinion letter
+- [ ] LED emitter pulse current rating verification (660nm + 808–830nm FPC candidates at 120–180mA)
+- [ ] Zone module FPC layout specification (6mm pitch, lever ZIF, reference photodiode, plasma-activated PDMS)
+- [ ] Hub tooling: probe dock + anchor posts + large-radius Boa cable channel + tool-free fan (quarter-turn captive fastener)
+- [ ] Shell tooling: anchor posts for all interface covers (5 zone + 3 port positions, colour-coded for zones)
+- [ ] Lens tooling: sliding rail + N42 magnet positions (≥1mm polymer wall all faces) + AgNW spec + hard coat + EC driver contacts
+- [ ] Goggle arm tooling: anchor hook for lens rim guard tether
+- [ ] Partner optician network contract (S3 Rx programme)
+- [ ] eMMC partition architecture + separate UHDR/SHDR encryption in firmware specification (before any storage code is written)
+- [ ] Dual-bank OTA bootloader (must be from first firmware line)
+- [ ] SBIR Phase I application
+- [ ] First researcher contacts
+- [ ] SAB formation (Tsai outreach first)
+
+### 13.5 Completed and locked decisions
+
+- Two-tier product strategy with shared platform
+- 600-LED FPC zone modules from launch (no Rev A/Rev B)
+- 400 mW/cm² peak pulsed via firmware (Path A, $0 BOM) — pending regulatory opinion
+- 21-channel EEG montage with FC3/FC4/Oz/A1/A2
+- STM32G071 safety MCU (not G031)
+- No NFC anywhere — optical code + resistive pogo authentication
+- USB-C wired-first, BT/Wi-Fi toggle, antennas in hub not headset
+- Boa dial fit system with spring-decoupled pods
+- 5-layer passive + active Helmholtz EMF shielding with palladium fabric
+- UHDR/SHDR terminology framework — complete separation, never linked by design
+- Clinical consent engine: use case library → minimum necessary data mapper → plain-language consent document
+- Research partnership: a priori consent (4 layers), results opt-in, suggestion portal, crowdfunding
+- POA workflow with human document review
+- Service network: Tier A optical + Tier B electronics + Tier C retail + depot
+- All interface protection covers tethered to headset
+- Predictive maintenance system via SHDR fleet telemetry
+- Charger policy: auto-include correct charger at every upgrade + $19 upfront 65W option at checkout
+- All durability changes listed in §7
+
+---
+
+## 14. DOCUMENTS GENERATED
+
+| Document | Location | Contents |
+|----------|----------|---------|
+| Design Brief Revision 1 | `neuropulse_design_brief.docx` | Initial complete design specification |
+| Design Brief Revision 2 | `neuropulse_design_brief_r2.docx` | Updated with LED count, irradiance, EEG, EMF decisions |
+| Design Brief Revision 3 | `neuropulse_brief_r3.docx` | Current — adds UHDR/SHDR, consent systems, durability, service network |
+| Clinical Evidence Bibliography | `neuropulse_bibliography.docx` | 33 entries, 11 modality sections, DOI links, NeuroPulse-specific summaries |
+| Researcher Candidate List | `neuropulse_researchers.docx` | 12 researchers, 7 modalities, contact info, cost estimates, funding sources |
+
+---
+
+## 15. NAMING CONVENTION CHANGES
+
+**Retired term:** "Health Data Record (HDR)" — ambiguous, replaced throughout all documents
+
+**Replacement:**
+- `UHDR` = User Health Data Record (user's property, never accessed by NeuroPulse)
+- `SHDR` = System Health Data Record (NeuroPulse property, device-linked only, never user-linked)
+
+Both terms appear in full on first use in each document, abbreviated thereafter.
+
+---
+
+*This CLAUDE.md is the authoritative project memory file for the NeuroPulse design programme. All decisions marked as "locked" or "decided" have been through full design review. Decisions marked "pending" require resolution before first tooling cut. Update this file when any locked decision changes.*
