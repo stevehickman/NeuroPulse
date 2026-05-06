@@ -347,8 +347,8 @@ All models version-stamped by hardware revision. New revision falls back to Phas
 | Hard clamshell case (replaces soft pouch) | +$8–14 | Lens scratching certain within first month without case. Includes probe dock. Doubles as shipping container. |
 | Intranasal probe hub dock (moulded) | Hub retool | Y-probe dropped probe-first fractures junction. Cannot be retrofitted. |
 | Reference photodiode per zone (behind PDMS window) | +$2 total | Detects LED aging AND PDMS window fouling simultaneously. Eliminates 3-year service calibration visit. Protects J/cm² dose metering claim. |
-| Zone module connectors: 1,000-cycle rated (Molex SlimStack) | +$2.00 | Standard connectors rated 100–500 cycles. Must specify before PCB layout. |
-| Lever-actuated ZIF for zone modules | Included above | Standard ZIF requires tools. Lever ZIF enables user self-service zone module swaps. |
+| Zone module connectors: 1,000-cycle rated (Hirose FH34S-20S-0.5SH or JAE FF03 — 0.5 mm pitch, back-flip lever ZIF, ≥1,000 insertion cycles) | +$2.00 | Molex SlimStack is a board-to-board connector — not an FPC family. Standard Molex ZIF FPC connectors rated only 20–30 cycles. Hirose FH34S confirmed as correct family. Confirm ≥1,000-cycle rating from full datasheet before BOM lock. 0.35 mm pitch insufficient — current per pin too high. Must specify before PCB layout. See NP-HW-FPC-001. |
+| Lever-actuated ZIF for zone modules | Included above | Back-flip lever ZIF (Hirose FH34S mechanism) — zero insertion force, tool-free extraction. Enables user self-service zone module swaps. |
 | Interface protection covers (all tethered) | +$8–9 total | Anchor posts moulded into shell at zero cost if specified before first cut. |
 | Sliding rail lens mount | +$1.20 | Eliminates alignment jig. User self-install. |
 | Dual-bank OTA firmware + USB-C DFU recovery | $0 (software) | Must be in bootloader from first firmware line. Cannot be added later. |
