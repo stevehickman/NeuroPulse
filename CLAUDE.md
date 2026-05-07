@@ -290,6 +290,21 @@ All models version-stamped by hardware revision. New revision falls back to Phas
 - All reminders measurement-triggered, not calendar-triggered
 - Every reminder includes measured data that triggered it + one-tap order link
 
+### 5.3 Research data anonymization architecture (locked)
+
+All anonymization of UHDR data for research purposes must occur **on-device**, within the NeuroPulse app, before any data leaves the device. NeuroPulse cannot access raw UHDR at any point — including for research purposes — because the biometric-derived AES-256 key is never held by NeuroPulse infrastructure.
+
+**Data flow per approved study:**
+1. NeuroPulse server sends device a signed study descriptor (study ID, approved UHDR element list, anonymization parameters: k≥10, suppression rules, date-rounding ≥1-week interval). Descriptor is cryptographically signed.
+2. App reads encrypted UHDR partition in-app, applies on-device anonymization transformations: k-anonymity grouping, date/time rounding, direct identifier removal, quasi-identifier suppression per study descriptor.
+3. Only the pre-anonymized, signed extract is transmitted to NeuroPulse research infrastructure. Raw UHDR never leaves the device.
+4. NeuroPulse servers store extract keyed to study ID and device ID only. No persistent per-user anonymized data store. No linkage table exists that could re-identify users.
+5. Researchers access aggregated study datasets with no device ID fields.
+
+**Consent withdrawal effect:** Because each study extract is generated on-device on-demand, withdrawing consent permanently blocks the device from processing future study descriptors. No further extracts are generated or transmitted — **for any data period, including sessions predating withdrawal**. Already-published extracts cannot be individually removed from datasets (irreversibility notice given at consent time); no new data flows ever.
+
+**Audit trail (SHDR):** Study ID, study descriptor hash, extract transmission timestamp, and extract byte count are logged in SHDR. User can inspect all studies their device has contributed to via the app. This log is never shared with researchers.
+
 ---
 
 ## 6. CLINICAL CONSENT ENGINE (all locked)
@@ -313,12 +328,12 @@ All models version-stamped by hardware revision. New revision falls back to Phas
 |-------|----------|--------|-------|--------------------------|
 | L1 — Contact consent | Can we reach you about future research opportunities? | Provide contact method + frequency limit. POA holders upload POA (human review, 3 business days, jurisdiction-flagged, annual re-verification) | No contact. All features unchanged. | Being asked creates perceived agency → trust baseline |
 | L2 — Category consent | Which research areas? (9 categories: AD/dementia, Depression, PTSD, TBI, Sleep, Attention, Parkinson's, Healthy ageing, Visual health) | Per-project contact for selected categories only. Each project is a fresh decision. | Not contacted for that category. | Personal category choice deepens engagement |
-| L3 — Blanket consent | Pre-approve all NeuroPulse-reviewed research? | Data included in all studies. **Still receives per-study engagement notifications** (not consent requests — maintains engagement, can opt out per-study). Anonymisation: k≥10, no IDs, no sub-weekly timestamps. | Per-category and per-project process applies. | Blanket patients kept engaged — not taken for granted |
+| L3 — Blanket consent | Pre-approve all NeuroPulse-reviewed research? | Data included in all studies. **Still receives per-study engagement notifications** (not consent requests — maintains engagement, can opt out per-study). Anonymisation: k≥10, no IDs, no sub-weekly timestamps. **Irreversibility notice displayed at this screen:** "Once your anonymised data has been included in a published study, it cannot be individually withdrawn from that dataset. However, because NeuroPulse anonymises your data fresh from your device for each study, withdrawing consent immediately and permanently stops any further data flowing to any future dataset — including data from sessions that occurred before your withdrawal." | Per-category and per-project process applies. | Blanket patients kept engaged — not taken for granted |
 | L4 — Results + community | Hear study results? Join suggestion portal? | Plain-language results notification per study (including null results) + paper link + "suggest next steps" link. Access to suggestion/voting/pledge portal. | No results contact, no portal. | Results notification is the highest-value brand moment |
 
 **POA workflow:** POA holder uploads executed healthcare POA → human review 3 business days → jurisdiction flagging → scope limitation noted → annual re-verification. If patient regains capacity, all proxy consent decisions presented for ratification or revocation. Research contact goes to POA holder only.
 
-**Vulnerable population disclosure:** At per-project consent time, explicitly state: "Once your anonymised data is included in a study, individual withdrawal is not possible — but future data contributions can always be stopped immediately." Required by Common Rule (45 CFR 46).
+**Vulnerable population disclosure:** At per-project consent time, explicitly state: "Once your anonymised data is included in a study, individual withdrawal is not possible from that dataset — this is a fundamental property of k-anonymised aggregate data and is required by Common Rule (45 CFR 46). However, because NeuroPulse anonymises your data fresh from your device for each new study, withdrawing consent immediately and permanently prevents any further data from flowing to any future dataset — including data from sessions that occurred before your withdrawal. Your historical sessions remain on your device under your sole control."
 
 ### 6.3 Research suggestion portal (three functions)
 
@@ -332,8 +347,9 @@ All models version-stamped by hardware revision. New revision falls back to Phas
 1. NeuroPulse reviews study (use case library, minimum necessary data, IRB verification)
 2. Eligible patient list generated by device ID + contact prefs only (no UHDR)
 3. Personalised invitation from NeuroPulse (not researcher) — personal tone, specific about study, explicit about what researchers CAN and CANNOT see
-4. Patient decision: Yes / No / Ask a question (secure message to NeuroPulse liaison, 2 business day response)
-5. Results notification closes loop for all who opted in
+4. Patient decision: Yes / No / Ask a question (secure message to NeuroPulse liaison, 2 business day response). Invitation includes irreversibility notice: data already included in published studies cannot be individually removed; consent withdrawal blocks all future data flows from any time period.
+5. Results notification closes loop for all who opted in (including null results). Users who later withdrew consent still receive results for studies they previously participated in — notification only, no new data.
+6. Consent withdrawal effect: device immediately stops processing study descriptors; no further extracts generated or transmitted, for any data period including historical sessions.
 
 ---
 
@@ -538,7 +554,7 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 | Issue | Status |
 |-------|--------|
 | SAB not formed — no scientific credentialing | Tsai outreach at 617-324-0305 (SAB role only). Jeffery and Naeser natural SAB candidates. Budget $50,000–80,000/yr for 5-person SAB. |
-| Vulnerable population withdrawal edge case in research consent | Add to per-project consent: "Once anonymised data is included in a study, individual withdrawal is not possible — future contributions can always be stopped." Required by Common Rule. |
+| Vulnerable population withdrawal edge case in research consent | **Resolved and locked** — irreversibility notice added at L3 blanket consent screen AND at per-project invitation (step 4). Forward-effectiveness guarantee added: on-device fresh-per-study anonymization makes consent withdrawal fully effective for all data periods. |
 | 45W charger in box | **Decided and locked** — included in BOM across all configurations at appropriate wattage. Weakness resolved. |
 | Zone module mould complexity (RISK-23) | NP-TOOL-ZM-001 created consolidating all 8 moulded features (F-01 through F-08). 12-item mould design review checklist must be completed before steel is cut (NP-COORD-001 G1-05). |
 
@@ -602,6 +618,7 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 - **EEG cable routing:** dedicated 8×5mm channel on outer CFRP surface, ≥15mm from FPC bundle (RISK-21); must be in shell tooling spec
 - **Multi-FPC bundle management (RISK-17):** ≥2mm inter-FPC separation; ≥15mm FPC-to-EEG (or grounded Al foil barrier); 3 anchor bosses per FPC; all 5 Hub ZIF connectors on same PCB edge
 - **Risk register documented:** 24 risks total (RISK-01 through RISK-24); 22 MITIGATED; 2 OPEN: RISK-03 (regulatory opinion, external) and RISK-20 (CFRP Ra confirmation, external)
+- **Research data anonymization architecture:** On-device, per-study, fresh per request. NeuroPulse never holds or accesses raw UHDR at any point (biometric-derived key never leaves device). Consent withdrawal is immediately effective for all future data flows from any time period. Irreversibility notice given at L3 blanket consent + per-project invitation. Audit trail of contributed studies in SHDR (user-readable, never shared with researchers).
 
 ---
 
