@@ -611,7 +611,8 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 |----------|----------|---------|
 | Design Brief Revision 1 | `docs/neuropulse_design_brief.docx` | Initial complete design specification |
 | Design Brief Revision 2 | `docs/neuropulse_design_brief_r2.docx` | Updated with LED count, irradiance, EEG, EMF decisions |
-| Design Brief Revision 3 | `docs/neuropulse_brief_r3.docx` | Current — adds UHDR/SHDR, consent systems, durability, service network |
+| Design Brief Revision 3 | `docs/neuropulse_brief_r3.docx` | Adds UHDR/SHDR, consent systems, durability, service network |
+| Design Brief Revision 4 | `docs/neuropulse_brief_r4.docx` | Current — zone module engineering package; dual-PD, keying, gasket, lever, PDMS qual, 24-risk register |
 | Clinical Evidence Bibliography | `docs/neuropulse_bibliography.docx` | 33 entries, 11 modality sections, DOI links, NeuroPulse-specific summaries |
 | Researcher Candidate List | `docs/neuropulse_researchers.docx` | 12 researchers, 7 modalities, contact info, cost estimates, funding sources |
 | SBIR Phase I Draft | `docs/neuropulse_sbir_phase1_draft.docx` | NIH SBIR Phase I proposal draft; references Hirose FH34S (not Molex SlimStack) |
