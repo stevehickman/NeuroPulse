@@ -1,6 +1,6 @@
 # CLAUDE.md — NeuroPulse Design Programme
 **Project:** NeuroPulse — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 3 (current)  
+**Revision:** 4 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 ---
@@ -86,8 +86,8 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 - 6mm inter-LED pitch → ±15–25% irradiance variation (near-uniform field)
 - 120–180mA per LED → L70 80,000–100,000 hours
 - **400 mW/cm² peak pulsed** (≤25% duty cycle, firmware-enforced) / 200 mW/cm² CW max
-- Closed-loop photodiode per zone + **reference photodiode behind PDMS window** (detects LED aging AND window fouling)
-- Plasma-activated anti-fouling PDMS optical windows
+- **Dual photodiode dose-metering (RISK-14 Option B):** PD1 behind PDMS window (measures forward emission) + PD2 on scalp-facing surface (measures backscattered tissue power). PD1/PD2 ratio separates PDMS fouling from LED aging in firmware. Pin 19 (PD2_CATHODE). BOM +$0.75–1.50/headset. T1 and T2 use identical zone module mould.
+- Plasma-activated anti-fouling PDMS optical windows. **PDMS–PI bond uses 75 nm SiO₂ interlayer (RF magnetron sputter) + O₂ plasma activation — achieves 174–860 N/m peel force.** 200-cycle IEC 60068-2-14 thermal cycling qualification required before production (BLOCKING).
 - Real-time J/cm² dose metering — primary differentiator over Vielight
 - 7 frequency presets: Gamma clarity (40Hz), Alpha calm (10Hz), Theta memory (6Hz), Sleep deep (2Hz), Gamma+theta coupled (40+6Hz split-zone), Focus prime (20Hz), Vascular baseline (CW)
 
@@ -347,8 +347,14 @@ All models version-stamped by hardware revision. New revision falls back to Phas
 | Hard clamshell case (replaces soft pouch) | +$8–14 | Lens scratching certain within first month without case. Includes probe dock. Doubles as shipping container. |
 | Intranasal probe hub dock (moulded) | Hub retool | Y-probe dropped probe-first fractures junction. Cannot be retrofitted. |
 | Reference photodiode per zone (behind PDMS window) | +$2 total | Detects LED aging AND PDMS window fouling simultaneously. Eliminates 3-year service calibration visit. Protects J/cm² dose metering claim. |
+| **Second scalp-side photodiode PD2 per zone (RISK-14 Option B)** | +$0.75–1.50/headset total | On scalp-facing PDMS surface, pin 19. PD1/PD2 ratio separates fouling (PD1↓ PD2 stable) from LED aging (both↓). T1 and T2 share identical zone module mould — firmware flag only. |
 | Zone module connectors: 1,000-cycle rated (Hirose FH34S-20S-0.5SH or JAE FF03 — 0.5 mm pitch, back-flip lever ZIF, ≥1,000 insertion cycles) | +$2.00 | Molex SlimStack is a board-to-board connector — not an FPC family. Standard Molex ZIF FPC connectors rated only 20–30 cycles. Hirose FH34S confirmed as correct family. Confirm ≥1,000-cycle rating from full datasheet before BOM lock. 0.35 mm pitch insufficient — current per pin too high. Must specify before PCB layout. See NP-HW-FPC-001. |
 | Lever-actuated ZIF for zone modules | Included above | Back-flip lever ZIF (Hirose FH34S mechanism) — zero insertion force, tool-free extraction. Enables user self-service zone module swaps. |
+| **Zone module sliding eject lever (RISK-22 Option A)** | +$0.40/module | 10–12mm lever arm, 3:1 mechanical advantage, ≤1N extraction force. Recessed flush when closed; snap-fit detent prevents accidental ejection. 316SS hinge pin. Required for users with Parkinson's/post-stroke hand weakness. |
+| **Self-sealing co-moulded silicone gasket per zone module (RISK-16 Option A)** | +$0.30–0.60/module | Shore 40–50A medical silicone, D-section 2.5×2.0mm, 20% compression when seated. No user RTV required. IPX4 compliant after 10 field swap cycles (FAI-IPX-02 BLOCKING test). Gasket retention groove + silicone primer prevent delamination. |
+| **Five-layer zone module keying (RISK-15)** | Included in tooling | Layer 1: asymmetric mechanical key (unique per zone, prevents physical mis-insertion). Layer 2: ZONE_ID resistor (ZM-01=10kΩ through ZM-05=220kΩ, 1%, pin 18; firmware debounce 3×ADC at 100ms). Layer 3: ISO 17049 braille + raised numeral. Layer 4: N tactile dots on shell at each slot. Layer 5: bone conduction audio ("Frontal Left connected"). Covers colour-blind AND blind users. |
+| **EEG cable routing channel in shell (RISK-21)** | $0 (tooling) | Dedicated 8×5mm moulded channel on outer CFRP surface (opposite side from FPC bundle). ≥15mm separation from zone module FPCs required (DRC-18). Must be in shell tooling spec before first cut. |
+| **PDMS SiO₂ interlayer bonding process** | Process cost | 75 nm RF magnetron sputtered SiO₂ on PI surface before O₂ plasma activation. Achieves 174–860 N/m peel force. 200-cycle IEC 60068-2-14 qualification required before production. See NP-FAI-ZM-001 §3e. |
 | Interface protection covers (all tethered) | +$8–9 total | Anchor posts moulded into shell at zero cost if specified before first cut. |
 | Sliding rail lens mount | +$1.20 | Eliminates alignment jig. User self-install. |
 | Dual-bank OTA firmware + USB-C DFU recovery | $0 (software) | Must be in bootloader from first firmware line. Cannot be added later. |
@@ -387,7 +393,7 @@ All models version-stamped by hardware revision. New revision falls back to Phas
 
 | Sensor | Self-calibration method | Residual service requirement |
 |--------|------------------------|------------------------------|
-| PBM photodiode | Reference photodiode behind each zone PDMS window — ratio trend detects drift AND fouling | None — eliminated by reference photodiode |
+| PBM photodiode | Dual-PD: PD1 (behind PDMS, forward emission) + PD2 (scalp-facing, backscatter). PD1/PD2 ratio separates fouling from LED aging. PD1↓ PD2 stable → fouling prompt. Both↓ proportional → LED aging correction. | None — dual-PD eliminates ambiguity that single PD could not resolve |
 | EEG amplifier (ADS1299) | Internal reference routed to all channels at session start — gain/offset correction applied | None — fully self-calibrating |
 | NTC thermistors | Hub NTC cross-calibration: compare headset NTCs vs hub reference at ambient equilibrium (>10 min since last session) | None — flag at ±1.5°C offset |
 | Fluxgate magnetometers | Zero-field nulling at session start + geomagnetic field magnitude comparison via phone GPS | **3–5 year Tier B service visit** (scale factor drift requires Helmholtz test coil) |
@@ -522,8 +528,10 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 | Issue | Action | Cost/Timeline |
 |-------|--------|---------------|
 | **Zero published clinical trials** — 35-trial gap vs Vielight | Commission SBIR Phase I at company formation. First contacts: Rashidi-Ranjbar → Jog → Naeser | 2–3 years to published data |
-| **400 mW/cm² regulatory opinion not obtained** — cannot appear in ANY public material until cleared | Commission outside regulatory counsel (PBM/digital health specialist). Also assess Vielight comparison claim under FTC implied claim doctrine | $8,000–15,000 · 3–5 weeks |
+| **400 mW/cm² regulatory opinion not obtained (RISK-03)** — cannot appear in ANY public material until cleared | Commission outside regulatory counsel (PBM/digital health specialist). Also assess Vielight comparison claim under FTC implied claim doctrine | $8,000–15,000 · 3–5 weeks |
 | **"NeuroPulse" is an uncleared placeholder** — trademark not searched | Trademark search and clearance: US, EU, Canada, Australia. Required before ANY external conversation. | $15,000–25,000 |
+| **CFRP shell slot rim Ra ≤ 1.6 µm unconfirmed (RISK-20)** — BLOCKING for tooling release | Obtain written confirmation from CFRP shell tooling supplier (letter + Ra measurement data from representative coupon). Supplier qualification item SUP-M-07 in NP-PROC-SUP-001. If Ra > 1.6 µm unavoidable: escalate to ME + EE; gasket or shell geometry must be revised. | $0 — supplier engagement required |
+| **PDMS CAT-C supplier not selected (RISK-04)** — BLOCKING for production start | Select PDMS bonding supplier per NP-PROC-SUP-001 CAT-C criteria. Supplier must confirm IEC 60068-2-14 thermal cycling qualification capability. 200-cycle qualification (FAI-TC02) must pass before any production FPCs are built. | Supplier lead time 8 weeks from selection |
 
 ### 13.2 Moderate
 
@@ -532,6 +540,7 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 | SAB not formed — no scientific credentialing | Tsai outreach at 617-324-0305 (SAB role only). Jeffery and Naeser natural SAB candidates. Budget $50,000–80,000/yr for 5-person SAB. |
 | Vulnerable population withdrawal edge case in research consent | Add to per-project consent: "Once anonymised data is included in a study, individual withdrawal is not possible — future contributions can always be stopped." Required by Common Rule. |
 | 45W charger in box | **Decided and locked** — included in BOM across all configurations at appropriate wattage. Weakness resolved. |
+| Zone module mould complexity (RISK-23) | NP-TOOL-ZM-001 created consolidating all 8 moulded features (F-01 through F-08). 12-item mould design review checklist must be completed before steel is cut (NP-COORD-001 G1-05). |
 
 ### 13.3 Structural (accepted, managed)
 
@@ -543,11 +552,17 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 ### 13.4 Pending decisions — must resolve before tooling is cut
 
 - [ ] Product name trademark clearance
-- [ ] 400 mW/cm² regulatory opinion letter
+- [ ] 400 mW/cm² regulatory opinion letter (RISK-03 — BLOCKING for all public material)
 - [ ] LED emitter pulse current rating verification (660nm + 808–830nm FPC candidates at 120–180mA)
-- [ ] Zone module FPC layout specification (6mm pitch, lever ZIF, reference photodiode, plasma-activated PDMS)
+- [ ] Zone module FPC layout specification — freeze layout so PD2 aperture position (F-04 in NP-TOOL-ZM-001) can be specified in mould design
+- [ ] Zone module mould design review — NP-TOOL-ZM-001 §5 checklist (all 8 features F-01 through F-08) signed off before steel cut
+- [ ] **CFRP shell slot rim Ra ≤ 1.6 µm — written supplier confirmation (RISK-20 BLOCKING)**
+- [ ] **PDMS CAT-C supplier selection + 200-cycle IEC 60068-2-14 thermal cycling qualification (RISK-04 BLOCKING)**
+- [ ] ZONE_ID firmware debounce spec written into firmware requirements document (3×ADC at 100ms, ≥2/3 pass)
+- [ ] HFE formative study for sliding eject lever — 5 subjects with Parkinson's/post-stroke (NP-TOOL-ZM-001 OI-4, NP-FAI-ZM-001 FAI-A15)
+- [ ] EEG cable routing path in shell CAD model — OI-09 in NP-DRV-SHELL-001 (required for DRC-18 verification, RISK-21)
 - [ ] Hub tooling: probe dock + anchor posts + large-radius Boa cable channel + tool-free fan (quarter-turn captive fastener)
-- [ ] Shell tooling: anchor posts for all interface covers (5 zone + 3 port positions, colour-coded for zones)
+- [ ] Shell tooling: anchor posts for all interface covers (5 zone + 3 port positions, colour-coded for zones) + EEG cable channel (§2.4)
 - [ ] Lens tooling: sliding rail + N42 magnet positions (≥1mm polymer wall all faces) + AgNW spec + hard coat + EC driver contacts
 - [ ] Goggle arm tooling: anchor hook for lens rim guard tether
 - [ ] Partner optician network contract (S3 Rx programme)
@@ -577,6 +592,16 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 - Predictive maintenance system via SHDR fleet telemetry
 - Charger policy: auto-include correct charger at every upgrade + $19 upfront 65W option at checkout
 - All durability changes listed in §7
+- **FPC 20-pin pinout locked:** Pin 18 = ZONE_ID (resistor per zone, 1% 0402: ZM-01=10kΩ, ZM-02=22kΩ, ZM-03=47kΩ, ZM-04=100kΩ, ZM-05=220kΩ); Pin 19 = PD2_CATHODE (scalp-side reference photodiode, RISK-14 Option B)
+- **Zone module dual photodiode (RISK-14 Option B):** PD2 on scalp-facing surface, pin 19; PD1/PD2 ratio separates fouling from LED aging; T1/T2 identical mould
+- **Five-layer zone module keying (RISK-15):** mechanical key + ZONE_ID resistor + braille/numeral + shell tactile dots + bone conduction audio; works for colour-blind and blind users
+- **Self-sealing gasket (RISK-16 Option A):** co-moulded Shore 40–50A silicone, no user RTV, IPX4 rated after 10 swap cycles
+- **Sliding eject lever (RISK-22 Option A):** 10–12mm, 3:1 mechanical advantage, ≤1N extraction force; accessibility target: Parkinson's Hoehn & Yahr II–III
+- **ZONE_ID firmware debounce:** 3× ADC reads at 100ms intervals before FAULT; ≥2/3 must pass (RISK-18)
+- **PDMS bonding process:** SiO₂ 75nm interlayer + O₂ plasma, ≥150 N/m peel strength; 200-cycle IEC 60068-2-14 qualification BLOCKING before production (RISK-04)
+- **EEG cable routing:** dedicated 8×5mm channel on outer CFRP surface, ≥15mm from FPC bundle (RISK-21); must be in shell tooling spec
+- **Multi-FPC bundle management (RISK-17):** ≥2mm inter-FPC separation; ≥15mm FPC-to-EEG (or grounded Al foil barrier); 3 anchor bosses per FPC; all 5 Hub ZIF connectors on same PCB edge
+- **Risk register documented:** 24 risks total (RISK-01 through RISK-24); 22 MITIGATED; 2 OPEN: RISK-03 (regulatory opinion, external) and RISK-20 (CFRP Ra confirmation, external)
 
 ---
 
@@ -584,11 +609,20 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 
 | Document | Location | Contents |
 |----------|----------|---------|
-| Design Brief Revision 1 | `neuropulse_design_brief.docx` | Initial complete design specification |
-| Design Brief Revision 2 | `neuropulse_design_brief_r2.docx` | Updated with LED count, irradiance, EEG, EMF decisions |
-| Design Brief Revision 3 | `neuropulse_brief_r3.docx` | Current — adds UHDR/SHDR, consent systems, durability, service network |
-| Clinical Evidence Bibliography | `neuropulse_bibliography.docx` | 33 entries, 11 modality sections, DOI links, NeuroPulse-specific summaries |
-| Researcher Candidate List | `neuropulse_researchers.docx` | 12 researchers, 7 modalities, contact info, cost estimates, funding sources |
+| Design Brief Revision 1 | `docs/neuropulse_design_brief.docx` | Initial complete design specification |
+| Design Brief Revision 2 | `docs/neuropulse_design_brief_r2.docx` | Updated with LED count, irradiance, EEG, EMF decisions |
+| Design Brief Revision 3 | `docs/neuropulse_brief_r3.docx` | Current — adds UHDR/SHDR, consent systems, durability, service network |
+| Clinical Evidence Bibliography | `docs/neuropulse_bibliography.docx` | 33 entries, 11 modality sections, DOI links, NeuroPulse-specific summaries |
+| Researcher Candidate List | `docs/neuropulse_researchers.docx` | 12 researchers, 7 modalities, contact info, cost estimates, funding sources |
+| SBIR Phase I Draft | `docs/neuropulse_sbir_phase1_draft.docx` | NIH SBIR Phase I proposal draft; references Hirose FH34S (not Molex SlimStack) |
+| FPC Zone Module Specification | `docs/neuropulse_fpc_zone_module_spec_revA.docx` | NP-HW-FPC-001 Rev C — 20-pin pinout, dual-PD architecture (§8.4), PDMS bonding (§9), thermal cycling qualification (§9.3), multi-FPC routing (§11.3), five-layer keying (§11.4), gasket (§12) |
+| FPC Procurement Requirements | `docs/neuropulse_fpc_procurement_requirements.docx` | NP-PROC-FPC-001 Rev A — LED Vf binning, Hirose FH34S exclusions, BCR421W spec, RA copper |
+| Zone Module Risk Register | `docs/neuropulse_fpc_zone_module_risks_revA.docx` | 24 risks (RISK-01 through RISK-24); 22 MITIGATED; RISK-03 and RISK-20 OPEN |
+| Shell FPC Routing Review | `docs/neuropulse_shell_fpc_routing_review.docx` | NP-DRV-SHELL-001 Rev A — bend radius, multi-FPC bundle mgmt (§2.3), EEG cable routing (§2.4), 23-item DRC checklist |
+| FAI Zone Module Checklist | `docs/neuropulse_fai_zone_module.docx` | NP-FAI-ZM-001 Rev A — §3d PDMS adhesion (FAI-M01–M03), §3e PDMS thermal cycling qualification (FAI-TC01–TC06, TC02 BLOCKING), §4a accessibility (FAI-A09–A15), §4c IPX4 (FAI-IPX-01–04, IPX-02 BLOCKING), §5 lifecycle, §6 system test, §9 risk cross-reference |
+| Engineering Coordination Checklist | `docs/neuropulse_eng_coordination_checklist.docx` | NP-COORD-001 Rev A — G1 (14 items), G2 (11 items), G3 (6 items) gate structure |
+| Zone Module Tooling Specification | `docs/neuropulse_tool_zone_module_001.docx` | NP-TOOL-ZM-001 Rev A — 8 mandatory moulded features (F-01 through F-08), critical dimensions, 12-item mould design review checklist, FAI cross-reference |
+| Supplier Selection Checklist | `docs/neuropulse_supplier_selection_checklist.docx` | NP-PROC-SUP-001 Rev A — CAT-A (moulding), CAT-B (CFRP shell), CAT-C (PDMS bonding); SUP-M-07 and SUP-B-01 BLOCKING for RISK-20; SUP-C-08 BLOCKING for RISK-04; §9 RISK-20 tracking table |
 
 ---
 
