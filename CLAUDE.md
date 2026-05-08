@@ -202,6 +202,39 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 
 ---
 
+## 3b. OPTIONAL ACCESSORIES + COMPANION SOFTWARE (provisional specs)
+
+### 40Hz Vibrotactile — Mastoid LRA Pad (provisional)
+
+Purpose-built accessory delivering precisely characterized 40Hz somatosensory stimulation, aligned to Tsai lab (MIT) GENUS multi-sensory protocol. **Provisional — release contingent on HOPE Phase 3 results (mid-2026). Hardware provision in first revision at zero tooling cost.**
+
+- **Actuator:** Linear resonant actuator (LRA), 8–10mm diameter, e.g. Jinlong JMC0834 or equivalent. LRA preferred over ERM: precise frequency control, low distortion, flat resonance profile at 40Hz drive.
+- **Driver IC:** Texas Instruments DRV2605L (I2C, open-loop mode). Open-loop drive at 40Hz ± 0.5Hz with amplitude control via gain register. No resonant frequency tuning required (drive frequency set in firmware, not actuator resonance).
+- **Placement:** Posterior temporal / mastoid process. Rationale: (1) direct bone coupling to skull — better transmission to somatosensory cortex than wrist; (2) adjacent to temporal lobe somatosensory representation; (3) compatible with existing temporal stability wing anchor — no new shell tooling required if anchor boss provisioned at first cut.
+- **Output spec:** 0.6–1.2G peak acceleration at skin surface (DRV2605L gain register configurable); 40Hz ± 0.5Hz; duty cycle 100% continuous (20-minute session target).
+- **Form factor:** 30mm diameter silicone overmoulded pad; clip attachment to temporal wing; 3-pin pogo or JST connector to hub accessory port. Shore 30A silicone contact face for comfort.
+- **Power draw:** ~80–120mW continuous. Supplied from hub accessory port (existing 500mA capability).
+- **BOM estimate:** LRA $1.50–2.50 + DRV2605L $1.20–1.80 + PCB/passives $0.50 + silicone housing $0.80–1.20 = **$4–7 total per pad**. Pair (bilateral option): $8–14.
+- **Retail accessory price (projected):** $49–79 per pad / $79–119 bilateral.
+- **Firmware:** 40Hz square-wave drive pattern; session start/stop synchronised with audio/visual 40Hz channels via hub; amplitude ramp 2s up/down (comfort).
+- **Marketing note:** Why not Apple Watch? Apple's Taptic Engine frequency output is uncharacterised for therapeutic use; watchOS Core Haptics API does not expose raw 40Hz continuous drive; wrist placement has poor bone coupling vs mastoid; App Store prohibits disease claims; an Apple Watch integration cannot match the frequency accuracy, placement, or clinical defensibility of a purpose-built module. Full rationale: see §15 Marketing Notes.
+- **Status:** PROVISIONAL — await HOPE Phase 3 (Cognito Therapeutics, n=670, mid-2026). If positive: release mastoid pad within 6 months. Hardware anchor boss in temporal wing tooling at first cut (zero incremental tooling cost).
+
+### Apple Watch Sync App (provisional)
+
+Companion watchOS app extending NeuroPulse session experience to Apple Watch. Three sync channels. Does **not** replace purpose-built NeuroPulse hardware for any therapeutic function — supplements it.
+
+- **Communication:** BT 5.3 LE (hub already has BT radio, antennas in hub); WatchConnectivity framework via paired iPhone app; session sync protocol over BLE GATT custom service.
+- **Channel 1 — Haptic sync:** watchOS Core Haptics delivers 40Hz pattern in synchronisation with NeuroPulse hub session clock. Adds wrist somatosensory channel on top of mastoid LRA pad. Not a standalone therapeutic — supplement only. Caveat in app: "Works best with NeuroPulse mastoid vibrotactile accessory."
+- **Channel 2 — Audio sync:** Watch app plays binaural beats / isochronic tones / breathing pacer audio through AirPods or earphones paired to Watch, synchronised to hub session. Useful when user wants bone conduction reserved for breathing cue while earphones handle binaural beats, or for sessions away from the hub speaker range.
+- **Channel 3 — Visual sync:** Watch display shows 40Hz visual flicker (reduced brightness, GENUS-compatible) or EMDR left/right indicator arrow synchronised to goggle session. Also: session status, coherence score live feed, HRV biofeedback breathing ring (complementary to app display for wrist-glance UX).
+- **Additional Watch functions:** Session timer + haptic end-of-session alert; protocol selector (basic, without phone); quick impedance check result notification; consumable low reminders.
+- **Regulatory note:** All Watch-delivered functions are declared as session monitoring / user interface aids, not therapeutic delivery. Therapeutic claims attach to NeuroPulse hardware only.
+- **BOM delta:** $0 hardware. Software development cost only.
+- **Status:** PROVISIONAL. Prioritise after core iOS app ships. Haptic and audio channels first; visual flicker second (screen brightness characterisation needed for 40Hz at ≥100 nits).
+
+---
+
 ## 4. HARDWARE SPECIFICATIONS (all locked)
 
 ### 4.1 Processor stack
@@ -679,7 +712,25 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 
 ---
 
-## 15. NAMING CONVENTION CHANGES
+## 15. MARKETING NOTES
+
+### Why the mastoid LRA pad, not an Apple Watch app (for marketing literature)
+
+This explanation is for use in product marketing, FAQ, and press responses when asked "why not just use Apple Watch for vibrotactile?"
+
+**The hardware argument:** Apple's Taptic Engine was designed for notification taps. Apple does not publish its frequency response curve, and watchOS Core Haptics does not expose raw frequency control — you cannot programme "vibrate at exactly 40Hz continuously for 20 minutes" in an App Store-compliant app. The NeuroPulse mastoid pad uses a dedicated linear resonant actuator driven by a TI DRV2605L IC in open-loop mode: 40Hz ± 0.5Hz, calibrated amplitude, characterised output. That precision is what clinical evidence requires.
+
+**The placement argument:** Wrist vibration has poor coupling to the brain. The therapeutic mechanism depends on somatosensory cortex activation at 40Hz. The mastoid process — the bony prominence behind the ear — sits directly adjacent to temporal lobe somatosensory representations and transmits vibration through bone to the skull. Wrist-to-brain coupling involves soft tissue attenuation across the arm, shoulder, and neck; the signal that reaches S1 is orders of magnitude weaker than mastoid-to-skull.
+
+**The regulatory argument:** Any app claiming to treat, mitigate, or prevent a disease is a medical device under FDA regulations — regardless of whether it runs on Apple Watch. Apple's App Store prohibits disease claims. The only legally publishable Apple Watch app is one making no therapeutic claims, which also has no clinical evidence behind it. NeuroPulse's hardware carries the therapeutic claim; the Apple Watch app supplements the experience without carrying it.
+
+**The business argument:** If we deliver 40Hz vibrotactile therapy as a free Apple Watch app, we commoditise the feature and destroy the ability to sell it as a premium NeuroPulse accessory. The mastoid pad is a $49–79 revenue-generating hardware accessory. An Apple Watch integration is a companion UX enhancement that adds value to the NeuroPulse platform without replacing it.
+
+**What the Apple Watch companion app does do:** Haptic sync (adds wrist channel alongside mastoid pad), audio sync (binaural beats to AirPods paired to Watch), visual sync (40Hz flicker or EMDR indicator on Watch display), session status at a glance. These are interface aids that extend convenience — they make NeuroPulse easier to use, not cheaper to build.
+
+---
+
+## 16. NAMING CONVENTION CHANGES
 
 **Retired term:** "Health Data Record (HDR)" — ambiguous, replaced throughout all documents
 
