@@ -180,7 +180,24 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 - **TMS focal figure-8 coil:** 0.1–0.5T · rTMS + TBS · non-conductive CFRP window at coil site · TMS-gated EMF cancellation (safety MCU gates Helmholtz off 5ms pre-pulse, 50ms post-pulse hold)
 - **1170nm deep PBM:** Laser diodes · 35–40mm subcortical depth · TEC stabilisation · ≤1,000 mW/cm²
 - **Clinical tACS:** ≤4mA · 16-ch arbitrary waveform
-- **HIPAA cloud + EHR:** FHIR R4 · multi-patient dashboard · sLORETA source imaging · LSL streaming · scripting API
+- **sLORETA-guided HD-tDCS:**
+  - 4×1 ring montage: center anode + 4 return cathodes positioned by sLORETA source map — provides ~3–5× spatial focality vs standard 2-electrode tDCS
+  - Electrode: Ag/AgCl sintered 3.5mm diameter, dual-rated for EEG recording AND stimulation current (simultaneous or sequential); part of T2 qEEG wet-gel cap
+  - Current sourcing: 16-ch tACS driver (already in T2) provides independently controlled channels — no additional stimulation hardware
+  - Workflow: (1) T2 21-ch qEEG resting-state session → (2) sLORETA computes cortical source map (real-time or post-session) → (3) app identifies target region (e.g., DLPFC hypoactivity, anterior cingulate hyperactivation) → (4) firmware maps MNI target to nearest 10-20 electrode positions → (5) configures 4×1 current distribution automatically → (6) delivers personalised tDCS session
+  - Montage options: 4×1 ring (most focal, ~1.5cm FWHM), bilateral 4×1 (dual hemisphere), standard 2-electrode (T1-compatible fallback)
+  - Safety: 40µC/cm² charge density limit enforced by safety MCU; ≤2mA per electrode; focal electrode density ≤6 A/m² (within Bikson lab safety limits for 3.5mm electrode geometry)
+  - Clinical evidence: Jog/UCLA 2025 (n=71, personalised MRI-guided HD-tDCS, significant depression improvement + gray matter changes); BRIGhTMIND 2024 (n=255, connectivity-guided iTBS shows personalised targeting outperforms fixed F3)
+  - BOM delta: Ag/AgCl dual-rated electrodes in T2 cap specification; no additional driver hardware; +$0 software
+- **Cervical VNS (tcVNS) — T2 accessory:**
+  - Neck-worn accessory stimulating cervical vagus trunk (higher activation than auricular branch CN X)
+  - Gel electrodes applied to skin overlying carotid sheath; bilateral or unilateral
+  - Indication: cluster headache + migraine (FDA-cleared precedent: electroCore gammaCore K163334, K173323); extending to depression, PTSD, post-stroke rehabilitation
+  - Safety MCU ownership: current path near carotid → safety MCU reads impedance + cardiac rhythm monitor before enable; automatic cutoff if HR changes >15 BPM within 5s of stimulation
+  - Regulatory: 510(k) predicate = electroCore gammaCore (K163334 cluster headache, K173323 migraine); separate 510(k) required for T2 product launch; T1 uses auricular-only (no carotid proximity)
+  - Connects via existing hub accessory port; separate cable + electrode assembly; gel pad consumable (5-pack)
+  - BOM delta: +$35–55 for cervical tcVNS accessory module
+- **HIPAA cloud + EHR:** FHIR R4 · multi-patient dashboard · sLORETA source imaging (also drives HD-tDCS targeting) · LSL streaming · scripting API
 - **Anonymised session tag:** Random session identifier for clinical multi-patient environments — clinic holds patient-to-tag mapping, NeuroPulse cannot cross-reference
 
 ---
@@ -632,6 +649,8 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 - **Multi-FPC bundle management (RISK-17):** ≥2mm inter-FPC separation; ≥15mm FPC-to-EEG (or grounded Al foil barrier); 3 anchor bosses per FPC; all 5 Hub ZIF connectors on same PCB edge
 - **Risk register documented:** 24 risks total (RISK-01 through RISK-24); 22 MITIGATED; 2 OPEN: RISK-03 (regulatory opinion, external) and RISK-20 (CFRP Ra confirmation, external)
 - **HRV biofeedback protocol (software only):** Resonance frequency breathing pacer (6 breaths/min default, personalised sweep); real-time coherence score; four protocols (standalone, HRV+taVNS synchronised, HRV+EEG dual biofeedback, HRV+PBM); no additional hardware; bone conduction delivers breathing cue; uses existing VNS clip PPG. Locks the VNS+HRV modality as the only NeuroPulse modality with multi-modal trial evidence (2025 RCT: PBM + qEEG NF + HRV biofeedback simultaneously).
+- **sLORETA-guided HD-tDCS (T2):** 4×1 ring montage; Ag/AgCl 3.5mm dual-rated electrodes in T2 qEEG cap; 16-ch tACS driver provides independently controlled channels (no additional hardware); sLORETA source map → MNI target → automatic 10-20 electrode mapping → personalised current distribution; 40µC/cm² safety MCU limit; ≤2mA/electrode; Jog/UCLA 2025 and BRIGhTMIND 2024 as clinical evidence base.
+- **Cervical VNS (T2 accessory):** Neck-worn tcVNS module, carotid sheath stimulation; safety MCU owns enable with cardiac monitor interlock; 510(k) predicate = electroCore gammaCore K163334/K173323; gel pad consumable; +$35–55 BOM.
 - **Research data anonymization architecture:** On-device, per-study, fresh per request. NeuroPulse never holds or accesses raw UHDR at any point (biometric-derived key never leaves device). Consent withdrawal is immediately effective for all future data flows from any time period. Irreversibility notice given at L3 blanket consent + per-project invitation. Audit trail of contributed studies in SHDR (user-readable, never shared with researchers).
 
 ---
