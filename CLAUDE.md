@@ -641,6 +641,8 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 | Engineering Coordination Checklist | `docs/neuropulse_eng_coordination_checklist.docx` | NP-COORD-001 Rev A — G1 (14 items), G2 (11 items), G3 (6 items) gate structure |
 | Zone Module Tooling Specification | `docs/neuropulse_tool_zone_module_001.docx` | NP-TOOL-ZM-001 Rev A — 8 mandatory moulded features (F-01 through F-08), critical dimensions, 12-item mould design review checklist, FAI cross-reference |
 | Supplier Selection Checklist | `docs/neuropulse_supplier_selection_checklist.docx` | NP-PROC-SUP-001 Rev A — CAT-A (moulding), CAT-B (CFRP shell), CAT-C (PDMS bonding); SUP-M-07 and SUP-B-01 BLOCKING for RISK-20; SUP-C-08 BLOCKING for RISK-04; §9 RISK-20 tracking table |
+| Clinical Trials Strategy | `docs/neuropulse_clinical_trials_strategy.docx` | NP-CLIN-001 Rev A — all-in-one commercial rationale; Vielight trials scope/limitation; individual modality evidence (9 modalities); multi-modal combination evidence; researcher profiles (9 researchers); 6-trial priority plan; key bibliography |
+| Additional Modalities | `docs/neuropulse_additional_modalities.docx` | NP-MOD-EXT-001 Rev A — 6 modalities not in current stack: 40Hz vibrotactile (HIGH priority — await HOPE results), HRV biofeedback (HIGH priority — software only, no BOM), 1064nm PBM (MEDIUM — watch UT Dallas), tFUS (LOW — 5–8yr horizon), sLORETA-guided HD-tDCS (MEDIUM T2), cervical VNS (MEDIUM T2) |
 
 ---
 
