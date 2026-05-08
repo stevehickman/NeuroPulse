@@ -217,7 +217,7 @@ Purpose-built accessory delivering precisely characterized 40Hz somatosensory st
 - **BOM estimate:** LRA $1.50–2.50 + DRV2605L $1.20–1.80 + PCB/passives $0.50 + silicone housing $0.80–1.20 = **$4–7 total per pad**. Pair (bilateral option): $8–14.
 - **Retail accessory price (projected):** $49–79 per pad / $79–119 bilateral.
 - **Firmware:** 40Hz square-wave drive pattern; session start/stop synchronised with audio/visual 40Hz channels via hub; amplitude ramp 2s up/down (comfort).
-- **Marketing note:** Why not Apple Watch? Apple's Taptic Engine frequency output is uncharacterised for therapeutic use; watchOS Core Haptics API does not expose raw 40Hz continuous drive; wrist placement has poor bone coupling vs mastoid; App Store prohibits disease claims; an Apple Watch integration cannot match the frequency accuracy, placement, or clinical defensibility of a purpose-built module. Full rationale: see §15 Marketing Notes.
+- **Marketing note:** Apple Watch sync app is available as a free companion — but the mastoid pad delivers results the Watch cannot. Key differences: mastoid placement couples directly to skull (vs wrist-to-brain soft tissue attenuation); 40Hz ± 0.5Hz locked precision (vs uncharacterised Taptic Engine output); hub-powered (vs Watch battery drain from 20 min continuous haptics). Message: "Use the Watch app as an extra layer — for the full experience, the pad is what delivers it." See §15 Marketing Notes for full draft copy.
 - **Status:** PROVISIONAL — await HOPE Phase 3 (Cognito Therapeutics, n=670, mid-2026). If positive: release mastoid pad within 6 months. Hardware anchor boss in temporal wing tooling at first cut (zero incremental tooling cost).
 
 ### Apple Watch Sync App (provisional)
@@ -714,19 +714,31 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 
 ## 15. MARKETING NOTES
 
-### Why the mastoid LRA pad, not an Apple Watch app (for marketing literature)
+### Mastoid LRA pad vs Apple Watch — messaging for marketing literature
 
-This explanation is for use in product marketing, FAQ, and press responses when asked "why not just use Apple Watch for vibrotactile?"
+**Framing:** Lead with why our add-on is better, not with why Apple Watch is worse. Acknowledge the Apple Watch sync app exists and is available — but be clear about what it does and doesn't do.
 
-**The hardware argument:** Apple's Taptic Engine was designed for notification taps. Apple does not publish its frequency response curve, and watchOS Core Haptics does not expose raw frequency control — you cannot programme "vibrate at exactly 40Hz continuously for 20 minutes" in an App Store-compliant app. The NeuroPulse mastoid pad uses a dedicated linear resonant actuator driven by a TI DRV2605L IC in open-loop mode: 40Hz ± 0.5Hz, calibrated amplitude, characterised output. That precision is what clinical evidence requires.
+---
 
-**The placement argument:** Wrist vibration has poor coupling to the brain. The therapeutic mechanism depends on somatosensory cortex activation at 40Hz. The mastoid process — the bony prominence behind the ear — sits directly adjacent to temporal lobe somatosensory representations and transmits vibration through bone to the skull. Wrist-to-brain coupling involves soft tissue attenuation across the arm, shoulder, and neck; the signal that reaches S1 is orders of magnitude weaker than mastoid-to-skull.
+**Draft marketing copy (vibrotactile accessory page / FAQ):**
 
-**The regulatory argument:** Any app claiming to treat, mitigate, or prevent a disease is a medical device under FDA regulations — regardless of whether it runs on Apple Watch. Apple's App Store prohibits disease claims. The only legally publishable Apple Watch app is one making no therapeutic claims, which also has no clinical evidence behind it. NeuroPulse's hardware carries the therapeutic claim; the Apple Watch app supplements the experience without carrying it.
+*"We offer a free Apple Watch sync app that delivers 40Hz haptic feedback in time with your NeuroPulse session — and you're welcome to use it. But if you want results that match the science, the NeuroPulse vibrotactile pad is the right tool.*
 
-**The business argument:** If we deliver 40Hz vibrotactile therapy as a free Apple Watch app, we commoditise the feature and destroy the ability to sell it as a premium NeuroPulse accessory. The mastoid pad is a $49–79 revenue-generating hardware accessory. An Apple Watch integration is a companion UX enhancement that adds value to the NeuroPulse platform without replacing it.
+*Here's the difference: the mastoid pad is a purpose-built linear actuator positioned at the bone just behind your ear. That placement matters — the mastoid process couples vibration directly into the skull and temporal bone, putting the 40Hz signal right where the brain research was done. The Apple Watch sits on your wrist. Getting a 40Hz vibration from your wrist to your somatosensory cortex means travelling through soft tissue, tendons, and bone across your entire arm and shoulder. Most of the signal doesn't make it.*
 
-**What the Apple Watch companion app does do:** Haptic sync (adds wrist channel alongside mastoid pad), audio sync (binaural beats to AirPods paired to Watch), visual sync (40Hz flicker or EMDR indicator on Watch display), session status at a glance. These are interface aids that extend convenience — they make NeuroPulse easier to use, not cheaper to build.
+*The pad also delivers 40Hz ± 0.5Hz precision. Apple's Taptic Engine was designed for notification taps, not continuous therapeutic vibration — its output at 40Hz is uncharacterised and variable. Our driver IC runs open-loop at a locked frequency with calibrated amplitude, matched to the laboratory protocol.*
+
+*One more practical difference: running continuous haptics on an Apple Watch for 20 minutes will drain a significant portion of its battery. The mastoid pad draws its power from the NeuroPulse hub.*
+
+*Use the Watch app if you want an extra sensory layer on top of the pad. Use it alone if you're curious. But if 40Hz vibrotactile therapy is the goal, the mastoid pad is what delivers it."*
+
+---
+
+**Key messages (bullet form for web/app copy):**
+- Purpose-built for the mastoid — where bone meets skull, where the science was done
+- 40Hz ± 0.5Hz locked precision vs uncharacterised wrist haptics
+- Powered by the NeuroPulse hub — doesn't drain your Watch battery
+- The Apple Watch sync app is a free bonus, not the full experience
 
 ---
 
