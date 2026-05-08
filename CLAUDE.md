@@ -119,13 +119,26 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 - 30s ramp up/down (hardware-enforced)
 - ≤3 electrode pairs
 
-**6. VNS + HRV**
+**6. VNS + HRV + HRV Biofeedback**
 - Auricular clip · auricular branch CN X
 - 1–25Hz · ≤2mA · biphasic charge-balanced
 - PPG HRV (808–830nm) in same clip
 - **A1/A2 EEG references on clip contact pads** (2 spare conductors in existing 6-pin cable, +$15 BOM)
 - PDMS hydrogel pads: 20–40 sessions, $8/2-pack
 - Force contact confirmation
+- **HRV Biofeedback Protocol (software only, no additional hardware):**
+  - Resonance frequency breathing pacer: default 6 breaths/min (0.1 Hz); personalised to user's peak HRV frequency during first-session sweep (4–7 breaths/min range)
+  - Breathing cue delivery: visual ring expanding/contracting in app + optional bone conduction audio cue (uses existing audio hardware)
+  - Real-time coherence score: LF peak power / (LF + HF total power), displayed 0–10 colour-coded
+  - RMSSD displayed per session; session trend graph over 30 sessions
+  - **Four protocols:**
+    - Standalone coherence training (5–20 min, breathing pacer + coherence display)
+    - HRV + taVNS synchronised: stimulation pulses timed to inspiration phase (PPG R-R interval detects respiratory cycle); optimises noradrenergic modulation window
+    - HRV + EEG dual biofeedback: coherence score + EEG band power displayed simultaneously; closed-loop EEG-adaptive frequency adjusts to both signals
+    - HRV + PBM: PBM running during HRV coherence training (replicates 2025 multi-modal RCT protocol: PBM + qEEG NF + HRV biofeedback)
+  - UHDR: HRV time series, coherence scores, session logs
+  - SHDR: coherence trend slope (no user biology)
+  - Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction, d=0.65 depression); 2025 multi-modal RCT (PBM + qEEG NF + HRV combined, nationally conducted RCT)
 
 **7. Neural Audio Entrainment**
 - Over-ear planar magnetic 40mm + bone conduction at mastoid
@@ -167,8 +180,58 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 - **TMS focal figure-8 coil:** 0.1–0.5T · rTMS + TBS · non-conductive CFRP window at coil site · TMS-gated EMF cancellation (safety MCU gates Helmholtz off 5ms pre-pulse, 50ms post-pulse hold)
 - **1170nm deep PBM:** Laser diodes · 35–40mm subcortical depth · TEC stabilisation · ≤1,000 mW/cm²
 - **Clinical tACS:** ≤4mA · 16-ch arbitrary waveform
-- **HIPAA cloud + EHR:** FHIR R4 · multi-patient dashboard · sLORETA source imaging · LSL streaming · scripting API
+- **sLORETA-guided HD-tDCS:**
+  - 4×1 ring montage: center anode + 4 return cathodes positioned by sLORETA source map — provides ~3–5× spatial focality vs standard 2-electrode tDCS
+  - Electrode: Ag/AgCl sintered 3.5mm diameter, dual-rated for EEG recording AND stimulation current (simultaneous or sequential); part of T2 qEEG wet-gel cap
+  - Current sourcing: 16-ch tACS driver (already in T2) provides independently controlled channels — no additional stimulation hardware
+  - Workflow: (1) T2 21-ch qEEG resting-state session → (2) sLORETA computes cortical source map (real-time or post-session) → (3) app identifies target region (e.g., DLPFC hypoactivity, anterior cingulate hyperactivation) → (4) firmware maps MNI target to nearest 10-20 electrode positions → (5) configures 4×1 current distribution automatically → (6) delivers personalised tDCS session
+  - Montage options: 4×1 ring (most focal, ~1.5cm FWHM), bilateral 4×1 (dual hemisphere), standard 2-electrode (T1-compatible fallback)
+  - Safety: 40µC/cm² charge density limit enforced by safety MCU; ≤2mA per electrode; focal electrode density ≤6 A/m² (within Bikson lab safety limits for 3.5mm electrode geometry)
+  - Clinical evidence: Jog/UCLA 2025 (n=71, personalised MRI-guided HD-tDCS, significant depression improvement + gray matter changes); BRIGhTMIND 2024 (n=255, connectivity-guided iTBS shows personalised targeting outperforms fixed F3)
+  - BOM delta: Ag/AgCl dual-rated electrodes in T2 cap specification; no additional driver hardware; +$0 software
+- **Cervical VNS (tcVNS) — T2 accessory:**
+  - Neck-worn accessory stimulating cervical vagus trunk (higher activation than auricular branch CN X)
+  - Gel electrodes applied to skin overlying carotid sheath; bilateral or unilateral
+  - Indication: cluster headache + migraine (FDA-cleared precedent: electroCore gammaCore K163334, K173323); extending to depression, PTSD, post-stroke rehabilitation
+  - Safety MCU ownership: current path near carotid → safety MCU reads impedance + cardiac rhythm monitor before enable; automatic cutoff if HR changes >15 BPM within 5s of stimulation
+  - Regulatory: 510(k) predicate = electroCore gammaCore (K163334 cluster headache, K173323 migraine); separate 510(k) required for T2 product launch; T1 uses auricular-only (no carotid proximity)
+  - Connects via existing hub accessory port; separate cable + electrode assembly; gel pad consumable (5-pack)
+  - BOM delta: +$35–55 for cervical tcVNS accessory module
+- **HIPAA cloud + EHR:** FHIR R4 · multi-patient dashboard · sLORETA source imaging (also drives HD-tDCS targeting) · LSL streaming · scripting API
 - **Anonymised session tag:** Random session identifier for clinical multi-patient environments — clinic holds patient-to-tag mapping, NeuroPulse cannot cross-reference
+
+---
+
+## 3b. OPTIONAL ACCESSORIES + COMPANION SOFTWARE (provisional specs)
+
+### 40Hz Vibrotactile — Mastoid LRA Pad (provisional)
+
+Purpose-built accessory delivering precisely characterized 40Hz somatosensory stimulation, aligned to Tsai lab (MIT) GENUS multi-sensory protocol. **Provisional — release contingent on HOPE Phase 3 results (mid-2026). Hardware provision in first revision at zero tooling cost.**
+
+- **Actuator:** Linear resonant actuator (LRA), 8–10mm diameter, e.g. Jinlong JMC0834 or equivalent. LRA preferred over ERM: precise frequency control, low distortion, flat resonance profile at 40Hz drive.
+- **Driver IC:** Texas Instruments DRV2605L (I2C, open-loop mode). Open-loop drive at 40Hz ± 0.5Hz with amplitude control via gain register. No resonant frequency tuning required (drive frequency set in firmware, not actuator resonance).
+- **Placement:** Posterior temporal / mastoid process. Rationale: (1) direct bone coupling to skull — better transmission to somatosensory cortex than wrist; (2) adjacent to temporal lobe somatosensory representation; (3) compatible with existing temporal stability wing anchor — no new shell tooling required if anchor boss provisioned at first cut.
+- **Output spec:** 0.6–1.2G peak acceleration at skin surface (DRV2605L gain register configurable); 40Hz ± 0.5Hz; duty cycle 100% continuous (20-minute session target).
+- **Form factor:** 30mm diameter silicone overmoulded pad; clip attachment to temporal wing; 3-pin pogo or JST connector to hub accessory port. Shore 30A silicone contact face for comfort.
+- **Power draw:** ~80–120mW continuous. Supplied from hub accessory port (existing 500mA capability).
+- **BOM estimate:** LRA $1.50–2.50 + DRV2605L $1.20–1.80 + PCB/passives $0.50 + silicone housing $0.80–1.20 = **$4–7 total per pad**. Pair (bilateral option): $8–14.
+- **Retail accessory price (projected):** $49–79 per pad / $79–119 bilateral.
+- **Firmware:** 40Hz square-wave drive pattern; session start/stop synchronised with audio/visual 40Hz channels via hub; amplitude ramp 2s up/down (comfort).
+- **Marketing note:** Apple Watch sync app is available as a free companion — but the mastoid pad delivers results the Watch cannot. Key differences: mastoid placement couples directly to skull (vs wrist-to-brain soft tissue attenuation); 40Hz ± 0.5Hz locked precision (vs uncharacterised Taptic Engine output); hub-powered (vs Watch battery drain from 20 min continuous haptics). Message: "Use the Watch app as an extra layer — for the full experience, the pad is what delivers it." See §15 Marketing Notes for full draft copy.
+- **Status:** PROVISIONAL — await HOPE Phase 3 (Cognito Therapeutics, n=670, mid-2026). If positive: release mastoid pad within 6 months. Hardware anchor boss in temporal wing tooling at first cut (zero incremental tooling cost).
+
+### Apple Watch Sync App (provisional)
+
+Companion watchOS app extending NeuroPulse session experience to Apple Watch. Three sync channels. Does **not** replace purpose-built NeuroPulse hardware for any therapeutic function — supplements it.
+
+- **Communication:** BT 5.3 LE (hub already has BT radio, antennas in hub); WatchConnectivity framework via paired iPhone app; session sync protocol over BLE GATT custom service.
+- **Channel 1 — Haptic sync:** watchOS Core Haptics delivers 40Hz pattern in synchronisation with NeuroPulse hub session clock. Adds wrist somatosensory channel on top of mastoid LRA pad. Not a standalone therapeutic — supplement only. Caveat in app: "Works best with NeuroPulse mastoid vibrotactile accessory."
+- **Channel 2 — Audio sync:** Watch app plays binaural beats / isochronic tones / breathing pacer audio through AirPods or earphones paired to Watch, synchronised to hub session. Useful when user wants bone conduction reserved for breathing cue while earphones handle binaural beats, or for sessions away from the hub speaker range.
+- **Channel 3 — Visual sync:** Watch display shows 40Hz visual flicker (reduced brightness, GENUS-compatible) or EMDR left/right indicator arrow synchronised to goggle session. Also: session status, coherence score live feed, HRV biofeedback breathing ring (complementary to app display for wrist-glance UX).
+- **Additional Watch functions:** Session timer + haptic end-of-session alert; protocol selector (basic, without phone); quick impedance check result notification; consumable low reminders.
+- **Regulatory note:** All Watch-delivered functions are declared as session monitoring / user interface aids, not therapeutic delivery. Therapeutic claims attach to NeuroPulse hardware only.
+- **BOM delta:** $0 hardware. Software development cost only.
+- **Status:** PROVISIONAL. Prioritise after core iOS app ships. Haptic and audio channels first; visual flicker second (screen brightness characterisation needed for 40Hz at ≥100 nits).
 
 ---
 
@@ -290,6 +353,21 @@ All models version-stamped by hardware revision. New revision falls back to Phas
 - All reminders measurement-triggered, not calendar-triggered
 - Every reminder includes measured data that triggered it + one-tap order link
 
+### 5.3 Research data anonymization architecture (locked)
+
+All anonymization of UHDR data for research purposes must occur **on-device**, within the NeuroPulse app, before any data leaves the device. NeuroPulse cannot access raw UHDR at any point — including for research purposes — because the biometric-derived AES-256 key is never held by NeuroPulse infrastructure.
+
+**Data flow per approved study:**
+1. NeuroPulse server sends device a signed study descriptor (study ID, approved UHDR element list, anonymization parameters: k≥10, suppression rules, date-rounding ≥1-week interval). Descriptor is cryptographically signed.
+2. App reads encrypted UHDR partition in-app, applies on-device anonymization transformations: k-anonymity grouping, date/time rounding, direct identifier removal, quasi-identifier suppression per study descriptor.
+3. Only the pre-anonymized, signed extract is transmitted to NeuroPulse research infrastructure. Raw UHDR never leaves the device.
+4. NeuroPulse servers store extract keyed to study ID and device ID only. No persistent per-user anonymized data store. No linkage table exists that could re-identify users.
+5. Researchers access aggregated study datasets with no device ID fields.
+
+**Consent withdrawal effect:** Because each study extract is generated on-device on-demand, withdrawing consent permanently blocks the device from processing future study descriptors. No further extracts are generated or transmitted — **for any data period, including sessions predating withdrawal**. Already-published extracts cannot be individually removed from datasets (irreversibility notice given at consent time); no new data flows ever.
+
+**Audit trail (SHDR):** Study ID, study descriptor hash, extract transmission timestamp, and extract byte count are logged in SHDR. User can inspect all studies their device has contributed to via the app. This log is never shared with researchers.
+
 ---
 
 ## 6. CLINICAL CONSENT ENGINE (all locked)
@@ -313,12 +391,12 @@ All models version-stamped by hardware revision. New revision falls back to Phas
 |-------|----------|--------|-------|--------------------------|
 | L1 — Contact consent | Can we reach you about future research opportunities? | Provide contact method + frequency limit. POA holders upload POA (human review, 3 business days, jurisdiction-flagged, annual re-verification) | No contact. All features unchanged. | Being asked creates perceived agency → trust baseline |
 | L2 — Category consent | Which research areas? (9 categories: AD/dementia, Depression, PTSD, TBI, Sleep, Attention, Parkinson's, Healthy ageing, Visual health) | Per-project contact for selected categories only. Each project is a fresh decision. | Not contacted for that category. | Personal category choice deepens engagement |
-| L3 — Blanket consent | Pre-approve all NeuroPulse-reviewed research? | Data included in all studies. **Still receives per-study engagement notifications** (not consent requests — maintains engagement, can opt out per-study). Anonymisation: k≥10, no IDs, no sub-weekly timestamps. | Per-category and per-project process applies. | Blanket patients kept engaged — not taken for granted |
+| L3 — Blanket consent | Pre-approve all NeuroPulse-reviewed research? | Data included in all studies. **Still receives per-study engagement notifications** (not consent requests — maintains engagement, can opt out per-study). Anonymisation: k≥10, no IDs, no sub-weekly timestamps. **Irreversibility notice displayed at this screen:** "Once your anonymised data has been included in a published study, it cannot be individually withdrawn from that dataset. However, because NeuroPulse anonymises your data fresh from your device for each study, withdrawing consent immediately and permanently stops any further data flowing to any future dataset — including data from sessions that occurred before your withdrawal." | Per-category and per-project process applies. | Blanket patients kept engaged — not taken for granted |
 | L4 — Results + community | Hear study results? Join suggestion portal? | Plain-language results notification per study (including null results) + paper link + "suggest next steps" link. Access to suggestion/voting/pledge portal. | No results contact, no portal. | Results notification is the highest-value brand moment |
 
 **POA workflow:** POA holder uploads executed healthcare POA → human review 3 business days → jurisdiction flagging → scope limitation noted → annual re-verification. If patient regains capacity, all proxy consent decisions presented for ratification or revocation. Research contact goes to POA holder only.
 
-**Vulnerable population disclosure:** At per-project consent time, explicitly state: "Once your anonymised data is included in a study, individual withdrawal is not possible — but future data contributions can always be stopped immediately." Required by Common Rule (45 CFR 46).
+**Vulnerable population disclosure:** At per-project consent time, explicitly state: "Once your anonymised data is included in a study, individual withdrawal is not possible from that dataset — this is a fundamental property of k-anonymised aggregate data and is required by Common Rule (45 CFR 46). However, because NeuroPulse anonymises your data fresh from your device for each new study, withdrawing consent immediately and permanently prevents any further data from flowing to any future dataset — including data from sessions that occurred before your withdrawal. Your historical sessions remain on your device under your sole control."
 
 ### 6.3 Research suggestion portal (three functions)
 
@@ -332,8 +410,9 @@ All models version-stamped by hardware revision. New revision falls back to Phas
 1. NeuroPulse reviews study (use case library, minimum necessary data, IRB verification)
 2. Eligible patient list generated by device ID + contact prefs only (no UHDR)
 3. Personalised invitation from NeuroPulse (not researcher) — personal tone, specific about study, explicit about what researchers CAN and CANNOT see
-4. Patient decision: Yes / No / Ask a question (secure message to NeuroPulse liaison, 2 business day response)
-5. Results notification closes loop for all who opted in
+4. Patient decision: Yes / No / Ask a question (secure message to NeuroPulse liaison, 2 business day response). Invitation includes irreversibility notice: data already included in published studies cannot be individually removed; consent withdrawal blocks all future data flows from any time period.
+5. Results notification closes loop for all who opted in (including null results). Users who later withdrew consent still receive results for studies they previously participated in — notification only, no new data.
+6. Consent withdrawal effect: device immediately stops processing study descriptors; no further extracts generated or transmitted, for any data period including historical sessions.
 
 ---
 
@@ -538,7 +617,7 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 | Issue | Status |
 |-------|--------|
 | SAB not formed — no scientific credentialing | Tsai outreach at 617-324-0305 (SAB role only). Jeffery and Naeser natural SAB candidates. Budget $50,000–80,000/yr for 5-person SAB. |
-| Vulnerable population withdrawal edge case in research consent | Add to per-project consent: "Once anonymised data is included in a study, individual withdrawal is not possible — future contributions can always be stopped." Required by Common Rule. |
+| Vulnerable population withdrawal edge case in research consent | **Resolved and locked** — irreversibility notice added at L3 blanket consent screen AND at per-project invitation (step 4). Forward-effectiveness guarantee added: on-device fresh-per-study anonymization makes consent withdrawal fully effective for all data periods. |
 | 45W charger in box | **Decided and locked** — included in BOM across all configurations at appropriate wattage. Weakness resolved. |
 | Zone module mould complexity (RISK-23) | NP-TOOL-ZM-001 created consolidating all 8 moulded features (F-01 through F-08). 12-item mould design review checklist must be completed before steel is cut (NP-COORD-001 G1-05). |
 
@@ -602,6 +681,10 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 - **EEG cable routing:** dedicated 8×5mm channel on outer CFRP surface, ≥15mm from FPC bundle (RISK-21); must be in shell tooling spec
 - **Multi-FPC bundle management (RISK-17):** ≥2mm inter-FPC separation; ≥15mm FPC-to-EEG (or grounded Al foil barrier); 3 anchor bosses per FPC; all 5 Hub ZIF connectors on same PCB edge
 - **Risk register documented:** 24 risks total (RISK-01 through RISK-24); 22 MITIGATED; 2 OPEN: RISK-03 (regulatory opinion, external) and RISK-20 (CFRP Ra confirmation, external)
+- **HRV biofeedback protocol (software only):** Resonance frequency breathing pacer (6 breaths/min default, personalised sweep); real-time coherence score; four protocols (standalone, HRV+taVNS synchronised, HRV+EEG dual biofeedback, HRV+PBM); no additional hardware; bone conduction delivers breathing cue; uses existing VNS clip PPG. Locks the VNS+HRV modality as the only NeuroPulse modality with multi-modal trial evidence (2025 RCT: PBM + qEEG NF + HRV biofeedback simultaneously).
+- **sLORETA-guided HD-tDCS (T2):** 4×1 ring montage; Ag/AgCl 3.5mm dual-rated electrodes in T2 qEEG cap; 16-ch tACS driver provides independently controlled channels (no additional hardware); sLORETA source map → MNI target → automatic 10-20 electrode mapping → personalised current distribution; 40µC/cm² safety MCU limit; ≤2mA/electrode; Jog/UCLA 2025 and BRIGhTMIND 2024 as clinical evidence base.
+- **Cervical VNS (T2 accessory):** Neck-worn tcVNS module, carotid sheath stimulation; safety MCU owns enable with cardiac monitor interlock; 510(k) predicate = electroCore gammaCore K163334/K173323; gel pad consumable; +$35–55 BOM.
+- **Research data anonymization architecture:** On-device, per-study, fresh per request. NeuroPulse never holds or accesses raw UHDR at any point (biometric-derived key never leaves device). Consent withdrawal is immediately effective for all future data flows from any time period. Irreversibility notice given at L3 blanket consent + per-project invitation. Audit trail of contributed studies in SHDR (user-readable, never shared with researchers).
 
 ---
 
@@ -611,7 +694,8 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 |----------|----------|---------|
 | Design Brief Revision 1 | `docs/neuropulse_design_brief.docx` | Initial complete design specification |
 | Design Brief Revision 2 | `docs/neuropulse_design_brief_r2.docx` | Updated with LED count, irradiance, EEG, EMF decisions |
-| Design Brief Revision 3 | `docs/neuropulse_brief_r3.docx` | Current — adds UHDR/SHDR, consent systems, durability, service network |
+| Design Brief Revision 3 | `docs/neuropulse_brief_r3.docx` | Adds UHDR/SHDR, consent systems, durability, service network |
+| Design Brief Revision 4 | `docs/neuropulse_brief_r4.docx` | Current — zone module engineering package; dual-PD, keying, gasket, lever, PDMS qual, 24-risk register |
 | Clinical Evidence Bibliography | `docs/neuropulse_bibliography.docx` | 33 entries, 11 modality sections, DOI links, NeuroPulse-specific summaries |
 | Researcher Candidate List | `docs/neuropulse_researchers.docx` | 12 researchers, 7 modalities, contact info, cost estimates, funding sources |
 | SBIR Phase I Draft | `docs/neuropulse_sbir_phase1_draft.docx` | NIH SBIR Phase I proposal draft; references Hirose FH34S (not Molex SlimStack) |
@@ -623,10 +707,42 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 | Engineering Coordination Checklist | `docs/neuropulse_eng_coordination_checklist.docx` | NP-COORD-001 Rev A — G1 (14 items), G2 (11 items), G3 (6 items) gate structure |
 | Zone Module Tooling Specification | `docs/neuropulse_tool_zone_module_001.docx` | NP-TOOL-ZM-001 Rev A — 8 mandatory moulded features (F-01 through F-08), critical dimensions, 12-item mould design review checklist, FAI cross-reference |
 | Supplier Selection Checklist | `docs/neuropulse_supplier_selection_checklist.docx` | NP-PROC-SUP-001 Rev A — CAT-A (moulding), CAT-B (CFRP shell), CAT-C (PDMS bonding); SUP-M-07 and SUP-B-01 BLOCKING for RISK-20; SUP-C-08 BLOCKING for RISK-04; §9 RISK-20 tracking table |
+| Clinical Trials Strategy | `docs/neuropulse_clinical_trials_strategy.docx` | NP-CLIN-001 Rev A — all-in-one commercial rationale; Vielight trials scope/limitation; individual modality evidence (9 modalities); multi-modal combination evidence; researcher profiles (9 researchers); 6-trial priority plan; key bibliography |
+| Additional Modalities | `docs/neuropulse_additional_modalities.docx` | NP-MOD-EXT-001 Rev A — 6 modalities not in current stack: 40Hz vibrotactile (HIGH priority — await HOPE results), HRV biofeedback (HIGH priority — software only, no BOM), 1064nm PBM (MEDIUM — watch UT Dallas), tFUS (LOW — 5–8yr horizon), sLORETA-guided HD-tDCS (MEDIUM T2), cervical VNS (MEDIUM T2) |
 
 ---
 
-## 15. NAMING CONVENTION CHANGES
+## 15. MARKETING NOTES
+
+### Mastoid LRA pad vs Apple Watch — messaging for marketing literature
+
+**Framing:** Lead with why our add-on is better, not with why Apple Watch is worse. Acknowledge the Apple Watch sync app exists and is available — but be clear about what it does and doesn't do.
+
+---
+
+**Draft marketing copy (vibrotactile accessory page / FAQ):**
+
+*"We offer a free Apple Watch sync app that delivers 40Hz haptic feedback in time with your NeuroPulse session — and you're welcome to use it. But if you want results that match the science, the NeuroPulse vibrotactile pad is the right tool.*
+
+*Here's the difference: the mastoid pad is a purpose-built linear actuator positioned at the bone just behind your ear. That placement matters — the mastoid process couples vibration directly into the skull and temporal bone, putting the 40Hz signal right where the brain research was done. The Apple Watch sits on your wrist. Getting a 40Hz vibration from your wrist to your somatosensory cortex means travelling through soft tissue, tendons, and bone across your entire arm and shoulder. Most of the signal doesn't make it.*
+
+*The pad also delivers 40Hz ± 0.5Hz precision. Apple's Taptic Engine was designed for notification taps, not continuous therapeutic vibration — its output at 40Hz is uncharacterised and variable. Our driver IC runs open-loop at a locked frequency with calibrated amplitude, matched to the laboratory protocol.*
+
+*One more practical difference: running continuous haptics on an Apple Watch for 20 minutes will drain a significant portion of its battery. The mastoid pad draws its power from the NeuroPulse hub.*
+
+*Use the Watch app if you want an extra sensory layer on top of the pad. Use it alone if you're curious. But if 40Hz vibrotactile therapy is the goal, the mastoid pad is what delivers it."*
+
+---
+
+**Key messages (bullet form for web/app copy):**
+- Purpose-built for the mastoid — where bone meets skull, where the science was done
+- 40Hz ± 0.5Hz locked precision vs uncharacterised wrist haptics
+- Powered by the NeuroPulse hub — doesn't drain your Watch battery
+- The Apple Watch sync app is a free bonus, not the full experience
+
+---
+
+## 16. NAMING CONVENTION CHANGES
 
 **Retired term:** "Health Data Record (HDR)" — ambiguous, replaced throughout all documents
 
