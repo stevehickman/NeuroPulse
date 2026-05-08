@@ -119,13 +119,26 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 - 30s ramp up/down (hardware-enforced)
 - ≤3 electrode pairs
 
-**6. VNS + HRV**
+**6. VNS + HRV + HRV Biofeedback**
 - Auricular clip · auricular branch CN X
 - 1–25Hz · ≤2mA · biphasic charge-balanced
 - PPG HRV (808–830nm) in same clip
 - **A1/A2 EEG references on clip contact pads** (2 spare conductors in existing 6-pin cable, +$15 BOM)
 - PDMS hydrogel pads: 20–40 sessions, $8/2-pack
 - Force contact confirmation
+- **HRV Biofeedback Protocol (software only, no additional hardware):**
+  - Resonance frequency breathing pacer: default 6 breaths/min (0.1 Hz); personalised to user's peak HRV frequency during first-session sweep (4–7 breaths/min range)
+  - Breathing cue delivery: visual ring expanding/contracting in app + optional bone conduction audio cue (uses existing audio hardware)
+  - Real-time coherence score: LF peak power / (LF + HF total power), displayed 0–10 colour-coded
+  - RMSSD displayed per session; session trend graph over 30 sessions
+  - **Four protocols:**
+    - Standalone coherence training (5–20 min, breathing pacer + coherence display)
+    - HRV + taVNS synchronised: stimulation pulses timed to inspiration phase (PPG R-R interval detects respiratory cycle); optimises noradrenergic modulation window
+    - HRV + EEG dual biofeedback: coherence score + EEG band power displayed simultaneously; closed-loop EEG-adaptive frequency adjusts to both signals
+    - HRV + PBM: PBM running during HRV coherence training (replicates 2025 multi-modal RCT protocol: PBM + qEEG NF + HRV biofeedback)
+  - UHDR: HRV time series, coherence scores, session logs
+  - SHDR: coherence trend slope (no user biology)
+  - Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction, d=0.65 depression); 2025 multi-modal RCT (PBM + qEEG NF + HRV combined, nationally conducted RCT)
 
 **7. Neural Audio Entrainment**
 - Over-ear planar magnetic 40mm + bone conduction at mastoid
@@ -618,6 +631,7 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 - **EEG cable routing:** dedicated 8×5mm channel on outer CFRP surface, ≥15mm from FPC bundle (RISK-21); must be in shell tooling spec
 - **Multi-FPC bundle management (RISK-17):** ≥2mm inter-FPC separation; ≥15mm FPC-to-EEG (or grounded Al foil barrier); 3 anchor bosses per FPC; all 5 Hub ZIF connectors on same PCB edge
 - **Risk register documented:** 24 risks total (RISK-01 through RISK-24); 22 MITIGATED; 2 OPEN: RISK-03 (regulatory opinion, external) and RISK-20 (CFRP Ra confirmation, external)
+- **HRV biofeedback protocol (software only):** Resonance frequency breathing pacer (6 breaths/min default, personalised sweep); real-time coherence score; four protocols (standalone, HRV+taVNS synchronised, HRV+EEG dual biofeedback, HRV+PBM); no additional hardware; bone conduction delivers breathing cue; uses existing VNS clip PPG. Locks the VNS+HRV modality as the only NeuroPulse modality with multi-modal trial evidence (2025 RCT: PBM + qEEG NF + HRV biofeedback simultaneously).
 - **Research data anonymization architecture:** On-device, per-study, fresh per request. NeuroPulse never holds or accesses raw UHDR at any point (biometric-derived key never leaves device). Consent withdrawal is immediately effective for all future data flows from any time period. Irreversibility notice given at L3 blanket consent + per-project invitation. Audit trail of contributed studies in SHDR (user-readable, never shared with researchers).
 
 ---
