@@ -633,7 +633,7 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 - [ ] Product name trademark clearance
 - [ ] 400 mW/cm² regulatory opinion letter (RISK-03 — BLOCKING for all public material)
 - [ ] LED emitter pulse current rating verification (660nm + 808–830nm FPC candidates at 120–180mA)
-- [ ] Zone module FPC layout specification — freeze layout so PD2 aperture position (F-04 in NP-TOOL-ZM-001) can be specified in mould design
+- [x] Zone module FPC layout specification — freeze layout so PD2 aperture position (F-04 in NP-TOOL-ZM-001) can be specified in mould design
 - [ ] Zone module mould design review — NP-TOOL-ZM-001 §5 checklist (all 8 features F-01 through F-08) signed off before steel cut
 - [ ] **CFRP shell slot rim Ra ≤ 1.6 µm — written supplier confirmation (RISK-20 BLOCKING)**
 - [ ] **PDMS CAT-C supplier selection + 200-cycle IEC 60068-2-14 thermal cycling qualification (RISK-04 BLOCKING)**
@@ -685,6 +685,7 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 - **sLORETA-guided HD-tDCS (T2):** 4×1 ring montage; Ag/AgCl 3.5mm dual-rated electrodes in T2 qEEG cap; 16-ch tACS driver provides independently controlled channels (no additional hardware); sLORETA source map → MNI target → automatic 10-20 electrode mapping → personalised current distribution; 40µC/cm² safety MCU limit; ≤2mA/electrode; Jog/UCLA 2025 and BRIGhTMIND 2024 as clinical evidence base.
 - **Cervical VNS (T2 accessory):** Neck-worn tcVNS module, carotid sheath stimulation; safety MCU owns enable with cardiac monitor interlock; 510(k) predicate = electroCore gammaCore K163334/K173323; gel pad consumable; +$35–55 BOM.
 - **Research data anonymization architecture:** On-device, per-study, fresh per request. NeuroPulse never holds or accesses raw UHDR at any point (biometric-derived key never leaves device). Consent withdrawal is immediately effective for all future data flows from any time period. Irreversibility notice given at L3 blanket consent + per-project invitation. Audit trail of contributed studies in SHDR (user-readable, never shared with researchers).
+- **FPC layout frozen (NP-HW-FPC-001 Rev D, 2026-05-09):** PD2 (RISK-14 Option B) position locked at X = 33.0 mm, Y = 39.0 mm from module reference corner (geometric centre of 66 × 78 mm LED array, co-located in XY with PD1 on opposite face). FPC contact pad: 1.6 mm annular ring, scalp-facing copper layer, hard gold ≥ 0.5 µm. F-04 aperture in NP-TOOL-ZM-001 updated with this coordinate (±0.2 mm tolerance). OI-3 closed. NP-COORD-001 G1-15 closed. DRC-18 CAD overlay verification proceeds at G2 gate (G2-11, OI-09).
 
 ---
 
