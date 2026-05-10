@@ -641,7 +641,7 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 - [ ] HFE formative study for sliding eject lever — 5 subjects with Parkinson's/post-stroke (NP-TOOL-ZM-001 OI-4, NP-FAI-ZM-001 FAI-A15)
 - [ ] EEG cable routing path in shell CAD model — OI-09 in NP-DRV-SHELL-001 (required for DRC-18 verification, RISK-21)
 - [ ] Hub tooling: probe dock + anchor posts + large-radius Boa cable channel + tool-free fan (quarter-turn captive fastener)
-- [ ] Shell tooling: anchor posts for all interface covers (5 zone + 3 port positions, colour-coded for zones) + EEG cable channel (§2.4)
+- [x] Shell tooling: anchor posts for all interface covers (5 zone + 3 port positions, colour-coded for zones) + EEG cable channel (§2.4) — **NP-TOOL-SHELL-001 Rev A written 2026-05-10; CAD verification (OI-01–OI-07) and temporal wing boss (F-04, PROVISIONAL) specified; see `docs/neuropulse_tool_shell_001.docx`**
 - [ ] Lens tooling: sliding rail + N42 magnet positions (≥1mm polymer wall all faces) + AgNW spec + hard coat + EC driver contacts
 - [ ] Goggle arm tooling: anchor hook for lens rim guard tether
 - [ ] Partner optician network contract (S3 Rx programme)
@@ -710,6 +710,7 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 | Supplier Selection Checklist | `docs/neuropulse_supplier_selection_checklist.docx` | NP-PROC-SUP-001 Rev A — CAT-A (moulding), CAT-B (CFRP shell), CAT-C (PDMS bonding); SUP-M-07 and SUP-B-01 BLOCKING for RISK-20; SUP-C-08 BLOCKING for RISK-04; §9 RISK-20 tracking table |
 | Clinical Trials Strategy | `docs/neuropulse_clinical_trials_strategy.docx` | NP-CLIN-001 Rev A — all-in-one commercial rationale; Vielight trials scope/limitation; individual modality evidence (9 modalities); multi-modal combination evidence; researcher profiles (9 researchers); 6-trial priority plan; key bibliography |
 | Additional Modalities | `docs/neuropulse_additional_modalities.docx` | NP-MOD-EXT-001 Rev A — 6 modalities not in current stack: 40Hz vibrotactile (HIGH priority — await HOPE results), HRV biofeedback (HIGH priority — software only, no BOM), 1064nm PBM (MEDIUM — watch UT Dallas), tFUS (LOW — 5–8yr horizon), sLORETA-guided HD-tDCS (MEDIUM T2), cervical VNS (MEDIUM T2) |
+| Shell Tooling Specification | `docs/neuropulse_tool_shell_001.docx` | NP-TOOL-SHELL-001 Rev A — 4 mandatory shell features: F-01 zone slot plug anchor posts (×5, colour-coded), F-02 accessory port cover anchor posts (×3), F-03 EEG cable routing channel (8×5mm, outer CFRP surface, DRC-18 cross-ref), F-04 temporal wing anchor boss (×2 bilateral, PROVISIONAL pending HOPE Phase 3). 23-item design review checklist (SH-01–SH-23), critical dimensions, FAI cross-reference. Addresses Issue #16 and §13.4 pending decision. |
 
 ---
 
