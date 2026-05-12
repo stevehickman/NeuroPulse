@@ -1,88 +1,82 @@
 import SwiftUI
+import BackgroundTasks
 
 @main
 struct NeuroPulseApp: App {
 
-    // Singletons shared through the environment.
-    @StateObject private var gatt   = NeuroPulseGATTManager()
-    @StateObject private var bridge = PhoneSessionManager(gatt: NeuroPulseGATTManager())
+    // All services declared without default values; initialized together in init()
+    // so dependent services share the same NeuroPulseGATTManager instance.
+    @StateObject private var gatt:        NeuroPulseGATTManager
+    @StateObject private var bridge:      PhoneSessionManager
+    @StateObject private var keyManager:  UHDRKeyManager
+    @StateObject private var consentStore: ConsentStore
+    @StateObject private var uploader:    SessionProtocolUploader
+    @StateObject private var edfLoader:   EDFDownloader
+    @StateObject private var shdrUpload:  SHDRUploader
+    @StateObject private var backup:      UHDRBackupScheduler
+    @StateObject private var consumable:  ConsumableTracker
+    @StateObject private var ota:         OTAManager
+    @StateObject private var setupMgr:    HardwareSetupManager
+
+    init() {
+        let g  = NeuroPulseGATTManager()
+        let km = UHDRKeyManager()
+
+        _gatt         = StateObject(wrappedValue: g)
+        _bridge       = StateObject(wrappedValue: PhoneSessionManager(gatt: g))
+        _keyManager   = StateObject(wrappedValue: km)
+        _consentStore = StateObject(wrappedValue: ConsentStore())
+        _uploader     = StateObject(wrappedValue: SessionProtocolUploader(gatt: g))
+        _edfLoader    = StateObject(wrappedValue: EDFDownloader(gatt: g))
+        _shdrUpload   = StateObject(wrappedValue: SHDRUploader(gatt: g))
+        _backup       = StateObject(wrappedValue: UHDRBackupScheduler(keyManager: km))
+        _consumable   = StateObject(wrappedValue: ConsumableTracker(gatt: g))
+        _ota          = StateObject(wrappedValue: OTAManager(gatt: g))
+        _setupMgr     = StateObject(wrappedValue: HardwareSetupManager(gatt: g))
+
+        // Register background task for nightly UHDR backup.
+        // Must be registered before app finishes launching.
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: "com.neuropulse.uhdr-backup",
+            using: nil
+        ) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else { return }
+            let localKM = km  // capture for async context
+            Task { @MainActor in
+                await UHDRBackupScheduler(keyManager: localKM).performBackupIfNeeded()
+                refreshTask.setTaskCompleted(success: true)
+            }
+        }
+    }
+
+    @AppStorage("np.onboarding.consent-shown") private var consentOnboardingShown = false
+    @State private var showConsentOnboarding = false
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainTabView()
                 .environmentObject(gatt)
                 .environmentObject(bridge)
-        }
-    }
-}
-
-// Minimal iOS content view — hosts the hub connection status and session overview.
-// Full iOS app UI is out of scope for this file; the Watch app is the primary deliverable.
-struct ContentView: View {
-
-    @EnvironmentObject private var gatt: NeuroPulseGATTManager
-
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 16) {
-                connectionStatusView
-                sessionSummaryView
-                Spacer()
-                regulatoryFooter
-            }
-            .padding()
-            .navigationTitle("NeuroPulse")
-        }
-    }
-
-    private var connectionStatusView: some View {
-        HStack {
-            Circle()
-                .fill(gatt.connectionState == .connected ? Color.green : Color.orange)
-                .frame(width: 10, height: 10)
-            Text(connectionLabel)
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            Spacer()
-        }
-        .padding(.horizontal, 4)
-    }
-
-    private var connectionLabel: String {
-        switch gatt.connectionState {
-        case .disconnected: return "Searching for NeuroPulse hub…"
-        case .scanning:     return "Scanning…"
-        case .connecting:   return "Connecting…"
-        case .connected:    return "Hub connected"
-        }
-    }
-
-    private var sessionSummaryView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if gatt.session.status == .running {
-                Label("Session active", systemImage: "brain.head.profile")
-                    .foregroundColor(.green)
-                if let hrv = gatt.session.hrv {
-                    Label(String(format: "Coherence: %.1f / 10", hrv.coherenceScore),
-                          systemImage: "waveform.path.ecg")
-                    Label("RMSSD: \(hrv.rmssdMilliseconds) ms",
-                          systemImage: "heart.text.clipboard")
+                .environmentObject(keyManager)
+                .environmentObject(consentStore)
+                .environmentObject(uploader)
+                .environmentObject(edfLoader)
+                .environmentObject(shdrUpload)
+                .environmentObject(backup)
+                .environmentObject(consumable)
+                .environmentObject(ota)
+                .environmentObject(setupMgr)
+                .onAppear {
+                    UIDevice.current.isBatteryMonitoringEnabled = true
+                    if !consentOnboardingShown {
+                        showConsentOnboarding = true
+                        consentOnboardingShown = true
+                    }
                 }
-            } else {
-                Label("No active session", systemImage: "moon.zzz")
-                    .foregroundColor(.secondary)
-            }
+                .sheet(isPresented: $showConsentOnboarding) {
+                    ConsentOnboardingView(isPresented: $showConsentOnboarding)
+                        .environmentObject(consentStore)
+                }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding()
-        .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-    }
-
-    private var regulatoryFooter: some View {
-        Text("The Apple Watch app provides session monitoring and user interface aids only. All therapeutic functions are delivered exclusively by NeuroPulse hardware.")
-            .font(.caption2)
-            .foregroundColor(.secondary)
-            .multilineTextAlignment(.center)
     }
 }

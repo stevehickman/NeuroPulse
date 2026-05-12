@@ -1,0 +1,73 @@
+import SwiftUI
+
+// Top-level tab navigation.
+// Tab order: Session (primary) · Setup · Consumables · Consent · Firmware.
+// Blocking consumable reminders surface as badge counts on the Consumables tab.
+// First-run redirects to Setup flow before Session tab is accessible.
+
+struct MainTabView: View {
+
+    @EnvironmentObject private var gatt:       NeuroPulseGATTManager
+    @EnvironmentObject private var setup:      HardwareSetupManager
+    @EnvironmentObject private var consumable: ConsumableTracker
+    @EnvironmentObject private var consent:    ConsentStore
+    @EnvironmentObject private var ota:        OTAManager
+
+    @State private var selectedTab = 0
+
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            sessionTab
+            setupTab
+            consumableTab
+            consentTab
+            firmwareTab
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.didBecomeActiveNotification)) { _ in
+            if !setup.isFirstSetupComplete { selectedTab = 1 }
+        }
+    }
+
+    private var sessionTab: some View {
+        SessionView()
+            .tabItem {
+                Label("Session", systemImage: "brain.head.profile")
+            }
+            .tag(0)
+    }
+
+    private var setupTab: some View {
+        SetupView()
+            .tabItem {
+                Label("Setup", systemImage: "gearshape")
+            }
+            .badge(setup.isFirstSetupComplete ? 0 : 1)
+            .tag(1)
+    }
+
+    private var consumableTab: some View {
+        ConsumableView()
+            .tabItem {
+                Label("Supplies", systemImage: "cross.case")
+            }
+            .badge(consumable.blockingReminders.count)
+            .tag(2)
+    }
+
+    private var consentTab: some View {
+        ConsentDashboardView()
+            .tabItem {
+                Label("Privacy", systemImage: "lock.shield")
+            }
+            .badge(consent.pendingInvitations.filter { $0.hasNoDecision }.count)
+            .tag(3)
+    }
+
+    private var firmwareTab: some View {
+        OTAView()
+            .tabItem {
+                Label("Firmware", systemImage: "arrow.down.circle")
+            }
+            .tag(4)
+    }
+}
