@@ -153,6 +153,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-REG-CVNS-001 | Cervical VNS 510(k) Q-Sub Pre-Submission | A | 2026-05-11 | `docs/neuropulse_cvns_510k_presub_001.md` | ACTIVE | REG |
+| NP-REG-PBM1064-001 | RISK-03 Regulatory Opinion Scope Expansion Brief — 1064nm irradiance, three-channel aggregate irradiance, T2 combined 1064nm+1170nm session, depth-tier penetration claim | A | 2026-05-13 | `docs/neuropulse_reg_pbm1064_risk03_001.md` | ACTIVE — pending outside counsel review | REG |
 
 ### 5.12 Clinical Strategy and Evidence
 
@@ -160,7 +161,8 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 |---|---|---|---|---|---|---|
 | NP-CLIN-001 | Clinical Trials Strategy | A | pre-2026-05-13 | `docs/neuropulse_clinical_trials_strategy.docx` | ACTIVE | CLIN |
 | NP-MOD-EXT-001 | Additional Modalities Specification | A | pre-2026-05-13 | `docs/neuropulse_additional_modalities.docx` | ACTIVE | CLIN |
-| NP-BIB-001 | Clinical Evidence Bibliography | — | pre-2026-05-13 | `docs/neuropulse_bibliography.docx` | ACTIVE | CLIN |
+| NP-BIB-001 | Clinical Evidence Bibliography (33-entry, 11 modality sections) | — | pre-2026-05-13 | `docs/neuropulse_bibliography.docx` | ACTIVE | CLIN |
+| NP-BIB-1064-001 | 1064nm PBM Clinical Evidence Bibliography Addendum — Yao et al. (2022), tissue optics penetration depth refs, CCO mechanism at 1064nm, safety literature, multi-modal combination gap; FTC substantiation basis for depth-tier and working memory claims | A | 2026-05-13 | `docs/neuropulse_bibliography_1064nm_001.md` | ACTIVE | CLIN |
 | NP-SBIR-001 | SBIR Phase I Draft | — | pre-2026-05-13 | `docs/neuropulse_sbir_phase1_draft.docx` | ACTIVE | CLIN |
 | — | Researcher Candidate List | — | pre-2026-05-13 | `docs/neuropulse_researchers.docx` | ACTIVE | CLIN |
 
@@ -180,6 +182,8 @@ Under IEC 62304 and 21 CFR §820.30, software source code and associated build a
 | 1064nm smart zone module PBM | Class B | `firmware/pbm_1064nm/` |
 
 Each firmware directory is under git version control. Git commit hashes constitute the version record for source code. Release candidates must be tagged per NP-SW-001 §9.
+
+**Note on `firmware/cmake/`:** This directory contains the CMake toolchain and cross-compilation configuration for the arm-none-eabi build environment. It is build infrastructure, not a firmware module, and is not a separate DHF record. It is covered implicitly by the build reproducibility requirement in NP-SW-001 §9.3.
 
 ---
 

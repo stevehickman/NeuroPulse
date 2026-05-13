@@ -193,7 +193,7 @@ The risk register RISK-01 through RISK-25, documented in NP-RISK-001 Rev A (`doc
 **Current status at QMS establishment:**
 - 23 risks: **MITIGATED** (residual risk documented with controls in NP-RISK-001)
 - 2 risks: **OPEN** — require external action before closure:
-  - **RISK-03:** 400 mW/cm² PBM irradiance regulatory opinion — not yet obtained. *Blocking for all public marketing claims involving irradiance.* Owner: CEO. Action: engage regulatory counsel per §13.1 of CLAUDE.md.
+  - **RISK-03:** PBM irradiance regulatory opinion — not yet obtained. Scope covers: 660/808nm at 400 mW/cm² peak pulsed (original scope, Issue #5); 1064nm irradiance; three-channel aggregate irradiance ceiling (600 mW/cm²); T2 combined 1064nm+1170nm session; depth-tier penetration claim (expanded scope per NP-REG-PBM1064-001 Rev A, Issue #56). *Blocking for all public marketing claims involving irradiance or depth claims.* Owner: CEO. Action: engage regulatory counsel with NP-REG-PBM1064-001 Rev A as the expanded instruction brief (12 questions for counsel, §8 of that document).
   - **RISK-20:** CFRP shell slot rim Ra ≤ 1.6 µm — written supplier confirmation not yet received. *Blocking for tooling release.* Owner: VP Engineering (open). Action: obtain letter + coupon measurement data from CFRP shell supplier.
 - 1 risk: **MITIGATED — HARDWARE BENCH PENDING:**
   - **RISK-25:** Cervical VNS cardiac reflex. Safety MCU firmware specification complete (NP-FW-CVNS-001 Rev A). FAI-CV02 hardware timing bench required to confirm <100ms cutoff. Remains software-baselined; full closure requires T2 prototype bench.
