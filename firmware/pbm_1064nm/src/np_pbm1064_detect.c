@@ -67,6 +67,16 @@ void np_pbm1064_detect_init(np_pbm1064_detect_ctx_t *ctx,
     memset(ctx, 0, sizeof(*ctx));
     ctx->remove_cb             = remove_cb;
     ctx->device_session_count  = device_session_count;
+
+    /*
+     * All slots start in NP_TIA_GAIN_HIGH (Rf = 47 kΩ).  The HAL boot-init
+     * function must have already driven GAIN_SEL[0..4] LOW before this point.
+     * The per-slot tia_gain field is redundant with the GPIO state but kept for
+     * diagnostic logging and software test verification.
+     */
+    for (uint8_t i = 0; i < NP_PBM1064_ZONE_COUNT; i++) {
+        ctx->slots[i].tia_gain = NP_TIA_GAIN_HIGH;
+    }
 }
 
 void np_pbm1064_detect_tick(np_pbm1064_detect_ctx_t *ctx,
@@ -129,7 +139,14 @@ void np_pbm1064_detect_tick(np_pbm1064_detect_ctx_t *ctx,
                     insert_cb(slot);
                 }
             } else if (majority == NP_SLOT_SMART) {
-                /* Candidate smart module — proceed to I2C probe. */
+                /*
+                 * Smart module confirmed by ZONE_ID debounce.
+                 * Assert TIA gain switch BEFORE enabling I2C mux (NP-HW-HUB-001
+                 * Rev B §5.1): InGaAs PD2× responsivity saturates the TIA at
+                 * Rf = 47 kΩ; switch to Rf = 22 kΩ first.
+                 */
+                np_pbm1064_hal_tia_gain_set(slot, NP_TIA_GAIN_LOW);
+                s->tia_gain = NP_TIA_GAIN_LOW;
                 np_pbm1064_hal_i2c_mux_enable(slot, true);
                 s->i2c_probed = false;
                 s->state      = NP_SM_I2C_PROBING;
@@ -144,7 +161,8 @@ void np_pbm1064_detect_tick(np_pbm1064_detect_ctx_t *ctx,
             bool ack = np_pbm1064_hal_i2c_probe(slot, NP_PBM1064_I2C_ADDR,
                                                   NP_PBM1064_I2C_PROBE_TIMEOUT_MS);
             if (!ack) {
-                /* NAK or timeout — log SHDR fault, disable I2C mux, back to IDLE. */
+                /* NAK or timeout — log SHDR fault, disable I2C mux and reset TIA
+                 * gain to default, then back to IDLE. */
                 np_pbm1064_shdr_fault_entry_t fe = {
                     .device_session_count = ctx->device_session_count,
                     .slot                 = slot,
@@ -154,7 +172,9 @@ void np_pbm1064_detect_tick(np_pbm1064_detect_ctx_t *ctx,
                 };
                 np_pbm1064_hal_shdr_log_fault(&fe);
                 np_pbm1064_hal_i2c_mux_enable(slot, false);
-                s->state = NP_SM_IDLE;
+                np_pbm1064_hal_tia_gain_set(slot, NP_TIA_GAIN_HIGH);
+                s->tia_gain = NP_TIA_GAIN_HIGH;
+                s->state    = NP_SM_IDLE;
                 break;
             }
             s->slot_type  = NP_SLOT_SMART;
@@ -210,13 +230,17 @@ void np_pbm1064_detect_tick(np_pbm1064_detect_ctx_t *ctx,
                 break;
             }
             if (s->slot_type == NP_SLOT_SMART) {
+                /* Disable I2C mux first, then reset TIA gain to default (NP-HW-HUB-001
+                 * Rev B §5.2): restores Rf = 47 kΩ ready for a subsequent base module. */
                 np_pbm1064_hal_i2c_mux_enable(slot, false);
+                np_pbm1064_hal_tia_gain_set(slot, NP_TIA_GAIN_HIGH);
             }
             if (ctx->remove_cb) {
                 ctx->remove_cb(slot);
             }
             memset(s, 0, sizeof(*s));
-            s->state = NP_SM_IDLE;
+            s->state    = NP_SM_IDLE;
+            s->tia_gain = NP_TIA_GAIN_HIGH;
             break;
         }
         }

@@ -49,6 +49,13 @@ typedef enum {
     NP_WL_1064NM = 2,
 } np_wl_idx_t;
 
+/* ── TIA gain setting (Vishay DG2788A, Hub PCB Rev B — OI-PBM-HW-01) ────────── */
+
+typedef enum {
+    NP_TIA_GAIN_HIGH = 0,  /* GAIN_SEL LOW  → Rf = 47 kΩ (default; base / absent) */
+    NP_TIA_GAIN_LOW  = 1,  /* GAIN_SEL HIGH → Rf = 22 kΩ (smart module; InGaAs)   */
+} np_tia_gain_t;
+
 /* ── Smart module detection state machine ───────────────────────────────────── */
 
 typedef enum {
@@ -64,8 +71,9 @@ typedef enum {
 /* ── Per-slot detection context ─────────────────────────────────────────────── */
 
 typedef struct {
-    np_sm_state_t state;
+    np_sm_state_t  state;
     np_slot_type_t slot_type;        /* confirmed type after debounce              */
+    np_tia_gain_t  tia_gain;         /* current DG2788A gain setting for this slot */
     uint16_t       adc_reads[NP_PBM1064_DEBOUNCE_READS];
     uint8_t        read_count;
     uint32_t       next_read_ms;

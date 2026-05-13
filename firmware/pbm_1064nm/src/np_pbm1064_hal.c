@@ -152,3 +152,39 @@ void np_pbm1064_hal_t2_throttle_request(uint8_t pct)
     /* Stub: T2 1170nm laser throttle (Issue #54 — OI-PBM-07). */
     (void)pct;
 }
+
+/* ── TIA gain switch stubs (OI-PBM-HW-01; Hub PCB Rev B DG2788A) ────────────── */
+
+/*
+ * Stub gain state per slot — tracks the last requested gain setting so that
+ * software tests can verify correct sequencing without real GPIO hardware.
+ */
+static np_tia_gain_t s_stub_tia_gain[5] = {
+    NP_TIA_GAIN_HIGH, NP_TIA_GAIN_HIGH, NP_TIA_GAIN_HIGH,
+    NP_TIA_GAIN_HIGH, NP_TIA_GAIN_HIGH
+};
+
+np_pbm1064_status_t np_pbm1064_hal_tia_gain_set(uint8_t slot, np_tia_gain_t gain)
+{
+    if (slot >= 5U) { return NP_PBM1064_ERR_INVALID_ARG; }
+    s_stub_tia_gain[slot] = gain;
+    /*
+     * Real implementation: drive GPIO_B0_(04 + slot) HIGH for NP_TIA_GAIN_LOW,
+     * LOW for NP_TIA_GAIN_HIGH (see NP-HW-HUB-001 Rev B §3.4).
+     * After asserting HIGH, wait NP_PBM1064_TIA_GAIN_SETTLE_US before returning
+     * to allow DG2788A switch to settle before I2C mux enable is called.
+     */
+    return NP_PBM1064_OK;
+}
+
+void np_pbm1064_hal_tia_gain_boot_init(void)
+{
+    /*
+     * Real implementation: configure GPIO_B0_04..08 as GPIO2 push-pull outputs
+     * driven LOW (NP_TIA_GAIN_HIGH = Rf 47 kΩ default) before zone detect starts.
+     * See NP-HW-HUB-001 Rev B §5.3.
+     */
+    for (uint8_t i = 0; i < 5U; i++) {
+        s_stub_tia_gain[i] = NP_TIA_GAIN_HIGH;
+    }
+}
