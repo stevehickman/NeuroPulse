@@ -1,0 +1,366 @@
+# NP-FW-PBM1064-001 Rev A
+## 1064nm Smart Zone Module — Firmware Specification
+
+**Document:** NP-FW-PBM1064-001 Rev A  
+**Date:** 2026-05-13  
+**Status:** Baselined  
+**Author:** NeuroPulse Firmware Engineering  
+**References:** CLAUDE.md §3 (PBM Transcranial), §13.5 (locked decisions); NP-HW-FPC-001 Rev D; NP-FW-ZA-001 Rev A; NP-FW-EMMC-001 Rev A; Issue #53
+
+---
+
+## 1. Scope
+
+This document specifies the firmware for the 1064nm smart zone module subsystem on the NXP i.MX RT1062 (Cortex-M7, 600 MHz) main processor and the STM32G071 safety MCU. It covers:
+
+- Smart module detection via ZONE_ID ADC threshold and I2C probe
+- I2C command protocol to the on-module 3-channel LED driver IC
+- InGaAs photodiode (PD) dose metering with PD1/PD2 fouling/aging disambiguation
+- T1 session orchestration including 30 s ramp, EEG-adaptive closed loop, and NTC thermal gating
+- T2 combined session coordination with the 1170nm laser (Issue #54)
+- UHDR/SHDR data routing per NP-FW-EMMC-001 Rev A §12
+- FAI test specifications (FAI-SM-01 through FAI-SM-11)
+
+---
+
+## 2. Architecture Decision: Path B Smart Module
+
+The 20-pin FPC connector (Hirose FH34S-20S-0.5SH) carries no free pins for a dedicated third LED drive channel. The 1064nm smart zone module therefore carries an on-module I2C-controlled 3-channel LED driver IC that manages 660nm (CH_A), 808nm (CH_B), and 1064nm (CH_C) independently.
+
+The hub repurposes the former LED_B drive current lines:
+- Pin 10 → SDA (I2C data)
+- Pin 11 → SCL (I2C clock)
+
+The ZONE_ID resistor (pin 18) is 3.3 kΩ, producing an ADC count below the base module ladder, uniquely identifying the slot as a smart module before I2C communication is attempted.
+
+Base zone modules (ZM-01 through ZM-05, 10 kΩ–220 kΩ) are fully unchanged. The hub keeps I2C bus disabled for any slot reading ADC ≥ 1100 counts.
+
+### 2.1 ZONE_ID ADC for Smart vs Base Module
+
+| Module type | R_Z | Vout (V) | ADC counts (12-bit, 3.3V ref, 10 kΩ pull-up) |
+|-------------|-----|----------|-----------------------------------------------|
+| Smart (1064nm) | 3.3 kΩ | 0.819 | ~1016 |
+| ZM-01 (base) | 10 kΩ | 1.650 | ~2048 |
+| ZM-02 (base) | 22 kΩ | 2.269 | ~2818 |
+| ZM-03 (base) | 47 kΩ | 2.719 | ~3378 |
+| ZM-04 (base) | 100 kΩ | 3.000 | ~3723 |
+| ZM-05 (base) | 220 kΩ | 3.157 | ~3918 |
+| No module | open | 3.300 | ~4095 |
+
+**Smart module threshold: ADC < 1100 counts.** Margin ≥ 84 counts below the midpoint to the nearest base module.
+
+---
+
+## 3. Module Architecture
+
+```
+np_pbm1064_detect      — smart/base discrimination, I2C probe, bone-conduction handoff
+np_pbm1064_drive       — I2C command protocol: register writes, status poll, fault handling
+np_pbm1064_dose        — InGaAs PD ADC sampling, J/cm² integration, PD1/PD2 ratio
+np_pbm1064_session     — T1 session orchestration (ramp, EEG-adaptive, NTC gating)
+np_pbm1064_t2_combined — T2 combined session (1064nm + 1170nm coordination, throttle cascade)
+```
+
+Platform HAL stubs (provided by platform team; defined in `np_pbm1064_hal.h`):
+- `np_pbm1064_hal_adc_read_pd(slot, pd_ch, counts)` — PD1/PD2 ADC per zone (OI-PBM-01)
+- `np_pbm1064_hal_i2c_write(slot, reg, data, len)` — LPI2C3 slot-addressed write (OI-PBM-02)
+- `np_pbm1064_hal_i2c_read(slot, reg, data, len)` — LPI2C3 slot-addressed read (OI-PBM-02)
+- `np_pbm1064_hal_safety_mcu_enable(slot, enable)` — SPI enable GPIO to safety MCU (OI-PBM-03)
+
+---
+
+## 4. Smart Module Detection (`np_pbm1064_detect`)
+
+### 4.1 Detection Sequence
+
+1. **ADC threshold check:** Read LPADC1 ch 12 for the slot. If counts ≥ 1100 → classify as base module (NP_SLOT_BASE_MODULE); I2C bus remains disabled for this slot. If counts < 1100 → candidate smart module.
+2. **Debounce:** 3× ADC reads at 100 ms intervals; ≥ 2/3 must read < 1100 counts (RISK-18 pattern, same as base module debounce).
+3. **I2C probe:** Enable LPI2C3 GPIO mux for the slot. Send I2C address 0x30; expect ACK within 5 ms. If NAK or timeout → fault (SHDR log), disable I2C mux, return NP_PBM1064_ERR_I2C_PROBE_FAIL.
+4. **Bone conduction announcement:** Delegate to np_za_insert_cb (NP-FW-ZA-001) using slot index. Announcement identifies zone anatomically.
+5. **Enable:** Zone module PBM enable callback fires (before and after audio, matching NP-FW-ZA-001 pattern).
+
+### 4.2 Removal Detection
+
+Periodic ADC poll (50 ms idle, 100 ms during active session). If counts ≥ 4000 for 3 consecutive reads → removal; disable I2C mux, log SHDR, invoke remove callback.
+
+### 4.3 State Machine States
+
+`NP_SM_IDLE` → `NP_SM_SETTLING` → `NP_SM_DEBOUNCING` → `NP_SM_I2C_PROBING` → `NP_SM_ANNOUNCING` → `NP_SM_ACTIVE` → `NP_SM_REMOVING`
+
+---
+
+## 5. I2C Command Protocol (`np_pbm1064_drive`)
+
+### 5.1 Driver IC I2C Register Map
+
+| Address | Register | Access | Description |
+|---------|----------|--------|-------------|
+| 0x00 | STATUS | R | Status byte: bit[0]=FAULT, bit[1]=THERMAL, bit[2]=OCP_A, bit[3]=OCP_B, bit[4]=OCP_C |
+| 0x01 | CH_ENABLE | R/W | bit[0]=CH_A enable (660nm), bit[1]=CH_B (808nm), bit[2]=CH_C (1064nm) |
+| 0x02 | CUR_A | R/W | CH_A (660nm) current setpoint; 8-bit, 0–255 → 0–180 mA |
+| 0x03 | CUR_B | R/W | CH_B (808nm) current setpoint; same encoding |
+| 0x04 | CUR_C | R/W | CH_C (1064nm) current setpoint; same encoding |
+| 0x05 | PWM_FREQ_A | R/W | CH_A PWM frequency code (see §5.2) |
+| 0x06 | PWM_FREQ_B | R/W | CH_B PWM frequency code |
+| 0x07 | PWM_FREQ_C | R/W | CH_C PWM frequency code |
+| 0x08 | DUTY_A | R/W | CH_A duty cycle; 0x00–0xC8 (0–100%); firmware ceiling **0x32 (25%)** |
+| 0x09 | DUTY_B | R/W | CH_B duty cycle; same ceiling |
+| 0x0A | DUTY_C | R/W | CH_C duty cycle; same ceiling |
+| 0x0B | THERMAL | R/W | Thermal fault threshold (°C, 8-bit); default 62 °C |
+| 0x0C | FAULT_LATCH | R/W | Fault latch; write 0xFF to clear |
+| 0x0D | CONFIG | R/W | Global config: bit[0]=soft-reset, bit[1]=PWM_mode, bit[2]=sync_enable |
+
+### 5.2 PWM Frequency Encoding
+
+| Code | Frequency |
+|------|-----------|
+| 0x01 | 2 Hz |
+| 0x06 | 6 Hz |
+| 0x0A | 10 Hz |
+| 0x14 | 20 Hz |
+| 0x28 | 40 Hz |
+| 0x00 | CW (DC) |
+
+Firmware maps session preset `freq_hz` to the nearest supported code. 40 Hz (gamma) is the default.
+
+### 5.3 Session Startup Sequence
+
+```
+1. Write CONFIG (0x0D) — soft reset if first session since power-on
+2. Write CUR_A/B/C (0x02–0x04) — current setpoints from session preset
+3. Write PWM_FREQ_A/B/C (0x05–0x07) — frequency codes
+4. Write DUTY_A/B/C (0x08–0x0A) — clamped to ≤ DUTY_MAX_REG (0x32)
+5. Write CH_ENABLE (0x01) — enable channels per session mask
+6. Read STATUS (0x00) — verify FAULT=0 before enabling safety MCU
+```
+
+If STATUS.FAULT = 1 at step 6 → abort session, SHDR fault log, do not call `np_pbm1064_hal_safety_mcu_enable`.
+
+### 5.4 Periodic Status Poll (5 s interval)
+
+Read STATUS (0x00) + THERMAL (0x0B) + FAULT_LATCH (0x0C). On fault:
+- OCP: disable affected channel via CH_ENABLE; log to SHDR (channel ID, fault type, session count).
+- THERMAL: disable all channels; notify safety MCU; wait for NTC below threshold before re-enable.
+
+### 5.5 Duty Cycle Ceiling Enforcement
+
+`DUTY_MAX_REG = 0x32` (50 decimal; encodes 25% duty at 0.5% per LSB scale). Hub firmware clamps every duty write unconditionally:
+
+```c
+duty_write = (duty_requested <= NP_PBM1064_DUTY_MAX_REG) ?
+             duty_requested : NP_PBM1064_DUTY_MAX_REG;
+```
+
+This is enforced in `np_pbm1064_drive_set_duty()` and cannot be bypassed by the session layer.
+
+---
+
+## 6. InGaAs PD Dose Metering (`np_pbm1064_dose`)
+
+### 6.1 Dual Photodiode Architecture
+
+Per zone module (RISK-14 Option B):
+- **PD1:** Behind PDMS optical window (forward emission)
+- **PD2:** Scalp-facing surface (backscattered tissue power)
+
+PD1 and PD2 are read by the hub LPADC (OI-PBM-01) every 100 ms (10 Hz dose tick).
+
+The on-module driver IC manages CH_A (660nm) and CH_B (808nm) identically to base modules. PD1 and PD2 thus meter all three wavelengths simultaneously (InGaAs is broadband; per-wavelength dose requires calibrated K coefficients).
+
+### 6.2 Dose Computation
+
+```
+irradiance_mW_cm2 = K_PD1[zone][wl] × PD1_counts × (1 + K_ratio_adj)
+dose_J_cm2       += irradiance_mW_cm2 × 0.001 × 0.1    // 0.1 s tick, mW→W
+```
+
+Where `K_ratio_adj = (ratio_measured / K_ratio_nom[zone][wl]) − 1.0f` corrects for
+systematic departure of the current PD1/PD2 ratio from the factory-nominal value.
+
+Calibration coefficients (`K_PD1`, `K_PD2`, `K_ratio_nom`) per zone (0–4) per wavelength (0=660nm, 1=808nm, 2=1064nm) are loaded from the Config partition at session start. If absent, firmware uses factory defaults burned into flash (SHDR flag `cal_source = NP_CAL_DEFAULT`).
+
+### 6.3 PD1/PD2 Ratio Disambiguation
+
+```
+ratio = (float)PD1_counts / (float)PD2_counts
+```
+
+| Condition | PD1 | PD2 | Interpretation |
+|-----------|-----|-----|----------------|
+| PDMS fouling | ↓ | stable | Ratio ↓; PD1 attenuated by fouling | 
+| LED aging | both ↓ | both ↓ | Ratio stable; absolute output declining |
+| Scalp contact poor | stable | ↓ | Ratio ↑ |
+
+Thresholds:
+- `ratio < K_ratio_nom × 0.80` AND `PD2_counts > NP_PBM1064_PD2_STABLE_MIN` → fouling alert (reminder engine: snooze max 3×, cleaning prompt)
+- `ratio` within ±15% of `K_ratio_nom` AND `PD1_counts < NP_PBM1064_AGING_THRESH` → aging alert (reminder: LED replacement, snooze max 5×)
+
+Both conditions log to SHDR (ratio value, session count — no PD raw counts, no user biology).
+
+### 6.4 Aggregate Irradiance Ceiling
+
+`PBM_AGGREGATE_IRRADIANCE_LIMIT_MW_CM2 = 600` (pending confirmation from RISK-03 regulatory opinion — OI-PBM-05, Issue #55).
+
+Sum of per-wavelength irradiance values is computed each dose tick. If aggregate exceeds ceiling:
+1. Throttle CH_C (1064nm) first (deepest penetration, highest irradiance per watt absorbed).
+2. If aggregate still exceeds ceiling, throttle CH_B (808nm).
+3. CH_A (660nm) is last to throttle.
+
+Throttle is a proportional reduction in duty via `np_pbm1064_drive_set_duty()`.
+
+### 6.5 Dose Limits (Per Wavelength, Per Zone, Per Session)
+
+| Wavelength | Limit |
+|------------|-------|
+| 660 nm (CH_A) | 60 J/cm² |
+| 808 nm (CH_B) | 60 J/cm² |
+| 1064 nm (CH_C) | 36 J/cm² (conservative — see OI-SES-01) |
+
+On limit reached: channel disabled via I2C CH_ENABLE write. UHDR dose record updated. Session continues for remaining channels.
+
+---
+
+## 7. Session Orchestration (`np_pbm1064_session`)
+
+### 7.1 Session Descriptor v4
+
+```c
+typedef struct {
+    uint8_t  version;                    /* 0x04 */
+    uint8_t  smart_module_mask;          /* bit[n] = slot n is smart module */
+    np_pbm1064_preset_t zone_preset[5]; /* per-zone current/freq/duty/duration */
+    uint8_t  eeg_adaptive_mode;          /* 0=uniform, 1=gradient (OI-SES-02) */
+    uint16_t duration_s;                 /* total session duration */
+    uint8_t  signature[64];             /* Ed25519 over header + presets */
+} np_pbm1064_session_desc_t;
+```
+
+Session descriptor is verified by `np_signature_verify()` (bootloader module) before any I2C writes.
+
+### 7.2 Session State Machine
+
+```
+PREFLIGHT → RAMP_UP → ACTIVE → RAMP_DOWN → COMPLETE
+                                   ↕
+                                 FAULT
+```
+
+| Stage | Duration | Actions |
+|-------|----------|---------|
+| PREFLIGHT | <500 ms | I2C probe all smart slots, impedance sanity, NTC check, signature verify |
+| RAMP_UP | 30 s | Linearly increase duty 0→target on all channels; 10 Hz dose tick; 5 s I2C status poll |
+| ACTIVE | session_s − 60 s | Full duty; 10 Hz dose tick; 1 Hz NTC poll; 5 s I2C status poll; EEG-adaptive tick |
+| RAMP_DOWN | 30 s | Linearly decrease duty target→0; dose tick continues |
+| COMPLETE | — | Write UHDR session record; write SHDR summary; invoke session_end_cb |
+| FAULT | — | Disable all channels via safety MCU; write SHDR fault log; invoke fault_cb |
+
+### 7.3 EEG-Adaptive Frequency
+
+**Uniform mode (default):** All active zones set to the same PWM_FREQ code. The EEG processing layer provides `eeg_dominant_freq_hz` at 1 Hz. The session layer maps this to the nearest supported frequency code and writes PWM_FREQ_A/B/C for each smart slot via `np_pbm1064_drive_set_freq()`.
+
+**Cortical gradient mode (Research):** Spatial frequency gradient across zones based on sLORETA source power map. Specified in OI-SES-02; implementation deferred pending T2 qEEG integration (Issue #54 dependency).
+
+### 7.4 NTC Thermal Gating
+
+Hub NTC is polled at 1 Hz. If NTC temperature at any zone exceeds 62 °C (junction limit per IEC 60601):
+1. Write THERMAL register to driver IC (62 °C threshold, already at default — this serves as a secondary software gate).
+2. Disable CH_C first (highest thermal contribution from 1064nm InGaAs; higher photon energy per absorbed watt at surface).
+3. If temperature still climbing after 5 s, disable CH_B.
+4. If >65 °C, disable all channels, transition to FAULT.
+
+Safety MCU independently monitors NTC GPIO and can assert all-disable regardless of main processor state.
+
+---
+
+## 8. T2 Combined Session (`np_pbm1064_t2_combined`)
+
+### 8.1 Scope
+
+Coordinates smart zone modules (1064nm) with the T2 1170nm laser diode subsystem (firmware in Issue #54). The combined session presents a unified session interface to the app.
+
+### 8.2 Thermal Throttle Priority Order
+
+When aggregate thermal load triggers throttle:
+1. 1170nm laser (T2, deepest — greatest heat deposition subcortically)
+2. 1064nm CH_C (smart module)
+3. 808nm CH_B
+4. 660nm CH_A (shallowest — minimum thermal contribution)
+
+API: T2 laser module exposes `np_1170_throttle_request(pct)` (stub, OI-PBM-07). `np_pbm1064_t2_combined` calls this before throttling its own channels.
+
+### 8.3 Session Coordination State Machine
+
+```
+T2_IDLE → T2_PREFLIGHT → T2_RAMP_UP → T2_ACTIVE → T2_RAMP_DOWN → T2_COMPLETE
+                                           ↕
+                                        T2_FAULT
+```
+
+Ramp timing for combined session: both subsystems ramp in parallel (not serial). Safety MCU issues a single combined enable pulse. Dose records from both subsystems are written to UHDR independently per NP-FW-EMMC-001 Rev A §12.
+
+---
+
+## 9. UHDR / SHDR Data Routing
+
+### 9.1 UHDR Elements (user-owned, AES-256-XTS, biometric key)
+
+| Element | Notes |
+|---------|-------|
+| Per-zone, per-wavelength dose (J/cm²) | Written at session end per NP-FW-EMMC-001 Rev A §12 |
+| Session timestamp and duration | User biology (activity pattern) |
+| Protocol parameters (freq, current, duty, zone mask) | Session content |
+| Closed-loop EEG-adaptive events | EEG frequency adjustments |
+| PD1/PD2 ratio series | Raw optical data — user biology (tissue optical properties) |
+| NTC temperature series during session | Scalp thermal profile — user biology |
+
+### 9.2 SHDR Elements (device-owned, no user biology)
+
+| Element | Notes |
+|---------|-------|
+| LED output ratio per zone (PD1/PD2 ratio trend — slope only) | Device condition, no absolute user values |
+| Fault log (channel ID, fault type, session count) | No timestamps; session count is unsigned integer |
+| Calibration coefficient source flag (DEFAULT vs FACTORY_CAL) | Device calibration state |
+| OCP/THERMAL event counts per zone | Hardware health, no user data |
+| I2C probe pass/fail per slot | Accessory authentication log |
+| Driver IC firmware version (if available via STATUS register) | Version history |
+
+### 9.3 Boundary Case: PD1/PD2 Ratio
+
+- **Raw PD1/PD2 counts per sample** → UHDR (tells us about tissue optical properties — user biology)
+- **PD1/PD2 ratio trend slope over 30 sessions** → SHDR (device condition metric, no absolute user data)
+- **Fouling/aging alert flag** → SHDR (binary device health indicator, no user biology)
+
+---
+
+## 10. Open Items
+
+| ID | Description | Blocking |
+|----|-------------|---------|
+| OI-PBM-01 | `np_pbm1064_hal_adc_read_pd` — platform HAL for PD1/PD2 LPADC | FAI-SM-06/07/08 |
+| OI-PBM-02 | `np_pbm1064_hal_i2c_write/read` — LPI2C3 slot-addressed | FAI-SM-02/04 |
+| OI-PBM-03 | `np_pbm1064_hal_safety_mcu_enable` — SPI to safety MCU | FAI-SM-04 |
+| OI-PBM-04 | Factory calibration procedure: integrating sphere @ 1064nm → Config partition | FAI-SM-06/07/08 |
+| OI-PBM-05 | Aggregate irradiance 600 mW/cm² regulatory opinion (RISK-03, Issue #55) | FAI-SM-04 |
+| OI-PBM-06 | T2 API stubs OI-PBM-07/08 pending Issue #54 | FAI-SM-10 |
+| OI-SES-01 | 1064nm dose limit 36 J/cm² — confirm with regulatory opinion | Post-hardware |
+| OI-SES-02 | Cortical gradient EEG-adaptive mode — pending T2 qEEG integration | Issue #54 |
+
+---
+
+## 11. FAI Test Specifications
+
+See `firmware/pbm_1064nm/src/np_pbm1064_fai.c` for software-passable test implementations.
+
+| ID | Description | Requirement | Gate |
+|----|-------------|-------------|------|
+| FAI-SM-01 | Smart module ADC detection, all 5 slots | ADC < 1100 → smart; 1100–4000 → base; ≥4000 → absent | Software PASS |
+| FAI-SM-02 | I2C probe ACK, 50-cycle insertion test | 50/50 ACK within 5 ms per cycle; zero false-base classifications | Software PASS |
+| FAI-SM-03 | Base module backwards compatibility, all 5 variants | ZM-01–05 correctly classified; I2C bus stays disabled | Software PASS |
+| FAI-SM-04 | 3-channel simultaneous ±10% irradiance | CH_A ±10%, CH_B ±10%, CH_C ±10% of target | **Hardware bench** |
+| FAI-SM-05 | Duty cycle ceiling 25% | No write > 0x32 regardless of session input | Software PASS |
+| FAI-SM-06 | InGaAs dose metering ≤ ±15% error at 100 mW/cm² ref | Requires calibrated 1064nm optical bench | **Hardware bench** |
+| FAI-SM-07 | Fouling detection via PD1/PD2 ratio | PD1 attenuated ≥20%, PD2 stable → fouling flag | **Hardware bench** |
+| FAI-SM-08 | Aging detection via PD1/PD2 ratio | Both PD1 and PD2 attenuated proportionally → aging flag | **Hardware bench** |
+| FAI-SM-09 | Aggregate thermal throttle cascade | 1170nm → CH_C → CH_B → CH_A priority order verified by state trace | Software PASS |
+| FAI-SM-10 | T2 combined session state machine | State transitions verified against §8.3 with stub T2 API | Software PASS |
+| FAI-SM-11 | UHDR/SHDR data routing boundary | PD1/PD2 raw → UHDR; ratio slope → SHDR; fault flags → SHDR | Software PASS |
