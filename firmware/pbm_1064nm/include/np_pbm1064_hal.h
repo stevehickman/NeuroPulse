@@ -109,6 +109,27 @@ void np_pbm1064_hal_shdr_log_fault(const np_pbm1064_shdr_fault_entry_t *entry);
 void np_pbm1064_hal_zone_announce(uint8_t slot_index);
 
 /*
+ * Set TIA gain for the specified slot by driving GAIN_SEL[n] GPIO.
+ * NP_TIA_GAIN_HIGH → GAIN_SEL LOW  → DG2788A selects Rf = 47 kΩ (default).
+ * NP_TIA_GAIN_LOW  → GAIN_SEL HIGH → DG2788A selects Rf = 22 kΩ (smart module).
+ *
+ * Must be called with NP_TIA_GAIN_LOW AFTER debounce confirms smart module AND
+ * BEFORE np_pbm1064_hal_i2c_mux_enable() for the same slot (NP-HW-HUB-001 Rev B §5.1).
+ * Must be called with NP_TIA_GAIN_HIGH AFTER i2c_mux_enable(false) on removal.
+ * Platform implementation: GPIO_B0_04 + slot offset on i.MX RT1062 GPIO2 bank.
+ * OI-PBM-HW-01.
+ */
+np_pbm1064_status_t np_pbm1064_hal_tia_gain_set(uint8_t slot, np_tia_gain_t gain);
+
+/*
+ * Initialise all TIA gain GPIOs to NP_TIA_GAIN_HIGH (GAIN_SEL LOW) at boot.
+ * Must be called before np_pbm1064_detect_init() and before first LPADC1 reads.
+ * Platform implementation: configures GPIO_B0_04..08 as output LOW.
+ * OI-PBM-HW-01.
+ */
+void np_pbm1064_hal_tia_gain_boot_init(void);
+
+/*
  * T2 subsystem throttle request (OI-PBM-07; stub pending Issue #54).
  * pct: throttle percentage 0–100 (100 = full output, 0 = off).
  */

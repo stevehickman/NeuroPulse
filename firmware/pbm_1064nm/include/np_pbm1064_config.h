@@ -145,6 +145,25 @@
 #define NP_PBM1064_WL_COUNT             3U      /* 0=660nm, 1=808nm, 2=1064nm     */
 #define NP_PBM1064_ZONE_COUNT           5U      /* ZM-01 through ZM-05            */
 
+/* ── TIA gain switch (Vishay DG2788A, Hub PCB Rev B — OI-PBM-HW-01) ────────── */
+
+/*
+ * GAIN_SEL GPIO assignment: GPIO_B0_04..08 on i.MX RT1062 GPIO2 bank.
+ * LOW  → DG2788A selects Rf_A = 47 kΩ (base module / absent; silicon PD range)
+ * HIGH → DG2788A selects Rf_B = 22 kΩ (smart module; InGaAs 2× responsivity)
+ *
+ * Must be asserted HIGH after ZONE_ID debounce confirms smart module (ADC < 1100)
+ * and BEFORE np_pbm1064_hal_i2c_mux_enable() is called for that slot.
+ * Must be deasserted LOW after I2C mux disable on smart module removal.
+ * Must be initialised LOW for all slots before zone detection task starts.
+ */
+#define NP_PBM1064_TIA_RF_HIGH_OHMS     47000U  /* base / absent — silicon PD     */
+#define NP_PBM1064_TIA_RF_LOW_OHMS      22000U  /* smart module — InGaAs PD       */
+
+/* Minimum hold time (µs) after GAIN_SEL assertion before I2C mux enable.       */
+/* DG2788A switch propagation delay < 1 µs; 10 µs provides margin.             */
+#define NP_PBM1064_TIA_GAIN_SETTLE_US   10U
+
 /* ── FreeRTOS task parameters ────────────────────────────────────────────────── */
 
 #define NP_PBM1064_TASK_STACK_WORDS     768U
