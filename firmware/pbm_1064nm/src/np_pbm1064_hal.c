@@ -153,6 +153,81 @@ void np_pbm1064_hal_t2_throttle_request(uint8_t pct)
     (void)pct;
 }
 
+/* ── T2 1170nm laser HAL stubs (NP-SES-1064-001 Rev A §4) ───────────────────── */
+
+/* Stub state for FAI test determinism. */
+static bool    s_stub_t2_1170_enabled  = false;
+static uint8_t s_stub_t2_1170_duty_pct = 0U;
+static float   s_stub_t2_1170_dose_J   = 0.0f;  /* accumulates per set_duty call  */
+static float   s_stub_t2_1170_tec_temp = 38.0f; /* nominal TEC temp (healthy)     */
+
+np_pbm1064_status_t np_pbm1064_hal_t2_1170_enable(bool enable)
+{
+    /*
+     * Real implementation: SPI request to safety MCU → safety MCU verifies
+     * impedance + checks cardiac interlock (cervical VNS path) before asserting
+     * laser enable GPIO.  Stub: tracks state for FAI test assertions.
+     */
+    s_stub_t2_1170_enabled = enable;
+    if (!enable) {
+        s_stub_t2_1170_duty_pct = 0U;
+        s_stub_t2_1170_dose_J   = 0.0f;
+    }
+    return NP_PBM1064_OK;
+}
+
+np_pbm1064_status_t np_pbm1064_hal_t2_1170_set_duty(uint8_t duty_pct)
+{
+    /* Real implementation: I2C/SPI write to T2 laser module controller. */
+    if (duty_pct > 100U) { duty_pct = 100U; }
+    s_stub_t2_1170_duty_pct = duty_pct;
+    return NP_PBM1064_OK;
+}
+
+np_pbm1064_status_t np_pbm1064_hal_t2_1170_get_dose(float *dose_J_cm2_out)
+{
+    /*
+     * Real implementation: read integrated monitor PD dose accumulator from
+     * the T2 laser module (OI-PBM-08).  Stub: returns a synthetic dose
+     * proportional to current duty_pct so that FAI-T2-03 can verify readback.
+     */
+    if (!dose_J_cm2_out) { return NP_PBM1064_ERR_INVALID_ARG; }
+    if (s_stub_t2_1170_enabled) {
+        /* Simulate ~2 J/cm² per second at 100% duty for FAI determinism. */
+        s_stub_t2_1170_dose_J += ((float)s_stub_t2_1170_duty_pct / 100.0f) * 2.0f;
+    }
+    *dose_J_cm2_out = s_stub_t2_1170_dose_J;
+    return NP_PBM1064_OK;
+}
+
+np_pbm1064_status_t np_pbm1064_hal_t2_1170_get_temp(float *tec_temp_c_out)
+{
+    /* Real implementation: read TEC thermistor from T2 laser module (OI-PBM-08). */
+    if (!tec_temp_c_out) { return NP_PBM1064_ERR_INVALID_ARG; }
+    *tec_temp_c_out = s_stub_t2_1170_tec_temp;
+    return NP_PBM1064_OK;
+}
+
+np_pbm1064_status_t np_pbm1064_hal_t2_sloreta_get_target(int16_t *mni_x_out,
+                                                           int16_t *mni_y_out,
+                                                           int16_t *mni_z_out,
+                                                           bool    *valid_out)
+{
+    /*
+     * Real implementation: read computed MNI target from np_fw_sloreta engine
+     * (NP-FW-HD-001 Rev A).  Stub returns DLPFC_L default so that software-
+     * passable FAI-T2-03 can verify the sLORETA logging path.  OI-SES-T2-01.
+     */
+    if (!mni_x_out || !mni_y_out || !mni_z_out || !valid_out) {
+        return NP_PBM1064_ERR_INVALID_ARG;
+    }
+    *mni_x_out = NP_T2_SLORETA_STUB_MNI_X;
+    *mni_y_out = NP_T2_SLORETA_STUB_MNI_Y;
+    *mni_z_out = NP_T2_SLORETA_STUB_MNI_Z;
+    *valid_out = true;
+    return NP_PBM1064_OK;
+}
+
 /* ── TIA gain switch stubs (OI-PBM-HW-01; Hub PCB Rev B DG2788A) ────────────── */
 
 /*

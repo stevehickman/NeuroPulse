@@ -33,6 +33,19 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm09(void); /* Thermal throttle cascade  
 np_pbm1064_fai_result_t np_pbm1064_fai_sm10(void); /* T2 combined state machine   */
 np_pbm1064_fai_result_t np_pbm1064_fai_sm11(void); /* UHDR/SHDR data routing      */
 
+/*
+ * T2 combined session FAI tests (NP-SES-1064-001 Rev A §4; software-passable).
+ *
+ * FAI-T2-01: Combined session descriptor validation
+ * FAI-T2-02: Full 4-step thermal throttle cascade (1170nm → CH_C → CH_B → CH_A)
+ * FAI-T2-03: Combined UHDR record completeness (1064nm + 1170nm dose + sLORETA)
+ * FAI-T2-04: 1170nm abort path — abort disables both 1170nm and 1064nm
+ */
+np_pbm1064_fai_result_t np_pbm1064_fai_t2_01(void);
+np_pbm1064_fai_result_t np_pbm1064_fai_t2_02(void);
+np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void);
+np_pbm1064_fai_result_t np_pbm1064_fai_t2_04(void);
+
 #ifdef __cplusplus
 }
 #endif

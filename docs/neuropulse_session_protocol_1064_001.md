@@ -119,6 +119,163 @@ Duty is written to all smart module slots simultaneously each tick (I2C write bu
 
 ---
 
+## 4. T2 Combined Session (1064nm Cortical + 1170nm Subcortical)
+
+**Document:** NP-SES-1064-001 Rev A §4  
+**Firmware:** `np_pbm1064_t2_combined` (`firmware/pbm_1064nm/`)  
+**Status:** Issue #55 — software PASS; hardware FAI pending T2 prototype
+
+### 4.1 Three-Tier Penetration Stack
+
+The T2 combined session delivers coordinated multi-depth PBM via three laser subsystems operating simultaneously under a single session orchestrator:
+
+| Tier | Wavelength | Depth | Subsystem | Targeting |
+|------|-----------|-------|-----------|-----------|
+| Surface | 660 nm (CH_A) | 0–5 mm | Smart zone module | Full scalp coverage |
+| Cortical | 1064 nm (CH_C) | ~20–30 mm | Smart zone module | Up to 5 addressable zones |
+| Subcortical | 1170 nm | ~35–40 mm | T2 TEC-stabilised laser | sLORETA-guided (T2 depression protocol) |
+
+This architecture replicates the depth-tier rationale from the penetration physics literature (Bashkatov 2005, Strangman 2002 — NP-BIB-1064-001 Rev A entries 12.3a–12.3c).
+
+### 4.2 Combined Session Descriptor
+
+```c
+/*
+ * np_t2_combined_desc_t — NP-SES-1064-001 Rev A §4.2
+ * Ed25519 signature covers all fields at bytes 0 .. (sizeof - 64).
+ * Hub firmware verifies before any laser enable.
+ */
+typedef struct {
+    uint8_t  version;              /* NP_T2_COMBINED_VERSION = 0x01                */
+    uint8_t  t2_combined_enable;   /* 1 = activate 1170nm laser                    */
+    uint8_t  sloreta_enable;       /* 1 = read sLORETA MNI target at session start  */
+    uint8_t  reserved;
+    np_pbm1064_session_desc_t pbm1064; /* 1064nm smart zone sub-descriptor (v4)   */
+    np_t2_1170_preset_t       laser1170; /* { duty_pct, freq_hz, duration_s }      */
+    uint8_t  signature[64];        /* Ed25519                                      */
+} np_t2_combined_desc_t;
+```
+
+### 4.3 Parallel Ramp Coordination
+
+Both the 1064nm smart zone session and the 1170nm laser ramp **in parallel** from a single combined safety MCU enable:
+
+```
+t = 0                            t = 30s               t = session_end - 30s
+│                                │                      │
+├─ 1064nm ramp 0→target duty ───►│ full duty ──────────►│ ramp down 30s
+├─ 1170nm ramp 0→laser_duty ────►│ full power ─────────►│ ramp down 30s
+```
+
+- Safety MCU issues a single combined enable at `t = 0` (SPI write from main processor).
+- Hub firmware drives the 1170nm ramp duty via `np_pbm1064_hal_t2_1170_set_duty()` at 100 ms tick rate, parallel with the 1064nm ramp in `np_pbm1064_session_tick()`.
+- Ramp abort on any fault immediately disables both subsystems within 100 ms.
+
+### 4.4 Thermal Throttle Priority Cascade
+
+When aggregate thermal load triggers throttle, the priority cascade is applied one step per call to `np_pbm1064_t2_apply_thermal_throttle()`:
+
+| Step | Subsystem | Rationale |
+|------|-----------|-----------|
+| 1 | 1170nm TEC laser | Deepest penetration; highest per-watt subcortical heat deposition |
+| 2 | 1064nm CH_C (smart zone) | Cortical depth; second-highest thermal contribution |
+| 3 | 808nm CH_B (smart zone) | Mid-surface; lower thermal contribution |
+| 4 | 660nm CH_A (smart zone) | Surface only; last resort |
+
+TEC temperature is polled every 1 s via `np_pbm1064_hal_t2_1170_get_temp()`. Threshold `NP_T2_1170_TEC_FAULT_C` (45 °C) triggers step-1 throttle; `NP_T2_1170_TEC_CUTOFF_C` (50 °C) triggers immediate abort.
+
+### 4.5 sLORETA Depression Protocol Coordination (T2, OI-SES-T2-01)
+
+For the T2 depression protocol, the sLORETA engine (NP-FW-HD-001 Rev A) provides the MNI cortical target at session start. The 1170nm laser is positioned to irradiate subcortical regions below the identified cortical source.
+
+**Workflow (when `sloreta_enable = 1`):**
+1. App runs T2 21-ch resting-state qEEG session.
+2. sLORETA computes source power map; identifies peak MNI target (e.g., DLPFC hypoactivity).
+3. App sets `sloreta_enable = 1` in combined descriptor.
+4. At `np_pbm1064_t2_start_combined()`, firmware reads MNI target via `np_pbm1064_hal_t2_sloreta_get_target()`.
+5. MNI coordinate logged to UHDR combined record. Clinician app displays depth-tier alignment illustration.
+6. **Hardware coordination (pending T2 prototype):** Laser arm positioning from sLORETA MNI → physical placement is a procedural step; firmware records the target but does not drive robotic positioning in this revision.
+
+**Stub behaviour (current):** `np_pbm1064_hal_t2_sloreta_get_target()` returns DLPFC_L stub coordinates (MNI x=-40, y=40, z=30) with `valid = true` so that FAI-T2-01 and FAI-T2-03 exercise the logging path.
+
+### 4.6 Session State Machine
+
+```
+T2_IDLE → T2_PREFLIGHT → T2_RAMP_UP → T2_ACTIVE → T2_RAMP_DOWN → T2_COMPLETE
+                                            ↕
+                                        T2_FAULT
+```
+
+`T2_PREFLIGHT`: 1064nm preflight (I2C probe, NTC check) + sLORETA target read + 1170nm enable.  
+`T2_RAMP_UP`: parallel 30 s ramp for both subsystems.  
+`T2_ACTIVE`: full dose; TEC poll at 1 Hz; 1064nm dose tick at 10 Hz.  
+`T2_RAMP_DOWN`: parallel ramp-down; 1064nm drives ramp, 1170nm mirrors proportionally.  
+`T2_COMPLETE`: final 1170nm dose read; both subsystems disabled; UHDR + SHDR written.  
+`T2_FAULT`: all channels disabled immediately; both records written with fault reason.
+
+### 4.7 UHDR / SHDR Records
+
+**UHDR — np_t2_combined_uhdr_record_t (user-owned, biometric-derived AES-256 key)**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `pbm1064_record` | `np_pbm1064_session_record_t` | Per-zone, per-wavelength 1064nm dose |
+| `dose_1170_J_cm2` | `float` | Total 1170nm subcortical dose this session |
+| `irradiance_1170_peak_mW_cm2` | `float` | Peak irradiance recorded by monitor PD |
+| `throttle_events_1170` | `uint32_t` | Count of TEC thermal throttle events |
+| `throttle_events_ch_c` | `uint32_t` | Count of CH_C throttle events from T2 load |
+| `sloreta_mni_x/y/z` | `int16_t` | MNI target coordinate (mm) at session start |
+| `sloreta_valid` | `uint8_t` | 1 = sLORETA coordinate was read successfully |
+| `abort_reason` | `uint8_t` | 0 = normal; `np_pbm1064_fault_t` on fault |
+| `duration_s` | `uint32_t` | Actual session duration |
+
+**SHDR — np_t2_combined_shdr_summary_t (device-owned, no user biology)**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `pbm1064_shdr` | `np_pbm1064_shdr_summary_t` | 1064nm device health metrics |
+| `tec_throttle_events` | `uint8_t` | Count of TEC temperature threshold crossings |
+| `laser_fault_flag` | `uint8_t` | 1 = 1170nm module reported a fault |
+| `sloreta_session_flag` | `uint8_t` | 1 = sLORETA session was active |
+| `abort_reason` | `uint8_t` | np_pbm1064_fault_t; 0 = normal |
+
+### 4.8 FAI Test Specifications (software-passable)
+
+| ID | Description | Requirement | Status |
+|----|-------------|-------------|--------|
+| FAI-T2-01 | Combined descriptor validation | NULL and bad-version rejected; valid accepted; sLORETA MNI logged to UHDR | **Software PASS** |
+| FAI-T2-02 | Full 4-step thermal throttle cascade | 1170nm → CH_C → CH_B → CH_A; each call advances one step; 5th call no-op | **Software PASS** |
+| FAI-T2-03 | Combined UHDR record completeness | 1064nm dose, 1170nm dose, sLORETA fields, SHDR ≤128 bytes, abort_reason=0 on init | **Software PASS** |
+| FAI-T2-04 | 1170nm abort path | Abort disables 1170nm and 1064nm; combined stage = FAULT; abort_reason recorded | **Software PASS** |
+| FAI-T2-05 | 1170nm dose metering ≤±15% at 1000 mW/cm² | Requires calibrated 1170nm optical bench + T2 prototype | **Hardware bench — PENDING** |
+| FAI-T2-06 | TEC temperature interlock | TEC >45°C → step-1 throttle; TEC >50°C → abort | **Hardware bench — PENDING** |
+
+FAI-T2-05 and FAI-T2-06 are blocking for T2 clinical release (NP-COORD-001 G3-07 hardware path).
+
+### 4.9 Open Items
+
+| ID | Description | Blocking |
+|----|-------------|---------|
+| OI-SES-T2-01 | sLORETA HAL wire-up to np_fw_sloreta engine | T2 prototype |
+| OI-SES-T2-02 | 1170nm monitor PD HAL implementation (OI-PBM-08 expansion) | FAI-T2-05 |
+| OI-SES-T2-03 | Bilateral 4×1 montage coordination with sLORETA-guided HD-tDCS in same session | T2 prototype |
+| OI-SES-T2-04 | Cortical gradient EEG-adaptive mode across 1064nm zones (OI-SES-02) with sLORETA weighting | T2 qEEG integration |
+
+---
+
+## 5. Ramp Profile
+
+30 s linear ramp on all active channels. Ramp tick rate: 10 Hz (same as dose tick).
+
+```
+duty_step = target_duty / (30 × 10)   // per 100 ms tick
+ramp_duty = duty_step × tick_count
+```
+
+Duty is written to all smart module slots simultaneously each tick (I2C write burst per slot). On ramp abort (fault), all channels set to duty=0 and CH_ENABLE=0x00 within 100 ms.
+
+---
+
 ## 6. Safety Limits Summary
 
 | Parameter | Limit | Enforcement |
@@ -127,7 +284,10 @@ Duty is written to all smart module slots simultaneously each tick (I2C write bu
 | 660nm dose/session | 60 J/cm² | Dose tick; channel disable on limit |
 | 808nm dose/session | 60 J/cm² | Dose tick; channel disable on limit |
 | 1064nm dose/session | 36 J/cm² | Dose tick; channel disable on limit (OI-SES-01) |
+| **1170nm dose/session** | **60 J/cm²** | **T2 combined dose tick; laser disable on limit** |
 | Aggregate irradiance | 600 mW/cm² | Throttle cascade; pending OI-PBM-05 |
 | NTC junction temp | 62 °C | Hardware current throttle + firmware gate |
 | IEC 60601 surface temp | 42 °C | Safety MCU GPIO interlock |
+| **TEC fault temp** | **45 °C** | **1170nm step-1 throttle** |
+| **TEC cutoff temp** | **50 °C** | **Immediate 1170nm disable + session abort** |
 | Safety MCU heartbeat | 200 ms | Main processor SPI; 1.5 s watchdog → all-disable |

@@ -257,4 +257,69 @@ typedef struct {
     const char *details;
 } np_pbm1064_fai_result_t;
 
+/* ═══════════════════════════════════════════════════════════════════════════════
+ * T2 combined session types — NP-SES-1064-001 Rev A §4
+ * ═══════════════════════════════════════════════════════════════════════════════ */
+
+/* ── T2 1170nm laser preset ──────────────────────────────────────────────────── */
+
+typedef struct {
+    uint8_t  duty_pct;     /* laser drive power 0–100%; TEC-limited in firmware    */
+    uint8_t  freq_hz;      /* 0 = CW; else pulsed at freq_hz (session presets use CW) */
+    uint16_t duration_s;   /* active duration (may differ from 1064nm duration)    */
+} np_t2_1170_preset_t;
+
+/* ── T2 combined session descriptor ─────────────────────────────────────────── */
+
+/*
+ * Signed by the app Ed25519 key.  Hub firmware verifies the signature before
+ * any laser enable.  Contains the 1064nm sub-descriptor plus 1170nm laser params
+ * and optional sLORETA coordination flags.
+ */
+typedef struct {
+    uint8_t  version;              /* NP_T2_COMBINED_VERSION (0x01)                */
+    uint8_t  t2_combined_enable;   /* 1 = activate 1170nm laser                    */
+    uint8_t  sloreta_enable;       /* 1 = read sLORETA MNI target at session start  */
+    uint8_t  reserved;
+    np_pbm1064_session_desc_t pbm1064; /* 1064nm smart zone sub-descriptor          */
+    np_t2_1170_preset_t       laser1170;
+    uint8_t  signature[64];        /* Ed25519 over all preceding fields             */
+} np_t2_combined_desc_t;
+
+/* ── T2 combined UHDR session record ─────────────────────────────────────────── */
+
+typedef struct {
+    np_pbm1064_session_record_t pbm1064_record; /* 1064nm per-zone, per-wl dose     */
+
+    /* 1170nm deep laser metrics */
+    float    dose_1170_J_cm2;           /* total subcortical dose this session       */
+    float    irradiance_1170_peak_mW_cm2; /* peak irradiance observed               */
+    uint32_t throttle_events_1170;      /* TEC thermal throttle events (count)       */
+    uint32_t throttle_events_ch_c;      /* 1064nm CH_C throttle events from T2 load */
+
+    /* sLORETA coordination target (OI-SES-T2-01; stub pending T2 prototype) */
+    int16_t  sloreta_mni_x;            /* MNI X coordinate (mm)                     */
+    int16_t  sloreta_mni_y;            /* MNI Y coordinate (mm)                     */
+    int16_t  sloreta_mni_z;            /* MNI Z coordinate (mm)                     */
+    uint8_t  sloreta_valid;            /* 1 = coordinates were read from sLORETA     */
+    uint8_t  abort_reason;             /* 0 = normal; else np_pbm1064_fault_t       */
+    uint32_t duration_s;               /* actual session duration                   */
+} np_t2_combined_uhdr_record_t;
+
+/* ── T2 combined SHDR session summary (no user biology) ─────────────────────── */
+
+typedef struct {
+    np_pbm1064_shdr_summary_t pbm1064_shdr; /* 1064nm device health metrics        */
+
+    /* 1170nm device health metrics (device condition — no user biology) */
+    uint8_t  tec_throttle_events;       /* count of TEC temp threshold crossings    */
+    uint8_t  laser_fault_flag;          /* 1 = 1170nm module reported a fault       */
+    uint8_t  sloreta_session_flag;      /* 1 = sLORETA target was read at start      */
+    uint8_t  abort_reason;              /* np_pbm1064_fault_t; 0 = normal           */
+    uint32_t duration_s;
+} np_t2_combined_shdr_summary_t;
+
+/* ── T2 combined stage (mirrors np_t2_stage_t; aliased for clarity) ──────────── */
+/* np_t2_stage_t defined above is reused for the combined session. */
+
 #endif /* NP_PBM1064_TYPES_H */
