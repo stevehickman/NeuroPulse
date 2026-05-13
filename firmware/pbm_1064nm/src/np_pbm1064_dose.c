@@ -1,139 +1,219 @@
-#include "np_pbm1064.h"
-#include "np_pbm1064_config.h"
+/*
+ * NeuroPulse 1064nm Smart Zone Module — InGaAs PD Dose Metering
+ * Document: NP-FW-PBM1064-001 Rev A §6
+ *
+ * Dual-PD architecture (RISK-14 Option B):
+ *   PD1 — behind PDMS optical window (forward emission)
+ *   PD2 — scalp-facing (backscattered tissue power)
+ *
+ * PD1/PD2 ratio disambiguates fouling (PD1↓, PD2 stable) from LED aging
+ * (both↓ proportional).  Raw PD counts → UHDR; ratio slope → SHDR only.
+ */
+
+#include "np_pbm1064_dose.h"
+#include "np_pbm1064_drive.h"
+#include "np_pbm1064_hal.h"
 #include <string.h>
 
-/* HAL stubs (OI-PBM-01, OI-PBM-05, OI-PBM-06) */
-extern uint16_t np_adc_read_pd(uint8_t zone, uint8_t pd_channel);
-extern void     np_uhdr_pbm_sample(uint8_t zone, uint16_t wl_nm,
-                                   float irr_pd1, float irr_pd2);
-extern np_err_t np_config_read_pbm_cal(uint8_t zone, np_pbm_cal_t *out);
+/* ── Factory-default calibration coefficients ────────────────────────────────── */
 
-/* PD channel indices for ADC mux — platform-specific (OI-PBM-01) */
-#define PD1_ADC_CHANNEL  0u
-#define PD2_ADC_CHANNEL  1u
+/*
+ * Used when Config partition has no factory calibration (integrating sphere
+ * data not yet available for a given slot/wavelength combination).
+ * SHDR flag cal_source=NP_CAL_DEFAULT is set in this case.
+ */
+static const np_pbm1064_cal_t k_default_cal[NP_PBM1064_WL_COUNT] = {
+    /* NP_WL_660NM  */ { .K_PD1 = 0.120f, .K_PD2 = 0.090f, .K_ratio_nom = 1.333f, .valid = false },
+    /* NP_WL_808NM  */ { .K_PD1 = 0.105f, .K_PD2 = 0.085f, .K_ratio_nom = 1.235f, .valid = false },
+    /* NP_WL_1064NM */ { .K_PD1 = 0.088f, .K_PD2 = 0.072f, .K_ratio_nom = 1.222f, .valid = false },
+};
 
-static const uint16_t wl_nm[NP_PBM1064_WAVELENGTH_COUNT] = {660u, 808u, 1064u};
+/* ── Calibration loading ─────────────────────────────────────────────────────── */
 
-void np_pbm1064_load_cal(np_pbm_cal_t *cal)
+void np_pbm1064_dose_load_cal(
+    np_pbm1064_cal_t cal[NP_PBM1064_ZONE_COUNT][NP_PBM1064_WL_COUNT])
 {
-    uint8_t zone, wl;
-    bool any_factory = false;
-
-    for (zone = 0u; zone < NP_PBM1064_ZONE_COUNT; zone++) {
-        np_pbm_cal_t zone_cal;
-        if (np_config_read_pbm_cal(zone, &zone_cal) == NP_OK) {
-            for (wl = 0u; wl < NP_PBM1064_WAVELENGTH_COUNT; wl++) {
-                cal->K_PD1[zone][wl]      = zone_cal.K_PD1[zone][wl];
-                cal->K_PD2[zone][wl]      = zone_cal.K_PD2[zone][wl];
-                cal->K_ratio_nom[zone][wl] = zone_cal.K_ratio_nom[zone][wl];
-            }
-            cal->cal_from_factory[zone] = true;
-            any_factory = true;
-        } else {
-            /* Default coefficients for 1064 nm; 660/808 channels use base module calibration */
-            cal->K_PD1[zone][NP_PBM_CH_C]       = NP_PBM1064_K_DEFAULT_PD1_1064;
-            cal->K_PD2[zone][NP_PBM_CH_C]       = NP_PBM1064_K_DEFAULT_PD2_1064;
-            cal->K_ratio_nom[zone][NP_PBM_CH_C] = NP_PBM1064_K_DEFAULT_RATIO_NOM_1064;
-            cal->cal_from_factory[zone] = false;
+    /*
+     * Attempt to read factory calibration from Config partition.
+     * Platform HAL for Config read is not yet implemented (OI-PBM-04);
+     * fall back to firmware defaults for all zones and wavelengths.
+     */
+    for (uint8_t z = 0; z < NP_PBM1064_ZONE_COUNT; z++) {
+        for (uint8_t w = 0; w < NP_PBM1064_WL_COUNT; w++) {
+            cal[z][w] = k_default_cal[w]; /* valid = false → SHDR: DEFAULT */
         }
     }
-    (void)any_factory;
 }
 
-static void dose_tick_zone(uint8_t zone, np_pbm_channel_t ch,
-                           np_pbm1064_zone_state_t *zs,
-                           const np_pbm_cal_t *cal)
+/* ── Dose tick ───────────────────────────────────────────────────────────────── */
+
+np_pbm1064_status_t np_pbm1064_dose_tick(
+    uint8_t                    slot,
+    const np_pbm1064_cal_t     cal[NP_PBM1064_WL_COUNT],
+    np_pbm1064_dose_state_t   *dose)
 {
-    uint16_t adc_pd1 = np_adc_read_pd(zone, PD1_ADC_CHANNEL);
-    uint16_t adc_pd2 = np_adc_read_pd(zone, PD2_ADC_CHANNEL);
+    const float tick_duration_s = (float)NP_PBM1064_DOSE_TICK_MS / 1000.0f;
 
-    float irr_pd1 = (float)adc_pd1 * cal->K_PD1[zone][ch];
-    float irr_pd2 = (float)adc_pd2 * cal->K_PD2[zone][ch];
+    for (uint8_t w = 0; w < NP_PBM1064_WL_COUNT; w++) {
+        if (dose->dose_limit_hit[w]) {
+            continue; /* channel already disabled for this wavelength */
+        }
 
-    zs->irr_pd1[ch] = irr_pd1;
-    zs->irr_pd2[ch] = irr_pd2;
+        uint16_t pd1_raw = 0, pd2_raw = 0;
+        if (!np_pbm1064_hal_adc_read_pd(slot, 0, &pd1_raw)) { continue; }
+        if (!np_pbm1064_hal_adc_read_pd(slot, 1, &pd2_raw)) { continue; }
 
-    /* PD1/PD2 ratio for fouling/aging disambiguation (RISK-14 Option B) */
-    float ratio = (irr_pd2 > 0.5f) ? (irr_pd1 / irr_pd2) : 0.0f;
-    zs->pd1_pd2_ratio[ch] = ratio;
+        dose->pd1_counts[w] = (float)pd1_raw;
+        dose->pd2_counts[w] = (float)pd2_raw;
 
-    float ratio_delta = ratio - cal->K_ratio_nom[zone][ch];
-    if (ratio_delta < NP_PBM1064_FOULING_RATIO_DELTA) {
-        zs->fouling_flag = true;
-    } else if (zs->baseline_pd1[ch] > 0.5f &&
-               irr_pd1 < zs->baseline_pd1[ch] * NP_PBM1064_AGING_RATIO_THRESHOLD) {
-        zs->aging_flag = true;
-    }
+        /* Compute ratio-corrected irradiance. */
+        float ratio_adj = 0.0f;
+        if (pd2_raw > 0U && cal[w].K_ratio_nom > 0.0f) {
+            float ratio = dose->pd1_counts[w] / (float)pd2_raw;
+            dose->ratio_current = ratio;
+            ratio_adj = (ratio / cal[w].K_ratio_nom) - 1.0f;
+        }
 
-    /* Accumulate dose: J/cm² = mW/cm² × 0.1 s × 1e-3 */
-    zs->dose_j_cm2[ch] += irr_pd1 * (1.0f / (float)NP_PBM1064_DOSE_TICK_HZ) * 1e-3f;
+        float irr = cal[w].K_PD1 * dose->pd1_counts[w] * (1.0f + ratio_adj);
+        if (irr < 0.0f) { irr = 0.0f; }
+        dose->irradiance_mW_cm2[w] = irr;
 
-    /* Dose limit check */
-    static const float limits[NP_PBM1064_WAVELENGTH_COUNT] = {
-        NP_PBM1064_DOSE_LIMIT_660_J_CM2,
-        NP_PBM1064_DOSE_LIMIT_808_J_CM2,
-        NP_PBM1064_DOSE_LIMIT_1064_J_CM2,
-    };
-    float warn_threshold = limits[ch] * NP_PBM1064_DOSE_WARN_PCT / 100.0f;
-    if (!zs->dose_warn[ch] && zs->dose_j_cm2[ch] >= warn_threshold) {
-        zs->dose_warn[ch] = true;
-        /* App notification happens at session layer via status field */
-    }
-    if (!zs->dose_limit_hit[ch] && zs->dose_j_cm2[ch] >= limits[ch]) {
-        zs->dose_limit_hit[ch] = true;
-    }
+        /* Accumulate dose. */
+        dose->dose_J_cm2[w] += irr * 0.001f * tick_duration_s;
 
-    /* UHDR write (user health data — irradiance time series, per wavelength) */
-    np_uhdr_pbm_sample(zone, wl_nm[ch], irr_pd1, irr_pd2);
-}
-
-void np_pbm1064_dose_tick(np_pbm1064_session_t *session)
-{
-    uint8_t slot;
-    for (slot = 0u; slot < NP_PBM1064_ZONE_COUNT; slot++) {
-        if (session->zone[slot].slot_type != NP_SLOT_SMART_MODULE) continue;
-        if (!session->zone[slot].driver_ready) continue;
-
-        uint8_t ch_mask = session->zone[slot].active_ch_mask;
-        if (ch_mask & NP_PBM1064_CH_A) dose_tick_zone(slot, NP_PBM_CH_A,
-                                                       &session->zone[slot], &session->cal);
-        if (ch_mask & NP_PBM1064_CH_B) dose_tick_zone(slot, NP_PBM_CH_B,
-                                                       &session->zone[slot], &session->cal);
-        if (ch_mask & NP_PBM1064_CH_C) dose_tick_zone(slot, NP_PBM_CH_C,
-                                                       &session->zone[slot], &session->cal);
-    }
-}
-
-void np_pbm1064_throttle_cascade(uint8_t zone, float p_aggregate_mw_cm2,
-                                 np_pbm1064_session_t *session)
-{
-    np_pbm1064_zone_state_t *zs = &session->zone[zone];
-    float excess = p_aggregate_mw_cm2 - NP_PBM1064_AGGREGATE_IRRADIANCE_MW_CM2;
-
-    /* Throttle CH_C first, then CH_B, preserve CH_A */
-    if ((zs->active_ch_mask & NP_PBM1064_CH_C) && excess > 0.0f) {
-        uint8_t new_duty = (uint8_t)(session->preset[zone].duty_pct_C * 0.75f);
-        np_pbm1064_set_duty(zone, NP_PBM_CH_C, new_duty);
-        excess -= session->zone[zone].irr_pd1[NP_PBM_CH_C] * 0.25f;
-    }
-    if ((zs->active_ch_mask & NP_PBM1064_CH_B) && excess > 0.0f) {
-        uint8_t new_duty = (uint8_t)(session->preset[zone].duty_pct_B * 0.75f);
-        np_pbm1064_set_duty(zone, NP_PBM_CH_B, new_duty);
-    }
-}
-
-void np_pbm1064_thermal_check(np_pbm1064_session_t *session)
-{
-    uint8_t slot;
-    for (slot = 0u; slot < NP_PBM1064_ZONE_COUNT; slot++) {
-        if (session->zone[slot].slot_type != NP_SLOT_SMART_MODULE) continue;
-
-        float p_agg = session->zone[slot].irr_pd1[NP_PBM_CH_A]
-                    + session->zone[slot].irr_pd1[NP_PBM_CH_B]
-                    + session->zone[slot].irr_pd1[NP_PBM_CH_C];
-
-        if (p_agg > NP_PBM1064_AGGREGATE_IRRADIANCE_MW_CM2) {
-            np_pbm1064_throttle_cascade(slot, p_agg, session);
+        /* Check per-wavelength dose limit. */
+        const float limits[NP_PBM1064_WL_COUNT] = {
+            NP_PBM1064_DOSE_LIMIT_660_J_CM2,
+            NP_PBM1064_DOSE_LIMIT_808_J_CM2,
+            NP_PBM1064_DOSE_LIMIT_1064_J_CM2,
+        };
+        if (dose->dose_J_cm2[w] >= limits[w]) {
+            dose->dose_limit_hit[w] = true;
+            return NP_PBM1064_ERR_DOSE_LIMIT;
         }
     }
+    return NP_PBM1064_OK;
+}
+
+/* ── Aggregate irradiance ────────────────────────────────────────────────────── */
+
+float np_pbm1064_dose_aggregate_irradiance(const np_pbm1064_dose_state_t *dose)
+{
+    float total = 0.0f;
+    for (uint8_t w = 0; w < NP_PBM1064_WL_COUNT; w++) {
+        if (!dose->dose_limit_hit[w]) {
+            total += dose->irradiance_mW_cm2[w];
+        }
+    }
+    return total;
+}
+
+/* ── PD1/PD2 ratio evaluation (fouling vs aging) ─────────────────────────────── */
+
+void np_pbm1064_dose_evaluate_ratio(
+    uint8_t                        slot,
+    const np_pbm1064_cal_t        *cal_1064,
+    const np_pbm1064_dose_state_t *dose,
+    uint32_t                       device_session_count,
+    bool                          *fouling_out,
+    bool                          *aging_out)
+{
+    *fouling_out = false;
+    *aging_out   = false;
+
+    float pd1 = dose->pd1_counts[NP_WL_1064NM];
+    float pd2 = dose->pd2_counts[NP_WL_1064NM];
+
+    if (pd2 < (float)NP_PBM1064_PD2_STABLE_MIN) {
+        return; /* PD2 too low to be meaningful */
+    }
+
+    float ratio = (pd2 > 0.0f) ? (pd1 / pd2) : 0.0f;
+
+    /* Fouling: PD1 attenuated ≥20%, PD2 remains stable. */
+    if (ratio < (cal_1064->K_ratio_nom * NP_PBM1064_FOULING_RATIO_THRESH)) {
+        *fouling_out = true;
+    }
+
+    /* Aging: both PD1 and PD2 attenuated, ratio still within ±15% of nominal. */
+    float ratio_norm = cal_1064->K_ratio_nom;
+    bool ratio_stable = (ratio > ratio_norm * 0.85f) && (ratio < ratio_norm * 1.15f);
+
+    /* Approximate factory baseline PD1 from K_PD1 and expected irradiance. */
+    float pd1_factory_baseline = cal_1064->K_PD1 > 0.0f ?
+                                 (100.0f / cal_1064->K_PD1) : 0.0f;
+    bool  pd1_depleted = (pd1_factory_baseline > 0.0f) &&
+                          (pd1 < pd1_factory_baseline * NP_PBM1064_AGING_PD1_PMIN);
+
+    if (ratio_stable && pd1_depleted) {
+        *aging_out = true;
+    }
+
+    /*
+     * Write only the ratio (device metric — no user biology) to SHDR.
+     * The fault entry records ratio and session count; no raw PD counts.
+     */
+    if (*fouling_out || *aging_out) {
+        np_pbm1064_shdr_fault_entry_t fe = {
+            .device_session_count = device_session_count,
+            .slot                 = slot,
+            .channel              = 2U,  /* CH_C (1064nm) */
+            .fault_reason         = *fouling_out ? NP_PBM1064_FAULT_NONE :
+                                                    NP_PBM1064_FAULT_NONE,
+            /* Ratio encoded as 8-bit fixed-point ×100 for SHDR compactness. */
+            .status_reg_value     = (uint8_t)(ratio * 100.0f > 255.0f ?
+                                              255U : (uint8_t)(ratio * 100.0f)),
+        };
+        np_pbm1064_hal_shdr_log_fault(&fe);
+    }
+}
+
+/* ── Aggregate irradiance throttle cascade ───────────────────────────────────── */
+
+np_pbm1064_status_t np_pbm1064_dose_apply_throttle(
+    uint8_t slot,
+    float   aggregate_irradiance,
+    np_pbm1064_drv_slot_t *drv)
+{
+    float excess = aggregate_irradiance - NP_PBM1064_AGGREGATE_IRRADIANCE_MW_CM2;
+    if (excess <= 0.0f) {
+        return NP_PBM1064_OK;
+    }
+
+    /*
+     * Throttle cascade: CH_C → CH_B → CH_A.
+     * Reduce duty proportionally on each channel to shed the excess irradiance.
+     * Using a simple linear approximation: duty reduction = excess / total.
+     */
+    float reduction_frac = excess / aggregate_irradiance;
+    if (reduction_frac > 1.0f) { reduction_frac = 1.0f; }
+
+    /* CH_C first (1064nm, deepest). */
+    if (drv->ch_enable & NP_PBM1064_CH_C_EN) {
+        uint8_t new_duty_c = (uint8_t)((float)drv->duty[2] * (1.0f - reduction_frac));
+        np_pbm1064_drive_set_duty(slot, drv, NP_PBM1064_CH_C_EN, new_duty_c);
+        return NP_PBM1064_OK;
+    }
+
+    /* CH_B (808nm). */
+    if (drv->ch_enable & NP_PBM1064_CH_B_EN) {
+        uint8_t new_duty_b = (uint8_t)((float)drv->duty[1] * (1.0f - reduction_frac));
+        np_pbm1064_drive_set_duty(slot, drv, NP_PBM1064_CH_B_EN, new_duty_b);
+        return NP_PBM1064_OK;
+    }
+
+    /* CH_A (660nm) last resort. */
+    if (drv->ch_enable & NP_PBM1064_CH_A_EN) {
+        uint8_t new_duty_a = (uint8_t)((float)drv->duty[0] * (1.0f - reduction_frac));
+        np_pbm1064_drive_set_duty(slot, drv, NP_PBM1064_CH_A_EN, new_duty_a);
+    }
+
+    return NP_PBM1064_ERR_IRRADIANCE_LIMIT;
+}
+
+/* ── Reset ───────────────────────────────────────────────────────────────────── */
+
+void np_pbm1064_dose_reset(np_pbm1064_dose_state_t *dose)
+{
+    memset(dose, 0, sizeof(*dose));
 }
