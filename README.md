@@ -13,8 +13,9 @@ I want to design a product that has all the following features:
 1) Photobiomodulation (650,850, and 1170 nm) for the brain;
 2) vagus nerve stimulation;
 3) transcranial magnetic stimulation;
-4) qEEG; 5) Transcranial alternating current stimulation. All of these should be individually programmable.
+4) qEEG;
+5) Transcranial alternating current stimulation.
    
-It should be possible to combine any set of features as desired. All individual features and features combinations should be controllable via a software app that runs on standard platforms (Mac, PC, phone, tablet)
+All of these should be individually programmable. It should be possible to combine any set of features as desired. All individual features and features combinations should be controllable via a software app that runs on standard platforms (Mac, PC, phone, tablet)
 
 
