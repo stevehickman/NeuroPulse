@@ -7,11 +7,12 @@ import SwiftUI
 
 struct MainTabView: View {
 
-    @EnvironmentObject private var gatt:       NeuroPulseGATTManager
-    @EnvironmentObject private var setup:      HardwareSetupManager
-    @EnvironmentObject private var consumable: ConsumableTracker
-    @EnvironmentObject private var consent:    ConsentStore
-    @EnvironmentObject private var ota:        OTAManager
+    @EnvironmentObject private var gatt:            NeuroPulseGATTManager
+    @EnvironmentObject private var setup:           HardwareSetupManager
+    @EnvironmentObject private var consumable:      ConsumableTracker
+    @EnvironmentObject private var consent:         ConsentStore
+    @EnvironmentObject private var ota:             OTAManager
+    @EnvironmentObject private var protocolLibrary: NPProtocolLibrary
 
     @State private var selectedTab = 0
 

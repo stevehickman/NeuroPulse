@@ -10,6 +10,7 @@ struct SessionView: View {
     @EnvironmentObject private var uploader:    SessionProtocolUploader
     @EnvironmentObject private var consumable:  ConsumableTracker
     @EnvironmentObject private var setup:       HardwareSetupManager
+    @EnvironmentObject private var library:     NPProtocolLibrary
 
     @State private var showProtocolPicker = false
 
@@ -40,7 +41,9 @@ struct SessionView: View {
                 }
             }
             .sheet(isPresented: $showProtocolPicker) {
-                ProtocolPickerView()
+                ProtocolMenuView()
+                    .environmentObject(library)
+                    .environmentObject(uploader)
             }
         }
     }
@@ -297,39 +300,3 @@ struct MetricCard: View {
     }
 }
 
-struct ProtocolPickerView: View {
-    @Environment(\.dismiss) private var dismiss
-    @EnvironmentObject private var uploader: SessionProtocolUploader
-
-    // Predefined protocol presets (Mode 2 Programming)
-    private let presets: [(String, String)] = [
-        ("Focus Prime", "20Hz PBM + Alpha EEG neurofeedback + binaural beats"),
-        ("Deep Sleep", "2Hz PBM + Theta neurofeedback + pink noise"),
-        ("Gamma Clarity", "40Hz PBM + Gamma neurofeedback + isochronic 40Hz"),
-        ("HRV Coherence", "HRV biofeedback + resonance breathing + VNS sync"),
-        ("Alpha Calm", "10Hz PBM + Alpha neurofeedback + HRV biofeedback"),
-    ]
-
-    var body: some View {
-        NavigationStack {
-            List(presets, id: \.0) { preset in
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(preset.0).font(.headline)
-                    Text(preset.1).font(.caption).foregroundColor(.secondary)
-                }
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    // TODO: build NPSessionProtocol from preset and upload
-                    dismiss()
-                }
-            }
-            .navigationTitle("Choose Protocol")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-        }
-    }
-}

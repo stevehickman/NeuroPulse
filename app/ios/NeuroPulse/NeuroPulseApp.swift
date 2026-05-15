@@ -15,24 +15,26 @@ struct NeuroPulseApp: App {
     @StateObject private var shdrUpload:  SHDRUploader
     @StateObject private var backup:      UHDRBackupScheduler
     @StateObject private var consumable:  ConsumableTracker
-    @StateObject private var ota:         OTAManager
-    @StateObject private var setupMgr:    HardwareSetupManager
+    @StateObject private var ota:             OTAManager
+    @StateObject private var setupMgr:        HardwareSetupManager
+    @StateObject private var protocolLibrary: NPProtocolLibrary
 
     init() {
         let g  = NeuroPulseGATTManager()
         let km = UHDRKeyManager()
 
-        _gatt         = StateObject(wrappedValue: g)
-        _bridge       = StateObject(wrappedValue: PhoneSessionManager(gatt: g))
-        _keyManager   = StateObject(wrappedValue: km)
-        _consentStore = StateObject(wrappedValue: ConsentStore())
-        _uploader     = StateObject(wrappedValue: SessionProtocolUploader(gatt: g))
-        _edfLoader    = StateObject(wrappedValue: EDFDownloader(gatt: g))
-        _shdrUpload   = StateObject(wrappedValue: SHDRUploader(gatt: g))
-        _backup       = StateObject(wrappedValue: UHDRBackupScheduler(keyManager: km))
-        _consumable   = StateObject(wrappedValue: ConsumableTracker(gatt: g))
-        _ota          = StateObject(wrappedValue: OTAManager(gatt: g))
-        _setupMgr     = StateObject(wrappedValue: HardwareSetupManager(gatt: g))
+        _gatt            = StateObject(wrappedValue: g)
+        _bridge          = StateObject(wrappedValue: PhoneSessionManager(gatt: g))
+        _keyManager      = StateObject(wrappedValue: km)
+        _consentStore    = StateObject(wrappedValue: ConsentStore())
+        _uploader        = StateObject(wrappedValue: SessionProtocolUploader(gatt: g))
+        _edfLoader       = StateObject(wrappedValue: EDFDownloader(gatt: g))
+        _shdrUpload      = StateObject(wrappedValue: SHDRUploader(gatt: g))
+        _backup          = StateObject(wrappedValue: UHDRBackupScheduler(keyManager: km))
+        _consumable      = StateObject(wrappedValue: ConsumableTracker(gatt: g))
+        _ota             = StateObject(wrappedValue: OTAManager(gatt: g))
+        _setupMgr        = StateObject(wrappedValue: HardwareSetupManager(gatt: g))
+        _protocolLibrary = StateObject(wrappedValue: NPProtocolLibrary())
 
         // Register background task for nightly UHDR backup.
         // Must be registered before app finishes launching.
@@ -66,6 +68,7 @@ struct NeuroPulseApp: App {
                 .environmentObject(consumable)
                 .environmentObject(ota)
                 .environmentObject(setupMgr)
+                .environmentObject(protocolLibrary)
                 .onAppear {
                     UIDevice.current.isBatteryMonitoringEnabled = true
                     if !consentOnboardingShown {

@@ -1,0 +1,526 @@
+import SwiftUI
+
+// MARK: - Library Filter
+
+enum LibraryFilter: String, CaseIterable {
+    case all        = "All"
+    case predefined = "Predefined"
+    case mine       = "Mine"
+}
+
+// MARK: - ProtocolMenuView
+
+struct ProtocolMenuView: View {
+    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var library: NPProtocolLibrary
+    @EnvironmentObject private var uploader: SessionProtocolUploader
+
+    @State private var searchText = ""
+    @State private var filter: LibraryFilter = .all
+    @State private var showEditor = false
+    @State private var editingEntry: NPProtocolEntry? = nil
+    @State private var showComposer = false
+    @State private var confirmDelete: NPProtocolEntry? = nil
+    @State private var unavailableAlert: NPProtocolEntry? = nil
+    @State private var uploadConfirm: NPProtocolEntry? = nil
+    @State private var uploadError: String? = nil
+    @State private var showUploadError = false
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if filteredProtocols.isEmpty {
+                    emptyState
+                } else {
+                    protocolList
+                }
+            }
+            .navigationTitle("Protocols")
+            .navigationBarTitleDisplayMode(.large)
+            .searchable(text: $searchText, prompt: "Search by name or tag")
+            .toolbar { toolbarContent }
+            .sheet(isPresented: $showEditor) {
+                ProtocolEditorView(existing: editingEntry)
+                    .environmentObject(library)
+            }
+            .sheet(isPresented: $showComposer) {
+                ProtocolComposerView(existing: nil)
+                    .environmentObject(library)
+            }
+            .alert("Protocol Unavailable", isPresented: Binding(
+                get: { unavailableAlert != nil },
+                set: { if !$0 { unavailableAlert = nil } }
+            )) {
+                Button("OK", role: .cancel) { unavailableAlert = nil }
+            } message: {
+                if let entry = unavailableAlert {
+                    let avail = library.availability(for: entry)
+                    Text(avail.unavailableReason ?? "This protocol requires hardware not currently available.")
+                }
+            }
+            .alert("Delete Protocol?", isPresented: Binding(
+                get: { confirmDelete != nil },
+                set: { if !$0 { confirmDelete = nil } }
+            )) {
+                Button("Delete", role: .destructive) {
+                    if let entry = confirmDelete { library.delete(entry.id) }
+                    confirmDelete = nil
+                }
+                Button("Cancel", role: .cancel) { confirmDelete = nil }
+            } message: {
+                if let entry = confirmDelete {
+                    Text("Are you sure you want to delete \"\(entry.name)\"? This cannot be undone.")
+                }
+            }
+            .alert("Upload Error", isPresented: $showUploadError) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(uploadError ?? "Unknown error")
+            }
+        }
+    }
+
+    // MARK: - Toolbar
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") { dismiss() }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                Button {
+                    editingEntry = nil
+                    showEditor = true
+                } label: {
+                    Label("New Protocol", systemImage: "plus.rectangle")
+                }
+                Button {
+                    showComposer = true
+                } label: {
+                    Label("Compose", systemImage: "square.stack.3d.up")
+                }
+            } label: {
+                Image(systemName: "plus")
+            }
+        }
+    }
+
+    // MARK: - Filtered data
+
+    private var filteredProtocols: [NPProtocolEntry] {
+        let base: [NPProtocolEntry]
+        switch filter {
+        case .all:
+            base = library.allProtocols
+        case .predefined:
+            base = library.allProtocols.filter { $0.isPredefined }
+        case .mine:
+            base = library.userProtocols
+        }
+
+        if searchText.isEmpty { return base }
+        let q = searchText.lowercased()
+        return base.filter { entry in
+            entry.name.lowercased().contains(q) ||
+            entry.description.lowercased().contains(q) ||
+            entry.tags.contains { $0.lowercased().contains(q) }
+        }
+    }
+
+    private var predefinedFiltered: [NPProtocolEntry] {
+        filteredProtocols.filter { $0.isPredefined }
+    }
+
+    private var userFiltered: [NPProtocolEntry] {
+        filteredProtocols.filter { !$0.isPredefined }
+    }
+
+    // MARK: - List
+
+    private var protocolList: some View {
+        List {
+            Picker("Filter", selection: $filter) {
+                ForEach(LibraryFilter.allCases, id: \.self) {
+                    Text($0.rawValue).tag($0)
+                }
+            }
+            .pickerStyle(.segmented)
+            .listRowBackground(Color.clear)
+            .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+
+            if !predefinedFiltered.isEmpty && (filter == .all || filter == .predefined) {
+                Section("Predefined") {
+                    ForEach(predefinedFiltered) { entry in
+                        protocolRow(entry)
+                            .swipeActions(edge: .trailing) {
+                                duplicateButton(for: entry)
+                            }
+                            .contextMenu { contextMenu(for: entry) }
+                    }
+                }
+            }
+
+            if !userFiltered.isEmpty && (filter == .all || filter == .mine) {
+                Section("My Protocols") {
+                    ForEach(userFiltered) { entry in
+                        protocolRow(entry)
+                            .swipeActions(edge: .trailing) {
+                                deleteButton(for: entry)
+                                editButton(for: entry)
+                                duplicateButton(for: entry)
+                            }
+                            .contextMenu { contextMenu(for: entry) }
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+    }
+
+    // MARK: - Row
+
+    private func protocolRow(_ entry: NPProtocolEntry) -> some View {
+        let avail = library.availability(for: entry)
+        return ProtocolRowView(entry: entry, availability: avail)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                if avail.isAvailable {
+                    handleSelect(entry)
+                } else {
+                    unavailableAlert = entry
+                }
+            }
+    }
+
+    // MARK: - Swipe buttons
+
+    private func deleteButton(for entry: NPProtocolEntry) -> some View {
+        Button(role: .destructive) {
+            confirmDelete = entry
+        } label: {
+            Label("Delete", systemImage: "trash")
+        }
+        .tint(.red)
+    }
+
+    private func editButton(for entry: NPProtocolEntry) -> some View {
+        Button {
+            editingEntry = entry
+            if entry.isComposite {
+                showComposer = true
+            } else {
+                showEditor = true
+            }
+        } label: {
+            Label("Edit", systemImage: "pencil")
+        }
+        .tint(.blue)
+    }
+
+    private func duplicateButton(for entry: NPProtocolEntry) -> some View {
+        Button {
+            let dup = entry.duplicated(newName: "Copy of \(entry.name)")
+            library.save(dup)
+        } label: {
+            Label("Duplicate", systemImage: "plus.square.on.square")
+        }
+        .tint(.orange)
+    }
+
+    @ViewBuilder
+    private func contextMenu(for entry: NPProtocolEntry) -> some View {
+        Button {
+            handleSelect(entry)
+        } label: {
+            Label("Select Protocol", systemImage: "checkmark.circle")
+        }
+        .disabled(!library.availability(for: entry).isAvailable)
+
+        Divider()
+
+        Button {
+            let dup = entry.duplicated(newName: "Copy of \(entry.name)")
+            library.save(dup)
+        } label: {
+            Label("Duplicate", systemImage: "plus.square.on.square")
+        }
+
+        if !entry.isPredefined {
+            Button {
+                editingEntry = entry
+                if entry.isComposite { showComposer = true } else { showEditor = true }
+            } label: {
+                Label("Edit", systemImage: "pencil")
+            }
+
+            Button(role: .destructive) {
+                confirmDelete = entry
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    // MARK: - Empty state
+
+    private var emptyState: some View {
+        VStack(spacing: 16) {
+            Picker("Filter", selection: $filter) {
+                ForEach(LibraryFilter.allCases, id: \.self) {
+                    Text($0.rawValue).tag($0)
+                }
+            }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+
+            Spacer()
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundColor(.secondary)
+            Text("No Protocols Found")
+                .font(.headline)
+            Text(filter == .mine ? "Create your first protocol using the + button above." : "Try a different search term.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            Spacer()
+        }
+        .padding()
+    }
+
+    // MARK: - Selection handling
+
+    private func handleSelect(_ entry: NPProtocolEntry) {
+        // Build an NPSessionProtocol from the entry and upload
+        guard case .single(let proto) = entry else {
+            // Composite protocols: for now select the first layer's source protocol
+            if case .composite(let comp) = entry, let firstLayer = comp.layers.first {
+                let found = library.allProtocols.first { $0.name == firstLayer.protocolName }
+                if let found = found { handleSelect(found) }
+            }
+            dismiss()
+            return
+        }
+
+        let sessionProto = buildSessionProtocol(from: proto)
+        Task {
+            do {
+                try await uploader.upload(sessionProto)
+                dismiss()
+            } catch {
+                uploadError = error.localizedDescription
+                showUploadError = true
+            }
+        }
+    }
+
+    private func buildSessionProtocol(from proto: NPProtocolDefinition) -> NPSessionProtocol {
+        let durationSeconds = proto.totalDurationSeconds ?? 20 * 60
+        var modalities: [ModalityConfig] = []
+
+        for mod in proto.modalities where mod.enabled {
+            switch mod.params {
+            case .pbmTranscranial(let p):
+                modalities.append(.pbmTranscranial(PBMTranscranialConfig(
+                    zones: p.resolvedZones,
+                    frequencyHz: p.frequencyHz,
+                    dutyCyclePercent: p.dutyCyclePercent,
+                    durationSeconds: durationSeconds,
+                    targetDoseJoules: Double(durationSeconds) * (p.intensityPercent / 100.0) * 0.4
+                )))
+            case .pbmIntranasal(let p):
+                modalities.append(.pbmIntranasal(PBMIntranasalConfig(
+                    frequencyHz: p.frequencyHz,
+                    dutyCyclePercent: p.dutyCyclePercent,
+                    durationSeconds: durationSeconds
+                )))
+            case .eegNeurofeedback(let p):
+                modalities.append(.eegNeurofeedback(EEGConfig(
+                    enabledChannels: p.resolvedChannels,
+                    sampleRateHz: 500,
+                    neurofeedbackBand: p.band.rawValue,
+                    closedLoopEnabled: p.closedLoopEnabled
+                )))
+            case .besTacs(let p):
+                modalities.append(.bes(BESConfig(
+                    frequencyHz: p.frequencyHz,
+                    amplitudeMilliamps: p.intensityMilliamps,
+                    durationSeconds: mod.interval.isContinuous ? durationSeconds : mod.interval.intervalOnSeconds,
+                    waveform: p.waveform.rawValue
+                )))
+            case .tdcs(let p):
+                modalities.append(.tdcs(TDCSConfig(
+                    amplitudeMilliamps: p.intensityMilliamps,
+                    durationSeconds: mod.interval.isContinuous ? durationSeconds : mod.interval.intervalOnSeconds,
+                    rampSeconds: p.rampSeconds,
+                    electrodePairs: p.electrodePairs
+                )))
+            case .vnsHRV(let p):
+                modalities.append(.vnsHRV(VNSHRVConfig(
+                    frequencyHz: p.frequencyHz,
+                    amplitudeMilliamps: p.intensityMilliamps,
+                    enableHRVBiofeedback: true,
+                    resonanceBreathingRateDefault: p.resonanceBreathingRate,
+                    protocol: mapHRVProtocol(p.hrvProtocol)
+                )))
+            case .audioEntrainment(let p):
+                modalities.append(.neuralAudio(NeuralAudioConfig(
+                    binauralBeatHz: p.binauralBeatsHz,
+                    isochronicToneHz: p.isochronicTonesHz,
+                    noiseType: p.noiseType?.rawValue,
+                    eegAdaptive: p.eegAdaptive,
+                    useBoneConductionForPacer: p.boneConductionPacer
+                )))
+            case .visualStimulation(let p):
+                modalities.append(.visualStimulation(VisualStimConfig(
+                    frequencyHz: p.frequencyHz,
+                    mode: p.mode.rawValue,
+                    enableModeFInvisibleNIR: p.enableModeF,
+                    emdrCadenceHz: p.emdrCadenceHz
+                )))
+            default:
+                break // T2 and accessory modalities not yet mapped to hub wire format
+            }
+        }
+
+        return NPSessionProtocol(
+            name: proto.name,
+            modalities: modalities,
+            totalDurationSeconds: durationSeconds,
+            mode: .mode2Programming
+        )
+    }
+
+    private func mapHRVProtocol(_ hrv: NPVNSHRVParams.HRVProtocol) -> VNSHRVConfig.HRVProtocol {
+        switch hrv {
+        case .standalone:     return .standalone
+        case .tavnsSync:      return .tavnsSynchronised
+        case .eegBiofeedback: return .dualEEGBiofeedback
+        case .combinedPBM:    return .combinedPBM
+        }
+    }
+}
+
+// MARK: - Protocol Row View
+
+struct ProtocolRowView: View {
+    let entry: NPProtocolEntry
+    let availability: ProtocolAvailability
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // Header row
+            HStack(alignment: .center, spacing: 6) {
+                availabilityDot
+                Text(entry.name)
+                    .font(.headline)
+                    .foregroundColor(availability.isAvailable ? .primary : .secondary)
+                Spacer()
+                badges
+            }
+
+            // Description
+            if !entry.description.isEmpty {
+                Text(entry.description)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+            }
+
+            // Modality icons
+            if !modalityTypes.isEmpty {
+                modalityIconRow
+            }
+
+            // Tags
+            if !entry.tags.isEmpty {
+                tagChips
+            }
+        }
+        .padding(.vertical, 4)
+        .opacity(availability.isAvailable ? 1.0 : 0.7)
+    }
+
+    private var availabilityDot: some View {
+        Circle()
+            .fill(availability.isAvailable ? Color.green : Color.red)
+            .frame(width: 8, height: 8)
+    }
+
+    @ViewBuilder
+    private var badges: some View {
+        if entry.isComposite {
+            Label("Composite", systemImage: "square.stack.3d.up.fill")
+                .font(.caption2)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Color.purple.opacity(0.15))
+                .foregroundColor(.purple)
+                .clipShape(Capsule())
+        }
+
+        let tier = highestTier
+        if tier == .t2 {
+            Text("T2")
+                .font(.caption2.bold())
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Color.blue.opacity(0.15))
+                .foregroundColor(.blue)
+                .clipShape(Capsule())
+        } else if tier == .accessory {
+            Text("Accessory")
+                .font(.caption2)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Color.orange.opacity(0.15))
+                .foregroundColor(.orange)
+                .clipShape(Capsule())
+        }
+    }
+
+    private var highestTier: NPModalityTier {
+        let types = entry.requiredModalityTypes
+        if types.contains(where: { $0.tier == .t2 }) { return .t2 }
+        if types.contains(where: { $0.tier == .accessory }) { return .accessory }
+        return .t1
+    }
+
+    private var modalityTypes: [NPModalityType] {
+        Array(entry.requiredModalityTypes).sorted { $0.rawValue < $1.rawValue }
+    }
+
+    private var modalityIconRow: some View {
+        HStack(spacing: 6) {
+            let shown = Array(modalityTypes.prefix(6))
+            ForEach(shown) { type in
+                Image(systemName: type.systemImage)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            if modalityTypes.count > 6 {
+                Text("+\(modalityTypes.count - 6)")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private var tagChips: some View {
+        let shown = Array(entry.tags.prefix(3))
+        let extra = entry.tags.count - shown.count
+        return HStack(spacing: 4) {
+            ForEach(shown, id: \.self) { tag in
+                Text(tag)
+                    .font(.caption2)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Color(.systemGray5))
+                    .clipShape(Capsule())
+            }
+            if extra > 0 {
+                Text("+\(extra) more")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+}
