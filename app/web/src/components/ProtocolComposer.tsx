@@ -357,7 +357,7 @@ function TimelineSVG({ layers, maxTime }: TimelineSVGProps) {
         const dur = layer.durationSeconds ?? (maxTime - layer.startOffsetSeconds);
         const w = Math.max((dur / maxTime) * DRAW_WIDTH, 4);
         const color = LAYER_COLORS[i % LAYER_COLORS.length];
-        const label = layer.protocolName.length > 18 ? layer.protocolName.slice(0, 17) + '…' : layer.protocolName;
+        // label variable removed — row label computed inline below
 
         return (
           <g key={layer.id}>

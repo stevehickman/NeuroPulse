@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import { useRef } from 'react';
 
 interface ScriptEditorProps {
   value: string;

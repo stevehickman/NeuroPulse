@@ -1,11 +1,10 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
   NPProtocolModality,
   NPIntervalConfig,
   NPModalityParams,
   NPModalityTypeId,
   MODALITY_META,
-  defaultParams,
   PBMTranscranialParams,
   PBMIntranasalParams,
   EEGNeurofeedbackParams,
@@ -574,8 +573,8 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
     }
 
     default: {
-      const _exhaustive: never = params;
-      return <div style={{ color: 'var(--error)', fontSize: 13 }}>Unknown modality type</div>;
+      // exhaustive check
+      return <div style={{ color: 'var(--error)', fontSize: 13 }}>Unknown modality type: {(params as NPModalityParams).type}</div>;
     }
   }
 }

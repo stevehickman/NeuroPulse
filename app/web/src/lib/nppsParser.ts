@@ -9,7 +9,6 @@ import {
   NPModalityParams,
   NPModalityTypeId,
   defaultParams,
-  ModalityParamsMap,
   PBMTranscranialParams,
   PBMIntranasalParams,
   EEGNeurofeedbackParams,
@@ -178,11 +177,6 @@ class Parser {
 
   private get current(): Token {
     return this.tokens[this.pos];
-  }
-
-  private peek(offset = 0): Token {
-    const i = this.pos + offset;
-    return i < this.tokens.length ? this.tokens[i] : this.tokens[this.tokens.length - 1];
   }
 
   private advance(): Token {
