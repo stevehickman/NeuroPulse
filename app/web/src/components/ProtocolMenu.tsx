@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   NPProtocolEntry,
   NPModalityTypeId,
@@ -30,7 +30,7 @@ interface ConfirmState {
 // ─── Protocol Menu ─────────────────────────────────────────────────────────────
 
 export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: ProtocolMenuProps) {
-  const { version, refresh } = useProtocolContext();
+  useProtocolContext(); // subscribe to version changes for re-render
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'predefined' | 'mine'>('all');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);

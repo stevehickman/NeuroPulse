@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { NPProtocolEntry, NPCompositeProtocol, entryId, entryName } from './types/protocol';
+import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { NPProtocolEntry, NPCompositeProtocol } from './types/protocol';
 import { protocolLibrary, DeviceTier } from './lib/protocolLibrary';
 import { ProtocolMenu } from './components/ProtocolMenu';
 import { ProtocolEditor } from './components/ProtocolEditor';

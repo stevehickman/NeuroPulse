@@ -1,12 +1,10 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   NPProtocolEntry,
   NPProtocolDefinition,
   NPProtocolModality,
   NPModalityTypeId,
-  NPTimingMode,
   defaultParams,
-  MODALITY_META,
 } from '../types/protocol';
 import { parseNPPS, NPPSParseError } from '../lib/nppsParser';
 import { serializeNPPS } from '../lib/nppsSerializer';
