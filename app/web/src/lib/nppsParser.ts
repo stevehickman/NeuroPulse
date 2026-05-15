@@ -25,6 +25,24 @@ import {
   CervicalVnsParams,
   VibrotactileParams,
 } from '../types/protocol';
+import {
+  NPLimitsSet,
+  LimitLevel,
+  PBMTranscranialLimits,
+  PBMIntranasalLimits,
+  EEGNeurofeedbackLimits,
+  BESTacsLimits,
+  TDCSLimits,
+  VNSHRVLimits,
+  AudioEntrainmentLimits,
+  VisualStimLimits,
+  TMSLimits,
+  DeepPBMLimits,
+  ClinicalTacsLimits,
+  HDTdcsLimits,
+  CervicalVnsLimits,
+  VibrotactileLimits,
+} from '../types/limits';
 
 // ─── Error ─────────────────────────────────────────────────────────────────────
 
@@ -61,10 +79,20 @@ interface Token {
 }
 
 const KEYWORDS = new Set([
-  'protocol', 'composite', 'name', 'description', 'author', 'version',
+  'protocol', 'composite', 'limits', 'name', 'description', 'author', 'version',
   'tags', 'timing', 'duration', 'interval_count', 'modalities', 'modality',
   'type', 'enabled', 'interval', 'on', 'off', 'repeat', 'layers', 'layer',
   'start', 'end', 'intensity_scale', 'conflict_resolution',
+  'level', 'global', 'helmet', 'individual', 'helmet_id', 'individual_id',
+  'pbm_transcranial', 'pbm_intranasal', 'eeg_neurofeedback', 'bes_tacs',
+  'tdcs', 'vns_hrv', 'audio_entrainment', 'visual_stimulation', 'tms',
+  'pbm_deep_1170nm', 'clinical_tacs', 'hd_tdcs', 'cervical_vns', 'vibrotactile_40hz',
+  'max_intensity', 'max_frequency', 'min_frequency', 'max_duty_cycle',
+  'max_session_dose', 'max_daily_dose', 'max_session_duration',
+  'max_sessions_per_day', 'max_sessions_per_week',
+  'max_intensity_pct_mt', 'max_pulses_per_session', 'max_pulses_per_day',
+  'allowed_modes', 'allowed_protocols', 'allowed_targets', 'allowed_montages',
+  'allowed_bands', 'require_closed_loop', 'block_high_risk_range',
   'true', 'false',
 ]);
 
@@ -290,15 +318,262 @@ class Parser {
         entries.push({ kind: 'single', protocol: this.parseProtocol() });
       } else if (this.tryKeyword('composite')) {
         entries.push({ kind: 'composite', composite: this.parseComposite() });
+      } else if (this.tryKeyword('limits')) {
+        // Parse limits block but skip it in the protocol entry list
+        // (limits are extracted via parseNPPSLimits standalone export)
+        this.parseLimitsBlock();
       } else {
         throw new NPPSParseError(
-          `Expected 'protocol' or 'composite', got '${String(this.current.value)}'`,
+          `Expected 'protocol', 'composite', or 'limits', got '${String(this.current.value)}'`,
           this.current.line
         );
       }
       this.skipNewlines();
     }
     return entries;
+  }
+
+  parseLimitsBlockPublic(): NPLimitsSet {
+    return this.parseLimitsBlock();
+  }
+
+  private parseLimitsBlock(): NPLimitsSet {
+    const startLine = this.current.line;
+
+    // Name (optional — may be omitted)
+    this.skipNewlines();
+    let name = 'Untitled Limits';
+    if (this.current.type === 'STRING') {
+      name = this.current.value as string;
+      this.advance();
+    } else if (this.current.type === 'IDENT') {
+      name = this.current.value as string;
+      this.advance();
+    }
+
+    this.skipNewlines();
+    this.expect('LBRACE');
+    this.skipNewlines();
+
+    const now = new Date().toISOString();
+    let level: LimitLevel = 'global';
+    let helmetId: string | undefined;
+    let individualId: string | undefined;
+    let description = '';
+
+    let pbmTranscranial: PBMTranscranialLimits | undefined;
+    let pbmIntranasal: PBMIntranasalLimits | undefined;
+    let eegNeurofeedback: EEGNeurofeedbackLimits | undefined;
+    let besTacs: BESTacsLimits | undefined;
+    let tdcs: TDCSLimits | undefined;
+    let vnsHrv: VNSHRVLimits | undefined;
+    let audioEntrainment: AudioEntrainmentLimits | undefined;
+    let visualStimulation: VisualStimLimits | undefined;
+    let tms: TMSLimits | undefined;
+    let pbmDeep1170nm: DeepPBMLimits | undefined;
+    let clinicalTacs: ClinicalTacsLimits | undefined;
+    let hdTdcs: HDTdcsLimits | undefined;
+    let cervicalVns: CervicalVnsLimits | undefined;
+    let vibrotactile40hz: VibrotactileLimits | undefined;
+
+    while (!this.tryBrace()) {
+      const { key } = this.readKeyValue();
+      switch (key) {
+        case 'level': {
+          const v = this.readString();
+          if (v === 'global' || v === 'helmet' || v === 'individual') level = v;
+          break;
+        }
+        case 'helmet_id': helmetId = this.readString(); break;
+        case 'individual_id': individualId = this.readString(); break;
+        case 'description': description = this.readString(); break;
+        case 'pbm_transcranial': pbmTranscranial = this.parsePBMTranscranialLimits(); break;
+        case 'pbm_intranasal': pbmIntranasal = this.parsePBMIntranasalLimits(); break;
+        case 'eeg_neurofeedback': eegNeurofeedback = this.parseEEGNeurofeedbackLimits(); break;
+        case 'bes_tacs': besTacs = this.parseBESTacsLimits(); break;
+        case 'tdcs': tdcs = this.parseTDCSLimits(); break;
+        case 'vns_hrv': vnsHrv = this.parseVNSHRVLimits(); break;
+        case 'audio_entrainment': audioEntrainment = this.parseAudioEntrainmentLimits(); break;
+        case 'visual_stimulation': visualStimulation = this.parseVisualStimLimits(); break;
+        case 'tms': tms = this.parseTMSLimits(); break;
+        case 'pbm_deep_1170nm': pbmDeep1170nm = this.parseDeepPBMLimits(); break;
+        case 'clinical_tacs': clinicalTacs = this.parseClinicalTacsLimits(); break;
+        case 'hd_tdcs': hdTdcs = this.parseHDTdcsLimits(); break;
+        case 'cervical_vns': cervicalVns = this.parseCervicalVnsLimits(); break;
+        case 'vibrotactile_40hz': vibrotactile40hz = this.parseVibrotactileLimits(); break;
+        default:
+          throw new NPPSParseError(`Unknown limits key: '${key}'`, startLine);
+      }
+      this.skipNewlines();
+    }
+
+    const result: NPLimitsSet = {
+      id: crypto.randomUUID(),
+      name,
+      description,
+      createdAt: now,
+      modifiedAt: now,
+      level,
+    };
+    if (helmetId) result.helmetId = helmetId;
+    if (individualId) result.individualId = individualId;
+    if (pbmTranscranial) result.pbmTranscranial = pbmTranscranial;
+    if (pbmIntranasal) result.pbmIntranasal = pbmIntranasal;
+    if (eegNeurofeedback) result.eegNeurofeedback = eegNeurofeedback;
+    if (besTacs) result.besTacs = besTacs;
+    if (tdcs) result.tdcs = tdcs;
+    if (vnsHrv) result.vnsHrv = vnsHrv;
+    if (audioEntrainment) result.audioEntrainment = audioEntrainment;
+    if (visualStimulation) result.visualStimulation = visualStimulation;
+    if (tms) result.tms = tms;
+    if (pbmDeep1170nm) result.pbmDeep1170nm = pbmDeep1170nm;
+    if (clinicalTacs) result.clinicalTacs = clinicalTacs;
+    if (hdTdcs) result.hdTdcs = hdTdcs;
+    if (cervicalVns) result.cervicalVns = cervicalVns;
+    if (vibrotactile40hz) result.vibrotactile40hz = vibrotactile40hz;
+
+    return result;
+  }
+
+  // ─── Limits sub-block parsers ─────────────────────────────────────────────
+
+  private parseLimitsSubBlock<T extends object>(
+    fieldMap: Record<string, (raw: unknown) => Partial<T>>
+  ): T {
+    this.skipNewlines();
+    this.expect('LBRACE');
+    this.skipNewlines();
+    const result: Partial<T> = {};
+    while (!this.tryBrace()) {
+      const { key } = this.readKeyValue();
+      const handler = fieldMap[key];
+      if (handler) {
+        const val = handler(this.readAnyValue());
+        Object.assign(result, val);
+      } else {
+        // Skip unknown fields gracefully
+        this.readAnyValue();
+      }
+      this.skipNewlines();
+    }
+    return result as T;
+  }
+
+  private parsePBMTranscranialLimits(): PBMTranscranialLimits {
+    return this.parseLimitsSubBlock<PBMTranscranialLimits>({
+      max_intensity: v => ({ maxIntensityPercent: Number(v) }),
+      max_frequency: v => ({ maxFrequencyHz: Number(v) }),
+      max_duty_cycle: v => ({ maxDutyCyclePercent: Number(v) }),
+      max_session_dose: v => ({ maxSessionDoseJCm2: Number(v) }),
+      max_daily_dose: v => ({ maxDailyDoseJCm2: Number(v) }),
+    });
+  }
+
+  private parsePBMIntranasalLimits(): PBMIntranasalLimits {
+    return this.parseLimitsSubBlock<PBMIntranasalLimits>({
+      max_intensity: v => ({ maxIntensityPercent: Number(v) }),
+      max_session_dose: v => ({ maxSessionDoseJCm2: Number(v) }),
+      max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
+    });
+  }
+
+  private parseEEGNeurofeedbackLimits(): EEGNeurofeedbackLimits {
+    return this.parseLimitsSubBlock<EEGNeurofeedbackLimits>({
+      allowed_bands: v => ({ allowedBands: Array.isArray(v) ? (v as string[]) : [String(v)] }),
+      require_closed_loop: v => ({ requireClosedLoop: Boolean(v) }),
+    });
+  }
+
+  private parseBESTacsLimits(): BESTacsLimits {
+    return this.parseLimitsSubBlock<BESTacsLimits>({
+      max_intensity: v => ({ maxIntensityMilliamps: Number(v) }),
+      max_frequency: v => ({ maxFrequencyHz: Number(v) }),
+      min_frequency: v => ({ minFrequencyHz: Number(v) }),
+      max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
+      max_sessions_per_day: v => ({ maxSessionsPerDay: Number(v) }),
+    });
+  }
+
+  private parseTDCSLimits(): TDCSLimits {
+    return this.parseLimitsSubBlock<TDCSLimits>({
+      max_intensity: v => ({ maxIntensityMilliamps: Number(v) }),
+      max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
+      max_sessions_per_day: v => ({ maxSessionsPerDay: Number(v) }),
+    });
+  }
+
+  private parseVNSHRVLimits(): VNSHRVLimits {
+    return this.parseLimitsSubBlock<VNSHRVLimits>({
+      max_intensity: v => ({ maxIntensityMilliamps: Number(v) }),
+      max_frequency: v => ({ maxFrequencyHz: Number(v) }),
+      max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
+      allowed_protocols: v => ({ allowedProtocols: Array.isArray(v) ? (v as string[]) : [String(v)] }),
+    });
+  }
+
+  private parseAudioEntrainmentLimits(): AudioEntrainmentLimits {
+    return this.parseLimitsSubBlock<AudioEntrainmentLimits>({
+      max_intensity: v => ({ maxVolumePercent: Number(v) }),
+      max_frequency: v => ({ maxBinauralBeatsHz: Number(v) }),
+      max_binaural_beats: v => ({ maxBinauralBeatsHz: Number(v) }),
+      max_isochronic_tones: v => ({ maxIsochronicTonesHz: Number(v) }),
+    });
+  }
+
+  private parseVisualStimLimits(): VisualStimLimits {
+    return this.parseLimitsSubBlock<VisualStimLimits>({
+      max_frequency: v => ({ maxFrequencyHz: Number(v) }),
+      min_frequency: v => ({ minFrequencyHz: Number(v) }),
+      allowed_modes: v => ({ allowedModes: Array.isArray(v) ? (v as string[]) : [String(v)] }),
+      block_high_risk_range: v => ({ blockHighRiskRange: Boolean(v) }),
+    });
+  }
+
+  private parseTMSLimits(): TMSLimits {
+    return this.parseLimitsSubBlock<TMSLimits>({
+      max_intensity_pct_mt: v => ({ maxIntensityPercentMT: Number(v) }),
+      max_pulses_per_session: v => ({ maxPulsesPerSession: Number(v) }),
+      max_pulses_per_day: v => ({ maxPulsesPerDay: Number(v) }),
+      max_sessions_per_week: v => ({ maxSessionsPerWeek: Number(v) }),
+      allowed_protocols: v => ({ allowedProtocols: Array.isArray(v) ? (v as string[]) : [String(v)] }),
+      allowed_targets: v => ({ allowedTargets: Array.isArray(v) ? (v as string[]) : [String(v)] }),
+    });
+  }
+
+  private parseDeepPBMLimits(): DeepPBMLimits {
+    return this.parseLimitsSubBlock<DeepPBMLimits>({
+      max_intensity: v => ({ maxIntensityMWcm2: Number(v) }),
+      max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
+    });
+  }
+
+  private parseClinicalTacsLimits(): ClinicalTacsLimits {
+    return this.parseLimitsSubBlock<ClinicalTacsLimits>({
+      max_intensity: v => ({ maxIntensityMilliamps: Number(v) }),
+      max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
+    });
+  }
+
+  private parseHDTdcsLimits(): HDTdcsLimits {
+    return this.parseLimitsSubBlock<HDTdcsLimits>({
+      max_intensity: v => ({ maxIntensityMilliamps: Number(v) }),
+      max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
+      allowed_montages: v => ({ allowedMontages: Array.isArray(v) ? (v as string[]) : [String(v)] }),
+    });
+  }
+
+  private parseCervicalVnsLimits(): CervicalVnsLimits {
+    return this.parseLimitsSubBlock<CervicalVnsLimits>({
+      max_intensity: v => ({ maxIntensityMilliamps: Number(v) }),
+      max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
+    });
+  }
+
+  private parseVibrotactileLimits(): VibrotactileLimits {
+    return this.parseLimitsSubBlock<VibrotactileLimits>({
+      max_intensity: v => ({ maxIntensityG: Number(v) }),
+      max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
+    });
   }
 
   private parseProtocol(): NPProtocolDefinition {
@@ -779,4 +1054,58 @@ export function parseNPPS(text: string): NPProtocolEntry[] {
   const tokens = tokenize(text);
   const parser = new Parser(tokens);
   return parser.parse();
+}
+
+/**
+ * Parse the first `limits` block found in the given NPPS text.
+ * Returns null if no limits block is present.
+ */
+export function parseNPPSLimits(text: string): NPLimitsSet | null {
+  const tokens = tokenize(text);
+  const parser = new Parser(tokens);
+
+  // Scan through tokens looking for a 'limits' keyword at the top level
+  parser['skipNewlines']();
+  while (parser['current'].type !== 'EOF') {
+    parser['skipNewlines']();
+    if (parser['ct']() === 'EOF') break;
+
+    const t = parser['current'];
+    if ((t.type === 'KEYWORD' || t.type === 'IDENT') && t.value === 'limits') {
+      parser['advance']();
+      return parser.parseLimitsBlockPublic();
+    } else if ((t.type === 'KEYWORD' || t.type === 'IDENT') && t.value === 'protocol') {
+      // Skip entire protocol block
+      parser['advance']();
+      parser['skipNewlines']();
+      parser['expect']('LBRACE');
+      parser['skipNewlines']();
+      let depth = 1;
+      while (depth > 0 && parser['current'].type !== 'EOF') {
+        if (parser['current'].type === 'LBRACE') depth++;
+        else if (parser['current'].type === 'RBRACE') depth--;
+        parser['advance']();
+        parser['skipNewlines']();
+      }
+    } else if ((t.type === 'KEYWORD' || t.type === 'IDENT') && t.value === 'composite') {
+      // Skip entire composite block
+      parser['advance']();
+      parser['skipNewlines']();
+      parser['expect']('LBRACE');
+      parser['skipNewlines']();
+      let depth = 1;
+      while (depth > 0 && parser['current'].type !== 'EOF') {
+        if (parser['current'].type === 'LBRACE') depth++;
+        else if (parser['current'].type === 'RBRACE') depth--;
+        parser['advance']();
+        parser['skipNewlines']();
+      }
+    } else {
+      // Unknown token — stop
+      break;
+    }
+    parser['skipNewlines']();
+  }
+
+  return null;
 }

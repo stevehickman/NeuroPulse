@@ -731,12 +731,14 @@ struct NPCompositeProtocol: Codable, Identifiable, Equatable {
 enum NPProtocolEntry: Identifiable, Equatable, Codable {
     case single(NPProtocolDefinition)
     case composite(NPCompositeProtocol)
+    case limits(NPLimitsSet)
 
     // MARK: Identifiable
     var id: UUID {
         switch self {
         case .single(let p):    return p.id
         case .composite(let c): return c.id
+        case .limits(let l):    return l.id
         }
     }
 
@@ -744,6 +746,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p):    return p.name
         case .composite(let c): return c.name
+        case .limits(let l):    return l.name
         }
     }
 
@@ -751,6 +754,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p):    return p.description
         case .composite(let c): return c.description
+        case .limits(let l):    return l.description
         }
     }
 
@@ -758,6 +762,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p):    return p.tags
         case .composite(let c): return c.tags
+        case .limits:           return []
         }
     }
 
@@ -765,11 +770,17 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p):    return p.isPredefined
         case .composite(let c): return c.isPredefined
+        case .limits:           return false
         }
     }
 
     var isComposite: Bool {
         if case .composite = self { return true }
+        return false
+    }
+
+    var isLimits: Bool {
+        if case .limits = self { return true }
         return false
     }
 
@@ -779,6 +790,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
             return p.requiredModalityTypes
         case .composite:
             // Composite modality requirements are resolved at runtime against the library
+            return Set()
+        case .limits:
             return Set()
         }
     }
@@ -810,6 +823,12 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
                 return l
             }
             return .composite(c)
+        case .limits(var l):
+            l.id = UUID()
+            l.name = newName
+            l.createdAt = Date()
+            l.modifiedAt = Date()
+            return .limits(l)
         }
     }
 
@@ -826,6 +845,9 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .composite(let comp):
             try c.encode("composite", forKey: .type)
             try c.encode(comp, forKey: .value)
+        case .limits(let lim):
+            try c.encode("limits", forKey: .type)
+            try c.encode(lim, forKey: .value)
         }
     }
 
@@ -837,6 +859,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
             self = .single(try c.decode(NPProtocolDefinition.self, forKey: .value))
         case "composite":
             self = .composite(try c.decode(NPCompositeProtocol.self, forKey: .value))
+        case "limits":
+            self = .limits(try c.decode(NPLimitsSet.self, forKey: .value))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .type, in: c,

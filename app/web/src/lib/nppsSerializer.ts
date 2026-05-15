@@ -7,6 +7,7 @@ import {
   NPIntervalConfig,
   NPModalityParams,
 } from '../types/protocol';
+import { NPLimitsSet } from '../types/limits';
 
 const INDENT = '    ';
 
@@ -262,4 +263,51 @@ export function serializeProtocol(entry: NPProtocolEntry): string {
 
 export function serializeNPPS(entries: NPProtocolEntry[]): string {
   return entries.map(serializeProtocol).join('\n\n');
+}
+
+// ─── Limits serialization ─────────────────────────────────────────────────────
+
+export function serializeNPPSLimits(limits: NPLimitsSet): string {
+  const lines: string[] = [];
+
+  lines.push(`limits ${str(limits.name)} {`);
+  lines.push(`${INDENT}level: ${limits.level}`);
+  if (limits.helmetId) lines.push(`${INDENT}helmet_id: ${str(limits.helmetId)}`);
+  if (limits.individualId) lines.push(`${INDENT}individual_id: ${str(limits.individualId)}`);
+  if (limits.description) lines.push(`${INDENT}description: ${str(limits.description)}`);
+
+  function writeModalityBlock(blockKey: string, obj: Record<string, unknown>): void {
+    const entries = Object.entries(obj).filter(([, v]) => v !== undefined);
+    if (entries.length === 0) return;
+    lines.push(`${INDENT}${blockKey} {`);
+    for (const [camelKey, v] of entries) {
+      const snakeKey = camelKey.replace(/([A-Z])/g, '_$1').toLowerCase();
+      if (Array.isArray(v)) {
+        lines.push(`${INDENT}${INDENT}${snakeKey}: [${(v as string[]).map(s => str(String(s))).join(', ')}]`);
+      } else if (typeof v === 'boolean') {
+        lines.push(`${INDENT}${INDENT}${snakeKey}: ${v}`);
+      } else {
+        lines.push(`${INDENT}${INDENT}${snakeKey}: ${v}`);
+      }
+    }
+    lines.push(`${INDENT}}`);
+  }
+
+  if (limits.pbmTranscranial) writeModalityBlock('pbm_transcranial', limits.pbmTranscranial as Record<string, unknown>);
+  if (limits.pbmIntranasal) writeModalityBlock('pbm_intranasal', limits.pbmIntranasal as Record<string, unknown>);
+  if (limits.eegNeurofeedback) writeModalityBlock('eeg_neurofeedback', limits.eegNeurofeedback as Record<string, unknown>);
+  if (limits.besTacs) writeModalityBlock('bes_tacs', limits.besTacs as Record<string, unknown>);
+  if (limits.tdcs) writeModalityBlock('tdcs', limits.tdcs as Record<string, unknown>);
+  if (limits.vnsHrv) writeModalityBlock('vns_hrv', limits.vnsHrv as Record<string, unknown>);
+  if (limits.audioEntrainment) writeModalityBlock('audio_entrainment', limits.audioEntrainment as Record<string, unknown>);
+  if (limits.visualStimulation) writeModalityBlock('visual_stimulation', limits.visualStimulation as Record<string, unknown>);
+  if (limits.tms) writeModalityBlock('tms', limits.tms as Record<string, unknown>);
+  if (limits.pbmDeep1170nm) writeModalityBlock('pbm_deep_1170nm', limits.pbmDeep1170nm as Record<string, unknown>);
+  if (limits.clinicalTacs) writeModalityBlock('clinical_tacs', limits.clinicalTacs as Record<string, unknown>);
+  if (limits.hdTdcs) writeModalityBlock('hd_tdcs', limits.hdTdcs as Record<string, unknown>);
+  if (limits.cervicalVns) writeModalityBlock('cervical_vns', limits.cervicalVns as Record<string, unknown>);
+  if (limits.vibrotactile40hz) writeModalityBlock('vibrotactile_40hz', limits.vibrotactile40hz as Record<string, unknown>);
+
+  lines.push('}');
+  return lines.join('\n');
 }

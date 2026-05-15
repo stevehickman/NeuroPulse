@@ -35,6 +35,7 @@ final class NPProtocolLibrary: ObservableObject {
     @Published var availableModalities: Set<NPModalityType> = NPModalityType.t1Set
     @Published var has1064SmartModules: Bool = false
     @Published var connectedDeviceTier: DeviceTier = .none
+    @Published var validationResults: [UUID: NPValidationResult] = [:]
 
     // MARK: Device tier
 
@@ -120,6 +121,33 @@ final class NPProtocolLibrary: ObservableObject {
             if case .single(let proto) = entry, proto.name == name { return proto }
         }
         return nil
+    }
+
+    // MARK: Validation integration
+
+    /// Revalidates all protocols using the current resolved limits from limitsStore.
+    func revalidateAll(using limitsStore: NPLimitsStore) {
+        let validator = limitsStore.makeValidator()
+        var results: [UUID: NPValidationResult] = [:]
+        for entry in allProtocols {
+            results[entry.id] = validator.validate(entry, resolving: self)
+        }
+        validationResults = results
+    }
+
+    /// Returns the cached validation result for an entry, computing it on demand if missing.
+    func validationResult(for entry: NPProtocolEntry, limitsStore: NPLimitsStore) -> NPValidationResult {
+        if let cached = validationResults[entry.id] { return cached }
+        let validator = limitsStore.makeValidator()
+        let result = validator.validate(entry, resolving: self)
+        validationResults[entry.id] = result
+        return result
+    }
+
+    /// Returns (errors, warnings) counts for a protocol entry, or (0, 0) if not validated.
+    func issueCount(for entry: NPProtocolEntry) -> (errors: Int, warnings: Int) {
+        guard let result = validationResults[entry.id] else { return (0, 0) }
+        return (result.errors.count, result.warnings.count)
     }
 
     // MARK: Mutations

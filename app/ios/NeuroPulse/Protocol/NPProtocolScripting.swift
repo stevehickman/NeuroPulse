@@ -1064,7 +1064,125 @@ struct NPPSSerializer {
             return serializeProtocol(proto)
         case .composite(let comp):
             return serializeComposite(comp)
+        case .limits(let lim):
+            return serializeLimits(lim)
         }
+    }
+
+    func serializeLimits(_ limits: NPLimitsSet) -> String {
+        var lines: [String] = []
+        lines.append("limits \"\(limits.name)\" {")
+        lines.append("    level: \(limits.level.rawValue)")
+        if let hid = limits.helmetId { lines.append("    helmet_id: \"\(hid)\"") }
+        if let iid = limits.individualId { lines.append("    individual_id: \"\(iid.uuidString)\"") }
+        if !limits.description.isEmpty { lines.append("    description: \"\(limits.description)\"") }
+        lines.append("")
+
+        if let lim = limits.pbmTranscranial {
+            lines.append("    pbm_transcranial {")
+            if let v = lim.maxIntensityPercent   { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxFrequencyHz         { lines.append("        max_frequency: \(formatHz(v))") }
+            if let v = lim.maxDutyCyclePercent    { lines.append("        max_duty_cycle: \(v)%") }
+            if let v = lim.maxSessionDoseJCm2     { lines.append("        max_session_dose: \(v)") }
+            if let v = lim.maxDailyDoseJCm2       { lines.append("        max_daily_dose: \(v)") }
+            lines.append("    }")
+        }
+        if let lim = limits.pbmIntranasal {
+            lines.append("    pbm_intranasal {")
+            if let v = lim.maxIntensityPercent        { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxSessionDoseJCm2         { lines.append("        max_session_dose: \(v)") }
+            if let v = lim.maxSessionDurationSeconds  { lines.append("        max_session_duration: \(formatTime(v))") }
+            lines.append("    }")
+        }
+        if let lim = limits.eegNeurofeedback {
+            lines.append("    eeg_neurofeedback {")
+            if let v = lim.allowedBands       { lines.append("        allowed_bands: [\(v.joined(separator: ", "))]") }
+            if let v = lim.requireClosedLoop  { lines.append("        require_closed_loop: \(v)") }
+            lines.append("    }")
+        }
+        if let lim = limits.besTacs {
+            lines.append("    bes_tacs {")
+            if let v = lim.maxIntensityMilliamps      { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxFrequencyHz             { lines.append("        max_frequency: \(formatHz(v))") }
+            if let v = lim.minFrequencyHz             { lines.append("        min_frequency: \(formatHz(v))") }
+            if let v = lim.maxSessionDurationSeconds  { lines.append("        max_session_duration: \(formatTime(v))") }
+            if let v = lim.maxSessionsPerDay          { lines.append("        max_sessions_per_day: \(v)") }
+            lines.append("    }")
+        }
+        if let lim = limits.tdcs {
+            lines.append("    tdcs {")
+            if let v = lim.maxIntensityMilliamps      { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxSessionDurationSeconds  { lines.append("        max_session_duration: \(formatTime(v))") }
+            if let v = lim.maxSessionsPerDay          { lines.append("        max_sessions_per_day: \(v)") }
+            lines.append("    }")
+        }
+        if let lim = limits.vnsHrv {
+            lines.append("    vns_hrv {")
+            if let v = lim.maxIntensityMilliamps      { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxFrequencyHz             { lines.append("        max_frequency: \(formatHz(v))") }
+            if let v = lim.maxSessionDurationSeconds  { lines.append("        max_session_duration: \(formatTime(v))") }
+            if let v = lim.allowedProtocols           { lines.append("        allowed_protocols: [\(v.joined(separator: ", "))]") }
+            lines.append("    }")
+        }
+        if let lim = limits.audioEntrainment {
+            lines.append("    audio_entrainment {")
+            if let v = lim.maxVolumePercent       { lines.append("        max_volume: \(Int(v))%") }
+            if let v = lim.maxBinauralBeatsHz     { lines.append("        max_binaural_hz: \(formatHz(v))") }
+            if let v = lim.maxIsochronicTonesHz   { lines.append("        max_isochronic_hz: \(formatHz(v))") }
+            lines.append("    }")
+        }
+        if let lim = limits.visualStimulation {
+            lines.append("    visual_stimulation {")
+            if let v = lim.maxFrequencyHz         { lines.append("        max_frequency: \(formatHz(v))") }
+            if let v = lim.minFrequencyHz         { lines.append("        min_frequency: \(formatHz(v))") }
+            if let v = lim.allowedModes           { lines.append("        allowed_modes: [\(v.joined(separator: ", "))]") }
+            if let v = lim.blockHighRiskRange     { lines.append("        block_high_risk_range: \(v)") }
+            lines.append("    }")
+        }
+        if let lim = limits.tms {
+            lines.append("    tms {")
+            if let v = lim.maxIntensityPercentMT  { lines.append("        max_intensity_mt: \(v)") }
+            if let v = lim.maxPulsesPerSession    { lines.append("        max_pulses_per_session: \(v)") }
+            if let v = lim.maxPulsesPerDay        { lines.append("        max_pulses_per_day: \(v)") }
+            if let v = lim.maxSessionsPerWeek     { lines.append("        max_sessions_per_week: \(v)") }
+            if let v = lim.allowedProtocols       { lines.append("        allowed_protocols: [\(v.joined(separator: ", "))]") }
+            if let v = lim.allowedTargets         { lines.append("        allowed_targets: [\(v.joined(separator: ", "))]") }
+            lines.append("    }")
+        }
+        if let lim = limits.pbmDeep1170nm {
+            lines.append("    pbm_deep_1170nm {")
+            if let v = lim.maxIntensityMWcm2          { lines.append("        max_intensity: \(v)mW_cm2") }
+            if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
+            lines.append("    }")
+        }
+        if let lim = limits.clinicalTacs {
+            lines.append("    clinical_tacs {")
+            if let v = lim.maxIntensityMilliamps       { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
+            lines.append("    }")
+        }
+        if let lim = limits.hdTdcs {
+            lines.append("    hd_tdcs {")
+            if let v = lim.maxIntensityMilliamps       { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
+            if let v = lim.allowedMontages             { lines.append("        allowed_montages: [\(v.joined(separator: ", "))]") }
+            lines.append("    }")
+        }
+        if let lim = limits.cervicalVns {
+            lines.append("    cervical_vns {")
+            if let v = lim.maxIntensityMilliamps       { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
+            lines.append("    }")
+        }
+        if let lim = limits.vibrotactile40hz {
+            lines.append("    vibrotactile_40hz {")
+            if let v = lim.maxIntensityG               { lines.append("        max_intensity_g: \(v)G") }
+            if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
+            lines.append("    }")
+        }
+
+        lines.append("}")
+        return lines.joined(separator: "\n")
     }
 
     private func serializeProtocol(_ proto: NPProtocolDefinition) -> String {

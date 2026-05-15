@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   NPProtocolEntry,
   NPModalityTypeId,
@@ -11,6 +11,10 @@ import {
 } from '../types/protocol';
 import { protocolLibrary, ProtocolAvailability } from '../lib/protocolLibrary';
 import { useProtocolContext } from '../App';
+import { limitsStore } from '../lib/limitsStore';
+import { validateEntry } from '../lib/protocolValidator';
+import { NPValidationResult } from '../types/limits';
+import { LimitsSettings } from './LimitsSettings';
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
@@ -34,7 +38,18 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState<'all' | 'predefined' | 'mine'>('all');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
+  const [showLimits, setShowLimits] = useState(false);
+  const [limitsVersion, setLimitsVersion] = useState(0);
 
+  // Subscribe to limits store changes
+  useEffect(() => {
+    const handler = () => setLimitsVersion(v => v + 1);
+    limitsStore.addEventListener('change', handler);
+    return () => limitsStore.removeEventListener('change', handler);
+  }, []);
+
+  const resolvedLimits = limitsStore.resolvedLimits;
+  const activeProfile = limitsStore.activeProfile;
   const allProtocols = protocolLibrary.allProtocols;
 
   function filterEntries(entries: NPProtocolEntry[]): NPProtocolEntry[] {
@@ -101,6 +116,31 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
         </div>
 
         <div className="protocol-menu-actions">
+          {activeProfile && (
+            <span
+              style={{
+                fontSize: 11,
+                padding: '3px 8px',
+                background: 'var(--accent)',
+                color: '#000',
+                borderRadius: 10,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+              title={`Active individual profile: ${activeProfile.name}`}
+              onClick={() => setShowLimits(true)}
+            >
+              {activeProfile.name}
+            </span>
+          )}
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowLimits(true)}
+            title="Configure dosage limits"
+            style={{ fontSize: 13 }}
+          >
+            Limits
+          </button>
           <button className="btn btn-secondary" onClick={onOpenComposer}>
             🎛️ Compose
           </button>
@@ -130,6 +170,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
                   key={entryId(entry)}
                   entry={entry}
                   availability={protocolLibrary.checkAvailability(entry)}
+                  validation={validateEntry(entry, resolvedLimits, allProtocols)}
                   onEdit={() => onEdit(entry)}
                   onDuplicate={() => handleDuplicate(entry)}
                   onDelete={null}
@@ -148,6 +189,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
                   key={entryId(entry)}
                   entry={entry}
                   availability={protocolLibrary.checkAvailability(entry)}
+                  validation={validateEntry(entry, resolvedLimits, allProtocols)}
                   onEdit={() => onEdit(entry)}
                   onDuplicate={() => handleDuplicate(entry)}
                   onDelete={() => handleDelete(entry)}
@@ -165,6 +207,10 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
           onCancel={() => setConfirm(null)}
         />
       )}
+
+      {showLimits && (
+        <LimitsSettings onClose={() => setShowLimits(false)} />
+      )}
     </div>
   );
 }
@@ -174,12 +220,13 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
 interface ProtocolCardProps {
   entry: NPProtocolEntry;
   availability: ProtocolAvailability;
+  validation: NPValidationResult;
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: (() => void) | null;
 }
 
-function ProtocolCard({ entry, availability, onEdit, onDuplicate, onDelete }: ProtocolCardProps) {
+function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, onDelete }: ProtocolCardProps) {
   const name = entryName(entry);
   const description = entryDescription(entry);
   const tags = entryTags(entry);
@@ -213,8 +260,20 @@ function ProtocolCard({ entry, availability, onEdit, onDuplicate, onDelete }: Pr
     ? `Missing: ${availability.missingModalities.map(m => MODALITY_META[m]?.displayName ?? m).join(', ')}`
     : availability.reason ?? '';
 
+  // Validation border color
+  const hasErrors = validation.errors.length > 0;
+  const hasWarnings = validation.warnings.length > 0;
+  const validationBorderColor = hasErrors
+    ? 'var(--error, #ef4444)'
+    : hasWarnings
+      ? 'var(--warning, #f59e0b)'
+      : undefined;
+
   return (
-    <div className={`protocol-card${!availability.available && deviceTier !== 'none' ? ' unavailable' : ''}`}>
+    <div
+      className={`protocol-card${!availability.available && deviceTier !== 'none' ? ' unavailable' : ''}`}
+      style={validationBorderColor ? { borderLeft: `3px solid ${validationBorderColor}` } : undefined}
+    >
       <div className="card-main">
         <div className="card-header">
           <div className="card-title">{name}</div>
@@ -254,6 +313,12 @@ function ProtocolCard({ entry, availability, onEdit, onDuplicate, onDelete }: Pr
           </span>
           {missingTooltip && <span className="tooltip">{missingTooltip}</span>}
         </div>
+
+        {/* Validation badge */}
+        {(hasErrors || hasWarnings) && (
+          <ValidationBadge validation={validation} />
+        )}
+
         <button className="btn btn-secondary btn-sm" onClick={onEdit}>
           {onDelete ? 'Edit' : 'View'}
         </button>
@@ -266,6 +331,98 @@ function ProtocolCard({ entry, availability, onEdit, onDuplicate, onDelete }: Pr
           </button>
         )}
       </div>
+    </div>
+  );
+}
+
+// ─── Validation Badge ─────────────────────────────────────────────────────────
+
+function ValidationBadge({ validation }: { validation: NPValidationResult }) {
+  const [open, setOpen] = useState(false);
+  const hasErrors = validation.errors.length > 0;
+  const count = hasErrors ? validation.errors.length : validation.warnings.length;
+  const label = hasErrors
+    ? `${count} error${count !== 1 ? 's' : ''}`
+    : `${count} warning${count !== 1 ? 's' : ''}`;
+
+  const badgeColor = hasErrors
+    ? 'var(--error, #ef4444)'
+    : 'var(--warning, #f59e0b)';
+  const badgeBg = hasErrors
+    ? 'rgba(239,68,68,0.15)'
+    : 'rgba(245,158,11,0.15)';
+
+  const allIssues = hasErrors ? validation.errors : validation.warnings;
+
+  return (
+    <div className="tooltip-wrap" style={{ position: 'relative' }}>
+      <button
+        onClick={e => { e.stopPropagation(); setOpen(o => !o); }}
+        style={{
+          background: badgeBg,
+          border: `1px solid ${badgeColor}`,
+          borderRadius: 10,
+          color: badgeColor,
+          fontSize: 10,
+          fontWeight: 700,
+          padding: '2px 7px',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        ⚠ {label}
+      </button>
+      {open && (
+        <div
+          onClick={e => e.stopPropagation()}
+          style={{
+            position: 'absolute',
+            bottom: '100%',
+            right: 0,
+            marginBottom: 6,
+            width: 320,
+            background: 'var(--bg-primary)',
+            border: '1px solid var(--border)',
+            borderRadius: 6,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+            zIndex: 1000,
+            padding: 12,
+            maxHeight: 280,
+            overflow: 'auto',
+          }}
+        >
+          <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8, color: badgeColor }}>
+            {hasErrors ? 'Validation Errors' : 'Validation Warnings'}
+          </div>
+          {allIssues.map(issue => (
+            <div key={issue.id} style={{ marginBottom: 8, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: badgeColor }}>
+                {issue.modality ? `[${issue.modality}] ` : ''}{issue.parameterDisplayName}
+              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                {issue.message}
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                Actual: {issue.actualValueDescription} — Limit: {issue.limitValueDescription}
+              </div>
+            </div>
+          ))}
+          <button
+            onClick={() => setOpen(false)}
+            style={{
+              marginTop: 4,
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-muted)',
+              fontSize: 11,
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
     </div>
   );
 }
