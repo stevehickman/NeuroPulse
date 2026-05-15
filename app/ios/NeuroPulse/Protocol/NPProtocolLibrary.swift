@@ -37,6 +37,10 @@ final class NPProtocolLibrary: ObservableObject {
     @Published var connectedDeviceTier: DeviceTier = .none
     @Published var validationResults: [UUID: NPValidationResult] = [:]
 
+    // MARK: Bundled (read-only) protocols loaded from embedded .npps content
+
+    private(set) var bundledProtocols: [NPProtocolEntry] = []
+
     // MARK: Device tier
 
     enum DeviceTier: Equatable {
@@ -54,13 +58,14 @@ final class NPProtocolLibrary: ObservableObject {
     // MARK: Init
 
     init() {
+        loadBundledProtocols()
         loadFromDisk()
     }
 
     // MARK: Computed all-protocols list
 
     var allProtocols: [NPProtocolEntry] {
-        NPPredefinedProtocols.all + userProtocols
+        bundledProtocols + userProtocols
     }
 
     // MARK: Availability
@@ -150,9 +155,23 @@ final class NPProtocolLibrary: ObservableObject {
         return (result.errors.count, result.warnings.count)
     }
 
+    // MARK: Read-only guards
+
+    /// Returns true if the entry can be edited by the user.
+    func canEdit(_ entry: NPProtocolEntry) -> Bool {
+        !entry.isReadOnly
+    }
+
+    /// Returns true if the entry can be deleted by the user.
+    func canDelete(_ entry: NPProtocolEntry) -> Bool {
+        !entry.isReadOnly
+    }
+
     // MARK: Mutations
 
     func save(_ entry: NPProtocolEntry) {
+        // Silently ignore attempts to overwrite a bundled (read-only) entry
+        if bundledProtocols.contains(where: { $0.id == entry.id }) { return }
         let id = entry.id
         if let idx = userProtocols.firstIndex(where: { $0.id == id }) {
             userProtocols[idx] = entry
@@ -163,6 +182,8 @@ final class NPProtocolLibrary: ObservableObject {
     }
 
     func delete(_ id: UUID) {
+        // Silently ignore attempts to delete a bundled (read-only) protocol
+        if bundledProtocols.contains(where: { $0.id == id }) { return }
         userProtocols.removeAll { $0.id == id }
         saveToDisk()
     }
@@ -199,6 +220,22 @@ final class NPProtocolLibrary: ObservableObject {
         }
         if smartModules {
             availableModalities.insert(.pbmTranscranial) // already in, but belt+braces
+        }
+    }
+
+    // MARK: Bundled protocol loading
+
+    private func loadBundledProtocols() {
+        bundledProtocols = NPBundledProtocols.allContents.flatMap { content -> [NPProtocolEntry] in
+            do {
+                var lexer = NPPSLexer(content)
+                let tokens = try lexer.tokenize()
+                var parser = NPPSParser(tokens)
+                return try parser.parse()
+            } catch {
+                // Silently skip malformed bundled content; should never happen in production
+                return []
+            }
         }
     }
 

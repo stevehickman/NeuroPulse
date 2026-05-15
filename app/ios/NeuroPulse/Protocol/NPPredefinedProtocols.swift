@@ -1,7 +1,16 @@
 import Foundation
 
-// MARK: - Predefined Protocols
-// All predefined protocols. isPredefined = true; IDs are stable UUIDs.
+// MARK: - Predefined Protocols (DEPRECATED)
+//
+// DEPRECATED: This file is superseded by NPBundledProtocols.swift + the .npps files in
+// protocols/predefined/. NPProtocolLibrary now loads predefined protocols by parsing
+// NPBundledProtocols.allContents at startup. This file is retained for reference only
+// and is no longer used by NPProtocolLibrary.
+//
+// DO NOT add new protocols here. Add them as .npps files in protocols/predefined/ and
+// update NPBundledProtocols.swift accordingly.
+//
+// This file will be removed in a future cleanup pass.
 
 enum NPPredefinedProtocols {
 

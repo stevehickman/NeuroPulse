@@ -436,12 +436,14 @@ struct NPPSParser {
         let name = try parseString()
         try expect(.lbrace)
 
+        var id: UUID = UUID()
         var description = ""
         var author = "NeuroPulse"
         var version = "1.0"
         var tags: [String] = []
         var timingMode: NPProtocolDefinition.TimingMode = .duration(20 * 60)
         var modalities: [NPProtocolModality] = []
+        var isReadOnly = false
 
         while currentToken != .rbrace && currentToken != .eof {
             guard case .ident(let key) = currentToken else {
@@ -452,6 +454,11 @@ struct NPPSParser {
                 // Field: key: value
                 advance()
                 switch key {
+                case "id":
+                    let uuidStr = try parseString()
+                    if let parsed = UUID(uuidString: uuidStr) { id = parsed }
+                case "readonly":
+                    if case .bool(let b) = currentToken { isReadOnly = b; advance() }
                 case "description":
                     description = try parseString()
                 case "author":
@@ -478,7 +485,7 @@ struct NPPSParser {
                     skipValue()
                 }
             } else if currentToken == .lbrace {
-                // Modality block
+                // Typed modality block (new format: pbm_transcranial { ... })
                 let mod = try parseModalityBlock(name: key)
                 modalities.append(mod)
             } else {
@@ -492,7 +499,7 @@ struct NPPSParser {
             throw NPPSError(message: "Protocol name cannot be empty", line: ln)
         }
 
-        return NPProtocolDefinition(
+        var proto = NPProtocolDefinition(
             name: name,
             description: description,
             author: author,
@@ -500,10 +507,13 @@ struct NPPSParser {
             tags: tags,
             createdAt: Date(),
             modifiedAt: Date(),
-            isPredefined: false,
+            isPredefined: isReadOnly,
+            isReadOnly: isReadOnly,
             timingMode: timingMode,
             modalities: modalities
         )
+        proto.id = id
+        return proto
     }
 
     // MARK: Composite
@@ -514,10 +524,14 @@ struct NPPSParser {
         let name = try parseString()
         try expect(.lbrace)
 
+        var id: UUID = UUID()
         var description = ""
+        var author = "NeuroPulse"
+        var version = "1.0"
         var tags: [String] = []
         var conflictResolution: NPCompositeProtocol.ConflictResolution = .merge
         var layers: [NPCompositeLayer] = []
+        var isReadOnly = false
 
         while currentToken != .rbrace && currentToken != .eof {
             // Handle "layer" keyword (emitted as .keyword("layer") by lexer)
@@ -535,8 +549,17 @@ struct NPPSParser {
             if case .colon = currentToken {
                 advance()
                 switch key {
+                case "id":
+                    let uuidStr = try parseString()
+                    if let parsed = UUID(uuidString: uuidStr) { id = parsed }
+                case "readonly":
+                    if case .bool(let b) = currentToken { isReadOnly = b; advance() }
                 case "description":
                     description = try parseString()
+                case "author":
+                    author = try parseString()
+                case "version":
+                    version = try parseString()
                 case "tags":
                     tags = try parseTagList()
                 case "conflict_resolution":
@@ -561,16 +584,21 @@ struct NPPSParser {
             throw NPPSError(message: "Composite name cannot be empty", line: ln)
         }
 
-        return NPCompositeProtocol(
+        var comp = NPCompositeProtocol(
             name: name,
             description: description,
+            author: author,
+            version: version,
             tags: tags,
             createdAt: Date(),
             modifiedAt: Date(),
-            isPredefined: false,
+            isPredefined: isReadOnly,
+            isReadOnly: isReadOnly,
             layers: layers,
             conflictResolution: conflictResolution
         )
+        comp.id = id
+        return comp
     }
 
     // MARK: Layer block (for composite)
@@ -1188,6 +1216,7 @@ struct NPPSSerializer {
     private func serializeProtocol(_ proto: NPProtocolDefinition) -> String {
         var lines: [String] = []
         lines.append("protocol \"\(proto.name)\" {")
+        lines.append("    id: \"\(proto.id.uuidString)\"")
         if !proto.description.isEmpty {
             lines.append("    description: \"\(proto.description)\"")
         }
@@ -1195,6 +1224,9 @@ struct NPPSSerializer {
             lines.append("    author: \"\(proto.author)\"")
         }
         lines.append("    version: \"\(proto.version)\"")
+        if proto.isReadOnly {
+            lines.append("    readonly: true")
+        }
         if !proto.tags.isEmpty {
             lines.append("    tags: [\(proto.tags.joined(separator: ", "))]")
         }
@@ -1374,8 +1406,16 @@ struct NPPSSerializer {
     private func serializeComposite(_ comp: NPCompositeProtocol) -> String {
         var lines: [String] = []
         lines.append("composite \"\(comp.name)\" {")
+        lines.append("    id: \"\(comp.id.uuidString)\"")
         if !comp.description.isEmpty {
             lines.append("    description: \"\(comp.description)\"")
+        }
+        if comp.author != "NeuroPulse" {
+            lines.append("    author: \"\(comp.author)\"")
+        }
+        lines.append("    version: \"\(comp.version)\"")
+        if comp.isReadOnly {
+            lines.append("    readonly: true")
         }
         if !comp.tags.isEmpty {
             lines.append("    tags: [\(comp.tags.joined(separator: ", "))]")

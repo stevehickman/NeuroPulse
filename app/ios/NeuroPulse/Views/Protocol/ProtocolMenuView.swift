@@ -210,8 +210,12 @@ struct ProtocolMenuView: View {
                     ForEach(userFiltered) { entry in
                         protocolRow(entry)
                             .swipeActions(edge: .trailing) {
-                                deleteButton(for: entry)
-                                editButton(for: entry)
+                                if library.canDelete(entry) {
+                                    deleteButton(for: entry)
+                                }
+                                if library.canEdit(entry) {
+                                    editButton(for: entry)
+                                }
                                 duplicateButton(for: entry)
                             }
                             .contextMenu { contextMenu(for: entry) }
@@ -302,18 +306,46 @@ struct ProtocolMenuView: View {
         }
 
         if !entry.isPredefined {
-            Button {
-                editingEntry = entry
-                if entry.isComposite { showComposer = true } else { showEditor = true }
-            } label: {
-                Label("Edit", systemImage: "pencil")
+            if library.canEdit(entry) {
+                Button {
+                    editingEntry = entry
+                    if entry.isComposite { showComposer = true } else { showEditor = true }
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
             }
 
-            Button(role: .destructive) {
-                confirmDelete = entry
+            // Read-only toggle for user-created protocols
+            Button {
+                toggleReadOnly(entry)
             } label: {
-                Label("Delete", systemImage: "trash")
+                if entry.isReadOnly {
+                    Label("Unlock Protocol", systemImage: "lock.open")
+                } else {
+                    Label("Lock Protocol", systemImage: "lock")
+                }
             }
+
+            if library.canDelete(entry) {
+                Button(role: .destructive) {
+                    confirmDelete = entry
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    private func toggleReadOnly(_ entry: NPProtocolEntry) {
+        switch entry {
+        case .single(var proto):
+            proto.isReadOnly.toggle()
+            library.save(.single(proto))
+        case .composite(var comp):
+            comp.isReadOnly.toggle()
+            library.save(.composite(comp))
+        case .limits:
+            break
         }
     }
 
@@ -545,6 +577,12 @@ struct ProtocolRowView: View {
 
     @ViewBuilder
     private var badges: some View {
+        if entry.isReadOnly {
+            Image(systemName: "lock.fill")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+
         if entry.isComposite {
             Label("Composite", systemImage: "square.stack.3d.up.fill")
                 .font(.caption2)
