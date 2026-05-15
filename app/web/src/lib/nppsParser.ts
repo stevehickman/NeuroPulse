@@ -1081,7 +1081,7 @@ export function parseNPPSLimits(text: string): NPLimitsSet | null {
       parser['expect']('LBRACE');
       parser['skipNewlines']();
       let depth = 1;
-      while (depth > 0 && parser['current'].type !== 'EOF') {
+      while (depth > 0 && (parser['current'].type as string) !== 'EOF') {
         if (parser['current'].type === 'LBRACE') depth++;
         else if (parser['current'].type === 'RBRACE') depth--;
         parser['advance']();
@@ -1094,7 +1094,7 @@ export function parseNPPSLimits(text: string): NPLimitsSet | null {
       parser['expect']('LBRACE');
       parser['skipNewlines']();
       let depth = 1;
-      while (depth > 0 && parser['current'].type !== 'EOF') {
+      while (depth > 0 && (parser['current'].type as string) !== 'EOF') {
         if (parser['current'].type === 'LBRACE') depth++;
         else if (parser['current'].type === 'RBRACE') depth--;
         parser['advance']();

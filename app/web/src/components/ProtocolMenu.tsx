@@ -39,9 +39,9 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
   const [filter, setFilter] = useState<'all' | 'predefined' | 'mine'>('all');
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [showLimits, setShowLimits] = useState(false);
-  const [limitsVersion, setLimitsVersion] = useState(0);
+  const [, setLimitsVersion] = useState(0);
 
-  // Subscribe to limits store changes
+  // Subscribe to limits store changes to trigger re-render when limits change
   useEffect(() => {
     const handler = () => setLimitsVersion(v => v + 1);
     limitsStore.addEventListener('change', handler);

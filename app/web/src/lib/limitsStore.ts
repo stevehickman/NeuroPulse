@@ -170,7 +170,7 @@ class LimitsStore extends EventTarget {
   // ─── NPPS import/export ──────────────────────────────────────────────────────
 
   exportLimitsAsNPPS(limits: NPLimitsSet): string {
-    return serializeLimitsToNPPS(limits);
+    return serializeNPPSLimits(limits);
   }
 
   importLimitsFromNPPS(text: string): NPLimitsSet {
