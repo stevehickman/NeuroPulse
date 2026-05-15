@@ -1,0 +1,37 @@
+protocol "PTSD EMDR Support" {
+    id: "1000000A-0000-0000-0000-000000000000"
+    description: "EMDR bilateral visual stimulation with VNS vagal support and calming brown noise. Intended for use alongside therapeutic EMDR sessions. WHO-recommended protocol basis."
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [ptsd, emdr, bilateral, trauma, vns, clinical]
+    duration: 60m
+
+    visual_stimulation {
+        frequency: 1Hz
+        mode: emdr
+        emdr_cadence: 1Hz
+    }
+
+    vns_hrv {
+        frequency: 25Hz
+        intensity: 0.4mA
+        hrv_protocol: standalone
+        breathing_rate: 6.0
+    }
+
+    audio_entrainment {
+        noise: brown
+        carrier_hz: 440Hz
+        volume: 45%
+        eeg_adaptive: false
+        bone_conduction_pacer: true
+    }
+
+    eeg_neurofeedback {
+        band: alpha
+        channels: all
+        closed_loop: false
+    }
+
+}

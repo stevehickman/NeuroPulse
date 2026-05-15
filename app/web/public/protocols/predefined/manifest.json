@@ -18,9 +18,6 @@
     "15-full-t1-immersive.npps"
   ],
   "composites": [
-    "composite-01-full-rct.npps",
-    "composite-02-sleep-stack.npps",
-    "composite-03-calm-to-focus.npps",
-    "composite-04-sleep-wind-down.npps"
+    "composite-01-full-rct.npps"
   ]
 }

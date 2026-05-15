@@ -1,0 +1,25 @@
+protocol "HRV Coherence Training" {
+    id: "1000000B-0000-0000-0000-000000000000"
+    description: "Standalone HRV coherence training with resonance breathing pacer. Bone conduction delivers the breathing cue. Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction)."
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [HRV, coherence, stress, relaxation, breathing]
+    duration: 20m
+
+    vns_hrv {
+        frequency: 25Hz
+        intensity: 1.5mA
+        hrv_protocol: standalone
+        breathing_rate: 6.0
+    }
+
+    audio_entrainment {
+        noise: pink
+        carrier_hz: 440Hz
+        volume: 40%
+        eeg_adaptive: false
+        bone_conduction_pacer: true
+    }
+
+}
