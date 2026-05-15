@@ -80,9 +80,9 @@ interface Token {
 }
 
 const KEYWORDS = new Set([
-  'protocol', 'composite', 'limits', 'name', 'description', 'author', 'version',
-  'tags', 'timing', 'duration', 'interval_count', 'modalities', 'modality',
-  'type', 'enabled', 'interval', 'on', 'off', 'repeat', 'layers', 'layer',
+  'protocol', 'composite', 'limits', 'description', 'author', 'version',
+  'tags', 'duration', 'interval_count',
+  'enabled', 'repeat', 'layer',
   'start', 'end', 'intensity_scale', 'conflict_resolution',
   'level', 'global', 'helmet', 'individual', 'helmet_id', 'individual_id',
   'pbm_transcranial', 'pbm_intranasal', 'eeg_neurofeedback', 'bes_tacs',
@@ -445,7 +445,7 @@ class Parser {
       const intensityVal = raw['__intensity'];
       delete raw['__intensity'];
       const percentTypes = new Set([
-        'pbm_transcranial', 'pbm_intranasal', 'visual_stimulation', 'pbm_deep_1170nm',
+        'pbm_transcranial', 'pbm_intranasal', 'visual_stimulation',
       ]);
       const mATypes = new Set([
         'bes_tacs', 'tdcs', 'vns_hrv', 'clinical_tacs', 'hd_tdcs', 'cervical_vns', 'tms',
@@ -756,19 +756,16 @@ class Parser {
   }
 
   private parseProtocol(): NPProtocolDefinition {
-    // NEW format: protocol "Name" { ... }
-    // OLD format: protocol { name: "Name" ... }
     this.skipNewlines();
-    let inlineName: string | undefined;
-    if (this.current.type === 'STRING') {
-      inlineName = this.current.value as string;
-      this.advance();
+    if (this.current.type !== 'STRING') {
+      throw new NPPSParseError(`Expected protocol name string, got ${this.current.type}`, this.current.line);
     }
+    const name = this.current.value as string;
+    this.advance();
 
     this.skipNewlines();
     this.expect('LBRACE');
 
-    let name = inlineName ?? '';
     let description = '';
     let author = 'NeuroPulse';
     let version = '1.0';
@@ -781,7 +778,6 @@ class Parser {
 
     this.skipNewlines();
     while (!this.tryBrace()) {
-      // Peek: if this is a typed modality block (keyword followed by '{' not ':')
       this.skipNewlines();
       if (this.ct() === 'RBRACE') break;
 
@@ -793,31 +789,25 @@ class Parser {
       this.advance();
       this.skipNewlines();
 
-      // Check if next token is '{' — typed modality block in new format
+      // Typed modality block
       if (this.ct() === 'LBRACE') {
-        const modality = this.parseTypedModalityBlock(key);
-        modalities.push(modality);
+        modalities.push(this.parseTypedModalityBlock(key));
         this.skipNewlines();
         continue;
       }
 
-      // Otherwise expect ':'
       this.expect('COLON');
 
       switch (key) {
-        case 'name': name = this.readString(); break;
         case 'id': parsedId = this.readString(); break;
         case 'description': description = this.readString(); break;
         case 'author': author = this.readString(); break;
         case 'version': version = this.readString(); break;
         case 'readonly': isReadOnly = this.readBool(); break;
         case 'tags': tags = this.readTagArray(); break;
-        case 'timing': timingMode = this.parseTiming(); break;
         case 'duration': timingMode = { type: 'duration', seconds: this.readDurationSeconds() }; break;
         case 'interval_count': timingMode = { type: 'interval_count', count: this.readNumber() }; break;
-        case 'modalities': modalities = this.parseModalitiesBlock(); break;
         default:
-          // Skip unknown fields gracefully (for future extensibility)
           this.skipValue();
           break;
       }
@@ -834,7 +824,6 @@ class Parser {
       modalities,
     };
     if (isReadOnly !== undefined) proto.isReadOnly = isReadOnly;
-    // Protocols loaded from .npps files with an ID are treated as predefined
     if (parsedId !== undefined) proto.isPredefined = true;
     return proto;
   }
@@ -843,98 +832,6 @@ class Parser {
     this.skipNewlines();
     if (this.current.type === 'RBRACE') { this.advance(); return true; }
     return false;
-  }
-
-  private parseTiming(): NPTimingMode {
-    this.skipNewlines();
-    this.expect('LBRACE');
-    this.skipNewlines();
-
-    let mode: NPTimingMode = { type: 'duration', seconds: 1200 };
-
-    while (!this.tryBrace()) {
-      const { key } = this.readKeyValue();
-      if (key === 'duration') {
-        mode = { type: 'duration', seconds: this.readNumber() };
-      } else if (key === 'interval_count') {
-        mode = { type: 'interval_count', count: this.readNumber() };
-      } else {
-        throw new NPPSParseError(`Unknown timing key: '${key}'`, this.current.line);
-      }
-      this.skipNewlines();
-    }
-    return mode;
-  }
-
-  private parseModalitiesBlock(): NPProtocolModality[] {
-    this.skipNewlines();
-    this.expect('LBRACKET');
-    this.skipNewlines();
-    const result: NPProtocolModality[] = [];
-    while (this.ct() !== 'RBRACKET' && this.ct() !== 'EOF') {
-      this.skipNewlines();
-      if (this.ct() === 'RBRACKET') break;
-      this.expectIdent('modality');
-      result.push(this.parseModalityBlock());
-      this.skipNewlines();
-      if (this.ct() === 'COMMA') { this.advance(); this.skipNewlines(); }
-    }
-    this.expect('RBRACKET');
-    return result;
-  }
-
-  private parseModalityBlock(): NPProtocolModality {
-    this.skipNewlines();
-    this.expect('LBRACE');
-    this.skipNewlines();
-
-    let typeId: NPModalityTypeId | null = null;
-    let enabled = true;
-    let interval: NPIntervalConfig = { intervalOnSeconds: 0, intervalOffSeconds: 0 };
-    let rawParams: Record<string, unknown> = {};
-    const id = crypto.randomUUID();
-
-    while (!this.tryBrace()) {
-      const { key } = this.readKeyValue();
-      if (key === 'type') {
-        const val = this.readString() as NPModalityTypeId;
-        typeId = val;
-      } else if (key === 'enabled') {
-        enabled = this.readBool();
-      } else if (key === 'interval') {
-        interval = this.parseIntervalBlock();
-      } else {
-        // Collect as raw param
-        rawParams[key] = this.readAnyValue();
-      }
-      this.skipNewlines();
-    }
-
-    if (!typeId) throw new NPPSParseError('Modality block missing type', this.current.line);
-
-    const params = this.buildModalityParams(typeId, rawParams);
-    return { id, modalityParams: params, interval, enabled };
-  }
-
-  private parseIntervalBlock(): NPIntervalConfig {
-    this.skipNewlines();
-    this.expect('LBRACE');
-    this.skipNewlines();
-
-    let intervalOnSeconds = 0;
-    let intervalOffSeconds = 0;
-    let repeatCount: number | undefined;
-
-    while (!this.tryBrace()) {
-      const { key } = this.readKeyValue();
-      if (key === 'on') intervalOnSeconds = this.readNumber();
-      else if (key === 'off') intervalOffSeconds = this.readNumber();
-      else if (key === 'repeat') repeatCount = this.readNumber();
-      else throw new NPPSParseError(`Unknown interval key: '${key}'`, this.current.line);
-      this.skipNewlines();
-    }
-
-    return { intervalOnSeconds, intervalOffSeconds, repeatCount };
   }
 
   private readAnyValue(): unknown {
@@ -1191,20 +1088,17 @@ class Parser {
   }
 
   private parseComposite(): NPCompositeProtocol {
-    // NEW format: composite "Name" { ... }
-    // OLD format: composite { name: "Name" ... }
     this.skipNewlines();
-    let inlineName: string | undefined;
-    if (this.current.type === 'STRING') {
-      inlineName = this.current.value as string;
-      this.advance();
+    if (this.current.type !== 'STRING') {
+      throw new NPPSParseError(`Expected composite name string, got ${this.current.type}`, this.current.line);
     }
+    const name = this.current.value as string;
+    this.advance();
 
     this.skipNewlines();
     this.expect('LBRACE');
     this.skipNewlines();
 
-    let name = inlineName ?? '';
     let description = '';
     let author = 'NeuroPulse';
     let version = '1.0';
@@ -1219,9 +1113,6 @@ class Parser {
       this.skipNewlines();
       if (this.ct() === 'RBRACE') break;
 
-      // Check for typed layer block: layer "Name" { ... } (inline name, new format)
-      // or layer { ... } (old format — handled in parseLayersBlock)
-      // At the top level of composite, 'layer' blocks can appear directly (new format)
       const keyTok = this.current;
       if ((keyTok.type === 'KEYWORD' || keyTok.type === 'IDENT') && keyTok.value === 'layer') {
         this.advance();
@@ -1232,7 +1123,6 @@ class Parser {
 
       const { key } = this.readKeyValue();
       switch (key) {
-        case 'name': name = this.readString(); break;
         case 'id': parsedId = this.readString(); break;
         case 'description': description = this.readString(); break;
         case 'author': author = this.readString(); break;
@@ -1240,7 +1130,6 @@ class Parser {
         case 'readonly': isReadOnly = this.readBool(); break;
         case 'tags': tags = this.readTagArray(); break;
         case 'conflict_resolution': conflictResolution = this.readString() as NPCompositeProtocol['conflictResolution']; break;
-        case 'layers': layers = this.parseLayersBlock(); break;
         default:
           this.skipValue();
           break;
@@ -1260,38 +1149,18 @@ class Parser {
     return composite;
   }
 
-  private parseLayersBlock(): NPCompositeLayer[] {
-    this.skipNewlines();
-    this.expect('LBRACKET');
-    this.skipNewlines();
-    const result: NPCompositeLayer[] = [];
-    while (this.ct() !== 'RBRACKET' && this.ct() !== 'EOF') {
-      this.skipNewlines();
-      if (this.ct() === 'RBRACKET') break;
-      this.expectIdent('layer');
-      result.push(this.parseLayerBlock());
-      this.skipNewlines();
-      if (this.ct() === 'COMMA') { this.advance(); this.skipNewlines(); }
-    }
-    this.expect('RBRACKET');
-    return result;
-  }
-
   private parseLayerBlock(): NPCompositeLayer {
-    // NEW format: layer "Protocol Name" { ... }
-    // OLD format: layer { name: "Protocol Name" ... }
     this.skipNewlines();
-    let inlineName: string | undefined;
-    if (this.current.type === 'STRING') {
-      inlineName = this.current.value as string;
-      this.advance();
+    if (this.current.type !== 'STRING') {
+      throw new NPPSParseError(`Expected layer protocol name string, got ${this.current.type}`, this.current.line);
     }
+    const protocolName = this.current.value as string;
+    this.advance();
 
     this.skipNewlines();
     this.expect('LBRACE');
     this.skipNewlines();
 
-    let protocolName = inlineName ?? '';
     let startOffsetSeconds = 0;
     let durationSeconds: number | undefined;
     let intensityScale = 1.0;
@@ -1300,7 +1169,6 @@ class Parser {
     while (!this.tryBrace()) {
       const { key } = this.readKeyValue();
       switch (key) {
-        case 'name': protocolName = this.readString(); break;
         case 'start': startOffsetSeconds = this.readDurationSeconds(); break;
         case 'end': durationSeconds = this.readDurationSeconds() - startOffsetSeconds; break;
         case 'duration': durationSeconds = this.readDurationSeconds(); break;
@@ -1346,6 +1214,8 @@ export function parseNPPSLimits(text: string): NPLimitsSet | null {
       // Skip entire protocol block
       parser['advance']();
       parser['skipNewlines']();
+      if (parser['current'].type === 'STRING') { parser['advance'](); } // skip inline name
+      parser['skipNewlines']();
       parser['expect']('LBRACE');
       parser['skipNewlines']();
       let depth = 1;
@@ -1358,6 +1228,8 @@ export function parseNPPSLimits(text: string): NPLimitsSet | null {
     } else if ((t.type === 'KEYWORD' || t.type === 'IDENT') && t.value === 'composite') {
       // Skip entire composite block
       parser['advance']();
+      parser['skipNewlines']();
+      if (parser['current'].type === 'STRING') { parser['advance'](); } // skip inline name
       parser['skipNewlines']();
       parser['expect']('LBRACE');
       parser['skipNewlines']();

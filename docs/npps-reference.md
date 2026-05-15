@@ -29,8 +29,7 @@
 6. [Composite block](#6-composite-block)
 7. [Limits block](#7-limits-block)
 8. [Multi-block files](#8-multi-block-files)
-9. [Canonical (serializer) format](#9-canonical-serializer-format)
-10. [Grammar summary](#10-grammar-summary)
+9. [Grammar summary](#9-grammar-summary)
 
 ---
 
@@ -123,28 +122,18 @@ Tag arrays accept unquoted identifiers and keywords as elements.
 
 ## 3. Protocol block
 
-A protocol block defines a single session. Two header formats are accepted:
+A protocol block defines a single session. The protocol name is declared inline in the block header:
 
 ```
-# New format — name in header
 protocol "Gamma Focus" {
     ...
 }
-
-# Classic format — name as field
-protocol {
-    name: "Gamma Focus"
-    ...
-}
 ```
-
-Both formats are fully equivalent. The new format is preferred for hand-authored files.
 
 ### Metadata fields
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `name` | string | `""` | Display name. Required. |
 | `id` | string | auto UUID | Stable UUID. Present in predefined files. When present, marks the protocol as predefined. |
 | `description` | string | `""` | Human-readable description. |
 | `author` | string | `"NeuroPulse"` | Creator name. |
@@ -188,10 +177,7 @@ protocol "Gamma Focus" {
 
 ## 4. Modalities
 
-### Two syntax styles
-
-**Typed block (preferred for hand-authored files):**  
-The block keyword is the modality type. No `type:` field is needed.
+Each modality is a typed block. The block keyword is the modality type:
 
 ```
 pbm_transcranial {
@@ -200,27 +186,6 @@ pbm_transcranial {
     ...
 }
 ```
-
-**Classic block (used by the serializer / export):**  
-The block is named `modality` with an explicit `type:` field inside a `modalities [...]` list.
-
-```
-modalities [
-    modality {
-        type: "pbm_transcranial"
-        intensity_percent: 80
-        frequency_hz: 40
-        ...
-        enabled: true
-        interval {
-            on: 0
-            off: 0
-        }
-    }
-]
-```
-
-Both styles are parsed identically. **Canonical field names** (as emitted by the serializer, e.g. `intensity_percent`, `frequency_hz`) and **short aliases** (e.g. `intensity`, `frequency`) are both accepted in either style.
 
 ### Field aliases
 
@@ -239,7 +204,7 @@ The following short names are accepted anywhere and map to the canonical name:
 | `ramp` | `ramp_seconds` |
 | `emdr_cadence` | `emdr_cadence_hz` |
 
-The universal `intensity` alias is context-dependent: it maps to `intensity_percent` for optical modalities (PBM), `intensity_milliamps` for electrical modalities (BES/tACS, tDCS, VNS, clinical tACS, HD-tDCS, cervical VNS, TMS), and `intensity_g` for vibrotactile.
+The `intensity` alias is context-dependent: it maps to `intensity_percent` for optical modalities (`pbm_transcranial`, `pbm_intranasal`, `visual_stimulation`), and `intensity_milliamps` for electrical modalities (`bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`). For `pbm_deep_1170nm` use `intensity_mw_cm2:` directly; for `vibrotactile_40hz` use `intensity_g:` directly.
 
 ---
 
@@ -522,15 +487,17 @@ tms {
 
 T2 only. Laser diodes for subcortical depth (35–40 mm).
 
-| Field | Canonical | Type | Values |
-|-------|-----------|------|--------|
-| `intensity` | `intensity_mw_cm2` | number | mW/cm², ≤1000 |
-| `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
-| `duty_cycle` | `duty_cycle_percent` | number | 1–25 |
+| Field | Type | Values |
+|-------|------|--------|
+| `intensity_mw_cm2` | number | mW/cm², ≤1000 |
+| `frequency` | number | 0 (CW) or 0.5–100 Hz |
+| `duty_cycle` | number | 1–25 % |
+
+Note: use `intensity_mw_cm2:` directly (not `intensity:`) since the unit is mW/cm², not percent.
 
 ```
 pbm_deep_1170nm {
-    intensity: 500
+    intensity_mw_cm2: 500
     frequency: 40Hz
     duty_cycle: 25%
 }
@@ -604,15 +571,17 @@ cervical_vns {
 
 Provisional. Mastoid-placement LRA pad.
 
-| Field | Canonical | Type | Values |
-|-------|-----------|------|--------|
-| `intensity` | `intensity_g` | number | G (acceleration), 0.6–1.2 |
-| `sync_to_audio` | `sync_to_audio` | bool | Sync start/stop to audio channel |
-| `sync_to_visual` | `sync_to_visual` | bool | Sync start/stop to visual channel |
+| Field | Type | Values |
+|-------|------|--------|
+| `intensity_g` | number | G (acceleration), 0.6–1.2 |
+| `sync_to_audio` | bool | Sync start/stop to audio channel |
+| `sync_to_visual` | bool | Sync start/stop to visual channel |
+
+Note: use `intensity_g:` directly (not `intensity:`).
 
 ```
 vibrotactile_40hz {
-    intensity: 0.8
+    intensity_g: 0.8
     sync_to_audio: true
     sync_to_visual: true
 }
@@ -622,11 +591,7 @@ vibrotactile_40hz {
 
 ## 5. Intervals
 
-By default a modality runs **continuously** for the full session. An interval causes it to pulse on and off.
-
-### In typed blocks (new format)
-
-Use inline fields:
+By default a modality runs **continuously** for the full session. An interval causes it to pulse on and off. Use inline fields inside the modality block:
 
 ```
 bes_tacs {
@@ -645,25 +610,7 @@ bes_tacs {
 | `interval_off` | duration | Rest period. `0` = continuous. |
 | `repeat` | int or `until_end` | Cycle count. Omit or use `until_end` for continuous cycling. |
 
-### In classic modality blocks (old format)
-
-Use a nested `interval { }` block:
-
-```
-modality {
-    type: "bes_tacs"
-    ...
-    interval {
-        on: 30         # seconds
-        off: 30
-        repeat: 5
-    }
-}
-```
-
-### Continuous (default)
-
-`interval_on: 0` and `interval_off: 0` (or an `interval { on: 0  off: 0 }` block) means run continuously. Omitting interval fields entirely has the same effect.
+Omitting `interval_on` / `interval_off` entirely means run continuously.
 
 ---
 
@@ -719,6 +666,8 @@ Same as protocol metadata (`id`, `name`, `description`, `author`, `version`, `re
 
 ### Layer block
 
+The referenced protocol name is declared inline in the block header:
+
 ```
 layer "Protocol Name" {
     start: 300s          # offset into composite timeline
@@ -729,13 +678,10 @@ layer "Protocol Name" {
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `name` | string | Name of the referenced protocol. Must match exactly. |
 | `start` | duration | Start offset in the composite timeline. Default `0`. |
 | `duration` | duration | Clip length. Omit to run the referenced protocol to its natural end. |
 | `end` | duration | Alternative to `duration`; computed as `end - start`. |
 | `intensity_scale` | number | Intensity multiplier (default `1.0`). |
-
-The inline name header (`layer "Protocol Name" { ... }`) is preferred. The classic form places `name:` as a field inside the block.
 
 ---
 
@@ -928,85 +874,27 @@ When parsing, `protocol` and `composite` blocks produce protocol entries; `limit
 
 ---
 
-## 9. Canonical (serializer) format
-
-When the app exports a protocol it uses this exact layout. Parsers accept both this format and the new typed-block format, so exported files can be re-imported unchanged.
-
-```
-protocol {
-    name: "Alpha Calm"
-    description: "10Hz alpha relaxation."
-    author: "NeuroPulse"
-    version: "1.0"
-    readonly: true
-    tags: ["calm", "alpha", "relaxation"]
-    timing {
-        duration: 1200
-    }
-    modalities [
-        modality {
-            type: "pbm_transcranial"
-            zones: "all"
-            wavelength: "660_808nm"
-            intensity_percent: 75
-            frequency_hz: 10
-            duty_cycle_percent: 25
-            enabled: true
-            interval {
-                on: 0
-                off: 0
-            }
-        }
-        modality {
-            type: "eeg_neurofeedback"
-            channels: "all"
-            band: "alpha"
-            closed_loop_enabled: true
-            enabled: true
-            interval {
-                on: 0
-                off: 0
-            }
-        }
-    ]
-}
-```
-
-**Differences from the new format:**
-- Name is a field (`name:`) not a header token.
-- Duration is in the `timing { }` sub-block, in raw **seconds** (no unit suffix).
-- Modalities are in a `modalities [...]` list using `modality { type: "..." }` blocks.
-- All fields use canonical names (`intensity_percent`, `frequency_hz`, etc.) — aliases are not emitted.
-- Strings are always quoted.
-- Tags are quoted: `["calm", "alpha"]`.
-- `readonly:` is only emitted when `true`.
-- `id:` is not emitted by the serializer (IDs are generated on parse when absent).
-- Layer `start:` and `duration:` are in raw seconds (no unit suffix).
-
----
-
-## 10. Grammar summary
+## 9. Grammar summary
 
 ```
 file        := entry*
 entry       := protocol | composite | limits
 
-protocol    := 'protocol' STRING? '{' proto_field* '}'
-proto_field := meta_field | typed_modality_block | 'modalities' '[' classic_modality* ']'
+protocol    := 'protocol' STRING '{' proto_field* '}'
+proto_field := meta_field | typed_modality_block
 meta_field  := IDENT ':' value
 
 typed_modality_block := TYPE_ID '{' modality_param* '}'
-classic_modality     := 'modality' '{' ('type' ':' STRING) modality_param* 'interval'? '}'
 modality_param       := IDENT ':' value
 TYPE_ID              := 'pbm_transcranial' | 'pbm_intranasal' | 'eeg_neurofeedback'
                       | 'bes_tacs' | 'tdcs' | 'vns_hrv' | 'audio_entrainment'
                       | 'visual_stimulation' | 'qeeg_21ch' | 'tms' | 'pbm_deep_1170nm'
                       | 'clinical_tacs' | 'hd_tdcs' | 'cervical_vns' | 'vibrotactile_40hz'
 
-composite   := 'composite' STRING? '{' composite_field* '}'
-composite_field := meta_field | layer_block | 'layers' '[' layer_block* ']'
-layer_block := 'layer' STRING? '{' layer_field* '}'
-layer_field := 'name' ':' STRING | 'start' ':' DURATION | 'duration' ':' DURATION
+composite   := 'composite' STRING '{' composite_field* '}'
+composite_field := meta_field | layer_block
+layer_block := 'layer' STRING '{' layer_field* '}'
+layer_field := 'start' ':' DURATION | 'duration' ':' DURATION
              | 'end' ':' DURATION | 'intensity_scale' ':' NUMBER
 
 limits      := 'limits' STRING? '{' limits_top_field* '}'
@@ -1021,4 +909,4 @@ BOOL        := 'true' | 'false'
 LEVEL_ID    := 'global' | 'helmet' | 'individual'
 ```
 
-Unknown fields at the `meta_field` level (and in limits sub-blocks) are silently skipped, enabling forward compatibility with future NPPS versions.
+Unknown `meta_field` keys (and unknown fields in limits sub-blocks) are silently skipped for forward compatibility. `limits` blocks accept an optional name string for existing files that omit it.

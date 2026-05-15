@@ -23,203 +23,213 @@ function numArr(arr: number[]): string {
   if (arr.length === 0) return '[]';
   return `[${arr.join(', ')}]`;
 }
-function serializeInterval(iv: NPIntervalConfig, level: number): string {
-  const p = INDENT.repeat(level);
-  const lines: string[] = [];
-  lines.push(`${p}interval {`);
-  lines.push(`${p}${INDENT}on: ${iv.intervalOnSeconds}`);
-  lines.push(`${p}${INDENT}off: ${iv.intervalOffSeconds}`);
-  if (iv.repeatCount !== undefined) {
-    lines.push(`${p}${INDENT}repeat: ${iv.repeatCount}`);
-  }
-  lines.push(`${p}}`);
-  return lines.join('\n');
+
+function formatTime(seconds: number): string {
+  if (seconds === 0) return '0s';
+  if (seconds % 3600 === 0) return `${seconds / 3600}h`;
+  if (seconds % 60 === 0) return `${seconds / 60}m`;
+  return `${seconds}s`;
 }
 
-function serializeModalityParams(mp: NPModalityParams, level: number): string {
-  const p = INDENT.repeat(level);
-  const lines: string[] = [];
+function formatHz(hz: number): string {
+  if (hz === 0) return '0Hz';
+  if (hz === Math.floor(hz)) return `${Math.floor(hz)}Hz`;
+  return `${hz}Hz`;
+}
 
+function isContinuous(iv: NPIntervalConfig): boolean {
+  return iv.intervalOnSeconds === 0 && iv.intervalOffSeconds === 0;
+}
+
+function serializeModalityFields(mp: NPModalityParams): string[] {
   switch (mp.type) {
     case 'pbm_transcranial': {
-      const params = mp.params;
-      lines.push(`${p}type: "pbm_transcranial"`);
-      lines.push(`${p}zones: "${params.zones}"`);
-      if (params.customZones) lines.push(`${p}custom_zones: ${numArr(params.customZones)}`);
-      lines.push(`${p}wavelength: "${params.wavelength}"`);
-      lines.push(`${p}intensity_percent: ${params.intensityPercent}`);
-      lines.push(`${p}frequency_hz: ${params.frequencyHz}`);
-      lines.push(`${p}duty_cycle_percent: ${params.dutyCyclePercent}`);
-      break;
+      const p = mp.params;
+      const lines: string[] = [
+        `intensity: ${p.intensityPercent}%`,
+        `frequency: ${formatHz(p.frequencyHz)}`,
+        `duty_cycle: ${p.dutyCyclePercent}%`,
+      ];
+      if (p.zones === 'custom' && p.customZones) {
+        lines.push(`custom_zones: ${numArr(p.customZones)}`);
+      } else {
+        lines.push(`zones: ${p.zones}`);
+      }
+      lines.push(`wavelength: ${p.wavelength}`);
+      return lines;
     }
     case 'pbm_intranasal': {
-      const params = mp.params;
-      lines.push(`${p}type: "pbm_intranasal"`);
-      lines.push(`${p}intensity_percent: ${params.intensityPercent}`);
-      lines.push(`${p}frequency_hz: ${params.frequencyHz}`);
-      lines.push(`${p}duty_cycle_percent: ${params.dutyCyclePercent}`);
-      break;
+      const p = mp.params;
+      return [
+        `intensity: ${p.intensityPercent}%`,
+        `frequency: ${formatHz(p.frequencyHz)}`,
+        `duty_cycle: ${p.dutyCyclePercent}%`,
+      ];
     }
     case 'eeg_neurofeedback': {
-      const params = mp.params;
-      lines.push(`${p}type: "eeg_neurofeedback"`);
-      lines.push(`${p}channels: "${params.channels}"`);
-      if (params.customChannels) lines.push(`${p}custom_channels: ${strArr(params.customChannels)}`);
-      lines.push(`${p}band: "${params.band}"`);
-      lines.push(`${p}closed_loop_enabled: ${params.closedLoopEnabled}`);
-      break;
+      const p = mp.params;
+      const lines: string[] = [`band: ${p.band}`];
+      if (p.channels === 'custom' && p.customChannels) {
+        lines.push(`custom_channels: ${strArr(p.customChannels)}`);
+      } else {
+        lines.push(`channels: ${p.channels}`);
+      }
+      lines.push(`closed_loop: ${p.closedLoopEnabled}`);
+      return lines;
     }
     case 'bes_tacs': {
-      const params = mp.params;
-      lines.push(`${p}type: "bes_tacs"`);
-      lines.push(`${p}frequency_hz: ${params.frequencyHz}`);
-      lines.push(`${p}intensity_milliamps: ${params.intensityMilliamps}`);
-      lines.push(`${p}waveform: "${params.waveform}"`);
-      break;
+      const p = mp.params;
+      return [
+        `frequency: ${formatHz(p.frequencyHz)}`,
+        `intensity: ${p.intensityMilliamps}mA`,
+        `waveform: ${p.waveform}`,
+      ];
     }
     case 'tdcs': {
-      const params = mp.params;
-      lines.push(`${p}type: "tdcs"`);
-      lines.push(`${p}intensity_milliamps: ${params.intensityMilliamps}`);
-      const pairs = params.electrodePairs.map(([a, b]) => `[${str(a)}, ${str(b)}]`).join(', ');
-      lines.push(`${p}electrode_pairs: [${pairs}]`);
-      lines.push(`${p}ramp_seconds: ${params.rampSeconds}`);
-      break;
+      const p = mp.params;
+      const pairs = p.electrodePairs.map(([a, b]) => `[${str(a)}, ${str(b)}]`).join(', ');
+      return [
+        `intensity: ${p.intensityMilliamps}mA`,
+        `electrode_pairs: [${pairs}]`,
+        `ramp: ${p.rampSeconds}s`,
+      ];
     }
     case 'vns_hrv': {
-      const params = mp.params;
-      lines.push(`${p}type: "vns_hrv"`);
-      lines.push(`${p}frequency_hz: ${params.frequencyHz}`);
-      lines.push(`${p}intensity_milliamps: ${params.intensityMilliamps}`);
-      lines.push(`${p}hrv_protocol: "${params.hrvProtocol}"`);
-      lines.push(`${p}resonance_breathing_rate: ${params.resonanceBreathingRate}`);
-      break;
+      const p = mp.params;
+      return [
+        `frequency: ${formatHz(p.frequencyHz)}`,
+        `intensity: ${p.intensityMilliamps}mA`,
+        `hrv_protocol: ${p.hrvProtocol}`,
+        `breathing_rate: ${p.resonanceBreathingRate}`,
+      ];
     }
     case 'audio_entrainment': {
-      const params = mp.params;
-      lines.push(`${p}type: "audio_entrainment"`);
-      if (params.binauralBeatsHz !== undefined) lines.push(`${p}binaural_beats_hz: ${params.binauralBeatsHz}`);
-      if (params.isochronicTonesHz !== undefined) lines.push(`${p}isochronic_tones_hz: ${params.isochronicTonesHz}`);
-      if (params.noiseType !== undefined) lines.push(`${p}noise_type: "${params.noiseType}"`);
-      lines.push(`${p}carrier_hz: ${params.carrierHz}`);
-      lines.push(`${p}volume_percent: ${params.volumePercent}`);
-      lines.push(`${p}eeg_adaptive: ${params.eegAdaptive}`);
-      lines.push(`${p}bone_conduction_pacer: ${params.boneConductionPacer}`);
-      break;
+      const p = mp.params;
+      const lines: string[] = [];
+      if (p.binauralBeatsHz !== undefined) lines.push(`binaural_hz: ${formatHz(p.binauralBeatsHz)}`);
+      if (p.isochronicTonesHz !== undefined) lines.push(`isochronic_hz: ${formatHz(p.isochronicTonesHz)}`);
+      lines.push(p.noiseType !== undefined ? `noise: ${p.noiseType}` : `noise: none`);
+      lines.push(`carrier_hz: ${formatHz(p.carrierHz)}`);
+      lines.push(`volume: ${p.volumePercent}%`);
+      lines.push(`eeg_adaptive: ${p.eegAdaptive}`);
+      lines.push(`bone_conduction_pacer: ${p.boneConductionPacer}`);
+      return lines;
     }
     case 'visual_stimulation': {
-      const params = mp.params;
-      lines.push(`${p}type: "visual_stimulation"`);
-      lines.push(`${p}frequency_hz: ${params.frequencyHz}`);
-      lines.push(`${p}mode: "${params.mode}"`);
-      lines.push(`${p}emdr_cadence_hz: ${params.emdrCadenceHz}`);
-      lines.push(`${p}enable_mode_f: ${params.enableModeF}`);
-      break;
+      const p = mp.params;
+      return [
+        `frequency: ${formatHz(p.frequencyHz)}`,
+        `mode: ${p.mode}`,
+        `emdr_cadence: ${formatHz(p.emdrCadenceHz)}`,
+        `enable_mode_f: ${p.enableModeF}`,
+      ];
     }
     case 'qeeg_21ch': {
-      const params = mp.params;
-      lines.push(`${p}type: "qeeg_21ch"`);
-      lines.push(`${p}montage: "${params.montage}"`);
-      lines.push(`${p}sloreta_enabled: ${params.sloretaEnabled}`);
-      lines.push(`${p}reference: "${params.reference}"`);
-      break;
+      const p = mp.params;
+      return [
+        `montage: ${p.montage}`,
+        `sloreta_enabled: ${p.sloretaEnabled}`,
+        `reference: ${p.reference}`,
+      ];
     }
     case 'tms': {
-      const params = mp.params;
-      lines.push(`${p}type: "tms"`);
-      lines.push(`${p}tms_protocol: "${params.tmsProtocol}"`);
-      lines.push(`${p}frequency_hz: ${params.frequencyHz}`);
-      lines.push(`${p}intensity_percent_mt: ${params.intensityPercentMT}`);
-      lines.push(`${p}target: "${params.target}"`);
-      lines.push(`${p}pulse_count: ${params.pulseCount}`);
-      break;
+      const p = mp.params;
+      return [
+        `tms_protocol: ${p.tmsProtocol}`,
+        `frequency: ${formatHz(p.frequencyHz)}`,
+        `intensity_percent_mt: ${p.intensityPercentMT}`,
+        `target: ${p.target}`,
+        `pulse_count: ${p.pulseCount}`,
+      ];
     }
     case 'pbm_deep_1170nm': {
-      const params = mp.params;
-      lines.push(`${p}type: "pbm_deep_1170nm"`);
-      lines.push(`${p}intensity_mw_cm2: ${params.intensityMWcm2}`);
-      lines.push(`${p}frequency_hz: ${params.frequencyHz}`);
-      lines.push(`${p}duty_cycle_percent: ${params.dutyCyclePercent}`);
-      break;
+      const p = mp.params;
+      return [
+        `intensity_mw_cm2: ${p.intensityMWcm2}`,
+        `frequency: ${formatHz(p.frequencyHz)}`,
+        `duty_cycle: ${p.dutyCyclePercent}%`,
+      ];
     }
     case 'clinical_tacs': {
-      const params = mp.params;
-      lines.push(`${p}type: "clinical_tacs"`);
-      lines.push(`${p}frequency_hz: ${params.frequencyHz}`);
-      lines.push(`${p}intensity_milliamps: ${params.intensityMilliamps}`);
-      lines.push(`${p}channel_count: ${params.channelCount}`);
-      lines.push(`${p}waveform: "${params.waveform}"`);
-      break;
+      const p = mp.params;
+      return [
+        `frequency: ${formatHz(p.frequencyHz)}`,
+        `intensity: ${p.intensityMilliamps}mA`,
+        `channel_count: ${p.channelCount}`,
+        `waveform: ${p.waveform}`,
+      ];
     }
     case 'hd_tdcs': {
-      const params = mp.params;
-      lines.push(`${p}type: "hd_tdcs"`);
-      lines.push(`${p}target: "${params.target}"`);
-      lines.push(`${p}montage: "${params.montage}"`);
-      lines.push(`${p}intensity_milliamps: ${params.intensityMilliamps}`);
-      break;
+      const p = mp.params;
+      return [
+        `target: ${p.target}`,
+        `montage: ${p.montage}`,
+        `intensity: ${p.intensityMilliamps}mA`,
+      ];
     }
     case 'cervical_vns': {
-      const params = mp.params;
-      lines.push(`${p}type: "cervical_vns"`);
-      lines.push(`${p}frequency_hz: ${params.frequencyHz}`);
-      lines.push(`${p}intensity_milliamps: ${params.intensityMilliamps}`);
-      break;
+      const p = mp.params;
+      return [
+        `frequency: ${formatHz(p.frequencyHz)}`,
+        `intensity: ${p.intensityMilliamps}mA`,
+      ];
     }
     case 'vibrotactile_40hz': {
-      const params = mp.params;
-      lines.push(`${p}type: "vibrotactile_40hz"`);
-      lines.push(`${p}intensity_g: ${params.intensityG}`);
-      lines.push(`${p}sync_to_audio: ${params.syncToAudio}`);
-      lines.push(`${p}sync_to_visual: ${params.syncToVisual}`);
-      break;
+      const p = mp.params;
+      return [
+        `intensity_g: ${p.intensityG}`,
+        `sync_to_audio: ${p.syncToAudio}`,
+        `sync_to_visual: ${p.syncToVisual}`,
+      ];
     }
     default: {
       const _exhaustive: never = mp;
       throw new Error(`Unknown modality type: ${JSON.stringify(_exhaustive)}`);
     }
   }
-  return lines.join('\n');
 }
 
 function serializeModality(m: NPProtocolModality, level: number): string {
   const p = INDENT.repeat(level);
   const lines: string[] = [];
-  lines.push(`${p}modality {`);
-  lines.push(serializeModalityParams(m.modalityParams, level + 1));
-  lines.push(`${p}${INDENT}enabled: ${m.enabled}`);
-  lines.push(serializeInterval(m.interval, level + 1));
+  lines.push(`${p}${m.modalityParams.type} {`);
+  for (const field of serializeModalityFields(m.modalityParams)) {
+    lines.push(`${p}${INDENT}${field}`);
+  }
+  if (!isContinuous(m.interval)) {
+    lines.push(`${p}${INDENT}interval_on: ${formatTime(m.interval.intervalOnSeconds)}`);
+    lines.push(`${p}${INDENT}interval_off: ${formatTime(m.interval.intervalOffSeconds)}`);
+    if (m.interval.repeatCount !== undefined) {
+      lines.push(`${p}${INDENT}repeat: ${m.interval.repeatCount}`);
+    } else {
+      lines.push(`${p}${INDENT}repeat: until_end`);
+    }
+  }
+  if (!m.enabled) {
+    lines.push(`${p}${INDENT}enabled: false`);
+  }
   lines.push(`${p}}`);
   return lines.join('\n');
 }
 
 function serializeSingleProtocol(proto: NPProtocolDefinition): string {
   const lines: string[] = [];
-  lines.push('protocol {');
-  lines.push(`${INDENT}name: ${str(proto.name)}`);
+  lines.push(`protocol ${str(proto.name)} {`);
+  lines.push(`${INDENT}id: ${str(proto.id)}`);
   lines.push(`${INDENT}description: ${str(proto.description)}`);
   lines.push(`${INDENT}author: ${str(proto.author)}`);
   lines.push(`${INDENT}version: ${str(proto.version)}`);
   if (proto.isReadOnly) lines.push(`${INDENT}readonly: true`);
   lines.push(`${INDENT}tags: ${strArr(proto.tags)}`);
-
-  // Timing
-  lines.push(`${INDENT}timing {`);
   if (proto.timingMode.type === 'duration') {
-    lines.push(`${INDENT}${INDENT}duration: ${proto.timingMode.seconds}`);
+    lines.push(`${INDENT}duration: ${formatTime(proto.timingMode.seconds)}`);
   } else {
-    lines.push(`${INDENT}${INDENT}interval_count: ${proto.timingMode.count}`);
+    lines.push(`${INDENT}interval_count: ${proto.timingMode.count}`);
   }
-  lines.push(`${INDENT}}`);
-
-  // Modalities
-  lines.push(`${INDENT}modalities [`);
-  proto.modalities.forEach((m, i) => {
-    lines.push(serializeModality(m, 2));
-    if (i < proto.modalities.length - 1) lines.push('');
+  proto.modalities.forEach(m => {
+    lines.push('');
+    lines.push(serializeModality(m, 1));
   });
-  lines.push(`${INDENT}]`);
-
   lines.push('}');
   return lines.join('\n');
 }
@@ -227,33 +237,32 @@ function serializeSingleProtocol(proto: NPProtocolDefinition): string {
 function serializeLayer(layer: NPCompositeLayer, level: number): string {
   const p = INDENT.repeat(level);
   const lines: string[] = [];
-  lines.push(`${p}layer {`);
-  lines.push(`${p}${INDENT}name: ${str(layer.protocolName)}`);
-  lines.push(`${p}${INDENT}start: ${layer.startOffsetSeconds}`);
+  lines.push(`${p}layer ${str(layer.protocolName)} {`);
+  lines.push(`${p}${INDENT}start: ${formatTime(layer.startOffsetSeconds)}`);
   if (layer.durationSeconds !== undefined) {
-    lines.push(`${p}${INDENT}duration: ${layer.durationSeconds}`);
+    lines.push(`${p}${INDENT}duration: ${formatTime(layer.durationSeconds)}`);
   }
-  lines.push(`${p}${INDENT}intensity_scale: ${layer.intensityScale}`);
+  if (Math.abs(layer.intensityScale - 1.0) > 0.001) {
+    lines.push(`${p}${INDENT}intensity_scale: ${layer.intensityScale}`);
+  }
   lines.push(`${p}}`);
   return lines.join('\n');
 }
 
 function serializeComposite(composite: NPCompositeProtocol): string {
   const lines: string[] = [];
-  lines.push('composite {');
-  lines.push(`${INDENT}name: ${str(composite.name)}`);
+  lines.push(`composite ${str(composite.name)} {`);
+  lines.push(`${INDENT}id: ${str(composite.id)}`);
   lines.push(`${INDENT}description: ${str(composite.description)}`);
   lines.push(`${INDENT}author: ${str(composite.author)}`);
   lines.push(`${INDENT}version: ${str(composite.version)}`);
   if (composite.isReadOnly) lines.push(`${INDENT}readonly: true`);
   lines.push(`${INDENT}tags: ${strArr(composite.tags)}`);
-  lines.push(`${INDENT}conflict_resolution: "${composite.conflictResolution}"`);
-  lines.push(`${INDENT}layers [`);
-  composite.layers.forEach((l, i) => {
-    lines.push(serializeLayer(l, 2));
-    if (i < composite.layers.length - 1) lines.push('');
+  lines.push(`${INDENT}conflict_resolution: ${composite.conflictResolution}`);
+  composite.layers.forEach(l => {
+    lines.push('');
+    lines.push(serializeLayer(l, 1));
   });
-  lines.push(`${INDENT}]`);
   lines.push('}');
   return lines.join('\n');
 }
