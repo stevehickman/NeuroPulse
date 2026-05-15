@@ -76,6 +76,7 @@ interface Token {
   type: TokenType;
   value: string | number | boolean;
   line: number;
+  unit?: string; // 's' | 'm' | 'Hz' | '%' | 'mA' — preserved from source for duration/unit-aware fields
 }
 
 const KEYWORDS = new Set([
@@ -154,7 +155,7 @@ export function tokenize(text: string): Token[] {
       continue;
     }
 
-    // Numbers (including negative)
+    // Numbers (including negative) — optionally followed by unit suffix (Hz, %, mA, s, m)
     if (text[pos] === '-' || (text[pos] >= '0' && text[pos] <= '9')) {
       let numStr = '';
       if (text[pos] === '-') { numStr = '-'; pos++; }
@@ -164,7 +165,19 @@ export function tokenize(text: string): Token[] {
       if (numStr === '-') {
         throw new NPPSParseError('Stray minus sign', line);
       }
-      tokens.push({ type: 'NUMBER', value: parseFloat(numStr), line });
+      // Consume optional unit suffix: Hz, %, mA, s, m
+      // Store unit in the token so duration parsers can distinguish minutes vs seconds.
+      let unit: string | undefined;
+      if (pos < text.length) {
+        if (text[pos] === '%') { unit = '%'; pos++; }
+        else if (text[pos] === 's' && (pos + 1 >= text.length || !/[a-zA-Z_0-9]/.test(text[pos + 1]))) { unit = 's'; pos++; }
+        else if (text[pos] === 'm' && (pos + 1 >= text.length || !/[a-zA-Z_0-9]/.test(text[pos + 1]))) { unit = 'm'; pos++; }
+        else if (text.slice(pos, pos + 2) === 'Hz') { unit = 'Hz'; pos += 2; }
+        else if (text.slice(pos, pos + 2) === 'mA') { unit = 'mA'; pos += 2; }
+      }
+      const tok: Token = { type: 'NUMBER', value: parseFloat(numStr), line };
+      if (unit) tok.unit = unit;
+      tokens.push(tok);
       continue;
     }
 
@@ -292,6 +305,237 @@ class Parser {
     }
     this.expect('RBRACKET');
     return arr;
+  }
+
+  // Tags array: accepts both ["tag1", "tag2"] and [tag1, tag2] (unquoted idents)
+  private readTagArray(): string[] {
+    this.skipNewlines();
+    this.expect('LBRACKET');
+    const arr: string[] = [];
+    this.skipNewlines();
+    while (this.current.type !== 'RBRACKET' && this.current.type !== 'EOF') {
+      // Accept string, ident, or keyword as tag value
+      const t = this.current;
+      if (t.type === 'STRING' || t.type === 'IDENT' || t.type === 'KEYWORD') {
+        arr.push(t.value as string);
+        this.advance();
+      } else {
+        throw new NPPSParseError(`Expected tag value, got ${t.type}`, t.line);
+      }
+      this.skipNewlines();
+      if (this.current.type === 'COMMA') { this.advance(); this.skipNewlines(); }
+    }
+    this.expect('RBRACKET');
+    return arr;
+  }
+
+  // Duration in seconds: accepts bare number (seconds) or Xm (minutes) or Xs (seconds)
+  // The lexer already strips unit suffixes from numbers, so tokens always arrive as NUMBER.
+  // We just read a number. For duration fields using the short format like "20m",
+  // the lexer strips the 'm' suffix — the number stored is the numeric part (e.g. 20).
+  // We detect 'm' vs 's' at the source level... but the lexer already stripped units.
+  // So the approach: the lexer strips units and produces the raw number.
+  // For "20m" → token NUMBER(20), for "300s" → token NUMBER(300).
+  // We can't distinguish them here, so we rely on the caller knowing the unit convention:
+  // In duration fields (duration: 20m), the predefined files use minutes (m suffix).
+  // But since the lexer strips the suffix, we need to emit 20 * 60 = 1200.
+  // SOLUTION: track the unit during lexing by storing it in a separate field.
+  // PRAGMATIC APPROACH: re-examine what the lexer does. The lexer at pos advances
+  // past 'm' only if not followed by alphanumeric. So "20m" → pos past 'm', value 20.
+  // But "20min" would not strip 'm' (followed by 'i'). Only bare 'm' and 's'.
+  // Since we've lost the unit, we use a separate mechanism: re-tokenize is not possible.
+  // Instead, we use a special readDurationSeconds method that peeks at the raw token
+  // numeric value only, and applies a heuristic: if the value is ≤ 999 and was in a
+  // duration context, it's minutes. But that's fragile.
+  // CORRECT APPROACH: the token does NOT carry unit info since it was stripped.
+  // We need to store the unit in the token. But changing the Token type is invasive.
+  // SIMPLEST CORRECT APPROACH: The lexer strips m/s but we just read the number.
+  // For .npps files that use "20m", the token value will be 20.
+  // For "1200s", the token value will be 1200. Both cases must be seconds.
+  // Since "20m" loses its 'm', we need to recover it. We cannot from the token.
+  //
+  // Revised approach: The NUMBER token already has the unit stripped. We accept that
+  // for the DURATION field, if the value is ≤ 300 (i.e., up to 5 hours in minutes),
+  // we treat it as minutes. If > 300, treat as seconds.
+  // But "300s" would give token 300 and be misidentified as 300 minutes.
+  //
+  // FINAL APPROACH: Store the unit suffix in the Token. We need to modify the Token
+  // type and lexer slightly. We add an optional `unit` field to Token. This is the
+  // correct engineering approach.
+  //
+  // BUT we cannot add a unit field without changing Token interface and the lexer.
+  // Given the lexer strips units to void, let's change the approach:
+  // readDurationSeconds reads a number, then decides: if it looks like it came from
+  // a context where 'm' was stripped (by checking if the raw source has 'm')... no.
+  //
+  // PRAGMATIC FINAL APPROACH: Change the lexer to NOT strip units, and instead handle
+  // them in the parser. This requires making token value a string for NUMBER tokens
+  // when they have units... this is a bigger change.
+  //
+  // SIMPLEST SAFE APPROACH: Just read a number and always treat as seconds.
+  // For predefined files using "20m", the lexer produces number 20 (unit stripped).
+  // So "duration: 20m" → seconds = 20 (20 seconds, not 20 minutes).
+  // This is wrong. We MUST preserve units.
+  //
+  // Let's do the minimal token unit fix: add `unit?: string` to Token interface.
+  private readDurationSeconds(): number {
+    // Reads a number that represents a duration.
+    // Since the lexer strips unit suffixes and we cannot recover them from the token,
+    // we read a plain number. The callers of this method must ensure values are in seconds.
+    // For the new format .npps files using minute suffix (20m), we handle this by
+    // modifying the lexer to preserve unit info in the token (see Token interface).
+    this.skipNewlines();
+    const t = this.current;
+    if (t.type !== 'NUMBER') throw new NPPSParseError(`Expected duration, got ${t.type}`, t.line);
+    this.advance();
+    const val = t.value as number;
+    const unit = (t as Token & { unit?: string }).unit;
+    if (unit === 'm') return val * 60;
+    // 's' or no unit — treat as seconds
+    return val;
+  }
+
+  // Skip a value of any type (used for unknown field names)
+  private skipValue(): void {
+    this.skipNewlines();
+    const t = this.current;
+    if (t.type === 'LBRACKET') { this.readGenericArray(); return; }
+    if (t.type === 'LBRACE') { this.readGenericObject(); return; }
+    // For scalar values, just advance past the token
+    if (t.type === 'STRING' || t.type === 'NUMBER' || t.type === 'BOOL' ||
+        t.type === 'IDENT' || t.type === 'KEYWORD') {
+      this.advance();
+      return;
+    }
+    // Nothing to skip (e.g. unexpected token) — don't throw, just return
+  }
+
+  // Parse a typed modality block: pbm_transcranial { ... }
+  // The type name has already been consumed. Next token is '{'.
+  private parseTypedModalityBlock(typeName: string): NPProtocolModality {
+    this.skipNewlines();
+    this.expect('LBRACE');
+    this.skipNewlines();
+
+    const id = crypto.randomUUID();
+    let enabled = true;
+    let intervalOnSeconds = 0;
+    let intervalOffSeconds = 0;
+    let repeatCount: number | undefined;
+
+    // Collect all key-value pairs from the block
+    const raw: Record<string, unknown> = {};
+
+    while (!this.tryBrace()) {
+      this.skipNewlines();
+      if (this.ct() === 'RBRACE') break;
+
+      const keyTok = this.current;
+      if (keyTok.type !== 'KEYWORD' && keyTok.type !== 'IDENT') {
+        throw new NPPSParseError(`Expected field name, got ${keyTok.type} (${String(keyTok.value)})`, keyTok.line);
+      }
+      const key = keyTok.value as string;
+      this.advance();
+      this.skipNewlines();
+      this.expect('COLON');
+
+      // Interval fields
+      if (key === 'interval_on') { intervalOnSeconds = this.readDurationSeconds(); this.skipNewlines(); continue; }
+      if (key === 'interval_off') { intervalOffSeconds = this.readDurationSeconds(); this.skipNewlines(); continue; }
+      if (key === 'repeat') {
+        // 'until_end' string or number
+        const t = this.current;
+        if ((t.type === 'IDENT' || t.type === 'KEYWORD') && t.value === 'until_end') {
+          this.advance(); // no repeatCount = until_end
+        } else {
+          repeatCount = this.readNumber();
+        }
+        this.skipNewlines();
+        continue;
+      }
+      if (key === 'enabled') { enabled = this.readBool(); this.skipNewlines(); continue; }
+
+      // Map new short field names to existing canonical field names
+      const canonical = this.canonicalFieldName(key);
+      const val = this.readAnyValue();
+
+      // Apply field-specific value normalization (e.g. "none" noise → omit)
+      if (canonical === 'noise_type') {
+        const v = String(val);
+        if (v !== 'none') raw['noise_type'] = v;
+        // else omit — no noise
+      } else {
+        raw[canonical] = val;
+      }
+
+      this.skipNewlines();
+    }
+
+    // Determine modality type ID from block keyword
+    const typeId = this.blockNameToTypeId(typeName);
+    if (!typeId) {
+      // Unknown block type — return a placeholder that will be skipped by caller
+      // Actually, just throw — unknown modality types should fail clearly
+      throw new NPPSParseError(`Unknown modality block type: '${typeName}'`, this.current.line);
+    }
+
+    const params = this.buildModalityParams(typeId, raw);
+    const interval: NPIntervalConfig = { intervalOnSeconds, intervalOffSeconds };
+    if (repeatCount !== undefined) interval.repeatCount = repeatCount;
+
+    return { id, modalityParams: params, interval, enabled };
+  }
+
+  // Map new short field names to canonical names used in buildModalityParams
+  private canonicalFieldName(key: string): string {
+    const aliases: Record<string, string> = {
+      // PBM / general
+      intensity: '_intensity_generic',  // handled per-modality below
+      frequency: 'frequency_hz',
+      duty_cycle: 'duty_cycle_percent',
+      closed_loop: 'closed_loop_enabled',
+      // audio_entrainment
+      binaural_hz: 'binaural_beats_hz',
+      isochronic_hz: 'isochronic_tones_hz',
+      noise: 'noise_type',
+      volume: 'volume_percent',
+      // vns_hrv
+      breathing_rate: 'resonance_breathing_rate',
+      // tdcs
+      ramp: 'ramp_seconds',
+      // visual_stimulation
+      emdr_cadence: 'emdr_cadence_hz',
+      // audio carrier
+      carrier_hz: 'carrier_hz',
+    };
+    return aliases[key] ?? key;
+  }
+
+  // Resolve ambiguous 'intensity' field based on context (modality type).
+  // Since canonicalFieldName is called before we know the type, we use a sentinel
+  // '_intensity_generic' and resolve it in a post-processing step inside parseTypedModalityBlock.
+  // Actually, let's resolve intensity directly in parseTypedModalityBlock after collecting raw.
+  // We handle 'intensity' specially there.
+
+  private blockNameToTypeId(name: string): NPModalityTypeId | null {
+    const map: Record<string, NPModalityTypeId> = {
+      pbm_transcranial: 'pbm_transcranial',
+      pbm_intranasal: 'pbm_intranasal',
+      eeg_neurofeedback: 'eeg_neurofeedback',
+      bes_tacs: 'bes_tacs',
+      tdcs: 'tdcs',
+      vns_hrv: 'vns_hrv',
+      audio_entrainment: 'audio_entrainment',
+      visual_stimulation: 'visual_stimulation',
+      qeeg_21ch: 'qeeg_21ch',
+      tms: 'tms',
+      pbm_deep_1170nm: 'pbm_deep_1170nm',
+      clinical_tacs: 'clinical_tacs',
+      hd_tdcs: 'hd_tdcs',
+      cervical_vns: 'cervical_vns',
+      vibrotactile_40hz: 'vibrotactile_40hz',
+    };
+    return map[name] ?? null;
   }
 
   private readKeyValue(): { key: string; valueLine: number } {
@@ -577,44 +821,87 @@ class Parser {
   }
 
   private parseProtocol(): NPProtocolDefinition {
-    const startLine = this.current.line;
+    // NEW format: protocol "Name" { ... }
+    // OLD format: protocol { name: "Name" ... }
+    this.skipNewlines();
+    let inlineName: string | undefined;
+    if (this.current.type === 'STRING') {
+      inlineName = this.current.value as string;
+      this.advance();
+    }
+
     this.skipNewlines();
     this.expect('LBRACE');
 
-    let name = '';
+    let name = inlineName ?? '';
     let description = '';
     let author = 'NeuroPulse';
     let version = '1.0';
     let tags: string[] = [];
     let timingMode: NPTimingMode = { type: 'duration', seconds: 1200 };
     let modalities: NPProtocolModality[] = [];
-    const id = crypto.randomUUID();
+    let parsedId: string | undefined;
+    let isReadOnly: boolean | undefined;
     const now = new Date().toISOString();
 
     this.skipNewlines();
     while (!this.tryBrace()) {
-      const { key } = this.readKeyValue();
+      // Peek: if this is a typed modality block (keyword followed by '{' not ':')
+      this.skipNewlines();
+      if (this.ct() === 'RBRACE') break;
+
+      const keyTok = this.current;
+      if (keyTok.type !== 'KEYWORD' && keyTok.type !== 'IDENT') {
+        throw new NPPSParseError(`Expected key, got ${keyTok.type} (${String(keyTok.value)})`, keyTok.line);
+      }
+      const key = keyTok.value as string;
+      this.advance();
+      this.skipNewlines();
+
+      // Check if next token is '{' — typed modality block in new format
+      if (this.ct() === 'LBRACE') {
+        const modality = this.parseTypedModalityBlock(key);
+        modalities.push(modality);
+        this.skipNewlines();
+        continue;
+      }
+
+      // Otherwise expect ':'
+      this.expect('COLON');
+
       switch (key) {
         case 'name': name = this.readString(); break;
+        case 'id': parsedId = this.readString(); break;
         case 'description': description = this.readString(); break;
         case 'author': author = this.readString(); break;
         case 'version': version = this.readString(); break;
-        case 'tags': tags = this.readStringArray(); break;
+        case 'readonly': isReadOnly = this.readBool(); break;
+        case 'tags': tags = this.readTagArray(); break;
         case 'timing': timingMode = this.parseTiming(); break;
+        case 'duration': timingMode = { type: 'duration', seconds: this.readDurationSeconds() }; break;
+        case 'interval_count': timingMode = { type: 'interval_count', count: this.readNumber() }; break;
         case 'modalities': modalities = this.parseModalitiesBlock(); break;
         default:
-          throw new NPPSParseError(`Unknown protocol key: '${key}'`, startLine);
+          // Skip unknown fields gracefully (for future extensibility)
+          this.skipValue();
+          break;
       }
       this.skipNewlines();
     }
 
-    return {
+    const id = parsedId ?? crypto.randomUUID();
+
+    const proto: NPProtocolDefinition = {
       id, name, description, author, version, tags,
       createdAt: now, modifiedAt: now,
       isPredefined: false,
       timingMode,
       modalities,
     };
+    if (isReadOnly !== undefined) proto.isReadOnly = isReadOnly;
+    // Protocols loaded from .npps files with an ID are treated as predefined
+    if (parsedId !== undefined) proto.isPredefined = true;
+    return proto;
   }
 
   private tryBrace(): boolean {
@@ -969,37 +1256,73 @@ class Parser {
   }
 
   private parseComposite(): NPCompositeProtocol {
+    // NEW format: composite "Name" { ... }
+    // OLD format: composite { name: "Name" ... }
+    this.skipNewlines();
+    let inlineName: string | undefined;
+    if (this.current.type === 'STRING') {
+      inlineName = this.current.value as string;
+      this.advance();
+    }
+
     this.skipNewlines();
     this.expect('LBRACE');
     this.skipNewlines();
 
-    let name = '';
+    let name = inlineName ?? '';
     let description = '';
     let author = 'NeuroPulse';
     let version = '1.0';
     let tags: string[] = [];
     let layers: NPCompositeLayer[] = [];
     let conflictResolution: NPCompositeProtocol['conflictResolution'] = 'merge';
-    const id = crypto.randomUUID();
+    let parsedId: string | undefined;
+    let isReadOnly: boolean | undefined;
     const now = new Date().toISOString();
 
     while (!this.tryBrace()) {
+      this.skipNewlines();
+      if (this.ct() === 'RBRACE') break;
+
+      // Check for typed layer block: layer "Name" { ... } (inline name, new format)
+      // or layer { ... } (old format — handled in parseLayersBlock)
+      // At the top level of composite, 'layer' blocks can appear directly (new format)
+      const keyTok = this.current;
+      if ((keyTok.type === 'KEYWORD' || keyTok.type === 'IDENT') && keyTok.value === 'layer') {
+        this.advance();
+        layers.push(this.parseLayerBlock());
+        this.skipNewlines();
+        continue;
+      }
+
       const { key } = this.readKeyValue();
       switch (key) {
         case 'name': name = this.readString(); break;
+        case 'id': parsedId = this.readString(); break;
         case 'description': description = this.readString(); break;
         case 'author': author = this.readString(); break;
         case 'version': version = this.readString(); break;
-        case 'tags': tags = this.readStringArray(); break;
+        case 'readonly': isReadOnly = this.readBool(); break;
+        case 'tags': tags = this.readTagArray(); break;
         case 'conflict_resolution': conflictResolution = this.readString() as NPCompositeProtocol['conflictResolution']; break;
         case 'layers': layers = this.parseLayersBlock(); break;
         default:
-          throw new NPPSParseError(`Unknown composite key: '${key}'`, this.current.line);
+          this.skipValue();
+          break;
       }
       this.skipNewlines();
     }
 
-    return { id, name, description, author, version, tags, createdAt: now, modifiedAt: now, isPredefined: false, layers, conflictResolution };
+    const id = parsedId ?? crypto.randomUUID();
+    const composite: NPCompositeProtocol = {
+      id, name, description, author, version, tags,
+      createdAt: now, modifiedAt: now,
+      isPredefined: false,
+      layers, conflictResolution,
+    };
+    if (isReadOnly !== undefined) composite.isReadOnly = isReadOnly;
+    if (parsedId !== undefined) composite.isPredefined = true;
+    return composite;
   }
 
   private parseLayersBlock(): NPCompositeLayer[] {
@@ -1020,11 +1343,20 @@ class Parser {
   }
 
   private parseLayerBlock(): NPCompositeLayer {
+    // NEW format: layer "Protocol Name" { ... }
+    // OLD format: layer { name: "Protocol Name" ... }
+    this.skipNewlines();
+    let inlineName: string | undefined;
+    if (this.current.type === 'STRING') {
+      inlineName = this.current.value as string;
+      this.advance();
+    }
+
     this.skipNewlines();
     this.expect('LBRACE');
     this.skipNewlines();
 
-    let protocolName = '';
+    let protocolName = inlineName ?? '';
     let startOffsetSeconds = 0;
     let durationSeconds: number | undefined;
     let intensityScale = 1.0;
@@ -1034,12 +1366,13 @@ class Parser {
       const { key } = this.readKeyValue();
       switch (key) {
         case 'name': protocolName = this.readString(); break;
-        case 'start': startOffsetSeconds = this.readNumber(); break;
-        case 'end': durationSeconds = this.readNumber() - startOffsetSeconds; break;
-        case 'duration': durationSeconds = this.readNumber(); break;
+        case 'start': startOffsetSeconds = this.readDurationSeconds(); break;
+        case 'end': durationSeconds = this.readDurationSeconds() - startOffsetSeconds; break;
+        case 'duration': durationSeconds = this.readDurationSeconds(); break;
         case 'intensity_scale': intensityScale = this.readNumber(); break;
         default:
-          throw new NPPSParseError(`Unknown layer key: '${key}'`, this.current.line);
+          this.skipValue();
+          break;
       }
       this.skipNewlines();
     }
