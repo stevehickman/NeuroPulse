@@ -1,0 +1,40 @@
+protocol "Memory Boost" {
+    id: "10000004-0000-0000-0000-000000000000"
+    description: "Theta (6Hz) hippocampal entrainment for memory consolidation and learning. Combines PBM, theta-band EEG neurofeedback, binaural audio, and HRV biofeedback."
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [memory, theta, learning, consolidation]
+    duration: 30m
+
+    pbm_transcranial {
+        intensity: 70%
+        frequency: 6Hz
+        duty_cycle: 25%
+        zones: all
+        wavelength: 660_808nm
+    }
+
+    eeg_neurofeedback {
+        band: theta
+        channels: all
+        closed_loop: true
+    }
+
+    audio_entrainment {
+        binaural_hz: 6Hz
+        noise: brown
+        carrier_hz: 440Hz
+        volume: 55%
+        eeg_adaptive: true
+        bone_conduction_pacer: false
+    }
+
+    vns_hrv {
+        frequency: 25Hz
+        intensity: 1.5mA
+        hrv_protocol: standalone
+        breathing_rate: 6.0
+    }
+
+}
