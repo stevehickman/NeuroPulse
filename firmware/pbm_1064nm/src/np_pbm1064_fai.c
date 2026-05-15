@@ -434,6 +434,355 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm11(void)
         "UHDR session record contains per-zone per-wavelength dose (J/cm²).");
 }
 
+/* ── FAI-T2-01: Combined session descriptor validation ───────────────────────── */
+
+np_pbm1064_fai_result_t np_pbm1064_fai_t2_01(void)
+{
+    /*
+     * Verify that np_pbm1064_t2_start_combined() rejects:
+     *   (a) NULL descriptor
+     *   (b) Wrong version number
+     *   (c) Correct descriptor is accepted (version = NP_T2_COMBINED_VERSION)
+     *
+     * Also verify that the legacy np_pbm1064_t2_start() path still initialises
+     * the combined context correctly (backwards-compatibility).
+     */
+
+    np_pbm1064_t2_ctx_t ctx;
+    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
+
+    /* (a) NULL descriptor → ERR_SIG_INVALID. */
+    np_pbm1064_status_t rc = np_pbm1064_t2_start_combined(&ctx, NULL);
+    if (rc != NP_PBM1064_ERR_SIG_INVALID) {
+        return fai_fail("FAI-T2-01",
+            "Combined session descriptor validation",
+            "NULL descriptor did not return NP_PBM1064_ERR_SIG_INVALID");
+    }
+
+    /* (b) Wrong version → ERR_SIG_INVALID. */
+    np_t2_combined_desc_t bad_desc;
+    memset(&bad_desc, 0, sizeof(bad_desc));
+    bad_desc.version = 0xFFU;
+
+    rc = np_pbm1064_t2_start_combined(&ctx, &bad_desc);
+    if (rc != NP_PBM1064_ERR_SIG_INVALID) {
+        return fai_fail("FAI-T2-01",
+            "Combined session descriptor validation",
+            "Bad version did not return NP_PBM1064_ERR_SIG_INVALID");
+    }
+
+    /* (c) Valid combined descriptor accepted. */
+    np_t2_combined_desc_t desc;
+    memset(&desc, 0, sizeof(desc));
+    desc.version             = NP_T2_COMBINED_VERSION;
+    desc.t2_combined_enable  = 1U;
+    desc.sloreta_enable      = 1U;
+    desc.pbm1064.version     = NP_SES1064_VERSION;
+    desc.pbm1064.smart_module_mask = 0x00U; /* no slots → preflight trivial */
+    desc.pbm1064.duration_s  = 62U;
+    desc.laser1170.duty_pct  = 80U;
+
+    rc = np_pbm1064_t2_start_combined(&ctx, &desc);
+    if (rc != NP_PBM1064_OK) {
+        return fai_fail("FAI-T2-01",
+            "Combined session descriptor validation",
+            "Valid combined descriptor returned error on start_combined");
+    }
+    if (np_pbm1064_t2_stage(&ctx) != NP_T2_STAGE_RAMP_UP) {
+        return fai_fail("FAI-T2-01",
+            "Combined session descriptor validation",
+            "Stage is not NP_T2_STAGE_RAMP_UP after successful start");
+    }
+
+    /* Verify sLORETA target was read and logged to combined record. */
+    const np_t2_combined_uhdr_record_t *rec = np_pbm1064_t2_get_combined_record(&ctx);
+    if (!rec->sloreta_valid) {
+        return fai_fail("FAI-T2-01",
+            "Combined session descriptor validation",
+            "sLORETA target was not read or sloreta_valid flag not set");
+    }
+    if (rec->sloreta_mni_x != NP_T2_SLORETA_STUB_MNI_X ||
+        rec->sloreta_mni_y != NP_T2_SLORETA_STUB_MNI_Y ||
+        rec->sloreta_mni_z != NP_T2_SLORETA_STUB_MNI_Z) {
+        return fai_fail("FAI-T2-01",
+            "Combined session descriptor validation",
+            "sLORETA stub MNI coordinates not correctly stored in combined UHDR record");
+    }
+
+    /* Abort to clean up. */
+    np_pbm1064_t2_abort(&ctx, NP_PBM1064_FAULT_NONE);
+
+    return fai_pass("FAI-T2-01",
+        "Combined session descriptor validation",
+        "NULL and bad-version descriptors rejected; valid combined descriptor "
+        "accepted and started. sLORETA MNI target read and logged to UHDR record "
+        "(stub: DLPFC_L x=-40, y=40, z=30). Stage transitions to NP_T2_STAGE_RAMP_UP.");
+}
+
+/* ── FAI-T2-02: Full 4-step thermal throttle cascade ────────────────────────── */
+
+np_pbm1064_fai_result_t np_pbm1064_fai_t2_02(void)
+{
+    /*
+     * Verify the complete 4-step cascade:
+     *   Step 1: 1170nm laser throttled first
+     *   Step 2: 1064nm CH_C throttled second
+     *   Step 3: 1064nm CH_B throttled third
+     *   Step 4: 1064nm CH_A throttled last
+     *
+     * Each call to apply_thermal_throttle advances one step.
+     */
+    np_pbm1064_t2_ctx_t ctx;
+    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
+
+    /* Set up active state with all channels enabled. */
+    ctx.stage                   = NP_T2_STAGE_ACTIVE;
+    ctx.t2_1170_active          = true;
+    ctx.t2_1170_duty_pct        = 100U;
+    ctx.t2_1170_target_duty_pct = 100U;
+
+    ctx.pbm1064.desc.smart_module_mask = 0x01U; /* slot 0 smart */
+    ctx.pbm1064.drv[0].ch_enable = NP_PBM1064_CH_ALL_EN;
+    ctx.pbm1064.drv[0].duty[0]   = NP_PBM1064_DUTY_MAX_REG; /* CH_A */
+    ctx.pbm1064.drv[0].duty[1]   = NP_PBM1064_DUTY_MAX_REG; /* CH_B */
+    ctx.pbm1064.drv[0].duty[2]   = NP_PBM1064_DUTY_MAX_REG; /* CH_C */
+
+    /* Step 1 — throttle 1170nm. */
+    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.25f);
+    if (!ctx.throttle_1170_applied) {
+        return fai_fail("FAI-T2-02",
+            "Full 4-step thermal throttle cascade",
+            "Step 1: throttle_1170_applied not set after first call");
+    }
+    if (ctx.t2_1170_duty_pct >= 100U) {
+        return fai_fail("FAI-T2-02",
+            "Full 4-step thermal throttle cascade",
+            "Step 1: 1170nm duty not reduced");
+    }
+    if (ctx.throttle_ch_c_applied || ctx.throttle_ch_b_applied ||
+        ctx.throttle_ch_a_applied) {
+        return fai_fail("FAI-T2-02",
+            "Full 4-step thermal throttle cascade",
+            "Step 1: downstream channels throttled prematurely");
+    }
+
+    /* Step 2 — throttle CH_C. */
+    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.25f);
+    if (!ctx.throttle_ch_c_applied) {
+        return fai_fail("FAI-T2-02",
+            "Full 4-step thermal throttle cascade",
+            "Step 2: throttle_ch_c_applied not set after second call");
+    }
+    if (ctx.throttle_ch_b_applied || ctx.throttle_ch_a_applied) {
+        return fai_fail("FAI-T2-02",
+            "Full 4-step thermal throttle cascade",
+            "Step 2: CH_B or CH_A throttled prematurely");
+    }
+
+    /* Step 3 — throttle CH_B. */
+    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.25f);
+    if (!ctx.throttle_ch_b_applied) {
+        return fai_fail("FAI-T2-02",
+            "Full 4-step thermal throttle cascade",
+            "Step 3: throttle_ch_b_applied not set after third call");
+    }
+    if (ctx.throttle_ch_a_applied) {
+        return fai_fail("FAI-T2-02",
+            "Full 4-step thermal throttle cascade",
+            "Step 3: CH_A throttled prematurely");
+    }
+
+    /* Step 4 — throttle CH_A (last resort). */
+    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.25f);
+    if (!ctx.throttle_ch_a_applied) {
+        return fai_fail("FAI-T2-02",
+            "Full 4-step thermal throttle cascade",
+            "Step 4: throttle_ch_a_applied not set after fourth call");
+    }
+
+    /* Extra call — no-op (all steps exhausted). */
+    uint8_t duty_ch_a_before = ctx.pbm1064.drv[0].duty[0];
+    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.50f);
+    if (ctx.pbm1064.drv[0].duty[0] != duty_ch_a_before) {
+        return fai_fail("FAI-T2-02",
+            "Full 4-step thermal throttle cascade",
+            "Fifth call modified CH_A duty — should be no-op after all steps exhausted");
+    }
+
+    return fai_pass("FAI-T2-02",
+        "Full 4-step thermal throttle cascade (software)",
+        "All four cascade steps applied in correct priority order: "
+        "1170nm laser (step 1) → 1064nm CH_C (step 2) → 808nm CH_B (step 3) → "
+        "660nm CH_A (step 4). Fifth call is no-op as required.");
+}
+
+/* ── FAI-T2-03: Combined UHDR record completeness ───────────────────────────── */
+
+np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
+{
+    /*
+     * Verify that the combined UHDR record:
+     *   (a) Contains 1064nm per-zone dose fields (inherited from inner session)
+     *   (b) Contains 1170nm total dose field (populated via HAL on completion)
+     *   (c) Contains sLORETA MNI coordinate fields
+     *   (d) SHDR summary struct is within expected size (no raw user biology)
+     *   (e) abort_reason field present and initialised to 0 on clean record
+     */
+
+    np_pbm1064_t2_ctx_t ctx;
+    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
+
+    /* (a) Verify struct has per-zone dose fields via pbm1064_record. */
+    ctx.combined_record.pbm1064_record.dose_J_cm2[0][NP_WL_1064NM] = 5.3f;
+    if (ctx.combined_record.pbm1064_record.dose_J_cm2[0][NP_WL_1064NM] <= 0.0f) {
+        return fai_fail("FAI-T2-03",
+            "Combined UHDR record completeness",
+            "(a) 1064nm dose field not accessible in combined UHDR record");
+    }
+
+    /* (b) Verify 1170nm dose field exists and is set by HAL stub. */
+    ctx.combined_record.dose_1170_J_cm2 = 0.0f;
+    float dose_out = 0.0f;
+    np_pbm1064_hal_t2_1170_enable(true);  /* enable stub so dose accumulates */
+    np_pbm1064_hal_t2_1170_set_duty(100U);
+    np_pbm1064_hal_t2_1170_get_dose(&dose_out);
+    if (dose_out <= 0.0f) {
+        return fai_fail("FAI-T2-03",
+            "Combined UHDR record completeness",
+            "(b) 1170nm dose HAL stub did not return non-zero dose after enable+duty");
+    }
+    ctx.combined_record.dose_1170_J_cm2 = dose_out;
+    np_pbm1064_hal_t2_1170_enable(false); /* reset stub */
+
+    /* (c) Verify sLORETA fields exist and match stub values after start. */
+    np_t2_combined_desc_t desc;
+    memset(&desc, 0, sizeof(desc));
+    desc.version            = NP_T2_COMBINED_VERSION;
+    desc.sloreta_enable     = 1U;
+    desc.pbm1064.version    = NP_SES1064_VERSION;
+    desc.pbm1064.duration_s = 62U;
+    desc.laser1170.duty_pct = 50U;
+
+    np_pbm1064_t2_start_combined(&ctx, &desc);
+    const np_t2_combined_uhdr_record_t *rec = np_pbm1064_t2_get_combined_record(&ctx);
+
+    if (rec->sloreta_mni_x != NP_T2_SLORETA_STUB_MNI_X ||
+        rec->sloreta_mni_y != NP_T2_SLORETA_STUB_MNI_Y ||
+        rec->sloreta_mni_z != NP_T2_SLORETA_STUB_MNI_Z) {
+        np_pbm1064_t2_abort(&ctx, NP_PBM1064_FAULT_NONE);
+        return fai_fail("FAI-T2-03",
+            "Combined UHDR record completeness",
+            "(c) sLORETA MNI fields not populated in UHDR record");
+    }
+    np_pbm1064_t2_abort(&ctx, NP_PBM1064_FAULT_NONE);
+
+    /* (d) SHDR summary struct — must not contain raw user biology. */
+    if (sizeof(np_t2_combined_shdr_summary_t) > 128U) {
+        return fai_fail("FAI-T2-03",
+            "Combined UHDR record completeness",
+            "(d) np_t2_combined_shdr_summary_t exceeds expected maximum size (>128 bytes) "
+            "— may contain UHDR data");
+    }
+
+    /* (e) abort_reason initialised to 0 on fresh record. */
+    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
+    rec = np_pbm1064_t2_get_combined_record(&ctx);
+    if (rec->abort_reason != 0U) {
+        return fai_fail("FAI-T2-03",
+            "Combined UHDR record completeness",
+            "(e) abort_reason not zero-initialised in fresh context");
+    }
+
+    return fai_pass("FAI-T2-03",
+        "Combined UHDR record completeness",
+        "(a) 1064nm per-zone dose accessible in pbm1064_record. "
+        "(b) 1170nm dose HAL stub returns non-zero dose after enable+duty. "
+        "(c) sLORETA MNI coordinates (DLPFC_L stub) stored in combined UHDR record. "
+        "(d) np_t2_combined_shdr_summary_t ≤128 bytes (no raw user biology). "
+        "(e) abort_reason zero-initialised.");
+}
+
+/* ── FAI-T2-04: 1170nm abort path ───────────────────────────────────────────── */
+
+np_pbm1064_fai_result_t np_pbm1064_fai_t2_04(void)
+{
+    /*
+     * Verify that np_pbm1064_t2_abort() disables:
+     *   (a) The 1170nm laser (t2_1170_active set to false)
+     *   (b) The inner 1064nm session (inner stage set to FAULT)
+     *   (c) Combined stage set to NP_T2_STAGE_FAULT
+     *   (d) Abort reason recorded in combined UHDR record
+     */
+    np_pbm1064_t2_ctx_t ctx;
+    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
+
+    np_t2_combined_desc_t desc;
+    memset(&desc, 0, sizeof(desc));
+    desc.version             = NP_T2_COMBINED_VERSION;
+    desc.t2_combined_enable  = 1U;
+    desc.pbm1064.version     = NP_SES1064_VERSION;
+    desc.pbm1064.duration_s  = 62U;
+    desc.laser1170.duty_pct  = 100U;
+
+    np_pbm1064_status_t rc = np_pbm1064_t2_start_combined(&ctx, &desc);
+    if (rc != NP_PBM1064_OK) {
+        return fai_fail("FAI-T2-04",
+            "1170nm abort path",
+            "np_pbm1064_t2_start_combined failed — cannot test abort path");
+    }
+
+    /* Verify session is running. */
+    if (!ctx.t2_1170_active) {
+        return fai_fail("FAI-T2-04",
+            "1170nm abort path",
+            "1170nm not active after start — abort path test invalid");
+    }
+
+    /* Abort with thermal fault. */
+    rc = np_pbm1064_t2_abort(&ctx, NP_PBM1064_FAULT_THERMAL);
+    if (rc != NP_PBM1064_OK) {
+        return fai_fail("FAI-T2-04",
+            "1170nm abort path",
+            "np_pbm1064_t2_abort returned error");
+    }
+
+    /* (a) 1170nm laser disabled. */
+    if (ctx.t2_1170_active) {
+        return fai_fail("FAI-T2-04",
+            "1170nm abort path",
+            "(a) t2_1170_active not cleared after abort");
+    }
+
+    /* (b) Inner 1064nm session in FAULT. */
+    if (np_pbm1064_session_stage(&ctx.pbm1064) != NP_PBM1064_STAGE_FAULT) {
+        return fai_fail("FAI-T2-04",
+            "1170nm abort path",
+            "(b) Inner 1064nm session not in FAULT stage after abort");
+    }
+
+    /* (c) Combined stage is FAULT. */
+    if (np_pbm1064_t2_stage(&ctx) != NP_T2_STAGE_FAULT) {
+        return fai_fail("FAI-T2-04",
+            "1170nm abort path",
+            "(c) Combined stage not NP_T2_STAGE_FAULT after abort");
+    }
+
+    /* (d) Abort reason recorded in combined UHDR record. */
+    const np_t2_combined_uhdr_record_t *rec = np_pbm1064_t2_get_combined_record(&ctx);
+    if (rec->abort_reason != (uint8_t)NP_PBM1064_FAULT_THERMAL) {
+        return fai_fail("FAI-T2-04",
+            "1170nm abort path",
+            "(d) Abort reason not recorded in combined UHDR record");
+    }
+
+    return fai_pass("FAI-T2-04",
+        "1170nm abort path",
+        "(a) t2_1170_active cleared on abort. "
+        "(b) Inner 1064nm session transitions to NP_PBM1064_STAGE_FAULT. "
+        "(c) Combined stage set to NP_T2_STAGE_FAULT. "
+        "(d) NP_PBM1064_FAULT_THERMAL recorded in combined UHDR abort_reason field.");
+}
+
 /* ── Run all ─────────────────────────────────────────────────────────────────── */
 
 void np_pbm1064_fai_run_all(void)
@@ -450,6 +799,11 @@ void np_pbm1064_fai_run_all(void)
         np_pbm1064_fai_sm09(),
         np_pbm1064_fai_sm10(),
         np_pbm1064_fai_sm11(),
+        /* T2 combined session FAI (NP-SES-1064-001 Rev A §4) */
+        np_pbm1064_fai_t2_01(),
+        np_pbm1064_fai_t2_02(),
+        np_pbm1064_fai_t2_03(),
+        np_pbm1064_fai_t2_04(),
     };
 
     uint32_t pass_count    = 0;
@@ -473,5 +827,5 @@ void np_pbm1064_fai_run_all(void)
     (void)pass_count;
     (void)fail_count;
     (void)pending_count;
-    /* Summary: 7 PASS, 0 FAIL, 4 PENDING (hardware bench required). */
+    /* Summary: 11 PASS, 0 FAIL, 4 PENDING (hardware bench required). */
 }

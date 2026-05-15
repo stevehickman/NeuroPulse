@@ -132,8 +132,64 @@ void np_pbm1064_hal_tia_gain_boot_init(void);
 /*
  * T2 subsystem throttle request (OI-PBM-07; stub pending Issue #54).
  * pct: throttle percentage 0–100 (100 = full output, 0 = off).
+ * Kept for backwards compatibility; prefer np_pbm1064_hal_t2_1170_set_duty().
  */
 void np_pbm1064_hal_t2_throttle_request(uint8_t pct);
+
+/*
+ * ── T2 1170nm laser HAL (NP-SES-1064-001 Rev A §4) ──────────────────────────
+ *
+ * OI-PBM-07: Enable/disable and power control for the T2 1170nm deep PBM laser
+ *             module (Issue #54 — stubs used here until that module ships).
+ * OI-PBM-08: Dose and temperature readback from the T2 laser module's monitor PD
+ *             and TEC sensor.
+ * OI-SES-T2-01: sLORETA MNI target readback from np_fw_sloreta engine
+ *                (pending T2 prototype; stubs return DLPFC_L default).
+ */
+
+/*
+ * Enable or disable the T2 1170nm laser module.
+ * Must be called through the safety MCU SPI interface in real implementation;
+ * the safety MCU owns the laser enable GPIO and verifies impedance before enable.
+ * OI-PBM-07.
+ */
+np_pbm1064_status_t np_pbm1064_hal_t2_1170_enable(bool enable);
+
+/*
+ * Set 1170nm laser drive power (0–100%).
+ * duty_pct = 0: laser off; 100: full power (≤1000 mW/cm², TEC-limited).
+ * Applied over the 30 s ramp in firmware; this function writes the raw setpoint.
+ * OI-PBM-07.
+ */
+np_pbm1064_status_t np_pbm1064_hal_t2_1170_set_duty(uint8_t duty_pct);
+
+/*
+ * Read accumulated dose from the T2 laser module's integrated monitor PD.
+ * dose_J_cm2_out: cumulative dose since last reset (session-scoped).
+ * Returns NP_PBM1064_OK; dose_J_cm2_out unchanged on error.
+ * OI-PBM-08.
+ */
+np_pbm1064_status_t np_pbm1064_hal_t2_1170_get_dose(float *dose_J_cm2_out);
+
+/*
+ * Read TEC coolant temperature from the T2 laser module.
+ * tec_temp_c_out: TEC temperature in °C.
+ * Returns NP_PBM1064_OK; tec_temp_c_out unchanged on error.
+ * OI-PBM-08.
+ */
+np_pbm1064_status_t np_pbm1064_hal_t2_1170_get_temp(float *tec_temp_c_out);
+
+/*
+ * Read the sLORETA-computed MNI target coordinate for the current session.
+ * Supplies the cortical target for the T2 depression protocol coordination.
+ * Stubs return NP_T2_SLORETA_STUB_MNI_* (DLPFC_L) with *valid_out = true
+ * so that software-passable FAI tests can exercise the logging path.
+ * OI-SES-T2-01.
+ */
+np_pbm1064_status_t np_pbm1064_hal_t2_sloreta_get_target(int16_t *mni_x_out,
+                                                           int16_t *mni_y_out,
+                                                           int16_t *mni_z_out,
+                                                           bool    *valid_out);
 
 #ifdef __cplusplus
 }

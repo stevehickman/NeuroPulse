@@ -169,4 +169,29 @@
 #define NP_PBM1064_TASK_STACK_WORDS     768U
 #define NP_PBM1064_TASK_PRIORITY        4U
 
+/* ── T2 combined session (1064nm + 1170nm laser) — NP-SES-1064-001 Rev A §4 ─── */
+
+#define NP_T2_COMBINED_VERSION          0x01U
+
+/*
+ * 1170nm deep PBM laser (subcortical, T2 only).
+ * TEC-stabilised laser diodes; dose metering via integrated monitor PD in T2 laser module.
+ * Spec: ≤1000 mW/cm² peak irradiance (CLAUDE.md §3 T2 additions).
+ */
+#define NP_T2_1170_IRRADIANCE_MAX_MW_CM2    1000.0f
+#define NP_T2_1170_DOSE_LIMIT_J_CM2         60.0f   /* conservative first-revision limit */
+#define NP_T2_1170_TEC_FAULT_C              45.0f   /* TEC coolant temp — throttle threshold */
+#define NP_T2_1170_TEC_CUTOFF_C             50.0f   /* immediate laser disable             */
+#define NP_T2_1170_DUTY_MAX_PCT             100U    /* laser duty; duty cycle is TEC-limited */
+#define NP_T2_1170_RAMP_DURATION_S          30U     /* parallel with 1064nm ramp           */
+#define NP_T2_1170_STATUS_POLL_MS           1000U   /* TEC temp and dose poll rate          */
+
+/*
+ * sLORETA target MNI stub coordinates (DLPFC_L default for depression protocol).
+ * Real values supplied by np_fw_sloreta module at session start (OI-SES-T2-01).
+ */
+#define NP_T2_SLORETA_STUB_MNI_X       ((int16_t)(-40))
+#define NP_T2_SLORETA_STUB_MNI_Y       ((int16_t)(  40))
+#define NP_T2_SLORETA_STUB_MNI_Z       ((int16_t)(  30))
+
 #endif /* NP_PBM1064_CONFIG_H */
