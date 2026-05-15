@@ -4,6 +4,8 @@ import {
   resolveLimits,
   UNLIMITED_LIMITS,
 } from '../types/limits';
+import { parseNPPSLimits } from './nppsParser';
+import { serializeNPPSLimits } from './nppsSerializer';
 
 // ─── Storage keys ──────────────────────────────────────────────────────────────
 
@@ -14,76 +16,9 @@ const STORAGE_KEY_PROFILES = 'np_profiles';
 const STORAGE_KEY_ACTIVE_PROFILE = 'np_active_profile_id';
 const STORAGE_KEY_ACTIVE_HELMET = 'np_active_helmet_id';
 
-// ─── Helpers for NPPS import/export ───────────────────────────────────────────
-// These are imported lazily to avoid circular deps at module load time
-
-function serializeLimitsToNPPS(limits: NPLimitsSet): string {
-  // Inline serialization — avoids circular import with nppsSerializer
-  const INDENT = '    ';
-  const lines: string[] = [];
-  const esc = (s: string) => s.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
-  const str = (s: string) => `"${esc(s)}"`;
-
-  lines.push(`limits ${str(limits.name)} {`);
-  lines.push(`${INDENT}level: ${limits.level}`);
-  if (limits.helmetId) lines.push(`${INDENT}helmet_id: ${str(limits.helmetId)}`);
-  if (limits.individualId) lines.push(`${INDENT}individual_id: ${str(limits.individualId)}`);
-  if (limits.description) lines.push(`${INDENT}description: ${str(limits.description)}`);
-
-  function writeModalityLimits(key: string, obj: Record<string, unknown>): void {
-    const entries = Object.entries(obj).filter(([, v]) => v !== undefined);
-    if (entries.length === 0) return;
-    lines.push(`${INDENT}${key} {`);
-    for (const [k, v] of entries) {
-      const snakeKey = camelToSnake(k);
-      if (Array.isArray(v)) {
-        lines.push(`${INDENT}${INDENT}${snakeKey}: [${(v as string[]).map(s => str(String(s))).join(', ')}]`);
-      } else if (typeof v === 'boolean') {
-        lines.push(`${INDENT}${INDENT}${snakeKey}: ${v}`);
-      } else if (typeof v === 'number') {
-        lines.push(`${INDENT}${INDENT}${snakeKey}: ${v}`);
-      } else {
-        lines.push(`${INDENT}${INDENT}${snakeKey}: ${str(String(v))}`);
-      }
-    }
-    lines.push(`${INDENT}}`);
-  }
-
-  if (limits.pbmTranscranial) writeModalityLimits('pbm_transcranial', limits.pbmTranscranial as Record<string, unknown>);
-  if (limits.pbmIntranasal) writeModalityLimits('pbm_intranasal', limits.pbmIntranasal as Record<string, unknown>);
-  if (limits.eegNeurofeedback) writeModalityLimits('eeg_neurofeedback', limits.eegNeurofeedback as Record<string, unknown>);
-  if (limits.besTacs) writeModalityLimits('bes_tacs', limits.besTacs as Record<string, unknown>);
-  if (limits.tdcs) writeModalityLimits('tdcs', limits.tdcs as Record<string, unknown>);
-  if (limits.vnsHrv) writeModalityLimits('vns_hrv', limits.vnsHrv as Record<string, unknown>);
-  if (limits.audioEntrainment) writeModalityLimits('audio_entrainment', limits.audioEntrainment as Record<string, unknown>);
-  if (limits.visualStimulation) writeModalityLimits('visual_stimulation', limits.visualStimulation as Record<string, unknown>);
-  if (limits.tms) writeModalityLimits('tms', limits.tms as Record<string, unknown>);
-  if (limits.pbmDeep1170nm) writeModalityLimits('pbm_deep_1170nm', limits.pbmDeep1170nm as Record<string, unknown>);
-  if (limits.clinicalTacs) writeModalityLimits('clinical_tacs', limits.clinicalTacs as Record<string, unknown>);
-  if (limits.hdTdcs) writeModalityLimits('hd_tdcs', limits.hdTdcs as Record<string, unknown>);
-  if (limits.cervicalVns) writeModalityLimits('cervical_vns', limits.cervicalVns as Record<string, unknown>);
-  if (limits.vibrotactile40hz) writeModalityLimits('vibrotactile_40hz', limits.vibrotactile40hz as Record<string, unknown>);
-
-  lines.push('}');
-  return lines.join('\n');
-}
-
-function camelToSnake(s: string): string {
-  return s.replace(/([A-Z])/g, '_$1').toLowerCase();
-}
-
-// Lazy import to avoid circular dependency at module initialization time.
-// nppsParser imports from types/protocol; limitsStore imports from types/limits.
-// No actual circular dep, but we import lazily to be safe with bundler order.
-let _parseNPPSLimits: ((text: string) => NPLimitsSet | null) | null = null;
-
 function parseLimitsFromNPPS(text: string): NPLimitsSet | null {
-  if (!_parseNPPSLimits) {
-    // Dynamic import resolution — works in Vite/webpack since this is called at runtime
-    _parseNPPSLimits = (await import('./nppsParser').then(m => m.parseNPPSLimits)) as unknown as (text: string) => NPLimitsSet | null;
-  }
   try {
-    return _parseNPPSLimits(text);
+    return parseNPPSLimits(text);
   } catch {
     return null;
   }
