@@ -1,0 +1,42 @@
+protocol "Flow State" {
+    id: "10000006-0000-0000-0000-000000000000"
+    description: "Gamma-theta coupled protocol targeting the flow state signature: frontal gamma + parieto-occipital theta. Split-zone PBM with closed-loop EEG adaptation."
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [flow, gamma, theta, performance, creative, multimodal]
+    duration: 25m
+
+    pbm_transcranial {
+        intensity: 80%
+        frequency: 40Hz
+        duty_cycle: 25%
+        zones: [1, 2]
+        wavelength: 660_808nm
+    }
+
+    pbm_transcranial {
+        intensity: 75%
+        frequency: 6Hz
+        duty_cycle: 25%
+        zones: [3, 4, 5]
+        wavelength: 660_808nm
+    }
+
+    eeg_neurofeedback {
+        band: gamma_theta
+        channels: all
+        closed_loop: true
+    }
+
+    audio_entrainment {
+        binaural_hz: 40Hz
+        isochronic_hz: 6Hz
+        noise: none
+        carrier_hz: 440Hz
+        volume: 65%
+        eeg_adaptive: true
+        bone_conduction_pacer: false
+    }
+
+}

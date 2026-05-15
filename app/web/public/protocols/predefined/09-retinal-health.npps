@@ -1,0 +1,16 @@
+protocol "Retinal Health" {
+    id: "10000009-0000-0000-0000-000000000000"
+    description: "Invisible 808-830nm near-infrared retinal PBM during normal-looking wear (Mode F). Supports mitochondrial function in retinal photoreceptors. 3-minute daily maintenance."
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [retinal, pbm, nir, mode_f, ocular, maintenance]
+    duration: 3m
+
+    visual_stimulation {
+        frequency: 0Hz  # CW
+        mode: mode_f
+        mode_f: true
+    }
+
+}

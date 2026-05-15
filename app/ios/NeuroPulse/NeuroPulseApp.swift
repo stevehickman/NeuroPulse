@@ -18,6 +18,7 @@ struct NeuroPulseApp: App {
     @StateObject private var ota:             OTAManager
     @StateObject private var setupMgr:        HardwareSetupManager
     @StateObject private var protocolLibrary: NPProtocolLibrary
+    @StateObject private var limitsStore:     NPLimitsStore
 
     init() {
         let g  = NeuroPulseGATTManager()
@@ -35,6 +36,7 @@ struct NeuroPulseApp: App {
         _ota             = StateObject(wrappedValue: OTAManager(gatt: g))
         _setupMgr        = StateObject(wrappedValue: HardwareSetupManager(gatt: g))
         _protocolLibrary = StateObject(wrappedValue: NPProtocolLibrary())
+        _limitsStore     = StateObject(wrappedValue: NPLimitsStore())
 
         // Register background task for nightly UHDR backup.
         // Must be registered before app finishes launching.
@@ -69,6 +71,7 @@ struct NeuroPulseApp: App {
                 .environmentObject(ota)
                 .environmentObject(setupMgr)
                 .environmentObject(protocolLibrary)
+                .environmentObject(limitsStore)
                 .onAppear {
                     UIDevice.current.isBatteryMonitoringEnabled = true
                     if !consentOnboardingShown {

@@ -1,0 +1,26 @@
+{
+  "version": "1",
+  "protocols": [
+    "01-gamma-focus.npps",
+    "02-alpha-calm.npps",
+    "03-deep-sleep.npps",
+    "04-memory-boost.npps",
+    "05-anxiety-relief.npps",
+    "06-flow-state.npps",
+    "07-vascular-baseline.npps",
+    "08-adhd-focus.npps",
+    "09-retinal-health.npps",
+    "10-ptsd-emdr-support.npps",
+    "11-hrv-coherence-training.npps",
+    "12-hrv-tavns-synchronised.npps",
+    "13-focus-prime.npps",
+    "14-gamma-theta-coupled.npps",
+    "15-full-t1-immersive.npps"
+  ],
+  "composites": [
+    "composite-01-full-rct.npps",
+    "composite-02-sleep-stack.npps",
+    "composite-03-calm-to-focus.npps",
+    "composite-04-sleep-wind-down.npps"
+  ]
+}

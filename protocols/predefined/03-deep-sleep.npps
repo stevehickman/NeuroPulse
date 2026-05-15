@@ -1,0 +1,39 @@
+protocol "Deep Sleep" {
+    id: "10000003-0000-0000-0000-000000000000"
+    description: "Slow-wave sleep induction using 2Hz delta PBM on rear zones with brown noise and resonance breathing. Use within 30 minutes of bedtime."
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [sleep, delta, recovery, relaxation]
+    duration: 45m
+
+    pbm_transcranial {
+        intensity: 60%
+        frequency: 2Hz
+        duty_cycle: 25%
+        zones: rear
+        wavelength: 660_808nm
+    }
+
+    eeg_neurofeedback {
+        band: delta
+        channels: all
+        closed_loop: true
+    }
+
+    audio_entrainment {
+        noise: brown
+        carrier_hz: 440Hz
+        volume: 40%
+        eeg_adaptive: false
+        bone_conduction_pacer: false
+    }
+
+    vns_hrv {
+        frequency: 6Hz
+        intensity: 1.0mA
+        hrv_protocol: standalone
+        breathing_rate: 5.0
+    }
+
+}

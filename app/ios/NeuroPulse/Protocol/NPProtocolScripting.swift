@@ -34,7 +34,7 @@ struct NPPSLexer {
     private var pos: Int = 0
     private var line: Int = 1
 
-    private static let keywords: Set<String> = ["protocol", "composite", "layer"]
+    private static let keywords: Set<String> = ["protocol", "composite", "layer", "limits"]
     private static let units: Set<String> = ["Hz", "mA", "G", "mW_cm2", "m", "s", "h", "%"]
 
     init(_ text: String) {
@@ -192,14 +192,240 @@ struct NPPSParser {
                     entries.append(.single(try parseProtocol()))
                 } else if kw == "composite" {
                     entries.append(.composite(try parseComposite()))
+                } else if kw == "limits" {
+                    entries.append(.limits(try parseLimitsBlock()))
                 } else {
                     throw NPPSError(message: "Unexpected keyword: \(kw)", line: currentLine)
                 }
             } else {
-                throw NPPSError(message: "Expected 'protocol' or 'composite'", line: currentLine)
+                throw NPPSError(message: "Expected 'protocol', 'composite', or 'limits'", line: currentLine)
             }
         }
         return entries
+    }
+
+    // MARK: Limits block
+
+    mutating func parseLimitsBlock() throws -> NPLimitsSet {
+        let ln = currentLine
+        try expectKeyword("limits")
+        let name = try parseString()
+        try expect(.lbrace)
+
+        var limitsSet = NPLimitsSet(name: name, level: .global)
+
+        while currentToken != .rbrace && currentToken != .eof {
+            guard case .ident(let key) = currentToken else {
+                throw NPPSError(message: "Expected field name in limits block", line: currentLine)
+            }
+            advance()
+
+            if currentToken == .colon {
+                advance()
+                switch key {
+                case "level":
+                    let val = try parseIdentOrString()
+                    switch val {
+                    case "global":     limitsSet.level = .global
+                    case "helmet":     limitsSet.level = .helmet
+                    case "individual": limitsSet.level = .individual
+                    default: break
+                    }
+                case "helmet_id":
+                    limitsSet.helmetId = try parseString()
+                    limitsSet.level = .helmet
+                case "individual_id":
+                    let uuidStr = try parseString()
+                    limitsSet.individualId = UUID(uuidString: uuidStr)
+                    limitsSet.level = .individual
+                case "description":
+                    limitsSet.description = try parseString()
+                default:
+                    skipValue()
+                }
+            } else if currentToken == .lbrace {
+                // Modality limits sub-block
+                try parseLimitsSubBlock(key: key, into: &limitsSet)
+            } else {
+                throw NPPSError(message: "Expected ':' or '{' after '\(key)' in limits block", line: currentLine)
+            }
+        }
+
+        try expect(.rbrace)
+        guard !name.isEmpty else {
+            throw NPPSError(message: "Limits name cannot be empty", line: ln)
+        }
+        return limitsSet
+    }
+
+    private mutating func parseLimitsSubBlock(key: String, into limitsSet: inout NPLimitsSet) throws {
+        try expect(.lbrace)
+        var fields: [String: NPPSFieldValue] = [:]
+        while currentToken != .rbrace && currentToken != .eof {
+            guard case .ident(let fieldKey) = currentToken else {
+                throw NPPSError(message: "Expected field name in limits sub-block", line: currentLine)
+            }
+            advance()
+            try expect(.colon)
+            let value = try parseFieldValue()
+            fields[fieldKey] = value
+        }
+        try expect(.rbrace)
+
+        switch key {
+        case "pbm_transcranial":
+            var lim = NPPBMTranscranialLimits()
+            if let v = fields["max_intensity"]?.asPercent   { lim.maxIntensityPercent = v }
+            if let v = fields["max_frequency"]?.asHz        { lim.maxFrequencyHz = v }
+            if let v = fields["max_duty_cycle"]?.asPercent  { lim.maxDutyCyclePercent = Int(v) }
+            if let v = fields["max_session_dose"]?.asDouble { lim.maxSessionDoseJCm2 = v }
+            if let v = fields["max_daily_dose"]?.asDouble   { lim.maxDailyDoseJCm2 = v }
+            limitsSet.pbmTranscranial = lim
+
+        case "pbm_intranasal":
+            var lim = NPPBMIntranasalLimits()
+            if let v = fields["max_intensity"]?.asPercent           { lim.maxIntensityPercent = v }
+            if let v = fields["max_session_dose"]?.asDouble         { lim.maxSessionDoseJCm2 = v }
+            if let v = fields["max_session_duration"]?.asTime       { lim.maxSessionDurationSeconds = v }
+            limitsSet.pbmIntranasal = lim
+
+        case "eeg_neurofeedback":
+            var lim = NPEEGNeurofeedbackLimits()
+            if let v = fields["allowed_bands"] {
+                if case .array(let items) = v {
+                    lim.allowedBands = items.compactMap { item -> String? in
+                        if case .ident(let s) = item { return s }
+                        if case .string(let s) = item { return s }
+                        return nil
+                    }
+                }
+            }
+            if let v = fields["require_closed_loop"]?.asBool { lim.requireClosedLoop = v }
+            limitsSet.eegNeurofeedback = lim
+
+        case "bes_tacs":
+            var lim = NPBESTacsLimits()
+            if let v = fields["max_intensity"]?.asMilliamps      { lim.maxIntensityMilliamps = v }
+            if let v = fields["max_frequency"]?.asHz             { lim.maxFrequencyHz = v }
+            if let v = fields["min_frequency"]?.asHz             { lim.minFrequencyHz = v }
+            if let v = fields["max_session_duration"]?.asTime    { lim.maxSessionDurationSeconds = v }
+            if let v = fields["max_sessions_per_day"]?.asDouble  { lim.maxSessionsPerDay = Int(v) }
+            limitsSet.besTacs = lim
+
+        case "tdcs":
+            var lim = NPTDCSLimits()
+            if let v = fields["max_intensity"]?.asMilliamps      { lim.maxIntensityMilliamps = v }
+            if let v = fields["max_session_duration"]?.asTime    { lim.maxSessionDurationSeconds = v }
+            if let v = fields["max_sessions_per_day"]?.asDouble  { lim.maxSessionsPerDay = Int(v) }
+            limitsSet.tdcs = lim
+
+        case "vns_hrv":
+            var lim = NPVNSHRVLimits()
+            if let v = fields["max_intensity"]?.asMilliamps      { lim.maxIntensityMilliamps = v }
+            if let v = fields["max_frequency"]?.asHz             { lim.maxFrequencyHz = v }
+            if let v = fields["max_session_duration"]?.asTime    { lim.maxSessionDurationSeconds = v }
+            if let v = fields["allowed_protocols"] {
+                if case .array(let items) = v {
+                    lim.allowedProtocols = items.compactMap { item -> String? in
+                        if case .ident(let s) = item { return s }
+                        if case .string(let s) = item { return s }
+                        return nil
+                    }
+                }
+            }
+            limitsSet.vnsHrv = lim
+
+        case "audio_entrainment":
+            var lim = NPAudioEntrainmentLimits()
+            if let v = fields["max_volume"]?.asPercent        { lim.maxVolumePercent = v }
+            if let v = fields["max_binaural_hz"]?.asHz        { lim.maxBinauralBeatsHz = v }
+            if let v = fields["max_isochronic_hz"]?.asHz      { lim.maxIsochronicTonesHz = v }
+            limitsSet.audioEntrainment = lim
+
+        case "visual_stimulation":
+            var lim = NPVisualStimLimits()
+            if let v = fields["max_frequency"]?.asHz           { lim.maxFrequencyHz = v }
+            if let v = fields["min_frequency"]?.asHz           { lim.minFrequencyHz = v }
+            if let v = fields["block_high_risk_range"]?.asBool { lim.blockHighRiskRange = v }
+            if let v = fields["allowed_modes"] {
+                if case .array(let items) = v {
+                    lim.allowedModes = items.compactMap { item -> String? in
+                        if case .ident(let s) = item { return s }
+                        if case .string(let s) = item { return s }
+                        return nil
+                    }
+                }
+            }
+            limitsSet.visualStimulation = lim
+
+        case "tms":
+            var lim = NPTMSLimits()
+            if let v = fields["max_intensity_mt"]?.asDouble       { lim.maxIntensityPercentMT = Int(v) }
+            if let v = fields["max_pulses_per_session"]?.asDouble { lim.maxPulsesPerSession = Int(v) }
+            if let v = fields["max_pulses_per_day"]?.asDouble     { lim.maxPulsesPerDay = Int(v) }
+            if let v = fields["max_sessions_per_week"]?.asDouble  { lim.maxSessionsPerWeek = Int(v) }
+            if let v = fields["allowed_protocols"] {
+                if case .array(let items) = v {
+                    lim.allowedProtocols = items.compactMap { item -> String? in
+                        if case .ident(let s) = item { return s }
+                        if case .string(let s) = item { return s }
+                        return nil
+                    }
+                }
+            }
+            if let v = fields["allowed_targets"] {
+                if case .array(let items) = v {
+                    lim.allowedTargets = items.compactMap { item -> String? in
+                        if case .ident(let s) = item { return s }
+                        if case .string(let s) = item { return s }
+                        return nil
+                    }
+                }
+            }
+            limitsSet.tms = lim
+
+        case "pbm_deep_1170nm":
+            var lim = NPDeepPBMLimits()
+            if let v = fields["max_intensity"]?.asDouble          { lim.maxIntensityMWcm2 = v }
+            if let v = fields["max_session_duration"]?.asTime     { lim.maxSessionDurationSeconds = v }
+            limitsSet.pbmDeep1170nm = lim
+
+        case "clinical_tacs":
+            var lim = NPClinicalTacsLimits()
+            if let v = fields["max_intensity"]?.asMilliamps       { lim.maxIntensityMilliamps = v }
+            if let v = fields["max_session_duration"]?.asTime     { lim.maxSessionDurationSeconds = v }
+            limitsSet.clinicalTacs = lim
+
+        case "hd_tdcs":
+            var lim = NPHDTdcsLimits()
+            if let v = fields["max_intensity"]?.asMilliamps       { lim.maxIntensityMilliamps = v }
+            if let v = fields["max_session_duration"]?.asTime     { lim.maxSessionDurationSeconds = v }
+            if let v = fields["allowed_montages"] {
+                if case .array(let items) = v {
+                    lim.allowedMontages = items.compactMap { item -> String? in
+                        if case .ident(let s) = item { return s }
+                        if case .string(let s) = item { return s }
+                        return nil
+                    }
+                }
+            }
+            limitsSet.hdTdcs = lim
+
+        case "cervical_vns":
+            var lim = NPCervicalVnsLimits()
+            if let v = fields["max_intensity"]?.asMilliamps       { lim.maxIntensityMilliamps = v }
+            if let v = fields["max_session_duration"]?.asTime     { lim.maxSessionDurationSeconds = v }
+            limitsSet.cervicalVns = lim
+
+        case "vibrotactile_40hz":
+            var lim = NPVibrotactileLimits()
+            if let v = fields["max_intensity_g"]?.asDouble        { lim.maxIntensityG = v }
+            if let v = fields["max_session_duration"]?.asTime     { lim.maxSessionDurationSeconds = v }
+            limitsSet.vibrotactile40hz = lim
+
+        default:
+            break // Forward compatibility: unknown modality limits blocks are silently ignored
+        }
     }
 
     // MARK: Protocol
@@ -210,12 +436,14 @@ struct NPPSParser {
         let name = try parseString()
         try expect(.lbrace)
 
+        var id: UUID = UUID()
         var description = ""
         var author = "NeuroPulse"
         var version = "1.0"
         var tags: [String] = []
         var timingMode: NPProtocolDefinition.TimingMode = .duration(20 * 60)
         var modalities: [NPProtocolModality] = []
+        var isReadOnly = false
 
         while currentToken != .rbrace && currentToken != .eof {
             guard case .ident(let key) = currentToken else {
@@ -226,6 +454,11 @@ struct NPPSParser {
                 // Field: key: value
                 advance()
                 switch key {
+                case "id":
+                    let uuidStr = try parseString()
+                    if let parsed = UUID(uuidString: uuidStr) { id = parsed }
+                case "readonly":
+                    if case .bool(let b) = currentToken { isReadOnly = b; advance() }
                 case "description":
                     description = try parseString()
                 case "author":
@@ -252,7 +485,7 @@ struct NPPSParser {
                     skipValue()
                 }
             } else if currentToken == .lbrace {
-                // Modality block
+                // Typed modality block (new format: pbm_transcranial { ... })
                 let mod = try parseModalityBlock(name: key)
                 modalities.append(mod)
             } else {
@@ -266,7 +499,7 @@ struct NPPSParser {
             throw NPPSError(message: "Protocol name cannot be empty", line: ln)
         }
 
-        return NPProtocolDefinition(
+        var proto = NPProtocolDefinition(
             name: name,
             description: description,
             author: author,
@@ -274,10 +507,13 @@ struct NPPSParser {
             tags: tags,
             createdAt: Date(),
             modifiedAt: Date(),
-            isPredefined: false,
+            isPredefined: isReadOnly,
+            isReadOnly: isReadOnly,
             timingMode: timingMode,
             modalities: modalities
         )
+        proto.id = id
+        return proto
     }
 
     // MARK: Composite
@@ -288,10 +524,14 @@ struct NPPSParser {
         let name = try parseString()
         try expect(.lbrace)
 
+        var id: UUID = UUID()
         var description = ""
+        var author = "NeuroPulse"
+        var version = "1.0"
         var tags: [String] = []
         var conflictResolution: NPCompositeProtocol.ConflictResolution = .merge
         var layers: [NPCompositeLayer] = []
+        var isReadOnly = false
 
         while currentToken != .rbrace && currentToken != .eof {
             // Handle "layer" keyword (emitted as .keyword("layer") by lexer)
@@ -309,8 +549,17 @@ struct NPPSParser {
             if case .colon = currentToken {
                 advance()
                 switch key {
+                case "id":
+                    let uuidStr = try parseString()
+                    if let parsed = UUID(uuidString: uuidStr) { id = parsed }
+                case "readonly":
+                    if case .bool(let b) = currentToken { isReadOnly = b; advance() }
                 case "description":
                     description = try parseString()
+                case "author":
+                    author = try parseString()
+                case "version":
+                    version = try parseString()
                 case "tags":
                     tags = try parseTagList()
                 case "conflict_resolution":
@@ -335,16 +584,21 @@ struct NPPSParser {
             throw NPPSError(message: "Composite name cannot be empty", line: ln)
         }
 
-        return NPCompositeProtocol(
+        var comp = NPCompositeProtocol(
             name: name,
             description: description,
+            author: author,
+            version: version,
             tags: tags,
             createdAt: Date(),
             modifiedAt: Date(),
-            isPredefined: false,
+            isPredefined: isReadOnly,
+            isReadOnly: isReadOnly,
             layers: layers,
             conflictResolution: conflictResolution
         )
+        comp.id = id
+        return comp
     }
 
     // MARK: Layer block (for composite)
@@ -838,12 +1092,131 @@ struct NPPSSerializer {
             return serializeProtocol(proto)
         case .composite(let comp):
             return serializeComposite(comp)
+        case .limits(let lim):
+            return serializeLimits(lim)
         }
+    }
+
+    func serializeLimits(_ limits: NPLimitsSet) -> String {
+        var lines: [String] = []
+        lines.append("limits \"\(limits.name)\" {")
+        lines.append("    level: \(limits.level.rawValue)")
+        if let hid = limits.helmetId { lines.append("    helmet_id: \"\(hid)\"") }
+        if let iid = limits.individualId { lines.append("    individual_id: \"\(iid.uuidString)\"") }
+        if !limits.description.isEmpty { lines.append("    description: \"\(limits.description)\"") }
+        lines.append("")
+
+        if let lim = limits.pbmTranscranial {
+            lines.append("    pbm_transcranial {")
+            if let v = lim.maxIntensityPercent   { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxFrequencyHz         { lines.append("        max_frequency: \(formatHz(v))") }
+            if let v = lim.maxDutyCyclePercent    { lines.append("        max_duty_cycle: \(v)%") }
+            if let v = lim.maxSessionDoseJCm2     { lines.append("        max_session_dose: \(v)") }
+            if let v = lim.maxDailyDoseJCm2       { lines.append("        max_daily_dose: \(v)") }
+            lines.append("    }")
+        }
+        if let lim = limits.pbmIntranasal {
+            lines.append("    pbm_intranasal {")
+            if let v = lim.maxIntensityPercent        { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxSessionDoseJCm2         { lines.append("        max_session_dose: \(v)") }
+            if let v = lim.maxSessionDurationSeconds  { lines.append("        max_session_duration: \(formatTime(v))") }
+            lines.append("    }")
+        }
+        if let lim = limits.eegNeurofeedback {
+            lines.append("    eeg_neurofeedback {")
+            if let v = lim.allowedBands       { lines.append("        allowed_bands: [\(v.joined(separator: ", "))]") }
+            if let v = lim.requireClosedLoop  { lines.append("        require_closed_loop: \(v)") }
+            lines.append("    }")
+        }
+        if let lim = limits.besTacs {
+            lines.append("    bes_tacs {")
+            if let v = lim.maxIntensityMilliamps      { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxFrequencyHz             { lines.append("        max_frequency: \(formatHz(v))") }
+            if let v = lim.minFrequencyHz             { lines.append("        min_frequency: \(formatHz(v))") }
+            if let v = lim.maxSessionDurationSeconds  { lines.append("        max_session_duration: \(formatTime(v))") }
+            if let v = lim.maxSessionsPerDay          { lines.append("        max_sessions_per_day: \(v)") }
+            lines.append("    }")
+        }
+        if let lim = limits.tdcs {
+            lines.append("    tdcs {")
+            if let v = lim.maxIntensityMilliamps      { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxSessionDurationSeconds  { lines.append("        max_session_duration: \(formatTime(v))") }
+            if let v = lim.maxSessionsPerDay          { lines.append("        max_sessions_per_day: \(v)") }
+            lines.append("    }")
+        }
+        if let lim = limits.vnsHrv {
+            lines.append("    vns_hrv {")
+            if let v = lim.maxIntensityMilliamps      { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxFrequencyHz             { lines.append("        max_frequency: \(formatHz(v))") }
+            if let v = lim.maxSessionDurationSeconds  { lines.append("        max_session_duration: \(formatTime(v))") }
+            if let v = lim.allowedProtocols           { lines.append("        allowed_protocols: [\(v.joined(separator: ", "))]") }
+            lines.append("    }")
+        }
+        if let lim = limits.audioEntrainment {
+            lines.append("    audio_entrainment {")
+            if let v = lim.maxVolumePercent       { lines.append("        max_volume: \(Int(v))%") }
+            if let v = lim.maxBinauralBeatsHz     { lines.append("        max_binaural_hz: \(formatHz(v))") }
+            if let v = lim.maxIsochronicTonesHz   { lines.append("        max_isochronic_hz: \(formatHz(v))") }
+            lines.append("    }")
+        }
+        if let lim = limits.visualStimulation {
+            lines.append("    visual_stimulation {")
+            if let v = lim.maxFrequencyHz         { lines.append("        max_frequency: \(formatHz(v))") }
+            if let v = lim.minFrequencyHz         { lines.append("        min_frequency: \(formatHz(v))") }
+            if let v = lim.allowedModes           { lines.append("        allowed_modes: [\(v.joined(separator: ", "))]") }
+            if let v = lim.blockHighRiskRange     { lines.append("        block_high_risk_range: \(v)") }
+            lines.append("    }")
+        }
+        if let lim = limits.tms {
+            lines.append("    tms {")
+            if let v = lim.maxIntensityPercentMT  { lines.append("        max_intensity_mt: \(v)") }
+            if let v = lim.maxPulsesPerSession    { lines.append("        max_pulses_per_session: \(v)") }
+            if let v = lim.maxPulsesPerDay        { lines.append("        max_pulses_per_day: \(v)") }
+            if let v = lim.maxSessionsPerWeek     { lines.append("        max_sessions_per_week: \(v)") }
+            if let v = lim.allowedProtocols       { lines.append("        allowed_protocols: [\(v.joined(separator: ", "))]") }
+            if let v = lim.allowedTargets         { lines.append("        allowed_targets: [\(v.joined(separator: ", "))]") }
+            lines.append("    }")
+        }
+        if let lim = limits.pbmDeep1170nm {
+            lines.append("    pbm_deep_1170nm {")
+            if let v = lim.maxIntensityMWcm2          { lines.append("        max_intensity: \(v)mW_cm2") }
+            if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
+            lines.append("    }")
+        }
+        if let lim = limits.clinicalTacs {
+            lines.append("    clinical_tacs {")
+            if let v = lim.maxIntensityMilliamps       { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
+            lines.append("    }")
+        }
+        if let lim = limits.hdTdcs {
+            lines.append("    hd_tdcs {")
+            if let v = lim.maxIntensityMilliamps       { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
+            if let v = lim.allowedMontages             { lines.append("        allowed_montages: [\(v.joined(separator: ", "))]") }
+            lines.append("    }")
+        }
+        if let lim = limits.cervicalVns {
+            lines.append("    cervical_vns {")
+            if let v = lim.maxIntensityMilliamps       { lines.append("        max_intensity: \(v)mA") }
+            if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
+            lines.append("    }")
+        }
+        if let lim = limits.vibrotactile40hz {
+            lines.append("    vibrotactile_40hz {")
+            if let v = lim.maxIntensityG               { lines.append("        max_intensity_g: \(v)G") }
+            if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
+            lines.append("    }")
+        }
+
+        lines.append("}")
+        return lines.joined(separator: "\n")
     }
 
     private func serializeProtocol(_ proto: NPProtocolDefinition) -> String {
         var lines: [String] = []
         lines.append("protocol \"\(proto.name)\" {")
+        lines.append("    id: \"\(proto.id.uuidString)\"")
         if !proto.description.isEmpty {
             lines.append("    description: \"\(proto.description)\"")
         }
@@ -851,6 +1224,9 @@ struct NPPSSerializer {
             lines.append("    author: \"\(proto.author)\"")
         }
         lines.append("    version: \"\(proto.version)\"")
+        if proto.isReadOnly {
+            lines.append("    readonly: true")
+        }
         if !proto.tags.isEmpty {
             lines.append("    tags: [\(proto.tags.joined(separator: ", "))]")
         }
@@ -1030,8 +1406,16 @@ struct NPPSSerializer {
     private func serializeComposite(_ comp: NPCompositeProtocol) -> String {
         var lines: [String] = []
         lines.append("composite \"\(comp.name)\" {")
+        lines.append("    id: \"\(comp.id.uuidString)\"")
         if !comp.description.isEmpty {
             lines.append("    description: \"\(comp.description)\"")
+        }
+        if comp.author != "NeuroPulse" {
+            lines.append("    author: \"\(comp.author)\"")
+        }
+        lines.append("    version: \"\(comp.version)\"")
+        if comp.isReadOnly {
+            lines.append("    readonly: true")
         }
         if !comp.tags.isEmpty {
             lines.append("    tags: [\(comp.tags.joined(separator: ", "))]")

@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { NPProtocolEntry, NPCompositeProtocol } from './types/protocol';
 import { protocolLibrary, DeviceTier } from './lib/protocolLibrary';
+import { limitsStore } from './lib/limitsStore';
+import { NPLimitsSet } from './types/limits';
 import { ProtocolMenu } from './components/ProtocolMenu';
 import { ProtocolEditor } from './components/ProtocolEditor';
 import { ProtocolComposer } from './components/ProtocolComposer';
@@ -21,6 +23,22 @@ export function useProtocolContext() {
   return useContext(ProtocolContext);
 }
 
+// ─── Limits Context ───────────────────────────────────────────────────────────
+
+interface LimitsContextValue {
+  resolvedLimits: NPLimitsSet;
+  limitsVersion: number;
+}
+
+export const LimitsContext = createContext<LimitsContextValue>({
+  resolvedLimits: limitsStore.resolvedLimits,
+  limitsVersion: 0,
+});
+
+export function useLimitsContext() {
+  return useContext(LimitsContext);
+}
+
 // ─── App View State ────────────────────────────────────────────────────────────
 
 type AppView =
@@ -35,6 +53,8 @@ export default function App() {
   const [appView, setAppView] = useState<AppView>({ view: 'menu' });
   const [deviceTier, setDeviceTierState] = useState<DeviceTier>('t1');
   const [has1064, setHas1064] = useState(false);
+  const [limitsVersion, setLimitsVersion] = useState(0);
+  const [resolvedLimits, setResolvedLimits] = useState<NPLimitsSet>(() => limitsStore.resolvedLimits);
 
   const refresh = useCallback(() => setVersion(v => v + 1), []);
 
@@ -43,6 +63,16 @@ export default function App() {
     const unsub = protocolLibrary.subscribe(refresh);
     return unsub;
   }, [refresh]);
+
+  // Subscribe to limits store changes
+  useEffect(() => {
+    const handler = () => {
+      setLimitsVersion(v => v + 1);
+      setResolvedLimits(limitsStore.resolvedLimits);
+    };
+    limitsStore.addEventListener('change', handler);
+    return () => limitsStore.removeEventListener('change', handler);
+  }, []);
 
   // Init device tier
   useEffect(() => {
@@ -107,6 +137,7 @@ export default function App() {
     appView.view === 'editor' ? 'editor' : 'composer';
 
   return (
+    <LimitsContext.Provider value={{ resolvedLimits, limitsVersion }}>
     <ProtocolContext.Provider value={{ version, refresh }}>
       <div className="app-header">
         <span className="app-header-logo">NeuroPulse</span>
@@ -167,6 +198,7 @@ export default function App() {
         </main>
       </div>
     </ProtocolContext.Provider>
+    </LimitsContext.Provider>
   );
 }
 

@@ -1,0 +1,34 @@
+composite "Full Multi-Modal RCT" {
+    id: "10000100-0000-0000-0000-000000000000"
+    description: "Replicates the 2025 nationally-conducted RCT protocol combining PBM + qEEG neurofeedback + HRV biofeedback simultaneously. Sequence: vascular baseline → combined active phase → cool-down HRV."
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [rct, multimodal, pbm, eeg, hrv, research, depression]
+    conflict_resolution: merge
+
+    layer "Vascular Baseline" {
+        start: 0s
+        duration: 5m
+        intensity_scale: 0.5
+    }
+
+    layer "Gamma Focus" {
+        start: 300s
+        duration: 20m
+        intensity_scale: 1.0
+    }
+
+    layer "HRV Coherence Training" {
+        start: 300s
+        duration: 20m
+        intensity_scale: 1.0
+    }
+
+    layer "Alpha Calm" {
+        start: 1500s
+        duration: 10m
+        intensity_scale: 0.6
+    }
+
+}

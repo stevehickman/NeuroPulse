@@ -1,0 +1,30 @@
+protocol "Vascular Baseline" {
+    id: "10000007-0000-0000-0000-000000000000"
+    description: "Continuous-wave PBM for cerebrovascular support. Low-frequency VNS and alpha EEG. Use as a maintenance or recovery session."
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [circulation, CW, baseline, maintenance, cerebrovascular]
+    duration: 30m
+
+    pbm_transcranial {
+        intensity: 80%
+        frequency: 0Hz  # CW
+        zones: all
+        wavelength: 660_808nm
+    }
+
+    vns_hrv {
+        frequency: 1Hz
+        intensity: 1.0mA
+        hrv_protocol: standalone
+        breathing_rate: 6.0
+    }
+
+    eeg_neurofeedback {
+        band: alpha
+        channels: all
+        closed_loop: true
+    }
+
+}

@@ -405,6 +405,7 @@ export interface NPProtocolDefinition {
   createdAt: string;
   modifiedAt: string;
   isPredefined: boolean;
+  isReadOnly?: boolean;
   timingMode: NPTimingMode;
   modalities: NPProtocolModality[];
 }
@@ -429,6 +430,7 @@ export interface NPCompositeProtocol {
   createdAt: string;
   modifiedAt: string;
   isPredefined: boolean;
+  isReadOnly?: boolean;
   layers: NPCompositeLayer[];
   conflictResolution: 'merge' | 'sequential' | 'override';
 }
@@ -457,6 +459,10 @@ export function entryTags(e: NPProtocolEntry): string[] {
 
 export function entryIsPredefined(e: NPProtocolEntry): boolean {
   return e.kind === 'single' ? e.protocol.isPredefined : e.composite.isPredefined;
+}
+
+export function entryIsReadOnly(e: NPProtocolEntry): boolean {
+  return e.kind === 'single' ? (e.protocol.isReadOnly ?? false) : (e.composite.isReadOnly ?? false);
 }
 
 export function requiredModalities(e: NPProtocolEntry): Set<NPModalityTypeId> {

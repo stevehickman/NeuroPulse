@@ -587,6 +587,7 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
     var createdAt: Date = Date()
     var modifiedAt: Date = Date()
     var isPredefined: Bool = false
+    var isReadOnly: Bool = false
     var timingMode: TimingMode = .duration(20 * 60)
     var modalities: [NPProtocolModality] = []
 
@@ -614,7 +615,7 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
 
     private enum CodingKeys: String, CodingKey {
         case id, name, description, author, version, tags
-        case createdAt, modifiedAt, isPredefined, modalities
+        case createdAt, modifiedAt, isPredefined, isReadOnly, modalities
         case timingType, timingValue
     }
 
@@ -629,6 +630,7 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         try c.encode(createdAt, forKey: .createdAt)
         try c.encode(modifiedAt, forKey: .modifiedAt)
         try c.encode(isPredefined, forKey: .isPredefined)
+        try c.encode(isReadOnly, forKey: .isReadOnly)
         try c.encode(modalities, forKey: .modalities)
         switch timingMode {
         case .duration(let v):
@@ -651,6 +653,7 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         createdAt   = try c.decodeIfPresent(Date.self, forKey: .createdAt) ?? Date()
         modifiedAt  = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
         isPredefined = try c.decodeIfPresent(Bool.self, forKey: .isPredefined) ?? false
+        isReadOnly   = try c.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
         modalities  = try c.decodeIfPresent([NPProtocolModality].self, forKey: .modalities) ?? []
         let timingType = try c.decodeIfPresent(String.self, forKey: .timingType) ?? "duration"
         let timingValue = try c.decodeIfPresent(Int.self, forKey: .timingValue) ?? 1200
@@ -670,6 +673,7 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
          createdAt: Date = Date(),
          modifiedAt: Date = Date(),
          isPredefined: Bool = false,
+         isReadOnly: Bool = false,
          timingMode: TimingMode = .duration(20 * 60),
          modalities: [NPProtocolModality] = []) {
         self.id = id
@@ -681,6 +685,7 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         self.createdAt = createdAt
         self.modifiedAt = modifiedAt
         self.isPredefined = isPredefined
+        self.isReadOnly = isReadOnly
         self.timingMode = timingMode
         self.modalities = modalities
     }
@@ -722,6 +727,7 @@ struct NPCompositeProtocol: Codable, Identifiable, Equatable {
     var createdAt: Date = Date()
     var modifiedAt: Date = Date()
     var isPredefined: Bool = false
+    var isReadOnly: Bool = false
     var layers: [NPCompositeLayer] = []
     var conflictResolution: ConflictResolution = .merge
 }
@@ -731,12 +737,14 @@ struct NPCompositeProtocol: Codable, Identifiable, Equatable {
 enum NPProtocolEntry: Identifiable, Equatable, Codable {
     case single(NPProtocolDefinition)
     case composite(NPCompositeProtocol)
+    case limits(NPLimitsSet)
 
     // MARK: Identifiable
     var id: UUID {
         switch self {
         case .single(let p):    return p.id
         case .composite(let c): return c.id
+        case .limits(let l):    return l.id
         }
     }
 
@@ -744,6 +752,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p):    return p.name
         case .composite(let c): return c.name
+        case .limits(let l):    return l.name
         }
     }
 
@@ -751,6 +760,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p):    return p.description
         case .composite(let c): return c.description
+        case .limits(let l):    return l.description
         }
     }
 
@@ -758,6 +768,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p):    return p.tags
         case .composite(let c): return c.tags
+        case .limits:           return []
         }
     }
 
@@ -765,11 +776,25 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p):    return p.isPredefined
         case .composite(let c): return c.isPredefined
+        case .limits:           return false
+        }
+    }
+
+    var isReadOnly: Bool {
+        switch self {
+        case .single(let p):    return p.isReadOnly
+        case .composite(let c): return c.isReadOnly
+        case .limits:           return false
         }
     }
 
     var isComposite: Bool {
         if case .composite = self { return true }
+        return false
+    }
+
+    var isLimits: Bool {
+        if case .limits = self { return true }
         return false
     }
 
@@ -780,6 +805,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .composite:
             // Composite modality requirements are resolved at runtime against the library
             return Set()
+        case .limits:
+            return Set()
         }
     }
 
@@ -789,6 +816,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
             p.id = UUID()
             p.name = newName
             p.isPredefined = false
+            p.isReadOnly = false
             p.createdAt = Date()
             p.modifiedAt = Date()
             // Re-assign IDs to all modalities
@@ -802,6 +830,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
             c.id = UUID()
             c.name = newName
             c.isPredefined = false
+            c.isReadOnly = false
             c.createdAt = Date()
             c.modifiedAt = Date()
             c.layers = c.layers.map { layer in
@@ -810,6 +839,12 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
                 return l
             }
             return .composite(c)
+        case .limits(var l):
+            l.id = UUID()
+            l.name = newName
+            l.createdAt = Date()
+            l.modifiedAt = Date()
+            return .limits(l)
         }
     }
 
@@ -826,6 +861,9 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .composite(let comp):
             try c.encode("composite", forKey: .type)
             try c.encode(comp, forKey: .value)
+        case .limits(let lim):
+            try c.encode("limits", forKey: .type)
+            try c.encode(lim, forKey: .value)
         }
     }
 
@@ -837,6 +875,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
             self = .single(try c.decode(NPProtocolDefinition.self, forKey: .value))
         case "composite":
             self = .composite(try c.decode(NPCompositeProtocol.self, forKey: .value))
+        case "limits":
+            self = .limits(try c.decode(NPLimitsSet.self, forKey: .value))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .type, in: c,

@@ -14,6 +14,7 @@ struct ProtocolMenuView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var library: NPProtocolLibrary
     @EnvironmentObject private var uploader: SessionProtocolUploader
+    @EnvironmentObject private var limitsStore: NPLimitsStore
 
     @State private var searchText = ""
     @State private var filter: LibraryFilter = .all
@@ -25,6 +26,8 @@ struct ProtocolMenuView: View {
     @State private var uploadConfirm: NPProtocolEntry? = nil
     @State private var uploadError: String? = nil
     @State private var showUploadError = false
+    @State private var showLimitsSettings = false
+    @State private var validationDetailEntry: NPProtocolEntry? = nil
 
     var body: some View {
         NavigationStack {
@@ -46,6 +49,14 @@ struct ProtocolMenuView: View {
             .sheet(isPresented: $showComposer) {
                 ProtocolComposerView(existing: nil)
                     .environmentObject(library)
+            }
+            .sheet(isPresented: $showLimitsSettings) {
+                LimitsSettingsView()
+                    .environmentObject(limitsStore)
+                    .environmentObject(library)
+            }
+            .sheet(item: $validationDetailEntry) { entry in
+                ValidationDetailSheet(entry: entry, limitsStore: limitsStore, library: library)
             }
             .alert("Protocol Unavailable", isPresented: Binding(
                 get: { unavailableAlert != nil },
@@ -86,6 +97,13 @@ struct ProtocolMenuView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
             Button("Cancel") { dismiss() }
+        }
+        ToolbarItem(placement: .navigationBarLeading) {
+            Button {
+                showLimitsSettings = true
+            } label: {
+                Label("Limits", systemImage: "slider.horizontal.3")
+            }
         }
         ToolbarItem(placement: .primaryAction) {
             Menu {
@@ -140,6 +158,32 @@ struct ProtocolMenuView: View {
 
     private var protocolList: some View {
         List {
+            // Active profile banner
+            if let profile = limitsStore.activeProfile {
+                Section {
+                    HStack(spacing: 8) {
+                        Image(systemName: "person.circle.fill")
+                            .foregroundColor(.accentColor)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Profile: \(profile.name)")
+                                .font(.subheadline.weight(.medium))
+                            Text(limitsStore.resolutionChainDescription)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Button {
+                            limitsStore.setActiveProfile(nil)
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.vertical, 2)
+                }
+            }
+
             Picker("Filter", selection: $filter) {
                 ForEach(LibraryFilter.allCases, id: \.self) {
                     Text($0.rawValue).tag($0)
@@ -166,8 +210,12 @@ struct ProtocolMenuView: View {
                     ForEach(userFiltered) { entry in
                         protocolRow(entry)
                             .swipeActions(edge: .trailing) {
-                                deleteButton(for: entry)
-                                editButton(for: entry)
+                                if library.canDelete(entry) {
+                                    deleteButton(for: entry)
+                                }
+                                if library.canEdit(entry) {
+                                    editButton(for: entry)
+                                }
                                 duplicateButton(for: entry)
                             }
                             .contextMenu { contextMenu(for: entry) }
@@ -182,15 +230,26 @@ struct ProtocolMenuView: View {
 
     private func protocolRow(_ entry: NPProtocolEntry) -> some View {
         let avail = library.availability(for: entry)
-        return ProtocolRowView(entry: entry, availability: avail)
-            .contentShape(Rectangle())
-            .onTapGesture {
-                if avail.isAvailable {
-                    handleSelect(entry)
-                } else {
-                    unavailableAlert = entry
-                }
+        let counts = library.issueCount(for: entry)
+        return ProtocolRowView(
+            entry: entry,
+            availability: avail,
+            errorCount: counts.errors,
+            warningCount: counts.warnings,
+            onValidationBadgeTap: { validationDetailEntry = entry }
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if avail.isAvailable {
+                handleSelect(entry)
+            } else {
+                unavailableAlert = entry
             }
+        }
+        .onAppear {
+            // Lazily compute validation on first display
+            _ = library.validationResult(for: entry, limitsStore: limitsStore)
+        }
     }
 
     // MARK: - Swipe buttons
@@ -247,18 +306,46 @@ struct ProtocolMenuView: View {
         }
 
         if !entry.isPredefined {
-            Button {
-                editingEntry = entry
-                if entry.isComposite { showComposer = true } else { showEditor = true }
-            } label: {
-                Label("Edit", systemImage: "pencil")
+            if library.canEdit(entry) {
+                Button {
+                    editingEntry = entry
+                    if entry.isComposite { showComposer = true } else { showEditor = true }
+                } label: {
+                    Label("Edit", systemImage: "pencil")
+                }
             }
 
-            Button(role: .destructive) {
-                confirmDelete = entry
+            // Read-only toggle for user-created protocols
+            Button {
+                toggleReadOnly(entry)
             } label: {
-                Label("Delete", systemImage: "trash")
+                if entry.isReadOnly {
+                    Label("Unlock Protocol", systemImage: "lock.open")
+                } else {
+                    Label("Lock Protocol", systemImage: "lock")
+                }
             }
+
+            if library.canDelete(entry) {
+                Button(role: .destructive) {
+                    confirmDelete = entry
+                } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        }
+    }
+
+    private func toggleReadOnly(_ entry: NPProtocolEntry) {
+        switch entry {
+        case .single(var proto):
+            proto.isReadOnly.toggle()
+            library.save(.single(proto))
+        case .composite(var comp):
+            comp.isReadOnly.toggle()
+            library.save(.composite(comp))
+        case .limits:
+            break
         }
     }
 
@@ -408,6 +495,9 @@ struct ProtocolMenuView: View {
 struct ProtocolRowView: View {
     let entry: NPProtocolEntry
     let availability: ProtocolAvailability
+    var errorCount: Int = 0
+    var warningCount: Int = 0
+    var onValidationBadgeTap: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -418,6 +508,7 @@ struct ProtocolRowView: View {
                     .font(.headline)
                     .foregroundColor(availability.isAvailable ? .primary : .secondary)
                 Spacer()
+                validationBadges
                 badges
             }
 
@@ -450,7 +541,48 @@ struct ProtocolRowView: View {
     }
 
     @ViewBuilder
+    private var validationBadges: some View {
+        if errorCount > 0 {
+            Button {
+                onValidationBadgeTap?()
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                    Text("\(errorCount)")
+                }
+                .font(.caption2.bold())
+                .foregroundColor(.white)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Color.red)
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        } else if warningCount > 0 {
+            Button {
+                onValidationBadgeTap?()
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                    Text("\(warningCount)")
+                }
+                .font(.caption2.bold())
+                .foregroundColor(.white)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Color.orange)
+                .clipShape(Capsule())
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
     private var badges: some View {
+        if entry.isReadOnly {
+            Image(systemName: "lock.fill")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+
         if entry.isComposite {
             Label("Composite", systemImage: "square.stack.3d.up.fill")
                 .font(.caption2)
@@ -522,5 +654,101 @@ struct ProtocolRowView: View {
                     .foregroundColor(.secondary)
             }
         }
+    }
+}
+
+// MARK: - Validation Detail Sheet
+
+struct ValidationDetailSheet: View {
+    let entry: NPProtocolEntry
+    let limitsStore: NPLimitsStore
+    let library: NPProtocolLibrary
+    @Environment(\.dismiss) private var dismiss
+
+    private var result: NPValidationResult {
+        let validator = limitsStore.makeValidator()
+        return validator.validate(entry, resolving: library)
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if result.isValid && !result.hasWarnings {
+                    Section {
+                        Label("No issues found", systemImage: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                    }
+                }
+
+                if !result.errors.isEmpty {
+                    Section("Errors (\(result.errors.count))") {
+                        ForEach(result.errors) { issue in
+                            ValidationIssueRow(issue: issue)
+                        }
+                    }
+                }
+
+                if !result.warnings.isEmpty {
+                    Section("Warnings (\(result.warnings.count))") {
+                        ForEach(result.warnings) { issue in
+                            ValidationIssueRow(issue: issue)
+                        }
+                    }
+                }
+
+                Section("Limit Resolution") {
+                    Text(limitsStore.resolutionChainDescription)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            .listStyle(.insetGrouped)
+            .navigationTitle("Validation: \(entry.name)")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Validation Issue Row
+
+struct ValidationIssueRow: View {
+    let issue: NPValidationIssue
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 6) {
+                Image(systemName: issue.severity == .error ? "exclamationmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .foregroundColor(issue.severity == .error ? .red : .orange)
+                    .font(.caption)
+                if let modality = issue.modality {
+                    Text(modality.displayName)
+                        .font(.caption.bold())
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Text(issue.limitSource.description)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+            Text(issue.message)
+                .font(.subheadline)
+            HStack(spacing: 4) {
+                Text("Value: \(issue.actualValueDescription)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("·")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text("Limit: \(issue.limitValueDescription)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
     }
 }

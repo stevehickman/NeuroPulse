@@ -1,0 +1,40 @@
+protocol "Anxiety Relief" {
+    id: "10000005-0000-0000-0000-000000000000"
+    description: "Multi-modal anxiety reduction combining VNS, HRV coherence training, alpha PBM, and resonance breathing. Based on 24-RCT meta-analysis (d=0.83 anxiety reduction)."
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [anxiety, stress, hrv, vns, alpha, calm]
+    duration: 20m
+
+    vns_hrv {
+        frequency: 25Hz
+        intensity: 0.5mA
+        hrv_protocol: eeg_biofeedback
+        breathing_rate: 6.0
+    }
+
+    pbm_transcranial {
+        intensity: 65%
+        frequency: 10Hz
+        duty_cycle: 25%
+        zones: front
+        wavelength: 660_808nm
+    }
+
+    audio_entrainment {
+        binaural_hz: 10Hz
+        noise: pink
+        carrier_hz: 440Hz
+        volume: 60%
+        eeg_adaptive: true
+        bone_conduction_pacer: true
+    }
+
+    eeg_neurofeedback {
+        band: alpha
+        channels: all
+        closed_loop: true
+    }
+
+}

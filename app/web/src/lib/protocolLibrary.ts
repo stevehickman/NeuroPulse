@@ -2,9 +2,10 @@ import {
   NPProtocolEntry,
   NPModalityTypeId,
   entryId,
+  entryIsReadOnly,
   requiredModalities,
 } from '../types/protocol';
-import { PREDEFINED_PROTOCOLS } from './predefinedProtocols';
+import { loadPredefinedProtocols, getCachedPredefinedProtocols } from './predefinedProtocols';
 import { parseNPPS } from './nppsParser';
 import { serializeNPPS } from './nppsSerializer';
 
@@ -35,16 +36,32 @@ const ACCESSORY_MODALITIES: Set<NPModalityTypeId> = new Set<NPModalityTypeId>([
 
 class ProtocolLibrary {
   private _userProtocols: NPProtocolEntry[] = [];
+  private _predefinedProtocols: NPProtocolEntry[] = [];
+  private _predefinedLoaded = false;
   private _deviceTier: DeviceTier = 'none';
   private _has1064SmartModules: boolean = false;
   private _listeners: Array<() => void> = [];
 
   constructor() {
     this.load();
+    // Start async load of predefined protocols from .npps files
+    loadPredefinedProtocols().then(protocols => {
+      this._predefinedProtocols = protocols;
+      this._predefinedLoaded = true;
+      this.notify();
+    });
+  }
+
+  get isLoaded(): boolean {
+    return this._predefinedLoaded;
   }
 
   get allProtocols(): NPProtocolEntry[] {
-    return [...PREDEFINED_PROTOCOLS, ...this._userProtocols];
+    // While loading, use any already-cached protocols (e.g. from a prior call)
+    const predefined = this._predefinedLoaded
+      ? this._predefinedProtocols
+      : getCachedPredefinedProtocols();
+    return [...predefined, ...this._userProtocols];
   }
 
   get userProtocols(): NPProtocolEntry[] {
@@ -57,6 +74,14 @@ class ProtocolLibrary {
 
   get has1064SmartModules(): boolean {
     return this._has1064SmartModules;
+  }
+
+  canEdit(entry: NPProtocolEntry): boolean {
+    return !entryIsReadOnly(entry);
+  }
+
+  canDelete(entry: NPProtocolEntry): boolean {
+    return !entryIsReadOnly(entry);
   }
 
   getAvailableModalities(): Set<NPModalityTypeId> {
@@ -111,6 +136,8 @@ class ProtocolLibrary {
   }
 
   saveUserProtocol(entry: NPProtocolEntry): void {
+    // Block saving read-only protocols (e.g. predefined)
+    if (entryIsReadOnly(entry)) return;
     const id = entryId(entry);
     const idx = this._userProtocols.findIndex(e => entryId(e) === id);
     if (idx >= 0) {
@@ -123,6 +150,9 @@ class ProtocolLibrary {
   }
 
   deleteUserProtocol(id: string): void {
+    // Block deletion of predefined (read-only) protocols
+    const isPredefined = this._predefinedProtocols.some(e => entryId(e) === id);
+    if (isPredefined) return;
     this._userProtocols = this._userProtocols.filter(e => entryId(e) !== id);
     this.persist();
     this.notify();
@@ -138,6 +168,7 @@ class ProtocolLibrary {
           id: crypto.randomUUID(),
           name: newName,
           isPredefined: false,
+          isReadOnly: false,  // duplicates are always editable
           createdAt: now,
           modifiedAt: now,
           modalities: entry.protocol.modalities.map(m => ({ ...m, id: crypto.randomUUID() })),
@@ -152,6 +183,7 @@ class ProtocolLibrary {
           id: crypto.randomUUID(),
           name: newName,
           isPredefined: false,
+          isReadOnly: false,  // duplicates are always editable
           createdAt: now,
           modifiedAt: now,
           layers: entry.composite.layers.map(l => ({ ...l, id: crypto.randomUUID() })),

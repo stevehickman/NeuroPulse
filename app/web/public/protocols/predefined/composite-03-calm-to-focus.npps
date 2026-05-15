@@ -1,0 +1,22 @@
+composite "Calm to Focus" {
+    id: "10000102-0000-0000-0000-000000000000"
+    description: "Transitions from alpha calm to focused beta. Layers overlap for 2 minutes, allowing smooth frequency transition from 10Hz to 20Hz."
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [transition, ramp, productivity, calm, focus]
+    conflict_resolution: merge
+
+    layer "Alpha Calm" {
+        start: 0s
+        duration: 10m
+        intensity_scale: 1.0
+    }
+
+    layer "Focus Prime" {
+        start: 480s
+        duration: 20m
+        intensity_scale: 1.0
+    }
+
+}
