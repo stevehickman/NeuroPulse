@@ -200,6 +200,7 @@ function serializeSingleProtocol(proto: NPProtocolDefinition): string {
   lines.push(`${INDENT}description: ${str(proto.description)}`);
   lines.push(`${INDENT}author: ${str(proto.author)}`);
   lines.push(`${INDENT}version: ${str(proto.version)}`);
+  if (proto.isReadOnly) lines.push(`${INDENT}readonly: true`);
   lines.push(`${INDENT}tags: ${strArr(proto.tags)}`);
 
   // Timing
@@ -244,6 +245,7 @@ function serializeComposite(composite: NPCompositeProtocol): string {
   lines.push(`${INDENT}description: ${str(composite.description)}`);
   lines.push(`${INDENT}author: ${str(composite.author)}`);
   lines.push(`${INDENT}version: ${str(composite.version)}`);
+  if (composite.isReadOnly) lines.push(`${INDENT}readonly: true`);
   lines.push(`${INDENT}tags: ${strArr(composite.tags)}`);
   lines.push(`${INDENT}conflict_resolution: "${composite.conflictResolution}"`);
   lines.push(`${INDENT}layers [`);

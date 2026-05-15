@@ -293,20 +293,6 @@ class Parser {
     throw new NPPSParseError(`Expected bool, got ${t.type} (${String(t.value)})`, t.line);
   }
 
-  private readStringArray(): string[] {
-    this.skipNewlines();
-    this.expect('LBRACKET');
-    const arr: string[] = [];
-    this.skipNewlines();
-    while (this.current.type !== 'RBRACKET' && this.current.type !== 'EOF') {
-      arr.push(this.readString());
-      this.skipNewlines();
-      if (this.current.type === 'COMMA') { this.advance(); this.skipNewlines(); }
-    }
-    this.expect('RBRACKET');
-    return arr;
-  }
-
   // Tags array: accepts both ["tag1", "tag2"] and [tag1, tag2] (unquoted idents)
   private readTagArray(): string[] {
     this.skipNewlines();
@@ -329,194 +315,31 @@ class Parser {
     return arr;
   }
 
-  // Duration in seconds: accepts bare number (seconds) or Xm (minutes) or Xs (seconds)
-  // The lexer already strips unit suffixes from numbers, so tokens always arrive as NUMBER.
-  // We just read a number. For duration fields using the short format like "20m",
-  // the lexer strips the 'm' suffix — the number stored is the numeric part (e.g. 20).
-  // We detect 'm' vs 's' at the source level... but the lexer already stripped units.
-  // So the approach: the lexer strips units and produces the raw number.
-  // For "20m" → token NUMBER(20), for "300s" → token NUMBER(300).
-  // We can't distinguish them here, so we rely on the caller knowing the unit convention:
-  // In duration fields (duration: 20m), the predefined files use minutes (m suffix).
-  // But since the lexer strips the suffix, we need to emit 20 * 60 = 1200.
-  // SOLUTION: track the unit during lexing by storing it in a separate field.
-  // PRAGMATIC APPROACH: re-examine what the lexer does. The lexer at pos advances
-  // past 'm' only if not followed by alphanumeric. So "20m" → pos past 'm', value 20.
-  // But "20min" would not strip 'm' (followed by 'i'). Only bare 'm' and 's'.
-  // Since we've lost the unit, we use a separate mechanism: re-tokenize is not possible.
-  // Instead, we use a special readDurationSeconds method that peeks at the raw token
-  // numeric value only, and applies a heuristic: if the value is ≤ 999 and was in a
-  // duration context, it's minutes. But that's fragile.
-  // CORRECT APPROACH: the token does NOT carry unit info since it was stripped.
-  // We need to store the unit in the token. But changing the Token type is invasive.
-  // SIMPLEST CORRECT APPROACH: The lexer strips m/s but we just read the number.
-  // For .npps files that use "20m", the token value will be 20.
-  // For "1200s", the token value will be 1200. Both cases must be seconds.
-  // Since "20m" loses its 'm', we need to recover it. We cannot from the token.
-  //
-  // Revised approach: The NUMBER token already has the unit stripped. We accept that
-  // for the DURATION field, if the value is ≤ 300 (i.e., up to 5 hours in minutes),
-  // we treat it as minutes. If > 300, treat as seconds.
-  // But "300s" would give token 300 and be misidentified as 300 minutes.
-  //
-  // FINAL APPROACH: Store the unit suffix in the Token. We need to modify the Token
-  // type and lexer slightly. We add an optional `unit` field to Token. This is the
-  // correct engineering approach.
-  //
-  // BUT we cannot add a unit field without changing Token interface and the lexer.
-  // Given the lexer strips units to void, let's change the approach:
-  // readDurationSeconds reads a number, then decides: if it looks like it came from
-  // a context where 'm' was stripped (by checking if the raw source has 'm')... no.
-  //
-  // PRAGMATIC FINAL APPROACH: Change the lexer to NOT strip units, and instead handle
-  // them in the parser. This requires making token value a string for NUMBER tokens
-  // when they have units... this is a bigger change.
-  //
-  // SIMPLEST SAFE APPROACH: Just read a number and always treat as seconds.
-  // For predefined files using "20m", the lexer produces number 20 (unit stripped).
-  // So "duration: 20m" → seconds = 20 (20 seconds, not 20 minutes).
-  // This is wrong. We MUST preserve units.
-  //
-  // Let's do the minimal token unit fix: add `unit?: string` to Token interface.
+  // Duration in seconds: "20m" → 1200, "300s" → 300, 1200 → 1200.
+  // The lexer now stores the unit suffix in token.unit.
   private readDurationSeconds(): number {
-    // Reads a number that represents a duration.
-    // Since the lexer strips unit suffixes and we cannot recover them from the token,
-    // we read a plain number. The callers of this method must ensure values are in seconds.
-    // For the new format .npps files using minute suffix (20m), we handle this by
-    // modifying the lexer to preserve unit info in the token (see Token interface).
     this.skipNewlines();
     const t = this.current;
     if (t.type !== 'NUMBER') throw new NPPSParseError(`Expected duration, got ${t.type}`, t.line);
     this.advance();
     const val = t.value as number;
-    const unit = (t as Token & { unit?: string }).unit;
-    if (unit === 'm') return val * 60;
-    // 's' or no unit — treat as seconds
-    return val;
+    if (t.unit === 'm') return val * 60;
+    return val; // 's' or bare number = seconds
   }
 
-  // Skip a value of any type (used for unknown field names)
+  // Skip over an unknown field value of any type
   private skipValue(): void {
     this.skipNewlines();
     const t = this.current;
     if (t.type === 'LBRACKET') { this.readGenericArray(); return; }
     if (t.type === 'LBRACE') { this.readGenericObject(); return; }
-    // For scalar values, just advance past the token
     if (t.type === 'STRING' || t.type === 'NUMBER' || t.type === 'BOOL' ||
         t.type === 'IDENT' || t.type === 'KEYWORD') {
       this.advance();
-      return;
     }
-    // Nothing to skip (e.g. unexpected token) — don't throw, just return
   }
 
-  // Parse a typed modality block: pbm_transcranial { ... }
-  // The type name has already been consumed. Next token is '{'.
-  private parseTypedModalityBlock(typeName: string): NPProtocolModality {
-    this.skipNewlines();
-    this.expect('LBRACE');
-    this.skipNewlines();
-
-    const id = crypto.randomUUID();
-    let enabled = true;
-    let intervalOnSeconds = 0;
-    let intervalOffSeconds = 0;
-    let repeatCount: number | undefined;
-
-    // Collect all key-value pairs from the block
-    const raw: Record<string, unknown> = {};
-
-    while (!this.tryBrace()) {
-      this.skipNewlines();
-      if (this.ct() === 'RBRACE') break;
-
-      const keyTok = this.current;
-      if (keyTok.type !== 'KEYWORD' && keyTok.type !== 'IDENT') {
-        throw new NPPSParseError(`Expected field name, got ${keyTok.type} (${String(keyTok.value)})`, keyTok.line);
-      }
-      const key = keyTok.value as string;
-      this.advance();
-      this.skipNewlines();
-      this.expect('COLON');
-
-      // Interval fields
-      if (key === 'interval_on') { intervalOnSeconds = this.readDurationSeconds(); this.skipNewlines(); continue; }
-      if (key === 'interval_off') { intervalOffSeconds = this.readDurationSeconds(); this.skipNewlines(); continue; }
-      if (key === 'repeat') {
-        // 'until_end' string or number
-        const t = this.current;
-        if ((t.type === 'IDENT' || t.type === 'KEYWORD') && t.value === 'until_end') {
-          this.advance(); // no repeatCount = until_end
-        } else {
-          repeatCount = this.readNumber();
-        }
-        this.skipNewlines();
-        continue;
-      }
-      if (key === 'enabled') { enabled = this.readBool(); this.skipNewlines(); continue; }
-
-      // Map new short field names to existing canonical field names
-      const canonical = this.canonicalFieldName(key);
-      const val = this.readAnyValue();
-
-      // Apply field-specific value normalization (e.g. "none" noise → omit)
-      if (canonical === 'noise_type') {
-        const v = String(val);
-        if (v !== 'none') raw['noise_type'] = v;
-        // else omit — no noise
-      } else {
-        raw[canonical] = val;
-      }
-
-      this.skipNewlines();
-    }
-
-    // Determine modality type ID from block keyword
-    const typeId = this.blockNameToTypeId(typeName);
-    if (!typeId) {
-      // Unknown block type — return a placeholder that will be skipped by caller
-      // Actually, just throw — unknown modality types should fail clearly
-      throw new NPPSParseError(`Unknown modality block type: '${typeName}'`, this.current.line);
-    }
-
-    const params = this.buildModalityParams(typeId, raw);
-    const interval: NPIntervalConfig = { intervalOnSeconds, intervalOffSeconds };
-    if (repeatCount !== undefined) interval.repeatCount = repeatCount;
-
-    return { id, modalityParams: params, interval, enabled };
-  }
-
-  // Map new short field names to canonical names used in buildModalityParams
-  private canonicalFieldName(key: string): string {
-    const aliases: Record<string, string> = {
-      // PBM / general
-      intensity: '_intensity_generic',  // handled per-modality below
-      frequency: 'frequency_hz',
-      duty_cycle: 'duty_cycle_percent',
-      closed_loop: 'closed_loop_enabled',
-      // audio_entrainment
-      binaural_hz: 'binaural_beats_hz',
-      isochronic_hz: 'isochronic_tones_hz',
-      noise: 'noise_type',
-      volume: 'volume_percent',
-      // vns_hrv
-      breathing_rate: 'resonance_breathing_rate',
-      // tdcs
-      ramp: 'ramp_seconds',
-      // visual_stimulation
-      emdr_cadence: 'emdr_cadence_hz',
-      // audio carrier
-      carrier_hz: 'carrier_hz',
-    };
-    return aliases[key] ?? key;
-  }
-
-  // Resolve ambiguous 'intensity' field based on context (modality type).
-  // Since canonicalFieldName is called before we know the type, we use a sentinel
-  // '_intensity_generic' and resolve it in a post-processing step inside parseTypedModalityBlock.
-  // Actually, let's resolve intensity directly in parseTypedModalityBlock after collecting raw.
-  // We handle 'intensity' specially there.
-
+  // Map typed modality block names to NPModalityTypeId
   private blockNameToTypeId(name: string): NPModalityTypeId | null {
     const map: Record<string, NPModalityTypeId> = {
       pbm_transcranial: 'pbm_transcranial',
@@ -536,6 +359,118 @@ class Parser {
       vibrotactile_40hz: 'vibrotactile_40hz',
     };
     return map[name] ?? null;
+  }
+
+  // Map new short field names to canonical names expected by buildModalityParams.
+  // 'intensity' is context-dependent and handled separately in parseTypedModalityBlock.
+  private resolveFieldAlias(key: string): string {
+    const aliases: Record<string, string> = {
+      frequency: 'frequency_hz',
+      duty_cycle: 'duty_cycle_percent',
+      closed_loop: 'closed_loop_enabled',
+      binaural_hz: 'binaural_beats_hz',
+      isochronic_hz: 'isochronic_tones_hz',
+      noise: 'noise_type',
+      volume: 'volume_percent',
+      breathing_rate: 'resonance_breathing_rate',
+      ramp: 'ramp_seconds',
+      emdr_cadence: 'emdr_cadence_hz',
+    };
+    return aliases[key] ?? key;
+  }
+
+  // Parse a typed modality block: pbm_transcranial { ... }
+  // typeName already consumed; next token must be '{'.
+  private parseTypedModalityBlock(typeName: string): NPProtocolModality {
+    this.skipNewlines();
+    this.expect('LBRACE');
+    this.skipNewlines();
+
+    const id = crypto.randomUUID();
+    let enabled = true;
+    let intervalOnSeconds = 0;
+    let intervalOffSeconds = 0;
+    let repeatCount: number | undefined;
+    const raw: Record<string, unknown> = {};
+
+    while (!this.tryBrace()) {
+      this.skipNewlines();
+      if (this.ct() === 'RBRACE') break;
+
+      const keyTok = this.current;
+      if (keyTok.type !== 'KEYWORD' && keyTok.type !== 'IDENT') {
+        throw new NPPSParseError(`Expected field name, got ${keyTok.type} (${String(keyTok.value)})`, keyTok.line);
+      }
+      const key = keyTok.value as string;
+      this.advance();
+      this.skipNewlines();
+      this.expect('COLON');
+
+      if (key === 'interval_on') { intervalOnSeconds = this.readDurationSeconds(); this.skipNewlines(); continue; }
+      if (key === 'interval_off') { intervalOffSeconds = this.readDurationSeconds(); this.skipNewlines(); continue; }
+      if (key === 'repeat') {
+        const t = this.current;
+        if ((t.type === 'IDENT' || t.type === 'KEYWORD') && t.value === 'until_end') {
+          this.advance(); // undefined repeatCount = run until session end
+        } else {
+          repeatCount = this.readNumber();
+        }
+        this.skipNewlines();
+        continue;
+      }
+      if (key === 'enabled') { enabled = this.readBool(); this.skipNewlines(); continue; }
+
+      // 'intensity' is ambiguous across modality types — defer to post-processing
+      if (key === 'intensity') {
+        raw['__intensity'] = this.readAnyValue();
+        this.skipNewlines();
+        continue;
+      }
+
+      const canonical = this.resolveFieldAlias(key);
+      const val = this.readAnyValue();
+
+      // 'noise: none' → omit noise_type (no noise)
+      if (canonical === 'noise_type' && String(val) === 'none') {
+        this.skipNewlines();
+        continue;
+      }
+
+      raw[canonical] = val;
+      this.skipNewlines();
+    }
+
+    // Resolve 'intensity' to the correct canonical name for this modality type
+    if ('__intensity' in raw) {
+      const intensityVal = raw['__intensity'];
+      delete raw['__intensity'];
+      const percentTypes = new Set([
+        'pbm_transcranial', 'pbm_intranasal', 'visual_stimulation', 'pbm_deep_1170nm',
+      ]);
+      const mATypes = new Set([
+        'bes_tacs', 'tdcs', 'vns_hrv', 'clinical_tacs', 'hd_tdcs', 'cervical_vns', 'tms',
+      ]);
+      if (percentTypes.has(typeName)) {
+        raw['intensity_percent'] = intensityVal;
+      } else if (mATypes.has(typeName)) {
+        raw['intensity_milliamps'] = intensityVal;
+      } else if (typeName === 'vibrotactile_40hz') {
+        raw['intensity_g'] = intensityVal;
+      } else {
+        raw['intensity_percent'] = intensityVal; // safe fallback
+      }
+    }
+
+    const typeId = this.blockNameToTypeId(typeName);
+    if (!typeId) {
+      throw new NPPSParseError(`Unknown modality block type: '${typeName}'`, this.current.line);
+    }
+
+    const params = this.buildModalityParams(typeId, raw);
+    const interval: NPIntervalConfig = { intervalOnSeconds, intervalOffSeconds };
+    if (repeatCount !== undefined) interval.repeatCount = repeatCount;
+
+    return { id, modalityParams: params, interval, enabled };
   }
 
   private readKeyValue(): { key: string; valueLine: number } {

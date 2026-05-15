@@ -8,6 +8,7 @@ import {
   entryDescription,
   entryTags,
   entryIsPredefined,
+  entryIsReadOnly,
 } from '../types/protocol';
 import { protocolLibrary, ProtocolAvailability } from '../lib/protocolLibrary';
 import { useProtocolContext } from '../App';
@@ -40,12 +41,18 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
   const [confirm, setConfirm] = useState<ConfirmState | null>(null);
   const [showLimits, setShowLimits] = useState(false);
   const [, setLimitsVersion] = useState(0);
+  const [, setLibraryVersion] = useState(0);
 
   // Subscribe to limits store changes to trigger re-render when limits change
   useEffect(() => {
     const handler = () => setLimitsVersion(v => v + 1);
     limitsStore.addEventListener('change', handler);
     return () => limitsStore.removeEventListener('change', handler);
+  }, []);
+
+  // Subscribe to protocolLibrary changes (e.g. when predefined protocols finish loading)
+  useEffect(() => {
+    return protocolLibrary.subscribe(() => setLibraryVersion(v => v + 1));
   }, []);
 
   const resolvedLimits = limitsStore.resolvedLimits;
@@ -85,9 +92,10 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
     });
   }
 
+  const isLoadingPredefined = !protocolLibrary.isLoaded;
   const showPredefined = filter !== 'mine' && predefined.length > 0;
   const showUser = filter !== 'predefined' && userOwned.length > 0;
-  const showEmpty = predefined.length === 0 && userOwned.length === 0;
+  const showEmpty = predefined.length === 0 && userOwned.length === 0 && !isLoadingPredefined;
 
   return (
     <div className="protocol-menu">
@@ -151,6 +159,13 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
       </div>
 
       <div className="protocol-list">
+        {isLoadingPredefined && filter !== 'mine' && (
+          <div className="empty-state" style={{ opacity: 0.6 }}>
+            <div className="empty-state-icon">⏳</div>
+            <div className="empty-state-title">Loading protocols…</div>
+          </div>
+        )}
+
         {showEmpty && (
           <div className="empty-state">
             <div className="empty-state-icon">📋</div>
@@ -174,6 +189,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
                   onEdit={() => onEdit(entry)}
                   onDuplicate={() => handleDuplicate(entry)}
                   onDelete={null}
+                  canEdit={protocolLibrary.canEdit(entry)}
                 />
               ))}
             </div>
@@ -192,7 +208,8 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
                   validation={validateEntry(entry, resolvedLimits, allProtocols)}
                   onEdit={() => onEdit(entry)}
                   onDuplicate={() => handleDuplicate(entry)}
-                  onDelete={() => handleDelete(entry)}
+                  onDelete={protocolLibrary.canDelete(entry) ? () => handleDelete(entry) : null}
+                  canEdit={protocolLibrary.canEdit(entry)}
                 />
               ))}
             </div>
@@ -224,13 +241,15 @@ interface ProtocolCardProps {
   onEdit: () => void;
   onDuplicate: () => void;
   onDelete: (() => void) | null;
+  canEdit?: boolean;
 }
 
-function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, onDelete }: ProtocolCardProps) {
+function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, onDelete, canEdit = true }: ProtocolCardProps) {
   const name = entryName(entry);
   const description = entryDescription(entry);
   const tags = entryTags(entry);
   const isComposite = entry.kind === 'composite';
+  const isReadOnly = entryIsReadOnly(entry);
 
   // Get modality icons for single protocols
   const modalityIcons: Array<{ icon: string; label: string }> = [];
@@ -276,7 +295,17 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
     >
       <div className="card-main">
         <div className="card-header">
-          <div className="card-title">{name}</div>
+          <div className="card-title">
+            {name}
+            {isReadOnly && (
+              <span
+                title="Read-only — duplicate to create your own editable copy"
+                style={{ opacity: 0.55, fontSize: '0.8em', marginLeft: 6, verticalAlign: 'middle' }}
+              >
+                🔒
+              </span>
+            )}
+          </div>
           {isComposite && (
             <span className="composite-badge">
               ⊞ {entry.composite.layers.length} layers
@@ -320,12 +349,12 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
         )}
 
         <button className="btn btn-secondary btn-sm" onClick={onEdit}>
-          {onDelete ? 'Edit' : 'View'}
+          {canEdit ? 'Edit' : 'View'}
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={onDuplicate}>
+        <button className="btn btn-ghost btn-sm" onClick={onDuplicate} title="Duplicate as editable copy">
           Copy
         </button>
-        {onDelete && (
+        {onDelete && canEdit && (
           <button className="btn btn-danger btn-sm" onClick={onDelete}>
             Delete
           </button>
