@@ -22,11 +22,6 @@ function numArr(arr: number[]): string {
   if (arr.length === 0) return '[]';
   return `[${arr.join(', ')}]`;
 }
-function indent(s: string, level: number): string {
-  const prefix = INDENT.repeat(level);
-  return s.split('\n').map(l => (l.trim() === '' ? '' : prefix + l)).join('\n');
-}
-
 function serializeInterval(iv: NPIntervalConfig, level: number): string {
   const p = INDENT.repeat(level);
   const lines: string[] = [];

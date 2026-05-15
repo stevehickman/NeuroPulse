@@ -2,8 +2,6 @@ import {
   NPProtocolEntry,
   NPModalityTypeId,
   entryId,
-  entryName,
-  entryIsPredefined,
   requiredModalities,
 } from '../types/protocol';
 import { PREDEFINED_PROTOCOLS } from './predefinedProtocols';

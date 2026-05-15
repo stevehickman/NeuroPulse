@@ -24,3 +24,4 @@ hs_err_pid*
 replay_pid*
 .claude/
 app/web/node_modules/
+app/web/dist/

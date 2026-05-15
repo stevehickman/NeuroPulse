@@ -179,6 +179,11 @@ class Parser {
     return this.tokens[this.pos];
   }
 
+  // Returns token type without TypeScript control-flow narrowing
+  private ct(): TokenType {
+    return this.tokens[this.pos].type as TokenType;
+  }
+
   private advance(): Token {
     const t = this.current;
     if (t.type !== 'EOF') this.pos++;
@@ -261,20 +266,6 @@ class Parser {
     return arr;
   }
 
-  private readNumberArray(): number[] {
-    this.skipNewlines();
-    this.expect('LBRACKET');
-    const arr: number[] = [];
-    this.skipNewlines();
-    while (this.current.type !== 'RBRACKET' && this.current.type !== 'EOF') {
-      arr.push(this.readNumber());
-      this.skipNewlines();
-      if (this.current.type === 'COMMA') { this.advance(); this.skipNewlines(); }
-    }
-    this.expect('RBRACKET');
-    return arr;
-  }
-
   private readKeyValue(): { key: string; valueLine: number } {
     this.skipNewlines();
     const t = this.current;
@@ -294,7 +285,7 @@ class Parser {
     this.skipNewlines();
     while (this.current.type !== 'EOF') {
       this.skipNewlines();
-      if (this.current.type === 'EOF') break;
+      if (this.ct() === 'EOF') break;
       if (this.tryKeyword('protocol')) {
         entries.push({ kind: 'single', protocol: this.parseProtocol() });
       } else if (this.tryKeyword('composite')) {
@@ -383,13 +374,13 @@ class Parser {
     this.expect('LBRACKET');
     this.skipNewlines();
     const result: NPProtocolModality[] = [];
-    while (this.current.type !== 'RBRACKET' && this.current.type !== 'EOF') {
+    while (this.ct() !== 'RBRACKET' && this.ct() !== 'EOF') {
       this.skipNewlines();
-      if (this.current.type === 'RBRACKET') break;
+      if (this.ct() === 'RBRACKET') break;
       this.expectIdent('modality');
       result.push(this.parseModalityBlock());
       this.skipNewlines();
-      if (this.current.type === 'COMMA') { this.advance(); this.skipNewlines(); }
+      if (this.ct() === 'COMMA') { this.advance(); this.skipNewlines(); }
     }
     this.expect('RBRACKET');
     return result;
@@ -741,13 +732,13 @@ class Parser {
     this.expect('LBRACKET');
     this.skipNewlines();
     const result: NPCompositeLayer[] = [];
-    while (this.current.type !== 'RBRACKET' && this.current.type !== 'EOF') {
+    while (this.ct() !== 'RBRACKET' && this.ct() !== 'EOF') {
       this.skipNewlines();
-      if (this.current.type === 'RBRACKET') break;
+      if (this.ct() === 'RBRACKET') break;
       this.expectIdent('layer');
       result.push(this.parseLayerBlock());
       this.skipNewlines();
-      if (this.current.type === 'COMMA') { this.advance(); this.skipNewlines(); }
+      if (this.ct() === 'COMMA') { this.advance(); this.skipNewlines(); }
     }
     this.expect('RBRACKET');
     return result;
