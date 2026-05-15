@@ -14,7 +14,10 @@
     "11-hrv-coherence-training.npps",
     "12-hrv-tavns-synchronised.npps",
     "13-focus-prime.npps",
-    "14-gamma-theta-coupled.npps"
+    "14-gamma-theta-coupled.npps",
+    "15-full-t1-immersive.npps"
   ],
-  "composites": []
+  "composites": [
+    "composite-01-full-rct.npps"
+  ]
 }
