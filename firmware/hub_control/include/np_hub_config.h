@@ -34,7 +34,13 @@
 #define NP_HUB_SLOT_VNS_HRV         8U    /* auricular VNS+HRV clip — impedance check */
 #define NP_HUB_SLOT_INTRANASAL      9U    /* intranasal Y-probe — optical code + pogo */
 #define NP_HUB_SLOT_CVNS            10U   /* cervical VNS (T2) — accessory port */
-#define NP_HUB_SLOT_MAX             11U
+#define NP_HUB_SLOT_QEEG            11U   /* T2: 21-ch qEEG wet-gel cap */
+#define NP_HUB_SLOT_TMS             12U   /* T2: TMS focal figure-8 coil */
+#define NP_HUB_SLOT_PBM_1170NM      13U   /* T2: 1170nm deep PBM laser unit */
+#define NP_HUB_SLOT_CLIN_TACS       14U   /* T2: 16-ch clinical tACS (≤4mA) */
+#define NP_HUB_SLOT_HD_TDCS         15U   /* T2: sLORETA-guided 4×1 HD-tDCS (shares CLIN_TACS HW) */
+#define NP_HUB_SLOT_VIBROTACTILE    16U   /* Accessory: mastoid LRA 40Hz ± 0.5Hz pad */
+#define NP_HUB_SLOT_MAX             17U
 #define NP_HUB_ZONE_SLOT_COUNT      5U
 
 /* ── FreeRTOS task parameters ────────────────────────────────────────────────── */
@@ -74,6 +80,9 @@
 #define NP_SAFETY_EN_VISUAL         (1U << 8)
 #define NP_SAFETY_EN_INTRANASAL     (1U << 9)
 #define NP_SAFETY_EN_CVNS           (1U << 10)
+#define NP_SAFETY_EN_TMS            (1U << 11)  /* gates TMS coil; EMF cancellation gated off per NP-FW-HUB §4.2 */
+#define NP_SAFETY_EN_PBM_1170NM     (1U << 12)  /* gates 1170nm laser diodes */
+#define NP_SAFETY_EN_CLIN_STIM      (1U << 13)  /* gates 16-ch tACS driver (covers CLIN_TACS + HD_TDCS) */
 #define NP_SAFETY_EN_AUDIO          0U    /* audio not safety-MCU-gated */
 
 /* Safety MCU status flags (returned in each heartbeat reply). */
@@ -96,9 +105,13 @@
 
 /* EEG ring buffer — 500Hz × 8ch × 3 bytes (24-bit) = 12000 bytes/s. */
 #define NP_EEG_RING_SAMPLES         4000U  /* ~8s headroom before oldest data overwritten */
-#define NP_EEG_CHANNELS             8U
+#define NP_EEG_CHANNELS             8U     /* T1: Fp1/2 F3/4 C3/4 P3/4 semi-dry */
 #define NP_EEG_SAMPLE_BYTES         3U     /* 24-bit ADS1299 output */
 #define NP_EEG_SAMPLE_RATE_HZ       500U
+
+/* T2 qEEG — 21-channel wet-gel 10-20 + FC3/4 + Oz + A1/A2 */
+#define NP_QEEG_CHANNELS            21U
+#define NP_QEEG_SAMPLE_RATE_HZ      500U
 
 /* ── Module detection (idle-mode polling intervals) ───────────────────────────── */
 

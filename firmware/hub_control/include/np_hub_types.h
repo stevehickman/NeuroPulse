@@ -56,7 +56,15 @@ typedef enum {
     NP_MOD_AUDIO        = 0x08,  /* planar magnetic + mastoid bone conduction */
     NP_MOD_VISUAL       = 0x09,  /* 108 micro-LED/lens goggles + EMDR */
     NP_MOD_CVNS         = 0x0A,  /* cervical VNS (T2 accessory) */
-    NP_MOD_TYPE_COUNT   = 0x0B,
+    /* ── T2 modalities ─────────────────────────────────────────────────────── */
+    NP_MOD_QEEG_21CH    = 0x0B,  /* T2: 21-ch 10-20 wet gel + sLORETA */
+    NP_MOD_TMS          = 0x0C,  /* T2: focal figure-8 coil, rTMS/TBS */
+    NP_MOD_PBM_1170NM   = 0x0D,  /* T2: 1170nm laser diodes, 35–40mm depth */
+    NP_MOD_CLIN_TACS    = 0x0E,  /* T2: 16-ch arbitrary waveform tACS ≤4mA */
+    NP_MOD_HD_TDCS      = 0x0F,  /* T2: sLORETA-guided 4×1 ring HD-tDCS */
+    /* ── Accessory ──────────────────────────────────────────────────────────── */
+    NP_MOD_VIBROTACTILE = 0x10,  /* Accessory: mastoid LRA 40Hz ± 0.5Hz (provisional) */
+    NP_MOD_TYPE_COUNT   = 0x11,
 } np_hub_mod_type_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
@@ -76,10 +84,10 @@ typedef struct __attribute__((packed)) {
     uint32_t compiled_at_unix;                   /* UHDR session timestamp          */
     uint8_t  device_serial[NP_HUB_PROTO_SERIAL_LEN]; /* replay guard               */
     uint32_t session_duration_ms;                /* total session length            */
-    uint8_t  reserved[4];
 } np_proto_header_t;
 
-/* compile-time check: header is exactly 64 bytes */
+/* compile-time check: header is exactly 64 bytes
+ * Layout: 4+2+1+1+16+4+32+4 = 64 bytes (packed, no reserved padding). */
 typedef char _np_proto_hdr_size[(sizeof(np_proto_header_t) == 64U) ? 1 : -1];
 
 /*
@@ -234,6 +242,64 @@ typedef struct __attribute__((packed)) {
     uint8_t  baseline_req;    /* 1=safety MCU must establish HR baseline before enable */
 } np_mod_cvns_params_t;
 
+/* ── T2: 21-ch qEEG (NP_MOD_QEEG_21CH) ─────────────────────────────────────── */
+
+typedef struct __attribute__((packed)) {
+    uint32_t channel_mask;  /* 21 LSBs; bit n = channel n; 0x1FFFFF = all */
+    uint8_t  gain;          /* ADS1299 PGA: 0=1× 1=2× 2=4× 3=6× 4=8× 5=12× 6=24× */
+    uint8_t  notch;         /* 0=none, 1=50Hz, 2=60Hz */
+    uint8_t  ref_mode;      /* 0=linked_ear (A1+A2), 1=Cz, 2=average */
+    uint8_t  sloreta_en;    /* 1=run sLORETA source imaging; target map written to LPSDR4 */
+} np_mod_qeeg_21ch_params_t;
+
+/* ── T2: TMS focal figure-8 coil (NP_MOD_TMS) ──────────────────────────────── */
+
+typedef struct __attribute__((packed)) {
+    uint8_t  protocol;          /* 0=rTMS, 1=TBS, 2=iTBS */
+    uint8_t  target;            /* 0=DLPFC_L 1=DLPFC_R 2=VLPFC_L 3=ACC 4=MPFC 5=M1_L 6=M1_R */
+    uint16_t freq_mhz;          /* stim freq mHz (10000=10Hz, 50000=50Hz for TBS) */
+    uint8_t  intensity_pct_mt;  /* % motor threshold; safety MCU enforces ceiling */
+    uint16_t pulse_count;       /* total pulses this command */
+    uint16_t inter_train_ms;    /* inter-train interval ms */
+    uint8_t  tbs_burst_hz;      /* burst freq for TBS/iTBS (50); 0 for rTMS */
+} np_mod_tms_params_t;
+
+/* ── T2: 1170nm deep PBM laser (NP_MOD_PBM_1170NM) ────────────────────────── */
+
+typedef struct __attribute__((packed)) {
+    uint16_t intensity_mw_cm2;  /* mW/cm²; firmware cap ≤ 1000 */
+    uint8_t  freq_code;         /* 0x00=CW; freq in Hz for pulsed modes */
+    uint8_t  duty;              /* ≤ 0x32 (25%); firmware-enforced */
+    uint8_t  tec_target_c;      /* TEC stabilisation target °C; 0=auto (37°C) */
+} np_mod_pbm_1170nm_params_t;
+
+/* ── T2: 16-ch clinical tACS (NP_MOD_CLIN_TACS) ────────────────────────────── */
+
+typedef struct __attribute__((packed)) {
+    uint16_t freq_mhz;          /* mHz; adaptive EMF notch enforced by safety MCU */
+    uint16_t amplitude_ua;      /* peak µA per channel; firmware cap ≤ 4000 */
+    uint8_t  channel_mask_lo;   /* channels 0–7 enable bitmask */
+    uint8_t  channel_mask_hi;   /* channels 8–15 enable bitmask */
+    uint8_t  waveform;          /* 0=sinusoidal, 1=biphasic square, 2=triangular */
+} np_mod_clin_tacs_params_t;
+
+/* ── T2: sLORETA-guided 4×1 HD-tDCS (NP_MOD_HD_TDCS) ──────────────────────── */
+
+typedef struct __attribute__((packed)) {
+    uint8_t  target;            /* same 7-target enum as NP_MOD_TMS */
+    uint8_t  montage;           /* 0=ring_4x1, 1=bilateral_4x1, 2=standard_2el */
+    uint16_t current_ua;        /* DC µA; cap ≤ 2000; safety MCU enforces 40µC/cm² */
+    uint16_t ramp_s;            /* ramp seconds; firmware minimum 30s enforced */
+} np_mod_hd_tdcs_params_t;
+
+/* ── Accessory: mastoid LRA 40Hz vibrotactile (NP_MOD_VIBROTACTILE) ─────────── */
+
+typedef struct __attribute__((packed)) {
+    uint8_t  gain_reg;          /* DRV2605L gain register 0x00–0x7F (0x00≈0.6G, 0x7F≈1.2G) */
+    uint8_t  sync_flags;        /* bit0=sync_to_audio, bit1=sync_to_visual */
+    uint16_t freq_mhz;          /* drive freq mHz; firmware locks to 40000 ± 500 */
+} np_mod_vibrotactile_params_t;
+
 /* ═══════════════════════════════════════════════════════════════════════════════
  * Session state
  * ═══════════════════════════════════════════════════════════════════════════════ */
@@ -316,17 +382,53 @@ typedef struct {
     bool     ppx_halt;          /* photoparoxysmal halt in effect — SHDR */
 } np_telem_visual_t;
 
+typedef struct {
+    /* Per-channel impedance (UHDR); 21 elements for T2 wet-gel cap. */
+    float    impedance_kohm[NP_QEEG_CHANNELS];
+    uint32_t channel_mask;      /* active channel bitmask — SHDR */
+    bool     sloreta_active;    /* SHDR */
+} np_telem_qeeg_t;
+
+typedef struct {
+    uint16_t pulse_count;       /* pulses delivered this command — SHDR */
+    uint8_t  coil_temp_c;       /* coil temperature °C — SHDR */
+    bool     emf_gate_active;   /* Helmholtz cancellation gate state — SHDR */
+} np_telem_tms_t;
+
+typedef struct {
+    float    intensity_mw_cm2;  /* actual delivered irradiance — UHDR */
+    float    dose_J_cm2;        /* cumulative dose this session — UHDR */
+    float    tec_temp_c;        /* TEC measured temperature — SHDR */
+    bool     throttle_active;   /* SHDR */
+} np_telem_pbm_1170nm_t;
+
+typedef struct {
+    float    current_ua;        /* actual delivered current — UHDR */
+    float    impedance_kohm;    /* electrode impedance — UHDR */
+    bool     ramp_active;       /* SHDR */
+} np_telem_clin_tacs_t;
+
+typedef struct {
+    uint8_t  gain_reg;          /* DRV2605L actual gain register — SHDR */
+    bool     sync_locked;       /* sync signal detected — SHDR */
+} np_telem_vibrotactile_t;
+
 /* Union of all module telemetry types, discriminated by mod_type. */
 typedef struct {
     np_hub_mod_type_t mod_type;
     uint8_t           slot;
     uint32_t          session_ms;   /* session-relative timestamp */
     union {
-        np_telem_pbm_t      pbm;
-        np_telem_eeg_t      eeg;
-        np_telem_vns_hrv_t  vns_hrv;
-        np_telem_stim_t     stim;
-        np_telem_visual_t   visual;
+        np_telem_pbm_t          pbm;
+        np_telem_eeg_t          eeg;
+        np_telem_vns_hrv_t      vns_hrv;
+        np_telem_stim_t         stim;
+        np_telem_visual_t       visual;
+        np_telem_qeeg_t         qeeg;
+        np_telem_tms_t          tms;
+        np_telem_pbm_1170nm_t   pbm_1170nm;
+        np_telem_clin_tacs_t    clin_tacs;   /* also used for hd_tdcs (shared HW) */
+        np_telem_vibrotactile_t vibrotactile;
     } data;
 } np_telem_record_t;
 
@@ -339,7 +441,8 @@ typedef struct {
     uint32_t start_unix;         /* session start epoch (UHDR) */
     uint32_t duration_s;         /* actual elapsed (UHDR) */
     uint8_t  abort_reason;       /* np_abort_reason_t (UHDR) */
-    uint8_t  mods_active_mask;   /* bitmask of module types that ran (UHDR) */
+    uint32_t mods_active_mask;   /* bitmask: bit n = NP_MOD_* n was active (UHDR);
+                                  * uint32 required — NP_MOD_VIBROTACTILE = 0x10 */
 } np_session_uhdr_record_t;
 
 typedef struct {
@@ -347,7 +450,7 @@ typedef struct {
     uint32_t duration_s;
     uint8_t  abort_reason;
     uint8_t  firmware_version[4];  /* semver packed */
-    uint8_t  mods_active_mask;
+    uint32_t mods_active_mask;     /* same bit encoding as UHDR record */
 } np_session_shdr_record_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
