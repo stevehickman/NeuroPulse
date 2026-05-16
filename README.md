@@ -7,7 +7,7 @@ The /editscripts directory contains generated scripts that Claude used to modify
 The /app directory contains code for iOS and watchOS devices
 The /firmware directory contains the code that runs the hardware
 
-This all started with the following prompts to Claude:
+This all started with the following prompt to Claude:
 
 I want to design a product that has all the following features: 
 1) Photobiomodulation (650,850, and 1170 nm) for the brain;
