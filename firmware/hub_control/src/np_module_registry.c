@@ -68,6 +68,48 @@ extern np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uin
 extern np_hub_status_t np_mod_cvns_telemetry(uint8_t slot, np_telem_record_t *out);
 extern np_hub_status_t np_mod_cvns_shutdown(uint8_t slot);
 
+/* T2: 21-ch qEEG wet-gel cap */
+extern np_hub_status_t np_mod_qeeg_detect(uint8_t slot, np_hub_mod_type_t *type_out);
+extern np_hub_status_t np_mod_qeeg_init(uint8_t slot);
+extern np_hub_status_t np_mod_qeeg_control(uint8_t slot, const void *params, uint16_t len);
+extern np_hub_status_t np_mod_qeeg_telemetry(uint8_t slot, np_telem_record_t *out);
+extern np_hub_status_t np_mod_qeeg_shutdown(uint8_t slot);
+
+/* T2: TMS focal figure-8 coil */
+extern np_hub_status_t np_mod_tms_detect(uint8_t slot, np_hub_mod_type_t *type_out);
+extern np_hub_status_t np_mod_tms_init(uint8_t slot);
+extern np_hub_status_t np_mod_tms_control(uint8_t slot, const void *params, uint16_t len);
+extern np_hub_status_t np_mod_tms_telemetry(uint8_t slot, np_telem_record_t *out);
+extern np_hub_status_t np_mod_tms_shutdown(uint8_t slot);
+
+/* T2: 1170nm deep PBM laser unit */
+extern np_hub_status_t np_mod_pbm_1170nm_detect(uint8_t slot, np_hub_mod_type_t *type_out);
+extern np_hub_status_t np_mod_pbm_1170nm_init(uint8_t slot);
+extern np_hub_status_t np_mod_pbm_1170nm_control(uint8_t slot, const void *params, uint16_t len);
+extern np_hub_status_t np_mod_pbm_1170nm_telemetry(uint8_t slot, np_telem_record_t *out);
+extern np_hub_status_t np_mod_pbm_1170nm_shutdown(uint8_t slot);
+
+/* T2: 16-ch clinical tACS driver (tACS mode) */
+extern np_hub_status_t np_mod_clin_tacs_detect(uint8_t slot, np_hub_mod_type_t *type_out);
+extern np_hub_status_t np_mod_clin_tacs_init(uint8_t slot);
+extern np_hub_status_t np_mod_clin_tacs_control(uint8_t slot, const void *params, uint16_t len);
+extern np_hub_status_t np_mod_clin_tacs_telemetry(uint8_t slot, np_telem_record_t *out);
+extern np_hub_status_t np_mod_clin_tacs_shutdown(uint8_t slot);
+
+/* T2: 16-ch clinical tACS driver (HD-tDCS mode — same PCB, different firmware config) */
+extern np_hub_status_t np_mod_hd_tdcs_detect(uint8_t slot, np_hub_mod_type_t *type_out);
+extern np_hub_status_t np_mod_hd_tdcs_init(uint8_t slot);
+extern np_hub_status_t np_mod_hd_tdcs_control(uint8_t slot, const void *params, uint16_t len);
+extern np_hub_status_t np_mod_hd_tdcs_telemetry(uint8_t slot, np_telem_record_t *out);
+extern np_hub_status_t np_mod_hd_tdcs_shutdown(uint8_t slot);
+
+/* Accessory: mastoid LRA 40Hz vibrotactile pad */
+extern np_hub_status_t np_mod_vibrotactile_detect(uint8_t slot, np_hub_mod_type_t *type_out);
+extern np_hub_status_t np_mod_vibrotactile_init(uint8_t slot);
+extern np_hub_status_t np_mod_vibrotactile_control(uint8_t slot, const void *params, uint16_t len);
+extern np_hub_status_t np_mod_vibrotactile_telemetry(uint8_t slot, np_telem_record_t *out);
+extern np_hub_status_t np_mod_vibrotactile_shutdown(uint8_t slot);
+
 /* ── Slot probe table ─────────────────────────────────────────────────────────── */
 
 /*
@@ -110,8 +152,26 @@ static const np_slot_probe_t k_slot_probes[NP_HUB_SLOT_MAX] = {
     [NP_HUB_SLOT_INTRANASAL]= { np_mod_intranasal_detect, np_mod_intranasal_init,
                                  np_mod_intranasal_control, np_mod_intranasal_telemetry,
                                  np_mod_intranasal_shutdown },
-    [NP_HUB_SLOT_CVNS]      = { np_mod_cvns_detect, np_mod_cvns_init, np_mod_cvns_control,
-                                 np_mod_cvns_telemetry, np_mod_cvns_shutdown },
+    [NP_HUB_SLOT_CVNS]        = { np_mod_cvns_detect, np_mod_cvns_init, np_mod_cvns_control,
+                                   np_mod_cvns_telemetry, np_mod_cvns_shutdown },
+    /* T2 modalities */
+    [NP_HUB_SLOT_QEEG]        = { np_mod_qeeg_detect, np_mod_qeeg_init, np_mod_qeeg_control,
+                                   np_mod_qeeg_telemetry, np_mod_qeeg_shutdown },
+    [NP_HUB_SLOT_TMS]         = { np_mod_tms_detect, np_mod_tms_init, np_mod_tms_control,
+                                   np_mod_tms_telemetry, np_mod_tms_shutdown },
+    [NP_HUB_SLOT_PBM_1170NM]  = { np_mod_pbm_1170nm_detect, np_mod_pbm_1170nm_init,
+                                   np_mod_pbm_1170nm_control, np_mod_pbm_1170nm_telemetry,
+                                   np_mod_pbm_1170nm_shutdown },
+    [NP_HUB_SLOT_CLIN_TACS]   = { np_mod_clin_tacs_detect, np_mod_clin_tacs_init,
+                                   np_mod_clin_tacs_control, np_mod_clin_tacs_telemetry,
+                                   np_mod_clin_tacs_shutdown },
+    [NP_HUB_SLOT_HD_TDCS]     = { np_mod_hd_tdcs_detect, np_mod_hd_tdcs_init,
+                                   np_mod_hd_tdcs_control, np_mod_hd_tdcs_telemetry,
+                                   np_mod_hd_tdcs_shutdown },
+    /* Accessory */
+    [NP_HUB_SLOT_VIBROTACTILE] = { np_mod_vibrotactile_detect, np_mod_vibrotactile_init,
+                                    np_mod_vibrotactile_control, np_mod_vibrotactile_telemetry,
+                                    np_mod_vibrotactile_shutdown },
 };
 
 /* ── Registry storage ─────────────────────────────────────────────────────────── */
