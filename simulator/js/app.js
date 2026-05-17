@@ -12,6 +12,7 @@ import { HelmetModel }  from './helmet.js';
 import { SessionEngine } from './session.js';
 import { UIManager }    from './ui.js';
 import { PROTOCOLS }    from './protocols.js';
+import { DeviceAPI }    from './api.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -25,11 +26,13 @@ class NeuroPulseSimulator {
     this._initHelmet();
     this._initSession();
     this._initUI();
+    this._initAPI();
 
     window.addEventListener('resize', () => this._onResize());
     this._onResize();
 
     this._lastRaf = 0;
+    this._prevRunning = false;
     this._raf();
   }
 
@@ -131,6 +134,34 @@ class NeuroPulseSimulator {
     this._session = new SessionEngine();
   }
 
+  _initAPI() {
+    this._api = new DeviceAPI({
+      onSessionStart: (descriptor) => {
+        const id = descriptor.protocolId;
+        if (id && PROTOCOLS[id]) {
+          this._session.load(id);
+          this._ui.populateTimeline(PROTOCOLS[id]);
+          this._session.start();
+        }
+        // Apply per-zone overrides if the descriptor includes them
+        if (Array.isArray(descriptor.zones)) {
+          descriptor.zones.forEach(({ zoneId, config }) => {
+            if (zoneId && config) this._helmet.configureZone(zoneId, config);
+          });
+        }
+      },
+      onSessionPause: () => {
+        this._session.pause();
+      },
+      onSessionStop: () => {
+        this._session.stop();
+      },
+      onZoneConfig: (zoneId, config) => {
+        this._helmet.configureZone(zoneId, config);
+      },
+    });
+  }
+
   _initUI() {
     this._ui = new UIManager({
       onZoneChange: (id, cfg) => {
@@ -195,6 +226,16 @@ class NeuroPulseSimulator {
     this._session.tick();
     const snap = this._session.snapshot(wallTime);
 
+    // WebSocket device API — telemetry and session-complete events
+    this._api.maybeSendTelemetry(snap, wallTime);
+    if (this._prevRunning && !snap.running && this._session.protocol) {
+      this._api.sendSessionComplete(
+        this._buildUhdrSummary(snap),
+        this._buildShdrSummary(snap)
+      );
+    }
+    this._prevRunning = snap.running;
+
     // Camera fly-to
     if (this._viewTarget) {
       this._camera.position.lerp(this._viewTarget, 0.05);
@@ -224,6 +265,30 @@ class NeuroPulseSimulator {
 
     // Render
     this._renderer.render(this._scene, this._camera);
+  }
+
+  _buildUhdrSummary(snap) {
+    return {
+      protocol:            this._session.protocol?.id ?? null,
+      duration_s:          Math.round(snap.elapsed),
+      pbm_dose_jcm2:       snap.pbm.dose,
+      eeg_nf_score_final:  +snap.eeg.neurofeedbackScore.toFixed(2),
+      hrv_rmssd_final_ms:  +snap.vns.rmssd.toFixed(1),
+      hrv_coherence_final: +snap.vns.coherence.toFixed(2),
+    };
+  }
+
+  _buildShdrSummary(snap) {
+    const active = [];
+    for (const [key, val] of Object.entries(snap)) {
+      if (val && typeof val === 'object' && val.active === true) active.push(key);
+    }
+    return {
+      protocol_id:       this._session.protocol?.id ?? null,
+      session_count_delta: 1,
+      modalities_active: active,
+      sim_version:       '0.1.0-sim',
+    };
   }
 
   _onResize() {

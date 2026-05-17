@@ -526,21 +526,223 @@ The 3D scene renders correctly on modern mobile browsers. The three-column layou
 
 ---
 
-## 16. Known Limitations (v0.1.0)
+## 16. Known Limitations (v0.2.0)
 
 These items are tracked as open sub-issues of GitHub issue #81:
 
 | Issue | Description | Status |
 |-------|-------------|--------|
-| **#77** | WebSocket device API — real hardware or native app connection | Not yet implemented |
+| **#77** | WebSocket device API — real hardware or native app connection | **Implemented — see §17** |
 | **#78** | Intranasal probe animation — Y-probe extending from dock during session | Not yet implemented |
 | **#79** | T2 TMS coil — figure-8 coil geometry above ZM-01 | Not yet implemented |
 | **#80** | Helmet geometry update — pending finalised shell CAD | Blocked on shell design |
 
 The current helmet geometry is adapted from the Neuronic Light dome layout. It will be updated once the final shell CAD is complete.
 
-All simulated metrics are placeholder values. Real closed-loop EEG data, live dose accumulation, and hardware telemetry will flow through the WebSocket API (Issue #77) once real or prototype hardware is available.
+All simulated metrics are placeholder values. Real closed-loop EEG data, live dose accumulation, and hardware telemetry will flow through the WebSocket API (§17) once real or prototype hardware is available.
 
 ---
 
-*NP-SIM-001-HOWTO v1.0 — NeuroPulse Helmet Simulator User Manual — 2026-05-17*
+## 17. WebSocket Device API
+
+The simulator includes a Node.js server that exposes the same wire protocol the NeuroPulse hub uses. macOS, iOS, and Windows apps can target `ws://localhost:9000` instead of real hardware and interact with the 3D simulator in real time.
+
+### 17.1 Starting the server
+
+```bash
+cd simulator/server
+npm install          # first time only — installs the ws package
+node index.js        # starts ws://localhost:9000
+```
+
+Then open `simulator/index.html`. The **API** badge in the header turns green: **API: Connected**.
+
+If the server is not running, the badge remains grey (**API: Offline**) and all simulator UI controls work exactly as before. The browser retries automatically every 5 seconds.
+
+### 17.2 Client roles
+
+Two types of client connect to the same server:
+
+| Role | Who | Direction |
+|------|-----|-----------|
+| `controller` | External app (macOS/iOS/Windows) | Sends commands → receives telemetry |
+| `display` | Browser simulator tab | Receives commands → sends telemetry |
+
+Identify your client by sending `CLIENT_HELLO` immediately after connecting:
+
+```json
+{ "type": "CLIENT_HELLO", "role": "controller", "version": "1.0.0" }
+```
+
+`role` is `"controller"` or `"display"`. The browser sends this automatically. External apps should send it before any other message; the server defaults to `"controller"` if `CLIENT_HELLO` is not received.
+
+### 17.3 Message reference
+
+#### App → Simulator (controller → display)
+
+| Message type | Required fields | Description |
+|-------------|-----------------|-------------|
+| `SESSION_START` | `descriptor` object | Start a session. See §17.4 for descriptor format. |
+| `SESSION_PAUSE` | _(none)_ | Toggle pause. Idempotent if already paused. |
+| `SESSION_STOP` | _(none)_ | Stop and reset to 0:00. |
+| `ZONE_CONFIG` | `zoneId`, `config` | Install or reconfigure a zone module. |
+
+#### Simulator → App (display → controller)
+
+| Message type | Fields | Rate | Description |
+|-------------|--------|------|-------------|
+| `TELEMETRY` | `timestamp`, `snap` | 10 Hz | Full session snapshot (see §17.5). |
+| `FAULT` | `code`, _(modality fields)_ | On event | Simulated safety interlock. |
+| `SESSION_COMPLETE` | `uhdr_summary`, `shdr_summary` | Once | End-of-session summary. |
+
+#### Server → all clients (on connect)
+
+```json
+{
+  "type": "CONNECTED",
+  "version": "0.1.0-sim",
+  "capabilities": ["SESSION_START", "SESSION_PAUSE", "SESSION_STOP",
+                   "ZONE_CONFIG", "TELEMETRY", "FAULT", "SESSION_COMPLETE"]
+}
+```
+
+### 17.4 SESSION_START descriptor
+
+```json
+{
+  "type": "SESSION_START",
+  "descriptor": {
+    "protocolId": "gamma_40hz",
+    "signature":  "<base64-encoded Ed25519 signature — optional>"
+  }
+}
+```
+
+`protocolId` must match one of the 9 built-in protocol IDs listed in §11. If `signature` is present the server verifies it with the test public key (`simulator/server/keys/test-public.pem`) before forwarding; an invalid signature returns an `ERROR` message and the session does not start.
+
+**Available protocol IDs:** `alpha_calm`, `focus_prime`, `gamma_40hz`, `sleep_deep`, `anxiety_hrv`, `combined_4modal`, `pbm_vascular`, `pbm_1064_deep`, `tms_depression`
+
+Optional: include `zones` to reconfigure modules before the session starts:
+
+```json
+{
+  "descriptor": {
+    "protocolId": "focus_prime",
+    "zones": [
+      { "zoneId": "ZM-01", "config": { "installed": true, "wavelengths": ["660nm", "1064nm"], "frequency": 40 } }
+    ]
+  }
+}
+```
+
+**Signing a descriptor with the test private key (Node.js):**
+
+```js
+const { sign } = require('crypto');
+const fs = require('fs');
+const privateKey = fs.readFileSync('simulator/server/keys/test-private.pem', 'utf8');
+
+const payload   = { protocolId: 'gamma_40hz' };
+const signature = sign(null, Buffer.from(JSON.stringify(payload)), privateKey).toString('base64');
+const descriptor = { ...payload, signature };
+
+ws.send(JSON.stringify({ type: 'SESSION_START', descriptor }));
+```
+
+### 17.5 TELEMETRY snapshot format
+
+```json
+{
+  "type": "TELEMETRY",
+  "timestamp": 1716000000000,
+  "snap": {
+    "running":  true,
+    "paused":   false,
+    "elapsed":  47.3,
+    "duration": 1200,
+    "progress": 0.039,
+    "pbm":    { "active": true, "zones": ["ZM-01","ZM-02"], "intensity": 0.94, "dose": { "ZM-01": "9.3" } },
+    "eeg":    { "active": true, "bands": { "alpha": 38.2, "theta": 29.1, "beta": 21.4, "delta": 44.5, "gamma": 15.8 },
+                "impedance": { "Fp1": "good", "F3": "marginal" }, "alphaPower": 38.2, "neurofeedbackScore": 7.1 },
+    "bes":    { "active": false, "frequency": 0, "intensity_ma": "0.00" },
+    "tdcs":   { "active": false, "intensity_ma": "0.00" },
+    "vns":    { "active": false, "coherence": 0, "rmssd": 0, "hr": 0 },
+    "audio":  { "active": true, "binaural_hz": 40, "type": "isochronic" },
+    "visual": { "active": true, "frequency": 40, "mode": "photic_driving" },
+    "tms":    { "active": false },
+    "hdtdcs": { "active": false }
+  }
+}
+```
+
+### 17.6 ZONE_CONFIG message
+
+```json
+{
+  "type": "ZONE_CONFIG",
+  "zoneId": "ZM-03",
+  "config": {
+    "installed":   true,
+    "wavelengths": ["660nm", "808nm"],
+    "frequency":   40
+  }
+}
+```
+
+Set `installed: false` to remove a zone module. Changes take effect immediately in the 3D view.
+
+### 17.7 FAULT message
+
+```json
+{ "type": "FAULT", "code": "IMPEDANCE_OUT_OF_RANGE", "channel": "F3",
+  "message": "EEG channel F3 impedance exceeds 25 kΩ" }
+```
+
+Common fault codes:
+
+| Code | Source |
+|------|--------|
+| `IMPEDANCE_OUT_OF_RANGE` | EEG channel contact poor |
+| `DOSE_LIMIT_WARNING` | PBM zone approaching 60 J/cm² |
+| `PHOTOPAROXYSMAL_DETECTION` | Gamma spike at Oz → visual halt |
+
+### 17.8 SESSION_COMPLETE message
+
+```json
+{
+  "type": "SESSION_COMPLETE",
+  "uhdr_summary": {
+    "protocol":            "gamma_40hz",
+    "duration_s":          1200,
+    "pbm_dose_jcm2":       { "ZM-01": "10.0" },
+    "eeg_nf_score_final":  7.23,
+    "hrv_rmssd_final_ms":  44.1,
+    "hrv_coherence_final": 6.82
+  },
+  "shdr_summary": {
+    "protocol_id":         "gamma_40hz",
+    "session_count_delta": 1,
+    "modalities_active":   ["pbm", "eeg", "visual", "audio"],
+    "sim_version":         "0.1.0-sim"
+  }
+}
+```
+
+### 17.9 File structure
+
+```
+simulator/
+  server/
+    index.js          WebSocket server — node index.js
+    package.json      npm manifest (ws ^8.17)
+    keys/
+      README.md       Key usage notes
+      test-public.pem Ed25519 test public key  (NOT production)
+      test-private.pem Ed25519 test private key (NOT production)
+  js/
+    api.js            Browser WebSocket client (auto-connects on load)
+```
+
+---
+
+*NP-SIM-001-HOWTO v2.0 — NeuroPulse Helmet Simulator User Manual — 2026-05-17*
