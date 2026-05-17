@@ -1,0 +1,17 @@
+{
+  "name": "neuropulse-simulator-server",
+  "version": "0.1.0",
+  "description": "NeuroPulse Helmet Simulator — WebSocket device API server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.17.0"
+  },
+  "engines": {
+    "node": ">=15.0.0"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
