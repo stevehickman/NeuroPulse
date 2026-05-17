@@ -73,6 +73,8 @@ export const MODALITY_COLORS = {
   vns:      { hex: '#44FFAA', three: 0x44FFAA, label: 'VNS + HRV' },
   audio:    { hex: '#4488FF', three: 0x4488FF, label: 'Audio' },
   visual:   { hex: '#FF44FF', three: 0xFF44FF, label: 'Visual' },
+  tms:      { hex: '#33AAFF', three: 0x33AAFF, label: 'TMS' },
+  hd_tdcs:  { hex: '#FF88CC', three: 0xFF88CC, label: 'HD-tDCS' },
   haptic:   { hex: '#FFFF44', three: 0xFFFF44, label: 'Haptic (40 Hz)' },
 };
 

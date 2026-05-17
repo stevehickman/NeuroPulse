@@ -220,6 +220,7 @@ export class UIManager {
       { key: 'vnsClip',     label: 'VNS + HRV Clip',      sub: 'Auricular · PPG · 1–25 Hz' },
       { key: 'hapticPad',   label: 'Mastoid Haptic Pad',   sub: '40 Hz LRA · Provisional' },
       { key: 'intranasal',  label: 'Intranasal Probe',     sub: 'Y-probe · 660 + 808 nm · bilateral' },
+      { key: 'tmsCoil',     label: 'TMS Figure-8 Coil',   sub: 'T2 · 0.1–0.5 T · rTMS + TBS · DLPFC_L' },
     ];
 
     ACCESSORIES.forEach(({ key, label, sub }) => {
@@ -359,6 +360,7 @@ export class UIManager {
       { key: 'vns',    snap: s => s.vns.active    },
       { key: 'audio',  snap: s => s.audio.active  },
       { key: 'visual', snap: s => s.visual.active },
+      { key: 'tms',    snap: s => s.tms.active    },
       { key: 'haptic', snap: _ => false },
     ];
 
@@ -382,6 +384,7 @@ export class UIManager {
       vns:    snap.vns.active,
       audio:  snap.audio.active,
       visual: snap.visual.active,
+      tms:    snap.tms.active,
       haptic: false,
     };
     Object.entries(modMap).forEach(([key, active]) => {

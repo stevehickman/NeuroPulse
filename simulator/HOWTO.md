@@ -1,9 +1,9 @@
 # NeuroPulse Helmet Simulator — User Manual
 
 **Document:** NP-SIM-001-HOWTO  
-**Version:** 2.1  
+**Version:** 2.2  
 **Date:** 2026-05-17  
-**Applies to:** NP-SIM-001 v0.1.0+
+**Applies to:** NP-SIM-001 v0.3.0+
 
 ---
 
@@ -41,7 +41,7 @@ The NeuroPulse Helmet Simulator is a browser-based interactive 3D visualisation 
 | Marketing and training | Sales, prospective customers, clinical educators | Load a protocol and run the session to show what the helmet does |
 | Protocol development | Clinicians, researchers | Build a configuration manually, run it, and inspect the session timeline and live metrics before committing to hardware |
 
-The simulator models the complete hardware as specified in CLAUDE.md Rev 11: five snap-in LED zone modules, integrated goggles, over-ear audio cups with bone conduction, occipital Boa arch and dial, control hub, EEG pods, VNS auricular clip, intranasal Y-probe, and mastoid haptic pad.
+The simulator models the complete hardware as specified in CLAUDE.md Rev 13: five snap-in LED zone modules, integrated goggles, over-ear audio cups with bone conduction, occipital Boa arch and dial, control hub, EEG pods, VNS auricular clip, intranasal Y-probe, mastoid haptic pad, and T2 TMS focal figure-8 coil.
 
 ---
 
@@ -203,7 +203,7 @@ Different zones can be set to different frequencies for split-zone protocols.
 
 ### 5.2 Accessories
 
-Four accessories can be toggled on or off independently of the zone modules:
+Five accessories can be toggled on or off independently of the zone modules:
 
 | Accessory | 3D model behaviour |
 |-----------|-------------------|
@@ -211,6 +211,7 @@ Four accessories can be toggled on or off independently of the zone modules:
 | **VNS + HRV Clip** | Auricular clip at the ear with PPG indicator appears / disappears |
 | **Mastoid Haptic Pad** | Small LRA pad behind the left ear appears / disappears (provisional hardware) |
 | **Intranasal Probe** | Y-probe **animates** from hub dock to insertion position and back — see below |
+| **TMS Figure-8 Coil** | T2 coil appears over left prefrontal cortex (DLPFC_L); pulses blue-white at rTMS frequency when a TMS session is running |
 
 The intranasal probe behaves differently from the other three accessories because it is always visible in the 3D scene (stored in the hub dock when not in use, which is the correct storage position per the hardware spec). Toggling it triggers a **smooth animation**:
 
@@ -280,6 +281,7 @@ Clicking a preset animates the camera smoothly to that position. The Front, Side
 | **Intranasal probe (docked)** | Y-probe at the hub dock — always visible; junction, silicone arms, depth-stop rings, hygiene sleeve tips visible |
 | **Intranasal probe (inserting / removing)** | Probe arcs around the right side of the head; reference LED glows orange; arm LEDs ramp up as it approaches the nose |
 | **Intranasal probe (inserted)** | Probe below nose with arms pointing upward toward nostrils; LED tips glow red (brighter when PBM is active) |
+| **TMS coil (when enabled)** | Figure-8 winding pair over left prefrontal cortex; CFRP non-conductive window ring visible at coil–shell interface; windings flash blue-white at rTMS pulse frequency; faint point light illuminates surrounding scalp at each pulse |
 
 During an active session, LED zones animate: brightness and glow pulse at the configured frequency. For CW (continuous-wave) protocols, zones glow steadily.
 
@@ -341,6 +343,7 @@ Modality pills at the bottom of the right panel show which subsystems are active
 | VNS | Vagus Nerve Stimulation + HRV |
 | Audio | Binaural beats / bone conduction |
 | Visual | Goggle LED stimulation |
+| TMS | Transcranial Magnetic Stimulation (T2) |
 | Haptic | Mastoid vibrotactile (reserved) |
 
 ---
@@ -581,7 +584,7 @@ The 3D scene renders correctly on modern mobile browsers. The three-column layou
 
 ---
 
-## 16. Known Limitations (v0.2.0)
+## 16. Known Limitations (v0.3.0)
 
 These items are tracked as open sub-issues of GitHub issue #81:
 
@@ -589,7 +592,7 @@ These items are tracked as open sub-issues of GitHub issue #81:
 |-------|-------------|--------|
 | **#77** | WebSocket device API — real hardware or native app connection | **Implemented — see §17** |
 | **#78** | Intranasal probe animation — Y-probe insertion / removal / dock storage | **Implemented — see §5.2 and §9a** |
-| **#79** | T2 TMS coil — figure-8 coil geometry above ZM-01 | Not yet implemented |
+| **#79** | T2 TMS coil — figure-8 coil geometry at DLPFC_L | **Implemented — see §5.2 and §6.3** |
 | **#80** | Helmet geometry update — pending finalised shell CAD | Blocked on shell design |
 
 The current helmet geometry is adapted from the Neuronic Light dome layout. It will be updated once the final shell CAD is complete.
@@ -768,6 +771,7 @@ Controls optional accessories visible on the 3D helmet. For `intranasal`, the si
 | `vnsClip` | Auricular VNS + HRV clip | Instant show/hide |
 | `hapticPad` | Mastoid 40 Hz LRA pad | Instant show/hide |
 | `intranasal` | Bilateral Y-probe | Animated insertion / removal (~1 s arc) |
+| `tmsCoil` | T2 focal figure-8 TMS coil | Instant show/hide; pulses when TMS session active |
 
 **Intranasal probe states driven by `visible`:**
 
@@ -933,4 +937,4 @@ simulator/
 
 ---
 
-*NP-SIM-001-HOWTO v2.1 — NeuroPulse Helmet Simulator User Manual — 2026-05-17*
+*NP-SIM-001-HOWTO v2.2 — NeuroPulse Helmet Simulator User Manual — 2026-05-17*

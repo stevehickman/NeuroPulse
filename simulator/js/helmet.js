@@ -196,6 +196,9 @@ export class HelmetModel {
       }
     }
 
+    // ── TMS coil ───────────────────────────────────────────────────────────
+    this._updateTMSCoil(wallTimeSec, snap);
+
     // ── Intranasal Y-probe insertion / removal animation ───────────────────
     this._updateProbeAnimation(dt, snap);
   }
@@ -242,6 +245,7 @@ export class HelmetModel {
     this._buildVNSClip();
     this._buildMastoidPad();
     this._buildIntranasal();
+    this._buildTMSCoil();
   }
 
   _buildHead() {
@@ -669,6 +673,154 @@ export class HelmetModel {
     this.group.add(padGroup);
     this.parts.hapticPad    = padGroup;
     this.parts.hapticPadMat = padM;
+  }
+
+  _buildTMSCoil() {
+    // T2 focal figure-8 coil — positioned at left prefrontal (DLPFC_L target,
+    // ~F3/FC3 in 10-20 system).  Hidden until toggled on via accessories panel.
+    //
+    // Anatomy: two circular windings side-by-side sharing a centre point,
+    // with the junction directly over the target cortex (left DLPFC).
+    // A straight handle extends posteriorly at ~45° for the clinician's grip.
+    // Non-conductive CFRP window is represented by a faint cutout ring in the
+    // shell at the coil site — no actual shell geometry cut needed in the sim.
+
+    const coilGroup = new THREE.Group();
+
+    // Position over left prefrontal cortex (phi ≈ 0.38π, theta ≈ 0.25π → F3/FC3)
+    const { x, y, z } = this._sph(SHELL_R * 1.014, 0.38 * Math.PI, 0.25 * Math.PI);
+    coilGroup.position.set(x, y, z);
+    // Orient the group: tilt outward from sphere surface, then rotate so the
+    // handle runs from the coil toward the back of the head.
+    coilGroup.lookAt(0, 0, 0);
+    coilGroup.rotateY(Math.PI);        // flip to face outward
+    coilGroup.rotateZ(-0.30);          // cant the handle rearward
+    coilGroup.visible = false;
+
+    // ── CFRP coil housing (shared flat disc between the two windings) ─────
+    const housingG = new THREE.CylinderGeometry(0.095, 0.095, 0.018, 40);
+    const housingM = new THREE.MeshStandardMaterial({
+      color: 0x0e1218, roughness: 0.28, metalness: 0.55,
+    });
+    const housing = new THREE.Mesh(housingG, housingM);
+    housing.rotation.x = Math.PI / 2;
+    coilGroup.add(housing);
+
+    // ── Figure-8 windings: two tori offset left and right from centre ─────
+    const windingMat = new THREE.MeshStandardMaterial({
+      color: 0x2a3f5f, roughness: 0.35, metalness: 0.75,
+      emissive: new THREE.Color(0x0033aa), emissiveIntensity: 0,
+    });
+
+    const WINDING_R   = 0.048;  // winding ring major radius
+    const WINDING_T   = 0.012;  // tube radius
+    const WINDING_OFF = 0.046;  // left/right offset from centre
+
+    [-1, 1].forEach(side => {
+      const windG = new THREE.TorusGeometry(WINDING_R, WINDING_T, 10, 40);
+      const wind  = new THREE.Mesh(windG, windingMat.clone());
+      wind.position.set(side * WINDING_OFF, 0, 0);
+      wind.rotation.x = Math.PI / 2;
+      coilGroup.add(wind);
+
+      // Store references so animation can drive emissive intensity
+      if (!this._tmsWindings) this._tmsWindings = [];
+      this._tmsWindings.push(wind.material);
+    });
+
+    // ── Centre junction block (where the two windings meet) ───────────────
+    const jctG = new THREE.BoxGeometry(0.022, 0.022, 0.022);
+    const jctM = new THREE.MeshStandardMaterial({ color: 0x1a2a40, roughness: 0.4, metalness: 0.7 });
+    coilGroup.add(new THREE.Mesh(jctG, jctM));
+
+    // ── Handle — runs rearward from centre ────────────────────────────────
+    //   Built from a tapered cylinder (wider at coil, narrower at grip end)
+    const handleG = new THREE.CylinderGeometry(0.016, 0.012, 0.22, 12);
+    const handleM = new THREE.MeshStandardMaterial({ color: 0x111922, roughness: 0.5, metalness: 0.35 });
+    const handle  = new THREE.Mesh(handleG, handleM);
+    handle.rotation.x = Math.PI / 2;
+    handle.position.z = -0.13;   // extends away from head in local -Z space
+    coilGroup.add(handle);
+
+    // ── Handle grip ridges (3 rings for tactile grip) ─────────────────────
+    for (let i = 0; i < 3; i++) {
+      const ridgeG = new THREE.TorusGeometry(0.016, 0.003, 5, 16);
+      const ridgeM = new THREE.MeshStandardMaterial({ color: 0x1e2d42, roughness: 0.6, metalness: 0.4 });
+      const ridge  = new THREE.Mesh(ridgeG, ridgeM);
+      ridge.rotation.x = Math.PI / 2;
+      ridge.position.z = -0.08 - i * 0.038;
+      coilGroup.add(ridge);
+    }
+
+    // ── Cable — runs from handle end toward hub ───────────────────────────
+    // Points in local coil space; starts at handle tip, curves rearward and down
+    const cablePts = [
+      new THREE.Vector3(0,  0, -0.24),
+      new THREE.Vector3(0.06, -0.08, -0.35),
+      new THREE.Vector3(0.08, -0.18, -0.45),
+    ];
+    const cableG = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(cablePts), 16, 0.006, 6, false);
+    const cableM = new THREE.MeshStandardMaterial({ color: 0x1a2535, roughness: 0.8 });
+    coilGroup.add(new THREE.Mesh(cableG, cableM));
+
+    // ── CFRP non-conductive window indicator at coil site on shell ────────
+    // A faint translucent ring flush with the shell marks the window cutout.
+    const windowG = new THREE.TorusGeometry(0.094, 0.006, 6, 40);
+    const windowM = new THREE.MeshStandardMaterial({
+      color: 0x334455, roughness: 0.9, metalness: 0,
+      transparent: true, opacity: 0.35, depthWrite: false,
+    });
+    const windowRing = new THREE.Mesh(windowG, windowM);
+    windowRing.rotation.x = Math.PI / 2;
+    windowRing.position.z = 0.010;   // slightly proud of coil face toward head
+    coilGroup.add(windowRing);
+
+    // ── Pulse-glow point light (hidden at rest, fires on each TMS pulse) ──
+    const pulseLight = new THREE.PointLight(0x4488ff, 0, 0.35);
+    pulseLight.position.set(0, 0, 0.02);
+    coilGroup.add(pulseLight);
+
+    this.group.add(coilGroup);
+    this.parts.tmsCoil       = coilGroup;
+    this.parts.tmsPulseLight = pulseLight;
+    this._tmsWindings        = this._tmsWindings ?? [];
+    this._tmsPulseT          = 0;   // tracks time since last simulated pulse
+  }
+
+  _updateTMSCoil(wallTimeSec, snap) {
+    const coil = this.parts.tmsCoil;
+    if (!coil) return;
+
+    const tmsActive = snap.tms?.active ?? false;
+    coil.visible = tmsActive;
+    if (!tmsActive) return;
+
+    const freq = snap.tms?.frequency ?? 10;    // Hz (rTMS rep rate)
+    const t    = wallTimeSec;
+
+    // Simulate discrete TMS pulses at the protocol frequency.
+    // Each pulse: sharp rise over ~4 ms then exponential decay over ~50 ms.
+    // We use a sawtooth modulo the pulse period and a short exponential window.
+    const period    = freq > 0 ? 1 / freq : 1;
+    const phase     = (t % period) / period;   // 0–1 within each inter-pulse interval
+    // Brief rectangular trigger window (first 5% of period → ≤5 ms at 10 Hz)
+    const PULSE_W   = 0.05;
+    const pulseOn   = phase < PULSE_W;
+    const decay     = pulseOn ? 1 : Math.max(0, 1 - (phase - PULSE_W) / 0.12);
+    const intensity = decay;
+
+    // Drive winding emissive — blue-white flash
+    if (this._tmsWindings) {
+      this._tmsWindings.forEach(mat => {
+        mat.emissive.setHex(intensity > 0.02 ? 0x2255ff : 0x001133);
+        mat.emissiveIntensity = 0.05 + intensity * 1.8;
+      });
+    }
+
+    // Point light flash at pulse peak
+    if (this.parts.tmsPulseLight) {
+      this.parts.tmsPulseLight.intensity = intensity * 2.5;
+    }
   }
 
   _buildIntranasal() {
