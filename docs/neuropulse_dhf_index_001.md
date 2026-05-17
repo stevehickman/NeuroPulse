@@ -1,7 +1,7 @@
-# NP-DHF-001 Rev D — NeuroPulse Design History File Index
+# NP-DHF-001 Rev E — NeuroPulse Design History File Index
 
 **Document number:** NP-DHF-001  
-**Revision:** D  
+**Revision:** E  
 **Status:** ACTIVE  
 **Effective date:** 2026-05-17  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -69,7 +69,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | QMS Manual | A | 2026-05-13 | [neuropulse_qms_manual_001.md](./neuropulse_qms_manual_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | Design History File Index (this document) | D | 2026-05-17 | [neuropulse_dhf_index_001.md](./neuropulse_dhf_index_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | Design History File Index (this document) | E | 2026-05-17 | [neuropulse_dhf_index_001.md](./neuropulse_dhf_index_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | A | 2026-05-13 | [neuropulse_design_controls_001.md](./neuropulse_design_controls_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | A | 2026-05-13 | [neuropulse_risk_mgmt_plan_001.md](./neuropulse_risk_mgmt_plan_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | A | 2026-05-13 | [neuropulse_sw_dev_plan_001.md](./neuropulse_sw_dev_plan_001.md) | ACTIVE | QMS |
@@ -85,7 +85,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-DB-003 | Design Brief | 3 | 2026-05-04 | [neuropulse_brief_r3_superseded.docx](./neuropulse_brief_r3_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-004 | Design Brief | 4 | 2026-05-07 | [neuropulse_brief_r4_superseded.docx](./neuropulse_brief_r4_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-005 | Master Design Brief | 5 | 2026-05-16 | [neuropulse_design_brief_r5.docx](./neuropulse_design_brief_r5.docx) | ACTIVE | REQ |
-| — | CLAUDE.md — Project Design Memory | 11 | 2026-05-17 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
+| — | CLAUDE.md — Project Design Memory | 13 | 2026-05-17 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
 
 **Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change.
 
@@ -119,9 +119,9 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-SES-1064-001 | 1064nm Multi-Wavelength Session Protocol | A | 2026-05-12 | [neuropulse_session_protocol_1064_001.md](./neuropulse_session_protocol_1064_001.md) | ACTIVE | SES |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | A | 2026-05-11 | [neuropulse_ios_app_roadmap_001.md](./neuropulse_ios_app_roadmap_001.md) | ACTIVE | APP |
 | — | NPPS Protocol Scripting Language Reference | — | 2026-05-16 | [npps-reference.md](./npps-reference.md) | ACTIVE | APP |
-| NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.1.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE — Issue #81 / PR #76 | SIM |
+| NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.2.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE — Issue #81 / PRs #76, #84, #85 | SIM |
 
-**Note on NP-SIM-001:** The helmet simulator is a software design output (browser-based Three.js application). It is not a DHF record in the medical device regulatory sense — it is a design tool, marketing asset, and protocol development aid. It is listed here for completeness as a versioned design output under git control. The simulator source is at `simulator/` in the repository root and is tracked under PR #76. Open sub-issues tracked under GitHub issue #81: #77 (WebSocket device API), #78 (intranasal probe animation), #79 (T2 TMS coil), #80 (geometry update pending shell CAD finalisation).
+**Note on NP-SIM-001:** The helmet simulator is a software design output (browser-based Three.js application). It is not a DHF record in the medical device regulatory sense — it is a design tool, marketing asset, and protocol development aid. It is listed here for completeness as a versioned design output under git control. The simulator source is at `simulator/` in the repository root. v0.1.0 (PR #76): initial 3D scene, session engine, 9 NPPS protocol templates. v0.2.0 (PR #84, PR #85): WebSocket device API (Node.js server ws://localhost:9000; Issue #77 CLOSED); intranasal Y-probe animated insertion/removal with PBM-sync tip LEDs and hygiene sleeve overlay; ACCESSORY_CONFIG message type; HOWTO v2.1 (Issue #78 CLOSED). Open sub-issues tracked under GitHub issue #81: #79 (T2 TMS coil), #80 (geometry update pending shell CAD finalisation).
 
 ### 5.6 Tooling and Manufacturing Specifications
 
@@ -243,7 +243,8 @@ Planned near-term additions:
 | B | 2026-05-17 | Interim Quality (CEO) | Updated: NP-DB-004 (R4) marked SUPERSEDED; NP-DB-005 (R5, neuropulse_design_brief_r5.docx) added as ACTIVE. NP-HW-HUB-001 Rev B added (§5.3). NP-FW-HUB-001 Rev A (hub_control program) added to firmware specs (§5.4) and firmware source code table (§6). NPPS Language Reference added (§5.5). NP-FW-REQ-001 marked SUPERSEDED. NP-MOD-EXT-001 marked SUPERSEDED. NP-RISK-001 bumped to Rev B (RISK-25 added). NP-COORD-001 updated to Rev A.8. CLAUDE.md updated to Rev 9. Relative navigation links added to all File column entries. DHF completeness assessment updated to reflect current gate status (NP-COORD-001 Rev A.8). |
 | C | 2026-05-17 | Interim Quality (CEO) | NP-SIM-001 v0.1.0 (Helmet Simulator) added to §5.5 with new SIM category added to §4. CLAUDE.md updated to Rev 11. Note added below §5.5 table clarifying simulator regulatory status. Open sub-issues #77–#80 recorded; parent tracking Issue #81 / PR #76 referenced. |
 | D | 2026-05-17 | Steve Hickman (CEO, interim Quality authority) | NP-DP-001 Rev A (Design and Development Plan) released and added to §5.1. DHF completeness assessment updated — design planning row upgraded from Partial to Good. NP-DP-001 removed from §8 planned additions (marked complete). CEO name (Steve Hickman) added to Author/Approved-by fields throughout. |
+| E | 2026-05-17 | Steve Hickman (CEO, interim Quality authority) | NP-SIM-001 updated from v0.1.0 to v0.2.0 in §5.5 and associated note — reflects WebSocket device API (Issue #77, PR #84 CLOSED) and intranasal Y-probe animation + ACCESSORY_CONFIG (Issue #78, PR #85 CLOSED). Open sub-issues in §5.5 note reduced from #77–#80 to #79–#80. CLAUDE.md version updated to Rev 13. |
 
 ---
 
-*NP-DHF-001 Rev D — ACTIVE — Effective 2026-05-17*
+*NP-DHF-001 Rev E — ACTIVE — Effective 2026-05-17*
