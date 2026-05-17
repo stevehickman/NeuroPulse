@@ -1,9 +1,9 @@
 # NeuroPulse Helmet Simulator — User Manual
 
 **Document:** NP-SIM-001-HOWTO  
-**Version:** 1.0  
+**Version:** 2.1  
 **Date:** 2026-05-17  
-**Applies to:** NP-SIM-001 v0.1.0
+**Applies to:** NP-SIM-001 v0.1.0+
 
 ---
 
@@ -18,6 +18,7 @@
 7. [Right Panel — Session Control](#7-right-panel--session-control)
 8. [Session Timeline](#8-session-timeline)
 9. [Running a Session — Step by Step](#9-running-a-session--step-by-step)
+9a. [Demonstrating the Intranasal Probe](#9a-demonstrating-the-intranasal-probe)
 10. [Building a Custom Configuration](#10-building-a-custom-configuration)
 11. [Protocol Reference](#11-protocol-reference)
 12. [Wavelength False-Colour Key](#12-wavelength-false-colour-key)
@@ -204,14 +205,28 @@ Different zones can be set to different frequencies for split-zone protocols.
 
 Four accessories can be toggled on or off independently of the zone modules:
 
-| Accessory | 3D model element shown |
-|-----------|----------------------|
-| **Visual Goggles** | Integrated goggle arms and lens assembly with micro-LEDs |
-| **VNS + HRV Clip** | Auricular clip at the ear with PPG indicator |
-| **Mastoid Haptic Pad** | Small LRA pad behind the ear (provisional hardware) |
-| **Intranasal Probe** | Y-probe sitting in the hub dock at the back |
+| Accessory | 3D model behaviour |
+|-----------|-------------------|
+| **Visual Goggles** | Integrated goggle arms and lens assembly with micro-LEDs appear / disappear |
+| **VNS + HRV Clip** | Auricular clip at the ear with PPG indicator appears / disappears |
+| **Mastoid Haptic Pad** | Small LRA pad behind the left ear appears / disappears (provisional hardware) |
+| **Intranasal Probe** | Y-probe **animates** from hub dock to insertion position and back — see below |
 
-Toggle each accessory with its switch. The 3D model updates in real time.
+The intranasal probe behaves differently from the other three accessories because it is always visible in the 3D scene (stored in the hub dock when not in use, which is the correct storage position per the hardware spec). Toggling it triggers a **smooth animation**:
+
+**Toggle ON — insertion sequence (~1 s):**
+1. The probe lifts out of its dock slot on the right face of the hub.
+2. It arcs around the right side of the head (Bézier path, cubic ease-in-out).
+3. It comes to rest below the nose, with both nasal arms angled upward toward the nostrils.
+4. The reference LED at the probe base fades up as the probe leaves the dock.
+5. The 660 nm LED tips at each arm glow red in the final quarter of travel, brightening further if a PBM session is active.
+
+**Toggle OFF — removal sequence (~1 s):**
+The animation reverses: probe retracts from the face, arcs back around the side, and clicks back into the hub dock. LED tips fade out immediately on reversal.
+
+**Mid-animation reversal:** Toggling while the probe is still in motion reverses direction smoothly from wherever the probe currently is — no jump or reset.
+
+> **Tip:** Click **Side** camera to watch the full arc from dock to insertion position from a profile angle. Then switch to **Front** to see the inserted probe below the nose.
 
 ### 5.3 Wavelength Key
 
@@ -261,7 +276,10 @@ Clicking a preset animates the camera smoothly to that position. The Front, Side
 | **Boa dial** | Occipital arch fit system |
 | **VNS clip** | Auricular clip (when accessory enabled) |
 | **Mastoid pad** | Haptic LRA pad (when accessory enabled) |
-| **Intranasal probe** | Y-probe in hub dock (when accessory enabled) |
+| **Hub dock slot** | Dark recess on the right face of the hub with two bracket clips — Y-probe rests here when not inserted |
+| **Intranasal probe (docked)** | Y-probe at the hub dock — always visible; junction, silicone arms, depth-stop rings, hygiene sleeve tips visible |
+| **Intranasal probe (inserting / removing)** | Probe arcs around the right side of the head; reference LED glows orange; arm LEDs ramp up as it approaches the nose |
+| **Intranasal probe (inserted)** | Probe below nose with arms pointing upward toward nostrils; LED tips glow red (brighter when PBM is active) |
 
 During an active session, LED zones animate: brightness and glow pulse at the configured frequency. For CW (continuous-wave) protocols, zones glow steadily.
 
@@ -381,6 +399,43 @@ Watch the right panel: EEG metrics (alpha power, NF score) simulate realistic se
 **Step 8 — Stop the session**
 
 Click **■ Stop** at any time to end the session. The timer resets to 0:00 and all LEDs return to idle.
+
+---
+
+## 9a. Demonstrating the Intranasal Probe
+
+This sequence is effective for live demonstrations and training sessions where you want to show the full bilateral Y-probe workflow.
+
+**Step 1 — Set the camera to Side view**
+
+Click **Side** (right profile). The hub dock slot is visible on the right face of the hub at the back of the helmet.
+
+**Step 2 — Observe the probe at rest in the dock**
+
+The Y-probe sits in the dock clip with its arms pointing downward. The orange reference LED is off. Note the two bracket clips holding the probe in position.
+
+**Step 3 — Toggle the Intranasal Probe accessory ON**
+
+In the left panel, under Accessories, toggle **Intranasal Probe** to ON. You will see:
+- The probe lift clear of the dock clips.
+- The orange reference LED begin glowing.
+- The probe arc around the right side of the head.
+
+**Step 4 — Switch to Front view mid-arc (optional)**
+
+Click **Front** while the animation is running to catch the probe arriving below the nose from the front-on angle. The ~1 s travel time is enough to switch cameras and see the landing.
+
+**Step 5 — Observe the inserted state**
+
+With the probe inserted, both nasal arms point upward toward the nostrils. The 660 nm LED tips at each arm tip are glowing. The probe is at the 20 mm clinical target depth marker (blue centre depth-stop ring).
+
+**Step 6 — Start a PBM session**
+
+Select a protocol that includes PBM (e.g. **Alpha Calm**) and click **▶ Start**. The arm LED tips increase in brightness as the PBM modality activates — demonstrating that the probe is delivering dose in sync with the transcranial zones.
+
+**Step 7 — Demonstrate removal**
+
+Toggle **Intranasal Probe** to OFF. The probe smoothly retracts and returns to the dock. Toggle ON again mid-retraction to show the reversal — the probe reverses direction from wherever it is without resetting.
 
 ---
 
@@ -533,7 +588,7 @@ These items are tracked as open sub-issues of GitHub issue #81:
 | Issue | Description | Status |
 |-------|-------------|--------|
 | **#77** | WebSocket device API — real hardware or native app connection | **Implemented — see §17** |
-| **#78** | Intranasal probe animation — Y-probe extending from dock during session | Not yet implemented |
+| **#78** | Intranasal probe animation — Y-probe insertion / removal / dock storage | **Implemented — see §5.2 and §9a** |
 | **#79** | T2 TMS coil — figure-8 coil geometry above ZM-01 | Not yet implemented |
 | **#80** | Helmet geometry update — pending finalised shell CAD | Blocked on shell design |
 
@@ -586,6 +641,7 @@ Identify your client by sending `CLIENT_HELLO` immediately after connecting:
 | `SESSION_PAUSE` | _(none)_ | Toggle pause. Idempotent if already paused. |
 | `SESSION_STOP` | _(none)_ | Stop and reset to 0:00. |
 | `ZONE_CONFIG` | `zoneId`, `config` | Install or reconfigure a zone module. |
+| `ACCESSORY_CONFIG` | `name`, `visible` | Trigger an accessory state change. `name` is one of `goggles`, `vnsClip`, `hapticPad`, `intranasal`. For `intranasal`, toggles the Y-probe insertion / removal animation. See §17.7. |
 
 #### Simulator → App (display → controller)
 
@@ -602,7 +658,8 @@ Identify your client by sending `CLIENT_HELLO` immediately after connecting:
   "type": "CONNECTED",
   "version": "0.1.0-sim",
   "capabilities": ["SESSION_START", "SESSION_PAUSE", "SESSION_STOP",
-                   "ZONE_CONFIG", "TELEMETRY", "FAULT", "SESSION_COMPLETE"]
+                   "ZONE_CONFIG", "ACCESSORY_CONFIG",
+                   "TELEMETRY", "FAULT", "SESSION_COMPLETE"]
 }
 ```
 
@@ -691,7 +748,138 @@ ws.send(JSON.stringify({ type: 'SESSION_START', descriptor }));
 
 Set `installed: false` to remove a zone module. Changes take effect immediately in the 3D view.
 
-### 17.7 FAULT message
+### 17.7 ACCESSORY_CONFIG message
+
+Controls optional accessories visible on the 3D helmet. For `intranasal`, the simulator plays the full insertion / removal animation rather than a simple show/hide — see §5.2 and §9a.
+
+```json
+{
+  "type":    "ACCESSORY_CONFIG",
+  "name":    "intranasal",
+  "visible": true
+}
+```
+
+**Valid `name` values:**
+
+| `name` | Accessory | Animation behaviour |
+|--------|-----------|---------------------|
+| `goggles` | Visual goggle assembly | Instant show/hide |
+| `vnsClip` | Auricular VNS + HRV clip | Instant show/hide |
+| `hapticPad` | Mastoid 40 Hz LRA pad | Instant show/hide |
+| `intranasal` | Bilateral Y-probe | Animated insertion / removal (~1 s arc) |
+
+**Intranasal probe states driven by `visible`:**
+
+| `visible` | Effect |
+|-----------|--------|
+| `true` | Probe animates from hub dock → face insertion position. LEDs ramp up on arrival. |
+| `false` | Probe animates from insertion position → hub dock. LEDs cut immediately on reversal. |
+
+Mid-animation reversal is supported: sending the opposite `visible` value while the probe is in motion reverses direction from the current position.
+
+**Minimal intranasal insertion sequence (Node.js):**
+
+```js
+const WebSocket = require('ws');
+const ws = new WebSocket('ws://localhost:9000');
+
+ws.on('open', () => {
+  // Identify as controller
+  ws.send(JSON.stringify({ type: 'CLIENT_HELLO', role: 'controller', version: '1.0.0' }));
+
+  // Start a session that includes PBM so the probe LEDs glow on arrival
+  ws.send(JSON.stringify({
+    type: 'SESSION_START',
+    descriptor: { protocolId: 'alpha_calm' }
+  }));
+
+  // Insert the intranasal probe 2 seconds into the session
+  setTimeout(() => {
+    ws.send(JSON.stringify({ type: 'ACCESSORY_CONFIG', name: 'intranasal', visible: true }));
+  }, 2000);
+
+  // Retract the probe after 10 seconds
+  setTimeout(() => {
+    ws.send(JSON.stringify({ type: 'ACCESSORY_CONFIG', name: 'intranasal', visible: false }));
+  }, 10000);
+});
+```
+
+**Swift / SwiftUI example (macOS / iOS):**
+
+```swift
+import Foundation
+
+class NeuroPulseAPI: NSObject, URLSessionWebSocketDelegate {
+    private var task: URLSessionWebSocketTask?
+
+    func connect() {
+        let session = URLSession(configuration: .default, delegate: self, delegateQueue: nil)
+        task = session.webSocketTask(with: URL(string: "ws://localhost:9000")!)
+        task?.resume()
+        receive()
+        send(["type": "CLIENT_HELLO", "role": "controller", "version": "1.0.0"])
+    }
+
+    func insertProbe() {
+        send(["type": "ACCESSORY_CONFIG", "name": "intranasal", "visible": true])
+    }
+
+    func retractProbe() {
+        send(["type": "ACCESSORY_CONFIG", "name": "intranasal", "visible": false])
+    }
+
+    private func send(_ dict: [String: Any]) {
+        guard let data = try? JSONSerialization.data(withJSONObject: dict),
+              let str  = String(data: data, encoding: .utf8) else { return }
+        task?.send(.string(str)) { _ in }
+    }
+
+    private func receive() {
+        task?.receive { [weak self] result in
+            if case .success(let msg) = result {
+                // handle TELEMETRY, SESSION_COMPLETE, etc.
+                _ = msg
+            }
+            self?.receive()
+        }
+    }
+}
+```
+
+**C# / WinUI 3 / .NET example (Windows):**
+
+```csharp
+using System.Net.WebSockets;
+using System.Text;
+using System.Text.Json;
+
+var ws = new ClientWebSocket();
+await ws.ConnectAsync(new Uri("ws://localhost:9000"), CancellationToken.None);
+
+async Task Send(object payload) {
+    var json = JsonSerializer.Serialize(payload);
+    await ws.SendAsync(Encoding.UTF8.GetBytes(json),
+        WebSocketMessageType.Text, true, CancellationToken.None);
+}
+
+// Identify
+await Send(new { type = "CLIENT_HELLO", role = "controller", version = "1.0.0" });
+
+// Start session
+await Send(new { type = "SESSION_START", descriptor = new { protocolId = "alpha_calm" } });
+
+// Insert probe
+await Task.Delay(2000);
+await Send(new { type = "ACCESSORY_CONFIG", name = "intranasal", visible = true });
+
+// Retract probe
+await Task.Delay(8000);
+await Send(new { type = "ACCESSORY_CONFIG", name = "intranasal", visible = false });
+```
+
+### 17.8 FAULT message
 
 ```json
 { "type": "FAULT", "code": "IMPEDANCE_OUT_OF_RANGE", "channel": "F3",
@@ -706,7 +894,7 @@ Common fault codes:
 | `DOSE_LIMIT_WARNING` | PBM zone approaching 60 J/cm² |
 | `PHOTOPAROXYSMAL_DETECTION` | Gamma spike at Oz → visual halt |
 
-### 17.8 SESSION_COMPLETE message
+### 17.10 SESSION_COMPLETE message
 
 ```json
 {
@@ -728,7 +916,7 @@ Common fault codes:
 }
 ```
 
-### 17.9 File structure
+### 17.11 File structure
 
 ```
 simulator/
@@ -745,4 +933,4 @@ simulator/
 
 ---
 
-*NP-SIM-001-HOWTO v2.0 — NeuroPulse Helmet Simulator User Manual — 2026-05-17*
+*NP-SIM-001-HOWTO v2.1 — NeuroPulse Helmet Simulator User Manual — 2026-05-17*

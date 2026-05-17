@@ -47,7 +47,8 @@ wss.on('connection', (ws, req) => {
     type:         'CONNECTED',
     version:      SERVER_VERSION,
     capabilities: ['SESSION_START', 'SESSION_PAUSE', 'SESSION_STOP',
-                   'ZONE_CONFIG', 'TELEMETRY', 'FAULT', 'SESSION_COMPLETE'],
+                   'ZONE_CONFIG', 'ACCESSORY_CONFIG',
+                   'TELEMETRY', 'FAULT', 'SESSION_COMPLETE'],
   });
 
   ws.on('pong', () => { ws.isAlive = true; });
@@ -121,6 +122,12 @@ function handleMessage(ws, msg) {
 
     case 'ZONE_CONFIG': {
       console.log(`[NP-SIM] ZONE_CONFIG  zone=${msg.zoneId}`);
+      broadcast(msg, { exclude: ws, toRole: 'display' });
+      break;
+    }
+
+    case 'ACCESSORY_CONFIG': {
+      console.log(`[NP-SIM] ACCESSORY_CONFIG  name=${msg.name}  visible=${msg.visible}`);
       broadcast(msg, { exclude: ws, toRole: 'display' });
       break;
     }

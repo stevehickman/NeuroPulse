@@ -6,8 +6,9 @@
  * all existing UI controls continue to work unchanged.
  *
  * Role: 'display' — receives SESSION_START / SESSION_PAUSE / SESSION_STOP /
- * ZONE_CONFIG from the server, runs the session engine, and sends TELEMETRY,
- * FAULT, and SESSION_COMPLETE back to connected controller clients (apps).
+ * ZONE_CONFIG / ACCESSORY_CONFIG from the server, runs the session engine, and
+ * sends TELEMETRY, FAULT, and SESSION_COMPLETE back to connected controller
+ * clients (apps).
  */
 
 const WS_URL              = 'ws://localhost:9000';
@@ -17,10 +18,11 @@ const TELEMETRY_PERIOD_MS = 100;   // 10 Hz minimum per spec
 export class DeviceAPI {
   /**
    * @param {{
-   *   onSessionStart:  (descriptor: object) => void,
-   *   onSessionPause:  () => void,
-   *   onSessionStop:   () => void,
-   *   onZoneConfig:    (zoneId: string, config: object) => void,
+   *   onSessionStart:    (descriptor: object) => void,
+   *   onSessionPause:    () => void,
+   *   onSessionStop:     () => void,
+   *   onZoneConfig:      (zoneId: string, config: object) => void,
+   *   onAccessoryChange: (name: string, visible: boolean) => void,
    * }} callbacks
    */
   constructor(callbacks) {
@@ -127,6 +129,12 @@ export class DeviceAPI {
       case 'ZONE_CONFIG':
         if (msg.zoneId && msg.config) {
           this._cb.onZoneConfig?.(msg.zoneId, msg.config);
+        }
+        break;
+
+      case 'ACCESSORY_CONFIG':
+        if (typeof msg.name === 'string' && typeof msg.visible === 'boolean') {
+          this._cb.onAccessoryChange?.(msg.name, msg.visible);
         }
         break;
 

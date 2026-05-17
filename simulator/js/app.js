@@ -159,6 +159,9 @@ class NeuroPulseSimulator {
       onZoneConfig: (zoneId, config) => {
         this._helmet.configureZone(zoneId, config);
       },
+      onAccessoryChange: (name, visible) => {
+        this._helmet.setAccessory(name, visible);
+      },
     });
   }
 
