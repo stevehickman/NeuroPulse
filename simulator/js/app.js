@@ -1,0 +1,242 @@
+/**
+ * NeuroPulse Helmet Simulator — main entry point.
+ *
+ * Wires together the Three.js scene, HelmetModel, SessionEngine, and UIManager.
+ * Runs the RAF animation loop.
+ */
+
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+import { HelmetModel }  from './helmet.js';
+import { SessionEngine } from './session.js';
+import { UIManager }    from './ui.js';
+import { PROTOCOLS }    from './protocols.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+class NeuroPulseSimulator {
+  constructor() {
+    this._canvas = document.getElementById('main-canvas');
+    this._wrap   = document.getElementById('viewport-wrap');
+
+    this._initRenderer();
+    this._initScene();
+    this._initHelmet();
+    this._initSession();
+    this._initUI();
+
+    window.addEventListener('resize', () => this._onResize());
+    this._onResize();
+
+    this._lastRaf = 0;
+    this._raf();
+  }
+
+  // ─── Three.js setup ────────────────────────────────────────────────────────
+
+  _initRenderer() {
+    this._renderer = new THREE.WebGLRenderer({
+      canvas:    this._canvas,
+      antialias: true,
+      alpha:     false,
+    });
+    this._renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    this._renderer.shadowMap.enabled = true;
+    this._renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+    this._renderer.toneMapping        = THREE.ACESFilmicToneMapping;
+    this._renderer.toneMappingExposure = 1.1;
+    this._renderer.outputColorSpace    = THREE.SRGBColorSpace;
+  }
+
+  _initScene() {
+    this._scene = new THREE.Scene();
+    this._scene.background = new THREE.Color(0x050510);
+    this._scene.fog = new THREE.FogExp2(0x050510, 0.06);
+
+    // Camera
+    this._camera = new THREE.PerspectiveCamera(42, 1, 0.05, 60);
+    this._camera.position.set(0, 1.2, 4.5);
+    this._camera.lookAt(0, 0.3, 0);
+
+    // Orbit controls
+    this._controls = new OrbitControls(this._camera, this._canvas);
+    this._controls.target.set(0, 0.3, 0);
+    this._controls.minDistance = 2.0;
+    this._controls.maxDistance = 9.0;
+    this._controls.maxPolarAngle = Math.PI * 0.88;
+    this._controls.enableDamping = true;
+    this._controls.dampingFactor = 0.08;
+    this._controls.update();
+
+    // Lights
+    const ambient = new THREE.AmbientLight(0x0d1530, 3.0);
+    this._scene.add(ambient);
+
+    const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    keyLight.position.set(3, 6, 4);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(1024, 1024);
+    keyLight.shadow.camera.near = 0.5;
+    keyLight.shadow.camera.far  = 20;
+    keyLight.shadow.camera.left = keyLight.shadow.camera.bottom = -3;
+    keyLight.shadow.camera.right = keyLight.shadow.camera.top   =  3;
+    this._scene.add(keyLight);
+
+    const rimLight = new THREE.DirectionalLight(0x2255ff, 0.9);
+    rimLight.position.set(-4, 2, -3);
+    this._scene.add(rimLight);
+
+    const fillLight = new THREE.DirectionalLight(0x331155, 0.5);
+    fillLight.position.set(0, -2, 3);
+    this._scene.add(fillLight);
+
+    // Subtle environment (fake IBL via hemisphere)
+    const hemi = new THREE.HemisphereLight(0x111133, 0x080818, 0.8);
+    this._scene.add(hemi);
+
+    // Floor plane (receives shadows, reflects scene)
+    const floorG = new THREE.CircleGeometry(3.5, 64);
+    const floorM = new THREE.MeshStandardMaterial({
+      color: 0x07081a, roughness: 0.9, metalness: 0.1,
+    });
+    const floor = new THREE.Mesh(floorG, floorM);
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.25;
+    floor.receiveShadow = true;
+    this._scene.add(floor);
+
+    // Grid overlay on floor
+    const grid = new THREE.GridHelper(8, 24, 0x111133, 0x0d0e28);
+    grid.position.y = -1.24;
+    this._scene.add(grid);
+
+    // Subtle glow plane under helmet (bounce light)
+    const glowG = new THREE.PlaneGeometry(2.5, 2.5);
+    const glowM = new THREE.MeshStandardMaterial({
+      color: 0x001133, transparent: true, opacity: 0.15, depthWrite: false,
+    });
+    const glow = new THREE.Mesh(glowG, glowM);
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.y = -1.23;
+    this._scene.add(glow);
+    this._bouncePlane = { mesh: glow, material: glowM };
+  }
+
+  _initHelmet() {
+    this._helmet = new HelmetModel(this._scene);
+  }
+
+  _initSession() {
+    this._session = new SessionEngine();
+  }
+
+  _initUI() {
+    this._ui = new UIManager({
+      onZoneChange: (id, cfg) => {
+        this._helmet.configureZone(id, cfg);
+      },
+      onAccessoryChange: (name, visible) => {
+        this._helmet.setAccessory(name, visible);
+      },
+      onProtocolSelect: (id) => {
+        this._session.load(id);
+        const p = PROTOCOLS[id];
+        if (p) this._ui.populateTimeline(p);
+      },
+      onStart: () => {
+        if (this._session.start()) {
+          // nop — session runs on tick
+        }
+      },
+      onPause: () => {
+        this._session.pause();
+      },
+      onStop: () => {
+        this._session.stop();
+      },
+      onViewChange: (view) => {
+        this._setView(view);
+      },
+    });
+  }
+
+  // ─── camera presets ────────────────────────────────────────────────────────
+
+  _setView(view) {
+    const target = this._controls.target.clone();
+    const presets = {
+      front: new THREE.Vector3(0,   1.2,  4.5),
+      side:  new THREE.Vector3(4.5, 1.2,  0),
+      top:   new THREE.Vector3(0,   5.0,  0.001),
+      orbit: new THREE.Vector3(2.8, 2.2,  3.2),
+    };
+    const pos = presets[view];
+    if (!pos) return;
+
+    // Simple lerp-to animation via flags (handled in _raf)
+    this._viewTarget = pos.clone();
+    this._controls.enabled = (view === 'orbit');
+  }
+
+  // ─── animation loop ────────────────────────────────────────────────────────
+
+  _raf() {
+    requestAnimationFrame(t => {
+      const dt = (t - this._lastRaf) / 1000;
+      this._lastRaf = t;
+      this._tick(t / 1000, dt);
+      this._raf();
+    });
+  }
+
+  _tick(wallTime, dt) {
+    // Advance session
+    this._session.tick();
+    const snap = this._session.snapshot(wallTime);
+
+    // Camera fly-to
+    if (this._viewTarget) {
+      this._camera.position.lerp(this._viewTarget, 0.05);
+      if (this._camera.position.distanceTo(this._viewTarget) < 0.01) {
+        this._viewTarget = null;
+      }
+    }
+
+    // Bounce plane colour reflects active modality
+    if (this._bouncePlane) {
+      const col = snap.pbm.active ? 0x221100 : (snap.eeg.active ? 0x001122 : 0x001133);
+      this._bouncePlane.material.color.setHex(col);
+    }
+
+    // Update 3D helmet
+    this._helmet.update(wallTime, snap);
+
+    // Update UI panels
+    this._ui.updateFromSnapshot(snap);
+
+    // Update zone label overlays
+    const labelPositions = this._helmet.getZoneLabelPositions(this._camera, this._renderer);
+    this._ui.setZoneLabelPositions(labelPositions);
+
+    // Controls damping
+    this._controls.update();
+
+    // Render
+    this._renderer.render(this._scene, this._camera);
+  }
+
+  _onResize() {
+    const w = this._wrap.clientWidth;
+    const h = this._wrap.clientHeight;
+    this._camera.aspect = w / h;
+    this._camera.updateProjectionMatrix();
+    this._renderer.setSize(w, h, false);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
+window.addEventListener('DOMContentLoaded', () => {
+  new NeuroPulseSimulator();
+});

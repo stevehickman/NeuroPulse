@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NeuroPulse — Helmet Simulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+  <!-- ── Header ────────────────────────────────────────────────────────────── -->
+  <header class="hdr">
+    <div class="hdr-brand">
+      <span class="hdr-dot"></span>
+      <span class="hdr-name">NeuroPulse</span>
+      <span class="hdr-sub">Helmet Simulator</span>
+    </div>
+    <div class="hdr-meta">
+      <span class="badge badge-ver">v0.1.0-sim</span>
+      <span class="badge badge-api" id="api-badge">API: Offline</span>
+    </div>
+  </header>
+
+  <!-- ── Main 3-column layout ──────────────────────────────────────────────── -->
+  <div class="layout">
+
+    <!-- Left panel: module & accessory configuration ──────────────────────── -->
+    <div class="panel panel-left">
+
+      <div class="panel-section">
+        <h3 class="section-title">Zone Modules</h3>
+        <p style="font-size:10px;color:var(--text-faint);margin-bottom:10px;">
+          Install snap-in LED zone modules. Each zone: 120 LEDs (per wavelength).
+          Frequency applies per zone; select wavelengths to mix multi-channel sessions.
+        </p>
+        <div id="zone-config"></div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Accessories</h3>
+        <div id="accessory-config"></div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Wavelength Key</h3>
+        <p style="font-size:10px;color:var(--text-faint);margin-bottom:8px;">
+          Invisible NIR shown as false colour. Longer wavelength → warmer false colour.
+        </p>
+        <div id="wavelength-legend"></div>
+      </div>
+
+    </div><!-- /panel-left -->
+
+    <!-- Centre: Three.js viewport ─────────────────────────────────────────── -->
+    <div class="viewport-wrap" id="viewport-wrap">
+      <canvas id="main-canvas"></canvas>
+
+      <div class="overlay-top">
+        <div class="view-controls">
+          <button class="view-btn" data-view="front">Front</button>
+          <button class="view-btn" data-view="side">Side</button>
+          <button class="view-btn" data-view="top">Top</button>
+          <button class="view-btn active" data-view="orbit">Free</button>
+        </div>
+      </div>
+
+      <div class="overlay-bottom">
+        <span class="view-hint">Drag to rotate &nbsp;·&nbsp; Scroll to zoom &nbsp;·&nbsp; Right-drag to pan</span>
+      </div>
+
+      <!-- HTML zone label overlays (positioned by JS from 3D world coords) -->
+      <div id="zone-labels"></div>
+    </div><!-- /viewport-wrap -->
+
+    <!-- Right panel: session & metrics ─────────────────────────────────────── -->
+    <div class="panel panel-right">
+
+      <div class="panel-section">
+        <h3 class="section-title">Protocol</h3>
+        <select class="select" id="protocol-select">
+          <option value="">— Select a protocol —</option>
+        </select>
+        <div id="protocol-info"></div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Session</h3>
+        <div class="session-timer" id="session-timer">0:00</div>
+        <div class="session-controls">
+          <button class="btn btn-primary" id="btn-play">▶ Start</button>
+          <button class="btn" id="btn-pause" disabled>⏸ Pause</button>
+          <button class="btn" id="btn-stop"  disabled>■ Stop</button>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="session-progress" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Live Metrics</h3>
+        <div id="metrics-panel"></div>
+      </div>
+
+      <div class="panel-section">
+        <h3 class="section-title">Active Modalities</h3>
+        <div id="modality-status"></div>
+      </div>
+
+    </div><!-- /panel-right -->
+
+  </div><!-- /layout -->
+
+  <!-- ── Timeline bar ──────────────────────────────────────────────────────── -->
+  <div class="timeline" id="timeline">
+    <div class="timeline-header">
+      <span class="timeline-label">Session Timeline</span>
+      <span class="timeline-pos" id="timeline-cursor">0:00</span>
+    </div>
+    <div class="timeline-track" id="timeline-track"></div>
+  </div>
+
+  <!-- ── Three.js via importmap (ES modules) ──────────────────────────────── -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three":          "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+      "three/addons/":  "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+  <script type="module" src="js/app.js"></script>
+
+</body>
+</html>
