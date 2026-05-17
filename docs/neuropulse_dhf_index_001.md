@@ -1,11 +1,11 @@
-# NP-DHF-001 Rev C — NeuroPulse Design History File Index
+# NP-DHF-001 Rev D — NeuroPulse Design History File Index
 
 **Document number:** NP-DHF-001  
-**Revision:** C  
+**Revision:** D  
 **Status:** ACTIVE  
 **Effective date:** 2026-05-17  
-**Author:** Quality Lead (interim: CEO)  
-**Approved by:** CEO  
+**Author:** Quality Lead (interim: Steve Hickman, CEO)  
+**Approved by:** Steve Hickman, CEO  
 **Next review:** Ongoing — updated with each new design document release
 
 ---
@@ -69,11 +69,12 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | QMS Manual | A | 2026-05-13 | [neuropulse_qms_manual_001.md](./neuropulse_qms_manual_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | Design History File Index (this document) | C | 2026-05-17 | [neuropulse_dhf_index_001.md](./neuropulse_dhf_index_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | Design History File Index (this document) | D | 2026-05-17 | [neuropulse_dhf_index_001.md](./neuropulse_dhf_index_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | A | 2026-05-13 | [neuropulse_design_controls_001.md](./neuropulse_design_controls_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | A | 2026-05-13 | [neuropulse_risk_mgmt_plan_001.md](./neuropulse_risk_mgmt_plan_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | A | 2026-05-13 | [neuropulse_sw_dev_plan_001.md](./neuropulse_sw_dev_plan_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | CAPA Procedure | A | 2026-05-13 | [neuropulse_capa_001.md](./neuropulse_capa_001.md) | ACTIVE | QMS |
+| NP-DP-001 | Design and Development Plan | A | 2026-05-17 | [neuropulse_dp_001.md](./neuropulse_dp_001.md) | ACTIVE | QMS |
 
 ### 5.2 Design Briefs and Product Specifications
 
@@ -204,7 +205,7 @@ This section identifies design phases and their DHF coverage status.
 
 | Design phase | 21 CFR §820.30 | Coverage | Gap / action |
 |---|---|---|---|
-| Design planning | §820.30(b) | **Partial** — CLAUDE.md Rev 9 + NP-DB-005 serve as master plan; formal design plan document not yet authored | Author NP-DP-001 Design and Development Plan (Year 1, Month 3) |
+| Design planning | §820.30(b) | **Good** — NP-DP-001 Rev A (2026-05-17) is the formal design and development plan per 21 CFR §820.30(b); CLAUDE.md Rev 11 + NP-COORD-001 Rev A.8 are the operational design planning instruments | NP-DP-001 to be updated at each gate review |
 | Design inputs | §820.30(c) | **Partial** — Design briefs Rev 1–5 and CLAUDE.md capture inputs; NP-FW-REQ-001 superseded by individual firmware specs; hardware requirements document needed | Individual firmware specs (NP-FW-PBM1064-001, NP-FW-HRV-001, etc.) cover firmware requirements; traceability matrix NP-DT-001 needed |
 | Design outputs | §820.30(d) | **Good** — Hardware specs, firmware specs (7 written modules), tooling specs present and indexed; hub_control program written | Ensure all outputs traceable to inputs; traceability matrix (NP-DT-001) needed |
 | Design review | §820.30(e) | **Good** — NP-COORD-001 Rev A.8 gate records; G1-15, G1-16, G2-10, G2-11, G2-12 CLOSED; G3-07/G3-08 SOFTWARE BASELINED | Formal design review minutes at each gate closure going forward |
@@ -224,7 +225,7 @@ Planned near-term additions:
 
 | Planned doc number | Title | Target date | Trigger |
 |---|---|---|---|
-| NP-DP-001 | Design and Development Plan | Month 3 | Formal planning document per §820.30(b) |
+| ~~NP-DP-001~~ | ~~Design and Development Plan~~ | ~~Month 3~~ | **COMPLETE — NP-DP-001 Rev A released 2026-05-17** |
 | NP-DT-001 | Design Input/Output Traceability Matrix | Month 6 | Links requirements to verification evidence |
 | NP-HFE-001 | Human Factors Engineering Plan | Month 9 | IEC 62366-1 / FDA HFE guidance |
 | NP-PMS-001 | Post-Market Surveillance Plan | Month 12 | Required before product launch |
@@ -241,7 +242,8 @@ Planned near-term additions:
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. All pre-formation design documents entered retroactively under change control. DHF established at QMS formation. |
 | B | 2026-05-17 | Interim Quality (CEO) | Updated: NP-DB-004 (R4) marked SUPERSEDED; NP-DB-005 (R5, neuropulse_design_brief_r5.docx) added as ACTIVE. NP-HW-HUB-001 Rev B added (§5.3). NP-FW-HUB-001 Rev A (hub_control program) added to firmware specs (§5.4) and firmware source code table (§6). NPPS Language Reference added (§5.5). NP-FW-REQ-001 marked SUPERSEDED. NP-MOD-EXT-001 marked SUPERSEDED. NP-RISK-001 bumped to Rev B (RISK-25 added). NP-COORD-001 updated to Rev A.8. CLAUDE.md updated to Rev 9. Relative navigation links added to all File column entries. DHF completeness assessment updated to reflect current gate status (NP-COORD-001 Rev A.8). |
 | C | 2026-05-17 | Interim Quality (CEO) | NP-SIM-001 v0.1.0 (Helmet Simulator) added to §5.5 with new SIM category added to §4. CLAUDE.md updated to Rev 11. Note added below §5.5 table clarifying simulator regulatory status. Open sub-issues #77–#80 recorded; parent tracking Issue #81 / PR #76 referenced. |
+| D | 2026-05-17 | Steve Hickman (CEO, interim Quality authority) | NP-DP-001 Rev A (Design and Development Plan) released and added to §5.1. DHF completeness assessment updated — design planning row upgraded from Partial to Good. NP-DP-001 removed from §8 planned additions (marked complete). CEO name (Steve Hickman) added to Author/Approved-by fields throughout. |
 
 ---
 
-*NP-DHF-001 Rev C — ACTIVE — Effective 2026-05-17*
+*NP-DHF-001 Rev D — ACTIVE — Effective 2026-05-17*
