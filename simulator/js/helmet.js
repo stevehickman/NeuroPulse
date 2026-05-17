@@ -82,11 +82,34 @@ export class HelmetModel {
 
   /** Configure which accessories are present. */
   setAccessory(name, visible) {
+    if (name === 'intranasal') {
+      if (!this._probeAnim) return;
+      if (visible) {
+        // Allow reversal mid-animation: carry over partial progress
+        if (this._probeAnim.mode === 'docked' || this._probeAnim.mode === 'removing') {
+          const carry = this._probeAnim.mode === 'removing' ? 1 - this._probeAnim.progress : 0;
+          this._probeAnim.mode = 'inserting';
+          this._probeAnim.progress = carry;
+        }
+      } else {
+        if (this._probeAnim.mode === 'inserted' || this._probeAnim.mode === 'inserting') {
+          const carry = this._probeAnim.mode === 'inserting' ? 1 - this._probeAnim.progress : 0;
+          this._probeAnim.mode = 'removing';
+          this._probeAnim.progress = carry;
+        }
+      }
+      return;
+    }
     if (this.parts[name]) this.parts[name].visible = visible;
   }
 
   /** Called every animation frame with the current session snapshot. */
   update(wallTimeSec, snap) {
+    const dt = this._lastWallTime !== undefined
+      ? Math.min(wallTimeSec - this._lastWallTime, 0.1)
+      : 0;
+    this._lastWallTime = wallTimeSec;
+
     const t = wallTimeSec;
 
     // ── PBM zone glow ──────────────────────────────────────────────────────
@@ -172,6 +195,9 @@ export class HelmetModel {
         this.parts.hapticPadMat.emissiveIntensity = 0.05 + hPulse * 0.4;
       }
     }
+
+    // ── Intranasal Y-probe insertion / removal animation ───────────────────
+    this._updateProbeAnimation(dt, snap);
   }
 
   /**
@@ -530,6 +556,21 @@ export class HelmetModel {
       hubGroup.add(vent);
     }
 
+    // Probe dock slot — moulded recess on right face of hub for Y-probe storage
+    const dockSlotG = new THREE.BoxGeometry(0.036, 0.088, 0.013);
+    const dockSlotM = new THREE.MeshStandardMaterial({ color: 0x040810, roughness: 0.96, metalness: 0 });
+    const dockSlot  = new THREE.Mesh(dockSlotG, dockSlotM);
+    dockSlot.position.set(0.126, -0.002, 0.0);
+    hubGroup.add(dockSlot);
+    // Bracket clips that retain the probe in dock
+    [-0.038, 0.038].forEach(dy => {
+      const clipG = new THREE.BoxGeometry(0.046, 0.005, 0.018);
+      const clipM = new THREE.MeshStandardMaterial({ color: 0x334a6a, roughness: 0.5, metalness: 0.65 });
+      const clip  = new THREE.Mesh(clipG, clipM);
+      clip.position.set(0.126, -0.002 + dy, 0.005);
+      hubGroup.add(clip);
+    });
+
     this.group.add(hubGroup);
     this.parts.hub = hubGroup;
   }
@@ -631,30 +672,187 @@ export class HelmetModel {
   }
 
   _buildIntranasal() {
-    // Intranasal Y-probe — stored in hub dock, shown in storage position
     const probeGroup = new THREE.Group();
-    probeGroup.position.set(0.06, -0.16, -SHELL_R * SHELL_SZ * 0.90);
-    probeGroup.rotation.x = -0.3;
 
-    // Y-junction body
-    const juncG = new THREE.SphereGeometry(0.016, 8, 8);
-    const juncM = new THREE.MeshStandardMaterial({ color: 0x334455, roughness: 0.6, metalness: 0.2 });
-    probeGroup.add(new THREE.Mesh(juncG, juncM));
+    // Animation state — probe starts docked at hub right-face slot
+    const dockedEuler   = new THREE.Euler(Math.PI + 0.18, 0.10, 0.18);
+    const insertedEuler = new THREE.Euler(0.44, 0, 0);
 
-    // Two probe arms
-    for (const side of [-1, 1]) {
-      const path = new THREE.CatmullRomCurve3([
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(side * 0.02, 0.04, 0.01),
-        new THREE.Vector3(side * 0.025, 0.10, 0.01),
-      ]);
-      const tubeG = new THREE.TubeGeometry(path, 12, 0.007, 6, false);
-      const tubeM = new THREE.MeshStandardMaterial({ color: 0x556677 });
-      probeGroup.add(new THREE.Mesh(tubeG, tubeM));
-    }
+    this._probeAnim = {
+      mode:         'docked',   // 'docked' | 'inserting' | 'inserted' | 'removing'
+      progress:     1,
+      dockedPos:    new THREE.Vector3(0.14, -0.14, -0.84),
+      dockedQuat:   new THREE.Quaternion().setFromEuler(dockedEuler),
+      // Mid-point of Bézier arc — probe swings out to the right then forward
+      midPos:       new THREE.Vector3(0.40, 0.04, -0.08),
+      insertedPos:  new THREE.Vector3(0, -0.32, 0.68),
+      insertedQuat: new THREE.Quaternion().setFromEuler(insertedEuler),
+    };
+
+    // Apply initial docked transform
+    probeGroup.position.copy(this._probeAnim.dockedPos);
+    probeGroup.quaternion.copy(this._probeAnim.dockedQuat);
+
+    // ── Y-junction silicone over-mould ──────────────────────────────────────
+    const overmG = new THREE.SphereGeometry(0.022, 10, 8);
+    const overmM = new THREE.MeshStandardMaterial({
+      color: 0x2b3f58, roughness: 0.78, metalness: 0.04,
+    });
+    probeGroup.add(new THREE.Mesh(overmG, overmM));
+
+    // Pogo-pin connector ring at base (resistive sleeve authentication)
+    const pogoG = new THREE.TorusGeometry(0.012, 0.003, 6, 18);
+    const pogoM = new THREE.MeshStandardMaterial({ color: 0x667788, roughness: 0.3, metalness: 0.75 });
+    const pogo  = new THREE.Mesh(pogoG, pogoM);
+    pogo.rotation.x = Math.PI / 2;
+    pogo.position.y = -0.016;
+    probeGroup.add(pogo);
+
+    // Reference LED at probe base — optical code indicator, always-on orange
+    const refG = new THREE.SphereGeometry(0.0042, 7, 5);
+    const refM = new THREE.MeshStandardMaterial({
+      color: 0xFF7000, emissive: 0xFF7000, emissiveIntensity: 0.5,
+    });
+    probeGroup.add(new THREE.Mesh(refG, refM));
+    this.parts.intranasalRefLed = refM;
+
+    // ── Connection cable (to hub dock pogo) ─────────────────────────────────
+    const cablePts = [
+      new THREE.Vector3(0, -0.022, 0),
+      new THREE.Vector3(0.008, -0.050, -0.008),
+      new THREE.Vector3(0.018, -0.085, -0.018),
+    ];
+    probeGroup.add(new THREE.Mesh(
+      new THREE.TubeGeometry(new THREE.CatmullRomCurve3(cablePts), 10, 0.0042, 5, false),
+      new THREE.MeshStandardMaterial({ color: 0x1a2535, roughness: 0.8 })
+    ));
+
+    // ── Bilateral probe arms ─────────────────────────────────────────────────
+    const armLedMats = [];
+
+    [[-1, 'left'], [1, 'right']].forEach(([sign]) => {
+      // Arm curve — spreads upward and slightly outward from junction
+      const pts = [
+        new THREE.Vector3(sign * 0.006, 0.012, 0),
+        new THREE.Vector3(sign * 0.015, 0.034, 0.003),
+        new THREE.Vector3(sign * 0.021, 0.062, 0.003),
+        new THREE.Vector3(sign * 0.022, 0.094, 0.001),
+      ];
+      const curve = new THREE.CatmullRomCurve3(pts);
+
+      // Silicone probe tube
+      probeGroup.add(new THREE.Mesh(
+        new THREE.TubeGeometry(curve, 20, 0.0058, 7, false),
+        new THREE.MeshStandardMaterial({
+          color: 0x5588aa, roughness: 0.55, metalness: 0.06,
+          transparent: true, opacity: 0.92,
+        })
+      ));
+
+      // Depth-stop rings: 15 / 20 / 25 mm markers (3 per arm)
+      // Centre ring coloured blue as the clinical target depth (20 mm)
+      [[0.33, 0x88aacc], [0.55, 0x44aaee], [0.75, 0x88aacc]].forEach(([tRing, col]) => {
+        const rPos = curve.getPoint(tRing);
+        const tan  = curve.getTangent(tRing);
+        const ring = new THREE.Mesh(
+          new THREE.TorusGeometry(0.0078, 0.0016, 5, 14),
+          new THREE.MeshStandardMaterial({ color: col, roughness: 0.4 })
+        );
+        ring.position.copy(rPos);
+        ring.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), tan);
+        probeGroup.add(ring);
+      });
+
+      // Hygiene sleeve — consumable translucent tip covering the distal 26%
+      const t0  = curve.getPoint(0.74);
+      const t1  = curve.getPoint(1.00);
+      const dir = t1.clone().sub(t0);
+      const len = dir.length();
+      const mid = t0.clone().add(t1).multiplyScalar(0.5);
+      const slv = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.0070, 0.0065, len, 8),
+        new THREE.MeshStandardMaterial({
+          color: 0xc4ddf0, roughness: 0.88, metalness: 0,
+          transparent: true, opacity: 0.78,
+        })
+      );
+      slv.position.copy(mid);
+      slv.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      probeGroup.add(slv);
+
+      // LED tip — 660 nm primary (shown as red dot, glows when inserted + PBM active)
+      const tipPos = curve.getPoint(1.0);
+      const ledM = new THREE.MeshStandardMaterial({
+        color: 0xFF2200, emissive: 0xFF2200, emissiveIntensity: 0, roughness: 0.12,
+      });
+      const ledMesh = new THREE.Mesh(new THREE.SphereGeometry(0.0052, 8, 6), ledM);
+      ledMesh.position.copy(tipPos).addScaledVector(curve.getTangent(1.0), 0.005);
+      probeGroup.add(ledMesh);
+      armLedMats.push(ledM);
+    });
 
     this.group.add(probeGroup);
-    this.parts.intranasal = probeGroup;
+    this.parts.intranasal     = probeGroup;
+    this.parts.intranasalLeds = armLedMats;
+  }
+
+  // ─── probe animation ─────────────────────────────────────────────────────
+
+  _updateProbeAnimation(dt, snap) {
+    if (!this._probeAnim || !this.parts.intranasal) return;
+    const anim  = this._probeAnim;
+    const probe = this.parts.intranasal;
+    const SPEED = 1.0; // full dock-to-face travel in ~1 s
+
+    // Advance progress
+    if (anim.mode === 'inserting' || anim.mode === 'removing') {
+      anim.progress = Math.min(1, anim.progress + dt * SPEED);
+      if (anim.progress >= 1) {
+        anim.mode = anim.mode === 'inserting' ? 'inserted' : 'docked';
+      }
+    }
+
+    // Scalar lerp factor: 0 = docked, 1 = inserted
+    const rawT = anim.mode === 'docked'    ? 0
+               : anim.mode === 'inserted'  ? 1
+               : anim.mode === 'inserting' ? anim.progress
+               :                            1 - anim.progress; // removing
+
+    // Cubic ease-in-out
+    const eased = rawT < 0.5
+      ? 4 * rawT * rawT * rawT
+      : 1 - Math.pow(-2 * rawT + 2, 3) / 2;
+
+    // Quadratic Bézier arc (p0 = docked, p1 = mid swing-out, p2 = inserted)
+    // The arc curves the probe around the right side of the head rather than
+    // passing straight through the shell.
+    const { dockedPos: p0, midPos: p1, insertedPos: p2 } = anim;
+    const u = 1 - eased;
+    probe.position.set(
+      u*u*p0.x + 2*u*eased*p1.x + eased*eased*p2.x,
+      u*u*p0.y + 2*u*eased*p1.y + eased*eased*p2.y,
+      u*u*p0.z + 2*u*eased*p1.z + eased*eased*p2.z,
+    );
+
+    // Quaternion slerp — avoids gimbal lock / long-way-round euler interpolation
+    probe.quaternion.slerpQuaternions(anim.dockedQuat, anim.insertedQuat, eased);
+
+    // Reference LED (always on when probe is not fully docked)
+    if (this.parts.intranasalRefLed) {
+      this.parts.intranasalRefLed.emissiveIntensity = eased > 0.1
+        ? 0.5
+        : 0.5 * (eased / 0.1);
+    }
+
+    // Arm LED tips: ramp up in the final quarter of insertion; brightness
+    // doubles when a PBM session is actively running.
+    const pbmOn = snap?.pbm?.active ?? false;
+    const glow  = eased > 0.75
+      ? ((eased - 0.75) / 0.25) * (pbmOn ? 1.0 : 0.30)
+      : 0;
+    if (this.parts.intranasalLeds) {
+      this.parts.intranasalLeds.forEach(m => { m.emissiveIntensity = glow; });
+    }
   }
 
   // ─── LED canvas helpers ───────────────────────────────────────────────────
