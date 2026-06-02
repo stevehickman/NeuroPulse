@@ -1,10 +1,10 @@
-# NP-DHF-001 Rev E — NeuroPulse Design History File Index
+# NP-DHF-001 Rev F — NeuroPulse Design History File Index
 
 **Document number:** NP-DHF-001  
-**Revision:** E  
+**Revision:** F  
 **Status:** ACTIVE  
-**Effective date:** 2026-05-17  
-**Author:** Quality Lead (interim: Steve Hickman, CEO)  
+**Effective date:** 2026-06-02  
+**Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved by:** Steve Hickman, CEO  
 **Next review:** Ongoing — updated with each new design document release
 
@@ -59,6 +59,8 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | SES | Session protocol specifications |
 | APP | Application and software roadmap |
 | SIM | Simulation and visualisation tools |
+| PRIV | Privacy analysis, remediation, and data protection |
+| SEC | Security procedures and incident response |
 
 ---
 
@@ -69,7 +71,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-QMS-001 | QMS Manual | A | 2026-05-13 | [neuropulse_qms_manual_001.md](./neuropulse_qms_manual_001.md) | ACTIVE | QMS |
-| NP-DHF-001 | Design History File Index (this document) | E | 2026-05-17 | [neuropulse_dhf_index_001.md](./neuropulse_dhf_index_001.md) | ACTIVE | QMS |
+| NP-DHF-001 | Design History File Index (this document) | F | 2026-06-02 | [neuropulse_dhf_index_001.md](./neuropulse_dhf_index_001.md) | ACTIVE | QMS |
 | NP-QMS-DC-001 | Design Controls Procedure | A | 2026-05-13 | [neuropulse_design_controls_001.md](./neuropulse_design_controls_001.md) | ACTIVE | QMS |
 | NP-RM-001 | ISO 14971 Risk Management Plan | A | 2026-05-13 | [neuropulse_risk_mgmt_plan_001.md](./neuropulse_risk_mgmt_plan_001.md) | ACTIVE | RISK |
 | NP-SW-001 | IEC 62304 Software Development Plan | A | 2026-05-13 | [neuropulse_sw_dev_plan_001.md](./neuropulse_sw_dev_plan_001.md) | ACTIVE | QMS |
@@ -85,9 +87,9 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-DB-003 | Design Brief | 3 | 2026-05-04 | [neuropulse_brief_r3_superseded.docx](./neuropulse_brief_r3_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-004 | Design Brief | 4 | 2026-05-07 | [neuropulse_brief_r4_superseded.docx](./neuropulse_brief_r4_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-005 | Master Design Brief | 5 | 2026-05-16 | [neuropulse_design_brief_r5.docx](./neuropulse_design_brief_r5.docx) | ACTIVE | REQ |
-| — | CLAUDE.md — Project Design Memory | 13 | 2026-05-17 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
+| — | CLAUDE.md — Project Design Memory | 15 | 2026-06-02 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
 
-**Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change.
+**Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change. Rev 15 (2026-06-02) adds: privacy remediation locked decisions (Mode F default-off, warranty token architecture, two-layer UHDR key, factory reset); 19 new §13.4 pending decisions from NP-PRIV-001 Rev A; 6 new §14 document register entries.
 
 ### 5.3 Hardware Specifications
 
@@ -103,7 +105,8 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | A | 2026-05-11 | [neuropulse_fw_emmc_001.docx](./neuropulse_fw_emmc_001.docx) | ACTIVE | SPEC-FW |
+| NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | A | 2026-05-11 | [neuropulse_fw_emmc_001.docx](./neuropulse_fw_emmc_001.docx) | ACTIVE — Rev B planned to incorporate NP-FW-EMMC-002 delta | SPEC-FW |
+| NP-FW-EMMC-002 | Firmware Privacy Remediation Delta — warranty token §A, factory reset §B, two-layer UHDR key §C, Scratch encryption §D, EDF+ header policy §E, Mode F spec §F | A | 2026-06-02 | [neuropulse_fw_emmc_002.md](./neuropulse_fw_emmc_002.md) | ACTIVE — supersedes conflicting sections of NP-FW-EMMC-001 Rev A; to be incorporated in NP-FW-EMMC-001 Rev B | SPEC-FW |
 | NP-FW-HUB-001 | Hub Control Program — main SW-02 application firmware (module registry, session runner, telemetry, safety SPI) | A | 2026-05-16 | [../firmware/hub_control/](../firmware/hub_control/) | ACTIVE | SPEC-FW |
 | NP-FW-HRV-001 | HRV Biofeedback Protocol Firmware Specification | A | 2026-05-11 | [neuropulse_fw_hrv_001.md](./neuropulse_fw_hrv_001.md) | ACTIVE | SPEC-FW |
 | NP-FW-ZA-001 | Zone Module Bone Conduction Announcement Firmware | A | 2026-05-11 | [neuropulse_fw_zone_announce_001.md](./neuropulse_fw_zone_announce_001.md) | ACTIVE | SPEC-FW |
@@ -112,16 +115,21 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification | A | 2026-05-12 | [neuropulse_fw_pbm1064_001.md](./neuropulse_fw_pbm1064_001.md) | ACTIVE | SPEC-FW |
 | NP-FW-REQ-001 | Zone Module Firmware Requirements | A | 2026-05-10 | [neuropulse_fw_requirements_001_superseded.docx](./neuropulse_fw_requirements_001_superseded.docx) | SUPERSEDED by individual firmware specs (NP-FW-PBM1064-001, NP-FW-HRV-001, NP-FW-CVNS-001, NP-FW-HD-001, NP-FW-ZA-001, NP-FW-EMMC-001) | REQ |
 
+**Note on NP-FW-EMMC-002:** This delta specification was created by the privacy analysis programme (NP-PRIV-001 Rev A, 2026-06-02) to address Critical and High firmware findings before the full NP-FW-EMMC-001 Rev B revision cycle. All sections in NP-FW-EMMC-002 take precedence over conflicting content in NP-FW-EMMC-001 Rev A. NP-FW-EMMC-001 Rev B will incorporate all delta sections and this document will then be marked INCORPORATED.
+
 ### 5.5 Session, Protocol, and Application Specifications
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-SES-1064-001 | 1064nm Multi-Wavelength Session Protocol | A | 2026-05-12 | [neuropulse_session_protocol_1064_001.md](./neuropulse_session_protocol_1064_001.md) | ACTIVE | SES |
-| NP-APP-ROADMAP-001 | iOS App Development Roadmap | A | 2026-05-11 | [neuropulse_ios_app_roadmap_001.md](./neuropulse_ios_app_roadmap_001.md) | ACTIVE | APP |
+| NP-APP-ROADMAP-001 | iOS App Development Roadmap | A | 2026-05-11 | [neuropulse_ios_app_roadmap_001.md](./neuropulse_ios_app_roadmap_001.md) | ACTIVE — Rev B required to add HealthKit binding constraint (NP-PRIV-REM-001 STEP-16) | APP |
+| NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | A | 2026-06-02 | [neuropulse_app_telemetry_001.md](./neuropulse_app_telemetry_001.md) | ACTIVE | APP |
 | — | NPPS Protocol Scripting Language Reference | — | 2026-05-16 | [npps-reference.md](./npps-reference.md) | ACTIVE | APP |
-| NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.2.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE — Issue #81 / PRs #76, #84, #85 | SIM |
+| NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE — Issue #81 / PRs #76, #84, #85 open; #79 CLOSED | SIM |
 
-**Note on NP-SIM-001:** The helmet simulator is a software design output (browser-based Three.js application). It is not a DHF record in the medical device regulatory sense — it is a design tool, marketing asset, and protocol development aid. It is listed here for completeness as a versioned design output under git control. The simulator source is at `simulator/` in the repository root. v0.1.0 (PR #76): initial 3D scene, session engine, 9 NPPS protocol templates. v0.2.0 (PR #84, PR #85): WebSocket device API (Node.js server ws://localhost:9000; Issue #77 CLOSED); intranasal Y-probe animated insertion/removal with PBM-sync tip LEDs and hygiene sleeve overlay; ACCESSORY_CONFIG message type; HOWTO v2.1 (Issue #78 CLOSED). Open sub-issues tracked under GitHub issue #81: #79 (T2 TMS coil), #80 (geometry update pending shell CAD finalisation).
+**Note on NP-APP-ROADMAP-001:** Rev B is required to add the binding HealthKit data residency constraint per NP-PRIV-REM-001 STEP-16. Until Rev B is released, NP-APP-TELEMETRY-001 Rev A §5 (SDK initialisation gate and HealthKit residency) takes precedence for all analytics and HealthKit data handling decisions.
+
+**Note on NP-SIM-001 v0.3.0:** The helmet simulator is a software design output (browser-based Three.js application). It is not a DHF record in the medical device regulatory sense — it is a design tool, marketing asset, and protocol development aid. It is listed here for completeness as a versioned design output under git control. The simulator source is at `simulator/` in the repository root. v0.1.0 (PR #76): initial 3D scene, session engine, 9 NPPS protocol templates. v0.2.0 (PR #84, PR #85): WebSocket device API (Node.js server ws://localhost:9000); intranasal Y-probe animated insertion/removal; ACCESSORY_CONFIG message type; HOWTO v2.1 (Issues #77, #78 CLOSED). v0.3.0 (branch claude/add-t2-tms-coil-dLbh7): T2 TMS focal figure-8 coil added at DLPFC_L position; CFRP non-conductive window ring; blue-white pulse animation at rTMS rep rate; TMS modality pill in status bar; HOWTO v2.2 (Issue #79 CLOSED). Open sub-issue: #80 (geometry update pending shell CAD finalisation).
 
 ### 5.6 Tooling and Manufacturing Specifications
 
@@ -138,7 +146,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 |---|---|---|---|---|---|---|
 | NP-RISK-001 | Zone Module Risk Register (RISK-01 through RISK-25) | B | 2026-05-17 | [neuropulse_fpc_zone_module_risks_revA.docx](./neuropulse_fpc_zone_module_risks_revA.docx) | ACTIVE | RISK |
 
-**Note:** The risk register (RISK-01 through RISK-25; 23 MITIGATED, 2 OPEN: RISK-03 regulatory opinion, RISK-20 CFRP Ra confirmation) is formally under QMS change control per NP-RM-001 §5.1. All future risk register updates require change control per NP-QMS-DC-001.
+**Note:** The risk register (RISK-01 through RISK-25; 23 MITIGATED, 2 OPEN: RISK-03 regulatory opinion, RISK-20 CFRP Ra confirmation) is formally under QMS change control per NP-RM-001 §5.1. All future risk register updates require change control per NP-QMS-DC-001. Privacy risks identified in NP-PRIV-001 Rev A are tracked separately in NP-PRIV-REM-001 Rev A (not in the device safety risk register, as they are programme-level operational risks rather than device safety hazards).
 
 ### 5.8 First Article Inspection and Test Records
 
@@ -156,15 +164,19 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-COORD-001 | Engineering Coordination Checklist | A.8 | 2026-05-17 | [neuropulse_eng_coordination_checklist.docx](./neuropulse_eng_coordination_checklist.docx) | ACTIVE | COORD |
+| NP-COORD-001 | Engineering Coordination Checklist | A.8 | 2026-05-17 | [neuropulse_eng_coordination_checklist.docx](./neuropulse_eng_coordination_checklist.docx) | ACTIVE — Rev A.9 required to add G3-09 (FHIR ImplementationGuide gate) per NP-PRIV-REM-001 STEP-14 | COORD |
 | NP-DRV-SHELL-001 | Shell FPC Routing Review | B | 2026-05-10 | [neuropulse_shell_fpc_routing_review.docx](./neuropulse_shell_fpc_routing_review.docx) | ACTIVE | COORD |
+
+**Note on NP-COORD-001:** Rev A.9 is required to add gate item G3-09 (NP-INT-FHIR-001 FHIR ImplementationGuide approved before first T2 EHR integration pilot), per NP-PRIV-REM-001 STEP-14.
 
 ### 5.11 Regulatory Strategy Documents
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-REG-CVNS-001 | Cervical VNS 510(k) Pre-Submission (Q-Sub) Package | A | 2026-05-11 | [neuropulse_cvns_510k_presub_001.md](./neuropulse_cvns_510k_presub_001.md) | ACTIVE | REG |
-| NP-REG-PBM1064-001 | RISK-03 Scope Expansion Brief — 1064nm irradiance, aggregate irradiance, T2 combined session, depth-tier penetration claims | A | 2026-05-13 | [neuropulse_reg_pbm1064_risk03_001.md](./neuropulse_reg_pbm1064_risk03_001.md) | ACTIVE — pending outside counsel opinion letter | REG |
+| NP-REG-PBM1064-001 | RISK-03 Scope Expansion Brief — 1064nm irradiance, aggregate irradiance, T2 combined session, depth-tier penetration claims | A | 2026-05-13 | [neuropulse_reg_pbm1064_risk03_001.md](./neuropulse_reg_pbm1064_risk03_001.md) | ACTIVE — Rev B required to add Q-13 (Mode F retinal PBM); pending outside counsel opinion letter | REG |
+
+**Note on NP-REG-PBM1064-001:** Rev B is required to add Q-13 covering Mode F (808-830nm bilateral retinal PBM during normal-looking wear) per NP-FW-EMMC-002 Rev A §F and NP-PRIV-REM-001 STEP-18. The Mode F firmware gate flag `NP_MODE_F_REGULATORY_CLEARED` remains 0 until the Rev B opinion letter is received.
 
 ### 5.12 Clinical Strategy and Evidence
 
@@ -176,6 +188,19 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-BIB-1064-001 | 1064nm PBM Clinical Evidence Bibliography Addendum | A | 2026-05-13 | [neuropulse_bibliography_1064nm_001.md](./neuropulse_bibliography_1064nm_001.md) | ACTIVE — entries incorporated into NP-BIB-001 | CLIN |
 | NP-SBIR-001 | SBIR Phase I Draft | — | 2026-05-02 | [neuropulse_sbir_phase1_draft.docx](./neuropulse_sbir_phase1_draft.docx) | ACTIVE | CLIN |
 | — | Researcher Candidate List | — | 2026-05-02 | [neuropulse_researchers.docx](./neuropulse_researchers.docx) | ACTIVE | CLIN |
+
+### 5.13 Privacy and Security Documents
+
+Privacy and security documents are design programme records under NP-QMS-001. They are not device design records in the §820.30 sense but are required operational and compliance documents that support T1 and T2 launch readiness. They are indexed here for completeness and traceability.
+
+| Doc number | Title | Rev | Date | File | Status | Category |
+|---|---|---|---|---|---|---|
+| NP-PRIV-001 | Privacy Analysis and Repair — full system review of UHDR/SHDR architecture, consent engine, research data flows, clinical platform. 18 findings (2 Critical, 6 High, 7 Medium, 3 Low). | A | 2026-06-02 | [neuropulse_privacy_analysis_001.pdf](./neuropulse_privacy_analysis_001.pdf) | ACTIVE | PRIV |
+| NP-PRIV-REM-001 | Privacy Remediation Master Plan — 30 remediation steps; option selections; master calendar (Phase 0–6, STEP-01 through STEP-30); capability matrix; authority submission guide (EU-US DPF §4.1, Apple App Store §4.2, Google Play §4.3, IRB §4.4, HIPAA OCR §4.5, FTC HBNR §4.6, GDPR Art. 33 §4.7, US state breach laws §4.8). | A | 2026-06-02 | [neuropulse_privacy_remediation_001.md](./neuropulse_privacy_remediation_001.md) | ACTIVE — STEP-01 through STEP-09 COMPLETE; STEP-10 through STEP-30 OPEN | PRIV |
+| NP-SEC-BR-001 | Breach Response Plan — escalation chain; automated detection signals; P1/P2/P3 severity tiers; containment and forensic preservation procedures; regulatory notification decision tree and timing requirements (HIPAA, FTC HBNR, GDPR Art. 33–34, US state laws); individual notification templates (Appendices A–C); annual tabletop exercise procedure. | A | 2026-06-02 | [neuropulse_breach_response_001.md](./neuropulse_breach_response_001.md) | ACTIVE — first tabletop exercise required before T1 launch | SEC |
+| NP-PROC-POA-001 | Healthcare Power of Attorney Upload Procedure — accepted document types; E2E encrypted upload via signed URL (no plaintext through application servers); vault access controls (≤3 named reviewers; every access logged); structured review record schema (no PII retained); 30-day document deletion automation; annual re-verification workflow; capacity restoration procedure; P1 incident classification for any vault breach. | A | 2026-06-02 | [neuropulse_poa_procedure_001.md](./neuropulse_poa_procedure_001.md) | ACTIVE — implementation required before POA feature appears in any app build | PRIV |
+| NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy — analytics vendor requirements (DPA + BAA required; maximum one vendor); crash reporter requirements (redacted payload mode required; maximum one vendor); permitted event properties (9 approved types); prohibited event properties (health-inferrable strings, identity fields, biometric values, precise timestamps); SDK initialisation gate (post-consent-flow only); crash reporter configuration checklist; SwiftLint/Android Lint custom rule for prohibited property detection; annual review cadence. | A | 2026-06-02 | [neuropulse_app_telemetry_001.md](./neuropulse_app_telemetry_001.md) | ACTIVE — blocking for any analytics or crash reporting SDK addition to iOS or Android codebase | APP |
+| NP-FW-EMMC-002 | Firmware Privacy Remediation Delta — §A warranty token architecture (256-bit TRNG, separate DBs, no-join CI test, OI-EMMC2-06); §B device factory reset (12-step SANITIZE sequence, power-loss resilience via SNVS_LPGPR1); §C two-layer UHDR key scheme (UKMD+WKMD, biometric change re-wraps 32 bytes only, Argon2id, OI-EMMC2-02); §D Scratch partition encryption (AES-256-CTR session key, SRAM-only, atomic pipeline, SANITIZE post-run); §E EDF+ patient header policy (opaque 16-char token, X fields, header validator in anonymisation pipeline, OI-EMMC2-05); §F Mode F consent and safety spec (default-off, separate consent, triple-pulse LED indicator, daily cumulative IEC 62471 dose limit, firmware gate flag NP_MODE_F_REGULATORY_CLEARED=0, OI-EMMC2-04). 6 open items OI-EMMC2-01 through OI-EMMC2-06. | A | 2026-06-02 | [neuropulse_fw_emmc_002.md](./neuropulse_fw_emmc_002.md) | ACTIVE — supersedes conflicting sections of NP-FW-EMMC-001 Rev A; also listed in §5.4 | SPEC-FW |
 
 ---
 
@@ -197,6 +222,8 @@ Each firmware directory is under git version control. Git commit hashes constitu
 
 **Note on `firmware/cmake/`:** This directory contains the CMake toolchain and cross-compilation configuration for the arm-none-eabi build environment. It is build infrastructure, not a firmware module, and is not a separate DHF record. It is covered implicitly by the build reproducibility requirement in NP-SW-001 §9.3.
 
+**Note on privacy-related firmware modules (NP-FW-EMMC-002):** The firmware modules specified in NP-FW-EMMC-002 Rev A (warranty token, factory reset, two-layer key, Scratch encryption, EDF+ writer, Mode F) do not yet have corresponding source code directories. When authored, they will be added to this table at the relevant firmware path. The specification in NP-FW-EMMC-002 Rev A is the design input for those modules.
+
 ---
 
 ## 7. DHF Completeness Assessment
@@ -205,15 +232,16 @@ This section identifies design phases and their DHF coverage status.
 
 | Design phase | 21 CFR §820.30 | Coverage | Gap / action |
 |---|---|---|---|
-| Design planning | §820.30(b) | **Good** — NP-DP-001 Rev A (2026-05-17) is the formal design and development plan per 21 CFR §820.30(b); CLAUDE.md Rev 11 + NP-COORD-001 Rev A.8 are the operational design planning instruments | NP-DP-001 to be updated at each gate review |
+| Design planning | §820.30(b) | **Good** — NP-DP-001 Rev A (2026-05-17) is the formal design and development plan; CLAUDE.md Rev 15 + NP-COORD-001 Rev A.8 are the operational design planning instruments | NP-DP-001 to be updated at each gate review; NP-COORD-001 Rev A.9 required for G3-09 (FHIR IG gate) |
 | Design inputs | §820.30(c) | **Partial** — Design briefs Rev 1–5 and CLAUDE.md capture inputs; NP-FW-REQ-001 superseded by individual firmware specs; hardware requirements document needed | Individual firmware specs (NP-FW-PBM1064-001, NP-FW-HRV-001, etc.) cover firmware requirements; traceability matrix NP-DT-001 needed |
-| Design outputs | §820.30(d) | **Good** — Hardware specs, firmware specs (7 written modules), tooling specs present and indexed; hub_control program written | Ensure all outputs traceable to inputs; traceability matrix (NP-DT-001) needed |
-| Design review | §820.30(e) | **Good** — NP-COORD-001 Rev A.8 gate records; G1-15, G1-16, G2-10, G2-11, G2-12 CLOSED; G3-07/G3-08 SOFTWARE BASELINED | Formal design review minutes at each gate closure going forward |
+| Design outputs | §820.30(d) | **Good** — Hardware specs, firmware specs (7 written modules + NP-FW-EMMC-002 delta), tooling specs present and indexed; hub_control program written | Ensure all outputs traceable to inputs; traceability matrix (NP-DT-001) needed |
+| Design review | §820.30(e) | **Good** — NP-COORD-001 Rev A.8 gate records; G1-15, G1-16, G2-10, G2-11, G2-12 CLOSED; G3-07/G3-08 SOFTWARE BASELINED | Formal design review minutes at each gate closure going forward; G3-09 to be added in NP-COORD-001 Rev A.9 |
 | Design verification | §820.30(f) | **Partial** — NP-FAI-ZM-001 checklist defined; software FAI items passed for all firmware modules; hardware FAI pending prototype | FAI execution on prototype hardware constitutes verification evidence |
 | Design validation | §820.30(g) | **Not yet started** — Requires device prototype and human factors testing | Planned for Year 2 (T2 development phase) |
 | Design transfer | §820.30(h) | **Not yet started** — No manufacturing transfer yet | Required before first production run |
 | Design changes | §820.30(i) | **Partial** — Git commit history tracks changes; NP-QMS-DC-001 change order process established | Use NP-QMS-DC-001 change order process from 2026-05-13 forward |
 | DHF maintenance | §820.30(j) | **Established** — This document | Maintain index with each new document release |
+| **Privacy programme** | FTC Act §5; HIPAA; GDPR Art. 25 | **Established** — NP-PRIV-001 Rev A analysis complete; NP-PRIV-REM-001 Rev A calendar established; STEP-01 through STEP-09 complete (firmware specs, breach response, POA procedure, telemetry policy) | STEP-10 through STEP-30 tracked in NP-PRIV-REM-001; key milestone: breach response tabletop exercise before T1 launch |
 
 ---
 
@@ -223,15 +251,25 @@ When a new controlled document is created, this index must be updated before the
 
 Planned near-term additions:
 
-| Planned doc number | Title | Target date | Trigger |
+| Planned doc number | Title | Target | Trigger |
 |---|---|---|---|
 | ~~NP-DP-001~~ | ~~Design and Development Plan~~ | ~~Month 3~~ | **COMPLETE — NP-DP-001 Rev A released 2026-05-17** |
+| NP-FW-EMMC-001 Rev B | eMMC Partition Architecture — incorporates all NP-FW-EMMC-002 delta sections | Month 6 | When firmware team begins implementation; NP-FW-EMMC-002 becomes INCORPORATED |
+| NP-FW-ANON-001 | Research Anonymisation Engine Firmware Specification — l-diversity + differential privacy | G1 (Month 6) | Before research anonymisation code is written; NP-PRIV-REM-001 STEP-11 |
+| NP-INT-FHIR-001 | FHIR R4 ImplementationGuide — NeuroPulse T2 clinical profile | G1 (Month 6) | Before any T2 EHR integration code; NP-COORD-001 G3-09; NP-PRIV-REM-001 STEP-14 |
+| NP-API-001 | T2 Scripting API Specification | G1 (Month 6) | Before T2 scripting API is designed; NP-PRIV-REM-001 STEP-15 |
+| NP-LEGAL-BAA-001 | Standard Business Associate Agreement Template | Month 3 | Before any clinician subscription is sold; NP-PRIV-REM-001 STEP-13 |
+| NP-REG-DPF-001 | EU-US Data Privacy Framework Self-Certification Record | Month 3 | Before any EU resident's data reaches US infrastructure; NP-PRIV-REM-001 STEP-12 |
 | NP-DT-001 | Design Input/Output Traceability Matrix | Month 6 | Links requirements to verification evidence |
 | NP-HFE-001 | Human Factors Engineering Plan | Month 9 | IEC 62366-1 / FDA HFE guidance |
+| NP-IRB-001 | IRB Protocol — research anonymisation and consent architecture | Month 9 | Before first study descriptor deployment; NP-PRIV-REM-001 STEP-20 §4.4 |
+| NP-ARCH-CLOUD-001 | T2 Clinical Cloud Architecture — EU data residency decision | Month 9 | When T2 cloud vendor selected; NP-PRIV-REM-001 STEP-19 |
 | NP-PMS-001 | Post-Market Surveillance Plan | Month 12 | Required before product launch |
 | NP-FAI-SM-001 | 1064nm Smart Module FAI (hardware items) | Post-prototype | FAI-SM-04, -06, -07, -08 pending hub PCB Rev B Gerber build + optical bench |
 | NP-FAI-HD-001 | sLORETA HD-tDCS Hardware FAI | Post-T2 prototype | FAI-HD01, HD03, HD04 pending |
 | NP-FAI-CV-001 | Cervical VNS Hardware FAI | Post-T2 prototype | FAI-CV01, CV02, CV03 pending |
+| NP-SEC-PENTEST-001 | POA Vault Penetration Test Report | G3 (Month 14) | After POA vault implementation; NP-PRIV-REM-001 STEP-25 |
+| NP-SEC-PENTEST-002 | T2 Scripting API Security Audit Report | T2 pre-launch | Before any clinical API key issued; NP-PRIV-REM-001 STEP-26 |
 
 ---
 
@@ -240,11 +278,12 @@ Planned near-term additions:
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. All pre-formation design documents entered retroactively under change control. DHF established at QMS formation. |
-| B | 2026-05-17 | Interim Quality (CEO) | Updated: NP-DB-004 (R4) marked SUPERSEDED; NP-DB-005 (R5, neuropulse_design_brief_r5.docx) added as ACTIVE. NP-HW-HUB-001 Rev B added (§5.3). NP-FW-HUB-001 Rev A (hub_control program) added to firmware specs (§5.4) and firmware source code table (§6). NPPS Language Reference added (§5.5). NP-FW-REQ-001 marked SUPERSEDED. NP-MOD-EXT-001 marked SUPERSEDED. NP-RISK-001 bumped to Rev B (RISK-25 added). NP-COORD-001 updated to Rev A.8. CLAUDE.md updated to Rev 9. Relative navigation links added to all File column entries. DHF completeness assessment updated to reflect current gate status (NP-COORD-001 Rev A.8). |
-| C | 2026-05-17 | Interim Quality (CEO) | NP-SIM-001 v0.1.0 (Helmet Simulator) added to §5.5 with new SIM category added to §4. CLAUDE.md updated to Rev 11. Note added below §5.5 table clarifying simulator regulatory status. Open sub-issues #77–#80 recorded; parent tracking Issue #81 / PR #76 referenced. |
-| D | 2026-05-17 | Steve Hickman (CEO, interim Quality authority) | NP-DP-001 Rev A (Design and Development Plan) released and added to §5.1. DHF completeness assessment updated — design planning row upgraded from Partial to Good. NP-DP-001 removed from §8 planned additions (marked complete). CEO name (Steve Hickman) added to Author/Approved-by fields throughout. |
-| E | 2026-05-17 | Steve Hickman (CEO, interim Quality authority) | NP-SIM-001 updated from v0.1.0 to v0.2.0 in §5.5 and associated note — reflects WebSocket device API (Issue #77, PR #84 CLOSED) and intranasal Y-probe animation + ACCESSORY_CONFIG (Issue #78, PR #85 CLOSED). Open sub-issues in §5.5 note reduced from #77–#80 to #79–#80. CLAUDE.md version updated to Rev 13. |
+| B | 2026-05-17 | Interim Quality (CEO) | NP-DB-004 (R4) marked SUPERSEDED; NP-DB-005 (R5) added as ACTIVE. NP-HW-HUB-001 Rev B added (§5.3). NP-FW-HUB-001 Rev A (hub_control) added to §5.4 and §6. NPPS Language Reference added (§5.5). NP-FW-REQ-001 marked SUPERSEDED. NP-MOD-EXT-001 marked SUPERSEDED. NP-RISK-001 → Rev B. NP-COORD-001 → Rev A.8. CLAUDE.md → Rev 9. Relative navigation links added. DHF completeness assessment updated. |
+| C | 2026-05-17 | Interim Quality (CEO) | NP-SIM-001 v0.1.0 (Helmet Simulator) added to §5.5; SIM category added to §4. CLAUDE.md → Rev 11. Note added below §5.5 clarifying simulator regulatory status. Open sub-issues #77–#80 recorded under parent Issue #81 / PR #76. |
+| D | 2026-05-17 | Steve Hickman (CEO, interim Quality authority) | NP-DP-001 Rev A (Design and Development Plan) released and added to §5.1. DHF completeness assessment — design planning row upgraded from Partial to Good. NP-DP-001 removed from §8 planned additions (marked COMPLETE). CEO name added to Author/Approved-by fields throughout. |
+| E | 2026-05-17 | Steve Hickman (CEO, interim Quality authority) | NP-SIM-001 updated v0.1.0 → v0.2.0 in §5.5 note — WebSocket device API (Issue #77, PR #84 CLOSED) and intranasal Y-probe animation + ACCESSORY_CONFIG (Issue #78, PR #85 CLOSED). Open sub-issues reduced to #79–#80. CLAUDE.md → Rev 13. |
+| F | 2026-06-02 | Steve Hickman (CEO, interim Quality authority) | **Privacy programme documents added (NP-PRIV-001 Rev A, 2026-06-02 privacy analysis):** New PRIV and SEC document categories added to §4. New §5.13 Privacy and Security Documents created, containing: NP-PRIV-001 Rev A (privacy analysis PDF), NP-PRIV-REM-001 Rev A (remediation master plan), NP-SEC-BR-001 Rev A (breach response plan), NP-PROC-POA-001 Rev A (POA procedure), NP-APP-TELEMETRY-001 Rev A (app telemetry policy). NP-FW-EMMC-002 Rev A (firmware privacy delta) added to §5.4 with explanatory note; also cross-listed in §5.13 for privacy programme traceability. **NP-SIM-001 updated v0.2.0 → v0.3.0** — T2 TMS focal figure-8 coil added (Issue #79 CLOSED); open sub-issues reduced to #80. **CLAUDE.md updated Rev 13 → Rev 15** (Rev 14 was intermediate — privacy remediation locked decisions, 19 new §13.4 pending decisions, 5 new locked decisions, 6 new §14 entries; Rev 15 adds DHF index update). NP-APP-ROADMAP-001 Rev B noted as required (HealthKit binding constraint). NP-COORD-001 Rev A.9 noted as required (G3-09 FHIR IG gate). NP-REG-PBM1064-001 Rev B noted as required (Q-13 Mode F). DHF completeness assessment updated — Privacy programme row added. §8 planned additions expanded with 8 new privacy-related documents. |
 
 ---
 
-*NP-DHF-001 Rev E — ACTIVE — Effective 2026-05-17*
+*NP-DHF-001 Rev F — ACTIVE — Effective 2026-06-02*
