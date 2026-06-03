@@ -1,9 +1,10 @@
 # NP-APP-TELEMETRY-001 Rev A — App Analytics and Crash Reporting Policy
 
 **Document number:** NP-APP-TELEMETRY-001  
-**Revision:** A  
+**Revision:** B  
 **Status:** ACTIVE  
-**Effective date:** 2026-06-02  
+**Effective date:** 2026-06-03  
+**Change from Rev A:** `session_sequence` (unsigned integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev B finding LOW-03. Rationale: raw session count is health-adjacent behavioural data under Washington MHMD and GDPR Art. 9 by inference. §3.2 added with implementation requirements. NP-PRIV-REM-001 Rev B STEP-33 cross-reference added.  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved by:** Steve Hickman, CEO  
 **Review cadence:** Annual; also triggered by any analytics vendor change or new SDK addition  
@@ -80,7 +81,7 @@ Analytics events may include only the following properties. Any event that requi
 | `os_version` | Operating system version | Major.minor (e.g. "iOS 18.2") — not patch version |
 | `device_class` | Coarsened device model | Enum: "iPhone_flagship", "iPhone_mid", "iPhone_legacy", "iPad", "Android_flagship", "Android_mid", "Android_budget" — not the specific model |
 | `screen_name` | Current app screen | Coarsened enum — see §3.1 |
-| `session_sequence` | Anonymised local counter — how many app sessions this install has had | Unsigned integer. Not a timestamp. Not tied to any health event. |
+| `engagement_tier` | Coarsened app-launch engagement bucket — replaces raw session counter (see §3.2) | Enum: `"new"` (1–5 app launches), `"active"` (6–50 app launches), `"established"` (51+ app launches). Computed on-device from local counter. Counts app launches, not stimulation sessions. Resets on uninstall. Never transmitted as a raw integer. |
 | `app_start_type` | How the app was launched | Enum: "cold_start", "warm_start", "background_resume" |
 | `onboarding_step` | Which onboarding step was reached or completed | Enum: "consent_flow_step_1" through "consent_flow_complete" — no health context in name |
 | `error_code` | Non-health error code | Integer code from NeuroPulse error enum — no free text |
@@ -89,6 +90,18 @@ Analytics events may include only the following properties. Any event that requi
 ### 3.1 Permitted screen name values
 
 Screen names must be coarsened to remove health context. The following mapping is enforced in the app event tracking layer:
+
+### 3.2 engagement_tier implementation note
+
+The `engagement_tier` property replaces the raw `session_sequence` counter removed in NP-PRIV-001 Rev B (2026-06-02). Rationale: a raw session count (e.g. `session_sequence = 450`) tells an analytics vendor that a user has launched a neuromodulation app 450 times — health-adjacent behavioural data under Washington MHMD RCW 70.372.010 and inferrable health data under GDPR Art. 9. The coarsened bucket delivers the same product analytics signal (new user retention, habit formation, established user cohort sizing) without exposing usage intensity.
+
+Implementation requirements:
+- The local counter is stored in `UserDefaults` (iOS) / `SharedPreferences` (Android) under the key `NP_APP_LAUNCH_COUNT`
+- The counter increments on every cold start **after** the consent flow is complete. Pre-consent launches are not counted.
+- The counter is **never** transmitted to the analytics vendor as a raw integer — only the derived tier enum is sent
+- The tier is computed at the time the analytics event fires: `new` = count 1–5, `active` = 6–50, `established` = 51+
+- On uninstall and reinstall, the counter resets to 0 (acceptable — tier computation is stateless from the analytics vendor's perspective)
+- The analytics vendor must not be able to infer the raw count from the tier sequence over time. If the vendor's SDK supports it, disable any automatic session-count tracking in the vendor SDK configuration.
 
 | Actual screen | Permitted `screen_name` value |
 |---|---|

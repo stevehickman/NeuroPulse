@@ -1,9 +1,10 @@
-# NP-APP-ROADMAP-001 Rev A — iOS App Development Roadmap
+# NP-APP-ROADMAP-001 Rev B — iOS App Development Roadmap
 **Project:** NeuroPulse  
-**Document:** NP-APP-ROADMAP-001 Rev A  
-**Date:** 2026-05-11  
+**Document:** NP-APP-ROADMAP-001 Rev B  
+**Date:** 2026-06-03  
 **Status:** Baselined  
 **Related issues:** GitHub Issue #32  
+**Change from Rev A:** Added §9 Privacy Constraints (NP-PRIV-REM-001 STEP-16/33); HealthKit binding constraint; minimum age gate; BIPA written release; adaptive stimulation transparency card. Added OI-WA-06, OI-PA-01, OI-PA-02, OI-PA-03, OI-PA-04.
 
 ---
 
@@ -173,6 +174,97 @@ All Watch-delivered functions must be described in App Store metadata and in-app
 | 2 | Audio sync to AirPods | Medium | Month 3–4 post-core-app | Planned |
 | 3 | Haptic sync (40Hz Core Haptics) | Medium | Month 4–5 post-core-app | Planned |
 | 4 | 40Hz visual flicker | High | Month 6+ post-core-app | Blocked — OI-WA-02 |
+
+---
+
+---
+
+## 9. Privacy Constraints (Binding — NP-PRIV-REM-001 Rev B)
+
+The following are binding engineering constraints, not optional guidelines. Deviation requires a formal design change order with Privacy Lead sign-off under NP-QMS-DC-001.
+
+### 9.1 HealthKit data residency (NP-PRIV-REM-001 STEP-16)
+
+> **HealthKit data accessed by the NeuroPulse iOS or Watch app is used for real-time session display only. It is not persisted, not cached beyond the active session, not transmitted to NeuroPulse servers, not transmitted to any analytics or crash reporting vendor, and not used for any purpose outside the active session in which it was read.**
+
+Permitted HealthKit quantity types (Phase 1): `HKQuantityTypeIdentifierHeartRateVariabilitySDNN`, `HKQuantityTypeIdentifierHeartRate`. No other HealthKit types may be requested without a formal design change order and App Store privacy label update.
+
+Any future proposal to transmit HealthKit data to NeuroPulse servers or any third party requires: (a) Privacy Lead written approval; (b) updated App Privacy Nutrition Label in App Store Connect; (c) updated GDPR Art. 13 privacy notice; (d) new BAA/DPA if the recipient is a vendor.
+
+### 9.2 Minimum age gate (NP-PRIV-001 Rev B MEDIUM-03)
+
+The app consent flow must include a minimum age declaration **before** any personal data is collected or any consent is presented:
+
+> ☐ **I confirm I am 16 years of age or older.** *(Required)*
+
+Implementation requirements:
+- The checkbox is not pre-ticked (GDPR dark patterns prohibition)
+- The flow cannot proceed past this screen if the checkbox is unchecked
+- No age verification beyond a declaration is required — the declaration creates a terms-of-service record
+- Add OI-PA-01: legal counsel confirms 16 is the correct threshold (covers COPPA 13, most EU GDPR member states 16, BIPA adults-only requirement)
+- For T2 clinical minor patients: a separate "Authorised Guardian" pathway is required (OI-PA-02)
+
+### 9.3 BIPA written release for EEG data (NP-PRIV-001 Rev B HIGH-01)
+
+For users whose IP address, device locale, or stated location is in Illinois, the consent flow must include a **separate BIPA written release screen** (not bundled with general consent). Required elements per BIPA 740 ILCS 14/15(b)(1)–(3):
+
+```
+Screen title: "Brain Activity Data Consent (Illinois)"
+
+Body text (required):
+"NeuroPulse collects your brainwave (EEG) data during sessions to 
+provide neurofeedback and to adapt stimulation settings in real time.
+Under Illinois law (BIPA), this brainwave data is considered biometric 
+information.
+
+• Purpose: Session operation, neurofeedback display, closed-loop adaptation
+• Retention: Until you delete your data or transfer/sell your device
+• Destruction method: Secure hardware-level erasure (eMMC SANITIZE)
+• NeuroPulse will not sell, lease, or profit from your brainwave data
+• NeuroPulse will not share your brainwave data with third parties 
+  without your separate consent, except as required by law
+
+Do you consent to NeuroPulse collecting and using your brainwave data 
+as described above?"
+
+[Yes, I consent]    [No, decline]
+```
+
+If the user declines, EEG neurofeedback and closed-loop adaptive stimulation are disabled. The device still functions for PBM, VNS, audio entrainment, and visual stimulation. A separate toggle to re-enable EEG is available in Settings after accepting the consent.
+
+Add OI-PA-03: legal counsel review of BIPA release screen copy before any Illinois device activation.
+
+### 9.4 Adaptive stimulation transparency card (NP-PRIV-REM-001 STEP-33)
+
+The Session History screen must include an "Adaptive Adjustments" card for any session containing closed-loop adaptive events. Requirements:
+
+- Rendered from a fixed plain-language enum (maintained in the app codebase — see NP-PRIV-001 Rev B MEDIUM-05 for the full trigger enum mapping)
+- Maximum 5 events displayed; "and N more" with "View all" link for longer lists
+- No raw EEG values visible (band power ratios stay in UHDR, not displayed to user)
+- Each event is a single plain-language sentence from the approved trigger enum
+- The trigger enum must be extended whenever new adaptive triggers are added to firmware (add as a change control checklist item in NP-QMS-DC-001)
+- Add OI-PA-04: Privacy Lead sign-off on plain-language trigger copy before any build with the Adaptive Adjustments card ships
+
+### 9.5 SDK initialisation gate (NP-APP-TELEMETRY-001 Rev B §5)
+
+No analytics or crash reporting SDK may initialise before the consent flow is complete. See NP-APP-TELEMETRY-001 Rev B for full requirements. The `engagement_tier` property (coarsened 3-bucket enum) replaces any raw session counter in all analytics events.
+
+---
+
+## 10. Updated Open Items
+
+| ID | Item | Owner | Blocking |
+|----|------|-------|---------|
+| OI-WA-01 | Apple Watch Series thermal characterisation for 20-min continuous Core Haptics | SW Engineering | Phase 3 production release |
+| OI-WA-02 | Watch screen brightness characterisation at 40Hz ≥100 nits | SW Engineering | Phase 4 (visual flicker channel) |
+| OI-WA-03 | WatchConnectivity latency measurement on current watchOS release | SW Engineering | Phase 2 audio sync quality gate |
+| OI-WA-04 | CHHapticEngine 40Hz frequency verification on Apple Watch Ultra 2 vs Series 10 | SW Engineering | Phase 3 |
+| OI-WA-05 | App Store review pre-submission check for Core Haptics 40Hz continuous use pattern | SW/Regulatory | Phase 3 |
+| OI-WA-06 | HealthKit permission review + privacy nutrition label sign-off before App Store submission | Privacy Lead | Phase 1 App Store submission |
+| OI-PA-01 | Legal counsel confirms 16 as correct minimum age threshold for age gate | Legal Counsel | Age gate implementation |
+| OI-PA-02 | Design and implement Authorised Guardian consent pathway for T2 minor patients | SW Engineering + Legal | T2 clinical launch |
+| OI-PA-03 | Legal counsel review of BIPA release screen copy before any Illinois device activation | Legal Counsel | Illinois device activation |
+| OI-PA-04 | Privacy Lead sign-off on plain-language adaptive trigger enum copy | Privacy Lead | Adaptive Adjustments card ship |
 
 ---
 

@@ -8,7 +8,7 @@
 **Approved by:** Steve Hickman, CEO  
 **Supersedes:** N/A — this is a delta specification to NP-FW-EMMC-001 Rev A  
 **Relation to parent:** All sections below amend or add to NP-FW-EMMC-001 Rev A. Where this document conflicts with NP-FW-EMMC-001 Rev A, this document takes precedence. NP-FW-EMMC-001 Rev B will incorporate all delta sections.  
-**References:** NP-PRIV-REM-001 STEP-01 through STEP-06; NP-PRIV-001 Rev A findings CRITICAL-01, HIGH-03, HIGH-04, MEDIUM-04, MEDIUM-05  
+**References:** NP-PRIV-REM-001 STEP-01 through STEP-06, STEP-10; NP-PRIV-001 Rev A findings CRITICAL-01, HIGH-03, HIGH-04, MEDIUM-04, MEDIUM-05; NP-PRIV-001 Rev B finding MEDIUM-06 (§G added 2026-06-03)  
 
 ---
 
@@ -400,6 +400,100 @@ The following are locked design decisions for Mode F (808-830nm bilateral retina
 
 ---
 
+## §G — SHDR Accelerometer Data Reclassification
+
+*(Added 2026-06-03 — NP-PRIV-001 Rev B finding MEDIUM-06. Addresses NP-PRIV-REM-001 STEP-10. BLOCKING for SHDR fleet DB schema freeze.)*
+
+### G.1 Rationale
+
+NP-PRIV-001 Rev B HIGH-01 (originally NP-PRIV-001 Rev A HIGH-01) confirmed that raw accelerometer series written to SHDR reveal motor-control patterns that are health-inferrable (Parkinson's, post-stroke hemiplegia, essential tremor). Only the derived maintenance signal is permitted in SHDR. This section specifies the permitted fields and prohibited fields so the SHDR fleet DB schema can be frozen correctly.
+
+### G.2 Permitted SHDR fields (per session gap)
+
+```c
+/* SHDR accelerometer record — written once per between-session gap */
+typedef struct {
+    bool drop_detected;       /* true if peak g-force exceeded NP_ACCEL_DROP_THRESHOLD_G */
+    bool maintenance_alert;   /* true if rolling drop rate exceeded NP_ACCEL_MAINT_THRESHOLD */
+    uint8_t reserved[6];      /* pad to 8 bytes — future use */
+} np_shdr_accel_record_t;
+```
+
+Default thresholds (factory firmware, configurable via signed OTA):
+- `NP_ACCEL_DROP_THRESHOLD_G` = 15.0f (free-fall-equivalent impact)
+- `NP_ACCEL_MAINT_THRESHOLD` = 3 drops in any rolling 7-day window
+
+### G.3 Prohibited SHDR fields
+
+The following must **never** appear in any SHDR record or SHDR fleet DB schema column:
+
+| Prohibited data | Why prohibited |
+|---|---|
+| Raw accelerometer series (any axis, any unit) | Reveals motor control profile — health-inferrable |
+| Peak g-force value | Reveals severity of impact — motor health inference |
+| Average g-force | Same |
+| RMS g-force | Same |
+| Orientation vector at time of impact | Reveals posture/activity at time of fall |
+| Timestamp of individual drop events | Correlates drops to user activity patterns |
+| Drop count as an integer | Reveals cumulative motor difficulty over time |
+
+### G.4 Fleet DB schema constraint
+
+The SHDR fleet database schema must enforce these constraints at the schema definition level, before any data is written:
+
+```sql
+-- Correct schema: only boolean fields for accelerometer data
+ALTER TABLE shdr_records ADD COLUMN drop_detected      BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE shdr_records ADD COLUMN maintenance_alert  BOOLEAN NOT NULL DEFAULT FALSE;
+
+-- The following column types are prohibited for accelerometer data:
+-- FLOAT, DOUBLE, REAL, NUMERIC, INTEGER (for counts), VARCHAR (for vectors)
+-- Any column named: g_force, accel_*, orientation_*, drop_count, drop_timestamp
+```
+
+### G.5 CI schema test (OI-EMMC2-07)
+
+A CI test must run against the SHDR fleet DB schema definition and fail if any of the following conditions are true:
+
+```python
+# ci/test_shdr_schema.py
+PROHIBITED_COLUMN_PATTERNS = [
+    r'g_force', r'accel_[xyz]', r'orientation', r'drop_count',
+    r'drop_timestamp', r'impact_', r'fall_'
+]
+PERMITTED_ACCEL_COLUMNS = {'drop_detected', 'maintenance_alert'}
+
+def test_no_raw_accelerometer_columns(schema_columns):
+    accel_cols = {c for c in schema_columns if any(
+        re.search(p, c, re.I) for p in PROHIBITED_COLUMN_PATTERNS
+    )}
+    assert not accel_cols, f"Prohibited accelerometer columns found: {accel_cols}"
+```
+
+This test is BLOCKING for SHDR fleet DB schema freeze. No schema migration may proceed until this test passes.
+
+### G.6 On-device firmware module
+
+Module `np_accel_shdr` (to be authored as part of STEP-10):
+
+```c
+/* firmware/shdr/np_accel_shdr.h */
+
+/* Reads raw 3-axis accelerometer between sessions.
+   Applies on-device thresholds. Writes only the two
+   boolean fields to SHDR. Raw values are never written
+   to any eMMC partition.
+   
+   Called by: np_hub_session_log (after session close)
+   SHDR write: np_shdr_write_accel_record()
+*/
+np_status_t np_accel_shdr_process_session_gap(void);
+```
+
+The raw accelerometer buffer is allocated in SRAM only, processed in-place, and zeroed with `memset_explicit` before `np_accel_shdr_process_session_gap` returns. No intermediate values are written to any partition.
+
+---
+
 ## Change Control
 
 This delta document (NP-FW-EMMC-002 Rev A) is under change control per NP-QMS-DC-001 Rev A. It will be incorporated into NP-FW-EMMC-001 Rev B. Until Rev B is released, NP-FW-EMMC-002 Rev A takes precedence over conflicting sections of NP-FW-EMMC-001 Rev A.
@@ -414,6 +508,7 @@ Open items created by this document:
 | OI-EMMC2-04 | Mode F regulatory opinion letter scope expansion (Q-13) added to NP-REG-PBM1064-001 Rev B | STEP-06, STEP-18 |
 | OI-EMMC2-05 | EDF+ writer unit test: generate 100 EDF+ files and confirm all pass header validator | First EEG session recording implementation |
 | OI-EMMC2-06 | No-join CI test: confirm warranty_db × shdr_db join fails with authorisation error | STEP-01 completion |
+| OI-EMMC2-07 | SHDR schema CI test: confirm no prohibited accelerometer column types or names in fleet DB schema | STEP-10; BLOCKING for SHDR fleet DB schema freeze |
 
 ---
 
