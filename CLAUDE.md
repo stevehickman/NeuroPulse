@@ -1,6 +1,6 @@
 # CLAUDE.md — NeuroPulse Design Programme
 **Project:** NeuroPulse — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 17 (current)  
+**Revision:** 18 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 ---
@@ -624,6 +624,24 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 | 45W charger in box | **Decided and locked** — included in BOM across all configurations at appropriate wattage. Weakness resolved. |
 | Zone module mould complexity (RISK-23) | NP-TOOL-ZM-001 created consolidating all 8 moulded features (F-01 through F-08). 12-item mould design review checklist must be completed before steel is cut (NP-COORD-001 G1-05). |
 
+### 13.2b tFUS / LIFU — modality watch (elevated to MEDIUM 2026-05-13)
+
+Science basis confirmed: PIEZO1 mechanosensitive ion channel mechanism (PNAS 2023); strong safety record (n > 400 human subjects, no serious AEs at MI < 1.9); first wearable coupling breakthrough (MiniUlTra bioadhesive hydrogel, Nature Communications 2025). Cannot enter T1 (no wellness regulatory pathway for brain-targeted therapeutic ultrasound). T2 add-on requires 510(k) predicate, which does not yet exist.
+
+**Re-evaluation trigger:** SPIRE DIADEM FDA clearance (pivotal trial submission anticipated 2026, decision ~2027–2028). On clearance: evaluate T2 add-on 510(k) for DLPFC-targeting LIFU pod at 500–650 kHz, targeting frontal cortex (~15–20 mm depth, no skull correction required). Natural synergy with existing tDCS/tACS/sLORETA-HD-tDCS stack and EEG-guided closed-loop architecture.
+
+**Active watch items:**
+
+| Item | Why it matters | Expected timing |
+|------|---------------|----------------|
+| SPIRE DIADEM FDA pivotal trial + clearance | First US 510(k) acoustic neuromodulation predicate | Submission 2026, decision 2027–2028 |
+| Sonomind CE mark (EU, depression, acoustic metalens) | First EU CE mark for focused tFUS neuromodulation; EU regulatory precedent | 2027 |
+| Hair-compatible hydrogel coupling | MiniUlTra demonstrated 35-day adhesion on shaved scalp — hair-gap solution is the remaining consumer engineering blocker | Watch UT Austin + Stanford Wearable Electronics Initiative |
+| Li-Huei Tsai lab (SAB candidate) on 40 Hz ultrasound | If GENUS multi-sensory protocol extends to ultrasound as 40 Hz entrainment channel, adds strategic synergy to existing mastoid pad programme | Ongoing; flag at SAB formation outreach |
+| ITRUSST standards consolidation | Standardised reporting enables cross-study comparison; affects which clinical evidence is citable | Published 2024–2025; monitor updates |
+
+**Not feasible under any current regulatory framework for T1.** Do not include in T1 product claims, BOM, or marketing.
+
 ### 13.3 Structural (accepted, managed)
 
 | Issue | Mitigation |
@@ -777,7 +795,7 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 | Zone Module Tooling Specification | `docs/neuropulse_tool_zone_module_001.docx` | NP-TOOL-ZM-001 Rev A — 8 mandatory moulded features (F-01 through F-08), critical dimensions, 12-item mould design review checklist, FAI cross-reference |
 | Supplier Selection Checklist | `docs/neuropulse_supplier_selection_checklist.docx` | NP-PROC-SUP-001 Rev A — CAT-A (moulding), CAT-B (CFRP shell), CAT-C (PDMS bonding); SUP-M-07 and SUP-B-01 BLOCKING for RISK-20; SUP-C-08 BLOCKING for RISK-04; §9 RISK-20 tracking table |
 | Clinical Trials Strategy | `docs/neuropulse_clinical_trials_strategy.docx` | NP-CLIN-001 Rev A — all-in-one commercial rationale; Vielight trials scope/limitation; individual modality evidence (9 modalities); multi-modal combination evidence; researcher profiles (9 researchers); 6-trial priority plan; key bibliography |
-| Additional Modalities | `docs/neuropulse_additional_modalities_superseded.docx` | SUPERSEDED — NP-MOD-EXT-001 Rev A — all 6 modalities now individually specified: HRV biofeedback (NP-FW-HRV-001 Rev A), 1064nm PBM (NP-FW-PBM1064-001 Rev A), sLORETA HD-tDCS (NP-FW-HD-001 Rev A), cervical VNS (NP-FW-CVNS-001 Rev A), 40Hz vibrotactile (CLAUDE.md §3b), Apple Watch sync (CLAUDE.md §3b + NP-APP-ROADMAP-001 Rev A) |
+| Additional Modalities | `docs/neuropulse_additional_modalities_superseded.docx` | SUPERSEDED — NP-MOD-EXT-001 Rev A — all 6 modalities now individually specified: HRV biofeedback (NP-FW-HRV-001 Rev A), 1064nm PBM (NP-FW-PBM1064-001 Rev A), sLORETA HD-tDCS (NP-FW-HD-001 Rev A), cervical VNS (NP-FW-CVNS-001 Rev A), 40Hz vibrotactile (CLAUDE.md §3b), Apple Watch sync (CLAUDE.md §3b + NP-APP-ROADMAP-001 Rev A); tFUS watch programme → CLAUDE.md §13.2b |
 | Shell Tooling Specification | `docs/neuropulse_tool_shell_001.docx` | NP-TOOL-SHELL-001 Rev A — 4 mandatory shell features: F-01 zone slot plug anchor posts (×5, colour-coded), F-02 accessory port cover anchor posts (×3), F-03 EEG cable routing channel (8×5mm, outer CFRP surface, DRC-18 cross-ref), F-04 temporal wing anchor boss (×2 bilateral, PROVISIONAL pending HOPE Phase 3). 23-item design review checklist (SH-01–SH-23), critical dimensions, FAI cross-reference. Addresses Issue #16 and §13.4 pending decision. |
 | Lens and Goggle Assembly Tooling Specification | `docs/neuropulse_tool_lens_001.docx` | NP-TOOL-LENS-001 Rev B — 7 features (F-01 through F-07 + P-01 through P-03) across lens rim, goggle arm, shade assembly tooling; sliding rail geometry (F-01/F-02); N42 magnet pockets (F-03/F-04, ≥1mm wall BLOCKING); EC driver contacts (F-05/F-06, hard gold, pogo pin); AgNW coating spec (P-01, replaces ITO); hard coat spec (P-02, 3–5µm silicone); inner PDMS diffuser (P-03, plasma-activated); lens rim guard anchor hooks (F-07) — expanded in Rev B with shade clearance ≥4mm (MR-19), tether ≤45mm posterior routing no FOV crossing (MR-20), OI-10 CAD confirmation; 20-item mould design review checklist; 10 open items; FAI cross-reference; risk register cross-reference. Addresses Issue #17 (Rev A) and Issue #18 (Rev B). |
 | eMMC Partition Architecture and Storage Encryption | `docs/neuropulse_fw_emmc_001.docx` | NP-FW-EMMC-001 Rev A (2026-05-11) — 18 sections, 13 tables. eMMC hardware spec (§3); 9-partition GPT layout (§4, 8,192 MiB total, UHDR 6,903 MiB dominant); LittleFS config per partition (§5); UHDR AES-256-XTS + Argon2id key derivation + key lifecycle + session record EDF+ format + HMAC integrity (§6); SHDR AES-256-XTS + HKDF manufacturing key + SNVS OTPMK + file structure (§7); dual-bank OTA bootloader + Ed25519 verification + 9-step OTA sequence + USB-C DFU recovery + Safety MCU firmware update protocol (§8); Config/Calibration partition (§9); Scratch partition zero-on-boot + SANITIZE (§10); boot sequence B-1 through B-9 (§11); 27-element session data classification table UHDR vs SHDR (§12); UHDR nightly incremental backup protocol (§13); write endurance monitoring + predictive maintenance thresholds (§14); research anonymization Scratch workspace (§15); processor ownership table (§16). Closes two CLAUDE.md §13.4 pending decisions: eMMC partition architecture + dual-bank OTA bootloader. Addresses Issue #19. |
