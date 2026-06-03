@@ -1,0 +1,42 @@
+name: SHDR Schema CI Gate (OI-EMMC2-07)
+
+# NP-FW-EMMC-002 Rev A §G.5
+# BLOCKING for SHDR fleet DB schema freeze.
+# Confirms no prohibited accelerometer columns, no PII columns,
+# no cross-DB references, and warranty_token is opaque BYTEA.
+
+on:
+  push:
+    paths:
+      - 'ci/shdr/shdr_fleet_schema.sql'
+      - 'ci/test_shdr_schema.py'
+  pull_request:
+    paths:
+      - 'ci/shdr/shdr_fleet_schema.sql'
+      - 'ci/test_shdr_schema.py'
+  workflow_dispatch:
+
+jobs:
+  shdr-schema-gate:
+    name: SHDR Schema Privacy Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run OI-EMMC2-07 schema CI test
+        run: python3 ci/test_shdr_schema.py --verbose --schema ci/shdr/shdr_fleet_schema.sql
+
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shdr-schema-violations
+          path: ci/shdr/
+          retention-days: 30
