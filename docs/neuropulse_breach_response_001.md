@@ -33,9 +33,9 @@ UHDR stored on user devices is encrypted with a key NeuroPulse does not hold. A 
 |---|---|---|
 | **Incident Reporter** | Any employee or contractor who discovers or suspects a breach | — |
 | **Incident Commander** | CEO (Steve Hickman) — owns all breach response decisions | everyonecontactsme@gmail.com |
-| **Legal Counsel** | Outside counsel with HIPAA/FTC/GDPR expertise — advises on notification obligations | TBD — designate before T1 launch |
-| **Technical Lead** | Senior engineer responsible for containment and forensic preservation | TBD |
-| **Communications** | Responsible for user notification drafting and media statements | TBD — CEO initially |
+| **Legal Counsel** | Outside counsel with HIPAA/FTC/GDPR expertise — advises on notification obligations | **INTERIM: CEO (Steve Hickman) — everyonecontactsme@gmail.com.** Replace with named outside counsel before any production system holding personal data goes live. Candidate requirements: HIPAA + FTC HBNR experience; available on nights/weekends under retainer; jurisdiction coverage: US all 50 states + EU GDPR. *Action: Engage and name counsel; update this table.* |
+| **Technical Lead** | Senior engineer responsible for containment and forensic preservation | **INTERIM: CEO (Steve Hickman).** Replace with a named senior engineer when first engineering hire is made. Responsibilities include: isolating affected systems, taking forensic images, preserving logs. *Action: Update this table when first engineer joins.* |
+| **Communications** | Responsible for user notification drafting and media statements | **INTERIM: CEO (Steve Hickman) — everyonecontactsme@gmail.com.** The notification templates in Appendices A–C are pre-drafted; the CEO fills in incident-specific fields. *Action: Designate a dedicated communications contact when communications hire is made.* |
 | **Quality Lead** | Responsible for CAPA initiation, DHF documentation, and regulatory record | CEO initially; VP Quality when hired (Month 6 target) |
 
 **On-call rule:** The Incident Commander and Technical Lead must be reachable at all times once the company has any production system holding personal data. Define an on-call rotation when headcount exceeds 5.

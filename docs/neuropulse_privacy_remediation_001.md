@@ -1,13 +1,14 @@
 # NP-PRIV-REM-001 Rev A — Privacy Remediation Master Plan
 
 **Document number:** NP-PRIV-REM-001  
-**Revision:** A  
+**Revision:** B  
 **Status:** ACTIVE  
-**Effective date:** 2026-06-02  
+**Effective date:** 2026-06-03  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved by:** Steve Hickman, CEO  
-**Parent analysis:** NP-PRIV-001 Rev A (Privacy Analysis and Repair — 2026-06-02)  
-**Companion documents:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001, NP-FW-EMMC-002  
+**Parent analysis:** NP-PRIV-001 Rev A + Rev B delta (Privacy Analysis and Repair — 2026-06-02 / 2026-06-03)  
+**Companion documents:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001 Rev B, NP-FW-EMMC-002  
+**Change from Rev A:** Three new steps added (STEP-31, STEP-32, STEP-33) from NP-PRIV-001 Rev B delta findings: HIPAA Expert Determination certification pathway, adaptive stimulation right-to-explanation, and session_sequence coarsening. NP-APP-TELEMETRY-001 updated to Rev B (session_sequence → engagement_tier). NP-FW-EMMC-002 §G added. Capability matrix rows added for STEP-31 through STEP-33. Direct remediations section updated.
 
 ---
 
@@ -182,30 +183,69 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-10 — SHDR impact-event data: Option C on-device processing
-**Document:** NP-FW-EMMC-002 Rev A §G; firmware/accelerometer/  
-**Finding:** HIGH-01 (SHDR impact-event data enables motor-health inference)  
-**Trigger:** Before any SHDR schema is frozen for the fleet database; must precede fleet database schema design.  
-**Target milestone:** G1 (Month 6) — but specification must be complete before firmware schema is frozen (Month 3 target).  
-**Status:** OPEN  
-**Deliverable:** Firmware module np_accel_shdr: (a) reads raw accelerometer between sessions; (b) applies on-device threshold logic to derive `drop_detected: bool` and `maintenance_alert: bool`; (c) writes only those two bits to SHDR; (d) raw accelerometer series never written to any partition; (e) SHDR fleet DB schema updated to accept only the two boolean fields per session gap — no g-force values, no orientation vectors.  
-**Performer:** Firmware engineer + data architect  
-**Authority required:** Data architect must confirm SHDR fleet DB schema change. CEO sign-off on the boundary reclassification (raw impact data is reclassified — this is a design change per NP-QMS-DC-001).  
-**Automation:** On-device threshold logic is fully automatable. SHDR DB schema constraint (reject g-force fields) is automatable as a DB migration with a constraint check.  
+**Document:** NP-FW-EMMC-002 Rev A §G (COMPLETE — authored 2026-06-03); firmware/shdr/np_accel_shdr.h/.c (to author)  
+**Finding:** HIGH-01 (SHDR impact-event data enables motor-health inference); NP-PRIV-001 Rev B MEDIUM-06 (§G spec now complete)  
+**Trigger:** Before any SHDR schema is frozen for the fleet database. §G spec is now complete — unblocks implementation.  
+**Target milestone:** G1 (Month 6)  
+**Status:** OPEN — spec complete, implementation pending  
+
+**Detailed implementation instructions:**
+
+1. **Create `firmware/shdr/np_accel_shdr.h`** with the struct and function declarations from NP-FW-EMMC-002 §G.2 and §G.6.
+
+2. **Create `firmware/shdr/np_accel_shdr.c`** implementing `np_accel_shdr_process_session_gap()`:
+   - Read raw 3-axis accelerometer data from the LSM6DSO (or equivalent IMU on the final BOM)
+   - Compute peak resultant g-force: `g_peak = sqrt(ax² + ay² + az²)`
+   - Apply threshold: `drop_detected = (g_peak > NP_ACCEL_DROP_THRESHOLD_G)`
+   - Update rolling drop counter (ring buffer of last 7 days of `drop_detected` events)
+   - Apply maintenance threshold: `maintenance_alert = (rolling_drop_count >= NP_ACCEL_MAINT_THRESHOLD)`
+   - Call `np_shdr_write_accel_record({drop_detected, maintenance_alert})`
+   - Zero the raw accelerometer buffer with `memset_explicit` before returning
+
+3. **Call site:** `np_accel_shdr_process_session_gap()` is called from `np_hub_session_log` task after every session close event and after every boot with no preceding session.
+
+4. **SHDR fleet DB schema migration:** Before any SHDR data is written to the fleet DB, apply the schema migration adding `drop_detected BOOLEAN` and `maintenance_alert BOOLEAN` columns. Run CI schema test `ci/test_shdr_schema.py` (OI-EMMC2-07) against the migration before deploying. The test must pass — no prohibited column patterns.
+
+5. **CAPA trigger:** This is a design change (data element reclassification). Initiate a change order per NP-QMS-DC-001. Document the reclassification rationale: "Raw accelerometer series reclassified from SHDR to NEVER-WRITTEN due to motor-health inference risk identified in NP-PRIV-001 Rev A."
+
+**Performer:** Firmware engineer + data architect (DB schema migration)  
+**Authority required:** CEO sign-off on design change order (NP-QMS-DC-001).  
+**Automation:** Firmware module is fully automatable. DB schema migration is automatable via migration script. OI-EMMC2-07 CI test is automatable.  
 **External party:** No.
 
 ---
 
 #### STEP-11 — Research anonymisation: l-diversity + differential privacy spec
-**Document:** NP-FW-ANON-001 Rev A (new firmware spec)  
+**Document:** NP-FW-ANON-001 Rev A (COMPLETE — authored 2026-06-03); firmware/anon/ (to implement)  
 **Finding:** HIGH-02 (k-anonymity alone is insufficient)  
 **Trigger:** Before the research anonymisation engine is implemented; must precede first study descriptor deployment.  
 **Target milestone:** G1 (Month 6)  
-**Status:** OPEN  
-**Deliverable:** Firmware specification NP-FW-ANON-001 covering: (a) l-diversity requirement l≥3 (within each k-group, ≥3 distinct values for each sensitive attribute); (b) differential privacy via calibrated Laplace noise (ε ≤ 1.0, δ ≤ 10⁻⁵) applied to EEG spectral features before inclusion in any research extract; (c) prohibition on raw EEG waveforms in any research extract; (d) consent disclosure wording: "anonymisation means statistical protection, not mathematical certainty; EEG patterns are biometric-adjacent"; (e) test vectors: implementation must pass a set of adversarial re-identification attempts defined in the spec.  
-**Performer:** Firmware engineer with signal processing background + privacy engineer  
-**Authority required:** Technical reviewer must be qualified in differential privacy implementation. Engage external reviewer for sign-off ($5,000–15,000 engagement, privacy engineering specialist).  
-**Automation:** The differential privacy noise application is fully automatable. l-diversity validation is automatable as a pre-transmission check. Adversarial test vectors can be implemented as automated CI tests.  
-**External party:** External privacy engineering reviewer for differential privacy parameter sign-off. IRB reviewer will also want to see this spec before approving any study protocol (see STEP-20).
+**Status:** OPEN — spec complete (NP-FW-ANON-001 Rev A), implementation pending  
+
+**Detailed implementation instructions:**
+
+1. **Read NP-FW-ANON-001 Rev A** (`docs/neuropulse_fw_anon_001.md`) in full before beginning implementation. The spec is complete and covers all module interfaces, data structures, algorithms, and FAI requirements.
+
+2. **Create firmware/anon/ directory** with four modules:
+   - `np_anon_kgroup.h/c` — k-anonymity grouping and l-diversity check (§5 of spec)
+   - `np_anon_dp.h/c` — Laplace noise generation from TRNG (§6 of spec)
+   - `np_anon_session.h/c` — main pipeline orchestration (§2 of spec)
+   - `np_anon_output.h/c` — output formatting, signing, queue management (§7 of spec)
+
+3. **Engage external DP reviewer** before implementing §6 (Laplace mechanism). Required sign-off on:
+   - ε=1.0 total privacy budget is sufficient for the intended use (EEG spectral features + HRV aggregates)
+   - Δ values per element in NP-FW-ANON-001 §3.2 are correct (especially HRV RMSSD Δ=200ms)
+   - The FAI-ANON-09 adversarial re-identification test methodology
+   - Budget: $5,000–15,000. Firms: Privacy Analytics (IQVIA), Tumult Labs, or academic collaborator with DP publications.
+
+4. **Open items to resolve before first firmware build:** OI-ANON-01 through OI-ANON-05 in NP-FW-ANON-001 §10. Most critical: OI-ANON-03 (output encryption scheme) and OI-ANON-04 (age_decile collection in app onboarding).
+
+5. **FAI execution:** All FAI-ANON-01 through FAI-ANON-09 must pass before any study descriptor is deployed to a real device. FAI-ANON-09 (adversarial re-identification) requires the external DP reviewer.
+
+**Performer:** Firmware engineer (DSP/signal processing background preferred) + external DP reviewer  
+**Authority required:** External DP reviewer sign-off required. Quality Lead sign-off on full FAI report.  
+**Automation:** FAI-ANON-01 through FAI-ANON-08 are fully automatable as CI tests. FAI-ANON-09 requires human reviewer.  
+**External party:** External DP reviewer (OI-ANON-01). Also feeds into IRB protocol (STEP-20) and Expert Determination certification (STEP-31).
 
 ---
 
@@ -215,39 +255,112 @@ These steps must be complete before any external engagement (beta users, warrant
 **Trigger:** Before any EU resident's personal data (warranty registration, SHDR fleet upload) is transmitted to or stored on US infrastructure.  
 **Target milestone:** Month 3 (before any EU marketing or pre-order activity)  
 **Status:** OPEN  
-**Deliverable:** (a) Privacy policy updated to reference DPF participation and list covered data types; (b) designated contact person named; (c) dispute resolution provider selected and contracted (see §4.1 for requirements); (d) DPF self-certification submitted via dataprivacyframework.gov; (e) annual recertification calendar entry created; (f) NP-REG-DPF-001 Rev A documents all decisions. See §4.1 for full authority submission requirements.  
-**Performer:** CEO + Legal counsel (EU privacy specialist recommended)  
-**Authority required:** CEO sign-off. Legal counsel with EU privacy expertise required for privacy policy language and DPF self-assessment.  
-**Automation:** Annual recertification reminder is automatable (calendar alert). Substantive recertification requires human review.  
-**External party:** EU privacy legal counsel. Independent dispute resolution provider (e.g. JAMS, BBB National Programs, ICDR — must be DPF-approved).
+
+**Sequential pre-submission checklist (do in this order):**
+
+1. **Update the NeuroPulse privacy policy** to include the following DPF-required elements (must be live at a publicly accessible URL before submitting the certification):
+   - Explicit statement that NeuroPulse participates in the EU-US Data Privacy Framework
+   - List of personal data types covered (warranty registrant contact info, SHDR device telemetry, T2 clinical data where applicable)
+   - Purposes for which personal data is used
+   - Contact information for privacy inquiries: [privacy@neuropulse.com]
+   - Name of the independent dispute resolution provider (see step 4 below)
+   - Statement that NeuroPulse is subject to the FTC's investigatory and enforcement powers
+   - Link to the DPF list at dataprivacyframework.gov confirming NeuroPulse's participation
+
+2. **Confirm EU privacy counsel review** of the privacy policy language. Recommended firm: EU-qualified privacy counsel (can be same firm used for GDPR Art. 13 notice requirements). Budget: $3,000–8,000.
+
+3. **Complete the DPF self-assessment** or arrange a third-party assessment. A self-assessment is sufficient for most companies at NeuroPulse's stage. Document the assessment in NP-REG-DPF-001.
+
+4. **Select an independent dispute resolution provider** from the DPF-approved list at dataprivacyframework.gov/s/idr-provider-list. Options: JAMS (most common for tech companies, ~$300/year), BBB National Programs, ICDR. Sign up and pay the annual fee.
+
+5. **Submit the self-certification** at https://www.dataprivacyframework.gov:
+   - Create an account under NeuroPulse Inc.'s legal name
+   - Complete all required fields per §4.1 of this document
+   - Upload the live privacy policy URL
+   - Submit and await ITA confirmation (typically 2–5 business days)
+   - Save the confirmation and DPF registration number in NP-REG-DPF-001
+
+6. **Set a calendar reminder** for annual recertification — 335 days after submission date (gives 30-day buffer before the 1-year expiry).
+
+7. **Author NP-REG-DPF-001** documenting: certification date, registration number, privacy policy URL, dispute resolution provider, self-assessment summary, annual recertification date.
+
+**Performer:** CEO + EU privacy counsel  
+**Authority required:** CEO must submit the certification (it is a legal attestation under FTC authority).  
+**Automation:** Annual recertification alert is automatable. Privacy policy hosting is automatable. Substantive recertification requires CEO attestation.  
+**External party:** EU privacy counsel. DPF-approved dispute resolution provider.
 
 ---
 
 #### STEP-13 — Clinician BAA: consent revocation + deletion cascade obligations
-**Document:** NP-LEGAL-BAA-001 Rev A (new template)  
+**Document:** NP-LEGAL-BAA-001 Rev A (COMPLETE — template authored 2026-06-03); execution with each counterparty pending  
 **Finding:** HIGH-05 (clinician consent revocation path); MEDIUM-07 (deletion cascade to third-party processors)  
 **Trigger:** Before any clinician subscription is sold or any UHDR-derived data is shared with a clinician.  
-**Target milestone:** Month 3  
-**Status:** OPEN  
-**Deliverable:** Standard BAA template NP-LEGAL-BAA-001 Rev A including: (a) HIPAA BAA required provisions (45 CFR §164.308(b), §164.502(e), §164.504(e)); (b) consent revocation clause: "On notification of patient consent withdrawal, BAA Counterparty will delete all copies of NeuroPulse-sourced patient data from their EHR and all derived records within 30 days"; (c) confirmation-of-deletion obligation (written confirmation within 35 days); (d) breach notification to NeuroPulse within 5 business days of discovery; (e) no onward sharing without written NeuroPulse approval.  
-**Performer:** Healthcare legal counsel  
-**Authority required:** Healthcare legal counsel with HIPAA BAA experience required. CEO execution authority for each BAA.  
-**Automation:** BAA execution via e-signature platform (DocuSign, HelloSign) is automatable. Confirmation-of-deletion tracking is automatable.  
+**Target milestone:** Month 3 (template reviewed); first execution before first T2 clinical subscription  
+**Status:** OPEN — template authored, legal review and counterparty execution pending  
+
+**Detailed execution instructions:**
+
+1. **Legal counsel review of template (NP-LEGAL-BAA-001 Rev A):** Healthcare legal counsel must review the template at `docs/neuropulse_legal_baa_001.md` before any execution. Key items for counsel to confirm:
+   - §5.1 (consent revocation cascade, 30-day deletion obligation) is enforceable in the relevant jurisdiction
+   - §5.4 (BIPA provision for Illinois users) is accurate and sufficient
+   - The tier table in §4.2 correctly describes the minimum necessary data for each tier
+   - The governing law (§8.5) should be the jurisdiction where NeuroPulse is incorporated
+
+2. **Per-counterparty execution process:**
+   - Complete Exhibit A (scope of services) for the specific counterparty before sending
+   - Select the correct access tier in §4.2 and delete the other two tier rows
+   - Send via e-signature platform (DocuSign or HelloSign). Both parties sign electronically.
+   - Store the fully executed BAA in the NeuroPulse document management system under the counterparty name.
+   - Create a calendar reminder for the annual review date.
+
+3. **Consent revocation tracking system:** Before the first BAA is executed, implement a simple tracking system for consent revocations:
+   - When a patient revokes clinical access in the app, an automated notification is sent to the clinician's registered email with the subject "NeuroPulse: Patient Consent Withdrawal Notification — Action Required Within 30 Days"
+   - The notification references §5.1 of the BAA and requests written confirmation of deletion within 35 days
+   - A tracking ticket is created in the NeuroPulse support system
+   - On day 35, if no confirmation received, the CEO sends a follow-up
+
+4. **Annual BAA review:** Each BAA should be reviewed annually to confirm it still covers the current scope of the relationship. Schedule reviews at the calendar reminder created in step 2.
+
+**Performer:** Healthcare legal counsel (review); CEO (execution authority); Product/Engineering (consent revocation notification system)  
+**Authority required:** CEO must execute each BAA. Healthcare legal counsel review required before first execution.  
+**Automation:** BAA execution via e-signature (automatable). Consent revocation notification is automatable. Tracking ticket creation is automatable.  
 **External party:** Healthcare legal counsel. Each clinician counterparty.
 
 ---
 
 #### STEP-14 — FHIR ImplementationGuide: NP-INT-FHIR-001
-**Document:** NP-INT-FHIR-001 Rev A  
+**Document:** NP-INT-FHIR-001 Rev A (COMPLETE — authored 2026-06-03); IG package publication and CI integration pending  
 **Finding:** MEDIUM-01 (FHIR R4 minimum population not bounded)  
-**Trigger:** Before any T2 EHR integration code is written; also before any T2 clinical pilot is designed.  
+**Trigger:** Before any T2 EHR integration code is written.  
 **Target milestone:** G1 (Month 6) gate item NP-COORD-001 G3-09  
-**Status:** OPEN  
-**Deliverable:** HL7 FHIR ImplementationGuide specifying: permitted resource types; element-level constraints per resource; patient identifier policy (opaque MRN only); prohibited elements (name, telecom, address, photo, contact, SSN); LOINC code mappings for NeuroPulse observations; LSL security requirement (TLS tunnelling required, explicit disclaimer in setup guide). Validated against the FHIR validator tool.  
-**Performer:** Clinical informatics engineer + Privacy Lead  
-**Authority required:** HL7 FHIR validator sign-off (automated). Clinical informatics review for LOINC code accuracy.  
-**Automation:** FHIR validator CI integration: any FHIR resource generated by T2 software must pass the NP IG profile before transmission. This is fully automatable.  
-**External party:** Optional: HL7 FHIR consultant for IG authoring ($8,000–20,000 engagement). The IG must also be reviewed by any EHR integration partner.
+**Status:** OPEN — spec complete (NP-INT-FHIR-001 Rev A), IG package publication and CI integration pending  
+
+**Detailed implementation instructions:**
+
+1. **Review NP-INT-FHIR-001 Rev A** (`docs/neuropulse_fhir_profile_001.md`) with the T2 clinical engineering team before any EHR integration code is written.
+
+2. **Resolve open items** (NP-INT-FHIR-001 §10, OI-FHIR-01 through OI-FHIR-05) before the IG package is published:
+   - OI-FHIR-01 (LOINC mapping): Engage a clinical informatics specialist to confirm the NP-EEG-* local codes are appropriate given no standard LOINC codes exist for quantitative EEG spectral features. Budget: $2,000–5,000 for a single clinical informatics review session.
+   - OI-FHIR-05 (Procedure code): Confirm SNOMED CT `229070002` (Biofeedback therapy) is the best code, or identify a more precise code for TMS/tDCS.
+
+3. **Build the IG package** using the HL7 FHIR IG Publisher (https://github.com/HL7/fhir-ig-publisher):
+   - Author StructureDefinition resources for NP-Patient, NP-Observation, NP-DiagnosticReport, NP-Procedure
+   - Run `java -jar publisher.jar -ig ig.ini` to generate the full IG package
+   - The generated package is the authoritative machine-validatable specification
+
+4. **Publish the IG package** at the canonical URL: `https://fhir.neuropulse.com/ig/NeuroPulse-T2-Clinical` (requires web infrastructure — add to T2 cloud architecture task)
+
+5. **Add FHIR validator to the T2 backend CI pipeline:**
+   - Download the HAPI FHIR Validator JAR
+   - Add to CI: `java -jar validator.jar <resource.json> -ig <NP IG package URL> -version 4.0.1`
+   - Any FHIR resource that fails validation must not be committed
+
+6. **Review with first T2 EHR integration partner** — share the IG with the clinic's IT team before integration begins. The IG sets their expectations for what data they will receive and in what format.
+
+**Performer:** Clinical informatics engineer (LOINC review); Backend engineer (IG package, CI integration); Privacy Lead (review)  
+**Authority required:** Privacy Lead sign-off before IG is published.  
+**Automation:** FHIR validator CI integration is fully automatable.  
+**External party:** Clinical informatics specialist (OI-FHIR-01). EHR integration partner at each T2 clinical site.
 
 ---
 
@@ -335,11 +448,38 @@ These steps must be complete before any external engagement (beta users, warrant
 **Trigger:** Before the first study descriptor is sent to any device; before any patient is invited to participate in a NeuroPulse-facilitated study (even observational).  
 **Target milestone:** Month 9  
 **Status:** OPEN  
-**Deliverable:** (a) IRB protocol NP-IRB-001 submitted to accredited IRB (WCG, Advarra, or university IRB of first research collaborator — Rashidi-Ranjbar at St. Michael's is the preferred first contact); (b) protocol describes: on-device anonymisation architecture; k-anonymity + l-diversity + differential privacy parameters; consent withdrawal mechanism; data flow from device to researcher; (c) IRB approval or determination (may qualify for expedited review under 45 CFR 46.104(d)(4) — secondary research with de-identified data); (d) IRB determination letter added to DHF. See §4.4 for full IRB submission requirements.  
-**Performer:** Clinical research coordinator (to be hired or contracted) + Privacy Lead + CEO as PI  
-**Authority required:** PI must be a named qualified investigator. If using a university IRB, the PI or co-PI must have an affiliation with that institution (this is why Rashidi-Ranjbar or Jog as collaborators are important — they bring IRB sponsorship).  
-**Automation:** No — IRB review is a human process. Application submission via IRB's electronic submission system (iRIS, Cayuse, or institution-specific).  
-**External party:** Accredited IRB. Research institution collaborator (for IRB sponsorship if university IRB is used).
+
+**Detailed instructions — preferred path (Rashidi-Ranjbar at St. Michael's Hospital Toronto):**
+
+The preferred IRB path is through a university collaborator who already has a funded research programme and an established IRB relationship, rather than a central commercial IRB. This avoids the "principal investigator affiliation" requirement at university IRBs and reduces cost.
+
+**Step 1 — Initial outreach to Neda Rashidi-Ranjbar (neda.rashidi-ranjbar@unityhealth.to):**
+- Email subject: "NeuroPulse — Research Collaboration Opportunity: EEG + HRV + PBM Platform Study"
+- Content: Brief description of NeuroPulse (wearable multi-modal neuromodulation); reference her 2025 MCI PBM RCT; propose a pilot study using NeuroPulse as the platform; offer device loan + data access + co-authorship
+- Attach: NP-CLIN-001 clinical evidence summary (2-page executive summary from `docs/neuropulse_clinical_trials_strategy.docx`)
+- Goal of call: confirm interest; identify whether she can serve as PI or co-PI on a NeuroPulse IRB protocol; discuss her REB (Research Ethics Board — Canadian equivalent of IRB) process at Unity Health Toronto
+
+**Step 2 — If Rashidi-Ranjbar agrees, prepare REB/IRB protocol:**
+- Unity Health Toronto uses the Unity Health REB (not a central IRB)
+- NP-FW-ANON-001 Rev A is the primary technical document to attach — it describes the anonymisation architecture in detail
+- Protocol content (per §4.4 of this document): title, PI, institution, study design (observational, retrospective, prospective), subject selection (NeuroPulse T1 users who opt in to research), data sources (NeuroPulse on-device anonymised extracts), anonymisation methods (reference NP-FW-ANON-001), consent mechanism (in-app a priori consent per CLAUDE.md §6.2), data security (NP-FW-EMMC-001), risks and benefits, consent withdrawal procedure
+- **Exemption determination application:** Given the on-device anonymisation (no identifiable data leaving the device), file for an exemption determination under US 45 CFR §46.104(d)(4) (secondary research with de-identified data) in addition to Canadian REB review. The same protocol serves both.
+
+**Step 3 — Parallel path if Rashidi-Ranjbar is not available:**
+- Contact Mayank Jog at UCLA (mjog@mednet.ucla.edu) — K99/R00 NIH grant aligned to HD-tDCS protocols, familiar with device research
+- Alternative: submit to WCG IRB (https://www.wcgirb.com) or Advarra IRB (https://www.advarra.com) as a single-site sponsor-investigator study with CEO as PI
+- WCG/Advarra cost: $3,000–8,000 for initial review; CEO obtains CITI human subjects training certification first (free at https://about.citiprogram.org, ~4 hours)
+
+**Step 4 — OHRP Federalwide Assurance (FWA):**
+- If NeuroPulse is the sponsor-investigator (not using a university), file an FWA with OHRP at https://ohrp.cit.nih.gov/efile
+- Required for studies subject to US federal regulations
+- Free to file; annual update required
+- Timeline: 2–4 weeks for OHRP to process
+
+**Performer:** CEO (initial researcher outreach, FWA); Clinical research coordinator (protocol drafting — hire or contract); Privacy Lead (anonymisation architecture sections)  
+**Authority required:** PI must have current human subjects research training (CITI certification). CEO can serve as PI for sponsor-investigator studies.  
+**Automation:** No.  
+**External party:** University collaborator (preferred) or commercial IRB (WCG/Advarra). OHRP for FWA.
 
 ---
 
@@ -492,6 +632,159 @@ These steps must be complete before any external engagement (beta users, warrant
 **Authority required:** Quality Lead sign-off. CEO review of any new Critical or High findings.  
 **Automation:** Regulatory change monitoring can be automated (RSS feeds for FR, EDPB, FTC; services like Radar/OneTrust regulatory intelligence). Human judgment required for applicability assessment.  
 **External party:** Optional: annual privacy counsel engagement for regulatory change assessment.
+
+---
+
+### Phase 6 (continued) — Post-T1 / T2 Pre-Launch, New STEPS from Rev B
+
+---
+
+#### STEP-31 — Designate standing HIPAA Expert Determination certifier
+**Document:** NP-ANON-CERT template (new document type); engagement agreement with certifier  
+**Finding:** NP-PRIV-001 Rev B MEDIUM-04 (HIPAA Expert Determination certification gap)  
+**Trigger:** Before NP-FW-ANON-001 (research anonymisation engine spec) is finalised; before any study descriptor is authored. Must precede STEP-32.  
+**Target milestone:** Month 9 (concurrent with NP-IRB-001 and NP-FW-ANON-001)  
+**Status:** OPEN  
+**Deliverable:** (a) Named certifier (individual or specialist firm) under a standing engagement agreement; (b) NP-ANON-CERT document template finalised (see NP-PRIV-001 Rev B for required content: expert qualifications, methods, data elements reviewed, risk assessment, signed certification); (c) NP-ANON-CERT added to DHF planned document types; (d) STEP-32 procedure incorporated into the study deployment gate checklist.  
+**Performer:** CEO + clinical research coordinator  
+**Authority required:** CEO sign-off on certifier engagement. Quality Lead confirms NP-ANON-CERT template meets HHS Guidance on De-identification (2012) requirements.  
+**Automation:** No — certification is a human expert judgment per 45 CFR §164.514(b)(1).  
+**External party:** Yes — qualified biostatistician or specialist firm (WCG, Advarra, Privacy Analytics/IQVIA, or university collaborator biostatistician). Budget: $1,500–5,000 per study certification.  
+**Reference:** 45 CFR §164.514(b)(1); HHS Guidance Regarding Methods for De-identification of Protected Health Information (2012)
+
+---
+
+#### STEP-32 — Obtain NP-ANON-CERT for each study before descriptor deployment
+**Document:** NP-ANON-CERT-[study_id] Rev A (one per study)  
+**Finding:** NP-PRIV-001 Rev B MEDIUM-04 (HIPAA Expert Determination certification gap)  
+**Trigger:** For each individual study, before the study descriptor is cryptographically signed and deployed to any device.  
+**Target milestone:** Recurring — before each study launch, from Month 9 onwards  
+**Status:** OPEN — dependent on STEP-31 (certifier engaged)  
+**Deliverable:** Completed and signed NP-ANON-CERT-[study_id] Rev A on file in DHF before any study descriptor is signed. Content: expert qualifications; specific DP parameters (ε, δ) applied to this study's data elements; l-diversity (l) and k-anonymity (k) values; per-element re-identification risk assessment; expert's signed certification that re-identification risk is very small per 45 CFR §164.514(b)(1).  
+**Performer:** Expert certifier (engaged in STEP-31)  
+**Authority required:** Quality Lead confirms certification is on file before authorising the study descriptor signing key to be used. Without NP-ANON-CERT on file, the study descriptor must not be signed.  
+**Automation:** No. Gate enforcement can be partially automated: deployment pipeline can check for presence of a file matching `NP-ANON-CERT-[study_id]-signed.pdf` in the DHF vault before permitting the descriptor signing step.  
+**External party:** Yes — the certifier from STEP-31.
+
+---
+
+#### STEP-33 — Adaptive stimulation transparency: firmware log + app UI + privacy notice
+**Document:** firmware/hub_control/np_adaptation_log.h (new header); NP-APP-ROADMAP-001 Rev B; NP-API-001 Rev A (T2 clinical report); app privacy notice  
+**Finding:** NP-PRIV-001 Rev B MEDIUM-05 (right to explanation for adaptive stimulation)  
+**Trigger:** Before NP-FW-HUB-001 session runner is implemented; before the iOS/Android session-results screen UI is designed.  
+**Target milestone:** G2 (Month 10) for firmware struct; G3 (Month 14) for T2 clinical report in NP-API-001  
+**Status:** OPEN  
+**Deliverable:**  
+(a) `np_adaptation_event_t` struct and `np_adapt_trigger_t` enum added to hub_control firmware (see NP-PRIV-001 Rev B for full C struct definition) — logged to UHDR for every adaptive event during a session;  
+(b) Session History "Adaptive Adjustments" card added to iOS/Android app UI spec (NP-APP-ROADMAP-001 Rev B) — displays plain-language adaptive events from the trigger enum; maximum 5 shown; "view all" for longer sessions;  
+(c) Plain-language trigger enum mapping (firmware code → user-facing copy) maintained in the app codebase and extended whenever new adaptive triggers are added;  
+(d) T2 clinical adaptation report schema added to NP-API-001 Rev A — JSON format with session_offset_ms, trigger, feature_percentile, param_id, value_before, value_after, confidence_pct; accessible to Full Clinical and Assess tier clinicians;  
+(e) GDPR Art. 13(2)(f) disclosure added to app privacy notice under "Automated processing" — plain-language description of adaptive algorithm logic and user's right to view session adjustment summaries.  
+**Performer:** Firmware engineer (struct + enum); iOS/Android engineer (UI card + trigger mapping); Privacy Lead (GDPR Art. 13(2)(f) copy); API engineer (T2 clinical report schema)  
+**Authority required:** Privacy Lead sign-off on consumer-facing plain-language trigger copy before any build ships with the Adaptive Adjustments card.  
+**Automation:** Firmware logging is fully automatable (struct write per adaptive event). UI card rendering is deterministic from the enum. The trigger enum must be reviewed and extended by a human whenever new adaptive triggers are added to firmware — add this as a mandatory checklist item in the firmware change control procedure (NP-QMS-DC-001).  
+**External party:** No.
+
+---
+
+### Phase 0 (continued) — Immediate, from Rev B findings
+
+---
+
+#### STEP-34 — BIPA compliance programme (Illinois biometric data)
+**Document:** NP-REG-BIPA-001 Rev A (new); NP-APP-ROADMAP-001 Rev B §9.3 (BIPA release screen)  
+**Finding:** NP-PRIV-001 Rev B HIGH-01 (EEG data is biometric under BIPA)  
+**Trigger:** Before any Illinois resident activates a NeuroPulse device. This is a pre-commercial-launch blocker — not a post-launch item.  
+**Target milestone:** Month 2 (legal opinion); Month 6 (app consent flow implementation)  
+**Status:** OPEN  
+**Deliverable:**
+
+**Step 1 — Engage BIPA-specialised counsel (Week 1–2):**
+- Identify and engage outside counsel with Illinois BIPA experience. Recommended firms: Seyfarth Shaw (Chicago BIPA practice), Littler Mendelson, Orrick BIPA team. Budget: $15,000–25,000 for opinion + consent review.
+- Provide counsel with: CLAUDE.md §3 EEG modality spec; NP-FW-EMMC-001 UHDR architecture; description of data flows (EEG collected on device, encrypted on-device, NeuroPulse cannot decrypt).
+- Request a written legal opinion addressing: (a) whether NeuroPulse "collects" or "possesses" biometric information under BIPA 740 ILCS 14/10; (b) whether the UHDR encryption architecture (NeuroPulse cannot decrypt) provides a "possession" defence; (c) required elements of the written release; (d) required destruction policy; (e) whether T2 clinical operations change the analysis (HIPAA vs. BIPA overlap).
+
+**Step 2 — Publish biometric retention and destruction policy on website (before first Illinois device):**
+- Content required (BIPA 740 ILCS 14/15(a)): "NeuroPulse collects brainwave (EEG) biometric data during sessions. This data is stored only on your device, encrypted under a key that NeuroPulse does not hold. NeuroPulse retains EEG biometric data until: (1) you delete your data in the app; (2) you perform a factory reset; or (3) you request account deletion. Upon any of these events, EEG data is permanently erased from the device using hardware-level secure erasure (eMMC SANITIZE)."
+- Location: neuropulse.com/privacy/biometric — publicly accessible, no login required.
+- Add this URL to the BIPA consent release screen (§9.3 of NP-APP-ROADMAP-001 Rev B).
+
+**Step 3 — Implement BIPA written release in app consent flow (NP-APP-ROADMAP-001 Rev B §9.3):**
+- Illinois detection: IP geolocation + user-stated location in device settings. Apply BIPA screen if either signal indicates Illinois.
+- Screen content per NP-APP-ROADMAP-001 Rev B §9.3 — reviewed and approved by BIPA counsel (OI-PA-03).
+- "Yes, I consent" / "No, decline" — decline disables EEG modality; device otherwise fully functional.
+
+**Step 4 — Author NP-REG-BIPA-001:**
+- Document the legal opinion conclusions, the consent screen implementation, and the website policy.
+- File in DHF. Reviewed annually and updated when BIPA case law develops (BIPA is actively litigated — new cases monthly).
+
+**Performer:** CEO + BIPA-specialised outside counsel + iOS/Android engineering (consent screen)  
+**Authority required:** CEO executes counsel engagement. Legal counsel reviews and approves consent screen copy.  
+**Automation:** IP geolocation detection for Illinois trigger is automatable. Consent capture and storage is automatable.  
+**External party:** Yes — BIPA-specialised counsel (required before any Illinois device activation).
+
+---
+
+#### STEP-35 — Washington My Health My Data Act (MHMD) compliance
+**Document:** NP-REG-MHMD-001 Rev A (new)  
+**Finding:** NP-PRIV-001 Rev B HIGH-02 (Washington MHMD applies to SHDR behavioral patterns)  
+**Trigger:** Before any Washington state resident activates a NeuroPulse device.  
+**Target milestone:** Month 2 (legal analysis); Month 4 (SHDR consent redesign for WA)  
+**Status:** OPEN  
+**Deliverable:**
+
+**Step 1 — Washington privacy counsel analysis (Week 1–2):**
+- Engage Washington-qualified privacy counsel. The MHMD is enforced by the Washington AG and has a private right of action — it is more aggressive than HIPAA in this respect.
+- Brief counsel on: SHDR contents (consumable session counts, device session count, NTC profiles, LED output ratios); warranty token architecture; how the device is sold in WA (consumer direct or through a clinic).
+- Request analysis of: (a) whether SHDR consumable session counts constitute "consumer health data" under RCW 70.372.010(2) (behavioral data that could identify health-seeking); (b) whether the warranty token + SHDR upload constitutes "collection" under MHMD; (c) what the standalone authorization requirement looks like in practice; (d) whether suppressing consumable session counts from WA users' SHDR solves the problem.
+
+**Step 2 — SHDR redesign decision (two options):**
+- *Option A (recommended):* Suppress consumable session counts and device session counts from SHDR uploads for WA users. NeuroPulse retains the device-condition metrics (NTC temperatures, LED output ratios, impact flags, firmware version) which are not behavioral. This eliminates the MHMD trigger without requiring a standalone authorization.
+- *Option B:* Implement standalone MHMD authorization screen for WA users — separate from general consent, describes specific SHDR elements, acknowledges health-data status. More legally robust but requires ongoing consent management.
+- Document the choice and rationale in NP-REG-MHMD-001. Apply the decision to the SHDR upload firmware configuration.
+
+**Step 3 — Add MHMD to NP-SEC-BR-001 breach notification decision tree:**
+- Washington MHMD has a 30-day breach notification requirement for breaches of consumer health data.
+- Add a MHMD row to §6.5 (US state breach laws table): "Washington MHMD: 30 days, WA AG portal at atg.wa.gov, private right of action by individuals."
+
+**Step 4 — Author NP-REG-MHMD-001:**
+- Document the legal analysis conclusions, the SHDR redesign decision, and any ongoing monitoring obligations.
+
+**Performer:** CEO + Washington privacy counsel + firmware engineer (SHDR suppression for WA, if Option A chosen)  
+**Authority required:** CEO decision on Option A vs. B. Legal counsel approval of either path.  
+**Automation:** WA user flag (IP geolocation + device locale) is automatable. SHDR field suppression per user flag is automatable in firmware.  
+**External party:** Yes — Washington privacy counsel.
+
+---
+
+#### STEP-36 — Minimum age gate and minor patient pathway
+**Document:** NP-APP-ROADMAP-001 Rev B §9.2 (binding constraint); NP-PROC-MINOR-001 Rev A (new — T2 minor patient guardian consent procedure)  
+**Finding:** NP-PRIV-001 Rev B MEDIUM-03 (no minimum age or children's privacy mechanism)  
+**Trigger:** Before any app consent flow is designed or implemented.  
+**Target milestone:** Month 3 (age gate in app); Month 9 (T2 minor patient pathway for clinical launch)  
+**Status:** OPEN  
+**Deliverable:**
+
+**Step 1 — Age gate in app consent flow (Month 3):**
+- Add the minimum age declaration checkbox as the first screen of the consent flow, per NP-APP-ROADMAP-001 Rev B §9.2.
+- Text: "I confirm I am 16 years of age or older." (Not pre-ticked. Required to proceed.)
+- Legal counsel confirms 16 is correct (OI-PA-01). Expected outcome: yes — covers COPPA (13), most EU GDPR member states (16), BIPA (adults-only for written release), UK Children's Code (18 for some data types, but NeuroPulse's use is therapeutic not commercial).
+- The age declaration is stored in UHDR as a consent record: `age_declaration_accepted: bool` + `age_declaration_date: week_ordinal` (no precise timestamp).
+
+**Step 2 — Privacy notice update:**
+- Add to the app privacy notice: "NeuroPulse is intended for use by individuals aged 16 and older. If you are under 16, please do not use this app."
+- For EU GDPR: mention that parental or guardian consent is required for users under the applicable member state age threshold if they use the app.
+
+**Step 3 — T2 minor patient pathway (Month 9, before T2 clinical launch):**
+- Define and implement an "Authorised Guardian" consent pathway for T2 clinical environments where minor patients may be treated.
+- The guardian consent pathway requires: (a) clinic staff identifies the patient as a minor in the clinical dashboard; (b) a guardian consent screen is presented to the guardian (not the patient); (c) guardian provides their own authenticated identity; (d) guardian consent is stored alongside the clinical access consent grant.
+- Author NP-PROC-MINOR-001 governing the guardian consent workflow, record-keeping, and capacity-restoration when the minor reaches majority.
+- Brief T2 clinical pilot sites on the minor patient workflow before any minor patient is enrolled.
+
+**Performer:** iOS/Android engineering (age gate); Legal counsel (age threshold confirmation); Clinical operations (T2 minor patient pathway)  
+**Authority required:** Legal counsel confirmation of age threshold. CEO approval of minor patient pathway before T2 clinical launch.  
+**Automation:** Age gate checkbox is automatable. Declaration storage in UHDR is automatable.  
+**External party:** Legal counsel for age threshold. T2 clinical site staff for minor patient pathway.
 
 ---
 
@@ -705,7 +998,9 @@ Online form at dataprivacyframework.gov/s/join-the-framework. Required fields:
 
 ## 5. Direct Remediations Completed (2026-06-02)
 
-The following documents were authored as part of this remediation programme in the same authoring session as NP-PRIV-001 Rev A:
+The following documents were authored as part of this remediation programme.
+
+**Session 1 — 2026-06-02 (NP-PRIV-001 Rev A):**
 
 | Document | Document number | File | Steps addressed |
 |---|---|---|---|
@@ -713,12 +1008,23 @@ The following documents were authored as part of this remediation programme in t
 | Breach Response Plan | NP-SEC-BR-001 Rev A | `docs/neuropulse_breach_response_001.md` | STEP-07 |
 | POA Upload Procedure | NP-PROC-POA-001 Rev A | `docs/neuropulse_poa_procedure_001.md` | STEP-08 |
 | App Telemetry Policy | NP-APP-TELEMETRY-001 Rev A | `docs/neuropulse_app_telemetry_001.md` | STEP-09 |
-| This document | NP-PRIV-REM-001 Rev A | `docs/neuropulse_privacy_remediation_001.md` | Framework for all steps |
+| This document | NP-PRIV-REM-001 Rev A | `docs/neuropulse_privacy_remediation_001.md` | Framework for STEP-01 through STEP-30 |
 
-The following CLAUDE.md updates were also applied:
-- §13.4 (pending decisions): Mode F default-off and separate consent requirement added; warranty token architecture added; NP-FW-EMMC-002 added as blocking predecessor to UHDR firmware implementation
-- §13.5 (completed decisions): Mode F default-off, ambient indicator spec, IEC 62471 cumulative dose requirement locked
-- §14 (documents generated): All five new documents above added to the register
+**Session 2 — 2026-06-03 (NP-PRIV-001 Rev B delta — 8 new findings):**
+
+| Document / change | Number | File | Steps addressed |
+|---|---|---|---|
+| NP-APP-TELEMETRY-001 Rev B — `session_sequence` replaced with `engagement_tier` coarsened enum; §3.2 added | NP-APP-TELEMETRY-001 Rev B | `docs/neuropulse_app_telemetry_001.md` | LOW-03 (Rev B finding) |
+| NP-FW-EMMC-002 §G added — SHDR accelerometer reclassification spec | NP-FW-EMMC-002 Rev A (§G appended) | `docs/neuropulse_fw_emmc_002.md` | MEDIUM-06 (Rev B finding); unblocks STEP-10 |
+| NP-PRIV-REM-001 Rev B — STEP-31, STEP-32, STEP-33 added; capability matrix rows added | NP-PRIV-REM-001 Rev B | `docs/neuropulse_privacy_remediation_001.md` | STEP-31 through STEP-33 |
+
+CLAUDE.md §13.4 updates applied in Session 2:
+- BIPA legal opinion (before Illinois device activation) added as pending decision
+- Washington MHMD regulatory analysis added as pending decision
+- Children's age gate (minimum age 16 declaration) added as pending decision
+- HIPAA Expert Determination certifier engagement (STEP-31) added as pending decision
+- Adaptive stimulation transparency (STEP-33) added as pending decision
+- `engagement_tier` replaces `session_sequence` in NP-APP-TELEMETRY-001 added as locked decision
 
 ---
 
@@ -756,6 +1062,9 @@ The following CLAUDE.md updates were also applied:
 | STEP-28 | Infrastructure engineer | CEO sign-off on SLA | No | Yes | No | Partial | Yes (IaC) | Yes (cloud vendor, EU counsel) |
 | STEP-29 | CEO + Legal | CEO certification | Yes | No | No | Partial | Partial | Yes (counsel) |
 | STEP-30 | Privacy Lead + Legal | Quality Lead + CEO | Yes | Partial | No | Partial | Partial (monitoring) | Optional |
+| STEP-31 | CEO + clinical research coord | CEO sign-off; QA confirms template | Partial | No | No | Partial | No | Yes (certifier) |
+| STEP-32 | Expert certifier (STEP-31) | Quality Lead gate | No | No | Yes (biostatistics) | Partial | Partial (gate check) | Yes (certifier) |
+| STEP-33 | Firmware + iOS/Android + Privacy Lead | Privacy Lead sign-off on copy | No | Yes | No | No | Partial (FW logging, UI render) | No |
 
 ---
 
