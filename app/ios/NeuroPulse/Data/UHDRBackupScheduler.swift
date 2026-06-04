@@ -1,6 +1,7 @@
 import Foundation
 import BackgroundTasks
 import CryptoKit
+import SwiftUI   // @AppStorage, UIDevice
 
 // Nightly incremental UHDR backup scheduler.
 // Per CLAUDE.md §5.1: backup uses same Argon2id-derived AES-256-XTS key as on-device UHDR.

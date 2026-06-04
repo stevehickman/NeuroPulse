@@ -19,7 +19,8 @@ struct NPIntervalConfig: Codable, Equatable {
 // MARK: PBM Transcranial
 
 struct NPPBMTranscranialParams: Codable, Equatable {
-    enum ZoneSelection: String, Codable, CaseIterable, Equatable {
+    enum ZoneSelection: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case all
         case front
         case rear
@@ -44,7 +45,8 @@ struct NPPBMTranscranialParams: Codable, Equatable {
         }
     }
 
-    enum Wavelength: String, Codable, CaseIterable, Equatable {
+    enum Wavelength: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case base660_808nm    = "660_808nm"
         case smart1064nm      = "1064nm"
         case tri660_808_1064  = "660_808_1064nm"
@@ -86,7 +88,8 @@ struct NPPBMIntranasalParams: Codable, Equatable {
 // MARK: EEG Neurofeedback
 
 struct NPEEGNeurofeedbackParams: Codable, Equatable {
-    enum ChannelSelection: String, Codable, CaseIterable, Equatable {
+    enum ChannelSelection: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case all
         case front
         case central
@@ -111,7 +114,8 @@ struct NPEEGNeurofeedbackParams: Codable, Equatable {
         }
     }
 
-    enum EEGBand: String, Codable, CaseIterable, Equatable {
+    enum EEGBand: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case delta
         case theta
         case alpha
@@ -159,7 +163,8 @@ struct NPEEGNeurofeedbackParams: Codable, Equatable {
 // MARK: BES / tACS
 
 struct NPBESTacsParams: Codable, Equatable {
-    enum Waveform: String, Codable, CaseIterable, Equatable {
+    enum Waveform: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case sinusoidal
         case square
         case triangular
@@ -183,7 +188,8 @@ struct NPTDCSParams: Codable, Equatable {
 // MARK: VNS + HRV
 
 struct NPVNSHRVParams: Codable, Equatable {
-    enum HRVProtocol: String, Codable, CaseIterable, Equatable {
+    enum HRVProtocol: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case standalone
         case tavnsSync
         case eegBiofeedback
@@ -208,7 +214,8 @@ struct NPVNSHRVParams: Codable, Equatable {
 // MARK: Audio Entrainment
 
 struct NPAudioEntrainmentParams: Codable, Equatable {
-    enum NoiseType: String, Codable, CaseIterable, Equatable {
+    enum NoiseType: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case pink
         case brown
 
@@ -227,7 +234,8 @@ struct NPAudioEntrainmentParams: Codable, Equatable {
 // MARK: Visual Stimulation
 
 struct NPVisualStimParams: Codable, Equatable {
-    enum VisualMode: String, Codable, CaseIterable, Equatable {
+    enum VisualMode: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case binocular
         case emdr
         case retinalPBM
@@ -252,7 +260,8 @@ struct NPVisualStimParams: Codable, Equatable {
 // MARK: T2 — 21-ch qEEG
 
 struct NPqEEG21chParams: Codable, Equatable {
-    enum Montage: String, Codable, CaseIterable, Equatable {
+    enum Montage: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case standard1020 = "standard_1020"
         case custom
 
@@ -264,7 +273,8 @@ struct NPqEEG21chParams: Codable, Equatable {
         }
     }
 
-    enum Reference: String, Codable, CaseIterable, Equatable {
+    enum Reference: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case linkedEar = "linked_ear"
         case cz
         case average
@@ -286,7 +296,8 @@ struct NPqEEG21chParams: Codable, Equatable {
 // MARK: T2 — TMS
 
 struct NPTMSParams: Codable, Equatable {
-    enum TMSProtocol: String, Codable, CaseIterable, Equatable {
+    enum TMSProtocol: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case rTMS
         case TBS
         case iTBS
@@ -300,7 +311,8 @@ struct NPTMSParams: Codable, Equatable {
         }
     }
 
-    enum TMSTarget: String, Codable, CaseIterable, Equatable {
+    enum TMSTarget: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case dlpfc_l = "DLPFC_L"
         case dlpfc_r = "DLPFC_R"
         case vlpfc_l = "VLPFC_L"
@@ -349,7 +361,8 @@ struct NPClinicalTacsParams: Codable, Equatable {
 // MARK: T2 — HD-tDCS
 
 struct NPHDTdcsParams: Codable, Equatable {
-    enum Montage: String, Codable, CaseIterable, Equatable {
+    enum Montage: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case ring4x1       = "4x1_ring"
         case bilateral4x1  = "bilateral_4x1"
         case standard2el   = "standard_2_electrode"
@@ -704,7 +717,8 @@ struct NPCompositeLayer: Codable, Identifiable, Equatable {
 // MARK: - NPCompositeProtocol
 
 struct NPCompositeProtocol: Codable, Identifiable, Equatable {
-    enum ConflictResolution: String, Codable, CaseIterable, Equatable {
+    enum ConflictResolution: String, Codable, CaseIterable, Equatable, Identifiable {
+        var id: String { rawValue }
         case merge
         case sequential
         case override

@@ -18,6 +18,7 @@
 #define NP_SESSION_LOG_H
 
 #include "np_hub_types.h"
+#include "np_adaptation_log.h"
 
 /* ── Log record type tags (written as first byte of each serialised record) ───── */
 
@@ -29,6 +30,7 @@
 #define NP_LOG_TAG_UHDR_STIM            0x15U
 #define NP_LOG_TAG_UHDR_VISUAL          0x16U
 #define NP_LOG_TAG_UHDR_EEG_IMPEDANCE   0x17U
+#define NP_LOG_TAG_UHDR_ADAPT_EVENT     0x18U  /* closed-loop adaptation event (STEP-33) */
 
 #define NP_LOG_TAG_SHDR_SESSION_END     0x80U
 #define NP_LOG_TAG_SHDR_PBM_HEALTH      0x81U
@@ -87,7 +89,15 @@ void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type,
                         uint8_t fault_code, uint32_t session_ms);
 
 /*
+ * np_log_adapt_event — write one closed-loop adaptation event to UHDR.
+ * UHDR-only: no SHDR routing (NP-PRIV-REM-001 STEP-33).
+ * Called by np_adapt_log_flush() which drains the ring buffer.
+ */
+void np_log_adapt_event(const np_adaptation_event_t *event);
+
+/*
  * np_log_flush — flush any pending UHDR and SHDR buffers to eMMC.
+ * Drains the adaptation ring buffer (np_adapt_log_flush) first.
  * Called on session end and periodically by the hub control task.
  */
 void np_log_flush(void);

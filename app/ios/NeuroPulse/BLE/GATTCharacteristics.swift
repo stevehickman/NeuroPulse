@@ -40,7 +40,7 @@ enum OTAOpcode: UInt8 {
     case abort          = 0x04  // Cancel in-flight OTA
     case safetyMCUBegin = 0x10  // Safety MCU firmware update — requires explicit user confirmation
     case safetyMCUChunk = 0x11
-    case safetyMCUCommit= 0x12
+    case safetyMCUCommit = 0x12
 }
 
 // MARK: - Calibration command opcodes
@@ -122,50 +122,4 @@ struct OTAStatusPacket {
     var isError: Bool { errorCode != 0 }
 }
 
-// MARK: - Characteristic parsers (little-endian, matching hub firmware layout)
-
-struct GATTParser {
-
-    /// SESSION_STATE: uint32 — Unix epoch milliseconds
-    static func parseSessionState(_ data: Data) -> UInt32? {
-        guard data.count >= 4 else { return nil }
-        return data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 0, as: UInt32.self) }
-    }
-
-    /// SESSION_STATUS: uint8 protocolID + uint8 statusFlags
-    static func parseSessionStatus(_ data: Data) -> (protocolID: UInt8, status: SessionStatus)? {
-        guard data.count >= 2 else { return nil }
-        let pid = data[0]
-        guard let status = SessionStatus(rawValue: data[1]) else { return nil }
-        return (pid, status)
-    }
-
-    /// HRV_COHERENCE: uint16 coherence×100 + uint16 RMSSD ms
-    static func parseHRVCoherence(_ data: Data) -> HRVData? {
-        guard data.count >= 4 else { return nil }
-        let cohRaw = data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 0, as: UInt16.self) }
-        let rmssd  = data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 2, as: UInt16.self) }
-        return HRVData(coherenceScore: Float(cohRaw) / 100.0, rmssdMilliseconds: rmssd)
-    }
-
-    /// PACER_PHASE: uint8 phase + uint8 elapsed%
-    static func parsePacerPhase(_ data: Data) -> (phase: PacerPhase, percent: UInt8)? {
-        guard data.count >= 2 else { return nil }
-        guard let phase = PacerPhase(rawValue: data[0]) else { return nil }
-        return (phase, data[1])
-    }
-
-    /// IMPEDANCE_RESULT: uint16 bitmask (bit n = electrode n passed)
-    static func parseImpedanceResult(_ data: Data) -> UInt16? {
-        guard data.count >= 2 else { return nil }
-        return data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: 0, as: UInt16.self) }
-    }
-
-    /// CONSUMABLE_STATUS: 4 × uint16 session counts (intranasal, hydrogel, VNS, audio)
-    static func parseConsumableStatus(_ data: Data) -> [UInt16]? {
-        guard data.count >= 8 else { return nil }
-        return (0..<4).map { i in
-            data.withUnsafeBytes { $0.loadUnaligned(fromByteOffset: i * 2, as: UInt16.self) }
-        }
-    }
-}
+// (Duplicate GATTParser struct removed — canonical definition is above.)
