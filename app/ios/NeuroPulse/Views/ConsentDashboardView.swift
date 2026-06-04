@@ -156,7 +156,7 @@ struct ClinicianGrantRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(grant.clinicianName).font(.subheadline.bold())
-            Text(grant.organisation).font(.caption).foregroundColor(.secondary)
+            Text(grant.clinicianOrganisation).font(.caption).foregroundColor(.secondary)
             Text(grant.tier.monthlyPrice).font(.caption2).foregroundColor(.secondary)
             HStack {
                 Label("Granted \(grant.grantedAt.formatted(.dateTime.month().day().year()))",

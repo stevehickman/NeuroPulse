@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import UIKit   // UIDevice.current.identifierForVendor
 
 // SHDR upload to NeuroPulse fleet database.
 // SHDR = System Health Data Record — device condition only, never user biology.

@@ -77,7 +77,7 @@ struct VNSHRVConfig: Codable {
     var amplitudeMilliamps: Double  // ≤2 mA
     var enableHRVBiofeedback: Bool = true
     var resonanceBreathingRateDefault: Double = 6.0  // breaths/min
-    var protocol: HRVProtocol = .standalone
+    var hrvProtocol: HRVProtocol = .standalone
 
     enum HRVProtocol: String, Codable {
         case standalone            = "standalone"
@@ -113,7 +113,7 @@ struct SignedProtocolBlob {
     static let magic: [UInt8] = [0x4E, 0x50, 0x50, 0x52]  // "NPPR"
 
     var wireFormat: Data {
-        var buf = Data(magic)
+        var buf = Data(Self.magic)
         var len = UInt32(payload.count).littleEndian
         buf.append(Data(bytes: &len, count: 4))
         buf.append(payload)

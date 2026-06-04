@@ -450,7 +450,7 @@ struct ProtocolMenuView: View {
                     amplitudeMilliamps: p.intensityMilliamps,
                     enableHRVBiofeedback: true,
                     resonanceBreathingRateDefault: p.resonanceBreathingRate,
-                    protocol: mapHRVProtocol(p.hrvProtocol)
+                    hrvProtocol: mapHRVProtocol(p.hrvProtocol)
                 )))
             case .audioEntrainment(let p):
                 modalities.append(.neuralAudio(NeuralAudioConfig(
