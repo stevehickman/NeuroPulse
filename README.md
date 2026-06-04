@@ -3,7 +3,7 @@ The goal of this project is to develop a modular HW/SW platform that provides mu
 Claude.ai is being used as much as possible to further these goals. CLAUDE.md contains its understanding of the design and its current state.
 
 The /docs directory contains design documents. Start reading there.
-The /editscripts directory contains generated scripts that Claude used to modify documents. The content of this directory is probably not for human consumption.
+The /editscripts directory contains generated scripts that Claude used to modify documents. The content of that directory are probably not for human consumption.
 The /app directory contains code for iOS and watchOS devices
 The /firmware directory contains the code that runs the hardware
 

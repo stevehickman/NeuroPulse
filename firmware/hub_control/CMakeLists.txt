@@ -37,6 +37,7 @@ set(HUB_SOURCES
     src/np_protocol.c
     src/np_session_runner.c
     src/np_session_log.c
+    src/np_adaptation_log.c
     src/np_safety_spi.c
     modules/np_mod_pbm.c
     modules/np_mod_eeg.c

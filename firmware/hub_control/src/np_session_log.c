@@ -14,6 +14,7 @@
  */
 
 #include "np_session_log.h"
+#include "np_adaptation_log.h"
 #include <string.h>
 
 /* ── Internal buffers (flushed to eMMC by HAL) ───────────────────────────────── */
@@ -244,8 +245,17 @@ void np_log_shdr_fault(uint8_t slot, np_hub_mod_type_t type,
     shdr_write(&fault_code, 1U);
 }
 
+void np_log_adapt_event(const np_adaptation_event_t *event)
+{
+    if (event == NULL) { return; }
+    /* UHDR only — no SHDR routing for adaptation events (NP-PRIV-REM-001 STEP-33). */
+    uhdr_u8(NP_LOG_TAG_UHDR_ADAPT_EVENT);
+    uhdr_write(event, sizeof(np_adaptation_event_t));
+}
+
 void np_log_flush(void)
 {
+    np_adapt_log_flush();   /* drain the adaptation ring buffer first */
     if (s_uhdr_pos > 0U) {
         np_log_hal_uhdr_append(s_uhdr_buf, s_uhdr_pos);
         s_uhdr_pos = 0U;

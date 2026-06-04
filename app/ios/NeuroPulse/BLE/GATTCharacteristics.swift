@@ -23,16 +23,11 @@ enum NPUUID {
     static let zoneModuleStatus = CBUUID(string: "4E455550-000D-1000-8000-00805F9B34FB") // READ/NOTIFY 5B
     static let shdrUploadStatus = CBUUID(string: "4E455550-000E-1000-8000-00805F9B34FB") // NOTIFY
 
-    // PENDING FIRMWARE CONFIRMATION — placeholder UUID. The real session-stop
-    // characteristic UUID will come from the firmware BLE implementation (OI-WA-03).
-    static let sessionStop      = CBUUID(string: "NP-SESSION-STOP-0000-0000000000001") // WRITE 1B (0x01 = stop)
-
     // All characteristics for discovery
     static let all: [CBUUID] = [
         sessionState, sessionStatus, hrvCoherence, pacerPhase,
         impedanceResult, consumableStatus, protocolUpload, edfRequest,
-        otaCommand, otaStatus, calibrationCmd, zoneModuleStatus, shdrUploadStatus,
-        sessionStop
+        otaCommand, otaStatus, calibrationCmd, zoneModuleStatus, shdrUploadStatus
     ]
 }
 
@@ -126,3 +121,5 @@ struct OTAStatusPacket {
     let errorCode: UInt16
     var isError: Bool { errorCode != 0 }
 }
+
+// (Duplicate GATTParser struct removed — canonical definition is above.)

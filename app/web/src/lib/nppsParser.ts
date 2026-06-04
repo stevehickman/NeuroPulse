@@ -175,6 +175,19 @@ export function tokenize(text: string): Token[] {
         else if (text.slice(pos, pos + 2) === 'Hz') { unit = 'Hz'; pos += 2; }
         else if (text.slice(pos, pos + 2) === 'mA') { unit = 'mA'; pos += 2; }
       }
+      // If no unit suffix was consumed and the next char would start an identifier
+      // (e.g. 660_808nm, 1064nm), extend into a full IDENT token rather than NUMBER.
+      if (!unit && pos < text.length &&
+          (text[pos] === '_' || (text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z'))) {
+        let ident = numStr;
+        while (pos < text.length &&
+               ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') ||
+                (text[pos] >= '0' && text[pos] <= '9') || text[pos] === '_')) {
+          ident += text[pos++];
+        }
+        tokens.push({ type: 'IDENT', value: ident, line });
+        continue;
+      }
       const tok: Token = { type: 'NUMBER', value: parseFloat(numStr), line };
       if (unit) tok.unit = unit;
       tokens.push(tok);

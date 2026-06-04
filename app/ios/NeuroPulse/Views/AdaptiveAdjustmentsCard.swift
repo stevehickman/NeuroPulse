@@ -1,62 +1,140 @@
 import SwiftUI
 
-// Adaptive Adjustments card — NP-APP-ROADMAP-001 Rev B §9.4, STEP-33.
-// Displayed in Session History. Shows plain-language descriptions of any
-// closed-loop parameter changes that occurred during the session.
-// Satisfies GDPR Art. 13(2)(f) disclosure requirement.
+// "Adaptive Adjustments" card shown in Session History.
+// Displays up to 5 closed-loop adaptation events; collapses longer lists
+// behind a "View all" sheet.  Renders plain-language copy only — no raw values.
+// Requires Privacy Lead sign-off (OI-PA-04) before shipping (NP-PRIV-REM-001 STEP-33).
 
 struct AdaptiveAdjustmentsCard: View {
 
     let events: [AdaptationEvent]
 
+    private static let maxInlineEvents = 5
+
+    @State private var showAllEvents = false
+
     var body: some View {
-        if events.isEmpty {
-            EmptyView()
-        } else {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Adaptive Adjustments", systemImage: "arrow.triangle.2.circlepath")
-                    .font(.headline)
-
-                Text("The session made \(events.count) automatic adjustment\(events.count == 1 ? "" : "s") in response to your body's signals.")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-
-                ForEach(events) { event in
-                    eventRow(event)
+        VStack(alignment: .leading, spacing: 12) {
+            cardHeader
+            if events.isEmpty {
+                emptyState
+            } else {
+                eventList
+                if events.count > Self.maxInlineEvents {
+                    overflowFooter
                 }
             }
-            .padding()
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .sheet(isPresented: $showAllEvents) {
+            AllAdaptationEventsSheet(events: events)
         }
     }
 
-    private func eventRow(_ event: AdaptationEvent) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(event.modality)
-                    .font(.subheadline.bold())
-                Spacer()
-                Text(event.timestamp, style: .time)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+    // MARK: - Subviews
+
+    private var cardHeader: some View {
+        HStack {
+            Label("Adaptive Adjustments", systemImage: "waveform.path")
+                .font(.headline)
+            Spacer()
+            Text("\(events.count)")
+                .font(.caption.bold())
+                .foregroundColor(.secondary)
+                .padding(.horizontal, 8).padding(.vertical, 2)
+                .background(Color(.systemGray5))
+                .clipShape(Capsule())
+        }
+    }
+
+    private var emptyState: some View {
+        Text("No adaptive adjustments this session.")
+            .font(.subheadline)
+            .foregroundColor(.secondary)
+    }
+
+    private var eventList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            ForEach(events.prefix(Self.maxInlineEvents)) { event in
+                AdaptationEventRow(event: event)
             }
-            Text(event.trigger.rawValue)
+        }
+    }
+
+    private var overflowFooter: some View {
+        let remaining = events.count - Self.maxInlineEvents
+        return HStack {
+            Text("and \(remaining) more")
                 .font(.caption)
                 .foregroundColor(.secondary)
-            Text("\(event.parameterChanged): \(event.previousValue, specifier: "%.1f") → \(event.newValue, specifier: "%.1f") \(event.unit)")
-                .font(.caption2)
-                .foregroundColor(.secondary)
+            Spacer()
+            Button("View all") { showAllEvents = true }
+                .font(.caption.bold())
         }
-        .padding(.vertical, 4)
     }
 }
 
-#Preview {
-    AdaptiveAdjustmentsCard(events: [
-        AdaptationEvent(modality: "BES", trigger: .eegBandShift,
-                        parameterChanged: "Frequency", previousValue: 10.0,
-                        newValue: 12.0, unit: "Hz")
-    ])
-    .padding()
+// MARK: - Row
+
+private struct AdaptationEventRow: View {
+
+    let event: AdaptationEvent
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .font(.caption)
+                .foregroundColor(.blue)
+                .frame(width: 16, height: 16)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(event.trigger.plainLanguageDescription)
+                    .font(.subheadline)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(offsetLabel(event.sessionOffset))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    private func offsetLabel(_ offset: TimeInterval) -> String {
+        let total = Int(offset)
+        let h = total / 3600
+        let m = (total % 3600) / 60
+        let s = total % 60
+        if h > 0 {
+            return String(format: "%d:%02d:%02d into session", h, m, s)
+        }
+        return String(format: "%d:%02d into session", m, s)
+    }
+}
+
+// MARK: - All Events Sheet
+
+private struct AllAdaptationEventsSheet: View {
+
+    let events: [AdaptationEvent]
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List(events) { event in
+                AdaptationEventRow(event: event)
+                    .listRowBackground(Color.clear)
+                    .listRowSeparator(.hidden)
+                    .padding(.vertical, 4)
+            }
+            .listStyle(.plain)
+            .navigationTitle("All Adjustments")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
 }
