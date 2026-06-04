@@ -280,7 +280,6 @@ struct LimitsSettingsView: View {
                         Text(profile.notes)
                             .font(.caption)
                             .foregroundColor(.secondary)
-                            .lineLimit(1)
                     }
                     Text(hasLimits ? "Individual limits configured" : "No individual limits")
                         .font(.caption2)

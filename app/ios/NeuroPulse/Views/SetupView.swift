@@ -1,5 +1,7 @@
 import SwiftUI
 
+// TODO(localisation): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
+
 // Hardware setup flow — first-session onboarding.
 // Steps are measurement-confirmed; the app does not advance past hardware-gated steps
 // until the hub reports the correct condition via GATT notification.
@@ -7,6 +9,12 @@ import SwiftUI
 struct SetupView: View {
 
     @EnvironmentObject private var setup: HardwareSetupManager
+    @EnvironmentObject private var library: NPProtocolLibrary
+    @EnvironmentObject private var uploader: SessionProtocolUploader
+    @EnvironmentObject private var limitsStore: NPLimitsStore
+
+    @State private var showAutonomousPicker = false
+    @State private var showProgramConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -21,6 +29,19 @@ struct SetupView: View {
             }
             .navigationTitle(setup.currentStep.title)
             .navigationBarTitleDisplayMode(.inline)
+            .sheet(isPresented: $showAutonomousPicker) {
+                ProtocolMenuView(programMode: true, onProgrammed: {
+                    showProgramConfirmation = true
+                })
+                .environmentObject(library)
+                .environmentObject(uploader)
+                .environmentObject(limitsStore)
+            }
+            .alert("Protocol Stored", isPresented: $showProgramConfirmation) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Protocol stored on hub. Connect to a USB-C power bank to start an autonomous session.")
+            }
         }
     }
 
@@ -59,9 +80,39 @@ struct SetupView: View {
                 }
 
                 stepSpecificContent
+
+                // Mode 3 programming is offered once first-run setup is complete.
+                if setup.currentStep == .complete {
+                    autonomousModeCard
+                }
             }
             .padding()
         }
+    }
+
+    // MARK: - Autonomous Mode (Mode 3) card
+
+    private var autonomousModeCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Autonomous Mode (Mode 3)", systemImage: "bolt.badge.clock")
+                .font(.headline)
+                .foregroundColor(.accentColor)
+
+            Text("Upload a session protocol to the hub so it runs automatically from any USB-C power bank — no phone required.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+            Button {
+                showAutonomousPicker = true
+            } label: {
+                Label("Choose Protocol", systemImage: "list.bullet.rectangle")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     private var stepIcon: some View {

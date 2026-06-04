@@ -1,0 +1,427 @@
+/* ============================================================================
+   NeuroPulse iOS — Localizable.strings (English base)
+
+   Purpose: extracted user-visible strings from the consent flow, session
+   regulatory footer, and hardware setup wizard.
+
+   ISCs satisfied: ISC-158 (string extraction), ISC-159 (multi-line notice
+   representation), ISC-160 (irreversibility / BIPA text must not be truncated —
+   verified at source: no .lineLimit(1) on these views).
+
+   NOTE: Swift source files are NOT yet wired to NSLocalizedString — that is a
+   separate, test-gated pass. The corresponding source files carry a
+   TODO(localisation) marker. Keys here are the canonical English values and
+   must match the current hardcoded source strings verbatim.
+   ============================================================================ */
+
+
+/* ======================== CONSENT ONBOARDING (L1–L4) ===================== */
+
+/* ConsentOnboardingView — navigation title, L1 Contact consent layer */
+"CONSENT_L1_TITLE" = "Research Contact";
+
+/* ConsentOnboardingView — navigation title, L2 Category consent layer */
+"CONSENT_L2_TITLE" = "Research Areas";
+
+/* ConsentOnboardingView — navigation title, L3 Blanket consent layer */
+"CONSENT_L3_TITLE" = "Data Consent";
+
+/* ConsentOnboardingView — navigation title, L4 Results + community layer */
+"CONSENT_L4_TITLE" = "Stay Informed";
+
+/* ConsentOnboardingView — navigation title, completion layer */
+"CONSENT_COMPLETE_TITLE" = "All Done";
+
+/* ConsentOnboardingView — toolbar Skip button */
+"CONSENT_SKIP_BUTTON" = "Skip";
+
+/* ConsentOnboardingView — navigation Back button */
+"CONSENT_BACK_BUTTON" = "Back";
+
+/* ConsentOnboardingView — navigation Continue button */
+"CONSENT_CONTINUE_BUTTON" = "Continue";
+
+/* ConsentOnboardingView — navigation Done button */
+"CONSENT_DONE_BUTTON" = "Done";
+
+/* --- L1 Contact consent --- */
+
+/* ConsentOnboardingView L1 — heading question */
+"CONSENT_L1_HEADING" = "Can we contact you about future research opportunities?";
+
+/* ConsentOnboardingView L1 — explanatory body text */
+"CONSENT_L1_BODY" = "NeuroPulse works with academic research institutions to study the technologies in your device. Your participation is always voluntary. If you say yes, we may reach out when a study matches your interests.";
+
+/* ConsentOnboardingView L1 — contact consent toggle */
+"CONSENT_L1_TOGGLE" = "Yes, you can contact me";
+
+/* ConsentOnboardingView L1 — contact method field label */
+"CONSENT_L1_CONTACT_LABEL" = "Contact email or phone:";
+
+/* ConsentOnboardingView L1 — contact method field placeholder */
+"CONSENT_L1_CONTACT_PLACEHOLDER" = "your@email.com";
+
+/* ConsentOnboardingView L1 — Power of Attorney holder toggle */
+"CONSENT_L1_POA_TOGGLE" = "I am a Power of Attorney holder acting for a patient";
+
+/* ConsentOnboardingView L1 — POA upload explanatory note */
+"CONSENT_L1_POA_NOTE" = "You will be able to upload your executed healthcare POA documentation from the Privacy tab. Our team reviews documents within 3 business days.";
+
+/* ConsentOnboardingView L1 — no-contact reassurance note */
+"CONSENT_L1_NO_CONTACT_NOTE" = "If you say no — or skip this entirely — all features work identically. We will never contact you about research.";
+
+/* --- L2 Category consent --- */
+
+/* ConsentOnboardingView L2 — heading question */
+"CONSENT_L2_HEADING" = "Which research areas interest you?";
+
+/* ConsentOnboardingView L2 — explanatory body text */
+"CONSENT_L2_BODY" = "We will only contact you about studies in the areas you choose. Each project is a separate decision — saying yes here does not automatically enrol you in anything.";
+
+/* --- L3 Blanket consent --- */
+
+/* ConsentOnboardingView L3 — heading question */
+"CONSENT_L3_HEADING" = "Pre-approve all reviewed research?";
+
+/* ConsentOnboardingView L3 — explanatory body text */
+"CONSENT_L3_BODY" = "If you say yes, your anonymised session data will be included in all NeuroPulse-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study.";
+
+/* ConsentOnboardingView L3 — blanket consent toggle */
+"CONSENT_L3_TOGGLE" = "Pre-approve all reviewed research";
+
+/* ConsentOnboardingView L3 / StudyInvitationView — important callout label */
+"CONSENT_IMPORTANT_LABEL" = "Important — please read";
+
+/* ConsentEngine.irreversibilityNotice — shown at L3 blanket consent and per-study
+   invitations. MUST render in full (multi-line, no truncation) per ISC-160.
+   Paragraphs separated by blank lines via \n\n. */
+"CONSENT_IRREVERSIBILITY_NOTICE" = "Once your anonymised data has been included in a published study, it cannot be individually withdrawn from that dataset. This is a fundamental property of aggregate anonymised data required by Common Rule (45 CFR 46).\n\nHowever, because NeuroPulse anonymises your data fresh from your device for each study, withdrawing consent immediately and permanently stops any further data from flowing to any future dataset — including data from sessions that occurred before your withdrawal.\n\nYour session recordings remain on your device under your sole control at all times.";
+
+/* --- L4 Results + community --- */
+
+/* ConsentOnboardingView L4 — heading */
+"CONSENT_L4_HEADING" = "Stay connected to the science";
+
+/* ConsentOnboardingView L4 — results opt-in toggle */
+"CONSENT_L4_RESULTS_TOGGLE" = "Receive study results when they're published";
+
+/* ConsentOnboardingView L4 — results opt-in caption */
+"CONSENT_L4_RESULTS_CAPTION" = "Plain-language summaries, including null results. Never marketing.";
+
+/* ConsentOnboardingView L4 — suggestion portal toggle */
+"CONSENT_L4_PORTAL_TOGGLE" = "Join the research suggestion portal";
+
+/* ConsentOnboardingView L4 — suggestion portal caption */
+"CONSENT_L4_PORTAL_CAPTION" = "Submit study ideas, vote on priorities, express interest in participating. Your suggestions are seen by the research community.";
+
+/* ConsentOnboardingView L4 — optional reassurance footnote */
+"CONSENT_L4_OPTIONAL_NOTE" = "Both options are entirely optional and can be changed at any time.";
+
+/* --- Completion layer --- */
+
+/* ConsentOnboardingView complete — title */
+"CONSENT_COMPLETE_HEADING" = "Your preferences are saved.";
+
+/* ConsentOnboardingView complete — body */
+"CONSENT_COMPLETE_BODY" = "You can review and update your consent decisions at any time from the Privacy tab.";
+
+
+/* =================== AGE GATE (NP-APP-ROADMAP-001 Rev B §9.2) ============= */
+/* These strings support the minimum-age declaration required before the
+   consent flow completes (COPPA / GDPR Art. 8 / BIPA). Not yet present in the
+   Swift source; extracted here so the localisation pass can wire them in. */
+
+/* Age gate — 16+ declaration the user must confirm */
+"AGE_GATE_DECLARATION" = "I confirm I am 16 years of age or older.";
+
+/* Age gate — explanation shown to users under 16 who cannot proceed */
+"AGE_GATE_UNDER_16_INFO" = "NeuroPulse cannot be set up by anyone under 16 years of age. Some features rely on processing health and biometric data, and the law requires you to be at least 16 to provide valid consent. Please ask a parent or guardian for help.";
+
+
+/* =================== BIPA DISCLOSURE (NP-APP-ROADMAP-001 Rev B §9.3) ====== */
+/* Illinois biometric written-release disclosure (740 ILCS 14 / BIPA).
+   Shown to Illinois users before any EEG biometric data is captured.
+   MUST render in full (multi-line, no truncation) per ISC-160.
+   Paragraphs separated by blank lines via \n\n. */
+"BIPA_DISCLOSURE" = "Illinois residents: please read before continuing.\n\nNeuroPulse collects and stores your electroencephalogram (EEG) brainwave patterns. Under the Illinois Biometric Information Privacy Act (BIPA, 740 ILCS 14), these patterns are biometric identifiers and biometric information.\n\nPurpose: your EEG data is used to deliver and adapt your sessions and to display your own results. It is stored only on your device, encrypted with a key derived from your own biometric or PIN. NeuroPulse cannot read it.\n\nRetention and destruction: your biometric data is retained on your device under your control. It is permanently destroyed when you perform a device factory reset, and in any case within the timeframe set out in our publicly available biometric retention and destruction policy.\n\nNeuroPulse will not sell, lease, trade, or otherwise profit from your biometric information, and will not disclose it without your separate written consent except as required by law.\n\nBy tapping \"I Agree\" you provide your written release to collect and store your biometric data as described above.";
+
+/* BIPA disclosure — affirmative consent button */
+"BIPA_AGREE_BUTTON" = "I Agree";
+
+/* BIPA disclosure — screen title */
+"BIPA_DISCLOSURE_TITLE" = "Biometric Data Notice";
+
+
+/* ======================= CONSENT DASHBOARD =============================== */
+
+/* ConsentDashboardView — navigation title */
+"DASHBOARD_TITLE" = "Privacy & Consent";
+
+/* ConsentDashboardView — toolbar button opening research preferences */
+"DASHBOARD_RESEARCH_PREFS_BUTTON" = "Research Preferences";
+
+/* ConsentDashboardView — Clinician Access section header */
+"DASHBOARD_CLINICIAN_SECTION_HEADER" = "Clinician Access";
+
+/* ConsentDashboardView — Clinician Access section footer */
+"DASHBOARD_CLINICIAN_SECTION_FOOTER" = "Clinicians access only the data elements required for their specific use case. You can revoke access at any time.";
+
+/* ConsentDashboardView — empty clinician state */
+"DASHBOARD_CLINICIAN_EMPTY" = "No clinicians have access to your data.";
+
+/* ConsentDashboardView — add clinician access button */
+"DASHBOARD_ADD_CLINICIAN_BUTTON" = "Add Clinician Access";
+
+/* ConsentDashboardView — Research Consent section header */
+"DASHBOARD_RESEARCH_SECTION_HEADER" = "Research Consent";
+
+/* ConsentDashboardView — research summary, blanket consent granted */
+"DASHBOARD_RESEARCH_PREAPPROVED" = "Pre-approved";
+
+/* ConsentDashboardView — research summary, per-category consent */
+"DASHBOARD_RESEARCH_PER_CATEGORY" = "Per-category";
+
+/* ConsentDashboardView — research summary, no contact consent */
+"DASHBOARD_RESEARCH_NO_CONTACT" = "No research contact";
+
+/* ConsentDashboardView — Study Participation History section header */
+"DASHBOARD_STUDY_HISTORY_HEADER" = "Study Participation History";
+
+/* ConsentDashboardView — empty study history state */
+"DASHBOARD_STUDY_HISTORY_EMPTY" = "You have not participated in any studies yet.";
+
+/* ConsentDashboardView — Pending Invitations section header */
+"DASHBOARD_PENDING_INVITATIONS_HEADER" = "Pending Invitations";
+
+/* ConsentDashboardView — empty pending invitations state */
+"DASHBOARD_PENDING_INVITATIONS_EMPTY" = "No pending study invitations.";
+
+/* StudyParticipationRow — withdrawn badge */
+"DASHBOARD_STUDY_WITHDRAWN" = "Withdrawn";
+
+
+/* ======================= STUDY INVITATION VIEW ========================== */
+
+/* StudyInvitationView — navigation title */
+"INVITATION_TITLE" = "Study Invitation";
+
+/* StudyInvitationView — what researchers can see heading */
+"INVITATION_CAN_SEE_HEADING" = "What the researchers CAN see";
+
+/* StudyInvitationView — what researchers cannot see heading */
+"INVITATION_CANNOT_SEE_HEADING" = "What they CANNOT see";
+
+/* StudyInvitationView — important callout label */
+"INVITATION_IMPORTANT_LABEL" = "Important";
+
+/* StudyInvitationView — Cancel button */
+"INVITATION_CANCEL_BUTTON" = "Cancel";
+
+/* StudyInvitationView — Decline button */
+"INVITATION_DECLINE_BUTTON" = "Decline";
+
+/* StudyInvitationView — Participate button */
+"INVITATION_PARTICIPATE_BUTTON" = "Participate";
+
+
+/* ===================== NEW CLINICIAN GRANT VIEW ========================= */
+
+/* NewClinicianGrantView — navigation title */
+"NEW_GRANT_TITLE" = "Add Clinician";
+
+/* NewClinicianGrantView — Clinician Details section header */
+"NEW_GRANT_DETAILS_HEADER" = "Clinician Details";
+
+/* NewClinicianGrantView — name field */
+"NEW_GRANT_NAME_FIELD" = "Name";
+
+/* NewClinicianGrantView — organisation field */
+"NEW_GRANT_ORG_FIELD" = "Organisation";
+
+/* NewClinicianGrantView — Access Level section header */
+"NEW_GRANT_ACCESS_HEADER" = "Access Level";
+
+/* NewClinicianGrantView — tier picker label */
+"NEW_GRANT_TIER_PICKER" = "Tier";
+
+/* NewClinicianGrantView — Use Cases section header */
+"NEW_GRANT_USE_CASES_HEADER" = "Use Cases";
+
+/* NewClinicianGrantView — Cancel button */
+"NEW_GRANT_CANCEL_BUTTON" = "Cancel";
+
+/* NewClinicianGrantView — Grant button */
+"NEW_GRANT_GRANT_BUTTON" = "Grant";
+
+
+/* ===================== SESSION VIEW + REGULATORY ======================== */
+
+/* SessionView — navigation title */
+"SESSION_TITLE" = "Session";
+
+/* SessionView — connection banner, live mode pill */
+"SESSION_MODE_LIVE" = "Mode 1 — Live";
+
+/* SessionView — connection label, disconnected */
+"SESSION_CONN_SEARCHING" = "Searching for hub…";
+
+/* SessionView — connection label, scanning */
+"SESSION_CONN_SCANNING" = "Scanning…";
+
+/* SessionView — connection label, connecting */
+"SESSION_CONN_CONNECTING" = "Connecting…";
+
+/* SessionView — connection label, connected */
+"SESSION_CONN_CONNECTED" = "Hub connected";
+
+/* SessionView — session status, idle */
+"SESSION_STATUS_READY" = "Ready";
+
+/* SessionView — session status, running */
+"SESSION_STATUS_ACTIVE" = "Session Active";
+
+/* SessionView — session status, paused */
+"SESSION_STATUS_PAUSED" = "Paused";
+
+/* SessionView — session status, completed */
+"SESSION_STATUS_COMPLETE" = "Session Complete";
+
+/* SessionView — idle session prompt */
+"SESSION_IDLE_PROMPT" = "No active session. Choose a protocol below to begin.";
+
+/* SessionView — breathing ring, inhale phase */
+"SESSION_BREATH_INHALE" = "Inhale";
+
+/* SessionView — breathing ring, exhale phase */
+"SESSION_BREATH_EXHALE" = "Exhale";
+
+/* SessionView — breathing ring, coherence label */
+"SESSION_COHERENCE_LABEL" = "coherence";
+
+/* SessionView — live metric card, coherence */
+"SESSION_METRIC_COHERENCE" = "Coherence";
+
+/* SessionView — live metric card, RMSSD */
+"SESSION_METRIC_RMSSD" = "RMSSD";
+
+/* SessionView — live metric card, EEG contacts */
+"SESSION_METRIC_EEG_CONTACTS" = "EEG Contacts";
+
+/* SessionView — zone modules section label */
+"SESSION_ZONE_MODULES_LABEL" = "Zone Modules";
+
+/* SessionView — choose protocol button */
+"SESSION_CHOOSE_PROTOCOL_BUTTON" = "Choose Protocol";
+
+/* SessionView — end session button */
+"SESSION_END_BUTTON" = "End Session";
+
+/* SessionView — blocking consumable alert title */
+"SESSION_BLOCKED_TITLE" = "Session Blocked";
+
+/* SessionView — blocking consumable alert guidance */
+"SESSION_BLOCKED_GUIDANCE" = "Go to the Supplies tab to resolve this before starting a session.";
+
+/* SessionView — regulatory footer (general wellness disclaimer).
+   MUST render in full (multi-line, no truncation) per ISC-160. */
+"REGULATORY_FOOTER" = "NeuroPulse is a general wellness device. It is not a medical device and is not intended to diagnose, treat, cure, or prevent any disease or health condition.";
+
+
+/* ========================== SETUP WIZARD ================================ */
+
+/* SetupView — step title: welcome */
+"SETUP_TITLE_WELCOME" = "Welcome to NeuroPulse";
+
+/* SetupView — step title: Boa dial fit */
+"SETUP_TITLE_BOA_DIAL" = "Fit Adjustment";
+
+/* SetupView — step title: electrode pods */
+"SETUP_TITLE_ELECTRODE_PODS" = "Electrode Contact";
+
+/* SetupView — step title: zone modules */
+"SETUP_TITLE_ZONE_MODULES" = "Zone Modules";
+
+/* SetupView — step title: impedance check */
+"SETUP_TITLE_IMPEDANCE" = "Signal Quality Check";
+
+/* SetupView — step title: ADS1299 calibration */
+"SETUP_TITLE_CALIBRATION" = "Amplifier Calibration";
+
+/* SetupView — step title: hydration caps */
+"SETUP_TITLE_HYDRATION" = "Electrode Hydration";
+
+/* SetupView — step title: complete */
+"SETUP_TITLE_COMPLETE" = "Ready";
+
+/* SetupView — instruction: welcome */
+"SETUP_INSTR_WELCOME" = "This short setup confirms your NeuroPulse is ready for its first session. It takes about 3 minutes.";
+
+/* SetupView — instruction: Boa dial fit */
+"SETUP_INSTR_BOA_DIAL" = "Turn the Boa dial clockwise until the headset sits firmly on your head. The bridge should rest comfortably above your ears. All five electrode pods should touch your scalp.";
+
+/* SetupView — instruction: electrode pods (contact, hydration cap removal) */
+"SETUP_INSTR_ELECTRODE_PODS" = "Press each electrode pod lightly against your scalp. Each pod travels ±12mm independently, so you don't need to dial tighter to reach every contact point. Remove any hydration caps from the electrode tips now.";
+
+/* SetupView — instruction: zone modules */
+"SETUP_INSTR_ZONE_MODULES" = "Insert your zone modules into the colour-coded slots. Each module will announce its position via bone conduction when seated correctly. Check that all five slots are confirmed below.";
+
+/* SetupView — instruction: impedance check */
+"SETUP_INSTR_IMPEDANCE" = "Stay still while the app checks signal quality. Good contact = green. Moistening your hair slightly under the electrodes can help if you see red.";
+
+/* SetupView — instruction: ADS1299 calibration */
+"SETUP_INSTR_CALIBRATION" = "The EEG amplifier is calibrating its internal reference. This takes about 2 seconds and eliminates drift across all 8 channels. Stay still.";
+
+/* SetupView — instruction: hydration caps */
+"SETUP_INSTR_HYDRATION" = "Confirm you have removed the moisture-barrier hydration caps from all electrode tips. Store the caps in the provided case for future storage sessions.";
+
+/* SetupView — instruction: complete */
+"SETUP_INSTR_COMPLETE" = "Your NeuroPulse is set up and calibrated. You're ready for your first session.";
+
+/* SetupView — complete step confirmation heading */
+"SETUP_COMPLETE_HEADING" = "Your NeuroPulse is ready.";
+
+/* SetupView — complete step navigation hint */
+"SETUP_COMPLETE_HINT" = "Head to the Session tab to begin your first session.";
+
+/* SetupView — generic Continue button */
+"SETUP_CONTINUE_BUTTON" = "Continue";
+
+/* SetupView — signal quality / impedance confirm button */
+"SETUP_CHECK_SIGNAL_BUTTON" = "Check Signal Quality";
+
+/* SetupView — progress label while checking electrode contacts */
+"SETUP_CHECKING_CONTACTS" = "Checking electrode contacts…";
+
+/* SetupView — calibrate amplifier button */
+"SETUP_CALIBRATE_BUTTON" = "Calibrate Amplifier";
+
+/* SetupView — progress label while calibrating (step content) */
+"SETUP_CALIBRATING_AMPLIFIER" = "Calibrating EEG amplifier…";
+
+/* SetupView — progress label while calibrating (button area) */
+"SETUP_CALIBRATING" = "Calibrating…";
+
+/* SetupView — confirm zone modules button */
+"SETUP_CONFIRM_ZONE_BUTTON" = "Confirm Zone Modules";
+
+/* SetupView — Retry button after a setup error */
+"SETUP_RETRY_BUTTON" = "Retry";
+
+
+/* ===================== SETUP HARDWARE ERROR MESSAGES ==================== */
+/* SetupError.localizedDescription — surfaced in SetupView errorBanner. */
+
+/* SetupError — hub not connected */
+"SETUP_ERROR_NOT_CONNECTED" = "Hub not connected. Connect via USB-C or Bluetooth.";
+
+/* SetupError — ADS1299 calibration failed */
+"SETUP_ERROR_CALIBRATION_FAILED" = "ADS1299 calibration failed. Try powering the hub off and on.";
+
+/* SetupError — high impedance on named electrodes (%@ = electrode names) */
+"SETUP_ERROR_IMPEDANCE_FAILED" = "High impedance on %@. Moisten the scalp under those electrodes and retry.";
+
+/* SetupError — zone modules not detected in named slots (%@ = slot names) */
+"SETUP_ERROR_ZONE_MISSING" = "Zone modules not detected in %@. Re-seat and listen for the confirmation tone.";
+
+/* SetupError — hardware confirmation timed out */
+"SETUP_ERROR_TIMEOUT" = "Hardware confirmation timed out. Ensure the hub is connected and powered.";

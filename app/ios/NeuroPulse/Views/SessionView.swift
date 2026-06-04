@@ -1,4 +1,7 @@
 import SwiftUI
+import OSLog
+
+// TODO(localisation): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
 
 // Real-time session display — Mode 1 Connected (<1ms USB-C).
 // Shows: connection status · session status · EEG/HRV live metrics ·
@@ -11,8 +14,21 @@ struct SessionView: View {
     @EnvironmentObject private var consumable:  ConsumableTracker
     @EnvironmentObject private var setup:       HardwareSetupManager
     @EnvironmentObject private var library:     NPProtocolLibrary
+    @EnvironmentObject private var healthKit:   HealthKitSessionReader
 
-    @State private var showProtocolPicker = false
+    @State private var showProtocolPicker    = false
+    @State private var showStopConfirmation  = false
+    @State private var stopErrorMessage:     String?
+
+    // True only while an HRV biofeedback session is live. The hub streams the HRV
+    // coherence characteristic only for protocols that include HRV biofeedback, so
+    // a non-nil session.hrv during a running session is the signal that HRV
+    // biofeedback is the active modality. HealthKit is gated on this (ISC-94).
+    private var hrvBiofeedbackActive: Bool {
+        gatt.session.status == .running && gatt.session.hrv != nil
+    }
+
+    private static let logger = Logger(subsystem: "com.neuropulse.app", category: "SessionView")
 
     var body: some View {
         NavigationStack {
@@ -45,6 +61,42 @@ struct SessionView: View {
                     .environmentObject(library)
                     .environmentObject(uploader)
             }
+            .confirmationDialog("End this session?",
+                                isPresented: $showStopConfirmation,
+                                titleVisibility: .visible) {
+                Button("End Session", role: .destructive) { sendSessionStop() }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("The hub will stop the active session.")
+            }
+            .alert("Couldn't End Session",
+                   isPresented: Binding(
+                       get: { stopErrorMessage != nil },
+                       set: { if !$0 { stopErrorMessage = nil } }
+                   )) {
+                Button("OK", role: .cancel) { stopErrorMessage = nil }
+            } message: {
+                Text(stopErrorMessage ?? "")
+            }
+            .onChange(of: hrvBiofeedbackActive) { _, isActive in
+                if isActive {
+                    Task { await healthKit.requestAuthorizationAndStart() }
+                } else {
+                    healthKit.stopAndClear()
+                }
+            }
+            .onDisappear { healthKit.stopAndClear() }
+        }
+    }
+
+    // Requests the hub to stop the session. Does NOT update session.status locally —
+    // the UI reflects new state only after the hub reports it via GATT (ISC-34).
+    private func sendSessionStop() {
+        gatt.sendSessionStop { result in
+            if case .failure(let error) = result {
+                Self.logger.error("Session stop failed: \(String(describing: error))")
+                stopErrorMessage = "Could not reach the hub. Please check the connection and try again."
+            }
         }
     }
 
@@ -60,7 +112,7 @@ struct SessionView: View {
                 .foregroundColor(.secondary)
             Spacer()
             if gatt.connectionState == .connected {
-                Text("Mode 1 — Live")
+                Text(connectionModeLabel)
                     .font(.caption2)
                     .padding(.horizontal, 8).padding(.vertical, 2)
                     .background(Color.green.opacity(0.15))
@@ -86,6 +138,20 @@ struct SessionView: View {
         case .connecting:   return "Connecting…"
         case .connected:    return "Hub connected"
         }
+    }
+
+    // Distinguishes the wired USB-C transport (sub-millisecond, "Live") from the
+    // BLE transport ("Wireless"). The BLE path deliberately makes no latency claim
+    // because the <1ms guarantee only holds over USB-C (CLAUDE.md §4.1).
+    //
+    // USB-C detection: iOS exposes no public IOKit accessory API for this, so the
+    // device charging state is used as a reasonable proxy — the hub powers the
+    // phone over USB-C when wired. Battery monitoring is enabled app-wide in
+    // NeuroPulseApp.swift (UIDevice.current.isBatteryMonitoringEnabled = true).
+    private var connectionModeLabel: String {
+        let isWired = UIDevice.current.batteryState == .charging
+            || UIDevice.current.batteryState == .full
+        return isWired ? "Mode 1 — Live (<1ms)" : "Mode 1 — Wireless"
     }
 
     private var connectionIndicator: some View {
@@ -215,6 +281,11 @@ struct SessionView: View {
             MetricCard(title: "EEG Contacts",
                        value: "\(impedancePassCount) / 8",
                        icon: "brain", color: impedancePassCount == 8 ? .green : .orange)
+            if let healthKitHRV = healthKit.latestHRVSDNN {
+                MetricCard(title: "HealthKit HRV",
+                           value: String(format: "%.0f ms", healthKitHRV),
+                           icon: "heart.text.square", color: .purple)
+            }
         }
     }
 
@@ -258,12 +329,13 @@ struct SessionView: View {
 
             if gatt.session.status == .running {
                 Button(role: .destructive) {
-                    // TODO: send stop command to hub
+                    showStopConfirmation = true
                 } label: {
                     Label("End Session", systemImage: "stop.circle")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .disabled(gatt.connectionState != .connected)
             }
         }
     }
