@@ -140,7 +140,7 @@ struct NPProtocolValidator {
         return result
     }
 
-    func validate(_ entry: NPProtocolEntry, resolving library: NPProtocolLibrary?) -> NPValidationResult {
+    @MainActor func validate(_ entry: NPProtocolEntry, resolving library: NPProtocolLibrary?) -> NPValidationResult {
         switch entry {
         case .single(let p):
             return validate(p)
@@ -153,7 +153,7 @@ struct NPProtocolValidator {
 
     // MARK: Composite
 
-    private func validateComposite(_ c: NPCompositeProtocol, library: NPProtocolLibrary?) -> NPValidationResult {
+    @MainActor private func validateComposite(_ c: NPCompositeProtocol, library: NPProtocolLibrary?) -> NPValidationResult {
         var result = NPValidationResult()
         if c.layers.isEmpty {
             result.issues.append(NPValidationIssue(

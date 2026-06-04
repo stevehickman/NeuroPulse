@@ -1,6 +1,7 @@
 import Foundation
 import CryptoKit
 import LocalAuthentication
+import UIKit
 
 // UHDR AES-256-XTS key derivation.
 // Target KDF: Argon2id (memory=64MB, iterations=4, parallelism=1, output=64B → K1+K2 for XTS).

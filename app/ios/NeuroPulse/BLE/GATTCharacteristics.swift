@@ -45,7 +45,7 @@ enum OTAOpcode: UInt8 {
     case abort          = 0x04  // Cancel in-flight OTA
     case safetyMCUBegin = 0x10  // Safety MCU firmware update — requires explicit user confirmation
     case safetyMCUChunk = 0x11
-    case safetyMCUCommit= 0x12
+    case safetyMCUCommit = 0x12
 }
 
 // MARK: - Calibration command opcodes

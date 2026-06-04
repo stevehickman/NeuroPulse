@@ -1,6 +1,7 @@
 import Foundation
 import BackgroundTasks
 import CryptoKit
+import UIKit
 
 // Nightly incremental UHDR backup scheduler.
 // Per CLAUDE.md §5.1: backup uses same Argon2id-derived AES-256-XTS key as on-device UHDR.
@@ -33,8 +34,14 @@ final class UHDRBackupScheduler: ObservableObject {
         case encryptedCloud = "Encrypted Cloud (User Key)"
     }
 
-    @AppStorage("np.backup.destination") var destination: String = BackupDestination.localUSBC.rawValue
-    @AppStorage("np.backup.last-epoch") private var lastBackupEpoch: Double = 0
+    var destination: String {
+        get { UserDefaults.standard.string(forKey: "np.backup.destination") ?? BackupDestination.localUSBC.rawValue }
+        set { UserDefaults.standard.set(newValue, forKey: "np.backup.destination") }
+    }
+    private var lastBackupEpoch: Double {
+        get { UserDefaults.standard.double(forKey: "np.backup.last-epoch") }
+        set { UserDefaults.standard.set(newValue, forKey: "np.backup.last-epoch") }
+    }
 
     init(keyManager: UHDRKeyManager) {
         self.keyManager = keyManager
