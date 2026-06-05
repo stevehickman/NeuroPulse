@@ -14,7 +14,7 @@ enum PacerPhase: UInt8 {
     case exhale = 1
 }
 
-struct HRVData {
+struct HRVData: Equatable {
     // coherence_score_x100: uint16 from GATT. Divide by 100 for 0.00–10.00 display value.
     var coherenceScore: Float      // 0.0–10.0
     var rmssdMilliseconds: UInt16

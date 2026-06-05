@@ -11,7 +11,7 @@ enum EngagementTier: String {
     static func current() -> EngagementTier {
         let count = UserDefaults.standard.integer(forKey: "np.analytics.launch-count")
         switch count {
-        case 1...5:  return .new
+        case ..<6:   return .new       // covers 0 (key absent) and 1–5
         case 6...50: return .active
         default:     return .established
         }
