@@ -90,6 +90,7 @@ struct NeuroPulseApp: App {
                 .environmentObject(healthKit)
                 .onAppear {
                     UIDevice.current.isBatteryMonitoringEnabled = true
+                    EngagementTier.incrementLaunchCount()
                     presentNextOnboardingStep()
                 }
                 // Age gate first — full-screen, no Skip (ISC-83, ISC-130).
@@ -140,6 +141,9 @@ struct NeuroPulseApp: App {
         if !consentOnboardingShown {
             showConsentOnboarding = true
             consentOnboardingShown = true
+            return
         }
+        // All gates passed — safe to open the analytics gate (ISC-92).
+        AnalyticsGate.configure()
     }
 }

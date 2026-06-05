@@ -39,12 +39,15 @@
 		60066FA725B78AC851A1D2FB /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B3C8C3C50590F552A09F2A6 /* SessionView.swift */; };
 		609C9D77B66A2EE843B81F09 /* ProtocolChunkerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99CA449FB8F98185064BF196 /* ProtocolChunkerTests.swift */; };
 		67C16141CE9405C01E2DE345 /* ModalityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */; };
+		68A32294D18FF20CA336E7F5 /* AnalyticsGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4CD5B06310EF5F5ED10616A /* AnalyticsGate.swift */; };
 		70E1FBB506B11F4FBF94D455 /* NPLimitsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E355FEC3A2FEA1C26B51B250 /* NPLimitsStore.swift */; };
 		75A9D627B3B44F132FD9FBFD /* UHDRKeyManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3313CAE048F16BB8EF271F4F /* UHDRKeyManagerTests.swift */; };
+		796181998FF742281E5B9BD8 /* AnalyticsSDKStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CB1003BE9E507D4A6BF6E9F /* AnalyticsSDKStub.swift */; };
 		7BC70D02885D48C0E83535EF /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CD3FBC03A53B600987E7B18 /* SessionHistoryView.swift */; };
 		7E4D2845AD720CF46481D061 /* PhoneSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9928E38344F93D2CFBBC72EB /* PhoneSessionManager.swift */; };
 		7FA35DE280E4C62094A9F621 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4E91C63077C38445FBB88F5B /* PrivacyInfo.xcprivacy */; };
 		86AA3152A2A01721F3E14522 /* OTAView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29997D2651EEF868F3BCD7C8 /* OTAView.swift */; };
+		9252FD3AC608ACE08E2457EB /* EngagementTier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DC1D93F497BFB4863D49A88 /* EngagementTier.swift */; };
 		93455498E379D6EBC4EBBB44 /* UHDRKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B5EFA4628F9C3C333BB6C9 /* UHDRKeyManager.swift */; };
 		97B4C798A7DEC3EC28CC939C /* NeuroPulseGATTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB88FC8DB0D54D6B517FB214 /* NeuroPulseGATTManager.swift */; };
 		A6D7618BA89FF23455CC6016 /* Under16View.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78848232232677FE9E0B0DE /* Under16View.swift */; };
@@ -92,6 +95,7 @@
 		112BFF0EEAF13ECC40F86F32 /* HardwareSetupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareSetupManager.swift; sourceTree = "<group>"; };
 		124975BABC28934EFC9A3E99 /* ConsumableInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableInventory.swift; sourceTree = "<group>"; };
 		1262B33B95FA07E03C897F9A /* SessionProtocolUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProtocolUploader.swift; sourceTree = "<group>"; };
+		1CB1003BE9E507D4A6BF6E9F /* AnalyticsSDKStub.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AnalyticsSDKStub.swift; path = NeuroPulse/Analytics/AnalyticsSDKStub.swift; sourceTree = SOURCE_ROOT; };
 		1E73CA84DF1774384C133A5D /* OTAManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAManager.swift; sourceTree = "<group>"; };
 		1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalityEditorView.swift; sourceTree = "<group>"; };
 		212AED6CC59AF5DEB2C7F757 /* NPHardwareLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPHardwareLimits.swift; sourceTree = "<group>"; };
@@ -113,6 +117,7 @@
 		70F38506C90A8CD8C9EA4A40 /* ProtocolChunker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProtocolChunker.swift; path = NeuroPulse/Protocol/ProtocolChunker.swift; sourceTree = SOURCE_ROOT; };
 		7665E9CC9E0014859BEB9355 /* OTAModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAModels.swift; sourceTree = "<group>"; };
 		78C1DDCA71A8088A81D60B55 /* NPModalityType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPModalityType.swift; sourceTree = "<group>"; };
+		7DC1D93F497BFB4863D49A88 /* EngagementTier.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EngagementTier.swift; path = NeuroPulse/Analytics/EngagementTier.swift; sourceTree = SOURCE_ROOT; };
 		816076D720C30AE0F0FB49B4 /* AdaptiveAdjustmentsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveAdjustmentsCard.swift; sourceTree = "<group>"; };
 		845AFF8746C072D3C5C35BEF /* NeuroPulseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeuroPulseApp.swift; sourceTree = "<group>"; };
 		8465F55E8A50204B7B8EFB10 /* SessionHistoryStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SessionHistoryStore.swift; path = NeuroPulse/Session/SessionHistoryStore.swift; sourceTree = SOURCE_ROOT; };
@@ -127,6 +132,7 @@
 		9A0EBE7C62F77EE9EB871EFC /* GATTParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GATTParserTests.swift; path = NeuroPulseTests/GATTParserTests.swift; sourceTree = SOURCE_ROOT; };
 		A2280ECFED79E63FA306A965 /* EDFDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EDFDownloader.swift; sourceTree = "<group>"; };
 		A36BDFB8DBD66EA7F0D4870F /* NPProtocolValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolValidator.swift; sourceTree = "<group>"; };
+		A4CD5B06310EF5F5ED10616A /* AnalyticsGate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AnalyticsGate.swift; path = NeuroPulse/Analytics/AnalyticsGate.swift; sourceTree = SOURCE_ROOT; };
 		A7675A28F88D4C443BF98C21 /* BIPADisclosureView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BIPADisclosureView.swift; path = NeuroPulse/Onboarding/BIPADisclosureView.swift; sourceTree = SOURCE_ROOT; };
 		AC170B8BDE63021729560AF1 /* ConsentOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentOnboardingView.swift; sourceTree = "<group>"; };
 		ACBACC42045209F229E88BDC /* AgeGateView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AgeGateView.swift; path = NeuroPulse/Onboarding/AgeGateView.swift; sourceTree = SOURCE_ROOT; };
@@ -175,6 +181,14 @@
 				C56360D1F64BD4BBEBB956CF /* ZoneModuleInfo.swift */,
 			);
 			path = Models;
+			sourceTree = "<group>";
+		};
+		0FA1D409CC1C7DE03E1AFC5C /* Analytics */ = {
+			isa = PBXGroup;
+			children = (
+				A4CD5B06310EF5F5ED10616A /* AnalyticsGate.swift */,
+			);
+			name = Analytics;
 			sourceTree = "<group>";
 		};
 		141B11E25DF013CE21A4EFCE /* Protocol */ = {
@@ -280,6 +294,14 @@
 			name = Protocol;
 			sourceTree = "<group>";
 		};
+		53B31648DCACEDAE785FA49F /* Analytics */ = {
+			isa = PBXGroup;
+			children = (
+				1CB1003BE9E507D4A6BF6E9F /* AnalyticsSDKStub.swift */,
+			);
+			name = Analytics;
+			sourceTree = "<group>";
+		};
 		581535948C92E422594991D0 /* BLE */ = {
 			isa = PBXGroup;
 			children = (
@@ -316,6 +338,9 @@
 				63CB8A9509619E43FFF92ED8 /* Onboarding */,
 				3255410F2DE2F560B85E5045 /* Session */,
 				FF318A6290F14733332FF57A /* Views */,
+				0FA1D409CC1C7DE03E1AFC5C /* Analytics */,
+				53B31648DCACEDAE785FA49F /* Analytics */,
+				EADCAD3C2CD4FB181F3985DE /* Analytics */,
 			);
 			sourceTree = "<group>";
 		};
@@ -434,6 +459,14 @@
 				2B1FA28527F9048C12382557 /* ConsumableTracker.swift */,
 			);
 			path = Consumable;
+			sourceTree = "<group>";
+		};
+		EADCAD3C2CD4FB181F3985DE /* Analytics */ = {
+			isa = PBXGroup;
+			children = (
+				7DC1D93F497BFB4863D49A88 /* EngagementTier.swift */,
+			);
+			name = Analytics;
 			sourceTree = "<group>";
 		};
 		FF30F1AEB8081BCFCC1F7711 /* Views */ = {
@@ -625,6 +658,9 @@
 				C298C72F37D0257F49BE8860 /* RegionHelper.swift in Sources */,
 				08584769D8A96CCB3FCBFD9F /* SessionHistoryStore.swift in Sources */,
 				CBE9BE0740BD3CBC14900DE6 /* SessionHistoryListView.swift in Sources */,
+				68A32294D18FF20CA336E7F5 /* AnalyticsGate.swift in Sources */,
+				796181998FF742281E5B9BD8 /* AnalyticsSDKStub.swift in Sources */,
+				9252FD3AC608ACE08E2457EB /* EngagementTier.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
