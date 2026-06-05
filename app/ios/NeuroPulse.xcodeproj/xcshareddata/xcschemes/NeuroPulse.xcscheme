@@ -40,10 +40,11 @@
       </MacroExpansion>
       <Testables>
          <TestableReference
-            skipped = "NO">
+            skipped = "NO"
+            parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "8D070F97227C58D1B3C4D161"
+               BlueprintIdentifier = "AAE0B51BD4547818552C93DB"
                BuildableName = "NeuroPulseTests.xctest"
                BlueprintName = "NeuroPulseTests"
                ReferencedContainer = "container:NeuroPulse.xcodeproj">
