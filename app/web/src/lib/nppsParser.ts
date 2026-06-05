@@ -177,14 +177,18 @@ export function tokenize(text: string): Token[] {
       }
       // If no unit suffix was consumed and the next char would start an identifier
       // (e.g. 660_808nm, 1064nm), extend into a full IDENT token rather than NUMBER.
+      // Entry condition excludes bare '_' to avoid accepting malformed tokens like
+      // "660_" or "660__nm" as valid identifiers.
       if (!unit && pos < text.length &&
-          (text[pos] === '_' || (text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z'))) {
+          ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z'))) {
         let ident = numStr;
         while (pos < text.length &&
                ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') ||
                 (text[pos] >= '0' && text[pos] <= '9') || text[pos] === '_')) {
           ident += text[pos++];
         }
+        // Strip any trailing underscores — they are not valid in wavelength identifiers.
+        while (ident.endsWith('_')) ident = ident.slice(0, -1);
         tokens.push({ type: 'IDENT', value: ident, line });
         continue;
       }

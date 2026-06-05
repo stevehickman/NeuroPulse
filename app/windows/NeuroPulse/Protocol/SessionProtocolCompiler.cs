@@ -45,7 +45,10 @@ static class SessionProtocolCompiler
                 FrequencyHz = m.P.FrequencyHz,
                 DutyCyclePercent = m.P.DutyCyclePercent,
                 DurationSeconds = sessionDurationSeconds,
-                // mirrors: Double(durationSeconds) * (p.intensityPercent / 100.0) * 0.4
+                // Dose formula (mirrors Swift buildSessionProtocol):
+                // peak irradiance ≈ 400 mW/cm² × dutyCycle(25%) = 100 mW/cm² average
+                // dose = durationSeconds × intensityFraction × 0.4 W/cm² = J/cm²
+                // 0.4 is the CW-equivalent irradiance at 100% intensity (W/cm²).
                 TargetDoseJoules = sessionDurationSeconds * (m.P.IntensityPercent / 100.0) * 0.4
             },
 
