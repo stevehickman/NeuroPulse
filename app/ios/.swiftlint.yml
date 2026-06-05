@@ -1,0 +1,83 @@
+# SwiftLint configuration for the NeuroPulse iOS app.
+#
+# Satisfies ISA criteria:
+#   ISC-3 — `swiftlint --strict` runs with zero violations on the source tree.
+#   ISC-8 — No `print()` calls in release-target Swift source (use `Logger` from `os`).
+#   ISC-9 — No hardcoded IP addresses, URLs, or API keys in Swift source.
+#
+# CI runs `swiftlint --strict` from the `app/ios/` directory. With --strict,
+# every warning is treated as an error, so any violation fails the build.
+#
+# SwiftLint 0.54+ YAML format. No build phase is registered — lint is CI-only.
+
+# Only lint the app source tree. Build artefacts, the Xcode project bundle, and
+# any vendored dependencies are excluded.
+included:
+  - NeuroPulse
+
+excluded:
+  - NeuroPulse.xcodeproj
+  - build
+  - Pods
+
+reporter: "xcode"
+
+# ---------------------------------------------------------------------------
+# Standard rules
+# ---------------------------------------------------------------------------
+force_cast: warning
+force_try: warning
+trailing_whitespace:
+  severity: warning
+vertical_whitespace:
+  severity: warning
+
+line_length:
+  warning: 140
+  error: 200
+  ignores_urls: true
+  ignores_comments: false
+
+# ---------------------------------------------------------------------------
+# Custom rules
+# ---------------------------------------------------------------------------
+# `no_print_statement` is implemented here as a custom rule because SwiftLint
+# 0.54 does not ship a built-in opt-in rule of that name. Banning `print` keeps
+# the codebase on `Logger` from the `os` framework (ISC-8). The regex matches a
+# `print(` call only when it is not preceded by `.` (so `someObject.print(...)`
+# member calls and `debugPrint`/`fatalError` are not falsely flagged).
+custom_rules:
+  no_print_statement:
+    name: "No print() statements"
+    message: "Use `Logger` from the `os` framework instead of print(). See ISA ISC-8."
+    regex: '(?<![\.\w])print\s*\('
+    match_kinds:
+      - identifier
+    severity: warning
+
+  # ISC-93 / NP-APP-TELEMETRY-001 Rev B §3: raw session counts must never be
+  # transmitted in analytics. Catch `"session_count"` / `"session_sequence"`
+  # used as analytics dictionary keys. Scoped to a `key: value` dictionary-entry
+  # shape (string literal immediately followed by a colon) so that prose,
+  # comments, and non-key occurrences are not flagged. `engagement_tier` is the
+  # only permitted bucket.
+  no_session_count_analytics:
+    name: "No raw session count in analytics"
+    message: "Raw session_count/session_sequence must not be an analytics key. Use the engagement_tier enum. See ISA ISC-93 / NP-APP-TELEMETRY-001 Rev B §3."
+    regex: '"(session_count|session_sequence)"\s*:'
+    match_kinds:
+      - string
+    severity: warning
+
+  # ISC-97 / NP-APP-TELEMETRY-001 Rev B: these biometric / identifier strings
+  # must never appear as analytics event property keys. Scoped to the
+  # dictionary-key shape (`"<key>":`) so that UI labels, search tags, and
+  # WatchConnectivity message keys are not flagged — only string literals used
+  # as keys in event property dictionaries.
+  no_analytics_keys:
+    name: "No prohibited analytics property keys"
+    message: "eeg/hrv/rmssd/coherence/session_id/protocol_id must not be analytics event property keys. See ISA ISC-97 / NP-APP-TELEMETRY-001 Rev B."
+    regex: '"(eeg|hrv|rmssd|coherence|session_id|protocol_id)"\s*:'
+    match_kinds:
+      - string
+    severity: warning

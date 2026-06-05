@@ -19,6 +19,7 @@ struct NeuroPulseApp: App {
     @StateObject private var setupMgr:        HardwareSetupManager
     @StateObject private var protocolLibrary: NPProtocolLibrary
     @StateObject private var limitsStore:     NPLimitsStore
+    @StateObject private var healthKit:       HealthKitSessionReader
 
     init() {
         let g  = NeuroPulseGATTManager()
@@ -37,6 +38,7 @@ struct NeuroPulseApp: App {
         _setupMgr        = StateObject(wrappedValue: HardwareSetupManager(gatt: g))
         _protocolLibrary = StateObject(wrappedValue: NPProtocolLibrary())
         _limitsStore     = StateObject(wrappedValue: NPLimitsStore())
+        _healthKit       = StateObject(wrappedValue: HealthKitSessionReader())
 
         // Register background task for nightly UHDR backup.
         // Must be registered before app finishes launching.
@@ -52,6 +54,12 @@ struct NeuroPulseApp: App {
             }
         }
     }
+
+    // Age gate is the FIRST onboarding screen, before any personal data is
+    // collected or any consent layer is presented (ISC-83, ISC-127).
+    // Launch-blocking privacy requirement (NP-PRIV-001 Rev B MEDIUM-03).
+    @AppStorage("np.onboarding.age-confirmed") private var ageConfirmed = false
+    @State private var showAgeGate = false
 
     @AppStorage("np.onboarding.consent-shown") private var consentOnboardingShown = false
     @State private var showConsentOnboarding = false
@@ -72,17 +80,36 @@ struct NeuroPulseApp: App {
                 .environmentObject(setupMgr)
                 .environmentObject(protocolLibrary)
                 .environmentObject(limitsStore)
+                .environmentObject(healthKit)
                 .onAppear {
                     UIDevice.current.isBatteryMonitoringEnabled = true
-                    if !consentOnboardingShown {
-                        showConsentOnboarding = true
-                        consentOnboardingShown = true
+                    presentNextOnboardingStep()
+                }
+                // Age gate first — full-screen, no Skip (ISC-83, ISC-130).
+                .fullScreenCover(isPresented: $showAgeGate) {
+                    AgeGateView {
+                        ageConfirmed = true
+                        showAgeGate = false
+                        presentNextOnboardingStep()
                     }
                 }
                 .sheet(isPresented: $showConsentOnboarding) {
                     ConsentOnboardingView(isPresented: $showConsentOnboarding)
                         .environmentObject(consentStore)
                 }
+        }
+    }
+
+    /// Drives the onboarding sequence: age gate first, then research consent.
+    /// Age confirmation gates everything that collects or displays personal data.
+    private func presentNextOnboardingStep() {
+        if !ageConfirmed {
+            showAgeGate = true
+            return
+        }
+        if !consentOnboardingShown {
+            showConsentOnboarding = true
+            consentOnboardingShown = true
         }
     }
 }

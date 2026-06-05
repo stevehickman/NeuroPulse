@@ -16,6 +16,12 @@ struct ProtocolMenuView: View {
     @EnvironmentObject private var uploader: SessionProtocolUploader
     @EnvironmentObject private var limitsStore: NPLimitsStore
 
+    // When true, selecting a protocol programs it onto the hub for Mode 3
+    // Autonomous use (via SessionProtocolUploader.programAutonomous) instead of
+    // a standard Mode 2 upload. On success `onProgrammed` is invoked.
+    var programMode: Bool = false
+    var onProgrammed: (() -> Void)? = nil
+
     @State private var searchText = ""
     @State private var filter: LibraryFilter = .all
     @State private var showEditor = false
@@ -394,8 +400,14 @@ struct ProtocolMenuView: View {
         let sessionProto = buildSessionProtocol(from: proto)
         Task {
             do {
-                try await uploader.upload(sessionProto)
-                dismiss()
+                if programMode {
+                    try await uploader.programAutonomous(sessionProto)
+                    dismiss()
+                    onProgrammed?()
+                } else {
+                    try await uploader.upload(sessionProto)
+                    dismiss()
+                }
             } catch {
                 uploadError = error.localizedDescription
                 showUploadError = true

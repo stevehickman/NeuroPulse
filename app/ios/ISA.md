@@ -1,0 +1,352 @@
+---
+task: "Core iOS app launch-ready for T1 hardware"
+slug: 20260604-000000_ios-core-app-t1-launch
+project: NeuroPulse
+effort: E4
+effort_source: gate-floor
+phase: observe
+progress: 0/164
+mode: interactive
+started: 2026-06-04
+updated: 2026-06-04
+---
+
+# ISA — NeuroPulse Core iOS App (Issue #51)
+
+## Problem
+
+The NeuroPulse T1 hardware ships Month 18 post-company-formation. The iOS app must be App Store-live by Month 12 to allow six months of beta validation before mass shipment. The current codebase (~44 Swift source files, ~10,600 lines) covers core BLE, session display, protocol scripting, consent, consumable tracking, OTA, and UHDR/SHDR data management — but several launch-critical items are absent or incomplete: the session stop command is a TODO stub, the privacy compliance screens required before any Illinois activation (BIPA written release) and before any data is collected (minimum age gate) are not implemented, the Session History screen does not exist, the analytics SDK initialisation gate is not wired, the Adaptive Adjustments transparency card is not implemented, and the app has never been submitted to App Store Connect. No App Store privacy nutrition label exists. Without these, the app cannot ship legally or pass App Store review.
+
+## Vision
+
+A T1 user unboxes their NeuroPulse, opens the iOS app, and within three minutes has completed consent onboarding, confirmed their first hardware connection, seen their eight EEG impedance contacts go green one by one, and started their first `alpha_calm` session watching live HRV coherence and a breathing ring slowly pulse. After the session ends they pull the EDF file to their phone with one tap and see their coherence trend building in Session History. The experience feels like a high-trust, precision health tool — calm typography, no alarm unless something genuinely needs attention, no dark patterns, no friction between the user and their own data. Every privacy decision the user makes is visible, revocable, and plain-language. The app is the reason a clinician recommends NeuroPulse over a competitor who ships a comparable headset.
+
+## Out of Scope
+
+The Apple Watch companion app (NP-APP-ROADMAP-001 Rev B Phases 1–4) is not part of this ISA — it is a Year 1 post-launch deliverable with its own development phases and open items. The T2 clinical cloud features (FHIR R4 EHR integration, multi-patient dashboard, sLORETA source imaging viewer, scripting API) are not in scope — they require T2 hardware and a separate 510(k) pathway. The research anonymisation engine firmware (NP-FW-ANON-001) runs on-device in firmware, not in the iOS app — the app's role is to display the study invitation and consent flow, not to execute the anonymisation pipeline. Android is not in scope for T1. Backend server infrastructure is not in scope for this ISA — server-side endpoints are a separate workstream. HealthKit write-back (pushing NeuroPulse session data into HealthKit) is not in scope — the current spec reads HRV SDNN for display only.
+
+## Principles
+
+- **User owns their data unconditionally.** Every data flow that touches UHDR requires explicit, revocable, plain-language consent. The app must never transmit UHDR to NeuroPulse or any vendor. The biometric-derived AES-256 key never leaves the device.
+- **Privacy compliance is launch-blocking, not post-launch cleanup.** BIPA written release, minimum age gate, analytics SDK gate, and HealthKit data residency are engineering requirements that block App Store submission, not nice-to-haves.
+- **Session safety is hardware-owned; the app is advisory.** The Safety MCU owns all stimulation GPIO. The app can request start/stop but must never assume a stimulation state it has not received confirmation of from the hub. A lost BLE connection during a session is not an app error — it is a safety event the hub handles autonomously.
+- **Information density over decoration.** Session metrics (coherence score, RMSSD, zone module status, impedance pass count) are always visible during a session. No screen animations that obscure data. No gamification that distorts clinical signal.
+- **No feature flags for regulatory requirements.** The BIPA screen, age gate, irreversibility notice, and adaptive adjustments card are not behind flags — they are structural fixtures of the consent and session history flows.
+- **The app is a thin shell over hardware.** All dosage limits, charge density limits, and safety interlocks live in firmware. The app validates protocols before upload but defers all safety enforcement to the hub. App crashes must not affect ongoing stimulation.
+
+## Constraints
+
+- **iOS 17+ minimum.** Uses SwiftUI `NavigationStack`, `@Observable` (or `@StateObject`) patterns, `BGTaskScheduler` for nightly UHDR backup, and `CoreBluetooth` 5.3 LE Audio.
+- **Swift 5.10 / Xcode 15+.** No Objective-C interop beyond CoreBluetooth bridging already in place.
+- **BLE 5.3 LE only.** No Wi-Fi direct communication path to hub in the iOS app. Hub BLE GATT service UUID and characteristic layout as defined in NP-APP-ROADMAP-001 Rev B §5. Protocol blobs must be chunked at ≤512 bytes per BLE write.
+- **No NeuroPulse server access to UHDR.** The `UHDRKeyManager` biometric-derived AES-256 key never leaves the device and is never transmitted to any NeuroPulse infrastructure or analytics vendor.
+- **Analytics: `engagement_tier` enum only.** No raw session count or raw app launch count transmitted in any analytics event. `engagement_tier` is a 3-bucket coarsened enum (`new`/`active`/`established`) per NP-APP-TELEMETRY-001 Rev B §3.
+- **Analytics and crash SDK initialisation gate.** No analytics or crash reporting SDK may call `init()` or `configure()` before the consent flow is complete for the current user. Per NP-APP-TELEMETRY-001 Rev B §5.
+- **BIPA written release required before Illinois device activation.** EEG neurofeedback and closed-loop adaptive stimulation must be disabled until the BIPA screen is accepted. Detection is IP-based locale plus explicit Illinois declaration (OI-PA-03).
+- **Minimum age gate: 16+ declaration required before any personal data is collected.** Gate must appear before the first screen that collects or displays personal data. The checkbox is not pre-ticked. Flow cannot proceed if unchecked.
+- **Session protocol Ed25519 signature.** The hub firmware rejects unsigned or corrupted session protocol blobs (NP-FW-EMMC-001 Rev A §8). The app must sign every protocol blob before upload using the session signing key infrastructure already defined in the protocol validator.
+- **App Store Health & Fitness category.** No Medical Device category — T1 is FDA-exempt general wellness. Regulatory footer `Text` must appear on every stimulation-adjacent screen.
+- **HealthKit data residency.** HealthKit data (HRV SDNN, heart rate) read only for real-time session display. Not persisted beyond the active session. Not transmitted to NeuroPulse servers or any analytics vendor. Per NP-APP-ROADMAP-001 Rev B §9.1.
+
+## Goal
+
+The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review on first submission, covering all core T1 session management, consent, consumable, OTA, and privacy compliance flows required to activate a T1 device — and is free of the legal blocking items (BIPA, age gate, analytics gate, adaptive adjustments transparency) identified in NP-PRIV-001 Rev B and NP-APP-ROADMAP-001 Rev B §9.
+
+## Criteria
+
+### Build and project structure
+
+- [ ] ISC-1: The Xcode project builds for iOS 17+ release configuration with zero errors and zero warnings on clean build.
+- [ ] ISC-2: The Xcode project builds for iOS Simulator (arm64) with zero errors and zero warnings on clean build.
+- [ ] ISC-3: SwiftLint runs with zero violations on the full source tree (`.swiftlint.yml` present and enforced in CI).
+- [ ] ISC-4: The `Info.plist` contains `NSBluetoothAlwaysUsageDescription`, `NSBluetoothPeripheralUsageDescription`, and `NSHealthShareUsageDescription` with NeuroPulse-specific strings (not placeholder text).
+- [ ] ISC-5: The BGTaskScheduler identifier `com.neuropulse.uhdr-backup` is declared in `Info.plist` under `BGTaskSchedulerPermittedIdentifiers`.
+- [ ] ISC-6: The App Store privacy nutrition label (App Privacy section in App Store Connect) is complete and matches `NP-APP-TELEMETRY-001 Rev B` declared data types — no placeholder entries remain.
+- [ ] ISC-7: The app bundle ID is set to a production value (not `com.example.*` or any placeholder).
+- [ ] ISC-8: `Anti:` No `print()` calls exist in any release-target Swift source file (use `Logger` from `os` framework only).
+- [ ] ISC-9: `Anti:` No hardcoded IP addresses, URLs, or API keys exist in any Swift source file.
+- [ ] ISC-10: The minimum deployment target in the Xcode project file is iOS 17.0.
+
+### BLE GATT connection layer
+
+- [ ] ISC-11: `NeuroPulseGATTManager` begins scanning automatically when `CBCentralManager.state == .poweredOn`, without requiring a manual user action.
+- [ ] ISC-12: On hub disconnect, `NeuroPulseGATTManager` automatically re-scans after a 2-second delay — verified by simulating a disconnect in the Xcode BLE simulator.
+- [ ] ISC-13: All thirteen GATT characteristics (9 NOTIFY + 4 WRITE) from `GATTCharacteristics.swift` are resolved and assigned within 2 seconds of initial `didConnect` callback.
+- [ ] ISC-14: Protocol blobs larger than 512 bytes are automatically chunked by `SessionProtocolUploader` before passing to `NeuroPulseGATTManager.uploadProtocol(_:)`.
+- [ ] ISC-15: `GATTParser.parseSessionState`, `parseSessionStatus`, `parseHRVCoherence`, `parsePacerPhase`, `parseImpedanceResult`, `parseConsumableStatus`, `parseOTAStatus`, and `parseZoneModuleStatus` each exist as static functions and return non-nil values for canonical test byte sequences.
+- [ ] ISC-16: `NeuroPulseGATTManager.connectionState` transitions correctly through `.disconnected → .scanning → .connecting → .connected` and is `@Published` — `SessionView` reacts without any explicit refresh.
+- [ ] ISC-17: `Anti:` `NeuroPulseGATTManager` does not hold a strong reference to any ViewController or View — connection lifecycle is fully decoupled from the view hierarchy.
+- [ ] ISC-18: The BLE central manager is initialised on `DispatchQueue.main` (existing) — no background-thread CBCentralManager initialisation path exists.
+- [ ] ISC-19: When Bluetooth is off, `SessionView` shows a user-visible "Enable Bluetooth to connect to your hub" message rather than a generic error or blank state.
+- [ ] ISC-20: On reconnect after disconnect-during-session, `SessionView` restores the last known session state from the GATT `SESSION_STATUS` read characteristic rather than resetting to idle.
+
+### Session display — Mode 1 Connected
+
+- [ ] ISC-21: `SessionView` renders `connectionBanner`, `sessionStatusCard`, `zoneModuleRow`, and `sessionControls` without `@EnvironmentObject` injection errors at app launch.
+- [ ] ISC-22: `SessionView` shows `hrvBreathingRing` only when `gatt.session.status == .running` — it is absent at `.idle`, `.paused`, and `.completed`.
+- [ ] ISC-23: `SessionView` shows `liveMetricsGrid` only when `gatt.session.status == .running`.
+- [ ] ISC-24: The breathing ring animates between 80pt and 120pt diameter in response to `gatt.session.pacerPhase` changes (`.inhale` → expand, `.exhale` → contract) with `.easeInOut` 2.5 second duration.
+- [ ] ISC-25: `MetricCard` for Coherence shows the correct colour: green for ≥7, yellow for ≥4, orange for <4.
+- [ ] ISC-26: `MetricCard` for "EEG Contacts" displays the count of bits set in `gatt.session.impedancePassFlags` as `N / 8`.
+- [ ] ISC-27: The session stop command (`End Session` button) sends a GATT write to the hub's stop characteristic — the `// TODO` stub at `SessionView.swift:262` is replaced with a real `gatt.sendSessionStop(completion:)` call.
+- [ ] ISC-28: The `End Session` button is visible only when `gatt.session.status == .running`.
+- [ ] ISC-29: Tapping `End Session` presents a confirmation alert ("End this session?") before sending the stop command.
+- [ ] ISC-30: A session-completed state (`gatt.session.status == .completed`) surfaces a "Download Session Data" button that triggers `EDFDownloader.requestDownload(sessionID:)`.
+- [ ] ISC-31: The regulatory footer text appears on `SessionView` and matches the text in `CLAUDE.md §10` ("NeuroPulse is a general wellness device…").
+- [ ] ISC-32: `blockingConsumableAlert` renders when `consumable.sessionIsBlocked == true` and hides `sessionControls` and `liveMetricsGrid` completely.
+- [ ] ISC-33: Zone module row shows five slots with correct colour coding: green-tinted for present (non-zero GATT value), grey for absent.
+- [ ] ISC-34: `Anti:` The `SessionView` does not display a stimulation state that has not been confirmed by the hub — it never optimistically updates `gatt.session.status` on the app side before receiving a GATT notification.
+
+### Session protocol upload — Mode 2
+
+- [ ] ISC-35: `SessionProtocolUploader.upload(_:)` serialises an `NPProtocolDefinition` to a binary blob, signs it with the session Ed25519 key, and sends it to `NeuroPulseGATTManager.uploadProtocol(_:)`.
+- [ ] ISC-36: `NPProtocolValidator` rejects any protocol whose per-modality dose limits exceed the values declared in `NPDosageLimits`.
+- [ ] ISC-37: `NPProtocolValidator` rejects any protocol whose tDCS current exceeds 2 mA or whose BES current exceeds 1 mA.
+- [ ] ISC-38: `NPProtocolValidator` rejects any protocol whose tDCS charge density exceeds 40 µC/cm² — confirmed by a unit test that constructs a borderline-valid and a borderline-invalid protocol.
+- [ ] ISC-39: `NPProtocolLibrary` loads and exposes all 19 predefined NPPS protocol templates from `NPPredefinedProtocols` without runtime errors.
+- [ ] ISC-40: `ProtocolMenuView` lists all protocols in `NPProtocolLibrary` with name, modality badges, and duration; protocols with missing hardware (e.g. a 1064nm zone not detected) are visually disabled with an explanatory note.
+- [ ] ISC-41: `ProtocolEditorView` allows editing frequency, duration, and current for each modality within the limits defined in `NPLimitsStore`, and blocks saving if any value violates a limit.
+- [ ] ISC-42: `ProtocolComposerView` allows building a multi-modality protocol by selecting modalities from a list and setting parameters individually.
+- [ ] ISC-43: `ProtocolScriptEditorView` accepts raw NPPS text, parses it via `NPProtocolScripting`, and shows per-line validation errors inline.
+- [ ] ISC-44: `LimitsSettingsView` displays all per-modality limits from `NPLimitsStore` with their defaults and allows no value to exceed the hardware maximum declared in `NPHardwareLimits`.
+- [ ] ISC-45: A successful protocol upload shows a confirmation toast ("Protocol sent to hub") that auto-dismisses after 2 seconds.
+- [ ] ISC-46: A failed protocol upload shows a persistent error banner with the GATT error description and a retry button.
+- [ ] ISC-47: `Anti:` `ProtocolEditorView` does not allow saving a protocol with zero duration or zero-current stimulation blocks — these are caught by `NPProtocolValidator` before upload.
+
+### Session history and EDF download — Mode 4
+
+- [ ] ISC-48: A `SessionHistoryView` exists and is accessible from the Session tab (e.g. toolbar button or list below the current session card).
+- [ ] ISC-49: `SessionHistoryView` lists past sessions with date, protocol name, duration, and coherence score (where available), sourced from a local `SessionHistoryStore` persisted in `UserDefaults` or the app's `Documents` directory.
+- [ ] ISC-50: Tapping a session in `SessionHistoryView` navigates to a detail view showing per-session metrics: RMSSD, average coherence score, EEG impedance pass count, and a coherence trend sparkline for the last 30 sessions.
+- [ ] ISC-51: The session detail view contains an "Adaptive Adjustments" card when the session contained closed-loop adaptive events — rendered from a plain-language trigger enum per NP-APP-ROADMAP-001 Rev B §9.4.
+- [ ] ISC-52: The Adaptive Adjustments card shows at most 5 events with "and N more / View all" for longer lists; it never shows raw EEG band power values.
+- [ ] ISC-53: The "Download EDF" button in session detail triggers `EDFDownloader.requestDownload(sessionID:)`, shows a progress indicator during transfer, and saves the EDF+ file to the app's `Documents` directory.
+- [ ] ISC-54: Downloaded EDF files are accessible via the iOS Files app (app's Documents directory is declared `UIFileSharingEnabled = YES` and `LSSupportsOpeningDocumentsInPlace = YES`).
+- [ ] ISC-55: `Anti:` The EDF+ patient header written by the hub (as specified in NP-FW-EMMC-002 Rev A §E) is not modified by the app — the opaque 16-char token, `X` sex/birthdate/name fields pass through unchanged.
+
+### UHDR data management
+
+- [ ] ISC-56: `UHDRKeyManager` derives the AES-256 key using biometric authentication (Face ID / Touch ID) via `LAContext.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)` before any UHDR access.
+- [ ] ISC-57: `UHDRKeyManager` stores the UKMD (UHDR Key Master Descriptor) in the iOS Keychain with `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` accessibility — not in `UserDefaults`.
+- [ ] ISC-58: `UHDRKeyManager` never transmits the derived AES-256 key to any external endpoint — verified by grepping the source for `URLSession` calls within `UHDRKeyManager.swift` and finding none.
+- [ ] ISC-59: `UHDRBackupScheduler` registers the `com.neuropulse.uhdr-backup` BGTaskScheduler task and schedules the next run on each successful backup completion.
+- [ ] ISC-60: `UHDRBackupScheduler.performBackupIfNeeded()` runs only when the device is on USB-C power — checked via `UIDevice.current.batteryState == .charging` or `.full` and USB accessory detection.
+- [ ] ISC-61: `UHDRBackupScheduler` writes incremental backup metadata (last backup date, session count since last backup) to a local file — not to any NeuroPulse server endpoint.
+- [ ] ISC-62: `Anti:` `UHDRKeyManager` does not fall back to a hardcoded or device-ID-derived key if biometric authentication fails — it surfaces a user-visible error and requires re-authentication.
+- [ ] ISC-63: `Anti:` `SHDRUploader` does not include any UHDR element (EEG waveforms, HRV time series, session timestamps, outcome logs, PPG signal) in the data sent to NeuroPulse fleet endpoints — only SHDR fields per NP-FW-EMMC-001 Rev A §7.
+
+### SHDR upload
+
+- [ ] ISC-64: `SHDRUploader` triggers an upload when `gatt.shdrUploadPending == true` (hub GATT notification).
+- [ ] ISC-65: `SHDRUploader` sends only the SHDR fields declared in NP-FW-EMMC-001 Rev A §7 — LED output ratio, NTC profiles, EMF attenuation ratio, device session count (unsigned integer, no timestamps), consumable session counts, USB-C insertion counter, PD negotiation log, firmware version history, and calibration coefficient history.
+- [ ] ISC-66: `SHDRUploader` does not send session timestamps, EEG data, HRV data, or any field whose boundary resolution in CLAUDE.md §5.1 assigns it to UHDR.
+- [ ] ISC-67: `SHDRUploader` shows a non-blocking notification ("Syncing device health data") during upload and a silent completion — not a modal.
+
+### Clinical consent engine
+
+- [ ] ISC-68: `ConsentOnboardingView` presents all four layers (L1 Contact, L2 Category, L3 Blanket + irreversibility notice, L4 Results + community) in sequence at first launch.
+- [ ] ISC-69: L1 contact consent screen offers three contact frequency options and a `contactMethod` picker; the "Skip" affordance is available without blocking future feature access.
+- [ ] ISC-70: L2 category screen shows all 9 research categories from `ResearchCategory` enum with individual toggles; deselecting all is valid (no forced consent).
+- [ ] ISC-71: L3 blanket consent screen displays `ConsentEngine.irreversibilityNotice` verbatim and untruncated before the toggle control is rendered.
+- [ ] ISC-72: L3 blanket consent toggle is off by default and is not pre-ticked — confirmed by `ResearchConsentState()` default initialiser having `blanketConsentGranted = false`.
+- [ ] ISC-73: L4 results screen offers "Receive study results" and "Join suggestion portal" as independent toggles.
+- [ ] ISC-74: `ConsentStore.updateResearchConsent(_:)` persists the final `ResearchConsentState` to `UserDefaults` on completion of the onboarding flow.
+- [ ] ISC-75: `ConsentDashboardView` lists all active clinician grants with clinician name, organisation, tier, granted elements, and a "Revoke" button.
+- [ ] ISC-76: Tapping "Revoke" on a clinician grant calls `ConsentStore.revokeClinicianAccess(grantID:)` after a confirmation alert.
+- [ ] ISC-77: `ConsentDashboardView` lists all active study participations with study ID, participation date, and a "Withdraw" button.
+- [ ] ISC-78: `ConsentDashboardView` lists all pending study invitations with study name, brief description, what elements will be shared, and Accept / Decline buttons.
+- [ ] ISC-79: Accepting a study invitation calls `ConsentStore.acceptInvitation(studyID:)` and surfaces a confirmation that includes the irreversibility notice for that specific study.
+- [ ] ISC-80: `ConsentStore.withdrawBlanketConsent()` sets `blanketConsentGranted = false` and persists — verified by checking the `researchKey` UserDefaults value after calling it.
+- [ ] ISC-81: `Anti:` The consent tab badge count (`consent.pendingInvitations.filter { $0.hasNoDecision }.count`) never goes negative.
+- [ ] ISC-82: `Anti:` `ConsentEngine.minimumNecessaryElements(for:)` never returns elements from a use case that was not in `selectedUseCaseIDs`.
+
+### Privacy compliance — launch-blocking screens
+
+- [ ] ISC-83: A minimum age gate screen exists as the **first** screen in the onboarding flow, before any personal data is collected or any consent layer is presented.
+- [ ] ISC-84: The minimum age gate shows: "I confirm I am 16 years of age or older." with an unchecked checkbox and a Continue button that is disabled until the checkbox is checked.
+- [ ] ISC-85: The minimum age gate checkbox is rendered via `Toggle` with `isOn` bound to a local `@State var ageConfirmed = false` — the binding is not pre-set to `true` in any code path.
+- [ ] ISC-86: Tapping Continue on the age gate with the checkbox unchecked does nothing — the Continue button `disabled(!ageConfirmed)` modifier is confirmed present.
+- [ ] ISC-87: The age gate completion status is persisted to `UserDefaults` key `np.onboarding.age-confirmed: Bool` so it is not re-shown on subsequent launches for the same user.
+- [ ] ISC-88: A BIPA written release screen exists, containing the full disclosure text from NP-APP-ROADMAP-001 Rev B §9.3 (purpose, retention, destruction method, no-sale clause, no-third-party-share clause).
+- [ ] ISC-89: The BIPA screen is shown before the consent onboarding flow for any user whose app locale or declared location is Illinois — detection logic uses `Locale.current.region?.identifier == "US-IL"` plus an explicit Illinois declaration toggle.
+- [ ] ISC-90: If the user declines the BIPA screen, EEG neurofeedback-dependent features (`SessionView` closed-loop metrics, `ProtocolMenuView` EEG-adaptive protocols) are visually disabled with the message: "EEG neurofeedback is unavailable — brainwave data consent was not granted."
+- [ ] ISC-91: The BIPA declination state is re-presentable from Settings — a "Manage EEG data consent" toggle in a Settings screen re-opens the BIPA screen.
+- [ ] ISC-92: No analytics or crash reporting SDK (`init()`, `configure()`, or equivalent) is called before `UserDefaults.bool(forKey: "np.onboarding.consent-shown") == true`.
+- [ ] ISC-93: The analytics event sent on session start uses `engagement_tier` enum (`new`/`active`/`established`), not a raw session count integer.
+- [ ] ISC-94: HealthKit data (`HKQuantityTypeIdentifierHeartRateVariabilitySDNN`, `HKQuantityTypeIdentifierHeartRate`) is requested only if the user has the HRV biofeedback protocol active — not at app launch or consent time.
+- [ ] ISC-95: HealthKit samples read during a session are used only to populate `SessionView` live metrics — they are not written to any local persistence layer, UserDefaults, or app database.
+- [ ] ISC-96: `Anti:` No `HKHealthStore.save(_:with:)` or `HKHealthStore.add(_:to:completion:)` call exists anywhere in the iOS app source tree.
+- [ ] ISC-97: `Anti:` No analytics event property contains the string `"eeg"`, `"hrv"`, `"rmssd"`, `"coherence"`, `"session_id"`, or `"protocol_id"` — confirmed by grepping the analytics event property dictionary definitions.
+
+### Consumable tracker
+
+- [ ] ISC-98: `ConsumableTracker` correctly maps `gatt.session.consumableSessionCounts` (4 × UInt16 from GATT) to the four consumable types: intranasal sleeves, electrode hydrogel tips, VNS clip pads, audio cup foam.
+- [ ] ISC-99: `ConsumableTracker.blockingReminders` returns non-empty when any consumable is at or past its session limit — these block `sessionIsBlocked`.
+- [ ] ISC-100: `ConsumableView` shows each consumable with a remaining-sessions progress bar, a "Reorder" button that opens the NeuroPulse store URL, and the triggered reminder text.
+- [ ] ISC-101: Blocking reminders cannot be dismissed from `ConsumableView` — only a GATT-confirmed consumable replacement (session count reset) clears them.
+- [ ] ISC-102: Performance-critical reminders (electrode hydrogel tips degrading) can be snoozed at most 3 times — tracked in `UserDefaults` per consumable type.
+- [ ] ISC-103: Comfort/longevity reminders can be snoozed at most 5 times.
+- [ ] ISC-104: Each reminder includes the GATT-measured session count that triggered it (e.g. "Your intranasal sleeves have been used 30 times").
+- [ ] ISC-105: `ConsumableView` includes a one-tap reorder link per consumable — the URL opens `SFSafariViewController`, not an external browser.
+- [ ] ISC-106: `Anti:` `ConsumableTracker` does not use calendar-based reminders — all reminders are triggered exclusively by GATT session count values.
+
+### OTA firmware update
+
+- [ ] ISC-107: `OTAManager` fetches the latest firmware manifest from a NeuroPulse distribution endpoint when the hub connects and `OTAView` is opened.
+- [ ] ISC-108: `OTAView` shows current firmware version (from hub GATT), latest available version, and a "Update" button — disabled if already at latest.
+- [ ] ISC-109: `OTAManager.startUpdate()` sends the OTA `INITIATE` opcode, streams firmware chunks (≤512 bytes) via `sendOTACommand(.chunk, payload:)`, and sends `VERIFY` and `COMMIT` opcodes per the 9-step OTA sequence.
+- [ ] ISC-110: `OTAView` shows a chunked progress bar with transferred bytes / total bytes during the update.
+- [ ] ISC-111: If a hub disconnect occurs mid-OTA, `OTAManager` does not corrupt the active firmware bank — the bootloader's inactive-bank write architecture ensures the running bank is untouched.
+- [ ] ISC-112: After a successful OTA commit, `OTAView` shows "Update complete — hub will restart" and waits for reconnect before resuming normal operation.
+- [ ] ISC-113: `Anti:` `OTAManager` does not send unsigned firmware chunks — every chunk upload uses the GATT write path which the hub-side verifies via Ed25519 before flashing.
+
+### Hardware setup wizard
+
+- [ ] ISC-114: `SetupView` presents a first-run wizard covering: (1) BLE pairing confirmation, (2) EEG impedance check (8 contacts), (3) first protocol selection, (4) safety information acknowledgement.
+- [ ] ISC-115: The EEG impedance step shows each of the 8 electrode positions (Fp1/Fp2, F3/F4, C3/C4, P3/P4) colour-coded from `gatt.session.impedancePassFlags` — green when the bit is set, amber/red otherwise.
+- [ ] ISC-116: The wizard blocks progression to "protocol selection" until at least 6 of 8 EEG contacts pass impedance (configurable threshold stored in `UserDefaults`).
+- [ ] ISC-117: `HardwareSetupManager.isFirstSetupComplete` is set to `true` (persisted) only after the wizard's final step is completed — `SessionView` is inaccessible until then.
+- [ ] ISC-118: The safety acknowledgement step includes a plain-language summary of all T1 contraindications (photosensitive epilepsy, pacemaker, pregnancy, recent head trauma) with a "I have read and understood the above" checkbox.
+- [ ] ISC-119: The contraindications checkbox is not pre-ticked and cannot be bypassed.
+- [ ] ISC-120: `SetupView` is accessible after first-run setup for re-calibration — the "Setup" tab badge disappears once `isFirstSetupComplete == true`.
+- [ ] ISC-121: `Anti:` `SessionView` does not become accessible (tab switch succeeds, protocol picker can be opened) when `setup.isFirstSetupComplete == false` — the `onReceive(UIApplication.didBecomeActiveNotification)` redirect in `MainTabView` enforces this.
+
+### Apple Watch bridge
+
+- [ ] ISC-122: `PhoneSessionManager` establishes a `WCSession` and activates it if `WCSession.isSupported()` returns true.
+- [ ] ISC-123: `PhoneSessionManager` sends session epoch, protocol ID, HRV coherence, pacer phase, and RMSSD to the Watch via `WCSession.sendMessage(_:replyHandler:errorHandler:)` at the 100ms GATT notification rate.
+- [ ] ISC-124: `PhoneSessionManager` handles Watch connectivity not available (Watch not paired, WatchOS app not installed) gracefully — `SessionView` has no visible dependency on Watch availability.
+- [ ] ISC-125: `Anti:` `PhoneSessionManager` does not transmit EEG waveform data or raw session timestamps to the Watch — only display-safe metrics (coherence score 0–10, RMSSD integer, pacer phase, session duration).
+
+### Onboarding and account
+
+- [ ] ISC-126: `ConsentOnboardingView` is presented exactly once on first launch and is re-accessible from the Privacy tab at any time.
+- [ ] ISC-127: The age gate screen, BIPA screen (if Illinois), and research consent onboarding appear in the correct sequence: age gate → BIPA (conditional) → L1–L4 research consent → main app.
+- [ ] ISC-128: Tapping "Skip" on the research consent onboarding (L1–L4) commits the default `ResearchConsentState()` (all fields false/nil) without blocking app access.
+- [ ] ISC-129: The Privacy tab is always accessible regardless of consent state — users must be able to reach their consent settings at any time.
+- [ ] ISC-130: `Anti:` There is no screen in the onboarding flow that is impossible to exit — every screen has a Skip or Cancel affordance except the age gate (which has no skip but offers a graceful "I am under 16" path that explains what features will be unavailable).
+
+### App Store readiness
+
+- [ ] ISC-131: The app passes App Store Connect automated binary analysis (no private API usage) — confirmed by `xcrun altool --validate-app` with zero errors.
+- [ ] ISC-132: The App Store privacy nutrition label declares: Name (optional — not collected unless user enters it), Email Address (used for research contact — optional), Health & Fitness (HRV, used on device only — not linked to identity, not used to track), Device ID (linked to identity for warranty — used for app functionality), Crash Data (linked to identity — only after consent).
+- [ ] ISC-133: The app ships with a human-readable `PrivacyInfo.xcprivacy` file listing all accessed privacy-sensitive APIs (`NSPrivacyAccessedAPICategoryUserDefaults`, `NSPrivacyAccessedAPICategoryFileTimestamp`, `CBCentralManager`).
+- [ ] ISC-134: App Store screenshots (6.7" and 5.5" iPhone) exist for all five primary screens: Session, Setup, Supplies, Privacy, Firmware.
+- [ ] ISC-135: The App Store description does not contain any medical claim, FDA-regulated claim, or claim that the device diagnoses, treats, cures, or prevents any disease.
+- [ ] ISC-136: `Anti:` The App Store description does not use the terms "medical device", "FDA-cleared", "FDA-approved", "510(k)", "clinical", or "therapeutic" — general wellness framing only.
+
+### Regression anti-criteria
+
+- [ ] ISC-137: `Anti:` `ConsentStore` never exposes UHDR elements to a clinician grant at a tier lower than that element's minimum tier (`UHDRElement.minimumTier`).
+- [ ] ISC-138: `Anti:` The session stop button is never enabled when `gatt.connectionState != .connected` — a disconnected app cannot command a hub stop.
+- [ ] ISC-139: `Anti:` `NPProtocolValidator` accepts no protocol with a `pbm_transcranial` peak irradiance claim above 400 mW/cm² — OI-PBM-05 is pending regulatory opinion and this limit must be software-enforced until resolved.
+- [ ] ISC-140: `Anti:` No raw EEG waveform data is stored in `UserDefaults` — session recording is a hub UHDR function only; the app stores only display-aggregated metrics (coherence score, RMSSD integer, impedance pass count).
+- [ ] ISC-141: `Anti:` `SessionProtocolUploader` does not upload a protocol while `gatt.session.status == .running` — mid-session protocol re-upload is blocked until the current session ends.
+- [ ] ISC-142: `Anti:` `UHDRBackupScheduler` does not run while `UIDevice.current.batteryState == .unplugged` — backup is wired power only.
+- [ ] ISC-143: `Anti:` The analytics crash reporter is not called with any HealthKit-derived data in the event payload.
+- [ ] ISC-144: `Anti:` No `@AppStorage` key name contains `"session_count"` or `"session_sequence"` — the deprecated raw count field from pre-Rev B telemetry spec must not exist in the app source.
+
+### Performance and accessibility
+
+- [ ] ISC-145: `SessionView` maintains 60 fps during a running session with all live metrics updating at 100ms intervals — measured by Instruments Time Profiler with zero dropped frames over a 30-second window.
+- [ ] ISC-146: All interactive controls in `SessionView`, `ConsentOnboardingView`, `ConsumableView`, and `SetupView` have `accessibilityLabel` set to a meaningful string (not the default system-generated one for icon-only buttons).
+- [ ] ISC-147: The minimum contrast ratio for all body text against its background meets WCAG AA (4.5:1) — verified with Xcode Accessibility Inspector.
+- [ ] ISC-148: The app functions correctly with Dynamic Type set to "Accessibility Extra Large" — no text is clipped or overflows its container in `SessionView` at this size.
+- [ ] ISC-149: VoiceOver announces the coherence score change on each GATT update (0.1 Hz) in `SessionView` without producing an audio flood — change announcements are debounced at ≥2 seconds.
+- [ ] ISC-150: `Anti:` No `UIView` or `SwiftUI.View` directly observes a `@Published` property that updates at >10 Hz by triggering a full body re-render — any >10 Hz property (e.g. pacer phase at 100ms) uses `withAnimation` or a dedicated `@State` throttle.
+
+### Testing
+
+- [ ] ISC-151: A `NPProtocolValidatorTests` XCTest target exists with tests covering: valid protocol accepts, current-over-limit rejects, dose-over-limit rejects, charge-density-over-limit rejects, and zero-duration rejects.
+- [ ] ISC-152: A `GATTParserTests` XCTest target exists with tests for all 8 `GATTParser` parse functions using canonical byte sequences.
+- [ ] ISC-153: A `ConsentEngineTests` XCTest target exists with tests covering: minimum necessary elements for each use case tier, consent document generation, irreversibility notice presence.
+- [ ] ISC-154: A `ConsumableTrackerTests` XCTest target exists covering: blocking/non-blocking threshold detection, snooze limit enforcement.
+- [ ] ISC-155: A `UHDRKeyManagerTests` XCTest target exists covering: key derivation succeeds with mock biometric context, key is stored in Keychain (not UserDefaults), no fallback to hardcoded key on failure.
+- [ ] ISC-156: All test targets pass on `xcodebuild test -scheme NeuroPulse -destination "platform=iOS Simulator,name=iPhone 15 Pro"` with zero failures.
+- [ ] ISC-157: `Anti:` No test file imports a production analytics or crash reporting module directly — tests use mock implementations conforming to protocol abstractions.
+
+### Localisation
+
+- [ ] ISC-158: All user-visible strings in the consent flow (irreversibility notice, BIPA disclosure, regulatory footer, age gate text) are defined in `Localizable.strings` — not hardcoded in Swift source as string literals.
+- [ ] ISC-159: The app ships with at least an `en.lproj/Localizable.strings` file with all strings populated.
+- [ ] ISC-160: `Anti:` No user-visible string in the consent flow is truncated by `lineLimit(1)` — all consent text uses unlimited line limit or explicit `.fixedSize(horizontal: false, vertical: true)`.
+
+### Session mode indicators
+
+- [ ] ISC-161: When the hub is connected via USB-C (detected by `UIDevice.current.batteryState == .charging` and device accessory detection), `SessionView` shows "Mode 1 — Live (<1ms)" in the connection banner.
+- [ ] ISC-162: When the hub is connected via BLE only, `SessionView` shows "Mode 1 — Wireless" in the connection banner.
+- [ ] ISC-163: `SetupView` contains a "Program Session" flow that serialises a protocol and uploads it to the hub for autonomous Mode 3 operation — with a confirmation "Protocol stored. Hub will run session without phone."
+- [ ] ISC-164: `Anti:` The app does not claim Mode 1 latency (<1ms) when connected over BLE — the BLE path is correctly labeled "Mode 1 — Wireless" without a latency claim.
+
+## Test Strategy
+
+| ISC | type | check | threshold | tool |
+|-----|------|-------|-----------|------|
+| ISC-1 | build | `xcodebuild build -scheme NeuroPulse -configuration Release` | 0 errors, 0 warnings | Xcode CLI |
+| ISC-2 | build | `xcodebuild build -scheme NeuroPulse -destination 'platform=iOS Simulator'` | 0 errors | Xcode CLI |
+| ISC-3 | lint | `swiftlint --strict` | 0 violations | SwiftLint |
+| ISC-4 | file | `grep NSBluetoothAlwaysUsageDescription app/ios/NeuroPulse/Info.plist` | match found | grep |
+| ISC-8 | grep | `grep -rn 'print(' app/ios/NeuroPulse --include="*.swift"` | 0 matches | grep |
+| ISC-9 | grep | `grep -rEn '([0-9]{1,3}\.){3}[0-9]{1,3}' app/ios/NeuroPulse --include="*.swift"` | 0 matches | grep |
+| ISC-11 | unit | `NeuroPulseGATTManagerTests.testAutoScanOnPoweredOn` | pass | XCTest |
+| ISC-15 | unit | `GATTParserTests.testAllParserFunctions` | all 8 pass | XCTest |
+| ISC-27 | grep | `grep '// TODO' app/ios/NeuroPulse/Views/SessionView.swift` | 0 matches | grep |
+| ISC-35 | unit | `SessionProtocolUploaderTests.testSignAndUpload` | pass | XCTest |
+| ISC-37 | unit | `NPProtocolValidatorTests.testCurrentLimits` | 2mA/1mA limits enforced | XCTest |
+| ISC-38 | unit | `NPProtocolValidatorTests.testChargeDensityLimit` | 40µC/cm² enforced | XCTest |
+| ISC-56 | unit | `UHDRKeyManagerTests.testBiometricKeyDerivation` | key non-nil with mock context | XCTest |
+| ISC-57 | unit | `UHDRKeyManagerTests.testKeychainStorage` | Keychain item exists, UserDefaults item absent | XCTest |
+| ISC-58 | grep | `grep -n 'URLSession' app/ios/NeuroPulse/Data/UHDRKeyManager.swift` | 0 matches | grep |
+| ISC-62 | unit | `UHDRKeyManagerTests.testNoFallbackOnBioFailure` | returns error, not fallback key | XCTest |
+| ISC-63 | grep | `grep -n 'eegWaveforms\|hrvTimeSeries\|sessionTimestamps' app/ios/NeuroPulse/Data/SHDRUploader.swift` | 0 matches | grep |
+| ISC-72 | unit | `ResearchConsentStateTests.testDefaultFalse` | `blanketConsentGranted == false` | XCTest |
+| ISC-83 | manual | Launch app on clean install, observe first screen | age gate is first | Simulator |
+| ISC-85 | grep | `grep -n 'ageConfirmed = true' app/ios/NeuroPulse` | 0 matches | grep |
+| ISC-92 | grep | `grep -rn 'Analytics\|Crashlytics\|configure()' app/ios/NeuroPulse --include="*.swift"` | all calls are inside `if consentShown` guard | grep |
+| ISC-93 | grep | `grep -rn 'session_count\|sessionCount' app/ios/NeuroPulse --include="*.swift"` | 0 analytics event property matches | grep |
+| ISC-96 | grep | `grep -rn 'HKHealthStore.*save\|HKHealthStore.*add' app/ios/NeuroPulse --include="*.swift"` | 0 matches | grep |
+| ISC-97 | grep | `grep -rn '"eeg"\|"hrv"\|"rmssd"\|"coherence"\|"session_id"\|"protocol_id"' app/ios/NeuroPulse --include="*.swift"` | 0 analytics event dict matches | grep |
+| ISC-131 | build | `xcrun altool --validate-app -f NeuroPulse.ipa -t ios` | 0 errors | altool |
+| ISC-144 | grep | `grep -rn 'session_count\|session_sequence' app/ios/NeuroPulse --include="*.swift"` | 0 matches | grep |
+| ISC-156 | test | `xcodebuild test -scheme NeuroPulse -destination "platform=iOS Simulator,name=iPhone 15 Pro"` | 0 failures | XCTest |
+
+## Features
+
+| name | description | satisfies | depends_on | parallelizable |
+|------|-------------|-----------|------------|----------------|
+| session-stop-command | Replace TODO stub at SessionView:262 with real `gatt.sendSessionStop(completion:)` call; add stop characteristic to GATT manager; add confirmation alert | ISC-27, ISC-28, ISC-29, ISC-34 | BLE-gatt-layer | false |
+| session-history-view | Create SessionHistoryView + SessionHistoryStore; session detail with coherence sparkline; EDF download trigger; file sharing | ISC-48, ISC-49, ISC-50, ISC-53, ISC-54, ISC-55 | EDF-download | false |
+| adaptive-adjustments-card | Add Adaptive Adjustments card to session detail view; plain-language trigger enum; 5-event limit + View all | ISC-51, ISC-52 | session-history-view | false |
+| age-gate-screen | Create AgeGateView as first onboarding screen; unchecked checkbox; UserDefaults persistence; under-16 path | ISC-83, ISC-84, ISC-85, ISC-86, ISC-87, ISC-130 | — | true |
+| bipa-release-screen | Create BIPADisclosureView with full NP-APP-ROADMAP-001 §9.3 text; Illinois detection; EEG feature gate on decline; re-presentable from Settings | ISC-88, ISC-89, ISC-90, ISC-91 | age-gate-screen | false |
+| onboarding-sequence | Wire age-gate → BIPA (conditional) → L1-L4 consent in correct order; single-entry point | ISC-127, ISC-128, ISC-129 | age-gate-screen, bipa-release-screen | false |
+| analytics-sdk-gate | Guard all Analytics/Crashlytics init calls behind `consentShown` flag; add ConsentSupervisor wrapper | ISC-92 | onboarding-sequence | true |
+| analytics-engagement-tier | Ensure all analytics events use `engagement_tier` enum; remove any `session_count` property; add SwiftLint rule | ISC-93, ISC-144 | analytics-sdk-gate | true |
+| healthkit-session-read | Add HealthKit HRV/HR read for active sessions; session-scoped only; no persistence; no transmission | ISC-94, ISC-95, ISC-96 | — | true |
+| protocol-chunk-transfer | Implement ≤512 byte BLE chunking in SessionProtocolUploader for large protocol blobs | ISC-14, ISC-35 | — | true |
+| gatt-stop-characteristic | Add stop-command GATT write characteristic to GATTCharacteristics.swift and NeuroPulseGATTManager | ISC-27 | — | true |
+| session-mode-labels | Update connection banner to show Mode 1 — Live / Mode 1 — Wireless per USB-C vs BLE detection; Mode 3 program flow in SetupView | ISC-161, ISC-162, ISC-163, ISC-164 | — | true |
+| unit-test-targets | Create NPProtocolValidatorTests, GATTParserTests, ConsentEngineTests, ConsumableTrackerTests, UHDRKeyManagerTests XCTest targets | ISC-151–ISC-157 | — | true |
+| swiftlint-config | Add .swiftlint.yml with print-statement rule, no hardcoded API key rule, no session_count analytics property rule | ISC-3, ISC-8, ISC-9 | — | true |
+| privacy-info-plist | Create PrivacyInfo.xcprivacy; complete App Store privacy nutrition label in App Store Connect | ISC-133, ISC-132, ISC-106 | — | true |
+| localizable-strings | Extract all consent flow strings to Localizable.strings; en.lproj only for T1 | ISC-158, ISC-159, ISC-160 | — | true |
+| accessibility-pass | Add accessibilityLabel to all icon-only buttons; verify Dynamic Type AXL; debounce VoiceOver coherence announcements | ISC-146, ISC-148, ISC-149 | session-history-view | false |
+| appstore-submission | Generate screenshots for all 5 tabs; write App Store description; pass altool validation; submit for review | ISC-131, ISC-134, ISC-135, ISC-136 | all other features | false |
+
+## Decisions
+
+- **2026-06-04**: E4 effort tier chosen. This ISA covers a complete iOS app with regulatory compliance requirements, privacy-blocking items, hardware integration, and App Store submission. E3 would leave Test Strategy and Changelog absent; E5 would require Interview workflow which is appropriate to invoke before BUILD phase begins.
+- **2026-06-04**: `app/ios/ISA.md` chosen as canonical path (project sub-ISA, not MEMORY/WORK) — the iOS app has persistent project identity and its own source tree. Project ISA override applies: minimum E3 structure required regardless of active task tier.
+- **2026-06-04**: ISC count is 164, above the E4 floor of 128. No intentional under-decomposition.
+- **2026-06-04**: Session stop command (ISC-27) is the highest-priority single gap — it is a `// TODO` in shipped code (`SessionView.swift:262`). A deployed app without a stop command is a safety communication failure even though the Safety MCU owns actual stimulation control.
+- **2026-06-04**: BIPA detection uses `Locale.current.region?.identifier == "US-IL"` as a first pass, plus an explicit Illinois declaration toggle — locale alone is not sufficient because it can be incorrect. This is a best-effort detection; the legal opinion requested in OI-PA-03 may require a different mechanism.
+- **2026-06-04**: Analytics SDK gate (ISC-92) guards `init()` / `configure()` calls. If the analytics vendor's SDK auto-initialises on import (some Crashlytics versions do), the vendor must be replaced or the import must be conditional. This is a code architecture constraint, not just a runtime guard.
+- **2026-06-04**: HealthKit features (ISC-94–96) are gated on the HRV biofeedback protocol being active — not requested at app launch. This avoids an unnecessary `NSHealthShareUsageDescription` prompt for users who never run HRV sessions.
+
+## Changelog
+
+*(Empty — no conjectures yet refuted. Populated during EXECUTE and VERIFY phases.)*
+
+## Verification
+
+*(Empty — populated during VERIFY phase. Each ISC receives a quoted command output, test result, or screenshot path.)*

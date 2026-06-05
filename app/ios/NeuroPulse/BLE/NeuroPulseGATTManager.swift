@@ -23,6 +23,8 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
     var onOTACommandAck:      ((Result<Void, GATTWriteError>) -> Void)?
     var onCalibrationAck:     ((Result<Void, GATTWriteError>) -> Void)?
 
+    private var onSessionStopAck: ((Result<Void, GATTWriteError>) -> Void)?
+
     // MARK: - Private
 
     private var central: CBCentralManager!
@@ -44,6 +46,7 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
     private var edfRequestChar:       CBCharacteristic?
     private var otaCommandChar:       CBCharacteristic?
     private var calibrationCmdChar:   CBCharacteristic?
+    private var sessionStopChar:      CBCharacteristic?
 
     private var pending: SessionState = .empty
 
@@ -108,6 +111,17 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
         onCalibrationAck = completion
         p.writeValue(Data([opcode.rawValue]), for: char, type: .withResponse)
     }
+
+    /// Request the hub to stop the active session. Writes a single 0x01 byte.
+    /// The app does NOT update session.status here — it waits for the hub to
+    /// report the new status over the SESSION_STATUS notify characteristic (ISC-34).
+    func sendSessionStop(completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
+        guard let char = sessionStopChar, let p = peripheral else {
+            completion(.failure(.notConnected)); return
+        }
+        onSessionStopAck = completion
+        p.writeValue(Data([0x01]), for: char, type: .withResponse)
+    }
 }
 
 // MARK: - Error type
@@ -157,7 +171,7 @@ extension NeuroPulseGATTManager: CBCentralManagerDelegate {
         pacerPhaseChar = nil; impedanceResultChar = nil; consumableStatusChar = nil
         otaStatusChar = nil; zoneModuleStatusChar = nil; shdrUploadStatusChar = nil
         protocolUploadChar = nil; edfRequestChar = nil; otaCommandChar = nil
-        calibrationCmdChar = nil
+        calibrationCmdChar = nil; sessionStopChar = nil
     }
 }
 
@@ -212,6 +226,8 @@ extension NeuroPulseGATTManager: CBPeripheralDelegate {
                 otaCommandChar = char
             case NPUUID.calibrationCmd:
                 calibrationCmdChar = char
+            case NPUUID.sessionStop:
+                sessionStopChar = char
             default:
                 break
             }
@@ -273,6 +289,8 @@ extension NeuroPulseGATTManager: CBPeripheralDelegate {
             onOTACommandAck?(result); onOTACommandAck = nil
         case NPUUID.calibrationCmd:
             onCalibrationAck?(result); onCalibrationAck = nil
+        case NPUUID.sessionStop:
+            onSessionStopAck?(result); onSessionStopAck = nil
         default:
             break
         }

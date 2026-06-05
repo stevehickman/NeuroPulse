@@ -1,3 +1,4 @@
+// TODO(localisation): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
 import SwiftUI
 
 // 4-screen research consent onboarding — CLAUDE.md §6.2.
