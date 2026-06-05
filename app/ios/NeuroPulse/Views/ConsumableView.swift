@@ -60,6 +60,7 @@ struct ConsumableStatusRow: View {
                     .frame(width: 10, height: 10)
                 Text(state.kind.displayName)
                     .font(.subheadline.bold())
+                    .fixedSize(horizontal: false, vertical: true)
                 Spacer()
                 Text(state.kind.packDisplayPrice)
                     .font(.caption)
@@ -124,10 +125,12 @@ struct ConsumableAlertRow: View {
             Text(reminder.headline)
                 .font(.subheadline.bold())
                 .foregroundColor(isBlocking ? .red : .primary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Text("Sessions used: \(reminder.state.sessionCount) of \(reminder.state.kind.sessionLimit)")
                 .font(.caption)
                 .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             HStack {
                 if let url = reminder.orderURL {

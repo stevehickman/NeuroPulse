@@ -81,3 +81,13 @@ custom_rules:
     match_kinds:
       - string
     severity: warning
+
+  # ISC-93 / ISC-144: session_count/session_sequence must never appear as a key.
+  # Broader than no_session_count_analytics — covers subscript access too.
+  no_session_count_key:
+    name: "No session_count/session_sequence key"
+    message: "Use engagement_tier enum. See ISA ISC-93/ISC-144 / NP-APP-TELEMETRY-001 Rev B §3."
+    regex: '"(session_count|session_sequence)"\s*[:\)\]]'
+    match_kinds:
+      - string
+    severity: warning
