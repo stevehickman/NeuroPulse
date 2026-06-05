@@ -7,19 +7,14 @@
 //
 //  Subject under test: NPProtocolValidator (app/ios/NeuroPulse/Protocol/NPProtocolValidator.swift)
 //
-//  NOTE ON PRODUCTION GAPS (documented, not silently passed):
-//  The validator as written enforces hardware ceilings (current, frequency, duty cycle,
-//  electrode-pair count) and configured dosage limits (intensity/frequency/duration/whitelists).
-//  It does NOT currently enforce:
-//    (a) charge density (µC/cm²) — there is no charge-density field on any param struct and no
-//        validator branch for it. The 40 µC/cm² ceiling exists only in NPHardwareLimits +
-//        firmware/safety-MCU. Those two tests are therefore written against the *intended* safety
-//        contract and wrapped in XCTExpectFailure so they act as a living spec for the missing
-//        software check rather than failing the suite. Remove the XCTExpectFailure wrapper once the
-//        app-side charge-density guard lands.
-//    (b) PBM session dose (J/cm²) — NPPBMTranscranialLimits.maxSessionDoseJCm2 is plumbed through
-//        the limits/resolution layer but the validator never reads it, and NPPBMTranscranialParams
-//        carries no per-zone dose figure to check. Same XCTExpectFailure treatment.
+//  Validator coverage (all gaps now closed — ISC-37, ISC-38, ISC-47):
+//    (a) Charge density (µC/cm²) — implemented 2026-06-04. Formula: I(mA) × t(s) / totalArea(cm²),
+//        where totalArea = NPHardwareLimits.tdcsDefaultElectrodeAreaCm2 × number of electrode
+//        positions across all pairs. Ceiling: NPHardwareLimits.tdcsMaxChargeDensityUCcm2 (40).
+//    (b) PBM session dose (J/cm²) — implemented 2026-06-04. Estimated dose formula:
+//        peakMWcm2 × intensityFraction × duration(s) / 1000. CW: pbmCWMaxMWcm2; pulsed: scaled
+//        by duty cycle. Checked against NPPBMTranscranialLimits.maxSessionDoseJCm2 when set.
+//    (c) Zero-duration hard rejection — implemented 2026-06-04. dur ≤ 0 → .error (was .warning).
 
 import XCTest
 @testable import NeuroPulse
@@ -93,17 +88,7 @@ final class NPProtocolValidatorTests: XCTestCase {
     // MARK: - testChargeDensityOverLimitRejected (intended-behaviour spec)
 
     func testChargeDensityOverLimitRejected() {
-        // Intended contract: charge density above 40 µC/cm² must be rejected by the app validator.
-        // Production gap: no charge-density field/branch exists yet. See file header.
-        XCTExpectFailure(
-            "App-side charge-density validation (40 µC/cm² ceiling) is not yet implemented; " +
-            "ceiling currently enforced only by NPHardwareLimits + safety MCU."
-        )
-
-        // We approximate "over the charge-density limit" with a tDCS configuration whose
-        // current is within the per-pulse current ceiling but whose accumulated charge would
-        // exceed 40 µC/cm². With no charge field to set, we assert the validator catches it,
-        // which it cannot today — hence the expected failure above.
+        // 2.0 mA × 3600s / (35 cm²/electrode × 2 electrodes) = 102.9 µC/cm² — over 40.
         let tdcs = NPTDCSParams(intensityMilliamps: 2.0, electrodePairs: [["Fp1", "P3"]])
         let def = protocolWith(.tdcs(tdcs), interval: .continuous, durationSeconds: 60 * 60)
         let result = hardwareOnlyValidator().validate(def)
@@ -135,53 +120,35 @@ final class NPProtocolValidatorTests: XCTestCase {
     // MARK: - testChargeDensityBorderlineInvalid (intended-behaviour spec)
 
     func testChargeDensityBorderlineInvalid() {
-        // Intended contract: 40.001 µC/cm² (just over the ceiling) is rejected.
-        // Production gap: no charge-density branch. See file header.
-        XCTExpectFailure(
-            "App-side charge-density validation is not yet implemented; the just-over-ceiling " +
-            "case cannot be detected by the validator today."
-        )
-
+        // 2.0 mA × 3600s / 70 cm² = 102.9 µC/cm² — over 40, must be rejected.
         let tdcs = NPTDCSParams(intensityMilliamps: 2.0, electrodePairs: [["Fp1", "P3"]])
         let def = protocolWith(.tdcs(tdcs), durationSeconds: 60 * 60)
         let result = hardwareOnlyValidator().validate(def)
 
         XCTAssertTrue(
             result.errors.contains { $0.parameterKey.lowercased().contains("charge") },
-            "Charge density of 40.001 µC/cm² (just over the ceiling) must be rejected."
+            "Charge density over the 40 µC/cm² ceiling must be rejected."
         )
     }
 
     // MARK: - testZeroDurationRejected (intended-behaviour spec)
 
     func testZeroDurationRejected() {
-        // A 0-second session is nonsensical and should be rejected.
-        // Today the validator emits only a *warning* for durations < 60s (no error path for 0s).
-        // Wrapped in XCTExpectFailure so it documents the intended hard-rejection of 0s sessions.
-        XCTExpectFailure(
-            "Validator currently warns (not errors) on sub-minute durations; there is no hard " +
-            "rejection of a 0-second session. Add a zero/negative-duration error branch."
-        )
-
         let pbm = NPPBMTranscranialParams(intensityPercent: 75, frequencyHz: 20, dutyCyclePercent: 25)
         let def = protocolWith(.pbmTranscranial(pbm), durationSeconds: 0)
         let result = hardwareOnlyValidator().validate(def)
 
         XCTAssertFalse(result.isValid, "A protocol with 0-second duration must be rejected.")
+        XCTAssertTrue(
+            result.errors.contains { $0.parameterKey == "duration" },
+            "Zero-duration rejection must cite the duration parameter."
+        )
     }
 
     // MARK: - testDoseOverLimitRejected (intended-behaviour spec)
 
     func testDoseOverLimitRejected() {
-        // Intended contract: a PBM protocol whose session dose exceeds the configured
-        // maxSessionDoseJCm2 limit is rejected.
-        // Production gap: the validator never reads maxSessionDoseJCm2 and params carry no dose
-        // value. We configure a tight dose limit and assert rejection — currently impossible.
-        XCTExpectFailure(
-            "Validator does not yet read NPPBMTranscranialLimits.maxSessionDoseJCm2, and " +
-            "NPPBMTranscranialParams carries no session-dose figure to evaluate."
-        )
-
+        // 100% CW intensity = 200 mW/cm² × 3600s / 1000 = 720 J/cm² — over the 10 J/cm² limit.
         var limits = NPLimitsSet(name: "Dose-capped", level: .global)
         limits.pbmTranscranial = NPPBMTranscranialLimits(maxSessionDoseJCm2: 10.0)
         let validator = NPProtocolValidator(resolvedLimits: limits)
