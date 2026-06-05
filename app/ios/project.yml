@@ -56,6 +56,26 @@ targets:
     dependencies:
       - package: NeuroPulseShared
 
+  NeuroPulseTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+
+    sources:
+      - path: NeuroPulseTests
+        excludes:
+          - "**/.DS_Store"
+          - "**/*.md"
+
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.neuropulse.tests
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NeuroPulse.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NeuroPulse"
+
+    dependencies:
+      - target: NeuroPulse
+
 packages:
   NeuroPulseShared:
     path: ../NeuroPulseShared
@@ -69,6 +89,8 @@ schemes:
       config: Debug
     test:
       config: Debug
+      targets:
+        - NeuroPulseTests
     profile:
       config: Release
     analyze:
