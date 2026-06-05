@@ -2,6 +2,7 @@ import Foundation
 import BackgroundTasks
 import CryptoKit
 import SwiftUI   // @AppStorage, UIDevice
+import os
 
 // Nightly incremental UHDR backup scheduler.
 // Per CLAUDE.md §5.1: backup uses same Argon2id-derived AES-256-XTS key as on-device UHDR.
@@ -21,6 +22,8 @@ final class UHDRBackupScheduler: ObservableObject {
     private let keyManager: UHDRKeyManager
     private let uhdrDirectory: URL
     private let backupDirectory: URL
+
+    private static let log = Logger(subsystem: "com.neuropulse.app", category: "UHDRBackupScheduler")
 
     enum BackupStatus {
         case never
@@ -42,7 +45,28 @@ final class UHDRBackupScheduler: ObservableObject {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         uhdrDirectory = docs.appendingPathComponent("UHDR", isDirectory: true)
         backupDirectory = docs.appendingPathComponent("UHDRBackup", isDirectory: true)
-        try? FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
+
+        // Create the backup directory. Both failures are logged at fault level —
+        // a silent failure here means the backup exclusion below also silently
+        // fails, leaving encrypted UHDR archives backup-eligible.
+        do {
+            try FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
+        } catch {
+            Self.log.fault("UHDRBackupScheduler: backup directory creation failed — exclusion may not be applied: \(error.localizedDescription, privacy: .public)")
+        }
+
+        // Exclude the backup directory from iCloud and iTunes backups.
+        // Encrypted archives are user-key-encrypted UHDR; they must not flow to
+        // Apple infrastructure. Log failures so the gap is visible in diagnostics.
+        do {
+            try (backupDirectory as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
+        } catch {
+            Self.log.fault("UHDRBackupScheduler: backup exclusion not applied — encrypted UHDR archives may flow to iCloud: \(error.localizedDescription, privacy: .public)")
+        }
+
+        // Enable battery monitoring once in init rather than on every isOnUSBCPower() call.
+        UIDevice.current.isBatteryMonitoringEnabled = true
+
         scheduleBackgroundTask()
     }
 
@@ -102,19 +126,17 @@ final class UHDRBackupScheduler: ObservableObject {
             try ciphertext.write(to: destURL, options: .atomic)
         }
 
-        // Generate incremental manifest
+        // Generate incremental manifest — plaintext, no key material.
         let manifest = BackupManifest(
             createdAt: Date(),
-            fileCount: changedFiles.count,
-            keyFingerprint: Data(SHA256.hash(data: key.k1)).prefix(8)
-                .map { String(format: "%02x", $0) }.joined()
+            fileCount: changedFiles.count
         )
         let manifestData = try JSONEncoder().encode(manifest)
         try manifestData.write(to: backupDirectory.appendingPathComponent("manifest.json"), options: .atomic)
     }
 
-    // AES-256-GCM encryption using K1 (K2 is used by AES-XTS on the hub; app uses GCM for
-    // portability since iOS CryptoKit does not expose XTS mode).
+    // AES-256-GCM using K1. K2 is reserved for AES-XTS on the hub side; app uses GCM
+    // because iOS CryptoKit does not expose XTS mode.
     private func encryptForBackup(_ plaintext: Data, key: UHDRKey) throws -> Data {
         let symKey = SymmetricKey(data: key.k1)
         let sealed = try AES.GCM.seal(plaintext, using: symKey)
@@ -132,7 +154,7 @@ final class UHDRBackupScheduler: ObservableObject {
     // MARK: - Power detection
 
     private func isOnUSBCPower() -> Bool {
-        UIDevice.current.isBatteryMonitoringEnabled = true
+        // isBatteryMonitoringEnabled is enabled once in init() — no need to set it here.
         let state = UIDevice.current.batteryState
         return state == .charging || state == .full
     }
@@ -141,5 +163,7 @@ final class UHDRBackupScheduler: ObservableObject {
 struct BackupManifest: Codable {
     var createdAt: Date
     var fileCount: Int
-    var keyFingerprint: String  // first 8 bytes of SHA-256(K1) — not the key itself
+    // keyFingerprint removed: SHA-256(K1) truncated to 8 bytes was stored in a plaintext
+    // manifest that lands in the unencrypted backup directory. Any partial hash of key
+    // material belongs only in secure storage, not in a JSON file.
 }

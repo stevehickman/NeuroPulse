@@ -4,12 +4,13 @@ import os
 /// Consent gate for all analytics and crash-reporting telemetry (ISC-92, ISC-97).
 ///
 /// No analytics or crash-reporting SDK may initialise or receive any event until
-/// the user has explicitly completed (or explicitly skipped) the consent flow.
-/// The gate keys on `np.onboarding.consent-accepted`, set inside
-/// `ConsentOnboardingView.commitAndDismiss()` — the point at which the user
-/// has actively made a decision, not merely been shown the screen. This is the
-/// stronger semantic: favours privacy by requiring a deliberate user action
-/// rather than passive screen presentation.
+/// the user has **actively completed** the consent onboarding flow by tapping Done.
+/// The gate keys on `np.analytics.consent-granted` (`analyticsConsentKey`), set
+/// inside `ConsentOnboardingView.commitAndDismiss(grantAnalyticsConsent: true)`.
+///
+/// Pressing Skip does NOT set this key — analytics stays off until an explicit
+/// Done action. Research-consent withdrawal also does NOT clear this key —
+/// analytics and research participation are independent consent decisions.
 ///
 /// This type is a vendor-agnostic abstraction: call sites use `AnalyticsGate`
 /// exclusively and never touch the SDK directly. When a vendor is selected
@@ -30,15 +31,21 @@ enum AnalyticsGate {
         "session_count", "session_sequence"
     ]
 
-    /// The UserDefaults key set when the user completes or explicitly skips the
-    /// consent flow inside `ConsentOnboardingView`. Keyed on the deliberate
-    /// user action, not on screen presentation — stronger privacy guarantee.
-    static let consentAcceptedKey = "np.onboarding.consent-accepted"
+    /// The UserDefaults key set when the user **actively completes** the consent
+    /// onboarding flow (taps Done on the final layer). Distinct from
+    /// `np.onboarding.consent-shown` which is set when the view appears, and from
+    /// the retired `np.onboarding.consent-accepted` which conflated "onboarding
+    /// completed" with "analytics consented."
+    ///
+    /// NOT set when the user presses Skip — skipping defers all data decisions
+    /// including analytics. NOT cleared by research-consent withdrawal —
+    /// analytics and research participation are independent consent decisions.
+    static let analyticsConsentKey = "np.analytics.consent-granted"
 
     /// True only when the user has actively completed the consent flow
-    /// (accepted or explicitly skipped), as recorded by `consentAcceptedKey`.
+    /// (tapped Done, not Skip), as recorded by `analyticsConsentKey`.
     static var isOpen: Bool {
-        UserDefaults.standard.bool(forKey: consentAcceptedKey)
+        UserDefaults.standard.bool(forKey: analyticsConsentKey)
     }
 
     /// Initialise the analytics SDK. Call exactly once, after the consent flow
@@ -52,6 +59,26 @@ enum AnalyticsGate {
         isConfigured = true
         log.debug("AnalyticsGate.configure() — gate open; initialising analytics SDK.")
         AnalyticsSDKStub.configure()
+    }
+
+    /// Close the analytics gate and tear down the SDK.
+    ///
+    /// Call when the user explicitly opts out of analytics. The `isOpen` guard in
+    /// `track()` already stops new events once `analyticsConsentKey` is cleared, but
+    /// a running SDK can still collect passively — this method tears it down fully and
+    /// resets `isConfigured` so `configure()` becomes a no-op until re-consent.
+    ///
+    /// Note: do NOT call this from research-consent withdrawal paths.
+    /// Analytics consent and research participation are independent decisions.
+    static func reset() {
+        guard isConfigured else { return }
+        // Tear down the SDK BEFORE clearing the flag. If teardown is async or can
+        // throw in a real vendor implementation, clearing the flag first would let
+        // a concurrent configure() call re-initialise the SDK before the previous
+        // instance is actually shut down.
+        log.debug("AnalyticsGate.reset() — analytics consent withdrawn; tearing down SDK.")
+        AnalyticsSDKStub.reset()
+        isConfigured = false
     }
 
     /// Record an analytics event. Silently no-ops if the gate is closed.
