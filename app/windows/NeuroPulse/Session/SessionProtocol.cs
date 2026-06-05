@@ -121,7 +121,10 @@ sealed class ModalityConfigConverter : JsonConverter<ModalityConfig>
     public override ModalityConfig Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using var doc = JsonDocument.ParseValue(ref reader);
-        var prop = doc.RootElement.EnumerateObject().First();
+        var enumerator = doc.RootElement.EnumerateObject();
+        if (!enumerator.MoveNext())
+            throw new JsonException("ModalityConfig JSON object has no properties");
+        var prop = enumerator.Current;
         var raw = prop.Value.GetRawText();
         return prop.Name switch
         {
@@ -229,16 +232,33 @@ static class SessionProtocolSigner
 
         if (File.Exists(KeyPath))
         {
-            var dpapi = File.ReadAllBytes(KeyPath);
-            var raw = ProtectedData.Unprotect(dpapi, null, DataProtectionScope.CurrentUser);
-            return Key.Import(Ed25519Alg, raw, KeyBlobFormat.RawPrivateKey, creationParams);
+            // Read-then-unprotect in a single try so a concurrent delete between
+            // Exists and ReadAllBytes surfaces as IOException rather than silent failure.
+            try
+            {
+                var dpapi = File.ReadAllBytes(KeyPath);
+                var raw = ProtectedData.Unprotect(dpapi, null, DataProtectionScope.CurrentUser);
+                return Key.Import(Ed25519Alg, raw, KeyBlobFormat.RawPrivateKey, creationParams);
+            }
+            catch (FileNotFoundException)
+            {
+                // File was deleted between Exists check and ReadAllBytes — fall through to create.
+            }
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(KeyPath)!);
         var key = Key.Create(Ed25519Alg, creationParams);
         var exported = key.Export(KeyBlobFormat.RawPrivateKey);
-        var protected_ = ProtectedData.Protect(exported, null, DataProtectionScope.CurrentUser);
-        File.WriteAllBytes(KeyPath, protected_);
+        try
+        {
+            var protected_ = ProtectedData.Protect(exported, null, DataProtectionScope.CurrentUser);
+            File.WriteAllBytes(KeyPath, protected_);
+        }
+        finally
+        {
+            // Zero private key bytes before GC can observe them.
+            CryptographicOperations.ZeroMemory(exported);
+        }
         return key;
     }
 }
