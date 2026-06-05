@@ -57,97 +57,83 @@ struct SessionView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    connectionBanner
-                    if consumable.sessionIsBlocked {
-                        blockingConsumableAlert
-                    } else {
-                        sessionStatusCard
-                        if gatt.session.status == .running {
-                            hrvBreathingRing
-                            if eegConsentGranted {
-                                liveMetricsGrid
-                            } else {
-                                eegConsentUnavailableCard
-                            }
+            sessionScrollView
+                .navigationTitle("Session")
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button { showHistory = true } label: {
+                            Label("Session History", systemImage: "clock.arrow.circlepath")
                         }
-                        zoneModuleRow
-                        sessionControls
+                        .accessibilityLabel("Session History")
                     }
-                    regulatoryFooter
-                    voiceOverCoherenceAnnouncer
-                }
-                .padding()
-            }
-            .navigationTitle("Session")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button { showHistory = true } label: {
-                        Label("Session History", systemImage: "clock.arrow.circlepath")
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        connectionIndicator
                     }
-                    .accessibilityLabel("Session History")
                 }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    connectionIndicator
+                .sheet(isPresented: $showHistory) {
+                    SessionHistoryListView()
+                        .environmentObject(history)
+                        .environmentObject(edfLoader)
                 }
-            }
-            .sheet(isPresented: $showHistory) {
-                SessionHistoryListView()
-                    .environmentObject(history)
-                    .environmentObject(edfLoader)
-            }
-            .sheet(isPresented: $showProtocolPicker) {
-                ProtocolMenuView()
-                    .environmentObject(library)
-                    .environmentObject(uploader)
-            }
-            .confirmationDialog("End this session?",
-                                isPresented: $showStopConfirmation,
-                                titleVisibility: .visible) {
-                Button("End Session", role: .destructive) { sendSessionStop() }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("The hub will stop the active session.")
-            }
-            .alert("Couldn't End Session",
-                   isPresented: Binding(
-                       get: { stopErrorMessage != nil },
-                       set: { if !$0 { stopErrorMessage = nil } }
-                   )) {
-                Button("OK", role: .cancel) { stopErrorMessage = nil }
-            } message: {
-                Text(stopErrorMessage ?? "")
-            }
-            .onChange(of: hrvBiofeedbackActive) { _, isActive in
-                if isActive {
-                    Task { await healthKit.requestAuthorizationAndStart() }
+                .sheet(isPresented: $showProtocolPicker) {
+                    ProtocolMenuView()
+                        .environmentObject(library)
+                        .environmentObject(uploader)
+                }
+                .confirmationDialog("End this session?",
+                                    isPresented: $showStopConfirmation,
+                                    titleVisibility: .visible) {
+                    Button("End Session", role: .destructive) { sendSessionStop() }
+                    Button("Cancel", role: .cancel) { }
+                } message: {
+                    Text("The hub will stop the active session.")
+                }
+                .alert("Couldn't End Session",
+                       isPresented: Binding(
+                           get: { stopErrorMessage != nil },
+                           set: { if !$0 { stopErrorMessage = nil } }
+                       )) {
+                    Button("OK", role: .cancel) { stopErrorMessage = nil }
+                } message: {
+                    Text(stopErrorMessage ?? "")
+                }
+                .sessionObservers(
+                    healthKit: healthKit,
+                    gatt: gatt,
+                    coherenceDebounceTask: $coherenceDebounceTask,
+                    voiceOverCoherence: $voiceOverCoherence,
+                    lastCoherenceScore: $lastCoherenceScore,
+                    lastRMSSD: $lastRMSSD,
+                    lastImpedancePass: $lastImpedancePass,
+                    hrvBiofeedbackActive: hrvBiofeedbackActive,
+                    onStatusChange: handleStatusChange
+                )
+        }
+    }
+
+    private var sessionScrollView: some View {
+        ScrollView {
+            VStack(spacing: 20) {
+                connectionBanner
+                if consumable.sessionIsBlocked {
+                    blockingConsumableAlert
                 } else {
-                    healthKit.stopAndClear()
+                    sessionStatusCard
+                    if gatt.session.status == .running {
+                        hrvBreathingRing
+                        if eegConsentGranted {
+                            liveMetricsGrid
+                        } else {
+                            eegConsentUnavailableCard
+                        }
+                    }
+                    zoneModuleRow
+                    sessionControls
                 }
+                regulatoryFooter
+                voiceOverCoherenceAnnouncer
             }
-            .onDisappear {
-                healthKit.stopAndClear()
-                coherenceDebounceTask?.cancel()
-            }
-            .onChange(of: gatt.session.hrv) { _, hrv in
-                // Debounce VoiceOver coherence announcement — 100ms GATT stream → 2s spoken (ISC-149)
-                coherenceDebounceTask?.cancel()
-                coherenceDebounceTask = Task {
-                    try? await Task.sleep(nanoseconds: 2_000_000_000)
-                    guard !Task.isCancelled else { return }
-                    await MainActor.run { voiceOverCoherence = hrv?.coherenceScore }
-                }
-            }
-            .onChange(of: gatt.session.status) { oldStatus, newStatus in
-                handleStatusChange(from: oldStatus, to: newStatus)
-            }
-            .onChange(of: gatt.session.impedancePassFlags) { _, flags in
-                lastImpedancePass = (0..<8).filter { flags & (1 << $0) != 0 }.count
-            }
-            .onChange(of: gatt.session.hrv) { _, hrv in
-                if let hrv { lastCoherenceScore = hrv.coherenceScore; lastRMSSD = hrv.rmssdMilliseconds }
-            }
+            .padding()
         }
     }
 
@@ -158,11 +144,12 @@ struct SessionView: View {
             runningStartedAt = Date()
             runningProtocolID = gatt.session.protocolID
         case (.running, .completed):
-            let duration = runningStartedAt.map { Date().timeIntervalSince($0) } ?? 0
+            let durationSecs = runningStartedAt.map { UInt32(max(0, Date().timeIntervalSince($0))) } ?? 0
             let record = CompletedSessionSummary(
                 protocolName: "Protocol \(runningProtocolID)",
-                durationSeconds: duration,
+                durationSeconds: durationSecs,
                 adaptationEvents: [],
+                completedAt: Date(),
                 averageCoherenceScore: lastCoherenceScore,
                 rmssdMilliseconds: lastRMSSD,
                 impedancePassCount: lastImpedancePass,
@@ -462,6 +449,71 @@ struct SessionView: View {
             .font(.caption2)
             .foregroundColor(.secondary)
             .multilineTextAlignment(.center)
+    }
+}
+
+// MARK: - Session observer modifier
+
+private struct SessionObserversModifier: ViewModifier {
+    let healthKit: HealthKitSessionReader
+    let gatt: NeuroPulseGATTManager
+    @Binding var coherenceDebounceTask: Task<Void, Never>?
+    @Binding var voiceOverCoherence: Float?
+    @Binding var lastCoherenceScore: Float?
+    @Binding var lastRMSSD: UInt16?
+    @Binding var lastImpedancePass: Int
+    let hrvBiofeedbackActive: Bool
+    let onStatusChange: (SessionStatus, SessionStatus) -> Void
+
+    func body(content: Content) -> some View {
+        let v1 = content
+            .onChange(of: hrvBiofeedbackActive) { _, isActive in
+                if isActive { Task { await healthKit.requestAuthorizationAndStart() } }
+                else { healthKit.stopAndClear() }
+            }
+            .onDisappear { healthKit.stopAndClear(); coherenceDebounceTask?.cancel() }
+        let v2 = v1
+            .onChange(of: gatt.session.status) { old, new in onStatusChange(old, new) }
+            .onChange(of: gatt.session.impedancePassFlags) { _, flags in
+                lastImpedancePass = (0..<8).filter { flags & (1 << $0) != 0 }.count
+            }
+        return v2.onChange(of: gatt.session.hrv) { _, hrv in updateHRVSnapshot(hrv: hrv) }
+    }
+
+    private func updateHRVSnapshot(hrv: HRVData?) {
+        coherenceDebounceTask?.cancel()
+        coherenceDebounceTask = Task {
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            guard !Task.isCancelled else { return }
+            await MainActor.run { voiceOverCoherence = hrv?.coherenceScore }
+        }
+        if let hrv { lastCoherenceScore = hrv.coherenceScore; lastRMSSD = hrv.rmssdMilliseconds }
+    }
+}
+
+private extension View {
+    func sessionObservers(
+        healthKit: HealthKitSessionReader,
+        gatt: NeuroPulseGATTManager,
+        coherenceDebounceTask: Binding<Task<Void, Never>?>,
+        voiceOverCoherence: Binding<Float?>,
+        lastCoherenceScore: Binding<Float?>,
+        lastRMSSD: Binding<UInt16?>,
+        lastImpedancePass: Binding<Int>,
+        hrvBiofeedbackActive: Bool,
+        onStatusChange: @escaping (SessionStatus, SessionStatus) -> Void
+    ) -> some View {
+        modifier(SessionObserversModifier(
+            healthKit: healthKit,
+            gatt: gatt,
+            coherenceDebounceTask: coherenceDebounceTask,
+            voiceOverCoherence: voiceOverCoherence,
+            lastCoherenceScore: lastCoherenceScore,
+            lastRMSSD: lastRMSSD,
+            lastImpedancePass: lastImpedancePass,
+            hrvBiofeedbackActive: hrvBiofeedbackActive,
+            onStatusChange: onStatusChange
+        ))
     }
 }
 
