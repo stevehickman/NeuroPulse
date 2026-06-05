@@ -2,6 +2,7 @@ import Foundation
 import BackgroundTasks
 import CryptoKit
 import SwiftUI   // @AppStorage, UIDevice
+import os
 
 // Nightly incremental UHDR backup scheduler.
 // Per CLAUDE.md §5.1: backup uses same Argon2id-derived AES-256-XTS key as on-device UHDR.
@@ -21,6 +22,8 @@ final class UHDRBackupScheduler: ObservableObject {
     private let keyManager: UHDRKeyManager
     private let uhdrDirectory: URL
     private let backupDirectory: URL
+
+    private static let log = Logger(subsystem: "com.neuropulse.app", category: "UHDRBackupScheduler")
 
     enum BackupStatus {
         case never
@@ -42,13 +45,28 @@ final class UHDRBackupScheduler: ObservableObject {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         uhdrDirectory = docs.appendingPathComponent("UHDR", isDirectory: true)
         backupDirectory = docs.appendingPathComponent("UHDRBackup", isDirectory: true)
-        try? FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
+
+        // Create the backup directory. Both failures are logged at fault level —
+        // a silent failure here means the backup exclusion below also silently
+        // fails, leaving encrypted UHDR archives backup-eligible.
+        do {
+            try FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
+        } catch {
+            Self.log.fault("UHDRBackupScheduler: backup directory creation failed — exclusion may not be applied: \(error.localizedDescription, privacy: .public)")
+        }
+
         // Exclude the backup directory from iCloud and iTunes backups.
-        // The encrypted archives are user-key-encrypted UHDR — they must not flow
-        // to Apple infrastructure (iCloud) or unencrypted iTunes backup exports.
-        // Users retain a copy under their own key; this exclusion only prevents a
-        // second copy from reaching Apple servers.
-        try? (backupDirectory as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
+        // Encrypted archives are user-key-encrypted UHDR; they must not flow to
+        // Apple infrastructure. Log failures so the gap is visible in diagnostics.
+        do {
+            try (backupDirectory as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
+        } catch {
+            Self.log.fault("UHDRBackupScheduler: backup exclusion not applied — encrypted UHDR archives may flow to iCloud: \(error.localizedDescription, privacy: .public)")
+        }
+
+        // Enable battery monitoring once in init rather than on every isOnUSBCPower() call.
+        UIDevice.current.isBatteryMonitoringEnabled = true
+
         scheduleBackgroundTask()
     }
 
@@ -136,7 +154,7 @@ final class UHDRBackupScheduler: ObservableObject {
     // MARK: - Power detection
 
     private func isOnUSBCPower() -> Bool {
-        UIDevice.current.isBatteryMonitoringEnabled = true
+        // isBatteryMonitoringEnabled is enabled once in init() — no need to set it here.
         let state = UIDevice.current.batteryState
         return state == .charging || state == .full
     }

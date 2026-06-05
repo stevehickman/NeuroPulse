@@ -72,9 +72,13 @@ enum AnalyticsGate {
     /// Analytics consent and research participation are independent decisions.
     static func reset() {
         guard isConfigured else { return }
-        isConfigured = false
-        log.debug("AnalyticsGate.reset() — analytics consent withdrawn; SDK torn down.")
+        // Tear down the SDK BEFORE clearing the flag. If teardown is async or can
+        // throw in a real vendor implementation, clearing the flag first would let
+        // a concurrent configure() call re-initialise the SDK before the previous
+        // instance is actually shut down.
+        log.debug("AnalyticsGate.reset() — analytics consent withdrawn; tearing down SDK.")
         AnalyticsSDKStub.reset()
+        isConfigured = false
     }
 
     /// Record an analytics event. Silently no-ops if the gate is closed.

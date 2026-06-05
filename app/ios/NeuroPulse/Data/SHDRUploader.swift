@@ -124,9 +124,14 @@ final class SHDRUploader: ObservableObject {
     private static let warrantyTokenTag = "com.neuropulse.shdr.warranty-token"
 
     private func warrantyTokenFromKeychain() -> String {
+        // kSecAttrAccount is part of the Keychain primary key for kSecClassGenericPassword
+        // alongside kSecAttrService. Both must be present in read and write queries to
+        // avoid ambiguous matches if another item ever shares the service string.
         let query: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
             kSecAttrService:        Self.warrantyTokenTag,
+            kSecAttrAccount:        "warranty-token",
+            kSecMatchLimit:         kSecMatchLimitOne,
             kSecReturnData:         true,
             kSecAttrSynchronizable: false
         ]
@@ -139,19 +144,36 @@ final class SHDRUploader: ObservableObject {
         // First run: generate a 32-byte random token.
         var bytes = [UInt8](repeating: 0, count: 32)
         guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            // Extremely unlikely. Fall back to a non-identifiable zero token rather
-            // than a linkable identifier (identifierForVendor would be worse here).
+            // SecRandomCopyBytes failure is extremely unlikely. Fall back to a
+            // non-identifiable zero token rather than a linkable identifier.
             return String(repeating: "0", count: 64)
         }
         let tokenData = Data(bytes)
         let addQuery: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
             kSecAttrService:        Self.warrantyTokenTag,
+            kSecAttrAccount:        "warranty-token",
             kSecValueData:          tokenData,
             kSecAttrAccessible:     kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
             kSecAttrSynchronizable: false
         ]
-        SecItemAdd(addQuery as CFDictionary, nil)
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        if status == errSecSuccess {
+            return tokenData.map { String(format: "%02x", $0) }.joined()
+        }
+        if status == errSecDuplicateItem {
+            // A concurrent call won the race and already wrote the token.
+            // Re-read to get the persisted value rather than returning our
+            // un-stored token (which would differ from theirs and break fleet
+            // DB device-lifetime correlation).
+            var retryItem: CFTypeRef?
+            if SecItemCopyMatching(query as CFDictionary, &retryItem) == errSecSuccess,
+               let retryData = retryItem as? Data {
+                return retryData.map { String(format: "%02x", $0) }.joined()
+            }
+        }
+        // Any other Keychain error: return un-stored token for this upload only.
+        // The next upload will try again. Fleet DB may receive one orphaned record.
         return tokenData.map { String(format: "%02x", $0) }.joined()
     }
 }

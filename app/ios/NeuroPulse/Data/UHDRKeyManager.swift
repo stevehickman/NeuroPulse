@@ -1,6 +1,7 @@
 import Foundation
 import CryptoKit
 import LocalAuthentication
+import Security
 import UIKit   // UIDevice.current.identifierForVendor
 
 // UHDR AES-256-XTS key derivation.
@@ -64,9 +65,50 @@ final class UHDRKeyManager: ObservableObject {
         // Production: read 32-byte TRNG salt from hub Config partition over BLE.
         // Placeholder: derive from UIDevice.current.identifierForVendor (stable per app install).
         guard let uuid = UIDevice.current.identifierForVendor?.uuidString.data(using: .utf8) else {
-            return Data(repeating: 0xAB, count: 32)
+            // identifierForVendor is nil only briefly after a factory wipe before
+            // the first device unlock — a foreground app should not reach this path.
+            // Use a Keychain-stored random value so different devices (if this path
+            // is somehow reached) do not derive the same key from a constant.
+            return saltFallbackFromKeychain()
         }
         return Data(SHA256.hash(data: uuid))
+    }
+
+    // Stable per-device random salt stored in the Keychain. Used only when
+    // identifierForVendor is nil (see above). Replaced entirely when Argon2id
+    // + hub-provisioned TRNG salt is integrated.
+    private static let saltFallbackTag = "com.neuropulse.uhdr.salt-fallback"
+
+    private func saltFallbackFromKeychain() -> Data {
+        let query: [CFString: Any] = [
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        Self.saltFallbackTag,
+            kSecAttrAccount:        "salt",
+            kSecMatchLimit:         kSecMatchLimitOne,
+            kSecReturnData:         true,
+            kSecAttrSynchronizable: false
+        ]
+        var item: CFTypeRef?
+        if SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+           let saltData = item as? Data, saltData.count == 32 {
+            return saltData
+        }
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+            // CSPRNG failure is exceedingly unlikely — retain constant as last resort.
+            return Data(repeating: 0xAB, count: 32)
+        }
+        let saltData = Data(bytes)
+        let addQuery: [CFString: Any] = [
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        Self.saltFallbackTag,
+            kSecAttrAccount:        "salt",
+            kSecValueData:          saltData,
+            kSecAttrAccessible:     kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            kSecAttrSynchronizable: false
+        ]
+        SecItemAdd(addQuery as CFDictionary, nil)
+        return saltData
     }
 
     // Prompt biometric, derive key, make it available for the session.
@@ -83,6 +125,11 @@ final class UHDRKeyManager: ObservableObject {
         do {
             let success = try await context.evaluatePolicy(
                 .deviceOwnerAuthentication, localizedReason: reason)
+            // Note: evaluatePolicy never returns false on iOS — it either returns
+            // true or throws. The guard below is unreachable dead code today, kept
+            // as a defensive net in case the API behaviour changes in a future OS.
+            // The REAL user-cancellation path is the LAError.userCancel catch below;
+            // do not remove that catch thinking this guard handles it.
             guard success else { throw UHDRKeyError.userCancelled }
         } catch let laError as LAError where laError.code == .userCancel {
             throw UHDRKeyError.userCancelled
@@ -93,11 +140,14 @@ final class UHDRKeyManager: ObservableObject {
         // Derive key material after successful authentication.
         // Production: replace "biometric-placeholder" with the actual biometric token
         // or PIN digest from the LAContext evaluation result.
-        // PBKDF2 placeholder MUST NOT ship to production — see guard below.
-        #if !DEBUG
-        // Intentional compile-time failure: the biometric-placeholder password makes
-        // UHDR encryption user-independent. Replace with Argon2id + real credential
-        // before any production build. Remove this guard when Argon2id is integrated.
+        // PBKDF2 placeholder MUST NOT ship to production — see guards below.
+        //
+        // Two-layer protection:
+        //   DEBUG builds   → #warning surfaces in Xcode issue navigator as a reminder
+        //   Release builds → #error causes compile-time failure so this can never archive
+        #if DEBUG
+        #warning("UHDRKeyManager: biometric-placeholder password in use. Replace with Argon2id + real biometric/PIN credential before shipping any build outside development.")
+        #else
         #error("UHDRKeyManager: PBKDF2 placeholder with hardcoded password must be replaced with Argon2id + real biometric/PIN credential before production.")
         #endif
         let key = try deriveKey(password: "biometric-placeholder", salt: salt)
