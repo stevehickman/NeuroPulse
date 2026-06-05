@@ -98,8 +98,17 @@ struct NPProtocolValidator {
             ))
         }
 
-        if let dur = definition.totalDurationSeconds {
-            if dur < 60 {
+        let totalDurationSeconds = definition.totalDurationSeconds
+
+        if let dur = totalDurationSeconds {
+            // Hard error: zero or negative duration is nonsensical (ISC-47).
+            if dur <= 0 {
+                result.addError(
+                    param: "duration", displayName: "Duration",
+                    actual: "\(dur)s", limit: "> 0s", source: .hardware,
+                    message: "Session duration must be greater than zero."
+                )
+            } else if dur < 60 {
                 result.addWarning(
                     param: "duration", displayName: "Duration",
                     actual: "\(dur)s", limit: "60s", source: .hardware,
@@ -115,9 +124,36 @@ struct NPProtocolValidator {
             }
         }
 
-        // Per-modality validation
+        // Per-modality validation (pass total duration so charge-density and dose checks work)
         for block in enabledModalities {
-            validateModality(block, into: &result)
+            validateModality(block, totalDurationSeconds: totalDurationSeconds, into: &result)
+        }
+
+        // Cross-modality charge density check for tDCS (ISC-38).
+        // Charge density (µC/cm²) = I(mA) × t(s) / A(cm²).
+        // Area is estimated as NPHardwareLimits.tdcsDefaultElectrodeAreaCm2 per electrode position.
+        if let dur = totalDurationSeconds, dur > 0 {
+            for block in enabledModalities {
+                if case .tdcs(let p) = block.params {
+                    let numElectrodes = Double(p.electrodePairs.flatMap { $0 }.count)
+                    guard numElectrodes > 0 else { continue }
+                    let totalAreaCm2 = NPHardwareLimits.tdcsDefaultElectrodeAreaCm2 * numElectrodes
+                    let chargeDensity = p.intensityMilliamps * Double(dur) / totalAreaCm2
+                    if chargeDensity > NPHardwareLimits.tdcsMaxChargeDensityUCcm2 {
+                        result.addError(
+                            modality: .tdcs,
+                            param: "chargeDensityUCcm2", displayName: "Charge Density",
+                            actual: String(format: "%.1f µC/cm²", chargeDensity),
+                            limit: "\(Int(NPHardwareLimits.tdcsMaxChargeDensityUCcm2)) µC/cm²",
+                            source: .hardware,
+                            message: String(format:
+                                "Estimated tDCS charge density %.1f µC/cm² exceeds the " +
+                                "40 µC/cm² safety ceiling. Reduce current or session duration.",
+                                chargeDensity)
+                        )
+                    }
+                }
+            }
         }
 
         // Cross-modality checks
@@ -197,9 +233,15 @@ struct NPProtocolValidator {
 
     // MARK: Per-modality dispatch
 
-    private func validateModality(_ block: NPProtocolModality, into result: inout NPValidationResult) {
+    private func validateModality(
+        _ block: NPProtocolModality,
+        totalDurationSeconds: Int?,
+        into result: inout NPValidationResult
+    ) {
         switch block.params {
-        case .pbmTranscranial(let p):   validatePBMTranscranial(p, interval: block.interval, into: &result)
+        case .pbmTranscranial(let p):
+            validatePBMTranscranial(p, interval: block.interval,
+                                    totalDurationSeconds: totalDurationSeconds, into: &result)
         case .pbmIntranasal(let p):     validatePBMIntranasal(p, interval: block.interval, into: &result)
         case .eegNeurofeedback(let p):  validateEEG(p, into: &result)
         case .besTacs(let p):           validateBESTacs(p, interval: block.interval, into: &result)
@@ -222,6 +264,7 @@ struct NPProtocolValidator {
     private func validatePBMTranscranial(
         _ p: NPPBMTranscranialParams,
         interval: NPIntervalConfig,
+        totalDurationSeconds: Int?,
         into result: inout NPValidationResult
     ) {
         let m = NPModalityType.pbmTranscranial
@@ -279,6 +322,27 @@ struct NPProtocolValidator {
                 source: srcs?.maxDutyCyclePercent ?? .global_,
                 message: "PBM duty cycle \(p.dutyCyclePercent)% exceeds configured limit of \(maxDC)%."
             )
+        }
+
+        // Dosage: max session dose J/cm² (ISC-47).
+        // Estimated irradiance: CW path uses pbmCWMaxMWcm2; pulsed path scales by duty cycle.
+        // Dose (J/cm²) = irradiance (mW/cm²) × intensity_fraction × duration (s) / 1000.
+        if let maxDose = lim?.maxSessionDoseJCm2, let dur = totalDurationSeconds, dur > 0 {
+            let peakMWcm2: Double = p.frequencyHz == 0
+                ? NPHardwareLimits.pbmCWMaxMWcm2                                        // CW
+                : NPHardwareLimits.pbmPulsedPeakMWcm2 * Double(p.dutyCyclePercent) / 100 // pulsed avg
+            let estimatedDose = peakMWcm2 * (p.intensityPercent / 100.0) * Double(dur) / 1000.0
+            if estimatedDose > maxDose {
+                result.addError(
+                    modality: m, param: "sessionDoseJCm2", displayName: "Session Dose",
+                    actual: String(format: "%.1f J/cm²", estimatedDose),
+                    limit: String(format: "%.1f J/cm²", maxDose),
+                    source: srcs?.maxSessionDoseJCm2 ?? .global_,
+                    message: String(format:
+                        "Estimated PBM session dose %.1f J/cm² exceeds the configured limit of %.1f J/cm².",
+                        estimatedDose, maxDose)
+                )
+            }
         }
     }
 

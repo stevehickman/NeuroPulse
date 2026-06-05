@@ -22,6 +22,10 @@ enum NPHardwareLimits {
     static let tdcsMinMilliamps: Double = 0.1
     static let tdcsMaxMilliamps: Double = 2.0
     static let tdcsMaxChargeDensityUCcm2: Double = 40.0 // safety MCU enforced, app cannot override
+    /// Assumed area per individual electrode (cm²) used for charge-density estimation when the
+    /// electrode geometry is not explicitly provided. 35 cm² is a standard tDCS sponge pad.
+    /// Total area = tdcsDefaultElectrodeAreaCm2 × number of electrode positions across all pairs.
+    static let tdcsDefaultElectrodeAreaCm2: Double = 35.0
     static let tdcsRampSeconds: Int = 30                 // hardware-enforced, always applied
     static let tdcsMaxElectrodePairs: Int = 3
 
