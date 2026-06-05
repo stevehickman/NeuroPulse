@@ -5,7 +5,7 @@ project: NeuroPulse
 effort: E4
 effort_source: gate-floor
 phase: observe
-progress: 0/164
+progress: 3/164
 mode: interactive
 started: 2026-06-04
 updated: 2026-06-04
@@ -102,7 +102,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 - [ ] ISC-35: `SessionProtocolUploader.upload(_:)` serialises an `NPProtocolDefinition` to a binary blob, signs it with the session Ed25519 key, and sends it to `NeuroPulseGATTManager.uploadProtocol(_:)`.
 - [ ] ISC-36: `NPProtocolValidator` rejects any protocol whose per-modality dose limits exceed the values declared in `NPDosageLimits`.
 - [ ] ISC-37: `NPProtocolValidator` rejects any protocol whose tDCS current exceeds 2 mA or whose BES current exceeds 1 mA.
-- [ ] ISC-38: `NPProtocolValidator` rejects any protocol whose tDCS charge density exceeds 40 µC/cm² — confirmed by a unit test that constructs a borderline-valid and a borderline-invalid protocol.
+- [x] ISC-38: `NPProtocolValidator` rejects any protocol whose tDCS charge density exceeds 40 µC/cm² — confirmed by a unit test that constructs a borderline-valid and a borderline-invalid protocol.
 - [ ] ISC-39: `NPProtocolLibrary` loads and exposes all 19 predefined NPPS protocol templates from `NPPredefinedProtocols` without runtime errors.
 - [ ] ISC-40: `ProtocolMenuView` lists all protocols in `NPProtocolLibrary` with name, modality badges, and duration; protocols with missing hardware (e.g. a 1064nm zone not detected) are visually disabled with an explanatory note.
 - [ ] ISC-41: `ProtocolEditorView` allows editing frequency, duration, and current for each modality within the limits defined in `NPLimitsStore`, and blocks saving if any value violates a limit.
@@ -230,7 +230,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 
 - [ ] ISC-131: The app passes App Store Connect automated binary analysis (no private API usage) — confirmed by `xcrun altool --validate-app` with zero errors.
 - [ ] ISC-132: The App Store privacy nutrition label declares: Name (optional — not collected unless user enters it), Email Address (used for research contact — optional), Health & Fitness (HRV, used on device only — not linked to identity, not used to track), Device ID (linked to identity for warranty — used for app functionality), Crash Data (linked to identity — only after consent).
-- [ ] ISC-133: The app ships with a human-readable `PrivacyInfo.xcprivacy` file listing all accessed privacy-sensitive APIs (`NSPrivacyAccessedAPICategoryUserDefaults`, `NSPrivacyAccessedAPICategoryFileTimestamp`, `CBCentralManager`).
+- [x] ISC-133: The app ships with a human-readable `PrivacyInfo.xcprivacy` file listing all accessed privacy-sensitive APIs (`NSPrivacyAccessedAPICategoryUserDefaults`, `NSPrivacyAccessedAPICategoryFileTimestamp`, `CBCentralManager`).
 - [ ] ISC-134: App Store screenshots (6.7" and 5.5" iPhone) exist for all five primary screens: Session, Setup, Supplies, Privacy, Firmware.
 - [ ] ISC-135: The App Store description does not contain any medical claim, FDA-regulated claim, or claim that the device diagnoses, treats, cures, or prevents any disease.
 - [ ] ISC-136: `Anti:` The App Store description does not use the terms "medical device", "FDA-cleared", "FDA-approved", "510(k)", "clinical", or "therapeutic" — general wellness framing only.
@@ -342,6 +342,9 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 - **2026-06-04**: BIPA detection uses `Locale.current.region?.identifier == "US-IL"` as a first pass, plus an explicit Illinois declaration toggle — locale alone is not sufficient because it can be incorrect. This is a best-effort detection; the legal opinion requested in OI-PA-03 may require a different mechanism.
 - **2026-06-04**: Analytics SDK gate (ISC-92) guards `init()` / `configure()` calls. If the analytics vendor's SDK auto-initialises on import (some Crashlytics versions do), the vendor must be replaced or the import must be conditional. This is a code architecture constraint, not just a runtime guard.
 - **2026-06-04**: HealthKit features (ISC-94–96) are gated on the HRV biofeedback protocol being active — not requested at app launch. This avoids an unnecessary `NSHealthShareUsageDescription` prompt for users who never run HRV sessions.
+- **2026-06-04**: ISC-133 — `PrivacyInfo.xcprivacy` was present on disk from PR #106 but had zero references in `project.pbxproj`. Added to Copy Bundle Resources via xcodeproj gem (PR #107, commit fef956f). Without this, the file does not ship in the app bundle and App Store review would reject the submission.
+- **2026-06-04**: ISC-38 — tDCS charge density guard implemented in `NPProtocolValidator` (PR #107, commit bdc9236). Formula: `I(mA) × t(s) / (tdcsDefaultElectrodeAreaCm2 × electrodeCount)`. Default electrode area 35 cm² per electrode position added as `NPHardwareLimits.tdcsDefaultElectrodeAreaCm2`. Charge density > 40 µC/cm² emits `.error` with `parameterKey = "chargeDensityUCcm2"`. Both `testChargeDensityOverLimitRejected` and `testChargeDensityBorderlineInvalid` pass without `XCTExpectFailure`.
+- **2026-06-04**: ISC-47 (zero-duration) — hard `.error` added for `dur ≤ 0` in `validate(_:)`. Previously only a `.warning` was emitted for `dur < 60`. `testZeroDurationRejected` passes without `XCTExpectFailure`. PBM dose guard also implemented: estimated dose = `peakMWcm2 × intensityFraction × dur(s) / 1000` checked against `NPPBMTranscranialLimits.maxSessionDoseJCm2` when configured. `testDoseOverLimitRejected` passes without `XCTExpectFailure`. `validatePBMTranscranial` signature updated to accept `totalDurationSeconds`.
 
 ## Changelog
 
@@ -349,4 +352,8 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 
 ## Verification
 
-*(Empty — populated during VERIFY phase. Each ISC receives a quoted command output, test result, or screenshot path.)*
+| ISC | Evidence | Date |
+|-----|----------|------|
+| ISC-38 | `NPProtocolValidatorTests.testChargeDensityOverLimitRejected` passed (0.001s); `testChargeDensityBorderlineInvalid` passed (0.004s); `testChargeDensityBorderlineValid` passed (0.001s) — all without `XCTExpectFailure`. Full suite: NPProtocolValidatorTests 9/9 passed. PR #107 commit bdc9236. | 2026-06-04 |
+| ISC-47 | `NPProtocolValidatorTests.testZeroDurationRejected` passed (0.002s); `testDoseOverLimitRejected` passed (0.001s) — both without `XCTExpectFailure`. PR #107 commit bdc9236. | 2026-06-04 |
+| ISC-133 | `grep "PrivacyInfo" app/ios/NeuroPulse.xcodeproj/project.pbxproj` → 4 refs including `in Resources` build phase entry. PR #107 commit fef956f. | 2026-06-04 |

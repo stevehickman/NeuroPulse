@@ -1,6 +1,6 @@
 # CLAUDE.md — NeuroPulse Design Programme
 **Project:** NeuroPulse — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 19 (current)  
+**Revision:** 20 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 ---
