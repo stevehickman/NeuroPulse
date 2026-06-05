@@ -1,6 +1,6 @@
 import Foundation
 import Combine
-import UIKit   // UIDevice.current.identifierForVendor
+import Security
 
 // SHDR upload to NeuroPulse fleet database.
 // SHDR = System Health Data Record — device condition only, never user biology.
@@ -71,14 +71,19 @@ final class SHDRUploader: ObservableObject {
         lastError = nil
         defer { isUploading = false }
 
-        guard let deviceID = UIDevice.current.identifierForVendor?.uuidString else {
-            throw SHDRUploadError.noData
-        }
+        // NP-FW-EMMC-002 Rev A §A: SHDR is linked to an opaque 256-bit TRNG warranty
+        // token — never to identifierForVendor or any user-linked identifier.
+        // identifierForVendor is app-bundle-scoped but is still a linkable identifier
+        // that could correlate SHDR across data sources.
+        let warrantyToken = warrantyTokenFromKeychain()
 
         // In production the hub pushes the SHDR binary blob over USB-C bulk transfer;
         // the app reads it from a staging file dropped by the hub's CDC interface.
         let stagingURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("shdr_staging.bin")
+        // Exclude staging file from iCloud / iTunes backup — it is transient device
+        // telemetry, not user data that needs to survive restores.
+        try? (stagingURL as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
 
         guard let shdrData = try? Data(contentsOf: stagingURL) else {
             throw SHDRUploadError.noData
@@ -87,7 +92,7 @@ final class SHDRUploader: ObservableObject {
         var request = URLRequest(url: fleetEndpoint)
         request.httpMethod = "POST"
         request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-        request.setValue(deviceID, forHTTPHeaderField: "X-NP-Device-ID")
+        request.setValue(warrantyToken, forHTTPHeaderField: "X-NP-Device-Token")
         request.httpBody = shdrData
 
         let (_, response): (Data, URLResponse)
@@ -107,6 +112,47 @@ final class SHDRUploader: ObservableObject {
 
         try? FileManager.default.removeItem(at: stagingURL)
         lastUploadedAt = Date()
+    }
+
+    // MARK: - Warranty token (NP-FW-EMMC-002 Rev A §A)
+
+    // Opaque 256-bit random token, generated once at first run and stored in the
+    // Keychain with ThisDeviceOnly accessibility. This replaces identifierForVendor
+    // as the SHDR fleet DB linkage key — it is never joined to user identity.
+    // Production: replace with the 256-bit TRNG token provisioned by the hub at
+    // first pairing and delivered over the GATT warranty characteristic.
+    private static let warrantyTokenTag = "com.neuropulse.shdr.warranty-token"
+
+    private func warrantyTokenFromKeychain() -> String {
+        let query: [CFString: Any] = [
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        Self.warrantyTokenTag,
+            kSecReturnData:         true,
+            kSecAttrSynchronizable: false
+        ]
+        var item: CFTypeRef?
+        if SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+           let tokenData = item as? Data {
+            return tokenData.map { String(format: "%02x", $0) }.joined()
+        }
+
+        // First run: generate a 32-byte random token.
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+            // Extremely unlikely. Fall back to a non-identifiable zero token rather
+            // than a linkable identifier (identifierForVendor would be worse here).
+            return String(repeating: "0", count: 64)
+        }
+        let tokenData = Data(bytes)
+        let addQuery: [CFString: Any] = [
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        Self.warrantyTokenTag,
+            kSecValueData:          tokenData,
+            kSecAttrAccessible:     kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
+            kSecAttrSynchronizable: false
+        ]
+        SecItemAdd(addQuery as CFDictionary, nil)
+        return tokenData.map { String(format: "%02x", $0) }.joined()
     }
 }
 

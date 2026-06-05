@@ -25,4 +25,9 @@ enum AnalyticsSDKStub {
     static func track(event: String, properties: [String: String]) {
         log.debug("AnalyticsSDKStub.track(event:\(event, privacy: .public)) — \(properties.count, privacy: .public) properties (not transmitted).")
     }
+
+    /// Tear down the analytics SDK on consent withdrawal. Stub: logs only.
+    static func reset() {
+        log.debug("AnalyticsSDKStub.reset() — SDK teardown on consent withdrawal (no vendor selected; OI-AUDIT-01).")
+    }
 }

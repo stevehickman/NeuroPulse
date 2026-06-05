@@ -73,13 +73,16 @@ final class UHDRKeyManager: ObservableObject {
     func authenticate(reason: String = "Unlock your health data") async throws {
         let context = LAContext()
         var policyError: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &policyError) else {
+        // .deviceOwnerAuthentication falls back to PIN/passcode when Face ID / Touch ID
+        // is unavailable or locked out; .deviceOwnerAuthenticationWithBiometrics would
+        // permanently block users who haven't enrolled biometrics.
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &policyError) else {
             throw UHDRKeyError.biometricFailed(policyError ?? NSError(domain: "LAError", code: -1))
         }
 
         do {
             let success = try await context.evaluatePolicy(
-                .deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)
+                .deviceOwnerAuthentication, localizedReason: reason)
             guard success else { throw UHDRKeyError.userCancelled }
         } catch let laError as LAError where laError.code == .userCancel {
             throw UHDRKeyError.userCancelled
@@ -87,9 +90,16 @@ final class UHDRKeyManager: ObservableObject {
             throw UHDRKeyError.biometricFailed(error)
         }
 
-        // Derive key material after successful biometric.
-        // Production: pass biometric token/PIN to Argon2id as password input.
-        // Placeholder: use PBKDF2-SHA256 with device salt.
+        // Derive key material after successful authentication.
+        // Production: replace "biometric-placeholder" with the actual biometric token
+        // or PIN digest from the LAContext evaluation result.
+        // PBKDF2 placeholder MUST NOT ship to production — see guard below.
+        #if !DEBUG
+        // Intentional compile-time failure: the biometric-placeholder password makes
+        // UHDR encryption user-independent. Replace with Argon2id + real credential
+        // before any production build. Remove this guard when Argon2id is integrated.
+        #error("UHDRKeyManager: PBKDF2 placeholder with hardcoded password must be replaced with Argon2id + real biometric/PIN credential before production.")
+        #endif
         let key = try deriveKey(password: "biometric-placeholder", salt: salt)
         activeKey = key
         isAuthenticated = true

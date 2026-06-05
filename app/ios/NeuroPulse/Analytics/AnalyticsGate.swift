@@ -54,6 +54,20 @@ enum AnalyticsGate {
         AnalyticsSDKStub.configure()
     }
 
+    /// Close the analytics gate and tear down the SDK.
+    ///
+    /// Call when the user withdraws consent. The `isOpen` guard in `track()` already
+    /// stops new events from being transmitted once the consent key is cleared, but a
+    /// running analytics SDK can still collect passively. This method signals the SDK
+    /// to stop and resets `isConfigured` so `configure()` becomes a no-op until the
+    /// user re-consents and calls `configure()` explicitly again.
+    static func reset() {
+        guard isConfigured else { return }
+        isConfigured = false
+        log.debug("AnalyticsGate.reset() — consent withdrawn; analytics SDK torn down.")
+        AnalyticsSDKStub.reset()
+    }
+
     /// Record an analytics event. Silently no-ops if the gate is closed.
     /// Drops the event entirely (does NOT transmit) if any prohibited key is
     /// present (ISC-97).

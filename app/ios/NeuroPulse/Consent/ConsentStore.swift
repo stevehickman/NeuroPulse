@@ -51,6 +51,14 @@ final class ConsentStore: ObservableObject {
         save()
         // Withdrawal immediately prevents future study descriptor processing.
         // Already-published extracts are unchanged (irreversibility notice given at L3).
+        revokeAnalyticsConsent()
+    }
+
+    /// Revoke analytics consent entirely — clears the consent gate key and tears
+    /// down the analytics SDK so it cannot collect passively after withdrawal.
+    func revokeAnalyticsConsent() {
+        UserDefaults.standard.removeObject(forKey: AnalyticsGate.consentAcceptedKey)
+        AnalyticsGate.reset()
     }
 
     func setCategoryConsent(_ category: ResearchCategory, granted: Bool) {

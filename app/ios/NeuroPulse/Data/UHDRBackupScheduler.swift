@@ -43,6 +43,12 @@ final class UHDRBackupScheduler: ObservableObject {
         uhdrDirectory = docs.appendingPathComponent("UHDR", isDirectory: true)
         backupDirectory = docs.appendingPathComponent("UHDRBackup", isDirectory: true)
         try? FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
+        // Exclude the backup directory from iCloud and iTunes backups.
+        // The encrypted archives are user-key-encrypted UHDR — they must not flow
+        // to Apple infrastructure (iCloud) or unencrypted iTunes backup exports.
+        // Users retain a copy under their own key; this exclusion only prevents a
+        // second copy from reaching Apple servers.
+        try? (backupDirectory as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
         scheduleBackgroundTask()
     }
 
@@ -102,19 +108,17 @@ final class UHDRBackupScheduler: ObservableObject {
             try ciphertext.write(to: destURL, options: .atomic)
         }
 
-        // Generate incremental manifest
+        // Generate incremental manifest — plaintext, no key material.
         let manifest = BackupManifest(
             createdAt: Date(),
-            fileCount: changedFiles.count,
-            keyFingerprint: Data(SHA256.hash(data: key.k1)).prefix(8)
-                .map { String(format: "%02x", $0) }.joined()
+            fileCount: changedFiles.count
         )
         let manifestData = try JSONEncoder().encode(manifest)
         try manifestData.write(to: backupDirectory.appendingPathComponent("manifest.json"), options: .atomic)
     }
 
-    // AES-256-GCM encryption using K1 (K2 is used by AES-XTS on the hub; app uses GCM for
-    // portability since iOS CryptoKit does not expose XTS mode).
+    // AES-256-GCM using K1. K2 is reserved for AES-XTS on the hub side; app uses GCM
+    // because iOS CryptoKit does not expose XTS mode.
     private func encryptForBackup(_ plaintext: Data, key: UHDRKey) throws -> Data {
         let symKey = SymmetricKey(data: key.k1)
         let sealed = try AES.GCM.seal(plaintext, using: symKey)
@@ -141,5 +145,7 @@ final class UHDRBackupScheduler: ObservableObject {
 struct BackupManifest: Codable {
     var createdAt: Date
     var fileCount: Int
-    var keyFingerprint: String  // first 8 bytes of SHA-256(K1) — not the key itself
+    // keyFingerprint removed: SHA-256(K1) truncated to 8 bytes was stored in a plaintext
+    // manifest that lands in the unencrypted backup directory. Any partial hash of key
+    // material belongs only in secure storage, not in a JSON file.
 }
