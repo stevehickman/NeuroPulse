@@ -20,6 +20,7 @@ struct NeuroPulseApp: App {
     @StateObject private var protocolLibrary: NPProtocolLibrary
     @StateObject private var limitsStore:     NPLimitsStore
     @StateObject private var healthKit:       HealthKitSessionReader
+    @StateObject private var historyStore:    SessionHistoryStore
 
     init() {
         let g  = NeuroPulseGATTManager()
@@ -39,6 +40,7 @@ struct NeuroPulseApp: App {
         _protocolLibrary = StateObject(wrappedValue: NPProtocolLibrary())
         _limitsStore     = StateObject(wrappedValue: NPLimitsStore())
         _healthKit       = StateObject(wrappedValue: HealthKitSessionReader())
+        _historyStore    = StateObject(wrappedValue: SessionHistoryStore())
 
         // Register background task for nightly UHDR backup.
         // Must be registered before app finishes launching.
@@ -88,6 +90,7 @@ struct NeuroPulseApp: App {
                 .environmentObject(protocolLibrary)
                 .environmentObject(limitsStore)
                 .environmentObject(healthKit)
+                .environmentObject(historyStore)
                 .onAppear {
                     UIDevice.current.isBatteryMonitoringEnabled = true
                     EngagementTier.incrementLaunchCount()
