@@ -4,9 +4,12 @@ import os
 /// Consent gate for all analytics and crash-reporting telemetry (ISC-92, ISC-97).
 ///
 /// No analytics or crash-reporting SDK may initialise or receive any event until
-/// the user has completed the consent flow. The gate is "open" only when the
-/// onboarding consent flow has been shown, recorded via the
-/// `np.onboarding.consent-shown` UserDefaults flag (set in `NeuroPulseApp`).
+/// the user has explicitly completed (or explicitly skipped) the consent flow.
+/// The gate keys on `np.onboarding.consent-accepted`, set inside
+/// `ConsentOnboardingView.commitAndDismiss()` — the point at which the user
+/// has actively made a decision, not merely been shown the screen. This is the
+/// stronger semantic: favours privacy by requiring a deliberate user action
+/// rather than passive screen presentation.
 ///
 /// This type is a vendor-agnostic abstraction: call sites use `AnalyticsGate`
 /// exclusively and never touch the SDK directly. When a vendor is selected
@@ -27,9 +30,15 @@ enum AnalyticsGate {
         "session_count", "session_sequence"
     ]
 
-    /// True only when the onboarding consent flow has been shown.
+    /// The UserDefaults key set when the user completes or explicitly skips the
+    /// consent flow inside `ConsentOnboardingView`. Keyed on the deliberate
+    /// user action, not on screen presentation — stronger privacy guarantee.
+    static let consentAcceptedKey = "np.onboarding.consent-accepted"
+
+    /// True only when the user has actively completed the consent flow
+    /// (accepted or explicitly skipped), as recorded by `consentAcceptedKey`.
     static var isOpen: Bool {
-        UserDefaults.standard.bool(forKey: "np.onboarding.consent-shown")
+        UserDefaults.standard.bool(forKey: consentAcceptedKey)
     }
 
     /// Initialise the analytics SDK. Call exactly once, after the consent flow

@@ -269,6 +269,11 @@ struct ConsentOnboardingView: View {
 
     private func commitAndDismiss() {
         consentStore.updateResearchConsent(draft)
+        // Mark consent as actively completed — this is the stronger semantic
+        // used by AnalyticsGate.isOpen. Keying on deliberate user action (Done,
+        // Skip, or layer completion) rather than screen presentation ensures the
+        // analytics SDK never opens without an explicit user decision (ISC-92).
+        UserDefaults.standard.set(true, forKey: AnalyticsGate.consentAcceptedKey)
         isPresented = false
     }
 }
