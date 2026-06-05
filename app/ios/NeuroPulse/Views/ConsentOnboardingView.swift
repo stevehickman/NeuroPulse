@@ -36,7 +36,8 @@ struct ConsentOnboardingView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Skip") { commitAndDismiss() }
+                    // Skip defers all data decisions — analytics gate stays closed.
+                    Button("Skip") { commitAndDismiss(grantAnalyticsConsent: false) }
                         .foregroundColor(.secondary)
                 }
             }
@@ -267,13 +268,22 @@ struct ConsentOnboardingView: View {
         if let prev = ConsentLayer(rawValue: layer.rawValue - 1) { layer = prev }
     }
 
-    private func commitAndDismiss() {
+    /// Persist the draft research-consent state and dismiss the sheet.
+    ///
+    /// - Parameter grantAnalyticsConsent: Pass `true` when the user actively
+    ///   completed the flow (Done). Pass `false` when the user pressed Skip —
+    ///   skipping defers all data decisions; the analytics gate stays closed.
+    ///
+    /// When `grantAnalyticsConsent` is true this function also calls
+    /// `AnalyticsGate.configure()` directly so that re-consent from
+    /// `ConsentDashboardView` restarts the SDK without requiring the app to
+    /// re-run `presentNextOnboardingStep()`.
+    private func commitAndDismiss(grantAnalyticsConsent: Bool = true) {
         consentStore.updateResearchConsent(draft)
-        // Mark consent as actively completed — this is the stronger semantic
-        // used by AnalyticsGate.isOpen. Keying on deliberate user action (Done,
-        // Skip, or layer completion) rather than screen presentation ensures the
-        // analytics SDK never opens without an explicit user decision (ISC-92).
-        UserDefaults.standard.set(true, forKey: AnalyticsGate.consentAcceptedKey)
+        if grantAnalyticsConsent {
+            UserDefaults.standard.set(true, forKey: AnalyticsGate.analyticsConsentKey)
+            AnalyticsGate.configure()
+        }
         isPresented = false
     }
 }
