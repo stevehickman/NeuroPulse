@@ -16,6 +16,12 @@ struct SetupView: View {
     @State private var showAutonomousPicker = false
     @State private var showProgramConfirmation = false
 
+    // BIPA written-release re-presentation (ISC-91). Illinois users can re-open the
+    // brainwave-data consent screen here to grant or revoke EEG data consent.
+    @AppStorage("np.onboarding.bipa-shown") private var bipaShown = false
+    @AppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
+    @State private var showBIPADisclosure = false
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
@@ -41,6 +47,20 @@ struct SetupView: View {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text("Protocol stored on hub. Connect to a USB-C power bank to start an autonomous session.")
+            }
+            .sheet(isPresented: $showBIPADisclosure) {
+                BIPADisclosureView(
+                    onAccept: {
+                        bipaAccepted = true
+                        bipaShown = true
+                        showBIPADisclosure = false
+                    },
+                    onDecline: {
+                        bipaAccepted = false
+                        bipaShown = true
+                        showBIPADisclosure = false
+                    }
+                )
             }
         }
     }
@@ -84,6 +104,9 @@ struct SetupView: View {
                 // Mode 3 programming is offered once first-run setup is complete.
                 if setup.currentStep == .complete {
                     autonomousModeCard
+                    if RegionHelper.isLikelyIllinois {
+                        privacyConsentCard
+                    }
                 }
             }
             .padding()
@@ -109,6 +132,42 @@ struct SetupView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    // MARK: - Privacy consent card (Illinois BIPA, ISC-91)
+
+    // Re-presentable entry point for the BIPA brainwave-data written release.
+    // Shown only to Illinois users. Tapping re-opens BIPADisclosureView so consent
+    // can be granted or revoked at any time.
+    private var privacyConsentCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Privacy", systemImage: "hand.raised.fill")
+                .font(.headline)
+                .foregroundColor(.accentColor)
+
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Manage EEG data consent")
+                        .font(.subheadline)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(bipaAccepted ? "Status: Granted" : "Status: Not granted")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { showBIPADisclosure = true }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Manage EEG data consent")
+            .accessibilityAddTraits(.isButton)
         }
         .padding()
         .background(Color(.systemGray6))

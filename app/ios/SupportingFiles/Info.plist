@@ -52,5 +52,11 @@
 		<string>fetch</string>
 		<string>processing</string>
 	</array>
+
+	<!-- File sharing — downloaded EDF+ files in Documents accessible via Files app (ISC-54) -->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 </dict>
 </plist>

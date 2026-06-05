@@ -88,9 +88,50 @@ struct AdaptationEvent: Identifiable {
 }
 
 // Post-session summary handed to SessionHistoryView.
+//
+// Display-aggregated metrics only — no raw EEG/HRV waveform data. The optional
+// coherence/RMSSD/impedance fields are the same values shown live during the
+// session and are what SessionHistoryStore persists.
 struct CompletedSessionSummary {
     var protocolName:      String
     var durationSeconds:   UInt32
     var adaptationEvents:  [AdaptationEvent]
     var completedAt:       Date
+
+    var averageCoherenceScore: Float?  = nil   // 0.0–10.0; nil when no HRV modality
+    var rmssdMilliseconds:     UInt16? = nil    // integer only
+    var impedancePassCount:    Int     = 0      // 0–8 EEG electrodes passed
+    var edfSessionID:          UInt32? = nil    // hub session ID for Mode 4 EDF download
+
+    // Reconstruct a summary from a persisted history row. Adaptation events are
+    // not persisted in the history store (they live in UHDR), so the detail view
+    // opened from history shows the empty-state Adaptive Adjustments card.
+    init(record: SessionRecord) {
+        self.protocolName          = record.protocolName
+        self.durationSeconds       = UInt32(record.durationSeconds.rounded())
+        self.adaptationEvents      = []
+        self.completedAt           = record.completedAt
+        self.averageCoherenceScore = record.averageCoherenceScore
+        self.rmssdMilliseconds     = record.rmssdMilliseconds
+        self.impedancePassCount    = record.impedancePassCount
+        self.edfSessionID          = record.edfSessionID
+    }
+
+    init(protocolName: String,
+         durationSeconds: UInt32,
+         adaptationEvents: [AdaptationEvent],
+         completedAt: Date,
+         averageCoherenceScore: Float? = nil,
+         rmssdMilliseconds: UInt16? = nil,
+         impedancePassCount: Int = 0,
+         edfSessionID: UInt32? = nil) {
+        self.protocolName          = protocolName
+        self.durationSeconds       = durationSeconds
+        self.adaptationEvents      = adaptationEvents
+        self.completedAt           = completedAt
+        self.averageCoherenceScore = averageCoherenceScore
+        self.rmssdMilliseconds     = rmssdMilliseconds
+        self.impedancePassCount    = impedancePassCount
+        self.edfSessionID          = edfSessionID
+    }
 }

@@ -15,10 +15,31 @@ struct SessionView: View {
     @EnvironmentObject private var setup:       HardwareSetupManager
     @EnvironmentObject private var library:     NPProtocolLibrary
     @EnvironmentObject private var healthKit:   HealthKitSessionReader
+    @EnvironmentObject private var history:     SessionHistoryStore
+    @EnvironmentObject private var edfLoader:   EDFDownloader
 
     @State private var showProtocolPicker    = false
     @State private var showStopConfirmation  = false
     @State private var stopErrorMessage:     String?
+    @State private var showHistory           = false
+
+    // Live snapshot for session history record — safe aggregated metrics only (ISC-49).
+    @State private var runningStartedAt:     Date?
+    @State private var runningProtocolID:    UInt8 = 0
+    @State private var lastImpedancePass:    Int = 0
+    @State private var lastCoherenceScore:   Float?
+    @State private var lastRMSSD:            UInt16?
+
+    // BIPA written-release acceptance (ISC-90). EEG features disabled for
+    // Illinois users who have not consented to brainwave-data collection.
+    @AppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
+
+    /// Whether EEG/closed-loop neurofeedback features may be shown and used.
+    /// Returns true for non-Illinois users and for Illinois users who consented.
+    var eegConsentGranted: Bool {
+        if !RegionHelper.isLikelyIllinois { return true }
+        return bipaAccepted
+    }
 
     // True only while an HRV biofeedback session is live. The hub streams the HRV
     // coherence characteristic only for protocols that include HRV biofeedback, so
@@ -41,7 +62,11 @@ struct SessionView: View {
                         sessionStatusCard
                         if gatt.session.status == .running {
                             hrvBreathingRing
-                            liveMetricsGrid
+                            if eegConsentGranted {
+                                liveMetricsGrid
+                            } else {
+                                eegConsentUnavailableCard
+                            }
                         }
                         zoneModuleRow
                         sessionControls
@@ -52,9 +77,20 @@ struct SessionView: View {
             }
             .navigationTitle("Session")
             .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button { showHistory = true } label: {
+                        Label("Session History", systemImage: "clock.arrow.circlepath")
+                    }
+                    .accessibilityLabel("Session History")
+                }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     connectionIndicator
                 }
+            }
+            .sheet(isPresented: $showHistory) {
+                SessionHistoryListView()
+                    .environmentObject(history)
+                    .environmentObject(edfLoader)
             }
             .sheet(isPresented: $showProtocolPicker) {
                 ProtocolMenuView()
@@ -86,7 +122,54 @@ struct SessionView: View {
                 }
             }
             .onDisappear { healthKit.stopAndClear() }
+            .onChange(of: gatt.session.status) { oldStatus, newStatus in
+                handleStatusChange(from: oldStatus, to: newStatus)
+            }
+            .onChange(of: gatt.session.impedancePassFlags) { _, flags in
+                lastImpedancePass = (0..<8).filter { flags & (1 << $0) != 0 }.count
+            }
+            .onChange(of: gatt.session.hrv) { _, hrv in
+                if let hrv { lastCoherenceScore = hrv.coherenceScore; lastRMSSD = hrv.rmssdMilliseconds }
+            }
         }
+    }
+
+    // Record session in history when hub confirms completion.
+    private func handleStatusChange(from old: SessionStatus, to new: SessionStatus) {
+        switch (old, new) {
+        case (.idle, .running), (.paused, .running):
+            runningStartedAt = Date()
+            runningProtocolID = gatt.session.protocolID
+        case (.running, .completed):
+            let duration = runningStartedAt.map { Date().timeIntervalSince($0) } ?? 0
+            let record = CompletedSessionSummary(
+                protocolName: "Protocol \(runningProtocolID)",
+                durationSeconds: duration,
+                adaptationEvents: [],
+                averageCoherenceScore: lastCoherenceScore,
+                rmssdMilliseconds: lastRMSSD,
+                impedancePassCount: lastImpedancePass,
+                edfSessionID: gatt.session.epoch
+            )
+            history.record(record)
+        default: break
+        }
+    }
+
+    // Shown to Illinois users who declined the BIPA disclosure (ISC-90).
+    private var eegConsentUnavailableCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("EEG Neurofeedback Unavailable", systemImage: "brain")
+                .font(.headline)
+                .foregroundColor(.orange)
+            Text("EEG neurofeedback is unavailable — brainwave data consent was not granted. Go to Settings → Privacy to manage EEG data consent.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding()
+        .background(Color.orange.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
     // Requests the hub to stop the session. Does NOT update session.status locally —

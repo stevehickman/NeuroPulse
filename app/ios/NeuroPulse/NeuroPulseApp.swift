@@ -64,6 +64,12 @@ struct NeuroPulseApp: App {
     @AppStorage("np.onboarding.consent-shown") private var consentOnboardingShown = false
     @State private var showConsentOnboarding = false
 
+    // BIPA written-release state (ISC-88..91). Wiring into the onboarding sequence
+    // is handled by the separate `onboarding-sequence` feature; these keys exist so
+    // both features share the same persisted state.
+    @AppStorage("np.onboarding.bipa-shown") private var bipaShown = false
+    @AppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
+
     var body: some Scene {
         WindowGroup {
             MainTabView()
