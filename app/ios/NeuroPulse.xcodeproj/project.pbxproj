@@ -41,6 +41,7 @@
 		75A9D627B3B44F132FD9FBFD /* UHDRKeyManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3313CAE048F16BB8EF271F4F /* UHDRKeyManagerTests.swift */; };
 		7BC70D02885D48C0E83535EF /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CD3FBC03A53B600987E7B18 /* SessionHistoryView.swift */; };
 		7E4D2845AD720CF46481D061 /* PhoneSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9928E38344F93D2CFBBC72EB /* PhoneSessionManager.swift */; };
+		7FA35DE280E4C62094A9F621 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4E91C63077C38445FBB88F5B /* PrivacyInfo.xcprivacy */; };
 		86AA3152A2A01721F3E14522 /* OTAView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29997D2651EEF868F3BCD7C8 /* OTAView.swift */; };
 		93455498E379D6EBC4EBBB44 /* UHDRKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B5EFA4628F9C3C333BB6C9 /* UHDRKeyManager.swift */; };
 		97B4C798A7DEC3EC28CC939C /* NeuroPulseGATTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB88FC8DB0D54D6B517FB214 /* NeuroPulseGATTManager.swift */; };
@@ -98,6 +99,7 @@
 		3C4C671E9A41D310B0F2763F /* NeuroPulseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NeuroPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3E6B605A184B4AF0854E5254 /* NPProtocolLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolLibrary.swift; sourceTree = "<group>"; };
 		484F6F06875BE861E52A331F /* SessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionState.swift; sourceTree = "<group>"; };
+		4E91C63077C38445FBB88F5B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = NeuroPulse/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
 		5B3C8C3C50590F552A09F2A6 /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
 		6060517A37F1EA03A36BAADB /* ConsentEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentEngine.swift; sourceTree = "<group>"; };
 		613B87A1A75B555C22F72D6D /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
@@ -368,6 +370,7 @@
 				FF30F1AEB8081BCFCC1F7711 /* Views */,
 				227A5C608DD729F28F15D270 /* WatchBridge */,
 				845AFF8746C072D3C5C35BEF /* NeuroPulseApp.swift */,
+				4E91C63077C38445FBB88F5B /* PrivacyInfo.xcprivacy */,
 			);
 			path = NeuroPulse;
 			sourceTree = "<group>";
@@ -499,6 +502,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2A5DF6452791EBBF096B6B88 /* SupportingFiles in Resources */,
+				7FA35DE280E4C62094A9F621 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
