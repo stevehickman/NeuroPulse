@@ -23,11 +23,16 @@ enum NPUUID {
     static let zoneModuleStatus = CBUUID(string: "4E455550-000D-1000-8000-00805F9B34FB") // READ/NOTIFY 5B
     static let shdrUploadStatus = CBUUID(string: "4E455550-000E-1000-8000-00805F9B34FB") // NOTIFY
 
+    // PENDING FIRMWARE CONFIRMATION — placeholder UUID for session stop command.
+    // Real UUID will come from hub BLE firmware implementation (OI-WA-03).
+    static let sessionStop      = CBUUID(string: "4E455550-000F-1000-8000-00805F9B34FB") // WRITE 1B (0x01 = stop)
+
     // All characteristics for discovery
     static let all: [CBUUID] = [
         sessionState, sessionStatus, hrvCoherence, pacerPhase,
         impedanceResult, consumableStatus, protocolUpload, edfRequest,
-        otaCommand, otaStatus, calibrationCmd, zoneModuleStatus, shdrUploadStatus
+        otaCommand, otaStatus, calibrationCmd, zoneModuleStatus, shdrUploadStatus,
+        sessionStop
     ]
 }
 

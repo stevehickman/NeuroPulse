@@ -161,17 +161,20 @@ final class UHDRKeyManagerTests: XCTestCase {
         }
 
         // Documented gap: the REAL UHDRKeyManager cannot be driven this way until it accepts a
-        // BiometricEvaluating seam. The following asserts the manager exposes no non-biometric
-        // path to a key today.
+        // BiometricEvaluating seam. Assert the pre-auth state using XCTExpectFailure with a closure
+        // (closure form is reliable in async tests; the non-closure form is not).
+        let manager = await MainActor.run { UHDRKeyManager() }
+        let activeKey = await MainActor.run { manager.activeKey }
+        // Before any authenticate() call, activeKey is nil — this XCTAssertNotNil will fail,
+        // which is the expected state. Once the seam lands and auth is mocked, remove this.
         XCTExpectFailure(
             "UHDRKeyManager.authenticate(reason:) builds LAContext() inline — it cannot be unit " +
             "tested for the failure branch until a BiometricEvaluating seam is injected. " +
             "Remove this expected-failure once the seam lands and rewrite against the real manager."
-        )
-        let manager = await UHDRKeyManager()
-        let activeKey = await manager.activeKey
-        XCTAssertNotNil(activeKey,
-                        "Placeholder assertion proving the real manager is not yet seam-testable.")
+        ) {
+            XCTAssertNotNil(activeKey,
+                            "Placeholder assertion: activeKey is nil before auth — expected failure.")
+        }
     }
 
     // MARK: - testKeyNeverTransmitted (static analysis of production source)
