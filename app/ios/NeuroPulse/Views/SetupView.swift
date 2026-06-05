@@ -94,6 +94,7 @@ struct SetupView: View {
                 Text(setup.currentStep.instruction)
                     .font(.body)
                     .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if let error = setup.lastError {
                     errorBanner(error.localizedDescription)
@@ -124,6 +125,7 @@ struct SetupView: View {
             Text("Upload a session protocol to the hub so it runs automatically from any USB-C power bank — no phone required.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
 
             Button {
                 showAutonomousPicker = true
@@ -228,6 +230,7 @@ struct SetupView: View {
             Text(message)
                 .font(.subheadline)
                 .foregroundColor(.primary)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .padding()
         .background(Color.orange.opacity(0.1))

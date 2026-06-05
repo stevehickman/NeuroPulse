@@ -50,6 +50,7 @@ struct OTAView: View {
             HStack {
                 Image(systemName: gatt.connectionState == .connected ? "wifi" : "wifi.slash")
                     .foregroundColor(gatt.connectionState == .connected ? .green : .secondary)
+                    .accessibilityHidden(true) // status conveyed by adjacent text
                 Text(gatt.connectionState == .connected ? "Hub connected" : "Hub not connected")
                     .font(.subheadline)
             }
@@ -80,6 +81,7 @@ struct OTAView: View {
                 }
                 Text(fw.releaseNotes)
                     .font(.caption).foregroundColor(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Security fingerprint (Ed25519):").font(.caption2).foregroundColor(.secondary)
@@ -93,6 +95,7 @@ struct OTAView: View {
 
                 Text("Verify this fingerprint matches your purchase confirmation email before applying.")
                     .font(.caption2).foregroundColor(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 if let error = ota.lastError {
                     Text(error.localizedDescription)

@@ -51,6 +51,10 @@ struct SessionView: View {
 
     private static let logger = Logger(subsystem: "com.neuropulse.app", category: "SessionView")
 
+    // VoiceOver coherence debounce (ISC-149): throttle GATT 100ms stream to 2s announcements.
+    @State private var voiceOverCoherence:    Float? = nil
+    @State private var coherenceDebounceTask: Task<Void, Never>? = nil
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -72,6 +76,7 @@ struct SessionView: View {
                         sessionControls
                     }
                     regulatoryFooter
+                    voiceOverCoherenceAnnouncer
                 }
                 .padding()
             }
@@ -121,7 +126,19 @@ struct SessionView: View {
                     healthKit.stopAndClear()
                 }
             }
-            .onDisappear { healthKit.stopAndClear() }
+            .onDisappear {
+                healthKit.stopAndClear()
+                coherenceDebounceTask?.cancel()
+            }
+            .onChange(of: gatt.session.hrv) { _, hrv in
+                // Debounce VoiceOver coherence announcement — 100ms GATT stream → 2s spoken (ISC-149)
+                coherenceDebounceTask?.cancel()
+                coherenceDebounceTask = Task {
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    guard !Task.isCancelled else { return }
+                    await MainActor.run { voiceOverCoherence = hrv?.coherenceScore }
+                }
+            }
             .onChange(of: gatt.session.status) { oldStatus, newStatus in
                 handleStatusChange(from: oldStatus, to: newStatus)
             }
@@ -240,6 +257,23 @@ struct SessionView: View {
     private var connectionIndicator: some View {
         Image(systemName: gatt.connectionState == .connected ? "wifi" : "wifi.slash")
             .foregroundColor(connectionColor)
+            .accessibilityLabel(gatt.connectionState == .connected
+                                ? "Hub connected"
+                                : "Hub not connected")
+    }
+
+    // Hidden VoiceOver-only announcer for the debounced coherence score (ISC-149).
+    private var voiceOverCoherenceAnnouncer: some View {
+        Text(voiceOverCoherence.map { String(format: "Coherence score %.1f", $0) } ?? "")
+            .frame(width: 0, height: 0)
+            .accessibilityHidden(false)
+            .onChange(of: voiceOverCoherence) { _, newValue in
+                guard newValue != nil else { return }
+                UIAccessibility.post(notification: .announcement,
+                                     argument: voiceOverCoherence.map {
+                                         String(format: "Coherence %.1f", $0)
+                                     })
+            }
     }
 
     private var blockingConsumableAlert: some View {

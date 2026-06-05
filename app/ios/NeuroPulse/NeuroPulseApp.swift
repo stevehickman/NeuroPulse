@@ -69,6 +69,7 @@ struct NeuroPulseApp: App {
     // both features share the same persisted state.
     @AppStorage("np.onboarding.bipa-shown") private var bipaShown = false
     @AppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
+    @State private var showBIPADisclosure = false
 
     var body: some Scene {
         WindowGroup {
@@ -99,6 +100,21 @@ struct NeuroPulseApp: App {
                         presentNextOnboardingStep()
                     }
                 }
+                // BIPA disclosure — Illinois only, between age gate and consent (ISC-127).
+                .fullScreenCover(isPresented: $showBIPADisclosure) {
+                    BIPADisclosureView(
+                        onAccept: {
+                            bipaAccepted = true; bipaShown = true
+                            showBIPADisclosure = false
+                            presentNextOnboardingStep()
+                        },
+                        onDecline: {
+                            bipaAccepted = false; bipaShown = true
+                            showBIPADisclosure = false
+                            presentNextOnboardingStep()
+                        }
+                    )
+                }
                 .sheet(isPresented: $showConsentOnboarding) {
                     ConsentOnboardingView(isPresented: $showConsentOnboarding)
                         .environmentObject(consentStore)
@@ -106,13 +122,21 @@ struct NeuroPulseApp: App {
         }
     }
 
-    /// Drives the onboarding sequence: age gate first, then research consent.
-    /// Age confirmation gates everything that collects or displays personal data.
+    /// Single-entry onboarding chain: age gate → BIPA (Illinois only, once) →
+    /// research consent L1–L4. Each screen re-invokes this on completion (ISC-127).
     private func presentNextOnboardingStep() {
+        // Step 1: Age gate — must be first, all users.
         if !ageConfirmed {
             showAgeGate = true
             return
         }
+        // Step 2: BIPA — Illinois users only, shown once.
+        // A prior decision (accept or decline) sets bipaShown = true permanently.
+        if RegionHelper.isLikelyIllinois && !bipaShown {
+            showBIPADisclosure = true
+            return
+        }
+        // Step 3: Research consent L1–L4.
         if !consentOnboardingShown {
             showConsentOnboarding = true
             consentOnboardingShown = true
