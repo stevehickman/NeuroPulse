@@ -53,7 +53,12 @@ targets:
         INFOPLIST_FILE: SupportingFiles/Info.plist
         CODE_SIGN_ENTITLEMENTS: SupportingFiles/NeuroPulse.entitlements
 
-    dependencies: []
+    dependencies:
+      - package: NeuroPulseShared
+
+packages:
+  NeuroPulseShared:
+    path: ../NeuroPulseShared
 
 schemes:
   NeuroPulse:

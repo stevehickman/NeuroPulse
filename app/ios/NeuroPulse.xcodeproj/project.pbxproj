@@ -8,24 +8,24 @@
 
 /* Begin PBXBuildFile section */
 		055480BE05301254775DFB2A /* ZoneModuleInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56360D1F64BD4BBEBB956CF /* ZoneModuleInfo.swift */; };
-		08584769D8A96CCB3FCBFD9F /* SessionHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8465F55E8A50204B7B8EFB10 /* SessionHistoryStore.swift */; };
 		0B089F5D5DF167DF1291A1BC /* NPPredefinedProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925CEA12894CF191CD729896 /* NPPredefinedProtocols.swift */; };
-		106461445C893E1DE5975682 /* BIPADisclosureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7675A28F88D4C443BF98C21 /* BIPADisclosureView.swift */; };
+		11FDF8E088A57FB6C70D76A6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AB2AE76ECCD0C02E29548198 /* PrivacyInfo.xcprivacy */; };
+		13AFC168159A6F44C610EF44 /* ProtocolChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C436280E122876CADCCE29F /* ProtocolChunker.swift */; };
 		1ACF8BEE7B78888A38AAD9C0 /* ProtocolEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEACAEC76FE502DAE261D4B4 /* ProtocolEditorView.swift */; };
 		1BAB0D99F0865C9CC8AEB8C4 /* ProtocolComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 980C79DDC5C965A71161F932 /* ProtocolComposerView.swift */; };
 		1CA2BF6793C470BEBC9D05C4 /* SessionProtocolUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1262B33B95FA07E03C897F9A /* SessionProtocolUploader.swift */; };
 		2148049E53F79BFD2FBDF5C5 /* NPProtocolScripting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88D8DF6B5D3CE8866CC53450 /* NPProtocolScripting.swift */; };
+		2466802007DC508856B7859E /* AgeGateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF963C6F964513ECE285C637 /* AgeGateView.swift */; };
 		2803EF319AD7BBEA89ABFABE /* UHDRBackupScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8657238540E35B47AE469FB8 /* UHDRBackupScheduler.swift */; };
-		2A166732DE1068E8780E08E9 /* AgeGateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ACBACC42045209F229E88BDC /* AgeGateView.swift */; };
 		2A5DF6452791EBBF096B6B88 /* SupportingFiles in Resources */ = {isa = PBXBuildFile; fileRef = E469D1F196B44C40D1E9336C /* SupportingFiles */; };
 		2A7D541DA4C69C5F38FC86F2 /* OTAManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E73CA84DF1774384C133A5D /* OTAManager.swift */; };
 		2BBD5FECC80F39E56C8B8ECA /* ConsentDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5196D28CADB0435C84FAFBF /* ConsentDashboardView.swift */; };
-		34D5E716DE52C07F31866F84 /* GATTParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A0EBE7C62F77EE9EB871EFC /* GATTParserTests.swift */; };
 		3BDCCBC34ECD18114B726A5E /* NPHardwareLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 212AED6CC59AF5DEB2C7F757 /* NPHardwareLimits.swift */; };
 		3C60C0DAA2ADF9BB09D69066 /* ProtocolMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38C3D7DA41062A853F9F21F2 /* ProtocolMenuView.swift */; };
 		3CE8973169F34B9A2261990B /* ConsentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 866ABAE273C2F23D68A18100 /* ConsentStore.swift */; };
 		419F4D9D23598DE30F6DDB2A /* SessionProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1ABD8B24911105FF28E2C78 /* SessionProtocol.swift */; };
 		42E09B8D2947B9AB3E78444F /* HardwareSetupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 112BFF0EEAF13ECC40F86F32 /* HardwareSetupManager.swift */; };
+		47B4A59C942833665BF04B2D /* AnalyticsGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E81BA8ABF2DB3342E7E28C /* AnalyticsGate.swift */; };
 		4B4AD3A4AEF928176CB1DAA7 /* NPDosageLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044B41EC2A131101344754EF /* NPDosageLimits.swift */; };
 		4BB4782DE5F0FC0DBBAD2B34 /* NPProtocolValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A36BDFB8DBD66EA7F0D4870F /* NPProtocolValidator.swift */; };
 		4D045247AA9DC080F3DECEA2 /* ConsentEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6060517A37F1EA03A36BAADB /* ConsentEngine.swift */; };
@@ -35,143 +35,114 @@
 		51E92B5ED3EF294EB6A3D479 /* NPProtocolLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E6B605A184B4AF0854E5254 /* NPProtocolLibrary.swift */; };
 		55843750C59E854BC23C83CE /* ProtocolScriptEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB42CF1B6D7862F37A476A1C /* ProtocolScriptEditorView.swift */; };
 		5700DFA4F74A78C0FACEFC19 /* SessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 484F6F06875BE861E52A331F /* SessionState.swift */; };
-		57CD5D1B637F630581526F8C /* NeuroPulseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02FC04E00ED8A6CCD9C1E8B4 /* NeuroPulseTests.swift */; };
+		57E03885BEC1D80E7D1FC608 /* RegionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9A9D0E1AEF9CF2D19E1EC5 /* RegionHelper.swift */; };
+		5FA3CFF4428F945C9E8E1AD8 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C7F8970F83491CC9DF5C46EE /* Localizable.strings */; };
 		60066FA725B78AC851A1D2FB /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B3C8C3C50590F552A09F2A6 /* SessionView.swift */; };
-		609C9D77B66A2EE843B81F09 /* ProtocolChunkerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99CA449FB8F98185064BF196 /* ProtocolChunkerTests.swift */; };
 		67C16141CE9405C01E2DE345 /* ModalityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */; };
-		68A32294D18FF20CA336E7F5 /* AnalyticsGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4CD5B06310EF5F5ED10616A /* AnalyticsGate.swift */; };
+		70193120367CEF0DFFD271D8 /* BIPADisclosureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFFD0990164EAF88C1E8046D /* BIPADisclosureView.swift */; };
 		70E1FBB506B11F4FBF94D455 /* NPLimitsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E355FEC3A2FEA1C26B51B250 /* NPLimitsStore.swift */; };
-		75A9D627B3B44F132FD9FBFD /* UHDRKeyManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3313CAE048F16BB8EF271F4F /* UHDRKeyManagerTests.swift */; };
-		796181998FF742281E5B9BD8 /* AnalyticsSDKStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CB1003BE9E507D4A6BF6E9F /* AnalyticsSDKStub.swift */; };
+		76491AB06C5E7D5E836241A9 /* HealthKitSessionReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 027E6579B897E23827EF47A2 /* HealthKitSessionReader.swift */; };
 		7BC70D02885D48C0E83535EF /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CD3FBC03A53B600987E7B18 /* SessionHistoryView.swift */; };
 		7E4D2845AD720CF46481D061 /* PhoneSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9928E38344F93D2CFBBC72EB /* PhoneSessionManager.swift */; };
-		7FA35DE280E4C62094A9F621 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 4E91C63077C38445FBB88F5B /* PrivacyInfo.xcprivacy */; };
 		86AA3152A2A01721F3E14522 /* OTAView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29997D2651EEF868F3BCD7C8 /* OTAView.swift */; };
-		9252FD3AC608ACE08E2457EB /* EngagementTier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DC1D93F497BFB4863D49A88 /* EngagementTier.swift */; };
 		93455498E379D6EBC4EBBB44 /* UHDRKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B5EFA4628F9C3C333BB6C9 /* UHDRKeyManager.swift */; };
 		97B4C798A7DEC3EC28CC939C /* NeuroPulseGATTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB88FC8DB0D54D6B517FB214 /* NeuroPulseGATTManager.swift */; };
-		A6D7618BA89FF23455CC6016 /* Under16View.swift in Sources */ = {isa = PBXBuildFile; fileRef = F78848232232677FE9E0B0DE /* Under16View.swift */; };
+		999A9048786E4C625D972567 /* Under16View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046EF1F71E798663ED38E465 /* Under16View.swift */; };
+		9A86443E9D3C4886BA643BCB /* NeuroPulseShared in Frameworks */ = {isa = PBXBuildFile; productRef = B007599D6A7F55456BF1745A /* NeuroPulseShared */; };
 		AD88E4F65117BFFCC67465C1 /* ConsentOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC170B8BDE63021729560AF1 /* ConsentOnboardingView.swift */; };
 		AF9995E7037B01A9F21D5396 /* NPModalityType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78C1DDCA71A8088A81D60B55 /* NPModalityType.swift */; };
-		B06238E04BBA0A2E75EE0C75 /* NPProtocolValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99ED62ECC8DD86A761FF1883 /* NPProtocolValidatorTests.swift */; };
+		B2428F4DCF44CEF0A5F5D862 /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 311C6F422275D0510EE14B90 /* Info.plist */; };
 		B6270B20941F97EBBED9C50D /* NPBundledProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB156F097DA7DAAAF3E4294 /* NPBundledProtocols.swift */; };
+		B9FD92D6D56DE1E35B983FC0 /* EngagementTier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E7811F3AF0C1233B76E7036 /* EngagementTier.swift */; };
 		BF6FCC6887437079914F6C34 /* EDFDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2280ECFED79E63FA306A965 /* EDFDownloader.swift */; };
-		C298C72F37D0257F49BE8860 /* RegionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 647CE41FF6D6EF1E9AB6BA48 /* RegionHelper.swift */; };
-		C6DBCC79D1ACB5992B4F842B /* HealthKitSessionReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E98340A72CAB4AD76D44FB07 /* HealthKitSessionReader.swift */; };
-		C831E10B0BE4996543FD73C9 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 613B87A1A75B555C22F72D6D /* Foundation.framework */; };
 		C8E462B412A2DC5F3FAD0507 /* LimitsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E5EE793DA859329B4CE869 /* LimitsSettingsView.swift */; };
-		CBE9BE0740BD3CBC14900DE6 /* SessionHistoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB45227856D7835C78240EEC /* SessionHistoryListView.swift */; };
 		CDAF13E1DDEF435214EDEE68 /* OTAModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7665E9CC9E0014859BEB9355 /* OTAModels.swift */; };
-		D08517E9705732B7EA754546 /* ConsumableTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 613FE044E9E50545A42EBDA3 /* ConsumableTrackerTests.swift */; };
-		AA001111222233341111AAAA /* SessionHistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001111222233341111BBBB /* SessionHistoryStoreTests.swift */; };
-		AA001111222233341111CCCC /* EngagementTierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001111222233341111DDDD /* EngagementTierTests.swift */; };
-		AA001111222233341111EEEE /* AnalyticsGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001111222233341111FFFF /* AnalyticsGateTests.swift */; };
-		AA001111222233342222AAAA /* RegionHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA001111222233342222BBBB /* RegionHelperTests.swift */; };
 		D0C9989A7D230DE5B17FACD0 /* AdaptationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE524EFC67F3B22042F87749 /* AdaptationEvent.swift */; };
 		D13CB7203AC04B91379A6966 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98AC0047D92001AACC3385A /* MainTabView.swift */; };
-		D2B15F719270DD09A21C77C0 /* ConsentEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D11F6F980C888D79651CBB52 /* ConsentEngineTests.swift */; };
 		D621266DCB39B2D6A512720A /* NeuroPulseApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845AFF8746C072D3C5C35BEF /* NeuroPulseApp.swift */; };
 		D712D502A9BAC58EDC182D95 /* GATTCharacteristics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06664E184F1D6BFC81BA9EB4 /* GATTCharacteristics.swift */; };
 		D8400B801F7EC52939E2F473 /* SHDRUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CDD24AC46FF070D0E4939F /* SHDRUploader.swift */; };
-		E47CB85F0C05C2E2CEEBB7A2 /* ProtocolChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70F38506C90A8CD8C9EA4A40 /* ProtocolChunker.swift */; };
+		E0691077ED8967F4C7B978C5 /* SessionHistoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4219BE82CE1BBA0057580A71 /* SessionHistoryListView.swift */; };
 		E6EF5FE729ADF62E01622C6A /* ConsumableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63D2B1437C4B993C5D8CF60 /* ConsumableView.swift */; };
 		E83F5467A096AABFDD1ECDEE /* AdaptiveAdjustmentsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 816076D720C30AE0F0FB49B4 /* AdaptiveAdjustmentsCard.swift */; };
 		EB2E3B6A2B4DFB374E88DE22 /* ConsumableTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B1FA28527F9048C12382557 /* ConsumableTracker.swift */; };
+		EE9B29E001FF8E37EF6DD4C0 /* AnalyticsSDKStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4DB08A79B1E4FEF891A6A3B1 /* AnalyticsSDKStub.swift */; };
 		F0BE1617593F31085C373E47 /* NPProtocolDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9FC7ED25A0C088CA7DC5D0 /* NPProtocolDefinition.swift */; };
+		FBA06E2F7863855716599956 /* SessionHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 618B10574F32EE603156145A /* SessionHistoryStore.swift */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXContainerItemProxy section */
-		553200F85562C93F395F7166 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = CCE1687DAC29FED628915E53 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = E42D4A8EC149633D91D415DA;
-			remoteInfo = NeuroPulse;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXFileReference section */
-		02FC04E00ED8A6CCD9C1E8B4 /* NeuroPulseTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NeuroPulseTests.swift; path = NeuroPulseTests/NeuroPulseTests.swift; sourceTree = SOURCE_ROOT; };
+		027E6579B897E23827EF47A2 /* HealthKitSessionReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSessionReader.swift; sourceTree = "<group>"; };
 		044B41EC2A131101344754EF /* NPDosageLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPDosageLimits.swift; sourceTree = "<group>"; };
+		046EF1F71E798663ED38E465 /* Under16View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Under16View.swift; sourceTree = "<group>"; };
 		06664E184F1D6BFC81BA9EB4 /* GATTCharacteristics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GATTCharacteristics.swift; sourceTree = "<group>"; };
 		0CD3FBC03A53B600987E7B18 /* SessionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryView.swift; sourceTree = "<group>"; };
 		1007CBDD0A69BCBC3C70470B /* ConsentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentModels.swift; sourceTree = "<group>"; };
 		112BFF0EEAF13ECC40F86F32 /* HardwareSetupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareSetupManager.swift; sourceTree = "<group>"; };
 		124975BABC28934EFC9A3E99 /* ConsumableInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableInventory.swift; sourceTree = "<group>"; };
 		1262B33B95FA07E03C897F9A /* SessionProtocolUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProtocolUploader.swift; sourceTree = "<group>"; };
-		1CB1003BE9E507D4A6BF6E9F /* AnalyticsSDKStub.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AnalyticsSDKStub.swift; path = NeuroPulse/Analytics/AnalyticsSDKStub.swift; sourceTree = SOURCE_ROOT; };
+		1E1CEB0F3C8613C56F225FA8 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		1E73CA84DF1774384C133A5D /* OTAManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAManager.swift; sourceTree = "<group>"; };
 		1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalityEditorView.swift; sourceTree = "<group>"; };
 		212AED6CC59AF5DEB2C7F757 /* NPHardwareLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPHardwareLimits.swift; sourceTree = "<group>"; };
 		29997D2651EEF868F3BCD7C8 /* OTAView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAView.swift; sourceTree = "<group>"; };
 		2B1FA28527F9048C12382557 /* ConsumableTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableTracker.swift; sourceTree = "<group>"; };
+		2E7811F3AF0C1233B76E7036 /* EngagementTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngagementTier.swift; sourceTree = "<group>"; };
 		2FB156F097DA7DAAAF3E4294 /* NPBundledProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPBundledProtocols.swift; sourceTree = "<group>"; };
-		3313CAE048F16BB8EF271F4F /* UHDRKeyManagerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = UHDRKeyManagerTests.swift; path = NeuroPulseTests/UHDRKeyManagerTests.swift; sourceTree = SOURCE_ROOT; };
+		311C6F422275D0510EE14B90 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		38C3D7DA41062A853F9F21F2 /* ProtocolMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolMenuView.swift; sourceTree = "<group>"; };
-		3C4C671E9A41D310B0F2763F /* NeuroPulseTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NeuroPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3E6B605A184B4AF0854E5254 /* NPProtocolLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolLibrary.swift; sourceTree = "<group>"; };
+		4219BE82CE1BBA0057580A71 /* SessionHistoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryListView.swift; sourceTree = "<group>"; };
 		484F6F06875BE861E52A331F /* SessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionState.swift; sourceTree = "<group>"; };
-		4E91C63077C38445FBB88F5B /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = NeuroPulse/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT; };
+		4DB08A79B1E4FEF891A6A3B1 /* AnalyticsSDKStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsSDKStub.swift; sourceTree = "<group>"; };
 		5B3C8C3C50590F552A09F2A6 /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
 		6060517A37F1EA03A36BAADB /* ConsentEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentEngine.swift; sourceTree = "<group>"; };
-		613B87A1A75B555C22F72D6D /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		613FE044E9E50545A42EBDA3 /* ConsumableTrackerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConsumableTrackerTests.swift; path = NeuroPulseTests/ConsumableTrackerTests.swift; sourceTree = SOURCE_ROOT; };
-		AA001111222233341111BBBB /* SessionHistoryStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SessionHistoryStoreTests.swift; path = NeuroPulseTests/SessionHistoryStoreTests.swift; sourceTree = SOURCE_ROOT; };
-		AA001111222233341111DDDD /* EngagementTierTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EngagementTierTests.swift; path = NeuroPulseTests/EngagementTierTests.swift; sourceTree = SOURCE_ROOT; };
-		AA001111222233341111FFFF /* AnalyticsGateTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AnalyticsGateTests.swift; path = NeuroPulseTests/AnalyticsGateTests.swift; sourceTree = SOURCE_ROOT; };
-		AA001111222233342222BBBB /* RegionHelperTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RegionHelperTests.swift; path = NeuroPulseTests/RegionHelperTests.swift; sourceTree = SOURCE_ROOT; };
+		618B10574F32EE603156145A /* SessionHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryStore.swift; sourceTree = "<group>"; };
 		63CDD24AC46FF070D0E4939F /* SHDRUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SHDRUploader.swift; sourceTree = "<group>"; };
-		647CE41FF6D6EF1E9AB6BA48 /* RegionHelper.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = RegionHelper.swift; path = NeuroPulse/Onboarding/RegionHelper.swift; sourceTree = SOURCE_ROOT; };
-		70F38506C90A8CD8C9EA4A40 /* ProtocolChunker.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProtocolChunker.swift; path = NeuroPulse/Protocol/ProtocolChunker.swift; sourceTree = SOURCE_ROOT; };
 		7665E9CC9E0014859BEB9355 /* OTAModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAModels.swift; sourceTree = "<group>"; };
 		78C1DDCA71A8088A81D60B55 /* NPModalityType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPModalityType.swift; sourceTree = "<group>"; };
-		7DC1D93F497BFB4863D49A88 /* EngagementTier.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = EngagementTier.swift; path = NeuroPulse/Analytics/EngagementTier.swift; sourceTree = SOURCE_ROOT; };
 		816076D720C30AE0F0FB49B4 /* AdaptiveAdjustmentsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveAdjustmentsCard.swift; sourceTree = "<group>"; };
 		845AFF8746C072D3C5C35BEF /* NeuroPulseApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeuroPulseApp.swift; sourceTree = "<group>"; };
-		8465F55E8A50204B7B8EFB10 /* SessionHistoryStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SessionHistoryStore.swift; path = NeuroPulse/Session/SessionHistoryStore.swift; sourceTree = SOURCE_ROOT; };
 		8657238540E35B47AE469FB8 /* UHDRBackupScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UHDRBackupScheduler.swift; sourceTree = "<group>"; };
 		866ABAE273C2F23D68A18100 /* ConsentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentStore.swift; sourceTree = "<group>"; };
 		88D8DF6B5D3CE8866CC53450 /* NPProtocolScripting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolScripting.swift; sourceTree = "<group>"; };
+		8C436280E122876CADCCE29F /* ProtocolChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolChunker.swift; sourceTree = "<group>"; };
+		91A29AEA97C0ABB9CD262787 /* NeuroPulseShared */ = {isa = PBXFileReference; lastKnownFileType = folder; name = NeuroPulseShared; path = ../NeuroPulseShared; sourceTree = SOURCE_ROOT; };
 		925CEA12894CF191CD729896 /* NPPredefinedProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPPredefinedProtocols.swift; sourceTree = "<group>"; };
 		980C79DDC5C965A71161F932 /* ProtocolComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolComposerView.swift; sourceTree = "<group>"; };
 		9928E38344F93D2CFBBC72EB /* PhoneSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSessionManager.swift; sourceTree = "<group>"; };
-		99CA449FB8F98185064BF196 /* ProtocolChunkerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ProtocolChunkerTests.swift; path = NeuroPulseTests/ProtocolChunkerTests.swift; sourceTree = SOURCE_ROOT; };
-		99ED62ECC8DD86A761FF1883 /* NPProtocolValidatorTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = NPProtocolValidatorTests.swift; path = NeuroPulseTests/NPProtocolValidatorTests.swift; sourceTree = SOURCE_ROOT; };
-		9A0EBE7C62F77EE9EB871EFC /* GATTParserTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = GATTParserTests.swift; path = NeuroPulseTests/GATTParserTests.swift; sourceTree = SOURCE_ROOT; };
+		9B9A9D0E1AEF9CF2D19E1EC5 /* RegionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionHelper.swift; sourceTree = "<group>"; };
 		A2280ECFED79E63FA306A965 /* EDFDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EDFDownloader.swift; sourceTree = "<group>"; };
 		A36BDFB8DBD66EA7F0D4870F /* NPProtocolValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolValidator.swift; sourceTree = "<group>"; };
-		A4CD5B06310EF5F5ED10616A /* AnalyticsGate.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AnalyticsGate.swift; path = NeuroPulse/Analytics/AnalyticsGate.swift; sourceTree = SOURCE_ROOT; };
-		A7675A28F88D4C443BF98C21 /* BIPADisclosureView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = BIPADisclosureView.swift; path = NeuroPulse/Onboarding/BIPADisclosureView.swift; sourceTree = SOURCE_ROOT; };
+		AB2AE76ECCD0C02E29548198 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AC170B8BDE63021729560AF1 /* ConsentOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentOnboardingView.swift; sourceTree = "<group>"; };
-		ACBACC42045209F229E88BDC /* AgeGateView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = AgeGateView.swift; path = NeuroPulse/Onboarding/AgeGateView.swift; sourceTree = SOURCE_ROOT; };
 		AE524EFC67F3B22042F87749 /* AdaptationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptationEvent.swift; sourceTree = "<group>"; };
 		B98AC0047D92001AACC3385A /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		BF963C6F964513ECE285C637 /* AgeGateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgeGateView.swift; sourceTree = "<group>"; };
 		C56360D1F64BD4BBEBB956CF /* ZoneModuleInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneModuleInfo.swift; sourceTree = "<group>"; };
 		C7B5EFA4628F9C3C333BB6C9 /* UHDRKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UHDRKeyManager.swift; sourceTree = "<group>"; };
 		CB88FC8DB0D54D6B517FB214 /* NeuroPulseGATTManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeuroPulseGATTManager.swift; sourceTree = "<group>"; };
-		D11F6F980C888D79651CBB52 /* ConsentEngineTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ConsentEngineTests.swift; path = NeuroPulseTests/ConsentEngineTests.swift; sourceTree = SOURCE_ROOT; };
+		CFFD0990164EAF88C1E8046D /* BIPADisclosureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BIPADisclosureView.swift; sourceTree = "<group>"; };
 		D3E5EE793DA859329B4CE869 /* LimitsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimitsSettingsView.swift; sourceTree = "<group>"; };
 		D5196D28CADB0435C84FAFBF /* ConsentDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentDashboardView.swift; sourceTree = "<group>"; };
 		DA9FC7ED25A0C088CA7DC5D0 /* NPProtocolDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolDefinition.swift; sourceTree = "<group>"; };
-		DB45227856D7835C78240EEC /* SessionHistoryListView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = SessionHistoryListView.swift; path = NeuroPulse/Views/SessionHistoryListView.swift; sourceTree = SOURCE_ROOT; };
 		E1ABD8B24911105FF28E2C78 /* SessionProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProtocol.swift; sourceTree = "<group>"; };
 		E355FEC3A2FEA1C26B51B250 /* NPLimitsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPLimitsStore.swift; sourceTree = "<group>"; };
 		E469D1F196B44C40D1E9336C /* SupportingFiles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = SupportingFiles; sourceTree = SOURCE_ROOT; };
 		E63D2B1437C4B993C5D8CF60 /* ConsumableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableView.swift; sourceTree = "<group>"; };
-		E98340A72CAB4AD76D44FB07 /* HealthKitSessionReader.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = HealthKitSessionReader.swift; path = NeuroPulse/Data/HealthKitSessionReader.swift; sourceTree = SOURCE_ROOT; };
 		E9D315AFBC8B976F617F41BC /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		EBE5DF1A6C857B041925298B /* NeuroPulse.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NeuroPulse.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		EEACAEC76FE502DAE261D4B4 /* ProtocolEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolEditorView.swift; sourceTree = "<group>"; };
-		F78848232232677FE9E0B0DE /* Under16View.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = Under16View.swift; path = NeuroPulse/Onboarding/Under16View.swift; sourceTree = SOURCE_ROOT; };
+		F0E81BA8ABF2DB3342E7E28C /* AnalyticsGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsGate.swift; sourceTree = "<group>"; };
 		FB42CF1B6D7862F37A476A1C /* ProtocolScriptEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolScriptEditorView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		2CF1E210918F51953AFBFA9F /* Frameworks */ = {
+		803FF0789C57DD194D6004C4 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				C831E10B0BE4996543FD73C9 /* Foundation.framework in Frameworks */,
+				9A86443E9D3C4886BA643BCB /* NeuroPulseShared in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -189,14 +160,6 @@
 				C56360D1F64BD4BBEBB956CF /* ZoneModuleInfo.swift */,
 			);
 			path = Models;
-			sourceTree = "<group>";
-		};
-		0FA1D409CC1C7DE03E1AFC5C /* Analytics */ = {
-			isa = PBXGroup;
-			children = (
-				A4CD5B06310EF5F5ED10616A /* AnalyticsGate.swift */,
-			);
-			name = Analytics;
 			sourceTree = "<group>";
 		};
 		141B11E25DF013CE21A4EFCE /* Protocol */ = {
@@ -224,7 +187,6 @@
 			isa = PBXGroup;
 			children = (
 				EBE5DF1A6C857B041925298B /* NeuroPulse.app */,
-				3C4C671E9A41D310B0F2763F /* NeuroPulseTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -238,80 +200,15 @@
 			path = Consent;
 			sourceTree = "<group>";
 		};
-		3255410F2DE2F560B85E5045 /* Session */ = {
-			isa = PBXGroup;
-			children = (
-				8465F55E8A50204B7B8EFB10 /* SessionHistoryStore.swift */,
-			);
-			name = Session;
-			sourceTree = "<group>";
-		};
-		34F0705982999D0B6866C636 /* Data */ = {
-			isa = PBXGroup;
-			children = (
-				E98340A72CAB4AD76D44FB07 /* HealthKitSessionReader.swift */,
-			);
-			name = Data;
-			sourceTree = "<group>";
-		};
-		37E846A7B3B378F90B00844B /* NeuroPulseTests */ = {
-			isa = PBXGroup;
-			children = (
-				D11F6F980C888D79651CBB52 /* ConsentEngineTests.swift */,
-				613FE044E9E50545A42EBDA3 /* ConsumableTrackerTests.swift */,
-				9A0EBE7C62F77EE9EB871EFC /* GATTParserTests.swift */,
-				99ED62ECC8DD86A761FF1883 /* NPProtocolValidatorTests.swift */,
-				02FC04E00ED8A6CCD9C1E8B4 /* NeuroPulseTests.swift */,
-				99CA449FB8F98185064BF196 /* ProtocolChunkerTests.swift */,
-				3313CAE048F16BB8EF271F4F /* UHDRKeyManagerTests.swift */,
-				AA001111222233341111BBBB /* SessionHistoryStoreTests.swift */,
-				AA001111222233341111DDDD /* EngagementTierTests.swift */,
-				AA001111222233341111FFFF /* AnalyticsGateTests.swift */,
-				AA001111222233342222BBBB /* RegionHelperTests.swift */,
-			);
-			name = NeuroPulseTests;
-			path = NeuroPulseTests;
-			sourceTree = "<group>";
-		};
-		3C1B0D8C758014B54305D67D /* Views */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Views;
-			sourceTree = "<group>";
-		};
-		45B75CA9F6B80A5F2995EB03 /* Onboarding */ = {
-			isa = PBXGroup;
-			children = (
-				F78848232232677FE9E0B0DE /* Under16View.swift */,
-			);
-			name = Onboarding;
-			sourceTree = "<group>";
-		};
 		48F35FC99690ADD14F69A1FB /* Data */ = {
 			isa = PBXGroup;
 			children = (
+				027E6579B897E23827EF47A2 /* HealthKitSessionReader.swift */,
 				63CDD24AC46FF070D0E4939F /* SHDRUploader.swift */,
 				8657238540E35B47AE469FB8 /* UHDRBackupScheduler.swift */,
 				C7B5EFA4628F9C3C333BB6C9 /* UHDRKeyManager.swift */,
 			);
 			path = Data;
-			sourceTree = "<group>";
-		};
-		4DEC487541298A653978C77D /* Protocol */ = {
-			isa = PBXGroup;
-			children = (
-				70F38506C90A8CD8C9EA4A40 /* ProtocolChunker.swift */,
-			);
-			name = Protocol;
-			sourceTree = "<group>";
-		};
-		53B31648DCACEDAE785FA49F /* Analytics */ = {
-			isa = PBXGroup;
-			children = (
-				1CB1003BE9E507D4A6BF6E9F /* AnalyticsSDKStub.swift */,
-			);
-			name = Analytics;
 			sourceTree = "<group>";
 		};
 		581535948C92E422594991D0 /* BLE */ = {
@@ -323,36 +220,13 @@
 			path = BLE;
 			sourceTree = "<group>";
 		};
-		63CB8A9509619E43FFF92ED8 /* Onboarding */ = {
-			isa = PBXGroup;
-			children = (
-				647CE41FF6D6EF1E9AB6BA48 /* RegionHelper.swift */,
-			);
-			name = Onboarding;
-			sourceTree = "<group>";
-		};
 		66B802F27BBA6F7691F5DDF8 = {
 			isa = PBXGroup;
 			children = (
 				BBDCF42489FE0D8732AC985B /* NeuroPulse */,
+				B4F998242271848D00CE0B9E /* Packages */,
 				E469D1F196B44C40D1E9336C /* SupportingFiles */,
 				2D4EBBB01641BD3EBC4A4F99 /* Products */,
-				92EAF0DB380C9FB10E732348 /* Frameworks */,
-				37E846A7B3B378F90B00844B /* NeuroPulseTests */,
-				34F0705982999D0B6866C636 /* Data */,
-				97C93254219E5E573C0A4A83 /* Models */,
-				8D91C897C2F78832810A3600 /* Onboarding */,
-				45B75CA9F6B80A5F2995EB03 /* Onboarding */,
-				4DEC487541298A653978C77D /* Protocol */,
-				CA74B80773EAD90FE17A51B0 /* Views */,
-				3C1B0D8C758014B54305D67D /* Views */,
-				E300F923858DBFE3BE064121 /* Onboarding */,
-				63CB8A9509619E43FFF92ED8 /* Onboarding */,
-				3255410F2DE2F560B85E5045 /* Session */,
-				FF318A6290F14733332FF57A /* Views */,
-				0FA1D409CC1C7DE03E1AFC5C /* Analytics */,
-				53B31648DCACEDAE785FA49F /* Analytics */,
-				EADCAD3C2CD4FB181F3985DE /* Analytics */,
 			);
 			sourceTree = "<group>";
 		};
@@ -377,6 +251,7 @@
 				3E6B605A184B4AF0854E5254 /* NPProtocolLibrary.swift */,
 				88D8DF6B5D3CE8866CC53450 /* NPProtocolScripting.swift */,
 				A36BDFB8DBD66EA7F0D4870F /* NPProtocolValidator.swift */,
+				8C436280E122876CADCCE29F /* ProtocolChunker.swift */,
 			);
 			path = Protocol;
 			sourceTree = "<group>";
@@ -389,76 +264,64 @@
 			path = OTA;
 			sourceTree = "<group>";
 		};
-		8D91C897C2F78832810A3600 /* Onboarding */ = {
+		91E4AF62DD9C753E78946D4A /* Onboarding */ = {
 			isa = PBXGroup;
 			children = (
-				ACBACC42045209F229E88BDC /* AgeGateView.swift */,
+				BF963C6F964513ECE285C637 /* AgeGateView.swift */,
+				CFFD0990164EAF88C1E8046D /* BIPADisclosureView.swift */,
+				9B9A9D0E1AEF9CF2D19E1EC5 /* RegionHelper.swift */,
+				046EF1F71E798663ED38E465 /* Under16View.swift */,
 			);
-			name = Onboarding;
+			path = Onboarding;
 			sourceTree = "<group>";
 		};
-		92EAF0DB380C9FB10E732348 /* Frameworks */ = {
+		B4F998242271848D00CE0B9E /* Packages */ = {
 			isa = PBXGroup;
 			children = (
-				A4A560C5CF831F421D8A8343 /* iOS */,
+				91A29AEA97C0ABB9CD262787 /* NeuroPulseShared */,
 			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		97C93254219E5E573C0A4A83 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-			);
-			name = Models;
-			sourceTree = "<group>";
-		};
-		A4A560C5CF831F421D8A8343 /* iOS */ = {
-			isa = PBXGroup;
-			children = (
-				613B87A1A75B555C22F72D6D /* Foundation.framework */,
-			);
-			name = iOS;
+			name = Packages;
 			sourceTree = "<group>";
 		};
 		BBDCF42489FE0D8732AC985B /* NeuroPulse */ = {
 			isa = PBXGroup;
 			children = (
+				DFD2E0C92F4D7894D3033EDC /* Analytics */,
 				581535948C92E422594991D0 /* BLE */,
 				2D8F2C0F3D04145DD072CB52 /* Consent */,
 				EA66FB77FDEC54FF12C0374E /* Consumable */,
 				48F35FC99690ADD14F69A1FB /* Data */,
+				C7F8970F83491CC9DF5C46EE /* Localizable.strings */,
 				0B957196DEB864998879C4EC /* Models */,
+				91E4AF62DD9C753E78946D4A /* Onboarding */,
 				8AE939E4392CD8C3D878CDD9 /* OTA */,
 				88F587CCF543EF2556265C44 /* Protocol */,
 				E7EC963DBDFD735C4B10D78B /* Session */,
 				67DF04027A49FA3A3A05CEEC /* Setup */,
 				FF30F1AEB8081BCFCC1F7711 /* Views */,
 				227A5C608DD729F28F15D270 /* WatchBridge */,
+				311C6F422275D0510EE14B90 /* Info.plist */,
 				845AFF8746C072D3C5C35BEF /* NeuroPulseApp.swift */,
-				4E91C63077C38445FBB88F5B /* PrivacyInfo.xcprivacy */,
+				AB2AE76ECCD0C02E29548198 /* PrivacyInfo.xcprivacy */,
 			);
 			path = NeuroPulse;
 			sourceTree = "<group>";
 		};
-		CA74B80773EAD90FE17A51B0 /* Views */ = {
+		DFD2E0C92F4D7894D3033EDC /* Analytics */ = {
 			isa = PBXGroup;
 			children = (
+				F0E81BA8ABF2DB3342E7E28C /* AnalyticsGate.swift */,
+				4DB08A79B1E4FEF891A6A3B1 /* AnalyticsSDKStub.swift */,
+				2E7811F3AF0C1233B76E7036 /* EngagementTier.swift */,
 			);
-			name = Views;
-			sourceTree = "<group>";
-		};
-		E300F923858DBFE3BE064121 /* Onboarding */ = {
-			isa = PBXGroup;
-			children = (
-				A7675A28F88D4C443BF98C21 /* BIPADisclosureView.swift */,
-			);
-			name = Onboarding;
+			path = Analytics;
 			sourceTree = "<group>";
 		};
 		E7EC963DBDFD735C4B10D78B /* Session */ = {
 			isa = PBXGroup;
 			children = (
 				A2280ECFED79E63FA306A965 /* EDFDownloader.swift */,
+				618B10574F32EE603156145A /* SessionHistoryStore.swift */,
 				E1ABD8B24911105FF28E2C78 /* SessionProtocol.swift */,
 				1262B33B95FA07E03C897F9A /* SessionProtocolUploader.swift */,
 			);
@@ -473,14 +336,6 @@
 			path = Consumable;
 			sourceTree = "<group>";
 		};
-		EADCAD3C2CD4FB181F3985DE /* Analytics */ = {
-			isa = PBXGroup;
-			children = (
-				7DC1D93F497BFB4863D49A88 /* EngagementTier.swift */,
-			);
-			name = Analytics;
-			sourceTree = "<group>";
-		};
 		FF30F1AEB8081BCFCC1F7711 /* Views */ = {
 			isa = PBXGroup;
 			children = (
@@ -491,6 +346,7 @@
 				E63D2B1437C4B993C5D8CF60 /* ConsumableView.swift */,
 				B98AC0047D92001AACC3385A /* MainTabView.swift */,
 				29997D2651EEF868F3BCD7C8 /* OTAView.swift */,
+				4219BE82CE1BBA0057580A71 /* SessionHistoryListView.swift */,
 				0CD3FBC03A53B600987E7B18 /* SessionHistoryView.swift */,
 				5B3C8C3C50590F552A09F2A6 /* SessionView.swift */,
 				E9D315AFBC8B976F617F41BC /* SetupView.swift */,
@@ -498,47 +354,25 @@
 			path = Views;
 			sourceTree = "<group>";
 		};
-		FF318A6290F14733332FF57A /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				DB45227856D7835C78240EEC /* SessionHistoryListView.swift */,
-			);
-			name = Views;
-			sourceTree = "<group>";
-		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		8D070F97227C58D1B3C4D161 /* NeuroPulseTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 82CA7C014CEEA065A72FEAED /* Build configuration list for PBXNativeTarget "NeuroPulseTests" */;
-			buildPhases = (
-				6DE67D3FE2EC8AAA0937A949 /* Sources */,
-				2CF1E210918F51953AFBFA9F /* Frameworks */,
-				74E275CE5D439C7D39F7A7E9 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				7001E880C6985C5E6C4323E8 /* PBXTargetDependency */,
-			);
-			name = NeuroPulseTests;
-			productName = NeuroPulseTests;
-			productReference = 3C4C671E9A41D310B0F2763F /* NeuroPulseTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
 		E42D4A8EC149633D91D415DA /* NeuroPulse */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 127189DB2A922CBF0C7B0F0D /* Build configuration list for PBXNativeTarget "NeuroPulse" */;
 			buildPhases = (
 				E779E6E73D17D5C7314AE61F /* Sources */,
 				ED68DABAD019CEC421D8E3F4 /* Resources */,
+				803FF0789C57DD194D6004C4 /* Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
 			name = NeuroPulse;
+			packageProductDependencies = (
+				B007599D6A7F55456BF1745A /* NeuroPulseShared */,
+			);
 			productName = NeuroPulse;
 			productReference = EBE5DF1A6C857B041925298B /* NeuroPulse.app */;
 			productType = "com.apple.product-type.application";
@@ -567,61 +401,44 @@
 			);
 			mainGroup = 66B802F27BBA6F7691F5DDF8;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				52BE4DEE6A754265AE056781 /* XCLocalSwiftPackageReference "../NeuroPulseShared" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 2D4EBBB01641BD3EBC4A4F99 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				E42D4A8EC149633D91D415DA /* NeuroPulse */,
-				8D070F97227C58D1B3C4D161 /* NeuroPulseTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		74E275CE5D439C7D39F7A7E9 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		ED68DABAD019CEC421D8E3F4 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B2428F4DCF44CEF0A5F5D862 /* Info.plist in Resources */,
+				5FA3CFF4428F945C9E8E1AD8 /* Localizable.strings in Resources */,
+				11FDF8E088A57FB6C70D76A6 /* PrivacyInfo.xcprivacy in Resources */,
 				2A5DF6452791EBBF096B6B88 /* SupportingFiles in Resources */,
-				7FA35DE280E4C62094A9F621 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		6DE67D3FE2EC8AAA0937A949 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				D2B15F719270DD09A21C77C0 /* ConsentEngineTests.swift in Sources */,
-				D08517E9705732B7EA754546 /* ConsumableTrackerTests.swift in Sources */,
-				34D5E716DE52C07F31866F84 /* GATTParserTests.swift in Sources */,
-				B06238E04BBA0A2E75EE0C75 /* NPProtocolValidatorTests.swift in Sources */,
-				57CD5D1B637F630581526F8C /* NeuroPulseTests.swift in Sources */,
-				609C9D77B66A2EE843B81F09 /* ProtocolChunkerTests.swift in Sources */,
-				75A9D627B3B44F132FD9FBFD /* UHDRKeyManagerTests.swift in Sources */,
-				AA001111222233341111AAAA /* SessionHistoryStoreTests.swift in Sources */,
-				AA001111222233341111CCCC /* EngagementTierTests.swift in Sources */,
-				AA001111222233341111EEEE /* AnalyticsGateTests.swift in Sources */,
-				AA001111222233342222AAAA /* RegionHelperTests.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		E779E6E73D17D5C7314AE61F /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				D0C9989A7D230DE5B17FACD0 /* AdaptationEvent.swift in Sources */,
 				E83F5467A096AABFDD1ECDEE /* AdaptiveAdjustmentsCard.swift in Sources */,
+				2466802007DC508856B7859E /* AgeGateView.swift in Sources */,
+				47B4A59C942833665BF04B2D /* AnalyticsGate.swift in Sources */,
+				EE9B29E001FF8E37EF6DD4C0 /* AnalyticsSDKStub.swift in Sources */,
+				70193120367CEF0DFFD271D8 /* BIPADisclosureView.swift in Sources */,
 				2BBD5FECC80F39E56C8B8ECA /* ConsentDashboardView.swift in Sources */,
 				4D045247AA9DC080F3DECEA2 /* ConsentEngine.swift in Sources */,
 				4EB2F13C0F7FA17B77DB1522 /* ConsentModels.swift in Sources */,
@@ -631,8 +448,10 @@
 				EB2E3B6A2B4DFB374E88DE22 /* ConsumableTracker.swift in Sources */,
 				E6EF5FE729ADF62E01622C6A /* ConsumableView.swift in Sources */,
 				BF6FCC6887437079914F6C34 /* EDFDownloader.swift in Sources */,
+				B9FD92D6D56DE1E35B983FC0 /* EngagementTier.swift in Sources */,
 				D712D502A9BAC58EDC182D95 /* GATTCharacteristics.swift in Sources */,
 				42E09B8D2947B9AB3E78444F /* HardwareSetupManager.swift in Sources */,
+				76491AB06C5E7D5E836241A9 /* HealthKitSessionReader.swift in Sources */,
 				C8E462B412A2DC5F3FAD0507 /* LimitsSettingsView.swift in Sources */,
 				D13CB7203AC04B91379A6966 /* MainTabView.swift in Sources */,
 				67C16141CE9405C01E2DE345 /* ModalityEditorView.swift in Sources */,
@@ -652,11 +471,15 @@
 				CDAF13E1DDEF435214EDEE68 /* OTAModels.swift in Sources */,
 				86AA3152A2A01721F3E14522 /* OTAView.swift in Sources */,
 				7E4D2845AD720CF46481D061 /* PhoneSessionManager.swift in Sources */,
+				13AFC168159A6F44C610EF44 /* ProtocolChunker.swift in Sources */,
 				1BAB0D99F0865C9CC8AEB8C4 /* ProtocolComposerView.swift in Sources */,
 				1ACF8BEE7B78888A38AAD9C0 /* ProtocolEditorView.swift in Sources */,
 				3C60C0DAA2ADF9BB09D69066 /* ProtocolMenuView.swift in Sources */,
 				55843750C59E854BC23C83CE /* ProtocolScriptEditorView.swift in Sources */,
+				57E03885BEC1D80E7D1FC608 /* RegionHelper.swift in Sources */,
 				D8400B801F7EC52939E2F473 /* SHDRUploader.swift in Sources */,
+				E0691077ED8967F4C7B978C5 /* SessionHistoryListView.swift in Sources */,
+				FBA06E2F7863855716599956 /* SessionHistoryStore.swift in Sources */,
 				7BC70D02885D48C0E83535EF /* SessionHistoryView.swift in Sources */,
 				419F4D9D23598DE30F6DDB2A /* SessionProtocol.swift in Sources */,
 				1CA2BF6793C470BEBC9D05C4 /* SessionProtocolUploader.swift in Sources */,
@@ -665,47 +488,25 @@
 				51D0BFF875F5B27FE1329B8F /* SetupView.swift in Sources */,
 				2803EF319AD7BBEA89ABFABE /* UHDRBackupScheduler.swift in Sources */,
 				93455498E379D6EBC4EBBB44 /* UHDRKeyManager.swift in Sources */,
+				999A9048786E4C625D972567 /* Under16View.swift in Sources */,
 				055480BE05301254775DFB2A /* ZoneModuleInfo.swift in Sources */,
-				C6DBCC79D1ACB5992B4F842B /* HealthKitSessionReader.swift in Sources */,
-				2A166732DE1068E8780E08E9 /* AgeGateView.swift in Sources */,
-				A6D7618BA89FF23455CC6016 /* Under16View.swift in Sources */,
-				E47CB85F0C05C2E2CEEBB7A2 /* ProtocolChunker.swift in Sources */,
-				106461445C893E1DE5975682 /* BIPADisclosureView.swift in Sources */,
-				C298C72F37D0257F49BE8860 /* RegionHelper.swift in Sources */,
-				08584769D8A96CCB3FCBFD9F /* SessionHistoryStore.swift in Sources */,
-				CBE9BE0740BD3CBC14900DE6 /* SessionHistoryListView.swift in Sources */,
-				68A32294D18FF20CA336E7F5 /* AnalyticsGate.swift in Sources */,
-				796181998FF742281E5B9BD8 /* AnalyticsSDKStub.swift in Sources */,
-				9252FD3AC608ACE08E2457EB /* EngagementTier.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
-/* Begin PBXTargetDependency section */
-		7001E880C6985C5E6C4323E8 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			name = NeuroPulse;
-			target = E42D4A8EC149633D91D415DA /* NeuroPulse */;
-			targetProxy = 553200F85562C93F395F7166 /* PBXContainerItemProxy */;
+/* Begin PBXVariantGroup section */
+		C7F8970F83491CC9DF5C46EE /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				1E1CEB0F3C8613C56F225FA8 /* en */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
 		};
-/* End PBXTargetDependency section */
+/* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */
-		679C8CBF501AD3BE3B1DD0D7 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NeuroPulse.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NeuroPulse";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
 		8DA7A2F73D8C6E675BAA2C20 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -804,19 +605,6 @@
 			};
 			name = Debug;
 		};
-		E00AC7C501BF464B29950463 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				SDKROOT = iphoneos;
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NeuroPulse.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NeuroPulse";
-			};
-			name = Debug;
-		};
 		F1A1638AD4E0F1167CE244C9 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -898,15 +686,6 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
-		82CA7C014CEEA065A72FEAED /* Build configuration list for PBXNativeTarget "NeuroPulseTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				679C8CBF501AD3BE3B1DD0D7 /* Release */,
-				E00AC7C501BF464B29950463 /* Debug */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		B4D5DFA46FA42836B7CFB09B /* Build configuration list for PBXProject "NeuroPulse" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -917,6 +696,20 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		52BE4DEE6A754265AE056781 /* XCLocalSwiftPackageReference "../NeuroPulseShared" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../NeuroPulseShared;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		B007599D6A7F55456BF1745A /* NeuroPulseShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NeuroPulseShared;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = CCE1687DAC29FED628915E53 /* Project object */;
 }
