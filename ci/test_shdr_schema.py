@@ -124,9 +124,12 @@ def parse_columns(sql: str) -> list[ColumnDef]:
         r"^\s{2,}(\w+)\s+([\w\s\(\),]+?)(?:\s+(?:NOT\s+NULL|DEFAULT|CHECK|REFERENCES|PRIMARY|UNIQUE).*)?$",
         re.IGNORECASE,
     )
-    # Lines to skip: constraints, index directives, closing parens, comments
+    # Lines to skip: standalone constraint/keyword lines, closing parens, comments.
+    # Use match() with a single anchored group so inline modifiers on column
+    # definition lines (e.g. "... NOT NULL REFERENCES devices(...)") are NOT
+    # matched — those are parsed by col_re, which already strips trailing modifiers.
     skip_re = re.compile(
-        r"^\s*(--)|(CONSTRAINT|PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE|CHECK|REFERENCES|ALTER|CREATE\s+INDEX|\);?\s*$)",
+        r"^\s*(?:--|CONSTRAINT\b|PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE\b|CHECK\b|REFERENCES\b|ALTER\b|CREATE\s+INDEX|\);?\s*$)",
         re.IGNORECASE,
     )
 
@@ -143,7 +146,7 @@ def parse_columns(sql: str) -> list[ColumnDef]:
             continue
         if not stripped or stripped.startswith("--"):
             continue
-        if skip_re.search(line):
+        if skip_re.match(line):
             # Closing paren resets table context
             if re.match(r"^\s*\);?\s*$", line):
                 current_table = None
