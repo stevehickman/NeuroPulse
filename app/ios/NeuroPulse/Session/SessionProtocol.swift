@@ -146,10 +146,14 @@ struct SessionProtocolSigner {
     }
 
     private static func loadOrCreateSigningKey() throws -> Curve25519.Signing.PrivateKey {
-        // Attempt to load existing key from Keychain
+        // Attempt to load existing key from Keychain.
+        // kSecAttrAccessible must be present in the read query so a key written by an
+        // attacker with a different accessibility class cannot shadow the legitimate key
+        // via SecItemCopyMatching. (NP-PRIV-ANALYSIS-002 LOW-12)
         let query: [CFString: Any] = [
             kSecClass:              kSecClassKey,
             kSecAttrApplicationTag: keychainTag.data(using: .utf8)!,
+            kSecAttrAccessible:     kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
             kSecReturnData:         true
         ]
         var item: CFTypeRef?

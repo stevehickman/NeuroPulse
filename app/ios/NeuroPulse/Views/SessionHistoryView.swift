@@ -228,7 +228,7 @@ struct SessionHistoryView: View {
     private var completedAt: String {
         let f = DateFormatter()
         f.dateStyle = .medium
-        f.timeStyle = .short
+        f.timeStyle = .none
         return f.string(from: completedSession.completedAt)
     }
 }

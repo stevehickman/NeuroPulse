@@ -106,11 +106,15 @@ struct CompletedSessionSummary {
     // Reconstruct a summary from a persisted history row. Adaptation events are
     // not persisted in the history store (they live in UHDR), so the detail view
     // opened from history shows the empty-state Adaptive Adjustments card.
+    //
+    // completedAt is reconstructed from sessionDay at start-of-day in local
+    // timezone. Time-of-day is not available — the store holds day granularity
+    // only (UHDR boundary; NP-PRIV-ANALYSIS-002 MEDIUM-07).
     init(record: SessionRecord) {
         self.protocolName          = record.protocolName
         self.durationSeconds       = UInt32(record.durationSeconds.rounded())
         self.adaptationEvents      = []
-        self.completedAt           = record.completedAt
+        self.completedAt           = SessionRecord.dayFormatter.date(from: record.sessionDay) ?? .distantPast
         self.averageCoherenceScore = record.averageCoherenceScore
         self.rmssdMilliseconds     = record.rmssdMilliseconds
         self.impedancePassCount    = record.impedancePassCount

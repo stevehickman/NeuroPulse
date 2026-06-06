@@ -143,21 +143,16 @@ private struct SessionRecordRow: View {
     }
 
     private var relativeDate: String {
+        guard let date = SessionRecord.dayFormatter.date(from: record.sessionDay) else {
+            return record.sessionDay
+        }
         let cal = Calendar.current
-        let timeFmt = DateFormatter()
-        timeFmt.dateFormat = "HH:mm"
-        let time = timeFmt.string(from: record.completedAt)
-
-        if cal.isDateInToday(record.completedAt) {
-            return "Today \(time)"
-        }
-        if cal.isDateInYesterday(record.completedAt) {
-            return "Yesterday \(time)"
-        }
-        let dateFmt = DateFormatter()
-        dateFmt.dateStyle = .medium
-        dateFmt.timeStyle = .short
-        return dateFmt.string(from: record.completedAt)
+        if cal.isDateInToday(date)     { return "Today" }
+        if cal.isDateInYesterday(date) { return "Yesterday" }
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .none
+        return f.string(from: date)
     }
 
     private var durationFormatted: String {

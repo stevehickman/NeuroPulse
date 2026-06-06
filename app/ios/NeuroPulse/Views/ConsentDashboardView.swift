@@ -96,7 +96,9 @@ struct ConsentDashboardView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(consentStore.researchConsent.blanketConsentGranted ? "Pre-approved" : "Per-category")
                     .font(.subheadline.bold())
-                Text(consentStore.researchConsent.contactConsentGranted ? "Contact: \(consentStore.researchConsent.contactMethod)" : "No research contact")
+                Text(consentStore.researchConsent.contactConsentGranted
+                     ? "Contact: \(redacted(consentStore.researchConsent.contactMethod))"
+                     : "No research contact")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -105,6 +107,18 @@ struct ConsentDashboardView: View {
                 Image(systemName: "checkmark.seal.fill").foregroundColor(.green)
             }
         }
+    }
+
+    // Summary row shows redacted contact only; full value is in Research Preferences.
+    // Email → "•••@domain.com". Phone → "••• ••• ••\(last2)".
+    private func redacted(_ contact: String) -> String {
+        if let atIdx = contact.firstIndex(of: "@") {
+            let domain = String(contact[contact.index(after: atIdx)...])
+            return "•••@\(domain)"
+        }
+        let digits = contact.filter(\.isNumber)
+        let suffix = digits.count >= 2 ? String(digits.suffix(2)) : digits
+        return "••• ••• ••\(suffix)"
     }
 
     private var studyHistorySection: some View {

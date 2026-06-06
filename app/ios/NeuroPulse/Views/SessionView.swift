@@ -30,16 +30,12 @@ struct SessionView: View {
     @State private var lastCoherenceScore:   Float?
     @State private var lastRMSSD:            UInt16?
 
-    // BIPA written-release acceptance (ISC-90). EEG features disabled for
-    // Illinois users who have not consented to brainwave-data collection.
+    // Biometric written-release acceptance (ISC-90). EEG features disabled until
+    // the user has consented to brainwave-data collection (shown to all users once).
     @AppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
 
     /// Whether EEG/closed-loop neurofeedback features may be shown and used.
-    /// Returns true for non-Illinois users and for Illinois users who consented.
-    var eegConsentGranted: Bool {
-        if !RegionHelper.isLikelyIllinois { return true }
-        return bipaAccepted
-    }
+    var eegConsentGranted: Bool { bipaAccepted }
 
     // True only while an HRV biofeedback session is live. The hub streams the HRV
     // coherence characteristic only for protocols that include HRV biofeedback, so

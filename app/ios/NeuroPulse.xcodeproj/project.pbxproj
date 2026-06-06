@@ -495,7 +495,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B2428F4DCF44CEF0A5F5D862 /* Info.plist in Resources */,
 				5FA3CFF4428F945C9E8E1AD8 /* Localizable.strings in Resources */,
 				11FDF8E088A57FB6C70D76A6 /* PrivacyInfo.xcprivacy in Resources */,
 				2A5DF6452791EBBF096B6B88 /* SupportingFiles in Resources */,
@@ -613,6 +612,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -728,6 +728,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
