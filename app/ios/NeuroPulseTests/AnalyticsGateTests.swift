@@ -7,7 +7,9 @@
 //  Verifies the consent gate semantics (ISC-92, ISC-97):
 //  - configure() and track() are no-ops when the gate is closed
 //  - prohibited keys cause the event to be dropped rather than transmitted
-//  - the gate keys on consent-ACCEPTED (not consent-shown)
+//  - the gate keys on analytics-CONSENT-GRANTED (not onboarding-shown or skip)
+//  - Skip does not open the analytics gate
+//  - research-consent withdrawal does not revoke analytics consent
 //
 //  AnalyticsSDKStub performs no network I/O, so these tests are safe to run
 //  without network isolation. The `isConfigured` flag is private static state;
@@ -19,7 +21,7 @@ import XCTest
 @MainActor
 final class AnalyticsGateTests: XCTestCase {
 
-    private let consentKey = "np.onboarding.consent-accepted"
+    private let consentKey = "np.analytics.consent-granted"
 
     override func setUp() async throws {
         try await super.setUp()
@@ -48,17 +50,46 @@ final class AnalyticsGateTests: XCTestCase {
         XCTAssertTrue(AnalyticsGate.isOpen)
     }
 
-    func testGateKeysOnConsentAcceptedNotConsentShown() {
-        // The gate must NOT open on the weaker "consent-shown" key — it must
-        // require the "consent-accepted" key (deliberate user action).
+    func testGateDoesNotOpenOnOnboardingShownKey() {
+        // Setting "onboarding shown" must NOT open the analytics gate — the gate
+        // requires the separate analytics-consent key (deliberate Done action).
         UserDefaults.standard.set(true, forKey: "np.onboarding.consent-shown")
         XCTAssertFalse(AnalyticsGate.isOpen,
-                       "Gate must not open on consent-shown — only consent-accepted counts")
+                       "Gate must not open on consent-shown — only analytics-consent-granted counts")
     }
 
-    func testConsentAcceptedKeyMatchesConstant() {
+    func testGateDoesNotOpenOnLegacyOnboardingAcceptedKey() {
+        // The retired key "np.onboarding.consent-accepted" must not open the gate.
+        // Any devices with this key from a pre-split build start with analytics closed,
+        // which is the privacy-safe direction.
+        UserDefaults.standard.set(true, forKey: "np.onboarding.consent-accepted")
+        XCTAssertFalse(AnalyticsGate.isOpen,
+                       "Retired onboarding key must not open the analytics gate")
+    }
+
+    func testAnalyticsConsentKeyMatchesConstant() {
         // Verify the constant exported by AnalyticsGate matches what ConsentOnboardingView writes.
-        XCTAssertEqual(AnalyticsGate.consentAcceptedKey, "np.onboarding.consent-accepted")
+        XCTAssertEqual(AnalyticsGate.analyticsConsentKey, "np.analytics.consent-granted")
+    }
+
+    func testSkipDoesNotOpenAnalyticsGate() {
+        // Skip sets only the onboarding-shown flag; it must NOT set the analytics key.
+        // Simulated by verifying that setting only the onboarding key leaves gate closed.
+        UserDefaults.standard.set(true, forKey: "np.onboarding.consent-shown")
+        XCTAssertFalse(AnalyticsGate.isOpen,
+                       "Pressing Skip must not open the analytics gate")
+    }
+
+    func testWithdrawBlanketConsentDoesNotRevokeAnalytics() {
+        // Research-consent withdrawal must not touch the analytics consent key.
+        UserDefaults.standard.set(true, forKey: consentKey)
+        XCTAssertTrue(AnalyticsGate.isOpen, "Precondition: gate should be open")
+        // withdrawBlanketConsent no longer calls revokeAnalyticsConsent —
+        // verify the analytics key is untouched after withdrawal.
+        let store = ConsentStore()
+        store.withdrawBlanketConsent()
+        XCTAssertTrue(AnalyticsGate.isOpen,
+                      "Withdrawing research consent must not revoke analytics consent")
     }
 
     // MARK: - configure() no-ops when gate closed

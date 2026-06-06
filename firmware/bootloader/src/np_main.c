@@ -300,6 +300,25 @@ void Bootloader_Reset(void)
         np_emmc_erase(NP_SCRATCH_LBA_START, NP_SCRATCH_SIZE_LBA);
         NP_SNVS_LPGPR2 &= ~NP_SNVS_ANON_IN_PROGRESS;
     }
+    /* Check for interrupted factory reset — re-run SANITIZE before completing boot */
+    if (NP_SNVS_LPGPR1 & NP_SNVS_RESET_IN_PROGRESS) {
+        /* Power was lost during factory reset R-4..R-9.
+         * Re-sanitize all data partitions, then complete the reset.
+         * Device remains in factory-reset state until app re-initialises. */
+        np_status_t wipe = np_emmc_switch_partition(NP_EMMC_USER_AREA);
+        if (wipe == NP_OK) wipe = np_emmc_erase(NP_UHDR_LBA_START, NP_UHDR_SIZE_LBA);
+        if (wipe == NP_OK) wipe = np_emmc_erase(NP_SHDR_LBA_START, NP_SHDR_SIZE_LBA);
+        if (wipe == NP_OK) wipe = np_emmc_erase(NP_CONFIG_LBA_START, NP_CONFIG_SIZE_LBA);
+
+        /* Only clear the in-progress flag if every wipe step succeeded.  If any
+         * step failed, leave the flag SET so the next boot retries — the device
+         * must never come up with user data half-erased after an interrupted
+         * factory reset. */
+        if (wipe == NP_OK) {
+            NP_SNVS_LPGPR1 &= ~NP_SNVS_RESET_IN_PROGRESS;
+        }
+        /* Fall through — boot from active bank; app will detect factory state */
+    }
 
     /* B-2: Read boot bank and OTA status from SNVS_LPGPR0 ──────────────── */
     {

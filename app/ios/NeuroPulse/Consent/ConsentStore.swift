@@ -51,6 +51,22 @@ final class ConsentStore: ObservableObject {
         save()
         // Withdrawal immediately prevents future study descriptor processing.
         // Already-published extracts are unchanged (irreversibility notice given at L3).
+        //
+        // Note: revokeAnalyticsConsent() is intentionally NOT called here.
+        // Research-participation consent (L3) and app analytics consent are
+        // independent decisions. A user who withdraws research participation
+        // retains their analytics preference unchanged. Use the dedicated
+        // analytics opt-out toggle (Settings → Privacy) to revoke analytics.
+    }
+
+    /// Revoke analytics consent — clears the analytics gate key and tears down
+    /// the SDK so it cannot collect passively after withdrawal.
+    ///
+    /// Called from the dedicated analytics opt-out toggle in Settings.
+    /// NOT called from research-consent paths (see `withdrawBlanketConsent`).
+    func revokeAnalyticsConsent() {
+        UserDefaults.standard.removeObject(forKey: AnalyticsGate.analyticsConsentKey)
+        AnalyticsGate.reset()
     }
 
     func setCategoryConsent(_ category: ResearchCategory, granted: Bool) {

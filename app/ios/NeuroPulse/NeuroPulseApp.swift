@@ -126,7 +126,7 @@ struct NeuroPulseApp: App {
         }
     }
 
-    /// Single-entry onboarding chain: age gate → BIPA (Illinois only, once) →
+    /// Single-entry onboarding chain: age gate → biometric consent (all users, once) →
     /// research consent L1–L4. Each screen re-invokes this on completion (ISC-127).
     private func presentNextOnboardingStep() {
         // Step 1: Age gate — must be first, all users.
@@ -134,9 +134,10 @@ struct NeuroPulseApp: App {
             showAgeGate = true
             return
         }
-        // Step 2: BIPA — Illinois users only, shown once.
+        // Step 2: Biometric consent — all users, shown once.
+        // Satisfies BIPA (IL), GDPR Art. 9 (EU), WA MHMD, and is good practice everywhere.
         // A prior decision (accept or decline) sets bipaShown = true permanently.
-        if RegionHelper.isLikelyIllinois && !bipaShown {
+        if !bipaShown {
             showBIPADisclosure = true
             return
         }
@@ -146,7 +147,11 @@ struct NeuroPulseApp: App {
             consentOnboardingShown = true
             return
         }
-        // All gates passed — safe to open the analytics gate (ISC-92).
+        // All onboarding gates passed. For returning users whose analytics consent
+        // key (np.analytics.consent-granted) is already set, configure() starts
+        // the SDK. For users who previously skipped, isOpen is false and configure()
+        // no-ops — the gate stays closed until they actively consent via the
+        // Research Preferences sheet (which calls configure() directly on Done).
         AnalyticsGate.configure()
     }
 }

@@ -69,8 +69,10 @@ public struct SessionState: Sendable {
 }
 
 // WatchConnectivity dictionary keys — must match on both sides of the bridge.
+// epoch is intentionally excluded: it is UHDR-class data (session timestamp,
+// CLAUDE.md §5.1) and is not needed for Watch display — elapsed time is driven
+// by a local Timer on the Watch side. (NP-PRIV-ANALYSIS-002 MEDIUM-08)
 public enum WCKey {
-    public static let epoch             = "ep"
     public static let protocolID        = "pid"
     public static let status            = "st"
     public static let coherenceX100     = "coh"
@@ -84,7 +86,6 @@ public enum WCKey {
 extension SessionState {
     public func toWCMessage() -> [String: Any] {
         var msg: [String: Any] = [
-            WCKey.epoch:            Int(epoch),
             WCKey.protocolID:       Int(protocolID),
             WCKey.status:           Int(status.rawValue),
             WCKey.pacerPhase:       Int(pacerPhase.rawValue),
@@ -101,7 +102,6 @@ extension SessionState {
 
     public static func from(wcMessage msg: [String: Any]) -> SessionState? {
         guard
-            let epoch      = msg[WCKey.epoch]      as? Int,
             let pid        = msg[WCKey.protocolID]  as? Int,
             let statusRaw  = msg[WCKey.status]      as? Int,
             let status     = SessionStatus(rawValue: UInt8(statusRaw)),
@@ -119,7 +119,7 @@ extension SessionState {
         }
 
         return SessionState(
-            epoch: UInt32(epoch),
+            epoch: 0,   // not transmitted over WC bridge (UHDR boundary)
             protocolID: UInt8(pid),
             status: status,
             hrv: hrv,
