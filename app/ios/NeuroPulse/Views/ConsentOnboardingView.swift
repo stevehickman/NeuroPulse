@@ -107,6 +107,12 @@ struct ConsentOnboardingView: View {
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textFieldStyle(.roundedBorder)
+                    Picker("Contact frequency", selection: $draft.contactFrequency) {
+                        ForEach(ContactFrequency.allCases, id: \.self) { freq in
+                            Text(freq.rawValue).tag(freq)
+                        }
+                    }
+                    .pickerStyle(.segmented)
                 }
 
                 Toggle("I am a Power of Attorney holder acting for a patient", isOn: $draft.isPOAHolder)
