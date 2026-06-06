@@ -40,6 +40,18 @@
 #define NP_SNVS_DFU_FORCED      (1UL << 16U)
 #define NP_BOOT_MAX_ATTEMPTS    3U
 
+/* ── SNVS_LPGPR1 — factory reset in-progress flag ────────────────────────── */
+/* Set at factory-reset step R-3, cleared at R-11 (NP-FW-EMMC-002 Rev A §B).  */
+/* If set on boot, a reset was interrupted by power loss; re-run SANITIZE.    */
+#define NP_SNVS_LPGPR1          (*(volatile uint32_t *)(NP_SNVS_BASE + 0x6CU))
+#define NP_SNVS_RESET_IN_PROGRESS  (1UL << 0U)
+
+/* ── SNVS_LPGPR2 — anonymisation in-progress flag ────────────────────────── */
+/* Set while the research anonymisation pipeline holds an encrypted extract in */
+/* the Scratch partition (NP-FW-EMMC-002 Rev A §D).                           */
+#define NP_SNVS_LPGPR2          (*(volatile uint32_t *)(NP_SNVS_BASE + 0x70U))
+#define NP_SNVS_ANON_IN_PROGRESS   (1UL << 0U)
+
 /* ── eMMC user-area partition map (512-byte LBA sectors) ─────────────────── */
 /* All offsets are from LBA 0 of the eMMC user area.                          */
 /* GPT header at LBA 1, entries LBA 2–33, first usable LBA 34.               */
