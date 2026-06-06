@@ -1,13 +1,12 @@
 import SwiftUI
 
-// BIPA written-release disclosure screen.
-// Launch-blocking privacy compliance requirement for any Illinois user
-// (Illinois Biometric Information Privacy Act, 740 ILCS 14).
+// Biometric data consent disclosure screen.
+// Shown to ALL users before their first EEG session — not gated by locale.
 //
-// EEG brainwave data is biometric information under BIPA. A written release is
-// required before that data is collected or used. This screen presents the full
-// disclosure verbatim from NP-APP-ROADMAP-001 Rev B §9.3 and records an explicit
-// accept/decline choice — there is NO Skip or dismiss affordance.
+// EEG brainwave data is biometric information under Illinois BIPA (740 ILCS 14),
+// GDPR Art. 9 (special category data), and WA MHMD (consumer health data). A
+// written release is required before that data is collected or used. This screen
+// records an explicit accept/decline choice — there is NO Skip or dismiss affordance.
 //
 // Satisfies: ISC-88, ISC-89 (presentation context handled by caller),
 // ISC-91 (re-presentable from Settings), ISC-160 (no truncation).
@@ -17,13 +16,13 @@ struct BIPADisclosureView: View {
     // MARK: - User-visible strings (prepared for Localizable.strings; literals for now)
 
     enum Strings {
-        static let title = "Brain Activity Data Consent (Illinois)"
+        static let title = "Brain Activity Data Consent"
 
         static let intro = """
         NeuroPulse collects your brainwave (EEG) data during sessions to \
         provide neurofeedback and to adapt stimulation settings in real time. \
-        Under Illinois law (BIPA), this brainwave data is considered biometric \
-        information.
+        Brainwave data is sensitive personal information — biometric data under \
+        applicable law — and NeuroPulse treats it accordingly.
         """
 
         static let bullets: [String] = [

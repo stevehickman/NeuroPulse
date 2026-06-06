@@ -204,9 +204,13 @@ final class UHDRKeyManagerTests: XCTestCase {
             )
         }
 
-        // Defence-in-depth: the source must not persist key material either.
-        XCTAssertFalse(source.contains("SecItemAdd"),
-                       "UHDRKeyManager.swift must not write key material to the Keychain.")
+        // Defence-in-depth: the derived key must not be persisted as a Keychain key object.
+        // Note: SecItemAdd is permitted for salt storage (kSecClassGenericPassword) — salt is not
+        // key material; it is a non-secret randomness seed needed to re-derive the same key.
+        // What is forbidden is persisting the derived 32-byte symmetric key itself (kSecClassKey).
+        XCTAssertFalse(source.contains("kSecClassKey"),
+                       "UHDRKeyManager.swift must not persist the derived key as a kSecClassKey " +
+                       "Keychain item — the key must be ephemeral and re-derived each session.")
         XCTAssertFalse(source.contains("UserDefaults"),
                        "UHDRKeyManager.swift must not write key material to UserDefaults.")
     }

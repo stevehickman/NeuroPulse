@@ -73,7 +73,9 @@ final class SessionHistoryStoreTests: XCTestCase {
         let r = store.records[0]
         XCTAssertEqual(r.protocolName, "Gamma 40Hz")
         XCTAssertEqual(r.durationSeconds, 1200, accuracy: 0.01)
-        XCTAssertEqual(r.completedAt, at)
+        // sessionDay stores the calendar date at day granularity (UHDR boundary — exact
+        // timestamps are not persisted to UserDefaults; NP-PRIV-ANALYSIS-002 MEDIUM-07).
+        XCTAssertEqual(r.sessionDay, SessionRecord.dayFormatter.string(from: at))
         XCTAssertEqual(r.averageCoherenceScore ?? 0, 8.3, accuracy: 0.01)
         XCTAssertEqual(r.rmssdMilliseconds, 55)
         XCTAssertEqual(r.impedancePassCount, 6)
@@ -194,6 +196,22 @@ final class SessionHistoryStoreTests: XCTestCase {
         let store = SessionHistoryStore(defaults: suite)
 
         XCTAssertTrue(store.records.isEmpty, "Corrupt stored data must yield empty records, not a crash")
+    }
+
+    // MARK: - Privacy invariant
+
+    func testPersistedBlobContainsNoCompletedAtKey() throws {
+        let suite = makeSuite(#function)
+        let store = SessionHistoryStore(defaults: suite)
+        store.record(makeSummary())
+
+        let data = try XCTUnwrap(suite.data(forKey: "np.session.history"))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
+        let row = try XCTUnwrap(json.first)
+
+        XCTAssertNil(row["completedAt"], "Exact timestamp must not be persisted (UHDR boundary)")
+        XCTAssertNotNil(row["sessionDay"], "sessionDay must be present in persisted blob")
+        XCTAssertNotNil(row["insertionIndex"], "insertionIndex must be present in persisted blob")
     }
 
     func testNewRecordsWritableAfterCorruptBlobRecovery() {

@@ -105,9 +105,7 @@ struct SetupView: View {
                 // Mode 3 programming is offered once first-run setup is complete.
                 if setup.currentStep == .complete {
                     autonomousModeCard
-                    if RegionHelper.isLikelyIllinois {
-                        privacyConsentCard
-                    }
+                    privacyConsentCard
                 }
             }
             .padding()
@@ -140,10 +138,10 @@ struct SetupView: View {
         .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 
-    // MARK: - Privacy consent card (Illinois BIPA, ISC-91)
+    // MARK: - Privacy consent card (ISC-91)
 
-    // Re-presentable entry point for the BIPA brainwave-data written release.
-    // Shown only to Illinois users. Tapping re-opens BIPADisclosureView so consent
+    // Re-presentable entry point for the biometric data written release.
+    // Shown to all users. Tapping re-opens BIPADisclosureView so consent
     // can be granted or revoked at any time.
     private var privacyConsentCard: some View {
         VStack(alignment: .leading, spacing: 12) {
