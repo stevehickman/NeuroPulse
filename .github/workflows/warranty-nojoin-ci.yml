@@ -1,0 +1,33 @@
+name: Warranty No-Join CI Gate (OI-EMMC2-06)
+
+on:
+  push:
+    paths:
+      - 'ci/warranty/warranty_registration_schema.sql'
+      - 'ci/shdr/shdr_fleet_schema.sql'
+      - 'ci/test_warranty_nojoin.py'
+  pull_request:
+    paths:
+      - 'ci/warranty/warranty_registration_schema.sql'
+      - 'ci/shdr/shdr_fleet_schema.sql'
+      - 'ci/test_warranty_nojoin.py'
+  workflow_dispatch:
+
+jobs:
+  warranty-nojoin-gate:
+    name: Warranty No-Join Privacy Gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Run OI-EMMC2-06 no-join CI test
+        run: python3 ci/test_warranty_nojoin.py --verbose
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: warranty-nojoin-violations
+          path: ci/
+          retention-days: 30
