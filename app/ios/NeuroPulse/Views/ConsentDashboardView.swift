@@ -11,6 +11,8 @@ struct ConsentDashboardView: View {
     @State private var showOnboarding = false
     @State private var showNewClinicianGrant = false
     @State private var selectedInvitation: StudyInvitation?
+    @State private var grantPendingRevoke: ClinicianConsentGrant?
+    @State private var participationPendingWithdraw: StudyParticipationRecord?
 
     var body: some View {
         NavigationStack {
@@ -24,10 +26,14 @@ struct ConsentDashboardView: View {
             .navigationTitle("Privacy & Consent")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Research Preferences") {
-                        showOnboarding = true
+                    Menu {
+                        Button("Research Preferences") { showOnboarding = true }
+                        NavigationLink("Research Portal") {
+                            ResearchSuggestionPortalView()
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
                     }
-                    .font(.caption)
                 }
             }
             .sheet(isPresented: $showOnboarding) {
@@ -42,6 +48,46 @@ struct ConsentDashboardView: View {
                 StudyInvitationView(invitation: invitation)
                     .environmentObject(consentStore)
             }
+            // ISC-76: confirmation before revoking clinician access
+            .confirmationDialog(
+                "Revoke clinician access?",
+                isPresented: Binding(
+                    get: { grantPendingRevoke != nil },
+                    set: { if !$0 { grantPendingRevoke = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                if let grant = grantPendingRevoke {
+                    Button("Revoke access for \(grant.clinicianName)", role: .destructive) {
+                        consentStore.revokeClinicianAccess(grantID: grant.id)
+                        grantPendingRevoke = nil
+                    }
+                }
+                Button("Cancel", role: .cancel) { grantPendingRevoke = nil }
+            } message: {
+                if let grant = grantPendingRevoke {
+                    Text("\(grant.clinicianName) at \(grant.clinicianOrganisation) will immediately lose access to your data.")
+                }
+            }
+            // ISC-77: confirmation before withdrawing from a study
+            .confirmationDialog(
+                "Withdraw from study?",
+                isPresented: Binding(
+                    get: { participationPendingWithdraw != nil },
+                    set: { if !$0 { participationPendingWithdraw = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                if let record = participationPendingWithdraw {
+                    Button("Withdraw from \(record.studyID)", role: .destructive) {
+                        consentStore.withdrawFromStudy(studyID: record.studyID)
+                        participationPendingWithdraw = nil
+                    }
+                }
+                Button("Cancel", role: .cancel) { participationPendingWithdraw = nil }
+            } message: {
+                Text("No further data will flow to this study. Data already included in published results cannot be individually removed.")
+            }
         }
     }
 
@@ -55,10 +101,9 @@ struct ConsentDashboardView: View {
                     .foregroundColor(.secondary)
             } else {
                 ForEach(consentStore.clinicianGrants) { grant in
-                    ClinicianGrantRow(grant: grant)
-                }
-                .onDelete { indices in
-                    indices.forEach { consentStore.revokeClinicianAccess(grantID: consentStore.clinicianGrants[$0].id) }
+                    ClinicianGrantRow(grant: grant) {
+                        grantPendingRevoke = grant  // ISC-76 — triggers confirmation dialog
+                    }
                 }
             }
             Button {
@@ -115,7 +160,10 @@ struct ConsentDashboardView: View {
                     .foregroundColor(.secondary)
             } else {
                 ForEach(consentStore.studyParticipations) { record in
-                    StudyParticipationRow(record: record)
+                    // ISC-77: Withdraw button on active participation rows
+                    StudyParticipationRow(record: record) {
+                        if record.isActive { participationPendingWithdraw = record }
+                    }
                 }
             }
         }
@@ -152,13 +200,27 @@ struct ConsentDashboardView: View {
 
 struct ClinicianGrantRow: View {
     let grant: ClinicianConsentGrant
-    @EnvironmentObject private var consentStore: ConsentStore
+    let onRevoke: () -> Void   // ISC-76
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(grant.clinicianName).font(.subheadline.bold())
-            Text(grant.clinicianOrganisation).font(.caption).foregroundColor(.secondary)
-            Text(grant.tier.monthlyPrice).font(.caption2).foregroundColor(.secondary)
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(grant.clinicianName).font(.subheadline.bold())
+                    Text(grant.clinicianOrganisation).font(.caption).foregroundColor(.secondary)
+                    Text(grant.tier.monthlyPrice).font(.caption2).foregroundColor(.secondary)
+                }
+                Spacer()
+                Button("Revoke", role: .destructive, action: onRevoke)
+                    .font(.caption)
+                    .buttonStyle(.borderless)
+            }
+            // Granted elements (ISC-75)
+            Text("Access: \(grant.approvedElements.map(\.rawValue).sorted().joined(separator: ", "))")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+                .lineLimit(nil)
+                .fixedSize(horizontal: false, vertical: true)
             HStack {
                 Label("Granted \(grant.grantedAt.formatted(.dateTime.month().day().year()))",
                       systemImage: "checkmark.shield")
@@ -174,19 +236,25 @@ struct ClinicianGrantRow: View {
 
 struct StudyParticipationRow: View {
     let record: StudyParticipationRecord
+    let onWithdraw: () -> Void  // ISC-77
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(record.studyID).font(.subheadline.bold())
-                Spacer()
+                Text("Data shared: \(record.transmittedAt.formatted(.dateTime.month().day().year()))")
+                    .font(.caption).foregroundColor(.secondary)
                 if !record.isActive {
                     Label("Withdrawn", systemImage: "xmark.circle")
                         .font(.caption2).foregroundColor(.orange)
                 }
             }
-            Text("Data shared: \(record.transmittedAt.formatted(.dateTime.month().day().year()))")
-                .font(.caption).foregroundColor(.secondary)
+            Spacer()
+            if record.isActive {
+                Button("Withdraw", role: .destructive, action: onWithdraw)
+                    .font(.caption)
+                    .buttonStyle(.borderless)
+            }
         }
     }
 }
@@ -195,6 +263,7 @@ struct StudyInvitationView: View {
     let invitation: StudyInvitation
     @EnvironmentObject private var consentStore: ConsentStore
     @Environment(\.dismiss) private var dismiss
+    @State private var showParticipateConfirmation = false   // ISC-79
 
     var body: some View {
         NavigationStack {
@@ -249,15 +318,28 @@ struct StudyInvitationView: View {
                     .buttonStyle(.bordered)
                     .foregroundColor(.red)
 
+                    // ISC-79: confirmation must include the irreversibility notice.
                     Button("Participate") {
-                        consentStore.acceptInvitation(studyID: invitation.studyID)
-                        dismiss()
+                        showParticipateConfirmation = true
                     }
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity)
                 }
                 .padding()
                 .background(.regularMaterial)
+            }
+            .confirmationDialog(
+                "Confirm participation",
+                isPresented: $showParticipateConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("Confirm — participate in study") {
+                    consentStore.acceptInvitation(studyID: invitation.studyID)
+                    dismiss()
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(invitation.irreversibilityNotice)
             }
         }
     }

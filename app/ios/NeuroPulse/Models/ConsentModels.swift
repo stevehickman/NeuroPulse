@@ -53,6 +53,18 @@ enum UHDRElement: String, CaseIterable, Codable {
     case outcomeLogs         = "User-Entered Outcome Logs"
     case eyeStateLogs        = "Eye Open/Closed State"
 
+    // Lowest clinician tier that may access this element (ISC-137).
+    var minimumTier: ClinicianUseCaseTier {
+        switch self {
+        case .sessionTimestamps, .sessionDuration, .protocolParameters:
+            return .monitor
+        case .eegWaveforms, .neurofeedbackScores, .pbmDoseLogs:
+            return .assess
+        case .hrvTimeSeries, .ppgOpticalSignal, .closedLoopEvents, .outcomeLogs, .eyeStateLogs:
+            return .fullClinical
+        }
+    }
+
     var plainLanguageDescription: String {
         switch self {
         case .eegWaveforms:
@@ -95,13 +107,21 @@ struct ClinicianConsentGrant: Codable, Identifiable {
     var approvedElements: Set<UHDRElement> { tier.uhdrElements }
 }
 
+// MARK: - Contact frequency (ISC-69 — three options)
+
+enum ContactFrequency: String, CaseIterable, Codable {
+    case weekly    = "Weekly"
+    case monthly   = "Monthly"
+    case quarterly = "Quarterly"
+}
+
 // MARK: - Research consent layers (CLAUDE.md §6.2)
 
 struct ResearchConsentState: Codable {
     // L1: Contact consent
     var contactConsentGranted: Bool = false
-    var contactMethod: String = ""           // email or phone
-    var contactFrequencyLimit: String = ""   // e.g. "monthly"
+    var contactMethod: String = ""
+    var contactFrequency: ContactFrequency = .monthly
     var isPOAHolder: Bool = false
     var poaUploadedAt: Date? = nil
     var poaVerifiedAt: Date? = nil

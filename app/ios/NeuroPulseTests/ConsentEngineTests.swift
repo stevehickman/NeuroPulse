@@ -83,6 +83,72 @@ final class ConsentEngineTests: XCTestCase {
         )
     }
 
+    // MARK: - UHDRElement.minimumTier (ISC-137)
+
+    func testMinimumTierMonitorElements() {
+        let monitorElements: [UHDRElement] = [.sessionTimestamps, .sessionDuration, .protocolParameters]
+        for element in monitorElements {
+            XCTAssertEqual(
+                element.minimumTier, .monitor,
+                "\(element.rawValue) should be accessible at Monitor tier."
+            )
+        }
+    }
+
+    func testMinimumTierAssessElements() {
+        let assessElements: [UHDRElement] = [.eegWaveforms, .neurofeedbackScores, .pbmDoseLogs]
+        for element in assessElements {
+            XCTAssertEqual(
+                element.minimumTier, .assess,
+                "\(element.rawValue) should require at least Assess tier."
+            )
+        }
+    }
+
+    func testMinimumTierFullClinicalElements() {
+        let fullClinicalElements: [UHDRElement] = [
+            .hrvTimeSeries, .ppgOpticalSignal, .closedLoopEvents, .outcomeLogs, .eyeStateLogs
+        ]
+        for element in fullClinicalElements {
+            XCTAssertEqual(
+                element.minimumTier, .fullClinical,
+                "\(element.rawValue) should require Full Clinical tier."
+            )
+        }
+    }
+
+    // ISC-137 anti-pattern: no tier must contain an element below that element's minimumTier.
+    func testISC137_noTierContainsElementBelowItsMinimumTier() {
+        let tierRank: [ClinicianUseCaseTier: Int] = [
+            .monitor: 0, .assess: 1, .fullClinical: 2, .research: 3
+        ]
+        for tier in ClinicianUseCaseTier.allCases where tier != .research {
+            for element in tier.uhdrElements {
+                let grantRank = tierRank[tier]!
+                let minimumRank = tierRank[element.minimumTier]!
+                XCTAssertLessThanOrEqual(
+                    minimumRank, grantRank,
+                    "Tier \(tier.rawValue) grants \(element.rawValue) but its minimumTier is \(element.minimumTier.rawValue) — over-grant detected."
+                )
+            }
+        }
+    }
+
+    // ISC-82 anti-pattern: minimumNecessaryElements never returns elements absent from selected use cases.
+    func testISC82_minimumNecessaryNeverOverGrants() {
+        let allIDs = Set(ConsentEngine.useCaseLibrary.map(\.id))
+        let allExpected = ConsentEngine.useCaseLibrary
+            .reduce(into: Set<UHDRElement>()) { $0.formUnion($1.requiredElements) }
+        let returned = ConsentEngine.minimumNecessaryElements(for: allIDs)
+        // Every returned element must be present in at least one use case.
+        for element in returned {
+            XCTAssertTrue(
+                allExpected.contains(element),
+                "\(element.rawValue) returned but is not required by any use case — over-grant."
+            )
+        }
+    }
+
     // MARK: - Consent document generation
 
     func testConsentDocumentGeneration() {
