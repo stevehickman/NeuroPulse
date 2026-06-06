@@ -46,6 +46,17 @@
 #include "np_dfu.h"
 #include <string.h>
 
+/* SNVS_LPGPR2 — anonymisation in-progress flag (NP-FW-EMMC-002 §D.6) ──────── */
+/* Defined locally to avoid colliding with Unit 1's parallel edit to           */
+/* np_config.h.  When np_config.h gains these defs, the merge reviewer must     */
+/* delete these locals and keep the np_config.h versions.                       */
+#ifndef NP_SNVS_LPGPR2
+#define NP_SNVS_LPGPR2              (*(volatile uint32_t *)(NP_SNVS_BASE + 0x70U))
+#endif
+#ifndef NP_SNVS_ANON_IN_PROGRESS
+#define NP_SNVS_ANON_IN_PROGRESS    (1UL << 0U)
+#endif
+
 /* ── i.MX RT1062 Image Vector Table (IVT) ────────────────────────────────── */
 /* The ROM boot loader reads the IVT at offset 0x000 of the eMMC boot         */
 /* partition to locate the bootloader entry point and load address.           */
@@ -277,6 +288,18 @@ void Bootloader_Reset(void)
 
     /* B-1: Zero the Scratch partition (power-loss safety) ──────────────── */
     zero_scratch_partition();
+
+    /* Anonymisation power-loss recovery (NP-FW-EMMC-002 §D.6) ──────────── */
+    /* If a research anonymisation run was interrupted by power loss, the    */
+    /* SNVS_LPGPR2 in-progress flag is still set.  The per-run AES key lived */
+    /* only in SRAM and is gone, so the staged Scratch ciphertext is already */
+    /* unreadable; SANITIZE Scratch (via erase) anyway and clear the flag.   */
+    /* This must run before the OTA_PENDING check so recovery is unconditional*/
+    /* with respect to the boot path taken below.                            */
+    if (NP_SNVS_LPGPR2 & NP_SNVS_ANON_IN_PROGRESS) {
+        np_emmc_erase(NP_SCRATCH_LBA_START, NP_SCRATCH_SIZE_LBA);
+        NP_SNVS_LPGPR2 &= ~NP_SNVS_ANON_IN_PROGRESS;
+    }
 
     /* B-2: Read boot bank and OTA status from SNVS_LPGPR0 ──────────────── */
     {
