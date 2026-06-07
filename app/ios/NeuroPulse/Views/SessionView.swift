@@ -30,6 +30,10 @@ struct SessionView: View {
     @State private var lastCoherenceScore:   Float?
     @State private var lastRMSSD:            UInt16?
 
+    // ISC-30: post-session download state. Reset each time a new session starts.
+    @State private var sessionDownloadInProgress = false
+    @State private var sessionDownloadError:     String?
+
     // Biometric written-release acceptance (ISC-90). EEG features disabled until
     // the user has consented to brainwave-data collection (shown to all users once).
     @AppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
@@ -139,6 +143,8 @@ struct SessionView: View {
         case (.idle, .running), (.paused, .running):
             runningStartedAt = Date()
             runningProtocolID = gatt.session.protocolID
+            sessionDownloadInProgress = false   // reset download state for new session
+            sessionDownloadError = nil
         case (.running, .completed):
             let durationSecs = runningStartedAt.map { UInt32(max(0, Date().timeIntervalSince($0))) } ?? 0
             let record = CompletedSessionSummary(
@@ -149,7 +155,7 @@ struct SessionView: View {
                 averageCoherenceScore: lastCoherenceScore,
                 rmssdMilliseconds: lastRMSSD,
                 impedancePassCount: lastImpedancePass,
-                edfSessionID: gatt.session.epoch
+                edfSessionID: Self.edfSessionID(from: gatt.session.epoch)
             )
             history.record(record)
         default: break
@@ -437,7 +443,77 @@ struct SessionView: View {
                 .buttonStyle(.bordered)
                 .disabled(gatt.connectionState != .connected)
             }
+
+            // ISC-30: show download button when hub has completed a session with a valid ID.
+            if Self.shouldShowSessionDownload(status: gatt.session.status, epoch: gatt.session.epoch) {
+                sessionDownloadControl
+            }
         }
+    }
+
+    // ISC-30: download button / progress / error for the completed session.
+    @ViewBuilder
+    private var sessionDownloadControl: some View {
+        if sessionDownloadInProgress {
+            HStack(spacing: 10) {
+                ProgressView()
+                Text("Downloading session data…")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+        } else {
+            VStack(spacing: 6) {
+                Button {
+                    startCompletedSessionDownload()
+                } label: {
+                    Label("Download Session Data", systemImage: "arrow.down.doc")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Download session data")
+
+                if let err = sessionDownloadError {
+                    Text(err)
+                        .font(.caption)
+                        .foregroundColor(.red)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+    }
+
+    private func startCompletedSessionDownload() {
+        let epoch = gatt.session.epoch
+        guard epoch != 0 else { return }
+        sessionDownloadInProgress = true
+        sessionDownloadError = nil
+        Task {
+            do {
+                _ = try await edfLoader.requestDownload(sessionID: epoch)
+            } catch let error as EDFDownloadError {
+                Self.logger.error("Post-session EDF download failed: \(String(describing: error))")
+                sessionDownloadError = error.errorDescription ?? "Download failed."
+            } catch {
+                Self.logger.error("Post-session EDF download failed: \(String(describing: error))")
+                sessionDownloadError = "Download failed. Check hub connection and try again."
+            }
+            sessionDownloadInProgress = false
+        }
+    }
+
+    // MARK: - ISC-30 pure helpers (static for unit testability)
+
+    /// True when the hub has completed a session with a hub-assigned session ID.
+    /// epoch == 0 means the hub never set a session ID → no download to offer.
+    static func shouldShowSessionDownload(status: SessionStatus, epoch: UInt32) -> Bool {
+        status == .completed && epoch != 0
+    }
+
+    /// Maps hub epoch to Optional edfSessionID. epoch 0 → nil (no hub record).
+    static func edfSessionID(from epoch: UInt32) -> UInt32? {
+        epoch == 0 ? nil : epoch
     }
 
     private var regulatoryFooter: some View {
