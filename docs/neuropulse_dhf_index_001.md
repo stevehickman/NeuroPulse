@@ -1,7 +1,7 @@
 # NP-DHF-001 Rev L — NeuroPulse Design History File Index
 
 **Document number:** NP-DHF-001  
-**Revision:** L  
+**Revision:** M  
 **Status:** ACTIVE  
 **Effective date:** 2026-06-07  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -126,7 +126,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-SES-1064-001 | 1064nm Multi-Wavelength Session Protocol | A | 2026-05-12 | [neuropulse_session_protocol_1064_001.md](./neuropulse_session_protocol_1064_001.md) | ACTIVE | SES |
-| NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE — 164 ISCs, 17 groups, PR #106 (feature/ios-parallel-integration). Three known validator safety gaps flagged as XCTExpectFailure: app-side charge density, PBM dose, zero-duration. OI-PA-01 (age gate legal threshold) open. | APP |
+| NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE — 164 ISCs, 17 groups, **progress 20/164** (commit 9ce36a5). Session Display Mode 1 (ISC-21–34, ISC-161/162/164) all verified and checked. ISC-30 implemented (Download Session Data button on `.completed`); epoch→edfSessionID bug fixed (epoch 0 → nil); `SessionDisplayTests.swift` adds 5 unit tests. OI-PA-01 (age gate legal threshold) open. | APP |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | B | 2026-06-03 | [neuropulse_ios_app_roadmap_001.md](./neuropulse_ios_app_roadmap_001.md) | ACTIVE — Rev B adds §9 Privacy Constraints (binding engineering constraints): HealthKit residency, minimum age gate (16+), BIPA written release screen for IL users, Adaptive Adjustments card, SDK init gate; OI-PA-01 OPEN; OI-PA-02/03 OPEN; OI-WA-06 OPEN. AgeGateView.swift now implemented (Issue #51, PR #106) — OI-PA-01 (legal counsel threshold confirmation) remains open. | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | B | 2026-06-03 | [neuropulse_app_telemetry_001.md](./neuropulse_app_telemetry_001.md) | ACTIVE — Rev B: `session_sequence` (raw integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev B LOW-03; §3.2 implementation note added | APP |
 | — | NPPS Protocol Scripting Language Reference | — | 2026-05-16 | [npps-reference.md](./npps-reference.md) | ACTIVE | APP |
@@ -255,7 +255,7 @@ The iOS application source code is a Class B software item under NP-SW-001. Sour
 | Apple Watch bridge (PhoneSessionManager) | Class B | NP-APP-ISA-001 ISC-122–125 | `app/ios/NeuroPulse/WatchBridge/` |
 | App entry point and service wiring (NeuroPulseApp) | Class B | NP-APP-ISA-001 | `app/ios/NeuroPulse/NeuroPulseApp.swift` |
 
-**Test target:** `app/ios/NeuroPulseTests/` — 6 XCTest suites, 44 tests, all passing as of PR #106. Three `XCTExpectFailure` entries document known validator gaps (charge density, PBM dose, zero-duration) requiring follow-up implementation.
+**Test target:** `app/ios/NeuroPulseTests/` — 7 XCTest suites, 49 tests, all passing as of commit 9ce36a5. Three `XCTExpectFailure` entries document known validator gaps (charge density, PBM dose, zero-duration) requiring follow-up implementation. `SessionDisplayTests.swift` (5 tests, added 2026-06-07) covers ISC-30 `shouldShowSessionDownload` predicate and `edfSessionID(from:)` epoch mapping.
 
 ---
 
@@ -318,6 +318,7 @@ Planned near-term additions:
 | C | 2026-05-17 | Interim Quality (CEO) | NP-SIM-001 v0.1.0 (Helmet Simulator) added to §5.5; SIM category added to §4. CLAUDE.md → Rev 11. Note added below §5.5 clarifying simulator regulatory status. Open sub-issues #77–#80 recorded under parent Issue #81 / PR #76. |
 | D | 2026-05-17 | Steve Hickman (CEO, interim Quality authority) | NP-DP-001 Rev A (Design and Development Plan) released and added to §5.1. DHF completeness assessment — design planning row upgraded from Partial to Good. NP-DP-001 removed from §8 planned additions (marked COMPLETE). CEO name added to Author/Approved-by fields throughout. |
 | E | 2026-05-17 | Steve Hickman (CEO, interim Quality authority) | NP-SIM-001 updated v0.1.0 → v0.2.0 in §5.5 note — WebSocket device API (Issue #77, PR #84 CLOSED) and intranasal Y-probe animation + ACCESSORY_CONFIG (Issue #78, PR #85 CLOSED). Open sub-issues reduced to #79–#80. CLAUDE.md → Rev 13. |
+| M | 2026-06-07 | Steve Hickman (CEO, interim Quality authority) | **Session Display Mode 1 implementation complete — ISC-30 + 17 ISCs verified (commit 9ce36a5).** NP-APP-ISA-001 status updated: progress 3/164 → 20/164. ISC-30 implemented: `SessionView.sessionDownloadControl` shows "Download Session Data" button when `status == .completed && epoch != 0`; `startCompletedSessionDownload()` calls `EDFDownloader.requestDownload(sessionID:)`. Epoch bug fixed: `edfSessionID: gatt.session.epoch` was `Optional(0)` (non-nil) for hub-unassigned sessions; corrected to `Self.edfSessionID(from:)` → `nil` when epoch 0. `SessionDisplayTests.swift` added (7th XCTest suite, 5 tests, covers ISC-30 predicate + epoch mapping). ISC-21 through ISC-34, ISC-161, ISC-162, ISC-164 code-review verified and checked off in ISA. §6b test count updated: 6 suites 44 tests → 7 suites 49 tests. |
 | L | 2026-06-07 | Steve Hickman (CEO, interim Quality authority) | **Three new documents added — NP-FMEA-001 Rev A (SW-01 Safety MCU Unit-Level FMEA, PR #120), NP-API-001 Rev A (T2 Clinical Scripting API Specification, PR #121), NP-DT-001 Rev A (Design Input/Output Traceability Matrix, PR #122).** NP-FMEA-001 added to §5.7 Risk Management Records (43 failure modes, 2 initial UNACCEPTABLE risks mitigated, 5 open items). NP-API-001 added to §5.5 Session/Protocol/Application Specifications (G1 gate item COMPLETE; security audit NP-SEC-PENTEST-002 required before clinical key issuance). NP-DT-001 added to §5.1 QMS and Quality Documents (G2 exit criterion per NP-DP-001 §6.4). §7 DHF completeness — design inputs and design outputs rows upgraded from Partial to Good. §8 planned additions — NP-API-001 and NP-DT-001 marked COMPLETE. CLAUDE.md updated Rev 17 → Rev 22 in §5.2. Header corrected Rev I → Rev L (footer was already at Rev K; this revision closes the discrepancy). |
 | H | 2026-06-03 | Steve Hickman (CEO, interim Quality authority) | **NP-PRIV-AUDIT-001 Rev A released** — iOS/Android app privacy audit (STEP-21 of NP-PRIV-REM-001). 16 findings (0 Critical, 5 High, 7 Medium, 4 Low). 16-item compliance checklist (AUDIT-01 through AUDIT-16) all OPEN — gates external beta. NP-PRIV-AUDIT-001 added to §5.13 Privacy and Security Documents. NP-PRIV-AUDIT-001 marked COMPLETE in §8 planned additions. CLAUDE.md §13.4 pending item "App privacy audit" marked [x]. CLAUDE.md §14 document register updated with NP-PRIV-AUDIT-001 Rev A entry. |
 | K | 2026-06-04 | Steve Hickman (CEO, interim Quality authority) | **PR #107 — iOS validator safety gaps closed + PrivacyInfo.xcprivacy bundle fix.** `PrivacyInfo.xcprivacy` was on disk but absent from `project.pbxproj` (zero refs) — added to Copy Bundle Resources; without this the privacy manifest does not ship in the app bundle (ISC-133 now verified). Three `XCTExpectFailure`-wrapped validator tests converted to real passing tests: tDCS charge density guard (ISC-38: `I×t/electrodeArea > 40 µC/cm² → error`; `tdcsDefaultElectrodeAreaCm2 = 35 cm²` added to `NPHardwareLimits`); zero-duration hard rejection (ISC-47: `dur ≤ 0 → .error`, was `.warning`); PBM session dose guard (ISC-47: estimated dose vs `maxSessionDoseJCm2` limit). `NPProtocolValidatorTests` 9/9 passing with zero `XCTExpectFailure`. NP-APP-ISA-001 updated: ISC-38, ISC-47, ISC-133 marked `[x]`; Decisions and Verification sections populated; progress 0/164 → 3/164. |
@@ -328,4 +329,4 @@ Planned near-term additions:
 
 ---
 
-*NP-DHF-001 Rev L — ACTIVE — Effective 2026-06-07*
+*NP-DHF-001 Rev M — ACTIVE — Effective 2026-06-07*
