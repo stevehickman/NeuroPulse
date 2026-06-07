@@ -10,16 +10,18 @@ import Foundation
 
 enum EDFDownloadError: LocalizedError {
     case notConnected
+    case alreadyDownloading
     case requestFailed(Error)
     case noDataReceived
     case parseError(String)
 
     var errorDescription: String? {
         switch self {
-        case .notConnected:         return "Hub not connected. Reconnect via USB-C to download session data."
-        case .requestFailed(let e): return "Download request failed: \(e.localizedDescription)"
-        case .noDataReceived:       return "No session data received from hub."
-        case .parseError(let s):    return "EDF+ parse error: \(s)"
+        case .notConnected:          return "Hub not connected. Reconnect via USB-C to download session data."
+        case .alreadyDownloading:    return "A download is already in progress."
+        case .requestFailed(let e):  return "Download request failed: \(e.localizedDescription)"
+        case .noDataReceived:        return "No session data received from hub."
+        case .parseError(let s):     return "EDF+ parse error: \(s)"
         }
     }
 }
@@ -77,12 +79,17 @@ final class EDFDownloader: ObservableObject {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         uhdrDirectory = docs.appendingPathComponent("UHDR", isDirectory: true)
         try? FileManager.default.createDirectory(at: uhdrDirectory, withIntermediateDirectories: true)
+        // EDF+ files contain raw EEG/HRV waveforms (UHDR) — must not sync to iCloud/iTunes.
+        try? (uhdrDirectory as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
     }
 
     // Request EDF+ download for a session by ID.
     // The hub will queue the file for USB-C transfer; the app polls the UHDR directory.
     func requestDownload(sessionID: UInt32) async throws -> EDFSession {
         guard gatt.connectionState == .connected else { throw EDFDownloadError.notConnected }
+        // Reject concurrent callers — two downloads of the same session would append
+        // duplicate entries to downloadedSessions.
+        guard !isDownloading else { throw EDFDownloadError.alreadyDownloading }
         isDownloading = true
         lastError = nil
         defer { isDownloading = false }
@@ -90,7 +97,7 @@ final class EDFDownloader: ObservableObject {
         try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
             gatt.requestEDFDownload(sessionID: sessionID) { result in
                 switch result {
-                case .success:      cont.resume()
+                case .success:        cont.resume()
                 case .failure(let e): cont.resume(throwing: EDFDownloadError.requestFailed(e))
                 }
             }
@@ -103,11 +110,18 @@ final class EDFDownloader: ObservableObject {
 
         while !FileManager.default.fileExists(atPath: expectedURL.path) {
             guard Date() < timeout else { throw EDFDownloadError.noDataReceived }
+            try Task.checkCancellation()
             try await Task.sleep(nanoseconds: 500_000_000)  // 500ms poll
         }
 
+        // Exclude the landed file from iCloud/iTunes backup — UHDR (raw waveforms).
+        try? (expectedURL as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
+
         let session = try parseEDFFile(at: expectedURL, sessionID: sessionID)
-        downloadedSessions.append(session)
+        // Deduplicate: a re-download of an existing session must not create a second entry.
+        if !downloadedSessions.contains(where: { $0.sessionID == sessionID }) {
+            downloadedSessions.append(session)
+        }
         return session
     }
 

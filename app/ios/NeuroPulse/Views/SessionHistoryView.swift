@@ -21,6 +21,7 @@ struct SessionHistoryView: View {
     @EnvironmentObject private var edfLoader: EDFDownloader
 
     @State private var edfState: EDFButtonState = .idle
+    @State private var edfDownloadTask: Task<Void, Never>?
 
     private static let logger = Logger(subsystem: "com.neuropulse.app", category: "SessionHistoryView")
 
@@ -50,6 +51,7 @@ struct SessionHistoryView: View {
             }
             .navigationTitle("Session Summary")
             .navigationBarTitleDisplayMode(.inline)
+            .onDisappear { edfDownloadTask?.cancel() }
         }
     }
 
@@ -182,8 +184,10 @@ struct SessionHistoryView: View {
     // to Documents/UHDR unmodified. We never decode or rewrite the patient header.
     private func startEDFDownload() {
         guard let sessionID = completedSession.edfSessionID else { return }
+        guard edfState != .downloading else { return }
         edfState = .downloading
-        Task {
+        edfDownloadTask = Task {
+            defer { if edfState == .downloading { edfState = .idle } }
             do {
                 let session = try await edfLoader.requestDownload(sessionID: sessionID)
                 if let url = session.localURL {
@@ -191,11 +195,15 @@ struct SessionHistoryView: View {
                 } else {
                     edfState = .failed("Download completed but no file location was returned.")
                 }
+            } catch is CancellationError {
+                // Task cancelled (view dismissed mid-download). defer resets to .idle.
+                Self.logger.info("EDF download cancelled")
             } catch let error as EDFDownloadError {
-                Self.logger.error("EDF download failed: \(String(describing: error))")
-                edfState = .failed(error.errorDescription ?? "Download failed.")
+                let desc = error.errorDescription ?? "EDF download failed. Check hub connection."
+                Self.logger.error("EDF download failed: \(desc, privacy: .public)")
+                edfState = .failed(desc)
             } catch {
-                Self.logger.error("EDF download failed: \(String(describing: error))")
+                Self.logger.error("EDF download failed (unexpected): \(String(describing: type(of: error)), privacy: .public)")
                 edfState = .failed("Download failed. Please try again.")
             }
         }

@@ -79,6 +79,8 @@ final class SessionHistoryStoreTests: XCTestCase {
         XCTAssertEqual(r.averageCoherenceScore ?? 0, 8.3, accuracy: 0.01)
         XCTAssertEqual(r.rmssdMilliseconds, 55)
         XCTAssertEqual(r.impedancePassCount, 6)
+        // edfSessionID is in-memory only (UHDR boundary — not serialized). The in-memory
+        // record carries it; after a reload from UserDefaults it will be nil.
         XCTAssertEqual(r.edfSessionID, 9999)
     }
 
@@ -212,6 +214,22 @@ final class SessionHistoryStoreTests: XCTestCase {
         XCTAssertNil(row["completedAt"], "Exact timestamp must not be persisted (UHDR boundary)")
         XCTAssertNotNil(row["sessionDay"], "sessionDay must be present in persisted blob")
         XCTAssertNotNil(row["insertionIndex"], "insertionIndex must be present in persisted blob")
+    }
+
+    func testPersistedBlobContainsNoEdfSessionID() throws {
+        let suite = makeSuite(#function)
+        let store = SessionHistoryStore(defaults: suite)
+        store.record(makeSummary(edfID: 9999))
+
+        let data = try XCTUnwrap(suite.data(forKey: "np.session.history"))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [[String: Any]])
+        let row  = try XCTUnwrap(json.first)
+
+        // edfSessionID is a Unix-ms timestamp (UHDR-class) and must not be persisted
+        // to the backed-up UserDefaults store. (PRIV-ISC30-02)
+        XCTAssertNil(row["edfSessionID"], "edfSessionID (UHDR epoch) must not be serialized to UserDefaults")
+        // In-memory record should still carry it for the live post-session window.
+        XCTAssertEqual(store.records.first?.edfSessionID, 9999)
     }
 
     func testNewRecordsWritableAfterCorruptBlobRecovery() {

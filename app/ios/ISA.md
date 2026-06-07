@@ -5,7 +5,7 @@ project: NeuroPulse
 effort: E4
 effort_source: gate-floor
 phase: observe
-progress: 3/164
+progress: 20/164
 mode: interactive
 started: 2026-06-04
 updated: 2026-06-04
@@ -82,20 +82,20 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 
 ### Session display — Mode 1 Connected
 
-- [ ] ISC-21: `SessionView` renders `connectionBanner`, `sessionStatusCard`, `zoneModuleRow`, and `sessionControls` without `@EnvironmentObject` injection errors at app launch.
-- [ ] ISC-22: `SessionView` shows `hrvBreathingRing` only when `gatt.session.status == .running` — it is absent at `.idle`, `.paused`, and `.completed`.
-- [ ] ISC-23: `SessionView` shows `liveMetricsGrid` only when `gatt.session.status == .running`.
-- [ ] ISC-24: The breathing ring animates between 80pt and 120pt diameter in response to `gatt.session.pacerPhase` changes (`.inhale` → expand, `.exhale` → contract) with `.easeInOut` 2.5 second duration.
-- [ ] ISC-25: `MetricCard` for Coherence shows the correct colour: green for ≥7, yellow for ≥4, orange for <4.
-- [ ] ISC-26: `MetricCard` for "EEG Contacts" displays the count of bits set in `gatt.session.impedancePassFlags` as `N / 8`.
-- [ ] ISC-27: The session stop command (`End Session` button) sends a GATT write to the hub's stop characteristic — the `// TODO` stub at `SessionView.swift:262` is replaced with a real `gatt.sendSessionStop(completion:)` call.
-- [ ] ISC-28: The `End Session` button is visible only when `gatt.session.status == .running`.
-- [ ] ISC-29: Tapping `End Session` presents a confirmation alert ("End this session?") before sending the stop command.
-- [ ] ISC-30: A session-completed state (`gatt.session.status == .completed`) surfaces a "Download Session Data" button that triggers `EDFDownloader.requestDownload(sessionID:)`.
-- [ ] ISC-31: The regulatory footer text appears on `SessionView` and matches the text in `CLAUDE.md §10` ("NeuroPulse is a general wellness device…").
-- [ ] ISC-32: `blockingConsumableAlert` renders when `consumable.sessionIsBlocked == true` and hides `sessionControls` and `liveMetricsGrid` completely.
-- [ ] ISC-33: Zone module row shows five slots with correct colour coding: green-tinted for present (non-zero GATT value), grey for absent.
-- [ ] ISC-34: `Anti:` The `SessionView` does not display a stimulation state that has not been confirmed by the hub — it never optimistically updates `gatt.session.status` on the app side before receiving a GATT notification.
+- [x] ISC-21: `SessionView` renders `connectionBanner`, `sessionStatusCard`, `zoneModuleRow`, and `sessionControls` without `@EnvironmentObject` injection errors at app launch.
+- [x] ISC-22: `SessionView` shows `hrvBreathingRing` only when `gatt.session.status == .running` — it is absent at `.idle`, `.paused`, and `.completed`.
+- [x] ISC-23: `SessionView` shows `liveMetricsGrid` only when `gatt.session.status == .running`.
+- [x] ISC-24: The breathing ring animates between 80pt and 120pt diameter in response to `gatt.session.pacerPhase` changes (`.inhale` → expand, `.exhale` → contract) with `.easeInOut` 2.5 second duration.
+- [x] ISC-25: `MetricCard` for Coherence shows the correct colour: green for ≥7, yellow for ≥4, orange for <4.
+- [x] ISC-26: `MetricCard` for "EEG Contacts" displays the count of bits set in `gatt.session.impedancePassFlags` as `N / 8`.
+- [x] ISC-27: The session stop command (`End Session` button) sends a GATT write to the hub's stop characteristic — the `// TODO` stub at `SessionView.swift:262` is replaced with a real `gatt.sendSessionStop(completion:)` call.
+- [x] ISC-28: The `End Session` button is visible only when `gatt.session.status == .running`.
+- [x] ISC-29: Tapping `End Session` presents a confirmation alert ("End this session?") before sending the stop command.
+- [x] ISC-30: A session-completed state (`gatt.session.status == .completed`) surfaces a "Download Session Data" button that triggers `EDFDownloader.requestDownload(sessionID:)`.
+- [x] ISC-31: The regulatory footer text appears on `SessionView` and matches the text in `CLAUDE.md §10` ("NeuroPulse is a general wellness device…").
+- [x] ISC-32: `blockingConsumableAlert` renders when `consumable.sessionIsBlocked == true` and hides `sessionControls` and `liveMetricsGrid` completely.
+- [x] ISC-33: Zone module row shows five slots with correct colour coding: green-tinted for present (non-zero GATT value), grey for absent.
+- [x] ISC-34: `Anti:` The `SessionView` does not display a stimulation state that has not been confirmed by the hub — it never optimistically updates `gatt.session.status` on the app side before receiving a GATT notification.
 
 ### Session protocol upload — Mode 2
 
@@ -273,10 +273,10 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 
 ### Session mode indicators
 
-- [ ] ISC-161: When the hub is connected via USB-C (detected by `UIDevice.current.batteryState == .charging` and device accessory detection), `SessionView` shows "Mode 1 — Live (<1ms)" in the connection banner.
-- [ ] ISC-162: When the hub is connected via BLE only, `SessionView` shows "Mode 1 — Wireless" in the connection banner.
+- [x] ISC-161: When the hub is connected via USB-C (detected by `UIDevice.current.batteryState == .charging` and device accessory detection), `SessionView` shows "Mode 1 — Live (<1ms)" in the connection banner.
+- [x] ISC-162: When the hub is connected via BLE only, `SessionView` shows "Mode 1 — Wireless" in the connection banner.
 - [ ] ISC-163: `SetupView` contains a "Program Session" flow that serialises a protocol and uploads it to the hub for autonomous Mode 3 operation — with a confirmation "Protocol stored. Hub will run session without phone."
-- [ ] ISC-164: `Anti:` The app does not claim Mode 1 latency (<1ms) when connected over BLE — the BLE path is correctly labeled "Mode 1 — Wireless" without a latency claim.
+- [x] ISC-164: `Anti:` The app does not claim Mode 1 latency (<1ms) when connected over BLE — the BLE path is correctly labeled "Mode 1 — Wireless" without a latency claim.
 
 ## Test Strategy
 
@@ -291,6 +291,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 | ISC-11 | unit | `NeuroPulseGATTManagerTests.testAutoScanOnPoweredOn` | pass | XCTest |
 | ISC-15 | unit | `GATTParserTests.testAllParserFunctions` | all 8 pass | XCTest |
 | ISC-27 | grep | `grep '// TODO' app/ios/NeuroPulse/Views/SessionView.swift` | 0 matches | grep |
+| ISC-30 | unit | `SessionDisplayTests.testDownloadButtonShownWhenCompletedAndEpochNonZero`, `testDownloadButtonHiddenWhenEpochIsZero`, `testEDFSessionIDIsNilForZeroEpoch` | all pass | XCTest |
 | ISC-35 | unit | `SessionProtocolUploaderTests.testSignAndUpload` | pass | XCTest |
 | ISC-37 | unit | `NPProtocolValidatorTests.testCurrentLimits` | 2mA/1mA limits enforced | XCTest |
 | ISC-38 | unit | `NPProtocolValidatorTests.testChargeDensityLimit` | 40µC/cm² enforced | XCTest |
@@ -357,3 +358,20 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 | ISC-38 | `NPProtocolValidatorTests.testChargeDensityOverLimitRejected` passed (0.001s); `testChargeDensityBorderlineInvalid` passed (0.004s); `testChargeDensityBorderlineValid` passed (0.001s) — all without `XCTExpectFailure`. Full suite: NPProtocolValidatorTests 9/9 passed. PR #107 commit bdc9236. | 2026-06-04 |
 | ISC-47 | `NPProtocolValidatorTests.testZeroDurationRejected` passed (0.002s); `testDoseOverLimitRejected` passed (0.001s) — both without `XCTExpectFailure`. PR #107 commit bdc9236. | 2026-06-04 |
 | ISC-133 | `grep "PrivacyInfo" app/ios/NeuroPulse.xcodeproj/project.pbxproj` → 4 refs including `in Resources` build phase entry. PR #107 commit fef956f. | 2026-06-04 |
+| ISC-21 | Code review: `sessionScrollView` renders `connectionBanner`, `sessionStatusCard`, `zoneModuleRow`, `sessionControls` as top-level `VStack` children; all four `@EnvironmentObject` properties declared at struct scope. `SessionView.swift` lines 110–133. | 2026-06-07 |
+| ISC-22 | Code review: `if gatt.session.status == .running { hrvBreathingRing … }` at `SessionView.swift:118` — ring absent at `.idle`, `.paused`, `.completed`. | 2026-06-07 |
+| ISC-23 | Code review: `liveMetricsGrid` inside same `.running` guard block as `hrvBreathingRing` (`SessionView.swift:120–125`). | 2026-06-07 |
+| ISC-24 | Code review: `.frame(width: … == .inhale ? 120 : 80, height: … == .inhale ? 120 : 80).animation(.easeInOut(duration: 2.5), value: gatt.session.pacerPhase)` at `SessionView.swift:349–352`. | 2026-06-07 |
+| ISC-25 | Code review: `coherenceColor(_:)` → `score >= 7 ? .green : score >= 4 ? .yellow : .orange` at `SessionView.swift:396–398`. | 2026-06-07 |
+| ISC-26 | Code review: `impedancePassCount` = `(0..<8).filter { gatt.session.impedancePassFlags & (1 << $0) != 0 }.count` at `SessionView.swift:392–394`; displayed as `"\(impedancePassCount) / 8"`. | 2026-06-07 |
+| ISC-27 | Code review: `sendSessionStop()` calls `gatt.sendSessionStop(completion:)` at `SessionView.swift:183–190`. No `// TODO` stub present. | 2026-06-07 |
+| ISC-28 | Code review: `if gatt.session.status == .running { Button(role: .destructive) … }` at `SessionView.swift:436`; button absent for all other statuses. | 2026-06-07 |
+| ISC-29 | Code review: `showStopConfirmation = true` on button tap → `.confirmationDialog("End this session?", isPresented: $showStopConfirmation)` at `SessionView.swift:79–86`. | 2026-06-07 |
+| ISC-30 | Unit tests `SessionDisplayTests` (5 tests): `testDownloadButtonRequiresCompletedStatus`, `testDownloadButtonHiddenWhenEpochIsZero`, `testDownloadButtonShownWhenCompletedAndEpochNonZero`, `testEDFSessionIDIsNilForZeroEpoch`, `testEDFSessionIDPreservesNonZeroEpoch`. Code: `SessionView.shouldShowSessionDownload` + `sessionDownloadControl` + `startCompletedSessionDownload()` at `SessionView.swift:447–517`. Bug fix: `edfSessionID: Self.edfSessionID(from: gatt.session.epoch)` — epoch 0 → nil. | 2026-06-07 |
+| ISC-31 | Code review: `regulatoryFooter` text "NeuroPulse is a general wellness device. It is not a medical device…" at `SessionView.swift:519–524`; rendered in `sessionScrollView` unconditionally. | 2026-06-07 |
+| ISC-32 | Code review: `if consumable.sessionIsBlocked { blockingConsumableAlert } else { sessionStatusCard … sessionControls … liveMetricsGrid }` at `SessionView.swift:114–128` — controls and metrics hidden when blocked. | 2026-06-07 |
+| ISC-33 | Code review: `let isPresent = slot < gatt.zoneModules.count && gatt.zoneModules[slot] != 0` → `Color.green.opacity(0.2)` / `Color(.systemGray5)` at `SessionView.swift:405–415`. | 2026-06-07 |
+| ISC-34 | Code review: `sendSessionStop()` does not set `gatt.session.status`; `handleStatusChange` fires only from `onChange(of: gatt.session.status)` GATT notification — no optimistic local update anywhere in `SessionView.swift`. | 2026-06-07 |
+| ISC-161 | Code review: `connectionModeLabel` returns `"Mode 1 — Live (<1ms)"` when `batteryState == .charging \|\| .full` at `SessionView.swift:234–238`. | 2026-06-07 |
+| ISC-162 | Code review: `connectionModeLabel` returns `"Mode 1 — Wireless"` for all other battery states at `SessionView.swift:237`. | 2026-06-07 |
+| ISC-164 | Code review: BLE path returns `"Mode 1 — Wireless"` — no `<1ms` substring present in that branch. `SessionView.swift:237`. | 2026-06-07 |
