@@ -57,4 +57,38 @@ final class SessionDisplayTests: XCTestCase {
         XCTAssertEqual(SessionView.edfSessionID(from: 1001),       1001)
         XCTAssertEqual(SessionView.edfSessionID(from: UInt32.max), UInt32.max)
     }
+
+    // MARK: - Epoch-zero boundary: both helpers must agree
+
+    func testBothHelpersAgreeAtEpochZero() {
+        // shouldShowSessionDownload and edfSessionID are called independently in
+        // production — this ensures they cannot diverge at the epoch==0 boundary.
+        let epoch: UInt32 = 0
+        let buttonShown = SessionView.shouldShowSessionDownload(status: .completed, epoch: epoch)
+        let sessionID   = SessionView.edfSessionID(from: epoch)
+        XCTAssertFalse(buttonShown, "button must be hidden when epoch is zero")
+        XCTAssertNil(sessionID,     "edfSessionID must be nil when epoch is zero")
+        XCTAssertEqual(buttonShown, sessionID != nil,
+                       "helpers must agree: button shown iff edfSessionID is non-nil")
+    }
+
+    func testBothHelpersAgreeAtEpochNonZero() {
+        let epoch: UInt32 = 42
+        let buttonShown = SessionView.shouldShowSessionDownload(status: .completed, epoch: epoch)
+        let sessionID   = SessionView.edfSessionID(from: epoch)
+        XCTAssertTrue(buttonShown,       "button must be shown when epoch is non-zero and completed")
+        XCTAssertNotNil(sessionID,       "edfSessionID must be non-nil when epoch is non-zero")
+        XCTAssertEqual(buttonShown, sessionID != nil,
+                       "helpers must agree: button shown iff edfSessionID is non-nil")
+    }
+
+    func testDownloadButtonHiddenForAllNonCompletedStatusesWithZeroEpoch() {
+        // Combines both axes of the AND predicate — neither condition alone is sufficient.
+        for status in [SessionStatus.idle, .running, .paused] {
+            XCTAssertFalse(
+                SessionView.shouldShowSessionDownload(status: status, epoch: 0),
+                "\(status) + epoch 0 must hide the button"
+            )
+        }
+    }
 }

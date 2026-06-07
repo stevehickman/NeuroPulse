@@ -30,9 +30,16 @@ struct SessionView: View {
     @State private var lastCoherenceScore:   Float?
     @State private var lastRMSSD:            UInt16?
 
-    // ISC-30: post-session download state. Reset each time a new session starts.
-    @State private var sessionDownloadInProgress = false
-    @State private var sessionDownloadError:     String?
+    // Reset to .idle when a new session starts so stale download state never carries across sessions.
+    @State private var sessionDownloadState: SessionDownloadState = .idle
+    @State private var downloadTask: Task<Void, Never>?
+
+    private enum SessionDownloadState: Equatable {
+        case idle
+        case downloading
+        case downloaded(URL)
+        case failed(String)
+    }
 
     // Biometric written-release acceptance (ISC-90). EEG features disabled until
     // the user has consented to brainwave-data collection (shown to all users once).
@@ -108,6 +115,7 @@ struct SessionView: View {
                     hrvBiofeedbackActive: hrvBiofeedbackActive,
                     onStatusChange: handleStatusChange
                 )
+                .onDisappear { downloadTask?.cancel() }
         }
     }
 
@@ -143,8 +151,7 @@ struct SessionView: View {
         case (.idle, .running), (.paused, .running):
             runningStartedAt = Date()
             runningProtocolID = gatt.session.protocolID
-            sessionDownloadInProgress = false   // reset download state for new session
-            sessionDownloadError = nil
+            sessionDownloadState = .idle
         case (.running, .completed):
             let durationSecs = runningStartedAt.map { UInt32(max(0, Date().timeIntervalSince($0))) } ?? 0
             let record = CompletedSessionSummary(
@@ -444,74 +451,105 @@ struct SessionView: View {
                 .disabled(gatt.connectionState != .connected)
             }
 
-            // ISC-30: show download button when hub has completed a session with a valid ID.
             if Self.shouldShowSessionDownload(status: gatt.session.status, epoch: gatt.session.epoch) {
                 sessionDownloadControl
             }
         }
     }
 
-    // ISC-30: download button / progress / error for the completed session.
     @ViewBuilder
     private var sessionDownloadControl: some View {
-        if sessionDownloadInProgress {
-            HStack(spacing: 10) {
-                ProgressView()
-                Text("Downloading session data…")
-                    .font(.subheadline)
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 4)
-        } else {
-            VStack(spacing: 6) {
-                Button {
-                    startCompletedSessionDownload()
-                } label: {
+        VStack(spacing: 8) {
+            switch sessionDownloadState {
+            case .idle:
+                Button { startCompletedSessionDownload() } label: {
                     Label("Download Session Data", systemImage: "arrow.down.doc")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
                 .accessibilityLabel("Download session data")
 
-                if let err = sessionDownloadError {
-                    Text(err)
-                        .font(.caption)
-                        .foregroundColor(.red)
-                        .fixedSize(horizontal: false, vertical: true)
+            case .downloading:
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Downloading session data…")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
                 }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+
+            case .downloaded(let url):
+                VStack(spacing: 4) {
+                    Label("Downloaded", systemImage: "checkmark.circle.fill")
+                        .font(.subheadline.bold())
+                        .foregroundColor(.green)
+                    Text(url.lastPathComponent)
+                        .font(.caption2.monospaced())
+                        .foregroundColor(.secondary)
+                    Text("Available in the Files app under NeuroPulse.")
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 4)
+
+            case .failed(let message):
+                VStack(spacing: 8) {
+                    Label(message, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundColor(.orange)
+                        .multilineTextAlignment(.center)
+                    Button("Try Again") { startCompletedSessionDownload() }
+                        .font(.caption.bold())
+                }
+                .frame(maxWidth: .infinity)
             }
         }
     }
 
     private func startCompletedSessionDownload() {
+        guard sessionDownloadState != .downloading else { return }
         let epoch = gatt.session.epoch
-        guard epoch != 0 else { return }
-        sessionDownloadInProgress = true
-        sessionDownloadError = nil
-        Task {
+        guard epoch != 0 else {
+            // epoch == 0 means no hub session ID. shouldShowSessionDownload already
+            // guards against this, so reaching here means a GATT state race occurred.
+            Self.logger.error("startCompletedSessionDownload called with epoch == 0; GATT state race")
+            sessionDownloadState = .failed("Session data is no longer available. Please reconnect the hub.")
+            return
+        }
+        sessionDownloadState = .downloading
+        downloadTask = Task {
+            defer { if sessionDownloadState == .downloading { sessionDownloadState = .idle } }
             do {
-                _ = try await edfLoader.requestDownload(sessionID: epoch)
+                let session = try await edfLoader.requestDownload(sessionID: epoch)
+                if let url = session.localURL {
+                    sessionDownloadState = .downloaded(url)
+                } else {
+                    sessionDownloadState = .failed("Download completed but no file location was returned.")
+                }
+            } catch is CancellationError {
+                // Task was cancelled (view dismissed mid-download). defer resets to .idle.
+                Self.logger.info("Post-session EDF download cancelled")
             } catch let error as EDFDownloadError {
-                Self.logger.error("Post-session EDF download failed: \(String(describing: error))")
-                sessionDownloadError = error.errorDescription ?? "Download failed."
+                let desc = error.errorDescription ?? "EDF download failed. Check hub connection."
+                Self.logger.error("Post-session EDF download failed: \(desc, privacy: .public)")
+                sessionDownloadState = .failed(desc)
             } catch {
-                Self.logger.error("Post-session EDF download failed: \(String(describing: error))")
-                sessionDownloadError = "Download failed. Check hub connection and try again."
+                Self.logger.error("Post-session EDF download failed (unexpected): \(String(describing: type(of: error)), privacy: .public)")
+                sessionDownloadState = .failed("Download failed. Check hub connection and try again.")
             }
-            sessionDownloadInProgress = false
         }
     }
 
-    // MARK: - ISC-30 pure helpers (static for unit testability)
+    // MARK: - Download predicate helpers (static for unit testability)
 
-    /// True when the hub has completed a session with a hub-assigned session ID.
-    /// epoch == 0 means the hub never set a session ID → no download to offer.
+    // epoch == 0 means the hub never assigned a session ID for this session — no EDF file to offer.
     static func shouldShowSessionDownload(status: SessionStatus, epoch: UInt32) -> Bool {
         status == .completed && epoch != 0
     }
 
-    /// Maps hub epoch to Optional edfSessionID. epoch 0 → nil (no hub record).
+    // epoch == 0 maps to nil so CompletedSessionSummary.edfSessionID is nil, not Optional(0).
     static func edfSessionID(from epoch: UInt32) -> UInt32? {
         epoch == 0 ? nil : epoch
     }

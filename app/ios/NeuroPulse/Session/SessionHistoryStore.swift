@@ -35,7 +35,18 @@ struct SessionRecord: Identifiable, Codable, Equatable {
     var averageCoherenceScore: Float?   // 0.0–10.0; nil when protocol had no HRV
     var rmssdMilliseconds: UInt16?      // integer only — never a raw RR series
     var impedancePassCount: Int         // 0–8 EEG electrodes that passed
-    var edfSessionID: UInt32?           // hub session ID for Mode 4 EDF download; nil if unavailable
+    // edfSessionID is held in-memory only — intentionally excluded from Codable
+    // serialization. gatt.session.epoch is a Unix-ms timestamp (UHDR-class,
+    // CLAUDE.md §5.1) and must not be persisted to the backed-up UserDefaults store.
+    // The download button is available in the live post-session window; after app
+    // restart the hub presents historical sessions via Mode 4 on reconnect.
+    var edfSessionID: UInt32? = nil
+
+    private enum CodingKeys: String, CodingKey {
+        case id, protocolName, sessionDay, insertionIndex, durationSeconds
+        case averageCoherenceScore, rmssdMilliseconds, impedancePassCount
+        // edfSessionID deliberately omitted — see comment above
+    }
 
     // Shared "yyyy-MM-dd" formatter in device local timezone.
     // Used on store write and display.
