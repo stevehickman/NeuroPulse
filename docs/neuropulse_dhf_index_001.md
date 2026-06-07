@@ -1,9 +1,9 @@
-# NP-DHF-001 Rev I — NeuroPulse Design History File Index
+# NP-DHF-001 Rev L — NeuroPulse Design History File Index
 
 **Document number:** NP-DHF-001  
-**Revision:** I  
+**Revision:** L  
 **Status:** ACTIVE  
-**Effective date:** 2026-06-03  
+**Effective date:** 2026-06-07  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved by:** Steve Hickman, CEO  
 **Next review:** Ongoing — updated with each new design document release
@@ -77,6 +77,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-SW-001 | IEC 62304 Software Development Plan | A | 2026-05-13 | [neuropulse_sw_dev_plan_001.md](./neuropulse_sw_dev_plan_001.md) | ACTIVE | QMS |
 | NP-QMS-CAPA-001 | CAPA Procedure | A | 2026-05-13 | [neuropulse_capa_001.md](./neuropulse_capa_001.md) | ACTIVE | QMS |
 | NP-DP-001 | Design and Development Plan | A | 2026-05-17 | [neuropulse_dp_001.md](./neuropulse_dp_001.md) | ACTIVE | QMS |
+| NP-DT-001 | Design Input/Output Traceability Matrix — 57 design inputs (DI-PERF/SAFE/USE/REG/INT), 35 design outputs, 13 verification evidence entries; full DI→DO→VE traceability matrix; DHF completeness design-inputs row upgraded from Partial to Good; 5 open items (OI-DT-01..05); G2 exit criterion per NP-DP-001 §6.4 | A | 2026-06-07 | [neuropulse_dt_001.md](./neuropulse_dt_001.md) | ACTIVE | QMS |
 
 ### 5.2 Design Briefs and Product Specifications
 
@@ -87,9 +88,9 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-DB-003 | Design Brief | 3 | 2026-05-04 | [neuropulse_brief_r3_superseded.docx](./neuropulse_brief_r3_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-004 | Design Brief | 4 | 2026-05-07 | [neuropulse_brief_r4_superseded.docx](./neuropulse_brief_r4_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-005 | Master Design Brief | 5 | 2026-05-16 | [neuropulse_design_brief_r5.docx](./neuropulse_design_brief_r5.docx) | ACTIVE | REQ |
-| — | CLAUDE.md — Project Design Memory | 17 | 2026-06-03 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
+| — | CLAUDE.md — Project Design Memory | 22 | 2026-06-07 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
 
-**Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change. Rev 17 (2026-06-03) adds: NP-FW-ANON-001, NP-LEGAL-BAA-001, NP-INT-FHIR-001 to §14 document register; `engagement_tier` + NP-FW-EMMC-002 §G as locked decisions; 8 new §13.4 pending decisions (BIPA legal opinion, MHMD analysis, age gate, HIPAA Expert Determination certifier, per-study NP-ANON-CERT, adaptive transparency, SHDR schema freeze gate, age threshold legal confirmation).
+**Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change. Rev 22 (2026-06-07) adds: NP-FMEA-001 Rev A (SW-01 Safety MCU FMEA), NP-API-001 Rev A (T2 Scripting API), and NP-DT-001 Rev A (Design I/O Traceability Matrix) to §14 document register; SHDR warranty token PARTIAL status updated (app-side Keychain token in place, hub-provisioned TRNG pending); all NP-PRIV-ANALYSIS-002 code-level findings resolved.
 
 ### 5.3 Hardware Specifications
 
@@ -129,6 +130,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | B | 2026-06-03 | [neuropulse_ios_app_roadmap_001.md](./neuropulse_ios_app_roadmap_001.md) | ACTIVE — Rev B adds §9 Privacy Constraints (binding engineering constraints): HealthKit residency, minimum age gate (16+), BIPA written release screen for IL users, Adaptive Adjustments card, SDK init gate; OI-PA-01 OPEN; OI-PA-02/03 OPEN; OI-WA-06 OPEN. AgeGateView.swift now implemented (Issue #51, PR #106) — OI-PA-01 (legal counsel threshold confirmation) remains open. | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | B | 2026-06-03 | [neuropulse_app_telemetry_001.md](./neuropulse_app_telemetry_001.md) | ACTIVE — Rev B: `session_sequence` (raw integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev B LOW-03; §3.2 implementation note added | APP |
 | — | NPPS Protocol Scripting Language Reference | — | 2026-05-16 | [npps-reference.md](./npps-reference.md) | ACTIVE | APP |
+| NP-API-001 | T2 Clinical Scripting API Specification — REST + WebSocket API (BAA required); UHDR three-condition access gate; SHDR-only default; 8 REST endpoints; rate limits (1,000/hr, 10,000/day); 256-bit key / 90-day expiry; audit log; 4 subscription tiers (Monitor $49, Assess $149, Full Clinical $299, Research $599); 7 open items (OI-API-01..07); G1 gate item per NP-PRIV-REM-001 STEP-15 | A | 2026-06-07 | [neuropulse_api_001.md](./neuropulse_api_001.md) | ACTIVE — independent security audit (NP-SEC-PENTEST-002) required before any clinical API key is issued | APP |
 | NP-SIM-001 | Helmet Simulator — interactive 3D browser visualisation | v0.3.0 | 2026-05-17 | [../simulator/](../simulator/) | ACTIVE — Issue #81 / PRs #76, #84, #85 open; #79 CLOSED | SIM |
 
 **Note on NP-APP-ROADMAP-001 Rev B:** The §9 Privacy Constraints added in Rev B are binding engineering constraints enforceable under NP-QMS-DC-001. They cannot be overridden without a formal design change order with Privacy Lead sign-off. Open items OI-PA-01 through OI-PA-04 must be resolved before the corresponding features ship.
@@ -149,6 +151,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-RISK-001 | Zone Module Risk Register (RISK-01 through RISK-25) | B | 2026-05-17 | [neuropulse_fpc_zone_module_risks_revA.docx](./neuropulse_fpc_zone_module_risks_revA.docx) | ACTIVE | RISK |
+| NP-FMEA-001 | SW-01 Safety MCU Unit-Level FMEA — IEC 62304 §7.1 Class C analysis for SW01-M01..M08; 43 failure modes across GPIO management, SPI heartbeat watchdog, charge density monitor, thermal interlock, cervical VNS cardiac interlock, impedance check, session signature verification, fault latch; ISO 14971 S×P scoring; two initial UNACCEPTABLE risks mitigated to ACCEPTABLE (FMEA-M03-01 charge accumulator overflow → 64-bit uint64_t; FMEA-M05-02 HR delta underflow → int16_t + MISRA C:2012 Rule 10.1); 5 open items OI-FMEA-01..05 (OI-FMEA-01/02 hardware bench pending G2 prototype) | A | 2026-06-07 | [neuropulse_sw_fmea_001.md](./neuropulse_sw_fmea_001.md) | ACTIVE — OI-FMEA-01 (watchdog GPIO bench ≤50ms) and OI-FMEA-02 (cardiac interlock bench <5.1ms) require G2 prototype; OI-FMEA-05 to be updated after FAI-CV02 hardware bench | RISK |
 
 **Note:** The risk register (RISK-01 through RISK-25; 23 MITIGATED, 2 OPEN: RISK-03 regulatory opinion, RISK-20 CFRP Ra confirmation) is formally under QMS change control per NP-RM-001 §5.1. All future risk register updates require change control per NP-QMS-DC-001. Privacy risks identified in NP-PRIV-001 Rev A are tracked separately in NP-PRIV-REM-001 Rev A (not in the device safety risk register, as they are programme-level operational risks rather than device safety hazards).
 
@@ -263,8 +266,8 @@ This section identifies design phases and their DHF coverage status.
 | Design phase | 21 CFR §820.30 | Coverage | Gap / action |
 |---|---|---|---|
 | Design planning | §820.30(b) | **Good** — NP-DP-001 Rev A (2026-05-17) is the formal design and development plan; CLAUDE.md Rev 17 + NP-COORD-001 Rev A.8 are the operational design planning instruments | NP-DP-001 to be updated at each gate review; NP-COORD-001 Rev A.9 required for G3-09 (FHIR IG gate) |
-| Design inputs | §820.30(c) | **Partial** — Design briefs Rev 1–5 and CLAUDE.md capture inputs; NP-FW-REQ-001 superseded by individual firmware specs; hardware requirements document needed | Individual firmware specs (NP-FW-PBM1064-001, NP-FW-HRV-001, etc.) cover firmware requirements; traceability matrix NP-DT-001 needed |
-| Design outputs | §820.30(d) | **Good** — Hardware specs, firmware specs (7 written modules + NP-FW-EMMC-002 delta), tooling specs present and indexed; hub_control program written | Ensure all outputs traceable to inputs; traceability matrix (NP-DT-001) needed |
+| Design inputs | §820.30(c) | **Good** — NP-DT-001 Rev A (2026-06-07) provides 57 formal design inputs (DI-PERF/SAFE/USE/REG/INT) with full DI→DO→VE traceability matrix; design briefs Rev 1–5 and CLAUDE.md capture remaining inputs | NP-DT-001 OI-DT-01..05 require resolution; hardware requirements to be traced as hardware matures |
+| Design outputs | §820.30(d) | **Good** — Hardware specs, firmware specs (7 written modules + NP-FW-EMMC-002 delta), tooling specs present and indexed; hub_control program written; NP-DT-001 Rev A provides 35 mapped design outputs with traceability to inputs | NP-DT-001 OI-DT-01..05 outstanding; firmware modules not yet authored flagged in NP-FW-EMMC-002 notes |
 | Design review | §820.30(e) | **Good** — NP-COORD-001 Rev A.8 gate records; G1-15, G1-16, G2-10, G2-11, G2-12 CLOSED; G3-07/G3-08 SOFTWARE BASELINED | Formal design review minutes at each gate closure going forward; G3-09 to be added in NP-COORD-001 Rev A.9 |
 | Design verification | §820.30(f) | **Partial** — NP-FAI-ZM-001 checklist defined; software FAI items passed for all firmware modules; hardware FAI pending prototype | FAI execution on prototype hardware constitutes verification evidence |
 | Design validation | §820.30(g) | **Not yet started** — Requires device prototype and human factors testing | Planned for Year 2 (T2 development phase) |
@@ -288,11 +291,11 @@ Planned near-term additions:
 | ~~NP-FW-ANON-001~~ | ~~Research Anonymisation Engine Firmware Specification~~ | ~~G1~~ | **COMPLETE — NP-FW-ANON-001 Rev A released 2026-06-03** |
 | ~~NP-INT-FHIR-001~~ | ~~FHIR R4 ImplementationGuide~~ | ~~G1~~ | **COMPLETE — NP-INT-FHIR-001 Rev A released 2026-06-03; IG package publication and CI integration pending** |
 | ~~NP-LEGAL-BAA-001~~ | ~~Standard Business Associate Agreement Template~~ | ~~Month 3~~ | **COMPLETE (DRAFT) — NP-LEGAL-BAA-001 Rev A released 2026-06-03; legal counsel review required before first execution** |
-| NP-API-001 | T2 Scripting API Specification | G1 (Month 6) | Before T2 scripting API is designed; NP-PRIV-REM-001 STEP-15 |
+| ~~NP-API-001~~ | ~~T2 Scripting API Specification~~ | ~~G1 (Month 6)~~ | **COMPLETE — NP-API-001 Rev A released 2026-06-07 (PR #121); independent security audit NP-SEC-PENTEST-002 required before any clinical API key is issued** |
 | NP-REG-DPF-001 | EU-US Data Privacy Framework Self-Certification Record | Month 3 | Before any EU resident's data reaches US infrastructure; NP-PRIV-REM-001 STEP-12 |
 | NP-REG-BIPA-001 | BIPA Compliance Record — legal opinion + consent screen implementation + website policy | Month 2 | Before any Illinois device activation; NP-PRIV-REM-001 STEP-34 |
 | NP-REG-MHMD-001 | Washington MHMD Compliance Record — legal analysis + SHDR consent redesign decision | Month 2 | Before any Washington device activation; NP-PRIV-REM-001 STEP-35 |
-| NP-DT-001 | Design Input/Output Traceability Matrix | Month 6 | Links requirements to verification evidence |
+| ~~NP-DT-001~~ | ~~Design Input/Output Traceability Matrix~~ | ~~Month 6~~ | **COMPLETE — NP-DT-001 Rev A released 2026-06-07 (PR #122); design-inputs DHF coverage upgraded from Partial to Good** |
 | NP-HFE-001 | Human Factors Engineering Plan | Month 9 | IEC 62366-1 / FDA HFE guidance |
 | ~~NP-PRIV-AUDIT-001~~ | ~~App Privacy Audit~~ | ~~Month 9~~ | **COMPLETE — NP-PRIV-AUDIT-001 Rev A released 2026-06-03; 16 checklist items OPEN pending implementation** |
 | NP-IRB-001 | IRB Protocol — research anonymisation and consent architecture | Month 9 | Before first study descriptor deployment; NP-PRIV-REM-001 STEP-20 §4.4 |
@@ -315,6 +318,7 @@ Planned near-term additions:
 | C | 2026-05-17 | Interim Quality (CEO) | NP-SIM-001 v0.1.0 (Helmet Simulator) added to §5.5; SIM category added to §4. CLAUDE.md → Rev 11. Note added below §5.5 clarifying simulator regulatory status. Open sub-issues #77–#80 recorded under parent Issue #81 / PR #76. |
 | D | 2026-05-17 | Steve Hickman (CEO, interim Quality authority) | NP-DP-001 Rev A (Design and Development Plan) released and added to §5.1. DHF completeness assessment — design planning row upgraded from Partial to Good. NP-DP-001 removed from §8 planned additions (marked COMPLETE). CEO name added to Author/Approved-by fields throughout. |
 | E | 2026-05-17 | Steve Hickman (CEO, interim Quality authority) | NP-SIM-001 updated v0.1.0 → v0.2.0 in §5.5 note — WebSocket device API (Issue #77, PR #84 CLOSED) and intranasal Y-probe animation + ACCESSORY_CONFIG (Issue #78, PR #85 CLOSED). Open sub-issues reduced to #79–#80. CLAUDE.md → Rev 13. |
+| L | 2026-06-07 | Steve Hickman (CEO, interim Quality authority) | **Three new documents added — NP-FMEA-001 Rev A (SW-01 Safety MCU Unit-Level FMEA, PR #120), NP-API-001 Rev A (T2 Clinical Scripting API Specification, PR #121), NP-DT-001 Rev A (Design Input/Output Traceability Matrix, PR #122).** NP-FMEA-001 added to §5.7 Risk Management Records (43 failure modes, 2 initial UNACCEPTABLE risks mitigated, 5 open items). NP-API-001 added to §5.5 Session/Protocol/Application Specifications (G1 gate item COMPLETE; security audit NP-SEC-PENTEST-002 required before clinical key issuance). NP-DT-001 added to §5.1 QMS and Quality Documents (G2 exit criterion per NP-DP-001 §6.4). §7 DHF completeness — design inputs and design outputs rows upgraded from Partial to Good. §8 planned additions — NP-API-001 and NP-DT-001 marked COMPLETE. CLAUDE.md updated Rev 17 → Rev 22 in §5.2. Header corrected Rev I → Rev L (footer was already at Rev K; this revision closes the discrepancy). |
 | H | 2026-06-03 | Steve Hickman (CEO, interim Quality authority) | **NP-PRIV-AUDIT-001 Rev A released** — iOS/Android app privacy audit (STEP-21 of NP-PRIV-REM-001). 16 findings (0 Critical, 5 High, 7 Medium, 4 Low). 16-item compliance checklist (AUDIT-01 through AUDIT-16) all OPEN — gates external beta. NP-PRIV-AUDIT-001 added to §5.13 Privacy and Security Documents. NP-PRIV-AUDIT-001 marked COMPLETE in §8 planned additions. CLAUDE.md §13.4 pending item "App privacy audit" marked [x]. CLAUDE.md §14 document register updated with NP-PRIV-AUDIT-001 Rev A entry. |
 | K | 2026-06-04 | Steve Hickman (CEO, interim Quality authority) | **PR #107 — iOS validator safety gaps closed + PrivacyInfo.xcprivacy bundle fix.** `PrivacyInfo.xcprivacy` was on disk but absent from `project.pbxproj` (zero refs) — added to Copy Bundle Resources; without this the privacy manifest does not ship in the app bundle (ISC-133 now verified). Three `XCTExpectFailure`-wrapped validator tests converted to real passing tests: tDCS charge density guard (ISC-38: `I×t/electrodeArea > 40 µC/cm² → error`; `tdcsDefaultElectrodeAreaCm2 = 35 cm²` added to `NPHardwareLimits`); zero-duration hard rejection (ISC-47: `dur ≤ 0 → .error`, was `.warning`); PBM session dose guard (ISC-47: estimated dose vs `maxSessionDoseJCm2` limit). `NPProtocolValidatorTests` 9/9 passing with zero `XCTExpectFailure`. NP-APP-ISA-001 updated: ISC-38, ISC-47, ISC-133 marked `[x]`; Decisions and Verification sections populated; progress 0/164 → 3/164. |
 | J | 2026-06-04 | Steve Hickman (CEO, interim Quality authority) | **Issue #51 — Core iOS app parallel integration (PR #106).** E4 ISA scaffolded at `app/ios/ISA.md` (NP-APP-ISA-001, 164 ISCs). 9 parallel Engineer agents in git worktrees implemented: `AgeGateView.swift` + `Under16View.swift` (minimum age gate, CLAUDE.md §13.4 pending item marked [x]); `HealthKitSessionReader.swift` (session-scoped HRV read, ISC-94–96); `ProtocolChunker.swift` (BLE ≤512-byte framing with START/CONT/END/SINGLE headers, 17/17 edge cases); `SessionHistoryView.swift` + `AdaptiveAdjustmentsCard.swift` (from Issue #98, merged into this PR); `en.lproj/Localizable.strings` (98 keys); `Info.plist` + `PrivacyInfo.xcprivacy` + `AppStorePrivacyLabel.md`; `.swiftlint.yml`; 6 XCTest suites (44 tests, all passing). Modified: `GATTCharacteristics.swift` (sessionStop CBUUID added, duplicate GATTParser removed); `NeuroPulseGATTManager.swift` (sendSessionStop); `SessionView.swift` (stop command, mode labels, HealthKit card); `NeuroPulseApp.swift` (age gate sequence, HealthKitSessionReader injection); `SessionProtocolUploader.swift` (ProtocolChunker + programAutonomous); `SetupView.swift` (Mode 3 card); `NPProtocolDefinition.swift` (Identifiable conformance on 7 picker enums). iOS source table added to §6b. NP-APP-ISA-001 added to §5.5. NP-APP-ROADMAP-001 OI-PA-01 (age gate legal threshold) remains open. Three validator safety gaps documented via XCTExpectFailure: charge density, PBM dose, zero-duration — follow-up required. CLAUDE.md → Rev 19. |
@@ -324,4 +328,4 @@ Planned near-term additions:
 
 ---
 
-*NP-DHF-001 Rev K — ACTIVE — Effective 2026-06-04*
+*NP-DHF-001 Rev L — ACTIVE — Effective 2026-06-07*
