@@ -47,19 +47,24 @@ void np_spi_watchdog_tick(np_safety_state_t   *state,
 
     /* Clear watchdog status bit on successful receipt */
     state->status &= (uint8_t)~NP_SAFETY_STATUS_WATCHDOG;
+
+    /* Evaluate active faults once into a local so the two guards below see an
+     * identical snapshot.  Evaluating the expression twice with no critical
+     * section would be a race if any interlock ever runs from an ISR context:
+     * a fault asserted between the two evaluations would clear CUTOFF while
+     * simultaneously granting the full requested mask. (MISRA C:2012 R.13.5) */
+    uint8_t active_faults = state->status & (NP_SAFETY_STATUS_FAULT  |
+                                              NP_SAFETY_STATUS_THERMAL |
+                                              NP_SAFETY_STATUS_CHARGE  |
+                                              NP_SAFETY_STATUS_CARDIAC);
+
     /* Only clear CUTOFF if no other interlock is actively asserting it */
-    if ((state->status & (NP_SAFETY_STATUS_FAULT  |
-                          NP_SAFETY_STATUS_THERMAL |
-                          NP_SAFETY_STATUS_CHARGE  |
-                          NP_SAFETY_STATUS_CARDIAC)) == 0U) {
+    if (active_faults == 0U) {
         state->status &= (uint8_t)~NP_SAFETY_STATUS_CUTOFF;
     }
 
     /* Grant requested channels if no fault conditions are active */
-    if ((state->status & (NP_SAFETY_STATUS_FAULT  |
-                          NP_SAFETY_STATUS_THERMAL |
-                          NP_SAFETY_STATUS_CHARGE  |
-                          NP_SAFETY_STATUS_CARDIAC)) == 0U) {
+    if (active_faults == 0U) {
         state->granted_mask = state->requested_mask & NP_SAFETY_EN_ALL_MASK;
     } else {
         state->granted_mask = 0U;

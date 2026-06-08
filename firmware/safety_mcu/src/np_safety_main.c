@@ -10,7 +10,9 @@
  *         → fault latch check (prior fault persists until cleared by app)
  *         → infinite main loop: poll SPI + tick all safety modules
  *
- * All stimulation GPIO is driven LOW (cutoff) at startup.
+ * All stimulation GPIO is driven HIGH (disabled) at startup.
+ * Active-LOW open-drain: LOW = stimulation enabled; HIGH = disabled.
+ * np_hal_gpio_init() + np_gpio_mgr_init() set all enables HIGH immediately.
  * Stimulation can only be enabled after:
  *   1. Valid heartbeat received with magic + checksum pass
  *   2. Watchdog has not timed out (np_spi_watchdog_check passes)
@@ -64,6 +66,11 @@ extern void np_hal_spi_send_frame(const np_safety_tx_frame_t *tx);
 /* ── Shared safety state ─────────────────────────────────────────────────── */
 static np_safety_state_t s_state;
 static bool              s_prev_session_active = false;
+/* s_prior_latch_reported: true once prior fault is reported to hub on the
+ * first heartbeat reply.  Prevents np_fault_latch_commit() from overwriting
+ * the preserved latch data (slot + specific status bits) with the generic
+ * NP_SAFETY_STATUS_FAULT=0x01 that init places in s_state.status. */
+static bool              s_prior_latch_reported = false;
 
 /* ── Checksum verification (matches hub_control np_safety_spi.c) ──────────── */
 static bool frame_checksum_ok(const np_safety_rx_frame_t *f)
@@ -113,8 +120,15 @@ int main(void)
     s_state.fault_slot = 0xFFU;
 
     if (prior_fault) {
-        /* Prior fault survived warm reset — report it on first heartbeat reply */
-        s_state.status |= NP_SAFETY_STATUS_FAULT;
+        /* Prior fault survived warm reset — report it on first heartbeat reply.
+         * s_prior_latch_reported stays false until after the first TX frame is
+         * sent, preventing np_fault_latch_commit() from immediately overwriting
+         * the preserved latch data (fault slot + specific status bits) with the
+         * generic status=0x01 / slot=0xFF that s_state was initialised to. */
+        s_state.status         |= NP_SAFETY_STATUS_FAULT;
+        s_prior_latch_reported  = false;
+    } else {
+        s_prior_latch_reported = true;  /* no prior fault — commit is safe immediately */
     }
 
     /* ── Main polling loop ─────────────────────────────────────────────── */
@@ -192,8 +206,16 @@ int main(void)
         build_tx_checksum(&tx);
         np_hal_spi_send_frame(&tx);
 
-        /* Commit fault to latch for warm-reset persistence */
-        if (s_state.status & NP_SAFETY_STATUS_FAULT) {
+        /* Commit fault to latch for warm-reset persistence.
+         * Guard: do NOT commit until after the first TX reply is sent when a
+         * prior fault was loaded from the latch on init.  Committing immediately
+         * would overwrite the preserved latch data (fault slot + specific status
+         * bits) with the generic FAULT=0x01 / slot=0xFF from init state. */
+        if (!s_prior_latch_reported) {
+            /* First iteration after a warm-reset-with-prior-fault: report to hub
+             * this iteration, then allow commit from next iteration onward. */
+            s_prior_latch_reported = true;
+        } else if (s_state.status & NP_SAFETY_STATUS_FAULT) {
             np_fault_latch_commit(&s_state);
         }
     }

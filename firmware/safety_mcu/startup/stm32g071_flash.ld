@@ -94,9 +94,14 @@ SECTIONS
     } >SRAM
 
     /* ── Fault latch (top 64 bytes, warm-reset-persistent) ──────────────── */
-    /* Placed at fixed address; NOT zero-initialised by startup code. */
+    /* Pinned to _fault_latch_start so it is not placed after .bss by default.
+     * Without the explicit address assignment the linker would place it
+     * immediately after .bss (mid-SRAM), not at the protected top-64-byte
+     * region.  The NOLOAD attribute means startup code does NOT zero this
+     * section on warm reset — fault data survives until power-on reset. */
     .fault_latch (NOLOAD) :
     {
+        . = _fault_latch_start;  /* pin to top 64 bytes of SRAM */
         . = ALIGN(4);
         KEEP(*(.fault_latch))
     } >SRAM

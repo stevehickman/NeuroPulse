@@ -11,6 +11,24 @@
  *
  * FMEA-M03-01 mitigation: accumulator is uint64_t (no overflow at 40µC/cm²
  * limit even if polled at 10kHz for 24 hours).  MISRA C:2012 Rule 10.1.
+ *
+ * ── OPEN ITEMS (BLOCKING for production) ──────────────────────────────────
+ *
+ * OI-CHARGE-01: np_charge_monitor_accumulate() has NO call site.
+ *   Charge accumulation requires current telemetry from the main processor,
+ *   but the 8-byte np_safety_rx_frame_t contains no current magnitude field.
+ *   The "SPI frame extension" mentioned above does not yet exist.
+ *   Until OI-CHARGE-01 is resolved and accumulate() is called, s_charge_nc[]
+ *   stays zero and np_charge_monitor_tick() never fires — the 40µC/cm² limit
+ *   is NOT enforced in the current build, regardless of what CLAUDE.md states.
+ *
+ * OI-CHARGE-02: NP_CHARGE_LIMIT_UC = 1000µC is correct for a standard 25cm²
+ *   tDCS electrode (NP_ELECTRODE_AREA_CM2 = 25).  However for T2 HD-tDCS with
+ *   3.5mm diameter Ag/AgCl electrodes (area ≈ 0.096cm²), the per-electrode
+ *   limit is 40 × 0.096 = 3.84µC — 260× smaller.  The monitor must receive
+ *   the electrode geometry from the session descriptor to compute the correct
+ *   per-channel limit.  A single global constant cannot serve both geometries.
+ *   This is a patient-safety issue for T2 HD-tDCS clinical use.
  */
 
 #include "np_safety_config.h"
@@ -46,6 +64,8 @@ void np_charge_monitor_reset_session(void)
  * charge-balanced waveform so both phases are counted separately).
  * dt_us: time step in µs.
  * channel: 0-13 matching NP_SAFETY_EN_* bit positions.
+ *
+ * STUB — no call site: see OI-CHARGE-01 above.
  */
 void np_charge_monitor_accumulate(uint8_t channel, uint32_t current_ua, uint32_t dt_us)
 {

@@ -84,8 +84,17 @@ static int16_t rr_to_bpm(uint32_t rr_us)
     if (rr_us == 0U) {
         return 0;
     }
-    /* BPM = 60,000,000 / RR_µs — safe within int32 for physiological HR */
-    return (int16_t)(60000000UL / rr_us);
+    /* BPM = 60,000,000 / RR_µs.
+     * Clamp to INT16_MAX before cast: values < 1831µs (>32767 BPM) would
+     * overflow int16_t.  Such RR intervals are physiologically impossible in
+     * normal sinus rhythm but can arise from noise/motion artifacts on the
+     * RPEAK_IN line.  Clamping prevents undefined-behaviour truncation and
+     * a resulting phantom cardiac cutoff. (MISRA C:2012 Rule 10.4) */
+    uint32_t bpm_u32 = 60000000UL / rr_us;
+    if (bpm_u32 > (uint32_t)INT16_MAX) {
+        return INT16_MAX;   /* saturate; interlock compares delta, not abs value */
+    }
+    return (int16_t)bpm_u32;
 }
 
 static int16_t current_hr_bpm(void)
@@ -142,16 +151,24 @@ void np_cardiac_interlock_tick(np_safety_state_t *state)
         return;
     }
 
-    /* Refresh rolling baseline every observation window under normal conditions.
-     * This tracks long-term HR changes while still detecting acute spikes.    */
-    if ((now_ms - s_baseline_established_ms) >= NP_CARDIAC_OBS_MS &&
+    /* Compute current HR once; reuse below for both baseline refresh and delta
+     * comparison.  Computing twice risks a different result if an R-peak edge
+     * arrives between the two calls (ring buffer updates mid-tick). */
+    int16_t cur_bpm = current_hr_bpm();
+
+    /* Refresh rolling baseline every observation window, but ONLY when no cutoff
+     * is active.  Refreshing after a cutoff event would adopt the elevated
+     * post-event HR as the new resting baseline, desensitising the interlock
+     * for subsequent events.  Gate: s_cutoff_active = true during and after
+     * the event until explicit reenable clears it. */
+    if (!s_cutoff_active &&
+        (now_ms - s_baseline_established_ms) >= NP_CARDIAC_OBS_MS &&
         s_rr_count >= NP_CARDIAC_BASELINE_BEATS) {
-        s_baseline_bpm            = current_hr_bpm();
+        s_baseline_bpm            = cur_bpm;
         s_baseline_established_ms = now_ms;
     }
 
     /* Compare current HR to baseline — int16_t prevents underflow (FMEA-M05-02) */
-    int16_t cur_bpm   = current_hr_bpm();
     int16_t delta_bpm = (int16_t)(cur_bpm - s_baseline_bpm);
     if (delta_bpm < 0) {
         delta_bpm = (int16_t)-delta_bpm;

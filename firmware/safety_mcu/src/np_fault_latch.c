@@ -60,12 +60,24 @@ np_safe_status_t np_fault_latch_init(bool *prior_fault_out)
 
 void np_fault_latch_commit(const np_safety_state_t *state)
 {
-    s_latch.magic   = NP_FAULT_LATCH_MAGIC;
-    s_latch.status  = state->status;
-    s_latch.slot    = state->fault_slot;
-    s_latch.tick_ms = np_hal_get_tick_ms();
-    if (s_latch.count < UINT16_MAX) {
-        s_latch.count++;
+    /* Only increment count and update tick_ms when fault status or slot
+     * actually changes.  Committing on every main-loop iteration while a
+     * persistent fault is active saturates s_latch.count (UINT16_MAX = 65535)
+     * in ~65 s, freezing the fault event counter and hiding subsequent distinct
+     * fault events in the SHDR audit trail.  Change-gating means count tracks
+     * "distinct fault transitions" rather than "loop iterations since fault". */
+    bool status_changed = (s_latch.status != state->status) ||
+                          (s_latch.slot   != state->fault_slot);
+
+    s_latch.magic  = NP_FAULT_LATCH_MAGIC;
+    s_latch.status = state->status;
+    s_latch.slot   = state->fault_slot;
+
+    if (status_changed) {
+        s_latch.tick_ms = np_hal_get_tick_ms();
+        if (s_latch.count < UINT16_MAX) {
+            s_latch.count++;
+        }
     }
 }
 

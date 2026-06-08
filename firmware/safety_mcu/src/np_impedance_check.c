@@ -83,6 +83,12 @@ void np_impedance_check_poll(np_safety_state_t *state)
                 state->granted_mask &= (uint16_t)~k_imp_en_bit[i];
                 state->status       |= NP_SAFETY_STATUS_IMPEDANCE;
                 state->fault_slot    = k_imp_slot[i];
+            } else {
+                /* Impedance check passed — clear the IMPEDANCE status bit so the
+                 * hub does not see a persistent fault after a recheck succeeds.
+                 * Without this clear, a single impedance failure latches the bit
+                 * permanently across all subsequent session attempts. */
+                state->status &= (uint8_t)~NP_SAFETY_STATUS_IMPEDANCE;
             }
         }
     }
