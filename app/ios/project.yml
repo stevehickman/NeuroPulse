@@ -42,6 +42,7 @@ targets:
         excludes:
           - "**/.DS_Store"
           - "**/*.md"
+          - "Info.plist"
       - path: SupportingFiles
         type: folder
         excludes:
@@ -51,6 +52,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.neuropulse.app
         INFOPLIST_FILE: SupportingFiles/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: SupportingFiles/NeuroPulse.entitlements
 
     dependencies:
