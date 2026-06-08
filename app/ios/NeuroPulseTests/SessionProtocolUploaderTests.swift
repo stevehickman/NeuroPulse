@@ -58,7 +58,8 @@ final class SessionProtocolUploaderTests: XCTestCase {
     // MARK: - ISC-35: BLE-not-ready guard
 
     // upload(_:NPProtocolDefinition) must throw UploadError.bleNotReady before
-    // attempting to sign or upload when the hub is not connected.
+    // attempting to sign or upload when the hub is not connected, and must set
+    // lastError so the UI can surface the failure without re-catching.
     func testUploadDefinitionThrowsBLENotReadyWhenDisconnected() async {
         let gateway = MockProtocolUploadGateway(connected: false)
         let uploader = SessionProtocolUploader(gatt: gateway)
@@ -74,9 +75,53 @@ final class SessionProtocolUploaderTests: XCTestCase {
             XCTFail("Expected UploadError.bleNotReady")
         } catch UploadError.bleNotReady {
             XCTAssertEqual(gateway.uploadCallCount, 0, "GATT must not be called when disconnected")
+            XCTAssertNotNil(uploader.lastError, "lastError must be set so the UI can show the reason without re-catching")
         } catch {
             XCTFail("Expected UploadError.bleNotReady, got \(error)")
         }
+    }
+
+    // MARK: - ISC-35: Multi-chunk upload reassembles to valid NPPR blob
+
+    // A protocol definition whose serialised JSON exceeds the SINGLE-chunk limit
+    // (509-byte payload after NPPR magic + length-prefix + Ed25519 signature) must
+    // be split across multiple BLE writes. After reassembly the resulting blob must
+    // still begin with the NPPR magic bytes and be structurally valid.
+    func testUploadMultiChunkProtocolReassemblesWithNPPRMagic() async throws {
+        let gateway = MockProtocolUploadGateway()
+        let uploader = SessionProtocolUploader(gatt: gateway)
+
+        // A 500-char name inflates the JSON body to ~700 bytes; the wire format
+        // (4-byte magic + 4-byte length + JSON + 64-byte Ed25519 signature) exceeds
+        // the 509-byte SINGLE-frame payload ceiling, forcing a START + END split.
+        let definition = NPProtocolDefinition(
+            name: String(repeating: "N", count: 500),
+            timingMode: .duration(20 * 60),
+            modalities: [
+                NPProtocolModality(
+                    params: .pbmTranscranial(NPPBMTranscranialParams(
+                        intensityPercent: 75,
+                        frequencyHz: 20,
+                        dutyCyclePercent: 25
+                    )),
+                    interval: .continuous,
+                    enabled: true
+                )
+            ]
+        )
+
+        try await uploader.upload(definition)
+
+        XCTAssertGreaterThan(
+            gateway.uploadCallCount, 1,
+            "A large protocol must be split across more than one BLE write"
+        )
+        let reassembled = gateway.reassembledPayload()
+        XCTAssertEqual(
+            Array(reassembled.prefix(4)),
+            [0x4E, 0x50, 0x50, 0x52],
+            "Reassembled multi-chunk blob must begin with NPPR magic bytes"
+        )
     }
 
     // MARK: - ISC-35: Validation guard — hardware safety ceiling

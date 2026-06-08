@@ -34,6 +34,8 @@ extension NPSessionProtocol {
                     closedLoopEnabled: p.closedLoopEnabled
                 )))
             case .besTacs(let p):
+                // The T1 wire type is BESConfig regardless of waveform — tACS (sinusoidal)
+                // and BES (asymmetric) differ only in waveform.rawValue on the wire.
                 modalities.append(.bes(BESConfig(
                     frequencyHz: p.frequencyHz,
                     amplitudeMilliamps: p.intensityMilliamps,
@@ -71,7 +73,11 @@ extension NPSessionProtocol {
                     emdrCadenceHz: p.emdrCadenceHz
                 )))
             default:
-                // T2 and accessory modalities not yet mapped to hub wire format.
+                // T2 modalities (21-ch qEEG, TMS, clinical tACS, HD-tDCS, 1170nm deep PBM,
+                // cervical VNS) and accessory modalities (vibrotactile pad, Watch sync)
+                // are not part of the T1 hub wire format. They require a T2 hub session.
+                // NOTE: if a new T1 modality is added to NPModalityParams, add it above —
+                // this default will silently drop it.
                 break
             }
         }

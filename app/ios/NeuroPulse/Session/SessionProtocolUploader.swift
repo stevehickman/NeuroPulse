@@ -47,18 +47,7 @@ final class SessionProtocolUploader: ObservableObject {
     // Validates the definition against hardware safety limits, converts to
     // the NPSessionProtocol wire format, signs, and uploads.
     func upload(_ definition: NPProtocolDefinition) async throws {
-        guard gatt.isHubConnected else { throw UploadError.bleNotReady }
-
-        // Reject protocols that violate hardware safety limits before signing.
-        let validator = NPProtocolValidator(resolvedLimits: .unlimited)
-        let result = validator.validate(definition)
-        if !result.isValid {
-            let err = UploadError.validationFailed(result.errors)
-            lastError = err
-            throw err
-        }
-
-        try await upload(NPSessionProtocol(from: definition))
+        try await upload(try buildWireProtocol(from: definition))
     }
 
     // Upload a session protocol to the hub (Mode 2 Programming).
@@ -142,16 +131,29 @@ final class SessionProtocolUploader: ObservableObject {
     }
 
     func programAutonomous(_ definition: NPProtocolDefinition) async throws {
-        guard gatt.isHubConnected else { throw UploadError.bleNotReady }
+        // Build with mode3Autonomous so the hub enters fully-autonomous operation.
+        try await upload(try buildWireProtocol(from: definition, mode: .mode3Autonomous))
+    }
 
-        let validator = NPProtocolValidator(resolvedLimits: .unlimited)
-        let result = validator.validate(definition)
-        if !result.isValid {
+    // Validate a definition against hardware safety limits and convert it to
+    // the NPSessionProtocol wire format. Sets lastError and throws on any
+    // failure so upload(_:NPProtocolDefinition) and programAutonomous(_:NPProtocolDefinition)
+    // share identical error handling and both populate lastError consistently.
+    private func buildWireProtocol(
+        from definition: NPProtocolDefinition,
+        mode: NPSessionProtocol.OperatingMode = .mode2Programming
+    ) throws -> NPSessionProtocol {
+        guard gatt.isHubConnected else {
+            let err = UploadError.bleNotReady
+            lastError = err
+            throw err
+        }
+        let result = NPProtocolValidator(resolvedLimits: .unlimited).validate(definition)
+        guard result.isValid else {
             let err = UploadError.validationFailed(result.errors)
             lastError = err
             throw err
         }
-
-        try await programAutonomous(NPSessionProtocol(from: definition))
+        return NPSessionProtocol(from: definition, mode: mode)
     }
 }

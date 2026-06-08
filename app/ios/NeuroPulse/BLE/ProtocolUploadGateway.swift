@@ -6,6 +6,13 @@ import Foundation
 
 protocol ProtocolUploadGateway: AnyObject {
     var isHubConnected: Bool { get }
+
+    /// Write a single pre-framed BLE chunk to the hub's PROTOCOL_UPLOAD GATT characteristic.
+    /// This method is called **once per chunk**, not once per protocol blob.
+    /// SessionProtocolUploader drives sequencing: it calls this method for each chunk produced
+    /// by ProtocolChunker (SINGLE / START / CONT / END frame headers) and advances only after
+    /// the previous chunk's completion handler fires with `.success`.
+    /// Hub firmware's reassembly state machine expects these framing headers in order.
     func uploadProtocol(_ blob: Data, completion: @escaping (Result<Void, GATTWriteError>) -> Void)
 }
 
