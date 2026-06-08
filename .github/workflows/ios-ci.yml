@@ -41,7 +41,7 @@ jobs:
           xcodebuild test \
             -project app/ios/NeuroPulse.xcodeproj \
             -scheme NeuroPulse \
-            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=26.2' \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.5' \
             -resultBundlePath build/ios/TestResults.xcresult
 
       - name: Upload test results on failure
