@@ -44,6 +44,7 @@ jobs:
                 -G Ninja \
                 -DCMAKE_BUILD_TYPE=Debug \
                 -DNP_BUILD_TESTS=ON \
+                -DCMAKE_CROSSCOMPILING=OFF \
                 firmware
 
       - name: Build
