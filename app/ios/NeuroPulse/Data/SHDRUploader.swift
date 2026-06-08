@@ -268,10 +268,15 @@ final class SHDRUploader: ObservableObject {
         // kSecAttrAccount is part of the Keychain primary key for kSecClassGenericPassword
         // alongside kSecAttrService. Both must be present in read and write queries to
         // avoid ambiguous matches if another item ever shares the service string.
+        // kSecAttrAccessible is included so the read query only matches an item with the
+        // expected accessibility class — prevents a different-accessibility item from being
+        // returned if one were ever written under the same service/account key pair.
+        // This mirrors the write query below (same pattern as LOW-12 fix in SessionProtocolSigner).
         let query: [CFString: Any] = [
             kSecClass:              kSecClassGenericPassword,
             kSecAttrService:        Self.warrantyTokenTag,
             kSecAttrAccount:        "warranty-token",
+            kSecAttrAccessible:     kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
             kSecMatchLimit:         kSecMatchLimitOne,
             kSecReturnData:         true,
             kSecAttrSynchronizable: false
