@@ -386,9 +386,8 @@ struct ProtocolMenuView: View {
     // MARK: - Selection handling
 
     private func handleSelect(_ entry: NPProtocolEntry) {
-        // Build an NPSessionProtocol from the entry and upload
         guard case .single(let proto) = entry else {
-            // Composite protocols: for now select the first layer's source protocol
+            // Composite protocols: select the first layer's source protocol.
             if case .composite(let comp) = entry, let firstLayer = comp.layers.first {
                 let found = library.allProtocols.first { $0.name == firstLayer.protocolName }
                 if let found = found { handleSelect(found) }
@@ -397,107 +396,20 @@ struct ProtocolMenuView: View {
             return
         }
 
-        let sessionProto = buildSessionProtocol(from: proto)
         Task {
             do {
                 if programMode {
-                    try await uploader.programAutonomous(sessionProto)
+                    try await uploader.programAutonomous(proto)
                     dismiss()
                     onProgrammed?()
                 } else {
-                    try await uploader.upload(sessionProto)
+                    try await uploader.upload(proto)
                     dismiss()
                 }
             } catch {
                 uploadError = error.localizedDescription
                 showUploadError = true
             }
-        }
-    }
-
-    private func buildSessionProtocol(from proto: NPProtocolDefinition) -> NPSessionProtocol {
-        let durationSeconds = proto.totalDurationSeconds ?? 20 * 60
-        var modalities: [ModalityConfig] = []
-
-        for mod in proto.modalities where mod.enabled {
-            switch mod.params {
-            case .pbmTranscranial(let p):
-                modalities.append(.pbmTranscranial(PBMTranscranialConfig(
-                    zones: p.resolvedZones,
-                    frequencyHz: p.frequencyHz,
-                    dutyCyclePercent: p.dutyCyclePercent,
-                    durationSeconds: durationSeconds,
-                    targetDoseJoules: Double(durationSeconds) * (p.intensityPercent / 100.0) * 0.4
-                )))
-            case .pbmIntranasal(let p):
-                modalities.append(.pbmIntranasal(PBMIntranasalConfig(
-                    frequencyHz: p.frequencyHz,
-                    dutyCyclePercent: p.dutyCyclePercent,
-                    durationSeconds: durationSeconds
-                )))
-            case .eegNeurofeedback(let p):
-                modalities.append(.eegNeurofeedback(EEGConfig(
-                    enabledChannels: p.resolvedChannels,
-                    sampleRateHz: 500,
-                    neurofeedbackBand: p.band.rawValue,
-                    closedLoopEnabled: p.closedLoopEnabled
-                )))
-            case .besTacs(let p):
-                modalities.append(.bes(BESConfig(
-                    frequencyHz: p.frequencyHz,
-                    amplitudeMilliamps: p.intensityMilliamps,
-                    durationSeconds: mod.interval.isContinuous ? durationSeconds : mod.interval.intervalOnSeconds,
-                    waveform: p.waveform.rawValue
-                )))
-            case .tdcs(let p):
-                modalities.append(.tdcs(TDCSConfig(
-                    amplitudeMilliamps: p.intensityMilliamps,
-                    durationSeconds: mod.interval.isContinuous ? durationSeconds : mod.interval.intervalOnSeconds,
-                    rampSeconds: p.rampSeconds,
-                    electrodePairs: p.electrodePairs
-                )))
-            case .vnsHRV(let p):
-                modalities.append(.vnsHRV(VNSHRVConfig(
-                    frequencyHz: p.frequencyHz,
-                    amplitudeMilliamps: p.intensityMilliamps,
-                    enableHRVBiofeedback: true,
-                    resonanceBreathingRateDefault: p.resonanceBreathingRate,
-                    hrvProtocol: mapHRVProtocol(p.hrvProtocol)
-                )))
-            case .audioEntrainment(let p):
-                modalities.append(.neuralAudio(NeuralAudioConfig(
-                    binauralBeatHz: p.binauralBeatsHz,
-                    isochronicToneHz: p.isochronicTonesHz,
-                    noiseType: p.noiseType?.rawValue,
-                    eegAdaptive: p.eegAdaptive,
-                    useBoneConductionForPacer: p.boneConductionPacer
-                )))
-            case .visualStimulation(let p):
-                modalities.append(.visualStimulation(VisualStimConfig(
-                    frequencyHz: p.frequencyHz,
-                    mode: p.mode.rawValue,
-                    enableModeFInvisibleNIR: p.enableModeF,
-                    emdrCadenceHz: p.emdrCadenceHz
-                )))
-            default:
-                break // T2 and accessory modalities not yet mapped to hub wire format
-            }
-        }
-
-        return NPSessionProtocol(
-            name: proto.name,
-            modalities: modalities,
-            totalDurationSeconds: durationSeconds,
-            mode: .mode2Programming
-        )
-    }
-
-    private func mapHRVProtocol(_ hrv: NPVNSHRVParams.HRVProtocol) -> VNSHRVConfig.HRVProtocol {
-        switch hrv {
-        case .standalone:     return .standalone
-        case .tavnsSync:      return .tavnsSynchronised
-        case .eegBiofeedback: return .dualEEGBiofeedback
-        case .combinedPBM:    return .combinedPBM
         }
     }
 }

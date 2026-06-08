@@ -11,13 +11,22 @@ enum UploadError: LocalizedError {
     case bleNotReady
     case hubRejected(String)
     case timeout
+    case validationFailed([NPValidationIssue])
 
     var errorDescription: String? {
         switch self {
-        case .signingFailed(let e): return "Protocol signing failed: \(e.localizedDescription)"
-        case .bleNotReady:          return "Hub not connected. Please connect via USB-C or Bluetooth."
-        case .hubRejected(let r):   return "Hub rejected protocol: \(r)"
-        case .timeout:              return "Upload timed out. Check hub connection and try again."
+        case .signingFailed(let e):
+            return "Protocol signing failed: \(e.localizedDescription)"
+        case .bleNotReady:
+            return "Hub not connected. Please connect via USB-C or Bluetooth."
+        case .hubRejected(let r):
+            return "Hub rejected protocol: \(r)"
+        case .timeout:
+            return "Upload timed out. Check hub connection and try again."
+        case .validationFailed(let issues):
+            let summary = issues.prefix(3).map(\.message).joined(separator: "; ")
+            let extra = issues.count > 3 ? " (and \(issues.count - 3) more)" : ""
+            return "Protocol validation failed: \(summary)\(extra)"
         }
     }
 }
@@ -28,16 +37,34 @@ final class SessionProtocolUploader: ObservableObject {
     @Published private(set) var isUploading = false
     @Published private(set) var lastError: UploadError?
 
-    private let gatt: NeuroPulseGATTManager
+    private let gatt: any ProtocolUploadGateway
 
-    init(gatt: NeuroPulseGATTManager) {
+    init(gatt: some ProtocolUploadGateway) {
         self.gatt = gatt
+    }
+
+    // Upload an NPProtocolDefinition to the hub (Mode 2 Programming).
+    // Validates the definition against hardware safety limits, converts to
+    // the NPSessionProtocol wire format, signs, and uploads.
+    func upload(_ definition: NPProtocolDefinition) async throws {
+        guard gatt.isHubConnected else { throw UploadError.bleNotReady }
+
+        // Reject protocols that violate hardware safety limits before signing.
+        let validator = NPProtocolValidator(resolvedLimits: .unlimited)
+        let result = validator.validate(definition)
+        if !result.isValid {
+            let err = UploadError.validationFailed(result.errors)
+            lastError = err
+            throw err
+        }
+
+        try await upload(NPSessionProtocol(from: definition))
     }
 
     // Upload a session protocol to the hub (Mode 2 Programming).
     // On success the hub enters Mode 2: it will run this protocol when triggered.
     func upload(_ proto: NPSessionProtocol) async throws {
-        guard gatt.connectionState == .connected else { throw UploadError.bleNotReady }
+        guard gatt.isHubConnected else { throw UploadError.bleNotReady }
         isUploading = true
         lastError = nil
         defer { isUploading = false }
@@ -112,5 +139,19 @@ final class SessionProtocolUploader: ObservableObject {
         var autonomous = proto
         autonomous.mode = .mode3Autonomous
         try await upload(autonomous)
+    }
+
+    func programAutonomous(_ definition: NPProtocolDefinition) async throws {
+        guard gatt.isHubConnected else { throw UploadError.bleNotReady }
+
+        let validator = NPProtocolValidator(resolvedLimits: .unlimited)
+        let result = validator.validate(definition)
+        if !result.isValid {
+            let err = UploadError.validationFailed(result.errors)
+            lastError = err
+            throw err
+        }
+
+        try await programAutonomous(NPSessionProtocol(from: definition))
     }
 }
