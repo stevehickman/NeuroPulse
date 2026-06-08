@@ -1,0 +1,51 @@
+name: Web App CI (TypeScript + Vitest)
+
+# Runs on every push or PR that touches the NPPS web editor.
+# Steps: type-check → unit tests (vitest) → production build (vite).
+
+on:
+  push:
+    paths:
+      - 'app/web/**'
+  pull_request:
+    paths:
+      - 'app/web/**'
+  workflow_dispatch:
+
+jobs:
+  web-ci:
+    name: TypeScript type-check + Vitest + Vite build
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: app/web
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: TypeScript type-check
+        run: bun run tsc --noEmit
+
+      - name: Unit tests (Vitest)
+        run: bun run vitest run --reporter=verbose
+
+      - name: Production build
+        run: bun run build
+
+      - name: Upload build artifact on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build-dist
+          path: app/web/dist/
+          retention-days: 7

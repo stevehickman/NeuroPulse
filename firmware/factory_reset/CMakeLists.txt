@@ -20,7 +20,9 @@ cmake_minimum_required(VERSION 3.20)
 project(np_factory_reset C)
 
 # ── Toolchain guard ────────────────────────────────────────────────────────────
-if(NOT CMAKE_CROSSCOMPILING)
+# Only required for the cross-compiled library; the host test target below is
+# built without cross-compilation.
+if(NOT CMAKE_CROSSCOMPILING AND NOT NP_BUILD_TESTS)
     message(FATAL_ERROR
         "This project requires the ARM cross-compiler toolchain.\n"
         "Pass -DCMAKE_TOOLCHAIN_FILE=../../cmake/arm-none-eabi.cmake")
@@ -31,34 +33,36 @@ set(FR_SOURCES
     src/np_factory_reset.c
 )
 
-add_library(np_factory_reset STATIC ${FR_SOURCES})
+# ── Cross-compiled static library (target firmware) ───────────────────────────
+if(CMAKE_CROSSCOMPILING)
+    add_library(np_factory_reset STATIC ${FR_SOURCES})
 
-target_include_directories(np_factory_reset
-    PUBLIC  include
-    PRIVATE ${NP_PLATFORM_INCLUDE_DIRS}
-)
+    target_include_directories(np_factory_reset
+        PUBLIC  include
+        PRIVATE ${NP_PLATFORM_INCLUDE_DIRS}
+    )
 
-# ── Compiler flags ─────────────────────────────────────────────────────────────
-set(CPU_FLAGS
-    -mcpu=cortex-m7
-    -mthumb
-    -mfpu=fpv5-d16
-    -mfloat-abi=hard
-)
+    set(CPU_FLAGS
+        -mcpu=cortex-m7
+        -mthumb
+        -mfpu=fpv5-d16
+        -mfloat-abi=hard
+    )
 
-target_compile_options(np_factory_reset PRIVATE
-    ${CPU_FLAGS}
-    -std=c11
-    -Wall
-    -Wextra
-    -Werror
-    -O2
-    -ffunction-sections
-    -fdata-sections
-    -fno-common
-    -ffreestanding
-    -fstack-usage
-)
+    target_compile_options(np_factory_reset PRIVATE
+        ${CPU_FLAGS}
+        -std=c11
+        -Wall
+        -Wextra
+        -Werror
+        -O2
+        -ffunction-sections
+        -fdata-sections
+        -fno-common
+        -ffreestanding
+        -fstack-usage
+    )
+endif()
 
 # ── Host smoke test (host, not cross-compiled) ─────────────────────────────────
 # Builds a host-executable that runs np_factory_reset_is_in_progress() (and the

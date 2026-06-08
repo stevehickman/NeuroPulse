@@ -1,0 +1,50 @@
+name: iOS CI (xcodebuild)
+
+# Builds the NeuroPulse iOS app and runs the NeuroPulseTests suite.
+# Uses the shared NeuroPulse.xcscheme checked into xcshareddata/.
+
+on:
+  push:
+    paths:
+      - 'app/ios/**'
+      - 'app/NeuroPulseShared/**'
+  pull_request:
+    paths:
+      - 'app/ios/**'
+      - 'app/NeuroPulseShared/**'
+  workflow_dispatch:
+
+jobs:
+  ios-build-test:
+    name: xcodebuild test — NeuroPulse
+    runs-on: macos-14   # Xcode 15+ with iOS 17 simulator
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+
+      - name: Resolve Swift Package dependencies
+        run: |
+          xcodebuild \
+            -resolvePackageDependencies \
+            -project app/ios/NeuroPulse.xcodeproj \
+            -scheme NeuroPulse
+
+      - name: Build and test
+        run: |
+          xcodebuild test \
+            -project app/ios/NeuroPulse.xcodeproj \
+            -scheme NeuroPulse \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -resultBundlePath build/ios/TestResults.xcresult
+
+      - name: Upload test results on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-test-results
+          path: build/ios/TestResults.xcresult
+          retention-days: 14
