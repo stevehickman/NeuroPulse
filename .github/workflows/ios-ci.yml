@@ -33,6 +33,9 @@ jobs:
             -project app/ios/NeuroPulse.xcodeproj \
             -scheme NeuroPulse
 
+      - name: Install iOS Simulator runtime
+        run: xcodebuild -downloadPlatform iOS
+
       - name: List available simulators
         run: xcrun simctl list devices available
 
