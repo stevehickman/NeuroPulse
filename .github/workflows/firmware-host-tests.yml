@@ -1,0 +1,61 @@
+name: Firmware Host Unit Tests
+
+# Builds and runs the three host-native test targets.
+# Does NOT require the ARM cross-compiler.
+# Modules with NP_BUILD_TESTS host targets:
+#   firmware/anon          → np_anon_tests     (Scratch encryption)
+#   firmware/edf           → np_edf_tests      (EDF+ privacy header)
+#   firmware/factory_reset → np_factory_reset_tests (device reset)
+
+on:
+  push:
+    paths:
+      - 'firmware/anon/**'
+      - 'firmware/edf/**'
+      - 'firmware/factory_reset/**'
+      - 'firmware/CMakeLists.txt'
+      - 'firmware/cmake/**'
+  pull_request:
+    paths:
+      - 'firmware/anon/**'
+      - 'firmware/edf/**'
+      - 'firmware/factory_reset/**'
+      - 'firmware/CMakeLists.txt'
+      - 'firmware/cmake/**'
+  workflow_dispatch:
+
+jobs:
+  firmware-host-tests:
+    name: CMake host tests (anon + edf + factory_reset)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake ninja-build gcc
+
+      - name: Configure (host test build)
+        run: |
+          cmake -B build/host-tests \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DNP_BUILD_TESTS=ON \
+                firmware
+
+      - name: Build
+        run: cmake --build build/host-tests
+
+      - name: Run tests
+        run: ctest --test-dir build/host-tests --output-on-failure --no-tests=error
+
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-test-results
+          path: build/host-tests/
+          retention-days: 7

@@ -1,0 +1,119 @@
+# NeuroPulse Firmware — Root Super-Project
+# Document: NP-FW-HUB-001 Rev A, NP-FW-EMMC-001 Rev A, NP-SW-001 Rev A
+#
+# Aggregates all i.MX RT1062 (main processor) firmware modules.
+# The STM32G071 safety MCU has its own separate project in firmware/safety_mcu/.
+#
+# ── Build modes ──────────────────────────────────────────────────────────────
+#
+# Cross-compiled (requires ARM GNU toolchain):
+#   cmake -B build/firmware \
+#         -DCMAKE_TOOLCHAIN_FILE=cmake/arm-none-eabi.cmake \
+#         -DCMAKE_BUILD_TYPE=Release
+#   cmake --build build/firmware
+#
+# Host unit tests (no ARM toolchain required):
+#   cmake -B build/host-tests -DNP_BUILD_TESTS=ON
+#   cmake --build build/host-tests
+#   ctest --test-dir build/host-tests --output-on-failure
+#
+# Safety MCU (separate toolchain, separate build):
+#   cmake -B build/safety_mcu firmware/safety_mcu \
+#         -DCMAKE_TOOLCHAIN_FILE=cmake/stm32g071.cmake \
+#         -DCMAKE_BUILD_TYPE=Release
+#   cmake --build build/safety_mcu
+#
+# ── Module inventory (NP-SW-001 Rev A) ───────────────────────────────────────
+#
+# SW-02 (Class B) — i.MX RT1062 main processor firmware modules:
+#   firmware/bootloader/      — dual-bank OTA bootloader, Ed25519, DFU
+#   firmware/hub_control/     — FreeRTOS hub control (module registry, session
+#                                 runner, session log, safety SPI heartbeat)
+#   firmware/pbm_1064nm/      — 1064nm smart zone module detection + drive
+#   firmware/hrv_biofeedback/ — HRV+taVNS biofeedback protocol library
+#   firmware/zone_announce/   — RISK-15 Layer 5 bone-conduction zone announcement
+#   firmware/sloreta_hdtdcs/  — sLORETA-guided HD-tDCS (T2)
+#   firmware/cervical_vns/    — Cervical VNS main-processor side (T2)
+#   firmware/anon/            — Research anonymisation Scratch encryption
+#   firmware/edf/             — EDF+ privacy header writer/validator
+#   firmware/factory_reset/   — Device factory reset (eMMC SANITIZE + TRNG)
+#
+# SW-01 (Class C) — Safety MCU firmware:
+#   firmware/safety_mcu/      — STM32G071 bare-metal, separate build
+#
+# ── Host-test modules ─────────────────────────────────────────────────────────
+# Only these three modules have NP_BUILD_TESTS host targets:
+#   firmware/anon/            → np_anon_tests
+#   firmware/edf/             → np_edf_tests
+#   firmware/factory_reset/   → np_factory_reset_tests
+
+cmake_minimum_required(VERSION 3.20)
+
+# ── Project declaration ───────────────────────────────────────────────────────
+# The project language depends on whether we're building for a host or the MCU.
+# Both use C; C++ is not used in this firmware.
+project(neuropulse_firmware C ASM)
+
+# ── Global options ─────────────────────────────────────────────────────────────
+option(NP_BUILD_TESTS  "Build host-native unit tests (no ARM toolchain needed)" OFF)
+option(NP_BUILD_BOOTLOADER "Include the bootloader in the build"               ON)
+
+# ── Toolchain guard (cross-compiled modules) ──────────────────────────────────
+if(NOT NP_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
+    message(FATAL_ERROR
+        "This firmware must be built with the ARM cross-compiler toolchain.\n"
+        "Pass -DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/cmake/arm-none-eabi.cmake\n"
+        "or build only host unit tests with -DNP_BUILD_TESTS=ON.")
+endif()
+
+# ── Platform include paths (MCUX SDK + FreeRTOS) ──────────────────────────────
+# These are empty stubs here; a real integration populates them from the SDK.
+# The per-module CMakeLists files consume NP_PLATFORM_INCLUDE_DIRS as a list.
+if(CMAKE_CROSSCOMPILING)
+    set(NP_PLATFORM_INCLUDE_DIRS
+        ""   # ← populate with MCUX SDK path (e.g. $ENV{MCUX_SDK}/devices/MIMXRT1062/...)
+             #   and FreeRTOS include path when integrating the full SDK
+        CACHE PATH "MCUX SDK + FreeRTOS include directories")
+endif()
+
+# ── Host unit-test build ───────────────────────────────────────────────────────
+if(NP_BUILD_TESTS)
+    enable_testing()
+
+    add_subdirectory(anon)
+    add_subdirectory(edf)
+    add_subdirectory(factory_reset)
+
+    add_test(NAME np_anon_tests
+        COMMAND np_anon_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_edf_tests
+        COMMAND np_edf_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_factory_reset_tests
+        COMMAND np_factory_reset_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    return()
+endif()
+
+# ── Cross-compiled modules ────────────────────────────────────────────────────
+# Execution order: bootloader → {libraries} → hub_control links them all.
+
+if(NP_BUILD_BOOTLOADER)
+    add_subdirectory(bootloader)
+endif()
+
+add_subdirectory(zone_announce)
+add_subdirectory(hrv_biofeedback)
+add_subdirectory(pbm_1064nm)
+add_subdirectory(cervical_vns)
+add_subdirectory(sloreta_hdtdcs)
+add_subdirectory(anon)
+add_subdirectory(edf)
+add_subdirectory(factory_reset)
+
+# hub_control links all other libraries and is the top-level application target.
+add_subdirectory(hub_control)
