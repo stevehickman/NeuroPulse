@@ -52,11 +52,13 @@
 /* anonymisation run was interrupted (power loss) and the Scratch partition   */
 /* is SANITIZE'd before the flag is cleared.                                  */
 /*                                                                            */
-/* NOTE: NP_SNVS_BASE (0x400D4000) is defined in np_config.h.  LPGPR2 lives   */
-/* at offset 0x70.  These symbols are defined locally here AND in np_main.c   */
-/* to avoid colliding with Unit 1's parallel edit to np_config.h.  When the   */
-/* np_config.h definitions land, the merge reviewer must delete these local   */
-/* definitions and keep the np_config.h versions (single source of truth).    */
+/* NOTE: np_config.h (included above) already defines NP_SNVS_LPGPR2 as the   */
+/* MMIO dereference.  The host-override block below uses #undef + #define     */
+/* (NOT #ifndef) so the host RAM-backed definition always wins when NPTEST_HOST */
+/* is set, regardless of what np_config.h established first.  The previous     */
+/* #ifndef guard caused a silent failure: np_config.h's definition pre-empted  */
+/* the entire block, leaving the extern declaration invisible and the tests     */
+/* hitting an undeclared-identifier error at 'np_anon_host_lpgpr2'.            */
 /*                                                                            */
 /* On the host (NPTEST_HOST) the MMIO address is not mapped, so LPGPR2 is      */
 /* backed by a real RAM variable instead of a fixed-address dereference; this  */
@@ -65,14 +67,17 @@
 #define NP_SNVS_ANON_IN_PROGRESS    (1UL << 0U)
 #endif
 
-#ifndef NP_SNVS_LPGPR2
 #ifdef NPTEST_HOST
+/* Declare the host-backed variable (defined in np_anon_scratch.c under the
+ * same #ifdef NPTEST_HOST guard), then override the MMIO macro from           */
+/* np_config.h so all NP_SNVS_LPGPR2 references hit the real RAM location.    */
 extern volatile uint32_t np_anon_host_lpgpr2;
+#undef  NP_SNVS_LPGPR2
 #define NP_SNVS_LPGPR2 (np_anon_host_lpgpr2)
-#else
+#elif !defined(NP_SNVS_LPGPR2)
+/* Fallback for translation units that include this header without np_config.h. */
 #define NP_SNVS_LPGPR2 \
     (*(volatile uint32_t *)(NP_SNVS_BASE + 0x70U))
-#endif
 #endif
 
 #endif /* NP_ANON_CONFIG_H */
