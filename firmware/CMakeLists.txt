@@ -42,10 +42,11 @@
 #   firmware/safety_mcu/      — STM32G071 bare-metal, separate build
 #
 # ── Host-test modules ─────────────────────────────────────────────────────────
-# Only these three modules have NP_BUILD_TESTS host targets:
+# Modules with NP_BUILD_TESTS host targets:
 #   firmware/anon/            → np_anon_tests
 #   firmware/edf/             → np_edf_tests
 #   firmware/factory_reset/   → np_factory_reset_tests
+#   firmware/ota/             → np_ota_tests  (OTA state CRC + rollback logic)
 
 cmake_minimum_required(VERSION 3.20)
 
@@ -83,6 +84,7 @@ if(NP_BUILD_TESTS)
     add_subdirectory(anon)
     add_subdirectory(edf)
     add_subdirectory(factory_reset)
+    add_subdirectory(ota)
 
     add_test(NAME np_anon_tests
         COMMAND np_anon_tests
@@ -96,6 +98,10 @@ if(NP_BUILD_TESTS)
         COMMAND np_factory_reset_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    add_test(NAME np_ota_tests
+        COMMAND np_ota_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     return()
 endif()
 
@@ -106,6 +112,7 @@ if(NP_BUILD_BOOTLOADER)
     add_subdirectory(bootloader)
 endif()
 
+add_subdirectory(ota)
 add_subdirectory(zone_announce)
 add_subdirectory(hrv_biofeedback)
 add_subdirectory(pbm_1064nm)

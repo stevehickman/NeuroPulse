@@ -34,8 +34,15 @@ enum NPUUID {
     // allCharacteristicsResolved from blocking until hub ships this characteristic.
     static let warrantyToken    = CBUUID(string: "4E455550-0010-1000-8000-00805F9B34FB") // READ 32B
 
+    // Current hub firmware version — READ/NOTIFY 4B little-endian uint32.
+    // Encoding: bits [23:16]=major, [15:8]=minor, [7:0]=patch.
+    // NOT included in NPUUID.all — optional until hub firmware ships it (OI-WA-03).
+    // OTAView shows "Unknown" when nil; does not block allCharacteristicsResolved.
+    static let firmwareVersion  = CBUUID(string: "4E455550-0011-1000-8000-00805F9B34FB") // READ/NOTIFY 4B
+
     // All characteristics required for a fully-operational session.
-    // warrantyToken is deliberately omitted — it is optional until hub firmware ships it.
+    // warrantyToken and firmwareVersion are deliberately omitted — both are optional
+    // until hub firmware ships them (OI-WA-03).
     static let all: [CBUUID] = [
         sessionState, sessionStatus, hrvCoherence, pacerPhase,
         impedanceResult, consumableStatus, protocolUpload, edfRequest,
@@ -44,15 +51,23 @@ enum NPUUID {
     ]
 }
 
-// MARK: - OTA command opcodes
+// MARK: - OTA command opcodes (app → hub via OTA_COMMAND write characteristic)
+//
+// Opcode sequence for a successful main-processor OTA:
+//   1. initiate  → hub clears Scratch partition and prepares to receive
+//   2. chunk (×N) → firmware data in 496-byte segments (2B index + data)
+//   3. verify    → hub runs Ed25519 + SHA-256; hub reports .verified or .failed via OTA_STATUS
+//   4. commit    → hub writes inactive bank, stages boot swap, resets
+//   5. (hub reboots, reconnects, reports .complete via OTA_STATUS)
 
 enum OTAOpcode: UInt8 {
-    case begin          = 0x01  // Begin OTA transfer — hub prepares Bank B
-    case chunk          = 0x02  // Firmware chunk (payload follows opcode)
-    case commit         = 0x03  // All chunks sent; hub verifies Ed25519, swaps bank flag
-    case abort          = 0x04  // Cancel in-flight OTA
-    case safetyMCUBegin = 0x10  // Safety MCU firmware update — requires explicit user confirmation
-    case safetyMCUChunk = 0x11
+    case initiate        = 0x01  // Prepare Scratch partition for receive
+    case chunk           = 0x02  // Firmware chunk (2B little-endian index + data)
+    case verify          = 0x03  // Hub runs np_ota_verify_scratch() — Ed25519 + SHA-256
+    case commit          = 0x04  // Hub writes inactive bank, stages boot swap, resets
+    case abort           = 0x05  // Cancel in-flight OTA; hub returns to idle
+    case safetyMCUBegin  = 0x10  // Safety MCU update — requires explicit user confirmation
+    case safetyMCUChunk  = 0x11
     case safetyMCUCommit = 0x12
 }
 
@@ -116,6 +131,11 @@ struct GATTParser {
     static func parseZoneModuleStatus(_ data: Data) -> [UInt8]? {
         guard data.count >= 5 else { return nil }
         return (0..<5).map { data[$0] }
+    }
+
+    /// FIRMWARE_VERSION: uint32 little-endian — bits [23:16]=major [15:8]=minor [7:0]=patch
+    static func parseFirmwareVersion(_ data: Data) -> FirmwareVersion? {
+        FirmwareVersion(gattBytes: data)
     }
 
     /// OTA_STATUS: uint8 phase + uint8 progressPercent + uint16 errorCode
