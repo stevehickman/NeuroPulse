@@ -45,7 +45,7 @@ jobs:
             xcrun simctl list runtimes
           fi
       
-      - name: Create and boot simulator
+      - name: Create and boot simulator and run tests
         run: |
           # Get the latest available iOS runtime
           LATEST_RUNTIME=$(xcrun simctl list runtimes | grep "iOS" | tail -1 | grep -oE "com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9]+-[0-9]+" || echo "com.apple.CoreSimulator.SimRuntime.iOS-18-5")
@@ -63,8 +63,6 @@ jobs:
           xcrun simctl boot "iPhone 16 Pro" || true
           sleep 10
       
-      - name: Build and test
-        run: |
           # Extract OS version from runtime
           OS_VERSION=$(echo "$LATEST_RUNTIME" | grep -oE "[0-9]+-[0-9]+" | tr '-' '.')
           
