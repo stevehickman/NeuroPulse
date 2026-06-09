@@ -3,89 +3,92 @@
 //  NeuroPulseTests
 //
 //  Satisfies: ISC-154 (consumable reminder engine: threshold detection, safety-blocking gate,
-//             priority-scoped snooze limits), ISC-157.
+//             priority-scoped snooze limits, tracker protocol injection seam, reactive updates).
 //
-//  Subject under test: the consumable reminder logic in
-//                      app/ios/NeuroPulse/Models/ConsumableInventory.swift
-//                      (ConsumableState / ConsumableInventory / ConsumableKind), which is the exact
-//                      logic ConsumableTracker drives.
-//
-//  WHY NOT ConsumableTracker DIRECTLY:
-//  ConsumableTracker.init(gatt:) requires a NeuroPulseGATTManager, whose own init() constructs a
-//  live CBCentralManager and whose `session` is `private(set)`. There is no seam to inject GATT
-//  counts, so the tracker cannot be exercised deterministically in a unit test today. The decision
-//  logic the tracker depends on lives entirely in ConsumableInventory/ConsumableState and is fully
-//  tested here. Recommended refactor: extract a `ConsumableCountsProviding` protocol (one
-//  `@Published var consumableSessionCounts: [UInt16]`) and inject it into ConsumableTracker so the
-//  tracker's `sessionIsBlocked` / `snooze` / `recomputeReminders` can be tested against a mock.
-//  These tests are written against the underlying model so they remain valid after that refactor.
+//  Two test sections:
+//  1. ConsumableInventoryTests — pure model logic (ConsumableState / ConsumableInventory / ConsumableKind).
+//     These exercise the decision logic directly and remain valid regardless of tracker refactors.
+//  2. ConsumableTrackerDirectTests — tests ConsumableTracker itself via the ConsumableCountsProviding
+//     protocol injection seam. A MockCountsProvider (CurrentValueSubject-backed) eliminates the
+//     NeuroPulseGATTManager dependency so the tracker's sessionIsBlocked gate, snooze propagation,
+//     markReplaced propagation, and reactive count updates can all be covered.
 
 import XCTest
+import Combine
 @testable import NeuroPulse
 
-final class ConsumableTrackerTests: XCTestCase {
+// MARK: - MockCountsProvider
 
-    // MARK: - Helpers
+/// Injects deterministic consumable counts into ConsumableTracker without a real GATT connection.
+/// CurrentValueSubject delivers the initial value synchronously on subscription, so tracker state
+/// is already fully computed by the time ConsumableTracker.init(_:) returns.
+private final class MockCountsProvider: ConsumableCountsProviding {
 
-    /// Build an inventory and apply hub GATT counts, mirroring ConsumableTracker.handleUpdatedCounts.
-    private func inventory(counts: [UInt16]) -> ConsumableInventory {
+    private let subject: CurrentValueSubject<[UInt16], Never>
+
+    var consumableCountsPublisher: AnyPublisher<[UInt16], Never> {
+        subject.eraseToAnyPublisher()
+    }
+
+    init(counts: [UInt16] = [0, 0, 0, 0]) {
+        subject = CurrentValueSubject(counts)
+    }
+
+    func push(_ counts: [UInt16]) {
+        subject.send(counts)
+    }
+}
+
+// MARK: - Pure model tests (ISC-154, threshold / snooze logic)
+
+final class ConsumableInventoryTests: XCTestCase {
+
+    private func inventory(intranasal: UInt16 = 0, hydrogel: UInt16 = 0,
+                           vns: UInt16 = 0, audio: UInt16 = 0) -> ConsumableInventory {
         var inv = ConsumableInventory()
-        inv.update(fromGATTCounts: counts)
+        inv.update(fromGATTCounts: [intranasal, hydrogel, vns, audio])
         return inv
     }
 
-    private func state(_ inv: ConsumableInventory, _ kind: ConsumableKind) -> ConsumableState {
-        inv.states[kind.rawValue]
-    }
-
-    // Order: [intranasal, hydrogel, vns, audio]
-    private func counts(intranasal: UInt16 = 0, hydrogel: UInt16 = 0,
-                        vns: UInt16 = 0, audio: UInt16 = 0) -> [UInt16] {
-        [intranasal, hydrogel, vns, audio]
-    }
-
-    // MARK: - testNoReminderBelowThreshold
+    // MARK: Threshold detection
 
     func testNoReminderBelowThreshold() {
-        // Hydrogel: limit 45, lowThreshold 8 → 30 sessions used leaves 15 remaining (> 8): not low.
-        // VNS: limit 30, lowThreshold 4 → 10 used leaves 20 remaining: not low.
-        // Audio: limit 150, lowThreshold 20 → 50 used leaves 100 remaining: not low.
-        // Intranasal: single-use; 0 used → not exceeded, not low.
-        let inv = inventory(counts: counts(intranasal: 0, hydrogel: 30, vns: 10, audio: 50))
+        // Hydrogel: limit 45, lowThreshold 8 → 30 used = 15 remaining → not low.
+        // VNS:      limit 30, lowThreshold 4 → 10 used = 20 remaining → not low.
+        // Audio:    limit 150, lowThreshold 20 → 50 used = 100 remaining → not low.
+        let inv = inventory(hydrogel: 30, vns: 10, audio: 50)
 
-        XCTAssertFalse(state(inv, .electrodeHydrogel).isLow)
-        XCTAssertFalse(state(inv, .vnsPads).isLow)
-        XCTAssertFalse(state(inv, .audioCupFoam).isLow)
-
-        // No safety-blocking consumable is exceeded → nothing blocks a session.
+        XCTAssertFalse(inv.states[ConsumableKind.electrodeHydrogel.rawValue].isLow)
+        XCTAssertFalse(inv.states[ConsumableKind.vnsPads.rawValue].isLow)
+        XCTAssertFalse(inv.states[ConsumableKind.audioCupFoam.rawValue].isLow)
         XCTAssertTrue(inv.blockingReminders.isEmpty,
-                      "With all counts below threshold, there must be no blocking reminders.")
+                      "No blocking reminder expected when all counts are below threshold.")
     }
 
-    // MARK: - testBlockingReminderAtThreshold
+    func testBlockingReminderWhenIntranasalExceeded() {
+        // Intranasal: single-use (limit 1), safetyBlocking.
+        // A count of 1 means the sleeve has been used → isExceeded → session must be blocked.
+        let inv = inventory(intranasal: 1)
 
-    func testBlockingReminderAtThreshold() {
-        // Intranasal sleeves are single-use (limit 1) and safetyBlocking.
-        // A count of 1 means the sleeve has been used → isExceeded → session blocked.
-        let inv = inventory(counts: counts(intranasal: 1))
-
-        let sleeve = state(inv, .intranasalSleeves)
-        XCTAssertTrue(sleeve.isExceeded, "A used single-use sleeve must read as exceeded.")
+        let sleeve = inv.states[ConsumableKind.intranasalSleeves.rawValue]
+        XCTAssertTrue(sleeve.isExceeded, "count == limit must read as exceeded")
         XCTAssertEqual(sleeve.kind.reminderPriority, .safetyBlocking)
-
         XCTAssertFalse(inv.blockingReminders.isEmpty,
-                       "An exceeded safety-blocking consumable must produce a blocking reminder.")
-        // This is the condition ConsumableTracker.sessionIsBlocked surfaces.
-        let sessionIsBlocked = !inv.blockingReminders.isEmpty
-        XCTAssertTrue(sessionIsBlocked,
-                      "sessionIsBlocked must be true when intranasal sleeve is at its session limit.")
+                       "Exceeded safety-blocking consumable must produce a blocking reminder.")
     }
 
-    // MARK: - testSnoozeLimit_performance
+    func testActiveRemindersReturnLowStates() {
+        // Hydrogel: 44 used out of 45 limit → sessionsRemaining = 1 ≤ lowThreshold 8 → isLow.
+        let inv = inventory(hydrogel: 44)
+        XCTAssertTrue(inv.states[ConsumableKind.electrodeHydrogel.rawValue].isLow)
+        XCTAssertTrue(inv.activeReminders.contains { $0.kind == .electrodeHydrogel })
+    }
 
-    func testSnoozeLimit_performance() {
-        // Hydrogel is performanceCritical → snooze max 3×.
-        var s = ConsumableState(kind: .electrodeHydrogel, sessionCount: 44) // 1 remaining → low
+    // MARK: Snooze limits
+
+    func testSnoozeLimit_performanceCritical() {
+        // Hydrogel is performanceCritical → max 3 snoozes.
+        var s = ConsumableState(kind: .electrodeHydrogel, sessionCount: 44)
         XCTAssertTrue(s.isLow)
         XCTAssertEqual(s.maxSnooze, 3)
 
@@ -94,16 +97,13 @@ final class ConsumableTrackerTests: XCTestCase {
             s.snooze()
             applied += 1
         }
-        XCTAssertEqual(applied, 3, "A performance-critical reminder must snooze at most 3 times.")
-        XCTAssertEqual(s.snoozeCount, 3)
-        XCTAssertFalse(s.canSnooze, "A 4th snooze must not be permitted.")
+        XCTAssertEqual(applied, 3, "performanceCritical must allow at most 3 snoozes.")
+        XCTAssertFalse(s.canSnooze, "4th snooze must be refused.")
     }
 
-    // MARK: - testSnoozeLimit_comfort
-
     func testSnoozeLimit_comfort() {
-        // Audio cup foam is comfortLongevity → snooze max 5×.
-        var s = ConsumableState(kind: .audioCupFoam, sessionCount: 149) // 1 remaining → low
+        // audioCupFoam is comfortLongevity → max 5 snoozes.
+        var s = ConsumableState(kind: .audioCupFoam, sessionCount: 149)
         XCTAssertTrue(s.isLow)
         XCTAssertEqual(s.maxSnooze, 5)
 
@@ -112,27 +112,198 @@ final class ConsumableTrackerTests: XCTestCase {
             s.snooze()
             applied += 1
         }
-        XCTAssertEqual(applied, 5, "A comfort/longevity reminder must snooze at most 5 times.")
-        XCTAssertFalse(s.canSnooze, "A 6th snooze must not be permitted.")
+        XCTAssertEqual(applied, 5, "comfortLongevity must allow at most 5 snoozes.")
+        XCTAssertFalse(s.canSnooze, "6th snooze must be refused.")
     }
 
-    // MARK: - testSessionBlockedPreventsFourthPerformanceSnooze
+    func testSafetyBlockingCannotBeSnooze_model() {
+        var sleeve = ConsumableState(kind: .intranasalSleeves, sessionCount: 1)
+        XCTAssertFalse(sleeve.canSnooze, "safetyBlocking must never be snoozeable.")
+        sleeve.snooze()
+        XCTAssertEqual(sleeve.snoozeCount, 0, "Snooze on safetyBlocking must be a no-op.")
+    }
 
-    func testSessionBlockedPreventsFourthPerformanceSnooze() {
-        // Performance-critical (hydrogel): after 3 snoozes the 4th must be refused outright.
+    func testFourthSnoozeAttemptIsNoOp_performanceCritical() {
         var s = ConsumableState(kind: .electrodeHydrogel, sessionCount: 44)
         s.snooze(); s.snooze(); s.snooze()
         XCTAssertEqual(s.snoozeCount, 3)
+        s.snooze()  // 4th — must be a no-op
+        XCTAssertEqual(s.snoozeCount, 3, "4th snooze must not increment the count.")
+    }
+}
 
-        XCTAssertFalse(s.canSnooze, "After 3 snoozes the consumable must report it cannot snooze.")
-        s.snooze()  // attempt the 4th — guarded internally, must be a no-op
-        XCTAssertEqual(s.snoozeCount, 3,
-                       "A 4th snooze attempt must not increment the count beyond the cap.")
+// MARK: - ConsumableTracker direct tests (ISC-154, tracker layer)
 
-        // Safety-blocking consumables can never be snoozed at all.
-        var sleeve = ConsumableState(kind: .intranasalSleeves, sessionCount: 1)
-        XCTAssertFalse(sleeve.canSnooze, "A safety-blocking consumable must never be snoozeable.")
-        sleeve.snooze()
-        XCTAssertEqual(sleeve.snoozeCount, 0, "Snoozing a safety-blocking consumable must be a no-op.")
+/// Tests ConsumableTracker itself via MockCountsProvider injection.
+/// ConsumableTracker is @MainActor so this test class must be @MainActor too.
+///
+/// Each test uses a fresh, isolated UserDefaults suite (UUID-named) to prevent
+/// snooze persistence from leaking between tests. The suite is removed in tearDown.
+@MainActor
+final class ConsumableTrackerDirectTests: XCTestCase {
+
+    private var testSuiteName: String!
+    private var testDefaults: UserDefaults!
+
+    override func setUp() {
+        super.setUp()
+        testSuiteName = "com.neuropulse.test.\(UUID().uuidString)"
+        testDefaults = UserDefaults(suiteName: testSuiteName)!
+    }
+
+    override func tearDown() {
+        testDefaults.removePersistentDomain(forName: testSuiteName)
+        testDefaults = nil
+        testSuiteName = nil
+        super.tearDown()
+    }
+
+    private func makeTracker(counts: [UInt16] = [0, 0, 0, 0]) -> ConsumableTracker {
+        ConsumableTracker(countsProvider: MockCountsProvider(counts: counts), defaults: testDefaults)
+    }
+
+    // MARK: sessionIsBlocked gate
+
+    func testSessionNotBlockedAtZeroCounts() {
+        let tracker = makeTracker()
+        XCTAssertFalse(tracker.sessionIsBlocked,
+                       "No consumable is exceeded at zero counts — session must not be blocked.")
+        XCTAssertNil(tracker.sessionBlockReason)
+    }
+
+    func testSessionBlockedWhenIntranasalExceeded() {
+        let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [1, 0, 0, 0]), defaults: testDefaults)
+        XCTAssertTrue(tracker.sessionIsBlocked,
+                      "Intranasal at session limit must block session start.")
+        XCTAssertNotNil(tracker.sessionBlockReason)
+    }
+
+    func testSessionNotBlockedWhenOnlyHydrogelLow() {
+        // Hydrogel is performanceCritical, not safetyBlocking — it does not block sessions.
+        let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
+        XCTAssertFalse(tracker.sessionIsBlocked,
+                       "performanceCritical consumable being low must not block session start.")
+    }
+
+    // MARK: Active and blocking reminders
+
+    func testActiveRemindersEmptyAtZeroCounts() {
+        let tracker = makeTracker()
+        XCTAssertTrue(tracker.activeReminders.isEmpty)
+        XCTAssertTrue(tracker.blockingReminders.isEmpty)
+    }
+
+    func testActiveRemindersPopulatedWhenHydrogelLow() {
+        let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
+        XCTAssertFalse(tracker.activeReminders.isEmpty,
+                       "Hydrogel at 44/45 must produce an active reminder.")
+        XCTAssertEqual(tracker.activeReminders.first?.state.kind, .electrodeHydrogel)
+    }
+
+    func testBlockingReminderPresentWhenIntranasalExceeded() {
+        let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [1, 0, 0, 0]), defaults: testDefaults)
+        XCTAssertFalse(tracker.blockingReminders.isEmpty,
+                       "Exceeded intranasal sleeve must appear in blockingReminders.")
+        XCTAssertEqual(tracker.blockingReminders.first?.state.kind, .intranasalSleeves)
+    }
+
+    // MARK: Snooze forwarded through tracker
+
+    func testSnoozeIncrements() {
+        let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
+        let idx = ConsumableKind.electrodeHydrogel.rawValue
+        tracker.snooze(consumableIndex: idx)
+        XCTAssertEqual(tracker.inventory.states[idx].snoozeCount, 1)
+    }
+
+    func testSnoozeCapRespectedByTracker_performanceCritical() {
+        let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
+        let idx = ConsumableKind.electrodeHydrogel.rawValue
+        tracker.snooze(consumableIndex: idx)
+        tracker.snooze(consumableIndex: idx)
+        tracker.snooze(consumableIndex: idx)
+        tracker.snooze(consumableIndex: idx)  // 4th — must be no-op
+        XCTAssertEqual(tracker.inventory.states[idx].snoozeCount, 3,
+                       "Tracker must cap snooze at 3 for performanceCritical.")
+    }
+
+    func testTrackerSafetyBlockingCannotBeSnooze() {
+        let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [1, 0, 0, 0]), defaults: testDefaults)
+        let idx = ConsumableKind.intranasalSleeves.rawValue
+        tracker.snooze(consumableIndex: idx)
+        XCTAssertEqual(tracker.inventory.states[idx].snoozeCount, 0,
+                       "Snooze on safetyBlocking must be a no-op through the tracker.")
+        XCTAssertTrue(tracker.sessionIsBlocked,
+                      "Session must remain blocked after snooze attempt on safetyBlocking.")
+    }
+
+    // MARK: markReplaced resets through tracker
+
+    func testMarkReplacedResetsSessionCount() {
+        let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
+        let idx = ConsumableKind.electrodeHydrogel.rawValue
+        tracker.markReplaced(consumableIndex: idx)
+        XCTAssertEqual(tracker.inventory.states[idx].sessionCount, 0)
+        XCTAssertFalse(tracker.inventory.states[idx].isLow)
+        XCTAssertTrue(tracker.activeReminders.isEmpty)
+    }
+
+    func testMarkReplacedAlsoResetsSnoozeCount() {
+        let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [0, 44, 0, 0]), defaults: testDefaults)
+        let idx = ConsumableKind.electrodeHydrogel.rawValue
+        tracker.snooze(consumableIndex: idx)
+        tracker.markReplaced(consumableIndex: idx)
+        XCTAssertEqual(tracker.inventory.states[idx].snoozeCount, 0)
+    }
+
+    // MARK: Reactive update on new counts from provider
+
+    func testInventoryUpdatesWhenProviderPushesNewCounts() {
+        let provider = MockCountsProvider()
+        let tracker = ConsumableTracker(countsProvider: provider, defaults: testDefaults)
+
+        XCTAssertFalse(tracker.sessionIsBlocked, "Initially clear.")
+
+        provider.push([1, 0, 0, 0])  // Intranasal now exceeded — delivered synchronously
+
+        XCTAssertTrue(tracker.sessionIsBlocked,
+                      "Session must be blocked after provider pushes exceeded intranasal count.")
+    }
+
+    func testInventoryClears_afterReplacedCountPushed() {
+        let provider = MockCountsProvider(counts: [1, 0, 0, 0])
+        let tracker = ConsumableTracker(countsProvider: provider, defaults: testDefaults)
+        XCTAssertTrue(tracker.sessionIsBlocked)
+
+        // Hub pushes count of 0 (sleeve replaced at hub side) — tracker should react.
+        provider.push([0, 0, 0, 0])
+
+        XCTAssertFalse(tracker.sessionIsBlocked,
+                       "Session must unblock when provider pushes a cleared intranasal count.")
+    }
+
+    // MARK: Out-of-bounds index guard
+
+    func testSnoozeOutOfBoundsIndexIsNoOp() {
+        let tracker = makeTracker()
+        // Index 99 is well outside the 4-element states array — must not crash.
+        tracker.snooze(consumableIndex: 99)
+        XCTAssertTrue(tracker.activeReminders.isEmpty)
+    }
+
+    func testMarkReplacedOutOfBoundsIndexIsNoOp() {
+        let tracker = makeTracker()
+        tracker.markReplaced(consumableIndex: 99)
+        XCTAssertTrue(tracker.activeReminders.isEmpty)
+    }
+
+    // MARK: sessionBlockReason content
+
+    func testSessionBlockReasonMentionsConsumableName() {
+        let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [1, 0, 0, 0]), defaults: testDefaults)
+        let reason = tracker.sessionBlockReason
+        XCTAssertNotNil(reason)
+        XCTAssertTrue(reason?.contains("Intranasal Sleeves") == true,
+                      "Block reason must name the specific consumable.")
     }
 }

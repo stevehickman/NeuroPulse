@@ -1,7 +1,6 @@
 import Foundation
 import Combine
 import UserNotifications
-import UIKit
 
 // Measurement-triggered consumable reminder engine.
 // Per CLAUDE.md §5.2: all reminders are measurement-triggered, not calendar-triggered.
@@ -16,20 +15,20 @@ final class ConsumableTracker: ObservableObject {
     @Published private(set) var blockingReminders: [ConsumableReminder] = []
 
     private var cancellable: AnyCancellable?
-    private let gatt: NeuroPulseGATTManager
+    private let countsProvider: ConsumableCountsProviding
+    private let defaults: UserDefaults
 
-    init(gatt: NeuroPulseGATTManager) {
-        self.gatt = gatt
-        observeGATT()
-        requestNotificationPermission()
-        loadPersistedSnooze()
-    }
+    init(countsProvider: ConsumableCountsProviding, defaults: UserDefaults = .standard) {
+        self.countsProvider = countsProvider
+        self.defaults = defaults
+        loadPersistedSnooze()   // must come before observeCounts — the publisher delivers its
+        observeCounts()          // current value synchronously, which calls persistSnooze();
+    }                            // loading first ensures snooze counts survive restart
 
-    // MARK: - GATT observation
+    // MARK: - Count observation
 
-    private func observeGATT() {
-        cancellable = gatt.$session
-            .map(\.consumableSessionCounts)
+    private func observeCounts() {
+        cancellable = countsProvider.consumableCountsPublisher
             .removeDuplicates()
             .sink { [weak self] counts in
                 self?.handleUpdatedCounts(counts)
@@ -82,7 +81,6 @@ final class ConsumableTracker: ObservableObject {
 
     // MARK: - Session start gate
 
-    // Returns true if a blocking consumable issue prevents session start.
     var sessionIsBlocked: Bool { !blockingReminders.isEmpty }
 
     var sessionBlockReason: String? {
@@ -92,14 +90,21 @@ final class ConsumableTracker: ObservableObject {
 
     // MARK: - Local notifications
 
-    private func requestNotificationPermission() {
+    // Called from ConsumableView.onAppear so the dialog appears in context — after the user
+    // can see why notifications are useful. Requesting at app init is premature and confusing.
+    // (LOW-2 fix, NP-PRIV-ANALYSIS-003: permission deferred to first ConsumableView appearance.)
+    func requestNotificationPermissionIfNeeded() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
     }
 
     private func scheduleLocalNotification(for reminder: ConsumableReminder) {
         let content = UNMutableNotificationContent()
-        content.title = "NeuroPulse: \(reminder.state.kind.displayName) Low"
-        content.body = reminder.notificationBody
+        // Generic title on lock screen — does not name the consumable or reveal device type.
+        // Specific consumable detail is in body, revealed after device unlock on most configs.
+        // (LOW-1 fix, NP-PRIV-ANALYSIS-003: prevents involuntary health-device disclosure.)
+        content.title = "NeuroPulse"
+        content.subtitle = "Action required — tap to view"
+        content.body = reminder.headline
         content.sound = .default
         content.userInfo = ["consumableIndex": reminder.state.kind.rawValue]
 
@@ -115,11 +120,11 @@ final class ConsumableTracker: ObservableObject {
 
     private func persistSnooze() {
         let counts = inventory.states.map(\.snoozeCount)
-        UserDefaults.standard.set(counts, forKey: snoozeKey)
+        defaults.set(counts, forKey: snoozeKey)
     }
 
     private func loadPersistedSnooze() {
-        guard let counts = UserDefaults.standard.array(forKey: snoozeKey) as? [Int] else { return }
+        guard let counts = defaults.array(forKey: snoozeKey) as? [Int] else { return }
         for (idx, count) in counts.enumerated() where idx < inventory.states.count {
             inventory.states[idx].snoozeCount = count
         }
@@ -150,8 +155,6 @@ struct ConsumableReminder: Identifiable {
     }
 
     var orderURL: URL? {
-        // Production: deep-link to NeuroPulse store with consumable pre-selected.
         URL(string: "https://neuropulse.com/consumables/\(state.kind.rawValue)")
     }
 }
-

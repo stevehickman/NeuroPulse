@@ -42,6 +42,7 @@
 		55843750C59E854BC23C83CE /* ProtocolScriptEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB42CF1B6D7862F37A476A1C /* ProtocolScriptEditorView.swift */; };
 		5700DFA4F74A78C0FACEFC19 /* SessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 484F6F06875BE861E52A331F /* SessionState.swift */; };
 		57E03885BEC1D80E7D1FC608 /* RegionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9A9D0E1AEF9CF2D19E1EC5 /* RegionHelper.swift */; };
+		594CFE7AF49E70D8415A0C75 /* ConsumableCountsProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AAFA30431862FB5EFE2B94B /* ConsumableCountsProviding.swift */; };
 		5FA3CFF4428F945C9E8E1AD8 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C7F8970F83491CC9DF5C46EE /* Localizable.strings */; };
 		60066FA725B78AC851A1D2FB /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B3C8C3C50590F552A09F2A6 /* SessionView.swift */; };
 		67C16141CE9405C01E2DE345 /* ModalityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */; };
@@ -121,6 +122,7 @@
 		212AED6CC59AF5DEB2C7F757 /* NPHardwareLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPHardwareLimits.swift; sourceTree = "<group>"; };
 		22DD080B42ACBBA5122F855A /* ProtocolChunkerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolChunkerTests.swift; sourceTree = "<group>"; };
 		29997D2651EEF868F3BCD7C8 /* OTAView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAView.swift; sourceTree = "<group>"; };
+		2AAFA30431862FB5EFE2B94B /* ConsumableCountsProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableCountsProviding.swift; sourceTree = "<group>"; };
 		2B1FA28527F9048C12382557 /* ConsumableTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableTracker.swift; sourceTree = "<group>"; };
 		2C279FD12310F55C1FC6E964 /* BLECentral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLECentral.swift; sourceTree = "<group>"; };
 		2E7811F3AF0C1233B76E7036 /* EngagementTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngagementTier.swift; sourceTree = "<group>"; };
@@ -410,6 +412,7 @@
 		EA66FB77FDEC54FF12C0374E /* Consumable */ = {
 			isa = PBXGroup;
 			children = (
+				2AAFA30431862FB5EFE2B94B /* ConsumableCountsProviding.swift */,
 				2B1FA28527F9048C12382557 /* ConsumableTracker.swift */,
 			);
 			path = Consumable;
@@ -569,6 +572,7 @@
 				4EB2F13C0F7FA17B77DB1522 /* ConsentModels.swift in Sources */,
 				AD88E4F65117BFFCC67465C1 /* ConsentOnboardingView.swift in Sources */,
 				3CE8973169F34B9A2261990B /* ConsentStore.swift in Sources */,
+				594CFE7AF49E70D8415A0C75 /* ConsumableCountsProviding.swift in Sources */,
 				50E470714010021CFE57F203 /* ConsumableInventory.swift in Sources */,
 				EB2E3B6A2B4DFB374E88DE22 /* ConsumableTracker.swift in Sources */,
 				E6EF5FE729ADF62E01622C6A /* ConsumableView.swift in Sources */,
