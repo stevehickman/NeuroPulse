@@ -183,20 +183,25 @@ struct SetupView: View {
 
     private func iconName(for step: SetupStep) -> String {
         switch step {
-        case .welcome:            return "sparkles"
-        case .boaDial:            return "dial.high"
-        case .electrodePods:      return "brain.head.profile"
-        case .zoneModules:        return "rectangle.3.group"
-        case .impedanceCheck:     return "waveform.path.ecg"
-        case .ads1299Calibration: return "slider.horizontal.3"
-        case .hydrationCaps:      return "drop.circle"
-        case .complete:           return "checkmark.circle.fill"
+        case .welcome:               return "sparkles"
+        case .bleConfirmation:       return "antenna.radiowaves.left.and.right"
+        case .boaDial:               return "dial.high"
+        case .electrodePods:         return "brain.head.profile"
+        case .zoneModules:           return "rectangle.3.group"
+        case .impedanceCheck:        return "waveform.path.ecg"
+        case .ads1299Calibration:    return "slider.horizontal.3"
+        case .hydrationCaps:         return "drop.circle"
+        case .safetyAcknowledgement: return "shield.checkered"
+        case .protocolSelection:     return "list.bullet.rectangle.portrait"
+        case .complete:              return "checkmark.circle.fill"
         }
     }
 
     @ViewBuilder
     private var stepSpecificContent: some View {
         switch setup.currentStep {
+        case .bleConfirmation:
+            BLEConnectionStatusCard()
         case .zoneModules:
             ZoneModuleStatusGrid(configuration: setup.zoneConfiguration)
         case .impedanceCheck:
@@ -206,6 +211,12 @@ struct SetupView: View {
                 ProgressView("Calibrating EEG amplifier…")
                     .frame(maxWidth: .infinity)
             }
+        case .safetyAcknowledgement:
+            SafetyAcknowledgementCard(acknowledged: setup.safetyAcknowledged) {
+                setup.acknowledgeSafety()
+            }
+        case .protocolSelection:
+            ProtocolSelectionCard()
         case .complete:
             VStack(spacing: 16) {
                 Image(systemName: "checkmark.circle.fill")
@@ -256,6 +267,18 @@ struct SetupView: View {
     @ViewBuilder
     private var hardwareConfirmButton: some View {
         switch setup.currentStep {
+        case .bleConfirmation:
+            VStack(spacing: 12) {
+                Button("Confirm Hub Connection") {
+                    setup.confirmBLEPairing()
+                }
+                .buttonStyle(.borderedProminent)
+                .frame(maxWidth: .infinity)
+                if setup.lastError != nil {
+                    Button("Retry") { setup.retry() }
+                        .buttonStyle(.bordered)
+                }
+            }
         case .impedanceCheck:
             VStack(spacing: 12) {
                 if setup.isProcessing {
@@ -292,6 +315,139 @@ struct SetupView: View {
             EmptyView()
         }
     }
+}
+
+// MARK: - BLE connection status card
+
+private struct BLEConnectionStatusCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Hub Connection", systemImage: "antenna.radiowaves.left.and.right")
+                .font(.headline)
+                .foregroundColor(.accentColor)
+            Text("Make sure the NeuroPulse hub is powered on. The green LED on the left temple should be breathing steadily. Connect via Bluetooth or USB-C.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+// MARK: - Safety acknowledgement card (ISC-118/119)
+
+struct SafetyAcknowledgementCard: View {
+    let acknowledged: Bool
+    let onAcknowledge: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("T1 Contraindications", systemImage: "exclamationmark.shield")
+                .font(.headline)
+                .foregroundColor(.primary)
+
+            VStack(alignment: .leading, spacing: 8) {
+                contraindication("Do not use if you have an active implantable device (pacemaker, cochlear implant, DBS, SCS).")
+                contraindication("Do not use if you have a personal or family history of epilepsy or seizure disorder.")
+                contraindication("Do not use during pregnancy.")
+                contraindication("Do not use on broken, irritated, or recently tattooed skin.")
+                contraindication("Discontinue and consult a physician if you experience headache, nausea, or visual disturbance.")
+                contraindication("Not for use under 16 years of age.")
+            }
+
+            Divider()
+
+            Button {
+                onAcknowledge()
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: acknowledged ? "checkmark.square.fill" : "square")
+                        .font(.title3)
+                        .foregroundColor(acknowledged ? .accentColor : .secondary)
+                    Text("I have read and understood the above safety information and confirm none of these contraindications apply to me.")
+                        .font(.subheadline)
+                        .multilineTextAlignment(.leading)
+                        .foregroundColor(.primary)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Safety acknowledgement checkbox")
+            .accessibilityValue(acknowledged ? "Checked" : "Unchecked")
+            .accessibilityAddTraits(.isButton)
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func contraindication(_ text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "xmark.circle.fill")
+                .foregroundColor(.red)
+                .font(.caption)
+                .padding(.top, 2)
+            Text(text)
+                .font(.subheadline)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+// MARK: - Protocol selection card (ISC-114 item 3)
+
+private struct ProtocolSelectionCard: View {
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label("Starter Protocols", systemImage: "list.bullet.rectangle.portrait")
+                .font(.headline)
+                .foregroundColor(.accentColor)
+
+            Text("These protocols are pre-loaded on your hub. You can change your default session at any time from the Session tab.")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            ForEach(StarterProtocol.all) { proto in
+                HStack(spacing: 12) {
+                    Image(systemName: proto.icon)
+                        .foregroundColor(.accentColor)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(proto.name)
+                            .font(.subheadline.bold())
+                        Text(proto.summary)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+}
+
+private struct StarterProtocol: Identifiable {
+    let id: String
+    let name: String
+    let summary: String
+    let icon: String
+
+    static let all: [StarterProtocol] = [
+        StarterProtocol(id: "alpha_calm", name: "Alpha Calm",
+                        summary: "10 Hz alpha entrainment · PBM · 20 min",
+                        icon: "waveform"),
+        StarterProtocol(id: "focus_prime", name: "Focus Prime",
+                        summary: "20 Hz beta · tDCS · PBM · 30 min",
+                        icon: "bolt.circle"),
+        StarterProtocol(id: "sleep_deep", name: "Sleep Deep",
+                        summary: "2 Hz delta · PBM · 30 min",
+                        icon: "moon.stars"),
+    ]
 }
 
 // MARK: - Supporting subviews

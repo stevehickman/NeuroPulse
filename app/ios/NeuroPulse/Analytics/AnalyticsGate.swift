@@ -28,7 +28,9 @@ enum AnalyticsGate {
     /// deprecated raw-count fields replaced by `engagement_tier`.
     private static let prohibitedKeys: Set<String> = [
         "eeg", "hrv", "rmssd", "coherence", "session_id", "protocol_id",
-        "session_count", "session_sequence"
+        "session_count", "session_sequence",
+        // Impedance data is UHDR-class (raw per-electrode bitmask at named scalp positions).
+        "imp", "impedance", "impedance_flags", "pass_flags"
     ]
 
     /// The UserDefaults key set when the user **actively completes** the consent

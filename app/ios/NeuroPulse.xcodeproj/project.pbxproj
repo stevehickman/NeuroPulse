@@ -45,6 +45,7 @@
 		57E03885BEC1D80E7D1FC608 /* RegionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9A9D0E1AEF9CF2D19E1EC5 /* RegionHelper.swift */; };
 		594CFE7AF49E70D8415A0C75 /* ConsumableCountsProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AAFA30431862FB5EFE2B94B /* ConsumableCountsProviding.swift */; };
 		5D06C09BA7CE2433B46F93D1 /* OTAManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DCB16680A4C12EFB0780B1A /* OTAManagerTests.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* HardwareSetupManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1E2D3C4B5A6F7E8D9C0B1A2 /* HardwareSetupManagerTests.swift */; };
 		5FA3CFF4428F945C9E8E1AD8 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C7F8970F83491CC9DF5C46EE /* Localizable.strings */; };
 		60066FA725B78AC851A1D2FB /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B3C8C3C50590F552A09F2A6 /* SessionView.swift */; };
 		67C16141CE9405C01E2DE345 /* ModalityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */; };
@@ -155,6 +156,7 @@
 		89CB57AFEAD042EB5E28DA49 /* GATTParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GATTParserTests.swift; sourceTree = "<group>"; };
 		8C436280E122876CADCCE29F /* ProtocolChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolChunker.swift; sourceTree = "<group>"; };
 		8DCB16680A4C12EFB0780B1A /* OTAManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAManagerTests.swift; sourceTree = "<group>"; };
+		F1E2D3C4B5A6F7E8D9C0B1A2 /* HardwareSetupManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareSetupManagerTests.swift; sourceTree = "<group>"; };
 		8E1F8DE3B43EC111BC0314A3 /* UHDRKeyManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UHDRKeyManagerTests.swift; sourceTree = "<group>"; };
 		91A29AEA97C0ABB9CD262787 /* NeuroPulseShared */ = {isa = PBXFileReference; lastKnownFileType = folder; name = NeuroPulseShared; path = ../NeuroPulseShared; sourceTree = SOURCE_ROOT; };
 		925CEA12894CF191CD729896 /* NPPredefinedProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPPredefinedProtocols.swift; sourceTree = "<group>"; };
@@ -314,6 +316,7 @@
 				1EBB4931BC5C14272812376B /* NeuroPulseTests.swift */,
 				9A8DFE0776D52E3EA54D874A /* NPProtocolValidatorTests.swift */,
 				8DCB16680A4C12EFB0780B1A /* OTAManagerTests.swift */,
+				F1E2D3C4B5A6F7E8D9C0B1A2 /* HardwareSetupManagerTests.swift */,
 				22DD080B42ACBBA5122F855A /* ProtocolChunkerTests.swift */,
 				8184004F4B72C61B686085E6 /* RegionHelperTests.swift */,
 				F67AE1B53B557BDE2FC40D2D /* SessionDisplayTests.swift */,
@@ -554,6 +557,7 @@
 				686D3027611C4F40B5EFA317 /* NeuroPulseGATTManagerTests.swift in Sources */,
 				D669D78E9899B8B7A9A3EC94 /* NeuroPulseTests.swift in Sources */,
 				5D06C09BA7CE2433B46F93D1 /* OTAManagerTests.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* HardwareSetupManagerTests.swift in Sources */,
 				4157B772C46C98F925D084B9 /* ProtocolChunkerTests.swift in Sources */,
 				A72C4A1425B5DA66ABB5B511 /* RegionHelperTests.swift in Sources */,
 				727B9C405F54232399826BED /* SessionDisplayTests.swift in Sources */,

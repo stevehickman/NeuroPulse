@@ -103,6 +103,11 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
     private var calibrationCmdChar: CBCharacteristic?
     private var sessionStopChar:    CBCharacteristic?
 
+    // Dedicated subject for impedance results — fires ONLY from NPUUID.impedanceResult handler.
+    // Distinct from session state updates so SetupGATTProviding.waitForImpedanceResult cannot
+    // false-trigger on unrelated session emissions (HRV, pacer phase, etc.).
+    private let impedanceResultSubject = PassthroughSubject<UInt16, Never>()
+
     // Optional — not in NPUUID.all; hub firmware pending (OI-WA-03).
     private var warrantyTokenChar:    CBCharacteristic?
     private var firmwareVersionChar:  CBCharacteristic?
@@ -471,6 +476,7 @@ extension NeuroPulseGATTManager: CBPeripheralDelegate {
         case NPUUID.impedanceResult:
             if let flags = GATTParser.parseImpedanceResult(data) {
                 pending.impedancePassFlags = flags
+                impedanceResultSubject.send(flags)
             }
 
         case NPUUID.consumableStatus:
@@ -511,5 +517,19 @@ extension NeuroPulseGATTManager: CBPeripheralDelegate {
         default:
             break
         }
+    }
+}
+
+// MARK: - SetupGATTProviding conformance
+
+extension NeuroPulseGATTManager: SetupGATTProviding {
+    var sessionPublisher: AnyPublisher<SessionState, Never> {
+        $session.eraseToAnyPublisher()
+    }
+    var zoneModulesPublisher: AnyPublisher<[UInt8], Never> {
+        $zoneModules.eraseToAnyPublisher()
+    }
+    var impedanceResultPublisher: AnyPublisher<UInt16, Never> {
+        impedanceResultSubject.eraseToAnyPublisher()
     }
 }
