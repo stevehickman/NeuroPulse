@@ -1,9 +1,9 @@
-# NP-DHF-001 Rev L — NeuroPulse Design History File Index
+# NP-DHF-001 Rev N — NeuroPulse Design History File Index
 
 **Document number:** NP-DHF-001  
-**Revision:** M  
+**Revision:** N  
 **Status:** ACTIVE  
-**Effective date:** 2026-06-07  
+**Effective date:** 2026-06-09  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved by:** Steve Hickman, CEO  
 **Next review:** Ongoing — updated with each new design document release
@@ -88,9 +88,9 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-DB-003 | Design Brief | 3 | 2026-05-04 | [neuropulse_brief_r3_superseded.docx](./neuropulse_brief_r3_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-004 | Design Brief | 4 | 2026-05-07 | [neuropulse_brief_r4_superseded.docx](./neuropulse_brief_r4_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
 | NP-DB-005 | Master Design Brief | 5 | 2026-05-16 | [neuropulse_design_brief_r5.docx](./neuropulse_design_brief_r5.docx) | ACTIVE | REQ |
-| — | CLAUDE.md — Project Design Memory | 22 | 2026-06-07 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
+| — | CLAUDE.md — Project Design Memory | 24 | 2026-06-09 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
 
-**Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change. Rev 22 (2026-06-07) adds: NP-FMEA-001 Rev A (SW-01 Safety MCU FMEA), NP-API-001 Rev A (T2 Scripting API), and NP-DT-001 Rev A (Design I/O Traceability Matrix) to §14 document register; SHDR warranty token PARTIAL status updated (app-side Keychain token in place, hub-provisioned TRNG pending); all NP-PRIV-ANALYSIS-002 code-level findings resolved.
+**Note on CLAUDE.md:** CLAUDE.md serves as the living design authority document capturing all locked design decisions and pending items. It is under git version control and constitutes a design record for DHF purposes. Each revision (tracked by git commit) is a controlled design change. Rev 24 (2026-06-09) adds: OTA firmware update locked decision entry to §13.5 (opcode wire values, SPKI pinning, fingerprint-first ordering, 27 iOS + 21 firmware tests); OTA document entry in §14 document register; ISA progress updated to 36/164.
 
 ### 5.3 Hardware Specifications
 
@@ -126,7 +126,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-SES-1064-001 | 1064nm Multi-Wavelength Session Protocol | A | 2026-05-12 | [neuropulse_session_protocol_1064_001.md](./neuropulse_session_protocol_1064_001.md) | ACTIVE | SES |
-| NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE — 164 ISCs, 17 groups, **progress 20/164** (commit 9ce36a5). Session Display Mode 1 (ISC-21–34, ISC-161/162/164) all verified and checked. ISC-30 implemented (Download Session Data button on `.completed`); epoch→edfSessionID bug fixed (epoch 0 → nil); `SessionDisplayTests.swift` adds 5 unit tests. OI-PA-01 (age gate legal threshold) open. | APP |
+| NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE — 164 ISCs, 17 groups, **progress 36/164** (2026-06-09). ISC-107–113 OTA update verified (OTAManager, FirmwareUpdateService, OTAModels, OTAView; 27 OTAManagerTests pass). ISC-154 ConsumableTracker verified (23 tests). ISC-11–20 BLE GATT layer verified (25 NeuroPulseGATTManagerTests pass). ISC-21–34, ISC-161/162/164 Session Display Mode 1 verified. OI-PA-01 (age gate legal threshold) open. | APP |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | B | 2026-06-03 | [neuropulse_ios_app_roadmap_001.md](./neuropulse_ios_app_roadmap_001.md) | ACTIVE — Rev B adds §9 Privacy Constraints (binding engineering constraints): HealthKit residency, minimum age gate (16+), BIPA written release screen for IL users, Adaptive Adjustments card, SDK init gate; OI-PA-01 OPEN; OI-PA-02/03 OPEN; OI-WA-06 OPEN. AgeGateView.swift now implemented (Issue #51, PR #106) — OI-PA-01 (legal counsel threshold confirmation) remains open. | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | B | 2026-06-03 | [neuropulse_app_telemetry_001.md](./neuropulse_app_telemetry_001.md) | ACTIVE — Rev B: `session_sequence` (raw integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev B LOW-03; §3.2 implementation note added | APP |
 | — | NPPS Protocol Scripting Language Reference | — | 2026-05-16 | [npps-reference.md](./npps-reference.md) | ACTIVE | APP |
@@ -221,6 +221,7 @@ Under IEC 62304 and 21 CFR §820.30, software source code and associated build a
 
 | Firmware item | IEC 62304 class | Document | Repository path |
 |---|---|---|---|
+| OTA state host-testable C module | Class B (host-testable) | NP-APP-ISA-001 ISC-111 | [firmware/ota/](../firmware/ota/) |
 | Dual-bank OTA bootloader | Class B (boundary) | NP-FW-EMMC-001 Rev A §8 | [firmware/bootloader/](../firmware/bootloader/) |
 | Hub control program | Class B | NP-FW-HUB-001 Rev A | [firmware/hub_control/](../firmware/hub_control/) |
 | HRV biofeedback protocol | Class B | NP-FW-HRV-001 Rev A | [firmware/hrv_biofeedback/](../firmware/hrv_biofeedback/) |
@@ -250,12 +251,12 @@ The iOS application source code is a Class B software item under NP-SW-001. Sour
 | Clinical consent engine (ConsentEngine, ConsentStore) | Class B | NP-APP-ISA-001 ISC-68–82 | `app/ios/NeuroPulse/Consent/` |
 | Privacy compliance (AgeGateView, Under16View, HealthKitSessionReader) | Class B | NP-APP-ISA-001 ISC-83–97 | `app/ios/NeuroPulse/Onboarding/`, `app/ios/NeuroPulse/Data/HealthKitSessionReader.swift` |
 | Consumable tracker (ConsumableTracker) | Class B | NP-APP-ISA-001 ISC-98–106 | `app/ios/NeuroPulse/Consumable/` |
-| OTA firmware update (OTAManager) | Class B | NP-APP-ISA-001 ISC-107–113 | `app/ios/NeuroPulse/OTA/` |
+| OTA firmware update (OTAManager, FirmwareUpdateService, OTAModels, OTAView) | Class B | NP-APP-ISA-001 ISC-107–113 | `app/ios/NeuroPulse/OTA/`, `app/ios/NeuroPulse/Models/OTAModels.swift` |
 | Hardware setup wizard (HardwareSetupManager, SetupView) | Class B | NP-APP-ISA-001 ISC-114–121 | `app/ios/NeuroPulse/Setup/` |
 | Apple Watch bridge (PhoneSessionManager) | Class B | NP-APP-ISA-001 ISC-122–125 | `app/ios/NeuroPulse/WatchBridge/` |
 | App entry point and service wiring (NeuroPulseApp) | Class B | NP-APP-ISA-001 | `app/ios/NeuroPulse/NeuroPulseApp.swift` |
 
-**Test target:** `app/ios/NeuroPulseTests/` — 7 XCTest suites, 49 tests, all passing as of commit 9ce36a5. Three `XCTExpectFailure` entries document known validator gaps (charge density, PBM dose, zero-duration) requiring follow-up implementation. `SessionDisplayTests.swift` (5 tests, added 2026-06-07) covers ISC-30 `shouldShowSessionDownload` predicate and `edfSessionID(from:)` epoch mapping.
+**Test target:** `app/ios/NeuroPulseTests/` — 8 XCTest suites, 76 tests, all passing as of 2026-06-09. Three `XCTExpectFailure` entries document known validator gaps (charge density, PBM dose, zero-duration) requiring follow-up implementation. `OTAManagerTests.swift` (27 tests, added 2026-06-09) covers ISC-107–113: manifest fetch, version comparison, opcode wire values, phase state machine, session progress, SPKI cert pinning (correct DER header), fingerprint-first privacy ordering, download failure wrapping. `SessionDisplayTests.swift` (5 tests) covers ISC-30 predicate and epoch mapping. Additionally: `firmware/ota/tests/np_ota_tests.c` 21 host tests — OTA state record CRC, validate, increment_attempts, bank bounds, attempt limit.
 
 ---
 
@@ -313,6 +314,7 @@ Planned near-term additions:
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| N | 2026-06-09 | Steve Hickman (CEO, interim Quality authority) | **OTA firmware update — iOS + firmware C module.** `firmware/ota/` added to §6 firmware source table (host-testable Class B module; `np_ota_state.h/.c`; CRC32 over first 40 bytes; 21 host tests). OTA iOS modules added to §6b (`OTAManager`, `FirmwareUpdateService`, `OTAModels`, `OTAView`; 27 OTAManagerTests). ISA progress updated: 36/164. §6b test count: 7 suites 49 tests → 8 suites 76 tests. `OTAModels.swift` entry corrected: `formattedBytes` uses integer round-half-up (avoids banker's rounding producing "0 KB" for sub-1 KB transfers). CLAUDE.md §13.5 updated with locked OTA decisions (opcode wire values, SPKI pinning, fingerprint-first ordering). NP-APP-ISA-001 ISC-107–113 VERIFIED. Rev M → Rev N. Effective 2026-06-09. |
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. All pre-formation design documents entered retroactively under change control. DHF established at QMS formation. |
 | B | 2026-05-17 | Interim Quality (CEO) | NP-DB-004 (R4) marked SUPERSEDED; NP-DB-005 (R5) added as ACTIVE. NP-HW-HUB-001 Rev B added (§5.3). NP-FW-HUB-001 Rev A (hub_control) added to §5.4 and §6. NPPS Language Reference added (§5.5). NP-FW-REQ-001 marked SUPERSEDED. NP-MOD-EXT-001 marked SUPERSEDED. NP-RISK-001 → Rev B. NP-COORD-001 → Rev A.8. CLAUDE.md → Rev 9. Relative navigation links added. DHF completeness assessment updated. |
 | C | 2026-05-17 | Interim Quality (CEO) | NP-SIM-001 v0.1.0 (Helmet Simulator) added to §5.5; SIM category added to §4. CLAUDE.md → Rev 11. Note added below §5.5 clarifying simulator regulatory status. Open sub-issues #77–#80 recorded under parent Issue #81 / PR #76. |
@@ -329,4 +331,4 @@ Planned near-term additions:
 
 ---
 
-*NP-DHF-001 Rev M — ACTIVE — Effective 2026-06-07*
+*NP-DHF-001 Rev N — ACTIVE — Effective 2026-06-09*

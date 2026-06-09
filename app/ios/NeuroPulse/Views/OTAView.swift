@@ -1,8 +1,10 @@
 import SwiftUI
 
 // OTA firmware update UI.
-// Shows available firmware, Ed25519 fingerprint before apply,
-// transfer progress, and Safety MCU separate confirmation gate.
+// Shows current hub version (ISC-108) and available update from manifest (ISC-107).
+// Displays Ed25519 fingerprint before confirmation (ISC-113).
+// Progress section shows bytes/total bytes (ISC-110) and reconnect wait (ISC-112).
+// Safety MCU update requires an explicit confirmation alert.
 
 struct OTAView: View {
 
@@ -10,14 +12,13 @@ struct OTAView: View {
     @EnvironmentObject private var gatt: NeuroPulseGATTManager
 
     @State private var showSafetyMCUConfirmation = false
-    @State private var availableFirmware: FirmwareImage? = nil
-    @State private var availableData: Data? = nil
 
     var body: some View {
         NavigationStack {
             List {
-                connectionSection
-                if let fw = availableFirmware {
+                hubStatusSection
+                versionSection
+                if let fw = ota.availableUpdate {
                     availableUpdateSection(fw)
                 } else {
                     upToDateSection
@@ -29,44 +30,55 @@ struct OTAView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Firmware")
-            .onAppear { checkForUpdates() }
+            .onAppear { ota.checkForUpdates() }
             .alert("Update Safety MCU?", isPresented: $showSafetyMCUConfirmation) {
                 Button("Cancel", role: .cancel) {}
                 Button("Update Safety MCU", role: .destructive) {
-                    if let fw = availableFirmware, let data = availableData {
-                        Task { try? await ota.beginSafetyMCUUpdate(image: fw, imageData: data) }
+                    if let fw = ota.availableUpdate {
+                        Task { try? await ota.beginSafetyMCUUpdate(image: fw) }
                     }
                 }
             } message: {
-                Text("The Safety MCU controls all stimulation enable lines. This update will pause all stimulation. Do not disconnect during the update.")
+                Text("The Safety MCU controls all stimulation enable lines. This update will pause all stimulation for several minutes. Do not disconnect during the update.")
             }
         }
     }
 
     // MARK: - Sections
 
-    private var connectionSection: some View {
-        Section {
+    private var hubStatusSection: some View {
+        Section("Hub Status") {
             HStack {
                 Image(systemName: gatt.connectionState == .connected ? "wifi" : "wifi.slash")
                     .foregroundColor(gatt.connectionState == .connected ? .green : .secondary)
-                    .accessibilityHidden(true) // status conveyed by adjacent text
+                    .accessibilityHidden(true)
                 Text(gatt.connectionState == .connected ? "Hub connected" : "Hub not connected")
                     .font(.subheadline)
             }
-        } header: {
-            Text("Hub Status")
+        }
+    }
+
+    // ISC-108: show current hub firmware version alongside available version.
+    private var versionSection: some View {
+        Section("Version") {
+            LabeledContent("Installed") {
+                Text(gatt.hubFirmwareVersion ?? (gatt.connectionState == .connected ? "Reading…" : "—"))
+                    .foregroundColor(.secondary)
+            }
+            if let available = ota.availableUpdate {
+                LabeledContent("Available") {
+                    Text(available.version).foregroundColor(.accentColor)
+                }
+            }
         }
     }
 
     private var upToDateSection: some View {
-        Section {
+        Section("Updates") {
             HStack {
                 Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
                 Text("Firmware is up to date").font(.subheadline)
             }
-        } header: {
-            Text("Updates")
         }
     }
 
@@ -79,12 +91,16 @@ struct OTAView: View {
                     Text(fw.buildDate.formatted(.dateTime.month().day().year()))
                         .font(.caption).foregroundColor(.secondary)
                 }
-                Text(fw.releaseNotes)
-                    .font(.caption).foregroundColor(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
+
+                if !fw.releaseNotes.isEmpty {
+                    Text(fw.releaseNotes)
+                        .font(.caption).foregroundColor(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Security fingerprint (Ed25519):").font(.caption2).foregroundColor(.secondary)
+                    Text("Security fingerprint (Ed25519):")
+                        .font(.caption2).foregroundColor(.secondary)
                     Text(fw.ed25519PublicKeyFingerprint)
                         .font(.system(.caption2, design: .monospaced))
                         .foregroundColor(.secondary)
@@ -100,6 +116,7 @@ struct OTAView: View {
                 if let error = ota.lastError {
                     Text(error.localizedDescription)
                         .font(.caption).foregroundColor(.red)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
 
@@ -109,15 +126,13 @@ struct OTAView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.red)
-                .disabled(!isReadyForUpdate || ota.phase.description != "Ready")
+                .disabled(!isReadyForUpdate)
             } else {
                 Button("Install Update") {
-                    if let data = availableData {
-                        Task { try? await ota.beginUpdate(image: fw, imageData: data) }
-                    }
+                    Task { try? await ota.beginUpdate(image: fw) }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!isReadyForUpdate || ota.phase.description != "Ready")
+                .disabled(!isReadyForUpdate)
             }
         } header: {
             Label("Update Available", systemImage: "arrow.down.circle.fill")
@@ -125,27 +140,41 @@ struct OTAView: View {
         }
     }
 
+    // ISC-110: bytes/total bytes progress bar.
+    // ISC-112: "Update complete — hub will restart" message.
     private func progressSection(_ session: OTASession) -> some View {
         Section("Update Progress") {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Text(ota.phase.description).font(.subheadline.bold())
                     Spacer()
-                    Text("\(ota.progressPercent)%").font(.subheadline).foregroundColor(.secondary)
+                    Text("\(ota.progressPercent)%")
+                        .font(.subheadline.monospacedDigit()).foregroundColor(.secondary)
                 }
+
                 ProgressView(value: Double(ota.progressPercent), total: 100)
                     .progressViewStyle(.linear)
                     .tint(ota.phase == .failed ? .red : .accentColor)
 
+                // Byte-level progress during transfer (ISC-110).
+                if ota.phase == .transferring && session.totalBytes > 0 {
+                    Text("\(OTASession.formattedBytes(session.sentBytes)) / \(OTASession.formattedBytes(session.totalBytes))")
+                        .font(.caption.monospacedDigit()).foregroundColor(.secondary)
+                }
+
+                // ISC-112: applying / complete messaging.
                 if ota.phase == .applying {
-                    Text("Do not disconnect the hub. The device will restart automatically.")
+                    Label("Hub is restarting — do not disconnect.", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption).foregroundColor(.orange)
                 } else if ota.phase == .complete {
                     Label("Update complete — hub restarted successfully.", systemImage: "checkmark.circle.fill")
                         .font(.caption).foregroundColor(.green)
+                } else if ota.phase == .verifying || ota.phase == .verified {
+                    Text("Verifying firmware signature on hub…")
+                        .font(.caption).foregroundColor(.secondary)
                 }
 
-                if session.isActive && ota.phase != .applying {
+                if ota.phase.isBusy && ota.phase != .applying {
                     Button("Abort", role: .destructive) { ota.abort() }
                         .buttonStyle(.bordered).controlSize(.small)
                 }
@@ -154,24 +183,15 @@ struct OTAView: View {
     }
 
     private var rollbackNotice: some View {
-        Section {
-            Text("If the hub fails to boot after an update, it will automatically roll back to the previous firmware version. You can also force USB-C DFU recovery from this screen.")
+        Section("Safety") {
+            Text("If the hub fails to boot after an update, it automatically rolls back to the previous firmware version after 3 failed boot attempts. You can also force USB-C DFU recovery by holding the hub reset button during USB-C connection.")
                 .font(.caption).foregroundColor(.secondary)
-        } header: {
-            Text("Safety")
         }
     }
 
     // MARK: - Helpers
 
     private var isReadyForUpdate: Bool {
-        gatt.connectionState == .connected && !ota.phase.description.contains("…")
-    }
-
-    private func checkForUpdates() {
-        // Production: fetch firmware manifest from fleet update server.
-        // Placeholder: no update available.
-        availableFirmware = nil
-        availableData = nil
+        gatt.connectionState == .connected && !ota.phase.isBusy
     }
 }

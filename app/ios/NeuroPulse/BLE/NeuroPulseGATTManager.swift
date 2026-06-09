@@ -60,6 +60,11 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
     /// (NP-FW-EMMC-002 Rev A §A, OI-WA-03).
     @Published private(set) var warrantyToken: Data?
 
+    /// Current hub firmware version decoded from FIRMWARE_VERSION characteristic (ISC-108).
+    /// Encoded as uint32 little-endian — bits [23:16]=major [15:8]=minor [7:0]=patch.
+    /// nil until the hub ships NPUUID.firmwareVersion (OI-WA-03); OTAView shows "Unknown".
+    @Published private(set) var hubFirmwareVersion: String?
+
     // MARK: - Connection lifecycle type
 
     enum ConnectionState { case disconnected, scanning, connecting, connected }
@@ -99,7 +104,8 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
     private var sessionStopChar:    CBCharacteristic?
 
     // Optional — not in NPUUID.all; hub firmware pending (OI-WA-03).
-    private var warrantyTokenChar: CBCharacteristic?
+    private var warrantyTokenChar:    CBCharacteristic?
+    private var firmwareVersionChar:  CBCharacteristic?
 
     /// In-flight partial session state accumulated from individual characteristic notifications.
     private var pending: SessionState = .empty
@@ -160,6 +166,7 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
         zoneModules = [0, 0, 0, 0, 0]
         allCharacteristicsResolved = false
         warrantyToken = nil
+        hubFirmwareVersion = nil
         clearCharacteristicHandles()
 
         // Guard: no reconnect timer when BLE is unavailable — avoids a silent no-op scan.
@@ -176,6 +183,18 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
     func applyWarrantyToken(_ data: Data) {
         guard data.count >= 32 else { return }
         warrantyToken = data.prefix(32)
+    }
+
+    /// Store a hub-reported firmware version from FIRMWARE_VERSION characteristic.
+    /// Called by CBPeripheralDelegate (data path) and by tests (applyFirmwareVersion).
+    func applyFirmwareVersion(_ version: FirmwareVersion) {
+        hubFirmwareVersion = version.description
+    }
+
+    /// Set connection state to .connected without real BLE hardware — test use only.
+    /// Production path: centralManager(_:didConnect:) in CBCentralManagerDelegate.
+    func applyConnected() {
+        connectionState = .connected
     }
 
     // MARK: - Scan / connection helpers
@@ -257,6 +276,7 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
         otaStatusChar = nil;      zoneModuleStatusChar = nil; shdrUploadStatusChar = nil
         protocolUploadChar = nil; edfRequestChar = nil; otaCommandChar = nil
         calibrationCmdChar = nil; sessionStopChar = nil; warrantyTokenChar = nil
+        firmwareVersionChar = nil
     }
 }
 
@@ -305,8 +325,9 @@ extension NeuroPulseGATTManager: CBPeripheralDelegate {
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let service = peripheral.services?.first(where: { $0.uuid == NPUUID.service })
         else { return }
-        // Discover all required chars plus the optional warrantyToken.
-        peripheral.discoverCharacteristics(NPUUID.all + [NPUUID.warrantyToken], for: service)
+        // Discover required chars plus optional warrantyToken and firmwareVersion (OI-WA-03).
+        peripheral.discoverCharacteristics(
+            NPUUID.all + [NPUUID.warrantyToken, NPUUID.firmwareVersion], for: service)
     }
 
     func peripheral(_ peripheral: CBPeripheral,
@@ -375,6 +396,12 @@ extension NeuroPulseGATTManager: CBPeripheralDelegate {
                 warrantyTokenChar = char
                 peripheral.readValue(for: char)
 
+            case NPUUID.firmwareVersion:
+                // Optional — hub firmware not yet shipped (OI-WA-03).
+                firmwareVersionChar = char
+                peripheral.setNotifyValue(true, for: char)
+                peripheral.readValue(for: char)
+
             default:
                 break
             }
@@ -401,6 +428,14 @@ extension NeuroPulseGATTManager: CBPeripheralDelegate {
             // Hub-provisioned TRNG token — SHDR-linked device identity.
             // applyWarrantyToken rejects payloads shorter than 32 bytes (NP-FW-EMMC-002 Rev A §A).
             applyWarrantyToken(data)
+            return
+        }
+
+        if characteristic.uuid == NPUUID.firmwareVersion {
+            // Current hub firmware version — SHDR-class device metric, never user biology.
+            if let version = GATTParser.parseFirmwareVersion(data) {
+                applyFirmwareVersion(version)
+            }
             return
         }
 
