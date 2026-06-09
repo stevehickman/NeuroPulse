@@ -23,8 +23,7 @@ final class ConsumableTracker: ObservableObject {
         self.defaults = defaults
         loadPersistedSnooze()   // must come before observeCounts — the publisher delivers its
         observeCounts()          // current value synchronously, which calls persistSnooze();
-        requestNotificationPermission() // loading first ensures snooze counts survive restart
-    }
+    }                            // loading first ensures snooze counts survive restart
 
     // MARK: - Count observation
 
@@ -91,14 +90,21 @@ final class ConsumableTracker: ObservableObject {
 
     // MARK: - Local notifications
 
-    private func requestNotificationPermission() {
+    // Called from ConsumableView.onAppear so the dialog appears in context — after the user
+    // can see why notifications are useful. Requesting at app init is premature and confusing.
+    // (LOW-2 fix, NP-PRIV-ANALYSIS-003: permission deferred to first ConsumableView appearance.)
+    func requestNotificationPermissionIfNeeded() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { _, _ in }
     }
 
     private func scheduleLocalNotification(for reminder: ConsumableReminder) {
         let content = UNMutableNotificationContent()
-        content.title = "NeuroPulse: \(reminder.state.kind.displayName) Low"
-        content.body = reminder.notificationBody
+        // Generic title on lock screen — does not name the consumable or reveal device type.
+        // Specific consumable detail is in body, revealed after device unlock on most configs.
+        // (LOW-1 fix, NP-PRIV-ANALYSIS-003: prevents involuntary health-device disclosure.)
+        content.title = "NeuroPulse"
+        content.subtitle = "Action required — tap to view"
+        content.body = reminder.headline
         content.sound = .default
         content.userInfo = ["consumableIndex": reminder.state.kind.rawValue]
 

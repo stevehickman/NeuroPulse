@@ -18,6 +18,12 @@ struct ConsumableView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Supplies")
+            .onAppear {
+                // Request notification permission here — in context, where the user can see
+                // why reminders are useful — rather than at app launch before onboarding.
+                // (LOW-2 fix, NP-PRIV-ANALYSIS-003.)
+                tracker.requestNotificationPermissionIfNeeded()
+            }
         }
     }
 
