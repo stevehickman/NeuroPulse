@@ -17,14 +17,14 @@ on:
 jobs:
   ios-build-test:
     name: xcodebuild test — NeuroPulse
-    runs-on: macos-14   # Xcode 15+ with iOS 17 simulator
+    runs-on: macos-15   # Xcode 16+ with iOS 18 simulator
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_15.4.app/Contents/Developer
+        run: sudo xcode-select -s /Applications/Xcode_16.0.app/Contents/Developer
 
       - name: Resolve Swift Package dependencies
         run: |
@@ -33,12 +33,41 @@ jobs:
             -project app/ios/NeuroPulse.xcodeproj \
             -scheme NeuroPulse
 
+      - name: Install iOS Simulator runtime
+        run: |
+          # Attempt to download the iOS platform
+          if ! xcodebuild -downloadPlatform iOS; then
+            echo "Platform download failed, attempting alternative approach..."
+            # Use xcrun simctl to ensure simulator support
+            xcrun simctl erase all || true
+            # List available runtimes to diagnose
+            xcrun simctl list runtimes
+          fi
+
+      - name: List available simulators
+        run: xcrun simctl list devices available
+      
+      - name: Create and boot simulator
+        run: |
+          for i in {1..3}; do
+            if xcrun simctl create "iPhone 16 Pro" \
+              com.apple.CoreSimulator.SimDeviceType.iPhone-16-pro \
+              com.apple.CoreSimulator.SimRuntime.iOS-18-0; then
+              break
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 3
+          done
+          sleep 5
+          xcrun simctl boot "iPhone 16 Pro" || true
+          sleep 10
+    
       - name: Build and test
         run: |
           xcodebuild test \
             -project app/ios/NeuroPulse.xcodeproj \
             -scheme NeuroPulse \
-            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            -destination 'platform=iOS Simulator,name=iPhone 16 Pro,OS=18.6' \
             -resultBundlePath build/ios/TestResults.xcresult
 
       - name: Upload test results on failure

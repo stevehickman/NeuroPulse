@@ -45,6 +45,7 @@
 		5FA3CFF4428F945C9E8E1AD8 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C7F8970F83491CC9DF5C46EE /* Localizable.strings */; };
 		60066FA725B78AC851A1D2FB /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B3C8C3C50590F552A09F2A6 /* SessionView.swift */; };
 		67C16141CE9405C01E2DE345 /* ModalityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */; };
+		686D3027611C4F40B5EFA317 /* NeuroPulseGATTManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D067E8387AE51B34602DF95 /* NeuroPulseGATTManagerTests.swift */; };
 		6C26B9BC1CF560BF91AF2CCE /* EngagementTierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE62553ABECF27A4A1C5542 /* EngagementTierTests.swift */; };
 		70040EC99A6FCA19B82AEC15 /* ProtocolUploadGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8805B82BC8C1327612BE74EF /* ProtocolUploadGateway.swift */; };
 		70193120367CEF0DFFD271D8 /* BIPADisclosureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFFD0990164EAF88C1E8046D /* BIPADisclosureView.swift */; };
@@ -60,6 +61,7 @@
 		9785C8F9C9FA4391BC0C1D16 /* ConsentStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0054A553448BDD1670659CDA /* ConsentStoreTests.swift */; };
 		97B4C798A7DEC3EC28CC939C /* NeuroPulseGATTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB88FC8DB0D54D6B517FB214 /* NeuroPulseGATTManager.swift */; };
 		999A9048786E4C625D972567 /* Under16View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046EF1F71E798663ED38E465 /* Under16View.swift */; };
+		99A86E1BE6B323A9B2CF78DF /* BLECentral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C279FD12310F55C1FC6E964 /* BLECentral.swift */; };
 		9A86443E9D3C4886BA643BCB /* NeuroPulseShared in Frameworks */ = {isa = PBXBuildFile; productRef = B007599D6A7F55456BF1745A /* NeuroPulseShared */; };
 		A72C4A1425B5DA66ABB5B511 /* RegionHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8184004F4B72C61B686085E6 /* RegionHelperTests.swift */; };
 		AD88E4F65117BFFCC67465C1 /* ConsentOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC170B8BDE63021729560AF1 /* ConsentOnboardingView.swift */; };
@@ -120,6 +122,7 @@
 		22DD080B42ACBBA5122F855A /* ProtocolChunkerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolChunkerTests.swift; sourceTree = "<group>"; };
 		29997D2651EEF868F3BCD7C8 /* OTAView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAView.swift; sourceTree = "<group>"; };
 		2B1FA28527F9048C12382557 /* ConsumableTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableTracker.swift; sourceTree = "<group>"; };
+		2C279FD12310F55C1FC6E964 /* BLECentral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLECentral.swift; sourceTree = "<group>"; };
 		2E7811F3AF0C1233B76E7036 /* EngagementTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngagementTier.swift; sourceTree = "<group>"; };
 		2EE62553ABECF27A4A1C5542 /* EngagementTierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngagementTierTests.swift; sourceTree = "<group>"; };
 		2FB156F097DA7DAAAF3E4294 /* NPBundledProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPBundledProtocols.swift; sourceTree = "<group>"; };
@@ -156,6 +159,7 @@
 		9A8DFE0776D52E3EA54D874A /* NPProtocolValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolValidatorTests.swift; sourceTree = "<group>"; };
 		9AC7ACF7BA3367F466542546 /* ResearchSuggestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchSuggestion.swift; sourceTree = "<group>"; };
 		9B9A9D0E1AEF9CF2D19E1EC5 /* RegionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionHelper.swift; sourceTree = "<group>"; };
+		9D067E8387AE51B34602DF95 /* NeuroPulseGATTManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeuroPulseGATTManagerTests.swift; sourceTree = "<group>"; };
 		A2280ECFED79E63FA306A965 /* EDFDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EDFDownloader.swift; sourceTree = "<group>"; };
 		A36BDFB8DBD66EA7F0D4870F /* NPProtocolValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolValidator.swift; sourceTree = "<group>"; };
 		AB2AE76ECCD0C02E29548198 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -264,6 +268,7 @@
 		581535948C92E422594991D0 /* BLE */ = {
 			isa = PBXGroup;
 			children = (
+				2C279FD12310F55C1FC6E964 /* BLECentral.swift */,
 				06664E184F1D6BFC81BA9EB4 /* GATTCharacteristics.swift */,
 				CB88FC8DB0D54D6B517FB214 /* NeuroPulseGATTManager.swift */,
 				8805B82BC8C1327612BE74EF /* ProtocolUploadGateway.swift */,
@@ -299,6 +304,7 @@
 				70967C7DCF0C4D93474A7DCC /* ConsumableTrackerTests.swift */,
 				2EE62553ABECF27A4A1C5542 /* EngagementTierTests.swift */,
 				89CB57AFEAD042EB5E28DA49 /* GATTParserTests.swift */,
+				9D067E8387AE51B34602DF95 /* NeuroPulseGATTManagerTests.swift */,
 				1EBB4931BC5C14272812376B /* NeuroPulseTests.swift */,
 				9A8DFE0776D52E3EA54D874A /* NPProtocolValidatorTests.swift */,
 				22DD080B42ACBBA5122F855A /* ProtocolChunkerTests.swift */,
@@ -536,6 +542,7 @@
 				6C26B9BC1CF560BF91AF2CCE /* EngagementTierTests.swift in Sources */,
 				C2AA81314EC08ACAF876F81A /* GATTParserTests.swift in Sources */,
 				EC1DDAFDE28C0C517322AA5C /* NPProtocolValidatorTests.swift in Sources */,
+				686D3027611C4F40B5EFA317 /* NeuroPulseGATTManagerTests.swift in Sources */,
 				D669D78E9899B8B7A9A3EC94 /* NeuroPulseTests.swift in Sources */,
 				4157B772C46C98F925D084B9 /* ProtocolChunkerTests.swift in Sources */,
 				A72C4A1425B5DA66ABB5B511 /* RegionHelperTests.swift in Sources */,
@@ -556,6 +563,7 @@
 				47B4A59C942833665BF04B2D /* AnalyticsGate.swift in Sources */,
 				EE9B29E001FF8E37EF6DD4C0 /* AnalyticsSDKStub.swift in Sources */,
 				70193120367CEF0DFFD271D8 /* BIPADisclosureView.swift in Sources */,
+				99A86E1BE6B323A9B2CF78DF /* BLECentral.swift in Sources */,
 				2BBD5FECC80F39E56C8B8ECA /* ConsentDashboardView.swift in Sources */,
 				4D045247AA9DC080F3DECEA2 /* ConsentEngine.swift in Sources */,
 				4EB2F13C0F7FA17B77DB1522 /* ConsentModels.swift in Sources */,
@@ -641,6 +649,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -758,6 +767,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

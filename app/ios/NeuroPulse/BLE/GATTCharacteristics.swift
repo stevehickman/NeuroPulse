@@ -27,7 +27,15 @@ enum NPUUID {
     // Real UUID will come from hub BLE firmware implementation (OI-WA-03).
     static let sessionStop      = CBUUID(string: "4E455550-000F-1000-8000-00805F9B34FB") // WRITE 1B (0x01 = stop)
 
-    // All characteristics for discovery
+    // Hub-provisioned TRNG warranty token — READ 32B, SHDR-linked opaque token.
+    // Replaces Keychain identifierForVendor in SHDRUploader once hub firmware is available
+    // (NP-FW-EMMC-002 Rev A §A, OI-WA-03).
+    // NOT included in NPUUID.all — hub firmware not yet implemented; omitting it prevents
+    // allCharacteristicsResolved from blocking until hub ships this characteristic.
+    static let warrantyToken    = CBUUID(string: "4E455550-0010-1000-8000-00805F9B34FB") // READ 32B
+
+    // All characteristics required for a fully-operational session.
+    // warrantyToken is deliberately omitted — it is optional until hub firmware ships it.
     static let all: [CBUUID] = [
         sessionState, sessionStatus, hrvCoherence, pacerPhase,
         impedanceResult, consumableStatus, protocolUpload, edfRequest,

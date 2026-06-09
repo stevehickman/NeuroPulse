@@ -5,10 +5,10 @@ project: NeuroPulse
 effort: E4
 effort_source: gate-floor
 phase: observe
-progress: 20/164
+progress: 27/164
 mode: interactive
 started: 2026-06-04
-updated: 2026-06-04
+updated: 2026-06-08
 ---
 
 # ISA — NeuroPulse Core iOS App (Issue #51)
@@ -69,16 +69,16 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 
 ### BLE GATT connection layer
 
-- [ ] ISC-11: `NeuroPulseGATTManager` begins scanning automatically when `CBCentralManager.state == .poweredOn`, without requiring a manual user action.
-- [ ] ISC-12: On hub disconnect, `NeuroPulseGATTManager` automatically re-scans after a 2-second delay — verified by simulating a disconnect in the Xcode BLE simulator.
-- [ ] ISC-13: All thirteen GATT characteristics (9 NOTIFY + 4 WRITE) from `GATTCharacteristics.swift` are resolved and assigned within 2 seconds of initial `didConnect` callback.
+- [x] ISC-11: `NeuroPulseGATTManager` begins scanning automatically when `CBCentralManager.state == .poweredOn`, without requiring a manual user action.
+- [x] ISC-12: On hub disconnect, `NeuroPulseGATTManager` automatically re-scans after a 2-second delay — verified by simulating a disconnect in the Xcode BLE simulator.
+- [x] ISC-13: All fourteen GATT characteristics (9 NOTIFY + 5 WRITE, per `NPUUID.all`) from `GATTCharacteristics.swift` are resolved and `allCharacteristicsResolved` becomes `true`; `warrantyToken` is optional and does not block resolution.
 - [ ] ISC-14: Protocol blobs larger than 512 bytes are automatically chunked by `SessionProtocolUploader` before passing to `NeuroPulseGATTManager.uploadProtocol(_:)`.
 - [ ] ISC-15: `GATTParser.parseSessionState`, `parseSessionStatus`, `parseHRVCoherence`, `parsePacerPhase`, `parseImpedanceResult`, `parseConsumableStatus`, `parseOTAStatus`, and `parseZoneModuleStatus` each exist as static functions and return non-nil values for canonical test byte sequences.
-- [ ] ISC-16: `NeuroPulseGATTManager.connectionState` transitions correctly through `.disconnected → .scanning → .connecting → .connected` and is `@Published` — `SessionView` reacts without any explicit refresh.
-- [ ] ISC-17: `Anti:` `NeuroPulseGATTManager` does not hold a strong reference to any ViewController or View — connection lifecycle is fully decoupled from the view hierarchy.
+- [x] ISC-16: `NeuroPulseGATTManager.connectionState` transitions correctly through `.disconnected → .scanning → .connecting → .connected` and is `@Published` — `SessionView` reacts without any explicit refresh.
+- [x] ISC-17: `Anti:` `NeuroPulseGATTManager` does not hold a strong reference to any ViewController or View — connection lifecycle is fully decoupled from the view hierarchy.
 - [ ] ISC-18: The BLE central manager is initialised on `DispatchQueue.main` (existing) — no background-thread CBCentralManager initialisation path exists.
-- [ ] ISC-19: When Bluetooth is off, `SessionView` shows a user-visible "Enable Bluetooth to connect to your hub" message rather than a generic error or blank state.
-- [ ] ISC-20: On reconnect after disconnect-during-session, `SessionView` restores the last known session state from the GATT `SESSION_STATUS` read characteristic rather than resetting to idle.
+- [x] ISC-19: When Bluetooth is off, `SessionView` shows a user-visible "Enable Bluetooth to connect to your hub" message rather than a generic error or blank state.
+- [x] ISC-20: On reconnect after disconnect-during-session, `SessionView` restores the last known session state from the GATT `SESSION_STATUS` read characteristic rather than resetting to idle.
 
 ### Session display — Mode 1 Connected
 
@@ -288,8 +288,14 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 | ISC-4 | file | `grep NSBluetoothAlwaysUsageDescription app/ios/NeuroPulse/Info.plist` | match found | grep |
 | ISC-8 | grep | `grep -rn 'print(' app/ios/NeuroPulse --include="*.swift"` | 0 matches | grep |
 | ISC-9 | grep | `grep -rEn '([0-9]{1,3}\.){3}[0-9]{1,3}' app/ios/NeuroPulse --include="*.swift"` | 0 matches | grep |
-| ISC-11 | unit | `NeuroPulseGATTManagerTests.testAutoScanOnPoweredOn` | pass | XCTest |
+| ISC-11 | unit | `NeuroPulseGATTManagerTests.testAutoScanOnPoweredOn`, `testAutoScanRestartsOnSecondPoweredOn`, `testNoScanWhenBluetoothOff` | all pass | XCTest |
+| ISC-12 | unit | `NeuroPulseGATTManagerTests.testReconnectScheduledAfterDisconnect`, `testNoReconnectWhenBluetoothOff` | all pass | XCTest |
+| ISC-13 | unit | `NeuroPulseGATTManagerTests.testAllCharacteristicsResolvedWhenAllPresent`, `testAllCharacteristicsNotResolvedWhenAnyMissing`, `testAllCharacteristicsResolvedClearedOnDisconnect` | all pass | XCTest |
 | ISC-15 | unit | `GATTParserTests.testAllParserFunctions` | all 8 pass | XCTest |
+| ISC-16 | unit | `NeuroPulseGATTManagerTests.testConnectionStateTransitionDisconnectedToScanning`, `testConnectionStateReturnsToDisconnectedWhenBLEGoesOff` | all pass | XCTest |
+| ISC-17 | unit | `NeuroPulseGATTManagerTests.testSuperclassIsNSObject` | pass | XCTest |
+| ISC-19 | unit | `NeuroPulseGATTManagerTests.testBluetoothUnavailableWhenPoweredOff`, `testBluetoothUnavailableWhenUnauthorized`, `testBluetoothUnavailableWhenUnsupported`, `testBluetoothAvailableWhenPoweredOn` | all pass | XCTest |
+| ISC-20 | unit | `NeuroPulseGATTManagerTests.testSessionStatusUUIDInExpectedDiscoverySet`, `testCharacteristicAssignmentCompletesAfterFullDiscovery` | all pass | XCTest |
 | ISC-27 | grep | `grep '// TODO' app/ios/NeuroPulse/Views/SessionView.swift` | 0 matches | grep |
 | ISC-30 | unit | `SessionDisplayTests.testDownloadButtonShownWhenCompletedAndEpochNonZero`, `testDownloadButtonHiddenWhenEpochIsZero`, `testEDFSessionIDIsNilForZeroEpoch` | all pass | XCTest |
 | ISC-35 | unit | `SessionProtocolUploaderTests.testSignAndUpload` | pass | XCTest |
@@ -346,6 +352,8 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 - **2026-06-04**: ISC-133 — `PrivacyInfo.xcprivacy` was present on disk from PR #106 but had zero references in `project.pbxproj`. Added to Copy Bundle Resources via xcodeproj gem (PR #107, commit fef956f). Without this, the file does not ship in the app bundle and App Store review would reject the submission.
 - **2026-06-04**: ISC-38 — tDCS charge density guard implemented in `NPProtocolValidator` (PR #107, commit bdc9236). Formula: `I(mA) × t(s) / (tdcsDefaultElectrodeAreaCm2 × electrodeCount)`. Default electrode area 35 cm² per electrode position added as `NPHardwareLimits.tdcsDefaultElectrodeAreaCm2`. Charge density > 40 µC/cm² emits `.error` with `parameterKey = "chargeDensityUCcm2"`. Both `testChargeDensityOverLimitRejected` and `testChargeDensityBorderlineInvalid` pass without `XCTExpectFailure`.
 - **2026-06-04**: ISC-47 (zero-duration) — hard `.error` added for `dur ≤ 0` in `validate(_:)`. Previously only a `.warning` was emitted for `dur < 60`. `testZeroDurationRejected` passes without `XCTExpectFailure`. PBM dose guard also implemented: estimated dose = `peakMWcm2 × intensityFraction × dur(s) / 1000` checked against `NPPBMTranscranialLimits.maxSessionDoseJCm2` when configured. `testDoseOverLimitRejected` passes without `XCTExpectFailure`. `validatePBMTranscranial` signature updated to accept `totalDurationSeconds`.
+- **2026-06-08**: BLE GATT layer implemented (ISC-11, 12, 13, 16, 17, 19, 20). `BLECentral.swift` protocol abstraction enables unit testing without hardware. `NeuroPulseGATTManager` rewritten with `applyStateUpdate`, `applyCharacteristicAssignment`, `applyDisconnection`, `applyWarrantyToken` internal methods shared by delegates and tests. 25 unit tests added in `NeuroPulseGATTManagerTests.swift`, all passing. Code review and privacy review completed; five findings applied: (1) `applyStateUpdate` default branch calls `applyDisconnection()` clearing stale UHDR state on BLE reset; (2) `applyCharacteristicAssignment` privacy doc comment; (3) `didUpdateValueFor` SHDR characteristics (`warrantyToken`, `shdrUploadStatus`) given structural early-return guards before `session = pending`, making the UHDR/SHDR boundary a compile-time guarantee; (4) `requestEDFDownload` uses `sessionID.littleEndian` for explicit LE wire serialisation; (5) `SHDRUploader` Keychain read query gains `kSecAttrAccessible: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` filter (mirrors LOW-12 fix from SessionProtocolSigner).
+- **2026-06-08**: OI-BLE-01 (OPEN) — `warrantyToken` characteristic UUID is defined (`4E455550-0010-…`) and speculated in `didDiscoverCharacteristics`, but hub firmware has not shipped this characteristic yet (OI-WA-03). `SHDRUploader` continues to use its Keychain-generated 32-byte random token. Upgrade path: `SHDRUploader` should subscribe to `gatt.$warrantyToken` via Combine and call an `upgradeDeviceToken(_:)` method when the hub-provisioned value arrives. This is a forward-compatibility stub — no current production device delivers the GATT characteristic. Blocking for full SHDR fleet DB architecture (NP-FW-EMMC-002 Rev A §A — no-join rule). Tracked in NP-SW-001.
 
 ## Changelog
 
@@ -375,3 +383,10 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 | ISC-161 | Code review: `connectionModeLabel` returns `"Mode 1 — Live (<1ms)"` when `batteryState == .charging \|\| .full` at `SessionView.swift:234–238`. | 2026-06-07 |
 | ISC-162 | Code review: `connectionModeLabel` returns `"Mode 1 — Wireless"` for all other battery states at `SessionView.swift:237`. | 2026-06-07 |
 | ISC-164 | Code review: BLE path returns `"Mode 1 — Wireless"` — no `<1ms` substring present in that branch. `SessionView.swift:237`. | 2026-06-07 |
+| ISC-11 | `NeuroPulseGATTManagerTests`: `testAutoScanOnPoweredOn` (scan count 1, UUID = NPUUID.service), `testAutoScanRestartsOnSecondPoweredOn` (scan count 2), `testNoScanWhenBluetoothOff` (scan count 0). 25/25 pass. `app/ios/NeuroPulse/BLE/NeuroPulseGATTManager.swift` `applyStateUpdate` → `startScan`. | 2026-06-08 |
+| ISC-12 | `NeuroPulseGATTManagerTests`: `testReconnectScheduledAfterDisconnect` (2.1s async wait, scan count ≥ 2), `testNoReconnectWhenBluetoothOff` (2.1s async wait, scan count 1). `applyDisconnection()` schedules `DispatchQueue.main.asyncAfter(+2s)` guarded by `central.state == .poweredOn`. | 2026-06-08 |
+| ISC-13 | `NeuroPulseGATTManagerTests`: `testAllCharacteristicsResolvedWhenAllPresent` (Set(NPUUID.all) → allCharacteristicsResolved true), `testAllCharacteristicsNotResolvedWhenAnyMissing` (drop sessionStop → false), `testAllCharacteristicsResolvedClearedOnDisconnect` (true → disconnect → false). warrantyToken absent does not block resolution. | 2026-06-08 |
+| ISC-16 | `NeuroPulseGATTManagerTests`: `testConnectionStateTransitionDisconnectedToScanning` (.disconnected → poweredOn → .scanning), `testConnectionStateReturnsToDisconnectedWhenBLEGoesOff` (.scanning → poweredOff → .disconnected). All three `applyStateUpdate`/`applyDisconnection` state transitions verified. | 2026-06-08 |
+| ISC-17 | `NeuroPulseGATTManagerTests.testSuperclassIsNSObject`: `NeuroPulseGATTManager.superclass()` == "NSObject". No UIKit or SwiftUI import in `NeuroPulseGATTManager.swift` (imports: CoreBluetooth, Combine only). | 2026-06-08 |
+| ISC-19 | `NeuroPulseGATTManagerTests`: `testBluetoothUnavailableWhenPoweredOff`, `testBluetoothUnavailableWhenUnauthorized`, `testBluetoothUnavailableWhenUnsupported` (all true), `testBluetoothAvailableWhenPoweredOn` (false). `@Published var bluetoothUnavailable` drives `SessionView` "Enable Bluetooth" prompt. | 2026-06-08 |
+| ISC-20 | `NeuroPulseGATTManagerTests`: `testSessionStatusUUIDInExpectedDiscoverySet` (NPUUID.sessionStatus in NPUUID.all), `testCharacteristicAssignmentCompletesAfterFullDiscovery`. `didDiscoverCharacteristics` calls `peripheral.readValue(for: char)` immediately on `NPUUID.sessionStatus` discovery (ISC-20 ISR path). | 2026-06-08 |

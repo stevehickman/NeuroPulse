@@ -72,6 +72,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.neuropulse.tests
+        GENERATE_INFOPLIST_FILE: YES
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NeuroPulse.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NeuroPulse"
 
