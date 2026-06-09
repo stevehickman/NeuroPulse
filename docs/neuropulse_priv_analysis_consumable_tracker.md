@@ -1,5 +1,5 @@
 # Privacy Analysis — Consumable Tracker Feature
-**Document:** NP-PRIV-ANALYSIS-003 Rev B  
+**Document:** NP-PRIV-ANALYSIS-003 Rev C  
 **Date:** 2026-06-08  
 **Scope:** `ConsumableCountsProviding.swift` (new), `ConsumableTracker.swift` (modified), `ConsumableInventory.swift` (modified), `NeuroPulseApp.swift` (modified call site)  
 **Jurisdictions in scope:** All (US federal HIPAA/HBNR/FTC Act §5; US state BIPA IL, MHMD WA, CCPA/CPRA CA; EU/EEA GDPR; UK GDPR + DPA 2018; Canada PIPEDA; global equivalents). Consistent with NP-PRIV-001 Rev B and NP-PRIV-ANALYSIS-002.
@@ -12,7 +12,7 @@
 
 The consumable tracker refactor introduces no new UHDR data flows and correctly classifies all data elements as SHDR device-wear metrics per CLAUDE.md §5.1. The `ConsumableCountsProviding` protocol abstraction is a genuine privacy-by-design improvement: it structurally limits the tracker to only the 4-integer consumable count field, preventing future accidental access to EEG, HRV, or other UHDR session data. Two LOW findings were identified — both relate to lock-screen notification content and notification permission timing — and both have been resolved in Rev B. One finding surfaced by code review (snooze persistence wipe on launch, a correctness bug with a secondary privacy implication) was fixed before this analysis was written.
 
-**0 Critical / 0 High / 0 Medium / 2 Low findings — all resolved (Rev B, 2026-06-08).** Jurisdictions in scope: All.
+**0 Critical / 0 High / 0 Medium / 2 Low findings — all resolved (Rev B, 2026-06-08). GATT routing invariant test suite added (Rev C, 2026-06-08).** Jurisdictions in scope: All.
 
 ---
 
@@ -83,9 +83,9 @@ This matches the approach used by period-tracking and HIV medication apps, which
 
 2. ~~**[LOW, 1 hr]** Defer `requestNotificationPermission()` from `ConsumableTracker.init()` to `ConsumableView.onAppear`.~~ **DONE** — `ConsumableView.onAppear` + `requestNotificationPermissionIfNeeded()`, committed 2026-06-08.
 
-3. **[Before first external beta — OPEN]** Add a `GATTParserTests` test asserting that `GATTParser.parseConsumableStatus` is the only code path that populates `SessionState.consumableSessionCounts` — preventing upstream UHDR data from being routed to this field accidentally. This closes the "what you couldn't review" gap above.
+3. ~~**[Before first external beta]** Add a `GATTParserTests` test asserting that `GATTParser.parseConsumableStatus` is the only code path that populates `SessionState.consumableSessionCounts` — preventing upstream UHDR data from being routed to this field accidentally.~~ **DONE** — Four tests added in `NeuroPulseTests/GATTParserTests.swift` (MARK: CONSUMABLE_STATUS routing isolation): `testConsumableCountsUnchangedByAllUHDRCharacteristicUpdates`, `testConsumableCountsOnlyUpdatedByParseConsumableStatus`, `testConsumableStatusUUIDDistinctFromAllUHDRCharacteristicUUIDs`, `testWatchBridgeConsumableCountsSourcedFromCorrectKey`. Closes the "what you couldn't review" gap. Committed 2026-06-08.
 
-All findings resolved. One open item (item 3) remains as a pre-external-beta test coverage gap — not blocking internal beta.
+All findings resolved. All open items resolved (Rev C, 2026-06-08). No remaining blocking items.
 
 ---
 

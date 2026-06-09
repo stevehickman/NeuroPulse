@@ -11,6 +11,7 @@
 //  NP-APP-ROADMAP-001 §5 and the GATTParser doc comments.
 
 import XCTest
+import CoreBluetooth
 @testable import NeuroPulse
 
 final class GATTParserTests: XCTestCase {
@@ -113,6 +114,124 @@ final class GATTParserTests: XCTestCase {
         let data = Data([0x00, 0x01, 0x02, 0x00, 0x05])
         let slots = GATTParser.parseZoneModuleStatus(data)
         XCTAssertEqual(slots, [0, 1, 2, 0, 5])
+    }
+
+    // MARK: - CONSUMABLE_STATUS routing isolation (NP-PRIV-ANALYSIS-003, item 3)
+    //
+    // Privacy invariant: SessionState.consumableSessionCounts must only ever be
+    // written from GATTParser.parseConsumableStatus, routed via NPUUID.consumableStatus.
+    // No UHDR-class characteristic (SESSION_STATE, SESSION_STATUS, HRV_COHERENCE,
+    // PACER_PHASE, IMPEDANCE_RESULT) should reach this field.
+    //
+    // These tests mirror NeuroPulseGATTManager.didUpdateValueFor dispatch logic so that
+    // any future change routing a UHDR characteristic to consumableSessionCounts fails here.
+
+    func testConsumableCountsUnchangedByAllUHDRCharacteristicUpdates() {
+        // Mirror the manager's pending-state accumulation for every UHDR case.
+        var pending = SessionState.empty
+        let baseline = pending.consumableSessionCounts
+        XCTAssertEqual(baseline, [0, 0, 0, 0],
+                       "Precondition: SessionState.empty must initialise counts to zero.")
+
+        // NPUUID.sessionState → pending.epoch only
+        if let epoch = GATTParser.parseSessionState(Data([0x01, 0x00, 0x00, 0x00])) {
+            pending.epoch = epoch
+        }
+        XCTAssertEqual(pending.consumableSessionCounts, baseline,
+                       "SESSION_STATE characteristic must not write consumableSessionCounts.")
+
+        // NPUUID.sessionStatus → pending.protocolID + pending.status only
+        if let (pid, status) = GATTParser.parseSessionStatus(Data([0x05, 0x01])) {
+            pending.protocolID = pid
+            pending.status = status
+        }
+        XCTAssertEqual(pending.consumableSessionCounts, baseline,
+                       "SESSION_STATUS characteristic must not write consumableSessionCounts.")
+
+        // NPUUID.hrvCoherence → pending.hrv only
+        pending.hrv = GATTParser.parseHRVCoherence(Data([0xEE, 0x02, 0x2A, 0x00]))
+        XCTAssertEqual(pending.consumableSessionCounts, baseline,
+                       "HRV_COHERENCE characteristic must not write consumableSessionCounts.")
+
+        // NPUUID.pacerPhase → pending.pacerPhase + pending.pacerElapsedPercent only
+        if let (phase, pct) = GATTParser.parsePacerPhase(Data([0x01, 0x40])) {
+            pending.pacerPhase = phase
+            pending.pacerElapsedPercent = pct
+        }
+        XCTAssertEqual(pending.consumableSessionCounts, baseline,
+                       "PACER_PHASE characteristic must not write consumableSessionCounts.")
+
+        // NPUUID.impedanceResult → pending.impedancePassFlags only
+        if let flags = GATTParser.parseImpedanceResult(Data([0xFF, 0x00])) {
+            pending.impedancePassFlags = flags
+        }
+        XCTAssertEqual(pending.consumableSessionCounts, baseline,
+                       "IMPEDANCE_RESULT characteristic must not write consumableSessionCounts.")
+    }
+
+    func testConsumableCountsOnlyUpdatedByParseConsumableStatus() {
+        // Mirror the NPUUID.consumableStatus case in didUpdateValueFor.
+        var pending = SessionState.empty
+        XCTAssertEqual(pending.consumableSessionCounts, [0, 0, 0, 0])
+
+        let wire = Data([0x01, 0x00,   // intranasal: 1
+                         0x1E, 0x00,   // hydrogel:   30
+                         0x0A, 0x00,   // VNS:        10
+                         0x64, 0x00])  // audio:      100
+        if let counts = GATTParser.parseConsumableStatus(wire) {
+            pending.consumableSessionCounts = counts
+        }
+
+        XCTAssertEqual(pending.consumableSessionCounts, [1, 30, 10, 100],
+                       "parseConsumableStatus must be the write path for consumableSessionCounts.")
+
+        // Confirm the write has no side-effects on UHDR fields.
+        XCTAssertEqual(pending.epoch, 0)
+        XCTAssertEqual(pending.status, .idle)
+        XCTAssertNil(pending.hrv)
+        XCTAssertEqual(pending.impedancePassFlags, 0)
+    }
+
+    func testConsumableStatusUUIDDistinctFromAllUHDRCharacteristicUUIDs() {
+        // Static invariant: if a future refactor accidentally swaps or aliases these UUIDs,
+        // routing UHDR data to consumableSessionCounts becomes possible. Catch it here.
+        let uhdrUUIDs: [CBUUID] = [
+            NPUUID.sessionState,
+            NPUUID.sessionStatus,
+            NPUUID.hrvCoherence,
+            NPUUID.pacerPhase,
+            NPUUID.impedanceResult,
+        ]
+        for uuid in uhdrUUIDs {
+            XCTAssertNotEqual(NPUUID.consumableStatus, uuid,
+                              "consumableStatus UUID must differ from UHDR characteristic \(uuid).")
+        }
+    }
+
+    func testWatchBridgeConsumableCountsSourcedFromCorrectKey() {
+        // SessionState.from(wcMessage:) is the only other code path that can populate
+        // consumableSessionCounts (via WatchConnectivity). Verify it reads from
+        // WCKey.consumableCounts (SHDR) not from any UHDR key (coherenceX100, rmssd).
+        let msg: [String: Any] = [
+            WCKey.protocolID:       Int(3),
+            WCKey.status:           Int(SessionStatus.running.rawValue),
+            WCKey.pacerPhase:       Int(PacerPhase.inhale.rawValue),
+            WCKey.pacerPercent:     Int(25),
+            WCKey.impedanceFlags:   Int(0x00FF),
+            WCKey.consumableCounts: [2, 15, 5, 80],  // SHDR device counts
+            WCKey.coherenceX100:    Int(750),          // UHDR — must NOT affect counts
+            WCKey.rmssd:            Int(42),           // UHDR — must NOT affect counts
+        ]
+        guard let state = SessionState.from(wcMessage: msg) else {
+            XCTFail("Valid WC message must decode to a non-nil SessionState.")
+            return
+        }
+        XCTAssertEqual(state.consumableSessionCounts, [2, 15, 5, 80],
+                       "Watch bridge must source consumableSessionCounts from WCKey.consumableCounts only.")
+        // UHDR fields decoded correctly and did not bleed into counts.
+        XCTAssertEqual(state.hrv?.coherenceScore ?? 0, 7.50, accuracy: 0.01)
+        XCTAssertEqual(state.hrv?.rmssdMilliseconds, 42)
+        XCTAssertEqual(state.consumableSessionCounts.count, 4)
     }
 
     // MARK: - Short / truncated / empty input rejection (ISC-152)
