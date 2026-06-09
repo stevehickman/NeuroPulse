@@ -34,7 +34,7 @@ struct NeuroPulseApp: App {
         _edfLoader       = StateObject(wrappedValue: EDFDownloader(gatt: g))
         _shdrUpload      = StateObject(wrappedValue: SHDRUploader(gatt: g))
         _backup          = StateObject(wrappedValue: UHDRBackupScheduler(keyManager: km))
-        _consumable      = StateObject(wrappedValue: ConsumableTracker(gatt: g))
+        _consumable      = StateObject(wrappedValue: ConsumableTracker(countsProvider: g))
         _ota             = StateObject(wrappedValue: OTAManager(gatt: g))
         _setupMgr        = StateObject(wrappedValue: HardwareSetupManager(gatt: g))
         _protocolLibrary = StateObject(wrappedValue: NPProtocolLibrary())

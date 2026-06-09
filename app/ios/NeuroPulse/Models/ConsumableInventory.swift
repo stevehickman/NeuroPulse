@@ -33,7 +33,7 @@ enum ConsumableKind: Int, CaseIterable, Identifiable {
     // Remind when this many sessions remain in the current consumable unit.
     var lowThreshold: Int {
         switch self {
-        case .intranasalSleeves: return 5
+        case .intranasalSleeves: return 0   // single-use: alert only when at/past limit, not before
         case .electrodeHydrogel: return 8
         case .vnsPads:           return 4
         case .audioCupFoam:      return 20
@@ -99,7 +99,7 @@ struct ConsumableInventory {
     }
 
     var activeReminders: [ConsumableState] {
-        states.filter { $0.isLow && !$0.isExceeded == false || $0.isLow }
+        states.filter { $0.isLow }
     }
 
     var blockingReminders: [ConsumableState] {
