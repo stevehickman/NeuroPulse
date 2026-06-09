@@ -51,7 +51,7 @@ jobs:
         run: |
           for i in {1..3}; do
             if xcrun simctl create "iPhone 16 Pro" \
-              com.apple.CoreSimulator.SimDeviceType.iPhone-16-pro \
+              com.apple.CoreSimulator.SimDeviceType.iPhone-16Pro \
               com.apple.CoreSimulator.SimRuntime.iOS-18-0; then
               break
             fi
