@@ -74,7 +74,7 @@ struct NPPSLexer {
                 continue
             }
 
-            if ch.isNumber || ch == "-" {
+            if ch.isNumber || (ch == "-" && pos + 1 < source.count && source[pos + 1].isNumber) {
                 let (tok) = try readNumber(tokenLine: tokenLine)
                 tokens.append((tok, tokenLine))
                 continue
@@ -149,7 +149,7 @@ struct NPPSLexer {
         // Check for unit suffix (no space between number and unit in: 20Hz, 1.5mA, 25%, 2m, 30s, 1h, 0.9G, 500mW_cm2)
         let unitStart = pos
         var unitStr = ""
-        while pos < source.count && (source[pos].isLetter || source[pos] == "_") {
+        while pos < source.count && (source[pos].isLetter || source[pos].isNumber || source[pos] == "_") {
             unitStr.append(source[pos])
             pos += 1
         }
@@ -158,6 +158,17 @@ struct NPPSLexer {
         } else {
             // Backtrack: unit chars might be an identifier
             pos = unitStart
+            // Handle compound names that start with digits and continue with '_',
+            // e.g. wavelength values like "660_808nm" or "660_808_1064nm".
+            if pos < source.count && source[pos] == "_" {
+                var compound = numStr
+                while pos < source.count &&
+                      (source[pos].isLetter || source[pos].isNumber || source[pos] == "_") {
+                    compound.append(source[pos])
+                    pos += 1
+                }
+                return .ident(compound)
+            }
             return .number(value)
         }
     }
@@ -958,8 +969,11 @@ struct NPPSParser {
         }
 
         var asIdent: String? {
-            if case .ident(let s) = self { return s }
-            return nil
+            switch self {
+            case .ident(let s):  return s
+            case .string(let s): return s
+            default:             return nil
+            }
         }
     }
 
@@ -1228,7 +1242,7 @@ struct NPPSSerializer {
             lines.append("    readonly: true")
         }
         if !proto.tags.isEmpty {
-            lines.append("    tags: [\(proto.tags.joined(separator: ", "))]")
+            lines.append("    tags: [\(proto.tags.map { serializeTag($0) }.joined(separator: ", "))]")
         }
         switch proto.timingMode {
         case .duration(let s):
@@ -1418,7 +1432,7 @@ struct NPPSSerializer {
             lines.append("    readonly: true")
         }
         if !comp.tags.isEmpty {
-            lines.append("    tags: [\(comp.tags.joined(separator: ", "))]")
+            lines.append("    tags: [\(comp.tags.map { serializeTag($0) }.joined(separator: ", "))]")
         }
         lines.append("    conflict_resolution: \(comp.conflictResolution.rawValue)")
         lines.append("")
@@ -1451,6 +1465,14 @@ struct NPPSSerializer {
         if hz == 0 { return "0Hz  # CW" }
         if hz == Double(Int(hz)) { return "\(Int(hz))Hz" }
         return "\(hz)Hz"
+    }
+
+    // Emit a tag as a bare ident when all characters are letters, digits, or underscores.
+    // Quote it otherwise (e.g. "wind-down") so that a serialize→reparse round-trip
+    // preserves the original string without silent splitting on hyphens.
+    private func serializeTag(_ tag: String) -> String {
+        let isBareIdent = !tag.isEmpty && tag.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }
+        return isBareIdent ? tag : "\"\(tag.replacingOccurrences(of: "\"", with: "\\\""))\""
     }
 }
 
