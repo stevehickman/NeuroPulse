@@ -172,15 +172,15 @@ final class SHDRUploader: ObservableObject {
     @Published private(set) var lastUploadedAt: Date?
     @Published private(set) var lastError: SHDRUploadError?
 
-    private let gatt: NeuroPulseGATTManager
+    private let uploadTrigger: SHDRUploadTriggering
     private let warrantyConsentKey = "np.warranty.consent.granted"
     private var cancellable: AnyCancellable?
 
     // Dedicated session with SPKI pinning — never use URLSession.shared for fleet uploads.
     private let session: URLSession
 
-    init(gatt: NeuroPulseGATTManager) {
-        self.gatt = gatt
+    init(gatt: SHDRUploadTriggering) {
+        self.uploadTrigger = gatt
         let delegate = SHDRFleetPinningDelegate(host: "fleet.neuropulse.internal")
         self.session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
         observeUploadTrigger()
@@ -192,7 +192,7 @@ final class SHDRUploader: ObservableObject {
     }
 
     private func observeUploadTrigger() {
-        cancellable = gatt.$shdrUploadPending
+        cancellable = uploadTrigger.shdrUploadPendingPublisher
             .filter { $0 }
             .sink { [weak self] _ in
                 Task { await self?.uploadIfConsented() }
@@ -215,7 +215,7 @@ final class SHDRUploader: ObservableObject {
         defer { isUploading = false }
 
         // NP-FW-EMMC-002 Rev A §A: SHDR is linked to an opaque 256-bit TRNG warranty
-        // token — never to identifierForVendor or any user-linked identifier.
+        // token — never to any vendor-assigned or user-linked identifier.
         let warrantyToken = warrantyTokenFromKeychain()
 
         // In production the hub pushes the SHDR binary blob over USB-C bulk transfer;
@@ -258,8 +258,8 @@ final class SHDRUploader: ObservableObject {
     // MARK: - Warranty token (NP-FW-EMMC-002 Rev A §A)
 
     // Opaque 256-bit random token, generated once at first run and stored in the
-    // Keychain with ThisDeviceOnly accessibility. This replaces identifierForVendor
-    // as the SHDR fleet DB linkage key — it is never joined to user identity.
+    // Keychain with ThisDeviceOnly accessibility. Used as the SHDR fleet DB linkage
+    // key — it is never joined to user identity.
     // Production: replace with the 256-bit TRNG token provisioned by the hub at
     // first pairing and delivered over the GATT warranty characteristic.
     private static let warrantyTokenTag = "com.neuropulse.shdr.warranty-token"

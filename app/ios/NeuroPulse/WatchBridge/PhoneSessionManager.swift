@@ -1,18 +1,42 @@
 import WatchConnectivity
 import Combine
+import NeuroPulseShared
 
-// Bridges NeuroPulseGATTManager → Watch app via WatchConnectivity.
-// Observes the published SessionState from the GATT manager and forwards
-// each update as a WCSession sendMessage call, achieving sub-50ms latency
-// on the local BT link between iPhone and Watch.
+// Bridges GATTSessionPublishing → Watch app via WatchConnectivity.
+// Observes the session-state publisher and forwards each update as a
+// WCSession sendMessage call, achieving sub-50ms latency on the local
+// BT link between iPhone and Watch.
+
+// MARK: - WatchMessageSending protocol
+
+/// Abstraction over WCSession's outbound message path.
+/// Allows tests to inject a mock without activating a real WCSession.
+///
+/// Production conformance: WCSession (via extension below).
+/// Test conformance:       MockWatchMessageSender (in test target).
+protocol WatchMessageSending: AnyObject {
+    var isReachable: Bool { get }
+    func sendMessage(_ message: [String: Any],
+                     replyHandler: (([String: Any]) -> Void)?,
+                     errorHandler: ((Error) -> Void)?)
+}
+
+extension WCSession: WatchMessageSending {}
+
+// MARK: - PhoneSessionManager
 
 final class PhoneSessionManager: NSObject, ObservableObject {
 
-    private let gatt: NeuroPulseGATTManager
+    private let gattPublisher: GATTSessionPublishing
+    private let watchSender: WatchMessageSending
     private var cancellable: AnyCancellable?
 
-    init(gatt: NeuroPulseGATTManager) {
-        self.gatt = gatt
+    /// Production init: `gatt` is the GATT manager; `watchSender` defaults to `WCSession.default`.
+    /// Tests inject a `MockWatchMessageSender` so no real WCSession is activated.
+    init(gatt: GATTSessionPublishing,
+         watchSender: WatchMessageSending = WCSession.default) {
+        self.gattPublisher = gatt
+        self.watchSender = watchSender
         super.init()
         if WCSession.isSupported() {
             WCSession.default.delegate = self
@@ -24,7 +48,7 @@ final class PhoneSessionManager: NSObject, ObservableObject {
     // MARK: - Private
 
     private func observeGATT() {
-        cancellable = gatt.$session
+        cancellable = gattPublisher.sessionPublisher
             .dropFirst()                        // skip initial .empty publish
             .sink { [weak self] state in
                 self?.forward(state)
@@ -32,15 +56,15 @@ final class PhoneSessionManager: NSObject, ObservableObject {
     }
 
     private func forward(_ state: SessionState) {
-        guard WCSession.default.isReachable else { return }
+        guard watchSender.isReachable else { return }
         let msg = state.toWCMessage()
-        WCSession.default.sendMessage(msg, replyHandler: nil, errorHandler: nil)
+        watchSender.sendMessage(msg, replyHandler: nil, errorHandler: nil)
     }
 
     // Push a consumable low alert as a high-priority notification.
     func sendConsumableLowNotification(consumableIndex: Int, sessionsRemaining: Int) {
-        guard WCSession.default.isReachable else { return }
-        WCSession.default.sendMessage([
+        guard watchSender.isReachable else { return }
+        watchSender.sendMessage([
             "alert": "consumable_low",
             "index": consumableIndex,
             "remaining": sessionsRemaining

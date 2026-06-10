@@ -5,10 +5,10 @@ project: NeuroPulse
 effort: E4
 effort_source: gate-floor
 phase: observe
-progress: 44/164
+progress: 49/164
 mode: interactive
 started: 2026-06-04
-updated: 2026-06-09
+updated: 2026-06-10
 ---
 
 # ISA — NeuroPulse Core iOS App (Issue #51)
@@ -103,7 +103,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 - [ ] ISC-36: `NPProtocolValidator` rejects any protocol whose per-modality dose limits exceed the values declared in `NPDosageLimits`.
 - [ ] ISC-37: `NPProtocolValidator` rejects any protocol whose tDCS current exceeds 2 mA or whose BES current exceeds 1 mA.
 - [x] ISC-38: `NPProtocolValidator` rejects any protocol whose tDCS charge density exceeds 40 µC/cm² — confirmed by a unit test that constructs a borderline-valid and a borderline-invalid protocol.
-- [ ] ISC-39: `NPProtocolLibrary` loads and exposes all 19 predefined NPPS protocol templates from `NPPredefinedProtocols` without runtime errors.
+- [x] ISC-39: `NPProtocolLibrary` loads and exposes all 19 predefined NPPS protocol templates from `NPPredefinedProtocols` without runtime errors.
 - [ ] ISC-40: `ProtocolMenuView` lists all protocols in `NPProtocolLibrary` with name, modality badges, and duration; protocols with missing hardware (e.g. a 1064nm zone not detected) are visually disabled with an explanatory note.
 - [ ] ISC-41: `ProtocolEditorView` allows editing frequency, duration, and current for each modality within the limits defined in `NPLimitsStore`, and blocks saving if any value violates a limit.
 - [ ] ISC-42: `ProtocolComposerView` allows building a multi-modality protocol by selecting modalities from a list and setting parameters individually.
@@ -213,10 +213,10 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 
 ### Apple Watch bridge
 
-- [ ] ISC-122: `PhoneSessionManager` establishes a `WCSession` and activates it if `WCSession.isSupported()` returns true.
-- [ ] ISC-123: `PhoneSessionManager` sends session epoch, protocol ID, HRV coherence, pacer phase, and RMSSD to the Watch via `WCSession.sendMessage(_:replyHandler:errorHandler:)` at the 100ms GATT notification rate.
-- [ ] ISC-124: `PhoneSessionManager` handles Watch connectivity not available (Watch not paired, WatchOS app not installed) gracefully — `SessionView` has no visible dependency on Watch availability.
-- [ ] ISC-125: `Anti:` `PhoneSessionManager` does not transmit EEG waveform data or raw session timestamps to the Watch — only display-safe metrics (coherence score 0–10, RMSSD integer, pacer phase, session duration).
+- [x] ISC-122: `PhoneSessionManager` establishes a `WCSession` and activates it if `WCSession.isSupported()` returns true.
+- [x] ISC-123: `PhoneSessionManager` sends session epoch, protocol ID, HRV coherence, pacer phase, and RMSSD to the Watch via `WCSession.sendMessage(_:replyHandler:errorHandler:)` at the 100ms GATT notification rate.
+- [x] ISC-124: `PhoneSessionManager` handles Watch connectivity not available (Watch not paired, WatchOS app not installed) gracefully — `SessionView` has no visible dependency on Watch availability.
+- [x] ISC-125: `Anti:` `PhoneSessionManager` does not transmit EEG waveform data or raw session timestamps to the Watch — only display-safe metrics (coherence score 0–10, RMSSD integer, pacer phase, session duration).
 
 ### Onboarding and account
 
