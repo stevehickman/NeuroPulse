@@ -16,8 +16,21 @@ struct MainTabView: View {
 
     @State private var selectedTab = 0
 
+    // ISC-121: intercept tab selection before any render cycle. A Binding guard avoids the
+    // one-frame flicker caused by onChange(of:), which fires after layout has already
+    // placed the user on the Session tab.
+    private var guardedTabSelection: Binding<Int> {
+        Binding(
+            get: { selectedTab },
+            set: { newValue in
+                if newValue == 0 && !setup.isFirstSetupComplete { return }
+                selectedTab = newValue
+            }
+        )
+    }
+
     var body: some View {
-        TabView(selection: $selectedTab) {
+        TabView(selection: guardedTabSelection) {
             sessionTab
             setupTab
             consumableTab

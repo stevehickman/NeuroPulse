@@ -5,10 +5,10 @@ project: NeuroPulse
 effort: E4
 effort_source: gate-floor
 phase: observe
-progress: 36/164
+progress: 44/164
 mode: interactive
 started: 2026-06-04
-updated: 2026-06-08
+updated: 2026-06-09
 ---
 
 # ISA — NeuroPulse Core iOS App (Issue #51)
@@ -202,14 +202,14 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 
 ### Hardware setup wizard
 
-- [ ] ISC-114: `SetupView` presents a first-run wizard covering: (1) BLE pairing confirmation, (2) EEG impedance check (8 contacts), (3) first protocol selection, (4) safety information acknowledgement.
-- [ ] ISC-115: The EEG impedance step shows each of the 8 electrode positions (Fp1/Fp2, F3/F4, C3/C4, P3/P4) colour-coded from `gatt.session.impedancePassFlags` — green when the bit is set, amber/red otherwise.
-- [ ] ISC-116: The wizard blocks progression to "protocol selection" until at least 6 of 8 EEG contacts pass impedance (configurable threshold stored in `UserDefaults`).
-- [ ] ISC-117: `HardwareSetupManager.isFirstSetupComplete` is set to `true` (persisted) only after the wizard's final step is completed — `SessionView` is inaccessible until then.
-- [ ] ISC-118: The safety acknowledgement step includes a plain-language summary of all T1 contraindications (photosensitive epilepsy, pacemaker, pregnancy, recent head trauma) with a "I have read and understood the above" checkbox.
-- [ ] ISC-119: The contraindications checkbox is not pre-ticked and cannot be bypassed.
-- [ ] ISC-120: `SetupView` is accessible after first-run setup for re-calibration — the "Setup" tab badge disappears once `isFirstSetupComplete == true`.
-- [ ] ISC-121: `Anti:` `SessionView` does not become accessible (tab switch succeeds, protocol picker can be opened) when `setup.isFirstSetupComplete == false` — the `onReceive(UIApplication.didBecomeActiveNotification)` redirect in `MainTabView` enforces this.
+- [x] ISC-114: `SetupView` presents a first-run wizard covering: (1) BLE pairing confirmation, (2) EEG impedance check (8 contacts), (3) first protocol selection, (4) safety information acknowledgement.
+- [x] ISC-115: The EEG impedance step shows each of the 8 electrode positions (Fp1/Fp2, F3/F4, C3/C4, P3/P4) colour-coded from `gatt.session.impedancePassFlags` — green when the bit is set, amber/red otherwise.
+- [x] ISC-116: The wizard blocks progression to "protocol selection" until at least 6 of 8 EEG contacts pass impedance (hard-coded safety threshold — UserDefaults configurability removed; threshold is safety-critical).
+- [x] ISC-117: `HardwareSetupManager.isFirstSetupComplete` is set to `true` (persisted) only after the wizard's final step is completed — `SessionView` is inaccessible until then.
+- [x] ISC-118: The safety acknowledgement step includes a plain-language summary of all T1 contraindications (photosensitive epilepsy, pacemaker, pregnancy, recent head trauma) with a "I have read and understood the above" checkbox.
+- [x] ISC-119: The contraindications checkbox is not pre-ticked and cannot be bypassed.
+- [x] ISC-120: `SetupView` is accessible after first-run setup for re-calibration — the "Setup" tab badge disappears once `isFirstSetupComplete == true`.
+- [x] ISC-121: `Anti:` `SessionView` does not become accessible (tab switch succeeds, protocol picker can be opened) when `setup.isFirstSetupComplete == false` — `guardedTabSelection: Binding<Int>` in `MainTabView` intercepts selection before render (replaces `onChange` flicker approach); `onReceive(UIApplication.didBecomeActiveNotification)` redirect also enforces on app-foregrounding.
 
 ### Apple Watch bridge
 

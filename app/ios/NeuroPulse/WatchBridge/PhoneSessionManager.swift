@@ -47,14 +47,6 @@ final class PhoneSessionManager: NSObject, ObservableObject {
         ], replyHandler: nil, errorHandler: nil)
     }
 
-    // Push impedance check result.
-    func sendImpedanceResult(passFlags: UInt16) {
-        guard WCSession.default.isReachable else { return }
-        WCSession.default.sendMessage([
-            "alert": "impedance_result",
-            "flags": Int(passFlags)
-        ], replyHandler: nil, errorHandler: nil)
-    }
 }
 
 // MARK: - WCSessionDelegate

@@ -212,12 +212,13 @@ final class GATTParserTests: XCTestCase {
         // SessionState.from(wcMessage:) is the only other code path that can populate
         // consumableSessionCounts (via WatchConnectivity). Verify it reads from
         // WCKey.consumableCounts (SHDR) not from any UHDR key (coherenceX100, rmssd).
+        // impedancePassFlags (formerly WCKey.impedanceFlags) is UHDR-class and must not be
+        // transmitted over WatchConnectivity. It is excluded from WC messages entirely.
         let msg: [String: Any] = [
             WCKey.protocolID:       Int(3),
             WCKey.status:           Int(SessionStatus.running.rawValue),
             WCKey.pacerPhase:       Int(PacerPhase.inhale.rawValue),
             WCKey.pacerPercent:     Int(25),
-            WCKey.impedanceFlags:   Int(0x00FF),
             WCKey.consumableCounts: [2, 15, 5, 80],  // SHDR device counts
             WCKey.coherenceX100:    Int(750),          // UHDR — must NOT affect counts
             WCKey.rmssd:            Int(42),           // UHDR — must NOT affect counts

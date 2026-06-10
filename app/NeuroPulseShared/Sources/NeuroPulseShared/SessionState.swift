@@ -79,18 +79,18 @@ public enum WCKey {
     public static let rmssd             = "rmssd"
     public static let pacerPhase        = "pp"
     public static let pacerPercent      = "pct"
-    public static let impedanceFlags    = "imp"
     public static let consumableCounts  = "con"
 }
 
 extension SessionState {
     public func toWCMessage() -> [String: Any] {
+        // impedancePassFlags is UHDR-class (raw per-electrode bitmask at named scalp positions;
+        // CLAUDE.md §5.1 "Raw EEG impedance → UHDR"). Must not flow over unencrypted WC bridge.
         var msg: [String: Any] = [
             WCKey.protocolID:       Int(protocolID),
             WCKey.status:           Int(status.rawValue),
             WCKey.pacerPhase:       Int(pacerPhase.rawValue),
             WCKey.pacerPercent:     Int(pacerElapsedPercent),
-            WCKey.impedanceFlags:   Int(impedancePassFlags),
             WCKey.consumableCounts: consumableSessionCounts.map { Int($0) },
         ]
         if let h = hrv {
@@ -108,7 +108,6 @@ extension SessionState {
             let phaseRaw   = msg[WCKey.pacerPhase]  as? Int,
             let phase      = PacerPhase(rawValue: UInt8(phaseRaw)),
             let pct        = msg[WCKey.pacerPercent]   as? Int,
-            let impFlags   = msg[WCKey.impedanceFlags] as? Int,
             let conRaw     = msg[WCKey.consumableCounts] as? [Int]
         else { return nil }
 
@@ -119,13 +118,13 @@ extension SessionState {
         }
 
         return SessionState(
-            epoch: 0,   // not transmitted over WC bridge (UHDR boundary)
+            epoch: 0,                // not transmitted over WC bridge (UHDR boundary)
             protocolID: UInt8(pid),
             status: status,
             hrv: hrv,
             pacerPhase: phase,
             pacerElapsedPercent: UInt8(pct),
-            impedancePassFlags: UInt16(impFlags),
+            impedancePassFlags: 0,   // UHDR-class — not transmitted over WC bridge
             consumableSessionCounts: conRaw.prefix(4).map { UInt16($0) }
         )
     }
