@@ -70,14 +70,30 @@ set(CPU_FLAGS
     -mfloat-abi=soft
 )
 
+# ── Shared crypto library (OI-SW01-M07-02 CLOSED) ─────────────────────────────
+# np_crypto provides np_ed25519_verify, np_sha256, np_sha512, np_crc32.
+# Backed by Monocypher 4.0.2 (RFC 8032, SHA-512) — see firmware/crypto/.
+# CMAKE_C_FLAGS_INIT (set by stm32g071.cmake) already carries -mcpu=cortex-m0plus
+# so np_crypto compiles with the correct CPU flags without any extra step here.
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../crypto
+                 ${CMAKE_CURRENT_BINARY_DIR}/np_crypto_build)
+
 # ── Firmware image ─────────────────────────────────────────────────────────────
 add_executable(np_safety_mcu ${SAFETY_SOURCES})
 
 target_include_directories(np_safety_mcu PRIVATE include)
 
+target_link_libraries(np_safety_mcu PRIVATE np_crypto)
+
+# C standard: enforce C11 without GNU extensions (MISRA C:2012 requires this).
+set_target_properties(np_safety_mcu PROPERTIES
+    C_STANDARD          11
+    C_STANDARD_REQUIRED ON
+    C_EXTENSIONS        OFF
+)
+
 target_compile_options(np_safety_mcu PRIVATE
     ${CPU_FLAGS}
-    -std=c11
     -Wall
     -Wextra
     -Werror

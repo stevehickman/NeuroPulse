@@ -1,32 +1,38 @@
 name: Firmware Host Unit Tests
 
-# Builds and runs the three host-native test targets.
+# Builds and runs the five host-native test targets.
 # Does NOT require the ARM cross-compiler.
 # Modules with NP_BUILD_TESTS host targets:
+#   firmware/crypto        → np_crypto_tests   (SHA-256/512, CRC-32, Ed25519)
 #   firmware/anon          → np_anon_tests     (Scratch encryption)
 #   firmware/edf           → np_edf_tests      (EDF+ privacy header)
 #   firmware/factory_reset → np_factory_reset_tests (device reset)
+#   firmware/ota           → np_ota_tests      (OTA state CRC + rollback)
 
 on:
   push:
     paths:
+      - 'firmware/crypto/**'
       - 'firmware/anon/**'
       - 'firmware/edf/**'
       - 'firmware/factory_reset/**'
+      - 'firmware/ota/**'
       - 'firmware/CMakeLists.txt'
       - 'firmware/cmake/**'
   pull_request:
     paths:
+      - 'firmware/crypto/**'
       - 'firmware/anon/**'
       - 'firmware/edf/**'
       - 'firmware/factory_reset/**'
+      - 'firmware/ota/**'
       - 'firmware/CMakeLists.txt'
       - 'firmware/cmake/**'
   workflow_dispatch:
 
 jobs:
   firmware-host-tests:
-    name: CMake host tests (anon + edf + factory_reset)
+    name: CMake host tests (crypto + anon + edf + factory_reset + ota)
     runs-on: ubuntu-latest
 
     steps:

@@ -313,7 +313,7 @@ Per IEC 62304 §8, all third-party libraries and components used in SW-01 and SW
 |---|---|---|---|---|
 | FreeRTOS | 10.5.x | SW-02 | Class B | FreeRTOS known-anomalies list reviewed; task stack overflow detection enabled |
 | LittleFS | 2.x | SW-02 | Class B | Power-loss testing per LittleFS test suite |
-| Ed25519 implementation (self-contained) | per commit | SW-01, SW-02 | Class C | Self-contained — no external library; code reviewed and tested in-house |
+| Monocypher (Ed25519 optional SHA-512 module) | 4.0.2 | SW-01, SW-02 | Class C | Vendored in `firmware/crypto/vendor/monocypher/`; SOUP record `VERSION` file; 11-test suite (RFC 8032 TV1/TV2 + all-zero pubkey guard) passes; BSD-2-Clause OR CC0-1.0; OI-SW01-M07-02 CLOSED 2026-06-11. Note: source files carry `__git__` version string — normal upstream behaviour; canonical version is git tag 4.0.2. Bootloader (`firmware/bootloader/`) retains self-contained Ed25519 (uses `-nostdlib/-nodefaultlibs`; Monocypher requires libc symbols). |
 | Unity (unit test framework) | 2.x | SW-01 test | Test only — not shipped | N/A |
 | ARM CMSIS-DSP | 1.x | SW-02 | Class B | Uses validated DSP functions; input range validation in calling code |
 

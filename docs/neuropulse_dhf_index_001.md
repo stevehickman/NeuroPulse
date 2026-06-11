@@ -1,9 +1,9 @@
-# NP-DHF-001 Rev N — NeuroPulse Design History File Index
+# NP-DHF-001 Rev O — NeuroPulse Design History File Index
 
 **Document number:** NP-DHF-001  
-**Revision:** N  
+**Revision:** O  
 **Status:** ACTIVE  
-**Effective date:** 2026-06-09  
+**Effective date:** 2026-06-11  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved by:** Steve Hickman, CEO  
 **Next review:** Ongoing — updated with each new design document release
@@ -223,6 +223,7 @@ Under IEC 62304 and 21 CFR §820.30, software source code and associated build a
 |---|---|---|---|
 | OTA state host-testable C module | Class B (host-testable) | NP-APP-ISA-001 ISC-111 | [firmware/ota/](../firmware/ota/) |
 | Dual-bank OTA bootloader | Class B (boundary) | NP-FW-EMMC-001 Rev A §8 | [firmware/bootloader/](../firmware/bootloader/) |
+| Shared crypto library (np_crypto — OI-SW01-M07-02 CLOSED) | **Class C** (consumed by SW-01) / Class B (consumed by SW-02) | NP-SW-001 Rev A §9.4 SOUP table; `firmware/crypto/vendor/monocypher/VERSION` | [firmware/crypto/](../firmware/crypto/) |
 | Hub control program | Class B | NP-FW-HUB-001 Rev A | [firmware/hub_control/](../firmware/hub_control/) |
 | HRV biofeedback protocol | Class B | NP-FW-HRV-001 Rev A | [firmware/hrv_biofeedback/](../firmware/hrv_biofeedback/) |
 | Zone module bone conduction announcement | Class B | NP-FW-ZA-001 Rev A | [firmware/zone_announce/](../firmware/zone_announce/) |
@@ -314,6 +315,7 @@ Planned near-term additions:
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| O | 2026-06-11 | Steve Hickman (CEO, interim Quality authority) | **OI-SW01-M07-02 CLOSED — Shared crypto library `firmware/crypto/` added.** `firmware/crypto/` added to §6 firmware source table (Class C/B, SOUP-backed by Monocypher 4.0.2). NP-SW-001 SOUP table updated: Monocypher 4.0.2 entry replaces generic Ed25519 placeholder. `firmware/crypto/vendor/monocypher/VERSION` created as IEC 62304 §8.1.2 SOUP record. Build system: `C_EXTENSIONS OFF` enforced via CMake property; Monocypher SOUP files compiled with `-w`; `-std=c11` raw flag replaced by CMake C_STANDARD property. 11/11 host tests pass. Privacy analysis: clean. CLAUDE.md §13.4 OI-SW01-M07-02 CLOSED; §13.5 firmware source row updated; §14 np_crypto row added. Rev N → Rev O. Effective 2026-06-11. |
 | N | 2026-06-09 | Steve Hickman (CEO, interim Quality authority) | **OTA firmware update — iOS + firmware C module.** `firmware/ota/` added to §6 firmware source table (host-testable Class B module; `np_ota_state.h/.c`; CRC32 over first 40 bytes; 21 host tests). OTA iOS modules added to §6b (`OTAManager`, `FirmwareUpdateService`, `OTAModels`, `OTAView`; 27 OTAManagerTests). ISA progress updated: 36/164. §6b test count: 7 suites 49 tests → 8 suites 76 tests. `OTAModels.swift` entry corrected: `formattedBytes` uses integer round-half-up (avoids banker's rounding producing "0 KB" for sub-1 KB transfers). CLAUDE.md §13.5 updated with locked OTA decisions (opcode wire values, SPKI pinning, fingerprint-first ordering). NP-APP-ISA-001 ISC-107–113 VERIFIED. Rev M → Rev N. Effective 2026-06-09. |
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. All pre-formation design documents entered retroactively under change control. DHF established at QMS formation. |
 | B | 2026-05-17 | Interim Quality (CEO) | NP-DB-004 (R4) marked SUPERSEDED; NP-DB-005 (R5) added as ACTIVE. NP-HW-HUB-001 Rev B added (§5.3). NP-FW-HUB-001 Rev A (hub_control) added to §5.4 and §6. NPPS Language Reference added (§5.5). NP-FW-REQ-001 marked SUPERSEDED. NP-MOD-EXT-001 marked SUPERSEDED. NP-RISK-001 → Rev B. NP-COORD-001 → Rev A.8. CLAUDE.md → Rev 9. Relative navigation links added. DHF completeness assessment updated. |

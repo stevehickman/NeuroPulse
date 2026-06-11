@@ -7,13 +7,18 @@
  * (SHA-256 of the serialised session descriptor) and the 64-byte Ed25519
  * signature via SPI before requesting enables.
  *
- * The verification uses a self-contained Ed25519 implementation (same
- * approach as the bootloader's np_signature.c).  The manufacturing root
- * public key is burned into OTP at device provisioning.
+ * Ed25519 is provided by firmware/crypto (np_crypto static library, backed
+ * by Monocypher 4.0.2 — RFC 8032 §5.1.7, SHA-512).  OI-SW01-M07-02 CLOSED.
+ *
+ * REMAINING OPEN ITEM — OI-SW01-M07-01: np_session_sig_is_verified() is
+ * never consulted by np_spi_watchdog_tick().  The grant path must be updated
+ * to gate on np_session_sig_is_verified() once the SPI command delivery frame
+ * (96 bytes: 32-byte hash + 64-byte sig) is designed.  BLOCKING for production.
  *
  * OTP HAL stub: np_hal_otp_read_pubkey(buf, len) reads the 32-byte key.
  */
 
+#include "np_crypto.h"
 #include "np_safety_config.h"
 #include "np_safety_protocol.h"
 #include <stdint.h>
@@ -22,28 +27,6 @@
 
 /* ── HAL stubs ───────────────────────────────────────────────────────────── */
 extern void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len);
-
-/* Ed25519 verify implementation.
- * OI-SW01-M07-02: This symbol must be provided by the safety MCU build.
- * The bootloader has a self-contained RFC 8032 §5.1.7 implementation in
- * firmware/bootloader/src/np_signature.c, but that file is NOT in the
- * safety MCU build (SAFETY_SOURCES in CMakeLists.txt).  The symbol must be
- * either:
- *   (a) copied / refactored into a shared crypto library linked by both
- *       the bootloader and the safety MCU, or
- *   (b) reimplemented here as a safety-MCU-specific module.
- * Until this is resolved the ARM build will fail to link.
- *
- * ALSO NOTE — OI-SW01-M07-01: even when np_ed25519_verify is resolved,
- * np_session_sig_is_verified() is never consulted by np_spi_watchdog_tick().
- * The granted_mask is set without any signature check.  See np_spi_watchdog.c
- * and np_safety_main.c — the grant path must be updated to gate on
- * np_session_sig_is_verified() once the SPI command delivery frame is designed.
- *
- * Both OI-SW01-M07-01 and OI-SW01-M07-02 are BLOCKING for production builds. */
-extern int np_ed25519_verify(const uint8_t *pubkey,
-                              const uint8_t *msg,   uint32_t msg_len,
-                              const uint8_t *sig);
 
 /* ── Module state ─────────────────────────────────────────────────────────── */
 static uint8_t s_pubkey[NP_ED25519_PUB_KEY_LEN];

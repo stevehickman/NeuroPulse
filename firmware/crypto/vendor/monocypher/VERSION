@@ -1,0 +1,24 @@
+# Monocypher SOUP Record — IEC 62304 §8.1.2
+
+Library:   Monocypher
+Version:   4.0.2
+Source:    https://github.com/LoupVaillant/Monocypher/tree/4.0.2
+Tag:       4.0.2
+License:   BSD-2-Clause OR CC0-1.0
+
+Files vendored from firmware/crypto/vendor/monocypher/:
+  monocypher.h              — src/monocypher.h
+  monocypher.c              — src/monocypher.c
+  monocypher-ed25519.h      — src/optional/monocypher-ed25519.h
+  monocypher-ed25519.c      — src/optional/monocypher-ed25519.c
+
+Note: All four files contain "version __git__" in their header comment.
+This is normal Monocypher upstream behaviour — the __git__ placeholder is
+present in every commit including tagged releases; the canonical version
+identifier is the git tag above, not the in-source string.
+
+Usage in NeuroPulse:
+  monocypher.c + monocypher-ed25519.c are compiled into the np_crypto
+  static library.  Only crypto_ed25519_check (RFC 8032, SHA-512) is called
+  from NeuroPulse first-party code.  MISRA C:2012 scans target src/np_crypto.c
+  only; SOUP files are exempt per IEC 62304 §8.1.2 with documented origin.
