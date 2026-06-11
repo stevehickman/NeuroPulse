@@ -43,6 +43,7 @@
 #
 # ── Host-test modules ─────────────────────────────────────────────────────────
 # Modules with NP_BUILD_TESTS host targets:
+#   firmware/crypto/          → np_crypto_tests (SHA-256/512, CRC-32, Ed25519)
 #   firmware/anon/            → np_anon_tests
 #   firmware/edf/             → np_edf_tests
 #   firmware/factory_reset/   → np_factory_reset_tests
@@ -81,10 +82,15 @@ endif()
 if(NP_BUILD_TESTS)
     enable_testing()
 
+    add_subdirectory(crypto)
     add_subdirectory(anon)
     add_subdirectory(edf)
     add_subdirectory(factory_reset)
     add_subdirectory(ota)
+
+    add_test(NAME np_crypto_tests
+        COMMAND np_crypto_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_anon_tests
         COMMAND np_anon_tests
@@ -107,6 +113,8 @@ endif()
 
 # ── Cross-compiled modules ────────────────────────────────────────────────────
 # Execution order: bootloader → {libraries} → hub_control links them all.
+
+add_subdirectory(crypto)
 
 if(NP_BUILD_BOOTLOADER)
     add_subdirectory(bootloader)
