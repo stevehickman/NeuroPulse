@@ -1,22 +1,40 @@
 import Foundation
-import CryptoKit
 import LocalAuthentication
 import Security
-import UIKit   // UIDevice.current.identifierForVendor
+import NeuroPulseShared
 
 // UHDR AES-256-XTS key derivation.
-// Target KDF: Argon2id (memory=64MB, iterations=4, parallelism=1, output=64B → K1+K2 for XTS).
-// iOS 18 does not ship Argon2id in CryptoKit or CommonCrypto. Production integration:
-//   - Link swift-crypto-extras or the argon2 C library (BLAKE2 + Argon2 reference impl).
-//   - Until then this module uses PBKDF2-SHA256 (rounds=200000) as a structurally identical
-//     placeholder that maintains the same API, Keychain interactions, and data-partition contract.
-//     When Argon2id is linked, swap derivePBKDF2 for deriveArgon2id below — no call-site changes.
+//
+// Key scheme (NP-FW-EMMC-002 Rev A §C):
+//   1. Biometric/PIN credential (WKMD): 32-byte CSPRNG seed in Keychain,
+//      protected by SecAccessControl(.userPresence). Retrieved only after
+//      successful biometric/PIN evaluation via LAContext.
+//   2. Salt: 32-byte CSPRNG value stored in Keychain (non-synchronizable, device-bound).
+//      Production path: hub-provisioned TRNG salt from eMMC Config partition via BLE.
+//   3. KDF: Argon2id (memory=65536 KiB, iterations=4, parallelism=1, output=64B)
+//      → K1 (first 32B) + K2 (last 32B) for AES-256-XTS.
 //
 // Key is NEVER persisted to Keychain or NeuroPulse servers.
-// Key is derived fresh each session from biometric + TRNG salt in Config partition.
 // NeuroPulse cannot decrypt UHDR (CLAUDE.md §5.1).
 
-import CommonCrypto
+// MARK: - Protocol seams (injectable for testing)
+
+protocol BiometricEvaluating: Sendable {
+    func canEvaluatePolicy(_ policy: LAPolicy, error: NSErrorPointer) -> Bool
+    func evaluatePolicy(_ policy: LAPolicy, localizedReason: String) async throws -> Bool
+}
+
+extension LAContext: BiometricEvaluating {}
+
+protocol CredentialStore: Sendable {
+    // Returns 32-byte CSPRNG seed; creates and stores on first call.
+    // authenticatedContext: the LAContext that was just evaluated, so the Keychain
+    // doesn't trigger a second biometric prompt. Pass nil in tests.
+    func loadOrCreateCredential(authenticatedContext: LAContext?) throws -> Data
+    func deleteCredential()
+}
+
+// MARK: - Errors
 
 enum UHDRKeyError: LocalizedError {
     case biometricFailed(Error)
@@ -34,6 +52,8 @@ enum UHDRKeyError: LocalizedError {
     }
 }
 
+// MARK: - UHDRKey
+
 // Holds the two 256-bit subkeys for AES-256-XTS (K1 = data key, K2 = tweak key).
 // Kept in memory only; zeroed on deinit.
 final class UHDRKey {
@@ -46,11 +66,92 @@ final class UHDRKey {
     }
 
     deinit {
-        // Zero key material on dealloc.
-        k1.withUnsafeMutableBytes { ptr in ptr.baseAddress?.initializeMemory(as: UInt8.self, repeating: 0, count: ptr.count) }
-        k2.withUnsafeMutableBytes { ptr in ptr.baseAddress?.initializeMemory(as: UInt8.self, repeating: 0, count: ptr.count) }
+        // bzero is guaranteed not to be optimised away (unlike memset/initializeMemory).
+        k1.withUnsafeMutableBytes { buf in if let p = buf.baseAddress { bzero(p, buf.count) } }
+        k2.withUnsafeMutableBytes { buf in if let p = buf.baseAddress { bzero(p, buf.count) } }
     }
 }
+
+// MARK: - Keychain credential store (production)
+
+private struct KeychainCredentialStore: CredentialStore {
+    private static let service = "com.neuropulse.uhdr.biometric-seed"
+    private static let account = "credential"
+
+    func loadOrCreateCredential(authenticatedContext: LAContext?) throws -> Data {
+        var readQuery: [CFString: Any] = [
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        Self.service,
+            kSecAttrAccount:        Self.account,
+            kSecMatchLimit:         kSecMatchLimitOne,
+            kSecReturnData:         true,
+            kSecAttrSynchronizable: false,
+        ]
+        if let ctx = authenticatedContext {
+            readQuery[kSecUseAuthenticationContext] = ctx
+        }
+        var item: CFTypeRef?
+        if SecItemCopyMatching(readQuery as CFDictionary, &item) == errSecSuccess,
+           let data = item as? Data, data.count == 32 {
+            return data
+        }
+
+        // Create a new 32-byte CSPRNG seed and store it in Keychain.
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+            throw UHDRKeyError.derivationFailed
+        }
+        let seed = Data(bytes)
+
+        // Protect with .userPresence: requires biometric (or passcode fallback).
+        // This ties the seed to the Secure Enclave's access-control policy.
+        guard let access = SecAccessControlCreateWithFlags(
+            nil,
+            kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            .userPresence,
+            nil
+        ) else {
+            throw UHDRKeyError.derivationFailed
+        }
+
+        var addQuery: [CFString: Any] = [
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        Self.service,
+            kSecAttrAccount:        Self.account,
+            kSecValueData:          seed,
+            kSecAttrAccessControl:  access,
+            kSecAttrSynchronizable: false,
+        ]
+        if let ctx = authenticatedContext {
+            addQuery[kSecUseAuthenticationContext] = ctx
+        }
+
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        // errSecDuplicateItem means another call beat us to it — retry read.
+        if status == errSecDuplicateItem {
+            if SecItemCopyMatching(readQuery as CFDictionary, &item) == errSecSuccess,
+               let data = item as? Data, data.count == 32 {
+                return data
+            }
+        }
+        guard status == errSecSuccess || status == errSecDuplicateItem else {
+            throw UHDRKeyError.derivationFailed
+        }
+        return seed
+    }
+
+    func deleteCredential() {
+        let query: [CFString: Any] = [
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        Self.service,
+            kSecAttrAccount:        Self.account,
+            kSecAttrSynchronizable: false,
+        ]
+        SecItemDelete(query as CFDictionary)
+    }
+}
+
+// MARK: - UHDRKeyManager
 
 @MainActor
 final class UHDRKeyManager: ObservableObject {
@@ -58,99 +159,52 @@ final class UHDRKeyManager: ObservableObject {
     @Published private(set) var isAuthenticated = false
     private(set) var activeKey: UHDRKey?
 
-    // Salt lives in eMMC Config partition, written at device provisioning.
-    // Hub exposes it via a read-only BLE characteristic (not in scope for alpha;
-    // placeholder uses a stable device-specific derivation from identifierForVendor).
-    private var salt: Data {
-        // Production: read 32-byte TRNG salt from hub Config partition over BLE.
-        // Placeholder: derive from UIDevice.current.identifierForVendor (stable per app install).
-        guard let uuid = UIDevice.current.identifierForVendor?.uuidString.data(using: .utf8) else {
-            // identifierForVendor is nil only briefly after a factory wipe before
-            // the first device unlock — a foreground app should not reach this path.
-            // Use a Keychain-stored random value so different devices (if this path
-            // is somehow reached) do not derive the same key from a constant.
-            return saltFallbackFromKeychain()
-        }
-        return Data(SHA256.hash(data: uuid))
+    private let biometricEvaluator: any BiometricEvaluating
+    private let credentialStore: any CredentialStore
+
+    // Production init — uses real LAContext and Keychain.
+    init() {
+        self.biometricEvaluator = LAContext()
+        self.credentialStore    = KeychainCredentialStore()
     }
 
-    // Stable per-device random salt stored in the Keychain. Used only when
-    // identifierForVendor is nil (see above). Replaced entirely when Argon2id
-    // + hub-provisioned TRNG salt is integrated.
-    private static let saltFallbackTag = "com.neuropulse.uhdr.salt-fallback"
-
-    private func saltFallbackFromKeychain() -> Data {
-        let query: [CFString: Any] = [
-            kSecClass:              kSecClassGenericPassword,
-            kSecAttrService:        Self.saltFallbackTag,
-            kSecAttrAccount:        "salt",
-            kSecMatchLimit:         kSecMatchLimitOne,
-            kSecReturnData:         true,
-            kSecAttrSynchronizable: false
-        ]
-        var item: CFTypeRef?
-        if SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
-           let saltData = item as? Data, saltData.count == 32 {
-            return saltData
-        }
-        var bytes = [UInt8](repeating: 0, count: 32)
-        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
-            // CSPRNG failure is exceedingly unlikely — retain constant as last resort.
-            return Data(repeating: 0xAB, count: 32)
-        }
-        let saltData = Data(bytes)
-        let addQuery: [CFString: Any] = [
-            kSecClass:              kSecClassGenericPassword,
-            kSecAttrService:        Self.saltFallbackTag,
-            kSecAttrAccount:        "salt",
-            kSecValueData:          saltData,
-            kSecAttrAccessible:     kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
-            kSecAttrSynchronizable: false
-        ]
-        SecItemAdd(addQuery as CFDictionary, nil)
-        return saltData
+    // Testable init — inject mock seams.
+    init(biometricContext: some BiometricEvaluating, credentialStore: some CredentialStore) {
+        self.biometricEvaluator = biometricContext
+        self.credentialStore    = credentialStore
     }
 
-    // Prompt biometric, derive key, make it available for the session.
+    // MARK: - Authentication
+
     func authenticate(reason: String = "Unlock your health data") async throws {
-        let context = LAContext()
         var policyError: NSError?
-        // .deviceOwnerAuthentication falls back to PIN/passcode when Face ID / Touch ID
-        // is unavailable or locked out; .deviceOwnerAuthenticationWithBiometrics would
-        // permanently block users who haven't enrolled biometrics.
-        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &policyError) else {
-            throw UHDRKeyError.biometricFailed(policyError ?? NSError(domain: "LAError", code: -1))
+        // .deviceOwnerAuthentication: biometric preferred, passcode fallback.
+        // Ensures Parkinson's / post-stroke / no-biometric users can access UHDR via PIN.
+        guard biometricEvaluator.canEvaluatePolicy(.deviceOwnerAuthentication,
+                                                    error: &policyError) else {
+            throw UHDRKeyError.biometricFailed(
+                policyError ?? NSError(domain: "LAError", code: -1)
+            )
         }
 
         do {
-            let success = try await context.evaluatePolicy(
+            _ = try await biometricEvaluator.evaluatePolicy(
                 .deviceOwnerAuthentication, localizedReason: reason)
-            // Note: evaluatePolicy never returns false on iOS — it either returns
-            // true or throws. The guard below is unreachable dead code today, kept
-            // as a defensive net in case the API behaviour changes in a future OS.
-            // The REAL user-cancellation path is the LAError.userCancel catch below;
-            // do not remove that catch thinking this guard handles it.
-            guard success else { throw UHDRKeyError.userCancelled }
         } catch let laError as LAError where laError.code == .userCancel {
             throw UHDRKeyError.userCancelled
         } catch {
             throw UHDRKeyError.biometricFailed(error)
         }
 
-        // Derive key material after successful authentication.
-        // Production: replace "biometric-placeholder" with the actual biometric token
-        // or PIN digest from the LAContext evaluation result.
-        // PBKDF2 placeholder MUST NOT ship to production — see guards below.
-        //
-        // Two-layer protection:
-        //   DEBUG builds   → #warning surfaces in Xcode issue navigator as a reminder
-        //   Release builds → #error causes compile-time failure so this can never archive
-        #if DEBUG
-        #warning("UHDRKeyManager: biometric-placeholder password in use. Replace with Argon2id + real biometric/PIN credential before shipping any build outside development.")
-        #else
-        #error("UHDRKeyManager: PBKDF2 placeholder with hardcoded password must be replaced with Argon2id + real biometric/PIN credential before production.")
-        #endif
-        let key = try deriveKey(password: "biometric-placeholder", salt: salt)
+        // Retrieve or create biometric seed. Pass the authenticated LAContext so
+        // the Keychain doesn't trigger a second biometric prompt in production.
+        let authenticatedContext = biometricEvaluator as? LAContext
+        var credential = try credentialStore.loadOrCreateCredential(
+            authenticatedContext: authenticatedContext)
+        defer { credential.withUnsafeMutableBytes { buf in if let p = buf.baseAddress { bzero(p, buf.count) } } }
+
+        let salt = try saltFromKeychain()
+        let key = try deriveKey(credential: credential, salt: salt)
         activeKey = key
         isAuthenticated = true
     }
@@ -160,31 +214,52 @@ final class UHDRKeyManager: ObservableObject {
         isAuthenticated = false
     }
 
-    // MARK: - Key derivation (PBKDF2-SHA256 placeholder for Argon2id)
+    // MARK: - Key derivation (Argon2id)
 
-    private func deriveKey(password: String, salt: Data) throws -> UHDRKey {
-        guard let passwordData = password.data(using: .utf8) else { throw UHDRKeyError.derivationFailed }
-        var keyMaterial = Data(count: 64)  // 64 bytes → K1 (32B) + K2 (32B)
+    private func deriveKey(credential: Data, salt: Data) throws -> UHDRKey {
+        var keyMaterial = try npArgon2idDeriveKey(
+            password: credential, salt: salt, outputLength: 64)
+        defer { keyMaterial.withUnsafeMutableBytes { buf in if let p = buf.baseAddress { bzero(p, buf.count) } } }
+        // Explicit Data copies before keyMaterial is zeroed by the defer block.
+        return UHDRKey(k1: Data(keyMaterial[0..<32]), k2: Data(keyMaterial[32..<64]))
+    }
 
-        let result: Int32 = keyMaterial.withUnsafeMutableBytes { keyPtr in
-            salt.withUnsafeBytes { saltPtr in
-                passwordData.withUnsafeBytes { pwdPtr in
-                    CCKeyDerivationPBKDF(
-                        CCPBKDFAlgorithm(kCCPBKDF2),
-                        pwdPtr.baseAddress?.assumingMemoryBound(to: Int8.self),
-                        passwordData.count,
-                        saltPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
-                        salt.count,
-                        CCPseudoRandomAlgorithm(kCCPRFHmacAlgSHA256),
-                        200_000,  // iterations — Argon2id target replaces this entirely
-                        keyPtr.baseAddress?.assumingMemoryBound(to: UInt8.self),
-                        64
-                    )
-                }
-            }
+    // MARK: - Salt
+
+    // Salt: 32-byte CSPRNG value stored in Keychain (non-synchronizable, device-bound).
+    // Production path: hub-provisioned TRNG salt from eMMC Config partition via BLE (OI-BLE-01, pending).
+    // No linkable device identifiers (IDFV removed — salt entropy and stability are strictly better
+    // with a stored random value than with SHA256 of a vendor-linkable UUID).
+    private static let saltKeychainTag = "com.neuropulse.uhdr.salt"
+
+    private func saltFromKeychain() throws -> Data {
+        let query: [CFString: Any] = [
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        Self.saltKeychainTag,
+            kSecAttrAccount:        "salt",
+            kSecMatchLimit:         kSecMatchLimitOne,
+            kSecReturnData:         true,
+            kSecAttrSynchronizable: false,
+        ]
+        var item: CFTypeRef?
+        if SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+           let saltData = item as? Data, saltData.count == 32 {
+            return saltData
         }
-
-        guard result == kCCSuccess else { throw UHDRKeyError.derivationFailed }
-        return UHDRKey(k1: keyMaterial[0..<32], k2: keyMaterial[32..<64])
+        var bytes = [UInt8](repeating: 0, count: 32)
+        guard SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes) == errSecSuccess else {
+            throw UHDRKeyError.saltReadFailed
+        }
+        let saltData = Data(bytes)
+        let addQuery: [CFString: Any] = [
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:        Self.saltKeychainTag,
+            kSecAttrAccount:        "salt",
+            kSecValueData:          saltData,
+            kSecAttrAccessible:     kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            kSecAttrSynchronizable: false,
+        ]
+        SecItemAdd(addQuery as CFDictionary, nil)
+        return saltData
     }
 }

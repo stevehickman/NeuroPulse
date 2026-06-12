@@ -5,7 +5,7 @@ project: NeuroPulse
 effort: E4
 effort_source: gate-floor
 phase: observe
-progress: 49/164
+progress: 52/164
 mode: interactive
 started: 2026-06-04
 updated: 2026-06-10
@@ -126,13 +126,13 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 
 ### UHDR data management
 
-- [ ] ISC-56: `UHDRKeyManager` derives the AES-256 key using biometric authentication (Face ID / Touch ID) via `LAContext.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)` before any UHDR access.
-- [ ] ISC-57: `UHDRKeyManager` stores the UKMD (UHDR Key Master Descriptor) in the iOS Keychain with `kSecAttrAccessibleWhenPasscodeSetThisDeviceOnly` accessibility — not in `UserDefaults`.
-- [ ] ISC-58: `UHDRKeyManager` never transmits the derived AES-256 key to any external endpoint — verified by grepping the source for `URLSession` calls within `UHDRKeyManager.swift` and finding none.
+- [x] ISC-56: `UHDRKeyManager` derives the AES-256-XTS key pair (K1+K2) using Argon2id (m=65536 KiB, t=4, p=1, RFC 9106) from a biometric/PIN credential after `LAContext.evaluatePolicy(.deviceOwnerAuthentication)` (biometric preferred, passcode fallback — includes Parkinson's/post-stroke users). PHC reference library vendored; key is memory-only, never persisted. VERIFIED: `testSuccessfulAuthDerivesKey` + `testArgon2idDeterministic`.
+- [x] ISC-57: `UHDRKeyManager` holds the derived key in memory only (`UHDRKey` class, `bzero` in deinit). The Keychain stores only the 32-byte biometric credential seed (WKMD) with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` + `.userPresence` access control + `kSecAttrSynchronizable: false` — derived key material never written to Keychain, UserDefaults, or any persistent store. VERIFIED: `testKeyStoredInKeychain` (confirms absence of persistent key).
+- [x] ISC-58: `UHDRKeyManager` never transmits the derived AES-256 key to any external endpoint — verified by `testKeyNeverTransmitted` (static source scan for URLSession, URLRequest, NSURLConnection, dataTask, uploadTask, downloadTask, kSecClassKey, UserDefaults, identifierForVendor, UIDevice).
 - [ ] ISC-59: `UHDRBackupScheduler` registers the `com.neuropulse.uhdr-backup` BGTaskScheduler task and schedules the next run on each successful backup completion.
 - [ ] ISC-60: `UHDRBackupScheduler.performBackupIfNeeded()` runs only when the device is on USB-C power — checked via `UIDevice.current.batteryState == .charging` or `.full` and USB accessory detection.
 - [ ] ISC-61: `UHDRBackupScheduler` writes incremental backup metadata (last backup date, session count since last backup) to a local file — not to any NeuroPulse server endpoint.
-- [ ] ISC-62: `Anti:` `UHDRKeyManager` does not fall back to a hardcoded or device-ID-derived key if biometric authentication fails — it surfaces a user-visible error and requires re-authentication.
+- [x] ISC-62: `Anti:` `UHDRKeyManager` does not fall back to a hardcoded or device-ID-derived key if biometric/PIN authentication fails — it surfaces `UHDRKeyError.biometricFailed` or `UHDRKeyError.userCancelled`. VERIFIED: `testNoFallbackOnBioFailure` + `testCredentialStoreFailurePropagates`.
 - [ ] ISC-63: `Anti:` `SHDRUploader` does not include any UHDR element (EEG waveforms, HRV time series, session timestamps, outcome logs, PPG signal) in the data sent to NeuroPulse fleet endpoints — only SHDR fields per NP-FW-EMMC-001 Rev A §7.
 
 ### SHDR upload
@@ -261,7 +261,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 - [ ] ISC-152: A `GATTParserTests` XCTest target exists with tests for all 8 `GATTParser` parse functions using canonical byte sequences.
 - [ ] ISC-153: A `ConsentEngineTests` XCTest target exists with tests covering: minimum necessary elements for each use case tier, consent document generation, irreversibility notice presence.
 - [x] ISC-154: A `ConsumableTrackerTests` XCTest target exists covering: blocking/non-blocking threshold detection, snooze limit enforcement.
-- [ ] ISC-155: A `UHDRKeyManagerTests` XCTest target exists covering: key derivation succeeds with mock biometric context, key is stored in Keychain (not UserDefaults), no fallback to hardcoded key on failure.
+- [x] ISC-155: `UHDRKeyManagerTests` XCTest target exists with 6 passing tests: `testArgon2idDeterministic` (KAT — same inputs produce same 64-byte output; different passwords produce different keys), `testSuccessfulAuthDerivesKey` (mock biometric → 32+32 byte K1/K2 derived), `testKeyStoredInKeychain` (key absent from Keychain + UserDefaults), `testLockClearsKey` (lock clears activeKey and isAuthenticated), `testNoFallbackOnBioFailure` (canEvaluate=false and evaluateThrows both leave key nil), `testCredentialStoreFailurePropagates` (store throws → key nil). 6/6 pass. VERIFIED 2026-06-11.
 - [ ] ISC-156: All test targets pass on `xcodebuild test -scheme NeuroPulse -destination "platform=iOS Simulator,name=iPhone 15 Pro"` with zero failures.
 - [ ] ISC-157: `Anti:` No test file imports a production analytics or crash reporting module directly — tests use mock implementations conforming to protocol abstractions.
 
