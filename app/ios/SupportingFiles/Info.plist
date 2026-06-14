@@ -53,6 +53,14 @@
 		<string>processing</string>
 	</array>
 
+	<!-- PostHog analytics project token. Populated at build time from the
+	     POSTHOG_PROJECT_TOKEN build variable (set in .xcconfig or CI secrets).
+	     PostHogAnalyticsBackend reads this key and refuses to initialise if the
+	     value is absent or unexpanded — analytics stays silently disabled rather
+	     than crashing (ISC-9: no hardcoded API keys in source). -->
+	<key>PostHogProjectToken</key>
+	<string>$(POSTHOG_PROJECT_TOKEN)</string>
+
 	<!-- File sharing — downloaded EDF+ files in Documents accessible via Files app (ISC-54) -->
 	<key>UIFileSharingEnabled</key>
 	<true/>
