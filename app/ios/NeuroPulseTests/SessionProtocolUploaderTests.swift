@@ -159,6 +159,52 @@ final class SessionProtocolUploaderTests: XCTestCase {
             XCTFail("Expected UploadError.validationFailed, got \(error)")
         }
     }
+
+    // MARK: - ISC-35: testSignAndUpload (canonical ISA test)
+
+    // Named test referenced in ISA Test Strategy table for ISC-35.
+    // Verifies the core contract: upload(_:NPProtocolDefinition) signs the
+    // protocol blob with the session Ed25519 key and delivers it to the
+    // GATT gateway. The NPPR magic bytes confirm the signed wire format reached
+    // the gateway rather than a raw/unsigned payload.
+    @MainActor
+    func testSignAndUpload() async throws {
+        let gateway = MockProtocolUploadGateway()
+        let uploader = SessionProtocolUploader(gatt: gateway)
+
+        let definition = NPProtocolDefinition(
+            name: "Sign And Upload Test",
+            timingMode: .duration(10 * 60),
+            modalities: [
+                NPProtocolModality(
+                    params: .eegNeurofeedback(NPEEGNeurofeedbackParams(
+                        channels: .all,
+                        band: .alpha,
+                        closedLoopEnabled: true
+                    )),
+                    interval: .continuous,
+                    enabled: true
+                )
+            ]
+        )
+
+        try await uploader.upload(definition)
+
+        // Sign happened: GATT gateway was called at least once.
+        XCTAssertTrue(gateway.uploadCallCount > 0, "uploadProtocol must be called after signing")
+        // Upload happened: reassembled blob carries NPPR magic from SignedProtocolBlob.wireFormat.
+        let blob = gateway.reassembledPayload()
+        XCTAssertGreaterThanOrEqual(blob.count, 4)
+        XCTAssertEqual(
+            Array(blob.prefix(4)),
+            [0x4E, 0x50, 0x50, 0x52],
+            "Signed wire blob must begin with NPPR magic bytes"
+        )
+        // isUploading resets to false after completion (captured before autoclosure to satisfy
+        // Swift 6 nonisolated autoclosure restriction for @MainActor properties).
+        let stillUploading = uploader.isUploading
+        XCTAssertFalse(stillUploading, "isUploading must be false after upload completes")
+    }
 }
 
 // MARK: - Mock GATT gateway

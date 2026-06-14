@@ -5,7 +5,7 @@ project: NeuroPulse
 effort: E4
 effort_source: gate-floor
 phase: execute
-progress: 61/164
+progress: 63/164
 mode: interactive
 started: 2026-06-04
 updated: 2026-06-14
@@ -72,8 +72,13 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 - [x] ISC-11: `NeuroPulseGATTManager` begins scanning automatically when `CBCentralManager.state == .poweredOn`, without requiring a manual user action.
 - [x] ISC-12: On hub disconnect, `NeuroPulseGATTManager` automatically re-scans after a 2-second delay — verified by simulating a disconnect in the Xcode BLE simulator.
 - [x] ISC-13: All fourteen GATT characteristics (9 NOTIFY + 5 WRITE, per `NPUUID.all`) from `GATTCharacteristics.swift` are resolved and `allCharacteristicsResolved` becomes `true`; `warrantyToken` is optional and does not block resolution.
+<<<<<<< HEAD
 - [ ] ISC-14: Protocol blobs larger than 512 bytes are automatically chunked by `SessionProtocolUploader` before passing to `NeuroPulseGATTManager.uploadProtocol(_:)`.
 - [x] ISC-15: `GATTParser.parseSessionState`, `parseSessionStatus`, `parseHRVCoherence`, `parsePacerPhase`, `parseImpedanceResult`, `parseConsumableStatus`, `parseOTAStatus`, and `parseZoneModuleStatus` each exist as static functions and return non-nil values for canonical test byte sequences.
+=======
+- [x] ISC-14: Protocol blobs larger than 512 bytes are automatically chunked by `SessionProtocolUploader` before passing to `NeuroPulseGATTManager.uploadProtocol(_:)`.
+- [ ] ISC-15: `GATTParser.parseSessionState`, `parseSessionStatus`, `parseHRVCoherence`, `parsePacerPhase`, `parseImpedanceResult`, `parseConsumableStatus`, `parseOTAStatus`, and `parseZoneModuleStatus` each exist as static functions and return non-nil values for canonical test byte sequences.
+>>>>>>> e20a2ae (feat: add testSignAndUpload test; verify ISC-14 and ISC-35 (protocol chunk transfer))
 - [x] ISC-16: `NeuroPulseGATTManager.connectionState` transitions correctly through `.disconnected → .scanning → .connecting → .connected` and is `@Published` — `SessionView` reacts without any explicit refresh.
 - [x] ISC-17: `Anti:` `NeuroPulseGATTManager` does not hold a strong reference to any ViewController or View — connection lifecycle is fully decoupled from the view hierarchy.
 - [ ] ISC-18: The BLE central manager is initialised on `DispatchQueue.main` (existing) — no background-thread CBCentralManager initialisation path exists.
@@ -99,7 +104,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 
 ### Session protocol upload — Mode 2
 
-- [ ] ISC-35: `SessionProtocolUploader.upload(_:)` serialises an `NPProtocolDefinition` to a binary blob, signs it with the session Ed25519 key, and sends it to `NeuroPulseGATTManager.uploadProtocol(_:)`.
+- [x] ISC-35: `SessionProtocolUploader.upload(_:)` serialises an `NPProtocolDefinition` to a binary blob, signs it with the session Ed25519 key, and sends it to `NeuroPulseGATTManager.uploadProtocol(_:)`.
 - [ ] ISC-36: `NPProtocolValidator` rejects any protocol whose per-modality dose limits exceed the values declared in `NPDosageLimits`.
 - [ ] ISC-37: `NPProtocolValidator` rejects any protocol whose tDCS current exceeds 2 mA or whose BES current exceeds 1 mA.
 - [x] ISC-38: `NPProtocolValidator` rejects any protocol whose tDCS charge density exceeds 40 µC/cm² — confirmed by a unit test that constructs a borderline-valid and a borderline-invalid protocol.
@@ -408,6 +413,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 | ISC-112 | Code review: `waitForCompletion()` polls `phase != .complete && phase != .failed` with 500ms interval and 120s timeout; `phase` updated by `observeOTAStatus()` from GATT `OTA_STATUS` notifications. `OTAPhase.complete.description` = "Update complete". `OTAView` renders `phase.description` in the progress section; reconnect via `observeConnectionForManifestFetch()` auto-triggers new manifest fetch. | 2026-06-09 |
 | ISC-153 | `ConsentEngineTests` (13 tests): tier element coverage (testMonitorTierElements, testAssessTierAddsEEG, testFullClinicalTierAddsHRV, testResearchTierElementsAreEmpty), use-case union (testMinimumNecessaryUnion, testMinimumNecessaryEmptySelection, testMinimumNecessaryHRVOutcomes_containsFullClinicalElements, testMinimumNecessaryAllThreeUseCases_equalUnionOfAll, testAllUseCasesHaveNonEmptyElements, testHRVOutcomesUseCaseIsInLibrary), minimumTier per element (testMinimumTierMonitorElements, testMinimumTierAssessElements, testMinimumTierFullClinicalElements), ISC-137 anti-pattern (testISC137_noTierContainsElementBelowItsMinimumTier), ISC-82 anti-pattern (testISC82_minimumNecessaryNeverOverGrants), consent document generation (testConsentDocumentGeneration), irreversibility notice (testIrreversibilityNoticePresent). | 2026-06-14 |
 | ISC-113 | `OTAManagerTests.testSignatureGateBlocksWrongFingerprint`: `beginUpdate(image:)` with wrong fingerprint throws `.signatureInvalid`; `downloadCallCount == 0` — no network call made. `testBeginUpdateThrowsNotConnectedAfterFingerprintPassesWhenHubDisconnected`: correct fingerprint passes gate; `.notConnected` thrown before download; `downloadCallCount == 0`. Fingerprint check is the first statement in `beginUpdate(image:)` — before connection guard, before download, before any GATT write. | 2026-06-09 |
+<<<<<<< HEAD
 | ISC-51 | Code review: `AdaptiveAdjustmentsCard.swift` exists in `app/ios/NeuroPulse/Views/` and is embedded in `SessionHistoryView.swift`. Card renders when `completedSession.adaptationEvents` is non-empty; `AdaptTrigger.plainLanguageDescription` produces human-readable strings from the 17-case enum. | 2026-06-14 |
 | ISC-52 | Code review: `events.prefix(5)` at `AdaptiveAdjustmentsCard.swift:61`; `Text("and \(remaining) more")` at line 69; `Button("View all")` sheet at line 73. No raw EEG band power values present in any `AdaptationEvent` field exposed to the card. | 2026-06-14 |
 | ISC-83 | Code review: `AgeGateView.swift` is the first view presented in the onboarding flow (before `ConsentView` and any personal data collection). `MainTabView` guard confirms `np.onboarding.age-confirmed` before advancing. | 2026-06-14 |
@@ -415,3 +421,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 | ISC-85 | Code review: `@State private var ageConfirmed = false` — initial value is `false`; no code path assigns `ageConfirmed = true` without user toggle interaction. | 2026-06-14 |
 | ISC-86 | Code review: `.disabled(!ageConfirmed)` modifier on Continue button confirmed present at `AgeGateView.swift`. Button body is unreachable while `ageConfirmed == false`. | 2026-06-14 |
 | ISC-87 | Code review: `UserDefaults.standard.set(true, forKey: "np.onboarding.age-confirmed")` called in `AgeGateView` Continue action. `MainTabView` reads this key to skip the gate on subsequent launches. | 2026-06-14 |
+=======
+| ISC-35 | `SessionProtocolUploaderTests.testSignAndUpload` passed (0.159s). `upload(_:NPProtocolDefinition)` signed the EEG neurofeedback definition via `SessionProtocolSigner` (Curve25519/Ed25519, Keychain-backed), chunked the wire blob via `ProtocolChunker`, and delivered all chunks to `MockProtocolUploadGateway`. Reassembled payload opened with NPPR magic `[0x4E, 0x50, 0x50, 0x52]`. `isUploading` false after completion. Full suite: `SessionProtocolUploaderTests` 5/5 passed (0 failures). | 2026-06-14 |
+| ISC-14 | `SessionProtocolUploaderTests.testUploadMultiChunkProtocolReassemblesWithNPPRMagic` passed (0.003s): 500-char protocol name forces wire blob > 509 bytes → `ProtocolChunker` emits START + END chunks, `gateway.uploadCallCount > 1`. `ProtocolChunkerTests.roundTripReassemblyMatchesOriginal` passed across sizes [0, 1, 508, 509, 510, 511, 1020, 1021, 4096] — chunking is transparent when chunks are reassembled. `SessionProtocolUploader.sendChunksSequentially` delivers each chunk sequentially via checked-continuation bridge, advancing only after each ACK. | 2026-06-14 |
+>>>>>>> e20a2ae (feat: add testSignAndUpload test; verify ISC-14 and ISC-35 (protocol chunk transfer))
