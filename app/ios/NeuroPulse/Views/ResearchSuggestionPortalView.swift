@@ -271,6 +271,7 @@ struct SuggestionDetailView: View {
     private var pledgeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Support with a pledge").font(.headline)
+            // swiftlint:disable:next line_length
             Text("Pledges are intent only — your card is not charged until a researcher confirms feasibility and a formal campaign activates. If the target is not met, you are never charged.")
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -297,6 +298,7 @@ struct SuggestionDetailView: View {
                 .tint(.orange)
                 .frame(maxWidth: .infinity)
 
+                // swiftlint:disable:next line_length
                 Text("Funders receive a plain-language results summary and are acknowledged in the published paper as 'NeuroPulse Patient Research Fund contributors.'")
                     .font(.caption2)
                     .foregroundColor(.secondary)
@@ -346,6 +348,7 @@ struct SubmitSuggestionSheet: View {
 
                 Section {
                     Toggle("I would participate in this study if it ran", isOn: $draft.hasParticipationIntent)
+                    // swiftlint:disable:next line_length
                     Text("Saying yes signals to researchers that there's a motivated cohort ready to enrol — the hardest problem in trial recruitment.")
                         .font(.caption)
                         .foregroundColor(.secondary)

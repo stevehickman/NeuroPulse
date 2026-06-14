@@ -47,8 +47,10 @@ enum AdaptTrigger: UInt8, CaseIterable {
         case .eegBetaHigh:
             return "Alertness-linked brainwave activity was elevated — stimulation was reduced to encourage relaxation."
         case .hrvCoherenceLow:
+            // swiftlint:disable:next line_length
             return "Heart rhythm coherence fell below your personal target — the breathing pacer rate was adjusted to help restore coherence."
         case .hrvCoherenceHigh:
+            // swiftlint:disable:next line_length
             return "Heart rhythm coherence was above target — the breathing pacer rate was eased to maintain the effect without over-correction."
         case .hrvRmssdLow:
             return "Heart rate variability fell below your baseline — stimulation intensity was reduced to lower physiological load."

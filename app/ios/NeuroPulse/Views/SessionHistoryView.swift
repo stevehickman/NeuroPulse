@@ -212,6 +212,7 @@ struct SessionHistoryView: View {
     // MARK: - Footer + helpers
 
     private var privacyFooter: some View {
+        // swiftlint:disable:next line_length
         Text("Adaptive adjustments are made automatically during closed-loop sessions based on your real-time brainwave and heart-rate activity. No raw biological values are stored outside your device. Learn more in the Privacy & Data section of Settings.")
             .font(.caption2)
             .foregroundColor(.secondary)

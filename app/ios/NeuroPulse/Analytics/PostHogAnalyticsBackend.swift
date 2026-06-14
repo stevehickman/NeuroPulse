@@ -63,7 +63,11 @@ final class PostHogAnalyticsBackend: AnalyticsBackend {
               // not set the variable in their local .xcconfig or environment.
               !token.hasPrefix("$(")
         else {
-            Self.log.error("PostHogAnalyticsBackend: PostHogProjectToken missing or unexpanded in Info.plist — analytics disabled. Set POSTHOG_PROJECT_TOKEN in your .xcconfig or CI secrets.")
+            Self.log.error("""
+                PostHogAnalyticsBackend: PostHogProjectToken missing or unexpanded \
+                in Info.plist — analytics disabled. \
+                Set POSTHOG_PROJECT_TOKEN in your .xcconfig or CI secrets.
+                """)
             return
         }
 

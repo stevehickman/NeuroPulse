@@ -619,6 +619,7 @@ struct TMSParamsView: View {
                 .pickerStyle(.menu)
             }
             SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 1...20, format: { "\(Int($0)) Hz" })
+            // swiftlint:disable:next line_length
             SliderRow(label: "Intensity (%MT)", value: Binding(get: { Double(params.intensityPercentMT) }, set: { params.intensityPercentMT = Int($0) }), range: 60...120, format: { "\(Int($0))%MT" })
             VStack(alignment: .leading, spacing: 4) {
                 Text("Target").font(.caption).foregroundColor(.secondary)
@@ -707,6 +708,7 @@ struct HDTdcsParamsView: View {
                 }
                 .pickerStyle(.menu)
             }
+            // swiftlint:disable:next line_length
             SliderRow(label: "Intensity (mA)", value: $params.intensityMilliamps, range: 0.5...2.0, format: { String(format: "%.2f mA", $0) })
         }
     }

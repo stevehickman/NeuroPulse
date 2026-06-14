@@ -1,3 +1,4 @@
+// swiftlint:disable line_length
 import Foundation
 
 // MARK: - NPBundledProtocols
@@ -788,3 +789,4 @@ enum NPBundledProtocols {
         compositeSleepWindDown,
     ]
 }
+// swiftlint:enable line_length

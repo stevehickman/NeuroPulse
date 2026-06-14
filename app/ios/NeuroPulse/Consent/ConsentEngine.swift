@@ -22,6 +22,7 @@ enum ConsentEngine {
         ClinicalUseCase(
             id: "adherence_monitoring",
             title: "Adherence Monitoring",
+            // swiftlint:disable:next line_length
             description: "Your clinician can see when you completed sessions and which protocols you used. They cannot see your brainwave recordings or physiological signals.",
             requiredElements: [.sessionTimestamps, .sessionDuration, .protocolParameters],
             tier: .monitor
@@ -29,13 +30,16 @@ enum ConsentEngine {
         ClinicalUseCase(
             id: "eeg_review",
             title: "EEG Review",
+            // swiftlint:disable:next line_length
             description: "Your clinician can review your brainwave recordings from sessions to assess neurofeedback performance and protocol effectiveness.",
+            // swiftlint:disable:next line_length
             requiredElements: [.eegWaveforms, .neurofeedbackScores, .pbmDoseLogs, .sessionTimestamps, .sessionDuration, .protocolParameters],
             tier: .assess
         ),
         ClinicalUseCase(
             id: "hrv_outcomes",
             title: "HRV + Outcome Tracking",
+            // swiftlint:disable:next line_length
             description: "Your clinician can see your heart rate variability, breathing coherence scores, and any outcomes you've logged. Includes all EEG access.",
             requiredElements: [.eegWaveforms, .neurofeedbackScores, .pbmDoseLogs,
                                .hrvTimeSeries, .ppgOpticalSignal, .closedLoopEvents,

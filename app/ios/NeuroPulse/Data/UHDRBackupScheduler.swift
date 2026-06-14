@@ -52,6 +52,7 @@ final class UHDRBackupScheduler: ObservableObject {
         do {
             try FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
         } catch {
+            // swiftlint:disable:next line_length
             Self.log.fault("UHDRBackupScheduler: backup directory creation failed — exclusion may not be applied: \(error.localizedDescription, privacy: .public)")
         }
 
@@ -61,6 +62,7 @@ final class UHDRBackupScheduler: ObservableObject {
         do {
             try (backupDirectory as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
         } catch {
+            // swiftlint:disable:next line_length
             Self.log.fault("UHDRBackupScheduler: backup exclusion not applied — encrypted UHDR archives may flow to iCloud: \(error.localizedDescription, privacy: .public)")
         }
 

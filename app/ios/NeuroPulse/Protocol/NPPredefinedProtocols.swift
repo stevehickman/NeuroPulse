@@ -1,3 +1,4 @@
+// swiftlint:disable line_length
 import Foundation
 
 // MARK: - Predefined Protocols (DEPRECATED)
@@ -759,3 +760,4 @@ enum NPPredefinedProtocols {
         allSingle.map { .single($0) } + allComposite.map { .composite($0) }
     }
 }
+// swiftlint:enable line_length

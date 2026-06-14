@@ -16,6 +16,7 @@ struct Under16View: View {
 
     enum Strings {
         static let title          = "Some Features Need Age Confirmation"
+        // swiftlint:disable:next line_length
         static let intro          = "You can still use NeuroPulse, but a few features rely on health-related data that, by law, requires you to be at least 16 years old to consent to."
         static let unavailableHdr = "Not available without age confirmation"
         static let availableHdr   = "Available to everyone"
