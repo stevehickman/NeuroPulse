@@ -12,9 +12,9 @@ import os
 /// Done action. Research-consent withdrawal also does NOT clear this key —
 /// analytics and research participation are independent consent decisions.
 ///
-/// This type is a vendor-agnostic abstraction: call sites use `AnalyticsGate`
-/// exclusively and never touch the SDK directly. When a vendor is selected
-/// (OI-AUDIT-01), only `AnalyticsSDKStub` is replaced — call sites do not change.
+/// Call sites use `AnalyticsGate` exclusively and never call the SDK directly.
+/// The concrete backend is `PostHogAnalyticsBackend`; tests inject a
+/// `SpyAnalyticsBackend` via `_backend` (ISC-157).
 @MainActor
 enum AnalyticsGate {
 
@@ -50,6 +50,13 @@ enum AnalyticsGate {
         UserDefaults.standard.bool(forKey: analyticsConsentKey)
     }
 
+    /// The active analytics backend. Defaults to `PostHogAnalyticsBackend` in
+    /// production. Tests inject a `SpyAnalyticsBackend` via `@testable import`
+    /// to assert call counts without touching the real PostHog SDK (ISC-157).
+    static var _backend: any AnalyticsBackend = PostHogAnalyticsBackend()
+
+    // MARK: - Public interface
+
     /// Initialise the analytics SDK. Call exactly once, after the consent flow
     /// completes. No-ops if already configured or if the gate is still closed.
     static func configure() {
@@ -60,7 +67,7 @@ enum AnalyticsGate {
         }
         isConfigured = true
         log.debug("AnalyticsGate.configure() — gate open; initialising analytics SDK.")
-        AnalyticsSDKStub.configure()
+        _backend.configure()
     }
 
     /// Close the analytics gate and tear down the SDK.
@@ -79,7 +86,7 @@ enum AnalyticsGate {
         // a concurrent configure() call re-initialise the SDK before the previous
         // instance is actually shut down.
         log.debug("AnalyticsGate.reset() — analytics consent withdrawn; tearing down SDK.")
-        AnalyticsSDKStub.reset()
+        _backend.reset()
         isConfigured = false
     }
 
@@ -98,6 +105,17 @@ enum AnalyticsGate {
             return
         }
 
-        AnalyticsSDKStub.track(event: event, properties: properties)
+        _backend.track(event: event, properties: properties)
     }
+
+    // MARK: - Testing support
+
+#if DEBUG
+    /// Reset internal gate state between unit tests. Must not be called in
+    /// production code paths. Clears `isConfigured` without touching the backend,
+    /// so the next `configure()` call enters the full setup path again.
+    static func _resetForTesting() {
+        isConfigured = false
+    }
+#endif
 }

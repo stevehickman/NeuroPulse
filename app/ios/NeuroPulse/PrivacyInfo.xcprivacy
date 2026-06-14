@@ -59,6 +59,9 @@
          (warranty / diagnostics) but are NEVER used for tracking. HRV health
          data is processed on device for the live session display only and is
          NOT linked to identity and NOT collected off-device.
+         PostHog analytics data (Product Interaction, Other Usage Data) is
+         anonymous — collected via PostHogAnalyticsBackend after explicit consent,
+         not linked to identity, not used for cross-app tracking.
          ==================================================================== -->
     <key>NSPrivacyCollectedDataTypes</key>
     <array>
@@ -100,6 +103,39 @@
             <key>NSPrivacyCollectedDataTypePurposes</key>
             <array>
                 <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <!-- Product Interaction (PostHog): in-app events sent after analytics
+             consent (app opens, session starts, screen names). Anonymous —
+             personProfiles=.never means no Person record is built in PostHog.
+             Source: PostHog/Resources/PrivacyInfo.xcprivacy (merged by Xcode;
+             declared here so App Store Connect nutrition label is complete). -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeProductInteraction</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
+        <!-- Other Usage Data (PostHog): device model, OS version, app version
+             auto-attached to events as $device_model / $os_version / $app_version.
+             Anonymous — not linked to identity, not used for cross-app tracking.
+             Source: PostHog/Resources/PrivacyInfo.xcprivacy. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherUsageData</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
             </array>
         </dict>
     </array>
