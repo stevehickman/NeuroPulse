@@ -5,7 +5,7 @@ project: NeuroPulse
 effort: E4
 effort_source: gate-floor
 phase: execute
-progress: 60/164
+progress: 61/164
 mode: interactive
 started: 2026-06-04
 updated: 2026-06-14
@@ -258,8 +258,13 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 ### Testing
 
 - [ ] ISC-151: A `NPProtocolValidatorTests` XCTest target exists with tests covering: valid protocol accepts, current-over-limit rejects, dose-over-limit rejects, charge-density-over-limit rejects, and zero-duration rejects.
+<<<<<<< HEAD
 - [x] ISC-152: A `GATTParserTests` XCTest target exists with tests for all 8 `GATTParser` parse functions using canonical byte sequences.
 - [ ] ISC-153: A `ConsentEngineTests` XCTest target exists with tests covering: minimum necessary elements for each use case tier, consent document generation, irreversibility notice presence.
+=======
+- [ ] ISC-152: A `GATTParserTests` XCTest target exists with tests for all 8 `GATTParser` parse functions using canonical byte sequences.
+- [x] ISC-153: A `ConsentEngineTests` XCTest target exists with tests covering: minimum necessary elements for each use case tier, consent document generation, irreversibility notice presence.
+>>>>>>> ffb96f4 (test: add ConsentEngineTests gaps for ISC-153)
 - [x] ISC-154: A `ConsumableTrackerTests` XCTest target exists covering: blocking/non-blocking threshold detection, snooze limit enforcement.
 - [x] ISC-155: `UHDRKeyManagerTests` XCTest target exists with 6 passing tests: `testArgon2idDeterministic` (KAT — same inputs produce same 64-byte output; different passwords produce different keys), `testSuccessfulAuthDerivesKey` (mock biometric → 32+32 byte K1/K2 derived), `testKeyStoredInKeychain` (key absent from Keychain + UserDefaults), `testLockClearsKey` (lock clears activeKey and isAuthenticated), `testNoFallbackOnBioFailure` (canEvaluate=false and evaluateThrows both leave key nil), `testCredentialStoreFailurePropagates` (store throws → key nil). 6/6 pass. VERIFIED 2026-06-11.
 - [ ] ISC-156: All test targets pass on `xcodebuild test -scheme NeuroPulse -destination "platform=iOS Simulator,name=iPhone 15 Pro"` with zero failures.
@@ -401,6 +406,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 | ISC-110 | `OTAManagerTests`: `testOTASessionBytesProgress` (sentBytes=512, totalBytes=1024 → bytesProgress=0.5), `testOTASessionFormattedBytes` (512 → "1 KB", 512000 → "500 KB", 1.5 MiB → contains "MB"), `testOTASessionChunkCount` (1000 bytes / 496 chunkSize = 3 chunks). `OTAView.progressSection` shows `OTASession.formattedBytes(session.sentBytes) / formattedBytes(session.totalBytes)`. Integer round-half-up used to avoid "0 KB" for sub-1 KB transfers. | 2026-06-09 |
 | ISC-111 | Code review: `beginUpdate(image:)` sends chunks via `sendOTACommand(.chunk, payload:)`; hub writes only to Scratch partition during transfer. Bank A (running) is not touched until hub receives `.commit` and executes `np_ota_verify_scratch()` + bank swap. Mid-OTA BLE disconnect leaves Scratch in a partial state; `waitForCompletion()` times out and `OTAManager.phase` stays in `.transferring`/`.verifying`; no bank-swap occurs. Running bank unchanged. `firmware/ota/tests/np_ota_tests.c:testBankConstraints` verifies bank field validated as 0 or 1 — arbitrary bank values rejected by `np_ota_state_validate()`. | 2026-06-09 |
 | ISC-112 | Code review: `waitForCompletion()` polls `phase != .complete && phase != .failed` with 500ms interval and 120s timeout; `phase` updated by `observeOTAStatus()` from GATT `OTA_STATUS` notifications. `OTAPhase.complete.description` = "Update complete". `OTAView` renders `phase.description` in the progress section; reconnect via `observeConnectionForManifestFetch()` auto-triggers new manifest fetch. | 2026-06-09 |
+| ISC-153 | `ConsentEngineTests` (13 tests): tier element coverage (testMonitorTierElements, testAssessTierAddsEEG, testFullClinicalTierAddsHRV, testResearchTierElementsAreEmpty), use-case union (testMinimumNecessaryUnion, testMinimumNecessaryEmptySelection, testMinimumNecessaryHRVOutcomes_containsFullClinicalElements, testMinimumNecessaryAllThreeUseCases_equalUnionOfAll, testAllUseCasesHaveNonEmptyElements, testHRVOutcomesUseCaseIsInLibrary), minimumTier per element (testMinimumTierMonitorElements, testMinimumTierAssessElements, testMinimumTierFullClinicalElements), ISC-137 anti-pattern (testISC137_noTierContainsElementBelowItsMinimumTier), ISC-82 anti-pattern (testISC82_minimumNecessaryNeverOverGrants), consent document generation (testConsentDocumentGeneration), irreversibility notice (testIrreversibilityNoticePresent). | 2026-06-14 |
 | ISC-113 | `OTAManagerTests.testSignatureGateBlocksWrongFingerprint`: `beginUpdate(image:)` with wrong fingerprint throws `.signatureInvalid`; `downloadCallCount == 0` — no network call made. `testBeginUpdateThrowsNotConnectedAfterFingerprintPassesWhenHubDisconnected`: correct fingerprint passes gate; `.notConnected` thrown before download; `downloadCallCount == 0`. Fingerprint check is the first statement in `beginUpdate(image:)` — before connection guard, before download, before any GATT write. | 2026-06-09 |
 | ISC-51 | Code review: `AdaptiveAdjustmentsCard.swift` exists in `app/ios/NeuroPulse/Views/` and is embedded in `SessionHistoryView.swift`. Card renders when `completedSession.adaptationEvents` is non-empty; `AdaptTrigger.plainLanguageDescription` produces human-readable strings from the 17-case enum. | 2026-06-14 |
 | ISC-52 | Code review: `events.prefix(5)` at `AdaptiveAdjustmentsCard.swift:61`; `Text("and \(remaining) more")` at line 69; `Button("View all")` sheet at line 73. No raw EEG band power values present in any `AdaptationEvent` field exposed to the card. | 2026-06-14 |

@@ -72,9 +72,59 @@ final class ConsentEngineTests: XCTestCase {
                       "No selected use cases must grant no elements.")
     }
 
+    // MARK: - Research tier
+
+    func testResearchTierElementsAreEmpty() {
+        // Research tier is IRB-defined per study; the base tier grants nothing.
+        XCTAssertTrue(
+            ClinicianUseCaseTier.research.uhdrElements.isEmpty,
+            "Research tier must return an empty element set — elements are specified per-study via signed descriptor."
+        )
+    }
+
+    // MARK: - hrv_outcomes use case
+
+    func testHRVOutcomesUseCaseIsInLibrary() {
+        XCTAssertNotNil(
+            ConsentEngine.useCaseLibrary.first { $0.id == "hrv_outcomes" },
+            "hrv_outcomes use case must exist in the use case library."
+        )
+    }
+
+    func testMinimumNecessaryHRVOutcomes_containsFullClinicalElements() {
+        let elements = ConsentEngine.minimumNecessaryElements(for: ["hrv_outcomes"])
+        // Full Clinical–tier elements that hrv_outcomes must grant.
+        XCTAssertTrue(elements.contains(.hrvTimeSeries))
+        XCTAssertTrue(elements.contains(.ppgOpticalSignal))
+        XCTAssertTrue(elements.contains(.closedLoopEvents))
+        XCTAssertTrue(elements.contains(.outcomeLogs))
+        // Must also inherit all Monitor / Assess elements.
+        XCTAssertTrue(elements.contains(.sessionTimestamps))
+        XCTAssertTrue(elements.contains(.eegWaveforms))
+        XCTAssertTrue(elements.contains(.pbmDoseLogs))
+    }
+
+    func testMinimumNecessaryAllThreeUseCases_equalUnionOfAll() {
+        let allIDs: Set<String> = ["adherence_monitoring", "eeg_review", "hrv_outcomes"]
+        let union = ConsentEngine.minimumNecessaryElements(for: allIDs)
+        // All three together must equal the hrv_outcomes superset (it already contains the others).
+        let hrvOnly = ConsentEngine.minimumNecessaryElements(for: ["hrv_outcomes"])
+        XCTAssertEqual(union, hrvOnly,
+                       "Selecting all three use cases must equal selecting hrv_outcomes alone (it is the superset).")
+    }
+
+    func testAllUseCasesHaveNonEmptyElements() {
+        for useCase in ConsentEngine.useCaseLibrary {
+            XCTAssertFalse(
+                useCase.requiredElements.isEmpty,
+                "Use case '\(useCase.id)' must require at least one UHDR element."
+            )
+        }
+    }
+
     // MARK: - Irreversibility notice
 
-    func testIrreverseibilityNoticePresent() {
+    func testIrreversibilityNoticePresent() {
         let notice = ConsentEngine.irreversibilityNotice
         XCTAssertFalse(notice.isEmpty, "Irreversibility notice must be non-empty.")
         XCTAssertTrue(
