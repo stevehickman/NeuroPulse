@@ -263,15 +263,10 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 ### Testing
 
 - [ ] ISC-151: A `NPProtocolValidatorTests` XCTest target exists with tests covering: valid protocol accepts, current-over-limit rejects, dose-over-limit rejects, charge-density-over-limit rejects, and zero-duration rejects.
-<<<<<<< HEAD
 - [x] ISC-152: A `GATTParserTests` XCTest target exists with tests for all 8 `GATTParser` parse functions using canonical byte sequences.
-- [ ] ISC-153: A `ConsentEngineTests` XCTest target exists with tests covering: minimum necessary elements for each use case tier, consent document generation, irreversibility notice presence.
-=======
-- [ ] ISC-152: A `GATTParserTests` XCTest target exists with tests for all 8 `GATTParser` parse functions using canonical byte sequences.
 - [x] ISC-153: A `ConsentEngineTests` XCTest target exists with tests covering: minimum necessary elements for each use case tier, consent document generation, irreversibility notice presence.
->>>>>>> ffb96f4 (test: add ConsentEngineTests gaps for ISC-153)
 - [x] ISC-154: A `ConsumableTrackerTests` XCTest target exists covering: blocking/non-blocking threshold detection, snooze limit enforcement.
-- [x] ISC-155: `UHDRKeyManagerTests` XCTest target exists with 6 passing tests: `testArgon2idDeterministic` (KAT — same inputs produce same 64-byte output; different passwords produce different keys), `testSuccessfulAuthDerivesKey` (mock biometric → 32+32 byte K1/K2 derived), `testKeyStoredInKeychain` (key absent from Keychain + UserDefaults), `testLockClearsKey` (lock clears activeKey and isAuthenticated), `testNoFallbackOnBioFailure` (canEvaluate=false and evaluateThrows both leave key nil), `testCredentialStoreFailurePropagates` (store throws → key nil). 6/6 pass. VERIFIED 2026-06-11.
+- [x] ISC-155: `UHDRKeyManagerTests` XCTest target exists with 7 passing tests: `testArgon2idDeterministic` (KAT — same inputs produce same 64-byte output; different passwords produce different keys), `testSuccessfulAuthDerivesKey` (mock biometric → 32+32 byte K1/K2 derived), `testKeyStoredInKeychain` (key absent from Keychain + UserDefaults), `testLockClearsKey` (lock clears activeKey and isAuthenticated), `testNoFallbackOnBioFailure` (canEvaluate=false and evaluateThrows both leave key nil), `testCredentialStoreFailurePropagates` (store throws → key nil), `testKeyNeverTransmitted` (static source scan confirms no networking symbols, kSecClassKey, UserDefaults, or device identifiers in UHDRKeyManager.swift). 7/7 pass. VERIFIED 2026-06-14.
 - [ ] ISC-156: All test targets pass on `xcodebuild test -scheme NeuroPulse -destination "platform=iOS Simulator,name=iPhone 15 Pro"` with zero failures.
 - [ ] ISC-157: `Anti:` No test file imports a production analytics or crash reporting module directly — tests use mock implementations conforming to protocol abstractions.
 
@@ -311,10 +306,10 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 | ISC-35 | unit | `SessionProtocolUploaderTests.testSignAndUpload` | pass | XCTest |
 | ISC-37 | unit | `NPProtocolValidatorTests.testCurrentLimits` | 2mA/1mA limits enforced | XCTest |
 | ISC-38 | unit | `NPProtocolValidatorTests.testChargeDensityLimit` | 40µC/cm² enforced | XCTest |
-| ISC-56 | unit | `UHDRKeyManagerTests.testBiometricKeyDerivation` | key non-nil with mock context | XCTest |
-| ISC-57 | unit | `UHDRKeyManagerTests.testKeychainStorage` | Keychain item exists, UserDefaults item absent | XCTest |
-| ISC-58 | grep | `grep -n 'URLSession' app/ios/NeuroPulse/Data/UHDRKeyManager.swift` | 0 matches | grep |
-| ISC-62 | unit | `UHDRKeyManagerTests.testNoFallbackOnBioFailure` | returns error, not fallback key | XCTest |
+| ISC-56 | unit | `UHDRKeyManagerTests.testSuccessfulAuthDerivesKey` + `testArgon2idDeterministic` | K1/K2 32B each; deterministic for equal inputs | XCTest |
+| ISC-57 | unit | `UHDRKeyManagerTests.testKeyStoredInKeychain` | key absent from Keychain + UserDefaults | XCTest |
+| ISC-58 | unit | `UHDRKeyManagerTests.testKeyNeverTransmitted` | 0 networking symbols in UHDRKeyManager.swift | XCTest |
+| ISC-62 | unit | `UHDRKeyManagerTests.testNoFallbackOnBioFailure` + `testCredentialStoreFailurePropagates` | returns error, not fallback key | XCTest |
 | ISC-63 | grep | `grep -n 'eegWaveforms\|hrvTimeSeries\|sessionTimestamps' app/ios/NeuroPulse/Data/SHDRUploader.swift` | 0 matches | grep |
 | ISC-72 | unit | `ResearchConsentStateTests.testDefaultFalse` | `blanketConsentGranted == false` | XCTest |
 | ISC-83 | manual | Launch app on clean install, observe first screen | age gate is first | Simulator |
