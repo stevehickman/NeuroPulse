@@ -48,7 +48,35 @@ final class FirmwareUpdateService: FirmwareUpdateProviding {
 
     static let shared = FirmwareUpdateService()
 
-    // Privacy: static public URLs — no query parameters, no personalised tokens.
+    // INFRASTRUCTURE — firmware.neuropulse.ai
+    //
+    // Domain   : Public subdomain of neuropulse.ai.
+    //   (1) Register neuropulse.ai with your domain registrar.
+    //   (2) Create a CNAME: firmware.neuropulse.ai → your CDN origin (e.g. CloudFront,
+    //       Fastly, or a GCS/S3 bucket with a custom domain).
+    //
+    // Purpose  : OTA firmware manifest and signed image distribution.
+    //
+    // Manifest : GET https://firmware.neuropulse.ai/manifest.json
+    //   Response body (JSON, FirmwareManifest schema):
+    //     { "version": "<major>.<minor>.<patch>",
+    //       "sizeBytes": <integer>,
+    //       "releaseDate": "<YYYY-MM-DD>" }
+    //
+    // Images   : GET https://firmware.neuropulse.ai/firmware/main-<version>.npfw
+    //   Body   : Ed25519-signed binary firmware image (NP-FW-EMMC-001 Rev A format).
+    //            The hub independently verifies the Ed25519 signature before flashing.
+    //
+    // Privacy  : Static, non-personalised URLs — no device ID, user ID, or version
+    //            number in the manifest request. All clients send identical requests.
+    //
+    // TLS/pinning : This endpoint is SPKI-pinned (FirmwarePinningDelegate).
+    //   Pre-launch actions:
+    //   (1) Obtain a TLS certificate for firmware.neuropulse.ai.
+    //   (2) Derive SPKI SHA-256: openssl s_client -connect firmware.neuropulse.ai:443 \
+    //         2>/dev/null | openssl x509 -noout -pubkey | \
+    //         openssl pkey -pubin -outform DER | sha256sum
+    //   (3) Replace placeholder values in pinnedSPKIHashes (primary + backup key).
     private static let manifestURL = URL(string: "https://firmware.neuropulse.ai/manifest.json")!
     private static func firmwareURL(for version: String) -> URL {
         // Version string is validated by FirmwareVersion before use.

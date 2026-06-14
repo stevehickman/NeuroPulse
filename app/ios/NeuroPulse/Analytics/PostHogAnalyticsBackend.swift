@@ -7,14 +7,35 @@ import PostHog
 /// Consumed only by `AnalyticsGate`. Nothing else in the app imports PostHog
 /// directly — this is the single integration point (ISC-157).
 ///
+/// INFRASTRUCTURE — eu.i.posthog.com (PostHog EU cluster)
+///
+/// Domain   : PostHog-owned. No domain registration required by NeuroPulse.
+/// Purpose  : Analytics event ingestion — engagement funnels only. No health data.
+///
+/// Setup:
+///   (1) Create a PostHog EU account at https://eu.posthog.com (not us.posthog.com —
+///       EU residency is required to satisfy GDPR Art. 44 for EU/EEA users).
+///   (2) Create a new project and copy the project API token (format: "phc_<chars>").
+///   (3) Set POSTHOG_PROJECT_TOKEN=phc_<your_token> in one of:
+///         • Xcode local .xcconfig (developer builds) — add to .gitignore, never commit.
+///         • GitHub Actions secret POSTHOG_PROJECT_TOKEN passed to xcodebuild via
+///           -xcconfig or an environment variable override.
+///       Info.plist already reads: PostHogProjectToken = $(POSTHOG_PROJECT_TOKEN).
+///       No source changes are needed — the token is injected at build time only.
+///   (4) In PostHog project settings confirm: EU region, no session replay, no heatmaps.
+///       All autocapture is disabled in code below; double-check the project toggle matches.
+///   (5) OI-ANALYTICS-01 (open): implement server-side distinct_id deletion relay endpoint
+///       for the consent-withdrawal deletion flow in reset() below.
+///
+/// ISC-9: the phc_... token must NEVER appear in source. It is read at runtime from
+/// Info.plist. The no_hardcoded_secret SwiftLint rule enforces this in CI.
+///
 /// Configuration decisions:
 /// - EU endpoint (https://eu.i.posthog.com) — data stored in EU.
 /// - All auto-capture features disabled — we control every event via AnalyticsGate.track().
 /// - personProfiles = .never — no Person record created server-side; the anonymous
 ///   distinct_id is sent with events for funnel analysis but PostHog does not build
 ///   a profile. Matches "not linked to identity" in App Store nutrition label.
-/// - API key read from Info.plist `PostHogProjectToken` (sourced from the
-///   `POSTHOG_PROJECT_TOKEN` build variable — never hardcoded in source, ISC-9).
 @MainActor
 final class PostHogAnalyticsBackend: AnalyticsBackend {
 
