@@ -1,0 +1,94 @@
+# NeuroPulse PostHog — Caddy HTTPS Termination
+# NP-ANALYTICS-001 Rev A
+#
+# Activated with: docker compose --profile https up -d
+# Disabled by default — HTTP on port 8000 is sufficient for iOS Simulator testing.
+#
+# ── When you need this ───────────────────────────────────────────────────────
+# 1. Physical device testing: iOS App Transport Security (ATS) requires HTTPS
+#    for all network connections in production builds. Debug builds can use
+#    NSExceptionDomains to permit HTTP, but HTTPS is the clean path.
+#
+# 2. Any deployment beyond a single developer's machine (staging, production).
+#
+# ── Local setup (self-signed certificate for localhost / LAN IP) ─────────────
+#   1. Start with HTTPS profile:
+#        POSTHOG_HOST=localhost docker compose --profile https up -d
+#   2. Install Caddy's local CA on your Mac:
+#        docker exec $(docker compose ps -q caddy) caddy trust
+#        # Then open Keychain Access and trust "Caddy Local Authority"
+#   3. For iOS Simulator: the Simulator shares the Mac's Keychain, so
+#      trusting in Keychain Access is sufficient.
+#   4. For physical devices: export the CA cert and install via Settings →
+#      General → VPN & Device Management → Install Certificate → Trust.
+#
+#   To use a LAN IP (e.g. 192.168.1.100) instead of localhost:
+#     POSTHOG_HOST=192.168.1.100 docker compose --profile https up -d
+#   Caddy will issue a self-signed cert for that IP.
+#
+# ── Production setup (Let's Encrypt) ────────────────────────────────────────
+#   1. Point a DNS A record to the server's public IP.
+#   2. Ensure ports 80 and 443 are reachable from the internet.
+#   3. Start:
+#        POSTHOG_HOST=analytics.yourdomain.example docker compose --profile https up -d
+#   4. Caddy obtains and auto-renews the Let's Encrypt certificate.
+#   5. Update SITE_URL in .env to match:
+#        SITE_URL=https://analytics.yourdomain.example
+#        IS_BEHIND_PROXY=true
+#   6. Restart posthog and posthog-worker:
+#        docker compose restart posthog posthog-worker
+#
+# ── EU data residency note ───────────────────────────────────────────────────
+# For T2 clinical cloud (EU data residency requirement per NP-PRIV-REM-001
+# STEP-19): deploy the entire stack on an EU-region cloud instance. Caddy's
+# ACME server is configurable if a specific CA is required by your DPA.
+
+{env.POSTHOG_HOST} {
+
+  # Reverse proxy all traffic to the PostHog web server
+  reverse_proxy posthog:8000 {
+    # Forward the originating IP. PostHog records this for audit purposes;
+    # GeoIP resolution is disabled (DISABLE_MMDB=true), so no location
+    # data is derived from it.
+    header_up X-Forwarded-For {remote_host}
+    header_up X-Forwarded-Proto {scheme}
+    header_up X-Real-IP {remote_host}
+
+    # Increase timeouts for long-running PostHog dashboard queries
+    transport http {
+      dial_timeout 30s
+      response_header_timeout 300s
+    }
+  }
+
+  # ── Security headers ──────────────────────────────────────────────────────
+  header {
+    # Prevent embedding in iframes (clickjacking protection)
+    X-Frame-Options "SAMEORIGIN"
+
+    # Prevent MIME type sniffing
+    X-Content-Type-Options "nosniff"
+
+    # Referrer policy: only send origin (no path) to cross-origin requests.
+    # Avoids leaking PostHog project details to external resources.
+    Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Strict Transport Security: browser remembers HTTPS for 1 year.
+    # includeSubDomains only if all subdomains also use HTTPS.
+    # Remove this header for localhost/self-signed setups — it can lock
+    # your browser into HTTPS-only for localhost permanently.
+    # Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+    # Remove Caddy's Server header
+    -Server
+  }
+
+  # Compress responses to reduce bandwidth
+  encode gzip
+
+  # Access log: write to stdout (captured by docker logs caddy)
+  log {
+    output stdout
+    level WARN
+  }
+}

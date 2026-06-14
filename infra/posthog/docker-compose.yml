@@ -1,0 +1,302 @@
+# NeuroPulse PostHog Self-Hosted Analytics Stack
+# NP-ANALYTICS-001 Rev A
+#
+# Privacy constraints enforced:
+#   - GeoIP database disabled (DISABLE_MMDB=true) — no IP-to-location mapping
+#   - Session recording storage disabled (no MinIO / OBJECT_STORAGE_ENABLED=false)
+#   - PostHog telemetry to posthog.com disabled (CAPTURE_INTERNAL_METRICS=false)
+#   - Sentry error reporting to PostHog's Sentry disabled (SENTRY_DSN="")
+#   - Kafka log retention: 24 hours (events consumed quickly by plugin server)
+#   - ClickHouse system logs: short TTLs via np-privacy.xml
+#
+# First-time setup:
+#   cp .env.example .env && open .env   # fill in SECRET_KEY + passwords
+#   docker compose up -d
+#   docker compose logs -f posthog      # wait for "Application startup complete"
+#   open http://localhost:8000          # create org, project, and apply UI settings
+#
+# See docs/neuropulse_posthog_config.md for required project-level privacy settings.
+
+name: neuropulse-analytics
+
+# Shared environment block — referenced by all three PostHog services
+x-posthog-env: &posthog-env
+  SECRET_KEY: ${SECRET_KEY:?Set SECRET_KEY in .env — generate with: python3 -c "import secrets; print(secrets.token_hex(32))"}
+  DATABASE_URL: postgres://posthog:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/posthog
+  REDIS_URL: redis://redis:6379/
+  CLICKHOUSE_HOST: clickhouse
+  CLICKHOUSE_DATABASE: posthog
+  CLICKHOUSE_USER: posthog
+  CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:?Set CLICKHOUSE_PASSWORD in .env}
+  CLICKHOUSE_SECURE: "false"
+  CLICKHOUSE_VERIFY: "false"
+  KAFKA_HOSTS: kafka:9092
+  SITE_URL: ${SITE_URL:-http://localhost:8000}
+  IS_BEHIND_PROXY: ${IS_BEHIND_PROXY:-false}
+
+  # ── Privacy settings ──────────────────────────────────────────────────────────
+  # Disable MaxMind GeoIP database. PostHog will not resolve IP addresses to
+  # geographic locations. No country/city/region data is derived or stored.
+  DISABLE_MMDB: "true"
+
+  # Disable object storage (MinIO). Session recording requires object storage;
+  # without it, session recording cannot function even if enabled by mistake
+  # at the project level. Belt-and-suspenders control alongside UI setting.
+  OBJECT_STORAGE_ENABLED: "false"
+
+  # Disable PostHog's own usage telemetry being sent to app.posthog.com.
+  # Our PostHog instance must not phone home with event counts or metadata.
+  CAPTURE_INTERNAL_METRICS: "false"
+
+  # Clear the Sentry DSN so crash/exception data is not sent to PostHog's
+  # Sentry instance. Errors are captured in local logs only.
+  SENTRY_DSN: ""
+
+  # Do not populate the instance with demo data or tutorial projects.
+  DEMO: "false"
+
+  # Disable multi-org support (single NeuroPulse org only).
+  MULTI_ORG_ENABLED: "false"
+
+services:
+
+  # ── PostgreSQL ───────────────────────────────────────────────────────────────
+  # Stores PostHog metadata: users, projects, feature flags, cohort definitions,
+  # dashboards, action definitions. Does NOT store raw analytics events
+  # (those go to ClickHouse).
+  db:
+    image: postgres:15.6-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: posthog
+      POSTGRES_USER: posthog
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U posthog -d posthog"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - analytics-internal
+
+  # ── Redis ────────────────────────────────────────────────────────────────────
+  # Task queue, caching, and feature flag evaluation cache.
+  # save "" and appendonly no: no persistence — Redis is ephemeral here.
+  # Data is reconstructed from PostgreSQL/ClickHouse on restart.
+  redis:
+    image: redis:7.2-alpine
+    restart: unless-stopped
+    command: >
+      redis-server
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - analytics-internal
+
+  # ── ZooKeeper ────────────────────────────────────────────────────────────────
+  # ClickHouse distributed coordination. Required even in single-node setups
+  # because PostHog's schema uses ReplicatedMergeTree table engines.
+  zookeeper:
+    image: zookeeper:3.7.2
+    restart: unless-stopped
+    environment:
+      ZOO_LOG4J_PROP: "ERROR,CONSOLE"
+      ZOO_MY_ID: 1
+    volumes:
+      - zookeeper_data:/data
+      - zookeeper_log:/datalog
+    networks:
+      - analytics-internal
+
+  # ── ClickHouse ───────────────────────────────────────────────────────────────
+  # Analytics event store. All PostHog events (page views, custom events, etc.)
+  # are written here. np-privacy.xml applies short TTLs to ClickHouse system
+  # logs and disables verbose query logging.
+  #
+  # Data retention for PostHog event tables is configured separately in the
+  # PostHog UI: Project Settings → Data Retention. See §3.4 of the config doc.
+  clickhouse:
+    image: clickhouse/clickhouse-server:23.12-alpine
+    restart: unless-stopped
+    depends_on:
+      zookeeper:
+        condition: service_started
+    environment:
+      CLICKHOUSE_DB: posthog
+      CLICKHOUSE_USER: posthog
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_log:/var/log/clickhouse-server
+      - ./clickhouse/np-privacy.xml:/etc/clickhouse-server/config.d/np-privacy.xml:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD-SHELL", "clickhouse-client --user posthog --password ${CLICKHOUSE_PASSWORD} --query 'SELECT 1'"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    networks:
+      - analytics-internal
+
+  # ── Kafka ────────────────────────────────────────────────────────────────────
+  # Event ingestion queue between PostHog web server and ClickHouse.
+  # Log retention set to 24 hours: the plugin server consumes events quickly.
+  # 1 GB max size prevents unbounded disk growth if the plugin server falls
+  # behind (this would be surfaced as a PostHog health alert).
+  kafka:
+    image: bitnami/kafka:2.8.1-debian-10-r99
+    restart: unless-stopped
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1001
+      KAFKA_CFG_RESERVED_BROKER_MAX_ID: 1001
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_ZOOKEEPER_CONNECT: zookeeper:2181
+      ALLOW_PLAINTEXT_LISTENER: "true"
+      KAFKA_CFG_LOG_RETENTION_HOURS: 24
+      KAFKA_CFG_LOG_RETENTION_BYTES: 1073741824
+      KAFKA_CFG_LOG_SEGMENT_BYTES: 134217728
+    volumes:
+      - kafka_data:/bitnami/kafka
+    networks:
+      - analytics-internal
+
+  # ── PostHog web server ───────────────────────────────────────────────────────
+  # Django/Gunicorn application. Handles the management UI, REST API, and
+  # the /capture event ingestion endpoint that the iOS SDK posts to.
+  posthog:
+    image: posthog/posthog:${POSTHOG_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      <<: *posthog-env
+    ports:
+      - "${POSTHOG_PORT:-8000}:8000"
+    command: >
+      sh -c "./bin/migrate &&
+      gunicorn posthog.wsgi
+      --config gunicorn.config.py
+      --bind 0.0.0.0:8000
+      --workers ${POSTHOG_WORKERS:-2}
+      --timeout 300
+      --log-level warning"
+    networks:
+      - analytics-internal
+      - analytics-external
+
+  # ── PostHog Celery worker ────────────────────────────────────────────────────
+  # Handles async tasks: cohort calculations, scheduled exports, email, action
+  # matching, and data deletion requests (GDPR erasure — important for us).
+  posthog-worker:
+    image: posthog/posthog:${POSTHOG_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      - posthog
+    environment:
+      <<: *posthog-env
+    command: ./bin/docker-worker-celery --workers 2
+    networks:
+      - analytics-internal
+
+  # ── PostHog plugin server ────────────────────────────────────────────────────
+  # Node.js process that runs data transformation apps/plugins.
+  # The NP-ANALYTICS-001 Property Filter app runs here, applying the
+  # server-side property denylist before events reach ClickHouse.
+  # See docs/neuropulse_posthog_config.md §4 for denylist configuration.
+  posthog-plugin-server:
+    image: posthog/posthog:${POSTHOG_VERSION:-latest}
+    restart: unless-stopped
+    depends_on:
+      - posthog
+    environment:
+      <<: *posthog-env
+    command: ./bin/plugin-server --no-restart-loop
+    networks:
+      - analytics-internal
+
+  # ── Caddy (optional — activate with --profile https) ────────────────────────
+  # HTTPS termination. Required for:
+  #   - Physical device testing (iOS App Transport Security requires HTTPS)
+  #   - Any deployment beyond localhost
+  #
+  # Local: generates a self-signed certificate for localhost.
+  #        Run `docker exec $(docker compose ps -q caddy) caddy trust` once
+  #        to install the root CA, then trust it in Keychain + iOS Simulator.
+  # Production: obtains a Let's Encrypt certificate automatically when
+  #             POSTHOG_HOST is set to a real public domain.
+  #
+  # Usage:
+  #   docker compose --profile https up -d
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    depends_on:
+      - posthog
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      POSTHOG_HOST: ${POSTHOG_HOST:-localhost}
+    networks:
+      - analytics-external
+    profiles:
+      - https
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  zookeeper_data:
+    driver: local
+  zookeeper_log:
+    driver: local
+  clickhouse_data:
+    driver: local
+  clickhouse_log:
+    driver: local
+  kafka_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+networks:
+  # Internal: service-to-service communication only — never exposed to host
+  analytics-internal:
+    internal: true
+  # External: PostHog web + Caddy only — the surface exposed to the host / internet
+  analytics-external:
+    driver: bridge

@@ -1,0 +1,137 @@
+<!--
+  NeuroPulse PostHog — ClickHouse Privacy Configuration
+  NP-ANALYTICS-001 Rev A
+  Path: /etc/clickhouse-server/config.d/np-privacy.xml
+
+  This file is merged with ClickHouse's default config at startup.
+  It applies short TTLs to ClickHouse's own system logs and minimizes
+  the amount of query/operational data retained on disk.
+
+  Note: TTLs on PostHog's analytics event tables (the sharded_events,
+  person, etc. tables) are managed by PostHog's own Django migrations.
+  Set the user-facing retention period in the PostHog UI, not here.
+  See docs/neuropulse_posthog_config.md §3.4.
+-->
+<clickhouse>
+
+  <!--
+    Query log: ClickHouse logs every SQL statement by default.
+    PostHog queries may embed event property values in WHERE clauses,
+    meaning raw query text could contain analytics data.
+    We retain query logs for 3 days (enough for debugging) then purge.
+  -->
+  <query_log>
+    <database>system</database>
+    <table>query_log</table>
+    <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+    <!-- Only log queries that took longer than 1 second to reduce volume -->
+    <log_queries_min_query_duration_ms>1000</log_queries_min_query_duration_ms>
+  </query_log>
+
+  <!--
+    Query thread log: per-thread execution breakdown for slow queries.
+    Same privacy concern as query_log. Short TTL.
+  -->
+  <query_thread_log>
+    <database>system</database>
+    <table>query_thread_log</table>
+    <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+    <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+  </query_thread_log>
+
+  <!--
+    Text log: server-level info/warning/error messages.
+    Not user data, but minimize retention. Level "warning" filters
+    out chatty INFO lines while preserving errors for debugging.
+  -->
+  <text_log>
+    <database>system</database>
+    <table>text_log</table>
+    <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    <level>warning</level>
+  </text_log>
+
+  <!--
+    Trace log: function call traces — debug-level only. Disable entirely.
+    Traces can contain query fragments and are not needed in production.
+  -->
+  <trace_log remove="1"/>
+
+  <!--
+    Metric log: system resource metrics (CPU, memory, disk).
+    Not user data. Retain 14 days for capacity planning.
+    Collect every 60 seconds (default is 1 second — too granular).
+  -->
+  <metric_log>
+    <database>system</database>
+    <table>metric_log</table>
+    <ttl>event_date + INTERVAL 14 DAY DELETE</ttl>
+    <collect_interval_milliseconds>60000</collect_interval_milliseconds>
+  </metric_log>
+
+  <!--
+    Part log: tracks MergeTree data part operations (merges, mutations).
+    Useful for diagnosing storage issues. Not user data. 7-day retention.
+  -->
+  <part_log>
+    <database>system</database>
+    <table>part_log</table>
+    <ttl>event_date + INTERVAL 7 DAY DELETE</ttl>
+    <flush_interval_milliseconds>7500</flush_interval_milliseconds>
+  </part_log>
+
+  <!--
+    Crash log: exception backtraces on server crashes. 30-day retention.
+    Not user data; needed for incident investigation.
+  -->
+  <crash_log>
+    <database>system</database>
+    <table>crash_log</table>
+    <ttl>event_date + INTERVAL 30 DAY DELETE</ttl>
+  </crash_log>
+
+  <!--
+    Asynchronous insert log: tracks async insert operations.
+    Not applicable to our PostHog setup (PostHog uses synchronous inserts
+    via Kafka), but disable retention accumulation if present.
+  -->
+  <asynchronous_insert_log remove="1"/>
+
+  <!--
+    Session log: tracks client connection sessions. Short retention.
+    Not user analytics data, but contains connection metadata.
+  -->
+  <session_log>
+    <database>system</database>
+    <table>session_log</table>
+    <ttl>event_date + INTERVAL 3 DAY DELETE</ttl>
+  </session_log>
+
+  <!--
+    Network: listen on all interfaces so Docker internal networking works.
+    Access is restricted to the analytics-internal Docker network by the
+    Docker Compose network configuration — ClickHouse is never exposed
+    to the host or external networks.
+  -->
+  <listen_host>0.0.0.0</listen_host>
+  <http_port>8123</http_port>
+  <tcp_port>9000</tcp_port>
+
+  <!--
+    Query execution limits.
+    Prevents runaway queries from blocking analytics or consuming
+    excessive resources during development.
+  -->
+  <max_execution_time>300</max_execution_time>
+  <max_memory_usage>4294967296</max_memory_usage>  <!-- 4 GB max per query -->
+
+  <!--
+    Disable sending anonymous usage statistics to ClickHouse, Inc.
+    (This is separate from PostHog's own telemetry disable.)
+  -->
+  <send_crash_reports>
+    <enabled>false</enabled>
+  </send_crash_reports>
+
+</clickhouse>
