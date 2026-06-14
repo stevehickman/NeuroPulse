@@ -235,6 +235,46 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(state.consumableSessionCounts.count, 4)
     }
 
+    // MARK: - ISC-15: all 8 parsers return non-nil for their canonical byte sequences
+
+    /// Single omnibus test matching the ISA test strategy entry for ISC-15.
+    /// Verifies that every GATTParser static function exists and returns non-nil
+    /// when given a correctly-formed hub payload of the documented wire length.
+    func testAllParserFunctions() {
+        // parseSessionState: uint32 LE — 0x0000_0001
+        XCTAssertNotNil(GATTParser.parseSessionState(Data([0x01, 0x00, 0x00, 0x00])),
+                        "parseSessionState must return non-nil for a 4-byte canonical payload.")
+
+        // parseSessionStatus: protocolID 5, status .running (0x01)
+        XCTAssertNotNil(GATTParser.parseSessionStatus(Data([0x05, 0x01])),
+                        "parseSessionStatus must return non-nil for a valid 2-byte payload.")
+
+        // parseHRVCoherence: coherence 5.00 (500 = 0x01F4 LE), RMSSD 35 (0x0023 LE)
+        XCTAssertNotNil(GATTParser.parseHRVCoherence(Data([0xF4, 0x01, 0x23, 0x00])),
+                        "parseHRVCoherence must return non-nil for a valid 4-byte payload.")
+
+        // parsePacerPhase: phase .inhale (0x00), elapsed 50%
+        XCTAssertNotNil(GATTParser.parsePacerPhase(Data([0x00, 0x32])),
+                        "parsePacerPhase must return non-nil for a valid 2-byte payload.")
+
+        // parseImpedanceResult: all 8 electrodes pass → 0x00FF LE
+        XCTAssertNotNil(GATTParser.parseImpedanceResult(Data([0xFF, 0x00])),
+                        "parseImpedanceResult must return non-nil for a valid 2-byte payload.")
+
+        // parseConsumableStatus: 4 × uint16 LE (5, 10, 15, 20)
+        XCTAssertNotNil(GATTParser.parseConsumableStatus(
+            Data([0x05, 0x00, 0x0A, 0x00, 0x0F, 0x00, 0x14, 0x00])),
+                        "parseConsumableStatus must return non-nil for a valid 8-byte payload.")
+
+        // parseOTAStatus: phase 1, progress 25%, no error
+        XCTAssertNotNil(GATTParser.parseOTAStatus(Data([0x01, 0x19, 0x00, 0x00])),
+                        "parseOTAStatus must return non-nil for a valid 4-byte payload.")
+
+        // parseZoneModuleStatus: 5 slots — ZM-01 through ZM-05 all present
+        XCTAssertNotNil(GATTParser.parseZoneModuleStatus(Data([0x01, 0x02, 0x03, 0x04, 0x05])),
+                        "parseZoneModuleStatus must return non-nil for a valid 5-byte payload.")
+    }
+
     // MARK: - Short / truncated / empty input rejection (ISC-152)
 
     func testParserReturnsNilForShortData() {
