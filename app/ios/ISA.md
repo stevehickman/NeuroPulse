@@ -4,11 +4,11 @@ slug: 20260604-000000_ios-core-app-t1-launch
 project: NeuroPulse
 effort: E4
 effort_source: gate-floor
-phase: observe
-progress: 52/164
+phase: execute
+progress: 60/164
 mode: interactive
 started: 2026-06-04
-updated: 2026-06-10
+updated: 2026-06-14
 ---
 
 # ISA — NeuroPulse Core iOS App (Issue #51)
@@ -111,15 +111,15 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 - [ ] ISC-44: `LimitsSettingsView` displays all per-modality limits from `NPLimitsStore` with their defaults and allows no value to exceed the hardware maximum declared in `NPHardwareLimits`.
 - [ ] ISC-45: A successful protocol upload shows a confirmation toast ("Protocol sent to hub") that auto-dismisses after 2 seconds.
 - [ ] ISC-46: A failed protocol upload shows a persistent error banner with the GATT error description and a retry button.
-- [ ] ISC-47: `Anti:` `ProtocolEditorView` does not allow saving a protocol with zero duration or zero-current stimulation blocks — these are caught by `NPProtocolValidator` before upload.
+- [x] ISC-47: `Anti:` `ProtocolEditorView` does not allow saving a protocol with zero duration or zero-current stimulation blocks — these are caught by `NPProtocolValidator` before upload.
 
 ### Session history and EDF download — Mode 4
 
 - [ ] ISC-48: A `SessionHistoryView` exists and is accessible from the Session tab (e.g. toolbar button or list below the current session card).
 - [ ] ISC-49: `SessionHistoryView` lists past sessions with date, protocol name, duration, and coherence score (where available), sourced from a local `SessionHistoryStore` persisted in `UserDefaults` or the app's `Documents` directory.
 - [ ] ISC-50: Tapping a session in `SessionHistoryView` navigates to a detail view showing per-session metrics: RMSSD, average coherence score, EEG impedance pass count, and a coherence trend sparkline for the last 30 sessions.
-- [ ] ISC-51: The session detail view contains an "Adaptive Adjustments" card when the session contained closed-loop adaptive events — rendered from a plain-language trigger enum per NP-APP-ROADMAP-001 Rev B §9.4.
-- [ ] ISC-52: The Adaptive Adjustments card shows at most 5 events with "and N more / View all" for longer lists; it never shows raw EEG band power values.
+- [x] ISC-51: The session detail view contains an "Adaptive Adjustments" card when the session contained closed-loop adaptive events — rendered from a plain-language trigger enum per NP-APP-ROADMAP-001 Rev B §9.4.
+- [x] ISC-52: The Adaptive Adjustments card shows at most 5 events with "and N more / View all" for longer lists; it never shows raw EEG band power values.
 - [ ] ISC-53: The "Download EDF" button in session detail triggers `EDFDownloader.requestDownload(sessionID:)`, shows a progress indicator during transfer, and saves the EDF+ file to the app's `Documents` directory.
 - [ ] ISC-54: Downloaded EDF files are accessible via the iOS Files app (app's Documents directory is declared `UIFileSharingEnabled = YES` and `LSSupportsOpeningDocumentsInPlace = YES`).
 - [ ] ISC-55: `Anti:` The EDF+ patient header written by the hub (as specified in NP-FW-EMMC-002 Rev A §E) is not modified by the app — the opaque 16-char token, `X` sex/birthdate/name fields pass through unchanged.
@@ -162,11 +162,11 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 
 ### Privacy compliance — launch-blocking screens
 
-- [ ] ISC-83: A minimum age gate screen exists as the **first** screen in the onboarding flow, before any personal data is collected or any consent layer is presented.
-- [ ] ISC-84: The minimum age gate shows: "I confirm I am 16 years of age or older." with an unchecked checkbox and a Continue button that is disabled until the checkbox is checked.
-- [ ] ISC-85: The minimum age gate checkbox is rendered via `Toggle` with `isOn` bound to a local `@State var ageConfirmed = false` — the binding is not pre-set to `true` in any code path.
-- [ ] ISC-86: Tapping Continue on the age gate with the checkbox unchecked does nothing — the Continue button `disabled(!ageConfirmed)` modifier is confirmed present.
-- [ ] ISC-87: The age gate completion status is persisted to `UserDefaults` key `np.onboarding.age-confirmed: Bool` so it is not re-shown on subsequent launches for the same user.
+- [x] ISC-83: A minimum age gate screen exists as the **first** screen in the onboarding flow, before any personal data is collected or any consent layer is presented.
+- [x] ISC-84: The minimum age gate shows: "I confirm I am 16 years of age or older." with an unchecked checkbox and a Continue button that is disabled until the checkbox is checked.
+- [x] ISC-85: The minimum age gate checkbox is rendered via `Toggle` with `isOn` bound to a local `@State var ageConfirmed = false` — the binding is not pre-set to `true` in any code path.
+- [x] ISC-86: Tapping Continue on the age gate with the checkbox unchecked does nothing — the Continue button `disabled(!ageConfirmed)` modifier is confirmed present.
+- [x] ISC-87: The age gate completion status is persisted to `UserDefaults` key `np.onboarding.age-confirmed: Bool` so it is not re-shown on subsequent launches for the same user.
 - [ ] ISC-88: A BIPA written release screen exists, containing the full disclosure text from NP-APP-ROADMAP-001 Rev B §9.3 (purpose, retention, destruction method, no-sale clause, no-third-party-share clause).
 - [ ] ISC-89: The BIPA screen is shown before the consent onboarding flow for any user whose app locale or declared location is Illinois — detection logic uses `Locale.current.region?.identifier == "US-IL"` plus an explicit Illinois declaration toggle.
 - [ ] ISC-90: If the user declines the BIPA screen, EEG neurofeedback-dependent features (`SessionView` closed-loop metrics, `ProtocolMenuView` EEG-adaptive protocols) are visually disabled with the message: "EEG neurofeedback is unavailable — brainwave data consent was not granted."
@@ -400,3 +400,10 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 | ISC-111 | Code review: `beginUpdate(image:)` sends chunks via `sendOTACommand(.chunk, payload:)`; hub writes only to Scratch partition during transfer. Bank A (running) is not touched until hub receives `.commit` and executes `np_ota_verify_scratch()` + bank swap. Mid-OTA BLE disconnect leaves Scratch in a partial state; `waitForCompletion()` times out and `OTAManager.phase` stays in `.transferring`/`.verifying`; no bank-swap occurs. Running bank unchanged. `firmware/ota/tests/np_ota_tests.c:testBankConstraints` verifies bank field validated as 0 or 1 — arbitrary bank values rejected by `np_ota_state_validate()`. | 2026-06-09 |
 | ISC-112 | Code review: `waitForCompletion()` polls `phase != .complete && phase != .failed` with 500ms interval and 120s timeout; `phase` updated by `observeOTAStatus()` from GATT `OTA_STATUS` notifications. `OTAPhase.complete.description` = "Update complete". `OTAView` renders `phase.description` in the progress section; reconnect via `observeConnectionForManifestFetch()` auto-triggers new manifest fetch. | 2026-06-09 |
 | ISC-113 | `OTAManagerTests.testSignatureGateBlocksWrongFingerprint`: `beginUpdate(image:)` with wrong fingerprint throws `.signatureInvalid`; `downloadCallCount == 0` — no network call made. `testBeginUpdateThrowsNotConnectedAfterFingerprintPassesWhenHubDisconnected`: correct fingerprint passes gate; `.notConnected` thrown before download; `downloadCallCount == 0`. Fingerprint check is the first statement in `beginUpdate(image:)` — before connection guard, before download, before any GATT write. | 2026-06-09 |
+| ISC-51 | Code review: `AdaptiveAdjustmentsCard.swift` exists in `app/ios/NeuroPulse/Views/` and is embedded in `SessionHistoryView.swift`. Card renders when `completedSession.adaptationEvents` is non-empty; `AdaptTrigger.plainLanguageDescription` produces human-readable strings from the 17-case enum. | 2026-06-14 |
+| ISC-52 | Code review: `events.prefix(5)` at `AdaptiveAdjustmentsCard.swift:61`; `Text("and \(remaining) more")` at line 69; `Button("View all")` sheet at line 73. No raw EEG band power values present in any `AdaptationEvent` field exposed to the card. | 2026-06-14 |
+| ISC-83 | Code review: `AgeGateView.swift` is the first view presented in the onboarding flow (before `ConsentView` and any personal data collection). `MainTabView` guard confirms `np.onboarding.age-confirmed` before advancing. | 2026-06-14 |
+| ISC-84 | Code review: `AgeGateView.swift` renders `Toggle("I confirm I am 16 years of age or older.", isOn: $ageConfirmed)` and `Button("Continue") { … }.disabled(!ageConfirmed)`. | 2026-06-14 |
+| ISC-85 | Code review: `@State private var ageConfirmed = false` — initial value is `false`; no code path assigns `ageConfirmed = true` without user toggle interaction. | 2026-06-14 |
+| ISC-86 | Code review: `.disabled(!ageConfirmed)` modifier on Continue button confirmed present at `AgeGateView.swift`. Button body is unreachable while `ageConfirmed == false`. | 2026-06-14 |
+| ISC-87 | Code review: `UserDefaults.standard.set(true, forKey: "np.onboarding.age-confirmed")` called in `AgeGateView` Continue action. `MainTabView` reads this key to skip the gate on subsequent launches. | 2026-06-14 |
