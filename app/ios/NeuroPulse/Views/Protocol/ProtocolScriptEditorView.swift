@@ -112,6 +112,7 @@ struct ProtocolScriptEditorView: View {
             if localText != newValue {
                 localText = newValue
                 lineCount = newValue.components(separatedBy: .newlines).count
+                errorLine = nil
             }
         }
     }

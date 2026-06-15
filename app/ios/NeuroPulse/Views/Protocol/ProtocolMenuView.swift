@@ -33,6 +33,7 @@ struct ProtocolMenuView: View {
     @State private var uploadError: String? = nil
     @State private var lastSelectedEntry: NPProtocolEntry? = nil
     @State private var showUploadSuccess = false
+    @State private var uploadTask: Task<Void, Never>? = nil
     @State private var showLimitsSettings = false
     @State private var validationDetailEntry: NPProtocolEntry? = nil
 
@@ -91,7 +92,7 @@ struct ProtocolMenuView: View {
                     Text("Are you sure you want to delete \"\(entry.name)\"? This cannot be undone.")
                 }
             }
-            .overlay(alignment: .top) {
+            .safeAreaInset(edge: .top, spacing: 0) {
                 if let errorMsg = uploadError {
                     HStack(spacing: 8) {
                         Image(systemName: "exclamationmark.triangle.fill")
@@ -447,7 +448,8 @@ struct ProtocolMenuView: View {
         lastSelectedEntry = entry
         withAnimation { uploadError = nil }
 
-        Task {
+        uploadTask?.cancel()
+        uploadTask = Task {
             do {
                 if programMode {
                     try await uploader.programAutonomous(proto)
@@ -457,9 +459,11 @@ struct ProtocolMenuView: View {
                     try await uploader.upload(proto)
                     withAnimation { showUploadSuccess = true }
                     try? await Task.sleep(nanoseconds: 2_000_000_000)
+                    withAnimation { showUploadSuccess = false }
                     dismiss()
                 }
             } catch {
+                guard !Task.isCancelled else { return }
                 withAnimation { uploadError = error.localizedDescription }
             }
         }
@@ -497,25 +501,27 @@ struct ProtocolRowView: View {
             }
 
             // Duration + unavailability note
-            HStack(spacing: 6) {
-                if let dur = durationString {
-                    Text(dur)
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color(.systemGray5))
-                        .clipShape(Capsule())
-                }
-                if !availability.isAvailable, let reason = availability.unavailableReason {
-                    HStack(spacing: 3) {
-                        Image(systemName: "exclamationmark.triangle.fill")
+            if durationString != nil || !availability.isAvailable {
+                HStack(spacing: 6) {
+                    if let dur = durationString {
+                        Text(dur)
                             .font(.caption2)
-                            .foregroundColor(.red)
-                        Text(reason)
-                            .font(.caption2)
-                            .foregroundColor(.red)
-                            .lineLimit(1)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color(.systemGray5))
+                            .clipShape(Capsule())
+                    }
+                    if !availability.isAvailable, let reason = availability.unavailableReason {
+                        HStack(spacing: 3) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                            Text(reason)
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                                .lineLimit(1)
+                        }
                     }
                 }
             }
@@ -539,9 +545,9 @@ struct ProtocolRowView: View {
         case .single(let proto):
             return proto.timingMode.displayString
         case .composite(let comp):
-            guard !comp.layers.isEmpty else { return nil }
+            guard !comp.layers.isEmpty, comp.layers.allSatisfy({ $0.durationSeconds != nil }) else { return nil }
             let totalSec = comp.layers.reduce(0) { maxEnd, layer in
-                max(maxEnd, layer.startOffsetSeconds + (layer.durationSeconds ?? 1200))
+                max(maxEnd, layer.startOffsetSeconds + (layer.durationSeconds ?? 0))
             }
             if totalSec < 60 { return "\(totalSec)s" }
             let m = totalSec / 60

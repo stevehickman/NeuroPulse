@@ -884,9 +884,11 @@ struct OptionalDoubleField: View {
                     .focused($focused)
                     .onChange(of: text) { _, v in value = Double(v) }
                     .onChange(of: focused) { _, isFocused in
-                        guard !isFocused, let v = value else { return }
-                        let clamped = max(range.lowerBound, min(v, range.upperBound))
-                        if clamped != v { value = clamped; syncText() }
+                        guard !isFocused else { return }
+                        if let v = value {
+                            value = max(range.lowerBound, min(v, range.upperBound))
+                        }
+                        syncText()
                     }
                     .onAppear { syncText() }
                 Text(unit)
@@ -933,9 +935,11 @@ struct OptionalIntField: View {
                     .focused($focused)
                     .onChange(of: text) { _, v in value = Int(v) }
                     .onChange(of: focused) { _, isFocused in
-                        guard !isFocused, let v = value else { return }
-                        let clamped = max(range.lowerBound, min(v, range.upperBound))
-                        if clamped != v { value = clamped; syncText() }
+                        guard !isFocused else { return }
+                        if let v = value {
+                            value = max(range.lowerBound, min(v, range.upperBound))
+                        }
+                        syncText()
                     }
                     .onAppear { syncText() }
                 if !unit.isEmpty {
