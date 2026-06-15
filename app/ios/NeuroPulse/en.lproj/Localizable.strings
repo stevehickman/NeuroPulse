@@ -513,7 +513,7 @@
 "SETUP_PROTOCOL_STORED_TITLE" = "Protocol Stored";
 
 /* SetupView — alert message when a protocol is stored on the hub */
-"SETUP_PROTOCOL_STORED_MESSAGE" = "Protocol stored on hub. Connect to a USB-C power bank to start an autonomous session.";
+"SETUP_PROTOCOL_STORED_MESSAGE" = "Protocol stored. Hub will run session without phone.";
 
 /* SetupView / SetupError — singular electrode label in error messages (%d = 1-based index) */
 "SETUP_ELECTRODE_LABEL" = "Electrode %d";
