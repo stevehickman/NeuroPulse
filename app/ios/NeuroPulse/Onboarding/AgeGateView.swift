@@ -16,20 +16,16 @@ struct AgeGateView: View {
     /// UserDefaults key persisting age-gate completion (ISC-87).
     static let ageConfirmedDefaultsKey = "np.onboarding.age-confirmed"
 
-    // MARK: - User-visible strings (prepared for Localizable.strings; literals for now)
+    // MARK: - User-visible strings
 
     enum Strings {
-        static let title         = "Before We Begin"
-        static let subtitle      = "NeuroPulse collects personal data — including brainwave"
-            + " and heart-rate measurements — to deliver and improve your sessions."
-            + " Before any data is collected, we need to confirm your age."
-        static let declaration   = "I confirm I am 16 years of age or older."
-        static let continueLabel = "Continue"
-        static let under16Label  = "I am under 16"
-        static let whyTitle      = "Why we ask"
-        static let whyBody       = "Some features rely on health-related data that, by law,"
-            + " requires you to be at least 16 years old to consent to."
-            + " This protects younger users and keeps NeuroPulse compliant with privacy regulations."
+        static var title: String         { String(localized: "AGE_GATE_TITLE") }
+        static var subtitle: String      { String(localized: "AGE_GATE_SUBTITLE") }
+        static var declaration: String   { String(localized: "AGE_GATE_DECLARATION") }
+        static var continueLabel: String { String(localized: "AGE_GATE_CONTINUE") }
+        static var under16Label: String  { String(localized: "AGE_GATE_UNDER_16") }
+        static var whyTitle: String      { String(localized: "AGE_GATE_WHY_TITLE") }
+        static var whyBody: String       { String(localized: "AGE_GATE_WHY_BODY") }
     }
 
     /// Age confirmation state. Initialised to `false` — never pre-set to `true`.

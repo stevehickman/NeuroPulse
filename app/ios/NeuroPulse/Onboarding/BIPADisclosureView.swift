@@ -13,33 +13,23 @@ import SwiftUI
 
 struct BIPADisclosureView: View {
 
-    // MARK: - User-visible strings (prepared for Localizable.strings; literals for now)
+    // MARK: - User-visible strings
 
     enum Strings {
-        static let title = "Brain Activity Data Consent"
-
-        static let intro = """
-        NeuroPulse collects your brainwave (EEG) data during sessions to \
-        provide neurofeedback and to adapt stimulation settings in real time. \
-        Brainwave data is sensitive personal information — biometric data under \
-        applicable law — and NeuroPulse treats it accordingly.
-        """
-
-        static let bullets: [String] = [
-            "Purpose: Session operation, neurofeedback display, closed-loop adaptation",
-            "Retention: Until you delete your data or transfer/sell your device",
-            "Destruction method: Secure hardware-level erasure (eMMC SANITIZE)",
-            "NeuroPulse will not sell, lease, or profit from your brainwave data",
-            "NeuroPulse will not share your brainwave data with third parties without your separate consent, except as required by law"
-        ]
-
-        static let question = """
-        Do you consent to NeuroPulse collecting and using your brainwave data \
-        as described above?
-        """
-
-        static let acceptLabel  = "Yes, I consent"
-        static let declineLabel = "No, decline"
+        static var title: String        { String(localized: "BIPA_BRAIN_TITLE") }
+        static var intro: String        { String(localized: "BIPA_BRAIN_INTRO") }
+        static var bullets: [String]    {
+            [
+                String(localized: "BIPA_BRAIN_BULLET_1"),
+                String(localized: "BIPA_BRAIN_BULLET_2"),
+                String(localized: "BIPA_BRAIN_BULLET_3"),
+                String(localized: "BIPA_BRAIN_BULLET_4"),
+                String(localized: "BIPA_BRAIN_BULLET_5"),
+            ]
+        }
+        static var question: String     { String(localized: "BIPA_BRAIN_QUESTION") }
+        static var acceptLabel: String  { String(localized: "BIPA_BRAIN_ACCEPT") }
+        static var declineLabel: String { String(localized: "BIPA_BRAIN_DECLINE") }
     }
 
     /// Called when the user consents.

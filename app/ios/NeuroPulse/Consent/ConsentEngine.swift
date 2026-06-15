@@ -78,17 +78,7 @@ enum ConsentEngine {
     }
 
     // Plain-language irreversibility notice — displayed at L3 blanket consent and per-study invitations.
-    static let irreversibilityNotice = """
-    Once your anonymised data has been included in a published study, it cannot be individually \
-    withdrawn from that dataset. This is a fundamental property of aggregate anonymised data \
-    required by Common Rule (45 CFR 46).
-
-    However, because NeuroPulse anonymises your data fresh from your device for each study, \
-    withdrawing consent immediately and permanently stops any further data from flowing to any \
-    future dataset — including data from sessions that occurred before your withdrawal.
-
-    Your session recordings remain on your device under your sole control at all times.
-    """
+    static var irreversibilityNotice: String { String(localized: "CONSENT_IRREVERSIBILITY_NOTICE") }
 }
 
 // MARK: - Consent document

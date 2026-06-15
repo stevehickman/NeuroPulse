@@ -14,10 +14,10 @@ enum ConsumableKind: Int, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .intranasalSleeves: return "Intranasal Sleeves"
-        case .electrodeHydrogel: return "Electrode Hydrogel Tips"
-        case .vnsPads:           return "VNS Clip Pads"
-        case .audioCupFoam:      return "Audio Cup Foam"
+        case .intranasalSleeves: return String(localized: "CONSUMABLE_INTRANASAL_NAME")
+        case .electrodeHydrogel: return String(localized: "CONSUMABLE_HYDROGEL_NAME")
+        case .vnsPads:           return String(localized: "CONSUMABLE_VNS_NAME")
+        case .audioCupFoam:      return String(localized: "CONSUMABLE_AUDIO_NAME")
         }
     }
 
@@ -42,10 +42,10 @@ enum ConsumableKind: Int, CaseIterable, Identifiable {
 
     var packDisplayPrice: String {
         switch self {
-        case .intranasalSleeves: return "$19 / 30-pack"
-        case .electrodeHydrogel: return "$12–16 / 8-pack"
-        case .vnsPads:           return "$8 / 2-pack"
-        case .audioCupFoam:      return "$24 / set"
+        case .intranasalSleeves: return String(localized: "CONSUMABLE_INTRANASAL_PRICE")
+        case .electrodeHydrogel: return String(localized: "CONSUMABLE_HYDROGEL_PRICE")
+        case .vnsPads:           return String(localized: "CONSUMABLE_VNS_PRICE")
+        case .audioCupFoam:      return String(localized: "CONSUMABLE_AUDIO_PRICE")
         }
     }
 
