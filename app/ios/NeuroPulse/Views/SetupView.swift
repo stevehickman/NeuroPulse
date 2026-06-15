@@ -372,7 +372,10 @@ struct SafetyAcknowledgementCard: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(String(localized: "SETUP_SAFETY_ACK_A11Y_LABEL"))
-            .accessibilityValue(acknowledged ? String(localized: "SETUP_SAFETY_ACK_CHECKED") : String(localized: "SETUP_SAFETY_ACK_UNCHECKED"))
+            .accessibilityValue(
+                acknowledged ? String(localized: "SETUP_SAFETY_ACK_CHECKED")
+                    : String(localized: "SETUP_SAFETY_ACK_UNCHECKED")
+            )
             .accessibilityAddTraits(.isButton)
         }
         .padding()
