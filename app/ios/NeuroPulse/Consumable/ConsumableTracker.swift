@@ -161,21 +161,17 @@ struct ConsumableReminder: Identifiable {
     // Purpose  : Deep-link into the consumables shop when a reminder fires.
     //            Opened in the user's default browser (Safari); no in-app webview.
     //
-    // URL map  : /consumables/<Int> where Int = ConsumableKind.rawValue
-    //   ConsumableKind is enum ConsumableKind: Int — rawValue is the integer case index:
-    //     /consumables/0  →  Intranasal Sleeves    (30-pack, $19)
-    //     /consumables/1  →  Electrode Hydrogel Tips (8-pack, $12–16)
-    //     /consumables/2  →  VNS Clip Pads         (2-pack, $8)
-    //     /consumables/3  →  Audio Cup Foam         (set,    $24)
-    //
-    //   NOTE: These paths are tied to enum integer positions. Do not reorder
-    //   ConsumableKind cases or add cases before existing ones without also
-    //   updating the shop URL routing. See docs/neuropulse_infra_001.md §5.
+    // URL map  : /consumables/<slug> where slug = ConsumableKind.shopSlug
+    //   Slug paths are stable regardless of enum rawValue ordering:
+    //     /consumables/intranasal-sleeves      →  Intranasal Sleeves    (30-pack, $19)
+    //     /consumables/electrode-hydrogel-tips →  Electrode Hydrogel Tips (8-pack, $12–16)
+    //     /consumables/vns-clip-pads           →  VNS Clip Pads         (2-pack, $8)
+    //     /consumables/audio-cup-foam          →  Audio Cup Foam        (set,    $24)
     //
     // Setup    : Ensure each path returns 200 and the correct product page before
     //            TestFlight beta. A 404 here breaks the one-tap reorder flow that
     //            is a primary consumable MRR driver (CLAUDE.md §2.3).
     var orderURL: URL? {
-        URL(string: "https://neuropulse.com/consumables/\(state.kind.rawValue)")
+        URL(string: "https://neuropulse.com/consumables/\(state.kind.shopSlug)")
     }
 }

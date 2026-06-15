@@ -60,26 +60,29 @@ enum SetupStep: Int, CaseIterable, Identifiable {
         case .welcome:
             return "This short setup confirms your NeuroPulse is ready for its first session. It takes about 3 minutes."
         case .bleConfirmation:
-            // swiftlint:disable:next line_length
-            return "Power on the hub and connect via Bluetooth or USB-C. The green power LED should be breathing steadily. Tap Confirm once connected."
+            return "Power on the hub and connect via Bluetooth or USB-C."
+                + " The green power LED should be breathing steadily. Tap Confirm once connected."
         case .boaDial:
-            // swiftlint:disable:next line_length
-            return "Turn the Boa dial clockwise until the headset sits firmly on your head. The bridge should rest comfortably above your ears. All five electrode pods should touch your scalp."
+            return "Turn the Boa dial clockwise until the headset sits firmly on your head."
+                + " The bridge should rest comfortably above your ears."
+                + " All five electrode pods should touch your scalp."
         case .electrodePods:
-            // swiftlint:disable:next line_length
-            return "Press each electrode pod lightly against your scalp. Each pod travels ±12mm independently, so you don't need to dial tighter to reach every contact point. Remove any hydration caps from the electrode tips now."
+            return "Press each electrode pod lightly against your scalp."
+                + " Each pod travels ±12mm independently, so you don't need to dial tighter"
+                + " to reach every contact point. Remove any hydration caps from the electrode tips now."
         case .zoneModules:
-            // swiftlint:disable:next line_length
-            return "Insert your zone modules into the colour-coded slots. Each module will announce its position via bone conduction when seated correctly. Check that all five slots are confirmed below."
+            return "Insert your zone modules into the colour-coded slots."
+                + " Each module will announce its position via bone conduction when seated correctly."
+                + " Check that all five slots are confirmed below."
         case .impedanceCheck:
-            // swiftlint:disable:next line_length
-            return "Stay still while the app checks signal quality. Good contact = green. Moistening your hair slightly under the electrodes can help if you see orange."
+            return "Stay still while the app checks signal quality. Good contact = green."
+                + " Moistening your hair slightly under the electrodes can help if you see orange."
         case .ads1299Calibration:
-            // swiftlint:disable:next line_length
-            return "The EEG amplifier is calibrating its internal reference. This takes about 2 seconds and eliminates drift across all 8 channels. Stay still."
+            return "The EEG amplifier is calibrating its internal reference."
+                + " This takes about 2 seconds and eliminates drift across all 8 channels. Stay still."
         case .hydrationCaps:
-            // swiftlint:disable:next line_length
-            return "Confirm you have removed the moisture-barrier hydration caps from all electrode tips. Store the caps in the provided case for future storage sessions."
+            return "Confirm you have removed the moisture-barrier hydration caps from all electrode tips."
+                + " Store the caps in the provided case for future storage sessions."
         case .safetyAcknowledgement:
             return "Review the following safety information before your first session."
         case .protocolSelection:

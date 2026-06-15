@@ -7,22 +7,28 @@ import PostHog
 /// Consumed only by `AnalyticsGate`. Nothing else in the app imports PostHog
 /// directly — this is the single integration point (ISC-157).
 ///
-/// INFRASTRUCTURE — eu.i.posthog.com (PostHog EU cluster)
+/// INFRASTRUCTURE — analytics.neuropulse.internal (self-hosted testing instance)
 ///
-/// Domain   : PostHog-owned. No domain registration required by NeuroPulse.
+/// Domain   : NeuroPulse-owned. Requires running a self-hosted PostHog instance.
 /// Purpose  : Analytics event ingestion — engagement funnels only. No health data.
 ///
+/// Production hosting guidance:
+///   - EU users: use a PostHog EU cluster (https://eu.i.posthog.com) to satisfy
+///     GDPR Art. 44 data transfer requirements.
+///   - Maximum privacy / self-hosted: run your own PostHog instance and point host
+///     to your domain. This file's host is the self-hosted testing URL; change it
+///     to your production endpoint before shipping.
+///
 /// Setup:
-///   (1) Create a PostHog EU account at https://eu.posthog.com (not us.posthog.com —
-///       EU residency is required to satisfy GDPR Art. 44 for EU/EEA users).
-///   (2) Create a new project and copy the project API token (format: "phc_<chars>").
+///   (1) Configure the PostHog instance (self-hosted or cloud) for your region.
+///   (2) Create a project and copy the project API token (format: "phc_<chars>").
 ///   (3) Set POSTHOG_PROJECT_TOKEN=phc_<your_token> in one of:
 ///         • Xcode local .xcconfig (developer builds) — add to .gitignore, never commit.
 ///         • GitHub Actions secret POSTHOG_PROJECT_TOKEN passed to xcodebuild via
 ///           -xcconfig or an environment variable override.
 ///       Info.plist already reads: PostHogProjectToken = $(POSTHOG_PROJECT_TOKEN).
 ///       No source changes are needed — the token is injected at build time only.
-///   (4) In PostHog project settings confirm: EU region, no session replay, no heatmaps.
+///   (4) In PostHog project settings confirm: no session replay, no heatmaps.
 ///       All autocapture is disabled in code below; double-check the project toggle matches.
 ///   (5) OI-ANALYTICS-01 (open): implement server-side distinct_id deletion relay endpoint
 ///       for the consent-withdrawal deletion flow in reset() below.
@@ -31,7 +37,7 @@ import PostHog
 /// Info.plist. The no_hardcoded_secret SwiftLint rule enforces this in CI.
 ///
 /// Configuration decisions:
-/// - EU endpoint (https://eu.i.posthog.com) — data stored in EU.
+/// - Self-hosted testing endpoint (https://analytics.neuropulse.internal).
 /// - All auto-capture features disabled — we control every event via AnalyticsGate.track().
 /// - personProfiles = .never — no Person record created server-side; the anonymous
 ///   distinct_id is sent with events for funnel analysis but PostHog does not build
@@ -71,7 +77,7 @@ final class PostHogAnalyticsBackend: AnalyticsBackend {
             return
         }
 
-        let config = PostHogConfig(projectToken: token, host: "https://eu.i.posthog.com")
+        let config = PostHogConfig(projectToken: token, host: "https://analytics.neuropulse.internal")
 
         // Disable all auto-capture. Every event is intentionally sent via
         // AnalyticsGate.track(), which enforces the prohibited-key list (ISC-97).

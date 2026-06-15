@@ -175,8 +175,8 @@ struct SessionView: View {
             Label("EEG Neurofeedback Unavailable", systemImage: "brain")
                 .font(.headline)
                 .foregroundColor(.orange)
-            // swiftlint:disable:next line_length
-            Text("EEG neurofeedback is unavailable — brainwave data consent was not granted. Go to Settings → Privacy to manage EEG data consent.")
+            Text("EEG neurofeedback is unavailable — brainwave data consent was not granted."
+                + " Go to Settings → Privacy to manage EEG data consent.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -556,8 +556,8 @@ struct SessionView: View {
     }
 
     private var regulatoryFooter: some View {
-        // swiftlint:disable:next line_length
-        Text("NeuroPulse is a general wellness device. It is not a medical device and is not intended to diagnose, treat, cure, or prevent any disease or health condition.")
+        Text("NeuroPulse is a general wellness device. It is not a medical device"
+            + " and is not intended to diagnose, treat, cure, or prevent any disease or health condition.")
             .font(.caption2)
             .foregroundColor(.secondary)
             .multilineTextAlignment(.center)

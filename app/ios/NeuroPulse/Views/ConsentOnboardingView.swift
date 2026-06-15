@@ -92,8 +92,9 @@ struct ConsentOnboardingView: View {
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // swiftlint:disable:next line_length
-            Text("NeuroPulse works with academic research institutions to study the technologies in your device. Your participation is always voluntary. If you say yes, we may reach out when a study matches your interests.")
+            Text("NeuroPulse works with academic research institutions to study the"
+                + " technologies in your device. Your participation is always voluntary."
+                + " If you say yes, we may reach out when a study matches your interests.")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -120,8 +121,8 @@ struct ConsentOnboardingView: View {
                     .font(.subheadline)
 
                 if draft.isPOAHolder {
-                    // swiftlint:disable:next line_length
-                    Text("You will be able to upload your executed healthcare POA documentation from the Privacy tab. Our team reviews documents within 3 business days.")
+                    Text("You will be able to upload your executed healthcare POA"
+                        + " documentation from the Privacy tab. Our team reviews documents within 3 business days.")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -150,8 +151,8 @@ struct ConsentOnboardingView: View {
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // swiftlint:disable:next line_length
-            Text("We will only contact you about studies in the areas you choose. Each project is a separate decision — saying yes here does not automatically enrol you in anything.")
+            Text("We will only contact you about studies in the areas you choose. Each project"
+                + " is a separate decision — saying yes here does not automatically enrol you in anything.")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -173,8 +174,9 @@ struct ConsentOnboardingView: View {
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
 
-            // swiftlint:disable:next line_length
-            Text("If you say yes, your anonymised session data will be included in all NeuroPulse-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study.")
+            Text("If you say yes, your anonymised session data will be included in all"
+                + " NeuroPulse-reviewed research studies automatically. You will still"
+                + " receive per-study engagement notifications and can opt out of any individual study.")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -218,8 +220,8 @@ struct ConsentOnboardingView: View {
                 Toggle("Join the research suggestion portal", isOn: $draft.suggestionPortalOptIn)
                     .toggleStyle(.switch)
 
-                // swiftlint:disable:next line_length
-                Text("Submit study ideas, vote on priorities, express interest in participating. Your suggestions are seen by the research community.")
+                Text("Submit study ideas, vote on priorities, express interest in participating."
+                    + " Your suggestions are seen by the research community.")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

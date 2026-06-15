@@ -1,4 +1,3 @@
-// swiftlint:disable line_length
 import Foundation
 
 // MARK: - Predefined Protocols (DEPRECATED)
@@ -22,7 +21,8 @@ enum NPPredefinedProtocols {
         return NPProtocolDefinition(
             id: UUID(uuidString: "00000001-0000-0000-0000-000000000000")!,
             name: "Gamma Clarity",
-            description: "40Hz multi-modal gamma entrainment for focus and cognitive clarity. Combines PBM, EEG-adaptive neurofeedback, binocular flicker, and isochronic audio.",
+            description: "40Hz multi-modal gamma entrainment for focus and cognitive clarity."
+                + " Combines PBM, EEG-adaptive neurofeedback, binocular flicker, and isochronic audio.",
             author: "NeuroPulse",
             version: "1.0",
             tags: ["focus", "gamma", "40Hz", "cognitive"],
@@ -82,7 +82,8 @@ enum NPPredefinedProtocols {
         return NPProtocolDefinition(
             id: UUID(uuidString: "00000002-0000-0000-0000-000000000000")!,
             name: "Alpha Calm",
-            description: "10Hz alpha entrainment for relaxation and stress relief. Combines PBM, alpha EEG neurofeedback, HRV biofeedback, and binaural beats.",
+            description: "10Hz alpha entrainment for relaxation and stress relief."
+                + " Combines PBM, alpha EEG neurofeedback, HRV biofeedback, and binaural beats.",
             author: "NeuroPulse",
             version: "1.0",
             tags: ["calm", "alpha", "relaxation", "stress"],
@@ -262,7 +263,8 @@ enum NPPredefinedProtocols {
         return NPProtocolDefinition(
             id: UUID(uuidString: "00000005-0000-0000-0000-000000000000")!,
             name: "Gamma + Theta Coupled",
-            description: "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, 40Hz visual entrainment, and BES.",
+            description: "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling,"
+                + " binaural + isochronic audio, 40Hz visual entrainment, and BES.",
             author: "NeuroPulse",
             version: "1.0",
             tags: ["focus", "gamma", "theta", "coupled", "advanced"],
@@ -344,7 +346,8 @@ enum NPPredefinedProtocols {
         return NPProtocolDefinition(
             id: UUID(uuidString: "00000006-0000-0000-0000-000000000000")!,
             name: "Focus Prime",
-            description: "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES, and binaural audio. BES runs in 30-on/30-off intervals for habituation prevention.",
+            description: "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES, and binaural audio."
+                + " BES runs in 30-on/30-off intervals for habituation prevention.",
             author: "NeuroPulse",
             version: "1.0",
             tags: ["focus", "beta", "cognitive", "productivity"],
@@ -413,7 +416,8 @@ enum NPPredefinedProtocols {
         return NPProtocolDefinition(
             id: UUID(uuidString: "00000007-0000-0000-0000-000000000000")!,
             name: "Vascular Baseline",
-            description: "CW (continuous wave) PBM for cerebrovascular circulation support. Low-frequency VNS and alpha EEG. Use as a maintenance or recovery session.",
+            description: "CW (continuous wave) PBM for cerebrovascular circulation support."
+                + " Low-frequency VNS and alpha EEG. Use as a maintenance or recovery session.",
             author: "NeuroPulse",
             version: "1.0",
             tags: ["circulation", "CW", "baseline", "maintenance"],
@@ -460,7 +464,9 @@ enum NPPredefinedProtocols {
         return NPProtocolDefinition(
             id: UUID(uuidString: "00000008-0000-0000-0000-000000000000")!,
             name: "HRV Coherence Training",
-            description: "Standalone HRV coherence training with resonance breathing pacer. Bone conduction delivers the breathing cue. Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction).",
+            description: "Standalone HRV coherence training with resonance breathing pacer."
+                + " Bone conduction delivers the breathing cue."
+                + " Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction).",
             author: "NeuroPulse",
             version: "1.0",
             tags: ["HRV", "coherence", "stress", "relaxation", "breathing"],
@@ -500,7 +506,8 @@ enum NPPredefinedProtocols {
         return NPProtocolDefinition(
             id: UUID(uuidString: "00000009-0000-0000-0000-000000000000")!,
             name: "HRV + taVNS Synchronised",
-            description: "Stimulation pulses timed to inspiration phase for optimised noradrenergic modulation. Alpha EEG neurofeedback adds cortical awareness layer.",
+            description: "Stimulation pulses timed to inspiration phase for optimised noradrenergic modulation."
+                + " Alpha EEG neurofeedback adds cortical awareness layer.",
             author: "NeuroPulse",
             version: "1.0",
             tags: ["HRV", "VNS", "advanced", "synchronised"],
@@ -536,7 +543,8 @@ enum NPPredefinedProtocols {
         return NPProtocolDefinition(
             id: UUID(uuidString: "0000000A-0000-0000-0000-000000000000")!,
             name: "EMDR Session",
-            description: "Eye Movement Desensitisation and Reprocessing (EMDR) left/right alternation at 1Hz. Pink noise masking, alpha EEG monitoring. 45-minute session.",
+            description: "Eye Movement Desensitisation and Reprocessing (EMDR) left/right"
+                + " alternation at 1Hz. Pink noise masking, alpha EEG monitoring. 45-minute session.",
             author: "NeuroPulse",
             version: "1.0",
             tags: ["EMDR", "trauma", "processing", "visual"],
@@ -585,7 +593,8 @@ enum NPPredefinedProtocols {
         return NPProtocolDefinition(
             id: UUID(uuidString: "0000000B-0000-0000-0000-000000000000")!,
             name: "Full T1 Immersive",
-            description: "All 8 T1 modalities running simultaneously with balanced settings. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the session.",
+            description: "All 8 T1 modalities running simultaneously with balanced settings."
+                + " For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the session.",
             author: "NeuroPulse",
             version: "1.0",
             tags: ["comprehensive", "all-modalities", "advanced", "T1"],
@@ -710,7 +719,8 @@ enum NPPredefinedProtocols {
     static let sleepWindDown: NPCompositeProtocol = NPCompositeProtocol(
         id: UUID(uuidString: "00000101-0000-0000-0000-000000000000")!,
         name: "Sleep Wind-Down",
-        description: "Sequential transition from alpha calm to deep sleep preparation. No overlap — alpha calm finishes before sleep deep begins.",
+        description: "Sequential transition from alpha calm to deep sleep preparation."
+            + " No overlap — alpha calm finishes before sleep deep begins.",
         author: "NeuroPulse",
         version: "1.0",
         tags: ["sleep", "wind-down", "transition", "evening"],
@@ -760,4 +770,3 @@ enum NPPredefinedProtocols {
         allSingle.map { .single($0) } + allComposite.map { .composite($0) }
     }
 }
-// swiftlint:enable line_length

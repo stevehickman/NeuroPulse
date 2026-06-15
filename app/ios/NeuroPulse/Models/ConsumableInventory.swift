@@ -57,6 +57,17 @@ enum ConsumableKind: Int, CaseIterable, Identifiable {
         case .audioCupFoam:      return .comfortLongevity
         }
     }
+
+    // Stable URL slug for the shop product page. Using a slug instead of rawValue
+    // integer ensures URLs survive future enum reordering or new kind insertion.
+    var shopSlug: String {
+        switch self {
+        case .intranasalSleeves: return "intranasal-sleeves"
+        case .electrodeHydrogel: return "electrode-hydrogel-tips"
+        case .vnsPads:           return "vns-clip-pads"
+        case .audioCupFoam:      return "audio-cup-foam"
+        }
+    }
 }
 
 enum ReminderPriority {
