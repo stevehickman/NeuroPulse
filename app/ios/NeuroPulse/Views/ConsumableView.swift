@@ -133,7 +133,13 @@ struct ConsumableAlertRow: View {
                 .foregroundColor(isBlocking ? .red : .primary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text(String(format: String(localized: "CONSUMABLE_SESSIONS_USED_FORMAT"), reminder.state.sessionCount, reminder.state.kind.sessionLimit))
+            Text(
+                String(
+                    format: String(localized: "CONSUMABLE_SESSIONS_USED_FORMAT"),
+                    reminder.state.sessionCount,
+                    reminder.state.kind.sessionLimit
+                )
+            )
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -141,8 +147,14 @@ struct ConsumableAlertRow: View {
             HStack {
                 if let url = reminder.orderURL {
                     Link(destination: url) {
-                        Label(String(format: String(localized: "CONSUMABLE_ORDER_PACK_FORMAT"), reminder.state.kind.packDisplayPrice), systemImage: "cart.fill")
-                            .font(.caption)
+                        Label(
+                            String(
+                                format: String(localized: "CONSUMABLE_ORDER_PACK_FORMAT"),
+                                reminder.state.kind.packDisplayPrice
+                            ),
+                            systemImage: "cart.fill"
+                        )
+                        .font(.caption)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
