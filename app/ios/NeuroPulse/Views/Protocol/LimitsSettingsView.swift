@@ -883,6 +883,13 @@ struct OptionalDoubleField: View {
                     .frame(width: 80)
                     .focused($focused)
                     .onChange(of: text) { _, v in value = Double(v) }
+                    .onChange(of: focused) { _, isFocused in
+                        guard !isFocused else { return }
+                        if let v = value {
+                            value = max(range.lowerBound, min(v, range.upperBound))
+                        }
+                        syncText()
+                    }
                     .onAppear { syncText() }
                 Text(unit)
                     .foregroundColor(.secondary)
@@ -910,6 +917,7 @@ struct OptionalIntField: View {
     var range: ClosedRange<Int> = 0...1000
 
     @State private var text: String = ""
+    @FocusState private var focused: Bool
 
     var body: some View {
         HStack {
@@ -924,7 +932,15 @@ struct OptionalIntField: View {
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 70)
+                    .focused($focused)
                     .onChange(of: text) { _, v in value = Int(v) }
+                    .onChange(of: focused) { _, isFocused in
+                        guard !isFocused else { return }
+                        if let v = value {
+                            value = max(range.lowerBound, min(v, range.upperBound))
+                        }
+                        syncText()
+                    }
                     .onAppear { syncText() }
                 if !unit.isEmpty {
                     Text(unit)

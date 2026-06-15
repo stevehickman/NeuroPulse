@@ -5,7 +5,7 @@ project: NeuroPulse
 effort: E4
 effort_source: gate-floor
 phase: execute
-progress: 66/164
+progress: 73/164
 mode: interactive
 started: 2026-06-04
 updated: 2026-06-14
@@ -72,13 +72,8 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 - [x] ISC-11: `NeuroPulseGATTManager` begins scanning automatically when `CBCentralManager.state == .poweredOn`, without requiring a manual user action.
 - [x] ISC-12: On hub disconnect, `NeuroPulseGATTManager` automatically re-scans after a 2-second delay — verified by simulating a disconnect in the Xcode BLE simulator.
 - [x] ISC-13: All fourteen GATT characteristics (9 NOTIFY + 5 WRITE, per `NPUUID.all`) from `GATTCharacteristics.swift` are resolved and `allCharacteristicsResolved` becomes `true`; `warrantyToken` is optional and does not block resolution.
-<<<<<<< HEAD
-- [ ] ISC-14: Protocol blobs larger than 512 bytes are automatically chunked by `SessionProtocolUploader` before passing to `NeuroPulseGATTManager.uploadProtocol(_:)`.
-- [x] ISC-15: `GATTParser.parseSessionState`, `parseSessionStatus`, `parseHRVCoherence`, `parsePacerPhase`, `parseImpedanceResult`, `parseConsumableStatus`, `parseOTAStatus`, and `parseZoneModuleStatus` each exist as static functions and return non-nil values for canonical test byte sequences.
-=======
 - [x] ISC-14: Protocol blobs larger than 512 bytes are automatically chunked by `SessionProtocolUploader` before passing to `NeuroPulseGATTManager.uploadProtocol(_:)`.
-- [ ] ISC-15: `GATTParser.parseSessionState`, `parseSessionStatus`, `parseHRVCoherence`, `parsePacerPhase`, `parseImpedanceResult`, `parseConsumableStatus`, `parseOTAStatus`, and `parseZoneModuleStatus` each exist as static functions and return non-nil values for canonical test byte sequences.
->>>>>>> e20a2ae (feat: add testSignAndUpload test; verify ISC-14 and ISC-35 (protocol chunk transfer))
+- [x] ISC-15: `GATTParser.parseSessionState`, `parseSessionStatus`, `parseHRVCoherence`, `parsePacerPhase`, `parseImpedanceResult`, `parseConsumableStatus`, `parseOTAStatus`, and `parseZoneModuleStatus` each exist as static functions and return non-nil values for canonical test byte sequences.
 - [x] ISC-16: `NeuroPulseGATTManager.connectionState` transitions correctly through `.disconnected → .scanning → .connecting → .connected` and is `@Published` — `SessionView` reacts without any explicit refresh.
 - [x] ISC-17: `Anti:` `NeuroPulseGATTManager` does not hold a strong reference to any ViewController or View — connection lifecycle is fully decoupled from the view hierarchy.
 - [ ] ISC-18: The BLE central manager is initialised on `DispatchQueue.main` (existing) — no background-thread CBCentralManager initialisation path exists.
@@ -109,13 +104,13 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 - [ ] ISC-37: `NPProtocolValidator` rejects any protocol whose tDCS current exceeds 2 mA or whose BES current exceeds 1 mA.
 - [x] ISC-38: `NPProtocolValidator` rejects any protocol whose tDCS charge density exceeds 40 µC/cm² — confirmed by a unit test that constructs a borderline-valid and a borderline-invalid protocol.
 - [x] ISC-39: `NPProtocolLibrary` loads and exposes all 19 predefined NPPS protocol templates from `NPPredefinedProtocols` without runtime errors.
-- [ ] ISC-40: `ProtocolMenuView` lists all protocols in `NPProtocolLibrary` with name, modality badges, and duration; protocols with missing hardware (e.g. a 1064nm zone not detected) are visually disabled with an explanatory note.
-- [ ] ISC-41: `ProtocolEditorView` allows editing frequency, duration, and current for each modality within the limits defined in `NPLimitsStore`, and blocks saving if any value violates a limit.
-- [ ] ISC-42: `ProtocolComposerView` allows building a multi-modality protocol by selecting modalities from a list and setting parameters individually.
-- [ ] ISC-43: `ProtocolScriptEditorView` accepts raw NPPS text, parses it via `NPProtocolScripting`, and shows per-line validation errors inline.
-- [ ] ISC-44: `LimitsSettingsView` displays all per-modality limits from `NPLimitsStore` with their defaults and allows no value to exceed the hardware maximum declared in `NPHardwareLimits`.
-- [ ] ISC-45: A successful protocol upload shows a confirmation toast ("Protocol sent to hub") that auto-dismisses after 2 seconds.
-- [ ] ISC-46: A failed protocol upload shows a persistent error banner with the GATT error description and a retry button.
+- [x] ISC-40: `ProtocolMenuView` lists all protocols in `NPProtocolLibrary` with name, modality badges, and duration; protocols with missing hardware (e.g. a 1064nm zone not detected) are visually disabled with an explanatory note.
+- [x] ISC-41: `ProtocolEditorView` allows editing frequency, duration, and current for each modality within the limits defined in `NPLimitsStore`, and blocks saving if any value violates a limit.
+- [x] ISC-42: `ProtocolComposerView` allows building a multi-modality protocol by selecting modalities from a list and setting parameters individually.
+- [x] ISC-43: `ProtocolScriptEditorView` accepts raw NPPS text, parses it via `NPProtocolScripting`, and shows per-line validation errors inline.
+- [x] ISC-44: `LimitsSettingsView` displays all per-modality limits from `NPLimitsStore` with their defaults and allows no value to exceed the hardware maximum declared in `NPHardwareLimits`.
+- [x] ISC-45: A successful protocol upload shows a confirmation toast ("Protocol sent to hub") that auto-dismisses after 2 seconds.
+- [x] ISC-46: A failed protocol upload shows a persistent error banner with the GATT error description and a retry button.
 - [x] ISC-47: `Anti:` `ProtocolEditorView` does not allow saving a protocol with zero duration or zero-current stimulation blocks — these are caught by `NPProtocolValidator` before upload.
 
 ### Session history and EDF download — Mode 4

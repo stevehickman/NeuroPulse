@@ -11,6 +11,7 @@ struct ProtocolScriptEditorView: View {
     @FocusState private var focused: Bool
     @State private var parseDebounceTask: Task<Void, Never>? = nil
     @State private var lineCount: Int = 1
+    @State private var errorLine: Int? = nil
 
     var body: some View {
         VStack(spacing: 0) {
@@ -51,10 +52,17 @@ struct ProtocolScriptEditorView: View {
                     // Line numbers
                     VStack(alignment: .trailing, spacing: 0) {
                         ForEach(1...max(1, lineCount), id: \.self) { n in
-                            Text("\(n)")
-                                .font(.system(.caption2, design: .monospaced))
-                                .foregroundColor(.secondary)
-                                .frame(height: 20, alignment: .topTrailing)
+                            HStack(spacing: 2) {
+                                if n == errorLine {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .font(.system(size: 9))
+                                        .foregroundColor(.red)
+                                }
+                                Text("\(n)")
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .foregroundColor(n == errorLine ? .red : .secondary)
+                            }
+                            .frame(height: 20, alignment: .topTrailing)
                         }
                     }
                     .padding(.horizontal, 6)
@@ -104,6 +112,7 @@ struct ProtocolScriptEditorView: View {
             if localText != newValue {
                 localText = newValue
                 lineCount = newValue.components(separatedBy: .newlines).count
+                errorLine = nil
             }
         }
     }
@@ -122,6 +131,7 @@ struct ProtocolScriptEditorView: View {
     private func validateScript(_ source: String) {
         guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             error = nil
+            errorLine = nil
             return
         }
         do {
@@ -130,10 +140,13 @@ struct ProtocolScriptEditorView: View {
             var parser = NPPSParser(tokens)
             _ = try parser.parse()
             error = nil
+            errorLine = nil
         } catch let e as NPPSError {
             error = e.errorDescription
+            errorLine = e.line
         } catch {
             self.error = error.localizedDescription
+            errorLine = nil
         }
     }
 }
