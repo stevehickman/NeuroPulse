@@ -1,8 +1,17 @@
-# NeuroPulse PostHog Analytics — Configuration Reference
+# NeuroPulse PostHog Analytics — Self-Hosted Configuration Reference
 **Document:** NP-ANALYTICS-001 Rev A  
 **Date:** 2026-06-13  
 **Status:** Active  
 **Location:** `infra/posthog/`
+
+---
+
+> **Deployment option context:** NeuroPulse supports two PostHog deployment paths.
+> The iOS app (`PostHogAnalyticsBackend.swift`) currently points to the **PostHog EU cloud**
+> (`eu.i.posthog.com`) as the fastest path to TestFlight beta. This document covers the
+> **self-hosted** alternative — preferred for T1 launch and required for T2 clinical cloud
+> (eliminates the third-party analytics DPA). For EU cloud setup, see
+> `docs/neuropulse_infra_001.md §6`. For the decision matrix, see `docs/neuropulse_infra_001.md §6.1`.
 
 ---
 

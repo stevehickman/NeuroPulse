@@ -7,14 +7,41 @@ import PostHog
 /// Consumed only by `AnalyticsGate`. Nothing else in the app imports PostHog
 /// directly — this is the single integration point (ISC-157).
 ///
+/// INFRASTRUCTURE — analytics.neuropulse.internal (self-hosted testing instance)
+///
+/// Domain   : NeuroPulse-owned. Requires running a self-hosted PostHog instance.
+/// Purpose  : Analytics event ingestion — engagement funnels only. No health data.
+///
+/// Production hosting guidance:
+///   - EU users: use a PostHog EU cluster (https://eu.i.posthog.com) to satisfy
+///     GDPR Art. 44 data transfer requirements.
+///   - Maximum privacy / self-hosted: run your own PostHog instance and point host
+///     to your domain. This file's host is the self-hosted testing URL; change it
+///     to your production endpoint before shipping.
+///
+/// Setup:
+///   (1) Configure the PostHog instance (self-hosted or cloud) for your region.
+///   (2) Create a project and copy the project API token (format: "phc_<chars>").
+///   (3) Set POSTHOG_PROJECT_TOKEN=phc_<your_token> in one of:
+///         • Xcode local .xcconfig (developer builds) — add to .gitignore, never commit.
+///         • GitHub Actions secret POSTHOG_PROJECT_TOKEN passed to xcodebuild via
+///           -xcconfig or an environment variable override.
+///       Info.plist already reads: PostHogProjectToken = $(POSTHOG_PROJECT_TOKEN).
+///       No source changes are needed — the token is injected at build time only.
+///   (4) In PostHog project settings confirm: no session replay, no heatmaps.
+///       All autocapture is disabled in code below; double-check the project toggle matches.
+///   (5) OI-ANALYTICS-01 (open): implement server-side distinct_id deletion relay endpoint
+///       for the consent-withdrawal deletion flow in reset() below.
+///
+/// ISC-9: the phc_... token must NEVER appear in source. It is read at runtime from
+/// Info.plist. The no_hardcoded_secret SwiftLint rule enforces this in CI.
+///
 /// Configuration decisions:
-/// - EU endpoint (https://eu.i.posthog.com) — data stored in EU.
+/// - Self-hosted testing endpoint (https://analytics.neuropulse.internal).
 /// - All auto-capture features disabled — we control every event via AnalyticsGate.track().
 /// - personProfiles = .never — no Person record created server-side; the anonymous
 ///   distinct_id is sent with events for funnel analysis but PostHog does not build
 ///   a profile. Matches "not linked to identity" in App Store nutrition label.
-/// - API key read from Info.plist `PostHogProjectToken` (sourced from the
-///   `POSTHOG_PROJECT_TOKEN` build variable — never hardcoded in source, ISC-9).
 @MainActor
 final class PostHogAnalyticsBackend: AnalyticsBackend {
 
@@ -42,11 +69,15 @@ final class PostHogAnalyticsBackend: AnalyticsBackend {
               // not set the variable in their local .xcconfig or environment.
               !token.hasPrefix("$(")
         else {
-            Self.log.error("PostHogAnalyticsBackend: PostHogProjectToken missing or unexpanded in Info.plist — analytics disabled. Set POSTHOG_PROJECT_TOKEN in your .xcconfig or CI secrets.")
+            Self.log.error("""
+                PostHogAnalyticsBackend: PostHogProjectToken missing or unexpanded \
+                in Info.plist — analytics disabled. \
+                Set POSTHOG_PROJECT_TOKEN in your .xcconfig or CI secrets.
+                """)
             return
         }
 
-        let config = PostHogConfig(projectToken: token, host: "https://eu.i.posthog.com")
+        let config = PostHogConfig(projectToken: token, host: "https://analytics.neuropulse.internal")
 
         // Disable all auto-capture. Every event is intentionally sent via
         // AnalyticsGate.track(), which enforces the prohibited-key list (ISC-97).

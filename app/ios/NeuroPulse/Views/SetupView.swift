@@ -325,7 +325,8 @@ private struct BLEConnectionStatusCard: View {
             Label("Hub Connection", systemImage: "antenna.radiowaves.left.and.right")
                 .font(.headline)
                 .foregroundColor(.accentColor)
-            Text("Make sure the NeuroPulse hub is powered on. The green LED on the left temple should be breathing steadily. Connect via Bluetooth or USB-C.")
+            Text("Make sure the NeuroPulse hub is powered on. The green LED on the left"
+                + " temple should be breathing steadily. Connect via Bluetooth or USB-C.")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)

@@ -39,7 +39,8 @@ struct OTAView: View {
                     }
                 }
             } message: {
-                Text("The Safety MCU controls all stimulation enable lines. This update will pause all stimulation for several minutes. Do not disconnect during the update.")
+                Text("The Safety MCU controls all stimulation enable lines. This update will"
+                    + " pause all stimulation for several minutes. Do not disconnect during the update.")
             }
         }
     }
@@ -184,7 +185,10 @@ struct OTAView: View {
 
     private var rollbackNotice: some View {
         Section("Safety") {
-            Text("If the hub fails to boot after an update, it automatically rolls back to the previous firmware version after 3 failed boot attempts. You can also force USB-C DFU recovery by holding the hub reset button during USB-C connection.")
+            Text("If the hub fails to boot after an update, it automatically rolls back"
+                + " to the previous firmware version after 3 failed boot attempts."
+                + " You can also force USB-C DFU recovery by holding the hub reset"
+                + " button during USB-C connection.")
                 .font(.caption).foregroundColor(.secondary)
         }
     }

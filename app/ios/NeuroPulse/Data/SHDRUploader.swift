@@ -25,7 +25,27 @@ enum SHDRUploadError: LocalizedError {
     }
 }
 
-// Endpoint placeholder — replace with production fleet analytics URL at launch.
+// INFRASTRUCTURE — fleet.neuropulse.internal
+//
+// Domain   : Internal hostname resolved via NeuroPulse private DNS.
+//            No public registrar registration needed; provision in your private DNS zone.
+//
+// Purpose  : Accepts SHDR (System Health Data Record) binary uploads from the app.
+//            SHDR is device-condition telemetry only — never user biology (§5.1 CLAUDE.md).
+//
+// Endpoint : POST /v1/shdr
+//   Headers  : Content-Type: application/octet-stream
+//              X-NP-Device-Token: <64-char hex, 256-bit opaque warranty token>
+//   Body     : raw SHDR binary blob (read from shdr_staging.bin via hub CDC interface)
+//   Response : 200 OK on success; 400 on bad token format; 5xx on server error
+//
+// TLS/pinning : This endpoint is SPKI-pinned (SHDRFleetPinningDelegate).
+//   Pre-launch actions:
+//   (1) Provision TLS certificate for fleet.neuropulse.internal.
+//   (2) Derive SPKI SHA-256: openssl x509 -in cert.pem -pubkey -noout |
+//         openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | base64
+//   (3) Replace the placeholder values in SHDRFleetPinningDelegate.pinnedHashes
+//       with real hashes (primary key + at least one backup for zero-downtime rotation).
 private let fleetEndpoint = URL(string: "https://fleet.neuropulse.internal/v1/shdr")!
 
 // MARK: - SPKI certificate pinning (NP-PRIV-ANALYSIS-002 LOW-11)

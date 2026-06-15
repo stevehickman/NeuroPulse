@@ -278,7 +278,8 @@ struct NPProtocolValidator {
                 actual: "\(p.dutyCyclePercent)%",
                 limit: "\(NPHardwareLimits.pbmDutyCycleMaxPercent)%",
                 source: .hardware,
-                message: "PBM duty cycle \(p.dutyCyclePercent)% exceeds firmware-enforced maximum of \(NPHardwareLimits.pbmDutyCycleMaxPercent)%."
+                message: "PBM duty cycle \(p.dutyCyclePercent)% exceeds firmware-enforced"
+                    + " maximum of \(NPHardwareLimits.pbmDutyCycleMaxPercent)%."
             )
         }
 
@@ -362,7 +363,8 @@ struct NPProtocolValidator {
                 actual: "\(p.dutyCyclePercent)%",
                 limit: "\(NPHardwareLimits.pbmDutyCycleMaxPercent)%",
                 source: .hardware,
-                message: "Intranasal PBM duty cycle \(p.dutyCyclePercent)% exceeds firmware-enforced maximum of \(NPHardwareLimits.pbmDutyCycleMaxPercent)%."
+                message: "Intranasal PBM duty cycle \(p.dutyCyclePercent)% exceeds firmware-enforced"
+                    + " maximum of \(NPHardwareLimits.pbmDutyCycleMaxPercent)%."
             )
         }
 
@@ -442,7 +444,8 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.besTacsMaxMilliamps) mA",
                 source: .hardware,
-                message: "BES/tACS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced maximum of \(NPHardwareLimits.besTacsMaxMilliamps) mA."
+                message: "BES/tACS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced"
+                    + " maximum of \(NPHardwareLimits.besTacsMaxMilliamps) mA."
             )
         }
 
@@ -462,7 +465,8 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≤\(formatHz(NPHardwareLimits.besTacsMaxHz))",
                 source: .hardware,
-                message: "BES/tACS frequency \(formatHz(p.frequencyHz)) exceeds firmware-enforced maximum of \(formatHz(NPHardwareLimits.besTacsMaxHz))."
+                message: "BES/tACS frequency \(formatHz(p.frequencyHz)) exceeds firmware-enforced"
+                    + " maximum of \(formatHz(NPHardwareLimits.besTacsMaxHz))."
             )
         }
 
@@ -507,7 +511,8 @@ struct NPProtocolValidator {
                     actual: formatSeconds(interval.intervalOnSeconds),
                     limit: formatSeconds(maxDur),
                     source: srcs?.maxSessionDurationSeconds ?? .global_,
-                    message: "BES/tACS interval duration \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
+                    message: "BES/tACS interval duration"
+                        + " \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
                 )
             }
         }
@@ -538,7 +543,8 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.tdcsMaxMilliamps) mA",
                 source: .hardware,
-                message: "tDCS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced maximum of \(NPHardwareLimits.tdcsMaxMilliamps) mA."
+                message: "tDCS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced"
+                    + " maximum of \(NPHardwareLimits.tdcsMaxMilliamps) mA."
             )
         }
 
@@ -549,7 +555,8 @@ struct NPProtocolValidator {
                 actual: "\(p.electrodePairs.count)",
                 limit: "\(NPHardwareLimits.tdcsMaxElectrodePairs)",
                 source: .hardware,
-                message: "tDCS has \(p.electrodePairs.count) electrode pairs, exceeding the maximum of \(NPHardwareLimits.tdcsMaxElectrodePairs)."
+                message: "tDCS has \(p.electrodePairs.count) electrode pairs,"
+                    + " exceeding the maximum of \(NPHardwareLimits.tdcsMaxElectrodePairs)."
             )
         }
 
@@ -592,7 +599,8 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.vnsMaxMilliamps) mA",
                 source: .hardware,
-                message: "VNS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced maximum of \(NPHardwareLimits.vnsMaxMilliamps) mA."
+                message: "VNS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced"
+                    + " maximum of \(NPHardwareLimits.vnsMaxMilliamps) mA."
             )
         }
 
@@ -612,7 +620,8 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≤\(formatHz(NPHardwareLimits.vnsMaxHz))",
                 source: .hardware,
-                message: "VNS frequency \(formatHz(p.frequencyHz)) exceeds firmware-enforced maximum of \(formatHz(NPHardwareLimits.vnsMaxHz))."
+                message: "VNS frequency \(formatHz(p.frequencyHz)) exceeds firmware-enforced"
+                    + " maximum of \(formatHz(NPHardwareLimits.vnsMaxHz))."
             )
         }
 
@@ -722,7 +731,8 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(NPHardwareLimits.visualMaxHz))",
                 source: .hardware,
-                message: "Visual stimulation frequency \(formatHz(p.frequencyHz)) exceeds firmware-enforced maximum of \(formatHz(NPHardwareLimits.visualMaxHz))."
+                message: "Visual stimulation frequency \(formatHz(p.frequencyHz)) exceeds firmware-enforced"
+                    + " maximum of \(formatHz(NPHardwareLimits.visualMaxHz))."
             )
         }
 
@@ -730,7 +740,11 @@ struct NPProtocolValidator {
         // Default: warning. If blockHighRiskRange is true in limits: error.
         if p.frequencyHz >= NPHardwareLimits.visualHighRiskMinHz && p.frequencyHz <= NPHardwareLimits.visualHighRiskMaxHz {
             let blockRange = lim?.blockHighRiskRange ?? false
-            let msg = "Visual stimulation at \(formatHz(p.frequencyHz)) is in the photoparoxysmal risk zone (\(Int(NPHardwareLimits.visualHighRiskMinHz))–\(Int(NPHardwareLimits.visualHighRiskMaxHz)) Hz). Clinician unlock required for this range per device safety policy."
+            let msg = "Visual stimulation at \(formatHz(p.frequencyHz)) is in the"
+                + " photoparoxysmal risk zone"
+                + " (\(Int(NPHardwareLimits.visualHighRiskMinHz))"
+                + "–\(Int(NPHardwareLimits.visualHighRiskMaxHz)) Hz)."
+                + " Clinician unlock required for this range per device safety policy."
             if blockRange {
                 result.addError(
                     modality: m, param: "frequencyHz", displayName: "Frequency",
@@ -873,7 +887,8 @@ struct NPProtocolValidator {
                 actual: "\(Int(p.intensityMWcm2)) mW/cm²",
                 limit: "\(Int(NPHardwareLimits.deepPBMMaxMWcm2)) mW/cm²",
                 source: .hardware,
-                message: "Deep PBM 1170nm intensity \(Int(p.intensityMWcm2)) mW/cm² exceeds maximum of \(Int(NPHardwareLimits.deepPBMMaxMWcm2)) mW/cm²."
+                message: "Deep PBM 1170nm intensity \(Int(p.intensityMWcm2)) mW/cm²"
+                    + " exceeds maximum of \(Int(NPHardwareLimits.deepPBMMaxMWcm2)) mW/cm²."
             )
         }
 
@@ -884,7 +899,8 @@ struct NPProtocolValidator {
                 actual: "\(p.dutyCyclePercent)%",
                 limit: "\(NPHardwareLimits.pbmDutyCycleMaxPercent)%",
                 source: .hardware,
-                message: "Deep PBM duty cycle \(p.dutyCyclePercent)% exceeds firmware-enforced maximum of \(NPHardwareLimits.pbmDutyCycleMaxPercent)%."
+                message: "Deep PBM duty cycle \(p.dutyCyclePercent)% exceeds firmware-enforced"
+                    + " maximum of \(NPHardwareLimits.pbmDutyCycleMaxPercent)%."
             )
         }
 
@@ -927,7 +943,8 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.clinicalTacsMaxMilliamps) mA",
                 source: .hardware,
-                message: "Clinical tACS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced maximum of \(NPHardwareLimits.clinicalTacsMaxMilliamps) mA."
+                message: "Clinical tACS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced"
+                    + " maximum of \(NPHardwareLimits.clinicalTacsMaxMilliamps) mA."
             )
         }
 
@@ -949,7 +966,8 @@ struct NPProtocolValidator {
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: "Clinical tACS session duration \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
+                message: "Clinical tACS session duration"
+                        + " \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
             )
         }
     }
@@ -970,7 +988,9 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.hdTdcsMaxMilliampsPerElectrode) mA",
                 source: .hardware,
-                message: "HD-tDCS intensity \(p.intensityMilliamps) mA/electrode exceeds Bikson lab safety limit of \(NPHardwareLimits.hdTdcsMaxMilliampsPerElectrode) mA/electrode for 3.5mm Ag/AgCl electrodes."
+                message: "HD-tDCS intensity \(p.intensityMilliamps) mA/electrode exceeds"
+                    + " Bikson lab safety limit of \(NPHardwareLimits.hdTdcsMaxMilliampsPerElectrode)"
+                    + " mA/electrode for 3.5mm Ag/AgCl electrodes."
             )
         }
 
@@ -1027,7 +1047,9 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.cervicalVnsMaxMilliamps) mA",
                 source: .hardware,
-                message: "Cervical VNS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced maximum of \(NPHardwareLimits.cervicalVnsMaxMilliamps) mA. Cardiac interlock is always enforced by safety MCU regardless."
+                message: "Cervical VNS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced"
+                    + " maximum of \(NPHardwareLimits.cervicalVnsMaxMilliamps) mA."
+                    + " Cardiac interlock is always enforced by safety MCU regardless."
             )
         }
 
@@ -1038,7 +1060,8 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(NPHardwareLimits.vnsMinHz))–\(formatHz(NPHardwareLimits.vnsMaxHz))",
                 source: .hardware,
-                message: "Cervical VNS frequency \(formatHz(p.frequencyHz)) is outside the valid range of \(formatHz(NPHardwareLimits.vnsMinHz))–\(formatHz(NPHardwareLimits.vnsMaxHz))."
+                message: "Cervical VNS frequency \(formatHz(p.frequencyHz)) is outside the valid"
+                    + " range of \(formatHz(NPHardwareLimits.vnsMinHz))–\(formatHz(NPHardwareLimits.vnsMaxHz))."
             )
         }
 
@@ -1060,7 +1083,8 @@ struct NPProtocolValidator {
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: "Cervical VNS session duration \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
+                message: "Cervical VNS session duration"
+                        + " \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
             )
         }
 
@@ -1068,7 +1092,8 @@ struct NPProtocolValidator {
         result.addWarning(
             modality: m, param: "cardiacInterlock", displayName: "Cardiac Interlock",
             actual: "always on", limit: "non-overridable", source: .hardware,
-            message: "Cervical VNS cardiac rhythm interlock is always enforced by the safety MCU. HR change >15 BPM within 5s will automatically stop stimulation."
+            message: "Cervical VNS cardiac rhythm interlock is always enforced by the safety MCU."
+                + " HR change >15 BPM within 5s will automatically stop stimulation."
         )
     }
 
@@ -1087,7 +1112,8 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityG) G",
                 limit: "≥\(NPHardwareLimits.vibrotactileMinG) G",
                 source: .hardware,
-                message: "Vibrotactile intensity \(p.intensityG) G is below the minimum of \(NPHardwareLimits.vibrotactileMinG) G for effective entrainment."
+                message: "Vibrotactile intensity \(p.intensityG) G is below the minimum of"
+                    + " \(NPHardwareLimits.vibrotactileMinG) G for effective entrainment."
             )
         }
         if p.intensityG > NPHardwareLimits.vibrotactileMaxG {
@@ -1096,7 +1122,8 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityG) G",
                 limit: "\(NPHardwareLimits.vibrotactileMaxG) G",
                 source: .hardware,
-                message: "Vibrotactile intensity \(p.intensityG) G exceeds DRV2605L driver maximum of \(NPHardwareLimits.vibrotactileMaxG) G."
+                message: "Vibrotactile intensity \(p.intensityG) G exceeds DRV2605L"
+                    + " driver maximum of \(NPHardwareLimits.vibrotactileMaxG) G."
             )
         }
 
@@ -1107,7 +1134,8 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(Int(NPHardwareLimits.vibrotactileFrequencyHz)) Hz ±\(NPHardwareLimits.vibrotactileFreqToleranceHz) Hz",
                 source: .hardware,
-                message: "Vibrotactile frequency \(formatHz(p.frequencyHz)) deviates from the firmware-locked 40 Hz ± 0.5 Hz target. Firmware will lock to 40 Hz regardless."
+                message: "Vibrotactile frequency \(formatHz(p.frequencyHz)) deviates from the"
+                    + " firmware-locked 40 Hz ± 0.5 Hz target. Firmware will lock to 40 Hz regardless."
             )
         }
 

@@ -101,7 +101,10 @@ enum AnalyticsGate {
             // Log the offending key names (not values) so the leak source is
             // traceable, and drop the event rather than transmitting it.
             let names = offending.sorted().joined(separator: ", ")
-            log.error("AnalyticsGate.track dropped event '\(event, privacy: .public)' — prohibited keys present: \(names, privacy: .public)")
+            log.error("""
+                AnalyticsGate.track dropped event '\(event, privacy: .public)' \
+                — prohibited keys present: \(names, privacy: .public)
+                """)
             return
         }
 

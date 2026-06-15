@@ -13,7 +13,8 @@ enum NPBundledProtocols {
     static let gammaFocus = """
     protocol "Gamma Focus" {
         id: "10000001-0000-0000-0000-000000000000"
-        description: "Simultaneous 40Hz entrainment across audio, visual, and PBM channels for cognitive enhancement and attention. Evidence-backed GENUS-inspired multi-sensory 40Hz protocol."
+        description: "Simultaneous 40Hz entrainment across audio, visual, and PBM channels \
+    for cognitive enhancement and attention. Evidence-backed GENUS-inspired multi-sensory 40Hz protocol."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -58,7 +59,8 @@ enum NPBundledProtocols {
     static let alphaCalm = """
     protocol "Alpha Calm" {
         id: "10000002-0000-0000-0000-000000000000"
-        description: "Promotes relaxed alertness via 10Hz alpha entrainment with PBM and HRV biofeedback. Ideal for stress reduction and pre-sleep wind-down."
+        description: "Promotes relaxed alertness via 10Hz alpha entrainment with PBM and HRV biofeedback. \
+    Ideal for stress reduction and pre-sleep wind-down."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -101,7 +103,8 @@ enum NPBundledProtocols {
     static let deepSleep = """
     protocol "Deep Sleep" {
         id: "10000003-0000-0000-0000-000000000000"
-        description: "Slow-wave sleep induction using 2Hz delta PBM on rear zones with brown noise and resonance breathing. Use within 30 minutes of bedtime."
+        description: "Slow-wave sleep induction using 2Hz delta PBM on rear zones with brown noise and \
+    resonance breathing. Use within 30 minutes of bedtime."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -143,7 +146,8 @@ enum NPBundledProtocols {
     static let memoryBoost = """
     protocol "Memory Boost" {
         id: "10000004-0000-0000-0000-000000000000"
-        description: "Theta (6Hz) hippocampal entrainment for memory consolidation and learning. Combines PBM, theta-band EEG neurofeedback, binaural audio, and HRV biofeedback."
+        description: "Theta (6Hz) hippocampal entrainment for memory consolidation and learning. \
+    Combines PBM, theta-band EEG neurofeedback, binaural audio, and HRV biofeedback."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -186,7 +190,8 @@ enum NPBundledProtocols {
     static let anxietyRelief = """
     protocol "Anxiety Relief" {
         id: "10000005-0000-0000-0000-000000000000"
-        description: "Multi-modal anxiety reduction combining VNS, HRV coherence training, alpha PBM, and resonance breathing. Based on 24-RCT meta-analysis (d=0.83 anxiety reduction)."
+        description: "Multi-modal anxiety reduction combining VNS, HRV coherence training, alpha PBM, and resonance \
+    breathing. Based on 24-RCT meta-analysis (d=0.83 anxiety reduction)."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -229,7 +234,8 @@ enum NPBundledProtocols {
     static let flowState = """
     protocol "Flow State" {
         id: "10000006-0000-0000-0000-000000000000"
-        description: "Gamma-theta coupled protocol targeting the flow state signature: frontal gamma + parieto-occipital theta. Split-zone PBM with closed-loop EEG adaptation."
+        description: "Gamma-theta coupled protocol targeting the flow state signature: frontal gamma + parieto-occipital theta. \
+    Split-zone PBM with closed-loop EEG adaptation."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -274,7 +280,8 @@ enum NPBundledProtocols {
     static let vascularBaseline = """
     protocol "Vascular Baseline" {
         id: "10000007-0000-0000-0000-000000000000"
-        description: "Continuous-wave PBM for cerebrovascular support. Low-frequency VNS and alpha EEG. Use as a maintenance or recovery session."
+        description: "Continuous-wave PBM for cerebrovascular support. Low-frequency VNS and alpha EEG. \
+    Use as a maintenance or recovery session."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -307,7 +314,8 @@ enum NPBundledProtocols {
     static let adhdFocus = """
     protocol "ADHD Focus" {
         id: "10000008-0000-0000-0000-000000000000"
-        description: "EEG neurofeedback theta/beta ratio training with tDCS cortical priming and 20Hz frontal PBM. Based on 21 RCTs (n=1,261) of EEG neurofeedback for ADHD."
+        description: "EEG neurofeedback theta/beta ratio training with tDCS cortical priming and 20Hz frontal PBM. \
+    Based on 21 RCTs (n=1,261) of EEG neurofeedback for ADHD."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -352,7 +360,8 @@ enum NPBundledProtocols {
     static let retinalHealth = """
     protocol "Retinal Health" {
         id: "10000009-0000-0000-0000-000000000000"
-        description: "Invisible 808-830nm near-infrared retinal PBM during normal-looking wear (Mode F). Supports mitochondrial function in retinal photoreceptors. 3-minute daily maintenance."
+        description: "Invisible 808-830nm near-infrared retinal PBM during normal-looking wear (Mode F). \
+    Supports mitochondrial function in retinal photoreceptors. 3-minute daily maintenance."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -371,7 +380,8 @@ enum NPBundledProtocols {
     static let ptsdEmdrSupport = """
     protocol "PTSD EMDR Support" {
         id: "1000000A-0000-0000-0000-000000000000"
-        description: "EMDR bilateral visual stimulation with VNS vagal support and calming brown noise. Intended for use alongside therapeutic EMDR sessions. WHO-recommended protocol basis."
+        description: "EMDR bilateral visual stimulation with VNS vagal support and calming brown noise. \
+    Intended for use alongside therapeutic EMDR sessions. WHO-recommended protocol basis."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -411,7 +421,8 @@ enum NPBundledProtocols {
     static let hrvCoherenceTraining = """
     protocol "HRV Coherence Training" {
         id: "1000000B-0000-0000-0000-000000000000"
-        description: "Standalone HRV coherence training with resonance breathing pacer. Bone conduction delivers the breathing cue. Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction)."
+        description: "Standalone HRV coherence training with resonance breathing pacer. \
+    Bone conduction delivers the breathing cue. Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction)."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -439,7 +450,8 @@ enum NPBundledProtocols {
     static let hrvTavnsSynchronised = """
     protocol "HRV + taVNS Synchronised" {
         id: "1000000C-0000-0000-0000-000000000000"
-        description: "Stimulation pulses timed to inspiration phase for optimised noradrenergic modulation. Alpha EEG neurofeedback adds cortical awareness layer."
+        description: "Stimulation pulses timed to inspiration phase for optimised noradrenergic modulation. \
+    Alpha EEG neurofeedback adds cortical awareness layer."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -465,7 +477,8 @@ enum NPBundledProtocols {
     static let focusPrime = """
     protocol "Focus Prime" {
         id: "1000000D-0000-0000-0000-000000000000"
-        description: "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES, binaural audio, and visual entrainment. BES runs in 30-on/30-off intervals for habituation prevention."
+        description: "20Hz beta/focus protocol combining PBM, closed-loop EEG, BES, binaural audio, and visual entrainment. \
+    BES runs in 30-on/30-off intervals for habituation prevention."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -519,7 +532,8 @@ enum NPBundledProtocols {
     static let gammaThetaCoupled = """
     protocol "Gamma + Theta Coupled" {
         id: "1000000E-0000-0000-0000-000000000000"
-        description: "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, 40Hz visual entrainment, and BES."
+        description: "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, \
+    binaural + isochronic audio, 40Hz visual entrainment, and BES."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -576,7 +590,8 @@ enum NPBundledProtocols {
     static let fullT1Immersive = """
     protocol "Full T1 Immersive" {
         id: "1000000F-0000-0000-0000-000000000000"
-        description: "All 8 T1 modalities running simultaneously with balanced settings. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session."
+        description: "All 8 T1 modalities running simultaneously with balanced settings. For experienced users. \
+    Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -651,7 +666,8 @@ enum NPBundledProtocols {
     static let compositeFullRct = """
     composite "Full Multi-Modal RCT" {
         id: "10000100-0000-0000-0000-000000000000"
-        description: "Replicates the 2025 nationally-conducted RCT protocol combining PBM + qEEG neurofeedback + HRV biofeedback simultaneously. Sequence: vascular baseline → combined active phase → cool-down HRV."
+        description: "Replicates the 2025 nationally-conducted RCT protocol combining PBM + qEEG \
+    neurofeedback + HRV biofeedback simultaneously. Sequence: vascular baseline → combined active phase → cool-down HRV."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -688,7 +704,8 @@ enum NPBundledProtocols {
     static let compositeSleepStack = """
     composite "Sleep Optimisation Stack" {
         id: "10000101-0000-0000-0000-000000000000"
-        description: "Evening stack: alpha wind-down then HRV coherence then deep sleep induction. Runs for approximately 90 minutes starting 2 hours before target sleep time."
+        description: "Evening stack: alpha wind-down then HRV coherence then deep sleep induction. \
+    Runs for approximately 90 minutes starting 2 hours before target sleep time."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -718,7 +735,8 @@ enum NPBundledProtocols {
     static let compositeCalmToFocus = """
     composite "Calm to Focus" {
         id: "10000102-0000-0000-0000-000000000000"
-        description: "Transitions from alpha calm to focused beta. Layers overlap for 2 minutes, allowing smooth frequency transition from 10Hz to 20Hz."
+        description: "Transitions from alpha calm to focused beta. Layers overlap for 2 minutes, \
+    allowing smooth frequency transition from 10Hz to 20Hz."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
@@ -743,7 +761,8 @@ enum NPBundledProtocols {
     static let compositeSleepWindDown = """
     composite "Sleep Wind-Down" {
         id: "10000103-0000-0000-0000-000000000000"
-        description: "Sequential transition from alpha calm to deep sleep preparation. No overlap — alpha calm finishes before sleep deep begins."
+        description: "Sequential transition from alpha calm to deep sleep preparation. \
+    No overlap — alpha calm finishes before sleep deep begins."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true

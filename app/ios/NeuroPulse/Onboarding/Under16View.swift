@@ -16,7 +16,8 @@ struct Under16View: View {
 
     enum Strings {
         static let title          = "Some Features Need Age Confirmation"
-        static let intro          = "You can still use NeuroPulse, but a few features rely on health-related data that, by law, requires you to be at least 16 years old to consent to."
+        static let intro          = "You can still use NeuroPulse, but a few features rely"
+            + " on health-related data that, by law, requires you to be at least 16 years old to consent to."
         static let unavailableHdr = "Not available without age confirmation"
         static let availableHdr   = "Available to everyone"
         static let footer         = "If you are 16 or older, go back and confirm your age to unlock all features."

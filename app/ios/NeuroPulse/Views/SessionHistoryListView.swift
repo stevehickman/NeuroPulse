@@ -45,7 +45,8 @@ struct SessionHistoryListView: View {
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("This removes the on-device list of your past sessions. Your encrypted session data and any downloaded EDF files are not affected.")
+                Text("This removes the on-device list of your past sessions."
+                    + " Your encrypted session data and any downloaded EDF files are not affected.")
             }
         }
     }

@@ -20,12 +20,16 @@ struct AgeGateView: View {
 
     enum Strings {
         static let title         = "Before We Begin"
-        static let subtitle      = "NeuroPulse collects personal data — including brainwave and heart-rate measurements — to deliver and improve your sessions. Before any data is collected, we need to confirm your age."
+        static let subtitle      = "NeuroPulse collects personal data — including brainwave"
+            + " and heart-rate measurements — to deliver and improve your sessions."
+            + " Before any data is collected, we need to confirm your age."
         static let declaration   = "I confirm I am 16 years of age or older."
         static let continueLabel = "Continue"
         static let under16Label  = "I am under 16"
         static let whyTitle      = "Why we ask"
-        static let whyBody       = "Some features rely on health-related data that, by law, requires you to be at least 16 years old to consent to. This protects younger users and keeps NeuroPulse compliant with privacy regulations."
+        static let whyBody       = "Some features rely on health-related data that, by law,"
+            + " requires you to be at least 16 years old to consent to."
+            + " This protects younger users and keeps NeuroPulse compliant with privacy regulations."
     }
 
     /// Age confirmation state. Initialised to `false` — never pre-set to `true`.

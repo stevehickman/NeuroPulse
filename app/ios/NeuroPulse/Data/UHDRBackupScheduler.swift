@@ -52,7 +52,8 @@ final class UHDRBackupScheduler: ObservableObject {
         do {
             try FileManager.default.createDirectory(at: backupDirectory, withIntermediateDirectories: true)
         } catch {
-            Self.log.fault("UHDRBackupScheduler: backup directory creation failed — exclusion may not be applied: \(error.localizedDescription, privacy: .public)")
+            let msg = error.localizedDescription
+            Self.log.fault("UHDRBackupScheduler: backup directory creation failed — exclusion may not apply: \(msg, privacy: .public)")
         }
 
         // Exclude the backup directory from iCloud and iTunes backups.
@@ -61,7 +62,8 @@ final class UHDRBackupScheduler: ObservableObject {
         do {
             try (backupDirectory as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)
         } catch {
-            Self.log.fault("UHDRBackupScheduler: backup exclusion not applied — encrypted UHDR archives may flow to iCloud: \(error.localizedDescription, privacy: .public)")
+            let msg = error.localizedDescription
+            Self.log.fault("UHDRBackupScheduler: backup exclusion not applied — UHDR archives may flow to iCloud: \(msg, privacy: .public)")
         }
 
         // Enable battery monitoring once in init rather than on every isOnUSBCPower() call.

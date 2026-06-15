@@ -154,7 +154,24 @@ struct ConsumableReminder: Identifiable {
         }
     }
 
+    // INFRASTRUCTURE — neuropulse.com
+    //
+    // Domain   : Primary NeuroPulse customer-facing domain. Register neuropulse.com.
+    //
+    // Purpose  : Deep-link into the consumables shop when a reminder fires.
+    //            Opened in the user's default browser (Safari); no in-app webview.
+    //
+    // URL map  : /consumables/<slug> where slug = ConsumableKind.shopSlug
+    //   Slug paths are stable regardless of enum rawValue ordering:
+    //     /consumables/intranasal-sleeves      →  Intranasal Sleeves    (30-pack, $19)
+    //     /consumables/electrode-hydrogel-tips →  Electrode Hydrogel Tips (8-pack, $12–16)
+    //     /consumables/vns-clip-pads           →  VNS Clip Pads         (2-pack, $8)
+    //     /consumables/audio-cup-foam          →  Audio Cup Foam        (set,    $24)
+    //
+    // Setup    : Ensure each path returns 200 and the correct product page before
+    //            TestFlight beta. A 404 here breaks the one-tap reorder flow that
+    //            is a primary consumable MRR driver (CLAUDE.md §2.3).
     var orderURL: URL? {
-        URL(string: "https://neuropulse.com/consumables/\(state.kind.rawValue)")
+        URL(string: "https://neuropulse.com/consumables/\(state.kind.shopSlug)")
     }
 }
