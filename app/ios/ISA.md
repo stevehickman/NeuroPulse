@@ -5,7 +5,7 @@ project: NeuroPulse
 effort: E4
 effort_source: gate-floor
 phase: execute
-progress: 63/164
+progress: 66/164
 mode: interactive
 started: 2026-06-04
 updated: 2026-06-14
@@ -272,9 +272,9 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 
 ### Localisation
 
-- [ ] ISC-158: All user-visible strings in the consent flow (irreversibility notice, BIPA disclosure, regulatory footer, age gate text) are defined in `Localizable.strings` — not hardcoded in Swift source as string literals.
-- [ ] ISC-159: The app ships with at least an `en.lproj/Localizable.strings` file with all strings populated.
-- [ ] ISC-160: `Anti:` No user-visible string in the consent flow is truncated by `lineLimit(1)` — all consent text uses unlimited line limit or explicit `.fixedSize(horizontal: false, vertical: true)`.
+- [x] ISC-158: All user-visible strings in the consent flow (irreversibility notice, BIPA disclosure, regulatory footer, age gate text) are defined in `Localizable.strings` — not hardcoded in Swift source as string literals.
+- [x] ISC-159: The app ships with at least an `en.lproj/Localizable.strings` file with all strings populated.
+- [x] ISC-160: `Anti:` No user-visible string in the consent flow is truncated by `lineLimit(1)` — all consent text uses unlimited line limit or explicit `.fixedSize(horizontal: false, vertical: true)`.
 
 ### Session mode indicators
 

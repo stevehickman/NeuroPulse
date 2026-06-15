@@ -35,16 +35,16 @@ struct ConsumableView: View {
                 ConsumableAlertRow(reminder: reminder, tracker: tracker, isBlocking: true)
             }
         } header: {
-            Label("Action Required — Session Blocked", systemImage: "exclamationmark.triangle.fill")
+            Label("CONSUMABLE_SECTION_BLOCKING", systemImage: "exclamationmark.triangle.fill")
                 .foregroundColor(.red)
         } footer: {
-            Text("Replace these consumables before starting a session. This is a hygiene requirement.")
+            Text("CONSUMABLE_SECTION_BLOCKING_FOOTER")
                 .font(.caption)
         }
     }
 
     private var inventorySection: some View {
-        Section("Consumable Status") {
+        Section("CONSUMABLE_SECTION_INVENTORY") {
             ForEach(tracker.inventory.states) { state in
                 ConsumableStatusRow(state: state, tracker: tracker)
             }
@@ -77,7 +77,7 @@ struct ConsumableStatusRow: View {
                 ProgressView(value: Double(state.sessionCount), total: Double(state.kind.sessionLimit))
                     .progressViewStyle(.linear)
                     .tint(statusColor)
-                Text("\(state.sessionsRemaining) left")
+                Text(String(format: String(localized: "CONSUMABLE_SESSIONS_LEFT_FORMAT"), state.sessionsRemaining))
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .frame(width: 44, alignment: .trailing)
@@ -87,14 +87,14 @@ struct ConsumableStatusRow: View {
                 HStack(spacing: 8) {
                     if let url = ConsumableReminder(state: state).orderURL {
                         Link(destination: url) {
-                            Label("Order Now", systemImage: "cart")
+                            Label("CONSUMABLE_ORDER_NOW", systemImage: "cart")
                                 .font(.caption)
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
                     }
                     if state.canSnooze {
-                        Button("Snooze (\(state.maxSnooze - state.snoozeCount) remaining)") {
+                        Button(String(format: String(localized: "CONSUMABLE_SNOOZE_FORMAT"), state.maxSnooze - state.snoozeCount)) {
                             tracker.snooze(consumableIndex: state.kind.rawValue)
                         }
                         .font(.caption)
@@ -102,7 +102,7 @@ struct ConsumableStatusRow: View {
                         .controlSize(.small)
                     }
                     Spacer()
-                    Button("Mark Replaced") {
+                    Button("CONSUMABLE_MARK_REPLACED") {
                         tracker.markReplaced(consumableIndex: state.kind.rawValue)
                     }
                     .font(.caption)
@@ -133,7 +133,7 @@ struct ConsumableAlertRow: View {
                 .foregroundColor(isBlocking ? .red : .primary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("Sessions used: \(reminder.state.sessionCount) of \(reminder.state.kind.sessionLimit)")
+            Text(String(format: String(localized: "CONSUMABLE_SESSIONS_USED_FORMAT"), reminder.state.sessionCount, reminder.state.kind.sessionLimit))
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -141,14 +141,14 @@ struct ConsumableAlertRow: View {
             HStack {
                 if let url = reminder.orderURL {
                     Link(destination: url) {
-                        Label("Order \(reminder.state.kind.packDisplayPrice)", systemImage: "cart.fill")
+                        Label(String(format: String(localized: "CONSUMABLE_ORDER_PACK_FORMAT"), reminder.state.kind.packDisplayPrice), systemImage: "cart.fill")
                             .font(.caption)
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                 }
                 Spacer()
-                Button("Mark Replaced") {
+                Button("CONSUMABLE_MARK_REPLACED") {
                     tracker.markReplaced(consumableIndex: reminder.state.kind.rawValue)
                 }
                 .buttonStyle(.bordered)

@@ -1,4 +1,3 @@
-// TODO(localisation): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
 import SwiftUI
 
 // 4-screen research consent onboarding — CLAUDE.md §6.2.
@@ -37,7 +36,7 @@ struct ConsentOnboardingView: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     // Skip defers all data decisions — analytics gate stays closed.
-                    Button("Skip") { commitAndDismiss(grantAnalyticsConsent: false) }
+                    Button(String(localized: "CONSENT_SKIP_BUTTON")) { commitAndDismiss(grantAnalyticsConsent: false) }
                         .foregroundColor(.secondary)
                 }
             }
@@ -59,11 +58,11 @@ struct ConsentOnboardingView: View {
 
     private var layerTitle: String {
         switch layer {
-        case .l1Contact:  return "Research Contact"
-        case .l2Category: return "Research Areas"
-        case .l3Blanket:  return "Data Consent"
-        case .l4Results:  return "Stay Informed"
-        case .complete:   return "All Done"
+        case .l1Contact:  return String(localized: "CONSENT_L1_TITLE")
+        case .l2Category: return String(localized: "CONSENT_L2_TITLE")
+        case .l3Blanket:  return String(localized: "CONSENT_L3_TITLE")
+        case .l4Results:  return String(localized: "CONSENT_L4_TITLE")
+        case .complete:   return String(localized: "CONSENT_COMPLETE_TITLE")
         }
     }
 
@@ -88,24 +87,22 @@ struct ConsentOnboardingView: View {
     // L1 — Contact consent
     private var l1ContactLayer: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Can we contact you about future research opportunities?")
+            Text("CONSENT_L1_HEADING")
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("NeuroPulse works with academic research institutions to study the"
-                + " technologies in your device. Your participation is always voluntary."
-                + " If you say yes, we may reach out when a study matches your interests.")
+            Text("CONSENT_L1_BODY")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Toggle("Yes, you can contact me", isOn: $draft.contactConsentGranted)
+            Toggle("CONSENT_L1_TOGGLE", isOn: $draft.contactConsentGranted)
                 .toggleStyle(.switch)
 
             if draft.contactConsentGranted {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Contact email or phone:").font(.caption).foregroundColor(.secondary)
-                    TextField("your@email.com", text: $draft.contactMethod)
+                    Text("CONSENT_L1_CONTACT_LABEL").font(.caption).foregroundColor(.secondary)
+                    TextField("CONSENT_L1_CONTACT_PLACEHOLDER", text: $draft.contactMethod)
                         .textContentType(.emailAddress)
                         .keyboardType(.emailAddress)
                         .textFieldStyle(.roundedBorder)
@@ -117,12 +114,11 @@ struct ConsentOnboardingView: View {
                     .pickerStyle(.segmented)
                 }
 
-                Toggle("I am a Power of Attorney holder acting for a patient", isOn: $draft.isPOAHolder)
+                Toggle("CONSENT_L1_POA_TOGGLE", isOn: $draft.isPOAHolder)
                     .font(.subheadline)
 
                 if draft.isPOAHolder {
-                    Text("You will be able to upload your executed healthcare POA"
-                        + " documentation from the Privacy tab. Our team reviews documents within 3 business days.")
+                    Text("CONSENT_L1_POA_NOTE")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -137,7 +133,7 @@ struct ConsentOnboardingView: View {
     }
 
     private var noContactNote: some View {
-        Text("If you say no — or skip this entirely — all features work identically. We will never contact you about research.")
+        Text("CONSENT_L1_NO_CONTACT_NOTE")
             .font(.caption)
             .foregroundColor(.secondary)
             .italic()
@@ -147,12 +143,11 @@ struct ConsentOnboardingView: View {
     // L2 — Category consent
     private var l2CategoryLayer: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Which research areas interest you?")
+            Text("CONSENT_L2_HEADING")
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("We will only contact you about studies in the areas you choose. Each project"
-                + " is a separate decision — saying yes here does not automatically enrol you in anything.")
+            Text("CONSENT_L2_BODY")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -170,22 +165,20 @@ struct ConsentOnboardingView: View {
     // L3 — Blanket consent + irreversibility notice
     private var l3BlanketLayer: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Pre-approve all reviewed research?")
+            Text("CONSENT_L3_HEADING")
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Text("If you say yes, your anonymised session data will be included in all"
-                + " NeuroPulse-reviewed research studies automatically. You will still"
-                + " receive per-study engagement notifications and can opt out of any individual study.")
+            Text("CONSENT_L3_BODY")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Toggle("Pre-approve all reviewed research", isOn: $draft.blanketConsentGranted)
+            Toggle("CONSENT_L3_TOGGLE", isOn: $draft.blanketConsentGranted)
                 .toggleStyle(.switch)
 
             VStack(alignment: .leading, spacing: 8) {
-                Label("Important — please read", systemImage: "info.circle.fill")
+                Label("CONSENT_IMPORTANT_LABEL", systemImage: "info.circle.fill")
                     .font(.subheadline.bold())
                     .foregroundColor(.orange)
                     .fixedSize(horizontal: false, vertical: true)
@@ -203,32 +196,31 @@ struct ConsentOnboardingView: View {
     // L4 — Results + community
     private var l4ResultsLayer: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("Stay connected to the science")
+            Text("CONSENT_L4_HEADING")
                 .font(.headline)
                 .fixedSize(horizontal: false, vertical: true)
 
             VStack(alignment: .leading, spacing: 12) {
-                Toggle("Receive study results when they're published", isOn: $draft.resultsOptIn)
+                Toggle("CONSENT_L4_RESULTS_TOGGLE", isOn: $draft.resultsOptIn)
                     .toggleStyle(.switch)
 
-                Text("Plain-language summaries, including null results. Never marketing.")
+                Text("CONSENT_L4_RESULTS_CAPTION")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, 44)
 
-                Toggle("Join the research suggestion portal", isOn: $draft.suggestionPortalOptIn)
+                Toggle("CONSENT_L4_PORTAL_TOGGLE", isOn: $draft.suggestionPortalOptIn)
                     .toggleStyle(.switch)
 
-                Text("Submit study ideas, vote on priorities, express interest in participating."
-                    + " Your suggestions are seen by the research community.")
+                Text("CONSENT_L4_PORTAL_CAPTION")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(.leading, 44)
             }
 
-            Text("Both options are entirely optional and can be changed at any time.")
+            Text("CONSENT_L4_OPTIONAL_NOTE")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .italic()
@@ -241,9 +233,9 @@ struct ConsentOnboardingView: View {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 60))
                 .foregroundColor(.green)
-            Text("Your preferences are saved.")
+            Text("CONSENT_COMPLETE_HEADING")
                 .font(.title2.bold())
-            Text("You can review and update your consent decisions at any time from the Privacy tab.")
+            Text("CONSENT_COMPLETE_BODY")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -256,15 +248,15 @@ struct ConsentOnboardingView: View {
     private var navigationButtons: some View {
         HStack(spacing: 12) {
             if layer != .l1Contact && layer != .complete {
-                Button("Back") { withAnimation { goBack() } }
+                Button("CONSENT_BACK_BUTTON") { withAnimation { goBack() } }
                     .buttonStyle(.bordered)
             }
             Spacer()
             if layer == .complete {
-                Button("Done") { commitAndDismiss() }
+                Button("CONSENT_DONE_BUTTON") { commitAndDismiss() }
                     .buttonStyle(.borderedProminent)
             } else {
-                Button("Continue") { withAnimation { advance() } }
+                Button("CONSENT_CONTINUE_BUTTON") { withAnimation { advance() } }
                     .buttonStyle(.borderedProminent)
             }
         }

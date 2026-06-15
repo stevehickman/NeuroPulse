@@ -1,7 +1,5 @@
 import SwiftUI
 
-// TODO(localisation): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
-
 // Hardware setup flow — first-session onboarding.
 // Steps are measurement-confirmed; the app does not advance past hardware-gated steps
 // until the hub reports the correct condition via GATT notification.
@@ -43,10 +41,10 @@ struct SetupView: View {
                 .environmentObject(uploader)
                 .environmentObject(limitsStore)
             }
-            .alert("Protocol Stored", isPresented: $showProgramConfirmation) {
-                Button("OK", role: .cancel) {}
+            .alert("SETUP_PROTOCOL_STORED_TITLE", isPresented: $showProgramConfirmation) {
+                Button("COMMON_OK", role: .cancel) {}
             } message: {
-                Text("Protocol stored on hub. Connect to a USB-C power bank to start an autonomous session.")
+                Text("SETUP_PROTOCOL_STORED_MESSAGE")
             }
             .sheet(isPresented: $showBIPADisclosure) {
                 BIPADisclosureView(
@@ -116,11 +114,11 @@ struct SetupView: View {
 
     private var autonomousModeCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Autonomous Mode (Mode 3)", systemImage: "bolt.badge.clock")
+            Label("SETUP_AUTONOMOUS_TITLE", systemImage: "bolt.badge.clock")
                 .font(.headline)
                 .foregroundColor(.accentColor)
 
-            Text("Upload a session protocol to the hub so it runs automatically from any USB-C power bank — no phone required.")
+            Text("SETUP_AUTONOMOUS_BODY")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -128,7 +126,7 @@ struct SetupView: View {
             Button {
                 showAutonomousPicker = true
             } label: {
-                Label("Choose Protocol", systemImage: "list.bullet.rectangle")
+                Label("SETUP_AUTONOMOUS_CHOOSE_BUTTON", systemImage: "list.bullet.rectangle")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -145,16 +143,16 @@ struct SetupView: View {
     // can be granted or revoked at any time.
     private var privacyConsentCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Privacy", systemImage: "hand.raised.fill")
+            Label("SETUP_PRIVACY_CARD_TITLE", systemImage: "hand.raised.fill")
                 .font(.headline)
                 .foregroundColor(.accentColor)
 
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Manage EEG data consent")
+                    Text("SETUP_PRIVACY_MANAGE_EEG")
                         .font(.subheadline)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(bipaAccepted ? "Status: Granted" : "Status: Not granted")
+                    Text(bipaAccepted ? "SETUP_PRIVACY_STATUS_GRANTED" : "SETUP_PRIVACY_STATUS_NOT_GRANTED")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -166,7 +164,7 @@ struct SetupView: View {
             .contentShape(Rectangle())
             .onTapGesture { showBIPADisclosure = true }
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("Manage EEG data consent")
+            .accessibilityLabel("SETUP_PRIVACY_MANAGE_EEG_A11Y")
             .accessibilityAddTraits(.isButton)
         }
         .padding()
@@ -208,7 +206,7 @@ struct SetupView: View {
             ImpedanceStatusGrid(flags: setup.impedanceFlags)
         case .ads1299Calibration:
             if setup.isProcessing {
-                ProgressView("Calibrating EEG amplifier…")
+                ProgressView(String(localized: "SETUP_CALIBRATING_AMPLIFIER"))
                     .frame(maxWidth: .infinity)
             }
         case .safetyAcknowledgement:
@@ -222,7 +220,7 @@ struct SetupView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 64))
                     .foregroundColor(.green)
-                Text("Your NeuroPulse is ready.")
+                Text("SETUP_COMPLETE_HEADING")
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
             }
@@ -251,14 +249,14 @@ struct SetupView: View {
     @ViewBuilder
     private var navigationControls: some View {
         if setup.currentStep == .complete {
-            Text("Head to the Session tab to begin your first session.")
+            Text("SETUP_COMPLETE_HINT")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
         } else if setup.currentStep.requiresHardwareConfirmation {
             hardwareConfirmButton
         } else {
-            Button("Continue") { setup.advance() }
+            Button("SETUP_CONTINUE_BUTTON") { setup.advance() }
                 .buttonStyle(.borderedProminent)
                 .frame(maxWidth: .infinity)
         }
@@ -269,44 +267,44 @@ struct SetupView: View {
         switch setup.currentStep {
         case .bleConfirmation:
             VStack(spacing: 12) {
-                Button("Confirm Hub Connection") {
+                Button("SETUP_CONFIRM_BLE_BUTTON") {
                     setup.confirmBLEPairing()
                 }
                 .buttonStyle(.borderedProminent)
                 .frame(maxWidth: .infinity)
                 if setup.lastError != nil {
-                    Button("Retry") { setup.retry() }
+                    Button("SETUP_RETRY_BUTTON") { setup.retry() }
                         .buttonStyle(.bordered)
                 }
             }
         case .impedanceCheck:
             VStack(spacing: 12) {
                 if setup.isProcessing {
-                    ProgressView("Checking electrode contacts…")
+                    ProgressView(String(localized: "SETUP_CHECKING_CONTACTS"))
                 } else {
-                    Button("Check Signal Quality") {
+                    Button("SETUP_CHECK_SIGNAL_BUTTON") {
                         Task { await setup.confirmImpedanceCheck() }
                     }
                     .buttonStyle(.borderedProminent)
                     .frame(maxWidth: .infinity)
                 }
                 if setup.lastError != nil {
-                    Button("Retry") { setup.retry() }
+                    Button("SETUP_RETRY_BUTTON") { setup.retry() }
                         .buttonStyle(.bordered)
                 }
             }
         case .ads1299Calibration:
             if setup.isProcessing {
-                ProgressView("Calibrating…")
+                ProgressView(String(localized: "SETUP_CALIBRATING"))
             } else {
-                Button("Calibrate Amplifier") {
+                Button("SETUP_CALIBRATE_BUTTON") {
                     Task { await setup.confirmADS1299Calibration() }
                 }
                 .buttonStyle(.borderedProminent)
                 .frame(maxWidth: .infinity)
             }
         case .zoneModules:
-            Button("Confirm Zone Modules") {
+            Button("SETUP_CONFIRM_ZONE_BUTTON") {
                 setup.confirmZoneModules()
             }
             .buttonStyle(.borderedProminent)
@@ -322,11 +320,10 @@ struct SetupView: View {
 private struct BLEConnectionStatusCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Hub Connection", systemImage: "antenna.radiowaves.left.and.right")
+            Label("SETUP_BLE_CARD_TITLE", systemImage: "antenna.radiowaves.left.and.right")
                 .font(.headline)
                 .foregroundColor(.accentColor)
-            Text("Make sure the NeuroPulse hub is powered on. The green LED on the left"
-                + " temple should be breathing steadily. Connect via Bluetooth or USB-C.")
+            Text("SETUP_BLE_CARD_BODY")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -345,17 +342,17 @@ struct SafetyAcknowledgementCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Label("T1 Contraindications", systemImage: "exclamationmark.shield")
+            Label("SETUP_SAFETY_CARD_TITLE", systemImage: "exclamationmark.shield")
                 .font(.headline)
                 .foregroundColor(.primary)
 
             VStack(alignment: .leading, spacing: 8) {
-                contraindication("Do not use if you have an active implantable device (pacemaker, cochlear implant, DBS, SCS).")
-                contraindication("Do not use if you have a personal or family history of epilepsy or seizure disorder.")
-                contraindication("Do not use during pregnancy.")
-                contraindication("Do not use on broken, irritated, or recently tattooed skin.")
-                contraindication("Discontinue and consult a physician if you experience headache, nausea, or visual disturbance.")
-                contraindication("Not for use under 16 years of age.")
+                contraindication(String(localized: "SETUP_SAFETY_CONTRAIN_1"))
+                contraindication(String(localized: "SETUP_SAFETY_CONTRAIN_2"))
+                contraindication(String(localized: "SETUP_SAFETY_CONTRAIN_3"))
+                contraindication(String(localized: "SETUP_SAFETY_CONTRAIN_4"))
+                contraindication(String(localized: "SETUP_SAFETY_CONTRAIN_5"))
+                contraindication(String(localized: "SETUP_SAFETY_CONTRAIN_6"))
             }
 
             Divider()
@@ -367,15 +364,15 @@ struct SafetyAcknowledgementCard: View {
                     Image(systemName: acknowledged ? "checkmark.square.fill" : "square")
                         .font(.title3)
                         .foregroundColor(acknowledged ? .accentColor : .secondary)
-                    Text("I have read and understood the above safety information and confirm none of these contraindications apply to me.")
+                    Text("SETUP_SAFETY_ACK_TEXT")
                         .font(.subheadline)
                         .multilineTextAlignment(.leading)
                         .foregroundColor(.primary)
                 }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Safety acknowledgement checkbox")
-            .accessibilityValue(acknowledged ? "Checked" : "Unchecked")
+            .accessibilityLabel(String(localized: "SETUP_SAFETY_ACK_A11Y_LABEL"))
+            .accessibilityValue(acknowledged ? String(localized: "SETUP_SAFETY_ACK_CHECKED") : String(localized: "SETUP_SAFETY_ACK_UNCHECKED"))
             .accessibilityAddTraits(.isButton)
         }
         .padding()
@@ -401,11 +398,11 @@ struct SafetyAcknowledgementCard: View {
 private struct ProtocolSelectionCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Starter Protocols", systemImage: "list.bullet.rectangle.portrait")
+            Label("SETUP_PROTOCOL_CARD_TITLE", systemImage: "list.bullet.rectangle.portrait")
                 .font(.headline)
                 .foregroundColor(.accentColor)
 
-            Text("These protocols are pre-loaded on your hub. You can change your default session at any time from the Session tab.")
+            Text("SETUP_PROTOCOL_CARD_BODY")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -438,17 +435,22 @@ private struct StarterProtocol: Identifiable {
     let summary: String
     let icon: String
 
-    static let all: [StarterProtocol] = [
-        StarterProtocol(id: "alpha_calm", name: "Alpha Calm",
-                        summary: "10 Hz alpha entrainment · PBM · 20 min",
-                        icon: "waveform"),
-        StarterProtocol(id: "focus_prime", name: "Focus Prime",
-                        summary: "20 Hz beta · tDCS · PBM · 30 min",
-                        icon: "bolt.circle"),
-        StarterProtocol(id: "sleep_deep", name: "Sleep Deep",
-                        summary: "2 Hz delta · PBM · 30 min",
-                        icon: "moon.stars"),
-    ]
+    static var all: [StarterProtocol] {
+        [
+            StarterProtocol(id: "alpha_calm",
+                            name: String(localized: "SETUP_STARTER_ALPHA_CALM_NAME"),
+                            summary: String(localized: "SETUP_STARTER_ALPHA_CALM_SUMMARY"),
+                            icon: "waveform"),
+            StarterProtocol(id: "focus_prime",
+                            name: String(localized: "SETUP_STARTER_FOCUS_PRIME_NAME"),
+                            summary: String(localized: "SETUP_STARTER_FOCUS_PRIME_SUMMARY"),
+                            icon: "bolt.circle"),
+            StarterProtocol(id: "sleep_deep",
+                            name: String(localized: "SETUP_STARTER_SLEEP_DEEP_NAME"),
+                            summary: String(localized: "SETUP_STARTER_SLEEP_DEEP_SUMMARY"),
+                            icon: "moon.stars"),
+        ]
+    }
 }
 
 // MARK: - Supporting subviews

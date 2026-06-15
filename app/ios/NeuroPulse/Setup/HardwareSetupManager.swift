@@ -41,54 +41,33 @@ enum SetupStep: Int, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .welcome:               return "Welcome to NeuroPulse"
-        case .bleConfirmation:       return "Connect Hub"
-        case .boaDial:               return "Fit Adjustment"
-        case .electrodePods:         return "Electrode Contact"
-        case .zoneModules:           return "Zone Modules"
-        case .impedanceCheck:        return "Signal Quality Check"
-        case .ads1299Calibration:    return "Amplifier Calibration"
-        case .hydrationCaps:         return "Electrode Hydration"
-        case .safetyAcknowledgement: return "Safety Information"
-        case .protocolSelection:     return "Choose Your First Session"
-        case .complete:              return "Ready"
+        case .welcome:               return String(localized: "SETUP_TITLE_WELCOME")
+        case .bleConfirmation:       return String(localized: "SETUP_TITLE_BLE")
+        case .boaDial:               return String(localized: "SETUP_TITLE_BOA_DIAL")
+        case .electrodePods:         return String(localized: "SETUP_TITLE_ELECTRODE_PODS")
+        case .zoneModules:           return String(localized: "SETUP_TITLE_ZONE_MODULES")
+        case .impedanceCheck:        return String(localized: "SETUP_TITLE_IMPEDANCE")
+        case .ads1299Calibration:    return String(localized: "SETUP_TITLE_CALIBRATION")
+        case .hydrationCaps:         return String(localized: "SETUP_TITLE_HYDRATION")
+        case .safetyAcknowledgement: return String(localized: "SETUP_TITLE_SAFETY")
+        case .protocolSelection:     return String(localized: "SETUP_TITLE_PROTOCOL")
+        case .complete:              return String(localized: "SETUP_TITLE_COMPLETE")
         }
     }
 
     var instruction: String {
         switch self {
-        case .welcome:
-            return "This short setup confirms your NeuroPulse is ready for its first session. It takes about 3 minutes."
-        case .bleConfirmation:
-            return "Power on the hub and connect via Bluetooth or USB-C."
-                + " The green power LED should be breathing steadily. Tap Confirm once connected."
-        case .boaDial:
-            return "Turn the Boa dial clockwise until the headset sits firmly on your head."
-                + " The bridge should rest comfortably above your ears."
-                + " All five electrode pods should touch your scalp."
-        case .electrodePods:
-            return "Press each electrode pod lightly against your scalp."
-                + " Each pod travels ±12mm independently, so you don't need to dial tighter"
-                + " to reach every contact point. Remove any hydration caps from the electrode tips now."
-        case .zoneModules:
-            return "Insert your zone modules into the colour-coded slots."
-                + " Each module will announce its position via bone conduction when seated correctly."
-                + " Check that all five slots are confirmed below."
-        case .impedanceCheck:
-            return "Stay still while the app checks signal quality. Good contact = green."
-                + " Moistening your hair slightly under the electrodes can help if you see orange."
-        case .ads1299Calibration:
-            return "The EEG amplifier is calibrating its internal reference."
-                + " This takes about 2 seconds and eliminates drift across all 8 channels. Stay still."
-        case .hydrationCaps:
-            return "Confirm you have removed the moisture-barrier hydration caps from all electrode tips."
-                + " Store the caps in the provided case for future storage sessions."
-        case .safetyAcknowledgement:
-            return "Review the following safety information before your first session."
-        case .protocolSelection:
-            return "Choose a starting session protocol. You can change this at any time from the Session tab."
-        case .complete:
-            return "Your NeuroPulse is set up and calibrated. You're ready for your first session."
+        case .welcome:               return String(localized: "SETUP_INSTR_WELCOME")
+        case .bleConfirmation:       return String(localized: "SETUP_INSTR_BLE")
+        case .boaDial:               return String(localized: "SETUP_INSTR_BOA_DIAL")
+        case .electrodePods:         return String(localized: "SETUP_INSTR_ELECTRODE_PODS")
+        case .zoneModules:           return String(localized: "SETUP_INSTR_ZONE_MODULES")
+        case .impedanceCheck:        return String(localized: "SETUP_INSTR_IMPEDANCE")
+        case .ads1299Calibration:    return String(localized: "SETUP_INSTR_CALIBRATION")
+        case .hydrationCaps:         return String(localized: "SETUP_INSTR_HYDRATION")
+        case .safetyAcknowledgement: return String(localized: "SETUP_INSTR_SAFETY")
+        case .protocolSelection:     return String(localized: "SETUP_INSTR_PROTOCOL")
+        case .complete:              return String(localized: "SETUP_INSTR_COMPLETE")
         }
     }
 
@@ -117,19 +96,19 @@ enum SetupError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConnected:
-            return "Hub not connected. Connect via USB-C or Bluetooth."
+            return String(localized: "SETUP_ERROR_NOT_CONNECTED")
         case .calibrationFailed:
-            return "ADS1299 calibration failed. Try powering the hub off and on."
+            return String(localized: "SETUP_ERROR_CALIBRATION_FAILED")
         case .impedanceFailed(let els):
-            let names = els.map { "Electrode \($0 + 1)" }.joined(separator: ", ")
-            return "High impedance on \(names). Moisten the scalp under those electrodes and retry."
+            let names = els.map { String(format: String(localized: "SETUP_ELECTRODE_LABEL"), $0 + 1) }.joined(separator: ", ")
+            return String(format: String(localized: "SETUP_ERROR_IMPEDANCE_FAILED"), names)
         case .zoneModulesMissing(let slots):
-            let names = slots.map { "Slot \($0 + 1)" }.joined(separator: ", ")
-            return "Zone modules not detected in \(names). Re-seat and listen for the confirmation tone."
+            let names = slots.map { String(format: String(localized: "SETUP_SLOT_LABEL"), $0 + 1) }.joined(separator: ", ")
+            return String(format: String(localized: "SETUP_ERROR_ZONE_MISSING"), names)
         case .timeout:
-            return "Hardware confirmation timed out. Ensure the hub is connected and powered."
+            return String(localized: "SETUP_ERROR_TIMEOUT")
         case .safetyAcknowledgementRequired:
-            return "Please read and acknowledge the safety information to continue."
+            return String(localized: "SETUP_ERROR_SAFETY_ACK_REQUIRED")
         }
     }
 }

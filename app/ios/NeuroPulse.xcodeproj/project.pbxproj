@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		00082B7A2FB13ABF6A4A4208 /* NPProtocolLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B892C585A7A3F49C5F0B0501 /* NPProtocolLibraryTests.swift */; };
+		E85D3C4E88EE81E7D9740361 /* LocalizationHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C28C5928422977589EA34561 /* LocalizationHelpers.swift */; };
 		055480BE05301254775DFB2A /* ZoneModuleInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56360D1F64BD4BBEBB956CF /* ZoneModuleInfo.swift */; };
 		0832220A2C9F8F0A7787AFA5 /* SpyAnalyticsBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B50970E8E81731D40E1407C /* SpyAnalyticsBackend.swift */; };
 		0B089F5D5DF167DF1291A1BC /* NPPredefinedProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925CEA12894CF191CD729896 /* NPPredefinedProtocols.swift */; };
@@ -115,6 +116,7 @@
 
 /* Begin PBXFileReference section */
 		0054A553448BDD1670659CDA /* ConsentStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentStoreTests.swift; sourceTree = "<group>"; };
+		C28C5928422977589EA34561 /* LocalizationHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationHelpers.swift; sourceTree = "<group>"; };
 		027E6579B897E23827EF47A2 /* HealthKitSessionReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSessionReader.swift; sourceTree = "<group>"; };
 		044B41EC2A131101344754EF /* NPDosageLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPDosageLimits.swift; sourceTree = "<group>"; };
 		046EF1F71E798663ED38E465 /* Under16View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Under16View.swift; sourceTree = "<group>"; };
@@ -376,6 +378,14 @@
 			path = OTA;
 			sourceTree = "<group>";
 		};
+		0576B3A476AFCD59EF141F05 /* Localization */ = {
+			isa = PBXGroup;
+			children = (
+				C28C5928422977589EA34561 /* LocalizationHelpers.swift */,
+			);
+			path = Localization;
+			sourceTree = "<group>";
+		};
 		91E4AF62DD9C753E78946D4A /* Onboarding */ = {
 			isa = PBXGroup;
 			children = (
@@ -405,6 +415,7 @@
 				48F35FC99690ADD14F69A1FB /* Data */,
 				C7F8970F83491CC9DF5C46EE /* Localizable.strings */,
 				0B957196DEB864998879C4EC /* Models */,
+				0576B3A476AFCD59EF141F05 /* Localization */,
 				91E4AF62DD9C753E78946D4A /* Onboarding */,
 				8AE939E4392CD8C3D878CDD9 /* OTA */,
 				88F587CCF543EF2556265C44 /* Protocol */,
@@ -602,6 +613,7 @@
 			files = (
 				D0C9989A7D230DE5B17FACD0 /* AdaptationEvent.swift in Sources */,
 				E83F5467A096AABFDD1ECDEE /* AdaptiveAdjustmentsCard.swift in Sources */,
+				E85D3C4E88EE81E7D9740361 /* LocalizationHelpers.swift in Sources */,
 				2466802007DC508856B7859E /* AgeGateView.swift in Sources */,
 				D6991C1626AC35097F63A8AA /* AnalyticsBackend.swift in Sources */,
 				47B4A59C942833665BF04B2D /* AnalyticsGate.swift in Sources */,

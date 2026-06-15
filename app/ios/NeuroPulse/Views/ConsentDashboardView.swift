@@ -1,4 +1,3 @@
-// TODO(localisation): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
 import SwiftUI
 
 // Consent management dashboard — CLAUDE.md §6.
@@ -23,12 +22,12 @@ struct ConsentDashboardView: View {
                 pendingInvitationsSection
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Privacy & Consent")
+            .navigationTitle("DASHBOARD_TITLE")
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Menu {
-                        Button("Research Preferences") { showOnboarding = true }
-                        NavigationLink("Research Portal") {
+                        Button("DASHBOARD_RESEARCH_PREFS_BUTTON") { showOnboarding = true }
+                        NavigationLink("DASHBOARD_RESEARCH_PORTAL_LINK") {
                             ResearchSuggestionPortalView()
                         }
                     } label: {
@@ -50,7 +49,7 @@ struct ConsentDashboardView: View {
             }
             // ISC-76: confirmation before revoking clinician access
             .confirmationDialog(
-                "Revoke clinician access?",
+                "DASHBOARD_REVOKE_DIALOG_TITLE",
                 isPresented: Binding(
                     get: { grantPendingRevoke != nil },
                     set: { if !$0 { grantPendingRevoke = nil } }
@@ -58,20 +57,22 @@ struct ConsentDashboardView: View {
                 titleVisibility: .visible
             ) {
                 if let grant = grantPendingRevoke {
-                    Button("Revoke access for \(grant.clinicianName)", role: .destructive) {
+                    Button(String(format: String(localized: "DASHBOARD_REVOKE_ACCESS_FORMAT"),
+                                  grant.clinicianName), role: .destructive) {
                         consentStore.revokeClinicianAccess(grantID: grant.id)
                         grantPendingRevoke = nil
                     }
                 }
-                Button("Cancel", role: .cancel) { grantPendingRevoke = nil }
+                Button("COMMON_CANCEL", role: .cancel) { grantPendingRevoke = nil }
             } message: {
                 if let grant = grantPendingRevoke {
-                    Text("\(grant.clinicianName) at \(grant.clinicianOrganisation) will immediately lose access to your data.")
+                    Text(String(format: String(localized: "DASHBOARD_REVOKE_MESSAGE_FORMAT"),
+                                grant.clinicianName, grant.clinicianOrganisation))
                 }
             }
             // ISC-77: confirmation before withdrawing from a study
             .confirmationDialog(
-                "Withdraw from study?",
+                "DASHBOARD_WITHDRAW_DIALOG_TITLE",
                 isPresented: Binding(
                     get: { participationPendingWithdraw != nil },
                     set: { if !$0 { participationPendingWithdraw = nil } }
@@ -79,14 +80,15 @@ struct ConsentDashboardView: View {
                 titleVisibility: .visible
             ) {
                 if let record = participationPendingWithdraw {
-                    Button("Withdraw from \(record.studyID)", role: .destructive) {
+                    Button(String(format: String(localized: "DASHBOARD_WITHDRAW_FROM_FORMAT"),
+                                  record.studyID), role: .destructive) {
                         consentStore.withdrawFromStudy(studyID: record.studyID)
                         participationPendingWithdraw = nil
                     }
                 }
-                Button("Cancel", role: .cancel) { participationPendingWithdraw = nil }
+                Button("COMMON_CANCEL", role: .cancel) { participationPendingWithdraw = nil }
             } message: {
-                Text("No further data will flow to this study. Data already included in published results cannot be individually removed.")
+                Text("DASHBOARD_WITHDRAW_DIALOG_MESSAGE")
             }
         }
     }
@@ -96,7 +98,7 @@ struct ConsentDashboardView: View {
     private var clinicianSection: some View {
         Section {
             if consentStore.clinicianGrants.isEmpty {
-                Text("No clinicians have access to your data.")
+                Text("DASHBOARD_NO_CLINICIANS")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             } else {
@@ -109,12 +111,12 @@ struct ConsentDashboardView: View {
             Button {
                 showNewClinicianGrant = true
             } label: {
-                Label("Add Clinician Access", systemImage: "plus")
+                Label("DASHBOARD_ADD_CLINICIAN", systemImage: "plus")
             }
         } header: {
-            Text("Clinician Access")
+            Text("DASHBOARD_SECTION_CLINICIANS")
         } footer: {
-            Text("Clinicians access only the data elements required for their specific use case. You can revoke access at any time.")
+            Text("DASHBOARD_CLINICIANS_FOOTER")
                 .font(.caption)
         }
     }
@@ -132,18 +134,21 @@ struct ConsentDashboardView: View {
                 }
             }
         } header: {
-            Text("Research Consent")
+            Text("DASHBOARD_SECTION_RESEARCH")
         }
     }
 
     private var researchConsentSummaryRow: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(consentStore.researchConsent.blanketConsentGranted ? "Pre-approved" : "Per-category")
+                Text(consentStore.researchConsent.blanketConsentGranted
+                     ? "DASHBOARD_BLANKET_APPROVED"
+                     : "DASHBOARD_PER_CATEGORY")
                     .font(.subheadline.bold())
                 Text(consentStore.researchConsent.contactConsentGranted
-                     ? "Contact: \(redacted(consentStore.researchConsent.contactMethod))"
-                     : "No research contact")
+                     ? String(format: String(localized: "DASHBOARD_CONTACT_FORMAT"),
+                               redacted(consentStore.researchConsent.contactMethod))
+                     : String(localized: "DASHBOARD_NO_CONTACT"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -167,9 +172,9 @@ struct ConsentDashboardView: View {
     }
 
     private var studyHistorySection: some View {
-        Section("Study Participation History") {
+        Section("DASHBOARD_SECTION_STUDY_HISTORY") {
             if consentStore.studyParticipations.isEmpty {
-                Text("You have not participated in any studies yet.")
+                Text("DASHBOARD_NO_STUDIES")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             } else {
@@ -184,9 +189,9 @@ struct ConsentDashboardView: View {
     }
 
     private var pendingInvitationsSection: some View {
-        Section("Pending Invitations") {
+        Section("DASHBOARD_SECTION_PENDING") {
             if consentStore.pendingInvitations.filter({ $0.decision == nil }).isEmpty {
-                Text("No pending study invitations.")
+                Text("DASHBOARD_NO_INVITATIONS")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             } else {
@@ -225,23 +230,27 @@ struct ClinicianGrantRow: View {
                     Text(grant.tier.monthlyPrice).font(.caption2).foregroundColor(.secondary)
                 }
                 Spacer()
-                Button("Revoke", role: .destructive, action: onRevoke)
+                Button("DASHBOARD_REVOKE_BUTTON", role: .destructive, action: onRevoke)
                     .font(.caption)
                     .buttonStyle(.borderless)
             }
             // Granted elements (ISC-75)
-            Text("Access: \(grant.approvedElements.map(\.rawValue).sorted().joined(separator: ", "))")
+            Text(String(format: String(localized: "DASHBOARD_ACCESS_FORMAT"),
+                        grant.approvedElements.map(\.rawValue).sorted().joined(separator: ", ")))
                 .font(.caption2)
                 .foregroundColor(.secondary)
                 .lineLimit(nil)
                 .fixedSize(horizontal: false, vertical: true)
             HStack {
-                Label("Granted \(grant.grantedAt.formatted(.dateTime.month().day().year()))",
+                Label(String(format: String(localized: "DASHBOARD_GRANTED_FORMAT"),
+                             grant.grantedAt.formatted(.dateTime.month().day().year())),
                       systemImage: "checkmark.shield")
                     .font(.caption2).foregroundColor(.green)
                 Spacer()
                 if let exp = grant.expiresAt {
-                    Text("Expires \(exp.formatted(.dateTime.month().day()))").font(.caption2).foregroundColor(.orange)
+                    Text(String(format: String(localized: "DASHBOARD_EXPIRES_FORMAT"),
+                                exp.formatted(.dateTime.month().day())))
+                        .font(.caption2).foregroundColor(.orange)
                 }
             }
         }
@@ -256,16 +265,17 @@ struct StudyParticipationRow: View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(record.studyID).font(.subheadline.bold())
-                Text("Data shared: \(record.transmittedAt.formatted(.dateTime.month().day().year()))")
+                Text(String(format: String(localized: "DASHBOARD_DATA_SHARED_FORMAT"),
+                            record.transmittedAt.formatted(.dateTime.month().day().year())))
                     .font(.caption).foregroundColor(.secondary)
                 if !record.isActive {
-                    Label("Withdrawn", systemImage: "xmark.circle")
+                    Label("DASHBOARD_WITHDRAWN_LABEL", systemImage: "xmark.circle")
                         .font(.caption2).foregroundColor(.orange)
                 }
             }
             Spacer()
             if record.isActive {
-                Button("Withdraw", role: .destructive, action: onWithdraw)
+                Button("DASHBOARD_WITHDRAW_BUTTON", role: .destructive, action: onWithdraw)
                     .font(.caption)
                     .buttonStyle(.borderless)
             }
@@ -284,18 +294,20 @@ struct StudyInvitationView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     Text(invitation.studyTitle).font(.title2.bold())
-                    Text("Study ID: \(invitation.studyID)").font(.caption).foregroundColor(.secondary)
+                    Text(String(format: String(localized: "INVITATION_STUDY_ID_FORMAT"),
+                                invitation.studyID))
+                        .font(.caption).foregroundColor(.secondary)
 
                     Divider()
 
-                    Text("What the researchers CAN see").font(.headline)
+                    Text("INVITATION_CAN_SEE_HEADING").font(.headline)
                     ForEach(Array(invitation.approvedElements), id: \.rawValue) { element in
                         Label(element.rawValue, systemImage: "checkmark.circle.fill")
                             .font(.subheadline)
                             .foregroundColor(.green)
                     }
 
-                    Text("What they CANNOT see").font(.headline)
+                    Text("INVITATION_CANNOT_SEE_HEADING").font(.headline)
                     ForEach(invitation.cannotLearn, id: \.self) { item in
                         Label(item, systemImage: "xmark.circle.fill")
                             .font(.subheadline)
@@ -305,7 +317,7 @@ struct StudyInvitationView: View {
                     Divider()
 
                     VStack(alignment: .leading, spacing: 8) {
-                        Label("Important", systemImage: "info.circle.fill")
+                        Label("INVITATION_IMPORTANT_LABEL", systemImage: "info.circle.fill")
                             .font(.subheadline.bold()).foregroundColor(.orange)
                         Text(invitation.irreversibilityNotice)
                             .font(.caption).foregroundColor(.secondary)
@@ -316,16 +328,16 @@ struct StudyInvitationView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Study Invitation")
+            .navigationTitle("INVITATION_TITLE")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("COMMON_CANCEL") { dismiss() }
                 }
             }
             .safeAreaInset(edge: .bottom) {
                 HStack(spacing: 12) {
-                    Button("Decline") {
+                    Button("INVITATION_DECLINE_BUTTON") {
                         consentStore.declineInvitation(studyID: invitation.studyID)
                         dismiss()
                     }
@@ -333,7 +345,7 @@ struct StudyInvitationView: View {
                     .foregroundColor(.red)
 
                     // ISC-79: confirmation must include the irreversibility notice.
-                    Button("Participate") {
+                    Button("INVITATION_PARTICIPATE_BUTTON") {
                         showParticipateConfirmation = true
                     }
                     .buttonStyle(.borderedProminent)
@@ -343,15 +355,15 @@ struct StudyInvitationView: View {
                 .background(.regularMaterial)
             }
             .confirmationDialog(
-                "Confirm participation",
+                "INVITATION_CONFIRM_DIALOG_TITLE",
                 isPresented: $showParticipateConfirmation,
                 titleVisibility: .visible
             ) {
-                Button("Confirm — participate in study") {
+                Button("INVITATION_CONFIRM_BUTTON") {
                     consentStore.acceptInvitation(studyID: invitation.studyID)
                     dismiss()
                 }
-                Button("Cancel", role: .cancel) {}
+                Button("COMMON_CANCEL", role: .cancel) {}
             } message: {
                 Text(invitation.irreversibilityNotice)
             }
@@ -370,19 +382,20 @@ struct NewClinicianGrantView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Clinician Details") {
-                    TextField("Name", text: $name)
-                    TextField("Organisation", text: $organisation)
+                Section("CLINICIAN_GRANT_SECTION_DETAILS") {
+                    TextField("CLINICIAN_GRANT_NAME_PLACEHOLDER", text: $name)
+                    TextField("CLINICIAN_GRANT_ORG_PLACEHOLDER", text: $organisation)
                 }
-                Section("Access Level") {
-                    Picker("Tier", selection: $selectedTier) {
+                Section("CLINICIAN_GRANT_SECTION_ACCESS") {
+                    Picker("CLINICIAN_GRANT_TIER_PICKER", selection: $selectedTier) {
                         ForEach(ClinicianUseCaseTier.allCases, id: \.self) { tier in
-                            Text("\(tier.rawValue) — \(tier.monthlyPrice)").tag(tier)
+                            Text(String(format: String(localized: "CLINICIAN_GRANT_TIER_FORMAT"),
+                                        tier.rawValue, tier.monthlyPrice)).tag(tier)
                         }
                     }
                     .pickerStyle(.inline)
                 }
-                Section("Use Cases") {
+                Section("CLINICIAN_GRANT_SECTION_USE_CASES") {
                     ForEach(ConsentEngine.useCaseLibrary) { useCase in
                         Toggle(isOn: Binding(
                             get: { selectedUseCases.contains(useCase.id) },
@@ -396,12 +409,12 @@ struct NewClinicianGrantView: View {
                     }
                 }
             }
-            .navigationTitle("Add Clinician")
+            .navigationTitle("CLINICIAN_GRANT_TITLE")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("COMMON_CANCEL") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Grant") {
+                    Button("CLINICIAN_GRANT_BUTTON") {
                         let grant = ClinicianConsentGrant(
                             id: UUID(), clinicianName: name, clinicianOrganisation: organisation,
                             tier: selectedTier, grantedAt: Date(), expiresAt: nil, isActive: true

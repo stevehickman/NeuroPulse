@@ -1,8 +1,6 @@
 import SwiftUI
 import OSLog
 
-// TODO(localisation): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
-
 // Real-time session display — Mode 1 Connected (<1ms USB-C).
 // Shows: connection status · session status · EEG/HRV live metrics ·
 // HRV breathing ring · zone module status · session controls.
@@ -69,9 +67,9 @@ struct SessionView: View {
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button { showHistory = true } label: {
-                            Label("Session History", systemImage: "clock.arrow.circlepath")
+                            Label("SESSION_HISTORY_LABEL", systemImage: "clock.arrow.circlepath")
                         }
-                        .accessibilityLabel("Session History")
+                        .accessibilityLabel("SESSION_HISTORY_LABEL")
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
                         connectionIndicator
@@ -87,20 +85,20 @@ struct SessionView: View {
                         .environmentObject(library)
                         .environmentObject(uploader)
                 }
-                .confirmationDialog("End this session?",
+                .confirmationDialog("SESSION_STOP_CONFIRM_TITLE",
                                     isPresented: $showStopConfirmation,
                                     titleVisibility: .visible) {
-                    Button("End Session", role: .destructive) { sendSessionStop() }
-                    Button("Cancel", role: .cancel) { }
+                    Button("SESSION_END_BUTTON", role: .destructive) { sendSessionStop() }
+                    Button("COMMON_CANCEL", role: .cancel) { }
                 } message: {
-                    Text("The hub will stop the active session.")
+                    Text("SESSION_STOP_CONFIRM_MESSAGE")
                 }
-                .alert("Couldn't End Session",
+                .alert("SESSION_STOP_ERROR_TITLE",
                        isPresented: Binding(
                            get: { stopErrorMessage != nil },
                            set: { if !$0 { stopErrorMessage = nil } }
                        )) {
-                    Button("OK", role: .cancel) { stopErrorMessage = nil }
+                    Button("COMMON_OK", role: .cancel) { stopErrorMessage = nil }
                 } message: {
                     Text(stopErrorMessage ?? "")
                 }
@@ -172,11 +170,10 @@ struct SessionView: View {
     // Shown to Illinois users who declined the BIPA disclosure (ISC-90).
     private var eegConsentUnavailableCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("EEG Neurofeedback Unavailable", systemImage: "brain")
+            Label("SESSION_EEG_UNAVAILABLE_TITLE", systemImage: "brain")
                 .font(.headline)
                 .foregroundColor(.orange)
-            Text("EEG neurofeedback is unavailable — brainwave data consent was not granted."
-                + " Go to Settings → Privacy to manage EEG data consent.")
+            Text("SESSION_EEG_UNAVAILABLE_BODY")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -192,7 +189,7 @@ struct SessionView: View {
         gatt.sendSessionStop { result in
             if case .failure(let error) = result {
                 Self.logger.error("Session stop failed: \(String(describing: error))")
-                stopErrorMessage = "Could not reach the hub. Please check the connection and try again."
+                stopErrorMessage = String(localized: "SESSION_STOP_ERROR")
             }
         }
     }
@@ -230,10 +227,10 @@ struct SessionView: View {
 
     private var connectionLabel: String {
         switch gatt.connectionState {
-        case .disconnected: return "Searching for hub…"
-        case .scanning:     return "Scanning…"
-        case .connecting:   return "Connecting…"
-        case .connected:    return "Hub connected"
+        case .disconnected: return String(localized: "SESSION_CONN_SEARCHING")
+        case .scanning:     return String(localized: "SESSION_CONN_SCANNING")
+        case .connecting:   return String(localized: "SESSION_CONN_CONNECTING")
+        case .connected:    return String(localized: "SESSION_CONN_CONNECTED")
         }
     }
 
@@ -248,27 +245,31 @@ struct SessionView: View {
     private var connectionModeLabel: String {
         let isWired = UIDevice.current.batteryState == .charging
             || UIDevice.current.batteryState == .full
-        return isWired ? "Mode 1 — Live (<1ms)" : "Mode 1 — Wireless"
+        return isWired ? String(localized: "SESSION_MODE_LIVE") : String(localized: "SESSION_MODE_WIRELESS")
     }
 
     private var connectionIndicator: some View {
         Image(systemName: gatt.connectionState == .connected ? "wifi" : "wifi.slash")
             .foregroundColor(connectionColor)
             .accessibilityLabel(gatt.connectionState == .connected
-                                ? "Hub connected"
-                                : "Hub not connected")
+                                ? String(localized: "SESSION_CONN_INDICATOR_CONNECTED")
+                                : String(localized: "SESSION_CONN_INDICATOR_DISCONNECTED"))
     }
 
     // Hidden VoiceOver-only announcer for the debounced coherence score (ISC-149).
     private var voiceOverCoherenceAnnouncer: some View {
-        Text(voiceOverCoherence.map { String(format: "Coherence score %.1f", $0) } ?? "")
+        Text(voiceOverCoherence.map {
+            String(format: String(localized: "SESSION_COHERENCE_SCORE_A11Y_FORMAT"),
+                   NPNumberFormatter.decimal1($0))
+        } ?? "")
             .frame(width: 0, height: 0)
             .accessibilityHidden(false)
             .onChange(of: voiceOverCoherence) { _, newValue in
                 guard newValue != nil else { return }
                 UIAccessibility.post(notification: .announcement,
                                      argument: voiceOverCoherence.map {
-                                         String(format: "Coherence %.1f", $0)
+                                         String(format: String(localized: "SESSION_COHERENCE_A11Y_FORMAT"),
+                                                NPNumberFormatter.decimal1($0))
                                      })
             }
     }
@@ -343,10 +344,10 @@ struct SessionView: View {
 
     private var sessionStatusLabel: String {
         switch gatt.session.status {
-        case .idle:      return "Ready"
-        case .running:   return "Session Active"
-        case .paused:    return "Paused"
-        case .completed: return "Session Complete"
+        case .idle:      return String(localized: "SESSION_STATUS_READY")
+        case .running:   return String(localized: "SESSION_STATUS_ACTIVE")
+        case .paused:    return String(localized: "SESSION_STATUS_PAUSED")
+        case .completed: return String(localized: "SESSION_STATUS_COMPLETE")
         }
     }
 
@@ -366,18 +367,18 @@ struct SessionView: View {
                     .animation(.easeInOut(duration: 2.5), value: gatt.session.pacerPhase)
 
                 VStack(spacing: 2) {
-                    Text(gatt.session.pacerPhase == .inhale ? "Inhale" : "Exhale")
+                    Text(gatt.session.pacerPhase == .inhale ? "SESSION_BREATH_INHALE" : "SESSION_BREATH_EXHALE")
                         .font(.caption2).foregroundColor(.blue)
                     if let hrv = gatt.session.hrv {
-                        Text(String(format: "%.1f", hrv.coherenceScore))
+                        Text(NPNumberFormatter.decimal1(hrv.coherenceScore))
                             .font(.title3.bold())
-                        Text("coherence").font(.caption2).foregroundColor(.secondary)
+                        Text("SESSION_COHERENCE_LABEL").font(.caption2).foregroundColor(.secondary)
                     }
                 }
             }
 
             if let hrv = gatt.session.hrv {
-                Text("RMSSD \(hrv.rmssdMilliseconds) ms")
+                Text(String(format: String(localized: "SESSION_RMSSD_FORMAT"), hrv.rmssdMilliseconds))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -387,18 +388,26 @@ struct SessionView: View {
     private var liveMetricsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             if let hrv = gatt.session.hrv {
-                MetricCard(title: "Coherence", value: String(format: "%.1f / 10", hrv.coherenceScore),
-                           icon: "waveform.path.ecg", color: coherenceColor(hrv.coherenceScore))
-                MetricCard(title: "RMSSD", value: "\(hrv.rmssdMilliseconds) ms",
-                           icon: "heart.fill", color: .pink)
+                MetricCard(
+                    title: String(localized: "SESSION_METRIC_COHERENCE"),
+                    value: String(format: String(localized: "SESSION_COHERENCE_VALUE_FORMAT"),
+                                  NPNumberFormatter.decimal1(hrv.coherenceScore)),
+                    icon: "waveform.path.ecg", color: coherenceColor(hrv.coherenceScore))
+                MetricCard(
+                    title: String(localized: "SESSION_METRIC_RMSSD"),
+                    value: String(format: String(localized: "SESSION_RMSSD_VALUE_FORMAT"),
+                                  NPNumberFormatter.decimal0(Double(hrv.rmssdMilliseconds))),
+                    icon: "heart.fill", color: .pink)
             }
-            MetricCard(title: "EEG Contacts",
+            MetricCard(title: String(localized: "SESSION_METRIC_EEG_CONTACTS"),
                        value: "\(impedancePassCount) / 8",
                        icon: "brain", color: impedancePassCount == 8 ? .green : .orange)
             if let healthKitHRV = healthKit.latestHRVSDNN {
-                MetricCard(title: "HealthKit HRV",
-                           value: String(format: "%.0f ms", healthKitHRV),
-                           icon: "heart.text.square", color: .purple)
+                MetricCard(
+                    title: String(localized: "SESSION_METRIC_HEALTHKIT_HRV"),
+                    value: String(format: String(localized: "SESSION_RMSSD_VALUE_FORMAT"),
+                                  NPNumberFormatter.decimal0(healthKitHRV)),
+                    icon: "heart.text.square", color: .purple)
             }
         }
     }
@@ -464,16 +473,16 @@ struct SessionView: View {
             switch sessionDownloadState {
             case .idle:
                 Button { startCompletedSessionDownload() } label: {
-                    Label("Download Session Data", systemImage: "arrow.down.doc")
+                    Label("SESSION_DOWNLOAD_BUTTON", systemImage: "arrow.down.doc")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
-                .accessibilityLabel("Download session data")
+                .accessibilityLabel("SESSION_DOWNLOAD_A11Y")
 
             case .downloading:
                 HStack(spacing: 10) {
                     ProgressView()
-                    Text("Downloading session data…")
+                    Text("SESSION_DOWNLOADING")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -482,13 +491,13 @@ struct SessionView: View {
 
             case .downloaded(let url):
                 VStack(spacing: 4) {
-                    Label("Downloaded", systemImage: "checkmark.circle.fill")
+                    Label("SESSION_DOWNLOADED_LABEL", systemImage: "checkmark.circle.fill")
                         .font(.subheadline.bold())
                         .foregroundColor(.green)
                     Text(url.lastPathComponent)
                         .font(.caption2.monospaced())
                         .foregroundColor(.secondary)
-                    Text("Available in the Files app under NeuroPulse.")
+                    Text("SESSION_DOWNLOADED_FILES_HINT")
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -501,7 +510,7 @@ struct SessionView: View {
                         .font(.caption)
                         .foregroundColor(.orange)
                         .multilineTextAlignment(.center)
-                    Button("Try Again") { startCompletedSessionDownload() }
+                    Button("SESSION_DOWNLOAD_RETRY") { startCompletedSessionDownload() }
                         .font(.caption.bold())
                 }
                 .frame(maxWidth: .infinity)
@@ -516,7 +525,7 @@ struct SessionView: View {
             // epoch == 0 means no hub session ID. shouldShowSessionDownload already
             // guards against this, so reaching here means a GATT state race occurred.
             Self.logger.error("startCompletedSessionDownload called with epoch == 0; GATT state race")
-            sessionDownloadState = .failed("Session data is no longer available. Please reconnect the hub.")
+            sessionDownloadState = .failed(String(localized: "SESSION_DOWNLOAD_UNAVAILABLE"))
             return
         }
         sessionDownloadState = .downloading
@@ -527,18 +536,18 @@ struct SessionView: View {
                 if let url = session.localURL {
                     sessionDownloadState = .downloaded(url)
                 } else {
-                    sessionDownloadState = .failed("Download completed but no file location was returned.")
+                    sessionDownloadState = .failed(String(localized: "SESSION_DOWNLOAD_NO_FILE"))
                 }
             } catch is CancellationError {
                 // Task was cancelled (view dismissed mid-download). defer resets to .idle.
                 Self.logger.info("Post-session EDF download cancelled")
             } catch let error as EDFDownloadError {
-                let desc = error.errorDescription ?? "EDF download failed. Check hub connection."
+                let desc = error.errorDescription ?? String(localized: "SESSION_DOWNLOAD_GENERIC_ERROR")
                 Self.logger.error("Post-session EDF download failed: \(desc, privacy: .public)")
                 sessionDownloadState = .failed(desc)
             } catch {
                 Self.logger.error("Post-session EDF download failed (unexpected): \(String(describing: type(of: error)), privacy: .public)")
-                sessionDownloadState = .failed("Download failed. Check hub connection and try again.")
+                sessionDownloadState = .failed(String(localized: "SESSION_DOWNLOAD_GENERIC_ERROR"))
             }
         }
     }
@@ -556,8 +565,7 @@ struct SessionView: View {
     }
 
     private var regulatoryFooter: some View {
-        Text("NeuroPulse is a general wellness device. It is not a medical device"
-            + " and is not intended to diagnose, treat, cure, or prevent any disease or health condition.")
+        Text("REGULATORY_FOOTER")
             .font(.caption2)
             .foregroundColor(.secondary)
             .multilineTextAlignment(.center)
