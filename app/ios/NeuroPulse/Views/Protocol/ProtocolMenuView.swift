@@ -31,7 +31,8 @@ struct ProtocolMenuView: View {
     @State private var unavailableAlert: NPProtocolEntry? = nil
     @State private var uploadConfirm: NPProtocolEntry? = nil
     @State private var uploadError: String? = nil
-    @State private var showUploadError = false
+    @State private var lastSelectedEntry: NPProtocolEntry? = nil
+    @State private var showUploadSuccess = false
     @State private var showLimitsSettings = false
     @State private var validationDetailEntry: NPProtocolEntry? = nil
 
@@ -51,6 +52,7 @@ struct ProtocolMenuView: View {
             .sheet(isPresented: $showEditor) {
                 ProtocolEditorView(existing: editingEntry)
                     .environmentObject(library)
+                    .environmentObject(limitsStore)
             }
             .sheet(isPresented: $showComposer) {
                 ProtocolComposerView(existing: nil)
@@ -89,11 +91,57 @@ struct ProtocolMenuView: View {
                     Text("Are you sure you want to delete \"\(entry.name)\"? This cannot be undone.")
                 }
             }
-            .alert("Upload Error", isPresented: $showUploadError) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(uploadError ?? "Unknown error")
+            .overlay(alignment: .top) {
+                if let errorMsg = uploadError {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.white)
+                            .font(.caption)
+                        Text(errorMsg)
+                            .font(.caption)
+                            .foregroundColor(.white)
+                            .lineLimit(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                        Button {
+                            let retry = lastSelectedEntry
+                            uploadError = nil
+                            if let entry = retry { handleSelect(entry) }
+                        } label: {
+                            Text("Retry")
+                                .font(.caption.bold())
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 4)
+                                .background(Color.white.opacity(0.25))
+                                .clipShape(Capsule())
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .background(Color.red)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
+            .overlay(alignment: .bottom) {
+                if showUploadSuccess {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.white)
+                        Text("Protocol sent to hub")
+                            .font(.subheadline.weight(.medium))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(Color.green)
+                    .clipShape(Capsule())
+                    .padding(.bottom, 24)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.easeInOut(duration: 0.3), value: uploadError != nil)
+            .animation(.easeInOut(duration: 0.3), value: showUploadSuccess)
         }
     }
 
@@ -396,6 +444,9 @@ struct ProtocolMenuView: View {
             return
         }
 
+        lastSelectedEntry = entry
+        withAnimation { uploadError = nil }
+
         Task {
             do {
                 if programMode {
@@ -404,11 +455,12 @@ struct ProtocolMenuView: View {
                     onProgrammed?()
                 } else {
                     try await uploader.upload(proto)
+                    withAnimation { showUploadSuccess = true }
+                    try? await Task.sleep(nanoseconds: 2_000_000_000)
                     dismiss()
                 }
             } catch {
-                uploadError = error.localizedDescription
-                showUploadError = true
+                withAnimation { uploadError = error.localizedDescription }
             }
         }
     }
@@ -444,6 +496,30 @@ struct ProtocolRowView: View {
                     .lineLimit(2)
             }
 
+            // Duration + unavailability note
+            HStack(spacing: 6) {
+                if let dur = durationString {
+                    Text(dur)
+                        .font(.caption2)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color(.systemGray5))
+                        .clipShape(Capsule())
+                }
+                if !availability.isAvailable, let reason = availability.unavailableReason {
+                    HStack(spacing: 3) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                        Text(reason)
+                            .font(.caption2)
+                            .foregroundColor(.red)
+                            .lineLimit(1)
+                    }
+                }
+            }
+
             // Modality icons
             if !modalityTypes.isEmpty {
                 modalityIconRow
@@ -456,6 +532,24 @@ struct ProtocolRowView: View {
         }
         .padding(.vertical, 4)
         .opacity(availability.isAvailable ? 1.0 : 0.7)
+    }
+
+    private var durationString: String? {
+        switch entry {
+        case .single(let proto):
+            return proto.timingMode.displayString
+        case .composite(let comp):
+            guard !comp.layers.isEmpty else { return nil }
+            let totalSec = comp.layers.reduce(0) { maxEnd, layer in
+                max(maxEnd, layer.startOffsetSeconds + (layer.durationSeconds ?? 1200))
+            }
+            if totalSec < 60 { return "\(totalSec)s" }
+            let m = totalSec / 60
+            if m < 60 { return "\(m)m" }
+            return "\(m / 60)h \(m % 60)m"
+        case .limits:
+            return nil
+        }
     }
 
     private var availabilityDot: some View {

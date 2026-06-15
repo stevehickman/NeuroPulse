@@ -12,6 +12,7 @@ enum EditorViewMode: String, CaseIterable {
 struct ProtocolEditorView: View {
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var library: NPProtocolLibrary
+    @EnvironmentObject private var limitsStore: NPLimitsStore
 
     let existing: NPProtocolEntry?
 
@@ -339,6 +340,14 @@ struct ProtocolEditorView: View {
 
         guard !draft.modalities.filter({ $0.enabled }).isEmpty else {
             saveError = "Protocol must have at least one enabled modality."
+            showSaveError = true
+            return
+        }
+
+        let validation = limitsStore.makeValidator().validate(draft)
+        if !validation.errors.isEmpty {
+            let descriptions = validation.errors.map { "• \($0.message)" }.joined(separator: "\n")
+            saveError = "Fix the following errors before saving:\n\n\(descriptions)"
             showSaveError = true
             return
         }
