@@ -284,6 +284,124 @@ static void test_fault_slot_constants(void)
     check(NP_FAULT_SLOT_UNPROV      != NP_FAULT_SLOT_SIG_CORRUPT,  "UNPROV != SIG_CORRUPT");
 }
 
+/* ── Test: extended heartbeat frame size and field offsets ───────────────────
+ *
+ * OI-CHARGE-01 CLOSED — the ext frame carries current_ua[14] enabling the
+ * charge monitor.  These tests freeze the wire format.
+ */
+
+static uint16_t ext_heartbeat_checksum(const np_safety_rx_ext_frame_t *f)
+{
+    uint16_t sum = 0U;
+    const uint8_t *b = (const uint8_t *)f;
+    uint8_t i;
+    for (i = 0U; i < 6U; i++) { sum += b[i]; }
+    return sum;
+}
+
+static uint16_t ext_data_checksum(const np_safety_rx_ext_frame_t *f)
+{
+    uint16_t sum = 0U;
+    const uint8_t *b = (const uint8_t *)f;
+    uint8_t i;
+    for (i = 8U; i < 36U; i++) { sum += b[i]; }
+    return sum;
+}
+
+static void test_ext_frame_sizes(void)
+{
+    check(sizeof(np_safety_rx_ext_frame_t) == NP_SAFETY_RX_EXT_FRAME_LEN,
+          "ext_frame size == NP_SAFETY_RX_EXT_FRAME_LEN (38)");
+    check(NP_SAFETY_RX_EXT_FRAME_LEN == 38U,
+          "NP_SAFETY_RX_EXT_FRAME_LEN == 38");
+    check(NP_SAFETY_MAX_CHANNELS == 14U,
+          "NP_SAFETY_MAX_CHANNELS == 14");
+}
+
+static void test_ext_frame_offsets(void)
+{
+    check(offsetof(np_safety_rx_ext_frame_t, magic)         == 0U,  "ext.magic at offset 0");
+    check(offsetof(np_safety_rx_ext_frame_t, session_status) == 2U,  "ext.session_status at offset 2");
+    check(offsetof(np_safety_rx_ext_frame_t, enable_lo)      == 3U,  "ext.enable_lo at offset 3");
+    check(offsetof(np_safety_rx_ext_frame_t, enable_hi)      == 4U,  "ext.enable_hi at offset 4");
+    check(offsetof(np_safety_rx_ext_frame_t, channel_count)  == 5U,  "ext.channel_count at offset 5");
+    check(offsetof(np_safety_rx_ext_frame_t, checksum)       == 6U,  "ext.checksum at offset 6");
+    check(offsetof(np_safety_rx_ext_frame_t, current_ua)     == 8U,  "ext.current_ua at offset 8");
+    check(offsetof(np_safety_rx_ext_frame_t, ext_checksum)   == 36U, "ext.ext_checksum at offset 36");
+}
+
+static void test_ext_frame_base_checksum(void)
+{
+    np_safety_rx_ext_frame_t f;
+    memset(&f, 0, sizeof(f));
+    f.magic[0]       = NP_SAFETY_BEAT_MAGIC_0;
+    f.magic[1]       = NP_SAFETY_BEAT_MAGIC_1;
+    f.session_status = NP_SESSION_STATUS_ACTIVE;
+    f.enable_lo      = 0x3FU;
+    f.enable_hi      = 0x00U;
+    f.channel_count  = 6U;
+    f.checksum       = ext_heartbeat_checksum(&f);
+
+    check(ext_heartbeat_checksum(&f) == f.checksum,
+          "ext base checksum round-trip");
+
+    /* Corrupt enable_lo — base checksum must fail */
+    f.enable_lo ^= 0xFFU;
+    check(ext_heartbeat_checksum(&f) != f.checksum,
+          "ext base checksum detects enable_lo corruption");
+    f.enable_lo ^= 0xFFU;   /* restore */
+}
+
+static void test_ext_frame_data_checksum(void)
+{
+    np_safety_rx_ext_frame_t f;
+    uint8_t ch;
+    memset(&f, 0, sizeof(f));
+
+    f.channel_count = 14U;
+    for (ch = 0U; ch < 14U; ch++) {
+        f.current_ua[ch] = (uint16_t)((uint16_t)ch * 100U);  /* 0, 100, 200 … 1300 µA */
+    }
+    f.ext_checksum = ext_data_checksum(&f);
+
+    check(ext_data_checksum(&f) == f.ext_checksum,
+          "ext data checksum round-trip");
+
+    /* Corrupt one current entry */
+    f.current_ua[7] ^= 0x01U;
+    check(ext_data_checksum(&f) != f.ext_checksum,
+          "ext data checksum detects current_ua corruption");
+    f.current_ua[7] ^= 0x01U;   /* restore */
+
+    /* Base and ext checksums are independent */
+    check(offsetof(np_safety_rx_ext_frame_t, current_ua) == 8U,
+          "current_ua starts at byte 8 (not covered by base checksum)");
+}
+
+static void test_ext_frame_magic_matches_heartbeat(void)
+{
+    /* The ext frame uses the same magic bytes as the old 8-byte heartbeat —
+     * HAL distinguishes frame types by NSS-delineated transfer length, not magic. */
+    np_safety_rx_ext_frame_t f;
+    memset(&f, 0, sizeof(f));
+    f.magic[0] = NP_SAFETY_BEAT_MAGIC_0;
+    f.magic[1] = NP_SAFETY_BEAT_MAGIC_1;
+    check(f.magic[0] == NP_SAFETY_BEAT_MAGIC_0, "ext magic[0] == BEAT_MAGIC_0");
+    check(f.magic[1] == NP_SAFETY_BEAT_MAGIC_1, "ext magic[1] == BEAT_MAGIC_1");
+}
+
+static void test_ext_frame_channel_count_clamping(void)
+{
+    /* channel_count must not exceed NP_SAFETY_MAX_CHANNELS.  Hub-side code
+     * clamps at NP_SAFETY_MAX_CHANNELS; MCU-side loop guards on both
+     * rx.channel_count and NP_SAFETY_MAX_CHANNELS.                          */
+    check(NP_SAFETY_MAX_CHANNELS == 14U,
+          "NP_SAFETY_MAX_CHANNELS == 14 (matches current_ua array size)");
+    check(sizeof(((np_safety_rx_ext_frame_t *)0)->current_ua) ==
+              NP_SAFETY_MAX_CHANNELS * sizeof(uint16_t),
+          "current_ua array byte-size == 14 × 2 == 28");
+}
+
 /* ── Main ───────────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -298,6 +416,14 @@ int main(void)
     test_cmd_constants();
     test_heartbeat_unaffected();
     test_fault_slot_constants();
+
+    /* OI-CHARGE-01 — extended heartbeat frame tests */
+    test_ext_frame_sizes();
+    test_ext_frame_offsets();
+    test_ext_frame_base_checksum();
+    test_ext_frame_data_checksum();
+    test_ext_frame_magic_matches_heartbeat();
+    test_ext_frame_channel_count_clamping();
 
     printf("\n%s: %d failure(s)\n",
            (g_failures == 0) ? "PASS" : "FAIL", g_failures);

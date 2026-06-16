@@ -37,10 +37,11 @@ extern np_safe_status_t np_session_sig_init(void);
 extern np_safe_status_t np_fault_latch_init(bool *prior_fault_out);
 
 /* ── Forward declarations for module tick / action functions ─────────────── */
-extern void np_spi_watchdog_tick(np_safety_state_t *state,
-                                 const np_safety_rx_frame_t *rx,
-                                 np_safety_tx_frame_t *tx);
+extern void np_spi_watchdog_tick(np_safety_state_t             *state,
+                                 const np_safety_rx_ext_frame_t *rx,
+                                 np_safety_tx_frame_t           *tx);
 extern void np_spi_watchdog_check(np_safety_state_t *state);   /* MUST call every loop */
+extern void np_charge_monitor_accumulate(uint8_t channel, uint32_t current_ua, uint32_t dt_us);
 extern void np_charge_monitor_tick(np_safety_state_t *state);
 extern void np_charge_monitor_reset_session(void);
 extern void np_thermal_interlock_tick(np_safety_state_t *state);
@@ -60,12 +61,13 @@ extern void np_fault_latch_commit(const np_safety_state_t *state);
 extern void np_hal_clock_init(void);         /* configure PLL for 64 MHz */
 extern void np_hal_systick_init(void);       /* 1ms SysTick */
 extern void np_hal_gpio_init(void);          /* configure all GPIO banks */
-extern void np_hal_spi_slave_init(void);     /* SPI1 slave, 8-byte frames */
+extern void np_hal_spi_slave_init(void);     /* SPI1 slave, 38-byte ext heartbeat frames */
 extern void np_hal_adc_init(void);           /* ADC1 for NTC channels */
 extern void np_hal_tim2_init(void);          /* TIM2 for R-peak capture */
-/* Heartbeat frame (8 bytes) — called every main-loop iteration */
+/* Extended heartbeat frame (38 bytes, np_safety_rx_ext_frame_t).
+ * OI-CHARGE-01 CLOSED: frame carries current_ua[14] for charge monitor.     */
 extern bool np_hal_spi_frame_ready(void);
-extern void np_hal_spi_get_frame(np_safety_rx_frame_t *rx_out);
+extern void np_hal_spi_get_ext_frame(np_safety_rx_ext_frame_t *rx_out);
 extern void np_hal_spi_send_frame(const np_safety_tx_frame_t *tx);
 /* Session signature command frame (102 bytes) — called when hub delivers sig.
  * HAL distinguishes from heartbeat by NSS-delineated transfer length.
@@ -85,14 +87,31 @@ static uint8_t           s_bad_cmd_count = 0U; /* consecutive bad-magic/checksum
 static bool              s_prior_latch_reported = false;
 
 /* ── Checksum verification (matches hub_control np_safety_spi.c) ──────────── */
-static bool frame_checksum_ok(const np_safety_rx_frame_t *f)
+
+/* Base checksum: additive sum of bytes [0..5] (magic through channel_count).
+ * Covers the same field range as the original 8-byte heartbeat checksum.    */
+static bool frame_checksum_ok(const np_safety_rx_ext_frame_t *f)
 {
     uint16_t sum = 0U;
     const uint8_t *b = (const uint8_t *)f;
-    for (uint8_t i = 0U; i < 6U; i++) {
+    uint8_t i;
+    for (i = 0U; i < 6U; i++) {
         sum += b[i];
     }
     return sum == f->checksum;
+}
+
+/* Ext checksum: additive sum of bytes [8..35] (current_ua[14] only).
+ * Detects corruption of the current magnitude array independent of the base. */
+static bool ext_checksum_ok(const np_safety_rx_ext_frame_t *f)
+{
+    uint16_t sum = 0U;
+    const uint8_t *b = (const uint8_t *)f;
+    uint8_t i;
+    for (i = 8U; i < 36U; i++) {
+        sum += b[i];
+    }
+    return sum == f->ext_checksum;
 }
 
 static void build_tx_checksum(np_safety_tx_frame_t *f)
@@ -159,7 +178,7 @@ int main(void)
 
     /* ── Main polling loop ─────────────────────────────────────────────── */
     for (;;) {
-        np_safety_rx_frame_t rx;
+        np_safety_rx_ext_frame_t rx;
         np_safety_tx_frame_t tx;
         memset(&tx, 0, sizeof(tx));
         tx.fault_slot = s_state.fault_slot;
@@ -203,13 +222,14 @@ int main(void)
             }
         }
 
-        /* ── Heartbeat frame (8 bytes) ────────────────────────────────────── */
+        /* ── Extended heartbeat frame (38 bytes) ─────────────────────────── */
         if (np_hal_spi_frame_ready()) {
-            np_hal_spi_get_frame(&rx);
+            np_hal_spi_get_ext_frame(&rx);
 
             if (rx.magic[0] == NP_SAFETY_BEAT_MAGIC_0 &&
                 rx.magic[1] == NP_SAFETY_BEAT_MAGIC_1 &&
-                frame_checksum_ok(&rx)) {
+                frame_checksum_ok(&rx) &&
+                ext_checksum_ok(&rx)) {
 
                 valid_frame = true;
                 cvns_reenable_confirm =
@@ -252,13 +272,37 @@ int main(void)
             np_impedance_check_request(NP_SAFETY_EN_CVNS);
         }
 
-        /* Tick safety monitors every main-loop iteration */
+        /* Tick safety monitors every main-loop iteration.
+         * Order is critical: all interlocks that reduce granted_mask must run
+         * BEFORE accumulate + charge_tick, so only charge for granted channels
+         * is counted.  charge_tick runs last (may further reduce granted_mask). */
         np_thermal_interlock_tick(&s_state);
-        np_charge_monitor_tick(&s_state);
         np_impedance_check_poll(&s_state);
         if (s_state.cvns_active) {
             np_cardiac_interlock_tick(&s_state);
         }
+
+        /* Accumulate charge for all currently-granted channels that carry a
+         * non-zero commanded current.  dt_us is a compile-time constant —
+         * NP_SAFETY_HEARTBEAT_EXP_MS × 1000 = 200000 µs — not transmitted
+         * over SPI.  current_ua[] are SHDR (commanded, not ADC-measured).      */
+        if (valid_frame && s_state.session_active) {
+            uint8_t ch;
+            for (ch = 0U;
+                 ch < rx.channel_count && ch < NP_SAFETY_MAX_CHANNELS;
+                 ch++) {
+                if (rx.current_ua[ch] > 0U &&
+                    (s_state.granted_mask & (uint16_t)(1U << ch)) != 0U) {
+                    np_charge_monitor_accumulate(
+                        ch,
+                        (uint32_t)rx.current_ua[ch],
+                        (uint32_t)NP_SAFETY_HEARTBEAT_EXP_MS * 1000UL);
+                }
+            }
+        }
+
+        /* Charge limit enforcement — runs after accumulate, may cut channels */
+        np_charge_monitor_tick(&s_state);
 
         /* Apply granted mask to GPIO */
         np_gpio_mgr_apply(&s_state);

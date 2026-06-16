@@ -45,45 +45,78 @@ np_hub_status_t np_safety_spi_init(void)
     return NP_HUB_OK;
 }
 
-np_hub_status_t np_safety_spi_heartbeat(np_session_state_t session_state,
-                                          uint16_t           requested_enable_mask)
+np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
+                                          uint16_t            requested_enable_mask,
+                                          const uint16_t     *current_ua,
+                                          uint8_t             channel_count)
 {
-    np_safety_tx_frame_t tx;
-    np_safety_rx_frame_t rx;
-    np_hub_status_t      rc;
+    /* Extended 38-byte frame (hub→MCU).  MCU simultaneously sends back 8 bytes
+     * of reply; hub receives NP_SAFETY_RX_EXT_FRAME_LEN bytes total, of which
+     * the first sizeof(np_safety_rx_frame_t) (8) are meaningful MCU reply.    */
+    np_safety_tx_ext_frame_t tx;
+    uint8_t                  rx_raw[NP_SAFETY_RX_EXT_FRAME_LEN];
+    np_safety_rx_frame_t     mcu_reply;
+    np_hub_status_t          rc;
+    uint8_t                  ch;
 
-    memset(&tx, 0, sizeof(tx));
-    memset(&rx, 0, sizeof(rx));
+    memset(&tx,      0, sizeof(tx));
+    memset(rx_raw,   0, sizeof(rx_raw));
 
-    tx.magic[0]       = NP_SAFETY_BEAT_MAGIC_0;
-    tx.magic[1]       = NP_SAFETY_BEAT_MAGIC_1;
+    /* ── Build base fields (bytes 0–5) ──────────────────────────────────── */
+    tx.magic[0]      = NP_SAFETY_BEAT_MAGIC_0;
+    tx.magic[1]      = NP_SAFETY_BEAT_MAGIC_1;
     tx.session_status = (uint8_t)session_state;
-    tx.enable_lo      = (uint8_t)(requested_enable_mask & 0xFFU);
-    tx.enable_hi      = (uint8_t)((requested_enable_mask >> 8) & 0xFFU);
-    tx.reserved       = 0U;
-    tx.checksum       = compute_checksum((const uint8_t *)&tx, 6U);
+    tx.enable_lo     = (uint8_t)(requested_enable_mask & 0xFFU);
+    tx.enable_hi     = (uint8_t)((requested_enable_mask >> 8) & 0xFFU);
 
+    /* channel_count caps at NP_SAFETY_MAX_CHANNELS (14) */
+    tx.channel_count = (channel_count <= NP_SAFETY_MAX_CHANNELS)
+                         ? channel_count
+                         : (uint8_t)NP_SAFETY_MAX_CHANNELS;
+
+    /* Base checksum: bytes [0..5] */
+    tx.checksum = compute_checksum((const uint8_t *)&tx, 6U);
+
+    /* ── Build current_ua array (bytes 8–35) ────────────────────────────── */
+    /* current_ua[] carries COMMANDED current from the session descriptor.
+     * SHDR classification: device metric.  NOT ADC-measured actual current
+     * (which would be UHDR — tissue impedance).  See NP-FW-EMMC-001 §12.   */
+    if (current_ua != NULL) {
+        for (ch = 0U; ch < tx.channel_count; ch++) {
+            tx.current_ua[ch] = current_ua[ch];
+        }
+    }
+
+    /* Ext checksum: bytes [8..35] (current_ua[14] only) */
+    tx.ext_checksum = compute_checksum(
+        (const uint8_t *)&tx + 8U,
+        (size_t)NP_SAFETY_MAX_CHANNELS * sizeof(uint16_t));
+
+    /* ── Transfer ────────────────────────────────────────────────────────── */
     rc = np_safety_hal_spi_transfer((const uint8_t *)&tx,
-                                    (uint8_t *)&rx,
-                                    NP_SAFETY_FRAME_LEN);
+                                    rx_raw,
+                                    NP_SAFETY_RX_EXT_FRAME_LEN);
     if (rc != NP_HUB_OK) {
         return NP_HUB_ERR_TIMEOUT;
     }
 
+    /* Extract the first 8 bytes (meaningful MCU reply; rest are slave zeros) */
+    memcpy(&mcu_reply, rx_raw, sizeof(mcu_reply));
+
     /* Verify reply checksum — if bad, treat as safety fault.
-     * Zero s_granted_mask so callers do not act on a stale grant. */
-    uint16_t expected = compute_checksum((const uint8_t *)&rx, 6U);
-    if (rx.checksum != expected) {
+     * Zero s_granted_mask so callers do not act on a stale grant.          */
+    uint16_t expected = compute_checksum((const uint8_t *)&mcu_reply, 6U);
+    if (mcu_reply.checksum != expected) {
         s_granted_mask = 0U;
         s_mcu_status   = NP_SAFETY_STATUS_FAULT;
         return NP_HUB_ERR_SAFETY_FAULT;
     }
 
-    s_granted_mask = (uint16_t)((uint16_t)rx.granted_lo |
-                                 ((uint16_t)rx.granted_hi << 8));
-    s_mcu_status   = rx.status;
+    s_granted_mask = (uint16_t)((uint16_t)mcu_reply.granted_lo |
+                                 ((uint16_t)mcu_reply.granted_hi << 8));
+    s_mcu_status   = mcu_reply.status;
 
-    if (rx.status & (NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_CUTOFF)) {
+    if (mcu_reply.status & (NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_CUTOFF)) {
         return NP_HUB_ERR_SAFETY_FAULT;
     }
 

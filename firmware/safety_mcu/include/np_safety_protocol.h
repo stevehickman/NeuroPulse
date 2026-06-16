@@ -2,30 +2,32 @@
  * NeuroPulse Safety MCU — SPI Protocol Types
  * Document: NP-FW-HUB-001 Rev A §7, NP-SW-001 Rev A
  *
- * Two SPI frame types, distinguished by magic bytes and transfer length:
+ * Three SPI frame types, distinguished by transfer length (NSS-delineated):
  *
- *   Heartbeat frame (8 bytes, every 200ms):
- *     Hub → MCU: np_safety_rx_frame_t  (magic 0xBE 0xA7)
- *     MCU → Hub: np_safety_tx_frame_t  (simultaneous full-duplex reply)
+ *   Extended heartbeat frame (38 bytes, every 200ms):
+ *     Hub → MCU: np_safety_rx_ext_frame_t  (magic 0xBE 0xA7, in np_spi_wire_types.h)
+ *     MCU → Hub: np_safety_tx_frame_t      (8-byte reply, simultaneous full-duplex)
+ *     OI-CHARGE-01 CLOSED — frame carries current_ua[14] enabling charge monitor.
  *
- *   Session signature command frame (102 bytes, once per session before
- *     first enable request):
+ *   Session signature command frame (102 bytes, once per session):
  *     Hub → MCU: np_safety_sig_cmd_t   (magic 0xC0 0xDE)
  *     MCU → Hub: status byte + 101 zero padding (hub discards)
+ *     OI-SW01-M07-01 CLOSED.
  *
- * The HAL distinguishes frame types by transfer length (NSS-delineated).
- * The session sig command MUST be sent before the heartbeat that first
- * requests a non-zero enable mask for a new session.
+ *   MCU reply frame (8 bytes, sent simultaneously with every hub TX):
+ *     MCU → Hub: np_safety_tx_frame_t  (status + granted_mask + fault_slot + checksum)
+ *
+ * Backward compat: np_safety_rx_frame_t (the old 8-byte heartbeat base) is
+ * kept here for the test suite and to document the layout origin.  The active
+ * heartbeat frame type in np_safety_main.c is now np_safety_rx_ext_frame_t.
  *
  * SPI timing:
  *   - Heartbeat period: 200ms (NP_SAFETY_HEARTBEAT_EXP_MS)
  *   - Watchdog timeout: 1500ms (NP_SAFETY_WDG_TIMEOUT_MS)
- *   - Full-duplex: both frames exchanged simultaneously
  *
- * NP_SAFETY_FRAME_LEN     = 8   (heartbeat, both TX and RX)
- * NP_SAFETY_CMD_FRAME_LEN = 102 (sig command; hub TX only, MCU rx-only useful)
- *
- * OI-SW01-M07-01 CLOSED — multi-byte SPI command frame designed and wired.
+ * NP_SAFETY_FRAME_LEN        = 8   (MCU reply frame; np_safety_tx_frame_t)
+ * NP_SAFETY_RX_EXT_FRAME_LEN = 38  (extended heartbeat; np_safety_rx_ext_frame_t)
+ * NP_SAFETY_CMD_FRAME_LEN    = 102 (sig command)
  */
 
 #ifndef NP_SAFETY_PROTOCOL_H

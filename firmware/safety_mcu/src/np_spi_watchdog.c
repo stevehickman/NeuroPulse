@@ -35,9 +35,9 @@ np_safe_status_t np_spi_watchdog_init(void)
  * If no valid frame is received, the caller skips this tick; the tick-
  * independent watchdog check in np_spi_watchdog_check() fires on timeout.
  */
-void np_spi_watchdog_tick(np_safety_state_t   *state,
-                          const np_safety_rx_frame_t *rx,
-                          np_safety_tx_frame_t       *tx)
+void np_spi_watchdog_tick(np_safety_state_t         *state,
+                          const np_safety_rx_ext_frame_t *rx,
+                          np_safety_tx_frame_t           *tx)
 {
     (void)rx;
     (void)tx;

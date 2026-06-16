@@ -39,24 +39,36 @@ project(np_safety_mcu C ASM)
 option(NP_BUILD_TESTS "Build host-native unit tests (no ARM toolchain needed)" OFF)
 
 # ── Host unit tests (NP_BUILD_TESTS=ON) ───────────────────────────────────────
-# Tests exercise the SPI protocol structs and NP_SAFETY_STATUS_SIG_PENDING
-# lifecycle logic without requiring ARM cross-compilation or SPI hardware.
-# OI-SW01-M07-01 CLOSED — these tests cover the 102-byte sig cmd frame.
+# Tests exercise the SPI protocol structs, NP_SAFETY_STATUS_SIG_PENDING
+# lifecycle logic, and charge monitor logic without requiring ARM
+# cross-compilation or SPI hardware.
+# OI-SW01-M07-01 CLOSED — sig cmd frame tests.
+# OI-CHARGE-01   CLOSED — ext frame + charge monitor tests.
 if(NP_BUILD_TESTS)
+    # Helper macro to apply common host-test properties
+    macro(np_host_test target)
+        target_include_directories(${target} PRIVATE include)
+        set_target_properties(${target} PROPERTIES
+            C_STANDARD          11
+            C_STANDARD_REQUIRED ON
+            C_EXTENSIONS        OFF
+        )
+        target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
+    endmacro()
+
+    # np_safety_spi_proto_tests: SPI frame struct tests (sig cmd + ext heartbeat)
     add_executable(np_safety_spi_proto_tests
         tests/np_safety_spi_proto_tests.c
     )
-    target_include_directories(np_safety_spi_proto_tests PRIVATE include)
-    set_target_properties(np_safety_spi_proto_tests PROPERTIES
-        C_STANDARD          11
-        C_STANDARD_REQUIRED ON
-        C_EXTENSIONS        OFF
+    np_host_test(np_safety_spi_proto_tests)
+
+    # np_charge_monitor_tests: SW01-M03 charge density limit logic
+    add_executable(np_charge_monitor_tests
+        tests/np_charge_monitor_tests.c
+        src/np_charge_monitor.c
     )
-    target_compile_options(np_safety_spi_proto_tests PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-    )
+    np_host_test(np_charge_monitor_tests)
+
     return()
 endif()
 
