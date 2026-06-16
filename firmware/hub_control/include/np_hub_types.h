@@ -494,25 +494,11 @@ typedef struct __attribute__((packed)) {
     uint16_t checksum;
 } np_safety_rx_frame_t;
 
-/* ── Session signature command frame (hub → safety MCU, 102 bytes) ──────────── */
-/*
- * Hub sends this once per session after session_active goes 1 and before
- * the first heartbeat that requests a non-zero enable_mask.
- *
- * Checksum: additive sum of bytes [0..NP_SAFETY_CMD_FRAME_LEN-3], wrapping uint16.
- * Safety MCU ignores the frame silently if checksum fails; SIG_PENDING persists.
- *
- * Must stay in sync with np_safety_sig_cmd_t in firmware/safety_mcu/include/np_safety_protocol.h.
- */
-typedef struct __attribute__((packed)) {
-    uint8_t  cmd_magic[2];                    /* NP_SAFETY_CMD_MAGIC_0 / _1 */
-    uint8_t  cmd_type;                        /* NP_SAFETY_CMD_SESSION_SIG (0x01) */
-    uint8_t  reserved;                        /* 0x00 */
-    uint8_t  session_hash[NP_SESSION_HASH_LEN]; /* SHA-256 of session descriptor */
-    uint8_t  session_sig[NP_ED25519_SIG_LEN];   /* Ed25519 signature (64 bytes) */
-    uint16_t checksum;                        /* sum of bytes [0..99], wrapping uint16 */
-} np_safety_sig_cmd_t;                        /* = NP_SAFETY_CMD_FRAME_LEN (102) bytes */
-
-typedef char _np_hub_sig_cmd_size[(sizeof(np_safety_sig_cmd_t) == NP_SAFETY_CMD_FRAME_LEN) ? 1 : -1];
+/* np_safety_sig_cmd_t and all session-signature command frame constants
+ * (NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG, NP_SAFETY_CMD_FRAME_LEN,
+ * NP_SESSION_HASH_LEN, NP_ED25519_SIG_LEN) come from:
+ *   firmware/common/include/np_spi_wire_types.h
+ * which is included transitively via np_hub_config.h above.
+ * Single source of truth — no duplicate definition in this file. */
 
 #endif /* NP_HUB_TYPES_H */

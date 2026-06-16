@@ -14,8 +14,9 @@ static volatile uint16_t s_requested_mask = 0U;
 static volatile uint16_t s_granted_mask   = 0U;
 static volatile uint8_t  s_mcu_status     = NP_SAFETY_STATUS_OK;
 
-/* Protects s_requested_mask writes from concurrent task access. */
-static portMUX_TYPE s_mask_mux = portMUX_INITIALIZER_UNLOCKED;
+/* s_requested_mask is protected by the FreeRTOS task-level critical section
+ * (taskENTER_CRITICAL / taskEXIT_CRITICAL).  These functions are called from
+ * task context only — never from an ISR — so the task variants are correct. */
 
 /* ── Checksum ─────────────────────────────────────────────────────────────────── */
 
@@ -69,10 +70,12 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t session_state,
         return NP_HUB_ERR_TIMEOUT;
     }
 
-    /* Verify reply checksum — if bad, treat as safety fault. */
+    /* Verify reply checksum — if bad, treat as safety fault.
+     * Zero s_granted_mask so callers do not act on a stale grant. */
     uint16_t expected = compute_checksum((const uint8_t *)&rx, 6U);
     if (rx.checksum != expected) {
-        s_mcu_status = NP_SAFETY_STATUS_FAULT;
+        s_granted_mask = 0U;
+        s_mcu_status   = NP_SAFETY_STATUS_FAULT;
         return NP_HUB_ERR_SAFETY_FAULT;
     }
 
@@ -117,23 +120,23 @@ np_hub_status_t np_safety_spi_send_session_sig(const uint8_t *hash,
 
 void np_safety_spi_request_enable(uint16_t channel_mask)
 {
-    taskENTER_CRITICAL_FROM_ISR();
+    taskENTER_CRITICAL();
     s_requested_mask |= channel_mask;
-    taskEXIT_CRITICAL_FROM_ISR(0U);
+    taskEXIT_CRITICAL();
 }
 
 void np_safety_spi_request_disable(uint16_t channel_mask)
 {
-    taskENTER_CRITICAL_FROM_ISR();
+    taskENTER_CRITICAL();
     s_requested_mask &= ~channel_mask;
-    taskEXIT_CRITICAL_FROM_ISR(0U);
+    taskEXIT_CRITICAL();
 }
 
 void np_safety_spi_disable_all(void)
 {
-    taskENTER_CRITICAL_FROM_ISR();
+    taskENTER_CRITICAL();
     s_requested_mask = 0U;
-    taskEXIT_CRITICAL_FROM_ISR(0U);
+    taskEXIT_CRITICAL();
 }
 
 uint16_t np_safety_spi_get_granted_mask(void)

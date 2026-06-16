@@ -62,6 +62,10 @@ void np_spi_watchdog_tick(np_safety_state_t   *state,
                                               NP_SAFETY_STATUS_CHARGE       |
                                               NP_SAFETY_STATUS_CARDIAC      |
                                               NP_SAFETY_STATUS_SIG_PENDING);
+    /* NP_SAFETY_STATUS_WATCHDOG intentionally excluded: the watchdog self-clears
+     * on the next valid heartbeat via np_spi_watchdog_check() resetting the
+     * timeout counter; including it here would block the grant mask even after
+     * a valid heartbeat is received during the same tick cycle. */
 
     /* Only clear CUTOFF if no other interlock is actively asserting it */
     if (active_faults == 0U) {

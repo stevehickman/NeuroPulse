@@ -29,15 +29,31 @@
 extern void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len);
 
 /* ── Module state ─────────────────────────────────────────────────────────── */
-static uint8_t s_pubkey[NP_ED25519_PUB_KEY_LEN];
-static bool    s_pubkey_loaded;
-static bool    s_session_verified;
+static uint8_t  s_pubkey[NP_ED25519_PUB_KEY_LEN];
+static bool     s_pubkey_loaded;
+static bool     s_session_verified;
+static uint8_t  s_sig_fail_count;  /* consecutive Ed25519 failures this power-cycle */
 
 np_safe_status_t np_session_sig_init(void)
 {
+    uint8_t i;
+    bool    all_zero;
+
     np_hal_otp_read_pubkey(s_pubkey, NP_ED25519_PUB_KEY_LEN);
-    s_pubkey_loaded    = true;
+
+    /* All-zero public key means the OTP was never programmed (unprovisioned device).
+     * Do not set s_pubkey_loaded; np_session_sig_verify() will fault with
+     * NP_FAULT_SLOT_UNPROV on the first session attempt.                      */
+    all_zero = true;
+    for (i = 0U; i < NP_ED25519_PUB_KEY_LEN; i++) {
+        if (s_pubkey[i] != 0U) { all_zero = false; break; }
+    }
+    if (!all_zero) {
+        s_pubkey_loaded = true;
+    }
+
     s_session_verified = false;
+    s_sig_fail_count   = 0U;
     return NP_SAFE_OK;
 }
 
@@ -65,7 +81,8 @@ np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
                                         const uint8_t *sig)
 {
     if (!s_pubkey_loaded) {
-        state->status |= NP_SAFETY_STATUS_FAULT;
+        state->fault_slot = NP_FAULT_SLOT_UNPROV;  /* OTP never programmed */
+        state->status    |= NP_SAFETY_STATUS_FAULT;
         return NP_SAFE_ERR_FAULT;
     }
 
@@ -73,13 +90,15 @@ np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
                                hash, NP_SESSION_HASH_LEN,
                                sig);
     if (ok != 0) {
+        s_sig_fail_count++;
         state->status       |= NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_CUTOFF;
         state->granted_mask  = 0U;
-        state->fault_slot    = 0xFDU;  /* 0xFD = signature failure */
+        state->fault_slot    = NP_FAULT_SLOT_SIG_FAIL;
         /* Leave SIG_PENDING set — hub must not receive enables. */
         return NP_SAFE_ERR_FAULT;
     }
 
+    s_sig_fail_count    = 0U;  /* reset on success */
     s_session_verified  = true;
     state->status      &= (uint8_t)~NP_SAFETY_STATUS_SIG_PENDING;
     return NP_SAFE_OK;
@@ -88,4 +107,28 @@ np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
 bool np_session_sig_is_verified(void)
 {
     return s_session_verified;
+}
+
+/*
+ * np_session_sig_reenable — called by np_safety_main BEFORE np_session_sig_reset()
+ * on a session 0→1 transition when the previous session ended with a sig fault.
+ *
+ * Clears the FAULT+CUTOFF bits if the fail count is still below NP_SIG_FAIL_MAX.
+ * After NP_SIG_FAIL_MAX consecutive failures the device is hard-locked — only
+ * a power-cycle can clear s_sig_fail_count and re-enable the reset path.
+ *
+ * The caller must still call np_session_sig_reset() afterward to set SIG_PENDING
+ * for the new session.
+ */
+void np_session_sig_reenable(np_safety_state_t *state)
+{
+    if (state->fault_slot != NP_FAULT_SLOT_SIG_FAIL) {
+        return;  /* not a sig fault — don't touch other fault bits */
+    }
+    if (s_sig_fail_count >= NP_SIG_FAIL_MAX) {
+        return;  /* hard lock — require device power-cycle */
+    }
+    state->status    &= (uint8_t)~(NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_CUTOFF);
+    state->fault_slot = NP_FAULT_SLOT_NONE;
+    /* np_session_sig_reset() will set SIG_PENDING for the new session */
 }

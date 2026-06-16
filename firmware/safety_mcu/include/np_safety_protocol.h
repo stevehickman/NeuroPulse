@@ -34,14 +34,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "np_safety_config.h"
+#include "../../common/include/np_spi_wire_types.h"
 
 /* ── Magic bytes (must match hub_control/np_hub_config.h) ─────────────────── */
 #define NP_SAFETY_BEAT_MAGIC_0  0xBEU
 #define NP_SAFETY_BEAT_MAGIC_1  0xA7U
-
-/* ── Session signature command magic (distinct from heartbeat) ────────────── */
-#define NP_SAFETY_CMD_MAGIC_0   0xC0U
-#define NP_SAFETY_CMD_MAGIC_1   0xDEU
 
 /* ── Enable bitmask bits (must match hub_control/np_hub_config.h) ─────────── */
 #define NP_SAFETY_EN_PBM_ZONE_0     (1U << 0)
@@ -60,19 +57,11 @@
 #define NP_SAFETY_EN_CLIN_STIM      (1U << 13)
 #define NP_SAFETY_EN_ALL_MASK       0x3FFFU
 
-/* ── Session signature command type ──────────────────────────────────────── */
-#define NP_SAFETY_CMD_SESSION_SIG   0x01U       /* deliver 32-byte hash + 64-byte sig */
-
 /* ── Frame lengths ────────────────────────────────────────────────────────── */
 /* NP_SAFETY_FRAME_LEN is the heartbeat frame length (defined in np_safety_config.h as 8). */
-/* NP_SAFETY_CMD_FRAME_LEN: 2 (magic) + 1 (type) + 1 (rsvd) + 32 (hash) +
- *                           64 (sig) + 2 (checksum) = 102 bytes.            */
-#define NP_SAFETY_CMD_FRAME_LEN     102U
-
-/* ── ACK codes returned in sig command reply (first byte from MCU) ────────── */
-/* Hub may ignore these; result is reflected in status byte of next heartbeat. */
-#define NP_SAFETY_CMD_ACK_OK        0xACU   /* signature accepted */
-#define NP_SAFETY_CMD_ACK_NACK      0x55U   /* signature rejected */
+/* NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG, NP_SAFETY_CMD_FRAME_LEN,
+ * NP_SESSION_HASH_LEN, NP_ED25519_SIG_LEN, and np_safety_sig_cmd_t are in
+ * firmware/common/include/np_spi_wire_types.h (included above).               */
 
 /* ── Status flags returned in heartbeat TX frame ────────────────────────────── */
 #define NP_SAFETY_STATUS_OK         0x00U
@@ -122,31 +111,9 @@ typedef struct {
     bool     cvns_active;      /* cervical VNS enabled this session */
 } np_safety_state_t;
 
-/* ── Session signature command frame (hub → MCU, 102 bytes) ──────────────── */
-/*
- * Delivered as a single SPI transaction BEFORE the heartbeat that first
- * requests a non-zero enable_mask for a new session.
- *
- * Checksum: additive sum of bytes [0..99], wrapping uint16, stored little-endian.
- * The MCU verifies the checksum before calling np_session_sig_verify().
- *
- * Full-duplex TX from MCU during this transaction: first byte = current status
- * (NP_SAFETY_CMD_ACK_OK or NP_SAFETY_CMD_ACK_NACK for the previous command,
- * or 0x00 on the very first command), followed by 101 zero bytes.
- * Hub may discard the MCU's concurrent transmission; the definitive result is
- * the NP_SAFETY_STATUS_SIG_PENDING bit in the next heartbeat reply.
- */
-typedef struct __attribute__((packed)) {
-    uint8_t  cmd_magic[2];                  /* NP_SAFETY_CMD_MAGIC_0 / _1 */
-    uint8_t  cmd_type;                      /* NP_SAFETY_CMD_SESSION_SIG (0x01) */
-    uint8_t  reserved;                      /* 0x00 */
-    uint8_t  session_hash[NP_SESSION_HASH_LEN]; /* SHA-256 of session descriptor */
-    uint8_t  session_sig[NP_ED25519_SIG_LEN];   /* Ed25519 signature (64 bytes) */
-    uint16_t checksum;                      /* sum of bytes [0..99], wrapping uint16 */
-} np_safety_sig_cmd_t;                      /* 2+1+1+32+64+2 = 102 bytes */
-
-/* Compile-time size assertion */
-typedef char _np_sig_cmd_size_check[(sizeof(np_safety_sig_cmd_t) == NP_SAFETY_CMD_FRAME_LEN) ? 1 : -1];
+/* np_safety_sig_cmd_t, NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG,
+ * NP_SAFETY_CMD_FRAME_LEN, NP_SESSION_HASH_LEN, NP_ED25519_SIG_LEN are all
+ * provided by firmware/common/include/np_spi_wire_types.h (included above). */
 
 /* ── Module init/update return codes ─────────────────────────────────────── */
 typedef enum {

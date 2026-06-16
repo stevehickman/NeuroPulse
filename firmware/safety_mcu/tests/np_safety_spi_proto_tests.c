@@ -259,6 +259,31 @@ static void test_heartbeat_unaffected(void)
     check(heartbeat_checksum(&rx) == rx.checksum, "heartbeat checksum valid");
 }
 
+/* ── Test: fault slot constants match their wire-format values ──────────────── */
+
+static void test_fault_slot_constants(void)
+{
+    /* Fault slot codes must be stable — these values are written to SHDR and
+     * read by the hub and app for diagnostics.  If they change, a deployed
+     * device's SHDR database will misclassify historical fault records.       */
+    check(NP_FAULT_SLOT_NONE        == 0xFFU, "NP_FAULT_SLOT_NONE == 0xFF");
+    check(NP_FAULT_SLOT_SIG_FAIL    == 0xFDU, "NP_FAULT_SLOT_SIG_FAIL == 0xFD");
+    check(NP_FAULT_SLOT_UNPROV      == 0xFEU, "NP_FAULT_SLOT_UNPROV == 0xFE");
+    check(NP_FAULT_SLOT_SIG_CORRUPT == 0xFCU, "NP_FAULT_SLOT_SIG_CORRUPT == 0xFC");
+
+    /* Escalation limits must be ≥1 to be meaningful */
+    check(NP_SAFETY_SIG_BAD_CMD_MAX >= 1U, "NP_SAFETY_SIG_BAD_CMD_MAX >= 1");
+    check(NP_SIG_FAIL_MAX           >= 1U, "NP_SIG_FAIL_MAX >= 1");
+
+    /* All four codes must be distinct */
+    check(NP_FAULT_SLOT_NONE        != NP_FAULT_SLOT_SIG_FAIL,    "NONE != SIG_FAIL");
+    check(NP_FAULT_SLOT_NONE        != NP_FAULT_SLOT_UNPROV,       "NONE != UNPROV");
+    check(NP_FAULT_SLOT_NONE        != NP_FAULT_SLOT_SIG_CORRUPT,  "NONE != SIG_CORRUPT");
+    check(NP_FAULT_SLOT_SIG_FAIL    != NP_FAULT_SLOT_UNPROV,       "SIG_FAIL != UNPROV");
+    check(NP_FAULT_SLOT_SIG_FAIL    != NP_FAULT_SLOT_SIG_CORRUPT,  "SIG_FAIL != SIG_CORRUPT");
+    check(NP_FAULT_SLOT_UNPROV      != NP_FAULT_SLOT_SIG_CORRUPT,  "UNPROV != SIG_CORRUPT");
+}
+
 /* ── Main ───────────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -272,6 +297,7 @@ int main(void)
     test_watchdog_blocks_on_sig_pending();
     test_cmd_constants();
     test_heartbeat_unaffected();
+    test_fault_slot_constants();
 
     printf("\n%s: %d failure(s)\n",
            (g_failures == 0) ? "PASS" : "FAIL", g_failures);

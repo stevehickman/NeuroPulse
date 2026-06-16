@@ -49,6 +49,7 @@ extern void np_cardiac_interlock_reenable(np_safety_state_t *state);
 extern void np_impedance_check_request(uint16_t requested_mask);
 extern void np_impedance_check_poll(np_safety_state_t *state);
 extern void np_session_sig_reset(np_safety_state_t *state);
+extern void np_session_sig_reenable(np_safety_state_t *state);
 extern np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
                                                const uint8_t *hash,
                                                const uint8_t *sig);
@@ -76,6 +77,7 @@ extern void np_hal_spi_get_cmd(np_safety_sig_cmd_t *cmd_out);
 /* ── Shared safety state ─────────────────────────────────────────────────── */
 static np_safety_state_t s_state;
 static bool              s_prev_session_active = false;
+static uint8_t           s_bad_cmd_count = 0U; /* consecutive bad-magic/checksum sig frames */
 /* s_prior_latch_reported: true once prior fault is reported to hub on the
  * first heartbeat reply.  Prevents np_fault_latch_commit() from overwriting
  * the preserved latch data (slot + specific status bits) with the generic
@@ -125,7 +127,7 @@ int main(void)
     /* Peripheral init — must complete before any module init */
     np_hal_clock_init();
     np_hal_systick_init();
-    np_hal_gpio_init();    /* drives all stimulation enables LOW immediately */
+    np_hal_gpio_init();    /* drives all stimulation enables HIGH (disabled) immediately */
     np_hal_spi_slave_init();
     np_hal_adc_init();
     np_hal_tim2_init();
@@ -178,15 +180,27 @@ int main(void)
                 cmd.cmd_type     == NP_SAFETY_CMD_SESSION_SIG &&
                 cmd_checksum_ok(&cmd)) {
 
+                s_bad_cmd_count = 0U;  /* well-formed frame — reset corruption counter */
                 np_session_sig_verify(&s_state,
                                       cmd.session_hash,
                                       cmd.session_sig);
                 /* Result reflected in NP_SAFETY_STATUS_SIG_PENDING bit:
                  *   success → SIG_PENDING cleared → next heartbeat grants mask
-                 *   failure → FAULT + CUTOFF set → hub must abort session     */
+                 *   failure → FAULT + CUTOFF set → hub MUST abort session and
+                 *             restart (retry without full session teardown is
+                 *             insufficient — FAULT blocks all enables until the
+                 *             next session 0→1 transition calls sig_reenable)  */
+            } else {
+                /* Bad magic or bad checksum: SIG_PENDING stays set.
+                 * Hub will see SIG_PENDING in next heartbeat reply and may retry.
+                 * After NP_SAFETY_SIG_BAD_CMD_MAX consecutive corrupt frames,
+                 * FAULT is set to prevent indefinite unverified-session operation. */
+                s_bad_cmd_count++;
+                if (s_bad_cmd_count >= NP_SAFETY_SIG_BAD_CMD_MAX) {
+                    s_state.fault_slot = NP_FAULT_SLOT_SIG_CORRUPT;
+                    s_state.status    |= NP_SAFETY_STATUS_FAULT;
+                }
             }
-            /* Bad magic / bad checksum: silently ignore; SIG_PENDING stays set.
-             * Hub will see SIG_PENDING in next heartbeat reply and retry.     */
         }
 
         /* ── Heartbeat frame (8 bytes) ────────────────────────────────────── */
@@ -219,9 +233,11 @@ int main(void)
 
         /* Detect session_active 0→1 transition: reset per-session state */
         if (s_state.session_active && !s_prev_session_active) {
-            np_session_sig_reset(&s_state);  /* sets NP_SAFETY_STATUS_SIG_PENDING */
+            np_session_sig_reenable(&s_state);   /* clear prior sig fault if recoverable */
+            np_session_sig_reset(&s_state);      /* sets NP_SAFETY_STATUS_SIG_PENDING */
             np_charge_monitor_reset_session();
             np_impedance_check_request(s_state.requested_mask);
+            s_bad_cmd_count = 0U;               /* reset corruption counter for new session */
         }
         s_prev_session_active = s_state.session_active;
 

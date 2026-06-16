@@ -64,16 +64,11 @@
 #define NP_SAFETY_BEAT_MAGIC_0      0xBEU
 #define NP_SAFETY_BEAT_MAGIC_1      0xA7U
 
-/* Session signature command frame (102 bytes, hub → safety MCU).
- * Must be sent after session_active goes 1 and before first non-zero enable.
- * Magic distinct from heartbeat so MCU HAL distinguishes by content as backup. */
-#define NP_SAFETY_CMD_MAGIC_0       0xC0U
-#define NP_SAFETY_CMD_MAGIC_1       0xDEU
-#define NP_SAFETY_CMD_SESSION_SIG   0x01U
-/* 2 (magic) + 1 (type) + 1 (rsvd) + 32 (hash) + 64 (sig) + 2 (cksum) = 102 */
-#define NP_SAFETY_CMD_FRAME_LEN     102U
-#define NP_SESSION_HASH_LEN         32U   /* SHA-256 */
-#define NP_ED25519_SIG_LEN          64U
+/* Session signature command frame constants: NP_SAFETY_CMD_MAGIC_0/1,
+ * NP_SAFETY_CMD_SESSION_SIG, NP_SAFETY_CMD_FRAME_LEN, NP_SESSION_HASH_LEN,
+ * NP_ED25519_SIG_LEN, and np_safety_sig_cmd_t are in
+ * firmware/common/include/np_spi_wire_types.h (included via np_hub_types.h). */
+#include "../../common/include/np_spi_wire_types.h"
 
 /*
  * Enable bitmask sent to safety MCU; one bit per stimulation channel.
