@@ -60,6 +60,10 @@ struct SessionView: View {
     @State private var voiceOverCoherence:    Float? = nil
     @State private var coherenceDebounceTask: Task<Void, Never>? = nil
 
+    // ISC-148: scale breathing ring with Dynamic Type so text inside never clips at AXL.
+    @ScaledMetric(relativeTo: .title3) private var breathingRingMax: CGFloat = 120
+    @ScaledMetric(relativeTo: .title3) private var breathingRingMin: CGFloat = 80
+
     var body: some View {
         NavigationStack {
             sessionScrollView
@@ -201,6 +205,7 @@ struct SessionView: View {
             Circle()
                 .fill(connectionColor)
                 .frame(width: 8, height: 8)
+                .accessibilityHidden(true)
             Text(connectionLabel)
                 .font(.footnote)
                 .foregroundColor(.secondary)
@@ -328,6 +333,7 @@ struct SessionView: View {
                             .animation(.easeInOut(duration: 1).repeatForever(), value: gatt.session.status)
                     }
                 }
+                .accessibilityHidden(true)
             Text(sessionStatusLabel)
                 .font(.headline)
         }
@@ -357,12 +363,12 @@ struct SessionView: View {
             ZStack {
                 Circle()
                     .stroke(Color.blue.opacity(0.2), lineWidth: 6)
-                    .frame(width: 120, height: 120)
+                    .frame(width: breathingRingMax, height: breathingRingMax)
                 Circle()
                     .stroke(Color.blue, lineWidth: 6)
                     .frame(
-                        width: gatt.session.pacerPhase == .inhale ? 120 : 80,
-                        height: gatt.session.pacerPhase == .inhale ? 120 : 80
+                        width: gatt.session.pacerPhase == .inhale ? breathingRingMax : breathingRingMin,
+                        height: gatt.session.pacerPhase == .inhale ? breathingRingMax : breathingRingMin
                     )
                     .animation(.easeInOut(duration: 2.5), value: gatt.session.pacerPhase)
 
@@ -433,7 +439,7 @@ struct SessionView: View {
                                 .font(.caption2.bold())
                                 .foregroundColor(isPresent ? .green : .secondary)
                         }
-                        .frame(height: 36)
+                        .frame(minHeight: 36)
                 }
             }
         }

@@ -177,6 +177,7 @@ struct SetupView: View {
             .font(.system(size: 48))
             .foregroundColor(.accentColor)
             .padding(.top, 8)
+            .accessibilityHidden(true)
     }
 
     private func iconName(for step: SetupStep) -> String {
@@ -220,6 +221,7 @@ struct SetupView: View {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 64))
                     .foregroundColor(.green)
+                    .accessibilityHidden(true)
                 Text("SETUP_COMPLETE_HEADING")
                     .font(.title2.bold())
                     .multilineTextAlignment(.center)
@@ -234,6 +236,7 @@ struct SetupView: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.orange)
+                .accessibilityHidden(true)
             Text(message)
                 .font(.subheadline)
                 .foregroundColor(.primary)
@@ -389,6 +392,7 @@ struct SafetyAcknowledgementCard: View {
                 .foregroundColor(.red)
                 .font(.caption)
                 .padding(.top, 2)
+                .accessibilityHidden(true)
             Text(text)
                 .font(.subheadline)
                 .fixedSize(horizontal: false, vertical: true)
@@ -467,6 +471,7 @@ struct ZoneModuleStatusGrid: View {
                 HStack {
                     Image(systemName: slot.isPresent ? "checkmark.circle.fill" : "circle.dashed")
                         .foregroundColor(slot.isPresent ? .green : .secondary)
+                        .accessibilityHidden(true)
                     Text(slot.anatomicalLabel)
                         .font(.subheadline)
                     Spacer()
@@ -498,10 +503,16 @@ struct ImpedanceStatusGrid: View {
                     Circle()
                         .fill(passed ? Color.green : Color.orange)
                         .frame(width: 20, height: 20)
+                        .accessibilityHidden(true)
                     Text(channelNames[idx])
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(String(
+                    format: String(localized: passed ? "SETUP_IMPEDANCE_PASS_A11Y" : "SETUP_IMPEDANCE_FAIL_A11Y"),
+                    channelNames[idx]
+                ))
             }
         }
         .padding()

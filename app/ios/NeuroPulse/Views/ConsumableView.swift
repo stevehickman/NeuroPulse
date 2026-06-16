@@ -64,6 +64,7 @@ struct ConsumableStatusRow: View {
                 Circle()
                     .fill(statusColor)
                     .frame(width: 10, height: 10)
+                    .accessibilityHidden(true)
                 Text(state.kind.displayName)
                     .font(.subheadline.bold())
                     .fixedSize(horizontal: false, vertical: true)

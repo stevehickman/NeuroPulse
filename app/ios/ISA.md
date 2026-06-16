@@ -5,10 +5,10 @@ project: NeuroPulse
 effort: E4
 effort_source: gate-floor
 phase: execute
-progress: 74/164
+progress: 76/164
 mode: interactive
 started: 2026-06-04
-updated: 2026-06-14
+updated: 2026-06-15
 ---
 
 # ISA — NeuroPulse Core iOS App (Issue #51)
@@ -249,10 +249,10 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 ### Performance and accessibility
 
 - [ ] ISC-145: `SessionView` maintains 60 fps during a running session with all live metrics updating at 100ms intervals — measured by Instruments Time Profiler with zero dropped frames over a 30-second window.
-- [ ] ISC-146: All interactive controls in `SessionView`, `ConsentOnboardingView`, `ConsumableView`, and `SetupView` have `accessibilityLabel` set to a meaningful string (not the default system-generated one for icon-only buttons).
+- [x] ISC-146: All interactive controls in `SessionView`, `ConsentOnboardingView`, `ConsumableView`, and `SetupView` have `accessibilityLabel` set to a meaningful string (not the default system-generated one for icon-only buttons).
 - [ ] ISC-147: The minimum contrast ratio for all body text against its background meets WCAG AA (4.5:1) — verified with Xcode Accessibility Inspector.
-- [ ] ISC-148: The app functions correctly with Dynamic Type set to "Accessibility Extra Large" — no text is clipped or overflows its container in `SessionView` at this size.
-- [ ] ISC-149: VoiceOver announces the coherence score change on each GATT update (0.1 Hz) in `SessionView` without producing an audio flood — change announcements are debounced at ≥2 seconds.
+- [x] ISC-148: The app functions correctly with Dynamic Type set to "Accessibility Extra Large" — no text is clipped or overflows its container in `SessionView` at this size.
+- [x] ISC-149: VoiceOver announces the coherence score change on each GATT update (0.1 Hz) in `SessionView` without producing an audio flood — change announcements are debounced at ≥2 seconds.
 - [ ] ISC-150: `Anti:` No `UIView` or `SwiftUI.View` directly observes a `@Published` property that updates at >10 Hz by triggering a full body re-render — any >10 Hz property (e.g. pacer phase at 100ms) uses `withAnimation` or a dedicated `@State` throttle.
 
 ### Testing
@@ -413,3 +413,6 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 | ISC-87 | Code review: `UserDefaults.standard.set(true, forKey: "np.onboarding.age-confirmed")` called in `AgeGateView` Continue action. `MainTabView` reads this key to skip the gate on subsequent launches. | 2026-06-14 |
 | ISC-35 | `SessionProtocolUploaderTests.testSignAndUpload` passed (0.159s). `upload(_:NPProtocolDefinition)` signed the EEG neurofeedback definition via `SessionProtocolSigner` (Curve25519/Ed25519, Keychain-backed), chunked the wire blob via `ProtocolChunker`, and delivered all chunks to `MockProtocolUploadGateway`. Reassembled payload opened with NPPR magic `[0x4E, 0x50, 0x50, 0x52]`. `isUploading` false after completion. Full suite: `SessionProtocolUploaderTests` 5/5 passed (0 failures). | 2026-06-14 |
 | ISC-14 | `SessionProtocolUploaderTests.testUploadMultiChunkProtocolReassemblesWithNPPRMagic` passed (0.003s): 500-char protocol name forces wire blob > 509 bytes → `ProtocolChunker` emits START + END chunks, `gateway.uploadCallCount > 1`. `ProtocolChunkerTests.roundTripReassemblyMatchesOriginal` passed across sizes [0, 1, 508, 509, 510, 511, 1020, 1021, 4096] — chunking is transparent when chunks are reassembled. `SessionProtocolUploader.sendChunksSequentially` delivers each chunk sequentially via checked-continuation bridge, advancing only after each ACK. | 2026-06-14 |
+| ISC-146 | Code review + grep: All interactive controls (`Button`, `Link`, tappable `.accessibilityElement`) in `SessionView`, `ConsentOnboardingView`, `ConsumableView`, and `SetupView` use `Label(text, systemImage:)` or string-based button titles — no icon-only buttons with system-generated names. Decorative images hidden from VoiceOver: `connectionBanner` status dot (`SessionView.swift:208`), `statusIndicator` pulse dot (`:336`), `layerProgressDots` HStack (`ConsentOnboardingView.swift:57`), `completeLayer` checkmark seal (`:237`), `ConsumableStatusRow` status dot (`ConsumableView.swift:67`), `stepIcon` (`SetupView.swift:180`), `.complete` step checkmark (`:224`), `errorBanner` warning icon (`:239`), `ZoneModuleStatusGrid` status icons (`:474`), `SafetyAcknowledgementCard.contraindication` xmark icons (`:395`). `ImpedanceStatusGrid` per-channel `VStack` wrapped with `.accessibilityElement(children: .combine)` + descriptive label (`SetupView.swift:511–512`). Build: SUCCEEDED. | 2026-06-15 |
+| ISC-148 | Code review + grep: `SessionView` uses `@ScaledMetric(relativeTo: .title3)` properties `breathingRingMax`/`breathingRingMin` (lines 64–65) for all three `hrvBreathingRing` circle dimensions — ring scales with Dynamic Type and text inside cannot overflow the container at AXL. `zoneModuleRow` slot height changed from `.frame(height: 36)` to `.frame(minHeight: 36)` (line 442) — slot expands to contain `.caption2.bold()` text at AXL. All other containers in `SessionView` use `.frame(maxWidth: .infinity)` or padding-only constraints with no fixed heights. Build: SUCCEEDED. | 2026-06-15 |
+| ISC-149 | Code review: `SessionView` maintains `@State private var voiceOverCoherence: Float?` and `@State private var coherenceDebounceTask: Task<Void, Never>?`. `SessionObserversModifier.updateHRVSnapshot(hrv:)` cancels any pending task and creates a new `Task` that calls `Task.sleep(nanoseconds: 2_000_000_000)` before posting `UIAccessibility.post(notification: .announcement, argument:)` — announcements are debounced to ≥2s intervals regardless of GATT 100ms update rate. `voiceOverCoherenceAnnouncer` (hidden 0×0 Text view) bridges the update to VoiceOver. `SessionView.swift:59–61`, `260–275`. | 2026-06-15 |
