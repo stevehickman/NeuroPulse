@@ -4,8 +4,13 @@
  *
  * Two SPI frame types (hub is always SPI master):
  *
- *   Heartbeat (8 bytes, every 200ms):
- *     np_safety_spi_heartbeat() → np_safety_hal_spi_transfer(len=8)
+ *   Extended heartbeat (38 bytes, every 200ms):
+ *     np_safety_spi_heartbeat() → np_safety_hal_spi_transfer(len=38)
+ *     Hub sends np_safety_tx_ext_frame_t (magic + enables + channel_count +
+ *     checksum + current_ua[14] + ext_checksum); MCU simultaneously sends back
+ *     the 8-byte MCU reply frame; hub reads the first 8 bytes and discards the
+ *     rest (30 SPI-slave zero bytes).
+ *     OI-CHARGE-01 CLOSED — frame carries current_ua[14] enabling charge monitor.
  *
  *   Session signature command (102 bytes, once per session before enables):
  *     np_safety_spi_send_session_sig() → np_safety_hal_spi_transfer(len=102)
@@ -17,10 +22,11 @@
  * HAL stub OI-SAF-01: np_safety_hal_spi_transfer(tx, rx, len)
  *   Full-duplex SPI3 transfer; chip-select managed by HAL.
  *   STM32G071 is SPI slave, i.MX RT1062 is SPI master.
- *   len = NP_SAFETY_FRAME_LEN (8) for heartbeat;
+ *   len = NP_SAFETY_RX_EXT_FRAME_LEN (38) for heartbeat;
  *   len = NP_SAFETY_CMD_FRAME_LEN (102) for sig command.
  *
  * OI-SW01-M07-01 CLOSED.
+ * OI-CHARGE-01   CLOSED.
  */
 
 #ifndef NP_SAFETY_SPI_H
@@ -38,16 +44,27 @@
 np_hub_status_t np_safety_spi_init(void);
 
 /*
- * np_safety_spi_heartbeat — send one heartbeat frame and receive the safety
- * MCU reply.  Updates the internal granted-enable bitmask and status flags.
+ * np_safety_spi_heartbeat — send one 38-byte extended heartbeat frame and
+ * receive the 8-byte safety MCU reply.  Updates the internal granted-enable
+ * bitmask and status flags.
  * Called from the dedicated heartbeat task every NP_SAFETY_HEARTBEAT_MS.
+ *
+ * session_state:         current session state (NP_SESSION_IDLE / NP_SESSION_RUNNING).
+ * requested_enable_mask: bitmask of channels the session runner wants enabled.
+ * current_ua:            array of commanded current magnitudes in µA per channel
+ *                        (SHDR — commanded from session descriptor, NOT ADC-measured).
+ *                        Must point to at least channel_count entries; may be NULL
+ *                        when channel_count == 0 (e.g. no active session).
+ * channel_count:         number of valid entries in current_ua (0–NP_SAFETY_MAX_CHANNELS).
  *
  * Returns NP_HUB_OK if the exchange completed and the MCU replied NP_SAFETY_STATUS_OK.
  * Returns NP_HUB_ERR_SAFETY_FAULT if the MCU reported a fault.
  * Returns NP_HUB_ERR_TIMEOUT on SPI timeout (safety MCU unresponsive).
  */
-np_hub_status_t np_safety_spi_heartbeat(np_session_state_t session_state,
-                                          uint16_t           requested_enable_mask);
+np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
+                                          uint16_t            requested_enable_mask,
+                                          const uint16_t     *current_ua,
+                                          uint8_t             channel_count);
 
 /*
  * np_safety_spi_request_enable — request enable of stimulation channels.
@@ -105,8 +122,8 @@ np_hub_status_t np_safety_spi_send_session_sig(const uint8_t *hash,
 /* ── HAL stub ─────────────────────────────────────────────────────────────────── */
 
 /* OI-SAF-01: full-duplex SPI exchange.
- *   len = NP_SAFETY_FRAME_LEN (8)     → heartbeat exchange
- *   len = NP_SAFETY_CMD_FRAME_LEN (102) → session sig command
+ *   len = NP_SAFETY_RX_EXT_FRAME_LEN (38) → extended heartbeat exchange
+ *   len = NP_SAFETY_CMD_FRAME_LEN (102)   → session sig command
  * Hub is SPI master; chip-select managed by HAL.                             */
 extern np_hub_status_t np_safety_hal_spi_transfer(const uint8_t *tx,
                                                    uint8_t       *rx,
