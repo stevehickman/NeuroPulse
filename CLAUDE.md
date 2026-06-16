@@ -1,6 +1,6 @@
 # CLAUDE.md — NeuroPulse Design Programme
 **Project:** NeuroPulse — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 27 (current)  
+**Revision:** 28 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 ---
@@ -324,11 +324,12 @@ Companion watchOS app extending NeuroPulse session experience to Apple Watch. Th
 
 **SHDR — System Health Data Record**
 - Owner: NeuroPulse
-- Linked to: device ID + warranty owner ID **only** — never to user identity
+- Linked to: device ID + opaque TRNG warranty token **only** — never to user identity
+- **Consent subject: warranty owner** (the entity who registered warranty — may be a clinic, institution, or individual purchaser; is NOT assumed to be the person wearing the device). Warranty consent is entirely separate from user research consent. A clinic staff member activating warranty is not consenting on behalf of any patient.
 - Defining test: does this tell us about the **device's condition**, with nothing that reveals user biology? If yes → SHDR
 - Contents: LED output ratio per zone · NTC temperature profiles · EMF shielding attenuation ratio · device session count (unsigned integer, no timestamps) · consumable session counts · USB-C insertion counter · PD negotiation log · impact events (g-force, orientation — between sessions only) · fan RPM · supercapacitor cycles · firmware version history · OTA log · accessory authentication pass/fail · calibration coefficient history
 - Storage: on-device eMMC SHDR partition, separate encryption from UHDR
-- Upload: to NeuroPulse fleet database on USB-C connect (warranty consent required)
+- Upload: to NeuroPulse fleet database on USB-C connect (warranty owner consent required at device registration; unrelated to user research consent)
 
 **Boundary case resolution rule:** When in doubt → UHDR. Reclassification requires positive demonstration of no user biology content.
 
@@ -374,6 +375,26 @@ All anonymization of UHDR data for research purposes must occur **on-device**, w
 ---
 
 ## 6. CLINICAL CONSENT ENGINE (all locked)
+
+### 6.0 Two consent subjects (locked)
+
+NeuroPulse has **two distinct consent subjects** that must never be conflated:
+
+| Subject | Who | Data | Consent granted at | Managed by |
+|---------|-----|------|--------------------|------------|
+| **Warranty owner** | Entity that purchased/registered the device — may be a clinic, institution, or individual; is **NOT assumed to be the device user** | SHDR fleet telemetry only | Device warranty registration | `SHDRUploader` (device-linked opaque token, no user identity) |
+| **User** | Person wearing the device during sessions | UHDR (EEG, HRV, PBM dose, adaptation events — user biology) | Per-user research consent flow (L1–L4 below) | `ConsentStore` (per user, on-device) |
+
+**Invariants:**
+- A clinic that registers a device warranty has NOT consented on behalf of any patient.
+- A patient using a clinic-owned device has their own independent `ConsentStore` state.
+- SHDR and UHDR consent gates are code-structurally independent — `SHDRUploader` has no reference to `ConsentStore`.
+- Revoking user research consent has no effect on SHDR uploads; revoking warranty consent has no effect on user research participation.
+
+**Research consent withdrawal scoping:**
+- Withdraw from specific study → stops data flows for that study only; app analytics unaffected.
+- Withdraw from specific category → stops data flows for that category; app analytics unaffected.
+- Withdraw blanket consent (L3) → stops ALL research data flows AND tears down app analytics (`ConsentStore.withdrawBlanketConsent()` calls `revokeAnalyticsConsent()`), because blanket withdrawal signals the user does not want any data collection beyond basic device function.
 
 ### 6.1 Use case subscription tiers
 
@@ -777,7 +798,8 @@ Science basis confirmed: PIEZO1 mechanosensitive ion channel mechanism (PNAS 202
 - **UHDRKeyManager — Argon2id + PHC reference library implementation locked (2026-06-11):** PBKDF2 placeholder fully replaced. PHC `phc-winner-argon2` (CC0/Apache 2.0) vendored into `app/NeuroPulseShared/Sources/NeuroPulseArgon2/phc/` as an SPM C target. `np_bridge.c` wraps `argon2id_hash_raw()` into `np_argon2id_hash()` API. `Argon2Bridge.swift` exports `npArgon2idDeriveKey(password:salt:outputLength:)` with fixed params m=65536 KiB, t=4, p=1 per RFC 9106. `ARGON2_NO_THREADS` compile flag routes to single-threaded path (spec-compliant for p=1). `UHDRKeyManager.swift` derives WKMD → Argon2id → memory-only `UHDRKey(k1:k2:)` (64 bytes = K1+K2 for AES-256-XTS); key never persisted to Keychain or transmitted. Biometric credential: 32-byte `SecRandomCopyBytes` CSPRNG seed protected by `.userPresence` + `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` + `kSecAttrSynchronizable: false`. Salt: separate 32-byte CSPRNG Keychain entry (non-synchronizable, device-bound). Auth via `.deviceOwnerAuthentication` (biometric preferred, passcode fallback) — supports Parkinson's/post-stroke/no-biometric users. `bzero` in `UHDRKey.deinit` + credential defer block. Release build verified: `nm libNeuroPulseArgon2.a` confirms `np_argon2id_hash_custom` absent in release binary (gated by `#ifdef NP_ARGON2_CUSTOM_ENABLED` in `np_bridge.c`, `.when(configuration: .debug)` in `Package.swift`). PHC SOUP entry + SHA-256 file inventory in `phc/VENDOR.md`. 6/6 `UHDRKeyManagerTests` pass. Supersedes compile-gate placeholder from PR #112.
 - **SHDRUploader — opaque Keychain warranty token + backup exclusions locked (2026-06-05, PR #112):** `identifierForVendor` replaced with a 32-byte `SecRandomCopyBytes` Keychain token (`kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`, non-synchronizable); HTTP header renamed `X-NP-Device-Token`. `shdr_staging.bin` now marked `.isExcludedFromBackupKey` before any write. Hub-provisioned TRNG token (NP-FW-EMMC-002 §A) replaces Keychain fallback when GATT warranty characteristic is available.
 - **UHDRBackupScheduler — iCloud/iTunes backup exclusion + manifest hardening locked (2026-06-05, PR #112):** `Documents/UHDRBackup/` directory set `.isExcludedFromBackupKey = true` at init — encrypted UHDR archives no longer flow to Apple/iTunes infrastructure. `keyFingerprint: SHA256(K1).prefix(8)` removed from `BackupManifest` struct — no partial key material in any plaintext file.
-- **AnalyticsGate.reset() wired to consent withdrawal locked (2026-06-05, PR #112):** `AnalyticsGate.reset()` + `AnalyticsSDKStub.reset()` added; `ConsentStore.revokeAnalyticsConsent()` clears the consent UserDefaults key and calls `reset()` atomically. `withdrawBlanketConsent()` calls `revokeAnalyticsConsent()`. SDK is now torn down — not just silently gated — on consent withdrawal.
+- **AnalyticsGate.reset() wired to consent withdrawal locked (2026-06-05, PR #112; regression fixed 2026-06-16):** `AnalyticsGate.reset()` + `AnalyticsSDKStub.reset()` added; `ConsentStore.revokeAnalyticsConsent()` clears the consent UserDefaults key and calls `reset()` atomically. `withdrawBlanketConsent()` calls `revokeAnalyticsConsent()` — SDK torn down, not just gated, on blanket consent withdrawal. *(A post-PR #112 code change incorrectly decoupled these; regression identified in code review 2026-06-16 and restored per authoritative design: blanket research withdrawal implies full data-collection opt-out. Partial withdrawals — specific study or category — do NOT call `revokeAnalyticsConsent()`.)*
+- **Two consent subjects — locked (2026-06-16):** Warranty owner consent (SHDR) and user research consent (UHDR) are entirely separate. Warranty owner is the entity that registered the device — may be a clinic, not the user. A clinic activating warranty has NOT consented on behalf of any patient. `SHDRUploader` and `ConsentStore` are code-structurally independent. Blanket research consent withdrawal (L3) additionally revokes app analytics; partial research withdrawals do not. See §6.0 for full invariant table. Spec: `app/ios/NeuroPulse/Consent/ConsentStore.swift` header comment and `docs/neuropulse_privacy_notice.md`.
 - **Mode F consent and safety — locked (2026-06-02):** Mode F default-off. Requires separate explicit consent distinct from session consent. Ambient indicator: right temple amber LED triple-pulse pattern (3×150ms on/off, 2s pause) when active — not suppressible by stealth mode. IEC 62471 cumulative daily retinal dose calculated across all Mode F wear time per calendar day (not per session). Firmware build flag `NP_MODE_F_REGULATORY_CLEARED = 0` — gated on RISK-03 Q-13 opinion letter. Spec: NP-FW-EMMC-002 Rev A §F.
 - **SHDR warranty token architecture — locked (2026-06-02):** 256-bit TRNG opaque warranty token replaces warranty owner ID as SHDR linkage. Warranty DB and SHDR fleet DB are separate database instances with no cross-DB foreign keys. No-join rule enforced by CI test. Spec: NP-FW-EMMC-002 Rev A §A.
 - **UHDR two-layer key scheme — locked (2026-06-02):** UKMD (32-byte TRNG master key) stored in Config partition encrypted by WKMD (Argon2id-derived from biometric/PIN). Biometric change re-encrypts only the 32-byte wrapper — UHDR partition ciphertext unchanged. Spec: NP-FW-EMMC-002 Rev A §C. Supersedes single-layer spec in NP-FW-EMMC-001 Rev A §6 (incorporated into NP-FW-EMMC-001 Rev B).
