@@ -509,7 +509,16 @@ struct ImpedanceStatusGrid: View {
                         .foregroundColor(.secondary)
                 }
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel(String(format: String(localized: passed ? "SETUP_IMPEDANCE_PASS_A11Y" : "SETUP_IMPEDANCE_FAIL_A11Y"), channelNames[idx]))
+                .accessibilityLabel(
+                    String(
+                        format: String(
+                            localized: passed
+                                ? "SETUP_IMPEDANCE_PASS_A11Y"
+                                : "SETUP_IMPEDANCE_FAIL_A11Y"
+                        ),
+                        channelNames[idx]
+                    )
+                )                                                        
             }
         }
         .padding()
