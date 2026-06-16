@@ -54,6 +54,7 @@ struct ConsentOnboardingView: View {
                     .animation(.easeInOut, value: layer)
             }
         }
+        .accessibilityHidden(true)
     }
 
     private var layerTitle: String {
@@ -233,6 +234,7 @@ struct ConsentOnboardingView: View {
             Image(systemName: "checkmark.seal.fill")
                 .font(.system(size: 60))
                 .foregroundColor(.green)
+                .accessibilityHidden(true)
             Text("CONSENT_COMPLETE_HEADING")
                 .font(.title2.bold())
             Text("CONSENT_COMPLETE_BODY")

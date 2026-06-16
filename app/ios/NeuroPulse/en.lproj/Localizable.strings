@@ -560,6 +560,12 @@
 /* SafetyAcknowledgementCard — accessibilityValue when unchecked */
 "SETUP_SAFETY_ACK_UNCHECKED" = "Unchecked";
 
+/* ImpedanceStatusGrid — accessibilityLabel for a passing channel (%@ = electrode name e.g. "Fp1") */
+"SETUP_IMPEDANCE_PASS_A11Y" = "%@: signal good";
+
+/* ImpedanceStatusGrid — accessibilityLabel for a failing channel (%@ = electrode name e.g. "C3") */
+"SETUP_IMPEDANCE_FAIL_A11Y" = "%@: check contact";
+
 /* ProtocolSelectionCard — card title */
 "SETUP_PROTOCOL_CARD_TITLE" = "Starter Protocols";
 
