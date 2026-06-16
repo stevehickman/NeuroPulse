@@ -52,11 +52,20 @@ void np_spi_watchdog_tick(np_safety_state_t   *state,
      * identical snapshot.  Evaluating the expression twice with no critical
      * section would be a race if any interlock ever runs from an ISR context:
      * a fault asserted between the two evaluations would clear CUTOFF while
-     * simultaneously granting the full requested mask. (MISRA C:2012 R.13.5) */
-    uint8_t active_faults = state->status & (NP_SAFETY_STATUS_FAULT  |
-                                              NP_SAFETY_STATUS_THERMAL |
-                                              NP_SAFETY_STATUS_CHARGE  |
-                                              NP_SAFETY_STATUS_CARDIAC);
+     * simultaneously granting the full requested mask. (MISRA C:2012 R.13.5)
+     *
+     * NP_SAFETY_STATUS_SIG_PENDING: set on session start, cleared when hub
+     * delivers a valid session descriptor signature via np_safety_sig_cmd_t.
+     * Blocks grant_mask until the signature is verified; not a CUTOFF fault. */
+    uint8_t active_faults = state->status & (NP_SAFETY_STATUS_FAULT       |
+                                              NP_SAFETY_STATUS_THERMAL      |
+                                              NP_SAFETY_STATUS_CHARGE       |
+                                              NP_SAFETY_STATUS_CARDIAC      |
+                                              NP_SAFETY_STATUS_SIG_PENDING);
+    /* NP_SAFETY_STATUS_WATCHDOG intentionally excluded: the watchdog self-clears
+     * on the next valid heartbeat via np_spi_watchdog_check() resetting the
+     * timeout counter; including it here would block the grant mask even after
+     * a valid heartbeat is received during the same tick cycle. */
 
     /* Only clear CUTOFF if no other interlock is actively asserting it */
     if (active_faults == 0U) {

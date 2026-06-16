@@ -14,8 +14,9 @@ static volatile uint16_t s_requested_mask = 0U;
 static volatile uint16_t s_granted_mask   = 0U;
 static volatile uint8_t  s_mcu_status     = NP_SAFETY_STATUS_OK;
 
-/* Protects s_requested_mask writes from concurrent task access. */
-static portMUX_TYPE s_mask_mux = portMUX_INITIALIZER_UNLOCKED;
+/* s_requested_mask is protected by the FreeRTOS task-level critical section
+ * (taskENTER_CRITICAL / taskEXIT_CRITICAL).  These functions are called from
+ * task context only — never from an ISR — so the task variants are correct. */
 
 /* ── Checksum ─────────────────────────────────────────────────────────────────── */
 
@@ -69,10 +70,12 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t session_state,
         return NP_HUB_ERR_TIMEOUT;
     }
 
-    /* Verify reply checksum — if bad, treat as safety fault. */
+    /* Verify reply checksum — if bad, treat as safety fault.
+     * Zero s_granted_mask so callers do not act on a stale grant. */
     uint16_t expected = compute_checksum((const uint8_t *)&rx, 6U);
     if (rx.checksum != expected) {
-        s_mcu_status = NP_SAFETY_STATUS_FAULT;
+        s_granted_mask = 0U;
+        s_mcu_status   = NP_SAFETY_STATUS_FAULT;
         return NP_HUB_ERR_SAFETY_FAULT;
     }
 
@@ -87,25 +90,53 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t session_state,
     return NP_HUB_OK;
 }
 
+np_hub_status_t np_safety_spi_send_session_sig(const uint8_t *hash,
+                                                const uint8_t *sig)
+{
+    np_safety_sig_cmd_t cmd;
+    /* rx_dummy: discard the MCU's concurrent transmission during the cmd frame.
+     * The definitive result is the SIG_PENDING bit in the next heartbeat reply. */
+    uint8_t rx_dummy[NP_SAFETY_CMD_FRAME_LEN];
+
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.cmd_magic[0] = NP_SAFETY_CMD_MAGIC_0;
+    cmd.cmd_magic[1] = NP_SAFETY_CMD_MAGIC_1;
+    cmd.cmd_type     = NP_SAFETY_CMD_SESSION_SIG;
+    cmd.reserved     = 0U;
+    memcpy(cmd.session_hash, hash, NP_SESSION_HASH_LEN);
+    memcpy(cmd.session_sig,  sig,  NP_ED25519_SIG_LEN);
+    cmd.checksum = compute_checksum((const uint8_t *)&cmd,
+                                    NP_SAFETY_CMD_FRAME_LEN - 2U);
+
+    np_hub_status_t rc = np_safety_hal_spi_transfer((const uint8_t *)&cmd,
+                                                    rx_dummy,
+                                                    NP_SAFETY_CMD_FRAME_LEN);
+    if (rc != NP_HUB_OK) {
+        return NP_HUB_ERR_TIMEOUT;
+    }
+
+    return NP_HUB_OK;
+}
+
 void np_safety_spi_request_enable(uint16_t channel_mask)
 {
-    taskENTER_CRITICAL_FROM_ISR();
+    taskENTER_CRITICAL();
     s_requested_mask |= channel_mask;
-    taskEXIT_CRITICAL_FROM_ISR(0U);
+    taskEXIT_CRITICAL();
 }
 
 void np_safety_spi_request_disable(uint16_t channel_mask)
 {
-    taskENTER_CRITICAL_FROM_ISR();
+    taskENTER_CRITICAL();
     s_requested_mask &= ~channel_mask;
-    taskEXIT_CRITICAL_FROM_ISR(0U);
+    taskEXIT_CRITICAL();
 }
 
 void np_safety_spi_disable_all(void)
 {
-    taskENTER_CRITICAL_FROM_ISR();
+    taskENTER_CRITICAL();
     s_requested_mask = 0U;
-    taskEXIT_CRITICAL_FROM_ISR(0U);
+    taskEXIT_CRITICAL();
 }
 
 uint16_t np_safety_spi_get_granted_mask(void)

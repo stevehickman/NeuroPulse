@@ -101,8 +101,20 @@
 #define NP_FAULT_LATCH_MAGIC    0xDEADBEEFUL  /* sentinel for latch validity */
 
 /* ── Session signature (SW01-M07) ───────────────────────────────────────── */
-#define NP_ED25519_PUB_KEY_LEN  32U
-#define NP_ED25519_SIG_LEN      64U
-#define NP_SESSION_HASH_LEN     32U  /* SHA-256 */
+#define NP_ED25519_PUB_KEY_LEN  32U  /* manufacturing root public key (OTP) */
+/* NP_ED25519_SIG_LEN and NP_SESSION_HASH_LEN are in firmware/common/include/np_spi_wire_types.h,
+ * included transitively via np_safety_protocol.h. */
+
+/* Fault slot codes (stored in np_safety_state_t.fault_slot).
+ * 0xFF = no fault (generic init value).
+ * Codes below 0xF0 are reserved for per-modality interlock slots.    */
+#define NP_FAULT_SLOT_NONE          0xFFU  /* no fault */
+#define NP_FAULT_SLOT_SIG_FAIL      0xFDU  /* Ed25519 signature verification failed */
+#define NP_FAULT_SLOT_UNPROV        0xFEU  /* OTP unprovisioned — all-zero public key */
+#define NP_FAULT_SLOT_SIG_CORRUPT   0xFCU  /* repeated corrupt session sig command frames */
+
+/* Session signature escalation limits */
+#define NP_SAFETY_SIG_BAD_CMD_MAX   3U  /* consecutive bad-magic/checksum frames → FAULT */
+#define NP_SIG_FAIL_MAX             3U  /* consecutive Ed25519 verify failures → hard lock */
 
 #endif /* NP_SAFETY_CONFIG_H */

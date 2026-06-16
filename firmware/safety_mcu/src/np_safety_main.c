@@ -48,7 +48,11 @@ extern void np_cardiac_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_reenable(np_safety_state_t *state);
 extern void np_impedance_check_request(uint16_t requested_mask);
 extern void np_impedance_check_poll(np_safety_state_t *state);
-extern void np_session_sig_reset(void);
+extern void np_session_sig_reset(np_safety_state_t *state);
+extern void np_session_sig_reenable(np_safety_state_t *state);
+extern np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
+                                               const uint8_t *hash,
+                                               const uint8_t *sig);
 extern void np_gpio_mgr_apply(const np_safety_state_t *state);
 extern void np_fault_latch_commit(const np_safety_state_t *state);
 
@@ -59,13 +63,21 @@ extern void np_hal_gpio_init(void);          /* configure all GPIO banks */
 extern void np_hal_spi_slave_init(void);     /* SPI1 slave, 8-byte frames */
 extern void np_hal_adc_init(void);           /* ADC1 for NTC channels */
 extern void np_hal_tim2_init(void);          /* TIM2 for R-peak capture */
-extern bool np_hal_spi_frame_ready(void);    /* non-blocking poll */
+/* Heartbeat frame (8 bytes) — called every main-loop iteration */
+extern bool np_hal_spi_frame_ready(void);
 extern void np_hal_spi_get_frame(np_safety_rx_frame_t *rx_out);
 extern void np_hal_spi_send_frame(const np_safety_tx_frame_t *tx);
+/* Session signature command frame (102 bytes) — called when hub delivers sig.
+ * HAL distinguishes from heartbeat by NSS-delineated transfer length.
+ * np_hal_spi_cmd_ready() returns true when a 102-byte frame is buffered.
+ * np_hal_spi_get_cmd() copies the buffered frame into *cmd_out.            */
+extern bool np_hal_spi_cmd_ready(void);
+extern void np_hal_spi_get_cmd(np_safety_sig_cmd_t *cmd_out);
 
 /* ── Shared safety state ─────────────────────────────────────────────────── */
 static np_safety_state_t s_state;
 static bool              s_prev_session_active = false;
+static uint8_t           s_bad_cmd_count = 0U; /* consecutive bad-magic/checksum sig frames */
 /* s_prior_latch_reported: true once prior fault is reported to hub on the
  * first heartbeat reply.  Prevents np_fault_latch_commit() from overwriting
  * the preserved latch data (slot + specific status bits) with the generic
@@ -93,6 +105,20 @@ static void build_tx_checksum(np_safety_tx_frame_t *f)
     f->checksum = sum;
 }
 
+/* Verify checksum of a 102-byte session-sig command frame.
+ * Checksum covers bytes [0..NP_SAFETY_CMD_FRAME_LEN-3] (all except the 2
+ * checksum bytes at the end).                                              */
+static bool cmd_checksum_ok(const np_safety_sig_cmd_t *c)
+{
+    uint16_t sum = 0U;
+    const uint8_t *b = (const uint8_t *)c;
+    uint8_t i;
+    for (i = 0U; i < (NP_SAFETY_CMD_FRAME_LEN - 2U); i++) {
+        sum += b[i];
+    }
+    return sum == c->checksum;
+}
+
 /* ── Main ────────────────────────────────────────────────────────────────── */
 int main(void)
 {
@@ -101,7 +127,7 @@ int main(void)
     /* Peripheral init — must complete before any module init */
     np_hal_clock_init();
     np_hal_systick_init();
-    np_hal_gpio_init();    /* drives all stimulation enables LOW immediately */
+    np_hal_gpio_init();    /* drives all stimulation enables HIGH (disabled) immediately */
     np_hal_spi_slave_init();
     np_hal_adc_init();
     np_hal_tim2_init();
@@ -141,6 +167,43 @@ int main(void)
         bool valid_frame = false;
         bool cvns_reenable_confirm = false;
 
+        /* ── Session signature command frame (102 bytes) ─────────────────── */
+        /* Hub sends this once per session BEFORE the first heartbeat that
+         * requests a non-zero enable_mask.  The HAL buffers it separately
+         * from the 8-byte heartbeat (distinguished by NSS transfer length). */
+        if (np_hal_spi_cmd_ready()) {
+            np_safety_sig_cmd_t cmd;
+            np_hal_spi_get_cmd(&cmd);
+
+            if (cmd.cmd_magic[0] == NP_SAFETY_CMD_MAGIC_0 &&
+                cmd.cmd_magic[1] == NP_SAFETY_CMD_MAGIC_1 &&
+                cmd.cmd_type     == NP_SAFETY_CMD_SESSION_SIG &&
+                cmd_checksum_ok(&cmd)) {
+
+                s_bad_cmd_count = 0U;  /* well-formed frame — reset corruption counter */
+                np_session_sig_verify(&s_state,
+                                      cmd.session_hash,
+                                      cmd.session_sig);
+                /* Result reflected in NP_SAFETY_STATUS_SIG_PENDING bit:
+                 *   success → SIG_PENDING cleared → next heartbeat grants mask
+                 *   failure → FAULT + CUTOFF set → hub MUST abort session and
+                 *             restart (retry without full session teardown is
+                 *             insufficient — FAULT blocks all enables until the
+                 *             next session 0→1 transition calls sig_reenable)  */
+            } else {
+                /* Bad magic or bad checksum: SIG_PENDING stays set.
+                 * Hub will see SIG_PENDING in next heartbeat reply and may retry.
+                 * After NP_SAFETY_SIG_BAD_CMD_MAX consecutive corrupt frames,
+                 * FAULT is set to prevent indefinite unverified-session operation. */
+                s_bad_cmd_count++;
+                if (s_bad_cmd_count >= NP_SAFETY_SIG_BAD_CMD_MAX) {
+                    s_state.fault_slot = NP_FAULT_SLOT_SIG_CORRUPT;
+                    s_state.status    |= NP_SAFETY_STATUS_FAULT;
+                }
+            }
+        }
+
+        /* ── Heartbeat frame (8 bytes) ────────────────────────────────────── */
         if (np_hal_spi_frame_ready()) {
             np_hal_spi_get_frame(&rx);
 
@@ -170,9 +233,11 @@ int main(void)
 
         /* Detect session_active 0→1 transition: reset per-session state */
         if (s_state.session_active && !s_prev_session_active) {
-            np_session_sig_reset();
+            np_session_sig_reenable(&s_state);   /* clear prior sig fault if recoverable */
+            np_session_sig_reset(&s_state);      /* sets NP_SAFETY_STATUS_SIG_PENDING */
             np_charge_monitor_reset_session();
             np_impedance_check_request(s_state.requested_mask);
+            s_bad_cmd_count = 0U;               /* reset corruption counter for new session */
         }
         s_prev_session_active = s_state.session_active;
 

@@ -60,9 +60,15 @@
 #define NP_SAFETY_HEARTBEAT_MS      200U  /* main processor sends heartbeat period */
 #define NP_SAFETY_WATCHDOG_MS       1500U /* safety MCU watchdog; cutoff on expiry */
 #define NP_SAFETY_SPI_TIMEOUT_MS    10U
-#define NP_SAFETY_FRAME_LEN         8U    /* bytes per half-duplex SPI exchange */
+#define NP_SAFETY_FRAME_LEN         8U    /* bytes per heartbeat SPI exchange */
 #define NP_SAFETY_BEAT_MAGIC_0      0xBEU
 #define NP_SAFETY_BEAT_MAGIC_1      0xA7U
+
+/* Session signature command frame constants: NP_SAFETY_CMD_MAGIC_0/1,
+ * NP_SAFETY_CMD_SESSION_SIG, NP_SAFETY_CMD_FRAME_LEN, NP_SESSION_HASH_LEN,
+ * NP_ED25519_SIG_LEN, and np_safety_sig_cmd_t are in
+ * firmware/common/include/np_spi_wire_types.h (included via np_hub_types.h). */
+#include "../../common/include/np_spi_wire_types.h"
 
 /*
  * Enable bitmask sent to safety MCU; one bit per stimulation channel.
@@ -86,10 +92,18 @@
 #define NP_SAFETY_EN_AUDIO          0U    /* audio not safety-MCU-gated */
 
 /* Safety MCU status flags (returned in each heartbeat reply). */
-#define NP_SAFETY_STATUS_OK         0x00U
-#define NP_SAFETY_STATUS_FAULT      (1U << 0)
-#define NP_SAFETY_STATUS_WATCHDOG   (1U << 1) /* watchdog fired since last beat */
-#define NP_SAFETY_STATUS_CUTOFF     (1U << 2) /* stimulation was cut by safety MCU */
+#define NP_SAFETY_STATUS_OK          0x00U
+#define NP_SAFETY_STATUS_FAULT       (1U << 0)
+#define NP_SAFETY_STATUS_WATCHDOG    (1U << 1) /* watchdog fired since last beat */
+#define NP_SAFETY_STATUS_CUTOFF      (1U << 2) /* stimulation was cut by safety MCU */
+#define NP_SAFETY_STATUS_IMPEDANCE   (1U << 3)
+#define NP_SAFETY_STATUS_THERMAL     (1U << 4)
+#define NP_SAFETY_STATUS_CHARGE      (1U << 5)
+#define NP_SAFETY_STATUS_CARDIAC     (1U << 6)
+/* SIG_PENDING: hub must call np_safety_spi_send_session_sig() to clear.
+ * Set when session_active goes 0→1; cleared when sig verified.
+ * If set after send_session_sig(), the signature was rejected — abort session. */
+#define NP_SAFETY_STATUS_SIG_PENDING (1U << 7)
 
 /* ── Session runner ───────────────────────────────────────────────────────────── */
 

@@ -48,6 +48,7 @@
 #   firmware/edf/             → np_edf_tests
 #   firmware/factory_reset/   → np_factory_reset_tests
 #   firmware/ota/             → np_ota_tests  (OTA state CRC + rollback logic)
+#   firmware/safety_mcu/      → np_safety_spi_proto_tests (OI-SW01-M07-01)
 
 cmake_minimum_required(VERSION 3.20)
 
@@ -87,6 +88,7 @@ if(NP_BUILD_TESTS)
     add_subdirectory(edf)
     add_subdirectory(factory_reset)
     add_subdirectory(ota)
+    add_subdirectory(safety_mcu)  # OI-SW01-M07-01: SPI protocol frame tests
 
     add_test(NAME np_crypto_tests
         COMMAND np_crypto_tests
@@ -106,6 +108,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_ota_tests
         COMMAND np_ota_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_safety_spi_proto_tests
+        COMMAND np_safety_spi_proto_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     return()

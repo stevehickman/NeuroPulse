@@ -494,4 +494,11 @@ typedef struct __attribute__((packed)) {
     uint16_t checksum;
 } np_safety_rx_frame_t;
 
+/* np_safety_sig_cmd_t and all session-signature command frame constants
+ * (NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG, NP_SAFETY_CMD_FRAME_LEN,
+ * NP_SESSION_HASH_LEN, NP_ED25519_SIG_LEN) come from:
+ *   firmware/common/include/np_spi_wire_types.h
+ * which is included transitively via np_hub_config.h above.
+ * Single source of truth — no duplicate definition in this file. */
+
 #endif /* NP_HUB_TYPES_H */
