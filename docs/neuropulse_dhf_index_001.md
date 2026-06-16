@@ -1,9 +1,9 @@
-# NP-DHF-001 Rev O — NeuroPulse Design History File Index
+# NP-DHF-001 Rev P — NeuroPulse Design History File Index
 
 **Document number:** NP-DHF-001  
-**Revision:** O  
+**Revision:** P  
 **Status:** ACTIVE  
-**Effective date:** 2026-06-11  
+**Effective date:** 2026-06-15  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved by:** Steve Hickman, CEO  
 **Next review:** Ongoing — updated with each new design document release
@@ -151,7 +151,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
 | NP-RISK-001 | Zone Module Risk Register (RISK-01 through RISK-25) | B | 2026-05-17 | [neuropulse_fpc_zone_module_risks_revA.docx](./neuropulse_fpc_zone_module_risks_revA.docx) | ACTIVE | RISK |
-| NP-FMEA-001 | SW-01 Safety MCU Unit-Level FMEA — IEC 62304 §7.1 Class C analysis for SW01-M01..M08; 43 failure modes across GPIO management, SPI heartbeat watchdog, charge density monitor, thermal interlock, cervical VNS cardiac interlock, impedance check, session signature verification, fault latch; ISO 14971 S×P scoring; two initial UNACCEPTABLE risks mitigated to ACCEPTABLE (FMEA-M03-01 charge accumulator overflow → 64-bit uint64_t; FMEA-M05-02 HR delta underflow → int16_t + MISRA C:2012 Rule 10.1); 5 open items OI-FMEA-01..05 (OI-FMEA-01/02 hardware bench pending G2 prototype) | A | 2026-06-07 | [neuropulse_sw_fmea_001.md](./neuropulse_sw_fmea_001.md) | ACTIVE — OI-FMEA-01 (watchdog GPIO bench ≤50ms) and OI-FMEA-02 (cardiac interlock bench <5.1ms) require G2 prototype; OI-FMEA-05 to be updated after FAI-CV02 hardware bench | RISK |
+| NP-FMEA-001 | SW-01 Safety MCU Unit-Level FMEA — IEC 62304 §7.1 Class C analysis for SW01-M01..M08; 43 failure modes across GPIO management, SPI heartbeat watchdog, charge density monitor, thermal interlock, cervical VNS cardiac interlock, impedance check, session signature verification, fault latch; ISO 14971 S×P scoring; two initial UNACCEPTABLE risks mitigated to ACCEPTABLE (FMEA-M03-01 charge accumulator overflow → 64-bit uint64_t; FMEA-M05-02 HR delta underflow → int16_t + MISRA C:2012 Rule 10.1); 5 open items OI-FMEA-01..05 (OI-FMEA-01/02 hardware bench pending G2 prototype) | B | 2026-06-15 | [neuropulse_sw_fmea_001.md](./neuropulse_sw_fmea_001.md) | ACTIVE — OI-FMEA-01 (watchdog GPIO bench ≤50ms) and OI-FMEA-02 (cardiac interlock bench <5.1ms) require G2 prototype; OI-FMEA-05 to be updated after FAI-CV02 hardware bench. Rev B: §3.7 SW01-M07 description corrected (np_crypto/Monocypher 4.0.2); FMEA-M07-05 mitigation updated. | RISK |
 
 **Note:** The risk register (RISK-01 through RISK-25; 23 MITIGATED, 2 OPEN: RISK-03 regulatory opinion, RISK-20 CFRP Ra confirmation) is formally under QMS change control per NP-RM-001 §5.1. All future risk register updates require change control per NP-QMS-DC-001. Privacy risks identified in NP-PRIV-001 Rev A are tracked separately in NP-PRIV-REM-001 Rev A (not in the device safety risk register, as they are programme-level operational risks rather than device safety hazards).
 
@@ -315,6 +315,7 @@ Planned near-term additions:
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| P | 2026-06-15 | Steve Hickman (CEO, interim Quality authority) | **NP-FMEA-001 Rev A → Rev B — §3.7 description corrected for OI-SW01-M07-02 closure.** NP-FMEA-001 Rev A §3.7 SW01-M07 description incorrectly stated Ed25519 was "self-contained in the Safety MCU firmware (no external crypto library)". Corrected in Rev B to state Ed25519 is provided by the shared `np_crypto` static library (Monocypher 4.0.2, RFC 8032 §5.1.7, SHA-512) per OI-SW01-M07-02 closure (PR #132, 2026-06-11). FMEA-M07-05 mitigation updated to reference Monocypher `ct_memcmp`. §5.7 NP-FMEA-001 Rev column updated A → B. No failure modes added or removed; no risk scores changed. CLAUDE.md §13.4 and §14 updated to Rev B. Rev O → Rev P. Effective 2026-06-15. |
 | O | 2026-06-11 | Steve Hickman (CEO, interim Quality authority) | **OI-SW01-M07-02 CLOSED — Shared crypto library `firmware/crypto/` added.** `firmware/crypto/` added to §6 firmware source table (Class C/B, SOUP-backed by Monocypher 4.0.2). NP-SW-001 SOUP table updated: Monocypher 4.0.2 entry replaces generic Ed25519 placeholder. `firmware/crypto/vendor/monocypher/VERSION` created as IEC 62304 §8.1.2 SOUP record. Build system: `C_EXTENSIONS OFF` enforced via CMake property; Monocypher SOUP files compiled with `-w`; `-std=c11` raw flag replaced by CMake C_STANDARD property. 11/11 host tests pass. Privacy analysis: clean. CLAUDE.md §13.4 OI-SW01-M07-02 CLOSED; §13.5 firmware source row updated; §14 np_crypto row added. Rev N → Rev O. Effective 2026-06-11. |
 | N | 2026-06-09 | Steve Hickman (CEO, interim Quality authority) | **OTA firmware update — iOS + firmware C module.** `firmware/ota/` added to §6 firmware source table (host-testable Class B module; `np_ota_state.h/.c`; CRC32 over first 40 bytes; 21 host tests). OTA iOS modules added to §6b (`OTAManager`, `FirmwareUpdateService`, `OTAModels`, `OTAView`; 27 OTAManagerTests). ISA progress updated: 36/164. §6b test count: 7 suites 49 tests → 8 suites 76 tests. `OTAModels.swift` entry corrected: `formattedBytes` uses integer round-half-up (avoids banker's rounding producing "0 KB" for sub-1 KB transfers). CLAUDE.md §13.5 updated with locked OTA decisions (opcode wire values, SPKI pinning, fingerprint-first ordering). NP-APP-ISA-001 ISC-107–113 VERIFIED. Rev M → Rev N. Effective 2026-06-09. |
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. All pre-formation design documents entered retroactively under change control. DHF established at QMS formation. |

@@ -1,8 +1,8 @@
-# NP-FMEA-001 Rev A — SW-01 Safety MCU Unit-Level FMEA
+# NP-FMEA-001 Rev B — SW-01 Safety MCU Unit-Level FMEA
 
 **Document number:** NP-FMEA-001  
-**Revision:** Rev A  
-**Date:** 2026-06-06  
+**Revision:** Rev B  
+**Date:** 2026-06-15  
 **Status:** DRAFT — pending review  
 **Author:** SmartyPants / PAI  
 **Approved by:** TBD (Quality Lead)  
@@ -191,7 +191,7 @@ A baseline cross-validation step before enable ensures the Safety MCU's GPIO-tim
 
 ### 3.7 SW01-M07 — Session Protocol Signature Verification (`np_session_sig.c/.h`)
 
-**Description:** SW01-M07 implements Ed25519 signature verification on the binary session descriptor received from SW-02 before any stimulation GPIO can be enabled. The Ed25519 implementation is self-contained in the Safety MCU firmware (no external crypto library; reviewed and unit-tested in-house per NP-SW-001 §9.4 SOUP table). The session descriptor includes the protocol parameters, modality configuration, and safety limits. A replay prevention counter (device-serial session counter stored in the Config partition) prevents replay of previously valid descriptors. Unsigned, corrupted, or replayed descriptors cause SW01-M07 to return a rejection code to SW01-M01, which keeps all GPIO LOW.
+**Description:** SW01-M07 implements Ed25519 signature verification on the binary session descriptor received from SW-02 before any stimulation GPIO can be enabled. Ed25519 verification is provided by the shared `np_crypto` static library (`firmware/crypto/`) backed by Monocypher 4.0.2 (RFC 8032 §5.1.7, SHA-512; SOUP record: `firmware/crypto/vendor/monocypher/VERSION`; BSD-2-Clause OR CC0-1.0; OI-SW01-M07-02 CLOSED 2026-06-11, PR #132). The library is validated by 11 host tests (RFC 8032 TV1/TV2 vectors + all-zero pubkey guard; see NP-SW-001 Rev A §9.4 SOUP table). The bootloader retains its own self-contained Ed25519 because it uses `-nostdlib/-nodefaultlibs`, which makes Monocypher's libc dependencies unavailable; both paths are covered by the same RFC 8032 test vectors. The session descriptor includes the protocol parameters, modality configuration, and safety limits. A replay prevention counter (device-serial session counter stored in the Config partition) prevents replay of previously valid descriptors. Unsigned, corrupted, or replayed descriptors cause SW01-M07 to return a rejection code to SW01-M01, which keeps all GPIO LOW.
 
 | FM-ID | Failure Mode | Effect | S | P | Risk | Mitigation | Res. S | Res. P | Res. Risk | Accept |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -199,7 +199,7 @@ A baseline cross-validation step before enable ensures the Safety MCU's GPIO-tim
 | FMEA-M07-02 | Flash sector containing public key has a write error — key silently corrupted to all-zeros or all-ones | Ed25519 verification against zero key may produce a false PASS for any message (depending on implementation); attacker could inject arbitrary session | S5 | P1 | 5 (ALARP) | Public key area is in write-protected flash (read-only sector after programming); PCROP (Proprietary Code Read-Out Protection) active on key sector; key CRC-32 checked at every boot and before every signature verification; CRC failure → session rejected; flash ECC flags single-bit errors | S3 | P1 | 3 | ACCEPTABLE |
 | FMEA-M07-03 | Replay of a previously valid signed session descriptor — stale protocol executed | Attacker or software bug re-uses an old signed descriptor; patient receives a session with parameters from a prior prescription | S3 | P2 | 6 (ALARP) | Session descriptor includes a monotonically incrementing 32-bit session counter; Safety MCU maintains its own last-seen counter in backup registers; descriptor with counter ≤ stored value is rejected as replay; counter stored in battery-backed domain survives resets | S2 | P1 | 2 | ACCEPTABLE |
 | FMEA-M07-04 | Partial SPI transfer accepted as complete — truncated descriptor processed | Descriptor length field may not match actual data received; safety limits in the descriptor (e.g., max current, dose ceiling) may be absent or corrupted | S4 | P2 | 8 (ALARP) | SPI transfer includes a 16-bit length prefix verified against the expected descriptor schema size before Ed25519 verification begins; any length mismatch → descriptor rejected; Ed25519 signature covers the full declared payload including length; truncation detected as signature failure | S2 | P1 | 2 | ACCEPTABLE |
-| FMEA-M07-05 | Ed25519 constant-time comparison not used — timing side-channel allows signature forgery | Attacker on SPI bus can infer valid vs invalid signatures via timing measurement; eventually forge valid session descriptor | S4 | P2 | 8 (ALARP) | Ed25519 implementation uses constant-time comparison for the final 64-byte signature check (per Ed25519 RFC 8032 §5.1.7 requirement); SPI bus is internal to the device (not user-accessible); physical access required for timing attack; implementation reviewed for constant-time properties | S2 | P1 | 2 | ACCEPTABLE |
+| FMEA-M07-05 | Ed25519 constant-time comparison not used — timing side-channel allows signature forgery | Attacker on SPI bus can infer valid vs invalid signatures via timing measurement; eventually forge valid session descriptor | S4 | P2 | 8 (ALARP) | Monocypher 4.0.2 `crypto_ed25519_check` uses a constant-time final comparison (ct_memcmp); no branch is taken on secret-dependent data during verification; SPI bus is internal to the device (not user-accessible); physical access is required for a timing attack; Monocypher SOUP record cross-referenced with upstream security review | S2 | P1 | 2 | ACCEPTABLE |
 
 ---
 
@@ -299,7 +299,8 @@ The clinical benefit of the device — multi-modal neurostimulation supporting c
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | A | 2026-06-06 | SmartyPants / PAI | Initial issue. Unit-level FMEA for SW01-M01 through SW01-M08 per IEC 62304 §7.1 Class C requirement. 43 failure modes across 8 modules. All residual risks ACCEPTABLE. Closes SW-01 FMEA pending decision in CLAUDE.md §13.4. |
+| B | 2026-06-15 | SmartyPants / PAI | OI-SW01-M07-02 CLOSED — §3.7 description updated to reflect that Ed25519 is now provided by the shared `np_crypto` library (Monocypher 4.0.2, PR #132) rather than a self-contained implementation. FMEA-M07-05 mitigation updated to reference Monocypher `ct_memcmp`. No failure modes added or removed; no risk scores changed. References: NP-SW-001 Rev A §9.4 SOUP table; `firmware/crypto/vendor/monocypher/VERSION`. |
 
 ---
 
-*NP-FMEA-001 Rev A — DRAFT — 2026-06-06*
+*NP-FMEA-001 Rev B — DRAFT — 2026-06-15*
