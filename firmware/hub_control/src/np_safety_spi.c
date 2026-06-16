@@ -87,6 +87,34 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t session_state,
     return NP_HUB_OK;
 }
 
+np_hub_status_t np_safety_spi_send_session_sig(const uint8_t *hash,
+                                                const uint8_t *sig)
+{
+    np_safety_sig_cmd_t cmd;
+    /* rx_dummy: discard the MCU's concurrent transmission during the cmd frame.
+     * The definitive result is the SIG_PENDING bit in the next heartbeat reply. */
+    uint8_t rx_dummy[NP_SAFETY_CMD_FRAME_LEN];
+
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.cmd_magic[0] = NP_SAFETY_CMD_MAGIC_0;
+    cmd.cmd_magic[1] = NP_SAFETY_CMD_MAGIC_1;
+    cmd.cmd_type     = NP_SAFETY_CMD_SESSION_SIG;
+    cmd.reserved     = 0U;
+    memcpy(cmd.session_hash, hash, NP_SESSION_HASH_LEN);
+    memcpy(cmd.session_sig,  sig,  NP_ED25519_SIG_LEN);
+    cmd.checksum = compute_checksum((const uint8_t *)&cmd,
+                                    NP_SAFETY_CMD_FRAME_LEN - 2U);
+
+    np_hub_status_t rc = np_safety_hal_spi_transfer((const uint8_t *)&cmd,
+                                                    rx_dummy,
+                                                    NP_SAFETY_CMD_FRAME_LEN);
+    if (rc != NP_HUB_OK) {
+        return NP_HUB_ERR_TIMEOUT;
+    }
+
+    return NP_HUB_OK;
+}
+
 void np_safety_spi_request_enable(uint16_t channel_mask)
 {
     taskENTER_CRITICAL_FROM_ISR();

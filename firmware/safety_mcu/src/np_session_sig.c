@@ -10,10 +10,10 @@
  * Ed25519 is provided by firmware/crypto (np_crypto static library, backed
  * by Monocypher 4.0.2 — RFC 8032 §5.1.7, SHA-512).  OI-SW01-M07-02 CLOSED.
  *
- * REMAINING OPEN ITEM — OI-SW01-M07-01: np_session_sig_is_verified() is
- * never consulted by np_spi_watchdog_tick().  The grant path must be updated
- * to gate on np_session_sig_is_verified() once the SPI command delivery frame
- * (96 bytes: 32-byte hash + 64-byte sig) is designed.  BLOCKING for production.
+ * OI-SW01-M07-01 CLOSED: np_safety_sig_cmd_t command frame (102 bytes) delivers
+ * hash + sig from hub to safety MCU.  np_session_sig_reset() sets
+ * NP_SAFETY_STATUS_SIG_PENDING; verify clears it; watchdog tick blocks
+ * granted_mask while SIG_PENDING is set.  See np_safety_protocol.h.
  *
  * OTP HAL stub: np_hal_otp_read_pubkey(buf, len) reads the 32-byte key.
  */
@@ -43,12 +43,14 @@ np_safe_status_t np_session_sig_init(void)
 
 /*
  * np_session_sig_reset — called when session_active transitions 0→1.
- * Requires the main processor to supply and verify a new session hash + sig
- * before enables are granted.
+ * Marks SIG_PENDING in state so that np_spi_watchdog_tick() blocks the
+ * granted_mask until the hub delivers the session descriptor signature
+ * via a np_safety_sig_cmd_t command frame.
  */
-void np_session_sig_reset(void)
+void np_session_sig_reset(np_safety_state_t *state)
 {
-    s_session_verified = false;
+    s_session_verified  = false;
+    state->status      |= NP_SAFETY_STATUS_SIG_PENDING;
 }
 
 /*
@@ -74,10 +76,12 @@ np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
         state->status       |= NP_SAFETY_STATUS_FAULT | NP_SAFETY_STATUS_CUTOFF;
         state->granted_mask  = 0U;
         state->fault_slot    = 0xFDU;  /* 0xFD = signature failure */
+        /* Leave SIG_PENDING set — hub must not receive enables. */
         return NP_SAFE_ERR_FAULT;
     }
 
-    s_session_verified = true;
+    s_session_verified  = true;
+    state->status      &= (uint8_t)~NP_SAFETY_STATUS_SIG_PENDING;
     return NP_SAFE_OK;
 }
 

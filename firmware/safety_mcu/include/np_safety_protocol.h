@@ -2,18 +2,30 @@
  * NeuroPulse Safety MCU — SPI Protocol Types
  * Document: NP-FW-HUB-001 Rev A §7, NP-SW-001 Rev A
  *
- * Defines the 8-byte SPI frame exchanged between the safety MCU (slave)
- * and the i.MX RT1062 main processor (master).  These structs are the
- * safety-MCU-side mirror of np_safety_tx_frame_t / np_safety_rx_frame_t
- * in firmware/hub_control/include/np_hub_types.h.
+ * Two SPI frame types, distinguished by magic bytes and transfer length:
  *
- * The structs must stay in sync with the hub_control definitions.
- * Frame length: NP_SAFETY_FRAME_LEN = 8 bytes (both TX and RX).
+ *   Heartbeat frame (8 bytes, every 200ms):
+ *     Hub → MCU: np_safety_rx_frame_t  (magic 0xBE 0xA7)
+ *     MCU → Hub: np_safety_tx_frame_t  (simultaneous full-duplex reply)
+ *
+ *   Session signature command frame (102 bytes, once per session before
+ *     first enable request):
+ *     Hub → MCU: np_safety_sig_cmd_t   (magic 0xC0 0xDE)
+ *     MCU → Hub: status byte + 101 zero padding (hub discards)
+ *
+ * The HAL distinguishes frame types by transfer length (NSS-delineated).
+ * The session sig command MUST be sent before the heartbeat that first
+ * requests a non-zero enable mask for a new session.
  *
  * SPI timing:
- *   - Main processor sends heartbeat every 200ms (NP_SAFETY_HEARTBEAT_EXP_MS)
- *   - Safety MCU watchdog fires at 1500ms (NP_SAFETY_WDG_TIMEOUT_MS)
- *   - Full-duplex: safety MCU sends RX frame while receiving TX frame
+ *   - Heartbeat period: 200ms (NP_SAFETY_HEARTBEAT_EXP_MS)
+ *   - Watchdog timeout: 1500ms (NP_SAFETY_WDG_TIMEOUT_MS)
+ *   - Full-duplex: both frames exchanged simultaneously
+ *
+ * NP_SAFETY_FRAME_LEN     = 8   (heartbeat, both TX and RX)
+ * NP_SAFETY_CMD_FRAME_LEN = 102 (sig command; hub TX only, MCU rx-only useful)
+ *
+ * OI-SW01-M07-01 CLOSED — multi-byte SPI command frame designed and wired.
  */
 
 #ifndef NP_SAFETY_PROTOCOL_H
@@ -21,10 +33,15 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "np_safety_config.h"
 
 /* ── Magic bytes (must match hub_control/np_hub_config.h) ─────────────────── */
 #define NP_SAFETY_BEAT_MAGIC_0  0xBEU
 #define NP_SAFETY_BEAT_MAGIC_1  0xA7U
+
+/* ── Session signature command magic (distinct from heartbeat) ────────────── */
+#define NP_SAFETY_CMD_MAGIC_0   0xC0U
+#define NP_SAFETY_CMD_MAGIC_1   0xDEU
 
 /* ── Enable bitmask bits (must match hub_control/np_hub_config.h) ─────────── */
 #define NP_SAFETY_EN_PBM_ZONE_0     (1U << 0)
@@ -43,7 +60,21 @@
 #define NP_SAFETY_EN_CLIN_STIM      (1U << 13)
 #define NP_SAFETY_EN_ALL_MASK       0x3FFFU
 
-/* ── Status flags returned in RX frame ──────────────────────────────────────── */
+/* ── Session signature command type ──────────────────────────────────────── */
+#define NP_SAFETY_CMD_SESSION_SIG   0x01U       /* deliver 32-byte hash + 64-byte sig */
+
+/* ── Frame lengths ────────────────────────────────────────────────────────── */
+/* NP_SAFETY_FRAME_LEN is the heartbeat frame length (defined in np_safety_config.h as 8). */
+/* NP_SAFETY_CMD_FRAME_LEN: 2 (magic) + 1 (type) + 1 (rsvd) + 32 (hash) +
+ *                           64 (sig) + 2 (checksum) = 102 bytes.            */
+#define NP_SAFETY_CMD_FRAME_LEN     102U
+
+/* ── ACK codes returned in sig command reply (first byte from MCU) ────────── */
+/* Hub may ignore these; result is reflected in status byte of next heartbeat. */
+#define NP_SAFETY_CMD_ACK_OK        0xACU   /* signature accepted */
+#define NP_SAFETY_CMD_ACK_NACK      0x55U   /* signature rejected */
+
+/* ── Status flags returned in heartbeat TX frame ────────────────────────────── */
 #define NP_SAFETY_STATUS_OK         0x00U
 #define NP_SAFETY_STATUS_FAULT      (1U << 0)   /* any active fault */
 #define NP_SAFETY_STATUS_WATCHDOG   (1U << 1)   /* watchdog fired since last beat */
@@ -52,6 +83,10 @@
 #define NP_SAFETY_STATUS_THERMAL    (1U << 4)   /* thermal interlock active */
 #define NP_SAFETY_STATUS_CHARGE     (1U << 5)   /* charge limit reached */
 #define NP_SAFETY_STATUS_CARDIAC    (1U << 6)   /* cardiac interlock fired */
+/* SIG_PENDING: set when session starts (sig_reset), cleared when sig verified.
+ * Blocks grant_mask until hub delivers the session descriptor signature via
+ * np_safety_sig_cmd_t.  Not a fault — no CUTOFF is implied.                  */
+#define NP_SAFETY_STATUS_SIG_PENDING (1U << 7)  /* awaiting session signature delivery */
 
 /* ── session_status byte bit definitions ───────────────────────────────── */
 #define NP_SESSION_STATUS_ACTIVE        (1U << 0)  /* session underway */
@@ -86,6 +121,32 @@ typedef struct {
     bool     session_active;   /* session underway */
     bool     cvns_active;      /* cervical VNS enabled this session */
 } np_safety_state_t;
+
+/* ── Session signature command frame (hub → MCU, 102 bytes) ──────────────── */
+/*
+ * Delivered as a single SPI transaction BEFORE the heartbeat that first
+ * requests a non-zero enable_mask for a new session.
+ *
+ * Checksum: additive sum of bytes [0..99], wrapping uint16, stored little-endian.
+ * The MCU verifies the checksum before calling np_session_sig_verify().
+ *
+ * Full-duplex TX from MCU during this transaction: first byte = current status
+ * (NP_SAFETY_CMD_ACK_OK or NP_SAFETY_CMD_ACK_NACK for the previous command,
+ * or 0x00 on the very first command), followed by 101 zero bytes.
+ * Hub may discard the MCU's concurrent transmission; the definitive result is
+ * the NP_SAFETY_STATUS_SIG_PENDING bit in the next heartbeat reply.
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t  cmd_magic[2];                  /* NP_SAFETY_CMD_MAGIC_0 / _1 */
+    uint8_t  cmd_type;                      /* NP_SAFETY_CMD_SESSION_SIG (0x01) */
+    uint8_t  reserved;                      /* 0x00 */
+    uint8_t  session_hash[NP_SESSION_HASH_LEN]; /* SHA-256 of session descriptor */
+    uint8_t  session_sig[NP_ED25519_SIG_LEN];   /* Ed25519 signature (64 bytes) */
+    uint16_t checksum;                      /* sum of bytes [0..99], wrapping uint16 */
+} np_safety_sig_cmd_t;                      /* 2+1+1+32+64+2 = 102 bytes */
+
+/* Compile-time size assertion */
+typedef char _np_sig_cmd_size_check[(sizeof(np_safety_sig_cmd_t) == NP_SAFETY_CMD_FRAME_LEN) ? 1 : -1];
 
 /* ── Module init/update return codes ─────────────────────────────────────── */
 typedef enum {

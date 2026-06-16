@@ -36,11 +36,36 @@ cmake_minimum_required(VERSION 3.20)
 
 project(np_safety_mcu C ASM)
 
+option(NP_BUILD_TESTS "Build host-native unit tests (no ARM toolchain needed)" OFF)
+
+# ── Host unit tests (NP_BUILD_TESTS=ON) ───────────────────────────────────────
+# Tests exercise the SPI protocol structs and NP_SAFETY_STATUS_SIG_PENDING
+# lifecycle logic without requiring ARM cross-compilation or SPI hardware.
+# OI-SW01-M07-01 CLOSED — these tests cover the 102-byte sig cmd frame.
+if(NP_BUILD_TESTS)
+    add_executable(np_safety_spi_proto_tests
+        tests/np_safety_spi_proto_tests.c
+    )
+    target_include_directories(np_safety_spi_proto_tests PRIVATE include)
+    set_target_properties(np_safety_spi_proto_tests PROPERTIES
+        C_STANDARD          11
+        C_STANDARD_REQUIRED ON
+        C_EXTENSIONS        OFF
+    )
+    target_compile_options(np_safety_spi_proto_tests PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+    )
+    return()
+endif()
+
 # ── Toolchain guard ────────────────────────────────────────────────────────────
 if(NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR
         "Safety MCU requires the ARM cross-compiler toolchain.\n"
-        "Pass -DCMAKE_TOOLCHAIN_FILE=../cmake/stm32g071.cmake")
+        "Pass -DCMAKE_TOOLCHAIN_FILE=../cmake/stm32g071.cmake\n"
+        "or build host unit tests with -DNP_BUILD_TESTS=ON.")
 endif()
 
 # ── STM32G071 device define ────────────────────────────────────────────────────
