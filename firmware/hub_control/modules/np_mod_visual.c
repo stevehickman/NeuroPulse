@@ -21,6 +21,7 @@
  *   OI-VIS-06: np_mod_visual_hal_mpe_check() → bool (false = MPE exceeded)
  */
 
+#include "np_hub_config.h"
 #include "np_hub_types.h"
 #include "np_module_registry.h"
 #include "np_safety_spi.h"
@@ -107,8 +108,14 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
         return NP_HUB_ERR_SAFETY_REJECTED;
     }
 
-    /* Safety check 2: Eye open (IR proximity) required for retinal modes */
+    /* Safety check 2: Eye open (IR proximity) required for retinal modes.
+     * Mode F path is guarded by NP_MODE_F_REGULATORY_CLEARED — if Mode F is
+     * not cleared, mode_f_enable is ignored here and in the activation block below. */
+#if NP_MODE_F_REGULATORY_CLEARED
     if ((p->mode == 2U || p->mode_f_enable) && !np_mod_visual_hal_ir_eye_open()) {
+#else
+    if (p->mode == 2U && !np_mod_visual_hal_ir_eye_open()) {
+#endif
         return NP_HUB_ERR_SAFETY_REJECTED;
     }
 
@@ -120,11 +127,13 @@ np_hub_status_t np_mod_visual_control(uint8_t slot, const void *params, uint16_t
     uint16_t zone_mask = (uint16_t)((uint16_t)p->zone_mask_lo |
                                     ((uint16_t)(p->zone_mask_hi & 0x0FU) << 8));
 
-    /* Mode F: NIR retinal PBM — 808-830nm at ≤ MPE */
+#if NP_MODE_F_REGULATORY_CLEARED
+    /* Mode F: NIR retinal PBM — gated on RISK-03 Q-13 regulatory opinion.
+     * 808-830nm at ≤ MPE, runs concurrently with photic; wl=1 (808nm) only. */
     if (p->mode_f_enable) {
-        /* Mode F runs concurrently with photic; wl=1 (808nm) only. */
         (void)np_mod_visual_hal_led_set(zone_mask, 1U, 0U, 10U); /* CW at 10% */
     }
+#endif
 
     switch (p->mode) {
     case 0: /* photic driving */

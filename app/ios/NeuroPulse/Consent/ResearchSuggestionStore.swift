@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Security
 
 // Research suggestion portal store — CLAUDE.md §6.3.
 // Manages local suggestion state and stubs for server sync.
@@ -103,13 +104,33 @@ final class ResearchSuggestionStore: ObservableObject {
         }
     }
 
-    // Opaque token — device identifier that cannot be used to re-identify the user.
+    // Opaque token stored in the device Keychain — cannot be synced to iCloud or restored to a
+    // new device, so it cannot collide across re-installs or device transfers.
+    // kSecAttrAccessibleWhenUnlockedThisDeviceOnly + kSecAttrSynchronizable: false enforces this.
     private func deviceToken() -> String {
-        if let existing = UserDefaults.standard.string(forKey: "np.research.device-token") {
-            return existing
+        let service = "np.research.device-token"
+        let readQuery: [CFString: Any] = [
+            kSecClass:          kSecClassGenericPassword,
+            kSecAttrService:    service,
+            kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            kSecReturnData:     true,
+            kSecMatchLimit:     kSecMatchLimitOne
+        ]
+        var result: CFTypeRef?
+        if SecItemCopyMatching(readQuery as CFDictionary, &result) == errSecSuccess,
+           let data = result as? Data,
+           let token = String(data: data, encoding: .utf8) {
+            return token
         }
         let token = UUID().uuidString
-        UserDefaults.standard.set(token, forKey: "np.research.device-token")
+        let addAttrs: [CFString: Any] = [
+            kSecClass:              kSecClassGenericPassword,
+            kSecAttrService:       service,
+            kSecAttrAccessible:    kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            kSecAttrSynchronizable: false,
+            kSecValueData:         Data(token.utf8)
+        ]
+        SecItemAdd(addAttrs as CFDictionary, nil)
         return token
     }
 }
