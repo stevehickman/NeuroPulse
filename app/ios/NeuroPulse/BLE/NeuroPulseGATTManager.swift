@@ -299,7 +299,7 @@ enum GATTWriteError: Error {
 
 // MARK: - CBCentralManagerDelegate
 
-extension NeuroPulseGATTManager: CBCentralManagerDelegate {
+extension NeuroPulseGATTManager: @preconcurrency CBCentralManagerDelegate {
 
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         applyStateUpdate(state: central.state)
@@ -333,7 +333,7 @@ extension NeuroPulseGATTManager: CBCentralManagerDelegate {
 
 // MARK: - CBPeripheralDelegate
 
-extension NeuroPulseGATTManager: CBPeripheralDelegate {
+extension NeuroPulseGATTManager: @preconcurrency CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let service = peripheral.services?.first(where: { $0.uuid == NPUUID.service })
