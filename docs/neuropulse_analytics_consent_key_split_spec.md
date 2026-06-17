@@ -14,7 +14,7 @@ and replaced with precise terms throughout all code and docs.
 
 | Gate | Swift type | Consent subject | Data controlled | UserDefaults key |
 |------|-----------|----------------|----------------|-----------------|
-| Research analytics | `ResearchAnalyticsGate` | Device user (the person wearing the device) | PostHog SDK / app-level event tracking | `np.analytics.consent-granted` |
+| Research analytics | `ResearchAnalyticsGate` | Device user (the person wearing the device) | PostHog SDK / app-level event tracking | `np.research.consent-granted` |
 | Warranty analytics | `WarrantyAnalyticsGate` | Warranty owner (entity that registered the device — may be a clinic, NOT the user) | SHDR fleet telemetry (`SHDRUploader`) | `np.warranty.consent.granted` |
 
 The two gates are **code-structurally independent**. `ResearchAnalyticsGate` and `WarrantyAnalyticsGate`
@@ -30,7 +30,7 @@ Controls the PostHog SDK (app-level analytics). The gate opens when the user com
 research consent onboarding flow and taps Done (not Skip).
 
 ```swift
-static let researchAnalyticsKey = "np.analytics.consent-granted"
+static let researchAnalyticsKey = "np.research.consent-granted"
 static var isOpen: Bool { UserDefaults.standard.bool(forKey: researchAnalyticsKey) }
 ```
 
@@ -80,11 +80,11 @@ to `ConsentStore` or `ResearchAnalyticsGate`.
 
 | Key | Purpose | Gate |
 |-----|---------|------|
-| `np.analytics.consent-granted` | Research analytics consent | `ResearchAnalyticsGate` |
+| `np.research.consent-granted` | Research analytics consent | `ResearchAnalyticsGate` |
 | `np.warranty.consent.granted` | Warranty/SHDR consent | `WarrantyAnalyticsGate` |
 | `np.onboarding.consent-shown` | Prevents re-presenting onboarding | (not a gate) |
 
-`np.onboarding.consent-accepted` — retired (replaced by `np.analytics.consent-granted`).
+`np.onboarding.consent-accepted` — retired (replaced by `np.research.consent-granted`).
 
 ---
 

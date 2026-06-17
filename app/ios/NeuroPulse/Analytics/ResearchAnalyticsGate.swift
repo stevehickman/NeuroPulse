@@ -5,7 +5,7 @@ import os
 ///
 /// No analytics or crash-reporting SDK may initialise or receive any event until
 /// the user has **actively completed** the consent onboarding flow by tapping Done.
-/// The gate keys on `np.analytics.consent-granted` (`researchAnalyticsKey`), set
+/// The gate keys on `np.research.consent-granted` (`researchAnalyticsKey`), set
 /// inside `ConsentOnboardingView.commitAndDismiss(grantResearchAnalytics: true)`.
 ///
 /// Pressing Skip does NOT set this key — analytics stays off until an explicit
@@ -52,7 +52,7 @@ enum ResearchAnalyticsGate {
     ///
     /// NOT the same as `WarrantyAnalyticsGate.warrantyConsentKey` — research and
     /// warranty consent are independent and must never share a UserDefaults key.
-    static let researchAnalyticsKey = "np.analytics.consent-granted"
+    static let researchAnalyticsKey = "np.research.consent-granted"
 
     /// True only when the user has actively completed the research consent flow
     /// (tapped Done, not Skip), as recorded by `researchAnalyticsKey`.

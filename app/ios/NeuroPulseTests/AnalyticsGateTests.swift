@@ -16,7 +16,7 @@ import XCTest
 @MainActor
 final class AnalyticsGateTests: XCTestCase {
 
-    private let consentKey = "np.analytics.consent-granted"
+    private let consentKey = "np.research.consent-granted"
     private var spy: SpyAnalyticsBackend!
 
     override func setUp() async throws {
@@ -65,7 +65,7 @@ final class AnalyticsGateTests: XCTestCase {
     }
 
     func testResearchAnalyticsKeyMatchesConstant() {
-        XCTAssertEqual(ResearchAnalyticsGate.researchAnalyticsKey, "np.analytics.consent-granted")
+        XCTAssertEqual(ResearchAnalyticsGate.researchAnalyticsKey, "np.research.consent-granted")
     }
 
     func testSkipDoesNotOpenResearchAnalyticsGate() {
