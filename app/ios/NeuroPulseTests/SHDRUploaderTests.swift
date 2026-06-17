@@ -41,6 +41,19 @@ private final class MockSHDRUploadTrigger: SHDRUploadTriggering {
 
 final class SHDRUploaderTests: XCTestCase {
 
+    override func setUp() {
+        super.setUp()
+        // Ensure warranty consent is revoked so uploads gate out by default in each test.
+        // WarrantyAnalyticsGate is @MainActor; manipulate the underlying key directly
+        // so setUp can run without being @MainActor itself.
+        UserDefaults.standard.removeObject(forKey: "np.warranty.consent.granted")
+    }
+
+    override func tearDown() {
+        UserDefaults.standard.removeObject(forKey: "np.warranty.consent.granted")
+        super.tearDown()
+    }
+
     // MARK: - ISC-63 / ISC-66 Static source analysis: no UHDR fields
 
     // These tests read the production source file directly and verify the absence
@@ -128,10 +141,9 @@ final class SHDRUploaderTests: XCTestCase {
         let trigger = MockSHDRUploadTrigger()
         let uploader = SHDRUploader(gatt: trigger)
 
-        // Consent not granted: upload gates out, but the subscription must fire.
-        // We verify isUploading stays false (gated) rather than transitioning —
-        // because uploadIfConsented returns early without consent.
-        uploader.warrantyConsentGranted = false
+        // Warranty consent not granted: upload gates out via WarrantyAnalyticsGate.isOpen,
+        // but the subscription must still fire to prove the Combine path is wired.
+        WarrantyAnalyticsGate.revoke()
 
         // Fire pending=true then pending=false.
         trigger.sendPending(true)
@@ -140,16 +152,16 @@ final class SHDRUploaderTests: XCTestCase {
         // Give the async task time to schedule and run.
         await Task.yield()
 
-        // The uploader must not be stuck in uploading=true (it was gated by consent).
+        // The uploader must not be stuck in uploading=true (it was gated by warranty consent).
         XCTAssertFalse(uploader.isUploading,
-                       "Uploader must not be stuck uploading when consent is not granted.")
+                       "Uploader must not be stuck uploading when warranty consent is not granted.")
     }
 
     @MainActor
     func testFalseValueDoesNotTriggerUpload() async {
         let trigger = MockSHDRUploadTrigger()
         let uploader = SHDRUploader(gatt: trigger)
-        uploader.warrantyConsentGranted = false
+        WarrantyAnalyticsGate.revoke()
 
         // Sending false should be filtered out by the .filter { $0 } combinator.
         trigger.sendPending(false)

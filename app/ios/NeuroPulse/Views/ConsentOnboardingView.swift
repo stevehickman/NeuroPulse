@@ -35,8 +35,8 @@ struct ConsentOnboardingView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    // Skip defers all data decisions — analytics gate stays closed.
-                    Button(String(localized: "CONSENT_SKIP_BUTTON")) { commitAndDismiss(grantAnalyticsConsent: false) }
+                    // Skip defers all data decisions — research analytics gate stays closed.
+                    Button(String(localized: "CONSENT_SKIP_BUTTON")) { commitAndDismiss(grantResearchAnalytics: false) }
                         .foregroundColor(.secondary)
                 }
             }
@@ -277,19 +277,19 @@ struct ConsentOnboardingView: View {
 
     /// Persist the draft research-consent state and dismiss the sheet.
     ///
-    /// - Parameter grantAnalyticsConsent: Pass `true` when the user actively
+    /// - Parameter grantResearchAnalytics: Pass `true` when the user actively
     ///   completed the flow (Done). Pass `false` when the user pressed Skip —
-    ///   skipping defers all data decisions; the analytics gate stays closed.
+    ///   skipping defers all data decisions; the research analytics gate stays closed.
     ///
-    /// When `grantAnalyticsConsent` is true this function also calls
-    /// `AnalyticsGate.configure()` directly so that re-consent from
+    /// When `grantResearchAnalytics` is true this function also calls
+    /// `ResearchAnalyticsGate.configure()` directly so that re-consent from
     /// `ConsentDashboardView` restarts the SDK without requiring the app to
     /// re-run `presentNextOnboardingStep()`.
-    private func commitAndDismiss(grantAnalyticsConsent: Bool = true) {
+    private func commitAndDismiss(grantResearchAnalytics: Bool = true) {
         consentStore.updateResearchConsent(draft)
-        if grantAnalyticsConsent {
-            UserDefaults.standard.set(true, forKey: AnalyticsGate.analyticsConsentKey)
-            AnalyticsGate.configure()
+        if grantResearchAnalytics {
+            UserDefaults.standard.set(true, forKey: ResearchAnalyticsGate.researchAnalyticsKey)
+            ResearchAnalyticsGate.configure()
         }
         isPresented = false
     }

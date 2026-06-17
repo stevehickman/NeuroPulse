@@ -7,9 +7,10 @@ import Security
 // SHDR = System Health Data Record — device condition only, never user biology.
 // Upload is gated on:
 //   1. Hub notifies SHDR_UPLOAD_STATUS characteristic (0x01 = pending upload)
-//   2. User has accepted warranty consent (first-run)
+//   2. Warranty owner has consented to fleet telemetry (WarrantyAnalyticsGate.isOpen)
 //   3. USB-C connection detected (hub reports power source)
-// Per CLAUDE.md §5.1: SHDR is linked to device ID + warranty owner ID only — never user identity.
+// Per CLAUDE.md §5.1: SHDR is linked to device ID + opaque warranty token only — never user identity.
+// Warranty consent is entirely independent of user research consent (ConsentStore).
 
 enum SHDRUploadError: LocalizedError {
     case noData
@@ -193,7 +194,6 @@ final class SHDRUploader: ObservableObject {
     @Published private(set) var lastError: SHDRUploadError?
 
     private let uploadTrigger: SHDRUploadTriggering
-    private let warrantyConsentKey = "np.warranty.consent.granted"
     private var cancellable: AnyCancellable?
 
     // Dedicated session with SPKI pinning — never use URLSession.shared for fleet uploads.
@@ -206,11 +206,6 @@ final class SHDRUploader: ObservableObject {
         observeUploadTrigger()
     }
 
-    var warrantyConsentGranted: Bool {
-        get { UserDefaults.standard.bool(forKey: warrantyConsentKey) }
-        set { UserDefaults.standard.set(newValue, forKey: warrantyConsentKey) }
-    }
-
     private func observeUploadTrigger() {
         cancellable = uploadTrigger.shdrUploadPendingPublisher
             .filter { $0 }
@@ -220,7 +215,7 @@ final class SHDRUploader: ObservableObject {
     }
 
     func uploadIfConsented() async {
-        guard warrantyConsentGranted else { return }
+        guard WarrantyAnalyticsGate.isOpen else { return }
         guard !isUploading else { return }
         do {
             try await upload()

@@ -4,7 +4,7 @@ import PostHog
 
 /// Production `AnalyticsBackend` that wraps the PostHog iOS SDK.
 ///
-/// Consumed only by `AnalyticsGate`. Nothing else in the app imports PostHog
+/// Consumed only by `ResearchAnalyticsGate`. Nothing else in the app imports PostHog
 /// directly — this is the single integration point (ISC-157).
 ///
 /// INFRASTRUCTURE — analytics.neuropulse.internal (self-hosted testing instance)
@@ -38,7 +38,7 @@ import PostHog
 ///
 /// Configuration decisions:
 /// - Self-hosted testing endpoint (https://analytics.neuropulse.internal).
-/// - All auto-capture features disabled — we control every event via AnalyticsGate.track().
+/// - All auto-capture features disabled — we control every event via ResearchAnalyticsGate.track().
 /// - personProfiles = .never — no Person record created server-side; the anonymous
 ///   distinct_id is sent with events for funnel analysis but PostHog does not build
 ///   a profile. Matches "not linked to identity" in App Store nutrition label.
@@ -80,7 +80,7 @@ final class PostHogAnalyticsBackend: AnalyticsBackend {
         let config = PostHogConfig(projectToken: token, host: "https://analytics.neuropulse.internal")
 
         // Disable all auto-capture. Every event is intentionally sent via
-        // AnalyticsGate.track(), which enforces the prohibited-key list (ISC-97).
+        // ResearchAnalyticsGate.track(), which enforces the prohibited-key list (ISC-97).
         config.captureApplicationLifecycleEvents = false
         config.captureScreenViews = false
         config.captureElementInteractions = false

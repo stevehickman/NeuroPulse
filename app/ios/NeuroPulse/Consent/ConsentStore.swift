@@ -55,29 +55,31 @@ final class ConsentStore: ObservableObject {
         save()
     }
 
-    func withdrawBlanketConsent() {
+    func withdrawBlanketResearchConsent() {
         researchConsent.blanketConsentGranted = false
         researchConsent.blanketConsentGrantedAt = nil
         save()
         // Withdrawal immediately prevents future study descriptor processing.
         // Already-published extracts are unchanged (irreversibility notice given at L3).
         //
-        // Blanket withdrawal also revokes app analytics: the user is signalling they
+        // Blanket withdrawal also revokes research analytics: the user is signalling they
         // do not want any data collection beyond basic device function.
-        // (Partial withdrawals — specific study or category — do not revoke analytics
+        // (Partial withdrawals — specific study or category — do not revoke research analytics
         // because the user remains a research participant in other scopes.)
-        revokeAnalyticsConsent()
+        revokeResearchAnalytics()
     }
 
-    /// Revoke analytics consent — clears the analytics gate key and tears down
-    /// the SDK so it cannot collect passively after withdrawal.
+    /// Revoke research analytics — clears the research analytics gate key and tears
+    /// down the SDK so it cannot collect passively after withdrawal.
     ///
     /// Called from: (1) dedicated analytics opt-out toggle in Settings;
-    ///              (2) `withdrawBlanketConsent()` — blanket research withdrawal
+    ///              (2) `withdrawBlanketResearchConsent()` — blanket research withdrawal
     ///                   implies full data-collection opt-out.
-    func revokeAnalyticsConsent() {
-        UserDefaults.standard.removeObject(forKey: AnalyticsGate.analyticsConsentKey)
-        AnalyticsGate.reset()
+    ///
+    /// Does NOT affect `WarrantyAnalyticsGate` or SHDR fleet uploads.
+    func revokeResearchAnalytics() {
+        UserDefaults.standard.removeObject(forKey: ResearchAnalyticsGate.researchAnalyticsKey)
+        ResearchAnalyticsGate.reset()
     }
 
     func setCategoryConsent(_ category: ResearchCategory, granted: Bool) {
