@@ -1,7 +1,7 @@
 # NeuroPulse Privacy Notice
 
-**Document:** NP-PRIV-NOTICE-001 Rev A  
-**Effective date:** 2026-06-03  
+**Document:** NP-PRIV-NOTICE-001 Rev B  
+**Effective date:** 2026-06-16  
 **Applies to:** NeuroPulse Home and NeuroPulse Pro devices; NeuroPulse iOS app; NeuroPulse Android app  
 **Related documents:** NP-PRIV-001 Rev B · NP-PRIV-REM-001 Rev B · NP-FW-EMMC-001 Rev A · NP-FW-EMMC-002 Rev A
 
@@ -31,9 +31,22 @@ Your UHDR is backed up nightly (when the device is on USB-C power) to a location
 
 Your SHDR contains data about the *device's condition*, not about you: LED output levels, temperature readings, shielding performance ratios, a session count (a plain unsigned integer — no timestamps), consumable usage counts, firmware version history, and connection logs.
 
-SHDR is linked to your device's serial number and warranty token only — never to your name, email address, or any biometric. It is uploaded to NeuroPulse when your device is connected via USB-C, subject to your warranty consent.
+SHDR is linked to your device's serial number and warranty token only — never to your name, email address, or any biometric. It is uploaded to NeuroPulse when your device is connected via USB-C.
+
+**Important: SHDR consent is held by the warranty owner, not the device user.** The warranty owner is the person or organisation that registered the device — this may be a clinic, employer, or purchasing institution, not the individual wearing the device. A user does not need to take any action to consent to SHDR uploads; that consent was provided at warranty registration by whoever purchased the device. If you are a device user who did not register the warranty yourself, the SHDR consent decision was made by the registrant. SHDR contains no user biology and cannot identify you — it describes your device's condition only.
 
 **Boundary rule:** When in doubt, data is classified as UHDR. Reclassification to SHDR requires positive proof that no user biology is present.
+
+### Two consent subjects
+
+NeuroPulse operates with two entirely separate consent subjects. They are independent and do not cross-affect each other.
+
+| Consent subject | Scope | Who holds it | What it covers |
+|----------------|-------|-------------|---------------|
+| **Warranty owner** | SHDR fleet telemetry | The person or organisation that registered the device (may be a clinic, employer, or institution — not necessarily the device user) | Device diagnostics uploaded to NeuroPulse for warranty and fleet health analytics. No user biology. |
+| **Device user** | UHDR research data flows | Each individual who uses the device | Whether and how anonymised session data may be contributed to research studies. Managed entirely within the app by the user. Unrelated to warranty registration. |
+
+A clinic registering 20 devices gives SHDR warranty consent for all 20 devices. Each patient using those devices makes their own independent research consent decisions — the clinic's warranty consent has no effect on patient research consent, and a patient's research withdrawal has no effect on SHDR uploads.
 
 ---
 
@@ -41,7 +54,7 @@ SHDR is linked to your device's serial number and warranty token only — never 
 
 The NeuroPulse app collects a small amount of data to operate:
 
-- **Account identifier:** your email address, used to register your warranty and manage your subscription (if any).
+- **Account identifier:** your email address, used to manage your subscription (if any) and, if you are the warranty registrant, to manage the warranty. If a clinic, employer, or institution purchased your device, the warranty was registered by them — their contact details are linked to the device, not yours.
 - **Device pairing data:** BLE device identifiers, to maintain the connection between your phone and your hub.
 - **Session protocol uploads:** the protocol you choose is compiled into an Ed25519-signed binary and uploaded to your hub. A copy is stored on your device only.
 - **Consumable state:** counts of consumable sessions remaining, stored locally. Not transmitted to NeuroPulse.
@@ -115,7 +128,7 @@ Clinicians cannot access your adaptive adjustment event log unless you grant Ful
 | Portability | UHDR is exported in EDF+ format (open standard). Adaptation event logs export as JSON. |
 | Correction | For UHDR data, corrections are made in the app. For warranty/account data, contact privacy@neuropulse.com. |
 | Restriction / objection | Contact privacy@neuropulse.com. Adaptive stimulation can be disabled entirely from app settings without a formal request. |
-| Withdraw consent | Research consent: withdraw in the app Research section. Clinician access: revoke in the Clinical Access section. Analytics: opt out in app Settings → Privacy. |
+| Withdraw consent | **Research consent (user):** withdraw any scope in the app Research section — by study, by category, or blanket. Blanket research withdrawal also revokes app analytics. **Clinician access:** revoke in the Clinical Access section. **Analytics only:** opt out in Settings → Privacy. **SHDR warranty consent:** held by the warranty registrant; contact the registrant or privacy@neuropulse.com for queries about SHDR consent. |
 
 ---
 
@@ -124,8 +137,8 @@ Clinicians cannot access your adaptive adjustment event log unless you grant Ful
 | Data | Retention | Deletion mechanism |
 |------|-----------|-------------------|
 | UHDR (on-device) | Until you delete or factory reset | eMMC SANITIZE (NIST SP 800-88) |
-| SHDR (NeuroPulse fleet DB) | While warranty is active + 5 years | Written erasure request; 30-day SLA |
-| Warranty / account data | While account is open + 2 years | Account deletion request |
+| SHDR (NeuroPulse fleet DB) | While warranty is active + 5 years | Written erasure request by warranty owner; 30-day SLA |
+| Warranty / account data (warranty owner) | While account is open + 2 years | Account deletion request by warranty owner |
 | Anonymised research data | Per study protocol; NeuroPulse cannot individually remove | Irreversibility notice given at consent |
 | Analytics events | 90 days rolling (vendor-dependent) | Automatic |
 

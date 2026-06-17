@@ -15,6 +15,7 @@ struct SessionView: View {
     @EnvironmentObject private var healthKit:   HealthKitSessionReader
     @EnvironmentObject private var history:     SessionHistoryStore
     @EnvironmentObject private var edfLoader:   EDFDownloader
+    @EnvironmentObject private var bridge:      PhoneSessionManager
 
     @State private var showProtocolPicker    = false
     @State private var showStopConfirmation  = false
@@ -76,7 +77,10 @@ struct SessionView: View {
                         .accessibilityLabel("SESSION_HISTORY_LABEL")
                     }
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        connectionIndicator
+                        HStack(spacing: 8) {
+                            watchConnectivityIcon
+                            connectionIndicator
+                        }
                     }
                 }
                 .sheet(isPresented: $showHistory) {
@@ -251,6 +255,26 @@ struct SessionView: View {
         let isWired = UIDevice.current.batteryState == .charging
             || UIDevice.current.batteryState == .full
         return isWired ? String(localized: "SESSION_MODE_LIVE") : String(localized: "SESSION_MODE_WIRELESS")
+    }
+
+    private var watchConnectivityIcon: some View {
+        ZStack {
+            Image(systemName: "applewatch")
+                .font(.footnote)
+                .foregroundColor(.secondary)
+            if !bridge.watchConnectivityAvailable {
+                ZStack {
+                    Circle()
+                        .stroke(Color.red, lineWidth: 1)
+                    Image(systemName: "line.diagonal")
+                        .foregroundColor(.red)
+                }
+                .font(.footnote)
+            }
+        }
+        .accessibilityLabel(bridge.watchConnectivityAvailable
+                            ? String(localized: "SESSION_WATCH_CONNECTED_A11Y")
+                            : String(localized: "SESSION_WATCH_DISCONNECTED_A11Y"))
     }
 
     private var connectionIndicator: some View {

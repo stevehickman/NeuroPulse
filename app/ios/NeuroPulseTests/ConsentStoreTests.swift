@@ -1,6 +1,6 @@
 //  ConsentStoreTests.swift
 //
-//  Satisfies: ISC-80 (withdrawBlanketConsent persists), ISC-81 (badge count never negative),
+//  Satisfies: ISC-80 (withdrawBlanketResearchConsent persists), ISC-81 (badge count never negative),
 //             ISC-74 (updateResearchConsent persists), and store revoke/withdraw logic.
 //
 //  Subject under test: ConsentStore (app/ios/NeuroPulse/Consent/ConsentStore.swift)
@@ -46,27 +46,27 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.researchConsent.contactFrequency, .monthly)
     }
 
-    // MARK: - ISC-80: withdrawBlanketConsent persists correctly
+    // MARK: - ISC-80: withdrawBlanketResearchConsent persists correctly
 
-    func testWithdrawBlanketConsent_setsGrantedFalse() {
+    func testWithdrawBlanketResearchConsent_setsGrantedFalse() {
         var state = ResearchConsentState()
         state.blanketConsentGranted = true
         store.updateResearchConsent(state)
         XCTAssertTrue(store.researchConsent.blanketConsentGranted)
 
-        store.withdrawBlanketConsent()
+        store.withdrawBlanketResearchConsent()
 
         XCTAssertFalse(store.researchConsent.blanketConsentGranted,
-                       "withdrawBlanketConsent must set blanketConsentGranted to false.")
+                       "withdrawBlanketResearchConsent must set blanketConsentGranted to false.")
         XCTAssertNil(store.researchConsent.blanketConsentGrantedAt,
-                     "withdrawBlanketConsent must clear blanketConsentGrantedAt.")
+                     "withdrawBlanketResearchConsent must clear blanketConsentGrantedAt.")
     }
 
-    func testWithdrawBlanketConsent_persistsToDefaults() {
+    func testWithdrawBlanketResearchConsent_persistsToDefaults() {
         var state = ResearchConsentState()
         state.blanketConsentGranted = true
         store.updateResearchConsent(state)
-        store.withdrawBlanketConsent()
+        store.withdrawBlanketResearchConsent()
 
         // A newly-constructed store (simulating app restart) must reflect the withdrawal.
         let reloaded = ConsentStore()

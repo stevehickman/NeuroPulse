@@ -133,4 +133,11 @@
 #define NP_DETECT_ACCESSORY_POLL_MS 500U  /* VNS, intranasal, CVNS */
 #define NP_DETECT_VISUAL_POLL_MS    200U  /* Hall sensor poll */
 
+/* ── Mode F regulatory gate ───────────────────────────────────────────────────── */
+
+/* Mode F (NIR retinal walk, 808-830nm daily retinal PBM) must be gated by this
+ * compile-time flag. Must remain 0 until the RISK-03 Q-13 regulatory opinion
+ * letter is received. See NP-FW-EMMC-002 Rev A §F and NP-REG-PBM1064-001 Q-13. */
+#define NP_MODE_F_REGULATORY_CLEARED  0
+
 #endif /* NP_HUB_CONFIG_H */

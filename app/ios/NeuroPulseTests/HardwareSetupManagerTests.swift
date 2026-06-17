@@ -441,4 +441,27 @@ final class HardwareSetupManagerTests: XCTestCase {
         }
         XCTAssertEqual(missing.sorted(), [1, 3])
     }
+
+    // MARK: - ISC-115: impedanceFlags zeroed after advancing past impedanceCheck
+
+    // SetupView colours 8 electrode position indicators from impedanceFlags.
+    // Once the user advances past the impedanceCheck step, those flags must be
+    // cleared so a stale "all-green" pattern from this session does not persist
+    // into the next setup session. HardwareSetupManager zeros impedanceFlags in
+    // the advanceStep() path when leaving .impedanceCheck.
+
+    func testImpedanceFlagsClearedAfterAdvancingPastImpedanceCheck() async {
+        let mock = MockSetupGATT()
+        mock.mockConnectionState = .connected
+        mock.impedanceFlagsToInject = 0xFF   // all 8 electrodes pass
+        let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults)
+        mgr.setStepForTesting(.impedanceCheck)
+
+        await mgr.confirmImpedanceCheck()
+
+        XCTAssertEqual(mgr.currentStep, .ads1299Calibration,
+                       "precondition: must have advanced past impedanceCheck")
+        XCTAssertEqual(mgr.impedanceFlags, 0,
+                       "impedanceFlags must be zeroed after leaving impedanceCheck (ISC-115)")
+    }
 }

@@ -156,7 +156,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 - [ ] ISC-77: `ConsentDashboardView` lists all active study participations with study ID, participation date, and a "Withdraw" button.
 - [ ] ISC-78: `ConsentDashboardView` lists all pending study invitations with study name, brief description, what elements will be shared, and Accept / Decline buttons.
 - [ ] ISC-79: Accepting a study invitation calls `ConsentStore.acceptInvitation(studyID:)` and surfaces a confirmation that includes the irreversibility notice for that specific study.
-- [ ] ISC-80: `ConsentStore.withdrawBlanketConsent()` sets `blanketConsentGranted = false` and persists — verified by checking the `researchKey` UserDefaults value after calling it.
+- [ ] ISC-80: `ConsentStore.withdrawBlanketResearchConsent()` sets `blanketConsentGranted = false` and persists — verified by checking the `researchKey` UserDefaults value after calling it.
 - [ ] ISC-81: `Anti:` The consent tab badge count (`consent.pendingInvitations.filter { $0.hasNoDecision }.count`) never goes negative.
 - [ ] ISC-82: `Anti:` `ConsentEngine.minimumNecessaryElements(for:)` never returns elements from a use case that was not in `selectedUseCaseIDs`.
 

@@ -1,5 +1,6 @@
 import WatchConnectivity
 import Combine
+import OSLog
 import NeuroPulseShared
 
 // Bridges GATTSessionPublishing → Watch app via WatchConnectivity.
@@ -27,9 +28,14 @@ extension WCSession: WatchMessageSending {}
 
 final class PhoneSessionManager: NSObject, ObservableObject {
 
+    /// True when the paired Watch is reachable via WatchConnectivity.
+    /// Updated on the main queue from WCSessionDelegate callbacks.
+    @Published private(set) var watchConnectivityAvailable = false
+
     private let gattPublisher: GATTSessionPublishing
     private let watchSender: WatchMessageSending
     private var cancellable: AnyCancellable?
+    private let logger = Logger(subsystem: "com.neuropulse.app", category: "WatchBridge")
 
     /// Production init: `gatt` is the GATT manager; `watchSender` defaults to `WCSession.default`.
     /// Tests inject a `MockWatchMessageSender` so no real WCSession is activated.
@@ -58,7 +64,9 @@ final class PhoneSessionManager: NSObject, ObservableObject {
     private func forward(_ state: SessionState) {
         guard watchSender.isReachable else { return }
         let msg = state.toWCMessage()
-        watchSender.sendMessage(msg, replyHandler: nil, errorHandler: nil)
+        watchSender.sendMessage(msg, replyHandler: nil) { [logger] error in
+            logger.error("WC sendMessage failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
     // Push a consumable low alert as a high-priority notification.
@@ -68,7 +76,9 @@ final class PhoneSessionManager: NSObject, ObservableObject {
             "alert": "consumable_low",
             "index": consumableIndex,
             "remaining": sessionsRemaining
-        ], replyHandler: nil, errorHandler: nil)
+        ], replyHandler: nil) { [logger] error in
+            logger.error("WC consumable alert failed: \(String(describing: error), privacy: .public)")
+        }
     }
 
 }
@@ -79,10 +89,32 @@ extension PhoneSessionManager: WCSessionDelegate {
 
     func session(_ session: WCSession,
                  activationDidCompleteWith activationState: WCSessionActivationState,
-                 error: Error?) {}
+                 error: Error?) {
+        let reachable = activationState == .activated && session.isReachable
+        DispatchQueue.main.async { [weak self] in
+            self?.watchConnectivityAvailable = reachable
+        }
+    }
 
-    func sessionDidBecomeInactive(_ session: WCSession) {}
-    func sessionDidDeactivate(_ session: WCSession) { WCSession.default.activate() }
+    func sessionDidBecomeInactive(_ session: WCSession) {
+        DispatchQueue.main.async { [weak self] in
+            self?.watchConnectivityAvailable = false
+        }
+    }
+
+    func sessionDidDeactivate(_ session: WCSession) {
+        DispatchQueue.main.async { [weak self] in
+            self?.watchConnectivityAvailable = false
+        }
+        WCSession.default.activate()
+    }
+
+    func sessionReachabilityDidChange(_ session: WCSession) {
+        let reachable = session.isReachable
+        DispatchQueue.main.async { [weak self] in
+            self?.watchConnectivityAvailable = reachable
+        }
+    }
 
     // Receive messages from Watch (e.g. protocol preset selection).
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {

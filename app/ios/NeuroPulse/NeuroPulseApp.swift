@@ -147,11 +147,11 @@ struct NeuroPulseApp: App {
             consentOnboardingShown = true
             return
         }
-        // All onboarding gates passed. For returning users whose analytics consent
-        // key (np.analytics.consent-granted) is already set, configure() starts
+        // All onboarding gates passed. For returning users whose research analytics
+        // key (np.research.consent-granted) is already set, configure() starts
         // the SDK. For users who previously skipped, isOpen is false and configure()
         // no-ops — the gate stays closed until they actively consent via the
         // Research Preferences sheet (which calls configure() directly on Done).
-        AnalyticsGate.configure()
+        ResearchAnalyticsGate.configure()
     }
 }

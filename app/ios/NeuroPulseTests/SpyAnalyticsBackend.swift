@@ -1,7 +1,7 @@
 import Foundation
 @testable import NeuroPulse
 
-/// Test spy for `AnalyticsBackend`. Injected via `AnalyticsGate._backend` in
+/// Test spy for `AnalyticsBackend`. Injected via `ResearchAnalyticsGate._backend` in
 /// `AnalyticsGateTests.setUp()`.
 ///
 /// Records every call made to it so tests can assert on call counts and event

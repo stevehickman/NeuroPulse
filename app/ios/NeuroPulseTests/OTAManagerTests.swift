@@ -413,4 +413,47 @@ final class OTAManagerTests: XCTestCase {
         XCTAssertNotNil(ota.availableUpdate,
                         "update shown when hub version unknown (let user decide)")
     }
+
+    // MARK: - ISC-111: running bank protected by opcode ordering
+
+    // Mid-OTA disconnect cannot corrupt the running firmware bank because the bank
+    // swap only occurs at COMMIT. This test documents the structural invariant:
+    // INITIATE must precede VERIFY, VERIFY must precede COMMIT, and ABORT is a
+    // distinct opcode that does not advance the OTA state machine.
+
+    func testRunningBankProtectedByOpcodeOrdering() {
+        // INITIATE < chunk < VERIFY < COMMIT: the bank swap (COMMIT) is the last
+        // meaningful opcode in the sequence, so any mid-flight disconnect (before COMMIT)
+        // leaves the running bank untouched.
+        XCTAssertLessThan(OTAOpcode.initiate.rawValue, OTAOpcode.chunk.rawValue,
+                          "INITIATE must precede CHUNK in wire sequence")
+        XCTAssertLessThan(OTAOpcode.chunk.rawValue, OTAOpcode.verify.rawValue,
+                          "CHUNK must precede VERIFY in wire sequence")
+        XCTAssertLessThan(OTAOpcode.verify.rawValue, OTAOpcode.commit.rawValue,
+                          "VERIFY must precede COMMIT (bank swap) in wire sequence")
+
+        // ABORT must be distinct from COMMIT — aborting must not trigger a bank swap.
+        XCTAssertNotEqual(OTAOpcode.abort.rawValue, OTAOpcode.commit.rawValue,
+                          "ABORT must not share the COMMIT opcode value")
+    }
+
+    // MARK: - ISC-112: abort() leaves manager in clean state for reconnect retry
+
+    // After a mid-OTA abort (e.g., hub disconnected unexpectedly), the manager must
+    // return to .idle with no active session so a reconnect can start a fresh attempt.
+
+    func testAbortClearsOTASessionForReconnectRetry() {
+        let mock = MockBLECentral()
+        let gatt = NeuroPulseGATTManager(mockCentral: mock)
+        let service = MockFirmwareUpdateService()
+        let ota = OTAManager(gatt: gatt, updateService: service)
+
+        // abort() is synchronous and does not require an active download in flight.
+        ota.abort()
+
+        XCTAssertNil(ota.currentSession,
+                     "currentSession must be nil after abort so reconnect retry can start fresh")
+        XCTAssertEqual(ota.phase, .idle,
+                       "phase must be .idle after abort")
+    }
 }

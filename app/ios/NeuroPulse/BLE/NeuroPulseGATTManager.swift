@@ -25,8 +25,12 @@
 
 import CoreBluetooth
 import Combine
+import OSLog
 
+@MainActor
 final class NeuroPulseGATTManager: NSObject, ObservableObject {
+
+    private static let logger = Logger(subsystem: "com.neuropulse.app", category: "BLE")
 
     // MARK: - Published state
 
@@ -176,7 +180,8 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
 
         // Guard: no reconnect timer when BLE is unavailable — avoids a silent no-op scan.
         guard central.state == .poweredOn else { return }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [weak self] in
+        Task { [weak self] in
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
             self?.startScan()
         }
     }
@@ -294,7 +299,7 @@ enum GATTWriteError: Error {
 
 // MARK: - CBCentralManagerDelegate
 
-extension NeuroPulseGATTManager: CBCentralManagerDelegate {
+extension NeuroPulseGATTManager: @preconcurrency CBCentralManagerDelegate {
 
     func centralManagerDidUpdateState(_ central: CBCentralManager) {
         applyStateUpdate(state: central.state)
@@ -319,13 +324,16 @@ extension NeuroPulseGATTManager: CBCentralManagerDelegate {
     func centralManager(_ central: CBCentralManager,
                         didDisconnectPeripheral peripheral: CBPeripheral,
                         error: Error?) {
+        if let error {
+            Self.logger.error("Hub disconnected: \(String(describing: error), privacy: .public)")
+        }
         applyDisconnection()
     }
 }
 
 // MARK: - CBPeripheralDelegate
 
-extension NeuroPulseGATTManager: CBPeripheralDelegate {
+extension NeuroPulseGATTManager: @preconcurrency CBPeripheralDelegate {
 
     func peripheral(_ peripheral: CBPeripheral, didDiscoverServices error: Error?) {
         guard let service = peripheral.services?.first(where: { $0.uuid == NPUUID.service })

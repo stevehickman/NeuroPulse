@@ -4,6 +4,16 @@ import Combine
 // Persisted consent state — clinician grants, research consent, study participation audit trail.
 // All state serialised to UserDefaults (encrypted by iOS file system protection).
 // UHDR/SHDR boundary: study audit trail written to SHDR (study ID, hash, timestamp, byte count).
+//
+// TWO CONSENT SUBJECTS:
+//   • Warranty owner — consent for SHDR fleet telemetry. Granted at warranty registration.
+//     The warranty owner may be a clinic or institution, not the end user wearing the device.
+//     SHDRUploader holds this consent; it is unrelated to any individual user.
+//   • User — consent for UHDR research data flows. Managed here. Scoped to:
+//       L1 contact consent → L2 category consent → L3 blanket consent.
+//     Revoking research consent at ANY scope immediately stops data flows for that scope.
+//     Revoking blanket research consent (L3) also tears down app analytics (PostHog),
+//     because blanket withdrawal signals the user does not want any data collection.
 
 @MainActor
 final class ConsentStore: ObservableObject {
@@ -45,28 +55,31 @@ final class ConsentStore: ObservableObject {
         save()
     }
 
-    func withdrawBlanketConsent() {
+    func withdrawBlanketResearchConsent() {
         researchConsent.blanketConsentGranted = false
         researchConsent.blanketConsentGrantedAt = nil
         save()
         // Withdrawal immediately prevents future study descriptor processing.
         // Already-published extracts are unchanged (irreversibility notice given at L3).
         //
-        // Note: revokeAnalyticsConsent() is intentionally NOT called here.
-        // Research-participation consent (L3) and app analytics consent are
-        // independent decisions. A user who withdraws research participation
-        // retains their analytics preference unchanged. Use the dedicated
-        // analytics opt-out toggle (Settings → Privacy) to revoke analytics.
+        // Blanket withdrawal also revokes research analytics: the user is signalling they
+        // do not want any data collection beyond basic device function.
+        // (Partial withdrawals — specific study or category — do not revoke research analytics
+        // because the user remains a research participant in other scopes.)
+        revokeResearchAnalytics()
     }
 
-    /// Revoke analytics consent — clears the analytics gate key and tears down
-    /// the SDK so it cannot collect passively after withdrawal.
+    /// Revoke research analytics — clears the research analytics gate key and tears
+    /// down the SDK so it cannot collect passively after withdrawal.
     ///
-    /// Called from the dedicated analytics opt-out toggle in Settings.
-    /// NOT called from research-consent paths (see `withdrawBlanketConsent`).
-    func revokeAnalyticsConsent() {
-        UserDefaults.standard.removeObject(forKey: AnalyticsGate.analyticsConsentKey)
-        AnalyticsGate.reset()
+    /// Called from: (1) dedicated analytics opt-out toggle in Settings;
+    ///              (2) `withdrawBlanketResearchConsent()` — blanket research withdrawal
+    ///                   implies full data-collection opt-out.
+    ///
+    /// Does NOT affect `WarrantyAnalyticsGate` or SHDR fleet uploads.
+    func revokeResearchAnalytics() {
+        UserDefaults.standard.removeObject(forKey: ResearchAnalyticsGate.researchAnalyticsKey)
+        ResearchAnalyticsGate.reset()
     }
 
     func setCategoryConsent(_ category: ResearchCategory, granted: Bool) {

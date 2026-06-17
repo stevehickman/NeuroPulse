@@ -164,7 +164,7 @@ func consentCompleted() {
 }
 ```
 
-**Consent withdrawal:** If a user withdraws analytics consent (via the app privacy settings), the SDK must be de-initialised and all locally cached events must be deleted immediately. The user's pseudonymous analytics identifier must be deleted from the vendor's servers within 30 days (enforce via vendor deletion API call at withdrawal time).
+**Research consent withdrawal:** If a user withdraws blanket research consent (L3), the research analytics SDK must be de-initialised and all locally cached events must be deleted immediately. The user's pseudonymous analytics identifier must be deleted from the vendor's servers within 30 days (enforce via vendor deletion API call at withdrawal time). Partial withdrawals (specific study or category) do not revoke research analytics. Warranty consent withdrawal (SHDR fleet telemetry) is independent and handled by `WarrantyAnalyticsGate`.
 
 **Apple PrivacyInfo.xcprivacy requirement:** The PrivacyInfo.xcprivacy manifest must accurately declare all APIs used by the analytics and crash reporting SDKs, including any use of `NSPrivacyAccessedAPICategoryUserDefaults`, `NSPrivacyAccessedAPICategoryFileTimestamp`, `NSPrivacyAccessedAPICategorySystemBootTime`, or `NSPrivacyAccessedAPICategoryDiskSpace`. These declarations must be completed at vendor selection.
 
