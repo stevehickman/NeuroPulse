@@ -1,6 +1,6 @@
 /*
  * NeuroPulse Safety MCU — SPI Protocol Host Tests
- * Document: NP-SW-001 Rev A §4.1 (SW-01-M07 OI-SW01-M07-01)
+ * Document: NP-SW-001 §5.1 (SW-01-M07 OI-SW01-M07-01)
  *
  * Host-native tests for the np_safety_sig_cmd_t frame protocol:
  *   - Size assertions (compile-time guards and runtime check)

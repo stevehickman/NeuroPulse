@@ -1,6 +1,6 @@
 /*
  * NeuroPulse — Shared Cryptographic Primitives
- * Document: NP-SW-001 Rev A §4.1
+ * Document: NP-SW-001 §9.4
  *
  * Shared static library consumed by:
  *   • firmware/bootloader/     (SW-02 Class B — i.MX RT1062 Cortex-M7)

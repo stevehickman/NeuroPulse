@@ -169,7 +169,7 @@
 #define NP_PBM1064_TASK_STACK_WORDS     768U
 #define NP_PBM1064_TASK_PRIORITY        4U
 
-/* ── T2 combined session (1064nm + 1170nm laser) — NP-SES-1064-001 Rev A §4 ─── */
+/* ── T2 combined session (1064nm + 1170nm laser) — NP-SES-1064-001 §6 ─── */
 
 #define NP_T2_COMBINED_VERSION          0x01U
 

@@ -34,7 +34,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm10(void); /* T2 combined state machine 
 np_pbm1064_fai_result_t np_pbm1064_fai_sm11(void); /* UHDR/SHDR data routing      */
 
 /*
- * T2 combined session FAI tests (NP-SES-1064-001 Rev A §4; software-passable).
+ * T2 combined session FAI tests (NP-SES-1064-001 §6; software-passable).
  *
  * FAI-T2-01: Combined session descriptor validation
  * FAI-T2-02: Full 4-step thermal throttle cascade (1170nm → CH_C → CH_B → CH_A)

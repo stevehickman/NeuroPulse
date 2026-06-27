@@ -1,6 +1,6 @@
 /*
  * NeuroPulse — Shared Cryptographic Primitives
- * Document: NP-SW-001 Rev A §4.1
+ * Document: NP-SW-001 §9.4
  *
  * Resolves OI-SW01-M07-02: shared Ed25519 implementation for safety MCU and bootloader.
  *

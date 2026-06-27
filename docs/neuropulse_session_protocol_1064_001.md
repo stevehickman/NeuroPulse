@@ -128,13 +128,13 @@ Duty is written to all smart module slots simultaneously each tick (I2C write bu
 
 ---
 
-## 4. T2 Combined Session (1064nm Cortical + 1170nm Subcortical)
+## 6. T2 Combined Session (1064nm Cortical + 1170nm Subcortical)
 
-**Document:** NP-SES-1064-001 Rev A §4  
+**Document:** NP-SES-1064-001 §6  
 **Firmware:** `np_pbm1064_t2_combined` (`firmware/pbm_1064nm/`)  
 **Status:** Issue #55 — software PASS; hardware FAI pending T2 prototype
 
-### 4.1 Three-Tier Penetration Stack
+### 6.1 Three-Tier Penetration Stack
 
 The T2 combined session delivers coordinated multi-depth PBM via three laser subsystems operating simultaneously under a single session orchestrator:
 
@@ -146,11 +146,11 @@ The T2 combined session delivers coordinated multi-depth PBM via three laser sub
 
 This architecture replicates the depth-tier rationale from the penetration physics literature (Bashkatov 2005, Strangman 2002 — NP-BIB-1064-001 Rev A entries 12.3a–12.3c).
 
-### 4.2 Combined Session Descriptor
+### 6.2 Combined Session Descriptor
 
 ```c
 /*
- * np_t2_combined_desc_t — NP-SES-1064-001 Rev A §4.2
+ * np_t2_combined_desc_t — NP-SES-1064-001 §6.2
  * Ed25519 signature covers all fields at bytes 0 .. (sizeof - 64).
  * Hub firmware verifies before any laser enable.
  */
@@ -165,7 +165,7 @@ typedef struct {
 } np_t2_combined_desc_t;
 ```
 
-### 4.3 Parallel Ramp Coordination
+### 6.3 Parallel Ramp Coordination
 
 Both the 1064nm smart zone session and the 1170nm laser ramp **in parallel** from a single combined safety MCU enable:
 
@@ -180,7 +180,7 @@ t = 0                            t = 30s               t = session_end - 30s
 - Hub firmware drives the 1170nm ramp duty via `np_pbm1064_hal_t2_1170_set_duty()` at 100 ms tick rate, parallel with the 1064nm ramp in `np_pbm1064_session_tick()`.
 - Ramp abort on any fault immediately disables both subsystems within 100 ms.
 
-### 4.4 Thermal Throttle Priority Cascade
+### 6.4 Thermal Throttle Priority Cascade
 
 When aggregate thermal load triggers throttle, the priority cascade is applied one step per call to `np_pbm1064_t2_apply_thermal_throttle()`:
 
@@ -193,7 +193,7 @@ When aggregate thermal load triggers throttle, the priority cascade is applied o
 
 TEC temperature is polled every 1 s via `np_pbm1064_hal_t2_1170_get_temp()`. Threshold `NP_T2_1170_TEC_FAULT_C` (45 °C) triggers step-1 throttle; `NP_T2_1170_TEC_CUTOFF_C` (50 °C) triggers immediate abort.
 
-### 4.5 sLORETA Depression Protocol Coordination (T2, OI-SES-T2-01)
+### 6.5 sLORETA Depression Protocol Coordination (T2, OI-SES-T2-01)
 
 For the T2 depression protocol, the sLORETA engine (NP-FW-HD-001 Rev A) provides the MNI cortical target at session start. The 1170nm laser is positioned to irradiate subcortical regions below the identified cortical source.
 
@@ -207,7 +207,7 @@ For the T2 depression protocol, the sLORETA engine (NP-FW-HD-001 Rev A) provides
 
 **Stub behaviour (current):** `np_pbm1064_hal_t2_sloreta_get_target()` returns DLPFC_L stub coordinates (MNI x=-40, y=40, z=30) with `valid = true` so that FAI-T2-01 and FAI-T2-03 exercise the logging path.
 
-### 4.6 Session State Machine
+### 6.6 Session State Machine
 
 ```
 T2_IDLE → T2_PREFLIGHT → T2_RAMP_UP → T2_ACTIVE → T2_RAMP_DOWN → T2_COMPLETE
@@ -222,7 +222,7 @@ T2_IDLE → T2_PREFLIGHT → T2_RAMP_UP → T2_ACTIVE → T2_RAMP_DOWN → T2_CO
 `T2_COMPLETE`: final 1170nm dose read; both subsystems disabled; UHDR + SHDR written.  
 `T2_FAULT`: all channels disabled immediately; both records written with fault reason.
 
-### 4.7 UHDR / SHDR Records
+### 6.7 UHDR / SHDR Records
 
 **UHDR — np_t2_combined_uhdr_record_t (user-owned, biometric-derived AES-256 key)**
 
@@ -248,7 +248,7 @@ T2_IDLE → T2_PREFLIGHT → T2_RAMP_UP → T2_ACTIVE → T2_RAMP_DOWN → T2_CO
 | `sloreta_session_flag` | `uint8_t` | 1 = sLORETA session was active |
 | `abort_reason` | `uint8_t` | np_pbm1064_fault_t; 0 = normal |
 
-### 4.8 FAI Test Specifications (software-passable)
+### 6.8 FAI Test Specifications (software-passable)
 
 | ID | Description | Requirement | Status |
 |----|-------------|-------------|--------|
@@ -261,7 +261,7 @@ T2_IDLE → T2_PREFLIGHT → T2_RAMP_UP → T2_ACTIVE → T2_RAMP_DOWN → T2_CO
 
 FAI-T2-05 and FAI-T2-06 are blocking for T2 clinical release (NP-COORD-001 G3-07 hardware path).
 
-### 4.9 Open Items
+### 6.9 Open Items
 
 | ID | Description | Blocking |
 |----|-------------|---------|
@@ -272,20 +272,7 @@ FAI-T2-05 and FAI-T2-06 are blocking for T2 clinical release (NP-COORD-001 G3-07
 
 ---
 
-## 5. Ramp Profile
-
-30 s linear ramp on all active channels. Ramp tick rate: 10 Hz (same as dose tick).
-
-```
-duty_step = target_duty / (30 × 10)   // per 100 ms tick
-ramp_duty = duty_step × tick_count
-```
-
-Duty is written to all smart module slots simultaneously each tick (I2C write burst per slot). On ramp abort (fault), all channels set to duty=0 and CH_ENABLE=0x00 within 100 ms.
-
----
-
-## 6. Safety Limits Summary
+## 7. Safety Limits Summary
 
 | Parameter | Limit | Enforcement |
 |-----------|-------|-------------|
