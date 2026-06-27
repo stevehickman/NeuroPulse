@@ -194,7 +194,7 @@ NP-PRIV-001 Rev A MEDIUM-04 identified that the Scratch partition's unencrypted 
 Before the anonymisation task begins:
 
 ```c
-/* firmware/anon/np_anon_scratch.h */
+/* firmware/anon/include/np_anon_scratch.h */
 
 typedef struct {
     uint8_t  k_scratch[32];       /* AES-256-CTR key — in SRAM only */
@@ -310,7 +310,7 @@ NPa3f7b9c2d1e4f5 X X NeuroPulse_User
 ### E.3 EDF+ writer implementation requirement
 
 ```c
-/* firmware/edf/np_edf_writer.h */
+/* firmware/edf/include/np_edf_writer.h */
 
 /* Fills the EDF+ header patient and recording identification fields
    with privacy-preserving values per NP-FW-EMMC-002 §E.2.

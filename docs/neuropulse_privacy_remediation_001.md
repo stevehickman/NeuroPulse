@@ -675,7 +675,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 ---
 
 #### STEP-33 — Adaptive stimulation transparency: firmware log + app UI + privacy notice
-**Document:** firmware/hub_control/np_adaptation_log.h (new header); NP-APP-ROADMAP-001 Rev B; NP-API-001 Rev A (T2 clinical report); app privacy notice  
+**Document:** firmware/hub_control/include/np_adaptation_log.h (existing header); NP-APP-ROADMAP-001 Rev B; NP-API-001 Rev A (T2 clinical report); app privacy notice  
 **Finding:** NP-PRIV-001 Rev B MEDIUM-05 (right to explanation for adaptive stimulation)  
 **Trigger:** Before NP-FW-HUB-001 session runner is implemented; before the iOS/Android session-results screen UI is designed.  
 **Target milestone:** G2 (Month 10) for firmware struct; G3 (Month 14) for T2 clinical report in NP-API-001  
