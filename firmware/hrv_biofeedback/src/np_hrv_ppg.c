@@ -1,6 +1,6 @@
 /*
  * NeuroPulse HRV Biofeedback — PPG Signal Processing
- * Document: NP-FW-HRV-001 Rev A §5
+ * Document: NP-FW-HRV-001 §2
  */
 
 #include "np_hrv_ppg.h"
