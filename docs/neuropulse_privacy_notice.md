@@ -1,9 +1,20 @@
 # NeuroPulse Privacy Notice
 
-**Document:** NP-PRIV-NOTICE-001 Rev B  
-**Effective date:** 2026-06-16  
-**Applies to:** NeuroPulse Home and NeuroPulse Pro devices; NeuroPulse iOS app; NeuroPulse Android app  
-**Related documents:** NP-PRIV-001 Rev B · NP-PRIV-REM-001 Rev B · NP-FW-EMMC-001 Rev A · NP-FW-EMMC-002 Rev A
+**Project:** NeuroPulse  
+**Document:** NP-PRIV-NOTICE-001  
+**Revision:** B  
+**Date:** 2026-06-16  
+**Status:** ACTIVE  
+**Effective Date:** 2026-06-16  
+**Author:** Steve Hickman (CEO, interim Quality authority)  
+**Approved By:** Steve Hickman, CEO  
+**References:** NP-PRIV-001 Rev B; NP-PRIV-REM-001 Rev B; NP-FW-EMMC-001 Rev A; NP-FW-EMMC-002 Rev A  
+**Related Issues:** —  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Applicable Standard:** GDPR; CCPA/CPRA; HIPAA; FTC Act §5  
+**Next Review:** Annual; also triggered by any material change to data processing  
+**Jurisdiction Scope:** Global — applies to NeuroPulse Home and NeuroPulse Pro devices; NeuroPulse iOS app; NeuroPulse Android app
 
 ---
 

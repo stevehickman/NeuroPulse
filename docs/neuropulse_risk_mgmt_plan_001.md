@@ -1,14 +1,20 @@
-# NP-RM-001 Rev A — ISO 14971 Risk Management Plan
+# ISO 14971 Risk Management Plan
 
-**Document number:** NP-RM-001  
+**Project:** NeuroPulse  
+**Document:** NP-RM-001  
 **Revision:** A  
+**Date:** 2026-05-13  
 **Status:** ACTIVE  
-**Effective date:** 2026-05-13  
-**Author:** Quality Lead (interim: CEO)  
-**Approved by:** CEO  
-**Standard:** ISO 14971:2019 — Medical Devices: Application of Risk Management  
-**Applicable devices:** NeuroPulse Home (T1), NeuroPulse Pro (T2)  
-**Next review:** 2027-05-13 (annual) or upon any significant design change
+**Effective Date:** 2026-05-13  
+**Author:** Quality Lead (interim: Steve Hickman, CEO)  
+**Approved By:** Steve Hickman, CEO  
+**References:** —  
+**Related Issues:** GitHub Issue #33  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Applicable Standard:** ISO 14971:2019 — Medical Devices: Application of Risk Management  
+**Next Review:** 2027-05-13 (annual) or upon any significant design change  
+**Applicable Devices:** NeuroPulse Home (T1), NeuroPulse Pro (T2)
 
 ---
 

@@ -1,8 +1,21 @@
 # NPPS Language Reference
 
-**NeuroPulse Protocol Script (NPPS)** is the text format used to define, share, and store NeuroPulse session protocols. Files use the `.npps` extension.
+**Project:** NeuroPulse  
+**Document:** NP-NPPS-REF-001  
+**Revision:** A  
+**Date:** 2026-05-17  
+**Status:** ACTIVE  
+**Effective Date:** 2026-05-17  
+**Author:** Steve Hickman (CEO, interim Quality authority)  
+**Approved By:** Steve Hickman, CEO  
+**References:** —  
+**Related Issues:** —  
+**Gate:** —  
+**IEC 62304 Class:** —
 
 ---
+
+**NeuroPulse Protocol Script (NPPS)** is the text format used to define, share, and store NeuroPulse session protocols. Files use the `.npps` extension.
 
 ## Contents
 

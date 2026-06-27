@@ -1,14 +1,20 @@
-# NP-SEC-BR-001 Rev A — Breach Response Plan
+# Breach Response Plan
 
-**Document number:** NP-SEC-BR-001  
-**Revision:** A  
-**Status:** ACTIVE  
-**Effective date:** 2026-06-02  
-**Author:** Quality Lead (interim: Steve Hickman, CEO)  
-**Approved by:** Steve Hickman, CEO  
-**Next rehearsal:** Before T1 launch (Month 18, target November 2027)  
-**Review cadence:** Annual; also triggered by any actual breach event  
-**References:** HIPAA 45 CFR §§164.400–414; FTC HBNR 16 CFR Part 318; GDPR Art. 33–34; NP-PRIV-REM-001 §4.5–4.8; NP-QMS-CAPA-001 Rev A  
+**Project:** NeuroPulse
+**Document:** NP-SEC-BR-001
+**Revision:** A
+**Date:** 2026-06-02
+**Status:** ACTIVE
+**Effective Date:** 2026-06-02
+**Author:** Quality Lead (interim: Steve Hickman, CEO)
+**Approved By:** Steve Hickman, CEO
+**References:** HIPAA 45 CFR §§164.400–414; FTC HBNR 16 CFR Part 318; GDPR Art. 33–34; NP-PRIV-REM-001 §4.5–4.8; NP-QMS-CAPA-001 Rev A
+**Related Issues:** —
+**Gate:** —
+**IEC 62304 Class:** —
+**Applicable Standard:** HIPAA 45 CFR §§164.400–414; FTC HBNR 16 CFR Part 318; GDPR Art. 33–34
+**Next Review:** Annual; also triggered by any actual breach event. Next rehearsal before T1 launch (Month 18, target November 2027).
+**Jurisdiction Scope:** US federal (HIPAA, FTC HBNR), US state (all 50 states breach notification), EU/EEA GDPR, UK GDPR
 
 ---
 

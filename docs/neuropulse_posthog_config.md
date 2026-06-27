@@ -1,8 +1,17 @@
 # NeuroPulse PostHog Analytics — Self-Hosted Configuration Reference
-**Document:** NP-ANALYTICS-001 Rev A  
+
+**Project:** NeuroPulse  
+**Document:** NP-ANALYTICS-001  
+**Revision:** A  
 **Date:** 2026-06-13  
-**Status:** Active  
-**Location:** `infra/posthog/`
+**Status:** ACTIVE  
+**Effective Date:** 2026-06-13  
+**Author:** Steve Hickman (CEO, interim Quality authority)  
+**Approved By:** Steve Hickman, CEO  
+**References:** —  
+**Related Issues:** —  
+**Gate:** —  
+**IEC 62304 Class:** —
 
 ---
 

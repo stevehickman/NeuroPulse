@@ -1,9 +1,19 @@
-# NP-FW-HRV-001 Rev A — HRV Biofeedback Protocol Firmware Specification
-**Project:** NeuroPulse  
-**Document:** NP-FW-HRV-001 Rev A  
-**Date:** 2026-05-11  
-**Status:** Baselined — implements CLAUDE.md §3 modality 6 (VNS + HRV + HRV Biofeedback)  
-**Gate:** Closes NP-COORD-001 G2-12
+# HRV Biofeedback Protocol Firmware Specification
+
+**Project:** NeuroPulse
+**Document:** NP-FW-HRV-001
+**Revision:** A
+**Date:** 2026-05-11
+**Status:** BASELINED
+**Effective Date:** 2026-05-11
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** CLAUDE.md §3 modality 6 (VNS + HRV + HRV Biofeedback)
+**Related Issues:** GitHub Issue #21
+**Gate:** NP-COORD-001 G2-12
+**IEC 62304 Class:** SW-02 Class B (main processor)
+**Supersedes:** —
+**Parent Document:** NP-SW-001
 
 ---
 

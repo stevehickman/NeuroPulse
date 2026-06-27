@@ -1,11 +1,17 @@
-# NP-BIB-1064-001 Rev A
-## 1064nm Transcranial PBM — Clinical Evidence Bibliography Addendum
+# 1064nm Transcranial PBM — Clinical Evidence Bibliography Addendum
 
-**Document:** NP-BIB-1064-001 Rev A  
-**Date:** 2026-05-13  
-**Status:** Addendum to `docs/neuropulse_bibliography.docx` (existing 33-entry FTC claims substantiation bibliography)  
-**Author:** NeuroPulse Clinical Evidence  
-**References:** Issue #56; NP-SES-1064-001 Rev A §7.2; NP-REG-PBM1064-001 Rev A §6
+**Project:** NeuroPulse
+**Document:** NP-BIB-1064-001
+**Revision:** A
+**Date:** 2026-05-13
+**Status:** ACTIVE
+**Effective Date:** 2026-05-13
+**Author:** NeuroPulse Clinical Evidence
+**Approved By:** Steve Hickman, CEO
+**References:** NP-SES-1064-001 Rev A §7.2; NP-REG-PBM1064-001 Rev A §6; supplements `docs/neuropulse_bibliography.docx` (existing 33-entry FTC claims substantiation bibliography)
+**Related Issues:** GitHub Issue #56
+**Gate:** —
+**IEC 62304 Class:** —
 
 ---
 

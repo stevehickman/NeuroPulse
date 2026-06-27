@@ -1,10 +1,19 @@
-# NP-APP-ROADMAP-001 Rev B — iOS App Development Roadmap
+# iOS App Development Roadmap
+
 **Project:** NeuroPulse  
-**Document:** NP-APP-ROADMAP-001 Rev B  
+**Document:** NP-APP-ROADMAP-001  
+**Revision:** B  
 **Date:** 2026-06-03  
-**Status:** Baselined  
-**Related issues:** GitHub Issue #32  
-**Change from Rev A:** Added §9 Privacy Constraints (NP-PRIV-REM-001 STEP-16/33); HealthKit binding constraint; minimum age gate; BIPA written release; adaptive stimulation transparency card. Added OI-WA-06, OI-PA-01, OI-PA-02, OI-PA-03, OI-PA-04.
+**Status:** BASELINED  
+**Effective Date:** 2026-06-03  
+**Author:** Steve Hickman (CEO, interim Quality authority)  
+**Approved By:** Steve Hickman, CEO  
+**References:** —  
+**Related Issues:** GitHub Issue #32  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Supersedes:** NP-APP-ROADMAP-001 Rev A  
+**Change Summary:** Added §9 Privacy Constraints (NP-PRIV-REM-001 STEP-16/33); HealthKit binding constraint; minimum age gate; BIPA written release; adaptive stimulation transparency card. Added OI-WA-06, OI-PA-01, OI-PA-02, OI-PA-03, OI-PA-04.
 
 ---
 

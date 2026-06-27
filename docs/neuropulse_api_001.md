@@ -1,12 +1,19 @@
-# NP-API-001 Rev A — T2 Clinical Scripting API Specification
+# T2 Clinical Scripting API Specification
 
-**Document number:** NP-API-001
-**Revision:** Rev A
+**Project:** NeuroPulse
+**Document:** NP-API-001
+**Revision:** A
 **Date:** 2026-06-07
-**Status:** DRAFT — pending review
+**Status:** DRAFT
+**Effective Date:** 2026-06-07
 **Author:** SmartyPants / PAI
-**Approved by:** TBD (Privacy Lead sign-off required before external publication)
+**Approved By:** TBD (Privacy Lead sign-off required before external publication)
 **References:** NP-INT-FHIR-001 Rev A, NP-PRIV-REM-001 Rev A (STEP-15), NP-LEGAL-BAA-001 Rev A, npps-reference.md, NP-SW-001 Rev A, NP-APP-TELEMETRY-001 Rev B
+**Related Issues:** —
+**Gate:** NP-COORD-001 G1 (NP-PRIV-REM-001 STEP-15)
+**IEC 62304 Class:** —
+**Supersedes:** —
+**Parent Document:** —
 
 ---
 

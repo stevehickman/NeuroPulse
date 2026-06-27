@@ -1,12 +1,19 @@
-# NP-TOOL-ZM-SM-001 Rev A
-## 1064nm Smart Zone Module — Mould Variant Specification
+# 1064nm Smart Zone Module — Mould Variant Specification
 
-**Document:** NP-TOOL-ZM-SM-001 Rev A  
+**Project:** NeuroPulse  
+**Document:** NP-TOOL-ZM-SM-001  
+**Revision:** A  
 **Date:** 2026-05-13  
-**Status:** Baselined — Issue #54  
-**Parent Document:** NP-TOOL-ZM-001 Rev A (base zone module mould spec — unchanged)  
+**Status:** BASELINED  
+**Effective Date:** 2026-05-13  
 **Author:** NeuroPulse Mechanical Engineering  
-**References:** NP-TOOL-ZM-001 Rev A; NP-HW-FPC-001 Rev E; NP-PROC-FPC-1064-001 Rev A; NP-FAI-ZM-001 Rev A; Issue #54
+**Approved By:** Steve Hickman, CEO  
+**References:** NP-TOOL-ZM-001 Rev A; NP-HW-FPC-001 Rev E; NP-PROC-FPC-1064-001 Rev A; NP-FAI-ZM-001 Rev A  
+**Related Issues:** GitHub Issue #54  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Supersedes:** —  
+**Parent Document:** NP-TOOL-ZM-001 Rev A (base zone module mould spec — unchanged)
 
 ---
 

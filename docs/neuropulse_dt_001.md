@@ -1,12 +1,19 @@
-# NP-DT-001 Rev A — Design Input/Output Traceability Matrix
+# Design Input/Output Traceability Matrix
 
-**Document number:** NP-DT-001
-**Revision:** Rev A
+**Project:** NeuroPulse
+**Document:** NP-DT-001
+**Revision:** A
 **Date:** 2026-06-07
-**Status:** DRAFT — pending review
-**Author:** SmartyPants / PAI
-**Approved by:** TBD (Quality Lead)
+**Status:** DRAFT
+**Effective Date:** 2026-06-07
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
 **References:** NP-QMS-DC-001 Rev A, NP-DP-001 Rev A, NP-DHF-001 Rev F, NP-RM-001 Rev A, NP-SW-001 Rev A, 21 CFR §820.30, ISO 13485:2016 §7.3
+**Related Issues:** GitHub Issue #122
+**Gate:** NP-DP-001 §6.4 G2 exit criterion
+**IEC 62304 Class:** —
+**Supersedes:** —
+**Parent Document:** NP-QMS-DC-001
 
 ---
 

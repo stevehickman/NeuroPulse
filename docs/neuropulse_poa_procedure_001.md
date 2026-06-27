@@ -1,13 +1,20 @@
-# NP-PROC-POA-001 Rev A — Healthcare Power of Attorney Upload Procedure
+# Healthcare Power of Attorney Upload Procedure
 
-**Document number:** NP-PROC-POA-001  
+**Project:** NeuroPulse  
+**Document:** NP-PROC-POA-001  
 **Revision:** A  
+**Date:** 2026-06-02  
 **Status:** ACTIVE  
-**Effective date:** 2026-06-02  
+**Effective Date:** 2026-06-02  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
-**Approved by:** Steve Hickman, CEO  
-**Review cadence:** Annual; also triggered by any POA processing incident  
+**Approved By:** Steve Hickman, CEO  
 **References:** NP-PRIV-REM-001 STEP-08; HIPAA §164.312; GDPR Art. 9(2)(c); 45 CFR Part 46; NP-QMS-CAPA-001 Rev A  
+**Related Issues:** —  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Applicable Standard:** HIPAA §164.312; GDPR Art. 9(2)(c); 45 CFR Part 46  
+**Next Review:** Annual; also triggered by any POA processing incident  
+**Jurisdiction Scope:** US federal (HIPAA, Common Rule 45 CFR Part 46); EU/EEA (GDPR)
 
 ---
 

@@ -1,13 +1,19 @@
-# NP-SW-001 Rev A — IEC 62304 Software Development Plan
+# IEC 62304 Software Development Plan
 
-**Document number:** NP-SW-001  
+**Project:** NeuroPulse  
+**Document:** NP-SW-001  
 **Revision:** A  
+**Date:** 2026-05-13  
 **Status:** ACTIVE  
-**Effective date:** 2026-05-13  
-**Author:** Quality Lead (interim: CEO)  
-**Approved by:** CEO  
-**Standard:** IEC 62304:2006 + AMD1:2015 — Medical Device Software: Software Lifecycle Processes  
-**Next review:** 2027-05-13 or upon significant architecture change
+**Effective Date:** 2026-05-13  
+**Author:** Quality Lead (interim: Steve Hickman, CEO)  
+**Approved By:** Steve Hickman, CEO  
+**References:** —  
+**Related Issues:** GitHub Issue #33  
+**Gate:** —  
+**IEC 62304 Class:** SW-01 Class C, SW-02 Class B, SW-03 Class B  
+**Applicable Standard:** IEC 62304:2006 + AMD1:2015 — Medical Device Software: Software Lifecycle Processes  
+**Next Review:** 2027-05-13 or upon significant architecture change
 
 ---
 

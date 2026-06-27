@@ -1,12 +1,19 @@
-# NP-DHF-001 Rev P — NeuroPulse Design History File Index
+# NeuroPulse Design History File Index
 
-**Document number:** NP-DHF-001  
-**Revision:** P  
-**Status:** ACTIVE  
-**Effective date:** 2026-06-15  
-**Author:** Steve Hickman (CEO, interim Quality authority)  
-**Approved by:** Steve Hickman, CEO  
-**Next review:** Ongoing — updated with each new design document release
+**Project:** NeuroPulse
+**Document:** NP-DHF-001
+**Revision:** P
+**Date:** 2026-06-15
+**Status:** ACTIVE
+**Effective Date:** 2026-06-15
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** —
+**Related Issues:** GitHub Issue #33
+**Gate:** —
+**IEC 62304 Class:** —
+**Applicable Standard:** 21 CFR §820.30(j), ISO 13485:2016 §7.3.10
+**Next Review:** Ongoing — updated with each new design document release
 
 ---
 

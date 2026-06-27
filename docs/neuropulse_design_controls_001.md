@@ -1,13 +1,19 @@
-# NP-QMS-DC-001 Rev A — Design Controls Procedure
+# Design Controls Procedure
 
-**Document number:** NP-QMS-DC-001  
-**Revision:** A  
-**Status:** ACTIVE  
-**Effective date:** 2026-05-13  
-**Author:** Quality Lead (interim: CEO)  
-**Approved by:** CEO  
-**Applicable to:** All T1 and T2 NeuroPulse device design activities  
-**Next review:** 2027-05-13
+**Project:** NeuroPulse
+**Document:** NP-QMS-DC-001
+**Revision:** A
+**Date:** 2026-05-13
+**Status:** ACTIVE
+**Effective Date:** 2026-05-13
+**Author:** Quality Lead (interim: Steve Hickman, CEO)
+**Approved By:** Steve Hickman, CEO
+**References:** —
+**Related Issues:** GitHub Issue #33
+**Gate:** —
+**IEC 62304 Class:** —
+**Applicable Standard:** 21 CFR §820.30 (Design Controls), ISO 13485:2016 §7.3
+**Next Review:** 2027-05-13
 
 ---
 

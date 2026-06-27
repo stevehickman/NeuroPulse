@@ -1,14 +1,20 @@
-# NP-PRIV-AUDIT-001 Rev A — NeuroPulse App Privacy Audit
+# NeuroPulse App Privacy Audit
 
-**Document number:** NP-PRIV-AUDIT-001  
+**Project:** NeuroPulse  
+**Document:** NP-PRIV-AUDIT-001  
 **Revision:** A  
+**Date:** 2026-06-03  
 **Status:** ACTIVE  
-**Effective date:** 2026-06-03  
+**Effective Date:** 2026-06-03  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
-**Approved by:** Steve Hickman, CEO  
+**Approved By:** Steve Hickman, CEO  
 **References:** NP-PRIV-REM-001 Rev A STEP-21; NP-PRIV-001 Rev A; NP-APP-TELEMETRY-001 Rev B; NP-APP-ROADMAP-001 Rev B; NP-FW-EMMC-001 Rev A; NP-FW-EMMC-002 Rev A; NP-FW-ANON-001 Rev A; CLAUDE.md §5 (UHDR/SHDR), §6 (Consent Engine)  
+**Related Issues:** —  
 **Gate:** BLOCKING for first external beta (TestFlight / Play Store open beta)  
-**Review cadence:** Before each major app release and annually thereafter
+**IEC 62304 Class:** —  
+**Jurisdiction Scope:** US federal (FTC Act §5, FTC HBNR, HIPAA); US state (BIPA IL, MHMD WA, CCPA/CPRA CA); EU/EEA GDPR; UK GDPR; Canada PIPEDA  
+**Change Summary:** —  
+**Next Review:** Before each major app release and annually thereafter
 
 ---
 

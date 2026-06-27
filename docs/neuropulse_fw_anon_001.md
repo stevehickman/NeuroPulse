@@ -1,13 +1,19 @@
-# NP-FW-ANON-001 Rev A — Research Anonymisation Engine Firmware Specification
+# Research Anonymisation Engine Firmware Specification
 
-**Document number:** NP-FW-ANON-001  
-**Revision:** A  
-**Status:** ACTIVE  
-**Effective date:** 2026-06-03  
-**Author:** Quality Lead (interim: Steve Hickman, CEO)  
-**Approved by:** Steve Hickman, CEO  
-**IEC 62304 class:** SW-02 Class B (main processor — anonymisation does not control stimulation)  
-**References:** NP-PRIV-REM-001 STEP-11; NP-FW-EMMC-002 §A §D §E; NP-FW-EMMC-001 Rev A §6 §15; 45 CFR §164.514(b)(1) (HIPAA Expert Determination); NP-PRIV-001 Rev A HIGH-02  
+**Project:** NeuroPulse
+**Document:** NP-FW-ANON-001
+**Revision:** A
+**Date:** 2026-06-03
+**Status:** ACTIVE
+**Effective Date:** 2026-06-03
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** NP-PRIV-REM-001 STEP-11; NP-FW-EMMC-002 §A §D §E; NP-FW-EMMC-001 Rev A §6 §15; 45 CFR §164.514(b)(1) (HIPAA Expert Determination); NP-PRIV-001 Rev A HIGH-02
+**Related Issues:** —
+**Gate:** —
+**IEC 62304 Class:** SW-02 Class B (main processor — anonymisation does not control stimulation)
+**Supersedes:** —
+**Parent Document:** NP-FW-EMMC-001  
 
 ---
 

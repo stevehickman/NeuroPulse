@@ -1,12 +1,19 @@
-# NP-HW-FPC-001 Rev E
-## 1064nm Smart Zone Module — FPC Layout Variant
+# 1064nm Smart Zone Module FPC Layout Variant
 
-**Document:** NP-HW-FPC-001 Rev E  
-**Date:** 2026-05-13  
-**Status:** Baselined — Issue #54  
-**Supersedes:** NP-HW-FPC-001 Rev D (base module pinout and FPC spec — unchanged)  
-**Author:** NeuroPulse Hardware Engineering  
-**References:** NP-HW-FPC-001 Rev D; NP-FW-PBM1064-001 Rev A; NP-TOOL-ZM-SM-001 Rev A; NP-PROC-FPC-1064-001 Rev A; Issue #54
+**Project:** NeuroPulse
+**Document:** NP-HW-FPC-001
+**Revision:** E
+**Date:** 2026-05-13
+**Status:** BASELINED
+**Effective Date:** 2026-05-13
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** NP-HW-FPC-001 Rev D; NP-FW-PBM1064-001 Rev A; NP-TOOL-ZM-SM-001 Rev A; NP-PROC-FPC-1064-001 Rev A
+**Related Issues:** GitHub Issue #54
+**Gate:** —
+**IEC 62304 Class:** —
+**Supersedes:** NP-HW-FPC-001 Rev D (base module pinout and FPC spec — unchanged)
+**Parent Document:** NP-HW-FPC-001 Rev D
 
 ---
 

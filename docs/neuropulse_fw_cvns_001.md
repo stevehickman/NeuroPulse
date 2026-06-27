@@ -1,10 +1,19 @@
-# NP-FW-CVNS-001 Rev A — Cervical VNS Safety Interlock Firmware Specification
-**Project:** NeuroPulse  
-**Document:** NP-FW-CVNS-001 Rev A  
-**Date:** 2026-05-11  
-**Status:** Baselined — implements CLAUDE.md §3 T2 additions (cervical VNS accessory)  
-**Gate:** Closes NP-COORD-001 G3-08  
-**Related issues:** GitHub Issue #24
+# Cervical VNS Safety Interlock Firmware Specification
+
+**Project:** NeuroPulse
+**Document:** NP-FW-CVNS-001
+**Revision:** A
+**Date:** 2026-05-11
+**Status:** BASELINED
+**Effective Date:** 2026-05-11
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** CLAUDE.md §3 T2 additions (cervical VNS accessory)
+**Related Issues:** GitHub Issue #24
+**Gate:** NP-COORD-001 G3-08
+**IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
+**Supersedes:** —
+**Parent Document:** NP-SW-001
 
 ---
 

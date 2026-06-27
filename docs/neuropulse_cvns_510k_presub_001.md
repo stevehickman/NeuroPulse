@@ -1,11 +1,19 @@
-# NP-REG-CVNS-001 Rev A — Cervical VNS 510(k) Pre-Submission (Q-Sub) Package
-**Project:** NeuroPulse  
-**Document:** NP-REG-CVNS-001 Rev A  
-**Date:** 2026-05-11  
-**Status:** Baselined — Q-Sub meeting draft package  
-**Prepared for:** FDA CDRH, Division of Neurological and Physical Medicine Devices (DNPMD)  
-**Related document:** NP-FW-CVNS-001 Rev A (safety interlock specification)  
-**Related issue:** GitHub Issue #24
+# Cervical VNS 510(k) Pre-Submission (Q-Sub) Package
+
+**Project:** NeuroPulse
+**Document:** NP-REG-CVNS-001
+**Revision:** A
+**Date:** 2026-05-11
+**Status:** BASELINED
+**Effective Date:** 2026-05-11
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** NP-FW-CVNS-001 Rev A (safety interlock specification)
+**Related Issues:** GitHub Issue #24
+**Gate:** NP-COORD-001 G3-08
+**IEC 62304 Class:** —
+**Prepared For:** FDA CDRH, Division of Neurological and Physical Medicine Devices (DNPMD)
+**Applicable Standard:** 21 CFR 882.5800; IEC 60601-1; IEC 60601-2-10; IEC 62304; IEC 62366-1; 21 CFR 820
 
 ---
 

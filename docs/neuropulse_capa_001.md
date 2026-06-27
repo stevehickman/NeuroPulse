@@ -1,13 +1,19 @@
-# NP-QMS-CAPA-001 Rev A — Corrective and Preventive Action Procedure
+# Corrective and Preventive Action Procedure
 
-**Document number:** NP-QMS-CAPA-001  
-**Revision:** A  
-**Status:** ACTIVE  
-**Effective date:** 2026-05-13  
-**Author:** Quality Lead (interim: CEO)  
-**Approved by:** CEO  
-**Applicable standard:** 21 CFR §820.100 (CAPA), ISO 13485:2016 §8.5.2/§8.5.3  
-**Next review:** 2027-05-13
+**Project:** NeuroPulse
+**Document:** NP-QMS-CAPA-001
+**Revision:** A
+**Date:** 2026-05-13
+**Status:** ACTIVE
+**Effective Date:** 2026-05-13
+**Author:** Quality Lead (interim: Steve Hickman, CEO)
+**Approved By:** Steve Hickman, CEO
+**References:** —
+**Related Issues:** GitHub Issue #33
+**Gate:** —
+**IEC 62304 Class:** —
+**Applicable Standard:** 21 CFR §820.100 (CAPA), ISO 13485:2016 §8.5.2/§8.5.3
+**Next Review:** 2027-05-13
 
 ---
 
