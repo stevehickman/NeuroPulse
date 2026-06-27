@@ -451,38 +451,85 @@
 "AGE_GATE_WHY_BODY" = "Some features rely on health-related data that, by law, requires you to be at least 16 years old to consent to. This protects younger users and keeps NeuroPulse compliant with privacy regulations.";
 
 
-/* ========== BIPA DISCLOSURE — Brain Activity screen (BIPADisclosureView) = */
-/* These keys are distinct from BIPA_DISCLOSURE / BIPA_DISCLOSURE_TITLE which
-   hold the monolithic full-text disclosure for legacy use. */
+/* ========== BIPA DISCLOSURE — 4-step biometric written-release flow ======= */
+/* BIPADisclosureView is now a 4-step NavigationStack flow. Each step has its
+   own navigation title (BIPA_STEP*_NAV_TITLE) shown in the navigation bar,
+   and a distinct heading (BIPA_STEP*_TITLE) shown in the scroll area.
+   All text must render in full — no .lineLimit(1) anywhere (ISC-160). */
 
-/* BIPADisclosureView — navigation title */
+/* Shared Continue button used by Steps 1–3 */
+"BIPA_CONTINUE_BUTTON" = "Continue";
+
+/* ---------- Step 1 — What is biometric data? ---------- */
+
+"BIPA_STEP1_NAV_TITLE" = "Biometric Data";
+
+"BIPA_STEP1_TITLE" = "Your Brainwave Data";
+
+"BIPA_STEP1_BODY_1" = "NeuroPulse captures electroencephalogram (EEG) data — the faint electrical signals produced when neurons in your brain fire. This data powers real-time neurofeedback and closed-loop stimulation during your sessions.";
+
+/* Highlighted card: legal classification of EEG as biometric data */
+"BIPA_STEP1_CARD" = "EEG brainwave patterns are biometric identifiers under Illinois BIPA (740 ILCS 14), special-category personal data under GDPR Article 9, and consumer health data under Washington MHMD. They identify you as uniquely as a fingerprint — and the law requires your explicit authorisation before we can collect them.";
+
+"BIPA_STEP1_BODY_2" = "The next three screens explain how this data is protected, what it is used for, and the limits on how it can ever be used. Please read each one before deciding.";
+
+/* ---------- Step 2 — Stored on your device only ---------- */
+
+"BIPA_STEP2_NAV_TITLE" = "Data Storage";
+
+"BIPA_STEP2_TITLE" = "Stored on Your Device Only";
+
+"BIPA_STEP2_BODY" = "Your EEG data never leaves your NeuroPulse device. It lives in a dedicated encrypted partition that only you can unlock.";
+
+"BIPA_STEP2_BULLET_1" = "Encrypted with AES-256 — the key is derived from your own biometric or PIN. NeuroPulse cannot generate or hold this key.";
+"BIPA_STEP2_BULLET_2" = "Never transmitted to NeuroPulse servers, including for support, diagnostics, or troubleshooting.";
+"BIPA_STEP2_BULLET_3" = "Backed up only to your own local storage or end-to-end encrypted personal cloud — never to NeuroPulse infrastructure.";
+
+/* ---------- Step 3 — Purpose, retention and limits ---------- */
+
+"BIPA_STEP3_NAV_TITLE" = "Data Use";
+
+"BIPA_STEP3_TITLE" = "How Your Data Is Used";
+
+"BIPA_STEP3_BODY" = "Your brainwave data is used exclusively to deliver the NeuroPulse experience on your device. These are the only permitted uses, and the limits are absolute.";
+
+"BIPA_STEP3_PURPOSE_HEADING" = "Permitted uses";
+"BIPA_STEP3_PURPOSE_1" = "Session delivery — powering real-time neurofeedback and adapting stimulation parameters closed-loop";
+"BIPA_STEP3_PURPOSE_2" = "Displaying your own session results to you within the app";
+"BIPA_STEP3_PURPOSE_3" = "Research, only with your separate explicit consent for each individual study";
+
+"BIPA_STEP3_LIMITS_HEADING" = "Absolute limits — NeuroPulse will never:";
+"BIPA_STEP3_LIMIT_1" = "Sell, lease, trade, or otherwise profit from your biometric data";
+"BIPA_STEP3_LIMIT_2" = "Share it with any third party without your separate written consent, except as required by law";
+
+/* ---------- Step 4 — Written release ---------- */
+
+"BIPA_STEP4_NAV_TITLE" = "Written Release";
+
+"BIPA_STEP4_TITLE" = "Your Written Release";
+
+"BIPA_STEP4_INTRO" = "Below is the legally required written release under BIPA (740 ILCS 14/15(b)) and the equivalent provisions of GDPR Article 9 and Washington MHMD. Please read it in full, then check the box and tap \"I Authorize\" to proceed.";
+
+/* Formal release text — rendered in a styled block, must not be truncated (ISC-160). */
+"BIPA_STEP4_RELEASE_TEXT" = "I authorize NeuroPulse Inc. to collect, store, and use my electroencephalogram (EEG) brainwave data — which constitutes biometric identifiers and biometric information under Illinois BIPA (740 ILCS 14), special-category personal data under GDPR Article 9, and consumer health data under Washington MHMD — for the purposes of session delivery, neurofeedback display, and closed-loop stimulation adaptation.\n\nI understand that:\n• This data is encrypted with AES-256 and stored only on my NeuroPulse device\n• NeuroPulse cannot access, read, or decrypt this data at any time\n• The data is retained on my device until I request deletion or perform a factory reset, at which point it is permanently destroyed via hardware-level secure erase (eMMC SANITIZE), consistent with NeuroPulse's publicly available biometric data retention and destruction policy\n• NeuroPulse will not sell, lease, trade, or otherwise profit from this data\n• NeuroPulse will not share this data with any third party without my separate written consent, except as required by law\n\nI can revoke this authorization at any time from Settings → Privacy → Manage EEG Data Consent. Revoking authorization prevents future EEG data collection but does not retroactively erase data already stored on my device (use factory reset for full erasure).";
+
+"BIPA_STEP4_CHECKBOX_LABEL" = "I have read the above and authorize the collection and use of my brainwave data as described";
+
+"BIPA_STEP4_AUTHORIZE_BUTTON" = "I Authorize";
+
+"BIPA_STEP4_DECLINE_BUTTON" = "Decline";
+
+/* Legacy keys — retained for backward compatibility with any tooling referencing them.
+   The active BIPADisclosureView no longer renders these strings. */
 "BIPA_BRAIN_TITLE" = "Brain Activity Data Consent";
-
-/* BIPADisclosureView — introductory paragraph */
 "BIPA_BRAIN_INTRO" = "NeuroPulse collects your brainwave (EEG) data during sessions to provide neurofeedback and to adapt stimulation settings in real time. Brainwave data is sensitive personal information — biometric data under applicable law — and NeuroPulse treats it accordingly.";
-
-/* BIPADisclosureView — bullet 1 */
 "BIPA_BRAIN_BULLET_1" = "Purpose: Session operation, neurofeedback display, closed-loop adaptation";
-
-/* BIPADisclosureView — bullet 2 */
 "BIPA_BRAIN_BULLET_2" = "Retention: Until you delete your data or transfer/sell your device";
-
-/* BIPADisclosureView — bullet 3 */
 "BIPA_BRAIN_BULLET_3" = "Destruction method: Secure hardware-level erasure (eMMC SANITIZE)";
-
-/* BIPADisclosureView — bullet 4 */
 "BIPA_BRAIN_BULLET_4" = "NeuroPulse will not sell, lease, or profit from your brainwave data";
-
-/* BIPADisclosureView — bullet 5 */
 "BIPA_BRAIN_BULLET_5" = "NeuroPulse will not share your brainwave data with third parties without your separate consent, except as required by law";
-
-/* BIPADisclosureView — consent question */
 "BIPA_BRAIN_QUESTION" = "Do you consent to NeuroPulse collecting and using your brainwave data as described above?";
-
-/* BIPADisclosureView — accept button */
 "BIPA_BRAIN_ACCEPT" = "Yes, I consent";
-
-/* BIPADisclosureView — decline button */
 "BIPA_BRAIN_DECLINE" = "No, decline";
 
 

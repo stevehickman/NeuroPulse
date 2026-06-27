@@ -104,7 +104,7 @@ struct NeuroPulseApp: App {
                         presentNextOnboardingStep()
                     }
                 }
-                // BIPA disclosure — Illinois only, between age gate and consent (ISC-127).
+                // BIPA disclosure — all users, between age gate and research consent (ISC-127).
                 .fullScreenCover(isPresented: $showBIPADisclosure) {
                     BIPADisclosureView(
                         onAccept: {
