@@ -10,7 +10,7 @@
  *  - All intermediate values are stack-allocated (no heap, no global state)
  *  - No early-exit on data-dependent conditions in curve arithmetic
  *  - SHA-512 is used for key derivation per RFC 8032
- *  - SHA-256 is used for image integrity per NP-FW-EMMC-001 §6.2
+ *  - SHA-256 is used for image integrity per NP-FW-EMMC-001 §8.2
  *
  * Signature payload (what is signed by the manufacturing root key):
  *   message = image_sha256 (32 bytes) || version_le32 (4 bytes) || size_le32 (4 bytes)
