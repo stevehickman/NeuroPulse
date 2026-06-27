@@ -59,16 +59,16 @@ Both tiers share a single chassis, processor stack, and firmware platform. The T
 
 | Document | Number | Notes |
 |----------|--------|-------|
-| Design controls procedure | NP-QMS-DC-001 Rev A | Defines design control process this plan implements |
-| QMS manual | NP-QMS-001 Rev A | Overarching quality system |
-| Engineering coordination checklist | NP-COORD-001 Rev A.8 | Gate item checklists — G1 (15 items), G2 (14 items), G3 (6 items) |
-| Design history file index | NP-DHF-001 Rev C | Master DHF record index |
-| ISO 14971 risk management plan | NP-RM-001 Rev A | Risk management activities integrated with this plan |
-| IEC 62304 software development plan | NP-SW-001 Rev A | Software development activities integrated with this plan |
+| Design controls procedure | NP-QMS-DC-001 | Defines design control process this plan implements |
+| QMS manual | NP-QMS-001 | Overarching quality system |
+| Engineering coordination checklist | NP-COORD-001 | Gate item checklists — G1 (15 items), G2 (14 items), G3 (6 items) |
+| Design history file index | NP-DHF-001 | Master DHF record index |
+| ISO 14971 risk management plan | NP-RM-001 | Risk management activities integrated with this plan |
+| IEC 62304 software development plan | NP-SW-001 | Software development activities integrated with this plan |
 | Design input/output traceability matrix | NP-DT-001 | Planned Month 6 — links all requirements to verification evidence |
 | Human factors engineering plan | NP-HFE-001 | Planned Month 9 — IEC 62366-1 / FDA HFE Guidance 2016 |
 | Post-market surveillance plan | NP-PMS-001 | Planned Month 12 |
-| CAPA procedure | NP-QMS-CAPA-001 Rev A | Governs design problem resolution |
+| CAPA procedure | NP-QMS-CAPA-001 | Governs design problem resolution |
 | Design controls | 21 CFR §820.30 | Regulatory requirement |
 | Quality management systems | ISO 13485:2016 §7.3 | Regulatory requirement |
 | Software lifecycle processes | IEC 62304:2006+AMD1:2015 | Software requirement |
@@ -141,7 +141,7 @@ The NeuroPulse design and development programme is structured in six phases. Pha
 
 ### 6.2 Phase 0 — Concept and Pre-Formation (Complete)
 
-**Period:** Pre-2026-05-13 (all records retroactively entered under QMS change control at formation per NP-DHF-001 Rev C).
+**Period:** Pre-2026-05-13 (all records retroactively entered under QMS change control at formation per NP-DHF-001).
 
 **Status:** Complete. All Phase 0 outputs are recorded in the DHF under NP-DHF-001 and are listed in CLAUDE.md §13.5 (completed and locked decisions).
 
@@ -554,7 +554,7 @@ RISK-25 (cervical VNS cardiac reflex) is mitigated at the software level (NP-FW-
 
 ## 16. Software Development Integration
 
-Software development is governed by NP-SW-001 Rev A (IEC 62304 Software Development Plan). Software activities are integrated with the design phases as follows:
+Software development is governed by NP-SW-001 (IEC 62304 Software Development Plan). Software activities are integrated with the design phases as follows:
 
 | Software item | Classification | Primary design phase | Gate |
 |--------------|---------------|---------------------|------|
@@ -562,7 +562,7 @@ Software development is governed by NP-SW-001 Rev A (IEC 62304 Software Developm
 | SW-02: Main processor (i.MX RT1062, FreeRTOS) | **Class B** | Phase 1–2 (firmware written Phase 0); HAL stubs Phase 2 | G2 |
 | SW-03: iOS/Android app | **Class B** | Phase 2–4; Watch sync app post-launch | G3/validation |
 
-All firmware source code is in the NeuroPulse GitHub repository and constitutes DHF design output records per NP-DHF-001 Rev C §5.
+All firmware source code is in the NeuroPulse GitHub repository and constitutes DHF design output records per NP-DHF-001 §5.
 
 Safety-critical software response time requirements (from NP-SW-001):
 - SPI heartbeat → stimulation cutoff: ≤50 ms
@@ -598,7 +598,7 @@ Until the eQMS platform is deployed (target Month 9), document control is mainta
 
 - **GitHub repository** (`stevehickman/neuropulse`) — version-controlled storage for all `.md` and source code design outputs
 - **CLAUDE.md** — authoritative locked decisions record; revision tracked in git history
-- **NP-DHF-001 Rev C** — master DHF index listing all documents with status, location, and revision
+- **NP-DHF-001** — master DHF index listing all documents with status, location, and revision
 - **Document numbering:** NP-[SYSTEM]-[SEQ]-[REV] scheme per NP-QMS-001. Revisions are sequential (Rev A, Rev B, ...). Each revision requires a documented reason for change.
 - **Approval:** Until Quality Lead is hired, the CEO approves all design output documents. From Month 6, Quality Lead co-approves all documents with safety or regulatory impact.
 

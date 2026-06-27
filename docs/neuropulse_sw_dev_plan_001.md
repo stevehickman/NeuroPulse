@@ -155,7 +155,7 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 | SW02-M08 | Cervical VNS session (T2) | `firmware/cervical_vns/` | Biphasic waveform; session orchestration; UHDR/SHDR |
 | SW02-M09 | Hub control program — module registry | `firmware/hub_control/` | Probes all 11 slots/accessory ports on powerup; registers init/control/telemetry/shutdown function pointers; T2 stubs return NOT_PRESENT until hardware drivers built |
 | SW02-M10 | Hub control program — session runner | `firmware/hub_control/` | Receives Ed25519-signed binary protocol; insertion-sort commands by start_ms; dispatches to module control functions at session-relative times; device-serial replay guard |
-| SW02-M11 | Hub control program — session log | `firmware/hub_control/` | Collects per-module telemetry every 1s; routes to UHDR or SHDR per 27-element classification table (NP-FW-EMMC-001 Rev A §12); EEG blocks written direct to UHDR partition via HAL |
+| SW02-M11 | Hub control program — session log | `firmware/hub_control/` | Collects per-module telemetry every 1s; routes to UHDR or SHDR per 27-element classification table (NP-FW-EMMC-001 §12); EEG blocks written direct to UHDR partition via HAL |
 | SW02-M12 | Hub control program — safety SPI | `firmware/hub_control/` | 200ms SPI heartbeat to STM32G071 Safety MCU carrying requested-enable bitmask; Safety MCU cuts all stimulation GPIO on 1,500ms watchdog expiry |
 | SW02-M13 | BLE GATT service | (planned) | BLE 5.3 LE Audio; GATT custom service; session sync |
 | SW02-M14 | USB-C communications | (planned) | USB-C 3.2 Gen1; session data download; DFU interface |

@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-07
 **Author:** SmartyPants / PAI
 **Approved By:** TBD (Privacy Lead sign-off required before external publication)
-**References:** NP-INT-FHIR-001 Rev A, NP-PRIV-REM-001 Rev A (STEP-15), NP-LEGAL-BAA-001 Rev A, npps-reference.md, NP-SW-001 Rev A, NP-APP-TELEMETRY-001 Rev B
+**References:** NP-INT-FHIR-001, NP-PRIV-REM-001 (STEP-15), NP-LEGAL-BAA-001, npps-reference.md, NP-SW-001, NP-APP-TELEMETRY-001
 **Related Issues:** —
 **Gate:** NP-COORD-001 G1 (NP-PRIV-REM-001 STEP-15)
 **IEC 62304 Class:** —

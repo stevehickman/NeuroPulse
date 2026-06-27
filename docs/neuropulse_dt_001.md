@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-07
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-QMS-DC-001 Rev A, NP-DP-001 Rev A, NP-DHF-001 Rev F, NP-RM-001 Rev A, NP-SW-001 Rev A, 21 CFR §820.30, ISO 13485:2016 §7.3
+**References:** NP-QMS-DC-001, NP-DP-001, NP-DHF-001, NP-RM-001, NP-SW-001, 21 CFR §820.30, ISO 13485:2016 §7.3
 **Related Issues:** GitHub Issue #122
 **Gate:** NP-DP-001 §6.4 G2 exit criterion
 **IEC 62304 Class:** —
@@ -174,9 +174,9 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-REG-03 | Regulatory | IEC 62471 photobiological safety: visual stimulation MPE limits; PBM irradiance hazard classification; GoggModee F retinal cumulative dose | CLAUDE.md §10; RISK-03 | Regulatory | T1+T2 |
 | DI-REG-04 | Regulatory | IEC 62133 battery and power bank safety: hub supercapacitor + USB-C PD power path | CLAUDE.md §10 | Regulatory | T1+T2 |
 | DI-REG-05 | Regulatory | FCC Part 15 RF emissions: BT 5.3 LE Audio and Wi-Fi 6 radios; antennas in hub not headset | CLAUDE.md §10 | Regulatory | T1+T2 |
-| DI-REG-06 | Regulatory | IEC 62304 software lifecycle: SW-01 Safety MCU = Class C; SW-02 Main processor = Class B; SW-03 iOS/Android app = Class B; unit-level FMEA required for SW-01 | NP-SW-001 Rev A | Regulatory | T1+T2 |
+| DI-REG-06 | Regulatory | IEC 62304 software lifecycle: SW-01 Safety MCU = Class C; SW-02 Main processor = Class B; SW-03 iOS/Android app = Class B; unit-level FMEA required for SW-01 | NP-SW-001 | Regulatory | T1+T2 |
 | DI-REG-07 | Regulatory | IEC 62366-1 human factors engineering: Use-Related Risk Analysis (URRA), formative testing, summative testing plan; FDA HFE Guidance 2016 | CLAUDE.md §10 | Regulatory | T1+T2 |
-| DI-REG-08 | Regulatory | ISO 14971:2019 risk management: NP-RM-001 acceptability matrix S1–S5/P1–P5; residual risk evaluation before 510(k) submission | CLAUDE.md §10; NP-RM-001 Rev A | Regulatory | T1+T2 |
+| DI-REG-08 | Regulatory | ISO 14971:2019 risk management: NP-RM-001 acceptability matrix S1–S5/P1–P5; residual risk evaluation before 510(k) submission | CLAUDE.md §10; NP-RM-001 | Regulatory | T1+T2 |
 | DI-REG-09 | Regulatory | 21 CFR Part 820 quality system regulation: design controls; document control; CAPA | CLAUDE.md §10 | Regulatory | T2 |
 | DI-REG-10 | Regulatory | FDA cybersecurity guidance: SBOM planned NP-SBOM-001 Year 2; OTA Ed25519 code signing; vulnerability disclosure policy; OTA update process documented | CLAUDE.md §10 | Regulatory | T1+T2 |
 | DI-REG-11 | Regulatory | HIPAA Technical Safeguards: UHDR biometric-derived key architecture; NeuroPulse infrastructure cannot decrypt UHDR at any point; BAA required for T2 clinical tier | CLAUDE.md §5; NP-LEGAL-BAA-001 | Regulatory | T2 |
@@ -307,7 +307,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-REG-03 | IEC 62471 photobiological safety | DO-REG-01, DO-RISK-02 | RISK-03 reg opinion brief; risk plan | VE-01, VE-11 | Partial |
 | DI-REG-04 | IEC 62133 battery | DO-RISK-02 | Risk plan hazard category 6 | VE-11 | Open |
 | DI-REG-05 | FCC Part 15 RF emissions | DO-HW-06, DO-RISK-02 | Shell tooling antenna separation; risk plan | VE-11 | Open |
-| DI-REG-06 | IEC 62304 SW lifecycle Class C/B | DO-FW-10, DO-RISK-03 | FMEA SW-01 unit-level; NP-SW-001 Rev A | VE-10, VE-11 | Partial |
+| DI-REG-06 | IEC 62304 SW lifecycle Class C/B | DO-FW-10, DO-RISK-03 | FMEA SW-01 unit-level; NP-SW-001 | VE-10, VE-11 | Partial |
 | DI-REG-07 | IEC 62366-1 HFE URRA + formative | DO-TEST-02 | Coord checklist G2 HFE items (formative Month 9) | VE-12 | Open |
 | DI-REG-08 | ISO 14971 risk management | DO-RISK-01, DO-RISK-02, DO-RISK-03 | Risk register + risk plan + FMEA SW-01 | VE-10 | Traced |
 | DI-REG-09 | 21 CFR Part 820 QSR | DO-RISK-02, DO-TEST-02 | Risk plan; coord checklist gate structure | VE-11 | Open |
@@ -395,7 +395,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 
 ## §9 DHF Completeness Impact
 
-With NP-DT-001 Rev A authored, the DHF design inputs completeness rating (previously **"Partial"** per NP-DHF-001 Rev F §7) is upgraded to **"Good"**.
+With NP-DT-001 Rev A authored, the DHF design inputs completeness rating (previously **"Partial"** per NP-DHF-001 §7) is upgraded to **"Good"**.
 
 **DHF completeness progression:**
 

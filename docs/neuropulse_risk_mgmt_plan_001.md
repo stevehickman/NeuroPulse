@@ -20,7 +20,7 @@
 
 ## 1. Purpose
 
-This Risk Management Plan defines the process, responsibilities, criteria, and records for risk management throughout the NeuroPulse device lifecycle, in compliance with ISO 14971:2019. It formally brings the existing NeuroPulse risk register (RISK-01 through RISK-25, documented in NP-RISK-001 Rev A) under QMS change control as of the effective date above.
+This Risk Management Plan defines the process, responsibilities, criteria, and records for risk management throughout the NeuroPulse device lifecycle, in compliance with ISO 14971:2019. It formally brings the existing NeuroPulse risk register (RISK-01 through RISK-25, documented in NP-RISK-001) under QMS change control as of the effective date above.
 
 ---
 
@@ -194,7 +194,7 @@ The following hazard categories apply to NeuroPulse. Each category must be syste
 
 ### 8.1 Baseline risk register
 
-The risk register RISK-01 through RISK-25, documented in NP-RISK-001 Rev A (`docs/neuropulse_fpc_zone_module_risks_revA.docx`), is hereby formally placed under QMS change control effective 2026-05-13. This constitutes the baseline ISO 14971 risk file.
+The risk register RISK-01 through RISK-25, documented in NP-RISK-001 (`docs/neuropulse_fpc_zone_module_risks_revA.docx`), is hereby formally placed under QMS change control effective 2026-05-13. This constitutes the baseline ISO 14971 risk file.
 
 **Current status at QMS establishment:**
 - 23 risks: **MITIGATED** (residual risk documented with controls in NP-RISK-001)
