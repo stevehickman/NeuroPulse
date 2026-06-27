@@ -1,11 +1,19 @@
-# NP-FW-PBM1064-001 Rev A
-## 1064nm Smart Zone Module — Firmware Specification
+# 1064nm Smart Zone Module Firmware Specification
 
-**Document:** NP-FW-PBM1064-001 Rev A  
-**Date:** 2026-05-13  
-**Status:** Baselined  
-**Author:** NeuroPulse Firmware Engineering  
-**References:** CLAUDE.md §3 (PBM Transcranial), §13.5 (locked decisions); NP-HW-FPC-001 Rev D; NP-FW-ZA-001 Rev A; NP-FW-EMMC-001 Rev A; Issue #53
+**Project:** NeuroPulse
+**Document:** NP-FW-PBM1064-001
+**Revision:** A
+**Date:** 2026-05-13
+**Status:** BASELINED
+**Effective Date:** 2026-05-13
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** CLAUDE.md §3 (PBM Transcranial), §13.5 (locked decisions); NP-HW-FPC-001 Rev D; NP-FW-ZA-001 Rev A; NP-FW-EMMC-001 Rev A
+**Related Issues:** GitHub Issue #53
+**Gate:** —
+**IEC 62304 Class:** SW-02 Class B (main processor)
+**Supersedes:** —
+**Parent Document:** NP-SW-001
 
 ---
 

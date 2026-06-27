@@ -1,11 +1,19 @@
-# NP-FW-ZA-001 Rev A — Zone Module Bone Conduction Announcement Firmware
-**Project:** NeuroPulse  
-**Document number:** NP-FW-ZA-001  
-**Revision:** A  
-**Date:** 2026-05-11  
-**Status:** Baselined  
-**Author:** Firmware Engineering  
-**Related issues:** GitHub Issue #22 (G2-10)
+# Zone Module Bone Conduction Announcement Firmware
+
+**Project:** NeuroPulse
+**Document:** NP-FW-ZA-001
+**Revision:** A
+**Date:** 2026-05-11
+**Status:** BASELINED
+**Effective Date:** 2026-05-11
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** CLAUDE.md §7.1 (RISK-15 Layer 5); NP-FW-EMMC-001 Rev A
+**Related Issues:** GitHub Issue #22
+**Gate:** NP-COORD-001 G2-10
+**IEC 62304 Class:** SW-02 Class B (main processor)
+**Supersedes:** —
+**Parent Document:** NP-SW-001
 
 ---
 

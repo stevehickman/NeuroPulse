@@ -1,8 +1,19 @@
 # Privacy Analysis — Consumable Tracker Feature
-**Document:** NP-PRIV-ANALYSIS-003 Rev C  
+
+**Project:** NeuroPulse  
+**Document:** NP-PRIV-ANALYSIS-003  
+**Revision:** C  
 **Date:** 2026-06-08  
-**Scope:** `ConsumableCountsProviding.swift` (new), `ConsumableTracker.swift` (modified), `ConsumableInventory.swift` (modified), `NeuroPulseApp.swift` (modified call site)  
-**Jurisdictions in scope:** All (US federal HIPAA/HBNR/FTC Act §5; US state BIPA IL, MHMD WA, CCPA/CPRA CA; EU/EEA GDPR; UK GDPR + DPA 2018; Canada PIPEDA; global equivalents). Consistent with NP-PRIV-001 Rev B and NP-PRIV-ANALYSIS-002.
+**Status:** ACTIVE  
+**Effective Date:** 2026-06-08  
+**Author:** Steve Hickman (CEO, interim Quality authority)  
+**Approved By:** Steve Hickman, CEO  
+**References:** NP-PRIV-001 Rev B; NP-PRIV-ANALYSIS-002  
+**Related Issues:** —  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Jurisdiction Scope:** All (US federal HIPAA/HBNR/FTC Act §5; US state BIPA IL, MHMD WA, CCPA/CPRA CA; EU/EEA GDPR; UK GDPR + DPA 2018; Canada PIPEDA; global equivalents)  
+**Change Summary:** Scope: `ConsumableCountsProviding.swift` (new), `ConsumableTracker.swift` (modified), `ConsumableInventory.swift` (modified), `NeuroPulseApp.swift` (modified call site)
 
 ---
 

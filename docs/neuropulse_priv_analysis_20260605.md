@@ -1,11 +1,19 @@
-# NP-PRIV-ANALYSIS-002 — Privacy Analysis and Repair
+# Privacy Analysis and Repair
 
-**Document number:** NP-PRIV-ANALYSIS-002  
+**Project:** NeuroPulse  
+**Document:** NP-PRIV-ANALYSIS-002  
 **Revision:** B  
-**Effective date:** 2026-06-05  
-**Branch:** `privacy/analysis-and-repair-20260605`  
-**Builds on:** NP-PRIV-AUDIT-001 Rev A (2026-06-03), NP-PRIV-REM-001 Rev A  
-**Jurisdiction scope:** Global — US federal (FTC Act §5, HBNR, HIPAA T2), US state (BIPA IL, WA MHMD, CCPA/CPRA CA), EU/EEA GDPR, UK GDPR + DPA 2018, Canada PIPEDA + Quebec Law 25
+**Date:** 2026-06-05  
+**Status:** ACTIVE  
+**Effective Date:** 2026-06-05  
+**Author:** Steve Hickman (CEO, interim Quality authority)  
+**Approved By:** Steve Hickman, CEO  
+**References:** NP-PRIV-AUDIT-001 Rev A (2026-06-03); NP-PRIV-REM-001 Rev A  
+**Related Issues:** PR #112 (branch `privacy/analysis-and-repair-20260605`)  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Jurisdiction Scope:** Global — US federal (FTC Act §5, HBNR, HIPAA T2), US state (BIPA IL, WA MHMD, CCPA/CPRA CA), EU/EEA GDPR, UK GDPR + DPA 2018, Canada PIPEDA + Quebec Law 25  
+**Change Summary:** Rev B — All twelve findings repaired (session 2). MEDIUM-08 promoted from "could not review" to explicit finding. Recommended next steps updated.
 
 **Revision history:**
 

@@ -1,11 +1,19 @@
-# NP-DP-001 Rev A — Design and Development Plan
+# Design and Development Plan
 
-**Document number:** NP-DP-001  
-**Revision:** A  
-**Date:** 2026-05-17  
-**Status:** ACTIVE  
-**Author:** Steve Hickman, NeuroPulse (interim Quality authority)  
-**Approved by:** Steve Hickman  
+**Project:** NeuroPulse
+**Document:** NP-DP-001
+**Revision:** A
+**Date:** 2026-05-17
+**Status:** ACTIVE
+**Effective Date:** 2026-05-17
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** —
+**Related Issues:** —
+**Gate:** —
+**IEC 62304 Class:** —
+**Applicable Standard:** 21 CFR §820.30(b), ISO 13485:2016 §7.3.1
+**Next Review:** At each gate review (G1, G2, G3)
 **Supersedes:** None (first issue). CLAUDE.md and NP-COORD-001 Rev A.8 served as interim design plan prior to this document.
 
 ---

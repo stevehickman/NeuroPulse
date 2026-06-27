@@ -1,12 +1,20 @@
-# NP-REG-PBM1064-001 Rev A
-## RISK-03 Regulatory Opinion — Scope Expansion Brief
-### 1064nm PBM · Three-Channel Aggregate Irradiance · T2 Combined Session
+# RISK-03 Regulatory Opinion — Scope Expansion Brief
+## 1064nm PBM · Three-Channel Aggregate Irradiance · T2 Combined Session
 
-**Document:** NP-REG-PBM1064-001 Rev A  
+**Project:** NeuroPulse  
+**Document:** NP-REG-PBM1064-001  
+**Revision:** A  
 **Date:** 2026-05-13  
-**Status:** Pending outside counsel review  
+**Status:** DRAFT  
+**Effective Date:** 2026-05-13  
 **Author:** NeuroPulse Regulatory Affairs  
-**References:** CLAUDE.md §13.1 (RISK-03 OPEN); NP-FW-PBM1064-001 Rev A §5.4; NP-SES-1064-001 Rev A; Issue #5 (existing RISK-03 engagement); Issue #56  
+**Approved By:** Steve Hickman, CEO  
+**References:** CLAUDE.md §13.1 (RISK-03 OPEN); NP-FW-PBM1064-001 Rev A §5.4; NP-SES-1064-001 Rev A  
+**Related Issues:** GitHub Issue #5 (existing RISK-03 engagement), GitHub Issue #56  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Prepared For:** Outside regulatory counsel (PBM/digital health specialist)  
+**Applicable Standard:** IEC 62471, FTC Act §5  
 
 ---
 

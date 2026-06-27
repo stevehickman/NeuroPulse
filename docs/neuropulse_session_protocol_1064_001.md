@@ -1,10 +1,19 @@
-# NP-SES-1064-001 Rev A
-## 1064nm Smart Zone Module — Session Protocol Specification
+# 1064nm Smart Zone Module — Session Protocol Specification
 
-**Document:** NP-SES-1064-001 Rev A  
+**Project:** NeuroPulse  
+**Document:** NP-SES-1064-001  
+**Revision:** A  
 **Date:** 2026-05-13  
-**Status:** Baselined  
-**References:** NP-FW-PBM1064-001 Rev A; NP-FW-EMMC-001 Rev A; CLAUDE.md §3 (PBM Transcranial); Issue #53
+**Status:** BASELINED  
+**Effective Date:** 2026-05-13  
+**Author:** Steve Hickman (CEO, interim Quality authority)  
+**Approved By:** Steve Hickman, CEO  
+**References:** NP-FW-PBM1064-001 Rev A; NP-FW-EMMC-001 Rev A; CLAUDE.md §3 (PBM Transcranial)  
+**Related Issues:** GitHub Issue #53  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Supersedes:** —  
+**Parent Document:** —
 
 ---
 

@@ -1,10 +1,19 @@
-# NP-FW-HD-001 Rev A — sLORETA-guided HD-tDCS Firmware Specification
-**Project:** NeuroPulse  
-**Document:** NP-FW-HD-001 Rev A  
-**Date:** 2026-05-11  
-**Status:** Baselined — implements CLAUDE.md §3 T2 additions (sLORETA-guided HD-tDCS)  
-**Gate:** Closes NP-COORD-001 G3-07  
-**Related issues:** GitHub Issue #23
+# sLORETA-Guided HD-tDCS Firmware Specification
+
+**Project:** NeuroPulse
+**Document:** NP-FW-HD-001
+**Revision:** A
+**Date:** 2026-05-11
+**Status:** BASELINED
+**Effective Date:** 2026-05-11
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** CLAUDE.md §3 T2 additions (sLORETA-guided HD-tDCS)
+**Related Issues:** GitHub Issue #23
+**Gate:** NP-COORD-001 G3-07
+**IEC 62304 Class:** SW-02 Class B (main processor)
+**Supersedes:** —
+**Parent Document:** NP-SW-001
 
 ---
 

@@ -1,12 +1,19 @@
-# NP-QMS-001 Rev A — NeuroPulse Quality Management System Manual
+# NeuroPulse Quality Management System Manual
 
-**Document number:** NP-QMS-001  
+**Project:** NeuroPulse  
+**Document:** NP-QMS-001  
 **Revision:** A  
+**Date:** 2026-05-13  
 **Status:** ACTIVE  
-**Effective date:** 2026-05-13  
-**Author:** Quality Lead (position open — interim authority: Founder/CEO)  
-**Approved by:** Founder/CEO  
-**Next review:** 2027-05-13 (annual)
+**Effective Date:** 2026-05-13  
+**Author:** Quality Lead (position open — interim authority: Steve Hickman, CEO)  
+**Approved By:** Steve Hickman, CEO  
+**References:** —  
+**Related Issues:** GitHub Issue #33  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Applicable Standard:** 21 CFR Part 820, ISO 13485:2016  
+**Next Review:** 2027-05-13 (annual)
 
 ---
 

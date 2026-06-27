@@ -1,14 +1,19 @@
-# NP-FW-EMMC-002 Rev A — Firmware Specification: Privacy Remediation Delta
+# Firmware Specification: Privacy Remediation Delta
 
-**Document number:** NP-FW-EMMC-002  
-**Revision:** A  
-**Status:** ACTIVE  
-**Effective date:** 2026-06-02  
-**Author:** Quality Lead (interim: Steve Hickman, CEO)  
-**Approved by:** Steve Hickman, CEO  
-**Supersedes:** N/A — this is a delta specification to NP-FW-EMMC-001 Rev A  
-**Relation to parent:** All sections below amend or add to NP-FW-EMMC-001 Rev A. Where this document conflicts with NP-FW-EMMC-001 Rev A, this document takes precedence. NP-FW-EMMC-001 Rev B will incorporate all delta sections.  
-**References:** NP-PRIV-REM-001 STEP-01 through STEP-06, STEP-10; NP-PRIV-001 Rev A findings CRITICAL-01, HIGH-03, HIGH-04, MEDIUM-04, MEDIUM-05; NP-PRIV-001 Rev B finding MEDIUM-06 (§G added 2026-06-03)  
+**Project:** NeuroPulse
+**Document:** NP-FW-EMMC-002
+**Revision:** A
+**Date:** 2026-06-02
+**Status:** ACTIVE
+**Effective Date:** 2026-06-02
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** NP-PRIV-REM-001 STEP-01 through STEP-06, STEP-10; NP-PRIV-001 Rev A findings CRITICAL-01, HIGH-03, HIGH-04, MEDIUM-04, MEDIUM-05; NP-PRIV-001 Rev B finding MEDIUM-06 (§G added 2026-06-03)
+**Related Issues:** —
+**Gate:** —
+**IEC 62304 Class:** SW-02 Class B (main processor)
+**Supersedes:** N/A — this is a delta specification to NP-FW-EMMC-001 Rev A
+**Parent Document:** NP-FW-EMMC-001 (all sections below amend or add to NP-FW-EMMC-001 Rev A; where this document conflicts, this document takes precedence; NP-FW-EMMC-001 Rev B will incorporate all delta sections)  
 
 ---
 

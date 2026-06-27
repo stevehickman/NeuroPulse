@@ -1,12 +1,19 @@
-# NP-FMEA-001 Rev B — SW-01 Safety MCU Unit-Level FMEA
+# SW-01 Safety MCU Unit-Level FMEA
 
-**Document number:** NP-FMEA-001  
-**Revision:** Rev B  
+**Project:** NeuroPulse  
+**Document:** NP-FMEA-001  
+**Revision:** B  
 **Date:** 2026-06-15  
-**Status:** DRAFT — pending review  
+**Status:** DRAFT  
+**Effective Date:** 2026-06-15  
 **Author:** SmartyPants / PAI  
-**Approved by:** TBD (Quality Lead)  
-**References:** NP-SW-001 Rev A, NP-RM-001 Rev A, NP-FW-CVNS-001 Rev A, IEC 62304:2006+AMD1:2015 §7.1, ISO 14971:2019
+**Approved By:** TBD (Quality Lead)  
+**References:** NP-SW-001 Rev A, NP-RM-001 Rev A, NP-FW-CVNS-001 Rev A, IEC 62304:2006+AMD1:2015 §7.1, ISO 14971:2019  
+**Related Issues:** —  
+**Gate:** —  
+**IEC 62304 Class:** C (SW-01 Safety MCU)  
+**Jurisdiction Scope:** —  
+**Change Summary:** §3.7 description updated to reflect np_crypto/Monocypher 4.0.2 backing; FMEA-M07-05 mitigation updated to reference Monocypher ct_memcmp. OI-SW01-M07-02 CLOSED.
 
 ---
 

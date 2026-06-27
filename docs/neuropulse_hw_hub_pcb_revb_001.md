@@ -1,12 +1,19 @@
-# NP-HW-HUB-001 Rev B
-## Hub PCB Rev B — Vishay DG2788A TIA Gain Switch per Smart Module Slot
+# Hub PCB Rev B — Vishay DG2788A TIA Gain Switch per Smart Module Slot
 
-**Document:** NP-HW-HUB-001 Rev B  
+**Project:** NeuroPulse  
+**Document:** NP-HW-HUB-001  
+**Revision:** B  
 **Date:** 2026-05-13  
-**Status:** Baselined — Issue #62 (OI-PBM-HW-01 CLOSED)  
-**Supersedes:** NP-HW-HUB-001 Rev A (hub PCB without TIA gain switch)  
+**Status:** BASELINED  
+**Effective Date:** 2026-05-13  
 **Author:** NeuroPulse Hardware Engineering  
-**References:** NP-HW-FPC-001 Rev E §5.3; NP-FW-PBM1064-001 Rev A §4; CLAUDE.md §3 PBM Transcranial (OI-PBM-HW-01); Issue #54; Issue #62
+**Approved By:** Steve Hickman, CEO  
+**References:** NP-HW-FPC-001 Rev E §5.3; NP-FW-PBM1064-001 Rev A §4; CLAUDE.md §3 PBM Transcranial (OI-PBM-HW-01); Issue #54; Issue #62  
+**Related Issues:** GitHub Issue #62 (OI-PBM-HW-01 CLOSED)  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Supersedes:** NP-HW-HUB-001 Rev A (hub PCB without TIA gain switch)  
+**Parent Document:** —
 
 ---
 

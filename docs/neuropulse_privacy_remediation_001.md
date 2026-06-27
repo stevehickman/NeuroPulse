@@ -1,14 +1,20 @@
-# NP-PRIV-REM-001 Rev A — Privacy Remediation Master Plan
+# Privacy Remediation Master Plan
 
-**Document number:** NP-PRIV-REM-001  
+**Project:** NeuroPulse  
+**Document:** NP-PRIV-REM-001  
 **Revision:** B  
+**Date:** 2026-06-03  
 **Status:** ACTIVE  
-**Effective date:** 2026-06-03  
+**Effective Date:** 2026-06-03  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
-**Approved by:** Steve Hickman, CEO  
-**Parent analysis:** NP-PRIV-001 Rev A + Rev B delta (Privacy Analysis and Repair — 2026-06-02 / 2026-06-03)  
-**Companion documents:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001 Rev B, NP-FW-EMMC-002  
-**Change from Rev A:** Three new steps added (STEP-31, STEP-32, STEP-33) from NP-PRIV-001 Rev B delta findings: HIPAA Expert Determination certification pathway, adaptive stimulation right-to-explanation, and session_sequence coarsening. NP-APP-TELEMETRY-001 updated to Rev B (session_sequence → engagement_tier). NP-FW-EMMC-002 §G added. Capability matrix rows added for STEP-31 through STEP-33. Direct remediations section updated.
+**Approved By:** Steve Hickman, CEO  
+**References:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001 Rev B, NP-FW-EMMC-002  
+**Related Issues:** —  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Supersedes:** NP-PRIV-REM-001 Rev A  
+**Change Summary:** Three new steps added (STEP-31, STEP-32, STEP-33) from NP-PRIV-001 Rev B delta findings: HIPAA Expert Determination certification pathway, adaptive stimulation right-to-explanation, and session_sequence coarsening. NP-APP-TELEMETRY-001 updated to Rev B (session_sequence → engagement_tier). NP-FW-EMMC-002 §G added. Capability matrix rows added for STEP-31 through STEP-33. Direct remediations section updated.  
+**Parent Analysis:** NP-PRIV-001 Rev A + Rev B delta (Privacy Analysis and Repair — 2026-06-02 / 2026-06-03)
 
 ---
 

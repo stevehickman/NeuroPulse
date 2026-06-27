@@ -1,14 +1,21 @@
-# NP-APP-TELEMETRY-001 Rev A — App Analytics and Crash Reporting Policy
+# App Analytics and Crash Reporting Policy
 
-**Document number:** NP-APP-TELEMETRY-001  
-**Revision:** B  
-**Status:** ACTIVE  
-**Effective date:** 2026-06-03  
-**Change from Rev A:** `session_sequence` (unsigned integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev B finding LOW-03. Rationale: raw session count is health-adjacent behavioural data under Washington MHMD and GDPR Art. 9 by inference. §3.2 added with implementation requirements. NP-PRIV-REM-001 Rev B STEP-33 cross-reference added.  
-**Author:** Quality Lead (interim: Steve Hickman, CEO)  
-**Approved by:** Steve Hickman, CEO  
-**Review cadence:** Annual; also triggered by any analytics vendor change or new SDK addition  
-**References:** NP-PRIV-REM-001 STEP-09; NP-APP-ROADMAP-001 Rev A; FTC HBNR 16 CFR Part 318; GDPR Art. 7, 25; Apple App Store Review Guidelines §5.1; Apple Privacy Manifest requirements (Spring 2024)  
+**Project:** NeuroPulse
+**Document:** NP-APP-TELEMETRY-001
+**Revision:** B
+**Date:** 2026-06-03
+**Status:** ACTIVE
+**Effective Date:** 2026-06-03
+**Author:** Quality Lead (interim: Steve Hickman, CEO)
+**Approved By:** Steve Hickman, CEO
+**References:** NP-PRIV-REM-001 STEP-09; NP-APP-ROADMAP-001 Rev A; FTC HBNR 16 CFR Part 318; GDPR Art. 7, 25; Apple App Store Review Guidelines §5.1; Apple Privacy Manifest requirements (Spring 2024)
+**Related Issues:** —
+**Gate:** —
+**IEC 62304 Class:** —
+**Applicable Standard:** FTC HBNR 16 CFR Part 318; GDPR Art. 7, 25; Apple App Store Review Guidelines §5.1
+**Next Review:** Annual; also triggered by any analytics vendor change or new SDK addition
+**Jurisdiction Scope:** US federal (FTC Act §5, FTC HBNR), US state (WA MHMD), EU/EEA GDPR, Apple/Google platform policies
+**Change Summary:** `session_sequence` (unsigned integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev B finding LOW-03. Rationale: raw session count is health-adjacent behavioural data under Washington MHMD and GDPR Art. 9 by inference. §3.2 added with implementation requirements. NP-PRIV-REM-001 Rev B STEP-33 cross-reference added.
 
 ---
 

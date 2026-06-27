@@ -1,12 +1,19 @@
-# NP-PROC-FPC-1064-001 Rev A
-## 1064nm Smart Zone Module — Component Selection and Procurement Specification
+# 1064nm Smart Zone Module — Component Selection and Procurement Specification
 
-**Document:** NP-PROC-FPC-1064-001 Rev A  
+**Project:** NeuroPulse  
+**Document:** NP-PROC-FPC-1064-001  
+**Revision:** A  
 **Date:** 2026-05-13  
-**Status:** Baselined — Issue #54  
-**Supplements:** NP-PROC-FPC-001 Rev A (base module FPC procurement — unchanged)  
+**Status:** BASELINED  
+**Effective Date:** 2026-05-13  
 **Author:** NeuroPulse Hardware Engineering  
-**References:** NP-HW-FPC-001 Rev E; NP-TOOL-ZM-SM-001 Rev A; NP-FW-PBM1064-001 Rev A; Issue #54
+**Approved By:** Steve Hickman, CEO  
+**References:** NP-HW-FPC-001 Rev E; NP-TOOL-ZM-SM-001 Rev A; NP-FW-PBM1064-001 Rev A  
+**Related Issues:** GitHub Issue #54  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Supersedes:** —  
+**Parent Document:** NP-PROC-FPC-001 Rev A (base module FPC procurement — unchanged)
 
 ---
 

@@ -1,8 +1,19 @@
 # Analytics Gate Architecture — Design Spec
 
-**Date:** 2026-06-16 (original 2026-06-05; supersedes stale draft)  
-**Addresses:** NP-PRIV-ANALYSIS-002 findings (PR #112) + terminology clarification  
-**Status:** IMPLEMENTED — describes the current codebase
+**Project:** NeuroPulse
+**Document:** NP-PRIV-KEYSPLIT-001
+**Revision:** A
+**Date:** 2026-06-16
+**Status:** ACTIVE
+**Effective Date:** 2026-06-16
+**Author:** Steve Hickman (CEO, interim Quality authority)
+**Approved By:** Steve Hickman, CEO
+**References:** NP-PRIV-ANALYSIS-002 findings (PR #112)
+**Related Issues:** —
+**Gate:** —
+**IEC 62304 Class:** —
+**Supersedes:** Stale draft (original 2026-06-05)
+**Parent Document:** NP-PRIV-ANALYSIS-002
 
 ---
 

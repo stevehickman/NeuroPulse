@@ -1,12 +1,20 @@
-# NP-LEGAL-BAA-001 Rev A — Business Associate Agreement Template
+# Business Associate Agreement Template
 
-**Document number:** NP-LEGAL-BAA-001  
+**Project:** NeuroPulse  
+**Document:** NP-LEGAL-BAA-001  
 **Revision:** A  
-**Status:** ACTIVE — DRAFT TEMPLATE (requires legal counsel review before first execution)  
-**Effective date:** 2026-06-03  
+**Date:** 2026-06-03  
+**Status:** DRAFT  
+**Effective Date:** 2026-06-03  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
-**Approved by:** Steve Hickman, CEO  
+**Approved By:** Steve Hickman, CEO  
 **References:** NP-PRIV-REM-001 STEP-13; 45 CFR §164.504(e); 45 CFR §§164.308(b), 164.502(e); NP-PRIV-001 Rev A HIGH-05, MEDIUM-07  
+**Related Issues:** —  
+**Gate:** —  
+**IEC 62304 Class:** —  
+**Applicable Standard:** HIPAA 45 CFR §164.504(e)  
+**Next Review:** Before first BAA execution (requires legal counsel review)  
+**Jurisdiction Scope:** US federal (HIPAA); Illinois (BIPA)
 
 ---
 

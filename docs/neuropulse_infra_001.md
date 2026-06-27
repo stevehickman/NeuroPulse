@@ -1,7 +1,17 @@
 # NeuroPulse Infrastructure Setup Guide
-**Document:** NP-INFRA-001 Rev A  
+
+**Project:** NeuroPulse  
+**Document:** NP-INFRA-001  
+**Revision:** A  
 **Date:** 2026-06-14  
-**Status:** Active — required before TestFlight beta and T1 launch
+**Status:** ACTIVE  
+**Effective Date:** 2026-06-14  
+**Author:** Steve Hickman (CEO, interim Quality authority)  
+**Approved By:** Steve Hickman, CEO  
+**References:** —  
+**Related Issues:** —  
+**Gate:** Required before TestFlight beta and T1 launch  
+**IEC 62304 Class:** —
 
 ---
 
