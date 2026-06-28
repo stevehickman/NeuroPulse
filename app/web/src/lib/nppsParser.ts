@@ -156,7 +156,7 @@ export function tokenize(text: string): Token[] {
     }
 
     // Numbers (including negative) — optionally followed by unit suffix (Hz, %, mA, s, m)
-    if (text[pos] === '-' || (text[pos] >= '0' && text[pos] <= '9')) {
+    if ((text[pos] === '-' && pos + 1 < text.length && text[pos + 1] >= '0' && text[pos + 1] <= '9') || (text[pos] >= '0' && text[pos] <= '9')) {
       let numStr = '';
       if (text[pos] === '-') { numStr = '-'; pos++; }
       while (pos < text.length && ((text[pos] >= '0' && text[pos] <= '9') || text[pos] === '.')) {
@@ -201,7 +201,8 @@ export function tokenize(text: string): Token[] {
     // Identifiers and keywords
     if ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') || text[pos] === '_') {
       let ident = '';
-      while (pos < text.length && ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') || (text[pos] >= '0' && text[pos] <= '9') || text[pos] === '_')) {
+      while (pos < text.length && ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') || (text[pos] >= '0' && text[pos] <= '9') || text[pos] === '_'
+          || (text[pos] === '-' && pos + 1 < text.length && ((text[pos + 1] >= 'a' && text[pos + 1] <= 'z') || (text[pos + 1] >= 'A' && text[pos + 1] <= 'Z'))))) {
         ident += text[pos++];
       }
       if (ident === 'true') {
@@ -317,7 +318,6 @@ class Parser {
     const arr: string[] = [];
     this.skipNewlines();
     while (this.current.type !== 'RBRACKET' && this.current.type !== 'EOF') {
-      // Accept string, ident, or keyword as tag value
       const t = this.current;
       if (t.type === 'STRING' || t.type === 'IDENT' || t.type === 'KEYWORD') {
         arr.push(t.value as string);

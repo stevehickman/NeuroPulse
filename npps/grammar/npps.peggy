@@ -1,0 +1,251 @@
+// NPPS PEG Grammar — NeuroPulse Protocol Script
+// NP-NPPS-GRAM-001 Rev A
+// Single source of truth for NPPS syntax.
+// Generate parser: bunx peggy npps.peggy --format es
+//
+// AST node types:
+//   File          = Entry[]
+//   Entry         = { kind: 'single',    protocol:  ProtocolNode  }
+//                 | { kind: 'composite', composite: CompositeNode }
+//                 | { kind: 'limits',    limits:    LimitsNode    }
+//   ProtocolNode  = { name: string, fields: Field[], modalities: ModalityBlock[] }
+//   CompositeNode = { name: string, fields: Field[], layers: LayerBlock[] }
+//   LimitsNode    = { name: string|null, fields: Field[], modalityLimits: ModalityBlock[] }
+//   ModalityBlock = { type: string, fields: Field[] }
+//   LayerBlock    = { name: string, fields: Field[] }
+//   Field         = { key: string, value: Value }
+//   Value         = string | number | boolean | Value[] | { number: number, unit: string }
+//                 | { ident: string }
+
+{{
+// -- Helpers available in all action blocks --
+
+function makeNumber(sign, intPart, fracPart) {
+  const raw = (sign || '') + intPart + (fracPart || '');
+  return parseFloat(raw);
+}
+}}
+
+// ─────────────────────────── Top-level ───────────────────────────
+
+File
+  = _ entries:Entry* _ { return entries; }
+
+Entry
+  = ProtocolEntry
+  / CompositeEntry
+  / LimitsEntry
+
+// ─────────────────────────── Protocol ────────────────────────────
+
+ProtocolEntry
+  = "protocol" __ name:StringLiteral _ "{" _ body:ProtocolBody _ "}" _
+    { return { kind: 'single', protocol: { name, ...body } }; }
+
+ProtocolBody
+  = members:ProtocolMember*
+    {
+      const fields = [];
+      const modalities = [];
+      for (const m of members) {
+        if (m._type === 'field') fields.push({ key: m.key, value: m.value });
+        else modalities.push({ type: m.type, fields: m.fields });
+      }
+      return { fields, modalities };
+    }
+
+ProtocolMember
+  = _ m:ModalityBlock _ { return m; }
+  / _ f:Field _         { return { _type: 'field', ...f }; }
+
+// ─────────────────────────── Composite ───────────────────────────
+
+CompositeEntry
+  = "composite" __ name:StringLiteral _ "{" _ body:CompositeBody _ "}" _
+    { return { kind: 'composite', composite: { name, ...body } }; }
+
+CompositeBody
+  = members:CompositeMember*
+    {
+      const fields = [];
+      const layers = [];
+      for (const m of members) {
+        if (m._type === 'layer') layers.push({ name: m.name, fields: m.fields });
+        else fields.push({ key: m.key, value: m.value });
+      }
+      return { fields, layers };
+    }
+
+CompositeMember
+  = _ l:LayerBlock _ { return l; }
+  / _ f:Field _      { return { _type: 'field', ...f }; }
+
+LayerBlock
+  = "layer" __ name:StringLiteral _ "{" _ fields:LayerField* _ "}" _
+    { return { _type: 'layer', name, fields }; }
+
+LayerField
+  = _ f:Field _ { return { key: f.key, value: f.value }; }
+
+// ─────────────────────────── Limits ──────────────────────────────
+
+LimitsEntry
+  = "limits" __ name:StringLiteral _ "{" _ body:LimitsBody _ "}" _
+    { return { kind: 'limits', limits: { name, ...body } }; }
+  / "limits" _ "{" _ body:LimitsBody _ "}" _
+    { return { kind: 'limits', limits: { name: null, ...body } }; }
+
+LimitsBody
+  = members:LimitsMember*
+    {
+      const fields = [];
+      const modalityLimits = [];
+      for (const m of members) {
+        if (m._type !== 'field') modalityLimits.push({ type: m.type, fields: m.fields });
+        else fields.push({ key: m.key, value: m.value });
+      }
+      return { fields, modalityLimits };
+    }
+
+LimitsMember
+  = _ m:ModalityBlock _ { return m; }
+  / _ f:Field _         { return { _type: 'field', ...f }; }
+
+// ─────────────────────────── Modality block ──────────────────────
+
+ModalityBlock
+  = type:ModalityType _ "{" _ fields:ModalityField* _ "}"
+    { return { _type: 'modality', type, fields }; }
+
+ModalityField
+  = _ f:Field _ { return { key: f.key, value: f.value }; }
+
+ModalityType "modality type"
+  = "pbm_transcranial"
+  / "pbm_intranasal"
+  / "pbm_deep_1170nm"
+  / "eeg_neurofeedback"
+  / "bes_tacs"
+  / "tdcs"
+  / "vns_hrv"
+  / "audio_entrainment"
+  / "visual_stimulation"
+  / "qeeg_21ch"
+  / "tms"
+  / "clinical_tacs"
+  / "hd_tdcs"
+  / "cervical_vns"
+  / "vibrotactile_40hz"
+  / "hrv_biofeedback"
+  / "pbm_1064nm"
+
+// ─────────────────────────── Fields ──────────────────────────────
+
+Field
+  = key:Identifier _ ":" _ value:Value
+    { return { key, value }; }
+
+// ─────────────────────────── Values ──────────────────────────────
+
+Value "value"
+  = BooleanLiteral
+  / NumberWithUnit
+  / StringLiteral
+  / ArrayLiteral
+  / CompoundIdent
+  / BareIdent
+
+BooleanLiteral
+  = "true"  !IdentContinue { return true; }
+  / "false" !IdentContinue { return false; }
+
+// Number with optional unit suffix.
+// Must check that a bare number is not followed by _ or letter
+// (which would make it a compound ident like 660_808nm).
+NumberWithUnit
+  = sign:"-"? int:Digits frac:("." Digits)? unit:UnitSuffix
+    {
+      const n = makeNumber(sign, int, frac ? '.' + frac[1] : null);
+      return { number: n, unit };
+    }
+  / sign:"-"? int:Digits frac:("." Digits)? !("_" / [a-zA-Z])
+    {
+      return makeNumber(sign, int, frac ? '.' + frac[1] : null);
+    }
+
+UnitSuffix "unit suffix"
+  = "mW_cm2" { return 'mW/cm2'; }
+  / "Hz"     { return 'Hz'; }
+  / "mA"     { return 'mA'; }
+  / "%"      { return '%'; }
+  / "s"  !IdentContinue { return 's'; }
+  / "m"  !IdentContinue { return 'm'; }
+
+// Compound identifier: starts with digits, continues with _ or letter.
+// Examples: 660_808nm, 660_808_1064nm, 40Hz_mode
+CompoundIdent
+  = head:Digits tail:CompoundIdentTail+
+    { return { ident: head + tail.join('') }; }
+
+CompoundIdentTail
+  = "_" chars:IdentChars { return '_' + chars; }
+  / chars:$([a-zA-Z] IdentChars?) { return chars; }
+
+IdentChars
+  = $([a-zA-Z0-9_]+)
+
+// Bare identifier — a plain word, possibly with hyphens (for tags like "wind-down").
+BareIdent
+  = id:HyphenatedIdent { return { ident: id }; }
+
+HyphenatedIdent "identifier"
+  = head:IdentStart tail:$(("-" IdentStart)*)
+    { return head + tail; }
+
+IdentStart
+  = $([a-zA-Z_] [a-zA-Z0-9_]*)
+
+StringLiteral "string"
+  = '"' chars:StringChar* '"' { return chars.join(''); }
+
+StringChar
+  = "\\\""  { return '"'; }
+  / "\\\\"  { return '\\'; }
+  / "\\n"   { return '\n'; }
+  / "\\t"   { return '\t'; }
+  / [^"\\]
+
+ArrayLiteral "array"
+  = "[" _ elements:ArrayElements? _ "]"
+    { return elements || []; }
+
+ArrayElements
+  = head:Value tail:(_ "," _ Value)*
+    { return [head, ...tail.map(t => t[3])]; }
+
+// ─────────────────────────── Identifiers (field keys) ────────────
+
+Identifier "identifier"
+  = $([a-zA-Z_] [a-zA-Z0-9_]*)
+
+IdentContinue
+  = [a-zA-Z0-9_]
+
+Digits "digits"
+  = $([0-9]+)
+
+// ─────────────────────────── Whitespace and comments ─────────────
+
+// Optional whitespace (spaces, tabs, newlines, comments)
+_ "whitespace"
+  = (WhitespaceChar / Comment)*
+
+// Required whitespace (at least one space/tab/newline/comment)
+__ "required whitespace"
+  = (WhitespaceChar / Comment)+
+
+WhitespaceChar
+  = [ \t\n\r]
+
+Comment "comment"
+  = "#" [^\n\r]* ("\n" / "\r\n" / "\r" / !.)

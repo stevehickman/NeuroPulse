@@ -1,0 +1,7 @@
+# ERROR FIXTURE — this file uses the old format (name inside braces)
+# and is expected to FAIL parsing. No .expected.json exists for this file.
+protocol {
+    name: "Old Format"
+    description: "This should fail"
+    duration: 10m
+}

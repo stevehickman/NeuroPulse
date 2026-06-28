@@ -1,0 +1,38 @@
+{
+  "kind": "single",
+  "protocol": {
+    "name": "Hyphenated Tags",
+    "id": "00000000-0000-0000-0000-000000000004",
+    "description": "Tests hyphenated tag parsing",
+    "author": "test",
+    "version": "1.0",
+    "tags": [
+      "wind-down",
+      "all-modalities",
+      "deep-sleep"
+    ],
+    "timingMode": {
+      "type": "duration",
+      "seconds": 900
+    },
+    "modalityCount": 1,
+    "modalities": [
+      {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+          "carrierHz": 200,
+          "volumePercent": 50,
+          "eegAdaptive": false,
+          "boneConductionPacer": false,
+          "binauralBeatsHz": 4,
+          "noiseType": "brown"
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      }
+    ]
+  }
+}

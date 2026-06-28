@@ -1,0 +1,17 @@
+{
+  "kind": "single",
+  "protocol": {
+    "name": "Comments Only",
+    "id": "00000000-0000-0000-0000-000000000002",
+    "description": "Protocol with comments",
+    "author": "test",
+    "version": "1.0",
+    "tags": [],
+    "timingMode": {
+      "type": "duration",
+      "seconds": 600
+    },
+    "modalityCount": 0,
+    "modalities": []
+  }
+}

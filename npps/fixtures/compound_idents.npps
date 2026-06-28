@@ -1,0 +1,16 @@
+protocol "Compound Wavelengths" {
+    id: "00000000-0000-0000-0000-000000000003"
+    description: "Tests compound wavelength identifiers"
+    author: "test"
+    version: "1.0"
+    tags: []
+    duration: 10m
+
+    pbm_transcranial {
+        intensity: 80%
+        frequency: 40Hz
+        duty_cycle: 25%
+        zones: all
+        wavelength: 660_808_1064nm
+    }
+}

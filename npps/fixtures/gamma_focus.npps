@@ -1,0 +1,41 @@
+protocol "Gamma Focus" {
+    id: "10000001-0000-0000-0000-000000000000"
+    description: "40Hz multi-sensory protocol"
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [focus, gamma]
+    duration: 20m
+
+    pbm_transcranial {
+        intensity: 80%
+        frequency: 40Hz
+        duty_cycle: 25%
+        zones: all
+        wavelength: 660_808nm
+    }
+
+    audio_entrainment {
+        binaural_hz: 40Hz
+        noise: none
+        carrier_hz: 440Hz
+        volume: 70%
+        eeg_adaptive: false
+        bone_conduction_pacer: false
+    }
+
+    visual_stimulation {
+        frequency: 40Hz
+        mode: binocular
+        emdr_cadence: 1Hz
+        interval_on: 60s
+        interval_off: 30s
+        repeat: until_end
+    }
+
+    eeg_neurofeedback {
+        band: gamma
+        channels: all
+        closed_loop: true
+    }
+}
