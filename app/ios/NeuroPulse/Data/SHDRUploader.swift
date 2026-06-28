@@ -275,8 +275,8 @@ final class SHDRUploader: ObservableObject {
     // Opaque 256-bit random token, generated once at first run and stored in the
     // Keychain with ThisDeviceOnly accessibility. Used as the SHDR fleet DB linkage
     // key — it is never joined to user identity.
-    // Production: replace with the 256-bit TRNG token provisioned by the hub at
-    // first pairing and delivered over the GATT warranty characteristic.
+    // Interim Keychain-generated token. Will be replaced by the 256-bit TRNG token
+    // from the hub's GATT warrantyToken characteristic when hub firmware ships (OI-BLE-01).
     private static let warrantyTokenTag = "com.neuropulse.shdr.warranty-token"
 
     private func warrantyTokenFromKeychain() -> String {

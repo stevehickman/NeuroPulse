@@ -267,7 +267,6 @@ struct ConsentOnboardingView: View {
     private func advance() {
         if let next = ConsentLayer(rawValue: layer.rawValue + 1) {
             layer = next
-            if layer == .complete { commitAndDismiss() }
         }
     }
 

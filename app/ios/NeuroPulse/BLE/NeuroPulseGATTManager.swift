@@ -222,13 +222,13 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
 
     // MARK: - Write API
 
-    /// Mode 2: upload a signed session protocol blob to the hub.
-    func uploadProtocol(_ blob: Data, completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
+    /// Mode 2: write a single protocol chunk to the hub (called per-chunk by SessionProtocolUploader).
+    func uploadProtocol(_ chunk: Data, completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
         guard let char = protocolUploadChar, let p = peripheral else {
             completion(.failure(.notConnected)); return
         }
         onProtocolUploadAck = completion
-        p.writeValue(blob, for: char, type: .withResponse)
+        p.writeValue(chunk, for: char, type: .withResponse)
     }
 
     /// Mode 4: request EDF+ download — hub streams data over USB-C when connected.

@@ -13,7 +13,7 @@ protocol ProtocolUploadGateway: AnyObject {
     /// by ProtocolChunker (SINGLE / START / CONT / END frame headers) and advances only after
     /// the previous chunk's completion handler fires with `.success`.
     /// Hub firmware's reassembly state machine expects these framing headers in order.
-    func uploadProtocol(_ blob: Data, completion: @escaping (Result<Void, GATTWriteError>) -> Void)
+    func uploadProtocol(_ chunk: Data, completion: @escaping (Result<Void, GATTWriteError>) -> Void)
 }
 
 // NeuroPulseGATTManager satisfies this protocol without any code changes —

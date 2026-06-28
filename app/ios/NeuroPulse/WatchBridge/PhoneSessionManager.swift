@@ -121,7 +121,7 @@ extension PhoneSessionManager: WCSessionDelegate {
         // Watch → phone protocol selector (Phase 1 feature).
         // Placeholder: route to hub via GATT write when firmware write characteristic is added.
         if let presetID = message["select_preset"] as? Int {
-            _ = presetID // TODO: write to hub GATT protocol-select characteristic
+            _ = presetID // TODO: compile preset to protocol blob and upload via GATT protocolUpload (Mode 2)
         }
     }
 }

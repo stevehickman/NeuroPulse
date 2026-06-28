@@ -28,7 +28,7 @@ enum NPUUID {
     static let sessionStop      = CBUUID(string: "4E455550-000F-1000-8000-00805F9B34FB") // WRITE 1B (0x01 = stop)
 
     // Hub-provisioned TRNG warranty token — READ 32B, SHDR-linked opaque token.
-    // Replaces Keychain identifierForVendor in SHDRUploader once hub firmware is available
+    // Replaces Keychain-generated random token in SHDRUploader once hub firmware is available
     // (NP-FW-EMMC-002 Rev A §A, OI-WA-03).
     // NOT included in NPUUID.all — hub firmware not yet implemented; omitting it prevents
     // allCharacteristicsResolved from blocking until hub ships this characteristic.
