@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-07
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-QMS-DC-001, NP-DP-001, NP-DHF-001, NP-RM-001, NP-SW-001, 21 CFR §820.30, ISO 13485:2016 §7.3
+**References:** NP-QMS-DC-001 Rev A, NP-DP-001 Rev A, NP-DHF-001 Rev F, NP-RM-001 Rev A, NP-SW-001 Rev A, 21 CFR §820.30, ISO 13485:2016 §7.3
 **Related Issues:** GitHub Issue #122
 **Gate:** NP-DP-001 §6.4 G2 exit criterion
 **IEC 62304 Class:** —

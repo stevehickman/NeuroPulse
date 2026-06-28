@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-03  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001, NP-FW-EMMC-002  
+**References:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001 Rev B, NP-FW-EMMC-002  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —  
@@ -71,7 +71,7 @@ These steps must be complete before any external engagement (beta users, warrant
 **Document:** NP-FW-EMMC-002 Rev A  
 **Finding:** CRITICAL-01 (Warranty Owner ID re-identifies SHDR)  
 **Trigger:** Before warranty registration system is built or any warranty ID is issued.  
-**Status:** DIRECT REMEDIATION COMPLETE → `docs/neuropulse_fw_emmc_002.md`  
+**Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md`  
 **Deliverable:** Firmware spec section defining: (a) opaque 256-bit TRNG warranty token as the only device-to-person linkage in SHDR; (b) warranty database join prohibition in production; (c) SHDR boundary test procedure.  
 **Performer:** Firmware architect + Privacy Lead (interim: CEO)  
 **Authority required:** CEO sign-off on SHDR boundary test procedure.  
@@ -84,7 +84,7 @@ These steps must be complete before any external engagement (beta users, warrant
 **Document:** NP-FW-EMMC-002 Rev A  
 **Finding:** HIGH-03 (UHDR key lifecycle — device transfer)  
 **Trigger:** Before device serial numbers are assigned or any device is shipped outside the company.  
-**Status:** DIRECT REMEDIATION COMPLETE → `docs/neuropulse_fw_emmc_002.md`  
+**Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md`  
 **Deliverable:** Spec for user-initiated factory reset: (a) eMMC SANITIZE on UHDR partition; (b) SHDR reset to fresh device-ID-only state, session counter zeroed; (c) warranty token cleared from Config partition; (d) new Argon2id salt generated via TRNG; (e) UHDR master key wrapper deleted; (f) app UI flow with explicit "this will erase all your data" confirmation requiring two-step acknowledgement.  
 **Performer:** Firmware engineer + UX designer  
 **Authority required:** UX copy requires legal review for GDPR Art. 17 compliance.  
@@ -97,7 +97,7 @@ These steps must be complete before any external engagement (beta users, warrant
 **Document:** NP-FW-EMMC-002 Rev A  
 **Finding:** HIGH-03 (UHDR key lifecycle — biometric revocation)  
 **Trigger:** Before any UHDR is written to production firmware; must precede eMMC firmware implementation.  
-**Status:** DIRECT REMEDIATION COMPLETE → `docs/neuropulse_fw_emmc_002.md`  
+**Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md`  
 **Deliverable:** Spec for two-layer key architecture: (a) UHDR master key (32-byte random, generated at first boot by TRNG); (b) master key stored in Config partition encrypted with Argon2id-derived key (biometric/PIN); (c) biometric change triggers master key re-wrap only — UHDR partition ciphertext unchanged; (d) PIN always available as fallback; (e) master key zeroed from SRAM immediately after use.  
 **Performer:** Firmware architect + cryptography reviewer  
 **Authority required:** Cryptography reviewer must be qualified (either internal senior engineer or external specialist engaged for review session).  
@@ -110,7 +110,7 @@ These steps must be complete before any external engagement (beta users, warrant
 **Document:** NP-FW-EMMC-002 Rev A  
 **Finding:** MEDIUM-04 (Research Scratch partition anonymisation window)  
 **Trigger:** Before research anonymisation code is written; must precede first study descriptor deployment.  
-**Status:** DIRECT REMEDIATION COMPLETE → `docs/neuropulse_fw_emmc_002.md`  
+**Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md`  
 **Deliverable:** Spec for: (a) one-time session key K_scratch = AES-256-CTR(TRNG_256, session_nonce) derived before each anonymisation task; (b) K_scratch stored in on-chip SRAM only, zeroed with memset_explicit on completion or reset; (c) atomic pipeline design — partial runs discard all output; (d) eMMC SANITIZE on Scratch blocks after verified extract is written.  
 **Performer:** Firmware engineer  
 **Authority required:** None beyond standard design review.  
@@ -123,7 +123,7 @@ These steps must be complete before any external engagement (beta users, warrant
 **Document:** NP-FW-EMMC-002 Rev A  
 **Finding:** MEDIUM-05 (EDF+ patient header field handling)  
 **Trigger:** Before EDF+ writer code is written; must precede any EEG session recording implementation.  
-**Status:** DIRECT REMEDIATION COMPLETE → `docs/neuropulse_fw_emmc_002.md`  
+**Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md`  
 **Deliverable:** NeuroPulse EDF+ header policy: patient code = 16-char opaque UHDR token; sex = 'X'; birthdate = 'X'; patient name = 'X'; start date preserved; hospital code = 'NeuroPulse'; technician = 'X'; equipment = 'NeuroPulse_v[FW_VER]'. Plus: header validation step in research anonymisation pipeline that fails-closed if identity fields contain non-'X' values.  
 **Performer:** Firmware engineer  
 **Authority required:** None.  
@@ -136,7 +136,7 @@ These steps must be complete before any external engagement (beta users, warrant
 **Document:** CLAUDE.md §13.5 (locked decision), NP-FW-EMMC-002 Rev A §F  
 **Finding:** HIGH-04 (Mode F autonomous retinal PBM — consent capture undefined)  
 **Trigger:** Before any app UI or firmware code references Mode F as an enabled feature.  
-**Status:** DIRECT REMEDIATION COMPLETE → CLAUDE.md updated; `docs/neuropulse_fw_emmc_002.md §F`  
+**Status:** DIRECT REMEDIATION COMPLETE → CLAUDE.md updated; `docs/np_fw_emmc_002.md §F`  
 **Deliverable:** Locked decisions: (a) Mode F is default-off; (b) Mode F requires a separately named, separately consented feature toggle in app onboarding; (c) when Mode F is active, the right temple amber LED breathes a distinct triple-pulse pattern (3 short pulses, 2s pause, repeat) distinct from the normal in-session pulse; (d) IEC 62471 cumulative daily retinal dose is calculated across all Mode F wear time per calendar day, not just per session; (e) Mode F is not available in T1 unless RISK-03 regulatory opinion letter explicitly covers 808-830nm bilateral retinal PBM in Mode F operating conditions.  
 **Performer:** Firmware engineer + UX designer + regulatory counsel  
 **Authority required:** Regulatory counsel sign-off required before Mode F is enabled in any shipping firmware (same RISK-03 engagement).  
@@ -149,7 +149,7 @@ These steps must be complete before any external engagement (beta users, warrant
 **Document:** NP-SEC-BR-001 Rev A  
 **Finding:** CRITICAL-02 (No documented breach detection or response plan)  
 **Trigger:** Before any personal data (warranty registrant, SHDR fleet upload, clinical data) is held by NeuroPulse on any server.  
-**Status:** DIRECT REMEDIATION COMPLETE → `docs/neuropulse_breach_response_001.md`  
+**Status:** DIRECT REMEDIATION COMPLETE → `docs/np_sec_br_001.md`  
 **Deliverable:** Complete breach response plan covering: detection signals; severity tiers; escalation chain; containment procedures; regulatory notification requirements (HIPAA, FTC HBNR, GDPR Art. 33, US state laws); user notification templates; forensic log retention; annual rehearsal procedure.  
 **Performer:** CEO (interim Quality Lead) + Legal counsel  
 **Authority required:** CEO approval. Legal counsel must review notification templates and regulatory triggers for jurisdiction accuracy.  
@@ -162,7 +162,7 @@ These steps must be complete before any external engagement (beta users, warrant
 **Document:** NP-PROC-POA-001 Rev A  
 **Finding:** HIGH-06 (POA document upload is an unspecified high-risk data flow)  
 **Trigger:** Before the POA upload feature is included in any app build, even internal.  
-**Status:** DIRECT REMEDIATION COMPLETE → `docs/neuropulse_poa_procedure_001.md`  
+**Status:** DIRECT REMEDIATION COMPLETE → `docs/np_proc_poa_001.md`  
 **Deliverable:** Complete POA procedure covering: encrypted upload via signed URL; restricted-access vault (access list ≤3 named reviewers); audit log of every access; 30-day document deletion after review; structured review output schema; annual re-verification workflow; capacity restoration procedure.  
 **Performer:** CEO + Legal counsel + IT/Infrastructure  
 **Authority required:** CEO approval. Legal counsel must confirm the POA review scope and jurisdiction-flagging criteria.  
@@ -175,7 +175,7 @@ These steps must be complete before any external engagement (beta users, warrant
 **Document:** NP-APP-TELEMETRY-001 Rev A  
 **Finding:** LOW-01 (App telemetry and crash reporting scope unspecified)  
 **Trigger:** Before any analytics or crash reporting SDK is added to the iOS or Android codebase.  
-**Status:** DIRECT REMEDIATION COMPLETE → `docs/neuropulse_app_telemetry_001.md`  
+**Status:** DIRECT REMEDIATION COMPLETE → `docs/np_app_telemetry_001.md`  
 **Deliverable:** App telemetry policy covering: approved analytics vendor slot (TBD — DPA required); approved crash reporter slot (TBD — redacted payload mode required); prohibited event properties; permitted event properties; SDK initialisation gate; crash reporter configuration; annual review cadence.  
 **Performer:** iOS/Android engineering lead + Privacy Lead (interim: CEO)  
 **Authority required:** CEO approval. Vendor selection requires legal review of DPA and BAA.  
@@ -230,7 +230,7 @@ These steps must be complete before any external engagement (beta users, warrant
 
 **Detailed implementation instructions:**
 
-1. **Read NP-FW-ANON-001 Rev A** (`docs/neuropulse_fw_anon_001.md`) in full before beginning implementation. The spec is complete and covers all module interfaces, data structures, algorithms, and FAI requirements.
+1. **Read NP-FW-ANON-001 Rev A** (`docs/np_fw_anon_001.md`) in full before beginning implementation. The spec is complete and covers all module interfaces, data structures, algorithms, and FAI requirements.
 
 2. **Create firmware/anon/ directory** with four modules:
    - `np_anon_kgroup.h/c` — k-anonymity grouping and l-diversity check (§5 of spec)
@@ -306,7 +306,7 @@ These steps must be complete before any external engagement (beta users, warrant
 
 **Detailed execution instructions:**
 
-1. **Legal counsel review of template (NP-LEGAL-BAA-001 Rev A):** Healthcare legal counsel must review the template at `docs/neuropulse_legal_baa_001.md` before any execution. Key items for counsel to confirm:
+1. **Legal counsel review of template (NP-LEGAL-BAA-001 Rev A):** Healthcare legal counsel must review the template at `docs/np_legal_baa_001.md` before any execution. Key items for counsel to confirm:
    - §5.1 (consent revocation cascade, 30-day deletion obligation) is enforceable in the relevant jurisdiction
    - §5.4 (BIPA provision for Illinois users) is accurate and sufficient
    - The tier table in §4.2 correctly describes the minimum necessary data for each tier
@@ -343,7 +343,7 @@ These steps must be complete before any external engagement (beta users, warrant
 
 **Detailed implementation instructions:**
 
-1. **Review NP-INT-FHIR-001 Rev A** (`docs/neuropulse_fhir_profile_001.md`) with the T2 clinical engineering team before any EHR integration code is written.
+1. **Review NP-INT-FHIR-001 Rev A** (`docs/np_int_fhir_001.md`) with the T2 clinical engineering team before any EHR integration code is written.
 
 2. **Resolve open items** (NP-INT-FHIR-001 §10, OI-FHIR-01 through OI-FHIR-05) before the IG package is published:
    - OI-FHIR-01 (LOINC mapping): Engage a clinical informatics specialist to confirm the NP-EEG-* local codes are appropriate given no standard LOINC codes exist for quantitative EEG spectral features. Budget: $2,000–5,000 for a single clinical informatics review session.
@@ -1010,19 +1010,19 @@ The following documents were authored as part of this remediation programme.
 
 | Document | Document number | File | Steps addressed |
 |---|---|---|---|
-| Firmware spec: warranty token, factory reset, two-layer key, Scratch encryption, EDF+ headers, Mode F spec | NP-FW-EMMC-002 Rev A | `docs/neuropulse_fw_emmc_002.md` | STEP-01 through STEP-06 |
-| Breach Response Plan | NP-SEC-BR-001 Rev A | `docs/neuropulse_breach_response_001.md` | STEP-07 |
-| POA Upload Procedure | NP-PROC-POA-001 Rev A | `docs/neuropulse_poa_procedure_001.md` | STEP-08 |
-| App Telemetry Policy | NP-APP-TELEMETRY-001 Rev A | `docs/neuropulse_app_telemetry_001.md` | STEP-09 |
-| This document | NP-PRIV-REM-001 Rev A | `docs/neuropulse_privacy_remediation_001.md` | Framework for STEP-01 through STEP-30 |
+| Firmware spec: warranty token, factory reset, two-layer key, Scratch encryption, EDF+ headers, Mode F spec | NP-FW-EMMC-002 Rev A | `docs/np_fw_emmc_002.md` | STEP-01 through STEP-06 |
+| Breach Response Plan | NP-SEC-BR-001 Rev A | `docs/np_sec_br_001.md` | STEP-07 |
+| POA Upload Procedure | NP-PROC-POA-001 Rev A | `docs/np_proc_poa_001.md` | STEP-08 |
+| App Telemetry Policy | NP-APP-TELEMETRY-001 Rev A | `docs/np_app_telemetry_001.md` | STEP-09 |
+| This document | NP-PRIV-REM-001 Rev A | `docs/np_priv_rem_001.md` | Framework for STEP-01 through STEP-30 |
 
 **Session 2 — 2026-06-03 (NP-PRIV-001 Rev B delta — 8 new findings):**
 
 | Document / change | Number | File | Steps addressed |
 |---|---|---|---|
-| NP-APP-TELEMETRY-001 Rev B — `session_sequence` replaced with `engagement_tier` coarsened enum; §3.2 added | NP-APP-TELEMETRY-001 Rev B | `docs/neuropulse_app_telemetry_001.md` | LOW-03 (Rev B finding) |
-| NP-FW-EMMC-002 §G added — SHDR accelerometer reclassification spec | NP-FW-EMMC-002 Rev A (§G appended) | `docs/neuropulse_fw_emmc_002.md` | MEDIUM-06 (Rev B finding); unblocks STEP-10 |
-| NP-PRIV-REM-001 Rev B — STEP-31, STEP-32, STEP-33 added; capability matrix rows added | NP-PRIV-REM-001 Rev B | `docs/neuropulse_privacy_remediation_001.md` | STEP-31 through STEP-33 |
+| NP-APP-TELEMETRY-001 Rev B — `session_sequence` replaced with `engagement_tier` coarsened enum; §3.2 added | NP-APP-TELEMETRY-001 Rev B | `docs/np_app_telemetry_001.md` | LOW-03 (Rev B finding) |
+| NP-FW-EMMC-002 §G added — SHDR accelerometer reclassification spec | NP-FW-EMMC-002 Rev A (§G appended) | `docs/np_fw_emmc_002.md` | MEDIUM-06 (Rev B finding); unblocks STEP-10 |
+| NP-PRIV-REM-001 Rev B — STEP-31, STEP-32, STEP-33 added; capability matrix rows added | NP-PRIV-REM-001 Rev B | `docs/np_priv_rem_001.md` | STEP-31 through STEP-33 |
 
 CLAUDE.md §13.4 updates applied in Session 2:
 - BIPA legal opinion (before Illinois device activation) added as pending decision

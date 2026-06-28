@@ -218,7 +218,7 @@ The Quality Lead presents CAPA status (open count by severity, closure trends, o
 
 ## 7. CAPA Log
 
-The CAPA log is maintained by the Quality Lead and contains a record of every CAPA opened. Until a formal eQMS platform is implemented, the CAPA log is maintained as a controlled document in the GitHub repository at `docs/neuropulse_capa_log.md`.
+The CAPA log is maintained by the Quality Lead and contains a record of every CAPA opened. Until a formal eQMS platform is implemented, the CAPA log is maintained as a controlled document in the GitHub repository at `docs/np_qms_capa_log.md`.
 
 **Minimum CAPA log fields:**
 

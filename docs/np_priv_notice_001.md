@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-16  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-PRIV-001; NP-PRIV-REM-001; NP-FW-EMMC-001; NP-FW-EMMC-002  
+**References:** NP-PRIV-001 Rev B; NP-PRIV-REM-001 Rev B; NP-FW-EMMC-001 Rev A; NP-FW-EMMC-002 Rev A  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —  

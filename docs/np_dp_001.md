@@ -365,7 +365,7 @@ Design outputs are the translated result of design inputs — specifications, dr
 | iOS/Android app | NP-APP-ROADMAP-001; app source (pending) |
 | Procurement specifications | NP-PROC-FPC-001, NP-PROC-FPC-1064-001, NP-PROC-SUP-001 |
 | Safety and risk documentation | NP-RM-001, RISK-01..25, NP-FAI-ZM-001 |
-| Session protocol language | NPPS Language Reference (docs/npps-reference.md) |
+| Session protocol language | NPPS Language Reference (docs/np_npps_ref_001.md) |
 | Simulator | NP-SIM-001 v0.1.0 (simulator/) |
 | Regulatory submissions | NP-REG-CVNS-001; NP-REG-PBM1064-001 |
 

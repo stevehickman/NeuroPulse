@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-15  
 **Author:** SmartyPants / PAI  
 **Approved By:** TBD (Quality Lead)  
-**References:** NP-SW-001, NP-RM-001, NP-FW-CVNS-001, IEC 62304:2006+AMD1:2015 §7.1, ISO 14971:2019  
+**References:** NP-SW-001 Rev A, NP-RM-001 Rev A, NP-FW-CVNS-001 Rev A, IEC 62304:2006+AMD1:2015 §7.1, ISO 14971:2019  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** C (SW-01 Safety MCU)  

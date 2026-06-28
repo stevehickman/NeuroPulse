@@ -278,11 +278,11 @@ The current integer-path scheme (`/consumables/0`) is implementation-coupled to 
 ## 6. Analytics — PostHog EU cloud
 
 **Source file:** [`app/ios/NeuroPulse/Analytics/PostHogAnalyticsBackend.swift`](../app/ios/NeuroPulse/Analytics/PostHogAnalyticsBackend.swift)  
-**Related:** [`docs/neuropulse_app_telemetry_001.md`](neuropulse_app_telemetry_001.md), [`docs/neuropulse_posthog_config.md`](neuropulse_posthog_config.md)
+**Related:** [`docs/np_app_telemetry_001.md`](np_app_telemetry_001.md), [`docs/np_analytics_001.md`](np_analytics_001.md)
 
 ### 6.1 Two deployment options
 
-The codebase currently uses **PostHog EU cloud** (`eu.i.posthog.com`) as the analytics ingestion endpoint. A separate self-hosted PostHog deployment specification exists in `docs/neuropulse_posthog_config.md` (NP-ANALYTICS-001).
+The codebase currently uses **PostHog EU cloud** (`eu.i.posthog.com`) as the analytics ingestion endpoint. A separate self-hosted PostHog deployment specification exists in `docs/np_analytics_001.md` (NP-ANALYTICS-001 Rev A).
 
 | Option | Host | DPA required | Data residency | When to use |
 |--------|------|-------------|----------------|-------------|
@@ -322,7 +322,7 @@ The codebase currently uses **PostHog EU cloud** (`eu.i.posthog.com`) as the ana
    | Event retention | 90 days |
    | Person retention | 90 days |
 
-5. **Server-side property filter:** install the PostHog "Property Filter" transformation (Data Pipeline → Transformations). Add all prohibited properties from `NP-APP-TELEMETRY-001 Rev B §3` to the denylist. Full property list: see `docs/neuropulse_posthog_config.md §8.2`.
+5. **Server-side property filter:** install the PostHog "Property Filter" transformation (Data Pipeline → Transformations). Add all prohibited properties from `NP-APP-TELEMETRY-001 Rev B §3` to the denylist. Full property list: see `docs/np_analytics_001.md §8.2`.
 
 6. **Execute PostHog DPA:** download and sign PostHog's Data Processing Agreement from your account settings before any EU/EEA user data flows through the account. File with NP-LEGAL.
 
@@ -343,7 +343,7 @@ PostHogConfig(projectToken: token, host: "https://eu.i.posthog.com")
 
 ### 6.4 Migrating to self-hosted
 
-When the self-hosted stack (NP-ANALYTICS-001, `docs/neuropulse_posthog_config.md`) is deployed in an EU region:
+When the self-hosted stack (NP-ANALYTICS-001 Rev A, `docs/np_analytics_001.md`) is deployed in an EU region:
 
 1. Obtain the self-hosted PostHog project API token (from the self-hosted UI)
 2. Update the `POSTHOG_PROJECT_TOKEN` build variable to point to the new token
@@ -374,9 +374,9 @@ When the self-hosted stack (NP-ANALYTICS-001, `docs/neuropulse_posthog_config.md
 | Document | Relationship |
 |----------|-------------|
 | `docs/neuropulse_fw_emmc_001.docx` (NP-FW-EMMC-001 Rev A) | SHDR partition schema; dual-bank OTA bootloader protocol |
-| `docs/neuropulse_fw_emmc_002.md` (NP-FW-EMMC-002 Rev A §A) | Warranty token architecture; no-join rule for fleet DB |
-| `docs/neuropulse_app_telemetry_001.md` (NP-APP-TELEMETRY-001 Rev B) | Permitted/prohibited analytics event properties; `engagement_tier` enum |
-| `docs/neuropulse_posthog_config.md` (NP-ANALYTICS-001) | Full self-hosted PostHog deployment specification |
-| `docs/neuropulse_privacy_remediation_001.md` (NP-PRIV-REM-001) | STEP-05 (analytics DPA), STEP-19 (EU data residency for T2 cloud) |
-| `docs/neuropulse_ios_app_roadmap_001.md` (NP-APP-ROADMAP-001 Rev B) | iOS app development phases; OTA Watch app phases |
+| `docs/np_fw_emmc_002.md` (NP-FW-EMMC-002 Rev A §A) | Warranty token architecture; no-join rule for fleet DB |
+| `docs/np_app_telemetry_001.md` (NP-APP-TELEMETRY-001 Rev B) | Permitted/prohibited analytics event properties; `engagement_tier` enum |
+| `docs/np_analytics_001.md` (NP-ANALYTICS-001 Rev A) | Full self-hosted PostHog deployment specification |
+| `docs/np_priv_rem_001.md` (NP-PRIV-REM-001) | STEP-05 (analytics DPA), STEP-19 (EU data residency for T2 cloud) |
+| `docs/np_app_roadmap_001.md` (NP-APP-ROADMAP-001 Rev B) | iOS app development phases; OTA Watch app phases |
 | `app/ios/ISA.md` | ISC-3/8/9: SwiftLint enforcement; ISC-157: single PostHog integration point |
