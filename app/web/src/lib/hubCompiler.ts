@@ -83,7 +83,6 @@ const NP_MOD_VIBROTACTILE = 0x10;
 // ─── Protocol flags ───────────────────────────────────────────────────────────
 
 const PROTO_FLAG_T2_TIER    = 1 << 0;
-const PROTO_FLAG_AUTONOMOUS = 1 << 1;
 
 // ─── Slot mask conventions ────────────────────────────────────────────────────
 // Zone modules (PBM): slot_mask is a per-zone bitmask (bits 0–4).
