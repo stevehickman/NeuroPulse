@@ -668,7 +668,3 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | OI-CVNS-05 | IRB approval required before FAI-CV03 tolerability study can be executed | Regulatory/Clinical team | T2 clinical release |
 | OI-CVNS-06 | FAI-CV02 hardware bench (R-peak signal generator, oscilloscope) must be completed on T2 prototype | HW team | Full G3-08 closure |
 | OI-CVNS-07 | FAI-CV01 anatomical phantom bench must be completed with T2 accessory prototype | HW team | Full G3-08 closure |
-
----
-
-*NP-FW-CVNS-001 Rev A — 2026-05-11*

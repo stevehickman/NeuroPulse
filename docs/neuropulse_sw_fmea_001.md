@@ -307,7 +307,3 @@ The clinical benefit of the device — multi-modal neurostimulation supporting c
 |---|---|---|---|
 | A | 2026-06-06 | SmartyPants / PAI | Initial issue. Unit-level FMEA for SW01-M01 through SW01-M08 per IEC 62304 §7.1 Class C requirement. 43 failure modes across 8 modules. All residual risks ACCEPTABLE. Closes SW-01 FMEA pending decision in CLAUDE.md §13.4. |
 | B | 2026-06-15 | SmartyPants / PAI | OI-SW01-M07-02 CLOSED — §3.7 description updated to reflect that Ed25519 is now provided by the shared `np_crypto` library (Monocypher 4.0.2, PR #132) rather than a self-contained implementation. FMEA-M07-05 mitigation updated to reference Monocypher `ct_memcmp`. No failure modes added or removed; no risk scores changed. References: NP-SW-001 §9.4 SOUP table; `firmware/crypto/vendor/monocypher/VERSION`. |
-
----
-
-*NP-FMEA-001 Rev B — DRAFT — 2026-06-15*

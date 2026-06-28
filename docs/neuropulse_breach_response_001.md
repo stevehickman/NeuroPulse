@@ -317,7 +317,3 @@ Within 14 days of incident closure (or as soon as containment is confirmed if so
 - Identify timeline risks: can the 72-hour GDPR window be met with current team capacity?
 
 **Record:** Document exercise date, attendees, scenario used, gaps identified, and any NP-SEC-BR-001 updates triggered. File in DHF.
-
----
-
-*NP-SEC-BR-001 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*

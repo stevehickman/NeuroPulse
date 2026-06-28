@@ -330,7 +330,3 @@ Design transfer is the process of moving the device from design into production.
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. Design controls procedure established at QMS formation. Applies retroactively to all in-progress design activities. |
-
----
-
-*NP-QMS-DC-001 Rev A — ACTIVE — Effective 2026-05-13*

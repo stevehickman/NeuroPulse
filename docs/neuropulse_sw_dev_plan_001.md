@@ -384,7 +384,3 @@ The following table maps IEC 62304 clauses to NeuroPulse implementation status:
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. IEC 62304 software plan established at QMS formation. Three software items classified: SW-01 Class C, SW-02 Class B, SW-03 Class B. All existing firmware modules indexed. |
-
----
-
-*NP-SW-001 Rev A — ACTIVE — Effective 2026-05-13*

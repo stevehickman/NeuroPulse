@@ -227,7 +227,3 @@ This document must be reviewed annually (first review: June 2027) and updated if
 - The annual app telemetry audit (NP-PRIV-AUDIT-001) identifies a gap
 
 Review is conducted by: Privacy Lead (interim: CEO) + iOS/Android engineering leads. Output: NP-APP-TELEMETRY-001 Rev B (or higher) with change log.
-
----
-
-*NP-APP-TELEMETRY-001 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*

@@ -262,7 +262,3 @@ The smart module FPC part number is **NP-FPC-ZM-SM-01**. It is manufactured on t
 | SM-DRC-10 | LED array FPC artwork released (NP-FPC-ZM-SM-01) | Open — OI-PBM-HW-04 |
 | SM-DRC-11 | IRLML6344 thermal dissipation < 1 W per FET | ✓ (0.87 mW, §6.2) |
 | SM-DRC-12 | 1064nm LED Vf binning spec added to NP-PROC-FPC-1064-001 Rev A | ✓ (§3 of that document) |
-
----
-
-*NP-HW-FPC-001 Rev E — Smart Zone Module FPC Variant. Base module FPC (Rev D) is unchanged. Addresses Issue #54 DoD: smart module FPC layout variant.*

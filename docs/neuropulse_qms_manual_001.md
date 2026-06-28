@@ -308,7 +308,3 @@ This QMS Manual is the apex document. The Design History File (NP-DHF-001) index
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. QMS established at company formation. All NP-QMS, NP-DHF, NP-RM, NP-SW, and NP-QMS-CAPA procedures released simultaneously. |
-
----
-
-*NP-QMS-001 Rev A — ACTIVE — Effective 2026-05-13*

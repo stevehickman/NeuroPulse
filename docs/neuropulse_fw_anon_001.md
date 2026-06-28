@@ -350,7 +350,3 @@ FAI-ANON-09 uses synthetic test data with known ground truth. The adversarial at
 | OI-ANON-03 | study_public_key scheme selection — NaCl box vs AES-256-GCM+ECDH | Output format finalisation |
 | OI-ANON-04 | age_decile collection in app onboarding — voluntary bracket, no DOB | App spec (NP-APP-ROADMAP-001 Rev B) |
 | OI-ANON-05 | Expert Determination certification template (NP-ANON-CERT) finalised | STEP-32; IRB protocol approval |
-
----
-
-*NP-FW-ANON-001 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*

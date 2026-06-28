@@ -363,7 +363,3 @@ Silicon PD pair in base module: ~$1.50–3.00 total. InGaAs PD pair adds **+$17�
 | OI-PBM-HW-05 | ATtiny402 firmware NP-FW-ZM-TINY402-001 | FAI-SM-02/04 |
 | OI-PBM-HW-06 | Update FPC artwork (OI-PBM-HW-04) to include G12180-010A SMD footprint at PD1/PD2 annular ring positions | OI-PBM-HW-04 |
 | OI-PBM-HW-07 | 1064nm LED emitter: confirm Marubeni America EPITEX part number; obtain binning program confirmation; confirm SMD footprint match to FPC artwork | FAI-SM-04/06 |
-
----
-
-*NP-PROC-FPC-1064-001 Rev A — Smart Zone Module Component Selection and 1064nm LED Emitter Procurement Specification. Addresses Issue #54 DoD: I2C driver IC selected, InGaAs PD selected, TIA gain compatibility confirmed, 1064nm LED binning spec added.*

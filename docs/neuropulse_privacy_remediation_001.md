@@ -1083,7 +1083,3 @@ This document is under change control per NP-QMS-DC-001. Revisions required when
 - A STEP target milestone is changed
 
 Minor status updates (OPEN → IN PROGRESS → COMPLETE) may be made as minor revisions. New STEPS and changes to §4 authority requirements require a full revision cycle with CEO approval.
-
----
-
-*NP-PRIV-REM-001 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*

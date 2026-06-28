@@ -18,14 +18,6 @@
 
 ---
 
-## Revision History
-
-| Rev | Date | Author | Description |
-|-----|------|--------|-------------|
-| A | 2026-05-17 | Steve Hickman | Initial release. Formalises design and development plan per 21 CFR §820.30(b) and ISO 13485:2016 §7.3.1. Incorporates all design decisions made during pre-formation concept phase (pre-2026-05-13). |
-
----
-
 ## 1. Purpose
 
 This document defines the design and development plan for the NeuroPulse closed-loop multi-modal neuromodulation wearable platform. It establishes:
@@ -659,4 +651,8 @@ Responsibility for maintaining this document: Quality Lead (from Month 6) or CEO
 
 ---
 
-*This document is a controlled QMS record. Changes require Quality Lead or CEO approval and DHF update per NP-QMS-DC-001.*
+## Revision History
+
+| Rev | Date | Author | Description |
+|-----|------|--------|-------------|
+| A | 2026-05-17 | Steve Hickman | Initial release. Formalises design and development plan per 21 CFR §820.30(b) and ISO 13485:2016 §7.3.1. Incorporates all design decisions made during pre-formation concept phase (pre-2026-05-13). |

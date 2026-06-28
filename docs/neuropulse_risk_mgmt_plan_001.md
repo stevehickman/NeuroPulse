@@ -324,7 +324,3 @@ A Risk Management Report (per ISO 14971:2019 §9) shall be authored and approved
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. Risk Management Plan established at QMS formation. RISK-01 through RISK-25 formally entered under QMS change control. |
-
----
-
-*NP-RM-001 Rev A — ACTIVE — Effective 2026-05-13*

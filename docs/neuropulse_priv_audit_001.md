@@ -325,8 +325,3 @@ The following items must all be verified before first external beta (TestFlight 
 | OI-AUDIT-02 | Vendor SDK privacy manifest review — conduct at vendor selection | NP-PRIV-AUDIT-001 Rev A | High |
 | OI-AUDIT-03 | T2 clinical backend privacy audit (FHIR, scripting API, BAA cascade) — separate scope from this document | NP-PRIV-AUDIT-001 Rev A | Medium |
 | OI-AUDIT-04 | NP-PRIV-AUDIT-001 Rev B — re-audit against first implementation build; target Month 9 | NP-PRIV-AUDIT-001 Rev A | High |
-
----
-
-*NP-PRIV-AUDIT-001 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*  
-*This document is a QMS record under NP-QMS-DC-001 and is entered into the Design History File (NP-DHF-001) as a design verification activity.*

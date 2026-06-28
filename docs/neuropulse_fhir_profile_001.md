@@ -208,7 +208,3 @@ The NeuroPulse T2 clinical platform must include a FHIR validator integration th
 | OI-FHIR-03 | FHIR validator CI integration — IG package added to T2 backend build pipeline | T2 EHR integration development start |
 | OI-FHIR-04 | `effectivePeriod` precision policy — confirm 1-day precision is sufficient for clinical utility; no finer than 1-day permitted | First T2 data exchange |
 | OI-FHIR-05 | `Procedure.code` SNOMED CT mapping review — `229070002` (Biofeedback therapy) may not be the most precise code for TMS or tDCS; clinical informatics review required | T2 clinical mapping |
-
----
-
-*NP-INT-FHIR-001 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*

@@ -514,7 +514,3 @@ Open items created by this document:
 | OI-EMMC2-05 | EDF+ writer unit test: generate 100 EDF+ files and confirm all pass header validator | First EEG session recording implementation |
 | OI-EMMC2-06 | No-join CI test: confirm warranty_db × shdr_db join fails with authorisation error | STEP-01 completion |
 | OI-EMMC2-07 | SHDR schema CI test: confirm no prohibited accelerometer column types or names in fleet DB schema | STEP-10; BLOCKING for SHDR fleet DB schema freeze |
-
----
-
-*NP-FW-EMMC-002 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*

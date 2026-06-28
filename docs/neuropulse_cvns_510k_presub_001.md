@@ -276,6 +276,3 @@ NeuroPulse will request that FDA consider bundling the Q-Sub for all three modal
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
 | Rev A | 2026-05-11 | NeuroPulse Regulatory Affairs | Initial baseline; Issue #24 |
-
-*NP-REG-CVNS-001 Rev A — 2026-05-11*  
-*Confidential — not for external distribution prior to Q-Sub submission*
