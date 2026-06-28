@@ -27,7 +27,7 @@ import CoreBluetooth
 // MARK: - Mock BLE central manager
 
 /// Stub conforming to BLECentralManager for unit tests.
-/// Records every call made so assertions can verify the GATT manager's behaviour.
+/// Records every call made so assertions can verify the GATT manager's behavior.
 private final class MockBLECentral: BLECentralManager {
 
     var state: CBManagerState = .unknown

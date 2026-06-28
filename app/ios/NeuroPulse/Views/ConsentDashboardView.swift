@@ -67,7 +67,7 @@ struct ConsentDashboardView: View {
             } message: {
                 if let grant = grantPendingRevoke {
                     Text(String(format: String(localized: "DASHBOARD_REVOKE_MESSAGE_FORMAT"),
-                                grant.clinicianName, grant.clinicianOrganisation))
+                                grant.clinicianName, grant.clinicianOrganization))
                 }
             }
             // ISC-77: confirmation before withdrawing from a study
@@ -226,7 +226,7 @@ struct ClinicianGrantRow: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(grant.clinicianName).font(.subheadline.bold())
-                    Text(grant.clinicianOrganisation).font(.caption).foregroundColor(.secondary)
+                    Text(grant.clinicianOrganization).font(.caption).foregroundColor(.secondary)
                     Text(grant.tier.monthlyPrice).font(.caption2).foregroundColor(.secondary)
                 }
                 Spacer()
@@ -375,7 +375,7 @@ struct NewClinicianGrantView: View {
     @EnvironmentObject private var consentStore: ConsentStore
     @Environment(\.dismiss) private var dismiss
     @State private var name = ""
-    @State private var organisation = ""
+    @State private var organization = ""
     @State private var selectedTier: ClinicianUseCaseTier = .monitor
     @State private var selectedUseCases = Set<String>()
 
@@ -384,7 +384,7 @@ struct NewClinicianGrantView: View {
             Form {
                 Section("CLINICIAN_GRANT_SECTION_DETAILS") {
                     TextField("CLINICIAN_GRANT_NAME_PLACEHOLDER", text: $name)
-                    TextField("CLINICIAN_GRANT_ORG_PLACEHOLDER", text: $organisation)
+                    TextField("CLINICIAN_GRANT_ORG_PLACEHOLDER", text: $organization)
                 }
                 Section("CLINICIAN_GRANT_SECTION_ACCESS") {
                     Picker("CLINICIAN_GRANT_TIER_PICKER", selection: $selectedTier) {
@@ -416,13 +416,13 @@ struct NewClinicianGrantView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("CLINICIAN_GRANT_BUTTON") {
                         let grant = ClinicianConsentGrant(
-                            id: UUID(), clinicianName: name, clinicianOrganisation: organisation,
+                            id: UUID(), clinicianName: name, clinicianOrganization: organization,
                             tier: selectedTier, grantedAt: Date(), expiresAt: nil, isActive: true
                         )
                         consentStore.grantClinicianAccess(grant)
                         dismiss()
                     }
-                    .disabled(name.isEmpty || organisation.isEmpty)
+                    .disabled(name.isEmpty || organization.isEmpty)
                 }
             }
         }

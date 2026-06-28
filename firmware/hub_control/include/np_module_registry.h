@@ -20,7 +20,7 @@ typedef struct {
     np_hub_mod_type_t   type;
     uint8_t             slot;
     bool                present;
-    bool                initialised;
+    bool                initialized;
     np_mod_init_fn      init;
     np_mod_control_fn   control;
     np_mod_telemetry_fn telemetry;
@@ -73,7 +73,7 @@ np_mod_entry_t *np_mod_reg_find(np_hub_mod_type_t type);
 uint8_t np_mod_reg_count(void);
 
 /*
- * np_mod_reg_shutdown_all — call shutdown() on every present, initialised module.
+ * np_mod_reg_shutdown_all — call shutdown() on every present, initialized module.
  * Used on session abort and safe power-down.
  */
 void np_mod_reg_shutdown_all(void);

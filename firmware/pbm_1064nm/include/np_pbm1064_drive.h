@@ -21,7 +21,7 @@ typedef struct {
     uint8_t duty[3];         /* actual duty values written (post-clamp)            */
     uint8_t ch_enable;       /* last written CH_ENABLE register                   */
     uint8_t status;          /* last STATUS read                                  */
-    bool    initialised;     /* true after successful startup sequence             */
+    bool    initialized;     /* true after successful startup sequence             */
 } np_pbm1064_drv_slot_t;
 
 /*

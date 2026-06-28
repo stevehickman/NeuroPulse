@@ -254,7 +254,7 @@ class NeuroPulseSimulator {
       }
     }
 
-    // Bounce plane colour reflects active modality
+    // Bounce plane color reflects active modality
     if (this._bouncePlane) {
       const col = snap.pbm.active ? 0x221100 : (snap.eeg.active ? 0x001122 : 0x001133);
       this._bouncePlane.material.color.setHex(col);

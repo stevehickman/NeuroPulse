@@ -27,7 +27,7 @@ extern "C" {
 /* ── Lifecycle ──────────────────────────────────────────────────────────────── */
 
 /*
- * Initialise the zone announce module.
+ * Initialize the zone announce module.
  *
  * @param insert_cb         Called on confirmed insertion (twice: before and
  *                          after audio — see np_za_insert_cb_t).
@@ -59,7 +59,7 @@ void np_za_tick(uint32_t now_ms);
 
 /*
  * Called from the eDMA half-transfer and transfer-complete ISRs.
- * Fills the next half of the DMA ping-pong buffer with synthesised samples.
+ * Fills the next half of the DMA ping-pong buffer with synthesized samples.
  * @param half  0 = fill first half, 1 = fill second half.
  */
 void np_za_audio_tick(uint8_t half);
@@ -88,7 +88,7 @@ const char *np_za_zone_name(np_zone_id_t zone);
 bool np_za_platform_adc_read(uint8_t slot_index, uint16_t *out_counts);
 
 /*
- * OI-ZA-02: Initialise SAI3 for 8 kHz, 16-bit, stereo I2S output routed to
+ * OI-ZA-02: Initialize SAI3 for 8 kHz, 16-bit, stereo I2S output routed to
  * the bone conduction amplifier.  Configure eDMA channel NP_ZA_SAI_DMA_CHANNEL
  * for circular ping-pong transfer from np_za_ctx.dma_buf.
  * Returns false on failure.

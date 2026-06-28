@@ -51,7 +51,7 @@ static struct np_hrv_session s_session_pool;  /* single-instance pool */
 
 static void tavns_enable(uint16_t freq_hz, uint16_t current_ua)
 {
-    /* Platform HAL call: programmes VNS pulse generator and requests         */
+    /* Platform HAL call: programs VNS pulse generator and requests         */
     /* safety MCU SPI enable.  The response comes back asynchronously via     */
     /* np_hrv_tavns_safety_mcu_response().                                    */
     /* Stub — implemented by the platform HAL layer. */
@@ -115,18 +115,18 @@ np_hrv_status_t np_hrv_session_start(np_hrv_session_t *sess, uint32_t now_ms)
     sess->last_coherence_update_ms = now_ms;
     sess->last_adaptive_update_ms  = now_ms;
 
-    /* Initialise PPG peak detector (start threshold 2048 = mid-scale 12-bit). */
+    /* Initialize PPG peak detector (start threshold 2048 = mid-scale 12-bit). */
     np_hrv_ppg_init(&sess->ppg_det, 2048);
 
-    /* Initialise Welch PSD accumulator. */
+    /* Initialize Welch PSD accumulator. */
     np_hrv_coherence_init(&sess->psd);
 
-    /* Initialise breathing pacer. */
+    /* Initialize breathing pacer. */
     float init_rate = (sess->config.pacer_rate_bpm > 0.0f)
                        ? sess->config.pacer_rate_bpm : 0.0f;
     np_hrv_pacer_init(&sess->pacer, init_rate, 0.0f, pacer_phase_change);
 
-    /* Initialise taVNS if needed. */
+    /* Initialize taVNS if needed. */
     if (sess->config.protocol == NP_HRV_PROTO_TAVNS_SYNC) {
         np_hrv_tavns_init(&sess->tavns,
                            sess->config.tavns_freq_hz   ? sess->config.tavns_freq_hz
@@ -136,7 +136,7 @@ np_hrv_status_t np_hrv_session_start(np_hrv_session_t *sess, uint32_t now_ms)
                            tavns_enable, tavns_disable);
     }
 
-    /* Initialise EEG buffer for dual biofeedback. */
+    /* Initialize EEG buffer for dual biofeedback. */
     if (sess->config.protocol == NP_HRV_PROTO_EEG_DUAL) {
         np_hrv_eeg_init(&sess->eeg_buf);
     }
@@ -275,7 +275,7 @@ void np_hrv_session_stop(np_hrv_session_t *sess, uint32_t now_ms)
     memset(&record, 0, sizeof(record));
     record.duration_s        = (uint32_t)((now_ms - sess->start_ms) / 1000U);
     record.protocol          = sess->config.protocol;
-    record.target_rate_bpm   = sess->pacer.personalised
+    record.target_rate_bpm   = sess->pacer.personalized
                                 ? sess->pacer.target_rate_bpm
                                 : sess->config.pacer_rate_bpm;
     record.rr_sample_count   = sess->rr_buf.count;

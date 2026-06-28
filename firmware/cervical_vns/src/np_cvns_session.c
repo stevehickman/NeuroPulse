@@ -144,7 +144,7 @@ np_cvns_status_t np_cvns_session_start(np_cvns_session_ctx_t          *ctx,
     ctx->session_start_unix = now_unix;
     ctx->stim_start_ms     = 0U;
 
-    /* Initialise UHDR record (timestamps and session parameters are UHDR). */
+    /* Initialize UHDR record (timestamps and session parameters are UHDR). */
     memset(&ctx->uhdr_record, 0, sizeof(ctx->uhdr_record));
     ctx->uhdr_record.session_start_unix = now_unix;
     ctx->uhdr_record.stim_freq_hz       = config->freq_hz;
@@ -152,13 +152,13 @@ np_cvns_status_t np_cvns_session_start(np_cvns_session_ctx_t          *ctx,
     ctx->uhdr_record.stim_pulse_width_us = config->pulse_width_us;
     ctx->uhdr_record.electrode_config   = config->electrode_config;
 
-    /* Initialise SHDR summary (no user biology). */
+    /* Initialize SHDR summary (no user biology). */
     memset(&ctx->shdr_summary, 0, sizeof(ctx->shdr_summary));
     ctx->shdr_summary.electrode_config  = config->electrode_config;
     ctx->shdr_summary.stim_freq_hz      = config->freq_hz;
     ctx->shdr_summary.stim_current_ua   = config->current_ua;
 
-    /* Initialise stim module (validates config). */
+    /* Initialize stim module (validates config). */
     np_cvns_status_t ret = np_cvns_stim_init(ctx->stim, config, NULL);
     if (ret != NP_CVNS_OK) {
         return ret;

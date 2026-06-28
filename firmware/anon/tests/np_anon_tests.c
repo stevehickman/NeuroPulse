@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Research Anonymisation — Scratch Encryption Host Tests
+ * NeuroPulse Research Anonymization — Scratch Encryption Host Tests
  * Document: NP-FW-EMMC-002 Rev A §D
  *
  * Exercises the init → write → read → complete cycle on the host using the
@@ -146,7 +146,7 @@ static void test_complete_clears_secrets(void)
 
     np_anon_scratch_complete(&ctx);
 
-    ASSERT(key_is_zeroed(&ctx), "key + nonce should be zeroised after complete");
+    ASSERT(key_is_zeroed(&ctx), "key + nonce should be zeroized after complete");
     ASSERT(!ctx.key_valid, "key_valid should be false after complete");
     ASSERT(ctx.session_id == sid_before + 1U, "session_id should increment");
     ASSERT((np_anon_host_lpgpr2 & NP_SNVS_ANON_IN_PROGRESS) == 0U,

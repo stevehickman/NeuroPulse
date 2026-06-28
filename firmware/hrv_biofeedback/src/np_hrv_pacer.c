@@ -54,19 +54,19 @@ void np_hrv_pacer_init(np_pacer_state_t  *pacer,
     if (personalised_rate_bpm >= NP_PACER_RATE_MIN_BPM &&
         personalised_rate_bpm <= NP_PACER_RATE_MAX_BPM) {
         pacer->target_rate_bpm = personalised_rate_bpm;
-        pacer->personalised    = true;
+        pacer->personalized    = true;
     } else if (rate_bpm >= NP_PACER_RATE_MIN_BPM &&
                rate_bpm <= NP_PACER_RATE_MAX_BPM) {
         pacer->target_rate_bpm = rate_bpm;
-        pacer->personalised    = false;
-        /* Start RF sweep on first session where no personalised rate exists. */
+        pacer->personalized    = false;
+        /* Start RF sweep on first session where no personalized rate exists. */
         pacer->sweep_active    = true;
         pacer->sweep_step_idx  = 0U;
         pacer->sweep_rate_bpm  = NP_PACER_RATE_MIN_BPM;
         pacer->target_rate_bpm = NP_PACER_RATE_MIN_BPM;
     } else {
         pacer->target_rate_bpm = NP_PACER_RATE_DEFAULT_BPM;
-        pacer->personalised    = false;
+        pacer->personalized    = false;
         pacer->sweep_active    = true;
         pacer->sweep_step_idx  = 0U;
         pacer->sweep_rate_bpm  = NP_PACER_RATE_MIN_BPM;
@@ -80,7 +80,7 @@ void np_hrv_pacer_init(np_pacer_state_t  *pacer,
 void np_hrv_pacer_tick(np_pacer_state_t *pacer, uint32_t now_ms)
 {
     if (pacer->phase_start_ms == 0U) {
-        /* First tick: initialise phase start. */
+        /* First tick: initialize phase start. */
         pacer->phase_start_ms = now_ms;
         if (s_phase_cb) {
             s_phase_cb(pacer->phase, pacer->inspire_duration_ms);
@@ -117,7 +117,7 @@ void np_hrv_pacer_tick(np_pacer_state_t *pacer, uint32_t now_ms)
                         pacer->target_rate_bpm = pacer->sweep_rate_bpm;
                         update_phase_durations(pacer);
                     } else {
-                        /* Sweep complete — finalisation via np_hrv_pacer_sweep_finalise. */
+                        /* Sweep complete — finalization via np_hrv_pacer_sweep_finalise. */
                         pacer->sweep_active = false;
                         s_sweep_step_start_ms = 0U;
                     }
@@ -172,7 +172,7 @@ np_hrv_status_t np_hrv_pacer_sweep_finalise(np_pacer_state_t *pacer,
 
     float best_rate          = sweep_rate_for_step(best_idx);
     pacer->target_rate_bpm   = best_rate;
-    pacer->personalised      = true;
+    pacer->personalized      = true;
     *best_rate_bpm_out        = best_rate;
     update_phase_durations(pacer);
 

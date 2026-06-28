@@ -246,7 +246,7 @@ static void test_heartbeat_unaffected(void)
     rx.reserved      = 0U;
     rx.checksum      = heartbeat_checksum(&rx);
 
-    /* Magic still recognised */
+    /* Magic still recognized */
     check(rx.magic[0] == NP_SAFETY_BEAT_MAGIC_0, "heartbeat magic[0] unchanged");
     check(rx.magic[1] == NP_SAFETY_BEAT_MAGIC_1, "heartbeat magic[1] unchanged");
 

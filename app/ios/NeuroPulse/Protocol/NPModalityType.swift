@@ -103,7 +103,7 @@ enum NPModalityType: String, CaseIterable, Codable, Identifiable {
         case .tms:
             return "Focal figure-8 coil; 0.1–0.5T; rTMS + TBS; TMS-gated EMF cancellation."
         case .pbmDeep1170nm:
-            return "Laser diodes; 35–40mm subcortical depth; TEC stabilised; ≤1,000mW/cm²."
+            return "Laser diodes; 35–40mm subcortical depth; TEC stabilized; ≤1,000mW/cm²."
         case .clinicalTacs:
             return "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
         case .hdTdcs:

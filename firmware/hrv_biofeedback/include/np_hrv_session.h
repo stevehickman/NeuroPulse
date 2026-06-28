@@ -52,7 +52,7 @@ typedef void (*np_hrv_session_end_cb_t)(const np_hrv_session_record_t *record,
                                          np_hrv_status_t                reason);
 
 /*
- * Allocate and initialise a session context.
+ * Allocate and initialize a session context.
  * Returns NULL if the static context pool is exhausted (only 1 session allowed
  * at a time; returns the existing context if already allocated).
  *

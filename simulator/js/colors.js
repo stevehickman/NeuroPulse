@@ -3,8 +3,8 @@
  *
  * Design principle: longer actual wavelengths are represented by longer
  * apparent visible wavelengths (toward the red end of the visible spectrum).
- * Visible 660 nm is shown as its actual colour. All NIR wavelengths are
- * false-coloured, with the convention that the progression
+ * Visible 660 nm is shown as its actual color. All NIR wavelengths are
+ * false-colored, with the convention that the progression
  * red → orange → amber → gold tracks 660 → 808 → 1064 → 1170 nm.
  *
  * The EEG, BES, tDCS, VNS and audio modalities each get a distinct
@@ -14,7 +14,7 @@
 export const WL = {
   '660nm': {
     label: '660 nm — Red',
-    description: 'Visible red. Shown as actual colour.',
+    description: 'Visible red. Shown as actual color.',
     hex: '#FF2200',
     glowHex: '#FF5533',
     threeHex: 0xFF2200,
@@ -24,7 +24,7 @@ export const WL = {
   },
   '808nm': {
     label: '808 nm — NIR',
-    description: 'Near-infrared (invisible). False colour: orange.',
+    description: 'Near-infrared (invisible). False color: orange.',
     hex: '#FF7200',
     glowHex: '#FF9944',
     threeHex: 0xFF7200,
@@ -34,7 +34,7 @@ export const WL = {
   },
   '830nm': {
     label: '830 nm — NIR',
-    description: 'Near-infrared (invisible). False colour: deep orange.',
+    description: 'Near-infrared (invisible). False color: deep orange.',
     hex: '#FF8C00',
     glowHex: '#FFAA44',
     threeHex: 0xFF8C00,
@@ -44,7 +44,7 @@ export const WL = {
   },
   '1064nm': {
     label: '1064 nm — NIR-II',
-    description: 'NIR-II (invisible). False colour: amber.',
+    description: 'NIR-II (invisible). False color: amber.',
     hex: '#FFBB00',
     glowHex: '#FFD044',
     threeHex: 0xFFBB00,
@@ -54,7 +54,7 @@ export const WL = {
   },
   '1170nm': {
     label: '1170 nm — Deep NIR (T2)',
-    description: 'Deep near-infrared (invisible, T2 only). False colour: gold.',
+    description: 'Deep near-infrared (invisible, T2 only). False color: gold.',
     hex: '#FFE500',
     glowHex: '#FFF066',
     threeHex: 0xFFE500,
@@ -64,7 +64,7 @@ export const WL = {
   },
 };
 
-/** Per-modality accent colours (used in UI panels and indicators). */
+/** Per-modality accent colors (used in UI panels and indicators). */
 export const MODALITY_COLORS = {
   pbm:      { hex: '#FF5500', three: 0xFF5500, label: 'PBM' },
   eeg:      { hex: '#00D4FF', three: 0x00D4FF, label: 'EEG' },
@@ -78,7 +78,7 @@ export const MODALITY_COLORS = {
   haptic:   { hex: '#FFFF44', three: 0xFFFF44, label: 'Haptic (40 Hz)' },
 };
 
-/** EEG electrode impedance status colours. */
+/** EEG electrode impedance status colors. */
 export const IMPEDANCE_COLORS = {
   good:     { hex: '#00FF44', three: 0x00FF44 }, // < 10 kΩ
   marginal: { hex: '#FFAA00', three: 0xFFAA00 }, // 10–25 kΩ

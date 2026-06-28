@@ -82,10 +82,10 @@ typedef struct {
     bool             sweep_active;    /* true during resonance frequency sweep   */
     uint8_t          sweep_step_idx;  /* index through sweep rates               */
     float            sweep_coherence[8]; /* coherence captured at each sweep step*/
-    bool             personalised;    /* true once user RF has been found        */
+    bool             personalized;    /* true once user RF has been found        */
 } np_pacer_state_t;
 
-/* ── taVNS synchronisation state ────────────────────────────────────────────── */
+/* ── taVNS synchronization state ────────────────────────────────────────────── */
 typedef enum {
     NP_TAVNS_IDLE       = 0,  /* waiting for inspiration onset                   */
     NP_TAVNS_STIMULATING = 1, /* stim gated ON (inspiration phase active)        */
@@ -150,7 +150,7 @@ typedef struct {
 typedef struct {
     uint8_t          protocol;        /* np_hrv_protocol_t                        */
     uint16_t         duration_s;      /* 300–1200                                 */
-    float            pacer_rate_bpm;  /* 0.0 = use personalised/default           */
+    float            pacer_rate_bpm;  /* 0.0 = use personalized/default           */
     uint16_t         tavns_freq_hz;   /* 1–25; ignored for non-taVNS protocols   */
     uint16_t         tavns_current_ua;/* 100–2000; clamped by safety MCU         */
     bool             use_bone_conduction_cue;

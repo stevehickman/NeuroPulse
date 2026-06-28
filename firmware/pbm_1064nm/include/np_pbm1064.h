@@ -22,7 +22,7 @@ bool np_pbm1064_i2c_probe(uint8_t slot);
  * np_pbm1064_drive — I2C command protocol to on-module driver
  * ----------------------------------------------------------------------- */
 
-/* Initialise driver IC for a zone slot: write CONFIG, current, frequency, duty.
+/* Initialize driver IC for a zone slot: write CONFIG, current, frequency, duty.
  * Enforces duty cycle ceiling (NP_PBM1064_DUTY_MAX_REG) unconditionally. */
 void np_pbm1064_drive_init(uint8_t slot, const np_pbm1064_preset_t *preset);
 
@@ -93,7 +93,7 @@ void np_pbm1064_session_stop(np_pbm1064_session_t *session);
  * np_pbm1064_t2_combined — T2 combined 1064 + 1170 nm session
  * ----------------------------------------------------------------------- */
 
-/* Initialise T2 combined session. Both hardware systems must be ready.
+/* Initialize T2 combined session. Both hardware systems must be ready.
  * Returns false if 1170 nm system unavailable (abort session). */
 bool np_pbm1064_t2_init(np_pbm1064_t2_session_t *t2, const np_pbm1064_preset_t *zone_presets,
                          void *laser_preset);

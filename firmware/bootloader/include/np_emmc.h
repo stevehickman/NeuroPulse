@@ -10,7 +10,7 @@
 
 /* ── Public API ───────────────────────────────────────────────────────────── */
 
-/* Initialise USDHC2 peripheral and enumerate the eMMC device.                */
+/* Initialize USDHC2 peripheral and enumerate the eMMC device.                */
 /* Must be called once at boot before any read/write operations.              */
 np_status_t np_emmc_init(void);
 

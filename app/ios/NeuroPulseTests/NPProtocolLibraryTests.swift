@@ -95,7 +95,7 @@ final class NPProtocolLibraryTests: XCTestCase {
             "Retinal Health",
             "PTSD EMDR Support",
             "HRV Coherence Training",
-            "HRV + taVNS Synchronised",
+            "HRV + taVNS Synchronized",
             "Focus Prime",
             "Gamma + Theta Coupled",
             "Full T1 Immersive",
@@ -116,7 +116,7 @@ final class NPProtocolLibraryTests: XCTestCase {
 
         let expectedCompositeNames = [
             "Full Multi-Modal RCT",
-            "Sleep Optimisation Stack",
+            "Sleep Optimization Stack",
             "Calm to Focus",
             "Sleep Wind-Down",
         ]

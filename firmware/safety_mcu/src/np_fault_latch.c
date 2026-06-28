@@ -50,7 +50,7 @@ np_safe_status_t np_fault_latch_init(bool *prior_fault_out)
         /* Warm reset with valid latch: prior fault persists */
         *prior_fault_out = (s_latch.status != NP_SAFETY_STATUS_OK);
     } else {
-        /* Power-on reset or first boot: initialise latch */
+        /* Power-on reset or first boot: initialize latch */
         memset(&s_latch, 0, sizeof(s_latch));
         s_latch.magic = NP_FAULT_LATCH_MAGIC;
         s_latch.slot  = 0xFFU;

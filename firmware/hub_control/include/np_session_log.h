@@ -20,7 +20,7 @@
 #include "np_hub_types.h"
 #include "np_adaptation_log.h"
 
-/* ── Log record type tags (written as first byte of each serialised record) ───── */
+/* ── Log record type tags (written as first byte of each serialized record) ───── */
 
 #define NP_LOG_TAG_UHDR_SESSION_START   0x10U
 #define NP_LOG_TAG_UHDR_SESSION_END     0x11U
@@ -42,7 +42,7 @@
 /* ── API ─────────────────────────────────────────────────────────────────────── */
 
 /*
- * np_log_init — initialise logger buffers; call once at hub startup.
+ * np_log_init — initialize logger buffers; call once at hub startup.
  * Reads device_session_count from SHDR for SHDR record headers.
  */
 void np_log_init(uint32_t device_session_count);

@@ -117,7 +117,7 @@ typedef struct {
 #define EMMC_ACCESS_USER            (0U)    /* access user data area          */
 
 /* ── Internal state ───────────────────────────────────────────────────────── */
-static bool     s_emmc_initialised = false;
+static bool     s_emmc_initialized = false;
 static uint8_t  s_rca              = 0U;    /* Relative Card Address (8-bit)  */
 static uint8_t  s_current_part     = 0xFFU; /* Track active partition         */
 
@@ -202,7 +202,7 @@ np_status_t np_emmc_init(void)
     np_status_t ret;
     uint32_t    rsp0;
 
-    if (s_emmc_initialised) {
+    if (s_emmc_initialized) {
         return NP_OK;
     }
 
@@ -256,7 +256,7 @@ np_status_t np_emmc_init(void)
         return ret;
     }
 
-    s_emmc_initialised = true;
+    s_emmc_initialized = true;
     s_current_part     = NP_EMMC_USER_AREA;
     return NP_OK;
 }

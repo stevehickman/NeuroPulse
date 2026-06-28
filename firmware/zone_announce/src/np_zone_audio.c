@@ -208,17 +208,17 @@ np_za_status_t np_za_audio_play(np_za_ctx_t *ctx, np_zone_id_t zone)
         (uint32_t)seg0->duration_ms * NP_ZA_AUDIO_SAMPLE_RATE_HZ / 1000U;
     s_player->active = true;
 
-    /* Initialise DDS for first segment. */
+    /* Initialize DDS for first segment. */
     s_dds->phase_inc   = freq_to_phase_inc(seg0->freq_hz);
     s_dds->target_amp  = (seg0->freq_hz > 0U) ? NP_ZA_AUDIO_AMPLITUDE_Q15 : 0;
     s_dds->amplitude   = 0;    /* start at zero, ramp up */
     s_dds->ramp_step   = RAMP_STEP;
 
-    if (!ctx->audio_initialised) {
+    if (!ctx->audio_initialized) {
         if (!np_za_platform_sai_init(s_dma_buf, NP_ZA_DMA_BUF_SAMPLES)) {
             return NP_ZA_ERR_AUDIO_INIT;
         }
-        ctx->audio_initialised = true;
+        ctx->audio_initialized = true;
     }
 
     /* Pre-fill both halves before starting DMA to avoid initial under-run. */
@@ -255,7 +255,7 @@ bool np_za_audio_busy(void)
 
 /*
  * Called from eDMA half-complete and transfer-complete ISR.
- * Fills half the ping-pong DMA buffer with synthesised samples.
+ * Fills half the ping-pong DMA buffer with synthesized samples.
  *
  * The DMA buffer is 16-bit stereo for SAI3 compatibility; bone conduction
  * is mono — the same sample is written to both L and R channels.

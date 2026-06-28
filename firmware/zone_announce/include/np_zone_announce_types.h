@@ -44,7 +44,7 @@ typedef enum {
     NP_ZA_ERR_AUDIO_BUSY        = -4,
     NP_ZA_ERR_AUDIO_INIT        = -5,
     NP_ZA_ERR_SAI_TIMEOUT       = -6,
-    NP_ZA_ERR_UNKNOWN_ZONE      = -7,  /* zone resistor value not recognised     */
+    NP_ZA_ERR_UNKNOWN_ZONE      = -7,  /* zone resistor value not recognized     */
 } np_za_status_t;
 
 /* ── Debounce state ─────────────────────────────────────────────────────────── */
@@ -153,7 +153,7 @@ typedef struct {
     np_za_insert_cb_t   insert_cb;
     np_za_remove_cb_t   remove_cb;
     np_za_shdr_cb_t     shdr_cb;
-    bool                audio_initialised;
+    bool                audio_initialized;
     uint32_t            device_session_count; /* from SHDR, set at init          */
 } np_za_ctx_t;
 

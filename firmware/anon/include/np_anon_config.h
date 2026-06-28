@@ -1,17 +1,17 @@
 /*
- * NeuroPulse Research Anonymisation — Scratch Encryption Configuration
+ * NeuroPulse Research Anonymization — Scratch Encryption Configuration
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  * Document: NP-FW-EMMC-002 Rev A §D
  *
  * Defines the AES-256-CTR scratch-partition encryption constants for the
- * on-device research anonymisation pipeline.  Decrypted UHDR data is staged
+ * on-device research anonymization pipeline.  Decrypted UHDR data is staged
  * only in the Scratch partition as ciphertext; the key lives in SRAM and is
  * destroyed on completion or lost on power-off, so a power-loss event leaves
  * nothing recoverable.
  *
  * Scratch partition LBA geometry is owned by the bootloader storage map
  * (NP-FW-EMMC-001 Rev A §4).  This header re-exports it from np_config.h so
- * the anonymisation module and the bootloader agree on the same region.
+ * the anonymization module and the bootloader agree on the same region.
  */
 
 #ifndef NP_ANON_CONFIG_H
@@ -44,12 +44,12 @@
 /* block_offset * NP_ANON_AES_BLOCKS_PER_SCRATCH_BLOCK.  See OI-ANON-AES-02.    */
 #define NP_ANON_AES_BLOCKS_PER_SCRATCH_BLOCK  (NP_ANON_SCRATCH_BLOCK_SIZE / 16U)
 
-/* ── SNVS_LPGPR2 — anonymisation in-progress flag (NP-FW-EMMC-002 §D.6) ──── */
+/* ── SNVS_LPGPR2 — anonymization in-progress flag (NP-FW-EMMC-002 §D.6) ──── */
 /*                                                                            */
 /* SNVS general-purpose registers survive warm reset but not power-off.  The  */
 /* flag is set before the first scratch write and cleared only after the      */
 /* post-run SANITIZE completes.  If the bootloader finds it set on boot, an   */
-/* anonymisation run was interrupted (power loss) and the Scratch partition   */
+/* anonymization run was interrupted (power loss) and the Scratch partition   */
 /* is SANITIZE'd before the flag is cleared.                                  */
 /*                                                                            */
 /* NOTE: np_config.h (included above) already defines NP_SNVS_LPGPR2 as the   */

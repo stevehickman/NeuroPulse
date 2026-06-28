@@ -1,4 +1,4 @@
-// TODO(localisation): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
+// TODO(localization): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
 import SwiftUI
 
 // Research suggestion portal — CLAUDE.md §6.3.

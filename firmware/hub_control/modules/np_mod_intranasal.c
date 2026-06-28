@@ -4,7 +4,7 @@
  *
  * Bilateral intranasal PBM Y-probe: 660nm + 808-830nm per probe.
  * Authentication: optical code (resistive pogo-pin sleeve ID, no NFC/EMF).
- * The hub dock stores the probe when not in use (moulded dock prevents Y-junction
+ * The hub dock stores the probe when not in use (molded dock prevents Y-junction
  * fracture — probe must be re-docked before removal to protect silicone Y-joint).
  *
  * HAL stubs:

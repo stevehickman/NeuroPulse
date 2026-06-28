@@ -85,7 +85,7 @@ final class NPProtocolValidatorTests: XCTestCase {
         )
     }
 
-    // MARK: - testChargeDensityOverLimitRejected (intended-behaviour spec)
+    // MARK: - testChargeDensityOverLimitRejected (intended-behavior spec)
 
     func testChargeDensityOverLimitRejected() {
         // 2.0 mA × 3600s / (35 cm²/electrode × 2 electrodes) = 102.9 µC/cm² — over 40.
@@ -99,7 +99,7 @@ final class NPProtocolValidatorTests: XCTestCase {
         )
     }
 
-    // MARK: - testChargeDensityBorderlineValid (intended-behaviour spec)
+    // MARK: - testChargeDensityBorderlineValid (intended-behavior spec)
 
     func testChargeDensityBorderlineValid() {
         // Intended contract: exactly 40.0 µC/cm² is accepted (inclusive ceiling).
@@ -117,7 +117,7 @@ final class NPProtocolValidatorTests: XCTestCase {
         )
     }
 
-    // MARK: - testChargeDensityBorderlineInvalid (intended-behaviour spec)
+    // MARK: - testChargeDensityBorderlineInvalid (intended-behavior spec)
 
     func testChargeDensityBorderlineInvalid() {
         // 2.0 mA × 3600s / 70 cm² = 102.9 µC/cm² — over 40, must be rejected.
@@ -131,7 +131,7 @@ final class NPProtocolValidatorTests: XCTestCase {
         )
     }
 
-    // MARK: - testZeroDurationRejected (intended-behaviour spec)
+    // MARK: - testZeroDurationRejected (intended-behavior spec)
 
     func testZeroDurationRejected() {
         let pbm = NPPBMTranscranialParams(intensityPercent: 75, frequencyHz: 20, dutyCyclePercent: 25)
@@ -145,7 +145,7 @@ final class NPProtocolValidatorTests: XCTestCase {
         )
     }
 
-    // MARK: - testDoseOverLimitRejected (intended-behaviour spec)
+    // MARK: - testDoseOverLimitRejected (intended-behavior spec)
 
     func testDoseOverLimitRejected() {
         // 100% CW intensity = 200 mW/cm² × 3600s / 1000 = 720 J/cm² — over the 10 J/cm² limit.

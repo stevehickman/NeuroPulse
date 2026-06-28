@@ -38,7 +38,7 @@ final class GATTParserTests: XCTestCase {
     func testParseSessionStatusRejectsUnknownStatusByte() {
         let data = Data([0x07, 0xFF])  // 0xFF is not a valid SessionStatus
         XCTAssertNil(GATTParser.parseSessionStatus(data),
-                     "An unrecognised status byte must yield nil, not a partial tuple.")
+                     "An unrecognized status byte must yield nil, not a partial tuple.")
     }
 
     // MARK: - HRV_COHERENCE (uint16 coherence×100 + uint16 RMSSD)
@@ -131,7 +131,7 @@ final class GATTParserTests: XCTestCase {
         var pending = SessionState.empty
         let baseline = pending.consumableSessionCounts
         XCTAssertEqual(baseline, [0, 0, 0, 0],
-                       "Precondition: SessionState.empty must initialise counts to zero.")
+                       "Precondition: SessionState.empty must initialize counts to zero.")
 
         // NPUUID.sessionState → pending.epoch only
         if let epoch = GATTParser.parseSessionState(Data([0x01, 0x00, 0x00, 0x00])) {

@@ -33,7 +33,7 @@ typedef void (*np_hd_safety_response_cb_t)(np_hd_stim_ctx_t *ctx,
 /* ── Lifecycle ───────────────────────────────────────────────────────────────── */
 
 /*
- * Initialise stimulation context for the given montage.
+ * Initialize stimulation context for the given montage.
  * Maps montage electrodes to tACS driver channels.
  * safety_cb: called when safety MCU responds via SPI.
  */

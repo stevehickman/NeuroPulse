@@ -155,7 +155,7 @@
  * Must be asserted HIGH after ZONE_ID debounce confirms smart module (ADC < 1100)
  * and BEFORE np_pbm1064_hal_i2c_mux_enable() is called for that slot.
  * Must be deasserted LOW after I2C mux disable on smart module removal.
- * Must be initialised LOW for all slots before zone detection task starts.
+ * Must be initialized LOW for all slots before zone detection task starts.
  */
 #define NP_PBM1064_TIA_RF_HIGH_OHMS     47000U  /* base / absent — silicon PD     */
 #define NP_PBM1064_TIA_RF_LOW_OHMS      22000U  /* smart module — InGaAs PD       */
@@ -175,7 +175,7 @@
 
 /*
  * 1170nm deep PBM laser (subcortical, T2 only).
- * TEC-stabilised laser diodes; dose metering via integrated monitor PD in T2 laser module.
+ * TEC-stabilized laser diodes; dose metering via integrated monitor PD in T2 laser module.
  * Spec: ≤1000 mW/cm² peak irradiance (CLAUDE.md §3 T2 additions).
  */
 #define NP_T2_1170_IRRADIANCE_MAX_MW_CM2    1000.0f

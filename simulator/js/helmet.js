@@ -6,7 +6,7 @@
  * cups, occipital hub + Boa dial, spring-decoupled EEG pods, VNS auricular clip.
  *
  * Coordinate frame:  +Y up,  +Z toward viewer (front of helmet),  +X right.
- * Head centre at origin; crown at Y ≈ +1.0.
+ * Head center at origin; crown at Y ≈ +1.0.
  */
 
 import * as THREE from 'three';
@@ -304,7 +304,7 @@ export class HelmetModel {
 
       const panelGroup = new THREE.Group();
       panelGroup.position.set(x, y, z);
-      // Orient outward from sphere centre
+      // Orient outward from sphere center
       panelGroup.lookAt(0, 0, 0);
       panelGroup.rotateY(Math.PI);
 
@@ -370,7 +370,7 @@ export class HelmetModel {
       const springM = new THREE.MeshStandardMaterial({ color: 0x667788, roughness: 0.6, metalness: 0.4 });
       const spring  = new THREE.Mesh(springG, springM);
 
-      // Orient spring toward head centre
+      // Orient spring toward head center
       const dir = new THREE.Vector3(x, y, z).normalize();
       spring.position.set(
         x - dir.x * (springLen / 2),
@@ -444,7 +444,7 @@ export class HelmetModel {
       }
     }
 
-    // Hall sensor pill (top centre, for shade detection)
+    // Hall sensor pill (top center, for shade detection)
     const hallG = new THREE.BoxGeometry(0.016, 0.008, 0.006);
     const hallM = new THREE.MeshStandardMaterial({ color: 0x334455 });
     gogGroup.add(new THREE.Mesh(hallG, hallM));
@@ -560,7 +560,7 @@ export class HelmetModel {
       hubGroup.add(vent);
     }
 
-    // Probe dock slot — moulded recess on right face of hub for Y-probe storage
+    // Probe dock slot — molded recess on right face of hub for Y-probe storage
     const dockSlotG = new THREE.BoxGeometry(0.036, 0.088, 0.013);
     const dockSlotM = new THREE.MeshStandardMaterial({ color: 0x040810, roughness: 0.96, metalness: 0 });
     const dockSlot  = new THREE.Mesh(dockSlotG, dockSlotM);
@@ -593,7 +593,7 @@ export class HelmetModel {
     const tube = new THREE.Mesh(geo, mat);
     this.group.add(tube);
 
-    // Boa dial at centre of arch
+    // Boa dial at center of arch
     const dialG = new THREE.CylinderGeometry(0.045, 0.040, 0.022, 24);
     const dialM = new THREE.MeshStandardMaterial({ color: 0x3a5070, roughness: 0.3, metalness: 0.7 });
     const dial  = new THREE.Mesh(dialG, dialM);
@@ -679,7 +679,7 @@ export class HelmetModel {
     // T2 focal figure-8 coil — positioned at left prefrontal (DLPFC_L target,
     // ~F3/FC3 in 10-20 system).  Hidden until toggled on via accessories panel.
     //
-    // Anatomy: two circular windings side-by-side sharing a centre point,
+    // Anatomy: two circular windings side-by-side sharing a center point,
     // with the junction directly over the target cortex (left DLPFC).
     // A straight handle extends posteriorly at ~45° for the clinician's grip.
     // Non-conductive CFRP window is represented by a faint cutout ring in the
@@ -706,7 +706,7 @@ export class HelmetModel {
     housing.rotation.x = Math.PI / 2;
     coilGroup.add(housing);
 
-    // ── Figure-8 windings: two tori offset left and right from centre ─────
+    // ── Figure-8 windings: two tori offset left and right from center ─────
     const windingMat = new THREE.MeshStandardMaterial({
       color: 0x2a3f5f, roughness: 0.35, metalness: 0.75,
       emissive: new THREE.Color(0x0033aa), emissiveIntensity: 0,
@@ -714,7 +714,7 @@ export class HelmetModel {
 
     const WINDING_R   = 0.048;  // winding ring major radius
     const WINDING_T   = 0.012;  // tube radius
-    const WINDING_OFF = 0.046;  // left/right offset from centre
+    const WINDING_OFF = 0.046;  // left/right offset from center
 
     [-1, 1].forEach(side => {
       const windG = new THREE.TorusGeometry(WINDING_R, WINDING_T, 10, 40);
@@ -728,12 +728,12 @@ export class HelmetModel {
       this._tmsWindings.push(wind.material);
     });
 
-    // ── Centre junction block (where the two windings meet) ───────────────
+    // ── center junction block (where the two windings meet) ───────────────
     const jctG = new THREE.BoxGeometry(0.022, 0.022, 0.022);
     const jctM = new THREE.MeshStandardMaterial({ color: 0x1a2a40, roughness: 0.4, metalness: 0.7 });
     coilGroup.add(new THREE.Mesh(jctG, jctM));
 
-    // ── Handle — runs rearward from centre ────────────────────────────────
+    // ── Handle — runs rearward from center ────────────────────────────────
     //   Built from a tapered cylinder (wider at coil, narrower at grip end)
     const handleG = new THREE.CylinderGeometry(0.016, 0.012, 0.22, 12);
     const handleM = new THREE.MeshStandardMaterial({ color: 0x111922, roughness: 0.5, metalness: 0.35 });
@@ -845,7 +845,7 @@ export class HelmetModel {
     probeGroup.position.copy(this._probeAnim.dockedPos);
     probeGroup.quaternion.copy(this._probeAnim.dockedQuat);
 
-    // ── Y-junction silicone over-mould ──────────────────────────────────────
+    // ── Y-junction silicone over-mold ──────────────────────────────────────
     const overmG = new THREE.SphereGeometry(0.022, 10, 8);
     const overmM = new THREE.MeshStandardMaterial({
       color: 0x2b3f58, roughness: 0.78, metalness: 0.04,
@@ -902,7 +902,7 @@ export class HelmetModel {
       ));
 
       // Depth-stop rings: 15 / 20 / 25 mm markers (3 per arm)
-      // Centre ring coloured blue as the clinical target depth (20 mm)
+      // center ring colored blue as the clinical target depth (20 mm)
       [[0.33, 0x88aacc], [0.55, 0x44aaee], [0.75, 0x88aacc]].forEach(([tRing, col]) => {
         const rPos = curve.getPoint(tRing);
         const tan  = curve.getTangent(tRing);

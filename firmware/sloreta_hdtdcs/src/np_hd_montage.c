@@ -116,10 +116,10 @@ np_hd_status_t np_hd_montage_select_ring(const np_hd_mni_t *target_mni,
         return NP_HD_ERR_INVALID_ARG;
     }
 
-    /* Step 1: find centre electrode (anode). */
+    /* Step 1: find center electrode (anode). */
     np_hd_electrode_t center = np_hd_nearest_electrode(target_mni, NULL);
 
-    /* Step 2: find 4 nearest electrodes to the centre, excluding itself.       */
+    /* Step 2: find 4 nearest electrodes to the center, excluding itself.       */
     /* Sort by distance to center using a simple insertion selection.            */
     int32_t  dist[NP_HD_CH_COUNT];
     uint8_t  order[NP_HD_CH_COUNT];

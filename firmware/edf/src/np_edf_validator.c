@@ -4,7 +4,7 @@
  * Document: NP-FW-EMMC-002 Rev A §E.2
  *
  * Confirms a header conforms to the privacy policy before any research extract
- * is transmitted.  This is the gate in the research anonymisation pipeline: a
+ * is transmitted.  This is the gate in the research anonymization pipeline: a
  * header that fails here must not be written out.
  */
 

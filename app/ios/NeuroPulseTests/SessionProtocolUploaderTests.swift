@@ -19,7 +19,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
 
     // MARK: - ISC-35: NPPR magic in reassembled wire blob
 
-    // upload(_:NPProtocolDefinition) must serialise the definition, sign it with
+    // upload(_:NPProtocolDefinition) must serialize the definition, sign it with
     // the session Ed25519 key, chunk it per the BLE framing spec, and deliver all
     // chunks to the GATT gateway. When chunks are reassembled the wire blob must
     // open with the 4-byte NPPR magic: [0x4E, 0x50, 0x50, 0x52].
@@ -83,7 +83,7 @@ final class SessionProtocolUploaderTests: XCTestCase {
 
     // MARK: - ISC-35: Multi-chunk upload reassembles to valid NPPR blob
 
-    // A protocol definition whose serialised JSON exceeds the SINGLE-chunk limit
+    // A protocol definition whose serialized JSON exceeds the SINGLE-chunk limit
     // (509-byte payload after NPPR magic + length-prefix + Ed25519 signature) must
     // be split across multiple BLE writes. After reassembly the resulting blob must
     // still begin with the NPPR magic bytes and be structurally valid.

@@ -16,7 +16,7 @@
 #include "np_hrv_types.h"
 
 /*
- * Initialise peak detector state.
+ * Initialize peak detector state.
  * Must be called before np_hrv_ppg_process_sample().
  * `initial_threshold` is a first estimate in ADC counts; the IIR filter
  * will adapt within a few seconds of actual signal.

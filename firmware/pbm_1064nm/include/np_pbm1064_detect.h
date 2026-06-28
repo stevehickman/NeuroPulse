@@ -24,7 +24,7 @@ typedef struct {
     uint32_t               device_session_count;
 } np_pbm1064_detect_ctx_t;
 
-/* Initialise detection context. Must be called once before np_pbm1064_detect_tick(). */
+/* Initialize detection context. Must be called once before np_pbm1064_detect_tick(). */
 void np_pbm1064_detect_init(np_pbm1064_detect_ctx_t *ctx,
                               np_pbm1064_remove_cb_t   remove_cb,
                               uint32_t                 device_session_count);

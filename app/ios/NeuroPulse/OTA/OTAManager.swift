@@ -117,7 +117,7 @@ final class OTAManager: ObservableObject {
 
     func beginUpdate(image: FirmwareImage) async throws {
         // ISC-113: Verify Ed25519 fingerprint before ANY hub communication or download.
-        // Fail fast with a clear error if the fingerprint is unrecognised.
+        // Fail fast with a clear error if the fingerprint is unrecognized.
         try verifySignature(image: image)
 
         guard gatt.connectionState == .connected else { throw OTAError.notConnected }
@@ -239,7 +239,7 @@ final class OTAManager: ObservableObject {
 
     // MARK: - Signature verification gate (ISC-113)
 
-    // Guards against unsigned/unrecognised firmware images before transfer begins.
+    // Guards against unsigned/unrecognized firmware images before transfer begins.
     // Full cryptographic verification is performed by the hub on the received image.
     private func verifySignature(image: FirmwareImage) throws {
         guard image.ed25519PublicKeyFingerprint.lowercased() == trustedPublicKeyFingerprint else {
@@ -284,7 +284,7 @@ final class OTAManager: ObservableObject {
     }
 
     // Wait for a specific OTA phase from hub status notifications.
-    // Used to synchronise verify → commit step handshake.
+    // Used to synchronize verify → commit step handshake.
     private func waitForPhase(_ target: OTAPhase,
                                timeout: TimeInterval,
                                label: String) async throws {

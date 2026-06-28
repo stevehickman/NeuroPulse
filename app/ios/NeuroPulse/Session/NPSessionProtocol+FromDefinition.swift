@@ -97,7 +97,7 @@ private extension NPVNSHRVParams.HRVProtocol {
     var wireValue: VNSHRVConfig.HRVProtocol {
         switch self {
         case .standalone:     return .standalone
-        case .tavnsSync:      return .tavnsSynchronised
+        case .tavnsSync:      return .tavnsSynchronized
         case .eegBiofeedback: return .dualEEGBiofeedback
         case .combinedPBM:    return .combinedPBM
         }

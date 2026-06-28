@@ -312,7 +312,7 @@ np_status_t np_ota_verify_scratch(void)
         }
     }
 
-    /* SHA-256 finalisation: padding */
+    /* SHA-256 finalization: padding */
     uint8_t final_block[128];
     memset(final_block, 0, sizeof(final_block));
     memcpy(final_block, stream_accumulator, accum_len);
@@ -410,7 +410,7 @@ np_status_t np_ota_verify_scratch(void)
 
     /* We invoke np_signature_verify() using a temporary fake image_data      */
     /* pointer; it will re-check the hash, but since header.image_sha256      */
-    /* already matches what we computed, this is fine (and adds defence).     */
+    /* already matches what we computed, this is fine (and adds defense).     */
     /* To avoid re-reading 128 MiB of Scratch, we use np_signature_verify()  */
     /* in a stripped mode: just verify the header's own integrity + Ed25519.  */
     /* The streaming SHA-256 computed above has already validated image data. */
@@ -421,7 +421,7 @@ np_status_t np_ota_verify_scratch(void)
     /* the streaming computation above.)                                      */
     np_status_t sig_ret = NP_OK;
 
-    /* Verify header CRC and magic (redundant but defence-in-depth) */
+    /* Verify header CRC and magic (redundant but defense-in-depth) */
     uint32_t hdr_crc2 = np_crc32((const uint8_t *)&hdr, 12U);
     if (hdr_crc2 != hdr.header_crc32) return NP_ERR_BAD_HEADER_CRC;
 

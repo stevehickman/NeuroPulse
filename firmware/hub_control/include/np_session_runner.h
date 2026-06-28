@@ -47,7 +47,7 @@ typedef struct {
 /* ── API ─────────────────────────────────────────────────────────────────────── */
 
 /*
- * np_runner_init — initialise context; call once at hub startup.
+ * np_runner_init — initialize context; call once at hub startup.
  * hub_events must be created before this call.
  */
 void np_runner_init(EventGroupHandle_t hub_events);

@@ -7,7 +7,7 @@ import Foundation
 /// `ResearchAnalyticsGate._backend` — no test file ever imports PostHog directly (ISC-157).
 @MainActor
 protocol AnalyticsBackend: AnyObject {
-    /// Initialise (or re-enable) the analytics SDK after the user has consented.
+    /// Initialize (or re-enable) the analytics SDK after the user has consented.
     func configure()
 
     /// Forward a pre-validated event to the SDK. Called only when the gate is open

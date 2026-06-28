@@ -233,7 +233,7 @@ void np_hub_zone_remove_cb(uint8_t zone_id)
 
 void np_hub_control_app_main(void)
 {
-    /* Initialise subsystems in dependency order. */
+    /* Initialize subsystems in dependency order. */
     np_safety_spi_init();
     np_mod_reg_init();
     np_mod_reg_scan(shdr_zone_auth_cb);

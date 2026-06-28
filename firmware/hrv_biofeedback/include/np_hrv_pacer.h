@@ -6,7 +6,7 @@
  *   - Visual ring expand/contract events (relayed to app via callback).
  *   - Optional bone conduction audio tone (relayed to audio subsystem).
  *
- * Resonance frequency (RF) personalisation:
+ * Resonance frequency (RF) personalization:
  *   On first use, a sweep from NP_PACER_RATE_MIN_BPM to NP_PACER_RATE_MAX_BPM
  *   in NP_PACER_SWEEP_STEP_BPM increments is performed.  Each rate is held for
  *   NP_PACER_SWEEP_DWELL_S seconds while coherence is monitored.  The rate
@@ -30,9 +30,9 @@
 typedef void (*np_pacer_phase_cb_t)(np_pacer_phase_t phase, uint32_t duration_ms);
 
 /*
- * Initialise pacer state.
+ * Initialize pacer state.
  * `rate_bpm` sets the initial target rate (0.0 → use NP_PACER_RATE_DEFAULT_BPM).
- * `personalised_rate_bpm` is the user's stored RF (0.0 → not yet personalised).
+ * `personalised_rate_bpm` is the user's stored RF (0.0 → not yet personalized).
  * `phase_cb` is called on every inspire/expire transition (may be NULL).
  */
 void np_hrv_pacer_init(np_pacer_state_t  *pacer,
@@ -55,7 +55,7 @@ void np_hrv_pacer_tick(np_pacer_state_t *pacer, uint32_t now_ms);
 void np_hrv_pacer_sweep_coherence(np_pacer_state_t *pacer, float coherence_score);
 
 /*
- * Finalise the RF sweep: compute best rate and mark pacer as personalised.
+ * Finalise the RF sweep: compute best rate and mark pacer as personalized.
  * Writes the result to `best_rate_bpm_out`.
  * Returns NP_HRV_ERR_NOT_READY if the sweep has not completed all steps.
  */

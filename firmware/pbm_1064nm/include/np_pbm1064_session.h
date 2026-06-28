@@ -53,7 +53,7 @@ typedef struct {
 } np_pbm1064_session_ctx_t;
 
 /*
- * Initialise session context.  Must be called once before start.
+ * Initialize session context.  Must be called once before start.
  */
 void np_pbm1064_session_init(np_pbm1064_session_ctx_t    *ctx,
                                np_pbm1064_session_end_cb_t  end_cb,

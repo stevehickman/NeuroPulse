@@ -80,7 +80,7 @@ static void compute_band_power(const float *seg, float *delta, float *theta,
 
     eeg_fft(s_eeg_fft_re, s_eeg_fft_im, NP_EEG_FFT_SIZE);
 
-    /* PSD normalisation: 2/(N × Fs) × |X[k]|²   (µV²/Hz, one-sided). */
+    /* PSD normalization: 2/(N × Fs) × |X[k]|²   (µV²/Hz, one-sided). */
     float norm = 2.0f / ((float)NP_EEG_FFT_SIZE * (float)NP_EEG_SAMPLE_RATE_HZ);
     float freq_res = (float)NP_EEG_SAMPLE_RATE_HZ / (float)NP_EEG_FFT_SIZE;
 

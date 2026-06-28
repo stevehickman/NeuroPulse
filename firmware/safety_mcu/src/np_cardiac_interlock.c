@@ -88,7 +88,7 @@ static int16_t rr_to_bpm(uint32_t rr_us)
      * Clamp to INT16_MAX before cast: values < 1831µs (>32767 BPM) would
      * overflow int16_t.  Such RR intervals are physiologically impossible in
      * normal sinus rhythm but can arise from noise/motion artifacts on the
-     * RPEAK_IN line.  Clamping prevents undefined-behaviour truncation and
+     * RPEAK_IN line.  Clamping prevents undefined-behavior truncation and
      * a resulting phantom cardiac cutoff. (MISRA C:2012 Rule 10.4) */
     uint32_t bpm_u32 = 60000000UL / rr_us;
     if (bpm_u32 > (uint32_t)INT16_MAX) {

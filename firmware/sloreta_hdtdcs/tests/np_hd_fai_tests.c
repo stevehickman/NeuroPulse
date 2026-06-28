@@ -2,7 +2,7 @@
  * NeuroPulse sLORETA-guided HD-tDCS — First Article Inspection Tests
  * Document: NP-FW-HD-001 Rev A §12 / NP-FAI-HD-001 Rev A
  *
- * FAI-HD01: sLORETA source localisation accuracy vs known phantom
+ * FAI-HD01: sLORETA source localization accuracy vs known phantom
  * FAI-HD02: Automatic MNI→10-20 electrode mapping accuracy
  * FAI-HD03: 4×1 ring focality vs standard 2-electrode (saline phantom)
  * FAI-HD04: EEG signal quality during concurrent tDCS (SNR ≥ 20 dB)
@@ -53,9 +53,9 @@ static int g_fail_count = 0;
  * Pass criteria:
  *   HD02-A: For each predefined clinical target, nearest electrode is
  *            within 35 mm MNI distance.
- *   HD02-B: 4×1 ring montage has centre electrode closest to target
+ *   HD02-B: 4×1 ring montage has center electrode closest to target
  *            (not outcompeted by any cathode).
- *   HD02-C: 4 cathodes cover ≥ 2 angular quadrants around centre.
+ *   HD02-C: 4 cathodes cover ≥ 2 angular quadrants around center.
  *   HD02-D: All montage electrodes map to distinct tACS driver channels.
  *   HD02-E: Standard 2-electrode montage: anode ≠ cathode.
  *   HD02-F: Bilateral 4×1: left and right anodes are in opposite hemispheres.
@@ -101,7 +101,7 @@ static int fai_hd02_electrode_mapping(void)
             continue;
         }
 
-        /* HD02-B: centre electrode is closest to target. */
+        /* HD02-B: center electrode is closest to target. */
         float center_dist = 0.0f;
         np_hd_mni_t center_mni;
         np_hd_electrode_mni(mont.center, &center_mni);
@@ -173,7 +173,7 @@ static int fai_hd02_electrode_mapping(void)
     return result;
 }
 
-/* ── FAI-HD01: sLORETA source localisation accuracy (phantom bench) ─────────── */
+/* ── FAI-HD01: sLORETA source localization accuracy (phantom bench) ─────────── */
 /*
  * Hardware bench procedure (not software-executable in CI).
  *
@@ -186,9 +186,9 @@ static int fai_hd02_electrode_mapping(void)
  *   - Run np_sloreta_compute_map() + np_sloreta_find_peak() on recorded data.
  *
  * Pass criteria (HD01):
- *   HD01-A: Peak localisation error ≤ 15 mm from known dipole location.
+ *   HD01-A: Peak localization error ≤ 15 mm from known dipole location.
  *   HD01-B: Peak source power at dipole location ≥ 3× median voxel power.
- *   HD01-C: localisation error ≤ 15 mm for 5/6 standard clinical targets
+ *   HD01-C: localization error ≤ 15 mm for 5/6 standard clinical targets
  *            (DLPFC_L, DLPFC_R, ACC, MPFC, M1_L, M1_R).
  *
  * This test stub verifies the software plumbing with a synthetic noise source.
@@ -197,7 +197,7 @@ static int fai_hd02_electrode_mapping(void)
 static int fai_hd01_sloreta_plumbing(void)
 {
     int failures_before = g_fail_count;
-    printf("FAI-HD01: sLORETA source localisation (software plumbing check)\n");
+    printf("FAI-HD01: sLORETA source localization (software plumbing check)\n");
 
     /* Minimal synthetic weight matrix (2 voxels × 21 channels). */
     static float W[2 * NP_HD_SLORETA_N_CH];

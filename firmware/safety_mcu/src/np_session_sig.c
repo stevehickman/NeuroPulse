@@ -4,7 +4,7 @@
  *
  * Verifies the Ed25519 signature on the session descriptor before allowing
  * stimulation enable.  The main processor sends the 32-byte session hash
- * (SHA-256 of the serialised session descriptor) and the 64-byte Ed25519
+ * (SHA-256 of the serialized session descriptor) and the 64-byte Ed25519
  * signature via SPI before requesting enables.
  *
  * Ed25519 is provided by firmware/crypto (np_crypto static library, backed

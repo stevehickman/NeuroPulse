@@ -198,7 +198,7 @@ struct NPVNSHRVParams: Codable, Equatable {
         var displayName: String {
             switch self {
             case .standalone:      return "Standalone Coherence Training"
-            case .tavnsSync:       return "HRV + taVNS Synchronised"
+            case .tavnsSync:       return "HRV + taVNS Synchronized"
             case .eegBiofeedback:  return "HRV + EEG Dual Biofeedback"
             case .combinedPBM:     return "HRV + PBM Combined"
             }

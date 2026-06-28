@@ -165,7 +165,7 @@ static void tick_slot(uint8_t slot_index, uint32_t now_ms)
             break;
         }
 
-        /* UNKNOWN zone (unrecognised resistor value) — log fault, stay idle. */
+        /* UNKNOWN zone (unrecognized resistor value) — log fault, stay idle. */
         if (zone == NP_ZONE_UNKNOWN) {
             log_shdr(slot_index, NP_ZONE_UNKNOWN, false, agree);
             /* Queue error announcement (descending two-tone). */

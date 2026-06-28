@@ -126,7 +126,7 @@ private final class SHDRFleetPinningDelegate: NSObject, URLSessionDelegate {
     }
 
     // Compute the SHA-256 of the leaf certificate's SubjectPublicKeyInfo.
-    // Returns nil if the key type is unrecognised or the representation is unavailable.
+    // Returns nil if the key type is unrecognized or the representation is unavailable.
     private func spkiSHA256(of certificate: SecCertificate) -> Data? {
         guard
             let publicKey = SecCertificateCopyKey(certificate),

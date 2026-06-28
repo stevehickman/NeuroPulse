@@ -16,7 +16,7 @@ import CoreBluetooth
 /// Conforming to a protocol rather than subclassing allows unit tests to inject a
 /// lightweight stub without spinning up a real BLE stack.
 protocol BLECentralManager: AnyObject {
-    /// Current authorisation / power state of the Bluetooth hardware.
+    /// Current authorization / power state of the Bluetooth hardware.
     var state: CBManagerState { get }
 
     /// Begin scanning for peripherals advertising the given service UUIDs.

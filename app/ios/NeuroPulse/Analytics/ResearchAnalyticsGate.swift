@@ -3,7 +3,7 @@ import os
 
 /// Consent gate for research analytics and crash-reporting telemetry (ISC-92, ISC-97).
 ///
-/// No analytics or crash-reporting SDK may initialise or receive any event until
+/// No analytics or crash-reporting SDK may initialize or receive any event until
 /// the user has **actively completed** the consent onboarding flow by tapping Done.
 /// The gate keys on `np.research.consent-granted` (`researchAnalyticsKey`), set
 /// inside `ConsentOnboardingView.commitAndDismiss(grantResearchAnalytics: true)`.
@@ -67,7 +67,7 @@ enum ResearchAnalyticsGate {
 
     // MARK: - Public interface
 
-    /// Initialise the analytics SDK. Call exactly once, after the research consent
+    /// Initialize the analytics SDK. Call exactly once, after the research consent
     /// flow completes. No-ops if already configured or if the gate is still closed.
     static func configure() {
         guard !isConfigured else { return }
@@ -94,7 +94,7 @@ enum ResearchAnalyticsGate {
         guard isConfigured else { return }
         // Tear down the SDK BEFORE clearing the flag. If teardown is async or can
         // throw in a real vendor implementation, clearing the flag first would let
-        // a concurrent configure() call re-initialise the SDK before the previous
+        // a concurrent configure() call re-initialize the SDK before the previous
         // instance is actually shut down.
         log.debug("ResearchAnalyticsGate.reset() — research analytics revoked; tearing down SDK.")
         _backend.reset()

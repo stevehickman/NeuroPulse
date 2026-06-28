@@ -4,7 +4,7 @@
 //
 //  Satisfies:
 //    ISC-114  wizard covers BLE pairing, impedance check, protocol selection, safety acknowledgement
-//    ISC-115  8 electrode positions colour-coded from impedancePassFlags (UI — structural code path)
+//    ISC-115  8 electrode positions color-coded from impedancePassFlags (UI — structural code path)
 //    ISC-116  wizard blocks progression to protocol selection until ≥ 6/8 EEG contacts pass
 //    ISC-117  isFirstSetupComplete only set after wizard's final step
 //    ISC-118  safety acknowledgement step includes T1 contraindications checkbox
@@ -57,7 +57,7 @@ private final class MockSetupGATT: SetupGATTProviding {
     func sendCalibration(_ opcode: CalibrationOpcode,
                          completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
         if opcode == .impedanceCheck {
-            // Mirror production behaviour: update session state AND fire dedicated subject.
+            // Mirror production behavior: update session state AND fire dedicated subject.
             var next = sessionSubject.value
             next.impedancePassFlags = impedanceFlagsToInject
             sessionSubject.send(next)
@@ -444,7 +444,7 @@ final class HardwareSetupManagerTests: XCTestCase {
 
     // MARK: - ISC-115: impedanceFlags zeroed after advancing past impedanceCheck
 
-    // SetupView colours 8 electrode position indicators from impedanceFlags.
+    // SetupView colors 8 electrode position indicators from impedanceFlags.
     // Once the user advances past the impedanceCheck step, those flags must be
     // cleared so a stale "all-green" pattern from this session does not persist
     // into the next setup session. HardwareSetupManager zeros impedanceFlags in

@@ -8,7 +8,7 @@
  *   660nm surface → 1064nm cortical → 1170nm deep subcortical
  *
  * Thermal throttle priority (highest heat deposition first):
- *   1. 1170nm laser (subcortical — TEC-stabilised but highest per-watt absorption)
+ *   1. 1170nm laser (subcortical — TEC-stabilized but highest per-watt absorption)
  *   2. 1064nm CH_C (on smart zone module)
  *   3. 808nm CH_B
  *   4. 660nm CH_A (surface — lowest thermal contribution)
@@ -75,7 +75,7 @@ typedef struct {
 /* ── API ─────────────────────────────────────────────────────────────────────── */
 
 /*
- * Initialise T2 combined session context.  Must be called before any start.
+ * Initialize T2 combined session context.  Must be called before any start.
  */
 void np_pbm1064_t2_init(np_pbm1064_t2_ctx_t         *ctx,
                           np_pbm1064_session_end_cb_t  end_cb,

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HRV Biofeedback — taVNS Inspiration-Phase Synchronisation
+ * NeuroPulse HRV Biofeedback — taVNS Inspiration-Phase Synchronization
  * Document: NP-FW-HRV-001 Rev A §8
  *
  * Inspiration detection algorithm (RSA slope method):
@@ -47,7 +47,7 @@ typedef void (*np_tavns_enable_cb_t)(uint16_t freq_hz, uint16_t current_ua);
 typedef void (*np_tavns_disable_cb_t)(void);
 
 /*
- * Initialise the taVNS synchronisation state machine.
+ * Initialize the taVNS synchronization state machine.
  * `stim_freq_hz` and `stim_current_ua` are validated against hardware limits
  * and stored.  `enable_cb` / `disable_cb` are called on gate transitions.
  */

@@ -383,7 +383,7 @@ void np_dfu_usb_isr(void)
     }
 }
 
-/* ── USB PHY and controller initialisation ────────────────────────────────── */
+/* ── USB PHY and controller initialization ────────────────────────────────── */
 
 static np_status_t usb_init(void)
 {
@@ -431,7 +431,7 @@ static np_status_t usb_init(void)
 
 np_status_t np_dfu_enter(void)
 {
-    /* Initialise DFU state */
+    /* Initialize DFU state */
     memset(&s_dfu, 0, sizeof(s_dfu));
     s_dfu.state  = DFU_STATE_IDLE;
     s_dfu.status = DFU_STATUS_OK;
@@ -446,7 +446,7 @@ np_status_t np_dfu_enter(void)
     s_dfu_timer_ticks = 0U;
     systick_init();
 
-    /* Initialise USB */
+    /* Initialize USB */
     ret = usb_init();
     if (ret != NP_OK) return ret;
 

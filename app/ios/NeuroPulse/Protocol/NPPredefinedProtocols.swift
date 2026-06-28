@@ -502,15 +502,15 @@ enum NPPredefinedProtocols {
         )
     }()
 
-    static let hrvTavnsSynchronised: NPProtocolDefinition = {
+    static let hrvTavnsSynchronized: NPProtocolDefinition = {
         return NPProtocolDefinition(
             id: UUID(uuidString: "00000009-0000-0000-0000-000000000000")!,
-            name: "HRV + taVNS Synchronised",
-            description: "Stimulation pulses timed to inspiration phase for optimised noradrenergic modulation."
+            name: "HRV + taVNS Synchronized",
+            description: "Stimulation pulses timed to inspiration phase for optimized noradrenergic modulation."
                 + " Alpha EEG neurofeedback adds cortical awareness layer.",
             author: "NeuroPulse",
             version: "1.0",
-            tags: ["HRV", "VNS", "advanced", "synchronised"],
+            tags: ["HRV", "VNS", "advanced", "synchronized"],
             createdAt: Date(timeIntervalSince1970: 0),
             modifiedAt: Date(timeIntervalSince1970: 0),
             isPredefined: true,
@@ -543,7 +543,7 @@ enum NPPredefinedProtocols {
         return NPProtocolDefinition(
             id: UUID(uuidString: "0000000A-0000-0000-0000-000000000000")!,
             name: "EMDR Session",
-            description: "Eye Movement Desensitisation and Reprocessing (EMDR) left/right"
+            description: "Eye Movement Desensitization and Reprocessing (EMDR) left/right"
                 + " alternation at 1Hz. Pink noise masking, alpha EEG monitoring. 45-minute session.",
             author: "NeuroPulse",
             version: "1.0",
@@ -756,7 +756,7 @@ enum NPPredefinedProtocols {
             focusPrime,
             vascularBaseline,
             hrvCoherenceTraining,
-            hrvTavnsSynchronised,
+            hrvTavnsSynchronized,
             emdrSession,
             fullT1Immersive
         ]

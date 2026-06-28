@@ -13,7 +13,7 @@ import SwiftUI
 // Shown to ALL users regardless of locale (OI-PA-03 resolved). Satisfies:
 //   • BIPA 740 ILCS 14/15(b) — written release executed by the subject
 //   • GDPR Art. 9 — explicit consent for special-category biometric data
-//   • WA MHMD RCW 70.372 — authorisation for consumer health data
+//   • WA MHMD RCW 70.372 — authorization for consumer health data
 //
 // API: onAccept / onDecline. Both callers (NeuroPulseApp, SetupView) are unchanged.
 //
@@ -142,7 +142,7 @@ private struct BIPAReleaseStep: View {
     let onAccept: () -> Void
     let onDecline: () -> Void
 
-    @State private var authorised = false
+    @State private var authorized = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -175,8 +175,8 @@ private struct BIPAReleaseStep: View {
                         .background(Color(.systemGray6))
                         .clipShape(RoundedRectangle(cornerRadius: 10))
 
-                    // Authorisation checkbox — gates the I Authorize button.
-                    Toggle(isOn: $authorised) {
+                    // Authorization checkbox — gates the I Authorize button.
+                    Toggle(isOn: $authorized) {
                         Text(String(localized: "BIPA_STEP4_CHECKBOX_LABEL"))
                             .font(.headline)
                             .fixedSize(horizontal: false, vertical: true)
@@ -196,7 +196,7 @@ private struct BIPAReleaseStep: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .frame(maxWidth: .infinity)
-                .disabled(!authorised)
+                .disabled(!authorized)
                 .accessibilityLabel(String(localized: "BIPA_STEP4_AUTHORIZE_BUTTON"))
 
                 Button(String(localized: "BIPA_STEP4_DECLINE_BUTTON"), role: .destructive) {
@@ -289,7 +289,7 @@ private struct BIPAInfoCard<Content: View>: View {
     }
 }
 
-/// Tinted card with accent-colour checkmark bullets.
+/// Tinted card with accent-color checkmark bullets.
 private struct BIPACheckmarkCard: View {
     let items: [String]
 
