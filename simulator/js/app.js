@@ -13,6 +13,7 @@ import { SessionEngine } from './session.js';
 import { UIManager }    from './ui.js';
 import { PROTOCOLS }    from './protocols.js';
 import { DeviceAPI }    from './api.js';
+import { SIM_VERSION }  from './version.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -27,6 +28,7 @@ class NeuroPulseSimulator {
     this._initSession();
     this._initUI();
     this._initAPI();
+    this._setVersionBadge();
 
     window.addEventListener('resize', () => this._onResize());
     this._onResize();
@@ -195,6 +197,11 @@ class NeuroPulseSimulator {
     });
   }
 
+  _setVersionBadge() {
+    const el = document.getElementById('ver-badge');
+    if (el) el.textContent = `v${SIM_VERSION}`;
+  }
+
   // ─── camera presets ────────────────────────────────────────────────────────
 
   _setView(view) {
@@ -290,7 +297,7 @@ class NeuroPulseSimulator {
       protocol_id:       this._session.protocol?.id ?? null,
       session_count_delta: 1,
       modalities_active: active,
-      sim_version:       '0.3.0-sim',
+      sim_version:       SIM_VERSION,
     };
   }
 
