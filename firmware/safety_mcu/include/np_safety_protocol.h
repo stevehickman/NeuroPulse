@@ -60,7 +60,8 @@
 #define NP_SAFETY_EN_ALL_MASK       0x3FFFU
 
 /* ── Frame lengths ────────────────────────────────────────────────────────── */
-/* NP_SAFETY_FRAME_LEN is the heartbeat frame length (defined in np_safety_config.h as 8). */
+/* NP_SAFETY_FRAME_LEN is the MCU reply frame length (defined in np_safety_config.h as 8).
+ * The heartbeat RX frame is NP_SAFETY_RX_EXT_FRAME_LEN (38 bytes).                      */
 /* NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG, NP_SAFETY_CMD_FRAME_LEN,
  * NP_SESSION_HASH_LEN, NP_ED25519_SIG_LEN, and np_safety_sig_cmd_t are in
  * firmware/common/include/np_spi_wire_types.h (included above).               */
@@ -86,7 +87,7 @@
 /* ── Received frame (main processor → safety MCU) ───────────────────────── */
 typedef struct __attribute__((packed)) {
     uint8_t  magic[2];        /* NP_SAFETY_BEAT_MAGIC_0 / _1 */
-    uint8_t  session_status;  /* session state (3 bits used) */
+    uint8_t  session_status;  /* NP_SESSION_STATUS_* bit flags (2 bits used) */
     uint8_t  enable_lo;       /* requested enable bitmask bits 0-7 */
     uint8_t  enable_hi;       /* bits 8-15 */
     uint8_t  reserved;

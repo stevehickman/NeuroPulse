@@ -60,7 +60,7 @@
 #define NP_SAFETY_HEARTBEAT_MS      200U  /* main processor sends heartbeat period */
 #define NP_SAFETY_WATCHDOG_MS       1500U /* safety MCU watchdog; cutoff on expiry */
 #define NP_SAFETY_SPI_TIMEOUT_MS    10U
-#define NP_SAFETY_FRAME_LEN         8U    /* bytes per heartbeat SPI exchange */
+#define NP_SAFETY_FRAME_LEN         8U    /* MCU reply frame size (heartbeat RX is NP_SAFETY_RX_EXT_FRAME_LEN = 38) */
 #define NP_SAFETY_BEAT_MAGIC_0      0xBEU
 #define NP_SAFETY_BEAT_MAGIC_1      0xA7U
 

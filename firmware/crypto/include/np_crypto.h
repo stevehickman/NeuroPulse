@@ -3,8 +3,11 @@
  * Document: NP-SW-001 §9.4
  *
  * Shared static library consumed by:
- *   • firmware/bootloader/     (SW-02 Class B — i.MX RT1062 Cortex-M7)
  *   • firmware/safety_mcu/     (SW-01 Class C — STM32G071 Cortex-M0+)
+ *
+ * NOTE: firmware/bootloader/ intentionally uses its own self-contained
+ * np_signature.c because it links with -nostdlib (Monocypher requires
+ * libc symbols unavailable in that context).
  *
  * Resolves OI-SW01-M07-02 (BLOCKING ARM link error):
  *   np_session_sig.c declared np_ed25519_verify extern but no object file

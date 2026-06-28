@@ -4,9 +4,9 @@
  * Document: NP-SW-001 Rev A, NP-FW-EMMC-001 Rev A §4.2
  *
  * GPIO assignments, peripheral config, and timing constants for the
- * safety MCU.  All stimulation enable GPIOs are active-LOW: asserting LOW
- * drives the enable HIGH via an inverting buffer.  This fail-safe design
- * ensures power loss or reset cuts stimulation immediately.
+ * safety MCU.  All stimulation enable GPIOs are active-LOW open-drain:
+ * LOW = stimulation enabled, HIGH = disabled.  Power loss or reset
+ * drives HIGH = safe (stimulation off).
  *
  * GPIO bank assignments are provisional pending PCB layout (G1 gate).
  */
@@ -23,7 +23,7 @@
 /* ── SPI (SPI1, slave) ────────────────────────────────────────────────────── */
 /* SPI1: PA5=SCK, PA6=MISO, PA7=MOSI, PA4=NSS (hardware NSS management)      */
 #define NP_SAFETY_SPI_INSTANCE  SPI1
-#define NP_SAFETY_FRAME_LEN     8U   /* bytes per exchange (matches hub_config.h) */
+#define NP_SAFETY_FRAME_LEN     8U   /* MCU reply frame size (matches hub_config.h) */
 
 /* ── Watchdog timing ─────────────────────────────────────────────────────── */
 #define NP_SAFETY_WDG_TIMEOUT_MS    1500U  /* heartbeat missed → cutoff */
@@ -112,6 +112,7 @@
 #define NP_FAULT_SLOT_SIG_FAIL      0xFDU  /* Ed25519 signature verification failed */
 #define NP_FAULT_SLOT_UNPROV        0xFEU  /* OTP unprovisioned — all-zero public key */
 #define NP_FAULT_SLOT_SIG_CORRUPT   0xFCU  /* repeated corrupt session sig command frames */
+#define NP_FAULT_SLOT_HUB_NTC      0xFBU  /* hub NTC thermal cutoff (all channels) */
 
 /* Session signature escalation limits */
 #define NP_SAFETY_SIG_BAD_CMD_MAX   3U  /* consecutive bad-magic/checksum frames → FAULT */
