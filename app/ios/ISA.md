@@ -15,7 +15,7 @@ updated: 2026-06-17
 
 ## Problem
 
-The NeuroPulse T1 hardware ships Month 18 post-company-formation. The iOS app must be App Store-live by Month 12 to allow six months of beta validation before mass shipment. The current codebase (~44 Swift source files, ~10,600 lines) covers core BLE, session display, protocol scripting, consent, consumable tracking, OTA, and UHDR/SHDR data management — but several launch-critical items are absent or incomplete: the session stop command is a TODO stub, the privacy compliance screens required before any Illinois activation (BIPA written release) and before any data is collected (minimum age gate) are not implemented, the Session History screen does not exist, the analytics SDK initialisation gate is not wired, the Adaptive Adjustments transparency card is not implemented, and the app has never been submitted to App Store Connect. No App Store privacy nutrition label exists. Without these, the app cannot ship legally or pass App Store review.
+The NeuroPulse T1 hardware ships Month 18 post-company-formation. The iOS app must be App Store-live by Month 12 to allow six months of beta validation before mass shipment. The current codebase (~44 Swift source files, ~10,600 lines) covers core BLE, session display, protocol scripting, consent, consumable tracking, OTA, and UHDR/SHDR data management — but several launch-critical items are absent or incomplete: the session stop command is a TODO stub, the privacy compliance screens required before EEG activation (biometric data written release) and before any data is collected (minimum age gate) are not implemented, the Session History screen does not exist, the analytics SDK initialisation gate is not wired, the Adaptive Adjustments transparency card is not implemented, and the app has never been submitted to App Store Connect. No App Store privacy nutrition label exists. Without these, the app cannot ship legally or pass App Store review.
 
 ## Vision
 
@@ -42,7 +42,7 @@ The Apple Watch companion app (NP-APP-ROADMAP-001 Rev B Phases 1–4) is not par
 - **No NeuroPulse server access to UHDR.** The `UHDRKeyManager` biometric-derived AES-256 key never leaves the device and is never transmitted to any NeuroPulse infrastructure or analytics vendor.
 - **Analytics: `engagement_tier` enum only.** No raw session count or raw app launch count transmitted in any analytics event. `engagement_tier` is a 3-bucket coarsened enum (`new`/`active`/`established`) per NP-APP-TELEMETRY-001 Rev B §3.
 - **Analytics and crash SDK initialisation gate.** No analytics or crash reporting SDK may call `init()` or `configure()` before the consent flow is complete for the current user. Per NP-APP-TELEMETRY-001 Rev B §5.
-- **BIPA written release required before Illinois device activation.** EEG neurofeedback and closed-loop adaptive stimulation must be disabled until the BIPA screen is accepted. Detection is IP-based locale plus explicit Illinois declaration (OI-PA-03).
+- **Biometric data written release required before EEG activation.** EEG neurofeedback and closed-loop adaptive stimulation must be disabled until the BIPA screen is accepted. Shown to all users regardless of location (OI-PA-03 resolved).
 - **Minimum age gate: 16+ declaration required before any personal data is collected.** Gate must appear before the first screen that collects or displays personal data. The checkbox is not pre-ticked. Flow cannot proceed if unchecked.
 - **Session protocol Ed25519 signature.** The hub firmware rejects unsigned or corrupted session protocol blobs (NP-FW-EMMC-001 Rev A §8). The app must sign every protocol blob before upload using the session signing key infrastructure already defined in the protocol validator.
 - **App Store Health & Fitness category.** No Medical Device category — T1 is FDA-exempt general wellness. Regulatory footer `Text` must appear on every stimulation-adjacent screen.
@@ -221,7 +221,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 ### Onboarding and account
 
 - [x] ISC-126: `ConsentOnboardingView` is presented exactly once on first launch and is re-accessible from the Privacy tab at any time.
-- [x] ISC-127: The age gate screen, BIPA screen (if Illinois), and research consent onboarding appear in the correct sequence: age gate → BIPA (conditional) → L1–L4 research consent → main app.
+- [x] ISC-127: The age gate screen, biometric data consent screen, and research consent onboarding appear in the correct sequence: age gate → biometric consent → L1–L4 research consent → main app.
 - [x] ISC-128: Tapping "Skip" on the research consent onboarding (L1–L4) commits the default `ResearchConsentState()` (all fields false/nil) without blocking app access.
 - [x] ISC-129: The Privacy tab is always accessible regardless of consent state — users must be able to reach their consent settings at any time.
 - [x] ISC-130: `Anti:` There is no screen in the onboarding flow that is impossible to exit — every screen has a Skip or Cancel affordance except the age gate (which has no skip but offers a graceful "I am under 16" path that explains what features will be unavailable).
@@ -325,8 +325,8 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 | session-history-view | Create SessionHistoryView + SessionHistoryStore; session detail with coherence sparkline; EDF download trigger; file sharing | ISC-48, ISC-49, ISC-50, ISC-53, ISC-54, ISC-55 | EDF-download | false |
 | adaptive-adjustments-card | Add Adaptive Adjustments card to session detail view; plain-language trigger enum; 5-event limit + View all | ISC-51, ISC-52 | session-history-view | false |
 | age-gate-screen | Create AgeGateView as first onboarding screen; unchecked checkbox; UserDefaults persistence; under-16 path | ISC-83, ISC-84, ISC-85, ISC-86, ISC-87, ISC-130 | — | true |
-| bipa-release-screen | Create BIPADisclosureView with full NP-APP-ROADMAP-001 §9.3 text; Illinois detection; EEG feature gate on decline; re-presentable from Settings | ISC-88, ISC-89, ISC-90, ISC-91 | age-gate-screen | false |
-| onboarding-sequence | Wire age-gate → BIPA (conditional) → L1-L4 consent in correct order; single-entry point | ISC-127, ISC-128, ISC-129 | age-gate-screen, bipa-release-screen | false |
+| bipa-release-screen | Create BIPADisclosureView with full NP-APP-ROADMAP-001 §9.3 text; shown to all users; EEG feature gate on decline; re-presentable from Settings | ISC-88, ISC-89, ISC-90, ISC-91 | age-gate-screen | false |
+| onboarding-sequence | Wire age-gate → biometric consent → L1-L4 consent in correct order; single-entry point | ISC-127, ISC-128, ISC-129 | age-gate-screen, bipa-release-screen | false |
 | analytics-sdk-gate | Guard all Analytics/Crashlytics init calls behind `consentShown` flag; add ConsentSupervisor wrapper | ISC-92 | onboarding-sequence | true |
 | analytics-engagement-tier | Ensure all analytics events use `engagement_tier` enum; remove any `session_count` property; add SwiftLint rule | ISC-93, ISC-144 | analytics-sdk-gate | true |
 | healthkit-session-read | Add HealthKit HRV/HR read for active sessions; session-scoped only; no persistence; no transmission | ISC-94, ISC-95, ISC-96 | — | true |
@@ -346,7 +346,7 @@ The NeuroPulse iOS app is App Store-live at Month 12, passing App Store review o
 - **2026-06-04**: `app/ios/ISA.md` chosen as canonical path (project sub-ISA, not MEMORY/WORK) — the iOS app has persistent project identity and its own source tree. Project ISA override applies: minimum E3 structure required regardless of active task tier.
 - **2026-06-04**: ISC count is 164, above the E4 floor of 128. No intentional under-decomposition.
 - **2026-06-04**: Session stop command (ISC-27) is the highest-priority single gap — it is a `// TODO` in shipped code (`SessionView.swift:262`). A deployed app without a stop command is a safety communication failure even though the Safety MCU owns actual stimulation control.
-- **2026-06-04**: BIPA detection uses `Locale.current.region?.identifier == "US-IL"` as a first pass, plus an explicit Illinois declaration toggle — locale alone is not sufficient because it can be incorrect. This is a best-effort detection; the legal opinion requested in OI-PA-03 may require a different mechanism.
+- **2026-06-04**: Biometric data consent (BIPA screen) is shown to all users regardless of location (OI-PA-03 resolved). Locale-based detection was removed — the consent covers BIPA, GDPR Art. 9, and WA MHMD simultaneously.
 - **2026-06-04**: Analytics SDK gate (ISC-92) guards `init()` / `configure()` calls. If the analytics vendor's SDK auto-initialises on import (some Crashlytics versions do), the vendor must be replaced or the import must be conditional. This is a code architecture constraint, not just a runtime guard.
 - **2026-06-04**: HealthKit features (ISC-94–96) are gated on the HRV biofeedback protocol being active — not requested at app launch. This avoids an unnecessary `NSHealthShareUsageDescription` prompt for users who never run HRV sessions.
 - **2026-06-04**: ISC-133 — `PrivacyInfo.xcprivacy` was present on disk from PR #106 but had zero references in `project.pbxproj`. Added to Copy Bundle Resources via xcodeproj gem (PR #107, commit fef956f). Without this, the file does not ship in the app bundle and App Store review would reject the submission.
