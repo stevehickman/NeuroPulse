@@ -1,10 +1,15 @@
+/// <reference types="node" />
 import { describe, it, expect } from 'vitest';
 import { parseNPPS, NPPSParseError } from './nppsParser';
-import { readFileSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { NPProtocolDefinition, NPCompositeProtocol } from '../types/protocol';
 
-const FIXTURES_DIR = join(__dirname, '..', '..', '..', '..', 'npps', 'fixtures');
+const __fixturesDir = join(
+  dirname(fileURLToPath(import.meta.url)),
+  '..', '..', '..', '..', 'npps', 'fixtures',
+);
 
 interface ExpectedModality {
   type: string;
@@ -50,29 +55,29 @@ interface ExpectedComposite {
 type ExpectedEntry = ExpectedProtocol | ExpectedComposite;
 
 function loadFixture(name: string): { npps: string; expected: ExpectedEntry } {
-  const npps = readFileSync(join(FIXTURES_DIR, `${name}.npps`), 'utf8');
+  const npps = readFileSync(join(__fixturesDir, `${name}.npps`), 'utf8');
   const expected = JSON.parse(
-    readFileSync(join(FIXTURES_DIR, `${name}.expected.json`), 'utf8')
-  );
+    readFileSync(join(__fixturesDir, `${name}.expected.json`), 'utf8'),
+  ) as ExpectedEntry;
   return { npps, expected };
 }
 
-function normalizeModality(m: { modalityParams: { type: string; params: Record<string, unknown> }; enabled: boolean; interval: { intervalOnSeconds: number; intervalOffSeconds: number } }): ExpectedModality {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeModality(m: any): ExpectedModality {
   return {
-    type: m.modalityParams.type,
-    enabled: m.enabled,
+    type: m.modalityParams.type as string,
+    enabled: m.enabled as boolean,
     params: m.modalityParams.params as Record<string, unknown>,
     interval: {
-      intervalOnSeconds: m.interval.intervalOnSeconds,
-      intervalOffSeconds: m.interval.intervalOffSeconds,
+      intervalOnSeconds: m.interval.intervalOnSeconds as number,
+      intervalOffSeconds: m.interval.intervalOffSeconds as number,
     },
   };
 }
 
-// Discover all fixture pairs
-const fixtureNames = readdirSync(FIXTURES_DIR)
-  .filter(f => f.endsWith('.expected.json'))
-  .map(f => f.replace('.expected.json', ''));
+const fixtureNames = readdirSync(__fixturesDir)
+  .filter((f: string) => f.endsWith('.expected.json'))
+  .map((f: string) => f.replace('.expected.json', ''));
 
 describe('shared NPPS fixtures', () => {
   for (const name of fixtureNames) {
@@ -132,13 +137,12 @@ describe('shared NPPS fixtures', () => {
     });
   }
 
-  // Error fixtures — must throw NPPSParseError
-  const errorFixtures = readdirSync(FIXTURES_DIR)
-    .filter(f => f.startsWith('error_') && f.endsWith('.npps'));
+  const errorFixtures = readdirSync(__fixturesDir)
+    .filter((f: string) => f.startsWith('error_') && f.endsWith('.npps'));
 
   for (const f of errorFixtures) {
     it(`rejects ${f} with NPPSParseError`, () => {
-      const input = readFileSync(join(FIXTURES_DIR, f), 'utf8');
+      const input = readFileSync(join(__fixturesDir, f), 'utf8');
       expect(() => parseNPPS(input)).toThrow(NPPSParseError);
     });
   }
