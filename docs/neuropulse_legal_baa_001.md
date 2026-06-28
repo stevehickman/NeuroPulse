@@ -282,8 +282,3 @@ Date: ___________________________
 
 **Purpose of Business Associate's use/disclosure:**
 [e.g., "To provide the Business Associate's EHR platform with NeuroPulse clinical data for integration into the treating clinician's patient record."]
-
----
-
-*NP-LEGAL-BAA-001 Rev A — DRAFT TEMPLATE — Requires legal counsel review before execution*  
-*CONFIDENTIAL — NeuroPulse Design Programme*

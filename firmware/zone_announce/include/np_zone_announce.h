@@ -12,7 +12,7 @@
  *
  * Platform HAL stubs (np_za_platform_*) must be implemented by the FW team
  * for the target i.MX RT1062 peripherals (LPADC1, SAI3, eDMA channel 5).
- * See OI-ZA-01 through OI-ZA-04 in NP-FW-ZA-001 Rev A §11.
+ * See OI-ZA-01 through OI-ZA-04 in NP-FW-ZA-001 §10.
  */
 
 #ifndef NP_ZONE_ANNOUNCE_H

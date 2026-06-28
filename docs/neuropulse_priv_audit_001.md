@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-03  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-PRIV-REM-001 Rev A STEP-21; NP-PRIV-001 Rev A; NP-APP-TELEMETRY-001 Rev B; NP-APP-ROADMAP-001 Rev B; NP-FW-EMMC-001 Rev A; NP-FW-EMMC-002 Rev A; NP-FW-ANON-001 Rev A; CLAUDE.md §5 (UHDR/SHDR), §6 (Consent Engine)  
+**References:** NP-PRIV-REM-001 STEP-21; NP-PRIV-001; NP-APP-TELEMETRY-001; NP-APP-ROADMAP-001; NP-FW-EMMC-001; NP-FW-EMMC-002; NP-FW-ANON-001; CLAUDE.md §5 (UHDR/SHDR), §6 (Consent Engine)  
 **Related Issues:** —  
 **Gate:** BLOCKING for first external beta (TestFlight / Play Store open beta)  
 **IEC 62304 Class:** —  
@@ -38,30 +38,30 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 #### HIGH — Analytics and crash vendor not yet selected; PrivacyInfo.xcprivacy incomplete
 
-**Where:** NP-APP-TELEMETRY-001 Rev B §2.1, §2.2; iOS app build  
+**Where:** NP-APP-TELEMETRY-001 §2.1, §2.2; iOS app build  
 **Category:** Pure privacy failure (governance gap → downstream unauthorised use)  
 **Issue:** No analytics vendor and no crash reporter have been selected. Until a vendor is chosen and a DPA/BAA executed, the PrivacyInfo.xcprivacy manifest cannot be correctly completed, no SDK can be initialised in any test build, and the App Store privacy nutrition label cannot be accurately filed. Apple now rejects apps whose PrivacyInfo.xcprivacy declarations don't match the APIs accessed by included SDKs (Spring 2024 enforcement). A vendor selected at the last minute before TestFlight will compress DPA review, BAA negotiation, and PrivacyInfo.xcprivacy authoring into the same week as the TestFlight submission — a known recipe for privacy missteps.  
-**Reference:** Apple PrivacyInfo.xcprivacy requirements (Spring 2024); GDPR Art. 28 (processor contracts); FTC Act §5; NP-APP-TELEMETRY-001 Rev B §2 vendor requirements table  
+**Reference:** Apple PrivacyInfo.xcprivacy requirements (Spring 2024); GDPR Art. 28 (processor contracts); FTC Act §5; NP-APP-TELEMETRY-001 §2 vendor requirements table  
 **Remediation:**  
-1. Complete vendor evaluation using the criteria table in NP-APP-TELEMETRY-001 Rev B §2.1 at Month 6 (before G1 gate) — not at Month 12 (app launch).  
+1. Complete vendor evaluation using the criteria table in NP-APP-TELEMETRY-001 §2.1 at Month 6 (before G1 gate) — not at Month 12 (app launch).  
 2. Execute DPA (analytics) and BAA (analytics + crash reporter) before any SDK is added to the Xcode project.  
 3. Author PrivacyInfo.xcprivacy with the Privacy Lead reviewing every NSPrivacyAccessedAPICategory declaration against the SDK's own privacy manifest.  
-4. Record the vendor name, DPA execution date, and BAA execution date in NP-APP-TELEMETRY-001 Rev B §2.1 (currently `[TBD]`).  
+4. Record the vendor name, DPA execution date, and BAA execution date in NP-APP-TELEMETRY-001 §2.1 (currently `[TBD]`).  
 5. Add OI-TEL-02: "Analytics and crash vendor selected, DPA and BAA executed, PrivacyInfo.xcprivacy authored" as a blocking gate for any TestFlight submission.
 
 ---
 
 #### HIGH — SDK initialisation gate not yet verified in any build
 
-**Where:** NP-APP-TELEMETRY-001 Rev B §5; iOS/Android app entrypoint  
+**Where:** NP-APP-TELEMETRY-001 §5; iOS/Android app entrypoint  
 **Category:** Security failure + Pure privacy failure  
-**Issue:** NP-APP-TELEMETRY-001 Rev B specifies the SDK initialisation gate (no SDK initialises before `consentCompleted()` is called), but no implementation exists yet and no verification procedure has been run. The policy document describes the pattern correctly — the risk is that a future engineer adds an SDK in `AppDelegate.application(_:didFinishLaunchingWithOptions:)` because that is the SDK vendor's integration instruction, and the gate is silently broken. Apple's App Tracking Transparency framework and GDPR Art. 7 both require that consent precedes any tracking. The FTC's 2023 enforcement actions against GoodRx, BetterHelp, and Premom were based on exactly this failure mode.  
-**Reference:** "Third-party Free-for-all" anti-pattern; FTC Act §5; FTC HBNR 16 CFR Part 318; GDPR Art. 6, 7; NP-APP-TELEMETRY-001 Rev B §5  
+**Issue:** NP-APP-TELEMETRY-001 specifies the SDK initialisation gate (no SDK initialises before `consentCompleted()` is called), but no implementation exists yet and no verification procedure has been run. The policy document describes the pattern correctly — the risk is that a future engineer adds an SDK in `AppDelegate.application(_:didFinishLaunchingWithOptions:)` because that is the SDK vendor's integration instruction, and the gate is silently broken. Apple's App Tracking Transparency framework and GDPR Art. 7 both require that consent precedes any tracking. The FTC's 2023 enforcement actions against GoodRx, BetterHelp, and Premom were based on exactly this failure mode.  
+**Reference:** "Third-party Free-for-all" anti-pattern; FTC Act §5; FTC HBNR 16 CFR Part 318; GDPR Art. 6, 7; NP-APP-TELEMETRY-001 §5  
 **Remediation:**  
-1. Implement `NeuroPulseConsentStore.hasCompletedConsent()` guard as the first line of any SDK initialisation call, using the code pattern specified in NP-APP-TELEMETRY-001 Rev B §5.  
+1. Implement `NeuroPulseConsentStore.hasCompletedConsent()` guard as the first line of any SDK initialisation call, using the code pattern specified in NP-APP-TELEMETRY-001 §5.  
 2. Add a CI test (XCTest / instrumented Android test) that: (a) launches the app in a reset state; (b) confirms no network calls are made before `consentCompleted()` fires; (c) confirms the analytics SDK and crash reporter are not initialised at cold start.  
-3. Add the SwiftLint / Android Lint rule from NP-APP-TELEMETRY-001 Rev B §7 to the linting configuration immediately — it should be in the repo before any analytics events are authored.  
-4. Run the crash reporter verification procedure (NP-APP-TELEMETRY-001 Rev B §6) and document results as OI-TEL-01 before TestFlight.
+3. Add the SwiftLint / Android Lint rule from NP-APP-TELEMETRY-001 §7 to the linting configuration immediately — it should be in the repo before any analytics events are authored.  
+4. Run the crash reporter verification procedure (NP-APP-TELEMETRY-001 §6) and document results as OI-TEL-01 before TestFlight.
 
 ---
 
@@ -76,45 +76,45 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 2. Conduct a data flow mapping exercise: list every API the app calls, every SDK it bundles, and every piece of data that crosses the device boundary.  
 3. Author the App Privacy label using the data flow map. For a health/EEG app, the following disclosures are expected: Health & Fitness data (App Functionality — not linked to identity, not used for tracking), Identifiers (if any analytics pseudonym is used), Diagnostics (crash data).  
 4. The label must be reviewed by the Privacy Lead and legal counsel before submission.  
-5. Add OI-TEL-03: "App Store privacy nutrition label and Google Play Data Safety filed and verified" as blocking for any external beta submission. Cross-reference with NP-APP-ROADMAP-001 Rev B OI-WA-06.
+5. Add OI-TEL-03: "App Store privacy nutrition label and Google Play Data Safety filed and verified" as blocking for any external beta submission. Cross-reference with NP-APP-ROADMAP-001 OI-WA-06.
 
 ---
 
 #### HIGH — BIPA written release screen implementation not verified
 
-**Where:** NP-APP-ROADMAP-001 Rev B §9.3; NP-PRIV-001 Rev B HIGH-01; OI-PA-03  
+**Where:** NP-APP-ROADMAP-001 §9.3; NP-PRIV-001 Rev B HIGH-01; OI-PA-03  
 **Category:** Pure privacy failure + legal exposure (Illinois BIPA statutory damages)  
-**Issue:** The BIPA written release screen is specified in NP-APP-ROADMAP-001 Rev B §9.3 and is a binding engineering constraint, but it has not been implemented and OI-PA-03 (legal counsel review of the copy) remains open. BIPA provides a private right of action with statutory damages of $1,000–$5,000 per violation — the Facebook ($650M) and TikTok ($92M) settlements quantify the exposure scale. EEG waveforms are biometric information under BIPA 740 ILCS 14/10. Any Illinois resident who activates the device and runs a neurofeedback session without a BIPA-compliant written release creates individual liability. The app cannot ship to the US App Store without this screen being complete and legally reviewed, because geographic blocking at device activation is not an adequate substitute.  
-**Reference:** BIPA 740 ILCS 14/15(b)(1)–(3); NP-APP-ROADMAP-001 Rev B §9.3; NP-PRIV-001 Rev B HIGH-01  
+**Issue:** The BIPA written release screen is specified in NP-APP-ROADMAP-001 §9.3 and is a binding engineering constraint, but it has not been implemented and OI-PA-03 (legal counsel review of the copy) remains open. BIPA provides a private right of action with statutory damages of $1,000–$5,000 per violation — the Facebook ($650M) and TikTok ($92M) settlements quantify the exposure scale. EEG waveforms are biometric information under BIPA 740 ILCS 14/10. Any Illinois resident who activates the device and runs a neurofeedback session without a BIPA-compliant written release creates individual liability. The app cannot ship to the US App Store without this screen being complete and legally reviewed, because geographic blocking at device activation is not an adequate substitute.  
+**Reference:** BIPA 740 ILCS 14/15(b)(1)–(3); NP-APP-ROADMAP-001 §9.3; NP-PRIV-001 Rev B HIGH-01  
 **Remediation:**  
-1. Implement the BIPA written release screen using the approved copy in NP-APP-ROADMAP-001 Rev B §9.3 before any US App Store submission.  
+1. Implement the BIPA written release screen using the approved copy in NP-APP-ROADMAP-001 §9.3 before any US App Store submission.  
 2. Resolve OI-PA-03: engage Illinois-qualified privacy counsel to review the BIPA release copy. Budget 2–4 weeks for legal review.  
 3. Implement Illinois detection via device locale (`NSLocale.current.regionCode == "US"` is insufficient — also check IP geolocation via the onboarding server call, and allow users to self-declare state of residence). Err toward showing the screen for all US users if geolocation is unavailable — false positives (showing the screen to non-Illinois users) carry no legal cost; false negatives (missing an Illinois user) carry statutory damages.  
-4. Implement the graceful degradation path from NP-APP-ROADMAP-001 Rev B §9.3: if the user declines BIPA consent, EEG and closed-loop adaptive stimulation are disabled; the device still functions for PBM, VNS, audio, and visual. This must be tested before any US beta.  
+4. Implement the graceful degradation path from NP-APP-ROADMAP-001 §9.3: if the user declines BIPA consent, EEG and closed-loop adaptive stimulation are disabled; the device still functions for PBM, VNS, audio, and visual. This must be tested before any US beta.  
 5. Add OI-PA-03 closure as a blocking gate for US App Store submission.
 
 ---
 
 #### HIGH — Washington My Health My Data compliance not verified for SHDR behavioural data
 
-**Where:** SHDR data schema; NP-FW-EMMC-002 Rev A §G; NP-PRIV-001 Rev B HIGH-02  
+**Where:** SHDR data schema; NP-FW-EMMC-002 §G; NP-PRIV-001 Rev B HIGH-02  
 **Category:** Pure privacy failure (potential unauthorised use of consumer health data)  
-**Issue:** Washington's My Health My Data Act (MHMD, RCW 70.372) covers "consumer health data" — which explicitly includes data that is used to infer health-related characteristics. SHDR fields such as consumable session counts, device session count (even as an unsigned integer), and the `maintenance_alert` flag are counts of stimulation device usage that could reveal health management behaviour. CLAUDE.md §13.5 confirms `engagement_tier` replaces `session_sequence` in analytics, but the SHDR device session count (`device_session_count`, unsigned integer in NP-FW-EMMC-001 Rev A) is still a raw integer in SHDR. MHMD requires standalone authorisation (separate from HIPAA consent), prohibits sale, and provides a private right of action with AG enforcement. NP-PRIV-001 Rev B HIGH-02 flags this but the regulatory analysis has not yet been obtained (CLAUDE.md §13.4 open item: "Washington MHMD regulatory analysis — obtain before any Washington state device activation").  
+**Issue:** Washington's My Health My Data Act (MHMD, RCW 70.372) covers "consumer health data" — which explicitly includes data that is used to infer health-related characteristics. SHDR fields such as consumable session counts, device session count (even as an unsigned integer), and the `maintenance_alert` flag are counts of stimulation device usage that could reveal health management behaviour. CLAUDE.md §13.5 confirms `engagement_tier` replaces `session_sequence` in analytics, but the SHDR device session count (`device_session_count`, unsigned integer in NP-FW-EMMC-001) is still a raw integer in SHDR. MHMD requires standalone authorisation (separate from HIPAA consent), prohibits sale, and provides a private right of action with AG enforcement. NP-PRIV-001 Rev B HIGH-02 flags this but the regulatory analysis has not yet been obtained (CLAUDE.md §13.4 open item: "Washington MHMD regulatory analysis — obtain before any Washington state device activation").  
 **Reference:** Washington MHMD RCW 70.372; GDPR Art. 9 (inferrable health data); NP-PRIV-001 Rev B HIGH-02; CLAUDE.md §13.4  
 **Remediation:**  
 1. Engage Washington-qualified privacy counsel for MHMD regulatory analysis before any US device activation (not just Washington state). Estimated cost: $5,000–8,000; timeline: 3–4 weeks.  
 2. Pending the legal analysis, apply the same coarsening principle that resolved the `session_sequence` issue in analytics: replace raw `device_session_count` (integer) in SHDR with a coarsened tier enum if the analysis determines the raw count is consumer health data.  
-3. Confirm with counsel whether the SHDR fleet upload on USB-C connect constitutes a "collection" or "sharing" of consumer health data under MHMD and, if so, whether the warranty consent flow (described in NP-FW-EMMC-002 Rev A §A) provides the required standalone authorisation.  
+3. Confirm with counsel whether the SHDR fleet upload on USB-C connect constitutes a "collection" or "sharing" of consumer health data under MHMD and, if so, whether the warranty consent flow (described in NP-FW-EMMC-002 §A) provides the required standalone authorisation.  
 4. Add the MHMD analysis completion as a blocking gate for any US device activation (not just Washington state — advice will clarify scope).
 
 ---
 
 #### MEDIUM — Research consent UX four-layer onboarding not yet designed or tested
 
-**Where:** CLAUDE.md §6.2 (four-layer a priori consent); NP-APP-ROADMAP-001 Rev B §3  
+**Where:** CLAUDE.md §6.2 (four-layer a priori consent); NP-APP-ROADMAP-001 §3  
 **Category:** Pure privacy failure (unawareness — consent not freely given if UX is coercive or confusing)  
-**Issue:** The four-layer research consent system (L1 contact, L2 category, L3 blanket, L4 results) is fully specified in CLAUDE.md §6.2 and is one of NeuroPulse's architectural differentiators. However, no UX design exists, no formative usability testing has been conducted, and there is no review of whether the layered consent UX meets GDPR Art. 7 requirements (freely given, specific, informed, unambiguous) in implementation — not just in specification. Common failure modes in layered consent UX: the "all on" option is visually prominent while "all off" requires additional steps ("Dark Patterns" anti-pattern); the L3 blanket consent irreversibility notice is displayed in small print or after the user has already tapped through; per-category selection (L2) feels like a dark pattern when categories are pre-selected. The POA (power of attorney) upload path (NP-PROC-POA-001 Rev A) has no in-app UX at all.  
-**Reference:** "Dark Patterns" anti-pattern; "Bundled Consent" anti-pattern; GDPR Art. 7 (consent); GDPR Rec. 32 (clear and plain language); NP-PRIV-REM-001 STEP-20; NP-PROC-POA-001 Rev A  
+**Issue:** The four-layer research consent system (L1 contact, L2 category, L3 blanket, L4 results) is fully specified in CLAUDE.md §6.2 and is one of NeuroPulse's architectural differentiators. However, no UX design exists, no formative usability testing has been conducted, and there is no review of whether the layered consent UX meets GDPR Art. 7 requirements (freely given, specific, informed, unambiguous) in implementation — not just in specification. Common failure modes in layered consent UX: the "all on" option is visually prominent while "all off" requires additional steps ("Dark Patterns" anti-pattern); the L3 blanket consent irreversibility notice is displayed in small print or after the user has already tapped through; per-category selection (L2) feels like a dark pattern when categories are pre-selected. The POA (power of attorney) upload path (NP-PROC-POA-001) has no in-app UX at all.  
+**Reference:** "Dark Patterns" anti-pattern; "Bundled Consent" anti-pattern; GDPR Art. 7 (consent); GDPR Rec. 32 (clear and plain language); NP-PRIV-REM-001 STEP-20; NP-PROC-POA-001  
 **Remediation:**  
 1. Engage a UX designer with consent UX experience to produce wireframes for the four-layer consent onboarding before any implementation begins.  
 2. Conduct formative usability testing with 5–8 participants (IEC 62366-1 §5.7 threshold for formative cycles). Test tasks: (a) "opt out of all research contact"; (b) "opt in to research for depression only"; (c) "find where to withdraw research consent after setup"; (d) read and understand the L3 irreversibility notice. Document pass/fail rates.  
@@ -125,10 +125,10 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 #### MEDIUM — BLE GATT characteristics may transmit health data without audit trail
 
-**Where:** NP-APP-ROADMAP-001 Rev B §5 (GATT service definition); NP-APP-ROADMAP-001 Rev B §2 (WatchConnectivity relay)  
+**Where:** NP-APP-ROADMAP-001 §5 (GATT service definition); NP-APP-ROADMAP-001 §2 (WatchConnectivity relay)  
 **Category:** Pure privacy failure (data in transit scope exceeds documented minimum)  
-**Issue:** The GATT service definition in NP-APP-ROADMAP-001 Rev B §5 transmits `HRV_COHERENCE` (coherence score × 100 + RMSSD ms) and `PACER_PHASE` (inhale/exhale state) at 100ms and 5-second intervals. HRV RMSSD is a direct physiological measurement — it falls within UHDR under the 27-element classification table in NP-FW-EMMC-001 Rev A §12. The current spec says this NOTIFY characteristic is broadcast over BLE to any connected app client, including the Apple Watch app via WatchConnectivity. There is no documented scope limitation on who can connect to the GATT service, no encryption requirement beyond BLE pairing, and no audit trail that this characteristic was read.  
-**Reference:** GDPR Art. 5(1)(f) (integrity and confidentiality); GDPR Art. 32 (security of processing); NP-FW-EMMC-001 Rev A §12 (UHDR classification); "Least Privilege" pattern  
+**Issue:** The GATT service definition in NP-APP-ROADMAP-001 §5 transmits `HRV_COHERENCE` (coherence score × 100 + RMSSD ms) and `PACER_PHASE` (inhale/exhale state) at 100ms and 5-second intervals. HRV RMSSD is a direct physiological measurement — it falls within UHDR under the 27-element classification table in NP-FW-EMMC-001 §12. The current spec says this NOTIFY characteristic is broadcast over BLE to any connected app client, including the Apple Watch app via WatchConnectivity. There is no documented scope limitation on who can connect to the GATT service, no encryption requirement beyond BLE pairing, and no audit trail that this characteristic was read.  
+**Reference:** GDPR Art. 5(1)(f) (integrity and confidentiality); GDPR Art. 32 (security of processing); NP-FW-EMMC-001 §12 (UHDR classification); "Least Privilege" pattern  
 **Remediation:**  
 1. Document the intended consumers of each GATT characteristic. `HRV_COHERENCE` should only be readable by the paired user's iPhone app. The service specification should explicitly state that BLE bonding is required and that only the device bonded during setup may access NOTIFY characteristics.  
 2. Evaluate whether `HRV_COHERENCE` can transmit the coherence score only (0–10 scaled integer) rather than raw RMSSD ms. The Watch app uses the coherence score for the breathing ring display; it does not need RMSSD. This would remove a UHDR-class value from the BLE characteristic.  
@@ -139,10 +139,10 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 #### MEDIUM — Apple Watch sync app data flow has unresolved privacy implications
 
-**Where:** NP-APP-ROADMAP-001 Rev B §4 (Watch phases 1–4)  
+**Where:** NP-APP-ROADMAP-001 §4 (Watch phases 1–4)  
 **Category:** Pure privacy failure (data minimisation; third-party data scope)  
 **Issue:** The WatchConnectivity relay sends a subset of GATT data to the Apple Watch. Apple Watch platforms (watchOS, HealthKit, Workout context) have their own data retention and sharing behaviours that are outside NeuroPulse's control: (a) HealthKit may automatically record HRV and heart rate data from sessions if any app component calls `HKWorkoutSession` or `HKWorkoutBuilder` — even inadvertently; (b) watchOS may surface session data in Siri Suggestions or Handoff state; (c) the Apple Watch coherence score display (Phase 1) is visible on the wrist in any context — a side-channel disclosure in clinical or workplace settings. None of these downstream behaviours are currently addressed in any privacy document.  
-**Reference:** "Purpose Creep" anti-pattern; GDPR Art. 28 (processors — Apple is a data processor for HealthKit); Apple HealthKit API agreement; NP-APP-ROADMAP-001 Rev B §9.1  
+**Reference:** "Purpose Creep" anti-pattern; GDPR Art. 28 (processors — Apple is a data processor for HealthKit); Apple HealthKit API agreement; NP-APP-ROADMAP-001 §9.1  
 **Remediation:**  
 1. Audit the Watch app implementation plan for any inadvertent use of HealthKit APIs (even indirect, via watchOS workout context). Confirm that `HKWorkoutSession` and `HKWorkoutBuilder` are never instantiated by the Watch app.  
 2. Explicitly configure AVAudioSession in Phase 2 audio sync without any HealthKit or Workout context categories that could cause automatic HRV/HR recording.  
@@ -161,17 +161,17 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 **Remediation:**  
 1. Design a "Connected Clinicians" screen in the app showing: clinician name and institution; active tier; elements accessible (plain-language list); access expiry date; [Revoke access] button.  
 2. Design the differential consent flow for tier expansion: present the incremental UHDR elements being newly requested, not the full set; present retroactive access request as a separate, clearly labelled decision beneath the prospective consent.  
-3. Design the revocation flow: single-tap revoke from the Connected Clinicians screen; immediate local revocation confirmation; 30-day deletion cascade per NP-LEGAL-BAA-001 Rev A §5.1.  
+3. Design the revocation flow: single-tap revoke from the Connected Clinicians screen; immediate local revocation confirmation; 30-day deletion cascade per NP-LEGAL-BAA-001 §5.1.  
 4. Formative test the clinician access UX with 3–5 participants. Task: "your neurologist now wants to see your EEG data — show me where you go to approve or decline this."
 
 ---
 
 #### MEDIUM — Crash reporter verification procedure has no CI enforcement
 
-**Where:** NP-APP-TELEMETRY-001 Rev B §6  
+**Where:** NP-APP-TELEMETRY-001 §6  
 **Category:** Pure privacy failure + security failure  
-**Issue:** NP-APP-TELEMETRY-001 Rev B §6 defines a manual verification procedure (intentionally trigger a crash, inspect the vendor UI) but there is no automated enforcement. Crash reporter configurations can be changed by a vendor SDK update, a library version bump, or a copy-paste from a Stack Overflow answer that re-enables payload capture. The manual procedure is documented as OI-TEL-01 but has no CI gate. A session runner crash — which is the most common crash path in a hardware-interfacing app — can have stack-local variables containing EEG band values, session parameters, or BLE payload buffers. If the crash reporter is misconfigured, these end up in the vendor's infrastructure.  
-**Reference:** "Full Payload Logging" anti-pattern; GDPR Art. 32; NP-APP-TELEMETRY-001 Rev B §6  
+**Issue:** NP-APP-TELEMETRY-001 §6 defines a manual verification procedure (intentionally trigger a crash, inspect the vendor UI) but there is no automated enforcement. Crash reporter configurations can be changed by a vendor SDK update, a library version bump, or a copy-paste from a Stack Overflow answer that re-enables payload capture. The manual procedure is documented as OI-TEL-01 but has no CI gate. A session runner crash — which is the most common crash path in a hardware-interfacing app — can have stack-local variables containing EEG band values, session parameters, or BLE payload buffers. If the crash reporter is misconfigured, these end up in the vendor's infrastructure.  
+**Reference:** "Full Payload Logging" anti-pattern; GDPR Art. 32; NP-APP-TELEMETRY-001 §6  
 **Remediation:**  
 1. Implement a CI test that builds the app in release mode with the crash reporter SDK included and verifies, via a mock network layer, that no request body, no local variable map, and no screenshot is transmitted in a simulated crash event.  
 2. Pin the crash reporter SDK version in the package manifest (not a version range) and require the Privacy Lead to review every version bump for changes to capture behaviour.  
@@ -181,10 +181,10 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 #### MEDIUM — `engagement_tier` counter stored in UserDefaults without clear deletion-on-erasure path
 
-**Where:** NP-APP-TELEMETRY-001 Rev B §3.2; iOS `UserDefaults`; Android `SharedPreferences`  
+**Where:** NP-APP-TELEMETRY-001 §3.2; iOS `UserDefaults`; Android `SharedPreferences`  
 **Category:** Pure privacy failure (incomplete data lifecycle)  
-**Issue:** NP-APP-TELEMETRY-001 Rev B §3.2 specifies that the `NP_APP_LAUNCH_COUNT` counter is stored in `UserDefaults` (iOS) / `SharedPreferences` (Android) and resets on uninstall. However, iOS `UserDefaults` backed by iCloud backup does not reset on uninstall if iCloud backup is enabled — reinstallation on the same device restores the counter. This could allow an analytics vendor to infer continuity of the same user across "new" installs. Additionally, the GDPR right to erasure requires that on account deletion, all locally stored data is purged — there is no documented erasure path for `NP_APP_LAUNCH_COUNT`.  
-**Reference:** GDPR Art. 17 (right to erasure); "Permanent Storage" anti-pattern; NP-APP-TELEMETRY-001 Rev B §3.2  
+**Issue:** NP-APP-TELEMETRY-001 §3.2 specifies that the `NP_APP_LAUNCH_COUNT` counter is stored in `UserDefaults` (iOS) / `SharedPreferences` (Android) and resets on uninstall. However, iOS `UserDefaults` backed by iCloud backup does not reset on uninstall if iCloud backup is enabled — reinstallation on the same device restores the counter. This could allow an analytics vendor to infer continuity of the same user across "new" installs. Additionally, the GDPR right to erasure requires that on account deletion, all locally stored data is purged — there is no documented erasure path for `NP_APP_LAUNCH_COUNT`.  
+**Reference:** GDPR Art. 17 (right to erasure); "Permanent Storage" anti-pattern; NP-APP-TELEMETRY-001 §3.2  
 **Remediation:**  
 1. Store `NP_APP_LAUNCH_COUNT` in `UserDefaults(suiteName:)` with `.local` scope (excludes iCloud sync) on iOS, and in a non-backed-up storage location on Android (`Context.getNoBackupFilesDir()`).  
 2. Add `NP_APP_LAUNCH_COUNT` to the account deletion erasure cascade: when the user deletes their account or exercises the right to erasure, clear this key alongside all other app-local storage.  
@@ -194,10 +194,10 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 #### LOW — Adaptive stimulation trigger enum not yet authored or reviewed
 
-**Where:** NP-APP-ROADMAP-001 Rev B §9.4; NP-PRIV-REM-001 STEP-33; OI-PA-04  
+**Where:** NP-APP-ROADMAP-001 §9.4; NP-PRIV-REM-001 STEP-33; OI-PA-04  
 **Category:** Pure privacy failure (unawareness — transparency obligation not fulfilled)  
-**Issue:** The Adaptive Adjustments card in Session History is a GDPR Art. 13(2)(f) compliance requirement (information about automated decision-making that significantly affects the user). The card is specified in NP-APP-ROADMAP-001 Rev B §9.4 and requires a plain-language trigger enum mapping. OI-PA-04 (Privacy Lead sign-off on the trigger copy) is open. No trigger enum has been authored yet. If the session runner firmware is implemented before the enum is defined and reviewed, the adaptive transparency card will be implemented as a retrofit, which historically produces incomplete enums (the firmware has more trigger types than the app surfaces).  
-**Reference:** GDPR Art. 13(2)(f) (automated individual decision-making information); NP-PRIV-REM-001 STEP-33; NP-APP-ROADMAP-001 Rev B §9.4  
+**Issue:** The Adaptive Adjustments card in Session History is a GDPR Art. 13(2)(f) compliance requirement (information about automated decision-making that significantly affects the user). The card is specified in NP-APP-ROADMAP-001 §9.4 and requires a plain-language trigger enum mapping. OI-PA-04 (Privacy Lead sign-off on the trigger copy) is open. No trigger enum has been authored yet. If the session runner firmware is implemented before the enum is defined and reviewed, the adaptive transparency card will be implemented as a retrofit, which historically produces incomplete enums (the firmware has more trigger types than the app surfaces).  
+**Reference:** GDPR Art. 13(2)(f) (automated individual decision-making information); NP-PRIV-REM-001 STEP-33; NP-APP-ROADMAP-001 §9.4  
 **Remediation:**  
 1. Author the trigger enum *before* the session runner firmware is implemented, not after. Work with the firmware team to enumerate every closed-loop adaptation event type the session runner can produce, then write the plain-language label for each. Add to NP-QMS-DC-001 that extending the enum is required whenever a new adaptive trigger is added to firmware.  
 2. Resolve OI-PA-04 (Privacy Lead sign-off on trigger copy) before the Adaptive Adjustments card is included in any build.  
@@ -220,10 +220,10 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 #### LOW — Minimum age gate threshold pending legal confirmation; no guardian pathway for T2
 
-**Where:** NP-APP-ROADMAP-001 Rev B §9.2; OI-PA-01; OI-PA-02  
+**Where:** NP-APP-ROADMAP-001 §9.2; OI-PA-01; OI-PA-02  
 **Category:** Pure privacy failure (COPPA / GDPR Art. 8 compliance gap)  
 **Issue:** The minimum age gate is specified (16 years, with a checkbox declaration) but OI-PA-01 (legal counsel confirmation that 16 is the correct threshold) remains open. The threshold matters: COPPA applies to under-13; GDPR Art. 8 allows member states to set the threshold as low as 13 (Germany) or as high as 16 (many EU states); BIPA implicitly requires adult consent (18) for biometric data. A threshold of 16 may be wrong for some US states and correct for most EU states. Additionally, OI-PA-02 (guardian consent pathway for T2 minor patients) is open — the T2 clinical use case for paediatric neurological patients (Parkinson's, TBI rehabilitation) requires a different consent architecture.  
-**Reference:** COPPA 15 U.S.C. §6502; GDPR Art. 8; BIPA 740 ILCS 14/15(b); NP-APP-ROADMAP-001 Rev B §9.2  
+**Reference:** COPPA 15 U.S.C. §6502; GDPR Art. 8; BIPA 740 ILCS 14/15(b); NP-APP-ROADMAP-001 §9.2  
 **Remediation:**  
 1. Resolve OI-PA-01: engage privacy counsel to confirm the age threshold matrix by jurisdiction (US, EU per-member-state, UK, Canada) and produce a jurisdiction-aware consent flow decision tree.  
 2. Implement the age gate as a conditional declaration with jurisdiction-derived threshold (13, 16, or 18) — not a fixed global value.  
@@ -235,10 +235,10 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 **Where:** CI/CD pipeline; app test suite  
 **Category:** Pure privacy failure (monitoring gap)  
-**Issue:** The app's CI pipeline has no privacy-specific regression tests. Without tests that fail when a prohibited event property (from NP-APP-TELEMETRY-001 Rev B §4) appears in an analytics call, or when the SDK initialisation gate is bypassed, or when a UHDR value appears in a log, privacy regressions will only be caught in manual review — if at all. Privacy regressions are among the most common and most costly class of bugs in health apps, and they typically arise from well-intentioned debugging code that is never removed.  
-**Reference:** "Privacy & Security Regression Tests" security pattern; GDPR Art. 32(1)(d) (regular testing of security measures); NP-APP-TELEMETRY-001 Rev B §5, §7  
+**Issue:** The app's CI pipeline has no privacy-specific regression tests. Without tests that fail when a prohibited event property (from NP-APP-TELEMETRY-001 §4) appears in an analytics call, or when the SDK initialisation gate is bypassed, or when a UHDR value appears in a log, privacy regressions will only be caught in manual review — if at all. Privacy regressions are among the most common and most costly class of bugs in health apps, and they typically arise from well-intentioned debugging code that is never removed.  
+**Reference:** "Privacy & Security Regression Tests" security pattern; GDPR Art. 32(1)(d) (regular testing of security measures); NP-APP-TELEMETRY-001 §5, §7  
 **Remediation:**  
-1. Implement the SwiftLint / Android Lint rule from NP-APP-TELEMETRY-001 Rev B §7 immediately — this is a zero-cost prevention measure.  
+1. Implement the SwiftLint / Android Lint rule from NP-APP-TELEMETRY-001 §7 immediately — this is a zero-cost prevention measure.  
 2. Add the following to the CI test suite before any TestFlight submission: (a) SDK gate test (no network calls before consent); (b) event property lint test (no prohibited string in analytics event name or value); (c) GATT output test (no UHDR-class raw value transmitted in any mock session event); (d) crash reporter payload test (no variable values in crash report body).  
 3. Run the privacy regression suite on every pull request, not just before release builds.
 
@@ -246,13 +246,13 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 ### What looks good
 
-**UHDR encryption architecture.** The biometric-derived AES-256-XTS key scheme (NP-FW-EMMC-001 Rev A, updated by NP-FW-EMMC-002 Rev A) is the right architecture for a health data device. NeuroPulse never holds the decryption key. If the company's servers are breached, user health data is not exposed. This is a genuine privacy-by-design choice that goes well beyond regulatory minimum and directly addresses the category of harm (operator access to health data) that the FTC has been enforcing against health apps.
+**UHDR encryption architecture.** The biometric-derived AES-256-XTS key scheme (NP-FW-EMMC-001, updated by NP-FW-EMMC-002) is the right architecture for a health data device. NeuroPulse never holds the decryption key. If the company's servers are breached, user health data is not exposed. This is a genuine privacy-by-design choice that goes well beyond regulatory minimum and directly addresses the category of harm (operator access to health data) that the FTC has been enforcing against health apps.
 
-**SHDR/UHDR strict separation.** The two-partition eMMC architecture with separate encryption keys ensures that NeuroPulse's fleet telemetry (SHDR) is structurally isolated from user health data (UHDR). The 27-element classification table (NP-FW-EMMC-001 Rev A §12) is thorough and the boundary-case resolution rule ("when in doubt → UHDR") is the right default.
+**SHDR/UHDR strict separation.** The two-partition eMMC architecture with separate encryption keys ensures that NeuroPulse's fleet telemetry (SHDR) is structurally isolated from user health data (UHDR). The 27-element classification table (NP-FW-EMMC-001 §12) is thorough and the boundary-case resolution rule ("when in doubt → UHDR") is the right default.
 
 **On-device research anonymisation.** The architecture where anonymisation runs on-device, on demand, per study, using a signed study descriptor, is the correct approach. It means NeuroPulse cannot be compelled to produce raw UHDR even in response to a data request, because it genuinely does not have it.
 
-**Analytics telemetry policy is appropriately cautious.** NP-APP-TELEMETRY-001 Rev B correctly identifies the FTC precedents, specifies a one-vendor maximum, requires BAA, prohibits IDFA/GAID, and produces an explicit whitelist of permitted event properties. The `engagement_tier` coarsening is a good response to the `session_sequence` privacy finding.
+**Analytics telemetry policy is appropriately cautious.** NP-APP-TELEMETRY-001 correctly identifies the FTC precedents, specifies a one-vendor maximum, requires BAA, prohibits IDFA/GAID, and produces an explicit whitelist of permitted event properties. The `engagement_tier` coarsening is a good response to the `session_sequence` privacy finding.
 
 **Consent withdrawal is forward-effective for research.** CLAUDE.md §6.2 and the research anonymisation architecture ensure that consent withdrawal immediately stops all future data flows from any time period — including historical sessions. The per-study, on-demand generation model means there is no database of pre-generated extracts to roll back; withdrawal is structurally effective, not just procedurally promised.
 
@@ -270,7 +270,7 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 **Clinical consent engine UX.** No wireframes or implementation exist. The specification in CLAUDE.md §6.1 is thorough; the implementation risk is in the translation of that specification into screens that users actually understand and that courts and regulators would accept as meeting GDPR Art. 7 standards.
 
-**T2 clinical backend.** The FHIR R4 profile (NP-INT-FHIR-001 Rev A), BAA template (NP-LEGAL-BAA-001 Rev A), and T2 scripting API (NP-API-001, not yet authored) are separate from this audit's scope. NP-PRIV-AUDIT-001 covers the iOS/Android app client only.
+**T2 clinical backend.** The FHIR R4 profile (NP-INT-FHIR-001), BAA template (NP-LEGAL-BAA-001), and T2 scripting API (NP-API-001, not yet authored) are separate from this audit's scope. NP-PRIV-AUDIT-001 covers the iOS/Android app client only.
 
 ---
 
@@ -325,8 +325,3 @@ The following items must all be verified before first external beta (TestFlight 
 | OI-AUDIT-02 | Vendor SDK privacy manifest review — conduct at vendor selection | NP-PRIV-AUDIT-001 Rev A | High |
 | OI-AUDIT-03 | T2 clinical backend privacy audit (FHIR, scripting API, BAA cascade) — separate scope from this document | NP-PRIV-AUDIT-001 Rev A | Medium |
 | OI-AUDIT-04 | NP-PRIV-AUDIT-001 Rev B — re-audit against first implementation build; target Month 9 | NP-PRIV-AUDIT-001 Rev A | High |
-
----
-
-*NP-PRIV-AUDIT-001 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*  
-*This document is a QMS record under NP-QMS-DC-001 and is entered into the Design History File (NP-DHF-001) as a design verification activity.*

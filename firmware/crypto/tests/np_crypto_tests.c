@@ -1,6 +1,6 @@
 /*
  * NeuroPulse np_crypto — Host Smoke Tests (TDD)
- * Document: NP-SW-001 Rev A §4.1 (SW-01-M07 Ed25519 dependency)
+ * Document: NP-SW-001 §9.4 (SW-01-M07 Ed25519 dependency)
  *
  * RFC 8032 §6 Ed25519 test vectors (TV1, TV2).
  * NIST FIPS 180-4 SHA-256 / SHA-512 test vectors.

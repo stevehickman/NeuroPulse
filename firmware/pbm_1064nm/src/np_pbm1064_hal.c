@@ -153,7 +153,7 @@ void np_pbm1064_hal_t2_throttle_request(uint8_t pct)
     (void)pct;
 }
 
-/* ── T2 1170nm laser HAL stubs (NP-SES-1064-001 Rev A §4) ───────────────────── */
+/* ── T2 1170nm laser HAL stubs (NP-SES-1064-001 §6) ───────────────────── */
 
 /* Stub state for FAI test determinism. */
 static bool    s_stub_t2_1170_enabled  = false;

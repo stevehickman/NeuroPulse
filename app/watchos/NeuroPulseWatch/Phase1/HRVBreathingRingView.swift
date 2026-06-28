@@ -3,7 +3,7 @@ import SwiftUI
 // Phase 1 — HRV breathing ring.
 // Expanding ring = inhale, contracting ring = exhale.
 // Driven by the pacer phase and elapsed-percent values from the hub
-// (np_hrv_pacer firmware module, NP-FW-HRV-001 Rev A §5).
+// (np_hrv_pacer firmware module, NP-FW-HRV-001 §7).
 
 struct HRVBreathingRingView: View {
 

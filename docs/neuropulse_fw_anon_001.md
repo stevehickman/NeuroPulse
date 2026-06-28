@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-03
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-PRIV-REM-001 STEP-11; NP-FW-EMMC-002 §A §D §E; NP-FW-EMMC-001 Rev A §6 §15; 45 CFR §164.514(b)(1) (HIPAA Expert Determination); NP-PRIV-001 Rev A HIGH-02
+**References:** NP-PRIV-REM-001 STEP-11; NP-FW-EMMC-002 §A §D §E; NP-FW-EMMC-001 §6 §15; 45 CFR §164.514(b)(1) (HIPAA Expert Determination); NP-PRIV-001 HIGH-02
 **Related Issues:** —
 **Gate:** —
 **IEC 62304 Class:** SW-02 Class B (main processor — anonymisation does not control stimulation)
@@ -350,7 +350,3 @@ FAI-ANON-09 uses synthetic test data with known ground truth. The adversarial at
 | OI-ANON-03 | study_public_key scheme selection — NaCl box vs AES-256-GCM+ECDH | Output format finalisation |
 | OI-ANON-04 | age_decile collection in app onboarding — voluntary bracket, no DOB | App spec (NP-APP-ROADMAP-001 Rev B) |
 | OI-ANON-05 | Expert Determination certification template (NP-ANON-CERT) finalised | STEP-32; IRB protocol approval |
-
----
-
-*NP-FW-ANON-001 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*

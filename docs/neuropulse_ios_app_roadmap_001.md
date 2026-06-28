@@ -85,7 +85,7 @@ Development priority order is determined by implementation complexity and user u
 
 - Session timer (start, elapsed time, haptic end-of-session alert)
 - Protocol name display on Watch face
-- HRV biofeedback breathing ring: expanding/contracting SwiftUI animation synchronised to pacer phase from np_hrv_pacer (see NP-FW-HRV-001 Rev A §5)
+- HRV biofeedback breathing ring: expanding/contracting SwiftUI animation synchronised to pacer phase from np_hrv_pacer (see NP-FW-HRV-001 §7)
 - Real-time coherence score display (0–10, colour-coded) — wrist-glance complement to iPhone display
 - RMSSD per-session value
 - Quick impedance check result notification (pass/fail push from iPhone app)

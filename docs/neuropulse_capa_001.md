@@ -284,7 +284,3 @@ CAPA records are confidential quality records and are not routinely shared exter
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. CAPA procedure established at QMS formation. |
-
----
-
-*NP-QMS-CAPA-001 Rev A — ACTIVE — Effective 2026-05-13*

@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-15  
 **Author:** SmartyPants / PAI  
 **Approved By:** TBD (Quality Lead)  
-**References:** NP-SW-001 Rev A, NP-RM-001 Rev A, NP-FW-CVNS-001 Rev A, IEC 62304:2006+AMD1:2015 §7.1, ISO 14971:2019  
+**References:** NP-SW-001, NP-RM-001, NP-FW-CVNS-001, IEC 62304:2006+AMD1:2015 §7.1, ISO 14971:2019  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** C (SW-01 Safety MCU)  
@@ -23,7 +23,7 @@
 
 This document provides the unit-level Failure Mode and Effects Analysis (FMEA) for SW-01 — the NeuroPulse Safety MCU bare-metal firmware executing on the STM32G071 (Cortex-M0+, 64 MHz, 36 KB SRAM, 128 KB flash). It satisfies IEC 62304:2006+AMD1:2015 §7.1 Class C requirement to identify software items that could contribute to hazardous situations and to document the failure modes, potential harms, and risk controls for each.
 
-This FMEA is also required by ISO 14971:2019 as part of the software-related hazard analysis and complements the system-level risk register (NP-RM-001 Rev A / NP-RISK-001 Rev A, RISK-01 through RISK-25).
+This FMEA is also required by ISO 14971:2019 as part of the software-related hazard analysis and complements the system-level risk register (NP-RM-001 / NP-RISK-001, RISK-01 through RISK-25).
 
 ### 1.2 Scope
 
@@ -198,7 +198,7 @@ A baseline cross-validation step before enable ensures the Safety MCU's GPIO-tim
 
 ### 3.7 SW01-M07 — Session Protocol Signature Verification (`np_session_sig.c/.h`)
 
-**Description:** SW01-M07 implements Ed25519 signature verification on the binary session descriptor received from SW-02 before any stimulation GPIO can be enabled. Ed25519 verification is provided by the shared `np_crypto` static library (`firmware/crypto/`) backed by Monocypher 4.0.2 (RFC 8032 §5.1.7, SHA-512; SOUP record: `firmware/crypto/vendor/monocypher/VERSION`; BSD-2-Clause OR CC0-1.0; OI-SW01-M07-02 CLOSED 2026-06-11, PR #132). The library is validated by 11 host tests (RFC 8032 TV1/TV2 vectors + all-zero pubkey guard; see NP-SW-001 Rev A §9.4 SOUP table). The bootloader retains its own self-contained Ed25519 because it uses `-nostdlib/-nodefaultlibs`, which makes Monocypher's libc dependencies unavailable; both paths are covered by the same RFC 8032 test vectors. The session descriptor includes the protocol parameters, modality configuration, and safety limits. A replay prevention counter (device-serial session counter stored in the Config partition) prevents replay of previously valid descriptors. Unsigned, corrupted, or replayed descriptors cause SW01-M07 to return a rejection code to SW01-M01, which keeps all GPIO LOW.
+**Description:** SW01-M07 implements Ed25519 signature verification on the binary session descriptor received from SW-02 before any stimulation GPIO can be enabled. Ed25519 verification is provided by the shared `np_crypto` static library (`firmware/crypto/`) backed by Monocypher 4.0.2 (RFC 8032 §5.1.7, SHA-512; SOUP record: `firmware/crypto/vendor/monocypher/VERSION`; BSD-2-Clause OR CC0-1.0; OI-SW01-M07-02 CLOSED 2026-06-11, PR #132). The library is validated by 11 host tests (RFC 8032 TV1/TV2 vectors + all-zero pubkey guard; see NP-SW-001 §9.4 SOUP table). The bootloader retains its own self-contained Ed25519 because it uses `-nostdlib/-nodefaultlibs`, which makes Monocypher's libc dependencies unavailable; both paths are covered by the same RFC 8032 test vectors. The session descriptor includes the protocol parameters, modality configuration, and safety limits. A replay prevention counter (device-serial session counter stored in the Config partition) prevents replay of previously valid descriptors. Unsigned, corrupted, or replayed descriptors cause SW01-M07 to return a rejection code to SW01-M01, which keeps all GPIO LOW.
 
 | FM-ID | Failure Mode | Effect | S | P | Risk | Mitigation | Res. S | Res. P | Res. Risk | Accept |
 |---|---|---|---|---|---|---|---|---|---|---|
@@ -247,7 +247,7 @@ A baseline cross-validation step before enable ensures the Safety MCU's GPIO-tim
 
 After application of all identified mitigations, all 43 failure modes across the 8 Safety MCU modules have residual risk ratings of **ACCEPTABLE** (S×P ≤ 4). No residual risks remain in the ALARP or UNACCEPTABLE bands.
 
-This assessment is consistent with the NP-RM-001 Rev A overall residual risk evaluation requirements (§11). The following conditions, required before the formal ISO 14971 Overall Residual Risk Evaluation, remain outstanding:
+This assessment is consistent with the NP-RM-001 overall residual risk evaluation requirements (§11). The following conditions, required before the formal ISO 14971 Overall Residual Risk Evaluation, remain outstanding:
 
 - RISK-03 (PBM regulatory opinion) — OPEN, external
 - RISK-20 (CFRP shell Ra confirmation) — OPEN, external  
@@ -306,8 +306,4 @@ The clinical benefit of the device — multi-modal neurostimulation supporting c
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | A | 2026-06-06 | SmartyPants / PAI | Initial issue. Unit-level FMEA for SW01-M01 through SW01-M08 per IEC 62304 §7.1 Class C requirement. 43 failure modes across 8 modules. All residual risks ACCEPTABLE. Closes SW-01 FMEA pending decision in CLAUDE.md §13.4. |
-| B | 2026-06-15 | SmartyPants / PAI | OI-SW01-M07-02 CLOSED — §3.7 description updated to reflect that Ed25519 is now provided by the shared `np_crypto` library (Monocypher 4.0.2, PR #132) rather than a self-contained implementation. FMEA-M07-05 mitigation updated to reference Monocypher `ct_memcmp`. No failure modes added or removed; no risk scores changed. References: NP-SW-001 Rev A §9.4 SOUP table; `firmware/crypto/vendor/monocypher/VERSION`. |
-
----
-
-*NP-FMEA-001 Rev B — DRAFT — 2026-06-15*
+| B | 2026-06-15 | SmartyPants / PAI | OI-SW01-M07-02 CLOSED — §3.7 description updated to reflect that Ed25519 is now provided by the shared `np_crypto` library (Monocypher 4.0.2, PR #132) rather than a self-contained implementation. FMEA-M07-05 mitigation updated to reference Monocypher `ct_memcmp`. No failure modes added or removed; no risk scores changed. References: NP-SW-001 §9.4 SOUP table; `firmware/crypto/vendor/monocypher/VERSION`. |

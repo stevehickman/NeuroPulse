@@ -194,7 +194,7 @@ NP-PRIV-001 Rev A MEDIUM-04 identified that the Scratch partition's unencrypted 
 Before the anonymisation task begins:
 
 ```c
-/* firmware/anon/np_anon_scratch.h */
+/* firmware/anon/include/np_anon_scratch.h */
 
 typedef struct {
     uint8_t  k_scratch[32];       /* AES-256-CTR key — in SRAM only */
@@ -310,7 +310,7 @@ NPa3f7b9c2d1e4f5 X X NeuroPulse_User
 ### E.3 EDF+ writer implementation requirement
 
 ```c
-/* firmware/edf/np_edf_writer.h */
+/* firmware/edf/include/np_edf_writer.h */
 
 /* Fills the EDF+ header patient and recording identification fields
    with privacy-preserving values per NP-FW-EMMC-002 §E.2.
@@ -514,7 +514,3 @@ Open items created by this document:
 | OI-EMMC2-05 | EDF+ writer unit test: generate 100 EDF+ files and confirm all pass header validator | First EEG session recording implementation |
 | OI-EMMC2-06 | No-join CI test: confirm warranty_db × shdr_db join fails with authorisation error | STEP-01 completion |
 | OI-EMMC2-07 | SHDR schema CI test: confirm no prohibited accelerometer column types or names in fleet DB schema | STEP-10; BLOCKING for SHDR fleet DB schema freeze |
-
----
-
-*NP-FW-EMMC-002 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*

@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-03  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001 Rev B, NP-FW-EMMC-002  
+**References:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001, NP-FW-EMMC-002  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —  
@@ -23,7 +23,7 @@
 This document translates every finding in NP-PRIV-001 Rev A into a tracked remediation programme. It serves four functions:
 
 1. **Option selection** — where NP-PRIV-001 presented multiple remediation paths, this document selects the most thorough option and records the rationale.
-2. **Master calendar** — all remediation steps are integrated into a single milestone-linked schedule, cross-referenced to the NeuroPulse design timeline in NP-DP-001 Rev A.
+2. **Master calendar** — all remediation steps are integrated into a single milestone-linked schedule, cross-referenced to the NeuroPulse design timeline in NP-DP-001.
 3. **Capability matrix** — each step identifies the performer role, minimum authority level, whether the step can be automated, and whether an external party is required.
 4. **Authority submission guide** — for every step that requires a submission to a regulatory body, certification authority, or app platform, this document specifies the authority, submission format, content requirements, and prerequisites.
 
@@ -53,7 +53,7 @@ The following table records the chosen option for every finding that presented a
 
 ### Calendar conventions
 
-- **Milestone references** are from NP-DP-001 Rev A (G1 = Month 6, G2 = Month 10, G3 = Month 14, T1 Launch = Month 18). Month 0 = May 2026 (company formation date 2026-05-13).
+- **Milestone references** are from NP-DP-001 (G1 = Month 6, G2 = Month 10, G3 = Month 14, T1 Launch = Month 18). Month 0 = May 2026 (company formation date 2026-05-13).
 - Calendar dates use formation-relative months. Absolute dates: Month 1 = June 2026, Month 6 = November 2026, Month 10 = March 2027, Month 18 = November 2027.
 - **TRIGGER** identifies what event causes the step to activate, distinct from the milestone target. A step may be triggered before its milestone if the trigger condition occurs earlier.
 - **STATUS** values: OPEN · IN PROGRESS · COMPLETE · BLOCKED (with blocker named).
@@ -375,7 +375,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-15 — Scripting API specification: NP-API-001
-**Document:** NP-API-001 Rev A  
+**Document:** NP-API-001  
 **Finding:** MEDIUM-02 (scripting API data access scope undefined)  
 **Trigger:** Before T2 scripting API is designed or any API schema is committed.  
 **Target milestone:** G1 (Month 6)  
@@ -389,12 +389,12 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-16 — Apple App Store privacy nutrition label preparation
-**Document:** NP-APP-ROADMAP-001 Rev B (update); App Store Connect submission  
+**Document:** NP-APP-ROADMAP-001 (update); App Store Connect submission  
 **Finding:** LOW-02 (Apple Watch sync app HealthKit data residency); LOW-01 (app telemetry scope)  
 **Trigger:** Before any public TestFlight or App Store submission.  
 **Target milestone:** Month 6 (first internal TestFlight target)  
 **Status:** OPEN — requires NP-APP-TELEMETRY-001 (STEP-09) and HealthKit permission list to be finalised first.  
-**Deliverable:** (a) App Privacy Nutrition Label completed accurately in App Store Connect: data types collected, linked/not linked, tracking/not tracking; (b) HealthKit entitlement justification string (required by Apple for any app using HealthKit); (c) NP-APP-ROADMAP-001 Rev B binding constraint on HealthKit data residency (no transmission to NeuroPulse servers); (d) Privacy Manifest file (PrivacyInfo.xcprivacy) completed per Apple requirements (required for all apps using privacy-impacting APIs as of Spring 2024). See §4.2 for full authority submission requirements.  
+**Deliverable:** (a) App Privacy Nutrition Label completed accurately in App Store Connect: data types collected, linked/not linked, tracking/not tracking; (b) HealthKit entitlement justification string (required by Apple for any app using HealthKit); (c) NP-APP-ROADMAP-001 binding constraint on HealthKit data residency (no transmission to NeuroPulse servers); (d) Privacy Manifest file (PrivacyInfo.xcprivacy) completed per Apple requirements (required for all apps using privacy-impacting APIs as of Spring 2024). See §4.2 for full authority submission requirements.  
 **Performer:** iOS engineering lead + Legal counsel  
 **Authority required:** Legal counsel review of nutrition label accuracy. CEO sign-off on HealthKit binding constraint.  
 **Automation:** Xcode build system validates PrivacyInfo.xcprivacy at compile time. App Store Connect pre-review checks validate nutrition label completeness.  
@@ -449,7 +449,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-20 — IRB protocol for research consent architecture validation
-**Document:** NP-IRB-001 Rev A (new IRB protocol document)  
+**Document:** NP-IRB-001 (new IRB protocol document)  
 **Finding:** HIGH-02 (research anonymisation); §6.3 research suggestion portal  
 **Trigger:** Before the first study descriptor is sent to any device; before any patient is invited to participate in a NeuroPulse-facilitated study (even observational).  
 **Target milestone:** Month 9  
@@ -467,7 +467,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 
 **Step 2 — If Rashidi-Ranjbar agrees, prepare REB/IRB protocol:**
 - Unity Health Toronto uses the Unity Health REB (not a central IRB)
-- NP-FW-ANON-001 Rev A is the primary technical document to attach — it describes the anonymisation architecture in detail
+- NP-FW-ANON-001 is the primary technical document to attach — it describes the anonymisation architecture in detail
 - Protocol content (per §4.4 of this document): title, PI, institution, study design (observational, retrospective, prospective), subject selection (NeuroPulse T1 users who opt in to research), data sources (NeuroPulse on-device anonymised extracts), anonymisation methods (reference NP-FW-ANON-001), consent mechanism (in-app a priori consent per CLAUDE.md §6.2), data security (NP-FW-EMMC-001), risks and benefits, consent withdrawal procedure
 - **Exemption determination application:** Given the on-device anonymisation (no identifiable data leaving the device), file for an exemption determination under US 45 CFR §46.104(d)(4) (secondary research with de-identified data) in addition to Canadian REB review. The same protocol serves both.
 
@@ -675,16 +675,16 @@ The preferred IRB path is through a university collaborator who already has a fu
 ---
 
 #### STEP-33 — Adaptive stimulation transparency: firmware log + app UI + privacy notice
-**Document:** firmware/hub_control/np_adaptation_log.h (new header); NP-APP-ROADMAP-001 Rev B; NP-API-001 Rev A (T2 clinical report); app privacy notice  
+**Document:** firmware/hub_control/include/np_adaptation_log.h (existing header); NP-APP-ROADMAP-001; NP-API-001 (T2 clinical report); app privacy notice  
 **Finding:** NP-PRIV-001 Rev B MEDIUM-05 (right to explanation for adaptive stimulation)  
 **Trigger:** Before NP-FW-HUB-001 session runner is implemented; before the iOS/Android session-results screen UI is designed.  
 **Target milestone:** G2 (Month 10) for firmware struct; G3 (Month 14) for T2 clinical report in NP-API-001  
 **Status:** OPEN  
 **Deliverable:**  
 (a) `np_adaptation_event_t` struct and `np_adapt_trigger_t` enum added to hub_control firmware (see NP-PRIV-001 Rev B for full C struct definition) — logged to UHDR for every adaptive event during a session;  
-(b) Session History "Adaptive Adjustments" card added to iOS/Android app UI spec (NP-APP-ROADMAP-001 Rev B) — displays plain-language adaptive events from the trigger enum; maximum 5 shown; "view all" for longer sessions;  
+(b) Session History "Adaptive Adjustments" card added to iOS/Android app UI spec (NP-APP-ROADMAP-001) — displays plain-language adaptive events from the trigger enum; maximum 5 shown; "view all" for longer sessions;  
 (c) Plain-language trigger enum mapping (firmware code → user-facing copy) maintained in the app codebase and extended whenever new adaptive triggers are added;  
-(d) T2 clinical adaptation report schema added to NP-API-001 Rev A — JSON format with session_offset_ms, trigger, feature_percentile, param_id, value_before, value_after, confidence_pct; accessible to Full Clinical and Assess tier clinicians;  
+(d) T2 clinical adaptation report schema added to NP-API-001 — JSON format with session_offset_ms, trigger, feature_percentile, param_id, value_before, value_after, confidence_pct; accessible to Full Clinical and Assess tier clinicians;  
 (e) GDPR Art. 13(2)(f) disclosure added to app privacy notice under "Automated processing" — plain-language description of adaptive algorithm logic and user's right to view session adjustment summaries.  
 **Performer:** Firmware engineer (struct + enum); iOS/Android engineer (UI card + trigger mapping); Privacy Lead (GDPR Art. 13(2)(f) copy); API engineer (T2 clinical report schema)  
 **Authority required:** Privacy Lead sign-off on consumer-facing plain-language trigger copy before any build ships with the Adaptive Adjustments card.  
@@ -698,7 +698,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 ---
 
 #### STEP-34 — BIPA compliance programme (Illinois biometric data)
-**Document:** NP-REG-BIPA-001 Rev A (new); NP-APP-ROADMAP-001 Rev B §9.3 (BIPA release screen)  
+**Document:** NP-REG-BIPA-001 Rev A (new); NP-APP-ROADMAP-001 §9.3 (BIPA release screen)  
 **Finding:** NP-PRIV-001 Rev B HIGH-01 (EEG data is biometric under BIPA)  
 **Trigger:** Before any Illinois resident activates a NeuroPulse device. This is a pre-commercial-launch blocker — not a post-launch item.  
 **Target milestone:** Month 2 (legal opinion); Month 6 (app consent flow implementation)  
@@ -713,11 +713,11 @@ The preferred IRB path is through a university collaborator who already has a fu
 **Step 2 — Publish biometric retention and destruction policy on website (before first Illinois device):**
 - Content required (BIPA 740 ILCS 14/15(a)): "NeuroPulse collects brainwave (EEG) biometric data during sessions. This data is stored only on your device, encrypted under a key that NeuroPulse does not hold. NeuroPulse retains EEG biometric data until: (1) you delete your data in the app; (2) you perform a factory reset; or (3) you request account deletion. Upon any of these events, EEG data is permanently erased from the device using hardware-level secure erasure (eMMC SANITIZE)."
 - Location: neuropulse.com/privacy/biometric — publicly accessible, no login required.
-- Add this URL to the BIPA consent release screen (§9.3 of NP-APP-ROADMAP-001 Rev B).
+- Add this URL to the BIPA consent release screen (§9.3 of NP-APP-ROADMAP-001).
 
-**Step 3 — Implement BIPA written release in app consent flow (NP-APP-ROADMAP-001 Rev B §9.3):**
+**Step 3 — Implement BIPA written release in app consent flow (NP-APP-ROADMAP-001 §9.3):**
 - Illinois detection: IP geolocation + user-stated location in device settings. Apply BIPA screen if either signal indicates Illinois.
-- Screen content per NP-APP-ROADMAP-001 Rev B §9.3 — reviewed and approved by BIPA counsel (OI-PA-03).
+- Screen content per NP-APP-ROADMAP-001 §9.3 — reviewed and approved by BIPA counsel (OI-PA-03).
 - "Yes, I consent" / "No, decline" — decline disables EEG modality; device otherwise fully functional.
 
 **Step 4 — Author NP-REG-BIPA-001:**
@@ -764,7 +764,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 ---
 
 #### STEP-36 — Minimum age gate and minor patient pathway
-**Document:** NP-APP-ROADMAP-001 Rev B §9.2 (binding constraint); NP-PROC-MINOR-001 Rev A (new — T2 minor patient guardian consent procedure)  
+**Document:** NP-APP-ROADMAP-001 §9.2 (binding constraint); NP-PROC-MINOR-001 Rev A (new — T2 minor patient guardian consent procedure)  
 **Finding:** NP-PRIV-001 Rev B MEDIUM-03 (no minimum age or children's privacy mechanism)  
 **Trigger:** Before any app consent flow is designed or implemented.  
 **Target milestone:** Month 3 (age gate in app); Month 9 (T2 minor patient pathway for clinical launch)  
@@ -772,7 +772,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 **Deliverable:**
 
 **Step 1 — Age gate in app consent flow (Month 3):**
-- Add the minimum age declaration checkbox as the first screen of the consent flow, per NP-APP-ROADMAP-001 Rev B §9.2.
+- Add the minimum age declaration checkbox as the first screen of the consent flow, per NP-APP-ROADMAP-001 §9.2.
 - Text: "I confirm I am 16 years of age or older." (Not pre-ticked. Required to proceed.)
 - Legal counsel confirms 16 is correct (OI-PA-01). Expected outcome: yes — covers COPPA (13), most EU GDPR member states (16), BIPA (adults-only for written release), UK Children's Code (18 for some data types, but NeuroPulse's use is therapeutic not commercial).
 - The age declaration is stored in UHDR as a consent record: `age_declaration_accepted: bool` + `age_declaration_date: week_ordinal` (no precise timestamp).
@@ -845,7 +845,7 @@ Online form at dataprivacyframework.gov/s/join-the-framework. Required fields:
 | # | Prerequisite | Reference | Responsible |
 |---|---|---|---|
 | P1 | NP-APP-TELEMETRY-001 completed and approved | STEP-09 | Privacy Lead |
-| P2 | HealthKit permission list finalised (approved in NP-APP-ROADMAP-001 Rev B) | STEP-16 | iOS engineering lead |
+| P2 | HealthKit permission list finalised (approved in NP-APP-ROADMAP-001) | STEP-16 | iOS engineering lead |
 | P3 | PrivacyInfo.xcprivacy manifest completed (required for all apps using privacy-impacting APIs since Spring 2024) | Apple Privacy Manifest documentation | iOS engineering lead |
 | P4 | All third-party SDKs using privacy-impacting APIs have privacy manifests included in the app bundle | Apple Third-Party SDK Privacy Manifest requirement | iOS engineering lead |
 | P5 | NSHealthShareUsageDescription string in Info.plist accurately describes the HealthKit data usage | Apple HealthKit entitlement requirements | iOS engineering lead |
@@ -1076,14 +1076,10 @@ CLAUDE.md §13.4 updates applied in Session 2:
 
 ## 7. Change Control
 
-This document is under change control per NP-QMS-DC-001 Rev A. Revisions required when:
+This document is under change control per NP-QMS-DC-001. Revisions required when:
 - Any STEP status changes to COMPLETE (update status and add completion date)
 - A new finding is identified that requires a new STEP
 - A regulatory change materially affects an authority submission requirement (§4)
 - A STEP target milestone is changed
 
 Minor status updates (OPEN → IN PROGRESS → COMPLETE) may be made as minor revisions. New STEPS and changes to §4 authority requirements require a full revision cycle with CEO approval.
-
----
-
-*NP-PRIV-REM-001 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*

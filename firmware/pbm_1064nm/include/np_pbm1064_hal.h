@@ -137,7 +137,7 @@ void np_pbm1064_hal_tia_gain_boot_init(void);
 void np_pbm1064_hal_t2_throttle_request(uint8_t pct);
 
 /*
- * ── T2 1170nm laser HAL (NP-SES-1064-001 Rev A §4) ──────────────────────────
+ * ── T2 1170nm laser HAL (NP-SES-1064-001 §6) ──────────────────────────
  *
  * OI-PBM-07: Enable/disable and power control for the T2 1170nm deep PBM laser
  *             module (Issue #54 — stubs used here until that module ships).

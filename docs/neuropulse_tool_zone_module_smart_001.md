@@ -158,7 +158,3 @@ The smart module mould variant has the following BOM impact vs. base module:
 | OI-SM-MOULD-02 | Zone-specific smart key dimension table (ZM-SM-01 through ZM-SM-05) — ME to produce | SM-MDR-08 |
 | OI-SM-MOULD-03 | Mould steel cut approval — 12-item base MDR checklist + 12-item smart MDR checklist must all be signed off | All FAI |
 | OI-SM-MOULD-04 | PDMS SiO₂ interlayer qualification for smart module PDMS window — confirm same FAI-TC02 result applies (same bonding process, same substrate) | FAI-SM-MOULD-04 |
-
----
-
-*NP-TOOL-ZM-SM-001 Rev A — Smart Zone Module Mould Variant Specification. Addresses Issue #54 DoD: smart module mould variant spec created.*

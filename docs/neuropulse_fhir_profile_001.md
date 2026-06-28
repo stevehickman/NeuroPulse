@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-03
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-PRIV-REM-001 STEP-14; NP-PRIV-001 Rev A MEDIUM-01; HL7 FHIR R4 (4.0.1); 45 CFR §164.502(b) (HIPAA Minimum Necessary); NP-FW-ANON-001 Rev A
+**References:** NP-PRIV-REM-001 STEP-14; NP-PRIV-001 MEDIUM-01; HL7 FHIR R4 (4.0.1); 45 CFR §164.502(b) (HIPAA Minimum Necessary); NP-FW-ANON-001
 **Related Issues:** —
 **Gate:** NP-COORD-001 G3-09
 **IEC 62304 Class:** —
@@ -208,7 +208,3 @@ The NeuroPulse T2 clinical platform must include a FHIR validator integration th
 | OI-FHIR-03 | FHIR validator CI integration — IG package added to T2 backend build pipeline | T2 EHR integration development start |
 | OI-FHIR-04 | `effectivePeriod` precision policy — confirm 1-day precision is sufficient for clinical utility; no finer than 1-day permitted | First T2 data exchange |
 | OI-FHIR-05 | `Procedure.code` SNOMED CT mapping review — `229070002` (Biofeedback therapy) may not be the most precise code for TMS or tDCS; clinical informatics review required | T2 clinical mapping |
-
----
-
-*NP-INT-FHIR-001 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*

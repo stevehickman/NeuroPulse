@@ -227,7 +227,7 @@ Design controls apply to all T1 and T2 design activities. The process follows 21
 
 ## 8. Risk Management — Process Summary
 
-Full plan: **NP-RM-001 Rev A**
+Full plan: **NP-RM-001**
 
 Risk management follows ISO 14971:2019 across the full device lifecycle. The risk register (RISK-01 through RISK-25) initiated during pre-formation design work is formally brought under QMS change control effective 2026-05-13.
 
@@ -237,7 +237,7 @@ Risk acceptability matrix is defined in NP-RM-001 §4. All risks rated OPEN in t
 
 ## 9. Software Development — Process Summary
 
-Full plan: **NP-SW-001 Rev A**
+Full plan: **NP-SW-001**
 
 Three software items, each with assigned IEC 62304 safety class:
 
@@ -308,7 +308,3 @@ This QMS Manual is the apex document. The Design History File (NP-DHF-001) index
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. QMS established at company formation. All NP-QMS, NP-DHF, NP-RM, NP-SW, and NP-QMS-CAPA procedures released simultaneously. |
-
----
-
-*NP-QMS-001 Rev A — ACTIVE — Effective 2026-05-13*

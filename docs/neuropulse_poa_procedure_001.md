@@ -216,7 +216,3 @@ If the patient regains capacity and wishes to revoke the POA holder's authorisat
 ## 8. Incident Response
 
 Any unauthorised access to the POA vault, or any suspected exfiltration of a POA document, is treated as a P1 incident under NP-SEC-BR-001. Given the nature of POA documents, the incident commander must engage legal counsel within 30 minutes regardless of the number of documents potentially affected.
-
----
-
-*NP-PROC-POA-001 Rev A — CONFIDENTIAL — NeuroPulse Design Programme*

@@ -799,7 +799,7 @@ void np_pbm1064_fai_run_all(void)
         np_pbm1064_fai_sm09(),
         np_pbm1064_fai_sm10(),
         np_pbm1064_fai_sm11(),
-        /* T2 combined session FAI (NP-SES-1064-001 Rev A §4) */
+        /* T2 combined session FAI (NP-SES-1064-001 §6) */
         np_pbm1064_fai_t2_01(),
         np_pbm1064_fai_t2_02(),
         np_pbm1064_fai_t2_03(),

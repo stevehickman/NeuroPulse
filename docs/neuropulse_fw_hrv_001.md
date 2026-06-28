@@ -322,7 +322,3 @@ This document and its accompanying firmware (`firmware/hrv_biofeedback/`) satisf
 | OI-HRV-03 | UHDR session record commit to eMMC must call storage layer AES-256-XTS write — `end_cb` currently returns raw plaintext record | FW/Storage team | UHDR compliance |
 | OI-HRV-04 | SHDR coherence trend slope write after each session (uses `np_hrv_coherence_trend_t`) must call SHDR storage API | FW team | SHDR compliance |
 | OI-HRV-05 | `NP_TAVNS_DEFAULT_FREQ_HZ` (25 Hz) vs user-configurable range 1–25 Hz: app layer must validate and pass `tavns_freq_hz` in `np_hrv_session_config_t` | App team | Protocol 1 |
-
----
-
-*NP-FW-HRV-001 Rev A — 2026-05-11*

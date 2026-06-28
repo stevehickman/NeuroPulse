@@ -61,7 +61,7 @@ void np_pbm1064_dose_tick(np_pbm1064_session_t *session);
 void np_pbm1064_thermal_check(np_pbm1064_session_t *session);
 
 /* Throttle cascade: reduce highest-power channel first.
- * Priority: CH_C → CH_B → CH_A (per §5.4 NP-FW-PBM1064-001). */
+ * Priority: CH_C → CH_B → CH_A (per §6.4 NP-FW-PBM1064-001). */
 void np_pbm1064_throttle_cascade(uint8_t zone, float p_aggregate_mw_cm2,
                                  np_pbm1064_session_t *session);
 
@@ -99,7 +99,7 @@ bool np_pbm1064_t2_init(np_pbm1064_t2_session_t *t2, const np_pbm1064_preset_t *
                          void *laser_preset);
 
 /* T2 combined session tick (100 ms). Coordinates both systems.
- * Applies thermal throttle priority: 1170 nm throttled first (§4.3 NP-SES-1064-001). */
+ * Applies thermal throttle priority: 1170 nm throttled first (§6.3 NP-SES-1064-001). */
 void np_pbm1064_t2_tick(np_pbm1064_t2_session_t *t2);
 
 /* Stop T2 combined session. Ramp-down both systems. Write combined UHDR/SHDR. */
