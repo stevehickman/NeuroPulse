@@ -65,7 +65,7 @@ struct SessionStatusView: View {
         .onChange(of: session.status) { _, newStatus in
             handleStatusChange(newStatus)
         }
-        .onChange(of: mgr.latestImpedancePassFlags) { _, _ in
+        .onChange(of: mgr.latestImpedancePassCount) { _, _ in
             showImpedanceAlert = true
         }
         .onChange(of: mgr.latestConsumableLowIndex) { _, idx in
@@ -191,8 +191,7 @@ struct SessionStatusView: View {
 
     @ViewBuilder
     private var impedanceAlertMessage: some View {
-        if let flags = mgr.latestImpedancePassFlags {
-            let passed = (0..<8).filter { flags & (1 << $0) != 0 }.count
+        if let passed = mgr.latestImpedancePassCount {
             Text("\(passed)/8 electrodes passed. Check headset fit if any failed.")
         }
     }

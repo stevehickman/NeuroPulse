@@ -189,7 +189,7 @@ int main(void)
         /* ── Session signature command frame (102 bytes) ─────────────────── */
         /* Hub sends this once per session BEFORE the first heartbeat that
          * requests a non-zero enable_mask.  The HAL buffers it separately
-         * from the 8-byte heartbeat (distinguished by NSS transfer length). */
+         * from the 38-byte heartbeat (distinguished by NSS transfer length). */
         if (np_hal_spi_cmd_ready()) {
             np_safety_sig_cmd_t cmd;
             np_hal_spi_get_cmd(&cmd);

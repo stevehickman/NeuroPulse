@@ -1,0 +1,33 @@
+{
+  "kind": "single",
+  "protocol": {
+    "name": "Compound Wavelengths",
+    "id": "00000000-0000-0000-0000-000000000003",
+    "description": "Tests compound wavelength identifiers",
+    "author": "test",
+    "version": "1.0",
+    "tags": [],
+    "timingMode": {
+      "type": "duration",
+      "seconds": 600
+    },
+    "modalityCount": 1,
+    "modalities": [
+      {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+          "zones": "all",
+          "wavelength": "660_808_1064nm",
+          "intensityPercent": 80,
+          "frequencyHz": 40,
+          "dutyCyclePercent": 25
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      }
+    ]
+  }
+}

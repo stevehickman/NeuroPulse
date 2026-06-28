@@ -1,0 +1,21 @@
+composite "Full Multi-Modal RCT" {
+    id: "10000100-0000-0000-0000-000000000000"
+    description: "RCT protocol"
+    author: "NeuroPulse"
+    version: "1.0"
+    readonly: true
+    tags: [rct, multimodal]
+    conflict_resolution: merge
+
+    layer "Vascular Baseline" {
+        start: 0s
+        duration: 5m
+        intensity_scale: 0.5
+    }
+
+    layer "Gamma Focus" {
+        start: 300s
+        duration: 20m
+        intensity_scale: 1.0
+    }
+}

@@ -6,9 +6,10 @@ import Combine
 // Drives Apple Watch Taptic Engine at 40Hz to add a wrist somatosensory
 // channel alongside the NeuroPulse mastoid vibrotactile pad.
 //
-// Sync strategy: hub broadcasts session epoch via SESSION_STATE GATT
-// characteristic. Watch aligns CHHapticEngine start time using the calculated
-// session offset, targeting sub-50ms synchronisation with the hub clock.
+// Sync strategy: epoch is excluded from the WC bridge (UHDR boundary,
+// NP-PRIV-ANALYSIS-002 MEDIUM-08) so sessionEpochMs is always 0 on Watch.
+// Haptic starts immediately with no meaningful sync delay.
+// Sub-50ms sync requires a future non-UHDR clock mechanism.
 //
 // Thermal prerequisite: OI-WA-01 (20-min continuous Core Haptics thermal
 // characterisation on Apple Watch Series / Ultra hardware) must pass before

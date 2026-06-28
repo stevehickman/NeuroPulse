@@ -21,7 +21,7 @@ const fs                  = require('fs');
 const path                = require('path');
 
 const PORT           = 9000;
-const SERVER_VERSION = '0.1.0-sim';
+const SERVER_VERSION = require('../version.json').version;
 
 const TEST_PUBLIC_KEY = fs.readFileSync(
   path.join(__dirname, 'keys', 'test-public.pem'), 'utf8'

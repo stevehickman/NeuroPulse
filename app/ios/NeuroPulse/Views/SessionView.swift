@@ -175,7 +175,7 @@ struct SessionView: View {
         }
     }
 
-    // Shown to Illinois users who declined the BIPA disclosure (ISC-90).
+    // Shown when the user declined the biometric data consent (ISC-90).
     private var eegConsentUnavailableCard: some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("SESSION_EEG_UNAVAILABLE_TITLE", systemImage: "brain")

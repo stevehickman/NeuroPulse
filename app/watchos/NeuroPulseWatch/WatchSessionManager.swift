@@ -13,7 +13,7 @@ final class WatchSessionManager: NSObject, ObservableObject {
     @Published private(set) var isPhoneReachable = false
 
     // Alerts — non-session push messages.
-    @Published private(set) var latestImpedancePassFlags: UInt16? = nil
+    @Published private(set) var latestImpedancePassCount: Int? = nil
     @Published private(set) var latestConsumableLowIndex: Int? = nil
 
     private override init() {
@@ -48,7 +48,9 @@ extension WatchSessionManager: WCSessionDelegate {
             if let alert = message["alert"] as? String {
                 switch alert {
                 case "impedance_result":
-                    self.latestImpedancePassFlags = (message["flags"] as? Int).map { UInt16($0) }
+                    // Only pass count (non-UHDR) — raw bitmask is UHDR-class and must not
+                    // flow over the unencrypted WC bridge (CLAUDE.md §5.1).
+                    self.latestImpedancePassCount = message["pass_count"] as? Int
                 case "consumable_low":
                     self.latestConsumableLowIndex = message["index"] as? Int
                 default: break

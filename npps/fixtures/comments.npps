@@ -1,0 +1,10 @@
+# This is a full-line comment
+protocol "Comments Only" {
+    id: "00000000-0000-0000-0000-000000000002"
+    description: "Protocol with comments" # inline comment
+    author: "test"
+    version: "1.0"
+    tags: []
+    duration: 10m
+    # No modalities — just testing comment handling
+}

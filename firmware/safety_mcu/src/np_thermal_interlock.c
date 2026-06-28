@@ -85,7 +85,7 @@ void np_thermal_interlock_tick(np_safety_state_t *state)
             } else {
                 /* Hub NTC: cut all stimulation */
                 state->granted_mask  = 0U;
-                state->fault_slot    = 0xFEU; /* hub = 0xFE */
+                state->fault_slot    = NP_FAULT_SLOT_HUB_NTC;
             }
             state->status |= NP_SAFETY_STATUS_THERMAL | NP_SAFETY_STATUS_CUTOFF;
         }

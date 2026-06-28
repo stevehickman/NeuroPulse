@@ -27,7 +27,7 @@ public struct HRVData: Equatable, Sendable {
 }
 
 public struct SessionState: Sendable {
-    public var epoch: UInt32                // Unix ms from hub SESSION_STATE characteristic
+    public var epoch: UInt32                // Hub session clock (truncated UInt32, used for offset sync only)
     public var protocolID: UInt8
     public var status: SessionStatus
     public var hrv: HRVData?

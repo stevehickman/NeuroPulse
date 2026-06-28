@@ -1,0 +1,17 @@
+protocol "Hyphenated Tags" {
+    id: "00000000-0000-0000-0000-000000000004"
+    description: "Tests hyphenated tag parsing"
+    author: "test"
+    version: "1.0"
+    tags: [wind-down, all-modalities, deep-sleep]
+    duration: 15m
+
+    audio_entrainment {
+        binaural_hz: 4Hz
+        noise: brown
+        carrier_hz: 200Hz
+        volume: 50%
+        eeg_adaptive: false
+        bone_conduction_pacer: false
+    }
+}

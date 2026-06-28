@@ -191,7 +191,7 @@ export const PROTOCOLS = {
   pbm_1064_deep: {
     id: 'pbm_1064_deep',
     name: 'Deep NIR — 1064 nm',
-    description: 'Three-wavelength PBM using 1064 nm smart zone modules: surface (660 nm) → cortical (808 nm) → NIR-II (1064 nm). Working memory protocol based on Yao et al. (2022).',
+    description: 'Three-wavelength PBM using 1064 nm smart zone modules: surface (660 nm) → near-surface (808 nm) → cortical (1064 nm). Working memory protocol based on Yao et al. (2022).',
     tier: 'T1',
     duration: 1200,
     modalities: {

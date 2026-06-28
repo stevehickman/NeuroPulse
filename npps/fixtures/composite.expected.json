@@ -1,0 +1,28 @@
+{
+  "kind": "composite",
+  "composite": {
+    "name": "Full Multi-Modal RCT",
+    "id": "10000100-0000-0000-0000-000000000000",
+    "description": "RCT protocol",
+    "conflictResolution": "merge",
+    "tags": [
+      "rct",
+      "multimodal"
+    ],
+    "layerCount": 2,
+    "layers": [
+      {
+        "protocolName": "Vascular Baseline",
+        "startOffsetSeconds": 0,
+        "durationSeconds": 300,
+        "intensityScale": 0.5
+      },
+      {
+        "protocolName": "Gamma Focus",
+        "startOffsetSeconds": 300,
+        "durationSeconds": 1200,
+        "intensityScale": 1
+      }
+    ]
+  }
+}

@@ -6,9 +6,10 @@ import Combine
 // independently-tuned sine oscillators (left/right channels).  Breathing pacer
 // tones are also produced here, synchronised to PacerPhase events from the hub.
 //
-// Sync strategy: the hub transmits a session epoch (Unix ms). On session start
-// the Watch app calculates sessionOffset = currentTimeMs - epoch, pre-buffers
-// 200 ms of audio, then starts playback to absorb WatchConnectivity jitter.
+// Sync strategy: epoch is excluded from the WC bridge (UHDR boundary,
+// NP-PRIV-ANALYSIS-002 MEDIUM-08) so sessionEpochMs is always 0 on Watch.
+// Playback starts immediately with no meaningful sync delay.
+// Sub-50ms sync requires a future non-UHDR clock mechanism.
 
 final class AudioSyncManager: ObservableObject {
 
@@ -31,16 +32,6 @@ final class AudioSyncManager: ObservableObject {
     private let engine       = AVAudioEngine()
     private let mixerNode    = AVAudioMixerNode()
 
-    // Left-channel node (carrier) and right-channel node (carrier + beat).
-    private let leftSrc      = AVAudioSourceNode(renderBlock: { _, _, _, _ in return noErr })
-    private let rightSrc     = AVAudioSourceNode(renderBlock: { _, _, _, _ in return noErr })
-    private let pacerSrc     = AVAudioSourceNode(renderBlock: { _, _, _, _ in return noErr })
-
-    // DDS phase accumulators.
-    private var leftPhase:   Double = 0
-    private var rightPhase:  Double = 0
-    private var pacerPhase:  Double = 0
-    private var pacerActive: Bool   = false
     private var pacerTimer:  Timer? = nil
 
     private let sampleRate: Double = 44100
@@ -87,12 +78,11 @@ final class AudioSyncManager: ObservableObject {
     private func buildGraph() {
         let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2)!
 
-        // Rebuild source nodes with proper render blocks.
-        let leftNode = makeOscillatorNode(phaseRef: &leftPhase, frequencyProvider: { [weak self] in
+        let leftNode = makeOscillatorNode(frequencyProvider: { [weak self] in
             guard let s = self else { return 0 }
             return s.config.binauralCarrierHz
         })
-        let rightNode = makeOscillatorNode(phaseRef: &rightPhase, frequencyProvider: { [weak self] in
+        let rightNode = makeOscillatorNode(frequencyProvider: { [weak self] in
             guard let s = self else { return 0 }
             return s.config.binauralCarrierHz + s.config.beatFrequencyHz
         })
@@ -112,8 +102,7 @@ final class AudioSyncManager: ObservableObject {
         mixerNode.outputVolume = config.volume
     }
 
-    private func makeOscillatorNode(phaseRef: inout Double,
-                                    frequencyProvider: @escaping () -> Double) -> AVAudioSourceNode {
+    private func makeOscillatorNode(frequencyProvider: @escaping () -> Double) -> AVAudioSourceNode {
         let sr = sampleRate
         var ph = 0.0
         return AVAudioSourceNode { _, _, frameCount, audioBufferList -> OSStatus in

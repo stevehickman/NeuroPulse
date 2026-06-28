@@ -221,9 +221,9 @@ private final class MockProtocolUploadGateway: ProtocolUploadGateway {
         self.isHubConnected = connected
     }
 
-    func uploadProtocol(_ blob: Data, completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
+    func uploadProtocol(_ chunk: Data, completion: @escaping (Result<Void, GATTWriteError>) -> Void) {
         uploadCallCount += 1
-        chunks.append(blob)
+        chunks.append(chunk)
         completion(.success(()))
     }
 

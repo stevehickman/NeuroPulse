@@ -1,0 +1,134 @@
+{
+  "kind": "single",
+  "protocol": {
+    "name": "All T1 Modalities",
+    "id": "00000000-0000-0000-0000-000000000001",
+    "description": "All eight T1 modalities",
+    "author": "test",
+    "version": "1.0",
+    "tags": [],
+    "timingMode": {
+      "type": "duration",
+      "seconds": 1800
+    },
+    "modalityCount": 8,
+    "modalities": [
+      {
+        "type": "pbm_transcranial",
+        "enabled": true,
+        "params": {
+          "zones": "all",
+          "wavelength": "660_808nm",
+          "intensityPercent": 75,
+          "frequencyHz": 20,
+          "dutyCyclePercent": 25
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "pbm_intranasal",
+        "enabled": true,
+        "params": {
+          "intensityPercent": 60,
+          "frequencyHz": 40,
+          "dutyCyclePercent": 25
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "eeg_neurofeedback",
+        "enabled": true,
+        "params": {
+          "channels": "all",
+          "band": "alpha",
+          "closedLoopEnabled": true
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "bes_tacs",
+        "enabled": true,
+        "params": {
+          "frequencyHz": 10,
+          "intensityMilliamps": 0.8,
+          "waveform": "sinusoidal"
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "tdcs",
+        "enabled": true,
+        "params": {
+          "intensityMilliamps": 1.5,
+          "electrodePairs": [
+            [
+              "Fp1",
+              "P3"
+            ]
+          ],
+          "rampSeconds": 30
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "vns_hrv",
+        "enabled": true,
+        "params": {
+          "frequencyHz": 25,
+          "intensityMilliamps": 1.5,
+          "hrvProtocol": "standalone",
+          "resonanceBreathingRate": 6
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "audio_entrainment",
+        "enabled": true,
+        "params": {
+          "carrierHz": 440,
+          "volumePercent": 60,
+          "eegAdaptive": true,
+          "boneConductionPacer": true,
+          "binauralBeatsHz": 40,
+          "noiseType": "pink"
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      },
+      {
+        "type": "visual_stimulation",
+        "enabled": true,
+        "params": {
+          "frequencyHz": 40,
+          "mode": "binocular",
+          "emdrCadenceHz": 1,
+          "enableModeF": false
+        },
+        "interval": {
+          "intervalOnSeconds": 0,
+          "intervalOffSeconds": 0
+        }
+      }
+    ]
+  }
+}

@@ -1,6 +1,6 @@
 /*
  * NeuroPulse Hub Protocol Compiler
- * Document: NP-FW-HUB-001 Rev B
+ * Document: NP-FW-HUB-001 Rev A
  *
  * Converts an NPProtocolDefinition (high-level modality params + timing) into
  * the binary wire format consumed by the hub firmware (np_protocol.c).
@@ -83,7 +83,6 @@ const NP_MOD_VIBROTACTILE = 0x10;
 // ─── Protocol flags ───────────────────────────────────────────────────────────
 
 const PROTO_FLAG_T2_TIER    = 1 << 0;
-const PROTO_FLAG_AUTONOMOUS = 1 << 1;
 
 // ─── Slot mask conventions ────────────────────────────────────────────────────
 // Zone modules (PBM): slot_mask is a per-zone bitmask (bits 0–4).

@@ -478,7 +478,7 @@ typedef np_hub_status_t (*np_mod_shutdown_fn)(uint8_t slot);
 
 typedef struct __attribute__((packed)) {
     uint8_t  magic[2];        /* NP_SAFETY_BEAT_MAGIC_0 / _1 */
-    uint8_t  session_status;  /* np_session_state_t (3 bits used) */
+    uint8_t  session_status;  /* NP_SESSION_STATUS_* bit flags (2 bits used) */
     uint8_t  enable_lo;       /* requested enable bitmask bits 0-7 */
     uint8_t  enable_hi;       /* bits 8-15 */
     uint8_t  reserved;

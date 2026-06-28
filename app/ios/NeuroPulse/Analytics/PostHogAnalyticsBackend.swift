@@ -97,7 +97,7 @@ final class PostHogAnalyticsBackend: AnalyticsBackend {
 
         PostHogSDK.shared.setup(config)
         isSetUp = true
-        Self.log.debug("PostHogAnalyticsBackend: PostHog initialised (EU endpoint).")
+        Self.log.debug("PostHogAnalyticsBackend: PostHog initialised.")
     }
 
     func track(event: String, properties: [String: String]) {
