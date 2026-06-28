@@ -62,6 +62,7 @@ Additional fields after base:
 ```
 **Supersedes:** {NP-XXX-NNN Rev X or "None"}
 **Change Summary:** {Brief description of changes from previous revision}
+**Review Cadence:** {Minimum frequency of review and update}
 ```
 
 ### 4. Analysis / Audit / FMEA
