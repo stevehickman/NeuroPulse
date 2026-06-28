@@ -290,7 +290,7 @@ class NeuroPulseSimulator {
       protocol_id:       this._session.protocol?.id ?? null,
       session_count_delta: 1,
       modalities_active: active,
-      sim_version:       '0.1.0-sim',
+      sim_version:       '0.3.0-sim',
     };
   }
 

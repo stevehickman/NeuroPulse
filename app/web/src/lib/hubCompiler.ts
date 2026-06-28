@@ -1,6 +1,6 @@
 /*
  * NeuroPulse Hub Protocol Compiler
- * Document: NP-FW-HUB-001 Rev B
+ * Document: NP-FW-HUB-001 Rev A
  *
  * Converts an NPProtocolDefinition (high-level modality params + timing) into
  * the binary wire format consumed by the hub firmware (np_protocol.c).

@@ -204,8 +204,8 @@ export class HelmetModel {
   }
 
   /**
-   * Returns an array of { id, name, x, y, z } (world coords) for zone label
-   * placement by the HTML overlay system.
+   * Returns an array of { id, name, installed, screenX, screenY, visible }
+   * (screen coords) for zone label placement by the HTML overlay system.
    */
   getZoneLabelPositions(camera, renderer) {
     const positions = [];
@@ -520,7 +520,7 @@ export class HelmetModel {
     logo.position.set(0, 0.02, 0.036);
     hubGroup.add(logo);
 
-    // Power LED (left temple = green, breathes at idle)
+    // Power LED (green, breathes at idle — on hub in sim; spec: left temple)
     const pwrG = new THREE.SphereGeometry(0.007, 8, 8);
     const pwrM = new THREE.MeshStandardMaterial({ color: 0x00ff44, emissive: 0x00ff44, emissiveIntensity: 0.6 });
     const pwr  = new THREE.Mesh(pwrG, pwrM);
@@ -528,7 +528,7 @@ export class HelmetModel {
     hubGroup.add(pwr);
     this.parts.hubLedPower = pwr;
 
-    // Session LED (right temple = amber)
+    // Session LED (amber — on hub in sim; spec: right temple)
     const sesG = new THREE.SphereGeometry(0.007, 8, 8);
     const sesM = new THREE.MeshStandardMaterial({ color: 0xff8800, emissive: 0xff8800, emissiveIntensity: 0 });
     const ses  = new THREE.Mesh(sesG, sesM);

@@ -87,7 +87,7 @@ export class DeviceAPI {
 
     this._ws.addEventListener('open', () => {
       this._setBadge(true);
-      this._send({ type: 'CLIENT_HELLO', role: 'display', version: '0.1.0-sim' });
+      this._send({ type: 'CLIENT_HELLO', role: 'display', version: '0.3.0-sim' });
     });
 
     this._ws.addEventListener('message', (e) => {
