@@ -264,7 +264,7 @@ class Parser {
     return this.advance();
   }
 
-  private expectIdent(name: string): void {
+  expectIdent(name: string): void {
     this.skipNewlines();
     const t = this.current;
     if ((t.type !== 'KEYWORD' && t.type !== 'IDENT') || t.value !== name) {

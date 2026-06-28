@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { parseNPPS, tokenize, NPPSParseError } from './nppsParser';
 import { serializeProtocol, serializeNPPS } from './nppsSerializer';
-import type { NPProtocolDefinition, NPCompositeProtocol, NPProtocolEntry } from '../types/protocol';
+import type { NPProtocolDefinition, NPCompositeProtocol } from '../types/protocol';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
