@@ -180,7 +180,7 @@ export function tokenize(text: string): Token[] {
       // Entry condition excludes bare '_' to avoid accepting malformed tokens like
       // "660_" or "660__nm" as valid identifiers.
       if (!unit && pos < text.length &&
-          ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z'))) {
+          ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') || text[pos] === '_')) {
         let ident = numStr;
         while (pos < text.length &&
                ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') ||
