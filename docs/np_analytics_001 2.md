@@ -20,7 +20,7 @@
 > (`eu.i.posthog.com`) as the fastest path to TestFlight beta. This document covers the
 > **self-hosted** alternative — preferred for T1 launch and required for T2 clinical cloud
 > (eliminates the third-party analytics DPA). For EU cloud setup, see
-> `docs/neuropulse_infra_001.md §6`. For the decision matrix, see `docs/neuropulse_infra_001.md §6.1`.
+> `docs/np_infra_001.md §6`. For the decision matrix, see `docs/np_infra_001.md §6.1`.
 
 ---
 
@@ -407,7 +407,7 @@ Monitor with: `docker compose exec clickhouse clickhouse-client -q "SELECT forma
 
 ## 8. Permitted and prohibited property reference
 
-This section is the PostHog-specific view of NP-APP-TELEMETRY-001. The authoritative source is `docs/neuropulse_app_telemetry_001.md`.
+This section is the PostHog-specific view of NP-APP-TELEMETRY-001. The authoritative source is `docs/np_app_telemetry_001.md`.
 
 ### 8.1 Permitted properties (complete list)
 
@@ -446,7 +446,7 @@ The following must never reach ClickHouse. The server-side Property Filter (§4)
 ### 8.3 How to modify this list
 
 To add a prohibited property:
-1. Update `docs/neuropulse_app_telemetry_001.md` (source of truth, requires doc revision)
+1. Update `docs/np_app_telemetry_001.md` (source of truth, requires doc revision)
 2. Add the property to the PostHog Property Filter app (§4.3)
 3. Update the iOS SDK to ensure the property is never sent (PR with test)
 4. Update §8.2 of this document to match
@@ -482,11 +482,11 @@ docker compose exec clickhouse clickhouse-client \
 
 | Document | Relationship |
 |----------|-------------|
-| `docs/neuropulse_app_telemetry_001.md` (NP-APP-TELEMETRY-001 Rev B) | **Source of truth** for permitted/prohibited properties and SDK init gate |
-| `docs/neuropulse_priv_audit_001.md` (NP-PRIV-AUDIT-001 Rev A) | AUDIT-01 (analytics vendor not selected) and AUDIT-02 (SDK init gate) — self-hosting closes AUDIT-01 |
-| `docs/neuropulse_priv_analysis_20260605.md` (NP-PRIV-ANALYSIS-002) | AnalyticsGate.reset() wired to consent withdrawal — applies equally to PostHog SDK |
-| `docs/neuropulse_privacy_remediation_001.md` (NP-PRIV-REM-001) | STEP-05 (analytics vendor DPA) — self-hosting eliminates the third-party DPA requirement |
-| `docs/neuropulse_privacy_notice.md` (NP-PRIV-NOTICE-001) | §3 (app analytics disclosure) — references self-hosted analytics; no third-party name needed |
+| `docs/np_app_telemetry_001.md` (NP-APP-TELEMETRY-001 Rev B) | **Source of truth** for permitted/prohibited properties and SDK init gate |
+| `docs/np_priv_audit_001.md` (NP-PRIV-AUDIT-001 Rev A) | AUDIT-01 (analytics vendor not selected) and AUDIT-02 (SDK init gate) — self-hosting closes AUDIT-01 |
+| `docs/np_priv_analysis_002.md` (NP-PRIV-ANALYSIS-002) | AnalyticsGate.reset() wired to consent withdrawal — applies equally to PostHog SDK |
+| `docs/np_priv_rem_001.md` (NP-PRIV-REM-001) | STEP-05 (analytics vendor DPA) — self-hosting eliminates the third-party DPA requirement |
+| `docs/np_priv_notice_001.md` (NP-PRIV-NOTICE-001) | §3 (app analytics disclosure) — references self-hosted analytics; no third-party name needed |
 | `infra/posthog/docker-compose.yml` | Deployment configuration |
 | `infra/posthog/.env.example` | Environment variable reference |
 | `infra/posthog/clickhouse/np-privacy.xml` | ClickHouse system log TTLs |
@@ -506,7 +506,7 @@ The following must be completed to close AUDIT-01 (analytics vendor not selected
 - [ ] Verify `AnalyticsGate.reset()` calls `PostHogSDK.shared.optOut()` on consent withdrawal
 - [ ] Pin `POSTHOG_VERSION` to a specific release in `.env`
 - [ ] Update `PrivacyInfo.xcprivacy` — PostHog SDK will have required entries; self-hosting means no third-party domain disclosure needed for data *transmission* (only the SDK binary's API usage declarations)
-- [ ] Update `docs/neuropulse_app_telemetry_001.md` to record PostHog as the selected analytics platform
+- [ ] Update `docs/np_app_telemetry_001.md` to record PostHog as the selected analytics platform
 
 ---
 

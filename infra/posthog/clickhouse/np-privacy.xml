@@ -10,7 +10,7 @@
   Note: TTLs on PostHog's analytics event tables (the sharded_events,
   person, etc. tables) are managed by PostHog's own Django migrations.
   Set the user-facing retention period in the PostHog UI, not here.
-  See docs/neuropulse_posthog_config.md §3.4.
+  See docs/np_analytics_001.md §3.4.
 -->
 <clickhouse>
 

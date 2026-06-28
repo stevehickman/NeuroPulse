@@ -242,7 +242,7 @@ Update CLAUDE.md §13.4 and the risk register document (`docs/neuropulse_fpc_zon
 | NP-FW-PBM1064-001 Rev A §5.4 | OI-PBM-05: aggregate irradiance ceiling firmware spec |
 | NP-SES-1064-001 Rev A | Session presets and dose limits by wavelength |
 | NP-HW-FPC-001 Rev E | 1064nm smart module FPC and LED emitter spec |
-| `docs/neuropulse_bibliography_1064nm_001.md` (NP-BIB-1064-001 Rev A) | 1064nm evidence bibliography — supports Q10/Q11 |
+| `docs/np_bib_1064_001.md` (NP-BIB-1064-001 Rev A) | 1064nm evidence bibliography — supports Q10/Q11 |
 | IEC 62471:2006 | Photobiological safety of lamps — assessment standard |
 | IEC TR 62778:2014 | Application of IEC 62471 for blue light hazard (reference) |
 | IEC 60825-1:2014 | Safety of laser products — T2 1170nm subsystem |

@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-08  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-PRIV-001; NP-PRIV-ANALYSIS-002  
+**References:** NP-PRIV-001 Rev B; NP-PRIV-ANALYSIS-002  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —  

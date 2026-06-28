@@ -8,7 +8,7 @@
 **Effective Date:** 2026-06-03  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-PRIV-REM-001 STEP-21; NP-PRIV-001; NP-APP-TELEMETRY-001; NP-APP-ROADMAP-001; NP-FW-EMMC-001; NP-FW-EMMC-002; NP-FW-ANON-001; CLAUDE.md §5 (UHDR/SHDR), §6 (Consent Engine)  
+**References:** NP-PRIV-REM-001 Rev A STEP-21; NP-PRIV-001 Rev A; NP-APP-TELEMETRY-001 Rev B; NP-APP-ROADMAP-001 Rev B; NP-FW-EMMC-001 Rev A; NP-FW-EMMC-002 Rev A; NP-FW-ANON-001 Rev A; CLAUDE.md §5 (UHDR/SHDR), §6 (Consent Engine)  
 **Related Issues:** —  
 **Gate:** BLOCKING for first external beta (TestFlight / Play Store open beta)  
 **IEC 62304 Class:** —  

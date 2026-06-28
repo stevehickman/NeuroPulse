@@ -15,7 +15,7 @@
 #   docker compose logs -f posthog      # wait for "Application startup complete"
 #   open http://localhost:8000          # create org, project, and apply UI settings
 #
-# See docs/neuropulse_posthog_config.md for required project-level privacy settings.
+# See docs/np_analytics_001.md for required project-level privacy settings.
 
 name: neuropulse-analytics
 
@@ -229,7 +229,7 @@ services:
   # Node.js process that runs data transformation apps/plugins.
   # The NP-ANALYTICS-001 Property Filter app runs here, applying the
   # server-side property denylist before events reach ClickHouse.
-  # See docs/neuropulse_posthog_config.md §4 for denylist configuration.
+  # See docs/np_analytics_001.md §4 for denylist configuration.
   posthog-plugin-server:
     image: posthog/posthog:${POSTHOG_VERSION:-latest}
     restart: unless-stopped
