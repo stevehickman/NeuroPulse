@@ -1,9 +1,8 @@
 import SwiftUI
 
 // watchOS app entry point.
-// Hosts all four phase views in a TabView. Phases 2–4 initialise their managers
-// lazily via @StateObject so the audio engine and haptic engine are not created
-// until the user navigates to those tabs.
+// Hosts all four phase views in a TabView. Audio and haptic managers are created
+// at app init as @StateObject and injected via .environmentObject().
 
 @main
 struct NeuroPulseWatchApp: App {
@@ -18,7 +17,7 @@ struct NeuroPulseWatchApp: App {
                 .environmentObject(audioMgr)
                 .environmentObject(hapticMgr)
                 .onReceive(watchMgr.$session) { state in
-                    // Forward session epoch and pacer events to active managers.
+                    // Forward session status and pacer events to active managers.
                     if state.status == .running {
                         audioMgr.onPacerPhaseChanged(state.pacerPhase)
                     }
