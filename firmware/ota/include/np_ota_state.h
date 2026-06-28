@@ -53,7 +53,7 @@ typedef enum {
 /* ── Public API ──────────────────────────────────────────────────────────── */
 
 /*
- * Initialise a state record with valid magic and CRC.
+ * Initialize a state record with valid magic and CRC.
  * target_bank: 0 = Bank A, 1 = Bank B.
  * sha256: 32-byte hash of the staged firmware image.
  */

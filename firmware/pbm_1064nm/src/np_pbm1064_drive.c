@@ -102,7 +102,7 @@ np_pbm1064_status_t np_pbm1064_drive_startup(uint8_t slot,
         return NP_PBM1064_ERR_DRIVER_FAULT;
     }
 
-    drv->initialised = true;
+    drv->initialized = true;
     return NP_PBM1064_OK;
 }
 

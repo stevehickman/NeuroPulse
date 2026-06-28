@@ -1,4 +1,4 @@
-// TODO(localisation): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
+// TODO(localization): strings below should use NSLocalizedString — see en.lproj/Localizable.strings
 import Foundation
 
 // Clinical consent engine — CLAUDE.md §6.
@@ -58,7 +58,7 @@ enum ConsentEngine {
     // Generate a plain-language consent document for the selected use cases.
     static func consentDocument(
         clinicianName: String,
-        organisation: String,
+        organization: String,
         selectedUseCaseIDs: Set<String>,
         tier: ClinicianUseCaseTier
     ) -> ConsentDocument {
@@ -68,7 +68,7 @@ enum ConsentEngine {
 
         return ConsentDocument(
             clinicianName: clinicianName,
-            organisation: organisation,
+            organization: organization,
             tier: tier,
             approvedUseCases: selectedCases,
             approvedElements: elements,
@@ -85,7 +85,7 @@ enum ConsentEngine {
 
 struct ConsentDocument {
     var clinicianName: String
-    var organisation: String
+    var organization: String
     var tier: ClinicianUseCaseTier
     var approvedUseCases: [ClinicalUseCase]
     var approvedElements: Set<UHDRElement>
@@ -96,7 +96,7 @@ struct ConsentDocument {
         let canSee = approvedElements.map(\.rawValue).sorted().joined(separator: "\n• ")
         let cannot = cannotAccessElements.map(\.rawValue).sorted().joined(separator: "\n• ")
         return """
-        \(clinicianName) at \(organisation) is requesting access to monitor your NeuroPulse sessions.
+        \(clinicianName) at \(organization) is requesting access to monitor your NeuroPulse sessions.
 
         WHAT THEY CAN SEE:
         • \(canSee.isEmpty ? "Nothing (no consent selected)" : canSee)

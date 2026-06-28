@@ -46,8 +46,8 @@
 #define NP_SNVS_LPGPR1          (*(volatile uint32_t *)(NP_SNVS_BASE + 0x6CU))
 #define NP_SNVS_RESET_IN_PROGRESS  (1UL << 0U)
 
-/* ── SNVS_LPGPR2 — anonymisation in-progress flag ────────────────────────── */
-/* Set while the research anonymisation pipeline holds an encrypted extract in */
+/* ── SNVS_LPGPR2 — anonymization in-progress flag ────────────────────────── */
+/* Set while the research anonymization pipeline holds an encrypted extract in */
 /* the Scratch partition (NP-FW-EMMC-002 Rev A §D).                           */
 #define NP_SNVS_LPGPR2          (*(volatile uint32_t *)(NP_SNVS_BASE + 0x70U))
 #define NP_SNVS_ANON_IN_PROGRESS   (1UL << 0U)

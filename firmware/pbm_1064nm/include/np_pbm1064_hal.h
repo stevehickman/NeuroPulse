@@ -122,7 +122,7 @@ void np_pbm1064_hal_zone_announce(uint8_t slot_index);
 np_pbm1064_status_t np_pbm1064_hal_tia_gain_set(uint8_t slot, np_tia_gain_t gain);
 
 /*
- * Initialise all TIA gain GPIOs to NP_TIA_GAIN_HIGH (GAIN_SEL LOW) at boot.
+ * Initialize all TIA gain GPIOs to NP_TIA_GAIN_HIGH (GAIN_SEL LOW) at boot.
  * Must be called before np_pbm1064_detect_init() and before first LPADC1 reads.
  * Platform implementation: configures GPIO_B0_04..08 as output LOW.
  * OI-PBM-HW-01.

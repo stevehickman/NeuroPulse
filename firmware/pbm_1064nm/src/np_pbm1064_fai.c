@@ -626,7 +626,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
      *   (b) Contains 1170nm total dose field (populated via HAL on completion)
      *   (c) Contains sLORETA MNI coordinate fields
      *   (d) SHDR summary struct is within expected size (no raw user biology)
-     *   (e) abort_reason field present and initialised to 0 on clean record
+     *   (e) abort_reason field present and initialized to 0 on clean record
      */
 
     np_pbm1064_t2_ctx_t ctx;
@@ -684,13 +684,13 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
             "— may contain UHDR data");
     }
 
-    /* (e) abort_reason initialised to 0 on fresh record. */
+    /* (e) abort_reason initialized to 0 on fresh record. */
     np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
     rec = np_pbm1064_t2_get_combined_record(&ctx);
     if (rec->abort_reason != 0U) {
         return fai_fail("FAI-T2-03",
             "Combined UHDR record completeness",
-            "(e) abort_reason not zero-initialised in fresh context");
+            "(e) abort_reason not zero-initialized in fresh context");
     }
 
     return fai_pass("FAI-T2-03",
@@ -699,7 +699,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
         "(b) 1170nm dose HAL stub returns non-zero dose after enable+duty. "
         "(c) sLORETA MNI coordinates (DLPFC_L stub) stored in combined UHDR record. "
         "(d) np_t2_combined_shdr_summary_t ≤128 bytes (no raw user biology). "
-        "(e) abort_reason zero-initialised.");
+        "(e) abort_reason zero-initialized.");
 }
 
 /* ── FAI-T2-04: 1170nm abort path ───────────────────────────────────────────── */

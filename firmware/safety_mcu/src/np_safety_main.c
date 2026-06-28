@@ -169,7 +169,7 @@ int main(void)
          * s_prior_latch_reported stays false until after the first TX frame is
          * sent, preventing np_fault_latch_commit() from immediately overwriting
          * the preserved latch data (fault slot + specific status bits) with the
-         * generic status=0x01 / slot=0xFF that s_state was initialised to. */
+         * generic status=0x01 / slot=0xFF that s_state was initialized to. */
         s_state.status         |= NP_SAFETY_STATUS_FAULT;
         s_prior_latch_reported  = false;
     } else {

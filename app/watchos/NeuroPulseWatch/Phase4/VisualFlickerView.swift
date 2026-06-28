@@ -2,9 +2,9 @@ import SwiftUI
 
 // Phase 4 — 40Hz visual flicker + EMDR L/R indicator.
 //
-// BLOCKED on OI-WA-02: Apple Watch screen brightness must be characterised
+// BLOCKED on OI-WA-02: Apple Watch screen brightness must be characterized
 // at ≥100 nits at 40Hz before this view is shown in production.
-// Until characterisation passes, showFlicker is always false and the view
+// Until characterization passes, showFlicker is always false and the view
 // renders a placeholder (EMDR arrow + breathing ring only).
 //
 // When OI-WA-02 passes, set OI_WA_02_PASSED = true in build settings.
@@ -17,7 +17,7 @@ import SwiftUI
 // also stops.
 
 // Build-time gate for OI-WA-02. Replace with true only after documented
-// characterisation measurement (NP-APP-ROADMAP-001 §4.2 Phase 4).
+// characterization measurement (NP-APP-ROADMAP-001 §4.2 Phase 4).
 private let OI_WA_02_PASSED: Bool = false
 
 struct VisualFlickerView: View {
@@ -40,7 +40,7 @@ struct VisualFlickerView: View {
 
     var body: some View {
         ZStack {
-            // Flicker background layer (only when enabled and characterisation passed).
+            // Flicker background layer (only when enabled and characterization passed).
             if OI_WA_02_PASSED && userAcknowledgedWarning && session.status == .running {
                 flickerLayer
             } else {
@@ -102,7 +102,7 @@ struct VisualFlickerView: View {
             Text("40Hz flicker unavailable")
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundColor(.white)
-            Text("Screen brightness characterisation pending (OI-WA-02).")
+            Text("Screen brightness characterization pending (OI-WA-02).")
                 .font(.system(size: 10))
                 .foregroundColor(.white.opacity(0.5))
                 .multilineTextAlignment(.center)

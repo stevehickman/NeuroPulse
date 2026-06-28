@@ -200,16 +200,16 @@ static np_hub_status_t probe_and_register(uint8_t                  slot,
     s_registry[slot].type        = type;
     s_registry[slot].slot        = slot;
     s_registry[slot].present     = true;
-    s_registry[slot].initialised = false;
+    s_registry[slot].initialized = false;
     s_registry[slot].init        = k_slot_probes[slot].init;
     s_registry[slot].control     = k_slot_probes[slot].control;
     s_registry[slot].telemetry   = k_slot_probes[slot].telemetry;
     s_registry[slot].shutdown    = k_slot_probes[slot].shutdown;
 
-    /* Initialise hardware for this module. */
+    /* Initialize hardware for this module. */
     rc = s_registry[slot].init(slot);
     if (rc == NP_HUB_OK) {
-        s_registry[slot].initialised = true;
+        s_registry[slot].initialized = true;
     }
     return rc;
 }
@@ -240,7 +240,7 @@ np_mod_entry_t *np_mod_reg_get(uint8_t slot)
     if (slot >= NP_HUB_SLOT_MAX) {
         return NULL;
     }
-    if (!s_registry[slot].present || !s_registry[slot].initialised) {
+    if (!s_registry[slot].present || !s_registry[slot].initialized) {
         return NULL;
     }
     return &s_registry[slot];
@@ -249,7 +249,7 @@ np_mod_entry_t *np_mod_reg_get(uint8_t slot)
 np_mod_entry_t *np_mod_reg_find(np_hub_mod_type_t type)
 {
     for (uint8_t i = 0U; i < NP_HUB_SLOT_MAX; i++) {
-        if (s_registry[i].present && s_registry[i].initialised &&
+        if (s_registry[i].present && s_registry[i].initialized &&
             s_registry[i].type == type) {
             return &s_registry[i];
         }
@@ -261,7 +261,7 @@ uint8_t np_mod_reg_count(void)
 {
     uint8_t count = 0U;
     for (uint8_t i = 0U; i < NP_HUB_SLOT_MAX; i++) {
-        if (s_registry[i].present && s_registry[i].initialised) {
+        if (s_registry[i].present && s_registry[i].initialized) {
             count++;
         }
     }
@@ -272,7 +272,7 @@ void np_mod_reg_shutdown_all(void)
 {
     for (uint8_t slot = 0U; slot < NP_HUB_SLOT_MAX; slot++) {
         if (s_registry[slot].present &&
-            s_registry[slot].initialised &&
+            s_registry[slot].initialized &&
             s_registry[slot].shutdown != NULL) {
             (void)s_registry[slot].shutdown(slot);
         }

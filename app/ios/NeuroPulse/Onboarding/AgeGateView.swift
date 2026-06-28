@@ -8,7 +8,7 @@ import SwiftUI
 // Satisfies: ISC-83, ISC-84, ISC-85, ISC-86, ISC-87, ISC-130.
 //
 // The checkbox (`Toggle`) is bound to `@State var ageConfirmed`, which is
-// initialised to `false`. No code path in this file sets it to `true`.
+// initialized to `false`. No code path in this file sets it to `true`.
 // Continue is `.disabled(!ageConfirmed)` so it cannot be tapped until confirmed.
 
 struct AgeGateView: View {
@@ -28,7 +28,7 @@ struct AgeGateView: View {
         static var whyBody: String       { String(localized: "AGE_GATE_WHY_BODY") }
     }
 
-    /// Age confirmation state. Initialised to `false` — never pre-set to `true`.
+    /// Age confirmation state. Initialized to `false` — never pre-set to `true`.
     @State private var ageConfirmed = false
 
     /// Navigation to the under-16 explanatory screen.

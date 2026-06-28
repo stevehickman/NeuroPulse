@@ -270,7 +270,7 @@ typedef struct __attribute__((packed)) {
     uint16_t intensity_mw_cm2;  /* mW/cm²; firmware cap ≤ 1000 */
     uint8_t  freq_code;         /* 0x00=CW; freq in Hz for pulsed modes */
     uint8_t  duty;              /* ≤ 0x32 (25%); firmware-enforced */
-    uint8_t  tec_target_c;      /* TEC stabilisation target °C; 0=auto (37°C) */
+    uint8_t  tec_target_c;      /* TEC stabilization target °C; 0=auto (37°C) */
 } np_mod_pbm_1170nm_params_t;
 
 /* ── T2: 16-ch clinical tACS (NP_MOD_CLIN_TACS) ────────────────────────────── */

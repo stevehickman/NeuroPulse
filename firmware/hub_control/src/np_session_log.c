@@ -29,7 +29,7 @@ static size_t   s_shdr_pos = 0U;
 
 static uint32_t s_device_session_count = 0U;
 
-/* ── Serialisation helpers ────────────────────────────────────────────────────── */
+/* ── Serialization helpers ────────────────────────────────────────────────────── */
 
 static bool uhdr_write(const void *data, size_t len)
 {

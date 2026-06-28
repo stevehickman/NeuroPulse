@@ -46,7 +46,7 @@
 #include "np_dfu.h"
 #include <string.h>
 
-/* SNVS_LPGPR2 — anonymisation in-progress flag (NP-FW-EMMC-002 §D.6) ──────── */
+/* SNVS_LPGPR2 — anonymization in-progress flag (NP-FW-EMMC-002 §D.6) ──────── */
 /* Defined locally to avoid colliding with Unit 1's parallel edit to           */
 /* np_config.h.  When np_config.h gains these defs, the merge reviewer must     */
 /* delete these locals and keep the np_config.h versions.                       */
@@ -232,7 +232,7 @@ static np_status_t load_and_jump(np_bank_t bank)
     /* SCB_VTOR = 0xE000ED08 */
     *((volatile uint32_t *)0xE000ED08UL) = NP_APP_LOAD_ADDR;
 
-    /* Data synchronisation barrier before jump */
+    /* Data synchronization barrier before jump */
     __asm volatile("dsb" ::: "memory");
     __asm volatile("isb" ::: "memory");
 
@@ -279,7 +279,7 @@ void Bootloader_Reset(void)
     /* Enable FPU access (CP10/CP11 full access) for SHA-256 performance */
     *((volatile uint32_t *)0xE000ED88UL) |= (0xFU << 20U);
 
-    /* B-1: Initialise eMMC ──────────────────────────────────────────────── */
+    /* B-1: Initialize eMMC ──────────────────────────────────────────────── */
     np_status_t ret = np_emmc_init();
     if (ret != NP_OK) {
         /* eMMC init failure — enter DFU (cannot read either bank) */
@@ -289,8 +289,8 @@ void Bootloader_Reset(void)
     /* B-1: Zero the Scratch partition (power-loss safety) ──────────────── */
     zero_scratch_partition();
 
-    /* Anonymisation power-loss recovery (NP-FW-EMMC-002 §D.6) ──────────── */
-    /* If a research anonymisation run was interrupted by power loss, the    */
+    /* Anonymization power-loss recovery (NP-FW-EMMC-002 §D.6) ──────────── */
+    /* If a research anonymization run was interrupted by power loss, the    */
     /* SNVS_LPGPR2 in-progress flag is still set.  The per-run AES key lived */
     /* only in SRAM and is gone, so the staged Scratch ciphertext is already */
     /* unreadable; SANITIZE Scratch (via erase) anyway and clear the flag.   */

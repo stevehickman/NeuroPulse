@@ -25,7 +25,7 @@ typedef struct np_sloreta_ctx np_sloreta_ctx_t;
 /* ── Lifecycle ───────────────────────────────────────────────────────────────── */
 
 /*
- * Initialise the sLORETA context.
+ * Initialize the sLORETA context.
  *
  * weight_matrix: pointer to the precomputed W matrix in LPSDR4.
  *   Layout: W[voxel * NP_HD_EEG_CHANNELS + channel], row-major, float32.

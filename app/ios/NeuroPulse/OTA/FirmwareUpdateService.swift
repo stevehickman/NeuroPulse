@@ -8,7 +8,7 @@ import CryptoKit
 //   user-correlated data. The server receives identical requests from all clients
 //   and cannot distinguish between devices or users.
 // • Download URL is always the canonical static path derived from version string.
-//   No presigned, personalised, or expiring URLs — prevents per-device tracking.
+//   No presigned, personalized, or expiring URLs — prevents per-device tracking.
 // • User-Agent is a static, non-device-specific string.
 // • SPKI certificate pinning on the firmware distribution domain prevents MITM
 //   manifest substitution (e.g. suppressing security updates) even though the
@@ -67,7 +67,7 @@ final class FirmwareUpdateService: FirmwareUpdateProviding {
     //   Body   : Ed25519-signed binary firmware image (NP-FW-EMMC-001 Rev A format).
     //            The hub independently verifies the Ed25519 signature before flashing.
     //
-    // Privacy  : Static, non-personalised URLs — no device ID, user ID, or version
+    // Privacy  : Static, non-personalized URLs — no device ID, user ID, or version
     //            number in the manifest request. All clients send identical requests.
     //
     // TLS/pinning : This endpoint is SPKI-pinned (FirmwarePinningDelegate).

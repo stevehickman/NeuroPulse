@@ -1,15 +1,15 @@
 /*
- * NeuroPulse Research Anonymisation — Scratch Partition AES-256-CTR
+ * NeuroPulse Research Anonymization — Scratch Partition AES-256-CTR
  * Document: NP-FW-EMMC-002 Rev A §D.2–§D.6
  *
  * Implements the per-run encryption lifecycle for the Scratch partition used
- * by the on-device research anonymisation pipeline.  See np_anon_scratch.h for
+ * by the on-device research anonymization pipeline.  See np_anon_scratch.h for
  * the threat model and contract.
  *
  * Sensitive-data zeroing uses memset_explicit() (project convention).  On C23
  * toolchains it is provided by <string.h>; on the C11 cross-build a guarded
  * non-elidable fallback is supplied below so key material is never left in SRAM
- * by a dead-store optimisation.
+ * by a dead-store optimization.
  */
 
 #include "np_anon_scratch.h"

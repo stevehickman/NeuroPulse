@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HRV Biofeedback — taVNS Inspiration-Phase Synchronisation
+ * NeuroPulse HRV Biofeedback — taVNS Inspiration-Phase Synchronization
  * Document: NP-FW-HRV-001 Rev A §8
  *
  * RSA slope detection: inspiration = negative mean dRR/dt over the sliding

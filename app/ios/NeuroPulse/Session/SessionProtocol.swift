@@ -81,7 +81,7 @@ struct VNSHRVConfig: Codable {
 
     enum HRVProtocol: String, Codable {
         case standalone            = "standalone"
-        case tavnsSynchronised     = "hrv_tavns_sync"
+        case tavnsSynchronized     = "hrv_tavns_sync"
         case dualEEGBiofeedback    = "hrv_eeg_biofeedback"
         case combinedPBM           = "hrv_pbm"
     }

@@ -6,17 +6,17 @@ import NeuroPulseShared
 // MARK: - Mock biometric context
 
 final class MockBiometricContext: BiometricEvaluating, @unchecked Sendable {
-    enum Behaviour {
+    enum Behavior {
         case success
         case cannotEvaluate(NSError)
         case evaluateThrows(Error)
     }
-    var behaviour: Behaviour
+    var behavior: Behavior
 
-    init(behaviour: Behaviour) { self.behaviour = behaviour }
+    init(behavior: Behavior) { self.behavior = behavior }
 
     func canEvaluatePolicy(_ policy: LAPolicy, error: NSErrorPointer) -> Bool {
-        if case .cannotEvaluate(let e) = behaviour {
+        if case .cannotEvaluate(let e) = behavior {
             error?.pointee = e
             return false
         }
@@ -24,7 +24,7 @@ final class MockBiometricContext: BiometricEvaluating, @unchecked Sendable {
     }
 
     func evaluatePolicy(_ policy: LAPolicy, localizedReason: String) async throws -> Bool {
-        switch behaviour {
+        switch behavior {
         case .success:               return true
         case .cannotEvaluate:        return false
         case .evaluateThrows(let e): throw e
@@ -80,7 +80,7 @@ final class UHDRKeyManagerTests: XCTestCase {
     func testNoFallbackOnBioFailure() async {
         // canEvaluatePolicy returns false → must throw UHDRKeyError.biometricFailed, no key
         let cannotEvaluate = MockBiometricContext(
-            behaviour: .cannotEvaluate(NSError(domain: LAErrorDomain,
+            behavior: .cannotEvaluate(NSError(domain: LAErrorDomain,
                                                code: LAError.biometryNotAvailable.rawValue))
         )
         let manager1 = await MainActor.run {
@@ -101,7 +101,7 @@ final class UHDRKeyManagerTests: XCTestCase {
 
         // evaluatePolicy throws → must propagate, no key
         let evalFails = MockBiometricContext(
-            behaviour: .evaluateThrows(LAError(.authenticationFailed))
+            behavior: .evaluateThrows(LAError(.authenticationFailed))
         )
         let manager2 = await MainActor.run {
             UHDRKeyManager(biometricContext: evalFails,
@@ -120,7 +120,7 @@ final class UHDRKeyManagerTests: XCTestCase {
     func testSuccessfulAuthDerivesKey() async throws {
         let store = MockCredentialStore()
         let manager = await MainActor.run {
-            UHDRKeyManager(biometricContext: MockBiometricContext(behaviour: .success),
+            UHDRKeyManager(biometricContext: MockBiometricContext(behavior: .success),
                            credentialStore: store)
         }
         try await manager.authenticate()
@@ -137,7 +137,7 @@ final class UHDRKeyManagerTests: XCTestCase {
 
     func testLockClearsKey() async throws {
         let manager = await MainActor.run {
-            UHDRKeyManager(biometricContext: MockBiometricContext(behaviour: .success),
+            UHDRKeyManager(biometricContext: MockBiometricContext(behavior: .success),
                            credentialStore: MockCredentialStore())
         }
         try await manager.authenticate()
@@ -209,7 +209,7 @@ final class UHDRKeyManagerTests: XCTestCase {
     func testCredentialStoreFailurePropagates() async {
         let store = MockCredentialStore(shouldThrow: true)
         let manager = await MainActor.run {
-            UHDRKeyManager(biometricContext: MockBiometricContext(behaviour: .success),
+            UHDRKeyManager(biometricContext: MockBiometricContext(behavior: .success),
                            credentialStore: store)
         }
         do {

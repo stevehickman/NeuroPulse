@@ -179,12 +179,12 @@ final class SHDRUploaderTests: XCTestCase {
         let source = try Self.uploaderSource()
 
         // The SHDR upload sends a raw binary blob (application/octet-stream),
-        // NOT a JSON-serialised object. If JSONEncoder or JSONSerialization
-        // appeared in the upload path it could accidentally serialise UHDR fields.
+        // NOT a JSON-serialized object. If JSONEncoder or JSONSerialization
+        // appeared in the upload path it could accidentally serialize UHDR fields.
         let requestBody = source.components(separatedBy: "func upload()").dropFirst().first ?? ""
         XCTAssertFalse(
             requestBody.contains("JSONEncoder") || requestBody.contains("JSONSerialization"),
-            "SHDRUploader.upload() must send a raw binary blob, not a JSON-serialised body — " +
+            "SHDRUploader.upload() must send a raw binary blob, not a JSON-serialized body — " +
             "JSON encoding could accidentally capture UHDR fields."
         )
         XCTAssertTrue(

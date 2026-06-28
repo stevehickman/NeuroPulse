@@ -56,7 +56,7 @@ final class PostHogAnalyticsBackend: AnalyticsBackend {
     func configure() {
         if isSetUp {
             // User previously consented, then withdrew and is now re-consenting.
-            // Re-enable the already-initialised SDK rather than calling setup() again.
+            // Re-enable the already-initialized SDK rather than calling setup() again.
             PostHogSDK.shared.optIn()
             Self.log.debug("PostHogAnalyticsBackend: re-enabled after prior opt-out.")
             return
@@ -97,7 +97,7 @@ final class PostHogAnalyticsBackend: AnalyticsBackend {
 
         PostHogSDK.shared.setup(config)
         isSetUp = true
-        Self.log.debug("PostHogAnalyticsBackend: PostHog initialised.")
+        Self.log.debug("PostHogAnalyticsBackend: PostHog initialized.")
     }
 
     func track(event: String, properties: [String: String]) {

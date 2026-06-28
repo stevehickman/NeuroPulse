@@ -6,7 +6,7 @@
  * NIST FIPS 180-4 SHA-256 / SHA-512 test vectors.
  * IEEE 802.3 CRC-32 test vector ("123456789" → 0xCBF43926).
  *
- * Phase 1 (RED): all positive-behaviour tests FAIL against stub.
+ * Phase 1 (RED): all positive-behavior tests FAIL against stub.
  * Phase 2 (GREEN): all tests PASS after real implementation.
  *
  * IEC 62304 Class C — np_crypto consumed by SW-01 (safety MCU).

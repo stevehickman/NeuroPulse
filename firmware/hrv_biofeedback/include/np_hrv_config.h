@@ -51,7 +51,7 @@
 #define NP_PACER_SWEEP_DWELL_S      120U    /* seconds at each sweep rate        */
 #define NP_PACER_INSP_RATIO         0.4f    /* inspiration fraction of cycle     */
 
-/* ── taVNS synchronisation ──────────────────────────────────────────────────── */
+/* ── taVNS synchronization ──────────────────────────────────────────────────── */
 /* Stim is gated ON during the inspiration phase detected from PPG RSA.          */
 #define NP_TAVNS_DEFAULT_FREQ_HZ    25U     /* carrier frequency (within 1–25 Hz)*/
 #define NP_TAVNS_DEFAULT_CURRENT_UA 500U    /* 0.5 mA (units: microamperes)      */

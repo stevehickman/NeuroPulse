@@ -7,7 +7,7 @@
 //  Verifies:
 //  - ISC-92: backend.configure() is never called before the research consent gate opens
 //  - ISC-97: prohibited-key events are dropped before reaching the backend
-//  - Gate semantics: keys, Skip behaviour, blanket research consent coupling
+//  - Gate semantics: keys, Skip behavior, blanket research consent coupling
 //  - ISC-157 compliance: this file imports only XCTest + NeuroPulse — no PostHog
 
 import XCTest
@@ -150,7 +150,7 @@ final class ResearchAnalyticsGateTests: XCTestCase {
         XCTAssertTrue(ResearchAnalyticsGate.isOpen)
 
         // Blanket research consent withdrawal must close the research analytics gate
-        // AND tear down the SDK — the user is signalling no data collection beyond
+        // AND tear down the SDK — the user is signaling no data collection beyond
         // basic device function (CLAUDE.md §6.0, ConsentStore authoritative design).
         let store = ConsentStore()
         store.withdrawBlanketResearchConsent()

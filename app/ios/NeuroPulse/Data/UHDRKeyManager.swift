@@ -66,7 +66,7 @@ final class UHDRKey {
     }
 
     deinit {
-        // bzero is guaranteed not to be optimised away (unlike memset/initializeMemory).
+        // bzero is guaranteed not to be optimized away (unlike memset/initializeMemory).
         k1.withUnsafeMutableBytes { buf in if let p = buf.baseAddress { bzero(p, buf.count) } }
         k2.withUnsafeMutableBytes { buf in if let p = buf.baseAddress { bzero(p, buf.count) } }
     }

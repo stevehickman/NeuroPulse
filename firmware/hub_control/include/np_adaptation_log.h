@@ -40,7 +40,7 @@ typedef enum {
     /* HRV triggers */
     NP_ADAPT_TRIGGER_HRV_COHERENCE_LOW  = 0x08, /* HRV coherence score dropped below 4.0     */
     NP_ADAPT_TRIGGER_HRV_COHERENCE_HIGH = 0x09, /* HRV coherence score exceeded 8.0          */
-    NP_ADAPT_TRIGGER_HRV_RMSSD_LOW      = 0x0A, /* HRV RMSSD fell below personalised baseline */
+    NP_ADAPT_TRIGGER_HRV_RMSSD_LOW      = 0x0A, /* HRV RMSSD fell below personalized baseline */
     /* Safety / device-condition triggers (SHDR-safe classification) */
     NP_ADAPT_TRIGGER_IMPEDANCE_CHANGE   = 0x0B, /* electrode impedance crossed ±20% of session start */
     NP_ADAPT_TRIGGER_DOSE_LIMIT_APPROACH= 0x0C, /* cumulative J/cm² reached 80% of session dose cap */

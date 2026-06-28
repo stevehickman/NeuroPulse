@@ -1,6 +1,6 @@
 // BIPAConsentFlowTests.swift
 //
-// Verifies the BIPA 4-step consent flow's externally observable behaviour:
+// Verifies the BIPA 4-step consent flow's externally observable behavior:
 //   • Callback semantics: onAccept and onDecline fire exactly once
 //   • UserDefaults state after each callback matches what NeuroPulseApp.swift persists
 //   • Step count and ordering are correct

@@ -22,7 +22,7 @@
 #include "np_hrv_types.h"
 
 /*
- * Initialise Welch accumulator and pre-compute Hann window coefficients.
+ * Initialize Welch accumulator and pre-compute Hann window coefficients.
  * Must be called once before np_hrv_coherence_update().
  */
 void np_hrv_coherence_init(np_hrv_psd_t *psd);

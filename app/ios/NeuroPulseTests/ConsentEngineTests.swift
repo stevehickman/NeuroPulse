@@ -204,7 +204,7 @@ final class ConsentEngineTests: XCTestCase {
     func testConsentDocumentGeneration() {
         let doc = ConsentEngine.consentDocument(
             clinicianName: "Dr. Neda Rashidi-Ranjbar",
-            organisation: "St. Michael's Hospital",
+            organization: "St. Michael's Hospital",
             selectedUseCaseIDs: ["adherence_monitoring", "eeg_review"],
             tier: .assess
         )
@@ -214,7 +214,7 @@ final class ConsentEngineTests: XCTestCase {
         XCTAssertEqual(doc.tier, .assess)
         XCTAssertFalse(doc.plainLanguageSummary.isEmpty,
                        "Plain-language summary must be non-empty.")
-        // Summary should name the clinician and organisation.
+        // Summary should name the clinician and organization.
         XCTAssertTrue(doc.plainLanguageSummary.contains("Dr. Neda Rashidi-Ranjbar"))
         XCTAssertTrue(doc.plainLanguageSummary.contains("St. Michael's Hospital"))
 

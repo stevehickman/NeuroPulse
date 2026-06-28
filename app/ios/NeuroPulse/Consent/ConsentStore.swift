@@ -2,7 +2,7 @@ import Foundation
 import Combine
 
 // Persisted consent state — clinician grants, research consent, study participation audit trail.
-// All state serialised to UserDefaults (encrypted by iOS file system protection).
+// All state serialized to UserDefaults (encrypted by iOS file system protection).
 // UHDR/SHDR boundary: study audit trail written to SHDR (study ID, hash, timestamp, byte count).
 //
 // TWO CONSENT SUBJECTS:
@@ -62,7 +62,7 @@ final class ConsentStore: ObservableObject {
         // Withdrawal immediately prevents future study descriptor processing.
         // Already-published extracts are unchanged (irreversibility notice given at L3).
         //
-        // Blanket withdrawal also revokes research analytics: the user is signalling they
+        // Blanket withdrawal also revokes research analytics: the user is signaling they
         // do not want any data collection beyond basic device function.
         // (Partial withdrawals — specific study or category — do not revoke research analytics
         // because the user remains a research participant in other scopes.)

@@ -59,7 +59,7 @@ enum NPHardwareLimits {
     static let vibrotactileMinG: Double = 0.6
 
     // MARK: Deep PBM 1170nm (T2)
-    // 1170nm laser diodes, TEC-stabilised, 35–40mm subcortical depth
+    // 1170nm laser diodes, TEC-stabilized, 35–40mm subcortical depth
     static let deepPBMMaxMWcm2: Double = 1000.0            // ≤1,000 mW/cm² per CLAUDE.md §3
 
     // MARK: Aggregate PBM irradiance ceiling (OI-PBM-05 — three-channel combined)

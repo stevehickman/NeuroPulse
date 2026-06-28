@@ -28,7 +28,7 @@ enum EDFDownloadError: LocalizedError {
 
 struct EDFHeader {
     var version: String             // "0       "
-    var patientID: String           // anonymised device ID (never user name)
+    var patientID: String           // anonymized device ID (never user name)
     var recordingID: String
     var startDate: String           // dd.mm.yy
     var startTime: String           // hh.mm.ss

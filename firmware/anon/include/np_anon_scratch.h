@@ -1,17 +1,17 @@
 /*
- * NeuroPulse Research Anonymisation — Scratch Partition AES-256-CTR API
+ * NeuroPulse Research Anonymization — Scratch Partition AES-256-CTR API
  * Document: NP-FW-EMMC-002 Rev A §D
  *
  * Encrypts every block written to the eMMC Scratch partition during a
- * research anonymisation run, so that no decrypted UHDR data persists in
+ * research anonymization run, so that no decrypted UHDR data persists in
  * plaintext if the device loses power mid-pipeline.
  *
  * Threat model (NP-FW-EMMC-002 §D.1):
- *   - The anonymisation pipeline decrypts selected UHDR elements, transforms
+ *   - The anonymization pipeline decrypts selected UHDR elements, transforms
  *     them, and stages intermediate results in the Scratch partition.
  *   - The per-run AES-256-CTR key (k_scratch) and nonce are generated from the
  *     TRNG and held ONLY in SRAM.  They are never written to eMMC.
- *   - On normal completion the key is zeroised and the Scratch partition is
+ *   - On normal completion the key is zeroized and the Scratch partition is
  *     SANITIZE'd.
  *   - On power loss the SRAM key is gone; even if the Scratch ciphertext is
  *     physically recovered it cannot be decrypted.  The bootloader additionally
@@ -40,13 +40,13 @@
 /* ── Per-run encryption context ───────────────────────────────────────────── */
 /*
  * k_scratch and nonce are SRAM-only secrets.  They MUST NOT be written to any
- * eMMC partition, logged, or copied to non-volatile storage.  They are zeroised
+ * eMMC partition, logged, or copied to non-volatile storage.  They are zeroized
  * by np_anon_scratch_complete() with memset_explicit.
  */
 typedef struct {
     uint8_t  k_scratch[NP_ANON_KEY_LEN];   /* AES-256-CTR key — SRAM only      */
     uint8_t  nonce[NP_ANON_NONCE_LEN];     /* CTR nonce — TRNG, unique per run */
-    uint32_t session_id;                   /* anonymisation session counter    */
+    uint32_t session_id;                   /* anonymization session counter    */
     bool     key_valid;                    /* true between init and complete   */
 } np_anon_scratch_ctx_t;
 
@@ -57,7 +57,7 @@ typedef struct {
  *   NP_SNVS_ANON_IN_PROGRESS flag (before any scratch write so an interrupted
  *   run is always detectable), and mark the context valid.
  *
- *   On TRNG failure the partially-filled key material is zeroised and an error
+ *   On TRNG failure the partially-filled key material is zeroized and an error
  *   is returned; key_valid stays false.  The caller must not have its
  *   session_id reset — init does not touch session_id (it is bumped only on a
  *   successful complete) so a pre-zeroed/static context starts at session 0.

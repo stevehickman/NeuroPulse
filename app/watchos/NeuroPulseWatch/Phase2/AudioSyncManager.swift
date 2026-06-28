@@ -4,7 +4,7 @@ import Combine
 // Phase 2 — Audio sync to AirPods.
 // Generates binaural beats and isochronic tones via AVAudioEngine with two
 // independently-tuned sine oscillators (left/right channels).  Breathing pacer
-// tones are also produced here, synchronised to PacerPhase events from the hub.
+// tones are also produced here, synchronized to PacerPhase events from the hub.
 //
 // Sync strategy: epoch is excluded from the WC bridge (UHDR boundary,
 // NP-PRIV-ANALYSIS-002 MEDIUM-08) so sessionEpochMs is always 0 on Watch.

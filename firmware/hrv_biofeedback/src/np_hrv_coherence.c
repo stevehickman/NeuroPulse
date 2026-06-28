@@ -12,7 +12,7 @@
 #include "np_hrv_coherence.h"
 #include "np_hrv_ppg.h"
 
-/* Float alias used in PSD normalisation. */
+/* Float alias used in PSD normalization. */
 #define NP_HRV_INTERP_RATE_HZ_F  ((float)NP_RR_INTERP_RATE_HZ)
 #include <string.h>
 #include <math.h>
@@ -185,7 +185,7 @@ np_hrv_status_t np_hrv_coherence_update(const np_rr_buffer_t *buf,
     /* In-place radix-2 FFT. */
     fft_r2dit(s_fft_re, s_fft_im, NP_HRV_FFT_SIZE);
 
-    /* Hann window power normalisation factor: sum(w²) = N/2 for Hann. */
+    /* Hann window power normalization factor: sum(w²) = N/2 for Hann. */
     float norm = 2.0f / ((float)NP_HRV_FFT_SIZE * (float)NP_HRV_INTERP_RATE_HZ_F);
 
     /* Accumulate one-sided PSD into psd->psd[]. */

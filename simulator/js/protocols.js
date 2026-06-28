@@ -115,7 +115,7 @@ export const PROTOCOLS = {
   anxiety_hrv: {
     id: 'anxiety_hrv',
     name: 'Anxiety Relief + HRV',
-    description: 'HRV coherence biofeedback with resonance breathing + taVNS synchronised stimulation + alpha PBM.',
+    description: 'HRV coherence biofeedback with resonance breathing + taVNS synchronized stimulation + alpha PBM.',
     tier: 'T1',
     duration: 1500,
     modalities: {

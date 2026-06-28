@@ -447,15 +447,15 @@ enum NPBundledProtocols {
     }
     """
 
-    static let hrvTavnsSynchronised = """
-    protocol "HRV + taVNS Synchronised" {
+    static let hrvTavnsSynchronized = """
+    protocol "HRV + taVNS Synchronized" {
         id: "1000000C-0000-0000-0000-000000000000"
-        description: "Stimulation pulses timed to inspiration phase for optimised noradrenergic modulation. \
+        description: "Stimulation pulses timed to inspiration phase for optimized noradrenergic modulation. \
     Alpha EEG neurofeedback adds cortical awareness layer."
         author: "NeuroPulse"
         version: "1.0"
         readonly: true
-        tags: [HRV, VNS, advanced, synchronised]
+        tags: [HRV, VNS, advanced, synchronized]
         duration: 20m
 
         vns_hrv {
@@ -702,7 +702,7 @@ enum NPBundledProtocols {
     """
 
     static let compositeSleepStack = """
-    composite "Sleep Optimisation Stack" {
+    composite "Sleep Optimization Stack" {
         id: "10000101-0000-0000-0000-000000000000"
         description: "Evening stack: alpha wind-down then HRV coherence then deep sleep induction. \
     Runs for approximately 90 minutes starting 2 hours before target sleep time."
@@ -797,7 +797,7 @@ enum NPBundledProtocols {
         retinalHealth,
         ptsdEmdrSupport,
         hrvCoherenceTraining,
-        hrvTavnsSynchronised,
+        hrvTavnsSynchronized,
         focusPrime,
         gammaThetaCoupled,
         fullT1Immersive,

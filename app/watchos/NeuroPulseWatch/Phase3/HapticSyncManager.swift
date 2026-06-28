@@ -12,7 +12,7 @@ import Combine
 // Sub-50ms sync requires a future non-UHDR clock mechanism.
 //
 // Thermal prerequisite: OI-WA-01 (20-min continuous Core Haptics thermal
-// characterisation on Apple Watch Series / Ultra hardware) must pass before
+// characterization on Apple Watch Series / Ultra hardware) must pass before
 // this manager is enabled in production builds.  See NP-APP-ROADMAP-001 §4.2.
 
 final class HapticSyncManager: ObservableObject {
@@ -53,7 +53,7 @@ final class HapticSyncManager: ObservableObject {
             try engine?.start()
             let player = try buildPlayer()
             self.player = player
-            // Schedule haptic to start synchronised with hub epoch + pre-buffer.
+            // Schedule haptic to start synchronized with hub epoch + pre-buffer.
             try player.start(atTime: CHHapticTimeImmediate + delayBeforeStart)
             isPlaying = true
         } catch {

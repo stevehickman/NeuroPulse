@@ -220,7 +220,7 @@ void np_pbm1064_detect_tick(np_pbm1064_detect_ctx_t *ctx,
         }
 
         case NP_SM_REMOVING: {
-            /* Verify absence one more time before signalling removal. */
+            /* Verify absence one more time before signaling removal. */
             uint16_t counts = 0;
             np_pbm1064_hal_adc_read_zone_id(slot, &counts);
             if (np_pbm1064_classify_adc(counts) != NP_SLOT_ABSENT) {

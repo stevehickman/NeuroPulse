@@ -106,7 +106,7 @@ uint8_t np_safety_spi_get_status(void);
  * session_active transition and set NP_SAFETY_STATUS_SIG_PENDING) and BEFORE
  * calling np_safety_spi_request_enable() with any non-zero channel mask.
  *
- * hash: 32-byte SHA-256 of the serialised session descriptor (signed portion).
+ * hash: 32-byte SHA-256 of the serialized session descriptor (signed portion).
  * sig:  64-byte Ed25519 signature from the app-signed protocol blob.
  *
  * Returns NP_HUB_OK if the SPI transfer completed successfully.

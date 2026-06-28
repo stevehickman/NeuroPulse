@@ -33,7 +33,7 @@ static uint16_t compute_checksum(const uint8_t *buf, size_t len)
 
 np_hub_status_t np_safety_spi_init(void)
 {
-    /* OI-SAF-01: platform SPI peripheral initialisation placeholder.
+    /* OI-SAF-01: platform SPI peripheral initialization placeholder.
      * The real implementation configures LPSPI3 on i.MX RT1062:
      *   - CPOL=0, CPHA=0, 8-bit, MSB first
      *   - Clock ≤ 10 MHz

@@ -98,7 +98,7 @@ enum UHDRElement: String, CaseIterable, Codable {
 struct ClinicianConsentGrant: Codable, Identifiable {
     var id: UUID
     var clinicianName: String
-    var clinicianOrganisation: String
+    var clinicianOrganization: String
     var tier: ClinicianUseCaseTier
     var grantedAt: Date
     var expiresAt: Date?         // nil = indefinite until revoked

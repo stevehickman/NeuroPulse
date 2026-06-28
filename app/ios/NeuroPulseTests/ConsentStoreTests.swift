@@ -115,7 +115,7 @@ final class ConsentStoreTests: XCTestCase {
 
     func testRevokeClinicianAccess_removesGrant() {
         let grant = ClinicianConsentGrant(
-            id: UUID(), clinicianName: "Dr. Test", clinicianOrganisation: "Test Hospital",
+            id: UUID(), clinicianName: "Dr. Test", clinicianOrganization: "Test Hospital",
             tier: .monitor, grantedAt: Date(), expiresAt: nil, isActive: true
         )
         store.grantClinicianAccess(grant)

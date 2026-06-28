@@ -36,7 +36,7 @@ typedef struct {
 } np_eeg_sample_buf_t;
 
 /*
- * Initialise EEG sample buffer and Hann window table.
+ * Initialize EEG sample buffer and Hann window table.
  */
 void np_hrv_eeg_init(np_eeg_sample_buf_t *eeg_buf);
 

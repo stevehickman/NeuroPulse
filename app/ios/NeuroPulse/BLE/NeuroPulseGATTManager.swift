@@ -138,7 +138,7 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
 
     // MARK: - Internal state-machine methods (called by both delegates AND tests)
 
-    /// Handle a BLE power/authorisation state change.
+    /// Handle a BLE power/authorization state change.
     /// Sets `bluetoothUnavailable`, resets `connectionState`, and starts scanning when ready.
     func applyStateUpdate(state: CBManagerState) {
         switch state {
@@ -238,7 +238,7 @@ final class NeuroPulseGATTManager: NSObject, ObservableObject {
             completion(.failure(.notConnected)); return
         }
         onEDFRequestAck = completion
-        // Explicit little-endian serialisation per hub wire contract (all GATT frames are LE).
+        // Explicit little-endian serialization per hub wire contract (all GATT frames are LE).
         // `sessionID.littleEndian` is a no-op on ARM64 but makes the intent unambiguous and
         // safe on any host byte order.
         var sid = sessionID.littleEndian
