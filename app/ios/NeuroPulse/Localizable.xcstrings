@@ -16979,13 +16979,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ line"
+                  "value": "%lld line"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ lines"
+                  "value": "%lld lines"
                 }
               }
             }
@@ -16997,13 +16997,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ line"
+                  "value": "%lld line"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ lines"
+                  "value": "%lld lines"
                 }
               }
             }
@@ -17015,13 +17015,13 @@
               "one": {
                 "stringUnit": {
                   "state": "new",
-                  "value": "%0\\$@ line"
+                  "value": "%lld line"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "new",
-                  "value": "%0\\$@ lines"
+                  "value": "%lld lines"
                 }
               }
             }
@@ -17033,13 +17033,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ line"
+                  "value": "%lld line"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ lines"
+                  "value": "%lld lines"
                 }
               }
             }
@@ -17051,13 +17051,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ line"
+                  "value": "%lld line"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ lines"
+                  "value": "%lld lines"
                 }
               }
             }
@@ -17069,13 +17069,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ line"
+                  "value": "%lld line"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ lines"
+                  "value": "%lld lines"
                 }
               }
             }
@@ -17087,13 +17087,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ line"
+                  "value": "%lld line"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ lines"
+                  "value": "%lld lines"
                 }
               }
             }
@@ -17105,13 +17105,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ line"
+                  "value": "%lld line"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ lines"
+                  "value": "%lld lines"
                 }
               }
             }
@@ -17123,13 +17123,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ line"
+                  "value": "%lld line"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ lines"
+                  "value": "%lld lines"
                 }
               }
             }
@@ -17141,13 +17141,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ line"
+                  "value": "%lld line"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ lines"
+                  "value": "%lld lines"
                 }
               }
             }
@@ -17159,13 +17159,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ line"
+                  "value": "%lld line"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "%0\\$@ lines"
+                  "value": "%lld lines"
                 }
               }
             }

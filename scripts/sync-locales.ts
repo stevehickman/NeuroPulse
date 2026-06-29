@@ -101,7 +101,7 @@ function generateXCStrings(locales: Map<string, LocaleData>): XCStringsFile {
             variations[suffix] = {
               stringUnit: {
                 state: locale === "en" ? "new" : "needs_review",
-                value: canonicalToApple(data[suffixKey]),
+                value: canonicalToApplePlural(data[suffixKey]),
               },
             };
           }
@@ -138,6 +138,10 @@ function generateXCStrings(locales: Map<string, LocaleData>): XCStringsFile {
 
 function canonicalToApple(value: string): string {
   return value.replace(/\{(\d+)\}/g, "%$1\\$@");
+}
+
+function canonicalToApplePlural(value: string): string {
+  return value.replace(/\{0\}/, "%lld").replace(/\{(\d+)\}/g, "%$1\\$@");
 }
 
 // --- Web locale copy ---
