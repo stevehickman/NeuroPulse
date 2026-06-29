@@ -130,15 +130,12 @@ final class BIPAConsentFlowTests: XCTestCase {
             "BIPA_STEP4_RELEASE_TEXT", "BIPA_STEP4_CHECKBOX_LABEL",
             "BIPA_STEP4_AUTHORIZE_BUTTON", "BIPA_STEP4_DECLINE_BUTTON",
         ]
-        // Localizable.strings lives in the app bundle, not the test bundle.
-        // In iOS simulator tests the host app is the main bundle.
-        let bundle = Bundle.allBundles.first {
-            $0.path(forResource: "Localizable", ofType: "strings") != nil
-        } ?? Bundle.main
+        // With .xcstrings, String(localized:) returns the key itself when
+        // no translation is found — verify each key resolves to something different.
         for key in keys {
-            let value = NSLocalizedString(key, bundle: bundle, comment: "")
+            let value = String(localized: String.LocalizationValue(key))
             XCTAssertNotEqual(value, key,
-                "Localization key '\(key)' is missing from Localizable.strings")
+                "Localization key '\(key)' is missing from Localizable.xcstrings")
         }
     }
 
