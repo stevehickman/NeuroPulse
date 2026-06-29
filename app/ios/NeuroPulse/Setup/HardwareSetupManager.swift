@@ -10,6 +10,7 @@ import UIKit
 
 // MARK: - GATT abstraction for testability
 
+@MainActor
 protocol SetupGATTProviding {
     var connectionState: NeuroPulseGATTManager.ConnectionState { get }
     var sessionPublisher: AnyPublisher<SessionState, Never> { get }

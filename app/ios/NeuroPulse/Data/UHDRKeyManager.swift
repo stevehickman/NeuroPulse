@@ -24,7 +24,7 @@ protocol BiometricEvaluating: Sendable {
     func evaluatePolicy(_ policy: LAPolicy, localizedReason: String) async throws -> Bool
 }
 
-extension LAContext: BiometricEvaluating {}
+extension LAContext: @preconcurrency BiometricEvaluating {}
 
 protocol CredentialStore: Sendable {
     // Returns 32-byte CSPRNG seed; creates and stores on first call.

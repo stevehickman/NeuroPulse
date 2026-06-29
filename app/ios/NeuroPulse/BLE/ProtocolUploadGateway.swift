@@ -4,6 +4,7 @@ import Foundation
 // Keeping SessionProtocolUploader independent of CoreBluetooth lets the
 // upload logic be exercised in unit tests without a real BLE stack.
 
+@MainActor
 protocol ProtocolUploadGateway: AnyObject {
     var isHubConnected: Bool { get }
 
