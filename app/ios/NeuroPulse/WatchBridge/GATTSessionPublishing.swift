@@ -9,6 +9,7 @@ import NeuroPulseShared
 ///
 /// Principle of least privilege: PhoneSessionManager sees only the session-state
 /// publisher, not the full NeuroPulseGATTManager interface (which carries UHDR data).
+@MainActor
 protocol GATTSessionPublishing: AnyObject {
     var sessionPublisher: AnyPublisher<SessionState, Never> { get }
 }
