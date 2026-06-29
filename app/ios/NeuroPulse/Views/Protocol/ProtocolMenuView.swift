@@ -46,7 +46,7 @@ struct ProtocolMenuView: View {
                     protocolList
                 }
             }
-            .navigationTitle("Protocols")
+            .navigationTitle(String(localized: "TAB_PROTOCOLS"))
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Search by name or tag")
             .toolbar { toolbarContent }
@@ -109,7 +109,7 @@ struct ProtocolMenuView: View {
                             uploadError = nil
                             if let entry = retry { handleSelect(entry) }
                         } label: {
-                            Text("Retry")
+                            Text(String(localized: "SETUP_RETRY_BUTTON"))
                                 .font(.caption.bold())
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 10)
@@ -151,7 +151,7 @@ struct ProtocolMenuView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel") { dismiss() }
+            Button(String(localized: "COMMON_CANCEL")) { dismiss() }
         }
         ToolbarItem(placement: .navigationBarLeading) {
             Button {
@@ -731,7 +731,7 @@ struct ValidationDetailSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(String(localized: "CONSENT_DONE_BUTTON")) { dismiss() }
                 }
             }
         }

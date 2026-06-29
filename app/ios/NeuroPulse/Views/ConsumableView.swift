@@ -17,7 +17,7 @@ struct ConsumableView: View {
                 inventorySection
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Supplies")
+            .navigationTitle(String(localized: "TAB_SUPPLIES"))
             .onAppear {
                 // Request notification permission here — in context, where the user can see
                 // why reminders are useful — rather than at app launch before onboarding.

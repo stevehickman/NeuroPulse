@@ -22,7 +22,7 @@ struct ResearchSuggestionPortalView: View {
                     suggestionList
                 }
             }
-            .navigationTitle("Research Portal")
+            .navigationTitle(String(localized: "DASHBOARD_RESEARCH_PORTAL_LINK"))
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -53,9 +53,9 @@ struct ResearchSuggestionPortalView: View {
             Image(systemName: "lightbulb")
                 .font(.system(size: 48))
                 .foregroundColor(.secondary)
-            Text("No research ideas yet")
+            Text(String(localized: "PORTAL_EMPTY_TITLE"))
                 .font(.title3.bold())
-            Text("Be the first to suggest a study. Your ideas reach the academic research community directly.")
+            Text(String(localized: "PORTAL_EMPTY_BODY"))
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -226,7 +226,7 @@ struct SuggestionDetailView: View {
     // Function 1 + 2: vote and participation intent
     private var participationSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Your input").font(.headline)
+            Text(String(localized: "PORTAL_YOUR_INPUT")).font(.headline)
 
             HStack(spacing: 12) {
                 Button {
@@ -259,7 +259,7 @@ struct SuggestionDetailView: View {
             }
 
             if suggestion.hasParticipationIntent {
-                Text("Your participation intent has been recorded. If a researcher pursues this study, you may receive an invitation.")
+                Text(String(localized: "PORTAL_INTENT_RECORDED"))
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -270,7 +270,7 @@ struct SuggestionDetailView: View {
     // Function 3: crowdfunding catalyst
     private var pledgeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Support with a pledge").font(.headline)
+            Text(String(localized: "PORTAL_SUPPORT_HEADING")).font(.headline)
             Text("Pledges are intent only — your card is not charged until a researcher"
                 + " confirms feasibility and a formal campaign activates."
                 + " If the target is not met, you are never charged.")
@@ -328,7 +328,7 @@ struct SubmitSuggestionSheet: View {
                         .overlay(
                             Group {
                                 if draft.body.isEmpty {
-                                    Text("Describe the study you'd like to see. What question would it answer? Who would it help?")
+                                    Text(String(localized: "PORTAL_DESCRIBE_STUDY"))
                                         .foregroundColor(.secondary)
                                         .padding(4)
                                         .allowsHitTesting(false)
@@ -355,7 +355,7 @@ struct SubmitSuggestionSheet: View {
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                 } header: {
-                    Text("Participation intent")
+                    Text(String(localized: "PORTAL_PARTICIPATION_INTENT"))
                 }
 
                 Section {
@@ -369,20 +369,20 @@ struct SubmitSuggestionSheet: View {
                     }
                     .pickerStyle(.segmented)
                     if draft.pledgeAmount > 0 {
-                        Text("Intent only. You will not be charged until a formal campaign activates and the funding target is met.")
+                        Text(String(localized: "PORTAL_PLEDGE_CAVEAT"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 } header: {
-                    Text("Support this idea (optional)")
+                    Text(String(localized: "PORTAL_SUPPORT_OPTIONAL"))
                 }
             }
             .navigationTitle("Submit Research Idea")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(String(localized: "COMMON_CANCEL")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if isSubmitting {

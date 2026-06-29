@@ -24,11 +24,11 @@ struct SessionHistoryListView: View {
                     sessionList
                 }
             }
-            .navigationTitle("Session History")
+            .navigationTitle(String(localized: "SESSION_HISTORY_LABEL"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Done") { dismiss() }
+                    Button(String(localized: "CONSENT_DONE_BUTTON")) { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(role: .destructive) {
@@ -45,8 +45,7 @@ struct SessionHistoryListView: View {
                 }
                 Button("Cancel", role: .cancel) { }
             } message: {
-                Text("This removes the on-device list of your past sessions."
-                    + " Your encrypted session data and any downloaded EDF files are not affected.")
+                Text(String(localized: "HISTORY_CLEAR_CONFIRM"))
             }
         }
     }
@@ -83,7 +82,7 @@ struct SessionHistoryListView: View {
             Image(systemName: "clock.arrow.circlepath")
                 .font(.system(size: 44))
                 .foregroundColor(.secondary)
-            Text("No sessions yet. Complete your first session to see it here.")
+            Text(String(localized: "HISTORY_EMPTY"))
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

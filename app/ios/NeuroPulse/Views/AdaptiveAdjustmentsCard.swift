@@ -37,7 +37,7 @@ struct AdaptiveAdjustmentsCard: View {
 
     private var cardHeader: some View {
         HStack {
-            Label("Adaptive Adjustments", systemImage: "waveform.path")
+            Label(String(localized: "ADAPT_HEADER"), systemImage: "waveform.path")
                 .font(.headline)
             Spacer()
             Text("\(events.count)")
@@ -50,7 +50,7 @@ struct AdaptiveAdjustmentsCard: View {
     }
 
     private var emptyState: some View {
-        Text("No adaptive adjustments this session.")
+        Text(String(localized: "ADAPT_NO_ADJUSTMENTS"))
             .font(.subheadline)
             .foregroundColor(.secondary)
     }
@@ -66,11 +66,11 @@ struct AdaptiveAdjustmentsCard: View {
     private var overflowFooter: some View {
         let remaining = events.count - Self.maxInlineEvents
         return HStack {
-            Text("and \(remaining) more")
+            Text(String(localized: "ADAPT_AND_MORE").replacingOccurrences(of: "{0}", with: "\(remaining)"))
                 .font(.caption)
                 .foregroundColor(.secondary)
             Spacer()
-            Button("View all") { showAllEvents = true }
+            Button(String(localized: "ADAPT_VIEW_ALL")) { showAllEvents = true }
                 .font(.caption.bold())
         }
     }
@@ -106,9 +106,9 @@ private struct AdaptationEventRow: View {
         let m = (total % 3600) / 60
         let s = total % 60
         if h > 0 {
-            return String(format: "%d:%02d:%02d into session", h, m, s)
+            return String(format: String(localized: "ADAPT_OFFSET_HMS"), h, m, s)
         }
-        return String(format: "%d:%02d into session", m, s)
+        return String(format: String(localized: "ADAPT_OFFSET_MS"), m, s)
     }
 }
 
@@ -128,11 +128,11 @@ private struct AllAdaptationEventsSheet: View {
                     .padding(.vertical, 4)
             }
             .listStyle(.plain)
-            .navigationTitle("All Adjustments")
+            .navigationTitle(String(localized: "ADAPT_ALL_TITLE"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Done") { dismiss() }
+                    Button(String(localized: "CONSENT_DONE_BUTTON")) { dismiss() }
                 }
             }
         }

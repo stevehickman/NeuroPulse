@@ -45,7 +45,7 @@ struct MainTabView: View {
     private var sessionTab: some View {
         SessionView()
             .tabItem {
-                Label("Session", systemImage: "brain.head.profile")
+                Label(String(localized: "SESSION_TITLE"), systemImage: "brain.head.profile")
             }
             .tag(0)
     }
@@ -62,7 +62,7 @@ struct MainTabView: View {
     private var consumableTab: some View {
         ConsumableView()
             .tabItem {
-                Label("Supplies", systemImage: "cross.case")
+                Label(String(localized: "TAB_SUPPLIES"), systemImage: "cross.case")
             }
             .badge(consumable.blockingReminders.count)
             .tag(2)
@@ -71,7 +71,7 @@ struct MainTabView: View {
     private var consentTab: some View {
         ConsentDashboardView()
             .tabItem {
-                Label("Privacy", systemImage: "lock.shield")
+                Label(String(localized: "SETUP_PRIVACY_CARD_TITLE"), systemImage: "lock.shield")
             }
             .badge(consent.pendingInvitations.filter { $0.hasNoDecision }.count)
             .tag(3)

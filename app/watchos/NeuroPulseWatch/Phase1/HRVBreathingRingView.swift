@@ -63,7 +63,7 @@ struct HRVBreathingRingView: View {
                     Text(String(format: "%.1f", score))
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundColor(ringColor)
-                    Text("coherence")
+                    Text(String(localized: "WATCH_COHERENCE"))
                         .font(.system(size: 9))
                         .foregroundColor(.white.opacity(0.5))
                 } else {

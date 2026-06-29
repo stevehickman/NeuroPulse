@@ -68,7 +68,7 @@ struct SessionView: View {
     var body: some View {
         NavigationStack {
             sessionScrollView
-                .navigationTitle("Session")
+                .navigationTitle(String(localized: "SESSION_TITLE"))
                 .toolbar {
                     ToolbarItem(placement: .navigationBarLeading) {
                         Button { showHistory = true } label: {
@@ -305,7 +305,7 @@ struct SessionView: View {
 
     private var blockingConsumableAlert: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Session Blocked", systemImage: "exclamationmark.triangle.fill")
+            Label(String(localized: "SESSION_BLOCKED_TITLE"), systemImage: "exclamationmark.triangle.fill")
                 .foregroundColor(.red)
                 .font(.headline)
             if let reason = consumable.sessionBlockReason {
@@ -313,7 +313,7 @@ struct SessionView: View {
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
-            Text("Go to the Supplies tab to resolve this before starting a session.")
+            Text(String(localized: "SESSION_BLOCKED_GUIDANCE"))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -328,14 +328,14 @@ struct SessionView: View {
                 statusIndicator
                 Spacer()
                 if gatt.session.status == .running {
-                    Text("Protocol \(gatt.session.protocolID)")
+                    Text(String(localized: "SESSION_PROTOCOL_LABEL").replacingOccurrences(of: "{0}", with: gatt.session.protocolID))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
 
             if gatt.session.status == .idle {
-                Text("No active session. Choose a protocol below to begin.")
+                Text(String(localized: "SESSION_IDLE_PROMPT"))
                     .font(.subheadline)
                     .foregroundColor(.secondary)
             }
@@ -452,7 +452,7 @@ struct SessionView: View {
 
     private var zoneModuleRow: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Zone Modules").font(.caption).foregroundColor(.secondary)
+            Text(String(localized: "SESSION_ZONE_MODULES")).font(.caption).foregroundColor(.secondary)
             HStack(spacing: 8) {
                 ForEach(0..<5, id: \.self) { slot in
                     let isPresent = slot < gatt.zoneModules.count && gatt.zoneModules[slot] != 0
@@ -474,7 +474,7 @@ struct SessionView: View {
             Button {
                 showProtocolPicker = true
             } label: {
-                Label("Choose Protocol", systemImage: "list.bullet.rectangle")
+                Label(String(localized: "SESSION_CHOOSE_PROTOCOL_BUTTON"), systemImage: "list.bullet.rectangle")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
@@ -484,7 +484,7 @@ struct SessionView: View {
                 Button(role: .destructive) {
                     showStopConfirmation = true
                 } label: {
-                    Label("End Session", systemImage: "stop.circle")
+                    Label(String(localized: "SESSION_END_BUTTON"), systemImage: "stop.circle")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
