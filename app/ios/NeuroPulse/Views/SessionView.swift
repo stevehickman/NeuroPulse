@@ -328,7 +328,7 @@ struct SessionView: View {
                 statusIndicator
                 Spacer()
                 if gatt.session.status == .running {
-                    Text(String(localized: "SESSION_PROTOCOL_LABEL").replacingOccurrences(of: "{0}", with: gatt.session.protocolID))
+                    Text(String(localized: "SESSION_PROTOCOL_LABEL").replacingOccurrences(of: "{0}", with: "\(gatt.session.protocolID)"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
