@@ -303,7 +303,8 @@ final class ConsumableTrackerDirectTests: XCTestCase {
         let tracker = ConsumableTracker(countsProvider: MockCountsProvider(counts: [1, 0, 0, 0]), defaults: testDefaults)
         let reason = tracker.sessionBlockReason
         XCTAssertNotNil(reason)
-        XCTAssertTrue(reason?.contains("Intranasal Sleeves") == true,
-                      "Block reason must name the specific consumable.")
+        let name = ConsumableKind.intranasalSleeves.displayName
+        XCTAssertTrue(reason?.contains(name) == true,
+                      "Block reason must name the specific consumable (got: \(reason ?? "nil"), expected to contain: \(name)).")
     }
 }

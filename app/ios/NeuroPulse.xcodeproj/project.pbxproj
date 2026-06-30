@@ -49,7 +49,7 @@
 		57E03885BEC1D80E7D1FC608 /* RegionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9A9D0E1AEF9CF2D19E1EC5 /* RegionHelper.swift */; };
 		594CFE7AF49E70D8415A0C75 /* ConsumableCountsProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AAFA30431862FB5EFE2B94B /* ConsumableCountsProviding.swift */; };
 		5D06C09BA7CE2433B46F93D1 /* OTAManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DCB16680A4C12EFB0780B1A /* OTAManagerTests.swift */; };
-		5FA3CFF4428F945C9E8E1AD8 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = C7F8970F83491CC9DF5C46EE /* Localizable.strings */; };
+		5FA3CFF4428F945C9E8E1AD8 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1E1CEB0F3C8613C56F225FA8 /* Localizable.xcstrings */; };
 		60066FA725B78AC851A1D2FB /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B3C8C3C50590F552A09F2A6 /* SessionView.swift */; };
 		67C16141CE9405C01E2DE345 /* ModalityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */; };
 		67F715230253DF0765B2827A /* PhoneSessionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59D6B0B298EFB13436C104EA /* PhoneSessionManagerTests.swift */; };
@@ -132,7 +132,7 @@
 		124975BABC28934EFC9A3E99 /* ConsumableInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableInventory.swift; sourceTree = "<group>"; };
 		1262B33B95FA07E03C897F9A /* SessionProtocolUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProtocolUploader.swift; sourceTree = "<group>"; };
 		148EC425ABBF6591831CF483 /* NeuroPulseTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NeuroPulseTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		1E1CEB0F3C8613C56F225FA8 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		1E1CEB0F3C8613C56F225FA8 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		1E73CA84DF1774384C133A5D /* OTAManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAManager.swift; sourceTree = "<group>"; };
 		1EBB4931BC5C14272812376B /* NeuroPulseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeuroPulseTests.swift; sourceTree = "<group>"; };
 		1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalityEditorView.swift; sourceTree = "<group>"; };
@@ -420,7 +420,7 @@
 				2D8F2C0F3D04145DD072CB52 /* Consent */,
 				EA66FB77FDEC54FF12C0374E /* Consumable */,
 				48F35FC99690ADD14F69A1FB /* Data */,
-				C7F8970F83491CC9DF5C46EE /* Localizable.strings */,
+				1E1CEB0F3C8613C56F225FA8 /* Localizable.xcstrings */,
 				0B957196DEB864998879C4EC /* Models */,
 				0576B3A476AFCD59EF141F05 /* Localization */,
 				91E4AF62DD9C753E78946D4A /* Onboarding */,
@@ -579,7 +579,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				5FA3CFF4428F945C9E8E1AD8 /* Localizable.strings in Resources */,
+				5FA3CFF4428F945C9E8E1AD8 /* Localizable.xcstrings in Resources */,
 				11FDF8E088A57FB6C70D76A6 /* PrivacyInfo.xcprivacy in Resources */,
 				2A5DF6452791EBBF096B6B88 /* SupportingFiles in Resources */,
 			);
@@ -706,14 +706,6 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
-		C7F8970F83491CC9DF5C46EE /* Localizable.strings */ = {
-			isa = PBXVariantGroup;
-			children = (
-				1E1CEB0F3C8613C56F225FA8 /* en */,
-			);
-			name = Localizable.strings;
-			sourceTree = "<group>";
-		};
 /* End PBXVariantGroup section */
 
 /* Begin XCBuildConfiguration section */

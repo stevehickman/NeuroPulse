@@ -6,6 +6,7 @@ import { NPLimitsSet } from './types/limits';
 import { ProtocolMenu } from './components/ProtocolMenu';
 import { ProtocolEditor } from './components/ProtocolEditor';
 import { ProtocolComposer } from './components/ProtocolComposer';
+import { t } from './lib/i18n';
 
 // ─── Protocol Context ─────────────────────────────────────────────────────────
 
@@ -127,9 +128,9 @@ export default function App() {
   }
 
   const sidebarItems = [
-    { id: 'menu', label: 'Protocol Library', icon: '📋' },
-    { id: 'editor', label: 'Protocol Editor', icon: '✏️' },
-    { id: 'composer', label: 'Composer', icon: '🎛️' },
+    { id: 'menu', label: t('WEB_NAV_LIBRARY'), icon: '📋' },
+    { id: 'editor', label: t('WEB_NAV_EDITOR'), icon: '✏️' },
+    { id: 'composer', label: t('WEB_NAV_COMPOSER'), icon: '🎛️' },
   ] as const;
 
   const activeNavId =
@@ -140,8 +141,8 @@ export default function App() {
     <LimitsContext.Provider value={{ resolvedLimits, limitsVersion }}>
     <ProtocolContext.Provider value={{ version, refresh }}>
       <div className="app-header">
-        <span className="app-header-logo">NeuroPulse</span>
-        <span className="app-header-subtitle">Protocol Library</span>
+        <span className="app-header-logo">{t('WEB_APP_TITLE')}</span>
+        <span className="app-header-subtitle">{t('WEB_NAV_LIBRARY')}</span>
         <div className="app-header-device">
           <DeviceTierControl
             tier={deviceTier}
@@ -154,7 +155,7 @@ export default function App() {
 
       <div className="app-body">
         <nav className="sidebar">
-          <div className="sidebar-section">Navigation</div>
+          <div className="sidebar-section">{t('WEB_NAV_SECTION')}</div>
           <div className="sidebar-nav">
             {sidebarItems.map(item => (
               <button
@@ -217,7 +218,7 @@ function DeviceTierControl({
 }) {
   return (
     <div className="device-tier-select">
-      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>Simulate:</span>
+      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>{t('WEB_SIMULATE')}</span>
       <select
         value={tier}
         onChange={e => onChangeTier(e.target.value as DeviceTier)}
@@ -232,9 +233,9 @@ function DeviceTierControl({
           outline: 'none',
         }}
       >
-        <option value="none">No Device</option>
-        <option value="t1">T1 Device</option>
-        <option value="t2">T2 Device</option>
+        <option value="none">{t('WEB_NO_DEVICE')}</option>
+        <option value="t1">{t('WEB_T1_DEVICE')}</option>
+        <option value="t2">{t('WEB_T2_DEVICE')}</option>
       </select>
       <span
         className={`tier-badge ${tier}`}

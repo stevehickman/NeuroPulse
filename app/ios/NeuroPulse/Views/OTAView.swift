@@ -39,8 +39,7 @@ struct OTAView: View {
                     }
                 }
             } message: {
-                Text("The Safety MCU controls all stimulation enable lines. This update will"
-                    + " pause all stimulation for several minutes. Do not disconnect during the update.")
+                Text(String(localized: "OTA_SAFETY_MCU_WARNING"))
             }
         }
     }
@@ -78,7 +77,7 @@ struct OTAView: View {
         Section("Updates") {
             HStack {
                 Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
-                Text("Firmware is up to date").font(.subheadline)
+                Text(String(localized: "OTA_UP_TO_DATE")).font(.subheadline)
             }
         }
     }
@@ -87,7 +86,7 @@ struct OTAView: View {
         Section {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
-                    Text("Version \(fw.version)").font(.headline)
+                    Text(String(localized: "OTA_VERSION_LABEL").replacingOccurrences(of: "{0}", with: fw.version)).font(.headline)
                     Spacer()
                     Text(fw.buildDate.formatted(.dateTime.month().day().year()))
                         .font(.caption).foregroundColor(.secondary)
@@ -100,7 +99,7 @@ struct OTAView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("Security fingerprint (Ed25519):")
+                    Text(String(localized: "OTA_FINGERPRINT_LABEL"))
                         .font(.caption2).foregroundColor(.secondary)
                     Text(fw.ed25519PublicKeyFingerprint)
                         .font(.system(.caption2, design: .monospaced))
@@ -110,7 +109,7 @@ struct OTAView: View {
                 .background(Color(.systemGray6))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
 
-                Text("Verify this fingerprint matches your purchase confirmation email before applying.")
+                Text(String(localized: "OTA_FINGERPRINT_VERIFY"))
                     .font(.caption2).foregroundColor(.orange)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -171,7 +170,7 @@ struct OTAView: View {
                     Label("Update complete — hub restarted successfully.", systemImage: "checkmark.circle.fill")
                         .font(.caption).foregroundColor(.green)
                 } else if ota.phase == .verifying || ota.phase == .verified {
-                    Text("Verifying firmware signature on hub…")
+                    Text(String(localized: "OTA_VERIFYING"))
                         .font(.caption).foregroundColor(.secondary)
                 }
 

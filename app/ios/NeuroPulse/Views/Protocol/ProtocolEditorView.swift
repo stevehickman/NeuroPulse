@@ -92,7 +92,7 @@ struct ProtocolEditorView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel") { dismiss() }
+            Button(String(localized: "COMMON_CANCEL")) { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
             Button("Save") { attemptSave() }
@@ -120,7 +120,7 @@ struct ProtocolEditorView: View {
                 .lineLimit(2...4)
 
             HStack {
-                Text("Author")
+                Text(String(localized: "PROTOCOL_AUTHOR"))
                     .foregroundColor(.secondary)
                 Spacer()
                 TextField("NeuroPulse", text: $draft.author)
@@ -128,7 +128,7 @@ struct ProtocolEditorView: View {
             }
 
             HStack {
-                Text("Version")
+                Text(String(localized: "PROTOCOL_VERSION"))
                     .foregroundColor(.secondary)
                 Spacer()
                 TextField("1.0", text: $draft.version)
@@ -142,7 +142,7 @@ struct ProtocolEditorView: View {
 
     private var tagEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Tags").font(.subheadline).foregroundColor(.secondary)
+            Text(String(localized: "PROTOCOL_TAGS")).font(.subheadline).foregroundColor(.secondary)
             FlowLayout(tags: draft.tags) { tag in
                 draft.tags.removeAll { $0 == tag }
             }
@@ -160,8 +160,8 @@ struct ProtocolEditorView: View {
     private var timingSection: some View {
         Section("Timing") {
             Picker("Mode", selection: timingModeBinding) {
-                Text("Duration").tag("duration")
-                Text("Interval Count").tag("interval_count")
+                Text(String(localized: "PROTOCOL_DURATION")).tag("duration")
+                Text(String(localized: "PROTOCOL_INTERVAL_COUNT")).tag("interval_count")
             }
             .pickerStyle(.segmented)
 
@@ -175,7 +175,7 @@ struct ProtocolEditorView: View {
                     in: 1...240
                 ) {
                     HStack {
-                        Text("Duration")
+                        Text(String(localized: "PROTOCOL_DURATION"))
                         Spacer()
                         Text(formatDuration(seconds))
                             .foregroundColor(.secondary)
@@ -190,7 +190,7 @@ struct ProtocolEditorView: View {
                     in: 1...1000
                 ) {
                     HStack {
-                        Text("Interval Count")
+                        Text(String(localized: "PROTOCOL_INTERVAL_COUNT"))
                         Spacer()
                         Text("\(n)")
                             .foregroundColor(.secondary)
@@ -229,7 +229,7 @@ struct ProtocolEditorView: View {
     private var modalitiesSection: some View {
         Section {
             if draft.modalities.isEmpty {
-                Text("No modalities added yet.")
+                Text(String(localized: "PROTOCOL_NO_MODALITIES"))
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 8)
@@ -257,7 +257,7 @@ struct ProtocolEditorView: View {
             }
         } header: {
             HStack {
-                Text("Modalities")
+                Text(String(localized: "PROTOCOL_MODALITIES"))
                 Spacer()
                 EditButton()
                     .font(.caption)

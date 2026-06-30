@@ -80,7 +80,7 @@ struct SessionHistoryView: View {
         VStack(spacing: 2) {
             Text(durationFormatted)
                 .font(.title2.bold().monospacedDigit())
-            Text("duration")
+            Text(String(localized: "HISTORY_DURATION_LABEL"))
                 .font(.caption2)
                 .foregroundColor(.secondary)
         }
@@ -118,7 +118,7 @@ struct SessionHistoryView: View {
                 .foregroundColor(.secondary)
             CoherenceSparkline(values: coherenceHistory)
                 .frame(height: 44)
-            Text("Last \(coherenceHistory.count) sessions with a coherence score")
+            Text(String(localized: "HISTORY_COHERENCE_CHART_TITLE").replacingOccurrences(of: "{0}", with: "\(coherenceHistory.count)"))
                 .font(.caption2)
                 .foregroundColor(.secondary)
         }
@@ -144,7 +144,7 @@ struct SessionHistoryView: View {
             case .downloading:
                 HStack(spacing: 10) {
                     ProgressView()
-                    Text("Downloading session data…")
+                    Text(String(localized: "HISTORY_DOWNLOADING"))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
@@ -153,13 +153,13 @@ struct SessionHistoryView: View {
 
             case .downloaded(let url):
                 VStack(spacing: 4) {
-                    Label("Downloaded", systemImage: "checkmark.circle.fill")
+                    Label(String(localized: "SESSION_DOWNLOADED_LABEL"), systemImage: "checkmark.circle.fill")
                         .font(.subheadline.bold())
                         .foregroundColor(.green)
                     Text(url.lastPathComponent)
                         .font(.caption2.monospaced())
                         .foregroundColor(.secondary)
-                    Text("Available in the Files app under NeuroPulse.")
+                    Text(String(localized: "HISTORY_DOWNLOAD_HINT"))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -172,7 +172,7 @@ struct SessionHistoryView: View {
                         .font(.caption)
                         .foregroundColor(.orange)
                         .multilineTextAlignment(.center)
-                    Button("Try Again") { startEDFDownload() }
+                    Button(String(localized: "SESSION_DOWNLOAD_RETRY")) { startEDFDownload() }
                         .font(.caption.bold())
                 }
                 .frame(maxWidth: .infinity)
@@ -212,10 +212,7 @@ struct SessionHistoryView: View {
     // MARK: - Footer + helpers
 
     private var privacyFooter: some View {
-        Text("Adaptive adjustments are made automatically during closed-loop sessions"
-            + " based on your real-time brainwave and heart-rate activity."
-            + " No raw biological values are stored outside your device."
-            + " Learn more in the Privacy & Data section of Settings.")
+        Text(String(localized: "HISTORY_ADAPT_PRIVACY_FOOTER"))
             .font(.caption2)
             .foregroundColor(.secondary)
             .multilineTextAlignment(.center)

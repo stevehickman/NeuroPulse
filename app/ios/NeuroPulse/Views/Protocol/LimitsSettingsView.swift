@@ -53,7 +53,7 @@ struct LimitsSettingsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { dismiss() }
+                    Button(String(localized: "CONSENT_DONE_BUTTON")) { dismiss() }
                 }
             }
             .sheet(isPresented: $showEditor) {
@@ -395,7 +395,7 @@ struct LimitsEditorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(String(localized: "COMMON_CANCEL")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
@@ -1225,7 +1225,7 @@ struct ScriptImportView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(String(localized: "COMMON_CANCEL")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Import") {

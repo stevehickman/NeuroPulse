@@ -19,12 +19,12 @@ import NeuroPulseShared
 
 // MARK: - Protocol seams (injectable for testing)
 
-protocol BiometricEvaluating: Sendable {
+protocol BiometricEvaluating {
     func canEvaluatePolicy(_ policy: LAPolicy, error: NSErrorPointer) -> Bool
     func evaluatePolicy(_ policy: LAPolicy, localizedReason: String) async throws -> Bool
 }
 
-extension LAContext: BiometricEvaluating {}
+extension LAContext: @preconcurrency BiometricEvaluating {}
 
 protocol CredentialStore: Sendable {
     // Returns 32-byte CSPRNG seed; creates and stores on first call.

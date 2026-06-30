@@ -6,6 +6,7 @@ import Combine
 ///
 /// Production conformance: NeuroPulseGATTManager (via extension below).
 /// Test conformance:       MockCountsProvider (CurrentValueSubject-backed, in test target).
+@MainActor
 protocol ConsumableCountsProviding: AnyObject {
     var consumableCountsPublisher: AnyPublisher<[UInt16], Never> { get }
 }

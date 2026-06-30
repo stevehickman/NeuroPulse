@@ -9,6 +9,7 @@ import Combine
 ///
 /// Principle of least privilege: SHDRUploader sees only this upload-trigger signal,
 /// not the full NeuroPulseGATTManager interface (which carries UHDR session data).
+@MainActor
 protocol SHDRUploadTriggering: AnyObject {
     var shdrUploadPendingPublisher: AnyPublisher<Bool, Never> { get }
 }

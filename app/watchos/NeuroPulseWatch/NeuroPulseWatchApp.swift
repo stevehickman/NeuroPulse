@@ -79,7 +79,7 @@ struct AudioStatusView: View {
                 Text(audioMgr.isPlaying ? "Audio sync active" : "Audio sync idle")
                     .font(.system(size: 13, weight: .medium))
                     .foregroundColor(.white)
-                Text("Route AirPods to Apple Watch for binaural beats")
+                Text(String(localized: "WATCH_AIRPODS_HINT"))
                     .font(.system(size: 10))
                     .foregroundColor(.white.opacity(0.4))
                     .multilineTextAlignment(.center)
@@ -123,15 +123,15 @@ struct HapticStatusView: View {
     private var thermalNote: some View {
         switch hapticMgr.thermalState {
         case .elevated:
-            Text("Watch warm — monitoring temperature")
+            Text(String(localized: "WATCH_WARM"))
                 .font(.system(size: 10))
                 .foregroundColor(.orange.opacity(0.7))
         case .serious, .critical:
-            Text("Haptic paused — temperature elevated")
+            Text(String(localized: "WATCH_HAPTIC_PAUSED"))
                 .font(.system(size: 10))
                 .foregroundColor(.red.opacity(0.8))
         default:
-            Text("Best results with NeuroPulse mastoid pad")
+            Text(String(localized: "WATCH_MASTOID_NOTE"))
                 .font(.system(size: 10))
                 .foregroundColor(.white.opacity(0.35))
                 .multilineTextAlignment(.center)

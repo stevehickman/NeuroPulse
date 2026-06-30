@@ -39,7 +39,7 @@ struct ModalityEditorRow: View {
                             .foregroundColor(.blue)
                             .clipShape(Capsule())
                     } else if modality.modalityType.tier == .accessory {
-                        Text("Provisional")
+                        Text(String(localized: "MODALITY_PROVISIONAL"))
                             .font(.caption2)
                             .padding(.horizontal, 5).padding(.vertical, 2)
                             .background(Color.orange.opacity(0.15))
@@ -195,7 +195,7 @@ struct PBMTranscranialParamsView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Zone selection
             VStack(alignment: .leading, spacing: 4) {
-                Text("Zones").font(.caption).foregroundColor(.secondary)
+                Text(String(localized: "MODALITY_ZONES")).font(.caption).foregroundColor(.secondary)
                 Picker("Zones", selection: $params.zones) {
                     ForEach(NPPBMTranscranialParams.ZoneSelection.allCases) { sel in
                         Text(sel.displayName).tag(sel)
@@ -206,7 +206,7 @@ struct PBMTranscranialParamsView: View {
 
             // Wavelength
             VStack(alignment: .leading, spacing: 4) {
-                Text("Wavelength").font(.caption).foregroundColor(.secondary)
+                Text(String(localized: "MODALITY_WAVELENGTH")).font(.caption).foregroundColor(.secondary)
                 Picker("Wavelength", selection: $params.wavelength) {
                     ForEach(NPPBMTranscranialParams.Wavelength.allCases) { wl in
                         Text(wl.displayName + (wl.requiresSmartModule ? " ★" : "")).tag(wl)
@@ -230,7 +230,7 @@ struct PBMTranscranialParamsView: View {
 
             // Frequency
             VStack(alignment: .leading, spacing: 4) {
-                Text("Frequency").font(.caption).foregroundColor(.secondary)
+                Text(String(localized: "MODALITY_FREQUENCY")).font(.caption).foregroundColor(.secondary)
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 6) {
                         ForEach(freqPresets, id: \.0) { preset in
@@ -258,7 +258,7 @@ struct PBMTranscranialParamsView: View {
                     step: 5
                 ) {
                     HStack {
-                        Text("Duty Cycle")
+                        Text(String(localized: "MODALITY_DUTY_CYCLE"))
                             .font(.caption)
                             .foregroundColor(.secondary)
                         Spacer()
@@ -283,7 +283,7 @@ struct PBMIntranasalParamsView: View {
             if params.frequencyHz > 0 {
                 Stepper(value: $params.dutyCyclePercent, in: 5...25, step: 5) {
                     HStack {
-                        Text("Duty Cycle").font(.caption).foregroundColor(.secondary)
+                        Text(String(localized: "MODALITY_DUTY_CYCLE")).font(.caption).foregroundColor(.secondary)
                         Spacer()
                         Text("\(params.dutyCyclePercent)%").font(.caption)
                     }
@@ -301,7 +301,7 @@ struct EEGNeurofeedbackParamsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Band").font(.caption).foregroundColor(.secondary)
+                Text(String(localized: "MODALITY_BAND")).font(.caption).foregroundColor(.secondary)
                 Picker("Band", selection: $params.band) {
                     ForEach(NPEEGNeurofeedbackParams.EEGBand.allCases) { band in
                         Text(band.displayName).tag(band)
@@ -314,7 +314,7 @@ struct EEGNeurofeedbackParamsView: View {
             }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Channels").font(.caption).foregroundColor(.secondary)
+                Text(String(localized: "MODALITY_CHANNELS")).font(.caption).foregroundColor(.secondary)
                 Picker("Channels", selection: $params.channels) {
                     ForEach(NPEEGNeurofeedbackParams.ChannelSelection.allCases) { ch in
                         Text(ch.displayName).tag(ch)
@@ -349,7 +349,7 @@ struct BESTacsParamsView: View {
                 format: { String(format: "%.2f mA", $0) }
             )
             VStack(alignment: .leading, spacing: 4) {
-                Text("Waveform").font(.caption).foregroundColor(.secondary)
+                Text(String(localized: "MODALITY_WAVEFORM")).font(.caption).foregroundColor(.secondary)
                 Picker("Waveform", selection: $params.waveform) {
                     ForEach(NPBESTacsParams.Waveform.allCases) { wf in
                         Text(wf.displayName).tag(wf)
@@ -660,7 +660,7 @@ struct DeepPBMParamsView: View {
             if params.frequencyHz > 0 {
                 Stepper(value: $params.dutyCyclePercent, in: 5...25, step: 5) {
                     HStack {
-                        Text("Duty Cycle").font(.caption).foregroundColor(.secondary)
+                        Text(String(localized: "MODALITY_DUTY_CYCLE")).font(.caption).foregroundColor(.secondary)
                         Spacer()
                         Text("\(params.dutyCyclePercent)%").font(.caption)
                     }
@@ -681,7 +681,7 @@ struct ClinicalTacsParamsView: View {
             SliderRow(label: "Intensity (mA)", value: $params.intensityMilliamps, range: 0...4, format: { String(format: "%.2f mA", $0) })
             Stepper(value: $params.channelCount, in: 2...16, step: 2) {
                 HStack {
-                    Text("Channels").font(.caption).foregroundColor(.secondary)
+                    Text(String(localized: "MODALITY_CHANNELS")).font(.caption).foregroundColor(.secondary)
                     Spacer()
                     Text("\(params.channelCount)").font(.caption)
                 }
@@ -749,7 +749,7 @@ struct VibrotactileParamsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Frequency").font(.caption).foregroundColor(.secondary)
+                Text(String(localized: "MODALITY_FREQUENCY")).font(.caption).foregroundColor(.secondary)
                 Spacer()
                 Text("40Hz (locked)")
                     .font(.caption)
@@ -896,7 +896,7 @@ struct ModalityPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(String(localized: "COMMON_CANCEL")) { dismiss() }
                 }
             }
         }

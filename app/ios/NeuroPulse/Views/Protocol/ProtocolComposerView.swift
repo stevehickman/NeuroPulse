@@ -60,7 +60,7 @@ struct ProtocolComposerView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel") { dismiss() }
+            Button(String(localized: "COMMON_CANCEL")) { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
             Button("Save") { attemptSave() }
@@ -76,7 +76,7 @@ struct ProtocolComposerView: View {
             TextField("Description", text: $draft.description, axis: .vertical)
                 .lineLimit(2...4)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Tags").font(.caption).foregroundColor(.secondary)
+                Text(String(localized: "PROTOCOL_TAGS")).font(.caption).foregroundColor(.secondary)
                 TagInputView { newTag in
                     let cleaned = newTag.lowercased().trimmingCharacters(in: .whitespaces)
                     if !cleaned.isEmpty && !draft.tags.contains(cleaned) {
@@ -191,7 +191,7 @@ struct ProtocolComposerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") { showScript = false }
+                    Button(String(localized: "CONSENT_DONE_BUTTON")) { showScript = false }
                 }
             }
         }
@@ -381,7 +381,7 @@ struct LayerEditorRow: View {
                             in: 1...240
                         ) {
                             HStack {
-                                Text("Duration").font(.caption).foregroundColor(.secondary)
+                                Text(String(localized: "PROTOCOL_DURATION")).font(.caption).foregroundColor(.secondary)
                                 Spacer()
                                 Text(formatTime(layer.durationSeconds ?? 1200)).font(.caption)
                             }
@@ -449,7 +449,7 @@ struct LayerPickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(String(localized: "COMMON_CANCEL")) { dismiss() }
                 }
             }
         }
