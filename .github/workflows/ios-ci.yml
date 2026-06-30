@@ -47,54 +47,12 @@ jobs:
             -project app/ios/NeuroPulse.xcodeproj \
             -scheme NeuroPulse
 
-      - name: List available simulators
-        run: xcrun simctl list devices available
-      
-      - name: Install iOS Simulator runtime
+      - name: Run tests
         run: |
-          # Attempt to download the iOS platform
-          if ! xcodebuild -downloadPlatform iOS; then
-            echo "Platform download failed, attempting alternative approach..."
-            xcrun simctl erase all || true
-            xcrun simctl list runtimes
-          fi
-      
-      - name: Create and boot simulator and run tests
-        run: |
-          # Get the latest available iOS runtime
-          LATEST_RUNTIME=$(xcrun simctl list runtimes | grep "iOS" | tail -1 | grep -oE "com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9]+-[0-9]+" || echo "com.apple.CoreSimulator.SimRuntime.iOS-18-5")
-
-          # Pick last available iPhone device type
-          DEVICE_TYPE=$(xcrun simctl list devicetypes | grep "iPhone" | tail -1 | grep -oE "com\.apple\.CoreSimulator\.SimDeviceType\.[^ )]*" || echo "com.apple.CoreSimulator.SimDeviceType.iPhone-15")
-
-          # Create simulator and capture its UDID (simctl create prints the UDID on stdout).
-          # Boot and destination both use the UDID to avoid name-matching fragility.
-          UDID=""
-          for i in {1..3}; do
-            UDID=$(xcrun simctl create "NeuroPulseCI" "$DEVICE_TYPE" "$LATEST_RUNTIME" 2>/dev/null)
-            if [ -n "$UDID" ]; then
-              break
-            fi
-            echo "Attempt $i failed, retrying..."
-            sleep 3
-          done
-
-          if [ -z "$UDID" ]; then
-            echo "Failed to create simulator after 3 attempts"
-            exit 1
-          fi
-
-          echo "Created simulator UDID: $UDID"
-          xcrun simctl boot "$UDID" || true
-          sleep 10
-
-          # Extract OS version from runtime for the destination string
-          OS_VERSION=$(echo "$LATEST_RUNTIME" | grep -oE "[0-9]+-[0-9]+" | tr '-' '.')
-
           xcodebuild test \
             -project app/ios/NeuroPulse.xcodeproj \
             -scheme NeuroPulse \
-            -destination "platform=iOS Simulator,id=${UDID}" \
+            -destination "platform=iOS Simulator,OS=latest,name=iPhone 16" \
             -resultBundlePath build/ios/TestResults.xcresult
       
       - name: Upload test results on failure
