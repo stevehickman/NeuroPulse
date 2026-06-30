@@ -34,16 +34,16 @@ struct SessionHistoryListView: View {
                     Button(role: .destructive) {
                         showClearConfirmation = true
                     } label: {
-                        Label("Clear History", systemImage: "trash")
+                        Label(String(localized: "HISTORY_CLEAR_BUTTON"), systemImage: "trash")
                     }
                     .disabled(historyStore.records.isEmpty)
                 }
             }
-            .alert("Clear Session History?", isPresented: $showClearConfirmation) {
-                Button("Clear History", role: .destructive) {
+            .alert(String(localized: "HISTORY_CLEAR_TITLE"), isPresented: $showClearConfirmation) {
+                Button(String(localized: "HISTORY_CLEAR_BUTTON"), role: .destructive) {
                     historyStore.clearHistory()
                 }
-                Button("Cancel", role: .cancel) { }
+                Button(String(localized: "COMMON_CANCEL"), role: .cancel) { }
             } message: {
                 Text(String(localized: "HISTORY_CLEAR_CONFIRM"))
             }

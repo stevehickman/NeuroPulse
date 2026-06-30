@@ -49,7 +49,7 @@ struct SessionHistoryView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Session Summary")
+            .navigationTitle(String(localized: "HISTORY_SUMMARY_TITLE"))
             .navigationBarTitleDisplayMode(.inline)
             .onDisappear { edfDownloadTask?.cancel() }
         }
@@ -91,19 +91,19 @@ struct SessionHistoryView: View {
     private var metricsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
             MetricCard(
-                title: "Avg Coherence",
+                title: String(localized: "SESSION_METRIC_COHERENCE"),
                 value: completedSession.averageCoherenceScore.map { String(format: "%.1f / 10", $0) } ?? "—",
                 icon: "waveform.path.ecg",
                 color: coherenceColor(completedSession.averageCoherenceScore)
             )
             MetricCard(
-                title: "RMSSD",
+                title: String(localized: "SESSION_METRIC_RMSSD"),
                 value: completedSession.rmssdMilliseconds.map { "\($0) ms" } ?? "—",
                 icon: "heart.fill",
                 color: .pink
             )
             MetricCard(
-                title: "EEG Contacts",
+                title: String(localized: "SESSION_METRIC_EEG_CONTACTS"),
                 value: "\(completedSession.impedancePassCount) / 8",
                 icon: "brain",
                 color: completedSession.impedancePassCount == 8 ? .green : .orange
@@ -113,7 +113,7 @@ struct SessionHistoryView: View {
 
     private var coherenceTrendCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Coherence Trend", systemImage: "chart.line.uptrend.xyaxis")
+            Label(String(localized: "HISTORY_COHERENCE_TREND"), systemImage: "chart.line.uptrend.xyaxis")
                 .font(.caption)
                 .foregroundColor(.secondary)
             CoherenceSparkline(values: coherenceHistory)
@@ -136,7 +136,7 @@ struct SessionHistoryView: View {
                 Button {
                     startEDFDownload()
                 } label: {
-                    Label("Download EDF", systemImage: "arrow.down.doc")
+                    Label(String(localized: "SESSION_DOWNLOAD_BUTTON"), systemImage: "arrow.down.doc")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
@@ -193,18 +193,18 @@ struct SessionHistoryView: View {
                 if let url = session.localURL {
                     edfState = .downloaded(url)
                 } else {
-                    edfState = .failed("Download completed but no file location was returned.")
+                    edfState = .failed(String(localized: "SESSION_DOWNLOAD_NO_FILE"))
                 }
             } catch is CancellationError {
                 // Task cancelled (view dismissed mid-download). defer resets to .idle.
                 Self.logger.info("EDF download cancelled")
             } catch let error as EDFDownloadError {
-                let desc = error.errorDescription ?? "EDF download failed. Check hub connection."
+                let desc = error.errorDescription ?? String(localized: "SESSION_DOWNLOAD_GENERIC_ERROR")
                 Self.logger.error("EDF download failed: \(desc, privacy: .public)")
                 edfState = .failed(desc)
             } catch {
                 Self.logger.error("EDF download failed (unexpected): \(String(describing: type(of: error)), privacy: .public)")
-                edfState = .failed("Download failed. Please try again.")
+                edfState = .failed(String(localized: "SESSION_DOWNLOAD_GENERIC_ERROR"))
             }
         }
     }
