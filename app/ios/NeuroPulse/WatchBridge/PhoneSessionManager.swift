@@ -39,6 +39,7 @@ final class PhoneSessionManager: NSObject, ObservableObject {
 
     /// Production init: `gatt` is the GATT manager; `watchSender` defaults to `WCSession.default`.
     /// Tests inject a `MockWatchMessageSender` so no real WCSession is activated.
+    @MainActor
     init(gatt: GATTSessionPublishing,
          watchSender: WatchMessageSending = WCSession.default) {
         self.gattPublisher = gatt
@@ -53,6 +54,7 @@ final class PhoneSessionManager: NSObject, ObservableObject {
 
     // MARK: - Private
 
+    @MainActor
     private func observeGATT() {
         cancellable = gattPublisher.sessionPublisher
             .dropFirst()                        // skip initial .empty publish
