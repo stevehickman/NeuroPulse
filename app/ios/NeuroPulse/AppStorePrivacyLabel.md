@@ -18,6 +18,8 @@ Enter each row below exactly as stated. No placeholder entries may remain (ISC-6
 | Crash Data | Yes (post-consent only) | Yes | No | App functionality — crash diagnostics |
 | Health & Fitness — HRV | Yes | No | No | App functionality — real-time session display only, session-scoped |
 | Email Address | Optional (research contact only, user-provided) | No | No | App functionality — optional research study invitations |
+| Product Interaction | Yes (post-consent only) | No | No | Analytics — anonymous in-app events (PostHog) |
+| Other Usage Data | Yes (post-consent only) | No | No | Analytics — anonymous device/OS/app version (PostHog) |
 | Name | No | — | — | Not collected |
 
 ---
@@ -66,6 +68,27 @@ Enter each row below exactly as stated. No placeholder entries may remain (ISC-6
 - **Note:** If App Store Connect requires a strict yes/no for "collected," declare
   Email Address as **collected** with the Optional note above, since the app can
   receive it.
+
+### Product Interaction — **Collected (only after consent), not linked, anonymous**
+- **App Store Connect category:** Usage Data → Product Interaction
+- **What:** Anonymous in-app events (app opens, session starts, screen names) sent
+  via PostHog after the user opts in to analytics.
+- **Collection gate:** PostHog is initialised only after the consent flow completes
+  and the user opts in (NP-APP-TELEMETRY-001 Rev B). No events leave the device
+  before consent.
+- **Linked to the user's identity:** No. `personProfiles = .never` — PostHog builds
+  no Person record.
+- **Used for tracking:** No.
+- **Purposes:** Analytics.
+
+### Other Usage Data — **Collected (only after consent), not linked, anonymous**
+- **App Store Connect category:** Usage Data → Other Usage Data
+- **What:** Device model, OS version, and app version auto-attached to PostHog
+  events as `$device_model` / `$os_version` / `$app_version`.
+- **Collection gate:** Same analytics opt-in gate as Product Interaction.
+- **Linked to the user's identity:** No.
+- **Used for tracking:** No.
+- **Purposes:** Analytics.
 
 ### Name — **Not collected**
 - The app does not collect the user's name. Do not add a Name entry in App Store
