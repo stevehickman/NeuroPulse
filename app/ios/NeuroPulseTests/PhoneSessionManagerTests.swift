@@ -71,6 +71,7 @@ private final class MockWatchMessageSender: WatchMessageSending {
 
 // MARK: - PhoneSessionManagerTests
 
+@MainActor
 final class PhoneSessionManagerTests: XCTestCase {
 
     // MARK: - ISC-122 Static source analysis: WCSession.isSupported() guard present
