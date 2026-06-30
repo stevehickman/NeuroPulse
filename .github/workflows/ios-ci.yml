@@ -49,9 +49,6 @@ jobs:
           fi
           xcodebuild -version
 
-      - name: Install iOS Simulator runtime
-        run: xcodebuild -downloadPlatform iOS
-
       - name: Resolve Swift Package dependencies
         run: |
           xcodebuild \
@@ -59,12 +56,35 @@ jobs:
             -project app/ios/NeuroPulse.xcodeproj \
             -scheme NeuroPulse
 
-      - name: Run tests
+      - name: Install runtime, create simulator, and run tests
         run: |
+          # Install the iOS simulator runtime
+          xcodebuild -downloadPlatform iOS
+
+          # Find the installed runtime identifier
+          RUNTIME=$(xcrun simctl list runtimes | grep "^iOS" | tail -1 | grep -oE "com\.apple\.CoreSimulator\.SimRuntime\.iOS-[0-9-]+")
+          # Find the latest available iPhone device type identifier
+          DEVICE_TYPE=$(xcrun simctl list devicetypes | grep "iPhone" | tail -1 | grep -oE "com\.apple\.CoreSimulator\.SimDeviceType\.[^ )]*")
+
+          echo "Runtime:     $RUNTIME"
+          echo "Device type: $DEVICE_TYPE"
+
+          if [ -z "$RUNTIME" ] || [ -z "$DEVICE_TYPE" ]; then
+            echo "--- Available runtimes ---"
+            xcrun simctl list runtimes
+            echo "--- Available device types ---"
+            xcrun simctl list devicetypes
+            exit 1
+          fi
+
+          # Create a device and capture its UDID (simctl prints UDID on stdout)
+          UDID=$(xcrun simctl create "NeuroPulseCI" "$DEVICE_TYPE" "$RUNTIME")
+          echo "Created simulator UDID: $UDID"
+
           xcodebuild test \
             -project app/ios/NeuroPulse.xcodeproj \
             -scheme NeuroPulse \
-            -destination "platform=iOS Simulator,OS=latest" \
+            -destination "platform=iOS Simulator,id=${UDID}" \
             -resultBundlePath build/ios/TestResults.xcresult
       
       - name: Upload test results on failure
