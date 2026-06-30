@@ -38,7 +38,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Select Xcode
-        run: sudo xcode-select -s /Applications/Xcode_16.0.app/Contents/Developer
+        run: |
+          # Pick the latest Xcode 16.x available on the runner
+          XCODE_PATH=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XCODE_PATH" ]; then
+            sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+            echo "Selected: $XCODE_PATH"
+          else
+            echo "No Xcode 16 found; using default: $(xcode-select -p)"
+          fi
+          xcodebuild -version
+
+      - name: Install iOS Simulator runtime
+        run: xcodebuild -downloadPlatform iOS
 
       - name: Resolve Swift Package dependencies
         run: |
