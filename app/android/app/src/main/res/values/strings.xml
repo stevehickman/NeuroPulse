@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Skeleton strings. Production strings are generated from the canonical JSON
+  i18n pipeline (app/web/src/locales/*.json → Android XML adapter — the
+  extension point specified in the i18n sync script, ISA 20260628-i18n).
+  Do not hand-add user-visible strings here once the adapter lands.
+-->
+<resources>
+    <string name="app_name">NeuroPulse</string>
+    <string name="tab_session">Session</string>
+    <string name="tab_history">History</string>
+    <string name="tab_consumables">Consumables</string>
+    <string name="tab_consent">Privacy</string>
+    <string name="tab_settings">Settings</string>
+    <string name="bluetooth_off_message">Enable Bluetooth to connect to your hub</string>
+    <string name="age_gate_confirmation">I confirm I am 16 years of age or older.</string>
+    <string name="regulatory_footer">NeuroPulse Home is a general wellness device. It is not intended to diagnose, treat, cure, or prevent any disease.</string>
+</resources>

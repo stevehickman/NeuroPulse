@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Nothing NeuroPulse persists on-device may leave via Google cloud backup or
+  device-to-device transfer:
+  - Session history (day-coarsened, but still health-adjacent behavioral data
+    under WA MHMD / GDPR Art. 9 by inference)
+  - Consent state (health-adjacent by inference)
+  - The opaque SHDR device token (must never be cloud-correlated)
+  Exclude everything; the hub is the system of record for UHDR, and consent
+  state is deliberately re-established on a new device.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+    </device-transfer>
+</data-extraction-rules>
