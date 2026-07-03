@@ -4,8 +4,8 @@ slug: 20260702-android-core-app
 project: NeuroPulse
 effort: E3
 effort_source: classifier
-phase: verify
-progress: 39/40
+phase: complete
+progress: 39/40 (ISC-8 deferred)
 mode: autonomous
 started: 2026-07-02
 updated: 2026-07-02
