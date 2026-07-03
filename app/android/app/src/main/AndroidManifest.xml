@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  NeuroPulse Android manifest.
+
+  PRIVACY INVARIANTS (app/android/ISA.md ISC-29, ISC-37):
+  - allowBackup="false" + dataExtractionRules: session history, consent state,
+    and the opaque SHDR device token must never flow to Google cloud backup or
+    device-to-device transfer (parallel of iOS .isExcludedFromBackupKey usage).
+  - BLUETOOTH_SCAN carries neverForLocation: the app derives no location from
+    BLE scanning, and must not request any location permission.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- BLE (API 31+ runtime permissions). Hub connection is the only use. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation"
+        tools:targetApi="s" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <!-- Legacy BLE permissions for API 29–30 devices. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH"
+        android:maxSdkVersion="30" />
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_ADMIN"
+        android:maxSdkVersion="30" />
+    <!-- API 29-30 require location for BLE scan results; we gate those devices
+         to companion-less mode rather than request location. No ACCESS_FINE_LOCATION
+         or ACCESS_COARSE_LOCATION is declared — by design. -->
+
+    <!-- SHDR fleet upload (warranty-owner consent gated) + OTA manifest fetch. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Consumable reminders (measurement-triggered local notifications). -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <uses-feature
+        android:name="android.hardware.bluetooth_le"
+        android:required="true" />
+
+    <application
+        android:name=".NeuroPulseApplication"
+        android:label="@string/app_name"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
+        android:theme="@style/Theme.NeuroPulse"
+        android:supportsRtl="true">
+
+        <activity
+            android:name=".ui.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
