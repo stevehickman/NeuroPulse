@@ -110,45 +110,125 @@ Each modality has a distinct failure mode that its database makes visible. These
 
 ---
 
-# 2. VNS / taVNS (Vagus Nerve Stimulation)
+# 2. VNS (Vagus Nerve Stimulation) — all modalities & indications
 
-taVNS (auricular, non-invasive) is the NeuroPulse-native channel; implanted cervical VNS and tcVNS (neck) parameters are included for reference.
+Unlike the other three modalities, VNS is a **systemic autonomic therapy** whose evidence base extends well beyond neurology into cardiac, gastrointestinal, inflammatory, and metabolic disease. This section covers the **entire** VNS database (217 studies), across all four delivery modalities, not just the auricular taVNS channel.
 
-## Master table
+## The four VNS delivery modalities
 
-| Condition | Grade | Modality | Target | Freq | Current | Pulse width | Duty / duration | Course |
+| Modality | Route | Typical target | Signature parameters | NeuroPulse fit |
+|---|---|---|---|---|
+| **Implanted cervical VNS** | Surgical | Left cervical vagus | 20–30 Hz, 0.25–3.5 mA, 250–500 µs, 30 s on / 5 min off, chronic | Reference (predicate for T2 claims) |
+| **tcVNS** (e.g. gammaCore) | Transcutaneous neck | Cervical vagus trunk | 25 Hz in **5 kHz bursts**, 1 ms bursts, to tolerance, 120 s doses | **T2 cervical accessory** |
+| **taVNS** | Transcutaneous auricular | **Cymba conchae** (> tragus) | 20–25 Hz (1 Hz for migraine), 0.5–6 mA, 200–500 µs, 30 min ×1–2/day or up to 4 h/day | **NeuroPulse-native auricular clip** |
+| **VBLOC** (vagal blocking) | Implanted intra-abdominal | Subdiaphragmatic vagal trunks | **5 kHz high-frequency BLOCK** (inhibitory, not stimulation), up to 8 mA, ~12 h/day | Reference only |
+
+Two paradigm distinctions matter throughout: (1) **cervical/implanted stimulation** engages both afferent and efferent fibers and is FDA-cleared for several indications; **auricular taVNS** engages afferents only and is the non-invasive analogue. (2) **VBLOC is not stimulation** — it is a high-frequency conduction *block* used to reduce vagal signaling (obesity), the opposite intent from every other row here.
+
+## Master table — ALL VNS indications
+
+### Neurological & psychiatric
+
+| Condition | Grade | Best modality | Target | Freq | Current | PW | Duty / duration | Course |
 |---|---|---|---|---|---|---|---|---|
-| Epilepsy | **A** (impl.) / **B** (taVNS) | Implanted / taVNS | L cervical vagus / cymba conchae | 20–30 Hz | 0.25–3.0 mA (impl.) / 0.5–1.5 mA (ta) | 250–500 µs | 30s on/5min off (impl.); ≥1–4 h/day (ta) | chronic / ≥months |
-| Depression (MDD) | **A** (impl.) / **B** (taVNS) | Implanted / taVNS | L cervical vagus / cymba conchae | 20 Hz | titrated / 4–6 mA | 200–500 µs | 30 min ×2/day (taVNS) | 8–12+ wk (accrues over yr) |
-| Stroke motor rehab | **A** (paired) | Implanted (Vivistim) / taVNS | L cervical vagus / auricular | 30 Hz | 0.8 mA | 100 µs | 0.5 s bursts **paired to movement** | 6 wk clinic + home |
-| Migraine / cluster (acute+prev) | **A** | tcVNS (gammaCore) | Cervical vagus (neck) | 25 Hz (5 kHz bursts) | to tolerance | 1 ms bursts | 120 s ×2–3/day or per attack | per attack / 4–12 wk |
+| Epilepsy | **A** (impl.) / **B** (taVNS) | Implanted / taVNS | L cervical / cymba conchae | 20–30 Hz | 0.25–3.5 / 0.5–1.5 mA | 250–500 µs | 30s on/5min off; ta ≥1–4 h/day | chronic / ≥months |
+| Depression (MDD) | **A** (impl.) / **B** (taVNS) | Implanted / taVNS | L cervical / cymba conchae | 20 Hz | titrated / 4–6 mA | 200–500 µs | ta 30 min ×2/day | ≥8–12 wk (accrues over yr) |
+| Stroke motor rehab | **A** (paired) | Implanted (Vivistim) / taVNS | L cervical / auricular | 30 Hz | 0.8 mA | 100 µs | 0.5 s bursts **paired to movement** | 6 wk clinic + home |
+| Migraine / cluster (acute+prev) | **A** | tcVNS (gammaCore) | Cervical (neck) | 25 Hz (5 kHz bursts) | to tolerance | 1 ms bursts | 120 s ×2–3/day or PRN | per attack / 4–12 wk |
 | Migraine — taVNS prophylaxis | **B** | taVNS | cymba conchae | **1 Hz** (not 25) | to tolerance | 250–500 µs | 4 h/day or 30 min ×2 | 12 wk |
 | Anxiety / GAD | **B** | taVNS | cymba conchae | 20 Hz | 4–6 mA | 200–300 µs | 30 min ×1–2/day | 8 wk |
 | Insomnia | **B** | taVNS | cymba conchae | 20 Hz | 4–6 mA | 200–300 µs | 30 min ×2/day | 8 wk |
-| PTSD / fear extinction | **B** | taVNS (paired) | concha | 25 Hz | 0.5 mA | 200–500 µs | paired to extinction trials | task-based |
-| Tinnitus | **B/C** | Implanted/taVNS (paired) | cervical/auricular + tones | 25–30 Hz | 0.5–0.8 mA | 100–250 µs | paired to tones | 6–12 wk |
+| PTSD / fear extinction | **B** | taVNS/tcVNS (paired) | concha / neck | 25 Hz | 0.5 mA / to tol. | 200–500 µs | paired to extinction | task-based |
+| Tinnitus | **B/C** | Implanted/taVNS + tones | cervical/auricular | 25–30 Hz | 0.5–0.8 mA | 100–250 µs | paired to tones | 6–12 wk |
 | Disorders of consciousness | **C** | taVNS | cymba conchae | 25 Hz | to tolerance | 250 µs | min/day | weeks |
-| Parkinson's / cognition / autonomic | **C** | taVNS | cymba conchae | 25 Hz | to tolerance | 250 µs | min/day | weeks |
+| Pain (acute/experimental/pelvic) | **C** | taVNS | concha / RAVANS | 25 Hz | to tolerance | 250 µs | continuous / resp-gated | perioperative–weeks |
+| Parkinson's (gait/balance/cog) | **C** | taVNS | cymba conchae | 25 Hz | to tolerance | 250 µs | min/day | weeks |
+| Alzheimer's | **C** | Implanted | L cervical | 20–30 Hz | titrated | 250–500 µs | 30s on/5min off | chronic (6–12 mo) |
+| Cognition (memory/executive/arousal) | **C** | taVNS (paired) | concha / cymba | 25 Hz | 0.5 mA | 200–500 µs | task-paired | acute |
+| Fibromyalgia | **C** | taVNS | cymba conchae | 20 Hz | to tolerance | 200–300 µs | 30 min/day | weeks |
+| Schizophrenia | **C (null)** | taVNS | cymba conchae | 25 Hz | 0.5–1.0 mA | 250 µs | min/day | 26 wk (Hasan 2015 null) |
+| Addiction (craving) | **C** | taVNS (cue-paired) | cymba conchae | 20–25 Hz | to tolerance | 200–300 µs | cue-paired | pilot |
+
+### Cardiovascular & autonomic
+
+| Condition | Grade | Best modality | Target | Freq | Current | Duty / duration | Course |
+|---|---|---|---|---|---|---|---|
+| Autonomic / HRV modulation | **B** (mech.) | taVNS | tragus / cymba | 20–30 Hz | to tolerance | 15–30 min | acute–2 wk |
+| Atrial fibrillation | **B** | taVNS | tragus | 20 Hz | 1 mA below discomfort | 1 h/day | acute–6 mo |
+| Heart failure | **C / failed (impl.)** | Implanted / taVNS | cervical | 1–10 Hz | titrated | closed-loop / 1 h/day | chronic |
+| POTS / dysautonomia | **C** | taVNS | tragus | 20 Hz | to tolerance | 1 h/day | 2 mo |
+
+### Inflammatory & autoimmune
+
+| Condition | Grade | Best modality | Target | Freq | Current | Duty / duration | Course |
+|---|---|---|---|---|---|---|---|
+| Rheumatoid arthritis | **A/B** (impl.) | Implanted (SetPoint) | L cervical | **10 Hz** | 0.25–2.0 mA | 60 s, 1–4×/day | ≥12 wk |
+| Crohn's disease / IBD | **C** | Implanted | L cervical | 10 Hz | 0.25–1.5 mA | 30s on/5min off | 6–12 mo |
+| Sjögren / lupus (fatigue) | **C** | taVNS | auricular | — | to tolerance | 4–5 min/day | weeks |
+| COVID-19 / long-COVID | **C** | tcVNS / taVNS | neck / cymba | 25 Hz (5 kHz) / 20–25 Hz | to tolerance | 2 min ×2–3/day | days–weeks |
+| Systemic inflammation (mech.) | — | Implanted / taVNS | cervical / cymba | 1–10 Hz | 1–5 mA | continuous | — |
+
+### Metabolic & gastrointestinal
+
+| Condition | Grade | Best modality | Target | Freq | Current | Duty / duration | Course |
+|---|---|---|---|---|---|---|---|
+| Obesity / weight loss | **C / mixed** | VBLOC (block) | subdiaphragmatic trunks | **5 kHz block** | up to 8 mA | ~12 h/day | 12–24 mo |
+| Functional dyspepsia / gastroparesis / IBS | **C** | taVNS | cymba conchae | 25 Hz | to tolerance | 300–500 µs, min/day | 4 wk+ |
+| Glucose tolerance / metabolic | **C** | taVNS | concha | 20 Hz | to tolerance | 20 min ×2/day | 12 wk |
 
 ## Detailed protocols
 
-**Epilepsy — Grade A (implanted) / B (taVNS).** Implanted VNS FDA-cleared: L cervical vagus, 20–30 Hz, 500 µs, 30 s on / 5 min off, chronic — ~50% of patients reach ≥50% seizure reduction, **efficacy increases over 2–3 years** (Handforth 1998, Englot 2011 meta n=3321), and long-term VNS is associated with reduced SUDEP. **taVNS** (cymba conchae, 20–30 Hz, 0.5–1.5 mA, ≥1–4 h/day) reduced seizures vs sham-ear (Rong 2014 n=98). Note Bauer 2016: 25 Hz not superior to 1 Hz control — interpret taVNS-epilepsy dosing cautiously.
+### Neurological & psychiatric
 
-**Depression (MDD) — Grade A (implanted) / B (taVNS).** Implanted VNS FDA-cleared as *long-term* adjunct: the acute RCT was negative (Rush 2005) but 5-yr registry shows cumulative response ~68% and lower mortality vs treatment-as-usual (Aaronson 2017) — **this is a chronic therapy, not an acute one.** **taVNS** protocol (NeuroPulse-relevant): **cymba conchae, 20 Hz, 4–6 mA to tolerance, 200–300 µs, 30 min twice daily, 8–12 wk** → reduced HAM-D vs sham-ear across multiple RCTs (Rong 2016 n=160, Zhang 2021, Song 2024). Consistent limbic/DMN connectivity normalization on fMRI.
+**Epilepsy — Grade A (implanted) / B (taVNS).** Implanted VNS FDA-cleared: L cervical vagus, 20–30 Hz, 500 µs, 30 s on / 5 min off, chronic — ~50% of patients reach ≥50% seizure reduction, **efficacy increases over 2–3 years** (Handforth 1998 pivotal n=196, Englot 2011 meta n=3321), and long-term VNS is associated with reduced SUDEP. Responsive (cardiac-triggered) stimulation can abort seizures (AspireSR, Boon 2015). **taVNS** (cymba conchae, 20–30 Hz, 0.5–1.5 mA, ≥1–4 h/day) reduced seizures vs sham-ear (Rong 2014 n=98). Caveat: Bauer 2016 found 25 Hz not superior to 1 Hz control — interpret taVNS dosing cautiously.
+
+**Depression (MDD) — Grade A (implanted) / B (taVNS).** Implanted VNS FDA-cleared as a *long-term* adjunct: the acute RCT was **negative** (Rush 2005 n=235) but the 5-yr registry shows cumulative response ~68% and lower mortality vs treatment-as-usual (Aaronson 2017 n=795) — **this is a chronic therapy, judged over months to years, not acutely.** **taVNS** protocol (NeuroPulse-relevant): **cymba conchae, 20 Hz, 4–6 mA to tolerance, 200–300 µs, 30 min twice daily, 8–12 wk** → reduced HAM-D vs sham-ear across multiple RCTs (Rong 2016 n=160, Zhang 2021, Song 2024 multicenter), with limbic/DMN connectivity normalization. Extends to perinatal, adolescent, and bipolar depression (pilots, low manic-switch risk).
 
 **Stroke motor rehabilitation — Grade A (paired).** FDA-cleared **Vivistim**: implanted L cervical vagus, 30 Hz, 0.8 mA, 100 µs, **0.5 s bursts time-locked to rehab movements**, 6 wk in-clinic + home → clinically meaningful arm-function response 47% vs 24% (VNS-REHAB, Dawson 2021 n=108). **taVNS-paired** rehab (auricular, movement-triggered) shows the same direction non-invasively (Capone 2017, Wu 2020, meta Li 2022) — directly relevant to a NeuroPulse auricular + rehab pairing.
 
-**Migraine / cluster headache — Grade A.** FDA-cleared **tcVNS (gammaCore)**: cervical vagus, 25 Hz in 5 kHz bursts, 1 ms bursts, 120 s doses — acute (PRESTO/ACT1) and preventive (PREVA/Gaul 2016). **taVNS prophylaxis paradox:** here **1 Hz beats 25 Hz** (Straube 2015, Zhang 2019, Song 2023) — the opposite of the depression/epilepsy frequency. Frequency is condition-specific.
+**Migraine / cluster headache — Grade A.** FDA-cleared **tcVNS (gammaCore)**: cervical vagus, 25 Hz in 5 kHz bursts, 1 ms bursts, 120 s doses — acute cluster (ACT1/ACT2), acute migraine (PRESTO), and prevention (PREVA, Gaul 2016 chronic cluster). **taVNS prophylaxis paradox:** here **1 Hz beats 25 Hz** (Straube 2015, Zhang 2019, Song 2023) — opposite of the depression/epilepsy frequency. Frequency is condition-specific.
 
-**Anxiety / GAD — Grade B.** taVNS cymba conchae, 20 Hz, 4–6 mA, 30 min ×2/day, 8 wk → reduced HAMA vs sham (Tan 2022). Also emotion-regulation enhancement (Bramson 2023). **Insomnia — Grade B:** same parameter set improves PSQI (Jiao 2020, Zhao 2020).
+**Anxiety / GAD — Grade B.** taVNS cymba conchae, 20 Hz, 4–6 mA, 30 min ×2/day, 8 wk → reduced HAMA vs sham (Tan 2022, Zhu 2022); emotion-regulation enhancement (Bramson 2023); implanted VNS pilot in refractory anxiety (George 2008). **Insomnia — Grade B:** same parameter set improves PSQI (Jiao 2020, Luo 2017, Zhao 2020).
 
-**PTSD / fear extinction — Grade B (paired).** taVNS (concha, 25 Hz, 0.5 mA) **paired to extinction trials** enhances extinction memory and dampens defensive responses (Burger 2016, Szeska 2020); tcVNS blunts sympathetic/inflammatory stress reactivity (Gurel 2020). Translational rationale from rat paired-VNS (Noble 2017).
+**PTSD / fear extinction — Grade B (paired).** taVNS (concha, 25 Hz, 0.5 mA) **paired to extinction trials** enhances extinction memory and dampens defensive responses (Burger 2016, Szeska 2020); tcVNS blunts sympathetic/inflammatory stress reactivity (Gurel 2020, Lamb 2017). Translational rationale from rat paired-VNS (Noble 2017).
 
-**Tinnitus — Grade B/C (paired + tones).** Implanted VNS + tone pairing (30 Hz, 0.8 mA, 100 µs, tone-paired, 2.5 h/day; Tyler 2017 subgroup) reverses maladaptive plasticity; taVNS + tailored sound is the non-invasive analogue (Suk 2018). The *pairing* is essential.
+**Tinnitus — Grade B/C (paired + tones).** Implanted VNS + tone pairing (30 Hz, 0.8 mA, 100 µs, tone-paired, 2.5 h/day; Tyler 2017 subgroup, from Engineer 2011 animal work) reverses maladaptive auditory plasticity; taVNS + tailored sound is the non-invasive analogue (Suk 2018, Ylikoski 2017). The *pairing* is essential.
 
-**Others (Grade C):** Disorders of consciousness (cymba conchae 25 Hz → CRS-R gains, Vitello 2023 RCT crossover); Parkinson's gait/balance (taVNS 25 Hz, pilot); addiction cue-craving (cue-paired taVNS, Cai 2022); adolescent/perinatal/bipolar depression (pilots, low switch risk). **Note strong autonomic/cognitive parameter-sensitivity** — many null mechanistic taVNS studies (Keute 2018 HRV, Pihlaja 2020 attention, Jongkees 2018 WM, Mertens 2020 memory) → effects depend on exact site/dose; do not over-claim acute cognitive benefit.
+**Disorders of consciousness — Grade C.** Implanted VNS transitioned a vegetative patient toward minimally conscious (Corazzol 2017 case); taVNS (cymba conchae, 25 Hz) produced CRS-R gains in subsets (Yu 2017, Vitello 2023 RCT crossover). **Pain — Grade C:** taVNS raises pain thresholds and reduces postoperative/pelvic pain (Usichenko 2017, Napadow 2012 respiration-gated), though some experimental-pain studies are null (Janner 2018). **Parkinson's — Grade C:** taVNS improves gait/balance acutely (Sigurdsson 2021, Mondal 2021). **Alzheimer's — Grade C:** implanted VNS stabilized/improved cognition at 6–12 mo (Sjögren 2002, Merrill 2006, uncontrolled). **Fibromyalgia — Grade C:** taVNS reduced pain/fatigue (Yang 2023 RCT).
 
-**taVNS optimization notes:** target **cymba conchae** (not tragus) for strongest brainstem engagement (Yakunina 2017); right-ear or exhalation-gated delivery may enhance cardiovagal effects (Sclocco 2019). NeuroPulse HRV-synchronized taVNS (stimulation timed to respiration/inspiration) aligns with the respiration-gated evidence.
+**Cognition — Grade C, parameter-sensitive.** Foundational: post-learning implanted VNS improved word recognition (Clark 1999); taVNS during encoding improves memory and modulates LC-NE markers (Ventura-Bort 2018, Jacobs 2015 older adults), executive control (Beste 2016, Sellaro 2015), and pupil/arousal (Sharon 2021). **But many null RCTs exist** (Jongkees 2018 WM, Pihlaja 2020 attention, Keute 2019 inhibition, Mertens 2020 memory) — acute cognitive benefit is real but fragile and dose/site-dependent; do not over-claim.
+
+**Schizophrenia — Grade C (largely null).** taVNS did not beat sham on symptoms in a 26-wk RCT (Hasan 2015); only pilot cognitive signals (Zhu 2019). **Addiction — Grade C:** cue-paired taVNS reduced craving (Cai 2022 pilot).
+
+### Cardiovascular & autonomic
+
+**Autonomic / HRV — Grade B (mechanistic).** taVNS (tragus or cymba conchae, 20–30 Hz) acutely **increases HRV and shifts toward parasympathetic predominance**, reduces muscle sympathetic nerve activity, and improves baroreflex sensitivity (Clancy 2014, Machetanz 2021, Bretherton 2019 in aging). Right-ear and exhalation-gated delivery enhance cardiovagal engagement (De Couck 2017, Sclocco 2019). **Note parameter sensitivity:** Keute 2018 found no reliable acute HRV change at 0.5 mA — dose matters. *This is the mechanistic backbone of the NeuroPulse VNS+HRV clip and HRV-biofeedback protocols.*
+
+**Atrial fibrillation — Grade B.** taVNS tragus, 20 Hz, 1 mA below discomfort, 1 h/day → reduced AF burden and inflammatory cytokines (Stavrakis 2015 crossover n=40, TREAT-AF 2020 n=53), and reduced post-ablation recurrence (Yu 2017). One acute electrophysiology study was null (Gauthey 2020).
+
+**Heart failure — Grade C / failed for implanted.** Open-label implanted VNS improved ejection fraction and NYHA class (ANTHEM-HF, De Ferrari 2011), but **two pivotal RCTs were negative** (INOVATE-HF n=707 — no reduction in death/HF events; NECTAR-HF — no remodeling benefit). A well-documented implanted-VNS failure. taVNS pilot only (Zhou 2019). **POTS — Grade C:** taVNS tragus reduced postural tachycardia (Stavrakis 2021).
+
+### Inflammatory & autoimmune (the "inflammatory reflex")
+
+Mechanistic basis: the vagus efferent arm suppresses TNF and systemic inflammation (Tracey 2002 inflammatory reflex; Borovikova 2000 animal — efferent VNS blocked endotoxic shock).
+
+**Rheumatoid arthritis — Grade A/B (implanted).** Implanted L cervical VNS, **10 Hz** (note: lower than epilepsy/depression), 0.25–2.0 mA, 250 µs, **60 s, 1–4×/day** (very low duty) → reduced TNF and DAS28 (Koopman 2016 n=17, first human proof of the inflammatory reflex; SetPoint micro-regulator Genovese 2020) and **positive pivotal RCT** in refractory RA (Marsal 2025). taVNS analogue reduced TNF in a small cohort (Addorisio 2019).
+
+**Crohn's disease / IBD — Grade C.** Implanted L cervical VNS, 10 Hz, 0.25–1.5 mA, achieved clinical + endoscopic remission in most patients (Bonaz 2016 n=7, Sinniger 2020 12-mo n=9). **Sjögren / lupus — Grade C:** taVNS reduced fatigue and inflammatory markers (Tarn 2019, Aranow 2021). **COVID-19 / long-COVID — Grade C:** tcVNS trended to faster recovery and lower CRP (SAVIOR, Tornero 2022); taVNS reduced long-COVID fatigue/dysautonomia (Baptista 2023).
+
+### Metabolic & gastrointestinal
+
+**Obesity — Grade C / mixed (VBLOC vagal *blocking*).** Intra-abdominal **high-frequency (5 kHz) vagal block**, up to 8 mA, ~12 h/day → weight loss that met a co-primary but not the superiority margin (ReCharge, Ikramuddin 2014 n=239; maintained at 24 mo, Apovian 2017). The earlier EMPOWER RCT was **negative** (high sham response). Distinct paradigm — *reducing* vagal signaling. **Glucose tolerance — Grade C:** taVNS concha, 20 Hz, 20 min ×2/day, 12 wk improved glucose tolerance (Huang 2014).
+
+**Functional GI — Grade C.** taVNS (cymba conchae, 25 Hz) increases vagal tone and gastric motility, improving functional dyspepsia + gastric accommodation (Zhu 2021 RCT), gastroparesis symptoms (Gottfried-Blackmore 2020), and IBS pain (Hong 2022); also modulates appetite/eating behavior (Teckentrup 2020, Kozorosky 2022).
+
+## VNS cross-cutting notes
+
+1. **Frequency is indication-specific:** 20–30 Hz (epilepsy, depression, stroke, most taVNS); **1 Hz** (taVNS migraine prophylaxis); **10 Hz, very low duty** (RA, IBD — anti-inflammatory); **5 kHz bursts** (tcVNS gammaCore); **5 kHz continuous block** (VBLOC obesity — inhibitory).
+2. **Judge on the right timescale:** VNS efficacy accrues over months–years (epilepsy, depression) — the negative *acute* depression RCT and the positive 5-yr registry are the same therapy.
+3. **Respect the documented failures:** heart failure (INOVATE-HF, NECTAR-HF both negative), obesity EMPOWER (negative), schizophrenia (Hasan 2015 null), and many null acute taVNS cognition/HRV/attention studies. Parameter and timing precision separate signal from noise.
+4. **taVNS optimization:** target **cymba conchae** (not tragus) for strongest brainstem/NTS engagement (Yakunina 2017); right-ear or exhalation/inspiration-gated delivery enhances cardiovagal effects (Sclocco 2019). NeuroPulse HRV-synchronized taVNS (stimulation phase-locked to respiration/inspiration) aligns directly with this respiration-gated evidence.
+5. **NeuroPulse channels:** the auricular clip covers the taVNS indication set (depression, epilepsy, anxiety, insomnia, HRV/autonomic, GI, inflammatory); the T2 cervical accessory covers the tcVNS set (migraine, cluster, PTSD). The implanted-VNS and VBLOC rows are predicate/reference for 510(k) argumentation, not device functions.
 
 ---
 
