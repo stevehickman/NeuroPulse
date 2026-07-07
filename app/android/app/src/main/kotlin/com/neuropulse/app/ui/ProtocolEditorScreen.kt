@@ -42,6 +42,7 @@ fun ProtocolEditorScreen(
     onSaved: () -> Unit,
     onCancel: () -> Unit,
     onEditScript: () -> Unit,
+    onEditModalities: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var name by remember { mutableStateOf(existing.name) }
@@ -105,8 +106,12 @@ fun ProtocolEditorScreen(
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onEditModalities, modifier = Modifier.fillMaxWidth()) {
+            Text("Edit modalities")
+        }
+        Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onEditScript, modifier = Modifier.fillMaxWidth()) {
-            Text("Edit modalities as script")
+            Text("Edit as script")
         }
     }
 }

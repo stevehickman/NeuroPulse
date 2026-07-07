@@ -5,7 +5,7 @@ project: NeuroPulse
 effort: E3
 effort_source: classifier
 phase: complete
-progress: 81/84 (ISC-60/68 deferred — hardware + wire-schema freeze)
+progress: 82/85 (ISC-60/68 deferred — hardware + wire-schema freeze)
 mode: autonomous
 started: 2026-07-02
 updated: 2026-07-02
@@ -95,6 +95,10 @@ A Gradle multi-module Android project exists at `app/android/` whose pure-JVM `c
 - [x] ISC-66: `SessionProtocolCompiler` builds the canonical JSON payload, SHA-256-digests it, and assembles `SignedProtocolBlob` (wire: 4-byte "NPPR" magic + 4-byte LE length + payload + 64-byte Ed25519 sig) — parity with iOS. Ed25519 delegated to a `ProtocolSigner` interface (core stays pure-JVM). Unit-tested with a fake signer (`SessionProtocolCompilerTests`, 5/5): mapping, wire format, JSON `type` discriminator, chunk round-trip.
 - [x] ISC-67: `ProtocolUploader` (app) + `AndroidProtocolSigner` (Ed25519 via `java.security`) wire the menu's select action to compile→sign→chunk→`gattManager.writeProtocolChunk` (Mode 2). Selecting an available single protocol uploads; result shown via Toast. Compile-verified.
 - [ ] ISC-68: [DEFERRED-VERIFY] Wire-JSON schema (OI-AND-WIRE-01) must be frozen and shared with hub firmware + iOS before a hub can parse it — iOS uses Swift Codable default enum encoding, Android uses kotlinx `"type"`-discriminated JSON; they must converge. Hub firmware/UUIDs are still placeholders. Also OI-AND-SIGN-01: Ed25519 needs Android 13+ (BouncyCastle fallback) and a Keystore-persisted key (currently ephemeral); composite-protocol upload not yet supported.
+
+### Deep modality editor (parity)
+
+- [x] ISC-84: `ModalityEditorScreen` — port of iOS ModalityEditorView. Per-modality expandable cards with an enable toggle and typed parameter controls for all 8 T1 modalities (PBM transcranial/intranasal, EEG, BES/tACS, tDCS, VNS+HRV, audio, visual): number fields, enum dropdowns (zones, wavelength, band, channels, waveform, HRV protocol, visual mode), and toggles; add-modality picker + per-card remove. T2/accessory modalities show a "edit via script" note. Reachable from the form editor's "Edit modalities"; Save writes the updated protocol to the library. Closes OI-AND-MODEDIT-01. `:app:assembleDebug` green.
 
 ### Dosage limits store + editor (parity)
 
@@ -226,7 +230,7 @@ Verifiable-now `core` logic still to port (unit-testable via `gradle :core:test`
 
 Cannot be verified here (need Android SDK / instrumented build — do on CI or an SDK machine):
 - App-level managers: `OTAManager`, `HardwareSetupManager`, `SessionProtocolUploader`, `UHDRBackupScheduler`, Health Connect reader.
-- Compose screens still to build/replace: ~~Session~~ (ISC-56), ~~Protocol menu~~ (ISC-57), ~~Consumables~~ (ISC-61), ~~Consent onboarding L1–L4~~ (ISC-62), ~~Settings~~ (ISC-63), ~~OTA~~ (ISC-69), ~~Under-16~~ (ISC-70). ~~Setup/hardware wizard~~ (ISC-71–72), ~~Session History + Adaptive-Adjustments~~ (ISC-76–77), ~~Protocol editors (script + form + New/Edit/Delete)~~ (ISC-73–75). ~~Protocol composer (layer builder)~~ (ISC-80), ~~Research suggestion portal~~ (ISC-78–79). ~~Limits settings editor~~ (ISC-81–83). Remaining: deep per-modality parameter editor (iOS ModalityEditorView — OI-AND-MODEDIT-01) only; the script editor already covers it functionally. The core module and all primary wearer + clinician screens are at functional parity with iOS (minus Apple Watch).
+- Compose screens still to build/replace: ~~Session~~ (ISC-56), ~~Protocol menu~~ (ISC-57), ~~Consumables~~ (ISC-61), ~~Consent onboarding L1–L4~~ (ISC-62), ~~Settings~~ (ISC-63), ~~OTA~~ (ISC-69), ~~Under-16~~ (ISC-70). ~~Setup/hardware wizard~~ (ISC-71–72), ~~Session History + Adaptive-Adjustments~~ (ISC-76–77), ~~Protocol editors (script + form + New/Edit/Delete)~~ (ISC-73–75). ~~Protocol composer (layer builder)~~ (ISC-80), ~~Research suggestion portal~~ (ISC-78–79). ~~Limits settings editor~~ (ISC-81–83), ~~deep per-modality parameter editor~~ (ISC-84). **The Android app is now at full functional parity with iOS (minus Apple Watch).** Only externally-blocked items remain deferred: on-device BLE (needs hardware, ISC-60), wire-JSON schema freeze across hub/iOS/Android (ISC-68), and the smaller OI items (Ed25519 <API33 fallback, helmet/individual limits persistence, host-side OTA download).
 - ~~Android `BleCentral` implementation~~ DONE (ISC-59, `AndroidBleCentral`) — on-device connection verification deferred to hardware (ISC-60).
 - ~~Session-descriptor compiler + `ProtocolChunker` + upload~~ DONE (ISC-64–67). Follow-ups: OI-AND-WIRE-01 (freeze the canonical wire JSON across hub/iOS/Android), OI-AND-SIGN-01 (Ed25519 BouncyCastle fallback + Keystore-persisted key; composite upload), and `NeuroPulseGattManager`'s never-unregistered adapter-state `BroadcastReceiver` (acceptable for an app-scoped singleton).
 
@@ -252,6 +256,7 @@ Cannot be verified here (need Android SDK / instrumented build — do on CI or a
 - ISC-41–44: `gradle :core:test` (scratchpad copy, JDK 17, --offline) — BUILD SUCCESSFUL; `ProtocolConsentGateTests` 9/9 pass (isEEGDependent true/false + disabled-modality, isBlockedByBipa block/allow, non-EEG unaffected, composite via resolver, message-res parity). Full suite now **76 tests, 0 failures** across 9 classes. `strings.xml` has `session_eeg_unavailable_body`; `OnboardingKeys.BIPA_ACCEPTED == "np.onboarding.bipa-accepted"`. Grep: no `import android.` in ProtocolConsentGate.kt (core stays pure-JVM).
 - ISC-45: DEFERRED-VERIFY — Session/Protocol-menu Compose screens are skeletons; gate-consumption test lands with those screens (follow-up NP-AND-EEGGATE-UI-01).
 - ISC-64–66: `gradle :core:test` — `ProtocolChunkerTests` 5/5 + `SessionProtocolCompilerTests` 5/5; full core suite **107/0** across 13 classes. `ProtocolChunker.kt` + `NPSessionProtocol.kt` added (chunker, wire descriptor, fromDefinition, SignedProtocolBlob, ProtocolSigner, SessionProtocolCompiler).
+- ISC-84: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `ModalityEditorScreen.kt` added (8 T1 param editors + add/remove), wired from the form editor. Compile-verified.
 - ISC-81–83: `gradle :core:test` — `NPLimitsStoreTests` 6/6 (tier precedence individual>helmet>global, null-block, unlimited, active-profile resolution, NPPS persistence reload, validator enforcement); full core suite **131/0**. `gradle :app:assembleDebug` green with `LimitsSettingsScreen.kt`; menu validation now uses `limitsStore.resolvedLimits`. `NPLimitsStore.kt` added to core.
 - ISC-78–80: `gradle :core:test` — `ResearchSuggestionStoreTests` 7/7 (invalid-draft reject, insert-at-front, vote/intent toggles, cumulative pledge accounting, persistence reload, stable device token); full core suite **125/0**. `gradle :app:assembleDebug` green with `ResearchPortalScreen.kt` (Privacy tab) + `ProtocolComposerScreen.kt` (menu "Compose"). `research/ResearchSuggestion.kt` + `ResearchSuggestionStore.kt` added to core.
 - ISC-73–77: `gradle :core:test` — `AdaptationEventTests` 4/4; full core suite **118/0** across 15 classes. `gradle :app:assembleDebug` green with `ProtocolScriptEditorScreen.kt` + `ProtocolEditorScreen.kt` + refactored `ProtocolMenuScreen` (New/Edit/Delete) + new `HistoryScreen.kt` (detail + `AdaptiveAdjustmentsCard`). `AdaptationEvent.kt` + `CompletedSessionSummary.fromRecord` added to core.

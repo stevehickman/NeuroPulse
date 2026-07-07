@@ -52,6 +52,7 @@ private sealed interface ProtocolEditor {
     data object Compose : ProtocolEditor
     data class Script(val text: String) : ProtocolEditor
     data class Form(val def: NPProtocolDefinition) : ProtocolEditor
+    data class Modality(val def: NPProtocolDefinition) : ProtocolEditor
 }
 
 @Composable
@@ -99,6 +100,14 @@ fun ProtocolMenuScreen(
             onEditScript = {
                 editor = ProtocolEditor.Script(library.exportScript(NPProtocolEntry.Single(e.def)))
             },
+            onEditModalities = { editor = ProtocolEditor.Modality(e.def) },
+            modifier = modifier,
+        )
+        is ProtocolEditor.Modality -> ModalityEditorScreen(
+            library = library,
+            existing = e.def,
+            onSaved = { editor = null; version++ },
+            onCancel = { editor = ProtocolEditor.Form(e.def) },
             modifier = modifier,
         )
         null -> {
