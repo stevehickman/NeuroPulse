@@ -14,6 +14,7 @@ import com.neuropulse.core.consent.ConsentStore
 import com.neuropulse.core.consumable.ConsumableCountsProviding
 import com.neuropulse.core.consumable.ConsumableTracker
 import com.neuropulse.core.models.SessionState
+import com.neuropulse.core.protocol.NPLimitsStore
 import com.neuropulse.core.protocol.NPProtocolLibrary
 import com.neuropulse.core.research.ResearchSuggestionStore
 import com.neuropulse.core.session.SessionHistoryStore
@@ -77,6 +78,8 @@ class NeuroPulseApplication : Application() {
         private set
     lateinit var researchSuggestionStore: ResearchSuggestionStore
         private set
+    lateinit var limitsStore: NPLimitsStore
+        private set
 
     private val bleScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -100,6 +103,7 @@ class NeuroPulseApplication : Application() {
         )
         protocolUploader = ProtocolUploader(gattManager, AndroidProtocolSigner())
         researchSuggestionStore = ResearchSuggestionStore(keyValueStore)
+        limitsStore = NPLimitsStore(keyValueStore)
 
         EngagementTier.incrementLaunchCount(keyValueStore)
         // SDK initialization gate (NP-APP-TELEMETRY-001 Rev B §5): configure()

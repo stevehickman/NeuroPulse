@@ -97,6 +97,7 @@ fun SettingsScreen(app: NeuroPulseApplication, modifier: Modifier = Modifier) {
     var showResearch by remember { mutableStateOf(false) }
     var showOta by remember { mutableStateOf(false) }
     var showSetup by remember { mutableStateOf(false) }
+    var showLimits by remember { mutableStateOf(false) }
     var eegGranted by remember {
         mutableStateOf(app.keyValueStore.getBoolean(OnboardingKeys.BIPA_ACCEPTED))
     }
@@ -104,6 +105,11 @@ fun SettingsScreen(app: NeuroPulseApplication, modifier: Modifier = Modifier) {
     val otaStatus by app.gattManager.otaStatus.collectAsState()
 
     when {
+        showLimits -> LimitsSettingsScreen(
+            store = app.limitsStore,
+            onDone = { showLimits = false },
+            modifier = modifier,
+        )
         showSetup -> SetupWizardScreen(
             app = app,
             onFinish = { showSetup = false },
@@ -139,6 +145,7 @@ fun SettingsScreen(app: NeuroPulseApplication, modifier: Modifier = Modifier) {
             onManageResearch = { showResearch = true },
             onManageFirmware = { showOta = true },
             onDeviceSetup = { showSetup = true },
+            onManageLimits = { showLimits = true },
             modifier = modifier,
         )
     }
@@ -153,6 +160,7 @@ private fun SettingsContent(
     onManageResearch: () -> Unit,
     onManageFirmware: () -> Unit,
     onDeviceSetup: () -> Unit,
+    onManageLimits: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
@@ -198,6 +206,14 @@ private fun SettingsContent(
         Text("Re-run the guided hardware setup for your headset.", style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
         OutlinedButton(onClick = onDeviceSetup) { Text("Set up device") }
+
+        Spacer(Modifier.height(24.dp))
+
+        // Dosage limits
+        Text("Dosage limits", style = MaterialTheme.typography.titleMedium)
+        Text("Set global caps on stimulation dose and intensity.", style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = onManageLimits) { Text("Edit dosage limits") }
 
         Spacer(Modifier.height(24.dp))
 

@@ -166,6 +166,7 @@ private fun SessionTab(app: NeuroPulseApplication, modifier: Modifier) {
             library = app.protocolLibrary,
             consentGranted = consentGranted,
             eegUnavailableMessage = eegMessage,
+            limits = app.limitsStore.resolvedLimits,
             onSelect = { entry ->
                 // Compile → sign → chunk → upload (Mode 2). Composite upload is a follow-up.
                 val result = when (entry) {

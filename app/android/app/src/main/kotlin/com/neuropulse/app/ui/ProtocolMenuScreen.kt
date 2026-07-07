@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.neuropulse.core.protocol.NPLimitsSet
 import com.neuropulse.core.protocol.NPProtocolDefinition
 import com.neuropulse.core.protocol.NPProtocolEntry
 import com.neuropulse.core.protocol.NPProtocolLibrary
@@ -58,6 +59,7 @@ fun ProtocolMenuScreen(
     library: NPProtocolLibrary,
     consentGranted: Boolean,
     eegUnavailableMessage: String,
+    limits: NPLimitsSet,
     onSelect: (NPProtocolEntry) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -118,7 +120,7 @@ fun ProtocolMenuScreen(
                 ) {
                     items(protocols, key = { it.id }) { entry ->
                         val availability = library.availability(entry)
-                        val validation = library.validationResult(entry)
+                        val validation = library.validationResult(entry, limits)
                         val editable = library.canEdit(entry)
                         ProtocolRow(
                             entry = entry,
