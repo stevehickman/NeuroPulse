@@ -6,6 +6,10 @@ import Combine
 enum ProtocolAvailability: Equatable {
     case available
     case unavailable(missingModalities: [NPModalityType])
+    /// EEG-neurofeedback protocol blocked because the user declined the BIPA
+    /// biometric written release (ISC-90). Distinct from a hardware shortfall so
+    /// the message can point the user at consent, not at a missing module.
+    case eegConsentRequired
 
     var isAvailable: Bool {
         if case .available = self { return true }
@@ -20,6 +24,9 @@ enum ProtocolAvailability: Equatable {
             if missing.isEmpty { return "No device connected." }
             let names = missing.map { $0.displayName }.joined(separator: ", ")
             return "Requires: \(names)"
+        case .eegConsentRequired:
+            // Localized ISC-90 message — shared with SessionView's EEG-unavailable card.
+            return String(localized: "SESSION_EEG_UNAVAILABLE_BODY")
         }
     }
 }
@@ -36,6 +43,13 @@ final class NPProtocolLibrary: ObservableObject {
     @Published var has1064SmartModules: Bool = false
     @Published var connectedDeviceTier: DeviceTier = .none
     @Published var validationResults: [UUID: NPValidationResult] = [:]
+
+    /// Whether the user has granted the BIPA biometric written release. EEG-dependent
+    /// protocols are blocked until this is true (ISC-90). Seeded from the same
+    /// `np.onboarding.bipa-accepted` UserDefaults key the views read via `@AppStorage`;
+    /// views push live changes in via `updateEEGConsent(_:)`.
+    @Published var eegConsentGranted: Bool =
+        UserDefaults.standard.bool(forKey: "np.onboarding.bipa-accepted")
 
     // MARK: Bundled (read-only) protocols loaded from embedded .npps content
 
@@ -71,6 +85,13 @@ final class NPProtocolLibrary: ObservableObject {
     // MARK: Availability
 
     func availability(for entry: NPProtocolEntry) -> ProtocolAvailability {
+        // BIPA gate (ISC-90) runs before the hardware/tier checks: an EEG-dependent
+        // protocol is blocked on declined consent regardless of what is connected, so
+        // the user sees the actionable "brainwave data consent" message.
+        if !eegConsentGranted, isEEGDependent(entry) {
+            return .eegConsentRequired
+        }
+
         guard connectedDeviceTier != .none else {
             return .unavailable(missingModalities: [])
         }
@@ -126,6 +147,24 @@ final class NPProtocolLibrary: ObservableObject {
             if case .single(let proto) = entry, proto.name == name { return proto }
         }
         return nil
+    }
+
+    /// Resolves EEG-dependency for any entry, expanding composites against the
+    /// library — a composite is EEG-dependent if ANY member protocol is (ISC-2).
+    func isEEGDependent(_ entry: NPProtocolEntry) -> Bool {
+        if case .composite(let comp) = entry {
+            return comp.layers.contains { layer in
+                findSingle(named: layer.protocolName)?.isEEGDependent ?? false
+            }
+        }
+        return entry.isEEGDependent
+    }
+
+    /// Push the current BIPA consent state (from `np.onboarding.bipa-accepted`) into
+    /// the library so protocol availability reflects it live. Called by the views on
+    /// appear and on change (ISC-8).
+    func updateEEGConsent(_ granted: Bool) {
+        if eegConsentGranted != granted { eegConsentGranted = granted }
     }
 
     // MARK: Validation integration

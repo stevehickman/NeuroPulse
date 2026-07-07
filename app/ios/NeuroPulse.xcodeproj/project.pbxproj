@@ -67,6 +67,7 @@
 		7F2B29A2DAD037E3506B73BC /* SessionHistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5997D0147A53EDC7877E95 /* SessionHistoryStoreTests.swift */; };
 		7FF51E41A66F36A6C02CB4F0 /* ConsumableTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70967C7DCF0C4D93474A7DCC /* ConsumableTrackerTests.swift */; };
 		A852FD47B4894C80813A988D /* BIPAConsentFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C86FB406C84CB3BFDDE268 /* BIPAConsentFlowTests.swift */; };
+		EEC0DE90A0000000000000B1 /* EEGConsentGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC0DE90A0000000000000F2 /* EEGConsentGateTests.swift */; };
 		86AA3152A2A01721F3E14522 /* OTAView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29997D2651EEF868F3BCD7C8 /* OTAView.swift */; };
 		8BC755D70B37BE1D6779CC71 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 487DE8D2DFB0D639E45EB4BF /* PostHog */; };
 		93455498E379D6EBC4EBBB44 /* UHDRKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B5EFA4628F9C3C333BB6C9 /* UHDRKeyManager.swift */; };
@@ -120,6 +121,7 @@
 /* Begin PBXFileReference section */
 		0054A553448BDD1670659CDA /* ConsentStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentStoreTests.swift; sourceTree = "<group>"; };
 		B6C86FB406C84CB3BFDDE268 /* BIPAConsentFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BIPAConsentFlowTests.swift; sourceTree = "<group>"; };
+		EEC0DE90A0000000000000F2 /* EEGConsentGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EEGConsentGateTests.swift; sourceTree = "<group>"; };
 		C28C5928422977589EA34561 /* LocalizationHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationHelpers.swift; sourceTree = "<group>"; };
 		027E6579B897E23827EF47A2 /* HealthKitSessionReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSessionReader.swift; sourceTree = "<group>"; };
 		044B41EC2A131101344754EF /* NPDosageLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPDosageLimits.swift; sourceTree = "<group>"; };
@@ -336,6 +338,7 @@
 				CDD8F336525353DC63F7ED77 /* ConsentEngineTests.swift */,
 				0054A553448BDD1670659CDA /* ConsentStoreTests.swift */,
 				B6C86FB406C84CB3BFDDE268 /* BIPAConsentFlowTests.swift */,
+				EEC0DE90A0000000000000F2 /* EEGConsentGateTests.swift */,
 				70967C7DCF0C4D93474A7DCC /* ConsumableTrackerTests.swift */,
 				2EE62553ABECF27A4A1C5542 /* EngagementTierTests.swift */,
 				89CB57AFEAD042EB5E28DA49 /* GATTParserTests.swift */,
@@ -596,6 +599,7 @@
 				1DA6D5360E54F042DFBBB13A /* ConsentEngineTests.swift in Sources */,
 				9785C8F9C9FA4391BC0C1D16 /* ConsentStoreTests.swift in Sources */,
 				A852FD47B4894C80813A988D /* BIPAConsentFlowTests.swift in Sources */,
+				EEC0DE90A0000000000000B1 /* EEGConsentGateTests.swift in Sources */,
 				7FF51E41A66F36A6C02CB4F0 /* ConsumableTrackerTests.swift in Sources */,
 				6C26B9BC1CF560BF91AF2CCE /* EngagementTierTests.swift in Sources */,
 				C2AA81314EC08ACAF876F81A /* GATTParserTests.swift in Sources */,

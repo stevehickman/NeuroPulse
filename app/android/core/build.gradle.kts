@@ -15,7 +15,10 @@ java {
 }
 
 dependencies {
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    // `api` (not `implementation`): `Json` is part of core's public API — it appears in the
+    // default constructor arguments of SessionHistoryStore/ConsentStore — so consumers (:app)
+    // need it on their compile classpath.
+    api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
     testImplementation(kotlin("test"))
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")

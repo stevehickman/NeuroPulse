@@ -619,6 +619,26 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         }
     }
 
+    /// True when the protocol reads the user's EEG to record neurofeedback or to
+    /// close the stimulation loop — i.e. it depends on brainwave data. Gated on the
+    /// BIPA biometric written release (ISC-90): a user who declines consent must not
+    /// be able to run any of these. Covers the explicit EEG/qEEG modalities plus the
+    /// three EEG-adaptive couplings (EEG closed-loop, audio EEG-adaptive, HRV+EEG).
+    var isEEGDependent: Bool {
+        modalities.filter { $0.enabled }.contains { mod in
+            switch mod.params {
+            case .eegNeurofeedback, .qeeg21ch:
+                return true                                  // any EEG recording is brainwave data
+            case .audioEntrainment(let p):
+                return p.eegAdaptive
+            case .vnsHRV(let p):
+                return p.hrvProtocol == .eegBiofeedback
+            default:
+                return false
+            }
+        }
+    }
+
     var totalDurationSeconds: Int? {
         if case .duration(let s) = timingMode { return s }
         return nil
@@ -821,6 +841,17 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
             return Set()
         case .limits:
             return Set()
+        }
+    }
+
+    /// EEG-dependency for a single protocol. Composites resolve their members at
+    /// runtime against the library (see `NPProtocolLibrary.isEEGDependent(_:)`),
+    /// so this returns false for the `.composite` case on its own.
+    var isEEGDependent: Bool {
+        switch self {
+        case .single(let p): return p.isEEGDependent
+        case .composite:     return false
+        case .limits:        return false
         }
     }
 

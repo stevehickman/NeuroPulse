@@ -175,6 +175,10 @@ class NeuroPulseGattManager(
     fun sendOtaCommand(opcode: OtaOpcode, payload: ByteArray = ByteArray(0)) =
         central.write(GattUuids.otaCommand, byteArrayOf(opcode.rawValue.toByte()) + payload)
 
+    /** Trigger a calibration/setup command (impedance check, ADS1299 self-cal, etc.). */
+    fun sendCalibration(opcode: com.neuropulse.core.ble.CalibrationOpcode) =
+        central.write(GattUuids.calibrationCmd, byteArrayOf(opcode.rawValue.toByte()))
+
     // ── Internals ────────────────────────────────────────────────────────
 
     private fun startScanning() {

@@ -5,7 +5,7 @@ project: NeuroPulse
 effort: E3
 effort_source: classifier
 phase: complete
-progress: 39/40 (ISC-8 deferred)
+progress: 70/73 (ISC-60/68 deferred — hardware + wire-schema freeze)
 mode: autonomous
 started: 2026-07-02
 updated: 2026-07-02
@@ -54,7 +54,7 @@ A Gradle multi-module Android project exists at `app/android/` whose pure-JVM `c
 - [x] ISC-5: Anti: no `import android.` statement exists anywhere under `core/src` — `Grep` returns zero matches.
 - [x] ISC-6: Anti: no hardcoded IP addresses or API keys in any Kotlin source (`Grep` for `http://` outside comments/pinning config returns zero).
 - [x] ISC-7: `app` module build file applies `com.android.application` with minSdk 29, targetSdk 35.
-- [ ] ISC-8: [DEFERRED-VERIFY] `gradle :app:assembleDebug` succeeds on a machine with the Android SDK (follow-up: NP-AND-BUILD-01).
+- [x] ISC-8: `gradle :app:assembleDebug` succeeds — 28 MB `app-debug.apk` produced (Android SDK now available on this machine; compileSdk 36, JDK 17). Two latent build bugs fixed to get here (see 2026-07-06 decision).
 
 ### GATT layer parity
 
@@ -87,6 +87,56 @@ A Gradle multi-module Android project exists at `app/android/` whose pure-JVM `c
 - [x] ISC-29: Anti: `AndroidManifest.xml` sets `android:allowBackup="false"` and declares `dataExtractionRules` — `Grep`.
 - [x] ISC-30: SHDR uploader uses a locally generated 32-byte random token (never ANDroid_ID / advertising ID) sent as `X-NP-Device-Token`, with SPKI pin config present — `Grep` + code review.
 - [x] ISC-31: Anti: no UHDR-class field name (epoch, impedance) appears in any analytics `track` call site — `Grep`.
+
+### Session descriptor + chunker (parity)
+
+- [x] ISC-64: `ProtocolChunker` (core, pure-JVM) ports the iOS BLE framing exactly — SINGLE (≤509B), START (2-byte LE length)/CONT/END; no chunk exceeds the 512B ATT ceiling. Unit-tested at the 509/510 boundary and large-payload reassembly (`ProtocolChunkerTests`, 5/5).
+- [x] ISC-65: `NPSessionProtocol.fromDefinition(...)` compiles an authoring `NPProtocolDefinition` to the T1 hub wire form (8 T1 modality configs; zone/channel resolution; HRV protocol wire mapping; T2/accessory modalities dropped) — parity with iOS `NPSessionProtocol(from:)`.
+- [x] ISC-66: `SessionProtocolCompiler` builds the canonical JSON payload, SHA-256-digests it, and assembles `SignedProtocolBlob` (wire: 4-byte "NPPR" magic + 4-byte LE length + payload + 64-byte Ed25519 sig) — parity with iOS. Ed25519 delegated to a `ProtocolSigner` interface (core stays pure-JVM). Unit-tested with a fake signer (`SessionProtocolCompilerTests`, 5/5): mapping, wire format, JSON `type` discriminator, chunk round-trip.
+- [x] ISC-67: `ProtocolUploader` (app) + `AndroidProtocolSigner` (Ed25519 via `java.security`) wire the menu's select action to compile→sign→chunk→`gattManager.writeProtocolChunk` (Mode 2). Selecting an available single protocol uploads; result shown via Toast. Compile-verified.
+- [ ] ISC-68: [DEFERRED-VERIFY] Wire-JSON schema (OI-AND-WIRE-01) must be frozen and shared with hub firmware + iOS before a hub can parse it — iOS uses Swift Codable default enum encoding, Android uses kotlinx `"type"`-discriminated JSON; they must converge. Hub firmware/UUIDs are still placeholders. Also OI-AND-SIGN-01: Ed25519 needs Android 13+ (BouncyCastle fallback) and a Keystore-persisted key (currently ephemeral); composite-protocol upload not yet supported.
+
+### Hardware setup wizard (parity)
+
+- [x] ISC-71: `SetupFlow` (core, pure-JVM) ports the state-machine core of iOS `HardwareSetupManager`: 11-step `SetupStep` enum with `requiresHardwareConfirmation`/`requiresSafetyAcknowledgement`, `advance()` with the non-bypassable safety gate, `back()` clearing the acknowledgement on re-entry, `evaluateImpedance(flags)` (≥6/8 threshold, failed-electrode list), and `np.setup.first-complete` persistence. `safetyAcknowledged` never persisted (GDPR Art. 9 / BIPA). Unit-tested (`SetupFlowTests`, 7/7).
+- [x] ISC-72: `SetupWizardScreen` renders the flow (title/instruction per step, per-step controls, Back/primary nav); hardware steps require a CONNECTED hub; impedance/ADS1299 steps send `sendCalibration(...)`; impedance evaluated against `session.impedancePassFlags`; safety step gated on a checkbox. Reachable from Settings → "Set up device". `sendCalibration()` added to `NeuroPulseGattManager`. `:app:assembleDebug` green.
+
+### Compose screens (parity — replacing skeletons)
+
+- [x] ISC-56: `SessionScreen` (Mode 1 display) is a full renderer of `(ConnectionState, SessionState)`: connection banner, status card, live metrics (coherence with color threshold, RMSSD, impedance N/8 from `impedancePassFlags`), breathing pacer progress, protocol-picker entry, and a Stop control with confirmation dialog. Replaces the placeholder. `:app:assembleDebug` green.
+- [x] ISC-57: `ProtocolMenuScreen` lists bundled + user protocols from `NPProtocolLibrary`, each with an availability dot + reason, validation error/warning badges, and a Composite tag; reachable from the Session tab ("Browse Protocols"). Closes ISC-45.
+- [x] ISC-58: `NeuroPulseApplication` constructs `NPProtocolLibrary(keyValueStore)` and exposes it; `MainActivity.SessionTab` toggles Session ↔ Protocol menu and passes live BIPA consent + the localized EEG-unavailable string.
+- [x] ISC-59: `AndroidBleCentral` implements `BleCentral` over `BluetoothLeScanner` + `BluetoothGatt` (scan by service UUID, connect, discover, CCCD-enable notifications, read, write) with API-33 vs pre-33 branches for the changed callback/write signatures. Permission-aware: `adapterState` returns `UNAUTHORIZED` until BLUETOOTH_SCAN/CONNECT are granted, so `NeuroPulseGattManager`'s auto-scan-on-ON path stays inert at startup. Wired app-scoped in `NeuroPulseApplication`; `SessionTab` collects `gattManager.connectionState`/`session` as Compose state, requests runtime permissions, and calls `bleCentral.refresh()` on grant to start scanning; Stop → `requestSessionStop()`. Compile-verified (`:app:assembleDebug`).
+- [ ] ISC-60: [DEFERRED-VERIFY] On-device connection to a real hub (scan→connect→notify delivering live `SessionState`) — requires physical BLE hardware + a hub; not runnable on this machine or CI. Code path complete and compiled.
+- [x] ISC-62: `ConsentOnboardingScreen` implements the a-priori research-consent flow (CLAUDE.md §6.2) — L1 contact (+ frequency), L2 nine research categories, L3 blanket consent with the irreversibility notice, L4 results + suggestion-portal opt-in. All optional (Skip persists partial state). Wired into `Root` after the BIPA gate (`np.onboarding.consent-shown`); Finish/Skip persists via `ConsentStore.updateResearchConsent`. `:app:assembleDebug` green.
+- [x] ISC-69: `OtaScreen` renders the hub's live FIRMWARE_VERSION + OTA_STATUS (phase label, progress bar, error code) from `gattManager.hubFirmwareVersion`/`otaStatus`; reachable from Settings → "Firmware & updates". Host-side download/flash service is a follow-up (OI-AND-OTA-01). `:app:assembleDebug` green.
+- [x] ISC-70: `Under16Screen` — under-16 path on the age gate ("I am under 16" → explains onboarding does not proceed, Back returns). Parity with iOS Under16View. Age threshold OI-PA-01 shared with iOS.
+- [x] ISC-63: `SettingsScreen` enriched to parity: re-presentable EEG/biometric consent (Review re-opens `BipaConsentScreen`; Revoke clears `bipa-accepted` + pushes `updateEEGConsent(false)`), re-openable research-consent flow, the research-analytics gate toggle, and app version. Mirrors iOS "Manage EEG data consent".
+- [x] ISC-61: `ConsumablesScreen` lists all four consumables from the app-scoped `ConsumableTracker` (fed by a `GattConsumableCountsProvider` bridging `SessionState.consumableSessionCounts`): name, sessions-remaining bar, Low/Replace-now badge (safety-blocking = red), Order link (`kind.orderUrl`), Mark-replaced, and Snooze (when `canSnooze`). Replaces the placeholder. `:app:assembleDebug` green.
+
+### Protocol library + bundled protocols (parity)
+
+- [x] ISC-51: `NPBundledProtocols.allContents` embeds all 19 predefined NPPS templates verbatim from `protocols/predefined/*.npps` (15 single + 4 composite), in iOS `allContents` order.
+- [x] ISC-52: `NPProtocolLibrary` parses all 19 bundled templates without error (`bundledProtocols.size == 19`) — a live cross-check that the Android NPPS parser is at parity with the real template corpus. All bundled entries are read-only (`canEdit`/`canDelete` false).
+- [x] ISC-53: `availability(entry)` mirrors iOS: BIPA consent gate first (EEG-dependent → `EegConsentRequired`), then device-tier + hardware-modality + 1064 smart-module resolution; composites resolve members. Unit-tested (no-device, T1 available, consent block/unblock, non-EEG unaffected).
+- [x] ISC-54: `validationResult(entry, limits)` runs `NPProtocolValidator` (caches by id; `issueCount` returns errors/warnings); bundled Gamma Focus validates clean under unlimited limits.
+- [x] ISC-55: User protocols persist across library reload via NPPS-text round-trip in `KeyValueStore` (parity with iOS JSON file persistence); bundled protocols cannot be saved-over or deleted. Unit-tested (`NPProtocolLibraryTests`, 11/11).
+
+### Protocol validation + hardware limits (safety parity)
+
+- [x] ISC-46: `NPHardwareLimits` ports every firmware ceiling constant from iOS (PBM duty 25%, tDCS 2 mA + 40 µC/cm², BES 1 mA, VNS 2 mA, visual 100 Hz + 3–30 Hz risk zone, HD-tDCS/clinical-tACS/cervical-VNS/vibrotactile/deep-PBM ceilings).
+- [x] ISC-47: `NPProtocolValidator.validate(definition)` enforces the hardware ceilings as errors, configured `NPLimitsSet` dosage limits as errors, and advisory warnings (short/long session, photoparoxysmal risk zone, aggressive TMS, cardiac-interlock note) — error/warning semantics mirror iOS one-for-one.
+- [x] ISC-48: tDCS charge-density guard: I(mA)×t(s)/(35 cm²×electrodes) > 40 µC/cm² → error (ISC-38 parity). Unit-tested at over-limit and under-limit.
+- [x] ISC-49: Zero/negative duration → hard error; PBM session-dose over configured J/cm² limit → error (ISC-47 parity). Unit-tested.
+- [x] ISC-50: Composite validation resolves member protocols via a resolver fn and prefixes issues with the layer name; empty modalities / empty layers → error. Unit-tested (`NPProtocolValidatorTests`, 10/10).
+
+### EEG-consent gate (ISC-90 parity)
+
+- [x] ISC-41: `NPProtocolDefinition.isEEGDependent` (core) is true for enabled EEG/qEEG modalities, EEG-adaptive audio, or HRV+EEG biofeedback; false for non-EEG and disabled modalities — mirrors iOS `NPProtocolDefinition.isEEGDependent`. Unit-tested.
+- [x] ISC-42: `ProtocolConsentGate.isBlockedByBipa(entry, consentGranted, resolveSingle)` (core, pure-JVM) returns true iff the entry is EEG-dependent and BIPA consent is not granted; composites resolve members via `resolveSingle`. Unit-tested (`ProtocolConsentGateTests`, 9/9).
+- [x] ISC-43: Consent signal parity — the gate is driven by the boolean key `np.onboarding.bipa-accepted` (`OnboardingKeys.BIPA_ACCEPTED`), the same key iOS reads via `@AppStorage` and the Android onboarding writes on BIPA acceptance.
+- [x] ISC-44: Block message parity — `ProtocolConsentGate.EEG_UNAVAILABLE_MESSAGE_RES == "session_eeg_unavailable_body"`, added to `strings.xml` with the iOS `SESSION_EEG_UNAVAILABLE_BODY` first sentence verbatim. Unit-tested.
+- [x] ISC-45: `ProtocolMenuScreen` renders every protocol's `library.availability(entry)`; an EEG-dependent protocol with consent declined resolves to `EegConsentRequired`, which the row displays as the localized `session_eeg_unavailable_body` and makes non-selectable (tap only fires `onSelect` when `availability.isAvailable`). The menu pushes the current BIPA consent into the library on entry (`updateEEGConsent`). Consent-gate decision is unit-tested in `core` (ISC-53); the UI mapping is compile-verified (`:app:assembleDebug`).
 
 ### NPPS protocol engine
 
@@ -140,10 +190,30 @@ A Gradle multi-module Android project exists at `app/android/` whose pure-JVM `c
 - 2026-07-02: Gradle daemon pinned to Temurin JDK 17 locally (Homebrew Gradle defaults to JDK 26, which Kotlin 2.0.21 rejects with `IllegalArgumentException: 26.0.1`). Machine-specific `org.gradle.java.home` is documented in `gradle.properties` as a comment, not committed.
 - 2026-07-02: Fixed Kotlin init-order bug in SessionHistoryStore — body-declared comparator `val` was null during `init { load() }`, silently emptying every reload via runCatching; moved to companion object. Regression caught by `insertionIndexSurvivesReload`.
 - 2026-07-02: Forge's NPPS regression test wrapped the mW_cm2 probe in a nonexistent `limits_probe` modality block; removed the block (the mW_cm2 lexing assertion is standalone). All 67 tests pass after fix.
+- 2026-07-05: ISC-90 EEG-consent gate ported from iOS (ISC-41–45). Placed the decision in pure-JVM `core` (`ProtocolConsentGate` + `NPProtocolDefinition.isEEGDependent`) rather than in a Compose screen because Android's Session/Protocol-menu screens are still UI skeletons — putting the load-bearing consent logic in `core` makes it unit-testable now and gives the future screens one tested gate to call, exactly as iOS routes every selection path through `NPProtocolLibrary.availability(for:)`. Consent key `np.onboarding.bipa-accepted` is already byte-identical to iOS. This corrects an earlier iOS-task note that wrongly treated Android as out-of-scope for wearer onboarding — retail users onboard on Android phones/tablets, so the BIPA gate must exist here. UI wiring is DEFERRED (ISC-45) until the screens are built. 9 new tests; full `:core:test` = 76/0.
+- 2026-07-05: Ported the safety-critical **protocol validation + hardware-limits** layer (ISC-46–50) — the highest-value iOS logic Android lacked. `NPHardwareLimits` + `NPProtocolValidator` mirror iOS error/warning semantics exactly (charge density 40 µC/cm², PBM dose, zero-duration, per-modality ceilings). Simplification: iOS's per-field `NPLimitSourceMap` (cosmetic attribution) collapsed to the resolved limits' tier — `isValid`/errors/warnings behavior is identical, which is what the tests assert. Verified: `gradle :core:test` 86/0.
+- 2026-07-05: **Honest scope status for "full iOS equivalence."** The pure-JVM `core` logic is now largely at parity and fully unit-tested locally. The remaining gap is the **UI + app-level managers**. (Superseded 2026-07-06: Android SDK now available — the app module compiles; UI work is verifiable.)
+- 2026-07-06: **Android SDK now on this machine — `:app` builds; ISC-8 CLOSED.** First-ever `app` compile surfaced two latent bugs fixed to get a green `assembleDebug`: (1) `core` declared `kotlinx-serialization-json` as `implementation`, but `Json` is in `core`'s public API (default ctor args of `SessionHistoryStore`/`ConsentStore`), so `:app` couldn't resolve it — changed to `api`. (2) `compileSdk = 35` but only platforms 36.1/37.0 are installed (no `sdkmanager`/cmdline-tools to add 35) — bumped `compileSdk` to 36 (kept `targetSdk = 35`) + `android.suppressUnsupportedCompileSdk=36`. Build recipe: rsync worktree → scratchpad (TCC blocks Gradle under ~/Documents), `local.properties` `sdk.dir`, JDK 17, `gradle :app:assembleDebug`. UI + app-manager parity is now verifiable and proceeds screen-by-screen with a real compile each step.
+
+## Remaining for full iOS parity (excluding Apple Watch)
+
+Verifiable-now `core` logic still to port (unit-testable via `gradle :core:test`):
+- ~~`NPProtocolLibrary`~~ DONE (ISC-51–55) — availability + consent gate + validation + persistence.
+- ~~`NPBundledProtocols`~~ DONE (ISC-51) — 19 templates embedded + parsed.
+- `NPLimitsStore` — global/helmet/individual resolution (`resolve()`), profiles, NPPS import/export, persistence via `KeyValueStore`.
+- Session descriptor + `ProtocolChunker` — binary `SessionProtocol` compile-from-definition and ≤512-byte Mode-2 chunking.
+- `ResearchSuggestionStore`, `ConsentEngine` extensions, OTA state machine (core `OtaModels` exists).
+
+Cannot be verified here (need Android SDK / instrumented build — do on CI or an SDK machine):
+- App-level managers: `OTAManager`, `HardwareSetupManager`, `SessionProtocolUploader`, `UHDRBackupScheduler`, Health Connect reader.
+- Compose screens still to build/replace: ~~Session~~ (ISC-56), ~~Protocol menu~~ (ISC-57), ~~Consumables~~ (ISC-61), ~~Consent onboarding L1–L4~~ (ISC-62), ~~Settings~~ (ISC-63), ~~OTA~~ (ISC-69), ~~Under-16~~ (ISC-70). ~~Setup/hardware wizard~~ DONE (ISC-71–72). Remaining: Session History + Adaptive-Adjustments card, Protocol editor/composer/modality-editor/limits/script-editor, Research portal.
+- ~~Android `BleCentral` implementation~~ DONE (ISC-59, `AndroidBleCentral`) — on-device connection verification deferred to hardware (ISC-60).
+- ~~Session-descriptor compiler + `ProtocolChunker` + upload~~ DONE (ISC-64–67). Follow-ups: OI-AND-WIRE-01 (freeze the canonical wire JSON across hub/iOS/Android), OI-AND-SIGN-01 (Ed25519 BouncyCastle fallback + Keystore-persisted key; composite upload), and `NeuroPulseGattManager`'s never-unregistered adapter-state `BroadcastReceiver` (acceptable for an app-scoped singleton).
 
 ## Changelog
 
 - **Conjectured:** the full 25k-line iOS app could be ported in one pass with a single flat Android module. **Refuted by:** no Android SDK on the build machine — a single `com.android.application` module would have made every line locally unverifiable. **Learned:** the pure-JVM `core` / Android `app` split is not just testability hygiene, it is what makes privacy-invariant parity provable in CI without an emulator. **Criterion now:** ISC-2/ISC-5 lock the core module's Android-import-free status permanently.
+- **Conjectured:** ISC-90 (EEG-consent gate) had no Android surface because the app was a "stub." **Refuted by:** Android is a full `core` + UI-skeleton port and, per product, a real device-wearer onboarding surface (retail Android phones/tablets). **Learned:** parity of a privacy invariant means porting the tested decision logic into `core` even before the consuming screen exists — the gate must predate the surface it guards, or the surface ships ungated. **Criterion now:** ISC-41–44 lock the gate logic; ISC-45 tracks the UI wiring as a deferred follow-up.
 
 ## Verification
 
@@ -151,7 +221,7 @@ A Gradle multi-module Android project exists at `app/android/` whose pure-JVM `c
 - ISC-3/4: Bash `gradle :core:test` (scratchpad copy, JDK 17) — "BUILD SUCCESSFUL", XML report totals: **67 tests, 0 failures**.
 - ISC-5: Grep `import android.` under core/src — 0 matches.
 - ISC-6: Grep `http://` in *.kt — 0 matches (fleet endpoint is https with SPKI pins).
-- ISC-8: DEFERRED-VERIFY — Android SDK machine required (follow-up NP-AND-BUILD-01).
+- ISC-8: `gradle :app:assembleDebug` → BUILD SUCCESSFUL, `app/build/outputs/apk/debug/app-debug.apk` (28 MB), JDK 17 + SDK platform 36. `:app:testDebugUnitTest` → NO-SOURCE (app-module tests not yet authored; all tests live in :core). NP-AND-BUILD-01 CLOSED.
 - ISC-9–28, 32–36, 40: JUnit — GattParserTests (12), ModelsParityTests (11), AnalyticsGateTests (9), ConsentStoreTests (5), SessionHistoryStoreTests (6), ConsumableTrackerTests (7), NPPSRegressionTests (10), UhdrKeyDerivationTests (4) — all pass in the 67/0 run.
 - ISC-29/37: Grep AndroidManifest.xml — `allowBackup="false"`, `dataExtractionRules` declared, `neverForLocation` on BLUETOOTH_SCAN, no ACCESS_FINE/COARSE_LOCATION `uses-permission` element.
 - ISC-30: Read ShdrUploader.kt — SecureRandom 32-byte token in EncryptedSharedPreferences, `X-NP-Device-Token` header, CertificatePinner with SPKI pins (placeholders flagged).
@@ -159,4 +229,17 @@ A Gradle multi-module Android project exists at `app/android/` whose pure-JVM `c
 - ISC-38: Read NeuroPulseGattManager.kt — BleCentral abstraction, auto-scan on adapter ON, 2s reconnect, SHDR early-return guards before session-state mutation.
 - ISC-39: Read MainActivity.kt / OnboardingScreens.kt / Screens.kt — 5-tab scaffold, AgeGateScreen (unchecked box, disabled Continue), BipaConsentScreen present.
 - ISC-40: UhdrKeyDerivationTests — fake provider receives m=65536/t=4/p=1/len=64; Grep shows no derived-key write to any store (only seed/salt persisted, seed zeroed after use).
-- Commit: `2de6c03` on worktree branch.
+- ISC-41–44: `gradle :core:test` (scratchpad copy, JDK 17, --offline) — BUILD SUCCESSFUL; `ProtocolConsentGateTests` 9/9 pass (isEEGDependent true/false + disabled-modality, isBlockedByBipa block/allow, non-EEG unaffected, composite via resolver, message-res parity). Full suite now **76 tests, 0 failures** across 9 classes. `strings.xml` has `session_eeg_unavailable_body`; `OnboardingKeys.BIPA_ACCEPTED == "np.onboarding.bipa-accepted"`. Grep: no `import android.` in ProtocolConsentGate.kt (core stays pure-JVM).
+- ISC-45: DEFERRED-VERIFY — Session/Protocol-menu Compose screens are skeletons; gate-consumption test lands with those screens (follow-up NP-AND-EEGGATE-UI-01).
+- ISC-64–66: `gradle :core:test` — `ProtocolChunkerTests` 5/5 + `SessionProtocolCompilerTests` 5/5; full core suite **107/0** across 13 classes. `ProtocolChunker.kt` + `NPSessionProtocol.kt` added (chunker, wire descriptor, fromDefinition, SignedProtocolBlob, ProtocolSigner, SessionProtocolCompiler).
+- ISC-71–72: `gradle :core:test` — `SetupFlowTests` 7/7 (step order, safety gate block/unblock, first-setup persistence, back clears ack, impedance 6/8 threshold, hardware-confirmation flags); full core suite **114/0** across 14 classes. `gradle :app:assembleDebug` green with `SetupWizardScreen.kt` + `sendCalibration()`. `SetupFlow.kt` added to core.
+- ISC-69–70: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `OtaScreen.kt` (Settings → Firmware) + `Under16Screen` (age-gate under-16 path) added. Compile-verified.
+- ISC-67: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `AndroidProtocolSigner.kt` + `ProtocolUploader.kt` added; menu `onSelect` uploads via compile→chunk→GATT. Compile-verified; on-device upload deferred (ISC-60/68).
+- ISC-62–63: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `ConsentOnboardingScreen.kt` added + wired into `Root` (post-BIPA `np.onboarding.consent-shown` gate); `SettingsScreen` rewritten with re-presentable EEG + research consent. Compile-verified (ConsentStore L1–L4 logic unit-tested in `core` ConsentStoreTests).
+- ISC-61: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `ConsumablesScreen.kt` added + `GattConsumableCountsProvider` in `NeuroPulseApplication`; consumes core `ConsumableTracker.states`. Compile-verified (tracker logic unit-tested in `core` ISC-35/36).
+- ISC-59: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `AndroidBleCentral.kt` added and wired app-scoped; `SessionTab` collects live `connectionState`/`session` flows + requests BLUETOOTH_SCAN/CONNECT. API-33/pre-33 GATT callback + write/descriptor branches compile against SDK 36. On-device run deferred (ISC-60, no hardware).
+- ISC-56–58: `gradle :app:assembleDebug` → BUILD SUCCESSFUL, 29 MB `app-debug.apk`; `SessionScreen.kt` + `ProtocolMenuScreen.kt` added, `SessionScreen` skeleton removed from `Screens.kt`, `MainActivity.SessionTab` toggles the two, `NeuroPulseApplication` exposes `protocolLibrary`. Compile-verified (no instrumented UI test harness on this machine; the consent/availability logic the screens render is unit-tested in `core` ISC-52/53).
+- ISC-59: DEFERRED-VERIFY — Android `BleCentral` impl (BluetoothLeScanner + GATT) not yet written; SessionScreen renders disconnected state. Follow-up OI-AND-BLE-01.
+- ISC-51–55: `gradle :core:test` — `NPProtocolLibraryTests` 11/11 pass, incl. `bundledProtocolCountIs19` (all 19 `.npps` templates parse through the Android NPPS parser), read-only immutability, availability (no-device / T1 / EEG-consent block+unblock / non-EEG unaffected), user-protocol persistence round-trip, cached validation. `NPBundledProtocols.kt` + `NPProtocolLibrary.kt` added. Full core suite **97/0** across 11 classes. `:app:assembleDebug` still green with the new core.
+- ISC-46–50: `gradle :core:test` (scratchpad, JDK 17, --offline) — `NPProtocolValidatorTests` 10/10 pass (valid accepted; tDCS 2 mA + BES 1 mA hardware ceilings; charge density over/under 40 µC/cm²; zero-duration; PBM dose; configured intensity limit; empty modalities; duty-cycle ceiling). Full core suite **86 tests, 0 failures** across 10 classes. `NPHardwareLimits.kt` + `NPProtocolValidator.kt` added; no `import android.` (core pure-JVM).
+- Commit: `2de6c03` on worktree branch (EEG-gate port pending commit).

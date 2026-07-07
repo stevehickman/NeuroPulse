@@ -13,6 +13,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +35,12 @@ import com.neuropulse.app.R
 @Composable
 fun AgeGateScreen(onConfirmed: () -> Unit) {
     var checked by remember { mutableStateOf(false) }
+    var showUnder16 by remember { mutableStateOf(false) }
+
+    if (showUnder16) {
+        Under16Screen(onBack = { showUnder16 = false })
+        return
+    }
 
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -55,6 +62,32 @@ fun AgeGateScreen(onConfirmed: () -> Unit) {
         Button(onClick = onConfirmed, enabled = checked) {
             Text("Continue")
         }
+        Spacer(Modifier.height(8.dp))
+        TextButton(onClick = { showUnder16 = true }) { Text("I am under 16") }
+    }
+}
+
+/**
+ * Shown when a user indicates they are under 16 — parity with iOS Under16View. NeuroPulse
+ * onboarding does not proceed for under-16 users; the age threshold (OI-PA-01) is pending
+ * legal confirmation, shared with iOS.
+ */
+@Composable
+fun Under16Screen(onBack: () -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxSize().padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+    ) {
+        Text("Thanks for your interest", style = MaterialTheme.typography.headlineMedium)
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "NeuroPulse is intended for users 16 years of age or older. We're not able to set " +
+                "up a device for younger users at this time. If you entered this by mistake, go " +
+                "back and confirm your age.",
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Spacer(Modifier.height(24.dp))
+        TextButton(onClick = onBack) { Text("Back") }
     }
 }
 
