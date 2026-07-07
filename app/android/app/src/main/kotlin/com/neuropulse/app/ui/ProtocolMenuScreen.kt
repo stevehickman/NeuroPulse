@@ -48,6 +48,7 @@ import com.neuropulse.core.protocol.name
 
 private sealed interface ProtocolEditor {
     data object New : ProtocolEditor
+    data object Compose : ProtocolEditor
     data class Script(val text: String) : ProtocolEditor
     data class Form(val def: NPProtocolDefinition) : ProtocolEditor
 }
@@ -71,6 +72,12 @@ fun ProtocolMenuScreen(
         is ProtocolEditor.New -> ProtocolScriptEditorScreen(
             library = library,
             initialText = NEW_PROTOCOL_TEMPLATE,
+            onSaved = { editor = null; version++ },
+            onCancel = { editor = null },
+            modifier = modifier,
+        )
+        is ProtocolEditor.Compose -> ProtocolComposerScreen(
+            library = library,
             onSaved = { editor = null; version++ },
             onCancel = { editor = null },
             modifier = modifier,
@@ -102,6 +109,7 @@ fun ProtocolMenuScreen(
                     TextButton(onClick = onBack) { Text("Back") }
                     Text("Protocols", style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.weight(1f))
+                    TextButton(onClick = { editor = ProtocolEditor.Compose }) { Text("Compose") }
                     TextButton(onClick = { editor = ProtocolEditor.New }) { Text("New") }
                 }
                 LazyColumn(

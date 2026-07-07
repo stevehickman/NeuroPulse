@@ -42,8 +42,19 @@ import com.neuropulse.core.session.SessionHistoryStore
 // ConsumablesScreen lives in ConsumablesScreen.kt (wired to the core ConsumableTracker).
 
 @Composable
-fun ConsentDashboardScreen(store: ConsentStore, modifier: Modifier = Modifier) {
+fun ConsentDashboardScreen(app: NeuroPulseApplication, modifier: Modifier = Modifier) {
+    val store = app.consentStore
     var blanket by remember { mutableStateOf(store.researchConsent.blanketConsentGranted) }
+    var showPortal by remember { mutableStateOf(false) }
+
+    if (showPortal) {
+        ResearchPortalScreen(
+            store = app.researchSuggestionStore,
+            onBack = { showPortal = false },
+            modifier = modifier,
+        )
+        return
+    }
 
     Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
         Text("Privacy & Research", style = MaterialTheme.typography.headlineMedium)
@@ -72,6 +83,11 @@ fun ConsentDashboardScreen(store: ConsentStore, modifier: Modifier = Modifier) {
                 "data from sessions that occurred before your withdrawal.",
             style = MaterialTheme.typography.bodySmall,
         )
+        Spacer(Modifier.height(24.dp))
+        Text("Research ideas", style = MaterialTheme.typography.titleMedium)
+        Text("Suggest studies, vote, and register interest in taking part.", style = MaterialTheme.typography.bodySmall)
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(onClick = { showPortal = true }) { Text("Open research portal") }
     }
 }
 

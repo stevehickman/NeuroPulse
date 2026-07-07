@@ -118,7 +118,7 @@ private fun MainScaffold(app: NeuroPulseApplication) {
             0 -> SessionTab(app, modifier)
             1 -> HistoryScreen(app.sessionHistoryStore, modifier)
             2 -> ConsumablesScreen(app, modifier)
-            3 -> ConsentDashboardScreen(app.consentStore, modifier)
+            3 -> ConsentDashboardScreen(app, modifier)
             else -> SettingsScreen(app, modifier)
         }
     }
