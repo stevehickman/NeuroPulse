@@ -5,7 +5,7 @@ project: NeuroPulse
 effort: E3
 effort_source: classifier
 phase: complete
-progress: 70/73 (ISC-60/68 deferred — hardware + wire-schema freeze)
+progress: 75/78 (ISC-60/68 deferred — hardware + wire-schema freeze)
 mode: autonomous
 started: 2026-07-02
 updated: 2026-07-02
@@ -95,6 +95,14 @@ A Gradle multi-module Android project exists at `app/android/` whose pure-JVM `c
 - [x] ISC-66: `SessionProtocolCompiler` builds the canonical JSON payload, SHA-256-digests it, and assembles `SignedProtocolBlob` (wire: 4-byte "NPPR" magic + 4-byte LE length + payload + 64-byte Ed25519 sig) — parity with iOS. Ed25519 delegated to a `ProtocolSigner` interface (core stays pure-JVM). Unit-tested with a fake signer (`SessionProtocolCompilerTests`, 5/5): mapping, wire format, JSON `type` discriminator, chunk round-trip.
 - [x] ISC-67: `ProtocolUploader` (app) + `AndroidProtocolSigner` (Ed25519 via `java.security`) wire the menu's select action to compile→sign→chunk→`gattManager.writeProtocolChunk` (Mode 2). Selecting an available single protocol uploads; result shown via Toast. Compile-verified.
 - [ ] ISC-68: [DEFERRED-VERIFY] Wire-JSON schema (OI-AND-WIRE-01) must be frozen and shared with hub firmware + iOS before a hub can parse it — iOS uses Swift Codable default enum encoding, Android uses kotlinx `"type"`-discriminated JSON; they must converge. Hub firmware/UUIDs are still placeholders. Also OI-AND-SIGN-01: Ed25519 needs Android 13+ (BouncyCastle fallback) and a Keystore-persisted key (currently ephemeral); composite-protocol upload not yet supported.
+
+### Protocol editors + Session history (parity)
+
+- [x] ISC-73: `ProtocolScriptEditorScreen` — full NPPS text editor; Save parses via `library.importScript` and persists via `library.save`; parse errors show the offending line. `NEW_PROTOCOL_TEMPLATE` seeds new protocols.
+- [x] ISC-74: `ProtocolEditorScreen` — metadata form (name/description/tags/duration) for a single user protocol, preserving modalities, with "Edit modalities as script". Deep per-modality widget editing (iOS ModalityEditorView) deferred (OI-AND-MODEDIT-01).
+- [x] ISC-75: `ProtocolMenuScreen` gains New (header) + Edit/Delete on user (non-read-only) protocols, hosting the editor overlays; bundled protocols remain select-only. `:app:assembleDebug` green.
+- [x] ISC-76: `AdaptTrigger` (17 triggers, 0x00–0x10, plain-language copy) + `AdaptationEvent` ported to core (mirrors firmware `np_adaptation_log.h`); enum-only, no raw biometrics. Unit-tested (`AdaptationEventTests`, 4/4 — all 17 copy strings, contiguous raw values, `from()` round-trip, content-derived id).
+- [x] ISC-77: `HistoryScreen` — day-granularity session list → detail with metrics + `AdaptiveAdjustmentsCard` (≤5 inline + "View all", empty state). Adaptation events are not persisted (UHDR), so history-opened cards show the empty state — parity with iOS. `CompletedSessionSummary.fromRecord` added to core.
 
 ### Hardware setup wizard (parity)
 
@@ -206,7 +214,7 @@ Verifiable-now `core` logic still to port (unit-testable via `gradle :core:test`
 
 Cannot be verified here (need Android SDK / instrumented build — do on CI or an SDK machine):
 - App-level managers: `OTAManager`, `HardwareSetupManager`, `SessionProtocolUploader`, `UHDRBackupScheduler`, Health Connect reader.
-- Compose screens still to build/replace: ~~Session~~ (ISC-56), ~~Protocol menu~~ (ISC-57), ~~Consumables~~ (ISC-61), ~~Consent onboarding L1–L4~~ (ISC-62), ~~Settings~~ (ISC-63), ~~OTA~~ (ISC-69), ~~Under-16~~ (ISC-70). ~~Setup/hardware wizard~~ DONE (ISC-71–72). Remaining: Session History + Adaptive-Adjustments card, Protocol editor/composer/modality-editor/limits/script-editor, Research portal.
+- Compose screens still to build/replace: ~~Session~~ (ISC-56), ~~Protocol menu~~ (ISC-57), ~~Consumables~~ (ISC-61), ~~Consent onboarding L1–L4~~ (ISC-62), ~~Settings~~ (ISC-63), ~~OTA~~ (ISC-69), ~~Under-16~~ (ISC-70). ~~Setup/hardware wizard~~ (ISC-71–72), ~~Session History + Adaptive-Adjustments~~ (ISC-76–77), ~~Protocol editors (script + form + New/Edit/Delete)~~ (ISC-73–75). Remaining: deep per-modality parameter editor (iOS ModalityEditorView — OI-AND-MODEDIT-01), protocol composer (layer builder), limits settings editor, Research suggestion portal.
 - ~~Android `BleCentral` implementation~~ DONE (ISC-59, `AndroidBleCentral`) — on-device connection verification deferred to hardware (ISC-60).
 - ~~Session-descriptor compiler + `ProtocolChunker` + upload~~ DONE (ISC-64–67). Follow-ups: OI-AND-WIRE-01 (freeze the canonical wire JSON across hub/iOS/Android), OI-AND-SIGN-01 (Ed25519 BouncyCastle fallback + Keystore-persisted key; composite upload), and `NeuroPulseGattManager`'s never-unregistered adapter-state `BroadcastReceiver` (acceptable for an app-scoped singleton).
 
@@ -232,6 +240,7 @@ Cannot be verified here (need Android SDK / instrumented build — do on CI or a
 - ISC-41–44: `gradle :core:test` (scratchpad copy, JDK 17, --offline) — BUILD SUCCESSFUL; `ProtocolConsentGateTests` 9/9 pass (isEEGDependent true/false + disabled-modality, isBlockedByBipa block/allow, non-EEG unaffected, composite via resolver, message-res parity). Full suite now **76 tests, 0 failures** across 9 classes. `strings.xml` has `session_eeg_unavailable_body`; `OnboardingKeys.BIPA_ACCEPTED == "np.onboarding.bipa-accepted"`. Grep: no `import android.` in ProtocolConsentGate.kt (core stays pure-JVM).
 - ISC-45: DEFERRED-VERIFY — Session/Protocol-menu Compose screens are skeletons; gate-consumption test lands with those screens (follow-up NP-AND-EEGGATE-UI-01).
 - ISC-64–66: `gradle :core:test` — `ProtocolChunkerTests` 5/5 + `SessionProtocolCompilerTests` 5/5; full core suite **107/0** across 13 classes. `ProtocolChunker.kt` + `NPSessionProtocol.kt` added (chunker, wire descriptor, fromDefinition, SignedProtocolBlob, ProtocolSigner, SessionProtocolCompiler).
+- ISC-73–77: `gradle :core:test` — `AdaptationEventTests` 4/4; full core suite **118/0** across 15 classes. `gradle :app:assembleDebug` green with `ProtocolScriptEditorScreen.kt` + `ProtocolEditorScreen.kt` + refactored `ProtocolMenuScreen` (New/Edit/Delete) + new `HistoryScreen.kt` (detail + `AdaptiveAdjustmentsCard`). `AdaptationEvent.kt` + `CompletedSessionSummary.fromRecord` added to core.
 - ISC-71–72: `gradle :core:test` — `SetupFlowTests` 7/7 (step order, safety gate block/unblock, first-setup persistence, back clears ack, impedance 6/8 threshold, hardware-confirmation flags); full core suite **114/0** across 14 classes. `gradle :app:assembleDebug` green with `SetupWizardScreen.kt` + `sendCalibration()`. `SetupFlow.kt` added to core.
 - ISC-69–70: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `OtaScreen.kt` (Settings → Firmware) + `Under16Screen` (age-gate under-16 path) added. Compile-verified.
 - ISC-67: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `AndroidProtocolSigner.kt` + `ProtocolUploader.kt` added; menu `onSelect` uploads via compile→chunk→GATT. Compile-verified; on-device upload deferred (ISC-60/68).

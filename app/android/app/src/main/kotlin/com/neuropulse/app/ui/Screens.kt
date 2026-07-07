@@ -38,25 +38,7 @@ import com.neuropulse.core.session.SessionHistoryStore
 // SessionScreen lives in SessionScreen.kt (full renderer of connection + live session
 // state). ProtocolMenuScreen lives in ProtocolMenuScreen.kt.
 
-@Composable
-fun HistoryScreen(store: SessionHistoryStore, modifier: Modifier = Modifier) {
-    LazyColumn(modifier = modifier.fillMaxSize().padding(16.dp)) {
-        items(store.records) { record ->
-            Card(Modifier.padding(vertical = 4.dp)) {
-                Column(Modifier.padding(12.dp)) {
-                    Text(record.protocolName, style = MaterialTheme.typography.titleMedium)
-                    // Day granularity only — exact timestamps are UHDR-class.
-                    Text(record.sessionDay, style = MaterialTheme.typography.bodySmall)
-                    record.averageCoherenceScore?.let {
-                        Text("Coherence %.1f".format(it))
-                    }
-                    Text("Impedance ${record.impedancePassCount}/8 electrodes")
-                }
-            }
-        }
-    }
-}
-
+// HistoryScreen lives in HistoryScreen.kt (list + detail + Adaptive Adjustments card).
 // ConsumablesScreen lives in ConsumablesScreen.kt (wired to the core ConsumableTracker).
 
 @Composable
