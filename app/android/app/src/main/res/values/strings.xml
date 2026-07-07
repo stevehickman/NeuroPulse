@@ -13,6 +13,7 @@
     <string name="tab_consent">Privacy</string>
     <string name="tab_settings">Settings</string>
     <string name="bluetooth_off_message">Enable Bluetooth to connect to your hub</string>
+    <string name="session_eeg_unavailable_body">EEG neurofeedback is unavailable — brainwave data consent was not granted. Go to the Privacy tab to manage EEG data consent.</string>
     <string name="age_gate_confirmation">I confirm I am 16 years of age or older.</string>
     <string name="regulatory_footer">NeuroPulse Home is a general wellness device. It is not intended to diagnose, treat, cure, or prevent any disease.</string>
 </resources>

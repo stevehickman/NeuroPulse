@@ -118,12 +118,31 @@ extension PhoneSessionManager: WCSessionDelegate {
         }
     }
 
+    /// Watch preset IDs whose protocols read the user's EEG to close the loop —
+    /// Gamma Clarity (0) and Alpha Calm (1). Blocked when BIPA consent is absent
+    /// (ISC-90). Sleep Deep (2) is not EEG-adaptive and always passes. Mirrors the
+    /// `PresetProtocol` enum in the Watch app's SessionStatusView.
+    private static let eegAdaptivePresetIDs: Set<Int> = [0, 1]
+
     // Receive messages from Watch (e.g. protocol preset selection).
     func session(_ session: WCSession, didReceiveMessage message: [String: Any]) {
         // Watch → phone protocol selector (Phase 1 feature).
         // Placeholder: route to hub via GATT write when firmware write characteristic is added.
         if let presetID = message["select_preset"] as? Int {
-            _ = presetID // TODO: compile preset to protocol chunk and upload via GATT protocolUpload (Mode 2)
+            let consentGranted = UserDefaults.standard.bool(forKey: "np.onboarding.bipa-accepted")
+            if let accepted = Self.acceptedPreset(presetID, consentGranted: consentGranted) {
+                _ = accepted // TODO: compile preset to protocol chunk and upload via GATT protocolUpload (Mode 2)
+            } else {
+                logger.info("Dropped EEG-adaptive preset \(presetID, privacy: .public) — BIPA consent not granted")
+            }
         }
+    }
+
+    /// Applies the BIPA gate (ISC-90) to a Watch preset selection. Returns the preset
+    /// ID when it may proceed, or nil when it is an EEG-adaptive preset and consent was
+    /// declined. Pure and static so it is unit-testable without a live WCSession.
+    static func acceptedPreset(_ presetID: Int, consentGranted: Bool) -> Int? {
+        if eegAdaptivePresetIDs.contains(presetID), !consentGranted { return nil }
+        return presetID
     }
 }

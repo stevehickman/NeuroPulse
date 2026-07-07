@@ -10,7 +10,9 @@ plugins {
 
 android {
     namespace = "com.neuropulse.app"
-    compileSdk = 35
+    // compileSdk tracks the newest installed SDK platform on the build machine (36).
+    // targetSdk stays at 35 (runtime behavior contract); compileSdk ≥ targetSdk is standard.
+    compileSdk = 36
 
     defaultConfig {
         // Production application ID — not a placeholder (parity with iOS ISC-7).

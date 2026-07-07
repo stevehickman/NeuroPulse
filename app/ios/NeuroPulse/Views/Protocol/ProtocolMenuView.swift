@@ -16,6 +16,11 @@ struct ProtocolMenuView: View {
     @EnvironmentObject private var uploader: SessionProtocolUploader
     @EnvironmentObject private var limitsStore: NPLimitsStore
 
+    // BIPA biometric written-release acceptance (ISC-90). Pushed into the library so
+    // EEG-dependent protocols are blocked in every selection path — list row, context
+    // menu, and program mode — when consent was declined.
+    @AppStorage("np.onboarding.bipa-accepted") private var bipaAccepted = false
+
     // When true, selecting a protocol programs it onto the hub for Mode 3
     // Autonomous use (via SessionProtocolUploader.programAutonomous) instead of
     // a standard Mode 2 upload. On success `onProgrammed` is invoked.
@@ -50,6 +55,10 @@ struct ProtocolMenuView: View {
             .navigationBarTitleDisplayMode(.large)
             .searchable(text: $searchText, prompt: "Search by name or tag")
             .toolbar { toolbarContent }
+            .onAppear { library.updateEEGConsent(bipaAccepted) }
+            .onChange(of: bipaAccepted) { _, newValue in
+                library.updateEEGConsent(newValue)
+            }
             .sheet(isPresented: $showEditor) {
                 ProtocolEditorView(existing: editingEntry)
                     .environmentObject(library)

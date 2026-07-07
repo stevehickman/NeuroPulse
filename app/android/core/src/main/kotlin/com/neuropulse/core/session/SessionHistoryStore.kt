@@ -46,7 +46,25 @@ data class CompletedSessionSummary(
     val rmssdMilliseconds: Int?,
     val impedancePassCount: Int,
     val edfSessionId: Long? = null,
-)
+    // Closed-loop adaptation events (UHDR-class). Populated by the live post-session path;
+    // NEVER persisted (see store header), so a summary reconstructed from a history record has
+    // an empty list — the Adaptive Adjustments card then shows its empty state, as on iOS.
+    val adaptationEvents: List<AdaptationEvent> = emptyList(),
+) {
+    companion object {
+        /** Reconstruct a display summary from a persisted history row (no adaptation events). */
+        fun fromRecord(record: SessionRecord): CompletedSessionSummary = CompletedSessionSummary(
+            protocolName = record.protocolName,
+            completedAt = runCatching { LocalDate.parse(record.sessionDay) }.getOrDefault(LocalDate.MIN),
+            durationSeconds = record.durationSeconds.toInt(),
+            averageCoherenceScore = record.averageCoherenceScore,
+            rmssdMilliseconds = record.rmssdMilliseconds,
+            impedancePassCount = record.impedancePassCount,
+            edfSessionId = record.edfSessionId,
+            adaptationEvents = emptyList(),
+        )
+    }
+}
 
 class SessionHistoryStore(
     private val store: KeyValueStore,
