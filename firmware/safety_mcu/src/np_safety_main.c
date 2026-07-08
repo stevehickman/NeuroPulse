@@ -44,6 +44,8 @@ extern void np_spi_watchdog_check(np_safety_state_t *state);   /* MUST call ever
 extern void np_charge_monitor_accumulate(uint8_t channel, uint32_t current_ua, uint32_t dt_us);
 extern void np_charge_monitor_tick(np_safety_state_t *state);
 extern void np_charge_monitor_reset_session(void);
+extern void np_charge_monitor_set_channel_area_mcm2(uint8_t channel, uint16_t area_mcm2);
+extern void np_charge_monitor_geom_gate(np_safety_state_t *state);
 extern void np_thermal_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_reenable(np_safety_state_t *state);
@@ -75,6 +77,12 @@ extern void np_hal_spi_send_frame(const np_safety_tx_frame_t *tx);
  * np_hal_spi_get_cmd() copies the buffered frame into *cmd_out.            */
 extern bool np_hal_spi_cmd_ready(void);
 extern void np_hal_spi_get_cmd(np_safety_sig_cmd_t *cmd_out);
+/* Per-channel charge-limit command frame (34 bytes, OI-CHARGE-02).
+ * Distinguished from heartbeat/sig frames by NSS-delineated transfer length.
+ * np_hal_spi_chan_limit_ready() returns true when a 34-byte frame is buffered.
+ * np_hal_spi_get_chan_limit() copies the buffered frame into *cmd_out.       */
+extern bool np_hal_spi_chan_limit_ready(void);
+extern void np_hal_spi_get_chan_limit(np_safety_chan_limit_cmd_t *cmd_out);
 
 /* ── Shared safety state ─────────────────────────────────────────────────── */
 static np_safety_state_t s_state;
@@ -133,6 +141,20 @@ static bool cmd_checksum_ok(const np_safety_sig_cmd_t *c)
     const uint8_t *b = (const uint8_t *)c;
     uint8_t i;
     for (i = 0U; i < (NP_SAFETY_CMD_FRAME_LEN - 2U); i++) {
+        sum += b[i];
+    }
+    return sum == c->checksum;
+}
+
+/* Verify checksum of a 34-byte per-channel charge-limit command frame.
+ * Checksum covers bytes [0..NP_SAFETY_CHAN_LIMIT_FRAME_LEN-3] (all except the
+ * 2 checksum bytes at the end).                                            */
+static bool chan_limit_checksum_ok(const np_safety_chan_limit_cmd_t *c)
+{
+    uint16_t sum = 0U;
+    const uint8_t *b = (const uint8_t *)c;
+    uint8_t i;
+    for (i = 0U; i < (NP_SAFETY_CHAN_LIMIT_FRAME_LEN - 2U); i++) {
         sum += b[i];
     }
     return sum == c->checksum;
@@ -241,6 +263,11 @@ int main(void)
                     (rx.session_status & NP_SESSION_STATUS_ACTIVE) != 0U;
                 s_state.cvns_active =
                     (s_state.requested_mask & NP_SAFETY_EN_CVNS) != 0U;
+                /* OI-CHARGE-03: the hub sets this bit every heartbeat while a
+                 * small-electrode modality (HD-tDCS) is in the session, so a
+                 * single lost frame cannot disarm the geometry gate.          */
+                s_state.geom_required =
+                    (rx.session_status & NP_SESSION_STATUS_GEOM_REQUIRED) != 0U;
 
                 /* Reset watchdog on valid heartbeat */
                 np_spi_watchdog_tick(&s_state, &rx, &tx);
@@ -260,6 +287,38 @@ int main(void)
             s_bad_cmd_count = 0U;               /* reset corruption counter for new session */
         }
         s_prev_session_active = s_state.session_active;
+
+        /* ── Per-channel charge-limit command frame (34 bytes, OI-CHARGE-02) ── */
+        /* Hub delivers per-channel electrode AREA when a modality's geometry
+         * differs from the default 25cm² pad (T2 HD-tDCS 3.5mm electrodes).
+         * Applied AFTER the session-start reset block above so it overrides the
+         * restored defaults even if delivered in the same loop iteration as the
+         * 0→1 transition.  The 40µC/cm² density constant stays on this MCU:
+         * only electrode area is received; set_channel_area_mcm2() derives the
+         * limit.                                                              */
+        if (np_hal_spi_chan_limit_ready()) {
+            np_safety_chan_limit_cmd_t clim;
+            np_hal_spi_get_chan_limit(&clim);
+
+            if (clim.cmd_magic[0] == NP_SAFETY_CMD_MAGIC_0 &&
+                clim.cmd_magic[1] == NP_SAFETY_CMD_MAGIC_1 &&
+                clim.cmd_type     == NP_SAFETY_CMD_CHAN_LIMIT &&
+                chan_limit_checksum_ok(&clim)) {
+
+                uint8_t ch;
+                for (ch = 0U; ch < NP_SAFETY_MAX_CHANNELS; ch++) {
+                    /* area 0 means "keep current limit" — set_channel_area_mcm2
+                     * ignores it, leaving the reset default in place.          */
+                    np_charge_monitor_set_channel_area_mcm2(ch, clim.area_mcm2[ch]);
+                }
+            }
+            /* Bad magic/type/checksum: silently ignored; the hub retries.
+             * RESIDUAL RISK (OI-CHARGE-03): if the command is never applied,
+             * a small-electrode channel keeps the permissive 1000µC default —
+             * fail-OPEN.  The hub must not request CLIN_STIM enable until it has
+             * delivered the area command.  A confirmation/pending-gate for the
+             * charge limit (mirroring SIG_PENDING) is tracked as OI-CHARGE-03. */
+        }
 
         /* CVNS re-enable after cardiac cutoff:
          * Hub sets NP_SESSION_STATUS_CVNS_REENABLE only when all three
@@ -281,6 +340,12 @@ int main(void)
         if (s_state.cvns_active) {
             np_cardiac_interlock_tick(&s_state);
         }
+
+        /* OI-CHARGE-03 fail-safe geometry gate: block CLIN_STIM while the hub
+         * requires an electrode-geometry override that has not yet been
+         * applied.  Runs BEFORE the accumulate loop so a gated channel accrues
+         * no charge while blocked. */
+        np_charge_monitor_geom_gate(&s_state);
 
         /* Accumulate charge for all currently-granted channels that carry a
          * non-zero commanded current.  dt_us is a compile-time constant —

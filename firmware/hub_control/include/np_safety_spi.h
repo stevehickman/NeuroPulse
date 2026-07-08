@@ -67,6 +67,21 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
                                           uint8_t             channel_count);
 
 /*
+ * np_safety_spi_set_geom_required — declare (or clear) that the running session
+ * needs an electrode-geometry override (OI-CHARGE-03 fail-safe gate).
+ *
+ * While set, every heartbeat carries NP_SESSION_STATUS_GEOM_REQUIRED so the
+ * safety MCU keeps CLIN_STIM (HD-tDCS) out of granted_mask until it has applied
+ * a valid electrode-area command (np_safety_spi_send_channel_limits()).  This
+ * makes a lost/delayed area command fail-CLOSED instead of fail-open.
+ *
+ * The session runner sets this true (before the first CLIN_STIM enable request)
+ * for HD-tDCS ring/bilateral montages, and it is cleared on session end/abort
+ * (also cleared by np_safety_spi_disable_all()).
+ */
+void np_safety_spi_set_geom_required(bool required);
+
+/*
  * np_safety_spi_request_enable — request enable of stimulation channels.
  * The enable is only effective after the next heartbeat grants it.
  * Updates the requested_enable_mask used in subsequent heartbeat frames.
@@ -118,6 +133,31 @@ uint8_t np_safety_spi_get_status(void);
  */
 np_hub_status_t np_safety_spi_send_session_sig(const uint8_t *hash,
                                                 const uint8_t *sig);
+
+/*
+ * np_safety_spi_send_channel_limits — deliver per-channel electrode geometry to
+ * the safety MCU via a 34-byte command frame (OI-CHARGE-02).
+ *
+ * The safety MCU converts each area into a per-electrode charge limit using its
+ * resident 40µC/cm² density constant.  This function transmits electrode AREA
+ * only — never a pre-computed limit — so the density constant stays on the
+ * Class C safety MCU.
+ *
+ * area_mcm2: array of per-channel electrode areas in milli-cm² (1 unit =
+ *            0.001 cm²).  Entry n applies to safety channel n (= NP_SAFETY_EN_*
+ *            bit position).  A value of 0 leaves that channel's limit at its
+ *            session-reset default (25cm² pad → 1000µC).  Areas should be
+ *            floored (truncated) so the derived limit never exceeds 40µC/cm².
+ * count:     number of valid entries (1–NP_SAFETY_MAX_CHANNELS).
+ *
+ * MUST be called during session setup, BEFORE requesting enable of any
+ * small-electrode channel (notably NP_SAFETY_EN_CLIN_STIM for HD-tDCS).
+ *
+ * Returns NP_HUB_OK if the SPI transfer completed; NP_HUB_ERR_TIMEOUT on
+ * transfer failure; NP_HUB_ERR_INVALID_ARG on a NULL/zero/oversized count.
+ */
+np_hub_status_t np_safety_spi_send_channel_limits(const uint16_t *area_mcm2,
+                                                   uint8_t         count);
 
 /* ── HAL stub ─────────────────────────────────────────────────────────────────── */
 

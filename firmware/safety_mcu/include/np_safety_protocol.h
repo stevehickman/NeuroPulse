@@ -59,6 +59,11 @@
 #define NP_SAFETY_EN_CLIN_STIM      (1U << 13)
 #define NP_SAFETY_EN_ALL_MASK       0x3FFFU
 
+/* Charge-monitor channel INDEX for CLIN_STIM (= bit position of the enable
+ * bit above).  HD-tDCS accumulates charge on this channel and is subject to
+ * the OI-CHARGE-03 fail-safe geometry gate.                                 */
+#define NP_SAFETY_CH_CLIN_STIM      13U
+
 /* ── Frame lengths ────────────────────────────────────────────────────────── */
 /* NP_SAFETY_FRAME_LEN is the MCU reply frame length (defined in np_safety_config.h as 8).
  * The heartbeat RX frame is NP_SAFETY_RX_EXT_FRAME_LEN (38 bytes).                      */
@@ -112,6 +117,9 @@ typedef struct {
     uint8_t  fault_slot;       /* slot that caused most recent fault (0xFF = none) */
     bool     session_active;   /* session underway */
     bool     cvns_active;      /* cervical VNS enabled this session */
+    bool     geom_required;    /* OI-CHARGE-03: hub declared this session needs an
+                                * electrode-geometry override (from heartbeat
+                                * NP_SESSION_STATUS_GEOM_REQUIRED bit)            */
 } np_safety_state_t;
 
 /* np_safety_sig_cmd_t, NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG,

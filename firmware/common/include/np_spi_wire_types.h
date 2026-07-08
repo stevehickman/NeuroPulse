@@ -41,6 +41,15 @@
  * number of NP_SAFETY_EN_* bits defined in np_safety_protocol.h.            */
 #define NP_SAFETY_MAX_CHANNELS      14U
 
+/* ── Heartbeat session_status bits (shared) ─────────────────────────────── */
+/* Bit 0 (NP_SESSION_STATUS_ACTIVE) and bit 1 (NP_SESSION_STATUS_CVNS_REENABLE)
+ * are defined per-side in np_safety_protocol.h / np_hub_config.h.  Bit 2 is
+ * defined HERE so both the safety MCU and the hub share one source of truth. */
+#define NP_SESSION_STATUS_GEOM_REQUIRED  (1U << 2)  /* OI-CHARGE-03: session needs an
+                                                     * electrode-geometry override; safety
+                                                     * MCU must not grant CLIN_STIM until a
+                                                     * valid area command has been applied */
+
 /* ── Session signature command constants ────────────────────────────────── */
 
 #define NP_SAFETY_CMD_MAGIC_0       0xC0U   /* distinguishes from heartbeat 0xBE */
@@ -51,6 +60,13 @@
 #define NP_SAFETY_CMD_FRAME_LEN     102U
 #define NP_SESSION_HASH_LEN         32U     /* SHA-256 hash of session descriptor */
 #define NP_ED25519_SIG_LEN          64U     /* Ed25519 signature */
+
+/* ── Per-channel electrode-geometry charge limit command (OI-CHARGE-02) ──── */
+
+#define NP_SAFETY_CMD_CHAN_LIMIT    0x02U   /* cmd_type: per-channel electrode area */
+
+/* 2 (magic) + 1 (type) + 1 (rsvd) + 28 (area[14]) + 2 (checksum) = 34 */
+#define NP_SAFETY_CHAN_LIMIT_FRAME_LEN  34U
 
 /* ── Extended heartbeat frame length ────────────────────────────────────── */
 
@@ -132,6 +148,42 @@ typedef struct __attribute__((packed)) {
 /* Compile-time size assertion */
 typedef char _np_spi_sig_cmd_size_check[
     (sizeof(np_safety_sig_cmd_t) == NP_SAFETY_CMD_FRAME_LEN) ? 1 : -1
+];
+
+/* ── Per-channel charge-limit command frame (hub → MCU, 34 bytes) ────────── */
+/*
+ * OI-CHARGE-02.  Sent once per session, during session setup, when the
+ * descriptor contains a modality whose electrode geometry differs from the
+ * default 25cm² tDCS pad (notably T2 HD-tDCS 3.5mm Ag/AgCl electrodes).
+ *
+ * The hub delivers per-channel electrode AREA in milli-cm² (1 unit = 0.001cm²);
+ * it does NOT deliver a pre-computed charge limit.  The 40µC/cm² charge-density
+ * constant (NP_CHARGE_LIMIT_UC_CM2) stays resident on the Class C safety MCU,
+ * which converts area→limit: limit_nc = NP_CHARGE_LIMIT_UC_CM2 × area_mcm2.
+ * A value of 0 for a channel means "keep the current (default) limit".
+ *
+ * The hub floors the area (truncates toward zero) so the derived limit can
+ * never exceed the true 40µC/cm² ceiling — conservative by construction.
+ *
+ * Distinguished from the 8/38/102-byte frames by its NSS-delineated transfer
+ * length (34).  Shares the 0xC0/0xDE command magic with cmd_type discriminator.
+ *
+ * Checksum: additive sum of bytes [0..NP_SAFETY_CHAN_LIMIT_FRAME_LEN-3] (all
+ * except the 2 checksum bytes at the end), wrapping uint16.
+ *
+ * Privacy: area_mcm2[] is fixed device geometry (SHDR) — carries no user data.
+ */
+typedef struct __attribute__((packed)) {
+    uint8_t  cmd_magic[2];                        /* NP_SAFETY_CMD_MAGIC_0 / _1 */
+    uint8_t  cmd_type;                            /* NP_SAFETY_CMD_CHAN_LIMIT (0x02) */
+    uint8_t  reserved;                            /* 0x00 */
+    uint16_t area_mcm2[NP_SAFETY_MAX_CHANNELS];   /* electrode area, milli-cm²; 0 = keep default */
+    uint16_t checksum;                            /* sum of bytes [0..31], wrapping uint16 */
+} np_safety_chan_limit_cmd_t;                     /* 2+1+1+28+2 = 34 bytes */
+
+/* Compile-time size assertion */
+typedef char _np_spi_chan_limit_cmd_size_check[
+    (sizeof(np_safety_chan_limit_cmd_t) == NP_SAFETY_CHAN_LIMIT_FRAME_LEN) ? 1 : -1
 ];
 
 #endif /* NP_SPI_WIRE_TYPES_H */
