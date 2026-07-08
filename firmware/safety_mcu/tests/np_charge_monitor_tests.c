@@ -48,6 +48,12 @@ extern void np_charge_monitor_accumulate(uint8_t channel, uint32_t current_ua, u
 extern void np_charge_monitor_tick(np_safety_state_t *state);
 extern void np_charge_monitor_reset_session(void);
 extern void np_charge_monitor_set_channel_limit(uint8_t channel, uint32_t limit_uc);
+extern void np_charge_monitor_set_channel_area_mcm2(uint8_t channel, uint16_t area_mcm2);
+extern void np_charge_monitor_geom_gate(np_safety_state_t *state);
+
+/* CLIN_STIM charge-monitor channel index = bit position of NP_SAFETY_EN_CLIN_STIM.
+ * HD-tDCS accumulates on this channel (OI-CHARGE-02).                         */
+#define NP_SAFETY_CH_CLIN_STIM_IDX  13U
 
 /* ── Helper: build a clean state ────────────────────────────────────────────── */
 static np_safety_state_t fresh_state(void)
@@ -257,6 +263,135 @@ static void test_charge_accumulation_math(void)
           "ch 6 cut at 1000 µC limit");
 }
 
+/* ── Test: set_channel_area_mcm2 — HD-tDCS geometry (OI-CHARGE-02) ──────────── */
+
+static void test_set_channel_area_hd_tdcs(void)
+{
+    np_charge_monitor_init();
+
+    /* HD-tDCS 3.5mm electrode: area 96 milli-cm² → limit 40 × 96 = 3840 nC
+     * = 3.84 µC on CLIN_STIM channel (index 13).                            */
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_CLIN_STIM_IDX, 96U);
+
+    /* Accumulate 3.80 µC (3800 nC) — just UNDER the 3.84 µC limit: no trip.
+     * current = 19 µA, dt = 200000 µs → 19 × 200000 / 1000 = 3800 nC.        */
+    np_charge_monitor_accumulate(NP_SAFETY_CH_CLIN_STIM_IDX, 19U, 200000UL);
+    np_safety_state_t s = fresh_state();
+    np_charge_monitor_tick(&s);
+    check((s.status & NP_SAFETY_STATUS_CHARGE) == 0U,
+          "HD-tDCS: 3.80 µC < 3.84 µC limit → no trip");
+    check((s.granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)) != 0U,
+          "HD-tDCS: CLIN_STIM still granted below limit");
+
+    /* One more 60 nC push crosses 3.84 µC (3840 nC): 3800 + 60 = 3860 ≥ 3840. */
+    np_charge_monitor_accumulate(NP_SAFETY_CH_CLIN_STIM_IDX, 60U, 1000UL);
+    np_charge_monitor_tick(&s);
+    check((s.status & NP_SAFETY_STATUS_CHARGE) != 0U,
+          "HD-tDCS: crossing 3.84 µC → CHARGE set");
+    check((s.granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)) == 0U,
+          "HD-tDCS: CLIN_STIM cut at 3.84 µC geometry limit");
+}
+
+/* ── Test: set_channel_area_mcm2 reproduces the 1000 µC default from 25cm² ──── */
+
+static void test_set_channel_area_default_pad(void)
+{
+    np_charge_monitor_init();
+
+    /* Standard 25 cm² pad: area 25000 milli-cm² → 40 × 25000 = 1,000,000 nC
+     * = 1000 µC (identical to the reset default).                           */
+    np_charge_monitor_set_channel_area_mcm2(3U, 25000U);
+
+    /* 999 µC accumulated should NOT trip (below 1000 µC).                    */
+    np_charge_monitor_accumulate(3U, 999U, 1000000UL);   /* 999 µC */
+    np_safety_state_t s = fresh_state();
+    np_charge_monitor_tick(&s);
+    check((s.status & NP_SAFETY_STATUS_CHARGE) == 0U,
+          "25cm² area path: 999 µC < 1000 µC → no trip");
+
+    /* Area 0 = keep current limit (no override): channel 4 stays at default. */
+    np_charge_monitor_set_channel_area_mcm2(4U, 0U);
+    np_charge_monitor_accumulate(4U, 1U, 1000000UL);     /* 1 µC << 1000 µC */
+    s = fresh_state();
+    np_charge_monitor_tick(&s);
+    check((s.status & NP_SAFETY_STATUS_CHARGE) == 0U,
+          "area 0 leaves default limit intact (1 µC << 1000 µC)");
+}
+
+/* ── Test: area override on one channel does not weaken others (ISC-12) ─────── */
+
+static void test_area_override_isolated(void)
+{
+    np_charge_monitor_init();
+
+    /* Tighten CLIN_STIM (ch 13) to 3.84 µC via area. */
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_CLIN_STIM_IDX, 96U);
+
+    /* Channel 0 (untouched) must retain its 1000 µC default: 500 µC → no trip. */
+    np_charge_monitor_accumulate(0U, 500U, 1000000UL);   /* 500 µC */
+    np_safety_state_t s = fresh_state();
+    np_charge_monitor_tick(&s);
+    check((s.granted_mask & (1U << 0)) != 0U,
+          "untouched ch 0 keeps 1000 µC default after ch 13 area override");
+    check((s.status & NP_SAFETY_STATUS_CHARGE) == 0U,
+          "500 µC on default-limit ch 0 does not trip");
+}
+
+/* ── Test: OI-CHARGE-03 geometry gate blocks CLIN_STIM until area applied ───── */
+
+static void test_geom_gate_blocks_until_applied(void)
+{
+    np_charge_monitor_reset_session();   /* geom NOT applied yet */
+
+    /* Session requires geometry override, none applied → CLIN_STIM blocked. */
+    np_safety_state_t s = fresh_state();
+    s.geom_required = true;
+    np_charge_monitor_geom_gate(&s);
+    check((s.granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)) == 0U,
+          "geom gate: CLIN_STIM blocked when required and not applied (fail-closed)");
+    /* Other channels untouched by the gate. */
+    check((s.granted_mask & (1U << 6)) != 0U,
+          "geom gate: non-CLIN_STIM channels unaffected");
+
+    /* Apply HD-tDCS electrode area to CLIN_STIM → gate opens. */
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_CLIN_STIM_IDX, 96U);
+    np_safety_state_t s2 = fresh_state();
+    s2.geom_required = true;
+    np_charge_monitor_geom_gate(&s2);
+    check((s2.granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)) != 0U,
+          "geom gate: CLIN_STIM granted after area applied");
+}
+
+/* ── Test: geometry gate does NOT block clinical tACS (no override declared) ── */
+
+static void test_geom_gate_not_required_passes(void)
+{
+    np_charge_monitor_reset_session();   /* geom NOT applied */
+
+    /* Clinical tACS: shares CLIN_STIM but the hub does not set geom_required. */
+    np_safety_state_t s = fresh_state();
+    s.geom_required = false;
+    np_charge_monitor_geom_gate(&s);
+    check((s.granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)) != 0U,
+          "geom gate: CLIN_STIM NOT blocked when geom_required is false (tACS)");
+}
+
+/* ── Test: geometry gate re-arms each session ───────────────────────────────── */
+
+static void test_geom_gate_rearms_each_session(void)
+{
+    /* Apply area (gate opens), then a new session must re-arm the gate. */
+    np_charge_monitor_reset_session();
+    np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_CLIN_STIM_IDX, 96U);
+
+    np_charge_monitor_reset_session();   /* new session — applied flag cleared */
+    np_safety_state_t s = fresh_state();
+    s.geom_required = true;
+    np_charge_monitor_geom_gate(&s);
+    check((s.granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)) == 0U,
+          "geom gate: re-armed after reset_session (blocks again until re-applied)");
+}
+
 /* ── Main ───────────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -271,6 +406,12 @@ int main(void)
     test_out_of_range_channel_ignored();
     test_tick_idempotent_after_trip();
     test_charge_accumulation_math();
+    test_set_channel_area_hd_tdcs();
+    test_set_channel_area_default_pad();
+    test_area_override_isolated();
+    test_geom_gate_blocks_until_applied();
+    test_geom_gate_not_required_passes();
+    test_geom_gate_rearms_each_session();
 
     printf("\n%s: %d failure(s)\n",
            (g_failures == 0) ? "PASS" : "FAIL", g_failures);

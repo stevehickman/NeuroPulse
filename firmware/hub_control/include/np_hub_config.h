@@ -91,6 +91,25 @@
 #define NP_SAFETY_EN_CLIN_STIM      (1U << 13)  /* gates 16-ch tACS driver (covers CLIN_TACS + HD_TDCS) */
 #define NP_SAFETY_EN_AUDIO          0U    /* audio not safety-MCU-gated */
 
+/* Safety-MCU charge-monitor channel INDEX for CLIN_STIM (= bit position of
+ * NP_SAFETY_EN_CLIN_STIM).  HD-tDCS accumulates charge on this channel against
+ * the anode (peak per-electrode) current.  OI-CHARGE-02.                      */
+#define NP_SAFETY_CH_CLIN_STIM      13U
+
+/* HD-tDCS electrode geometry for the charge-limit command (OI-CHARGE-02).
+ * 3.5mm Ag/AgCl sintered electrode area = 0.0962 cm² (NP_HD_ELECTRODE_AREA_CM2
+ * in sloreta_hdtdcs/include/np_hd_config.h).  Expressed in milli-cm² and
+ * FLOORED (0.0962 × 1000 = 96.2 → 96) so the safety MCU's derived limit
+ * (40µC/cm² × 96 = 3840nC = 3.84µC) never exceeds the true 40µC/cm² ceiling.  */
+#define NP_HD_SMALL_ELECTRODE_AREA_MCM2  96U
+
+/* HD-tDCS montage codes (np_mod_hd_tdcs_params_t.montage).  Ring and bilateral
+ * 4×1 use the 3.5mm small electrodes; standard 2-electrode uses the default
+ * 25cm² pad (no charge-limit override needed).                               */
+#define NP_HD_MONTAGE_RING_4X1       0U
+#define NP_HD_MONTAGE_BILATERAL_4X1  1U
+#define NP_HD_MONTAGE_STANDARD_2EL   2U
+
 /* Safety MCU status flags (returned in each heartbeat reply). */
 #define NP_SAFETY_STATUS_OK          0x00U
 #define NP_SAFETY_STATUS_FAULT       (1U << 0)

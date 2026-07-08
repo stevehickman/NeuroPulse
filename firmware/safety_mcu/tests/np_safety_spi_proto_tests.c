@@ -58,6 +58,15 @@ static uint16_t cmd_checksum(const np_safety_sig_cmd_t *c)
     return sum;
 }
 
+static uint16_t chan_limit_checksum(const np_safety_chan_limit_cmd_t *c)
+{
+    uint16_t sum = 0U;
+    const uint8_t *b = (const uint8_t *)c;
+    uint8_t i;
+    for (i = 0U; i < (NP_SAFETY_CHAN_LIMIT_FRAME_LEN - 2U); i++) { sum += b[i]; }
+    return sum;
+}
+
 /* ── Test: compile-time and runtime size assertions ────────────────────────── */
 
 static void test_frame_sizes(void)
@@ -402,6 +411,82 @@ static void test_ext_frame_channel_count_clamping(void)
           "current_ua array byte-size == 14 × 2 == 28");
 }
 
+/* ── OI-CHARGE-02: per-channel charge-limit command frame tests ────────────── */
+
+static void test_chan_limit_frame_sizes(void)
+{
+    check(sizeof(np_safety_chan_limit_cmd_t) == NP_SAFETY_CHAN_LIMIT_FRAME_LEN,
+          "np_safety_chan_limit_cmd_t size == NP_SAFETY_CHAN_LIMIT_FRAME_LEN (34)");
+    check(NP_SAFETY_CHAN_LIMIT_FRAME_LEN == 34U,
+          "NP_SAFETY_CHAN_LIMIT_FRAME_LEN == 34");
+
+    /* Distinct from every other frame length (NSS-length discrimination). */
+    check(NP_SAFETY_CHAN_LIMIT_FRAME_LEN != NP_SAFETY_FRAME_LEN &&
+          NP_SAFETY_CHAN_LIMIT_FRAME_LEN != NP_SAFETY_RX_EXT_FRAME_LEN &&
+          NP_SAFETY_CHAN_LIMIT_FRAME_LEN != NP_SAFETY_CMD_FRAME_LEN,
+          "chan-limit frame length distinct from 8/38/102");
+}
+
+static void test_chan_limit_frame_offsets(void)
+{
+    check(offsetof(np_safety_chan_limit_cmd_t, cmd_magic) == 0U,  "chan_limit.cmd_magic at 0");
+    check(offsetof(np_safety_chan_limit_cmd_t, cmd_type)  == 2U,  "chan_limit.cmd_type at 2");
+    check(offsetof(np_safety_chan_limit_cmd_t, reserved)  == 3U,  "chan_limit.reserved at 3");
+    check(offsetof(np_safety_chan_limit_cmd_t, area_mcm2) == 4U,  "chan_limit.area_mcm2 at 4");
+    check(offsetof(np_safety_chan_limit_cmd_t, checksum)  == 32U, "chan_limit.checksum at 32");
+    check(sizeof(((np_safety_chan_limit_cmd_t *)0)->area_mcm2) ==
+              NP_SAFETY_MAX_CHANNELS * sizeof(uint16_t),
+          "area_mcm2 byte-size == 14 × 2 == 28");
+    check(NP_SAFETY_CMD_CHAN_LIMIT == 0x02U, "NP_SAFETY_CMD_CHAN_LIMIT == 0x02");
+    check(NP_SAFETY_CMD_CHAN_LIMIT != NP_SAFETY_CMD_SESSION_SIG,
+          "chan-limit cmd_type distinct from session-sig cmd_type");
+}
+
+static void test_chan_limit_checksum(void)
+{
+    np_safety_chan_limit_cmd_t cmd;
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.cmd_magic[0] = NP_SAFETY_CMD_MAGIC_0;
+    cmd.cmd_magic[1] = NP_SAFETY_CMD_MAGIC_1;
+    cmd.cmd_type     = NP_SAFETY_CMD_CHAN_LIMIT;
+    cmd.area_mcm2[13] = 96U;      /* HD-tDCS on CLIN_STIM channel */
+    cmd.area_mcm2[6]  = 25000U;   /* standard pad on another channel */
+    cmd.checksum = chan_limit_checksum(&cmd);
+
+    check(chan_limit_checksum(&cmd) == cmd.checksum,
+          "chan-limit checksum round-trip match");
+
+    /* Corrupt a payload byte — checksum must diverge. */
+    cmd.area_mcm2[13] ^= 0x00FFU;
+    check(chan_limit_checksum(&cmd) != cmd.checksum,
+          "chan-limit checksum detects area corruption");
+
+    /* Restore; a good frame must validate. */
+    cmd.area_mcm2[13] ^= 0x00FFU;
+    check(chan_limit_checksum(&cmd) == cmd.checksum,
+          "chan-limit checksum valid after restore");
+}
+
+/* ── OI-CHARGE-03: geometry-required session_status bit ─────────────────────── */
+
+static void test_geom_required_session_status_bit(void)
+{
+    check(NP_SESSION_STATUS_GEOM_REQUIRED == (1U << 2),
+          "NP_SESSION_STATUS_GEOM_REQUIRED == bit 2");
+    /* Distinct from ACTIVE (bit 0) and CVNS_REENABLE (bit 1). */
+    check((NP_SESSION_STATUS_GEOM_REQUIRED & NP_SESSION_STATUS_ACTIVE) == 0U,
+          "GEOM_REQUIRED distinct from ACTIVE");
+    check((NP_SESSION_STATUS_GEOM_REQUIRED & NP_SESSION_STATUS_CVNS_REENABLE) == 0U,
+          "GEOM_REQUIRED distinct from CVNS_REENABLE");
+
+    /* All three coexist in one session_status byte without overlap. */
+    uint8_t s = (uint8_t)(NP_SESSION_STATUS_ACTIVE |
+                          NP_SESSION_STATUS_CVNS_REENABLE |
+                          NP_SESSION_STATUS_GEOM_REQUIRED);
+    check((s & NP_SESSION_STATUS_GEOM_REQUIRED) != 0U,
+          "GEOM_REQUIRED recoverable when all three bits set");
+}
+
 /* ── Main ───────────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -424,6 +509,14 @@ int main(void)
     test_ext_frame_data_checksum();
     test_ext_frame_magic_matches_heartbeat();
     test_ext_frame_channel_count_clamping();
+
+    /* OI-CHARGE-02 — per-channel charge-limit command frame tests */
+    test_chan_limit_frame_sizes();
+    test_chan_limit_frame_offsets();
+    test_chan_limit_checksum();
+
+    /* OI-CHARGE-03 — geometry-required session_status bit */
+    test_geom_required_session_status_bit();
 
     printf("\n%s: %d failure(s)\n",
            (g_failures == 0) ? "PASS" : "FAIL", g_failures);

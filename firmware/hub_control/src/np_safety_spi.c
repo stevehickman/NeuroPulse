@@ -13,6 +13,11 @@
 static volatile uint16_t s_requested_mask = 0U;
 static volatile uint16_t s_granted_mask   = 0U;
 static volatile uint8_t  s_mcu_status     = NP_SAFETY_STATUS_OK;
+/* OI-CHARGE-03: set true by the session runner while a small-electrode modality
+ * (HD-tDCS ring/bilateral) is in the session.  Every heartbeat then carries
+ * NP_SESSION_STATUS_GEOM_REQUIRED so the safety MCU keeps CLIN_STIM blocked
+ * until it has applied the electrode-area command (fail-safe).              */
+static volatile bool     s_geom_required  = false;
 
 /* s_requested_mask is protected by the FreeRTOS task-level critical section
  * (taskENTER_CRITICAL / taskEXIT_CRITICAL).  These functions are called from
@@ -66,6 +71,12 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
     tx.magic[0]      = NP_SAFETY_BEAT_MAGIC_0;
     tx.magic[1]      = NP_SAFETY_BEAT_MAGIC_1;
     tx.session_status = (uint8_t)session_state;
+    /* OI-CHARGE-03: advertise the geometry-override requirement every frame so
+     * the safety MCU's fail-safe gate cannot be disarmed by a single lost
+     * heartbeat.  Set BEFORE the base checksum (which covers bytes [0..5]).  */
+    if (s_geom_required) {
+        tx.session_status |= (uint8_t)NP_SESSION_STATUS_GEOM_REQUIRED;
+    }
     tx.enable_lo     = (uint8_t)(requested_enable_mask & 0xFFU);
     tx.enable_hi     = (uint8_t)((requested_enable_mask >> 8) & 0xFFU);
 
@@ -151,6 +162,47 @@ np_hub_status_t np_safety_spi_send_session_sig(const uint8_t *hash,
     return NP_HUB_OK;
 }
 
+np_hub_status_t np_safety_spi_send_channel_limits(const uint16_t *area_mcm2,
+                                                   uint8_t         count)
+{
+    np_safety_chan_limit_cmd_t cmd;
+    /* rx_dummy: discard the MCU's concurrent transmission during the cmd frame. */
+    uint8_t rx_dummy[NP_SAFETY_CHAN_LIMIT_FRAME_LEN];
+    uint8_t ch;
+
+    if (area_mcm2 == NULL || count == 0U || count > NP_SAFETY_MAX_CHANNELS) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.cmd_magic[0] = NP_SAFETY_CMD_MAGIC_0;
+    cmd.cmd_magic[1] = NP_SAFETY_CMD_MAGIC_1;
+    cmd.cmd_type     = NP_SAFETY_CMD_CHAN_LIMIT;
+    cmd.reserved     = 0U;
+    for (ch = 0U; ch < count; ch++) {
+        cmd.area_mcm2[ch] = area_mcm2[ch];
+    }
+    /* Remaining entries stay 0 (memset) → "keep default" on the MCU. */
+    cmd.checksum = compute_checksum((const uint8_t *)&cmd,
+                                    NP_SAFETY_CHAN_LIMIT_FRAME_LEN - 2U);
+
+    np_hub_status_t rc = np_safety_hal_spi_transfer((const uint8_t *)&cmd,
+                                                    rx_dummy,
+                                                    NP_SAFETY_CHAN_LIMIT_FRAME_LEN);
+    if (rc != NP_HUB_OK) {
+        return NP_HUB_ERR_TIMEOUT;
+    }
+
+    return NP_HUB_OK;
+}
+
+void np_safety_spi_set_geom_required(bool required)
+{
+    taskENTER_CRITICAL();
+    s_geom_required = required;
+    taskEXIT_CRITICAL();
+}
+
 void np_safety_spi_request_enable(uint16_t channel_mask)
 {
     taskENTER_CRITICAL();
@@ -169,6 +221,7 @@ void np_safety_spi_disable_all(void)
 {
     taskENTER_CRITICAL();
     s_requested_mask = 0U;
+    s_geom_required  = false;   /* OI-CHARGE-03: clear the geometry flag on abort/end */
     taskEXIT_CRITICAL();
 }
 

@@ -224,6 +224,44 @@ np_hub_status_t np_runner_run(void)
 
     np_log_session_start(&s_ctx.uhdr);
 
+    /* ── OI-CHARGE-02: deliver electrode geometry to the safety MCU ──────────── */
+    /* Scan the (already-verified) descriptor for HD-tDCS commands using the
+     * small 3.5mm ring/bilateral electrodes and hand the safety MCU their
+     * electrode area so its charge monitor enforces the geometry-correct
+     * 40µC/cm² limit (3.84µC) on CLIN_STIM instead of the 1000µC pad default.
+     * Only the area is sent — the density constant stays on the safety MCU.
+     * Sent during setup, before any CLIN_STIM enable is requested.            */
+    {
+        uint16_t area_mcm2[NP_SAFETY_MAX_CHANNELS];
+        bool     have_override = false;
+        memset(area_mcm2, 0, sizeof(area_mcm2));
+
+        for (uint8_t i = 0U; i < s_ctx.desc.cmd_count; i++) {
+            const np_session_cmd_t *c = &s_ctx.desc.cmds[i];
+            if (c->mod_type == NP_MOD_HD_TDCS &&
+                c->params_len >= sizeof(np_mod_hd_tdcs_params_t)) {
+                const np_mod_hd_tdcs_params_t *p =
+                    (const np_mod_hd_tdcs_params_t *)(const void *)c->params;
+                if (p->montage == NP_HD_MONTAGE_RING_4X1 ||
+                    p->montage == NP_HD_MONTAGE_BILATERAL_4X1) {
+                    area_mcm2[NP_SAFETY_CH_CLIN_STIM] =
+                        NP_HD_SMALL_ELECTRODE_AREA_MCM2;
+                    have_override = true;
+                }
+            }
+        }
+
+        if (have_override) {
+            /* OI-CHARGE-03: arm the safety MCU's fail-safe gate FIRST (every
+             * heartbeat now carries GEOM_REQUIRED), then deliver the area.  If
+             * the area command is lost, the MCU keeps CLIN_STIM disabled until
+             * a retry lands — HD-tDCS never runs at the permissive default.   */
+            np_safety_spi_set_geom_required(true);
+            (void)np_safety_spi_send_channel_limits(area_mcm2,
+                                                    NP_SAFETY_MAX_CHANNELS);
+        }
+    }
+
     uint32_t last_telem_ms = 0U;
 
     for (;;) {
