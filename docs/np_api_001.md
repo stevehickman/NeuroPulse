@@ -1,6 +1,6 @@
 # T2 Clinical Scripting API Specification
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-API-001
 **Revision:** A
 **Date:** 2026-06-07
@@ -19,8 +19,8 @@
 
 ## §1 Purpose and Scope
 
-The NeuroPulse T2 Clinical Scripting API enables authorised researchers and clinicians to:
-- Upload and compile custom NPPS session protocols to a patient's NeuroPulse T2 device
+The NeurOne T2 Clinical Scripting API enables authorised researchers and clinicians to:
+- Upload and compile custom NPPS session protocols to a patient's NeurOne T2 device
 - Monitor live session telemetry via WebSocket
 - Retrieve FHIR R4-formatted session outcome data
 - Query SHDR device health metrics for fleet monitoring
@@ -60,7 +60,7 @@ This document is a G1 gate deliverable per NP-COORD-001 and NP-PRIV-REM-001 STEP
 **ALL THREE of the following conditions must be simultaneously true for any UHDR element to be returned:**
 
 1. **Explicit consent grant** — the user has actively consented to clinical data access via the app (separate from onboarding consent; revocable at any time independently)
-2. **API access toggle enabled** — the user has enabled the API access toggle in the NeuroPulse app (a distinct user-controlled setting, independent of consent)
+2. **API access toggle enabled** — the user has enabled the API access toggle in the NeurOne app (a distinct user-controlled setting, independent of consent)
 3. **Element within use-case scope** — the requested data element falls within the requesting tier's documented minimum-necessary scope (§2.2)
 
 If **any** condition is false: return `403 Forbidden` with `"np_error_code": "UHDR_ACCESS_DENIED"`. Never return partial UHDR data with one or two conditions met.
@@ -71,7 +71,7 @@ If **any** condition is false: return `403 Forbidden` with `"np_error_code": "UH
 
 ## §3 REST API Endpoints
 
-**Base URL:** `https://api.neuropulse.com/t2/v1`
+**Base URL:** `https://api.neurone.life/t2/v1`
 
 All requests require:
 - `Authorization: Bearer NP-T2-{key}` header
@@ -239,7 +239,7 @@ Returns the caller's own API audit log entries. Query parameters: `from`, `to` (
 
 ### 4.1 Connection
 
-**Endpoint:** `wss://hub.neuropulse.com/t2/session` (cloud proxy) or `ws://{device-ip}:9000` (direct LAN)
+**Endpoint:** `wss://hub.neurone.life/t2/session` (cloud proxy) or `ws://{device-ip}:9000` (direct LAN)
 
 **Authentication:** Present API key in HTTP upgrade header: `Authorization: Bearer NP-T2-{key}`
 
@@ -339,11 +339,11 @@ Every API call (including denied requests) is logged:
 }
 ```
 
-Audit logs are retained for 7 years (HIPAA minimum). Callers can retrieve their own audit log (§3.8); NeuroPulse support can retrieve all logs under BAA.
+Audit logs are retained for 7 years (HIPAA minimum). Callers can retrieve their own audit log (§3.8); NeurOne support can retrieve all logs under BAA.
 
 ### 6.4 Research tier anonymisation
 
-Research tier responses use on-device anonymisation (NP-FW-ANON-001 Rev A): k-anonymity k≥10, l-diversity l≥3, differential privacy ε≤1.0, δ≤10⁻⁵. NeuroPulse never processes raw UHDR — anonymisation is performed entirely on-device; only the anonymised extract is transmitted. NP-ANON-CERT-[study_id] (signed Expert Determination certification) required before each study descriptor is deployed (NP-PRIV-REM-001 STEP-32).
+Research tier responses use on-device anonymisation (NP-FW-ANON-001 Rev A): k-anonymity k≥10, l-diversity l≥3, differential privacy ε≤1.0, δ≤10⁻⁵. NeurOne never processes raw UHDR — anonymisation is performed entirely on-device; only the anonymised extract is transmitted. NP-ANON-CERT-[study_id] (signed Expert Determination certification) required before each study descriptor is deployed (NP-PRIV-REM-001 STEP-32).
 
 ---
 
@@ -378,7 +378,7 @@ All error responses: `{ "np_error_code": "...", "message": "...", "request_id": 
 | 404 | DEVICE_NOT_FOUND | device_id not registered or not associated with account |
 | 404 | PATIENT_NOT_FOUND | patient_token not registered |
 | 409 | SESSION_CONFLICT | Device already has a pending or active session |
-| 422 | DOSE_LIMIT_EXCEEDED | Protocol exceeds NeuroPulse safety dose limits |
+| 422 | DOSE_LIMIT_EXCEEDED | Protocol exceeds NeurOne safety dose limits |
 | 429 | RATE_LIMIT_EXCEEDED | Rate limit hit; see Retry-After header |
 | 500 | INTERNAL_ERROR | Server error; include request_id when contacting support |
 | 503 | HUB_UNAVAILABLE | Device hub not reachable (device offline or unreachable) |
@@ -388,7 +388,7 @@ All error responses: `{ "np_error_code": "...", "message": "...", "request_id": 
 ## §9 Security Requirements
 
 1. **TLS 1.3 mandatory** — all REST and WebSocket connections; no TLS 1.2 fallback; permitted cipher suites: TLS_AES_256_GCM_SHA384, TLS_CHACHA20_POLY1305_SHA256
-2. **Certificate pinning** — hub WebSocket clients pin the NeuroPulse intermediate CA certificate (SPKI SHA-256 hash); implementation pattern per NP-PRIV-ANALYSIS-002 LOW-11
+2. **Certificate pinning** — hub WebSocket clients pin the NeurOne intermediate CA certificate (SPKI SHA-256 hash); implementation pattern per NP-PRIV-ANALYSIS-002 LOW-11
 3. **Key vault required** — API keys must never be stored in source code, config files, or logs; key vault injection at runtime required for all automated callers
 4. **Independent security audit** — NP-SEC-PENTEST-002 scope and execution required before any external clinical API key is issued; audit must cover: authentication bypass, UHDR gate bypass, rate-limit bypass, key expiry bypass, SPI injection via WebSocket
 5. **CI boundary enforcement** — the following must have automated tests in the API server's CI pipeline:

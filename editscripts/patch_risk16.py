@@ -76,7 +76,7 @@ def append_table_row(tbl, cols_data, widths_in, bg_even="FFFFFF", status_col=Non
 # 1.  FPC spec §12 — replace RTV bead with Option A gasket spec
 # ─────────────────────────────────────────────────────────────────────────────
 
-SPEC_PATH = "docs/neuropulse_fpc_zone_module_spec_revA.docx"
+SPEC_PATH = "docs/neurone_fpc_zone_module_spec_revA.docx"
 spec = Document(SPEC_PATH)
 
 GASKET_SPEC = (
@@ -136,7 +136,7 @@ print(f"  FPC spec saved ({s12_changes} changes)")
 # 2.  Risk register — RISK-16 → MITIGATED + detailed section
 # ─────────────────────────────────────────────────────────────────────────────
 
-RISK_PATH = "docs/neuropulse_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
 risk_doc = Document(RISK_PATH)
 
 for row in risk_doc.tables[0].rows:
@@ -221,7 +221,7 @@ print(f"  Risk register saved")
 # 3.  NP-COORD-001 — update G2-05
 # ─────────────────────────────────────────────────────────────────────────────
 
-COORD_PATH = "docs/neuropulse_eng_coordination_checklist.docx"
+COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
 coord = Document(COORD_PATH)
 
 for tbl in coord.tables:
@@ -269,7 +269,7 @@ print(f"  Coord checklist saved")
 # 4.  NP-FAI-ZM-001 — add §4c Sealing and IPX4 Verification
 # ─────────────────────────────────────────────────────────────────────────────
 
-FAI_PATH = "docs/neuropulse_fai_zone_module.docx"
+FAI_PATH = "docs/neurone_fai_zone_module.docx"
 fai = Document(FAI_PATH)
 
 # We need to insert a new sub-section heading "4c. Sealing and IPX4 Verification"

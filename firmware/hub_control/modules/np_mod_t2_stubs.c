@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control — T2 and Accessory Module Stubs
+ * NeurOne Hub Control — T2 and Accessory Module Stubs
  * Document: NP-FW-HUB-001 Rev B
  *
  * Placeholder detect/init/control/telemetry/shutdown implementations for T2

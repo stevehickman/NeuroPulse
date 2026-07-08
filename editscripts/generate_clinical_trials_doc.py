@@ -1,5 +1,5 @@
 """
-Generate NeuroPulse clinical trials strategy document and additional modalities document.
+Generate NeurOne clinical trials strategy document and additional modalities document.
 """
 from docx import Document
 from docx.shared import Pt, RGBColor, Inches, Cm
@@ -118,7 +118,7 @@ for section in doc.sections:
 t = doc.add_table(rows=1, cols=1)
 set_bg(t.rows[0].cells[0], "1F3864")
 p = t.rows[0].cells[0].paragraphs[0]
-r = p.add_run("NeuroPulse — Clinical Evidence & Trials Strategy")
+r = p.add_run("NeurOne — Clinical Evidence & Trials Strategy")
 r.bold = True; r.font.size = Pt(14); r.font.color.rgb = RGBColor(0xFF,0xFF,0xFF)
 p.paragraph_format.space_before = Pt(6); p.paragraph_format.space_after = Pt(2)
 p2 = t.rows[0].cells[0].add_paragraph()
@@ -131,7 +131,7 @@ doc.add_paragraph()
 add_heading(doc, "1. Commercial Rationale — The All-in-One Proposition", level=1, color=(0x1F,0x38,0x64))
 
 add_para(doc,
-    "NeuroPulse does not require multi-modal synergy claims to succeed commercially. "
+    "NeurOne does not require multi-modal synergy claims to succeed commercially. "
     "Each of the 8 T1 modalities (11 in T2) carries independent clinical evidence. "
     "The primary value proposition is straightforward:", size=9)
 
@@ -139,7 +139,7 @@ add_bullet(doc,
     "One device replaces up to 8 separate devices (PBM headset, neurofeedback system, "
     "tDCS/tACS stimulator, VNS device, audio entrainment player, visual stimulation "
     "goggles, intranasal probe, HRV monitor). Cumulative retail cost of equivalent "
-    "individual devices: $8,000–$25,000+. NeuroPulse Home Standard: $849.",
+    "individual devices: $8,000–$25,000+. NeurOne Home Standard: $849.",
     bold_prefix="Lower cost: ")
 add_bullet(doc,
     "One wearable platform, one charging cable, one app, one subscription. "
@@ -152,16 +152,16 @@ add_bullet(doc,
     bold_prefix="Modality choice: ")
 add_bullet(doc,
     "If simultaneous multi-modal use produces synergistic effects — and early evidence "
-    "suggests it does for some combinations — NeuroPulse is the only consumer platform "
+    "suggests it does for some combinations — NeurOne is the only consumer platform "
     "positioned to demonstrate and deliver those effects at scale.",
     bold_prefix="Multi-modal upside: ")
 
 doc.add_paragraph()
-add_heading(doc, "1.1 Why Vielight's 35+ RCTs Partially Support NeuroPulse", level=2)
+add_heading(doc, "1.1 Why Vielight's 35+ RCTs Partially Support NeurOne", level=2)
 
 add_para(doc,
     "Vielight has published or supported more than 35 clinical trials of transcranial "
-    "and intranasal PBM. These trials are directly relevant to NeuroPulse — but with "
+    "and intranasal PBM. These trials are directly relevant to NeurOne — but with "
     "important distinctions that determine how they can be used in marketing and "
     "regulatory contexts.", size=9)
 
@@ -169,29 +169,29 @@ add_para(doc, "WHAT TRANSFERS:", size=9, bold=True)
 add_bullet(doc,
     "The Vielight trials establish that transcranial + intranasal PBM at 810nm is safe, "
     "feasible for home use, and produces measurable neurological effects across cognition, "
-    "PTSD/TBI, and sleep outcomes. NeuroPulse's bibliography cites these trials to "
+    "PTSD/TBI, and sleep outcomes. NeurOne's bibliography cites these trials to "
     "establish that PBM is a legitimate, evidence-backed modality.")
 add_bullet(doc,
     "For FDA general wellness positioning and FTC claims substantiation, the Vielight "
-    "body of evidence is relevant prior art. NeuroPulse can cite it as background "
+    "body of evidence is relevant prior art. NeurOne can cite it as background "
     "scientific context supporting the modality category.")
 add_bullet(doc,
     "The Vielight Neuro EEG study (2025) — proving that itPBM reorganises neural "
-    "oscillations and functional network connectivity — directly supports NeuroPulse's "
+    "oscillations and functional network connectivity — directly supports NeurOne's "
     "combined PBM + EEG neurofeedback architecture.")
 
 add_para(doc, "WHAT DOES NOT TRANSFER:", size=9, bold=True)
 add_bullet(doc,
     "Device equivalence: Vielight RCTs used Vielight devices at specific irradiance, "
-    "duty cycle, and LED count. NeuroPulse (600 LEDs, dual-wavelength, 400 mW/cm² "
+    "duty cycle, and LED count. NeurOne (600 LEDs, dual-wavelength, 400 mW/cm² "
     "pulsed, 5 independently addressable zones) has no published comparator. Any "
-    "marketing claim implying NeuroPulse produces outcomes 'at least as good as Vielight' "
+    "marketing claim implying NeurOne produces outcomes 'at least as good as Vielight' "
     "requires head-to-head data or regulatory counsel opinion.")
 add_bullet(doc,
     "Multi-modal interaction: No published trial tests PBM combined with BES, tDCS, "
     "VNS, audio entrainment, and visual stimulation simultaneously. Vielight trials "
-    "are single-modality (PBM only). If NeuroPulse makes outcome claims implying "
-    "benefit from the combined protocol, those require NeuroPulse-specific data.")
+    "are single-modality (PBM only). If NeurOne makes outcome claims implying "
+    "benefit from the combined protocol, those require NeurOne-specific data.")
 add_bullet(doc,
     "400 mW/cm² irradiance claim: RISK-03 (regulatory opinion pending) — this specific "
     "claim cannot appear in any public material until regulatory counsel clears it, "
@@ -199,8 +199,8 @@ add_bullet(doc,
 
 add_para(doc,
     "PRACTICAL RULE: Cite Vielight trials freely to establish that 'PBM is clinically "
-    "studied and evidence-supported.' Do not cite them to claim that NeuroPulse produces "
-    "equivalent or superior outcomes — that requires NeuroPulse-specific data or "
+    "studied and evidence-supported.' Do not cite them to claim that NeurOne produces "
+    "equivalent or superior outcomes — that requires NeurOne-specific data or "
     "regulatory opinion.", size=9, italic=True, color=(0x1F,0x38,0x64))
 
 doc.add_paragraph()
@@ -308,7 +308,7 @@ modality_data = [
      "Subcortical / deep structure (theoretical)",
      "Theoretical depth advantage (35–40mm): no published human RCT at 1170nm "
      "specifically. 1064nm cognition data (Yao/Science Advances 2022) is closest. "
-     "First-mover opportunity for NeuroPulse-sponsored human pilot.",
+     "First-mover opportunity for NeurOne-sponsored human pilot.",
      "Hamblin (tPBM review author); Yao/UT Dallas (1064nm cognition)"),
 ]
 
@@ -328,14 +328,14 @@ add_para(doc,
     "The central research gap: no published RCT has tested PBM + BES + VNS + audio + "
     "visual simultaneously in adults. However, several two-modality combinations have "
     "published evidence, and the trajectory of the field is clearly toward combination "
-    "protocols. NeuroPulse is the only consumer platform positioned to run these studies "
+    "protocols. NeurOne is the only consumer platform positioned to run these studies "
     "at scale.", size=9)
 doc.add_paragraph()
 
 # Best-evidenced combinations
 add_heading(doc, "3.1 tDCS + taVNS — Simultaneous Synergy Demonstrated", level=2)
 add_para(doc,
-    "This is the strongest published multi-modal evidence directly applicable to NeuroPulse.",
+    "This is the strongest published multi-modal evidence directly applicable to NeurOne.",
     size=9, bold=True, color=(0x1F,0x38,0x64))
 add_bullet(doc,
     "Aghajani et al., Brain Stimulation 2021 (PMID 33621676) — First simultaneous "
@@ -356,10 +356,10 @@ add_bullet(doc,
     "(n=66 target). Primary: MoCA. Results expected 2025.",
     bold_prefix="Active RCT: ")
 add_bullet(doc,
-    "NeuroPulse delivers tDCS (Cortical Priming Stimulation) and taVNS (auricular VNS) "
+    "NeurOne delivers tDCS (Cortical Priming Stimulation) and taVNS (auricular VNS) "
     "simultaneously from a single platform. This is the only published synergistic "
-    "combination NeuroPulse can claim today, with RCT support.",
-    bold_prefix="NeuroPulse relevance: ")
+    "combination NeurOne can claim today, with RCT support.",
+    bold_prefix="NeurOne relevance: ")
 doc.add_paragraph()
 
 add_heading(doc, "3.2 40Hz Audiovisual (GENUS) — Best-Evidenced Multi-Modal Protocol", level=2)
@@ -378,15 +378,15 @@ add_bullet(doc,
     "Largest non-pharmacological AD device pivotal trial ever.",
     bold_prefix="Phase 3 (HOPE): ")
 add_bullet(doc,
-    "NeuroPulse delivers 40Hz audio (binaural beats + bone conduction) AND 40Hz visual "
+    "NeurOne delivers 40Hz audio (binaural beats + bone conduction) AND 40Hz visual "
     "(108 LEDs/lens, 6 zones/eye) simultaneously. This directly replicates the Cognito "
-    "GENUS audiovisual protocol. NeuroPulse adds EEG-adaptive closed-loop verification "
+    "GENUS audiovisual protocol. NeurOne adds EEG-adaptive closed-loop verification "
     "that Cognito does not include — a meaningful architectural advantage.",
-    bold_prefix="NeuroPulse relevance: ")
+    bold_prefix="NeurOne relevance: ")
 add_bullet(doc,
     "Tsai lab (MIT, 2023): 40Hz tactile vibration (wristband) also reduces AD pathology "
     "in mice. Multi-sensory (visual + audio + tactile simultaneously) is the next "
-    "preclinical direction. NeuroPulse does not currently support 40Hz tactile vibration "
+    "preclinical direction. NeurOne does not currently support 40Hz tactile vibration "
     "(see modalities expansion document).",
     bold_prefix="Emerging: ")
 doc.add_paragraph()
@@ -396,7 +396,7 @@ add_bullet(doc,
     "ResearchGate January 2025: 'Efficiency of a Multimodal Neurotechnological Intervention "
     "(Cerebral Photobiomodulation, qEEG Neurofeedback, and Heart-Brain Biofeedback) in "
     "Enhancing Attention and Academic Performance in Middle School Students.' Nationally "
-    "conducted RCT. Three modalities simultaneously — directly relevant to NeuroPulse's "
+    "conducted RCT. Three modalities simultaneously — directly relevant to NeurOne's "
     "PBM + EEG + VNS/HRV stack. Population is children; adult replication needed.",
     bold_prefix="First published three-modality RCT: ")
 add_bullet(doc,
@@ -431,7 +431,7 @@ add_bullet(doc,
 add_bullet(doc,
     "Mechanism: tDCS primes neurons to be more responsive during the neurofeedback training "
     "window; timing (tDCS before or concurrent with NFB) is the key variable. "
-    "NeuroPulse can sequence or layer these modalities under firmware control.",
+    "NeurOne can sequence or layer these modalities under firmware control.",
     bold_prefix="Mechanism: ")
 doc.add_paragraph()
 
@@ -447,7 +447,7 @@ add_bullet(doc,
     "Better-energized neurons may respond more strongly to tDCS-induced plasticity.",
     bold_prefix="Mechanistic rationale: ")
 add_bullet(doc,
-    "NeuroPulse is uniquely positioned to run the first PBM + tDCS combination RCT for "
+    "NeurOne is uniquely positioned to run the first PBM + tDCS combination RCT for "
     "MCI/AD cognition. Rashidi-Ranjbar (Toronto) and Jog (UCLA) are natural co-PIs.",
     bold_prefix="Research opportunity: ")
 doc.add_paragraph()
@@ -463,7 +463,7 @@ combo_rows = [
     ("40Hz visual + audio (GENUS)",
      "Strong\n(Phase 2 RCT + Phase 3 enrolling)",
      "Cognito/Chan 2022; OVERTURE 2024 (n=76); HOPE Phase 3 n=670",
-     "High — NeuroPulse replicates this protocol"),
+     "High — NeurOne replicates this protocol"),
     ("PBM + qEEG NFB + HRV biofeedback",
      "Moderate\n(One 2025 RCT; children)",
      "ResearchGate 2025 (nationally conducted RCT)",
@@ -479,7 +479,7 @@ combo_rows = [
     ("PBM + tDCS",
      "Gap — no RCT\n(review only)",
      "JCM 2025 review; mechanistic rationale strong",
-     "High research priority — NeuroPulse first-mover"),
+     "High research priority — NeurOne first-mover"),
     ("PBM + tACS",
      "Gap — no data",
      "Hypothesis only",
@@ -499,7 +499,7 @@ combo_rows = [
 ]
 
 add_table(doc,
-    ["Combination", "Evidence Level", "Best Citation(s)", "NeuroPulse Relevance"],
+    ["Combination", "Evidence Level", "Best Citation(s)", "NeurOne Relevance"],
     combo_rows,
     col_widths=[1.5, 1.1, 2.6, 1.45],
     header_bg="1F3864")
@@ -531,7 +531,7 @@ researcher_rows = [
      "TMS (all forms), EEG-synchronized TMS, accelerated rTMS, MCI",
      "55 active studies, 15 TMS machines. Pioneer: helped achieve FDA TMS clearance 2008. "
      "First-in-human EEG-synchronized rTMS RCT (Brain Stimulation 2023) — directly aligned "
-     "with NeuroPulse EEG-adaptive architecture. MUSC MCI accelerated TMS trial 2023.",
+     "with NeurOne EEG-adaptive architecture. MUSC MCI accelerated TMS trial 2023.",
      "TRIAL PI (T2)", "3"),
     ("Margaret Naeser",
      "VA Boston / BU Neurology",
@@ -548,7 +548,7 @@ researcher_rows = [
      "Founder of GENUS field (Nature 2016). Director MIT Aging Brain Initiative. "
      "SAB role ONLY — Cognito Therapeutics conflict prevents PI role. "
      "Expanding 40Hz multi-sensory to tactile vibration. "
-     "Key scientific credentialing for NeuroPulse visual + audio modalities.",
+     "Key scientific credentialing for NeurOne visual + audio modalities.",
      "SAB (highest priority)", "5"),
     ("Glen Jeffery",
      "UCL Institute of Ophthalmology",
@@ -556,7 +556,7 @@ researcher_rows = [
      "Retinal PBM (670nm), age-related retinal decline, AMD",
      "World's leading retinal PBM researcher. Shinhmar 2021: single 3-min 670nm "
      "= 20% cone-mediated color vision improvement in older adults. "
-     "AMD pilot 2020 (n=42). Natural SAB candidate for NeuroPulse Mode F "
+     "AMD pilot 2020 (n=42). Natural SAB candidate for NeurOne Mode F "
      "(invisible NIR retinal PBM) scientific credentialing.",
      "SAB", "6"),
     ("Marom Bikson",
@@ -565,7 +565,7 @@ researcher_rows = [
      "tDCS (safety, dosimetry, HD-tDCS), closed-loop neuromodulation architecture",
      "2023 bioRxiv: scalable closed-loop neuromodulation framework (DL + EEG), "
      "modality-agnostic (tACS/tDCS/tFUS/TMS). tDCS safety data cited by FDA. "
-     "Technical advisory role for NeuroPulse's closed-loop architecture.",
+     "Technical advisory role for NeurOne's closed-loop architecture.",
      "TECHNICAL ADVISOR", "7"),
     ("Robert Reinhart",
      "Boston University",
@@ -585,7 +585,7 @@ researcher_rows = [
 
 add_table(doc,
     ["Researcher", "Institution", "Contact", "Focus Area(s)",
-     "Why NeuroPulse", "Role", "Priority"],
+     "Why NeurOne", "Role", "Priority"],
     researcher_rows,
     col_widths=[0.95, 1.1, 1.0, 1.05, 2.1, 0.85, 0.55],
     header_bg="1F3864")
@@ -610,7 +610,7 @@ add_para(doc,
     "than the real-time EEG guidance that ensures stimulation is delivered at the "
     "neurologically optimal moment.", size=9)
 add_para(doc,
-    "NeuroPulse's autonomous closed-loop EEG architecture is the consumer implementation "
+    "NeurOne's autonomous closed-loop EEG architecture is the consumer implementation "
     "of exactly this framework. The value is not that any single modality is better — "
     "it is that all modalities can be guided by the same real-time neural state.", size=9, italic=True)
 doc.add_paragraph()
@@ -625,8 +625,8 @@ add_para(doc,
 add_para(doc,
     "If true: PBM delivered first in a session sequence, followed by tDCS or neurofeedback, "
     "would produce greater neuroplastic change than either modality alone. This is testable "
-    "with NeuroPulse's sequencing firmware capabilities. No human RCT exists yet — "
-    "NeuroPulse could commission the first.", size=9, italic=True)
+    "with NeurOne's sequencing firmware capabilities. No human RCT exists yet — "
+    "NeurOne could commission the first.", size=9, italic=True)
 doc.add_paragraph()
 
 add_heading(doc, "5.3 taVNS as a Neuromodulatory Primer (Noradrenergic Enhancement)", level=2)
@@ -640,7 +640,7 @@ add_para(doc,
     "The confirmed tDCS + taVNS synergy (thalamus, parahippocampal gyrus) provides "
     "proof-of-concept that taVNS amplifies effects of concurrent stimulation modalities. "
     "Extending this to PBM + taVNS or neurofeedback + taVNS is a logical next step "
-    "that only NeuroPulse can test at consumer scale.", size=9, italic=True)
+    "that only NeurOne can test at consumer scale.", size=9, italic=True)
 doc.add_paragraph()
 
 add_heading(doc, "5.4 Multi-Sensory 40Hz — From Two Senses to Three", level=2)
@@ -651,10 +651,10 @@ add_para(doc,
     "two-sense combination. HOPE Phase 3 (n=670) tests visual + auditory; tactile is "
     "the next generation protocol.", size=9)
 add_para(doc,
-    "NeuroPulse currently delivers 40Hz visual and auditory simultaneously (replicating "
+    "NeurOne currently delivers 40Hz visual and auditory simultaneously (replicating "
     "GENUS). If the HOPE Phase 3 results are positive, and if Tsai's tactile data "
-    "translates to humans, adding a 40Hz vibrotactile component to a future NeuroPulse "
-    "hardware revision would position NeuroPulse at the forefront of GENUS-class "
+    "translates to humans, adding a 40Hz vibrotactile component to a future NeurOne "
+    "hardware revision would position NeurOne at the forefront of GENUS-class "
     "therapy. See additional modalities document.", size=9, italic=True)
 doc.add_paragraph()
 
@@ -666,39 +666,39 @@ add_para(doc,
     "more reliably engaged, (c) inter-individual variability in response is reduced. "
     "The EEG phase at the moment of stimulation — not the average EEG — determines outcome.", size=9)
 add_para(doc,
-    "NeuroPulse's EEG-adaptive architecture can implement this for all non-TMS modalities "
+    "NeurOne's EEG-adaptive architecture can implement this for all non-TMS modalities "
     "in T1 (tDCS, tACS, PBM sequencing) and for TMS in T2. This is the evidence base "
-    "for NeuroPulse's core architectural claim: EEG-guided delivery is better than "
+    "for NeurOne's core architectural claim: EEG-guided delivery is better than "
     "fixed-schedule delivery.", size=9, italic=True)
 doc.add_paragraph()
 add_divider(doc)
 
-# ── §6 NeuroPulse Trial Priority ───────────────────────────────────────────────
+# ── §6 NeurOne Trial Priority ───────────────────────────────────────────────
 add_heading(doc, "6. Recommended Clinical Trial Priority", level=1, color=(0x1F,0x38,0x64))
 
 trial_rows = [
     ("1",
      "SBIR Phase I\nPBM for MCI/Cognition",
      "Rashidi-Ranjbar (Toronto)\nor Naeser (VA Boston)",
-     "NeuroPulse tPBM vs sham. n=20–30, 12 weeks. "
-     "Replicate Vielight design with NeuroPulse hardware. "
-     "Generates first NeuroPulse-specific PBM data; enables comparative claims.",
+     "NeurOne tPBM vs sham. n=20–30, 12 weeks. "
+     "Replicate Vielight design with NeurOne hardware. "
+     "Generates first NeurOne-specific PBM data; enables comparative claims.",
      "$150K–$300K | 12–18 months | SBIR Phase I funding vehicle",
      "NOW"),
     ("2",
      "tDCS for Depression\n(Home-Based Replication)",
      "Jog (UCLA) or Brunoni group",
-     "NeuroPulse tDCS (CPS) vs sham, MDD, home-based. "
+     "NeurOne tDCS (CPS) vs sham, MDD, home-based. "
      "n=40–60. Replicate Brunoni Nature Medicine 2024 design. "
-     "Establishes NeuroPulse tDCS evidence; leverages existing protocol.",
+     "Establishes NeurOne tDCS evidence; leverages existing protocol.",
      "$200K–$400K | 12–18 months",
      "YEAR 1"),
     ("3",
      "tDCS + taVNS Synergy\nfor Cognitive Impairment",
      "Any MCI research centre;\nUniversity collaboration",
-     "Three-arm: NeuroPulse tDCS alone / taVNS alone / combined. "
+     "Three-arm: NeurOne tDCS alone / taVNS alone / combined. "
      "n=45–60. Replicate Frontiers Neuroscience 2022 design in MCI population. "
-     "First NeuroPulse-specific multi-modal synergy data.",
+     "First NeurOne-specific multi-modal synergy data.",
      "$250K–$400K | 18 months",
      "YEAR 1–2"),
     ("4",
@@ -713,7 +713,7 @@ trial_rows = [
     ("5",
      "EEG-Adaptive 40Hz AV\n(GENUS Replication + EEG)",
      "Tsai lab (SAB, not PI)\nor Rashidi-Ranjbar",
-     "NeuroPulse 40Hz visual + audio (GENUS protocol) + EEG-adaptive "
+     "NeurOne 40Hz visual + audio (GENUS protocol) + EEG-adaptive "
      "closed-loop vs Cognito fixed-schedule. Mild AD, n=30–50. "
      "Tests whether EEG guidance improves on fixed GENUS delivery.",
      "$350K–$500K | 18 months",
@@ -721,9 +721,9 @@ trial_rows = [
     ("6",
      "T2 — EEG-Synchronized\nTMS for TRD",
      "George (MUSC)\nTarget: SBIR Phase II",
-     "EEG phase-locked rTMS via NeuroPulse T2 platform vs standard rTMS. "
+     "EEG phase-locked rTMS via NeurOne T2 platform vs standard rTMS. "
      "Extends George's 2023 first-in-human RCT with larger n and "
-     "NeuroPulse-specific hardware. Generates T2 TMS data.",
+     "NeurOne-specific hardware. Generates T2 TMS data.",
      "$800K–$2M | 24–36 months | SBIR Phase II",
      "YEAR 3"),
 ]
@@ -739,7 +739,7 @@ add_divider(doc)
 
 # ── §7 Key Bibliography ────────────────────────────────────────────────────────
 add_heading(doc, "7. Key Bibliography", level=1, color=(0x1F,0x38,0x64))
-add_para(doc, "Cite-ready format. See neuropulse_bibliography.docx for full 33-entry bibliography.", size=8, italic=True)
+add_para(doc, "Cite-ready format. See neurone_bibliography.docx for full 33-entry bibliography.", size=8, italic=True)
 doc.add_paragraph()
 
 bibs = [
@@ -807,8 +807,8 @@ for category, citation in bibs:
     r2 = p.add_run(citation)
     r2.font.size = Pt(8)
 
-doc.save("docs/neuropulse_clinical_trials_strategy.docx")
-print("NP-CLIN-001 saved: docs/neuropulse_clinical_trials_strategy.docx")
+doc.save("docs/neurone_clinical_trials_strategy.docx")
+print("NP-CLIN-001 saved: docs/neurone_clinical_trials_strategy.docx")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -826,7 +826,7 @@ for section in doc2.sections:
 t2 = doc2.add_table(rows=1, cols=1)
 set_bg(t2.rows[0].cells[0], "1F3864")
 p = t2.rows[0].cells[0].paragraphs[0]
-r = p.add_run("NeuroPulse — Additional Modalities to Consider")
+r = p.add_run("NeurOne — Additional Modalities to Consider")
 r.bold = True; r.font.size = Pt(14); r.font.color.rgb = RGBColor(0xFF,0xFF,0xFF)
 p.paragraph_format.space_before = Pt(6); p.paragraph_format.space_after = Pt(2)
 p2 = t2.rows[0].cells[0].add_paragraph()
@@ -837,11 +837,11 @@ doc2.add_paragraph()
 
 add_para(doc2,
     "This document lists modalities identified in multi-modal clinical trials and "
-    "leading research that NeuroPulse does not currently support. For each, we note "
+    "leading research that NeurOne does not currently support. For each, we note "
     "the evidence, the research context in which it was found, the hardware requirements, "
     "and a priority assessment for potential future inclusion.", size=9)
 add_para(doc2,
-    "Current NeuroPulse T1 stack: transcranial PBM (660+810nm), intranasal PBM, "
+    "Current NeurOne T1 stack: transcranial PBM (660+810nm), intranasal PBM, "
     "EEG neurofeedback (8-ch), BES/tACS, tDCS, auricular VNS + HRV, neural audio "
     "entrainment, visual stimulation (40Hz gamma + EMDR). T2 adds TMS, 1170nm deep PBM, "
     "21-ch qEEG, clinical tACS.", size=9, italic=True)
@@ -866,7 +866,7 @@ modalities_ext = [
             "could be the next major addition to GENUS-class therapy.",
         "hardware":
             "A wristband or wearable pad delivering 40Hz vibration. Low engineering complexity "
-            "relative to most NeuroPulse modalities. Mass-market fitness wearables already "
+            "relative to most NeurOne modalities. Mass-market fitness wearables already "
             "contain vibration motors; precision 40Hz control is trivial. BOM estimate: "
             "+$5–10/headset for a wrist module or temple-pad vibrotactile actuator.",
         "integration":
@@ -875,7 +875,7 @@ modalities_ext = [
             "audio channel (same as bone conduction but haptic). "
             "No new MCU required.",
         "priority": "HIGH — if HOPE Phase 3 (mid-2026) is positive, 40Hz tactile becomes "
-                    "the logical Rev B NeuroPulse addition. Plan hardware provision now. "
+                    "the logical Rev B NeurOne addition. Plan hardware provision now. "
                     "Tsai SAB engagement is the critical path.",
         "action": "Await HOPE results (mid-2026). If positive: engage Tsai for tactile "
                   "protocol. Design vibrotactile module as hardware option Rev B or C.",
@@ -893,7 +893,7 @@ modalities_ext = [
             "1064nm achieves deeper cortical penetration than 810nm due to reduced "
             "oxyhaemoglobin absorption. The UT Dallas / Harvard group has published multiple "
             "1064nm cognition studies.\n\n"
-            "NeuroPulse currently uses 660nm + 810nm (T1) and adds 1170nm (T2). "
+            "NeurOne currently uses 660nm + 810nm (T1) and adds 1170nm (T2). "
             "1064nm sits between these: better penetration than 810nm, less aggressive "
             "than 1170nm laser. It is distinct from both current wavelengths.",
         "hardware":
@@ -927,13 +927,13 @@ modalities_ext = [
             "in 2024–2025. Key advantage: subcortical targeting without TMS's power "
             "requirements or safety concerns.\n\n"
             "Bikson's closed-loop framework explicitly includes tFUS as a modality that "
-            "could be guided by EEG in real-time — the same framework NeuroPulse's "
+            "could be guided by EEG in real-time — the same framework NeurOne's "
             "architecture implements.",
         "hardware":
             "HIGH COMPLEXITY: tFUS requires a focused transducer (piezoelectric element "
             "at specific frequency, typically 250kHz–2MHz), acoustic coupling medium, "
             "and MRI-based targeting for precision. Consumer-grade tFUS is not yet "
-            "feasible at price points compatible with NeuroPulse. Emerging startup "
+            "feasible at price points compatible with NeurOne. Emerging startup "
             "companies (Cognito, Attune, NaviFUS) are building clinical-grade systems. "
             "BOM estimate: +$200–500 minimum; acoustic coupling = consumable.",
         "integration":
@@ -942,7 +942,7 @@ modalities_ext = [
             "Consumer feasibility: 5–8 years.",
         "priority": "LOW (WATCH) — Monitor tFUS regulatory and commercialisation "
                     "trajectory. If consumer-grade tFUS becomes feasible by 2029–2030, "
-                    "evaluate for NeuroPulse T3 or successor platform.",
+                    "evaluate for NeurOne T3 or successor platform.",
         "action": "Add to technology watch list. No hardware action now.",
         "bg": "EEF2F7",
     },
@@ -952,7 +952,7 @@ modalities_ext = [
         "source": "Found in: ResearchGate 2025 RCT (PBM + qEEG NF + Heart-Brain HRV "
                   "Biofeedback simultaneously); growing biofeedback literature",
         "evidence":
-            "MODERATE: NeuroPulse currently monitors HRV via the VNS auricular clip "
+            "MODERATE: NeurOne currently monitors HRV via the VNS auricular clip "
             "(PPG + auricular taVNS in same accessory). However, HRV biofeedback as a "
             "distinct therapeutic protocol — where the user sees real-time HRV and "
             "performs resonance frequency breathing to maximise HRV amplitude — has "
@@ -963,7 +963,7 @@ modalities_ext = [
             "- Performance: HRV biofeedback used by military, athletes, and first "
             "responders for stress inoculation.\n\n"
             "The 2025 multi-modal RCT combined PBM + qEEG NF + HRV biofeedback as "
-            "three coordinated modalities. NeuroPulse has all the hardware to do this "
+            "three coordinated modalities. NeurOne has all the hardware to do this "
             "today — HRV biofeedback is a SOFTWARE addition, not a hardware addition.",
         "hardware":
             "ZERO additional hardware required. The VNS clip already provides PPG "
@@ -974,10 +974,10 @@ modalities_ext = [
             "Software only. Add resonance frequency breathing guide (4–6 breaths/min "
             "target), real-time coherence score, and session summary to the app. "
             "Coordinate with taVNS delivery (taVNS at peak HRV = optimal timing). "
-            "This would allow NeuroPulse to replicate the 2025 multi-modal RCT protocol "
+            "This would allow NeurOne to replicate the 2025 multi-modal RCT protocol "
             "in-app at no additional BOM cost.",
         "priority": "HIGH — no hardware cost; extends clinical evidence claim "
-                    "(NeuroPulse can say: 'We replicate the combined protocol from the "
+                    "(NeurOne can say: 'We replicate the combined protocol from the "
                     "2025 RCT — PBM + qEEG neurofeedback + HRV biofeedback'). "
                     "Should be in firmware roadmap for Year 1.",
         "action": "Add HRV biofeedback mode to firmware and app roadmap. "
@@ -997,7 +997,7 @@ modalities_ext = [
             "F3-positioned tDCS (fixed position) did not reliably achieve in other trials. "
             "BRIGhTMIND (Nature Medicine 2024, n=255 TRD) showed connectivity-guided "
             "iTBS was superior to standard F3 targeting.\n\n"
-            "The implication: NeuroPulse's current tDCS delivers fixed electrode positions. "
+            "The implication: NeurOne's current tDCS delivers fixed electrode positions. "
             "MRI-personalised targeting would require either (a) integrating with the "
             "user's existing MRI data, or (b) using EEG-derived source localisation "
             "(sLORETA, already in T2 stack) as a surrogate for MRI targeting.",
@@ -1034,7 +1034,7 @@ modalities_ext = [
             "(K163334, K173323) is FDA-cleared for cluster headache and migraine. "
             "Higher activation of vagus trunk vs auricular branch; used in clinical "
             "indications where auricular stimulation is insufficient.\n\n"
-            "NeuroPulse T2 CLAUDE.md notes: '+ cervical option' under VNS. This "
+            "NeurOne T2 CLAUDE.md notes: '+ cervical option' under VNS. This "
             "suggests cervical VNS is already considered but not formally specified.",
         "hardware":
             "Separate neck-worn accessory with gel electrodes. Handheld gammaCore-style "
@@ -1086,6 +1086,6 @@ for m in modalities_ext:
     doc2.add_paragraph()
     add_divider(doc2)
 
-doc2.save("docs/neuropulse_additional_modalities.docx")
-print("NP-MOD-EXT-001 saved: docs/neuropulse_additional_modalities.docx")
+doc2.save("docs/neurone_additional_modalities.docx")
+print("NP-MOD-EXT-001 saved: docs/neurone_additional_modalities.docx")
 print("\nDone.")

@@ -1,7 +1,7 @@
-name: NeuroPulseWatch
+name: NeurOneWatch
 
 options:
-  bundleIdPrefix: com.neuropulse
+  bundleIdPrefix: com.neurone
   deploymentTarget:
     watchOS: "10.0"
   createIntermediateGroups: true
@@ -30,25 +30,25 @@ configs:
   Release: release
 
 packages:
-  NeuroPulseShared:
-    path: ../NeuroPulseShared
+  NeurOneShared:
+    path: ../NeurOneShared
 
 targets:
-  NeuroPulseWatch:
+  NeurOneWatch:
     type: application
     platform: watchOS
     deploymentTarget: "10.0"
 
     sources:
-      - path: NeuroPulseWatch
+      - path: NeurOneWatch
         excludes:
           - "**/.DS_Store"
           - "**/*.md"
 
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.neuropulse.watch
-        INFOPLIST_FILE: NeuroPulseWatch/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.neurone.watch
+        INFOPLIST_FILE: NeurOneWatch/Info.plist
 
     dependencies:
-      - package: NeuroPulseShared
+      - package: NeurOneShared

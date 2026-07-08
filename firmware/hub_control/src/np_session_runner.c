@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Session Runner Implementation
+ * NeurOne Hub Control Program — Session Runner Implementation
  * Document: NP-FW-HUB-001 Rev A §5
  *
  * Execution model:

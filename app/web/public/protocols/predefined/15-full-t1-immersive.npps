@@ -1,7 +1,7 @@
 protocol "Full T1 Immersive" {
     id: "1000000F-0000-0000-0000-000000000000"
     description: "All 8 T1 modalities running simultaneously with balanced settings. For experienced users. Intranasal PBM and tDCS run in time-limited intervals within the 30-minute session."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [comprehensive, all-modalities, advanced, T1]

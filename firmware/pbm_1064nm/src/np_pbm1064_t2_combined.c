@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — T2 Combined Session
+ * NeurOne 1064nm Smart Zone Module — T2 Combined Session
  * Document: NP-FW-PBM1064-001 Rev A §8 / NP-SES-1064-001 §6
  *
  * Three-tier penetration stack:

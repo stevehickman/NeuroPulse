@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Bootloader — Boot Bank Selector (SNVS_LPGPR0)
+ * NeurOne Bootloader — Boot Bank Selector (SNVS_LPGPR0)
  * Document: NP-FW-EMMC-001 Rev A §8.2
  */
 

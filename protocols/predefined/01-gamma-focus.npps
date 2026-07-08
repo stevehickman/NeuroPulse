@@ -1,7 +1,7 @@
 protocol "Gamma Focus" {
     id: "10000001-0000-0000-0000-000000000000"
     description: "Simultaneous 40Hz entrainment across audio, visual, and PBM channels for cognitive enhancement and attention. Evidence-backed GENUS-inspired multi-sensory 40Hz protocol."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [focus, gamma, 40Hz, cognitive, multimodal]

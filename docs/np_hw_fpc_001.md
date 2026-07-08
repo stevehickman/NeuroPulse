@@ -1,6 +1,6 @@
 # 1064nm Smart Zone Module FPC Layout Variant
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-HW-FPC-001
 **Revision:** E
 **Date:** 2026-05-13

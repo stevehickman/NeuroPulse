@@ -1,7 +1,7 @@
-name: NeuroPulse
+name: NeurOne
 
 options:
-  bundleIdPrefix: com.neuropulse
+  bundleIdPrefix: com.neurone
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -35,13 +35,13 @@ configs:
   Release: release
 
 targets:
-  NeuroPulse:
+  NeurOne:
     type: application
     platform: iOS
     deploymentTarget: "17.0"
 
     sources:
-      - path: NeuroPulse
+      - path: NeurOne
         excludes:
           - "**/.DS_Store"
           - "**/*.md"
@@ -49,59 +49,59 @@ targets:
       - path: SupportingFiles
         type: folder
         excludes:
-          - "NeuroPulse.entitlements"
+          - "NeurOne.entitlements"
 
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.neuropulse.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.neurone.app
         INFOPLIST_FILE: SupportingFiles/Info.plist
         GENERATE_INFOPLIST_FILE: NO
-        CODE_SIGN_ENTITLEMENTS: SupportingFiles/NeuroPulse.entitlements
+        CODE_SIGN_ENTITLEMENTS: SupportingFiles/NeurOne.entitlements
 
     dependencies:
-      - package: NeuroPulseShared
+      - package: NeurOneShared
       - package: PostHog
         product: PostHog
 
-  NeuroPulseTests:
+  NeurOneTests:
     type: bundle.unit-test
     platform: iOS
     deploymentTarget: "17.0"
 
     sources:
-      - path: NeuroPulseTests
+      - path: NeurOneTests
         excludes:
           - "**/.DS_Store"
           - "**/*.md"
 
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.neuropulse.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.neurone.tests
         GENERATE_INFOPLIST_FILE: YES
         BUNDLE_LOADER: "$(TEST_HOST)"
-        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NeuroPulse.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NeuroPulse"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NeurOne.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NeurOne"
 
     dependencies:
-      - target: NeuroPulse
+      - target: NeurOne
 
 packages:
-  NeuroPulseShared:
-    path: ../NeuroPulseShared
+  NeurOneShared:
+    path: ../NeurOneShared
   PostHog:
     url: https://github.com/PostHog/posthog-ios
     from: "3.60.0"
 
 schemes:
-  NeuroPulse:
+  NeurOne:
     build:
       targets:
-        NeuroPulse: all
+        NeurOne: all
     run:
       config: Debug
     test:
       config: Debug
       targets:
-        - NeuroPulseTests
+        - NeurOneTests
     profile:
       config: Release
     analyze:

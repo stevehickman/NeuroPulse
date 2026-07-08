@@ -1,0 +1,986 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		00082B7A2FB13ABF6A4A4208 /* NPProtocolLibraryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B892C585A7A3F49C5F0B0501 /* NPProtocolLibraryTests.swift */; };
+		E85D3C4E88EE81E7D9740361 /* LocalizationHelpers.swift in Sources */ = {isa = PBXBuildFile; fileRef = C28C5928422977589EA34561 /* LocalizationHelpers.swift */; };
+		055480BE05301254775DFB2A /* ZoneModuleInfo.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56360D1F64BD4BBEBB956CF /* ZoneModuleInfo.swift */; };
+		0832220A2C9F8F0A7787AFA5 /* SpyAnalyticsBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B50970E8E81731D40E1407C /* SpyAnalyticsBackend.swift */; };
+		0B089F5D5DF167DF1291A1BC /* NPPredefinedProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 925CEA12894CF191CD729896 /* NPPredefinedProtocols.swift */; };
+		11FDF8E088A57FB6C70D76A6 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = AB2AE76ECCD0C02E29548198 /* PrivacyInfo.xcprivacy */; };
+		13AFC168159A6F44C610EF44 /* ProtocolChunker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C436280E122876CADCCE29F /* ProtocolChunker.swift */; };
+		147AC427473C4D0971F642F0 /* NPSessionProtocol+FromDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48E351B1F07B613E2AD4D31A /* NPSessionProtocol+FromDefinition.swift */; };
+		1ACF8BEE7B78888A38AAD9C0 /* ProtocolEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEACAEC76FE502DAE261D4B4 /* ProtocolEditorView.swift */; };
+		1BAB0D99F0865C9CC8AEB8C4 /* ProtocolComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 980C79DDC5C965A71161F932 /* ProtocolComposerView.swift */; };
+		1CA2BF6793C470BEBC9D05C4 /* SessionProtocolUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1262B33B95FA07E03C897F9A /* SessionProtocolUploader.swift */; };
+		1DA6D5360E54F042DFBBB13A /* ConsentEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDD8F336525353DC63F7ED77 /* ConsentEngineTests.swift */; };
+		2148049E53F79BFD2FBDF5C5 /* NPProtocolScripting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88D8DF6B5D3CE8866CC53450 /* NPProtocolScripting.swift */; };
+		2466802007DC508856B7859E /* AgeGateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BF963C6F964513ECE285C637 /* AgeGateView.swift */; };
+		2632ECB57959C32D6138E93F /* FirmwareUpdateService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA5B549AAD73CD0913D262A4 /* FirmwareUpdateService.swift */; };
+		2803EF319AD7BBEA89ABFABE /* UHDRBackupScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8657238540E35B47AE469FB8 /* UHDRBackupScheduler.swift */; };
+		2A5DF6452791EBBF096B6B88 /* SupportingFiles in Resources */ = {isa = PBXBuildFile; fileRef = E469D1F196B44C40D1E9336C /* SupportingFiles */; };
+		2A7D541DA4C69C5F38FC86F2 /* OTAManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E73CA84DF1774384C133A5D /* OTAManager.swift */; };
+		2BBD5FECC80F39E56C8B8ECA /* ConsentDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5196D28CADB0435C84FAFBF /* ConsentDashboardView.swift */; };
+		3BDCCBC34ECD18114B726A5E /* NPHardwareLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 212AED6CC59AF5DEB2C7F757 /* NPHardwareLimits.swift */; };
+		3C60C0DAA2ADF9BB09D69066 /* ProtocolMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38C3D7DA41062A853F9F21F2 /* ProtocolMenuView.swift */; };
+		3CE8973169F34B9A2261990B /* ConsentStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 866ABAE273C2F23D68A18100 /* ConsentStore.swift */; };
+		4157B772C46C98F925D084B9 /* ProtocolChunkerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 22DD080B42ACBBA5122F855A /* ProtocolChunkerTests.swift */; };
+		419F4D9D23598DE30F6DDB2A /* SessionProtocol.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1ABD8B24911105FF28E2C78 /* SessionProtocol.swift */; };
+		420A6ED26D81B76ECC1827EA /* ResearchSuggestionStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF58725D98C42A205A906C71 /* ResearchSuggestionStore.swift */; };
+		42ACE79027E900F110A59DC2 /* ResearchSuggestionPortalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98F682EE3E1DF86B209FC0B4 /* ResearchSuggestionPortalView.swift */; };
+		42E09B8D2947B9AB3E78444F /* HardwareSetupManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 112BFF0EEAF13ECC40F86F32 /* HardwareSetupManager.swift */; };
+		47B4A59C942833665BF04B2D /* AnalyticsGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E81BA8ABF2DB3342E7E28C /* AnalyticsGate.swift */; };
+		4B4AD3A4AEF928176CB1DAA7 /* NPDosageLimits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 044B41EC2A131101344754EF /* NPDosageLimits.swift */; };
+		4BB4782DE5F0FC0DBBAD2B34 /* NPProtocolValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A36BDFB8DBD66EA7F0D4870F /* NPProtocolValidator.swift */; };
+		4D045247AA9DC080F3DECEA2 /* ConsentEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6060517A37F1EA03A36BAADB /* ConsentEngine.swift */; };
+		4D45D0AE284E8224E262337D /* ResearchSuggestion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9AC7ACF7BA3367F466542546 /* ResearchSuggestion.swift */; };
+		4EB2F13C0F7FA17B77DB1522 /* ConsentModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1007CBDD0A69BCBC3C70470B /* ConsentModels.swift */; };
+		50E470714010021CFE57F203 /* ConsumableInventory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 124975BABC28934EFC9A3E99 /* ConsumableInventory.swift */; };
+		51D0BFF875F5B27FE1329B8F /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9D315AFBC8B976F617F41BC /* SetupView.swift */; };
+		51E92B5ED3EF294EB6A3D479 /* NPProtocolLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E6B605A184B4AF0854E5254 /* NPProtocolLibrary.swift */; };
+		55843750C59E854BC23C83CE /* ProtocolScriptEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB42CF1B6D7862F37A476A1C /* ProtocolScriptEditorView.swift */; };
+		5662806CDEFF307AFB444274 /* SHDRUploadTriggering.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DB1BD91661E83506307EA52 /* SHDRUploadTriggering.swift */; };
+		5700DFA4F74A78C0FACEFC19 /* SessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 484F6F06875BE861E52A331F /* SessionState.swift */; };
+		57E03885BEC1D80E7D1FC608 /* RegionHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B9A9D0E1AEF9CF2D19E1EC5 /* RegionHelper.swift */; };
+		594CFE7AF49E70D8415A0C75 /* ConsumableCountsProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AAFA30431862FB5EFE2B94B /* ConsumableCountsProviding.swift */; };
+		5D06C09BA7CE2433B46F93D1 /* OTAManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8DCB16680A4C12EFB0780B1A /* OTAManagerTests.swift */; };
+		5FA3CFF4428F945C9E8E1AD8 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 1E1CEB0F3C8613C56F225FA8 /* Localizable.xcstrings */; };
+		60066FA725B78AC851A1D2FB /* SessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B3C8C3C50590F552A09F2A6 /* SessionView.swift */; };
+		67C16141CE9405C01E2DE345 /* ModalityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */; };
+		67F715230253DF0765B2827A /* PhoneSessionManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59D6B0B298EFB13436C104EA /* PhoneSessionManagerTests.swift */; };
+		686D3027611C4F40B5EFA317 /* NeurOneGATTManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D067E8387AE51B34602DF95 /* NeurOneGATTManagerTests.swift */; };
+		692C192B85B408EEBE4D2A29 /* SHDRUploaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 229F2457B3F85C71A7C6CE99 /* SHDRUploaderTests.swift */; };
+		6C26B9BC1CF560BF91AF2CCE /* EngagementTierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EE62553ABECF27A4A1C5542 /* EngagementTierTests.swift */; };
+		6CC0727FF05FC7CF5821E31F /* PostHogAnalyticsBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C910471FBDB04CAE6376C1 /* PostHogAnalyticsBackend.swift */; };
+		70040EC99A6FCA19B82AEC15 /* ProtocolUploadGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8805B82BC8C1327612BE74EF /* ProtocolUploadGateway.swift */; };
+		70193120367CEF0DFFD271D8 /* BIPADisclosureView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFFD0990164EAF88C1E8046D /* BIPADisclosureView.swift */; };
+		70E1FBB506B11F4FBF94D455 /* NPLimitsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E355FEC3A2FEA1C26B51B250 /* NPLimitsStore.swift */; };
+		727B9C405F54232399826BED /* SessionDisplayTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F67AE1B53B557BDE2FC40D2D /* SessionDisplayTests.swift */; };
+		76491AB06C5E7D5E836241A9 /* HealthKitSessionReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 027E6579B897E23827EF47A2 /* HealthKitSessionReader.swift */; };
+		7BC70D02885D48C0E83535EF /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0CD3FBC03A53B600987E7B18 /* SessionHistoryView.swift */; };
+		7E4D2845AD720CF46481D061 /* PhoneSessionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9928E38344F93D2CFBBC72EB /* PhoneSessionManager.swift */; };
+		7F2B29A2DAD037E3506B73BC /* SessionHistoryStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5997D0147A53EDC7877E95 /* SessionHistoryStoreTests.swift */; };
+		7FF51E41A66F36A6C02CB4F0 /* ConsumableTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70967C7DCF0C4D93474A7DCC /* ConsumableTrackerTests.swift */; };
+		A852FD47B4894C80813A988D /* BIPAConsentFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C86FB406C84CB3BFDDE268 /* BIPAConsentFlowTests.swift */; };
+		EEC0DE90A0000000000000B1 /* EEGConsentGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEC0DE90A0000000000000F2 /* EEGConsentGateTests.swift */; };
+		86AA3152A2A01721F3E14522 /* OTAView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29997D2651EEF868F3BCD7C8 /* OTAView.swift */; };
+		8BC755D70B37BE1D6779CC71 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 487DE8D2DFB0D639E45EB4BF /* PostHog */; };
+		93455498E379D6EBC4EBBB44 /* UHDRKeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7B5EFA4628F9C3C333BB6C9 /* UHDRKeyManager.swift */; };
+		9785C8F9C9FA4391BC0C1D16 /* ConsentStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0054A553448BDD1670659CDA /* ConsentStoreTests.swift */; };
+		97B4C798A7DEC3EC28CC939C /* NeurOneGATTManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB88FC8DB0D54D6B517FB214 /* NeurOneGATTManager.swift */; };
+		999A9048786E4C625D972567 /* Under16View.swift in Sources */ = {isa = PBXBuildFile; fileRef = 046EF1F71E798663ED38E465 /* Under16View.swift */; };
+		99A86E1BE6B323A9B2CF78DF /* BLECentral.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C279FD12310F55C1FC6E964 /* BLECentral.swift */; };
+		9A86443E9D3C4886BA643BCB /* NeurOneShared in Frameworks */ = {isa = PBXBuildFile; productRef = B007599D6A7F55456BF1745A /* NeurOneShared */; };
+		A72C4A1425B5DA66ABB5B511 /* RegionHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8184004F4B72C61B686085E6 /* RegionHelperTests.swift */; };
+		AD88E4F65117BFFCC67465C1 /* ConsentOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC170B8BDE63021729560AF1 /* ConsentOnboardingView.swift */; };
+		AF9995E7037B01A9F21D5396 /* NPModalityType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78C1DDCA71A8088A81D60B55 /* NPModalityType.swift */; };
+		B6270B20941F97EBBED9C50D /* NPBundledProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FB156F097DA7DAAAF3E4294 /* NPBundledProtocols.swift */; };
+		B9FD92D6D56DE1E35B983FC0 /* EngagementTier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2E7811F3AF0C1233B76E7036 /* EngagementTier.swift */; };
+		BF6FCC6887437079914F6C34 /* EDFDownloader.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2280ECFED79E63FA306A965 /* EDFDownloader.swift */; };
+		C2AA81314EC08ACAF876F81A /* GATTParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89CB57AFEAD042EB5E28DA49 /* GATTParserTests.swift */; };
+		C4B6AAD9AEEE79D4FC802D21 /* SessionProtocolUploaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0480FA07BE4392EDF2FCF0BB /* SessionProtocolUploaderTests.swift */; };
+		C8E462B412A2DC5F3FAD0507 /* LimitsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D3E5EE793DA859329B4CE869 /* LimitsSettingsView.swift */; };
+		CDAF13E1DDEF435214EDEE68 /* OTAModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7665E9CC9E0014859BEB9355 /* OTAModels.swift */; };
+		D0C9989A7D230DE5B17FACD0 /* AdaptationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE524EFC67F3B22042F87749 /* AdaptationEvent.swift */; };
+		D13CB7203AC04B91379A6966 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98AC0047D92001AACC3385A /* MainTabView.swift */; };
+		D621266DCB39B2D6A512720A /* NeurOneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 845AFF8746C072D3C5C35BEF /* NeurOneApp.swift */; };
+		D669D78E9899B8B7A9A3EC94 /* NeurOneTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EBB4931BC5C14272812376B /* NeurOneTests.swift */; };
+		D6991C1626AC35097F63A8AA /* AnalyticsBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51C1E909A1D77F4AD16F428A /* AnalyticsBackend.swift */; };
+		D712D502A9BAC58EDC182D95 /* GATTCharacteristics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06664E184F1D6BFC81BA9EB4 /* GATTCharacteristics.swift */; };
+		D8400B801F7EC52939E2F473 /* SHDRUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63CDD24AC46FF070D0E4939F /* SHDRUploader.swift */; };
+		D8612068400B6AB31C4C6847 /* HardwareSetupManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84954CD4AB9448260A16CEE6 /* HardwareSetupManagerTests.swift */; };
+		DE9F7154FE8BA3A72D7CFC5B /* UHDRKeyManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E1F8DE3B43EC111BC0314A3 /* UHDRKeyManagerTests.swift */; };
+		E0691077ED8967F4C7B978C5 /* SessionHistoryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4219BE82CE1BBA0057580A71 /* SessionHistoryListView.swift */; };
+		E6EF5FE729ADF62E01622C6A /* ConsumableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E63D2B1437C4B993C5D8CF60 /* ConsumableView.swift */; };
+		E83F5467A096AABFDD1ECDEE /* AdaptiveAdjustmentsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 816076D720C30AE0F0FB49B4 /* AdaptiveAdjustmentsCard.swift */; };
+		EB2E3B6A2B4DFB374E88DE22 /* ConsumableTracker.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2B1FA28527F9048C12382557 /* ConsumableTracker.swift */; };
+		EC1DDAFDE28C0C517322AA5C /* NPProtocolValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A8DFE0776D52E3EA54D874A /* NPProtocolValidatorTests.swift */; };
+		F0BE1617593F31085C373E47 /* NPProtocolDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA9FC7ED25A0C088CA7DC5D0 /* NPProtocolDefinition.swift */; };
+		F4C0A068193A00C82FA6A06F /* GATTSessionPublishing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 394E8DA086AFF6EF208FD4E5 /* GATTSessionPublishing.swift */; };
+		3885A31283FF7326152C6198 /* ResearchAnalyticsGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C8F406E65B11ECCE4C0CDD5 /* ResearchAnalyticsGate.swift */; };
+		D99B017B0A86C9E5EA66EC5C /* WarrantyAnalyticsGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE5A0CFE845DBF72E561EF32 /* WarrantyAnalyticsGate.swift */; };
+		49CC31EC8F3FBF58DC0DEB12 /* ResearchAnalyticsGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 07CA102BF6AA7ED8F16A8EB7 /* ResearchAnalyticsGateTests.swift */; };
+		FBA06E2F7863855716599956 /* SessionHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 618B10574F32EE603156145A /* SessionHistoryStore.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		EB9A580074CF7CD25D22B1AC /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = CCE1687DAC29FED628915E53 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E42D4A8EC149633D91D415DA;
+			remoteInfo = NeurOne;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0054A553448BDD1670659CDA /* ConsentStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentStoreTests.swift; sourceTree = "<group>"; };
+		B6C86FB406C84CB3BFDDE268 /* BIPAConsentFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BIPAConsentFlowTests.swift; sourceTree = "<group>"; };
+		EEC0DE90A0000000000000F2 /* EEGConsentGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EEGConsentGateTests.swift; sourceTree = "<group>"; };
+		C28C5928422977589EA34561 /* LocalizationHelpers.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalizationHelpers.swift; sourceTree = "<group>"; };
+		027E6579B897E23827EF47A2 /* HealthKitSessionReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitSessionReader.swift; sourceTree = "<group>"; };
+		044B41EC2A131101344754EF /* NPDosageLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPDosageLimits.swift; sourceTree = "<group>"; };
+		046EF1F71E798663ED38E465 /* Under16View.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Under16View.swift; sourceTree = "<group>"; };
+		0480FA07BE4392EDF2FCF0BB /* SessionProtocolUploaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProtocolUploaderTests.swift; sourceTree = "<group>"; };
+		06664E184F1D6BFC81BA9EB4 /* GATTCharacteristics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GATTCharacteristics.swift; sourceTree = "<group>"; };
+		0CD3FBC03A53B600987E7B18 /* SessionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryView.swift; sourceTree = "<group>"; };
+		1007CBDD0A69BCBC3C70470B /* ConsentModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentModels.swift; sourceTree = "<group>"; };
+		112BFF0EEAF13ECC40F86F32 /* HardwareSetupManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareSetupManager.swift; sourceTree = "<group>"; };
+		124975BABC28934EFC9A3E99 /* ConsumableInventory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableInventory.swift; sourceTree = "<group>"; };
+		1262B33B95FA07E03C897F9A /* SessionProtocolUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProtocolUploader.swift; sourceTree = "<group>"; };
+		148EC425ABBF6591831CF483 /* NeurOneTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NeurOneTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		1E1CEB0F3C8613C56F225FA8 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		1E73CA84DF1774384C133A5D /* OTAManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAManager.swift; sourceTree = "<group>"; };
+		1EBB4931BC5C14272812376B /* NeurOneTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeurOneTests.swift; sourceTree = "<group>"; };
+		1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalityEditorView.swift; sourceTree = "<group>"; };
+		212AED6CC59AF5DEB2C7F757 /* NPHardwareLimits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPHardwareLimits.swift; sourceTree = "<group>"; };
+		229F2457B3F85C71A7C6CE99 /* SHDRUploaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SHDRUploaderTests.swift; sourceTree = "<group>"; };
+		22DD080B42ACBBA5122F855A /* ProtocolChunkerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolChunkerTests.swift; sourceTree = "<group>"; };
+		29997D2651EEF868F3BCD7C8 /* OTAView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAView.swift; sourceTree = "<group>"; };
+		2AAFA30431862FB5EFE2B94B /* ConsumableCountsProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableCountsProviding.swift; sourceTree = "<group>"; };
+		2B1FA28527F9048C12382557 /* ConsumableTracker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableTracker.swift; sourceTree = "<group>"; };
+		2C279FD12310F55C1FC6E964 /* BLECentral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLECentral.swift; sourceTree = "<group>"; };
+		2E7811F3AF0C1233B76E7036 /* EngagementTier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngagementTier.swift; sourceTree = "<group>"; };
+		2EE62553ABECF27A4A1C5542 /* EngagementTierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngagementTierTests.swift; sourceTree = "<group>"; };
+		2FB156F097DA7DAAAF3E4294 /* NPBundledProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPBundledProtocols.swift; sourceTree = "<group>"; };
+		38C3D7DA41062A853F9F21F2 /* ProtocolMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolMenuView.swift; sourceTree = "<group>"; };
+		394E8DA086AFF6EF208FD4E5 /* GATTSessionPublishing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GATTSessionPublishing.swift; sourceTree = "<group>"; };
+		3E6B605A184B4AF0854E5254 /* NPProtocolLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolLibrary.swift; sourceTree = "<group>"; };
+		4219BE82CE1BBA0057580A71 /* SessionHistoryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryListView.swift; sourceTree = "<group>"; };
+		484F6F06875BE861E52A331F /* SessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionState.swift; sourceTree = "<group>"; };
+		48E351B1F07B613E2AD4D31A /* NPSessionProtocol+FromDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NPSessionProtocol+FromDefinition.swift"; sourceTree = "<group>"; };
+		4B50970E8E81731D40E1407C /* SpyAnalyticsBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpyAnalyticsBackend.swift; sourceTree = "<group>"; };
+		51C1E909A1D77F4AD16F428A /* AnalyticsBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsBackend.swift; sourceTree = "<group>"; };
+		59D6B0B298EFB13436C104EA /* PhoneSessionManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSessionManagerTests.swift; sourceTree = "<group>"; };
+		5B3C8C3C50590F552A09F2A6 /* SessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionView.swift; sourceTree = "<group>"; };
+		6060517A37F1EA03A36BAADB /* ConsentEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentEngine.swift; sourceTree = "<group>"; };
+		618B10574F32EE603156145A /* SessionHistoryStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryStore.swift; sourceTree = "<group>"; };
+		63CDD24AC46FF070D0E4939F /* SHDRUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SHDRUploader.swift; sourceTree = "<group>"; };
+		70967C7DCF0C4D93474A7DCC /* ConsumableTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableTrackerTests.swift; sourceTree = "<group>"; };
+		7665E9CC9E0014859BEB9355 /* OTAModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAModels.swift; sourceTree = "<group>"; };
+		78C1DDCA71A8088A81D60B55 /* NPModalityType.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPModalityType.swift; sourceTree = "<group>"; };
+		07CA102BF6AA7ED8F16A8EB7 /* ResearchAnalyticsGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchAnalyticsGateTests.swift; sourceTree = "<group>"; };
+		2C8F406E65B11ECCE4C0CDD5 /* ResearchAnalyticsGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchAnalyticsGate.swift; sourceTree = "<group>"; };
+		EE5A0CFE845DBF72E561EF32 /* WarrantyAnalyticsGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WarrantyAnalyticsGate.swift; sourceTree = "<group>"; };
+		7C5997D0147A53EDC7877E95 /* SessionHistoryStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryStoreTests.swift; sourceTree = "<group>"; };
+		7DB1BD91661E83506307EA52 /* SHDRUploadTriggering.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SHDRUploadTriggering.swift; sourceTree = "<group>"; };
+		816076D720C30AE0F0FB49B4 /* AdaptiveAdjustmentsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveAdjustmentsCard.swift; sourceTree = "<group>"; };
+		8184004F4B72C61B686085E6 /* RegionHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionHelperTests.swift; sourceTree = "<group>"; };
+		845AFF8746C072D3C5C35BEF /* NeurOneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeurOneApp.swift; sourceTree = "<group>"; };
+		84954CD4AB9448260A16CEE6 /* HardwareSetupManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HardwareSetupManagerTests.swift; sourceTree = "<group>"; };
+		8657238540E35B47AE469FB8 /* UHDRBackupScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UHDRBackupScheduler.swift; sourceTree = "<group>"; };
+		866ABAE273C2F23D68A18100 /* ConsentStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentStore.swift; sourceTree = "<group>"; };
+		8805B82BC8C1327612BE74EF /* ProtocolUploadGateway.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolUploadGateway.swift; sourceTree = "<group>"; };
+		88D8DF6B5D3CE8866CC53450 /* NPProtocolScripting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolScripting.swift; sourceTree = "<group>"; };
+		89CB57AFEAD042EB5E28DA49 /* GATTParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GATTParserTests.swift; sourceTree = "<group>"; };
+		8C436280E122876CADCCE29F /* ProtocolChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolChunker.swift; sourceTree = "<group>"; };
+		8DCB16680A4C12EFB0780B1A /* OTAManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OTAManagerTests.swift; sourceTree = "<group>"; };
+		8E1F8DE3B43EC111BC0314A3 /* UHDRKeyManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UHDRKeyManagerTests.swift; sourceTree = "<group>"; };
+		91A29AEA97C0ABB9CD262787 /* NeurOneShared */ = {isa = PBXFileReference; lastKnownFileType = folder; name = NeurOneShared; path = ../NeurOneShared; sourceTree = SOURCE_ROOT; };
+		925CEA12894CF191CD729896 /* NPPredefinedProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPPredefinedProtocols.swift; sourceTree = "<group>"; };
+		980C79DDC5C965A71161F932 /* ProtocolComposerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolComposerView.swift; sourceTree = "<group>"; };
+		98F682EE3E1DF86B209FC0B4 /* ResearchSuggestionPortalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchSuggestionPortalView.swift; sourceTree = "<group>"; };
+		9928E38344F93D2CFBBC72EB /* PhoneSessionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSessionManager.swift; sourceTree = "<group>"; };
+		9A8DFE0776D52E3EA54D874A /* NPProtocolValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolValidatorTests.swift; sourceTree = "<group>"; };
+		9AC7ACF7BA3367F466542546 /* ResearchSuggestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchSuggestion.swift; sourceTree = "<group>"; };
+		9B9A9D0E1AEF9CF2D19E1EC5 /* RegionHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RegionHelper.swift; sourceTree = "<group>"; };
+		9D067E8387AE51B34602DF95 /* NeurOneGATTManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeurOneGATTManagerTests.swift; sourceTree = "<group>"; };
+		A2280ECFED79E63FA306A965 /* EDFDownloader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EDFDownloader.swift; sourceTree = "<group>"; };
+		A36BDFB8DBD66EA7F0D4870F /* NPProtocolValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolValidator.swift; sourceTree = "<group>"; };
+		AB2AE76ECCD0C02E29548198 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		AC170B8BDE63021729560AF1 /* ConsentOnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentOnboardingView.swift; sourceTree = "<group>"; };
+		AE524EFC67F3B22042F87749 /* AdaptationEvent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptationEvent.swift; sourceTree = "<group>"; };
+		B892C585A7A3F49C5F0B0501 /* NPProtocolLibraryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolLibraryTests.swift; sourceTree = "<group>"; };
+		B98AC0047D92001AACC3385A /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainTabView.swift; sourceTree = "<group>"; };
+		BF963C6F964513ECE285C637 /* AgeGateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgeGateView.swift; sourceTree = "<group>"; };
+		C56360D1F64BD4BBEBB956CF /* ZoneModuleInfo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneModuleInfo.swift; sourceTree = "<group>"; };
+		C7B5EFA4628F9C3C333BB6C9 /* UHDRKeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UHDRKeyManager.swift; sourceTree = "<group>"; };
+		CB88FC8DB0D54D6B517FB214 /* NeurOneGATTManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeurOneGATTManager.swift; sourceTree = "<group>"; };
+		CDD8F336525353DC63F7ED77 /* ConsentEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentEngineTests.swift; sourceTree = "<group>"; };
+		CFFD0990164EAF88C1E8046D /* BIPADisclosureView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BIPADisclosureView.swift; sourceTree = "<group>"; };
+		D3E5EE793DA859329B4CE869 /* LimitsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LimitsSettingsView.swift; sourceTree = "<group>"; };
+		D5196D28CADB0435C84FAFBF /* ConsentDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentDashboardView.swift; sourceTree = "<group>"; };
+		DA9FC7ED25A0C088CA7DC5D0 /* NPProtocolDefinition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolDefinition.swift; sourceTree = "<group>"; };
+		E1ABD8B24911105FF28E2C78 /* SessionProtocol.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProtocol.swift; sourceTree = "<group>"; };
+		E355FEC3A2FEA1C26B51B250 /* NPLimitsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPLimitsStore.swift; sourceTree = "<group>"; };
+		E469D1F196B44C40D1E9336C /* SupportingFiles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = SupportingFiles; sourceTree = SOURCE_ROOT; };
+		E63D2B1437C4B993C5D8CF60 /* ConsumableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableView.swift; sourceTree = "<group>"; };
+		E9D315AFBC8B976F617F41BC /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
+		EA5B549AAD73CD0913D262A4 /* FirmwareUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirmwareUpdateService.swift; sourceTree = "<group>"; };
+		EBE5DF1A6C857B041925298B /* NeurOne.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NeurOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		EEACAEC76FE502DAE261D4B4 /* ProtocolEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolEditorView.swift; sourceTree = "<group>"; };
+		EF58725D98C42A205A906C71 /* ResearchSuggestionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchSuggestionStore.swift; sourceTree = "<group>"; };
+		F0E81BA8ABF2DB3342E7E28C /* AnalyticsGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalyticsGate.swift; sourceTree = "<group>"; };
+		F1C910471FBDB04CAE6376C1 /* PostHogAnalyticsBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostHogAnalyticsBackend.swift; sourceTree = "<group>"; };
+		F67AE1B53B557BDE2FC40D2D /* SessionDisplayTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDisplayTests.swift; sourceTree = "<group>"; };
+		FB42CF1B6D7862F37A476A1C /* ProtocolScriptEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolScriptEditorView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		803FF0789C57DD194D6004C4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9A86443E9D3C4886BA643BCB /* NeurOneShared in Frameworks */,
+				8BC755D70B37BE1D6779CC71 /* PostHog in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		0B957196DEB864998879C4EC /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				AE524EFC67F3B22042F87749 /* AdaptationEvent.swift */,
+				1007CBDD0A69BCBC3C70470B /* ConsentModels.swift */,
+				124975BABC28934EFC9A3E99 /* ConsumableInventory.swift */,
+				7665E9CC9E0014859BEB9355 /* OTAModels.swift */,
+				9AC7ACF7BA3367F466542546 /* ResearchSuggestion.swift */,
+				484F6F06875BE861E52A331F /* SessionState.swift */,
+				C56360D1F64BD4BBEBB956CF /* ZoneModuleInfo.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		141B11E25DF013CE21A4EFCE /* Protocol */ = {
+			isa = PBXGroup;
+			children = (
+				D3E5EE793DA859329B4CE869 /* LimitsSettingsView.swift */,
+				1F6AF0F20991B04C683DD383 /* ModalityEditorView.swift */,
+				980C79DDC5C965A71161F932 /* ProtocolComposerView.swift */,
+				EEACAEC76FE502DAE261D4B4 /* ProtocolEditorView.swift */,
+				38C3D7DA41062A853F9F21F2 /* ProtocolMenuView.swift */,
+				FB42CF1B6D7862F37A476A1C /* ProtocolScriptEditorView.swift */,
+			);
+			path = Protocol;
+			sourceTree = "<group>";
+		};
+		227A5C608DD729F28F15D270 /* WatchBridge */ = {
+			isa = PBXGroup;
+			children = (
+				394E8DA086AFF6EF208FD4E5 /* GATTSessionPublishing.swift */,
+				9928E38344F93D2CFBBC72EB /* PhoneSessionManager.swift */,
+			);
+			path = WatchBridge;
+			sourceTree = "<group>";
+		};
+		2D4EBBB01641BD3EBC4A4F99 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				EBE5DF1A6C857B041925298B /* NeurOne.app */,
+				148EC425ABBF6591831CF483 /* NeurOneTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		2D8F2C0F3D04145DD072CB52 /* Consent */ = {
+			isa = PBXGroup;
+			children = (
+				6060517A37F1EA03A36BAADB /* ConsentEngine.swift */,
+				866ABAE273C2F23D68A18100 /* ConsentStore.swift */,
+				EF58725D98C42A205A906C71 /* ResearchSuggestionStore.swift */,
+			);
+			path = Consent;
+			sourceTree = "<group>";
+		};
+		48F35FC99690ADD14F69A1FB /* Data */ = {
+			isa = PBXGroup;
+			children = (
+				027E6579B897E23827EF47A2 /* HealthKitSessionReader.swift */,
+				63CDD24AC46FF070D0E4939F /* SHDRUploader.swift */,
+				7DB1BD91661E83506307EA52 /* SHDRUploadTriggering.swift */,
+				8657238540E35B47AE469FB8 /* UHDRBackupScheduler.swift */,
+				C7B5EFA4628F9C3C333BB6C9 /* UHDRKeyManager.swift */,
+			);
+			path = Data;
+			sourceTree = "<group>";
+		};
+		581535948C92E422594991D0 /* BLE */ = {
+			isa = PBXGroup;
+			children = (
+				2C279FD12310F55C1FC6E964 /* BLECentral.swift */,
+				06664E184F1D6BFC81BA9EB4 /* GATTCharacteristics.swift */,
+				CB88FC8DB0D54D6B517FB214 /* NeurOneGATTManager.swift */,
+				8805B82BC8C1327612BE74EF /* ProtocolUploadGateway.swift */,
+			);
+			path = BLE;
+			sourceTree = "<group>";
+		};
+		66B802F27BBA6F7691F5DDF8 = {
+			isa = PBXGroup;
+			children = (
+				BBDCF42489FE0D8732AC985B /* NeurOne */,
+				75A9E1F9F709EE97B5AC2A87 /* NeurOneTests */,
+				B4F998242271848D00CE0B9E /* Packages */,
+				E469D1F196B44C40D1E9336C /* SupportingFiles */,
+				2D4EBBB01641BD3EBC4A4F99 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		67DF04027A49FA3A3A05CEEC /* Setup */ = {
+			isa = PBXGroup;
+			children = (
+				112BFF0EEAF13ECC40F86F32 /* HardwareSetupManager.swift */,
+			);
+			path = Setup;
+			sourceTree = "<group>";
+		};
+		75A9E1F9F709EE97B5AC2A87 /* NeurOneTests */ = {
+			isa = PBXGroup;
+			children = (
+				07CA102BF6AA7ED8F16A8EB7 /* ResearchAnalyticsGateTests.swift */,
+				CDD8F336525353DC63F7ED77 /* ConsentEngineTests.swift */,
+				0054A553448BDD1670659CDA /* ConsentStoreTests.swift */,
+				B6C86FB406C84CB3BFDDE268 /* BIPAConsentFlowTests.swift */,
+				EEC0DE90A0000000000000F2 /* EEGConsentGateTests.swift */,
+				70967C7DCF0C4D93474A7DCC /* ConsumableTrackerTests.swift */,
+				2EE62553ABECF27A4A1C5542 /* EngagementTierTests.swift */,
+				89CB57AFEAD042EB5E28DA49 /* GATTParserTests.swift */,
+				84954CD4AB9448260A16CEE6 /* HardwareSetupManagerTests.swift */,
+				9D067E8387AE51B34602DF95 /* NeurOneGATTManagerTests.swift */,
+				1EBB4931BC5C14272812376B /* NeurOneTests.swift */,
+				B892C585A7A3F49C5F0B0501 /* NPProtocolLibraryTests.swift */,
+				9A8DFE0776D52E3EA54D874A /* NPProtocolValidatorTests.swift */,
+				8DCB16680A4C12EFB0780B1A /* OTAManagerTests.swift */,
+				59D6B0B298EFB13436C104EA /* PhoneSessionManagerTests.swift */,
+				22DD080B42ACBBA5122F855A /* ProtocolChunkerTests.swift */,
+				8184004F4B72C61B686085E6 /* RegionHelperTests.swift */,
+				F67AE1B53B557BDE2FC40D2D /* SessionDisplayTests.swift */,
+				7C5997D0147A53EDC7877E95 /* SessionHistoryStoreTests.swift */,
+				0480FA07BE4392EDF2FCF0BB /* SessionProtocolUploaderTests.swift */,
+				229F2457B3F85C71A7C6CE99 /* SHDRUploaderTests.swift */,
+				4B50970E8E81731D40E1407C /* SpyAnalyticsBackend.swift */,
+				8E1F8DE3B43EC111BC0314A3 /* UHDRKeyManagerTests.swift */,
+			);
+			path = NeurOneTests;
+			sourceTree = "<group>";
+		};
+		88F587CCF543EF2556265C44 /* Protocol */ = {
+			isa = PBXGroup;
+			children = (
+				2FB156F097DA7DAAAF3E4294 /* NPBundledProtocols.swift */,
+				044B41EC2A131101344754EF /* NPDosageLimits.swift */,
+				212AED6CC59AF5DEB2C7F757 /* NPHardwareLimits.swift */,
+				E355FEC3A2FEA1C26B51B250 /* NPLimitsStore.swift */,
+				78C1DDCA71A8088A81D60B55 /* NPModalityType.swift */,
+				925CEA12894CF191CD729896 /* NPPredefinedProtocols.swift */,
+				DA9FC7ED25A0C088CA7DC5D0 /* NPProtocolDefinition.swift */,
+				3E6B605A184B4AF0854E5254 /* NPProtocolLibrary.swift */,
+				88D8DF6B5D3CE8866CC53450 /* NPProtocolScripting.swift */,
+				A36BDFB8DBD66EA7F0D4870F /* NPProtocolValidator.swift */,
+				8C436280E122876CADCCE29F /* ProtocolChunker.swift */,
+			);
+			path = Protocol;
+			sourceTree = "<group>";
+		};
+		8AE939E4392CD8C3D878CDD9 /* OTA */ = {
+			isa = PBXGroup;
+			children = (
+				EA5B549AAD73CD0913D262A4 /* FirmwareUpdateService.swift */,
+				1E73CA84DF1774384C133A5D /* OTAManager.swift */,
+			);
+			path = OTA;
+			sourceTree = "<group>";
+		};
+		0576B3A476AFCD59EF141F05 /* Localization */ = {
+			isa = PBXGroup;
+			children = (
+				C28C5928422977589EA34561 /* LocalizationHelpers.swift */,
+			);
+			path = Localization;
+			sourceTree = "<group>";
+		};
+		91E4AF62DD9C753E78946D4A /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				BF963C6F964513ECE285C637 /* AgeGateView.swift */,
+				CFFD0990164EAF88C1E8046D /* BIPADisclosureView.swift */,
+				9B9A9D0E1AEF9CF2D19E1EC5 /* RegionHelper.swift */,
+				046EF1F71E798663ED38E465 /* Under16View.swift */,
+			);
+			path = Onboarding;
+			sourceTree = "<group>";
+		};
+		B4F998242271848D00CE0B9E /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				91A29AEA97C0ABB9CD262787 /* NeurOneShared */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+		BBDCF42489FE0D8732AC985B /* NeurOne */ = {
+			isa = PBXGroup;
+			children = (
+				DFD2E0C92F4D7894D3033EDC /* Analytics */,
+				581535948C92E422594991D0 /* BLE */,
+				2D8F2C0F3D04145DD072CB52 /* Consent */,
+				EA66FB77FDEC54FF12C0374E /* Consumable */,
+				48F35FC99690ADD14F69A1FB /* Data */,
+				1E1CEB0F3C8613C56F225FA8 /* Localizable.xcstrings */,
+				0B957196DEB864998879C4EC /* Models */,
+				0576B3A476AFCD59EF141F05 /* Localization */,
+				91E4AF62DD9C753E78946D4A /* Onboarding */,
+				8AE939E4392CD8C3D878CDD9 /* OTA */,
+				88F587CCF543EF2556265C44 /* Protocol */,
+				E7EC963DBDFD735C4B10D78B /* Session */,
+				67DF04027A49FA3A3A05CEEC /* Setup */,
+				FF30F1AEB8081BCFCC1F7711 /* Views */,
+				227A5C608DD729F28F15D270 /* WatchBridge */,
+				845AFF8746C072D3C5C35BEF /* NeurOneApp.swift */,
+				AB2AE76ECCD0C02E29548198 /* PrivacyInfo.xcprivacy */,
+			);
+			path = NeurOne;
+			sourceTree = "<group>";
+		};
+		DFD2E0C92F4D7894D3033EDC /* Analytics */ = {
+			isa = PBXGroup;
+			children = (
+				51C1E909A1D77F4AD16F428A /* AnalyticsBackend.swift */,
+				F0E81BA8ABF2DB3342E7E28C /* AnalyticsGate.swift */,
+				2E7811F3AF0C1233B76E7036 /* EngagementTier.swift */,
+				F1C910471FBDB04CAE6376C1 /* PostHogAnalyticsBackend.swift */,
+				2C8F406E65B11ECCE4C0CDD5 /* ResearchAnalyticsGate.swift */,
+				EE5A0CFE845DBF72E561EF32 /* WarrantyAnalyticsGate.swift */,
+			);
+			path = Analytics;
+			sourceTree = "<group>";
+		};
+		E7EC963DBDFD735C4B10D78B /* Session */ = {
+			isa = PBXGroup;
+			children = (
+				A2280ECFED79E63FA306A965 /* EDFDownloader.swift */,
+				48E351B1F07B613E2AD4D31A /* NPSessionProtocol+FromDefinition.swift */,
+				618B10574F32EE603156145A /* SessionHistoryStore.swift */,
+				E1ABD8B24911105FF28E2C78 /* SessionProtocol.swift */,
+				1262B33B95FA07E03C897F9A /* SessionProtocolUploader.swift */,
+			);
+			path = Session;
+			sourceTree = "<group>";
+		};
+		EA66FB77FDEC54FF12C0374E /* Consumable */ = {
+			isa = PBXGroup;
+			children = (
+				2AAFA30431862FB5EFE2B94B /* ConsumableCountsProviding.swift */,
+				2B1FA28527F9048C12382557 /* ConsumableTracker.swift */,
+			);
+			path = Consumable;
+			sourceTree = "<group>";
+		};
+		FF30F1AEB8081BCFCC1F7711 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				141B11E25DF013CE21A4EFCE /* Protocol */,
+				816076D720C30AE0F0FB49B4 /* AdaptiveAdjustmentsCard.swift */,
+				D5196D28CADB0435C84FAFBF /* ConsentDashboardView.swift */,
+				AC170B8BDE63021729560AF1 /* ConsentOnboardingView.swift */,
+				E63D2B1437C4B993C5D8CF60 /* ConsumableView.swift */,
+				B98AC0047D92001AACC3385A /* MainTabView.swift */,
+				29997D2651EEF868F3BCD7C8 /* OTAView.swift */,
+				98F682EE3E1DF86B209FC0B4 /* ResearchSuggestionPortalView.swift */,
+				4219BE82CE1BBA0057580A71 /* SessionHistoryListView.swift */,
+				0CD3FBC03A53B600987E7B18 /* SessionHistoryView.swift */,
+				5B3C8C3C50590F552A09F2A6 /* SessionView.swift */,
+				E9D315AFBC8B976F617F41BC /* SetupView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		AAE0B51BD4547818552C93DB /* NeurOneTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = ECCE5C61D9BA4EA8F587D2AF /* Build configuration list for PBXNativeTarget "NeurOneTests" */;
+			buildPhases = (
+				0E5444A12F291A4CDDEED06C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				394B8346E4D46E67299A4AE6 /* PBXTargetDependency */,
+			);
+			name = NeurOneTests;
+			packageProductDependencies = (
+			);
+			productName = NeurOneTests;
+			productReference = 148EC425ABBF6591831CF483 /* NeurOneTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E42D4A8EC149633D91D415DA /* NeurOne */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 127189DB2A922CBF0C7B0F0D /* Build configuration list for PBXNativeTarget "NeurOne" */;
+			buildPhases = (
+				E779E6E73D17D5C7314AE61F /* Sources */,
+				ED68DABAD019CEC421D8E3F4 /* Resources */,
+				803FF0789C57DD194D6004C4 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NeurOne;
+			packageProductDependencies = (
+				B007599D6A7F55456BF1745A /* NeurOneShared */,
+				487DE8D2DFB0D639E45EB4BF /* PostHog */,
+			);
+			productName = NeurOne;
+			productReference = EBE5DF1A6C857B041925298B /* NeurOne.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		CCE1687DAC29FED628915E53 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					AAE0B51BD4547818552C93DB = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					E42D4A8EC149633D91D415DA = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = B4D5DFA46FA42836B7CFB09B /* Build configuration list for PBXProject "NeurOne" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 66B802F27BBA6F7691F5DDF8;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				D2B6F4DEAC0E744B9A10D79F /* XCRemoteSwiftPackageReference "posthog-ios" */,
+				52BE4DEE6A754265AE056781 /* XCLocalSwiftPackageReference "../NeurOneShared" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 2D4EBBB01641BD3EBC4A4F99 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E42D4A8EC149633D91D415DA /* NeurOne */,
+				AAE0B51BD4547818552C93DB /* NeurOneTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		ED68DABAD019CEC421D8E3F4 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5FA3CFF4428F945C9E8E1AD8 /* Localizable.xcstrings in Resources */,
+				11FDF8E088A57FB6C70D76A6 /* PrivacyInfo.xcprivacy in Resources */,
+				2A5DF6452791EBBF096B6B88 /* SupportingFiles in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0E5444A12F291A4CDDEED06C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				49CC31EC8F3FBF58DC0DEB12 /* ResearchAnalyticsGateTests.swift in Sources */,
+				1DA6D5360E54F042DFBBB13A /* ConsentEngineTests.swift in Sources */,
+				9785C8F9C9FA4391BC0C1D16 /* ConsentStoreTests.swift in Sources */,
+				A852FD47B4894C80813A988D /* BIPAConsentFlowTests.swift in Sources */,
+				EEC0DE90A0000000000000B1 /* EEGConsentGateTests.swift in Sources */,
+				7FF51E41A66F36A6C02CB4F0 /* ConsumableTrackerTests.swift in Sources */,
+				6C26B9BC1CF560BF91AF2CCE /* EngagementTierTests.swift in Sources */,
+				C2AA81314EC08ACAF876F81A /* GATTParserTests.swift in Sources */,
+				D8612068400B6AB31C4C6847 /* HardwareSetupManagerTests.swift in Sources */,
+				00082B7A2FB13ABF6A4A4208 /* NPProtocolLibraryTests.swift in Sources */,
+				EC1DDAFDE28C0C517322AA5C /* NPProtocolValidatorTests.swift in Sources */,
+				686D3027611C4F40B5EFA317 /* NeurOneGATTManagerTests.swift in Sources */,
+				D669D78E9899B8B7A9A3EC94 /* NeurOneTests.swift in Sources */,
+				5D06C09BA7CE2433B46F93D1 /* OTAManagerTests.swift in Sources */,
+				67F715230253DF0765B2827A /* PhoneSessionManagerTests.swift in Sources */,
+				4157B772C46C98F925D084B9 /* ProtocolChunkerTests.swift in Sources */,
+				A72C4A1425B5DA66ABB5B511 /* RegionHelperTests.swift in Sources */,
+				692C192B85B408EEBE4D2A29 /* SHDRUploaderTests.swift in Sources */,
+				727B9C405F54232399826BED /* SessionDisplayTests.swift in Sources */,
+				7F2B29A2DAD037E3506B73BC /* SessionHistoryStoreTests.swift in Sources */,
+				C4B6AAD9AEEE79D4FC802D21 /* SessionProtocolUploaderTests.swift in Sources */,
+				0832220A2C9F8F0A7787AFA5 /* SpyAnalyticsBackend.swift in Sources */,
+				DE9F7154FE8BA3A72D7CFC5B /* UHDRKeyManagerTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		E779E6E73D17D5C7314AE61F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D0C9989A7D230DE5B17FACD0 /* AdaptationEvent.swift in Sources */,
+				E83F5467A096AABFDD1ECDEE /* AdaptiveAdjustmentsCard.swift in Sources */,
+				E85D3C4E88EE81E7D9740361 /* LocalizationHelpers.swift in Sources */,
+				2466802007DC508856B7859E /* AgeGateView.swift in Sources */,
+				D6991C1626AC35097F63A8AA /* AnalyticsBackend.swift in Sources */,
+				47B4A59C942833665BF04B2D /* AnalyticsGate.swift in Sources */,
+				3885A31283FF7326152C6198 /* ResearchAnalyticsGate.swift in Sources */,
+				D99B017B0A86C9E5EA66EC5C /* WarrantyAnalyticsGate.swift in Sources */,
+				70193120367CEF0DFFD271D8 /* BIPADisclosureView.swift in Sources */,
+				99A86E1BE6B323A9B2CF78DF /* BLECentral.swift in Sources */,
+				2BBD5FECC80F39E56C8B8ECA /* ConsentDashboardView.swift in Sources */,
+				4D045247AA9DC080F3DECEA2 /* ConsentEngine.swift in Sources */,
+				4EB2F13C0F7FA17B77DB1522 /* ConsentModels.swift in Sources */,
+				AD88E4F65117BFFCC67465C1 /* ConsentOnboardingView.swift in Sources */,
+				3CE8973169F34B9A2261990B /* ConsentStore.swift in Sources */,
+				594CFE7AF49E70D8415A0C75 /* ConsumableCountsProviding.swift in Sources */,
+				50E470714010021CFE57F203 /* ConsumableInventory.swift in Sources */,
+				EB2E3B6A2B4DFB374E88DE22 /* ConsumableTracker.swift in Sources */,
+				E6EF5FE729ADF62E01622C6A /* ConsumableView.swift in Sources */,
+				BF6FCC6887437079914F6C34 /* EDFDownloader.swift in Sources */,
+				B9FD92D6D56DE1E35B983FC0 /* EngagementTier.swift in Sources */,
+				2632ECB57959C32D6138E93F /* FirmwareUpdateService.swift in Sources */,
+				D712D502A9BAC58EDC182D95 /* GATTCharacteristics.swift in Sources */,
+				F4C0A068193A00C82FA6A06F /* GATTSessionPublishing.swift in Sources */,
+				42E09B8D2947B9AB3E78444F /* HardwareSetupManager.swift in Sources */,
+				76491AB06C5E7D5E836241A9 /* HealthKitSessionReader.swift in Sources */,
+				C8E462B412A2DC5F3FAD0507 /* LimitsSettingsView.swift in Sources */,
+				D13CB7203AC04B91379A6966 /* MainTabView.swift in Sources */,
+				67C16141CE9405C01E2DE345 /* ModalityEditorView.swift in Sources */,
+				B6270B20941F97EBBED9C50D /* NPBundledProtocols.swift in Sources */,
+				4B4AD3A4AEF928176CB1DAA7 /* NPDosageLimits.swift in Sources */,
+				3BDCCBC34ECD18114B726A5E /* NPHardwareLimits.swift in Sources */,
+				70E1FBB506B11F4FBF94D455 /* NPLimitsStore.swift in Sources */,
+				AF9995E7037B01A9F21D5396 /* NPModalityType.swift in Sources */,
+				0B089F5D5DF167DF1291A1BC /* NPPredefinedProtocols.swift in Sources */,
+				F0BE1617593F31085C373E47 /* NPProtocolDefinition.swift in Sources */,
+				51E92B5ED3EF294EB6A3D479 /* NPProtocolLibrary.swift in Sources */,
+				2148049E53F79BFD2FBDF5C5 /* NPProtocolScripting.swift in Sources */,
+				4BB4782DE5F0FC0DBBAD2B34 /* NPProtocolValidator.swift in Sources */,
+				147AC427473C4D0971F642F0 /* NPSessionProtocol+FromDefinition.swift in Sources */,
+				D621266DCB39B2D6A512720A /* NeurOneApp.swift in Sources */,
+				97B4C798A7DEC3EC28CC939C /* NeurOneGATTManager.swift in Sources */,
+				2A7D541DA4C69C5F38FC86F2 /* OTAManager.swift in Sources */,
+				CDAF13E1DDEF435214EDEE68 /* OTAModels.swift in Sources */,
+				86AA3152A2A01721F3E14522 /* OTAView.swift in Sources */,
+				7E4D2845AD720CF46481D061 /* PhoneSessionManager.swift in Sources */,
+				6CC0727FF05FC7CF5821E31F /* PostHogAnalyticsBackend.swift in Sources */,
+				13AFC168159A6F44C610EF44 /* ProtocolChunker.swift in Sources */,
+				1BAB0D99F0865C9CC8AEB8C4 /* ProtocolComposerView.swift in Sources */,
+				1ACF8BEE7B78888A38AAD9C0 /* ProtocolEditorView.swift in Sources */,
+				3C60C0DAA2ADF9BB09D69066 /* ProtocolMenuView.swift in Sources */,
+				55843750C59E854BC23C83CE /* ProtocolScriptEditorView.swift in Sources */,
+				70040EC99A6FCA19B82AEC15 /* ProtocolUploadGateway.swift in Sources */,
+				57E03885BEC1D80E7D1FC608 /* RegionHelper.swift in Sources */,
+				4D45D0AE284E8224E262337D /* ResearchSuggestion.swift in Sources */,
+				42ACE79027E900F110A59DC2 /* ResearchSuggestionPortalView.swift in Sources */,
+				420A6ED26D81B76ECC1827EA /* ResearchSuggestionStore.swift in Sources */,
+				5662806CDEFF307AFB444274 /* SHDRUploadTriggering.swift in Sources */,
+				D8400B801F7EC52939E2F473 /* SHDRUploader.swift in Sources */,
+				E0691077ED8967F4C7B978C5 /* SessionHistoryListView.swift in Sources */,
+				FBA06E2F7863855716599956 /* SessionHistoryStore.swift in Sources */,
+				7BC70D02885D48C0E83535EF /* SessionHistoryView.swift in Sources */,
+				419F4D9D23598DE30F6DDB2A /* SessionProtocol.swift in Sources */,
+				1CA2BF6793C470BEBC9D05C4 /* SessionProtocolUploader.swift in Sources */,
+				5700DFA4F74A78C0FACEFC19 /* SessionState.swift in Sources */,
+				60066FA725B78AC851A1D2FB /* SessionView.swift in Sources */,
+				51D0BFF875F5B27FE1329B8F /* SetupView.swift in Sources */,
+				2803EF319AD7BBEA89ABFABE /* UHDRBackupScheduler.swift in Sources */,
+				93455498E379D6EBC4EBBB44 /* UHDRKeyManager.swift in Sources */,
+				999A9048786E4C625D972567 /* Under16View.swift in Sources */,
+				055480BE05301254775DFB2A /* ZoneModuleInfo.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		394B8346E4D46E67299A4AE6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E42D4A8EC149633D91D415DA /* NeurOne */;
+			targetProxy = EB9A580074CF7CD25D22B1AC /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin PBXVariantGroup section */
+/* End PBXVariantGroup section */
+
+/* Begin XCBuildConfiguration section */
+		50CB15EAE7AD46DA2BB7AE7A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.neurone.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NeurOne.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NeurOne";
+			};
+			name = Release;
+		};
+		8DA7A2F73D8C6E675BAA2C20 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = SupportingFiles/NeurOne.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SupportingFiles/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.neurone.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		9C0FF26A3CA993B6C1A42315 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				POSTHOG_PROJECT_TOKEN = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.10;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		A1416508708684333461A7BA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = SupportingFiles/NeurOne.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SupportingFiles/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.neurone.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A6580976A7F69568195FB502 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.neurone.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NeurOne.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NeurOne";
+			};
+			name = Debug;
+		};
+		F1A1638AD4E0F1167CE244C9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MARKETING_VERSION = 1.0.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				POSTHOG_PROJECT_TOKEN = "";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.10;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		127189DB2A922CBF0C7B0F0D /* Build configuration list for PBXNativeTarget "NeurOne" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A1416508708684333461A7BA /* Debug */,
+				8DA7A2F73D8C6E675BAA2C20 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B4D5DFA46FA42836B7CFB09B /* Build configuration list for PBXProject "NeurOne" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F1A1638AD4E0F1167CE244C9 /* Debug */,
+				9C0FF26A3CA993B6C1A42315 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		ECCE5C61D9BA4EA8F587D2AF /* Build configuration list for PBXNativeTarget "NeurOneTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A6580976A7F69568195FB502 /* Debug */,
+				50CB15EAE7AD46DA2BB7AE7A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		52BE4DEE6A754265AE056781 /* XCLocalSwiftPackageReference "../NeurOneShared" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../NeurOneShared;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		D2B6F4DEAC0E744B9A10D79F /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.60.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		487DE8D2DFB0D639E45EB4BF /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = D2B6F4DEAC0E744B9A10D79F /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
+		B007599D6A7F55456BF1745A /* NeurOneShared */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = NeurOneShared;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = CCE1687DAC29FED628915E53 /* Project object */;
+}

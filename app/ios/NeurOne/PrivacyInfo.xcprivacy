@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- ===================================================================
+         NeurOne iOS — Apple Privacy Manifest
+         Satisfies ISA ISC-133.
+
+         Required-Reason API declarations cover every privacy-sensitive
+         platform API the app links against:
+           - UserDefaults          (ConsentStore + @AppStorage flags)
+           - File timestamp APIs   (UHDRBackupScheduler incremental mod-date filter)
+           - Disk space APIs       (free-space check before UHDR backup write)
+         CoreBluetooth (CBCentralManager) is not a Required-Reason API category;
+         its disclosure lives in Info.plist NSBluetooth*UsageDescription and the
+         App Store privacy label. It is noted here for human reference only.
+         ==================================================================== -->
+    <key>NSPrivacyAccessedAPITypes</key>
+    <array>
+        <!-- UserDefaults: consent state (ConsentStore), onboarding/first-run
+             flags, backup destination, consumable snooze counts. -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <!-- CA92.1: Access info from same app only. -->
+                <string>CA92.1</string>
+            </array>
+        </dict>
+        <!-- File timestamp APIs: UHDRBackupScheduler reads
+             .contentModificationDateKey to select changed UHDR files for the
+             nightly incremental backup. -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <!-- C617.1: Timestamps of files inside the app container. -->
+                <string>C617.1</string>
+            </array>
+        </dict>
+        <!-- Disk space APIs: free-space check before writing the encrypted
+             UHDR backup archive to the app container. -->
+        <dict>
+            <key>NSPrivacyAccessedAPIType</key>
+            <string>NSPrivacyAccessedAPICategoryDiskSpace</string>
+            <key>NSPrivacyAccessedAPITypeReasons</key>
+            <array>
+                <!-- E174.1: Display disk space / verify space for app functionality. -->
+                <string>E174.1</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- ===================================================================
+         Collected data types — satisfies ISA ISC-132.
+         Device ID and Crash Data are linked to identity for app functionality
+         (warranty / diagnostics) but are NEVER used for tracking. HRV health
+         data is processed on device for the live session display only and is
+         NOT linked to identity and NOT collected off-device.
+         PostHog analytics data (Product Interaction, Other Usage Data) is
+         anonymous — collected via PostHogAnalyticsBackend after explicit consent,
+         not linked to identity, not used for cross-app tracking.
+         ==================================================================== -->
+    <key>NSPrivacyCollectedDataTypes</key>
+    <array>
+        <!-- Device ID: warranty owner linkage (SHDR opaque token only). -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeDeviceID</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <!-- Crash Data: diagnostics, collected only after explicit consent. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeCrashData</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <true/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <!-- Health & Fitness (HRV): on-device real-time session display only;
+             not linked to identity, not shared, not used to track. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeHealthFitness</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+            </array>
+        </dict>
+        <!-- Product Interaction (PostHog): in-app events sent after analytics
+             consent (app opens, session starts, screen names). Anonymous —
+             personProfiles=.never means no Person record is built in PostHog.
+             Source: PostHog/Resources/PrivacyInfo.xcprivacy (merged by Xcode;
+             declared here so App Store Connect nutrition label is complete). -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeProductInteraction</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
+        <!-- Other Usage Data (PostHog): device model, OS version, app version
+             auto-attached to events as $device_model / $os_version / $app_version.
+             Anonymous — not linked to identity, not used for cross-app tracking.
+             Source: PostHog/Resources/PrivacyInfo.xcprivacy. -->
+        <dict>
+            <key>NSPrivacyCollectedDataType</key>
+            <string>NSPrivacyCollectedDataTypeOtherUsageData</string>
+            <key>NSPrivacyCollectedDataTypeLinked</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypeTracking</key>
+            <false/>
+            <key>NSPrivacyCollectedDataTypePurposes</key>
+            <array>
+                <string>NSPrivacyCollectedDataTypePurposeAnalytics</string>
+            </array>
+        </dict>
+    </array>
+
+    <!-- This app does NOT track users in the App Tracking Transparency sense. -->
+    <key>NSPrivacyTracking</key>
+    <false/>
+    <key>NSPrivacyTrackingDomains</key>
+    <array/>
+</dict>
+</plist>

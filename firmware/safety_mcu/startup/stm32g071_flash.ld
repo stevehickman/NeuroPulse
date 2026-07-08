@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Safety MCU — Linker Script
+ * NeurOne Safety MCU — Linker Script
  * Target: STM32G071KB (128 KB Flash, 36 KB SRAM)
  * Document: NP-SW-001 Rev A — SW-01 Class C
  *

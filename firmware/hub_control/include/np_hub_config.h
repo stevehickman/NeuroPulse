@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Configuration Constants
+ * NeurOne Hub Control Program — Configuration Constants
  * Document: NP-FW-HUB-001 Rev A
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz), FreeRTOS
  */
@@ -9,7 +9,7 @@
 
 /* ── Protocol binary format ───────────────────────────────────────────────────── */
 
-#define NP_HUB_PROTO_MAGIC          0x4E504850UL   /* "NPHP" — NeuroPulse Hub Protocol */
+#define NP_HUB_PROTO_MAGIC          0x4E504850UL   /* "NPHP" — NeurOne Hub Protocol */
 #define NP_HUB_PROTO_VERSION        0x0001U
 #define NP_HUB_PROTO_UUID_LEN       16U            /* session UUID (UHDR key) */
 #define NP_HUB_PROTO_SERIAL_LEN     32U            /* ASCII device serial — replay guard */

@@ -36,7 +36,7 @@ def set_text(cell, text, bold=False, color=None, size=8):
     if color:
         run.font.color.rgb = RGBColor(*color)
 
-COORD_PATH = "docs/neuropulse_eng_coordination_checklist.docx"
+COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
 coord = Document(COORD_PATH)
 
 # ── 1. Table 7: remove spurious G1-08 (row 2) and fix row 3 ID back to G1-08 ─

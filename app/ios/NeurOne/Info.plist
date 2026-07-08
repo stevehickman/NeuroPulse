@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <!-- Bluetooth usage descriptions — NeurOne hub BLE GATT connection
+         (NeurOneGATTManager / CBCentralManager). -->
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>NeurOne uses Bluetooth to communicate with your NeurOne hub in real time.</string>
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>NeurOne uses Bluetooth to communicate with your NeurOne hub.</string>
+
+    <!-- HealthKit read usage — HRV during HRV biofeedback sessions, on-device only. -->
+    <key>NSHealthShareUsageDescription</key>
+    <string>NeurOne reads your heart rate variability during HRV biofeedback sessions to display live coherence guidance. This data is never stored or transmitted.</string>
+
+    <!-- Background task identifier for the nightly UHDR backup
+         (UHDRBackupScheduler / BGTaskScheduler). -->
+    <key>BGTaskSchedulerPermittedIdentifiers</key>
+    <array>
+        <string>com.neurone.uhdr-backup</string>
+    </array>
+</dict>
+</plist>

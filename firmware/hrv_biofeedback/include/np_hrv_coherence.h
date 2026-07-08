@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HRV Biofeedback — Coherence Algorithm
+ * NeurOne HRV Biofeedback — Coherence Algorithm
  * Document: NP-FW-HRV-001 Rev A §6
  *
  * Coherence score = LF_peak_power / (LF_total_power + HF_total_power) × 10

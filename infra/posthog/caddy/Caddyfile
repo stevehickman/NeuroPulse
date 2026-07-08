@@ -1,4 +1,4 @@
-# NeuroPulse PostHog — Caddy HTTPS Termination
+# NeurOne PostHog — Caddy HTTPS Termination
 # NP-ANALYTICS-001 Rev A
 #
 # Activated with: docker compose --profile https up -d

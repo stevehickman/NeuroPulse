@@ -4,7 +4,7 @@
  *
  * Source of truth: locales/*.json (flat key-value per BCP 47 locale)
  * Targets:
- *   - Apple: app/ios/NeuroPulse/Localizable.xcstrings (String Catalog)
+ *   - Apple: app/ios/NeurOne/Localizable.xcstrings (String Catalog)
  *   - Web:   app/web/src/locales/*.json (copy)
  *
  * Future extension point: generateAndroidXml(locales, outputDir)
@@ -14,7 +14,7 @@ import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync, copyFi
 import { join, basename } from "path";
 
 const LOCALES_DIR = join(import.meta.dir, "..", "locales");
-const XCSTRINGS_OUT = join(import.meta.dir, "..", "app", "ios", "NeuroPulse", "Localizable.xcstrings");
+const XCSTRINGS_OUT = join(import.meta.dir, "..", "app", "ios", "NeurOne", "Localizable.xcstrings");
 const WEB_LOCALES_OUT = join(import.meta.dir, "..", "app", "web", "src", "locales");
 
 const REQUIRED_LOCALES = [

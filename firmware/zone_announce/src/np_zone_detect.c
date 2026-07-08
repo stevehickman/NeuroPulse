@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Zone Module Announcement — Zone ID Detection
+ * NeurOne Zone Module Announcement — Zone ID Detection
  * Document: NP-FW-ZA-001 Rev A §6
  *
  * Implements the ZONE_ID resistor classification and the 3×100 ms debounce

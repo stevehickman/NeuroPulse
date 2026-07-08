@@ -1,11 +1,11 @@
 """
 Patch: RISK-14 Option B implementation, RISK-21 mitigation, NP-TOOL-ZM-001 creation.
 Targets:
-  - docs/neuropulse_fpc_zone_module_spec_revA.docx  (pin 19, §8 dual-PD update)
-  - docs/neuropulse_eng_coordination_checklist.docx (G1-06 → CLOSED, add G2-11)
-  - docs/neuropulse_shell_fpc_routing_review.docx   (add §2.4 EEG cable routing)
-  - docs/neuropulse_tool_zone_module_001.docx       (new: NP-TOOL-ZM-001)
-  - docs/neuropulse_fpc_zone_module_risks_revA.docx (RISK-14, 18-24 status updates)
+  - docs/neurone_fpc_zone_module_spec_revA.docx  (pin 19, §8 dual-PD update)
+  - docs/neurone_eng_coordination_checklist.docx (G1-06 → CLOSED, add G2-11)
+  - docs/neurone_shell_fpc_routing_review.docx   (add §2.4 EEG cable routing)
+  - docs/neurone_tool_zone_module_001.docx       (new: NP-TOOL-ZM-001)
+  - docs/neurone_fpc_zone_module_risks_revA.docx (RISK-14, 18-24 status updates)
 """
 from docx import Document
 from docx.shared import Pt, RGBColor, Inches
@@ -80,7 +80,7 @@ def add_tbl_row(tbl, data, widths_in, alternating_idx=0):
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. FPC SPEC — update pin 19 to PD2_CATHODE + add §8.4 dual-PD architecture
 # ══════════════════════════════════════════════════════════════════════════════
-FPC_PATH = "docs/neuropulse_fpc_zone_module_spec_revA.docx"
+FPC_PATH = "docs/neurone_fpc_zone_module_spec_revA.docx"
 fpc = Document(FPC_PATH)
 
 # 1a. Update pinout table: row 19 (index 19) — SPARE_2 → PD2_CATHODE
@@ -162,7 +162,7 @@ print(f"  FPC spec saved: {FPC_PATH}")
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. COORD CHECKLIST — close G1-06 + add G2-11 EEG cable routing
 # ══════════════════════════════════════════════════════════════════════════════
-COORD_PATH = "docs/neuropulse_eng_coordination_checklist.docx"
+COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
 coord = Document(COORD_PATH)
 
 # 2a. Find G1-06 (PD2 decision row) and mark CLOSED
@@ -230,7 +230,7 @@ print(f"  Coord checklist saved: {COORD_PATH}")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. SHELL ROUTING REVIEW — add §2.4 EEG cable routing specification
 # ══════════════════════════════════════════════════════════════════════════════
-SHELL_PATH = "docs/neuropulse_shell_fpc_routing_review.docx"
+SHELL_PATH = "docs/neurone_shell_fpc_routing_review.docx"
 shell = Document(SHELL_PATH)
 
 # Find §3 heading to anchor insertion before it
@@ -255,7 +255,7 @@ S24_CONTENT = [
      "[PRE-TOOLING BLOCKING REQUIREMENT] — shell tooling must not be released until §2.4 "
      "is approved by EE and ME.", False, 10),
     ("2.4.1  EEG Cable Description", True, 10),
-    ("The NeuroPulse headset contains 8 EEG electrode cables (Fp1/2, F3/4, C3/4, P3/4) plus "
+    ("The NeurOne headset contains 8 EEG electrode cables (Fp1/2, F3/4, C3/4, P3/4) plus "
      "reference and ground leads. Each cable is a shielded twisted pair (STP), 28 AWG, with "
      "a braided copper shield tied to DRL at the Hub PCB. Cable outer diameter approximately "
      "2.2 mm with overmould. Total bundle of up to 10 cables routes from the Hub PCB to the "
@@ -361,7 +361,7 @@ print(f"  Shell routing review saved: {SHELL_PATH}")
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. CREATE NP-TOOL-ZM-001 — Zone Module Tooling Specification
 # ══════════════════════════════════════════════════════════════════════════════
-TOOL_PATH = "docs/neuropulse_tool_zone_module_001.docx"
+TOOL_PATH = "docs/neurone_tool_zone_module_001.docx"
 tool = Document()
 
 # Title block
@@ -371,7 +371,7 @@ run.bold = True; run.font.size = Pt(16)
 run.font.color.rgb = RGBColor(0x1F, 0x49, 0x7D)
 
 p = tool.add_paragraph()
-run = p.add_run("NeuroPulse Zone Module Tooling Specification")
+run = p.add_run("NeurOne Zone Module Tooling Specification")
 run.bold = True; run.font.size = Pt(14)
 run.font.color.rgb = RGBColor(0x1F, 0x49, 0x7D)
 
@@ -401,7 +401,7 @@ tool.add_paragraph()
 add_heading(tool, "1.  PURPOSE AND SCOPE", size=12)
 add_body(tool,
     "This document consolidates all moulded and co-moulded feature requirements for the "
-    "NeuroPulse Zone Module body. Four mitigations (RISK-06, RISK-14, RISK-15, RISK-16) "
+    "NeurOne Zone Module body. Four mitigations (RISK-06, RISK-14, RISK-15, RISK-16) "
     "each add a distinct moulded feature to the zone module. This document exists because "
     "the cumulative complexity creates an omission risk (RISK-23): any feature missed before "
     "first-cut requires tooling modification (typically $15,000–40,000 and 6–8 week delay). "
@@ -614,7 +614,7 @@ print(f"  NP-TOOL-ZM-001 saved: {TOOL_PATH}")
 # 5. RISK REGISTER — update RISK-14, RISK-21, RISK-23 to MITIGATED
 #    Update RISK-18 through RISK-24 statuses
 # ══════════════════════════════════════════════════════════════════════════════
-RISK_PATH = "docs/neuropulse_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
 risk = Document(RISK_PATH)
 
 MITIGATED_NOW = {

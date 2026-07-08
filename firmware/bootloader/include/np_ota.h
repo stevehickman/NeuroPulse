@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Bootloader — OTA Update State Machine
+ * NeurOne Bootloader — OTA Update State Machine
  * Document: NP-FW-EMMC-001 Rev A §8.3 (9-step OTA sequence)
  *
  * OTA flow (steps 1–9 from spec):

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Safety MCU SPI Heartbeat Implementation
+ * NeurOne Hub Control Program — Safety MCU SPI Heartbeat Implementation
  * Document: NP-FW-HUB-001 Rev A §7
  */
 

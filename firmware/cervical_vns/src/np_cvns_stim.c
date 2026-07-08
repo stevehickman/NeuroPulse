@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Cervical VNS — Stimulation Delivery
+ * NeurOne Cervical VNS — Stimulation Delivery
  * Document: NP-FW-CVNS-001 Rev A §7
  *
  * Manages the biphasic charge-balanced waveform parameters and ramp state

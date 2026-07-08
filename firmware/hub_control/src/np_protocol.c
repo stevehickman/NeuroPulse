@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Protocol Parser and Verifier
+ * NeurOne Hub Control Program — Protocol Parser and Verifier
  * Document: NP-FW-HUB-001 Rev A §4
  *
  * Ed25519 verification reuses the self-contained verifier from

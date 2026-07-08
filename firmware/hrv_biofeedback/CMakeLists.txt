@@ -1,4 +1,4 @@
-# NeuroPulse HRV Biofeedback — CMake Build
+# NeurOne HRV Biofeedback — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
 # Document: NP-FW-HRV-001 Rev A
 #

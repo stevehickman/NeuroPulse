@@ -1,6 +1,6 @@
 /* Document: NP-FW-EMMC-002 Rev A §E */
 /*
- * NeuroPulse EDF+ Privacy Header — Layout Constants
+ * NeurOne EDF+ Privacy Header — Layout Constants
  * Document: NP-FW-EMMC-002 Rev A §E (EDF+ patient header policy)
  * Target: NXP i.MX RT1062 (Cortex-M7) — also host-compilable for tests.
  *
@@ -12,7 +12,7 @@
  * Privacy policy (NP-FW-EMMC-002 §E.2): no real patient name, no date of birth,
  * no sex code.  The local patient id encodes an opaque 16-char patient code
  * ("NP" + 14 hex chars derived from the UHDR token) with sex and birthdate
- * fields set to 'X' and the patient-name subfield fixed to "NeuroPulse_User".
+ * fields set to 'X' and the patient-name subfield fixed to "NeurOne_User".
  */
 
 #ifndef NP_EDF_CONFIG_H
@@ -60,6 +60,6 @@
 #define NP_EDF_NAME_OFFSET          21   /* after birthdate + " " */
 
 /* Fixed patient-name subfield value (no real name ever written). */
-#define NP_EDF_PATIENT_NAME         "NeuroPulse_User"
+#define NP_EDF_PATIENT_NAME         "NeurOne_User"
 
 #endif /* NP_EDF_CONFIG_H */

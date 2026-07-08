@@ -1,5 +1,5 @@
 /*
- * NeuroPulse — Shared Cryptographic Primitives
+ * NeurOne — Shared Cryptographic Primitives
  * Document: NP-SW-001 §9.4
  *
  * Shared static library consumed by:

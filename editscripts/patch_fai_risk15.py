@@ -27,7 +27,7 @@ def set_cell_text(cell, text, bold=False, color=None, size=8):
     if color:
         run.font.color.rgb = RGBColor(*color)
 
-FAI_PATH = "docs/neuropulse_fai_zone_module.docx"
+FAI_PATH = "docs/neurone_fai_zone_module.docx"
 fai = Document(FAI_PATH)
 
 # ── Find the FAI-A08 row and append new rows after it ──

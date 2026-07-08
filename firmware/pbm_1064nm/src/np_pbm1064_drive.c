@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — I2C LED Driver Protocol
+ * NeurOne 1064nm Smart Zone Module — I2C LED Driver Protocol
  * Document: NP-FW-PBM1064-001 Rev A §5
  *
  * All duty register writes clamp to NP_PBM1064_DUTY_MAX_REG (0x32 = 25%).

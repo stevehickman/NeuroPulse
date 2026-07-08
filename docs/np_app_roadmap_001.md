@@ -1,6 +1,6 @@
 # iOS App Development Roadmap
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-APP-ROADMAP-001  
 **Revision:** B  
 **Date:** 2026-06-03  
@@ -19,7 +19,7 @@
 
 ## 1. Scope
 
-This document defines the development roadmap for the NeuroPulse iOS application, including all core session-management functionality and the Apple Watch companion sync app. The Watch app is a Year 1 deliverable, scheduled for development immediately after core iOS app launch.
+This document defines the development roadmap for the NeurOne iOS application, including all core session-management functionality and the Apple Watch companion sync app. The Watch app is a Year 1 deliverable, scheduled for development immediately after core iOS app launch.
 
 Both iOS app and Watch app are software-only additions. BOM delta: $0.
 
@@ -28,7 +28,7 @@ Both iOS app and Watch app are software-only additions. BOM delta: $0.
 ## 2. Communication Architecture
 
 ```
-NeuroPulse Hub (BT 5.3 LE, antennas in hub)
+NeurOne Hub (BT 5.3 LE, antennas in hub)
         │
         │  BLE GATT custom service
         │  Sub-50ms sync latency target
@@ -67,7 +67,7 @@ The Watch app depends on the core iOS app being App Store-live. Core iOS app sco
 
 ### 4.1 Overview
 
-The Watch app is a free companion delivering three sync channels. All Watch-delivered functions are declared as session monitoring and user interface aids — not therapeutic delivery. Therapeutic claims attach to NeuroPulse hardware only. App Store category: General Wellness.
+The Watch app is a free companion delivering three sync channels. All Watch-delivered functions are declared as session monitoring and user interface aids — not therapeutic delivery. Therapeutic claims attach to NeurOne hardware only. App Store category: General Wellness.
 
 | Channel | Function | watchOS API |
 |---------|----------|-------------|
@@ -109,7 +109,7 @@ Development priority order is determined by implementation complexity and user u
 - CHHapticEngine continuous event: `HapticContinuous` with sharpness 0.8, intensity 0.6 at 40Hz drive frequency
 - Session start synchronisation: hub transmits session epoch; Watch app aligns CHHapticEngine start time using `CHHapticEngine.start(completionHandler:)` with a calculated future timestamp
 - Duty cycle: 100% continuous for session duration (target 20 minutes); Apple Watch thermal performance characterisation required before production release — run 20-minute continuous Core Haptics session and record Watch surface temperature and battery drain
-- Marketing caveat displayed in-app: "For the full 40Hz vibrotactile experience, use the NeuroPulse mastoid vibrotactile pad (available separately). The Apple Watch haptic is a complementary wrist layer — not a substitute for mastoid bone coupling." (See CLAUDE.md §15 for approved marketing copy.)
+- Marketing caveat displayed in-app: "For the full 40Hz vibrotactile experience, use the NeurOne mastoid vibrotactile pad (available separately). The Apple Watch haptic is a complementary wrist layer — not a substitute for mastoid bone coupling." (See CLAUDE.md §15 for approved marketing copy.)
 
 #### Phase 4 — 40Hz Visual Flicker
 **Target:** Month 6+ post-core-app-launch, after screen characterisation
@@ -127,7 +127,7 @@ Until characterisation passes:
 When characterisation passes:
 - 40Hz visual flicker: full-white/black SwiftUI animation, synchronised to hub session 40Hz gamma clock
 - EMDR L/R alternation arrow: session-clock-driven L→R→L cue at EMDR protocol cadence
-- Photoparoxysmal safety note in Watch app: "Visual flicker is disabled automatically if your NeuroPulse EEG detects a photoparoxysmal response. Watch app mirrors this safety cutoff within one WatchConnectivity message cycle."
+- Photoparoxysmal safety note in Watch app: "Visual flicker is disabled automatically if your NeurOne EEG detects a photoparoxysmal response. Watch app mirrors this safety cutoff within one WatchConnectivity message cycle."
 
 ---
 
@@ -154,7 +154,7 @@ WatchConnectivity message from iPhone app to Watch app mirrors the GATT data in 
 
 All Watch-delivered functions must be described in App Store metadata and in-app UI as:
 
-> "Session monitoring and user interface aids for use with a NeuroPulse wearable. The Apple Watch app does not deliver therapeutic stimulation. All therapeutic functions are provided exclusively by NeuroPulse hardware."
+> "Session monitoring and user interface aids for use with a NeurOne wearable. The Apple Watch app does not deliver therapeutic stimulation. All therapeutic functions are provided exclusively by NeurOne hardware."
 
 - App Store primary category: Health & Fitness (not Medical)
 - No claim that Watch haptic, audio, or visual output produces therapeutic neurological effects
@@ -194,11 +194,11 @@ The following are binding engineering constraints, not optional guidelines. Devi
 
 ### 9.1 HealthKit data residency (NP-PRIV-REM-001 STEP-16)
 
-> **HealthKit data accessed by the NeuroPulse iOS or Watch app is used for real-time session display only. It is not persisted, not cached beyond the active session, not transmitted to NeuroPulse servers, not transmitted to any analytics or crash reporting vendor, and not used for any purpose outside the active session in which it was read.**
+> **HealthKit data accessed by the NeurOne iOS or Watch app is used for real-time session display only. It is not persisted, not cached beyond the active session, not transmitted to NeurOne servers, not transmitted to any analytics or crash reporting vendor, and not used for any purpose outside the active session in which it was read.**
 
 Permitted HealthKit quantity types (Phase 1): `HKQuantityTypeIdentifierHeartRateVariabilitySDNN`, `HKQuantityTypeIdentifierHeartRate`. No other HealthKit types may be requested without a formal design change order and App Store privacy label update.
 
-Any future proposal to transmit HealthKit data to NeuroPulse servers or any third party requires: (a) Privacy Lead written approval; (b) updated App Privacy Nutrition Label in App Store Connect; (c) updated GDPR Art. 13 privacy notice; (d) new BAA/DPA if the recipient is a vendor.
+Any future proposal to transmit HealthKit data to NeurOne servers or any third party requires: (a) Privacy Lead written approval; (b) updated App Privacy Nutrition Label in App Store Connect; (c) updated GDPR Art. 13 privacy notice; (d) new BAA/DPA if the recipient is a vendor.
 
 ### 9.2 Minimum age gate (NP-PRIV-001 Rev B MEDIUM-03)
 
@@ -221,7 +221,7 @@ For users whose IP address, device locale, or stated location is in Illinois, th
 Screen title: "Brain Activity Data Consent (Illinois)"
 
 Body text (required):
-"NeuroPulse collects your brainwave (EEG) data during sessions to 
+"NeurOne collects your brainwave (EEG) data during sessions to 
 provide neurofeedback and to adapt stimulation settings in real time.
 Under Illinois law (BIPA), this brainwave data is considered biometric 
 information.
@@ -229,11 +229,11 @@ information.
 • Purpose: Session operation, neurofeedback display, closed-loop adaptation
 • Retention: Until you delete your data or transfer/sell your device
 • Destruction method: Secure hardware-level erasure (eMMC SANITIZE)
-• NeuroPulse will not sell, lease, or profit from your brainwave data
-• NeuroPulse will not share your brainwave data with third parties 
+• NeurOne will not sell, lease, or profit from your brainwave data
+• NeurOne will not share your brainwave data with third parties 
   without your separate consent, except as required by law
 
-Do you consent to NeuroPulse collecting and using your brainwave data 
+Do you consent to NeurOne collecting and using your brainwave data 
 as described above?"
 
 [Yes, I consent]    [No, decline]
@@ -277,4 +277,4 @@ No analytics or crash reporting SDK may initialise before the consent flow is co
 
 ---
 
-*All Watch functions are user interface and session monitoring aids. Therapeutic claims attach to NeuroPulse hardware only. See CLAUDE.md §3b for full Apple Watch sync app specification and §15 for marketing copy.*
+*All Watch functions are user interface and session monitoring aids. Therapeutic claims attach to NeurOne hardware only. See CLAUDE.md §3b for full Apple Watch sync app specification and §15 for marketing copy.*

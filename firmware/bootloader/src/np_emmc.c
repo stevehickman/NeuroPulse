@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Bootloader — eMMC Driver (USDHC2)
+ * NeurOne Bootloader — eMMC Driver (USDHC2)
  * Document: NP-FW-EMMC-001 Rev A §3, §8
  *
  * Drives the NXP i.MX RT1062 USDHC2 peripheral to access the 8 GB industrial

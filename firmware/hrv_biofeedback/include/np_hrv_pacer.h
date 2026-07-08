@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HRV Biofeedback — Breathing Pacer
+ * NeurOne HRV Biofeedback — Breathing Pacer
  * Document: NP-FW-HRV-001 Rev A §7
  *
  * Manages the breathing cadence cue delivered as:

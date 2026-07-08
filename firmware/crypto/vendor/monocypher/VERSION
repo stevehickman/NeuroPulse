@@ -17,8 +17,8 @@ This is normal Monocypher upstream behaviour — the __git__ placeholder is
 present in every commit including tagged releases; the canonical version
 identifier is the git tag above, not the in-source string.
 
-Usage in NeuroPulse:
+Usage in NeurOne:
   monocypher.c + monocypher-ed25519.c are compiled into the np_crypto
   static library.  Only crypto_ed25519_check (RFC 8032, SHA-512) is called
-  from NeuroPulse first-party code.  MISRA C:2012 scans target src/np_crypto.c
+  from NeurOne first-party code.  MISRA C:2012 scans target src/np_crypto.c
   only; SOUP files are exempt per IEC 62304 §8.1.2 with documented origin.

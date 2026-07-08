@@ -1,13 +1,13 @@
 /* Document: NP-FW-EMMC-002 Rev A §E */
 /*
- * NeuroPulse EDF+ Privacy Header — Writer
+ * NeurOne EDF+ Privacy Header — Writer
  * Document: NP-FW-EMMC-002 Rev A §E.2
  *
  * Produces a privacy-preserving EDF+ main header.  No real patient name, no
  * date of birth, no sex code ever appears: the local patient identification
  * field carries an opaque 16-char patient code ("NP" + 14 hex chars derived
  * from the UHDR token), with sex and birthdate fixed to 'X' and the patient
- * name fixed to "NeuroPulse_User".
+ * name fixed to "NeurOne_User".
  *
  * Host vs target string and time handling:
  *   - On NPTEST_HOST, <string.h> and <time.h> are available and used.
@@ -174,11 +174,11 @@ static char np_edf_hex_digit(uint8_t nibble)
 /* ── Patient-name comparison ─────────────────────────────────────────────────── */
 
 /* Returns true if the patient-name portion of local_patient_id contains
-   alphabetic characters that do not spell "NeuroPulse_User".
+   alphabetic characters that do not spell "NeurOne_User".
 
    The name subfield runs from NP_EDF_NAME_OFFSET to the next space or to the
    end of the 80-char field.  An empty/all-space name is treated as compliant
-   (no real name present).  Anything that matches "NeuroPulse_User" exactly is
+   (no real name present).  Anything that matches "NeurOne_User" exactly is
    compliant.  Any other content that contains at least one alphabetic
    character is treated as a real name. */
 bool np_edf_header_contains_real_name(const np_edf_header_t *header)
@@ -216,7 +216,7 @@ bool np_edf_header_contains_real_name(const np_edf_header_t *header)
             }
         }
         if (equal) {
-            return false;  /* exactly "NeuroPulse_User" — compliant */
+            return false;  /* exactly "NeurOne_User" — compliant */
         }
     }
 
@@ -258,7 +258,7 @@ np_edf_status_t np_edf_write_header(np_edf_header_t *header,
     }
     patient_code[NP_EDF_PATIENT_CODE_LEN] = '\0';
 
-    /* 4. local_patient_id: "<code> X X NeuroPulse_User", space-padded to 80.
+    /* 4. local_patient_id: "<code> X X NeurOne_User", space-padded to 80.
           Built into a NUL-terminated scratch buffer then copied without NUL. */
     char patient_id[NP_EDF_PATIENT_ID_LEN + 1];
     {
@@ -286,7 +286,7 @@ np_edf_status_t np_edf_write_header(np_edf_header_t *header,
     np_edf_gmtime(session_ts, &dt);
 
     /* 6. local_recording_id:
-          "Startdate <DD-MMM-YYYY> NeuroPulse X NeuroPulse_v<fw_version>". */
+          "Startdate <DD-MMM-YYYY> NeurOne X NeurOne_v<fw_version>". */
     {
         char rec_date[12];
         np_edf_format_recording_date(&dt, rec_date);
@@ -303,7 +303,7 @@ np_edf_status_t np_edf_write_header(np_edf_header_t *header,
         np_edf_copy(recording_id + pos, rec_date, date_len);
         pos += date_len;
 
-        static const char mid[] = " NeuroPulse X NeuroPulse_v";
+        static const char mid[] = " NeurOne X NeurOne_v";
         size_t mid_len = sizeof(mid) - 1U;
         np_edf_copy(recording_id + pos, mid, mid_len);
         pos += mid_len;

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse sLORETA-guided HD-tDCS — First Article Inspection Tests
+ * NeurOne sLORETA-guided HD-tDCS — First Article Inspection Tests
  * Document: NP-FW-HD-001 Rev A §12 / NP-FAI-HD-001 Rev A
  *
  * FAI-HD01: sLORETA source localization accuracy vs known phantom
@@ -278,7 +278,7 @@ static int fai_hd01_sloreta_plumbing(void)
  *   - Saline phantom: spherical 0.25 S/m saline head phantom (radius ~90 mm).
  *   - T2 wet gel 21-ch cap applied to phantom.
  *   - Micro-Ag/AgCl reference electrodes on 5 mm grid inside phantom.
- *   - NeuroPulse T2 HD-tDCS driver: 4×1 ring montage centred on C3
+ *   - NeurOne T2 HD-tDCS driver: 4×1 ring montage centred on C3
  *     (DLPFC_L approximation on phantom surface), 1 mA anode.
  *   - Repeat with standard 2-electrode (C3 anode, P4 cathode).
  *

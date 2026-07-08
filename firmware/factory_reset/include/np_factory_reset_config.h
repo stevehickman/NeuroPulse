@@ -1,6 +1,6 @@
 /* Document: NP-FW-EMMC-002 Rev A §B */
 /*
- * NeuroPulse Device Factory Reset — Hardware Configuration
+ * NeurOne Device Factory Reset — Hardware Configuration
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  *
  * SNVS_LPGPR1 holds the factory-reset-in-progress flag.  It survives warm

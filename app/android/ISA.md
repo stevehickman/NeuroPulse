@@ -1,7 +1,7 @@
 ---
-task: "Android version of the NeuroPulse iOS app"
+task: "Android version of the NeurOne iOS app"
 slug: 20260702-android-core-app
-project: NeuroPulse
+project: NeurOne
 effort: E3
 effort_source: classifier
 phase: complete
@@ -11,15 +11,15 @@ started: 2026-07-02
 updated: 2026-07-02
 ---
 
-# ISA — NeuroPulse Android App
+# ISA — NeurOne Android App
 
 ## Problem
 
-NeuroPulse has a launch-track iOS app (94 Swift files, ~25k lines, ISA at `app/ios/ISA.md`, 146/164 ISCs verified) but no Android app. Android is required for market coverage at T1 launch; the June 2026 code review explicitly noted "Android app code is not present in this repo," and the i18n architecture (canonical JSON → platform adapters) was designed with an Android XML extension point that has no consumer. Every privacy invariant locked in CLAUDE.md (UHDR/SHDR separation, two consent subjects, engagement_tier coarsening, sessionDay timestamp coarsening, prohibited analytics keys, opaque warranty token) must exist on Android with byte-for-byte parity or the platform becomes a privacy regression vector.
+NeurOne has a launch-track iOS app (94 Swift files, ~25k lines, ISA at `app/ios/ISA.md`, 146/164 ISCs verified) but no Android app. Android is required for market coverage at T1 launch; the June 2026 code review explicitly noted "Android app code is not present in this repo," and the i18n architecture (canonical JSON → platform adapters) was designed with an Android XML extension point that has no consumer. Every privacy invariant locked in CLAUDE.md (UHDR/SHDR separation, two consent subjects, engagement_tier coarsening, sessionDay timestamp coarsening, prohibited analytics keys, opaque warranty token) must exist on Android with byte-for-byte parity or the platform becomes a privacy regression vector.
 
 ## Vision
 
-An Android user gets the identical NeuroPulse experience their iOS counterpart gets: three-minute consent onboarding, BLE hub connection, live session display with coherence and breathing ring, session history at day-granularity, consumable reminders, OTA updates — with every privacy decision visible, revocable, and plain-language. Engineers maintain one mental model across platforms because the Android module structure, class names, GATT UUIDs, wire formats, and consent semantics mirror the iOS codebase one-for-one.
+An Android user gets the identical NeurOne experience their iOS counterpart gets: three-minute consent onboarding, BLE hub connection, live session display with coherence and breathing ring, session history at day-granularity, consumable reminders, OTA updates — with every privacy decision visible, revocable, and plain-language. Engineers maintain one mental model across platforms because the Android module structure, class names, GATT UUIDs, wire formats, and consent semantics mirror the iOS codebase one-for-one.
 
 ## Out of Scope
 
@@ -28,7 +28,7 @@ Wear OS companion app (parallels the Apple Watch app — Year 1 post-launch). T2
 ## Constraints
 
 - **Kotlin + Jetpack Compose, native only.** No cross-platform wrapper (Flutter/RN/KMP-UI) — the program is native-first on both platforms.
-- **Two-module split:** `core` is pure-JVM Kotlin (no Android imports) so all privacy-critical logic is unit-testable without an Android SDK; `app` is the Android shell. Mirrors `NeuroPulseShared` SPM package.
+- **Two-module split:** `core` is pure-JVM Kotlin (no Android imports) so all privacy-critical logic is unit-testable without an Android SDK; `app` is the Android shell. Mirrors `NeurOneShared` SPM package.
 - **GATT UUIDs and wire formats byte-identical to iOS** `GATTCharacteristics.swift` — same 128-bit UUIDs, same little-endian layouts, same opcode values (OTA 0x01–0x05, 0x10–0x12; calibration 0x01–0x04).
 - **UHDR never leaves the device.** No UHDR-class field (epoch timestamps, impedance flags, raw EEG/HRV series) in analytics, logs, or cloud backup.
 - **Analytics: `engagement_tier` enum only** (new/active/established); prohibited-key gate identical to iOS `ResearchAnalyticsGate` including `imp`/`impedance`/`impedance_flags`/`pass_flags`.
@@ -67,7 +67,7 @@ A Gradle multi-module Android project exists at `app/android/` whose pure-JVM `c
 
 ### Models parity
 
-- [x] ISC-15: `SessionState`, `SessionStatus`, `PacerPhase`, `HRVData` exist in core with the same fields/raw values as `NeuroPulseShared/SessionState.swift` — unit test on raw values.
+- [x] ISC-15: `SessionState`, `SessionStatus`, `PacerPhase`, `HRVData` exist in core with the same fields/raw values as `NeurOneShared/SessionState.swift` — unit test on raw values.
 - [x] ISC-16: `FirmwareVersion` parses GATT uint32 LE (bits [23:16]=major, [15:8]=minor, [7:0]=patch) and is Comparable — unit test.
 - [x] ISC-17: `OtaPhase` includes `verified` = 0x04 and `failed` = 0xFF with isBusy/isTerminal semantics matching iOS — unit test.
 - [x] ISC-18: Consent models (`ClinicianUseCaseTier`, `UHDRElement`, `ResearchConsentState`, `ResearchCategory`, `StudyParticipationRecord`, `StudyInvitation`) port with identical tier→element mappings — unit test asserting Monitor/Assess/FullClinical element sets.
@@ -123,14 +123,14 @@ A Gradle multi-module Android project exists at `app/android/` whose pure-JVM `c
 ### Hardware setup wizard (parity)
 
 - [x] ISC-71: `SetupFlow` (core, pure-JVM) ports the state-machine core of iOS `HardwareSetupManager`: 11-step `SetupStep` enum with `requiresHardwareConfirmation`/`requiresSafetyAcknowledgement`, `advance()` with the non-bypassable safety gate, `back()` clearing the acknowledgement on re-entry, `evaluateImpedance(flags)` (≥6/8 threshold, failed-electrode list), and `np.setup.first-complete` persistence. `safetyAcknowledged` never persisted (GDPR Art. 9 / BIPA). Unit-tested (`SetupFlowTests`, 7/7).
-- [x] ISC-72: `SetupWizardScreen` renders the flow (title/instruction per step, per-step controls, Back/primary nav); hardware steps require a CONNECTED hub; impedance/ADS1299 steps send `sendCalibration(...)`; impedance evaluated against `session.impedancePassFlags`; safety step gated on a checkbox. Reachable from Settings → "Set up device". `sendCalibration()` added to `NeuroPulseGattManager`. `:app:assembleDebug` green.
+- [x] ISC-72: `SetupWizardScreen` renders the flow (title/instruction per step, per-step controls, Back/primary nav); hardware steps require a CONNECTED hub; impedance/ADS1299 steps send `sendCalibration(...)`; impedance evaluated against `session.impedancePassFlags`; safety step gated on a checkbox. Reachable from Settings → "Set up device". `sendCalibration()` added to `NeurOneGattManager`. `:app:assembleDebug` green.
 
 ### Compose screens (parity — replacing skeletons)
 
 - [x] ISC-56: `SessionScreen` (Mode 1 display) is a full renderer of `(ConnectionState, SessionState)`: connection banner, status card, live metrics (coherence with color threshold, RMSSD, impedance N/8 from `impedancePassFlags`), breathing pacer progress, protocol-picker entry, and a Stop control with confirmation dialog. Replaces the placeholder. `:app:assembleDebug` green.
 - [x] ISC-57: `ProtocolMenuScreen` lists bundled + user protocols from `NPProtocolLibrary`, each with an availability dot + reason, validation error/warning badges, and a Composite tag; reachable from the Session tab ("Browse Protocols"). Closes ISC-45.
-- [x] ISC-58: `NeuroPulseApplication` constructs `NPProtocolLibrary(keyValueStore)` and exposes it; `MainActivity.SessionTab` toggles Session ↔ Protocol menu and passes live BIPA consent + the localized EEG-unavailable string.
-- [x] ISC-59: `AndroidBleCentral` implements `BleCentral` over `BluetoothLeScanner` + `BluetoothGatt` (scan by service UUID, connect, discover, CCCD-enable notifications, read, write) with API-33 vs pre-33 branches for the changed callback/write signatures. Permission-aware: `adapterState` returns `UNAUTHORIZED` until BLUETOOTH_SCAN/CONNECT are granted, so `NeuroPulseGattManager`'s auto-scan-on-ON path stays inert at startup. Wired app-scoped in `NeuroPulseApplication`; `SessionTab` collects `gattManager.connectionState`/`session` as Compose state, requests runtime permissions, and calls `bleCentral.refresh()` on grant to start scanning; Stop → `requestSessionStop()`. Compile-verified (`:app:assembleDebug`).
+- [x] ISC-58: `NeurOneApplication` constructs `NPProtocolLibrary(keyValueStore)` and exposes it; `MainActivity.SessionTab` toggles Session ↔ Protocol menu and passes live BIPA consent + the localized EEG-unavailable string.
+- [x] ISC-59: `AndroidBleCentral` implements `BleCentral` over `BluetoothLeScanner` + `BluetoothGatt` (scan by service UUID, connect, discover, CCCD-enable notifications, read, write) with API-33 vs pre-33 branches for the changed callback/write signatures. Permission-aware: `adapterState` returns `UNAUTHORIZED` until BLUETOOTH_SCAN/CONNECT are granted, so `NeurOneGattManager`'s auto-scan-on-ON path stays inert at startup. Wired app-scoped in `NeurOneApplication`; `SessionTab` collects `gattManager.connectionState`/`session` as Compose state, requests runtime permissions, and calls `bleCentral.refresh()` on grant to start scanning; Stop → `requestSessionStop()`. Compile-verified (`:app:assembleDebug`).
 - [ ] ISC-60: [DEFERRED-VERIFY] On-device connection to a real hub (scan→connect→notify delivering live `SessionState`) — requires physical BLE hardware + a hub; not runnable on this machine or CI. Code path complete and compiled.
 - [x] ISC-62: `ConsentOnboardingScreen` implements the a-priori research-consent flow (CLAUDE.md §6.2) — L1 contact (+ frequency), L2 nine research categories, L3 blanket consent with the irreversibility notice, L4 results + suggestion-portal opt-in. All optional (Skip persists partial state). Wired into `Root` after the BIPA gate (`np.onboarding.consent-shown`); Finish/Skip persists via `ConsentStore.updateResearchConsent`. `:app:assembleDebug` green.
 - [x] ISC-69: `OtaScreen` renders the hub's live FIRMWARE_VERSION + OTA_STATUS (phase label, progress bar, error code) from `gattManager.hubFirmwareVersion`/`otaStatus`; reachable from Settings → "Firmware & updates". Host-side download/flash service is a follow-up (OI-AND-OTA-01). `:app:assembleDebug` green.
@@ -176,7 +176,7 @@ A Gradle multi-module Android project exists at `app/android/` whose pure-JVM `c
 ### App module shell
 
 - [x] ISC-37: Manifest declares BLUETOOTH_SCAN (`neverForLocation`) + BLUETOOTH_CONNECT and no location permission — `Grep`.
-- [x] ISC-38: `NeuroPulseGattManager` exists with `BleCentral` abstraction (testable without hardware), auto-scan on adapter-on, 2s reconnect delay, SHDR/UHDR guard on characteristic routing.
+- [x] ISC-38: `NeurOneGattManager` exists with `BleCentral` abstraction (testable without hardware), auto-scan on adapter-on, 2s reconnect delay, SHDR/UHDR guard on characteristic routing.
 - [x] ISC-39: Compose UI skeleton: bottom-nav main scaffold with Session, History, Consumables, Consent, Settings destinations + age gate and BIPA screens present as composables.
 - [x] ISC-40: `UhdrKeyManager` derives a 64-byte key via an `Argon2Provider` interface (params m=65536, t=4, p=1 asserted by unit test against a fake provider) and never persists the derived key — `Grep` shows no key write to storage.
 
@@ -206,7 +206,7 @@ A Gradle multi-module Android project exists at `app/android/` whose pure-JVM `c
 
 ## Decisions
 
-- 2026-07-02: Two-module split (pure-JVM `core` + Android `app`) chosen because no Android SDK exists on the build machine — makes all privacy-critical logic locally verifiable, mirrors NeuroPulseShared. Alternative (single Android module) rejected: zero local verification possible.
+- 2026-07-02: Two-module split (pure-JVM `core` + Android `app`) chosen because no Android SDK exists on the build machine — makes all privacy-critical logic locally verifiable, mirrors NeurOneShared. Alternative (single Android module) rejected: zero local verification possible.
 - 2026-07-02: Delegation floor relaxed from 2 to 1 (Forge only) — show-math: the port is single-repo sequential work in an already-isolated worktree; a second write-agent would contend on the same Gradle skeleton and package convention; directed lookups were done directly per the delegation gate.
 - 2026-07-02: NPPS engine (1,488-line NPProtocolScripting.swift) delegated to Forge in background — largest self-contained, convention-stable unit.
 - 2026-07-02: Argon2id behind an `Argon2Provider` interface — Android implementation to vendor signal-org argon2 or lazysodium as SOUP (parallel of iOS PHC vendoring, NP-SW-001 SOUP table entry required before beta).
@@ -232,7 +232,7 @@ Cannot be verified here (need Android SDK / instrumented build — do on CI or a
 - App-level managers: `OTAManager`, `HardwareSetupManager`, `SessionProtocolUploader`, `UHDRBackupScheduler`, Health Connect reader.
 - Compose screens still to build/replace: ~~Session~~ (ISC-56), ~~Protocol menu~~ (ISC-57), ~~Consumables~~ (ISC-61), ~~Consent onboarding L1–L4~~ (ISC-62), ~~Settings~~ (ISC-63), ~~OTA~~ (ISC-69), ~~Under-16~~ (ISC-70). ~~Setup/hardware wizard~~ (ISC-71–72), ~~Session History + Adaptive-Adjustments~~ (ISC-76–77), ~~Protocol editors (script + form + New/Edit/Delete)~~ (ISC-73–75). ~~Protocol composer (layer builder)~~ (ISC-80), ~~Research suggestion portal~~ (ISC-78–79). ~~Limits settings editor~~ (ISC-81–83), ~~deep per-modality parameter editor~~ (ISC-84). **The Android app is now at full functional parity with iOS (minus Apple Watch).** Only externally-blocked items remain deferred: on-device BLE (needs hardware, ISC-60), wire-JSON schema freeze across hub/iOS/Android (ISC-68), and the smaller OI items (Ed25519 <API33 fallback, helmet/individual limits persistence, host-side OTA download).
 - ~~Android `BleCentral` implementation~~ DONE (ISC-59, `AndroidBleCentral`) — on-device connection verification deferred to hardware (ISC-60).
-- ~~Session-descriptor compiler + `ProtocolChunker` + upload~~ DONE (ISC-64–67). Follow-ups: OI-AND-WIRE-01 (freeze the canonical wire JSON across hub/iOS/Android), OI-AND-SIGN-01 (Ed25519 BouncyCastle fallback + Keystore-persisted key; composite upload), and `NeuroPulseGattManager`'s never-unregistered adapter-state `BroadcastReceiver` (acceptable for an app-scoped singleton).
+- ~~Session-descriptor compiler + `ProtocolChunker` + upload~~ DONE (ISC-64–67). Follow-ups: OI-AND-WIRE-01 (freeze the canonical wire JSON across hub/iOS/Android), OI-AND-SIGN-01 (Ed25519 BouncyCastle fallback + Keystore-persisted key; composite upload), and `NeurOneGattManager`'s never-unregistered adapter-state `BroadcastReceiver` (acceptable for an app-scoped singleton).
 
 ## Changelog
 
@@ -250,7 +250,7 @@ Cannot be verified here (need Android SDK / instrumented build — do on CI or a
 - ISC-29/37: Grep AndroidManifest.xml — `allowBackup="false"`, `dataExtractionRules` declared, `neverForLocation` on BLUETOOTH_SCAN, no ACCESS_FINE/COARSE_LOCATION `uses-permission` element.
 - ISC-30: Read ShdrUploader.kt — SecureRandom 32-byte token in EncryptedSharedPreferences, `X-NP-Device-Token` header, CertificatePinner with SPKI pins (placeholders flagged).
 - ISC-31: Grep `track(` call sites — no UHDR-class field names; prohibited-key gate additionally enforces at runtime (ISC-19 test).
-- ISC-38: Read NeuroPulseGattManager.kt — BleCentral abstraction, auto-scan on adapter ON, 2s reconnect, SHDR early-return guards before session-state mutation.
+- ISC-38: Read NeurOneGattManager.kt — BleCentral abstraction, auto-scan on adapter ON, 2s reconnect, SHDR early-return guards before session-state mutation.
 - ISC-39: Read MainActivity.kt / OnboardingScreens.kt / Screens.kt — 5-tab scaffold, AgeGateScreen (unchecked box, disabled Continue), BipaConsentScreen present.
 - ISC-40: UhdrKeyDerivationTests — fake provider receives m=65536/t=4/p=1/len=64; Grep shows no derived-key write to any store (only seed/salt persisted, seed zeroed after use).
 - ISC-41–44: `gradle :core:test` (scratchpad copy, JDK 17, --offline) — BUILD SUCCESSFUL; `ProtocolConsentGateTests` 9/9 pass (isEEGDependent true/false + disabled-modality, isBlockedByBipa block/allow, non-EEG unaffected, composite via resolver, message-res parity). Full suite now **76 tests, 0 failures** across 9 classes. `strings.xml` has `session_eeg_unavailable_body`; `OnboardingKeys.BIPA_ACCEPTED == "np.onboarding.bipa-accepted"`. Grep: no `import android.` in ProtocolConsentGate.kt (core stays pure-JVM).
@@ -264,9 +264,9 @@ Cannot be verified here (need Android SDK / instrumented build — do on CI or a
 - ISC-69–70: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `OtaScreen.kt` (Settings → Firmware) + `Under16Screen` (age-gate under-16 path) added. Compile-verified.
 - ISC-67: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `AndroidProtocolSigner.kt` + `ProtocolUploader.kt` added; menu `onSelect` uploads via compile→chunk→GATT. Compile-verified; on-device upload deferred (ISC-60/68).
 - ISC-62–63: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `ConsentOnboardingScreen.kt` added + wired into `Root` (post-BIPA `np.onboarding.consent-shown` gate); `SettingsScreen` rewritten with re-presentable EEG + research consent. Compile-verified (ConsentStore L1–L4 logic unit-tested in `core` ConsentStoreTests).
-- ISC-61: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `ConsumablesScreen.kt` added + `GattConsumableCountsProvider` in `NeuroPulseApplication`; consumes core `ConsumableTracker.states`. Compile-verified (tracker logic unit-tested in `core` ISC-35/36).
+- ISC-61: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `ConsumablesScreen.kt` added + `GattConsumableCountsProvider` in `NeurOneApplication`; consumes core `ConsumableTracker.states`. Compile-verified (tracker logic unit-tested in `core` ISC-35/36).
 - ISC-59: `gradle :app:assembleDebug` → BUILD SUCCESSFUL; `AndroidBleCentral.kt` added and wired app-scoped; `SessionTab` collects live `connectionState`/`session` flows + requests BLUETOOTH_SCAN/CONNECT. API-33/pre-33 GATT callback + write/descriptor branches compile against SDK 36. On-device run deferred (ISC-60, no hardware).
-- ISC-56–58: `gradle :app:assembleDebug` → BUILD SUCCESSFUL, 29 MB `app-debug.apk`; `SessionScreen.kt` + `ProtocolMenuScreen.kt` added, `SessionScreen` skeleton removed from `Screens.kt`, `MainActivity.SessionTab` toggles the two, `NeuroPulseApplication` exposes `protocolLibrary`. Compile-verified (no instrumented UI test harness on this machine; the consent/availability logic the screens render is unit-tested in `core` ISC-52/53).
+- ISC-56–58: `gradle :app:assembleDebug` → BUILD SUCCESSFUL, 29 MB `app-debug.apk`; `SessionScreen.kt` + `ProtocolMenuScreen.kt` added, `SessionScreen` skeleton removed from `Screens.kt`, `MainActivity.SessionTab` toggles the two, `NeurOneApplication` exposes `protocolLibrary`. Compile-verified (no instrumented UI test harness on this machine; the consent/availability logic the screens render is unit-tested in `core` ISC-52/53).
 - ISC-59: DEFERRED-VERIFY — Android `BleCentral` impl (BluetoothLeScanner + GATT) not yet written; SessionScreen renders disconnected state. Follow-up OI-AND-BLE-01.
 - ISC-51–55: `gradle :core:test` — `NPProtocolLibraryTests` 11/11 pass, incl. `bundledProtocolCountIs19` (all 19 `.npps` templates parse through the Android NPPS parser), read-only immutability, availability (no-device / T1 / EEG-consent block+unblock / non-EEG unaffected), user-protocol persistence round-trip, cached validation. `NPBundledProtocols.kt` + `NPProtocolLibrary.kt` added. Full core suite **97/0** across 11 classes. `:app:assembleDebug` still green with the new core.
 - ISC-46–50: `gradle :core:test` (scratchpad, JDK 17, --offline) — `NPProtocolValidatorTests` 10/10 pass (valid accepted; tDCS 2 mA + BES 1 mA hardware ceilings; charge density over/under 40 µC/cm²; zero-duration; PBM dose; configured intensity limit; empty modalities; duty-cycle ceiling). Full core suite **86 tests, 0 failures** across 10 classes. `NPHardwareLimits.kt` + `NPProtocolValidator.kt` added; no `import android.` (core pure-JVM).

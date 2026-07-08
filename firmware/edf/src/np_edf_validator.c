@@ -1,6 +1,6 @@
 /* Document: NP-FW-EMMC-002 Rev A §E */
 /*
- * NeuroPulse EDF+ Privacy Header — Validator
+ * NeurOne EDF+ Privacy Header — Validator
  * Document: NP-FW-EMMC-002 Rev A §E.2
  *
  * Confirms a header conforms to the privacy policy before any research extract

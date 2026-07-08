@@ -1,6 +1,6 @@
 # NPPS Language Reference
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
 **Revision:** A  
 **Date:** 2026-05-17  
@@ -15,7 +15,7 @@
 
 ---
 
-**NeuroPulse Protocol Script (NPPS)** is the text format used to define, share, and store NeuroPulse session protocols. Files use the `.npps` extension.
+**NeurOne Protocol Script (NPPS)** is the text format used to define, share, and store NeurOne session protocols. Files use the `.npps` extension.
 
 ## Contents
 
@@ -149,7 +149,7 @@ protocol "Gamma Focus" {
 |-------|------|---------|-------------|
 | `id` | string | auto UUID | Stable UUID. Present in predefined files. When present, marks the protocol as predefined. |
 | `description` | string | `""` | Human-readable description. |
-| `author` | string | `"NeuroPulse"` | Creator name. |
+| `author` | string | `"NeurOne"` | Creator name. |
 | `version` | string | `"1.0"` | Semantic version. Increment when protocol content changes. |
 | `readonly` | bool | `false` | Prevents editing or deletion in the app. |
 | `tags` | string array | `[]` | Freeform category labels. |
@@ -164,7 +164,7 @@ Modalities follow the metadata fields, each as a typed block (see §4):
 protocol "Gamma Focus" {
     id: "10000001-0000-0000-0000-000000000000"
     description: "40Hz multi-modal entrainment."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [focus, gamma, 40Hz]
@@ -635,7 +635,7 @@ A composite layers multiple named protocols on a shared timeline.
 composite "Full Multi-Modal RCT" {
     id: "10000100-0000-0000-0000-000000000000"
     description: "Baseline → combined active phase → cool-down."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [rct, multimodal, research]

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Bootloader — USB-C DFU Recovery
+ * NeurOne Bootloader — USB-C DFU Recovery
  * Document: NP-FW-EMMC-001 Rev A §8.4
  *
  * DFU recovery is entered when:
@@ -8,7 +8,7 @@
  *  (c) NP_BOOT_MAX_ATTEMPTS exceeded and rollback bank also fails.
  *
  * Protocol: USB DFU 1.1 (USB class 0xFE, subclass 0x01).
- * The host DFU tool (neuropulse-dfu) authenticates via vendor command before
+ * The host DFU tool (neurone-dfu) authenticates via vendor command before
  * the device accepts any DFU_DNLOAD transfers.
  *
  * DFU writes directly to the inactive bank (or Bank A if both are corrupt).

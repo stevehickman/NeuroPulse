@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Safety MCU — SW01-M05: Cervical VNS Cardiac Rhythm Interlock
+ * NeurOne Safety MCU — SW01-M05: Cervical VNS Cardiac Rhythm Interlock
  * Document: NP-SW-001 Rev A, NP-FW-CVNS-001 Rev A, NP-FMEA-001 Rev A §SW01-M05
  *
  * Monitors R-peak GPIO pulses from the main processor (RPEAK_IN, PA8).

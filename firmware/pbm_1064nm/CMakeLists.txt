@@ -1,4 +1,4 @@
-# NeuroPulse 1064nm Smart Zone Module — CMake Build
+# NeurOne 1064nm Smart Zone Module — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
 # Document: NP-FW-PBM1064-001 Rev A
 #

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Bootloader Linker Script
+ * NeurOne Bootloader Linker Script
  * Target: NXP i.MX RT1062 (Cortex-M7)
  * Document: NP-FW-EMMC-001 Rev A §8.1
  *

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Cervical VNS — Type Definitions
+ * NeurOne Cervical VNS — Type Definitions
  * Document: NP-FW-CVNS-001 Rev A §4
  */
 

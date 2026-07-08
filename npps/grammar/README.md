@@ -6,7 +6,7 @@
 
 ## Overview
 
-`npps.peggy` is the formal PEG grammar for the NeuroPulse Protocol Script (NPPS) language. It is the **single source of truth** for NPPS syntax. The hand-written Swift lexer/parser (`NPProtocolScripting.swift`) and TypeScript parser (`nppsParser.ts`) must accept exactly the language this grammar defines.
+`npps.peggy` is the formal PEG grammar for the NeurOne Protocol Script (NPPS) language. It is the **single source of truth** for NPPS syntax. The hand-written Swift lexer/parser (`NPProtocolScripting.swift`) and TypeScript parser (`nppsParser.ts`) must accept exactly the language this grammar defines.
 
 ## Generating a parser
 

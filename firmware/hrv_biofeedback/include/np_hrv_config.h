@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HRV Biofeedback — Configuration Constants
+ * NeurOne HRV Biofeedback — Configuration Constants
  * Document: NP-FW-HRV-001 Rev A §3
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  *

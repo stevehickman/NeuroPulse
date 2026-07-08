@@ -1,7 +1,7 @@
 protocol "Alpha Calm" {
     id: "10000002-0000-0000-0000-000000000000"
     description: "Promotes relaxed alertness via 10Hz alpha entrainment with PBM and HRV biofeedback. Ideal for stress reduction and pre-sleep wind-down."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [calm, alpha, relaxation, stress, hrv]

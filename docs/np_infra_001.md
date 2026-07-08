@@ -1,6 +1,6 @@
-# NeuroPulse Infrastructure Setup Guide
+# NeurOne Infrastructure Setup Guide
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-INFRA-001  
 **Revision:** A  
 **Date:** 2026-06-14  
@@ -17,15 +17,15 @@
 
 ## 1. Purpose and scope
 
-This document is the operational reference for every external service the NeuroPulse iOS app contacts at runtime. It covers what to purchase, how to configure each service, what the API contract is, and what must be done before first public exposure (TestFlight beta, launch).
+This document is the operational reference for every external service the NeurOne iOS app contacts at runtime. It covers what to purchase, how to configure each service, what the API contract is, and what must be done before first public exposure (TestFlight beta, launch).
 
 **Four services are in scope:**
 
 | Service | Domain / Host | First required |
 |---------|--------------|----------------|
-| SHDR fleet database | `fleet.neuropulse.internal` | T1 launch |
-| OTA firmware distribution | `firmware.neuropulse.ai` | T1 launch |
-| Consumable shop | `neuropulse.com` | TestFlight beta |
+| SHDR fleet database | `fleet.neurone.internal` | T1 launch |
+| OTA firmware distribution | `firmware.neurone.ai` | T1 launch |
+| Consumable shop | `neurone.life` | TestFlight beta |
 | Analytics | `eu.i.posthog.com` (PostHog EU cloud) | TestFlight beta |
 
 Everything here is cross-referenced to the Swift source file that embeds each URL so the infrastructure team can trace a service back to exactly where the app uses it.
@@ -34,20 +34,20 @@ Everything here is cross-referenced to the Swift source file that embeds each UR
 
 ## 2. Domain registrations required
 
-Purchase these domains from your registrar (Namecheap, Cloudflare Registrar, etc.) before any external-facing work begins. Trademark clearance for `neuropulse` is a pending action — confirm clearance before registering (see CLAUDE.md §13.1).
+Purchase these domains from your registrar (Namecheap, Cloudflare Registrar, etc.) before any external-facing work begins. Trademark clearance for `neurone` is a pending action — confirm clearance before registering (see CLAUDE.md §13.1).
 
 | Domain | Why | Notes |
 |--------|-----|-------|
-| `neuropulse.com` | Customer-facing shop, consumable reorder links | Primary brand domain. Also register `.io`, `.co`, `.health` as defensive registrations |
-| `neuropulse.ai` | OTA firmware distribution subdomain (`firmware.neuropulse.ai`) | Required for T1 launch. Also useful as AI-adjacent brand domain |
+| `neurone.life` | Customer-facing shop, consumable reorder links | Primary brand domain. Also register `.io`, `.co`, `.health` as defensive registrations |
+| `neurone.ai` | OTA firmware distribution subdomain (`firmware.neurone.ai`) | Required for T1 launch. Also useful as AI-adjacent brand domain |
 
-`fleet.neuropulse.internal` is an internal hostname resolved by private DNS — no registrar purchase required. Configure in your private DNS zone (e.g. Route53 private hosted zone, Cloudflare Zero Trust, or /etc/hosts in development).
+`fleet.neurone.internal` is an internal hostname resolved by private DNS — no registrar purchase required. Configure in your private DNS zone (e.g. Route53 private hosted zone, Cloudflare Zero Trust, or /etc/hosts in development).
 
 ---
 
-## 3. SHDR fleet database — `fleet.neuropulse.internal`
+## 3. SHDR fleet database — `fleet.neurone.internal`
 
-**Source file:** [`app/ios/NeuroPulse/Data/SHDRUploader.swift`](../app/ios/NeuroPulse/Data/SHDRUploader.swift)
+**Source file:** [`app/ios/NeurOne/Data/SHDRUploader.swift`](../app/ios/NeurOne/Data/SHDRUploader.swift)
 
 ### 3.1 Purpose
 
@@ -62,7 +62,7 @@ iOS App (SHDRUploader)
   │  Body: raw SHDR binary (from shdr_staging.bin, written by hub CDC interface)
   │  TLS: SPKI-pinned (SHDRFleetPinningDelegate)
   ▼
-fleet.neuropulse.internal:443
+fleet.neurone.internal:443
   ├── Receives SHDR blob
   ├── Associates with opaque device token (NP-FW-EMMC-002 Rev A §A)
   └── Writes to fleet analytics database
@@ -72,7 +72,7 @@ The device token is a 256-bit TRNG opaque warranty token — it is never joined 
 
 ### 3.3 API contract
 
-**Endpoint:** `POST https://fleet.neuropulse.internal/v1/shdr`
+**Endpoint:** `POST https://fleet.neurone.internal/v1/shdr`
 
 | Field | Value |
 |-------|-------|
@@ -87,7 +87,7 @@ The server must not attempt to correlate `X-NP-Device-Token` with any user ident
 
 ### 3.4 Infrastructure setup
 
-1. **Private DNS:** add an A/CNAME record for `fleet.neuropulse.internal` in your private DNS zone pointing to the fleet service host. The `.internal` TLD is not publicly routable — this is intentional.
+1. **Private DNS:** add an A/CNAME record for `fleet.neurone.internal` in your private DNS zone pointing to the fleet service host. The `.internal` TLD is not publicly routable — this is intentional.
 
 2. **Server:** provision an HTTPS server (nginx, Caddy, or a cloud API gateway). Minimum spec for T1 at 10,000 devices: 2 vCPU, 4 GB RAM, 500 GB block storage.
 
@@ -102,7 +102,7 @@ The fleet endpoint is SPKI-pinned in `SHDRFleetPinningDelegate`. Placeholder has
 **Before launch:**
 
 ```bash
-# Generate a TLS certificate for fleet.neuropulse.internal (e.g. via internal CA).
+# Generate a TLS certificate for fleet.neurone.internal (e.g. via internal CA).
 # Then derive the SPKI SHA-256 hash:
 openssl x509 -in fleet-cert.pem -pubkey -noout \
   | openssl pkey -pubin -outform der \
@@ -114,14 +114,14 @@ Replace `pinnedHashes` in `SHDRFleetPinningDelegate` with at least two hashes: t
 
 ---
 
-## 4. OTA firmware distribution — `firmware.neuropulse.ai`
+## 4. OTA firmware distribution — `firmware.neurone.ai`
 
-**Source file:** [`app/ios/NeuroPulse/OTA/FirmwareUpdateService.swift`](../app/ios/NeuroPulse/OTA/FirmwareUpdateService.swift)  
-**Related:** [`app/ios/NeuroPulse/Models/OTAModels.swift`](../app/ios/NeuroPulse/Models/OTAModels.swift)
+**Source file:** [`app/ios/NeurOne/OTA/FirmwareUpdateService.swift`](../app/ios/NeurOne/OTA/FirmwareUpdateService.swift)  
+**Related:** [`app/ios/NeurOne/Models/OTAModels.swift`](../app/ios/NeurOne/Models/OTAModels.swift)
 
 ### 4.1 Purpose
 
-The app periodically fetches a manifest from `firmware.neuropulse.ai` to check whether a hub firmware update is available. If a newer version exists, the app downloads the signed `.npfw` binary and transfers it to the hub over BLE. The hub independently verifies the Ed25519 signature before flashing (dual-layer security: TLS pinning on the download + Ed25519 on the image).
+The app periodically fetches a manifest from `firmware.neurone.ai` to check whether a hub firmware update is available. If a newer version exists, the app downloads the signed `.npfw` binary and transfers it to the hub over BLE. The hub independently verifies the Ed25519 signature before flashing (dual-layer security: TLS pinning on the download + Ed25519 on the image).
 
 ### 4.2 Architecture
 
@@ -142,13 +142,13 @@ iOS App (FirmwareUpdateService)
 
 ### 4.3 Domain and CDN setup
 
-1. **Register `neuropulse.ai`** with your domain registrar.
+1. **Register `neurone.ai`** with your domain registrar.
 
 2. **Create a CDN distribution** (AWS CloudFront, Cloudflare R2, Fastly, or GCS with custom domain):
-   - Object storage origin bucket: `neuropulse-firmware` (or equivalent)
-   - Create a CNAME: `firmware.neuropulse.ai` → CDN distribution domain
+   - Object storage origin bucket: `neurone-firmware` (or equivalent)
+   - Create a CNAME: `firmware.neurone.ai` → CDN distribution domain
 
-3. **Enable HTTPS** on the CDN distribution. Obtain a TLS certificate for `firmware.neuropulse.ai` (e.g. ACM on AWS, or Cloudflare Universal SSL).
+3. **Enable HTTPS** on the CDN distribution. Obtain a TLS certificate for `firmware.neurone.ai` (e.g. ACM on AWS, or Cloudflare Universal SSL).
 
 4. **Public read access:** all objects under `/manifest.json` and `/firmware/` must be publicly readable (no auth required — privacy design decision, see §4.2).
 
@@ -158,7 +158,7 @@ iOS App (FirmwareUpdateService)
 
 ### 4.4 Manifest format
 
-The manifest is a JSON object at `https://firmware.neuropulse.ai/manifest.json`. It is decoded by `FirmwareManifest: Decodable` in `OTAModels.swift`.
+The manifest is a JSON object at `https://firmware.neurone.ai/manifest.json`. It is decoded by `FirmwareManifest: Decodable` in `OTAModels.swift`.
 
 ```json
 {
@@ -186,10 +186,10 @@ The manifest is a JSON object at `https://firmware.neuropulse.ai/manifest.json`.
 
 Images are hosted at:
 ```
-https://firmware.neuropulse.ai/firmware/main-<version>.npfw
+https://firmware.neurone.ai/firmware/main-<version>.npfw
 ```
 
-Example: `https://firmware.neuropulse.ai/firmware/main-1.2.3.npfw`
+Example: `https://firmware.neurone.ai/firmware/main-1.2.3.npfw`
 
 The file is the Ed25519-signed binary produced by the secure build pipeline (manufacturing root key — see NP-FW-EMMC-001 Rev A §8.1 and `firmware/bootloader/src/np_signature.c`). The manufacturing root Ed25519 private key must be stored in an HSM and never exposed in CI.
 
@@ -206,7 +206,7 @@ openssl pkeyutl -sign -inkey mfg_root_private.pem -rawin \
 cat firmware.bin firmware.sig > main-1.2.3.npfw
 
 # Upload to CDN
-aws s3 cp main-1.2.3.npfw s3://neuropulse-firmware/firmware/main-1.2.3.npfw \
+aws s3 cp main-1.2.3.npfw s3://neurone-firmware/firmware/main-1.2.3.npfw \
   --cache-control "immutable, max-age=31536000"
 ```
 
@@ -217,7 +217,7 @@ The firmware endpoint is SPKI-pinned in `FirmwarePinningDelegate`. Placeholder z
 **Before launch:**
 
 ```bash
-openssl s_client -connect firmware.neuropulse.ai:443 2>/dev/null \
+openssl s_client -connect firmware.neurone.ai:443 2>/dev/null \
   | openssl x509 -noout -pubkey \
   | openssl pkey -pubin -outform DER \
   | openssl dgst -sha256 -binary \
@@ -228,13 +228,13 @@ Replace `pinnedSPKIHashes` in `FirmwareUpdateService` with the resulting hex str
 
 ---
 
-## 5. Consumable shop — `neuropulse.com`
+## 5. Consumable shop — `neurone.life`
 
-**Source file:** [`app/ios/NeuroPulse/Consumable/ConsumableTracker.swift`](../app/ios/NeuroPulse/Consumable/ConsumableTracker.swift)
+**Source file:** [`app/ios/NeurOne/Consumable/ConsumableTracker.swift`](../app/ios/NeurOne/Consumable/ConsumableTracker.swift)
 
 ### 5.1 Purpose
 
-When the SHDR consumable count crosses a threshold, the app fires a notification with a one-tap "Order" deep link. The link opens `neuropulse.com` in Safari. This is the primary consumable MRR driver (CLAUDE.md §2.3: intranasal sleeves drive $19/month subscription revenue).
+When the SHDR consumable count crosses a threshold, the app fires a notification with a one-tap "Order" deep link. The link opens `neurone.life` in Safari. This is the primary consumable MRR driver (CLAUDE.md §2.3: intranasal sleeves drive $19/month subscription revenue).
 
 ### 5.2 URL routing
 
@@ -251,18 +251,18 @@ Each path must return `200 OK` with the correct product page before TestFlight b
 
 ### 5.3 Domain setup
 
-1. **Register `neuropulse.com`** (and defensive registrations: `.co`, `.io`, `.health`, `.care`).
-2. **Configure DNS:** point `neuropulse.com` to your e-commerce platform or web server.
+1. **Register `neurone.life`** (and defensive registrations: `.co`, `.io`, `.health`, `.care`).
+2. **Configure DNS:** point `neurone.life` to your e-commerce platform or web server.
 3. **HTTPS:** required — App Transport Security enforces HTTPS for all outgoing links.
 4. **E-commerce platform:** Shopify, WooCommerce, or custom. The URL path structure `/consumables/<int>` must be configured as a route in whatever platform is used.
 5. **Subscription setup:** intranasal sleeves and electrode tips have monthly subscription options (CLAUDE.md §2.3). Configure recurring billing before T1 launch (Shopify Subscriptions, ReCharge, or equivalent).
 
 ### 5.4 Pre-launch checklist
 
-- [ ] `https://neuropulse.com/consumables/0` returns 200, shows Intranasal Sleeves product page with $19 price and subscription option
-- [ ] `https://neuropulse.com/consumables/1` returns 200, shows Electrode Hydrogel Tips product page
-- [ ] `https://neuropulse.com/consumables/2` returns 200, shows VNS Clip Pads product page
-- [ ] `https://neuropulse.com/consumables/3` returns 200, shows Audio Cup Foam product page
+- [ ] `https://neurone.life/consumables/0` returns 200, shows Intranasal Sleeves product page with $19 price and subscription option
+- [ ] `https://neurone.life/consumables/1` returns 200, shows Electrode Hydrogel Tips product page
+- [ ] `https://neurone.life/consumables/2` returns 200, shows VNS Clip Pads product page
+- [ ] `https://neurone.life/consumables/3` returns 200, shows Audio Cup Foam product page
 - [ ] Each page renders correctly when opened via Safari on iPhone (not just desktop browser)
 - [ ] Subscription billing configured for `/consumables/0` ($19/mo) and `/consumables/1` ($9.99/mo)
 
@@ -277,7 +277,7 @@ The current integer-path scheme (`/consumables/0`) is implementation-coupled to 
 
 ## 6. Analytics — PostHog EU cloud
 
-**Source file:** [`app/ios/NeuroPulse/Analytics/PostHogAnalyticsBackend.swift`](../app/ios/NeuroPulse/Analytics/PostHogAnalyticsBackend.swift)  
+**Source file:** [`app/ios/NeurOne/Analytics/PostHogAnalyticsBackend.swift`](../app/ios/NeurOne/Analytics/PostHogAnalyticsBackend.swift)  
 **Related:** [`docs/np_app_telemetry_001.md`](np_app_telemetry_001.md), [`docs/np_analytics_001.md`](np_analytics_001.md)
 
 ### 6.1 Two deployment options
@@ -295,7 +295,7 @@ The codebase currently uses **PostHog EU cloud** (`eu.i.posthog.com`) as the ana
 
 1. **Create a PostHog EU account** at [https://eu.posthog.com](https://eu.posthog.com) (not `us.posthog.com` — EU data residency is required under GDPR Art. 44 for EU/EEA users).
 
-2. **Create a project:** name it "NeuroPulse App". Note the Project API Key (format: `phc_<chars>`).
+2. **Create a project:** name it "NeurOne App". Note the Project API Key (format: `phc_<chars>`).
 
 3. **Configure the build variable:** the token is read at runtime from `Info.plist` key `PostHogProjectToken`, which is sourced from the `POSTHOG_PROJECT_TOKEN` build variable. **Never hardcode the token in source** — the `no_hardcoded_secret` SwiftLint rule (ISC-9) will reject it.
 
@@ -347,7 +347,7 @@ When the self-hosted stack (NP-ANALYTICS-001 Rev A, `docs/np_analytics_001.md`) 
 
 1. Obtain the self-hosted PostHog project API token (from the self-hosted UI)
 2. Update the `POSTHOG_PROJECT_TOKEN` build variable to point to the new token
-3. Update `PostHogAnalyticsBackend` to replace `"https://eu.i.posthog.com"` with the self-hosted URL (e.g. `"https://analytics.neuropulse.internal"`)
+3. Update `PostHogAnalyticsBackend` to replace `"https://eu.i.posthog.com"` with the self-hosted URL (e.g. `"https://analytics.neurone.internal"`)
 4. No other source changes required — the SDK initialisation and event routing are already correct
 
 ---
@@ -357,15 +357,15 @@ When the self-hosted stack (NP-ANALYTICS-001 Rev A, `docs/np_analytics_001.md`) 
 ### TestFlight beta (required before any external tester)
 
 - [ ] **Analytics:** PostHog EU account created; `POSTHOG_PROJECT_TOKEN` set in CI secrets; property filter installed; DPA executed
-- [ ] **Consumables shop:** all four `/consumables/<0–3>` paths return 200 with correct product pages on `neuropulse.com`; tested on physical iPhone in Safari
+- [ ] **Consumables shop:** all four `/consumables/<0–3>` paths return 200 with correct product pages on `neurone.life`; tested on physical iPhone in Safari
 
 ### T1 launch (required before App Store submission)
 
-- [ ] **Fleet:** `fleet.neuropulse.internal` server provisioned; `POST /v1/shdr` endpoint operational; SPKI hashes derived and replaced in `SHDRFleetPinningDelegate.pinnedHashes`; no-join CI test passing (OI-EMMC2-07)
-- [ ] **OTA:** `firmware.neuropulse.ai` CDN live; first signed `manifest.json` uploaded; first `.npfw` binary uploaded; SPKI hashes derived and replaced in `FirmwareUpdateService.pinnedSPKIHashes`; OTA tested end-to-end on physical device
+- [ ] **Fleet:** `fleet.neurone.internal` server provisioned; `POST /v1/shdr` endpoint operational; SPKI hashes derived and replaced in `SHDRFleetPinningDelegate.pinnedHashes`; no-join CI test passing (OI-EMMC2-07)
+- [ ] **OTA:** `firmware.neurone.ai` CDN live; first signed `manifest.json` uploaded; first `.npfw` binary uploaded; SPKI hashes derived and replaced in `FirmwareUpdateService.pinnedSPKIHashes`; OTA tested end-to-end on physical device
 - [ ] **Consumables shop:** subscription billing configured for intranasal sleeves ($19/mo) and electrode tips ($9.99/mo)
 - [ ] **PostHog:** PostHog DPA executed (if still on EU cloud) or self-hosted stack deployed in EU region
-- [ ] **Trademark clearance:** `neuropulse` cleared before domains are publicly associated with marketing material (CLAUDE.md §13.1)
+- [ ] **Trademark clearance:** `neurone` cleared before domains are publicly associated with marketing material (CLAUDE.md §13.1)
 
 ---
 
@@ -373,7 +373,7 @@ When the self-hosted stack (NP-ANALYTICS-001 Rev A, `docs/np_analytics_001.md`) 
 
 | Document | Relationship |
 |----------|-------------|
-| `docs/neuropulse_fw_emmc_001.docx` (NP-FW-EMMC-001 Rev A) | SHDR partition schema; dual-bank OTA bootloader protocol |
+| `docs/neurone_fw_emmc_001.docx` (NP-FW-EMMC-001 Rev A) | SHDR partition schema; dual-bank OTA bootloader protocol |
 | `docs/np_fw_emmc_002.md` (NP-FW-EMMC-002 Rev A §A) | Warranty token architecture; no-join rule for fleet DB |
 | `docs/np_app_telemetry_001.md` (NP-APP-TELEMETRY-001 Rev B) | Permitted/prohibited analytics event properties; `engagement_tier` enum |
 | `docs/np_analytics_001.md` (NP-ANALYTICS-001 Rev A) | Full self-hosted PostHog deployment specification |

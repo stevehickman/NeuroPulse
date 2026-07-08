@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control — VNS + HRV Auricular Clip Driver
+ * NeurOne Hub Control — VNS + HRV Auricular Clip Driver
  * Document: NP-FW-HUB-001 Rev A §8.4
  *
  * Manages the auricular VNS + PPG HRV clip on NP_HUB_SLOT_VNS_HRV.

@@ -1,6 +1,6 @@
 # sLORETA-Guided HD-tDCS Firmware Specification
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-FW-HD-001
 **Revision:** A
 **Date:** 2026-05-11
@@ -19,7 +19,7 @@
 
 ## 1. Scope
 
-This document specifies the firmware implementation of sLORETA-guided HD-tDCS for the NeuroPulse Pro (T2) platform. The feature encompasses:
+This document specifies the firmware implementation of sLORETA-guided HD-tDCS for the NeurOne Pro (T2) platform. The feature encompasses:
 
 - Real-time sLORETA cortical source localization from 21-ch qEEG resting-state data
 - Automatic MNI target → T2 cap electrode mapping
@@ -324,7 +324,7 @@ COMPLETE           —                 end_cb() called
 
 ### 8.2 UHDR / SHDR data routing
 
-#### UHDR (user biology — NeuroPulse never holds key)
+#### UHDR (user biology — NeurOne never holds key)
 
 Written to UHDR partition at session end via `end_cb`. Caller commits to eMMC via AES-256-XTS write (biometric key — NP-FW-EMMC-001 Rev A §6).
 
@@ -343,7 +343,7 @@ Written to UHDR partition at session end via `end_cb`. Caller commits to eMMC vi
 | `total_charge_ua_s` | Total delivered charge | Dose metric → UHDR |
 | `abort_reason` | 0 = normal | Safety event → UHDR |
 
-#### SHDR (device metrics — NeuroPulse fleet telemetry)
+#### SHDR (device metrics — NeurOne fleet telemetry)
 
 Written to SHDR partition by caller via SHDR storage API (NP-FW-EMMC-001 §7).
 
@@ -448,7 +448,7 @@ All 6 sub-criteria pass in `fai_hd02_electrode_mapping()` (see test file).
 
 **Setup:**
 - Spherical 0.25 S/m saline phantom, 21-ch wet gel cap
-- NeuroPulse T2 HD-tDCS: 4×1 ring on C3 at 1 mA anode
+- NeurOne T2 HD-tDCS: 4×1 ring on C3 at 1 mA anode
 - Reference micro-electrodes on 5 mm grid inside phantom
 - Repeat with standard 2-electrode (C3–P4) at same current
 

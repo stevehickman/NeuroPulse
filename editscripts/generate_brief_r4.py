@@ -1,6 +1,6 @@
 """
-Generate NeuroPulse Design Brief Revision 4.
-Copies neuropulse_brief_r3.docx and applies all changes from the current
+Generate NeurOne Design Brief Revision 4.
+Copies neurone_brief_r3.docx and applies all changes from the current
 engineering session: dual-PD, five-layer keying, gasket, eject lever, PDMS
 bonding, EEG routing, multi-FPC mgmt, new risks, new documents.
 """
@@ -94,7 +94,7 @@ def insert_xml_row_after(tbl, anchor_tr, data, widths_in=None, bold_col0=True, b
 # ══════════════════════════════════════════════════════════════════════════════
 # Load Rev 3 as base
 # ══════════════════════════════════════════════════════════════════════════════
-doc = Document("docs/neuropulse_brief_r3.docx")
+doc = Document("docs/neurone_brief_r3.docx")
 
 # ── 1. Update title / date / revision ─────────────────────────────────────────
 for p in doc.paragraphs:
@@ -351,7 +351,7 @@ for p in doc.paragraphs:
         print("  Final doc reference updated")
 
 # ── Save as Rev 4 ─────────────────────────────────────────────────────────────
-OUT_PATH = "docs/neuropulse_brief_r4.docx"
+OUT_PATH = "docs/neurone_brief_r4.docx"
 doc.save(OUT_PATH)
 print(f"\nSaved: {OUT_PATH}")
 print("Done.")

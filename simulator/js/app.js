@@ -1,5 +1,5 @@
 /**
- * NeuroPulse Helmet Simulator — main entry point.
+ * NeurOne Helmet Simulator — main entry point.
  *
  * Wires together the Three.js scene, HelmetModel, SessionEngine, and UIManager.
  * Runs the RAF animation loop.
@@ -17,7 +17,7 @@ import { SIM_VERSION }  from './version.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-class NeuroPulseSimulator {
+class NeurOneSimulator {
   constructor() {
     this._canvas = document.getElementById('main-canvas');
     this._wrap   = document.getElementById('viewport-wrap');
@@ -313,5 +313,5 @@ class NeuroPulseSimulator {
 // ─────────────────────────────────────────────────────────────────────────────
 
 window.addEventListener('DOMContentLoaded', () => {
-  new NeuroPulseSimulator();
+  new NeurOneSimulator();
 });

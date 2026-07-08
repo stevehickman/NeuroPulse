@@ -1,5 +1,5 @@
 /*
- * NeuroPulse sLORETA-guided HD-tDCS — Configuration Constants
+ * NeurOne sLORETA-guided HD-tDCS — Configuration Constants
  * Document: NP-FW-HD-001 Rev A §3
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  *

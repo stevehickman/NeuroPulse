@@ -6,7 +6,7 @@
   Do not hand-add user-visible strings here once the adapter lands.
 -->
 <resources>
-    <string name="app_name">NeuroPulse</string>
+    <string name="app_name">NeurOne</string>
     <string name="tab_session">Session</string>
     <string name="tab_history">History</string>
     <string name="tab_consumables">Consumables</string>
@@ -15,5 +15,5 @@
     <string name="bluetooth_off_message">Enable Bluetooth to connect to your hub</string>
     <string name="session_eeg_unavailable_body">EEG neurofeedback is unavailable — brainwave data consent was not granted. Go to the Privacy tab to manage EEG data consent.</string>
     <string name="age_gate_confirmation">I confirm I am 16 years of age or older.</string>
-    <string name="regulatory_footer">NeuroPulse Home is a general wellness device. It is not intended to diagnose, treat, cure, or prevent any disease.</string>
+    <string name="regulatory_footer">NeurOne Home is a general wellness device. It is not intended to diagnose, treat, cure, or prevent any disease.</string>
 </resources>

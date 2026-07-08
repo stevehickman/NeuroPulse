@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Safety MCU — SW01-M08: Non-Volatile Fault Latch
+ * NeurOne Safety MCU — SW01-M08: Non-Volatile Fault Latch
  * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M08
  *
  * Stores fault state in the .fault_latch section (top 64 bytes of SRAM,

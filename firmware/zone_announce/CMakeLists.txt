@@ -1,4 +1,4 @@
-# NeuroPulse Zone Module Announcement — CMake Build
+# NeurOne Zone Module Announcement — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
 # Document: NP-FW-ZA-001 Rev A
 #

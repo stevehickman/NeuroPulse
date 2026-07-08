@@ -1,6 +1,6 @@
 # Corrective and Preventive Action Procedure
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-QMS-CAPA-001
 **Revision:** A
 **Date:** 2026-05-13
@@ -19,7 +19,7 @@
 
 ## 1. Purpose
 
-This procedure defines the Corrective and Preventive Action (CAPA) process for NeuroPulse. CAPA ensures that:
+This procedure defines the Corrective and Preventive Action (CAPA) process for NeurOne. CAPA ensures that:
 - Non-conformances and quality problems are investigated and corrected
 - Root causes are identified and eliminated to prevent recurrence (Corrective Action)
 - Potential problems are identified and eliminated before they occur (Preventive Action)
@@ -242,7 +242,7 @@ The CAPA log is maintained by the Quality Lead and contains a record of every CA
 | | Corrective Action (CA) | Preventive Action (PA) |
 |---|---|---|
 | Trigger | A non-conformance has occurred | A potential non-conformance is identified before it occurs |
-| Examples at NeuroPulse | FAI test failure → root cause → design change | SHDR trend shows LED degradation approaching threshold → design improvement proactively |
+| Examples at NeurOne | FAI test failure → root cause → design change | SHDR trend shows LED degradation approaching threshold → design improvement proactively |
 | ISO 13485 reference | §8.5.2 | §8.5.3 |
 | 21 CFR reference | §820.100(a) | §820.100(b) |
 

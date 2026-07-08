@@ -1,7 +1,7 @@
 /**
- * NeuroPulse Helmet Simulator — WebSocket device API server
+ * NeurOne Helmet Simulator — WebSocket device API server
  *
- * Exposes the same wire protocol the NeuroPulse hub uses over USB-C/BLE so
+ * Exposes the same wire protocol the NeurOne hub uses over USB-C/BLE so
  * macOS/iOS/Windows apps can target this server instead of real hardware.
  *
  * Two client roles connect to ws://localhost:9000:

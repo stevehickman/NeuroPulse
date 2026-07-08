@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — T2 Combined Session API
+ * NeurOne 1064nm Smart Zone Module — T2 Combined Session API
  * Document: NP-FW-PBM1064-001 Rev A §8 / NP-SES-1064-001 §6
  *
  * Coordinates 1064nm smart zone modules (cortical, ~35mm depth) with the T2

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Safety MCU — SW01-M03 Charge Monitor Host Tests
+ * NeurOne Safety MCU — SW01-M03 Charge Monitor Host Tests
  * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev B §SW01-M03
  *
  * Tests np_charge_monitor_init(), np_charge_monitor_accumulate(),

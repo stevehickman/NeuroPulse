@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  NeuroPulse Android manifest.
+  NeurOne Android manifest.
 
   PRIVACY INVARIANTS (app/android/ISA.md ISC-29, ISC-37):
   - allowBackup="false" + dataExtractionRules: session history, consent state,
@@ -40,12 +40,12 @@
         android:required="true" />
 
     <application
-        android:name=".NeuroPulseApplication"
+        android:name=".NeurOneApplication"
         android:label="@string/app_name"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
-        android:theme="@style/Theme.NeuroPulse"
+        android:theme="@style/Theme.NeurOne"
         android:supportsRtl="true">
 
         <activity

@@ -1,7 +1,7 @@
 protocol "ADHD Focus" {
     id: "10000008-0000-0000-0000-000000000000"
     description: "EEG neurofeedback theta/beta ratio training with tDCS cortical priming and 20Hz frontal PBM. Based on 21 RCTs (n=1,261) of EEG neurofeedback for ADHD."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [adhd, focus, theta, beta, neurofeedback, tdcs]

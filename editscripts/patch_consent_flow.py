@@ -59,7 +59,7 @@ def add_row_after(anchor_tr, row_data, col_widths_in, status_col=None, status_co
     anchor_tr.addnext(new_tr)
     return new_tr
 
-BRIEF_PATH = "docs/neuropulse_brief_r4.docx"
+BRIEF_PATH = "docs/neurone_brief_r4.docx"
 brief = Document(BRIEF_PATH)
 
 # ── Locate tables ─────────────────────────────────────────────────────────────
@@ -95,13 +95,13 @@ if uhdr_tbl:
                     append_text(
                         row.cells[1],
                         "\nResearch data flow: All anonymization of UHDR for research "
-                        "purposes occurs on-device (within the NeuroPulse app), generating "
+                        "purposes occurs on-device (within the NeurOne app), generating "
                         "a fresh extract directly from the AES-256 encrypted source partition "
-                        "for each approved study. NeuroPulse infrastructure receives only the "
-                        "pre-anonymized extract. NeuroPulse never decrypts, accesses, or "
+                        "for each approved study. NeurOne infrastructure receives only the "
+                        "pre-anonymized extract. NeurOne never decrypts, accesses, or "
                         "temporarily holds raw UHDR at any point in the research data pipeline. "
                         "No persistent per-user anonymized data store is maintained on "
-                        "NeuroPulse servers.",
+                        "NeurOne servers.",
                         size=9
                     )
                     print("  UHDR row: on-device anonymization note appended")
@@ -124,7 +124,7 @@ if apriori_tbl:
                         "\"Once your anonymised data has been included in a published study, "
                         "it cannot be individually withdrawn from that dataset — this is a "
                         "fundamental property of k-anonymised aggregate data. However, because "
-                        "NeuroPulse anonymises your data fresh from your device for each new "
+                        "NeurOne anonymises your data fresh from your device for each new "
                         "study, withdrawing consent immediately and permanently stops any further "
                         "data flowing to any future dataset — including data from sessions that "
                         "occurred before your withdrawal. Your historical sessions remain on your "
@@ -165,7 +165,7 @@ if consent_tier_tbl:
                     if "k-anon" in cell.text.lower() or "k≥10" in cell.text or "anonymis" in cell.text.lower():
                         append_text(
                             cell,
-                            "\nAnonymization occurs on-device. NeuroPulse receives "
+                            "\nAnonymization occurs on-device. NeurOne receives "
                             "only pre-anonymized extracts per study.",
                             size=9
                         )
@@ -254,13 +254,13 @@ if insert_after_idx is not None:
     paras = [
         ("Architecture requirement",
          "All anonymization of UHDR data for research purposes must occur on-device, "
-         "within the NeuroPulse app, before any data leaves the device. The process for "
+         "within the NeurOne app, before any data leaves the device. The process for "
          "each approved study is:"),
         ("Step 1 — Study approval signal",
-         "NeuroPulse server sends the device a signed study descriptor: study ID, "
+         "NeurOne server sends the device a signed study descriptor: study ID, "
          "anonymization parameters (k-value ≥10, suppression rules, date-rounding interval), "
          "and approved UHDR element list. Study descriptor is cryptographically signed by "
-         "NeuroPulse (same signing infrastructure as session protocols)."),
+         "NeurOne (same signing infrastructure as session protocols)."),
         ("Step 2 — On-device extract generation",
          "The app reads the encrypted UHDR partition (decryption uses only the user biometric-"
          "derived key — app is the only process with transient access during an active session). "
@@ -269,12 +269,12 @@ if insert_after_idx is not None:
          "(d) quasi-identifier suppression per study descriptor. The anonymized extract is "
          "signed with the study ID and device hardware attestation token."),
         ("Step 3 — Extract transmission",
-         "Only the pre-anonymized, signed extract is transmitted to NeuroPulse research "
-         "infrastructure. Raw UHDR never leaves the device. NeuroPulse servers receive and "
+         "Only the pre-anonymized, signed extract is transmitted to NeurOne research "
+         "infrastructure. Raw UHDR never leaves the device. NeurOne servers receive and "
          "store only the extract. No persistent per-user anonymized data store is maintained; "
          "each study receives its own extract. Extracts are keyed to study ID and device ID only."),
         ("Step 4 — No server-side re-identification path",
-         "NeuroPulse infrastructure cannot re-identify users from extracts: no raw UHDR, "
+         "NeurOne infrastructure cannot re-identify users from extracts: no raw UHDR, "
          "no biometric key, no linkage table. The device ID maps only to the SHDR warranty owner "
          "record (shipping address + warranty dates) — SHDR contains no user biology. "
          "Researchers access only aggregated study datasets with no device ID fields."),

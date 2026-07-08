@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Bootloader — Main Boot Flow
+ * NeurOne Bootloader — Main Boot Flow
  * Document: NP-FW-EMMC-001 Rev A §8, §11
  *
  * Boot sequence (B-1 through B-9 from spec):

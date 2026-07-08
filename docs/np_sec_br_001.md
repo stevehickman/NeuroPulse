@@ -1,6 +1,6 @@
 # Breach Response Plan
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-SEC-BR-001
 **Revision:** A
 **Date:** 2026-06-02
@@ -20,16 +20,16 @@
 
 ## 1. Purpose and Scope
 
-This plan governs NeuroPulse's detection, response, notification, and post-incident review procedures for any event that constitutes or may constitute a security breach involving personal data. It applies to all NeuroPulse systems and personnel and to all personal data held by or on behalf of NeuroPulse, including:
+This plan governs NeurOne's detection, response, notification, and post-incident review procedures for any event that constitutes or may constitute a security breach involving personal data. It applies to all NeurOne systems and personnel and to all personal data held by or on behalf of NeurOne, including:
 
 - SHDR fleet database (device telemetry linked to warranty tokens)
 - Warranty registration database (name, email, address, serial number)
 - T2 clinical platform (UHDR-derived clinical records, FHIR resources)
 - POA vault (healthcare power of attorney documents)
 - App analytics and crash report data
-- Any third-party processor holding NeuroPulse personal data under a BAA or DPA
+- Any third-party processor holding NeurOne personal data under a BAA or DPA
 
-UHDR stored on user devices is encrypted with a key NeuroPulse does not hold. A breach of the device itself is a notification obligation of the device owner (the user), not NeuroPulse — unless NeuroPulse's own systems were the attack vector. This distinction must be assessed at the time of any incident.
+UHDR stored on user devices is encrypted with a key NeurOne does not hold. A breach of the device itself is a notification obligation of the device owner (the user), not NeurOne — unless NeurOne's own systems were the attack vector. This distinction must be assessed at the time of any incident.
 
 ---
 
@@ -63,7 +63,7 @@ The following automated alerts should be configured in the fleet monitoring and 
 | SSL certificate expiry within 7 days | Any occurrence | Certificate monitor | P2 |
 | Admin account login from an unrecognised device | Any occurrence | Identity provider | P1 |
 
-**Manual signals:** Users may report suspected breaches via the in-app privacy contact mechanism or by email to [privacy@neuropulse.com — designate before T1 launch]. All user reports are treated as P1 until assessed.
+**Manual signals:** Users may report suspected breaches via the in-app privacy contact mechanism or by email to [privacy@neurone.life — designate before T1 launch]. All user reports are treated as P1 until assessed.
 
 ---
 
@@ -105,7 +105,7 @@ The following questions must be answered before notification timing can be asses
 3. What is the approximate number of affected individuals?
 4. What is the geographic distribution of affected individuals (states, EU member states)?
 5. Is there a low probability of compromise? (For HIPAA: can a four-factor risk assessment support a "low probability" determination that excludes this from the Breach Notification Rule?)
-6. Was the data encrypted at the time of exposure? (UHDR is always encrypted with a key NeuroPulse does not hold — UHDR device breaches may be excluded from notification if the key was not compromised.)
+6. Was the data encrypted at the time of exposure? (UHDR is always encrypted with a key NeurOne does not hold — UHDR device breaches may be excluded from notification if the key was not compromised.)
 
 ### 5.4 Incident log
 
@@ -129,7 +129,7 @@ Was personal data involved?
   No → Close as security incident, no privacy notification required. Document in CAPA log.
   Yes ↓
 
-Is NeuroPulse a HIPAA covered entity for this data?
+Is NeurOne a HIPAA covered entity for this data?
   Yes (T2 clinical operations) → HIPAA Breach Notification Rule applies (§6.2)
   No (T1 consumer / PHR operations) → FTC HBNR applies (§6.3)
   Both may apply → follow both
@@ -178,7 +178,7 @@ Are US state residents affected?
 | Notify affected individuals if high risk | Without undue delay | Communications |
 | File supplementary notification if initial is incomplete | As soon as information is available | Legal Counsel |
 
-**EU representative (Art. 27):** Until NeuroPulse designates an EU Art. 27 representative, notify the DPA of each member state where affected data subjects are located. Designating a representative (before EU T1 launch) simplifies this to a single lead DPA notification.
+**EU representative (Art. 27):** Until NeurOne designates an EU Art. 27 representative, notify the DPA of each member state where affected data subjects are located. Designating a representative (before EU T1 launch) simplifies this to a single lead DPA notification.
 
 **Template:** See Appendix C (GDPR supervisory authority notification — Art. 33).
 
@@ -186,7 +186,7 @@ Are US state residents affected?
 
 **Reference:** NP-PRIV-REM-001 §4.8; NCSL compilation  
 
-The following states have the most restrictive timelines and/or the highest populations of likely NeuroPulse customers:
+The following states have the most restrictive timelines and/or the highest populations of likely NeurOne customers:
 
 | State | Deadline | Special provision | Portal |
 |---|---|---|---|
@@ -206,13 +206,13 @@ The following states have the most restrictive timelines and/or the highest popu
 
 ### Appendix A — HIPAA Individual Notification Letter
 
-> **[NeuroPulse letterhead]**
+> **[NeurOne letterhead]**
 >
 > **Notice of Privacy Practices Breach**
 >
 > Dear [Name],
 >
-> We are writing to inform you of an incident that may have affected the privacy of your health information that NeuroPulse maintains in connection with your NeuroPulse Pro device and clinical services.
+> We are writing to inform you of an incident that may have affected the privacy of your health information that NeurOne maintains in connection with your NeurOne Pro device and clinical services.
 >
 > **What Happened:** On approximately [date], we discovered that [brief factual description of the incident — e.g., unauthorised access to our T2 clinical platform database occurred between [date] and [date]].
 >
@@ -222,38 +222,38 @@ The following states have the most restrictive timelines and/or the highest popu
 >
 > **What You Can Do:** We recommend that you [monitor your accounts / contact us with any questions]. This incident did not involve financial account numbers, social security numbers, or passwords [modify as applicable].
 >
-> **For More Information:** If you have questions, please contact our Privacy Officer at [privacy@neuropulse.com] or call [toll-free number] between [hours]. This line will remain active for at least 90 days.
+> **For More Information:** If you have questions, please contact our Privacy Officer at [privacy@neurone.life] or call [toll-free number] between [hours]. This line will remain active for at least 90 days.
 >
 > We sincerely apologise for this incident and take the security of your health information very seriously.
 >
 > Sincerely,  
 > Steve Hickman  
-> Chief Executive Officer, NeuroPulse
+> Chief Executive Officer, NeurOne
 
 ---
 
 ### Appendix B — FTC HBNR Individual Notification
 
-> **[NeuroPulse letterhead]**
+> **[NeurOne letterhead]**
 >
 > **Important Notice: Your Health Information**
 >
 > Dear [Name],
 >
-> NeuroPulse is contacting you because a security incident occurred that may have affected health-related information stored in your NeuroPulse account.
+> NeurOne is contacting you because a security incident occurred that may have affected health-related information stored in your NeurOne account.
 >
 > **What happened:** [Date] — we discovered that [brief description].
 >
-> **What information was involved:** [List PHR identifiable health information — e.g., session records showing use of specific NeuroPulse features, HRV data, session timing].
+> **What information was involved:** [List PHR identifiable health information — e.g., session records showing use of specific NeurOne features, HRV data, session timing].
 >
 > **What we have done:** [Describe containment and remediation steps].
 >
 > **What you can do:** [Steps specific to the incident — e.g., nothing further required / consider contacting your healthcare provider].
 >
-> **Contact us:** [privacy@neuropulse.com] or [toll-free number] — active for 90 days from this notice.
+> **Contact us:** [privacy@neurone.life] or [toll-free number] — active for 90 days from this notice.
 >
 > Steve Hickman  
-> CEO, NeuroPulse
+> CEO, NeurOne
 
 ---
 
@@ -262,7 +262,7 @@ The following states have the most restrictive timelines and/or the highest popu
 > **Personal Data Breach Notification under Article 33 GDPR**
 >
 > **To:** [Supervisory Authority name and address]  
-> **From:** NeuroPulse, [address]; Data controller contact: [privacy@neuropulse.com]  
+> **From:** NeurOne, [address]; Data controller contact: [privacy@neurone.life]  
 > **Date:** [Date — within 72 hours of awareness]  
 > **Reference:** [Internal incident ID]  
 >
@@ -308,7 +308,7 @@ Within 14 days of incident closure (or as soon as containment is confirmed if so
 **Facilitator:** CEO (or external incident response specialist for the first exercise — recommended).
 
 **Scenario for first exercise (adapt annually):**
-> A researcher reports that a downloaded NeuroPulse research extract contains data that appears to re-identify a participant when combined with a publicly available hospital discharge dataset. The extract was transmitted 90 days ago. The study involved 45 participants from three US states (including California) and 12 EU residents.
+> A researcher reports that a downloaded NeurOne research extract contains data that appears to re-identify a participant when combined with a publicly available hospital discharge dataset. The extract was transmitted 90 days ago. The study involved 45 participants from three US states (including California) and 12 EU residents.
 
 **Exercise objectives:**
 - Walk through §4 (scope determination) — what regulatory frameworks apply?

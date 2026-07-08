@@ -1,12 +1,12 @@
 # 1064nm Smart Zone Module — Mould Variant Specification
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-TOOL-ZM-SM-001  
 **Revision:** A  
 **Date:** 2026-05-13  
 **Status:** BASELINED  
 **Effective Date:** 2026-05-13  
-**Author:** NeuroPulse Mechanical Engineering  
+**Author:** NeurOne Mechanical Engineering  
 **Approved By:** Steve Hickman, CEO  
 **References:** NP-TOOL-ZM-001 Rev A; NP-HW-FPC-001 Rev E; NP-PROC-FPC-1064-001 Rev A; NP-FAI-ZM-001 Rev A  
 **Related Issues:** GitHub Issue #54  

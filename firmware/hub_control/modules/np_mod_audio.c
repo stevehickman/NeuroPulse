@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control — Audio Driver
+ * NeurOne Hub Control — Audio Driver
  * Document: NP-FW-HUB-001 Rev A §8.5
  *
  * Controls:

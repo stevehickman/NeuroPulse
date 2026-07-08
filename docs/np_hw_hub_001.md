@@ -1,12 +1,12 @@
 # Hub PCB Rev B — Vishay DG2788A TIA Gain Switch per Smart Module Slot
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-HW-HUB-001  
 **Revision:** B  
 **Date:** 2026-05-13  
 **Status:** BASELINED  
 **Effective Date:** 2026-05-13  
-**Author:** NeuroPulse Hardware Engineering  
+**Author:** NeurOne Hardware Engineering  
 **Approved By:** Steve Hickman, CEO  
 **References:** NP-HW-FPC-001 Rev E §5.3; NP-FW-PBM1064-001 Rev A §4; CLAUDE.md §3 PBM Transcranial (OI-PBM-HW-01); Issue #54; Issue #62  
 **Related Issues:** GitHub Issue #62 (OI-PBM-HW-01 CLOSED)  
@@ -19,7 +19,7 @@
 
 ## 1. Scope
 
-This document specifies the Rev B changes to the NeuroPulse hub PCB required to support the 1064nm smart zone module accessory (NP-FPC-ZM-SM-01). All changes are additive; the base hub PCB architecture is unchanged.
+This document specifies the Rev B changes to the NeurOne hub PCB required to support the 1064nm smart zone module accessory (NP-FPC-ZM-SM-01). All changes are additive; the base hub PCB architecture is unchanged.
 
 **Rev B adds:**
 1. **Five Vishay DG2788A analog switches** — one per zone slot — switching the TIA feedback resistor Rf from 47 kΩ (base module / no module: silicon PD responsivity) to 22 kΩ (smart module: InGaAs PD, 2× higher responsivity). This is **OI-PBM-HW-01**, the blocking item for FAI-SM-04 and FAI-SM-06.
@@ -71,7 +71,7 @@ One DG2788A per slot covers **both** PD channels (PD1 TIA and PD2 TIA) using the
 - RON ≤ 2.5 Ω negligible vs Rf values (47 kΩ, 22 kΩ)
 - COFF ≤ 5 pF: no significant noise injection into TIA feedback at DC–100 Hz dose-metering bandwidth
 - Dual SPDT in a single SOT-23-8 package covers both PD channels per slot with one component
-- Vishay Siliconix preferred supplier already qualified for NeuroPulse analogue front-end
+- Vishay Siliconix preferred supplier already qualified for NeurOne analogue front-end
 
 ### 3.2 TIA Feedback Switching Topology
 

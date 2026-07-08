@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Module Registry Implementation
+ * NeurOne Hub Control Program — Module Registry Implementation
  * Document: NP-FW-HUB-001 Rev A §3
  */
 

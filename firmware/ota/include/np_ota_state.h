@@ -1,5 +1,5 @@
 /*
- * NeuroPulse OTA — State structure, CRC validation, and boot-attempt logic.
+ * NeurOne OTA — State structure, CRC validation, and boot-attempt logic.
  * Document: NP-FW-EMMC-001 Rev A §8.3 (dual-bank OTA state record)
  *
  * This module is host-testable (no hardware dependencies).

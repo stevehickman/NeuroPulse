@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Cervical VNS — Cardiac Interlock API
+ * NeurOne Cervical VNS — Cardiac Interlock API
  * Document: NP-FW-CVNS-001 Rev A §6
  *
  * Main-processor side of the dual-processor cardiac safety interlock.

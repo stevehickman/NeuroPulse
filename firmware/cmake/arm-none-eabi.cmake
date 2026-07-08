@@ -1,4 +1,4 @@
-# ARM GNU Toolchain file for NeuroPulse embedded firmware
+# ARM GNU Toolchain file for NeurOne embedded firmware
 # Targets: NXP i.MX RT1062 (Cortex-M7) and STM32G071 (Cortex-M0+)
 
 set(CMAKE_SYSTEM_NAME Generic)

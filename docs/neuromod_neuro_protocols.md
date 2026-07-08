@@ -1,7 +1,7 @@
 # Electrical & Magnetic Neuromodulation Protocols for Human Neurological Conditions
 ## TMS · taVNS/VNS · tDCS · tACS
 
-**Sources:** NeuroPulse curated research databases (PRs #165–167) — `docs/NeuroPulse_TMS_database.tsv` (236 studies), `docs/NeuroPulse_VNS_database.tsv` (217), `docs/NeuroPulse_tACS_database.tsv` (108), `docs/tdcs_database_full.csv` (237). Result legend across all four: green ☺ = positive, yellow ☺ (modest)/mixed = unclear, red ☹ = negative/null; ⚔ ref = methodology/guideline.
+**Sources:** NeurOne curated research databases (PRs #165–167) — `docs/NeurOne_TMS_database.tsv` (236 studies), `docs/NeurOne_VNS_database.tsv` (217), `docs/NeurOne_tACS_database.tsv` (108), `docs/tdcs_database_full.csv` (237). Result legend across all four: green ☺ = positive, yellow ☺ (modest)/mixed = unclear, red ☹ = negative/null; ⚔ ref = methodology/guideline.
 **Method:** Human studies extracted with full stimulation parameters and outcome. Protocols reflect what converges across the *higher-quality* studies (pivotal RCTs, FDA-cleared paradigms, meta-analyses) and explicitly down-weight or flag the well-documented negative trials. Companion to `docs/pbm_neuro_protocols.md` (photobiomodulation).
 **Author:** compiled 2026-07-03.
 
@@ -22,7 +22,7 @@ Each modality has a distinct failure mode that its database makes visible. These
 - **tDCS — it is a primer/modulator, not a driver, and polarity + dose are non-linear.** Anodal = excitatory, cathodal = inhibitory (Nitsche & Paulus 2000), but 2 mA cathodal can flip to excitatory (Batsikadze 2013) — more is not always more. tDCS works best *paired with a task or therapy* (aphasia + speech therapy, stroke + rehab, cognition + training); alone its clinical signal is weak and its depression evidence is genuinely split (Brunoni positive, Loo 2018 null). Epilepsy uniquely uses **cathodal** stimulation over the focus.
 - **tACS — frequency-specific, state-dependent, and translation is early.** It entrains endogenous rhythms, so the *frequency* is the dose: 40 Hz gamma for Alzheimer's/cognition (converges with PBM/GENUS), tremor-frequency phase-locked for Parkinson's/essential tremor, alpha for depression, slow-oscillation during sleep for memory. Landmark durable results exist (Reinhart 2019, Grover 2022 — effects lasting ~1 month). But ~75% of scalp current is shunted (Vöröslakos 2018), occipital montages carry retinal-phosphene/peripheral-nerve confounds, and replication failures are real (Klink/Veniero WM null, Clayton attention null). Clinical use is mostly still mechanistic.
 
-**NeuroPulse mapping:** all four modalities exist in the platform — BES/tACS (0.5–40 Hz, ≤1 mA), tDCS/HD-tDCS (0.1–2 mA, safety-MCU charge limit), taVNS (auricular clip) + tcVNS (T2 cervical accessory), and T2 focal TMS. The parameters below are directly loadable as protocol presets, subject to the RISK-03 / 510(k) claims gates.
+**NeurOne mapping:** all four modalities exist in the platform — BES/tACS (0.5–40 Hz, ≤1 mA), tDCS/HD-tDCS (0.1–2 mA, safety-MCU charge limit), taVNS (auricular clip) + tcVNS (T2 cervical accessory), and T2 focal TMS. The parameters below are directly loadable as protocol presets, subject to the RISK-03 / 510(k) claims gates.
 
 ---
 
@@ -116,11 +116,11 @@ Unlike the other three modalities, VNS is a **systemic autonomic therapy** whose
 
 ## The four VNS delivery modalities
 
-| Modality | Route | Typical target | Signature parameters | NeuroPulse fit |
+| Modality | Route | Typical target | Signature parameters | NeurOne fit |
 |---|---|---|---|---|
 | **Implanted cervical VNS** | Surgical | Left cervical vagus | 20–30 Hz, 0.25–3.5 mA, 250–500 µs, 30 s on / 5 min off, chronic | Reference (predicate for T2 claims) |
 | **tcVNS** (e.g. gammaCore) | Transcutaneous neck | Cervical vagus trunk | 25 Hz in **5 kHz bursts**, 1 ms bursts, to tolerance, 120 s doses | **T2 cervical accessory** |
-| **taVNS** | Transcutaneous auricular | **Cymba conchae** (> tragus) | 20–25 Hz (1 Hz for migraine), 0.5–6 mA, 200–500 µs, 30 min ×1–2/day or up to 4 h/day | **NeuroPulse-native auricular clip** |
+| **taVNS** | Transcutaneous auricular | **Cymba conchae** (> tragus) | 20–25 Hz (1 Hz for migraine), 0.5–6 mA, 200–500 µs, 30 min ×1–2/day or up to 4 h/day | **NeurOne-native auricular clip** |
 | **VBLOC** (vagal blocking) | Implanted intra-abdominal | Subdiaphragmatic vagal trunks | **5 kHz high-frequency BLOCK** (inhibitory, not stimulation), up to 8 mA, ~12 h/day | Reference only |
 
 Two paradigm distinctions matter throughout: (1) **cervical/implanted stimulation** engages both afferent and efferent fibers and is FDA-cleared for several indications; **auricular taVNS** engages afferents only and is the non-invasive analogue. (2) **VBLOC is not stimulation** — it is a high-frequency conduction *block* used to reduce vagal signaling (obesity), the opposite intent from every other row here.
@@ -182,9 +182,9 @@ Two paradigm distinctions matter throughout: (1) **cervical/implanted stimulatio
 
 **Epilepsy — Grade A (implanted) / B (taVNS).** Implanted VNS FDA-cleared: L cervical vagus, 20–30 Hz, 500 µs, 30 s on / 5 min off, chronic — ~50% of patients reach ≥50% seizure reduction, **efficacy increases over 2–3 years** (Handforth 1998 pivotal n=196, Englot 2011 meta n=3321), and long-term VNS is associated with reduced SUDEP. Responsive (cardiac-triggered) stimulation can abort seizures (AspireSR, Boon 2015). **taVNS** (cymba conchae, 20–30 Hz, 0.5–1.5 mA, ≥1–4 h/day) reduced seizures vs sham-ear (Rong 2014 n=98). Caveat: Bauer 2016 found 25 Hz not superior to 1 Hz control — interpret taVNS dosing cautiously.
 
-**Depression (MDD) — Grade A (implanted) / B (taVNS).** Implanted VNS FDA-cleared as a *long-term* adjunct: the acute RCT was **negative** (Rush 2005 n=235) but the 5-yr registry shows cumulative response ~68% and lower mortality vs treatment-as-usual (Aaronson 2017 n=795) — **this is a chronic therapy, judged over months to years, not acutely.** **taVNS** protocol (NeuroPulse-relevant): **cymba conchae, 20 Hz, 4–6 mA to tolerance, 200–300 µs, 30 min twice daily, 8–12 wk** → reduced HAM-D vs sham-ear across multiple RCTs (Rong 2016 n=160, Zhang 2021, Song 2024 multicenter), with limbic/DMN connectivity normalization. Extends to perinatal, adolescent, and bipolar depression (pilots, low manic-switch risk).
+**Depression (MDD) — Grade A (implanted) / B (taVNS).** Implanted VNS FDA-cleared as a *long-term* adjunct: the acute RCT was **negative** (Rush 2005 n=235) but the 5-yr registry shows cumulative response ~68% and lower mortality vs treatment-as-usual (Aaronson 2017 n=795) — **this is a chronic therapy, judged over months to years, not acutely.** **taVNS** protocol (NeurOne-relevant): **cymba conchae, 20 Hz, 4–6 mA to tolerance, 200–300 µs, 30 min twice daily, 8–12 wk** → reduced HAM-D vs sham-ear across multiple RCTs (Rong 2016 n=160, Zhang 2021, Song 2024 multicenter), with limbic/DMN connectivity normalization. Extends to perinatal, adolescent, and bipolar depression (pilots, low manic-switch risk).
 
-**Stroke motor rehabilitation — Grade A (paired).** FDA-cleared **Vivistim**: implanted L cervical vagus, 30 Hz, 0.8 mA, 100 µs, **0.5 s bursts time-locked to rehab movements**, 6 wk in-clinic + home → clinically meaningful arm-function response 47% vs 24% (VNS-REHAB, Dawson 2021 n=108). **taVNS-paired** rehab (auricular, movement-triggered) shows the same direction non-invasively (Capone 2017, Wu 2020, meta Li 2022) — directly relevant to a NeuroPulse auricular + rehab pairing.
+**Stroke motor rehabilitation — Grade A (paired).** FDA-cleared **Vivistim**: implanted L cervical vagus, 30 Hz, 0.8 mA, 100 µs, **0.5 s bursts time-locked to rehab movements**, 6 wk in-clinic + home → clinically meaningful arm-function response 47% vs 24% (VNS-REHAB, Dawson 2021 n=108). **taVNS-paired** rehab (auricular, movement-triggered) shows the same direction non-invasively (Capone 2017, Wu 2020, meta Li 2022) — directly relevant to a NeurOne auricular + rehab pairing.
 
 **Migraine / cluster headache — Grade A.** FDA-cleared **tcVNS (gammaCore)**: cervical vagus, 25 Hz in 5 kHz bursts, 1 ms bursts, 120 s doses — acute cluster (ACT1/ACT2), acute migraine (PRESTO), and prevention (PREVA, Gaul 2016 chronic cluster). **taVNS prophylaxis paradox:** here **1 Hz beats 25 Hz** (Straube 2015, Zhang 2019, Song 2023) — opposite of the depression/epilepsy frequency. Frequency is condition-specific.
 
@@ -202,7 +202,7 @@ Two paradigm distinctions matter throughout: (1) **cervical/implanted stimulatio
 
 ### Cardiovascular & autonomic
 
-**Autonomic / HRV — Grade B (mechanistic).** taVNS (tragus or cymba conchae, 20–30 Hz) acutely **increases HRV and shifts toward parasympathetic predominance**, reduces muscle sympathetic nerve activity, and improves baroreflex sensitivity (Clancy 2014, Machetanz 2021, Bretherton 2019 in aging). Right-ear and exhalation-gated delivery enhance cardiovagal engagement (De Couck 2017, Sclocco 2019). **Note parameter sensitivity:** Keute 2018 found no reliable acute HRV change at 0.5 mA — dose matters. *This is the mechanistic backbone of the NeuroPulse VNS+HRV clip and HRV-biofeedback protocols.*
+**Autonomic / HRV — Grade B (mechanistic).** taVNS (tragus or cymba conchae, 20–30 Hz) acutely **increases HRV and shifts toward parasympathetic predominance**, reduces muscle sympathetic nerve activity, and improves baroreflex sensitivity (Clancy 2014, Machetanz 2021, Bretherton 2019 in aging). Right-ear and exhalation-gated delivery enhance cardiovagal engagement (De Couck 2017, Sclocco 2019). **Note parameter sensitivity:** Keute 2018 found no reliable acute HRV change at 0.5 mA — dose matters. *This is the mechanistic backbone of the NeurOne VNS+HRV clip and HRV-biofeedback protocols.*
 
 **Atrial fibrillation — Grade B.** taVNS tragus, 20 Hz, 1 mA below discomfort, 1 h/day → reduced AF burden and inflammatory cytokines (Stavrakis 2015 crossover n=40, TREAT-AF 2020 n=53), and reduced post-ablation recurrence (Yu 2017). One acute electrophysiology study was null (Gauthey 2020).
 
@@ -227,8 +227,8 @@ Mechanistic basis: the vagus efferent arm suppresses TNF and systemic inflammati
 1. **Frequency is indication-specific:** 20–30 Hz (epilepsy, depression, stroke, most taVNS); **1 Hz** (taVNS migraine prophylaxis); **10 Hz, very low duty** (RA, IBD — anti-inflammatory); **5 kHz bursts** (tcVNS gammaCore); **5 kHz continuous block** (VBLOC obesity — inhibitory).
 2. **Judge on the right timescale:** VNS efficacy accrues over months–years (epilepsy, depression) — the negative *acute* depression RCT and the positive 5-yr registry are the same therapy.
 3. **Respect the documented failures:** heart failure (INOVATE-HF, NECTAR-HF both negative), obesity EMPOWER (negative), schizophrenia (Hasan 2015 null), and many null acute taVNS cognition/HRV/attention studies. Parameter and timing precision separate signal from noise.
-4. **taVNS optimization:** target **cymba conchae** (not tragus) for strongest brainstem/NTS engagement (Yakunina 2017); right-ear or exhalation/inspiration-gated delivery enhances cardiovagal effects (Sclocco 2019). NeuroPulse HRV-synchronized taVNS (stimulation phase-locked to respiration/inspiration) aligns directly with this respiration-gated evidence.
-5. **NeuroPulse channels:** the auricular clip covers the taVNS indication set (depression, epilepsy, anxiety, insomnia, HRV/autonomic, GI, inflammatory); the T2 cervical accessory covers the tcVNS set (migraine, cluster, PTSD). The implanted-VNS and VBLOC rows are predicate/reference for 510(k) argumentation, not device functions.
+4. **taVNS optimization:** target **cymba conchae** (not tragus) for strongest brainstem/NTS engagement (Yakunina 2017); right-ear or exhalation/inspiration-gated delivery enhances cardiovagal effects (Sclocco 2019). NeurOne HRV-synchronized taVNS (stimulation phase-locked to respiration/inspiration) aligns directly with this respiration-gated evidence.
+5. **NeurOne channels:** the auricular clip covers the taVNS indication set (depression, epilepsy, anxiety, insomnia, HRV/autonomic, GI, inflammatory); the T2 cervical accessory covers the tcVNS set (migraine, cluster, PTSD). The implanted-VNS and VBLOC rows are predicate/reference for 510(k) argumentation, not device functions.
 
 ---
 
@@ -277,7 +277,7 @@ Mechanistic basis: the vagus efferent arm suppresses TNF and systemic inflammati
 
 **Others (Grade C):** Alzheimer's (anodal bilateral temporal or L-DLPFC → ↑MMSE/recognition memory, Khedr 2014/2019, but Bystad 2016 home null); Parkinson's (anodal M1-leg for gait/FOG, DLPFC for executive/depression; multitarget > single, Dagan 2018); disorders of consciousness (anodal L-DLPFC → CRS-R gains in MCS not VS, Thibaut 2014 n=55); autism (anodal F3 → ↓CARS, Amatachaya 2014); cerebellar ataxia (anodal cerebellar + spinal, Benussi 2018 persisted 3 mo); PTSD, tinnitus (bifrontal), sleep/insomnia (slow-oscillating anodal frontal → ↑N3/memory, Marshall 2006), cerebral palsy, Tourette (cathodal M1/SMA), stuttering (anodal left IFC), dyslexia (children).
 
-**Dose/safety notes:** dose is **non-linear** (2 mA cathodal can flip excitatory — Batsikadze 2013); HD-tDCS (4×1) gives more focal, longer after-effects; NeuroPulse safety-MCU 40 µC/cm² charge-density ceiling and per-electrode limits bound all of the above (T2 HD-tDCS uses the sLORETA-guided 4×1 ring).
+**Dose/safety notes:** dose is **non-linear** (2 mA cathodal can flip excitatory — Batsikadze 2013); HD-tDCS (4×1) gives more focal, longer after-effects; NeurOne safety-MCU 40 µC/cm² charge-density ceiling and per-electrode limits bound all of the above (T2 HD-tDCS uses the sLORETA-guided 4×1 ring).
 
 ---
 
@@ -309,7 +309,7 @@ Mechanistic basis: the vagus efferent arm suppresses TNF and systemic inflammati
 
 **Alzheimer's — Grade C (converges with 40 Hz GENUS/PBM).** **40 Hz gamma tACS over temporal/temporoparietal cortex, 2–3 mA, 60 min** improved episodic memory + cholinergic markers (Benussi 2021 crossover), increased hippocampal CBF (Sprugnoli 2021), and suggested reduced tau PET (Dhaynaut 2022). This is the same 40 Hz gamma target as PBM Mode-40Hz and the mastoid vibrotactile GENUS accessory — a **multi-modal 40 Hz convergence** worth exploiting.
 
-**Parkinson's — Grade B (tremor) / C (bradykinesia).** **Phase-locked tACS at the tremor frequency over M1** suppresses resting tremor ~50% by phase cancellation (Brittain 2013) — a closed-loop, EEG/accelerometer-driven paradigm ideal for NeuroPulse's adaptive architecture. For bradykinesia, **gamma (60–70 Hz) helps and beta (20 Hz) worsens** (Krause 2014, Guerra 2020) — frequency choice is directional.
+**Parkinson's — Grade B (tremor) / C (bradykinesia).** **Phase-locked tACS at the tremor frequency over M1** suppresses resting tremor ~50% by phase cancellation (Brittain 2013) — a closed-loop, EEG/accelerometer-driven paradigm ideal for NeurOne's adaptive architecture. For bradykinesia, **gamma (60–70 Hz) helps and beta (20 Hz) worsens** (Krause 2014, Guerra 2020) — frequency choice is directional.
 
 **Depression — Grade C.** **Alpha (10 Hz) bifrontal tACS, 2 mA, 40 min, 5+ daily sessions** reduced left-frontal alpha and raised remission at follow-up (Alexander 2019, Riddle 2020). A larger 77.5 Hz montage RCT (Wang 2022) also reduced scores.
 
@@ -326,8 +326,8 @@ Mechanistic basis: the vagus efferent arm suppresses TNF and systemic inflammati
 3. **Pairing is a mechanism, not a garnish.** VNS-movement (stroke), VNS-tones (tinnitus), VNS-extinction (PTSD), tDCS-task (cognition), tDCS-therapy (aphasia/rehab) — the paired modalities carry the effect.
 4. **VNS accrues; don't judge it acutely.** The negative acute depression RCT and positive 5-yr registry are the same therapy at different timescales.
 5. **tDCS dose is non-linear and tACS is state/phase-dependent** — higher/longer is not automatically better; both have real replication failures. Weight FDA-cleared TMS/VNS paradigms accordingly.
-6. **40 Hz gamma is a cross-modality convergence** (tACS, PBM, GENUS audio/visual/vibrotactile) for Alzheimer's and cognition — NeuroPulse can stack these on one clock.
+6. **40 Hz gamma is a cross-modality convergence** (tACS, PBM, GENUS audio/visual/vibrotactile) for Alzheimer's and cognition — NeurOne can stack these on one clock.
 7. **Respect documented nulls:** TMS — no DLPFC for OCD, acute-stroke TMS adds little over rehab (NICHE), large tinnitus RCT null; VNS — acute depression RCT null, many null taVNS cognition/HRV studies; tDCS — depression < SSRIs, several outright nulls; tACS — occipital phosphene/peripheral confounds, WM/attention replication failures.
-8. **Closed-loop is the frontier.** fMRI-guided accelerated TMS (SAINT), phase-locked tACS (tremor cancellation), respiration-gated taVNS, and EEG-adaptive dosing all outperform fixed open-loop delivery — exactly NeuroPulse's autonomous EEG-adaptive design point.
+8. **Closed-loop is the frontier.** fMRI-guided accelerated TMS (SAINT), phase-locked tACS (tremor cancellation), respiration-gated taVNS, and EEG-adaptive dosing all outperform fixed open-loop delivery — exactly NeurOne's autonomous EEG-adaptive design point.
 
 *These are research-derived design/scientific protocols, not clinical prescriptions or regulatory-cleared claims. Device deployment remains gated by RISK-03 (T1 wellness) and the T2 510(k) pathway.*

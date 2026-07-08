@@ -1,4 +1,4 @@
-# NeuroPulse Firmware — Root Super-Project
+# NeurOne Firmware — Root Super-Project
 # Document: NP-FW-HUB-001 Rev A, NP-FW-EMMC-001 Rev A, NP-SW-001 Rev A
 #
 # Aggregates all i.MX RT1062 (main processor) firmware modules.
@@ -56,7 +56,7 @@ cmake_minimum_required(VERSION 3.20)
 # ── Project declaration ───────────────────────────────────────────────────────
 # The project language depends on whether we're building for a host or the MCU.
 # Both use C; C++ is not used in this firmware.
-project(neuropulse_firmware C ASM)
+project(neurone_firmware C ASM)
 
 # ── Global options ─────────────────────────────────────────────────────────────
 option(NP_BUILD_TESTS  "Build host-native unit tests (no ARM toolchain needed)" OFF)

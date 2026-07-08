@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Zone Module Announcement — Public API
+ * NeurOne Zone Module Announcement — Public API
  * Document: NP-FW-ZA-001 Rev A §5
  *
  * Implements RISK-15 Layer 5 (five-layer zone module keying): bone conduction

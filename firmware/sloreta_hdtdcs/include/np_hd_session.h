@@ -1,5 +1,5 @@
 /*
- * NeuroPulse sLORETA-guided HD-tDCS — Session Orchestration API
+ * NeurOne sLORETA-guided HD-tDCS — Session Orchestration API
  * Document: NP-FW-HD-001 Rev A §8
  *
  * Implements the 5-stage workflow from CLAUDE.md §3 T2 additions:

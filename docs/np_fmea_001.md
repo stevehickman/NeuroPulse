@@ -1,6 +1,6 @@
 # SW-01 Safety MCU Unit-Level FMEA
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-FMEA-001  
 **Revision:** B  
 **Date:** 2026-06-15  
@@ -21,7 +21,7 @@
 
 ### 1.1 Purpose
 
-This document provides the unit-level Failure Mode and Effects Analysis (FMEA) for SW-01 — the NeuroPulse Safety MCU bare-metal firmware executing on the STM32G071 (Cortex-M0+, 64 MHz, 36 KB SRAM, 128 KB flash). It satisfies IEC 62304:2006+AMD1:2015 §7.1 Class C requirement to identify software items that could contribute to hazardous situations and to document the failure modes, potential harms, and risk controls for each.
+This document provides the unit-level Failure Mode and Effects Analysis (FMEA) for SW-01 — the NeurOne Safety MCU bare-metal firmware executing on the STM32G071 (Cortex-M0+, 64 MHz, 36 KB SRAM, 128 KB flash). It satisfies IEC 62304:2006+AMD1:2015 §7.1 Class C requirement to identify software items that could contribute to hazardous situations and to document the failure modes, potential harms, and risk controls for each.
 
 This FMEA is also required by ISO 14971:2019 as part of the software-related hazard analysis and complements the system-level risk register (NP-RM-001 / NP-RISK-001, RISK-01 through RISK-25).
 
@@ -34,7 +34,7 @@ This document covers the **SW-01 Safety MCU firmware only** — the eight bare-m
 
 ### 1.3 Architectural safety significance
 
-The Safety MCU occupies the most safety-critical position in the NeuroPulse dual-processor architecture. Key architectural properties that are themselves risk mitigations:
+The Safety MCU occupies the most safety-critical position in the NeurOne dual-processor architecture. Key architectural properties that are themselves risk mitigations:
 
 1. **Hardware GPIO ownership:** All stimulation enable GPIO lines are physically wired to the STM32G071 and cannot be driven by the i.MX RT1062 main processor. This is a PCB-level constraint, not a software policy.
 2. **Bare-metal execution:** No RTOS, no dynamic memory allocation (malloc/free prohibited by MISRA C:2012 compliance). This eliminates entire classes of failure modes: scheduler failures, heap fragmentation, stack corruption from dynamic allocation, and RTOS task priority inversions.
@@ -55,7 +55,7 @@ Each module is analysed using the following failure mode chain:
 
 ### 2.2 Severity scale (per NP-RM-001 §4.1)
 
-| Level | Definition | NeuroPulse examples |
+| Level | Definition | NeurOne examples |
 |---|---|---|
 | S1 — Negligible | No injury or discomfort | Spurious debug log entry |
 | S2 — Minor | Temporary, reversible discomfort | Mild skin irritation, session interrupted unnecessarily |
@@ -218,7 +218,7 @@ A baseline cross-validation step before enable ensures the Safety MCU's GPIO-tim
 |---|---|---|---|---|---|---|---|---|---|---|
 | FMEA-M08-01 | Fault latch state cleared by software bug in another module — stimulation re-enabled without explicit app confirmation | After a cardiac or thermal fault, stimulation automatically resumes; patient unaware of safety event | S5 | P2 | 10 (UNACCEPTABLE initial) | Fault latch state stored in a dedicated `volatile` variable (not cleared by any code path except `np_fault_clear()` which requires explicit validated app command via signed session protocol); only one code path can call `np_fault_clear()` (enforced by static analysis and code review); fault state also persisted in backup register | S2 | P1 | 2 | ACCEPTABLE |
 | FMEA-M08-02 | SHDR fault log write fails (SPI unavailable) — fault event not recorded | Safety event lost from fleet records; inability to diagnose device issues post-event | S2 | P3 | 6 (ALARP) | SRAM fault ring buffer always written first (SRAM write cannot fail); SPI write is best-effort with 3 retries; if all retries fail, fault is flagged in the Safety MCU's own SRAM fault log (retrieved at next successful SPI transaction); SHDR loss does not affect the safety of the device state | S1 | P2 | 2 | ACCEPTABLE |
-| FMEA-M08-03 | UHDR-classified fault data (e.g., HR at cutoff) written to SHDR fault log by mistake | Privacy violation: user biology appears in NeuroPulse-accessible SHDR partition | S2 | P2 | 4 (ACCEPTABLE) | SHDR fault log schema (per NP-FW-CVNS-001 §5.6) contains only: session_id (unsigned counter), cutoff_offset_ms, and reason (enum — no HR values); HR data is routed exclusively to UHDR; code review + unit tests verify no HR values are written to the SHDR fault log structure | S1 | P1 | 1 | ACCEPTABLE |
+| FMEA-M08-03 | UHDR-classified fault data (e.g., HR at cutoff) written to SHDR fault log by mistake | Privacy violation: user biology appears in NeurOne-accessible SHDR partition | S2 | P2 | 4 (ACCEPTABLE) | SHDR fault log schema (per NP-FW-CVNS-001 §5.6) contains only: session_id (unsigned counter), cutoff_offset_ms, and reason (enum — no HR values); HR data is routed exclusively to UHDR; code review + unit tests verify no HR values are written to the SHDR fault log structure | S1 | P1 | 1 | ACCEPTABLE |
 | FMEA-M08-04 | Fault indicator LED circuit shares GPIO with stimulation enable — toggling fault LED inadvertently toggles stimulation | Fault condition triggers stimulation instead of indicating fault | S5 | P1 | 5 (ALARP) | Fault LED GPIO and stimulation enable GPIO are on different GPIO ports (separate STM32G071 registers); GPIO assignment verified against schematic in hardware design review; unit test verifies fault LED assertion does not change any stimulation enable register bits | S2 | P1 | 2 | ACCEPTABLE |
 | FMEA-M08-05 | Circular fault buffer overflow — oldest unread fault entries overwritten before being transmitted to SHDR | Historical fault events lost; diagnostic capability reduced post-incident | S1 | P3 | 3 (ACCEPTABLE) | 8-entry ring buffer covers the maximum plausible number of rapid fault-clear-restart cycles before SPI communication is restored; buffer overflow is logged as a separate SHDR event (overflow flag); SW-02 polls for SRAM fault log on every heartbeat when fault state is active | S1 | P2 | 2 | ACCEPTABLE |
 
@@ -283,7 +283,7 @@ The following system-level risks in NP-RISK-001 / NP-RM-001 are addressed by SW-
 
 ### 5.4 Benefit-risk context
 
-The NeuroPulse Safety MCU is the enabling architecture that allows SW-02 (Class B) to orchestrate a complex multi-modal session safely. Without the Safety MCU's independent hardware GPIO ownership, every SW-02 firmware module touching stimulation would require Class C treatment. The cost of the Safety MCU (STM32G071, +$0.45 BOM) and its independent Class C firmware development is justified by the architectural risk reduction it provides across the entire device.
+The NeurOne Safety MCU is the enabling architecture that allows SW-02 (Class B) to orchestrate a complex multi-modal session safely. Without the Safety MCU's independent hardware GPIO ownership, every SW-02 firmware module touching stimulation would require Class C treatment. The cost of the Safety MCU (STM32G071, +$0.45 BOM) and its independent Class C firmware development is justified by the architectural risk reduction it provides across the entire device.
 
 The clinical benefit of the device — multi-modal neurostimulation supporting cognitive function, sleep, mood, and T2 clinical indications — substantially outweighs the residual risks identified in this FMEA, all of which have been reduced to ACCEPTABLE levels through the described mitigations.
 

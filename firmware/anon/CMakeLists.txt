@@ -1,4 +1,4 @@
-# NeuroPulse Research Anonymisation — Scratch Encryption — CMake Build
+# NeurOne Research Anonymisation — Scratch Encryption — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
 # Document: NP-FW-EMMC-002 Rev A §D
 #

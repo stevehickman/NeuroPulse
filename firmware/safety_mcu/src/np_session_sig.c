@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Safety MCU — SW01-M07: Session Descriptor Signature Gate
+ * NeurOne Safety MCU — SW01-M07: Session Descriptor Signature Gate
  * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M07
  *
  * Verifies the Ed25519 signature on the session descriptor before allowing

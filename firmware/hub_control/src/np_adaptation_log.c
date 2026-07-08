@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Closed-Loop Adaptation Event Ring Buffer
+ * NeurOne Hub Control Program — Closed-Loop Adaptation Event Ring Buffer
  * Document: NP-FW-HUB-001 Rev B (STEP-33 of NP-PRIV-REM-001)
  *
  * Implements np_adapt_log_event(), np_adapt_log_flush(), np_adapt_log_reset().

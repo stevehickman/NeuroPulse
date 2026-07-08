@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control — EEG Module Driver (ADS1299, 8-ch, 500Hz, 24-bit)
+ * NeurOne Hub Control — EEG Module Driver (ADS1299, 8-ch, 500Hz, 24-bit)
  * Document: NP-FW-HUB-001 Rev A §8.2
  *
  * The ADS1299 is fixed hardware — always present (detect always returns OK).

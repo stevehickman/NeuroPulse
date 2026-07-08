@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HRV Biofeedback — Session Management
+ * NeurOne HRV Biofeedback — Session Management
  * Document: NP-FW-HRV-001 Rev A §10
  *
  * Owns the session lifecycle for all four HRV biofeedback protocols.

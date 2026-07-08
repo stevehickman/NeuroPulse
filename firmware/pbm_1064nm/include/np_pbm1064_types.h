@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — Type Definitions
+ * NeurOne 1064nm Smart Zone Module — Type Definitions
  * Document: NP-FW-PBM1064-001 Rev A §4
  */
 

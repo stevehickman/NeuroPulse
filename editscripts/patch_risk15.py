@@ -64,7 +64,7 @@ def ins_before(doc, target_para, text, bold=False, bullet=False, color=None, siz
 # 1.  FPC Spec — update pin 18 in the pinout table
 # ─────────────────────────────────────────────────────────────────────────────
 
-SPEC_PATH = "docs/neuropulse_fpc_zone_module_spec_revA.docx"
+SPEC_PATH = "docs/neurone_fpc_zone_module_spec_revA.docx"
 spec = Document(SPEC_PATH)
 
 pin18_updated = False
@@ -203,7 +203,7 @@ print(f"  FPC spec saved: {SPEC_PATH}")
 # 3.  Risk Register — RISK-15 → MITIGATED
 # ─────────────────────────────────────────────────────────────────────────────
 
-RISK_PATH = "docs/neuropulse_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
 risk_doc = Document(RISK_PATH)
 
 tbl = risk_doc.tables[0]
@@ -285,7 +285,7 @@ ins_before(risk_doc, target,
 
 ins_before(risk_doc, target,
     "The original risk considered only colour-vision deficiency (~8% males). The mitigation "
-    "is extended to cover completely blind users, since NeuroPulse's clinical positioning "
+    "is extended to cover completely blind users, since NeurOne's clinical positioning "
     "(neurological conditions including visual processing disorders) makes it plausible that "
     "a proportion of users will have significant visual impairment. The five-layer approach "
     "costs ~$0.15 total per headset (5 ZONE_ID resistors at $0.03 each) if the mould "
@@ -311,7 +311,7 @@ print(f"  Risk register saved: {RISK_PATH}")
 #     note the addition in the revision history table.
 # ─────────────────────────────────────────────────────────────────────────────
 
-COORD_PATH = "docs/neuropulse_eng_coordination_checklist.docx"
+COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
 coord = Document(COORD_PATH)
 
 # Find G2-02 row and update its text to reference blind accessibility

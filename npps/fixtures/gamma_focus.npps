@@ -1,7 +1,7 @@
 protocol "Gamma Focus" {
     id: "10000001-0000-0000-0000-000000000000"
     description: "40Hz multi-sensory protocol"
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [focus, gamma]

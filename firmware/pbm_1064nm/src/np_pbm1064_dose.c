@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — InGaAs PD Dose Metering
+ * NeurOne 1064nm Smart Zone Module — InGaAs PD Dose Metering
  * Document: NP-FW-PBM1064-001 Rev A §6
  *
  * Dual-PD architecture (RISK-14 Option B):

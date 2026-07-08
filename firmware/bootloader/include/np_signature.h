@@ -1,8 +1,8 @@
 /*
- * NeuroPulse Bootloader — Ed25519 Firmware Signature Verification
+ * NeurOne Bootloader — Ed25519 Firmware Signature Verification
  * Document: NP-FW-EMMC-001 Rev A §8.2 (Ed25519 + SHA-256 image integrity)
  *
- * All firmware images must be signed by the NeuroPulse manufacturing root key
+ * All firmware images must be signed by the NeurOne manufacturing root key
  * before the bootloader will execute them.
  *
  * Signature covers:  Ed25519-sign(image_sha256 || version_le32 || size_le32)

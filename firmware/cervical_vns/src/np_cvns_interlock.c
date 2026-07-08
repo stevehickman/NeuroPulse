@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Cervical VNS — Cardiac Interlock (Main Processor Side)
+ * NeurOne Cervical VNS — Cardiac Interlock (Main Processor Side)
  * Document: NP-FW-CVNS-001 Rev A §6
  *
  * Implements Pan-Tompkins R-peak detection on the PPG signal from the cervical

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Safety MCU — SW01-M02: SPI Heartbeat Watchdog
+ * NeurOne Safety MCU — SW01-M02: SPI Heartbeat Watchdog
  * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M02
  *
  * Monitors heartbeat frames from the i.MX RT1062 main processor.

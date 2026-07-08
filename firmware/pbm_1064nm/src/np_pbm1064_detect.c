@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — Smart Module Detection
+ * NeurOne 1064nm Smart Zone Module — Smart Module Detection
  * Document: NP-FW-PBM1064-001 Rev A §4
  *
  * Distinguishes smart modules (3.3 kΩ ZONE_ID, ADC < 1100) from base modules

@@ -1,7 +1,7 @@
 protocol "HRV + taVNS Synchronised" {
     id: "1000000C-0000-0000-0000-000000000000"
     description: "Stimulation pulses timed to inspiration phase for optimised noradrenergic modulation. Alpha EEG neurofeedback adds cortical awareness layer."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [HRV, VNS, advanced, synchronised]

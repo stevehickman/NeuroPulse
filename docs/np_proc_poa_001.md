@@ -1,6 +1,6 @@
 # Healthcare Power of Attorney Upload Procedure
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-PROC-POA-001  
 **Revision:** A  
 **Date:** 2026-06-02  
@@ -20,13 +20,13 @@
 
 ## 1. Purpose and Scope
 
-This procedure governs the receipt, storage, review, and retention of healthcare Power of Attorney (POA) documents submitted by POA holders who wish to manage NeuroPulse research consent and clinical data access on behalf of a patient who lacks capacity.
+This procedure governs the receipt, storage, review, and retention of healthcare Power of Attorney (POA) documents submitted by POA holders who wish to manage NeurOne research consent and clinical data access on behalf of a patient who lacks capacity.
 
-A healthcare POA document is among the most sensitive document types NeuroPulse will handle. It contains: the grantor's legal name, date of birth, residential address, the identity of the attorney-in-fact, the legal basis and scope of health decision authority, and in many jurisdictions the triggering health conditions. This procedure ensures that these documents are handled with appropriate controls at every stage and are retained only as long as necessary.
+A healthcare POA document is among the most sensitive document types NeurOne will handle. It contains: the grantor's legal name, date of birth, residential address, the identity of the attorney-in-fact, the legal basis and scope of health decision authority, and in many jurisdictions the triggering health conditions. This procedure ensures that these documents are handled with appropriate controls at every stage and are retained only as long as necessary.
 
 This procedure applies to:
-- All POA documents received via the NeuroPulse app upload mechanism
-- All NeuroPulse personnel who access the POA vault
+- All POA documents received via the NeurOne app upload mechanism
+- All NeurOne personnel who access the POA vault
 - Any third-party service provider involved in the upload or storage infrastructure
 
 ---
@@ -53,14 +53,14 @@ The following POA document types are accepted:
 ### 3.1 Initiating an upload
 
 1. POA holder navigates to the app's Research Consent section → "I am a legally authorised representative."
-2. App presents: (a) description of what a valid POA document must contain; (b) clear statement that the document will be reviewed by a human NeuroPulse reviewer; (c) statement that the original document will be permanently deleted 30 days after review is complete and only a structured summary will be retained.
+2. App presents: (a) description of what a valid POA document must contain; (b) clear statement that the document will be reviewed by a human NeurOne reviewer; (c) statement that the original document will be permanently deleted 30 days after review is complete and only a structured summary will be retained.
 3. POA holder selects "Upload Document."
 
 ### 3.2 Secure upload mechanism
 
-1. App requests a signed upload URL from the NeuroPulse POA endpoint (POST /api/poa/upload-token).
+1. App requests a signed upload URL from the NeurOne POA endpoint (POST /api/poa/upload-token).
 2. The endpoint returns a time-limited (15-minute expiry) pre-signed URL pointing directly to the encrypted POA vault storage bucket.
-3. The app uploads the document directly from the device to the vault storage bucket via the signed URL. The document **does not pass through NeuroPulse application servers** in plaintext at any point.
+3. The app uploads the document directly from the device to the vault storage bucket via the signed URL. The document **does not pass through NeurOne application servers** in plaintext at any point.
 4. Vault storage bucket configuration:
    - Server-side encryption: AES-256 with vault-specific KMS key (not the same key as SHDR or UHDR)
    - Bucket policy: no public access; no cross-account access; access restricted to the vault IAM role only
@@ -125,7 +125,7 @@ The reviewer assesses the following and records the outcome in the structured re
 | Document type | Is this an accepted POA type (§2)? |
 | Validity | Is the document signed, witnessed/notarised as required by the indicated jurisdiction? Is it within date? |
 | Scope | Does the document explicitly grant healthcare decision authority? Does it include research consent as a permitted scope (or is the scope broad enough to encompass research consent)? |
-| Jurisdiction | Which jurisdiction's law governs this POA? Flag any jurisdiction where NeuroPulse's legal counsel has not confirmed the POA form's validity (see §5.4). |
+| Jurisdiction | Which jurisdiction's law governs this POA? Flag any jurisdiction where NeurOne's legal counsel has not confirmed the POA form's validity (see §5.4). |
 | Capacity trigger | Does the document specify a triggering event (e.g. physician declaration of incapacity)? If so, has the triggering event occurred? (POA holder must provide confirmation if required.) |
 | Identity verification | Does the POA holder's identity match the attorney-in-fact named in the document? (App account name / email used as proxy; not a full KYC check — flag if substantial discrepancy.) |
 | Scope limitation | Are there explicit exclusions that would limit research consent authority (e.g. "no experimental procedures")? If yes, note the limitation. |
@@ -154,7 +154,7 @@ This record is the only persistent artefact of the POA review after the document
 
 ### 5.4 Jurisdiction flagging
 
-Jurisdictions where NeuroPulse has confirmed POA validity criteria:
+Jurisdictions where NeurOne has confirmed POA validity criteria:
 - All 50 US states: [to be populated as legal counsel confirms; initially populate with NCLC POA Act states]
 - United Kingdom: personal welfare LPA registered with the Office of the Public Guardian
 - EU member states: to be assessed by EU legal counsel before EU T1 launch
@@ -204,8 +204,8 @@ If re-verification is not completed within 30 days of the due date, the POA hold
 
 If the patient regains capacity and wishes to revoke the POA holder's authorisation:
 
-1. Patient contacts NeuroPulse via the in-app privacy contact mechanism.
-2. NeuroPulse verifies that the patient is contacting from their own authenticated account (or via a new account with identity verification — process TBD with legal counsel).
+1. Patient contacts NeurOne via the in-app privacy contact mechanism.
+2. NeurOne verifies that the patient is contacting from their own authenticated account (or via a new account with identity verification — process TBD with legal counsel).
 3. POA holder's authorisation is immediately suspended.
 4. Patient is presented with all research consent and clinical access decisions previously made by the POA holder and invited to ratify or revoke each.
 5. Revocation of any consent or access decision follows the standard revocation procedure (NP-PRIV-REM-001 STEP-23 for clinical access; research consent withdrawal per NP-FW-ANON-001 for research data).

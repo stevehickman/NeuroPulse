@@ -1,6 +1,6 @@
 /* Document: NP-FW-EMMC-002 Rev A §B */
 /*
- * NeuroPulse Device Factory Reset — Implementation
+ * NeurOne Device Factory Reset — Implementation
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  *
  * 12-step sequence R-1..R-12 per NP-FW-EMMC-002 Rev A §B.3.  See

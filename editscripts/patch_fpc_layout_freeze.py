@@ -87,7 +87,7 @@ def append_row(table, cells_text, widths_inches, bg=None, bold_col0=True):
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. NP-HW-FPC-001 — pin 19 + §8.4 position + doc freeze (Rev D)
 # ══════════════════════════════════════════════════════════════════════════════
-FPC_PATH = "docs/neuropulse_fpc_zone_module_spec_revA.docx"
+FPC_PATH = "docs/neurone_fpc_zone_module_spec_revA.docx"
 fpc = Document(FPC_PATH)
 
 # 1a. Update pin 19 Notes cell (Table 7, row where col 0 = '19')
@@ -195,7 +195,7 @@ rev_tbl = fpc.tables[17]
 rev_d = (
     "D",
     "2026-05-09",
-    "Claude / NeuroPulse Engineering",
+    "Claude / NeurOne Engineering",
     "Issue #10 — FPC layout frozen. Pin 19 (PD2_CATHODE) position locked: "
     "X = 33.0 mm, Y = 39.0 mm from module reference corner (geometric centre of "
     "LED array). §8.4 updated with PD2 Position row. Document status changed to "
@@ -214,7 +214,7 @@ print(f"  NP-HW-FPC-001 saved (Rev D, LAYOUT FROZEN)")
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. NP-TOOL-ZM-001 — F-04 XY coords, critical dims, close OI-3
 # ══════════════════════════════════════════════════════════════════════════════
-TOOL_PATH = "docs/neuropulse_tool_zone_module_001.docx"
+TOOL_PATH = "docs/neurone_tool_zone_module_001.docx"
 tool = Document(TOOL_PATH)
 
 # 2a. Update F-04 description (Table 1)
@@ -355,7 +355,7 @@ print(f"  NP-TOOL-ZM-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. NP-DRV-SHELL-001 — DRC-23 note update
 # ══════════════════════════════════════════════════════════════════════════════
-SHELL_PATH = "docs/neuropulse_shell_fpc_routing_review.docx"
+SHELL_PATH = "docs/neurone_shell_fpc_routing_review.docx"
 shell = Document(SHELL_PATH)
 
 for tbl in shell.tables:
@@ -384,7 +384,7 @@ print(f"  NP-DRV-SHELL-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. NP-COORD-001 — add G1-15 layout freeze CLOSED
 # ══════════════════════════════════════════════════════════════════════════════
-COORD_PATH = "docs/neuropulse_eng_coordination_checklist.docx"
+COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
 coord = Document(COORD_PATH)
 
 # Find the summary table (Table 15 based on scan — 35 rows, 5 cols) and

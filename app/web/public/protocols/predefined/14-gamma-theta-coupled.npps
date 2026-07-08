@@ -1,7 +1,7 @@
 protocol "Gamma + Theta Coupled" {
     id: "1000000E-0000-0000-0000-000000000000"
     description: "Simultaneous 40Hz front-zone PBM and 6Hz rear-zone PBM with gamma-theta EEG coupling, binaural + isochronic audio, 40Hz visual entrainment, and BES."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [focus, gamma, theta, coupled, advanced]

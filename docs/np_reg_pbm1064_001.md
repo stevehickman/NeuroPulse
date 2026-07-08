@@ -1,13 +1,13 @@
 # RISK-03 Regulatory Opinion — Scope Expansion Brief
 ## 1064nm PBM · Three-Channel Aggregate Irradiance · T2 Combined Session
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-REG-PBM1064-001  
 **Revision:** A  
 **Date:** 2026-05-13  
 **Status:** DRAFT  
 **Effective Date:** 2026-05-13  
-**Author:** NeuroPulse Regulatory Affairs  
+**Author:** NeurOne Regulatory Affairs  
 **Approved By:** Steve Hickman, CEO  
 **References:** CLAUDE.md §13.1 (RISK-03 OPEN); NP-FW-PBM1064-001 Rev A §5.4; NP-SES-1064-001 Rev A  
 **Related Issues:** GitHub Issue #5 (existing RISK-03 engagement), GitHub Issue #56  
@@ -20,7 +20,7 @@
 
 ## 1. Purpose
 
-This document extends the scope of the existing RISK-03 regulatory opinion engagement (Issue #5) to cover three new items arising from the addition of the 1064nm smart zone module to the NeuroPulse Home and NeuroPulse Pro platforms. The existing RISK-03 engagement covers the 400 mW/cm² peak pulsed irradiance claim for the 660nm + 808–830nm LED channels. No 1064nm-specific regulatory opinion has been obtained.
+This document extends the scope of the existing RISK-03 regulatory opinion engagement (Issue #5) to cover three new items arising from the addition of the 1064nm smart zone module to the NeurOne Home and NeurOne Pro platforms. The existing RISK-03 engagement covers the 400 mW/cm² peak pulsed irradiance claim for the 660nm + 808–830nm LED channels. No 1064nm-specific regulatory opinion has been obtained.
 
 **This document is a scope expansion brief to be provided to outside regulatory counsel.** It states the four new questions that must be answered in the expanded opinion letter and provides the technical background for each. The marketing copy gate described in §7 remains in force for all 1064nm claims until the expanded opinion letter is received.
 
@@ -46,7 +46,7 @@ The existing opinion does not address any 1064nm wavelength, any multi-channel a
 
 ### 3.1 Technical Description
 
-The NeuroPulse Home T1 1064nm smart zone module uses EPITEX L1064-02AU LED emitters (150 per zone module, 5 zone modules) operated via an on-module Microchip ATtiny402 I2C driver. Operating parameters:
+The NeurOne Home T1 1064nm smart zone module uses EPITEX L1064-02AU LED emitters (150 per zone module, 5 zone modules) operated via an on-module Microchip ATtiny402 I2C driver. Operating parameters:
 
 | Parameter | Value |
 |-----------|-------|
@@ -59,7 +59,7 @@ The NeuroPulse Home T1 1064nm smart zone module uses EPITEX L1064-02AU LED emitt
 | Application site | Transcranial scalp surface |
 | Application duration | 10–30 min per session |
 
-The existing RISK-03 opinion addresses 660nm and 808–830nm LEDs under the FDA general wellness device pathway. The 1064nm emitters are LED arrays (not classified as laser devices under 21 CFR Part 1040). However, NeuroPulse requires counsel confirmation that:
+The existing RISK-03 opinion addresses 660nm and 808–830nm LEDs under the FDA general wellness device pathway. The 1064nm emitters are LED arrays (not classified as laser devices under 21 CFR Part 1040). However, NeurOne requires counsel confirmation that:
 
 1. 1064nm LED arrays applied transcranially at the above parameters remain within the FDA general wellness pathway for T1.
 2. Adding 1064nm does not alter the predicate analysis or the planned T2 510(k) predicate strategy.
@@ -70,7 +70,7 @@ The existing RISK-03 opinion addresses 660nm and 808–830nm LEDs under the FDA 
 IEC 62471:2006 classifies photobiological hazards of lamps and lamp systems. The relevant hazard groups for 1064nm are:
 
 - **EH2 (Near-Infrared Radiation Hazard to the Eye):** Action spectrum covers 780–3000nm. The 1064nm irradiance from each zone module must be assessed against the EH2 MPE limit.
-- **EH1 (Thermal Hazard to the Eye):** Applies to retinal thermal exposure; relevant if any 1064nm irradiance reaches the eye aperture. The NeuroPulse goggle lens system provides hardware cutoff (Hall sensor + IR proximity sensor per §4.2 of CLAUDE.md) preventing scalp-module operation with goggles removed during goggle sessions, but scalp modules can operate independently.
+- **EH1 (Thermal Hazard to the Eye):** Applies to retinal thermal exposure; relevant if any 1064nm irradiance reaches the eye aperture. The NeurOne goggle lens system provides hardware cutoff (Hall sensor + IR proximity sensor per §4.2 of CLAUDE.md) preventing scalp-module operation with goggles removed during goggle sessions, but scalp modules can operate independently.
 
 **Question for counsel:** At 400 mW/cm² peak pulsed (25% duty cycle, 100 mW/cm² average) at 1064nm applied to the scalp vertex/frontal zone, does the EH2 or EH1 IEC 62471 hazard classification change vs the 660/808nm assessment already obtained? Is a new IEC 62471 group classification required, or does the existing Exempt Group assessment extend to 1064nm at these parameters?
 
@@ -125,7 +125,7 @@ App display to the user on their own device of real-time irradiance values is no
 
 ### 5.1 Technical Description
 
-The NeuroPulse Pro (T2) combined session coordinates 1064nm LED zone modules (LED array, T1 hardware in T2 configuration) with the T2 1170nm laser diode deep PBM subsystem. Parameters:
+The NeurOne Pro (T2) combined session coordinates 1064nm LED zone modules (LED array, T1 hardware in T2 configuration) with the T2 1170nm laser diode deep PBM subsystem. Parameters:
 
 | Subsystem | Technology | Wavelength | Peak irradiance | Penetration target |
 |-----------|-----------|------------|-----------------|-------------------|
@@ -152,7 +152,7 @@ The 1170nm subsystem uses laser diodes. These are governed by IEC 60825-1 (Laser
 
 > "Three independent penetration depths, independently dosed and metered: 660nm surface cortex · 1064nm mid-cortex · 1170nm deep subcortical"
 
-> "Deeper than 810nm: NeuroPulse's 1064nm channel reaches cortical tissue layers at depths not accessible to 810nm devices"
+> "Deeper than 810nm: NeurOne's 1064nm channel reaches cortical tissue layers at depths not accessible to 810nm devices"
 
 ### 6.2 Evidence Basis
 
@@ -231,7 +231,7 @@ Upon receipt of the expanded opinion letter:
 | RISK-03 extended: depth-tier penetration claim | MITIGATED (pending letter receipt) |
 | OI-PBM-05 (`PBM_AGGREGATE_IRRADIANCE_LIMIT_MW_CM2`) | CLOSED — value confirmed or revised per Q5/Q6 |
 
-Update CLAUDE.md §13.4 and the risk register document (`docs/neuropulse_fpc_zone_module_risks_revA.docx`) when opinion is received.
+Update CLAUDE.md §13.4 and the risk register document (`docs/neurone_fpc_zone_module_risks_revA.docx`) when opinion is received.
 
 ---
 

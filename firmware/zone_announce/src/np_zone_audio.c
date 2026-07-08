@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Zone Module Announcement — Bone Conduction Audio Synthesis
+ * NeurOne Zone Module Announcement — Bone Conduction Audio Synthesis
  * Document: NP-FW-ZA-001 Rev A §7
  *
  * Produces the zone identification audio cue via the bone conduction

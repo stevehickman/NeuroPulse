@@ -126,7 +126,7 @@ section.bottom_margin = Inches(0.85)
 # ── Cover ──
 p = doc.add_paragraph()
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-r = p.add_run("NeuroPulse")
+r = p.add_run("NeurOne")
 r.bold = True; r.font.size = Pt(16)
 r.font.color.rgb = RGBColor(0x1F, 0x49, 0x7D)
 
@@ -417,7 +417,7 @@ for i, h in enumerate(["Rev", "Date", "Author", "Description"]):
     run.bold = True
     run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
     run.font.size = Pt(8)
-for c_idx, txt in enumerate(["A", DATE, "NeuroPulse Engineering",
+for c_idx, txt in enumerate(["A", DATE, "NeurOne Engineering",
     "Initial release. RISK-12 primary mitigation (alignment FAI). "
     "Consolidates FAI items from RISK-01, 02, 04, 05, 06, 07, 08, 10, 11, 12. "
     "6 sections, 50+ inspection items."]):
@@ -430,6 +430,6 @@ for row in t_rev.rows:
     row.cells[2].width = Inches(1.5)
     row.cells[3].width = Inches(4.0)
 
-OUT = "docs/neuropulse_fai_zone_module.docx"
+OUT = "docs/neurone_fai_zone_module.docx"
 doc.save(OUT)
 print(f"Saved: {OUT}")

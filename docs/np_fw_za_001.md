@@ -1,6 +1,6 @@
 # Zone Module Bone Conduction Announcement Firmware
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-FW-ZA-001
 **Revision:** A
 **Date:** 2026-05-11

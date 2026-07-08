@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Firmware — Shared SPI Wire-Format Types
+ * NeurOne Firmware — Shared SPI Wire-Format Types
  * Document: NP-FW-HUB-001 Rev A §7, NP-SW-001 Rev A
  *
  * Single source of truth for SPI frame types shared between the STM32G071

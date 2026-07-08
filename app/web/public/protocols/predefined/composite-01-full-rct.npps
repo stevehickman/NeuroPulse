@@ -1,7 +1,7 @@
 composite "Full Multi-Modal RCT" {
     id: "10000100-0000-0000-0000-000000000000"
     description: "Replicates the 2025 nationally-conducted RCT protocol combining PBM + qEEG neurofeedback + HRV biofeedback simultaneously. Sequence: vascular baseline → combined active phase → cool-down HRV."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [rct, multimodal, pbm, eeg, hrv, research, depression]

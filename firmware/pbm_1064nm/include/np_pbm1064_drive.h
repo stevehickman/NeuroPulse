@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — I2C LED Driver API
+ * NeurOne 1064nm Smart Zone Module — I2C LED Driver API
  * Document: NP-FW-PBM1064-001 Rev A §5
  */
 

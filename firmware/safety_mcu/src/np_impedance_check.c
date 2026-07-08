@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Safety MCU — SW01-M06: Contact Impedance Check
+ * NeurOne Safety MCU — SW01-M06: Contact Impedance Check
  * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M06
  *
  * Performs a 1kHz AC impedance check before enabling VNS and tDCS channels.

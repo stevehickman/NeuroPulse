@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — Configuration Constants
+ * NeurOne 1064nm Smart Zone Module — Configuration Constants
  * Document: NP-FW-PBM1064-001 Rev A §3
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  *

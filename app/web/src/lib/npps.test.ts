@@ -9,7 +9,7 @@ const GAMMA_FOCUS_NPPS = `
 protocol "Gamma Focus" {
     id: "10000001-0000-0000-0000-000000000000"
     description: "40Hz multi-sensory protocol"
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [focus, gamma]
@@ -119,7 +119,7 @@ const COMPOSITE_NPPS = `
 composite "Full Multi-Modal RCT" {
     id: "10000100-0000-0000-0000-000000000000"
     description: "RCT protocol"
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [rct, multimodal]
@@ -233,7 +233,7 @@ describe('parser — new format', () => {
     expect(proto.name).toBe('Gamma Focus');
     expect(proto.id).toBe('10000001-0000-0000-0000-000000000000');
     expect(proto.description).toBe('40Hz multi-sensory protocol');
-    expect(proto.author).toBe('NeuroPulse');
+    expect(proto.author).toBe('NeurOne');
     expect(proto.version).toBe('1.0');
     expect(proto.isReadOnly).toBe(true);
     expect(proto.tags).toEqual(['focus', 'gamma']);

@@ -1,6 +1,6 @@
 /* Document: NP-FW-EMMC-002 Rev A §E */
 /*
- * NeuroPulse EDF+ Privacy Header — Host Unit Tests
+ * NeurOne EDF+ Privacy Header — Host Unit Tests
  * Document: NP-FW-EMMC-002 Rev A §E.2 / OI-EMMC2-05
  *
  * Build for host: -DNPTEST_HOST (see CMakeLists.txt NP_BUILD_TESTS option).
@@ -153,8 +153,8 @@ static void test_fw_version_in_recording_id(void)
     memcpy(rec, header.local_recording_id, NP_EDF_RECORDING_ID_LEN);
     rec[NP_EDF_RECORDING_ID_LEN] = '\0';
 
-    ASSERT(strstr(rec, "NeuroPulse_v1.2.3") != NULL,
-           "recording_id missing NeuroPulse_v1.2.3");
+    ASSERT(strstr(rec, "NeurOne_v1.2.3") != NULL,
+           "recording_id missing NeurOne_v1.2.3");
 }
 
 /* ── Main ────────────────────────────────────────────────────────────────────── */

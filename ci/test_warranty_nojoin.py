@@ -387,7 +387,7 @@ def main() -> int:
     shdr_sql = args.shdr_schema.read_text(encoding="utf-8")
     warranty_sql = args.warranty_schema.read_text(encoding="utf-8")
 
-    print(f"NeuroPulse Warranty No-Join CI Gate — OI-EMMC2-06")
+    print(f"NeurOne Warranty No-Join CI Gate — OI-EMMC2-06")
     print(f"SHDR schema:    {args.shdr_schema}")
     print(f"Warranty schema: {args.warranty_schema}")
     print(f"Checks: NP-FW-EMMC-002 Rev A §A.4, §A.5")

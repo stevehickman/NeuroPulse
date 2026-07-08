@@ -56,7 +56,7 @@ def add_section(doc, number, title, source, fields, header_bg="1F3864", status_b
     pBdr.append(bottom); pPr.append(pBdr)
     p_div.paragraph_format.space_after = Pt(6)
 
-MOD_PATH = "docs/neuropulse_additional_modalities.docx"
+MOD_PATH = "docs/neurone_additional_modalities.docx"
 mod = Document(MOD_PATH)
 
 # ── Update entry 1 (40Hz vibrotactile) to reference mastoid pad spec ──────────
@@ -84,7 +84,7 @@ add_section(
     number="7",
     title="40Hz Vibrotactile — Mastoid LRA Pad (Provisional Spec)",
     source="Tsai lab MIT 2023 (40Hz vibration in mouse models); GENUS multi-sensory "
-           "protocol extension; NeuroPulse §3b provisional spec",
+           "protocol extension; NeurOne §3b provisional spec",
     fields=[
         ("Status",
          "PROVISIONALLY SPEC'D — release contingent on HOPE Phase 3 results (mid-2026). "
@@ -136,25 +136,25 @@ add_section(
     mod,
     number="8",
     title="Apple Watch Companion Sync App (Provisional)",
-    source="NeuroPulse §3b provisional spec; companion UX — not therapeutic delivery",
+    source="NeurOne §3b provisional spec; companion UX — not therapeutic delivery",
     fields=[
         ("Status",
          "PROVISIONALLY SPEC'D — software only, $0 BOM. Develop after core iOS app ships. "
          "Haptic + audio channels first; visual flicker second."),
         ("Purpose",
-         "Extends NeuroPulse session experience to Apple Watch via three sync channels. "
-         "Does NOT replace purpose-built NeuroPulse hardware for any therapeutic function. "
-         "All therapeutic claims attach to NeuroPulse hardware only; Watch app is "
+         "Extends NeurOne session experience to Apple Watch via three sync channels. "
+         "Does NOT replace purpose-built NeurOne hardware for any therapeutic function. "
+         "All therapeutic claims attach to NeurOne hardware only; Watch app is "
          "session monitoring and interface aid."),
         ("Communication",
-         "BT 5.3 LE from NeuroPulse hub (hub already has BT radio, antennas in hub); "
+         "BT 5.3 LE from NeurOne hub (hub already has BT radio, antennas in hub); "
          "WatchConnectivity framework via paired iPhone app; "
          "session sync over BLE GATT custom service. Sub-50ms sync latency target."),
         ("Channel 1 — Haptic sync",
          "watchOS Core Haptics delivers 40Hz pattern synchronised to hub session clock. "
          "Adds wrist somatosensory channel alongside mastoid LRA pad. "
          "Not standalone therapeutic — complement only. "
-         "App displays: 'For best results, use with NeuroPulse vibrotactile accessory.' "
+         "App displays: 'For best results, use with NeurOne vibrotactile accessory.' "
          "Note: Apple Watch haptic precision is uncharacterised for therapeutic use; "
          "this channel adds incremental sensory input, not clinical-grade stimulation."),
         ("Channel 2 — Audio sync",
@@ -175,7 +175,7 @@ add_section(
          "consumable low reminders; coherence score live feed during HRV biofeedback."),
         ("Regulatory note",
          "All Watch-delivered functions declared as session monitoring / user interface aids. "
-         "No disease claims in Watch app. Therapeutic claims attach to NeuroPulse hardware. "
+         "No disease claims in Watch app. Therapeutic claims attach to NeurOne hardware. "
          "App Store General Wellness category. watchOS Human Interface Guidelines compliance."),
         ("BOM delta", "$0 hardware. Software development cost only."),
         ("Recommended action",

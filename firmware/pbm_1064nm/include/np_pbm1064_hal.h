@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — Platform HAL Stubs
+ * NeurOne 1064nm Smart Zone Module — Platform HAL Stubs
  * Document: NP-FW-PBM1064-001 Rev A §3
  *
  * These functions are implemented as stubs in np_pbm1064_hal.c and must be

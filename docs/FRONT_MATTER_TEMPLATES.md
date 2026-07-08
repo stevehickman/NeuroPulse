@@ -1,4 +1,4 @@
-# NeuroPulse Document Front Matter Templates
+# NeurOne Document Front Matter Templates
 
 All `.md` documents in `docs/` must use standardized front matter. The front matter ends at the first horizontal rule (`---`).
 
@@ -15,7 +15,7 @@ All `.md` documents in `docs/` must use standardized front matter. The front mat
 ```
 # {Document Title in Title Case}
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** {NP-XXX-NNN}
 **Revision:** {A, B, C... or Rev A, Rev B...}
 **Date:** {YYYY-MM-DD}

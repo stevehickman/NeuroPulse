@@ -1,7 +1,7 @@
 protocol "PTSD EMDR Support" {
     id: "1000000A-0000-0000-0000-000000000000"
     description: "EMDR bilateral visual stimulation with VNS vagal support and calming brown noise. Intended for use alongside therapeutic EMDR sessions. WHO-recommended protocol basis."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [ptsd, emdr, bilateral, trauma, vns, clinical]

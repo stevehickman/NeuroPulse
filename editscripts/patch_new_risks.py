@@ -8,7 +8,7 @@ from docx.shared import Pt, RGBColor, Inches
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-RISK_PATH = "docs/neuropulse_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
 doc = Document(RISK_PATH)
 
 def set_bg(cell, hex_color):
@@ -176,7 +176,7 @@ NEW_RISKS = [
             "the gasket must be overcome to remove the module. "
             "(b) The asymmetric mechanical key (RISK-15 Layer 1) requires precise alignment before "
             "insertion — users must locate the key orientation before the module will enter. "
-            "NeuroPulse's target populations include Parkinson's disease (tremor, rigidity), "
+            "NeurOne's target populations include Parkinson's disease (tremor, rigidity), "
             "stroke rehabilitation (hemiparesis), TBI, and elderly users — all of whom may have "
             "significantly reduced grip strength (< 10 N) or hand tremor (5–15 Hz, 2–10 mm amplitude). "
             "A 2–4 N extraction force with a small module and a keyway alignment requirement "
@@ -186,7 +186,7 @@ NEW_RISKS = [
             "User cannot independently replace zone modules in the field. This is both a usability "
             "failure (reduces autonomy) and a clinical risk (user cannot address a fouled PDMS "
             "window or degraded module without help). "
-            "If NeuroPulse markets autonomous home use as a differentiator, "
+            "If NeurOne markets autonomous home use as a differentiator, "
             "inability to self-service undermines that claim for a significant user segment."
         ),
         "mitigation": (
@@ -252,7 +252,7 @@ NEW_RISKS = [
         "title": "15 mm FPC-to-EEG cable separation requirement may be geometrically unachievable inside headset shell without design compromise",
         "root_cause": (
             "RISK-17 mitigation specifies ≥ 15 mm separation between zone module FPC power tails "
-            "(1.8 A RMS) and EEG electrode signal cables. The NeuroPulse headset CFRP shell "
+            "(1.8 A RMS) and EEG electrode signal cables. The NeurOne headset CFRP shell "
             "interior must simultaneously house: 5 FPC routing channels (each 3 mm wide × 1.5 mm deep), "
             "EEG electrode cables for 8 channels plus references, structural ribs, Boa cable routing, "
             "audio cable routing to over-ear speakers, and the Hub PCB compartment. "
