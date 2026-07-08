@@ -61,36 +61,15 @@ jobs:
           # Install the iOS simulator runtime
           xcodebuild -downloadPlatform iOS
 
-          # Parse installed runtime and a compatible modern device type from JSON
-          eval "$(python3 - <<'EOF'
-import json, subprocess, sys
+          # Newest available iOS runtime (inline python3 -c keeps every line
+          # inside the YAML block scalar — a column-0 heredoc would terminate it).
+          RUNTIME=$(xcrun simctl list runtimes --json | python3 -c "import json,sys; rs=[r for r in json.load(sys.stdin)['runtimes'] if r.get('name','').startswith('iOS') and r.get('isAvailable')]; print(rs[-1]['identifier'] if rs else '')")
+          if [ -z "$RUNTIME" ]; then echo "No available iOS runtime found"; exit 1; fi
 
-runtimes = json.loads(subprocess.check_output(['xcrun','simctl','list','runtimes','--json']))['runtimes']
-ios = [r for r in runtimes if r.get('name','').startswith('iOS') and r.get('isAvailable')]
-if not ios:
-    print('echo "No available iOS runtime found"; exit 1', file=sys.stderr)
-    sys.exit(1)
-runtime = ios[-1]['identifier']
-
-types = json.loads(subprocess.check_output(['xcrun','simctl','list','devicetypes','--json']))['devicetypes']
-# iOS 16+ requires iPhone 8 or newer; iOS 18+ requires iPhone XS or newer;
-# iOS 26 requires iPhone 12 or newer. Prefer newer models.
-preferred = ['iPhone 16', 'iPhone 15', 'iPhone 14', 'iPhone 13', 'iPhone 12', 'iPhone SE (3rd']
-device_type = ''
-for pref in preferred:
-    matches = [t['identifier'] for t in types if pref in t['name']]
-    if matches:
-        device_type = matches[0]
-        break
-
-if not device_type:
-    print('echo "No compatible iPhone device type found"; exit 1')
-    sys.exit(1)
-
-print(f'RUNTIME="{runtime}"')
-print(f'DEVICE_TYPE="{device_type}"')
-EOF
-          )"
+          # Compatible modern iPhone device type (newest preferred).
+          # iOS 16+ needs iPhone 8+, iOS 18+ needs iPhone XS+, iOS 26 needs iPhone 12+.
+          DEVICE_TYPE=$(xcrun simctl list devicetypes --json | python3 -c "import json,sys; ts=json.load(sys.stdin)['devicetypes']; prefs=['iPhone 16','iPhone 15','iPhone 14','iPhone 13','iPhone 12','iPhone SE (3rd']; m=[t['identifier'] for p in prefs for t in ts if p in t['name']]; print(m[0] if m else '')")
+          if [ -z "$DEVICE_TYPE" ]; then echo "No compatible iPhone device type found"; exit 1; fi
 
           echo "Runtime:     $RUNTIME"
           echo "Device type: $DEVICE_TYPE"
