@@ -39,6 +39,7 @@
 #include "np_session_runner.h"
 #include "np_session_log.h"
 #include "np_safety_spi.h"
+#include "np_cvns_reenable.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "event_groups.h"
@@ -76,6 +77,30 @@ static void shdr_zone_auth_cb(uint8_t slot, np_hub_mod_type_t type, bool pass)
 
 /* ── task_safety_heartbeat ────────────────────────────────────────────────────── */
 
+/*
+ * log_cvns_event — route a CVNS re-enable lifecycle event to SHDR.
+ *
+ * Privacy (NP-FW-CVNS-001: "SHDR: cutoff flag only, no HR values"): every
+ * event is logged with a SUPPRESSED (0) timestamp so no session-relative time
+ * can co-locate a device log entry with a UHDR-class cardiac event (see the
+ * CLAUDE.md fault-latch privacy gate).  Event codes are flags only.
+ */
+static void log_cvns_event(np_cvns_reenable_event_t ev)
+{
+    uint8_t code;
+    switch (ev) {
+    case NP_CVNS_RN_EV_CUTOFF_DETECTED:   code = NP_CVNS_SHDR_EV_CUTOFF;         break;
+    case NP_CVNS_RN_EV_CONFIRM_OPEN:      code = NP_CVNS_SHDR_EV_CONFIRM_OPEN;   break;
+    case NP_CVNS_RN_EV_IMPEDANCE_FAILED:  code = NP_CVNS_SHDR_EV_IMP_FAILED;     break;
+    case NP_CVNS_RN_EV_IMPEDANCE_TIMEOUT: code = NP_CVNS_SHDR_EV_IMP_TIMEOUT;    break;
+    case NP_CVNS_RN_EV_REENABLE_COMPLETE: code = NP_CVNS_SHDR_EV_REENABLED;      break;
+    case NP_CVNS_RN_EV_ASSERT_TIMEOUT:    code = NP_CVNS_SHDR_EV_ASSERT_TIMEOUT; break;
+    default:
+        return;  /* NONE / IMPEDANCE_PASSED / CARDIAC_CLEARED: not logged */
+    }
+    np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, code, 0U /* ts suppressed */);
+}
+
 static void task_safety_heartbeat(void *arg)
 {
     (void)arg;
@@ -83,13 +108,55 @@ static void task_safety_heartbeat(void *arg)
 
     for (;;) {
         np_session_state_t state = np_runner_get_state();
-        uint16_t req_mask = np_safety_spi_get_granted_mask(); /* echo current grants */
 
-        np_hub_status_t rc = np_safety_spi_heartbeat(state, req_mask);
+        /* ── OI-CVNS-HUB-01: cervical VNS re-enable after cardiac cutoff ──
+         * Drive the three-gate state machine and set the CVNS_REENABLE flag
+         * BEFORE building this beat's TX frame, using the MCU status from the
+         * most recent reply.  Setting the bit first (rather than mirroring it
+         * one beat late) guarantees the CVNS_REENABLE and ACTIVE bits in the
+         * SAME frame are mutually consistent: on any beat where the session is
+         * not RUNNING the machine resets and the bit clears, so the frame can
+         * never carry CVNS_REENABLE=1 with ACTIVE=0 during teardown.  The
+         * machine is the ONLY source of the bit.                            */
+        uint8_t  mcu_status = np_safety_spi_get_status();
+        uint32_t now_ms     = (uint32_t)(xTaskGetTickCount() * portTICK_PERIOD_MS);
+        np_cvns_reenable_event_t ev = np_cvns_reenable_on_heartbeat(
+            mcu_status,
+            (state == NP_SESSION_RUNNING),
+            now_ms);
+        np_safety_spi_set_cvns_reenable(np_cvns_reenable_bit_active());
+        log_cvns_event(ev);
+
+        /* Transmit the REQUESTED mask (accumulated by the session runner via
+         * request_enable/request_disable) — echoing the granted mask back
+         * would mean new enable requests never reach the safety MCU.        */
+        uint16_t req_mask = np_safety_spi_get_requested_mask();
+
+        /* current_ua = NULL/0: per-channel commanded-current wiring into the
+         * heartbeat is a separate charge-monitor integration (OI-CHARGE-01
+         * hub side); channel_count 0 keeps the MCU accumulate loop idle.    */
+        np_hub_status_t rc = np_safety_spi_heartbeat(state, req_mask, NULL, 0U);
 
         if (rc == NP_HUB_ERR_SAFETY_FAULT) {
-            np_hal_status_led_set(NP_LED_FAULT);
-            xEventGroupSetBits(g_hub_events, NP_EV_SAFETY_FAULT);
+            /* Recoverable cardiac cutoff: CARDIAC set with no non-recoverable
+             * fault bits (FAULT/WATCHDOG/THERMAL/CHARGE).  The safety MCU has
+             * already cut stimulation and latched CARDIAC; the hub HOLDS the
+             * session so the operator can run the re-enable flow.  Aborting
+             * here would make in-session CVNS re-enable impossible.
+             *
+             * Use the FRESH status from THIS beat's reply — the `mcu_status`
+             * read above (for the state machine) is the previous beat's value
+             * and would not yet show CARDIAC on the very first cutoff beat,
+             * which would spuriously abort exactly the session we must hold. */
+            uint8_t fault_status = np_safety_spi_get_status();
+            bool cardiac_recoverable =
+                ((fault_status & NP_SAFETY_STATUS_CARDIAC) != 0U) &&
+                ((fault_status & NP_CVNS_NONRECOVERABLE_FAULTS) == 0U);
+
+            if (!cardiac_recoverable) {
+                np_hal_status_led_set(NP_LED_FAULT);
+                xEventGroupSetBits(g_hub_events, NP_EV_SAFETY_FAULT);
+            }
         } else if (rc == NP_HUB_ERR_TIMEOUT) {
             /* SPI timeout — safety MCU unresponsive. Safety MCU's own watchdog
              * will cut stimulation; post fault so session runner also stops. */
@@ -98,6 +165,19 @@ static void task_safety_heartbeat(void *arg)
 
         vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(NP_SAFETY_HEARTBEAT_MS));
     }
+}
+
+/*
+ * np_hub_cvns_reenable_confirm — public entry point for the app-transport
+ * layer (BLE GATT / USB-C CDC) to deliver the explicit operator/user
+ * re-enable confirmation (OI-CVNS-HUB-01 gate 2; transport wiring is
+ * OI-CVNS-HUB-03).  Race-free by construction: np_cvns_reenable_confirm()
+ * only posts a one-shot intent flag; the heartbeat task (sole state mutator)
+ * validates and acts on it.  See np_cvns_reenable.h single-writer design.
+ */
+np_hub_status_t np_hub_cvns_reenable_confirm(void)
+{
+    return np_cvns_reenable_confirm();
 }
 
 /* ── task_hub_control ─────────────────────────────────────────────────────────── */
@@ -235,6 +315,7 @@ void np_hub_control_app_main(void)
 {
     /* Initialize subsystems in dependency order. */
     np_safety_spi_init();
+    np_cvns_reenable_init();   /* OI-CVNS-HUB-01: re-enable manager starts IDLE */
     np_mod_reg_init();
     np_mod_reg_scan(shdr_zone_auth_cb);
 

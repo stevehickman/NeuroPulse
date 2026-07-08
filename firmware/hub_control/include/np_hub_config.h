@@ -110,6 +110,55 @@
 #define NP_HD_MONTAGE_BILATERAL_4X1  1U
 #define NP_HD_MONTAGE_STANDARD_2EL   2U
 
+/* ── Heartbeat session_status bits (hub side) ─────────────────────────────────
+ * Bits 0 and 1 are defined per-side (here and in safety_mcu/np_safety_protocol.h)
+ * and MUST match; bit 2 (NP_SESSION_STATUS_GEOM_REQUIRED) is shared via
+ * np_spi_wire_types.h.  These are BIT FLAGS — never write an np_session_state_t
+ * enum value into the session_status byte (use np_safety_session_status_bits()). */
+#define NP_SESSION_STATUS_ACTIVE        (1U << 0)  /* session underway */
+#define NP_SESSION_STATUS_CVNS_REENABLE (1U << 1)  /* explicit CVNS re-enable after cardiac cutoff */
+
+/* ── Cervical VNS re-enable manager (OI-CVNS-HUB-01) ──────────────────────────
+ * The hub asserts NP_SESSION_STATUS_CVNS_REENABLE only when ALL THREE gates
+ * pass: 30s lockout elapsed since the hub observed the cardiac cutoff +
+ * explicit app confirmation + fresh hub-side impedance check passed.        */
+
+/* Gate 1: hub-side lockout, measured from the heartbeat reply in which the hub
+ * first observed NP_SAFETY_STATUS_CARDIAC.  Value matches the safety MCU's
+ * NP_CARDIAC_LOCKOUT_MS; because the hub observation lags the MCU cutoff by
+ * ≤1 heartbeat (200ms), the hub window always contains the MCU window.      */
+#define NP_CVNS_REENABLE_LOCKOUT_MS        30000U
+
+/* Gate 3: max wait for the hub-side impedance measurement to complete before
+ * failing closed (back to AWAIT_CONFIRM).                                   */
+#define NP_CVNS_REENABLE_IMP_TIMEOUT_MS    5000U
+
+/* Bounded assertion: max time the re-enable bit may stay asserted while the
+ * safety MCU has not cleared CARDIAC (10 heartbeats).  On expiry the hub
+ * deasserts and requires a fresh confirmation + impedance pass.             */
+#define NP_CVNS_REENABLE_ASSERT_TIMEOUT_MS 2000U
+
+/* SHDR lifecycle event codes for np_log_shdr_fault() (safety interlock log →
+ * SHDR).  Flags only — no HR/RR values, and the cutoff event is logged with
+ * a suppressed (0) timestamp so no session-relative time co-locates with a
+ * UHDR-class cardiac event (see CLAUDE.md fault-latch privacy gate).        */
+#define NP_CVNS_SHDR_EV_CUTOFF          0xC1U
+#define NP_CVNS_SHDR_EV_CONFIRM_OPEN    0xC2U
+#define NP_CVNS_SHDR_EV_IMP_FAILED      0xC3U
+#define NP_CVNS_SHDR_EV_IMP_TIMEOUT     0xC4U
+#define NP_CVNS_SHDR_EV_REENABLED       0xC5U
+#define NP_CVNS_SHDR_EV_ASSERT_TIMEOUT  0xC6U
+
+/* Safety MCU status bits that make a fault NON-recoverable in-session.  A
+ * heartbeat reply with NP_SAFETY_STATUS_CARDIAC set and none of these bits is
+ * a recoverable cardiac cutoff: the hub holds the session and runs the CVNS
+ * re-enable flow instead of aborting.  (CUTOFF and IMPEDANCE are expected
+ * companions of a cardiac event and do not force an abort by themselves.)   */
+#define NP_CVNS_NONRECOVERABLE_FAULTS   (NP_SAFETY_STATUS_FAULT    | \
+                                         NP_SAFETY_STATUS_WATCHDOG | \
+                                         NP_SAFETY_STATUS_THERMAL  | \
+                                         NP_SAFETY_STATUS_CHARGE)
+
 /* Safety MCU status flags (returned in each heartbeat reply). */
 #define NP_SAFETY_STATUS_OK          0x00U
 #define NP_SAFETY_STATUS_FAULT       (1U << 0)
