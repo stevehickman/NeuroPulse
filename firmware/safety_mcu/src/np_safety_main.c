@@ -324,8 +324,14 @@ int main(void)
          * Hub sets NP_SESSION_STATUS_CVNS_REENABLE only when all three
          * conditions are met on the hub side: lockout elapsed + user
          * confirmation + re-established baseline signal.
-         * Safety MCU clears CARDIAC status and restarts impedance check.     */
-        if (valid_frame && cvns_reenable_confirm &&
+         * Safety MCU clears CARDIAC status and restarts impedance check.
+         *
+         * Defense-in-depth (OI-CVNS-HUB-01): additionally require
+         * session_active.  A well-behaved hub never sends CVNS_REENABLE with
+         * ACTIVE clear, but honoring re-enable only inside an active session
+         * ensures a stale/teardown frame can never clear the Class C cardiac
+         * latch outside a session. */
+        if (valid_frame && cvns_reenable_confirm && s_state.session_active &&
             (s_state.status & NP_SAFETY_STATUS_CARDIAC) != 0U) {
             np_cardiac_interlock_reenable(&s_state);
             np_impedance_check_request(NP_SAFETY_EN_CVNS);

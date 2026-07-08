@@ -18,6 +18,11 @@ static volatile uint8_t  s_mcu_status     = NP_SAFETY_STATUS_OK;
  * NP_SESSION_STATUS_GEOM_REQUIRED so the safety MCU keeps CLIN_STIM blocked
  * until it has applied the electrode-area command (fail-safe).              */
 static volatile bool     s_geom_required  = false;
+/* OI-CVNS-HUB-01: mirrored from np_cvns_reenable_bit_active() by the heartbeat
+ * task each beat.  True only while the re-enable state machine is ASSERTING
+ * (all three gates passed).  Every heartbeat then carries
+ * NP_SESSION_STATUS_CVNS_REENABLE so the safety MCU clears its cardiac latch. */
+static volatile bool     s_cvns_reenable  = false;
 
 /* s_requested_mask is protected by the FreeRTOS task-level critical section
  * (taskENTER_CRITICAL / taskEXIT_CRITICAL).  These functions are called from
@@ -47,6 +52,8 @@ np_hub_status_t np_safety_spi_init(void)
     s_requested_mask = 0U;
     s_granted_mask   = 0U;
     s_mcu_status     = NP_SAFETY_STATUS_OK;
+    s_geom_required  = false;
+    s_cvns_reenable  = false;
     return NP_HUB_OK;
 }
 
@@ -70,13 +77,15 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
     /* ── Build base fields (bytes 0–5) ──────────────────────────────────── */
     tx.magic[0]      = NP_SAFETY_BEAT_MAGIC_0;
     tx.magic[1]      = NP_SAFETY_BEAT_MAGIC_1;
-    tx.session_status = (uint8_t)session_state;
-    /* OI-CHARGE-03: advertise the geometry-override requirement every frame so
-     * the safety MCU's fail-safe gate cannot be disarmed by a single lost
-     * heartbeat.  Set BEFORE the base checksum (which covers bytes [0..5]).  */
-    if (s_geom_required) {
-        tx.session_status |= (uint8_t)NP_SESSION_STATUS_GEOM_REQUIRED;
-    }
+    /* session_status is a BIT FLAGS byte, built by the pure helper — never the
+     * raw np_session_state_t enum (RUNNING=3 would spuriously assert
+     * CVNS_REENABLE; PAUSED=4 would assert GEOM_REQUIRED).  OI-CHARGE-03 and
+     * OI-CVNS-HUB-01 flags are advertised EVERY frame so a single lost
+     * heartbeat can neither disarm the geometry gate nor drop the re-enable.
+     * Set BEFORE the base checksum (which covers bytes [0..5]).             */
+    tx.session_status = np_safety_session_status_bits(session_state,
+                                                      s_geom_required,
+                                                      s_cvns_reenable);
     tx.enable_lo     = (uint8_t)(requested_enable_mask & 0xFFU);
     tx.enable_hi     = (uint8_t)((requested_enable_mask >> 8) & 0xFFU);
 
@@ -203,6 +212,13 @@ void np_safety_spi_set_geom_required(bool required)
     taskEXIT_CRITICAL();
 }
 
+void np_safety_spi_set_cvns_reenable(bool active)
+{
+    taskENTER_CRITICAL();
+    s_cvns_reenable = active;
+    taskEXIT_CRITICAL();
+}
+
 void np_safety_spi_request_enable(uint16_t channel_mask)
 {
     taskENTER_CRITICAL();
@@ -221,13 +237,19 @@ void np_safety_spi_disable_all(void)
 {
     taskENTER_CRITICAL();
     s_requested_mask = 0U;
-    s_geom_required  = false;   /* OI-CHARGE-03: clear the geometry flag on abort/end */
+    s_geom_required  = false;   /* OI-CHARGE-03:   clear the geometry flag on abort/end */
+    s_cvns_reenable  = false;   /* OI-CVNS-HUB-01: never let a re-enable outlive a session */
     taskEXIT_CRITICAL();
 }
 
 uint16_t np_safety_spi_get_granted_mask(void)
 {
     return s_granted_mask;
+}
+
+uint16_t np_safety_spi_get_requested_mask(void)
+{
+    return s_requested_mask;
 }
 
 uint8_t np_safety_spi_get_status(void)

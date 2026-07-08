@@ -34,6 +34,45 @@
 
 #include "np_hub_types.h"
 
+/* ── session_status byte construction ────────────────────────────────────────── */
+
+/*
+ * np_safety_session_status_bits — map the hub session state plus per-frame
+ * flags into the heartbeat session_status BIT FLAGS the safety MCU parses.
+ *
+ * NEVER write an np_session_state_t enum value into session_status directly:
+ * NP_SESSION_RUNNING (=3) would assert ACTIVE|CVNS_REENABLE and
+ * NP_SESSION_PAUSED (=4) would assert GEOM_REQUIRED.  (This was a live bug —
+ * fixed with OI-CVNS-HUB-01.)
+ *
+ * ACTIVE maps from RUNNING, PAUSED, and STOPPING: the MCU resets per-session
+ * state (session signature, charge accumulator, impedance checks) on the
+ * ACTIVE 0→1 transition, so PAUSED must remain "active" or a pause/resume
+ * cycle would zero the charge accumulator mid-session (charge-limit
+ * circumvention).  STOPPING remains active through ramp-down; ACTIVE drops
+ * when the runner reaches COMPLETE/FAULT/IDLE.
+ *
+ * Pure and header-inline so it is host-testable without FreeRTOS.
+ */
+static inline uint8_t np_safety_session_status_bits(np_session_state_t state,
+                                                    bool geom_required,
+                                                    bool cvns_reenable)
+{
+    uint8_t bits = 0U;
+    if (state == NP_SESSION_RUNNING ||
+        state == NP_SESSION_PAUSED  ||
+        state == NP_SESSION_STOPPING) {
+        bits |= (uint8_t)NP_SESSION_STATUS_ACTIVE;
+    }
+    if (cvns_reenable) {
+        bits |= (uint8_t)NP_SESSION_STATUS_CVNS_REENABLE;
+    }
+    if (geom_required) {
+        bits |= (uint8_t)NP_SESSION_STATUS_GEOM_REQUIRED;
+    }
+    return bits;
+}
+
 /* ── API ─────────────────────────────────────────────────────────────────────── */
 
 /*
@@ -82,6 +121,16 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
 void np_safety_spi_set_geom_required(bool required);
 
 /*
+ * np_safety_spi_set_cvns_reenable — assert (or clear) the CVNS re-enable bit
+ * carried in every heartbeat (OI-CVNS-HUB-01).
+ *
+ * The heartbeat task mirrors np_cvns_reenable_bit_active() into this flag once
+ * per beat — the np_cvns_reenable state machine is the ONLY legitimate source.
+ * Cleared by np_safety_spi_disable_all() on session abort/end (fail-safe).
+ */
+void np_safety_spi_set_cvns_reenable(bool active);
+
+/*
  * np_safety_spi_request_enable — request enable of stimulation channels.
  * The enable is only effective after the next heartbeat grants it.
  * Updates the requested_enable_mask used in subsequent heartbeat frames.
@@ -105,6 +154,14 @@ void np_safety_spi_disable_all(void);
  * enable bitmask (returned by the safety MCU in the most recent heartbeat).
  */
 uint16_t np_safety_spi_get_granted_mask(void);
+
+/*
+ * np_safety_spi_get_requested_mask — read the currently-requested enable
+ * bitmask (accumulated via request_enable/request_disable).  The heartbeat
+ * task transmits THIS mask every beat — transmitting the granted-mask echo
+ * would mean new enable requests never reach the safety MCU.
+ */
+uint16_t np_safety_spi_get_requested_mask(void);
 
 /*
  * np_safety_spi_get_status — return the safety MCU status byte from the

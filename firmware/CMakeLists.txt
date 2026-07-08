@@ -50,6 +50,7 @@
 #   firmware/ota/             → np_ota_tests  (OTA state CRC + rollback logic)
 #   firmware/safety_mcu/      → np_safety_spi_proto_tests (OI-SW01-M07-01)
 #                             → np_charge_monitor_tests   (OI-CHARGE-01)
+#   firmware/hub_control/     → np_cvns_reenable_tests    (OI-CVNS-HUB-01)
 
 cmake_minimum_required(VERSION 3.20)
 
@@ -91,6 +92,7 @@ if(NP_BUILD_TESTS)
     add_subdirectory(ota)
     add_subdirectory(safety_mcu)  # OI-SW01-M07-01: SPI frame tests
                                   # OI-CHARGE-01:   charge monitor tests
+    add_subdirectory(hub_control) # OI-CVNS-HUB-01: CVNS re-enable manager tests
 
     add_test(NAME np_crypto_tests
         COMMAND np_crypto_tests
@@ -118,6 +120,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_charge_monitor_tests
         COMMAND np_charge_monitor_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_cvns_reenable_tests
+        COMMAND np_cvns_reenable_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     return()

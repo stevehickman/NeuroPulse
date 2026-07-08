@@ -23,6 +23,21 @@
 cmake_minimum_required(VERSION 3.20)
 project(np_hub_control C)
 
+# ── Host unit tests (no ARM toolchain required) ────────────────────────────────
+# Build with -DNP_BUILD_TESTS=ON from the firmware super-project.
+# np_cvns_reenable is pure C (no FreeRTOS) and host-testable (OI-CVNS-HUB-01).
+option(NP_BUILD_TESTS "Build host-native unit tests (no ARM toolchain needed)" OFF)
+
+if(NP_BUILD_TESTS)
+    add_executable(np_cvns_reenable_tests
+        tests/np_cvns_reenable_tests.c
+        src/np_cvns_reenable.c
+    )
+    target_include_directories(np_cvns_reenable_tests PRIVATE include)
+    target_compile_options(np_cvns_reenable_tests PRIVATE -Wall -Wextra -std=c11)
+    return()
+endif()
+
 # ── Toolchain guard ────────────────────────────────────────────────────────────
 if(NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR
@@ -39,6 +54,8 @@ set(HUB_SOURCES
     src/np_session_log.c
     src/np_adaptation_log.c
     src/np_safety_spi.c
+    src/np_cvns_reenable.c        # OI-CVNS-HUB-01: CVNS re-enable manager
+
     modules/np_mod_pbm.c
     modules/np_mod_eeg.c
     modules/np_mod_stim.c

@@ -19,6 +19,7 @@
 #include "np_module_registry.h"
 #include "np_session_log.h"
 #include "np_safety_spi.h"
+#include "np_cvns_reenable.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "event_groups.h"
@@ -212,6 +213,13 @@ np_hub_status_t np_runner_load(const uint8_t *proto_buf, size_t proto_len)
 
 np_hub_status_t np_runner_run(void)
 {
+    /* OI-CVNS-HUB-01: hard-reset the CVNS re-enable manager at session start —
+     * no cutoff/confirmation/assertion state may leak across session
+     * boundaries.  (Belt-and-braces: the manager also self-resets on any
+     * heartbeat where the session is not RUNNING, and
+     * np_safety_spi_disable_all() clears the SPI-level bit on session end.) */
+    np_cvns_reenable_session_reset();
+
     s_ctx.state      = NP_SESSION_RUNNING;
     s_ctx.start_tick = xTaskGetTickCount();
 
