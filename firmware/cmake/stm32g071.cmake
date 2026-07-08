@@ -1,4 +1,4 @@
-# ARM GNU Toolchain file for NeuroPulse Safety MCU
+# ARM GNU Toolchain file for NeurOne Safety MCU
 # Target: STMicroelectronics STM32G071 (Cortex-M0+, 64 MHz)
 # Document: NP-SW-001 Rev A — SW-01 Class C firmware
 #

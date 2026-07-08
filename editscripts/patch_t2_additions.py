@@ -68,7 +68,7 @@ def add_row_after(anchor_tr, row_data, col_widths_in):
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. Design Brief Rev 4 — completed decisions
 # ══════════════════════════════════════════════════════════════════════════════
-BRIEF_PATH = "docs/neuropulse_brief_r4.docx"
+BRIEF_PATH = "docs/neurone_brief_r4.docx"
 brief = Document(BRIEF_PATH)
 
 # Find the HRV biofeedback paragraph we added previously and insert after it
@@ -110,7 +110,7 @@ print("  Design brief saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. Additional Modalities Doc — mark both as ADDED
 # ══════════════════════════════════════════════════════════════════════════════
-MOD_PATH = "docs/neuropulse_additional_modalities.docx"
+MOD_PATH = "docs/neurone_additional_modalities.docx"
 mod = Document(MOD_PATH)
 
 marks = {
@@ -138,7 +138,7 @@ print("  Additional modalities doc saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. FAI checklist — add HD-tDCS and cervical VNS test items
 # ══════════════════════════════════════════════════════════════════════════════
-FAI_PATH = "docs/neuropulse_fai_zone_module.docx"
+FAI_PATH = "docs/neurone_fai_zone_module.docx"
 fai = Document(FAI_PATH)
 
 # Find last HRV item (FAI-H04) as insertion anchor
@@ -276,7 +276,7 @@ print("  FAI checklist saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. Coordination checklist — G3-07 and G3-08
 # ══════════════════════════════════════════════════════════════════════════════
-COORD_PATH = "docs/neuropulse_eng_coordination_checklist.docx"
+COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
 coord = Document(COORD_PATH)
 
 # Find G3-06 (last G3 item) — add G3-07 and G3-08 after it
@@ -321,7 +321,7 @@ print("  Coordination checklist saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 5. Risk register — RISK-25 cervical VNS cardiac proximity
 # ══════════════════════════════════════════════════════════════════════════════
-RISK_PATH = "docs/neuropulse_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
 risk = Document(RISK_PATH)
 
 # Find last risk row (RISK-24) to insert after

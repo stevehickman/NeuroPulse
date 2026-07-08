@@ -1,4 +1,4 @@
-# NeuroPulse Device Factory Reset — CMake Build
+# NeurOne Device Factory Reset — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
 # Document: NP-FW-EMMC-002 Rev A §B
 #

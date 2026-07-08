@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HRV Biofeedback — Dual EEG + HRV Biofeedback
+ * NeurOne HRV Biofeedback — Dual EEG + HRV Biofeedback
  * Document: NP-FW-HRV-001 Rev A §9
  *
  * Protocol NP_HRV_PROTO_EEG_DUAL displays HRV coherence score and EEG band

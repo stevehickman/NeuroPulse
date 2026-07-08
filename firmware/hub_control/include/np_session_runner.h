@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Session Runner
+ * NeurOne Hub Control Program — Session Runner
  * Document: NP-FW-HUB-001 Rev A §5
  *
  * Executes a parsed np_session_desc_t in real time.  Dispatches commands to

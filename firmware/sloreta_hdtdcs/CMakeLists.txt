@@ -1,4 +1,4 @@
-# NeuroPulse sLORETA-guided HD-tDCS — CMake Build
+# NeurOne sLORETA-guided HD-tDCS — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
 # Document: NP-FW-HD-001 Rev A
 #

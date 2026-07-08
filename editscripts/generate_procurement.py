@@ -1,4 +1,4 @@
-"""Generate NeuroPulse FPC Zone Module Procurement Requirements document."""
+"""Generate NeurOne FPC Zone Module Procurement Requirements document."""
 
 from docx import Document
 from docx.shared import Pt, Inches, RGBColor
@@ -118,7 +118,7 @@ def tbl(headers, rows, widths=None):
 p = doc.add_paragraph()
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
 p.paragraph_format.space_before = Pt(20)
-r = p.add_run('NeuroPulse')
+r = p.add_run('NeurOne')
 r.bold = True; r.font.size = Pt(11)
 r.font.color.rgb = RGBColor(0x00, 0x33, 0x66)
 
@@ -159,7 +159,7 @@ doc.add_page_break()
 # ══════════════════════════════════════════════════════════════════
 h1('1.  SCOPE AND PURPOSE')
 body(
-    'This document specifies procurement requirements for components used in the NeuroPulse '
+    'This document specifies procurement requirements for components used in the NeurOne '
     'Zone Module Flexible Printed Circuit (NP-HW-FPC-001). It exists because several '
     'component parameters critical to device performance and safety are not enforced by '
     'default supplier processes — they must be explicitly stated on purchase orders or '
@@ -565,7 +565,7 @@ h1('8.  REVISION HISTORY')
 tbl(
     headers=['Rev', 'Date', 'Author', 'Description'],
     rows=[
-        ['A', '2026-05-06', 'Claude / NeuroPulse Engineering',
+        ['A', '2026-05-06', 'Claude / NeurOne Engineering',
          'Initial release. Addresses RISK-01 (connector), RISK-04 (PDMS), '
          'RISK-07 (BCR421W), RISK-08 (LED Vf binning), RISK-10 (RA copper) '
          'from NP-HW-FPC-001 Risk Register Rev A.'],
@@ -574,6 +574,6 @@ tbl(
 )
 
 # ── save ──────────────────────────────────────────────────────────────────────
-out = '/home/user/NeuroPulse/docs/neuropulse_fpc_procurement_requirements.docx'
+out = '/home/user/NeurOne/docs/neurone_fpc_procurement_requirements.docx'
 doc.save(out)
 print(f'Saved: {out}')

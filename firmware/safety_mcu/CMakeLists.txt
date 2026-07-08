@@ -1,4 +1,4 @@
-# NeuroPulse Safety MCU Firmware — CMake Build
+# NeurOne Safety MCU Firmware — CMake Build
 # Target: STMicroelectronics STM32G071 (Cortex-M0+, 64 MHz)
 # Document: NP-SW-001 Rev A — SW-01 Class C firmware
 #           NP-FW-EMMC-001 Rev A §4.2, NP-FMEA-001 Rev A

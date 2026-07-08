@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Cervical VNS — Configuration Constants
+ * NeurOne Cervical VNS — Configuration Constants
  * Document: NP-FW-CVNS-001 Rev A §3
  */
 

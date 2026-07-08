@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Cervical VNS — First Article Inspection Tests
+ * NeurOne Cervical VNS — First Article Inspection Tests
  * Document: NP-FW-CVNS-001 Rev A §9 / NP-FAI-CVNS-001 Rev A
  *
  * FAI-CV01: Cervical electrode placement verification (hardware bench — procedure doc)

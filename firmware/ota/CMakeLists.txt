@@ -1,4 +1,4 @@
-# NeuroPulse OTA — host-testable state machine module
+# NeurOne OTA — host-testable state machine module
 # Document: NP-FW-EMMC-001 Rev A §8.3
 #
 # This module contains the OTA state record structure, CRC32 validation, and

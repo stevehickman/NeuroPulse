@@ -1,6 +1,6 @@
 // :core — pure-JVM Kotlin module. NO Android plugin, NO android.* imports.
-// This is the Android parallel of the NeuroPulseShared SPM package plus the
-// platform-independent slices of app/ios/NeuroPulse. Everything here runs and
+// This is the Android parallel of the NeurOneShared SPM package plus the
+// platform-independent slices of app/ios/NeurOne. Everything here runs and
 // tests on a plain JVM so privacy-critical logic is verifiable in CI without
 // an Android SDK (ISC-2, ISC-3, ISC-4 in app/android/ISA.md).
 

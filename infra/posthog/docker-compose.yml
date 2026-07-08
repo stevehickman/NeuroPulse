@@ -1,4 +1,4 @@
-# NeuroPulse PostHog Self-Hosted Analytics Stack
+# NeurOne PostHog Self-Hosted Analytics Stack
 # NP-ANALYTICS-001 Rev A
 #
 # Privacy constraints enforced:
@@ -17,7 +17,7 @@
 #
 # See docs/np_analytics_001.md for required project-level privacy settings.
 
-name: neuropulse-analytics
+name: neurone-analytics
 
 # Shared environment block — referenced by all three PostHog services
 x-posthog-env: &posthog-env
@@ -55,7 +55,7 @@ x-posthog-env: &posthog-env
   # Do not populate the instance with demo data or tutorial projects.
   DEMO: "false"
 
-  # Disable multi-org support (single NeuroPulse org only).
+  # Disable multi-org support (single NeurOne org only).
   MULTI_ORG_ENABLED: "false"
 
 services:

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control — PBM Zone Module Driver (Base + Smart)
+ * NeurOne Hub Control — PBM Zone Module Driver (Base + Smart)
  * Document: NP-FW-HUB-001 Rev A §8.1
  *
  * Handles both base modules (660nm + 808nm, direct PWM) and smart modules

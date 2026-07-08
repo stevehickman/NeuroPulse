@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Research Anonymization — Scratch Partition AES-256-CTR
+ * NeurOne Research Anonymization — Scratch Partition AES-256-CTR
  * Document: NP-FW-EMMC-002 Rev A §D.2–§D.6
  *
  * Implements the per-run encryption lifecycle for the Scratch partition used

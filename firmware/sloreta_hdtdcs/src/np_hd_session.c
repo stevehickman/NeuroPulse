@@ -1,5 +1,5 @@
 /*
- * NeuroPulse sLORETA-guided HD-tDCS — Session Orchestration
+ * NeurOne sLORETA-guided HD-tDCS — Session Orchestration
  * Document: NP-FW-HD-001 Rev A §8
  *
  * Drives the 5-stage workflow:
@@ -34,7 +34,7 @@ struct np_hd_session {
     np_hd_montage_t          montage;
     np_hd_stim_ctx_t         stim;
 
-    /* Session record for UHDR (user biology — never transmitted by NeuroPulse). */
+    /* Session record for UHDR (user biology — never transmitted by NeurOne). */
     np_hd_session_record_t   record;
 
     /* SHDR summary (device metrics — no user biology). */

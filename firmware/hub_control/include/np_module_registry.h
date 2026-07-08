@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Module Registry
+ * NeurOne Hub Control Program — Module Registry
  * Document: NP-FW-HUB-001 Rev A §3
  *
  * The registry is a flat table of np_mod_entry_t records, one per physical slot.

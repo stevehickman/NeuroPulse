@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Safety MCU — Hardware Configuration
+ * NeurOne Safety MCU — Hardware Configuration
  * Target: STM32G071 (Cortex-M0+, 64 MHz)
  * Document: NP-SW-001 Rev A, NP-FW-EMMC-001 Rev A §4.2
  *

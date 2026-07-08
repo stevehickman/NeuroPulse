@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Type Definitions
+ * NeurOne Hub Control Program — Type Definitions
  * Document: NP-FW-HUB-001 Rev A
  *
  * Defines the protocol binary format, module type enum, per-module parameter

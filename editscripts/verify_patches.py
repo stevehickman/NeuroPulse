@@ -2,19 +2,19 @@
 from docx import Document
 
 print("=== SBIR Proposal — connector references ===")
-sbir = Document("docs/neuropulse_sbir_phase1_draft.docx")
+sbir = Document("docs/neurone_sbir_phase1_draft.docx")
 for para in sbir.paragraphs:
     if "SlimStack" in para.text or "0.35" in para.text or "FH34S" in para.text or "Hirose" in para.text:
         print(f"  {para.text[:120]!r}")
 
 print("\n=== FPC Spec — fab note RA copper ===")
-spec = Document("docs/neuropulse_fpc_zone_module_spec_revA.docx")
+spec = Document("docs/neurone_fpc_zone_module_spec_revA.docx")
 for i, para in enumerate(spec.paragraphs):
     if "Rolled Annealed" in para.text or "DRAWING REQUIREMENT" in para.text or "IPC-4204" in para.text:
         print(f"  [{i}] {para.text[:120]!r}")
 
 print("\n=== Risk Register — RISK-08/09/10 Summary Table ===")
-risks = Document("docs/neuropulse_fpc_zone_module_risks_revA.docx")
+risks = Document("docs/neurone_fpc_zone_module_risks_revA.docx")
 tbl = risks.tables[0]
 for row in tbl.rows:
     rid = row.cells[0].text.strip()
@@ -30,7 +30,7 @@ for para in risks.paragraphs:
         print(f"  {para.text[:100]!r}")
 
 print("\n=== Procurement Doc — connector exclusions ===")
-proc = Document("docs/neuropulse_fpc_procurement_requirements.docx")
+proc = Document("docs/neurone_fpc_procurement_requirements.docx")
 for para in proc.paragraphs:
     if "SlimStack" in para.text or "0.35" in para.text or "FH34S" in para.text or "explicitly" in para.text.lower():
         print(f"  {para.text[:120]!r}")

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse sLORETA-guided HD-tDCS — Type Definitions
+ * NeurOne sLORETA-guided HD-tDCS — Type Definitions
  * Document: NP-FW-HD-001 Rev A §4
  */
 
@@ -142,7 +142,7 @@ typedef enum {
 
 /* ── UHDR session record ─────────────────────────────────────────────────────── */
 /* Written to UHDR partition at session end, AES-256-XTS encrypted with         */
-/* biometric-derived key.  NeuroPulse never holds the decryption key.           */
+/* biometric-derived key.  NeurOne never holds the decryption key.           */
 typedef struct {
     uint32_t          session_start_unix;    /* UTC epoch seconds                 */
     uint32_t          eeg_duration_s;        /* resting-state EEG length          */

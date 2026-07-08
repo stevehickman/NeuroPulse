@@ -21,7 +21,7 @@ Three quality signals recur and drive every protocol below:
 2. **NIR (800–1080 nm) penetrates; deep red (630–670 nm) mostly acts at scalp/systemically or intranasally.** Transcranial cortical targets use 810/1064 nm; 660 nm is an adjunct or intranasal/vascular channel.
 3. **Monochromatic 890 nm LED pads ("MIRE"/Anodyne) repeatedly fail** for diabetic neuropathy in good RCTs — a specific, well-documented negative that should not be repeated.
 
-NeuroPulse-relevant note: the device's native 660 + 810 + 1064 nm stack, 40 Hz pulsing, transcranial + intranasal channels, and EEG-adaptive closed loop map directly onto the strongest protocols below (Alzheimer's 40 Hz, cognitive 1064 nm PFC, depression bilateral DLPFC).
+NeurOne-relevant note: the device's native 660 + 810 + 1064 nm stack, 40 Hz pulsing, transcranial + intranasal channels, and EEG-adaptive closed loop map directly onto the strongest protocols below (Alzheimer's 40 Hz, cognitive 1064 nm PFC, depression bilateral DLPFC).
 
 ---
 
@@ -133,7 +133,7 @@ NeuroPulse-relevant note: the device's native 660 + 810 + 1064 nm stack, 40 Hz p
 ### 15. Epilepsy — Grade D (projected — CAUTION)
 **Evidence:** 12 database entries, **0 human trials**; preclinical only (NIR transcranial anticonvulsant signals in animal models via mitochondrial/anti-inflammatory pathways).
 **Projected protocol (low confidence):** 810 nm CW, *low* irradiance, focus-targeted transcranial, short sessions, under neurologist supervision with EEG monitoring.
-**Critical safety caveat:** This applies only to **non-visual NIR transcranial PBM**. **Visual/photic flicker stimulation (any device flicker channel) is contraindicated / a seizure trigger** in photosensitive epilepsy — photoparoxysmal response must be excluded first. NeuroPulse's Oz photoparoxysmal detection + <200 ms goggle halt is the relevant safety interlock; the visual modality must be disabled for this population. No PBM epilepsy treatment claim is currently supportable in humans.
+**Critical safety caveat:** This applies only to **non-visual NIR transcranial PBM**. **Visual/photic flicker stimulation (any device flicker channel) is contraindicated / a seizure trigger** in photosensitive epilepsy — photoparoxysmal response must be excluded first. NeurOne's Oz photoparoxysmal detection + <200 ms goggle halt is the relevant safety interlock; the visual modality must be disabled for this population. No PBM epilepsy treatment claim is currently supportable in humans.
 
 ### 16. Emerging / thin-evidence conditions — Grade C/D
 - **PTSD:** small case/RCT signal; 1070 nm PW 10 Hz and combined with TBI protocols (Lee 2025 crossover: ↓PTSD symptoms). Project: 810/1070 nm PFC, 40/10 Hz, as per depression/anxiety.

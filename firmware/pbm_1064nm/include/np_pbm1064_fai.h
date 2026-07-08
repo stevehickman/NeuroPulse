@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — FAI Test Declarations
+ * NeurOne 1064nm Smart Zone Module — FAI Test Declarations
  * Document: NP-FW-PBM1064-001 Rev A §11
  *
  * FAI-SM-01, -02, -03, -05, -09, -10, -11: software-passable; implemented here.

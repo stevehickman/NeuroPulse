@@ -1,5 +1,5 @@
 /**
- * DeviceAPI — browser-side WebSocket client for the NeuroPulse virtual device API.
+ * DeviceAPI — browser-side WebSocket client for the NeurOne virtual device API.
  *
  * Connects to ws://localhost:9000 (simulator/server/index.js) on load.
  * Falls back silently to standalone mode when the server is not running —

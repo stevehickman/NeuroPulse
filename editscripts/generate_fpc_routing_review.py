@@ -146,7 +146,7 @@ section.bottom_margin = Inches(1.0)
 # ── Cover ──────────────────────────────────────────────────────────────────
 p = doc.add_paragraph()
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-run = p.add_run("NeuroPulse")
+run = p.add_run("NeurOne")
 run.bold = True
 run.font.size = Pt(16)
 run.font.color.rgb = RGBColor(0x1F, 0x49, 0x7D)
@@ -177,7 +177,7 @@ warn_box(doc, "STATUS:",
 heading(doc, "1.  PURPOSE AND SCOPE")
 body(doc,
     "This document defines the requirements for the FPC routing path between each Zone "
-    "Module connector slot and the Hub PCB ZIF connector inside the NeuroPulse headset "
+    "Module connector slot and the Hub PCB ZIF connector inside the NeurOne headset "
     "CFRP shell. Its purpose is to ensure shell tooling geometry enforces the minimum "
     "bend radius required for dynamic flex FPC lifetime, and to provide a structured "
     "sign-off checklist before first-cut.")
@@ -444,11 +444,11 @@ heading(doc, "9.  REVISION HISTORY")
 tbl(doc,
     headers=["Rev", "Date", "Author", "Description"],
     rows=[
-        ("A", DATE, "NeuroPulse Engineering", "Initial release — RISK-11 mitigation. All requirements set as targets pending CAD confirmation."),
+        ("A", DATE, "NeurOne Engineering", "Initial release — RISK-11 mitigation. All requirements set as targets pending CAD confirmation."),
     ],
     widths=[0.5, 1.0, 1.7, 3.55],
 )
 
-OUT = "docs/neuropulse_shell_fpc_routing_review.docx"
+OUT = "docs/neurone_shell_fpc_routing_review.docx"
 doc.save(OUT)
 print(f"Saved: {OUT}")

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse np_crypto — Host Smoke Tests (TDD)
+ * NeurOne np_crypto — Host Smoke Tests (TDD)
  * Document: NP-SW-001 §9.4 (SW-01-M07 Ed25519 dependency)
  *
  * RFC 8032 §6 Ed25519 test vectors (TV1, TV2).

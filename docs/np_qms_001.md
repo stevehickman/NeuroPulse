@@ -1,6 +1,6 @@
-# NeuroPulse Quality Management System Manual
+# NeurOne Quality Management System Manual
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-QMS-001  
 **Revision:** A  
 **Date:** 2026-05-13  
@@ -21,14 +21,14 @@
 
 ### 1.1 Purpose
 
-This Quality Management System (QMS) Manual defines the framework, processes, and responsibilities governing all design, development, manufacturing, and post-market activities for NeuroPulse medical devices. It establishes the quality infrastructure required to support T2 FDA 510(k) clearance and ISO 13485:2016 certification.
+This Quality Management System (QMS) Manual defines the framework, processes, and responsibilities governing all design, development, manufacturing, and post-market activities for NeurOne medical devices. It establishes the quality infrastructure required to support T2 FDA 510(k) clearance and ISO 13485:2016 certification.
 
 ### 1.2 Scope
 
 This QMS covers:
 
-- All T1 (NeuroPulse Home, FDA-exempt wellness) design and development activities from company formation onward
-- All T2 (NeuroPulse Pro, FDA 510(k) target) design and development activities
+- All T1 (NeurOne Home, FDA-exempt wellness) design and development activities from company formation onward
+- All T2 (NeurOne Pro, FDA 510(k) target) design and development activities
 - Software development for all three IEC 62304 software components (Safety MCU Class C, Main Processor Class B, iOS/Android App Class B)
 - Supplier qualification and incoming quality control
 - Post-market surveillance and complaint handling
@@ -52,7 +52,7 @@ This QMS covers:
 
 ## 2. Quality Policy
 
-NeuroPulse designs devices that are safe and effective by engineering intent, not by regulatory compliance alone. Quality is built into every design decision — the UHDR/SHDR separation, the dual-processor safety architecture, the hardware-enforced stimulation limits, and the five-layer EMF shielding are all expressions of quality.
+NeurOne designs devices that are safe and effective by engineering intent, not by regulatory compliance alone. Quality is built into every design decision — the UHDR/SHDR separation, the dual-processor safety architecture, the hardware-enforced stimulation limits, and the five-layer EMF shielding are all expressions of quality.
 
 **Quality commitments:**
 1. All design decisions affecting safety are documented, reviewed, and traceable to design inputs
@@ -179,7 +179,7 @@ Record: management review minutes filed in DHF under NP-QMS-001 appendix log.
 
 ### 6.1 Controlled document storage
 
-All controlled documents are stored in the NeuroPulse GitHub repository (`stevehickman/NeuroPulse`) under version control. GitHub commit history constitutes the version and change audit trail.
+All controlled documents are stored in the NeurOne GitHub repository (`stevehickman/NeurOne`) under version control. GitHub commit history constitutes the version and change audit trail.
 
 For documents requiring wet or electronic signatures before GitHub release (e.g., regulatory submissions), a parallel PDF signature record is maintained in the secure document archive (location: to be designated at QMS system formalisation).
 
@@ -259,7 +259,7 @@ QMS adds the following requirements to existing supplier selection:
 - Supplier qualification records filed in DHF under the procurement category
 - Critical suppliers (CAT-A moulding, CAT-B CFRP, CAT-C PDMS) require written quality agreements
 - Incoming inspection acceptance criteria defined per component type
-- Supplier change notification requirement: supplier must notify NeuroPulse of any process changes affecting qualified parameters
+- Supplier change notification requirement: supplier must notify NeurOne of any process changes affecting qualified parameters
 
 ---
 

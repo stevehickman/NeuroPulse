@@ -1,6 +1,6 @@
-# NeuroPulse PostHog Analytics — Self-Hosted Configuration Reference
+# NeurOne PostHog Analytics — Self-Hosted Configuration Reference
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
 **Revision:** A  
 **Date:** 2026-06-13  
@@ -15,7 +15,7 @@
 
 ---
 
-> **Deployment option context:** NeuroPulse supports two PostHog deployment paths.
+> **Deployment option context:** NeurOne supports two PostHog deployment paths.
 > The iOS app (`PostHogAnalyticsBackend.swift`) currently points to the **PostHog EU cloud**
 > (`eu.i.posthog.com`) as the fastest path to TestFlight beta. This document covers the
 > **self-hosted** alternative — preferred for T1 launch and required for T2 clinical cloud
@@ -26,7 +26,7 @@
 
 ## 1. Purpose and scope
 
-This document is the configuration reference for NeuroPulse's self-hosted PostHog analytics instance. It covers:
+This document is the configuration reference for NeurOne's self-hosted PostHog analytics instance. It covers:
 
 - Privacy constraints and how each is enforced
 - First-time setup and required UI-level project settings
@@ -36,7 +36,7 @@ This document is the configuration reference for NeuroPulse's self-hosted PostHo
 - Prohibited properties reference
 - Relationship to other NP compliance documents
 
-PostHog replaces the need for a third-party analytics vendor, eliminating the DPA/BAA requirement with an analytics provider, simplifying `PrivacyInfo.xcprivacy`, and giving NeuroPulse full control over data residency.
+PostHog replaces the need for a third-party analytics vendor, eliminating the DPA/BAA requirement with an analytics provider, simplifying `PrivacyInfo.xcprivacy`, and giving NeurOne full control over data residency.
 
 ---
 
@@ -102,8 +102,8 @@ docker compose logs -f posthog
 
 1. Open `http://localhost:8000`
 2. Complete the PostHog signup flow (creates the first admin user)
-3. Create an organization named **"NeuroPulse"**
-4. Create a project named **"NeuroPulse App"**
+3. Create an organization named **"NeurOne"**
+4. Create a project named **"NeurOne App"**
 5. Note the **Project API Key** shown at the end — this is what the iOS SDK uses
 
 ### 3.4 Required project-level privacy settings (UI)
@@ -125,7 +125,7 @@ These settings are not configurable via environment variables. Complete them imm
 | Event retention | **90 days** | Balances product insight needs with data minimisation. See §7.1 to adjust. |
 | Person retention | **90 days** | Anonymous person records only; matches event retention |
 
-> **Note:** "Person" records in PostHog are anonymous identifiers (the `$device_id` the iOS SDK generates). They are not linked to a NeuroPulse account or any UHDR data. However, 90-day retention still satisfies data minimisation.
+> **Note:** "Person" records in PostHog are anonymous identifiers (the `$device_id` the iOS SDK generates). They are not linked to a NeurOne account or any UHDR data. However, 90-day retention still satisfies data minimisation.
 
 **Navigate to: Project Settings → Autocapture & Heatmaps**
 
@@ -342,7 +342,7 @@ To change:
 
 ### 7.2 Responding to a right-to-erasure request
 
-PostHog supports person deletion via the API or UI. Since our PostHog persons are anonymous device IDs (not linked to named users), erasure requests would come via the NeuroPulse app's privacy controls rather than directly to PostHog.
+PostHog supports person deletion via the API or UI. Since our PostHog persons are anonymous device IDs (not linked to named users), erasure requests would come via the NeurOne app's privacy controls rather than directly to PostHog.
 
 If an erasure is required:
 
@@ -377,8 +377,8 @@ The `delete_events=true` flag ensures ClickHouse event records are also queued f
 ### 7.4 Backups
 
 PostHog's analytics data lives in:
-- Docker volume `neuropulse-analytics_postgres_data` — PostgreSQL (metadata)
-- Docker volume `neuropulse-analytics_clickhouse_data` — ClickHouse (events)
+- Docker volume `neurone-analytics_postgres_data` — PostgreSQL (metadata)
+- Docker volume `neurone-analytics_clickhouse_data` — ClickHouse (events)
 
 Back up both volumes regularly. For production:
 
@@ -392,7 +392,7 @@ docker compose exec clickhouse clickhouse-client \
   --query "BACKUP DATABASE posthog TO File('/var/lib/clickhouse/backup/$(date +%Y%m%d)')"
 ```
 
-**Privacy note:** backups of PostHog data contain only analytics event data (engagement_tier, feature_used, etc.) — no UHDR data. They are still internal NeuroPulse operational data and should be stored with appropriate access controls, not on the same storage as UHDR backups.
+**Privacy note:** backups of PostHog data contain only analytics event data (engagement_tier, feature_used, etc.) — no UHDR data. They are still internal NeurOne operational data and should be stored with appropriate access controls, not on the same storage as UHDR backups.
 
 ### 7.5 Disk usage
 

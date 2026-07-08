@@ -1,7 +1,7 @@
 composite "Sleep Optimisation Stack" {
     id: "10000101-0000-0000-0000-000000000000"
     description: "Evening stack: alpha wind-down then HRV coherence then deep sleep induction. Runs for approximately 90 minutes starting 2 hours before target sleep time."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [sleep, evening, wind-down, delta, alpha, stack]

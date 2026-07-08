@@ -1,7 +1,7 @@
 composite "Sleep Wind-Down" {
     id: "10000103-0000-0000-0000-000000000000"
     description: "Sequential transition from alpha calm to deep sleep preparation. No overlap — alpha calm finishes before sleep deep begins."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [sleep, wind-down, transition, evening]

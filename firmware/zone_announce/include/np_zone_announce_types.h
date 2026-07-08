@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Zone Module Announcement — Type Definitions
+ * NeurOne Zone Module Announcement — Type Definitions
  * Document: NP-FW-ZA-001 Rev A §4
  */
 

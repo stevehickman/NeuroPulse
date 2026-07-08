@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Protocol Parser and Verifier
+ * NeurOne Hub Control Program — Protocol Parser and Verifier
  * Document: NP-FW-HUB-001 Rev A §4
  *
  * Parses a signed protocol binary blob received from the app into an in-RAM

@@ -1,6 +1,6 @@
 # Test Key Pair — NOT for production use
 
-These Ed25519 keys are **test-only credentials** for the NeuroPulse Helmet Simulator.
+These Ed25519 keys are **test-only credentials** for the NeurOne Helmet Simulator.
 They are committed to the repository intentionally as development infrastructure.
 
 **DO NOT use these keys in production.** The production manufacturing root key pair

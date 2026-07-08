@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Research Anonymization — Scratch Partition AES-256-CTR API
+ * NeurOne Research Anonymization — Scratch Partition AES-256-CTR API
  * Document: NP-FW-EMMC-002 Rev A §D
  *
  * Encrypts every block written to the eMMC Scratch partition during a

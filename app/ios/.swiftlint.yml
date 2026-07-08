@@ -1,4 +1,4 @@
-# SwiftLint configuration for the NeuroPulse iOS app.
+# SwiftLint configuration for the NeurOne iOS app.
 #
 # Satisfies ISA criteria:
 #   ISC-3 — `swiftlint --strict` runs with zero violations on the source tree.
@@ -13,10 +13,10 @@
 # Only lint the app source tree. Build artefacts, the Xcode project bundle, and
 # any vendored dependencies are excluded.
 included:
-  - NeuroPulse
+  - NeurOne
 
 excluded:
-  - NeuroPulse.xcodeproj
+  - NeurOne.xcodeproj
   - build
   - Pods
 
@@ -31,7 +31,7 @@ reporter: "xcode"
 # cast/try, and line length) rather than generating noise on formatting issues.
 # ---------------------------------------------------------------------------
 disabled_rules:
-  - colon                        # aligned colons are intentional in NeuroPulseApp.swift
+  - colon                        # aligned colons are intentional in NeurOneApp.swift
   - opening_brace                # we allow opening brace on same or next line
   - comma                        # comma spacing is handled by Xcode formatter
   - statement_position           # else/catch position is stylistic
@@ -144,8 +144,8 @@ custom_rules:
   # ISC-9 — No hardcoded IP addresses, API keys, or bearer credentials.
   #
   # SCOPE DECISION: domain-name URL constants are intentionally EXCLUDED from
-  # these rules. NeuroPulse's production endpoint hostnames (fleet.neuropulse.internal,
-  # firmware.neuropulse.ai, neuropulse.com, eu.i.posthog.com) are legitimate named
+  # these rules. NeurOne's production endpoint hostnames (fleet.neurone.internal,
+  # firmware.neurone.ai, neurone.life, eu.i.posthog.com) are legitimate named
   # constants, not secrets, and are documented with infrastructure setup guidance in
   # each Swift file. What we DO prohibit:
   #

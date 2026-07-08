@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Research Anonymization — Status Types
+ * NeurOne Research Anonymization — Status Types
  * Document: NP-FW-EMMC-002 Rev A §D
  *
  * Status enum for the scratch-partition AES-256-CTR encryption layer.

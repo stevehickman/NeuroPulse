@@ -1,5 +1,5 @@
 // ─── Hardware limits ───────────────────────────────────────────────────────────
-// These are the absolute physical constraints of the NeuroPulse hardware.
+// These are the absolute physical constraints of the NeurOne hardware.
 // They cannot be overridden by any software configuration.
 
 export const NPHardwareLimits = {

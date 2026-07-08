@@ -1,4 +1,4 @@
--- NeuroPulse SHDR Fleet Database Schema
+-- NeurOne SHDR Fleet Database Schema
 -- Document: NP-FW-EMMC-002 Rev A §G.4 / NP-FW-EMMC-001 Rev A §7
 -- Revision: A
 -- Effective date: 2026-06-03

@@ -1,10 +1,10 @@
-// NeuroPulse Android — Gradle multi-module project.
+// NeurOne Android — Gradle multi-module project.
 //
 // :core — pure-JVM Kotlin. All privacy-critical logic (models, GATT parsing,
 //         consent, analytics gates, session history, consumables, NPPS engine).
 //         Buildable and unit-testable without the Android SDK.
 // :app  — Android application shell (Compose UI, BLE, Keystore, uploads).
-//         Requires the Android SDK; mirrors app/ios/NeuroPulse module layout.
+//         Requires the Android SDK; mirrors app/ios/NeurOne module layout.
 
 pluginManagement {
     repositories {
@@ -21,7 +21,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "neuropulse-android"
+rootProject.name = "neurone-android"
 
 include(":core")
 include(":app")

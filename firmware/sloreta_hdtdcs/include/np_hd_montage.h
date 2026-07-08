@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HD-tDCS — Electrode Montage Selection API
+ * NeurOne HD-tDCS — Electrode Montage Selection API
  * Document: NP-FW-HD-001 Rev A §6
  *
  * Maps MNI target coordinates from sLORETA to T2 21-ch cap electrodes.

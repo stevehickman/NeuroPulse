@@ -1,5 +1,5 @@
 /*
- * NeuroPulse sLORETA Source Imaging — Public API
+ * NeurOne sLORETA Source Imaging — Public API
  * Document: NP-FW-HD-001 Rev A §5
  *
  * Scalar sLORETA: weight matrix W (N_voxels × 21) precomputed offline from

@@ -341,7 +341,7 @@ def main() -> int:
 
     sql = args.schema.read_text(encoding="utf-8")
 
-    print(f"NeuroPulse SHDR Schema CI Gate — OI-EMMC2-07")
+    print(f"NeurOne SHDR Schema CI Gate — OI-EMMC2-07")
     print(f"Schema: {args.schema}")
     print(f"Checks: NP-FW-EMMC-002 Rev A §G.3, §G.4, §A.4")
     print()

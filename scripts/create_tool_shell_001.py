@@ -1,6 +1,6 @@
 """
 Generate NP-TOOL-SHELL-001 Rev A
-NeuroPulse Headset Shell Tooling Specification
+NeurOne Headset Shell Tooling Specification
 Covers: anchor posts (5 zone + 3 port), EEG cable channel, temporal wing anchor boss
 """
 
@@ -115,7 +115,7 @@ left.width  = Cm(11)
 right.width = Cm(6)
 
 p_brand = left.paragraphs[0]
-r1 = p_brand.add_run('NeuroPulse')
+r1 = p_brand.add_run('NeurOne')
 r1.bold = True; r1.font.size = Pt(16); r1.font.color.rgb = RGBColor(255,255,255)
 p_brand.add_run('\n')
 r2 = p_brand.add_run('Headset Shell Tooling Specification')
@@ -152,7 +152,7 @@ add_notice(doc,
 # ══════════════════════════════════════════════════════════════════════════════
 add_heading(doc, '1.  PURPOSE AND SCOPE')
 add_para(doc,
-    'This document specifies mandatory moulded features in the NeuroPulse headset '
+    'This document specifies mandatory moulded features in the NeurOne headset '
     'CFRP shell that must be present in the tooling specification before first steel '
     'cut. It is the tooling-facing companion to NP-DRV-SHELL-001 (FPC routing design '
     'review) and NP-TOOL-ZM-001 (zone module tooling specification). Together these '
@@ -742,7 +742,7 @@ add_heading(doc, '10.  REVISION HISTORY')
 make_table(doc,
     ['Rev', 'Date', 'Author', 'Description'],
     [
-        ['A', '2026-05-10', 'NeuroPulse Engineering',
+        ['A', '2026-05-10', 'NeurOne Engineering',
          'Initial release. Addresses Issue #16 (shell tooling: anchor posts 5 zone + '
          '3 port colour-coded + EEG cable channel + temporal wing anchor boss). '
          'Features F-01 through F-04 specified. 23-item design review checklist '
@@ -753,6 +753,6 @@ make_table(doc,
     col_widths=[1.2, 2.2, 3.8, 9.5])
 
 # ── save ──────────────────────────────────────────────────────────────────────
-out_path = '/home/user/NeuroPulse/docs/neuropulse_tool_shell_001.docx'
+out_path = '/home/user/NeurOne/docs/neurone_tool_shell_001.docx'
 doc.save(out_path)
 print(f'Saved: {out_path}')

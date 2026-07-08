@@ -1,4 +1,4 @@
-# NeuroPulse EDF+ Privacy Header Writer/Validator — CMake Build
+# NeurOne EDF+ Privacy Header Writer/Validator — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
 # Document: NP-FW-EMMC-002 Rev A §E
 #

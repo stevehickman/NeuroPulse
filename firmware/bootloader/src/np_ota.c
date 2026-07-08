@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Bootloader — OTA Update State Machine
+ * NeurOne Bootloader — OTA Update State Machine
  * Document: NP-FW-EMMC-001 Rev A §8.3 (9-step OTA sequence)
  *
  * This file implements both the application-side API (steps 1–7) and the
@@ -416,7 +416,7 @@ np_status_t np_ota_verify_scratch(void)
     /* The streaming SHA-256 computed above has already validated image data. */
 
     /* Direct: verify the Ed25519 sig using the stored image_sha256 as the   */
-    /* hash input — this is the canonical NeuroPulse verify path.            */
+    /* hash input — this is the canonical NeurOne verify path.            */
     /* (np_signature_verify would recompute from raw bytes; here we trust     */
     /* the streaming computation above.)                                      */
     np_status_t sig_ret = NP_OK;

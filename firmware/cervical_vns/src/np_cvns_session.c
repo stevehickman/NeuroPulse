@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Cervical VNS — Session Management
+ * NeurOne Cervical VNS — Session Management
  * Document: NP-FW-CVNS-001 Rev A §8
  *
  * Orchestrates the full cervical VNS session:
@@ -25,7 +25,7 @@ static void platform_uhdr_write(const np_cvns_session_record_t *rec)
 
 static void platform_shdr_write(const np_cvns_shdr_summary_t *shdr)
 {
-    /* Platform HAL: write to SHDR eMMC partition (NeuroPulse manufacturing key)*/
+    /* Platform HAL: write to SHDR eMMC partition (NeurOne manufacturing key)*/
     /* np_platform_shdr_write_cvns(shdr, sizeof(*shdr));                        */
     /* OI-CVNS-04: implement before compliance.                                 */
     (void)shdr;

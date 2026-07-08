@@ -1,4 +1,4 @@
-// NPPS PEG Grammar — NeuroPulse Protocol Script
+// NPPS PEG Grammar — NeurOne Protocol Script
 // NP-NPPS-GRAM-001 Rev A
 // Single source of truth for NPPS syntax.
 // Generate parser: bunx peggy npps.peggy --format es

@@ -1,5 +1,5 @@
 <!--
-  NeuroPulse PostHog — ClickHouse Privacy Configuration
+  NeurOne PostHog — ClickHouse Privacy Configuration
   NP-ANALYTICS-001 Rev A
   Path: /etc/clickhouse-server/config.d/np-privacy.xml
 

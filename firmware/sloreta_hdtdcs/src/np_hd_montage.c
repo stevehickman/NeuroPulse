@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HD-tDCS — Electrode Montage Selection
+ * NeurOne HD-tDCS — Electrode Montage Selection
  * Document: NP-FW-HD-001 Rev A §6
  *
  * MNI scalp coordinates from Jurcak et al. (2007) NeuroImage — 10-20 system

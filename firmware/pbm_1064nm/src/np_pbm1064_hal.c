@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — Platform HAL Stub Implementations
+ * NeurOne 1064nm Smart Zone Module — Platform HAL Stub Implementations
  * Document: NP-FW-PBM1064-001 Rev A §3
  *
  * OI-PBM-01: np_pbm1064_hal_adc_read_pd    — STUB (platform team: wire to LPADC1)

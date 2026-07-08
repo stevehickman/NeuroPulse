@@ -28,7 +28,7 @@ function blankComposite(): NPCompositeProtocol {
     id: crypto.randomUUID(),
     name: '',
     description: '',
-    author: 'NeuroPulse',
+    author: 'NeurOne',
     version: '1.0',
     tags: [],
     createdAt: now,

@@ -1,6 +1,6 @@
 # Research Anonymisation Engine Firmware Specification
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-FW-ANON-001
 **Revision:** A
 **Date:** 2026-06-03
@@ -19,7 +19,7 @@
 
 ## 1. Purpose
 
-This specification governs the firmware research anonymisation engine that runs on the i.MX RT1062 main processor. The engine transforms UHDR data into study-specific anonymised extracts for researcher delivery, entirely on-device, before any data leaves the NeuroPulse hub. NeuroPulse cannot access raw UHDR at any point — the UHDR partition key (UKMD) is derived from the user's biometric/PIN and never held by NeuroPulse infrastructure.
+This specification governs the firmware research anonymisation engine that runs on the i.MX RT1062 main processor. The engine transforms UHDR data into study-specific anonymised extracts for researcher delivery, entirely on-device, before any data leaves the NeurOne hub. NeurOne cannot access raw UHDR at any point — the UHDR partition key (UKMD) is derived from the user's biometric/PIN and never held by NeurOne infrastructure.
 
 The engine satisfies the anonymisation standard required by NP-PRIV-001 Rev A HIGH-02:
 - **k-anonymity:** k ≥ 10 (minimum group size; groups smaller than k are suppressed)
@@ -60,7 +60,7 @@ All working data lives in the Scratch partition (AES-256-CTR encrypted, per NP-F
 
 ## 3. Study Descriptor
 
-The study descriptor is a JSON-encoded document, cryptographically signed by NeuroPulse (Ed25519), that authorises a specific research extract. The device verifies the signature before any UHDR data is accessed.
+The study descriptor is a JSON-encoded document, cryptographically signed by NeurOne (Ed25519), that authorises a specific research extract. The device verifies the signature before any UHDR data is accessed.
 
 ### 3.1 Descriptor schema
 
@@ -85,7 +85,7 @@ The study descriptor is a JSON-encoded document, cryptographically signed by Neu
   "quasi_identifiers":  ["age_decile", "session_count_tier"],
   "sensitive_attributes": ["eeg_alpha_ratio", "hrv_rmssd_ms", "protocol_category"],
   "study_public_key":    "[Base64-encoded Ed25519 public key for output encryption]",
-  "neuropulse_signature": "[Base64-encoded Ed25519 signature over all fields above]"
+  "neurone_signature": "[Base64-encoded Ed25519 signature over all fields above]"
 }
 ```
 
@@ -291,7 +291,7 @@ The extract is wrapped in a signed envelope:
 }
 ```
 
-The `records_b64` field is encrypted with the study public key from the descriptor (NaCl box or AES-256-GCM with ECDH-derived key). Only the researcher with the corresponding private key can decrypt the records. NeuroPulse cannot read the extract content even in transit.
+The `records_b64` field is encrypted with the study public key from the descriptor (NaCl box or AES-256-GCM with ECDH-derived key). Only the researcher with the corresponding private key can decrypt the records. NeurOne cannot read the extract content even in transit.
 
 ---
 

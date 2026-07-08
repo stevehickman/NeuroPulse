@@ -145,7 +145,7 @@ sec.bottom_margin = Inches(0.85)
 # ── Cover ──
 p = doc.add_paragraph()
 p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-r = p.add_run("NeuroPulse")
+r = p.add_run("NeurOne")
 r.bold = True; r.font.size = Pt(16)
 r.font.color.rgb = RGBColor(0x1F, 0x49, 0x7D)
 
@@ -694,7 +694,7 @@ for i, h in enumerate(["Rev", "Date", "Author", "Description"]):
     set_cell_bg(t_rev.rows[0].cells[i], "1F497D")
     run = t_rev.rows[0].cells[i].paragraphs[0].add_run(h)
     run.bold = True; run.font.color.rgb = RGBColor(0xFF,0xFF,0xFF); run.font.size = Pt(8)
-for c_idx, txt in enumerate(["A", DATE, "NeuroPulse Engineering",
+for c_idx, txt in enumerate(["A", DATE, "NeurOne Engineering",
     "Initial release. RISK-13 (primary) — LED PWM carrier frequency / EEG coordination. "
     "Consolidates all cross-discipline coordination items from RISK-01 through RISK-17 "
     "and OI-01 through OI-13 into 3-gate structure. 27 coordination items total."]):
@@ -707,6 +707,6 @@ for row in t_rev.rows:
     row.cells[2].width = Inches(1.5)
     row.cells[3].width = Inches(4.0)
 
-OUT = "docs/neuropulse_eng_coordination_checklist.docx"
+OUT = "docs/neurone_eng_coordination_checklist.docx"
 doc.save(OUT)
 print(f"Saved: {OUT}")

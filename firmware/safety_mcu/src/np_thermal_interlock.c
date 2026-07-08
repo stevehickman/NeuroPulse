@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Safety MCU — SW01-M04: Zone Thermal Interlock
+ * NeurOne Safety MCU — SW01-M04: Zone Thermal Interlock
  * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M04
  *
  * Reads NTC thermistors on ADC1 for all 5 zone modules + hub.

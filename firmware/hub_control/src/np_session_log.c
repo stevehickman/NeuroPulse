@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Session Logger (UHDR / SHDR)
+ * NeurOne Hub Control Program — Session Logger (UHDR / SHDR)
  * Document: NP-FW-HUB-001 Rev A §6
  *
  * All writes are buffered; np_log_flush() triggers eMMC writes.

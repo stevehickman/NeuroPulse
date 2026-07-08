@@ -1,6 +1,6 @@
 /* Document: NP-FW-EMMC-002 Rev A §B */
 /*
- * NeuroPulse Device Factory Reset — Types and Status Codes
+ * NeurOne Device Factory Reset — Types and Status Codes
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  */
 

@@ -1,8 +1,8 @@
 /**
- * HelmetModel — Three.js scene graph for the NeuroPulse helmet.
+ * HelmetModel — Three.js scene graph for the NeurOne helmet.
  *
  * Physical starting point: Neuronic 1070 Light (dome-style, full-scalp coverage).
- * NeuroPulse additions: 5 snap-in LED zones, integrated goggles, over-ear audio
+ * NeurOne additions: 5 snap-in LED zones, integrated goggles, over-ear audio
  * cups, occipital hub + Boa dial, spring-decoupled EEG pods, VNS auricular clip.
  *
  * Coordinate frame:  +Y up,  +Z toward viewer (front of helmet),  +X right.

@@ -1,4 +1,4 @@
--- NeuroPulse Warranty Registration Database Schema
+-- NeurOne Warranty Registration Database Schema
 -- SEPARATE from SHDR fleet database (separate cloud project, no shared IAM roles).
 -- Links warranty_token (opaque 32-byte TRNG value) to owner PII for support purposes.
 -- Per NP-FW-EMMC-002 §A.3: the warranty_token is the sole linkage to the SHDR fleet DB.

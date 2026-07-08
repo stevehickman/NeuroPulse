@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — Session Orchestration API
+ * NeurOne 1064nm Smart Zone Module — Session Orchestration API
  * Document: NP-FW-PBM1064-001 Rev A §7
  */
 

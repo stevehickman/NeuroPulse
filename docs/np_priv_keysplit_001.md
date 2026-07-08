@@ -1,6 +1,6 @@
 # Analytics Gate Architecture — Design Spec
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-PRIV-KEYSPLIT-001
 **Revision:** A
 **Date:** 2026-06-16
@@ -19,7 +19,7 @@
 
 ## Overview
 
-NeuroPulse uses two distinct analytics gates, each controlling a different data flow and each
+NeurOne uses two distinct analytics gates, each controlling a different data flow and each
 tied to a different consent subject. The ambiguous term "analytics consent" has been eliminated
 and replaced with precise terms throughout all code and docs.
 
@@ -35,7 +35,7 @@ have no shared state. `SHDRUploader` has no reference to `ConsentStore` or `Rese
 
 ## ResearchAnalyticsGate
 
-**File:** `app/ios/NeuroPulse/Analytics/ResearchAnalyticsGate.swift`
+**File:** `app/ios/NeurOne/Analytics/ResearchAnalyticsGate.swift`
 
 Controls the PostHog SDK (app-level analytics). The gate opens when the user completes the
 research consent onboarding flow and taps Done (not Skip).
@@ -69,7 +69,7 @@ The gate stays open; only data flows for the withdrawn category/study are blocke
 
 ## WarrantyAnalyticsGate
 
-**File:** `app/ios/NeuroPulse/Analytics/WarrantyAnalyticsGate.swift`
+**File:** `app/ios/NeurOne/Analytics/WarrantyAnalyticsGate.swift`
 
 Controls SHDR fleet telemetry uploads. The gate opens when the warranty owner grants
 consent at device registration.
@@ -108,11 +108,11 @@ to `ConsentStore` or `ResearchAnalyticsGate`.
 | `Analytics/WarrantyAnalyticsGate.swift` | New file — SHDR upload gate |
 | `Consent/ConsentStore.swift` | `withdrawBlanketConsent()` → `withdrawBlanketResearchConsent()`; `revokeAnalyticsConsent()` → `revokeResearchAnalytics()` |
 | `Views/ConsentOnboardingView.swift` | `AnalyticsGate` → `ResearchAnalyticsGate` |
-| `NeuroPulseApp.swift` | `AnalyticsGate.configure()` → `ResearchAnalyticsGate.configure()` |
+| `NeurOneApp.swift` | `AnalyticsGate.configure()` → `ResearchAnalyticsGate.configure()` |
 | `Data/SHDRUploader.swift` | Removed inline `warrantyConsentGranted` property; now reads `WarrantyAnalyticsGate.isOpen` |
-| `NeuroPulseTests/AnalyticsGateTests.swift` | Full rewrite: subject is `ResearchAnalyticsGate`; blanket withdrawal test INVERTED (now correctly asserts gate closes + SDK tears down) |
-| `NeuroPulseTests/SHDRUploaderTests.swift` | `setUp`/`tearDown` clear warranty key; `@MainActor` tests call `WarrantyAnalyticsGate.revoke()` |
-| `NeuroPulseTests/ConsentStoreTests.swift` | Test names updated to `withdrawBlanketResearchConsent` |
+| `NeurOneTests/AnalyticsGateTests.swift` | Full rewrite: subject is `ResearchAnalyticsGate`; blanket withdrawal test INVERTED (now correctly asserts gate closes + SDK tears down) |
+| `NeurOneTests/SHDRUploaderTests.swift` | `setUp`/`tearDown` clear warranty key; `@MainActor` tests call `WarrantyAnalyticsGate.revoke()` |
+| `NeurOneTests/ConsentStoreTests.swift` | Test names updated to `withdrawBlanketResearchConsent` |
 | `app/ios/ISA.md` | Line 159: `withdrawBlanketConsent()` → `withdrawBlanketResearchConsent()` |
 
 ---

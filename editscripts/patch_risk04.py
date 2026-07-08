@@ -98,7 +98,7 @@ def insert_xml_row_after(tbl, anchor_tr, data, widths_in, bold_col0=True):
 # ══════════════════════════════════════════════════════════════════════════════
 # 1.  NP-FAI-ZM-001
 # ══════════════════════════════════════════════════════════════════════════════
-FAI_PATH = "docs/neuropulse_fai_zone_module.docx"
+FAI_PATH = "docs/neurone_fai_zone_module.docx"
 fai = Document(FAI_PATH)
 
 # 1a. Fix FAI-M02 (peel force) and FAI-M03 (thermal cycles) in §3d table
@@ -309,7 +309,7 @@ print(f"  NP-FAI-ZM-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 2.  NP-PROC-SUP-001 — fix SUP-C-04 peel threshold; add SUP-C-08
 # ══════════════════════════════════════════════════════════════════════════════
-PROC_PATH = "docs/neuropulse_supplier_selection_checklist.docx"
+PROC_PATH = "docs/neurone_supplier_selection_checklist.docx"
 proc = Document(PROC_PATH)
 
 for tbl in proc.tables:
@@ -337,7 +337,7 @@ for tbl in proc.tables:
                 "qualification (200 cycles, −10°C to +65°C) before production commences. "
                 "Supplier either runs the cycling test in-house (must have calibrated thermal "
                 "chamber and IEC 60068-2-14 procedure) or submits coupons to an accredited "
-                "third-party test house. Test report signed by supplier quality and NeuroPulse "
+                "third-party test house. Test report signed by supplier quality and NeurOne "
                 "HW EE required before any production FPCs are delivered. "
                 "Reference: NP-FAI-ZM-001 §3e FAI-TC01–FAI-TC06.",
                 "Thermal chamber calibration cert + IEC 60068-2-14 procedure, "
@@ -378,7 +378,7 @@ print(f"  NP-PROC-SUP-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3.  NP-COORD-001 — add G1-08 PDMS qualification gate item
 # ══════════════════════════════════════════════════════════════════════════════
-COORD_PATH = "docs/neuropulse_eng_coordination_checklist.docx"
+COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
 coord = Document(COORD_PATH)
 
 for tbl in coord.tables:
@@ -431,7 +431,7 @@ print(f"  NP-COORD-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 4.  Risk register — RISK-04 → MITIGATED
 # ══════════════════════════════════════════════════════════════════════════════
-RISK_PATH = "docs/neuropulse_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
 risk = Document(RISK_PATH)
 
 for tbl in risk.tables:

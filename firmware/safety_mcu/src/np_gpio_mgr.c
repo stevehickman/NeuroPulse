@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Safety MCU — SW01-M01: Stimulation GPIO Manager
+ * NeurOne Safety MCU — SW01-M01: Stimulation GPIO Manager
  * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M01
  *
  * Owns all 14 stimulation enable GPIO lines.  All lines are active-LOW

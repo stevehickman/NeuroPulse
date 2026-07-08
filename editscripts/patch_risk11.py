@@ -32,7 +32,7 @@ def set_cell_text(cell, text, bold=False, color=None):
 # 1. Patch FPC spec §11.2
 # ─────────────────────────────────────────────────────────────────────────────
 
-SPEC_PATH = "docs/neuropulse_fpc_zone_module_spec_revA.docx"
+SPEC_PATH = "docs/neurone_fpc_zone_module_spec_revA.docx"
 spec = Document(SPEC_PATH)
 
 # Find §11.2 heading and insert content after it
@@ -100,7 +100,7 @@ print(f"  FPC spec saved: {SPEC_PATH}")
 # 2. Patch Risk Register — RISK-11
 # ─────────────────────────────────────────────────────────────────────────────
 
-RISK_PATH = "docs/neuropulse_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
 risk_doc = Document(RISK_PATH)
 
 tbl = risk_doc.tables[0]

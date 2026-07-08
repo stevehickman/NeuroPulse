@@ -784,7 +784,7 @@ class Parser {
     this.expect('LBRACE');
 
     let description = '';
-    let author = 'NeuroPulse';
+    let author = 'NeurOne';
     let version = '1.0';
     let tags: string[] = [];
     let timingMode: NPTimingMode = { type: 'duration', seconds: 1200 };
@@ -1117,7 +1117,7 @@ class Parser {
     this.skipNewlines();
 
     let description = '';
-    let author = 'NeuroPulse';
+    let author = 'NeurOne';
     let version = '1.0';
     let tags: string[] = [];
     let layers: NPCompositeLayer[] = [];

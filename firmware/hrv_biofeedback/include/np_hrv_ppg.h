@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HRV Biofeedback — PPG Signal Processing
+ * NeurOne HRV Biofeedback — PPG Signal Processing
  * Document: NP-FW-HRV-001 §2
  *
  * Processes the 808–830 nm PPG signal from the VNS auricular clip to extract

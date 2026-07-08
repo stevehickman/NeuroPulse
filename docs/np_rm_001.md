@@ -1,6 +1,6 @@
 # ISO 14971 Risk Management Plan
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-RM-001  
 **Revision:** A  
 **Date:** 2026-05-13  
@@ -14,19 +14,19 @@
 **IEC 62304 Class:** —  
 **Applicable Standard:** ISO 14971:2019 — Medical Devices: Application of Risk Management  
 **Next Review:** 2027-05-13 (annual) or upon any significant design change  
-**Applicable Devices:** NeuroPulse Home (T1), NeuroPulse Pro (T2)
+**Applicable Devices:** NeurOne Home (T1), NeurOne Pro (T2)
 
 ---
 
 ## 1. Purpose
 
-This Risk Management Plan defines the process, responsibilities, criteria, and records for risk management throughout the NeuroPulse device lifecycle, in compliance with ISO 14971:2019. It formally brings the existing NeuroPulse risk register (RISK-01 through RISK-25, documented in NP-RISK-001) under QMS change control as of the effective date above.
+This Risk Management Plan defines the process, responsibilities, criteria, and records for risk management throughout the NeurOne device lifecycle, in compliance with ISO 14971:2019. It formally brings the existing NeurOne risk register (RISK-01 through RISK-25, documented in NP-RISK-001) under QMS change control as of the effective date above.
 
 ---
 
 ## 2. Scope
 
-Risk management applies to the complete NeuroPulse device system including:
+Risk management applies to the complete NeurOne device system including:
 
 - All hardware modalities (T1 and T2)
 - All firmware components (Safety MCU Class C, main processor Class B)
@@ -56,7 +56,7 @@ Risk management covers the full device lifecycle: concept → design → develop
 
 ### 4.1 Severity classification
 
-| Severity level | Definition | Examples for NeuroPulse |
+| Severity level | Definition | Examples for NeurOne |
 |---|---|---|
 | S1 — Negligible | No injury or discomfort expected | Minor LED colour inconsistency, cosmetic scratching |
 | S2 — Minor | Temporary, reversible discomfort or minor injury | Mild scalp irritation from electrode contact, temporary tinnitus from bone conduction |
@@ -101,7 +101,7 @@ For any risk rated ALARP, the risk file must document:
 
 ## 5. Risk Management Process
 
-The NeuroPulse risk management process follows ISO 14971:2019 clauses 4–9:
+The NeurOne risk management process follows ISO 14971:2019 clauses 4–9:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -149,15 +149,15 @@ The NeuroPulse risk management process follows ISO 14971:2019 clauses 4–9:
 
 ## 6. Intended Use and Intended Users
 
-### 6.1 Intended use (T1 — NeuroPulse Home)
+### 6.1 Intended use (T1 — NeurOne Home)
 
-NeuroPulse Home is a general wellness device intended to support user wellbeing through multi-modal neurostimulation and neurofeedback. Intended users are adults (18+) seeking wellness support for focus, relaxation, sleep, and general cognitive function. The device is intended for home use by lay users without clinical training.
+NeurOne Home is a general wellness device intended to support user wellbeing through multi-modal neurostimulation and neurofeedback. Intended users are adults (18+) seeking wellness support for focus, relaxation, sleep, and general cognitive function. The device is intended for home use by lay users without clinical training.
 
 **Not intended for:** Diagnosis, treatment, or monitoring of any medical condition; paediatric users (<18); users with active implanted electronic devices; users with known seizure disorders (photoparoxysmal EEG detection required before visual stimulation use); users who are pregnant.
 
-### 6.2 Intended use (T2 — NeuroPulse Pro)
+### 6.2 Intended use (T2 — NeurOne Pro)
 
-NeuroPulse Pro is a prescription-use medical device intended for use under clinician supervision as an adjunctive treatment for neurological and psychiatric conditions. T2 indications will be defined per modality in the 510(k) submission. Intended users: trained clinicians and their patients under clinical supervision.
+NeurOne Pro is a prescription-use medical device intended for use under clinician supervision as an adjunctive treatment for neurological and psychiatric conditions. T2 indications will be defined per modality in the 510(k) submission. Intended users: trained clinicians and their patients under clinical supervision.
 
 ### 6.3 Reasonably foreseeable misuse
 
@@ -174,7 +174,7 @@ The following misuse scenarios must be addressed in hazard identification:
 
 ## 7. Hazard Categories
 
-The following hazard categories apply to NeuroPulse. Each category must be systematically evaluated during design review:
+The following hazard categories apply to NeurOne. Each category must be systematically evaluated during design review:
 
 | Category | Hazard sources | Primary interlock |
 |---|---|---|
@@ -194,7 +194,7 @@ The following hazard categories apply to NeuroPulse. Each category must be syste
 
 ### 8.1 Baseline risk register
 
-The risk register RISK-01 through RISK-25, documented in NP-RISK-001 (`docs/neuropulse_fpc_zone_module_risks_revA.docx`), is hereby formally placed under QMS change control effective 2026-05-13. This constitutes the baseline ISO 14971 risk file.
+The risk register RISK-01 through RISK-25, documented in NP-RISK-001 (`docs/neurone_fpc_zone_module_risks_revA.docx`), is hereby formally placed under QMS change control effective 2026-05-13. This constitutes the baseline ISO 14971 risk file.
 
 **Current status at QMS establishment:**
 - 23 risks: **MITIGATED** (residual risk documented with controls in NP-RISK-001)
@@ -231,7 +231,7 @@ Per ISO 14971:2019 §7.4 and 21 CFR §820.30, risk controls shall be applied in 
 2. **Protective measures in the device or manufacturing process** — guards, interlocks, hardware limits
 3. **Information for safety** — labelling, IFU warnings, on-device alerts (last resort, least effective)
 
-NeuroPulse design philosophy prioritises level 1 and 2 controls. Examples:
+NeurOne design philosophy prioritises level 1 and 2 controls. Examples:
 - Hardware-enforced 40µC/cm² charge density limit (Safety MCU GPIO, not software) — level 1/2
 - Hall sensor goggle lift cutoff at hardware level — level 2
 - Ed25519 signed session protocols (safety MCU rejects unsigned protocols) — level 2
@@ -258,7 +258,7 @@ Currently documented software safety requirements:
 Per FDA Cybersecurity Guidance for medical devices (2023), cybersecurity risks must be managed within the risk management framework. Key cybersecurity risk items:
 - Malicious session protocol injection (mitigated: Ed25519 signing)
 - Unauthorised OTA firmware update (mitigated: Ed25519 verification at bootloader)
-- UHDR data exfiltration (mitigated: biometric-derived AES-256-XTS key, never held by NeuroPulse)
+- UHDR data exfiltration (mitigated: biometric-derived AES-256-XTS key, never held by NeurOne)
 - USB-C DFU exploitation (mitigated: Ed25519 gating on DFU path)
 
 SBOM requirement: Software Bill of Materials required for 510(k) submission. To be generated from firmware build system (planned: NP-SBOM-001, Year 2).
@@ -295,7 +295,7 @@ Post-launch, the following data sources feed back into the risk management file:
 | Fleet SHDR | LED degradation, thermal profiles, EMF attenuation, impact events | Update probability estimates; trigger CAPA if trend indicates hazard |
 | Complaint data | User-reported adverse events, near-misses | Re-evaluate severity and probability; update risk register |
 | NP-PMS-001 (planned) | Post-market surveillance plan outputs | Systematic trend analysis; annual risk review |
-| Regulatory recalls / field safety notices (industry) | Competitor device failures; new hazard types | Evaluate applicability to NeuroPulse; update hazard identification |
+| Regulatory recalls / field safety notices (industry) | Competitor device failures; new hazard types | Evaluate applicability to NeurOne; update hazard identification |
 
 ### 12.2 Post-market risk review triggers
 

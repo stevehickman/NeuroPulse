@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Bootloader — eMMC Interface (USDHC2)
+ * NeurOne Bootloader — eMMC Interface (USDHC2)
  * Document: NP-FW-EMMC-001 Rev A §3, §8
  */
 

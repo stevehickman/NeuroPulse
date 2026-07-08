@@ -1,7 +1,7 @@
 protocol "Memory Boost" {
     id: "10000004-0000-0000-0000-000000000000"
     description: "Theta (6Hz) hippocampal entrainment for memory consolidation and learning. Combines PBM, theta-band EEG neurofeedback, binaural audio, and HRV biofeedback."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [memory, theta, learning, consolidation]

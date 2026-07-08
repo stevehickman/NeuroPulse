@@ -1,6 +1,6 @@
-# NeuroPulse App Privacy Audit
+# NeurOne App Privacy Audit
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-PRIV-AUDIT-001  
 **Revision:** A  
 **Date:** 2026-06-03  
@@ -22,7 +22,7 @@
 
 ### Summary
 
-The NeuroPulse iOS/Android app handles some of the most sensitive personal data a consumer device can produce — raw EEG waveforms, HRV time series, cardiac rhythm, stimulation response — for users managing conditions including depression, PTSD, TBI, Parkinson's disease, and Alzheimer's disease. The underlying architecture is strong: UHDR is encrypted on-device with a biometric-derived key NeuroPulse never holds, SHDR is strictly separated, and an on-device research anonymisation pipeline avoids transmitting raw UHDR to any server.
+The NeurOne iOS/Android app handles some of the most sensitive personal data a consumer device can produce — raw EEG waveforms, HRV time series, cardiac rhythm, stimulation response — for users managing conditions including depression, PTSD, TBI, Parkinson's disease, and Alzheimer's disease. The underlying architecture is strong: UHDR is encrypted on-device with a biometric-derived key NeurOne never holds, SHDR is strictly separated, and an on-device research anonymisation pipeline avoids transmitting raw UHDR to any server.
 
 **Jurisdiction scope:** Global — US (federal: FTC Act §5, FTC HBNR 16 CFR Part 318, HIPAA/HITECH for T2 clinical; state: BIPA IL, My Health My Data WA, CCPA/CPRA CA, and emerging state omnibus consumer privacy laws), EU/EEA GDPR, UK GDPR + DPA 2018, Canada PIPEDA + Quebec Law 25.
 
@@ -58,7 +58,7 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 **Issue:** NP-APP-TELEMETRY-001 specifies the SDK initialisation gate (no SDK initialises before `consentCompleted()` is called), but no implementation exists yet and no verification procedure has been run. The policy document describes the pattern correctly — the risk is that a future engineer adds an SDK in `AppDelegate.application(_:didFinishLaunchingWithOptions:)` because that is the SDK vendor's integration instruction, and the gate is silently broken. Apple's App Tracking Transparency framework and GDPR Art. 7 both require that consent precedes any tracking. The FTC's 2023 enforcement actions against GoodRx, BetterHelp, and Premom were based on exactly this failure mode.  
 **Reference:** "Third-party Free-for-all" anti-pattern; FTC Act §5; FTC HBNR 16 CFR Part 318; GDPR Art. 6, 7; NP-APP-TELEMETRY-001 §5  
 **Remediation:**  
-1. Implement `NeuroPulseConsentStore.hasCompletedConsent()` guard as the first line of any SDK initialisation call, using the code pattern specified in NP-APP-TELEMETRY-001 §5.  
+1. Implement `NeurOneConsentStore.hasCompletedConsent()` guard as the first line of any SDK initialisation call, using the code pattern specified in NP-APP-TELEMETRY-001 §5.  
 2. Add a CI test (XCTest / instrumented Android test) that: (a) launches the app in a reset state; (b) confirms no network calls are made before `consentCompleted()` fires; (c) confirms the analytics SDK and crash reporter are not initialised at cold start.  
 3. Add the SwiftLint / Android Lint rule from NP-APP-TELEMETRY-001 §7 to the linting configuration immediately — it should be in the repo before any analytics events are authored.  
 4. Run the crash reporter verification procedure (NP-APP-TELEMETRY-001 §6) and document results as OI-TEL-01 before TestFlight.
@@ -113,7 +113,7 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 **Where:** CLAUDE.md §6.2 (four-layer a priori consent); NP-APP-ROADMAP-001 §3  
 **Category:** Pure privacy failure (unawareness — consent not freely given if UX is coercive or confusing)  
-**Issue:** The four-layer research consent system (L1 contact, L2 category, L3 blanket, L4 results) is fully specified in CLAUDE.md §6.2 and is one of NeuroPulse's architectural differentiators. However, no UX design exists, no formative usability testing has been conducted, and there is no review of whether the layered consent UX meets GDPR Art. 7 requirements (freely given, specific, informed, unambiguous) in implementation — not just in specification. Common failure modes in layered consent UX: the "all on" option is visually prominent while "all off" requires additional steps ("Dark Patterns" anti-pattern); the L3 blanket consent irreversibility notice is displayed in small print or after the user has already tapped through; per-category selection (L2) feels like a dark pattern when categories are pre-selected. The POA (power of attorney) upload path (NP-PROC-POA-001) has no in-app UX at all.  
+**Issue:** The four-layer research consent system (L1 contact, L2 category, L3 blanket, L4 results) is fully specified in CLAUDE.md §6.2 and is one of NeurOne's architectural differentiators. However, no UX design exists, no formative usability testing has been conducted, and there is no review of whether the layered consent UX meets GDPR Art. 7 requirements (freely given, specific, informed, unambiguous) in implementation — not just in specification. Common failure modes in layered consent UX: the "all on" option is visually prominent while "all off" requires additional steps ("Dark Patterns" anti-pattern); the L3 blanket consent irreversibility notice is displayed in small print or after the user has already tapped through; per-category selection (L2) feels like a dark pattern when categories are pre-selected. The POA (power of attorney) upload path (NP-PROC-POA-001) has no in-app UX at all.  
 **Reference:** "Dark Patterns" anti-pattern; "Bundled Consent" anti-pattern; GDPR Art. 7 (consent); GDPR Rec. 32 (clear and plain language); NP-PRIV-REM-001 STEP-20; NP-PROC-POA-001  
 **Remediation:**  
 1. Engage a UX designer with consent UX experience to produce wireframes for the four-layer consent onboarding before any implementation begins.  
@@ -141,7 +141,7 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 **Where:** NP-APP-ROADMAP-001 §4 (Watch phases 1–4)  
 **Category:** Pure privacy failure (data minimisation; third-party data scope)  
-**Issue:** The WatchConnectivity relay sends a subset of GATT data to the Apple Watch. Apple Watch platforms (watchOS, HealthKit, Workout context) have their own data retention and sharing behaviours that are outside NeuroPulse's control: (a) HealthKit may automatically record HRV and heart rate data from sessions if any app component calls `HKWorkoutSession` or `HKWorkoutBuilder` — even inadvertently; (b) watchOS may surface session data in Siri Suggestions or Handoff state; (c) the Apple Watch coherence score display (Phase 1) is visible on the wrist in any context — a side-channel disclosure in clinical or workplace settings. None of these downstream behaviours are currently addressed in any privacy document.  
+**Issue:** The WatchConnectivity relay sends a subset of GATT data to the Apple Watch. Apple Watch platforms (watchOS, HealthKit, Workout context) have their own data retention and sharing behaviours that are outside NeurOne's control: (a) HealthKit may automatically record HRV and heart rate data from sessions if any app component calls `HKWorkoutSession` or `HKWorkoutBuilder` — even inadvertently; (b) watchOS may surface session data in Siri Suggestions or Handoff state; (c) the Apple Watch coherence score display (Phase 1) is visible on the wrist in any context — a side-channel disclosure in clinical or workplace settings. None of these downstream behaviours are currently addressed in any privacy document.  
 **Reference:** "Purpose Creep" anti-pattern; GDPR Art. 28 (processors — Apple is a data processor for HealthKit); Apple HealthKit API agreement; NP-APP-ROADMAP-001 §9.1  
 **Remediation:**  
 1. Audit the Watch app implementation plan for any inadvertent use of HealthKit APIs (even indirect, via watchOS workout context). Confirm that `HKWorkoutSession` and `HKWorkoutBuilder` are never instantiated by the Watch app.  
@@ -246,17 +246,17 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 ### What looks good
 
-**UHDR encryption architecture.** The biometric-derived AES-256-XTS key scheme (NP-FW-EMMC-001, updated by NP-FW-EMMC-002) is the right architecture for a health data device. NeuroPulse never holds the decryption key. If the company's servers are breached, user health data is not exposed. This is a genuine privacy-by-design choice that goes well beyond regulatory minimum and directly addresses the category of harm (operator access to health data) that the FTC has been enforcing against health apps.
+**UHDR encryption architecture.** The biometric-derived AES-256-XTS key scheme (NP-FW-EMMC-001, updated by NP-FW-EMMC-002) is the right architecture for a health data device. NeurOne never holds the decryption key. If the company's servers are breached, user health data is not exposed. This is a genuine privacy-by-design choice that goes well beyond regulatory minimum and directly addresses the category of harm (operator access to health data) that the FTC has been enforcing against health apps.
 
-**SHDR/UHDR strict separation.** The two-partition eMMC architecture with separate encryption keys ensures that NeuroPulse's fleet telemetry (SHDR) is structurally isolated from user health data (UHDR). The 27-element classification table (NP-FW-EMMC-001 §12) is thorough and the boundary-case resolution rule ("when in doubt → UHDR") is the right default.
+**SHDR/UHDR strict separation.** The two-partition eMMC architecture with separate encryption keys ensures that NeurOne's fleet telemetry (SHDR) is structurally isolated from user health data (UHDR). The 27-element classification table (NP-FW-EMMC-001 §12) is thorough and the boundary-case resolution rule ("when in doubt → UHDR") is the right default.
 
-**On-device research anonymisation.** The architecture where anonymisation runs on-device, on demand, per study, using a signed study descriptor, is the correct approach. It means NeuroPulse cannot be compelled to produce raw UHDR even in response to a data request, because it genuinely does not have it.
+**On-device research anonymisation.** The architecture where anonymisation runs on-device, on demand, per study, using a signed study descriptor, is the correct approach. It means NeurOne cannot be compelled to produce raw UHDR even in response to a data request, because it genuinely does not have it.
 
 **Analytics telemetry policy is appropriately cautious.** NP-APP-TELEMETRY-001 correctly identifies the FTC precedents, specifies a one-vendor maximum, requires BAA, prohibits IDFA/GAID, and produces an explicit whitelist of permitted event properties. The `engagement_tier` coarsening is a good response to the `session_sequence` privacy finding.
 
 **Consent withdrawal is forward-effective for research.** CLAUDE.md §6.2 and the research anonymisation architecture ensure that consent withdrawal immediately stops all future data flows from any time period — including historical sessions. The per-study, on-demand generation model means there is no database of pre-generated extracts to roll back; withdrawal is structurally effective, not just procedurally promised.
 
-**BIPA, MHMD, and age gate are identified as pending.** Many health app developers discover BIPA exposure post-launch. NeuroPulse has identified it pre-tooling and has specific open items for resolution. The same is true for Washington MHMD. This is the right governance posture.
+**BIPA, MHMD, and age gate are identified as pending.** Many health app developers discover BIPA exposure post-launch. NeurOne has identified it pre-tooling and has specific open items for resolution. The same is true for Washington MHMD. This is the right governance posture.
 
 **Crash reporter policy prohibits variable capture and screenshot capture.** These two settings are responsible for the majority of accidental health data leakage in crash reports. Prohibiting them in policy before a vendor is selected means the requirement enters vendor evaluation rather than being retrofitted.
 
@@ -278,7 +278,7 @@ The NeuroPulse iOS/Android app handles some of the most sensitive personal data 
 
 **1. Select analytics and crash reporting vendors (Month 6 — before G1 gate).** Execute DPA and BAA before any SDK is added to the Xcode project. Author PrivacyInfo.xcprivacy. This unblocks the App Store privacy nutrition label, the SDK init gate verification, and the crash reporter verification procedure. All five High findings converge on vendor selection as a prerequisite. Estimated effort: 2–4 weeks for evaluation and legal review.
 
-**2. Implement and CI-verify the SDK initialisation gate before any test build ships.** Write the `NeuroPulseConsentStore.hasCompletedConsent()` guard, the CI network-call test, and the SwiftLint lint rule. These three items are a single engineering sprint and eliminate the most likely FTC enforcement vector for health app analytics. Estimated effort: 3–5 days.
+**2. Implement and CI-verify the SDK initialisation gate before any test build ships.** Write the `NeurOneConsentStore.hasCompletedConsent()` guard, the CI network-call test, and the SwiftLint lint rule. These three items are a single engineering sprint and eliminate the most likely FTC enforcement vector for health app analytics. Estimated effort: 3–5 days.
 
 **3. Engage privacy counsel for BIPA (Illinois) and MHMD (Washington) regulatory analyses before any US App Store submission.** These are legal opinions, not engineering tasks, but they gate US device activation and require 3–5 weeks' lead time. Brief counsel simultaneously on both: BIPA EEG biometric consent requirements and MHMD consumer health data classification of SHDR session counts. Estimated cost: $10,000–15,000 combined. Estimated timeline: 4 weeks from engagement.
 

@@ -3,9 +3,9 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleName</key>
-	<string>NeuroPulse</string>
+	<string>NeurOne</string>
 	<key>CFBundleDisplayName</key>
-	<string>NeuroPulse</string>
+	<string>NeurOne</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleShortVersionString</key>
@@ -36,16 +36,16 @@
 
 	<!-- CoreBluetooth -->
 	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>NeuroPulse uses Bluetooth Low Energy to communicate with your NeuroPulse hub. This connection is required for real-time session monitoring and protocol upload.</string>
+	<string>NeurOne uses Bluetooth Low Energy to communicate with your NeurOne hub. This connection is required for real-time session monitoring and protocol upload.</string>
 
 	<!-- LocalAuthentication — protects UHDR encryption key -->
 	<key>NSFaceIDUsageDescription</key>
-	<string>NeuroPulse uses Face ID to protect your health data encryption key. Your biometric data never leaves your device.</string>
+	<string>NeurOne uses Face ID to protect your health data encryption key. Your biometric data never leaves your device.</string>
 
 	<!-- Background Tasks — nightly UHDR backup (BGTaskScheduler) -->
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>com.neuropulse.uhdr-backup</string>
+		<string>com.neurone.uhdr-backup</string>
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>

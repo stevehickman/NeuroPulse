@@ -1,5 +1,5 @@
 /*
- * NeuroPulse 1064nm Smart Zone Module — Session Orchestration
+ * NeurOne 1064nm Smart Zone Module — Session Orchestration
  * Document: NP-FW-PBM1064-001 Rev A §7
  *
  * Session stages: PREFLIGHT → RAMP_UP (30 s) → ACTIVE → RAMP_DOWN (30 s) → COMPLETE

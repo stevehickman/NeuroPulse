@@ -1,7 +1,7 @@
 protocol "Deep Sleep" {
     id: "10000003-0000-0000-0000-000000000000"
     description: "Slow-wave sleep induction using 2Hz delta PBM on rear zones with brown noise and resonance breathing. Use within 30 minutes of bedtime."
-    author: "NeuroPulse"
+    author: "NeurOne"
     version: "1.0"
     readonly: true
     tags: [sleep, delta, recovery, relaxation]

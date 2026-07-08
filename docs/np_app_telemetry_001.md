@@ -1,6 +1,6 @@
 # App Analytics and Crash Reporting Policy
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-APP-TELEMETRY-001
 **Revision:** B
 **Date:** 2026-06-03
@@ -21,9 +21,9 @@
 
 ## 1. Purpose and Scope
 
-This document governs all analytics event tracking and crash/error reporting in the NeuroPulse iOS and Android applications. It applies to:
-- All versions of the NeuroPulse iOS app (com.neuropulse.ios)
-- All versions of the NeuroPulse Android app (com.neuropulse.android)
+This document governs all analytics event tracking and crash/error reporting in the NeurOne iOS and Android applications. It applies to:
+- All versions of the NeurOne iOS app (com.neurone.lifes)
+- All versions of the NeurOne Android app (com.neurone.android)
 - All third-party SDKs included in either app that have network access or access to device identifiers
 
 This policy exists because:
@@ -42,11 +42,11 @@ At the time of this policy's adoption, no analytics or crash reporting vendor ha
 **Requirements:**
 - Must provide a signed Data Processing Agreement (DPA) meeting GDPR Art. 28 requirements.
 - Must provide a Business Associate Agreement (BAA) if any session-derived data (even pseudonymous) is processed.
-- Must not use NeuroPulse event data to build user profiles for any purpose other than providing analytics services to NeuroPulse.
-- Must not sell or share NeuroPulse event data with any third party.
+- Must not use NeurOne event data to build user profiles for any purpose other than providing analytics services to NeurOne.
+- Must not sell or share NeurOne event data with any third party.
 - Must support data deletion requests (user exercises right to erasure → delete all analytics records for that user's pseudonymous identifier within 30 days).
 - Must support server-side data storage in the US (for US users) and EU (for EU users) — no residency in countries without an adequacy decision or DPF/SCCs coverage.
-- SDK must not initialise before the NeuroPulse app consent flow is complete (confirmed by SDK configuration documentation).
+- SDK must not initialise before the NeurOne app consent flow is complete (confirmed by SDK configuration documentation).
 
 **Candidate evaluation criteria (to be completed at vendor selection):**
 
@@ -84,14 +84,14 @@ Analytics events may include only the following properties. Any event that requi
 
 | Property | Description | Format |
 |---|---|---|
-| `app_version` | NeuroPulse app version string | Semver string (e.g. "1.0.3") |
+| `app_version` | NeurOne app version string | Semver string (e.g. "1.0.3") |
 | `os_version` | Operating system version | Major.minor (e.g. "iOS 18.2") — not patch version |
 | `device_class` | Coarsened device model | Enum: "iPhone_flagship", "iPhone_mid", "iPhone_legacy", "iPad", "Android_flagship", "Android_mid", "Android_budget" — not the specific model |
 | `screen_name` | Current app screen | Coarsened enum — see §3.1 |
 | `engagement_tier` | Coarsened app-launch engagement bucket — replaces raw session counter (see §3.2) | Enum: `"new"` (1–5 app launches), `"active"` (6–50 app launches), `"established"` (51+ app launches). Computed on-device from local counter. Counts app launches, not stimulation sessions. Resets on uninstall. Never transmitted as a raw integer. |
 | `app_start_type` | How the app was launched | Enum: "cold_start", "warm_start", "background_resume" |
 | `onboarding_step` | Which onboarding step was reached or completed | Enum: "consent_flow_step_1" through "consent_flow_complete" — no health context in name |
-| `error_code` | Non-health error code | Integer code from NeuroPulse error enum — no free text |
+| `error_code` | Non-health error code | Integer code from NeurOne error enum — no free text |
 | `connectivity_type` | Network connectivity when performing an action | Enum: "wifi", "cellular", "none" |
 
 ### 3.1 Permitted screen name values
@@ -147,7 +147,7 @@ The following properties must **never** appear in any analytics event, regardles
 
 ## 5. SDK Initialisation Gate
 
-**Binding requirement:** No analytics or crash reporting SDK may initialise, make network calls, or write to local storage before the user has completed the NeuroPulse consent flow on first launch.
+**Binding requirement:** No analytics or crash reporting SDK may initialise, make network calls, or write to local storage before the user has completed the NeurOne consent flow on first launch.
 
 **Implementation:**
 
@@ -157,7 +157,7 @@ func application(_ application: UIApplication,
                  didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
     // DO NOT initialise analytics or crash reporter here
     // Analytics and crash reporter are initialised only in ConsentFlowViewController.consentCompleted()
-    // OR on subsequent launches if NeuroPulseConsentStore.hasCompletedConsent() returns true
+    // OR on subsequent launches if NeurOneConsentStore.hasCompletedConsent() returns true
     return true
 }
 ```
@@ -165,9 +165,9 @@ func application(_ application: UIApplication,
 ```swift
 // Correct initialisation point
 func consentCompleted() {
-    guard NeuroPulseConsentStore.hasCompletedConsent() else { return }
-    AnalyticsVendor.initialise(config: NeuroPulseAnalyticsConfig())
-    CrashReporter.initialise(config: NeuroPulseCrashConfig())
+    guard NeurOneConsentStore.hasCompletedConsent() else { return }
+    AnalyticsVendor.initialise(config: NeurOneAnalyticsConfig())
+    CrashReporter.initialise(config: NeurOneCrashConfig())
 }
 ```
 

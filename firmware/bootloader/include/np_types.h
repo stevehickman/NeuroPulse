@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Bootloader — Types and Status Codes
+ * NeurOne Bootloader — Types and Status Codes
  * Document: NP-FW-EMMC-001 Rev A §8
  */
 

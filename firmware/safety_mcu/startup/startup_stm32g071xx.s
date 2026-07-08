@@ -1,5 +1,5 @@
 /**
- * NeuroPulse Safety MCU — Startup Code
+ * NeurOne Safety MCU — Startup Code
  * Target: STM32G071 (Cortex-M0+)
  * Document: NP-SW-001 Rev A — SW-01 Class C
  *

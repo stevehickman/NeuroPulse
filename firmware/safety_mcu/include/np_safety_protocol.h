@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Safety MCU — SPI Protocol Types
+ * NeurOne Safety MCU — SPI Protocol Types
  * Document: NP-FW-HUB-001 Rev A §7, NP-SW-001 Rev A
  *
  * Three SPI frame types, distinguished by transfer length (NSS-delineated):

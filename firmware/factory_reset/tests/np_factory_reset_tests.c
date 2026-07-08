@@ -1,6 +1,6 @@
 /* Document: NP-FW-EMMC-002 Rev A §B */
 /*
- * NeuroPulse Device Factory Reset — Host Smoke Test
+ * NeurOne Device Factory Reset — Host Smoke Test
  * Build: -DNPTEST_HOST (host execution, not cross-compiled)
  *
  * This is NOT hardware verification.  It confirms that the SNVS read path and

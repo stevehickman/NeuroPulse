@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Research Anonymization — Scratch Encryption Configuration
+ * NeurOne Research Anonymization — Scratch Encryption Configuration
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  * Document: NP-FW-EMMC-002 Rev A §D
  *

@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HD-tDCS — Stimulation Delivery
+ * NeurOne HD-tDCS — Stimulation Delivery
  * Document: NP-FW-HD-001 Rev A §7
  *
  * Programs the 16-ch tACS driver with independent DC currents for HD-tDCS.

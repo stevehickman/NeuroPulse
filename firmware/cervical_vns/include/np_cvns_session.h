@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Cervical VNS — Session Management API
+ * NeurOne Cervical VNS — Session Management API
  * Document: NP-FW-CVNS-001 Rev A §8
  *
  * Orchestrates the full cervical VNS session workflow:
@@ -47,7 +47,7 @@ np_cvns_status_t np_cvns_session_init(np_cvns_session_ctx_t   *ctx,
 /* ── Session control ─────────────────────────────────────────────────────────── */
 /*
  * Starts a new session.  The session must be delivered via a cryptographically
- * signed protocol (same CSPRNG mechanism as all NeuroPulse modalities).
+ * signed protocol (same CSPRNG mechanism as all NeurOne modalities).
  * now_ms: free-running millisecond counter.
  * now_unix: UTC epoch seconds (for UHDR timestamp).
  */

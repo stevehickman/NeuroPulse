@@ -1,6 +1,6 @@
 # Design Input/Output Traceability Matrix
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-DT-001
 **Revision:** A
 **Date:** 2026-06-07
@@ -19,7 +19,7 @@
 
 ## §1 Purpose and Scope
 
-NP-DT-001 is the formal Design Input/Output Traceability Matrix for the NeuroPulse platform (T1 Home + T2 Pro). It satisfies:
+NP-DT-001 is the formal Design Input/Output Traceability Matrix for the NeurOne platform (T1 Home + T2 Pro). It satisfies:
 - **21 CFR §820.30(c):** design inputs shall be documented and shall address the intended use of the device, including the needs of the user and patient
 - **21 CFR §820.30(d):** design outputs shall be documented and shall be expressed in terms that allow an adequate evaluation of conformance to design input requirements
 - **ISO 13485:2016 §7.3.3:** design and development inputs shall include functional, performance, usability, safety, and regulatory requirements
@@ -27,9 +27,9 @@ NP-DT-001 is the formal Design Input/Output Traceability Matrix for the NeuroPul
 - **NP-DP-001 §6.4:** G2 gate exit criterion — DI/DO traceability matrix must be complete before Design Verification phase begins
 - **NP-QMS-DC-001 §6.2:** "each design output shall meet or be traceable to design inputs"
 
-**Scope:** All T1 (NeuroPulse Home) and T2 (NeuroPulse Pro) hardware, firmware, software, and tooling design outputs. Includes the headset assembly, zone module system, control hub, iOS/Android application, and all accessory modules.
+**Scope:** All T1 (NeurOne Home) and T2 (NeurOne Pro) hardware, firmware, software, and tooling design outputs. Includes the headset assembly, zone module system, control hub, iOS/Android application, and all accessory modules.
 
-**Tier differentiation:** T1 inputs apply to the FDA-exempt wellness configuration (NeuroPulse Home). T2 inputs apply to the FDA 510(k) configuration (NeuroPulse Pro). Inputs marked T1+T2 apply to the shared platform base and are inherited by both configurations.
+**Tier differentiation:** T1 inputs apply to the FDA-exempt wellness configuration (NeurOne Home). T2 inputs apply to the FDA 510(k) configuration (NeurOne Pro). Inputs marked T1+T2 apply to the shared platform base and are inherited by both configurations.
 
 ---
 
@@ -128,7 +128,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-PERF-16 | Performance | Visual stimulation: 108 micro-LEDs/lens (660 nm + 808–830 nm), 6 zones/eye; photic driving 0.5–100 Hz; EMDR L/R alternation; Mode F invisible NIR retinal PBM | CLAUDE.md §3 modality 8 | High | T1+T2 |
 | DI-PERF-17 | Performance | Closed-loop EEG-adaptive stimulation: autonomous without phone or app in Mode 3; full modality orchestration from signed session descriptor on eMMC | CLAUDE.md §4.6 | High | T1+T2 |
 | DI-PERF-18 | Performance | Operating modes: Mode 1 connected real-time <1 ms; Mode 2 protocol upload <5 s; Mode 3 autonomous from any USB-C PD power bank; Mode 4 download EDF+ on reconnect | CLAUDE.md §4.6 | High | T1+T2 |
-| DI-PERF-19 | Performance | UHDR/SHDR separation: AES-256-XTS Argon2id-derived key; biometric/PIN input; NeuroPulse never holds decryption key; two-layer UKMD/WKMD wrapper | CLAUDE.md §5; NP-FW-EMMC-002 §C | High | T1+T2 |
+| DI-PERF-19 | Performance | UHDR/SHDR separation: AES-256-XTS Argon2id-derived key; biometric/PIN input; NeurOne never holds decryption key; two-layer UKMD/WKMD wrapper | CLAUDE.md §5; NP-FW-EMMC-002 §C | High | T1+T2 |
 | DI-PERF-20 | Performance | Storage: 8 GB industrial eMMC (SLC, 30,000+ P/E cycles), 9-partition GPT layout; LittleFS; UHDR 6,903 MiB; SHDR 512 MiB; Scratch 500 MiB zeroed on boot | CLAUDE.md §4.1; NP-FW-EMMC-001 Rev A §4 | Medium | T1+T2 |
 | DI-PERF-21 | Performance | Dual-bank OTA firmware: Ed25519 signature verification on all images; SNVS_LPGPR0 bank flag; 9-step OTA sequence with readback; USB-C DFU recovery always available | CLAUDE.md §4.1; NP-FW-EMMC-001 Rev A §8 | High | T1+T2 |
 | DI-PERF-22 | Performance | EMF shielding: 5-layer passive (CFRP 30–50 dB + mu-metal 15–25 dB ELF + palladium fabric 40–60 dB RF + absorber foam + port filters) + active Helmholtz 35–45 dB ELF combined | CLAUDE.md §4.3 | High | T1+T2 |
@@ -179,7 +179,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-REG-08 | Regulatory | ISO 14971:2019 risk management: NP-RM-001 acceptability matrix S1–S5/P1–P5; residual risk evaluation before 510(k) submission | CLAUDE.md §10; NP-RM-001 | Regulatory | T1+T2 |
 | DI-REG-09 | Regulatory | 21 CFR Part 820 quality system regulation: design controls; document control; CAPA | CLAUDE.md §10 | Regulatory | T2 |
 | DI-REG-10 | Regulatory | FDA cybersecurity guidance: SBOM planned NP-SBOM-001 Year 2; OTA Ed25519 code signing; vulnerability disclosure policy; OTA update process documented | CLAUDE.md §10 | Regulatory | T1+T2 |
-| DI-REG-11 | Regulatory | HIPAA Technical Safeguards: UHDR biometric-derived key architecture; NeuroPulse infrastructure cannot decrypt UHDR at any point; BAA required for T2 clinical tier | CLAUDE.md §5; NP-LEGAL-BAA-001 | Regulatory | T2 |
+| DI-REG-11 | Regulatory | HIPAA Technical Safeguards: UHDR biometric-derived key architecture; NeurOne infrastructure cannot decrypt UHDR at any point; BAA required for T2 clinical tier | CLAUDE.md §5; NP-LEGAL-BAA-001 | Regulatory | T2 |
 | DI-REG-12 | Regulatory | GDPR Art. 13(2)(f) adaptive stimulation transparency: classified np_adapt_trigger_t enum (17 values); user-visible AdaptiveAdjustmentsCard in Session History; plain-language description of each trigger | CLAUDE.md §13.4 (Issue #98) | Regulatory | T1+T2 |
 
 ### §3.5 Interface inputs (DI-INT)
@@ -188,7 +188,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 |-------|----------|-------------------|--------|----------|-------|
 | DI-INT-01 | Interface | USB-C PD compliance: any PD-compliant charger must work; app displays "power level: reduced" informatively and never blocks session; EU requirement: no proprietary lock-in | CLAUDE.md §2.2 | High | T1+T2 |
 | DI-INT-02 | Interface | BT 5.3 LE Audio GATT custom service: session status, HRV breathing ring, protocol upload; antennas in hub only; single rear toggle; sub-50 ms sync latency target | CLAUDE.md §4.1; NP-APP-ROADMAP-001 | Medium | T1+T2 |
-| DI-INT-03 | Interface | FHIR R4 NeuroPulse T2 Clinical Profile: NP-Patient (opaque MRN), NP-Observation (EEG bands, HRV RMSSD, coherence, dose), NP-DiagnosticReport, NP-Procedure; LSL TLS streaming | NP-INT-FHIR-001 Rev A | High | T2 |
+| DI-INT-03 | Interface | FHIR R4 NeurOne T2 Clinical Profile: NP-Patient (opaque MRN), NP-Observation (EEG bands, HRV RMSSD, coherence, dose), NP-DiagnosticReport, NP-Procedure; LSL TLS streaming | NP-INT-FHIR-001 Rev A | High | T2 |
 | DI-INT-04 | Interface | Apple Watch WatchConnectivity sync (provisional, HOPE Phase 3 gated): Channel 1 haptic 40 Hz; Channel 2 audio sync; Channel 3 visual flicker ≥100 nits; OI-WA-02 brightness gate | CLAUDE.md §3b; NP-APP-ROADMAP-001 | Low | T1 |
 | DI-INT-05 | Interface | LSL streaming for research data acquisition: real-time EEG, HRV, PBM dose, session events over Lab Streaming Layer; TLS encryption required | CLAUDE.md §3 T2 | Medium | T2 |
 

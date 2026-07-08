@@ -1,6 +1,6 @@
 # Cervical VNS Safety Interlock Firmware Specification
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-FW-CVNS-001
 **Revision:** A
 **Date:** 2026-05-11
@@ -19,7 +19,7 @@
 
 ## 1. Scope
 
-This document specifies the firmware implementation of the NeuroPulse cervical VNS (tcVNS) T2 accessory safety interlock. The accessory stimulates the cervical vagus trunk via transcutaneous gel electrodes placed over the carotid sheath. Because the current path runs near the carotid artery and vagus nerve trunk, a dedicated cardiac safety interlock in the STM32G071 safety MCU owns stimulation enable and monitors cardiac rhythm in real time.
+This document specifies the firmware implementation of the NeurOne cervical VNS (tcVNS) T2 accessory safety interlock. The accessory stimulates the cervical vagus trunk via transcutaneous gel electrodes placed over the carotid sheath. Because the current path runs near the carotid artery and vagus nerve trunk, a dedicated cardiac safety interlock in the STM32G071 safety MCU owns stimulation enable and monitors cardiac rhythm in real time.
 
 Modules covered:
 
@@ -182,7 +182,7 @@ typedef enum {
 
 ### 4.5 UHDR session record
 
-Written to the UHDR partition at session end, AES-256-XTS encrypted with the user's biometric-derived key. NeuroPulse never holds the decryption key.
+Written to the UHDR partition at session end, AES-256-XTS encrypted with the user's biometric-derived key. NeurOne never holds the decryption key.
 
 ```c
 typedef struct {
@@ -478,7 +478,7 @@ typedef struct {
 } np_cvns_session_config_t;
 ```
 
-Sessions are delivered via cryptographically signed protocol from the app (same CSPRNG signing mechanism as all other NeuroPulse modalities).
+Sessions are delivered via cryptographically signed protocol from the app (same CSPRNG signing mechanism as all other NeurOne modalities).
 
 ### 8.4 API summary
 
@@ -508,7 +508,7 @@ np_cvns_stage_t np_cvns_session_stage(const np_cvns_session_ctx_t *ctx);
 
 **Setup:**
 - Cervical VNS accessory gel electrodes applied to anatomical neck phantom (silicone gel head-neck phantom with embedded vasculature model, 0.25 S/m tissue equivalent).
-- NeuroPulse hub accessory port connected to cervical VNS cable assembly.
+- NeurOne hub accessory port connected to cervical VNS cable assembly.
 - Safety MCU impedance measurement activated.
 
 **Procedure:**
@@ -536,7 +536,7 @@ np_cvns_stage_t np_cvns_session_stage(const np_cvns_session_ctx_t *ctx);
 **Setup:**
 - R-peak signal generator injecting R-peak GPIO pulses to safety MCU at programmable HR.
 - Oscilloscope monitoring `CVNS_ENABLE_L` GPIO.
-- NeuroPulse T2 hub with safety MCU flashed; cervical VNS accessory connected.
+- NeurOne T2 hub with safety MCU flashed; cervical VNS accessory connected.
 
 **Procedure:**
 1. Establish baseline HR: inject R-peak pulses at 70 BPM (R-R = 857 ms) for 10 seconds.
@@ -564,7 +564,7 @@ np_cvns_stage_t np_cvns_session_stage(const np_cvns_session_ctx_t *ctx);
 
 **Setup:**
 - 3 healthy adult volunteers (screened; exclusion: cardiac arrhythmia, carotid stenosis, implanted stimulator, pregnancy).
-- NeuroPulse T2 system with cervical VNS accessory.
+- NeurOne T2 system with cervical VNS accessory.
 - Attending clinician and emergency equipment present.
 - ECG monitoring throughout (12-lead or 3-lead continuous).
 

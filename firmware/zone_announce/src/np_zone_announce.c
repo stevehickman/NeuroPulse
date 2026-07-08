@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Zone Module Announcement — Orchestration
+ * NeurOne Zone Module Announcement — Orchestration
  * Document: NP-FW-ZA-001 Rev A §8
  *
  * Drives five parallel slot state machines (one per physical zone socket).

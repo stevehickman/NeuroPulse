@@ -1,6 +1,6 @@
 # Design Controls Procedure
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-QMS-DC-001
 **Revision:** A
 **Date:** 2026-05-13
@@ -19,11 +19,11 @@
 
 ## 1. Purpose
 
-This procedure defines NeuroPulse's design controls process in compliance with:
+This procedure defines NeurOne's design controls process in compliance with:
 - 21 CFR §820.30 (FDA Quality System Regulation — Design Controls)
 - ISO 13485:2016 clause 7.3 (Design and Development)
 
-Design controls apply from this document's effective date to all design and development activities on the NeuroPulse device platform.
+Design controls apply from this document's effective date to all design and development activities on the NeurOne device platform.
 
 ---
 
@@ -71,7 +71,7 @@ Until NP-DP-001 is authored, the NP-COORD-001 Engineering Coordination Checklist
 
 ### 4.3 Design phase gates
 
-The NeuroPulse design process uses three gates defined in NP-COORD-001:
+The NeurOne design process uses three gates defined in NP-COORD-001:
 
 | Gate | Phase | Key design control milestones |
 |---|---|---|

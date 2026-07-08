@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Nothing NeuroPulse persists on-device may leave via Google cloud backup or
+  Nothing NeurOne persists on-device may leave via Google cloud backup or
   device-to-device transfer:
   - Session history (day-coarsened, but still health-adjacent behavioral data
     under WA MHMD / GDPR Art. 9 by inference)

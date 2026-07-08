@@ -1,5 +1,5 @@
 """
-Generate NP-PROC-SUP-001 Rev A: NeuroPulse Tooling Supplier Selection Checklist.
+Generate NP-PROC-SUP-001 Rev A: NeurOne Tooling Supplier Selection Checklist.
 Covers injection moulding (zone module + shell), FPC fabrication, and PDMS bonding.
 RISK-20 (CFRP Ra ≤ 1.6 µm) is a BLOCKING qualification item.
 """
@@ -96,7 +96,7 @@ r.bold = True; r.font.size = Pt(16)
 r.font.color.rgb = RGBColor(0x1F, 0x49, 0x7D)
 
 p = doc.add_paragraph()
-r = p.add_run("NeuroPulse Tooling & Process Supplier Selection Checklist")
+r = p.add_run("NeurOne Tooling & Process Supplier Selection Checklist")
 r.bold = True; r.font.size = Pt(14)
 r.font.color.rgb = RGBColor(0x1F, 0x49, 0x7D)
 
@@ -125,7 +125,7 @@ doc.add_paragraph()
 add_heading(doc, "1.  PURPOSE AND SCOPE")
 add_body(doc,
     "This checklist qualifies suppliers for three manufacturing processes critical to the "
-    "NeuroPulse zone module and headset shell: injection moulding with co-moulding of "
+    "NeurOne zone module and headset shell: injection moulding with co-moulding of "
     "silicone components, CFRP shell fabrication, and PDMS bonding. It must be completed "
     "for each candidate supplier before an NDA or purchase order is issued.")
 add_body(doc,
@@ -186,7 +186,7 @@ GEN_ROWS = [
     ("SUP-G-03", "Documented non-conforming material control process: quarantine, disposition, and "
      "8D corrective action capability.",
      "NCR procedure + sample 8D", "Required", "☐"),
-    ("SUP-G-04", "Confidentiality: willing to sign NeuroPulse NDA before receiving any drawings. "
+    ("SUP-G-04", "Confidentiality: willing to sign NeurOne NDA before receiving any drawings. "
      "Drawings classified CONFIDENTIAL.",
      "NDA executed before DFM package", "⛔ BLOCKING", "☐"),
     ("SUP-G-05", "Lead time: able to deliver first-article samples within the lead times in §2 "
@@ -210,7 +210,7 @@ doc.add_paragraph()
 # ── §4 Dimensional and Metrology Capability ───────────────────────────────────
 add_heading(doc, "4.  DIMENSIONAL AND METROLOGY CAPABILITY")
 add_body(doc,
-    "NeuroPulse zone module and shell features include tolerances as tight as ±0.05 mm "
+    "NeurOne zone module and shell features include tolerances as tight as ±0.05 mm "
     "(braille dot height) and surface finish requirements as tight as Ra ≤ 1.6 µm "
     "(gasket seat). Supplier must demonstrate measurement capability before FAI approval.")
 doc.add_paragraph()
@@ -230,7 +230,7 @@ DIM_ROWS = [
      "(minimum 10 parts, 2 operators, 2 replicates). Gage R&R ≤ 30% of tolerance.",
      "Gage R&R report", "Required", "☐"),
     ("SUP-M-04", "First Article Inspection (FAI) report capability: able to produce balloon-annotated "
-     "drawing with measured values for every dimensioned feature on the NeuroPulse zone module "
+     "drawing with measured values for every dimensioned feature on the NeurOne zone module "
      "drawing (estimated 35–50 dimensions).",
      "Sample FAI report from prior project", "Required", "☐"),
     ("SUP-M-05", "In-process statistical process control (SPC) for critical dimensions: "
@@ -521,6 +521,6 @@ add_row(rev_tbl,
      "Claude/ME"),
     rev_widths, 0)
 
-OUT_PATH = "docs/neuropulse_supplier_selection_checklist.docx"
+OUT_PATH = "docs/neurone_supplier_selection_checklist.docx"
 doc.save(OUT_PATH)
 print(f"Saved: {OUT_PATH}")

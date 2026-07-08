@@ -1,5 +1,5 @@
 /*
- * NeuroPulse sLORETA Source Imaging — Implementation
+ * NeurOne sLORETA Source Imaging — Implementation
  * Document: NP-FW-HD-001 Rev A §5
  *
  * Scalar sLORETA source power estimator.

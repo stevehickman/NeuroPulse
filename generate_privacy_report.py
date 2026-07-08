@@ -1,5 +1,5 @@
 """
-NeuroPulse Privacy Analysis Report Generator
+NeurOne Privacy Analysis Report Generator
 NP-PRIV-001 Rev A — 2026-06-02
 """
 
@@ -14,7 +14,7 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from datetime import date
 
-OUTPUT = "docs/neuropulse_privacy_analysis_001.pdf"
+OUTPUT = "docs/neurone_privacy_analysis_001.pdf"
 
 # ── Colour palette ────────────────────────────────────────────────────────────
 C_CRITICAL  = colors.HexColor("#C0392B")
@@ -90,14 +90,14 @@ def on_page(canvas, doc):
     canvas.rect(0, h - 28, w, 28, fill=1, stroke=0)
     canvas.setFont("Helvetica-Bold", 8)
     canvas.setFillColor(colors.white)
-    canvas.drawString(0.5*inch, h - 18, "NeuroPulse — CONFIDENTIAL")
+    canvas.drawString(0.5*inch, h - 18, "NeurOne — CONFIDENTIAL")
     canvas.drawRightString(w - 0.5*inch, h - 18, "NP-PRIV-001 Rev A  |  2026-06-02")
     # footer
     canvas.setFillColor(C_RULE)
     canvas.rect(0.5*inch, 0.4*inch, w - inch, 0.5, fill=1, stroke=0)
     canvas.setFont("Helvetica", 7.5)
     canvas.setFillColor(colors.HexColor("#95A5A6"))
-    canvas.drawString(0.5*inch, 0.25*inch, "Privacy Analysis and Repair  |  NeuroPulse Design Programme")
+    canvas.drawString(0.5*inch, 0.25*inch, "Privacy Analysis and Repair  |  NeurOne Design Programme")
     canvas.drawRightString(w - 0.5*inch, 0.25*inch, f"Page {doc.page}")
     canvas.restoreState()
 
@@ -195,7 +195,7 @@ def build_content(st):
     # ── Cover page ────────────────────────────────────────────────────────────
     story.append(SP(1, 140))  # push down into the dark band
     story.append(Paragraph("Privacy Analysis and Repair", st["cover_title"]))
-    story.append(Paragraph("NeuroPulse Design Programme", st["cover_sub"]))
+    story.append(Paragraph("NeurOne Design Programme", st["cover_sub"]))
     story.append(SP(1, 16))
     story.append(Paragraph("NP-PRIV-001 Rev A", st["cover_meta"]))
     story.append(Paragraph("Date: 2026-06-02", st["cover_meta"]))
@@ -239,7 +239,7 @@ def build_content(st):
 
     # ── Summary ───────────────────────────────────────────────────────────────
     section("Summary")
-    body("The NeuroPulse privacy architecture is more sophisticated than almost any consumer health device reviewed. The UHDR/SHDR separation, biometric-key encryption, on-device anonymisation, and use-case-based clinical consent engine are genuine structural strengths. The 18 findings below are therefore concentrated in gaps and edge cases rather than foundations.")
+    body("The NeurOne privacy architecture is more sophisticated than almost any consumer health device reviewed. The UHDR/SHDR separation, biometric-key encryption, on-device anonymisation, and use-case-based clinical consent engine are genuine structural strengths. The 18 findings below are therefore concentrated in gaps and edge cases rather than foundations.")
     story.append(SP(1,4))
     body("<b>Jurisdictions in scope:</b> United States primary (HIPAA, FTC HBNR, CCPA/CPRA, FTC Act §5, state breach laws); EU/EEA secondary (GDPR, ePrivacy Directive) — EU market is anticipated and the charger policy already addresses it.")
     story.append(SP(1,4))
@@ -256,7 +256,7 @@ def build_content(st):
         "SHDR is documented as 'linked to device ID + warranty owner ID only — never to user identity.' "
         "But warranty registration collects name, email, postal address, and serial number. "
         "If 'warranty owner ID' is a pointer into that table, SHDR is person-linked and the privacy "
-        "firewall collapses. NeuroPulse would hold session counts, LED usage ratios, temperature "
+        "firewall collapses. NeurOne would hold session counts, LED usage ratios, temperature "
         "profiles, consumable patterns, and impact events tied to a named individual — health data by "
         "inference. Under HIPAA this likely qualifies as PHI; under GDPR Art. 9 inferrable health data "
         "requires explicit consent.",
@@ -264,7 +264,7 @@ def build_content(st):
         "HIPAA Privacy Rule Minimum Necessary; GDPR Art. 9 (special-category data); LINDDUN — Identifiability",
         "Introduce an opaque 256-bit warranty token. Store (token → name, email, address) in the "
         "warranty system only. Store only the token in SHDR. The warranty database and SHDR fleet "
-        "database are never joined in production. Add a SHDR boundary test: 'Could NeuroPulse identify "
+        "database are never joined in production. Add a SHDR boundary test: 'Could NeurOne identify "
         "a named individual from SHDR plus the warranty registration table?' If yes → the data is UHDR. "
         "Document in NP-FW-EMMC-001 Rev B and NP-RM-001."
     )
@@ -303,7 +303,7 @@ def build_content(st):
         "something about the person?' A user who drops the device repeatedly, or has a consistent "
         "high-g drop signature, is revealing motor control information. Parkinson's, essential tremor, "
         "post-stroke hemiplegia, and MS all manifest in device drop patterns. Combined with the warranty "
-        "owner ID (Critical finding), NeuroPulse would hold health-inferrable data on named individuals.",
+        "owner ID (Critical finding), NeurOne would hold health-inferrable data on named individuals.",
         "Inference Without Consent anti-pattern; Aggregation Creep anti-pattern; LINDDUN — Identifiability; "
         "GDPR Art. 9; FTC Act §5",
         "Option A (quick): coarsen to binary flag (drop_detected: true/false, no g-force value or "
@@ -403,7 +403,7 @@ def build_content(st):
         "A healthcare Power of Attorney document contains the grantor's legal name, date of birth, "
         "address, health conditions that triggered the POA, and the identity of the attorney-in-fact. "
         "The upload flow is described in one sentence with no specification for: how the document is "
-        "transmitted; where it is stored; which NeuroPulse employees can access it; retention period; "
+        "transmitted; where it is stored; which NeurOne employees can access it; retention period; "
         "whether document content is indexed; or what happens on acquisition. This is a God View risk "
         "for the POA processing team.",
         "God View anti-pattern; Least Privilege pattern; Permanent Storage anti-pattern; "
@@ -426,7 +426,7 @@ def build_content(st):
         "CLAUDE.md §3 T2 — 'HIPAA cloud + EHR: FHIR R4'; LSL streaming",
         "Pure privacy failure",
         "FHIR R4 Patient resources support name, DOB, address, phone, email, SSN, race, ethnicity, "
-        "and more. Without a NeuroPulse FHIR profile specifying exactly which resource types and fields "
+        "and more. Without a NeurOne FHIR profile specifying exactly which resource types and fields "
         "are populated, implementations default to 'populate what the spec allows' — bringing substantial "
         "unnecessary PII into T2. Additionally, LSL (Lab Streaming Layer) has no native encryption or "
         "authentication and streams on the local network in plaintext. In a clinical environment, an "
@@ -434,7 +434,7 @@ def build_content(st):
         "exposure.",
         "Collect Now, Decide Later anti-pattern; HIPAA Minimum Necessary Rule 45 CFR §164.502(b); "
         "HL7 FHIR R4 Privacy Module §3.3; LINDDUN — Disclosure of information",
-        "Define a NeuroPulse FHIR ImplementationGuide before any T2 EHR integration is built. "
+        "Define a NeurOne FHIR ImplementationGuide before any T2 EHR integration is built. "
         "Permitted resources: Patient, Observation, DiagnosticReport, Procedure. Patient.identifier: "
         "opaque clinic-assigned MRN only. Patient.birthDate: year-only if clinically required. "
         "Explicitly prohibit: Patient.name, telecom, address, photo, contact. "
@@ -482,7 +482,7 @@ def build_content(st):
         "FTC Act §5 (GoodRx, BetterHelp, Premom precedents); GDPR Art. 9 (health data)",
         "Phase 1 HealthKit permissions: HKQuantityTypeIdentifierHeartRateVariabilitySDNN and "
         "HKQuantityTypeIdentifierHeartRate only. No other types. HealthKit data stays on Watch/iPhone; "
-        "used for real-time display only; not transmitted to NeuroPulse servers; not persisted beyond "
+        "used for real-time display only; not transmitted to NeurOne servers; not persisted beyond "
         "the session. Complete App Privacy Nutrition Label accurately before App Store submission. "
         "Add OI-WA-06: HealthKit permission review and privacy declaration sign-off as Phase 1 milestone."
     )
@@ -497,7 +497,7 @@ def build_content(st):
         "leaves plaintext UHDR data on Scratch until next boot; (2) cold-boot attack — NAND retains "
         "charge briefly after power-off; (3) partial eMMC block-level reads can access Scratch without "
         "decrypting UHDR since they share the same physical medium. For a device whose core security "
-        "claim is 'NeuroPulse cannot read UHDR,' a cleartext UHDR window on the device is a meaningful "
+        "claim is 'NeurOne cannot read UHDR,' a cleartext UHDR window on the device is a meaningful "
         "vulnerability if a hostile party takes physical possession.",
         "OWASP Top 10 Privacy Risks P4; Cavoukian Principle 5 (end-to-end security); "
         "GDPR Art. 32; NIST SP 800-111 (storage encryption for portable devices)",
@@ -516,17 +516,17 @@ def build_content(st):
         "Pure privacy failure",
         "EDF+ file headers (first 256 bytes) contain mandatory plaintext fields: local patient "
         "identification (name, sex, DOB, patient code) and local recording identification (start date, "
-        "hospital code, technician, equipment). If NeuroPulse follows clinical convention, every UHDR "
+        "hospital code, technician, equipment). If NeurOne follows clinical convention, every UHDR "
         "EDF+ file contains plaintext PII even though the partition is AES-256-XTS encrypted. When a "
         "user exports EDF+ to share with a clinician, they may inadvertently export name and DOB "
         "embedded in the header. Research anonymisation that strips data fields but not EDF+ headers "
         "is the Fake Anonymisation anti-pattern applied to file metadata.",
         "Strip Invisible Metadata pattern; Fake Anonymisation anti-pattern; GDPR Art. 5(1)(c) data "
         "minimisation; HIPAA Minimum Necessary; EDF+ specification §2.1",
-        "Define NeuroPulse EDF+ header policy in NP-FW-EMMC-001 Rev B §6. Patient code: opaque "
+        "Define NeurOne EDF+ header policy in NP-FW-EMMC-001 Rev B §6. Patient code: opaque "
         "UHDR_TOKEN (16 chars). Sex: X (never populated). Birthdate: X. Patient name: X. "
-        "Recording start date: preserved. Hospital code: 'NeuroPulse'. Technician: X. "
-        "Equipment: 'NeuroPulse_v[FW_VER]'. For research anonymisation: add a header validation step "
+        "Recording start date: preserved. Hospital code: 'NeurOne'. Technician: X. "
+        "Equipment: 'NeurOne_v[FW_VER]'. For research anonymisation: add a header validation step "
         "that fails-closed if any non-X value appears in identity fields. For user export: "
         "display modal confirming file does not contain name or DOB."
     )
@@ -536,17 +536,17 @@ def build_content(st):
         "Clinician consent revocation cascade to third-party processors not specified",
         "CLAUDE.md §5.1 UHDR backup; §6.1 — 'time-limited, audited, revocable'; §6.3 researcher data flow",
         "Pure privacy failure",
-        "The consent engine describes user control over data at the device and NeuroPulse server level. "
+        "The consent engine describes user control over data at the device and NeurOne server level. "
         "But data shared with clinicians and researchers has no documented deletion-cascade path. "
-        "When a user revokes clinician consent, NeuroPulse's access grant is terminated — but the "
+        "When a user revokes clinician consent, NeurOne's access grant is terminated — but the "
         "clinician's own EHR system may retain UHDR-derived data indefinitely. "
         "This is the Sticky Third Parties anti-pattern: the user's data adheres to every system "
         "that touched it, and revocation only stops new flows.",
         "Sticky Third Parties anti-pattern; Obligation Management pattern; GDPR Art. 17(2) "
         "(controller must inform processors of erasure requests); HIPAA §164.528 (accounting of disclosures)",
         "Clinician BAA must include: 'On notification of patient consent withdrawal, clinician will "
-        "delete all copies of NeuroPulse-sourced patient data from their EHR and derived records "
-        "within 30 days.' User-facing disclosure at revocation: NeuroPulse cannot delete data already "
+        "delete all copies of NeurOne-sourced patient data from their EHR and derived records "
+        "within 30 days.' User-facing disclosure at revocation: NeurOne cannot delete data already "
         "in the clinic's system; they are contractually required to delete within 30 days. "
         "The per-user SHDR audit log (already specified) should list contributed studies; app Privacy "
         "Dashboard shows each entry with study ID, date, data elements — implementing the Privacy "
@@ -607,16 +607,16 @@ def build_content(st):
         "CLAUDE.md §3b Apple Watch Sync App — Phases 1-4; NP-APP-ROADMAP-001 Rev A",
         "Pure privacy failure",
         "Related to the HealthKit finding above: the roadmap does not explicitly state that HealthKit "
-        "data accessed on the Watch stays on the Watch/iPhone and is not transmitted to NeuroPulse "
+        "data accessed on the Watch stays on the Watch/iPhone and is not transmitted to NeurOne "
         "servers. Apple's guidelines require this, but it needs to be a binding engineering constraint "
         "documented in the spec — not just assumed. A future feature request to 'sync HRV trends to "
-        "the NeuroPulse cloud' would constitute a HealthKit data transfer subject to both Apple "
+        "the NeurOne cloud' would constitute a HealthKit data transfer subject to both Apple "
         "guidelines and FTC HBNR.",
         "Apple HealthKit Review Guideline 5.1.1(iv); FTC HBNR 16 CFR §318.3; "
         "User-data confinement pattern",
         "Add to NP-APP-ROADMAP-001 Rev B a binding data residency constraint for all HealthKit data: "
         "'HealthKit data accessed by the Watch app is used for real-time session display only. "
-        "It is not persisted, not cached, not transmitted to NeuroPulse servers or any third party, "
+        "It is not persisted, not cached, not transmitted to NeurOne servers or any third party, "
         "and not used for any purpose outside the active session.' Any future proposal to transmit "
         "HealthKit data requires a design change order with legal review and updated App Privacy "
         "Nutrition Label before implementation."
@@ -630,7 +630,7 @@ def build_content(st):
          "from device-owned telemetry. Very few medical device companies implement this at the schema "
          "and firmware level."),
         ("On-device research anonymisation is correct-by-design.",
-         "NeuroPulse never holds the decryption key and anonymisation happens on-device before any "
+         "NeurOne never holds the decryption key and anonymisation happens on-device before any "
          "extract leaves. This makes consent withdrawal genuinely effective — rare and right."),
         ("Boundary resolution rule has teeth.",
          "'When in doubt → UHDR' is the only default that actually protects users and making it a "
@@ -675,7 +675,7 @@ def build_content(st):
         ("Vendor contracts",
          "No DPAs, BAAs, or processor agreements were reviewed. The privacy quality of the "
          "architecture is partially a function of the contractual obligations on every vendor "
-         "who touches NeuroPulse data."),
+         "who touches NeurOne data."),
         ("Penetration test / threat model output",
          "Security findings are based on architectural inference. A STRIDE+LINDDUN threat model "
          "pass on the hub firmware and clinical API, and an application penetration test on the "
@@ -738,7 +738,7 @@ def main():
         rightMargin=0.55*inch,
         topMargin=0.55*inch,
         bottomMargin=0.6*inch,
-        title="NeuroPulse Privacy Analysis — NP-PRIV-001 Rev A",
+        title="NeurOne Privacy Analysis — NP-PRIV-001 Rev A",
         author="PAI / SmartyPants",
         subject="Privacy Analysis and Repair",
     )

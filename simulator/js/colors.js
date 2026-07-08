@@ -1,5 +1,5 @@
 /**
- * Wavelength-to-color mapping for the NeuroPulse helmet simulator.
+ * Wavelength-to-color mapping for the NeurOne helmet simulator.
  *
  * Design principle: longer actual wavelengths are represented by longer
  * apparent visible wavelengths (toward the red end of the visible spectrum).

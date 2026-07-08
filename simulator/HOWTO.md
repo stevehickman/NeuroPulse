@@ -1,4 +1,4 @@
-# NeuroPulse Helmet Simulator — User Manual
+# NeurOne Helmet Simulator — User Manual
 
 **Document:** NP-SIM-001-HOWTO  
 **Version:** 2.2  
@@ -31,7 +31,7 @@
 
 ## 1. Overview
 
-The NeuroPulse Helmet Simulator is a browser-based interactive 3D visualisation of the NeuroPulse device. It runs entirely in the browser with no installation, no build step, and no back-end server required.
+The NeurOne Helmet Simulator is a browser-based interactive 3D visualisation of the NeurOne device. It runs entirely in the browser with no installation, no build step, and no back-end server required.
 
 **Three intended uses:**
 
@@ -75,7 +75,7 @@ All other code (helmet geometry, session engine, protocol definitions, UI) is pl
 
 **Python 3** (no extra packages needed — Python 3 ships with this):
 ```bash
-cd /path/to/NeuroPulse
+cd /path/to/NeurOne
 python3 -m http.server 8080
 # Then open: http://localhost:8080/simulator/
 ```
@@ -132,7 +132,7 @@ The simulator has four regions:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  Header — NeuroPulse branding + version badge + API status  │
+│  Header — NeurOne branding + version badge + API status  │
 ├─────────────────┬───────────────────────┬───────────────────┤
 │                 │                       │                   │
 │  Left panel     │   Centre viewport     │   Right panel     │
@@ -481,7 +481,7 @@ All nine built-in protocols:
 | **Deep NIR — 1064 nm** | T1 | 20 min | ZM-01–05 | 660, 808, 1064 nm | 10 Hz | PBM · EEG · Audio |
 | **TMS — Depression (rTMS)** | T2 | 40 min | ZM-01–03 | 660, 808, 1064 nm | 10 Hz | PBM · EEG · TMS · HD-tDCS |
 
-**T2 protocols** require NeuroPulse Pro hardware. In the simulator they run identically to T1 for visualisation purposes — the additional modalities (TMS, HD-tDCS) are reflected in the modality pills and timeline phases.
+**T2 protocols** require NeurOne Pro hardware. In the simulator they run identically to T1 for visualisation purposes — the additional modalities (TMS, HD-tDCS) are reflected in the modality pills and timeline phases.
 
 ### Phase breakdown
 
@@ -603,7 +603,7 @@ All simulated metrics are placeholder values. Real closed-loop EEG data, live do
 
 ## 17. WebSocket Device API
 
-The simulator includes a Node.js server that exposes the same wire protocol the NeuroPulse hub uses. macOS, iOS, and Windows apps can target `ws://localhost:9000` instead of real hardware and interact with the 3D simulator in real time.
+The simulator includes a Node.js server that exposes the same wire protocol the NeurOne hub uses. macOS, iOS, and Windows apps can target `ws://localhost:9000` instead of real hardware and interact with the 3D simulator in real time.
 
 ### 17.1 Starting the server
 
@@ -815,7 +815,7 @@ ws.on('open', () => {
 ```swift
 import Foundation
 
-class NeuroPulseAPI: NSObject, URLSessionWebSocketDelegate {
+class NeurOneAPI: NSObject, URLSessionWebSocketDelegate {
     private var task: URLSessionWebSocketTask?
 
     func connect() {
@@ -937,4 +937,4 @@ simulator/
 
 ---
 
-*NP-SIM-001-HOWTO v2.2 — NeuroPulse Helmet Simulator User Manual — 2026-05-17*
+*NP-SIM-001-HOWTO v2.2 — NeurOne Helmet Simulator User Manual — 2026-05-17*

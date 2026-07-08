@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HRV Biofeedback — Type Definitions
+ * NeurOne HRV Biofeedback — Type Definitions
  * Document: NP-FW-HRV-001 Rev A §4
  */
 

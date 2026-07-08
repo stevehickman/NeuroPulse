@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "neuropulse-web",
+      "name": "neurone-web",
       "dependencies": {
         "react": "^18.3.0",
         "react-dom": "^18.3.0",

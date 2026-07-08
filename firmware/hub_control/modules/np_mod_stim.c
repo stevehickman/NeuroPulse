@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control — Stimulation Driver (BES/tACS + tDCS)
+ * NeurOne Hub Control — Stimulation Driver (BES/tACS + tDCS)
  * Document: NP-FW-HUB-001 Rev A §8.3
  *
  * Covers two protocol module types on a shared driver because both use the same

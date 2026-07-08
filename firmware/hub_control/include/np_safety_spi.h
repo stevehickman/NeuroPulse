@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Control Program — Safety MCU SPI Interface
+ * NeurOne Hub Control Program — Safety MCU SPI Interface
  * Document: NP-FW-HUB-001 Rev A §7
  *
  * Two SPI frame types (hub is always SPI master):

@@ -1,6 +1,6 @@
 # IEC 62304 Software Development Plan
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-SW-001  
 **Revision:** A  
 **Date:** 2026-05-13  
@@ -19,13 +19,13 @@
 
 ## 1. Purpose
 
-This Software Development Plan defines the software lifecycle processes, safety classifications, development requirements, and records for all NeuroPulse software components, in compliance with IEC 62304:2006+AMD1:2015 and 21 CFR §820.30.
+This Software Development Plan defines the software lifecycle processes, safety classifications, development requirements, and records for all NeurOne software components, in compliance with IEC 62304:2006+AMD1:2015 and 21 CFR §820.30.
 
 ---
 
 ## 2. Software System Overview
 
-The NeuroPulse device contains three software items:
+The NeurOne device contains three software items:
 
 | Software item | ID | Platform | Language | Repo path |
 |---|---|---|---|---|
@@ -84,7 +84,7 @@ This architecture provides the independence required to classify SW-02 and SW-03
 
 ### 4.1 Lifecycle model
 
-NeuroPulse uses a **V-model** lifecycle for safety-critical firmware (SW-01) and an **iterative V-model** for SW-02 and SW-03:
+NeurOne uses a **V-model** lifecycle for safety-critical firmware (SW-01) and an **iterative V-model** for SW-02 and SW-03:
 
 ```
 SW-01 (Class C — strict V-model):
@@ -110,7 +110,7 @@ each software version release
 |---|---|---|---|
 | Compiler | GNU Arm Embedded Toolchain (arm-none-eabi-gcc 12+) | GNU Arm Embedded Toolchain (arm-none-eabi-gcc 12+) | Xcode 15+ (iOS), Android Studio Hedgehog+ |
 | RTOS | None (bare-metal) | FreeRTOS 10.5+ | N/A |
-| Version control | Git (stevehickman/NeuroPulse) | Git (stevehickman/NeuroPulse) | Git (stevehickman/NeuroPulse) |
+| Version control | Git (stevehickman/NeurOne) | Git (stevehickman/NeurOne) | Git (stevehickman/NeurOne) |
 | Build system | CMake 3.22+ | CMake 3.22+ | Xcode build / Gradle |
 | Static analysis | (to be selected — Year 1) | (to be selected — Year 1) | SwiftLint / detekt |
 | Unit test framework | Unity (C) | Unity (C) | XCTest / JUnit |
@@ -348,7 +348,7 @@ Post-market software problems are reported through the CAPA process (NP-QMS-CAPA
 
 ### 10.3 OS compatibility
 
-iOS and Android OS updates may affect SW-03 behaviour. NeuroPulse must:
+iOS and Android OS updates may affect SW-03 behaviour. NeurOne must:
 - Participate in Apple and Google developer beta programmes
 - Test SW-03 against each OS beta before public release
 - Target a 7-day OS compatibility SLA (patch available within 7 days of an OS release that breaks SW-03)
@@ -358,7 +358,7 @@ iOS and Android OS updates may affect SW-03 behaviour. NeuroPulse must:
 
 ## 11. IEC 62304 Compliance Checklist
 
-The following table maps IEC 62304 clauses to NeuroPulse implementation status:
+The following table maps IEC 62304 clauses to NeurOne implementation status:
 
 | IEC 62304 Clause | Requirement | Status | Reference |
 |---|---|---|---|

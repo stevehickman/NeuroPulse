@@ -1,4 +1,4 @@
-# NeuroPulse Bootloader — CMake Build
+# NeurOne Bootloader — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
 # Document: NP-FW-EMMC-001 Rev A §8
 #

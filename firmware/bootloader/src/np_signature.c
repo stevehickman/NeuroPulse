@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Bootloader — Ed25519 Firmware Signature Verification
+ * NeurOne Bootloader — Ed25519 Firmware Signature Verification
  * Document: NP-FW-EMMC-001 Rev A §8.2
  *
  * Ed25519 implementation based on RFC 8032 §5.1.7 (verify).

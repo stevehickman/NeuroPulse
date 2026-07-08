@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Hub Protocol Compiler
+ * NeurOne Hub Protocol Compiler
  * Document: NP-FW-HUB-001 Rev A
  *
  * Converts an NPProtocolDefinition (high-level modality params + timing) into

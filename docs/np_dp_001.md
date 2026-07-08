@@ -1,6 +1,6 @@
 # Design and Development Plan
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-DP-001
 **Revision:** A
 **Date:** 2026-05-17
@@ -20,7 +20,7 @@
 
 ## 1. Purpose
 
-This document defines the design and development plan for the NeuroPulse closed-loop multi-modal neuromodulation wearable platform. It establishes:
+This document defines the design and development plan for the NeurOne closed-loop multi-modal neuromodulation wearable platform. It establishes:
 
 - The phases and stages of design and development activity
 - Responsibilities and organisational interfaces for each phase
@@ -38,8 +38,8 @@ This plan covers design and development of:
 
 | Tier | Regulatory | Timeline from formation |
 |------|-----------|------------------------|
-| T1 — NeuroPulse Home | FDA general wellness (exempt) | Month 0 → Month 18 (target) |
-| T2 — NeuroPulse Pro | FDA 510(k) | Month 12 → Month 36–54 (target) |
+| T1 — NeurOne Home | FDA general wellness (exempt) | Month 0 → Month 18 (target) |
+| T2 — NeurOne Pro | FDA 510(k) | Month 12 → Month 36–54 (target) |
 
 Both tiers share a single chassis, processor stack, and firmware platform. The T2 development phase (Phase 6) begins concurrently with T1 Phase 3 (Design Verification) to allow shared prototype infrastructure. The scope boundary between T1 and T2 is defined by the modality stack in CLAUDE.md §3 and §3b.
 
@@ -82,17 +82,17 @@ Both tiers share a single chassis, processor stack, and firmware platform. The T
 | Design transfer | Process by which the design is transformed into production specifications sufficient for routine manufacture. |
 | Gate review | A scheduled formal design review at which a defined checklist (NP-COORD-001) must be satisfied before the project proceeds to the next phase. |
 | DHF | Design History File — compilation of records describing the design history of a finished device (21 CFR §820.30(j)). Master index: NP-DHF-001. |
-| UHDR | User Health Data Record — user-owned biometric data; NeuroPulse never accesses. See CLAUDE.md §5. |
-| SHDR | System Health Data Record — device-condition telemetry; NeuroPulse-owned, never user-linked. See CLAUDE.md §5. |
-| T1 | NeuroPulse Home — 8-modality FDA-exempt wellness tier. |
-| T2 | NeuroPulse Pro — 11-modality FDA 510(k) medical device tier. |
+| UHDR | User Health Data Record — user-owned biometric data; NeurOne never accesses. See CLAUDE.md §5. |
+| SHDR | System Health Data Record — device-condition telemetry; NeurOne-owned, never user-linked. See CLAUDE.md §5. |
+| T1 | NeurOne Home — 8-modality FDA-exempt wellness tier. |
+| T2 | NeurOne Pro — 11-modality FDA 510(k) medical device tier. |
 | Formation date | 2026-05-13 — date of QMS establishment and retroactive entry of all pre-formation design records under change control. Month 0 for all relative timelines in this document. |
 
 ---
 
 ## 5. Product Overview
 
-NeuroPulse is a closed-loop multi-modal neuromodulation wearable platform consisting of a head-worn device and a control hub, sharing a single chassis, NXP i.MX RT1062 main processor, STM32G071 safety MCU, 8 GB eMMC storage, USB-C 3.2 Gen 1 primary connectivity, and BT 5.3 LE / Wi-Fi 6 wireless connectivity.
+NeurOne is a closed-loop multi-modal neuromodulation wearable platform consisting of a head-worn device and a control hub, sharing a single chassis, NXP i.MX RT1062 main processor, STM32G071 safety MCU, 8 GB eMMC storage, USB-C 3.2 Gen 1 primary connectivity, and BT 5.3 LE / Wi-Fi 6 wireless connectivity.
 
 The platform is designed for autonomous closed-loop operation without a smartphone. All therapeutic session protocols are cryptographically signed. The Safety MCU (STM32G071) owns all stimulation enable GPIO lines and maintains an independent hardware watchdog; an application crash cannot cause unsafe stimulation.
 
@@ -100,11 +100,11 @@ Full product specification, locked design decisions, configurations, pricing, an
 
 ### 5.1 Intended Use — T1
 
-The NeuroPulse Home is a general wellness wearable device intended for use by healthy adults (18+) to support wellbeing goals including relaxation, focus, sleep, and cognitive performance, using photobiomodulation, non-invasive brain stimulation, EEG-guided neurofeedback, vagus nerve stimulation, and audio/visual entrainment. It is not intended to diagnose, cure, treat, mitigate, or prevent any disease or medical condition.
+The NeurOne Home is a general wellness wearable device intended for use by healthy adults (18+) to support wellbeing goals including relaxation, focus, sleep, and cognitive performance, using photobiomodulation, non-invasive brain stimulation, EEG-guided neurofeedback, vagus nerve stimulation, and audio/visual entrainment. It is not intended to diagnose, cure, treat, mitigate, or prevent any disease or medical condition.
 
 ### 5.2 Intended Use — T2
 
-The NeuroPulse Pro is intended for use by or under the supervision of licensed healthcare professionals as an adjunctive neuromodulation system for conditions including but not limited to depression, PTSD, migraine, cluster headache, and motor rehabilitation, incorporating transcranial magnetic stimulation, 21-channel qEEG, cervical transcutaneous vagus nerve stimulation, sLORETA-guided HD-tDCS, and deep photobiomodulation. Intended use will be formally defined per 21 CFR §814.20 at the Pre-Submission (Q-Sub) meeting planned Month 20.
+The NeurOne Pro is intended for use by or under the supervision of licensed healthcare professionals as an adjunctive neuromodulation system for conditions including but not limited to depression, PTSD, migraine, cluster headache, and motor rehabilitation, incorporating transcranial magnetic stimulation, 21-channel qEEG, cervical transcutaneous vagus nerve stimulation, sLORETA-guided HD-tDCS, and deep photobiomodulation. Intended use will be formally defined per 21 CFR §814.20 at the Pre-Submission (Q-Sub) meeting planned Month 20.
 
 ### 5.3 Intended Users and Use Environments
 
@@ -117,7 +117,7 @@ The NeuroPulse Pro is intended for use by or under the supervision of licensed h
 
 ## 6. Design and Development Phases
 
-The NeuroPulse design and development programme is structured in six phases. Phases 1–5 address T1; Phase 6 addresses T2 additions. Phases overlap where indicated.
+The NeurOne design and development programme is structured in six phases. Phases 1–5 address T1; Phase 6 addresses T2 additions. Phases overlap where indicated.
 
 ### 6.1 Phase summary
 
@@ -317,11 +317,11 @@ The NeuroPulse design and development programme is structured in six phases. Pha
 | Engineering ↔ Suppliers | SUP qualification checklist (NP-PROC-SUP-001); supplier design reviews; FAI records | Per NP-PROC-SUP-001 |
 | Firmware ↔ Safety MCU | SPI heartbeat protocol; GPIO ownership map; IEC 62304 Class C/B interface spec | Defined in NP-SW-001 |
 | Clinical ↔ Engineering | User needs capture; first-in-human feedback to design inputs; HFE studies | Phase 3 onward |
-| NeuroPulse ↔ External counsel | Regulatory opinion letters; trademark clearance; FTC substantiation review | As needed; RISK-03 active |
+| NeurOne ↔ External counsel | Regulatory opinion letters; trademark clearance; FTC substantiation review | As needed; RISK-03 active |
 
 ### 7.3 Entity status note
 
-NeuroPulse is not yet incorporated as a legal entity as of this document's date (2026-05-17). Company formation is in progress. This document is authored under the interim operating name "NeuroPulse." All QMS documents, DHF records, and agreements executed prior to formal incorporation shall be ratified under the incorporated entity at formation. Until formation, the CEO is the sole accountable individual for all design authority decisions.
+NeurOne is not yet incorporated as a legal entity as of this document's date (2026-05-17). Company formation is in progress. This document is authored under the interim operating name "NeurOne." All QMS documents, DHF records, and agreements executed prior to formal incorporation shall be ratified under the incorporated entity at formation. Until formation, the CEO is the sole accountable individual for all design authority decisions.
 
 ---
 
@@ -417,7 +417,7 @@ Design verification confirms that design outputs meet design inputs. Verificatio
 | Analysis | Calculation-based verification (e.g. charge density, dose metering, power budgets) |
 | Inspection | Physical measurement against specification (e.g. Ra surface finish, LED pitch, wall thickness) |
 | Test | Bench or laboratory measurement (FAI items per NP-FAI-ZM-001, per-firmware spec FAI checklists) |
-| Similarity | Reference to verified predecessor design (not applicable for first-generation NeuroPulse) |
+| Similarity | Reference to verified predecessor design (not applicable for first-generation NeurOne) |
 
 ### 11.2 Verification planning
 
@@ -554,7 +554,7 @@ Software development is governed by NP-SW-001 (IEC 62304 Software Development Pl
 | SW-02: Main processor (i.MX RT1062, FreeRTOS) | **Class B** | Phase 1–2 (firmware written Phase 0); HAL stubs Phase 2 | G2 |
 | SW-03: iOS/Android app | **Class B** | Phase 2–4; Watch sync app post-launch | G3/validation |
 
-All firmware source code is in the NeuroPulse GitHub repository and constitutes DHF design output records per NP-DHF-001 §5.
+All firmware source code is in the NeurOne GitHub repository and constitutes DHF design output records per NP-DHF-001 §5.
 
 Safety-critical software response time requirements (from NP-SW-001):
 - SPI heartbeat → stimulation cutoff: ≤50 ms
@@ -575,10 +575,10 @@ Selected design activities are outsourced to suppliers. All suppliers performing
 | PDMS optical window bonding | CAT-C (PDMS bonding) | SUP-C-08: IEC 60068-2-14 200-cycle qualification capability (BLOCKING); RISK-04 |
 | Zone module injection moulding | CAT-A (moulding) | SUP-M-07 qualification items; NP-TOOL-ZM-001 mould design review |
 | Lens tooling (AgNW, hard coat, PDMS diffuser) | CAT-A / specialist coating | AgNW supplier qualification (BLOCKING, NP-TOOL-LENS-001 P-01) |
-| IEC 60601-1 / IEC 62471 / EMC testing | Accredited test laboratory | ISO 17025 accreditation; NeuroPulse test plan approval |
+| IEC 60601-1 / IEC 62471 / EMC testing | Accredited test laboratory | ISO 17025 accreditation; NeurOne test plan approval |
 | Regulatory counsel (RISK-03, NP-REG-CVNS-001) | External legal/regulatory | Engaged; scope per NP-REG-PBM1064-001 Rev A |
 
-Outsourced design activities do not reduce NeuroPulse's responsibility for device safety and compliance. All supplier design outputs are reviewed and approved by NeuroPulse before acceptance into the DHF.
+Outsourced design activities do not reduce NeurOne's responsibility for device safety and compliance. All supplier design outputs are reviewed and approved by NeurOne before acceptance into the DHF.
 
 ---
 
@@ -588,7 +588,7 @@ Outsourced design activities do not reduce NeuroPulse's responsibility for devic
 
 Until the eQMS platform is deployed (target Month 9), document control is maintained via:
 
-- **GitHub repository** (`stevehickman/neuropulse`) — version-controlled storage for all `.md` and source code design outputs
+- **GitHub repository** (`stevehickman/neurone`) — version-controlled storage for all `.md` and source code design outputs
 - **CLAUDE.md** — authoritative locked decisions record; revision tracked in git history
 - **NP-DHF-001** — master DHF index listing all documents with status, location, and revision
 - **Document numbering:** NP-[SYSTEM]-[SEQ]-[REV] scheme per NP-QMS-001. Revisions are sequential (Rev A, Rev B, ...). Each revision requires a documented reason for change.

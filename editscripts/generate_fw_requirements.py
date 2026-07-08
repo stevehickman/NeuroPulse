@@ -35,7 +35,7 @@ def add_table_row(table, cells, bold_first=False):
     return row
 
 # Title
-title = doc.add_paragraph('NeuroPulse')
+title = doc.add_paragraph('NeurOne')
 title.style = doc.styles['Normal']
 title.runs[0].bold = True
 title.runs[0].font.size = Pt(14)
@@ -51,7 +51,7 @@ doc.add_paragraph('Addresses G1-13 in NP-COORD-001: ZONE_ID firmware debounce sp
 
 # Section 1
 add_heading(doc, '1.  PURPOSE AND SCOPE')
-add_normal(doc, 'This document specifies firmware requirements for zone module detection on the NeuroPulse headset Hub MCU. It covers the ZONE_ID resistor read algorithm (pin 18), ADC resolution requirements, debounce logic, and FAULT state behaviour. All requirements in this document are Class B (IEC 62304) for the main processor path. Any requirement that gates the ENABLE line is additionally subject to Safety MCU review (Class C).')
+add_normal(doc, 'This document specifies firmware requirements for zone module detection on the NeurOne headset Hub MCU. It covers the ZONE_ID resistor read algorithm (pin 18), ADC resolution requirements, debounce logic, and FAULT state behaviour. All requirements in this document are Class B (IEC 62304) for the main processor path. Any requirement that gates the ENABLE line is additionally subject to Safety MCU review (Class C).')
 add_normal(doc, 'This document was created to close NP-COORD-001 G1-13. It must be baselined before any firmware for zone module detection is written.')
 
 # Section 2
@@ -157,7 +157,7 @@ add_normal(doc, 'FW-AUD-01 (MANDATORY): Alert audio shall play through bone cond
 add_normal(doc, 'FW-AUD-02 (MANDATORY): Alert text shall be synthesised using the on-device TTS engine (scope: app firmware team). Alert audio files shall be pre-rendered and stored in firmware flash to ensure availability in Mode 3 Autonomous (no phone or cloud required).')
 
 add_heading(doc, '3.6  App Diagnostic Integration', level=2)
-add_normal(doc, 'FW-APP-01 (MANDATORY): Contact-fault FAULT and wrong-module FAULT shall produce distinct diagnostic codes visible in the NeuroPulse app. The app shall display a specific diagnostic message matching the audio alert — not a generic error. Diagnostic codes:')
+add_normal(doc, 'FW-APP-01 (MANDATORY): Contact-fault FAULT and wrong-module FAULT shall produce distinct diagnostic codes visible in the NeurOne app. The app shall display a specific diagnostic message matching the audio alert — not a generic error. Diagnostic codes:')
 add_bullet(doc, 'ZONE_FAULT_CONTACT: pin 18 unreadable after 3 reads. App message: "Zone module contact issue — remove and reinsert [zone name] module."')
 add_bullet(doc, 'ZONE_FAULT_WRONG: pin 18 readable but wrong zone for this slot. App message: "Wrong module in [slot name] slot — expected [zone name]."')
 add_bullet(doc, 'ZONE_FAULT_ABSENT: module not detected at session start. App message: "[Zone name] module not detected — check module is fully inserted."')
@@ -217,8 +217,8 @@ t7.rows[0].cells[3].text = 'Description'
 rev_row = t7.add_row()
 rev_row.cells[0].text = 'A'
 rev_row.cells[1].text = '2026-05-10'
-rev_row.cells[2].text = 'NeuroPulse Firmware'
+rev_row.cells[2].text = 'NeurOne Firmware'
 rev_row.cells[3].text = 'Initial release. Closes NP-COORD-001 G1-13. Zone module ZONE_ID detection: ADC requirements (FW-ADC-01–05), debounce algorithm (FW-DBC-01–08), audio alerts (FW-AUD-01–02), app diagnostics (FW-APP-01–02), processor ownership table. Implements RISK-18 firmware mitigation layer.'
 
-doc.save('/home/user/NeuroPulse/docs/neuropulse_fw_requirements_001.docx')
-print('Done: neuropulse_fw_requirements_001.docx written')
+doc.save('/home/user/NeurOne/docs/neurone_fw_requirements_001.docx')
+print('Done: neurone_fw_requirements_001.docx written')

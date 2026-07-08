@@ -1,12 +1,12 @@
 # 1064nm Smart Zone Module — Component Selection and Procurement Specification
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-PROC-FPC-1064-001  
 **Revision:** A  
 **Date:** 2026-05-13  
 **Status:** BASELINED  
 **Effective Date:** 2026-05-13  
-**Author:** NeuroPulse Hardware Engineering  
+**Author:** NeurOne Hardware Engineering  
 **Approved By:** Steve Hickman, CEO  
 **References:** NP-HW-FPC-001 Rev E; NP-TOOL-ZM-SM-001 Rev A; NP-FW-PBM1064-001 Rev A  
 **Related Issues:** GitHub Issue #54  
@@ -281,7 +281,7 @@ Rationale:
 - Responsivity 0.90 A/W at 1064 nm — exceeds 0.70 A/W requirement by 29% margin
 - 1.0 mm² active area — same as base module silicon PDs; calibration coefficients can use consistent area normalisation
 - Dark current < 1 nA at 0V — zero-bias TIA design is optimal; no reverse bias required
-- Hamamatsu is a qualified NeuroPulse supplier (used for reference photodiodes in other applications); qualification path is shorter
+- Hamamatsu is a qualified NeurOne supplier (used for reference photodiodes in other applications); qualification path is shorter
 - Rise time: < 10 ns (datasheet); far exceeds < 1 ms requirement
 
 **Package note:** The G12180-010A is a ceramic SMD package (5.0 × 5.0 × 1.5 mm). The FPC annular ring pad (1.6 mm diameter) is sized for the wire-bonded active area contact. For SMD mounting on the FPC rigidizer/zone module FPC, the pad footprint must be updated in the FPC artwork to match the G12180-010A SMD land pattern (Hamamatsu application note for G121xx series provides recommended PCB footprint). **OI-PBM-HW-06:** Update NP-FPC-ZM-SM-01 FPC artwork (OI-PBM-HW-04) to include Hamamatsu G12180-010A SMD footprint for PD1 and PD2 positions. Maintain annular ring centre position at X=33.0, Y=39.0 mm.

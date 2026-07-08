@@ -1,6 +1,6 @@
 /* Document: NP-FW-EMMC-002 Rev A §E */
 /*
- * NeuroPulse EDF+ Privacy Header — Writer and Validator API
+ * NeurOne EDF+ Privacy Header — Writer and Validator API
  * Document: NP-FW-EMMC-002 Rev A §E
  */
 
@@ -13,7 +13,7 @@
 
 /* Fills a 256-byte EDF+ header with privacy-preserving values per NP-FW-EMMC-002 §E.2.
    uhdr_token: 32-byte binary UHDR token (first 7 bytes -> 14 hex chars used)
-   fw_version: NeuroPulse firmware version string (e.g. "1.0.0")
+   fw_version: NeurOne firmware version string (e.g. "1.0.0")
    session_ts: UTC session start time (seconds since epoch) -- used for DD-MMM-YYYY in recording ID
                Pass 0 to use placeholder "01-JAN-1970".
 */
@@ -28,7 +28,7 @@ np_edf_status_t np_edf_write_header(np_edf_header_t *header,
 np_edf_status_t np_edf_validate_privacy_header(const np_edf_header_t *header);
 
 /* Returns true if the patient_name portion of local_patient_id contains
-   alphabetic characters that do not spell "NeuroPulse_User". */
+   alphabetic characters that do not spell "NeurOne_User". */
 bool np_edf_header_contains_real_name(const np_edf_header_t *header);
 
 #endif /* NP_EDF_WRITER_H */

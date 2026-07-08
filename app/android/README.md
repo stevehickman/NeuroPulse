@@ -1,6 +1,6 @@
-# NeuroPulse Android
+# NeurOne Android
 
-Android version of the NeuroPulse iOS app (`app/ios/`). Kotlin + Jetpack
+Android version of the NeurOne iOS app (`app/ios/`). Kotlin + Jetpack
 Compose, native only. System of record: [ISA.md](ISA.md).
 
 ## Modules
@@ -26,7 +26,7 @@ daemon at JDK 17 (see the comment in `gradle.properties`).
 ## Parity contract with iOS
 
 - GATT UUIDs, wire formats, and opcodes are byte-identical to
-  `app/ios/NeuroPulse/BLE/GATTCharacteristics.swift` — enforced by
+  `app/ios/NeurOne/BLE/GATTCharacteristics.swift` — enforced by
   `ModelsParityTests`.
 - All CLAUDE.md privacy invariants carry over: UHDR/SHDR separation, two
   consent subjects (research vs warranty — never share keys), prohibited

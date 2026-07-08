@@ -1,17 +1,17 @@
 name: iOS CI (xcodebuild)
 
-# Builds the NeuroPulse iOS app and runs the NeuroPulseTests suite.
-# Uses the shared NeuroPulse.xcscheme checked into xcshareddata/.
+# Builds the NeurOne iOS app and runs the NeurOneTests suite.
+# Uses the shared NeurOne.xcscheme checked into xcshareddata/.
 
 on:
   push:
     paths:
       - 'app/ios/**'
-      - 'app/NeuroPulseShared/**'
+      - 'app/NeurOneShared/**'
   pull_request:
     paths:
       - 'app/ios/**'
-      - 'app/NeuroPulseShared/**'
+      - 'app/NeurOneShared/**'
   workflow_dispatch:
 
 jobs:
@@ -30,7 +30,7 @@ jobs:
         run: swiftlint --strict
 
   ios-build-test:
-    name: xcodebuild test — NeuroPulse
+    name: xcodebuild test — NeurOne
     runs-on: macos-15   # Xcode 16+ with iOS 18 simulator
 
     steps:
@@ -53,8 +53,8 @@ jobs:
         run: |
           xcodebuild \
             -resolvePackageDependencies \
-            -project app/ios/NeuroPulse.xcodeproj \
-            -scheme NeuroPulse
+            -project app/ios/NeurOne.xcodeproj \
+            -scheme NeurOne
 
       - name: Install runtime, create simulator, and run tests
         run: |
@@ -96,12 +96,12 @@ EOF
           echo "Device type: $DEVICE_TYPE"
 
           # Create a device and capture its UDID (simctl prints UDID on stdout)
-          UDID=$(xcrun simctl create "NeuroPulseCI" "$DEVICE_TYPE" "$RUNTIME")
+          UDID=$(xcrun simctl create "NeurOneCI" "$DEVICE_TYPE" "$RUNTIME")
           echo "Created simulator UDID: $UDID"
 
           xcodebuild test \
-            -project app/ios/NeuroPulse.xcodeproj \
-            -scheme NeuroPulse \
+            -project app/ios/NeurOne.xcodeproj \
+            -scheme NeurOne \
             -destination "platform=iOS Simulator,id=${UDID}" \
             -resultBundlePath build/ios/TestResults.xcresult
       

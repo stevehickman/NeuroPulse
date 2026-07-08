@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Bootloader — Hardware Configuration
+ * NeurOne Bootloader — Hardware Configuration
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  * Document: NP-FW-EMMC-001 Rev A §8.1
  *
@@ -112,7 +112,7 @@
 
 /* ── USB OTG1 (USB-C DFU recovery) ──────────────────────────────────────── */
 #define NP_USB1_BASE            0x402E0000UL
-#define NP_DFU_VENDOR_ID        0x3A9BU         /* NeuroPulse USB VID          */
+#define NP_DFU_VENDOR_ID        0x3A9BU         /* NeurOne USB VID          */
 #define NP_DFU_PRODUCT_ID       0x0001U         /* Bootloader DFU PID          */
 #define NP_DFU_TRANSFER_SIZE    4096U           /* wTransferSize bytes         */
 #define NP_DFU_TIMEOUT_MS       300000U         /* 5-minute DFU session window */

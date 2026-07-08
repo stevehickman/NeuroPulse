@@ -1,6 +1,6 @@
 /* Document: NP-FW-EMMC-002 Rev A §E */
 /*
- * NeuroPulse EDF+ Privacy Header — Type Definitions
+ * NeurOne EDF+ Privacy Header — Type Definitions
  * Document: NP-FW-EMMC-002 Rev A §E
  */
 
@@ -17,7 +17,7 @@ typedef enum {
     NP_EDF_OK = 0,
     NP_EDF_ERR_INVALID_ARG    = -1,
     NP_EDF_ERR_PRIVACY_HEADER = -2,   /* validator found PII field violation */
-    NP_EDF_ERR_REAL_NAME      = -3,   /* patient_name contains alphabetics beyond NeuroPulse_User */
+    NP_EDF_ERR_REAL_NAME      = -3,   /* patient_name contains alphabetics beyond NeurOne_User */
     NP_EDF_ERR_TOKEN_LEN      = -4,
 } np_edf_status_t;
 

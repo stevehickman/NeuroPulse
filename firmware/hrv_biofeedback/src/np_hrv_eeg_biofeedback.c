@@ -1,5 +1,5 @@
 /*
- * NeuroPulse HRV Biofeedback — Dual EEG + HRV Biofeedback
+ * NeurOne HRV Biofeedback — Dual EEG + HRV Biofeedback
  * Document: NP-FW-HRV-001 Rev A §9
  *
  * Welch periodogram for EEG band power reuses the same radix-2 DIT FFT

@@ -1,6 +1,6 @@
 # Privacy Analysis and Repair
 
-**Project:** NeuroPulse  
+**Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-002  
 **Revision:** B  
 **Date:** 2026-06-05  
@@ -40,9 +40,9 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### CRITICAL — UHDRKeyManager: PBKDF2 placeholder uses hardcoded password — UHDR encryption is not user-specific
 
-**Where:** `app/ios/NeuroPulse/Data/UHDRKeyManager.swift:93` — `deriveKey(password: "biometric-placeholder", salt: salt)`  
+**Where:** `app/ios/NeurOne/Data/UHDRKeyManager.swift:93` — `deriveKey(password: "biometric-placeholder", salt: salt)`  
 **Category:** Security failure + Pure privacy failure  
-**Issue:** The KDF call passes the literal string `"biometric-placeholder"` as the password input, not the user's actual biometric credential or PIN. Both the password and the salt (SHA256 of `identifierForVendor`) are knowable to anyone who reads the source code. In practice this means every user's "UHDR key" is derived from the same fixed password and a device-stable but not user-specific value — the key offers no user-specific protection. The CLAUDE.md guarantee that "NeuroPulse cannot decrypt UHDR" and "the biometric-derived key is never held by NeuroPulse" is violated in spirit by the current code: any party who knows the source code and can read the device identifier can derive the key.  
+**Issue:** The KDF call passes the literal string `"biometric-placeholder"` as the password input, not the user's actual biometric credential or PIN. Both the password and the salt (SHA256 of `identifierForVendor`) are knowable to anyone who reads the source code. In practice this means every user's "UHDR key" is derived from the same fixed password and a device-stable but not user-specific value — the key offers no user-specific protection. The CLAUDE.md guarantee that "NeurOne cannot decrypt UHDR" and "the biometric-derived key is never held by NeurOne" is violated in spirit by the current code: any party who knows the source code and can read the device identifier can derive the key.  
 **Reference:** "Encryption with User-Managed Keys" security pattern; GDPR Art. 32 (security of processing); NIST SP 800-132 §5 (password-based key derivation); NP-FW-EMMC-002 Rev A §C (UHDR two-layer key scheme)  
 **Remediation (shipped — PR #112):** Added `#if !DEBUG … #error(…) #endif` guard in `UHDRKeyManager.authenticate()` that produces a compile-time failure in release builds until the placeholder is replaced with Argon2id + a real biometric/PIN credential. This prevents silent production shipping while keeping debug builds functional for development. Also changed `.deviceOwnerAuthenticationWithBiometrics` → `.deviceOwnerAuthentication` so users without Face ID/Touch ID (Parkinson's, post-stroke, no biometric enrollment) can unlock UHDR via PIN/passcode.  
 **Remaining action:** Replace the PBKDF2 placeholder with Argon2id (link `swift-crypto-extras` or the Argon2 reference C library) and pass the LAContext biometric token (or a PIN digest from a secure enclave) as the password input. Spec: NP-FW-EMMC-002 Rev A §C. The `#error` compile gate will block all release builds until this is done.
@@ -51,7 +51,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### HIGH — SHDRUploader: `identifierForVendor` used as fleet DB linkage key instead of opaque warranty token
 
-**Where:** `app/ios/NeuroPulse/Data/SHDRUploader.swift:74` (pre-fix) — `request.setValue(deviceID, forHTTPHeaderField: "X-NP-Device-ID")`  
+**Where:** `app/ios/NeurOne/Data/SHDRUploader.swift:74` (pre-fix) — `request.setValue(deviceID, forHTTPHeaderField: "X-NP-Device-ID")`  
 **Category:** Pure privacy failure  
 **Issue:** `UIDevice.current.identifierForVendor` is an app-bundle-scoped stable identifier that can persist across device restores and can be correlated across any app or service in the same vendor bundle ID group. The design specification (NP-FW-EMMC-002 Rev A §A) explicitly requires an opaque 256-bit TRNG warranty token as the SHDR linkage key, with no-join CI enforcement between the warranty DB and the SHDR fleet DB. Using `identifierForVendor` instead creates a linkable identifier that could be joined to App Store purchase records, Apple's device-identity infrastructure, or any other service that received the same vendor UUID. Under GDPR Art. 4(1) a pseudonym that permits re-identification with "reasonably likely" means is still personal data.  
 **Reference:** "Pseudonymous Identity" pattern; "Linkable Identifiers" anti-pattern; GDPR Art. 4(1), 25; NP-FW-EMMC-002 Rev A §A  
@@ -62,9 +62,9 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### HIGH — UHDRBackupScheduler: backup directory not excluded from iCloud/iTunes backup
 
-**Where:** `app/ios/NeuroPulse/Data/UHDRBackupScheduler.swift` — `Documents/UHDRBackup/` directory  
+**Where:** `app/ios/NeurOne/Data/UHDRBackupScheduler.swift` — `Documents/UHDRBackup/` directory  
 **Category:** Pure privacy failure  
-**Issue:** The backup directory written to `Documents/UHDRBackup/` is included in iCloud and iTunes backups by default unless `.isExcludedFromBackupKey` is set. The encrypted `.enc` archives are AES-256-GCM with the user's UHDR key, so their contents are opaque — but the encrypted ciphertext still flows to Apple iCloud servers under a subpoena or government legal process. This undermines the "user-held key, NeuroPulse-cannot-decrypt" privacy guarantee: Apple holds the iCloud backup encryption key (standard iCloud backup, not iCloud Advanced Data Protection), so a third party with legal process against Apple could access the encrypted archives and, separately, obtain the user's derived key through other means. The manifest was also stored in plaintext including `keyFingerprint: SHA256(K1).prefix(8)` — partial key material in a backup-exposed plaintext file.  
+**Issue:** The backup directory written to `Documents/UHDRBackup/` is included in iCloud and iTunes backups by default unless `.isExcludedFromBackupKey` is set. The encrypted `.enc` archives are AES-256-GCM with the user's UHDR key, so their contents are opaque — but the encrypted ciphertext still flows to Apple iCloud servers under a subpoena or government legal process. This undermines the "user-held key, NeurOne-cannot-decrypt" privacy guarantee: Apple holds the iCloud backup encryption key (standard iCloud backup, not iCloud Advanced Data Protection), so a third party with legal process against Apple could access the encrypted archives and, separately, obtain the user's derived key through other means. The manifest was also stored in plaintext including `keyFingerprint: SHA256(K1).prefix(8)` — partial key material in a backup-exposed plaintext file.  
 **Reference:** Cavoukian Principle 5 (end-to-end security — full lifecycle); "Backup Immortality" anti-pattern; GDPR Art. 32; Ashley Madison precedent (retention of data after "delete" is the worst part)  
 **Remediation (shipped — PR #112):**  
 1. `.isExcludedFromBackupKey = true` set on `backupDirectory` in `init()` — backup directory is now excluded from both iCloud and iTunes backups.  
@@ -74,7 +74,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### HIGH — SHDRUploader: `shdr_staging.bin` included in iCloud/iTunes backup
 
-**Where:** `app/ios/NeuroPulse/Data/SHDRUploader.swift` — `Documents/shdr_staging.bin`  
+**Where:** `app/ios/NeurOne/Data/SHDRUploader.swift` — `Documents/shdr_staging.bin`  
 **Category:** Pure privacy failure  
 **Issue:** The staging file is a transient device telemetry blob intended to be uploaded and deleted. Placing it in `Documents/` without `.isExcludedFromBackupKey` means it can be captured in any iCloud or iTunes backup taken between the staging write and the upload. SHDR is device-condition data (not user biology), but session counts and hardware telemetry backed up to a third party's servers exceeds the intended data scope.  
 **Reference:** "Permanent Storage" anti-pattern (data outliving its purpose); GDPR Art. 5(1)(e) (storage limitation)  
@@ -84,9 +84,9 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### MEDIUM — UHDRKeyManager: biometric-only policy blocks users without Face ID/Touch ID enrollment
 
-**Where:** `app/ios/NeuroPulse/Data/UHDRKeyManager.swift:76` — `.deviceOwnerAuthenticationWithBiometrics`  
+**Where:** `app/ios/NeurOne/Data/UHDRKeyManager.swift:76` — `.deviceOwnerAuthenticationWithBiometrics`  
 **Category:** Pure privacy failure (usability → data inaccessibility)  
-**Issue:** `canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)` returns false if the device has no biometric enrolled — the error is thrown immediately and UHDR can never be decrypted. Users with physical disabilities that prevent biometric enrollment (e.g., severe Parkinson's, post-stroke), users who deliberately don't use Face ID, and enterprise-deployed devices without biometric policies would have permanently inaccessible UHDR data. This is adverse to the "user owns their health data" principle and creates an accessibility barrier for the exact patient populations NeuroPulse serves (CLAUDE.md §10 HFE plan, IEC 62366-1).  
+**Issue:** `canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)` returns false if the device has no biometric enrolled — the error is thrown immediately and UHDR can never be decrypted. Users with physical disabilities that prevent biometric enrollment (e.g., severe Parkinson's, post-stroke), users who deliberately don't use Face ID, and enterprise-deployed devices without biometric policies would have permanently inaccessible UHDR data. This is adverse to the "user owns their health data" principle and creates an accessibility barrier for the exact patient populations NeurOne serves (CLAUDE.md §10 HFE plan, IEC 62366-1).  
 **Reference:** Cavoukian Principle 4 (full functionality, positive-sum); WCAG 2.2 AA; NP-HFE-001 (planned)  
 **Remediation (shipped — PR #112):** Changed both `canEvaluatePolicy` and `evaluatePolicy` calls to use `.deviceOwnerAuthentication` — which attempts biometrics first but falls back to PIN/passcode when biometrics are unavailable or fail, matching Apple's own HIG guidance for health-adjacent apps.
 
@@ -94,7 +94,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### MEDIUM — AnalyticsGate: `isConfigured` static flag not reset on consent withdrawal; SDK runs silently
 
-**Where:** `app/ios/NeuroPulse/Analytics/AnalyticsGate.swift` — static `isConfigured` flag  
+**Where:** `app/ios/NeurOne/Analytics/AnalyticsGate.swift` — static `isConfigured` flag  
 **Category:** Pure privacy failure  
 **Issue:** When a user withdraws consent, the `isOpen` property reads `false` from UserDefaults and `track()` no-ops correctly. However `isConfigured` remains `true` and the underlying analytics SDK (when a real vendor is selected at OI-AUDIT-01) continues running in whatever background mode it supports. Analytics SDKs commonly instrument app lifecycle events, crash events, and performance metrics passively without `track()` being called — this is exactly the pattern the FTC called out in the BetterHelp and GoodRx enforcement actions.  
 **Reference:** "Third-party Free-for-all" anti-pattern; FTC Act §5; FTC HBNR 16 CFR Part 318; GDPR Art. 7(3) (right to withdraw consent)  
@@ -107,7 +107,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### MEDIUM-07 — SessionHistoryStore: session timestamps stored in UserDefaults (UHDR-class data outside encrypted partition)
 
-**Where:** `app/ios/NeuroPulse/Session/SessionHistoryStore.swift` — `SessionRecord.completedAt`  
+**Where:** `app/ios/NeurOne/Session/SessionHistoryStore.swift` — `SessionRecord.completedAt`  
 **Category:** Pure privacy failure  
 **Issue:** The project's own UHDR classification (CLAUDE.md §5.1) defines session timestamps as UHDR: "session timestamps → UHDR". `SessionRecord.completedAt` persists timestamps to `UserDefaults.standard`, which is backed up in iTunes/iCloud (not protected by `.isExcludedFromBackupKey`) and is accessible via MDM without biometric unlock. The timestamps reveal when a user runs neuromodulation sessions — which, for conditions like depression, PTSD, or Alzheimer's prevention, is itself diagnostic. Under Washington My Health My Data (RCW 70.372), session timestamps from a health device constitute consumer health data.  
 **Reference:** UHDR definition in CLAUDE.md §5.1; "Purpose Creep" anti-pattern; WA MHMD RCW 70.372; GDPR Art. 9 (session patterns for neurological treatment are special-category health data by inference)  
@@ -117,7 +117,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### MEDIUM-08 — SessionState: WatchConnectivity bridge payload includes UHDR-class timestamp
 
-**Where:** `app/NeuroPulseShared/Sources/NeuroPulseShared/SessionState.swift` — `SessionState.epoch` in `toWCMessage()`  
+**Where:** `app/NeurOneShared/Sources/NeurOneShared/SessionState.swift` — `SessionState.epoch` in `toWCMessage()`  
 **Category:** Pure privacy failure  
 **Issue:** `SessionState.epoch` is a Unix millisecond timestamp (hub `SESSION_STATE` GATT characteristic). CLAUDE.md §5.1 classifies session timestamps as UHDR: "session timestamps → UHDR". The WatchConnectivity bridge forwards `epoch: Int(epoch)` to the Watch app via `WCSession.sendMessage`, placing a UHDR-class value into an inter-process payload that is not protected by the eMMC UHDR partition's AES-256 encryption. `WatchSessionManager` does not write this value to Watch-side storage, but WatchConnectivity message payloads can be inspected via device pairing and may persist in the Watch communication buffer beyond the session.  
 **Reference:** UHDR definition in CLAUDE.md §5.1; "Transmission Without Need" anti-pattern; GDPR Art. 5(1)(c) (data minimisation — do not transmit what is not needed for the purpose)  
@@ -127,17 +127,17 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### MEDIUM — RegionHelper: locale-only BIPA detection misses users with non-IL locale
 
-**Where:** `app/ios/NeuroPulse/Onboarding/RegionHelper.swift` — `Locale.current.region?.identifier == "US-IL"`  
+**Where:** `app/ios/NeurOne/Onboarding/RegionHelper.swift` — `Locale.current.region?.identifier == "US-IL"`  
 **Category:** Pure privacy failure (non-compliance risk)  
 **Issue:** Locale is a user preference, not a verified location. A user with an Illinois billing address who uses an `en_US` locale (not `en_US-IL`) will not receive the BIPA written-release disclosure. BIPA applies to any person whose biometric data is collected by a business operating in Illinois — it is not limited to people whose locale reports Illinois. BIPA §15(b) requires written releases from "each subject of the biometric identifier or information." The `// Note: locale-based detection is best-effort. OI-PA-03 open.` comment in the code acknowledged this, but it had not been actioned.  
 **Reference:** BIPA 740 ILCS 14/15(b); "Unawareness" LINDDUN threat; NP-PRIV-001 Rev B HIGH-01; OI-PA-03  
-**Remediation (shipped — session 2, 2026-06-05):** `RegionHelper.isLikelyIllinois` removed. The biometric consent disclosure (`BIPADisclosureView`) is now shown to all users unconditionally before their first EEG session — locale detection is eliminated entirely. `NeuroPulseApp.swift` onboarding gate changed from `RegionHelper.isLikelyIllinois && !bipaShown` to `!bipaShown`. `SessionView.eegConsentGranted` changed from `!isLikelyIllinois || bipaAccepted` to `bipaAccepted` — the locale bypass is gone. `SetupView` shows the privacy consent card unconditionally. `BIPADisclosureView` title changed from "Brain Activity Data Consent (Illinois)" to "Brain Activity Data Consent"; intro no longer cites "Under Illinois law (BIPA)" — now: "Brainwave data is sensitive personal information — biometric data under applicable law." This approach satisfies BIPA (all IL users), GDPR Art. 9 (all EU users), and WA MHMD without any location detection. No legal guidance was required: showing more disclosure is unambiguously conservative.
+**Remediation (shipped — session 2, 2026-06-05):** `RegionHelper.isLikelyIllinois` removed. The biometric consent disclosure (`BIPADisclosureView`) is now shown to all users unconditionally before their first EEG session — locale detection is eliminated entirely. `NeurOneApp.swift` onboarding gate changed from `RegionHelper.isLikelyIllinois && !bipaShown` to `!bipaShown`. `SessionView.eegConsentGranted` changed from `!isLikelyIllinois || bipaAccepted` to `bipaAccepted` — the locale bypass is gone. `SetupView` shows the privacy consent card unconditionally. `BIPADisclosureView` title changed from "Brain Activity Data Consent (Illinois)" to "Brain Activity Data Consent"; intro no longer cites "Under Illinois law (BIPA)" — now: "Brainwave data is sensitive personal information — biometric data under applicable law." This approach satisfies BIPA (all IL users), GDPR Art. 9 (all EU users), and WA MHMD without any location detection. No legal guidance was required: showing more disclosure is unambiguously conservative.
 
 ---
 
 #### LOW — ConsentDashboardView: research contact email/phone displayed in plain text
 
-**Where:** `app/ios/NeuroPulse/Views/ConsentDashboardView.swift:99` — `Text("Contact: \(consentStore.researchConsent.contactMethod)")`  
+**Where:** `app/ios/NeurOne/Views/ConsentDashboardView.swift:99` — `Text("Contact: \(consentStore.researchConsent.contactMethod)")`  
 **Category:** Pure privacy failure (display surface)  
 **Issue:** The user's research contact method (email address or phone number) is displayed in unredacted plain text in the consent dashboard summary row. Any screenshot taken for support purposes would capture the email address. While this is user-visible data on the user's own device, it represents an unnecessary exposure surface.  
 **Reference:** "Minimal Information Asymmetry" pattern  
@@ -147,7 +147,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### LOW — SHDRUploader: no certificate pinning for fleet endpoint
 
-**Where:** `app/ios/NeuroPulse/Data/SHDRUploader.swift:28` — `URLSession.shared.data(for: request)`  
+**Where:** `app/ios/NeurOne/Data/SHDRUploader.swift:28` — `URLSession.shared.data(for: request)`  
 **Category:** Security failure  
 **Issue:** SHDR upload uses `URLSession.shared` without certificate pinning. A MITM attacker on a clinical Wi-Fi network could intercept SHDR telemetry. SHDR is device-condition data (not user biology), but session counts, consumable counts, and device health metrics flowing to an attacker-controlled endpoint could be used for competitive intelligence or to correlate device usage with facility records.  
 **Reference:** HSTS + TLS + "Defence in Depth" patterns; NIST SP 800-52r2  
@@ -158,7 +158,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### LOW — SessionProtocolSigner: Keychain query missing `kSecAttrAccessible` filter on load
 
-**Where:** `app/ios/NeuroPulse/Session/SessionProtocol.swift:150-156` — load query  
+**Where:** `app/ios/NeurOne/Session/SessionProtocol.swift:150-156` — load query  
 **Category:** Security failure  
 **Issue:** The Keychain load query does not filter on `kSecAttrAccessible`. If an attacker can write a Keychain entry with the same `kSecAttrApplicationTag` but a different accessibility class (possible in limited jailbreak scenarios), the load query returns the first match regardless of accessibility. The signing key add query correctly specifies `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, but the load query does not enforce this constraint.  
 **Reference:** "Least Privilege" security pattern; Apple Keychain Services documentation  
@@ -169,7 +169,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 ### What looks good
 
 **Architecture is genuinely strong for a health wearable:**
-- UHDR never transmitted raw; encrypted on-device with user-held key; NeuroPulse cannot decrypt — this is best-in-class for a consumer health device and matches the design of Apple Health's HealthKit
+- UHDR never transmitted raw; encrypted on-device with user-held key; NeurOne cannot decrypt — this is best-in-class for a consumer health device and matches the design of Apple Health's HealthKit
 - SHDR/UHDR boundary is rigorously maintained throughout the codebase — every data element routes to the correct partition with zero shortcuts observed
 - Analytics gate with prohibited-key enforcement and `@MainActor` isolation prevents race conditions where a prohibited event could slip through on a background thread
 - `EngagementTier` (3-bucket enum vs raw session count) is a model implementation of the "Location Granularity" pattern applied to behavioural signals — prevents MHMD and GDPR Art. 9 exposure from session counts
@@ -198,6 +198,6 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 2. **(Month 6 / before G1 gate — 2 sprints)** Select analytics and crash-reporting vendor; execute DPA + BAA; update `PrivacyInfo.xcprivacy`; verify SDK initialisation gate with a CI network-intercept test (OI-AUDIT-01). This is the single gating item for TestFlight.
 
-3. **(Before fleet endpoint goes live)** Replace placeholder SPKI hashes in `SHDRFleetPinningDelegate.pinnedHashes` with hashes derived from the production TLS certificate for `fleet.neuropulse.internal`. Until replaced, all SHDR uploads will fail (safe — fails closed, non-fatal, retried on next USB-C connection).
+3. **(Before fleet endpoint goes live)** Replace placeholder SPKI hashes in `SHDRFleetPinningDelegate.pinnedHashes` with hashes derived from the production TLS certificate for `fleet.neurone.internal`. Until replaced, all SHDR uploads will fail (safe — fails closed, non-fatal, retried on next USB-C connection).
 
 4. **(Before any beta build)** Android privacy review — no Android source was available for this analysis.

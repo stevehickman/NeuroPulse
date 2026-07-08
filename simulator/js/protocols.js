@@ -1,6 +1,6 @@
 /**
- * Protocol templates for the NeuroPulse helmet simulator.
- * These mirror the NPPS (NeuroPulse Protocol Script) predefined templates
+ * Protocol templates for the NeurOne helmet simulator.
+ * These mirror the NPPS (NeurOne Protocol Script) predefined templates
  * from docs/npps-reference.md, expressed as JSON for the session engine.
  *
  * duration   — session length in seconds

@@ -75,7 +75,7 @@ def add_row_after(anchor_tr, row_data, col_widths_in, bold_col0=True):
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. Design Brief Rev 4
 # ══════════════════════════════════════════════════════════════════════════════
-BRIEF_PATH = "docs/neuropulse_brief_r4.docx"
+BRIEF_PATH = "docs/neurone_brief_r4.docx"
 brief = Document(BRIEF_PATH)
 
 # Add to completed decisions section (after para 70 — auricular VNS clip)
@@ -105,7 +105,7 @@ print(f"  Design brief saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. Additional Modalities Doc — mark HRV biofeedback as ADDED/LOCKED
 # ══════════════════════════════════════════════════════════════════════════════
-MOD_PATH = "docs/neuropulse_additional_modalities.docx"
+MOD_PATH = "docs/neurone_additional_modalities.docx"
 mod = Document(MOD_PATH)
 
 for tbl in mod.tables:
@@ -146,7 +146,7 @@ print(f"  Additional modalities doc saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. FAI checklist — add HRV biofeedback test section
 # ══════════════════════════════════════════════════════════════════════════════
-FAI_PATH = "docs/neuropulse_fai_zone_module.docx"
+FAI_PATH = "docs/neurone_fai_zone_module.docx"
 fai = Document(FAI_PATH)
 
 # Find FAI-A15 (last accessibility item) or last item in accessibility section
@@ -244,7 +244,7 @@ print(f"  FAI checklist saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. Coordination checklist — add G2-12 (HRV biofeedback firmware spec)
 # ══════════════════════════════════════════════════════════════════════════════
-COORD_PATH = "docs/neuropulse_eng_coordination_checklist.docx"
+COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
 coord = Document(COORD_PATH)
 
 # Find G2-11 in the tables and add G2-12 after it

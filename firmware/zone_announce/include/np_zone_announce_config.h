@@ -1,5 +1,5 @@
 /*
- * NeuroPulse Zone Module Announcement — Configuration Constants
+ * NeurOne Zone Module Announcement — Configuration Constants
  * Document: NP-FW-ZA-001 Rev A §3
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  *

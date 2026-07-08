@@ -1,6 +1,6 @@
 # HRV Biofeedback Protocol Firmware Specification
 
-**Project:** NeuroPulse
+**Project:** NeurOne
 **Document:** NP-FW-HRV-001
 **Revision:** A
 **Date:** 2026-05-11
@@ -254,7 +254,7 @@ The personalised rate is returned via `best_rate_bpm_out` and must be persisted 
 
 ### 8.1 UHDR (User Health Data Record)
 
-Written to UHDR partition at session end, encrypted with biometric-derived AES-256-XTS key (NeuroPulse never holds this key):
+Written to UHDR partition at session end, encrypted with biometric-derived AES-256-XTS key (NeurOne never holds this key):
 
 | Data element | Format | Notes |
 |---|---|---|
@@ -264,7 +264,7 @@ Written to UHDR partition at session end, encrypted with biometric-derived AES-2
 
 ### 8.2 SHDR (System Health Data Record)
 
-Written to SHDR partition at session end, encrypted with NeuroPulse manufacturing key:
+Written to SHDR partition at session end, encrypted with NeurOne manufacturing key:
 
 | Data element | Key | Notes |
 |---|---|---|
