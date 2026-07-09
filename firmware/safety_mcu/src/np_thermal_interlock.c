@@ -88,6 +88,31 @@ void np_thermal_interlock_tick(np_safety_state_t *state)
                 state->fault_slot    = NP_FAULT_SLOT_HUB_NTC;
             }
             state->status |= NP_SAFETY_STATUS_THERMAL | NP_SAFETY_STATUS_CUTOFF;
+        } else if (deg <= NP_NTC_REARM_DEG_C && s_cutoff[ch]) {
+            /* Cooling recovery with 7°C hysteresis: a channel that has fallen
+             * back below the re-arm threshold clears its own cutoff latch.
+             * Without this, a single transient over-temp reading would keep the
+             * zone (or, for the hub NTC, the whole device) disabled until a
+             * power-cycle, because np_spi_watchdog_tick keeps forcing
+             * granted_mask=0 while NP_SAFETY_STATUS_THERMAL is set.  Re-granting
+             * the enable bit is left to np_spi_watchdog_tick, which recomputes
+             * granted_mask from requested_mask once no interlock is asserting.  */
+            s_cutoff[ch] = false;
         }
+    }
+
+    /* Clear the module-wide THERMAL status only when NO channel remains latched,
+     * so one zone cooling down cannot unblock the mask while another is still
+     * over-temp.  CUTOFF is cleared by np_spi_watchdog_tick on the next valid
+     * heartbeat once no other interlock is asserting it. */
+    bool any_cutoff = false;
+    for (uint8_t ch = 0U; ch < NP_NTC_CHANNEL_COUNT; ch++) {
+        if (s_cutoff[ch]) {
+            any_cutoff = true;
+            break;
+        }
+    }
+    if (!any_cutoff) {
+        state->status &= (uint8_t)~NP_SAFETY_STATUS_THERMAL;
     }
 }

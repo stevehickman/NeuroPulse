@@ -80,6 +80,7 @@
 /* ── Thermal interlock (SW01-M04) ────────────────────────────────────────── */
 /* ADC1 channels: NTC per zone (5 channels) and hub NTC (1 channel)          */
 #define NP_NTC_CUTOFF_DEG_C     62U   /* junction temperature (not case) */
+#define NP_NTC_REARM_DEG_C      55U   /* re-arm below this (7°C hysteresis) after cooldown */
 #define NP_NTC_ADC_INSTANCE     ADC1
 #define NP_NTC_CHANNEL_COUNT    6U    /* 5 zones + 1 hub */
 
