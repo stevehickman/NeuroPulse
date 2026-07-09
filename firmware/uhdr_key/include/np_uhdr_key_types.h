@@ -19,7 +19,8 @@ typedef enum {
     NP_UHDR_ERR_CONFIG   = -5,  /* Config partition read/write failed          */
     NP_UHDR_ERR_MOUNT    = -6,  /* UHDR partition XTS mount failed             */
     NP_UHDR_ERR_STATE    = -7,  /* Precondition violated (e.g. not unlocked)   */
-    NP_UHDR_ERR_INVALID  = -8   /* Invalid argument (null/length/range)        */
+    NP_UHDR_ERR_INVALID  = -8,  /* Invalid argument (null/length/range)        */
+    NP_UHDR_ERR_PARAM    = -9   /* Stored KDF params below floor (tamper/rollback) */
 } np_uhdr_status_t;
 
 /*
@@ -27,8 +28,16 @@ typedef enum {
  *
  * Stored at Config offset NP_UHDR_UKMD_RECORD_OFFSET.  This is the ONLY
  * on-storage representation of the UHDR master key, and it is always the
- * AES-256-GCM ciphertext wrapped under the Argon2id-derived WKMD — the
- * plaintext UKMD is never written to any partition.
+ * AES-256-GCM ciphertext wrapped under the WKMD — the plaintext UKMD is never
+ * written to any partition.
+ *
+ * FLEET-EXPORT PROHIBITION (privacy review Finding 4): this record is strictly
+ * device-local.  None of its fields — ukmd_ciphertext, ukmd_nonce, ukmd_tag,
+ * and especially argon2id_salt (a stable per-device pseudo-identifier) — may
+ * ever be copied into SHDR, the fleet database, telemetry, or any diagnostic
+ * export.  The SHDR schema CI gate (ci/test_shdr_schema.py, KEYMAT check)
+ * enforces this at the database layer; keep this record out of every export
+ * path at the firmware layer.
  *
  * The layout is byte-exact and packed so the on-flash image is stable across
  * toolchains: 32 + 12 + 16 + 32 + 4 + 4 + 4 + 4 + 84 = 192 bytes.

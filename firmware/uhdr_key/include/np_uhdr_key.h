@@ -19,10 +19,20 @@
  * this module's boundary starts at those bytes.  PIN fallback (§C.6) is the
  * same path with the PIN as the credential — there is no separate PIN key.
  *
+ * Hardening applied 2026-07-08 (privacy review):
+ *   - Finding 1 (hardware binding): WKMD is derived from the credential
+ *     (Argon2id) AND a device-fused, non-extractable hardware key (OI-UHDRK-09)
+ *     so an eMMC image cannot be brute-forced offline.
+ *   - Finding 2 (record integrity): the salt + KDF parameters are bound into
+ *     the GCM tag as AAD, and unlock/change_credential validate the stored
+ *     parameters against NP_UHDR_ARGON2ID_*_MIN before use.
+ *   - Finding 3 (secret residency): every unlock failure path scrubs the UKMD.
+ *
  * SRAM-secret hygiene:
  *   - UKMD lives in the caller-owned context ONLY while unlocked.
- *   - WKMD is a transient function-local; it is NEVER stored in the context and
- *     is zeroed with memset_explicit before every return.
+ *   - WKMD and the intermediate credential-key are transient function-locals;
+ *     they are NEVER stored in the context and are zeroed with memset_explicit
+ *     before every return.
  *   - No heap.  The caller owns the context (stack or static instance).
  */
 
@@ -121,9 +131,11 @@ np_uhdr_status_t np_uhdr_key_change_credential(np_uhdr_key_ctx_t *ctx,
 extern np_uhdr_status_t np_uhdr_hal_trng_generate(uint8_t *buf, size_t len);
 
 /*
- * OI-UHDRK-02: Argon2id KDF.  Derive a NP_UHDR_WKMD_LEN-byte WKMD from the
- * credential and salt with the fixed cost parameters (m/t/p).  `out` is exactly
- * NP_UHDR_WKMD_LEN bytes.
+ * OI-UHDRK-02: Argon2id KDF.  Derive a NP_UHDR_WKMD_LEN-byte credential key from
+ * the credential and salt with the given cost parameters (m/t/p).  `out` is
+ * exactly NP_UHDR_WKMD_LEN bytes.  This output is the credential-derived
+ * INTERMEDIATE — it is combined with the device-fused key (OI-UHDRK-09) to form
+ * the actual WKMD; it is NOT used as a wrapping key on its own.
  */
 extern np_uhdr_status_t np_uhdr_hal_argon2id(const uint8_t *credential,
                                              size_t cred_len,
@@ -134,12 +146,29 @@ extern np_uhdr_status_t np_uhdr_hal_argon2id(const uint8_t *credential,
                                              uint8_t *out /* [NP_UHDR_WKMD_LEN] */);
 
 /*
+ * OI-UHDRK-09: device-hardware binding (privacy review Finding 1).  Combine the
+ * credential-derived intermediate key `ckey` with a device-fused,
+ * non-extractable hardware key (i.MX RT1062 CAAM/OTPMK-derived HUK) into the
+ * final NP_UHDR_WKMD_LEN-byte WKMD.  On target this MUST use a key that never
+ * leaves the silicon and cannot be read by software, so that WKMD is
+ * unreproducible off the originating device — defeating offline brute-force of
+ * an eMMC image.  A pure-software combine (e.g. a bare HKDF with a key readable
+ * from software) does NOT satisfy this contract.
+ */
+extern np_uhdr_status_t np_uhdr_hal_hw_bind(const uint8_t *ckey /* [NP_UHDR_WKMD_LEN] */,
+                                            uint8_t *wkmd_out /* [NP_UHDR_WKMD_LEN] */);
+
+/*
  * OI-UHDRK-03: AES-256-GCM encrypt.  Wrap `pt_len` bytes of plaintext (the
- * UKMD) under `key` (WKMD) with `nonce`, producing `ct` (pt_len bytes) and the
- * authentication `tag` (NP_UHDR_GCM_TAG_LEN bytes).  No AAD.
+ * UKMD) under `key` (WKMD) with `nonce`, authenticating `aad_len` bytes of
+ * additional data `aad` (the record salt + KDF parameters), producing `ct`
+ * (pt_len bytes) and the authentication `tag` (NP_UHDR_GCM_TAG_LEN bytes).
+ * `aad` may be NULL only when aad_len is 0.
  */
 extern np_uhdr_status_t np_uhdr_hal_aes_gcm_encrypt(const uint8_t *key,
                                                     const uint8_t *nonce,
+                                                    const uint8_t *aad,
+                                                    size_t aad_len,
                                                     const uint8_t *pt,
                                                     size_t pt_len,
                                                     uint8_t *ct,
@@ -147,11 +176,14 @@ extern np_uhdr_status_t np_uhdr_hal_aes_gcm_encrypt(const uint8_t *key,
 
 /*
  * OI-UHDRK-04: AES-256-GCM decrypt + authenticate.  Verify `tag` over
- * (`key`, `nonce`, `ct`); on mismatch return NP_UHDR_ERR_AUTH WITHOUT writing
- * authentic plaintext.  On success write `ct_len` bytes of plaintext to `pt`.
+ * (`key`, `nonce`, `aad`, `ct`); on mismatch return NP_UHDR_ERR_AUTH WITHOUT
+ * writing authentic plaintext.  On success write `ct_len` bytes of plaintext to
+ * `pt`.  Any change to the AAD (tampered salt/params) fails authentication.
  */
 extern np_uhdr_status_t np_uhdr_hal_aes_gcm_decrypt(const uint8_t *key,
                                                     const uint8_t *nonce,
+                                                    const uint8_t *aad,
+                                                    size_t aad_len,
                                                     const uint8_t *ct,
                                                     size_t ct_len,
                                                     const uint8_t *tag,
