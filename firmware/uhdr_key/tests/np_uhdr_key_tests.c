@@ -340,6 +340,37 @@ static void test_unlock_scrubs_on_early_exit(void)
            "prior UKMD scrubbed on early-exit failure (Finding 3)");
 }
 
+/* CR-3 — a re-wrap draws a fresh, distinct GCM nonce (no nonce reuse), and the
+ * provisioning draws are distinct from one another. */
+static void test_nonce_uniqueness(void)
+{
+    np_uhdr_host_reset();
+    np_uhdr_key_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ASSERT(np_uhdr_key_provision(&ctx, CRED_A, sizeof(CRED_A)) == NP_UHDR_OK,
+           "provision for nonce-uniqueness");
+
+    uint8_t nonce1[NP_UHDR_GCM_NONCE_LEN];
+    uint8_t salt1[NP_UHDR_SALT_LEN];
+    memcpy(nonce1, np_uhdr_host_config()->ukmd_nonce, NP_UHDR_GCM_NONCE_LEN);
+    memcpy(salt1, np_uhdr_host_config()->argon2id_salt, NP_UHDR_SALT_LEN);
+
+    /* Provisioning draws (salt vs nonce) must be distinct — the old
+     * deterministic stub made every TRNG call identical. */
+    ASSERT(memcmp(nonce1, salt1, NP_UHDR_GCM_NONCE_LEN) != 0,
+           "provision nonce distinct from salt (TRNG no longer constant)");
+
+    ASSERT(np_uhdr_key_change_credential(&ctx, CRED_B, sizeof(CRED_B)) == NP_UHDR_OK,
+           "change_credential for nonce-uniqueness");
+    uint8_t nonce2[NP_UHDR_GCM_NONCE_LEN];
+    memcpy(nonce2, np_uhdr_host_config()->ukmd_nonce, NP_UHDR_GCM_NONCE_LEN);
+
+    ASSERT(memcmp(nonce1, nonce2, NP_UHDR_GCM_NONCE_LEN) != 0,
+           "re-wrap uses a fresh, distinct GCM nonce (no nonce reuse)");
+
+    np_uhdr_key_background(&ctx);
+}
+
 int main(void)
 {
     test_record_size();
@@ -354,6 +385,7 @@ int main(void)
     test_param_rollback();
     test_aad_binding();
     test_unlock_scrubs_on_early_exit();
+    test_nonce_uniqueness();
 
     if (g_fail_count == 0) {
         printf("PASS: all np_uhdr_key tests\n");

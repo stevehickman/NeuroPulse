@@ -107,7 +107,7 @@ static void build_aad(const np_ukmd_record_t *rec, uint8_t aad[NP_UHDR_AAD_LEN])
  * that is what defeats offline brute-force of an eMMC image.
  */
 static np_uhdr_status_t derive_wkmd(const uint8_t *credential, size_t cred_len,
-                                    const uint8_t *salt,
+                                    const uint8_t *salt, uint32_t version,
                                     uint32_t m_cost, uint32_t t_cost,
                                     uint32_t parallelism,
                                     uint8_t *wkmd_out)
@@ -115,7 +115,8 @@ static np_uhdr_status_t derive_wkmd(const uint8_t *credential, size_t cred_len,
     uint8_t ckey[NP_UHDR_WKMD_LEN];
 
     np_uhdr_status_t st = np_uhdr_hal_argon2id(credential, cred_len, salt,
-                                               m_cost, t_cost, parallelism, ckey);
+                                               version, m_cost, t_cost,
+                                               parallelism, ckey);
     if (st != NP_UHDR_OK) {
         memset_explicit(ckey, 0, sizeof(ckey));
         return NP_UHDR_ERR_KDF;
@@ -163,8 +164,8 @@ np_uhdr_status_t np_uhdr_key_provision(np_uhdr_key_ctx_t *ctx,
 
     /* Layer-2 wrapper key: Argon2id(credential) bound to the device HW key. */
     st = derive_wkmd(credential, cred_len, rec.argon2id_salt,
-                     NP_UHDR_ARGON2ID_M_COST, NP_UHDR_ARGON2ID_T_COST,
-                     NP_UHDR_ARGON2ID_PARALLELISM, wkmd);
+                     NP_UHDR_ARGON2ID_VERSION, NP_UHDR_ARGON2ID_M_COST,
+                     NP_UHDR_ARGON2ID_T_COST, NP_UHDR_ARGON2ID_PARALLELISM, wkmd);
     if (st != NP_UHDR_OK) { goto fail; }
 
     /* Wrap the UKMD; salt+params are authenticated as AAD.  Only the ciphertext
@@ -227,11 +228,11 @@ np_uhdr_status_t np_uhdr_key_unlock(np_uhdr_key_ctx_t *ctx,
 
     build_aad(&rec, aad);
 
-    /* Re-derive the wrapper key using the record's stored salt + parameters
-     * and the device-fused key. */
+    /* Re-derive the wrapper key using the record's stored version + salt +
+     * parameters (all validated above) and the device-fused key. */
     st = derive_wkmd(credential, cred_len, rec.argon2id_salt,
-                     rec.argon2id_m_cost, rec.argon2id_t_cost,
-                     rec.argon2id_parallelism, wkmd);
+                     rec.argon2id_version, rec.argon2id_m_cost,
+                     rec.argon2id_t_cost, rec.argon2id_parallelism, wkmd);
     if (st != NP_UHDR_OK) {
         memset_explicit(wkmd, 0, sizeof(wkmd));
         memset_explicit(ctx->ukmd, 0, NP_UHDR_UKMD_LEN);
@@ -310,8 +311,8 @@ np_uhdr_status_t np_uhdr_key_change_credential(np_uhdr_key_ctx_t *ctx,
 
     /* New wrapper key from the new credential, same salt, device-bound. */
     st = derive_wkmd(new_credential, new_cred_len, rec.argon2id_salt,
-                     NP_UHDR_ARGON2ID_M_COST, NP_UHDR_ARGON2ID_T_COST,
-                     NP_UHDR_ARGON2ID_PARALLELISM, wkmd);
+                     NP_UHDR_ARGON2ID_VERSION, NP_UHDR_ARGON2ID_M_COST,
+                     NP_UHDR_ARGON2ID_T_COST, NP_UHDR_ARGON2ID_PARALLELISM, wkmd);
     if (st != NP_UHDR_OK) {
         memset_explicit(wkmd, 0, sizeof(wkmd));
         memset(&rec, 0, sizeof(rec));
@@ -390,13 +391,21 @@ static const uint8_t *host_device_key(void)
     return g_host_device_key;
 }
 
+/*
+ * Counter-seeded so successive calls yield DISTINCT output (models a real RNG
+ * for nonce-uniqueness testing — CR-3).  Still deterministic per test run:
+ * np_uhdr_host_reset() rewinds the counter, so a given test is reproducible.
+ */
+static uint32_t g_host_trng_ctr = 0U;
+
 np_uhdr_status_t np_uhdr_hal_trng_generate(uint8_t *buf, size_t len)
 {
     if (buf == NULL) {
         return NP_UHDR_ERR_INVALID;
     }
+    const uint32_t c = g_host_trng_ctr++;    /* unique per call */
     for (size_t i = 0; i < len; i++) {
-        buf[i] = (uint8_t)(0xA5U ^ (uint8_t)i);
+        buf[i] = (uint8_t)(0xA5U ^ (uint8_t)i ^ (uint8_t)(c * 31U + (c >> 3)));
     }
     return NP_UHDR_OK;
 }
@@ -404,6 +413,7 @@ np_uhdr_status_t np_uhdr_hal_trng_generate(uint8_t *buf, size_t len)
 np_uhdr_status_t np_uhdr_hal_argon2id(const uint8_t *credential,
                                       size_t cred_len,
                                       const uint8_t *salt,
+                                      uint32_t version,
                                       uint32_t m_cost,
                                       uint32_t t_cost,
                                       uint32_t parallelism,
@@ -413,10 +423,14 @@ np_uhdr_status_t np_uhdr_hal_argon2id(const uint8_t *credential,
     if (credential == NULL || salt == NULL || out == NULL) {
         return NP_UHDR_ERR_INVALID;
     }
-    /* h = SHA-256(credential); ckey = SHA-256(h || salt). */
-    uint8_t mix[NP_CRYPTO_SHA256_SIZE + NP_UHDR_SALT_LEN];
+    /* ckey = SHA-256( SHA-256(cred) || salt || version_le ).  `version` is
+     * folded in so a record wrapped under a different Argon2 version derives a
+     * different key — mirroring the real KDF's version dependence and exercising
+     * the newly-plumbed version parameter (CR-2). */
+    uint8_t mix[NP_CRYPTO_SHA256_SIZE + NP_UHDR_SALT_LEN + 4U];
     np_sha256(credential, (uint32_t)cred_len, mix);
     memcpy(mix + NP_CRYPTO_SHA256_SIZE, salt, NP_UHDR_SALT_LEN);
+    put_u32_le(mix + NP_CRYPTO_SHA256_SIZE + NP_UHDR_SALT_LEN, version);
     np_sha256(mix, (uint32_t)sizeof(mix), out);   /* 32-byte credential key */
     return NP_UHDR_OK;
 }
@@ -591,6 +605,8 @@ void np_uhdr_host_reset(void)
     /* Restore the default device key so each test starts on the same device. */
     memcpy(g_host_device_key, NP_UHDR_HOST_DEVKEY_DEFAULT, NP_UHDR_HWKEY_LEN);
     g_host_device_key_init = true;
+    /* Rewind the TRNG counter so each test is reproducible. */
+    g_host_trng_ctr = 0U;
 }
 
 #endif /* NPTEST_HOST */

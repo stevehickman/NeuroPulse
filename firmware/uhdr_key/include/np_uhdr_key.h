@@ -132,14 +132,18 @@ extern np_uhdr_status_t np_uhdr_hal_trng_generate(uint8_t *buf, size_t len);
 
 /*
  * OI-UHDRK-02: Argon2id KDF.  Derive a NP_UHDR_WKMD_LEN-byte credential key from
- * the credential and salt with the given cost parameters (m/t/p).  `out` is
- * exactly NP_UHDR_WKMD_LEN bytes.  This output is the credential-derived
- * INTERMEDIATE — it is combined with the device-fused key (OI-UHDRK-09) to form
- * the actual WKMD; it is NOT used as a wrapping key on its own.
+ * the credential and salt with the given algorithm `version` (e.g. 0x13 =
+ * Argon2 v1.3) and cost parameters (m/t/p).  The caller passes the record's
+ * stored version so the KDF is pinned to the version the record was wrapped
+ * under — never an implementation default.  `out` is exactly NP_UHDR_WKMD_LEN
+ * bytes.  This output is the credential-derived INTERMEDIATE — it is combined
+ * with the device-fused key (OI-UHDRK-09) to form the actual WKMD; it is NOT
+ * used as a wrapping key on its own.
  */
 extern np_uhdr_status_t np_uhdr_hal_argon2id(const uint8_t *credential,
                                              size_t cred_len,
                                              const uint8_t *salt,
+                                             uint32_t version,
                                              uint32_t m_cost,
                                              uint32_t t_cost,
                                              uint32_t parallelism,
