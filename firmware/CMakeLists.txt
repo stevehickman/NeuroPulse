@@ -37,6 +37,7 @@
 #   firmware/anon/            — Research anonymisation Scratch encryption
 #   firmware/edf/             — EDF+ privacy header writer/validator
 #   firmware/factory_reset/   — Device factory reset (eMMC SANITIZE + TRNG)
+#   firmware/uhdr_key/        — Two-layer UHDR key scheme (UKMD + WKMD)
 #
 # SW-01 (Class C) — Safety MCU firmware:
 #   firmware/safety_mcu/      — STM32G071 bare-metal, separate build
@@ -47,6 +48,7 @@
 #   firmware/anon/            → np_anon_tests
 #   firmware/edf/             → np_edf_tests
 #   firmware/factory_reset/   → np_factory_reset_tests
+#   firmware/uhdr_key/        → np_uhdr_key_tests  (NP-FW-EMMC-002 §C)
 #   firmware/ota/             → np_ota_tests  (OTA state CRC + rollback logic)
 #   firmware/safety_mcu/      → np_safety_spi_proto_tests (OI-SW01-M07-01)
 #                             → np_charge_monitor_tests   (OI-CHARGE-01)
@@ -89,6 +91,7 @@ if(NP_BUILD_TESTS)
     add_subdirectory(anon)
     add_subdirectory(edf)
     add_subdirectory(factory_reset)
+    add_subdirectory(uhdr_key)     # NP-FW-EMMC-002 §C: two-layer UHDR key
     add_subdirectory(ota)
     add_subdirectory(safety_mcu)  # OI-SW01-M07-01: SPI frame tests
                                   # OI-CHARGE-01:   charge monitor tests
@@ -108,6 +111,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_factory_reset_tests
         COMMAND np_factory_reset_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_uhdr_key_tests
+        COMMAND np_uhdr_key_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_ota_tests
@@ -147,6 +154,7 @@ add_subdirectory(sloreta_hdtdcs)
 add_subdirectory(anon)
 add_subdirectory(edf)
 add_subdirectory(factory_reset)
+add_subdirectory(uhdr_key)
 
 # hub_control links all other libraries and is the top-level application target.
 add_subdirectory(hub_control)
