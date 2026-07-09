@@ -7,6 +7,7 @@ name: Firmware Host Unit Tests
 #   firmware/anon          → np_anon_tests     (Scratch encryption)
 #   firmware/edf           → np_edf_tests      (EDF+ privacy header)
 #   firmware/factory_reset → np_factory_reset_tests (device reset)
+#   firmware/uhdr_key      → np_uhdr_key_tests (two-layer UHDR key, §C)
 #   firmware/ota           → np_ota_tests      (OTA state CRC + rollback)
 #   firmware/safety_mcu    → np_safety_spi_proto_tests, np_charge_monitor_tests
 #   firmware/hub_control   → np_cvns_reenable_tests (OI-CVNS-HUB-01)
@@ -18,6 +19,7 @@ on:
       - 'firmware/anon/**'
       - 'firmware/edf/**'
       - 'firmware/factory_reset/**'
+      - 'firmware/uhdr_key/**'
       - 'firmware/ota/**'
       - 'firmware/safety_mcu/**'
       - 'firmware/hub_control/**'
@@ -30,6 +32,7 @@ on:
       - 'firmware/anon/**'
       - 'firmware/edf/**'
       - 'firmware/factory_reset/**'
+      - 'firmware/uhdr_key/**'
       - 'firmware/ota/**'
       - 'firmware/safety_mcu/**'
       - 'firmware/hub_control/**'

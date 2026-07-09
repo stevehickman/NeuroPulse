@@ -16,6 +16,9 @@ from NP-FW-EMMC-002 §G.3 and §A.4:
      tables whose name contains 'accel'.
   5. Warranty token is BYTEA — not a readable identifier.
   6. No foreign key references to a warranty registration DB table.
+  7. No UHDR key-material columns (UKMD/WKMD ciphertext, Argon2id salt, nonce,
+     tag) — the device-local UHDR key record (NP-FW-EMMC-002 §C) and especially
+     its per-device salt must never reach the fleet DB (privacy review Finding 4).
 
 Usage:
   python3 ci/test_shdr_schema.py                  # exits 0 on PASS, 1 on FAIL
@@ -73,6 +76,27 @@ PROHIBITED_PII_PATTERNS: list[tuple[str, str]] = [
     (r"phone",               "phone number"),
     (r"postal",              "postal code"),
     (r"\bzip\b",             "ZIP code"),
+]
+
+# UHDR key-material column name patterns prohibited in any SHDR table.
+# The two-layer UHDR key record (NP-FW-EMMC-002 §C) is strictly device-local;
+# none of its fields — least of all the per-device Argon2id salt — may ever be
+# copied into the fleet DB (privacy review 2026-07-08, Finding 4).  Patterns are
+# specific so legitimate columns like 'coefficient_key' and 'warranty_token' are
+# not matched.
+PROHIBITED_KEY_MATERIAL_PATTERNS: list[tuple[str, str]] = [
+    (r"\bukmd",           "UHDR master key material"),
+    (r"\bwkmd",           "UHDR wrapper key material"),
+    (r"argon2",           "Argon2id KDF field (salt/params)"),
+    (r"\bsalt\b",         "per-device KDF salt (device correlator)"),
+    (r"master_key",       "master key material"),
+    (r"wrapper_key",      "wrapper key material"),
+    (r"wrapped_key",      "wrapped key material"),
+    (r"key_material",     "key material"),
+    (r"ciphertext",       "encrypted key material"),
+    (r"\bhuk\b",          "hardware unique key"),
+    (r"\bhw_key\b",       "hardware key material"),
+    (r"\bkdf_",           "KDF-derived field"),
 ]
 
 # These are the only accelerometer-derived column names permitted anywhere.
@@ -252,6 +276,23 @@ def check_pii_columns(columns: list[ColumnDef]) -> list[Failure]:
     return failures
 
 
+def check_key_material_columns(columns: list[ColumnDef]) -> list[Failure]:
+    """No UHDR key-material columns may appear in any SHDR table (Finding 4)."""
+    failures: list[Failure] = []
+    for col in columns:
+        for pattern, reason in PROHIBITED_KEY_MATERIAL_PATTERNS:
+            if re.search(pattern, col.column, re.IGNORECASE):
+                failures.append(Failure(
+                    check_id="KEYMAT-01",
+                    description=(
+                        f"UHDR key-material column '{col.column}' ({reason}) in SHDR "
+                        f"table — the UKMD record is device-local (NP-FW-EMMC-002 §C)"
+                    ),
+                    location=f"{col.table}.{col.column}:{col.line_no}",
+                ))
+    return failures
+
+
 def check_cross_db_references(sql: str) -> list[Failure]:
     """Detect any reference to warranty registration DB table names."""
     failures: list[Failure] = []
@@ -319,6 +360,8 @@ def run_all_checks(sql: str, verbose: bool = False) -> CheckResult:
         check_permitted_accel_columns_present, columns)
     run("PII-01:   no personal-data columns",
         check_pii_columns, columns)
+    run("KEYMAT-01: no UHDR key-material columns",
+        check_key_material_columns, columns)
     run("NOJOIN-01: no cross-DB table references",
         check_cross_db_references, sql)
     run("TOKEN-01: warranty_token is BYTEA",
