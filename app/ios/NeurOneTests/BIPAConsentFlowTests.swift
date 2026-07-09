@@ -130,11 +130,19 @@ final class BIPAConsentFlowTests: XCTestCase {
             "BIPA_STEP4_RELEASE_TEXT", "BIPA_STEP4_CHECKBOX_LABEL",
             "BIPA_STEP4_AUTHORIZE_BUTTON", "BIPA_STEP4_DECLINE_BUTTON",
         ]
-        // With .xcstrings, String(localized:) returns the key itself when
-        // no translation is found — verify each key resolves to something different.
+        // Resolve each key against the host app's compiled String Catalog.
+        //
+        // NOTE: do NOT use `String(localized: String.LocalizationValue(key))` here.
+        // `String.LocalizationValue` built from a *runtime* String (not a literal)
+        // routes through string interpolation and keys on "%@", so it echoes the
+        // input back unchanged for every key — the lookup never happens and the
+        // assertion fails even when the key exists. `Bundle.localizedString`
+        // performs a genuine runtime-key lookup; with a distinct sentinel default
+        // it returns the sentinel only when the key is actually absent.
+        let missingSentinel = "\u{1F}__MISSING_LOCALIZATION__\u{1F}"
         for key in keys {
-            let value = String(localized: String.LocalizationValue(key))
-            XCTAssertNotEqual(value, key,
+            let value = Bundle.main.localizedString(forKey: key, value: missingSentinel, table: nil)
+            XCTAssertNotEqual(value, missingSentinel,
                 "Localization key '\(key)' is missing from Localizable.xcstrings")
         }
     }
