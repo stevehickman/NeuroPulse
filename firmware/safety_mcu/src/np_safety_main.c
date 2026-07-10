@@ -43,7 +43,7 @@ extern void np_spi_watchdog_tick(np_safety_state_t             *state,
 extern void np_spi_watchdog_check(np_safety_state_t *state);   /* MUST call every loop */
 extern void np_charge_monitor_accumulate(uint8_t channel, uint32_t current_ua, uint32_t dt_us);
 extern void np_charge_monitor_tick(np_safety_state_t *state);
-extern void np_charge_monitor_reset_session(void);
+extern void np_charge_monitor_reset_session(np_safety_state_t *state);
 extern void np_charge_monitor_set_channel_area_mcm2(uint8_t channel, uint16_t area_mcm2);
 extern void np_charge_monitor_geom_gate(np_safety_state_t *state);
 extern void np_thermal_interlock_tick(np_safety_state_t *state);
@@ -282,7 +282,7 @@ int main(void)
         if (s_state.session_active && !s_prev_session_active) {
             np_session_sig_reenable(&s_state);   /* clear prior sig fault if recoverable */
             np_session_sig_reset(&s_state);      /* sets NP_SAFETY_STATUS_SIG_PENDING */
-            np_charge_monitor_reset_session();
+            np_charge_monitor_reset_session(&s_state);
             np_impedance_check_request(s_state.requested_mask);
             s_bad_cmd_count = 0U;               /* reset corruption counter for new session */
         }

@@ -259,7 +259,23 @@ final class UHDRKeyManager: ObservableObject {
             kSecAttrAccessible:     kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
             kSecAttrSynchronizable: false,
         ]
-        SecItemAdd(addQuery as CFDictionary, nil)
+        // The salt MUST be persisted before it is used: if this generated salt is
+        // not stored, a later launch would generate a *different* salt, Argon2id
+        // would derive a different key, and all previously-encrypted UHDR would be
+        // permanently undecryptable. Never return an unpersisted salt.
+        let status = SecItemAdd(addQuery as CFDictionary, nil)
+        if status == errSecDuplicateItem {
+            // A concurrent unlock stored the salt first — read back and use the
+            // persisted value so both paths derive the same key.
+            if SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+               let stored = item as? Data, stored.count == 32 {
+                return stored
+            }
+            throw UHDRKeyError.saltReadFailed
+        }
+        guard status == errSecSuccess else {
+            throw UHDRKeyError.saltReadFailed
+        }
         return saltData
     }
 }

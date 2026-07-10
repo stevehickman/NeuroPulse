@@ -111,10 +111,8 @@ final class BIPAConsentFlowTests: XCTestCase {
 
     // MARK: - Localization key presence
 
-    func testLocalizationKeysExist() {
-        // Ensures the strings file has all keys the new view references.
-        // NSLocalizedString returns the key itself when no translation is found —
-        // so a mismatch produces a non-human-readable string equal to the key.
+    func testLocalizationKeysExist() throws {
+        // Ensures the String Catalog defines every key the BIPA view references.
         let keys: [String] = [
             "BIPA_CONTINUE_BUTTON",
             "BIPA_STEP1_NAV_TITLE", "BIPA_STEP1_TITLE", "BIPA_STEP1_BODY_1",
@@ -130,12 +128,39 @@ final class BIPAConsentFlowTests: XCTestCase {
             "BIPA_STEP4_RELEASE_TEXT", "BIPA_STEP4_CHECKBOX_LABEL",
             "BIPA_STEP4_AUTHORIZE_BUTTON", "BIPA_STEP4_DECLINE_BUTTON",
         ]
-        // With .xcstrings, String(localized:) returns the key itself when
-        // no translation is found — verify each key resolves to something different.
+        // Verify the keys directly against the SOURCE String Catalog, not via
+        // runtime bundle resolution.
+        //
+        // Earlier attempts used `String(localized:)` and then
+        // `Bundle.main.localizedString(...)`; both fail in the CI hosted-test
+        // process, which does not resolve the host app's compiled .xcstrings
+        // (every key comes back unresolved — see also EEGConsentGateTests, which
+        // hits the same wall). Reading the catalog JSON from the repo is
+        // deterministic and independent of bundle, locale, and host-resolution
+        // behaviour, and it is exactly what this test means to assert: that the
+        // catalog *defines* each key the view references.
+        let catalogURL = URL(fileURLWithPath: #filePath)   // .../app/ios/NeurOneTests/<thisfile>.swift
+            .deletingLastPathComponent()                   // .../app/ios/NeurOneTests
+            .deletingLastPathComponent()                   // .../app/ios
+            .appendingPathComponent("NeurOne/Localizable.xcstrings")
+
+        let data = try Data(contentsOf: catalogURL)
+        let root = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        let sourceLanguage = (root?["sourceLanguage"] as? String) ?? "en"
+        let strings = root?["strings"] as? [String: Any] ?? [:]
+
         for key in keys {
-            let value = String(localized: String.LocalizationValue(key))
-            XCTAssertNotEqual(value, key,
-                "Localization key '\(key)' is missing from Localizable.xcstrings")
+            guard let entry = strings[key] as? [String: Any] else {
+                XCTFail("Localization key '\(key)' is missing from Localizable.xcstrings")
+                continue
+            }
+            let unit = ((entry["localizations"] as? [String: Any])?[sourceLanguage]
+                as? [String: Any])?["stringUnit"] as? [String: Any]
+            let value = unit?["value"] as? String
+            XCTAssertNotNil(value,
+                "Localization key '\(key)' has no \(sourceLanguage) value in Localizable.xcstrings")
+            XCTAssertFalse(value?.isEmpty ?? true,
+                "Localization key '\(key)' has an empty value in Localizable.xcstrings")
         }
     }
 

@@ -150,16 +150,22 @@ export function compileProtocol(
 
     const generated = buildCommands(mp, modality.interval, sessionDurationMs);
     for (const cmd of generated) {
-      if (cmds.length >= PROTO_CMD_MAX) break;
       cmds.push(cmd);
+      // Fail loudly rather than silently truncating: dropping commands here
+      // would produce a signed session missing entire later modalities with no
+      // error surfaced to the clinician. The check is inside the loop so an
+      // unbounded interval expansion cannot run away before it is caught.
+      if (cmds.length > PROTO_CMD_MAX) {
+        throw new Error(
+          `Protocol exceeds maximum command count (${PROTO_CMD_MAX}). ` +
+          `Reduce interval repeats or the number of enabled modalities.`
+        );
+      }
     }
   }
 
   if (cmds.length === 0) {
     throw new Error('Protocol produces no commands — no enabled modalities');
-  }
-  if (cmds.length > PROTO_CMD_MAX) {
-    throw new Error(`Protocol exceeds maximum command count (${PROTO_CMD_MAX})`);
   }
 
   // Sort by start_ms (hub requires sorted order; ties: modality declaration order)

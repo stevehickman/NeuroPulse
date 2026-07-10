@@ -2,24 +2,36 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>CFBundleName</key>
-	<string>NeurOne</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.neurone.uhdr-backup</string>
+	</array>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
 	<key>CFBundleDisplayName</key>
 	<string>NeurOne</string>
+	<key>CFBundleExecutable</key>
+	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+	<key>CFBundleName</key>
+	<string>NeurOne</string>
+	<key>CFBundlePackageType</key>
+	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>CFBundleExecutable</key>
-	<string>$(EXECUTABLE_NAME)</string>
-	<key>CFBundlePackageType</key>
-	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<key>UILaunchScreen</key>
-	<dict/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>NeurOne uses Bluetooth Low Energy to communicate with your NeurOne hub. This connection is required for real-time session monitoring and protocol upload.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>NeurOne uses Face ID to protect your health data encryption key. Your biometric data never leaves your device.</string>
+	<key>PostHogProjectToken</key>
+	<string>$(POSTHOG_PROJECT_TOKEN)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -27,44 +39,20 @@
 		<key>UISceneConfigurations</key>
 		<dict/>
 	</dict>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>processing</string>
+	</array>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>UILaunchScreen</key>
+	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-
-	<!-- CoreBluetooth -->
-	<key>NSBluetoothAlwaysUsageDescription</key>
-	<string>NeurOne uses Bluetooth Low Energy to communicate with your NeurOne hub. This connection is required for real-time session monitoring and protocol upload.</string>
-
-	<!-- LocalAuthentication — protects UHDR encryption key -->
-	<key>NSFaceIDUsageDescription</key>
-	<string>NeurOne uses Face ID to protect your health data encryption key. Your biometric data never leaves your device.</string>
-
-	<!-- Background Tasks — nightly UHDR backup (BGTaskScheduler) -->
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>com.neurone.uhdr-backup</string>
-	</array>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>fetch</string>
-		<string>processing</string>
-	</array>
-
-	<!-- PostHog analytics project token. Populated at build time from the
-	     POSTHOG_PROJECT_TOKEN build variable (set in .xcconfig or CI secrets).
-	     PostHogAnalyticsBackend reads this key and refuses to initialise if the
-	     value is absent or unexpanded — analytics stays silently disabled rather
-	     than crashing (ISC-9: no hardcoded API keys in source). -->
-	<key>PostHogProjectToken</key>
-	<string>$(POSTHOG_PROJECT_TOKEN)</string>
-
-	<!-- File sharing — downloaded EDF+ files in Documents accessible via Files app (ISC-54) -->
-	<key>UIFileSharingEnabled</key>
-	<true/>
-	<key>LSSupportsOpeningDocumentsInPlace</key>
-	<true/>
 </dict>
 </plist>

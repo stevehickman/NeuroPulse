@@ -151,8 +151,17 @@ void np_charge_monitor_geom_gate(np_safety_state_t *state)
  * limits at session start.  Called by main loop when session_active 0→1.
  * After this call, use np_charge_monitor_set_channel_limit() for any channels
  * whose electrode geometry requires a non-default limit (OI-CHARGE-02).
+ *
+ * Also clears the latched NP_SAFETY_STATUS_CHARGE bit in state->status.  The
+ * charge limit is a per-session cumulative dose, so a cutoff in one session
+ * must NOT disable stimulation in the next.  Without this, a single dose-limit
+ * cutoff would leave NP_SAFETY_STATUS_CHARGE set in the persistent safety state
+ * forever (np_spi_watchdog_tick includes CHARGE in active_faults and forces
+ * granted_mask=0 on every heartbeat), locking out all stimulation until a
+ * power-cycle.  CUTOFF is not touched here: np_spi_watchdog_tick clears it on
+ * the next valid heartbeat once no other interlock is asserting it.
  */
-void np_charge_monitor_reset_session(void)
+void np_charge_monitor_reset_session(np_safety_state_t *state)
 {
     uint8_t ch;
     memset(s_charge_nc, 0, sizeof(s_charge_nc));
@@ -162,6 +171,11 @@ void np_charge_monitor_reset_session(void)
     }
     /* OI-CHARGE-03: re-arm the geometry gate for the new session. */
     s_geom_applied_clin_stim = false;
+
+    /* Clear the latched charge fault so the re-armed monitor can grant again. */
+    if (state != NULL) {
+        state->status &= (uint8_t)~NP_SAFETY_STATUS_CHARGE;
+    }
 }
 
 /*

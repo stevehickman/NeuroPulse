@@ -46,7 +46,7 @@ static void check(int cond, const char *name)
 extern np_safe_status_t np_charge_monitor_init(void);
 extern void np_charge_monitor_accumulate(uint8_t channel, uint32_t current_ua, uint32_t dt_us);
 extern void np_charge_monitor_tick(np_safety_state_t *state);
-extern void np_charge_monitor_reset_session(void);
+extern void np_charge_monitor_reset_session(np_safety_state_t *state);
 extern void np_charge_monitor_set_channel_limit(uint8_t channel, uint32_t limit_uc);
 extern void np_charge_monitor_set_channel_area_mcm2(uint8_t channel, uint16_t area_mcm2);
 extern void np_charge_monitor_geom_gate(np_safety_state_t *state);
@@ -149,12 +149,19 @@ static void test_reset_clears_accumulators(void)
     np_charge_monitor_tick(&s);
     check((s.status & NP_SAFETY_STATUS_CHARGE) != 0U, "ch 3 tripped before reset");
 
-    /* Reset: must clear accumulators and limit_reached flags */
-    np_charge_monitor_reset_session();
+    /* Reset on the SAME persistent state (as the real main loop does — s_state is
+     * a static that survives session boundaries).  reset_session must clear the
+     * latched CHARGE bit in place, otherwise np_spi_watchdog_tick would keep
+     * forcing granted_mask=0 for the entire power cycle. */
+    np_charge_monitor_reset_session(&s);
+    check((s.status & NP_SAFETY_STATUS_CHARGE) == 0U,
+          "CHARGE cleared in persistent state after reset_session");
 
+    /* Accumulators and limit_reached flags must also be cleared: a fresh tick on
+     * the re-armed monitor grants all channels again. */
     s = fresh_state();
     np_charge_monitor_tick(&s);
-    check((s.status & NP_SAFETY_STATUS_CHARGE) == 0U, "CHARGE cleared after reset_session");
+    check((s.status & NP_SAFETY_STATUS_CHARGE) == 0U, "CHARGE stays clear after reset_session");
     check(s.granted_mask == 0x3FFFU,                  "granted_mask full after reset_session");
 }
 
@@ -341,7 +348,7 @@ static void test_area_override_isolated(void)
 
 static void test_geom_gate_blocks_until_applied(void)
 {
-    np_charge_monitor_reset_session();   /* geom NOT applied yet */
+    np_charge_monitor_reset_session(NULL);   /* geom NOT applied yet */
 
     /* Session requires geometry override, none applied → CLIN_STIM blocked. */
     np_safety_state_t s = fresh_state();
@@ -366,7 +373,7 @@ static void test_geom_gate_blocks_until_applied(void)
 
 static void test_geom_gate_not_required_passes(void)
 {
-    np_charge_monitor_reset_session();   /* geom NOT applied */
+    np_charge_monitor_reset_session(NULL);   /* geom NOT applied */
 
     /* Clinical tACS: shares CLIN_STIM but the hub does not set geom_required. */
     np_safety_state_t s = fresh_state();
@@ -381,10 +388,10 @@ static void test_geom_gate_not_required_passes(void)
 static void test_geom_gate_rearms_each_session(void)
 {
     /* Apply area (gate opens), then a new session must re-arm the gate. */
-    np_charge_monitor_reset_session();
+    np_charge_monitor_reset_session(NULL);
     np_charge_monitor_set_channel_area_mcm2(NP_SAFETY_CH_CLIN_STIM_IDX, 96U);
 
-    np_charge_monitor_reset_session();   /* new session — applied flag cleared */
+    np_charge_monitor_reset_session(NULL);   /* new session — applied flag cleared */
     np_safety_state_t s = fresh_state();
     s.geom_required = true;
     np_charge_monitor_geom_gate(&s);
