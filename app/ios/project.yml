@@ -57,14 +57,6 @@ targets:
         INFOPLIST_FILE: SupportingFiles/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: SupportingFiles/NeurOne.entitlements
-        # Xcode 16 splits Debug builds into a thin stub + NeurOne.debug.dylib
-        # (ENABLE_DEBUG_DYLIB=YES by default). With that split, Bundle.main in a
-        # hosted unit test no longer points at the app's resource bundle, so
-        # String(localized:)/NSLocalizedString return the raw key in tests
-        # (breaks BIPAConsentFlowTests + EEGConsentGateTests). Disabling it makes
-        # Bundle.main resolve the compiled String Catalog in tests again.
-        # Release is unaffected — it never uses the debug dylib.
-        ENABLE_DEBUG_DYLIB: NO
 
     dependencies:
       - package: NeurOneShared
