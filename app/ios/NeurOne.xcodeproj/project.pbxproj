@@ -734,6 +734,7 @@
 		8DA7A2F73D8C6E675BAA2C20 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ENABLE_DEBUG_DYLIB = NO;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SupportingFiles/NeurOne.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
@@ -816,6 +817,7 @@
 		A1416508708684333461A7BA /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ENABLE_DEBUG_DYLIB = NO;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = SupportingFiles/NeurOne.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
