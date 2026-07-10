@@ -16,6 +16,23 @@ import XCTest
 
 final class BIPAConsentFlowTests: XCTestCase {
 
+    // TEMP DIAGNOSTIC — remove once CI localization is confirmed green.
+    // Prints (does not assert) the runtime bundle state on the CI simulator so a
+    // failing localization can be diagnosed from the log instead of guessed at.
+    func testDIAG_localizationEnvironment() {
+        func probe(_ b: Bundle, _ label: String) -> String {
+            let v = b.localizedString(forKey: "SESSION_EEG_UNAVAILABLE_BODY", value: "<MISS>", table: nil)
+            return "[\(label)] id=\(b.bundleIdentifier ?? "nil") dev=\(b.developmentLocalization ?? "nil") "
+                + "pref=\(b.preferredLocalizations) locs=\(b.localizations.sorted()) resolved=\(v == "<MISS>" ? "KEY(FAIL)" : "OK")"
+        }
+        let report = [
+            "preferredLanguages=\(Locale.preferredLanguages)",
+            probe(Bundle.main, "Bundle.main"),
+            probe(Bundle(for: type(of: self)), "testBundle"),
+        ].joined(separator: "\n")
+        print("DIAGLOC_START\n\(report)\nDIAGLOC_END")
+    }
+
     // Keys shared between BIPADisclosureView callers (NeurOneApp, SetupView).
     private let shownKey    = "np.onboarding.bipa-shown"
     private let acceptedKey = "np.onboarding.bipa-accepted"
