@@ -25,10 +25,20 @@ final class BIPAConsentFlowTests: XCTestCase {
             return "[\(label)] id=\(b.bundleIdentifier ?? "nil") dev=\(b.developmentLocalization ?? "nil") "
                 + "pref=\(b.preferredLocalizations) locs=\(b.localizations.sorted()) resolved=\(v == "<MISS>" ? "KEY(FAIL)" : "OK")"
         }
+        // Dump the COMPILED en.lproj/Localizable.strings that shipped in the app
+        // bundle, to see whether xcstringstool actually emitted the keys on CI.
+        var compiled = "compiled-en-strings: <not found>"
+        if let url = Bundle.main.url(forResource: "Localizable", withExtension: "strings", subdirectory: "en.lproj"),
+           let dict = NSDictionary(contentsOf: url) as? [String: String] {
+            let hasEEG = dict["SESSION_EEG_UNAVAILABLE_BODY"] != nil
+            let hasBIPA = dict["BIPA_STEP1_TITLE"] != nil
+            compiled = "compiled-en-strings: keys=\(dict.count) hasEEGKey=\(hasEEG) hasBIPAKey=\(hasBIPA) sample=\(dict.keys.sorted().prefix(3))"
+        }
         let report = [
             "preferredLanguages=\(Locale.preferredLanguages)",
             probe(Bundle.main, "Bundle.main"),
             probe(Bundle(for: type(of: self)), "testBundle"),
+            compiled,
         ].joined(separator: "\n")
         print("DIAGLOC_START\n\(report)\nDIAGLOC_END")
     }

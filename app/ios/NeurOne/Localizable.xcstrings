@@ -18,7 +18,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "All Adjustments"
           }
         },
@@ -89,7 +89,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "and %0\\$@ more"
           }
         },
@@ -160,7 +160,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Adaptive Adjustments"
           }
         },
@@ -231,7 +231,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No adaptive adjustments this session."
           }
         },
@@ -302,7 +302,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%d:%02d:%02d into session"
           }
         },
@@ -373,7 +373,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%d:%02d into session"
           }
         },
@@ -444,7 +444,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "View all"
           }
         },
@@ -515,7 +515,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Continue"
           }
         },
@@ -586,7 +586,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "I confirm I am 16 years of age or older."
           }
         },
@@ -657,7 +657,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "NeurOne collects personal data — including brainwave and heart-rate measurements — to deliver and improve your sessions. Before any data is collected, we need to confirm your age."
           }
         },
@@ -728,7 +728,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Before We Begin"
           }
         },
@@ -799,7 +799,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "I am under 16"
           }
         },
@@ -870,7 +870,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "NeurOne cannot be set up by anyone under 16 years of age. Some features rely on processing health and biometric data, and the law requires you to be at least 16 to provide valid consent. Please ask a parent or guardian for help."
           }
         },
@@ -941,7 +941,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Some features rely on health-related data that, by law, requires you to be at least 16 years old to consent to. This protects younger users and keeps NeurOne compliant with privacy regulations."
           }
         },
@@ -1012,7 +1012,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Why we ask"
           }
         },
@@ -1083,7 +1083,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "I Agree"
           }
         },
@@ -1154,7 +1154,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Yes, I consent"
           }
         },
@@ -1225,7 +1225,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Purpose: Session operation, neurofeedback display, closed-loop adaptation"
           }
         },
@@ -1296,7 +1296,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Retention: Until you delete your data or transfer/sell your device"
           }
         },
@@ -1367,7 +1367,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Destruction method: Secure hardware-level erasure (eMMC SANITIZE)"
           }
         },
@@ -1438,7 +1438,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "NeurOne will not sell, lease, or profit from your brainwave data"
           }
         },
@@ -1509,7 +1509,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "NeurOne will not share your brainwave data with third parties without your separate consent, except as required by law"
           }
         },
@@ -1580,7 +1580,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No, decline"
           }
         },
@@ -1651,7 +1651,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "NeurOne collects your brainwave (EEG) data during sessions to provide neurofeedback and to adapt stimulation settings in real time. Brainwave data is sensitive personal information — biometric data under applicable law — and NeurOne treats it accordingly."
           }
         },
@@ -1722,7 +1722,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Do you consent to NeurOne collecting and using your brainwave data as described above?"
           }
         },
@@ -1793,7 +1793,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Brain Activity Data Consent"
           }
         },
@@ -1864,7 +1864,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Continue"
           }
         },
@@ -1935,7 +1935,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Illinois residents: please read before continuing.\n\nNeurOne collects and stores your electroencephalogram (EEG) brainwave patterns. Under the Illinois Biometric Information Privacy Act (BIPA, 740 ILCS 14), these patterns are biometric identifiers and biometric information.\n\nPurpose: your EEG data is used to deliver and adapt your sessions and to display your own results. It is stored only on your device, encrypted with a key derived from your own biometric or PIN. NeurOne cannot read it.\n\nRetention and destruction: your biometric data is retained on your device under your control. It is permanently destroyed when you perform a device factory reset, and in any case within the timeframe set out in our publicly available biometric retention and destruction policy.\n\nNeurOne will not sell, lease, trade, or otherwise profit from your biometric information, and will not disclose it without your separate written consent except as required by law.\n\nBy tapping \"I Agree\" you provide your written release to collect and store your biometric data as described above."
           }
         },
@@ -2006,7 +2006,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Biometric Data Notice"
           }
         },
@@ -2077,7 +2077,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "NeurOne captures electroencephalogram (EEG) data — the faint electrical signals produced when neurons in your brain fire. This data powers real-time neurofeedback and closed-loop stimulation during your sessions."
           }
         },
@@ -2148,7 +2148,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "The next three screens explain how this data is protected, what it is used for, and the limits on how it can ever be used. Please read each one before deciding."
           }
         },
@@ -2219,7 +2219,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "EEG brainwave patterns are biometric identifiers under Illinois BIPA (740 ILCS 14), special-category personal data under GDPR Article 9, and consumer health data under Washington MHMD. They identify you as uniquely as a fingerprint — and the law requires your explicit authorisation before we can collect them."
           }
         },
@@ -2290,7 +2290,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Biometric Data"
           }
         },
@@ -2361,7 +2361,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Your Brainwave Data"
           }
         },
@@ -2432,7 +2432,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Your EEG data never leaves your NeurOne device. It lives in a dedicated encrypted partition that only you can unlock."
           }
         },
@@ -2503,7 +2503,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Encrypted with AES-256 — the key is derived from your own biometric or PIN. NeurOne cannot generate or hold this key."
           }
         },
@@ -2574,7 +2574,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Never transmitted to NeurOne servers, including for support, diagnostics, or troubleshooting."
           }
         },
@@ -2645,7 +2645,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Backed up only to your own local storage or end-to-end encrypted personal cloud — never to NeurOne infrastructure."
           }
         },
@@ -2716,7 +2716,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Data Storage"
           }
         },
@@ -2787,7 +2787,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Stored on Your Device Only"
           }
         },
@@ -2858,7 +2858,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Your brainwave data is used exclusively to deliver the NeurOne experience on your device. These are the only permitted uses, and the limits are absolute."
           }
         },
@@ -2929,7 +2929,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Absolute limits — NeurOne will never:"
           }
         },
@@ -3000,7 +3000,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Sell, lease, trade, or otherwise profit from your biometric data"
           }
         },
@@ -3071,7 +3071,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Share it with any third party without your separate written consent, except as required by law"
           }
         },
@@ -3142,7 +3142,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Data Use"
           }
         },
@@ -3213,7 +3213,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Session delivery — powering real-time neurofeedback and adapting stimulation parameters closed-loop"
           }
         },
@@ -3284,7 +3284,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Displaying your own session results to you within the app"
           }
         },
@@ -3355,7 +3355,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Research, only with your separate explicit consent for each individual study"
           }
         },
@@ -3426,7 +3426,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Permitted uses"
           }
         },
@@ -3497,7 +3497,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "How Your Data Is Used"
           }
         },
@@ -3568,7 +3568,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "I Authorize"
           }
         },
@@ -3639,7 +3639,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "I have read the above and authorize the collection and use of my brainwave data as described"
           }
         },
@@ -3710,7 +3710,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Decline"
           }
         },
@@ -3781,7 +3781,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Below is the legally required written release under BIPA (740 ILCS 14/15(b)) and the equivalent provisions of GDPR Article 9 and Washington MHMD. Please read it in full, then check the box and tap \"I Authorize\" to proceed."
           }
         },
@@ -3852,7 +3852,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Written Release"
           }
         },
@@ -3923,7 +3923,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "I authorize NeurOne Inc. to collect, store, and use my electroencephalogram (EEG) brainwave data — which constitutes biometric identifiers and biometric information under Illinois BIPA (740 ILCS 14), special-category personal data under GDPR Article 9, and consumer health data under Washington MHMD — for the purposes of session delivery, neurofeedback display, and closed-loop stimulation adaptation.\n\nI understand that:\n• This data is encrypted with AES-256 and stored only on my NeurOne device\n• NeurOne cannot access, read, or decrypt this data at any time\n• The data is retained on my device until I request deletion or perform a factory reset, at which point it is permanently destroyed via hardware-level secure erase (eMMC SANITIZE), consistent with NeurOne's publicly available biometric data retention and destruction policy\n• NeurOne will not sell, lease, trade, or otherwise profit from this data\n• NeurOne will not share this data with any third party without my separate written consent, except as required by law\n\nI can revoke this authorization at any time from Settings → Privacy → Manage EEG Data Consent. Revoking authorization prevents future EEG data collection but does not retroactively erase data already stored on my device (use factory reset for full erasure)."
           }
         },
@@ -3994,7 +3994,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Your Written Release"
           }
         },
@@ -4065,7 +4065,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Grant"
           }
         },
@@ -4136,7 +4136,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Name"
           }
         },
@@ -4207,7 +4207,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Organisation"
           }
         },
@@ -4278,7 +4278,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Access Level"
           }
         },
@@ -4349,7 +4349,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Clinician Details"
           }
         },
@@ -4420,7 +4420,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Use Cases"
           }
         },
@@ -4491,7 +4491,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%@ — %@"
           }
         },
@@ -4562,7 +4562,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Tier"
           }
         },
@@ -4633,7 +4633,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Add Clinician"
           }
         },
@@ -4704,7 +4704,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Cancel"
           }
         },
@@ -4775,7 +4775,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "OK"
           }
         },
@@ -4846,7 +4846,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Revoke"
           }
         },
@@ -4917,7 +4917,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Withdraw"
           }
         },
@@ -4988,7 +4988,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Back"
           }
         },
@@ -5059,7 +5059,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "You can review and update your consent decisions at any time from the Privacy tab."
           }
         },
@@ -5130,7 +5130,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Your preferences are saved."
           }
         },
@@ -5201,7 +5201,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "All Done"
           }
         },
@@ -5272,7 +5272,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Continue"
           }
         },
@@ -5343,7 +5343,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Done"
           }
         },
@@ -5414,7 +5414,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Important — please read"
           }
         },
@@ -5485,7 +5485,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Once your anonymised data has been included in a published study, it cannot be individually withdrawn from that dataset. This is a fundamental property of aggregate anonymised data required by Common Rule (45 CFR 46).\n\nHowever, because NeurOne anonymises your data fresh from your device for each study, withdrawing consent immediately and permanently stops any further data from flowing to any future dataset — including data from sessions that occurred before your withdrawal.\n\nYour session recordings remain on your device under your sole control at all times."
           }
         },
@@ -5556,7 +5556,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "NeurOne works with academic research institutions to study the technologies in your device. Your participation is always voluntary. If you say yes, we may reach out when a study matches your interests."
           }
         },
@@ -5627,7 +5627,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Contact email or phone:"
           }
         },
@@ -5698,7 +5698,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "your@email.com"
           }
         },
@@ -5769,7 +5769,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Can we contact you about future research opportunities?"
           }
         },
@@ -5840,7 +5840,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "If you say no — or skip this entirely — all features work identically. We will never contact you about research."
           }
         },
@@ -5911,7 +5911,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "You will be able to upload your executed healthcare POA documentation from the Privacy tab. Our team reviews documents within 3 business days."
           }
         },
@@ -5982,7 +5982,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "I am a Power of Attorney holder acting for a patient"
           }
         },
@@ -6053,7 +6053,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Research Contact"
           }
         },
@@ -6124,7 +6124,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Yes, you can contact me"
           }
         },
@@ -6195,7 +6195,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "We will only contact you about studies in the areas you choose. Each project is a separate decision — saying yes here does not automatically enrol you in anything."
           }
         },
@@ -6266,7 +6266,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Which research areas interest you?"
           }
         },
@@ -6337,7 +6337,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Research Areas"
           }
         },
@@ -6408,7 +6408,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
           }
         },
@@ -6479,7 +6479,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Pre-approve all reviewed research?"
           }
         },
@@ -6550,7 +6550,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Data Consent"
           }
         },
@@ -6621,7 +6621,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Pre-approve all reviewed research"
           }
         },
@@ -6692,7 +6692,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Stay connected to the science"
           }
         },
@@ -6763,7 +6763,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Both options are entirely optional and can be changed at any time."
           }
         },
@@ -6834,7 +6834,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Submit study ideas, vote on priorities, express interest in participating. Your suggestions are seen by the research community."
           }
         },
@@ -6905,7 +6905,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Join the research suggestion portal"
           }
         },
@@ -6976,7 +6976,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Plain-language summaries, including null results. Never marketing."
           }
         },
@@ -7047,7 +7047,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Receive study results when they're published"
           }
         },
@@ -7118,7 +7118,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Stay Informed"
           }
         },
@@ -7189,7 +7189,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Skip"
           }
         },
@@ -7260,7 +7260,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Audio Cup Foam"
           }
         },
@@ -7331,7 +7331,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "$24 / set"
           }
         },
@@ -7402,7 +7402,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Electrode Hydrogel Tips"
           }
         },
@@ -7473,7 +7473,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "$12–16 / 8-pack"
           }
         },
@@ -7544,7 +7544,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Intranasal Sleeves"
           }
         },
@@ -7615,7 +7615,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "$19 / 30-pack"
           }
         },
@@ -7686,7 +7686,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Running low"
           }
         },
@@ -7757,7 +7757,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Mark Replaced"
           }
         },
@@ -7828,7 +7828,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Order Now"
           }
         },
@@ -7899,7 +7899,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Order %@"
           }
         },
@@ -7970,7 +7970,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Action Required — Session Blocked"
           }
         },
@@ -8041,7 +8041,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Replace these consumables before starting a session. This is a hygiene requirement."
           }
         },
@@ -8112,7 +8112,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Consumable Status"
           }
         },
@@ -8183,7 +8183,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%d left"
           }
         },
@@ -8254,7 +8254,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Sessions used: %d of %d"
           }
         },
@@ -8325,7 +8325,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Snooze (%d remaining)"
           }
         },
@@ -8396,7 +8396,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "VNS Clip Pads"
           }
         },
@@ -8467,7 +8467,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "$8 / 2-pack"
           }
         },
@@ -8538,7 +8538,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Access: %@"
           }
         },
@@ -8609,7 +8609,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Add Clinician Access"
           }
         },
@@ -8680,7 +8680,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Add Clinician Access"
           }
         },
@@ -8751,7 +8751,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Pre-approved"
           }
         },
@@ -8822,7 +8822,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Clinicians access only the data elements required for their specific use case. You can revoke access at any time."
           }
         },
@@ -8893,7 +8893,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No clinicians have access to your data."
           }
         },
@@ -8964,7 +8964,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Clinicians access only the data elements required for their specific use case. You can revoke access at any time."
           }
         },
@@ -9035,7 +9035,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Clinician Access"
           }
         },
@@ -9106,7 +9106,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Contact: %@"
           }
         },
@@ -9177,7 +9177,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Data shared: %@"
           }
         },
@@ -9248,7 +9248,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Expires %@"
           }
         },
@@ -9319,7 +9319,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Granted %@"
           }
         },
@@ -9390,7 +9390,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No clinicians have access to your data."
           }
         },
@@ -9461,7 +9461,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No research contact"
           }
         },
@@ -9532,7 +9532,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No pending study invitations."
           }
         },
@@ -9603,7 +9603,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "You have not participated in any studies yet."
           }
         },
@@ -9674,7 +9674,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No pending study invitations."
           }
         },
@@ -9745,7 +9745,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Pending Invitations"
           }
         },
@@ -9816,7 +9816,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Per-category"
           }
         },
@@ -9887,7 +9887,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No research contact"
           }
         },
@@ -9958,7 +9958,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Per-category"
           }
         },
@@ -10029,7 +10029,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Research Portal"
           }
         },
@@ -10100,7 +10100,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Pre-approved"
           }
         },
@@ -10171,7 +10171,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Research Preferences"
           }
         },
@@ -10242,7 +10242,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Research Consent"
           }
         },
@@ -10313,7 +10313,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Revoke access for %@"
           }
         },
@@ -10384,7 +10384,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Revoke"
           }
         },
@@ -10455,7 +10455,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Revoke clinician access?"
           }
         },
@@ -10526,7 +10526,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%@ at %@ will immediately lose access to your data."
           }
         },
@@ -10597,7 +10597,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Clinician Access"
           }
         },
@@ -10668,7 +10668,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Pending Invitations"
           }
         },
@@ -10739,7 +10739,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Research Consent"
           }
         },
@@ -10810,7 +10810,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Study Participation History"
           }
         },
@@ -10881,7 +10881,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "You have not participated in any studies yet."
           }
         },
@@ -10952,7 +10952,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Study Participation History"
           }
         },
@@ -11023,7 +11023,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Withdrawn"
           }
         },
@@ -11094,7 +11094,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Privacy & Consent"
           }
         },
@@ -11165,7 +11165,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Withdrawn"
           }
         },
@@ -11236,7 +11236,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Withdraw"
           }
         },
@@ -11307,7 +11307,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No further data will flow to this study. Data already included in published results cannot be individually removed."
           }
         },
@@ -11378,7 +11378,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Withdraw from study?"
           }
         },
@@ -11449,7 +11449,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Withdraw from %@"
           }
         },
@@ -11520,7 +11520,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Adaptive adjustments are made automatically during closed-loop sessions to optimise stimulation based on your real-time EEG."
           }
         },
@@ -11591,7 +11591,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Adaptive adjustments are made automatically during closed-loop sessions based on your real-time brainwave and heart-rate activity. No raw biological values are stored outside your device. Learn more in the Privacy & Data section of Settings."
           }
         },
@@ -11662,7 +11662,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "This removes the on-device list of your past sessions. Your original session data remains on the hub."
           }
         },
@@ -11733,7 +11733,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Last %0\\$@ sessions with a coherence score"
           }
         },
@@ -11804,7 +11804,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Downloading session data…"
           }
         },
@@ -11875,7 +11875,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Available in the Files app under NeurOne."
           }
         },
@@ -11946,7 +11946,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "duration"
           }
         },
@@ -12017,7 +12017,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No sessions yet. Complete your first session to see it here."
           }
         },
@@ -12088,7 +12088,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Cancel"
           }
         },
@@ -12159,7 +12159,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "What they CANNOT see"
           }
         },
@@ -12230,7 +12230,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "What the researchers CAN see"
           }
         },
@@ -12301,7 +12301,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Confirm — participate in study"
           }
         },
@@ -12372,7 +12372,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Confirm participation"
           }
         },
@@ -12443,7 +12443,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Decline"
           }
         },
@@ -12514,7 +12514,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Important"
           }
         },
@@ -12585,7 +12585,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Participate"
           }
         },
@@ -12656,7 +12656,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Study ID: %@"
           }
         },
@@ -12727,7 +12727,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Study Invitation"
           }
         },
@@ -12798,7 +12798,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Band"
           }
         },
@@ -12869,7 +12869,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Channels"
           }
         },
@@ -12940,7 +12940,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Current (mA)"
           }
         },
@@ -13011,7 +13011,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Depth"
           }
         },
@@ -13082,7 +13082,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Duty Cycle"
           }
         },
@@ -13153,7 +13153,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Frequency"
           }
         },
@@ -13224,7 +13224,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Provisional"
           }
         },
@@ -13295,7 +13295,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Pulse Width"
           }
         },
@@ -13366,7 +13366,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Waveform"
           }
         },
@@ -13437,7 +13437,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Wavelength"
           }
         },
@@ -13508,7 +13508,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Zones"
           }
         },
@@ -13579,7 +13579,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Access Level"
           }
         },
@@ -13650,7 +13650,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Cancel"
           }
         },
@@ -13721,7 +13721,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Clinician Details"
           }
         },
@@ -13792,7 +13792,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Grant"
           }
         },
@@ -13863,7 +13863,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Name"
           }
         },
@@ -13934,7 +13934,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Organisation"
           }
         },
@@ -14005,7 +14005,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Tier"
           }
         },
@@ -14076,7 +14076,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Add Clinician"
           }
         },
@@ -14147,7 +14147,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Use Cases"
           }
         },
@@ -14218,7 +14218,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Security fingerprint (Ed25519):"
           }
         },
@@ -14289,7 +14289,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Verify this fingerprint matches your purchase confirmation email before applying."
           }
         },
@@ -14360,7 +14360,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%0\\$@ / %1\\$@"
           }
         },
@@ -14431,7 +14431,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%0\\$@%"
           }
         },
@@ -14502,7 +14502,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "If the hub fails to boot after an update, it automatically rolls back to the previous firmware version. You can also force recovery via USB-C DFU mode."
           }
         },
@@ -14573,7 +14573,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "The Safety MCU controls all stimulation enable lines. This update will be verified before applying. Do not disconnect power during this process."
           }
         },
@@ -14644,7 +14644,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Firmware is up to date"
           }
         },
@@ -14715,7 +14715,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Verifying firmware signature on hub…"
           }
         },
@@ -14786,7 +14786,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Version %0\\$@"
           }
         },
@@ -14857,7 +14857,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Describe the study you'd like to see. What question would it answer? Who would it help?"
           }
         },
@@ -14928,7 +14928,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Be the first to suggest a study. Your ideas reach the academic research community directly."
           }
         },
@@ -14999,7 +14999,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No research ideas yet"
           }
         },
@@ -15070,7 +15070,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Funders receive a plain-language results summary and are acknowledged as NeurOne Patient Research Fund contributors."
           }
         },
@@ -15141,7 +15141,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Saying yes signals to researchers that there’s a motivated, device-familiar participant pool ready."
           }
         },
@@ -15212,7 +15212,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Your participation intent has been recorded. If a researcher pursues this study, you may receive an invitation."
           }
         },
@@ -15283,7 +15283,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Participation intent"
           }
         },
@@ -15354,7 +15354,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Intent only. You will not be charged until a formal campaign activates and the funding target is met."
           }
         },
@@ -15425,7 +15425,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Pledges are intent only — your card is not charged until a researcher confirms pilot feasibility and a formal campaign activates."
           }
         },
@@ -15496,7 +15496,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Suggested %0\\$@"
           }
         },
@@ -15567,7 +15567,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Support with a pledge"
           }
         },
@@ -15638,7 +15638,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Support this idea (optional)"
           }
         },
@@ -15709,7 +15709,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Your input"
           }
         },
@@ -15780,7 +15780,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Add layers to see timeline."
           }
         },
@@ -15851,7 +15851,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Author"
           }
         },
@@ -15922,7 +15922,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Conflict Resolution"
           }
         },
@@ -15993,7 +15993,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Duration"
           }
         },
@@ -16064,7 +16064,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Duration: full"
           }
         },
@@ -16135,7 +16135,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Duration (seconds)"
           }
         },
@@ -16206,7 +16206,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Intensity Scale"
           }
         },
@@ -16277,7 +16277,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Interval Count"
           }
         },
@@ -16348,7 +16348,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Layers"
           }
         },
@@ -16419,7 +16419,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Modalities"
           }
         },
@@ -16490,7 +16490,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No layers added yet."
           }
         },
@@ -16561,7 +16561,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No modalities added yet."
           }
         },
@@ -16632,7 +16632,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No single protocols available. Create a protocol first."
           }
         },
@@ -16703,7 +16703,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Start Offset"
           }
         },
@@ -16774,7 +16774,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Tags"
           }
         },
@@ -16845,7 +16845,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Version"
           }
         },
@@ -16916,7 +16916,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "NeurOne is a general wellness device. It is not a medical device and is not intended to diagnose, treat, cure, or prevent any disease or health condition."
           }
         },
@@ -17190,7 +17190,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Go to the Supplies tab to resolve this before starting a session."
           }
         },
@@ -17261,7 +17261,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Session Blocked"
           }
         },
@@ -17332,7 +17332,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Exhale"
           }
         },
@@ -17403,7 +17403,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Inhale"
           }
         },
@@ -17474,7 +17474,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Choose Protocol"
           }
         },
@@ -17545,7 +17545,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Coherence %@"
           }
         },
@@ -17616,7 +17616,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "coherence"
           }
         },
@@ -17687,7 +17687,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Coherence score %@"
           }
         },
@@ -17758,7 +17758,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%@ / 10"
           }
         },
@@ -17829,7 +17829,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Hub connected"
           }
         },
@@ -17900,7 +17900,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Connecting…"
           }
         },
@@ -17971,7 +17971,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Hub connected"
           }
         },
@@ -18042,7 +18042,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Hub not connected"
           }
         },
@@ -18113,7 +18113,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Scanning…"
           }
         },
@@ -18184,7 +18184,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Searching for hub…"
           }
         },
@@ -18255,7 +18255,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Available in the Files app under NeurOne."
           }
         },
@@ -18326,7 +18326,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Downloaded"
           }
         },
@@ -18397,7 +18397,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Downloading session data…"
           }
         },
@@ -18468,7 +18468,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Download session data"
           }
         },
@@ -18539,7 +18539,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Download Session Data"
           }
         },
@@ -18610,7 +18610,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Download failed. Check hub connection and try again."
           }
         },
@@ -18681,7 +18681,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Download completed but no file location was returned."
           }
         },
@@ -18752,7 +18752,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Clear History"
           }
         },
@@ -18823,7 +18823,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Clear Session History?"
           }
         },
@@ -18894,7 +18894,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Coherence Trend"
           }
         },
@@ -18965,7 +18965,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Session Summary"
           }
         },
@@ -19036,7 +19036,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Try Again"
           }
         },
@@ -19107,7 +19107,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Session data is no longer available. Please reconnect the hub."
           }
         },
@@ -19178,7 +19178,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "EEG neurofeedback is unavailable — brainwave data consent was not granted. Go to Settings → Privacy to manage EEG data consent."
           }
         },
@@ -19249,7 +19249,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "EEG Neurofeedback Unavailable"
           }
         },
@@ -19320,7 +19320,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "End Session"
           }
         },
@@ -19391,7 +19391,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Session History"
           }
         },
@@ -19462,7 +19462,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No active session. Choose a protocol below to begin."
           }
         },
@@ -19533,7 +19533,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Coherence"
           }
         },
@@ -19604,7 +19604,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "EEG Contacts"
           }
         },
@@ -19675,7 +19675,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "HealthKit HRV"
           }
         },
@@ -19746,7 +19746,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "RMSSD"
           }
         },
@@ -19817,7 +19817,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Mode 1 — Live (<1ms)"
           }
         },
@@ -19888,7 +19888,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Mode 1 — Wireless"
           }
         },
@@ -19959,7 +19959,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No active session. Choose a protocol below to begin."
           }
         },
@@ -20030,7 +20030,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Protocol %0\\$@"
           }
         },
@@ -20101,7 +20101,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "RMSSD %d ms"
           }
         },
@@ -20172,7 +20172,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%@ ms"
           }
         },
@@ -20243,7 +20243,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Session Active"
           }
         },
@@ -20314,7 +20314,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Session Complete"
           }
         },
@@ -20385,7 +20385,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Paused"
           }
         },
@@ -20456,7 +20456,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Ready"
           }
         },
@@ -20527,7 +20527,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "The hub will stop the active session."
           }
         },
@@ -20598,7 +20598,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "End this session?"
           }
         },
@@ -20669,7 +20669,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Could not reach the hub. Please check the connection and try again."
           }
         },
@@ -20740,7 +20740,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Couldn't End Session"
           }
         },
@@ -20811,7 +20811,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Go to the Supplies tab to resolve this before starting a session."
           }
         },
@@ -20882,7 +20882,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Session"
           }
         },
@@ -20953,7 +20953,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Zone Modules"
           }
         },
@@ -21024,7 +21024,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Zone Modules"
           }
         },
@@ -21095,7 +21095,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Upload a session protocol to the hub so it runs automatically from any USB-C power bank — no phone required."
           }
         },
@@ -21166,7 +21166,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Choose Protocol"
           }
         },
@@ -21237,7 +21237,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Autonomous Mode (Mode 3)"
           }
         },
@@ -21308,7 +21308,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Make sure the NeurOne hub is powered on. The green LED on the left temple should be breathing steadily. Connect via Bluetooth or USB-C."
           }
         },
@@ -21379,7 +21379,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Hub Connection"
           }
         },
@@ -21450,7 +21450,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Connect Your Hub"
           }
         },
@@ -21521,7 +21521,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Adjust Fit"
           }
         },
@@ -21592,7 +21592,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Calibrate Amplifier"
           }
         },
@@ -21663,7 +21663,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Calibrating…"
           }
         },
@@ -21734,7 +21734,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Calibrating EEG amplifier…"
           }
         },
@@ -21805,7 +21805,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Calibration"
           }
         },
@@ -21876,7 +21876,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Checking electrode contacts…"
           }
         },
@@ -21947,7 +21947,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Check Signal Quality"
           }
         },
@@ -22018,7 +22018,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Your NeurOne is ready."
           }
         },
@@ -22089,7 +22089,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Head to the Session tab to begin your first session."
           }
         },
@@ -22160,7 +22160,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Ready"
           }
         },
@@ -22231,7 +22231,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Confirm Hub Connection"
           }
         },
@@ -22302,7 +22302,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Confirm Zone Modules"
           }
         },
@@ -22373,7 +22373,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Continue"
           }
         },
@@ -22444,7 +22444,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Check Electrodes"
           }
         },
@@ -22515,7 +22515,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Electrode %d"
           }
         },
@@ -22586,7 +22586,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "ADS1299 calibration failed. Try powering the hub off and on."
           }
         },
@@ -22657,7 +22657,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "High impedance on %@. Moisten the scalp under those electrodes and retry."
           }
         },
@@ -22728,7 +22728,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Hub not connected. Connect via USB-C or Bluetooth."
           }
         },
@@ -22799,7 +22799,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Please read and acknowledge the safety information to continue."
           }
         },
@@ -22870,7 +22870,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Hardware confirmation timed out. Ensure the hub is connected and powered."
           }
         },
@@ -22941,7 +22941,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Zone modules not detected in %@. Re-seat and listen for the confirmation tone."
           }
         },
@@ -23012,7 +23012,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Electrode Care"
           }
         },
@@ -23083,7 +23083,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%@: check contact"
           }
         },
@@ -23154,7 +23154,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "%@: signal good"
           }
         },
@@ -23225,7 +23225,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Signal Check"
           }
         },
@@ -23296,7 +23296,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Power on the hub and connect via Bluetooth or USB-C. The green power LED should be breathing steadily. Tap Confirm once connected."
           }
         },
@@ -23367,7 +23367,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Turn the Boa dial clockwise until the headset sits firmly on your head. The bridge should rest comfortably above your ears. All five electrode pods should touch your scalp."
           }
         },
@@ -23438,7 +23438,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "The EEG amplifier is calibrating its internal reference. This takes about 2 seconds and eliminates drift across all 8 channels. Stay still."
           }
         },
@@ -23509,7 +23509,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Your NeurOne is set up and calibrated. You're ready for your first session."
           }
         },
@@ -23580,7 +23580,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Press each electrode pod lightly against your scalp. Each pod travels ±12mm independently, so you don't need to dial tighter to reach every contact point. Remove any hydration caps from the electrode tips now."
           }
         },
@@ -23651,7 +23651,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Confirm you have removed the moisture-barrier hydration caps from all electrode tips. Store the caps in the provided case for future storage sessions."
           }
         },
@@ -23722,7 +23722,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Stay still while the app checks signal quality. Good contact = green. Moistening your hair slightly under the electrodes can help if you see orange."
           }
         },
@@ -23793,7 +23793,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Choose a starting session protocol. You can change this at any time from the Session tab."
           }
         },
@@ -23864,7 +23864,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Review the following safety information before your first session."
           }
         },
@@ -23935,7 +23935,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "This short setup confirms your NeurOne is ready for its first session. It takes about 3 minutes."
           }
         },
@@ -24006,7 +24006,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Insert your zone modules into the colour-coded slots. Each module will announce its position via bone conduction when seated correctly. Check that all five slots are confirmed below."
           }
         },
@@ -24077,7 +24077,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Privacy"
           }
         },
@@ -24148,7 +24148,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Manage EEG data consent"
           }
         },
@@ -24219,7 +24219,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Manage EEG data consent"
           }
         },
@@ -24290,7 +24290,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Status: Granted"
           }
         },
@@ -24361,7 +24361,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Status: Not granted"
           }
         },
@@ -24432,7 +24432,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "These protocols are pre-loaded on your hub. You can change your default session at any time from the Session tab."
           }
         },
@@ -24503,7 +24503,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Starter Protocols"
           }
         },
@@ -24574,7 +24574,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Protocol stored. Hub will run session without phone."
           }
         },
@@ -24645,7 +24645,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Protocol Stored"
           }
         },
@@ -24716,7 +24716,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Choose Protocol"
           }
         },
@@ -24787,7 +24787,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Retry"
           }
         },
@@ -24858,7 +24858,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Safety acknowledgement checkbox"
           }
         },
@@ -24929,7 +24929,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Checked"
           }
         },
@@ -25000,7 +25000,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "I have read and understood the above safety information and confirm none of these contraindications apply to me."
           }
         },
@@ -25071,7 +25071,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Unchecked"
           }
         },
@@ -25142,7 +25142,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "T1 Contraindications"
           }
         },
@@ -25213,7 +25213,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Do not use if you have an active implantable device (pacemaker, cochlear implant, DBS, SCS)."
           }
         },
@@ -25284,7 +25284,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Do not use if you have a personal or family history of epilepsy or seizure disorder."
           }
         },
@@ -25355,7 +25355,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Do not use during pregnancy."
           }
         },
@@ -25426,7 +25426,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Do not use on broken, irritated, or recently tattooed skin."
           }
         },
@@ -25497,7 +25497,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Discontinue and consult a physician if you experience headache, nausea, or visual disturbance."
           }
         },
@@ -25568,7 +25568,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Not for use under 16 years of age."
           }
         },
@@ -25639,7 +25639,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Safety Information"
           }
         },
@@ -25710,7 +25710,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Slot %d"
           }
         },
@@ -25781,7 +25781,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Alpha Calm"
           }
         },
@@ -25852,7 +25852,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "10 Hz alpha entrainment · PBM · 20 min"
           }
         },
@@ -25923,7 +25923,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Focus Prime"
           }
         },
@@ -25994,7 +25994,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "20 Hz beta · tDCS · PBM · 30 min"
           }
         },
@@ -26065,7 +26065,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Sleep Deep"
           }
         },
@@ -26136,7 +26136,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "2 Hz delta · PBM · 30 min"
           }
         },
@@ -26207,7 +26207,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Connect Hub"
           }
         },
@@ -26278,7 +26278,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Fit Adjustment"
           }
         },
@@ -26349,7 +26349,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Amplifier Calibration"
           }
         },
@@ -26420,7 +26420,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Ready"
           }
         },
@@ -26491,7 +26491,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Electrode Contact"
           }
         },
@@ -26562,7 +26562,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Electrode Hydration"
           }
         },
@@ -26633,7 +26633,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Signal Quality Check"
           }
         },
@@ -26704,7 +26704,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Choose Your First Session"
           }
         },
@@ -26775,7 +26775,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Safety Information"
           }
         },
@@ -26846,7 +26846,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Welcome to NeurOne"
           }
         },
@@ -26917,7 +26917,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Zone Modules"
           }
         },
@@ -26988,7 +26988,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Welcome to NeurOne"
           }
         },
@@ -27059,7 +27059,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Zone Modules"
           }
         },
@@ -27130,7 +27130,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "History"
           }
         },
@@ -27201,7 +27201,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Protocols"
           }
         },
@@ -27272,7 +27272,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Session"
           }
         },
@@ -27343,7 +27343,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Settings"
           }
         },
@@ -27414,7 +27414,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Supplies"
           }
         },
@@ -27485,7 +27485,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "40Hz active"
           }
         },
@@ -27556,7 +27556,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "40Hz flicker unavailable"
           }
         },
@@ -27627,7 +27627,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Route AirPods to Apple Watch for binaural beats"
           }
         },
@@ -27698,7 +27698,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Screen brightness characterization pending (OI-WA-02)."
           }
         },
@@ -27769,7 +27769,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "coherence"
           }
         },
@@ -27840,7 +27840,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "elapsed"
           }
         },
@@ -27911,7 +27911,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "EMDR arrow active."
           }
         },
@@ -27982,7 +27982,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "This feature uses flashing light at 40Hz. Do not enable if you have photosensitive epilepsy or have been advised to avoid flashing lights."
           }
         },
@@ -28053,7 +28053,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Flashing light warning"
           }
         },
@@ -28124,7 +28124,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Haptic paused — temperature elevated"
           }
         },
@@ -28195,7 +28195,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Best results with NeurOne mastoid pad"
           }
         },
@@ -28266,7 +28266,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No active session"
           }
         },
@@ -28337,7 +28337,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Open NeurOne on iPhone"
           }
         },
@@ -28408,7 +28408,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "RMSSD ms"
           }
         },
@@ -28479,7 +28479,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Watch warm — monitoring temperature"
           }
         },
@@ -28550,7 +28550,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "ACTIVE"
           }
         },
@@ -28621,7 +28621,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "NeurOne"
           }
         },
@@ -28692,7 +28692,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Continuous"
           }
         },
@@ -28763,7 +28763,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Composer"
           }
         },
@@ -28834,7 +28834,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Protocol Editor"
           }
         },
@@ -28905,7 +28905,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Protocol Library"
           }
         },
@@ -28976,7 +28976,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Navigation"
           }
         },
@@ -29047,7 +29047,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "No Device"
           }
         },
@@ -29118,7 +29118,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "OFFLINE"
           }
         },
@@ -29189,7 +29189,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Merge (simultaneous)"
           }
         },
@@ -29260,7 +29260,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Override"
           }
         },
@@ -29331,7 +29331,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Sequential"
           }
         },
@@ -29402,7 +29402,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Duration (seconds)"
           }
         },
@@ -29473,7 +29473,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Interval"
           }
         },
@@ -29544,7 +29544,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Interval count"
           }
         },
@@ -29615,7 +29615,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "Simulate:"
           }
         },
@@ -29686,7 +29686,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "T1 Device"
           }
         },
@@ -29757,7 +29757,7 @@
         },
         "en": {
           "stringUnit": {
-            "state": "new",
+            "state": "translated",
             "value": "T2 Device"
           }
         },
