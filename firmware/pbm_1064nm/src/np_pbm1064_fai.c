@@ -242,7 +242,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm09(void)
     np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
     ctx.stage                  = NP_T2_STAGE_ACTIVE;
     ctx.t2_1170_active         = true;
-    ctx.t2_1170_throttle_pct   = 100U;
+    ctx.t2_1170_duty_pct       = 100U;
 
     /* Set up one smart slot with all channels enabled at max duty. */
     ctx.pbm1064.desc.smart_module_mask = 0x01U;
@@ -262,7 +262,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm09(void)
             "Aggregate thermal throttle cascade",
             "1170nm laser was not throttled first (priority step 1 failed)");
     }
-    if (ctx.t2_1170_throttle_pct >= 100U) {
+    if (ctx.t2_1170_duty_pct >= 100U) {
         return fai_fail("FAI-SM-09",
             "Aggregate thermal throttle cascade",
             "1170nm throttle percentage was not reduced after step 1");
