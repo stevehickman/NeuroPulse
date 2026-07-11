@@ -80,13 +80,17 @@ endif()
 # and its headers are wired in below. The MCUX SDK path is still an empty stub —
 # a real device integration populates it from the installed SDK.
 # The per-module CMakeLists files consume NP_PLATFORM_INCLUDE_DIRS as a list.
+# Normal (directory-scope) set, not CACHE: a CACHE set() is ignored when the
+# cache already holds a value, which would silently pin a stale include list on
+# reconfigure. This runs before the add_subdirectory() calls, so subdirectories
+# inherit it. Append the MCUX SDK path here when integrating the full SDK.
 if(CMAKE_CROSSCOMPILING)
     set(NP_PLATFORM_INCLUDE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/freertos/kernel/include
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/freertos/portable/GCC/ARM_CM7/r0p1
         ${CMAKE_CURRENT_SOURCE_DIR}/hub_control/include   # FreeRTOSConfig.h
         # ← append MCUX SDK path (e.g. $ENV{MCUX_SDK}/devices/MIMXRT1062/...)
-        CACHE STRING "MCUX SDK + FreeRTOS include directories")
+    )
 endif()
 
 # ── Host unit-test build ───────────────────────────────────────────────────────
