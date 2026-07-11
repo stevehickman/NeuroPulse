@@ -51,6 +51,11 @@ static np_status_t read_image_header(uint32_t part_lba, np_image_header_t *hdr)
 
 /* Read one block of firmware image data (sector-sized) from a partition.     */
 /* `block_idx` is 0-based from the first sector after the header sector.      */
+/* Convenience helper retained for callers; the verify path reads sectors     */
+/* directly, so it is currently unreferenced.                                 */
+static np_status_t read_image_block(uint32_t part_lba, uint32_t block_idx,
+                                     uint8_t buf[NP_EMMC_SECTOR_SIZE])
+                                     __attribute__((unused));
 static np_status_t read_image_block(uint32_t part_lba, uint32_t block_idx,
                                      uint8_t buf[NP_EMMC_SECTOR_SIZE])
 {
@@ -188,6 +193,10 @@ np_status_t np_ota_verify_scratch(void)
     ctx.h[6] = 0x1F83D9ABUL; ctx.h[7] = 0x5BE0CD19UL;
     ctx.pending_len = 0U;
     ctx.total_len   = 0U;
+    /* Vestigial first-draft context — the active streaming state below is sh[]  */
+    /* + stream_accumulator[].  Retained (not deleted) to preserve the original  */
+    /* implementation note; explicitly consumed so -Werror stays clean.          */
+    (void)ctx;
 
     /* Declare the block-level SHA-256 function signature (defined in np_signature.c) */
     extern void sha256_block_extern(uint32_t h[8], const uint8_t block[64]);
@@ -383,7 +392,7 @@ np_status_t np_ota_verify_scratch(void)
 
     /* Constant-time compare */
     uint8_t diff = 0U;
-    for (int i = 0; i < NP_SHA256_SIZE; i++) {
+    for (uint32_t i = 0U; i < NP_SHA256_SIZE; i++) {
         diff |= computed_sha256[i] ^ hdr.image_sha256[i];
     }
     if (diff != 0U) return NP_ERR_BAD_IMAGE_HASH;
@@ -582,7 +591,7 @@ np_status_t np_ota_handle_boot_verification(np_bank_t *boot_bank)
     np_status_t state_ret = np_ota_read_state(&state);
     if (state_ret == NP_OK) {
         uint8_t hash_diff = 0U;
-        for (int i = 0; i < NP_SHA256_SIZE; i++) {
+        for (uint32_t i = 0U; i < NP_SHA256_SIZE; i++) {
             hash_diff |= hdr.image_sha256[i] ^ state.staged_sha256[i];
         }
         if (hash_diff != 0U) {

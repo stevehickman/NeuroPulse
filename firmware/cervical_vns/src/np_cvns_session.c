@@ -33,6 +33,10 @@ static void platform_shdr_write(const np_cvns_shdr_summary_t *shdr)
 
 /* ── Interlock fault callback (invoked from np_cvns_interlock.c) ─────────────── */
 
+/* OI-CVNS-01: not yet wired — the app layer must register this callback against  */
+/* the session context pointer.  Marked unused until that wiring lands.           */
+static void on_interlock_fault(np_cvns_interlock_ctx_t *interlock,
+                                 np_cvns_fault_reason_t   reason) __attribute__((unused));
 static void on_interlock_fault(np_cvns_interlock_ctx_t *interlock,
                                  np_cvns_fault_reason_t   reason)
 {

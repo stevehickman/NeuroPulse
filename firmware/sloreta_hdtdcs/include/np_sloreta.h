@@ -13,14 +13,26 @@
 
 #include "np_hd_types.h"
 
-/* ── Context (opaque — allocate via np_sloreta_init) ─────────────────────────── */
-typedef struct np_sloreta_ctx np_sloreta_ctx_t;
-
+/* ── Context ─────────────────────────────────────────────────────────────────── */
 /*
- * Maximum static context size for linker reservation.  Actual struct is defined
- * in np_sloreta.c; this size must be kept in sync.
+ * Transparent so callers may embed it by value — np_hd_session holds the single
+ * static instance inside its session pool (NP-FW-HD-001 §8).  The struct is
+ * dominated by the 21×21 covariance matrix (~1.8 KB); it is placed in the
+ * embedder's storage, not allocated here.  Do not touch members from outside
+ * this module — use the np_sloreta_* API below.
  */
-#define NP_SLORETA_CTX_SIZE_BYTES   (48U)
+typedef struct np_sloreta_ctx {
+    const float       *W;          /* weight matrix [n_voxels × NP_HD_SLORETA_N_CH] */
+    const np_hd_mni_t *voxel_mni;  /* MNI coordinate lookup table                   */
+    uint16_t           n_voxels;
+    uint16_t           epoch_count;
+
+    /* Running 21×21 sample covariance (upper triangle, row-major).              */
+    float cov[NP_HD_SLORETA_N_CH][NP_HD_SLORETA_N_CH];
+
+    /* Per-channel mean for epoch-mean subtraction.                              */
+    float ch_mean[NP_HD_SLORETA_N_CH];
+} np_sloreta_ctx_t;
 
 /* ── Lifecycle ───────────────────────────────────────────────────────────────── */
 

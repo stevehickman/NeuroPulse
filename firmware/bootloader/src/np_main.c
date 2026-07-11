@@ -88,6 +88,7 @@ typedef struct __attribute__((packed)) {
 
 extern uint32_t  _bootloader_end;   /* provided by linker script             */
 extern void      Bootloader_Reset(void);
+extern void      SysTick_Handler(void);  /* defined in np_dfu.c (DFU timeout tick) */
 
 /* IVT at base of OCRAM load address */
 __attribute__((section(".np_ivt"), used))

@@ -75,6 +75,8 @@ static void platform_ads1299_stop(void)
     /* np_platform_ads1299_stop(); */
 }
 
+/* OI-HD-02 stub: not yet wired — callers currently pass now_ms explicitly.       */
+static uint32_t platform_now_ms(void) __attribute__((unused));
 static uint32_t platform_now_ms(void)
 {
     /* OI-HD-02: return FreeRTOS tick count in ms.                               */

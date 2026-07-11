@@ -27,25 +27,8 @@
 #include <math.h>
 
 /* ── Internal context ────────────────────────────────────────────────────────── */
-
-struct np_sloreta_ctx {
-    const float       *W;          /* weight matrix [n_voxels × NP_HD_SLORETA_N_CH] */
-    const np_hd_mni_t *voxel_mni;  /* MNI coordinate lookup table                   */
-    uint16_t           n_voxels;
-    uint16_t           epoch_count;
-
-    /* Running 21×21 sample covariance (upper triangle, row-major).              */
-    float cov[NP_HD_SLORETA_N_CH][NP_HD_SLORETA_N_CH];
-
-    /* Per-channel mean for epoch-mean subtraction.                              */
-    float ch_mean[NP_HD_SLORETA_N_CH];
-};
-
-static struct np_sloreta_ctx s_ctx;
-
-/* ── Compile-time size guard ─────────────────────────────────────────────────── */
-_Static_assert(sizeof(struct np_sloreta_ctx) <= NP_SLORETA_CTX_SIZE_BYTES,
-               "np_sloreta_ctx exceeds declared NP_SLORETA_CTX_SIZE_BYTES");
+/* struct np_sloreta_ctx is defined transparently in np_sloreta.h so the session  */
+/* pool can embed it by value.  The embedder owns the storage (LPSDR4/SRAM).       */
 
 /* ── Lifecycle ───────────────────────────────────────────────────────────────── */
 

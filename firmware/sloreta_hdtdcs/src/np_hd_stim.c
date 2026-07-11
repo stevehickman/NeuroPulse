@@ -11,34 +11,11 @@
  */
 
 #include "np_hd_stim.h"
+#include "np_hd_montage.h"   /* np_hd_montage_validate() used below */
 #include <string.h>
 
-/* ── Internal context ────────────────────────────────────────────────────────── */
-
-struct np_hd_stim_ctx {
-    np_hd_montage_t          montage;
-    np_hd_safety_response_cb_t safety_cb;
-
-    np_hd_stim_phase_t  phase;
-    uint32_t            phase_start_ms;
-    uint32_t            steady_end_ms;    /* ms timestamp when steady phase ends  */
-
-    uint16_t            target_ua;        /* anode target current                 */
-    uint16_t            duration_s;       /* total session including ramps        */
-
-    /* Per-electrode state (anode at index 0, cathodes at 1–4). */
-    np_hd_electrode_state_t  elec[NP_HD_RING_ELECTRODE_COUNT];
-    uint8_t                  n_elec;
-
-    bool     impedance_ok;               /* true after impedance check passes    */
-    bool     safety_mcu_granted;         /* true after safety MCU allows enable  */
-    float    mean_impedance_kohm;
-};
-
-static struct np_hd_stim_ctx s_stim_ctx;
-
-_Static_assert(sizeof(struct np_hd_stim_ctx) <= NP_HD_STIM_CTX_SIZE_BYTES,
-               "np_hd_stim_ctx exceeds NP_HD_STIM_CTX_SIZE_BYTES");
+/* struct np_hd_stim_ctx is defined transparently in np_hd_stim.h so the session  */
+/* pool can embed it by value.  The embedder owns the storage.                     */
 
 /* ── Driver HAL stubs (platform team implements for tACS driver IC) ──────────── */
 

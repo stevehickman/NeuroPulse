@@ -9,6 +9,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "np_pbm1064_types.h"
+#include "np_pbm1064_drive.h"   /* np_pbm1064_drv_slot_t used in the throttle API */
 
 #ifdef __cplusplus
 extern "C" {

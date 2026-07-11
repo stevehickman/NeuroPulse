@@ -277,8 +277,9 @@ static void dfu_handle_setup(const usb_setup_t *setup)
             (void)block_len;
             (void)expected;
 
-            /* Write this block to the Scratch partition */
-            uint32_t scratch_lba = NP_SCRATCH_HDR_LBA
+            /* Write this block to the Scratch partition (base = partition start;
+             * NP_SCRATCH_HDR_LBA is np_ota.c-local, so use the shared config macro). */
+            uint32_t scratch_lba = NP_SCRATCH_LBA_START
                                  + s_dfu.block_num * (NP_DFU_TRANSFER_SIZE / NP_EMMC_SECTOR_SIZE);
             uint32_t sectors = NP_DFU_TRANSFER_SIZE / NP_EMMC_SECTOR_SIZE;
             np_emmc_write(scratch_lba, s_dfu_block, sectors);

@@ -13,9 +13,14 @@
 
 #include "np_hd_types.h"
 
-/* ── Context (opaque) ────────────────────────────────────────────────────────── */
+/* ── Context ─────────────────────────────────────────────────────────────────── */
+/*
+ * Transparent so callers may embed it by value — np_hd_session holds the single
+ * static instance inside its session pool (NP-FW-HD-001 §8).  Do not touch
+ * members from outside this module; use the np_hd_stim_* API below.  The
+ * safety_cb typedef is declared just below and used by the struct.
+ */
 typedef struct np_hd_stim_ctx np_hd_stim_ctx_t;
-#define NP_HD_STIM_CTX_SIZE_BYTES   (256U)
 
 /* ── Safety MCU response callback ───────────────────────────────────────────── */
 /*
@@ -29,6 +34,27 @@ typedef struct np_hd_stim_ctx np_hd_stim_ctx_t;
 typedef void (*np_hd_safety_response_cb_t)(np_hd_stim_ctx_t *ctx,
                                             bool              granted,
                                             const float       impedance_kohm[]);
+
+/* Full definition (after the callback typedef it embeds). */
+struct np_hd_stim_ctx {
+    np_hd_montage_t          montage;
+    np_hd_safety_response_cb_t safety_cb;
+
+    np_hd_stim_phase_t  phase;
+    uint32_t            phase_start_ms;
+    uint32_t            steady_end_ms;    /* ms timestamp when steady phase ends  */
+
+    uint16_t            target_ua;        /* anode target current                 */
+    uint16_t            duration_s;       /* total session including ramps        */
+
+    /* Per-electrode state (anode at index 0, cathodes at 1–4). */
+    np_hd_electrode_state_t  elec[NP_HD_RING_ELECTRODE_COUNT];
+    uint8_t                  n_elec;
+
+    bool     impedance_ok;               /* true after impedance check passes    */
+    bool     safety_mcu_granted;         /* true after safety MCU allows enable  */
+    float    mean_impedance_kohm;
+};
 
 /* ── Lifecycle ───────────────────────────────────────────────────────────────── */
 
