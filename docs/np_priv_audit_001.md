@@ -89,9 +89,11 @@ The NeurOne iOS/Android app handles some of the most sensitive personal data a c
 **Remediation:**  
 1. Implement the BIPA written release screen using the approved copy in NP-APP-ROADMAP-001 §9.3 before any US App Store submission.  
 2. Resolve OI-PA-03: engage Illinois-qualified privacy counsel to review the BIPA release copy. Budget 2–4 weeks for legal review.  
-3. Implement Illinois detection via device locale (`NSLocale.current.regionCode == "US"` is insufficient — also check IP geolocation via the onboarding server call, and allow users to self-declare state of residence). Err toward showing the screen for all US users if geolocation is unavailable — false positives (showing the screen to non-Illinois users) carry no legal cost; false negatives (missing an Illinois user) carry statutory damages.  
+3. ~~Implement Illinois detection via device locale / IP geolocation.~~ **Superseded (see Update below): the screen is shown to ALL users with no location detection — the maximally conservative approach.**  
 4. Implement the graceful degradation path from NP-APP-ROADMAP-001 §9.3: if the user declines BIPA consent, EEG and closed-loop adaptive stimulation are disabled; the device still functions for PBM, VNS, audio, and visual. This must be tested before any US beta.  
 5. Add OI-PA-03 closure as a blocking gate for US App Store submission.
+
+**Update (2026-07-10) — RESOLVED (universal):** The biometric written-release screen is implemented on both platforms and shown to ALL users unconditionally — iOS `BIPADisclosureView` (gated only by `!bipaShown` in `NeurOneApp.swift`) and Android `BipaConsentScreen`. `RegionHelper.isLikelyIllinois` was deleted; no locale/IP/state detection remains (OI-PA-03 resolved). The retention/destruction policy is stated for all users in NP-PRIV-NOTICE-001 §10. Per NeurOne's most-privacy-protecting-globally principle, BIPA is the WHY but the control is global. The BIPA legal opinion (possession defense, scope) confirms scope and does **not** gate shipping the universal protection.
 
 ---
 
@@ -105,7 +107,9 @@ The NeurOne iOS/Android app handles some of the most sensitive personal data a c
 1. Engage Washington-qualified privacy counsel for MHMD regulatory analysis before any US device activation (not just Washington state). Estimated cost: $5,000–8,000; timeline: 3–4 weeks.  
 2. Pending the legal analysis, apply the same coarsening principle that resolved the `session_sequence` issue in analytics: replace raw `device_session_count` (integer) in SHDR with a coarsened tier enum if the analysis determines the raw count is consumer health data.  
 3. Confirm with counsel whether the SHDR fleet upload on USB-C connect constitutes a "collection" or "sharing" of consumer health data under MHMD and, if so, whether the warranty consent flow (described in NP-FW-EMMC-002 §A) provides the required standalone authorisation.  
-4. Add the MHMD analysis completion as a blocking gate for any US device activation (not just Washington state — advice will clarify scope).
+4. ~~Add the MHMD analysis completion as a blocking gate for device activation.~~ **Superseded (see Update): the MHMD user protections apply to all users now; the counsel analysis confirms scope and does not gate activation.**
+
+**Update (2026-07-10) — protections UNIVERSAL:** Per NeurOne's most-privacy-protecting-globally principle, the MHMD *user protections* are applied to every user, not gated to Washington: (1) **no-sale** of SHDR behavioral data (and all user data), stated unconditionally in NP-PRIV-NOTICE-001 §11; (2) the **standalone warranty-owner authorization** for SHDR uploads is separate/distinct from any HIPAA consent and is obtained from all warranty owners. Optional additional hardening (coarsening/suppressing `device_session_count` and consumable counts in SHDR per remediation #2) would likewise be applied uniformly to all users, never per-state. The WA counsel analysis confirms the "consumer health data" classification scope and does **not** gate the universal protections. See NP-PRIV-REM-001 STEP-35.
 
 ---
 
@@ -256,7 +260,7 @@ The NeurOne iOS/Android app handles some of the most sensitive personal data a c
 
 **Consent withdrawal is forward-effective for research.** CLAUDE.md §6.2 and the research anonymisation architecture ensure that consent withdrawal immediately stops all future data flows from any time period — including historical sessions. The per-study, on-demand generation model means there is no database of pre-generated extracts to roll back; withdrawal is structurally effective, not just procedurally promised.
 
-**BIPA, MHMD, and age gate are identified as pending.** Many health app developers discover BIPA exposure post-launch. NeurOne has identified it pre-tooling and has specific open items for resolution. The same is true for Washington MHMD. This is the right governance posture.
+**BIPA and MHMD user protections shipped universally; only advisory legal opinions remain.** Many health app developers discover BIPA exposure post-launch. NeurOne identified it pre-tooling and, as of 2026-07-10, applies the BIPA biometric written release and the MHMD no-sale + standalone-authorization protections to **all users, everywhere** — not gated by state (see the RESOLVED/UNIVERSAL updates on the two HIGH findings above). The remaining BIPA/MHMD legal opinions confirm scope and possession analysis; they do not gate shipping the protections. The age gate remains a pending legal-threshold confirmation (OI-PA-01). This is the right governance posture.
 
 **Crash reporter policy prohibits variable capture and screenshot capture.** These two settings are responsible for the majority of accidental health data leakage in crash reports. Prohibiting them in policy before a vendor is selected means the requirement enters vendor evaluation rather than being retrofitted.
 
@@ -280,7 +284,7 @@ The NeurOne iOS/Android app handles some of the most sensitive personal data a c
 
 **2. Implement and CI-verify the SDK initialisation gate before any test build ships.** Write the `NeurOneConsentStore.hasCompletedConsent()` guard, the CI network-call test, and the SwiftLint lint rule. These three items are a single engineering sprint and eliminate the most likely FTC enforcement vector for health app analytics. Estimated effort: 3–5 days.
 
-**3. Engage privacy counsel for BIPA (Illinois) and MHMD (Washington) regulatory analyses before any US App Store submission.** These are legal opinions, not engineering tasks, but they gate US device activation and require 3–5 weeks' lead time. Brief counsel simultaneously on both: BIPA EEG biometric consent requirements and MHMD consumer health data classification of SHDR session counts. Estimated cost: $10,000–15,000 combined. Estimated timeline: 4 weeks from engagement.
+**3. Engage privacy counsel for BIPA (Illinois) and MHMD (Washington) regulatory analyses to confirm scope — these are advisory, not gating.** As of 2026-07-10 the BIPA biometric written release and the MHMD no-sale + standalone-authorization protections already ship to all users universally, so these legal opinions **confirm scope and possession analysis; they do not gate US device activation or App Store submission** (the conservative universal control is already in place). Brief counsel simultaneously on both: BIPA EEG biometric consent requirements and MHMD consumer health data classification of SHDR session counts. Estimated cost: $10,000–15,000 combined. Estimated timeline: 4 weeks from engagement.
 
 **4. Commission research consent UX formative study and clinical access UX design before research or clinical systems are implemented.** UX design for layered consent is harder than UX design for functional screens, and poorly designed consent UX is a regulatory enforcement target. Commission both simultaneously. Estimated effort: 3–4 weeks for wireframes; 1–2 weeks for formative testing. Output closes OI-RES-01 and addresses the clinical consent Medium finding.
 
@@ -306,8 +310,10 @@ The following items must all be verified before first external beta (TestFlight 
 | AUDIT-06 | SDK initialisation gate implemented and CI-verified | iOS/Android Engineering | OPEN | External beta |
 | AUDIT-07 | SwiftLint / Android Lint prohibited event property rule in repo | iOS/Android Engineering | OPEN | External beta |
 | AUDIT-08 | Crash reporter verification procedure run; results in OI-TEL-01 | iOS Engineering | OPEN | External beta |
-| AUDIT-09 | BIPA written release screen implemented and OI-PA-03 (legal review) closed | Legal + iOS Engineering | OPEN | US App Store submission |
-| AUDIT-10 | Washington MHMD regulatory analysis received | Legal Counsel | OPEN | US device activation |
+| AUDIT-09 | BIPA written release screen implemented (all users, iOS + Android) | iOS + Android Engineering | CLOSED (2026-07-10; universal, no geo-gate) | — |
+| AUDIT-09a | BIPA legal opinion (possession/scope) — confirms scope, does NOT gate the universal screen | Legal Counsel | OPEN (non-gating) | Commercial launch (advisory) |
+| AUDIT-10 | MHMD user protections applied to all users (no-sale + standalone warranty authorization) | Privacy Lead | CLOSED (2026-07-10; universal) | — |
+| AUDIT-10a | Washington MHMD counsel scope analysis — confirms classification, does NOT gate | Legal Counsel | OPEN (non-gating) | Commercial launch (advisory) |
 | AUDIT-11 | Research consent UX formative study complete | UX + Privacy Lead | OPEN | Research system implementation |
 | AUDIT-12 | Clinical access UX designed (Connected Clinicians screen + revocation) | UX + SW Engineering | OPEN | Clinical system implementation |
 | AUDIT-13 | `NP_APP_LAUNCH_COUNT` stored in non-iCloud-synced location | iOS Engineering | OPEN | External beta |
