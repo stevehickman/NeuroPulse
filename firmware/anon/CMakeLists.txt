@@ -36,6 +36,7 @@ endif()
 # ── Sources ────────────────────────────────────────────────────────────────────
 set(ANON_SOURCES
     src/np_anon_scratch.c
+    src/np_anon_pipeline.c
 )
 
 # ── Cross-compiled static library (target firmware) ─────────────────────────────
@@ -77,6 +78,7 @@ if(NP_BUILD_TESTS)
     add_executable(np_anon_tests
         tests/np_anon_tests.c
         src/np_anon_scratch.c
+        src/np_anon_pipeline.c
     )
     target_include_directories(np_anon_tests PRIVATE
         include
