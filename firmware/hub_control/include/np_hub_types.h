@@ -102,6 +102,17 @@ typedef struct __attribute__((packed)) {
     uint16_t params_len;   /* byte count of params[] that follow; 0 = stop         */
 } np_proto_cmd_hdr_t;
 
+/*
+ * Maximum size of a complete signed protocol blob: header + every command
+ * (each a command header plus a full params[] payload) + Ed25519 signature.
+ * Sizes the protocol receive/reassembly buffers.  Used only for array sizing,
+ * so the sizeof() operands are legal here.
+ */
+#define NP_HUB_PROTO_BLOB_MAX  (sizeof(np_proto_header_t) +                       \
+    (size_t)NP_HUB_PROTO_CMD_MAX * (sizeof(np_proto_cmd_hdr_t) +                  \
+                                    NP_HUB_PROTO_PARAMS_MAX) +                    \
+    NP_HUB_PROTO_SIG_LEN)
+
 /* ── Parsed command (held in LPSDR4 RAM after protocol parse) ─────────────────── */
 
 typedef struct {

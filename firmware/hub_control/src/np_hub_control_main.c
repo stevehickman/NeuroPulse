@@ -38,6 +38,8 @@
 #include "np_protocol.h"
 #include "np_session_runner.h"
 #include "np_session_log.h"
+#include "np_log_backend.h"
+#include "np_transport.h"
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
 #include "FreeRTOS.h"
@@ -47,10 +49,9 @@
 
 /* ── HAL stubs ────────────────────────────────────────────────────────────────── */
 
-extern np_hub_status_t np_hal_proto_queue_receive(uint8_t  *buf,
-                                                   size_t    buf_len,
-                                                   size_t   *recv_len_out,
-                                                   uint32_t  timeout_ms);
+/* np_hal_proto_queue_receive (OI-HUB-MAIN-01) is implemented by np_transport.c
+ * and declared in np_transport.h — the BLE GATT / USB-C CDC transport feeds it
+ * via np_transport_feed(). */
 typedef enum { NP_LED_IDLE = 0, NP_LED_SESSION, NP_LED_FAULT } np_led_state_t;
 extern void np_hal_status_led_set(np_led_state_t state);
 extern uint32_t np_hal_get_device_session_count(void);
@@ -59,14 +60,9 @@ extern uint32_t np_hal_get_device_session_count(void);
 
 static EventGroupHandle_t g_hub_events;
 
-/* Protocol receive buffer — in LPSDR4 RAM (32 MB). Sized for largest expected
- * protocol (NP_HUB_PROTO_CMD_MAX × max command size + header + signature). */
-#define PROTO_BUF_LEN (sizeof(np_proto_header_t) + \
-                       NP_HUB_PROTO_CMD_MAX * (sizeof(np_proto_cmd_hdr_t) + \
-                                               NP_HUB_PROTO_PARAMS_MAX) + \
-                       NP_HUB_PROTO_SIG_LEN)
-
-static uint8_t g_proto_buf[PROTO_BUF_LEN];
+/* Protocol receive buffer — in LPSDR4 RAM (32 MB). Sized for the largest
+ * expected protocol blob (NP_HUB_PROTO_BLOB_MAX, defined in np_hub_types.h). */
+static uint8_t g_proto_buf[NP_HUB_PROTO_BLOB_MAX];
 
 /* ── SHDR log callback (wired from module registry to session logger) ─────────── */
 
@@ -316,8 +312,13 @@ void np_hub_control_app_main(void)
     /* Initialize subsystems in dependency order. */
     np_safety_spi_init();
     np_cvns_reenable_init();   /* OI-CVNS-HUB-01: re-enable manager starts IDLE */
+    np_transport_init();       /* OI-HUB-MAIN-01: protocol mailbox + wait primitive */
     np_mod_reg_init();
     np_mod_reg_scan(shdr_zone_auth_cb);
+
+    /* OI-LOG-01..04: open the UHDR/SHDR log files on the mounted partitions
+     * before the session logger writes any record. */
+    (void)np_log_backend_init();
 
     uint32_t session_count = np_hal_get_device_session_count();
     np_log_init(session_count);
