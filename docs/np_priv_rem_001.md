@@ -308,7 +308,7 @@ These steps must be complete before any external engagement (beta users, warrant
 
 1. **Legal counsel review of template (NP-LEGAL-BAA-001 Rev A):** Healthcare legal counsel must review the template at `docs/np_legal_baa_001.md` before any execution. Key items for counsel to confirm:
    - §5.1 (consent revocation cascade, 30-day deletion obligation) is enforceable in the relevant jurisdiction
-   - §5.4 (BIPA provision for Illinois users) is accurate and sufficient
+   - §5.4 (biometric-data provision — BIPA-derived, but applied to all users per NeurOne's universal biometric protection, not gated to Illinois) is accurate and sufficient
    - The tier table in §4.2 correctly describes the minimum necessary data for each tier
    - The governing law (§8.5) should be the jurisdiction where NeurOne is incorporated
 
@@ -697,12 +697,13 @@ The preferred IRB path is through a university collaborator who already has a fu
 
 ---
 
-#### STEP-34 — BIPA compliance programme (Illinois biometric data)
+#### STEP-34 — BIPA compliance programme (biometric written release — applied to ALL users)
 **Document:** NP-REG-BIPA-001 Rev A (new); NP-APP-ROADMAP-001 §9.3 (BIPA release screen)  
-**Finding:** NP-PRIV-001 Rev B HIGH-01 (EEG data is biometric under BIPA)  
-**Trigger:** Before any Illinois resident activates a NeurOne device. This is a pre-commercial-launch blocker — not a post-launch item.  
-**Target milestone:** Month 2 (legal opinion); Month 6 (app consent flow implementation)  
-**Status:** OPEN  
+**Finding:** NP-PRIV-001 HIGH-01 (EEG data is biometric under BIPA)  
+**Universalization note (2026-07-10):** Per NeurOne's most-privacy-protecting-globally principle, the BIPA *user protection* — the biometric written-release screen and the public retention/destruction policy — is applied to EVERY user, not gated to Illinois residents. Illinois/BIPA is the WHY; the control is global. The written-release screen (iOS `BIPADisclosureView`, Android `BipaConsentScreen`) and website policy are the shipping deliverables and are complete/universal. The BIPA legal opinion below **confirms scope and possession analysis; it does NOT gate shipping the protection.**  
+**Trigger:** Protection ships to all users unconditionally (done). The legal opinion is desired before commercial launch to confirm scope — it does not gate device activation, and it is decoupled from the user-facing control.  
+**Target milestone:** Screen + policy: SHIPPED (universal). Legal opinion: Month 2.  
+**Status:** Protection UNIVERSAL/SHIPPED; legal opinion OPEN (scope confirmation only)  
 **Deliverable:**
 
 **Step 1 — Engage BIPA-specialised counsel (Week 1–2):**
@@ -710,14 +711,14 @@ The preferred IRB path is through a university collaborator who already has a fu
 - Provide counsel with: CLAUDE.md §3 EEG modality spec; NP-FW-EMMC-001 UHDR architecture; description of data flows (EEG collected on device, encrypted on-device, NeurOne cannot decrypt).
 - Request a written legal opinion addressing: (a) whether NeurOne "collects" or "possesses" biometric information under BIPA 740 ILCS 14/10; (b) whether the UHDR encryption architecture (NeurOne cannot decrypt) provides a "possession" defence; (c) required elements of the written release; (d) required destruction policy; (e) whether T2 clinical operations change the analysis (HIPAA vs. BIPA overlap).
 
-**Step 2 — Publish biometric retention and destruction policy on website (before first Illinois device):**
+**Step 2 — Publish biometric retention and destruction policy on website (for ALL users, before commercial launch):**
 - Content required (BIPA 740 ILCS 14/15(a)): "NeurOne collects brainwave (EEG) biometric data during sessions. This data is stored only on your device, encrypted under a key that NeurOne does not hold. NeurOne retains EEG biometric data until: (1) you delete your data in the app; (2) you perform a factory reset; or (3) you request account deletion. Upon any of these events, EEG data is permanently erased from the device using hardware-level secure erasure (eMMC SANITIZE)."
-- Location: neurone.life/privacy/biometric — publicly accessible, no login required.
+- Location: neurone.life/biometric-policy — publicly accessible, no login required (canonical URL; matches the in-app biometric-release screen copy and NP-PRIV-NOTICE-001 §10).
 - Add this URL to the BIPA consent release screen (§9.3 of NP-APP-ROADMAP-001).
 
-**Step 3 — Implement BIPA written release in app consent flow (NP-APP-ROADMAP-001 §9.3):**
-- Illinois detection: IP geolocation + user-stated location in device settings. Apply BIPA screen if either signal indicates Illinois.
-- Screen content per NP-APP-ROADMAP-001 §9.3 — reviewed and approved by BIPA counsel (OI-PA-03).
+**Step 3 — Implement BIPA written release in app consent flow (NP-APP-ROADMAP-001 §9.3) — SHIPPED, universal:**
+- **No location detection.** The biometric written-release screen is shown to ALL users before their first EEG session — no IP geolocation, no locale check, no state self-declaration gate. Locale is not a reliable jurisdiction proxy (a Chicago user with a non-IL device locale would be missed — a BIPA violation), and showing more disclosure is unambiguously conservative. `RegionHelper.isLikelyIllinois` was deleted (OI-PA-03 resolved).
+- Screen content per NP-APP-ROADMAP-001 §9.3. BIPA counsel copy review is desirable but does not gate presentation (showing the disclosure to everyone is the conservative default).
 - "Yes, I consent" / "No, decline" — decline disables EEG modality; device otherwise fully functional.
 
 **Step 4 — Author NP-REG-BIPA-001:**
@@ -726,17 +727,18 @@ The preferred IRB path is through a university collaborator who already has a fu
 
 **Performer:** CEO + BIPA-specialised outside counsel + iOS/Android engineering (consent screen)  
 **Authority required:** CEO executes counsel engagement. Legal counsel reviews and approves consent screen copy.  
-**Automation:** IP geolocation detection for Illinois trigger is automatable. Consent capture and storage is automatable.  
-**External party:** Yes — BIPA-specialised counsel (required before any Illinois device activation).
+**Automation:** No geolocation is used — the screen is shown to all users unconditionally. Consent capture and storage is automatable.  
+**External party:** Yes — BIPA-specialised counsel (confirms scope/possession analysis; does NOT gate shipping the universal protection).
 
 ---
 
-#### STEP-35 — Washington My Health My Data Act (MHMD) compliance
+#### STEP-35 — Washington My Health My Data Act (MHMD) — protections applied to ALL users
 **Document:** NP-REG-MHMD-001 Rev A (new)  
-**Finding:** NP-PRIV-001 Rev B HIGH-02 (Washington MHMD applies to SHDR behavioral patterns)  
-**Trigger:** Before any Washington state resident activates a NeurOne device.  
-**Target milestone:** Month 2 (legal analysis); Month 4 (SHDR consent redesign for WA)  
-**Status:** OPEN  
+**Finding:** NP-PRIV-001 HIGH-02 (Washington MHMD applies to SHDR behavioral patterns)  
+**Universalization note (2026-07-10):** Per NeurOne's most-privacy-protecting-globally principle, the MHMD *user protections* on SHDR behavioral data (consumable counts, session counts) are applied to EVERY user, not gated to Washington activations. Washington/MHMD is the WHY; the controls are global: (1) **no-sale** of SHDR behavioral data (and all user data) — universal, stated unconditionally in NP-PRIV-NOTICE-001 §11; (2) **standalone authorization** — the warranty-owner authorization for SHDR uploads is separate and distinct from any HIPAA consent and is obtained from every warranty owner. The WA counsel analysis below **confirms scope (the "consumer health data" classification); it does NOT gate shipping these protections.**  
+**Trigger:** No-sale + standalone warranty authorization apply to all users unconditionally (done). Counsel analysis is desired before commercial launch to confirm classification scope — it does not gate device activation.  
+**Target milestone:** No-sale + standalone auth: UNIVERSAL. Counsel analysis: Month 2.  
+**Status:** Protections UNIVERSAL; counsel scope analysis OPEN (does not gate)  
 **Deliverable:**
 
 **Step 1 — Washington privacy counsel analysis (Week 1–2):**
@@ -744,10 +746,11 @@ The preferred IRB path is through a university collaborator who already has a fu
 - Brief counsel on: SHDR contents (consumable session counts, device session count, NTC profiles, LED output ratios); warranty token architecture; how the device is sold in WA (consumer direct or through a clinic).
 - Request analysis of: (a) whether SHDR consumable session counts constitute "consumer health data" under RCW 70.372.010(2) (behavioral data that could identify health-seeking); (b) whether the warranty token + SHDR upload constitutes "collection" under MHMD; (c) what the standalone authorization requirement looks like in practice; (d) whether suppressing consumable session counts from WA users' SHDR solves the problem.
 
-**Step 2 — SHDR redesign decision (two options):**
-- *Option A (recommended):* Suppress consumable session counts and device session counts from SHDR uploads for WA users. NeurOne retains the device-condition metrics (NTC temperatures, LED output ratios, impact flags, firmware version) which are not behavioral. This eliminates the MHMD trigger without requiring a standalone authorization.
-- *Option B:* Implement standalone MHMD authorization screen for WA users — separate from general consent, describes specific SHDR elements, acknowledges health-data status. More legally robust but requires ongoing consent management.
-- Document the choice and rationale in NP-REG-MHMD-001. Apply the decision to the SHDR upload firmware configuration.
+**Step 2 — SHDR handling decision (applied to ALL users, not WA-gated):**
+- **Baseline (in force now):** universal no-sale of SHDR behavioral data (NP-PRIV-NOTICE-001 §11), and a standalone warranty-owner authorization for SHDR uploads that is separate/distinct from any HIPAA consent, obtained from every warranty owner. These ship to all users today.
+- *Optional hardening A:* Suppress consumable session counts and device session counts from SHDR uploads **for all users**, retaining only device-condition metrics (NTC temperatures, LED output ratios, impact flags, firmware version) which are not behavioral. Trade-off: the behavioral counts feed the predictive-maintenance and consumable-reminder engines, so full suppression has a feature cost — evaluate coarsening (as with analytics `engagement_tier`) versus removal. If adopted, apply universally, never per-state.
+- *Optional hardening B:* Present a dedicated SHDR behavioral-data authorization screen **to all users** describing the specific SHDR elements and acknowledging their health-adjacent nature — a more explicit form of the standalone authorization already in place.
+- Whichever refinement (if any) is chosen, it is applied to ALL users, never gated by state. Document the choice and rationale in NP-REG-MHMD-001; apply to the SHDR upload firmware configuration uniformly.
 
 **Step 3 — Add MHMD to NP-SEC-BR-001 breach notification decision tree:**
 - Washington MHMD has a 30-day breach notification requirement for breaches of consumer health data.
@@ -756,10 +759,10 @@ The preferred IRB path is through a university collaborator who already has a fu
 **Step 4 — Author NP-REG-MHMD-001:**
 - Document the legal analysis conclusions, the SHDR redesign decision, and any ongoing monitoring obligations.
 
-**Performer:** CEO + Washington privacy counsel + firmware engineer (SHDR suppression for WA, if Option A chosen)  
-**Authority required:** CEO decision on Option A vs. B. Legal counsel approval of either path.  
-**Automation:** WA user flag (IP geolocation + device locale) is automatable. SHDR field suppression per user flag is automatable in firmware.  
-**External party:** Yes — Washington privacy counsel.
+**Performer:** CEO + Washington privacy counsel + firmware engineer (uniform SHDR handling, if an optional hardening is adopted)  
+**Authority required:** CEO decision on optional hardening A/B. Legal counsel approval of any path.  
+**Automation:** No per-user state flag — protections apply to all users uniformly. Any SHDR field coarsening/suppression is a single global firmware configuration.  
+**External party:** Yes — Washington privacy counsel (confirms scope; does NOT gate the universal protections).
 
 ---
 

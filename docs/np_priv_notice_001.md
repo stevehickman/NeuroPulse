@@ -2,10 +2,10 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-NOTICE-001  
-**Revision:** B  
-**Date:** 2026-06-16  
+**Revision:** C  
+**Date:** 2026-07-10  
 **Status:** ACTIVE  
-**Effective Date:** 2026-06-16  
+**Effective Date:** 2026-07-10  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved By:** Steve Hickman, CEO  
 **References:** NP-PRIV-001 Rev B; NP-PRIV-REM-001 Rev B; NP-FW-EMMC-001 Rev A; NP-FW-EMMC-002 Rev A  
@@ -165,9 +165,33 @@ All over-the-air firmware updates are Ed25519-signed. The device rejects any uns
 
 ---
 
-## 10. Changes to this notice
+## 10. Biometric data — your written release and our retention policy
+
+Your EEG brainwave recordings are **biometric information**. Some laws impose specific requirements on biometric data — most notably the Illinois Biometric Information Privacy Act (BIPA, 740 ILCS 14) and EU GDPR Article 9. **We apply these protections to every NeurOne user, everywhere, regardless of where you live.** We do not switch this protection on or off based on your location.
+
+- **Written release.** Before your first EEG session, we ask for your explicit written release to collect and store your EEG biometric data. You may decline. If you decline, EEG recording and closed-loop adaptive (EEG-driven) stimulation are disabled — the device still functions for light (PBM), vagus-nerve, audio, and visual modalities.
+- **Retention and destruction policy.** NeurOne collects brainwave (EEG) biometric data during sessions. It is stored only on your device, encrypted under a key NeurOne does not hold. It is retained until (1) you delete your data in the app, (2) you perform a factory reset, or (3) you request account deletion — after which it is permanently erased from the device using hardware-level secure erasure (eMMC SANITIZE, NIST SP 800-88). NeurOne never receives or retains a copy of your EEG biometric data. This policy is also published at neurone.life/biometric-policy.
+- **No profiting from biometric data.** We do not sell, lease, trade, or otherwise profit from your biometric data (see §11).
+
+---
+
+## 11. We do not sell your data
+
+**We do not sell, lease, or trade your data — and this applies to every user, everywhere.** This covers:
+
+- your UHDR (EEG, HRV, PPG, dose, adaptive events, and everything else on your device);
+- your SHDR device diagnostics, **including behavioral indicators such as consumable usage counts and the device session count**; and
+- your app and account data.
+
+Washington's My Health My Data Act (RCW 70.372) prohibits the sale of consumer health data and requires a standalone authorization — separate from any HIPAA consent — before such data is collected. Rather than apply that protection only to Washington residents, **we apply it as a baseline commitment to all NeurOne users.** Accordingly: (1) we never sell your data, even with your permission; (2) SHDR uploads are governed by a standalone warranty-owner authorization that is separate and distinct from any HIPAA consent, obtained from every warranty owner (not only Washington registrants); and (3) we do not condition any device function on permission to sell or share your data.
+
+---
+
+## 12. Changes to this notice
 
 We will notify you in-app of any material change to this notice before it takes effect. The notice version and effective date are shown at the top of this document.
+
+*Rev C (2026-07-10): Added §10 (biometric written release + retention/destruction policy) and §11 (no-sale), both stated unconditionally for all users. These universalize protections whose driving regulations are BIPA (IL) and MHMD (WA) respectively, per NeurOne's most-privacy-protecting-globally principle. No change to data processing — these sections make existing universal commitments explicit.*
 
 ---
 

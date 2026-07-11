@@ -364,7 +364,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | LSL streaming T2 roadmap | DI-INT-05 | No T1 blocker; T2 development roadmap |
 | T2 qEEG and TMS | DI-PERF-02, DI-PERF-12 | T2 platform only; not required for T1 launch |
 | OI-PA-04 Privacy Lead copy sign-off on AdaptiveAdjustmentsCard | DI-REG-12 | Process gate only; code complete; must not ship without sign-off |
-| BIPA legal opinion (Illinois biometric data) | DI-PERF-19, DI-REG-11 | Required before first Illinois resident activation; not blocking T1 design |
+| BIPA legal opinion (biometric data) | DI-PERF-19, DI-REG-11 | Biometric written-release protection ships to ALL users (universal, 2026-07-10); the legal opinion confirms scope/possession analysis and does NOT gate activation or T1 design |
 
 ---
 

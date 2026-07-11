@@ -213,18 +213,18 @@ Implementation requirements:
 - Add OI-PA-01: legal counsel confirms 16 is the correct threshold (covers COPPA 13, most EU GDPR member states 16, BIPA adults-only requirement)
 - For T2 clinical minor patients: a separate "Authorised Guardian" pathway is required (OI-PA-02)
 
-### 9.3 BIPA written release for EEG data (NP-PRIV-001 Rev B HIGH-01)
+### 9.3 Biometric (EEG) written release — ALL users (NP-PRIV-001 HIGH-01)
 
-For users whose IP address, device locale, or stated location is in Illinois, the consent flow must include a **separate BIPA written release screen** (not bundled with general consent). Required elements per BIPA 740 ILCS 14/15(b)(1)–(3):
+**Universal (2026-07-10):** the consent flow includes a **separate biometric written release screen** (not bundled with general consent), shown to **every user regardless of location** — no IP, locale, or state detection. BIPA 740 ILCS 14/15(b)(1)–(3) is the driving standard, but the control is applied globally (also satisfies GDPR Art. 9 and WA MHMD). `RegionHelper.isLikelyIllinois` was deleted. Required elements:
 
 ```
-Screen title: "Brain Activity Data Consent (Illinois)"
+Screen title: "Brain Activity Data Consent"
 
 Body text (required):
 "NeurOne collects your brainwave (EEG) data during sessions to 
 provide neurofeedback and to adapt stimulation settings in real time.
-Under Illinois law (BIPA), this brainwave data is considered biometric 
-information.
+Brainwave data is sensitive personal information — biometric 
+information under applicable law.
 
 • Purpose: Session operation, neurofeedback display, closed-loop adaptation
 • Retention: Until you delete your data or transfer/sell your device
@@ -241,7 +241,7 @@ as described above?"
 
 If the user declines, EEG neurofeedback and closed-loop adaptive stimulation are disabled. The device still functions for PBM, VNS, audio entrainment, and visual stimulation. A separate toggle to re-enable EEG is available in Settings after accepting the consent.
 
-Add OI-PA-03: legal counsel review of BIPA release screen copy before any Illinois device activation.
+OI-PA-03 (locale gating of the BIPA screen) is RESOLVED: the screen is shown to all users; no location detection remains. BIPA counsel review of the copy is advisory and does not gate presentation (showing the disclosure to everyone is the conservative default).
 
 ### 9.4 Adaptive stimulation transparency card (NP-PRIV-REM-001 STEP-33)
 
@@ -272,7 +272,7 @@ No analytics or crash reporting SDK may initialise before the consent flow is co
 | OI-WA-06 | HealthKit permission review + privacy nutrition label sign-off before App Store submission | Privacy Lead | Phase 1 App Store submission |
 | OI-PA-01 | Legal counsel confirms 16 as correct minimum age threshold for age gate | Legal Counsel | Age gate implementation |
 | OI-PA-02 | Design and implement Authorised Guardian consent pathway for T2 minor patients | SW Engineering + Legal | T2 clinical launch |
-| OI-PA-03 | Legal counsel review of BIPA release screen copy before any Illinois device activation | Legal Counsel | Illinois device activation |
+| OI-PA-03 | RESOLVED — biometric release screen shown to ALL users (locale gate removed); BIPA counsel copy review is advisory, non-gating | Legal Counsel | Advisory (non-gating) |
 | OI-PA-04 | Privacy Lead sign-off on plain-language adaptive trigger enum copy | Privacy Lead | Adaptive Adjustments card ship |
 
 ---
