@@ -226,10 +226,22 @@ void np_anon_scratch_resume_after_powerloss(void)
 /* Host-backed SNVS_LPGPR2 (declared extern in np_anon_config.h under host). */
 volatile uint32_t np_anon_host_lpgpr2 = 0U;
 
+/*
+ * Test-only TRNG fault injection.  When > 0 the next N calls to the host TRNG
+ * stub fail with NP_ANON_ERR_TRNG and the counter decrements; 0 (default) means
+ * the TRNG always succeeds.  Lets the tests drive the init-failure path that
+ * the real hardware TRNG would take on a NIST SP 800-90B health-test failure.
+ */
+int np_anon_host_trng_fail = 0;
+
 np_anon_status_t np_anon_hal_trng_generate(uint8_t *buf, size_t len)
 {
     if (buf == NULL) {
         return NP_ANON_ERR_INVALID;
+    }
+    if (np_anon_host_trng_fail > 0) {
+        np_anon_host_trng_fail--;
+        return NP_ANON_ERR_TRNG;
     }
     /* Deterministic non-zero fill for reproducible host tests. */
     for (size_t i = 0; i < len; i++) {
