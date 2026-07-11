@@ -11,6 +11,8 @@ name: Firmware Host Unit Tests
 #   firmware/ota           → np_ota_tests      (OTA state CRC + rollback)
 #   firmware/safety_mcu    → np_safety_spi_proto_tests, np_charge_monitor_tests
 #   firmware/hub_control   → np_cvns_reenable_tests (OI-CVNS-HUB-01)
+#                          → np_log_backend_tests   (OI-LOG-01..04)
+#                          → np_transport_tests     (OI-HUB-MAIN-01)
 #   firmware/vendor/freertos → np_freertos_smoke_tests (kernel + config, POSIX port)
 
 on:

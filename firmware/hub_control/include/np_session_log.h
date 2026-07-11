@@ -7,11 +7,15 @@
  * UHDR writes are AES-256-XTS encrypted with the user biometric-derived key.
  * SHDR writes use the HKDF manufacturing key.
  *
- * HAL stubs OI-LOG-01 through OI-LOG-04 require platform implementation:
+ * OI-LOG-01 through OI-LOG-04 (the four np_log_hal_* entry points below) are
+ * implemented in np_log_backend.c as a block-coalescing append writer:
  *   OI-LOG-01: np_log_hal_uhdr_append(buf, len) → LittleFS UHDR partition
  *   OI-LOG-02: np_log_hal_shdr_append(buf, len) → LittleFS SHDR partition
  *   OI-LOG-03: np_log_hal_uhdr_flush()           → fsync UHDR
  *   OI-LOG-04: np_log_hal_shdr_flush()           → fsync SHDR
+ * The residual hardware glue (the LittleFS-file open/append/sync on the mounted
+ * partitions) is OI-LOG-05..07 in np_log_backend.h.  Call np_log_backend_init()
+ * once at bring-up before np_log_init().
  */
 
 #ifndef NP_SESSION_LOG_H

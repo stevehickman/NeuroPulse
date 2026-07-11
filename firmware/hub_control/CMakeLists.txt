@@ -28,6 +28,8 @@ project(np_hub_control C)
 # np_cvns_reenable is pure C (no FreeRTOS) and host-testable (OI-CVNS-HUB-01).
 option(NP_BUILD_TESTS "Build host-native unit tests (no ARM toolchain needed)" OFF)
 
+set(NP_BOOTLOADER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../bootloader/include)
+
 if(NP_BUILD_TESTS)
     add_executable(np_cvns_reenable_tests
         tests/np_cvns_reenable_tests.c
@@ -35,6 +37,28 @@ if(NP_BUILD_TESTS)
     )
     target_include_directories(np_cvns_reenable_tests PRIVATE include)
     target_compile_options(np_cvns_reenable_tests PRIVATE -Wall -Wextra -std=c11)
+
+    # OI-LOG-01..04: session-log eMMC backing (block-coalescing append writer).
+    add_executable(np_log_backend_tests
+        tests/np_log_backend_tests.c
+        src/np_log_backend.c
+    )
+    target_include_directories(np_log_backend_tests PRIVATE
+        include
+        ${NP_BOOTLOADER_INCLUDE_DIR}   # np_config.h: partition sizes
+    )
+    target_compile_options(np_log_backend_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
+    # OI-HUB-MAIN-01: protocol transport reassembly + single-slot mailbox.
+    add_executable(np_transport_tests
+        tests/np_transport_tests.c
+        src/np_transport.c
+    )
+    target_include_directories(np_transport_tests PRIVATE include)
+    target_compile_options(np_transport_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     return()
 endif()
 
@@ -52,6 +76,8 @@ set(HUB_SOURCES
     src/np_protocol.c
     src/np_session_runner.c
     src/np_session_log.c
+    src/np_log_backend.c          # OI-LOG-01..04: session-log eMMC backing
+    src/np_transport.c            # OI-HUB-MAIN-01: BLE/USB-C protocol transport
     src/np_adaptation_log.c
     src/np_safety_spi.c
     src/np_cvns_reenable.c        # OI-CVNS-HUB-01: CVNS re-enable manager
@@ -71,6 +97,7 @@ add_library(np_hub_control STATIC ${HUB_SOURCES})
 target_include_directories(np_hub_control
     PUBLIC  include
     PRIVATE ${NP_PLATFORM_INCLUDE_DIRS}
+            ${NP_BOOTLOADER_INCLUDE_DIR}   # np_config.h: partition sizes (np_log_backend.c)
 )
 
 # ── Compiler flags ─────────────────────────────────────────────────────────────
