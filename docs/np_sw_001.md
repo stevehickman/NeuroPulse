@@ -109,7 +109,7 @@ each software version release
 | Item | SW-01 | SW-02 | SW-03 |
 |---|---|---|---|
 | Compiler | GNU Arm Embedded Toolchain (arm-none-eabi-gcc 12+) | GNU Arm Embedded Toolchain (arm-none-eabi-gcc 12+) | Xcode 15+ (iOS), Android Studio Hedgehog+ |
-| RTOS | None (bare-metal) | FreeRTOS 10.5+ | N/A |
+| RTOS | None (bare-metal) | FreeRTOS-Kernel V11.3.0 (LTS 202604.00), vendored `firmware/vendor/freertos/` | N/A |
 | Version control | Git (stevehickman/NeurOne) | Git (stevehickman/NeurOne) | Git (stevehickman/NeurOne) |
 | Build system | CMake 3.22+ | CMake 3.22+ | Xcode build / Gradle |
 | Static analysis | (to be selected — Year 1) | (to be selected — Year 1) | SwiftLint / detekt |
@@ -317,7 +317,7 @@ Per IEC 62304 §8, all third-party libraries and components used in SW-01 and SW
 
 | SOUP item | Version | SW item | Safety class impact | Verification |
 |---|---|---|---|---|
-| FreeRTOS | 10.5.x | SW-02 | Class B | FreeRTOS known-anomalies list reviewed; task stack overflow detection enabled |
+| FreeRTOS-Kernel | V11.3.0 (FreeRTOS-LTS 202604.00-LTS) | SW-02 | Class B | Vendored byte-exact in `firmware/vendor/freertos/` (SOUP record `VERSION`, MIT license); subset = ARM_CM7 r0p1 port + heap_4 (shipped) + POSIX port (host test only); `croutine.c` excluded. Configuration `firmware/hub_control/include/FreeRTOSConfig.h` enables `configCHECK_FOR_STACK_OVERFLOW=2` + `configUSE_MALLOC_FAILED_HOOK=1` (hooks in `np_hub_freertos_hooks.c`, fail-safe halt). Host verification: `np_freertos_smoke_tests` compiles the kernel + this config against the POSIX port and runs the scheduler (event group + `vTaskDelayUntil` + prioritised tasks) — passes in `firmware-host-tests` CI. FreeRTOS-Kernel known-anomalies list to be reviewed and recorded at G2. On-target ARM_CM7 build pending ARM toolchain + MCUX SDK bring-up. |
 | LittleFS | 2.x | SW-02 | Class B | Power-loss testing per LittleFS test suite |
 | Monocypher (Ed25519 optional SHA-512 module) | 4.0.2 | SW-01, SW-02 | Class C | Vendored in `firmware/crypto/vendor/monocypher/`; SOUP record `VERSION` file; 11-test suite (RFC 8032 TV1/TV2 + all-zero pubkey guard) passes; BSD-2-Clause OR CC0-1.0; OI-SW01-M07-02 CLOSED 2026-06-11. Note: source files carry `__git__` version string — normal upstream behaviour; canonical version is git tag 4.0.2. Bootloader (`firmware/bootloader/`) retains self-contained Ed25519 (uses `-nostdlib/-nodefaultlibs`; Monocypher requires libc symbols). |
 | Unity (unit test framework) | 2.x | SW-01 test | Test only — not shipped | N/A |

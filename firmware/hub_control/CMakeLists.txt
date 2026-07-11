@@ -55,6 +55,7 @@ set(HUB_SOURCES
     src/np_adaptation_log.c
     src/np_safety_spi.c
     src/np_cvns_reenable.c        # OI-CVNS-HUB-01: CVNS re-enable manager
+    src/np_hub_freertos_hooks.c   # FreeRTOS app hooks (stack overflow, malloc, assert)
 
     modules/np_mod_pbm.c
     modules/np_mod_eeg.c
@@ -99,10 +100,12 @@ target_compile_options(np_hub_control PRIVATE
 
 # ── Dependencies ───────────────────────────────────────────────────────────────
 # np_hub_control depends on the other firmware libraries for existing module
-# infrastructure.  The platform HAL (FreeRTOS, MCUX SDK) is provided by the
-# parent application target and does not need to be listed here.
+# infrastructure, and on the vendored FreeRTOS kernel (np_freertos) for the RTOS
+# and its headers.  The MCUX SDK HAL is still provided by the parent application
+# target (clock init, pin mux, peripheral drivers).
 target_link_libraries(np_hub_control
     PUBLIC
+        np_freertos
         np_pbm_1064nm
         np_hrv_biofeedback
         np_zone_announce

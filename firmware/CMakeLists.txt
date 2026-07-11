@@ -26,6 +26,7 @@
 # ── Module inventory (NP-SW-001 Rev A) ───────────────────────────────────────
 #
 # SW-02 (Class B) — i.MX RT1062 main processor firmware modules:
+#   firmware/vendor/freertos/ — vendored FreeRTOS-Kernel V11.3.0 SOUP (SW-02 RTOS)
 #   firmware/bootloader/      — dual-bank OTA bootloader, Ed25519, DFU
 #   firmware/hub_control/     — FreeRTOS hub control (module registry, session
 #                                 runner, session log, safety SPI heartbeat)
@@ -53,6 +54,7 @@
 #   firmware/safety_mcu/      → np_safety_spi_proto_tests (OI-SW01-M07-01)
 #                             → np_charge_monitor_tests   (OI-CHARGE-01)
 #   firmware/hub_control/     → np_cvns_reenable_tests    (OI-CVNS-HUB-01)
+#   firmware/vendor/freertos/ → np_freertos_smoke_tests   (kernel + config, POSIX port)
 
 cmake_minimum_required(VERSION 3.20)
 
@@ -74,13 +76,21 @@ if(NOT NP_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
 endif()
 
 # ── Platform include paths (MCUX SDK + FreeRTOS) ──────────────────────────────
-# These are empty stubs here; a real integration populates them from the SDK.
+# FreeRTOS is vendored in-tree (firmware/vendor/freertos, SOUP: NP-SW-001 §9.4)
+# and its headers are wired in below. The MCUX SDK path is still an empty stub —
+# a real device integration populates it from the installed SDK.
 # The per-module CMakeLists files consume NP_PLATFORM_INCLUDE_DIRS as a list.
+# Normal (directory-scope) set, not CACHE: a CACHE set() is ignored when the
+# cache already holds a value, which would silently pin a stale include list on
+# reconfigure. This runs before the add_subdirectory() calls, so subdirectories
+# inherit it. Append the MCUX SDK path here when integrating the full SDK.
 if(CMAKE_CROSSCOMPILING)
     set(NP_PLATFORM_INCLUDE_DIRS
-        ""   # ← populate with MCUX SDK path (e.g. $ENV{MCUX_SDK}/devices/MIMXRT1062/...)
-             #   and FreeRTOS include path when integrating the full SDK
-        CACHE PATH "MCUX SDK + FreeRTOS include directories")
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/freertos/kernel/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/freertos/portable/GCC/ARM_CM7/r0p1
+        ${CMAKE_CURRENT_SOURCE_DIR}/hub_control/include   # FreeRTOSConfig.h
+        # ← append MCUX SDK path (e.g. $ENV{MCUX_SDK}/devices/MIMXRT1062/...)
+    )
 endif()
 
 # ── Host unit-test build ───────────────────────────────────────────────────────
@@ -96,6 +106,7 @@ if(NP_BUILD_TESTS)
     add_subdirectory(safety_mcu)  # OI-SW01-M07-01: SPI frame tests
                                   # OI-CHARGE-01:   charge monitor tests
     add_subdirectory(hub_control) # OI-CVNS-HUB-01: CVNS re-enable manager tests
+    add_subdirectory(vendor/freertos) # NP-SW-001 §9.4: FreeRTOS kernel smoke test
 
     add_test(NAME np_crypto_tests
         COMMAND np_crypto_tests
@@ -133,6 +144,12 @@ if(NP_BUILD_TESTS)
         COMMAND np_cvns_reenable_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    add_test(NAME np_freertos_smoke_tests
+        COMMAND np_freertos_smoke_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    # Backstop against a scheduler hang so a failure reports rather than blocks.
+    set_tests_properties(np_freertos_smoke_tests PROPERTIES TIMEOUT 30)
+
     return()
 endif()
 
@@ -140,6 +157,7 @@ endif()
 # Execution order: bootloader → {libraries} → hub_control links them all.
 
 add_subdirectory(crypto)
+add_subdirectory(vendor/freertos)   # np_freertos kernel library (SW-02 RTOS)
 
 if(NP_BUILD_BOOTLOADER)
     add_subdirectory(bootloader)

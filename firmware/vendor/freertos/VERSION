@@ -1,0 +1,23 @@
+Component:   FreeRTOS-Kernel
+Version:     V11.3.0
+Release:     FreeRTOS-LTS 202604.00-LTS
+Upstream:    https://github.com/FreeRTOS/FreeRTOS-LTS  (submodule FreeRTOS/FreeRTOS-Kernel @ V11.3.0)
+License:     MIT (see LICENSE.md)
+SW item:     SW-02 (i.MX RT1062 main processor) — IEC 62304 Class B
+SOUP record: NP-SW-001 §9.4
+Vendored:    2026-07-11
+
+Vendored subset (byte-exact copy of the upstream V11.3.0 tag):
+  kernel/tasks.c list.c queue.c event_groups.c timers.c stream_buffer.c
+  kernel/include/*.h
+  portable/GCC/ARM_CM7/r0p1/{port.c,portmacro.h}     — SHIPPED target port
+  portable/MemMang/heap_4.c                          — SHIPPED heap manager
+  portable/ThirdParty/GCC/Posix/{port.c,portmacro.h,utils/*}  — HOST TEST ONLY
+
+Intentionally NOT vendored:
+  croutine.c (deprecated; configUSE_CO_ROUTINES = 0)
+  all other portable/* CPU ports (only ARM_CM7 is shipped; Posix is test-only)
+
+NeurOne-authored (NOT part of this SOUP component):
+  firmware/hub_control/include/FreeRTOSConfig.h      — application configuration
+  firmware/hub_control/src/np_hub_freertos_hooks.c   — application hooks + assert
