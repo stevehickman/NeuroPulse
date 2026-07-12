@@ -61,6 +61,8 @@
  *     CVNS command is active (session-runner control task).
  *   - np_mod_cvns_push_ppg(sample, ts_ms) from the PPG ISR at
  *     NP_CVNS_PPG_SAMPLE_RATE_HZ.
+ *   - np_mod_cvns_set_heartbeat_status(granted_mask, mcu_status) once per beat
+ *     from the safety-heartbeat task (OI-CVNS-HUB-08 — see cvns_apply_heartbeat).
  */
 
 #include "np_hub_types.h"
@@ -106,6 +108,29 @@ typedef struct {
 } np_mod_cvns_state_t;
 
 static np_mod_cvns_state_t s_state;
+
+/* ── Unified-heartbeat snapshot (OI-CVNS-HUB-08) ─────────────────────────────── */
+
+/*
+ * Latest safety-MCU heartbeat reply, published by the safety-heartbeat task via
+ * np_mod_cvns_set_heartbeat_status() and consumed by cvns_apply_heartbeat() from
+ * the session-runner control task (np_mod_cvns_tick).  Two naturally-atomic word
+ * stores; `volatile` because the writer and reader run on different tasks.  A
+ * snapshot at most one beat (200 ms) stale is harmless — it is re-evaluated on
+ * every 100 ms tick.
+ */
+static volatile bool     s_hb_valid;
+static volatile uint16_t s_hb_granted_mask;
+static volatile uint8_t  s_hb_mcu_status;
+
+/*
+ * Advisory pre-session impedance value (see cvns_apply_heartbeat note): the
+ * unified heartbeat carries only a pass/fail impedance bit, never per-electrode
+ * kΩ, so the library's advisory NP_CVNS_STAGE_IMPEDANCE step is satisfied with a
+ * nominal in-window figure.  The AUTHORITATIVE impedance gate is the safety
+ * MCU's enable refusal, not this value.
+ */
+#define NP_CVNS_HB_IMPEDANCE_NOMINAL_KOHM  (NP_CVNS_IMPEDANCE_MAX_KOHM * 0.5f)
 
 /* ── Safety-critical cardiac-interlock config ────────────────────────────────── */
 
@@ -208,6 +233,116 @@ static bool stage_is_delivering(np_cvns_stage_t stage)
            (stage == NP_CVNS_STAGE_RAMP_DOWN);
 }
 
+/* ── OI-CVNS-HUB-08: unified heartbeat → library SPI responses ───────────────── */
+
+/*
+ * The np_cervical_vns library was written against a *dedicated* main↔safety-MCU
+ * SPI link and advances its enable/impedance state machine only when fed the
+ * responses np_cvns_interlock_spi_response() / np_cvns_stim_safety_mcu_response().
+ * In the real hub there is no such link — the unified 200 ms heartbeat
+ * (np_safety_spi) is the only channel to the safety MCU.  This bridge translates
+ * the two facts the heartbeat reply carries about cervical VNS —
+ *   • whether the safety MCU is granting NP_SAFETY_EN_CVNS (granted_mask), and
+ *   • the MCU status byte (NP_SAFETY_STATUS_IMPEDANCE / _CUTOFF / hard faults)
+ * — into those response entry points, so the library's advisory state machine
+ * stays in lock-step with the physically-authoritative safety MCU.
+ *
+ * Division of authority:
+ *   • Enable + impedance gating belong to the safety MCU: the library only
+ *     *believes* it is enabled after the MCU actually grants the CVNS bit
+ *     (ENABLE_GRANTED fed here); if the MCU refuses or withdraws a granted enable
+ *     for a non-cardiac reason (impedance / hard fault / cutoff), the library is
+ *     faulted (ENABLE_REJECTED).
+ *   • The cardiac cutoff path (NP_SAFETY_STATUS_CARDIAC) is deliberately NOT
+ *     handled here — it is owned by the hub-global re-enable manager
+ *     (np_cvns_reenable, OI-CVNS-HUB-01) and the main-processor PPG path
+ *     (np_mod_cvns_push_ppg → cvns_fault_cb).  Feeding it here too would
+ *     double-drive the library fault and double-log SHDR.
+ *
+ * Single-writer of the library contexts: the heartbeat task only STORES the
+ * snapshot (np_mod_cvns_set_heartbeat_status); ALL library mutation happens here,
+ * invoked from np_mod_cvns_tick() on the one control-task context.
+ *
+ * Residuals:
+ *   OI-CVNS-HUB-09 — no per-electrode kΩ over the unified link; the advisory
+ *     impedance step is satisfied with NP_CVNS_HB_IMPEDANCE_NOMINAL_KOHM.  A
+ *     precise UHDR kΩ, if required, must come from a hub-side measurement HAL
+ *     (as np_cvns_reenable uses for its re-enable gate 3).
+ *   A safety-MCU enable refusal surfaces through the library's generic fault
+ *     path, which np_cvns_session_tick() records with cutoff_occurred=1 even
+ *     though it was not a cardiac cutoff; the SHDR fault_reason is correct
+ *     (NP_CVNS_FAULT_SAFETY_MCU).  Correcting the library's fault taxonomy is a
+ *     separate library change, not this hub bridge.
+ */
+static void cvns_apply_heartbeat(void)
+{
+    if (!s_state.ready || !s_state.active || !s_hb_valid) {
+        return;
+    }
+
+    const uint16_t granted = s_hb_granted_mask;
+    const uint8_t  status  = s_hb_mcu_status;
+
+    const bool cvns_granted    = (granted & NP_SAFETY_EN_CVNS) != 0U;
+    const bool cardiac         = (status & NP_SAFETY_STATUS_CARDIAC) != 0U;
+    const bool impedance_fault = (status & NP_SAFETY_STATUS_IMPEDANCE) != 0U;
+    const bool adverse         = ((status & NP_CVNS_NONRECOVERABLE_FAULTS) != 0U) ||
+                                 ((status & NP_SAFETY_STATUS_CUTOFF) != 0U) ||
+                                 impedance_fault;
+
+    const np_cvns_stage_t           stage    = np_cvns_session_stage(&s_session);
+    const np_cvns_interlock_state_t il_state = np_cvns_interlock_state(&s_interlock);
+
+    /* (1) Advisory impedance step — satisfy with a nominal in-window value so the
+     * library proceeds past NP_CVNS_STAGE_IMPEDANCE to baseline.  The real
+     * impedance gate is the safety MCU's enable refusal in (3); the unified
+     * heartbeat carries no per-electrode kΩ (residual OI-CVNS-HUB-09). */
+    if (stage == NP_CVNS_STAGE_IMPEDANCE && !s_stim.impedance_ok) {
+        float imp[NP_CVNS_ELECTRODE_COUNT];
+        for (uint8_t i = 0U; i < NP_CVNS_ELECTRODE_COUNT; i++) {
+            imp[i] = NP_CVNS_HB_IMPEDANCE_NOMINAL_KOHM;
+        }
+        np_cvns_stim_safety_mcu_response(&s_stim, false, imp);
+    }
+
+    /* (2) Enable grant — the MCU has asserted the CVNS enable GPIO while the
+     * library is waiting for it: advance the interlock PRE_SESSION → ENABLED and
+     * mark the stim granted so its ramp may begin.  Gated on PRE_SESSION so it
+     * fires exactly once per enable. */
+    if (il_state == NP_CVNS_INTERLOCK_PRE_SESSION && cvns_granted) {
+        np_cvns_interlock_spi_response(&s_interlock,
+                                       NP_CVNS_SPI_RSP_ENABLE_GRANTED, NULL, 0U);
+        np_cvns_stim_safety_mcu_response(&s_stim, true, NULL);
+        return;
+    }
+
+    /* (3) Enable refusal / withdrawal (NON-cardiac only).  Fire only on an
+     * explicit adverse MCU signal (never merely on an absent grant bit, which is
+     * ordinary request latency), while the hub is still requesting the enable —
+     * so a normal ramp-down (hub already dropped the request) is never faulted,
+     * and the cardiac path is left entirely to np_cvns_reenable + the PPG path. */
+    if (!cardiac && !cvns_granted && adverse && s_state.enable_requested &&
+        (il_state == NP_CVNS_INTERLOCK_PRE_SESSION ||
+         il_state == NP_CVNS_INTERLOCK_ENABLED)) {
+        np_cvns_interlock_spi_response(&s_interlock,
+                                       NP_CVNS_SPI_RSP_ENABLE_REJECTED, NULL, 0U);
+        np_cvns_stim_safety_mcu_response(&s_stim, false, NULL);
+    }
+}
+
+/*
+ * np_mod_cvns_set_heartbeat_status — publish the latest safety-MCU heartbeat
+ * reply for the next tick to fold into the library (OI-CVNS-HUB-08).  Called
+ * once per beat from the safety-heartbeat task AFTER np_safety_spi_heartbeat().
+ * Store-only: it never touches the library contexts (single-writer rule).
+ */
+void np_mod_cvns_set_heartbeat_status(uint16_t granted_mask, uint8_t mcu_status)
+{
+    s_hb_granted_mask = granted_mask;
+    s_hb_mcu_status   = mcu_status;
+    s_hb_valid        = true;
+}
+
 /* ── Library callbacks ───────────────────────────────────────────────────────── */
 
 /*
@@ -280,6 +415,12 @@ np_hub_status_t np_mod_cvns_init(uint8_t slot)
     memset(&s_state, 0, sizeof(s_state));
     s_state.last_fault = NP_CVNS_FAULT_NONE;
 
+    /* Drop any stale heartbeat snapshot (OI-CVNS-HUB-08) so a grant observed for
+     * a previous session can never advance a fresh one. */
+    s_hb_valid        = false;
+    s_hb_granted_mask = 0U;
+    s_hb_mcu_status   = NP_SAFETY_STATUS_OK;
+
     /* Cardiac interlock: safety-critical config + fault callback wiring. */
     if (np_cvns_interlock_init(&s_interlock, cvns_interlock_config(),
                                cvns_fault_cb) != NP_CVNS_OK) {
@@ -316,6 +457,7 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
             s_state.active = false;
         }
         cvns_drop_enable();
+        s_hb_valid = false;   /* OI-CVNS-HUB-08: discard stale snapshot */
         return NP_HUB_OK;
     }
 
@@ -324,6 +466,10 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
     }
 
     const np_mod_cvns_params_t *p = (const np_mod_cvns_params_t *)params;
+
+    /* Fresh session: discard any snapshot published before this start so the
+     * first tick cannot act on a previous session's grant (OI-CVNS-HUB-08). */
+    s_hb_valid = false;
 
     np_cvns_session_config_t cfg;
     np_mod_cvns_build_config(p, &cfg);
@@ -359,12 +505,21 @@ void np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s)
         return;
     }
 
+    /* OI-CVNS-HUB-08: fold the latest safety-MCU heartbeat status into the
+     * library's SPI-response state BEFORE it advances this tick, so an enable
+     * grant / impedance verdict lands the same tick the library consumes it. */
+    cvns_apply_heartbeat();
+
     np_cvns_session_tick(&s_session, now_ms, now_s);
 
-    /* Track the unified enable bit to the library's delivery stage: assert once
-     * stimulation is (about to be) delivered, drop the moment it is not. */
+    /* Track the unified enable bit to the library's intent: assert once the
+     * library has requested enable (interlock PRE_SESSION, awaiting the MCU
+     * grant) or is delivering, and drop the moment it is neither.  The
+     * PRE_SESSION case is what lets the MCU actually see the request — its grant
+     * then feeds ENABLE_GRANTED back through cvns_apply_heartbeat(). */
     np_cvns_stage_t stage = np_cvns_session_stage(&s_session);
-    if (stage_is_delivering(stage)) {
+    if (stage_is_delivering(stage) ||
+        np_cvns_interlock_state(&s_interlock) == NP_CVNS_INTERLOCK_PRE_SESSION) {
         cvns_request_enable();
     } else {
         cvns_drop_enable();
@@ -456,4 +611,8 @@ void np_mod_cvns_test_fire_fault(np_cvns_fault_reason_t reason)
 {
     cvns_fault_cb(&s_interlock, reason);
 }
+/* Apply the current heartbeat snapshot to the library in isolation (no
+ * session_tick), so OI-CVNS-HUB-08 grant / reject / impedance translation can be
+ * asserted directly against library state. */
+void np_mod_cvns_test_apply_heartbeat(void) { cvns_apply_heartbeat(); }
 #endif /* NPTEST_HOST */
