@@ -56,6 +56,13 @@ typedef enum { NP_LED_IDLE = 0, NP_LED_SESSION, NP_LED_FAULT } np_led_state_t;
 extern void np_hal_status_led_set(np_led_state_t state);
 extern uint32_t np_hal_get_device_session_count(void);
 
+/* Cervical VNS module bridge (OI-CVNS-HUB-08): the safety-heartbeat task hands
+ * the fresh granted mask + MCU status to np_mod_cvns so its next tick advances
+ * the library enable/impedance state machine.  Declared extern here (registry
+ * idiom — module drivers expose no per-module header). */
+extern void np_mod_cvns_set_heartbeat_status(uint16_t granted_mask,
+                                             uint8_t  mcu_status);
+
 /* ── Globals ──────────────────────────────────────────────────────────────────── */
 
 static EventGroupHandle_t g_hub_events;
@@ -132,6 +139,12 @@ static void task_safety_heartbeat(void *arg)
          * heartbeat is a separate charge-monitor integration (OI-CHARGE-01
          * hub side); channel_count 0 keeps the MCU accumulate loop idle.    */
         np_hub_status_t rc = np_safety_spi_heartbeat(state, req_mask, NULL, 0U);
+
+        /* OI-CVNS-HUB-08: publish THIS beat's fresh granted mask + status to the
+         * cervical VNS module so its next tick folds them into the library's
+         * enable/impedance SPI-response state machine. */
+        np_mod_cvns_set_heartbeat_status(np_safety_spi_get_granted_mask(),
+                                         np_safety_spi_get_status());
 
         if (rc == NP_HUB_ERR_SAFETY_FAULT) {
             /* Recoverable cardiac cutoff: CARDIAC set with no non-recoverable

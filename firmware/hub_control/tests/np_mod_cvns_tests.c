@@ -47,12 +47,17 @@ extern void            np_mod_cvns_build_config(const np_mod_cvns_params_t *p,
 extern void            np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s);
 extern void            np_mod_cvns_push_ppg(uint32_t sample, uint32_t timestamp_ms);
 extern np_hub_status_t np_mod_cvns_request_reenable(uint32_t now_s);
+extern void            np_mod_cvns_set_heartbeat_status(uint16_t granted_mask,
+                                                        uint8_t  mcu_status);
 
 /* Test seams (NPTEST_HOST). */
-extern np_cvns_session_ctx_t *np_mod_cvns_test_session(void);
+extern np_cvns_session_ctx_t   *np_mod_cvns_test_session(void);
+extern np_cvns_interlock_ctx_t *np_mod_cvns_test_interlock(void);
+extern np_cvns_stim_ctx_t      *np_mod_cvns_test_stim(void);
 extern bool np_mod_cvns_test_enable_requested(void);
 extern bool np_mod_cvns_test_active(void);
 extern void np_mod_cvns_test_fire_fault(np_cvns_fault_reason_t reason);
+extern void np_mod_cvns_test_apply_heartbeat(void);
 
 /* ── Mocked hub glue ─────────────────────────────────────────────────────────── */
 
@@ -357,6 +362,135 @@ static void test_fault_cb_disables_and_logs(void)
     check(g_fault_log_ms == 0U, "fault: SHDR timestamp suppressed (privacy gate)");
 }
 
+/* ── OI-CVNS-HUB-08: unified heartbeat → library SPI responses ───────────────── */
+
+/* Advisory impedance step is satisfied from the heartbeat so the library can
+ * leave NP_CVNS_STAGE_IMPEDANCE for baseline. */
+static void test_hb_impedance_advances_stage(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_IMPEDANCE,
+          "hb-imp: precondition — session at IMPEDANCE stage");
+    check(!np_mod_cvns_test_stim()->impedance_ok, "hb-imp: impedance not yet ok");
+
+    /* No fault in the status → advisory pass fed; one tick advances to BASELINE. */
+    np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_OK);
+    np_mod_cvns_tick(100U, g_now_unix);
+
+    check(np_mod_cvns_test_stim()->impedance_ok, "hb-imp: impedance_ok set from heartbeat");
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_BASELINE,
+          "hb-imp: session advanced IMPEDANCE → BASELINE");
+    check(g_enable_calls == 0, "hb-imp: no enable requested pre-baseline");
+}
+
+/* An MCU grant of NP_SAFETY_EN_CVNS while the interlock is PRE_SESSION advances
+ * it to ENABLED and marks the stim granted (ENABLE_GRANTED translation). */
+static void test_hb_enable_grant(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    /* White-box: library has requested enable and is waiting for the MCU grant. */
+    np_mod_cvns_test_session()->stage    = NP_CVNS_STAGE_BASELINE;
+    np_mod_cvns_test_interlock()->state  = NP_CVNS_INTERLOCK_PRE_SESSION;
+
+    np_mod_cvns_set_heartbeat_status(NP_SAFETY_EN_CVNS, NP_SAFETY_STATUS_OK);
+    np_mod_cvns_test_apply_heartbeat();
+
+    check(np_cvns_interlock_state(np_mod_cvns_test_interlock()) == NP_CVNS_INTERLOCK_ENABLED,
+          "hb-grant: interlock PRE_SESSION → ENABLED");
+    check(np_mod_cvns_test_stim()->safety_mcu_granted,
+          "hb-grant: stim marked safety-MCU granted");
+    check(g_fault_log_calls == 0, "hb-grant: no fault logged on a grant");
+}
+
+/* A non-cardiac adverse status (impedance fault) while awaiting the grant is an
+ * enable rejection: the library faults and the unified enable is dropped. */
+static void test_hb_enable_reject_impedance(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    /* Reach PRE_SESSION with the unified enable actually requested: one tick with
+     * the interlock in PRE_SESSION makes the driver request NP_SAFETY_EN_CVNS. */
+    np_mod_cvns_test_session()->stage   = NP_CVNS_STAGE_BASELINE;
+    np_mod_cvns_test_interlock()->state = NP_CVNS_INTERLOCK_PRE_SESSION;
+    np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_OK);   /* no grant yet */
+    np_mod_cvns_tick(100U, g_now_unix);
+    check(np_mod_cvns_test_enable_requested(), "hb-reject: precondition — enable requested");
+
+    /* MCU now refuses: impedance fault, no grant. */
+    g_disable_calls = 0;
+    np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_IMPEDANCE);
+    np_mod_cvns_test_apply_heartbeat();
+
+    check(np_cvns_interlock_state(np_mod_cvns_test_interlock()) == NP_CVNS_INTERLOCK_FAULT,
+          "hb-reject: interlock faulted on refusal");
+    check(np_cvns_interlock_fault_reason(np_mod_cvns_test_interlock()) == NP_CVNS_FAULT_SAFETY_MCU,
+          "hb-reject: fault reason is SAFETY_MCU");
+    check(g_disable_calls == 1 && g_last_disable_mask == NP_SAFETY_EN_CVNS,
+          "hb-reject: unified enable dropped");
+    check(g_fault_log_calls == 1 && g_fault_log_ms == 0U,
+          "hb-reject: one SHDR fault logged, timestamp suppressed");
+}
+
+/* A cardiac cutoff observed only via the heartbeat is NOT this bridge's concern:
+ * it is owned by np_cvns_reenable + the PPG path, so the library is left intact. */
+static void test_hb_cardiac_left_to_reenable(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    /* White-box: stimulation is delivering and the MCU had granted the enable. */
+    np_mod_cvns_test_session()->stage        = NP_CVNS_STAGE_ACTIVE;
+    np_mod_cvns_test_interlock()->state      = NP_CVNS_INTERLOCK_ENABLED;
+    np_mod_cvns_test_stim()->safety_mcu_granted = true;
+    np_mod_cvns_tick(100U, g_now_unix);      /* driver requests the enable */
+    check(np_mod_cvns_test_enable_requested(), "hb-cardiac: precondition — enable requested");
+
+    /* Cardiac cutoff: CARDIAC set, grant withdrawn. */
+    g_fault_log_calls = 0;
+    np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_CARDIAC | NP_SAFETY_STATUS_CUTOFF);
+    np_mod_cvns_test_apply_heartbeat();
+
+    check(np_cvns_interlock_state(np_mod_cvns_test_interlock()) == NP_CVNS_INTERLOCK_ENABLED,
+          "hb-cardiac: bridge did NOT fault the library (owned by re-enable manager)");
+    check(g_fault_log_calls == 0, "hb-cardiac: bridge logged no SHDR fault for cardiac");
+}
+
+/* A snapshot published before a session boundary must not advance the next
+ * session: control() start clears s_hb_valid. */
+static void test_hb_snapshot_reset_on_start(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    /* Publish a grant, then stop — the snapshot must not survive into a restart. */
+    np_mod_cvns_set_heartbeat_status(NP_SAFETY_EN_CVNS, NP_SAFETY_STATUS_OK);
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, NULL, 0U);
+
+    /* New session; place interlock in PRE_SESSION but publish NOTHING new. */
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    np_mod_cvns_test_session()->stage   = NP_CVNS_STAGE_BASELINE;
+    np_mod_cvns_test_interlock()->state = NP_CVNS_INTERLOCK_PRE_SESSION;
+    np_mod_cvns_test_apply_heartbeat();   /* stale snapshot invalidated → no-op */
+
+    check(np_cvns_interlock_state(np_mod_cvns_test_interlock()) == NP_CVNS_INTERLOCK_PRE_SESSION,
+          "hb-reset: stale grant did not advance the new session");
+}
+
 static void test_stop_when_inactive_noop(void)
 {
     reset_mocks();
@@ -395,6 +529,11 @@ int main(void)
     test_terminal_stage_drops_enable();
     test_stop_drops_enable();
     test_fault_cb_disables_and_logs();
+    test_hb_impedance_advances_stage();
+    test_hb_enable_grant();
+    test_hb_enable_reject_impedance();
+    test_hb_cardiac_left_to_reenable();
+    test_hb_snapshot_reset_on_start();
     test_stop_when_inactive_noop();
     test_control_before_init();
 
