@@ -27,6 +27,7 @@
 #include "np_pbm1064_detect.h"
 #include "np_pbm1064_drive.h"
 #include "np_pbm1064_dose.h"
+#include "np_pbm1064_hal.h"
 #include "np_pbm1064_types.h"
 #include "np_pbm1064_config.h"
 
@@ -45,10 +46,19 @@ typedef struct {
     bool                    active;
     float                   ntc_peak_c;
     uint16_t                throttle_count;
+    np_pbm1064_drv_slot_t   drv;          /* smart-module I2C driver state */
     np_pbm1064_dose_state_t dose;
 } np_mod_pbm_state_t;
 
 static np_mod_pbm_state_t s_state[NP_HUB_ZONE_SLOT_COUNT];
+
+/*
+ * Per-zone, per-wavelength InGaAs PD dose-metering calibration.  Loaded once
+ * (from the Config partition, or firmware defaults) via np_pbm1064_dose_load_cal();
+ * np_pbm1064_dose_tick() consumes the per-slot row s_cal[slot].
+ */
+static np_pbm1064_cal_t s_cal[NP_PBM1064_ZONE_COUNT][NP_PBM1064_WL_COUNT];
+static bool             s_cal_loaded = false;
 
 /* ── Duty ceiling enforcement ────────────────────────────────────────────────── */
 
@@ -65,13 +75,15 @@ np_hub_status_t np_mod_pbm_detect(uint8_t slot, np_hub_mod_type_t *type_out)
         return NP_HUB_ERR_INVALID_ARG;
     }
 
-    np_slot_type_t slot_type;
-    /* np_pbm1064_detect_slot() performs ZONE_ID ADC classification with 3×100ms
-     * debounce (RISK-18) and TIA gain switch for smart modules (OI-PBM-HW-01). */
-    int rc = np_pbm1064_detect_slot((int)slot, &slot_type);
-    if (rc != 0) {
+    /* Read the ZONE_ID ADC and classify.  The full insertion/removal state
+     * machine (3×100ms debounce per RISK-18, TIA gain switch and I2C probe per
+     * OI-PBM-HW-01) is driven by np_pbm1064_detect_tick() in the detection task;
+     * here we only need the current slot type for the registry's presence check. */
+    uint16_t counts = 0;
+    if (!np_pbm1064_hal_adc_read_zone_id(slot, &counts)) {
         return NP_HUB_ERR_NOT_PRESENT;
     }
+    np_slot_type_t slot_type = np_pbm1064_classify_adc(counts);
 
     switch (slot_type) {
     case NP_SLOT_SMART:
@@ -95,6 +107,12 @@ np_hub_status_t np_mod_pbm_init(uint8_t slot)
     memset(&s_state[slot], 0, sizeof(np_mod_pbm_state_t));
     s_state[slot].ntc_peak_c = 0.0f;
 
+    /* Load dose-metering calibration once (idempotent across all zone slots). */
+    if (!s_cal_loaded) {
+        np_pbm1064_dose_load_cal(s_cal);
+        s_cal_loaded = true;
+    }
+
     /* ADS1299 self-calibration is handled by the EEG module; PBM does not
      * perform a session-start calibration beyond what detect already confirmed. */
     return NP_HUB_OK;
@@ -111,7 +129,7 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
     /* Stop command: params==NULL or len==0 */
     if (params == NULL || len == 0U) {
         if (s_state[slot].type == NP_MOD_PBM_SMART) {
-            (void)np_pbm1064_drive_disable_all((int)slot);
+            (void)np_pbm1064_drive_disable_all(slot, &s_state[slot].drv);
         } else {
             (void)np_mod_pbm_hal_pwm_set(slot, 0U, 0U, 0U, 0U);
         }
@@ -134,11 +152,31 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
             (const np_mod_pbm_smart_params_t *)params;
 
         uint8_t duty = clamp_duty(p->duty);
-        int rc = np_pbm1064_drive_set_all((int)slot,
-                                           p->cur_a, p->cur_b, p->cur_c,
-                                           p->ch_mask,
-                                           p->freq_code, duty);
-        if (rc != 0) {
+        np_pbm1064_drv_slot_t *drv = &s_state[slot].drv;
+
+        /* Bring up the driver IC (CONFIG → CUR → FREQ → DUTY=0 → CH_ENABLE →
+         * STATUS check).  freq_hz is left 0 here; the exact PWM frequency code
+         * from the session descriptor is applied below via drive_set_freq(). */
+        np_pbm1064_preset_t preset = {
+            .cur_a        = p->cur_a,
+            .cur_b        = p->cur_b,
+            .cur_c        = p->cur_c,
+            .freq_hz      = 0U,
+            .duty         = duty,
+            .channel_mask = p->ch_mask,
+        };
+        np_pbm1064_status_t rc = np_pbm1064_drive_startup(slot, drv, &preset);
+        if (rc != NP_PBM1064_OK) {
+            return NP_HUB_ERR_MOD_FAULT;
+        }
+
+        /* Apply the requested PWM frequency code and duty on the enabled channels. */
+        rc = np_pbm1064_drive_set_freq(slot, drv, p->ch_mask, p->freq_code);
+        if (rc != NP_PBM1064_OK) {
+            return NP_HUB_ERR_MOD_FAULT;
+        }
+        rc = np_pbm1064_drive_set_duty(slot, drv, p->ch_mask, duty);
+        if (rc != NP_PBM1064_OK) {
             return NP_HUB_ERR_MOD_FAULT;
         }
 
@@ -203,9 +241,9 @@ np_hub_status_t np_mod_pbm_telemetry(uint8_t slot, np_telem_record_t *out)
             }
         }
 
-        /* Dose update via existing dose module */
-        np_pbm1064_dose_tick((int)slot, &s_state[slot].dose,
-                              (float)NP_PBM1064_DOSE_TICK_MS / 1000.0f);
+        /* Dose update via existing dose module (reads PD1/PD2 internally and
+         * accumulates J/cm² per wavelength using the per-zone calibration row). */
+        (void)np_pbm1064_dose_tick(slot, s_cal[slot], &s_state[slot].dose);
         for (uint8_t z = 0U; z < NP_HUB_ZONE_SLOT_COUNT; z++) {
             p->dose_J_cm2[z] = s_state[slot].dose.dose_J_cm2[0]; /* summary */
         }
