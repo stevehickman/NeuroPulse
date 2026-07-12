@@ -53,6 +53,29 @@ static void on_interlock_fault(np_cvns_interlock_ctx_t *interlock,
     /* OI-CVNS-01: wire fault_cb to session context pointer in app layer.       */
 }
 
+/* ── Stim safety-response handler ────────────────────────────────────────────── */
+
+/*
+ * np_cvns_stim_init() requires a non-NULL safety-response callback (its NULL
+ * rejection is intentional and FAI-tested).  The session, however, advances by
+ * POLLING ctx->stim->impedance_ok / np_cvns_stim_phase() inside np_cvns_session_tick(),
+ * not from this callback.  np_cvns_stim_safety_mcu_response() already updates the
+ * stim fields (impedance_ok, granted, phase) BEFORE invoking this callback, so a
+ * no-op handler is sufficient and keeps the polling-based flow unchanged.
+ *
+ * Passing NULL here (as an earlier revision did) made np_cvns_session_start()
+ * fail with NP_CVNS_ERR_INVALID_ARG on every call — the documented session entry
+ * point was dead.  This handler fixes that without altering session behaviour.
+ */
+static void session_stim_safety_cb(np_cvns_stim_ctx_t *stim,
+                                    bool                granted,
+                                    const float         impedance_kohm[])
+{
+    (void)stim;
+    (void)granted;
+    (void)impedance_kohm;
+}
+
 /* ── Lifecycle ───────────────────────────────────────────────────────────────── */
 
 np_cvns_status_t np_cvns_session_init(np_cvns_session_ctx_t   *ctx,
@@ -162,8 +185,11 @@ np_cvns_status_t np_cvns_session_start(np_cvns_session_ctx_t          *ctx,
     ctx->shdr_summary.stim_freq_hz      = config->freq_hz;
     ctx->shdr_summary.stim_current_ua   = config->current_ua;
 
-    /* Initialize stim module (validates config). */
-    np_cvns_status_t ret = np_cvns_stim_init(ctx->stim, config, NULL);
+    /* Initialize stim module (validates config).  A non-NULL safety-response
+     * callback is required by np_cvns_stim_init(); the session advances by
+     * polling stim state, so session_stim_safety_cb is a no-op bridge. */
+    np_cvns_status_t ret = np_cvns_stim_init(ctx->stim, config,
+                                             session_stim_safety_cb);
     if (ret != NP_CVNS_OK) {
         return ret;
     }

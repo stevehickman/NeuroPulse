@@ -56,6 +56,7 @@
 #   firmware/hub_control/     → np_cvns_reenable_tests    (OI-CVNS-HUB-01)
 #                             → np_log_backend_tests      (OI-LOG-01..04)
 #                             → np_transport_tests        (OI-HUB-MAIN-01)
+#                             → np_mod_cvns_tests         (hub ↔ CVNS library)
 #   firmware/vendor/freertos/ → np_freertos_smoke_tests   (kernel + config, POSIX port)
 
 cmake_minimum_required(VERSION 3.20)
@@ -152,6 +153,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_transport_tests
         COMMAND np_transport_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_mod_cvns_tests
+        COMMAND np_mod_cvns_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_freertos_smoke_tests

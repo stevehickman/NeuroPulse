@@ -248,7 +248,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  side;            /* 0=right, 1=left, 2=bilateral */
     uint16_t freq_mhz;        /* mHz; safety MCU enforces cardiac interlock */
     uint16_t amplitude_ua;    /* µA; firmware cap ≤ 2000 */
-    uint8_t  pulse_width_us;
+    uint16_t pulse_width_us;  /* µs; firmware clamps to 200–1000 (0 → 250 default) */
     uint16_t ramp_s;          /* ramp; firmware minimum 10s enforced */
     uint8_t  baseline_req;    /* 1=safety MCU must establish HR baseline before enable */
 } np_mod_cvns_params_t;
