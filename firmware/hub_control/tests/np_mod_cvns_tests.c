@@ -57,7 +57,7 @@ extern np_cvns_stim_ctx_t      *np_mod_cvns_test_stim(void);
 extern bool np_mod_cvns_test_enable_requested(void);
 extern bool np_mod_cvns_test_active(void);
 extern void np_mod_cvns_test_fire_fault(np_cvns_fault_reason_t reason);
-extern void np_mod_cvns_test_apply_heartbeat(void);
+extern void np_mod_cvns_test_apply_heartbeat(uint32_t now_ms);
 
 /* ── Mocked hub glue ─────────────────────────────────────────────────────────── */
 
@@ -111,6 +111,29 @@ bool     np_cvns_hal_accessory_present(void) { return g_accessory_present; }
 uint32_t np_mod_cvns_hal_now_ms(void)        { return g_now_ms; }
 uint32_t np_mod_cvns_hal_now_unix(void)      { return g_now_unix; }
 
+/* OI-CVNS-HUB-09 advisory per-electrode impedance measurement HAL. */
+static int             g_imp_meas_start_calls;
+static np_hub_status_t g_imp_meas_start_rc;      /* start() return code           */
+static bool            g_imp_meas_complete;      /* poll() completes immediately   */
+static float           g_imp_meas_kohm[NP_CVNS_ELECTRODE_COUNT]; /* [0]=L,[1]=R    */
+
+np_hub_status_t np_cvns_hal_impedance_measure_start(void)
+{
+    g_imp_meas_start_calls++;
+    return g_imp_meas_start_rc;
+}
+
+bool np_cvns_hal_impedance_measure_poll(float kohm_out[])
+{
+    if (!g_imp_meas_complete) {
+        return false;   /* still measuring — kohm_out untouched */
+    }
+    for (uint8_t i = 0U; i < NP_CVNS_ELECTRODE_COUNT; i++) {
+        kohm_out[i] = g_imp_meas_kohm[i];
+    }
+    return true;
+}
+
 /* ── Harness ─────────────────────────────────────────────────────────────────── */
 
 static int g_failures = 0;
@@ -134,6 +157,12 @@ static void reset_mocks(void)
     g_fault_log_code = 0; g_fault_log_ms = 0;
     g_accessory_present = true;
     g_now_ms = 0; g_now_unix = 1000000000U;
+    /* OI-CVNS-HUB-09 measurement HAL: default = one-shot success, in-window. */
+    g_imp_meas_start_calls = 0;
+    g_imp_meas_start_rc    = NP_HUB_OK;
+    g_imp_meas_complete    = true;
+    g_imp_meas_kohm[0]     = 2.0f;
+    g_imp_meas_kohm[1]     = 2.0f;
 }
 
 static np_mod_cvns_params_t make_params(void)
@@ -364,8 +393,10 @@ static void test_fault_cb_disables_and_logs(void)
 
 /* ── OI-CVNS-HUB-08: unified heartbeat → library SPI responses ───────────────── */
 
-/* Advisory impedance step is satisfied from the heartbeat so the library can
- * leave NP_CVNS_STAGE_IMPEDANCE for baseline. */
+/* Advisory impedance step (OI-CVNS-HUB-09): a genuine hub-side per-electrode
+ * measurement feeds real kΩ into the library, which then leaves
+ * NP_CVNS_STAGE_IMPEDANCE for baseline.  Async HAL: tick 1 starts the
+ * measurement, tick 2 polls it complete and advances. */
 static void test_hb_impedance_advances_stage(void)
 {
     reset_mocks();
@@ -377,14 +408,99 @@ static void test_hb_impedance_advances_stage(void)
           "hb-imp: precondition — session at IMPEDANCE stage");
     check(!np_mod_cvns_test_stim()->impedance_ok, "hb-imp: impedance not yet ok");
 
-    /* No fault in the status → advisory pass fed; one tick advances to BASELINE. */
+    g_imp_meas_kohm[0] = 3.3f; g_imp_meas_kohm[1] = 4.1f;   /* both in-window */
     np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_OK);
-    np_mod_cvns_tick(100U, g_now_unix);
 
-    check(np_mod_cvns_test_stim()->impedance_ok, "hb-imp: impedance_ok set from heartbeat");
+    np_mod_cvns_tick(100U, g_now_unix);   /* tick 1: start the measurement */
+    check(g_imp_meas_start_calls == 1, "hb-imp: measurement started");
+    check(!np_mod_cvns_test_stim()->impedance_ok, "hb-imp: not yet ok after start");
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_IMPEDANCE,
+          "hb-imp: still IMPEDANCE while measuring");
+
+    np_mod_cvns_tick(200U, g_now_unix);   /* tick 2: poll complete → feed → advance */
+    check(np_mod_cvns_test_stim()->impedance_ok, "hb-imp: impedance_ok set from measurement");
+    check(np_mod_cvns_test_stim()->impedance_kohm[0] == 3.3f &&
+          np_mod_cvns_test_stim()->impedance_kohm[1] == 4.1f,
+          "hb-imp: genuine per-electrode kΩ recorded (not placeholder)");
     check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_BASELINE,
           "hb-imp: session advanced IMPEDANCE → BASELINE");
+    check(g_imp_meas_start_calls == 1, "hb-imp: measured once (no needless re-measure)");
     check(g_enable_calls == 0, "hb-imp: no enable requested pre-baseline");
+}
+
+/* Out-of-window measurement holds the session in IMPEDANCE (fail-closed) and the
+ * driver re-measures on the next tick (recovers if contact is corrected). */
+static void test_hb_impedance_out_of_window_holds(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    g_imp_meas_kohm[0] = 2.0f; g_imp_meas_kohm[1] = 9.0f;   /* right electrode bad */
+    np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_OK);
+
+    np_mod_cvns_tick(100U, g_now_unix);   /* start */
+    np_mod_cvns_tick(200U, g_now_unix);   /* poll complete, out-of-window → hold + re-arm */
+
+    check(!np_mod_cvns_test_stim()->impedance_ok, "hb-imp-bad: impedance_ok stays false");
+    check(np_mod_cvns_test_stim()->impedance_kohm[1] == 9.0f,
+          "hb-imp-bad: out-of-window reading recorded");
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_IMPEDANCE,
+          "hb-imp-bad: session held at IMPEDANCE (fail-closed)");
+
+    np_mod_cvns_tick(300U, g_now_unix);   /* re-measures */
+    check(g_imp_meas_start_calls == 2, "hb-imp-bad: driver re-measured after a bad reading");
+    check(g_enable_calls == 0, "hb-imp-bad: no enable while impedance unresolved");
+}
+
+/* When the measurement HAL cannot start, the advisory step falls back to the
+ * nominal placeholder so the session still proceeds (liveness preserved — the
+ * safety MCU remains the authoritative gate). */
+static void test_hb_impedance_start_fail_fallback(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    g_imp_meas_start_rc = NP_HUB_ERR_MOD_FAULT;   /* no measurement path available */
+    np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_OK);
+
+    np_mod_cvns_tick(100U, g_now_unix);   /* start fails → nominal fallback → advance */
+
+    check(g_imp_meas_start_calls == 1, "hb-imp-nostart: start attempted once");
+    check(np_mod_cvns_test_stim()->impedance_ok,
+          "hb-imp-nostart: nominal fallback lets the session proceed");
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_BASELINE,
+          "hb-imp-nostart: session advanced on fallback");
+}
+
+/* A measurement that never completes falls back to nominal after the timeout so
+ * a stuck HAL cannot hard-stall the session. */
+static void test_hb_impedance_timeout_fallback(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    g_imp_meas_complete = false;   /* poll never completes */
+    np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_OK);
+
+    np_mod_cvns_tick(1000U, g_now_unix);   /* start; measurement clock = 1000 ms */
+    np_mod_cvns_tick(2000U, g_now_unix);   /* +1000 ms < timeout → still measuring */
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_IMPEDANCE,
+          "hb-imp-timeout: still IMPEDANCE before timeout");
+    check(!np_mod_cvns_test_stim()->impedance_ok, "hb-imp-timeout: not ok before timeout");
+
+    /* Timeout matches the re-enable gate-3 timeout (same measurement hardware). */
+    np_mod_cvns_tick(1000U + NP_CVNS_REENABLE_IMP_TIMEOUT_MS, g_now_unix);
+    check(np_mod_cvns_test_stim()->impedance_ok,
+          "hb-imp-timeout: nominal fallback after timeout");
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_BASELINE,
+          "hb-imp-timeout: session advanced on timeout fallback");
+    check(g_imp_meas_start_calls == 1, "hb-imp-timeout: only one measurement attempt");
 }
 
 /* An MCU grant of NP_SAFETY_EN_CVNS while the interlock is PRE_SESSION advances
@@ -401,7 +517,7 @@ static void test_hb_enable_grant(void)
     np_mod_cvns_test_interlock()->state  = NP_CVNS_INTERLOCK_PRE_SESSION;
 
     np_mod_cvns_set_heartbeat_status(NP_SAFETY_EN_CVNS, NP_SAFETY_STATUS_OK);
-    np_mod_cvns_test_apply_heartbeat();
+    np_mod_cvns_test_apply_heartbeat(g_now_ms);
 
     check(np_cvns_interlock_state(np_mod_cvns_test_interlock()) == NP_CVNS_INTERLOCK_ENABLED,
           "hb-grant: interlock PRE_SESSION → ENABLED");
@@ -430,7 +546,7 @@ static void test_hb_enable_reject_impedance(void)
     /* MCU now refuses: impedance fault, no grant. */
     g_disable_calls = 0;
     np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_IMPEDANCE);
-    np_mod_cvns_test_apply_heartbeat();
+    np_mod_cvns_test_apply_heartbeat(g_now_ms);
 
     check(np_cvns_interlock_state(np_mod_cvns_test_interlock()) == NP_CVNS_INTERLOCK_FAULT,
           "hb-reject: interlock faulted on refusal");
@@ -461,7 +577,7 @@ static void test_hb_cardiac_left_to_reenable(void)
     /* Cardiac cutoff: CARDIAC set, grant withdrawn. */
     g_fault_log_calls = 0;
     np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_CARDIAC | NP_SAFETY_STATUS_CUTOFF);
-    np_mod_cvns_test_apply_heartbeat();
+    np_mod_cvns_test_apply_heartbeat(g_now_ms);
 
     check(np_cvns_interlock_state(np_mod_cvns_test_interlock()) == NP_CVNS_INTERLOCK_ENABLED,
           "hb-cardiac: bridge did NOT fault the library (owned by re-enable manager)");
@@ -485,7 +601,7 @@ static void test_hb_snapshot_reset_on_start(void)
     np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
     np_mod_cvns_test_session()->stage   = NP_CVNS_STAGE_BASELINE;
     np_mod_cvns_test_interlock()->state = NP_CVNS_INTERLOCK_PRE_SESSION;
-    np_mod_cvns_test_apply_heartbeat();   /* stale snapshot invalidated → no-op */
+    np_mod_cvns_test_apply_heartbeat(g_now_ms);   /* stale snapshot invalidated → no-op */
 
     check(np_cvns_interlock_state(np_mod_cvns_test_interlock()) == NP_CVNS_INTERLOCK_PRE_SESSION,
           "hb-reset: stale grant did not advance the new session");
@@ -530,6 +646,9 @@ int main(void)
     test_stop_drops_enable();
     test_fault_cb_disables_and_logs();
     test_hb_impedance_advances_stage();
+    test_hb_impedance_out_of_window_holds();
+    test_hb_impedance_start_fail_fallback();
+    test_hb_impedance_timeout_fallback();
     test_hb_enable_grant();
     test_hb_enable_reject_impedance();
     test_hb_cardiac_left_to_reenable();

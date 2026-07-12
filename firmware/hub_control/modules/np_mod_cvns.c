@@ -55,6 +55,10 @@
  *   OI-CVNS-HUB-04: np_cvns_hal_accessory_present() → bool (accessory-port detect)
  *   OI-CVNS-HUB-05: np_mod_cvns_hal_now_ms()        → uint32_t (free-running ms)
  *   OI-CVNS-HUB-06: np_mod_cvns_hal_now_unix()      → uint32_t (UTC epoch seconds)
+ *   OI-CVNS-HUB-09: np_cvns_hal_impedance_measure_start()/_poll() — async hub-side
+ *                   per-electrode kΩ measurement (1 kHz AC probe, same path the
+ *                   re-enable manager's gate-3 check uses) feeding the advisory
+ *                   impedance step with GENUINE values instead of a placeholder.
  *
  * Scheduler wiring (OI-CVNS-HUB-07) — the callers of the three entry points below
  * live in the hub scheduler (np_session_runner.c, np_hub_control_main.c):
@@ -92,6 +96,23 @@ extern bool     np_cvns_hal_accessory_present(void);   /* OI-CVNS-HUB-04 */
 extern uint32_t np_mod_cvns_hal_now_ms(void);           /* OI-CVNS-HUB-05 */
 extern uint32_t np_mod_cvns_hal_now_unix(void);         /* OI-CVNS-HUB-06 */
 
+/*
+ * OI-CVNS-HUB-09: hub-side per-electrode CVNS impedance measurement.
+ * Asynchronous (start once, poll each tick), mirroring the re-enable manager's
+ * gate-3 HAL (np_cvns_hal_impedance_start/_poll) — but returns the actual
+ * per-electrode kΩ rather than a pass/fail bit, so the advisory impedance step
+ * can record genuine values into the library's UHDR/SHDR impedance fields.
+ *
+ * np_cvns_hal_impedance_measure_start — begin a fresh measurement.  Returns
+ *   NP_HUB_OK if the measurement was started, else the flow falls back to the
+ *   nominal placeholder (liveness preserved even without a measurement path).
+ * np_cvns_hal_impedance_measure_poll — returns true when complete, filling
+ *   kohm_out[NP_CVNS_ELECTRODE_COUNT] ([0]=left, [1]=right).  While it returns
+ *   false the measurement is still in flight and kohm_out is left untouched.
+ */
+extern np_hub_status_t np_cvns_hal_impedance_measure_start(void);      /* OI-CVNS-HUB-09 */
+extern bool            np_cvns_hal_impedance_measure_poll(float kohm_out[]); /* OI-CVNS-HUB-09 */
+
 /* ── Library contexts (single active CVNS session per device) ────────────────── */
 
 static np_cvns_interlock_ctx_t s_interlock;
@@ -100,10 +121,20 @@ static np_cvns_session_ctx_t   s_session;
 
 /* ── Driver state ────────────────────────────────────────────────────────────── */
 
+/* OI-CVNS-HUB-09: advisory per-electrode impedance measurement sub-state. */
+typedef enum {
+    NP_CVNS_IMP_IDLE      = 0,  /* no measurement in flight; start on next entry */
+    NP_CVNS_IMP_MEASURING = 1,  /* hub-side HAL running; polling each tick        */
+    NP_CVNS_IMP_DONE      = 2,  /* a passing result was fed; do not re-measure    */
+} np_mod_cvns_imp_state_t;
+
 typedef struct {
     bool     ready;             /* init() completed; contexts valid            */
     bool     active;            /* a session command is running                */
     bool     enable_requested;  /* NP_SAFETY_EN_CVNS currently requested        */
+    /* OI-CVNS-HUB-09 advisory impedance measurement (reset each session). */
+    np_mod_cvns_imp_state_t imp_state;
+    uint32_t imp_start_ms;      /* now_ms when the current measurement began     */
     /* Cached, non-biology display fields for telemetry() (UHDR-class current /
      * impedance, same as np_mod_stim; NO HR is ever cached here). */
     uint16_t last_current_ua;
@@ -128,13 +159,24 @@ static volatile uint16_t s_hb_granted_mask;
 static volatile uint8_t  s_hb_mcu_status;
 
 /*
- * Advisory pre-session impedance value (see cvns_apply_heartbeat note): the
- * unified heartbeat carries only a pass/fail impedance bit, never per-electrode
- * kΩ, so the library's advisory NP_CVNS_STAGE_IMPEDANCE step is satisfied with a
- * nominal in-window figure.  The AUTHORITATIVE impedance gate is the safety
- * MCU's enable refusal, not this value.
+ * Advisory pre-session impedance FALLBACK value (OI-CVNS-HUB-09): when no
+ * hub-side measurement is available (the measurement HAL cannot start, or a
+ * measurement does not complete within NP_CVNS_HB_IMPEDANCE_MEASURE_TIMEOUT_MS),
+ * the library's advisory NP_CVNS_STAGE_IMPEDANCE step is satisfied with this
+ * nominal in-window figure so the session still proceeds.  When the measurement
+ * DOES complete it supersedes this placeholder with genuine per-electrode kΩ.
+ * Either way the AUTHORITATIVE impedance gate is the safety MCU's enable
+ * refusal, not this value.
  */
 #define NP_CVNS_HB_IMPEDANCE_NOMINAL_KOHM  (NP_CVNS_IMPEDANCE_MAX_KOHM * 0.5f)
+
+/*
+ * OI-CVNS-HUB-09: max wall-clock a single advisory measurement may run before
+ * the driver falls back to the nominal placeholder (fail-open on liveness — the
+ * safety MCU remains the authoritative gate).  Matches the re-enable manager's
+ * gate-3 timeout (NP_CVNS_REENABLE_IMP_TIMEOUT_MS) — same measurement hardware.
+ */
+#define NP_CVNS_HB_IMPEDANCE_MEASURE_TIMEOUT_MS  NP_CVNS_REENABLE_IMP_TIMEOUT_MS
 
 /* ── Safety-critical cardiac-interlock config ────────────────────────────────── */
 
@@ -237,6 +279,81 @@ static bool stage_is_delivering(np_cvns_stage_t stage)
            (stage == NP_CVNS_STAGE_RAMP_DOWN);
 }
 
+/* ── OI-CVNS-HUB-09: advisory per-electrode impedance measurement ─────────────── */
+
+/* Feed the nominal in-window fallback to the library so the advisory impedance
+ * step can proceed when no genuine measurement is available. */
+static void cvns_feed_nominal_impedance(void)
+{
+    float imp[NP_CVNS_ELECTRODE_COUNT];
+    for (uint8_t i = 0U; i < NP_CVNS_ELECTRODE_COUNT; i++) {
+        imp[i] = NP_CVNS_HB_IMPEDANCE_NOMINAL_KOHM;
+    }
+    np_cvns_stim_safety_mcu_response(&s_stim, false, imp);
+}
+
+/*
+ * Drive the hub-side per-electrode impedance measurement for the advisory
+ * NP_CVNS_STAGE_IMPEDANCE step, replacing the OI-CVNS-HUB-09 nominal placeholder
+ * with genuine measured kΩ.  Called only while the library is in the impedance
+ * stage and has not yet accepted a reading (stage == IMPEDANCE && !impedance_ok).
+ *
+ * The measured values flow into the library's impedance_kohm[] and thence into
+ * the UHDR/SHDR session records and app display — so the recorded impedance is
+ * honest.  The AUTHORITATIVE enable gate remains the safety MCU's refusal in
+ * cvns_apply_heartbeat() block (3); this only supplies truthful values.
+ *
+ * Retry-until-pass while in the impedance stage:
+ *   IDLE      → start a measurement.  If the HAL cannot start (absent/busy),
+ *               feed the nominal fallback and latch DONE — the session proceeds
+ *               exactly as it did before OI-CVNS-HUB-09 (liveness preserved).
+ *   MEASURING → poll.  Complete + all-in-window → feed values, latch DONE (the
+ *               library advances to baseline this tick).  Complete + any
+ *               electrode out-of-window → feed the values (records the reading;
+ *               impedance_ok stays false so the library holds), then IDLE to
+ *               re-measure (recovers if electrode contact is corrected).  Not
+ *               complete + timeout elapsed → nominal fallback, latch DONE so a
+ *               stalled HAL never hard-stalls the session.
+ *   DONE      → nothing (a passing/fallback reading was already fed).
+ */
+static void cvns_advisory_impedance_step(uint32_t now_ms)
+{
+    switch (s_state.imp_state) {
+
+    case NP_CVNS_IMP_IDLE:
+        if (np_cvns_hal_impedance_measure_start() == NP_HUB_OK) {
+            s_state.imp_start_ms = now_ms;
+            s_state.imp_state    = NP_CVNS_IMP_MEASURING;
+        } else {
+            cvns_feed_nominal_impedance();
+            s_state.imp_state = NP_CVNS_IMP_DONE;
+        }
+        break;
+
+    case NP_CVNS_IMP_MEASURING: {
+        float kohm[NP_CVNS_ELECTRODE_COUNT];
+        if (np_cvns_hal_impedance_measure_poll(kohm)) {
+            bool all_ok = true;
+            for (uint8_t i = 0U; i < NP_CVNS_ELECTRODE_COUNT; i++) {
+                if (kohm[i] > NP_CVNS_IMPEDANCE_MAX_KOHM) { all_ok = false; }
+            }
+            np_cvns_stim_safety_mcu_response(&s_stim, false, kohm);
+            /* Pass → done; out-of-window → re-measure (fail-closed, no advance). */
+            s_state.imp_state = all_ok ? NP_CVNS_IMP_DONE : NP_CVNS_IMP_IDLE;
+        } else if ((now_ms - s_state.imp_start_ms) >=
+                   NP_CVNS_HB_IMPEDANCE_MEASURE_TIMEOUT_MS) {
+            cvns_feed_nominal_impedance();
+            s_state.imp_state = NP_CVNS_IMP_DONE;
+        }
+        break;
+    }
+
+    case NP_CVNS_IMP_DONE:
+    default:
+        break;
+    }
+}
+
 /* ── OI-CVNS-HUB-08: unified heartbeat → library SPI responses ───────────────── */
 
 /*
@@ -267,18 +384,21 @@ static bool stage_is_delivering(np_cvns_stage_t stage)
  * snapshot (np_mod_cvns_set_heartbeat_status); ALL library mutation happens here,
  * invoked from np_mod_cvns_tick() on the one control-task context.
  *
- * Residuals:
- *   OI-CVNS-HUB-09 — no per-electrode kΩ over the unified link; the advisory
- *     impedance step is satisfied with NP_CVNS_HB_IMPEDANCE_NOMINAL_KOHM.  A
- *     precise UHDR kΩ, if required, must come from a hub-side measurement HAL
- *     (as np_cvns_reenable uses for its re-enable gate 3).
+ * OI-CVNS-HUB-09 (CLOSED): the advisory NP_CVNS_STAGE_IMPEDANCE step is now
+ *   satisfied by a genuine hub-side per-electrode measurement
+ *   (cvns_advisory_impedance_step → np_cvns_hal_impedance_measure_*), so the
+ *   UHDR/SHDR impedance fields record real kΩ.  The unified heartbeat still
+ *   carries only a pass/fail impedance bit; when no measurement is available the
+ *   step falls back to NP_CVNS_HB_IMPEDANCE_NOMINAL_KOHM (previous behaviour).
+ *
+ * Residual:
  *   A safety-MCU enable refusal surfaces through the library's generic fault
  *     path, which np_cvns_session_tick() records with cutoff_occurred=1 even
  *     though it was not a cardiac cutoff; the SHDR fault_reason is correct
  *     (NP_CVNS_FAULT_SAFETY_MCU).  Correcting the library's fault taxonomy is a
  *     separate library change, not this hub bridge.
  */
-static void cvns_apply_heartbeat(void)
+static void cvns_apply_heartbeat(uint32_t now_ms)
 {
     if (!s_state.ready || !s_state.active || !s_hb_valid) {
         return;
@@ -297,16 +417,14 @@ static void cvns_apply_heartbeat(void)
     const np_cvns_stage_t           stage    = np_cvns_session_stage(&s_session);
     const np_cvns_interlock_state_t il_state = np_cvns_interlock_state(&s_interlock);
 
-    /* (1) Advisory impedance step — satisfy with a nominal in-window value so the
-     * library proceeds past NP_CVNS_STAGE_IMPEDANCE to baseline.  The real
-     * impedance gate is the safety MCU's enable refusal in (3); the unified
-     * heartbeat carries no per-electrode kΩ (residual OI-CVNS-HUB-09). */
+    /* (1) Advisory impedance step (OI-CVNS-HUB-09) — drive a genuine hub-side
+     * per-electrode measurement, feeding real kΩ into the library so its
+     * UHDR/SHDR impedance fields are honest; fall back to a nominal in-window
+     * value only when no measurement is available, so the library still proceeds
+     * past NP_CVNS_STAGE_IMPEDANCE to baseline.  The AUTHORITATIVE impedance gate
+     * remains the safety MCU's enable refusal in (3). */
     if (stage == NP_CVNS_STAGE_IMPEDANCE && !s_stim.impedance_ok) {
-        float imp[NP_CVNS_ELECTRODE_COUNT];
-        for (uint8_t i = 0U; i < NP_CVNS_ELECTRODE_COUNT; i++) {
-            imp[i] = NP_CVNS_HB_IMPEDANCE_NOMINAL_KOHM;
-        }
-        np_cvns_stim_safety_mcu_response(&s_stim, false, imp);
+        cvns_advisory_impedance_step(now_ms);
     }
 
     /* (2) Enable grant — the MCU has asserted the CVNS enable GPIO while the
@@ -472,8 +590,11 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
     const np_mod_cvns_params_t *p = (const np_mod_cvns_params_t *)params;
 
     /* Fresh session: discard any snapshot published before this start so the
-     * first tick cannot act on a previous session's grant (OI-CVNS-HUB-08). */
-    s_hb_valid = false;
+     * first tick cannot act on a previous session's grant (OI-CVNS-HUB-08), and
+     * re-arm the advisory impedance measurement (OI-CVNS-HUB-09). */
+    s_hb_valid           = false;
+    s_state.imp_state    = NP_CVNS_IMP_IDLE;
+    s_state.imp_start_ms = 0U;
 
     np_cvns_session_config_t cfg;
     np_mod_cvns_build_config(p, &cfg);
@@ -512,7 +633,7 @@ void np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s)
     /* OI-CVNS-HUB-08: fold the latest safety-MCU heartbeat status into the
      * library's SPI-response state BEFORE it advances this tick, so an enable
      * grant / impedance verdict lands the same tick the library consumes it. */
-    cvns_apply_heartbeat();
+    cvns_apply_heartbeat(now_ms);
 
     np_cvns_session_tick(&s_session, now_ms, now_s);
 
@@ -629,5 +750,5 @@ void np_mod_cvns_test_fire_fault(np_cvns_fault_reason_t reason)
 /* Apply the current heartbeat snapshot to the library in isolation (no
  * session_tick), so OI-CVNS-HUB-08 grant / reject / impedance translation can be
  * asserted directly against library state. */
-void np_mod_cvns_test_apply_heartbeat(void) { cvns_apply_heartbeat(); }
+void np_mod_cvns_test_apply_heartbeat(uint32_t now_ms) { cvns_apply_heartbeat(now_ms); }
 #endif /* NPTEST_HOST */
