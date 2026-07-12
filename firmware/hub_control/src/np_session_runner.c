@@ -20,11 +20,26 @@
 #include "np_session_log.h"
 #include "np_safety_spi.h"
 #include "np_cvns_reenable.h"
+#include "np_cvns_config.h"       /* NP_CVNS_STIM_TICK_MS */
 #include "FreeRTOS.h"
 #include "task.h"
 #include "event_groups.h"
 #include <string.h>
 #include <limits.h>
+
+/*
+ * Cervical VNS scheduler wiring (OI-CVNS-HUB-07).  The module driver exposes no
+ * per-module header (registry idiom); these are its public entry points
+ * (modules/np_mod_cvns.c).  While a CVNS command is active the runner drives
+ * np_mod_cvns_tick() every NP_CVNS_STIM_TICK_MS so the cervical-VNS cardiac
+ * interlock, enable-bit handoff, and current ramp advance in real time.
+ * now_ms/now_s use the CVNS HAL clocks — the SAME free-running ms domain the
+ * PPG-ISR seam stamps samples with — not the runner's session-relative clock.
+ */
+extern bool     np_mod_cvns_active(void);
+extern void     np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s);
+extern uint32_t np_mod_cvns_hal_now_ms(void);
+extern uint32_t np_mod_cvns_hal_now_unix(void);
 
 /* ── Internal state ───────────────────────────────────────────────────────────── */
 
@@ -322,8 +337,25 @@ np_hub_status_t np_runner_run(void)
             }
         }
 
-        /* Sleep until the next interesting event. */
+        /* ── OI-CVNS-HUB-07: drive the cervical VNS state machine ──────────────
+         * While a CVNS command is active, tick the module every
+         * NP_CVNS_STIM_TICK_MS so its cardiac interlock, unified-enable handoff,
+         * and ramp advance in real time.  now_ms/now_s come from the CVNS HAL
+         * clocks (the same free-running ms domain the PPG-ISR seam stamps samples
+         * with, which the interlock's R-R timing depends on) — not the runner's
+         * session-relative clock.  The tick no-ops once the module reaches a
+         * terminal stage and clears active. */
+        if (np_mod_cvns_active()) {
+            np_mod_cvns_tick(np_mod_cvns_hal_now_ms(), np_mod_cvns_hal_now_unix());
+        }
+
+        /* Sleep until the next interesting event, but never past one CVNS tick
+         * period while a CVNS session is active (re-read: a terminal tick above
+         * may have just cleared active). */
         uint32_t sleep_ms = ms_until_next_event(now_ms);
+        if (np_mod_cvns_active() && sleep_ms > NP_CVNS_STIM_TICK_MS) {
+            sleep_ms = NP_CVNS_STIM_TICK_MS;
+        }
         vTaskDelay(pdMS_TO_TICKS(sleep_ms));
     }
 

@@ -63,6 +63,12 @@ extern uint32_t np_hal_get_device_session_count(void);
 extern void np_mod_cvns_set_heartbeat_status(uint16_t granted_mask,
                                              uint8_t  mcu_status);
 
+/* Cervical VNS PPG-ISR seam (OI-CVNS-HUB-07): the platform PPG ADC ISR calls
+ * np_hub_ppg_isr_sample() (below), which forwards to the module's Pan-Tompkins
+ * feed.  Declared extern here (registry idiom — module drivers expose no header). */
+extern void     np_mod_cvns_push_ppg(uint32_t sample, uint32_t timestamp_ms);
+extern uint32_t np_mod_cvns_hal_now_ms(void);
+
 /* ── Globals ──────────────────────────────────────────────────────────────────── */
 
 static EventGroupHandle_t g_hub_events;
@@ -316,6 +322,32 @@ void np_hub_zone_remove_cb(uint8_t zone_id)
     if (mod != NULL && mod->shutdown != NULL) {
         (void)mod->shutdown(slot);
     }
+}
+
+/* ── Cervical VNS PPG-ISR seam (OI-CVNS-HUB-07) ───────────────────────────────── */
+
+/*
+ * np_hub_ppg_isr_sample — hub entry point for the platform PPG ADC ISR.
+ *
+ * The cervical VNS cardiac interlock needs the raw auricular PPG sample stream at
+ * NP_CVNS_PPG_SAMPLE_RATE_HZ (200 Hz) to run its Pan-Tompkins R-peak detector and
+ * arm the <100 ms cardiac cutoff.  The platform PPG ISR calls this on every
+ * sample; it forwards to the CVNS module, stamping with np_mod_cvns_hal_now_ms()
+ * so the sample timestamp shares the exact free-running ms clock the session
+ * runner passes to np_mod_cvns_tick() (the interlock's R-R timing assumes one
+ * clock domain across both feeds).
+ *
+ * ISR-context safe: np_mod_cvns_push_ppg() self-guards (no-op unless a CVNS
+ * session is active) and only appends to the interlock's R-R pipeline — no
+ * blocking, no allocation.  When no CVNS session is present it is a cheap early
+ * return, so the platform may route every PPG sample here unconditionally.
+ *
+ * (HRV biofeedback consumes the same PPG stream via its own HAL path; a unified
+ * hub PPG fan-out is a future consolidation, not required by OI-CVNS-HUB-07.)
+ */
+void np_hub_ppg_isr_sample(uint32_t sample)
+{
+    np_mod_cvns_push_ppg(sample, np_mod_cvns_hal_now_ms());
 }
 
 /* ── Entry point ──────────────────────────────────────────────────────────────── */
