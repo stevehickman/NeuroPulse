@@ -21,6 +21,8 @@
  *   OI-VNS-07: np_mod_vns_hal_get_rmssd()   → float ms (from hrv_biofeedback)
  *   OI-VNS-08: np_mod_vns_hal_get_coherence() → float 0–10
  *   OI-VNS-09: np_mod_vns_hal_get_hr_bpm()  → float
+ *   OI-VNS-10: np_mod_vns_hal_now_ms()      → uint32_t (free-running ms tick;
+ *              same clock the HRV session uses for start/stop/tick timing)
  */
 
 #include "np_hub_types.h"
@@ -42,22 +44,82 @@ extern void np_mod_vns_hal_eeg_ref_route(bool enable);
 extern float np_mod_vns_hal_get_rmssd(void);
 extern float np_mod_vns_hal_get_coherence(void);
 extern float np_mod_vns_hal_get_hr_bpm(void);
+extern uint32_t np_mod_vns_hal_now_ms(void);            /* OI-VNS-10 */
 
 /* Safety: contact impedance threshold for VNS enable (ohm). */
 #define VNS_CONTACT_MIN_OHM   500.0f   /* below this → poor contact */
 #define VNS_CONTACT_MAX_OHM   5000.0f  /* above this → no contact */
 #define VNS_MAX_AMP_UA        2000U
 
+/*
+ * HRV session duration upper bound (s).  The hub session runner ends the VNS
+ * session explicitly via a stop command; this only bounds the HRV library's
+ * internal auto-complete timer (np_hrv_session_tick) so a missed stop cannot
+ * run the coherence session forever.  Value is the top of the documented
+ * 300–1200 s range (np_hrv_session_config_t.duration_s).
+ */
+#define VNS_HRV_DEFAULT_DURATION_S   1200U
+
 /* ── State ───────────────────────────────────────────────────────────────────── */
 
 typedef struct {
-    bool     active;
-    bool     ppg_on;
-    uint8_t  active_side;
-    float    last_impedance_ohm;
+    bool              active;
+    bool              ppg_on;
+    uint8_t           active_side;
+    float             last_impedance_ohm;
+    np_hrv_session_t *hrv_sess;   /* NULL when no HRV protocol is running */
 } np_mod_vns_state_t;
 
 static np_mod_vns_state_t s_state;
+
+/* ── HRV biofeedback session lifecycle ────────────────────────────────────────── */
+
+/*
+ * Session-end callback (np_hrv_session_create requires it non-NULL).  The HRV
+ * library builds the finalized UHDR record and passes it here; the storage
+ * commit path lives outside this driver, so there is nothing to do but
+ * acknowledge.  The context is released by vns_hrv_session_stop() immediately
+ * after np_hrv_session_stop() returns.
+ */
+static void vns_hrv_session_end_cb(const np_hrv_session_record_t *record,
+                                   np_hrv_status_t                reason)
+{
+    (void)record;
+    (void)reason;
+}
+
+/* Start the HRV biofeedback session for protocol `proto` (caller ensures > 0). */
+static void vns_hrv_session_start(uint8_t proto)
+{
+    if (s_state.hrv_sess != NULL) {
+        return;  /* already running — one HRV session per device */
+    }
+
+    uint32_t now = np_mod_vns_hal_now_ms();
+
+    np_hrv_session_config_t cfg;
+    memset(&cfg, 0, sizeof(cfg));
+    cfg.protocol   = proto;                       /* np_hrv_protocol_t value    */
+    cfg.duration_s = VNS_HRV_DEFAULT_DURATION_S;
+    /* pacer_rate_bpm left 0.0 → HRV lib uses personalized/default resonance.   */
+
+    /* create() copies cfg by value; the HRV module owns its own FreeRTOS task. */
+    s_state.hrv_sess = np_hrv_session_create(&cfg, NULL,
+                                             vns_hrv_session_end_cb, now);
+    if (s_state.hrv_sess != NULL) {
+        (void)np_hrv_session_start(s_state.hrv_sess, now);
+    }
+}
+
+/* Stop and release the HRV biofeedback session if one is running. */
+static void vns_hrv_session_stop(void)
+{
+    if (s_state.hrv_sess != NULL) {
+        np_hrv_session_stop(s_state.hrv_sess, np_mod_vns_hal_now_ms());
+        np_hrv_session_destroy(s_state.hrv_sess);
+        s_state.hrv_sess = NULL;
+    }
+}
 
 /* ── Detect ──────────────────────────────────────────────────────────────────── */
 
@@ -100,6 +162,7 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
             np_mod_vns_hal_ppg_stop();
             s_state.ppg_on = false;
         }
+        vns_hrv_session_stop();
         np_mod_vns_hal_eeg_ref_route(false);
         return NP_HUB_OK;
     }
@@ -128,8 +191,9 @@ np_hub_status_t np_mod_vns_control(uint8_t slot, const void *params, uint16_t le
 
     /* Start HRV biofeedback library if needed */
     if (p->hrv_proto > 0U) {
-        /* The HRV session module handles its own FreeRTOS task — we just start it. */
-        np_hrv_session_start((np_hrv_protocol_t)p->hrv_proto);
+        /* The HRV session module handles its own FreeRTOS task — we create,
+         * start, and later tear it down via the local lifecycle helpers. */
+        vns_hrv_session_start(p->hrv_proto);
     }
 
     /* VNS stimulation */
@@ -172,6 +236,6 @@ np_hub_status_t np_mod_vns_telemetry(uint8_t slot, np_telem_record_t *out)
 
 np_hub_status_t np_mod_vns_shutdown(uint8_t slot)
 {
-    np_hrv_session_stop();
+    /* control(NULL, 0) stops VNS stim, PPG, EEG routing, and the HRV session. */
     return np_mod_vns_control(slot, NULL, 0U);
 }
