@@ -56,11 +56,15 @@
  *   OI-CVNS-HUB-05: np_mod_cvns_hal_now_ms()        → uint32_t (free-running ms)
  *   OI-CVNS-HUB-06: np_mod_cvns_hal_now_unix()      → uint32_t (UTC epoch seconds)
  *
- * Scheduler wiring (OI-CVNS-HUB-07, hub main task):
- *   - np_mod_cvns_tick(now_ms, now_s) every NP_CVNS_STIM_TICK_MS (100 ms) while a
- *     CVNS command is active (session-runner control task).
- *   - np_mod_cvns_push_ppg(sample, ts_ms) from the PPG ISR at
- *     NP_CVNS_PPG_SAMPLE_RATE_HZ.
+ * Scheduler wiring (OI-CVNS-HUB-07) — the callers of the three entry points below
+ * live in the hub scheduler (np_session_runner.c, np_hub_control_main.c):
+ *   - np_mod_cvns_tick(now_ms, now_s) is driven every NP_CVNS_STIM_TICK_MS (100 ms)
+ *     by the session-runner control task (np_runner_run) for as long as
+ *     np_mod_cvns_active() reports a command is running.
+ *   - np_mod_cvns_push_ppg(sample, ts_ms) is fed from the platform PPG ADC ISR at
+ *     NP_CVNS_PPG_SAMPLE_RATE_HZ via the hub seam np_hub_ppg_isr_sample()
+ *     (np_hub_control_main.c), which stamps each sample with the same
+ *     free-running ms clock the runner passes to the tick.
  *   - np_mod_cvns_set_heartbeat_status(granted_mask, mcu_status) once per beat
  *     from the safety-heartbeat task (OI-CVNS-HUB-08 — see cvns_apply_heartbeat).
  */
@@ -531,6 +535,17 @@ void np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s)
         stage == NP_CVNS_STAGE_IDLE) {
         s_state.active = false;
     }
+}
+
+/*
+ * np_mod_cvns_active — true while a CVNS command is running, from command start
+ * (impedance/baseline) through a terminal stage.  The session-runner control
+ * task (OI-CVNS-HUB-07) polls this to decide when to drive np_mod_cvns_tick()
+ * and when to shorten its loop sleep to NP_CVNS_STIM_TICK_MS.  Single-bool read.
+ */
+bool np_mod_cvns_active(void)
+{
+    return s_state.active;
 }
 
 /* ── PPG feed (OI-CVNS-HUB-07; PPG ISR) ──────────────────────────────────────── */
