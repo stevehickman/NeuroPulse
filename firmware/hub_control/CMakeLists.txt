@@ -59,6 +59,24 @@ if(NP_BUILD_TESTS)
     target_compile_options(np_transport_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
+    # Hub ↔ cervical VNS library integration + cardiac-interlock config.
+    # Links the real np_cervical_vns library sources directly (host build).
+    set(NP_CVNS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../cervical_vns)
+    add_executable(np_mod_cvns_tests
+        tests/np_mod_cvns_tests.c
+        modules/np_mod_cvns.c
+        ${NP_CVNS_DIR}/src/np_cvns_session.c
+        ${NP_CVNS_DIR}/src/np_cvns_stim.c
+        ${NP_CVNS_DIR}/src/np_cvns_interlock.c
+    )
+    target_include_directories(np_mod_cvns_tests PRIVATE
+        include
+        ${NP_CVNS_DIR}/include
+    )
+    target_compile_options(np_mod_cvns_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+    target_link_libraries(np_mod_cvns_tests m)
+
     return()
 endif()
 
@@ -89,7 +107,9 @@ set(HUB_SOURCES
     modules/np_mod_vns.c
     modules/np_mod_audio.c
     modules/np_mod_visual.c
-    modules/np_mod_intranasal.c   # also contains CVNS wrappers
+    modules/np_mod_intranasal.c
+    modules/np_mod_cvns.c         # hub ↔ np_cervical_vns integration + cardiac interlock
+    modules/np_mod_t2_stubs.c     # T2 + accessory detect/init/control stubs
 )
 
 add_library(np_hub_control STATIC ${HUB_SOURCES})

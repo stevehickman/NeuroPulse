@@ -600,17 +600,18 @@ function encodeHDTdcs(p: HDTdcsParams): EncodedParams {
 }
 
 function encodeCervicalVNS(p: CervicalVnsParams): EncodedParams {
-  // np_mod_cvns_params_t: 9 bytes (side, freq_mhz×2, amplitude_ua×2, pulse_width_us, ramp_s×2, baseline_req)
+  // np_mod_cvns_params_t: 10 bytes (side, freq_mhz×2, amplitude_ua×2,
+  //   pulse_width_us×2, ramp_s×2, baseline_req)
   const freqMhz = Math.min(Math.round(p.frequencyHz * 1000), 25000);
   const ampUa   = Math.min(Math.round(p.intensityMilliamps * 1000), 2000);
-  const buf = new Uint8Array(9);
+  const buf = new Uint8Array(10);
   const dv  = new DataView(buf.buffer);
   dv.setUint8(0, 0);                  // side = right (default)
   dv.setUint16(1, freqMhz, true);
   dv.setUint16(3, ampUa, true);
-  dv.setUint8(5, 0);                  // pulse_width_us = default
-  dv.setUint16(6, 10, true);          // ramp_s = 10 (firmware enforces ≥10s)
-  dv.setUint8(8, 1);                  // baseline_req = true (cardiac interlock required)
+  dv.setUint16(5, 0, true);           // pulse_width_us = 0 → firmware default 250µs
+  dv.setUint16(7, 10, true);          // ramp_s = 10 (firmware enforces ≥10s)
+  dv.setUint8(9, 1);                  // baseline_req = true (cardiac interlock required)
   return { modType: NP_MOD_CVNS, slotMask: 0x01, params: buf };
 }
 
