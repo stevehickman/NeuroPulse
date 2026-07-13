@@ -197,30 +197,68 @@ void np_factory_reset_resume_after_powerloss(void)
     }
 }
 
-/* ── Platform HAL no-op stubs (host test builds only) ──────────────────────── */
+/* ── Platform HAL stubs (host test builds only) ────────────────────────────── */
 /* On target firmware the board layer provides the real implementations and
  * these stubs are excluded.  In NPTEST_HOST builds they let the module link
- * and run on the host without eMMC/TRNG hardware. */
+ * and run on the host without eMMC/TRNG hardware.
+ *
+ * Each stub is failure-injectable via np_fr_host_hal (np_factory_reset_test_hal.h)
+ * so the test suite can force any step to fail and verify the abort-safety
+ * invariant — reset_in_progress stays SET on failure — plus bounded-retry
+ * recovery.  By default every control is zero, so the stubs succeed and the
+ * happy-path behaviour is unchanged. */
 #ifdef NPTEST_HOST
+
+#include "np_factory_reset_test_hal.h"
+
+/* Single definition of the host HAL control state. */
+np_fr_host_hal_control_t np_fr_host_hal = {0};
+
+/* Shared step evaluator: bumps the call counter, then honours fail_remaining
+ * (>0 fail-then-recover, <0 always-fail, 0 succeed). */
+static np_reset_status_t np_fr_host_step(int *fail_remaining, uint32_t *call_count,
+                                         np_reset_status_t err)
+{
+    (*call_count)++;
+    if (*fail_remaining != 0) {
+        if (*fail_remaining > 0) {
+            (*fail_remaining)--;
+        }
+        return err;
+    }
+    return NP_RESET_OK;
+}
 
 np_reset_status_t np_factory_reset_hal_sanitize_uhdr(void)   /* OI-RESET-01 */
 {
-    return NP_RESET_OK;
+    return np_fr_host_step(&np_fr_host_hal.fail_sanitize_uhdr,
+                           &np_fr_host_hal.calls_sanitize_uhdr,
+                           NP_RESET_ERR_SANITIZE);
 }
 
 np_reset_status_t np_factory_reset_hal_zero_shdr(void)       /* OI-RESET-02 */
 {
-    return NP_RESET_OK;
+    return np_fr_host_step(&np_fr_host_hal.fail_zero_shdr,
+                           &np_fr_host_hal.calls_zero_shdr,
+                           NP_RESET_ERR_SANITIZE);
 }
 
 np_reset_status_t np_factory_reset_hal_zero_config(void)     /* OI-RESET-03 */
 {
-    return NP_RESET_OK;
+    return np_fr_host_step(&np_fr_host_hal.fail_zero_config,
+                           &np_fr_host_hal.calls_zero_config,
+                           NP_RESET_ERR_SANITIZE);
 }
 
 np_reset_status_t np_factory_reset_hal_trng_generate(uint8_t *buf, size_t len) /* OI-RESET-04 */
 {
+    np_fr_host_hal.calls_trng++;
     if (buf == NULL || len == 0U) {
+        return NP_RESET_ERR_TRNG;
+    }
+    /* Fail the requested call index (R-8 = call 1, R-9 = call 2). */
+    if (np_fr_host_hal.trng_fail_on_call != 0 &&
+        (uint32_t)np_fr_host_hal.trng_fail_on_call == np_fr_host_hal.calls_trng) {
         return NP_RESET_ERR_TRNG;
     }
     /* Host stub: deterministic non-zero fill (NOT cryptographic — host only). */
@@ -236,7 +274,9 @@ np_reset_status_t np_factory_reset_hal_write_config_defaults( /* OI-RESET-05 */
     if (trng_salt == NULL || warranty_token == NULL) {
         return NP_RESET_ERR_CONFIG;
     }
-    return NP_RESET_OK;
+    return np_fr_host_step(&np_fr_host_hal.fail_write_config,
+                           &np_fr_host_hal.calls_write_config,
+                           NP_RESET_ERR_CONFIG);
 }
 
 #endif /* NPTEST_HOST */
