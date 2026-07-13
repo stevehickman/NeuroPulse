@@ -1,19 +1,32 @@
-import CoreHaptics
 import Combine
 
-// Phase 3 — 40Hz continuous Core Haptics sync.
+// Phase 3 — 40Hz continuous haptic sync.
 //
-// Drives Apple Watch Taptic Engine at 40Hz to add a wrist somatosensory
-// channel alongside the NeurOne mastoid vibrotactile pad.
+// Adds a wrist somatosensory channel alongside the NeurOne mastoid vibrotactile
+// pad. The high-fidelity implementation uses Core Haptics (CHHapticEngine) to
+// drive an arbitrary 40Hz transient pattern.
+//
+// PLATFORM NOTE: Core Haptics does NOT exist on watchOS — CHHapticEngine and
+// CHHapticPattern are iOS/iPadOS/macOS/tvOS only. The watchOS haptic API
+// (WKInterfaceDevice.play(_:)) fires a fixed set of NAMED haptics on demand and
+// cannot render a continuous arbitrary-frequency waveform. So on watchOS this
+// manager is a no-op stub with isAvailable == false; the existing
+// `hapticUnavailableOverlay` surfaces that to the user. A real watchOS haptic
+// strategy (WKInterfaceDevice) is tracked as Phase 3 / OI-WA-01 work — see
+// NP-APP-ROADMAP-001 §4.2. The `#if canImport(CoreHaptics)` guard keeps the
+// type present on every platform so `NeurOneWatchApp` compiles either way.
 //
 // Sync strategy: epoch is excluded from the WC bridge (UHDR boundary,
 // NP-PRIV-ANALYSIS-002 MEDIUM-08) so sessionEpochMs is always 0 on Watch.
 // Haptic starts immediately with no meaningful sync delay.
 // Sub-50ms sync requires a future non-UHDR clock mechanism.
 //
-// Thermal prerequisite: OI-WA-01 (20-min continuous Core Haptics thermal
+// Thermal prerequisite: OI-WA-01 (20-min continuous haptics thermal
 // characterization on Apple Watch Series / Ultra hardware) must pass before
 // this manager is enabled in production builds.  See NP-APP-ROADMAP-001 §4.2.
+
+#if canImport(CoreHaptics)
+import CoreHaptics
 
 final class HapticSyncManager: ObservableObject {
 
@@ -161,7 +174,30 @@ final class HapticSyncManager: ObservableObject {
     }
 }
 
-// MARK: - Availability guard view modifier
+#else
+
+// watchOS (no Core Haptics): retain the type so `NeurOneWatchApp` compiles, but
+// report the feature as unavailable. Every entry point is a no-op. See the
+// PLATFORM NOTE above — replacing this with a WKInterfaceDevice path is Phase 3
+// / OI-WA-01 work, not a build fix.
+final class HapticSyncManager: ObservableObject {
+
+    @Published private(set) var isPlaying = false
+    @Published private(set) var isAvailable = false
+    @Published private(set) var thermalState: ThermalState = .nominal
+
+    enum ThermalState { case nominal, elevated, serious, critical }
+
+    init() {}
+
+    func start(sessionEpochMs: UInt32) {}
+
+    func stop() {}
+}
+
+#endif
+
+// MARK: - Availability guard view modifier (platform-independent)
 
 import SwiftUI
 

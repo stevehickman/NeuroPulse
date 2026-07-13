@@ -49,6 +49,21 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.neurone.watch
         INFOPLIST_FILE: NeurOneWatch/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
 
     dependencies:
       - package: NeurOneShared
+
+schemes:
+  NeurOneWatch:
+    build:
+      targets:
+        NeurOneWatch: all
+    run:
+      config: Debug
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
