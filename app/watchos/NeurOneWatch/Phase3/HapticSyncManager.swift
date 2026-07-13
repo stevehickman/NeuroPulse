@@ -1,32 +1,41 @@
 import Combine
+import SwiftUI
+#if canImport(WatchKit)
+import WatchKit
+#endif
 
-// Phase 3 — 40Hz continuous haptic sync.
+// Phase 3 — watchOS haptic session cue.
 //
-// Adds a wrist somatosensory channel alongside the NeurOne mastoid vibrotactile
-// pad. The high-fidelity implementation uses Core Haptics (CHHapticEngine) to
-// drive an arbitrary 40Hz transient pattern.
+// PLATFORM REALITY (decided 2026-07-13, NP-APP-ROADMAP-001 §4.2):
+// Core Haptics (CHHapticEngine / CHHapticPattern) does NOT exist on watchOS.
+// The original Phase 3 spec assumed a continuous 40Hz CHHapticEngine waveform;
+// that is not achievable on any Apple Watch. The only watchOS haptic API is
+// `WKInterfaceDevice.play(_:)`, which fires a fixed set of NAMED haptics on
+// demand and cannot render an arbitrary continuous 40Hz waveform.
 //
-// PLATFORM NOTE: Core Haptics does NOT exist on watchOS — CHHapticEngine and
-// CHHapticPattern are iOS/iPadOS/macOS/tvOS only. The watchOS haptic API
-// (WKInterfaceDevice.play(_:)) fires a fixed set of NAMED haptics on demand and
-// cannot render a continuous arbitrary-frequency waveform. So on watchOS this
-// manager is a no-op stub with isAvailable == false; the existing
-// `hapticUnavailableOverlay` surfaces that to the user. A real watchOS haptic
-// strategy (WKInterfaceDevice) is tracked as Phase 3 / OI-WA-01 work — see
-// NP-APP-ROADMAP-001 §4.2. The `#if canImport(CoreHaptics)` guard keeps the
-// type present on every platform so `NeurOneWatchApp` compiles either way.
+// Consequently this manager delivers a low-rate RHYTHMIC SESSION CUE — a gentle
+// repeating tap that gives the wearer a felt "session-active" wrist presence.
+// It is explicitly NOT 40Hz and NOT a therapeutic vibrotactile channel.
+//
+// This aligns with the marketing position (CLAUDE.md §3b/§15): the Watch haptic
+// is a supplement, not a therapeutic. True 40Hz vibrotactile delivery is the
+// NeurOne mastoid LRA pad (hardware, DRV2605L @ 40Hz ±0.5Hz). The iPhone app can
+// render 40Hz via Core Haptics where the phone is the contact surface; the Watch
+// cannot, so it provides a coarse cue only.
+//
+// Fidelity limitation (documented, not a bug): watchOS coalesces / rate-limits
+// rapid `play()` calls, so the cue runs at `cuePeriodSeconds` (a felt pulse well
+// below 40Hz), never a continuous buzz. Do not label this channel "40Hz".
 //
 // Sync strategy: epoch is excluded from the WC bridge (UHDR boundary,
 // NP-PRIV-ANALYSIS-002 MEDIUM-08) so sessionEpochMs is always 0 on Watch.
-// Haptic starts immediately with no meaningful sync delay.
-// Sub-50ms sync requires a future non-UHDR clock mechanism.
+// The cue starts immediately with no meaningful sync delay.
 //
-// Thermal prerequisite: OI-WA-01 (20-min continuous haptics thermal
-// characterization on Apple Watch Series / Ultra hardware) must pass before
-// this manager is enabled in production builds.  See NP-APP-ROADMAP-001 §4.2.
-
-#if canImport(CoreHaptics)
-import CoreHaptics
+// Superseded open items: OI-WA-01 (20-min continuous Core Haptics thermal
+// characterisation) and OI-WA-04 (CHHapticEngine 40Hz verification) no longer
+// apply on watchOS — there is no continuous Core Haptics path to characterise.
+// A lightweight thermal guard is retained below because a long-running repeating
+// haptic timer still carries some (much smaller) thermal/battery cost.
 
 final class HapticSyncManager: ObservableObject {
 
@@ -38,122 +47,98 @@ final class HapticSyncManager: ObservableObject {
 
     // MARK: - Private
 
-    private var engine: CHHapticEngine?
-    private var player: CHHapticPatternPlayer?
-    private var thermalTimer: Timer?
+    private var cueTimer: Timer?
+    private var sessionEndTimer: Timer?
+    private var thermalObserver: NSObjectProtocol?
 
-    private let targetFrequencyHz: Double = 40.0
-    private let sessionDurationSeconds: Double = 20 * 60     // 20-minute target session
+    // Cue cadence: a gentle felt pulse, NOT an entrainment frequency. Firing a
+    // named haptic every 500ms (2Hz) is a reliable, perceptible "session-active"
+    // presence that watchOS will not silently drop. This is deliberately far
+    // below the 40Hz therapeutic target, which only the mastoid pad delivers.
+    private let cuePeriodSeconds: Double = 0.5
 
-    // Ramp durations per roadmap spec: 2s up, 2s down.
-    private let rampDurationSeconds: Double = 2.0
+    // Safety cap: stop the cue after the target session length even if a stop()
+    // from the hub session is missed. The app also calls stop() on idle/completed.
+    private let sessionDurationSeconds: Double = 20 * 60
 
     // MARK: - Lifecycle
 
     init() {
-        isAvailable = CHHapticEngine.capabilitiesForHardware().supportsHaptics
-        guard isAvailable else { return }
-        setupEngine()
+        #if canImport(WatchKit)
+        // Every Apple Watch has a Taptic Engine; WKInterfaceDevice haptics are
+        // always available. There is no Core-Haptics-style capability query.
+        isAvailable = true
         observeThermalState()
+        #else
+        // Non-watchOS build (e.g. host tooling): no-op stub.
+        isAvailable = false
+        #endif
     }
 
-    // Call when hub session starts. sessionEpochMs aligns haptic start to hub clock.
+    // Call when the hub session starts. sessionEpochMs is retained for API
+    // parity with AudioSyncManager but is always 0 (UHDR boundary), so the cue
+    // starts immediately.
     func start(sessionEpochMs: UInt32) {
-        guard isAvailable, thermalState == .nominal || thermalState == .elevated else { return }
-        let offsetSec = Double(UInt32(Date().timeIntervalSince1970 * 1000) &- sessionEpochMs) / 1000.0
-        let delayBeforeStart = max(0, 0.2 - offsetSec)   // 200ms pre-buffer, matching audio
-        do {
-            try engine?.start()
-            let player = try buildPlayer()
-            self.player = player
-            // Schedule haptic to start synchronized with hub epoch + pre-buffer.
-            try player.start(atTime: CHHapticTimeImmediate + delayBeforeStart)
-            isPlaying = true
-        } catch {
-            isPlaying = false
+        guard isAvailable, !isPlaying else { return }
+        // Do not start the cue if the Watch is already thermally stressed.
+        guard thermalState == .nominal || thermalState == .elevated else { return }
+
+        #if canImport(WatchKit)
+        playCue()   // immediate first tap so the cue is felt at session start
+        let timer = Timer(timeInterval: cuePeriodSeconds, repeats: true) { [weak self] _ in
+            self?.playCue()
         }
+        RunLoop.main.add(timer, forMode: .common)
+        cueTimer = timer
+
+        let endTimer = Timer.scheduledTimer(withTimeInterval: sessionDurationSeconds, repeats: false) { [weak self] _ in
+            self?.stop()
+        }
+        sessionEndTimer = endTimer
+
+        isPlaying = true
+        #endif
     }
 
     func stop() {
-        try? player?.stop(atTime: CHHapticTimeImmediate)
-        player = nil
+        cueTimer?.invalidate()
+        cueTimer = nil
+        sessionEndTimer?.invalidate()
+        sessionEndTimer = nil
         isPlaying = false
     }
 
-    // MARK: - Engine setup
+    // MARK: - Cue playback
 
-    private func setupEngine() {
-        do {
-            let eng = try CHHapticEngine()
-            eng.stoppedHandler = { [weak self] reason in
-                DispatchQueue.main.async {
-                    self?.isPlaying = false
-                    if reason != .engineDestroyed { self?.setupEngine() }
-                }
-            }
-            eng.resetHandler = { [weak self] in
-                try? self?.engine?.start()
-            }
-            engine = eng
-        } catch {
-            isAvailable = false
+    #if canImport(WatchKit)
+    private func playCue() {
+        // `.click` is a single light tap — the closest named haptic to a neutral
+        // rhythmic pulse. Must be invoked on the main thread.
+        WKInterfaceDevice.current().play(.click)
+    }
+    #endif
+
+    deinit {
+        if let thermalObserver {
+            NotificationCenter.default.removeObserver(thermalObserver)
         }
     }
 
-    // MARK: - Pattern construction
-    //
-    // Produces a continuous transient burst at 40Hz (25ms period) for the
-    // full session duration, with 2-second amplitude ramps at start and end.
+    // MARK: - Thermal monitoring (lightweight guard)
 
-    private func buildPlayer() throws -> CHHapticPatternPlayer {
-        let periodSec = 1.0 / targetFrequencyHz     // 0.025 s
-        let totalEvents = Int(sessionDurationSeconds / periodSec)
-
-        var events: [CHHapticEvent] = []
-        events.reserveCapacity(totalEvents)
-
-        for i in 0..<totalEvents {
-            let t = Double(i) * periodSec
-
-            // Amplitude envelope: ramp up for first 2s, full for middle, ramp down last 2s.
-            let amplitude: Float
-            if t < rampDurationSeconds {
-                amplitude = Float(t / rampDurationSeconds)
-            } else if t > sessionDurationSeconds - rampDurationSeconds {
-                amplitude = Float((sessionDurationSeconds - t) / rampDurationSeconds)
-            } else {
-                amplitude = 1.0
-            }
-
-            let event = CHHapticEvent(
-                eventType: .hapticTransient,
-                parameters: [
-                    CHHapticEventParameter(parameterID: .hapticIntensity, value: amplitude * 0.7),
-                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.8)
-                ],
-                relativeTime: t,
-                duration: periodSec * 0.5     // 50% duty cycle within each 25ms window
-            )
-            events.append(event)
-        }
-
-        let pattern = try CHHapticPattern(events: events, parameters: [])
-        return try engine!.makePlayer(with: pattern)
-    }
-
-    // MARK: - Thermal monitoring (OI-WA-01)
-
+    // Block-based observer: HapticSyncManager is a pure Swift ObservableObject
+    // (not an NSObject subclass), so the selector-based addObserver API is not
+    // usable here. The closure keeps a weak reference to avoid a retain cycle.
     private func observeThermalState() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(thermalStateChanged),
-            name: ProcessInfo.thermalStateDidChangeNotification,
-            object: nil
-        )
+        thermalObserver = NotificationCenter.default.addObserver(
+            forName: ProcessInfo.thermalStateDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.updateThermalState()
+        }
         updateThermalState()
     }
-
-    @objc private func thermalStateChanged() { updateThermalState() }
 
     private func updateThermalState() {
         let mapped: ThermalState
@@ -166,7 +151,7 @@ final class HapticSyncManager: ObservableObject {
         }
         DispatchQueue.main.async {
             self.thermalState = mapped
-            // Auto-stop if Watch reaches serious thermal level to protect hardware.
+            // Stop the cue if the Watch reaches a serious thermal level.
             if mapped == .serious || mapped == .critical {
                 self.stop()
             }
@@ -174,41 +159,16 @@ final class HapticSyncManager: ObservableObject {
     }
 }
 
-#else
-
-// watchOS (no Core Haptics): retain the type so `NeurOneWatchApp` compiles, but
-// report the feature as unavailable. Every entry point is a no-op. See the
-// PLATFORM NOTE above — replacing this with a WKInterfaceDevice path is Phase 3
-// / OI-WA-01 work, not a build fix.
-final class HapticSyncManager: ObservableObject {
-
-    @Published private(set) var isPlaying = false
-    @Published private(set) var isAvailable = false
-    @Published private(set) var thermalState: ThermalState = .nominal
-
-    enum ThermalState { case nominal, elevated, serious, critical }
-
-    init() {}
-
-    func start(sessionEpochMs: UInt32) {}
-
-    func stop() {}
-}
-
-#endif
-
-// MARK: - Availability guard view modifier (platform-independent)
-
-import SwiftUI
+// MARK: - Availability guard view modifier
 
 extension View {
-    /// Wraps a view with a thermal/availability overlay for Phase 3.
+    /// Wraps a view with a thermal/availability overlay for the Phase 3 cue.
     func hapticUnavailableOverlay(manager: HapticSyncManager) -> some View {
         self.overlay {
             if !manager.isAvailable {
-                unavailableBanner("Haptic unavailable on this Apple Watch model.")
+                unavailableBanner("Haptic cue unavailable on this device.")
             } else if manager.thermalState == .serious || manager.thermalState == .critical {
-                unavailableBanner("Haptic paused — Watch temperature elevated.")
+                unavailableBanner("Haptic cue paused — Watch temperature elevated.")
             }
         }
     }

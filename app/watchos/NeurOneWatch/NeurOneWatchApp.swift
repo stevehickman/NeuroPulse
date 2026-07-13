@@ -51,7 +51,7 @@ struct RootTabView: View {
             AudioStatusView()
                 .tag(1)
 
-            // Phase 3 — 40Hz haptic status.
+            // Phase 3 — haptic session cue status (WKInterfaceDevice, not 40Hz).
             HapticStatusView()
                 .tag(2)
 
@@ -116,7 +116,7 @@ struct HapticStatusView: View {
 
     private var hapticStatusLabel: String {
         if !hapticMgr.isAvailable { return "Not available" }
-        return hapticMgr.isPlaying ? "40Hz haptic active" : "40Hz haptic idle"
+        return hapticMgr.isPlaying ? "Haptic cue active" : "Haptic cue idle"
     }
 
     @ViewBuilder
