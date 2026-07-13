@@ -186,4 +186,56 @@ typedef char _np_spi_chan_limit_cmd_size_check[
     (sizeof(np_safety_chan_limit_cmd_t) == NP_SAFETY_CHAN_LIMIT_FRAME_LEN) ? 1 : -1
 ];
 
+/* ── Extended MCU→hub impedance report (OI-CVNS-HUB-11) ──────────────────── */
+/*
+ * The safety MCU's contact-impedance check (SW01-M06) measures the cervical VNS
+ * electrode impedance independently of the hub's own per-electrode measurement
+ * (OI-CVNS-HUB-09).  To let the hub cross-validate the two numerically —
+ * mirroring the cardiac-baseline cross-check (NP_CVNS_BASELINE_CROSSVAL_BPM,
+ * main-processor vs safety-MCU HR) — the MCU reports its per-electrode kΩ back
+ * to the hub.
+ *
+ * The report is carried in the SPARE bytes of the 38-byte heartbeat window.
+ * During each heartbeat the MCU (SPI slave) clocks out its 8-byte reply frame
+ * in bytes [0..7] and this 8-byte report in bytes [8..15] on MISO; the hub reads
+ * the whole 38-byte receive buffer.  This adds NO new SPI transfer, NO new
+ * NSS-delineated length, and does not touch the base 8-byte reply frame or its
+ * checksum.  Bytes [16..37] of the MISO window stay zero (unused).
+ *
+ * ── Privacy gate (NP-FW-EMMC-001 Rev A §12) ──────────────────────────────
+ * cvns_kohm_x100[] is measured tissue impedance → UHDR (user biology).  It is
+ * transferred device-internally (MCU → hub) purely for cross-validation and is
+ * NEVER written to SHDR.  Only a per-device DIVERGENCE FLAG (a device-condition
+ * signal, no biology) may be recorded to SHDR.  The hub already measures and
+ * records the same impedance into the library's UHDR fields (OI-CVNS-HUB-09);
+ * this transfer keeps impedance device-internal and adds no new SHDR exposure.
+ */
+#define NP_SAFETY_IMP_REPORT_MAGIC     0x5AU  /* marks bytes [8..] as a valid report */
+#define NP_SAFETY_IMP_CVNS_ELECTRODES  2U     /* MUST equal NP_CVNS_ELECTRODE_COUNT   */
+#define NP_SAFETY_IMP_REPORT_OFFSET    8U     /* byte offset within 38-byte MISO window */
+
+/* flags bits */
+#define NP_SAFETY_IMP_FLAG_CVNS_VALID  (1U << 0)  /* cvns_kohm_x100[] holds a completed
+                                                   * per-electrode CVNS measurement    */
+
+/* 1 (magic) + 1 (flags) + 4 (kohm[2]) + 2 (checksum) = 8 bytes */
+typedef struct __attribute__((packed)) {
+    uint8_t  magic;        /* NP_SAFETY_IMP_REPORT_MAGIC when populated, else 0 */
+    uint8_t  flags;        /* NP_SAFETY_IMP_FLAG_* */
+    uint16_t cvns_kohm_x100[NP_SAFETY_IMP_CVNS_ELECTRODES]; /* [0]=left, [1]=right; kΩ×100 */
+    uint16_t checksum;     /* additive sum of bytes [0..5], wrapping uint16 */
+} np_safety_imp_report_t;  /* 8 bytes; fits window bytes [8..15] */
+
+#define NP_SAFETY_IMP_REPORT_LEN  8U
+
+/* Compile-time size assertions */
+typedef char _np_spi_imp_report_size_check[
+    (sizeof(np_safety_imp_report_t) == NP_SAFETY_IMP_REPORT_LEN) ? 1 : -1
+];
+/* The report must fit in the MISO window after the 8-byte base reply. */
+typedef char _np_spi_imp_report_fits_check[
+    ((NP_SAFETY_IMP_REPORT_OFFSET + NP_SAFETY_IMP_REPORT_LEN)
+        <= NP_SAFETY_RX_EXT_FRAME_LEN) ? 1 : -1
+];
+
 #endif /* NP_SPI_WIRE_TYPES_H */

@@ -19,6 +19,14 @@
 #define NP_CVNS_ELECTRODE_COUNT       2u      /* bilateral assembly              */
 #define NP_CVNS_IMPEDANCE_MAX_KOHM    5.0f    /* kΩ; cervical gel electrode      */
 #define NP_CVNS_IMPEDANCE_CHECK_FREQ_HZ 1000u /* Hz; AC impedance measurement   */
+/* Max allowed disagreement between the hub-side per-electrode impedance
+ * measurement (OI-CVNS-HUB-09) and the safety MCU's own per-electrode
+ * measurement reported over SPI (OI-CVNS-HUB-11).  Mirrors the cardiac
+ * NP_CVNS_BASELINE_CROSSVAL_BPM main-vs-MCU tolerance.  1.0 kΩ ≈ 20% of the
+ * 5 kΩ ceiling — comfortably above two independent 1 kHz AC probes' expected
+ * spread, small enough to catch a mis-wired or drifted electrode/sensor.  A
+ * divergence beyond this is treated fail-closed (block enable).                */
+#define NP_CVNS_IMPEDANCE_CROSSVAL_KOHM 1.0f  /* kΩ; hub vs safety MCU tolerance  */
 
 /* ── Biphasic waveform timing ────────────────────────────────────────────────── */
 #define NP_CVNS_INTER_PHASE_GAP_US    100u    /* µs; gap between phases          */

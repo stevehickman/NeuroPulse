@@ -49,6 +49,7 @@ extern void            np_mod_cvns_push_ppg(uint32_t sample, uint32_t timestamp_
 extern np_hub_status_t np_mod_cvns_request_reenable(uint32_t now_s);
 extern void            np_mod_cvns_set_heartbeat_status(uint16_t granted_mask,
                                                         uint8_t  mcu_status);
+extern void            np_mod_cvns_set_mcu_impedance(const float kohm[], bool valid);
 
 /* Test seams (NPTEST_HOST). */
 extern np_cvns_session_ctx_t   *np_mod_cvns_test_session(void);
@@ -503,6 +504,122 @@ static void test_hb_impedance_timeout_fallback(void)
     check(g_imp_meas_start_calls == 1, "hb-imp-timeout: only one measurement attempt");
 }
 
+/* ── OI-CVNS-HUB-11: hub-vs-MCU per-electrode impedance cross-validation ─────── */
+
+static void publish_mcu_impedance(float left_kohm, float right_kohm)
+{
+    float mcu[NP_CVNS_ELECTRODE_COUNT];
+    mcu[0] = left_kohm;
+    mcu[1] = right_kohm;
+    np_mod_cvns_set_mcu_impedance(mcu, true);
+}
+
+/* Drive the impedance stage to completion (start tick + poll-complete tick) with
+ * the given hub-side per-electrode reading and a published heartbeat snapshot. */
+static void run_impedance_measurement(float hub_left, float hub_right)
+{
+    g_imp_meas_kohm[0] = hub_left;
+    g_imp_meas_kohm[1] = hub_right;
+    np_mod_cvns_set_heartbeat_status(0U, NP_SAFETY_STATUS_OK);
+    np_mod_cvns_tick(100U, g_now_unix);   /* start measurement */
+    np_mod_cvns_tick(200U, g_now_unix);   /* poll complete → feed / cross-validate */
+}
+
+/* Hub and MCU per-electrode impedances agree within tolerance: the session
+ * advances to BASELINE exactly as it would with no cross-check, and nothing is
+ * logged. */
+static void test_hb_impedance_crossval_agrees(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    publish_mcu_impedance(3.4f, 4.0f);      /* MCU report */
+    run_impedance_measurement(3.3f, 4.1f);  /* hub within 1.0 kΩ of MCU */
+
+    check(np_mod_cvns_test_stim()->impedance_ok,
+          "crossval-agree: impedance accepted");
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_BASELINE,
+          "crossval-agree: session advanced to BASELINE");
+    check(g_fault_log_calls == 0, "crossval-agree: no SHDR diagnostic logged");
+    check(np_mod_cvns_test_active(), "crossval-agree: session still active");
+}
+
+/* Hub and MCU disagree beyond tolerance: fail-closed — the library is faulted,
+ * the session never reaches delivery, and exactly one SHDR crossval diagnostic
+ * (suppressed timestamp) is recorded. */
+static void test_hb_impedance_crossval_diverges(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    publish_mcu_impedance(2.0f, 2.0f);      /* MCU says ~2 kΩ both */
+    run_impedance_measurement(2.0f, 4.5f);  /* hub right electrode 2.5 kΩ higher */
+
+    check(!np_mod_cvns_test_stim()->impedance_ok,
+          "crossval-diverge: impedance NOT accepted (fail-closed)");
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_FAULT,
+          "crossval-diverge: session advanced to FAULT (blocked before delivery)");
+    check(g_fault_log_calls == 1 &&
+          g_fault_log_code == NP_CVNS_SHDR_EV_IMP_CROSSVAL,
+          "crossval-diverge: one SHDR crossval diagnostic logged");
+    check(g_fault_log_ms == 0U, "crossval-diverge: SHDR timestamp suppressed");
+    check(!np_mod_cvns_test_enable_requested(), "crossval-diverge: enable never requested");
+    check(!np_mod_cvns_test_active(), "crossval-diverge: driver released");
+}
+
+/* Tolerance boundary: a difference EXACTLY at NP_CVNS_IMPEDANCE_CROSSVAL_KOHM is
+ * accepted (strict >); a difference just over it fails closed. */
+static void test_hb_impedance_crossval_boundary(void)
+{
+    /* Exactly at tolerance (1.0 kΩ): accepted. */
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    publish_mcu_impedance(4.0f, 4.0f);
+    run_impedance_measurement(3.0f, 3.0f);   /* diff = 1.0 kΩ = tolerance */
+    check(np_mod_cvns_test_stim()->impedance_ok &&
+          np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_BASELINE,
+          "crossval-boundary: diff == tolerance accepted");
+    check(g_fault_log_calls == 0, "crossval-boundary: no diagnostic at exact tolerance");
+
+    /* Just over tolerance: fail-closed. */
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+    publish_mcu_impedance(4.0f, 4.0f);
+    run_impedance_measurement(3.0f, 2.99f);  /* right diff = 1.01 kΩ > tolerance */
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_FAULT,
+          "crossval-boundary: diff just over tolerance fails closed");
+    check(g_fault_log_calls == 1 &&
+          g_fault_log_code == NP_CVNS_SHDR_EV_IMP_CROSSVAL,
+          "crossval-boundary: diagnostic logged just over tolerance");
+}
+
+/* When the MCU report is absent, no cross-check is possible and the session
+ * proceeds on the hub measurement alone (MCU enable refusal stays authoritative).
+ * This preserves the pre-OI-CVNS-HUB-11 behaviour. */
+static void test_hb_impedance_crossval_no_mcu_report(void)
+{
+    reset_mocks();
+    np_mod_cvns_init(NP_HUB_SLOT_CVNS);
+    np_mod_cvns_params_t p = make_params();
+    np_mod_cvns_control(NP_HUB_SLOT_CVNS, &p, sizeof(p));
+
+    /* No publish_mcu_impedance() — s_hb_mcu_imp_valid stays false. */
+    run_impedance_measurement(3.3f, 4.1f);
+
+    check(np_mod_cvns_test_stim()->impedance_ok,
+          "crossval-none: impedance accepted without an MCU report");
+    check(np_cvns_session_stage(np_mod_cvns_test_session()) == NP_CVNS_STAGE_BASELINE,
+          "crossval-none: session advanced (no cross-check possible)");
+    check(g_fault_log_calls == 0, "crossval-none: nothing logged");
+}
+
 /* An MCU grant of NP_SAFETY_EN_CVNS while the interlock is PRE_SESSION advances
  * it to ENABLED and marks the stim granted (ENABLE_GRANTED translation). */
 static void test_hb_enable_grant(void)
@@ -649,6 +766,10 @@ int main(void)
     test_hb_impedance_out_of_window_holds();
     test_hb_impedance_start_fail_fallback();
     test_hb_impedance_timeout_fallback();
+    test_hb_impedance_crossval_agrees();
+    test_hb_impedance_crossval_diverges();
+    test_hb_impedance_crossval_boundary();
+    test_hb_impedance_crossval_no_mcu_report();
     test_hb_enable_grant();
     test_hb_enable_reject_impedance();
     test_hb_cardiac_left_to_reenable();

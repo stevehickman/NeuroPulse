@@ -51,6 +51,7 @@ extern void np_cardiac_interlock_tick(np_safety_state_t *state);
 extern void np_cardiac_interlock_reenable(np_safety_state_t *state);
 extern void np_impedance_check_request(uint16_t requested_mask);
 extern void np_impedance_check_poll(np_safety_state_t *state);
+extern bool np_impedance_check_build_cvns_report(np_safety_imp_report_t *out);
 extern void np_session_sig_reset(np_safety_state_t *state);
 extern void np_session_sig_reenable(np_safety_state_t *state);
 extern np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
@@ -71,6 +72,11 @@ extern void np_hal_tim2_init(void);          /* TIM2 for R-peak capture */
 extern bool np_hal_spi_frame_ready(void);
 extern void np_hal_spi_get_ext_frame(np_safety_rx_ext_frame_t *rx_out);
 extern void np_hal_spi_send_frame(const np_safety_tx_frame_t *tx);
+/* OI-CVNS-HUB-11: stage the full MISO reply for the next 38-byte heartbeat
+ * transfer.  buf[0..7] = the 8-byte MCU reply frame; buf[8..15] = the extended
+ * per-electrode impedance report; buf[16..37] = 0.  The SPI slave clocks these
+ * out on MISO during the master's next heartbeat transfer.                    */
+extern void np_hal_spi_send_reply(const uint8_t *buf, uint8_t len);
 /* Session signature command frame (102 bytes) — called when hub delivers sig.
  * HAL distinguishes from heartbeat by NSS-delineated transfer length.
  * np_hal_spi_cmd_ready() returns true when a 102-byte frame is buffered.
@@ -384,7 +390,21 @@ int main(void)
         tx.granted_hi = (uint8_t)(s_state.granted_mask >> 8);
         tx.fault_slot = s_state.fault_slot;
         build_tx_checksum(&tx);
-        np_hal_spi_send_frame(&tx);
+
+        /* Stage the full 38-byte MISO reply: 8-byte reply frame + the extended
+         * per-electrode CVNS impedance report (OI-CVNS-HUB-11) in the spare
+         * window bytes.  The report builder writes magic 0 when no CVNS
+         * measurement is available, in which case the hub ignores the tail. */
+        {
+            uint8_t reply[NP_SAFETY_RX_EXT_FRAME_LEN];
+            np_safety_imp_report_t imp_report;
+            memset(reply, 0, sizeof(reply));
+            memcpy(reply, &tx, sizeof(tx));
+            np_impedance_check_build_cvns_report(&imp_report);
+            memcpy(&reply[NP_SAFETY_IMP_REPORT_OFFSET], &imp_report,
+                   sizeof(imp_report));
+            np_hal_spi_send_reply(reply, (uint8_t)sizeof(reply));
+        }
 
         /* Commit fault to latch for warm-reset persistence.
          * Guard: do NOT commit until after the first TX reply is sent when a

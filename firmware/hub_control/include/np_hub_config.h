@@ -148,6 +148,11 @@
 #define NP_CVNS_SHDR_EV_IMP_TIMEOUT     0xC4U
 #define NP_CVNS_SHDR_EV_REENABLED       0xC5U
 #define NP_CVNS_SHDR_EV_ASSERT_TIMEOUT  0xC6U
+/* OI-CVNS-HUB-11: hub-side and safety-MCU per-electrode impedance measurements
+ * disagreed beyond NP_CVNS_IMPEDANCE_CROSSVAL_KOHM.  Device-condition flag only
+ * (no kΩ values); logged with a suppressed (0) timestamp (fault-latch privacy
+ * gate).  Raw per-electrode kΩ is UHDR and is NEVER written to SHDR.           */
+#define NP_CVNS_SHDR_EV_IMP_CROSSVAL    0xC7U
 
 /* Safety MCU status bits that make a fault NON-recoverable in-session.  A
  * heartbeat reply with NP_SAFETY_STATUS_CARDIAC set and none of these bits is
