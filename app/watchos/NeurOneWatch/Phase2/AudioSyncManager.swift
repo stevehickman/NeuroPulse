@@ -2,9 +2,14 @@ import AVFoundation
 import Combine
 
 // Phase 2 — Audio sync to AirPods.
-// Generates binaural beats and isochronic tones via AVAudioEngine with two
-// independently-tuned sine oscillators (left/right channels).  Breathing pacer
-// tones are also produced here, synchronized to PacerPhase events from the hub.
+// Generates binaural beats and isochronic tones via AVAudioEngine.
+//   - Binaural:   two sine oscillators offset by the beat frequency, one per
+//                 ear.  The "beat" exists only as the interaural difference.
+//   - Isochronic: a single carrier (identical in both ears) whose amplitude is
+//                 gated on/off at the entrainment frequency.  The pulsing tone
+//                 itself is the entrainment stimulus — no interaural offset.
+// Breathing pacer tones are also produced here, synchronized to PacerPhase
+// events from the hub.
 //
 // Sync strategy: epoch is excluded from the WC bridge (UHDR boundary,
 // NP-PRIV-ANALYSIS-002 MEDIUM-08) so sessionEpochMs is always 0 on Watch.
@@ -17,12 +22,18 @@ final class AudioSyncManager: ObservableObject {
 
     // MARK: - Public configuration
 
+    enum EntrainmentMode {
+        case binaural      // two carriers, L/R offset by beatFrequencyHz
+        case isochronic    // single carrier both ears, amplitude gated at beatFrequencyHz
+    }
+
     struct Config {
         var binauralCarrierHz: Double = 200.0       // base carrier frequency
-        var beatFrequencyHz:   Double = 10.0        // difference = beat frequency
+        var beatFrequencyHz:   Double = 10.0        // binaural: interaural difference; isochronic: gate rate
         var pacerToneHz:       Double = 440.0       // pacer transition tone
         var volume:            Float  = 0.7
         var pacerToneEnabled:  Bool   = true
+        var entrainmentMode:   EntrainmentMode = .binaural
     }
 
     var config = Config()
@@ -71,20 +82,23 @@ final class AudioSyncManager: ObservableObject {
 
     private func configureAudioSession() {
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playback, mode: .default, options: [.allowBluetooth, .allowBluetoothA2DP])
+        // Playback-only tone graph → A2DP (high-quality stereo) is the correct
+        // Bluetooth route. The HFP option (.allowBluetooth) is telephony-grade,
+        // unnecessary for playback, and is watchOS 11+ only.
+        try? session.setCategory(.playback, mode: .default, options: [.allowBluetoothA2DP])
         try? session.setActive(true)
     }
 
     private func buildGraph() {
         let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2)!
 
-        let leftNode = makeOscillatorNode(frequencyProvider: { [weak self] in
+        // Left ear is always the bare carrier.  In binaural mode the right ear
+        // is offset by the beat frequency; in isochronic mode both ears share
+        // the same carrier (the gate applied inside the node is the stimulus).
+        let leftNode = makeOscillatorNode(offsetProvider: { 0 })
+        let rightNode = makeOscillatorNode(offsetProvider: { [weak self] in
             guard let s = self else { return 0 }
-            return s.config.binauralCarrierHz
-        })
-        let rightNode = makeOscillatorNode(frequencyProvider: { [weak self] in
-            guard let s = self else { return 0 }
-            return s.config.binauralCarrierHz + s.config.beatFrequencyHz
+            return s.config.entrainmentMode == .isochronic ? 0 : s.config.beatFrequencyHz
         })
         let pacerNode = makePacerNode()
 
@@ -102,17 +116,37 @@ final class AudioSyncManager: ObservableObject {
         mixerNode.outputVolume = config.volume
     }
 
-    private func makeOscillatorNode(frequencyProvider: @escaping () -> Double) -> AVAudioSourceNode {
+    // `offsetProvider` returns the per-render frequency offset added to the
+    // carrier (used for the binaural right-ear detune).  In isochronic mode the
+    // carrier is left un-offset and its amplitude is gated at beatFrequencyHz.
+    private func makeOscillatorNode(offsetProvider: @escaping () -> Double) -> AVAudioSourceNode {
         let sr = sampleRate
-        var ph = 0.0
-        return AVAudioSourceNode { _, _, frameCount, audioBufferList -> OSStatus in
+        var carrierPhase = 0.0
+        var modPhase = 0.0
+        return AVAudioSourceNode { [weak self] _, _, frameCount, audioBufferList -> OSStatus in
             let ablPointer = UnsafeMutableAudioBufferListPointer(audioBufferList)
-            let freq = frequencyProvider()
-            let phaseIncrement = 2.0 * .pi * freq / sr
+            guard let self else {
+                for buffer in ablPointer { memset(buffer.mData, 0, Int(buffer.mDataByteSize)) }
+                return noErr
+            }
+            let freq = self.config.binauralCarrierHz + offsetProvider()
+            let carrierIncrement = 2.0 * .pi * freq / sr
+            let isochronic = self.config.entrainmentMode == .isochronic
+            let modIncrement = 2.0 * .pi * self.config.beatFrequencyHz / sr
             for frame in 0..<Int(frameCount) {
-                let sample = Float(sin(ph))
-                ph += phaseIncrement
-                if ph > 2.0 * .pi { ph -= 2.0 * .pi }
+                var sample = Float(sin(carrierPhase))
+                carrierPhase += carrierIncrement
+                if carrierPhase > 2.0 * .pi { carrierPhase -= 2.0 * .pi }
+                if isochronic {
+                    // Raised-cosine amplitude gate: (1 - cos)/2 ranges 0→1→0 once
+                    // per modulation period, pulsing the carrier at beatFrequencyHz.
+                    // The smooth edges avoid click artifacts a hard on/off gate
+                    // would produce at the transitions.
+                    let gate = Float((1.0 - cos(modPhase)) * 0.5)
+                    sample *= gate
+                    modPhase += modIncrement
+                    if modPhase > 2.0 * .pi { modPhase -= 2.0 * .pi }
+                }
                 for buffer in ablPointer {
                     let buf = buffer.mData!.assumingMemoryBound(to: Float.self)
                     buf[frame] = sample
@@ -170,23 +204,34 @@ final class AudioSyncManager: ObservableObject {
 // MARK: - Beat preset factory
 
 extension AudioSyncManager {
+    /// Entrainment frequency band. Orthogonal to `EntrainmentMode` — every band
+    /// can be delivered as either a binaural beat or an isochronic tone.
     enum BeatPreset {
-        case gammaClarityBinaural       // 40Hz beat at 200Hz carrier
-        case alphaCalm                  // 10Hz beat at 200Hz carrier
-        case thetaMemory                // 6Hz beat at 200Hz carrier
-        case sleepDelta                 // 2Hz beat at 200Hz carrier
-        case focusPrime                 // 20Hz beat at 200Hz carrier
-        case isochronicGamma            // 40Hz isochronic (amplitude modulation — single carrier)
+        case gammaClarity               // 40Hz
+        case alphaCalm                  // 10Hz
+        case thetaMemory                // 6Hz
+        case sleepDelta                 // 2Hz
+        case focusPrime                 // 20Hz
+
+        /// Entrainment frequency (interaural difference for binaural,
+        /// amplitude-gate rate for isochronic).
+        var beatFrequencyHz: Double {
+            switch self {
+            case .gammaClarity: return 40
+            case .alphaCalm:    return 10
+            case .thetaMemory:  return 6
+            case .sleepDelta:   return 2
+            case .focusPrime:   return 20
+            }
+        }
     }
 
-    func applyPreset(_ preset: BeatPreset) {
-        switch preset {
-        case .gammaClarityBinaural: config.binauralCarrierHz = 200; config.beatFrequencyHz = 40
-        case .alphaCalm:            config.binauralCarrierHz = 200; config.beatFrequencyHz = 10
-        case .thetaMemory:          config.binauralCarrierHz = 200; config.beatFrequencyHz = 6
-        case .sleepDelta:           config.binauralCarrierHz = 200; config.beatFrequencyHz = 2
-        case .focusPrime:           config.binauralCarrierHz = 200; config.beatFrequencyHz = 20
-        case .isochronicGamma:      config.binauralCarrierHz = 200; config.beatFrequencyHz = 40
-        }
+    /// Applies a frequency band in the requested entrainment mode. Mode defaults
+    /// to `.binaural`; pass `.isochronic` for a single-carrier amplitude-gated
+    /// tone (see the render block for the raised-cosine gate).
+    func applyPreset(_ preset: BeatPreset, mode: EntrainmentMode = .binaural) {
+        config.binauralCarrierHz = 200
+        config.beatFrequencyHz = preset.beatFrequencyHz
+        config.entrainmentMode = mode
     }
 }

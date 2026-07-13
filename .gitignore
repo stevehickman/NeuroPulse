@@ -46,6 +46,10 @@ app/ios/build/
 build/ios/
 app/ios/*.xcodeproj/xcuserdata/
 app/ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+# watchOS project is generated from app/watchos/project.yml via XcodeGen
+# (`cd app/watchos && xcodegen generate`; CI does this in .github/workflows/watchos-ci.yml).
+# The generated project is not committed — the spec is the source of truth.
+app/watchos/*.xcodeproj/
 *.xcuserstate
 *.xcscmblueprint
 DerivedData/

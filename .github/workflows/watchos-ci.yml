@@ -1,0 +1,64 @@
+name: watchOS CI (xcodebuild)
+
+# Builds the standalone NeurOneWatch app for the watchOS simulator.
+# The project is generated from app/watchos/project.yml via XcodeGen, so the
+# spec is the source of truth and a stale committed .xcodeproj cannot drift.
+# There is no watchOS unit-test target yet, so this is a build gate only.
+
+on:
+  push:
+    paths:
+      - 'app/watchos/**'
+      - 'app/NeurOneShared/**'
+  pull_request:
+    paths:
+      - 'app/watchos/**'
+      - 'app/NeurOneShared/**'
+  workflow_dispatch:
+
+jobs:
+  watchos-build:
+    name: xcodebuild build — NeurOneWatch
+    runs-on: macos-15   # Xcode 16+ with a watchOS simulator SDK
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          # Pick the latest Xcode 16.x available on the runner
+          XCODE_PATH=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XCODE_PATH" ]; then
+            sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+            echo "Selected: $XCODE_PATH"
+          else
+            echo "No Xcode 16 found; using default: $(xcode-select -p)"
+          fi
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate NeurOneWatch.xcodeproj from spec
+        working-directory: app/watchos
+        run: xcodegen generate
+
+      - name: Resolve Swift Package dependencies
+        run: |
+          xcodebuild \
+            -resolvePackageDependencies \
+            -project app/watchos/NeurOneWatch.xcodeproj \
+            -scheme NeurOneWatch
+
+      - name: Install watchOS simulator runtime
+        run: xcodebuild -downloadPlatform watchOS
+
+      - name: Build (watchOS simulator)
+        run: |
+          xcodebuild build \
+            -project app/watchos/NeurOneWatch.xcodeproj \
+            -scheme NeurOneWatch \
+            -destination 'generic/platform=watchOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO
