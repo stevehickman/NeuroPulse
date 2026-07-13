@@ -24,6 +24,14 @@ static volatile bool     s_geom_required  = false;
  * NP_SESSION_STATUS_CVNS_REENABLE so the safety MCU clears its cardiac latch. */
 static volatile bool     s_cvns_reenable  = false;
 
+/* OI-CVNS-HUB-11: latest per-electrode CVNS impedance reported by the safety MCU
+ * in the spare bytes of the heartbeat reply window.  Consumed by the CVNS module
+ * (via np_safety_spi_get_cvns_impedance → the heartbeat task's publish) to
+ * cross-validate against the hub's own per-electrode measurement.  Raw kΩ is
+ * UHDR and is NEVER written to SHDR — only a divergence flag is.               */
+static volatile float    s_cvns_imp_kohm[NP_SAFETY_IMP_CVNS_ELECTRODES];
+static volatile bool     s_cvns_imp_valid = false;
+
 /* s_requested_mask is protected by the FreeRTOS task-level critical section
  * (taskENTER_CRITICAL / taskEXIT_CRITICAL).  These functions are called from
  * task context only — never from an ISR — so the task variants are correct. */
@@ -54,7 +62,45 @@ np_hub_status_t np_safety_spi_init(void)
     s_mcu_status     = NP_SAFETY_STATUS_OK;
     s_geom_required  = false;
     s_cvns_reenable  = false;
+    s_cvns_imp_valid = false;
+    for (uint8_t e = 0U; e < NP_SAFETY_IMP_CVNS_ELECTRODES; e++) {
+        s_cvns_imp_kohm[e] = 0.0f;
+    }
     return NP_HUB_OK;
+}
+
+/*
+ * parse_cvns_impedance_report — OI-CVNS-HUB-11.  Extract the safety MCU's
+ * per-electrode CVNS impedance from the spare bytes of the 38-byte heartbeat
+ * receive buffer.  Validates the report magic, checksum, and valid flag; on a
+ * good report stores per-electrode kΩ and sets s_cvns_imp_valid, otherwise
+ * clears s_cvns_imp_valid (so a corrupt/absent report never cross-validates).
+ */
+static void parse_cvns_impedance_report(const uint8_t *rx_raw)
+{
+    np_safety_imp_report_t rep;
+    uint16_t sum = 0U;
+    const uint8_t *b = (const uint8_t *)&rep;
+    uint8_t i;
+
+    memcpy(&rep, rx_raw + NP_SAFETY_IMP_REPORT_OFFSET, sizeof(rep));
+
+    if (rep.magic != NP_SAFETY_IMP_REPORT_MAGIC ||
+        (rep.flags & NP_SAFETY_IMP_FLAG_CVNS_VALID) == 0U) {
+        s_cvns_imp_valid = false;
+        return;
+    }
+    for (i = 0U; i < (NP_SAFETY_IMP_REPORT_LEN - 2U); i++) {
+        sum += b[i];
+    }
+    if (sum != rep.checksum) {
+        s_cvns_imp_valid = false;
+        return;
+    }
+    for (i = 0U; i < NP_SAFETY_IMP_CVNS_ELECTRODES; i++) {
+        s_cvns_imp_kohm[i] = (float)rep.cvns_kohm_x100[i] / 100.0f;
+    }
+    s_cvns_imp_valid = true;
 }
 
 np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
@@ -120,17 +166,23 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
         return NP_HUB_ERR_TIMEOUT;
     }
 
-    /* Extract the first 8 bytes (meaningful MCU reply; rest are slave zeros) */
+    /* Extract the first 8 bytes (meaningful MCU reply) */
     memcpy(&mcu_reply, rx_raw, sizeof(mcu_reply));
 
     /* Verify reply checksum — if bad, treat as safety fault.
      * Zero s_granted_mask so callers do not act on a stale grant.          */
     uint16_t expected = compute_checksum((const uint8_t *)&mcu_reply, 6U);
     if (mcu_reply.checksum != expected) {
-        s_granted_mask = 0U;
-        s_mcu_status   = NP_SAFETY_STATUS_FAULT;
+        s_granted_mask   = 0U;
+        s_mcu_status     = NP_SAFETY_STATUS_FAULT;
+        s_cvns_imp_valid = false;   /* OI-CVNS-HUB-11: distrust a corrupt frame's tail */
         return NP_HUB_ERR_SAFETY_FAULT;
     }
+
+    /* OI-CVNS-HUB-11: the base reply is good — parse the per-electrode CVNS
+     * impedance report the MCU clocks out in the spare window bytes [8..15]
+     * (independently magic + checksum validated inside). */
+    parse_cvns_impedance_report(rx_raw);
 
     s_granted_mask = (uint16_t)((uint16_t)mcu_reply.granted_lo |
                                  ((uint16_t)mcu_reply.granted_hi << 8));
@@ -255,4 +307,18 @@ uint16_t np_safety_spi_get_requested_mask(void)
 uint8_t np_safety_spi_get_status(void)
 {
     return s_mcu_status;
+}
+
+bool np_safety_spi_get_cvns_impedance(float out_kohm[], bool *valid_out)
+{
+    bool valid = s_cvns_imp_valid;
+    if (out_kohm != NULL) {
+        for (uint8_t e = 0U; e < NP_SAFETY_IMP_CVNS_ELECTRODES; e++) {
+            out_kohm[e] = s_cvns_imp_kohm[e];
+        }
+    }
+    if (valid_out != NULL) {
+        *valid_out = valid;
+    }
+    return valid;
 }

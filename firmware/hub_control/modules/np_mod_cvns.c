@@ -135,6 +135,10 @@ typedef struct {
     /* OI-CVNS-HUB-09 advisory impedance measurement (reset each session). */
     np_mod_cvns_imp_state_t imp_state;
     uint32_t imp_start_ms;      /* now_ms when the current measurement began     */
+    /* OI-CVNS-HUB-11: set while the driver is deliberately faulting the library
+     * on an impedance cross-validation failure, so cvns_fault_cb suppresses its
+     * generic SHDR log (the divergence is logged once with a dedicated code). */
+    bool     crossval_faulting;
     /* Cached, non-biology display fields for telemetry() (UHDR-class current /
      * impedance, same as np_mod_stim; NO HR is ever cached here). */
     uint16_t last_current_ua;
@@ -157,6 +161,16 @@ static np_mod_cvns_state_t s_state;
 static volatile bool     s_hb_valid;
 static volatile uint16_t s_hb_granted_mask;
 static volatile uint8_t  s_hb_mcu_status;
+
+/*
+ * OI-CVNS-HUB-11: latest per-electrode impedance the safety MCU reported over
+ * SPI (published by the heartbeat task via np_mod_cvns_set_mcu_impedance()).
+ * Consumed by cvns_advisory_impedance_step() to cross-validate against the hub's
+ * own measurement.  Same single-writer discipline as the heartbeat snapshot: the
+ * heartbeat task only STORES here; ALL library mutation is on the control tick.
+ */
+static volatile bool  s_hb_mcu_imp_valid;
+static volatile float s_hb_mcu_imp_kohm[NP_CVNS_ELECTRODE_COUNT];
 
 /*
  * Advisory pre-session impedance FALLBACK value (OI-CVNS-HUB-09): when no
@@ -293,6 +307,52 @@ static void cvns_feed_nominal_impedance(void)
 }
 
 /*
+ * OI-CVNS-HUB-11: cross-validate the hub's genuine per-electrode impedance
+ * measurement against the safety MCU's report (if one is available this
+ * session).  Returns true iff the two DIVERGE beyond NP_CVNS_IMPEDANCE_CROSSVAL_
+ * KOHM on any electrode.  When the MCU report is not yet valid, returns false
+ * (no cross-check possible — the MCU's own enable refusal stays authoritative).
+ * Mirrors the cardiac main-vs-MCU baseline cross-check (NP_CVNS_BASELINE_
+ * CROSSVAL_BPM).
+ */
+static bool cvns_impedance_diverges(const float hub_kohm[])
+{
+    if (!s_hb_mcu_imp_valid) {
+        return false;
+    }
+    for (uint8_t i = 0U; i < NP_CVNS_ELECTRODE_COUNT; i++) {
+        float d = hub_kohm[i] - s_hb_mcu_imp_kohm[i];
+        if (d < 0.0f) { d = -d; }
+        if (d > NP_CVNS_IMPEDANCE_CROSSVAL_KOHM) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/*
+ * OI-CVNS-HUB-11: hub-vs-MCU impedance disagreement — fail closed.  Logs one
+ * SHDR diagnostic (dedicated crossval code, suppressed timestamp) and drives the
+ * library to FAULT so stimulation is never enabled with mismatched impedance
+ * sensing.  The safety MCU's enable refusal remains the authoritative gate; this
+ * is an additional main-processor block.  The crossval_faulting flag suppresses
+ * cvns_fault_cb's generic SHDR log so exactly ONE diagnostic is recorded.
+ */
+static void cvns_impedance_crossval_fail(void)
+{
+    s_state.crossval_faulting = true;
+    np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS,
+                      NP_CVNS_SHDR_EV_IMP_CROSSVAL, 0U /* ts suppressed */);
+    /* Drive the library to FAULT: stim → FAULT, interlock → FAULT (which fires
+     * cvns_fault_cb → drops the unified enable; its generic log is suppressed).
+     * The next np_cvns_session_tick() advances the session stage to FAULT. */
+    np_cvns_stim_safety_mcu_response(&s_stim, false, NULL);
+    np_cvns_interlock_spi_response(&s_interlock,
+                                   NP_CVNS_SPI_RSP_ENABLE_REJECTED, NULL, 0U);
+    s_state.crossval_faulting = false;
+}
+
+/*
  * Drive the hub-side per-electrode impedance measurement for the advisory
  * NP_CVNS_STAGE_IMPEDANCE step, replacing the OI-CVNS-HUB-09 nominal placeholder
  * with genuine measured kΩ.  Called only while the library is in the impedance
@@ -315,8 +375,11 @@ static void cvns_feed_nominal_impedance(void)
  *               complete + timeout elapsed → nominal fallback, latch DONE so a
  *               stalled HAL never hard-stalls the session.
  *   DONE      → nothing (a passing/fallback reading was already fed).
+ *
+ * Returns true iff the step FAULTED the library on an OI-CVNS-HUB-11 impedance
+ * cross-validation divergence, so the caller can stop processing this beat.
  */
-static void cvns_advisory_impedance_step(uint32_t now_ms)
+static bool cvns_advisory_impedance_step(uint32_t now_ms)
 {
     switch (s_state.imp_state) {
 
@@ -337,6 +400,19 @@ static void cvns_advisory_impedance_step(uint32_t now_ms)
             for (uint8_t i = 0U; i < NP_CVNS_ELECTRODE_COUNT; i++) {
                 if (kohm[i] > NP_CVNS_IMPEDANCE_MAX_KOHM) { all_ok = false; }
             }
+
+            /* OI-CVNS-HUB-11: a genuine, individually-in-window hub reading is
+             * cross-validated against the safety MCU's per-electrode report.  A
+             * disagreement beyond tolerance is fail-closed: fault the library and
+             * do NOT feed a passing impedance (the session never reaches
+             * delivery).  When the two agree — or the MCU report is not yet
+             * available — proceed exactly as before. */
+            if (all_ok && cvns_impedance_diverges(kohm)) {
+                cvns_impedance_crossval_fail();
+                s_state.imp_state = NP_CVNS_IMP_DONE;   /* resolved (faulted) */
+                return true;
+            }
+
             np_cvns_stim_safety_mcu_response(&s_stim, false, kohm);
             /* Pass → done; out-of-window → re-measure (fail-closed, no advance). */
             s_state.imp_state = all_ok ? NP_CVNS_IMP_DONE : NP_CVNS_IMP_IDLE;
@@ -352,6 +428,7 @@ static void cvns_advisory_impedance_step(uint32_t now_ms)
     default:
         break;
     }
+    return false;
 }
 
 /* ── OI-CVNS-HUB-08: unified heartbeat → library SPI responses ───────────────── */
@@ -424,7 +501,12 @@ static void cvns_apply_heartbeat(uint32_t now_ms)
      * past NP_CVNS_STAGE_IMPEDANCE to baseline.  The AUTHORITATIVE impedance gate
      * remains the safety MCU's enable refusal in (3). */
     if (stage == NP_CVNS_STAGE_IMPEDANCE && !s_stim.impedance_ok) {
-        cvns_advisory_impedance_step(now_ms);
+        if (cvns_advisory_impedance_step(now_ms)) {
+            /* OI-CVNS-HUB-11 cross-validation divergence — the library is
+             * faulted; do not evaluate the enable grant/reject blocks below
+             * against this (now stale) beat. */
+            return;
+        }
     }
 
     /* (2) Enable grant — the MCU has asserted the CVNS enable GPIO while the
@@ -465,6 +547,27 @@ void np_mod_cvns_set_heartbeat_status(uint16_t granted_mask, uint8_t mcu_status)
     s_hb_valid        = true;
 }
 
+/*
+ * np_mod_cvns_set_mcu_impedance — publish the safety MCU's per-electrode CVNS
+ * impedance (OI-CVNS-HUB-11) for the next tick's cross-validation.  Called once
+ * per beat from the safety-heartbeat task AFTER np_safety_spi_heartbeat().
+ * Store-only (single-writer rule); the control tick reads and compares it.
+ *
+ * kohm:  NP_CVNS_ELECTRODE_COUNT floats ([0]=left,[1]=right).  Ignored if NULL.
+ * valid: whether the MCU reported a completed, checksum-valid measurement.
+ */
+void np_mod_cvns_set_mcu_impedance(const float kohm[], bool valid)
+{
+    if (valid && kohm != NULL) {
+        for (uint8_t i = 0U; i < NP_CVNS_ELECTRODE_COUNT; i++) {
+            s_hb_mcu_imp_kohm[i] = kohm[i];
+        }
+        s_hb_mcu_imp_valid = true;
+    } else {
+        s_hb_mcu_imp_valid = false;
+    }
+}
+
 /* ── Library callbacks ───────────────────────────────────────────────────────── */
 
 /*
@@ -485,8 +588,15 @@ static void cvns_fault_cb(np_cvns_interlock_ctx_t *interlock,
 
     /* SHDR safety-interlock log: device-condition flags only.  Timestamp is
      * suppressed (0) so a cardiac-event time never co-locates with a session
-     * clock in SHDR (privacy gate). */
-    np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, (uint8_t)reason, 0U);
+     * clock in SHDR (privacy gate).
+     *
+     * OI-CVNS-HUB-11: suppressed while the driver is faulting the library on an
+     * impedance cross-validation failure — that path logs its own dedicated
+     * diagnostic (NP_CVNS_SHDR_EV_IMP_CROSSVAL), so logging the generic reason
+     * here too would double-record the one event. */
+    if (!s_state.crossval_faulting) {
+        np_log_shdr_fault(NP_HUB_SLOT_CVNS, NP_MOD_CVNS, (uint8_t)reason, 0U);
+    }
 }
 
 /*
@@ -542,6 +652,7 @@ np_hub_status_t np_mod_cvns_init(uint8_t slot)
     s_hb_valid        = false;
     s_hb_granted_mask = 0U;
     s_hb_mcu_status   = NP_SAFETY_STATUS_OK;
+    s_hb_mcu_imp_valid = false;   /* OI-CVNS-HUB-11 */
 
     /* Cardiac interlock: safety-critical config + fault callback wiring. */
     if (np_cvns_interlock_init(&s_interlock, cvns_interlock_config(),
@@ -579,7 +690,8 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
             s_state.active = false;
         }
         cvns_drop_enable();
-        s_hb_valid = false;   /* OI-CVNS-HUB-08: discard stale snapshot */
+        s_hb_valid         = false;   /* OI-CVNS-HUB-08: discard stale snapshot */
+        s_hb_mcu_imp_valid = false;   /* OI-CVNS-HUB-11 */
         return NP_HUB_OK;
     }
 
@@ -593,6 +705,7 @@ np_hub_status_t np_mod_cvns_control(uint8_t slot, const void *params, uint16_t l
      * first tick cannot act on a previous session's grant (OI-CVNS-HUB-08), and
      * re-arm the advisory impedance measurement (OI-CVNS-HUB-09). */
     s_hb_valid           = false;
+    s_hb_mcu_imp_valid   = false;   /* OI-CVNS-HUB-11: no stale MCU report */
     s_state.imp_state    = NP_CVNS_IMP_IDLE;
     s_state.imp_start_ms = 0U;
 

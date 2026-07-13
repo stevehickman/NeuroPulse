@@ -69,6 +69,14 @@ if(NP_BUILD_TESTS)
     )
     np_host_test(np_charge_monitor_tests)
 
+    # np_impedance_report_tests: SW01-M06 per-electrode CVNS impedance report
+    # for the hub cross-validation (OI-CVNS-HUB-11).
+    add_executable(np_impedance_report_tests
+        tests/np_impedance_report_tests.c
+        src/np_impedance_check.c
+    )
+    np_host_test(np_impedance_report_tests)
+
     return()
 endif()
 

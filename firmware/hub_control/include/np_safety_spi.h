@@ -192,6 +192,22 @@ np_hub_status_t np_safety_spi_send_session_sig(const uint8_t *hash,
                                                 const uint8_t *sig);
 
 /*
+ * np_safety_spi_get_cvns_impedance — OI-CVNS-HUB-11.  Return the safety MCU's
+ * most recent per-electrode cervical VNS impedance (kΩ) from the extended
+ * heartbeat reply, for the hub to cross-validate against its own measurement
+ * (np_mod_cvns, OI-CVNS-HUB-09).
+ *
+ * out_kohm:  array of NP_SAFETY_IMP_CVNS_ELECTRODES floats ([0]=left,[1]=right);
+ *            filled only when a valid report was received.  May be NULL.
+ * valid_out: set true iff the MCU reported a completed measurement (report
+ *            magic + checksum + valid flag all good).  May be NULL.
+ *
+ * Returns the same boolean as *valid_out.  Raw kΩ is UHDR (patient tissue) and
+ * must NEVER be written to SHDR — only a divergence flag may be.
+ */
+bool np_safety_spi_get_cvns_impedance(float out_kohm[], bool *valid_out);
+
+/*
  * np_safety_spi_send_channel_limits — deliver per-channel electrode geometry to
  * the safety MCU via a 34-byte command frame (OI-CHARGE-02).
  *

@@ -63,6 +63,12 @@ extern uint32_t np_hal_get_device_session_count(void);
 extern void np_mod_cvns_set_heartbeat_status(uint16_t granted_mask,
                                              uint8_t  mcu_status);
 
+/* Cervical VNS impedance cross-validation (OI-CVNS-HUB-11): the heartbeat task
+ * also hands the safety MCU's per-electrode impedance report (parsed from the
+ * extended reply) to np_mod_cvns, which compares it against the hub's own
+ * measurement.  Single-writer: only this task publishes the snapshot. */
+extern void np_mod_cvns_set_mcu_impedance(const float kohm[], bool valid);
+
 /* Cervical VNS PPG-ISR seam (OI-CVNS-HUB-07): the platform PPG ADC ISR calls
  * np_hub_ppg_isr_sample() (below), which forwards to the module's Pan-Tompkins
  * feed.  Declared extern here (registry idiom — module drivers expose no header). */
@@ -151,6 +157,15 @@ static void task_safety_heartbeat(void *arg)
          * enable/impedance SPI-response state machine. */
         np_mod_cvns_set_heartbeat_status(np_safety_spi_get_granted_mask(),
                                          np_safety_spi_get_status());
+
+        /* OI-CVNS-HUB-11: publish the MCU's per-electrode impedance report for
+         * the CVNS module to cross-validate against its own measurement. */
+        {
+            float   mcu_imp[NP_SAFETY_IMP_CVNS_ELECTRODES];
+            bool    mcu_imp_valid = false;
+            (void)np_safety_spi_get_cvns_impedance(mcu_imp, &mcu_imp_valid);
+            np_mod_cvns_set_mcu_impedance(mcu_imp, mcu_imp_valid);
+        }
 
         if (rc == NP_HUB_ERR_SAFETY_FAULT) {
             /* Recoverable cardiac cutoff: CARDIAC set with no non-recoverable
