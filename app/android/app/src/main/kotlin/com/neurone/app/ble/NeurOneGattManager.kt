@@ -59,6 +59,16 @@ class NeurOneGattManager(
     private val _warrantyToken = MutableStateFlow<ByteArray?>(null)
     val warrantyToken: StateFlow<ByteArray?> = _warrantyToken
 
+    /**
+     * Fires true when the hub signals a pending SHDR upload (SHDR_UPLOAD_STATUS
+     * notifies 0x01). SHDR-class trigger only — carries no user biology and never
+     * touches session state. Mirrors iOS NeurOneGATTManager.$shdrUploadPending
+     * (SHDRUploadTriggering). The SHDR upload pipeline observes this in the
+     * composition root (NeurOneApplication).
+     */
+    private val _shdrUploadPending = MutableStateFlow(false)
+    val shdrUploadPending: StateFlow<Boolean> = _shdrUploadPending
+
     private var reconnectJob: Job? = null
 
     init {
@@ -125,7 +135,10 @@ class NeurOneGattManager(
             return
         }
         if (uuid == GattUuids.shdrUploadStatus) {
-            return // SHDR upload bookkeeping only; never touches session state
+            // SHDR upload bookkeeping only; never touches session state. Publish the
+            // pending trigger (0x01 = upload pending) for the SHDR upload pipeline.
+            _shdrUploadPending.value = value.isNotEmpty() && value[0] == 0x01.toByte()
+            return
         }
         when (uuid) {
             GattUuids.sessionState -> GattParser.parseSessionState(value)?.let { epoch ->
@@ -192,6 +205,9 @@ class NeurOneGattManager(
         _session.value = SessionState.EMPTY   // clear stale UHDR display state
         _hubFirmwareVersion.value = null
         _warrantyToken.value = null
+        // Reset the SHDR upload trigger — it is tied to a live connection; the hub
+        // re-signals 0x01 on reconnect (retry on next USB-C session, iOS parity).
+        _shdrUploadPending.value = false
     }
 
     private fun applyWarrantyToken(value: ByteArray) {
