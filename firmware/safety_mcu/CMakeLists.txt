@@ -77,6 +77,17 @@ if(NP_BUILD_TESTS)
     )
     np_host_test(np_impedance_report_tests)
 
+    # np_fault_latch_privacy_tests: SW01-M08 privacy-gated read marshalling —
+    # tick_ms/count → SHDR, tick_ms suppressed for cardiac faults
+    # (CLAUDE.md §13.4, NP-FW-EMMC-001 §12).  NPTEST_HOST drops the .fault_latch
+    # Mach-O section attribute so the source builds host-native.
+    add_executable(np_fault_latch_privacy_tests
+        tests/np_fault_latch_privacy_tests.c
+        src/np_fault_latch.c
+    )
+    np_host_test(np_fault_latch_privacy_tests)
+    target_compile_definitions(np_fault_latch_privacy_tests PRIVATE NPTEST_HOST)
+
     return()
 endif()
 
