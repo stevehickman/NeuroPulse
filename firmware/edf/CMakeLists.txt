@@ -38,6 +38,7 @@ endif()
 set(EDF_SOURCES
     src/np_edf_writer.c
     src/np_edf_validator.c
+    src/np_edf_anon_gate.c
 )
 
 # ── Library (cross-compiled) ─────────────────────────────────────────────────
