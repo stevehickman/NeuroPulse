@@ -17,6 +17,15 @@
  *   offset 6:  uint16_t count   (total faults since last power-on reset)
  *   offset 8:  uint32_t tick_ms (SysTick timestamp of last fault)
  *   offset 12: uint8_t  pad[52] (reserved)
+ *
+ * Privacy classification of the latch fields for any hub-facing read
+ * (NP-FW-EMMC-001 Rev A §12; CLAUDE.md §13.4 "Fault latch extended SPI command
+ * privacy gate", resolved): `status` and `slot` are already surfaced in the
+ * 8-byte reply frame and are SHDR device-condition data.  `count` and `tick_ms`
+ * are NOT in that frame; when a future dedicated read command is added it must
+ * marshal them through np_fault_latch_report_count() / _report_tick_ms(), which
+ * route both to SHDR and suppress tick_ms for cardiac-cutoff faults.  See the
+ * block comment above those helpers.
  */
 
 #include "np_safety_config.h"
@@ -35,9 +44,18 @@ typedef struct __attribute__((packed)) {
     uint8_t  pad[52];
 } np_fault_latch_t;
 
-/* Placed in the .fault_latch section by the linker script (NOLOAD, no zero). */
-static __attribute__((section(".fault_latch")))
-np_fault_latch_t s_latch;
+/* Placed in the .fault_latch section by the linker script (NOLOAD, no zero).
+ * Host unit tests (NPTEST_HOST) build this translation unit without the section
+ * attribute — Mach-O rejects a bare (segment-less) section name, and the host
+ * tests exercise the fault-classification/marshalling logic, not warm-reset
+ * persistence.  The target image build (no NPTEST_HOST) is unchanged. */
+#if defined(NPTEST_HOST)
+#define NP_FAULT_LATCH_SECTION
+#else
+#define NP_FAULT_LATCH_SECTION __attribute__((section(".fault_latch")))
+#endif
+
+static NP_FAULT_LATCH_SECTION np_fault_latch_t s_latch;
 
 /* ── HAL stub ────────────────────────────────────────────────────────────── */
 extern uint32_t np_hal_get_tick_ms(void);
@@ -97,4 +115,45 @@ uint8_t np_fault_latch_get_status(void)
 uint8_t np_fault_latch_get_slot(void)
 {
     return (s_latch.magic == NP_FAULT_LATCH_MAGIC) ? s_latch.slot : 0xFFU;
+}
+
+/* ── Privacy-gated read marshalling (NP-FW-EMMC-001 Rev A §12) ────────────────
+ *
+ * The current 8-byte MCU→hub reply frame carries `status` and `fault_slot` only;
+ * `count` and `tick_ms` never leave SRAM today.  When a future dedicated
+ * fault-latch SPI read command is designed to let the hub retrieve the full
+ * latch, it MUST read `count` and `tick_ms` through these two helpers instead of
+ * touching s_latch directly.  That bakes the CLAUDE.md §13.4 privacy-gate
+ * resolution into enforceable code rather than prose:
+ *
+ *   count   → SHDR unconditionally.  A tally of DISTINCT fault transitions since
+ *             power-on (see np_fault_latch_commit change-gating); device-
+ *             condition only, no biology, no timestamp — mirrors the SHDR
+ *             "device session count".
+ *
+ *   tick_ms → SHDR in general (a device fault time, consistent with the
+ *             "safety interlock log → SHDR" boundary rule).  SUPPRESSED to 0
+ *             when the latched fault carries NP_SAFETY_STATUS_CARDIAC: a cardiac
+ *             cutoff during cervical VNS co-locates the event time with a
+ *             UHDR-class health event (the wearer's cardiac response), and even
+ *             this relative SysTick value could be linked back to a session
+ *             record.  Suppressing it keeps the SHDR /faults/ record device-only
+ *             (mirrors the OI-CVNS-HUB-11 divergence flag's suppressed timestamp).
+ *
+ * Both helpers return 0 when no valid latch is present.
+ */
+uint32_t np_fault_latch_report_tick_ms(void)
+{
+    if (s_latch.magic != NP_FAULT_LATCH_MAGIC) {
+        return 0U;
+    }
+    if ((s_latch.status & NP_SAFETY_STATUS_CARDIAC) != 0U) {
+        return 0U;  /* cardiac-cutoff fault: suppress timestamp (see above) */
+    }
+    return s_latch.tick_ms;
+}
+
+uint16_t np_fault_latch_report_count(void)
+{
+    return (s_latch.magic == NP_FAULT_LATCH_MAGIC) ? s_latch.count : 0U;
 }
