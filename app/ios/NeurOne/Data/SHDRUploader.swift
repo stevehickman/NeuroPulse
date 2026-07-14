@@ -194,7 +194,14 @@ final class SHDRUploader: ObservableObject {
     @Published private(set) var lastError: SHDRUploadError?
 
     private let uploadTrigger: SHDRUploadTriggering
-    private var cancellable: AnyCancellable?
+    private var cancellables = Set<AnyCancellable>()
+
+    // Hub-provisioned 256-bit TRNG warranty token (hex), once observed over GATT.
+    // Preferred over the Keychain fallback (NP-FW-EMMC-002 Rev A §A, OI-BLE-01).
+    // Held in memory only: the hub re-provisions this on every connection, so nothing
+    // extra is persisted, and disconnect (which clears the GATT value to nil) does NOT
+    // downgrade us back to the Keychain token — the device identity is unchanged.
+    private var hubWarrantyToken: String?
 
     // Dedicated session with SPKI pinning — never use URLSession.shared for fleet uploads.
     private let session: URLSession
@@ -204,14 +211,43 @@ final class SHDRUploader: ObservableObject {
         let delegate = SHDRFleetPinningDelegate(host: "fleet.neurone.internal")
         self.session = URLSession(configuration: .ephemeral, delegate: delegate, delegateQueue: nil)
         observeUploadTrigger()
+        observeWarrantyToken()
     }
 
     private func observeUploadTrigger() {
-        cancellable = uploadTrigger.shdrUploadPendingPublisher
+        uploadTrigger.shdrUploadPendingPublisher
             .filter { $0 }
             .sink { [weak self] _ in
                 Task { await self?.uploadIfConsented() }
             }
+            .store(in: &cancellables)
+    }
+
+    // OI-BLE-01: upgrade the SHDR linkage key from the interim Keychain token to the
+    // hub-provisioned TRNG token as soon as the hub delivers it over GATT.
+    // nil emissions (pre-provisioning, and on disconnect) are dropped via compactMap so
+    // an established upgrade is never rolled back mid-session.
+    private func observeWarrantyToken() {
+        uploadTrigger.warrantyTokenPublisher
+            .compactMap { $0 }
+            .sink { [weak self] token in
+                self?.upgradeDeviceToken(token)
+            }
+            .store(in: &cancellables)
+    }
+
+    // Replace the active device token with the hub-provisioned TRNG value.
+    // The hub GATT characteristic carries exactly 32 bytes; anything else is rejected
+    // rather than silently truncated so a corrupt/partial read never becomes the fleet key.
+    func upgradeDeviceToken(_ data: Data) {
+        guard data.count == 32 else { return }
+        hubWarrantyToken = data.map { String(format: "%02x", $0) }.joined()
+    }
+
+    // The 64-char hex device token used as the SHDR fleet DB linkage key for this upload:
+    // the hub-provisioned TRNG token once known, otherwise the interim Keychain fallback.
+    func currentDeviceToken() -> String {
+        hubWarrantyToken ?? warrantyTokenFromKeychain()
     }
 
     func uploadIfConsented() async {
@@ -230,8 +266,10 @@ final class SHDRUploader: ObservableObject {
         defer { isUploading = false }
 
         // NP-FW-EMMC-002 Rev A §A: SHDR is linked to an opaque 256-bit TRNG warranty
-        // token — never to any vendor-assigned or user-linked identifier.
-        let warrantyToken = warrantyTokenFromKeychain()
+        // token — never to any vendor-assigned or user-linked identifier. Prefers the
+        // hub-provisioned TRNG token when known, falling back to the interim Keychain
+        // token before the hub delivers it over GATT (OI-BLE-01).
+        let warrantyToken = currentDeviceToken()
 
         // In production the hub pushes the SHDR binary blob over USB-C bulk transfer;
         // the app reads it from a staging file dropped by the hub's CDC interface.
@@ -275,8 +313,9 @@ final class SHDRUploader: ObservableObject {
     // Opaque 256-bit random token, generated once at first run and stored in the
     // Keychain with ThisDeviceOnly accessibility. Used as the SHDR fleet DB linkage
     // key — it is never joined to user identity.
-    // Interim Keychain-generated token. Will be replaced by the 256-bit TRNG token
-    // from the hub's GATT warrantyToken characteristic when hub firmware ships (OI-BLE-01).
+    // Interim fallback only: once the hub delivers its 256-bit TRNG token over the GATT
+    // warrantyToken characteristic, upgradeDeviceToken(_:) supersedes this value and
+    // currentDeviceToken() prefers the hub token (OI-BLE-01, pending hub firmware OI-WA-03).
     private static let warrantyTokenTag = "com.neurone.shdr.warranty-token"
 
     private func warrantyTokenFromKeychain() -> String {
