@@ -10,10 +10,12 @@ on:
     paths:
       - 'ci/shdr/shdr_fleet_schema.sql'
       - 'ci/test_shdr_schema.py'
+      - 'ci/test_shdr_schema_selftest.py'
   pull_request:
     paths:
       - 'ci/shdr/shdr_fleet_schema.sql'
       - 'ci/test_shdr_schema.py'
+      - 'ci/test_shdr_schema_selftest.py'
   workflow_dispatch:
 
 jobs:
@@ -32,6 +34,9 @@ jobs:
 
       - name: Run OI-EMMC2-07 schema CI test
         run: python3 ci/test_shdr_schema.py --verbose --schema ci/shdr/shdr_fleet_schema.sql
+
+      - name: Self-test the accelerometer assertion (test-of-the-test)
+        run: python3 ci/test_shdr_schema_selftest.py
 
       - name: Upload test output on failure
         if: failure()
