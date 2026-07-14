@@ -19,6 +19,10 @@ from NP-FW-EMMC-002 §G.3 and §A.4:
   7. No UHDR key-material columns (UKMD/WKMD ciphertext, Argon2id salt, nonce,
      tag) — the device-local UHDR key record (NP-FW-EMMC-002 §C) and especially
      its per-device salt must never reach the fleet DB (privacy review Finding 4).
+  8. No wall-clock timestamp columns (TIME-01). No TIMESTAMP/TIMESTAMPTZ/TIME
+     type anywhere; SHDR carries only a month-granular DATE retention anchor and
+     integer counters for ordering. A per-row upload timestamp keyed to
+     warranty_token is a docking-time side channel (§5.1 "no timestamps in SHDR").
 
 Usage:
   python3 ci/test_shdr_schema.py                  # exits 0 on PASS, 1 on FAIL
@@ -97,6 +101,20 @@ PROHIBITED_KEY_MATERIAL_PATTERNS: list[tuple[str, str]] = [
     (r"\bhuk\b",          "hardware unique key"),
     (r"\bhw_key\b",       "hardware key material"),
     (r"\bkdf_",           "KDF-derived field"),
+]
+
+# Column TYPES that must never appear anywhere in the SHDR schema.
+# SHDR carries no wall clock finer than a month-granular DATE retention anchor
+# (ingest_month / last_seen_month); per-row ordering is an integer counter, never
+# a clock.  A per-row TIMESTAMP/TIMESTAMPTZ/TIME keyed to warranty_token
+# reintroduces a docking-time side channel (uploads happen on USB-C connect),
+# which the §5.1 "no timestamps in SHDR" rule and NP-FW-EMMC-002 §G forbid.
+# DATE is permitted; DATE columns are expected to be month-truncated by their
+# DEFAULT (DATE_TRUNC('month', NOW())::date) — see schema Rev B.
+PROHIBITED_TIME_TYPE_PATTERNS: list[tuple[str, str]] = [
+    (r"\bTIMESTAMPTZ\b",  "timestamptz — sub-day wall clock"),
+    (r"\bTIMESTAMP\b",    "timestamp — sub-day wall clock"),
+    (r"\bTIME\b",         "time-of-day column"),
 ]
 
 # These are the only accelerometer-derived column names permitted anywhere.
@@ -229,8 +247,10 @@ def check_accel_table_numeric_types(columns: list[ColumnDef]) -> list[Failure]:
             continue
         if col.column in PERMITTED_ACCEL_COLUMNS:
             continue
-        # id, gap_index, created_at, warranty_token — well-known non-accel columns
-        if col.column in {"id", "gap_index", "created_at", "warranty_token", "updated_at"}:
+        # Well-known non-accel columns (identity, ordering counter, retention anchor)
+        if col.column in {"id", "gap_index", "warranty_token",
+                          "ingest_month", "last_seen_month",
+                          "created_at", "updated_at"}:
             continue
         if NUMERIC_TYPE_PATTERN.search(col.col_type):
             failures.append(Failure(
@@ -290,6 +310,33 @@ def check_key_material_columns(columns: list[ColumnDef]) -> list[Failure]:
                     ),
                     location=f"{col.table}.{col.column}:{col.line_no}",
                 ))
+    return failures
+
+
+def check_prohibited_time_types(columns: list[ColumnDef]) -> list[Failure]:
+    """
+    No wall-clock time columns anywhere in SHDR (TIME-01). Ordering is provided
+    by integer counters (session_index / gap_index / *_at_* / *_count); retention
+    uses a month-granular DATE anchor. A TIMESTAMP/TIMESTAMPTZ/TIME column keyed
+    to warranty_token is a per-row docking-time correlator — prohibited per
+    NP-FW-EMMC-002 §G and the §5.1 "no timestamps in SHDR" boundary rule.
+    DATE (day/month granularity) is permitted.
+    """
+    failures: list[Failure] = []
+    for col in columns:
+        ctype = col.col_type.upper()
+        for pattern, reason in PROHIBITED_TIME_TYPE_PATTERNS:
+            if re.search(pattern, ctype):
+                failures.append(Failure(
+                    check_id="TIME-01",
+                    description=(
+                        f"Prohibited time-type column '{col.column}' ({col.col_type}) "
+                        f"in '{col.table}' ({reason}) — use a month-granular DATE "
+                        f"retention anchor plus an integer counter for ordering"
+                    ),
+                    location=f"{col.table}.{col.column}:{col.line_no}",
+                ))
+                break
     return failures
 
 
@@ -362,6 +409,8 @@ def run_all_checks(sql: str, verbose: bool = False) -> CheckResult:
         check_pii_columns, columns)
     run("KEYMAT-01: no UHDR key-material columns",
         check_key_material_columns, columns)
+    run("TIME-01:  no wall-clock timestamp columns",
+        check_prohibited_time_types, columns)
     run("NOJOIN-01: no cross-DB table references",
         check_cross_db_references, sql)
     run("TOKEN-01: warranty_token is BYTEA",

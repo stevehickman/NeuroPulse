@@ -1,8 +1,24 @@
 -- NeurOne SHDR Fleet Database Schema
 -- Document: NP-FW-EMMC-002 Rev A §G.4 / NP-FW-EMMC-001 Rev A §7
--- Revision: A
--- Effective date: 2026-06-03
+-- Revision: B
+-- Effective date: 2026-07-13
 -- Status: ACTIVE — BLOCKING for schema freeze (OI-EMMC2-07 must PASS)
+--
+-- Rev B (2026-07-13): timestamp minimization. Per the directive "use the largest
+--   granularity that maintains needed functionality; prefer a counter/boolean;
+--   remove the timestamp if no functionality needs it," every per-row
+--   TIMESTAMPTZ wall clock has been removed:
+--     * Per-session/event tables now carry `ingest_month DATE` (month-granular
+--       retention anchor only). Row ordering was already provided by an integer
+--       counter (session_index / gap_index / *_at_* / *_count), so no clock is
+--       needed for ordering.
+--     * `devices.updated_at` → `last_seen_month DATE` (liveness + retention).
+--     * `devices.created_at` removed (device age = manufacture_date; activation
+--       date lives only in the consented warranty_db, which SHDR cannot join).
+--     * `consumable_counts.updated_at` removed (reminders are count-triggered;
+--       one upserted row per device — no functionality needed the timestamp).
+--   This removes a per-row docking-time correlator keyed to warranty_token and
+--   brings the schema into line with the §5.1 "no timestamps in SHDR" rule.
 --
 -- PRIVACY RULES enforced by CI test (ci/test_shdr_schema.py, OI-EMMC2-07):
 --   1. No raw accelerometer columns (g-force, orientation, drop_count, timestamps)
@@ -11,6 +27,10 @@
 --      registration database. Warranty linkage is via opaque warranty_token only.
 --      The warrant_db and shdr_db live in separate cloud projects with no shared
 --      IAM roles. A separate CI test (OI-EMMC2-06) confirms the join fails.
+--   4. No sub-day timestamps (TIME-01). SHDR carries no wall clock finer than a
+--      month-granular DATE retention anchor (ingest_month / last_seen_month).
+--      Per-row ordering is an integer counter, never a clock. Enforced by CI:
+--      no TIMESTAMP / TIMESTAMPTZ / TIME columns anywhere in the schema.
 --
 -- PERMITTED accelerometer columns per NP-FW-EMMC-002 §G.2:
 --   drop_detected BOOLEAN, maintenance_alert BOOLEAN  — and nothing else.
@@ -47,8 +67,11 @@ CREATE TABLE devices (
     -- Transfer flag: set when factory reset clears the warranty token
     device_transferred      BOOLEAN      NOT NULL DEFAULT FALSE,
 
-    created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-    updated_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Liveness + retention anchor at MONTH granularity — largest granularity that
+    -- still supports active-fleet counting and TTL. No first-seen timestamp:
+    -- device age comes from manufacture_date; activation date lives only in the
+    -- consented warranty_db (no-join). Replaces created_at + updated_at.
+    last_seen_month         DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -64,10 +87,11 @@ CREATE TABLE firmware_history (
     install_method      VARCHAR(16)  NOT NULL CHECK (install_method IN ('OTA', 'DFU', 'FACTORY')),
     signature_verified  BOOLEAN      NOT NULL DEFAULT TRUE,
 
-    -- Session counter at install time — no wall-clock timestamp in SHDR
+    -- Session counter at install time — provides ordering, no wall clock
     session_at_install  INTEGER      NOT NULL CHECK (session_at_install >= 0),
 
-    created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via session_at_install)
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -84,7 +108,8 @@ CREATE TABLE ota_events (
     failure_reason      VARCHAR(64),
 
     session_at_attempt  INTEGER      NOT NULL CHECK (session_at_attempt >= 0),
-    created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via session_at_attempt)
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -115,7 +140,8 @@ CREATE TABLE pbm_zone_telemetry (
     -- Peak junction temperature (°C) — no timestamp; thermal management only
     peak_ntc_celsius    REAL         NOT NULL CHECK (peak_ntc_celsius BETWEEN -20.0 AND 120.0),
 
-    created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via session_index)
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -134,7 +160,8 @@ CREATE TABLE emf_shielding_telemetry (
     -- Palladium fabric integrity (binary flag — no continuous resistance value)
     fabric_integrity_ok     BOOLEAN      NOT NULL DEFAULT TRUE,
 
-    created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via session_index)
+    ingest_month            DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -158,7 +185,8 @@ CREATE TABLE thermal_profiles (
     -- Calibration drift flag (triggered when NTC deviates >1.5°C from hub ref)
     ntc_drift_flag          BOOLEAN      NOT NULL DEFAULT FALSE,
 
-    created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via session_index)
+    ingest_month            DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -183,7 +211,8 @@ CREATE TABLE power_telemetry (
     fan_rpm                 SMALLINT,
     fan_fault               BOOLEAN      NOT NULL DEFAULT FALSE,
 
-    created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via session_index)
+    ingest_month            DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -195,14 +224,15 @@ CREATE TABLE consumable_counts (
     id                        BIGSERIAL    PRIMARY KEY,
     warranty_token            BYTEA        NOT NULL REFERENCES devices(warranty_token),
 
-    -- Counts are unsigned integers; no timestamps; no user activity inference
+    -- Counts are unsigned integers; no timestamps; no user activity inference.
+    -- Reminders are count-triggered, so no timestamp is needed. This is one
+    -- upserted row per device, retained for device lifetime; the former
+    -- updated_at served no functionality and has been removed (Rev B).
     electrode_tip_sessions    INTEGER      NOT NULL DEFAULT 0 CHECK (electrode_tip_sessions >= 0),
     vns_pad_sessions          INTEGER      NOT NULL DEFAULT 0 CHECK (vns_pad_sessions >= 0),
     intranasal_sleeve_uses    INTEGER      NOT NULL DEFAULT 0 CHECK (intranasal_sleeve_uses >= 0),
     audio_cup_sessions        INTEGER      NOT NULL DEFAULT 0 CHECK (audio_cup_sessions >= 0),
-    audio_cup_mesh_sessions   INTEGER      NOT NULL DEFAULT 0 CHECK (audio_cup_mesh_sessions >= 0),
-
-    updated_at                TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    audio_cup_mesh_sessions   INTEGER      NOT NULL DEFAULT 0 CHECK (audio_cup_mesh_sessions >= 0)
 );
 
 -- ---------------------------------------------------------------------------
@@ -218,7 +248,8 @@ CREATE TABLE accessory_auth_log (
     auth_result         VARCHAR(8)   NOT NULL CHECK (auth_result IN ('PASS', 'FAIL')),
     session_index       INTEGER      NOT NULL CHECK (session_index >= 0),
 
-    created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via session_index)
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -236,7 +267,8 @@ CREATE TABLE calibration_history (
     coefficient_value   DOUBLE PRECISION NOT NULL,
 
     session_at_cal      INTEGER      NOT NULL CHECK (session_at_cal >= 0),
-    created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via session_at_cal)
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -253,7 +285,8 @@ CREATE TABLE eeg_impedance_trend (
     replacement_flag    BOOLEAN      NOT NULL DEFAULT FALSE,
 
     session_index       INTEGER      NOT NULL CHECK (session_index >= 0),
-    created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via session_index)
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -276,10 +309,12 @@ CREATE TABLE shdr_accel_records (
     drop_detected       BOOLEAN      NOT NULL DEFAULT FALSE,
     maintenance_alert   BOOLEAN      NOT NULL DEFAULT FALSE,
 
-    -- Between-session gap index (no wall-clock timestamps for individual events)
+    -- Between-session gap index — provides ordering with no wall clock
     gap_index           INTEGER      NOT NULL CHECK (gap_index >= 0),
 
-    created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via gap_index). The former
+    -- per-row created_at wall clock (a docking-time correlator) is removed.
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -297,7 +332,8 @@ CREATE TABLE mode_f_telemetry (
     -- Regulatory gate status (reflects NP_MODE_F_REGULATORY_CLEARED build flag)
     regulatory_cleared      BOOLEAN      NOT NULL DEFAULT FALSE,
 
-    created_at              TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via mode_f_session_count)
+    ingest_month            DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -315,7 +351,9 @@ CREATE TABLE fault_log (
     fault_cleared       BOOLEAN      NOT NULL DEFAULT FALSE,
 
     session_index       INTEGER      NOT NULL CHECK (session_index >= 0),
-    created_at          TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via session_index). Precise
+    -- fault event timing, where it exists at all, is UHDR under the user's key.
+    ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
@@ -332,7 +370,8 @@ CREATE TABLE storage_health (
     eol_block_flag              BOOLEAN      NOT NULL DEFAULT FALSE,
 
     session_index               INTEGER      NOT NULL CHECK (session_index >= 0),
-    created_at                  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    -- Month-granular retention anchor only (ordering via session_index)
+    ingest_month                DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
