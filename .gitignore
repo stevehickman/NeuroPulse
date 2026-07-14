@@ -68,6 +68,13 @@ DerivedData/
 .swiftpm/
 *.resolved     # resolved versions — commit only if you pin SPM deps deliberately
 
+# ── Android / Gradle ──────────────────────────────────────────────────────────
+.gradle/
+local.properties
+# NOTE: the Gradle wrapper IS committed — gradlew, gradlew.bat, and
+# gradle/wrapper/gradle-wrapper.jar must NOT be ignored (they are not matched
+# by the rules above; *.jar is deliberately not a blanket ignore).
+
 # ── IDE ───────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
