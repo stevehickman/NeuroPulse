@@ -1,8 +1,20 @@
 -- NeurOne SHDR Fleet Database Schema
 -- Document: NP-FW-EMMC-002 Rev A §G.4 / NP-FW-EMMC-001 Rev A §7
--- Revision: B
--- Effective date: 2026-07-13
+-- Revision: C
+-- Effective date: 2026-07-14
 -- Status: ACTIVE — BLOCKING for schema freeze (OI-EMMC2-07 must PASS)
+--
+-- Rev C (2026-07-14): freeze-prep integrity fix. consumable_counts documents a
+--   "one upserted row per device" semantic but had no uniqueness enforcement on
+--   warranty_token (PK was the BIGSERIAL id; the index was non-unique). Added a
+--   UNIQUE (warranty_token) constraint so ON CONFLICT upsert has a valid arbiter
+--   and duplicate per-device rows cannot accumulate. Removed the now-redundant
+--   idx_consumable_token (the UNIQUE constraint provides the lookup index).
+--   mode_f_telemetry was reviewed in the same pass and intentionally LEFT
+--   append-per-upload (audit trail for predictive maintenance) — no UNIQUE
+--   constraint; its BIGSERIAL id PK is correct and warranty_token stays
+--   non-unique. No privacy-surface change; both CI gates (OI-EMMC2-07 schema,
+--   OI-EMMC2-06 no-join) remain PASS.
 --
 -- Rev B (2026-07-13): timestamp minimization. Per the directive "use the largest
 --   granularity that maintains needed functionality; prefer a counter/boolean;
@@ -232,7 +244,15 @@ CREATE TABLE consumable_counts (
     vns_pad_sessions          INTEGER      NOT NULL DEFAULT 0 CHECK (vns_pad_sessions >= 0),
     intranasal_sleeve_uses    INTEGER      NOT NULL DEFAULT 0 CHECK (intranasal_sleeve_uses >= 0),
     audio_cup_sessions        INTEGER      NOT NULL DEFAULT 0 CHECK (audio_cup_sessions >= 0),
-    audio_cup_mesh_sessions   INTEGER      NOT NULL DEFAULT 0 CHECK (audio_cup_mesh_sessions >= 0)
+    audio_cup_mesh_sessions   INTEGER      NOT NULL DEFAULT 0 CHECK (audio_cup_mesh_sessions >= 0),
+
+    -- Rev C: one row per device is UPSERTED (see comment above). A UNIQUE
+    -- constraint on warranty_token is required so ON CONFLICT (warranty_token)
+    -- DO UPDATE has a valid arbiter; without it the "one upserted row per
+    -- device" invariant is unenforced and duplicate rows accumulate. The
+    -- constraint auto-creates the lookup index (former idx_consumable_token
+    -- removed as redundant).
+    CONSTRAINT uq_consumable_counts_device UNIQUE (warranty_token)
 );
 
 -- ---------------------------------------------------------------------------
@@ -321,6 +341,14 @@ CREATE TABLE shdr_accel_records (
 -- Table: mode_f_telemetry
 -- Mode F (retinal NIR PBM) device-side metrics.
 -- Per NP-FW-EMMC-002 §F.3: mode_f_enabled_flag (bool) → SHDR; dose → UHDR.
+--
+-- Cardinality: APPEND-PER-UPLOAD (audit trail), NOT one-row-per-device. Each
+-- row is an immutable snapshot of Mode F device state (enabled flag,
+-- regulatory-clearance flag, cumulative session count) captured at upload. The
+-- history of state changes feeds predictive maintenance, so BIGSERIAL id is the
+-- correct PK and warranty_token is intentionally NON-unique. Do NOT add a
+-- UNIQUE (warranty_token) constraint here — contrast consumable_counts, which
+-- IS upsert-in-place. Reviewed for schema freeze 2026-07-14 (Rev C).
 -- ---------------------------------------------------------------------------
 CREATE TABLE mode_f_telemetry (
     id                      BIGSERIAL    PRIMARY KEY,
@@ -383,7 +411,6 @@ CREATE INDEX idx_pbm_zone_token_session    ON pbm_zone_telemetry(warranty_token,
 CREATE INDEX idx_emf_token_session         ON emf_shielding_telemetry(warranty_token, session_index);
 CREATE INDEX idx_thermal_token_session     ON thermal_profiles(warranty_token, session_index);
 CREATE INDEX idx_power_token_session       ON power_telemetry(warranty_token, session_index);
-CREATE INDEX idx_consumable_token          ON consumable_counts(warranty_token);
 CREATE INDEX idx_accessory_auth_token      ON accessory_auth_log(warranty_token);
 CREATE INDEX idx_calibration_token         ON calibration_history(warranty_token, sensor_id);
 CREATE INDEX idx_eeg_impedance_token       ON eeg_impedance_trend(warranty_token, electrode_id);
