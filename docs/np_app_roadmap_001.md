@@ -2,18 +2,18 @@
 
 **Project:** NeurOne  
 **Document:** NP-APP-ROADMAP-001  
-**Revision:** B  
-**Date:** 2026-06-03  
+**Revision:** C  
+**Date:** 2026-07-13  
 **Status:** BASELINED  
-**Effective Date:** 2026-06-03  
+**Effective Date:** 2026-07-13  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved By:** Steve Hickman, CEO  
 **References:** —  
 **Related Issues:** GitHub Issue #32  
 **Gate:** —  
 **IEC 62304 Class:** —  
-**Supersedes:** NP-APP-ROADMAP-001 Rev A  
-**Change Summary:** Added §9 Privacy Constraints (NP-PRIV-REM-001 STEP-16/33); HealthKit binding constraint; minimum age gate; BIPA written release; adaptive stimulation transparency card. Added OI-WA-06, OI-PA-01, OI-PA-02, OI-PA-03, OI-PA-04.
+**Supersedes:** NP-APP-ROADMAP-001 Rev B  
+**Change Summary:** Corrected a platform-fact error in the Watch Phase 3 haptic spec. Core Haptics (`CHHapticEngine`) does not exist on watchOS; the only watchOS haptic API is `WKInterfaceDevice.play(_:)`, which cannot render a continuous 40Hz waveform. Phase 3 on the Watch is rescoped from "40Hz continuous Core Haptics" to a low-rate **rhythmic session cue** (WKInterfaceDevice named haptic, explicitly not 40Hz, honestly labelled as a supplement per §3b/§15). True 40Hz Core Haptics is achievable only on iPhone (where the phone is the contact surface); therapeutic 40Hz vibrotactile remains the mastoid LRA pad. OI-WA-01 and OI-WA-04 superseded (no continuous Core Haptics path exists on watchOS to characterise); OI-WA-05 rescoped. §4.1 diagram + channel table, §4.2 Phase 3, §7/§10 open items updated. Rev B change (retained): §9 Privacy Constraints; HealthKit binding; age gate; BIPA release; adaptive transparency card; OI-WA-06, OI-PA-01..04.
 
 ---
 
@@ -38,7 +38,7 @@ iOS App (WatchConnectivity framework)
         │  WatchConnectivity session
         ▼
 watchOS App
-        ├── Core Haptics (40Hz pattern)
+        ├── Haptic session cue (WKInterfaceDevice.play — named haptic, NOT 40Hz)
         ├── Audio playback to AirPods (AVAudioSession)
         └── Watch display (SwiftUI)
 ```
@@ -71,7 +71,7 @@ The Watch app is a free companion delivering three sync channels. All Watch-deli
 
 | Channel | Function | watchOS API |
 |---------|----------|-------------|
-| Haptic | 40Hz continuous haptic pattern synchronised to hub session clock | Core Haptics (CHHapticEngine) |
+| Haptic cue | Low-rate rhythmic "session-active" wrist cue (NOT 40Hz, NOT therapeutic) | `WKInterfaceDevice.play(_:)` named haptic (Core Haptics is unavailable on watchOS) |
 | Audio | Binaural beats / isochronic tones / breathing pacer to AirPods | AVAudioSession, routed to paired AirPods |
 | Visual | 40Hz flicker, EMDR L/R indicator, HRV breathing ring, session status | SwiftUI, WKInterfaceDevice display |
 
@@ -103,13 +103,18 @@ Development priority order is determined by implementation complexity and user u
 - AVAudioSession category: `.playback`, mode `.default`, shared with iPhone app via WatchConnectivity state transfer
 - Latency budget: WatchConnectivity message round-trip ≤50ms; audio pre-buffer 200ms at session start to absorb jitter
 
-#### Phase 3 — Haptic Sync (40Hz Core Haptics)
+#### Phase 3 — Haptic Session Cue (WKInterfaceDevice, NOT 40Hz)
 **Target:** Month 4–5 post-core-app-launch
 
-- CHHapticEngine continuous event: `HapticContinuous` with sharpness 0.8, intensity 0.6 at 40Hz drive frequency
-- Session start synchronisation: hub transmits session epoch; Watch app aligns CHHapticEngine start time using `CHHapticEngine.start(completionHandler:)` with a calculated future timestamp
-- Duty cycle: 100% continuous for session duration (target 20 minutes); Apple Watch thermal performance characterisation required before production release — run 20-minute continuous Core Haptics session and record Watch surface temperature and battery drain
-- Marketing caveat displayed in-app: "For the full 40Hz vibrotactile experience, use the NeurOne mastoid vibrotactile pad (available separately). The Apple Watch haptic is a complementary wrist layer — not a substitute for mastoid bone coupling." (See CLAUDE.md §15 for approved marketing copy.)
+**Platform correction (2026-07-13):** The Rev A/B spec assumed a continuous 40Hz `CHHapticEngine` waveform on the Watch. **Core Haptics does not exist on watchOS** — `CHHapticEngine`, `CHHapticPattern`, and `CHHapticEvent` are iOS/iPadOS only. The sole watchOS haptic API is `WKInterfaceDevice.play(_:)`, which fires a fixed set of *named* haptics on demand and **cannot render an arbitrary continuous 40Hz waveform**. Phase 3 on the Watch is therefore delivered as a low-rate rhythmic session cue, not a 40Hz vibrotactile channel.
+
+- Implementation: `WKInterfaceDevice.current().play(.click)` fired by a repeating timer at a gentle, reliable cadence (default 2Hz / one tap per 500ms). watchOS coalesces/rate-limits rapid `play()` calls, so a continuous buzz — and any true 40Hz drive — is not attainable; the cadence is a deliberately low, *felt* "session-active" pulse.
+- Purpose: a supplementary wrist presence indicating the session is running. Declared as a user-interface aid, not therapeutic delivery (consistent with §6 regulatory notes).
+- Sync: session epoch is UHDR-class and excluded from the WatchConnectivity bridge (NP-PRIV-ANALYSIS-002 MEDIUM-08); the cue starts immediately with no meaningful sync offset. Auto-stops on session idle/completed and on a 20-minute safety cap.
+- Thermal guard: a repeating haptic timer carries far less thermal/battery cost than the (nonexistent) continuous Core Haptics path, but the manager still monitors `ProcessInfo.thermalState` and pauses the cue at `.serious`/`.critical`.
+- Where true 40Hz lives: the **mastoid LRA pad** (hardware, DRV2605L @ 40Hz ±0.5Hz) is the therapeutic vibrotactile channel. The **iPhone** app can render 40Hz via Core Haptics where the phone is the contact surface. The Watch delivers the coarse cue only.
+- Marketing caveat displayed in-app: "For the full 40Hz vibrotactile experience, use the NeurOne mastoid vibrotactile pad (available separately). The Apple Watch haptic is a complementary wrist cue — not a substitute for mastoid bone coupling." (See CLAUDE.md §15 for approved marketing copy.)
+- Implemented in `app/watchos/NeurOneWatch/Phase3/HapticSyncManager.swift`.
 
 #### Phase 4 — 40Hz Visual Flicker
 **Target:** Month 6+ post-core-app-launch, after screen characterisation
@@ -167,11 +172,11 @@ All Watch-delivered functions must be described in App Store metadata and in-app
 
 | ID | Item | Owner | Blocking |
 |----|------|-------|---------|
-| OI-WA-01 | Apple Watch Series thermal characterisation for 20-min continuous Core Haptics | SW Engineering | Phase 3 production release |
+| OI-WA-01 | SUPERSEDED (2026-07-13) — no continuous Core Haptics path exists on watchOS to characterise. Phase 3 is now a low-rate WKInterfaceDevice cue; the lightweight repeating-timer thermal cost is handled at runtime via `ProcessInfo.thermalState` auto-pause. | SW Engineering | Not blocking |
 | OI-WA-02 | Watch screen brightness characterisation at 40Hz ≥100 nits | SW Engineering | Phase 4 (visual flicker channel) |
 | OI-WA-03 | WatchConnectivity latency measurement on current watchOS release | SW Engineering | Phase 2 audio sync quality gate |
-| OI-WA-04 | CHHapticEngine 40Hz frequency verification on Apple Watch Ultra 2 vs Series 10 | SW Engineering | Phase 3 |
-| OI-WA-05 | App Store review pre-submission check for Core Haptics 40Hz continuous use pattern | SW/Regulatory | Phase 3 |
+| OI-WA-04 | SUPERSEDED (2026-07-13) — `CHHapticEngine` does not exist on watchOS; there is no 40Hz Core Haptics frequency to verify on any Apple Watch model. (40Hz verification applies only to the iPhone Core Haptics path and the mastoid LRA pad, tracked elsewhere.) | SW Engineering | Not blocking |
+| OI-WA-05 | App Store review pre-submission check for the Phase 3 haptic cue — confirm the low-rate `WKInterfaceDevice.play` cue and its in-app copy carry no therapeutic/40Hz claim (rescoped from Core Haptics 40Hz continuous use) | SW/Regulatory | Phase 3 |
 
 ---
 
@@ -181,7 +186,7 @@ All Watch-delivered functions must be described in App Store metadata and in-app
 |-------|---------|------------|--------|--------|
 | 1 | Session status + HRV breathing ring | Low | Month 1–2 post-core-app | Planned |
 | 2 | Audio sync to AirPods | Medium | Month 3–4 post-core-app | Planned |
-| 3 | Haptic sync (40Hz Core Haptics) | Medium | Month 4–5 post-core-app | Planned |
+| 3 | Haptic session cue (WKInterfaceDevice, not 40Hz) | Low | Month 4–5 post-core-app | Planned |
 | 4 | 40Hz visual flicker | High | Month 6+ post-core-app | Blocked — OI-WA-02 |
 
 ---
@@ -264,11 +269,11 @@ No analytics or crash reporting SDK may initialise before the consent flow is co
 
 | ID | Item | Owner | Blocking |
 |----|------|-------|---------|
-| OI-WA-01 | Apple Watch Series thermal characterisation for 20-min continuous Core Haptics | SW Engineering | Phase 3 production release |
+| OI-WA-01 | SUPERSEDED (2026-07-13) — no continuous Core Haptics path exists on watchOS to characterise. Phase 3 is now a low-rate WKInterfaceDevice cue; the lightweight repeating-timer thermal cost is handled at runtime via `ProcessInfo.thermalState` auto-pause. | SW Engineering | Not blocking |
 | OI-WA-02 | Watch screen brightness characterisation at 40Hz ≥100 nits | SW Engineering | Phase 4 (visual flicker channel) |
 | OI-WA-03 | WatchConnectivity latency measurement on current watchOS release | SW Engineering | Phase 2 audio sync quality gate |
-| OI-WA-04 | CHHapticEngine 40Hz frequency verification on Apple Watch Ultra 2 vs Series 10 | SW Engineering | Phase 3 |
-| OI-WA-05 | App Store review pre-submission check for Core Haptics 40Hz continuous use pattern | SW/Regulatory | Phase 3 |
+| OI-WA-04 | SUPERSEDED (2026-07-13) — `CHHapticEngine` does not exist on watchOS; there is no 40Hz Core Haptics frequency to verify on any Apple Watch model. (40Hz verification applies only to the iPhone Core Haptics path and the mastoid LRA pad, tracked elsewhere.) | SW Engineering | Not blocking |
+| OI-WA-05 | App Store review pre-submission check for the Phase 3 haptic cue — confirm the low-rate `WKInterfaceDevice.play` cue and its in-app copy carry no therapeutic/40Hz claim (rescoped from Core Haptics 40Hz continuous use) | SW/Regulatory | Phase 3 |
 | OI-WA-06 | HealthKit permission review + privacy nutrition label sign-off before App Store submission | Privacy Lead | Phase 1 App Store submission |
 | OI-PA-01 | Legal counsel confirms 16 as correct minimum age threshold for age gate | Legal Counsel | Age gate implementation |
 | OI-PA-02 | Design and implement Authorised Guardian consent pathway for T2 minor patients | SW Engineering + Legal | T2 clinical launch |
