@@ -4,15 +4,26 @@ name: iOS CI (xcodebuild)
 # Uses the shared NeurOne.xcscheme checked into xcshareddata/.
 
 on:
+  # Push only validates the integration branch after merge. Feature branches are
+  # covered by pull_request, so a PR branch no longer triggers two runs of the same
+  # SHA (which doubled exposure to the CoreSimulator flake below).
   push:
+    branches: [main]
     paths:
       - 'app/ios/**'
       - 'app/NeurOneShared/**'
+      - '.github/workflows/ios-ci.yml'
   pull_request:
     paths:
       - 'app/ios/**'
       - 'app/NeurOneShared/**'
+      - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
+
+# Cancel superseded runs when new commits land on the same PR/branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   swiftlint:
@@ -58,12 +69,30 @@ jobs:
 
       - name: Install runtime, create simulator, and run tests
         run: |
-          # Install the iOS simulator runtime
-          xcodebuild -downloadPlatform iOS
+          set -euo pipefail
 
-          # Newest available iOS runtime (inline python3 -c keeps every line
-          # inside the YAML block scalar — a column-0 heredoc would terminate it).
-          RUNTIME=$(xcrun simctl list runtimes --json | python3 -c "import json,sys; rs=[r for r in json.load(sys.stdin)['runtimes'] if r.get('name','').startswith('iOS') and r.get('isAvailable')]; print(rs[-1]['identifier'] if rs else '')")
+          # Newest available iOS runtime identifier (inline python3 -c keeps every
+          # line inside the YAML block scalar — a column-0 heredoc would terminate it).
+          runtime_id() {
+            xcrun simctl list runtimes --json | python3 -c "import json,sys; rs=[r for r in json.load(sys.stdin)['runtimes'] if r.get('name','').startswith('iOS') and r.get('isAvailable')]; print(rs[-1]['identifier'] if rs else '')"
+          }
+
+          # `xcodebuild -downloadPlatform iOS` intermittently dies with
+          # "Unable to connect to simulator" (exit 70) — it is the single biggest
+          # source of flaky red on this job. The macos-15 image ships an iOS runtime
+          # preinstalled, so we only download when none is present, and retry with a
+          # CoreSimulator service bounce between attempts when we genuinely must.
+          RUNTIME=$(runtime_id || true)
+          if [ -z "$RUNTIME" ]; then
+            for attempt in 1 2 3; do
+              echo "No iOS runtime present — downloadPlatform attempt $attempt…"
+              if xcodebuild -downloadPlatform iOS; then break; fi
+              echo "Attempt $attempt failed; bouncing CoreSimulator and retrying…"
+              sudo killall -9 com.apple.CoreSimulator.CoreSimulatorService 2>/dev/null || true
+              sleep 15
+            done
+            RUNTIME=$(runtime_id || true)
+          fi
           if [ -z "$RUNTIME" ]; then echo "No available iOS runtime found"; exit 1; fi
 
           # Compatible modern iPhone device type (newest preferred).
@@ -74,10 +103,27 @@ jobs:
           echo "Runtime:     $RUNTIME"
           echo "Device type: $DEVICE_TYPE"
 
-          # Create a device and capture its UDID (simctl prints UDID on stdout)
-          UDID=$(xcrun simctl create "NeurOneCI" "$DEVICE_TYPE" "$RUNTIME")
+          # Create the device, retrying with a service bounce — CoreSimulator can be
+          # briefly unreachable right after the runner boots (the same exit-70 flake).
+          UDID=""
+          for attempt in 1 2 3; do
+            xcrun simctl list devices >/dev/null 2>&1 || true
+            if UDID=$(xcrun simctl create "NeurOneCI" "$DEVICE_TYPE" "$RUNTIME" 2>/dev/null) && [ -n "$UDID" ]; then
+              break
+            fi
+            echo "simctl create attempt $attempt failed; bouncing CoreSimulator…"
+            sudo killall -9 com.apple.CoreSimulator.CoreSimulatorService 2>/dev/null || true
+            sleep 15
+          done
+          if [ -z "$UDID" ]; then echo "Failed to create simulator"; exit 1; fi
           echo "Created simulator UDID: $UDID"
 
+          # Boot explicitly and wait — surfaces a bad simulator here rather than
+          # letting xcodebuild fail opaquely mid-test.
+          xcrun simctl boot "$UDID" 2>/dev/null || true
+          xcrun simctl bootstatus "$UDID" -b || true
+
+          # No retry on the test command itself — a genuine test failure must stay red.
           xcodebuild test \
             -project app/ios/NeurOne.xcodeproj \
             -scheme NeurOne \
