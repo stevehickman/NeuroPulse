@@ -21,6 +21,9 @@ on:
       - '.github/workflows/android-ci.yml'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   android-unit-tests:
     name: Gradle unit tests (:core + :app)
