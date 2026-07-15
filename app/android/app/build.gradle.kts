@@ -3,7 +3,7 @@
 // :core, which builds and tests on any JVM.
 
 plugins {
-    id("com.android.application") version "8.7.3"
+    id("com.android.application") version "8.9.3"
     kotlin("android") version "2.0.21"
     kotlin("plugin.compose") version "2.0.21"
 }
