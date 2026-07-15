@@ -4,6 +4,9 @@ import android.app.Application
 import android.content.Context
 import com.neurone.app.ble.AndroidBleCentral
 import com.neurone.app.ble.NeurOneGattManager
+import com.neurone.app.data.EncryptedPrefsDeviceTokenStore
+import com.neurone.app.data.ShdrUploadWiring
+import com.neurone.app.data.ShdrUploader
 import com.neurone.app.session.AndroidProtocolSigner
 import com.neurone.app.session.ProtocolUploader
 import com.neurone.core.analytics.EngagementTier
@@ -25,6 +28,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 
 /** SharedPreferences adapter for the core KeyValueStore abstraction. */
 class SharedPrefsKeyValueStore(context: Context) : KeyValueStore {
@@ -76,6 +81,8 @@ class NeurOneApplication : Application() {
         private set
     lateinit var protocolUploader: ProtocolUploader
         private set
+    lateinit var shdrUploader: ShdrUploader
+        private set
     lateinit var researchSuggestionStore: ResearchSuggestionStore
         private set
     lateinit var limitsStore: NPLimitsStore
@@ -105,10 +112,66 @@ class NeurOneApplication : Application() {
         researchSuggestionStore = ResearchSuggestionStore(keyValueStore)
         limitsStore = NPLimitsStore(keyValueStore)
 
+        // SHDR fleet uploader — gated on the WARRANTY OWNER's consent only
+        // (WarrantyAnalyticsGate), structurally independent of user research consent.
+        // Device identity is a Keystore-encrypted CSPRNG token, upgraded to the
+        // hub-provisioned TRNG token when the GATT characteristic ships (OI-BLE-01).
+        shdrUploader = ShdrUploader(EncryptedPrefsDeviceTokenStore(this), warrantyAnalyticsGate)
+        composeShdrUploadPipeline()
+
         EngagementTier.incrementLaunchCount(keyValueStore)
         // SDK initialization gate (NP-APP-TELEMETRY-001 Rev B §5): configure()
         // no-ops unless the user actively completed the consent flow.
         researchAnalyticsGate.configure()
+    }
+
+    /**
+     * Compose the Android SHDR upload pipeline to iOS parity (SHDRUploader.swift +
+     * SHDRUploadTriggering.swift). Two long-lived collectors on [bleScope]:
+     *
+     *  (a) shdrUploadPending → upload the hub-staged SHDR payload when the warranty
+     *      owner has consented and a payload is available (deleted on success).
+     *  (b) warrantyToken → adopt the hub-provisioned TRNG token (OI-BLE-01); nulls
+     *      are dropped so a disconnect never downgrades the token.
+     */
+    private fun composeShdrUploadPipeline() {
+        bleScope.launch {
+            gattManager.warrantyToken.collect { token ->
+                ShdrUploadWiring.applyWarrantyToken(token, shdrUploader)
+            }
+        }
+        bleScope.launch {
+            gattManager.shdrUploadPending.collect { pending ->
+                val gateOpen = warrantyAnalyticsGate.isOpen
+                val payload =
+                    if (pending && gateOpen) withContext(Dispatchers.IO) { readShdrStaging() }
+                    else null
+                ShdrUploadWiring.applyUploadPending(
+                    pending = pending,
+                    warrantyGateOpen = gateOpen,
+                    stagingPayload = payload,
+                    uploader = shdrUploader,
+                ) { success -> if (success) deleteShdrStaging() }
+            }
+        }
+    }
+
+    /**
+     * The hub drops the SHDR binary blob into the app-private files directory over
+     * its USB-C CDC interface (parallel of iOS's Documents/shdr_staging.bin, read
+     * from the same staging convention). Returns null when nothing is staged.
+     */
+    private fun readShdrStaging(): ByteArray? {
+        val file = File(filesDir, SHDR_STAGING_FILE)
+        return if (file.exists()) file.readBytes() else null
+    }
+
+    private fun deleteShdrStaging() {
+        File(filesDir, SHDR_STAGING_FILE).delete()
+    }
+
+    private companion object {
+        const val SHDR_STAGING_FILE = "shdr_staging.bin"
     }
 }
 
