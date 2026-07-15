@@ -24,16 +24,28 @@ import Combine
 // MARK: - MockSHDRUploadTrigger
 
 /// Minimal conformance to SHDRUploadTriggering.
-/// Sends true or false values on demand to drive the uploader's observation path.
+/// Sends true or false values on demand to drive the uploader's observation path,
+/// and drives the hub warranty-token publisher for the OI-BLE-01 upgrade path.
 private final class MockSHDRUploadTrigger: SHDRUploadTriggering {
     private let subject = PassthroughSubject<Bool, Never>()
+    // CurrentValueSubject mirrors @Published semantics (emits current value on subscribe),
+    // matching NeurOneGATTManager.$warrantyToken which starts at nil.
+    private let tokenSubject = CurrentValueSubject<Data?, Never>(nil)
 
     var shdrUploadPendingPublisher: AnyPublisher<Bool, Never> {
         subject.eraseToAnyPublisher()
     }
 
+    var warrantyTokenPublisher: AnyPublisher<Data?, Never> {
+        tokenSubject.eraseToAnyPublisher()
+    }
+
     func sendPending(_ value: Bool) {
         subject.send(value)
+    }
+
+    func sendWarrantyToken(_ token: Data?) {
+        tokenSubject.send(token)
     }
 }
 
@@ -171,6 +183,76 @@ final class SHDRUploaderTests: XCTestCase {
                        "A false pending value must not initiate an upload.")
         XCTAssertNil(uploader.lastError,
                      "A false pending value must not set lastError.")
+    }
+
+    // MARK: - OI-BLE-01 Hub-provisioned TRNG token upgrade path
+
+    // Before the hub delivers a token, currentDeviceToken() must fall back to the
+    // 64-char hex Keychain token so uploads still carry an opaque device linkage key.
+    @MainActor
+    func testDeviceTokenFallsBackToKeychainBeforeHubToken() {
+        let trigger = MockSHDRUploadTrigger()
+        let uploader = SHDRUploader(gatt: trigger)
+
+        let token = uploader.currentDeviceToken()
+        XCTAssertEqual(token.count, 64,
+                       "Fallback Keychain token must be a 64-char hex (256-bit) string.")
+        XCTAssertTrue(token.allSatisfy { $0.isHexDigit },
+                      "Device token must be hex.")
+    }
+
+    // When the hub publishes a 32-byte token, the uploader must upgrade to it and
+    // currentDeviceToken() must return its lowercase hex encoding, not the Keychain value.
+    @MainActor
+    func testUpgradeToHubProvisionedToken() async {
+        let trigger = MockSHDRUploadTrigger()
+        let uploader = SHDRUploader(gatt: trigger)
+
+        let keychainToken = uploader.currentDeviceToken()
+
+        let hubBytes = Data((0..<32).map { UInt8($0) })
+        trigger.sendWarrantyToken(hubBytes)
+        await Task.yield()
+
+        let expectedHex = hubBytes.map { String(format: "%02x", $0) }.joined()
+        XCTAssertEqual(uploader.currentDeviceToken(), expectedHex,
+                       "Uploader must prefer the hub-provisioned TRNG token once delivered.")
+        XCTAssertNotEqual(uploader.currentDeviceToken(), keychainToken,
+                          "Hub token must supersede the interim Keychain token.")
+    }
+
+    // A nil emission (pre-provisioning or on disconnect) must never roll back an
+    // established hub-token upgrade — the device identity is unchanged across reconnects.
+    @MainActor
+    func testDisconnectNilDoesNotDowngradeHubToken() async {
+        let trigger = MockSHDRUploadTrigger()
+        let uploader = SHDRUploader(gatt: trigger)
+
+        let hubBytes = Data(repeating: 0xAB, count: 32)
+        trigger.sendWarrantyToken(hubBytes)
+        await Task.yield()
+        let upgraded = uploader.currentDeviceToken()
+
+        // Simulate GATT clearing the token on disconnect.
+        trigger.sendWarrantyToken(nil)
+        await Task.yield()
+
+        XCTAssertEqual(uploader.currentDeviceToken(), upgraded,
+                       "A nil token emission must not downgrade back to the Keychain token.")
+    }
+
+    // A short (corrupt/partial) token must be rejected, keeping the prior token intact.
+    @MainActor
+    func testShortHubTokenIsRejected() async {
+        let trigger = MockSHDRUploadTrigger()
+        let uploader = SHDRUploader(gatt: trigger)
+        let before = uploader.currentDeviceToken()
+
+        trigger.sendWarrantyToken(Data(repeating: 0xFF, count: 16)) // too short
+        await Task.yield()
+
+        XCTAssertEqual(uploader.currentDeviceToken(), before,
+                       "A sub-32-byte token must be rejected, leaving the device token unchanged.")
     }
 
     // MARK: - ISC-65 / ISC-66 SHDR-only fields in request
