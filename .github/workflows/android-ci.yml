@@ -40,7 +40,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'   # AGP 8.7.3 requires JDK 17
+          java-version: '17'   # AGP 8.9.3 requires JDK 17
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -53,7 +53,7 @@ jobs:
       - name: Set up Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '8.11.1'   # AGP 8.7.3 requires Gradle >= 8.9
+          gradle-version: '8.11.1'   # AGP 8.9.3 requires Gradle >= 8.11.1
 
       - name: Build :core and run unit tests
         run: gradle :core:test :app:testDebugUnitTest --stacktrace
