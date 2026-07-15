@@ -125,9 +125,9 @@ bench.
 - [ ] ISC-19: Shell is two nested bowls: outer = complete EMF envelope; inner = module/socket/lever carrier nesting inside it.
 - [ ] ISC-20: The full passive stack (CFRP, mu-metal L2, palladium L3, absorber L4) lives UNBROKEN on the outer bowl; the inner bowl carries no passive shield.
 - [ ] ISC-21: Module levers live in the inter-bowl gap (inner-bowl exterior face) and are reached only by unclamping the bowls — they never pierce the outer shield.
-- [ ] ISC-22: Layer clamp latches (1 anterior, 2 posterior L/R) sit at the rim between ear and neck attachment zones.
+- [ ] ISC-22: Layer clamp latches (1 anterior, 2 posterior L/R, 1 posterior-center) sit at the rim between ear and neck attachment zones; four points give uniform gasket-seam compression across the wide occipital span.
 - [ ] ISC-23: Outer bowl overlaps the inner bowl rim with a labyrinth lip; residual continuous parting-plane slot ≤ λ/20 at 6 GHz (~2.5 mm).
-- [ ] ISC-24: Outer-shield-to-system-ground bond crosses the parting plane at the 3 clamp latches via hard-gold BeCu spring fingers / conductive elastomer, ≤50 mΩ.
+- [ ] ISC-24: Outer-shield-to-system-ground bond crosses the parting plane at the 4 clamp latches via hard-gold BeCu spring fingers / conductive elastomer, ≤50 mΩ.
 - [ ] ISC-25: The driven EEG shield (shell bonded to DRL) is preserved: the outer shield is referenced to hub ground through the clamp-point bond when closed.
 - [ ] ISC-26: Fluxgate sensors (inner bowl, near scalp) and Helmholtz coils (outer bowl) route to the hub via a blind-mate connector at the posterior-center clamp.
 - [ ] ISC-27: Layer-closed interlock: a Hall/contact sensor per latch; safety architecture refuses any modality enable unless all latches report closed.

@@ -125,7 +125,7 @@ referenced to hub/system ground — this is what makes it a **driven EEG shield*
 (the shell is bonded to the DRL output today). With the shield on the outer bowl
 and the DRL electronics on the inner-bowl/hub side, that reference has to cross
 the parting plane. It is carried by **hard-gold-plated beryllium-copper spring
-fingers (or conductive elastomer) at the three clamp latches**, target contact
+fingers (or conductive elastomer) at the four clamp latches**, target contact
 resistance **≤50 mΩ**. Hard gold resists the fretting/oxidation that would
 otherwise raise the bond impedance over clamp cycles.
 
@@ -180,18 +180,25 @@ cancellation, not by relocating the Helmholtz pair.
 
 ### 5.4 The clamp mechanism
 
-- **Three layer-clamp latches:** one anterior, two posterior L/R, seated at the
-  rim **between** the ear (audio) and neck attachment zones so they don't collide
-  with those accessories. They reuse the recessed-lever concept (flush when
-  closed, no snag). The posterior-center latch also carries the blind-mate
-  sensor/coil connector.
+- **Four layer-clamp latches:** one anterior, two posterior L/R, and one
+  posterior-center, all seated at the rim **between** the ear (audio) and neck
+  attachment zones so they don't collide with those accessories. They reuse the
+  recessed-lever concept (flush when closed, no snag).
+- **Why four and not a kinematic three-point:** the parting-plane conductive
+  gasket must stay uniformly compressed all the way around the rim for the RF/
+  ground seal to hold — this is a flange-seal problem, not a rigid-body location
+  problem. Four points distribute clamp force better across the wide occipital
+  span; the mild over-constraint is absorbed by the compliant bowls + gasket.
+- The **posterior-center latch also carries the blind-mate sensor/coil
+  connector**, sited where the internal harness gathers near the occiput (Boa
+  arch / neck attach).
 - Each latch integrates the ground-bond spring fingers (§5.3b) so clamping the
   bowls simultaneously closes the shield-to-ground bond.
 
 ### 5.5 Layer-closed interlock (safety + EMF integrity)
 
-A **Hall/contact sensor on each of the three latches** reports closed/open. The
-safety architecture **refuses to enable any modality unless all three report
+A **Hall/contact sensor on each of the four latches** reports closed/open. The
+safety architecture **refuses to enable any modality unless all four report
 closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 
 - Every active session runs with the full passive shield intact AND the active
@@ -221,7 +228,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
   ▢ ▢ ▢ ▢ ▢ ▢   ← tiled hexagonal module field
  ~~~~~~~~~~~~~~  ← scalp
         ▲
-   clamp latch (×3: 1 ant, 2 post L/R) → Hall sensor + BeCu ground-bond fingers
+   clamp latch (×4: 1 ant, 2 post L/R, 1 post-center) → Hall + BeCu ground-bond
    posterior-center latch also = blind-mate sensor/coil connector
 ```
 
