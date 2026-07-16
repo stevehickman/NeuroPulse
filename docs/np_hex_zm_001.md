@@ -354,9 +354,22 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   poll → shows "not present" in `np_module_map` → the placement/protocol-map gate
   (§4a) disables any protocol that needs it. A cluster-closed sensor is cheap
   insurance but not strictly required.
-- **Accessibility preserved:** the quarter-turn cluster actuator replaces many
-  small levers with a few larger, well-separated actions (RISK-22 ≤1 N intent
-  carried onto the cluster cam).
+- **Accessibility — carries the RISK-22 intent, and likely improves on it.** The
+  eject lever existed to serve Parkinson's H&Y II–III / post-stroke hand weakness
+  (≤1 N, tool-free). Clustering *can* be a net gain — fewer/larger targets than
+  many small recessed levers; **ejector springs make extraction near-zero-force**
+  (the module self-presents); and re-throwing the one actuator **auto-reseats the
+  whole cluster via the plate + plungers**, replacing N precise placements with one
+  coarse action; swaps happen with the helmet off on a surface. But it is a
+  requirement, not automatic — the actuator MUST be: a **large easy-grip control**
+  (palm/hook, not a fingertip pinch); a **push/pull lever throw preferred over a
+  fine twist cam** (twisting defeats weak grip / limited forearm rotation / tremor;
+  a cam, if used, must be a large whole-hand knob); **low input force via
+  mechanical advantage** (the RISK-22 low-force intent restated as input
+  force/torque, not per-module extraction); **one-handed**, large forgiving target,
+  clear open/closed state. **Validate by HFE formative** (5 subjects, Parkinson's
+  H&Y II–III / post-stroke) — the NP-TOOL-ZM-001 OI-4 eject-lever study re-pointed
+  at the cluster actuator.
 - **Optional alignment:** cluster boundaries may align to the lobe groups (a
   frontal-left cluster ≈ the frontal-left group), but are ultimately set by
   geometry/curvature — final cluster size is decided with the lattice work (§7

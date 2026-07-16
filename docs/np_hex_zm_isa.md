@@ -4,7 +4,7 @@ project: NeurOne
 slug: hex-zone-module
 effort: E4
 phase: plan
-progress: 10/70
+progress: 10/73
 mode: design-study
 started: 2026-07-15
 updated: 2026-07-15
@@ -134,6 +134,9 @@ bench.
 - [ ] ISC-68: PBM dose at electrode sites is lower (T1-B reduced LEDs) but per-tile PD metering stays accurate; firmware compensates within duty/thermal limits or accepts the ±15–25% non-uniformity.
 - [ ] ISC-69: Modules are clamped in clusters (3–7) by one cam/quarter-turn actuator each with per-module spring plungers; swapping one module releases only its cluster; a loose/unseated tile is caught by the inventory/contact poll → the placement gate disables dependent protocols (MECH-2).
 - [ ] ISC-70: Anti: no socket is type-keyed so a tile type can seat only in position-specific sockets (would reintroduce position-unique SKUs) — except the T1-C smart key per SMART-1.
+- [ ] ISC-71: The cluster actuator carries the RISK-22 accessibility intent (Parkinson's H&Y II–III / post-stroke): large easy-grip control; push/pull throw preferred over a fine twist cam; low input force via mechanical advantage; one-handed; ejector springs self-present the module and the plate auto-reseats the whole cluster — so an impaired user makes ONE coarse low-force action, not N precise placements.
+- [ ] ISC-72: HFE formative validates cluster-actuator accessibility with 5 Parkinson's H&Y II–III / post-stroke subjects (NP-TOOL-ZM-001 OI-4 eject-lever study re-pointed at the cluster actuator).
+- [ ] ISC-73: Anti: the cluster actuator is not a small recessed twist cam (twisting defeats weak grip / limited forearm rotation / tremor — worse than the per-module lever it replaces).
 
 ### Addressing + NVRAM map (firmware — DONE)
 - [x] ISC-9: 2-level packed address (7-bit socket : 7-bit element) with pack/unpack round-trip. — `np_hex_addr_pack/unpack`, tested.
@@ -239,7 +242,12 @@ bench.
   actuators, 5–15× fewer moving parts; removes the per-module lever-arm floor on
   hex size. A loose tile is self-detected by the inventory/contact poll → placement
   gate. Cluster size (3–7; 7-flower vs 3-triad) finalized with the lattice work.
-  See ISC-69, brief §5.4a, gate MECH-2.
+  **Accessibility (RISK-22 intent) is carried onto the actuator and likely
+  improved**: ejector springs self-present the module and the plate auto-reseats
+  the whole cluster, so an impaired user (Parkinson's/post-stroke) makes ONE coarse
+  low-force action instead of N precise placements — PROVIDED the actuator is a
+  large easy-grip lever-throw, not a small twist cam. Validate by HFE formative.
+  See ISC-69/71/72/73, brief §5.4a, gate MECH-2.
 - 2026-07-15 — **Protocol ↔ module-map matching (principal design, from user):**
   every protocol carries a required module map (per socket: DONT-CARE or a
   type-subset mask); a protocol is runnable only if the inserted modules match it.
