@@ -4,7 +4,7 @@ project: NeurOne
 slug: hex-zone-module
 effort: E4
 phase: plan
-progress: 6/47
+progress: 6/48
 mode: design-study
 started: 2026-07-15
 updated: 2026-07-15
@@ -125,17 +125,18 @@ bench.
 - [ ] ISC-19: Shell is two nested bowls: outer = complete EMF envelope; inner = module/socket/lever carrier nesting inside it.
 - [ ] ISC-20: The full passive stack (CFRP, mu-metal L2, palladium L3, absorber L4) lives UNBROKEN on the outer bowl; the inner bowl carries no passive shield.
 - [ ] ISC-21: Module levers live in the inter-bowl gap (inner-bowl exterior face) and are reached only by unclamping the bowls — they never pierce the outer shield.
-- [ ] ISC-22: Layer clamp latches (1 anterior, 2 posterior L/R, 1 posterior-center) sit at the rim between ear and neck attachment zones; four points give uniform gasket-seam compression across the wide occipital span.
+- [ ] ISC-22: Layer clamp is a symmetric four-corner pattern (anterior L/R, posterior L/R) at the rim between ear and neck attachment zones; it brackets the front-center and back-center spans with even L/R + front/back force and flanks the forehead bridge.
 - [ ] ISC-23: Outer bowl overlaps the inner bowl rim with a labyrinth lip; residual continuous parting-plane slot ≤ λ/20 at 6 GHz (~2.5 mm).
 - [ ] ISC-24: Outer-shield-to-system-ground bond crosses the parting plane at the 4 clamp latches via hard-gold BeCu spring fingers / conductive elastomer, ≤50 mΩ.
 - [ ] ISC-25: The driven EEG shield (shell bonded to DRL) is preserved: the outer shield is referenced to hub ground through the clamp-point bond when closed.
-- [ ] ISC-26: Fluxgate sensors (inner bowl, near scalp) and Helmholtz coils (outer bowl) route to the hub via a blind-mate connector at the posterior-center clamp.
+- [ ] ISC-26: Fluxgate sensors (inner bowl, near scalp) and Helmholtz coils (outer bowl) route to the hub via a standalone posterior-center blind-mate boss (NOT a latch), seated by the flanking PL/PR latches.
 - [ ] ISC-27: Layer-closed interlock: a Hall/contact sensor per latch; safety architecture refuses any modality enable unless all latches report closed.
 - [ ] ISC-28: Measured attenuation with bowls clamped meets or exceeds the single-shell baseline (≥35–45 dB ELF magnetic, ≥40–60 dB RF) — verified on a prototype.
 - [ ] ISC-29: Ground-bond contact resistance is trended in SHDR; a rise flags shield degradation (reuses fleet EMF-attenuation monitoring).
 - [ ] ISC-30: The conductive parting-plane gasket is a replaceable/tethered service part (compression-set over clamp cycles).
 - [ ] ISC-31: Anti: no session may run with the envelope open — an unclamped or single-latch-open state blocks session start.
 - [ ] ISC-32: Anti: no lever, sensor wire, or fastener creates an un-gasketed aperture through the passive shield.
+- [ ] ISC-48: Gasket line-pressure map (FEA or pressure-film bench) shows min seam compression ≥ seal threshold at the back-center (PL–PR) span AND both side (ear) spans under the four-corner AL/AR/PL/PR pattern; a marginal span is fixed by lip/gasket stiffening (or a lateral / restored posterior-center latch), not more corner latches. (Brief §7 EMF-3.)
 
 ### Reliability + manufacturing
 - [ ] ISC-33: Module levers give ≤1 N extraction with a lever arm ≥13 mm at W=40 (accessibility: Parkinson's H&Y II–III), per RISK-22 precedent.
@@ -164,7 +165,7 @@ bench.
 |-----------|------|-------|-----------|------|
 | Geometry (1–8) | analysis | equations + tables present and internally consistent | exact | Read brief |
 | Addressing (9–18) | unit | host tests pass; cross-compile clean | 100% | ctest / arm-none-eabi-gcc |
-| EMF seam (19–32) | design + bench | architecture specified; prototype attenuation ≥ baseline | ≥35 dB ELF / ≥40 dB RF | anechoic + fluxgate bench (future) |
+| EMF seam (19–32, 48) | design + bench | architecture specified; prototype attenuation ≥ baseline; gasket compression map ≥ seal threshold | ≥35 dB ELF / ≥40 dB RF | anechoic + fluxgate + pressure-film bench (future) |
 | Reliability (33–37) | analysis + FAI | lever force, IP, thermal within limits | per row | bench (future) |
 | Decision gate (38–41) | bench | curvature scan + coupling coupon | PASS/FAIL | metrology + optical bench (future) |
 | Cross (42–47) | inspection | files exist; claims honest | binary | Read / git |
@@ -205,6 +206,16 @@ bench.
   identical for Option A and Option B, so it is safe to build now. Delegation:
   authored inline (self-contained, fully host+cross verified) rather than via
   Forge — soft delegation floor, show-your-math.
+- 2026-07-15 — **Clamp-latch pattern (supersedes the earlier 4 = ant-C + PL/PR
+  + PC):** symmetric **four-corner AL/AR/PL/PR**. Same latch count, but it
+  brackets front-center and back-center spans with even force and flanks the
+  forehead bridge, vs. the front-center layout that triple-covered the
+  PL/PR-bracketed back and under-served the front. The blind-mate sensor/coil
+  connector becomes a **standalone posterior-center boss** (decoupled from the
+  clamp pattern — a connector need only mate on closure). Residual weak spots (two
+  side spans over the ears; back-center PL–PR span) are verified by the new gasket
+  line-pressure gate (ISC-48 / brief EMF-3), not asserted. Supersedes ISC-22/24/26
+  and brief §5.3c/§5.4/§5.7.
 - 2026-07-15 — **Active-cancellation placement (supports ISC-26):** Helmholtz
   coils on the outer bowl, fluxgate sensors on the inner bowl. Coils need
   enclosing uniformity, co-design with the mu-metal, separation from the µV EEG

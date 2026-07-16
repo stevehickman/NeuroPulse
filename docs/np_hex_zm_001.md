@@ -133,8 +133,10 @@ otherwise raise the bond impedance over clamp cycles.
 seam by design: **fluxgate magnetometers on the inner bowl** (near the scalp,
 where they must sense the field the wearer experiences) and **Helmholtz coils on
 the outer bowl** (with the passive shield). Both route to the hub controller via a
-**blind-mate connector at the posterior-center clamp**, mated automatically when
-the bowls close.
+**standalone blind-mate boss at the posterior-center** (occiput centerline, NOT a
+latch), mated automatically as the bowls draw closed and seated by the flanking
+PL/PR latches. Decoupling the connector from the clamp pattern is deliberate — a
+blind-mate feature only has to mate on closure; it should not dictate latch count.
 
 **(d) Magnetic (mu-metal) continuity.** Magnetic shields leak at butt-joints. The
 mu-metal L2 stays **entirely on the outer bowl, unbroken**; the inner bowl carries
@@ -180,20 +182,33 @@ cancellation, not by relocating the Helmholtz pair.
 
 ### 5.4 The clamp mechanism
 
-- **Four layer-clamp latches:** one anterior, two posterior L/R, and one
-  posterior-center, all seated at the rim **between** the ear (audio) and neck
-  attachment zones so they don't collide with those accessories. They reuse the
-  recessed-lever concept (flush when closed, no snag).
-- **Why four and not a kinematic three-point:** the parting-plane conductive
-  gasket must stay uniformly compressed all the way around the rim for the RF/
-  ground seal to hold — this is a flange-seal problem, not a rigid-body location
-  problem. Four points distribute clamp force better across the wide occipital
-  span; the mild over-constraint is absorbed by the compliant bowls + gasket.
-- The **posterior-center latch also carries the blind-mate sensor/coil
-  connector**, sited where the internal harness gathers near the occiput (Boa
-  arch / neck attach).
+- **Four layer-clamp latches, symmetric:** anterior-left, anterior-right,
+  posterior-left, posterior-right — a four-corner clamp. All seated at the rim
+  **between** the ear (audio) and neck attachment zones so they don't collide
+  with those accessories. They reuse the recessed-lever concept (flush when
+  closed, no snag).
+- **Why this pattern and not a kinematic three-point, or a front-center layout:**
+  the parting-plane conductive gasket must stay uniformly compressed all the way
+  around the rim for the RF/ground seal to hold — a flange-seal problem, not a
+  rigid-body location problem. The symmetric four-corner pattern **brackets both
+  the front-center and back-center spans** with even L/R and front/back force
+  (least bowl distortion), and AL/AR flank the 5-position forehead bridge instead
+  of colliding with it on the centerline. It is strictly better placement than an
+  anterior-center + posterior-center layout, which triple-covers the (already
+  PL/PR-bracketed) back-center while under-serving the front. The mild
+  over-constraint of four points is absorbed by the compliant bowls + gasket.
+- The **blind-mate sensor/coil connector is a standalone posterior-center boss**
+  (§5.3c), NOT a latch — sited where the internal harness gathers near the occiput
+  (Boa arch / neck attach) and seated by the flanking PL/PR latches.
 - Each latch integrates the ground-bond spring fingers (§5.3b) so clamping the
   bowls simultaneously closes the shield-to-ground bond.
+- **Residual weak points (verified, not asserted — see EMF-3, §7):** the two
+  **side spans over the ears** get no rim latch (ear zones forbid it) and the
+  **back-center span between PL/PR** has no dedicated latch. Both must be shown
+  above the gasket seal-compression threshold by the line-pressure map; if
+  marginal, the fix is lip/gasket stiffening (or a temporal-wing lateral latch for
+  the sides / restoring a posterior-center latch for the back), not more corner
+  latches.
 
 ### 5.5 Layer-closed interlock (safety + EMF integrity)
 
@@ -228,8 +243,8 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
   ▢ ▢ ▢ ▢ ▢ ▢   ← tiled hexagonal module field
  ~~~~~~~~~~~~~~  ← scalp
         ▲
-   clamp latch (×4: 1 ant, 2 post L/R, 1 post-center) → Hall + BeCu ground-bond
-   posterior-center latch also = blind-mate sensor/coil connector
+   clamp latch (×4: ant L/R, post L/R — four-corner) → Hall + BeCu ground-bond
+   posterior-center BOSS (no latch) = blind-mate sensor/coil connector
 ```
 
 ## 6. Reliability + manufacturing
@@ -256,7 +271,8 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | OI-HEXMAP-02 | Module I2C/1-wire `inventory_fn` | FW integration |
 | EMF-1 | Prototype 2-layer attenuation ≥ single-shell baseline | Shield claim |
 | EMF-2 | Ground-bond ≤50 mΩ over clamp-cycle life; SHDR trend armed | Driven-shield function |
-| MECH-1 | 3-latch clamp + blind-mate connector + Hall interlock detail | Shell tooling |
+| EMF-3 | Gasket line-pressure map: min compression at back-center (PL–PR) span AND the two side (ear) spans ≥ seal threshold with the four-corner AL/AR/PL/PR pattern; if marginal → lip/gasket stiffening (or lateral/posterior-center latch) | Latch-pattern sign-off; RF seal |
+| MECH-1 | Four-corner clamp (AL/AR/PL/PR) + posterior-center connector boss + Hall interlock detail | Shell tooling |
 | DOC-1 | CLAUDE.md §7/§13 integration once GATE-1/2 PASS | Baseline promotion |
 
 ## 8. Cross-references
