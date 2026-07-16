@@ -132,9 +132,9 @@ bench.
 - [ ] ISC-66: Smart-socket coverage decided — all sockets I2C+TIA-capable vs a subset — governing where T1-C can seat (SMART-1).
 - [ ] ISC-67: Socket lattice registers to the 10-20 system (8–9 T1, ~19 T2 scalp) within tolerance without violating the coverage/bezel budget (REG-1).
 - [ ] ISC-68: PBM dose at electrode sites is lower (T1-B reduced LEDs) but per-tile PD metering stays accurate; firmware compensates within duty/thermal limits or accepts the ±15–25% non-uniformity.
-- [ ] ISC-69: Modules are clamped in clusters (3–7) by one cam/quarter-turn actuator each with per-module spring plungers; swapping one module releases only its cluster; a loose/unseated tile is caught by the inventory/contact poll → the placement gate disables dependent protocols (MECH-2).
+- [ ] ISC-69: Modules are clamped in clusters (3–7) by one over-center lever-throw clamp each (push/pull, not a twist cam) with per-module spring plungers; swapping one module releases only its cluster; a loose/unseated tile is caught by the inventory/contact poll → the placement gate disables dependent protocols (MECH-2).
 - [ ] ISC-70: Anti: no socket is type-keyed so a tile type can seat only in position-specific sockets (would reintroduce position-unique SKUs) — except the T1-C smart key per SMART-1.
-- [ ] ISC-71: The cluster actuator carries the RISK-22 accessibility intent (Parkinson's H&Y II–III / post-stroke): large easy-grip control; push/pull throw preferred over a fine twist cam; low input force via mechanical advantage; one-handed; ejector springs self-present the module and the plate auto-reseats the whole cluster — so an impaired user makes ONE coarse low-force action, not N precise placements.
+- [ ] ISC-71: The cluster actuator carries the RISK-22 accessibility intent (Parkinson's H&Y II–III / post-stroke): large easy-grip control; a push/pull over-center lever throw (NOT a twist cam); low input force via mechanical advantage; one-handed; ejector springs self-present the module and the plate auto-reseats the whole cluster — so an impaired user makes ONE coarse low-force action, not N precise placements.
 - [ ] ISC-72: HFE formative validates cluster-actuator accessibility with 5 Parkinson's H&Y II–III / post-stroke subjects (NP-TOOL-ZM-001 OI-4 eject-lever study re-pointed at the cluster actuator).
 - [ ] ISC-73: Anti: the cluster actuator is not a small recessed twist cam (twisting defeats weak grip / limited forearm rotation / tremor — worse than the per-module lever it replaces).
 
@@ -168,7 +168,7 @@ bench.
 - [ ] ISC-48: Gasket line-pressure map (FEA or pressure-film bench) shows min seam compression ≥ seal threshold at the back-center (PL–PR) span AND both side (ear) spans under the four-corner AL/AR/PL/PR pattern; a marginal span is fixed by lip/gasket stiffening (or a lateral / restored posterior-center latch), not more corner latches. (Brief §7 EMF-3.)
 
 ### Reliability + manufacturing
-- [ ] ISC-33: Modules are clamped in clusters (one cam/quarter-turn actuator per 3–7-tile cluster, ~4–10 total, with per-module spring plungers) — NOT per-module levers; ≤1 N-intent actuation (RISK-22), 5–15× fewer moving parts, removing the per-module short-arm problem.
+- [ ] ISC-33: Modules are clamped in clusters (one over-center lever-throw clamp per 3–7-tile cluster, ~4–10 total, with per-module spring plungers) — NOT per-module levers; low one-handed input force (RISK-22 intent), 5–15× fewer moving parts, removing the per-module short-arm problem.
 - [ ] ISC-34: Per-hex perimeter gasket seals IPX4 after field swap cycles (per-tile seam-length budget stated).
 - [ ] ISC-35: Aggregate whole-vault thermal load with all tiles active stays within the 42 °C scalp limit; per-tile NTC + throttle retained.
 - [ ] ISC-36: Single mold produces the universal module shell; element-population variants are FPC/loadings only.
@@ -236,7 +236,7 @@ bench.
   authored inline (self-contained, fully host+cross verified) rather than via
   Forge — soft delegation floor, show-your-math.
 - 2026-07-15 — **Module cluster clamps (principal decision):** modules are clamped
-  in clusters (one cam/quarter-turn actuator per 3–7-tile cluster with per-module
+  in clusters (one over-center lever-throw clamp per 3–7-tile cluster with per-module
   spring plungers), NOT per-module levers — a per-module lever does not scale to
   ~28–64 tiles (interference, short arms, 28–64 failure points). ~4–10 cluster
   actuators, 5–15× fewer moving parts; removes the per-module lever-arm floor on

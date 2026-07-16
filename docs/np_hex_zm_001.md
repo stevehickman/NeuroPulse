@@ -339,12 +339,14 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   "flower"** (1 center + 6 neighbors) → ~28 tiles ≈ **4 clusters**; the smaller
   **3-hex triad** → ~9–10 clusters. (So total actuators ≈ 4 corner layer-latches +
   4–10 cluster clamps, vs 4 + 28–64 with per-module levers — a 5–15× reduction.)
-- **Mechanism:** one **cam / quarter-turn captive actuator per cluster** (the
-  tool-free-fan idiom) drives a **clamp plate carrying a spring-loaded plunger per
-  module.** Closing it compresses every plunger → all N modules seated with
-  *individual, controlled force* despite the dome curvature; opening it lifts the
-  plate → modules pop on their own ejector springs. The per-module plungers are the
-  key — a rigid plate over a curved cluster could not seat evenly.
+- **Mechanism:** one **over-center lever-throw clamp per cluster** — a push/pull
+  toggle latch (NOT a twist cam; see accessibility below) — drives a **clamp plate
+  carrying a spring-loaded plunger per module.** Throwing it closed compresses every
+  plunger → all N modules seated with *individual, controlled force* despite the
+  dome curvature; the over-center geometry gives high mechanical advantage near
+  close (low one-handed input force) and a positive latched state; releasing it
+  lifts the plate → modules pop on their own ejector springs. The per-module
+  plungers are the key — a rigid plate over a curved cluster could not seat evenly.
 - **This removes the lever-arm floor on hex size** (that was a per-module
   small-lever artifact): the size floor is now bezel + element embedding only (§3).
 - **Tradeoff (small):** swapping one module releases its whole cluster (3–7 tiles
@@ -362,12 +364,11 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   whole cluster via the plate + plungers**, replacing N precise placements with one
   coarse action; swaps happen with the helmet off on a surface. But it is a
   requirement, not automatic — the actuator MUST be: a **large easy-grip control**
-  (palm/hook, not a fingertip pinch); a **push/pull lever throw preferred over a
-  fine twist cam** (twisting defeats weak grip / limited forearm rotation / tremor;
-  a cam, if used, must be a large whole-hand knob); **low input force via
-  mechanical advantage** (the RISK-22 low-force intent restated as input
-  force/torque, not per-module extraction); **one-handed**, large forgiving target,
-  clear open/closed state. **Validate by HFE formative** (5 subjects, Parkinson's
+  (palm/hook, not a fingertip pinch); a **push/pull over-center lever throw — NOT a
+  twist cam** (twisting defeats weak grip / limited forearm rotation / tremor);
+  **low input force via mechanical advantage** (the RISK-22 low-force intent
+  restated as input force, not per-module extraction); **one-handed**, large
+  forgiving target, clear open/closed state. **Validate by HFE formative** (5 subjects, Parkinson's
   H&Y II–III / post-stroke) — the NP-TOOL-ZM-001 OI-4 eject-lever study re-pointed
   at the cluster actuator.
 - **Optional alignment:** cluster boundaries may align to the lobe groups (a
@@ -414,10 +415,11 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 
 ## 6. Reliability + manufacturing
 
-- **Cluster clamps (not per-module levers, §5.4a):** one cam/quarter-turn actuator
-  per 3–7-tile cluster (~4–10 total) with per-module spring plungers; ≤1 N-intent
-  actuation (RISK-22). Cuts moving parts 5–15× and removes the per-module short-arm
-  problem — so the hex-size floor is now bezel + embedding, not lever arm.
+- **Cluster clamps (not per-module levers, §5.4a):** one over-center lever-throw
+  clamp per 3–7-tile cluster (~4–10 total) with per-module spring plungers; low
+  one-handed input force (RISK-22 intent). Cuts moving parts 5–15× and removes the
+  per-module short-arm problem — so the hex-size floor is now bezel + embedding,
+  not lever arm.
 - **IP:** each hex needs a perimeter gasket; total seam length rises vs 5 big
   zones, so IPX4 rides on ~27–30 co-molded gaskets — a per-tile seam-length budget
   is required (RISK-16 gasket precedent).
@@ -443,7 +445,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | EMF-2 | Ground-bond ≤50 mΩ over clamp-cycle life; SHDR trend armed | Driven-shield function |
 | EMF-3 | Gasket line-pressure map: min compression at back-center (PL–PR) span AND the two side (ear) spans ≥ seal threshold with the four-corner AL/AR/PL/PR pattern; if marginal → lip/gasket stiffening (or lateral/posterior-center latch) | Latch-pattern sign-off; RF seal |
 | MECH-1 | Four-corner clamp (AL/AR/PL/PR) + posterior-center connector boss + Hall interlock detail | Shell tooling |
-| MECH-2 | Module cluster-clamp design: cluster size (3–7), cam/quarter-turn actuator + per-module spring plungers, curvature span, ≤1 N-intent | Inner-bowl tooling; serviceability |
+| MECH-2 | Module cluster-clamp design: cluster size (3–7), over-center lever-throw actuator (not a twist cam) + per-module spring plungers, curvature span, low one-handed input force | Inner-bowl tooling; serviceability |
 | DOC-1 | CLAUDE.md §7/§13 integration once GATE-1/2 PASS | Baseline promotion |
 
 ## 8. Cross-references
