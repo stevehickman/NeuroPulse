@@ -107,6 +107,20 @@ are separate accessories (not tiles).
   type (EEG + 1064)** — deferred as a "grow-to-4" option, built only if the 1064
   zones and EEG sites actually overlap.
 
+**Allocation — EEG only where it's needed.** The type split exists *precisely so
+EEG is not in every module.* Putting EEG in every module would put an electrode
+(and its spring pod + Ag/AgCl) at every one of the ~27–30 sockets — unnecessary
+cost, and it eats LED area everywhere. Instead:
+
+- The **majority of sockets take T1-A** (base PBM, no EEG) for bulk scalp coverage.
+- **T1-B is placed only at electrode positions** — the T1 EEG montage
+  (Fp1/2, F3/4, C3/4, P3/4 ≈ 8 sites) plus any tES montage positions.
+- **T1-C** goes only at the 1–5 zones chosen for 1064 depth.
+
+Representative T1 build: **~8 × T1-B + the balance in T1-A**, with T1-C substituted
+at the configured depth zones. (High-density EEG or extra tES sites are just more
+T1-B placements — a configuration choice, no new type.)
+
 ### T2 — one additional tile type
 
 | ID | Type | Elements | Reuses / notes |

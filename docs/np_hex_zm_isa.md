@@ -4,7 +4,7 @@ project: NeurOne
 slug: hex-zone-module
 effort: E4
 phase: plan
-progress: 6/55
+progress: 6/57
 mode: design-study
 started: 2026-07-15
 updated: 2026-07-15
@@ -117,6 +117,8 @@ bench.
 - [ ] ISC-53: T1-C (1064 smart) carries 660/808/1064 nm + on-module driver + InGaAs PD1/PD2 + NTC and no EEG; a combined EEG+1064 tile is a deferred grow-to-4 option, built only if 1064 zones and EEG sites overlap.
 - [ ] ISC-54: T2 adds exactly one tile type (T2-D 1170 nm laser + TEC); qEEG-21 / HD-tDCS 4×1 / 16-ch clinical tACS reuse T1-B at higher density; TMS coil and cervical VNS are non-tile applicators.
 - [ ] ISC-55: Anti: no cranial T1 modality requires a tile type outside {T1-A, T1-B, T1-C}; no scalp T2 modality except 1170 nm requires a type beyond the T1 set.
+- [ ] ISC-56: T1-B is allocated ONLY at required electrode positions (~8 for the T1 EEG montage Fp1/2·F3/4·C3/4·P3/4, plus any tES montage sites); the majority of sockets are electrode-free T1-A. A representative build is ~8× T1-B + balance T1-A (+ T1-C at 1–5 depth zones).
+- [ ] ISC-57: Anti: no build places an EEG electrode at every socket — EEG-in-every-module (electrode at every location) is rejected as over-provisioning (cost + lost LED area).
 
 ### Addressing + NVRAM map (firmware — DONE)
 - [x] ISC-9: 2-level packed address (7-bit socket : 7-bit element) with pack/unpack round-trip. — `np_hex_addr_pack/unpack`, tested.
