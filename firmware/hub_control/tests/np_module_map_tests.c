@@ -107,6 +107,20 @@ static bool plug_pbm(uint16_t socket, uint8_t seed)
     return changed;
 }
 
+/* A T1-B EEG/electrode tile: dual-rated electrode + reduced PBM + NTC. */
+static const np_elem_type_t EEG_TILE[] = {
+    NP_ELEM_DUAL_ELECTRODE, NP_ELEM_LED_660, NP_ELEM_LED_808, NP_ELEM_NTC,
+};
+#define EEG_TILE_N (sizeof(EEG_TILE) / sizeof(EEG_TILE[0]))
+
+static void plug_eeg(uint16_t socket, uint8_t seed)
+{
+    inv_set(EEG_TILE, (uint8_t)EEG_TILE_N);
+    np_module_uid_t u = uid_of(seed);
+    bool changed = false;
+    (void)np_module_map_apply_poll(socket, &u, 0x00, inv_cb, NULL, &changed);
+}
+
 /* ── NVRAM HAL stubs (test-controlled) ────────────────────────────────────────── */
 
 static uint8_t g_nvram[NP_HEXMAP_HDR_BYTES +
@@ -461,6 +475,59 @@ static void test_nvram_hal_persist_restore(void)
     check(np_module_map_restore() == NP_HUB_ERR_NOT_PRESENT, "restore with empty NVRAM propagates");
 }
 
+static void test_placement_check(void)
+{
+    /* Mixed insertion: PBM tiles everywhere, EEG tiles only at FL and OL. */
+    (void)np_module_map_init(GEOM, N_SOCK);
+    for (uint16_t s = SOCK_FL; s <= SOCK_OR; s++) {
+        (void)plug_pbm(s, (uint8_t)(0x10 + s));
+    }
+    plug_eeg(SOCK_FL, 0xA0);   /* electrode at frontal-left */
+    plug_eeg(SOCK_OL, 0xA1);   /* electrode at occipital-left (stand-in for Oz) */
+
+    const uint64_t ELECTRODE = NP_ELEM_BIT(NP_ELEM_EEG_ELECTRODE) |
+                               NP_ELEM_BIT(NP_ELEM_DUAL_ELECTRODE);
+    uint8_t  failed[8];
+    uint16_t fc = 99;
+
+    /* Safety gate: "Oz" (SOCK_OL) must have an electrode → satisfied. */
+    np_placement_req_t oz_ok[] = { { SOCK_OL, ELECTRODE } };
+    check(np_module_map_check_placement(oz_ok, 1, failed, 8, &fc) == NP_HUB_OK,
+          "placement: electrode present at Oz → OK");
+    check(fc == 0, "placement: no failures when satisfied");
+
+    /* Same gate on a PBM-only socket → fails, and reports the socket. */
+    np_placement_req_t oz_bad[] = { { SOCK_TR, ELECTRODE } };
+    check(np_module_map_check_placement(oz_bad, 1, failed, 8, &fc) == NP_HUB_ERR_NOT_PRESENT,
+          "placement: no electrode at PBM socket → NOT_PRESENT");
+    check(fc == 1 && failed[0] == SOCK_TR, "placement: failing socket reported");
+
+    /* Dual-rated electrode satisfies BOTH an EEG requirement and a tES requirement. */
+    np_placement_req_t as_eeg[] = { { SOCK_FL, NP_ELEM_BIT(NP_ELEM_EEG_ELECTRODE) |
+                                                NP_ELEM_BIT(NP_ELEM_DUAL_ELECTRODE) } };
+    np_placement_req_t as_tes[] = { { SOCK_FL, NP_ELEM_BIT(NP_ELEM_TES_ELECTRODE) |
+                                                NP_ELEM_BIT(NP_ELEM_DUAL_ELECTRODE) } };
+    check(np_module_map_check_placement(as_eeg, 1, failed, 8, &fc) == NP_HUB_OK,
+          "placement: dual electrode satisfies EEG requirement");
+    check(np_module_map_check_placement(as_tes, 1, failed, 8, &fc) == NP_HUB_OK,
+          "placement: dual electrode satisfies tES requirement");
+
+    /* tES montage: two sockets required; one lacks an electrode → 1 failure. */
+    np_placement_req_t montage[] = {
+        { SOCK_FL, ELECTRODE },   /* has dual electrode */
+        { SOCK_FR, ELECTRODE },   /* PBM only → fail */
+    };
+    check(np_module_map_check_placement(montage, 2, failed, 8, &fc) == NP_HUB_ERR_NOT_PRESENT,
+          "placement: incomplete tES montage → NOT_PRESENT");
+    check(fc == 1 && failed[0] == SOCK_FR, "placement: reports the one missing montage socket");
+
+    /* Empty spec → OK; NULL list still counts failures. */
+    check(np_module_map_check_placement(NULL, 0, NULL, 0, &fc) == NP_HUB_OK,
+          "placement: empty spec → OK");
+    check(np_module_map_check_placement(oz_bad, 1, NULL, 0, &fc) == NP_HUB_ERR_NOT_PRESENT &&
+          fc == 1, "placement: NULL list still returns failure + count");
+}
+
 int main(void)
 {
     test_addr_pack();
@@ -480,6 +547,7 @@ int main(void)
     test_nvram_roundtrip();
     test_nvram_reject_bad();
     test_nvram_hal_persist_restore();
+    test_placement_check();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

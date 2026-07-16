@@ -367,6 +367,48 @@ np_hub_status_t np_module_map_predefined(np_pgroup_t     g,
     return np_module_map_resolve_group(&q, out, max, count_out);
 }
 
+/* ── Placement validation ─────────────────────────────────────────────────────── */
+
+static bool socket_has_type(uint16_t socket_id, uint64_t type_mask)
+{
+    if (socket_id >= s_map.n_sockets ||
+        !s_map.geom[socket_id].present_in_helmet) {
+        return false;
+    }
+    const np_socket_record_t *r = &s_map.rec[socket_id];
+    if (!r->module_present) {
+        return false;
+    }
+    for (uint8_t e = 0; e < r->elem_count; e++) {
+        np_elem_type_t t = (np_elem_type_t)r->elem_type[e];
+        if (t != NP_ELEM_NONE && (type_mask & NP_ELEM_BIT(t)) != 0u) {
+            return true;
+        }
+    }
+    return false;
+}
+
+np_hub_status_t np_module_map_check_placement(const np_placement_req_t *reqs,
+                                              uint16_t                  n,
+                                              uint8_t                  *failed_sockets,
+                                              uint16_t                  max,
+                                              uint16_t                 *fail_count)
+{
+    if (!s_map.initialized || fail_count == NULL || (reqs == NULL && n != 0u)) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    *fail_count = 0;
+    for (uint16_t i = 0; i < n; i++) {
+        if (!socket_has_type(reqs[i].socket_id, reqs[i].type_mask)) {
+            if (failed_sockets != NULL && *fail_count < max) {
+                failed_sockets[*fail_count] = reqs[i].socket_id;
+            }
+            (*fail_count)++;   /* count ALL failures even if the list is full */
+        }
+    }
+    return (*fail_count == 0u) ? NP_HUB_OK : NP_HUB_ERR_NOT_PRESENT;
+}
+
 /* ── NVRAM persistence ────────────────────────────────────────────────────────── */
 
 size_t np_module_map_serialized_size(void)

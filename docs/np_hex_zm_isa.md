@@ -4,7 +4,7 @@ project: NeurOne
 slug: hex-zone-module
 effort: E4
 phase: plan
-progress: 6/57
+progress: 10/70
 mode: design-study
 started: 2026-07-15
 updated: 2026-07-15
@@ -101,7 +101,7 @@ bench.
 
 ### Geometry (Option A rigid)
 - [ ] ISC-1: Recommended module flat-to-flat width is 40 mm (±0 design point), vertex span ≈ 46 mm — stated in the brief with the sizing equation.
-- [ ] ISC-2: Workable width range 34–46 mm is documented with the floor driver (bezel/lever/embedding) and ceiling driver (rigid fit) named per bound.
+- [ ] ISC-2: Workable width range 34–46 mm is documented with the floor driver (bezel + embedding; the lever-arm floor is removed by cluster clamps, ISC-33) and ceiling driver (rigid fit) named per bound.
 - [ ] ISC-3: Module curvature fixed at R_m = 87 mm (curvature-median); dome depth at W=40 computed (~3.1 mm).
 - [ ] ISC-4: Worst-case skull-mismatch sagitta at W=40 is ≤1.1 mm (Δs = (W²/6)·Δκ, Δκ=0.0039 mm⁻¹) and shown absorbed by PDMS window standoff + ≤0.8 mm gasket.
 - [ ] ISC-5: Active-coverage fraction at W=40 with 2.5 mm bezel is ≥76%, tabulated across the workable range.
@@ -120,6 +120,21 @@ bench.
 - [ ] ISC-56: T1-B is allocated ONLY at required electrode positions (~8 for the T1 EEG montage Fp1/2·F3/4·C3/4·P3/4, plus any tES montage sites); the majority of sockets are electrode-free T1-A. A representative build is ~8× T1-B + balance T1-A (+ T1-C at 1–5 depth zones).
 - [ ] ISC-57: Anti: no build places an EEG electrode at every socket — EEG-in-every-module (electrode at every location) is rejected as over-provisioning (cost + lost LED area).
 
+### Mixed insertion, placement + protocol maps, cluster clamps (see brief §4a, §5.4a)
+- [ ] ISC-58: Tiles are type-agnostic — any type inserts in any socket (orientation-only key, no type keying); identity = socket (fixed position) + module (self-reported type via UID/inventory).
+- [x] ISC-59: `np_module_map_check_placement()` validates the live inventory against per-socket type_mask requirements and reports the unmet sockets. — DELIVERED, host-tested.
+- [x] ISC-60: Element type NP_ELEM_DUAL_ELECTRODE exists and satisfies BOTH an EEG and a tES placement requirement. — DELIVERED, host-tested.
+- [ ] ISC-61: Every protocol carries a required module map — one specifier per socket, either DONT-CARE or a type-subset mask; a protocol is runnable only when the inserted modules match its map (check_placement passes for every non-DONT-CARE socket).
+- [ ] ISC-62: NeurOne ships standard maps (All-T1-A; standard T1-A/T1-B mix; deep-PBM with T1-C) and supports user-defined maps; the app enables/disables protocols by matching maps against the current insertion.
+- [ ] ISC-63: OTA updates can extend the set of valid module-type specifiers (and push new/updated standard maps) so existing protocols keep matching and new ones can require new types.
+- [ ] ISC-64: Visual stimulation is blocked unless an EEG/dual electrode is present at the Oz socket (photoparoxysmal halt <200 ms); a visual-stim build carries ~9 electrode tiles (SW-1 wiring open).
+- [ ] ISC-65: tES (BES/tACS/tDCS) is blocked unless electrodes are present at all montage sockets (HD-tDCS 4×1 = 5).
+- [ ] ISC-66: Smart-socket coverage decided — all sockets I2C+TIA-capable vs a subset — governing where T1-C can seat (SMART-1).
+- [ ] ISC-67: Socket lattice registers to the 10-20 system (8–9 T1, ~19 T2 scalp) within tolerance without violating the coverage/bezel budget (REG-1).
+- [ ] ISC-68: PBM dose at electrode sites is lower (T1-B reduced LEDs) but per-tile PD metering stays accurate; firmware compensates within duty/thermal limits or accepts the ±15–25% non-uniformity.
+- [ ] ISC-69: Modules are clamped in clusters (3–7) by one cam/quarter-turn actuator each with per-module spring plungers; swapping one module releases only its cluster; a loose/unseated tile is caught by the inventory/contact poll → the placement gate disables dependent protocols (MECH-2).
+- [ ] ISC-70: Anti: no socket is type-keyed so a tile type can seat only in position-specific sockets (would reintroduce position-unique SKUs) — except the T1-C smart key per SMART-1.
+
 ### Addressing + NVRAM map (firmware — DONE)
 - [x] ISC-9: 2-level packed address (7-bit socket : 7-bit element) with pack/unpack round-trip. — `np_hex_addr_pack/unpack`, tested.
 - [x] ISC-10: Element type is a 6-bit enum (≤64 types); compile-time asserted. — `np_elem_type_t`, `_np_hexmap_elem_domain`.
@@ -133,9 +148,9 @@ bench.
 - [ ] ISC-18: Anti: no user biology is written by the map — module UID is a component identifier (SHDR-class), nothing is UHDR or keyed to user identity.
 
 ### Two-layer shell + EMF seam
-- [ ] ISC-19: Shell is two nested bowls: outer = complete EMF envelope; inner = module/socket/lever carrier nesting inside it.
+- [ ] ISC-19: Shell is two nested bowls: outer = complete EMF envelope; inner = module/socket/cluster-clamp carrier nesting inside it.
 - [ ] ISC-20: The full passive stack (CFRP, mu-metal L2, palladium L3, absorber L4) lives UNBROKEN on the outer bowl; the inner bowl carries no passive shield.
-- [ ] ISC-21: Module levers live in the inter-bowl gap (inner-bowl exterior face) and are reached only by unclamping the bowls — they never pierce the outer shield.
+- [ ] ISC-21: Module cluster clamps live in the inter-bowl gap (inner-bowl exterior face) and are reached only by unclamping the bowls — they never pierce the outer shield.
 - [ ] ISC-22: Layer clamp is a symmetric four-corner pattern (anterior L/R, posterior L/R) at the rim between ear and neck attachment zones; it brackets the front-center and back-center spans with even L/R + front/back force and flanks the forehead bridge.
 - [ ] ISC-23: Outer bowl overlaps the inner bowl rim with a labyrinth lip; residual continuous parting-plane slot ≤ λ/20 at 6 GHz (~2.5 mm).
 - [ ] ISC-24: Outer-shield-to-system-ground bond crosses the parting plane at the 4 clamp latches via hard-gold BeCu spring fingers / conductive elastomer, ≤50 mΩ.
@@ -146,11 +161,11 @@ bench.
 - [ ] ISC-29: Ground-bond contact resistance is trended in SHDR; a rise flags shield degradation (reuses fleet EMF-attenuation monitoring).
 - [ ] ISC-30: The conductive parting-plane gasket is a replaceable/tethered service part (compression-set over clamp cycles).
 - [ ] ISC-31: Anti: no session may run with the envelope open — an unclamped or single-latch-open state blocks session start.
-- [ ] ISC-32: Anti: no lever, sensor wire, or fastener creates an un-gasketed aperture through the passive shield.
+- [ ] ISC-32: Anti: no clamp actuator, sensor wire, or fastener creates an un-gasketed aperture through the passive shield.
 - [ ] ISC-48: Gasket line-pressure map (FEA or pressure-film bench) shows min seam compression ≥ seal threshold at the back-center (PL–PR) span AND both side (ear) spans under the four-corner AL/AR/PL/PR pattern; a marginal span is fixed by lip/gasket stiffening (or a lateral / restored posterior-center latch), not more corner latches. (Brief §7 EMF-3.)
 
 ### Reliability + manufacturing
-- [ ] ISC-33: Module levers give ≤1 N extraction with a lever arm ≥13 mm at W=40 (accessibility: Parkinson's H&Y II–III), per RISK-22 precedent.
+- [ ] ISC-33: Modules are clamped in clusters (one cam/quarter-turn actuator per 3–7-tile cluster, ~4–10 total, with per-module spring plungers) — NOT per-module levers; ≤1 N-intent actuation (RISK-22), 5–15× fewer moving parts, removing the per-module short-arm problem.
 - [ ] ISC-34: Per-hex perimeter gasket seals IPX4 after field swap cycles (per-tile seam-length budget stated).
 - [ ] ISC-35: Aggregate whole-vault thermal load with all tiles active stays within the 42 °C scalp limit; per-tile NTC + throttle retained.
 - [ ] ISC-36: Single mold produces the universal module shell; element-population variants are FPC/loadings only.
@@ -177,7 +192,7 @@ bench.
 | Geometry (1–8) | analysis | equations + tables present and internally consistent | exact | Read brief |
 | Addressing (9–18) | unit | host tests pass; cross-compile clean | 100% | ctest / arm-none-eabi-gcc |
 | EMF seam (19–32, 48) | design + bench | architecture specified; prototype attenuation ≥ baseline; gasket compression map ≥ seal threshold | ≥35 dB ELF / ≥40 dB RF | anechoic + fluxgate + pressure-film bench (future) |
-| Reliability (33–37) | analysis + FAI | lever force, IP, thermal within limits | per row | bench (future) |
+| Reliability (33–37) | analysis + FAI | cluster-clamp force, IP, thermal within limits | per row | bench (future) |
 | Decision gate (38–41) | bench | curvature scan + coupling coupon | PASS/FAIL | metrology + optical bench (future) |
 | Cross (42–47) | inspection | files exist; claims honest | binary | Read / git |
 
@@ -188,7 +203,7 @@ bench.
 | geometry-spec | sizing tables + curvature math | ISC-1..8 | — | yes |
 | fw-addressing-map | np_module_map (done) | ISC-9..18 | — | done |
 | two-layer-emf | nested-bowl shell + seam engineering | ISC-19..32 | geometry-spec | yes |
-| reliability | levers, IP, thermal, mold | ISC-33..37 | geometry-spec | yes |
+| reliability | cluster clamps, IP, thermal, mold | ISC-33..37 | geometry-spec | yes |
 | decision-gate | curvature scan + coupling bench | ISC-38..41 | geometry-spec | no (gates tooling) |
 | design-brief | NP-HEX-ZM-001 narrative | ISC-42, 46 | all above | no |
 
@@ -208,15 +223,33 @@ bench.
   near the temples) → A is DOA and B is FORCED earlier. The sequencing decision
   does not waive this gate.
 - 2026-07-15 — **EMF split placement:** all passive shielding stays on the outer
-  bowl (unbroken); the inner bowl carries modules/levers/sensors and nests
+  bowl (unbroken); the inner bowl carries modules/cluster-clamps/sensors and nests
   inside the envelope. This makes the layer-parting plane a mechanical seam, not
-  an aperture in the passive shield. Module levers are reached by unclamping,
+  an aperture in the passive shield. Module cluster clamps are reached by unclamping,
   never by piercing the shield.
 - 2026-07-15 — **Firmware addressing/NVRAM map delivered ahead of the mechanical
   gate** (`firmware/hub_control/np_module_map.*`): the addressing contract is
   identical for Option A and Option B, so it is safe to build now. Delegation:
   authored inline (self-contained, fully host+cross verified) rather than via
   Forge — soft delegation floor, show-your-math.
+- 2026-07-15 — **Module cluster clamps (principal decision):** modules are clamped
+  in clusters (one cam/quarter-turn actuator per 3–7-tile cluster with per-module
+  spring plungers), NOT per-module levers — a per-module lever does not scale to
+  ~28–64 tiles (interference, short arms, 28–64 failure points). ~4–10 cluster
+  actuators, 5–15× fewer moving parts; removes the per-module lever-arm floor on
+  hex size. A loose tile is self-detected by the inventory/contact poll → placement
+  gate. Cluster size (3–7; 7-flower vs 3-triad) finalized with the lattice work.
+  See ISC-69, brief §5.4a, gate MECH-2.
+- 2026-07-15 — **Protocol ↔ module-map matching (principal design, from user):**
+  every protocol carries a required module map (per socket: DONT-CARE or a
+  type-subset mask); a protocol is runnable only if the inserted modules match it.
+  Standard maps shipped (All-T1-A; standard T1-A/T1-B mix; deep-PBM T1-C) plus
+  user-defined; OTA extends valid type specifiers as new types appear. The
+  delivered firmware primitive `np_module_map_check_placement()` (per-socket
+  type_mask requirements) is exactly this matcher; the safety presence-gates (Oz
+  for visual, montage for tES) are mandatory sub-cases. Added NP_ELEM_DUAL_ELECTRODE
+  so the T1-B electrode satisfies both EEG and tES requirements. See ISC-58..70,
+  brief §4a, gates REG-1/SMART-1/SW-1.
 - 2026-07-15 — **T1 module-type taxonomy (principal decision):** three tile
   types — T1-A base PBM (660/808, no EEG), T1-B EEG/electrode (dual-rated Ag/AgCl
   electrode covering EEG + BES/tACS/tDCS, plus reduced 660/808 PBM), T1-C 1064
@@ -263,5 +296,9 @@ bench.
 - ISC-11,12: host tests `same UID → not re-inventoried`, `uid change →
   re-inventoried`, `over-max → CMD_TOO_MANY`, `NULL-cb → NOT_PRESENT` all PASS.
 - ISC-15 (partial): serialize/load + CRC reject tests PASS; live Config HAL open.
+- ISC-59,60: `np_module_map_check_placement()` + NP_ELEM_DUAL_ELECTRODE — 10
+  placement host tests PASS (Oz-present OK, missing-electrode NOT_PRESENT + reported
+  socket, dual electrode satisfies EEG and tES, incomplete montage, empty/NULL).
+  73/73 map checks; full host suite 16/16; Cortex-M7 `-Werror` clean.
 - Remaining ISCs: pending brief authoring (geometry/EMF/reliability/gate) and
   future hardware benches — tracked, not yet verified.

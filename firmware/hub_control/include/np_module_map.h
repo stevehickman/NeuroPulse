@@ -104,7 +104,9 @@ typedef enum {
     NP_ELEM_PD_BACK       = 10,  /* PD2 scalp-facing                            */
     NP_ELEM_IR_PROX       = 11,
     NP_ELEM_HALL          = 12,
-    NP_ELEM_TYPE_COUNT    = 13,
+    NP_ELEM_DUAL_ELECTRODE= 13,  /* Ag/AgCl: records EEG AND delivers tES (T1-B) */
+    NP_ELEM_TYPE_COUNT    = 14,
+    /* Enum values are frozen once written to NVRAM — append only, never renumber. */
 } np_elem_type_t;
 
 /* Bit for a type in a type-filter mask (uint64_t). */
@@ -288,6 +290,34 @@ np_hub_status_t np_module_map_predefined(np_pgroup_t     g,
                                          np_hex_addr_t  *out,
                                          uint16_t        max,
                                          uint16_t       *count_out);
+
+/* ── Placement validation ──────────────────────────────────────────────────────
+ * "Are the appropriate modules in the appropriate sockets?" Because tiles are
+ * type-agnostic (any type inserts in any socket) and the helmet auto-inventories
+ * whatever is plugged, safety-critical and montage requirements are enforced in
+ * software against the live inventory — e.g. visual stimulation requires an EEG
+ * element at the Oz socket (photoparoxysmal halt); tES requires electrodes at all
+ * montage sockets. A requirement is satisfied when the named socket holds at
+ * least one element whose type is in `type_mask`. */
+
+typedef struct {
+    uint8_t  socket_id;   /* socket that must be satisfied                        */
+    uint64_t type_mask;   /* acceptable element types (NP_ELEM_BIT(...) OR'd)     */
+} np_placement_req_t;
+
+/*
+ * np_module_map_check_placement — validate the current inventory against reqs.
+ * For each requirement, the socket must be present and hold ≥1 element whose type
+ * is in type_mask (NP_ELEM_NONE never counts). Unmet requirements are appended to
+ * failed_sockets[] (up to max; may be NULL). *fail_count is the TOTAL number of
+ * failures (may exceed max → list truncated).
+ * Returns NP_HUB_OK if all satisfied, NP_HUB_ERR_NOT_PRESENT if any is unmet.
+ */
+np_hub_status_t np_module_map_check_placement(const np_placement_req_t *reqs,
+                                              uint16_t                  n,
+                                              uint8_t                  *failed_sockets,
+                                              uint16_t                  max,
+                                              uint16_t                 *fail_count);
 
 /* ── NVRAM persistence ───────────────────────────────────────────────────────── */
 
