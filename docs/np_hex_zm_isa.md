@@ -4,7 +4,7 @@ project: NeurOne
 slug: hex-zone-module
 effort: E4
 phase: plan
-progress: 6/48
+progress: 6/55
 mode: design-study
 started: 2026-07-15
 updated: 2026-07-15
@@ -109,6 +109,15 @@ bench.
 - [ ] ISC-7: Densest module element set (tri-wavelength PBM ~90 elements, or a spring EEG pod) fits within the 40 mm inner field — embedding floor cleared.
 - [ ] ISC-8: Anti: no module width is specified small enough that bezel reduces skull element coverage below the single-zone baseline.
 
+### Module-type taxonomy (see brief §4a)
+- [ ] ISC-49: T1's cranial modalities are covered by exactly three tile types: T1-A base PBM (no EEG), T1-B EEG/electrode, T1-C 1064 smart PBM (no EEG).
+- [ ] ISC-50: T1-A (base, non-EEG) includes 660–670 + 808–830 nm PBM + PD1/PD2 + NTC, no electrode.
+- [ ] ISC-51: T1-B carries a dual-rated Ag/AgCl electrode that both records EEG AND delivers BES/tACS/tDCS — so no separate stim-electrode tile type exists.
+- [ ] ISC-52: T1-B retains base 660/808 PBM (reduced LED count for pod clearance) so PBM coverage is continuous at electrode sites (no PBM dead spot under electrodes).
+- [ ] ISC-53: T1-C (1064 smart) carries 660/808/1064 nm + on-module driver + InGaAs PD1/PD2 + NTC and no EEG; a combined EEG+1064 tile is a deferred grow-to-4 option, built only if 1064 zones and EEG sites overlap.
+- [ ] ISC-54: T2 adds exactly one tile type (T2-D 1170 nm laser + TEC); qEEG-21 / HD-tDCS 4×1 / 16-ch clinical tACS reuse T1-B at higher density; TMS coil and cervical VNS are non-tile applicators.
+- [ ] ISC-55: Anti: no cranial T1 modality requires a tile type outside {T1-A, T1-B, T1-C}; no scalp T2 modality except 1170 nm requires a type beyond the T1 set.
+
 ### Addressing + NVRAM map (firmware — DONE)
 - [x] ISC-9: 2-level packed address (7-bit socket : 7-bit element) with pack/unpack round-trip. — `np_hex_addr_pack/unpack`, tested.
 - [x] ISC-10: Element type is a 6-bit enum (≤64 types); compile-time asserted. — `np_elem_type_t`, `_np_hexmap_elem_domain`.
@@ -206,6 +215,15 @@ bench.
   identical for Option A and Option B, so it is safe to build now. Delegation:
   authored inline (self-contained, fully host+cross verified) rather than via
   Forge — soft delegation floor, show-your-math.
+- 2026-07-15 — **T1 module-type taxonomy (principal decision):** three tile
+  types — T1-A base PBM (660/808, no EEG), T1-B EEG/electrode (dual-rated Ag/AgCl
+  electrode covering EEG + BES/tACS/tDCS, plus reduced 660/808 PBM), T1-C 1064
+  smart PBM (no EEG). tES needs no separate type because T1-B's electrode is
+  dual-rated; T1-B keeps base PBM for continuous coverage; an EEG+1064 4th type is
+  a deferred grow-to-4. T2 adds only T2-D (1170 nm laser); qEEG-21/HD-tDCS/clin-
+  tACS reuse T1-B; TMS coil + cervical VNS are non-tile. Enabling decision to
+  confirm: adopt dual-rated Ag/AgCl for T1 (currently semi-dry hydrogel). See
+  ISC-49..55 and brief §4a.
 - 2026-07-15 — **Clamp-latch pattern (supersedes the earlier 4 = ant-C + PL/PR
   + PC):** symmetric **four-corner AL/AR/PL/PR**. Same latch count, but it
   brackets front-center and back-center spans with even force and flanks the

@@ -79,6 +79,46 @@ checks; Cortex-M7 `-Werror` clean; CI test #12). Summary:
   `inventory_fn` and the Config-partition NVRAM HAL (OI-HEXMAP-01).
 - **Privacy:** module UID is a component identifier (SHDR-class); nothing is UHDR.
 
+## 4a. Module-type taxonomy
+
+All tiles share **one size and one mechanical mold**; a "type" differs only by
+**element population** on the identical footprint. The firmware auto-inventories
+whatever is plugged (`np_module_map` UID-change poll), so type count is a
+cost/inventory decision, not a firmware constraint. Only the four cranial-scalp
+modalities are tiles; intranasal, auricular VNS/HRV, audio, and visual goggles
+are separate accessories (not tiles).
+
+### T1 — three tile types
+
+| ID | Type | Elements | EEG | Covers |
+|----|------|----------|-----|--------|
+| **T1-A** | Base PBM | 660–670 + 808–830 nm LEDs + PD1/PD2 + NTC | no | PBM transcranial (bulk scalp coverage) |
+| **T1-B** | EEG / electrode | **dual-rated Ag/AgCl electrode** + 660/808 PBM (reduced count for pod clearance) + PD + NTC | yes | EEG **and** BES/tACS/tDCS (one electrode records + stimulates); PBM at electrode sites |
+| **T1-C** | 1064 smart PBM | 660/808/**1064 nm** LEDs + on-module driver (ATtiny402 + FETs) + InGaAs PD1/PD2 + NTC | no | premium deep PBM (three-tier depth stack) |
+
+**Decisions baked in (flag to change):**
+- **T1-B electrode is dual-rated** — records EEG *and* delivers BES/tACS/tDCS, so
+  no separate stim-electrode type is needed. (T1 EEG is currently semi-dry
+  hydrogel; adopting dual-rated Ag/AgCl for T1 is the enabling decision.)
+- **T1-B keeps base 660/808 PBM** (reduced LED count around the pod) so PBM
+  coverage stays continuous at electrode sites, rather than an electrode-only tile
+  that leaves PBM dead spots.
+- **T1-C carries no EEG.** Deep 1064 PBM *at* an electrode site would need a **4th
+  type (EEG + 1064)** — deferred as a "grow-to-4" option, built only if the 1064
+  zones and EEG sites actually overlap.
+
+### T2 — one additional tile type
+
+| ID | Type | Elements | Reuses / notes |
+|----|------|----------|----------------|
+| **T2-D** | 1170 nm deep-PBM laser | 1170 nm laser diode + TEC + laser driver | new type (laser ≠ LED) |
+| — | qEEG-21 / HD-tDCS 4×1 / 16-ch clinical tACS | dual-rated Ag/AgCl electrodes | **reuse T1-B** at higher density; wet-gel vs semi-dry is a consumable, not a type |
+| — | TMS focal coil; cervical VNS | — | **non-tile** special applicators (too large / off-scalp) |
+
+**Net: T1 = 3 tile types (grow-to-4); T2 = +1 (T2-D).** Cost-optimal working set
+≈ 3 (T1) and 4 (T2). Accessories (nose/ear/audio/goggles + TMS coil + neck VNS)
+are separate hardware in every case.
+
 ## 5. Two-layer shell + the EMF seam (detailed)
 
 ### 5.1 Why two layers
