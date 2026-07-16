@@ -1,0 +1,457 @@
+# NP-HEX-ZM-001 Rev A — Hexagonal Standardized Zone-Module Design Brief
+
+**Program:** NeurOne zone-module redesign
+**Status:** DESIGN STUDY — Option A committed as baseline, Option B documented as future path. NOT a locked tooling baseline; gated by the curvature-scan go/no-go (§7).
+**Companion ISA:** `docs/np_hex_zm_isa.md` (NP-HEX-ZM ISA)
+**Firmware delivered:** `firmware/hub_control/np_module_map.{h,c}` + `tests/np_module_map_tests.c`
+**Date:** 2026-07-15
+
+---
+
+## 1. Purpose
+
+Replace position-unique zone modules (a distinct SKU per helmet pin location) with
+a **single universal hexagonal module SKU** that tiles the helmet interior. One
+mold, one part number, one inventory line for NeurOne and for customers. This
+brief specifies the Option-A (rigid) baseline end-to-end and records the Option-B
+(semi-flex) future path.
+
+## 2. Decision record (2026-07-15)
+
+| Item | Decision |
+|------|----------|
+| **Mechanical option** | **Option A (rigid, median-curved 40 mm hexagon) NOW.** |
+| **Future path** | **Option B (semi-flex tile + shell-socket-defined curvature) LATER**, as a module swap into the unchanged socket interface — no shell re-tool. |
+| **Rejected** | Pure Option C (fixed curvature + accepted gaps) for PBM tiles — gaps attack the J/cm² dose claim. |
+| **Gate** | Curvature-scan + PBM-coupling bench (§7) still governs whether A ships or B is forced earlier. Sequencing does not waive it. |
+
+The strategic point: the **socket interface is the invariant**. Rigid tiles today
+and semi-flex tiles tomorrow drop into the same sockets, shell, addressing, and
+firmware — so committing to A costs only the (cheap) module mold, not the
+expensive shared architecture.
+
+## 3. Geometry (Option A)
+
+Governing relation — for a hexagon of flat-to-flat width **W**, circumradius
+a = W/√3, on a spherical module cap R_m against a skull region R_s:
+
+> **Δs ≈ (W²/6)·|1/R_s − 1/R_m|** (peak module-to-scalp mismatch)
+
+- Module curvature fixed at the **curvature-median R_m = 87 mm** (κ = 0.0115 mm⁻¹),
+  which symmetrizes the worst-case mismatch across temples (tight, ~65 mm) and
+  crown (flat, ~130 mm). Worst-case astigmatic **Δκ ≈ 0.0039 mm⁻¹**.
+
+| W (flat-to-flat) | Vertex span | Dome depth | Worst-case mismatch | Active coverage (2.5 mm bezel) |
+|---|---|---|---|---|
+| 34 mm | 39 mm | 2.2 mm | 0.75 mm | 73% |
+| **40 mm ★** | **46 mm** | **3.1 mm** | **1.04 mm** | **77%** |
+| 42 mm | 48 mm | 3.4 mm | 1.15 mm | 77% |
+| 46 mm | 53 mm | 4.0 mm | 1.38 mm | 79% |
+
+- **Workable 34–46 mm.** Floor = bezel + element embedding (cluster clamps remove
+  the per-module lever-arm floor, §5.4a); ceiling = rigid fit (pushes down). Ideal
+  **38–42 mm**; design point **40 mm**.
+- Worst-case 1.04 mm at 40 mm is absorbed by the PDMS window standoff + a ≤0.8 mm
+  compliant gasket; most of the vault sees ~0.25 mm.
+- **~27–30 modules** over a ~420 cm² tileable vault (24–33 for area uncertainty);
+  geometry ceiling ~54–64 tiles at the smallest workable W.
+- The densest tile (tri-wavelength PBM ~90 elements at ~3.5 mm pitch, or a single
+  spring EEG pod) fits inside the 40 mm inner field — embedding floor cleared.
+
+## 4. Two-level addressing + NVRAM element map (firmware — DELIVERED)
+
+Implemented and verified in `firmware/hub_control/np_module_map.*` (63 host
+checks; Cortex-M7 `-Werror` clean; CI test #12). Summary:
+
+- **HW address = (socket_id : element_id)** packed 7 + 7 bits. Socket ≥7 bits so
+  addressing never binds before the ~54–64 geometry ceiling; element 7 bits covers
+  the densest ~90-element tile. Sockets asymmetrically keyed → one mount orientation.
+- **Power-on poll:** the hub polls every socket for module **UID + health**; a
+  module is re-inventoried (element-type list per minor address streamed into
+  NVRAM) **only when its UID differs** from the one stored for that socket.
+  Unchanged modules are never re-inventoried. Fail-closed on bad/oversized/absent
+  inventory.
+- **Resolution:** `(socket:element)` → lobe/side/x-y/type. **Groups:** 8 predefined
+  (L/R × frontal/temporal/parietal/occipital) + user socket-sets + address-sets,
+  each with an element-type include/exclude filter. Protocol authors manipulate
+  individual elements or whole groups.
+- **NVRAM:** CRC-32-protected serialize/load behind an injected HAL (bad
+  magic/version/CRC rejected). Two integration seams remain: the module I2C
+  `inventory_fn` and the Config-partition NVRAM HAL (OI-HEXMAP-01).
+- **Privacy:** module UID is a component identifier (SHDR-class); nothing is UHDR.
+
+## 4a. Module-type taxonomy
+
+All tiles share **one size and one mechanical mold**; a "type" differs only by
+**element population** on the identical footprint. The firmware auto-inventories
+whatever is plugged (`np_module_map` UID-change poll), so type count is a
+cost/inventory decision, not a firmware constraint. Only the four cranial-scalp
+modalities are tiles; intranasal, auricular VNS/HRV, audio, and visual goggles
+are separate accessories (not tiles).
+
+### T1 — three tile types
+
+| ID | Type | Elements | EEG | Covers |
+|----|------|----------|-----|--------|
+| **T1-A** | Base PBM | 660–670 + 808–830 nm LEDs + PD1/PD2 + NTC | no | PBM transcranial (bulk scalp coverage) |
+| **T1-B** | EEG / electrode | **dual-rated Ag/AgCl electrode** + 660/808 PBM (reduced count for pod clearance) + PD + NTC | yes | EEG **and** BES/tACS/tDCS (one electrode records + stimulates); PBM at electrode sites |
+| **T1-C** | 1064 smart PBM | 660/808/**1064 nm** LEDs + on-module driver (ATtiny402 + FETs) + InGaAs PD1/PD2 + NTC | no | premium deep PBM (three-tier depth stack) |
+
+**Decisions baked in (flag to change):**
+- **T1-B electrode is dual-rated** — records EEG *and* delivers BES/tACS/tDCS, so
+  no separate stim-electrode type is needed. (T1 EEG is currently semi-dry
+  hydrogel; adopting dual-rated Ag/AgCl for T1 is the enabling decision.)
+- **T1-B keeps base 660/808 PBM** (reduced LED count around the pod) so PBM
+  coverage stays continuous at electrode sites, rather than an electrode-only tile
+  that leaves PBM dead spots.
+- **T1-C carries no EEG.** Deep 1064 PBM *at* an electrode site would need a **4th
+  type (EEG + 1064)** — deferred as a "grow-to-4" option, built only if the 1064
+  zones and EEG sites actually overlap.
+
+**Allocation — EEG only where it's needed.** The type split exists *precisely so
+EEG is not in every module.* Putting EEG in every module would put an electrode
+(and its spring pod + Ag/AgCl) at every one of the ~27–30 sockets — unnecessary
+cost, and it eats LED area everywhere. Instead:
+
+- The **majority of sockets take T1-A** (base PBM, no EEG) for bulk scalp coverage.
+- **T1-B is placed only at electrode positions** — the T1 EEG montage
+  (Fp1/2, F3/4, C3/4, P3/4 ≈ 8 sites) plus any tES montage positions.
+- **T1-C** goes only at the 1–5 zones chosen for 1064 depth.
+
+Representative T1 build: **~8–9 × T1-B** (8 neurofeedback sites + Oz when visual
+stim is used) **+ the balance in T1-A**, with T1-C substituted at the configured
+depth zones. (High-density EEG or extra tES sites are just more T1-B placements —
+a configuration choice, no new type.)
+
+### T2 — one additional tile type
+
+| ID | Type | Elements | Reuses / notes |
+|----|------|----------|----------------|
+| **T2-D** | 1170 nm deep-PBM laser | 1170 nm laser diode + TEC + laser driver | new type (laser ≠ LED) |
+| — | qEEG-21 / HD-tDCS 4×1 / 16-ch clinical tACS | dual-rated Ag/AgCl electrodes | **reuse T1-B** at higher density; wet-gel vs semi-dry is a consumable, not a type |
+| — | TMS focal coil; cervical VNS | — | **non-tile** special applicators (too large / off-scalp) |
+
+**Net: T1 = 3 tile types (grow-to-4); T2 = +1 (T2-D).** Cost-optimal working set
+≈ 3 (T1) and 4 (T2). Accessories (nose/ear/audio/goggles + TMS coil + neck VNS)
+are separate hardware in every case.
+
+### Mixed insertion + placement validation
+
+Tiles are **type-agnostic**: any type (T1-A/B/C) inserts into any socket — same
+size, same mount, orientation-only key (no type keying). Identity is split —
+**socket = position** (fixed major address from the geometry map) and
+**module = type** (self-reported on insertion via UID → element inventory). So the
+helmet always knows what is where with no manual setup; `np_module_map` rebuilds
+the map on any change and the bone-conduction announce states position + type
+("Frontal-left, EEG connected"). Seal, power, and clamp are identical across
+types, so mixing does not affect IP or power.
+
+**Software placement check (DELIVERED).** Because sockets don't enforce type,
+safety-critical and montage requirements are checked in software against the live
+inventory — `np_module_map_check_placement()` (firmware, host-tested). Each
+requirement is "socket S must hold an element in `type_mask`"; the call returns the
+list of unmet sockets so the app can guide the user to fix the placement.
+
+**Protocol ↔ module-map matching.** The check generalizes into the run-gating
+model: every protocol carries a **required module map** — one specifier per socket,
+either **DONT-CARE** or a **subset of allowed module types** (a `type_mask`;
+DONT-CARE = all-types mask, i.e. that socket is simply omitted from the check). A
+protocol is **runnable only if the inserted modules match its map** (`check_placement`
+passes for every non-DONT-CARE socket). NeurOne ships **standard maps** (All-T1-A;
+the standard T1-A/T1-B mix; deep-PBM with T1-C zones; …) and users may **define
+their own**. The app enables/disables protocols by matching each protocol's map
+against the current insertion — you can only run protocols whose map matches what
+is currently inserted. The safety presence-gates below (Oz, tES montage) are
+mandatory sub-cases folded into every relevant protocol's map. **OTA-extensible:**
+as new module types are introduced, OTA updates extend the set of valid type
+specifiers (and can push new/updated standard maps), so existing protocols keep
+matching and new ones can require the new types. The firmware primitive already
+expresses a map as an array of per-socket `type_mask` requirements.
+
+**Safety presence-gates (firmware enforces before modality enable — SW-1):**
+- **Visual stim → EEG element at Oz.** The photoparoxysmal halt (<200 ms, §4.2)
+  needs an Oz electrode, and **Oz is NOT in the 8-ch neurofeedback montage** — so a
+  visual-stim build needs a T1-B at Oz (**~9 electrode tiles, not 8**), and visual
+  stim is blocked unless `check_placement({Oz, EEG|DUAL})` passes.
+- **tES (BES/tACS/tDCS) → electrodes at all montage sockets** (anode + returns;
+  HD-tDCS 4×1 = 5) before enable.
+- The T1-B electrode is typed `NP_ELEM_DUAL_ELECTRODE`, so it satisfies both EEG
+  and tES requirements.
+
+**Smart-socket coverage (open decision — SMART-1).** T1-C (1064) needs the I2C bus
++ switchable-gain TIA and carries a distinct mechanical key. Decide: **every socket
+smart-capable** (T1-C anywhere; higher per-socket cost) **or a subset** (cheaper;
+T1-C key matches only those sockets). This is the only real limit on "any type,
+any socket."
+
+**PBM dose islands (accepted).** T1-B has ~half the LED count (pod clearance), so
+electrode sites deliver less PBM. Per-tile PD metering stays accurate (the J/cm²
+claim is intact — each tile meters itself); firmware may compensate within the 25%
+duty / 42 °C limits, or accept the mild non-uniformity (PBM is already ±15–25%).
+
+**10-20 registration (gate — REG-1).** T1-B inserts anywhere but is only *useful*
+at 10-20 positions, so the socket lattice must place sockets at (or within
+tolerance of) each required site — 8–9 for T1, ~19 scalp for T2. The ±12 mm pod
+travel + EEG placement tolerance give margin, but the lattice can't be a naïve
+uniform grid and the registration must be verified against the coverage/bezel
+budget (§3).
+
+## 5. Two-layer shell + the EMF seam (detailed)
+
+### 5.1 Why two layers
+
+Tiling the interior removes the interior real estate the module clamp mechanism
+used to occupy — a mechanism on the tiled face would leave coverage gaps. So the
+clamp moves OFF the interior. But a mechanism that pierces the 5-layer EMF stack
+punches an aperture in the shield. The resolution is a **two-nested-bowl shell**:
+
+- **Outer bowl = the complete EMF envelope.** The full passive stack lives on its
+  INNER face, unbroken: CFRP outer (30–50 dB RF) · 0.2 mm mu-metal L2 (15–25 dB
+  ELF magnetic) · palladium-polyester L3 (40–60 dB RF) · carbon-loaded absorber
+  L4. The Helmholtz cancellation coils mount here too. This bowl is NEVER opened
+  for a module swap.
+- **Inner bowl = the module carrier.** It holds the keyed sockets, the module
+  **cluster clamps** (§5.4a — one actuator per cluster of tiles, on its OUTER,
+  gap-facing face), the fluxgate sensors, and the tiled module field on its
+  interior (scalp-facing) face. It **nests inside** the outer bowl.
+- The two bowls **clamp together for use** and **separate for module replacement.**
+
+### 5.2 The key insight — the split is not a cut in the shield
+
+Because the passive shield is entirely on the outer bowl and the inner bowl nests
+**inside** it, the module carrier lives within the Faraday envelope. The
+layer-parting plane is therefore a **mechanical** seam between the shielded outer
+bowl and the unshielded inner bowl — **not an aperture through the passive
+shield.** The module cluster clamps sit in the inter-bowl gap and are reached by
+unclamping the bowls; **they never pierce the shield.** Module swaps never touch
+shielding.
+
+### 5.3 The seams that still need real engineering
+
+Four electromagnetic details survive and must be designed:
+
+**(a) Parting-plane / rim slot.** The two bowls meet around the helmet mouth. To
+keep this from acting as a slot antenna, the **outer bowl overlaps the inner
+bowl's rim with a labyrinth lip** (a ≥2× overlap fold), so there is no
+line-of-sight aperture from outside to the modules. Target: any continuous
+residual slot ≤ **λ/20 at 6 GHz ≈ 2.5 mm** (the upper Wi-Fi 6 band bounds the
+external RF concern; the headset's own radios live in the hub, not here). A
+conductive elastomer bead along the lip closes the residual gap.
+
+**(b) Shield-to-ground bond across the parting plane.** The outer shield must stay
+referenced to hub/system ground — this is what makes it a **driven EEG shield**
+(the shell is bonded to the DRL output today). With the shield on the outer bowl
+and the DRL electronics on the inner-bowl/hub side, that reference has to cross
+the parting plane. It is carried by **hard-gold-plated beryllium-copper spring
+fingers (or conductive elastomer) at the four clamp latches**, target contact
+resistance **≤50 mΩ**. Hard gold resists the fretting/oxidation that would
+otherwise raise the bond impedance over clamp cycles.
+
+**(c) Sensor / coil harness crossing.** The active cancellation splits across the
+seam by design: **fluxgate magnetometers on the inner bowl** (near the scalp,
+where they must sense the field the wearer experiences) and **Helmholtz coils on
+the outer bowl** (with the passive shield). Both route to the hub controller via a
+**standalone blind-mate boss at the posterior-center** (occiput centerline, NOT a
+latch), mated automatically as the bowls draw closed and seated by the flanking
+PL/PR latches. Decoupling the connector from the clamp pattern is deliberate — a
+blind-mate feature only has to mate on closure; it should not dictate latch count.
+
+**(d) Magnetic (mu-metal) continuity.** Magnetic shields leak at butt-joints. The
+mu-metal L2 stays **entirely on the outer bowl, unbroken**; the inner bowl carries
+**no** magnetic layer, so there is no mu-metal seam to leak. (This is the reason
+all shielding is consolidated on one bowl rather than split between them.)
+
+### 5.3.1 Rationale: coils on the outer bowl, fluxgate sensors on the inner bowl
+
+The obvious objection is that a cancellation coil placed on the inner carrier
+would sit closer to the brain (more field per amp). That is true and it loses —
+the split assigns each element to the layer its physics wants. Sensors sample
+where the brain is (inner); the actuator wants to be a stable, uniform, separated,
+enclosing structure (outer). Five reasons the coils go outer:
+
+1. **Uniformity, not proximity, is the requirement.** Cancellation must null the
+   field roughly uniformly across the whole brain volume — a large *enclosing*
+   coil (outer) puts the brain in its uniform-field region; a near coil (inner)
+   cancels locally and steeply, cleaning one electrode while worsening another.
+2. **The coil is co-designed with the mu-metal as one magnetic circuit.** The
+   high-permeability mu-metal (outer bowl) shunts and reshapes any nearby coil's
+   flux. A coil *inside* that shell (inner bowl) has its field distorted before it
+   reaches the brain and becomes hard to calibrate; co-locating passive shield +
+   active trim on the outer bowl keeps them a single characterized subsystem.
+3. **On the inner bowl the coil sits on top of what it cleans.** The inner carrier
+   holds the EEG electrodes, tES drivers, and their µV-sensitive FPC leads. A
+   dB/dt source millimeters away injects its drive current and switching harmonics
+   (plus notch/TMS-gated transients) straight into the recording it exists to
+   protect. Separation decouples the field generator from the pickup.
+4. **The inner bowl is the handled/opened/serviced layer.** Cancellation is a
+   calibrated loop assuming a fixed coil-drive→field transfer. The outer bowl is
+   never opened; its coil geometry stays fixed. The inner bowl gets unclamped and
+   levered, so its geometry drifts clamp-to-clamp — a poor home for a precision
+   actuator.
+5. **Three-axis coils are bulky and compete for tiling real estate.** Three
+   orthogonal coil pairs weaving through the serviceable inner bowl would either
+   steal element coverage (the redesign's whole point) or add thickness and a heat
+   source at the scalp (42 °C limit). They build cleanly into the fixed outer shell.
+
+Reconsider an inner-side trim coil only if *module-generated* fields (stim
+currents, LED drivers) prove to dominate over external ELF — but those are killed
+at the source by the existing adaptive stim-frequency notch and TMS-gated
+cancellation, not by relocating the Helmholtz pair.
+
+### 5.4 The clamp mechanism
+
+- **Four layer-clamp latches, symmetric:** anterior-left, anterior-right,
+  posterior-left, posterior-right — a four-corner clamp. All seated at the rim
+  **between** the ear (audio) and neck attachment zones so they don't collide
+  with those accessories. They reuse the recessed-lever concept (flush when
+  closed, no snag).
+- **Why this pattern and not a kinematic three-point, or a front-center layout:**
+  the parting-plane conductive gasket must stay uniformly compressed all the way
+  around the rim for the RF/ground seal to hold — a flange-seal problem, not a
+  rigid-body location problem. The symmetric four-corner pattern **brackets both
+  the front-center and back-center spans** with even L/R and front/back force
+  (least bowl distortion), and AL/AR flank the 5-position forehead bridge instead
+  of colliding with it on the centerline. It is strictly better placement than an
+  anterior-center + posterior-center layout, which triple-covers the (already
+  PL/PR-bracketed) back-center while under-serving the front. The mild
+  over-constraint of four points is absorbed by the compliant bowls + gasket.
+- The **blind-mate sensor/coil connector is a standalone posterior-center boss**
+  (§5.3c), NOT a latch — sited where the internal harness gathers near the occiput
+  (Boa arch / neck attach) and seated by the flanking PL/PR latches.
+- Each latch integrates the ground-bond spring fingers (§5.3b) so clamping the
+  bowls simultaneously closes the shield-to-ground bond.
+- **Residual weak points (verified, not asserted — see EMF-3, §7):** the two
+  **side spans over the ears** get no rim latch (ear zones forbid it) and the
+  **back-center span between PL/PR** has no dedicated latch. Both must be shown
+  above the gasket seal-compression threshold by the line-pressure map; if
+  marginal, the fix is lip/gasket stiffening (or a temporal-wing lateral latch for
+  the sides / restoring a posterior-center latch for the back), not more corner
+  latches.
+
+### 5.4a Module cluster clamps (not per-module levers)
+
+A lever *per module* does not scale: at ~28 tiles (up to ~54–64 small-hex) you get
+28–64 mechanisms in the inter-bowl gap — mutual interference, short lever arms, and
+a huge moving-part count (each lever = spring + pin + detent = a failure point).
+Instead the modules are clamped in **clusters**, one actuator per cluster.
+
+- **Cluster unit from the hex lattice:** the natural super-cell is the **7-hex
+  "flower"** (1 center + 6 neighbors) → ~28 tiles ≈ **4 clusters**; the smaller
+  **3-hex triad** → ~9–10 clusters. (So total actuators ≈ 4 corner layer-latches +
+  4–10 cluster clamps, vs 4 + 28–64 with per-module levers — a 5–15× reduction.)
+- **Mechanism:** one **over-center lever-throw clamp per cluster** — a push/pull
+  toggle latch (NOT a twist cam; see accessibility below) — drives a **clamp plate
+  carrying a spring-loaded plunger per module.** Throwing it closed compresses every
+  plunger → all N modules seated with *individual, controlled force* despite the
+  dome curvature; the over-center geometry gives high mechanical advantage near
+  close (low one-handed input force) and a positive latched state; releasing it
+  lifts the plate → modules pop on their own ejector springs. The per-module
+  plungers are the key — a rigid plate over a curved cluster could not seat evenly.
+- **This removes the lever-arm floor on hex size** (that was a per-module
+  small-lever artifact): the size floor is now bezel + element embedding only (§3).
+- **Tradeoff (small):** swapping one module releases its whole cluster (3–7 tiles
+  loosen). They don't fall out — the inner bowl faces up when the helmet is open and
+  gasket friction holds them; lift out the one you want and re-clamp.
+- **A loose module is self-detected:** an unseated tile fails its contact/inventory
+  poll → shows "not present" in `np_module_map` → the placement/protocol-map gate
+  (§4a) disables any protocol that needs it. A cluster-closed sensor is cheap
+  insurance but not strictly required.
+- **Accessibility — carries the RISK-22 intent, and likely improves on it.** The
+  eject lever existed to serve Parkinson's H&Y II–III / post-stroke hand weakness
+  (≤1 N, tool-free). Clustering *can* be a net gain — fewer/larger targets than
+  many small recessed levers; **ejector springs make extraction near-zero-force**
+  (the module self-presents); and re-throwing the one actuator **auto-reseats the
+  whole cluster via the plate + plungers**, replacing N precise placements with one
+  coarse action; swaps happen with the helmet off on a surface. But it is a
+  requirement, not automatic — the actuator MUST be: a **large easy-grip control**
+  (palm/hook, not a fingertip pinch); a **push/pull over-center lever throw — NOT a
+  twist cam** (twisting defeats weak grip / limited forearm rotation / tremor);
+  **low input force via mechanical advantage** (the RISK-22 low-force intent
+  restated as input force, not per-module extraction); **one-handed**, large
+  forgiving target, clear open/closed state. **Validate by HFE formative** (5 subjects, Parkinson's
+  H&Y II–III / post-stroke) — the NP-TOOL-ZM-001 OI-4 eject-lever study re-pointed
+  at the cluster actuator.
+- **Optional alignment:** cluster boundaries may align to the lobe groups (a
+  frontal-left cluster ≈ the frontal-left group), but are ultimately set by
+  geometry/curvature — final cluster size is decided with the lattice work (§7
+  REG-1 / MECH-2).
+
+### 5.5 Layer-closed interlock (safety + EMF integrity)
+
+A **Hall/contact sensor on each of the four latches** reports closed/open. The
+safety architecture **refuses to enable any modality unless all four report
+closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
+
+- Every active session runs with the full passive shield intact AND the active
+  cancellation available (fluxgates + coils connected).
+- During a module swap the bowls are open and shielding is degraded — but no
+  session can run in that state, so the degraded-open condition is never live.
+
+### 5.6 Monitoring + service
+
+- The **ground-bond contact resistance is trended in SHDR**; a rising trend flags
+  shield/bond degradation, reusing the existing fleet EMF-attenuation monitoring
+  (§5.1/§4.3 of CLAUDE.md). This is device-condition data — no user biology.
+- The **conductive parting-plane gasket is a replaceable/tethered service part**
+  (conductive elastomer takes compression set over clamp cycles).
+- Prototype acceptance: measured attenuation with bowls clamped must **meet or
+  exceed the single-shell baseline (≥35–45 dB ELF magnetic, ≥40–60 dB RF)** — the
+  redesign may not regress the shielding claim.
+
+### 5.7 Cross-section (schematic)
+
+```
+   outside
+ ══════════════  ← outer bowl: CFRP / mu-metal / Pd / absorber (unbroken)  +Helmholtz coils
+        )        ← labyrinth overlap lip + conductive bead  (parting-plane seam)
+   ┌─cluster─┐   ← inter-bowl gap: module cluster clamp (reached only when unclamped)
+ ──────────────  ← inner bowl: sockets + fluxgate sensors
+  ▢ ▢ ▢ ▢ ▢ ▢   ← tiled hexagonal module field
+ ~~~~~~~~~~~~~~  ← scalp
+        ▲
+   clamp latch (×4: ant L/R, post L/R — four-corner) → Hall + BeCu ground-bond
+   posterior-center BOSS (no latch) = blind-mate sensor/coil connector
+```
+
+## 6. Reliability + manufacturing
+
+- **Cluster clamps (not per-module levers, §5.4a):** one over-center lever-throw
+  clamp per 3–7-tile cluster (~4–10 total) with per-module spring plungers; low
+  one-handed input force (RISK-22 intent). Cuts moving parts 5–15× and removes the
+  per-module short-arm problem — so the hex-size floor is now bezel + embedding,
+  not lever arm.
+- **IP:** each hex needs a perimeter gasket; total seam length rises vs 5 big
+  zones, so IPX4 rides on ~27–30 co-molded gaskets — a per-tile seam-length budget
+  is required (RISK-16 gasket precedent).
+- **Thermal:** whole-vault active tiling raises aggregate scalp thermal load; keep
+  per-tile NTC + hardware throttle (42 °C limit unchanged).
+- **Mold:** one universal module-shell mold; element population is FPC/loadings
+  only. This is the inventory/tooling win.
+- **Option A carries no new high-cycle flex on rigid components** — flex reliability
+  is deferred to Option B.
+
+## 7. Open items / gates
+
+| ID | Item | Blocking for |
+|----|------|--------------|
+| GATE-1 | Curvature-scan bench (5–95th pct head map) validates Δκ≈0.0039 | Tooling |
+| GATE-2 | PBM coupling bench: rigid 40 mm coupon at temporal worst case meets dose spec | Tooling; go/no-go A-vs-B |
+| OI-HEXMAP-01 | Config-partition NVRAM HAL for the module map | FW integration |
+| OI-HEXMAP-02 | Module I2C/1-wire `inventory_fn` | FW integration |
+| REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget | Lattice design; EEG/tES/safety-electrode placement |
+| SMART-1 | Smart-socket coverage decision: all sockets I2C+TIA-capable vs a subset (governs where T1-C can seat) | Socket PCB cost/scope |
+| SW-1 | Wire `np_module_map_check_placement()` presence-gates into modality enable (Oz-before-visual-stim; electrodes-before-tES) | Safety enforcement (primitive delivered) |
+| EMF-1 | Prototype 2-layer attenuation ≥ single-shell baseline | Shield claim |
+| EMF-2 | Ground-bond ≤50 mΩ over clamp-cycle life; SHDR trend armed | Driven-shield function |
+| EMF-3 | Gasket line-pressure map: min compression at back-center (PL–PR) span AND the two side (ear) spans ≥ seal threshold with the four-corner AL/AR/PL/PR pattern; if marginal → lip/gasket stiffening (or lateral/posterior-center latch) | Latch-pattern sign-off; RF seal |
+| MECH-1 | Four-corner clamp (AL/AR/PL/PR) + posterior-center connector boss + Hall interlock detail | Shell tooling |
+| MECH-2 | Module cluster-clamp design: cluster size (3–7), over-center lever-throw actuator (not a twist cam) + per-module spring plungers, curvature span, low one-handed input force | Inner-bowl tooling; serviceability |
+| DOC-1 | CLAUDE.md §7/§13 integration once GATE-1/2 PASS | Baseline promotion |
+
+## 8. Cross-references
+
+- ISA: `docs/np_hex_zm_isa.md`
+- Firmware: `firmware/hub_control/np_module_map.{h,c}`, `tests/np_module_map_tests.c`
+- Predecessors: NP-TOOL-ZM-001 (legacy zone-module tooling), NP-DRV-SHELL-001
+  (shell FPC routing), NP-HW-FPC-001 (FPC pinout), CLAUDE.md §3/§4.3/§7 (modality
+  stack, EMF shielding, durability).

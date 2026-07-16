@@ -38,6 +38,15 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_cvns_reenable_tests PRIVATE include)
     target_compile_options(np_cvns_reenable_tests PRIVATE -Wall -Wextra -std=c11)
 
+    # Hexagonal zone-module addressing + NVRAM map (module-redesign study).
+    # Pure C, no FreeRTOS; NVRAM I/O behind an injected HAL.
+    add_executable(np_module_map_tests
+        tests/np_module_map_tests.c
+        src/np_module_map.c
+    )
+    target_include_directories(np_module_map_tests PRIVATE include)
+    target_compile_options(np_module_map_tests PRIVATE -Wall -Wextra -std=c11)
+
     # OI-LOG-01..04: session-log eMMC backing (block-coalescing append writer).
     add_executable(np_log_backend_tests
         tests/np_log_backend_tests.c
@@ -99,6 +108,7 @@ set(HUB_SOURCES
     src/np_adaptation_log.c
     src/np_safety_spi.c
     src/np_cvns_reenable.c        # OI-CVNS-HUB-01: CVNS re-enable manager
+    src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
     src/np_hub_freertos_hooks.c   # FreeRTOS app hooks (stack overflow, malloc, assert)
 
     modules/np_mod_pbm.c
