@@ -1,0 +1,25 @@
+protocol "PBM — Alzheimer's 40Hz" {
+    id: "30000001-0000-0000-0000-000000000000"
+    description: "Whole-head 810nm pulsed 40Hz transcranial PBM plus bilateral intranasal 660nm for Alzheimer's / dementia (gamma-entrainment rationale). Grade A. 3–7x/week, 8–12+ weeks."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["pbm", "gamma", "40Hz", "clinical", "alzheimers"]
+    conditions: ["Alzheimer's Disease", "Dementia"]
+    references: [["PBM protocol database §1 (Grade A)", "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"], ["Wozniak-Mital 2026 DB RCT", "https://doi.org/10.1016/j.pmip.2026"]]
+    duration: 20m
+
+    pbm_transcranial {
+        intensity: 30%
+        frequency: 40Hz
+        duty_cycle: 25%
+        zones: all
+        wavelength: 660_808nm
+    }
+
+    pbm_intranasal {
+        intensity: 60%
+        frequency: 40Hz
+        duty_cycle: 25%
+    }
+}

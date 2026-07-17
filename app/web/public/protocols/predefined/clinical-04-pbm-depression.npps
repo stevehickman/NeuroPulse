@@ -1,0 +1,19 @@
+protocol "PBM — Depression (DLPFC)" {
+    id: "30000004-0000-0000-0000-000000000000"
+    description: "Bilateral DLPFC 810–830nm transcranial PBM (target ≥60 J/cm²/site) for major depressive disorder. Grade B. 2–3x/week, 6–8 weeks."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["pbm", "clinical", "depression", "dlpfc"]
+    conditions: ["Major Depressive Disorder"]
+    references: [["PBM protocol database §4 (Grade B)", "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"], ["Cassano 2018 DB RCT", "https://doi.org/10.1089/photob.2018"]]
+    duration: 20m
+
+    pbm_transcranial {
+        intensity: 80%
+        frequency: 0Hz
+        duty_cycle: 25%
+        zones: ["Frontal Left", "Frontal Right"]
+        wavelength: 660_808nm
+    }
+}

@@ -1,0 +1,17 @@
+protocol "tACS — Chronic Pain / Fibromyalgia (alpha 10Hz)" {
+    id: "30000049-0000-0000-0000-000000000000"
+    description: "S1 / somatosensory 10Hz alpha tACS, 1–2mA, 20–40 min, reducing pain sensitivity. Grade C."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tacs", "alpha", "clinical", "pain", "fibromyalgia"]
+    conditions: ["Chronic Pain", "Fibromyalgia"]
+    references: [["Neuromod protocol database §4 tACS pain (Grade C)", "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"], ["Ahn 2019", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    bes_tacs {
+        frequency: 10Hz
+        intensity: 1mA
+        waveform: sinusoidal
+    }
+}

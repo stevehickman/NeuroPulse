@@ -2,24 +2,27 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** A  
-**Date:** 2026-05-17  
+**Revision:** B  
+**Date:** 2026-07-17  
 **Status:** ACTIVE  
-**Effective Date:** 2026-05-17  
+**Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved By:** Steve Hickman, CEO  
-**References:** —  
+**References:** NP-NPPS-GRAM-001 Rev B (`npps/grammar/npps.peggy`); NP-HEX-ZM-001 (module redesign)  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —
 
 ---
 
+> **Rev B (2026-07-17) — module-set zones, conditions, references, one namespace.** With the hexagonal module redesign (NP-HEX-ZM-001) a *zone* is no longer a fixed hardware index — it is a **named set of modules**. Rev B adds top-level `zone` blocks (eight predefined lobe zones + user-defined), top-level `condition` blocks (condition name → external definition link), protocol `conditions` and `references` fields, and the single-namespace / whole-directory loading model (§1.6). Legacy `zones: all|front|rear` and `zones: [0,1]` numeric forms still parse.
+
 **NeurOne Protocol Script (NPPS)** is the text format used to define, share, and store NeurOne session protocols. Files use the `.npps` extension.
 
 ## Contents
 
-1. [Basics](#1-basics)
+1. [Basics](#1-basics)  
+   1.6 [Single namespace and file loading](#16-single-namespace-and-file-loading)
 2. [Value types](#2-value-types)
 3. [Protocol block](#3-protocol-block)
 4. [Modalities](#4-modalities)  
@@ -41,8 +44,11 @@
 5. [Intervals](#5-intervals)
 6. [Composite block](#6-composite-block)
 7. [Limits block](#7-limits-block)
-8. [Multi-block files](#8-multi-block-files)
-9. [Grammar summary](#9-grammar-summary)
+8. [Zone block](#8-zone-block)
+9. [Condition block](#9-condition-block)
+10. [Multi-block files](#10-multi-block-files)
+11. [Grammar summary](#11-grammar-summary)
+12. [Predefined protocol coverage (source-doc map)](#12-predefined-protocol-coverage-source-doc-map)
 
 ---
 
@@ -68,6 +74,21 @@ Indentation and blank lines are insignificant. Newlines act as field separators 
 ### Case sensitivity
 
 All keywords, field names, and enumerated values are **case-sensitive** and lowercase (e.g. `protocol`, `pbm_transcranial`, `sinusoidal`). String values like names, descriptions, and tags are not interpreted by the parser.
+
+### 1.6 Single namespace and file loading
+
+Every `.npps` file the app loads shares **one flat namespace**. There is exactly one namespace; every concept defined in any loaded file — protocols, composites, zones, conditions, limits — is visible to every other loaded file and may be cross-referenced by name. A zone defined in one file can be referenced from a protocol in another; a condition defined once is referenced by many protocols. This is deliberate: one namespace enforces the simplicity and commonality that avoids confusion. Until a proven need for something more sophisticated arises, NPPS uses this single-namespace model with no per-file scoping, imports, or qualified names.
+
+**Directory model.** All loadable `.npps` files live under **one fixed protocol directory** (`/protocols/predefined/` for the shipped library). That directory may contain subdirectories; the **entire tree is read recursively** and every `.npps` file in it is loaded into the single namespace. The location is fixed until a proven need for flexibility arises.
+
+**Name resolution.** References resolve by exact name string:
+
+- A protocol's `conditions` entries must each match the `name` of a loaded `condition` block.
+- A `pbm_transcranial` block's named `zones` entries must each match the `name` of a loaded `zone` block (or a predefined lobe zone).
+
+Because the whole tree loads before resolution, definition order and file boundaries do not matter — a protocol may reference a zone or condition defined in a file loaded later. Unresolved references are reported by the loader (`validateNamespaceReferences`) and, for the shipped library, are covered by an automated test. Duplicate zone/condition names across files are a last-write-wins collision and are surfaced as a warning.
+
+**Manifest.** The shipped library lists its files in `manifest.json` with four arrays: `zones`, `conditions`, `protocols`, `composites`. Definition files (`zones`, `conditions`) are loaded first so all references resolve.
 
 ---
 
@@ -131,6 +152,20 @@ allowed_bands: [alpha, theta, gamma]
 
 Tag arrays accept unquoted identifiers and keywords as elements.
 
+### Reference arrays
+
+A `references` value is an array whose elements are each either a **bare URL/path string** or a **`[label, url]` pair**:
+
+```
+references: [
+    "https://doi.org/10.1000/example",
+    ["Cassano 2018 RCT", "https://doi.org/10.1089/photob.2018"],
+    ["PBM database §4", "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"]
+]
+```
+
+A bare string is shown as its own link text; a pair shows `label` and links to `url`. Links may be external (`https://…`) or in-repo document paths.
+
 ---
 
 ## 3. Protocol block
@@ -155,6 +190,24 @@ protocol "Gamma Focus" {
 | `tags` | string array | `[]` | Freeform category labels. |
 | `duration` | duration | `20m` | Fixed session length. |
 | `interval_count` | int | — | Alternative to `duration`: session runs for N modality intervals. |
+| `conditions` | string array | `[]` | Clinical conditions this protocol targets. Each entry MUST match the `name` of a loaded `condition` block (§9). Used for filtering/search and to surface condition definitions to the user. |
+| `references` | reference array | `[]` | Links to documents that define the protocol or show what it is good for (evidence, applicability, expected results). Each entry is either a bare URL/path string or a `[label, url]` pair (§2, Reference arrays). Openable in an external browser. |
+
+**Conditions field.** The `conditions` list uses standard medical condition names, each defined once in a `condition` block that carries a link to an external definition (e.g. Wikipedia / ICD-11). When a user is selecting a condition, the app offers to open that link in an external browser so they understand what the condition is. A condition name that does not resolve to a loaded `condition` block is a reference error (§1.6).
+
+```
+protocol "PBM — Depression (DLPFC)" {
+    id: "30000004-0000-0000-0000-000000000000"
+    tags: [pbm, clinical, depression]
+    conditions: ["Major Depressive Disorder"]
+    references: [
+        ["PBM protocol database §4 (Grade B)", "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"],
+        ["Cassano 2018 DB RCT", "https://doi.org/10.1089/photob.2018"]
+    ]
+    duration: 20m
+    ...
+}
+```
 
 ### Modality blocks
 
@@ -230,22 +283,35 @@ Photobiomodulation via scalp-facing LED zones.
 | `intensity` | `intensity_percent` | number | 0–100 |
 | `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
 | `duty_cycle` | `duty_cycle_percent` | number | 1–25 (firmware max) |
-| `zones` | `zones` | string | `all` `front` `rear` `custom` |
-| `custom_zones` | `custom_zones` | int array | zone indices, e.g. `[0,1]` |
+| `zones` | `zones` | string \| array | `all` `front` `rear` `custom`, a **named-zone-reference array**, or a legacy numeric-index array |
+| `custom_zones` | `custom_zones` | int array | legacy zone indices, e.g. `[0,1]` |
 | `wavelength` | `wavelength` | string | `660_808nm` `1064nm` `660_808_1064nm` |
+
+**Zones are module sets (Rev B).** With the module redesign a zone is a **named set of modules** (§8), not a fixed hardware index. The preferred way to target zones is to reference zone definitions by name:
 
 ```
 pbm_transcranial {
     intensity: 80%
     frequency: 40Hz
     duty_cycle: 25%
-    zones: all
+    zones: ["Frontal Left", "Frontal Right"]   # named zone references (§8)
     wavelength: 660_808nm
 }
 ```
 
-`frequency: 0` (or `0Hz`) selects continuous-wave (CW) mode.  
-`zones: custom` requires `custom_zones: [0, 1, 2]` (zone indices 0–4 front-to-rear).
+Each string must match the `name` of a loaded `zone` block or one of the eight predefined lobe zones (§8). The eight predefined names are `Frontal Left/Right`, `Temporal Left/Right`, `Parietal Left/Right`, `Occipital Left/Right`.
+
+**Accepted `zones` forms:**
+
+| Form | Meaning |
+|------|---------|
+| `zones: all` | every module in the map |
+| `zones: front` / `zones: rear` | legacy fixed regions (retained) |
+| `zones: ["Frontal Left", …]` | **named zone references** (Rev B, preferred) |
+| `zones: [0, 1, 2]` | legacy numeric zone indices (equivalent to `zones: custom` + `custom_zones`) |
+| `zones: custom` + `custom_zones: [0,1]` | legacy explicit indices |
+
+`frequency: 0` (or `0Hz`) selects continuous-wave (CW) mode.
 
 ---
 
@@ -856,9 +922,106 @@ limits "T1 Home Defaults" {
 
 ---
 
-## 8. Multi-block files
+## 8. Zone block
 
-A single `.npps` file may contain any number of `protocol`, `composite`, and `limits` blocks in any order.
+A **zone** is a named set of modules. With the hexagonal module redesign (NP-HEX-ZM-001) helmet sockets each hold an interchangeable module, and a zone selects a subset of those modules for a modality to act on. Zones are referenced by name from modality blocks (e.g. `pbm_transcranial`'s `zones` field, §4.1) and are defined once, in one namespace, cross-referenceable from any file (§1.6).
+
+```
+zone "Frontal Left" {
+    id: "40000001-0000-0000-0000-000000000000"
+    description: "Predefined lobe zone — frontal lobe, left hemisphere."
+    lobe: frontal
+    side: left
+}
+```
+
+### Predefined zones
+
+Eight predefined lobe zones ship with the app, matching the firmware predefined groups (`np_module_map` / `np_pgroup_t`: L/R × frontal/temporal/parietal/occipital):
+
+`Frontal Left`, `Frontal Right`, `Temporal Left`, `Temporal Right`, `Parietal Left`, `Parietal Right`, `Occipital Left`, `Occipital Right`.
+
+These live in `00-zones.npps` and are marked read-only. Protocols reference them by name.
+
+### User-defined zones
+
+Users may define their own zones in any `.npps` file in the protocol directory tree. A zone uses **exactly one selector shape**, resolved against the live module map:
+
+| Selector | Fields | Meaning |
+|----------|--------|---------|
+| Lobe group | `lobe:` + `side:` | all modules in sockets matching a lobe + hemisphere (predefined-style) |
+| Socket set | `sockets: [int, …]` | all modules in an explicit list of socket ids |
+| Address set | `addrs: [[socket, element], …]` | an explicit list of `(socket:element)` addresses |
+
+An optional **element-type filter** applies to any selector:
+
+| Field | Type | Meaning |
+|-------|------|---------|
+| `types` | element-type array | restrict to these element types |
+| `exclude_types` | bool | `false` (default): include only `types`; `true`: exclude `types` |
+
+**Element-type names** mirror firmware `np_elem_type_t`: `led_660`, `led_808`, `led_1064`, `led_1170`, `eeg_electrode`, `tes_electrode`, `vns_contact`, `ntc`, `pd_forward`, `pd_back`, `ir_prox`, `hall`, `dual_electrode`.
+
+**Lobe names:** `frontal`, `temporal`, `parietal`, `occipital`. **Side names:** `left`, `right`, `midline`.
+
+```
+# a custom socket-set zone restricted to PBM LEDs
+zone "My Crown Patch" {
+    description: "Two crown sockets, LED elements only"
+    sockets: [11, 12]
+    types: [led_660, led_808]
+}
+
+# an explicit address-set zone
+zone "Oz Electrode" {
+    addrs: [[24, 0]]
+    types: [eeg_electrode]
+}
+```
+
+### Zone block fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Optional stable UUID. Presence marks the zone predefined/read-only. |
+| `description` | string | Human-readable label. |
+| `lobe` | string | Lobe selector (with `side`). |
+| `side` | string | `left` `right` `midline`. |
+| `sockets` | int array | Socket-set selector. |
+| `addrs` | array of `[socket, element]` | Address-set selector. |
+| `types` | element-type array | Optional type filter. |
+| `exclude_types` | bool | Invert the type filter. |
+
+---
+
+## 9. Condition block
+
+A **condition** definition pairs a standard medical condition name with a link to an external definition of that condition (e.g. Wikipedia, ICD-11). Its purpose is to let protocols reference conditions using standard medical terms while giving the user reference material to understand what the condition is. Protocols list conditions in their `conditions` field (§3); when a user selects a condition, the app offers to open the `link` in an external browser.
+
+```
+condition "Major Depressive Disorder" {
+    id: "41000004-0000-0000-0000-000000000000"
+    link: "https://en.wikipedia.org/wiki/Major_depressive_disorder"
+    code: "6A70"
+}
+```
+
+### Condition block fields
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `link` | string | **Required.** URL to an external definition (opened in an external browser). |
+| `id` | string | Optional stable UUID. |
+| `code` | string | Optional standard code (ICD-11 MMS / SNOMED / MeSH). |
+| `description` | string | Optional short gloss. |
+
+The shipped condition registry lives in `00-conditions.npps`. Every condition named by a predefined protocol is defined there; the mapping is validated automatically.
+
+---
+
+## 10. Multi-block files
+
+A single `.npps` file may contain any number of `protocol`, `composite`, `limits`, `zone`, and `condition` blocks in any order.
 
 ```
 # combined-sleep.npps
@@ -883,19 +1046,28 @@ limits "Sleep Session Limits" {
 }
 ```
 
-When parsing, `protocol` and `composite` blocks produce protocol entries; `limits` blocks are extracted separately via `parseNPPSLimits()`. Unknown top-level blocks cause a parse error.
+When parsing, `protocol` and `composite` blocks produce protocol entries; `limits` blocks are extracted separately via `parseNPPSLimits()`; `zone` and `condition` blocks populate the namespace (§1.6). Unknown top-level blocks cause a parse error.
 
 ---
 
-## 9. Grammar summary
+## 11. Grammar summary
+
+Complete summary of NPPS Rev B (source of truth: `npps/grammar/npps.peggy`, NP-NPPS-GRAM-001 Rev B).
 
 ```
+# ── Top level ──────────────────────────────────────────────────────────────
 file        := entry*
-entry       := protocol | composite | limits
+entry       := protocol | composite | limits | zone | condition
 
+# ── Protocol ───────────────────────────────────────────────────────────────
 protocol    := 'protocol' STRING '{' proto_field* '}'
 proto_field := meta_field | typed_modality_block
 meta_field  := IDENT ':' value
+# recognised protocol meta_field keys:
+#   id, description, author, version, readonly, tags,
+#   duration, interval_count, conditions, references
+#   conditions := 'conditions' ':' STRING_ARRAY    # names → condition blocks
+#   references := 'references' ':' REF_ARRAY
 
 typed_modality_block := TYPE_ID '{' modality_param* '}'
 modality_param       := IDENT ':' value
@@ -903,23 +1075,93 @@ TYPE_ID              := 'pbm_transcranial' | 'pbm_intranasal' | 'eeg_neurofeedba
                       | 'bes_tacs' | 'tdcs' | 'vns_hrv' | 'audio_entrainment'
                       | 'visual_stimulation' | 'qeeg_21ch' | 'tms' | 'pbm_deep_1170nm'
                       | 'clinical_tacs' | 'hd_tdcs' | 'cervical_vns' | 'vibrotactile_40hz'
+# pbm_transcranial 'zones' value:
+#   ZONE_KEYWORD ('all'|'front'|'rear'|'custom') | STRING_ARRAY (named zone refs)
+#                                                | INT_ARRAY (legacy indices)
 
+# ── Composite ──────────────────────────────────────────────────────────────
 composite   := 'composite' STRING '{' composite_field* '}'
 composite_field := meta_field | layer_block
+# composite meta_field keys add: conflict_resolution, conditions, references
 layer_block := 'layer' STRING '{' layer_field* '}'
 layer_field := 'start' ':' DURATION | 'duration' ':' DURATION
              | 'end' ':' DURATION | 'intensity_scale' ':' NUMBER
 
+# ── Limits ─────────────────────────────────────────────────────────────────
 limits      := 'limits' STRING? '{' limits_top_field* '}'
 limits_top_field := 'level' ':' LEVEL_ID | 'helmet_id' ':' STRING
                   | 'individual_id' ':' STRING | 'description' ':' STRING
                   | TYPE_ID '{' limits_modality_field* '}'
 
+# ── Zone (named set of modules) ────────────────────────────────────────────
+zone        := 'zone' STRING '{' zone_field* '}'
+zone_field  := 'id' ':' STRING | 'description' ':' STRING
+             | 'lobe' ':' LOBE_ID | 'side' ':' SIDE_ID       # lobe-group selector
+             | 'sockets' ':' INT_ARRAY                        # socket-set selector
+             | 'addrs' ':' ADDR_ARRAY                         # address-set selector
+             | 'types' ':' ELEM_TYPE_ARRAY | 'exclude_types' ':' BOOL
+LOBE_ID     := 'frontal' | 'temporal' | 'parietal' | 'occipital'
+SIDE_ID     := 'left' | 'right' | 'midline'
+ELEM_TYPE   := 'led_660' | 'led_808' | 'led_1064' | 'led_1170'
+             | 'eeg_electrode' | 'tes_electrode' | 'vns_contact' | 'ntc'
+             | 'pd_forward' | 'pd_back' | 'ir_prox' | 'hall' | 'dual_electrode'
+ADDR_ARRAY  := '[' ( '[' INT ',' INT ']' (',' '[' INT ',' INT ']')* )? ']'
+
+# ── Condition (name → external definition link) ────────────────────────────
+condition   := 'condition' STRING '{' condition_field* '}'
+condition_field := 'link' ':' STRING        # required
+             | 'id' ':' STRING | 'code' ':' STRING | 'description' ':' STRING
+
+# ── Values ─────────────────────────────────────────────────────────────────
 value       := STRING | NUMBER | BOOL | array | IDENT
 array       := '[' (value (',' value)*)? ']'
+STRING_ARRAY:= '[' (STRING (',' STRING)*)? ']'          # also accepts bare idents
+REF_ARRAY   := '[' (ref (',' ref)*)? ']'
+ref         := STRING | '[' STRING ',' STRING ']'        # url | [label, url]
+INT_ARRAY   := '[' (INT (',' INT)*)? ']'
 DURATION    := NUMBER ('s' | 'm')?   # bare number = seconds
 BOOL        := 'true' | 'false'
 LEVEL_ID    := 'global' | 'helmet' | 'individual'
 ```
 
-Unknown `meta_field` keys (and unknown fields in limits sub-blocks) are silently skipped for forward compatibility. `limits` blocks accept an optional name string for existing files that omit it.
+**Namespace & resolution (§1.6):** all loaded files share one namespace. `conditions` entries resolve to `condition` block names; `pbm_transcranial` named `zones` entries resolve to `zone` block names (predefined or user). The whole protocol directory tree loads before resolution.
+
+**Forward compatibility:** unknown `meta_field` keys (and unknown fields in limits/zone/condition sub-blocks) are silently skipped. `limits` blocks accept an optional name string for existing files that omit it. Legacy `zones` forms (`all`/`front`/`rear`/`custom` + `custom_zones`, and numeric `zones: [0,1]`) continue to parse.
+
+---
+
+## 12. Predefined protocol coverage (source-doc map)
+
+The predefined library includes a protocol for **every uniquely-identified, device-expressible** protocol in `docs/pbm_neuro_protocols.md` and `docs/neuromod_neuro_protocols.md`. "Device-expressible" means the protocol maps onto a NeurOne modality block (a scalp/transcranial, intranasal, auricular-taVNS, T2-cervical-tcVNS, T2-focal-TMS, tES, or tACS channel). Protocols the hardware cannot deliver are **excluded and listed below with the reason**, so coverage is auditable rather than silently partial.
+
+Clinical presets are `clinical-NN-*.npps` (ids in the `30000xxx` band), each carrying `conditions` and `references`. The `npps-predefined` test asserts the full set parses and every zone/condition reference resolves.
+
+### Included (device-expressible)
+
+- **PBM** (`docs/pbm_neuro_protocols.md`): Alzheimer's/dementia (40 Hz), MCI, cognitive enhancement (1064 nm), depression (DLPFC), anxiety, TBI (chronic) + intranasal, autism (pediatric 40 Hz), Parkinson's (transcranial channel only), stroke (chronic rehab).
+- **TMS** (T2 focal figure-8): depression (10 Hz + accelerated iTBS), neuropathic/chronic pain, migraine prophylaxis, PTSD, stroke motor, Parkinson's motor, fibromyalgia, addiction (DLPFC).
+- **VNS** (auricular taVNS + T2 cervical tcVNS): epilepsy, depression, stroke rehab (paired), anxiety, insomnia, PTSD (paired), autonomic/HRV, migraine/cluster (tcVNS), migraine prophylaxis (taVNS 1 Hz), tinnitus (taVNS + tones).
+- **tDCS / HD-tDCS**: working-memory/cognition, depression, chronic pain/fibromyalgia, stroke rehab, aphasia, schizophrenia, addiction, epilepsy (cathodal), ADHD, MS fatigue, Alzheimer's, Parkinson's.
+- **tACS** (`bes_tacs` T1 / `clinical_tacs` T2): working memory (theta), fluid intelligence (gamma), Alzheimer's (gamma), Parkinson's tremor (phase-locked), depression (alpha), sleep/memory (slow-osc), schizophrenia, ADHD, chronic pain/fibromyalgia, WM restoration (HD).
+
+### Excluded (not device functions) — with reason
+
+| Source-doc protocol | Reason excluded |
+|---------------------|-----------------|
+| PBM Bell's palsy / facial nerve | Peripheral facial-nerve point application — not a scalp/transcranial helmet site. |
+| PBM carpal tunnel | Peripheral wrist/limb site. |
+| PBM diabetic peripheral neuropathy | Peripheral feet/limb site (+ documented null for 890 nm LED pads). |
+| PBM spinal cord injury | Spinal / transcutaneous / implanted-fiber site. |
+| PBM multiple sclerosis (strength) | Peripheral muscle site, not CNS. |
+| PBM stroke — acute (<24 h) | Documented null in 3 large RCTs; contraindicated as monotherapy. |
+| PBM epilepsy | Grade D projection, no human trials; visual-flicker contraindication — not offered as a preset (safety-gated). |
+| PBM Parkinson's neck (vagus) + abdomen (gut) light | Off-scalp peripheral sites; the transcranial channel *is* included. |
+| TMS deep-coil indications: depression-deep (H1), OCD (H7), smoking cessation (H4) | Deep H-coils are not the device's focal figure-8 coil. |
+| TMS migraine — acute (handheld sTMS, occipital) | Handheld single-pulse device; occipital not a coil target. |
+| TMS aphasia (right IFG), schizophrenia (temporoparietal), tinnitus (auditory cortex), Alzheimer's multisite (language/parietal) | Coil targets outside the device target set (`DLPFC_L/R`, `VLPFC_L`, `ACC`, `MPFC`, `M1_L/R`). |
+| VNS implanted cervical; VBLOC abdominal block | Surgical implants — 510(k) predicate/reference only, not device functions. |
+| VNS cardiac/inflammatory/metabolic taVNS rows (AFib, heart failure, POTS, RA, IBD, obesity, glucose, GI) | taVNS-expressible in principle but out of the neuro/wellness scope and gated by medical-device claims; documented, not shipped as presets. |
+| tDCS dysphagia (pharyngeal M1), disorders-of-consciousness | Niche placements / inpatient clinical use; documented, not shipped as presets. |
+| tACS essential tremor (cerebellar phase-locked) | Cerebellar placement; documented, not shipped as a preset. |
+
+*Reference material and parameters for excluded protocols remain in the two source docs; exclusion is about what ships as a runnable preset, not about the evidence.*

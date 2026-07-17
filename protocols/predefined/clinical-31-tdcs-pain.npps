@@ -1,0 +1,17 @@
+protocol "tDCS — Chronic Pain / Fibromyalgia (M1)" {
+    id: "30000031-0000-0000-0000-000000000000"
+    description: "Anodal M1 (C3/C4), cathode contralateral supraorbital, 2mA, 20 min, 5–10 sessions. Grade B. M1 > DLPFC for fibromyalgia."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tdcs", "clinical", "pain", "fibromyalgia"]
+    conditions: ["Chronic Pain", "Fibromyalgia"]
+    references: [["Neuromod protocol database §3 tDCS pain (Grade B)", "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"], ["Fregni 2006; Valle 2009", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    tdcs {
+        intensity: 2mA
+        electrode_pairs: [["C3", "Fp2"]]
+        ramp: 30s
+    }
+}

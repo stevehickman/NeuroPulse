@@ -1,0 +1,17 @@
+protocol "tDCS — Working Memory (anodal F3)" {
+    id: "30000029-0000-0000-0000-000000000000"
+    description: "Anodal tDCS over left DLPFC (F3), cathode right supraorbital, 1–2mA, applied during a working-memory task. Grade A. Effects require concurrent engagement."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tdcs", "clinical", "cognition"]
+    conditions: ["Mild Cognitive Impairment"]
+    references: [["Neuromod protocol database §3 tDCS cognition (Grade A)", "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"], ["Fregni 2005", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    tdcs {
+        intensity: 1.5mA
+        electrode_pairs: [["F3", "Fp2"]]
+        ramp: 30s
+    }
+}

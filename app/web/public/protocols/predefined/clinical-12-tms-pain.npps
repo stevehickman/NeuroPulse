@@ -1,0 +1,19 @@
+protocol "TMS — Chronic / Neuropathic Pain (M1)" {
+    id: "30000012-0000-0000-0000-000000000000"
+    description: "Figure-8 HF rTMS over M1 (somatotopic, contralateral), 80–90% RMT, 1500–2000 pulses. Level A recommendation. Grade A. Repeated sessions."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tms", "clinical", "pain", "t2"]
+    conditions: ["Neuropathic Pain", "Chronic Pain"]
+    references: [["Neuromod protocol database §1 TMS pain (Grade A)", "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"], ["Lefaucheur 2008/2020", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    tms {
+        tms_protocol: rTMS
+        frequency: 10Hz
+        intensity_percent_mt: 85
+        target: M1_R
+        pulse_count: 2000
+    }
+}

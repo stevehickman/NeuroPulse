@@ -5,6 +5,8 @@ protocol "HRV + taVNS Synchronised" {
     version: "1.0"
     readonly: true
     tags: [HRV, VNS, advanced, synchronised]
+    conditions: ["Generalized Anxiety Disorder"]
+    references: [["taVNS respiration-gated HRV (Grade B)", "docs/neuromod_neuro_protocols.md"]]
     duration: 20m
 
     vns_hrv {

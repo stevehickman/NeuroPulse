@@ -1,0 +1,18 @@
+protocol "taVNS + HRV — Autonomic Balance" {
+    id: "30000025-0000-0000-0000-000000000000"
+    description: "Auricular taVNS synchronized with HRV coherence biofeedback (respiration-gated) to raise HRV and parasympathetic tone. Grade B (mechanistic). The backbone of the VNS+HRV clip."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["vns", "tavns", "hrv", "clinical", "autonomic"]
+    conditions: ["Generalized Anxiety Disorder"]
+    references: [["Neuromod protocol database §2 VNS autonomic/HRV (Grade B)", "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"], ["Clancy 2014; Sclocco 2019", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    vns_hrv {
+        frequency: 25Hz
+        intensity: 1mA
+        hrv_protocol: tavns_sync
+        breathing_rate: 6
+    }
+}

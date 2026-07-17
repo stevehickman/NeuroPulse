@@ -5,6 +5,8 @@ protocol "Alpha Calm" {
     version: "1.0"
     readonly: true
     tags: [calm, alpha, relaxation, stress, hrv]
+    conditions: ["Generalized Anxiety Disorder"]
+    references: [["tACS depression/alpha & taVNS anxiety context", "docs/neuromod_neuro_protocols.md"]]
     duration: 20m
 
     pbm_transcranial {

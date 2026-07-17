@@ -6,6 +6,11 @@ import {
   NPCompositeLayer,
   NPIntervalConfig,
   NPModalityParams,
+  NPProtocolReference,
+  NPZoneDefinition,
+  NPConditionDefinition,
+  referenceUrl,
+  referenceLabel,
 } from '../types/protocol';
 import { NPLimitsSet } from '../types/limits';
 
@@ -22,6 +27,12 @@ function strArr(arr: string[]): string {
 function numArr(arr: number[]): string {
   if (arr.length === 0) return '[]';
   return `[${arr.join(', ')}]`;
+}
+function refArr(refs: NPProtocolReference[]): string {
+  if (refs.length === 0) return '[]';
+  return `[${refs.map(r =>
+    typeof r === 'string' ? str(r) : `[${str(referenceLabel(r))}, ${str(referenceUrl(r))}]`
+  ).join(', ')}]`;
 }
 
 function formatTime(seconds: number): string {
@@ -50,7 +61,9 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
         `frequency: ${formatHz(p.frequencyHz)}`,
         `duty_cycle: ${p.dutyCyclePercent}%`,
       ];
-      if (p.zones === 'custom' && p.customZones) {
+      if (p.zones === 'named' && p.zoneRefs) {
+        lines.push(`zones: ${strArr(p.zoneRefs)}`);
+      } else if (p.zones === 'custom' && p.customZones) {
         lines.push(`custom_zones: ${numArr(p.customZones)}`);
       } else {
         lines.push(`zones: ${p.zones}`);
@@ -221,6 +234,12 @@ function serializeSingleProtocol(proto: NPProtocolDefinition): string {
   lines.push(`${INDENT}version: ${str(proto.version)}`);
   if (proto.isReadOnly) lines.push(`${INDENT}readonly: true`);
   lines.push(`${INDENT}tags: ${strArr(proto.tags)}`);
+  if (proto.conditions && proto.conditions.length > 0) {
+    lines.push(`${INDENT}conditions: ${strArr(proto.conditions)}`);
+  }
+  if (proto.references && proto.references.length > 0) {
+    lines.push(`${INDENT}references: ${refArr(proto.references)}`);
+  }
   if (proto.timingMode.type === 'duration') {
     lines.push(`${INDENT}duration: ${formatTime(proto.timingMode.seconds)}`);
   } else {
@@ -258,6 +277,12 @@ function serializeComposite(composite: NPCompositeProtocol): string {
   lines.push(`${INDENT}version: ${str(composite.version)}`);
   if (composite.isReadOnly) lines.push(`${INDENT}readonly: true`);
   lines.push(`${INDENT}tags: ${strArr(composite.tags)}`);
+  if (composite.conditions && composite.conditions.length > 0) {
+    lines.push(`${INDENT}conditions: ${strArr(composite.conditions)}`);
+  }
+  if (composite.references && composite.references.length > 0) {
+    lines.push(`${INDENT}references: ${refArr(composite.references)}`);
+  }
   lines.push(`${INDENT}conflict_resolution: ${composite.conflictResolution}`);
   composite.layers.forEach(l => {
     lines.push('');
@@ -270,6 +295,37 @@ function serializeComposite(composite: NPCompositeProtocol): string {
 export function serializeProtocol(entry: NPProtocolEntry): string {
   if (entry.kind === 'single') return serializeSingleProtocol(entry.protocol);
   return serializeComposite(entry.composite);
+}
+
+// ─── Zone / condition serialization ────────────────────────────────────────────
+
+export function serializeZone(zone: NPZoneDefinition): string {
+  const lines: string[] = [];
+  lines.push(`zone ${str(zone.name)} {`);
+  if (zone.id) lines.push(`${INDENT}id: ${str(zone.id)}`);
+  if (zone.description) lines.push(`${INDENT}description: ${str(zone.description)}`);
+  if (zone.lobe) lines.push(`${INDENT}lobe: ${zone.lobe}`);
+  if (zone.side) lines.push(`${INDENT}side: ${zone.side}`);
+  if (zone.sockets) lines.push(`${INDENT}sockets: ${numArr(zone.sockets)}`);
+  if (zone.addrs) {
+    const addrs = zone.addrs.map(([s, e]) => `[${s}, ${e}]`).join(', ');
+    lines.push(`${INDENT}addrs: [${addrs}]`);
+  }
+  if (zone.types) lines.push(`${INDENT}types: ${strArr(zone.types)}`);
+  if (zone.excludeTypes) lines.push(`${INDENT}exclude_types: true`);
+  lines.push('}');
+  return lines.join('\n');
+}
+
+export function serializeCondition(cond: NPConditionDefinition): string {
+  const lines: string[] = [];
+  lines.push(`condition ${str(cond.name)} {`);
+  if (cond.id) lines.push(`${INDENT}id: ${str(cond.id)}`);
+  lines.push(`${INDENT}link: ${str(cond.link)}`);
+  if (cond.code) lines.push(`${INDENT}code: ${str(cond.code)}`);
+  if (cond.description) lines.push(`${INDENT}description: ${str(cond.description)}`);
+  lines.push('}');
+  return lines.join('\n');
 }
 
 export function serializeNPPS(entries: NPProtocolEntry[]): string {

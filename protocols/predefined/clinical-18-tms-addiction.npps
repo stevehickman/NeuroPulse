@@ -1,0 +1,19 @@
+protocol "TMS — Addiction (DLPFC)" {
+    id: "30000018-0000-0000-0000-000000000000"
+    description: "Figure-8 HF rTMS over DLPFC for substance-use craving. Grade B/C. 10+ sessions. (Deep H4 insula targeting for smoking cessation is a non-device coil.)"
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tms", "clinical", "addiction", "t2"]
+    conditions: ["Substance Use Disorder"]
+    references: [["Neuromod protocol database §1 TMS addiction (Grade B/C)", "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"]]
+    duration: 15m
+
+    tms {
+        tms_protocol: rTMS
+        frequency: 10Hz
+        intensity_percent_mt: 100
+        target: DLPFC_L
+        pulse_count: 1500
+    }
+}

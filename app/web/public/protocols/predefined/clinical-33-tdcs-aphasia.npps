@@ -1,0 +1,17 @@
+protocol "tDCS — Post-Stroke Aphasia (L-IFG)" {
+    id: "30000033-0000-0000-0000-000000000000"
+    description: "Anodal left IFG / perilesional, cathode right supraorbital, 1mA, 20 min, up to 15 sessions, + speech therapy. Grade B."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tdcs", "clinical", "aphasia", "stroke"]
+    conditions: ["Aphasia", "Stroke"]
+    references: [["Neuromod protocol database §3 tDCS aphasia (Grade B)", "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"], ["Fridriksson 2018", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    tdcs {
+        intensity: 1mA
+        electrode_pairs: [["F7", "Fp2"]]
+        ramp: 30s
+    }
+}

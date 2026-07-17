@@ -1,0 +1,17 @@
+protocol "tDCS — Alzheimer's (bilateral temporal)" {
+    id: "30000039-0000-0000-0000-000000000000"
+    description: "Anodal bilateral temporal or left DLPFC, 1.5–2mA, 15–30 min, for recognition memory. Grade C."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tdcs", "clinical", "alzheimers"]
+    conditions: ["Alzheimer's Disease"]
+    references: [["Neuromod protocol database §3 tDCS Alzheimer's (Grade C)", "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"], ["Khedr 2014/2019", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    tdcs {
+        intensity: 2mA
+        electrode_pairs: [["T3", "T4"]]
+        ramp: 30s
+    }
+}

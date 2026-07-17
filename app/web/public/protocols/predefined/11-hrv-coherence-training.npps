@@ -5,6 +5,8 @@ protocol "HRV Coherence Training" {
     version: "1.0"
     readonly: true
     tags: [HRV, coherence, stress, relaxation, breathing]
+    conditions: ["Generalized Anxiety Disorder"]
+    references: [["taVNS autonomic / HRV (Grade B)", "docs/neuromod_neuro_protocols.md"]]
     duration: 20m
 
     vns_hrv {

@@ -1,0 +1,17 @@
+protocol "tDCS — Stroke Motor Rehab (M1)" {
+    id: "30000032-0000-0000-0000-000000000000"
+    description: "Anodal ipsilesional M1 (or dual montage), 1–2mA, 20–40 min, paired with rehab/CIMT. Grade B. Weak alone."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tdcs", "clinical", "stroke"]
+    conditions: ["Stroke"]
+    references: [["Neuromod protocol database §3 tDCS stroke (Grade B)", "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"], ["Lindenberg 2010", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    tdcs {
+        intensity: 2mA
+        electrode_pairs: [["C3", "C4"]]
+        ramp: 30s
+    }
+}

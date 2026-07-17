@@ -1,0 +1,17 @@
+protocol "tDCS — MS Fatigue (S1/DLPFC)" {
+    id: "30000038-0000-0000-0000-000000000000"
+    description: "Anodal S1 (bilateral) or left DLPFC, 1.5–2mA, 15–20 min, for multiple-sclerosis fatigue. Grade B. Home/remote feasible."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tdcs", "clinical", "ms", "fatigue"]
+    conditions: ["Multiple Sclerosis"]
+    references: [["Neuromod protocol database §3 tDCS MS (Grade B)", "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"]]
+    duration: 20m
+
+    tdcs {
+        intensity: 2mA
+        electrode_pairs: [["C3", "Fp2"]]
+        ramp: 30s
+    }
+}

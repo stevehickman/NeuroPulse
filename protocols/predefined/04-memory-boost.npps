@@ -5,6 +5,8 @@ protocol "Memory Boost" {
     version: "1.0"
     readonly: true
     tags: [memory, theta, learning, consolidation]
+    conditions: ["Mild Cognitive Impairment"]
+    references: [["PBM cognitive enhancement (Grade A)", "docs/pbm_neuro_protocols.md#3-cognitive-enhancement--healthy-adults--cognitive-aging--grade-a"]]
     duration: 30m
 
     pbm_transcranial {

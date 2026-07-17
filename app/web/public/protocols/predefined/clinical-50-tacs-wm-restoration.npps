@@ -1,0 +1,18 @@
+protocol "tACS — WM Restoration (older adults, HD)" {
+    id: "30000050-0000-0000-0000-000000000000"
+    description: "Frontotemporal HD phase-tuned individual-theta tACS restoring working memory in older adults (Reinhart & Nguyen 2019). Grade A. T2 multi-channel."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tacs", "theta", "clinical", "cognition", "t2"]
+    conditions: ["Mild Cognitive Impairment"]
+    references: [["Neuromod protocol database §4 tACS WM restoration (Grade A)", "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"], ["Reinhart & Nguyen 2019", "docs/neuromod_neuro_protocols.md"]]
+    duration: 25m
+
+    clinical_tacs {
+        frequency: 6Hz
+        intensity: 1mA
+        channel_count: 8
+        waveform: sinusoidal
+    }
+}

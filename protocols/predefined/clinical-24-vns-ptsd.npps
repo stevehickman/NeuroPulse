@@ -1,0 +1,17 @@
+protocol "taVNS — PTSD (extinction-paired)" {
+    id: "30000024-0000-0000-0000-000000000000"
+    description: "Auricular taVNS (concha), 25Hz, paired to fear-extinction trials, enhancing extinction memory. Grade B (paired)."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["vns", "tavns", "clinical", "ptsd", "paired"]
+    conditions: ["Post-Traumatic Stress Disorder"]
+    references: [["Neuromod protocol database §2 VNS PTSD (Grade B paired)", "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"]]
+    duration: 20m
+
+    vns_hrv {
+        frequency: 25Hz
+        intensity: 0.5mA
+        hrv_protocol: standalone
+    }
+}
