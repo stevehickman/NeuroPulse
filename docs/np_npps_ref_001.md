@@ -924,58 +924,50 @@ limits "T1 Home Defaults" {
 
 ## 8. Zone block
 
-A **zone** is a named set of modules. With the hexagonal module redesign (NP-HEX-ZM-001) helmet sockets each hold an interchangeable module, and a zone selects a subset of those modules for a modality to act on. Zones are referenced by name from modality blocks (e.g. `pbm_transcranial`'s `zones` field, §4.1) and are defined once, in one namespace, cross-referenceable from any file (§1.6).
+A **zone** is a named set of modules, **defined as an explicit list of socket (major) addresses**. With the hexagonal module redesign (NP-HEX-ZM-001) each helmet socket holds an interchangeable module, and a socket's id is the module's address — the *first half* of the two-level `(socket:element)` scheme. A zone lists the sockets whose modules it selects.
+
+Listing sockets directly is what makes zones flexible: any set of sockets can be a zone, **including non-contiguous ones** (e.g. a scattered montage, or left + right frontal minus the midline). Zones are referenced by name from modality blocks (e.g. `pbm_transcranial`'s `zones` field, §4.1) and are defined once in one namespace, cross-referenceable from any file (§1.6).
 
 ```
 zone "Frontal Left" {
     id: "40000001-0000-0000-0000-000000000000"
-    description: "Predefined lobe zone — frontal lobe, left hemisphere."
-    lobe: frontal
-    side: left
+    description: "Frontal lobe, left hemisphere."
+    sockets: [1, 2, 4, 5, 7, 8, 11, 12, 13, 16, 17]
 }
 ```
 
+> **Socket ids** are integers matching the firmware socket (major) address (`np_module_map`). In the module-address diagram (NP-HEX-ZM-001) the `S-NN` labels are these ids — `S-40` is socket `40`. The `S-` prefix is display only.
+
 ### Predefined zones
 
-Eight predefined lobe zones ship with the app, matching the firmware predefined groups (`np_module_map` / `np_pgroup_t`: L/R × frontal/temporal/parietal/occipital):
-
-`Frontal Left`, `Frontal Right`, `Temporal Left`, `Temporal Right`, `Parietal Left`, `Parietal Right`, `Occipital Left`, `Occipital Right`.
-
-These live in `00-zones.npps` and are marked read-only. Protocols reference them by name.
+Eight predefined lobe zones ship in `00-zones.npps` (read-only), one per lobe × hemisphere — `Frontal Left/Right`, `Temporal Left/Right`, `Parietal Left/Right`, `Occipital Left/Right`. Each is the socket membership of that lobe half, taken from the helmet module-address map and split at the sagittal midline. **Center-column (midline) sockets belong to both the Left and Right zone of their lobe**, so a lobe's two hemispheric zones together cover the whole lobe and a bilateral protocol referencing both gets full coverage. Protocols reference these zones by name.
 
 ### User-defined zones
 
-Users may define their own zones in any `.npps` file in the protocol directory tree. A zone uses **exactly one selector shape**, resolved against the live module map:
+Users may define their own zones in any `.npps` file in the protocol directory tree — just list the sockets:
 
-| Selector | Fields | Meaning |
-|----------|--------|---------|
-| Lobe group | `lobe:` + `side:` | all modules in sockets matching a lobe + hemisphere (predefined-style) |
-| Socket set | `sockets: [int, …]` | all modules in an explicit list of socket ids |
-| Address set | `addrs: [[socket, element], …]` | an explicit list of `(socket:element)` addresses |
+```
+# an arbitrary, non-contiguous zone
+zone "My Montage" {
+    description: "Two frontal sockets plus one occipital"
+    sockets: [4, 6, 67]
+}
+```
 
-An optional **element-type filter** applies to any selector:
+**Optional element-type filter.** A socket's module carries several element types; a zone may restrict itself to some of them (e.g. only the PBM LEDs, or only the EEG electrodes, within the listed sockets):
 
 | Field | Type | Meaning |
 |-------|------|---------|
-| `types` | element-type array | restrict to these element types |
+| `types` | element-type array | restrict to these element types within the listed sockets |
 | `exclude_types` | bool | `false` (default): include only `types`; `true`: exclude `types` |
 
 **Element-type names** mirror firmware `np_elem_type_t`: `led_660`, `led_808`, `led_1064`, `led_1170`, `eeg_electrode`, `tes_electrode`, `vns_contact`, `ntc`, `pd_forward`, `pd_back`, `ir_prox`, `hall`, `dual_electrode`.
 
-**Lobe names:** `frontal`, `temporal`, `parietal`, `occipital`. **Side names:** `left`, `right`, `midline`.
-
 ```
-# a custom socket-set zone restricted to PBM LEDs
-zone "My Crown Patch" {
-    description: "Two crown sockets, LED elements only"
-    sockets: [11, 12]
+# the listed sockets, but only their PBM LEDs
+zone "Crown LEDs" {
+    sockets: [31, 40, 49]
     types: [led_660, led_808]
-}
-
-# an explicit address-set zone
-zone "Oz Electrode" {
-    addrs: [[24, 0]]
-    types: [eeg_electrode]
 }
 ```
 
@@ -983,13 +975,10 @@ zone "Oz Electrode" {
 
 | Field | Type | Notes |
 |-------|------|-------|
+| `sockets` | int array | **The zone's modules, by socket (major) address.** The defining field. |
 | `id` | string | Optional stable UUID. Presence marks the zone predefined/read-only. |
 | `description` | string | Human-readable label. |
-| `lobe` | string | Lobe selector (with `side`). |
-| `side` | string | `left` `right` `midline`. |
-| `sockets` | int array | Socket-set selector. |
-| `addrs` | array of `[socket, element]` | Address-set selector. |
-| `types` | element-type array | Optional type filter. |
+| `types` | element-type array | Optional element-type filter within the listed sockets. |
 | `exclude_types` | bool | Invert the type filter. |
 
 ---
@@ -1093,19 +1082,15 @@ limits_top_field := 'level' ':' LEVEL_ID | 'helmet_id' ':' STRING
                   | 'individual_id' ':' STRING | 'description' ':' STRING
                   | TYPE_ID '{' limits_modality_field* '}'
 
-# ── Zone (named set of modules) ────────────────────────────────────────────
+# ── Zone (named set of modules = a list of socket addresses) ───────────────
 zone        := 'zone' STRING '{' zone_field* '}'
-zone_field  := 'id' ':' STRING | 'description' ':' STRING
-             | 'lobe' ':' LOBE_ID | 'side' ':' SIDE_ID       # lobe-group selector
-             | 'sockets' ':' INT_ARRAY                        # socket-set selector
-             | 'addrs' ':' ADDR_ARRAY                         # address-set selector
+zone_field  := 'sockets' ':' INT_ARRAY                        # the zone's modules (defining field)
+             | 'id' ':' STRING | 'description' ':' STRING
              | 'types' ':' ELEM_TYPE_ARRAY | 'exclude_types' ':' BOOL
-LOBE_ID     := 'frontal' | 'temporal' | 'parietal' | 'occipital'
-SIDE_ID     := 'left' | 'right' | 'midline'
+# 'sockets' lists socket (major) addresses; arbitrary/non-contiguous sets are fine.
 ELEM_TYPE   := 'led_660' | 'led_808' | 'led_1064' | 'led_1170'
              | 'eeg_electrode' | 'tes_electrode' | 'vns_contact' | 'ntc'
              | 'pd_forward' | 'pd_back' | 'ir_prox' | 'hall' | 'dual_electrode'
-ADDR_ARRAY  := '[' ( '[' INT ',' INT ']' (',' '[' INT ',' INT ']')* )? ']'
 
 # ── Condition (name → external definition link) ────────────────────────────
 condition   := 'condition' STRING '{' condition_field* '}'

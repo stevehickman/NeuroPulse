@@ -28,8 +28,6 @@ import {
   NPConditionDefinition,
   NPProtocolReference,
   NPNamespace,
-  NPLobe,
-  NPSide,
   NPElementType,
 } from '../types/protocol';
 import {
@@ -1240,8 +1238,9 @@ class Parser {
     return composite;
   }
 
-  // zone "Name" { lobe: frontal side: left  |  sockets: [..]  |  addrs: [[s,e]..]
-  //               types: [..]  exclude_types: bool  description: ".."  id: ".." }
+  // zone "Name" { sockets: [1, 2, 3]  types: [..]  exclude_types: bool
+  //               description: ".."  id: ".." }
+  // A zone is a list of socket (major) addresses — the modules it selects.
   private parseZoneBlock(): NPZoneDefinition {
     this.skipNewlines();
     if (this.current.type !== 'STRING') {
@@ -1253,24 +1252,15 @@ class Parser {
     this.expect('LBRACE');
     this.skipNewlines();
 
-    const zone: NPZoneDefinition = { name, isPredefined: false };
+    const zone: NPZoneDefinition = { name, sockets: [], isPredefined: false };
     while (!this.tryBrace()) {
       const { key } = this.readKeyValue();
       switch (key) {
         case 'id': zone.id = this.readString(); zone.isPredefined = true; break;
         case 'description': zone.description = this.readString(); break;
-        case 'lobe': zone.lobe = this.readString() as NPLobe; break;
-        case 'side': zone.side = this.readString() as NPSide; break;
         case 'sockets': {
           const arr = this.readGenericArray();
           zone.sockets = arr.map(Number).filter(n => Number.isFinite(n));
-          break;
-        }
-        case 'addrs': {
-          const arr = this.readGenericArray();
-          zone.addrs = arr
-            .filter(a => Array.isArray(a) && (a as unknown[]).length === 2)
-            .map(a => [Number((a as unknown[])[0]), Number((a as unknown[])[1])] as [number, number]);
           break;
         }
         case 'types': {

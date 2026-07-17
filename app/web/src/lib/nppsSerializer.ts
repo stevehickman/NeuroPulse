@@ -304,13 +304,7 @@ export function serializeZone(zone: NPZoneDefinition): string {
   lines.push(`zone ${str(zone.name)} {`);
   if (zone.id) lines.push(`${INDENT}id: ${str(zone.id)}`);
   if (zone.description) lines.push(`${INDENT}description: ${str(zone.description)}`);
-  if (zone.lobe) lines.push(`${INDENT}lobe: ${zone.lobe}`);
-  if (zone.side) lines.push(`${INDENT}side: ${zone.side}`);
-  if (zone.sockets) lines.push(`${INDENT}sockets: ${numArr(zone.sockets)}`);
-  if (zone.addrs) {
-    const addrs = zone.addrs.map(([s, e]) => `[${s}, ${e}]`).join(', ');
-    lines.push(`${INDENT}addrs: [${addrs}]`);
-  }
+  lines.push(`${INDENT}sockets: ${numArr(zone.sockets)}`);
   if (zone.types) lines.push(`${INDENT}types: ${strArr(zone.types)}`);
   if (zone.excludeTypes) lines.push(`${INDENT}exclude_types: true`);
   lines.push('}');

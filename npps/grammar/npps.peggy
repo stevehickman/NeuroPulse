@@ -105,13 +105,13 @@ LayerField
 
 // ─────────────────────────── Zone ────────────────────────────────
 //
-// A zone is a NAMED SET OF MODULES. Selector fields inside the block define
-// which modules belong to the zone; the app resolves them against the live
-// module map (firmware np_module_map). One selector form per zone:
-//   lobe + side              → predefined-style lobe group (e.g. frontal/left)
-//   sockets: [int, ...]      → explicit socket-id set
-//   addrs: [[socket,elem],…] → explicit (socket:element) address set
-// Optional type filter: types: [<elem-type>, ...] with exclude_types: bool.
+// A zone is a NAMED SET OF MODULES, defined as an explicit list of socket
+// (major) addresses — the first half of the firmware two-level
+// (socket:element) scheme (np_module_map). Listing sockets directly makes
+// arbitrary, non-contiguous zones definable:
+//   sockets: [int, ...]      → the modules (by socket id) in this zone
+// Optional element-type filter: types: [<elem-type>, ...] with exclude_types.
+// The eight predefined lobe zones ship as socket lists in 00-zones.npps.
 
 ZoneEntry
   = "zone" __ name:StringLiteral _ "{" _ fields:ZoneField* _ "}" _

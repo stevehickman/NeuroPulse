@@ -14,24 +14,24 @@ import type {
 // ─── Zone definitions ──────────────────────────────────────────────────────────
 
 describe('zone blocks', () => {
-  it('parses a lobe/side zone', () => {
-    const { zones } = parseNPPSFile('zone "Left Frontal" { id: "z1" lobe: frontal side: left }');
+  it('parses a socket-list zone with a stable id (predefined)', () => {
+    const { zones } = parseNPPSFile('zone "Frontal Left" { id: "z1" sockets: [1, 2, 4, 5] }');
     expect(zones).toHaveLength(1);
-    expect(zones[0]).toMatchObject({ name: 'Left Frontal', lobe: 'frontal', side: 'left', id: 'z1' });
+    expect(zones[0]).toMatchObject({ name: 'Frontal Left', sockets: [1, 2, 4, 5], id: 'z1' });
     expect(zones[0].isPredefined).toBe(true);
   });
 
-  it('parses a socket-set zone', () => {
-    const { zones } = parseNPPSFile('zone "Temples" { sockets: [12, 13, 14] }');
-    expect(zones[0].sockets).toEqual([12, 13, 14]);
+  it('parses an arbitrary, non-contiguous socket-list zone', () => {
+    const { zones } = parseNPPSFile('zone "Scattered" { sockets: [3, 17, 40, 78] }');
+    expect(zones[0].sockets).toEqual([3, 17, 40, 78]);
     expect(zones[0].isPredefined).toBe(false);
   });
 
-  it('parses an address-set zone with a type filter', () => {
+  it('parses a socket-list zone with an element-type filter', () => {
     const { zones } = parseNPPSFile(
-      'zone "Frontal LEDs" { addrs: [[3, 0], [3, 1], [4, 0]] types: [led_660, led_808] }'
+      'zone "Frontal LEDs" { sockets: [3, 4] types: [led_660, led_808] }'
     );
-    expect(zones[0].addrs).toEqual([[3, 0], [3, 1], [4, 0]]);
+    expect(zones[0].sockets).toEqual([3, 4]);
     expect(zones[0].types).toEqual(['led_660', 'led_808']);
   });
 
@@ -134,8 +134,8 @@ describe('protocol conditions, references, and zone refs', () => {
 describe('single namespace and reference validation', () => {
   it('resolves zones and conditions defined in a separate file', () => {
     const defsFile = parseNPPSFile(`
-      zone "Left Frontal" { id: "zf-l" lobe: frontal side: left }
-      zone "Right Frontal" { id: "zf-r" lobe: frontal side: right }
+      zone "Left Frontal" { id: "zf-l" sockets: [1, 2, 4, 5] }
+      zone "Right Frontal" { id: "zf-r" sockets: [1, 3, 5, 6] }
       condition "Major Depressive Disorder" { link: "https://x/mdd" }
     `);
     const protoFile = parseNPPSFile(PROTO_WITH_REFS);
@@ -157,10 +157,10 @@ describe('single namespace and reference validation', () => {
   });
 
   it('warns on duplicate zone names (last wins)', () => {
-    const a = parseNPPSFile('zone "Z" { lobe: frontal side: left }');
-    const b = parseNPPSFile('zone "Z" { lobe: frontal side: right }');
+    const a = parseNPPSFile('zone "Z" { sockets: [1, 2] }');
+    const b = parseNPPSFile('zone "Z" { sockets: [3, 4] }');
     const { namespace, warnings } = buildNamespace([a, b]);
     expect(warnings.some(w => w.includes("Duplicate zone name 'Z'"))).toBe(true);
-    expect(namespace.zones.get('Z')?.side).toBe('right');
+    expect(namespace.zones.get('Z')?.sockets).toEqual([3, 4]);
   });
 });

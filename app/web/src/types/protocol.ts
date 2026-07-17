@@ -434,29 +434,23 @@ export function referenceLabel(r: NPProtocolReference): string {
 
 // ─── Zone definition (named set of modules) ────────────────────────────────────
 
-export type NPLobe = 'frontal' | 'temporal' | 'parietal' | 'occipital';
-export type NPSide = 'left' | 'right' | 'midline';
-
 // Element-type names mirror firmware np_elem_type_t (np_module_map.h).
 export type NPElementType =
   | 'led_660' | 'led_808' | 'led_1064' | 'led_1170'
   | 'eeg_electrode' | 'tes_electrode' | 'vns_contact' | 'ntc'
   | 'pd_forward' | 'pd_back' | 'ir_prox' | 'hall' | 'dual_electrode';
 
-// Exactly one selector shape is populated per zone.
+// A zone is a named SET OF MODULES, defined as an explicit list of socket
+// (major) addresses — the first half of the firmware two-level
+// (socket:element) scheme (np_module_map.h). Listing sockets directly makes
+// arbitrary, non-contiguous zones definable. An optional element-type filter
+// restricts which elements within those modules the zone selects.
 export interface NPZoneDefinition {
   name: string;
   id?: string;
   description?: string;
-  // Selector A — lobe group (predefined-style): resolves via firmware lobe/side.
-  lobe?: NPLobe;
-  side?: NPSide;
-  // Selector B — explicit socket-id set.
-  sockets?: number[];
-  // Selector C — explicit (socket:element) address set.
-  addrs?: [number, number][];
-  // Optional element-type filter (applies to any selector).
-  types?: NPElementType[];
+  sockets: number[];        // socket (major) addresses — the modules in this zone
+  types?: NPElementType[];  // optional element-type filter within those modules
   excludeTypes?: boolean;   // false: include only `types`; true: exclude them
   isPredefined?: boolean;
 }
