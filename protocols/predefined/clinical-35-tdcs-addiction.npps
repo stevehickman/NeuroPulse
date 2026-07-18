@@ -1,0 +1,17 @@
+protocol "tDCS — Addiction / Craving (bilateral DLPFC)" {
+    id: "30000035-0000-0000-0000-000000000000"
+    description: "Bilateral DLPFC, right-anodal / left-cathodal, 2mA, 20 min, reducing craving across substances. Grade B. Repeated sessions for durability."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tdcs", "clinical", "addiction"]
+    conditions: ["Substance Use Disorder"]
+    references: [["Neuromod protocol database §3 tDCS addiction (Grade B)", "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"], ["Klauss 2014", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    tdcs {
+        intensity: 2mA
+        electrode_pairs: [["F4", "F3"]]
+        ramp: 30s
+    }
+}

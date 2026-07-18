@@ -1,0 +1,17 @@
+protocol "tACS — Sleep / Memory Consolidation (SO 0.75Hz)" {
+    id: "30000046-0000-0000-0000-000000000000"
+    description: "Slow-oscillation (0.75Hz) tACS time-locked during NREM sleep to boost spindles and declarative memory. Grade C."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tacs", "sleep", "clinical", "memory"]
+    conditions: ["Insomnia"]
+    references: [["Neuromod protocol database §4 tACS sleep (Grade C)", "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"], ["Ketz 2018", "docs/neuromod_neuro_protocols.md"]]
+    duration: 30m
+
+    bes_tacs {
+        frequency: 0.75Hz
+        intensity: 0.75mA
+        waveform: sinusoidal
+    }
+}

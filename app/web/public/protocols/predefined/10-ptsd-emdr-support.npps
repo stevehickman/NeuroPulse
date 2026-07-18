@@ -5,6 +5,8 @@ protocol "PTSD EMDR Support" {
     version: "1.0"
     readonly: true
     tags: [ptsd, emdr, bilateral, trauma, vns, clinical]
+    conditions: ["Post-Traumatic Stress Disorder"]
+    references: [["TMS PTSD (Grade B)", "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"], ["taVNS PTSD extinction (Grade B)", "docs/neuromod_neuro_protocols.md"]]
     duration: 60m
 
     visual_stimulation {

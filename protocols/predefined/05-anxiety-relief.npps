@@ -5,6 +5,8 @@ protocol "Anxiety Relief" {
     version: "1.0"
     readonly: true
     tags: [anxiety, stress, hrv, vns, alpha, calm]
+    conditions: ["Generalized Anxiety Disorder"]
+    references: [["PBM anxiety (Grade B)", "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"], ["taVNS anxiety (Grade B)", "docs/neuromod_neuro_protocols.md"]]
     duration: 20m
 
     vns_hrv {

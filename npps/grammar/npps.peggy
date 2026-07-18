@@ -1,16 +1,30 @@
 // NPPS PEG Grammar — NeurOne Protocol Script
-// NP-NPPS-GRAM-001 Rev A
+// NP-NPPS-GRAM-001 Rev B
 // Single source of truth for NPPS syntax.
 // Generate parser: bunx peggy npps.peggy --format es
+//
+// Rev B (2026-07-17): zones are no longer fixed hardware indices. A zone is a
+// NAMED SET OF MODULES, defined by a top-level `zone` block and referenced by
+// name from protocol modality blocks. Eight predefined lobe zones ship with the
+// app (L/R × frontal/temporal/parietal/occipital), matching the firmware
+// np_module_map predefined groups; users may define their own. Added top-level
+// `condition` blocks (condition name → external reference link) and protocol
+// `conditions` / `references` fields. All loaded files share ONE namespace
+// (see NP-NPPS-REF-001 §1.6): a zone or condition defined in any file under the
+// protocol directory tree is referenceable by name from any other file.
 //
 // AST node types:
 //   File          = Entry[]
 //   Entry         = { kind: 'single',    protocol:  ProtocolNode  }
 //                 | { kind: 'composite', composite: CompositeNode }
 //                 | { kind: 'limits',    limits:    LimitsNode    }
+//                 | { kind: 'zone',      zone:      ZoneNode      }
+//                 | { kind: 'condition', condition: ConditionNode }
 //   ProtocolNode  = { name: string, fields: Field[], modalities: ModalityBlock[] }
 //   CompositeNode = { name: string, fields: Field[], layers: LayerBlock[] }
 //   LimitsNode    = { name: string|null, fields: Field[], modalityLimits: ModalityBlock[] }
+//   ZoneNode      = { name: string, fields: Field[] }
+//   ConditionNode = { name: string, fields: Field[] }
 //   ModalityBlock = { type: string, fields: Field[] }
 //   LayerBlock    = { name: string, fields: Field[] }
 //   Field         = { key: string, value: Value }
@@ -35,6 +49,8 @@ Entry
   = ProtocolEntry
   / CompositeEntry
   / LimitsEntry
+  / ZoneEntry
+  / ConditionEntry
 
 // ─────────────────────────── Protocol ────────────────────────────
 
@@ -85,6 +101,37 @@ LayerBlock
     { return { _type: 'layer', name, fields }; }
 
 LayerField
+  = _ f:Field _ { return { key: f.key, value: f.value }; }
+
+// ─────────────────────────── Zone ────────────────────────────────
+//
+// A zone is a NAMED SET OF MODULES, defined as an explicit list of socket
+// (major) addresses — the first half of the firmware two-level
+// (socket:element) scheme (np_module_map). Listing sockets directly makes
+// arbitrary, non-contiguous zones definable:
+//   sockets: [int, ...]      → the modules (by socket id) in this zone
+// Optional element-type filter: types: [<elem-type>, ...] with exclude_types.
+// The eight predefined lobe zones ship as socket lists in 00-zones.npps.
+
+ZoneEntry
+  = "zone" __ name:StringLiteral _ "{" _ fields:ZoneField* _ "}" _
+    { return { kind: 'zone', zone: { name, fields } }; }
+
+ZoneField
+  = _ f:Field _ { return { key: f.key, value: f.value }; }
+
+// ─────────────────────────── Condition ───────────────────────────
+//
+// A condition definition pairs a standard condition name with a link to an
+// external definition (e.g. Wikipedia / MeSH). Protocols reference conditions
+// by name from their `conditions` field; every referenced name MUST resolve to
+// a condition block loaded into the namespace.
+
+ConditionEntry
+  = "condition" __ name:StringLiteral _ "{" _ fields:ConditionField* _ "}" _
+    { return { kind: 'condition', condition: { name, fields } }; }
+
+ConditionField
   = _ f:Field _ { return { key: f.key, value: f.value }; }
 
 // ─────────────────────────── Limits ──────────────────────────────

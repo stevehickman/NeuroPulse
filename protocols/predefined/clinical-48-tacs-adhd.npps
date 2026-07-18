@@ -1,0 +1,17 @@
+protocol "tACS — ADHD (gamma 40Hz)" {
+    id: "30000048-0000-0000-0000-000000000000"
+    description: "Frontal 40Hz gamma tACS improving attention. Grade C (pilot)."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tacs", "gamma", "40Hz", "clinical", "adhd"]
+    conditions: ["Attention Deficit Hyperactivity Disorder"]
+    references: [["Neuromod protocol database §4 tACS ADHD (Grade C)", "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"], ["Dallmer-Zerbe 2020", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    bes_tacs {
+        frequency: 40Hz
+        intensity: 1mA
+        waveform: sinusoidal
+    }
+}

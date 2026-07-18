@@ -1,0 +1,18 @@
+protocol "tACS — Alzheimer's (gamma 40Hz)" {
+    id: "30000043-0000-0000-0000-000000000000"
+    description: "40Hz gamma tACS over temporal/temporoparietal cortex, improving episodic memory (same 40Hz gamma target as PBM/GENUS — multi-modal convergence). Grade C."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tacs", "gamma", "40Hz", "clinical", "alzheimers"]
+    conditions: ["Alzheimer's Disease"]
+    references: [["Neuromod protocol database §4 tACS Alzheimer's (Grade C)", "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"], ["Benussi 2021", "docs/neuromod_neuro_protocols.md"]]
+    duration: 60m
+
+    clinical_tacs {
+        frequency: 40Hz
+        intensity: 3mA
+        channel_count: 4
+        waveform: sinusoidal
+    }
+}

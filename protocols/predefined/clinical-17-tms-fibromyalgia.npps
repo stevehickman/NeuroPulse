@@ -1,0 +1,19 @@
+protocol "TMS — Fibromyalgia (L-M1)" {
+    id: "30000017-0000-0000-0000-000000000000"
+    description: "Figure-8 rTMS over left M1, 10Hz, 80% RMT, 1500–2000 pulses. Grade B. 10 sessions + maintenance."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tms", "clinical", "fibromyalgia", "t2"]
+    conditions: ["Fibromyalgia"]
+    references: [["Neuromod protocol database §1 TMS fibromyalgia (Grade B)", "docs/neuromod_neuro_protocols.md#1-tms-transcranial-magnetic-stimulation"]]
+    duration: 20m
+
+    tms {
+        tms_protocol: rTMS
+        frequency: 10Hz
+        intensity_percent_mt: 80
+        target: M1_L
+        pulse_count: 1800
+    }
+}

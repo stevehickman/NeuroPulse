@@ -1,0 +1,17 @@
+protocol "taVNS — Depression" {
+    id: "30000020-0000-0000-0000-000000000000"
+    description: "Auricular taVNS (cymba conchae), 20Hz, 4–6mA to tolerance, 30 min twice daily, 8–12 weeks, for MDD. Grade B (taVNS). Chronic therapy — judged over months."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["vns", "tavns", "clinical", "depression"]
+    conditions: ["Major Depressive Disorder"]
+    references: [["Neuromod protocol database §2 VNS depression", "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"], ["Rong 2016; Song 2024", "docs/neuromod_neuro_protocols.md"]]
+    duration: 30m
+
+    vns_hrv {
+        frequency: 20Hz
+        intensity: 1.5mA
+        hrv_protocol: standalone
+    }
+}

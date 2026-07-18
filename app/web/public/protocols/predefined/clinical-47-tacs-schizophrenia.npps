@@ -1,0 +1,17 @@
+protocol "tACS — Schizophrenia (alpha 10Hz)" {
+    id: "30000047-0000-0000-0000-000000000000"
+    description: "Left frontotemporal 10Hz alpha tACS, 2mA, 20 min, 5 daily sessions, trending to reduced hallucinations. Grade C."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tacs", "alpha", "clinical", "schizophrenia"]
+    conditions: ["Schizophrenia"]
+    references: [["Neuromod protocol database §4 tACS schizophrenia (Grade C)", "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"], ["Mellin 2018", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    bes_tacs {
+        frequency: 10Hz
+        intensity: 1mA
+        waveform: sinusoidal
+    }
+}

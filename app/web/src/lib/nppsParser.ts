@@ -24,6 +24,11 @@ import {
   HDTdcsParams,
   CervicalVnsParams,
   VibrotactileParams,
+  NPZoneDefinition,
+  NPConditionDefinition,
+  NPProtocolReference,
+  NPNamespace,
+  NPElementType,
 } from '../types/protocol';
 import {
   NPLimitsSet,
@@ -80,8 +85,11 @@ interface Token {
 }
 
 const KEYWORDS = new Set([
-  'protocol', 'composite', 'limits', 'description', 'author', 'version',
+  'protocol', 'composite', 'limits', 'zone', 'condition',
+  'description', 'author', 'version',
   'tags', 'duration', 'interval_count',
+  'conditions', 'references', 'link',
+  'lobe', 'side', 'sockets', 'addrs', 'types', 'exclude_types',
   'enabled', 'repeat', 'layer',
   'start', 'end', 'intensity_scale', 'conflict_resolution',
   'level', 'global', 'helmet', 'individual', 'helmet_id', 'individual_id',
@@ -229,6 +237,10 @@ export function tokenize(text: string): Token[] {
 class Parser {
   private tokens: Token[];
   private pos: number = 0;
+  // Zone and condition definitions collected during parse() — not protocol
+  // entries; exposed to the caller for namespace assembly.
+  readonly zones: NPZoneDefinition[] = [];
+  readonly conditions: NPConditionDefinition[] = [];
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -311,7 +323,8 @@ class Parser {
     throw new NPPSParseError(`Expected bool, got ${t.type} (${String(t.value)})`, t.line);
   }
 
-  // Tags array: accepts both ["tag1", "tag2"] and [tag1, tag2] (unquoted idents)
+  // Tags array: accepts ["tag1", "tag2"], [tag1, tag2] (unquoted idents), and
+  // unit-suffixed numeric tags like [40Hz, 80%] (reconstructed value+unit).
   private readTagArray(): string[] {
     this.skipNewlines();
     this.expect('LBRACKET');
@@ -322,6 +335,10 @@ class Parser {
       if (t.type === 'STRING' || t.type === 'IDENT' || t.type === 'KEYWORD') {
         arr.push(t.value as string);
         this.advance();
+      } else if (t.type === 'NUMBER') {
+        // e.g. "40Hz" → number 40 + unit "Hz"; bare number → its text
+        arr.push(`${t.value}${t.unit ?? ''}`);
+        this.advance();
       } else {
         throw new NPPSParseError(`Expected tag value, got ${t.type}`, t.line);
       }
@@ -330,6 +347,23 @@ class Parser {
     }
     this.expect('RBRACKET');
     return arr;
+  }
+
+  // References array: each element is a bare URL/path string, or a [label, url]
+  // pair. Returns NPProtocolReference[].
+  private readReferences(): NPProtocolReference[] {
+    const arr = this.readGenericArray();
+    const out: NPProtocolReference[] = [];
+    for (const el of arr) {
+      if (typeof el === 'string') {
+        out.push(el);
+      } else if (Array.isArray(el) && el.length === 2) {
+        out.push({ label: String(el[0]), url: String(el[1]) });
+      } else if (Array.isArray(el) && el.length === 1) {
+        out.push(String(el[0]));
+      }
+    }
+    return out;
   }
 
   // Duration in seconds: "20m" → 1200, "300s" → 300, 1200 → 1200.
@@ -518,9 +552,13 @@ class Parser {
         // Parse limits block but skip it in the protocol entry list
         // (limits are extracted via parseNPPSLimits standalone export)
         this.parseLimitsBlock();
+      } else if (this.tryKeyword('zone')) {
+        this.zones.push(this.parseZoneBlock());
+      } else if (this.tryKeyword('condition')) {
+        this.conditions.push(this.parseConditionBlock());
       } else {
         throw new NPPSParseError(
-          `Expected 'protocol', 'composite', or 'limits', got '${String(this.current.value)}'`,
+          `Expected 'protocol', 'composite', 'limits', 'zone', or 'condition', got '${String(this.current.value)}'`,
           this.current.line
         );
       }
@@ -791,6 +829,8 @@ class Parser {
     let modalities: NPProtocolModality[] = [];
     let parsedId: string | undefined;
     let isReadOnly: boolean | undefined;
+    let conditions: string[] | undefined;
+    let references: NPProtocolReference[] | undefined;
     const now = new Date().toISOString();
 
     this.skipNewlines();
@@ -824,6 +864,8 @@ class Parser {
         case 'tags': tags = this.readTagArray(); break;
         case 'duration': timingMode = { type: 'duration', seconds: this.readDurationSeconds() }; break;
         case 'interval_count': timingMode = { type: 'interval_count', count: this.readNumber() }; break;
+        case 'conditions': conditions = this.readTagArray(); break;
+        case 'references': references = this.readReferences(); break;
         default:
           this.skipValue();
           break;
@@ -841,6 +883,8 @@ class Parser {
       modalities,
     };
     if (isReadOnly !== undefined) proto.isReadOnly = isReadOnly;
+    if (conditions !== undefined) proto.conditions = conditions;
+    if (references !== undefined) proto.references = references;
     if (parsedId !== undefined) proto.isPredefined = true;
     return proto;
   }
@@ -916,15 +960,37 @@ class Parser {
     switch (typeId) {
       case 'pbm_transcranial': {
         const d = def as PBMTranscranialParams;
+        // zones may be:
+        //   - a keyword ('all'/'front'/'rear'/'custom')
+        //   - a numeric array [0,1,2] → LEGACY custom zone indices (zones:'custom')
+        //   - a string array ["Left Frontal", ...] → Rev B named zone refs (zones:'named')
+        const rawZones = raw['zones'];
+        let zones: PBMTranscranialParams['zones'] = d.zones;
+        let zoneRefs: string[] | undefined;
+        let inlineCustomZones: number[] | undefined;
+        if (Array.isArray(rawZones)) {
+          const els = rawZones as unknown[];
+          if (els.every(e => typeof e === 'number')) {
+            zones = 'custom';
+            inlineCustomZones = els as number[];
+          } else {
+            zones = 'named';
+            zoneRefs = els.map(String);
+          }
+        } else if (typeof rawZones === 'string') {
+          zones = rawZones as PBMTranscranialParams['zones'];
+        }
         const params: PBMTranscranialParams = {
-          zones: str('zones', d.zones) as PBMTranscranialParams['zones'],
+          zones,
           wavelength: str('wavelength', d.wavelength) as PBMTranscranialParams['wavelength'],
           intensityPercent: num('intensity_percent', d.intensityPercent),
           frequencyHz: num('frequency_hz', d.frequencyHz),
           dutyCyclePercent: num('duty_cycle_percent', d.dutyCyclePercent),
         };
+        if (zoneRefs) params.zoneRefs = zoneRefs;
         const customZones = raw['custom_zones'];
         if (Array.isArray(customZones)) params.customZones = customZones as number[];
+        else if (inlineCustomZones) params.customZones = inlineCustomZones;
         return { type: 'pbm_transcranial', params };
       }
       case 'pbm_intranasal': {
@@ -1124,6 +1190,8 @@ class Parser {
     let conflictResolution: NPCompositeProtocol['conflictResolution'] = 'merge';
     let parsedId: string | undefined;
     let isReadOnly: boolean | undefined;
+    let conditions: string[] | undefined;
+    let references: NPProtocolReference[] | undefined;
     const now = new Date().toISOString();
 
     while (!this.tryBrace()) {
@@ -1147,6 +1215,8 @@ class Parser {
         case 'readonly': isReadOnly = this.readBool(); break;
         case 'tags': tags = this.readTagArray(); break;
         case 'conflict_resolution': conflictResolution = this.readString() as NPCompositeProtocol['conflictResolution']; break;
+        case 'conditions': conditions = this.readTagArray(); break;
+        case 'references': references = this.readReferences(); break;
         default:
           this.skipValue();
           break;
@@ -1162,8 +1232,86 @@ class Parser {
       layers, conflictResolution,
     };
     if (isReadOnly !== undefined) composite.isReadOnly = isReadOnly;
+    if (conditions !== undefined) composite.conditions = conditions;
+    if (references !== undefined) composite.references = references;
     if (parsedId !== undefined) composite.isPredefined = true;
     return composite;
+  }
+
+  // zone "Name" { sockets: [1, 2, 3]  types: [..]  exclude_types: bool
+  //               description: ".."  id: ".." }
+  // A zone is a list of socket (major) addresses — the modules it selects.
+  private parseZoneBlock(): NPZoneDefinition {
+    this.skipNewlines();
+    if (this.current.type !== 'STRING') {
+      throw new NPPSParseError(`Expected zone name string, got ${this.current.type}`, this.current.line);
+    }
+    const name = this.current.value as string;
+    this.advance();
+    this.skipNewlines();
+    this.expect('LBRACE');
+    this.skipNewlines();
+
+    const zone: NPZoneDefinition = { name, sockets: [], isPredefined: false };
+    while (!this.tryBrace()) {
+      const { key } = this.readKeyValue();
+      switch (key) {
+        case 'id': zone.id = this.readString(); zone.isPredefined = true; break;
+        case 'description': zone.description = this.readString(); break;
+        case 'sockets': {
+          const arr = this.readGenericArray();
+          zone.sockets = arr.map(Number).filter(n => Number.isFinite(n));
+          break;
+        }
+        case 'types': {
+          const arr = this.readGenericArray();
+          zone.types = arr.map(String) as NPElementType[];
+          break;
+        }
+        case 'exclude_types': zone.excludeTypes = this.readBool(); break;
+        default:
+          this.skipValue();
+          break;
+      }
+      this.skipNewlines();
+    }
+    return zone;
+  }
+
+  // condition "Name" { link: "https://..."  code: ".."  description: ".."  id: ".." }
+  private parseConditionBlock(): NPConditionDefinition {
+    this.skipNewlines();
+    if (this.current.type !== 'STRING') {
+      throw new NPPSParseError(`Expected condition name string, got ${this.current.type}`, this.current.line);
+    }
+    const name = this.current.value as string;
+    this.advance();
+    this.skipNewlines();
+    this.expect('LBRACE');
+    this.skipNewlines();
+
+    let link = '';
+    let id: string | undefined;
+    let description: string | undefined;
+    let code: string | undefined;
+    while (!this.tryBrace()) {
+      const { key } = this.readKeyValue();
+      switch (key) {
+        case 'link': link = this.readString(); break;
+        case 'id': id = this.readString(); break;
+        case 'description': description = this.readString(); break;
+        case 'code': code = this.readString(); break;
+        default:
+          this.skipValue();
+          break;
+      }
+      this.skipNewlines();
+    }
+    const cond: NPConditionDefinition = { name, link };
+    if (id !== undefined) cond.id = id;
+    if (description !== undefined) cond.description = description;
+    if (code !== undefined) cond.code = code;
+    return cond;
   }
 
   private parseLayerBlock(): NPCompositeLayer {
@@ -1210,6 +1358,80 @@ export function parseNPPS(text: string): NPProtocolEntry[] {
 }
 
 /**
+ * Parse a single NPPS file into its entries plus the zone and condition
+ * definitions it declares. Use `mergeNamespaces` to fold several files' results
+ * into one shared namespace (all files under the protocol directory tree share
+ * ONE namespace — see NP-NPPS-REF-001 §1.6).
+ */
+export function parseNPPSFile(text: string): {
+  entries: NPProtocolEntry[];
+  zones: NPZoneDefinition[];
+  conditions: NPConditionDefinition[];
+} {
+  const tokens = tokenize(text);
+  const parser = new Parser(tokens);
+  const entries = parser.parse();
+  return { entries, zones: [...parser.zones], conditions: [...parser.conditions] };
+}
+
+/**
+ * Build one namespace from several parsed NPPS files. Zones and conditions are
+ * keyed by name; a later file redefining a name replaces the earlier definition
+ * (last-write-wins) and the collision is recorded in `warnings`.
+ */
+export function buildNamespace(
+  files: Array<{ entries: NPProtocolEntry[]; zones: NPZoneDefinition[]; conditions: NPConditionDefinition[] }>
+): { namespace: NPNamespace; warnings: string[] } {
+  const entries: NPProtocolEntry[] = [];
+  const zones = new Map<string, NPZoneDefinition>();
+  const conditions = new Map<string, NPConditionDefinition>();
+  const warnings: string[] = [];
+
+  for (const f of files) {
+    entries.push(...f.entries);
+    for (const z of f.zones) {
+      if (zones.has(z.name)) warnings.push(`Duplicate zone name '${z.name}' — later definition wins`);
+      zones.set(z.name, z);
+    }
+    for (const c of f.conditions) {
+      if (conditions.has(c.name)) warnings.push(`Duplicate condition name '${c.name}' — later definition wins`);
+      conditions.set(c.name, c);
+    }
+  }
+  return { namespace: { entries, zones, conditions }, warnings };
+}
+
+/**
+ * Validate cross-references within a namespace: every protocol/composite
+ * `conditions` entry must resolve to a condition definition, and every
+ * pbm_transcranial `zoneRefs` entry must resolve to a zone definition. Returns
+ * the list of unresolved-reference errors (empty = all references resolve).
+ */
+export function validateNamespaceReferences(ns: NPNamespace): string[] {
+  const errors: string[] = [];
+  for (const entry of ns.entries) {
+    const def = entry.kind === 'single' ? entry.protocol : entry.composite;
+    for (const cond of def.conditions ?? []) {
+      if (!ns.conditions.has(cond)) {
+        errors.push(`Protocol '${def.name}' references undefined condition '${cond}'`);
+      }
+    }
+    if (entry.kind === 'single') {
+      for (const m of entry.protocol.modalities) {
+        if (m.modalityParams.type === 'pbm_transcranial') {
+          for (const zref of m.modalityParams.params.zoneRefs ?? []) {
+            if (!ns.zones.has(zref)) {
+              errors.push(`Protocol '${def.name}' references undefined zone '${zref}'`);
+            }
+          }
+        }
+      }
+    }
+  }
+  return errors;
+}
+
+/**
  * Parse the first `limits` block found in the given NPPS text.
  * Returns null if no limits block is present.
  */
@@ -1242,8 +1464,9 @@ export function parseNPPSLimits(text: string): NPLimitsSet | null {
         parser['advance']();
         parser['skipNewlines']();
       }
-    } else if ((t.type === 'KEYWORD' || t.type === 'IDENT') && t.value === 'composite') {
-      // Skip entire composite block
+    } else if ((t.type === 'KEYWORD' || t.type === 'IDENT') &&
+               (t.value === 'composite' || t.value === 'zone' || t.value === 'condition')) {
+      // Skip entire composite / zone / condition block
       parser['advance']();
       parser['skipNewlines']();
       if (parser['current'].type === 'STRING') { parser['advance'](); } // skip inline name

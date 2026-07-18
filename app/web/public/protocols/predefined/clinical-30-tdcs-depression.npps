@@ -1,0 +1,17 @@
+protocol "tDCS — Depression (F3/F4)" {
+    id: "30000030-0000-0000-0000-000000000000"
+    description: "Anodal F3 / cathode F4, 2mA, 20–30 min, 10–22 sessions, as an accessible adjunct for MDD (not monotherapy). Grade B (mixed)."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tdcs", "clinical", "depression"]
+    conditions: ["Major Depressive Disorder"]
+    references: [["Neuromod protocol database §3 tDCS depression (Grade B)", "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"], ["Brunoni 2013/2017", "docs/neuromod_neuro_protocols.md"]]
+    duration: 25m
+
+    tdcs {
+        intensity: 2mA
+        electrode_pairs: [["F3", "F4"]]
+        ramp: 30s
+    }
+}

@@ -1,0 +1,17 @@
+protocol "tDCS — Epilepsy (cathodal focus)" {
+    id: "30000036-0000-0000-0000-000000000000"
+    description: "Uniquely CATHODAL (inhibitory) over the epileptogenic focus, anode contralateral, 1–2mA, 20–30 min, reducing seizures. Grade B."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tdcs", "clinical", "epilepsy", "cathodal"]
+    conditions: ["Epilepsy"]
+    references: [["Neuromod protocol database §3 tDCS epilepsy (Grade B, cathodal)", "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"], ["Fregni 2006; San-Juan 2017", "docs/neuromod_neuro_protocols.md"]]
+    duration: 20m
+
+    tdcs {
+        intensity: 1.5mA
+        electrode_pairs: [["Fp2", "C3"]]
+        ramp: 30s
+    }
+}

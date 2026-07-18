@@ -5,6 +5,8 @@ protocol "Gamma Focus" {
     version: "1.0"
     readonly: true
     tags: [focus, gamma, 40Hz, cognitive, multimodal]
+    conditions: ["Alzheimer's Disease"]
+    references: [["PBM Alzheimer's 40Hz (Grade A)", "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"], ["tACS 40Hz gamma convergence", "docs/neuromod_neuro_protocols.md"]]
     duration: 20m
 
     pbm_transcranial {

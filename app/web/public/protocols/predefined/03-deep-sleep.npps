@@ -5,6 +5,8 @@ protocol "Deep Sleep" {
     version: "1.0"
     readonly: true
     tags: [sleep, delta, recovery, relaxation]
+    conditions: ["Insomnia"]
+    references: [["tACS slow-oscillation sleep protocol", "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"]]
     duration: 45m
 
     pbm_transcranial {

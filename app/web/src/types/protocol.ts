@@ -154,8 +154,12 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
 // ─── Modality parameter types ──────────────────────────────────────────────────
 
 export interface PBMTranscranialParams {
-  zones: 'all' | 'front' | 'rear' | 'custom';
+  // 'all'/'front'/'rear' are legacy fixed-region selectors; 'custom' pairs with
+  // customZones (legacy numeric indices); 'named' pairs with zoneRefs — the
+  // Rev B model where a zone is a named set of modules (see NPZoneDefinition).
+  zones: 'all' | 'front' | 'rear' | 'custom' | 'named';
   customZones?: number[];
+  zoneRefs?: string[];   // names of NPZoneDefinition entries in the namespace
   wavelength: '660_808nm' | '1064nm' | '660_808_1064nm';
   intensityPercent: number;
   frequencyHz: number;
@@ -408,6 +412,57 @@ export interface NPProtocolDefinition {
   isReadOnly?: boolean;
   timingMode: NPTimingMode;
   modalities: NPProtocolModality[];
+  // Rev B: clinical context. `conditions` lists condition names that MUST each
+  // resolve to an NPConditionDefinition in the namespace. `references` links to
+  // documents describing the protocol / its evidence (openable in a browser).
+  conditions?: string[];
+  references?: NPProtocolReference[];
+}
+
+// ─── Reference links ───────────────────────────────────────────────────────────
+
+// A reference is either a bare URL/path string, or a [label, url] pair.
+export type NPProtocolReference = string | { label: string; url: string };
+
+export function referenceUrl(r: NPProtocolReference): string {
+  return typeof r === 'string' ? r : r.url;
+}
+
+export function referenceLabel(r: NPProtocolReference): string {
+  return typeof r === 'string' ? r : r.label;
+}
+
+// ─── Zone definition (named set of modules) ────────────────────────────────────
+
+// Element-type names mirror firmware np_elem_type_t (np_module_map.h).
+export type NPElementType =
+  | 'led_660' | 'led_808' | 'led_1064' | 'led_1170'
+  | 'eeg_electrode' | 'tes_electrode' | 'vns_contact' | 'ntc'
+  | 'pd_forward' | 'pd_back' | 'ir_prox' | 'hall' | 'dual_electrode';
+
+// A zone is a named SET OF MODULES, defined as an explicit list of socket
+// (major) addresses — the first half of the firmware two-level
+// (socket:element) scheme (np_module_map.h). Listing sockets directly makes
+// arbitrary, non-contiguous zones definable. An optional element-type filter
+// restricts which elements within those modules the zone selects.
+export interface NPZoneDefinition {
+  name: string;
+  id?: string;
+  description?: string;
+  sockets: number[];        // socket (major) addresses — the modules in this zone
+  types?: NPElementType[];  // optional element-type filter within those modules
+  excludeTypes?: boolean;   // false: include only `types`; true: exclude them
+  isPredefined?: boolean;
+}
+
+// ─── Condition definition (name → external reference) ──────────────────────────
+
+export interface NPConditionDefinition {
+  name: string;
+  id?: string;
+  link: string;             // external definition (e.g. Wikipedia / MeSH)
+  description?: string;
+  code?: string;            // optional ICD-11 / SNOMED / MeSH code
 }
 
 // ─── Composite ────────────────────────────────────────────────────────────────
@@ -433,6 +488,8 @@ export interface NPCompositeProtocol {
   isReadOnly?: boolean;
   layers: NPCompositeLayer[];
   conflictResolution: 'merge' | 'sequential' | 'override';
+  conditions?: string[];
+  references?: NPProtocolReference[];
 }
 
 // ─── Entry union ───────────────────────────────────────────────────────────────
@@ -440,6 +497,19 @@ export interface NPCompositeProtocol {
 export type NPProtocolEntry =
   | { kind: 'single'; protocol: NPProtocolDefinition }
   | { kind: 'composite'; composite: NPCompositeProtocol };
+
+// ─── Namespace ─────────────────────────────────────────────────────────────────
+//
+// All .npps files under the protocol directory tree load into ONE namespace.
+// Zones and conditions are cross-referenceable by name across files; protocol
+// `zoneRefs` and `conditions` are validated against this namespace after all
+// files are loaded (see NP-NPPS-REF-001 §1.6).
+
+export interface NPNamespace {
+  entries: NPProtocolEntry[];
+  zones: Map<string, NPZoneDefinition>;
+  conditions: Map<string, NPConditionDefinition>;
+}
 
 export function entryId(e: NPProtocolEntry): string {
   return e.kind === 'single' ? e.protocol.id : e.composite.id;

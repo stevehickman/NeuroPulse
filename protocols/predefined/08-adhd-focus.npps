@@ -5,6 +5,8 @@ protocol "ADHD Focus" {
     version: "1.0"
     readonly: true
     tags: [adhd, focus, theta, beta, neurofeedback, tdcs]
+    conditions: ["Attention Deficit Hyperactivity Disorder"]
+    references: [["tDCS ADHD (Grade B)", "docs/neuromod_neuro_protocols.md#3-tdcs--hd-tdcs-transcranial-direct-current-stimulation"]]
     duration: 40m
 
     eeg_neurofeedback {

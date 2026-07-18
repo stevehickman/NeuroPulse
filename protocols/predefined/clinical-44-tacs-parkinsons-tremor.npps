@@ -1,0 +1,17 @@
+protocol "tACS — Parkinson's Tremor (phase-locked)" {
+    id: "30000044-0000-0000-0000-000000000000"
+    description: "Phase-locked tACS at the tremor frequency over M1 to suppress resting tremor ~50% by phase cancellation — a closed-loop, EEG/accelerometer-driven paradigm. Grade B."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["tacs", "clinical", "parkinsons", "closed-loop"]
+    conditions: ["Parkinson's Disease"]
+    references: [["Neuromod protocol database §4 tACS PD tremor (Grade B)", "docs/neuromod_neuro_protocols.md#4-tacs--trns-transcranial-alternating-current-stimulation"], ["Brittain 2013", "docs/neuromod_neuro_protocols.md"]]
+    duration: 15m
+
+    bes_tacs {
+        frequency: 5Hz
+        intensity: 1mA
+        waveform: sinusoidal
+    }
+}

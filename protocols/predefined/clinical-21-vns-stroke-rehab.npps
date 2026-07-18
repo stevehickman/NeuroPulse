@@ -1,0 +1,17 @@
+protocol "taVNS — Stroke Motor Rehab (paired)" {
+    id: "30000021-0000-0000-0000-000000000000"
+    description: "Auricular taVNS paired to rehab movements, 30Hz, for post-stroke motor recovery (non-invasive analogue of Vivistim). Grade A (paired). 6 weeks clinic + home."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["vns", "tavns", "clinical", "stroke", "paired"]
+    conditions: ["Stroke"]
+    references: [["Neuromod protocol database §2 VNS stroke (Grade A paired)", "docs/neuromod_neuro_protocols.md#2-vns-vagus-nerve-stimulation--all-modalities--indications"], ["Dawson 2021 VNS-REHAB", "docs/neuromod_neuro_protocols.md"]]
+    duration: 30m
+
+    vns_hrv {
+        frequency: 30Hz
+        intensity: 0.8mA
+        hrv_protocol: standalone
+    }
+}
