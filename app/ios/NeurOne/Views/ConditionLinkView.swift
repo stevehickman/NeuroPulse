@@ -1,19 +1,19 @@
 import SwiftUI
 
+//
+// Nothing in this file logs. Which conditions a user looks up is health-
+// adjacent and therefore UHDR-class under the §5.1 boundary rule ("when in
+// doubt → UHDR"), so it is not recorded anywhere — no analytics event, no
+// SHDR field. See NP-COND-LINK-001 §2.
+
+// MARK: - Chips
+
 /// Condition chips + the "leaving the app" confirmation — NP-COND-LINK-001 §4.
 ///
 /// One view for both iOS and macOS. The only platform-specific part is the
 /// presentation detent, and the open call itself is `@Environment(\.openURL)`,
 /// which resolves to UIApplication on iOS and NSWorkspace on macOS without any
 /// conditional code here.
-///
-/// Nothing in this file logs. Which conditions a user looks up is health-
-/// adjacent and therefore UHDR-class under the §5.1 boundary rule ("when in
-/// doubt → UHDR"), so it is not recorded anywhere — no analytics event, no
-/// SHDR field. See NP-COND-LINK-001 §2.
-
-// MARK: - Chips
-
 struct ConditionChipsView: View {
     let conditions: [String]
 
