@@ -157,7 +157,14 @@ export interface PBMTranscranialParams {
   // 'all'/'front'/'rear' are legacy fixed-region selectors; 'custom' pairs with
   // customZones (legacy numeric indices); 'named' pairs with zoneRefs — the
   // Rev B model where a zone is a named set of modules (see NPZoneDefinition).
-  zones: 'all' | 'front' | 'rear' | 'custom' | 'named';
+  // 'named' pairs with zoneRefs. 'clinician_selected' means the target is
+  // patient-specific and CANNOT be predefined — the operator must choose the
+  // sockets before the protocol can run (NP-CFG-UI-001). Used where the
+  // evidence targets a lesion or other individual anatomy, e.g. perilesional
+  // cortex in post-stroke rehab (pbm_neuro_protocols.md §9).
+  // 'all' / 'front' / 'rear' / 'custom' are RETIRED 5-slot selectors, kept only
+  // so old files still parse; every shipped protocol now uses named zones.
+  zones: 'all' | 'front' | 'rear' | 'custom' | 'named' | 'clinician_selected';
   customZones?: number[];
   zoneRefs?: string[];   // names of NPZoneDefinition entries in the namespace
   wavelength: '660_808nm' | '1064nm' | '660_808_1064nm';

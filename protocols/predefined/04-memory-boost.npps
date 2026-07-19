@@ -13,7 +13,7 @@ protocol "Memory Boost" {
         intensity: 70%
         frequency: 6Hz
         duty_cycle: 25%
-        zones: all
+        zones: ["Frontal"]
         wavelength: 660_808nm
     }
 

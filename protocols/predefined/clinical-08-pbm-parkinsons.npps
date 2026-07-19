@@ -13,7 +13,10 @@ protocol "PBM — Parkinson's (transcranial)" {
         intensity: 50%
         frequency: 40Hz
         duty_cycle: 25%
-        zones: all
+        # §8 targets the head "bilateral, midline over SMA/motor" — not the
+        # whole vault. Whole-head irradiation would over-deliver well beyond
+        # the evidence.
+        zones: ["Motor / SMA"]
         wavelength: 660_808nm
     }
 }

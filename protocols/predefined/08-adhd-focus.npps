@@ -28,7 +28,7 @@ protocol "ADHD Focus" {
         intensity: 70%
         frequency: 20Hz
         duty_cycle: 25%
-        zones: front
+        zones: ["Frontal"]
         wavelength: 660_808nm
     }
 

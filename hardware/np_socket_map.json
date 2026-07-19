@@ -1,0 +1,732 @@
+{
+  "_generator": "scripts/sync-socket-map.ts",
+  "_note": "Socket geometry for the NeurOne helmet. Validated against protocols/predefined/00-zones.npps. x/y are provisional unit-hex lattice coordinates for UI layout only — replace from shell CAD before any physical claim.",
+  "socketCount": 78,
+  "numberingBase": 1,
+  "rowWidths": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    4,
+    5,
+    4,
+    5,
+    4,
+    5,
+    4,
+    5,
+    4,
+    5,
+    4,
+    5,
+    4,
+    3,
+    2
+  ],
+  "sockets": [
+    {
+      "id": 1,
+      "lobe": "frontal",
+      "side": "midline",
+      "row": 0,
+      "col": 0,
+      "x": 0,
+      "y": 0
+    },
+    {
+      "id": 2,
+      "lobe": "frontal",
+      "side": "left",
+      "row": 1,
+      "col": 0,
+      "x": -0.5,
+      "y": 0.866
+    },
+    {
+      "id": 3,
+      "lobe": "frontal",
+      "side": "right",
+      "row": 1,
+      "col": 1,
+      "x": 0.5,
+      "y": 0.866
+    },
+    {
+      "id": 4,
+      "lobe": "frontal",
+      "side": "left",
+      "row": 2,
+      "col": 0,
+      "x": -1,
+      "y": 1.7321
+    },
+    {
+      "id": 5,
+      "lobe": "frontal",
+      "side": "midline",
+      "row": 2,
+      "col": 1,
+      "x": 0,
+      "y": 1.7321
+    },
+    {
+      "id": 6,
+      "lobe": "frontal",
+      "side": "right",
+      "row": 2,
+      "col": 2,
+      "x": 1,
+      "y": 1.7321
+    },
+    {
+      "id": 7,
+      "lobe": "frontal",
+      "side": "left",
+      "row": 3,
+      "col": 0,
+      "x": -1.5,
+      "y": 2.5981
+    },
+    {
+      "id": 8,
+      "lobe": "frontal",
+      "side": "left",
+      "row": 3,
+      "col": 1,
+      "x": -0.5,
+      "y": 2.5981
+    },
+    {
+      "id": 9,
+      "lobe": "frontal",
+      "side": "right",
+      "row": 3,
+      "col": 2,
+      "x": 0.5,
+      "y": 2.5981
+    },
+    {
+      "id": 10,
+      "lobe": "frontal",
+      "side": "right",
+      "row": 3,
+      "col": 3,
+      "x": 1.5,
+      "y": 2.5981
+    },
+    {
+      "id": 11,
+      "lobe": "frontal",
+      "side": "left",
+      "row": 4,
+      "col": 0,
+      "x": -2,
+      "y": 3.4641
+    },
+    {
+      "id": 12,
+      "lobe": "frontal",
+      "side": "left",
+      "row": 4,
+      "col": 1,
+      "x": -1,
+      "y": 3.4641
+    },
+    {
+      "id": 13,
+      "lobe": "frontal",
+      "side": "midline",
+      "row": 4,
+      "col": 2,
+      "x": 0,
+      "y": 3.4641
+    },
+    {
+      "id": 14,
+      "lobe": "frontal",
+      "side": "right",
+      "row": 4,
+      "col": 3,
+      "x": 1,
+      "y": 3.4641
+    },
+    {
+      "id": 15,
+      "lobe": "frontal",
+      "side": "right",
+      "row": 4,
+      "col": 4,
+      "x": 2,
+      "y": 3.4641
+    },
+    {
+      "id": 16,
+      "lobe": "frontal",
+      "side": "left",
+      "row": 5,
+      "col": 0,
+      "x": -1.5,
+      "y": 4.3301
+    },
+    {
+      "id": 17,
+      "lobe": "frontal",
+      "side": "left",
+      "row": 5,
+      "col": 1,
+      "x": -0.5,
+      "y": 4.3301
+    },
+    {
+      "id": 18,
+      "lobe": "frontal",
+      "side": "right",
+      "row": 5,
+      "col": 2,
+      "x": 0.5,
+      "y": 4.3301
+    },
+    {
+      "id": 19,
+      "lobe": "frontal",
+      "side": "right",
+      "row": 5,
+      "col": 3,
+      "x": 1.5,
+      "y": 4.3301
+    },
+    {
+      "id": 20,
+      "lobe": "temporal",
+      "side": "left",
+      "row": 6,
+      "col": 0,
+      "x": -2,
+      "y": 5.1962
+    },
+    {
+      "id": 21,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 6,
+      "col": 1,
+      "x": -1,
+      "y": 5.1962
+    },
+    {
+      "id": 22,
+      "lobe": "parietal",
+      "side": "midline",
+      "row": 6,
+      "col": 2,
+      "x": 0,
+      "y": 5.1962
+    },
+    {
+      "id": 23,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 6,
+      "col": 3,
+      "x": 1,
+      "y": 5.1962
+    },
+    {
+      "id": 24,
+      "lobe": "temporal",
+      "side": "right",
+      "row": 6,
+      "col": 4,
+      "x": 2,
+      "y": 5.1962
+    },
+    {
+      "id": 25,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 7,
+      "col": 0,
+      "x": -1.5,
+      "y": 6.0622
+    },
+    {
+      "id": 26,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 7,
+      "col": 1,
+      "x": -0.5,
+      "y": 6.0622
+    },
+    {
+      "id": 27,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 7,
+      "col": 2,
+      "x": 0.5,
+      "y": 6.0622
+    },
+    {
+      "id": 28,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 7,
+      "col": 3,
+      "x": 1.5,
+      "y": 6.0622
+    },
+    {
+      "id": 29,
+      "lobe": "temporal",
+      "side": "left",
+      "row": 8,
+      "col": 0,
+      "x": -2,
+      "y": 6.9282
+    },
+    {
+      "id": 30,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 8,
+      "col": 1,
+      "x": -1,
+      "y": 6.9282
+    },
+    {
+      "id": 31,
+      "lobe": "parietal",
+      "side": "midline",
+      "row": 8,
+      "col": 2,
+      "x": 0,
+      "y": 6.9282
+    },
+    {
+      "id": 32,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 8,
+      "col": 3,
+      "x": 1,
+      "y": 6.9282
+    },
+    {
+      "id": 33,
+      "lobe": "temporal",
+      "side": "right",
+      "row": 8,
+      "col": 4,
+      "x": 2,
+      "y": 6.9282
+    },
+    {
+      "id": 34,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 9,
+      "col": 0,
+      "x": -1.5,
+      "y": 7.7942
+    },
+    {
+      "id": 35,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 9,
+      "col": 1,
+      "x": -0.5,
+      "y": 7.7942
+    },
+    {
+      "id": 36,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 9,
+      "col": 2,
+      "x": 0.5,
+      "y": 7.7942
+    },
+    {
+      "id": 37,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 9,
+      "col": 3,
+      "x": 1.5,
+      "y": 7.7942
+    },
+    {
+      "id": 38,
+      "lobe": "temporal",
+      "side": "left",
+      "row": 10,
+      "col": 0,
+      "x": -2,
+      "y": 8.6603
+    },
+    {
+      "id": 39,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 10,
+      "col": 1,
+      "x": -1,
+      "y": 8.6603
+    },
+    {
+      "id": 40,
+      "lobe": "parietal",
+      "side": "midline",
+      "row": 10,
+      "col": 2,
+      "x": 0,
+      "y": 8.6603
+    },
+    {
+      "id": 41,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 10,
+      "col": 3,
+      "x": 1,
+      "y": 8.6603
+    },
+    {
+      "id": 42,
+      "lobe": "temporal",
+      "side": "right",
+      "row": 10,
+      "col": 4,
+      "x": 2,
+      "y": 8.6603
+    },
+    {
+      "id": 43,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 11,
+      "col": 0,
+      "x": -1.5,
+      "y": 9.5263
+    },
+    {
+      "id": 44,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 11,
+      "col": 1,
+      "x": -0.5,
+      "y": 9.5263
+    },
+    {
+      "id": 45,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 11,
+      "col": 2,
+      "x": 0.5,
+      "y": 9.5263
+    },
+    {
+      "id": 46,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 11,
+      "col": 3,
+      "x": 1.5,
+      "y": 9.5263
+    },
+    {
+      "id": 47,
+      "lobe": "temporal",
+      "side": "left",
+      "row": 12,
+      "col": 0,
+      "x": -2,
+      "y": 10.3923
+    },
+    {
+      "id": 48,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 12,
+      "col": 1,
+      "x": -1,
+      "y": 10.3923
+    },
+    {
+      "id": 49,
+      "lobe": "parietal",
+      "side": "midline",
+      "row": 12,
+      "col": 2,
+      "x": 0,
+      "y": 10.3923
+    },
+    {
+      "id": 50,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 12,
+      "col": 3,
+      "x": 1,
+      "y": 10.3923
+    },
+    {
+      "id": 51,
+      "lobe": "temporal",
+      "side": "right",
+      "row": 12,
+      "col": 4,
+      "x": 2,
+      "y": 10.3923
+    },
+    {
+      "id": 52,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 13,
+      "col": 0,
+      "x": -1.5,
+      "y": 11.2583
+    },
+    {
+      "id": 53,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 13,
+      "col": 1,
+      "x": -0.5,
+      "y": 11.2583
+    },
+    {
+      "id": 54,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 13,
+      "col": 2,
+      "x": 0.5,
+      "y": 11.2583
+    },
+    {
+      "id": 55,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 13,
+      "col": 3,
+      "x": 1.5,
+      "y": 11.2583
+    },
+    {
+      "id": 56,
+      "lobe": "temporal",
+      "side": "left",
+      "row": 14,
+      "col": 0,
+      "x": -2,
+      "y": 12.1244
+    },
+    {
+      "id": 57,
+      "lobe": "parietal",
+      "side": "left",
+      "row": 14,
+      "col": 1,
+      "x": -1,
+      "y": 12.1244
+    },
+    {
+      "id": 58,
+      "lobe": "parietal",
+      "side": "midline",
+      "row": 14,
+      "col": 2,
+      "x": 0,
+      "y": 12.1244
+    },
+    {
+      "id": 59,
+      "lobe": "parietal",
+      "side": "right",
+      "row": 14,
+      "col": 3,
+      "x": 1,
+      "y": 12.1244
+    },
+    {
+      "id": 60,
+      "lobe": "temporal",
+      "side": "right",
+      "row": 14,
+      "col": 4,
+      "x": 2,
+      "y": 12.1244
+    },
+    {
+      "id": 61,
+      "lobe": "occipital",
+      "side": "left",
+      "row": 15,
+      "col": 0,
+      "x": -1.5,
+      "y": 12.9904
+    },
+    {
+      "id": 62,
+      "lobe": "occipital",
+      "side": "left",
+      "row": 15,
+      "col": 1,
+      "x": -0.5,
+      "y": 12.9904
+    },
+    {
+      "id": 63,
+      "lobe": "occipital",
+      "side": "right",
+      "row": 15,
+      "col": 2,
+      "x": 0.5,
+      "y": 12.9904
+    },
+    {
+      "id": 64,
+      "lobe": "occipital",
+      "side": "right",
+      "row": 15,
+      "col": 3,
+      "x": 1.5,
+      "y": 12.9904
+    },
+    {
+      "id": 65,
+      "lobe": "occipital",
+      "side": "left",
+      "row": 16,
+      "col": 0,
+      "x": -2,
+      "y": 13.8564
+    },
+    {
+      "id": 66,
+      "lobe": "occipital",
+      "side": "left",
+      "row": 16,
+      "col": 1,
+      "x": -1,
+      "y": 13.8564
+    },
+    {
+      "id": 67,
+      "lobe": "occipital",
+      "side": "midline",
+      "row": 16,
+      "col": 2,
+      "x": 0,
+      "y": 13.8564
+    },
+    {
+      "id": 68,
+      "lobe": "occipital",
+      "side": "right",
+      "row": 16,
+      "col": 3,
+      "x": 1,
+      "y": 13.8564
+    },
+    {
+      "id": 69,
+      "lobe": "occipital",
+      "side": "right",
+      "row": 16,
+      "col": 4,
+      "x": 2,
+      "y": 13.8564
+    },
+    {
+      "id": 70,
+      "lobe": "occipital",
+      "side": "left",
+      "row": 17,
+      "col": 0,
+      "x": -1.5,
+      "y": 14.7224
+    },
+    {
+      "id": 71,
+      "lobe": "occipital",
+      "side": "left",
+      "row": 17,
+      "col": 1,
+      "x": -0.5,
+      "y": 14.7224
+    },
+    {
+      "id": 72,
+      "lobe": "occipital",
+      "side": "right",
+      "row": 17,
+      "col": 2,
+      "x": 0.5,
+      "y": 14.7224
+    },
+    {
+      "id": 73,
+      "lobe": "occipital",
+      "side": "right",
+      "row": 17,
+      "col": 3,
+      "x": 1.5,
+      "y": 14.7224
+    },
+    {
+      "id": 74,
+      "lobe": "occipital",
+      "side": "left",
+      "row": 18,
+      "col": 0,
+      "x": -1,
+      "y": 15.5885
+    },
+    {
+      "id": 75,
+      "lobe": "occipital",
+      "side": "midline",
+      "row": 18,
+      "col": 1,
+      "x": 0,
+      "y": 15.5885
+    },
+    {
+      "id": 76,
+      "lobe": "occipital",
+      "side": "right",
+      "row": 18,
+      "col": 2,
+      "x": 1,
+      "y": 15.5885
+    },
+    {
+      "id": 77,
+      "lobe": "occipital",
+      "side": "left",
+      "row": 19,
+      "col": 0,
+      "x": -0.5,
+      "y": 16.4545
+    },
+    {
+      "id": 78,
+      "lobe": "occipital",
+      "side": "right",
+      "row": 19,
+      "col": 1,
+      "x": 0.5,
+      "y": 16.4545
+    }
+  ]
+}

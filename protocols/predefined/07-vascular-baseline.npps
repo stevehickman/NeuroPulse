@@ -10,7 +10,7 @@ protocol "Vascular Baseline" {
     pbm_transcranial {
         intensity: 80%
         frequency: 0Hz  # CW
-        zones: all
+        zones: ["All"]
         wavelength: 660_808nm
     }
 

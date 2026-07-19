@@ -6,6 +6,7 @@ import { NPLimitsSet } from './types/limits';
 import { ProtocolMenu } from './components/ProtocolMenu';
 import { ProtocolEditor } from './components/ProtocolEditor';
 import { ProtocolComposer } from './components/ProtocolComposer';
+import { HelmetConfig } from './components/HelmetConfig';
 import { t } from './lib/i18n';
 
 // ─── Protocol Context ─────────────────────────────────────────────────────────
@@ -44,6 +45,7 @@ export function useLimitsContext() {
 
 type AppView =
   | { view: 'menu' }
+  | { view: 'configure' }
   | { view: 'editor'; entry?: NPProtocolEntry }
   | { view: 'composer'; composite?: NPCompositeProtocol };
 
@@ -129,12 +131,14 @@ export default function App() {
 
   const sidebarItems = [
     { id: 'menu', label: t('WEB_NAV_LIBRARY'), icon: '📋' },
+    { id: 'configure', label: 'Configure Helmet', icon: '🪖' },
     { id: 'editor', label: t('WEB_NAV_EDITOR'), icon: '✏️' },
     { id: 'composer', label: t('WEB_NAV_COMPOSER'), icon: '🎛️' },
   ] as const;
 
   const activeNavId =
     appView.view === 'menu' ? 'menu' :
+    appView.view === 'configure' ? 'configure' :
     appView.view === 'editor' ? 'editor' : 'composer';
 
   return (
@@ -163,6 +167,7 @@ export default function App() {
                 className={`sidebar-item${activeNavId === item.id ? ' active' : ''}`}
                 onClick={() => {
                   if (item.id === 'menu') setAppView({ view: 'menu' });
+                  else if (item.id === 'configure') setAppView({ view: 'configure' });
                   else if (item.id === 'editor') setAppView({ view: 'editor' });
                   else setAppView({ view: 'composer' });
                 }}
@@ -181,6 +186,9 @@ export default function App() {
               onNewProtocol={handleNewProtocol}
               onOpenComposer={handleOpenComposer}
             />
+          )}
+          {appView.view === 'configure' && (
+            <HelmetConfig entries={protocolLibrary.allProtocols} />
           )}
           {appView.view === 'editor' && (
             <ProtocolEditor

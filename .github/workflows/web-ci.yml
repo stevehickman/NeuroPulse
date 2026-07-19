@@ -7,9 +7,15 @@ on:
   push:
     paths:
       - 'app/web/**'
+      - 'npps/fixtures/**'
+      - 'protocols/predefined/**'
+      - 'scripts/sync-conditions.ts'
   pull_request:
     paths:
       - 'app/web/**'
+      - 'npps/fixtures/**'
+      - 'protocols/predefined/**'
+      - 'scripts/sync-conditions.ts'
   workflow_dispatch:
 
 jobs:
@@ -32,6 +38,13 @@ jobs:
 
       - name: Install dependencies
         run: bun install --frozen-lockfile
+
+      # The Swift/Kotlin/C# condition tables are generated from
+      # protocols/predefined/00-conditions.npps. Fail the build if the registry
+      # changed without re-running the generator (NP-COND-LINK-001 §5).
+      - name: Condition tables in sync with the NPPS registry
+        working-directory: .
+        run: bun scripts/sync-conditions.ts --check
 
       - name: TypeScript type-check
         run: bun run tsc --noEmit

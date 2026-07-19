@@ -1,0 +1,63 @@
+import Foundation
+
+/// A standard condition name paired with a link to an external definition
+/// (Wikipedia / MeSH / ICD-11). Mirrors the `condition` block in the NPPS
+/// grammar and the web `NPConditionDefinition`.
+///
+/// Instances come from `NPBundledConditions`, generated from
+/// `protocols/predefined/00-conditions.npps` by `scripts/sync-conditions.ts`.
+struct NPConditionDefinition: Codable, Equatable, Hashable {
+    /// Registry key. Protocols reference a condition by this name.
+    let name: String
+    /// Stable UUID from the registry, when the entry declares one.
+    let id: String?
+    /// External definition URL. Never opened without passing `NPConditionLinkPolicy`.
+    let link: String
+    /// ICD-11 MMS code where one exists.
+    let code: String?
+    let description: String?
+
+    init(name: String, id: String? = nil, link: String, code: String? = nil, description: String? = nil) {
+        self.name = name
+        self.id = id
+        self.link = link
+        self.code = code
+        self.description = description
+    }
+}
+
+/// A condition name paired with the verdict on its link.
+///
+/// Every referenced condition produces one of these, including names that are
+/// not in the registry and links that fail policy — the UI lists them all,
+/// because a condition is valid protocol metadata regardless of whether its
+/// link happens to be openable. Only the Open action is withheld.
+struct NPResolvedCondition: Identifiable, Equatable {
+    let name: String
+    let definition: NPConditionDefinition?
+    let verdict: NPLinkVerdict
+
+    var id: String { name }
+}
+
+extension NPBundledConditions {
+
+    /// Resolve protocol `conditions` names against the bundled registry,
+    /// preserving order and arity.
+    static func resolve(_ names: [String]) -> [NPResolvedCondition] {
+        names.map { name in
+            guard let definition = byName[name] else {
+                return NPResolvedCondition(
+                    name: name,
+                    definition: nil,
+                    verdict: NPLinkVerdict.blocked(.notAbsolute)
+                )
+            }
+            return NPResolvedCondition(
+                name: name,
+                definition: definition,
+                verdict: NPConditionLinkPolicy.evaluate(definition.link)
+            )
+        }
+    }
+}

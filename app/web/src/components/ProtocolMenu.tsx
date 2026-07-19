@@ -16,6 +16,12 @@ import { limitsStore } from '../lib/limitsStore';
 import { validateEntry } from '../lib/protocolValidator';
 import { NPValidationResult } from '../types/limits';
 import { LimitsSettings } from './LimitsSettings';
+import { ConditionChips } from './ConditionLinkDialog';
+import { getPredefinedNamespace } from '../lib/predefinedProtocols';
+import type { NPConditionDefinition } from '../types/protocol';
+
+// Stable identity so ConditionChips doesn't see a new Map every render.
+const NO_CONDITIONS: ReadonlyMap<string, NPConditionDefinition> = new Map();
 
 // ─── Props ─────────────────────────────────────────────────────────────────────
 
@@ -250,6 +256,7 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
   const tags = entryTags(entry);
   const isComposite = entry.kind === 'composite';
   const isReadOnly = entryIsReadOnly(entry);
+  const conditionRegistry = getPredefinedNamespace()?.conditions ?? NO_CONDITIONS;
 
   // Get modality icons for single protocols
   const modalityIcons: Array<{ icon: string; label: string }> = [];
@@ -313,6 +320,10 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
           )}
         </div>
         <div className="card-description">{description}</div>
+        <ConditionChips
+          conditions={entry.kind === 'single' ? entry.protocol.conditions : entry.composite.conditions}
+          registry={conditionRegistry}
+        />
         <div className="card-footer">
           {tags.slice(0, 4).map(tag => (
             <span key={tag} className="tag-chip">{tag}</span>

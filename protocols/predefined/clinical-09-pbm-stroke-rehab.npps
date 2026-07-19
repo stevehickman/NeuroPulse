@@ -13,7 +13,12 @@ protocol "PBM — Stroke (chronic rehab)" {
         intensity: 40%
         frequency: 0Hz
         duty_cycle: 25%
-        zones: all
+        # Perilesional cortex is patient-specific — it depends where the stroke
+        # was — so no predefined zone can be correct here (§9). The operator
+        # must select the sockets over the lesion margin plus midline before
+        # this protocol can run. Whole-head irradiation is NOT the evidence
+        # target and would silently substitute the wrong dose distribution.
+        zones: clinician_selected
         wavelength: 660_808nm
     }
 

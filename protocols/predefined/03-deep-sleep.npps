@@ -13,7 +13,7 @@ protocol "Deep Sleep" {
         intensity: 60%
         frequency: 2Hz
         duty_cycle: 25%
-        zones: rear
+        zones: ["Posterior"]
         wavelength: 660_808nm
     }
 
