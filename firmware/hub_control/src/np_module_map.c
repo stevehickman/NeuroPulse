@@ -19,6 +19,10 @@ typedef char _np_hexmap_socket_fits[(NP_HEXMAP_MAX_SOCKETS <=
 typedef char _np_hexmap_elem_fits[(NP_HEXMAP_MAX_ELEMENTS <=
                                    (1 << NP_HEXMAP_ELEM_BITS)) ? 1 : -1];
 
+/* The mask guards that pin the 0x7F literals in np_hex_addr_pack/unpack live in
+ * np_module_map.h, next to the inline functions they protect — a consumer that
+ * includes the header without compiling this translation unit still gets them. */
+
 /* ── Per-socket inventory record ──────────────────────────────────────────────── */
 
 typedef struct {
@@ -41,16 +45,43 @@ static struct {
 /* ── NVRAM serialization format ───────────────────────────────────────────────── */
 
 #define NP_HEXMAP_NVRAM_MAGIC    0x4E504D50u   /* "NPMP" */
-#define NP_HEXMAP_NVRAM_VERSION  0x0001u
+
+/* Blob version history — bump on ANY change to the serialized layout or to the
+ * socket-domain sizing that the layout depends on:
+ *
+ *   0x0001  Initial layout. NP_HEXMAP_MAX_SOCKETS == 64.
+ *   0x0002  NP_HEXMAP_MAX_SOCKETS raised to 128 (all 78 helmet sockets
+ *           addressable). Record layout itself is UNCHANGED.
+ *
+ * There is deliberately NO migration path. np_module_map_load rejects any blob
+ * whose version differs, restore() clears the inventory and propagates the
+ * failure, and the hub rebuilds by polling every socket at power-on — which is
+ * exactly what it does on a first boot or a CRC failure. Rebuilding is cheap and
+ * always correct; migrating a stale record layout is neither.
+ *
+ * The bump is DEFENSIVE, not a fix for a live hazard. REC_BYTES depends on
+ * MAX_ELEMENTS (unchanged) and HDR_BYTES is unchanged, so a v1 and a v2 blob at
+ * the same n_sockets are byte-identical — accepting a v1 blob would not actually
+ * corrupt anything today. What the bump buys is that the blob version now tracks
+ * the socket-DOMAIN sizing rather than only the record layout, so the next change
+ * to the domain cannot be silently accepted by a helmet whose wired n_sockets
+ * happens to be unchanged. The cost is one forced re-poll on the upgrade boot. */
+#define NP_HEXMAP_NVRAM_VERSION  0x0002u
 
 /* Serialized layout constants (NP_HEXMAP_HDR_BYTES / REC_BYTES / CRC_BYTES /
  * NVRAM_MAX_BYTES) are public in np_module_map.h so integrators can size the
  * Config-partition region.
  *
  * NVRAM serialize/restore scratch. File-static (not on-stack): the serialized
- * blob is ~9 KB, too large for a FreeRTOS task stack. persist()/restore() are
- * called only from the single boot / module-registry context, so no lock is
- * needed. */
+ * blob is ~17.4 KB at MAX_SOCKETS 128 (was ~8.7 KB at 64), far too large for a
+ * FreeRTOS task stack. Together with s_map.rec[] this module holds ~34.8 KB of
+ * .bss — fine on the i.MX RT1062's 1 MB SRAM (~3.4%), and NOT a concern for the
+ * STM32G071 safety MCU, whose 36 KB SRAM this alone would exhaust: that MCU is a
+ * separate bare-metal project (firmware/safety_mcu/) that links neither this
+ * translation unit nor any hub_control include path.
+ *
+ * persist()/restore() are called only from the single boot / module-registry
+ * context, so no lock is needed. */
 static uint8_t s_nvram_scratch[NP_HEXMAP_NVRAM_MAX_BYTES];
 
 /* ── UID helpers ──────────────────────────────────────────────────────────────── */
@@ -137,6 +168,14 @@ np_hub_status_t np_module_map_init(const np_socket_geom_t *geom, uint16_t n_sock
 static void clear_record(np_socket_record_t *r)
 {
     memset(r, 0, sizeof(*r));  /* uid zeroed, module_present false, count 0 */
+}
+
+/* Drop the whole inventory, keeping the bound geometry and n_sockets. Used by
+ * restore() to guarantee a failed load leaves an EMPTY map rather than stale
+ * records — see the fail-closed contract on np_module_map_restore. */
+static void clear_all_records(void)
+{
+    memset(s_map.rec, 0, sizeof(s_map.rec));
 }
 
 np_hub_status_t np_module_map_apply_poll(uint16_t                 socket_id,
@@ -250,6 +289,65 @@ static bool type_passes(uint64_t mask, bool exclude, np_elem_type_t t)
     return exclude ? !listed : listed;
 }
 
+/* ── Dedup ─────────────────────────────────────────────────────────────────────
+ * Overlapping zones are the NORMAL case under inclusive membership: a protocol
+ * naming both "Frontal Left" and "Frontal Right" hands us a socket list holding
+ * each frontal midline socket twice. Emitting it twice would drive that module
+ * twice in one session — double J/cm². The resolver dedups so no caller can
+ * forget to.
+ *
+ * 128 sockets = a 16-byte bitmap, cheap enough to carry on the stack. */
+
+#define NP_HEXMAP_SEEN_BYTES  ((NP_HEXMAP_MAX_SOCKETS + 7u) / 8u)
+
+/* Test-and-set. Returns true if the socket had ALREADY been emitted. */
+static bool socket_seen(uint8_t *seen, uint16_t socket_id)
+{
+    if (socket_id >= NP_HEXMAP_MAX_SOCKETS) {
+        return true;                    /* out of domain — never emit */
+    }
+    uint8_t  bit  = (uint8_t)(1u << (socket_id & 7u));
+    uint8_t *cell = &seen[socket_id >> 3];
+    if ((*cell & bit) != 0u) {
+        return true;
+    }
+    *cell |= bit;
+    return false;
+}
+
+/* Has this exact (socket:element) already been emitted? Used by KIND_ADDR_SET,
+ * where duplicates are per-address rather than per-socket. The scan is over the
+ * output built so far; explicit address lists are short by nature. */
+static bool addr_already_out(const np_hex_addr_t *out, uint16_t count,
+                             np_hex_addr_t a)
+{
+    for (uint16_t i = 0; i < count; i++) {
+        if (out[i].socket_id == a.socket_id && out[i].element_id == a.element_id) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/*
+ * Zone membership for a lobe query, per the locked rule in np_module_map.h: a
+ * socket that falls even partially within the zone is included.
+ *
+ * MIDLINE is inclusive on BOTH sides of the comparison, for two distinct reasons:
+ *   q->side == MIDLINE — the QUERY is a wildcard: "either hemisphere".
+ *   g->side == MIDLINE — the SOCKET straddles: it holds a module that is
+ *                        partially in each hemisphere, so it belongs to the Left
+ *                        AND the Right zone of its lobe (matches 00-zones.npps).
+ * Only a left-vs-right MISMATCH between two committed sides excludes.
+ */
+static bool lobe_side_matches(np_side_t query_side, np_side_t geom_side)
+{
+    if (query_side == NP_SIDE_MIDLINE || geom_side == NP_SIDE_MIDLINE) {
+        return true;
+    }
+    return query_side == geom_side;
+}
+
 /* Emit every passing element of one socket. Returns false on overflow. */
 static bool emit_socket(uint16_t socket_id, uint64_t mask, bool exclude,
                         np_hex_addr_t *out, uint16_t max, uint16_t *count)
@@ -287,15 +385,20 @@ np_hub_status_t np_module_map_resolve_group(const np_group_query_t *q,
     *count_out = 0;
     bool ok = true;
 
+    uint8_t seen[NP_HEXMAP_SEEN_BYTES];
+    memset(seen, 0, sizeof(seen));
+
     switch (q->kind) {
     case NP_GROUP_KIND_LOBE:
+        /* One ascending pass over the geometry visits each socket exactly once,
+         * so this kind cannot self-duplicate and needs no `seen` check. */
         for (uint16_t s = 0; s < s_map.n_sockets && ok; s++) {
             const np_socket_geom_t *g = &s_map.geom[s];
             if (!g->present_in_helmet || g->lobe != q->lobe) {
                 continue;
             }
-            /* MIDLINE query side = any hemisphere. */
-            if (q->side != NP_SIDE_MIDLINE && g->side != q->side) {
+            /* Inclusive membership — midline sockets match both hemispheres. */
+            if (!lobe_side_matches(q->side, g->side)) {
                 continue;
             }
             ok = emit_socket(s, q->type_mask, q->type_exclude, out, max, count_out);
@@ -306,7 +409,11 @@ np_hub_status_t np_module_map_resolve_group(const np_group_query_t *q,
         if (q->sockets == NULL && q->socket_count != 0u) {
             return NP_HUB_ERR_INVALID_ARG;
         }
+        /* The union-of-overlapping-zones path: repeats are expected, not an error. */
         for (uint16_t i = 0; i < q->socket_count && ok; i++) {
+            if (socket_seen(seen, q->sockets[i])) {
+                continue;              /* already emitted — do not drive twice */
+            }
             ok = emit_socket(q->sockets[i], q->type_mask, q->type_exclude,
                              out, max, count_out);
         }
@@ -321,6 +428,9 @@ np_hub_status_t np_module_map_resolve_group(const np_group_query_t *q,
             np_hex_addr_t     a = q->addrs[i];
             if (np_module_map_resolve(a, &loc) != NP_HUB_OK) {
                 continue;              /* silently drop unresolvable addresses */
+            }
+            if (addr_already_out(out, *count_out, a)) {
+                continue;              /* already emitted — do not drive twice */
             }
             if (!type_passes(q->type_mask, q->type_exclude, loc.elem_type)) {
                 continue;
@@ -520,8 +630,11 @@ np_hub_status_t np_module_map_restore(void)
     size_t          read_len = 0;
     np_hub_status_t rc = np_hexmap_nvram_read(s_nvram_scratch,
                                               sizeof(s_nvram_scratch), &read_len);
-    if (rc != NP_HUB_OK) {
-        return rc;
+    if (rc == NP_HUB_OK) {
+        rc = np_module_map_load(s_nvram_scratch, read_len);
     }
-    return np_module_map_load(s_nvram_scratch, read_len);
+    if (rc != NP_HUB_OK) {
+        clear_all_records();   /* fail closed — see the contract note above */
+    }
+    return rc;
 }
