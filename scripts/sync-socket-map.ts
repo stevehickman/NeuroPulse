@@ -43,7 +43,7 @@
  * Run:  bun scripts/sync-socket-map.ts   (--check to verify freshness in CI)
  */
 
-import { readFileSync, writeFileSync, mkdirSync } from "fs";
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from "fs";
 import { join, dirname } from "path";
 
 const ROOT = join(import.meta.dir, "..");
@@ -216,6 +216,174 @@ function validateAgainstZoneFile(sockets: SocketGeometry[]): string[] {
   return errors;
 }
 
+// ─── Lateralized-protocol audit ────────────────────────────────────────────────
+//
+// Why this lives here: zone membership is INCLUSIVE by default (PR #210 ruling) — a
+// midline socket belongs to BOTH hemisphere zones of its lobe, and the only way to
+// narrow a zone is to author a narrower one. There is no runtime exclusion filter.
+//
+// That rule is free for a protocol that targets both hemispheres, a whole lobe, or the
+// whole vault: the midline sockets belong there anyway. It has a real cost for a
+// protocol that targets ONE hemisphere, because the midline modules push roughly half
+// their cortical energy across the midline (50% exactly, by symmetry — NP-OPT-PSF-001 §4), which
+// is a confound in exactly the protocols whose evidence base is lateralized.
+//
+// A survey on 2026-07-19 found exactly one such protocol among 72 files. That survey is
+// a point-in-time grep nobody will remember to re-run, so it is encoded here instead:
+// add a new single-hemisphere-zone protocol and this check fails until someone decides
+// whether it needs a narrowed zone.
+//
+// ── The survey method this replaces ─────────────────────────────────────────────
+//
+//   1. Zone-using protocols:  grep -l "zones:" protocols/predefined/*.npps | grep -v 00-zones
+//   2. For each, resolve its zone names against 00-zones.npps and check whether any zone
+//      is a single hemisphere ("* Left" or "* Right" alone). A bilateral pair, a
+//      whole-lobe zone, or a whole-region zone (All, Frontal, Posterior, Vault (excl.
+//      Occipital), Motor / SMA) is not boundary-sensitive.
+//   3. Any NEW single-hemisphere zone protocol re-opens the partial-module question.
+//
+// ── Modalities deliberately NOT checked ─────────────────────────────────────────
+//
+//   tDCS   — targets 10-20 `electrode_pairs` labels, not sockets. NOTE: no 10-20 →
+//            socket mapping exists in the repo yet. When it is built, a named electrode
+//            resolves to ONE element on ONE module, which the existing (socket:element)
+//            address already expresses — so it introduces no new zone-boundary question.
+//   TMS    — `target: DLPFC_L` etc., positioned by its own focal figure-8 coil.
+//   tACS / VNS / audio / visual — carry no socket-zone keys at all.
+//
+// Only PBM addresses sockets by zone, so only PBM is audited.
+
+/** Zone names that are a single hemisphere: "<Lobe> Left" or "<Lobe> Right", nothing else. */
+const SINGLE_HEMISPHERE_RE = /^(Frontal|Temporal|Parietal|Occipital) (Left|Right)$/;
+
+/**
+ * Legal non-list values for `zones:`. Anything else is a typo and must fail the audit
+ * rather than being waved through — an unrecognised scalar previously passed silently,
+ * which is the exact failure mode this check exists to prevent.
+ * Mirrors the selector handling in app/web/src/lib/protocolEligibility.ts.
+ */
+const LEGAL_ZONE_TOKENS = new Set([
+  "named", "all", "front", "rear", "custom", "clinician_selected",
+]);
+
+/**
+ * Protocols already reviewed and accepted as single-hemisphere. Keyed by protocol file
+ * basename → the reason it is allowed to stay that way. Adding an entry here is a
+ * design decision and should carry a doc reference.
+ *
+ * Note the granularity: accepting a file suppresses the check for EVERY zone list in it.
+ * Keep protocols single-purpose so that stays a safe trade.
+ */
+const ACCEPTED_LATERALIZED: Record<string, string> = {
+  // Intentionally empty. clinical-03 was the only member and was narrowed to
+  // "Frontal Right (excl. midline)" on 2026-07-20 — see docs/np_opt_psf_001.md §4 and
+  // docs/status/completed-decisions.md.
+};
+
+interface LateralizedHit {
+  file: string;
+  zones: string[];
+}
+
+/** Strip `#`-to-end-of-line comments. */
+function stripComments(src: string): string {
+  return src.replace(/#[^\n]*/g, "");
+}
+
+/**
+ * Extract the bodies of PBM blocks only. Other modality blocks do not address sockets by
+ * zone, and matching the whole file would let a `description:` string or a commented-out
+ * example trip the gate.
+ */
+function pbmBlocks(src: string): string[] {
+  const out: string[] = [];
+  const re = /pbm_\w+\s*\{/g;
+  for (const m of src.matchAll(re)) {
+    let depth = 1;
+    let i = m.index! + m[0].length;
+    const from = i;
+    while (i < src.length && depth > 0) {
+      if (src[i] === "{") depth++;
+      else if (src[i] === "}") depth--;
+      i++;
+    }
+    out.push(src.slice(from, i - 1));
+  }
+  return out;
+}
+
+/**
+ * Find protocols whose PBM blocks name a bare single-hemisphere zone.
+ *
+ * Fails CLOSED: every `zones:` key is located first and then classified, so a value shape
+ * this function does not recognise is reported as unresolvable rather than producing no
+ * match and silently passing.
+ *
+ * Hemisphere pairing is evaluated across ALL PBM blocks in a file, not per block, because
+ * a protocol may legitimately drive each hemisphere from its own block (e.g. different
+ * intensity per side) and that is still bilateral. It also matches the file-level
+ * granularity of ACCEPTED_LATERALIZED.
+ */
+function auditLateralizedProtocols(
+  dir: string,
+): { hits: LateralizedHit[]; unresolved: LateralizedHit[] } {
+  const known = parseZoneFile(readFileSync(ZONE_FILE, "utf-8"));
+  const hits: LateralizedHit[] = [];
+  const unresolved: LateralizedHit[] = [];
+
+  for (const name of readdirSync(dir).sort()) {
+    if (!name.endsWith(".npps") || name.startsWith("00-zones")) continue;
+    const src = stripComments(readFileSync(join(dir, name), "utf-8"));
+
+    const namesInFile: string[] = [];
+    const badInFile: string[] = [];
+
+    for (const block of pbmBlocks(src)) {
+      for (const m of block.matchAll(/zones:\s*([^\n]+)/g)) {
+        const raw = m[1].trim();
+
+        if (raw.startsWith("[")) {
+          const closed = /\[([^\]]*)\]/.exec(raw.includes("]") ? raw : block.slice(m.index!));
+          if (!closed) { badInFile.push(raw); continue; }
+          const zoneNames = [...closed[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(z => z[1]);
+          if (zoneNames.length === 0) { badInFile.push(raw); continue; }
+          for (const z of zoneNames) {
+            if (!known.has(z)) badInFile.push(z);
+            else namesInFile.push(z);
+          }
+          continue;
+        }
+
+        // Bare token: `zones: clinician_selected` and friends. The montage is chosen
+        // elsewhere, so there is nothing to laterality-check — but the token must be one
+        // we actually recognise.
+        if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(raw)) {
+          if (!LEGAL_ZONE_TOKENS.has(raw)) badInFile.push(raw);
+          continue;
+        }
+
+        // Anything else (quoted scalar, number, unrecognised shape) fails closed.
+        badInFile.push(raw);
+      }
+    }
+
+    if (badInFile.length > 0) unresolved.push({ file: name, zones: [...new Set(badInFile)] });
+
+    const lateral = namesInFile.filter(z => SINGLE_HEMISPHERE_RE.test(z));
+    const lobes = new Set(lateral.map(z => z.replace(/ (Left|Right)$/, "")));
+    const unpaired = [...lobes].filter(
+      lobe => !(namesInFile.includes(`${lobe} Left`) && namesInFile.includes(`${lobe} Right`)),
+    );
+    if (unpaired.length > 0) {
+      hits.push({
+        file: name,
+        zones: [...new Set(lateral.filter(z => unpaired.includes(z.replace(/ (Left|Right)$/, ""))))],
+      });
+    }
+  }
+  return { hits, unresolved };
+}
+
 // ─── Emit ──────────────────────────────────────────────────────────────────────
 
 const BANNER =
@@ -292,6 +460,12 @@ export function isValidSocketId(id: number): boolean {
 
 const checkOnly = process.argv.includes("--check");
 
+/** Value of a `--flag <value>` argument, or undefined. */
+function parseArg(flag: string): string | undefined {
+  const i = process.argv.indexOf(flag);
+  return i >= 0 ? process.argv[i + 1] : undefined;
+}
+
 const sockets = buildSockets();
 const errors = validateAgainstZoneFile(sockets);
 
@@ -330,11 +504,86 @@ for (const [path, content] of outputs) {
   }
 }
 
+// ── Protocol audit ────────────────────────────────────────────────────────────
+//
+// Deliberately AFTER the emit. The generated socket map derives only from ROWS and
+// 00-zones.npps; protocols are downstream consumers of it. Running the audit first would
+// mean that adding one lateralized protocol makes the socket map unregenerable until a
+// clinical design question is settled — two unrelated artefacts coupled for no reason.
+// Failures from both stages are collected and reported together below.
+//
+// `--audit-dir <path>` points the audit at fixture protocols for testing. It suppresses
+// the normal pass line and is refused outside --check, so it can never masquerade as a
+// real green run. It is a CLI flag rather than an env var precisely so an ambient value
+// in a shell or CI runner cannot silently turn the gate into a no-op.
+const auditDirOverride = parseArg("--audit-dir");
+if (auditDirOverride && !checkOnly) {
+  console.error("--audit-dir is a testing flag and may only be used with --check.");
+  process.exit(2);
+}
+const auditDir = auditDirOverride ?? join(ROOT, "protocols", "predefined");
+
+let protocolFiles: string[];
+try {
+  protocolFiles = readdirSync(auditDir).filter(f => f.endsWith(".npps"));
+} catch {
+  console.error(`Protocol directory not readable: ${auditDir}`);
+  process.exit(2);
+}
+if (protocolFiles.length === 0) {
+  console.error(`No .npps protocols found in ${auditDir} — the audit would pass vacuously.`);
+  process.exit(2);
+}
+
+const { hits: lateralized, unresolved } = auditLateralizedProtocols(auditDir);
+let auditFailed = false;
+
+if (unresolved.length > 0) {
+  auditFailed = true;
+  console.error("\nProtocols reference zone names or selectors that are not recognised:\n");
+  for (const u of unresolved) console.error(`  - ${u.file}: [${u.zones.join(", ")}]`);
+  console.error(
+    "\nEvery zone name must exist in 00-zones.npps, and every bare selector must be one of: " +
+    `${[...LEGAL_ZONE_TOKENS].join(", ")}.`,
+  );
+}
+
+const unreviewed = lateralized.filter(h => !(h.file in ACCEPTED_LATERALIZED));
+if (unreviewed.length > 0) {
+  auditFailed = true;
+  console.error(
+    "\nSingle-hemisphere-zone protocol(s) found that have not been reviewed for midline spill:\n",
+  );
+  for (const h of unreviewed) console.error(`  - ${h.file}: [${h.zones.join(", ")}]`);
+  console.error(
+    "\nZone membership is inclusive (PR #210): the midline sockets of a lobe belong to BOTH\n" +
+    "its Left and Right zones, so a single-hemisphere zone leaks a share of its cortical\n" +
+    "energy to the other hemisphere. The size of that share depends on how many of the\n" +
+    "zone's sockets are midline — for Frontal Right it is 16.3%, and each midline module\n" +
+    "contributes exactly 50% of its own output (docs/np_opt_psf_001.md §4). Decide one of:\n" +
+    "  (a) accept the spill  — add the file to ACCEPTED_LATERALIZED with a reason;\n" +
+    "  (b) narrow the zone   — author an `(excl. midline)` variant in 00-zones.npps and\n" +
+    "                          point the protocol at it, as clinical-03 does.\n" +
+    "Do NOT reach for partial-module inclusion: it is deferred pending an owner ruling, and\n" +
+    "NP-OPT-PSF-001 §4.1 shows it cannot reach zero spill anyway, while (b) can, for free.",
+  );
+}
+
 if (checkOnly && stale > 0) {
   console.error(`\n${stale} generated file(s) out of date — run: bun scripts/sync-socket-map.ts`);
-  process.exit(1);
 }
+
+if (auditFailed || (checkOnly && stale > 0)) process.exit(1);
 
 console.log(
   `${sockets.length} sockets — all 8 lobe zones reproduced exactly from 00-zones.npps.`,
 );
+if (auditDirOverride) {
+  console.log(`lateralization audit: FIXTURE RUN against ${auditDirOverride} — not a real check.`);
+} else {
+  console.log(
+    `lateralization audit: ${protocolFiles.length} protocols scanned, ` +
+    `no unreviewed single-hemisphere zones` +
+    `${Object.keys(ACCEPTED_LATERALIZED).length > 0 ? ` (${Object.keys(ACCEPTED_LATERALIZED).length} accepted)` : ""}.`,
+  );
+}

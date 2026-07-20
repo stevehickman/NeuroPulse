@@ -10,12 +10,16 @@ on:
       - 'npps/fixtures/**'
       - 'protocols/predefined/**'
       - 'scripts/sync-conditions.ts'
+      - 'scripts/sync-socket-map.ts'
+      - 'scripts/test-lateralization-audit.sh'
   pull_request:
     paths:
       - 'app/web/**'
       - 'npps/fixtures/**'
       - 'protocols/predefined/**'
       - 'scripts/sync-conditions.ts'
+      - 'scripts/sync-socket-map.ts'
+      - 'scripts/test-lateralization-audit.sh'
   workflow_dispatch:
 
 jobs:
@@ -45,6 +49,21 @@ jobs:
       - name: Condition tables in sync with the NPPS registry
         working-directory: .
         run: bun scripts/sync-conditions.ts --check
+
+      # Two checks in one run: the generated socket map must still match the row
+      # structure + 00-zones.npps, AND no protocol may name a bare single-hemisphere
+      # zone without review. The second exists because zone membership is inclusive
+      # (PR #210) — a midline socket belongs to both hemispheres of its lobe, so a
+      # single-hemisphere zone leaks cortical energy across the midline
+      # (docs/np_opt_psf_001.md §4). Without this step the rule is only enforced by
+      # someone remembering to re-run a grep.
+      - name: Socket map in sync + no unreviewed lateralized protocols
+        working-directory: .
+        run: bun scripts/sync-socket-map.ts --check
+
+      - name: Lateralization audit behaves (accept + reject paths)
+        working-directory: .
+        run: bash scripts/test-lateralization-audit.sh
 
       - name: TypeScript type-check
         run: bun run tsc --noEmit

@@ -451,6 +451,13 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 ## 8. Cross-references
 
 - ISA: `docs/np_hex_zm_isa.md`
+- **Optics: NP-OPT-PSF-001 (`docs/np_opt_psf_001.md`)** — Monte Carlo point-spread function
+  for a module at 1064 nm. Establishes the spatial resolution floor at cortical depth
+  (edge-spread function 10–90% **~26 mm**, range 24–31 mm across the CSF-thickness sweep;
+  a 40 mm module's own edge measures 22.8 mm but that is aperture-limited, not a floor)
+  and the contralateral energy fractions used to size zones. Relevant to §3 because it
+  shows the chosen module pitch already sits near the optical resolution limit, so
+  sub-module addressing granularity buys little at depth. Model: `scripts/pbm-optical-psf.ts`.
 - Firmware: `firmware/hub_control/np_module_map.{h,c}`, `tests/np_module_map_tests.c`
 - Predecessors: NP-TOOL-ZM-001 (legacy zone-module tooling), NP-DRV-SHELL-001
   (shell FPC routing), NP-HW-FPC-001 (FPC pinout), CLAUDE.md §3/§4.3/§7 (modality
