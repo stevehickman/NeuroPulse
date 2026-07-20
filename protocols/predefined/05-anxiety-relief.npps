@@ -20,7 +20,7 @@ protocol "Anxiety Relief" {
         intensity: 65%
         frequency: 10Hz
         duty_cycle: 25%
-        zones: front
+        zones: ["Frontal"]
         wavelength: 660_808nm
     }
 

@@ -11,7 +11,7 @@ protocol "Focus Prime" {
         intensity: 80%
         frequency: 20Hz
         duty_cycle: 25%
-        zones: all
+        zones: ["All"]
         wavelength: 660_808nm
     }
 

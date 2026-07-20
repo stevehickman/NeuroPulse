@@ -11,7 +11,7 @@ protocol "Gamma + Theta Coupled" {
         intensity: 75%
         frequency: 40Hz
         duty_cycle: 25%
-        zones: front
+        zones: ["Frontal"]
         wavelength: 660_808nm
     }
 
@@ -19,7 +19,7 @@ protocol "Gamma + Theta Coupled" {
         intensity: 70%
         frequency: 6Hz
         duty_cycle: 25%
-        zones: rear
+        zones: ["Posterior"]
         wavelength: 660_808nm
     }
 

@@ -1074,8 +1074,307 @@ body {
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3a5a; }
 
+/* ─── Condition links (NP-COND-LINK-001) ─────────────────────────────────────── */
+
+.condition-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 2px;
+}
+
+.condition-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 10px;
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.condition-chip:hover { border-color: var(--accent); color: var(--accent); }
+
+.condition-chip:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Blocked links stay visible and selectable — the condition is still valid
+   protocol metadata; only the Open action is withheld. */
+.condition-chip.blocked {
+  opacity: 0.55;
+  cursor: help;
+  text-decoration: line-through;
+}
+
+.condition-chip.blocked:hover { border-color: var(--border); color: var(--text-muted); }
+
+.condition-chip-icon { font-size: 9px; opacity: 0.7; }
+
+.condition-modal { width: 420px; }
+
+.condition-modal-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.condition-description { font-size: 13px; color: var(--text-primary); margin: 0; }
+
+.condition-leaving { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+.condition-destination {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.condition-destination-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+/* The host, not the full URL — the host is the security-relevant part, and a
+   full Wikipedia URL is long enough to push the buttons out of view. */
+.condition-destination-host {
+  font-size: 14px;
+  font-weight: 700;
+  word-break: break-all;
+}
+
+.condition-blocked { font-size: 13px; color: var(--warning, #f59e0b); margin: 0; }
+
+.condition-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+/* ─── Helmet configuration (NP-CFG-UI-001) ───────────────────────────────────── */
+
+.config-screen {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 16px;
+  align-items: start;
+}
+
+.config-pane {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+}
+
+.config-pane:first-child { grid-column: 1 / -1; }
+
+.config-pane-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.config-pane-header h2 { font-size: 15px; font-weight: 700; margin: 0; flex: 1; }
+
+.config-note { font-size: 12px; color: var(--text-muted); margin: 4px 0; }
+.config-provisional { font-style: italic; opacity: 0.85; }
+.config-empty { font-size: 13px; color: var(--text-muted); }
+
+.config-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin: 10px 0 4px;
+}
+
+.zone-select, .condition-filter { width: 100%; }
+.condition-filter { max-width: 260px; }
+
+/* Protocol rows */
+.protocol-rows { display: flex; flex-direction: column; gap: 8px; }
+
+.protocol-row {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 10px 12px;
+  background: var(--bg-elevated);
+}
+
+.protocol-row.disabled { opacity: 0.72; border-left: 3px solid var(--error, #ef4444); }
+.protocol-row.degraded { border-left: 3px solid var(--warning, #f59e0b); }
+
+.protocol-row-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+
+.protocol-row-name { font-weight: 600; font-size: 13px; flex: 1; }
+
+.protocol-row-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 9px;
+  white-space: nowrap;
+}
+
+.protocol-row-badge.ok        { background: rgba(34,197,94,0.15);  color: #22c55e; }
+.protocol-row-badge.partial   { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.protocol-row-badge.blocked   { background: rgba(239,68,68,0.15);  color: #ef4444; }
+.protocol-row-badge.targeting { background: rgba(139,92,246,0.18); color: #a78bfa; }
+
+/* Needs-targeting is a distinct state from unavailable: the hardware is fine,
+   the operator just has not chosen the patient-specific site yet. */
+.protocol-row.targeting { border-left: 3px solid #8b5cf6; opacity: 1; }
+
+.targeting-panel {
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: var(--radius-lg);
+  background: rgba(139,92,246,0.07);
+  border: 1px solid rgba(139,92,246,0.28);
+}
+
+.targeting-note {
+  font-size: 12px;
+  color: #a78bfa;
+  margin: 0 0 6px;
+  line-height: 1.5;
+}
+
+.protocol-row-reason { font-size: 12px; color: var(--warning, #f59e0b); margin: 6px 0 0; }
+
+.shortfall-detail {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.shortfall-modality-name { font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+.shortfall-line { font-size: 11.5px; margin: 2px 0; color: var(--text-primary); }
+.shortfall-line.socket { font-family: var(--font-mono, ui-monospace, monospace); font-size: 11px; color: var(--text-muted); }
+.shortfall-line.unresolved { color: var(--error, #ef4444); }
+.shortfall-line.muted { color: var(--text-muted); font-style: italic; }
+
+/* Zone editor */
+.zone-editor {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.zone-editor input { width: 100%; }
+.zone-editor-error { font-size: 11.5px; color: var(--error, #ef4444); margin: 4px 0 0; }
+
+.zone-editor-output {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 11px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.zone-editor-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+
+/* Socket picker */
+.socket-picker { margin-top: 10px; }
+
+.socket-picker-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.socket-picker-legend .swatch {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 2px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.swatch.fitted       { background: #22c55e; }
+.swatch.incompatible { background: #f59e0b; }
+.swatch.empty        { background: #3a3a5a; }
+.swatch.sel          { background: var(--accent); }
+
+.socket-picker-legend-note { color: var(--text-muted); }
+
+.socket-picker-scroll { overflow-x: auto; max-width: 100%; }
+
+.socket-picker-svg { display: block; margin: 0 auto; }
+
+/* Unrolled-map framing, matching the Module redesign layout widget. */
+.map-axis     { fill: var(--text-secondary); font-size: 13px; font-weight: 600; }
+.map-side     { fill: var(--text-secondary); font-size: 15px; font-weight: 700; }
+.map-excluded { fill: var(--text-muted); font-size: 10px; }
+.map-midline  { stroke: var(--border); stroke-width: 1.5; }
+
+.map-hex { cursor: pointer; }
+.map-hex polygon { transition: fill-opacity 0.12s ease; }
+.map-hex:hover polygon { fill-opacity: 0.45; }
+.map-hex:focus-visible { outline: none; }
+.map-hex:focus-visible polygon { stroke-width: 4; }
+
+.map-hex-label {
+  fill: var(--text-muted);
+  font-size: 9px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  pointer-events: none;
+}
+
+.map-hex.selected .map-hex-label { fill: #fff; font-weight: 700; }
+.map-hex.empty .map-hex-label { opacity: 0.5; }
+
+.socket-picker-caption {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
 /* ─── Responsive ─────────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
+  .config-screen { grid-template-columns: 1fr; }
   .sidebar { display: none; }
   .app-body { flex-direction: column; }
+
+  .condition-modal { width: 95vw; }
 }

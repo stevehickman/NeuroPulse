@@ -13,7 +13,7 @@ protocol "PBM — TBI (chronic) + Intranasal" {
         intensity: 50%
         frequency: 10Hz
         duty_cycle: 25%
-        zones: all
+        zones: ["Vault (excl. Occipital)"]
         wavelength: 660_808nm
     }
 

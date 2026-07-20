@@ -1,0 +1,226 @@
+{
+  "_comment": "Shared condition-link policy vectors (NP-COND-LINK-001 §3). Every platform's test suite loads this file and asserts its ConditionLinkPolicy returns the given verdict and reason. Adding a vector here is the way to change the policy — all four implementations must then agree.",
+  "_verdicts": ["allow", "block"],
+  "_reasons": [
+    "ok",
+    "not_absolute",
+    "scheme_not_https",
+    "embedded_credentials",
+    "missing_host",
+    "local_or_private_host",
+    "malformed"
+  ],
+  "vectors": [
+    {
+      "name": "wikipedia https link from the shipped registry",
+      "url": "https://en.wikipedia.org/wiki/Major_depressive_disorder",
+      "verdict": "allow",
+      "reason": "ok",
+      "host": "en.wikipedia.org"
+    },
+    {
+      "name": "percent-encoded path is preserved",
+      "url": "https://en.wikipedia.org/wiki/Alzheimer%27s_disease",
+      "verdict": "allow",
+      "reason": "ok",
+      "host": "en.wikipedia.org"
+    },
+    {
+      "name": "uppercase scheme is accepted case-insensitively",
+      "url": "HTTPS://en.wikipedia.org/wiki/Stroke",
+      "verdict": "allow",
+      "reason": "ok",
+      "host": "en.wikipedia.org"
+    },
+    {
+      "name": "non-default port on a public host is allowed",
+      "url": "https://medical.example.org:8443/icd/6A70",
+      "verdict": "allow",
+      "reason": "ok",
+      "host": "medical.example.org"
+    },
+    {
+      "name": "query and fragment are allowed",
+      "url": "https://icd.who.int/browse/2024?code=6A70#section-3",
+      "verdict": "allow",
+      "reason": "ok",
+      "host": "icd.who.int"
+    },
+    {
+      "name": "plaintext http is downgraded transport, not openable",
+      "url": "http://en.wikipedia.org/wiki/Stroke",
+      "verdict": "block",
+      "reason": "scheme_not_https"
+    },
+    {
+      "name": "javascript scheme is script execution",
+      "url": "javascript:alert(document.cookie)",
+      "verdict": "block",
+      "reason": "scheme_not_https"
+    },
+    {
+      "name": "data scheme is inline content injection",
+      "url": "data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==",
+      "verdict": "block",
+      "reason": "scheme_not_https"
+    },
+    {
+      "name": "file scheme reads local disk",
+      "url": "file:///etc/passwd",
+      "verdict": "block",
+      "reason": "scheme_not_https"
+    },
+    {
+      "name": "custom scheme deep-links into another installed app",
+      "url": "neurone://session/start?protocol=all",
+      "verdict": "block",
+      "reason": "scheme_not_https"
+    },
+    {
+      "name": "relative path is not an absolute URL",
+      "url": "docs/pbm_neuro_protocols.md#4-depression",
+      "verdict": "block",
+      "reason": "not_absolute"
+    },
+    {
+      "name": "protocol-relative URL has no scheme",
+      "url": "//en.wikipedia.org/wiki/Stroke",
+      "verdict": "block",
+      "reason": "not_absolute"
+    },
+    {
+      "name": "empty string",
+      "url": "",
+      "verdict": "block",
+      "reason": "not_absolute"
+    },
+    {
+      "name": "userinfo enables host spoofing in the confirmation UI",
+      "url": "https://en.wikipedia.org@evil.example.com/wiki/Stroke",
+      "verdict": "block",
+      "reason": "embedded_credentials"
+    },
+    {
+      "name": "userinfo with password",
+      "url": "https://user:pass@example.org/page",
+      "verdict": "block",
+      "reason": "embedded_credentials"
+    },
+    {
+      "name": "https with no host",
+      "url": "https:///wiki/Stroke",
+      "verdict": "block",
+      "reason": "missing_host"
+    },
+    {
+      "name": "https with no authority marker has no host to reach",
+      "url": "https:wiki/Stroke",
+      "verdict": "block",
+      "reason": "not_absolute"
+    },
+    {
+      "name": "single-label host resolves via DNS search suffix to an intranet machine",
+      "url": "https://intranet/condition/6A70",
+      "verdict": "block",
+      "reason": "local_or_private_host"
+    },
+    {
+      "name": "authority that is only a port",
+      "url": "https://:8443/page",
+      "verdict": "block",
+      "reason": "missing_host"
+    },
+    {
+      "name": "loopback by name",
+      "url": "https://localhost/admin",
+      "verdict": "block",
+      "reason": "local_or_private_host"
+    },
+    {
+      "name": "loopback by IPv4 literal",
+      "url": "https://127.0.0.1:8080/admin",
+      "verdict": "block",
+      "reason": "local_or_private_host"
+    },
+    {
+      "name": "loopback anywhere in 127.0.0.0/8",
+      "url": "https://127.53.1.9/admin",
+      "verdict": "block",
+      "reason": "local_or_private_host"
+    },
+    {
+      "name": "loopback by IPv6 literal",
+      "url": "https://[::1]/admin",
+      "verdict": "block",
+      "reason": "local_or_private_host"
+    },
+    {
+      "name": "mDNS .local hostname",
+      "url": "https://clinic-hub.local/status",
+      "verdict": "block",
+      "reason": "local_or_private_host"
+    },
+    {
+      "name": "RFC1918 10/8",
+      "url": "https://10.0.0.5/panel",
+      "verdict": "block",
+      "reason": "local_or_private_host"
+    },
+    {
+      "name": "RFC1918 192.168/16",
+      "url": "https://192.168.1.1/panel",
+      "verdict": "block",
+      "reason": "local_or_private_host"
+    },
+    {
+      "name": "RFC1918 172.16/12 lower bound",
+      "url": "https://172.16.0.1/panel",
+      "verdict": "block",
+      "reason": "local_or_private_host"
+    },
+    {
+      "name": "RFC1918 172.16/12 upper bound",
+      "url": "https://172.31.255.254/panel",
+      "verdict": "block",
+      "reason": "local_or_private_host"
+    },
+    {
+      "name": "172.32 is outside RFC1918 and therefore public",
+      "url": "https://172.32.0.1/page",
+      "verdict": "allow",
+      "reason": "ok",
+      "host": "172.32.0.1"
+    },
+    {
+      "name": "169.254 link-local",
+      "url": "https://169.254.169.254/latest/meta-data",
+      "verdict": "block",
+      "reason": "local_or_private_host"
+    },
+    {
+      "name": "embedded newline",
+      "url": "https://en.wikipedia.org/wiki/St\nroke",
+      "verdict": "block",
+      "reason": "malformed"
+    },
+    {
+      "name": "embedded tab",
+      "url": "https://en.wikipedia.org/\twiki/Stroke",
+      "verdict": "block",
+      "reason": "malformed"
+    },
+    {
+      "name": "embedded space",
+      "url": "https://en.wikipedia.org/wiki/Post concussion",
+      "verdict": "block",
+      "reason": "malformed"
+    },
+    {
+      "name": "leading and trailing whitespace is trimmed before evaluation",
+      "url": "  https://en.wikipedia.org/wiki/Epilepsy  ",
+      "verdict": "allow",
+      "reason": "ok",
+      "host": "en.wikipedia.org"
+    }
+  ]
+}

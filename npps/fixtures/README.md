@@ -107,6 +107,25 @@ NPPS source fields are snake_case shorthand. The expected JSON uses camelCase re
 | `compound_idents` | Tri-wavelength compound ident (660_808_1064nm) |
 | `hyphenated_tags` | Hyphenated tags (wind-down, all-modalities, deep-sleep) |
 
+## Condition link vectors
+
+`condition_links.json` is a different shape from the parser fixtures above: it
+holds behavioural vectors for the condition external-link policy
+(NP-COND-LINK-001 §3) rather than parser input/output. It is consumed by **four**
+suites, not two:
+
+| Platform | Test |
+|---|---|
+| Web | `app/web/src/lib/conditionLink.test.ts` |
+| Apple | `app/ios/NeurOneTests/ConditionLinkPolicyTests.swift` |
+| Android | `app/android/core/src/test/kotlin/com/neurone/core/protocol/ConditionLinkPolicyTests.kt` |
+| Windows | `app/windows/NeurOne/Protocol/NPConditionLinkPolicy.cs` (see §3 of the spec for the harness) |
+
+Each vector is `{ name, url, verdict, reason, host? }` where `verdict` is
+`allow` or `block` and `reason` is one of the seven values listed in the file's
+`_reasons` key. Adding a vector is how the policy changes — all four
+implementations must then agree, or the parity tests fail.
+
 ## How to consume in tests
 
 ### TypeScript (Vitest)

@@ -7,9 +7,14 @@ import {
   validateNamespaceReferences,
 } from './nppsParser';
 
-// Load the predefined library straight off disk (the app fetches these at
-// runtime) and prove the whole set parses and cross-references cleanly.
-const DIR = path.resolve(__dirname, '../../public/protocols/predefined');
+// Load the predefined library straight off disk and prove the whole set parses
+// and cross-references cleanly.
+//
+// This reads the canonical `protocols/` tree — the single source of truth. The
+// app fetches the same files at runtime: in dev the Vite plugin in
+// vite.config.ts streams them from here, and at build time it copies them into
+// the bundle. There is deliberately no second copy under public/.
+const DIR = path.resolve(__dirname, '../../../../protocols/predefined');
 
 interface Manifest {
   zones?: string[];
@@ -75,12 +80,15 @@ describe('predefined NPPS library', () => {
     }
   });
 
-  it('mirrors identical content to protocols/predefined (source of truth)', () => {
-    const srcDir = path.resolve(__dirname, '../../../../protocols/predefined');
-    for (const f of allFiles) {
-      const a = fs.readFileSync(path.join(DIR, f), 'utf8');
-      const b = fs.readFileSync(path.join(srcDir, f), 'utf8');
-      expect(a, `mirror mismatch: ${f}`).toBe(b);
-    }
+  // The former 'mirrors identical content to protocols/predefined' test is gone
+  // with the duplicate it policed: public/protocols/ was a byte-identical copy
+  // of protocols/, so every edit had to be made twice. Vite now serves the
+  // canonical tree directly (see vite.config.ts), leaving nothing to mirror.
+  it('has no second copy of the protocol tree in the web app', () => {
+    const publicCopy = path.resolve(__dirname, '../../public/protocols');
+    expect(
+      fs.existsSync(publicCopy),
+      'public/protocols/ has reappeared — protocols/ is the single source of truth',
+    ).toBe(false);
   });
 });

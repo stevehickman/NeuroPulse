@@ -11,7 +11,7 @@ protocol "Flow State" {
         intensity: 80%
         frequency: 40Hz
         duty_cycle: 25%
-        zones: [1, 2]
+        zones: ["Frontal"]
         wavelength: 660_808nm
     }
 
@@ -19,7 +19,7 @@ protocol "Flow State" {
         intensity: 75%
         frequency: 6Hz
         duty_cycle: 25%
-        zones: [3, 4, 5]
+        zones: ["Posterior"]
         wavelength: 660_808nm
     }
 
