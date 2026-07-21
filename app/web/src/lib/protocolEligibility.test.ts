@@ -104,9 +104,10 @@ describe('generated socket map', () => {
   });
 
   it('stays within the firmware major-address ceiling', () => {
-    // np_module_map.h: NP_HEXMAP_MAX_SOCKETS = 96 (raised from 64 after the
-    // interior scan showed the real surface holds ~78 tiles). 7-bit field → 127.
-    expect(NP_SOCKET_ID_MAX).toBeLessThanOrEqual(96);
+    // np_module_map.h: NP_HEXMAP_MAX_SOCKETS = 128, the full 7-bit major domain
+    // (1 << 7). The interior scan holds ~80; the addressing ceiling is the whole
+    // field, so no arbitrary sub-ceiling to re-justify.
+    expect(NP_SOCKET_ID_MAX).toBeLessThanOrEqual(128);
   });
 
   it('rejects out-of-range socket ids', () => {

@@ -248,12 +248,18 @@ are now separated:
   above the Neuronic active vault (~500–650 cm² on the same shell) — a stated
   floor the active-surface boundary may not undercut.
 
-**Firmware bound raised 64 → 96 (committed).** The old `NP_HEXMAP_MAX_SOCKETS =
-64` was a guessed "physical ceiling" the scan disproved (the surface holds ~80).
-Raised to 96 — margin over the real count, still inside the 7-bit socket field
-(≤127), NVRAM blob 6.3 → 9.5 KB on the RT1062. This is the *smaller* honest fix
-than re-opening the locked 40 mm module width; the addressing now matches the
-physics rather than the physics being shrunk to match a guessed constant. See
+**Firmware bound set to the full 7-bit major domain, 128 (committed).** The old
+`NP_HEXMAP_MAX_SOCKETS = 64` was a guessed "physical ceiling" the scan disproved
+(the surface holds ~80). It was briefly raised to 96 — but 96 is just a *different*
+guessed margin, and it broke the firmware invariant that the socket bound spans
+the entire addressable field (`MAX == 1 << SOCKET_BITS`), which the max-address
+round-trip test relies on. Set instead to **128** = the full 7-bit major domain:
+no arbitrary sub-ceiling to re-justify, the whole field is usable, the max socket
+id is `0x7F`, and ~50 spare addresses are left for hardware extensions (audio
+cups, HRV/VNS clip, intranasal probe, goggles) to share the same two-level
+(socket:element) space. Runtime `n_sockets` (~80) is the actual count; 128 is the
+addressing ceiling (NVRAM blob ~17.4 KB on the RT1062 eMMC Config partition,
+~0.1% of it). Both invariants are committed host tests. See
 `firmware/hub_control/include/np_module_map.h`.
 
 **Status — v1 re-cut into the generated artifacts (REGEN-1, 2026-07-20), still

@@ -209,7 +209,7 @@ bench.
 - [ ] ISC-87: The tiling surface is the INNERMOST emitting-face surface (the clear window), not an offset outboard of it: on a concave bowl, rigid hex prisms presenting a continuous emitting field tessellate at their scalp-facing faces. Module + clear-layer thickness set mechanical depth and dose distance, NOT the socket count (verified: outward offset increases area ~2%/mm).
 - [ ] ISC-88: Over-ear audio is preserved: the lattice stops above the ears and the ear-adjacent boundary tiles are element-masked, leaving room for the over-ear planar-magnetic 40 mm drivers + mastoid bone-conduction (CLAUDE.md §3 modality 7). Anti: no tile is placed such that it forecloses the audio-cup footprint.
 - [ ] ISC-89: The active PBM surface is ≥ the Neuronic LIGHT active vault (~500–650 cm² on the same shell); v1 is ~1040 cm². Anti: the active-surface boundary may not undercut the Neuronic active area.
-- [x] ISC-90: `NP_HEXMAP_MAX_SOCKETS` raised 64 → 96 (fits the 7-bit socket field ≤127; NVRAM blob 6.3→9.5 KB) to match the measured ~80-socket surface with margin — the smaller honest fix vs re-opening the locked 40 mm module width. Firmware host suite 16/16 green after the change.
+- [x] ISC-90: `NP_HEXMAP_MAX_SOCKETS` set to **128 = the full 7-bit major domain** (`1 << SOCKET_BITS`) — the measured surface holds ~80, above the old 64 ceiling. 96 was tried first but is just a different guessed margin AND broke the firmware invariant that the socket bound spans the whole addressable field (max socket id must be `0x7F`); 128 restores it and leaves ~50 spare addresses for hardware extensions on the same (socket:element) space. Runtime `n_sockets` ~80 is the actual count; 128 is the addressing ceiling (NVRAM ~17.4 KB, ~0.1% of the Config partition). Both invariants are committed host tests; firmware suite green.
 - [x] ISC-91: SUPERSEDED by explicit principal direction (REGEN-1, 2026-07-20). The scan-grounded 80-socket lattice HAS now been re-cut into the generated artifacts (`sync-socket-map.ts`, `00-zones.npps`, `socketMap.generated.ts`) as **v1, PROVISIONAL**. The original anti — "do not bake v1 numbers as FINAL before REG-1/ACT-1" — is preserved in spirit: the artifacts are stamped PROVISIONAL throughout (header banners, zone-file header, `_basis: scan-measured`, `NP_TILE_GEOMETRY` JSDoc), REG-1 and ACT-1 remain open, and the active-surface descriptor is deliberately NOT emitted (that is ACT-2). The failure mode this guards against is treating v1 as locked; it is not.
 
 ## Test Strategy
@@ -260,6 +260,7 @@ bench.
   gated on REG-1 (10-20 registration vs shell CAD) and ACT-1 (active-surface
   boundary from the audio-cup footprint + coverage targets); baking v1
   LiDAR-derived numbers as final is the failure mode this work prevents (ISC-91).
+- 2026-07-21 — **Firmware bound set to 128 = the full 7-bit major domain (committed).** 96 (tried first) was another guessed margin that violated the invariant that the socket bound spans the whole 7-bit field (max socket id = 0x7F), which the round-trip-max test checks; 128 = (1 << SOCKET_BITS) restores it. Supersedes the note below.
 - 2026-07-20 — **Firmware bound raised 64 → 96 (committed, principal decision
   "raise the bound").** The scan shows the surface holds ~80 tiles; 64 was a
   guessed ceiling, the same class of unchecked constant that once let a 78-socket
@@ -509,12 +510,12 @@ bench.
 - ISC-81, ISC-82, ISC-83, ISC-90: derived from the scan analysis — axial ray
   test (interior single-surface), PCA de-tilt, footprint 272×234 vs published
   273×226 (scale), 157 mm measured height vs 207 mm published, geodesic arcs
-  465/419 mm; firmware bound 64→96 committed with `ctest` 16/16 green.
+  465/419 mm; firmware bound set to 128 (full 7-bit major domain) with `ctest` green.
 - ISC-6, ISC-6.1, ISC-76, ISC-77 (interim model): the validator re-derives all
   four aggregate unions and asserts "All" covers every socket - both were
   verified to FAIL loudly against a stale zone file, evidence they are
   load-bearing. "stays within the firmware major-address ceiling" now checks
-  NP_SOCKET_ID_MAX <= 96 (raised from 64, ISC-90).
+  NP_SOCKET_ID_MAX <= 128 (full 7-bit major domain, ISC-90).
 - ISC-78, ISC-79: `npps-zones-conditions.test.ts` - serializer refuses a zone
   with ids [0, 4, 999] and canonicalises [5,3,5,1] -> [1,3,5] with the output
   re-parsing; `[true, 4]`, `[0x10]`, `[1e1]`, `[[5], 4]` all rejected;

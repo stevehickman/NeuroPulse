@@ -71,8 +71,9 @@
  * design point the full regular lattice is ~78 sockets, well above the old 64
  * ceiling. 64 was a guessed "physical ceiling" that the scan disproved -- the
  * same class of unchecked constant that once let a 78-socket lattice ship, only
- * this time the physics is real -- so the bound is raised to 96 to match what
- * the helmet actually holds, with margin, still inside the 7-bit field.
+ * this time the physics is real -- so the bound is set to 128 = the full 7-bit
+ * major domain (1 << SOCKET_BITS): the entire addressable field is usable, with
+ * no arbitrary sub-ceiling to re-justify, and the max socket id is 0x7F.
  * Element field 7 bits covers the densest 40 mm tri-wavelength tile (~90
  * elements) AND is what the active-surface mask indexes: a boundary tile keeps
  * its socket and disables the elements outside the chosen active surface
@@ -80,10 +81,10 @@
 
 #define NP_HEXMAP_SOCKET_BITS      7
 #define NP_HEXMAP_ELEM_BITS        7
-#define NP_HEXMAP_MAX_SOCKETS      96      /* ~78 physical + margin; was 64, a     \
-                                                 * guess the interior scan disproved.   \
-                                                 * Fits the 7-bit socket field (<=127). \
-                                                 * NVRAM blob 6.3->9.5 KB.              */
+#define NP_HEXMAP_MAX_SOCKETS      128     /* full 7-bit major domain (1 << 7);   \
+                                                 * was 64 (half), briefly 96 (a       \
+                                                 * guessed margin). Runtime n_sockets \
+                                                 * ~80; this is the addressing ceiling.*/
  /*
  * 128 is a CEILING, not a step: the packed wire address (np_hex_addr_pack) is
  * 14 bits with the socket masked to 0x7F, and socket_id is uint8_t throughout

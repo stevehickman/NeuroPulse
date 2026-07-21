@@ -439,13 +439,18 @@ function validateAgainstZoneFile(sockets: SocketGeometry[]): string[] {
   };
 
   /**
-   * Zones that are deliberately NOT unions of lobe zones. "Motor / SMA" is a
-   * novel cross-lobe grouping (the precentral motor row minus its lateral
-   * temporal sockets) and is PROVISIONAL pending REG-1, so it is exempt from the
-   * union check — but it still has to reference real sockets, and it has to be
-   * listed here rather than silently skipped.
+   * Zones that are deliberately NOT unions of lobe zones — a subset or novel
+   * grouping. "Motor / SMA" is the precentral motor row minus its lateral
+   * temporal sockets (PROVISIONAL pending REG-1). "Frontal Right (excl. midline)"
+   * is Frontal Right minus the shared midline sockets, for a lateralized protocol
+   * that must stay off the midline (the PBM optical-resolution floor, np_opt_psf_001).
+   * Both still have to reference real, deduplicated sockets — they are exempt
+   * only from the union check, and must be listed here rather than silently skipped.
    */
-  const NON_UNION_ZONES = new Set(["Motor / SMA"]);
+  const NON_UNION_ZONES = new Set([
+    "Motor / SMA",
+    "Frontal Right (excl. midline)",
+  ]);
 
   for (const [name, expectedNames] of Object.entries(AGGREGATES)) {
     const ids = actual.get(name);
