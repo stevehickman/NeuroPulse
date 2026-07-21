@@ -65,13 +65,27 @@
 #include "np_hub_types.h"
 
 /* ── Address field sizing ─────────────────────────────────────────────────────
- * Socket field 7 bits, and MAX_SOCKETS is the FULL 7-bit domain (128) — the
- * addressing layer deliberately encodes no opinion about helmet geometry. The
- * helmet ships 78 sockets; the earlier value of 64 was a round power of two, not
- * a geometry-derived number, and it left 14 physical sockets unaddressable.
+
+ * Socket field 7 bits (holds 0..127). The tiling surface was re-measured from a
+ * 3D scan of the reference helmet interior (Neuronic LIGHT shape): at the 40 mm
+ * design point the full regular lattice is ~78 sockets, well above the old 64
+ * ceiling. 64 was a guessed "physical ceiling" that the scan disproved -- the
+ * same class of unchecked constant that once let a 78-socket lattice ship, only
+ * this time the physics is real -- so the bound is set to 128 = the full 7-bit
+ * major domain (1 << SOCKET_BITS): the entire addressable field is usable, with
+ * no arbitrary sub-ceiling to re-justify, and the max socket id is 0x7F.
  * Element field 7 bits covers the densest 40 mm tri-wavelength tile (~90
- * elements).
- *
+ * elements) AND is what the active-surface mask indexes: a boundary tile keeps
+ * its socket and disables the elements outside the chosen active surface
+ * (NP-HEX-ZM-001 §3.4). See NP-HEX-ZM-001 §3 for the scan derivation. */
+
+#define NP_HEXMAP_SOCKET_BITS      7
+#define NP_HEXMAP_ELEM_BITS        7
+#define NP_HEXMAP_MAX_SOCKETS      128     /* full 7-bit major domain (1 << 7);   \
+                                                 * was 64 (half), briefly 96 (a       \
+                                                 * guessed margin). Runtime n_sockets \
+                                                 * ~80; this is the addressing ceiling.*/
+ /*
  * 128 is a CEILING, not a step: the packed wire address (np_hex_addr_pack) is
  * 14 bits with the socket masked to 0x7F, and socket_id is uint8_t throughout
  * the API (np_hex_addr_t, np_placement_req_t, the failed_sockets[] out-param).
@@ -80,9 +94,6 @@
  * fails the build if you try. Out-of-domain ids handed to np_hex_addr_pack are
  * rejected with NP_HEX_ADDR_INVALID rather than masked into a valid address. */
 
-#define NP_HEXMAP_SOCKET_BITS      7
-#define NP_HEXMAP_ELEM_BITS        7
-#define NP_HEXMAP_MAX_SOCKETS      128     /* full 7-bit major domain            */
 #define NP_HEXMAP_MAX_ELEMENTS     128     /* 7-bit minor domain                 */
 #define NP_HEXMAP_UID_LEN          8       /* 64-bit module UID                  */
 

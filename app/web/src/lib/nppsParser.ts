@@ -31,6 +31,13 @@ import {
   NPElementType,
 } from '../types/protocol';
 import {
+  NP_SOCKET_COUNT,
+  NP_SOCKET_NUMBERING_BASE,
+  describeInvalid,
+  socketRangeLabel,
+  toSocketSet,
+} from './socketSet';
+import {
   NPLimitsSet,
   LimitLevel,
   PBMTranscranialLimits,
@@ -1241,6 +1248,14 @@ class Parser {
   // zone "Name" { sockets: [1, 2, 3]  types: [..]  exclude_types: bool
   //               description: ".."  id: ".." }
   // A zone is a list of socket (major) addresses — the modules it selects.
+  //
+  // Socket ids are validated against the real helmet lattice, not merely checked
+  // for finiteness: the numbering base is 1 and the count is derived from tile
+  // geometry (socketSet.ts / socketMap.generated.ts). A `sockets: [0, ...]`
+  // typo used to parse cleanly and then address nothing, and an id past the end
+  // of the lattice used to reach firmware, where the major address is 7 bits.
+  // The list is also deduplicated here so every downstream consumer receives a
+  // true set.
   private parseZoneBlock(): NPZoneDefinition {
     this.skipNewlines();
     if (this.current.type !== 'STRING') {
@@ -1259,8 +1274,19 @@ class Parser {
         case 'id': zone.id = this.readString(); zone.isPredefined = true; break;
         case 'description': zone.description = this.readString(); break;
         case 'sockets': {
+          const line = this.current.line;
           const arr = this.readGenericArray();
-          zone.sockets = arr.map(Number).filter(n => Number.isFinite(n));
+          const { sockets, invalid } = toSocketSet(arr);
+          if (invalid.length > 0) {
+            throw new NPPSParseError(
+              `zone "${name}": ${invalid.map(describeInvalid).join(', ')} ` +
+              `${invalid.length === 1 ? 'is not a socket' : 'are not sockets'} ` +
+              `on this helmet — ids are whole numbers ${socketRangeLabel()} ` +
+              `(${NP_SOCKET_COUNT} sockets, numbered from ${NP_SOCKET_NUMBERING_BASE})`,
+              line,
+            );
+          }
+          zone.sockets = sockets;
           break;
         }
         case 'types': {

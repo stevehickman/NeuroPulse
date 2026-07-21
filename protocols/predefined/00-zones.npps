@@ -1,87 +1,154 @@
-# NeurOne predefined zones (NP-NPPS Rev B)
-# Eight lobe zones (L/R x frontal/temporal/parietal/occipital). A zone is a
-# named SET OF MODULES, defined as a list of socket (major) addresses — the
-# first half of the two-level (socket:element) scheme (NP-HEX-ZM-001). Listing
-# sockets directly makes arbitrary, non-contiguous zones definable. Center-column
-# (midline) sockets appear in both the Left and Right zone of their lobe. Users
-# may define their own zones in any .npps file in the protocol directory tree.
+# NeurOne predefined zones (NP-NPPS Rev C)
+#
+# A zone is a named SET OF MODULES, defined as a list of socket (major)
+# addresses — the first half of the two-level (socket:element) scheme
+# (NP-HEX-ZM-001). Listing sockets directly makes arbitrary, non-contiguous
+# zones definable. Users may define their own zones in any .npps file in the
+# protocol directory tree.
+#
+# ── MEMBERSHIP IS DERIVED, NOT AUTHORED ───────────────────────────────────────
+#
+# scripts/sync-socket-map.ts builds the lattice from the SCAN-MEASURED interior
+# surface (NP-HEX-ZM-001 §3.4) — a Scaniverse LiDAR scan of the reference helmet
+# interior, not an ellipsoid — then assigns each socket a lobe from 10-20
+# landmarks. It fails the build if the zones below stop matching. Edit the model
+# there.
+#
+# ── PROVISIONAL — scan-grounded v1 (2026-07-20) ───────────────────────────────
+#
+# This is the scan-grounded v1 lattice, re-cut on explicit principal direction.
+# The socket-to-10-20 registration (gate REG-1) and the active-surface boundary
+# (gate ACT-1) are still OPEN; the row/lobe boundaries here are the v1 proposal,
+# NOT a final/locked map. Confirm against shell CAD before any clinical placement
+# or dosing claim.
+#
+#   tiling surface   Scaniverse LiDAR scan of the reference helmet INTERIOR
+#                    (the clear inner window = the emitting-face surface)
+#   nasion->inion    465 mm over the vertex   (the 10-20 longitudinal ruler)
+#   ear-to-ear       419 mm over the vertex, peak
+#   rim->crown       157 mm  (the published 207 mm was packaging)
+#   tiled region     ~1108 cm2, inside a ~1370 cm2 measured interior vault
+#   tile             40 mm flat-to-flat = 13.86 cm2, row pitch 34.6 mm
+#   SOCKETS          80
+#
+# ── Rows, in nasion->inion arc fraction (= the 10-20 coordinate) ──────────────
+#
+# arcFrac(r) = 0.08 + (r/11)*0.86.  Widths are MEASURED off the scan.
+#
+#   row  arc     ~10-20 line   tiles  ids       band
+#   r0    8.0%   Fp             3     1-3       frontal
+#   r1   15.8%   AF             6     4-9       frontal
+#   r2   23.6%   F              7     10-16     frontal
+#   r3   31.5%   FC             8     17-24     frontal
+#   r4   39.3%   C (precentral) 9     25-33     frontal  (motor strip)
+#   r5   47.1%   CP             8     34-41     frontal
+#   r6   54.9%   P              9     42-50     parietal
+#   r7   62.7%   —              8     51-58     parietal
+#   r8   70.5%   PO             7     59-65     parietal
+#   r9   78.4%   —              6     66-71     parietal
+#   r10  86.2%   O              5     72-76     occipital
+#   r11  94.0%   —              4     77-80     occipital
+#
+# Row widths ALTERNATE PARITY, and must. Every row is symmetric about the
+# midline, so an odd row sits on integer tile positions and an even row on
+# half-integers; offset hex packing needs consecutive rows shifted by half a
+# tile. The v1 widths 3 6 7 8 9 8 9 8 7 6 5 4 are o e o e o e o e o e o e —
+# valid. Break the alternation and same-column tiles collide.
+#
+# ── Lobe boundaries used (skull geography, not convenience) ───────────────────
+#
+#   central sulcus       = the C line, 50% of the arc   -> frontal | parietal
+#   parieto-occipital    = the PO line, 80% of the arc  -> parietal | occipital
+#   temporal             = LATERAL, below the Sylvian fissure: the outermost
+#                          socket of a row, only where the row reaches the
+#                          temporal line (>=7 wide) and only within the lobe's
+#                          own front-to-back extent (F7/T3 to T5/P5, 35-78%).
+#
+# Center-column (midline) sockets belong to BOTH the Left and Right zone of
+# their lobe. They are 2, 13, 29, 46, 62 and 74.
 
 zone "Frontal Left" {
     id: "40000001-0000-0000-0000-000000000000"
-    description: "Predefined lobe zone — frontal lobe, left hemisphere. Socket (major) addresses per the helmet module-address map; midline sockets appear in both hemispheres."
-    sockets: [1, 2, 4, 5, 7, 8, 11, 12, 13, 16, 17]
+    description: "Predefined lobe zone — frontal lobe, left hemisphere. Everything anterior to the central sulcus (the 50% C line) that is not lateral enough to be temporal. Midline sockets 2, 13 and 29 appear in both hemispheres."
+    sockets: [1, 2, 4, 5, 6, 10, 11, 12, 13, 17, 18, 19, 20, 26, 27, 28, 29, 35, 36, 37]
 }
 
 zone "Frontal Right" {
     id: "40000002-0000-0000-0000-000000000000"
-    description: "Predefined lobe zone — frontal lobe, right hemisphere. Socket (major) addresses per the helmet module-address map; midline sockets appear in both hemispheres."
-    sockets: [1, 3, 5, 6, 9, 10, 13, 14, 15, 18, 19]
+    description: "Predefined lobe zone — frontal lobe, right hemisphere. Everything anterior to the central sulcus (the 50% C line) that is not lateral enough to be temporal. Midline sockets 2, 13 and 29 appear in both hemispheres."
+    sockets: [2, 3, 7, 8, 9, 13, 14, 15, 16, 21, 22, 23, 24, 29, 30, 31, 32, 38, 39, 40]
 }
 
 zone "Temporal Left" {
     id: "40000003-0000-0000-0000-000000000000"
-    description: "Predefined lobe zone — temporal lobe, left hemisphere. Socket (major) addresses per the helmet module-address map; midline sockets appear in both hemispheres."
-    sockets: [20, 29, 38, 47, 56]
+    description: "Predefined lobe zone — temporal lobe, left hemisphere. The outermost socket of each row that reaches the temporal line, across the lobe's front-to-back extent (F7/T3 junction at 35% back to T5/P5 at 78%) — rows r2 to r8. No midline socket: the temporal lobe never crosses the midline."
+    sockets: [25, 34, 42, 51, 59]
 }
 
 zone "Temporal Right" {
     id: "40000004-0000-0000-0000-000000000000"
-    description: "Predefined lobe zone — temporal lobe, right hemisphere. Socket (major) addresses per the helmet module-address map; midline sockets appear in both hemispheres."
-    sockets: [24, 33, 42, 51, 60]
+    description: "Predefined lobe zone — temporal lobe, right hemisphere. The outermost socket of each row that reaches the temporal line, across the lobe's front-to-back extent (F7/T3 junction at 35% back to T5/P5 at 78%) — rows r2 to r8. No midline socket: the temporal lobe never crosses the midline."
+    sockets: [33, 41, 50, 58, 65]
 }
 
 zone "Parietal Left" {
     id: "40000005-0000-0000-0000-000000000000"
-    description: "Predefined lobe zone — parietal lobe, left hemisphere. Socket (major) addresses per the helmet module-address map; midline sockets appear in both hemispheres."
-    sockets: [21, 22, 25, 26, 30, 31, 34, 35, 39, 40, 43, 44, 48, 49, 52, 53, 57, 58]
+    description: "Predefined lobe zone — parietal lobe, left hemisphere. Between the central sulcus (50%) and the parieto-occipital sulcus (80%), excluding the lateral sockets that belong to the temporal lobe. Midline sockets 46 and 62 appear in both hemispheres."
+    sockets: [43, 44, 45, 46, 52, 53, 54, 60, 61, 62, 66, 67, 68]
 }
 
 zone "Parietal Right" {
     id: "40000006-0000-0000-0000-000000000000"
-    description: "Predefined lobe zone — parietal lobe, right hemisphere. Socket (major) addresses per the helmet module-address map; midline sockets appear in both hemispheres."
-    sockets: [22, 23, 27, 28, 31, 32, 36, 37, 40, 41, 45, 46, 49, 50, 54, 55, 58, 59]
+    description: "Predefined lobe zone — parietal lobe, right hemisphere. Between the central sulcus (50%) and the parieto-occipital sulcus (80%), excluding the lateral sockets that belong to the temporal lobe. Midline sockets 46 and 62 appear in both hemispheres."
+    sockets: [46, 47, 48, 49, 55, 56, 57, 62, 63, 64, 69, 70, 71]
 }
 
 zone "Occipital Left" {
     id: "40000007-0000-0000-0000-000000000000"
-    description: "Predefined lobe zone — occipital lobe, left hemisphere. Socket (major) addresses per the helmet module-address map; midline sockets appear in both hemispheres."
-    sockets: [61, 62, 65, 66, 67, 70, 71, 74, 75, 77]
+    description: "Predefined lobe zone — occipital lobe, left hemisphere. Posterior to the parieto-occipital sulcus (80% of the nasion-inion arc). Socket 74 is Oz — the midline occipital address the photoparoxysmal halt depends on — and appears in both hemispheres."
+    sockets: [72, 73, 74, 77, 78]
 }
 
 zone "Occipital Right" {
     id: "40000008-0000-0000-0000-000000000000"
-    description: "Predefined lobe zone — occipital lobe, right hemisphere. Socket (major) addresses per the helmet module-address map; midline sockets appear in both hemispheres."
-    sockets: [63, 64, 67, 68, 69, 72, 73, 75, 76, 78]
+    description: "Predefined lobe zone — occipital lobe, right hemisphere. Posterior to the parieto-occipital sulcus (80% of the nasion-inion arc). Socket 74 is Oz — the midline occipital address the photoparoxysmal halt depends on — and appears in both hemispheres."
+    sockets: [74, 75, 76, 79, 80]
 }
 
 # ── Aggregate zones (NP-CFG-UI-001) ───────────────────────────────────────────
-# Each aggregate is a union of the lobe zones above — no new socket grouping is
-# introduced. "All", "Frontal" and "Posterior" exist so protocols authored
-# against the retired 5-slot zone-module scheme (`zones: all | front | rear` and
-# numeric `zones: [n, ...]`) can be expressed as named zones. "Vault (excl.
-# Occipital)" exists because the PBM evidence's "whole-head" target is narrower
-# than every address — see its description.
+#
+# "All", "Frontal", "Posterior" and "Vault (excl. Occipital)" are each an exact
+# DEDUPLICATED union of the lobe zones above — no new socket grouping. They
+# exist so protocols authored against the retired 5-slot zone-module scheme
+# (`zones: all | front | rear` and numeric `zones: [n, ...]`) can be expressed
+# as named zones. Each union lists every socket once: midline sockets belong to
+# both hemispheres of their lobe, so a naive concatenation would double-count
+# sockets 2, 13, 29, 46, 62 and 74. sync-socket-map.ts re-derives every union
+# below and diffs it, and additionally checks that "All" covers every socket.
+#
+# "Motor / SMA" is the ONE exception — a deliberate novel cross-lobe grouping
+# whose membership comes from the requirements of the protocol that uses it. It
+# is registered in NON_UNION_ZONES in scripts/sync-socket-map.ts.
 #
 # Naming rule: a zone name must not imply coverage it does not have. "All" means
-# every address on the helmet and nothing less; a subset therefore says so in
-# its name rather than borrowing a term like "whole head".
+# every address on the helmet and nothing less.
 
 zone "All" {
     id: "40000009-0000-0000-0000-000000000000"
     description: "Every socket on the helmet. Migration target for the retired `zones: all` selector. NOTE: this is BROADER than old `all`, which addressed the five ZM slots (frontal L/R, parietal L/R, occipital) and had no temporal coverage at all; the ten temporal sockets are new."
-    sockets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78]
+    sockets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80]
 }
 
 zone "Frontal" {
     id: "4000000A-0000-0000-0000-000000000000"
-    description: "Union of Frontal Left and Frontal Right. Migration target for the retired numeric selector `zones: [1, 2]` (ZM slots 0-1 = frontal L/R)."
-    sockets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
+    description: "Union of Frontal Left and Frontal Right — the frontal lobe, anterior to the central sulcus. Migration target for the retired numeric selector `zones: [1, 2]` (ZM slots 0-1 = frontal L/R). Excludes the lateral temporal sockets 25, 33, 34 and 41."
+    sockets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 32, 35, 36, 37, 38, 39, 40]
 }
 
 zone "Vault (excl. Occipital)" {
     id: "4000000C-0000-0000-0000-000000000000"
-    description: "Union of Frontal, Temporal and Parietal (both hemispheres) — sockets 1-60. This is the site list the PBM evidence calls 'whole-head': pbm_neuro_protocols.md §1 (Alzheimer's, Grade A) specifies 'bilateral frontal, temporal, parietal + midline' and §6 (chronic TBI, Grade B) specifies 'multi-site scalp (frontal/temporal/parietal)'. Neither enumerates occipital, so this zone deliberately excludes it; use 'All' only when every address really is intended. The frontal and parietal midline sockets (1, 5, 13, 22, 31, 40, 49, 58) are included; the occipital midline pair (67, 75) is not."
-    sockets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60]
+    description: "Union of Frontal, Temporal and Parietal (both hemispheres) — sockets 1-71, everything anterior to the parieto-occipital sulcus. This is the site list the PBM evidence calls 'whole-head': pbm_neuro_protocols.md §1 (Alzheimer's, Grade A) specifies 'bilateral frontal, temporal, parietal + midline' and §6 (chronic TBI, Grade B) specifies 'multi-site scalp (frontal/temporal/parietal)'. Neither enumerates occipital, so this zone deliberately excludes it; use 'All' only when every address really is intended. The frontal and parietal midline sockets (2, 13, 29, 46, 62) are included; the occipital midline socket (74, Oz) is not."
+    sockets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71]
 }
 
 zone "Frontal Right (excl. midline)" {
@@ -92,12 +159,12 @@ zone "Frontal Right (excl. midline)" {
 
 zone "Motor / SMA" {
     id: "4000000D-0000-0000-0000-000000000000"
-    description: "Head sites for Parkinson's transcranial PBM: 'bilateral, midline over SMA/motor' (pbm_neuro_protocols.md §8, Grade C — Liebert 2021/2024). Covers the two most posterior frontal rows (sockets 11-19): primary motor cortex sits on the precentral gyrus at the posterior edge of the frontal lobe, immediately anterior to the central sulcus, and the supplementary motor area is medial frontal just anterior to it. Balanced bilateral — 4 left (11, 12, 16, 17), 4 right (14, 15, 18, 19), plus midline socket 13. Deliberately excludes parietal: the postcentral gyrus is somatosensory, not motor. PROVISIONAL socket membership — the frontal band is derived from the socket row structure, but the exact sockets over the motor strip depend on gate REG-1 (socket lattice registers to 10-20 within tolerance, NP-HEX-ZM-001 §7). Confirm against the shell CAD and 10-20 registration before any clinical dosing claim."
-    sockets: [11, 12, 13, 14, 15, 16, 17, 18, 19]
+    description: "Head sites for Parkinson's transcranial PBM. DERIVED FROM THE PROTOCOL, not from lobe boundaries: clinical-08-pbm-parkinsons.npps targets the head 'bilateral, midline over SMA/motor' (pbm_neuro_protocols.md §8, Grade C — Liebert 2021/2024) and explicitly not the whole vault, because whole-head irradiation would over-deliver well beyond the evidence. Primary motor cortex is the precentral gyrus at the central sulcus; the supplementary motor area is medial frontal just anterior to it. Row r4 sits at 39.3% of the nasion-inion arc — the precentral motor strip — and is the only row over the motor representation. This zone is that row (width 9) minus its two temporal sockets (25, 33), which are lateral to the motor representation: 26, 27, 28 (left), 29 (midline, over the SMA), 30, 31, 32 (right). Balanced bilateral with a midline site, exactly as the protocol requires. PROVISIONAL — final registration depends on gate REG-1 (NP-HEX-ZM-001 §7). Confirm against the shell CAD before any clinical dosing claim."
+    sockets: [26, 27, 28, 29, 30, 31, 32]
 }
 
 zone "Posterior" {
     id: "4000000B-0000-0000-0000-000000000000"
-    description: "Union of Parietal Left/Right and Occipital Left/Right. Migration target for the retired `zones: rear` selector and the numeric `zones: [3, 4, 5]` (ZM slots 2-4 = parietal L/R + occipital). The retired occipital ZM slot was a single zone; it maps to both new occipital hemisphere zones."
-    sockets: [21, 22, 23, 25, 26, 27, 28, 30, 31, 32, 34, 35, 36, 37, 39, 40, 41, 43, 44, 45, 46, 48, 49, 50, 52, 53, 54, 55, 57, 58, 59, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78]
+    description: "Union of Parietal Left/Right and Occipital Left/Right — everything posterior to the central sulcus that is not temporal. Migration target for the retired `zones: rear` selector and the numeric `zones: [3, 4, 5]` (ZM slots 2-4 = parietal L/R + occipital). The retired occipital ZM slot was a single zone; it maps to both new occipital hemisphere zones."
+    sockets: [43, 44, 45, 46, 47, 48, 49, 52, 53, 54, 55, 56, 57, 60, 61, 62, 63, 64, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80]
 }

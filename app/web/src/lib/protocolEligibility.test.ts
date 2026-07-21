@@ -18,7 +18,15 @@ import {
   describeShortfall,
   MODALITY_REQUIREMENTS,
 } from './protocolEligibility';
-import { NP_SOCKETS, NP_SOCKET_COUNT, isValidSocketId } from './socketMap.generated';
+import { NP_SOCKETS, NP_ROW_WIDTHS, NP_TILE_GEOMETRY } from './socketMap.generated';
+import {
+  NP_SOCKET_COUNT,
+  NP_SOCKET_ID_MAX,
+  NP_SOCKET_ID_MIN,
+  NP_SOCKET_NUMBERING_BASE,
+  isValidSocketId,
+  unionSockets,
+} from './socketSet';
 import { parseNPPSFile, buildNamespace } from './nppsParser';
 import type { NPProtocolDefinition, NPZoneDefinition } from '../types/protocol';
 
@@ -31,16 +39,82 @@ const zoneNamespace = buildNamespace([
 // ─── Socket map ────────────────────────────────────────────────────────────────
 
 describe('generated socket map', () => {
-  it('has 78 sockets numbered 1..78 with no gaps', () => {
-    expect(NP_SOCKET_COUNT).toBe(78);
-    expect(NP_SOCKETS.map(s => s.id)).toEqual(Array.from({ length: 78 }, (_, i) => i + 1));
+  it('uses the hexagon area its own module width implies', () => {
+    const { moduleWidthMm, hexAreaCm2 } = NP_TILE_GEOMETRY;
+    expect(hexAreaCm2).toBeCloseTo((Math.sqrt(3) / 2) * moduleWidthMm ** 2 / 100, 3);
+    expect(moduleWidthMm).toBeGreaterThanOrEqual(34); // workable floor
+    expect(moduleWidthMm).toBeLessThanOrEqual(46);    // workable ceiling
+  });
+
+  /**
+   * THE load-bearing geometric assertion. In an offset hex lattice every
+   * neighbour sits at exactly one tile width, so any pair closer than that is
+   * two modules trying to occupy the same space. A previous revision shipped
+   * 13 such pairs because row widths did not alternate parity.
+   */
+  it('tessellates — no two sockets overlap', () => {
+    const collisions: string[] = [];
+    for (let i = 0; i < NP_SOCKETS.length; i++) {
+      for (let j = i + 1; j < NP_SOCKETS.length; j++) {
+        const a = NP_SOCKETS[i], b = NP_SOCKETS[j];
+        const d = Math.hypot(a.x - b.x, a.y - b.y);
+        if (d < 0.999) collisions.push(`${a.id}&${b.id} at ${d.toFixed(3)}`);
+      }
+    }
+    expect(collisions).toEqual([]);
+  });
+
+  /**
+   * Every row is symmetric about the midline, so odd rows land on integer tile
+   * positions and even rows on half-integers; offset packing needs consecutive
+   * rows shifted by half a tile. Both together force strict parity alternation.
+   */
+  it('alternates row width parity, which is what makes the packing valid', () => {
+    for (let i = 1; i < NP_ROW_WIDTHS.length; i++) {
+      expect(NP_ROW_WIDTHS[i] % 2, `rows ${i - 1} and ${i} share parity`)
+        .not.toBe(NP_ROW_WIDTHS[i - 1] % 2);
+    }
+    expect(NP_ROW_WIDTHS.reduce((a, b) => a + b, 0)).toBe(NP_SOCKET_COUNT);
+  });
+
+  /**
+   * The sockets sit on the HELMET INTERIOR, which stands off the largest skull
+   * the SKU covers so hair and head-size spread have somewhere to go. Tiling
+   * the skull itself under-counted by nearly half.
+   */
+  it('tiles the helmet interior, standing off the largest skull', () => {
+    const g = NP_TILE_GEOMETRY;
+    expect(g.standoffMm).toBeGreaterThan(10);
+    expect(g.tiledAreaCm2).toBeLessThan(g.vaultSurfaceCm2);
+    expect(g.interiorLengthMm).toBeGreaterThan(g.interiorBreadthMm);
+  });
+
+  it('spaces rows at the pitch offset hex packing requires', () => {
+    const { moduleWidthMm, rowPitchMm } = NP_TILE_GEOMETRY;
+    expect(rowPitchMm).toBeCloseTo(0.75 * (2 * moduleWidthMm / Math.sqrt(3)), 2);
+  });
+
+  it('numbers sockets contiguously from the numbering base', () => {
+    expect(NP_SOCKET_NUMBERING_BASE).toBe(1);
+    expect(NP_SOCKET_ID_MIN).toBe(NP_SOCKET_NUMBERING_BASE);
+    expect(NP_SOCKET_ID_MAX).toBe(NP_SOCKET_NUMBERING_BASE + NP_SOCKET_COUNT - 1);
+    expect(NP_SOCKETS.map(s => s.id)).toEqual(
+      Array.from({ length: NP_SOCKET_COUNT }, (_, i) => i + NP_SOCKET_NUMBERING_BASE),
+    );
+  });
+
+  it('stays within the firmware major-address ceiling', () => {
+    // np_module_map.h: NP_HEXMAP_MAX_SOCKETS = 128, the full 7-bit major domain
+    // (1 << 7). The interior scan holds ~80; the addressing ceiling is the whole
+    // field, so no arbitrary sub-ceiling to re-justify.
+    expect(NP_SOCKET_ID_MAX).toBeLessThanOrEqual(128);
   });
 
   it('rejects out-of-range socket ids', () => {
-    expect(isValidSocketId(0)).toBe(false);
-    expect(isValidSocketId(79)).toBe(false);
-    expect(isValidSocketId(1)).toBe(true);
-    expect(isValidSocketId(78)).toBe(true);
+    expect(isValidSocketId(NP_SOCKET_ID_MIN - 1)).toBe(false);
+    expect(isValidSocketId(NP_SOCKET_ID_MAX + 1)).toBe(false);
+    expect(isValidSocketId(NP_SOCKET_ID_MIN)).toBe(true);
+    expect(isValidSocketId(NP_SOCKET_ID_MAX)).toBe(true);
   });
 
   /**
@@ -78,8 +152,11 @@ describe('generated socket map', () => {
   });
 
   it('aggregate zones are exact unions of the lobe zones they replace', () => {
+    // Deliberately the SAME union helper the app uses: an aggregate that matched
+    // a hand-rolled concatenation but not `unionSockets` would mean the shipped
+    // list double-counts a midline socket.
     const union = (...names: string[]) =>
-      [...new Set(names.flatMap(n => zoneNamespace.get(n)!.sockets))].sort((a, b) => a - b);
+      unionSockets(...names.map(n => zoneNamespace.get(n)!.sockets));
 
     const sortedOf = (name: string) => [...zoneNamespace.get(name)!.sockets].sort((a, b) => a - b);
 
@@ -93,7 +170,9 @@ describe('generated socket map', () => {
         'Parietal Left', 'Parietal Right',
       ),
     );
-    expect(sortedOf('All')).toEqual(Array.from({ length: 78 }, (_, i) => i + 1));
+    expect(sortedOf('All')).toEqual(
+      Array.from({ length: NP_SOCKET_COUNT }, (_, i) => i + NP_SOCKET_NUMBERING_BASE),
+    );
   });
 
   /**
@@ -109,42 +188,53 @@ describe('generated socket map', () => {
     ]);
     const covered = zoneNamespace.get('Vault (excl. Occipital)')!.sockets;
 
-    expect(covered.length).toBe(60);
+    expect(covered.length).toBe(NP_SOCKET_COUNT - occipital.size);
     expect(covered.filter(s => occipital.has(s))).toEqual([]);
-    // ...including the occipital midline pair, which is in both hemispheres.
-    expect(covered).not.toContain(67);
-    expect(covered).not.toContain(75);
-    // ...but the frontal/parietal midline sockets ARE covered.
-    for (const midline of [1, 5, 13, 22, 31, 40, 49, 58]) {
-      expect(covered, `midline socket ${midline}`).toContain(midline);
+
+    const midlineOf = (lobes: string[]) =>
+      NP_SOCKETS.filter(s => s.side === 'midline' && lobes.includes(s.lobe)).map(s => s.id);
+
+    // ...including the occipital midline, which is in both hemisphere zones and
+    // so would sneak in via a naive union.
+    for (const id of midlineOf(['occipital'])) {
+      expect(covered, `occipital midline socket ${id}`).not.toContain(id);
     }
-    expect(zoneNamespace.get('All')!.sockets.filter(s => occipital.has(s)).length).toBe(18);
+    // ...but the frontal/parietal midline sockets ARE covered.
+    for (const id of midlineOf(['frontal', 'parietal'])) {
+      expect(covered, `midline socket ${id}`).toContain(id);
+    }
+    expect(zoneNamespace.get('All')!.sockets.filter(s => occipital.has(s)).length)
+      .toBe(occipital.size);
   });
 
   /**
    * §8 targets "bilateral, midline over SMA/motor". The zone must therefore be
-   * balanced across hemispheres, include the midline, and stay inside the
-   * frontal lobe — the postcentral gyrus is somatosensory, not motor.
+   * balanced across hemispheres and include a midline site. On the scan-grounded
+   * 80-socket lattice the motor strip is the precentral row r4 (39.3% of the
+   * nasion-inion arc); the zone is that single row minus its two lateral temporal
+   * sockets, so every remaining socket is frontal (the precentral gyrus is
+   * anterior to the central sulcus). That is documented in the zone description
+   * and pinned here rather than left to drift.
    */
-  it('Motor / SMA is a balanced bilateral frontal band', () => {
+  it('Motor / SMA is a balanced bilateral band over the motor strip', () => {
     const motor = zoneNamespace.get('Motor / SMA')!.sockets;
-    expect(motor).toEqual([11, 12, 13, 14, 15, 16, 17, 18, 19]);
-
     const geo = (id: number) => NP_SOCKETS.find(s => s.id === id)!;
 
-    // Entirely frontal — no parietal/somatosensory bleed.
+    // Balanced bilateral, with exactly one midline site.
+    const left = motor.filter(id => geo(id).side === 'left');
+    const right = motor.filter(id => geo(id).side === 'right');
+    expect(left.length).toBe(right.length);
+    expect(left.length).toBeGreaterThan(0);
+    expect(motor.filter(id => geo(id).side === 'midline').length).toBe(1);
+
+    // A single coronal band — the precentral motor strip — nothing spread across
+    // rows.
+    expect(new Set(motor.map(id => geo(id).row)).size).toBe(1);
+
+    // Every socket is frontal: the precentral gyrus is anterior to the central
+    // sulcus, and the lateral temporal sockets of the row are excluded. This
+    // also rules out any occipital bleed.
     expect(motor.every(id => geo(id).lobe === 'frontal')).toBe(true);
-
-    // Balanced bilateral, with the midline included.
-    expect(motor.filter(id => geo(id).side === 'left')).toEqual([11, 12, 16, 17]);
-    expect(motor.filter(id => geo(id).side === 'right')).toEqual([14, 15, 18, 19]);
-    expect(motor.filter(id => geo(id).side === 'midline')).toEqual([13]);
-
-    // The posterior-most frontal band: no frontal socket sits behind it.
-    const maxFrontalRow = Math.max(
-      ...NP_SOCKETS.filter(s => s.lobe === 'frontal').map(s => s.row),
-    );
-    expect(Math.max(...motor.map(id => geo(id).row))).toBe(maxFrontalRow);
   });
 
   it("the Parkinson's protocol targets Motor / SMA, not All", () => {
@@ -168,9 +258,28 @@ describe('generated socket map', () => {
     }
   });
 
-  it('marks exactly the ten midline sockets shared between hemispheres', () => {
+  /**
+   * Midline sockets are the reason zone unions must dedup: each one is a member
+   * of BOTH hemisphere zones of its lobe, so concatenating a lobe pair
+   * double-counts it. There is exactly one per odd-width row.
+   */
+  it('marks the midline sockets shared between hemispheres', () => {
     const midline = NP_SOCKETS.filter(s => s.side === 'midline').map(s => s.id);
-    expect(midline).toEqual([1, 5, 13, 22, 31, 40, 49, 58, 67, 75]);
+    const oddRows = NP_ROW_WIDTHS.filter(w => w % 2 === 1).length;
+    expect(midline.length).toBe(oddRows);
+
+    for (const id of midline) {
+      const { lobe } = NP_SOCKETS.find(s => s.id === id)!;
+      const label = lobe[0].toUpperCase() + lobe.slice(1);
+      expect(zoneNamespace.get(`${label} Left`)!.sockets, `${id} in Left`).toContain(id);
+      expect(zoneNamespace.get(`${label} Right`)!.sockets, `${id} in Right`).toContain(id);
+    }
+
+    // The union of a lobe pair must count each midline socket once.
+    const fl = zoneNamespace.get('Frontal Left')!.sockets;
+    const fr = zoneNamespace.get('Frontal Right')!.sockets;
+    expect(unionSockets(fl, fr).length).toBeLessThan(fl.length + fr.length);
+    expect(unionSockets(fl, fr)).toEqual(zoneNamespace.get('Frontal')!.sockets);
   });
 });
 
@@ -207,12 +316,13 @@ describe('inventory', () => {
     expect(provider.getInventory()).toBeNull();
 
     provider.setPreset('pbm-only');
-    expect(provider.getInventory()!.occupiedSockets.length).toBe(78);
+    expect(provider.getInventory()!.occupiedSockets.length).toBe(NP_SOCKET_COUNT);
 
     provider.setPreset('partial-frontal');
-    // Frontal band is rows 0..5, widths 1+2+3+4+5+4 = 19 sockets.
+    // The frontal band, whatever the lattice makes it — the preset selects by
+    // lobe, so the expectation reads the lobe too.
     expect(provider.getInventory()!.occupiedSockets).toEqual(
-      Array.from({ length: 19 }, (_, i) => i + 1),
+      NP_SOCKETS.filter(s => s.lobe === 'frontal').map(s => s.id),
     );
   });
 });
@@ -221,25 +331,29 @@ describe('inventory', () => {
 
 describe('zone coverage', () => {
   const frontalLeft = zoneNamespace.get('Frontal Left')! as NPZoneDefinition;
+  // Sized from the shipped zone, not restated: the lattice is derived from tile
+  // geometry, so a literal here would just be another copy of the socket count.
+  const FL = frontalLeft.sockets.length;
+  const FL_FITTED = Math.max(1, FL - 1);
 
   it('reports full coverage when every socket has the modules', () => {
     const inv = inventoryWith(Object.fromEntries(frontalLeft.sockets.map(s => [s, 'ZM-PBM-DUAL'])));
     const c = zoneCoverageFor(frontalLeft, 'pbm_transcranial', inv);
 
-    expect(c.satisfied.length).toBe(11);
+    expect(c.satisfied.length).toBe(FL);
     expect(c.missing).toEqual([]);
     expect(coverageFraction(c)).toBe(1);
-    expect(coverageLabel(c)).toBe('11/11 sockets');
+    expect(coverageLabel(c)).toBe(`${FL}/${FL} sockets`);
   });
 
   /** The behaviour you chose: partial zones are offered, with the shortfall shown. */
   it('reports partial coverage rather than excluding the zone', () => {
     const fitting: Record<number, string | null> = {};
-    frontalLeft.sockets.forEach((s, i) => (fitting[s] = i < 7 ? 'ZM-PBM-DUAL' : 'ZM-EEG'));
+    frontalLeft.sockets.forEach((s, i) => (fitting[s] = i < FL_FITTED ? 'ZM-PBM-DUAL' : 'ZM-EEG'));
     const c = zoneCoverageFor(frontalLeft, 'pbm_transcranial', inventoryWith(fitting));
 
-    expect(coverageLabel(c)).toBe('7/11 sockets');
-    expect(c.missing.length).toBe(4);
+    expect(coverageLabel(c)).toBe(`${FL_FITTED}/${FL} sockets`);
+    expect(c.missing.length).toBe(FL - FL_FITTED);
 
     const offered = zonesForModality([frontalLeft], 'pbm_transcranial', inventoryWith(fitting));
     expect(offered.map(z => z.zoneName)).toContain('Frontal Left');
@@ -293,6 +407,15 @@ function pbmProtocol(zoneRefs: string[]): NPProtocolDefinition {
   } as NPProtocolDefinition;
 }
 
+/**
+ * Three sockets outside the frontal band, taken from the map rather than named,
+ * so the clinician-targeting tests survive a re-cut lattice. `partial-frontal`
+ * leaves these empty, which is what those tests need.
+ */
+const POSTERIOR_TARGETS = NP_SOCKETS.filter(s => s.lobe === 'parietal')
+  .slice(0, 3)
+  .map(s => s.id);
+
 describe('protocol eligibility', () => {
   it('is eligible when every requested zone is fully covered', () => {
     const fl = zoneNamespace.get('Frontal Left')!;
@@ -307,12 +430,13 @@ describe('protocol eligibility', () => {
   it('is eligible-but-degraded on partial coverage', () => {
     const fl = zoneNamespace.get('Frontal Left')!;
     const fitting: Record<number, string | null> = {};
-    fl.sockets.forEach((s, i) => (fitting[s] = i < 7 ? 'ZM-PBM-DUAL' : null));
+    const fitted = fl.sockets.length - 1;
+    fl.sockets.forEach((s, i) => (fitting[s] = i < fitted ? 'ZM-PBM-DUAL' : null));
 
     const result = evaluateProtocol(pbmProtocol(['Frontal Left']), inventoryWith(fitting), zoneNamespace);
     expect(result.eligible).toBe(true);
     expect(result.degraded).toBe(true);
-    expect(result.shortfalls[0].coverage[0].satisfied.length).toBe(7);
+    expect(result.shortfalls[0].coverage[0].satisfied.length).toBe(fitted);
   });
 
   it('is ineligible with per-socket detail when a zone has no support', () => {
@@ -321,11 +445,12 @@ describe('protocol eligibility', () => {
 
     expect(result.eligible).toBe(false);
     expect(result.summary).toContain('Frontal Left');
-    expect(result.summary).toContain('11 sockets need re-fitting');
+    const FL = zoneNamespace.get('Frontal Left')!.sockets.length;
+    expect(result.summary).toContain(`${FL} sockets need re-fitting`);
 
     const shortfall = result.shortfalls[0];
-    expect(shortfall.sockets.length).toBe(11);
-    expect(shortfall.sockets[0].socketId).toBe(1);
+    expect(shortfall.sockets.length).toBe(FL);
+    expect(shortfall.sockets[0].socketId).toBe(NP_SOCKET_ID_MIN);
     expect(shortfall.sockets[0].fitted).toBeUndefined();
   });
 
@@ -395,9 +520,9 @@ describe('protocol eligibility', () => {
     const dual = inventoryWith(Object.fromEntries(fl.sockets.map(s => [s, 'ZM-DUAL-EL'])));
 
     expect(zoneCoverageFor(fl, 'hd_tdcs', tesOnly).satisfied).toEqual([]);
-    expect(zoneCoverageFor(fl, 'hd_tdcs', dual).satisfied.length).toBe(11);
+    expect(zoneCoverageFor(fl, 'hd_tdcs', dual).satisfied.length).toBe(fl.sockets.length);
     // ...while plain tACS is happy with either.
-    expect(zoneCoverageFor(fl, 'bes_tacs', tesOnly).satisfied.length).toBe(11);
+    expect(zoneCoverageFor(fl, 'bes_tacs', tesOnly).satisfied.length).toBe(fl.sockets.length);
   });
 
   // ─── Clinician-selected targeting ────────────────────────────────────────────
@@ -425,7 +550,7 @@ describe('protocol eligibility', () => {
 
   it('clears once the operator supplies sockets', () => {
     const inv = new NPSimulatedInventoryProvider('full-t1').getInventory()!;
-    const targeting = new Map([['pbm_transcranial' as const, [30, 31, 34]]]);
+    const targeting = new Map([['pbm_transcranial' as const, POSTERIOR_TARGETS]]);
     const result = evaluateProtocol(clinicianTargetedProtocol(), inv, zoneNamespace, targeting);
 
     expect(result.eligible).toBe(true);
@@ -433,14 +558,14 @@ describe('protocol eligibility', () => {
   });
 
   it('still checks the fitted hardware at the operator-chosen sockets', () => {
-    // Frontal band only — sockets 30/31 are outside it, so they are empty.
+    // Frontal band only, so the posterior targets are empty sockets.
     const inv = new NPSimulatedInventoryProvider('partial-frontal').getInventory()!;
-    const targeting = new Map([['pbm_transcranial' as const, [30, 31]]]);
+    const targeting = new Map([['pbm_transcranial' as const, POSTERIOR_TARGETS.slice(0, 2)]]);
     const result = evaluateProtocol(clinicianTargetedProtocol(), inv, zoneNamespace, targeting);
 
     expect(result.eligible).toBe(false);
     expect(result.requiresTargeting).toEqual([]);
-    expect(result.shortfalls[0].sockets.map(s => s.socketId)).toEqual([30, 31]);
+    expect(result.shortfalls[0].sockets.map(s => s.socketId)).toEqual(POSTERIOR_TARGETS.slice(0, 2));
   });
 
   it('an empty selection does not count as targeting', () => {

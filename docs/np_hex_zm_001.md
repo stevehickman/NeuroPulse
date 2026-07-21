@@ -32,6 +32,18 @@ expensive shared architecture.
 
 ## 3. Geometry (Option A)
 
+> **⚠ Read §3.4 first (2026-07-20).** The tile-count derivations in §3.1–3.3
+> below evolved through a skull-area model (30 sockets) and then a helmet-interior
+> ellipsoid derived from the Neuronic LIGHT published envelope (54 sockets). Both
+> are now **superseded as the geometry basis** by a direct 3D scan of the
+> reference helmet interior (§3.4), which measures the actual tiling surface and
+> gives a ~80-socket lattice. §3.1–3.3 are retained for the derivation method and
+> the module-fit math (curvature, dose coupling, bezel), which are unchanged; the
+> **socket count and lattice come from §3.4**. The shipped generated artifacts
+> (`00-zones.npps`, `socketMap.generated.ts`) now hold the scan-grounded
+> **80-socket v1** lattice (re-cut by REGEN-1, 2026-07-20, on explicit principal
+> direction) — still **PROVISIONAL** pending REG-1 / ACT-1; see §3.4.
+
 Governing relation — for a hexagon of flat-to-flat width **W**, circumradius
 a = W/√3, on a spherical module cap R_m against a skull region R_s:
 
@@ -41,22 +53,232 @@ a = W/√3, on a spherical module cap R_m against a skull region R_s:
   which symmetrizes the worst-case mismatch across temples (tight, ~65 mm) and
   crown (flat, ~130 mm). Worst-case astigmatic **Δκ ≈ 0.0039 mm⁻¹**.
 
-| W (flat-to-flat) | Vertex span | Dome depth | Worst-case mismatch | Active coverage (2.5 mm bezel) |
-|---|---|---|---|---|
-| 34 mm | 39 mm | 2.2 mm | 0.75 mm | 73% |
-| **40 mm ★** | **46 mm** | **3.1 mm** | **1.04 mm** | **77%** |
-| 42 mm | 48 mm | 3.4 mm | 1.15 mm | 77% |
-| 46 mm | 53 mm | 4.0 mm | 1.38 mm | 79% |
+### 3.1 Tile count — derived from the largest skull, two ways
 
-- **Workable 34–46 mm.** Floor = bezel + element embedding (cluster clamps remove
-  the per-module lever-arm floor, §5.4a); ceiling = rigid fit (pushes down). Ideal
+The helmet is **one adult SKU covering 52–62 cm** head circumference (CLAUDE.md
+§4.4), so the shell — which carries the sockets — is sized to the **largest**
+skull in that range. Everything below follows from that skull and the 40 mm tile.
+
+**Skull model (62 cm circumference, cephalic index 0.78, vault height 100 mm):**
+
+| Quantity | Value |
+|---|---|
+| Skull length × breadth | 221 × 172 mm |
+| Nasion→inion arc over the vertex | 331 mm — *the 10-20 system's own longitudinal ruler* |
+| Ear-to-ear arc over the vertex | 293 mm |
+| Cranial vault (upper half-ellipsoid) | 613 cm² |
+| **Tileable vault** (×0.70 for rim, forehead bridge, Boa arch, ear drop) | **429 cm²** |
+
+**Tile geometry.** A regular hexagon of flat-to-flat width W has area
+**A = (√3/2)·W²**; offset-packed rows advance by **¾ · 2W/√3**.
+
+| W (flat-to-flat) | Vertex span | Dome depth | Worst-case mismatch | Active coverage (2.5 mm bezel) | Hex area | Row pitch | **Tiles** |
+|---|---|---|---|---|---|---|---|
+| 34 mm (floor) | 39 mm | 2.2 mm | 0.75 mm | 73% | 10.01 cm² | 29.4 mm | **42** |
+| **40 mm ★** | **46 mm** | **3.1 mm** | **1.04 mm** | **77%** | **13.86 cm²** | **34.6 mm** | **30** |
+| 42 mm | 48 mm | 3.4 mm | 1.15 mm | 77% | 15.28 cm² | 36.4 mm | 28 |
+| 46 mm (ceiling) | 53 mm | 4.0 mm | 1.38 mm | 79% | 18.33 cm² | 39.8 mm | 23 |
+
+**The count is corroborated two independent ways at the 40 mm design point:**
+
+1. **Area quotient** — ⌊429 / 13.86⌋ = **30**. A pure upper bound; it assumes
+   perfect packing and is only useful as a falsifier.
+2. **Row-by-row construction** — rows spaced 34.6 mm along the 331 mm
+   nasion→inion arc, each as wide as the ear-to-ear arc at that station, taking
+   only whole tiles: **1 + 3 + 4 + 5 + 5 + 5 + 4 + 2 + 1 = 30**. This one
+   accounts for the boundary waste the area quotient ignores.
+
+Both give 30, and the 429 cm² tileable area independently reproduces the
+~420 cm² this brief carried before the skull model existed.
+
+- **Workable 34–46 mm.** Floor = bezel + element embedding (cluster clamps
+  remove the per-module lever-arm floor, §5.4a); ceiling = rigid fit. Ideal
   **38–42 mm**; design point **40 mm**.
-- Worst-case 1.04 mm at 40 mm is absorbed by the PDMS window standoff + a ≤0.8 mm
-  compliant gasket; most of the vault sees ~0.25 mm.
-- **~27–30 modules** over a ~420 cm² tileable vault (24–33 for area uncertainty);
-  geometry ceiling ~54–64 tiles at the smallest workable W.
-- The densest tile (tri-wavelength PBM ~90 elements at ~3.5 mm pitch, or a single
-  spring EEG pod) fits inside the 40 mm inner field — embedding floor cleared.
+- Worst-case 1.04 mm at 40 mm is absorbed by the PDMS window standoff + a
+  ≤0.8 mm compliant gasket; most of the vault sees ~0.25 mm.
+- **Geometry ceiling = 42 tiles**, at the smallest workable W (34 mm).
+- The densest tile (tri-wavelength PBM ~90 elements at ~3.5 mm pitch, or a
+  single spring EEG pod) fits inside the 40 mm inner field.
+
+> **Correction (2026-07-20) — the old "~54–64 tile ceiling" was wrong, and so was
+> the 78-socket lattice built against it.** 54–64 tiles requires W = 30.0–27.5 mm,
+> *below this table's own 34 mm workable floor*; the figure reads as "roughly
+> double the nominal 27–30" rather than a computed one. Worse, the shipped socket
+> map carried **78** sockets, which needs W = 24.9 mm — below the workable floor,
+> below the ~90-element embedding floor, and above firmware's
+> `NP_HEXMAP_MAX_SOCKETS = 64`. No W in the workable range yields 78 tiles, so
+> that lattice was never buildable. Note the brief's *nominal* line (~27–30) was
+> right all along: three separate guardrails disagreed with 78 and none of them
+> was ever checked against it.
+
+### 3.2 The lattice, in 10-20 coordinates
+
+Rows are coronal bands, positioned as a fraction of the nasion→inion arc — which
+*is* the 10-20 coordinate, so the lattice registers to anatomy by construction.
+
+| Row | Arc | ~10-20 line | Tiles | Sockets | Lobe band |
+|---|---|---|---|---|---|
+| r0 | 10.0% | Fp | 1 | 1 | frontal |
+| r1 | 20.5% | AF | 3 | 2–4 | frontal |
+| r2 | 30.9% | F | 4 | 5–8 | frontal |
+| r3 | 41.4% | FC | 5 | 9–13 | frontal — **precentral (motor/SMA)** |
+| r4 | 51.9% | C | 5 | 14–18 | parietal — postcentral |
+| r5 | 62.4% | CP | 5 | 19–23 | parietal |
+| r6 | 72.8% | P | 4 | 24–27 | parietal |
+| r7 | 83.3% | PO | 2 | 28–29 | occipital |
+| r8 | 93.8% | O | 1 | 30 | occipital — **Oz** |
+
+**Lobe assignment uses skull geography, not convenience:**
+
+- **Central sulcus ≈ the C line (50% of the arc)** → frontal | parietal.
+- **Parieto-occipital sulcus ≈ the PO line (80%)** → parietal | occipital.
+- **Temporal is a LATERAL band**, below the Sylvian fissure — the outermost
+  socket of a row, only where the row reaches the temporal line (≥5 wide) and
+  only across the lobe's own front-to-back extent (F7/T3 at 38% to T5/P5 at 78%).
+- **Midline sockets (1, 3, 11, 16, 21, 30) belong to BOTH hemisphere zones** of
+  their lobe, so a lobe's two hemispheric zones together cover the whole lobe.
+
+Resulting membership: frontal 11, temporal 6, parietal 10, occipital 3 = 30.
+
+> **⚠ REG-1 consequence — a 40 mm tile cannot resolve adjacent 10-20 lines.**
+> The row pitch is 34.6 mm; the 10-20 lines are 10% of the arc apart ≈ 33 mm. The
+> lattice registers to **alternate** lines at best (Fp, F, C, P, O). Two specific
+> impacts, both of which must be confirmed against shell CAD before any clinical
+> placement claim:
+>
+> - The Fp row is only 72 mm of arc wide, so it holds **one** tile. **Fp1 and Fp2
+>   cannot each have their own socket** — socket 1 straddles the midline and
+>   covers the prefrontal montage as a single site. This narrows the 8-channel
+>   T1 neurofeedback montage and is an open item against REG-1.
+> - **Oz does get its own address (socket 30)**, so the photoparoxysmal halt has
+>   the electrode site it requires (§4a safety presence-gates).
+
+### 3.3 Single point of truth
+
+`scripts/sync-socket-map.ts` is the only place the inputs appear. It derives the
+lattice, asserts the row construction never exceeds the area bound, and emits
+`NP_SOCKET_COUNT`, `NP_SOCKET_NUMBERING_BASE`, `NP_SOCKET_ID_MIN/MAX` and
+`NP_TILE_GEOMETRY` to `app/web/src/lib/socketMap.generated.ts` and
+`hardware/np_socket_map.json`.
+
+| Constant | Value | Meaning |
+|---|---|---|
+| `HEAD_CIRCUMFERENCE_MM` | 620 | largest head the single adult SKU covers |
+| `CEPHALIC_INDEX` | 0.78 | breadth / length |
+| `VAULT_HEIGHT_MM` | 100 | vault above the circumference plane |
+| `TILEABLE_FRACTION` | 0.70 | minus rim, bridge, Boa arch, ear drop |
+| `MODULE_WIDTH_MM` | 40 | the design point above |
+| `CENTRAL_SULCUS_ARC` / `PARIETO_OCCIPITAL_ARC` | 0.50 / 0.80 | lobe boundaries |
+
+It also re-derives the eight lobe zones **and every aggregate union** from the
+lattice and diffs them against `protocols/predefined/00-zones.npps`, with an
+extra check that `"All"` covers every socket. **Direction of authority: skull
+anatomy is upstream of the zone file** — when they disagree the zone file is
+re-cut. (The previous rule was the reverse, treating `00-zones.npps` as the
+locked artefact, which is how an impossible lattice passed review.)
+
+### 3.4 Scan-grounded geometry — the authoritative basis (2026-07-20)
+
+§3.1–3.3 idealized the tiling surface (a skull, then an ellipsoid derived from
+the Neuronic LIGHT *exterior* envelope minus a **guessed** 3 mm wall). Two 3D
+scans of a physical reference helmet (Scaniverse LiDAR, metric) replaced the
+idealization with measurement.
+
+**The scans, and what each settled:**
+
+1. **Exterior scan** (`HelmetNoPad`). A single-sided outer shell — verified by
+   casting rays along the helmet axis (each crossed exactly one surface) and by
+   mesh-boundary detection (open edges only at the crown, where it rested on the
+   table). PCA recovered the helmet's own axes (it sat inverted, tilted 5.1°).
+   Footprint 272 × 234 mm matched the published 273 × 226 to ~1.5%, **confirming
+   the metric scale**. It also falsified the published 207 mm height: the helmet
+   is **~157 mm rim-to-crown** — 207 mm was the packaging.
+
+2. **Interior scan** (`HelmetInterior`). Captures the actual tiling surface —
+   the clear inner window. Confirmed interior (single surface, radius 1–4 mm
+   *smaller* than the exterior everywhere = the wall thickness). The Boa dial
+   sits at the **back**, so **front = −ex** in the scan frame.
+
+**Measured over-vertex geodesics on the real interior surface:**
+
+| Quantity | Ellipsoid model (§3.1) | **Measured (scan)** |
+|---|---|---|
+| Nasion→inion arc | 404 mm | **465 mm** |
+| Ear-to-ear arc, peak | 367 mm | **419 mm** |
+| Rim→crown height | ~157 mm implied | **157 mm** ✓ |
+| Vault surface area | 939 cm² | **~1370 cm²** (full mesh) |
+
+The real surface is **~15% larger in every arc** than the envelope-minus-wall
+ellipsoid — because that ellipsoid shrank a published *exterior* by a guessed
+wall. Laying 40 mm hexes on the measured surface gives **~78–84 sockets**, not
+54. Both the row construction and the area quotient agree at ~80.
+
+**The tiling surface is the innermost (emitting-face) surface — the user's
+clear-layer correction.** The reference helmet has a continuous clear inner
+window; its radiating elements are embedded in a layer *behind* it (further from
+the scalp), shining through. NeurOne mirrors this: a module's scalp-facing face
+sits **no closer to the head than the clear window**, and the socket/body
+projects outward into the shell. On a **concave** bowl, rigid hex prisms that
+must present a continuous emitting field tessellate at their **innermost** faces
+(they touch at the scalp side and splay into the roomy shell side, where gaps
+are harmless). So the socket count is set by the scanned inner surface; module
+and clear-layer thickness set the mechanical depth and the face-to-scalp dose
+distance, **not** the count. (Verified: offsetting the tessellation surface
+outward *increases* area ~2%/mm — thickness does not reduce the count on a
+concave interior.)
+
+**Socket lattice ≠ active surface (architecture, principal decision).** These
+are now separated:
+
+- The **physical socket lattice** is a full, regular, parity-alternating
+  tessellation over the scalp vault (~80 sockets). Row widths must alternate
+  parity or the tiles overlap (§3.2 rule); the v1 widths are
+  `3 6 7 8 9 8 9 8 7 6 5 4`.
+- The **active surface** is **software-defined**, enforced per-element through
+  the existing two-level `(socket:element)` addressing. A boundary tile keeps
+  its socket and the firmware **disables the low-order element_ids outside the
+  chosen active surface**. Because alternate rows are offset half a module, any
+  smooth boundary cuts through tiles; masking sub-module elements lets the active
+  edge be smooth rather than stair-stepped by whole hexes. This is the same
+  primitive as the zone element-type filter (§4a) — extended to a spatial mask.
+- **Audio is preserved.** The lattice stops above the ears; the ear-adjacent
+  boundary tiles are element-masked so the **over-ear planar-magnetic 40 mm
+  drivers + mastoid bone-conduction** (CLAUDE.md §3 modality 7) keep their space.
+- **Active area ≥ Neuronic LIGHT.** The v1 active PBM surface is ~1040 cm²,
+  above the Neuronic active vault (~500–650 cm² on the same shell) — a stated
+  floor the active-surface boundary may not undercut.
+
+**Firmware bound set to the full 7-bit major domain, 128 (committed).** The old
+`NP_HEXMAP_MAX_SOCKETS = 64` was a guessed "physical ceiling" the scan disproved
+(the surface holds ~80). It was briefly raised to 96 — but 96 is just a *different*
+guessed margin, and it broke the firmware invariant that the socket bound spans
+the entire addressable field (`MAX == 1 << SOCKET_BITS`), which the max-address
+round-trip test relies on. Set instead to **128** = the full 7-bit major domain:
+no arbitrary sub-ceiling to re-justify, the whole field is usable, the max socket
+id is `0x7F`, and ~50 spare addresses are left for hardware extensions (audio
+cups, HRV/VNS clip, intranasal probe, goggles) to share the same two-level
+(socket:element) space. Runtime `n_sockets` (~80) is the actual count; 128 is the
+addressing ceiling (NVRAM blob ~17.4 KB on the RT1062 eMMC Config partition,
+~0.1% of it). Both invariants are committed host tests. See
+`firmware/hub_control/include/np_module_map.h`.
+
+**Status — v1 re-cut into the generated artifacts (REGEN-1, 2026-07-20), still
+PROVISIONAL.** On explicit principal direction, `scripts/sync-socket-map.ts`,
+`00-zones.npps`, and `socketMap.generated.ts` were re-cut from the scan-grounded
+80-socket lattice (widths 3 6 7 8 9 8 9 8 7 6 5 4). The generator now derives the
+lattice from the measured constants (nasion→inion 465 mm, ear-to-ear 419 mm,
+rim→crown 157 mm, row pitch 34.6 mm, 40 mm module) — the ellipsoid/skull-axes
+machinery is deleted. The artifacts are stamped **PROVISIONAL** throughout
+(header banners, `_basis: scan-measured`, `NP_TILE_GEOMETRY` JSDoc): the
+80-socket lattice, the lobe assignment, and the active/ear/rim boundary come from
+a consumer-LiDAR scan plus tiling-margin choices, and the socket-to-10-20
+registration is the open **REG-1** gate. These v1 figures are NOT locked. Still
+open before this can be treated as final: (a) REG-1 10-20 registration fixing the
+row/lobe boundaries against shell CAD; (b) the active-surface boundary set
+deliberately from the audio-cup footprint and clinical coverage targets; (c) the
+`active_surface` descriptor + firmware element-mask API (new work, ACT-2 — NOT
+part of REGEN-1). The physical 80-socket lattice is what REGEN-1 delivered; the
+active surface follows at ACT-1/ACT-2.
 
 ## 4. Two-level addressing + NVRAM element map (firmware — DELIVERED)
 
@@ -64,7 +286,7 @@ Implemented and verified in `firmware/hub_control/np_module_map.*` (63 host
 checks; Cortex-M7 `-Werror` clean; CI test #12). Summary:
 
 - **HW address = (socket_id : element_id)** packed 7 + 7 bits. Socket ≥7 bits so
-  addressing never binds before the ~54–64 geometry ceiling; element 7 bits covers
+  addressing never binds before the 42-tile geometry ceiling (§3.1); element 7 bits covers
   the densest ~90-element tile. Sockets asymmetrically keyed → one mount orientation.
 - **Power-on poll:** the hub polls every socket for module **UID + health**; a
   module is re-inventoried (element-type list per minor address streamed into
@@ -110,12 +332,14 @@ are separate accessories (not tiles).
 
 **Allocation — EEG only where it's needed.** The type split exists *precisely so
 EEG is not in every module.* Putting EEG in every module would put an electrode
-(and its spring pod + Ag/AgCl) at every one of the ~27–30 sockets — unnecessary
+(and its spring pod + Ag/AgCl) at every one of the 30 sockets — unnecessary
 cost, and it eats LED area everywhere. Instead:
 
 - The **majority of sockets take T1-A** (base PBM, no EEG) for bulk scalp coverage.
 - **T1-B is placed only at electrode positions** — the T1 EEG montage
-  (Fp1/2, F3/4, C3/4, P3/4 ≈ 8 sites) plus any tES montage positions.
+  (Fp1/2, F3/4, C3/4, P3/4 ≈ 8 sites) plus any tES montage positions. NOTE
+  §3.2: at 40 mm the Fp row holds a single tile, so Fp1/Fp2 share socket 1 —
+  an open item against REG-1.
 - **T1-C** goes only at the 1–5 zones chosen for 1064 depth.
 
 Representative T1 build: **~8–9 × T1-B** (8 neurofeedback sites + Oz when visual
@@ -171,7 +395,7 @@ expresses a map as an array of per-socket `type_mask` requirements.
 **Safety presence-gates (firmware enforces before modality enable — SW-1):**
 - **Visual stim → EEG element at Oz.** The photoparoxysmal halt (<200 ms, §4.2)
   needs an Oz electrode, and **Oz is NOT in the 8-ch neurofeedback montage** — so a
-  visual-stim build needs a T1-B at Oz (**~9 electrode tiles, not 8**), and visual
+  visual-stim build needs a T1-B at Oz — socket 30 in the derived lattice (§3.2), and visual
   stim is blocked unless `check_placement({Oz, EEG|DUAL})` passes.
 - **tES (BES/tACS/tDCS) → electrodes at all montage sockets** (anode + returns;
   HD-tDCS 4×1 = 5) before enable.
@@ -330,15 +554,16 @@ cancellation, not by relocating the Helmholtz pair.
 
 ### 5.4a Module cluster clamps (not per-module levers)
 
-A lever *per module* does not scale: at ~28 tiles (up to ~54–64 small-hex) you get
-28–64 mechanisms in the inter-bowl gap — mutual interference, short lever arms, and
+A lever *per module* does not scale: at 30 tiles (up to 42 at the small-hex
+ceiling) you get 30–42 mechanisms in the inter-bowl gap — mutual interference,
+short lever arms, and
 a huge moving-part count (each lever = spring + pin + detent = a failure point).
 Instead the modules are clamped in **clusters**, one actuator per cluster.
 
 - **Cluster unit from the hex lattice:** the natural super-cell is the **7-hex
-  "flower"** (1 center + 6 neighbors) → ~28 tiles ≈ **4 clusters**; the smaller
+  "flower"** (1 center + 6 neighbors) → 30 tiles ≈ **4 clusters**; the smaller
   **3-hex triad** → ~9–10 clusters. (So total actuators ≈ 4 corner layer-latches +
-  4–10 cluster clamps, vs 4 + 28–64 with per-module levers — a 5–15× reduction.)
+  4–10 cluster clamps, vs 4 + 30–42 with per-module levers — a 4–10× reduction.)
 - **Mechanism:** one **over-center lever-throw clamp per cluster** — a push/pull
   toggle latch (NOT a twist cam; see accessibility below) — drives a **clamp plate
   carrying a spring-loaded plunger per module.** Throwing it closed compresses every
@@ -421,7 +646,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
   per-module short-arm problem — so the hex-size floor is now bezel + embedding,
   not lever arm.
 - **IP:** each hex needs a perimeter gasket; total seam length rises vs 5 big
-  zones, so IPX4 rides on ~27–30 co-molded gaskets — a per-tile seam-length budget
+  zones, so IPX4 rides on 30 co-molded gaskets — a per-tile seam-length budget
   is required (RISK-16 gasket precedent).
 - **Thermal:** whole-vault active tiling raises aggregate scalp thermal load; keep
   per-tile NTC + hardware throttle (42 °C limit unchanged).
@@ -438,7 +663,11 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | GATE-2 | PBM coupling bench: rigid 40 mm coupon at temporal worst case meets dose spec | Tooling; go/no-go A-vs-B |
 | OI-HEXMAP-01 | Config-partition NVRAM HAL for the module map | FW integration |
 | OI-HEXMAP-02 | Module I2C/1-wire `inventory_fn` | FW integration |
-| REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget | Lattice design; EEG/tES/safety-electrode placement |
+| REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget. **§3.4 measured the real interior surface → ~80-socket v1 lattice.** Fix the row/lobe boundaries against shell CAD before re-cutting the generated artifacts. | Lattice design; EEG/tES placement; **artifact regeneration** |
+| SCAN-1 | Confirm `SHELL_WALL_MM` proxy is moot now that the interior is scanned directly; measure the actual clear-window thickness + module face standoff for the emitting-face dose distance (§3.4) | Dose budget; emitting-face position |
+| ACT-1 | Set the **active-surface boundary** deliberately from the over-ear audio-cup footprint + clinical coverage targets (≥ Neuronic active area); it defines which boundary tiles are element-masked (§3.4) | Active-surface descriptor; masking |
+| ACT-2 | New firmware: `active_surface` descriptor + element-mask API extending `(socket:element)` addressing so boundary tiles disable out-of-surface elements (§3.4) | Masking enforcement |
+| REGEN-1 | **DONE (v1, 2026-07-20, principal direction).** Re-cut `sync-socket-map.ts` / `00-zones.npps` / `socketMap.generated.ts` from the scan-grounded 80-socket lattice (widths 3 6 7 8 9 8 9 8 7 6 5 4). Artifacts stamped PROVISIONAL; REG-1 + ACT-1 still confirm the boundaries/active surface before v1 is treated as final. Active-surface descriptor deferred to ACT-2. | Generated artifacts |
 | SMART-1 | Smart-socket coverage decision: all sockets I2C+TIA-capable vs a subset (governs where T1-C can seat) | Socket PCB cost/scope |
 | SW-1 | Wire `np_module_map_check_placement()` presence-gates into modality enable (Oz-before-visual-stim; electrodes-before-tES) | Safety enforcement (primitive delivered) |
 | EMF-1 | Prototype 2-layer attenuation ≥ single-shell baseline | Shield claim |

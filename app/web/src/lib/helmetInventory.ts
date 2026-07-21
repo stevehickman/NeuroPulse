@@ -16,7 +16,8 @@
 // the same class as accessory authentication. No user biology passes through
 // here, and nothing in this file is UHDR (see np_module_map.h "Privacy").
 
-import { NP_SOCKETS, isValidSocketId, type NPSocketGeometry } from './socketMap.generated';
+import { NP_SOCKETS, type NPSocketGeometry } from './socketMap.generated';
+import { isValidSocketId, socketRangeLabel } from './socketSet';
 
 // ─── Element types ─────────────────────────────────────────────────────────────
 
@@ -262,6 +263,8 @@ export class NPSimulatedInventoryProvider implements NPInventoryProvider {
 /** Guard for socket ids arriving from user input or a .npps file. */
 export function assertValidSocket(id: number): void {
   if (!isValidSocketId(id)) {
-    throw new Error(`socket ${id} is not a valid socket on this helmet (1..78)`);
+    throw new Error(
+      `socket ${id} is not a valid socket on this helmet (${socketRangeLabel()})`,
+    );
   }
 }
