@@ -302,6 +302,80 @@ checks; Cortex-M7 `-Werror` clean; CI test #12). Summary:
   `inventory_fn` and the Config-partition NVRAM HAL (OI-HEXMAP-01).
 - **Privacy:** module UID is a component identifier (SHDR-class); nothing is UHDR.
 
+### 4b. Protocol wire format carries sockets (NP Hub Protocol v2 — DELIVERED)
+
+The addressing layer above landed ahead of the wire format that feeds it, so
+until now `app/web/src/lib/hubCompiler.ts` still compiled every cranial command
+down to the retired five-bit zone-module slot mask (`0x1F` / `0x07` / `0x18`).
+The lattice, the named zones in `00-zones.npps`, and the `(socket:element)`
+scheme all stopped at the app boundary. **Protocol v2 closes that gap.**
+
+- **Command header 12 → 14 bytes**, adding `target_kind` + `target_len`. Each
+  command carries an optional variable-length TARGET BLOCK between the header
+  and `params[]`. `NP_HUB_PROTO_VERSION` is `0x0002`; v1 blobs are rejected
+  outright (no shipped fleet to stay compatible with).
+- **`NP_PROTO_TARGET_SOCKET_MASK`** — a 16-byte socket bitmap, one bit per
+  socket, LSB-first, 0-based to match `np_hex_addr_t`. Sized to
+  `NP_HEXMAP_MAX_SOCKETS` (128, the full 7-bit domain), *not* to the count of
+  sockets this shell wires (80 on the current scan-grounded lattice, and it has
+  already moved once from 78), so a lattice re-cut needs no wire revision.
+- **A bitmap, not an address list — this is the load-bearing choice.** Under the
+  inclusive membership rule a midline socket is in BOTH hemisphere zones of its
+  lobe, so a protocol naming "Frontal Left" and "Frontal Right" names sockets 1,
+  5 and 13 twice. A list carries the duplicate to the driver: double J/cm² on the
+  same module. In a bitmap the duplicate cannot be expressed, so the dedup
+  guarantee stops depending on every producer remembering it.
+- **`slot_mask` → `slot_id`.** v1 addressed slots with a `uint8_t` mask and
+  dispatched by `(slot_mask >> slot) & 1`, so **slots 8–16 could not be named at
+  all** — the VNS clip, intranasal probe, cervical VNS and every T2 unit were
+  unreachable. That is why the compiler sent every non-PBM modality to `0x01`,
+  i.e. zone slot 0, i.e. the PBM driver. Each remaining slot is one device, so
+  the header now carries a plain slot index (or `NP_HUB_SLOT_NONE`), and the
+  parser rejects a retired zone slot, an out-of-domain slot, an unknown target
+  kind, a target length that disagrees with its kind, and a slot id on a
+  socket-addressed command.
+- **`np_mod_stim` (BES/tACS + tDCS) got slots — and had to be fixed to use them.**
+  Its externs were declared in the registry but it had no probe-table entry, so
+  `np_mod_reg_get()` never returned it and nothing ever called it. Added as slots
+  17/18 (appended, so no existing slot number, safety-enable bit, or probe index
+  shifts). Registering it exposed two latent defects in the never-executed
+  driver: `state_for_slot()` ignored its `slot` argument and returned the BES
+  state for both slots, and `detect()` discriminated on `NP_HUB_SLOT_EEG + 1`, a
+  slot the driver was never assigned. Left alone, a tDCS command would have taken
+  the BES branch — DC priming parameters reinterpreted as an AC waveform at the
+  same offsets. Both now switch on the slot; parameter lengths are checked for
+  exact struct size rather than "at least".
+- **Parser hardening beyond the target block.** The body must now be EXACTLY
+  consumed (a `cmd_count` that under-counts silently dropped the tail, and the
+  tail of an interval protocol is its STOP commands), and `start_ms +
+  duration_ms` may not wrap uint32 (a wrapped auto-stop deadline can land on the
+  runner's "no stop pending" sentinel 0, discarding the duration).
+- **UHDR no longer records a dropped command as delivered.** `dispatch_command()`
+  reports whether it dispatched, and `mods_active_mask` is set only when it did —
+  otherwise a session in which every socket-addressed command was dropped would
+  have written a dose record asserting PBM ran. Module faults now record on
+  `s_ctx.abort_reason`, which the session-end block previously overwrote.
+- **Handoff to the map:** `np_protocol_socket_expand()` turns a parsed bitmap
+  into the ascending `uint16_t` socket array `np_group_query_t` wants for
+  `NP_GROUP_KIND_SOCKET_SET`, so a compiled target feeds
+  `np_module_map_resolve_group()` directly.
+- **Retired selectors do not migrate silently.** `zones: all|front|rear` now
+  refuse to compile, naming their `00-zones.npps` migration target in the error.
+  Two documented meanings conflict and the consequence is wrong-site dosing:
+  v1's `front` mask was `0x07` = frontal L/R **plus parietal L**, while
+  `00-zones.npps` says `front` migrates to "Frontal" (frontal only); and
+  `nppsParser.ts` documents numeric `custom_zones` as 0-based while
+  `00-zones.npps` documents them as 1-based. No shipped protocol uses either
+  form. See OI-HUB-SOCKET-02.
+
+Verified: `np_protocol_tests` (56 host checks) + `np_mod_stim_tests` (21 checks),
+full firmware host suite **18/18**; `np_protocol.c`, `np_session_runner.c`,
+`np_module_registry.c` and `np_mod_stim.c` Cortex-M7 `-Werror` clean.
+`hubCompiler.test.ts` (41 checks against the real `00-zones.npps`, including a
+per-modality params-length table pinned to the packed `sizeof()` of every
+firmware param struct), app suite **199/199**, `tsc --noEmit` clean. The stim
+tests were regression-checked against the pre-fix driver: 11 of 21 fail.
+
 ## 4a. Module-type taxonomy
 
 All tiles share **one size and one mechanical mold**; a "type" differs only by
@@ -670,6 +744,8 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | REGEN-1 | **DONE (v1, 2026-07-20, principal direction).** Re-cut `sync-socket-map.ts` / `00-zones.npps` / `socketMap.generated.ts` from the scan-grounded 80-socket lattice (widths 3 6 7 8 9 8 9 8 7 6 5 4). Artifacts stamped PROVISIONAL; REG-1 + ACT-1 still confirm the boundaries/active surface before v1 is treated as final. Active-surface descriptor deferred to ACT-2. | Generated artifacts |
 | SMART-1 | Smart-socket coverage decision: all sockets I2C+TIA-capable vs a subset (governs where T1-C can seat) | Socket PCB cost/scope |
 | SW-1 | Wire `np_module_map_check_placement()` presence-gates into modality enable (Oz-before-visual-stim; electrodes-before-tES) | Safety enforcement (primitive delivered) |
+| OI-HUB-SOCKET-01 | Dispatch socket-addressed commands: socket-indexed control registry + per-socket safety-MCU enable (today `NP_SAFETY_EN_PBM_ZONE_0..4` is per-zone-slot). Until then `dispatch_command()` logs and DROPS a socket target rather than falling back to the slot path — a missed dose is recoverable, a wrong-site dose is not | Cranial session execution (parse + resolve delivered) |
+| OI-HUB-SOCKET-02 | Socket-address the remaining socket-based modalities (1170 nm deep PBM, EEG/qEEG, BES/tACS/tDCS/HD-tDCS). They stay slot-addressed today because their param types carry no socket selector — EEG names 10-20 channels, tES names electrode pairs. Needs the param types to gain zone refs first | Per-socket cranial targeting beyond PBM transcranial |
 | EMF-1 | Prototype 2-layer attenuation ≥ single-shell baseline | Shield claim |
 | EMF-2 | Ground-bond ≤50 mΩ over clamp-cycle life; SHDR trend armed | Driven-shield function |
 | EMF-3 | Gasket line-pressure map: min compression at back-center (PL–PR) span AND the two side (ear) spans ≥ seal threshold with the four-corner AL/AR/PL/PR pattern; if marginal → lip/gasket stiffening (or lateral/posterior-center latch) | Latch-pattern sign-off; RF seal |
@@ -688,6 +764,10 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
   shows the chosen module pitch already sits near the optical resolution limit, so
   sub-module addressing granularity buys little at depth. Model: `scripts/pbm-optical-psf.ts`.
 - Firmware: `firmware/hub_control/np_module_map.{h,c}`, `tests/np_module_map_tests.c`
+- Wire format v2: `firmware/hub_control/include/np_hub_config.h` (target block),
+  `include/np_hub_types.h` (`np_proto_target_kind_t`), `src/np_protocol.c`,
+  `tests/np_protocol_tests.c`; app side
+  `app/web/src/lib/hubCompiler.{ts,test.ts}`
 - Predecessors: NP-TOOL-ZM-001 (legacy zone-module tooling), NP-DRV-SHELL-001
   (shell FPC routing), NP-HW-FPC-001 (FPC pinout), CLAUDE.md §3/§4.3/§7 (modality
   stack, EMF shielding, durability).

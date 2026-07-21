@@ -68,11 +68,19 @@ typedef enum {
 } np_hub_mod_type_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
- * Protocol binary layout (NP Hub Protocol v1)
+ * Protocol binary layout (NP Hub Protocol v2)
  *
  * Binary blob received from the app (BLE GATT / USB-C CDC).
  * Ed25519 signature covers bytes [0 .. total_len - NP_HUB_PROTO_SIG_LEN - 1].
  * Hub verifies before parsing any command or enabling any module.
+ *
+ * Per-command layout (v2):
+ *     [np_proto_cmd_hdr_t : 14] [target : target_len] [params : params_len]
+ *
+ * v1 had no target block and a 12-byte command header; the version word is the
+ * discriminator and v1 blobs are rejected outright (NP_HUB_ERR_BAD_VERSION).
+ * No device has shipped, so there is no v1 fleet to stay compatible with — see
+ * NP-HEX-ZM-001 §4 and the target-block note in np_hub_config.h.
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
 typedef struct __attribute__((packed)) {
@@ -90,26 +98,64 @@ typedef struct __attribute__((packed)) {
  * Layout: 4+2+1+1+16+4+32+4 = 64 bytes (packed, no reserved padding). */
 typedef char _np_proto_hdr_size[(sizeof(np_proto_header_t) == 64U) ? 1 : -1];
 
+/* ── Command target kind ─────────────────────────────────────────────────────
+ * How to read a command's target block. Values are wire constants: frozen once
+ * written, append only, never renumbered.
+ *
+ * An unknown kind is REJECTED at parse rather than skipped. Skipping would mean
+ * running a stimulation command whose target the hub admits it does not
+ * understand — the target is the one field that must never be interpreted
+ * leniently. Forward compatibility is bought with the version word, not by
+ * ignoring fields.
+ */
+typedef enum {
+    /* target_len == 0; slot_id in NP_HUB_SLOT_FIRST_VALID .. NP_HUB_SLOT_MAX-1.
+     * Dispatch by slot_id (fixed/accessory devices). */
+    NP_PROTO_TARGET_SLOT        = 0x00,
+    /* target_len == NP_HUB_SOCKET_MASK_BYTES; slot_id == NP_HUB_SLOT_NONE.
+     * One bit per socket, LSB-first:
+     * socket_id S is byte S/8, bit S%8. socket_id is 0-BASED, matching
+     * np_hex_addr_t; the app's 1-based NPPS socket ids are converted at the
+     * compiler boundary (see the numbering-base note in np_module_map.h). */
+    NP_PROTO_TARGET_SOCKET_MASK = 0x01,
+} np_proto_target_kind_t;
+
 /*
  * Variable-length command record, packed in protocol binary after the header.
- * params_len bytes of module-specific parameters follow each command header.
+ * target_len bytes of target block, then params_len bytes of module-specific
+ * parameters, follow each command header.
  */
 typedef struct __attribute__((packed)) {
     uint8_t  mod_type;     /* np_hub_mod_type_t                                    */
-    uint8_t  slot_mask;    /* bit n = 1 → apply to slot n (zone: bits 0-4)        */
+    uint8_t  slot_id;      /* slot index, or NP_HUB_SLOT_NONE when socket-addressed*/
     uint32_t start_ms;     /* session-relative start time                          */
     uint32_t duration_ms;  /* command active duration; 0 = until next command      */
     uint16_t params_len;   /* byte count of params[] that follow; 0 = stop         */
+    uint8_t  target_kind;  /* np_proto_target_kind_t                               */
+    uint8_t  target_len;   /* byte count of target[] between header and params[]   */
 } np_proto_cmd_hdr_t;
+
+/* compile-time check: command header is exactly 14 bytes
+ * Layout: 1+1+4+4+2+1+1 = 14 bytes (packed, no padding). */
+typedef char _np_proto_cmd_hdr_size[(sizeof(np_proto_cmd_hdr_t) == 14U) ? 1 : -1];
+
+/* The socket bitmap must cover the whole socket domain np_module_map addresses.
+ * If NP_HEXMAP_MAX_SOCKETS ever grows past the bitmap, this fails the build
+ * rather than letting high sockets become silently unaddressable on the wire.
+ * (np_module_map.h is not included here — np_hub_types.h is the lower layer —
+ * so the domain is pinned by value, with the same 128 the header declares.) */
+typedef char _np_proto_socket_mask_covers_domain
+    [(NP_HUB_SOCKET_MASK_BYTES * 8U >= 128U) ? 1 : -1];
 
 /*
  * Maximum size of a complete signed protocol blob: header + every command
- * (each a command header plus a full params[] payload) + Ed25519 signature.
- * Sizes the protocol receive/reassembly buffers.  Used only for array sizing,
- * so the sizeof() operands are legal here.
+ * (each a command header plus a full target block plus a full params[] payload)
+ * + Ed25519 signature.  Sizes the protocol receive/reassembly buffers.  Used
+ * only for array sizing, so the sizeof() operands are legal here.
  */
 #define NP_HUB_PROTO_BLOB_MAX  (sizeof(np_proto_header_t) +                       \
     (size_t)NP_HUB_PROTO_CMD_MAX * (sizeof(np_proto_cmd_hdr_t) +                  \
+                                    NP_HUB_PROTO_TARGET_MAX +                     \
                                     NP_HUB_PROTO_PARAMS_MAX) +                    \
     NP_HUB_PROTO_SIG_LEN)
 
@@ -117,11 +163,18 @@ typedef struct __attribute__((packed)) {
 
 typedef struct {
     np_hub_mod_type_t mod_type;
-    uint8_t           slot_mask;
+    uint8_t           slot_id;      /* NP_HUB_SLOT_NONE unless target_kind is SLOT */
     uint32_t          start_ms;
     uint32_t          duration_ms;
     uint16_t          params_len;
     uint8_t           params[NP_HUB_PROTO_PARAMS_MAX];
+    /* Target block. target_kind is always one of np_proto_target_kind_t (the
+     * parser rejects anything else). socket_mask is meaningful only when
+     * target_kind == NP_PROTO_TARGET_SOCKET_MASK, and is zeroed otherwise so a
+     * caller that forgets to check the kind reads an empty target, not a stale
+     * one — the fail-closed direction. */
+    uint8_t           target_kind;
+    uint8_t           socket_mask[NP_HUB_SOCKET_MASK_BYTES];
 } np_session_cmd_t;
 
 /* ── Parsed session descriptor ────────────────────────────────────────────────── */

@@ -28,28 +28,100 @@ extern int np_ed25519_verify(const uint8_t *msg, size_t msg_len,
 /* ── Internal helpers ─────────────────────────────────────────────────────────── */
 
 /*
- * Walk the command body and return total byte count consumed by cmd_count commands,
- * or 0 if the body is malformed (params_len exceeds max or body is too short).
+ * target_len_for_kind — the exact target-block length a target kind requires.
+ *
+ * Exact, not maximum: a socket-mask command carrying 15 bytes is not a short
+ * mask to be zero-extended, it is a producer that disagrees with this firmware
+ * about the socket domain. Zero-extending it would silently drop the top
+ * sockets from the target. Returns false for an unknown kind so the caller
+ * rejects rather than guesses.
  */
-static size_t measure_cmd_body(const uint8_t *body, size_t body_len,
-                                uint8_t cmd_count)
+static bool target_len_for_kind(uint8_t kind, uint8_t *len_out)
+{
+    switch (kind) {
+        case NP_PROTO_TARGET_SLOT:
+            *len_out = 0U;
+            return true;
+        case NP_PROTO_TARGET_SOCKET_MASK:
+            *len_out = NP_HUB_SOCKET_MASK_BYTES;
+            return true;
+        default:
+            return false;
+    }
+}
+
+/*
+ * Walk the command body, validating each command header, and report the total
+ * byte count consumed by cmd_count commands via *consumed_out.
+ *
+ * Returns the specific reason on failure so a malformed target is not reported
+ * as an over-long params block; *consumed_out is only valid on NP_HUB_OK.
+ */
+static np_hub_status_t measure_cmd_body(const uint8_t *body, size_t body_len,
+                                         uint8_t cmd_count, size_t *consumed_out)
 {
     size_t offset = 0U;
 
     for (uint8_t i = 0U; i < cmd_count; i++) {
         if (offset + sizeof(np_proto_cmd_hdr_t) > body_len) {
-            return 0U;
+            return NP_HUB_ERR_PARAMS_TOO_LONG;
         }
         const np_proto_cmd_hdr_t *hdr = (const np_proto_cmd_hdr_t *)(body + offset);
+
         if (hdr->params_len > NP_HUB_PROTO_PARAMS_MAX) {
-            return 0U;
+            return NP_HUB_ERR_PARAMS_TOO_LONG;
         }
-        offset += sizeof(np_proto_cmd_hdr_t) + hdr->params_len;
+
+        uint8_t expect_len = 0U;
+        if (!target_len_for_kind(hdr->target_kind, &expect_len)) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+        if (hdr->target_len != expect_len) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+
+        /* slot_id must agree with the target kind.
+         *
+         * A slot target naming a retired zone slot (0-4) is a v1 zone target
+         * that survived the socket migration — slot 0 is the PBM zone-0 driver,
+         * so honouring it would drive a module the protocol never named. A
+         * socket target carrying anything but NP_HUB_SLOT_NONE is a producer
+         * asking for two destinations at once. Both are rejected. */
+        if (hdr->target_kind == NP_PROTO_TARGET_SLOT) {
+            if (hdr->slot_id < NP_HUB_SLOT_FIRST_VALID ||
+                hdr->slot_id >= NP_HUB_SLOT_MAX) {
+                return NP_HUB_ERR_INVALID_ARG;
+            }
+        } else if (hdr->slot_id != NP_HUB_SLOT_NONE) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+
+        /* The auto-stop deadline is computed as start_ms + duration_ms in a
+         * uint32 (np_session_runner). If that sum wraps it can land on 0, which
+         * the runner reads as "no stop pending" — the module would then run to
+         * session end with its duration silently discarded. Reject the wrap
+         * here, where the blob is still rejectable. */
+        if (hdr->duration_ms > (UINT32_MAX - hdr->start_ms)) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+
+        offset += sizeof(np_proto_cmd_hdr_t) + hdr->target_len + hdr->params_len;
         if (offset > body_len) {
-            return 0U;
+            return NP_HUB_ERR_PARAMS_TOO_LONG;
         }
     }
-    return offset;
+
+    /* The body must be fully consumed. A cmd_count that under-counts the
+     * commands actually present would otherwise parse cleanly with the tail
+     * silently dropped — and because commands sort by start_ms, the tail of an
+     * interval protocol is exactly its STOP commands. Dropping those leaves
+     * stimulation running with no scheduled stop. */
+    if (offset != body_len) {
+        return NP_HUB_ERR_PARAMS_TOO_LONG;
+    }
+
+    *consumed_out = offset;
+    return NP_HUB_OK;
 }
 
 /* ── Public API ───────────────────────────────────────────────────────────────── */
@@ -106,9 +178,11 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
     const uint8_t *cmd_body     = buf + sizeof(np_proto_header_t);
     size_t         cmd_body_len = msg_len - sizeof(np_proto_header_t);
 
-    size_t measured = measure_cmd_body(cmd_body, cmd_body_len, hdr->cmd_count);
-    if (measured == 0U && hdr->cmd_count > 0U) {
-        return NP_HUB_ERR_PARAMS_TOO_LONG;
+    size_t          measured = 0U;
+    np_hub_status_t body_rc  =
+        measure_cmd_body(cmd_body, cmd_body_len, hdr->cmd_count, &measured);
+    if (body_rc != NP_HUB_OK) {
+        return body_rc;
     }
 
     /* Populate desc_out */
@@ -124,17 +198,28 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t    *buf,
             (const np_proto_cmd_hdr_t *)(cmd_body + offset);
 
         desc_out->cmds[i].mod_type   = (np_hub_mod_type_t)ch->mod_type;
-        desc_out->cmds[i].slot_mask  = ch->slot_mask;
+        desc_out->cmds[i].slot_id    = ch->slot_id;
         desc_out->cmds[i].start_ms   = ch->start_ms;
         desc_out->cmds[i].duration_ms= ch->duration_ms;
         desc_out->cmds[i].params_len = ch->params_len;
+        desc_out->cmds[i].target_kind = ch->target_kind;
+
+        const uint8_t *target = (const uint8_t *)ch + sizeof(np_proto_cmd_hdr_t);
+
+        /* Always zero the mask first: a non-socket command must not expose the
+         * previous session's bits to a caller that skipped the kind check. */
+        memset(desc_out->cmds[i].socket_mask, 0,
+               sizeof desc_out->cmds[i].socket_mask);
+        if (ch->target_kind == NP_PROTO_TARGET_SOCKET_MASK) {
+            /* measure_cmd_body already pinned target_len to exactly
+             * NP_HUB_SOCKET_MASK_BYTES for this kind. */
+            memcpy(desc_out->cmds[i].socket_mask, target, NP_HUB_SOCKET_MASK_BYTES);
+        }
 
         if (ch->params_len > 0U) {
-            memcpy(desc_out->cmds[i].params,
-                   (const uint8_t *)ch + sizeof(np_proto_cmd_hdr_t),
-                   ch->params_len);
+            memcpy(desc_out->cmds[i].params, target + ch->target_len, ch->params_len);
         }
-        offset += sizeof(np_proto_cmd_hdr_t) + ch->params_len;
+        offset += sizeof(np_proto_cmd_hdr_t) + ch->target_len + ch->params_len;
     }
 
     np_protocol_sort_cmds(desc_out);
@@ -148,11 +233,73 @@ size_t np_protocol_compute_expected_len(const np_proto_header_t *hdr,
     if (hdr == NULL) {
         return 0U;
     }
-    size_t cmd_size = measure_cmd_body(cmd_body, cmd_body_len, hdr->cmd_count);
-    if (cmd_size == 0U && hdr->cmd_count > 0U) {
+    size_t cmd_size = 0U;
+    if (measure_cmd_body(cmd_body, cmd_body_len, hdr->cmd_count, &cmd_size) != NP_HUB_OK) {
         return 0U;
     }
     return sizeof(np_proto_header_t) + cmd_size + NP_HUB_PROTO_SIG_LEN;
+}
+
+/* ── Socket-target accessors ──────────────────────────────────────────────────── */
+
+/* Total sockets the bitmap can express — the wire domain, not this shell's count. */
+#define PROTO_SOCKET_DOMAIN  (NP_HUB_SOCKET_MASK_BYTES * 8U)
+
+bool np_protocol_socket_is_set(const np_session_cmd_t *cmd, uint8_t socket_id)
+{
+    if (cmd == NULL || cmd->target_kind != NP_PROTO_TARGET_SOCKET_MASK) {
+        return false;
+    }
+    if ((unsigned)socket_id >= PROTO_SOCKET_DOMAIN) {
+        return false;
+    }
+    return ((cmd->socket_mask[socket_id / 8U] >> (socket_id % 8U)) & 1U) != 0U;
+}
+
+uint16_t np_protocol_socket_count(const np_session_cmd_t *cmd)
+{
+    if (cmd == NULL || cmd->target_kind != NP_PROTO_TARGET_SOCKET_MASK) {
+        return 0U;
+    }
+    uint16_t n = 0U;
+    for (unsigned byte = 0U; byte < NP_HUB_SOCKET_MASK_BYTES; byte++) {
+        uint8_t bits = cmd->socket_mask[byte];
+        while (bits != 0U) {
+            bits &= (uint8_t)(bits - 1U);   /* clear lowest set bit */
+            n++;
+        }
+    }
+    return n;
+}
+
+np_hub_status_t np_protocol_socket_expand(const np_session_cmd_t *cmd,
+                                           uint16_t               *out,
+                                           uint16_t                max,
+                                           uint16_t               *count_out)
+{
+    if (cmd == NULL || out == NULL || count_out == NULL) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+
+    uint16_t n = 0U;
+    if (cmd->target_kind != NP_PROTO_TARGET_SOCKET_MASK) {
+        *count_out = 0U;
+        return NP_HUB_OK;
+    }
+
+    for (unsigned s = 0U; s < PROTO_SOCKET_DOMAIN; s++) {
+        if (((cmd->socket_mask[s / 8U] >> (s % 8U)) & 1U) == 0U) {
+            continue;
+        }
+        if (n >= max) {
+            *count_out = max;
+            return NP_HUB_ERR_CMD_TOO_MANY;
+        }
+        out[n++] = (uint16_t)s;
+    }
+
+    *count_out = n;
+    return NP_HUB_OK;
 }
 
 /* Insertion sort on start_ms — cmd_count ≤ 64 so O(n²) is fine. */

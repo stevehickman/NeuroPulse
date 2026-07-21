@@ -52,33 +52,39 @@ typedef struct {
     bool              active;
 } np_mod_stim_state_t;
 
-/* Two stimulation slots: slot 0 maps to BES_TACS (NP_HUB_SLOT_EEG+1 is not right)
- * The registry assigns tACS and tDCS to the same slot number scheme.
- * We use a single state (only one BES_TACS or tDCS command active at a time). */
+/* One driver, two slots: NP_HUB_SLOT_BES_TACS and NP_HUB_SLOT_TDCS. They share
+ * the silicon but not the state — they carry different parameter structs and the
+ * safety MCU gates them on different enable bits.
+ *
+ * This used to guess, returning s_bes_state whenever s_bes_state.type was
+ * NP_MOD_BES_TACS — which np_mod_stim_init always makes true, so BOTH slots
+ * resolved to the BES state. It went unnoticed because the driver had no
+ * probe-table entry and was never reached. */
 static np_mod_stim_state_t s_bes_state;
 static np_mod_stim_state_t s_tdcs_state;
 
 static np_mod_stim_state_t *state_for_slot(uint8_t slot)
 {
-    if (slot == NP_HUB_SLOT_EEG) { return NULL; } /* guard */
-    /* Protocol assigns BES_TACS to one slot, tDCS to another; detect distinguishes. */
-    return (s_bes_state.type == NP_MOD_BES_TACS) ? &s_bes_state : &s_tdcs_state;
+    switch (slot) {
+        case NP_HUB_SLOT_BES_TACS: return &s_bes_state;
+        case NP_HUB_SLOT_TDCS:     return &s_tdcs_state;
+        default:                   return NULL;
+    }
 }
 
 /* ── Detect ──────────────────────────────────────────────────────────────────── */
 
 np_hub_status_t np_mod_stim_detect(uint8_t slot, np_hub_mod_type_t *type_out)
 {
-    (void)slot;
     /* Stimulation hardware is always present (fixed silicon on hub PCB).
-     * The registry calls detect twice: once for BES_TACS slot, once for tDCS slot.
-     * We return the appropriate type for each slot index. */
-    if (slot == NP_HUB_SLOT_EEG + 1U) {
-        *type_out = NP_MOD_BES_TACS;
-    } else {
-        *type_out = NP_MOD_TDCS;
+     * The registry calls detect once per stim slot; the slot IS the type.
+     * Any other slot is not this driver's — say so rather than defaulting to
+     * tDCS, which would register the wrong modality against it. */
+    switch (slot) {
+        case NP_HUB_SLOT_BES_TACS: *type_out = NP_MOD_BES_TACS; return NP_HUB_OK;
+        case NP_HUB_SLOT_TDCS:     *type_out = NP_MOD_TDCS;     return NP_HUB_OK;
+        default:                   return NP_HUB_ERR_NOT_PRESENT;
     }
-    return NP_HUB_OK;
 }
 
 /* ── Init ────────────────────────────────────────────────────────────────────── */
@@ -117,7 +123,7 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
     }
 
     if (st->type == NP_MOD_BES_TACS) {
-        if (len < sizeof(np_mod_bes_tacs_params_t)) {
+        if (len != sizeof(np_mod_bes_tacs_params_t)) {
             return NP_HUB_ERR_INVALID_ARG;
         }
         const np_mod_bes_tacs_params_t *p = (const np_mod_bes_tacs_params_t *)params;
@@ -136,7 +142,7 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
         np_safety_spi_request_enable(NP_SAFETY_EN_BES_TACS);
 
     } else { /* tDCS */
-        if (len < sizeof(np_mod_tdcs_params_t)) {
+        if (len != sizeof(np_mod_tdcs_params_t)) {
             return NP_HUB_ERR_INVALID_ARG;
         }
         const np_mod_tdcs_params_t *p = (const np_mod_tdcs_params_t *)params;

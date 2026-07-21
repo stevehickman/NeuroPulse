@@ -7,12 +7,12 @@
  *
  * Binary layout:
  *   [64 bytes]  np_proto_header_t  (little-endian, packed)
- *   [N × (12 + params_len) bytes]  np_proto_cmd_hdr_t + params[]
+ *   [N × (14 + target_len + params_len) bytes]  np_proto_cmd_hdr_t + target[] + params[]
  *   [64 bytes]  Ed25519 signature placeholder (zeroed; real signing done server-side)
  *
  * Header offsets (64 bytes, no padding):
  *   0:  uint32 magic             (NP_HUB_PROTO_MAGIC = 0x4E504850)
- *   4:  uint16 version           (NP_HUB_PROTO_VERSION = 0x0001)
+ *   4:  uint16 version           (NP_HUB_PROTO_VERSION = 0x0002)
  *   6:  uint8  flags             (bit0=T2_tier, bit1=autonomous)
  *   7:  uint8  cmd_count
  *   8:  uint8[16] session_uuid
@@ -20,12 +20,29 @@
  *   28: uint8[32] device_serial
  *   60: uint32 session_duration_ms
  *
- * Command header offsets (12 bytes):
+ * Command header offsets (14 bytes):
  *   0:  uint8  mod_type
- *   1:  uint8  slot_mask
+ *   1:  uint8  slot_id         (fixed device, or NP_HUB_SLOT_NONE when socket-addressed)
  *   2:  uint32 start_ms
  *   6:  uint32 duration_ms
  *   10: uint16 params_len
+ *   12: uint8  target_kind     (np_proto_target_kind_t)
+ *   13: uint8  target_len      (bytes of target[] between header and params[])
+ *
+ * ── v2: sockets, not zone slots ──────────────────────────────────────────────
+ *
+ * v1 addressed cranial commands with a five-bit mask over the legacy zone-module
+ * slots. Those slots are gone: the helmet is a 78-socket hexagonal lattice
+ * (protocols/predefined/00-zones.npps, socketMap.generated.ts) addressed by the
+ * firmware's two-level (socket:element) scheme (np_module_map.h). A v2 cranial
+ * command therefore carries a 16-byte socket bitmap in its target block — one
+ * bit per socket, LSB-first, sized to the firmware's full 7-bit socket domain
+ * (NP_HEXMAP_MAX_SOCKETS = 128), not to the 78 this shell wires.
+ *
+ * Modules that really are single fixed devices — the ADS1299, the audio cups,
+ * the goggles, the auricular clip, the intranasal probe, the T2 units — keep
+ * slot addressing, because a slot is what they are. What they do NOT keep is
+ * v1's habit of sending every one of them to slot 0.
  */
 
 import {
@@ -47,18 +64,55 @@ import {
   HDTdcsParams,
   CervicalVnsParams,
   VibrotactileParams,
+  NPZoneDefinition,
 } from '../types/protocol';
+import { isValidSocketId, NP_SOCKET_COUNT } from './socketMap.generated';
 
 // ─── Wire format constants (mirrors np_hub_config.h) ─────────────────────────
 
 const PROTO_MAGIC = 0x4E504850;
-const PROTO_VERSION = 0x0001;
+const PROTO_VERSION = 0x0002;
 const PROTO_UUID_LEN = 16;
 const PROTO_SERIAL_LEN = 32;
 const PROTO_SIG_LEN = 64;
 const PROTO_CMD_MAX = 64;
 const HEADER_LEN = 64;
-const CMD_HDR_LEN = 12;
+const CMD_HDR_LEN = 14;
+
+/** NP_HUB_SOCKET_MASK_BYTES — 128 bits, the firmware's full 7-bit socket domain. */
+const SOCKET_MASK_BYTES = 16;
+
+// ─── Command target kinds (mirrors np_proto_target_kind_t) ───────────────────
+
+const TARGET_SLOT = 0x00;
+const TARGET_SOCKET_MASK = 0x01;
+
+// ─── Module slot identifiers (mirrors np_hub_config.h) ───────────────────────
+//
+// Slots 0–4 are the RETIRED zone-module slots and are deliberately absent: the
+// firmware rejects any command naming one. Everything below is a real
+// single-instance device, and every one of them was previously addressed as
+// slot 0 by the `slotMask: 0x01` convention — which is the PBM zone-0 driver.
+
+const SLOT_FIRST_VALID  = 5;   // NP_HUB_SLOT_FIRST_VALID
+const SLOT_EEG          = 5;
+const SLOT_AUDIO        = 6;
+const SLOT_VISUAL       = 7;
+const SLOT_VNS_HRV      = 8;
+const SLOT_INTRANASAL   = 9;
+const SLOT_CVNS         = 10;
+const SLOT_QEEG         = 11;
+const SLOT_TMS          = 12;
+const SLOT_PBM_1170NM   = 13;
+const SLOT_CLIN_TACS    = 14;
+const SLOT_HD_TDCS      = 15;
+const SLOT_VIBROTACTILE = 16;
+const SLOT_BES_TACS     = 17;
+const SLOT_TDCS         = 18;
+const SLOT_MAX          = 19;  // NP_HUB_SLOT_MAX
+
+/** NP_HUB_SLOT_NONE — slot_id for a command that is not slot-addressed. */
+const SLOT_NONE = 0xFF;
 
 // ─── Module type IDs (mirrors np_hub_types.h np_hub_mod_type_t) ──────────────
 
@@ -84,11 +138,19 @@ const NP_MOD_VIBROTACTILE = 0x10;
 
 const PROTO_FLAG_T2_TIER    = 1 << 0;
 
-// ─── Slot mask conventions ────────────────────────────────────────────────────
-// Zone modules (PBM): slot_mask is a per-zone bitmask (bits 0–4).
-// All other modules: slot_mask = 0x01 (single instance; routing is by mod_type).
+// ─── Command targeting ────────────────────────────────────────────────────────
+//
+// Two ways to say where a command lands, mirroring np_proto_target_kind_t.
+// A `slot` target names a fixed device; a `sockets` target names positions on
+// the helmet lattice. There is no third option and no default — every encoder
+// states which one it means, because "wherever slot 0 happens to be" is exactly
+// the v1 behaviour this replaces.
 
-const SLOT_MASK_ALL_ZONES = 0x1F;  // zones 0–4
+type CmdTarget =
+  | { kind: 'slot'; slot: number }
+  | { kind: 'sockets'; sockets: readonly number[] };   // 1-based NPPS socket ids
+
+const slotTarget = (slot: number): CmdTarget => ({ kind: 'slot', slot });
 
 // ─── T2 modality type set ─────────────────────────────────────────────────────
 
@@ -100,10 +162,65 @@ const T2_MODALITY_TYPES = new Set([
 
 interface SessionCmd {
   modType: number;
-  slotMask: number;
+  target: CmdTarget;
   startMs: number;
   durationMs: number;
   params: Uint8Array;   // empty = stop signal (params_len 0)
+}
+
+// ─── Target serialization ─────────────────────────────────────────────────────
+
+interface SerializedTarget {
+  kind: number;
+  slotId: number;
+  block: Uint8Array;
+}
+
+/**
+ * Build the socket bitmap for a set of 1-based NPPS socket ids.
+ *
+ * Two conversions happen here and nowhere else, which is the point of having a
+ * single function: NPPS/app socket ids are 1-based and firmware socket ids are
+ * 0-based (see the numbering-base note in np_module_map.h), and set membership
+ * becomes bit membership — so a socket named twice, which is routine when zones
+ * overlap at the midline, sets the same bit twice and is delivered once.
+ */
+function socketBitmap(sockets: readonly number[]): Uint8Array {
+  const mask = new Uint8Array(SOCKET_MASK_BYTES);
+  for (const id of sockets) {
+    if (!isValidSocketId(id)) {
+      throw new Error(
+        `Socket ${id} is not a socket on this helmet (valid ids are 1–${NP_SOCKET_COUNT}). ` +
+        `Check the zone's socket list.`
+      );
+    }
+    const bit = id - 1;   // 1-based NPPS → 0-based firmware socket_id
+    mask[bit >> 3] |= 1 << (bit & 7);
+  }
+  return mask;
+}
+
+function serializeTarget(t: CmdTarget): SerializedTarget {
+  if (t.kind === 'slot') {
+    // The hub parser rejects these too, but catching them here names the
+    // offending modality instead of failing on the device with a blob-level
+    // error the operator cannot act on.
+    if (t.slot < SLOT_FIRST_VALID || t.slot >= SLOT_MAX) {
+      throw new Error(
+        `Slot ${t.slot} is not addressable: slots below ${SLOT_FIRST_VALID} are the ` +
+        `retired zone-module slots (cranial targets use sockets), and ${SLOT_MAX} is ` +
+        `the end of the slot domain.`
+      );
+    }
+    return { kind: TARGET_SLOT, slotId: t.slot, block: new Uint8Array(0) };
+  }
+
+  if (t.sockets.length === 0) {
+    // An empty target is not "no-op", it is a session that reports a delivered
+    // dose while lighting nothing. Refuse to compile it.
+    throw new Error('Command targets no sockets — resolve the zone to at least one socket.');
+  }
+  return { kind: TARGET_SOCKET_MASK, slotId: SLOT_NONE, block: socketBitmap(t.sockets) };
 }
 
 // ─── Compiled protocol output ─────────────────────────────────────────────────
@@ -121,19 +238,37 @@ export interface CompiledProtocol {
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+export interface CompileOptions {
+  /** 32-byte device serial (replay guard); omit for dev/test (zeros). */
+  deviceSerial?: Uint8Array;
+  /**
+   * The zone namespace — `NPNamespace.zones`, loaded from every .npps file in
+   * the protocol tree. Required whenever a modality targets named zones, which
+   * is every shipped PBM transcranial protocol.
+   */
+  zones?: ReadonlyMap<string, NPZoneDefinition>;
+  /**
+   * Operator-chosen sockets for `zones: 'clinician_selected'` targets — the
+   * patient-specific case (perilesional cortex and similar) that by definition
+   * cannot be predefined. Absent, such a protocol does not compile.
+   */
+  clinicianSockets?: readonly number[];
+}
+
 /**
  * Compile an NPProtocolDefinition into a binary hub protocol blob.
  *
- * @param proto          Protocol definition from the app's protocol library.
- * @param deviceSerial   32-byte device serial (replay guard); pass zeros for dev/test.
- * @returns              CompiledProtocol with the complete blob ready for transmission.
- *                       The Ed25519 signature (last 64 bytes) is zeroed — attach real
- *                       signature from signing service before sending to hub.
+ * @param proto  Protocol definition from the app's protocol library.
+ * @param opts   Device serial, zone namespace, operator socket selection.
+ * @returns      CompiledProtocol with the complete blob ready for transmission.
+ *               The Ed25519 signature (last 64 bytes) is zeroed — attach real
+ *               signature from signing service before sending to hub.
  */
 export function compileProtocol(
   proto: NPProtocolDefinition,
-  deviceSerial?: Uint8Array,
+  opts: CompileOptions = {},
 ): CompiledProtocol {
+  const { deviceSerial } = opts;
   const sessionDurationMs = proto.timingMode.type === 'duration'
     ? proto.timingMode.seconds * 1000
     : 0;  // interval_count protocols run until repeat exhausted
@@ -148,7 +283,7 @@ export function compileProtocol(
     const mp = modality.modalityParams;
     if (T2_MODALITY_TYPES.has(mp.type)) isT2 = true;
 
-    const generated = buildCommands(mp, modality.interval, sessionDurationMs);
+    const generated = buildCommands(mp, modality.interval, sessionDurationMs, opts);
     for (const cmd of generated) {
       cmds.push(cmd);
       // Fail loudly rather than silently truncating: dropping commands here
@@ -171,8 +306,13 @@ export function compileProtocol(
   // Sort by start_ms (hub requires sorted order; ties: modality declaration order)
   cmds.sort((a, b) => a.startMs - b.startMs);
 
+  // Serialize each target once — resolution can throw, and it must throw before
+  // any bytes are written rather than half way through a blob.
+  const targets = cmds.map(c => serializeTarget(c.target));
+
   // Allocate blob
-  const cmdPayloadLen = cmds.reduce((sum, c) => sum + CMD_HDR_LEN + c.params.length, 0);
+  const cmdPayloadLen = cmds.reduce(
+    (sum, c, i) => sum + CMD_HDR_LEN + targets[i].block.length + c.params.length, 0);
   const totalLen = HEADER_LEN + cmdPayloadLen + PROTO_SIG_LEN;
   const blob = new Uint8Array(totalLen);
   const dv = new DataView(blob.buffer);
@@ -200,18 +340,25 @@ export function compileProtocol(
 
   // ── Commands ──────────────────────────────────────────────────────────────
   let offset = HEADER_LEN;
-  for (const cmd of cmds) {
+  cmds.forEach((cmd, i) => {
+    const target = targets[i];
     dv.setUint8(offset + 0, cmd.modType);
-    dv.setUint8(offset + 1, cmd.slotMask);
+    dv.setUint8(offset + 1, target.slotId);
     dv.setUint32(offset + 2, cmd.startMs, true);
     dv.setUint32(offset + 6, cmd.durationMs, true);
     dv.setUint16(offset + 10, cmd.params.length, true);
+    dv.setUint8(offset + 12, target.kind);
+    dv.setUint8(offset + 13, target.block.length);
     offset += CMD_HDR_LEN;
+    if (target.block.length > 0) {
+      blob.set(target.block, offset);
+      offset += target.block.length;
+    }
     if (cmd.params.length > 0) {
       blob.set(cmd.params, offset);
       offset += cmd.params.length;
     }
-  }
+  });
 
   // ── Signature placeholder (zeroed — signing done server-side) ─────────────
   // offset now == HEADER_LEN + cmdPayloadLen == totalLen - PROTO_SIG_LEN
@@ -230,13 +377,14 @@ function* buildCommands(
   mp: NPModalityParams,
   interval: NPIntervalConfig,
   sessionDurationMs: number,
+  opts: CompileOptions,
 ): Iterable<SessionCmd> {
-  const { modType, slotMask, params } = encodeParams(mp);
+  const { modType, target, params } = encodeParams(mp, opts);
   if (modType === NP_MOD_NONE) return;
 
   const isContinuous = interval.intervalOnSeconds === 0;
   if (isContinuous) {
-    yield { modType, slotMask, startMs: 0, durationMs: 0, params };
+    yield { modType, target, startMs: 0, durationMs: 0, params };
     return;
   }
 
@@ -251,10 +399,12 @@ function* buildCommands(
   for (let i = 0; i < maxRepeats; i++) {
     const startMs = i * periodMs;
     if (sessionDurationMs > 0 && startMs >= sessionDurationMs) break;
-    yield { modType, slotMask, startMs, durationMs: onMs, params };
+    yield { modType, target, startMs, durationMs: onMs, params };
     const stopMs = startMs + onMs;
     if (sessionDurationMs === 0 || stopMs < sessionDurationMs) {
-      yield { modType, slotMask, startMs: stopMs, durationMs: 0, params: STOP };
+      // The stop must carry the SAME target as the on: a stop that reached a
+      // different set of sockets would leave the difference running.
+      yield { modType, target, startMs: stopMs, durationMs: 0, params: STOP };
     }
   }
 }
@@ -263,16 +413,16 @@ function* buildCommands(
 
 interface EncodedParams {
   modType: number;
-  slotMask: number;
+  target: CmdTarget;
   params: Uint8Array;
 }
 
-function encodeParams(mp: NPModalityParams): EncodedParams {
+function encodeParams(mp: NPModalityParams, opts: CompileOptions): EncodedParams {
   switch (mp.type) {
 
     // ── T1 modalities ────────────────────────────────────────────────────────
 
-    case 'pbm_transcranial':     return encodePBMTranscranial(mp.params);
+    case 'pbm_transcranial':     return encodePBMTranscranial(mp.params, opts);
     case 'pbm_intranasal':       return encodePBMIntranasal(mp.params);
     case 'eeg_neurofeedback':    return encodeEEG(mp.params);
     case 'bes_tacs':             return encodeBESTacs(mp.params);
@@ -318,15 +468,92 @@ function intensityReg(pct: number): number {
   return Math.min(Math.round(pct / 100 * 255), 255);
 }
 
-/** Convert zone spec to slot_mask bitmask for zone slots 0–4. */
-function zoneSlotMask(p: PBMTranscranialParams): number {
-  if (p.zones === 'all')    return 0x1F;
-  if (p.zones === 'front')  return 0x07;  // zones 0–2
-  if (p.zones === 'rear')   return 0x18;  // zones 3–4
-  if (p.zones === 'custom' && p.customZones) {
-    return p.customZones.reduce((mask, z) => mask | (1 << (z & 0x1F)), 0) & 0x1F;
+// ─── Zone → socket resolution ─────────────────────────────────────────────────
+
+/**
+ * The retired five-slot selectors, and the named zone each one migrates to.
+ *
+ * These names are the migration targets declared in the aggregate-zone block of
+ * `protocols/predefined/00-zones.npps`, which is the authority on what the old
+ * selectors meant. Note that they do NOT agree with the bit patterns v1's
+ * `zoneSlotMask()` emitted: `front` was `0x07`, i.e. zone slots 0–2 = frontal
+ * L/R **plus parietal L**, so the old front/rear split cut the parietal pair in
+ * half. Reproducing that bitmask against sockets would be reproducing a bug.
+ *
+ * Rather than pick between two documented meanings for a value that decides
+ * where light lands on a skull, these selectors do not compile — the message
+ * names the zone to use instead, so the migration is one edit.
+ */
+const RETIRED_SELECTOR_MIGRATION: Record<string, string> = {
+  all:   'All',
+  front: 'Frontal',
+  rear:  'Posterior',
+};
+
+/**
+ * Resolve a PBM transcranial zone spec to the 1-based NPPS socket ids it names.
+ *
+ * Overlap is fine and expected: zones share midline sockets by design, and the
+ * bitmap collapses the duplicates (see socketBitmap).
+ */
+function resolvePbmSockets(p: PBMTranscranialParams, opts: CompileOptions): number[] {
+  if (p.zones === 'named') {
+    const refs = p.zoneRefs ?? [];
+    if (refs.length === 0) {
+      throw new Error(`PBM transcranial: zones is 'named' but no zoneRefs were given.`);
+    }
+    const zones = opts.zones;
+    if (!zones) {
+      throw new Error(
+        `PBM transcranial targets named zones (${refs.join(', ')}) but no zone namespace ` +
+        `was passed to compileProtocol — pass NPNamespace.zones as opts.zones.`
+      );
+    }
+    const sockets: number[] = [];
+    for (const ref of refs) {
+      const zone = zones.get(ref);
+      if (!zone) {
+        throw new Error(
+          `PBM transcranial references zone "${ref}", which is not in the zone namespace.`
+        );
+      }
+      sockets.push(...zone.sockets);
+    }
+    return sockets;
   }
-  return SLOT_MASK_ALL_ZONES;
+
+  if (p.zones === 'clinician_selected') {
+    const chosen = opts.clinicianSockets;
+    if (!chosen || chosen.length === 0) {
+      throw new Error(
+        `PBM transcranial target is 'clinician_selected': the operator must choose the ` +
+        `sockets before this protocol can run. Pass them as opts.clinicianSockets.`
+      );
+    }
+    return [...chosen];
+  }
+
+  // 'all' | 'front' | 'rear' | 'custom' — retired.
+  const migration = RETIRED_SELECTOR_MIGRATION[p.zones];
+  if (migration) {
+    throw new Error(
+      `PBM transcranial uses the retired zone selector '${p.zones}', which addressed the ` +
+      `five legacy zone-module slots. Use the named zone "${migration}" instead ` +
+      `(zones: ["${migration}"]) — see protocols/predefined/00-zones.npps.`
+    );
+  }
+
+  // 'custom' with numeric indices. These are genuinely ambiguous: nppsParser.ts
+  // documents them as 0-based legacy zone indices, 00-zones.npps documents them
+  // as 1-based (`zones: [1, 2]` = zone slots 0–1). One reading targets a whole
+  // zone away from the other, so neither is safe to assume.
+  throw new Error(
+    `PBM transcranial uses the retired numeric zone selector ` +
+    `(custom_zones: [${(p.customZones ?? []).join(', ')}]). Its base is ambiguous — ` +
+    `nppsParser documents 0-based indices, 00-zones.npps documents 1-based — so it ` +
+    `cannot be migrated automatically. Replace it with named zones ` +
+    `(e.g. zones: ["Frontal Left", "Frontal Right"]).`
+  );
 }
 
 /** Map TMS / HD-tDCS target string to 3-bit index. */
@@ -339,10 +566,13 @@ function targetIndex(t: TMSParams['target']): number {
 
 // ─── T1 encoders ─────────────────────────────────────────────────────────────
 
-function encodePBMTranscranial(p: PBMTranscranialParams): EncodedParams {
+function encodePBMTranscranial(
+  p: PBMTranscranialParams,
+  opts: CompileOptions,
+): EncodedParams {
   const useSmart = p.wavelength !== '660_808nm';
   const modType  = useSmart ? NP_MOD_PBM_SMART : NP_MOD_PBM_BASE;
-  const slotMask = zoneSlotMask(p);
+  const target: CmdTarget = { kind: 'sockets', sockets: resolvePbmSockets(p, opts) };
   const cur      = intensityReg(p.intensityPercent);
   const duty     = dutyReg(p.dutyCyclePercent);
   const fc       = freqCode(p.frequencyHz);
@@ -356,7 +586,7 @@ function encodePBMTranscranial(p: PBMTranscranialParams): EncodedParams {
     // np_mod_pbm_base_params_t: 4 bytes
     params = new Uint8Array([fc, duty, cur, cur]);
   }
-  return { modType, slotMask, params };
+  return { modType, target, params };
 }
 
 function encodePBMIntranasal(p: PBMIntranasalParams): EncodedParams {
@@ -367,7 +597,7 @@ function encodePBMIntranasal(p: PBMIntranasalParams): EncodedParams {
   const fc   = freqCode(p.frequencyHz);
   return {
     modType: NP_MOD_INTRANASAL,
-    slotMask: 0x01,
+    target: slotTarget(SLOT_INTRANASAL),
     params: new Uint8Array([0x00, fc, duty, cur, cur]),
   };
 }
@@ -392,7 +622,7 @@ function encodeEEG(p: EEGNeurofeedbackParams): EncodedParams {
   const adaptiveOut = p.closedLoopEnabled ? 0x03 : 0x00;  // 3 = drive both PBM + audio
   return {
     modType: NP_MOD_EEG,
-    slotMask: 0x01,
+    target: slotTarget(SLOT_EEG),
     params: new Uint8Array([chMask, 6, 2, 0, adaptiveOut]),  // gain=24×, notch=60Hz, ref=linked_ear
   };
 }
@@ -402,15 +632,18 @@ function encodeBESTacs(p: BESTacsParams): EncodedParams {
   const freqMhz = Math.min(Math.round(p.frequencyHz * 1000), 0xFFFF);
   const ampUa   = Math.min(Math.round(p.intensityMilliamps * 1000), 1000);
   const wf      = p.waveform === 'sinusoidal' ? 0 : p.waveform === 'square' ? 1 : 0;
-  const buf = new Uint8Array(8);
+  // 7 bytes, not 8: np_mod_bes_tacs_params_t is __attribute__((packed)), so it
+  // has no alignment padding. The driver checks the length exactly, so a
+  // trailing pad byte is a rejected command — and if the struct ever gains a
+  // uint8_t field, that pad would silently become its value.
+  const buf = new Uint8Array(7);
   const dv  = new DataView(buf.buffer);
   dv.setUint8(0, 0);                  // electrode_pair = F3-F4
   dv.setUint16(1, freqMhz, true);
   dv.setUint16(3, ampUa, true);
   dv.setUint8(5, wf);
   dv.setUint8(6, 0);                  // phase_deg = 0
-  dv.setUint8(7, 0);                  // padding (struct is 8 bytes with uint16 alignment)
-  return { modType: NP_MOD_BES_TACS, slotMask: 0x01, params: buf };
+  return { modType: NP_MOD_BES_TACS, target: slotTarget(SLOT_BES_TACS), params: buf };
 }
 
 function encodeTDCS(p: TDCSParams): EncodedParams {
@@ -423,7 +656,7 @@ function encodeTDCS(p: TDCSParams): EncodedParams {
   dv.setUint16(1, curUa, true);
   dv.setUint8(3, 0);                  // polarity = anode at pair-A
   dv.setUint16(4, rampS, true);
-  return { modType: NP_MOD_TDCS, slotMask: 0x01, params: buf };
+  return { modType: NP_MOD_TDCS, target: slotTarget(SLOT_TDCS), params: buf };
 }
 
 /** Map a string electrode pair to the hub's 0-based montage index. */
@@ -455,7 +688,7 @@ function encodeVNSHRV(p: VNSHRVParams): EncodedParams {
   dv.setUint8(6, 1);                  // ppg_enable = true (HRV monitoring on)
   dv.setUint8(7, 1);                  // eeg_ref_enable = true (A1/A2 to EEG)
   dv.setUint8(8, protoMap[p.hrvProtocol] ?? 0);
-  return { modType: NP_MOD_VNS_HRV, slotMask: 0x01, params: buf };
+  return { modType: NP_MOD_VNS_HRV, target: slotTarget(SLOT_VNS_HRV), params: buf };
 }
 
 function encodeAudio(p: AudioEntrainmentParams): EncodedParams {
@@ -476,7 +709,7 @@ function encodeAudio(p: AudioEntrainmentParams): EncodedParams {
   dv.setUint8(5, volPct);
   dv.setUint8(6, p.boneConductionPacer ? 1 : 0);
   dv.setUint8(7, p.eegAdaptive ? 1 : 0);
-  return { modType: NP_MOD_AUDIO, slotMask: 0x01, params: buf };
+  return { modType: NP_MOD_AUDIO, target: slotTarget(SLOT_AUDIO), params: buf };
 }
 
 function encodeVisual(p: VisualStimParams): EncodedParams {
@@ -494,7 +727,7 @@ function encodeVisual(p: VisualStimParams): EncodedParams {
   const shadeReq  = modeMap[p.mode] === 0 ? 1 : 0;  // S1 opaque required for binocular photic
   return {
     modType: NP_MOD_VISUAL,
-    slotMask: 0x01,
+    target: slotTarget(SLOT_VISUAL),
     params: new Uint8Array([
       modeMap[p.mode] ?? 0,
       freqHz,
@@ -524,7 +757,7 @@ function encodeQEEG21ch(p: QEEG21chParams): EncodedParams {
   dv.setUint8(5, 2);                  // notch = 60Hz
   dv.setUint8(6, refMap[p.reference] ?? 0);
   dv.setUint8(7, p.sloretaEnabled ? 1 : 0);
-  return { modType: NP_MOD_QEEG_21CH, slotMask: 0x01, params: buf };
+  return { modType: NP_MOD_QEEG_21CH, target: slotTarget(SLOT_QEEG), params: buf };
 }
 
 function encodeTMS(p: TMSParams): EncodedParams {
@@ -548,7 +781,7 @@ function encodeTMS(p: TMSParams): EncodedParams {
   dv.setUint16(5, pulseCount, true);
   dv.setUint16(7, Math.min(interTrain, 0xFFFF), true);
   dv.setUint8(9, tbsBurstHz);
-  return { modType: NP_MOD_TMS, slotMask: 0x01, params: buf };
+  return { modType: NP_MOD_TMS, target: slotTarget(SLOT_TMS), params: buf };
 }
 
 function encodePBM1170nm(p: DeepPBM1170Params): EncodedParams {
@@ -562,7 +795,7 @@ function encodePBM1170nm(p: DeepPBM1170Params): EncodedParams {
   dv.setUint8(2, fc);
   dv.setUint8(3, duty);
   dv.setUint8(4, 0);                  // tec_target_c = 0 (auto)
-  return { modType: NP_MOD_PBM_1170NM, slotMask: 0x01, params: buf };
+  return { modType: NP_MOD_PBM_1170NM, target: slotTarget(SLOT_PBM_1170NM), params: buf };
 }
 
 function encodeClinicalTacs(p: ClinicalTacsParams): EncodedParams {
@@ -581,7 +814,7 @@ function encodeClinicalTacs(p: ClinicalTacsParams): EncodedParams {
   dv.setUint8(4, fullMask & 0xFF);
   dv.setUint8(5, (fullMask >> 8) & 0xFF);
   dv.setUint8(6, wf);
-  return { modType: NP_MOD_CLIN_TACS, slotMask: 0x01, params: buf };
+  return { modType: NP_MOD_CLIN_TACS, target: slotTarget(SLOT_CLIN_TACS), params: buf };
 }
 
 function encodeHDTdcs(p: HDTdcsParams): EncodedParams {
@@ -596,7 +829,7 @@ function encodeHDTdcs(p: HDTdcsParams): EncodedParams {
   dv.setUint8(1, montageMap[p.montage] ?? 0);
   dv.setUint16(2, curUa, true);
   dv.setUint16(4, 30, true);          // ramp_s = 30 (firmware enforces ≥30s)
-  return { modType: NP_MOD_HD_TDCS, slotMask: 0x01, params: buf };
+  return { modType: NP_MOD_HD_TDCS, target: slotTarget(SLOT_HD_TDCS), params: buf };
 }
 
 function encodeCervicalVNS(p: CervicalVnsParams): EncodedParams {
@@ -612,7 +845,7 @@ function encodeCervicalVNS(p: CervicalVnsParams): EncodedParams {
   dv.setUint16(5, 0, true);           // pulse_width_us = 0 → firmware default 250µs
   dv.setUint16(7, 10, true);          // ramp_s = 10 (firmware enforces ≥10s)
   dv.setUint8(9, 1);                  // baseline_req = true (cardiac interlock required)
-  return { modType: NP_MOD_CVNS, slotMask: 0x01, params: buf };
+  return { modType: NP_MOD_CVNS, target: slotTarget(SLOT_CVNS), params: buf };
 }
 
 // ─── Accessory encoder ────────────────────────────────────────────────────────
@@ -628,5 +861,5 @@ function encodeVibrotactile(p: VibrotactileParams): EncodedParams {
   dv.setUint8(0, gainReg);
   dv.setUint8(1, syncFlags);
   dv.setUint16(2, 40000, true);       // freq_mhz = 40Hz locked; firmware enforces ±500
-  return { modType: NP_MOD_VIBROTACTILE, slotMask: 0x01, params: buf };
+  return { modType: NP_MOD_VIBROTACTILE, target: slotTarget(SLOT_VIBROTACTILE), params: buf };
 }
