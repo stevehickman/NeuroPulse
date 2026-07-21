@@ -26,6 +26,7 @@ The core sections (§1–§6, §16) stay in this file — they are invariants th
 | Competitive position + claims | marketing / positioning / claims work | `docs/reference/competitive-position.md` |
 | Regulatory strategy (T1 wellness / T2 510k) | regulatory / QMS / standards work | `docs/reference/regulatory-strategy.md` |
 | Clinical researchers + evidence bibliography | clinical trials / evidence / researcher outreach | `docs/reference/clinical.md` |
+| PBM optical resolution floor (what boundary the hardware can actually produce) | zone sizing, lateralized protocols, any "targets region X" claim | `docs/np_opt_psf_001.md` |
 | Marketing notes / draft copy | marketing copy work | `docs/reference/marketing-notes.md` |
 | **Open items / pending decisions** (was §13.1–13.4) | checking what's blocking / unresolved | `docs/status/pending-decisions.md` |
 | **Completed + locked decisions log** (was §13.5) | checking whether/how something was decided | `docs/status/completed-decisions.md` |

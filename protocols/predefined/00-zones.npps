@@ -151,6 +151,12 @@ zone "Vault (excl. Occipital)" {
     sockets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71]
 }
 
+zone "Frontal Right (excl. midline)" {
+    id: "4000000E-0000-0000-0000-000000000000"
+    description: "Frontal Right with the three midline sockets (1, 5, 13) omitted. This is a DIS-INCLUSION zone in the sense of the PR #210 membership ruling: membership is inclusive by default, and the only way to narrow a zone is to author a narrower one — there is no runtime exclusion filter. Exists for protocols whose evidence base is genuinely single-hemisphere; `clinical-03-pbm-cognitive-1064` is the only such protocol today. Modelled effect (NP-OPT-PSF-001 §4): contralateral cortical energy falls from 16.3% to 3.6% — a 78% reduction. The residual 3.6% is optical diffusion from the retained half-pitch sockets and is irreducible by any addressing scheme, since the 1064nm spatial resolution floor at cortical depth is a ~26mm 10-90% edge-spread function. Do NOT add a Left counterpart speculatively: the lateralized-protocol audit in scripts/sync-socket-map.ts will flag any new single-hemisphere protocol that needs one."
+    sockets: [3, 6, 9, 10, 14, 15, 18, 19]
+}
+
 zone "Motor / SMA" {
     id: "4000000D-0000-0000-0000-000000000000"
     description: "Head sites for Parkinson's transcranial PBM. DERIVED FROM THE PROTOCOL, not from lobe boundaries: clinical-08-pbm-parkinsons.npps targets the head 'bilateral, midline over SMA/motor' (pbm_neuro_protocols.md §8, Grade C — Liebert 2021/2024) and explicitly not the whole vault, because whole-head irradiation would over-deliver well beyond the evidence. Primary motor cortex is the precentral gyrus at the central sulcus; the supplementary motor area is medial frontal just anterior to it. Row r4 sits at 39.3% of the nasion-inion arc — the precentral motor strip — and is the only row over the motor representation. This zone is that row (width 9) minus its two temporal sockets (25, 33), which are lateral to the motor representation: 26, 27, 28 (left), 29 (midline, over the SMA), 30, 31, 32 (right). Balanced bilateral with a midline site, exactly as the protocol requires. PROVISIONAL — final registration depends on gate REG-1 (NP-HEX-ZM-001 §7). Confirm against the shell CAD before any clinical dosing claim."

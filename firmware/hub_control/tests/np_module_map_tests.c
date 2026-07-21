@@ -154,10 +154,14 @@ np_hub_status_t np_hexmap_nvram_read(uint8_t *buf, size_t len, size_t *read_len)
 
 static void test_addr_pack(void)
 {
-    np_hex_addr_t a = { 63, 127 };
+    /* Max is 127:127 — socket is the FULL 7-bit domain since MAX_SOCKETS went
+     * 64 -> 128. (This asserted 63 while MAX_SOCKETS was 64.) */
+    np_hex_addr_t a = { NP_HEXMAP_MAX_SOCKETS - 1, NP_HEXMAP_MAX_ELEMENTS - 1 };
     uint16_t v = np_hex_addr_pack(a);
     np_hex_addr_t b = np_hex_addr_unpack(v);
-    check(b.socket_id == 63 && b.element_id == 127, "addr pack/unpack round-trip max");
+    check(b.socket_id == 127 && b.element_id == 127, "addr pack/unpack round-trip max");
+    check(NP_HEXMAP_MAX_SOCKETS == (1 << NP_HEXMAP_SOCKET_BITS),
+          "MAX_SOCKETS is the full 7-bit major domain");
 
     np_hex_addr_t c = { 14, 7 };
     np_hex_addr_t d = np_hex_addr_unpack(np_hex_addr_pack(c));
@@ -528,6 +532,404 @@ static void test_placement_check(void)
           fc == 1, "placement: NULL list still returns failure + count");
 }
 
+/* ── High-socket coverage (64..127) ────────────────────────────────────────────
+ * MAX_SOCKETS went 64 -> 128 so all 78 helmet sockets are addressable. The tests
+ * above all run on the 9-socket GEOM, which cannot reach the upper half of the
+ * major domain. These exercise it directly: resolution, all three group kinds,
+ * placement (whose socket ids travel through uint8_t), and a full-occupancy
+ * NVRAM round-trip at the exact NP_HEXMAP_NVRAM_MAX_BYTES bound.
+ *
+ * Note the numbering base: firmware socket_id is 0-based, so the 78th 1-based
+ * NPPS socket is firmware socket_id 77 — covered explicitly below. */
+
+#define SOCK_HI_FIRST  64    /* first socket unreachable under the old ceiling  */
+#define SOCK_NPPS_78   77    /* 1-based NPPS socket 78 == 0-based socket_id 77   */
+#define SOCK_HI_LAST   (NP_HEXMAP_MAX_SOCKETS - 1)   /* 127                      */
+#define SOCK_HI_PLACE  100   /* arbitrary high socket for placement checks       */
+
+static np_socket_geom_t FULL_GEOM[NP_HEXMAP_MAX_SOCKETS];
+
+/* Every socket wired. Lobe by quarter (32 sockets each), side by parity, so the
+ * upper half lands in parietal (64..95) and occipital (96..127). */
+static void full_geom_build(void)
+{
+    for (uint16_t s = 0; s < NP_HEXMAP_MAX_SOCKETS; s++) {
+        FULL_GEOM[s].present_in_helmet = true;
+        FULL_GEOM[s].lobe = (np_lobe_t)(NP_LOBE_FRONTAL + (s / 32u));
+        FULL_GEOM[s].side = (s % 2u == 0u) ? NP_SIDE_LEFT : NP_SIDE_RIGHT;
+        FULL_GEOM[s].x_mm = (int16_t)s;
+        FULL_GEOM[s].y_mm = (int16_t)(1000 + s);
+    }
+}
+
+static void full_geom_init(void)
+{
+    full_geom_build();
+    (void)np_module_map_init(FULL_GEOM, NP_HEXMAP_MAX_SOCKETS);
+}
+
+/* 128 sockets x 6-element tiles = 768 addresses. */
+static np_hex_addr_t g_hi_out[NP_HEXMAP_MAX_SOCKETS * 8];
+
+static void test_high_socket_init_and_resolve(void)
+{
+    full_geom_build();
+    check(np_module_map_init(FULL_GEOM, NP_HEXMAP_MAX_SOCKETS) == NP_HUB_OK,
+          "init accepts a full 128-socket geometry");
+
+    (void)plug_pbm(SOCK_HI_FIRST, 0x64);
+    (void)plug_pbm(SOCK_NPPS_78,  0x4D);
+    (void)plug_pbm(SOCK_HI_LAST,  0x7F);
+
+    np_physical_loc_t loc;
+    np_hex_addr_t a64 = { SOCK_HI_FIRST, 0 };
+    check(np_module_map_resolve(a64, &loc) == NP_HUB_OK, "resolve socket 64 ok");
+    check(loc.x_mm == (int16_t)SOCK_HI_FIRST && loc.y_mm == (int16_t)(1000 + SOCK_HI_FIRST),
+          "socket 64 resolves to its own geometry row");
+    check(loc.lobe == NP_LOBE_PARIETAL && loc.side == NP_SIDE_LEFT,
+          "socket 64 resolves to parietal-left");
+    check(loc.elem_type == NP_ELEM_LED_660, "socket 64 elem 0 → LED_660");
+
+    np_hex_addr_t a77 = { SOCK_NPPS_78, 2 };
+    check(np_module_map_resolve(a77, &loc) == NP_HUB_OK && loc.elem_type == NP_ELEM_LED_1064,
+          "resolve socket 77 (NPPS 1-based socket 78) elem 2 → LED_1064");
+
+    np_hex_addr_t a127 = { SOCK_HI_LAST, 0 };
+    check(np_module_map_resolve(a127, &loc) == NP_HUB_OK, "resolve socket 127 ok");
+    check(loc.lobe == NP_LOBE_OCCIPITAL && loc.side == NP_SIDE_RIGHT,
+          "socket 127 resolves to occipital-right");
+
+    /* A high socket with no module still fails closed. */
+    np_hex_addr_t a_empty = { 90, 0 };
+    check(np_module_map_resolve(a_empty, &loc) == NP_HUB_ERR_NOT_PRESENT,
+          "empty high socket → NOT_PRESENT");
+}
+
+static void test_high_socket_groups(void)
+{
+    full_geom_init();
+    (void)plug_pbm(SOCK_HI_FIRST, 0x64);
+    (void)plug_pbm(SOCK_HI_LAST,  0x7F);
+    uint16_t n = 0;
+
+    /* KIND_SOCKET_SET across the old ceiling. */
+    uint16_t sockets[] = { SOCK_HI_FIRST, SOCK_HI_LAST };
+    np_group_query_t q;
+    memset(&q, 0, sizeof(q));
+    q.kind = NP_GROUP_KIND_SOCKET_SET;
+    q.sockets = sockets;
+    q.socket_count = 2;
+    check(np_module_map_resolve_group(&q, g_hi_out, 1024, &n) == NP_HUB_OK,
+          "socket-set group over sockets 64 and 127 ok");
+    check(n == 2 * PBM_TILE_N, "socket-set group → both high tiles' elements");
+    bool any_above_63 = false;
+    for (uint16_t i = 0; i < n; i++) {
+        if (g_hi_out[i].socket_id > 63) { any_above_63 = true; }
+    }
+    check(any_above_63, "group results carry socket ids above the old 64 ceiling");
+
+    /* KIND_ADDR_SET on an explicit high address. */
+    np_hex_addr_t addrs[] = { { SOCK_HI_LAST, 2 }, { 90, 0 } };  /* 90 = empty */
+    memset(&q, 0, sizeof(q));
+    q.kind = NP_GROUP_KIND_ADDR_SET;
+    q.addrs = addrs;
+    q.addr_count = 2;
+    check(np_module_map_resolve_group(&q, g_hi_out, 1024, &n) == NP_HUB_OK,
+          "addr-set group with high address ok");
+    check(n == 1 && g_hi_out[0].socket_id == SOCK_HI_LAST,
+          "addr-set keeps socket 127, drops the empty high socket");
+
+    /* KIND_LOBE / predefined: occipital-right is sockets 97,99,..127 — all high. */
+    check(np_module_map_predefined(NP_PGROUP_OCCIPITAL_R, 0, false,
+                                   g_hi_out, 1024, &n) == NP_HUB_OK,
+          "predefined occipital-R over high sockets ok");
+    check(n == PBM_TILE_N, "predefined occipital-R → the one populated high tile");
+    check(g_hi_out[0].socket_id == SOCK_HI_LAST,
+          "predefined lobe group resolved a socket id of 127");
+
+    /* Type filter still applies in the upper half. */
+    check(np_module_map_predefined(NP_PGROUP_OCCIPITAL_R,
+                                   NP_ELEM_BIT(NP_ELEM_LED_808), false,
+                                   g_hi_out, 1024, &n) == NP_HUB_OK && n == 1,
+          "type filter on high socket → 1 element");
+}
+
+static void test_high_socket_placement(void)
+{
+    full_geom_init();
+    plug_eeg(SOCK_HI_PLACE, 0xB0);      /* dual-rated electrode tile at socket 100 */
+    (void)plug_pbm(SOCK_HI_LAST, 0x7F); /* PBM only at socket 127                  */
+
+    const uint64_t ELECTRODE = NP_ELEM_BIT(NP_ELEM_EEG_ELECTRODE) |
+                               NP_ELEM_BIT(NP_ELEM_DUAL_ELECTRODE);
+    uint8_t  failed[8];
+    uint16_t fc = 99;
+
+    np_placement_req_t ok_req[] = { { SOCK_HI_PLACE, ELECTRODE } };
+    check(np_module_map_check_placement(ok_req, 1, failed, 8, &fc) == NP_HUB_OK,
+          "placement satisfied at socket 100");
+    check(fc == 0, "placement: no failures at high socket when satisfied");
+
+    /* Failure path: the reported socket id must survive the uint8_t out-param. */
+    np_placement_req_t bad_req[] = { { SOCK_HI_LAST, ELECTRODE } };
+    check(np_module_map_check_placement(bad_req, 1, failed, 8, &fc) == NP_HUB_ERR_NOT_PRESENT,
+          "placement unsatisfied at socket 127 → NOT_PRESENT");
+    check(fc == 1 && failed[0] == SOCK_HI_LAST,
+          "placement reports failing socket id 127 without truncation");
+}
+
+static void test_nvram_full_occupancy_roundtrip(void)
+{
+    full_geom_init();
+    for (uint16_t s = 0; s < NP_HEXMAP_MAX_SOCKETS; s++) {
+        (void)plug_pbm(s, (uint8_t)(s + 1u));   /* seed 0 would be a zero-ish UID */
+    }
+
+    size_t sz = np_module_map_serialized_size();
+    check(sz == NP_HEXMAP_NVRAM_MAX_BYTES,
+          "full-occupancy serialized size == NP_HEXMAP_NVRAM_MAX_BYTES");
+    check(sz == 17804u, "NP_HEXMAP_NVRAM_MAX_BYTES is 17804 bytes at 128 sockets");
+
+    static uint8_t buf[NP_HEXMAP_NVRAM_MAX_BYTES];
+    int wrote = np_module_map_serialize(buf, sizeof(buf));
+    check(wrote == (int)sz, "serialize wrote the full 128-socket blob");
+
+    full_geom_init();                            /* wipe live state */
+    np_physical_loc_t loc;
+    np_hex_addr_t a = { SOCK_HI_LAST, 0 };
+    check(np_module_map_resolve(a, &loc) == NP_HUB_ERR_NOT_PRESENT,
+          "high-socket records cleared by re-init");
+
+    check(np_module_map_load(buf, (size_t)wrote) == NP_HUB_OK,
+          "load full 128-socket blob ok");
+    check(np_module_map_resolve(a, &loc) == NP_HUB_OK && loc.elem_type == NP_ELEM_LED_660,
+          "socket 127 survives the NVRAM round-trip");
+    np_hex_addr_t a64 = { SOCK_HI_FIRST, 2 };
+    check(np_module_map_resolve(a64, &loc) == NP_HUB_OK && loc.elem_type == NP_ELEM_LED_1064,
+          "socket 64 survives the NVRAM round-trip");
+
+    /* And through the HAL, at full occupancy. */
+    g_nvram_written = false;
+    check(np_module_map_persist() == NP_HUB_OK, "persist full-occupancy blob via HAL");
+    check(g_nvram_len == NP_HEXMAP_NVRAM_MAX_BYTES, "HAL received the full 17804-byte blob");
+    full_geom_init();
+    check(np_module_map_restore() == NP_HUB_OK, "restore full-occupancy blob via HAL");
+    check(np_module_map_resolve(a, &loc) == NP_HUB_OK,
+          "socket 127 resolves after HAL restore");
+}
+
+/* A v1 (64-socket-era) blob must be REJECTED, not migrated and not misread.
+ * load() checks version before CRC, so flipping the version field alone is a
+ * faithful stand-in for an old blob. */
+static void test_nvram_rejects_old_version(void)
+{
+    full_geom_init();
+    (void)plug_pbm(SOCK_HI_LAST, 0x7F);
+    static uint8_t buf[NP_HEXMAP_NVRAM_MAX_BYTES];
+    int wrote = np_module_map_serialize(buf, sizeof(buf));
+    check(wrote > 0, "serialize for version test");
+
+    check(buf[4] == 0x02u && buf[5] == 0x00u, "serialized blob carries version 0x0002");
+
+    buf[4] = 0x01u;  buf[5] = 0x00u;            /* pretend it is the old v1 blob */
+    check(np_module_map_load(buf, (size_t)wrote) == NP_HUB_ERR_BAD_VERSION,
+          "v1 blob rejected with BAD_VERSION (discard + re-poll, never migrate)");
+
+    /* Rejection happens before any record is touched, so live state is intact —
+     * load() is all-or-nothing, never a partial merge of a foreign layout. */
+    np_physical_loc_t loc;
+    np_hex_addr_t a = { SOCK_HI_LAST, 0 };
+    check(np_module_map_resolve(a, &loc) == NP_HUB_OK,
+          "rejected v1 blob did not clobber live inventory");
+
+    /* The discard-and-rebuild path in situ: a v1 blob in NVRAM makes restore()
+     * propagate BAD_VERSION, and a freshly-initialised map stays empty until the
+     * hub re-polls every socket. No migration code runs. */
+    check(np_hexmap_nvram_write(buf, (size_t)wrote) == NP_HUB_OK, "stage v1 blob in NVRAM");
+
+    /* The map MUST be populated before restore(), otherwise the final assertion
+     * is tautological: full_geom_init() memsets s_map, so an empty map after a
+     * failed restore() would prove nothing about restore() at all. Populate
+     * first, so "empty afterwards" is a real claim about the failure path. */
+    full_geom_init();
+    (void)plug_pbm(SOCK_HI_LAST, 0x7F);
+    check(np_module_map_resolve(a, &loc) == NP_HUB_OK, "inventory live before restore");
+
+    check(np_module_map_restore() == NP_HUB_ERR_BAD_VERSION,
+          "restore over a v1 blob propagates BAD_VERSION");
+    check(np_module_map_resolve(a, &loc) == NP_HUB_ERR_NOT_PRESENT,
+          "failed restore clears stale inventory → rebuilt by polling");
+}
+
+/* ── Packed-address validation (out-of-domain must fail, not alias) ──────────── */
+
+static void test_addr_validation(void)
+{
+    np_hex_addr_t max_ok = { NP_HEXMAP_MAX_SOCKETS - 1, NP_HEXMAP_MAX_ELEMENTS - 1 };
+    check(np_hex_addr_valid(max_ok), "valid: 127:127 in domain");
+
+    np_hex_addr_t bad_sock = { NP_HEXMAP_MAX_SOCKETS, 0 };        /* 128 */
+    np_hex_addr_t bad_elem = { 0, NP_HEXMAP_MAX_ELEMENTS };       /* 128 */
+    check(!np_hex_addr_valid(bad_sock), "valid: socket 128 out of domain");
+    check(!np_hex_addr_valid(bad_elem), "valid: element 128 out of domain");
+
+    /* The whole point: 128 must NOT silently become socket 0. */
+    check(np_hex_addr_pack(bad_sock) == NP_HEX_ADDR_INVALID,
+          "pack socket 128 → INVALID (not aliased to socket 0)");
+    check(np_hex_addr_pack(bad_elem) == NP_HEX_ADDR_INVALID, "pack element 128 → INVALID");
+    np_hex_addr_t worst = { 255, 255 };
+    check(np_hex_addr_pack(worst) == NP_HEX_ADDR_INVALID, "pack 255:255 → INVALID");
+
+    /* Valid packs stay well clear of the sentinel. */
+    check(np_hex_addr_pack(max_ok) == NP_HEX_ADDR_MAX, "pack 127:127 → NP_HEX_ADDR_MAX");
+    check(NP_HEX_ADDR_MAX < NP_HEX_ADDR_INVALID, "sentinel is out of band");
+
+    /* Unpacking the sentinel yields an address no geometry can resolve. */
+    np_hex_addr_t u = np_hex_addr_unpack(NP_HEX_ADDR_INVALID);
+    check(u.socket_id == NP_HEX_SOCKET_INVALID, "unpack INVALID → sentinel socket");
+    check(u.socket_id >= NP_HEXMAP_MAX_SOCKETS, "sentinel socket is outside every domain");
+
+    full_geom_init();                       /* widest possible geometry, 128 sockets */
+    (void)plug_pbm(0, 0x11);
+    np_physical_loc_t loc;
+    check(np_module_map_resolve(u, &loc) == NP_HUB_ERR_NOT_PRESENT,
+          "sentinel address fails closed at resolve, even at n_sockets=128");
+}
+
+/* ── Zone membership: inclusive by default, explicit dis-include overrides ─────
+ * Locked rule: a socket holding a module partially within a zone is IN the zone
+ * unless a protocol dis-includes it. Midline sockets straddle, so they belong to
+ * both hemispheres of their lobe. */
+
+enum { MG_L = 0, MG_MID, MG_R, MG_PAR_L, MG_N };
+
+static const np_socket_geom_t MID_GEOM[MG_N] = {
+    { true, NP_LOBE_FRONTAL,  NP_SIDE_LEFT,    -30, -80 },
+    { true, NP_LOBE_FRONTAL,  NP_SIDE_MIDLINE,   0, -80 },   /* straddles */
+    { true, NP_LOBE_FRONTAL,  NP_SIDE_RIGHT,    30, -80 },
+    { true, NP_LOBE_PARIETAL, NP_SIDE_LEFT,    -25,  40 },
+};
+
+static void mid_geom_populate(void)
+{
+    (void)np_module_map_init(MID_GEOM, MG_N);
+    for (uint16_t s = 0; s < MG_N; s++) {
+        (void)plug_pbm(s, (uint8_t)(0xC0 + s));
+    }
+}
+
+static bool out_contains_socket(const np_hex_addr_t *o, uint16_t n, uint8_t socket)
+{
+    for (uint16_t i = 0; i < n; i++) {
+        if (o[i].socket_id == socket) { return true; }
+    }
+    return false;
+}
+
+static void test_midline_included_in_both_hemispheres(void)
+{
+    mid_geom_populate();
+    uint16_t n = 0;
+
+    check(np_module_map_predefined(NP_PGROUP_FRONTAL_L, 0, false,
+                                   g_hi_out, 1024, &n) == NP_HUB_OK,
+          "frontal-L with a midline socket ok");
+    check(n == 2 * PBM_TILE_N, "frontal-L → left socket + midline socket");
+    check(out_contains_socket(g_hi_out, n, MG_MID), "midline socket IS in frontal-LEFT");
+    check(!out_contains_socket(g_hi_out, n, MG_R), "frontal-L excludes the right socket");
+
+    check(np_module_map_predefined(NP_PGROUP_FRONTAL_R, 0, false,
+                                   g_hi_out, 1024, &n) == NP_HUB_OK,
+          "frontal-R with a midline socket ok");
+    check(n == 2 * PBM_TILE_N, "frontal-R → right socket + midline socket");
+    check(out_contains_socket(g_hi_out, n, MG_MID), "midline socket IS in frontal-RIGHT");
+    check(!out_contains_socket(g_hi_out, n, MG_L), "frontal-R excludes the left socket");
+
+    /* Wildcard query side still means "either hemisphere" — all three sockets. */
+    np_group_query_t q;
+    memset(&q, 0, sizeof(q));
+    q.kind = NP_GROUP_KIND_LOBE;
+    q.lobe = NP_LOBE_FRONTAL;
+    q.side = NP_SIDE_MIDLINE;
+    check(np_module_map_resolve_group(&q, g_hi_out, 1024, &n) == NP_HUB_OK &&
+          n == 3 * PBM_TILE_N, "MIDLINE query → all three frontal sockets, once each");
+
+    /* Lobe still gates: the parietal socket never appears in a frontal group. */
+    check(np_module_map_predefined(NP_PGROUP_PARIETAL_L, 0, false,
+                                   g_hi_out, 1024, &n) == NP_HUB_OK && n == PBM_TILE_N,
+          "parietal-L unaffected by the frontal midline socket");
+}
+
+/* How many entries in out[] name this socket? */
+static uint16_t count_socket(const np_hex_addr_t *o, uint16_t n, uint8_t socket)
+{
+    uint16_t c = 0;
+    for (uint16_t i = 0; i < n; i++) {
+        if (o[i].socket_id == socket) { c++; }
+    }
+    return c;
+}
+
+/* Dedup. Overlapping zones are the normal case under inclusive membership, so a
+ * union naming a midline socket twice must still drive it ONCE — otherwise that
+ * module takes double J/cm² in a single session. Models the real shape of
+ * clinical-04-pbm-depression: zones ["Frontal Left", "Frontal Right"], whose
+ * socket lists both contain the frontal midline sockets. */
+static void test_overlapping_zone_union_dedups(void)
+{
+    mid_geom_populate();
+    uint16_t n = 0;
+    np_group_query_t q;
+
+    /* The union a caller builds from two overlapping zone lists: the midline
+     * socket appears once per zone. */
+    const uint16_t union_lr[] = { MG_L, MG_MID,      /* "Frontal Left"  */
+                                  MG_R, MG_MID };    /* "Frontal Right" */
+    memset(&q, 0, sizeof(q));
+    q.kind = NP_GROUP_KIND_SOCKET_SET;
+    q.sockets = union_lr;
+    q.socket_count = 4;
+    check(np_module_map_resolve_group(&q, g_hi_out, 1024, &n) == NP_HUB_OK,
+          "union of two overlapping zones resolves");
+    check(n == 3 * PBM_TILE_N, "union → three distinct sockets, not four entries");
+    check(count_socket(g_hi_out, n, MG_MID) == PBM_TILE_N,
+          "midline socket emitted exactly once (no double dose)");
+    check(count_socket(g_hi_out, n, MG_L) == PBM_TILE_N, "left socket emitted once");
+    check(count_socket(g_hi_out, n, MG_R) == PBM_TILE_N, "right socket emitted once");
+
+    /* Degenerate repeat of a single socket collapses too. */
+    const uint16_t same_four[] = { MG_MID, MG_MID, MG_MID, MG_MID };
+    q.sockets = same_four;
+    q.socket_count = 4;
+    check(np_module_map_resolve_group(&q, g_hi_out, 1024, &n) == NP_HUB_OK &&
+          n == PBM_TILE_N, "socket repeated 4x → emitted once");
+
+    /* ADDR_SET dedups per (socket:element), not per socket: two different
+     * elements of one socket are distinct and both survive. */
+    const np_hex_addr_t addrs[] = {
+        { MG_MID, 0 }, { MG_MID, 0 },      /* exact duplicate → one entry  */
+        { MG_MID, 1 },                     /* same socket, other element   */
+        { MG_L,   0 }, { MG_L,   0 },      /* exact duplicate → one entry  */
+    };
+    memset(&q, 0, sizeof(q));
+    q.kind = NP_GROUP_KIND_ADDR_SET;
+    q.addrs = addrs;
+    q.addr_count = 5;
+    check(np_module_map_resolve_group(&q, g_hi_out, 1024, &n) == NP_HUB_OK && n == 3,
+          "addr-set dedups exact duplicates, keeps distinct elements");
+    check(count_socket(g_hi_out, n, MG_MID) == 2,
+          "two distinct elements of the midline socket both kept");
+
+    /* A single lobe query cannot self-duplicate — one pass over geometry. */
+    memset(&q, 0, sizeof(q));
+    q.kind = NP_GROUP_KIND_LOBE;
+    q.lobe = NP_LOBE_FRONTAL;
+    q.side = NP_SIDE_MIDLINE;
+    check(np_module_map_resolve_group(&q, g_hi_out, 1024, &n) == NP_HUB_OK &&
+          count_socket(g_hi_out, n, MG_MID) == PBM_TILE_N,
+          "lobe query emits the midline socket once");
+}
+
 int main(void)
 {
     test_addr_pack();
@@ -548,6 +950,20 @@ int main(void)
     test_nvram_reject_bad();
     test_nvram_hal_persist_restore();
     test_placement_check();
+
+    /* Upper half of the major domain (64..127), unreachable before 64 -> 128. */
+    test_high_socket_init_and_resolve();
+    test_high_socket_groups();
+    test_high_socket_placement();
+    test_nvram_full_occupancy_roundtrip();
+    test_nvram_rejects_old_version();
+
+    /* Out-of-domain addresses must fail, not alias onto a valid socket. */
+    test_addr_validation();
+
+    /* Inclusive zone membership + the protocol dis-include override. */
+    test_midline_included_in_both_hemispheres();
+    test_overlapping_zone_union_dedups();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

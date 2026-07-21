@@ -22,6 +22,30 @@
 | Vulnerable population withdrawal edge case in research consent | **Resolved and locked** — irreversibility notice added at L3 blanket consent screen AND at per-project invitation (step 4). Forward-effectiveness guarantee added: on-device fresh-per-study anonymization makes consent withdrawal fully effective for all data periods. |
 | 45W charger in box | **Decided and locked** — included in BOM across all configurations at appropriate wattage. Weakness resolved. |
 | Zone module mold complexity (RISK-23) | NP-TOOL-ZM-001 created consolidating all 8 molded features (F-01 through F-08). 12-item mold design review checklist must be completed before steel is cut (NP-COORD-001 G1-05). |
+| **clinical-03 treated area is ~8× the evidence aperture — OWNER RULING REQUIRED** | Surfaced 2026-07-20 while resolving the clinical-03 lateralization question; **not** fixed there, because fixing it changes clinical dose semantics. See §13.2c below. |
+
+### 13.2c clinical-03 dose-fidelity gap (raised 2026-07-20, needs owner ruling)
+
+Resolving the clinical-03 lateralization question required pinning down what `docs/pbm_neuro_protocols.md` §3 means by "60 J/cm² **per site**". The doc's own arithmetic settles it, and the answer is larger than the lateralization issue that prompted the work.
+
+**The evidence "site" is a single ~13.6 cm² aperture.** §3 states "Dose: 60 J/cm² per site (≈816–1632 J total over 1–2 sites)". 816 J ÷ 60 J/cm² = **13.6 cm²** per site — the aperture of the laser used across the Gonzalez-Lima / Barrett lineage. So "60 J/cm²/site" is **per-site-on-target**, an areal energy density over that one spot, and "site" means one ~4 cm-diameter spot over right lateral PFC (Fp2/F4), not a region.
+
+**One hex module is one site.** A 40 mm flat-to-flat hexagon has area (√3/2)·W² = **13.86 cm²** (NP-HEX-ZM-001 §3 design point). The evidence aperture and one NeurOne module are the same size to within 2%. That is a coincidence worth knowing, and it makes the mismatch easy to state:
+
+| Zone | Modules | Area | vs one evidence site |
+|---|---|---|---|
+| Evidence protocol | — | 13.6 cm² (1 site) or 27.2 cm² (2 sites) | 1× |
+| `Frontal Right` (as originally shipped) | 11 | 152 cm² | **11.2×** |
+| `Frontal Right (excl. midline)` (as now shipped) | 8 | 111 cm² | **8.2×** |
+
+Narrowing the zone fixed lateralization; it did **not** fix this. clinical-03 still illuminates roughly eight times the evidence footprint.
+
+**Two further fidelity gaps in the same protocol, also unresolved:**
+
+1. **Irradiance.** The evidence is 0.25 W/cm² **CW**. NP-BIB-1064-001 records NeurOne 1064nm running pulsed at 25% duty → **0.10 W/cm² average**, 2.5× below the gold standard. The protocol file declares `frequency: 0Hz` (CW) *and* `duty_cycle: 25%` simultaneously, which is self-contradictory as authored and needs firmware-semantics clarification regardless.
+2. **A doc inconsistency to fix at source.** §3's "Duration: 8 min (240 s/site × 2 sites, **or 480 s single site**)" is internally inconsistent: 480 s at 0.25 W/cm² is 120 J/cm², double the stated 60 J/cm²/site. The two-site reading is the self-consistent one. Left unedited deliberately — this is a clinical evidence document and the correction should be made by whoever owns it.
+
+**Why this was not decided unilaterally.** Narrowing clinical-03 to the 1–2 modules the evidence actually describes means naming the modules over Fp2/F4 — which depends on gate **REG-1** (socket lattice registers to 10-20 within tolerance, NP-HEX-ZM-001 §7), still open. Until REG-1 closes there is no honest way to author an Fp2/F4-precise zone. The decision needed is therefore: (i) hold clinical-03 at 8 modules and accept an ~8× area deviation from a protocol carrying a **Grade A / "gold-standard parameter set"** description; (ii) reduce module count now on the provisional lattice and accept placement uncertainty; or (iii) gate clinical-03's evidence-grade claim behind REG-1 and re-author the zone when registration lands. Option (iii) is the conservative reading of the existing marketing-claims gate posture.
 
 ## 13.2b tFUS / LIFU — modality watch (elevated to MEDIUM 2026-05-13)
 

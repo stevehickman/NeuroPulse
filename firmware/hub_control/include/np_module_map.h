@@ -65,6 +65,7 @@
 #include "np_hub_types.h"
 
 /* ── Address field sizing ─────────────────────────────────────────────────────
+
  * Socket field 7 bits (holds 0..127). The tiling surface was re-measured from a
  * 3D scan of the reference helmet interior (Neuronic LIGHT shape): at the 40 mm
  * design point the full regular lattice is ~78 sockets, well above the old 64
@@ -83,13 +84,48 @@
                                                  * guess the interior scan disproved.   \
                                                  * Fits the 7-bit socket field (<=127). \
                                                  * NVRAM blob 6.3->9.5 KB.              */
+ /*
+ * 128 is a CEILING, not a step: the packed wire address (np_hex_addr_pack) is
+ * 14 bits with the socket masked to 0x7F, and socket_id is uint8_t throughout
+ * the API (np_hex_addr_t, np_placement_req_t, the failed_sockets[] out-param).
+ * Going above 128 requires a wire-format change, not just a bigger #define —
+ * _np_hexmap_socket_mask_fits (declared with the pack/unpack helpers below)
+ * fails the build if you try. Out-of-domain ids handed to np_hex_addr_pack are
+ * rejected with NP_HEX_ADDR_INVALID rather than masked into a valid address. */
+
 #define NP_HEXMAP_MAX_ELEMENTS     128     /* 7-bit minor domain                 */
 #define NP_HEXMAP_UID_LEN          8       /* 64-bit module UID                  */
+
+/* ── Numbering base: firmware is 0-based, NPPS/app are 1-based ────────────────
+ * This is a real seam, and the conversion is the CALLER's job at the boundary:
+ *
+ *     socket_id (firmware)  =  socket id (NPPS/app)  -  1
+ *     socket id (NPPS/app)  =  socket_id (firmware)  +  1
+ *
+ * Firmware socket_id is 0-based: 0 .. NP_HEXMAP_MAX_SOCKETS-1, indexing the
+ * geometry table directly. The NPPS zone files under protocols/predefined/,
+ * hardware/np_socket_map.json ("numberingBase": 1), and the generated app-side
+ * map (app/web/src/lib/socketMap.generated.ts) are all 1-based, 1..78.
+ *
+ * The 78th (highest) 1-based socket maps to firmware socket_id 77 — comfortably
+ * inside the 128 domain. Nothing in THIS module performs the +1/-1; it is
+ * documented here so the offset is explicit at the protocol/app boundary rather
+ * than assumed.
+ *
+ * Zone MEMBERSHIP semantics now agree with 00-zones.npps too: a midline socket
+ * appears in BOTH the Left and Right zone of its lobe. See the membership rule
+ * on np_group_query_t. */
 
 /* ── NVRAM blob sizing ────────────────────────────────────────────────────────
  * Serialized layout: header + fixed-size per-socket records + CRC-32 trailer.
  * NP_HEXMAP_NVRAM_MAX_BYTES bounds any serialize buffer and the Config-partition
- * region the map is stored in. */
+ * region the map is stored in.
+ *
+ * At MAX_SOCKETS 128 this is 8 + 128*139 + 4 = 17,804 bytes (17.4 KiB), up from
+ * 8,908 (8.7 KiB) at 64. The Config/Calibration partition is 16 MiB
+ * (NP_CONFIG_SIZE_LBA, firmware/bootloader/include/np_config.h:75-76), so the
+ * blob occupies ~0.1% of it and sits alongside the UKMD record at offset 0x1000
+ * (192 bytes), the warranty token, and the TRNG salt with no contention. */
 #define NP_HEXMAP_HDR_BYTES   8u    /* magic(4) + version(2) + n_sockets(2)          */
 #define NP_HEXMAP_REC_BYTES   (NP_HEXMAP_UID_LEN + 3u + NP_HEXMAP_MAX_ELEMENTS)
                                     /* uid + present(1) + health(1) + count(1) + types[] */
@@ -144,24 +180,74 @@ typedef enum {
 /* ── Two-level address ────────────────────────────────────────────────────── */
 
 typedef struct {
-    uint8_t socket_id;    /* major, 0 .. NP_HEXMAP_MAX_SOCKETS-1  */
+    uint8_t socket_id;    /* major, 0-BASED: 0 .. NP_HEXMAP_MAX_SOCKETS-1
+                           * (NPPS/app sockets are 1-based — see the numbering
+                           * base note above) */
     uint8_t element_id;   /* minor, 0 .. NP_HEXMAP_MAX_ELEMENTS-1 */
 } np_hex_addr_t;
 
-/* Pack to a 14-bit wire value: [13:7]=socket, [6:0]=element. */
+/* ── Packed wire address: [13:7]=socket, [6:0]=element ───────────────────────
+ * Both domains are now exactly full (128 == 1 << 7), so masking an out-of-range
+ * id would ALIAS it onto a different valid socket rather than fail — socket 128
+ * would silently become socket 0, frontal-left. This module addresses PBM and
+ * tES elements, so that is a wrong-site stimulation path, not a data-quality
+ * issue. pack() therefore VALIDATES and returns a sentinel; it never masks a
+ * caller's mistake into a plausible address.
+ *
+ * The sentinel is out-of-band by construction: every valid packed address is
+ * <= NP_HEX_ADDR_MAX (0x3FFF), so 0xFFFF cannot collide with one. unpack() maps
+ * any out-of-band word to NP_HEX_SOCKET_INVALID (255), which is outside every
+ * possible geometry (n_sockets <= 128) and so is rejected by np_module_map_resolve
+ * and skipped by group resolution. Ignoring the sentinel fails CLOSED. */
+
+#define NP_HEX_ADDR_MAX        0x3FFFu  /* largest valid packed value (127:127)  */
+#define NP_HEX_ADDR_INVALID    0xFFFFu  /* packed sentinel — out of band          */
+#define NP_HEX_SOCKET_INVALID  0xFFu    /* unpacked sentinel — outside any domain */
+
+/* True iff both fields are inside their declared domains. */
+static inline bool np_hex_addr_valid(np_hex_addr_t a)
+{
+    return (a.socket_id < NP_HEXMAP_MAX_SOCKETS) &&
+           (a.element_id < NP_HEXMAP_MAX_ELEMENTS);
+}
+
+/* Returns NP_HEX_ADDR_INVALID if either field is out of domain. */
 static inline uint16_t np_hex_addr_pack(np_hex_addr_t a)
 {
+    if (!np_hex_addr_valid(a)) {
+        return NP_HEX_ADDR_INVALID;
+    }
     return (uint16_t)(((uint16_t)(a.socket_id & 0x7Fu) << NP_HEXMAP_ELEM_BITS) |
                       (uint16_t)(a.element_id & 0x7Fu));
 }
 
+/* Out-of-band words yield socket_id == NP_HEX_SOCKET_INVALID (never resolvable). */
 static inline np_hex_addr_t np_hex_addr_unpack(uint16_t v)
 {
     np_hex_addr_t a;
+    if (v > NP_HEX_ADDR_MAX) {
+        a.socket_id  = NP_HEX_SOCKET_INVALID;
+        a.element_id = 0u;
+        return a;
+    }
     a.socket_id  = (uint8_t)((v >> NP_HEXMAP_ELEM_BITS) & 0x7Fu);
     a.element_id = (uint8_t)(v & 0x7Fu);
     return a;
 }
+
+/* Pin the hardcoded 0x7F masks above to the declared domains. These live in the
+ * HEADER, beside the inline functions they guard, so any translation unit that
+ * packs an address gets the check — not only the one that compiles
+ * np_module_map.c.
+ *
+ * Note what these catch that _np_hexmap_socket_fits (in np_module_map.c) does
+ * not: that assert derives from NP_HEXMAP_SOCKET_BITS, so raising BITS and
+ * MAX_SOCKETS together would satisfy it while silently invalidating the literal
+ * masks here. Both domains are now exactly full, so both need pinning. */
+typedef char _np_hexmap_socket_mask_fits[(NP_HEXMAP_MAX_SOCKETS - 1 <= 0x7F)
+                                         ? 1 : -1];
+typedef char _np_hexmap_elem_mask_fits[(NP_HEXMAP_MAX_ELEMENTS - 1 <= 0x7F)
+                                       ? 1 : -1];
 
 /* ── Module UID (component identifier — SHDR class) ──────────────────────────── */
 
@@ -192,7 +278,38 @@ typedef struct {
     np_elem_type_t elem_type;
 } np_physical_loc_t;
 
-/* ── Group query ─────────────────────────────────────────────────────────────── */
+/* ── Group query ───────────────────────────────────────────────────────────────
+ *
+ * MEMBERSHIP RULE (locked): a socket holding a module that falls even PARTIALLY
+ * within a zone is INCLUDED in that zone, unless a protocol specifically
+ * dis-includes it. Inclusion is the default; exclusion is the explicit override.
+ *
+ * The consequence that matters in practice: a socket whose geometry side is
+ * NP_SIDE_MIDLINE straddles the hemispheres, so it belongs to BOTH the Left and
+ * the Right zone of its lobe — matching 00-zones.npps, which states that midline
+ * sockets "appear in both the Left and Right zone of their lobe". Ten of the
+ * helmet's 78 sockets are midline; under a strict-equality side filter they
+ * would drop out of all eight predefined lobe groups.
+ *
+ * Note the two independent MIDLINE meanings, which is why this needs stating:
+ *   - as a QUERY side (q->side)  — wildcard: "either hemisphere"
+ *   - as a GEOMETRY side (g->side) — straddling: "belongs to both hemispheres"
+ * Both are inclusive; neither is an exclusion.
+ *
+ * DIS-INCLUDE: a protocol dis-includes a socket by OMITTING it from the list —
+ * i.e. by naming a narrower zone. There is no exclusion list, because none is
+ * needed: KIND_SOCKET_SET and KIND_ADDR_SET dis-include by simply not listing
+ * the socket, and KIND_LOBE dis-includes by defining a new zone (which in NPPS
+ * is itself an explicit socket list). Err-on-the-side-of-less is a zone
+ * authoring decision, not a runtime filter.
+ *
+ * DEDUP GUARANTEE: resolve_group NEVER emits the same (socket:element) address
+ * twice, however the query is built. This matters because overlapping zones are
+ * the normal case under inclusive membership — a protocol requesting both
+ * "Frontal Left" and "Frontal Right" passes a union containing the three frontal
+ * midline sockets TWICE. Without dedup those modules would be driven twice in
+ * one session: double J/cm² on real clinical PBM protocols. Dedup is a property
+ * of the resolver so no caller can forget it. */
 
 typedef enum {
     NP_GROUP_KIND_LOBE       = 0,  /* all elements in sockets matching lobe+side  */
@@ -285,6 +402,10 @@ np_hub_status_t np_module_map_resolve(np_hex_addr_t addr, np_physical_loc_t *out
  * (socket:element) addresses it selects, after applying the type filter.
  * NP_ELEM_NONE elements are always skipped. On overflow, fills out[0..max-1],
  * sets *count_out = max, and returns NP_HUB_ERR_CMD_TOO_MANY.
+ *
+ * The returned list is always DUPLICATE-FREE — a socket or address named more
+ * than once by the query (the normal case when overlapping zones are unioned)
+ * contributes exactly one entry. See the dedup guarantee on np_group_query_t.
  */
 np_hub_status_t np_module_map_resolve_group(const np_group_query_t *q,
                                             np_hex_addr_t          *out,
@@ -344,7 +465,21 @@ np_hub_status_t np_module_map_load(const uint8_t *buf, size_t buf_len);
 /* Persist current inventory via the NVRAM HAL (serialize → np_hexmap_nvram_write). */
 np_hub_status_t np_module_map_persist(void);
 
-/* Restore inventory via the NVRAM HAL (np_hexmap_nvram_read → load). */
+/*
+ * np_module_map_restore — restore inventory via the NVRAM HAL
+ * (np_hexmap_nvram_read → load).
+ *
+ * FAIL-CLOSED CONTRACT: on ANY failure — HAL read error, bad magic, wrong blob
+ * version, geometry mismatch, CRC mismatch — the inventory is left EMPTY and the
+ * error is returned. It is never left holding stale or partially-applied records.
+ * The caller's recovery is the same in every case: poll every socket and rebuild.
+ * This is a property of restore() itself, not of a caller convention of calling
+ * init() first.
+ *
+ * (np_module_map_load is separately all-or-nothing: it validates the entire
+ * header before touching any record, so a rejected blob passed directly to load()
+ * leaves existing inventory untouched. restore() is the fail-closed wrapper.)
+ */
 np_hub_status_t np_module_map_restore(void);
 
 /* ── NVRAM HAL (OI-HEXMAP-01 — platform-provided; test-injected) ─────────────── */

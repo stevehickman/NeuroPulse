@@ -6,14 +6,18 @@ protocol "PBM — Cognitive Enhancement 1064nm" {
     readonly: true
     tags: ["pbm", "1064nm", "clinical", "cognition"]
     conditions: ["Mild Cognitive Impairment"]
-    references: [["PBM protocol database §3 (Grade A)", "docs/pbm_neuro_protocols.md#3-cognitive-enhancement--healthy-adults--cognitive-aging--grade-a"], ["Gonzalez-Lima / Barrett lineage", "docs/pbm_neuro_protocols.md"]]
+    references: [["PBM protocol database §3 (Grade A)", "docs/pbm_neuro_protocols.md#3-cognitive-enhancement--healthy-adults--cognitive-aging--grade-a"], ["Gonzalez-Lima / Barrett lineage", "docs/pbm_neuro_protocols.md"], ["Lateralization decision + optical model", "docs/np_opt_psf_001.md"]]
     duration: 8m
 
     pbm_transcranial {
         intensity: 100%
         frequency: 0Hz
         duty_cycle: 25%
-        zones: ["Frontal Right"]
+        # "Frontal Right" includes midline sockets 1/5/13, which put ~50% of their
+        # cortical energy contralateral — 16.3% of the whole zone's, in a protocol whose
+        # entire evidence base is right-lateralized. Narrowed per PR #210's ruling
+        # (dis-inclusion = author a narrower zone). See docs/np_opt_psf_001.md §4.
+        zones: ["Frontal Right (excl. midline)"]
         wavelength: 1064nm
     }
 }
