@@ -29,12 +29,18 @@ const URL_PREFIX = '/protocols/';
  */
 function canonicalProtocols(): Plugin {
   let outDir = 'dist';
+  let isBuild = false;
 
   return {
     name: 'neurone-canonical-protocols',
 
     configResolved(config) {
       outDir = config.build.outDir;
+      // `closeBundle` fires under vitest too, and vitest replaces build.outDir
+      // with the literal `dummy-non-existing-folder`. Copying there materialised
+      // a second, untracked copy of the whole protocols tree on every test run —
+      // exactly the duplicate this plugin exists to abolish.
+      isBuild = config.command === 'build' && !process.env.VITEST;
     },
 
     configureServer(server) {
@@ -68,6 +74,7 @@ function canonicalProtocols(): Plugin {
     },
 
     async closeBundle() {
+      if (!isBuild) return;
       const dest = join(REPO_ROOT, 'app', 'web', outDir, 'protocols');
       await cp(PROTOCOLS_DIR, dest, { recursive: true });
     },

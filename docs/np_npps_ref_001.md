@@ -932,15 +932,19 @@ Listing sockets directly is what makes zones flexible: any set of sockets can be
 zone "Frontal Left" {
     id: "40000001-0000-0000-0000-000000000000"
     description: "Frontal lobe, left hemisphere."
-    sockets: [1, 2, 4, 5, 7, 8, 11, 12, 13, 16, 17]
+    sockets: [1, 2, 3, 5, 6, 10, 11]
 }
 ```
 
-> **Socket ids** are integers matching the firmware socket (major) address (`np_module_map`). In the module-address diagram (NP-HEX-ZM-001) the `S-NN` labels are these ids — `S-40` is socket `40`. The `S-` prefix is display only.
+> **Socket ids** are integers matching the firmware socket (major) address (`np_module_map`). In the module-address diagram (NP-HEX-ZM-001) the `S-NN` labels are these ids — `S-11` is socket `11`. The `S-` prefix is display only.
+>
+> **Range.** Ids are **1-based** and run `1..N`, where N is the socket count derived from skull anatomy and tile size (NP-HEX-ZM-001 §3.1: a 62 cm skull gives a 429 cm² tileable vault, which a 40 mm hexagonal tile fills with **30** sockets — corroborated by both the area quotient and the row-by-row construction). The numbering base and the bound are both enforced, not merely documented — the parser rejects a `sockets:` entry outside the range, naming the offending id and the valid range. Do not hardcode the count: read `NP_SOCKET_COUNT` / `NP_SOCKET_ID_MIN` / `NP_SOCKET_ID_MAX` from `socketMap.generated.ts`, which `scripts/sync-socket-map.ts` emits.
+>
+> **A zone is a SET.** Repeated ids in a `sockets:` list are collapsed at parse time and the list is returned sorted, so every consumer receives canonical membership. Unions of zones dedup for the same reason: midline sockets are members of BOTH hemisphere zones of their lobe, so a bilateral protocol referencing `Frontal Left` + `Frontal Right` addresses the shared midline socket once, not twice. Use `unionSockets` / `unionZoneSockets` (`app/web/src/lib/socketSet.ts`) rather than concatenating.
 
 ### Predefined zones
 
-Eight predefined lobe zones ship in `00-zones.npps` (read-only), one per lobe × hemisphere — `Frontal Left/Right`, `Temporal Left/Right`, `Parietal Left/Right`, `Occipital Left/Right`. Each is the socket membership of that lobe half, taken from the helmet module-address map and split at the sagittal midline. **Center-column (midline) sockets belong to both the Left and Right zone of their lobe**, so a lobe's two hemispheric zones together cover the whole lobe and a bilateral protocol referencing both gets full coverage. Protocols reference these zones by name.
+Eight predefined lobe zones ship in `00-zones.npps` (read-only), one per lobe × hemisphere — `Frontal Left/Right`, `Temporal Left/Right`, `Parietal Left/Right`, `Occipital Left/Right`. Membership is **derived from skull geography**, not authored: rows are positioned as a fraction of the nasion→inion arc (the 10-20 coordinate), the central sulcus at the C line (50%) divides frontal from parietal, the parieto-occipital sulcus at the PO line (80%) divides parietal from occipital, and temporal is the lateral band below the Sylvian fissure. `scripts/sync-socket-map.ts` regenerates all eight and fails the build if the shipped file disagrees. **Center-column (midline) sockets belong to both the Left and Right zone of their lobe** (sockets 1, 3, 11, 16, 21, 30), so a lobe's two hemispheric zones together cover the whole lobe and a bilateral protocol referencing both gets full coverage. Protocols reference these zones by name.
 
 ### User-defined zones
 
@@ -950,7 +954,7 @@ Users may define their own zones in any `.npps` file in the protocol directory t
 # an arbitrary, non-contiguous zone
 zone "My Montage" {
     description: "Two frontal sockets plus one occipital"
-    sockets: [4, 6, 67]
+    sockets: [4, 6, 30]
 }
 ```
 
@@ -966,7 +970,7 @@ zone "My Montage" {
 ```
 # the listed sockets, but only their PBM LEDs
 zone "Crown LEDs" {
-    sockets: [31, 40, 49]
+    sockets: [11, 16, 21]
     types: [led_660, led_808]
 }
 ```
@@ -975,7 +979,7 @@ zone "Crown LEDs" {
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `sockets` | int array | **The zone's modules, by socket (major) address.** The defining field. |
+| `sockets` | int array | **The zone's modules, by socket (major) address.** The defining field. 1-based, `1..30` on the current lattice; out-of-range, non-integer, hex, exponent and boolean values are all parse errors. Deduplicated and sorted on parse, and canonicalised again on serialize. |
 | `id` | string | Optional stable UUID. Presence marks the zone predefined/read-only. |
 | `description` | string | Human-readable label. |
 | `types` | element-type array | Optional element-type filter within the listed sockets. |
@@ -1087,7 +1091,8 @@ zone        := 'zone' STRING '{' zone_field* '}'
 zone_field  := 'sockets' ':' INT_ARRAY                        # the zone's modules (defining field)
              | 'id' ':' STRING | 'description' ':' STRING
              | 'types' ':' ELEM_TYPE_ARRAY | 'exclude_types' ':' BOOL
-# 'sockets' lists socket (major) addresses; arbitrary/non-contiguous sets are fine.
+# 'sockets' lists socket (major) addresses, 1-based and within the derived
+# lattice range; arbitrary/non-contiguous sets are fine. Duplicates collapse.
 ELEM_TYPE   := 'led_660' | 'led_808' | 'led_1064' | 'led_1170'
              | 'eeg_electrode' | 'tes_electrode' | 'vns_contact' | 'ntc'
              | 'pd_forward' | 'pd_back' | 'ir_prox' | 'hall' | 'dual_electrode'

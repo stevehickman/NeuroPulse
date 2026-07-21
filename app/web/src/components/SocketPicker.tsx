@@ -11,19 +11,24 @@
 // arcs and neck-attach label, the `S-NN` address labels, and the lobe palette
 // (frontal #3b82f6, temporal #f59e0b, parietal #10b981, occipital #8b5cf6).
 //
-// NOT carried over — and this matters: that widget generated its own cells by
-// scanning a hex lattice inside the ellipse, which yielded ~29 tiles at 40 mm.
-// The helmet has 78 sockets, so tile positions here come from
+// NOT carried over: that widget generated its own cells by scanning a hex
+// lattice inside the ellipse. Tile positions here come from
 // socketMap.generated.ts (derived from the row structure that reproduces all
 // eight lobe zones in 00-zones.npps) rather than from the widget's lattice
 // scan. Lobe colour comes from that same validated map, not from the widget's
 // positional thresholds.
+//
+// Worth recording: the widget's scan yielded ~29 tiles at 40 mm and was
+// overridden by a 78-socket lattice. The scan was right — 40 mm tiles over the
+// vault hold 30 (NP-HEX-ZM-001 §3) — and the lattice is now derived from that
+// arithmetic. Nothing here hardcodes a count; NP_SOCKETS is the source.
 //
 // Positions remain PROVISIONAL pending shell CAD — see the note in
 // socketMap.generated.ts. Selection and eligibility never depend on them.
 
 import { useMemo } from 'react';
 import { NP_SOCKETS, type NPSocketGeometry, type NPLobe } from '../lib/socketMap.generated';
+import { NP_SOCKET_COUNT } from '../lib/socketSet';
 import type { NPHelmetInventory, NPElementType } from '../lib/helmetInventory';
 
 interface SocketPickerProps {
@@ -111,7 +116,7 @@ export function SocketPicker({ selected, onToggle, inventory, requiredElements }
 
       <div className="socket-picker-scroll">
         <svg viewBox={`0 0 ${width} ${height}`} width={width} role="img" className="socket-picker-svg">
-          <title>Unrolled helmet interior — 78 sockets by lobe group</title>
+          <title>Unrolled helmet interior — {NP_SOCKET_COUNT} sockets by lobe group</title>
 
           {/* Unrolled-map framing, as in the Module redesign widget. */}
           <text x={midX} y={20} textAnchor="middle" className="map-axis">FRONT</text>

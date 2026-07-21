@@ -28,7 +28,8 @@ import {
   MODALITY_REQUIREMENTS,
   type NPEligibility,
 } from '../lib/protocolEligibility';
-import { NP_SOCKETS, isValidSocketId } from '../lib/socketMap.generated';
+import { NP_SOCKETS } from '../lib/socketMap.generated';
+import { socketRangeLabel, toSocketSet, unionSockets } from '../lib/socketSet';
 import { getPredefinedNamespace } from '../lib/predefinedProtocols';
 import { serializeZone } from '../lib/nppsSerializer';
 import { ConditionChips } from './ConditionLinkDialog';
@@ -256,7 +257,7 @@ function ProtocolRow({
           {expanded ? (
             <>
               <SocketPicker
-                selected={new Set(targetedSockets)}
+                selected={new Set(unionSockets(targetedSockets))}
                 onToggle={onToggleSocket}
                 inventory={inventory}
                 requiredElements={
@@ -265,7 +266,7 @@ function ProtocolRow({
               />
               <p className="config-note">
                 {targetedSockets.length} socket{targetedSockets.length === 1 ? '' : 's'} selected
-                {targetedSockets.length > 0 && ` — ${[...targetedSockets].sort((a, b) => a - b).join(', ')}`}
+                {targetedSockets.length > 0 && ` — ${unionSockets(targetedSockets).join(', ')}`}
               </p>
             </>
           ) : (
@@ -400,8 +401,8 @@ function ZoneEditor({
 
   function applyTyped(text: string) {
     setTyped(text);
-    const ids = [...text.matchAll(/\d+/g)].map(m => Number(m[0])).filter(isValidSocketId);
-    setSelected(new Set(ids));
+    const { sockets } = toSocketSet([...text.matchAll(/\d+/g)].map(m => Number(m[0])));
+    setSelected(new Set(sockets));
   }
 
   // Functional update, not `new Set(selected)`: several toggles can land in one
@@ -412,15 +413,15 @@ function ZoneEditor({
     setSelected(prev => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id); else next.add(id);
-      setTyped([...next].sort((a, b) => a - b).join(', '));
+      setTyped(unionSockets(next).join(', '));
       return next;
     });
   }
 
-  const sockets = [...selected].sort((a, b) => a - b);
-  const invalidTyped = [...typed.matchAll(/\d+/g)]
-    .map(m => Number(m[0]))
-    .filter(n => !isValidSocketId(n));
+  const sockets = unionSockets(selected);
+  const invalidTyped = toSocketSet(
+    [...typed.matchAll(/\d+/g)].map(m => Number(m[0])),
+  ).invalid;
 
   const nameTaken = existingNames.has(name.trim());
   const canSave = name.trim().length > 0 && sockets.length > 0 && !nameTaken;
@@ -449,7 +450,7 @@ function ZoneEditor({
       />
       {invalidTyped.length > 0 && (
         <p className="zone-editor-error">
-          Not valid sockets on this helmet (1–78): {invalidTyped.join(', ')}
+          Not valid sockets on this helmet ({socketRangeLabel()}): {invalidTyped.join(', ')}
         </p>
       )}
 

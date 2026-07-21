@@ -65,13 +65,24 @@
 #include "np_hub_types.h"
 
 /* ── Address field sizing ─────────────────────────────────────────────────────
- * Socket field ≥7 bits so addressing never binds before geometry does (the
- * design study caps a fully-tiled vault at ~54-64 hexes). Element field 7 bits
- * covers the densest 40 mm tri-wavelength tile (~90 elements). */
+ * Socket field 7 bits (holds 0..127). The tiling surface was re-measured from a
+ * 3D scan of the reference helmet interior (Neuronic LIGHT shape): at the 40 mm
+ * design point the full regular lattice is ~78 sockets, well above the old 64
+ * ceiling. 64 was a guessed "physical ceiling" that the scan disproved -- the
+ * same class of unchecked constant that once let a 78-socket lattice ship, only
+ * this time the physics is real -- so the bound is raised to 96 to match what
+ * the helmet actually holds, with margin, still inside the 7-bit field.
+ * Element field 7 bits covers the densest 40 mm tri-wavelength tile (~90
+ * elements) AND is what the active-surface mask indexes: a boundary tile keeps
+ * its socket and disables the elements outside the chosen active surface
+ * (NP-HEX-ZM-001 §3.4). See NP-HEX-ZM-001 §3 for the scan derivation. */
 
 #define NP_HEXMAP_SOCKET_BITS      7
 #define NP_HEXMAP_ELEM_BITS        7
-#define NP_HEXMAP_MAX_SOCKETS      64      /* physical geometry ceiling          */
+#define NP_HEXMAP_MAX_SOCKETS      96      /* ~78 physical + margin; was 64, a     \
+                                                 * guess the interior scan disproved.   \
+                                                 * Fits the 7-bit socket field (<=127). \
+                                                 * NVRAM blob 6.3->9.5 KB.              */
 #define NP_HEXMAP_MAX_ELEMENTS     128     /* 7-bit minor domain                 */
 #define NP_HEXMAP_UID_LEN          8       /* 64-bit module UID                  */
 

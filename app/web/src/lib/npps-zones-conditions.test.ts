@@ -6,6 +6,7 @@ import {
   validateNamespaceReferences,
 } from './nppsParser';
 import { serializeZone, serializeCondition, serializeProtocol } from './nppsSerializer';
+import { NP_SOCKET_ID_MAX, NP_SOCKET_ID_MIN } from './socketSet';
 import type {
   NPProtocolDefinition,
   PBMTranscranialParams,
@@ -22,9 +23,71 @@ describe('zone blocks', () => {
   });
 
   it('parses an arbitrary, non-contiguous socket-list zone', () => {
-    const { zones } = parseNPPSFile('zone "Scattered" { sockets: [3, 17, 40, 78] }');
-    expect(zones[0].sockets).toEqual([3, 17, 40, 78]);
+    const { zones } = parseNPPSFile('zone "Scattered" { sockets: [3, 17, 25] }');
+    expect(zones[0].sockets).toEqual([3, 17, 25]);
     expect(zones[0].isPredefined).toBe(false);
+  });
+
+  // ── Socket-id range enforcement (numbering base is 1, count is derived) ──────
+
+  it('rejects a socket id past the end of the lattice', () => {
+    expect(() => parseNPPSFile(`zone "Too far" { sockets: [1, ${NP_SOCKET_ID_MAX + 1}] }`))
+      .toThrow(/is not a socket on this helmet/);
+  });
+
+  it('rejects socket id 0 — ids are 1-based, not 0-based', () => {
+    // The numbering base was documented and then not enforced, so `[0, 1, 2]`
+    // parsed happily and addressed a socket that does not exist.
+    expect(() => parseNPPSFile('zone "Zero based" { sockets: [0, 1, 2] }'))
+      .toThrow(/is not a socket on this helmet/);
+  });
+
+  it('rejects negative and fractional socket ids', () => {
+    expect(() => parseNPPSFile('zone "Negative" { sockets: [-1] }'))
+      .toThrow(/is not a socket on this helmet/);
+    expect(() => parseNPPSFile('zone "Fractional" { sockets: [1.5] }'))
+      .toThrow(/is not a socket on this helmet/);
+  });
+
+  it('rejects values that only LOOK numeric to Number()', () => {
+    // Bare Number() maps true->1, [5]->5, '0x10'->16, '1e1'->10, and the lexer
+    // admits booleans, identifiers and nested arrays into a generic array — so
+    // without strict coercion every one of these reached the socket list.
+    for (const src of ['[true, 4]', '[0x10]', '[1e1]', '[[5], 4]']) {
+      expect(() => parseNPPSFile(`zone "Sneaky" { sockets: ${src} }`), src)
+        .toThrow(/is not a socket on this helmet/);
+    }
+  });
+
+  it('accepts a quoted decimal, which is unambiguous', () => {
+    // Deliberate: a plain decimal in quotes names exactly one socket, and the
+    // same coercion serves the config UI's text box. Only values that need
+    // INTERPRETING (hex, exponent, boolean, array) are rejected.
+    expect(parseNPPSFile('zone "Quoted" { sockets: ["4"] }').zones[0].sockets).toEqual([4]);
+  });
+
+  it('quotes the offending token rather than reporting NaN', () => {
+    // "socket NaN is not on this helmet" named nothing the author could find.
+    expect(() => parseNPPSFile('zone "Bad" { sockets: [banana] }'))
+      .toThrow(/banana/);
+  });
+
+  it('names the offending id and the valid range in the error', () => {
+    const bad = NP_SOCKET_ID_MAX + 5;
+    expect(() => parseNPPSFile(`zone "Bad" { sockets: [${bad}] }`))
+      .toThrow(new RegExp(`${bad}.*${NP_SOCKET_ID_MIN}.*${NP_SOCKET_ID_MAX}`));
+  });
+
+  it('accepts both ends of the valid range', () => {
+    const src = `zone "Ends" { sockets: [${NP_SOCKET_ID_MIN}, ${NP_SOCKET_ID_MAX}] }`;
+    expect(parseNPPSFile(src).zones[0].sockets).toEqual([NP_SOCKET_ID_MIN, NP_SOCKET_ID_MAX]);
+  });
+
+  it('deduplicates and sorts a zone socket list', () => {
+    // A zone is a SET. A repeated socket would otherwise inflate coverage
+    // denominators and get dosed twice by any per-socket iteration.
+    const { zones } = parseNPPSFile('zone "Dupes" { sockets: [5, 3, 5, 1, 3] }');
+    expect(zones[0].sockets).toEqual([1, 3, 5]);
   });
 
   it('parses a socket-list zone with an element-type filter', () => {
@@ -33,6 +96,19 @@ describe('zone blocks', () => {
     );
     expect(zones[0].sockets).toEqual([3, 4]);
     expect(zones[0].types).toEqual(['led_660', 'led_808']);
+  });
+
+  it('refuses to serialize a zone the parser would reject', () => {
+    // The write path must enforce the read path's contract, or the app emits a
+    // .npps file it cannot load back.
+    expect(() => serializeZone({ name: 'Bad', sockets: [0, 4, 999] }))
+      .toThrow(/cannot serialize zone "Bad"/);
+  });
+
+  it('canonicalises sockets on serialize, so output always re-parses', () => {
+    const out = serializeZone({ name: 'Messy', sockets: [5, 3, 5, 1] });
+    expect(out).toContain('sockets: [1, 3, 5]');
+    expect(parseNPPSFile(out).zones[0].sockets).toEqual([1, 3, 5]);
   });
 
   it('round-trips a zone through the serializer', () => {

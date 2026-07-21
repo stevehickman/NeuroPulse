@@ -28,6 +28,7 @@ import {
   type NPHelmetInventory,
   type NPModuleType,
 } from './helmetInventory';
+import { toSocketSet, unionSockets, unionZoneSockets } from './socketSet';
 
 // ─── Modality requirements ─────────────────────────────────────────────────────
 
@@ -118,9 +119,21 @@ export function zoneCoverageFor(
   const requirement = MODALITY_REQUIREMENTS[modality];
   const satisfied: number[] = [];
   const missing: number[] = [];
-  const invalid: number[] = [];
 
-  for (const socketId of zone.sockets) {
+  // Zones parsed from .npps are already canonical, but a zone can also be built
+  // in memory (the config UI, tests, migrations), so canonicalise here rather
+  // than trusting the caller — a repeated socket would otherwise count twice
+  // against `total`. Ids that name no socket on this helmet are REPORTED as
+  // invalid, never dropped: an unaddressable id is exactly what the operator
+  // needs told about.
+  const canonical = toSocketSet(zone.sockets);
+  const invalid = canonical.invalid
+    .map(e => Number(e.raw))
+    .filter(n => Number.isFinite(n));
+
+  for (const socketId of canonical.sockets) {
+    // Distinct from the above: this id IS a socket, it just has no module
+    // fitted. Both end up in `invalid` for the UI, but the id is real.
     if (inventory.at(socketId) === undefined) {
       invalid.push(socketId);
       continue;
@@ -130,6 +143,23 @@ export function zoneCoverageFor(
   }
 
   return makeCoverage(zone.name, satisfied, missing, invalid);
+}
+
+/**
+ * The sockets a modality actually addresses: the DEDUPLICATED union of every
+ * zone it targets.
+ *
+ * Per-zone coverage is reported separately because the operator needs to see
+ * which zone is short. But the set of sockets that will be driven is a union,
+ * and it must not repeat: "Frontal Left" + "Frontal Right" share midline socket
+ * 2, and every lobe pair shares its midline. Dosing, socket counts and
+ * per-socket iteration all read this, never a concatenation.
+ */
+export function targetSocketsFor(
+  modality: NPProtocolModality,
+  namespace: ReadonlyMap<string, NPZoneDefinition>,
+): number[] {
+  return unionZoneSockets(targetZones(modality, namespace).zones);
 }
 
 /**
@@ -339,9 +369,9 @@ export function evaluateProtocol(
       unsupportedZones,
       unresolvedZones: unresolved,
       coverage,
-      sockets: [...new Set(blockingSockets)]
-        .sort((a, b) => a - b)
-        .map(id => shortfallFor(id, requirement, inventory)),
+      sockets: unionSockets(blockingSockets).map(id =>
+        shortfallFor(id, requirement, inventory),
+      ),
     });
   }
 
@@ -378,9 +408,17 @@ function coverageForSockets(
   const requirement = MODALITY_REQUIREMENTS[modality];
   const satisfied: number[] = [];
   const missing: number[] = [];
-  const invalid: number[] = [];
 
-  for (const socketId of sockets) {
+  // Operator selections arrive straight from the picker and may repeat a socket;
+  // canonicalising first keeps the coverage denominator honest (a site chosen
+  // twice is one site) and routes bad ids to `invalid` the same way zone parsing
+  // does.
+  const canonical = toSocketSet(sockets);
+  const invalid = canonical.invalid
+    .map(e => Number(e.raw))
+    .filter(n => Number.isFinite(n));
+
+  for (const socketId of canonical.sockets) {
     if (inventory.at(socketId) === undefined) {
       invalid.push(socketId);
       continue;
@@ -403,7 +441,9 @@ function summarize(blocking: NPModalityShortfall[]): string {
     return `References a zone that is not defined: ${first.unresolvedZones[0]}`;
   }
 
-  const socketCount = new Set(blocking.flatMap(s => s.sockets.map(x => x.socketId))).size;
+  const socketCount = unionSockets(
+    ...blocking.map(s => s.sockets.map(x => x.socketId)),
+  ).length;
   const zoneList = first.unsupportedZones.slice(0, 2).join(', ');
   const more = first.unsupportedZones.length > 2 ? ` +${first.unsupportedZones.length - 2} more` : '';
 

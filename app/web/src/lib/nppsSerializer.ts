@@ -12,6 +12,7 @@ import {
   referenceUrl,
   referenceLabel,
 } from '../types/protocol';
+import { describeInvalid, socketRangeLabel, toSocketSet } from './socketSet';
 import { NPLimitsSet } from '../types/limits';
 
 const INDENT = '    ';
@@ -299,12 +300,31 @@ export function serializeProtocol(entry: NPProtocolEntry): string {
 
 // ─── Zone / condition serialization ────────────────────────────────────────────
 
+/**
+ * Serialize a zone, canonicalising its socket list on the way out.
+ *
+ * The write path has to enforce the same contract as the read path, or the app
+ * can emit a `.npps` file its own parser rejects — an in-memory zone carrying
+ * `[0, 4, 4, 999]` used to serialize verbatim and then fail to load. Throwing
+ * here is deliberate: a zone that cannot be written is a bug in whatever built
+ * it, and silently dropping the bad ids would hide that.
+ */
 export function serializeZone(zone: NPZoneDefinition): string {
+  const { sockets, invalid } = toSocketSet(zone.sockets);
+  if (invalid.length > 0) {
+    throw new Error(
+      `cannot serialize zone "${zone.name}": ` +
+      `${invalid.map(describeInvalid).join(', ')} ` +
+      `${invalid.length === 1 ? 'is not a socket' : 'are not sockets'} on this ` +
+      `helmet — ids are whole numbers ${socketRangeLabel()}`,
+    );
+  }
+
   const lines: string[] = [];
   lines.push(`zone ${str(zone.name)} {`);
   if (zone.id) lines.push(`${INDENT}id: ${str(zone.id)}`);
   if (zone.description) lines.push(`${INDENT}description: ${str(zone.description)}`);
-  lines.push(`${INDENT}sockets: ${numArr(zone.sockets)}`);
+  lines.push(`${INDENT}sockets: ${numArr(sockets)}`);
   if (zone.types) lines.push(`${INDENT}types: ${strArr(zone.types)}`);
   if (zone.excludeTypes) lines.push(`${INDENT}exclude_types: true`);
   lines.push('}');
