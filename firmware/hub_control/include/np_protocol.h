@@ -26,7 +26,17 @@
  *   - device serial matches the stored serial in Config partition
  *   - cmd_count ≤ NP_HUB_PROTO_CMD_MAX
  *   - each command's params_len ≤ NP_HUB_PROTO_PARAMS_MAX
- *   - total buf size is consistent with cmd_count and params_len values
+ *   - each command's target_kind is a known np_proto_target_kind_t, and its
+ *     target_len is exactly the length that kind requires
+ *   - slot_id agrees with target_kind: a SLOT target names a slot in
+ *     NP_HUB_SLOT_FIRST_VALID .. NP_HUB_SLOT_MAX-1 (so a retired zone slot,
+ *     which is what a v1 zone target would decode to, never reaches a module
+ *     driver); any other target kind carries NP_HUB_SLOT_NONE
+ *   - start_ms + duration_ms does not wrap uint32 (a wrapped auto-stop deadline
+ *     can land on the runner's "no stop pending" sentinel)
+ *   - the command body is EXACTLY consumed by cmd_count commands — trailing
+ *     bytes mean cmd_count under-counts, which silently drops the tail, and the
+ *     tail of an interval protocol is its STOP commands
  *
  * Returns NP_HUB_OK on success.  desc_out is only valid on NP_HUB_OK.
  * Any failure leaves desc_out in an undefined state — caller must not use it.
@@ -34,6 +44,44 @@
 np_hub_status_t np_protocol_verify_and_parse(const uint8_t   *buf,
                                               size_t           len,
                                               np_session_desc_t *desc_out);
+
+/* ── Socket-target accessors ──────────────────────────────────────────────────
+ * These read the parsed socket bitmap of a NP_PROTO_TARGET_SOCKET_MASK command.
+ * On a command of any other target kind they behave as though no socket is
+ * selected (false / 0 / empty list) — the fail-closed reading.
+ *
+ * Socket ids here are 0-BASED firmware ids, directly usable as np_hex_addr_t
+ * .socket_id and as np_group_query_t.sockets entries.
+ */
+
+/* True iff socket_id is selected by this command. Out-of-domain ids are false. */
+bool np_protocol_socket_is_set(const np_session_cmd_t *cmd, uint8_t socket_id);
+
+/* Number of sockets this command selects. */
+uint16_t np_protocol_socket_count(const np_session_cmd_t *cmd);
+
+/*
+ * np_protocol_socket_expand — expand the bitmap into the ascending socket list
+ * np_module_map consumes.
+ *
+ * The output is exactly what np_group_query_t wants for NP_GROUP_KIND_SOCKET_SET:
+ *
+ *     uint16_t sockets[NP_HUB_SOCKET_MASK_BYTES * 8];
+ *     uint16_t n;
+ *     np_protocol_socket_expand(cmd, sockets, (uint16_t)(sizeof sockets / sizeof *sockets), &n);
+ *     np_group_query_t q = { .kind = NP_GROUP_KIND_SOCKET_SET,
+ *                            .sockets = sockets, .socket_count = n,
+ *                            .type_mask = NP_ELEM_BIT(NP_ELEM_LED_660) };
+ *     np_module_map_resolve_group(&q, addrs, max, &addr_count);
+ *
+ * The list is ascending and duplicate-free, both inherited from the bitmap.
+ * On overflow, fills out[0..max-1], sets *count_out = max, and returns
+ * NP_HUB_ERR_CMD_TOO_MANY (same convention as np_module_map_resolve_group).
+ */
+np_hub_status_t np_protocol_socket_expand(const np_session_cmd_t *cmd,
+                                           uint16_t               *out,
+                                           uint16_t                max,
+                                           uint16_t               *count_out);
 
 /*
  * np_protocol_compute_expected_len

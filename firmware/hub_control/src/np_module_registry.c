@@ -172,6 +172,13 @@ static const np_slot_probe_t k_slot_probes[NP_HUB_SLOT_MAX] = {
     [NP_HUB_SLOT_VIBROTACTILE] = { np_mod_vibrotactile_detect, np_mod_vibrotactile_init,
                                     np_mod_vibrotactile_control, np_mod_vibrotactile_telemetry,
                                     np_mod_vibrotactile_shutdown },
+    /* BES/tACS and tDCS: one driver (np_mod_stim.c), two slots. Its externs were
+     * declared above but it had no probe-table entry, so np_mod_reg_get() never
+     * returned it and a BES or tDCS command could not be dispatched at all. */
+    [NP_HUB_SLOT_BES_TACS]    = { np_mod_stim_detect, np_mod_stim_init, np_mod_stim_control,
+                                   np_mod_stim_telemetry, np_mod_stim_shutdown },
+    [NP_HUB_SLOT_TDCS]        = { np_mod_stim_detect, np_mod_stim_init, np_mod_stim_control,
+                                   np_mod_stim_telemetry, np_mod_stim_shutdown },
 };
 
 /* ── Registry storage ─────────────────────────────────────────────────────────── */

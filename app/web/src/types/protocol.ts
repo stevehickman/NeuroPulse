@@ -295,7 +295,13 @@ export type NPModalityParams = {
 export function defaultParams<T extends NPModalityTypeId>(type: T): ModalityParamsMap[T] {
   const defaults: ModalityParamsMap = {
     pbm_transcranial: {
-      zones: 'all',
+      // Named, not the retired `'all'` selector: `'all'` addressed the five
+      // legacy zone-module slots, which no longer exist, and the hub compiler
+      // refuses it. "All" is its migration target in 00-zones.npps — every
+      // socket on the helmet, which is broader than old `all` ever was (it had
+      // no temporal coverage at all).
+      zones: 'named',
+      zoneRefs: ['All'],
       wavelength: '660_808nm',
       intensityPercent: 75,
       frequencyHz: 40,

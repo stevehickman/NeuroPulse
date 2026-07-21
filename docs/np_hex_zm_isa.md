@@ -4,7 +4,7 @@ project: NeurOne
 slug: hex-zone-module
 effort: E4
 phase: plan
-progress: 18/91
+progress: 38/113
 mode: design-study
 started: 2026-07-15
 updated: 2026-07-20
@@ -151,6 +151,30 @@ bench.
 - [ ] ISC-16: Real module inventory link (I2C/1-wire `inventory_fn`) is implemented and returns element-type list per minor address.
 - [ ] ISC-17: Socket field width ≥7 bits verified so addressing never caps below the geometry ceiling.
 - [ ] ISC-18: Anti: no user biology is written by the map — module UID is a component identifier (SHDR-class), nothing is UHDR or keyed to user identity.
+
+### Protocol wire format carries sockets (NP Hub Protocol v2 — see brief §4b)
+- [x] ISC-74: The compiled hub payload addresses cranial commands by SOCKET, not by the retired five-bit zone-module slot mask. — `hubCompiler.ts` emits a 16-byte socket bitmap; `zoneSlotMask()` is gone.
+- [x] ISC-75: The socket target is sized to the firmware socket domain (`NP_HEXMAP_MAX_SOCKETS` = 128 bits), not to the count of sockets this shell wires (80 today, was 78), so a lattice re-cut needs no wire revision.
+- [x] ISC-76: The target is a BITMAP, so a socket named by two overlapping zones is delivered exactly once — the midline double-J/cm² hazard is unrepresentable rather than merely avoided.
+- [x] ISC-77: 1-based NPPS/app socket ids convert to 0-based firmware ids in exactly one place (`socketBitmap()`), the boundary `np_module_map.h` names as the caller's job.
+- [x] ISC-78: A compiled socket target feeds `np_module_map` directly — `np_protocol_socket_expand()` yields the ascending `uint16_t` array `np_group_query_t` wants for `NP_GROUP_KIND_SOCKET_SET`.
+- [x] ISC-79: Named zones from `00-zones.npps` resolve to their exact socket lists; the compiler reads the real zone namespace rather than a private copy.
+- [x] ISC-80: A `clinician_selected` target refuses to compile without an operator socket selection.
+- [x] ISC-81: Every fixed device names its own slot. v1 sent all of them to `slot_mask 0x01` = zone slot 0 = the PBM driver.
+- [x] ISC-82: Slots above 7 are addressable. v1's `uint8_t slot_mask` + `(mask >> slot)` dispatch made slots 8–16 unnameable, so the VNS clip, intranasal probe, cervical VNS and every T2 unit were unreachable.
+- [x] ISC-83: `np_mod_stim` (BES/tACS + tDCS) has probe-table entries; it had externs but no slot, so `np_mod_reg_get()` never returned it.
+- [x] ISC-83.1: `np_mod_stim` routes by SLOT — a tDCS command reaches the DC ramp and a BES command the AC waveform. Registering the driver exposed that `state_for_slot()` ignored its argument (both slots resolved to the BES state) and `detect()` discriminated on a slot the driver was never assigned.
+- [x] ISC-83.2: Each stim channel holds independent state and de-requests its own safety-MCU enable bit; stopping one does not stop the other.
+- [x] ISC-83.3: Module parameter payloads are length-checked for EXACT struct size, and every app encoder's byte count is pinned to the packed `sizeof()` of its firmware struct. (`encodeBESTacs` emitted 8 bytes for a 7-byte packed struct — the comment claimed alignment padding that packed structs do not have.)
+- [x] ISC-83.4: The parser requires the command body to be EXACTLY consumed. A `cmd_count` that under-counts silently dropped the tail, and because commands sort by `start_ms`, the tail of an interval protocol is its STOP commands.
+- [x] ISC-83.5: The parser rejects `start_ms + duration_ms` wrapping uint32 — a wrapped auto-stop deadline can land on the runner's "no stop pending" sentinel 0, discarding the duration entirely.
+- [x] ISC-83.6: Anti: a dropped command never appears in UHDR as delivered. `mods_active_mask` is set only when `dispatch_command()` reports it dispatched, and module faults record on `s_ctx.abort_reason` rather than the record field the session-end block overwrites.
+- [x] ISC-84: The parser rejects — not skips — a retired zone slot, an out-of-domain slot, an unknown target kind, a target length disagreeing with its kind, and a slot id on a socket target.
+- [x] ISC-85: Anti: no retired five-slot selector (`all`/`front`/`rear`/numeric `custom`) is silently migrated. Their documented meanings conflict (v1 `front` = `0x07` = frontal L/R **+ parietal L** vs `00-zones.npps` "Frontal"; numeric base 0 in `nppsParser.ts` vs 1 in `00-zones.npps`), and the failure mode is wrong-site dosing, so they refuse to compile and name their migration target.
+- [x] ISC-86: Anti: no command compiles to an empty target — a zone resolving to zero sockets is refused rather than producing a session that reports a dose while lighting nothing.
+- [x] ISC-87: Anti: a socket-addressed command is never dispatched through the legacy slot path. `dispatch_command()` logs and DROPS it (OI-HUB-SOCKET-01) rather than delivering to whatever sits in slot 0.
+- [ ] ISC-88: Socket-addressed commands are executed end to end — socket-indexed control registry + per-socket safety-MCU enable. (OI-HUB-SOCKET-01; parse + resolve delivered, dispatch fails closed.)
+- [ ] ISC-89: The remaining socket-based modalities (1170 nm deep PBM, EEG/qEEG, BES/tACS/tDCS/HD-tDCS) carry socket targets. Blocked on their param types gaining zone refs — EEG names 10-20 channels and tES names electrode pairs today. (OI-HUB-SOCKET-02.)
 
 ### Two-layer shell + EMF seam
 - [ ] ISC-19: Shell is two nested bowls: outer = complete EMF envelope; inner = module/socket/cluster-clamp carrier nesting inside it.
@@ -399,6 +423,33 @@ bench.
   enclosing uniformity, co-design with the mu-metal, separation from the µV EEG
   leads they protect, and fixed (never-opened) geometry — all favoring the outer
   bowl; sensors sample near the scalp. Full rationale in NP-HEX-ZM-001 §5.3.1.
+- 2026-07-20 — **Protocol wire format v2 — sockets on the wire.** The addressing
+  layer (`np_module_map`) shipped ahead of the wire format that feeds it, so the
+  compiler still emitted the retired five-bit zone mask and the whole lattice
+  stopped at the app boundary. v2 gives each command a variable-length target
+  block: `NP_PROTO_TARGET_SOCKET_MASK` carries a 16-byte socket bitmap;
+  `NP_PROTO_TARGET_SLOT` keeps the genuinely fixed devices.
+  **Bitmap over address list** is the load-bearing choice — inclusive membership
+  puts midline sockets in both hemisphere zones, so a union names them twice and
+  a list would double-drive those modules (double J/cm²); a bitmap cannot express
+  the duplicate, so dedup stops depending on producer discipline.
+  **`slot_mask` → `slot_id`** because the mask was a `uint8_t` dispatched by
+  `(mask >> slot) & 1`, making slots 8–16 unnameable — which is why every
+  non-PBM modality was compiled to `0x01`, the PBM driver's slot. Each remaining
+  slot is one device, so an index says what a mask only obscured.
+  **Retired selectors refuse to compile** rather than migrating on a guess: v1's
+  `front` bitmask and `00-zones.npps`'s stated migration target disagree (the old
+  mask cut the parietal pair across front/rear), and `nppsParser.ts` and
+  `00-zones.npps` disagree about the numeric base. Both disagreements resolve to
+  wrong-site dosing, so the compiler names the migration target and stops. No
+  shipped protocol used either form; `defaultParams()` moved to named "All".
+  **Scope held at parse + resolve:** `dispatch_command()` fails closed on a
+  socket target (OI-HUB-SOCKET-01) because the control registry is slot-indexed
+  and the safety-MCU enable bitmap is per-zone-slot; falling back to the slot
+  path would deliver stimulation the protocol never named.
+  Delegation: authored inline and cross-reviewed by Forge (GPT-5.4) — the work is
+  one contract expressed in two languages that must agree byte for byte, which
+  splits badly across parallel authors.
 - 2026-07-15 — **CLAUDE.md integration deferred:** the redesign is a study; the
   big locked CLAUDE.md §13/§7 tables are not edited until the go/no-go PASS
   promotes it. Prevents recording an un-gated decision as "locked".
@@ -542,5 +593,22 @@ bench.
   placement host tests PASS (Oz-present OK, missing-electrode NOT_PRESENT + reported
   socket, dual electrode satisfies EEG and tES, incomplete montage, empty/NULL).
   73/73 map checks; full host suite 16/16; Cortex-M7 `-Werror` clean.
+- ISC-74..87: `np_protocol_tests` 56 host checks PASS + `np_mod_stim_tests` 21
+  PASS; full firmware host suite **18/18** green. `hubCompiler.test.ts` 41 checks
+  PASS against the real `protocols/predefined/00-zones.npps`; app suite
+  **199/199**; `tsc --noEmit` clean. `np_protocol.c`, `np_session_runner.c`,
+  `np_module_registry.c` and `np_mod_stim.c` compile clean under
+  `arm-none-eabi-gcc` Cortex-M7 `-Wall -Wextra -Werror`.
+- ISC-83.1..83.3: `np_mod_stim_tests` was regression-checked against the pre-fix
+  driver — 11 of its 21 checks fail there, including `control: tDCS drives the DC
+  ramp path, not the AC waveform`. The suite earns its place rather than merely
+  passing.
+- ISC-76 specifically: `dedup: union of both frontal zones selects 19 sockets,
+  not 22` (host) and `delivers overlapping zones once per socket` (app) — the two
+  frontal zones list 11 sockets each and share midline 1, 5, 13.
+- ISC-82 specifically: `slots: every slot above 7 is addressable (v1 could not
+  name them)` covers all eleven.
+- ISC-88, ISC-89: NOT verified — deliberately out of scope, tracked as
+  OI-HUB-SOCKET-01/02 in brief §7.
 - Remaining ISCs: pending brief authoring (geometry/EMF/reliability/gate) and
   future hardware benches — tracked, not yet verified.

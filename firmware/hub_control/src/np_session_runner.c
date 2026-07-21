@@ -76,49 +76,98 @@ static uint16_t slot_to_safety_bit(uint8_t slot)
         [NP_HUB_SLOT_VNS_HRV]   = NP_SAFETY_EN_VNS_HRV,
         [NP_HUB_SLOT_INTRANASAL] = NP_SAFETY_EN_INTRANASAL,
         [NP_HUB_SLOT_CVNS]       = NP_SAFETY_EN_CVNS,
+        [NP_HUB_SLOT_TMS]        = NP_SAFETY_EN_TMS,
+        [NP_HUB_SLOT_PBM_1170NM] = NP_SAFETY_EN_PBM_1170NM,
+        /* CLIN_TACS and HD_TDCS share the one 16-ch driver, hence one gate. */
+        [NP_HUB_SLOT_CLIN_TACS]  = NP_SAFETY_EN_CLIN_STIM,
+        [NP_HUB_SLOT_HD_TDCS]    = NP_SAFETY_EN_CLIN_STIM,
+        [NP_HUB_SLOT_BES_TACS]   = NP_SAFETY_EN_BES_TACS,
+        [NP_HUB_SLOT_TDCS]       = NP_SAFETY_EN_TDCS,
+        /* QEEG is passive recording, VIBROTACTILE is not safety-MCU gated. */
     };
     return (slot < NP_HUB_SLOT_MAX) ? k_map[slot] : 0U;
 }
 
 /*
- * dispatch_command — call the registered control function for each slot set
- * in cmd->slot_mask, request enable from safety MCU, and record stop time.
+ * dispatch_command — call the registered control function for the command's
+ * slot, request enable from safety MCU, and record stop time.
+ *
+ * SOCKET-ADDRESSED COMMANDS ARE NOT DISPATCHED (OI-HUB-SOCKET-01).
+ * ---------------------------------------------------------------
+ * Protocol v2 lets a cranial command name helmet SOCKETS rather than slots
+ * (np_proto_target_kind_t). The parser understands them and np_module_map
+ * resolves them to (socket:element) addresses — but the control-dispatch path
+ * below is still the legacy fixed-slot registry (np_module_registry), which has
+ * no socket-indexed entries, and the safety-MCU enable bitmap
+ * (NP_SAFETY_EN_PBM_ZONE_0..4) is still per-zone-slot. Wiring sockets end to end
+ * needs both, and both are their own change.
+ *
+ * Until then a socket-addressed command is logged and DROPPED. The alternative
+ * — falling back to the slot path — would dispatch a command targeting, say,
+ * eleven frontal-left sockets to whatever module sits in slot 0, i.e. deliver
+ * stimulation somewhere the protocol never named. A missed dose is recoverable;
+ * a wrong-site dose is not. Fail closed.
  */
-static void dispatch_command(const np_session_cmd_t *cmd, uint32_t now_ms)
+static bool dispatch_command(const np_session_cmd_t *cmd, uint32_t now_ms)
 {
-    for (uint8_t slot = 0U; slot < NP_HUB_SLOT_MAX; slot++) {
-        if (!((cmd->slot_mask >> slot) & 1U)) {
-            continue;
+    if (cmd->target_kind != NP_PROTO_TARGET_SLOT) {
+        /* Logged against NP_HUB_SLOT_NONE, not slot 0: the command named no
+         * slot, and attributing the drop to the retired zone-0 slot would put a
+         * fault in the SHDR device-health log against a module that was never
+         * involved. */
+        np_log_shdr_fault(NP_HUB_SLOT_NONE, cmd->mod_type,
+                          (uint8_t)(-NP_HUB_ERR_NOT_PRESENT), now_ms);
+        if (s_ctx.abort_reason == NP_ABORT_NONE) {
+            s_ctx.abort_reason = NP_ABORT_MOD_FAULT;
         }
-        np_mod_entry_t *mod = np_mod_reg_get(slot);
-        if (mod == NULL || mod->control == NULL) {
-            continue;
+        return false;
+    }
+
+    /* The parser has already pinned slot_id to a valid, non-retired slot for
+     * this target kind, so this is a belt-and-braces bound check on the array
+     * index rather than a validation. */
+    const uint8_t slot = cmd->slot_id;
+    if (slot >= NP_HUB_SLOT_MAX) {
+        return false;
+    }
+
+    np_mod_entry_t *mod = np_mod_reg_get(slot);
+    if (mod == NULL || mod->control == NULL) {
+        return false;
+    }
+
+    const void *params     = (cmd->params_len > 0U) ? cmd->params : NULL;
+    uint16_t    params_len = cmd->params_len;
+
+    np_hub_status_t rc = mod->control(slot, params, params_len);
+    if (rc != NP_HUB_OK) {
+        /* Module fault — log to SHDR, record in session, but continue.
+         * Recorded on s_ctx.abort_reason, not directly on s_ctx.shdr: the
+         * session-end block overwrites shdr.abort_reason from s_ctx.abort_reason
+         * unconditionally, so writing the record field here was erased before it
+         * was ever logged. Non-fatal: session continues; safety MCU owns hard
+         * cutoff. */
+        if (s_ctx.abort_reason == NP_ABORT_NONE) {
+            s_ctx.abort_reason = NP_ABORT_MOD_FAULT;
         }
+        return false;
+    }
 
-        const void *params     = (cmd->params_len > 0U) ? cmd->params : NULL;
-        uint16_t    params_len = cmd->params_len;
-
-        np_hub_status_t rc = mod->control(slot, params, params_len);
-        if (rc != NP_HUB_OK) {
-            /* Module fault — log to SHDR, record in session, but continue. */
-            np_log_shdr_fault(slot, mod->type, (uint8_t)(-rc), now_ms);
-            s_ctx.shdr.abort_reason = (uint8_t)NP_ABORT_MOD_FAULT;
-            /* Non-fatal: session continues; safety MCU owns hard cutoff. */
-        }
-
-        /* Request enable from safety MCU for stimulation channels. */
-        if (params != NULL) {
-            uint16_t bit = slot_to_safety_bit(slot);
-            if (bit != 0U) {
-                np_safety_spi_request_enable(bit);
-            }
-        }
-
-        /* Record when this slot should auto-stop. */
-        if (cmd->duration_ms > 0U) {
-            s_ctx.stop_at_ms[slot] = cmd->start_ms + cmd->duration_ms;
+    /* Request enable from safety MCU for stimulation channels. */
+    if (params != NULL) {
+        uint16_t bit = slot_to_safety_bit(slot);
+        if (bit != 0U) {
+            np_safety_spi_request_enable(bit);
         }
     }
+
+    /* Record when this slot should auto-stop. The parser has already rejected a
+     * start_ms + duration_ms that would wrap, so this sum cannot land on the
+     * "no stop pending" sentinel 0. */
+    if (cmd->duration_ms > 0U) {
+        s_ctx.stop_at_ms[slot] = cmd->start_ms + cmd->duration_ms;
+    }
+    return true;
 }
 
 /*
@@ -311,10 +360,14 @@ np_hub_status_t np_runner_run(void)
         /* Dispatch all commands whose start_ms ≤ now_ms */
         while (s_ctx.next_cmd_idx < s_ctx.desc.cmd_count &&
                s_ctx.desc.cmds[s_ctx.next_cmd_idx].start_ms <= now_ms) {
-            dispatch_command(&s_ctx.desc.cmds[s_ctx.next_cmd_idx], now_ms);
-            /* Track which module types are active for UHDR record. */
-            s_ctx.uhdr.mods_active_mask |=
-                (1U << (uint8_t)s_ctx.desc.cmds[s_ctx.next_cmd_idx].mod_type);
+            /* Track which module types are active for UHDR record — only when
+             * the command was actually dispatched. UHDR is the patient's dose
+             * record; a command that was dropped (a socket target, until
+             * OI-HUB-SOCKET-01) must not appear in it as delivered. */
+            if (dispatch_command(&s_ctx.desc.cmds[s_ctx.next_cmd_idx], now_ms)) {
+                s_ctx.uhdr.mods_active_mask |=
+                    (1U << (uint8_t)s_ctx.desc.cmds[s_ctx.next_cmd_idx].mod_type);
+            }
             s_ctx.next_cmd_idx++;
         }
 

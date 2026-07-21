@@ -47,6 +47,27 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_module_map_tests PRIVATE include)
     target_compile_options(np_module_map_tests PRIVATE -Wall -Wextra -std=c11)
 
+    # NP Hub Protocol v2 command-body grammar: the socket-mask target block that
+    # replaced the five-bit zone slot mask. Ed25519 + Config HALs are stubbed in
+    # the test, so np_protocol.c links standalone on host.
+    add_executable(np_protocol_tests
+        tests/np_protocol_tests.c
+        src/np_protocol.c
+    )
+    target_include_directories(np_protocol_tests PRIVATE include)
+    target_compile_options(np_protocol_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
+    # BES/tACS + tDCS slot dispatch. The driver shares silicon across two slots,
+    # so the slot is the only thing distinguishing an AC waveform from a DC ramp.
+    add_executable(np_mod_stim_tests
+        tests/np_mod_stim_tests.c
+        modules/np_mod_stim.c
+    )
+    target_include_directories(np_mod_stim_tests PRIVATE include)
+    target_compile_options(np_mod_stim_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
+
     # OI-LOG-01..04: session-log eMMC backing (block-coalescing append writer).
     add_executable(np_log_backend_tests
         tests/np_log_backend_tests.c
