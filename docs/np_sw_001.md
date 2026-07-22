@@ -2,13 +2,13 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** A  
-**Date:** 2026-05-13  
+**Revision:** B  
+**Date:** 2026-07-22  
 **Status:** ACTIVE  
-**Effective Date:** 2026-05-13  
+**Effective Date:** 2026-07-22  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** —  
+**References:** NP-REQ-FANHEALTH-001 Rev A, NP-FMEA-GEOM-001 Rev A, NP-THERM-BEZEL-001 Rev A, NP-THERM-CFD-001 Rev A, NP-FMEA-001, NP-RM-001 / NP-RISK-001 (RISK-26)  
 **Related Issues:** GitHub Issue #33  
 **Gate:** —  
 **IEC 62304 Class:** SW-01 Class C, SW-02 Class B, SW-03 Class B  
@@ -135,7 +135,7 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 | SW01-M01 | Stimulation enable GPIO management | `np_gpio_enable.c/.h` | Owns all stimulation GPIO; enforces hardware interlock state machine |
 | SW01-M02 | SPI heartbeat watchdog | `np_spi_watchdog.c/.h` | Monitors 200ms heartbeat from SW-02; 1.5s timeout → all-cutoff |
 | SW01-M03 | Charge density monitor | `np_charge_density.c/.h` | Integrates delivered charge per electrode pair; aborts at 95% of 40µC/cm² |
-| SW01-M04 | Thermal interlock | `np_thermal.c/.h` | Reads NTC ADC per zone; throttles current at 62°C junction |
+| SW01-M04 | Thermal interlock | `np_thermal.c/.h` | Reads NTC ADC per zone; throttles current at 62°C junction; additionally bounds scalp-facing surface ≤42°C under loss of forced convection (SR-FAN-01…06, NP-REQ-FANHEALTH-001) |
 | SW01-M05 | Cervical VNS cardiac interlock | `np_cvns_interlock.c/.h` | RPEAK_IN GPIO timer; rolling HR window; >15 BPM change → cutoff <5.1ms |
 | SW01-M06 | Impedance check | `np_impedance.c/.h` | 1kHz AC impedance before session enable; blocks if out of range |
 | SW01-M07 | Session protocol signature verification | `np_session_sig.c/.h` | Ed25519 verify on session descriptor before enabling any stimulation |
@@ -155,7 +155,7 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 | SW02-M08 | Cervical VNS session (T2) | `firmware/cervical_vns/` | Biphasic waveform; session orchestration; UHDR/SHDR |
 | SW02-M09 | Hub control program — module registry | `firmware/hub_control/` | Probes all 11 slots/accessory ports on powerup; registers init/control/telemetry/shutdown function pointers; T2 stubs return NOT_PRESENT until hardware drivers built |
 | SW02-M10 | Hub control program — session runner | `firmware/hub_control/` | Receives Ed25519-signed binary protocol; insertion-sort commands by start_ms; dispatches to module control functions at session-relative times; device-serial replay guard |
-| SW02-M11 | Hub control program — session log | `firmware/hub_control/` | Collects per-module telemetry every 1s; routes to UHDR or SHDR per 27-element classification table (NP-FW-EMMC-001 §12); EEG blocks written direct to UHDR partition via HAL |
+| SW02-M11 | Hub control program — session log | `firmware/hub_control/` | Collects per-module telemetry every 1s; routes to UHDR or SHDR per 27-element classification table (NP-FW-EMMC-001 §12); EEG blocks written direct to UHDR partition via HAL; samples hub fan RPM to SHDR, computes forced-convection headroom trend, and exposes a **fail-safe** fan-health advisory to SW-01 (SR-FAN-05/06, NP-REQ-FANHEALTH-001) — advisory only, never the sole basis for the Class C safety decision |
 | SW02-M12 | Hub control program — safety SPI | `firmware/hub_control/` | 200ms SPI heartbeat to STM32G071 Safety MCU carrying requested-enable bitmask; Safety MCU cuts all stimulation GPIO on 1,500ms watchdog expiry |
 | SW02-M13 | BLE GATT service | (planned) | BLE 5.3 LE Audio; GATT custom service; session sync |
 | SW02-M14 | USB-C communications | (planned) | USB-C 3.2 Gen1; session data download; DFU interface |
@@ -200,6 +200,20 @@ Currently documented SW-01 safety requirements with response times:
 - Photoparoxysmal EEG → goggle LED cutoff: **≤200ms** (spec: Oz electrode pathway, SW-02 driven)
 - Impedance check fail → session block: **before any stimulation pulse** (synchronous check at session start)
 - Charge density ≥95% of limit → stimulation abort: **within one PWM period** (<25µs at 40kHz)
+- Loss of forced convection / scalp-facing surface over-temp → PBM duty limited to natural-convection-safe ceiling: **≤ T_resp (thermal-class, ~10 s nominal; < k·τ_face per THERM-1a)**, face temperature ≤42°C maintained (NP-REQ-FANHEALTH-001)
+
+**Fan-health thermal-safety interlock (SR-FAN-01 … SR-FAN-06)** — accepted **provisionally** under change control per NP-REQ-FANHEALTH-001 Rev A, closing the software-side allocation of hardware hazard **FMEA-G07-01** (NP-FMEA-GEOM-001 §4 / NP-RISK-001 **RISK-26**): fan/vent degradation diverts module heat scalp-ward while the junction NTC still reads safe, an un-interlocked scalp-thermal-injury pathway the existing 62°C-junction throttle (SW01-M04) does not independently bound. Response bounds here are **thermal-class (seconds)**, not the millisecond class of the electrical interlocks above (rationale: NP-REQ-FANHEALTH-001 §3 — a thermal hazard develops over the module thermal time constant τ_face, and the SR-FAN-03 derate ceiling is inherently safe). The implementation path (A / B1-recommended / B2) and every numeric constant marked **TBD-per-THERM-1a** are gated on the THERM-1a CFD (NP-THERM-CFD-001), which has not yet been run.
+
+| ID | Requirement (summary) | Class | Response bound |
+|----|-----------------------|-------|----------------|
+| SR-FAN-01 | Limit scalp-facing module surface temperature to ≤42°C (IEC 60601-1 applied-part limit) in normal operation **and** under single-fault loss/degradation of forced convection (fan stall, fan failure, vent occlusion). | C | design limit |
+| SR-FAN-02 | Base the SR-FAN-01 safety function on a measurement that bounds face temperature **independently of forced-convection state** (direct scalp-facing NTC, or fan-health-gated derate), path selected by the THERM-1a outcome + hardware FMEA. | C | — |
+| SR-FAN-03 | Under a face-temperature / forced-convection fault, limit PBM zone duty to the **natural-convection-safe ceiling** (steady-state face ≤42°C with the fan fully stopped). Duty-ceiling constants per power configuration: **TBD-per-THERM-1a** (NP-THERM-CFD-001). | C | — |
+| SR-FAN-04 | Complete the transition to the SR-FAN-03 safe state within **T_resp**, bounded by τ_face such that face temperature cannot exceed 42°C during the transition. **T_resp: TBD-per-THERM-1a** (nominal ≤10 s placeholder; < k·τ_face). | C | ≤ T_resp (TBD) |
+| SR-FAN-05 | SW-02 shall sample hub fan RPM, log it to SHDR, compute a forced-convection headroom trend, and raise a predictive-maintenance alert (SW03-M05) **before** the SR-FAN-03 derate engages — an availability/comfort layer above, and independent of, the Class C safety function. | B | advisory |
+| SR-FAN-06 | The SR-FAN-01/03 decision shall be made in the Class C domain (SW-01) and shall **not depend on SW-02 correctness** (§7.2); any hub-provided fan-health indication used as input shall be **fail-safe** (absent / stale / invalid → "forced convection NOT confirmed" → SR-FAN-03 derate). | C | fail-safe |
+
+Allocation: **SW01-M04** (Class C — reads the scalp-facing NTC (Path B1) and/or the fail-safe fan-health input (B2/SR-FAN-06), applying the existing open-circuit/out-of-range = fault rule, NP-FMEA-001 FMEA-M04-02); a **SW-02 hub-telemetry element** (§5.2, SW02-M11 — fan RPM → SHDR + fail-safe advisory); **SW03-M05** (predictive-maintenance alert). Verification: unit (SW01-M04 face-NTC threshold + T_resp transient + fail-safe fan-health), integration (simulated fan stall at T1-peak and T2-peak), and system bench **THERM-1b** (scalp phantom, face ≤42°C throughout a mid-session fan stall). **Numeric constants (SR-FAN-03 ceilings, SR-FAN-04 T_resp) and final hazard closure to residual S2×P1 = 2 are deferred to OI-FAN-04b, gated on the THERM-1a CFD run — this acceptance is provisional.**
 
 ---
 
@@ -372,8 +386,8 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | §5.7 | Software integration and integration testing | **NOT STARTED** | Requires prototype hardware |
 | §5.8 | Software system testing | **NOT STARTED** | Requires prototype hardware + complete firmware |
 | §6 | Software maintenance | **PLANNED** | §10 this document |
-| §7.1 | Identify software items contributing to hazardous situations (Class C) | **PARTIAL** | SW-01 modules identified; unit-level FMEA not yet authored |
-| §7.2 | Software risk management measures | **PARTIAL** | Safety MCU architecture documented; formal SWFMEA pending |
+| §7.1 | Identify software items contributing to hazardous situations (Class C) | **PARTIAL** | SW-01 modules identified; unit-level FMEA not yet authored. Hardware-side hazard source **NP-FMEA-GEOM-001** (FMEA-G07-01) allocated to SW01-M04 via **NP-REQ-FANHEALTH-001** (SR-FAN-01…06, §6.2) |
+| §7.2 | Software risk management measures | **PARTIAL** | Safety MCU architecture documented; formal SWFMEA pending. FMEA-G07-01 (NP-FMEA-GEOM-001) risk-controlled by SR-FAN-01…06 (NP-REQ-FANHEALTH-001), tracked as **NP-RISK-001 RISK-26** |
 | §8 | Software configuration management | **PARTIAL** | Git version control in use; §9 this document |
 | §9 | Software problem resolution | **PLANNED** | Process defined §8.4 this document; tracking system pending |
 
@@ -384,3 +398,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. IEC 62304 software plan established at QMS formation. Three software items classified: SW-01 Class C, SW-02 Class B, SW-03 Class B. All existing firmware modules indexed. |
+| B | 2026-07-22 | Quality Lead (interim: Steve Hickman, CEO) | **Provisional** change-control acceptance of the fan-health thermal-safety interlock requirement (SR-FAN-01…06, NP-REQ-FANHEALTH-001 Rev A), closing the software-side allocation of hardware hazard FMEA-G07-01 (NP-FMEA-GEOM-001; entered as NP-RISK-001 RISK-26). §6.2 adds SR-FAN-01…06 (Class C, except SR-FAN-05 Class B); SR-FAN-03 duty-ceiling and SR-FAN-04 T_resp constants marked **TBD-per-THERM-1a**, pending the THERM-1a CFD (NP-THERM-CFD-001, not yet run). §5.1 SW01-M04 extended to bound scalp-facing surface ≤42°C under loss of forced convection. §5.2 SW02-M11 notes fan-RPM telemetry → SHDR + fail-safe fan-health advisory (SR-FAN-05/06). §11 references NP-FMEA-GEOM-001 under §7.1/§7.2. Numeric finalization and hazard closure to residual S2×P1 = 2 tracked as OI-FAN-04b (gated on THERM-1a CFD + THERM-1b bench). Change trigger: FMEA-RECON finding (NP-FMEA-GEOM-001 §1); source OI-FAN-04a (NP-PLAN-FANHEALTH-001). |
