@@ -31,7 +31,7 @@ const REGISTRY = join(ROOT, "protocols", "predefined", "00-conditions.npps");
 
 const SWIFT_OUT = join(ROOT, "app", "ios", "NeurOne", "Protocol", "NPBundledConditions.swift");
 const KOTLIN_OUT = join(
-  ROOT, "app", "android", "core", "src", "main", "kotlin", "com", "neurone", "core",
+  ROOT, "app", "android", "core", "src", "main", "kotlin", "life", "neurone", "core",
   "protocol", "NPBundledConditions.kt",
 );
 const CSHARP_OUT = join(ROOT, "app", "windows", "NeurOne", "Protocol", "NPBundledConditions.cs");
