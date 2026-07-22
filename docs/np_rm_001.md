@@ -2,13 +2,13 @@
 
 **Project:** NeurOne  
 **Document:** NP-RM-001  
-**Revision:** A  
-**Date:** 2026-05-13  
+**Revision:** B  
+**Date:** 2026-07-22  
 **Status:** ACTIVE  
-**Effective Date:** 2026-05-13  
+**Effective Date:** 2026-07-22  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** —  
+**References:** NP-RISK-001 (RISK-26), NP-FMEA-GEOM-001 Rev A, NP-REQ-FANHEALTH-001 Rev A, NP-THERM-BEZEL-001 Rev A, NP-THERM-CFD-001 Rev A, NP-SW-001 Rev B  
 **Related Issues:** GitHub Issue #33  
 **Gate:** —  
 **IEC 62304 Class:** —  
@@ -198,9 +198,10 @@ The risk register RISK-01 through RISK-25, documented in NP-RISK-001 (`docs/neur
 
 **Current status at QMS establishment:**
 - 23 risks: **MITIGATED** (residual risk documented with controls in NP-RISK-001)
-- 2 risks: **OPEN** — require external action before closure:
+- 3 risks: **OPEN** — require external action before closure:
   - **RISK-03:** PBM irradiance regulatory opinion — not yet obtained. Scope covers: 660/808nm at 400 mW/cm² peak pulsed (original scope, Issue #5); 1064nm irradiance; three-channel aggregate irradiance ceiling (600 mW/cm²); T2 combined 1064nm+1170nm session; depth-tier penetration claim (expanded scope per NP-REG-PBM1064-001 Rev A, Issue #56). *Blocking for all public marketing claims involving irradiance or depth claims.* Owner: CEO. Action: engage regulatory counsel with NP-REG-PBM1064-001 Rev A as the expanded instruction brief (12 questions for counsel, §8 of that document).
   - **RISK-20:** CFRP shell slot rim Ra ≤ 1.6 µm — written supplier confirmation not yet received. *Blocking for tooling release.* Owner: VP Engineering (open). Action: obtain letter + coupon measurement data from CFRP shell supplier.
+  - **RISK-26:** Fan/vent (forced-convection) degradation diverts module heat to the scalp while the junction NTC still reads safe — an un-interlocked scalp-thermal-injury pathway (hardware hazard FMEA-G07-01, NP-FMEA-GEOM-001 §4; origin THERM-1, NP-THERM-BEZEL-001 §4). Rated on the §4 scales: initial **S3×P3 = 9 (ALARP)**; target residual **S2×P1 = 2 (ACCEPTABLE)**. Mitigation: fan-health thermal-safety interlock (SR-FAN-01…06, NP-REQ-FANHEALTH-001), accepted provisionally into NP-SW-001 §6.2 Rev B. *Closure gated on the THERM-1a CFD (NP-THERM-CFD-001, not yet run — supplies the SR-FAN-03/04 TBD constants) and THERM-1b bench verification.* Owner: FW + Thermal (Quality: QMS baseline). Action: OI-FAN-04b (finalize constants + verify residual). Full entry in NP-RISK-001.
 - 1 risk: **MITIGATED — HARDWARE BENCH PENDING:**
   - **RISK-25:** Cervical VNS cardiac reflex. Safety MCU firmware specification complete (NP-FW-CVNS-001 Rev A). FAI-CV02 hardware timing bench required to confirm <100ms cutoff. Remains software-baselined; full closure requires T2 prototype bench.
 
@@ -277,7 +278,7 @@ Before T2 510(k) submission, a formal Overall Residual Risk Evaluation (per ISO 
 ### 11.2 Current overall risk rating
 
 At QMS establishment (pre-prototype), a formal overall residual risk evaluation cannot yet be completed. The following conditions must be met before evaluation:
-- All OPEN risks (RISK-03, RISK-20) must be closed
+- All OPEN risks (RISK-03, RISK-20, RISK-26) must be closed
 - All ALARP risks must have documented ALARP justification
 - Hardware FAI bench tests must be completed to validate mitigation effectiveness
 - Human factors summative testing must confirm that usability risks are adequately mitigated
@@ -324,3 +325,4 @@ A Risk Management Report (per ISO 14971:2019 §9) shall be authored and approved
 | Rev | Date | Author | Description |
 |---|---|---|---|
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. Risk Management Plan established at QMS formation. RISK-01 through RISK-25 formally entered under QMS change control. |
+| B | 2026-07-22 | Quality Lead (interim: Steve Hickman, CEO) | Reflected new open hazard **RISK-26** (fan/vent forced-convection degradation → scalp thermal injury un-caught by the junction-only interlock; hardware hazard FMEA-G07-01, NP-FMEA-GEOM-001). §8.1 open-risk count 2 → 3 (RISK-03, RISK-20, RISK-26); §11.2 pre-release closure list updated. Initial S3×P3 = 9 (ALARP); target residual S2×P1 = 2. Mitigation SR-FAN-01…06 (NP-REQ-FANHEALTH-001) accepted provisionally into NP-SW-001 Rev B; closure gated on THERM-1a CFD (NP-THERM-CFD-001) + THERM-1b bench (OI-FAN-04b). Full register entry in NP-RISK-001. Change trigger: FMEA-RECON finding / OI-FAN-04a (NP-PLAN-FANHEALTH-001). |
