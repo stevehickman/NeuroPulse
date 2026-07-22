@@ -24,8 +24,9 @@ shell), `CLAUDE.md` §4.2 (interlocks/thermal), §4.3 (EMF stack), §4.5 (power/
 | **Reconciliation** | This stack **is** the committed two-nested-bowl shell (np_hex_zm_001 §5). Inner bowl = L1; outer bowl = L2+L3. No architectural conflict; this brief adds the L0 sealing detail and the full radial/material/MTBF treatment. | This doc |
 
 **Governing environmental envelope (all layers):** split into two distinct envelopes in **NP-ENV-001**
-— a **survival/warranty (non-degradation)** envelope (recommended **−20/+60 °C**, qualified −30/+70;
-the former 60–110 °F / 0–100 % RH was mis-scoped as operating and is re-designated survival) and
+— a **survival/warranty (non-degradation)** envelope (**committed target −20/+60 °C**, qualified −30/+70,
+TARGETED pending qual per NP-ENV-001 §2.1; the former 60–110 °F / 0–100 % RH was mis-scoped as operating
+and is re-designated survival) and
 **operating** envelopes that are per-modality → per-module → per-protocol (⊂ survival). The
 scalp-contact cap **42 °C** (IEC 60601) governs emitting zones during operation; repeated NIR flux
 660–1170 nm at the L0 faces;

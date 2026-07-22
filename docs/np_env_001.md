@@ -4,8 +4,9 @@
 **Status:** DRAFT — corrects a conflation in the earlier specs: the original "60–110 °F, 0–100 % RH"
 was written as if it were an operating range; it is re-designated here as the **survival/warranty
 (non-degradation)** envelope, and a separate **operating** envelope framework is defined (per modality
-→ per module → per protocol). Numbers marked *pending* await final material selection + component
-datasheets + THERM-1a.
+→ per module → per protocol). **The survival/warranty envelope is now a committed design target of
+−20/+60 °C (§2.1), TARGETED pending qualification.** Operating-envelope numbers marked *pending* await
+final material selection + component datasheets + THERM-1a.
 **Parent:** NP-HELMET-GEOM-001 (§0 environmental line now points here).
 **Sources:** CLAUDE.md §3 (modalities), §4.2/§4.3/§4.5, §5.1; NP-THERM-BEZEL-001 / NP-THERM-CFD-001
 (THERM-1a), NP-REQ-FANHEALTH-001 (SR-FAN), NP-FMEA-GEOM-001, IEC 60601-1 (42 °C applied part),
@@ -30,10 +31,27 @@ envelope is **not single-valued** — see §3.
 
 ### 2.1 Spec
 
-- **Current (re-designated):** 15.6–43.3 °C (60–110 °F), 0–100 % RH, non-condensing→condensing per §2.2.
-- **Recommended widening:** **−20 to +60 °C** (qualify to **−30/+70 °C** for margin). Rationale: 60–110 °F
-  is narrow for real logistics (trailers, tarmac, unheated warehouses see −20…+60 °C); widening protects
-  the product in transit **and** in customer storage (hot car, cold garage), which packaging cannot.
+- **Committed target (2026-07-21):** **survival/warranty envelope = −20 to +60 °C**, 0–100 % RH
+  (non-condensing → condensing per §2.2), **qualified to −30/+70 °C for margin**. This supersedes the
+  original 15.6–43.3 °C (60–110 °F) figure, which was mis-scoped as operating. Rationale: 60–110 °F is
+  narrow for real logistics (trailers, tarmac, unheated warehouses see −20…+60 °C); widening protects the
+  product in transit **and** in customer storage (hot car, cold garage), which packaging cannot, at a small
+  per-unit cost (§2.3 — no battery).
+- **Status = TARGETED, pending qualification.** The target is committed for design; it becomes
+  **WARRANTED** only when: (a) the §2.5(1) mu-metal film change (PETG → BoPET/PI) is in place, (b) the
+  PDMS-QUAL 200-cycle thermal-cycle test **passes at the −30/+70 °C profile**, and (c) the BoPET/PI and
+  EC-stack datasheets are on file (OI-ENV-01/02). Until then the range is a design target, not a warranty.
+- **Independent of THERM-1a.** This is a powered-off material-durability decision; it does **not** depend
+  on the operating-envelope CFD and can proceed now.
+
+**Decision record (2026-07-21):**
+
+| Item | Decision |
+|------|----------|
+| Survival/warranty envelope | **−20/+60 °C committed target; qualify −30/+70; WARRANTED after PDMS-QUAL @ −30/+70 + film change + datasheets** |
+| Mu-metal encapsulation film | **PETG → BoPET (preferred) or thin PI** — required for +60/+70 (§2.5(1)); no longer an open "confirm" item |
+| Shipping packaging | Widen the device, **not** recurring insulated packaging (§2.4); packaging reserved for freeze-sensitive consumables only |
+| Consumable freeze handling | Separable decision (OI-ENV-06); does not gate the device survival range |
 
 ### 2.2 Thermal-gradient specs (two, both material-derived)
 
@@ -87,12 +105,12 @@ vendor-datasheet sign-off is the formal close.
 HDT ≈ 64–70 °C, continuous service ~65–70 °C. A +60 °C survival spec **qualified to +70** sits at/above
 PETG's HDT and near its Tg, so sustained exposure risks creep/relaxation of the thermoforming stress →
 encapsulation distortion or PETG-to-mu-metal delamination (which would also break the corrosion seal the
-encapsulation provides). **Determination: replace the encapsulation film with BoPET** (biaxially-oriented
-PET, continuous service ~105–150 °C) — commodity-priced (≈ $0–0.30 Δ), clears +70 comfortably; **or thin
-polyimide** where forming demands it (higher cost). Watch item: PETG was likely chosen for
-thermoformability; BoPET forms less easily, so verify the encapsulation geometry is manufacturable in
-BoPET (or use a formable higher-Tg copolymer). Residual: vendor datasheet + a reformed-coupon
-thermal-cycle qual.
+encapsulation provides). **Decision (committed, §2.1 record): replace the encapsulation film with BoPET**
+(biaxially-oriented PET, continuous service ~105–150 °C) — commodity-priced (≈ $0–0.30 Δ), clears +70
+comfortably; **or thin polyimide** where forming demands it (higher cost). Watch item: PETG was likely
+chosen for thermoformability; BoPET forms less easily, so verify the encapsulation geometry is
+manufacturable in BoPET (or use a formable higher-Tg copolymer). Residual: vendor datasheet + a
+reformed-coupon thermal-cycle qual at the −30/+70 profile.
 
 **(2) EC-lens stack — likely already adequate; cost revised down.** The spec already cites a "3–5 µm hard
 coat over EC film, **standard in automotive EC mirrors**" — i.e., the stack is from the auto-dimming-mirror
@@ -186,7 +204,7 @@ independently of modality** (the user's point): e.g., T1-C (1064 smart) adds on-
 
 | ID | Description | Owner |
 |----|-------------|-------|
-| OI-ENV-01 | **Engineering-closed (§2.5): PETG inadequate at +70 → switch to BoPET (≈$0–0.30) / PI.** Residual: vendor datasheet + reformed-coupon thermal-cycle qual; verify BoPET formability of the encapsulation geometry | ME + Materials |
+| OI-ENV-01 | **DECIDED (§2.1/§2.5): mu-metal film PETG → BoPET (≈$0–0.30) / PI.** Residual to WARRANT the range: vendor datasheet on file; verify BoPET formability of the encapsulation geometry; PDMS-QUAL passes at −30/+70 | ME + Materials |
 | OI-ENV-02 | **Engineering-closed (§2.5): automotive-lineage EC stack survives −20/+60 if spec'd to automotive storage qual (−40/+85); Δ revised to $0–5, EC-SKU only.** Residual: confirm sourced-stack datasheet | EE + ME |
 | OI-ENV-03 | Compute max spatial ΔT (stress) + max dT/dt (shock) from final materials; set the survival-gradient spec + power-up warm-up hold | Thermal + Materials |
 | OI-ENV-04 | **Working spec drafted → NP-ENV-OPRANGE-001** (per-modality/module/protocol table, first-pass numbers). Residual: replace † bounds with THERM-1a C3/C4, ‡ bounds with datasheets (OI-OPR-01…05) | Systems + Thermal |
