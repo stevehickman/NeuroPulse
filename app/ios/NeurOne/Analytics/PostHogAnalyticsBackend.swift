@@ -45,7 +45,7 @@ import PostHog
 @MainActor
 final class PostHogAnalyticsBackend: AnalyticsBackend {
 
-    private static let log = Logger(subsystem: "com.neurone.analytics", category: "posthog")
+    private static let log = Logger(subsystem: "life.neurone.analytics", category: "posthog")
 
     /// True once `PostHogSDK.shared.setup()` has been called for this process lifetime.
     /// On re-consent after withdrawal, `configure()` calls `optIn()` instead of `setup()`.

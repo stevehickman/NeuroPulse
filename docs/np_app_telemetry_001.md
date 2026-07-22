@@ -22,8 +22,8 @@
 ## 1. Purpose and Scope
 
 This document governs all analytics event tracking and crash/error reporting in the NeurOne iOS and Android applications. It applies to:
-- All versions of the NeurOne iOS app (com.neurone.lifes)
-- All versions of the NeurOne Android app (com.neurone.android)
+- All versions of the NeurOne iOS app (life.neurone.app)
+- All versions of the NeurOne Android app (life.neurone.app)
 - All third-party SDKs included in either app that have network access or access to device identifiers
 
 This policy exists because:

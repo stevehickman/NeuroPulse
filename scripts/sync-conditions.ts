@@ -5,7 +5,7 @@
  * Source of truth: protocols/predefined/00-conditions.npps
  * Targets:
  *   - Apple:   app/ios/NeurOne/Protocol/NPBundledConditions.swift
- *   - Android: app/android/core/src/main/kotlin/com/neurone/core/protocol/NPBundledConditions.kt
+ *   - Android: app/android/core/src/main/kotlin/life/neurone/core/protocol/NPBundledConditions.kt
  *   - Windows: app/windows/NeurOne/Protocol/NPBundledConditions.cs
  *
  * Web reads the .npps file directly through its own NPPS parser, so it needs no
@@ -134,7 +134,7 @@ function emitKotlin(cs: Condition[]): string {
         ),`).join("\n");
 
   return `${BANNER("Android")}
-package com.neurone.core.protocol
+package life.neurone.core.protocol
 
 /**
  * The bundled condition registry — standard condition names paired with an

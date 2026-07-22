@@ -1,7 +1,7 @@
 name: NeurOne
 
 options:
-  bundleIdPrefix: com.neurone
+  bundleIdPrefix: life.neurone
   deploymentTarget:
     iOS: "17.0"
   createIntermediateGroups: true
@@ -53,7 +53,7 @@ targets:
 
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.neurone.app
+        PRODUCT_BUNDLE_IDENTIFIER: life.neurone.app
         INFOPLIST_FILE: SupportingFiles/Info.plist
         GENERATE_INFOPLIST_FILE: NO
         CODE_SIGN_ENTITLEMENTS: SupportingFiles/NeurOne.entitlements
@@ -76,7 +76,7 @@ targets:
 
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.neurone.tests
+        PRODUCT_BUNDLE_IDENTIFIER: life.neurone.tests
         GENERATE_INFOPLIST_FILE: YES
         BUNDLE_LOADER: "$(TEST_HOST)"
         TEST_HOST: "$(BUILT_PRODUCTS_DIR)/NeurOne.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NeurOne"

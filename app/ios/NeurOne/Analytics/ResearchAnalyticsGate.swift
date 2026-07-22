@@ -25,7 +25,7 @@ import os
 @MainActor
 enum ResearchAnalyticsGate {
 
-    private static let log = Logger(subsystem: "com.neurone.analytics", category: "research-gate")
+    private static let log = Logger(subsystem: "life.neurone.analytics", category: "research-gate")
 
     /// Idempotency flag so `configure()` only ever starts the SDK once.
     private static var isConfigured = false

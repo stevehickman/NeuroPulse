@@ -1,7 +1,7 @@
 name: NeurOneWatch
 
 options:
-  bundleIdPrefix: com.neurone
+  bundleIdPrefix: life.neurone
   deploymentTarget:
     watchOS: "10.0"
   createIntermediateGroups: true
@@ -47,7 +47,7 @@ targets:
 
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.neurone.watch
+        PRODUCT_BUNDLE_IDENTIFIER: life.neurone.watch
         INFOPLIST_FILE: NeurOneWatch/Info.plist
         GENERATE_INFOPLIST_FILE: NO
 

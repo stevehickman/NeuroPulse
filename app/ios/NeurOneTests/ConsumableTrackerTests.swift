@@ -147,7 +147,7 @@ final class ConsumableTrackerDirectTests: XCTestCase {
 
     override func setUp() {
         super.setUp()
-        testSuiteName = "com.neurone.test.\(UUID().uuidString)"
+        testSuiteName = "life.neurone.test.\(UUID().uuidString)"
         testDefaults = UserDefaults(suiteName: testSuiteName)!
     }
 

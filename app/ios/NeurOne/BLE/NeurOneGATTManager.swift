@@ -30,7 +30,7 @@ import OSLog
 @MainActor
 final class NeurOneGATTManager: NSObject, ObservableObject {
 
-    private static let logger = Logger(subsystem: "com.neurone.app", category: "BLE")
+    private static let logger = Logger(subsystem: "life.neurone.app", category: "BLE")
 
     // MARK: - Published state
 

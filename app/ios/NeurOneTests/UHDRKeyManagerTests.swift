@@ -225,7 +225,7 @@ final class UHDRKeyManagerTests: XCTestCase {
     private func keychainHasUHDRKeyItem() -> Bool {
         let query: [String: Any] = [
             kSecClass as String:       kSecClassGenericPassword,
-            kSecAttrService as String: "com.neurone.uhdr.key",
+            kSecAttrService as String: "life.neurone.uhdr.key",
             kSecReturnData as String:  true,
             kSecMatchLimit as String:  kSecMatchLimitOne
         ]

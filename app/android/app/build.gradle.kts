@@ -9,14 +9,14 @@ plugins {
 }
 
 android {
-    namespace = "com.neurone.app"
+    namespace = "life.neurone.app"
     // compileSdk tracks the newest installed SDK platform on the build machine (36).
     // targetSdk stays at 35 (runtime behavior contract); compileSdk ≥ targetSdk is standard.
     compileSdk = 36
 
     defaultConfig {
         // Production application ID — not a placeholder (parity with iOS ISC-7).
-        applicationId = "com.neurone.app"
+        applicationId = "life.neurone.app"
         minSdk = 29
         targetSdk = 35
         versionCode = 1

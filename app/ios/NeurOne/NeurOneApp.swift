@@ -45,7 +45,7 @@ struct NeurOneApp: App {
         // Register background task for nightly UHDR backup.
         // Must be registered before app finishes launching.
         BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: "com.neurone.uhdr-backup",
+            forTaskWithIdentifier: "life.neurone.uhdr-backup",
             using: nil
         ) { task in
             guard let refreshTask = task as? BGAppRefreshTask else { return }

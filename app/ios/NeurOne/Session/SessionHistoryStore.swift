@@ -70,7 +70,7 @@ final class SessionHistoryStore: ObservableObject {
     // Monotonically increasing; tiebreaks same-day records newest-first.
     private var nextInsertionIndex = 0
 
-    private static let logger = Logger(subsystem: "com.neurone.app", category: "SessionHistoryStore")
+    private static let logger = Logger(subsystem: "life.neurone.app", category: "SessionHistoryStore")
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
