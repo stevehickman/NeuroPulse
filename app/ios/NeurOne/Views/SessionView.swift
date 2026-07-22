@@ -55,7 +55,7 @@ struct SessionView: View {
         gatt.session.status == .running && gatt.session.hrv != nil
     }
 
-    private static let logger = Logger(subsystem: "com.neurone.app", category: "SessionView")
+    private static let logger = Logger(subsystem: "life.neurone.app", category: "SessionView")
 
     // VoiceOver coherence debounce (ISC-149): throttle GATT 100ms stream to 2s announcements.
     @State private var voiceOverCoherence:    Float? = nil

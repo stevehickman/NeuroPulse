@@ -129,7 +129,7 @@ struct SessionProtocolSigner {
     // The corresponding public key is registered with the hub at pairing time.
     // Production: replace with secure enclave key where available.
 
-    private static let keychainTag = "com.neurone.session-signing-key"
+    private static let keychainTag = "life.neurone.session-signing-key"
 
     static func sign(_ proto: NPSessionProtocol) throws -> SignedProtocolBlob {
         let payload = try JSONEncoder().encode(proto)

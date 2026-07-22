@@ -24,7 +24,7 @@ import os
 @MainActor
 enum WarrantyAnalyticsGate {
 
-    private static let log = Logger(subsystem: "com.neurone.analytics", category: "warranty-gate")
+    private static let log = Logger(subsystem: "life.neurone.analytics", category: "warranty-gate")
 
     /// UserDefaults key set when the warranty owner grants SHDR fleet telemetry
     /// at device registration. Never read or written by `ConsentStore` or any

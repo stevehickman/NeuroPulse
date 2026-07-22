@@ -27,7 +27,7 @@ final class HealthKitSessionReader: ObservableObject {
     private var hrvQuery: HKAnchoredObjectQuery?
     private var heartRateQuery: HKAnchoredObjectQuery?
 
-    private let logger = Logger(subsystem: "com.neurone.app", category: "HealthKitSessionReader")
+    private let logger = Logger(subsystem: "life.neurone.app", category: "HealthKitSessionReader")
 
     private let hrvUnit = HKUnit.secondUnit(with: .milli)
     private let heartRateUnit = HKUnit.count().unitDivided(by: .minute())

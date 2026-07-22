@@ -17,7 +17,7 @@
          (UHDRBackupScheduler / BGTaskScheduler). -->
     <key>BGTaskSchedulerPermittedIdentifiers</key>
     <array>
-        <string>com.neurone.uhdr-backup</string>
+        <string>life.neurone.uhdr-backup</string>
     </array>
 </dict>
 </plist>

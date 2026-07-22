@@ -316,7 +316,7 @@ final class SHDRUploader: ObservableObject {
     // Interim fallback only: once the hub delivers its 256-bit TRNG token over the GATT
     // warrantyToken characteristic, upgradeDeviceToken(_:) supersedes this value and
     // currentDeviceToken() prefers the hub token (OI-BLE-01, pending hub firmware OI-WA-03).
-    private static let warrantyTokenTag = "com.neurone.shdr.warranty-token"
+    private static let warrantyTokenTag = "life.neurone.shdr.warranty-token"
 
     private func warrantyTokenFromKeychain() -> String {
         // kSecAttrAccount is part of the Keychain primary key for kSecClassGenericPassword

@@ -35,7 +35,7 @@ final class PhoneSessionManager: NSObject, ObservableObject {
     private let gattPublisher: GATTSessionPublishing
     private let watchSender: WatchMessageSending
     private var cancellable: AnyCancellable?
-    private let logger = Logger(subsystem: "com.neurone.app", category: "WatchBridge")
+    private let logger = Logger(subsystem: "life.neurone.app", category: "WatchBridge")
 
     /// Production init: `gatt` is the GATT manager; `watchSender` defaults to `WCSession.default`.
     /// Tests inject a `MockWatchMessageSender` so no real WCSession is activated.

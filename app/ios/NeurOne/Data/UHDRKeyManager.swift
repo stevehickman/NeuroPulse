@@ -75,7 +75,7 @@ final class UHDRKey {
 // MARK: - Keychain credential store (production)
 
 private struct KeychainCredentialStore: CredentialStore {
-    private static let service = "com.neurone.uhdr.biometric-seed"
+    private static let service = "life.neurone.uhdr.biometric-seed"
     private static let account = "credential"
 
     func loadOrCreateCredential(authenticatedContext: LAContext?) throws -> Data {
@@ -230,7 +230,7 @@ final class UHDRKeyManager: ObservableObject {
     // Production path: hub-provisioned TRNG salt from eMMC Config partition via BLE (OI-BLE-01, pending).
     // No linkable device identifiers (IDFV removed — salt entropy and stability are strictly better
     // with a stored random value than with SHA256 of a vendor-linkable UUID).
-    private static let saltKeychainTag = "com.neurone.uhdr.salt"
+    private static let saltKeychainTag = "life.neurone.uhdr.salt"
 
     private func saltFromKeychain() throws -> Data {
         let query: [CFString: Any] = [

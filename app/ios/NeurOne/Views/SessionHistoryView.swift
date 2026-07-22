@@ -23,7 +23,7 @@ struct SessionHistoryView: View {
     @State private var edfState: EDFButtonState = .idle
     @State private var edfDownloadTask: Task<Void, Never>?
 
-    private static let logger = Logger(subsystem: "com.neurone.app", category: "SessionHistoryView")
+    private static let logger = Logger(subsystem: "life.neurone.app", category: "SessionHistoryView")
 
     private enum EDFButtonState: Equatable {
         case idle

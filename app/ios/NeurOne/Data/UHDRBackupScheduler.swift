@@ -11,7 +11,7 @@ import os
 // Destination: local USB-C connected storage OR E2E encrypted cloud (user-held key).
 
 // Background task identifier — register in Info.plist BGTaskSchedulerPermittedIdentifiers.
-private let backupTaskID = "com.neurone.uhdr-backup"
+private let backupTaskID = "life.neurone.uhdr-backup"
 
 @MainActor
 final class UHDRBackupScheduler: ObservableObject {
@@ -23,7 +23,7 @@ final class UHDRBackupScheduler: ObservableObject {
     private let uhdrDirectory: URL
     private let backupDirectory: URL
 
-    private static let log = Logger(subsystem: "com.neurone.app", category: "UHDRBackupScheduler")
+    private static let log = Logger(subsystem: "life.neurone.app", category: "UHDRBackupScheduler")
 
     enum BackupStatus {
         case never
