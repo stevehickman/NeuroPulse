@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-DT-001
-**Revision:** A
-**Date:** 2026-06-07
+**Revision:** B
+**Date:** 2026-07-22
 **Status:** DRAFT
 **Effective Date:** 2026-06-07
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -152,6 +152,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-SAFE-10 | Safety | TMS pulse protection: EMF Helmholtz cancellation gated off 5 ms before pulse trigger; 50 ms hold-off after pulse; non-conductive CFRP window at coil site prevents eddy current field loss | CLAUDE.md §4.2 | Safety-Critical | T2 |
 | DI-SAFE-11 | Safety | Mode F retinal PBM: default-off; requires separate explicit user consent distinct from session consent; right temple amber LED triple-pulse pattern (3×150 ms) when active and not suppressible; firmware build flag `NP_MODE_F_REGULATORY_CLEARED = 0` until RISK-03 Q-13 opinion received | NP-FW-EMMC-002 Rev A §F | Safety-Critical | T1+T2 |
 | DI-SAFE-12 | Safety | Impedance check: 1 kHz AC synchronous impedance measurement required before any stimulation pulse; no timeout condition shall produce a false PASS; contact not confirmed → GPIO enable held low | CLAUDE.md §4.2; NP-SW-001 SW01-M06 | Safety-Critical | T1+T2 |
+| DI-SAFE-13 | Safety | Scalp-facing surface (applied part) ≤42 °C maintained under normal operation **and single-fault loss of forced convection** (fan / heatsink airflow loss): direct scalp-facing NTC co-located with PD2 (SR-FAN-01/02, Path B1) + natural-convection-safe PBM duty derate (SR-FAN-03: halt/trickle on fan loss, ≈4.5 mW/cm² ceiling at 43.3 °C ambient) + firmware ambient/duty envelope gate (NP-ENV-OPRANGE-001 / NP-FW-POE-001). **Base thermal design rejects module heat via BN-boss conductive export to an external heatsink with the shielded interior left un-ventilated** (preserves the EMF-shield / IP-seal). The DI-SAFE-08 junction throttle (62/65 °C) is proven insufficient to bound the face and does not substitute for this requirement (NP-THERM-CFD-R1-001). | NP-REQ-FANHEALTH-001 (SR-FAN-01…06); NP-THERM-CFD-R1-001; NP-SW-001 SW01-M04; IEC 60601-1 | Safety-Critical | T1+T2 |
 
 ### §3.3 Usability inputs (DI-USE)
 
@@ -295,6 +296,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-SAFE-10 | TMS EMF gating 5 ms / 50 ms + CFRP | DO-HW-07, DO-FW-08, DO-RISK-01 | Lens tooling CFRP window; hub control; risk register RISK-12 | VE-06 | Open |
 | DI-SAFE-11 | Mode F default-off + triple-pulse LED | DO-FW-02, DO-SW-09 | FW priv delta §F regulatory gate flag; iOS consent screen | VE-09 | Partial |
 | DI-SAFE-12 | 1 kHz AC impedance synchronous | DO-FW-08, DO-FW-10, DO-SW-07 | Hub control; FMEA SW01-M06; source | VE-05, VE-10 | Partial |
+| DI-SAFE-13 | Face ≤42 °C under fan/heatsink loss; Path B1 NTC + SR-FAN derate; BN-boss export | DO-FW-08, DO-FW-10 (SW01-M04 ext.), DO-RISK (FMEA-G07-01) | NP-REQ-FANHEALTH-001 §4a Path B1; NP-THERM-CFD-R1-001 (Path A rejected, SR-FAN constants); FMEA-G07-01; THERM-1b bench + verification-grade CFD pending | VE-05, VE-10 | Open |
 | DI-USE-01 | 52–62 cm 1 adult SKU 5-pos bridge | DO-HW-06, DO-HW-04 | Shell tooling; ZM tooling | VE-08 | Partial |
 | DI-USE-02 | ≤1 N eject lever Parkinson's target | DO-HW-04, DO-RISK-01 | ZM tooling F-06 eject lever RISK-22; risk register | VE-07 | Partial |
 | DI-USE-03 | Amber LED ≥3 m caregiver readable | DO-FW-08, DO-SW-07 | Hub control §4.7 LED driver | VE-05 | Partial |
@@ -372,7 +374,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 
 | Metric | Count |
 |--------|-------|
-| Total design inputs (DIs) | 57 |
+| Total design inputs (DIs) | 58 |
 | — Safety-Critical (DI-SAFE) | 12 |
 | — High priority (DI-PERF + DI-USE + DI-INT) | 30 |
 | — Medium priority | 11 |
@@ -458,3 +460,4 @@ All changes must update the §10 revision history entry.
 | Rev | Date | Author | Change Summary |
 |-----|------|--------|----------------|
 | A | 2026-06-07 | SmartyPants / PAI | Initial issue — G1 gate deliverable; 57 DIs across PERF/SAFE/USE/REG/INT; 35 DOs covering HW/FW/SW/Risk/Reg/Test; 13 VEs; full DI→DO→VE traceability matrix; §7 gap analysis; §8 statistics; §9 DHF completeness impact upgraded from Partial to Good |
+| B | 2026-07-22 | Steve Hickman (CEO, interim Quality authority) | **DI-SAFE-13 added** — scalp-facing surface ≤42 °C under single-fault loss of forced convection (fan/heatsink loss): Path B1 scalp-facing NTC at PD2 (SR-FAN-01/02) + natural-convection-safe duty derate (SR-FAN-03) + ambient/duty envelope gate; **base thermal design = BN-boss conductive export to an external heatsink, shielded interior un-ventilated.** Records the THERM-1a first-pass outcome (NP-THERM-CFD-R1-001: DI-SAFE-08 junction throttle proven insufficient to bound the face → Path A rejected). Added to §3.2 registry + §5 DI→DO→VE matrix (status Open — SW01-M04 face-NTC implementation + THERM-1b verification pending); DI total 57 → 58. Traces to NP-REQ-FANHEALTH-001, NP-FMEA-GEOM-001 (FMEA-G07-01), NP-DHF-001 Rev V. Rev A → B. |
