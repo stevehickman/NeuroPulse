@@ -2,10 +2,10 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-001  
-**Revision:** B  
-**Date:** 2026-07-22  
+**Revision:** C  
+**Date:** 2026-07-27  
 **Status:** ACTIVE  
-**Effective Date:** 2026-05-13  
+**Effective Date:** 2026-07-27  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
 **References:** —  
@@ -14,6 +14,10 @@
 **IEC 62304 Class:** SW-01 Class C, SW-02 Class B, SW-03 Class B  
 **Applicable Standard:** IEC 62304:2006 + AMD1:2015 — Medical Device Software: Software Lifecycle Processes  
 **Next Review:** 2027-05-13 or upon significant architecture change
+
+---
+
+**Rev C (2026-07-27):** Adds §5.2.1 ZONE_ID Detection Debounce Requirement (RISK-18) — states the 3-read/100ms/2-of-3-majority debounce requirement at the software-development-plan level, cross-referencing the existing implementations in NP-FW-ZA-001 and NP-FW-PBM1064-001. Closes the corresponding `docs/status/pending-decisions.md` open item. Rebased on top of Rev B (2026-07-22, SR-FAN-01…06 fan-health interlock, landed via PR #217) — no Rev B content changed by this revision.
 
 ---
 
@@ -160,6 +164,10 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 | SW02-M13 | BLE GATT service | (planned) | BLE 5.3 LE Audio; GATT custom service; session sync |
 | SW02-M14 | USB-C communications | (planned) | USB-C 3.2 Gen1; session data download; DFU interface |
 | SW02-M15 | Fluxgate magnetometer | (planned) | EMF measurement; Helmholtz coil control; SHDR attenuation log |
+
+#### 5.2.1 ZONE_ID Detection Debounce Requirement (RISK-18)
+
+Firmware requirement, binding on both SW02-M04 (PBM session orchestrator, smart module ZONE_ID variant) and SW02-M06 (zone module detect and announce, base module ZONE_ID): a module insertion or removal is confirmed only after **3 consecutive ADC reads at 100ms intervals** with a **≥2/3 majority** agreeing on the same slot state (present/absent/smart-module-detected). A single noisy or transitional ADC read must never toggle a slot's state. This is the firmware-requirements-level statement of RISK-18 (zone module miskeying / false insertion detection); the full algorithm and state machine are specified in `firmware/zone_announce/` (`docs/np_fw_za_001.md` §6.2) and, for the 1064nm smart-module ZONE_ID variant, in `firmware/pbm_1064nm/` (`docs/np_fw_pbm1064_001.md` §4). Both implementations satisfy this same 3-read/2-of-3 requirement; this subsection exists so the requirement is traceable from the software development plan itself, not only from the two module-level specs that implement it.
 
 ### 5.3 SW-03 — iOS/Android application (Class B)
 
@@ -399,3 +407,4 @@ The following table maps IEC 62304 clauses to NeurOne implementation status:
 |---|---|---|---|
 | A | 2026-05-13 | Interim Quality (CEO) | Initial release. IEC 62304 software plan established at QMS formation. Three software items classified: SW-01 Class C, SW-02 Class B, SW-03 Class B. All existing firmware modules indexed. |
 | B | 2026-07-22 | Steve Hickman (CEO, interim Quality authority) | **SR-FAN-01…06 accepted into §6.2** (forced-convection/fan-health thermal interlock) from NP-REQ-FANHEALTH-001 under change control; source hazard FMEA-G07-01 (NP-FMEA-GEOM-001). Adds the loss-of-forced-convection response-time bullet + the six SR-FAN requirement statements (five Class C, one Class B), allocated to SW01-M04 / SW-02 / SW03-M05. §5.1 SW01-M04 module safety-function text extended (scalp-facing NTC Path B1 + face ≤42 °C under fan loss). Path selection per NP-THERM-CFD-R1-001: Path A (junction-throttle-only) rejected, **Path B1 (scalp-facing NTC at PD2) selected**; SR-FAN-03/04 constants provisional pending verification-grade CFD + THERM-1b. Traces to NP-DHF-001 Rev V, NP-DT-001 DI-SAFE-13. Rev A → B. |
+| C | 2026-07-27 | Steve Hickman (CEO, interim Quality authority) | **§5.2.1 ZONE_ID Detection Debounce Requirement (RISK-18) added** — states the 3-read/100ms/2-of-3-majority debounce requirement at the software-development-plan level, cross-referencing the existing implementations in NP-FW-ZA-001 §6.2 and NP-FW-PBM1064-001 §4. Closes the corresponding `docs/status/pending-decisions.md` open item. Rebased on top of Rev B (PR #217); no Rev B content changed. Traces to NP-DHF-001 Rev W. Rev B → C. |
