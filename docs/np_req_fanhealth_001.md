@@ -5,6 +5,9 @@
 safety requirements) with allocations to SW01-M04, a SW-02 telemetry element, and SW03-M05.
 Drafted, not merged: NP-SW-001 is an ACTIVE controlled document; §7 lists the exact insertions for
 the Quality Lead to accept under change control.
+**Path selection RESOLVED (2026-07-22, §4a):** THERM-1a first-pass analysis (NP-THERM-CFD-R1-001)
+rejected Path A and selected **Path B1** (scalp-facing NTC at PD2); provisional SR-FAN-03/04 constants
+published, pending verification-grade CFD + THERM-1b to baseline.
 **Origin:** FMEA-G07-01 (NP-FMEA-GEOM-001) / OI-GEOM-FMEA-01, arising from the THERM-1 coupling
 (NP-THERM-BEZEL-001 §4).
 **References:** NP-SW-001 §5.1/§6.2/§7.2, NP-FMEA-001 §3.4 (SW01-M04), NP-FMEA-GEOM-001 §4 (G07),
@@ -71,8 +74,8 @@ expected to be **tens of seconds**. Two design consequences:
 
 | Path | Description | When selected | Cost |
 |------|-------------|---------------|------|
-| **A — junction NTC proven sufficient** | Keep SW01-M04 unchanged. Requires THERM-1a CFD to **prove** the 62 °C junction throttle conservatively bounds face ≤ 42 °C **even at zero forced convection**. Add only SR-FAN-05 (Class B fan monitoring + maintenance alert). | Only if the CFD margin proves out — **physically unlikely** (fan loss drives face toward the throttled 62 °C junction, §1), so treat Path A as the exception, not the plan. | Lowest — no new sensor/Class C change |
-| **B1 — scalp-facing NTC (recommended)** | Co-locate an NTC on the **scalp-facing surface with the existing PD2** (already on that surface for backscatter dose metering, CLAUDE.md §3 PBM RISK-14). SW01-M04 reads face temperature directly and throttles/cuts on a face threshold with margin below 42 °C. Directly measures the safety parameter; robust to fan state, bezel variation, and hair. | Default unless Path A proves out. | +1 NTC/zone BOM; SW01-M04 Class C change (adds one ADC channel + threshold, mirrors existing NTC handling incl. FMEA-M04-02 open-circuit rule) |
+| **A — junction NTC proven sufficient** | Keep SW01-M04 unchanged. Requires THERM-1a CFD to **prove** the 62 °C junction throttle conservatively bounds face ≤ 42 °C **even at zero forced convection**. Add only SR-FAN-05 (Class B fan monitoring + maintenance alert). | Only if the CFD margin proves out — **physically unlikely** (fan loss drives face toward the throttled 62 °C junction, §1), so treat Path A as the exception, not the plan. **→ REJECTED by NP-THERM-CFD-R1-001 §2 (see §4a).** | Lowest — no new sensor/Class C change |
+| **B1 — scalp-facing NTC (recommended)** | Co-locate an NTC on the **scalp-facing surface with the existing PD2** (already on that surface for backscatter dose metering, CLAUDE.md §3 PBM RISK-14). SW01-M04 reads face temperature directly and throttles/cuts on a face threshold with margin below 42 °C. Directly measures the safety parameter; robust to fan state, bezel variation, and hair. | **SELECTED (NP-THERM-CFD-R1-001 §4a).** | +1 NTC/zone BOM; SW01-M04 Class C change (adds one ADC channel + threshold, mirrors existing NTC handling incl. FMEA-M04-02 open-circuit rule) |
 | **B2 — fan-health-gated derate** | SW-01 receives an independent fan-health indication (tach to the Safety MCU, or a hub-asserted fan-OK GPIO cross-checked against SHDR RPM) and enforces SR-FAN-03 when forced convection is not confirmed. Infers the hazard from airflow rather than measuring face temperature. | Complement to B1, or fallback if a scalp-side NTC is not mechanically feasible. | Fan tach routing to STM32G071; Class C logic |
 
 **Recommendation:** **Path B1** — measuring the actual safety parameter (face temperature) is more
@@ -80,6 +83,35 @@ robust and defensible than inferring it from fan RPM, and it reuses the SW01-M04
 already verified (including the open-circuit-as-fault rule, FMEA-M04-02). B2 may be added as defense
 in depth. Path A is retained only so the CFD is allowed to discharge the requirement cheaply if it
 genuinely can.
+
+---
+
+## 4a. THERM-1a outcome — path selection RESOLVED (NP-THERM-CFD-R1-001, 2026-07-22)
+
+First-pass THERM-1a analysis (1D closed-form + rough non-verification-grade axisymmetric FD;
+**NP-THERM-CFD-R1-001**) has run cases C2/C3/C6. Outcome:
+
+- **Path A REJECTED.** At the worst fault (fan off, 43.3 °C ambient, low perfusion) the 62 °C junction
+  throttle leaves the scalp-facing face ≈ 60 °C and scalp skin ≈ 52–55 °C — **14–21 °C over the 42 °C
+  limit** (1D and 2D agree, fails even at the 62 °C setpoint). The junction throttle regulates the wrong
+  node; it does **not** bound the face. This holds with the BN-boss conductive-export design too (fault
+  face 60.3 °C with or without the via — the via gives zero benefit once the external sink is lost).
+- **Path B1 SELECTED** — direct scalp-facing NTC co-located with PD2, per the §4 recommendation. Path B2
+  (fan-health-gated derate) retained as optional defense-in-depth.
+- **SR-FAN-03 constant (natural-convection-safe ceiling):** fan-off safe LED-plane flux ≈ **45 W/m²
+  (4.5 mW/cm²) at 43.3 °C ambient**, ≈ 90 W/m² (9 mW/cm²) at 25 °C — single-digit % of any config's rated
+  flux. Operationally **halt/trickle PBM on fan loss**, ceiling → 0 as ambient → 42 °C. Store per-config
+  as safety-MCU constants, **marked TBD-per-datasheet + TBD-per-THERM-1b**.
+- **SR-FAN-04 constant (response bound):** τ_face ≈ **35–45 min** (tens of minutes; diffusion cross-check
+  ≈ 22 min); t₄₂ after fan loss ≈ **minutes**. The ≤ 10 s nominal T_resp is met with a 2+ order-of-
+  magnitude margin — the **steady ceiling (SR-FAN-03), not response speed, is the binding parameter.**
+- **Envelope backstop:** the face ≤ 42 °C ceiling at extreme ambient is fundamentally ambient-bounded
+  (no passive path rejects below ambient, and 43.3 °C > 42 °C), so it is owned by the firmware
+  ambient/duty gate (NP-ENV-OPRANGE-001 / NP-FW-POE-001), which SR-FAN complements, not replaces.
+
+**Provisional status:** the constants above come from 1D + non-verification-grade FD. The
+verification-grade 2D CFD (NP-THERM-CFD-001 §9 step 2) and THERM-1b bench (OI-FAN-03) must confirm before
+they are baselined as verified. Path **selection** is firm: Path A cannot be rescued.
 
 ---
 
@@ -122,7 +154,7 @@ genuinely can.
 
 | ID | Description | Owner | Blocking |
 |----|-------------|-------|----------|
-| OI-FAN-01 | THERM-1a CFD: τ_face, natural-convection-safe duty ceiling per power config, Path A admissibility. **BCs specified → NP-THERM-CFD-001** (case matrix C1–C6, decision logic §9); remaining work is running it. | Thermal | Path selection; SR-FAN-03/04 constants |
+| OI-FAN-01 | THERM-1a analysis: τ_face, natural-convection-safe duty ceiling per config, Path A admissibility. **First-pass DONE → NP-THERM-CFD-R1-001** (1D + rough FD): Path A REJECTED, **Path B1 selected**, provisional SR-FAN-03/04 constants published (§4a). Residual: verification-grade 2D CFD (NP-THERM-CFD-001 §9 step 2) to baseline the constants. | Thermal | Constants baselining (path selection now firm) |
 | OI-FAN-02 | Mechanical feasibility of a scalp-facing NTC co-located with PD2 (Path B1); BOM delta. | ME | Path B1 commit |
 | OI-FAN-03 | THERM-1b scalp-phantom fan-stall bench (design verification of SR-FAN-01). | ME + Thermal | Design verification |
 | OI-FAN-04 | Accept SR-FAN-01…06 into NP-SW-001 under change control; assign a RISK-2x ID in NP-RISK-001 for FMEA-G07-01. | Quality | QMS baseline |

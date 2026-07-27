@@ -298,10 +298,13 @@ the single biggest mechanical line; everything inboard is low-cost polymer + LSR
 - **THERM-1** — *re-specified by NP-THERM-BEZEL-001.* Criterion is now a **module-face-temperature
   ceiling** (~44 °C at 0.6 mm bezel, ~45.5 °C at 1.0 mm) that the **forced-convection** outward path
   (fan + vents + BN bosses) must hold at T1-peak (45–50 W) and T2-peak (70–74 W), treating the scalp
-  as near-adiabatic; the junction may run to its 62 °C throttle independently. **THERM-1a BCs now
-  specified (NP-THERM-CFD-001, cases C1–C6); the fan-loss failure mode is covered by the drafted
-  interlock (NP-REQ-FANHEALTH-001, SR-FAN-01…06).** Sub-gates: THERM-1a (run the CFD), THERM-1b
-  (scalp-phantom fan-stall bench), THERM-1c (perfusion assumption) remain OPEN.
+  as near-adiabatic; the junction may run to its 62 °C throttle independently. **THERM-1a first-pass
+  analysis DONE (NP-THERM-CFD-R1-001, 1D + rough FD): Path A REJECTED, Path B1 (scalp-facing NTC at PD2)
+  selected, provisional SR-FAN-03/04 constants published (NP-REQ-FANHEALTH-001 §4a).** Sub-gates:
+  THERM-1a — first-pass done; **verification-grade 2D-axisymmetric CFD (NP-THERM-CFD-001 §9 step 2)
+  remains OPEN**; THERM-1b (scalp-phantom fan-stall bench) and THERM-1c (perfusion assumption) remain
+  OPEN. Base thermal design: **BN-boss conductive export to an external heatsink adopted** (keeps the
+  junction throttle-free at full flux without ventilating the shielded interior; NP-THERM-CFD-R1-001 §5).
 - **BEZEL-1** — *resolved by NP-THERM-BEZEL-001 (PASS with spec change).* Bezel does not degrade PBM
   dose (<1 % geometric, no added Fresnel, closed-loop metered) or EEG contact (5–8 % of pod travel).
   Value set to **1.0 mm** on optical modules, electrode-pod aperture bezel-free. Remaining physical
