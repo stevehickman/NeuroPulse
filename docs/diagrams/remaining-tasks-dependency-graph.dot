@@ -1,0 +1,263 @@
+/*
+ * NeurOne — Remaining Open Task Dependency Graph
+ * Source: docs/status/pending-decisions.md (all unchecked "- [ ]" items, 2026-07-28)
+ *
+ * ENCODING KEY
+ *   SHAPE            = task type (box=engineering/build, component=firmware/software,
+ *                       cylinder=supplier/procurement, folder=regulatory/legal filing,
+ *                       note=documentation/plan, hexagon=test/verification bench,
+ *                       ellipse=clinical/research, diamond=milestone/gate, tab=business/admin)
+ *   FILL GRADIENT      = role / skill set needed (see legend cluster) — white -> role color
+ *                       (blended two-tone gradient marks dual-role tasks)
+ *   BORDER COLOR      = safety/reliability risk, blue (least risky) -> red (most risky)
+ *   BORDER/EDGE WIDTH = proximity to critical path (thicker = closer to critical path)
+ *
+ * Render: dot -Tpng remaining-tasks-dependency-graph.dot -o remaining-tasks-dependency-graph.png
+ */
+
+digraph NeurOneRemainingTasks {
+  rankdir="LR";
+  graph [fontname="Helvetica", fontsize=22, label="NeurOne — Remaining Task Dependency Graph  (2026-07-28)\nshape = task type   |   fill gradient = role   |   border color = safety/reliability risk (blue->red)   |   thickness = critical-path proximity", labelloc=t, labeljust=l, splines=spline, nodesep=0.45, ranksep=0.75, bgcolor="white", compound=true];
+  node  [fontname="Helvetica", fontsize=11, style="filled", gradientangle=45, margin="0.18,0.12"];
+  edge  [fontname="Helvetica", fontsize=9, color="#555555"];
+
+  /* ============================================================ */
+  /* LEGEND                                                        */
+  /* ============================================================ */
+  subgraph cluster_legend {
+    label="LEGEND"; fontsize=14; style="rounded"; color="#888888"; margin=16;
+
+    legend_role [shape=none, margin=0, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+        <TR><TD COLSPAN="2"><B>Role / skill set (fill gradient)</B></TD></TR>
+        <TR><TD BGCOLOR="#ffffff:#b0b0b0">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">ME — Mechanical Engineering</TD></TR>
+        <TR><TD BGCOLOR="#ffffff:#ffe17a">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">EE — Electrical / Firmware</TD></TR>
+        <TR><TD BGCOLOR="#ffffff:#d8b4e2">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">Legal / Regulatory Affairs</TD></TR>
+        <TR><TD BGCOLOR="#ffffff:#a8dfa0">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">QA / Human Factors</TD></TR>
+        <TR><TD BGCOLOR="#ffffff:#e0c097">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">Supplier / Procurement</TD></TR>
+        <TR><TD BGCOLOR="#ffffff:#9fd8d8">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">Clinical / Research</TD></TR>
+        <TR><TD BGCOLOR="#ffffff:#9aa5b1">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">Security / Privacy</TD></TR>
+        <TR><TD BGCOLOR="#ffffff:#f6a5c0">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">Business / Executive</TD></TR>
+        <TR><TD BGCOLOR="#ffffff:#C8B8A3">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">Dual role (e.g. ME+Supplier)</TD></TR>
+      </TABLE>>];
+
+    legend_risk [shape=none, margin=0, label=<
+      <TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" CELLPADDING="4">
+        <TR><TD COLSPAN="2"><B>Safety / reliability risk (border color)</B></TD></TR>
+        <TR><TD BGCOLOR="#1f6feb">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">Blue — least risky (business/admin, no safety exposure)</TD></TR>
+        <TR><TD BGCOLOR="#2a9d8f">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">Teal — low</TD></TR>
+        <TR><TD BGCOLOR="#e9c46a">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">Gold — moderate (data/privacy, indirect)</TD></TR>
+        <TR><TD BGCOLOR="#f4813f">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">Orange — elevated</TD></TR>
+        <TR><TD BGCOLOR="#e53e3e">&nbsp;&nbsp;&nbsp;</TD><TD ALIGN="LEFT">Red — most risky (direct patient safety / BLOCKING)</TD></TR>
+      </TABLE>>];
+
+    legend_shape [shape=none, margin=0, label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="2" CELLPADDING="2">
+        <TR><TD COLSPAN="2"><B>Task type (shape)</B></TD></TR>
+        <TR><TD>box</TD><TD ALIGN="LEFT">engineering / build task</TD></TR>
+        <TR><TD>component</TD><TD ALIGN="LEFT">firmware / software task</TD></TR>
+        <TR><TD>cylinder</TD><TD ALIGN="LEFT">supplier / procurement / qualification</TD></TR>
+        <TR><TD>folder</TD><TD ALIGN="LEFT">regulatory / legal filing</TD></TR>
+        <TR><TD>note</TD><TD ALIGN="LEFT">documentation / plan authoring</TD></TR>
+        <TR><TD>hexagon</TD><TD ALIGN="LEFT">test / verification bench</TD></TR>
+        <TR><TD>ellipse</TD><TD ALIGN="LEFT">clinical / research task</TD></TR>
+        <TR><TD>diamond</TD><TD ALIGN="LEFT">milestone / gate</TD></TR>
+        <TR><TD>tab</TD><TD ALIGN="LEFT">business / admin task</TD></TR>
+        <TR><TD COLSPAN="2"><B>Border/edge width = critical-path proximity</B></TD></TR>
+      </TABLE>>];
+
+    legend_role -> legend_risk -> legend_shape [style=invis];
+  }
+
+  /* ============================================================ */
+  /* CLUSTER: HARDWARE TOOLING (T1 launch critical path)          */
+  /* ============================================================ */
+  subgraph cluster_tooling {
+    label="Hardware Tooling Readiness (T1)"; style="rounded"; color="#444444"; fontsize=13;
+
+    TRADEMARK [shape=folder, fillcolor="#ffffff:#d8b4e2", color="#1f6feb", penwidth=4,
+      label="Trademark clearance\n(US/EU/CA/AU)\nRole: Legal\n$15-25k · required before\nANY external conversation"];
+
+    LED_CUR [shape=box, fillcolor="#ffffff:#ffe17a", color="#f4813f", penwidth=4,
+      label="LED emitter pulse-current\nrating verification\n(660/808-830nm FPC, 120-180mA)\nRole: EE"];
+
+    MOLD_REV [shape=box, fillcolor="#ffffff:#C8B8A3", color="#e53e3e", penwidth=4,
+      label="Zone module mold design review\nNP-TOOL-ZM-001 §5\n(8-feature checklist, F-01..F-08)\nRole: ME + Supplier\nBLOCKING before steel cut"];
+
+    CFRP_RA [shape=cylinder, fillcolor="#ffffff:#C8B8A3", color="#e53e3e", penwidth=4,
+      label="CFRP shell slot rim\nRa <= 1.6um confirmation\nRISK-20 / SUP-M-07\nRole: ME + Supplier\nBLOCKING for tooling release"];
+
+    PDMS_SUP [shape=cylinder, fillcolor="#ffffff:#C8B8A3", color="#e53e3e", penwidth=4,
+      label="PDMS CAT-C supplier selection +\n200-cycle IEC 60068-2-14\nthermal-cycling qualification\nRISK-04\nRole: Supplier + ME\nBLOCKING for production start"];
+
+    HFE_LEVER [shape=hexagon, fillcolor="#ffffff:#A3DBBC", color="#f4813f", penwidth=3.5,
+      label="HFE formative study —\nsliding eject lever\n(n=5, Parkinson's/post-stroke)\nRole: QA/Human Factors + Clinical"];
+
+    GATE_TOOLING [shape=diamond, fillcolor="#ffffff:#b0b0b0", color="#e53e3e", penwidth=4,
+      label="GATE: Tooling Release\n(steel cut authorized)"];
+
+    LED_CUR -> MOLD_REV [penwidth=4, color="#e53e3e", arrowsize=1.3];
+    TRADEMARK -> CFRP_RA [penwidth=2.5, color="#f4813f", label="name cleared for\nsupplier engagement"];
+    TRADEMARK -> PDMS_SUP [penwidth=2.5, color="#f4813f", label="name cleared for\nsupplier engagement"];
+    MOLD_REV -> GATE_TOOLING [penwidth=4, color="#e53e3e", arrowsize=1.3];
+    CFRP_RA -> GATE_TOOLING [penwidth=4, color="#e53e3e", arrowsize=1.3];
+    PDMS_SUP -> GATE_TOOLING [penwidth=4, color="#e53e3e", arrowsize=1.3];
+    HFE_LEVER -> GATE_TOOLING [penwidth=3.5, color="#f4813f", arrowsize=1.2];
+  }
+
+  /* ============================================================ */
+  /* CLUSTER: REGULATORY / MARKETING CLAIMS GATE                  */
+  /* ============================================================ */
+  subgraph cluster_reg {
+    label="Regulatory Opinion & Launch Claims"; style="rounded"; color="#444444"; fontsize=13;
+
+    RISK03 [shape=folder, fillcolor="#ffffff:#EBCAAE", color="#e53e3e", penwidth=4,
+      label="RISK-03: 400 mW/cm2\nregulatory opinion letter\n(+ FTC/Vielight comparison)\nRole: Legal (+ EE data)\n$8-15k · 3-5 wks\nBLOCKS all public material"];
+
+    MODEF [shape=folder, fillcolor="#ffffff:#d8b4e2", color="#e53e3e", penwidth=2,
+      label="Mode F retinal-dose\nregulatory opinion (Q-13)\nRole: Legal\nsame counsel engagement as RISK-03"];
+
+    GATE_LAUNCH [shape=diamond, fillcolor="#ffffff:#d8b4e2", color="#e53e3e", penwidth=4,
+      label="GATE: T1 Launch\nReadiness"];
+
+    RISK03 -> MODEF [penwidth=2, color="#e53e3e", label="scope expansion,\nsame engagement"];
+    RISK03 -> GATE_LAUNCH [penwidth=4, color="#e53e3e", arrowsize=1.3];
+    TRADEMARK -> GATE_LAUNCH [penwidth=3, color="#f4813f"];
+    GATE_TOOLING -> GATE_LAUNCH [penwidth=4, color="#e53e3e", arrowsize=1.3, label="product to sell"];
+  }
+
+  /* ============================================================ */
+  /* CLUSTER: QMS INFRASTRUCTURE                                   */
+  /* ============================================================ */
+  subgraph cluster_qms {
+    label="QMS Infrastructure"; style="rounded"; color="#444444"; fontsize=13;
+
+    QUALITY_LEAD [shape=tab, fillcolor="#ffffff:#f6a5c0", color="#1f6feb", penwidth=1.5,
+      label="Hire Quality Lead\n(VP Quality)\nRole: Business/Exec\nMonth 6 target"];
+
+    GAP_ASSESS [shape=note, fillcolor="#ffffff:#CFC2B0", color="#2a9d8f", penwidth=1.5,
+      label="Gap assessment vs\n21 CFR 820 / ISO 13485:2016\nRole: QA + external consultant\nMonth 3"];
+
+    EQMS [shape=note, fillcolor="#ffffff:#a8dfa0", color="#2a9d8f", penwidth=1,
+      label="Select + implement eQMS platform\n(MasterControl / Greenlight Guru /\nSimplerQMS / Veeva)\nRole: QA\nMonth 9 · 21 CFR Part 11"];
+
+    QUALITY_LEAD -> GAP_ASSESS [penwidth=1.5];
+    GAP_ASSESS -> EQMS [penwidth=1.5];
+  }
+
+  /* ============================================================ */
+  /* CLUSTER: FIRMWARE SECURITY / CRYPTO SIGN-OFF                  */
+  /* ============================================================ */
+  subgraph cluster_security {
+    label="Firmware Security & Crypto Sign-off"; style="rounded"; color="#444444"; fontsize=13;
+
+    CRYPTO_REVIEW [shape=folder, fillcolor="#ffffff:#9aa5b1", color="#e9c46a", penwidth=2,
+      label="Cryptography reviewer\nengagement (OI-EMMC2-02)\nRole: Security"];
+
+    UHDR_KEY [shape=component, fillcolor="#ffffff:#CCC395", color="#e9c46a", penwidth=1.5,
+      label="UHDR two-layer key scheme\nsign-off closure\n(hardware-bound wrap, F1/F2)\nRole: Security + EE\nfirmware already implemented"];
+
+    SCRATCH_ENC [shape=component, fillcolor="#ffffff:#CCC395", color="#e9c46a", penwidth=1.5,
+      label="Scratch partition encryption\nsign-off closure\n(per-task AES-256-CTR)\nRole: Security + EE\nfirmware already implemented"];
+
+    WARR_TOKEN [shape=component, fillcolor="#ffffff:#CCC395", color="#f4813f", penwidth=2,
+      label="Hub firmware: warranty-token\nGATT characteristic (OI-WA-03)\nRole: EE/Firmware\nBLOCKS SHDR no-join DB freeze +\nOI-BLE-01 token upgrade (app done)"];
+
+    PENTEST [shape=hexagon, fillcolor="#ffffff:#9aa5b1", color="#f4813f", penwidth=1.5,
+      label="T2 scripting API independent\nsecurity audit\nNP-SEC-PENTEST-002\nRole: Security\nbefore any clinical API key issued"];
+
+    TABLETOP [shape=hexagon, fillcolor="#ffffff:#9aa5b1", color="#e9c46a", penwidth=2,
+      label="NP-SEC-BR-001 annual\nbreach tabletop exercise\nRole: Security\nbefore T1 launch + annually"];
+
+    SBOM [shape=note, fillcolor="#ffffff:#CCC395", color="#1f6feb", penwidth=1,
+      label="SBOM (Software Bill\nof Materials)\nNP-SBOM-001\nRole: EE/Security\nYear 2 · needed for 510(k) cyber"];
+
+    CRYPTO_REVIEW -> UHDR_KEY [penwidth=2, color="#e9c46a"];
+    CRYPTO_REVIEW -> SCRATCH_ENC [penwidth=2, color="#e9c46a"];
+    TABLETOP -> GATE_LAUNCH [penwidth=2, color="#e9c46a"];
+  }
+
+  /* ============================================================ */
+  /* CLUSTER: PRIVACY / RESEARCH CONSENT                           */
+  /* ============================================================ */
+  subgraph cluster_privacy {
+    label="Privacy, Research & Data Compliance"; style="rounded"; color="#444444"; fontsize=13;
+
+    HIPAA_CERT [shape=folder, fillcolor="#ffffff:#B9ACC9", color="#e9c46a", penwidth=2,
+      label="HIPAA Expert Determination\ncertifier engagement (STEP-31)\nRole: Legal/Privacy\nbefore NP-FW-ANON-001 finalized"];
+
+    ANON_UPGRADE [shape=component, fillcolor="#ffffff:#CCC395", color="#e9c46a", penwidth=2,
+      label="Research anonymization upgrade\nNP-FW-ANON-001\n(l-diversity l>=3, DP eps<=1.0)\nRole: EE + external DP reviewer\nbefore first study deployment"];
+
+    IRB [shape=ellipse, fillcolor="#ffffff:#BBC6DD", color="#e9c46a", penwidth=2,
+      label="IRB protocol approval\nNP-IRB-001\nRole: Clinical + Legal\nMonth 9 · outreach not yet started"];
+
+    ANON_CERT [shape=folder, fillcolor="#ffffff:#d8b4e2", color="#e9c46a", penwidth=2,
+      label="NP-ANON-CERT per-study\ncertification (STEP-32)\nRole: Legal/Privacy\nBLOCKING gate in deploy pipeline"];
+
+    DPF [shape=folder, fillcolor="#ffffff:#d8b4e2", color="#1f6feb", penwidth=1,
+      label="EU-US Data Privacy\nFramework self-certification\nRole: Legal\nMonth 3"];
+
+    BAA [shape=folder, fillcolor="#ffffff:#d8b4e2", color="#1f6feb", penwidth=1,
+      label="Clinician BAA template\nNP-LEGAL-BAA-001\nRole: Legal\nbefore any clinician subscription sold"];
+
+    EU_RESIDENCY [shape=folder, fillcolor="#ffffff:#d8b4e2", color="#1f6feb", penwidth=1,
+      label="EU data residency\nfor T2 clinical cloud\nRole: Legal/IT\nMonth 9, on vendor selection"];
+
+    APP_PRIVACY_LABEL [shape=note, fillcolor="#ffffff:#C0C9C1", color="#1f6feb", penwidth=1,
+      label="App Store privacy nutrition label +\nGoogle Play Data Safety\nRole: Legal + SW\nbefore first TestFlight/Play beta"];
+
+    HIPAA_CERT -> ANON_UPGRADE [penwidth=2, color="#e9c46a"];
+    HIPAA_CERT -> ANON_CERT [penwidth=1.5, color="#e9c46a"];
+    ANON_UPGRADE -> ANON_CERT [penwidth=2, color="#e9c46a"];
+    IRB -> ANON_CERT [penwidth=2, color="#e9c46a"];
+    APP_PRIVACY_LABEL -> GATE_LAUNCH [penwidth=1, color="#1f6feb"];
+  }
+
+  /* ============================================================ */
+  /* CLUSTER: CLINICAL / CERVICAL VNS T2 BENCH SEQUENCE             */
+  /* ============================================================ */
+  subgraph cluster_clinical {
+    label="Cervical VNS Bench Testing (T2)"; style="rounded"; color="#444444"; fontsize=13;
+
+    GATE_T2PROTO [shape=diamond, fillcolor="#ffffff:#9fd8d8", color="#f4813f", penwidth=3,
+      label="GATE: T2 Prototype\nAvailable"];
+
+    FAI_CV01 [shape=hexagon, fillcolor="#ffffff:#CFDCA9", color="#e53e3e", penwidth=2.5,
+      label="FAI-CV01: electrode\nplacement bench\n(anatomical phantom)\nRole: EE + Clinical Test"];
+
+    FAI_CV02 [shape=hexagon, fillcolor="#ffffff:#CFDCA9", color="#e53e3e", penwidth=2.5,
+      label="FAI-CV02: cardiac interlock\ntiming bench\n(oscilloscope, R-peak sim)\nRole: EE + Clinical Test"];
+
+    FAI_CV03 [shape=ellipse, fillcolor="#ffffff:#9fd8d8", color="#e53e3e", penwidth=2.5,
+      label="FAI-CV03: tolerability study\n(n=3 healthy adults)\nRole: Clinical\nrequires IRB approval"];
+
+    GATE_TOOLING -> GATE_T2PROTO [penwidth=2.5, color="#f4813f", label="hardware readiness"];
+    GATE_T2PROTO -> FAI_CV01 [penwidth=2.5, color="#e53e3e"];
+    FAI_CV01 -> FAI_CV02 [penwidth=2.5, color="#e53e3e"];
+    FAI_CV02 -> FAI_CV03 [penwidth=2.5, color="#e53e3e"];
+    IRB -> FAI_CV03 [penwidth=1.5, color="#e9c46a", style=dashed];
+  }
+
+  /* ============================================================ */
+  /* CLUSTER: CLINICAL EVIDENCE / BUSINESS DEVELOPMENT             */
+  /* ============================================================ */
+  subgraph cluster_business {
+    label="Clinical Evidence & Business Development"; style="rounded"; color="#444444"; fontsize=13;
+
+    RESEARCHER_CONTACTS [shape=ellipse, fillcolor="#ffffff:#CABECC", color="#1f6feb", penwidth=1,
+      label="First researcher contacts\nRole: Clinical/Business\nRashidi-Ranjbar -> Jog -> Naeser"];
+
+    SBIR [shape=ellipse, fillcolor="#ffffff:#CABECC", color="#1f6feb", penwidth=1,
+      label="SBIR Phase I application\nRole: Clinical/Business\n2-3 yrs to published data"];
+
+    SAB [shape=tab, fillcolor="#ffffff:#CABECC", color="#1f6feb", penwidth=1,
+      label="SAB formation\n(Tsai outreach first)\nRole: Exec/Clinical\n$50-80k/yr for 5-person board"];
+
+    OPTICIAN [shape=tab, fillcolor="#ffffff:#E7ACD1", color="#1f6feb", penwidth=1,
+      label="Partner optician network\ncontract (S3 Rx program)\nRole: Business/Legal"];
+
+    RESEARCHER_CONTACTS -> SBIR [penwidth=1];
+  }
+
+}
