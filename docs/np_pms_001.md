@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-PMS-001
-**Revision:** A
+**Revision:** B
 **Date:** 2026-07-27
 **Status:** ACTIVE
 **Effective Date:** 2026-07-27
@@ -14,7 +14,11 @@
 **IEC 62304 Class:** N/A
 **Applicable Standard:** 21 CFR Part 803; ISO 13485:2016 §8.2; ISO 14971:2019 §10; EU MDR 2017/745 Art. 83–86 (if/when EU CE marking is pursued — see §8)
 **Next Review:** Annual, and after any CAPA classified Critical or any regulatory reporting event
-**Supersedes:** None (first issue). Referenced as "planned Month 12" / "planned Year 2" in NP-DHF-001, NP-DP-001, NP-QMS-001, NP-RM-001 prior to this document.
+**Supersedes:** NP-PMS-001 Rev A. Referenced as "planned Month 12" / "planned Year 2" in NP-DHF-001, NP-DP-001, NP-QMS-001, NP-RM-001 prior to Rev A.
+
+---
+
+**Rev B (2026-07-27):** §3.1 Intake channels expanded with three channels omitted from Rev A: a website contact form (distinct from the in-app form — reaches prospective buyers and anyone without a working app install), a phone support line for customers with an active priority-support benefit (Home Premium, T2 service contract), and a website chatbot for first-contact capture and response. No other content changed from Rev A.
 
 ---
 
@@ -51,6 +55,9 @@ A **complaint** is any written, electronic, or oral communication alleging defic
 | Channel | Owner | Routing |
 |---|---|---|
 | In-app support / feedback form | Support | Triaged against complaint definition; true complaints escalated within 1 business day |
+| Website contact form (neurone.life support page) | Support | Same triage and 1-business-day escalation as the in-app form. Distinct channel because it doesn't require a working app install or even device ownership — reaches prospective buyers, users mid-onboarding, and anyone whose app can't reach the internet |
+| Phone support line | Support | Reserved for customers with an active priority-support benefit — Home Premium (CLAUDE.md §2.1) or T2 service contract (CLAUDE.md §2.3) — not a general-public number. Same triage as other Support-owned channels; true complaints escalated within 1 business day |
+| Website chatbot | Support (bot-assisted, first-line) | Captures and responds to initial contact on neurone.life; any exchange matching the complaint definition (§3 above) is escalated to a human agent under the same 1-business-day rule — the bot itself does not close out a complaint |
 | Clinician/clinic reports (T2, via service network) | Service network partner tier (`docs/reference/service-network.md`) | Contractually required to route safety-relevant reports to NeurOne within 2 business days |
 | Warranty/repair intake | Support/Repair | Any returned unit with a safety-relevant fault (thermal, stimulation, EMF-shielding-related) is flagged as a complaint regardless of whether the customer used the word |
 | Social media / public review monitoring | Marketing (informational only) | Only escalated to complaint status if it describes a specific safety/performance deficiency traceable to a specific user — not general sentiment monitoring |
