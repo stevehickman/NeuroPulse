@@ -194,6 +194,9 @@ class NeurOneSimulator {
       onViewChange: (view) => {
         this._setView(view);
       },
+      onDisplayModeChange: (mode) => {
+        this._helmet.setDisplayMode(mode);
+      },
     });
   }
 
@@ -205,18 +208,28 @@ class NeurOneSimulator {
   // ─── camera presets ────────────────────────────────────────────────────────
 
   _setView(view) {
-    const target = this._controls.target.clone();
     const presets = {
       front: new THREE.Vector3(0,   1.2,  4.5),
       side:  new THREE.Vector3(4.5, 1.2,  0),
       top:   new THREE.Vector3(0,   5.0,  0.001),
+      // PBM modules are on the concave INNER (scalp-facing) surface and emit
+      // inward (NP-HEX-ZM-001 §3.4) — from outside, the opaque CFRP shell
+      // hides them entirely, same as the real hardware. The shell is an open
+      // bowl (no bottom cap, see _buildShell's polar extent), so looking up
+      // through that opening from below is the only angle that shows the
+      // modules lit.
+      inside: new THREE.Vector3(0, -0.85, 0.55),
       orbit: new THREE.Vector3(2.8, 2.2,  3.2),
+    };
+    const lookAt = {
+      inside: new THREE.Vector3(0, 0.15, -0.1),
     };
     const pos = presets[view];
     if (!pos) return;
 
     // Simple lerp-to animation via flags (handled in _raf)
     this._viewTarget = pos.clone();
+    this._lookAtTarget = (lookAt[view] ?? new THREE.Vector3(0, 0.3, 0)).clone();
     this._controls.enabled = (view === 'orbit');
   }
 
@@ -251,6 +264,12 @@ class NeurOneSimulator {
       this._camera.position.lerp(this._viewTarget, 0.05);
       if (this._camera.position.distanceTo(this._viewTarget) < 0.01) {
         this._viewTarget = null;
+      }
+    }
+    if (this._lookAtTarget) {
+      this._controls.target.lerp(this._lookAtTarget, 0.05);
+      if (this._controls.target.distanceTo(this._lookAtTarget) < 0.01) {
+        this._lookAtTarget = null;
       }
     }
 
@@ -313,5 +332,5 @@ class NeurOneSimulator {
 // ─────────────────────────────────────────────────────────────────────────────
 
 window.addEventListener('DOMContentLoaded', () => {
-  new NeurOneSimulator();
+  window.__sim = new NeurOneSimulator(); // debug handle — inspect from devtools/console
 });

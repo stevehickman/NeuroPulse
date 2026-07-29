@@ -26,6 +26,7 @@ export class UIManager {
    *   onPause: () => void,
    *   onStop: () => void,
    *   onViewChange: (view) => void,
+   *   onDisplayModeChange: (mode) => void,
    * }} callbacks
    */
   constructor(callbacks) {
@@ -43,6 +44,7 @@ export class UIManager {
     this._buildMetricsPanel();
     this._bindSessionControls();
     this._bindViewControls();
+    this._bindDisplayModeControls();
     this._buildTimeline();
   }
 
@@ -544,11 +546,25 @@ export class UIManager {
   // ─── view controls ────────────────────────────────────────────────────────
 
   _bindViewControls() {
-    document.querySelectorAll('.view-btn').forEach(btn => {
+    const scope = document.getElementById('viewport-wrap');
+    scope?.querySelectorAll('.view-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        scope.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.cb.onViewChange(btn.dataset.view);
+      });
+    });
+  }
+
+  // ─── display mode (floating / on mannequin) ─────────────────────────────
+
+  _bindDisplayModeControls() {
+    const scope = document.getElementById('display-mode-controls');
+    scope?.querySelectorAll('.view-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        scope.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.cb.onDisplayModeChange(btn.dataset.displayMode);
       });
     });
   }

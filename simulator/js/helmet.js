@@ -20,7 +20,7 @@
 
 import * as THREE from 'three';
 import { WL, IMPEDANCE_COLORS } from './colors.js';
-import { SOCKETS, ZONES, SOCKET_ZONE_NAMES, UNIT_ANGULAR_PITCH } from './sockets.generated.js';
+import { SOCKETS, ZONES, SOCKET_ZONE_NAMES } from './sockets.generated.js';
 
 // ── shell geometry parameters ────────────────────────────────────────────────
 const SHELL_R    = 1.02;
@@ -76,12 +76,19 @@ export class HelmetModel {
       s.wavelengths = wavelengths ?? [];
       s.frequency   = frequency ?? 10;
 
+      // Tiles are opaque (see _buildSockets) — installed/idle state is
+      // conveyed by base color + emissive, not opacity. Using real
+      // transparency for this was the direct cause of the z-fighting "bite"
+      // artifacts between overlapping/adjacent tiles: Three.js sorts
+      // transparent objects per-object (not per-pixel), so neighboring
+      // semi-transparent tiles punched holes in each other depending on draw
+      // order. Opaque materials use the depth buffer correctly instead.
       const mat = s.mesh.material;
       if (!s.installed) {
-        mat.opacity = 0.18;
+        mat.color.setHex(0x0a0a16);
         mat.emissiveIntensity = 0;
       } else {
-        mat.opacity = 0.95;
+        mat.color.setHex(0x14141f);
         const primaryWL = WL[s.wavelengths[0]];
         mat.emissive.setHex(primaryWL ? primaryWL.threeHex : 0x334455);
       }
@@ -237,11 +244,7 @@ export class HelmetModel {
       if (installedMeshes.length === 0) return;
 
       const centroid = new THREE.Vector3();
-      const worldPos = new THREE.Vector3();
-      installedMeshes.forEach(s => {
-        s.mesh.getWorldPosition(worldPos);
-        centroid.add(worldPos);
-      });
+      installedMeshes.forEach(s => centroid.add(s.center));
       centroid.divideScalar(installedMeshes.length);
 
       const ndc = centroid.clone().project(camera);
@@ -275,22 +278,42 @@ export class HelmetModel {
   }
 
   _buildHead() {
-    // Semi-transparent mannequin head for anatomical context
-    const geo = new THREE.SphereGeometry(0.95, 32, 32);
+    // Opaque mannequin head/neck/shoulders — toggled with setDisplayMode().
+    // "Floating" mode (no support, product-shot style) is the default; the
+    // real device is worn on a head, so "On mannequin" exists to show that
+    // context on request rather than always showing a faint see-through ghost.
+    const mannequin = new THREE.Group();
+
     const mat = new THREE.MeshStandardMaterial({
-      color: 0xd4b896, roughness: 0.9, metalness: 0,
-      transparent: true, opacity: 0.12, depthWrite: false,
+      color: 0xe8c9a3, roughness: 0.85, metalness: 0,
     });
-    const head = new THREE.Mesh(geo, mat);
+
+    const headG = new THREE.SphereGeometry(0.95, 48, 48);
+    const head = new THREE.Mesh(headG, mat);
     head.scale.set(0.78, 1.0, 0.88);
     head.position.set(0, -0.04, 0);
-    this.group.add(head);
+    mannequin.add(head);
 
-    // Neck
-    const neckG = new THREE.CylinderGeometry(0.27, 0.30, 0.55, 16);
-    const neck  = new THREE.Mesh(neckG, mat.clone());
+    const neckG = new THREE.CylinderGeometry(0.27, 0.30, 0.55, 24);
+    const neck  = new THREE.Mesh(neckG, mat);
     neck.position.set(0, -1.03, 0);
-    this.group.add(neck);
+    mannequin.add(neck);
+
+    // Simple shoulder hint (truncated cone) so "on mannequin" reads as a
+    // head-and-shoulders mannequin, not a floating ball on a stick.
+    const shoulderG = new THREE.CylinderGeometry(0.62, 0.95, 0.62, 32, 1, false);
+    const shoulder = new THREE.Mesh(shoulderG, mat);
+    shoulder.position.set(0, -1.62, 0);
+    mannequin.add(shoulder);
+
+    mannequin.visible = false; // default: floating, no mannequin
+    this.group.add(mannequin);
+    this.parts.mannequin = mannequin;
+  }
+
+  /** 'floating' (no support, default) or 'mannequin' (head/neck/shoulders visible). */
+  setDisplayMode(mode) {
+    if (this.parts.mannequin) this.parts.mannequin.visible = (mode === 'mannequin');
   }
 
   _buildShell() {
@@ -325,70 +348,73 @@ export class HelmetModel {
   }
 
   /**
-   * Builds the ~80 hex-tile PBM sockets (NP-HEX-ZM-001). Each socket is a
-   * small emissive hexagon rather than the old per-zone 10x10 LED-canvas
-   * texture — at 80 tiles (vs. the retired design's 5 large zones) a flat
-   * emissive material per tile reads more clearly and is far cheaper than 80
-   * live canvas textures for what individual base-tile LED counts don't
-   * warrant anyway (NP-HEX-ZM-001 §4a: base PBM tiles are LED clusters, not
-   * the ~90-element smart-module ceiling).
+   * Builds the ~80 hex-tile PBM sockets (NP-HEX-ZM-001), on the INNER
+   * (concave, scalp-facing) surface — NP-HEX-ZM-001 §3.4: "the tiling
+   * surface is the innermost (emitting-face) surface... a module's
+   * scalp-facing face sits no closer to the head than the clear window."
+   * Modules emit inward toward the scalp, through the opaque CFRP shell's
+   * interior — not outward through it — so they're only visible looking
+   * into the helmet's cavity (see the "Inside" camera preset in app.js),
+   * matching how the real hardware would actually look from outside (dark,
+   * because the shielded shell hides everything happening inside).
+   *
+   * Each tile's 6 corners are individually projected (sockets.generated.js,
+   * built by scripts/generate-simulator-data.ts) rather than stamping a
+   * fixed-size flat hexagon at the tile's projected center. Neighboring
+   * tiles share literal lattice-space corner coordinates, so their shared
+   * corner always projects to the same 3D point — tiles actually share
+   * edges instead of gapping or overlapping (see that script's header
+   * comment for why a fixed-size-at-center approximation couldn't do this:
+   * the projection's tangential distortion isn't uniform with distance from
+   * the crown pole).
+   *
+   * Materials are OPAQUE, not transparent — using real transparency here
+   * was the direct cause of "bite"-shaped rendering artifacts: Three.js
+   * sorts transparent objects per-object, not per-pixel, so any residual
+   * overlap between neighboring semi-transparent tiles punched holes in each
+   * other depending on draw order. Opaque tiles use the depth buffer
+   * correctly regardless.
    */
   _buildSockets() {
-    const hexShape = new THREE.Shape();
-    // Size each hex tile from the real lattice pitch (UNIT_ANGULAR_PITCH: the
-    // angular size, at this projection's calibration, of one 40mm lattice
-    // unit — also the verified nearest-neighbor spacing between adjacent
-    // sockets, see scripts/generate-simulator-data.ts). World-space distance
-    // between adjacent tile centers ≈ UNIT_ANGULAR_PITCH * draw radius
-    // (tangential arc-length approximation). For a regular hexagon, the
-    // flat-to-flat width equals that center-to-center spacing, and
-    // circumradius = flat-to-flat / √3. A small TILE_FILL factor leaves a
-    // visible gap between tiles (a bezel) rather than sizing them to
-    // perfectly touch, since the azimuthal-equidistant projection increasingly
-    // compresses tangential spacing away from the crown pole and hexes at the
-    // far/temporal edge would otherwise start to overlap.
-    const drawR = SHELL_R * 1.002;
-    const centerSpacing = UNIT_ANGULAR_PITCH * drawR;
-    const TILE_FILL = 0.86;
-    const HEX_R = (centerSpacing / Math.sqrt(3)) * TILE_FILL;
-    for (let i = 0; i < 6; i++) {
-      const a = (Math.PI / 3) * i + Math.PI / 6;
-      const px = HEX_R * Math.cos(a);
-      const py = HEX_R * Math.sin(a);
-      if (i === 0) hexShape.moveTo(px, py); else hexShape.lineTo(px, py);
-    }
-    hexShape.closePath();
-    const hexGeo = new THREE.ShapeGeometry(hexShape);
-    const edgeGeo = new THREE.EdgesGeometry(hexGeo);
+    const INNER_R = SHELL_R * 0.94; // concave scalp-facing surface, inside the shell (SHELL_R)
 
     SOCKETS.forEach(cfg => {
-      const { x, y, z } = this._sph(SHELL_R * 1.002, cfg.phi, cfg.theta);
+      const center = this._sph(INNER_R, cfg.phi, cfg.theta);
+      const corners = cfg.corners.map(c => this._sph(INNER_R, c.phi, c.theta));
 
-      const tileGroup = new THREE.Group();
-      tileGroup.position.set(x, y, z);
-      tileGroup.lookAt(0, 0, 0);
-      tileGroup.rotateY(Math.PI);
+      const positions = new Float32Array(7 * 3);
+      positions.set([center.x, center.y, center.z], 0);
+      corners.forEach((c, i) => positions.set([c.x, c.y, c.z], 3 + i * 3));
+
+      const indices = [];
+      for (let i = 0; i < 6; i++) indices.push(0, 1 + i, 1 + ((i + 1) % 6));
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
 
       const mat = new THREE.MeshStandardMaterial({
         color: 0x0a0a16, roughness: 0.55, metalness: 0.25,
         emissive: new THREE.Color(0x000000), emissiveIntensity: 0.05,
-        transparent: true, opacity: 0.18, depthWrite: false,
+        side: THREE.DoubleSide, // visible from inside the cavity regardless of winding
       });
-      const mesh = new THREE.Mesh(hexGeo, mat);
-      tileGroup.add(mesh);
+      const mesh = new THREE.Mesh(geo, mat);
+      this.group.add(mesh);
 
-      const edge = new THREE.LineSegments(
+      const loopPositions = new Float32Array(6 * 3);
+      corners.forEach((c, i) => loopPositions.set([c.x, c.y, c.z], i * 3));
+      const edgeGeo = new THREE.BufferGeometry();
+      edgeGeo.setAttribute('position', new THREE.BufferAttribute(loopPositions, 3));
+      const edge = new THREE.LineLoop(
         edgeGeo,
         new THREE.LineBasicMaterial({ color: 0x223344, transparent: true, opacity: 0.5 })
       );
-      edge.position.z = 0.001;
-      tileGroup.add(edge);
-
-      this.group.add(tileGroup);
+      this.group.add(edge);
 
       this.sockets[cfg.id] = {
-        group: tileGroup,
         mesh,
+        center: new THREE.Vector3(center.x, center.y, center.z),
         lobe: cfg.lobe,
         side: cfg.side,
         zoneNames: SOCKET_ZONE_NAMES[cfg.id] ?? [],
