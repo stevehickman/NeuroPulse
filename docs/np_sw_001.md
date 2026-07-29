@@ -154,7 +154,7 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 | SW02-M03 | EEG signal processing | (planned) | ADS1299 driver; impedance; session data to UHDR |
 | SW02-M04 | PBM session orchestrator | `firmware/pbm_1064nm/` | 1064nm smart module; zone management; dose metering |
 | SW02-M05 | HRV biofeedback | `firmware/hrv_biofeedback/` | PPG peak detection; coherence; taVNS sync; EEG-HRV biofeedback |
-| SW02-M06 | Zone module detect and announce | `firmware/zone_announce/` | ZONE_ID detection; bone conduction audio |
+| SW02-M06 | Zone module detect and announce | `firmware/zone_announce/` | ZONE_ID detection; bone conduction audio. **⚠ SUPERSEDED 2026-07-28** — ZONE_ID detection retired by `np_module_map` (SW02-M09); this module needs porting to trigger from module-map events (see `docs/np_fw_za_001.md`) |
 | SW02-M07 | sLORETA HD-tDCS (T2) | `firmware/sloreta_hdtdcs/` | Weight matrix; electrode mapping; current distribution |
 | SW02-M08 | Cervical VNS session (T2) | `firmware/cervical_vns/` | Biphasic waveform; session orchestration; UHDR/SHDR |
 | SW02-M09 | Hub control program — module registry | `firmware/hub_control/` | Probes all 11 slots/accessory ports on powerup; registers init/control/telemetry/shutdown function pointers; T2 stubs return NOT_PRESENT until hardware drivers built |

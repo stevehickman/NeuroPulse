@@ -17,6 +17,14 @@
 
 ---
 
+> **⚠ SUPERSEDED (2026-07-28) — entire detection mechanism retired, do not use for new firmware work.** This document's core function — detecting module insertion via the ZONE_ID resistor ladder (FPC pin 18, 5 fixed resistor values classified to ZM-01..05) — no longer applies. `NP-HEX-ZM-001` replaced ZONE_ID resistor detection with `np_module_map`'s UID-based auto-inventory (I2C/1-wire), a genuinely different mechanism, not a renumbering of this one. **This is real, already-shipped firmware** (`firmware/zone_announce/`, per `docs/status/completed-decisions.md`) that will need porting, not just this doc.
+>
+> **Retired outright:** the ZONE_ID resistor-ladder table and ADC classification (§2.1, §6.1); the fixed 5-slot parallel state machines (§8.2, "Up to 5 slots"); the `np_zone_id_t` enum tied to 5 named zones (§4.1).
+>
+> **Fully reusable, addressing-independent:** the bone-conduction audio engine — DDS sine-LUT synthesis, SAI3/eDMA output, amplitude ramp, tone-sequence design (§7) — and the debounce *algorithm* (3×100ms majority vote, §6.2), which is a sound pattern regardless of what it's debouncing. **Porting path:** re-trigger the existing announce/audio state machine from `np_module_map` insertion/removal events instead of ZONE_ID ADC polling, and announce a socket position (or protocol-assigned zone name) instead of one of 5 fixed slot names. This is firmware work, not yet done or scoped.
+
+---
+
 ## 1. Scope
 
 This document specifies the firmware module that detects zone module insertion via the ZONE_ID resistor (FPC pin 18) and announces the connected zone through the bone conduction piezoelectric element at the mastoid.  This implements **RISK-15 Layer 5** of the five-layer zone module keying system specified in CLAUDE.md §7.1.

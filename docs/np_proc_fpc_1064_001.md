@@ -17,6 +17,12 @@
 
 ---
 
+> **⚠ SUPERSEDED (2026-07-28) — module-count and BOM figures retired, do not use for BOM/pricing work.** This spec prices and sizes the smart module against the retired large-format (66×78mm), 5-zone-slot architecture: 150× 1064nm LEDs on a single 550-LED module, and retail pricing keyed to "all-5-zone smart module kit." `NP-HEX-ZM-001` replaced that with a universal 40mm hex tile (~90 elements max per tile — see `docs/np_hex_zm_001.md` §3.1) tiling ~30–80 sockets; per-module LED count, BOM, and kit pricing all need re-derivation against the new tile size, not this document's numbers.
+>
+> **Still-reusable:** the component *selections* — 1064nm emitter (EPITEX via Marubeni), driver IC (ATtiny402 + IRLML6344 FETs), InGaAs PD (Hamamatsu G12180-010A) — and the Vf-binning specification methodology (§3). These are part-level decisions independent of how many go on a tile or how many tiles exist. The mould-variant reference (NP-TOOL-ZM-SM-001) is itself superseded — see that document's own supersession note.
+
+---
+
 ## 1. Scope
 
 This document covers component selection and procurement specifications for the three non-standard components in the 1064nm smart zone module:

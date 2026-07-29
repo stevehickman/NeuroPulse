@@ -17,6 +17,12 @@
 
 ---
 
+> **⚠ SUPERSEDED (2026-07-28) — needs a Rev C, do not use for new hub PCB layout work.** This entire spec sizes the TIA gain-switch and I2C isolation hardware for exactly 5 zone slots: `GAIN_SEL[0..4]` GPIO assignment (§3.4), one PCA9546A covering slots 0–3 plus a direct-GPIO-muxed slot 4 (§4.2). `SMART-1` (decided 2026-07-28, `docs/np_hex_zm_001.md` §4a/§7, logged in `docs/status/completed-decisions.md`) requires **every** socket in the ~30–80-socket hex lattice to be I2C/TIA-capable — this design's I2C fan-out (one 4-channel mux + one spare GPIO channel) does not scale to that, and needs a materially different architecture (cascaded/multi-stage muxing, many more `GAIN_SEL` lines or a scan-based alternative). This is real Hub PCB NRE, not yet scoped — flagged for EE Lead, same flag already recorded against SMART-1.
+>
+> **Still-reusable:** the per-socket circuit topology — one DG2788A dual-SPDT switch covering both PD1 and PD2 TIA gain from a single `GAIN_SEL` line (§3.1–3.3), and the underlying TIA-saturation analysis that motivated it (silicon vs. InGaAs responsivity mismatch, `NP-HW-FPC-001` §5.3) — is component-level and per-socket-independent; it just needs replicating across many more sockets with a redesigned control/addressing layer, not reworking from scratch.
+
+---
+
 ## 1. Scope
 
 This document specifies the Rev B changes to the NeurOne hub PCB required to support the 1064nm smart zone module accessory (NP-FPC-ZM-SM-01). All changes are additive; the base hub PCB architecture is unchanged.
