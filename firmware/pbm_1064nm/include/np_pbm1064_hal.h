@@ -25,10 +25,10 @@ extern "C" {
 #endif
 
 /*
- * Read ZONE_ID ADC for slot.
- * slot: 0–4 (ZM-01 through ZM-05 positions).
- * counts_out: 12-bit ADC result [0..4095].
- * Returns true on success.
+ * ⚠ RETIRED by NP-HW-HUB-001 Rev C (2026-07-29) — DO NOT IMPLEMENT ON TARGET.
+ * ZONE_ID resistor-ladder detection is gone: module type comes from UID-based
+ * auto-inventory (np_module_map), per NP-FW-PBM1064-001's supersession note.
+ * Retained only to keep the host-test build linking.
  */
 bool np_pbm1064_hal_adc_read_zone_id(uint8_t slot, uint16_t *counts_out);
 
@@ -38,14 +38,26 @@ bool np_pbm1064_hal_adc_read_zone_id(uint8_t slot, uint16_t *counts_out);
  * pd_ch:  0 = PD1 (forward emission), 1 = PD2 (scalp-side backscatter).
  * counts_out: 12-bit ADC result.
  * Returns true on success.  OI-PBM-01.
+ *
+ * NP-HW-HUB-001 Rev C (2026-07-29) RESHAPES rather than retires this call.
+ * It survives as a thin accessor (so np_pbm1064_dose.c needs no restructuring)
+ * but `slot` becomes a uint16_t socket_id (0..127) and the value is served from
+ * a CACHED cluster frame, not a direct LPADC conversion: at 80 sockets the
+ * 10 Hz dose tick must pull 10 per-cluster frames via
+ * np_hub_cluster_read_frame(), not issue 160 individual bus reads.
+ * See NP-HW-HUB-001 Rev C §9.2–9.3.
  */
 bool np_pbm1064_hal_adc_read_pd(uint8_t slot, uint8_t pd_ch,
                                  uint16_t *counts_out);
 
 /*
- * Enable or disable the LPI2C3 GPIO mux for the specified slot.
- * Must be called before any I2C transaction to that slot.
- * OI-PBM-02.
+ * ⚠ RETIRED by NP-HW-HUB-001 Rev C (2026-07-29) — DO NOT IMPLEMENT ON TARGET.
+ * Rev B enabled a hub-side LPI2C3 GPIO mux (or a PCA9546A channel) per zone
+ * slot. Under Rev C the hub has ONE differential cluster bus and no per-socket
+ * I2C peripheral: each cluster controller owns its own PCA9548A and isolates
+ * its ≤8 sockets locally, one hop from the module. Module transactions are
+ * TUNNELLED — the hub asks a cluster controller to relay them. Retained only
+ * to keep the host-test build linking. See NP-HW-HUB-001 Rev C §5.2, §9.1.
  */
 np_pbm1064_status_t np_pbm1064_hal_i2c_mux_enable(uint8_t slot, bool enable);
 
@@ -109,24 +121,24 @@ void np_pbm1064_hal_shdr_log_fault(const np_pbm1064_shdr_fault_entry_t *entry);
 void np_pbm1064_hal_zone_announce(uint8_t slot_index);
 
 /*
- * Set TIA gain for the specified slot by driving GAIN_SEL[n] GPIO.
- * NP_TIA_GAIN_HIGH → GAIN_SEL LOW  → DG2788A selects Rf = 47 kΩ (default).
- * NP_TIA_GAIN_LOW  → GAIN_SEL HIGH → DG2788A selects Rf = 22 kΩ (smart module).
+ * ⚠ RETIRED by NP-HW-HUB-001 Rev C (2026-07-29) — DO NOT IMPLEMENT ON TARGET.
  *
- * Must be called with NP_TIA_GAIN_LOW AFTER debounce confirms smart module AND
- * BEFORE np_pbm1064_hal_i2c_mux_enable() for the same slot (NP-HW-HUB-001 Rev B §5.1).
- * Must be called with NP_TIA_GAIN_HIGH AFTER i2c_mux_enable(false) on removal.
- * Platform implementation: GPIO_B0_04 + slot offset on i.MX RT1062 GPIO2 bank.
- * OI-PBM-HW-01.
+ * Both functions below exist only to keep the current host-test build linking.
+ * They describe Hub PCB Rev B's 5-slot scheme: one DG2788A per zone slot driven
+ * by a dedicated GAIN_SEL[0..4] GPIO on the i.MX RT1062 GPIO2 bank.
+ *
+ * Under Rev C there is NO GAIN_SEL signal between the RT1062 and any socket.
+ * TIA gain is a pin on the cluster-controller MCU, set per-SAMPLE inside that
+ * controller's PD scan loop from the module type it learned via UID inventory
+ * (np_module_map) — not latched per slot from a ZONE_ID resistor ladder. One
+ * shared switchable-gain TIA serves all 8 sockets of a cluster, so PD1 and PD2
+ * of a socket now pass through the same Rf and the same amplifier (their gain
+ * error cancels in the PD1/PD2 ratio — see Rev C §6.4).
+ *
+ * Replacement surface: firmware/cluster_ctrl/ (new IEC 62304 Class B unit) and
+ * np_hub_cluster_read_frame() on the hub side. See NP-HW-HUB-001 Rev C §6, §9.1.
  */
 np_pbm1064_status_t np_pbm1064_hal_tia_gain_set(uint8_t slot, np_tia_gain_t gain);
-
-/*
- * Initialize all TIA gain GPIOs to NP_TIA_GAIN_HIGH (GAIN_SEL LOW) at boot.
- * Must be called before np_pbm1064_detect_init() and before first LPADC1 reads.
- * Platform implementation: configures GPIO_B0_04..08 as output LOW.
- * OI-PBM-HW-01.
- */
 void np_pbm1064_hal_tia_gain_boot_init(void);
 
 /*

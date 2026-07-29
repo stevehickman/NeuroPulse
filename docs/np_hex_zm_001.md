@@ -572,14 +572,37 @@ identified for a future module type, it should be solved the same way SMART-1
 solved this one — make every socket capable — rather than reintroducing a
 type-differentiating key.
 
-**Known cost, not yet quantified:** every socket (not five) now needs I2C bus wiring
-and a DG2788A-class switchable-gain TIA stage. The Hub PCB Rev B design as recorded
-in `docs/status/completed-decisions.md` sized this for **five** zone slots (one
-PCA9546A I2C mux covers 4 channels directly, plus one GPIO-muxed fifth) — that does
-not scale to ~30–80 sockets without a materially different I2C fan-out architecture
-(cascaded/multi-stage muxing) and a much larger per-socket analog-switch count. This
-is real Hub PCB NRE, not a documentation change — flagged for EE Lead scoping, not
-sized here.
+**Cost + architecture — now designed: see NP-HW-HUB-001 Rev C (`docs/np_hw_hub_001.md`).**
+Every socket (not five) needs I2C bus access and a switchable-gain TIA stage. Hub PCB
+Rev B sized this for **five** zone slots (one PCA9546A covering 4 channels plus one
+GPIO-muxed fifth), which does not scale. Rev C's finding is that the binding constraint
+is **interconnect, not mux count**: Rev B is a star in which every socket's analog *and*
+digital lines terminate at the hub — ~11 conductors × 80 sockets ≈ **880 conductors**
+through the §5.3c posterior blind-mate boss, plus 160 TIA channels and 80 `GAIN_SEL`
+GPIO. A deeper I2C mux tree fixes address collision and leaves all of that intact.
+
+Rev C therefore moves the termination point: a **distributed cluster-controller tier**
+on the inner bowl, one small board per **8 sockets** (`ceil(n/8)` boards; 10 at n=80,
+16 max — and 16 × 8 = 128 = the full 7-bit `NP_HEXMAP_SOCKET_BITS` domain). Each board
+carries one PCA9548A (I2C isolation, exact 8-channel fit), one 16:1 PD current mux into
+**one shared switchable-gain TIA** (so the DG2788A count is per-cluster, not per-socket,
+and gain is set per *sample* from live UID inventory with **zero hub GPIO**), and the
+per-socket LED drive. The hub sees only a differential multi-drop bus.
+
+Two consequences that matter to this brief:
+- **The Hub PCB no longer encodes the socket count at all** — no per-socket footprint,
+  net, or `n_sockets`-derived constant. **REG-1 can move the lattice anywhere in 30–128
+  sockets without a hub re-spin**; only inner-bowl cluster boards move.
+- **PD1/PD2 ratio accuracy improves.** Both PDs of a socket now pass through the same
+  mux, Rf, op-amp and ADC, so gain error is common-mode and cancels in the ratio — the
+  discriminant the fouling-vs-aging detection rests on. Rev B's ≤0.5% per-slot PD1/PD2
+  matching requirement disappears.
+
+**Cost:** ~$6.34 per cluster board → **$63.40 at n=80** (scales `$6.34 × ceil(n/8)`;
+$25.36 at 30, $101.44 at 128), plus ≈**+$1.09** net on the hub PCB itself. Comparable to
+naively scaling Rev B (~$67) — but buildable, at ~100 conductors across the parting plane
+instead of ~880. This has NOT been netted against the retired 5-zone-module drive
+electronics already inside the $405 Home Standard BOM (OI-HUB-C08).
 
 **PBM dose islands (accepted).** T1-B has ~half the LED count (pod clearance), so
 electrode sites deliver less PBM. Per-tile PD metering stays accurate (the J/cm²
@@ -836,14 +859,14 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | GATE-2 | PBM coupling bench: rigid 40 mm coupon at temporal worst case meets dose spec | Tooling; go/no-go A-vs-B |
 | OI-HEXMAP-01 | Config-partition NVRAM HAL for the module map | FW integration |
 | OI-HEXMAP-02 | Module I2C/1-wire `inventory_fn` | FW integration |
-| REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget. **§3.4 measured the real interior surface → ~80-socket v1 lattice.** Fix the row boundaries against shell CAD before re-cutting the generated artifacts. **Scope narrowed by ZONE-1 (§3.3, 2026-07-30): row boundaries ONLY.** The four "lobe boundary" constants this row used to also cover are deleted, not re-tuned — lobes are not a system concept. Whether a zone named "Frontal Left" actually covers the frontal lobe is a clinical review of `00-zones.npps` against the registered lattice, not a constant to fix here. | Lattice design; EEG/tES placement; **artifact regeneration**; **clinical-03 evidence-grade claim gate** (`protocols/predefined/clinical-03-pbm-cognitive-1064.npps` — "Grade A"/gold-standard wording withheld until REG-1 lands and the zone is re-authored to the 1–2 module Fp2/F4 footprint the literature actually describes; see `docs/status/pending-decisions.md` §13.2c) |
+| REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget. **§3.4 measured the real interior surface → ~80-socket v1 lattice.** Fix the row boundaries against shell CAD before re-cutting the generated artifacts. **Scope narrowed by ZONE-1 (§3.3, 2026-07-30): row boundaries ONLY.** The four "lobe boundary" constants this row used to also cover are deleted, not re-tuned — lobes are not a system concept. Whether a zone named "Frontal Left" actually covers the frontal lobe is a clinical review of `00-zones.npps` against the registered lattice, not a constant to fix here. **No longer blocks Hub PCB tooling (2026-07-29):** NP-HW-HUB-001 Rev C §4.3 makes the hub socket-count-agnostic across 30–128, so REG-1 moving the count re-tools only inner-bowl cluster boards. | Lattice design; EEG/tES placement; **artifact regeneration**; **clinical-03 evidence-grade claim gate** (`protocols/predefined/clinical-03-pbm-cognitive-1064.npps` — "Grade A"/gold-standard wording withheld until REG-1 lands and the zone is re-authored to the 1–2 module Fp2/F4 footprint the literature actually describes; see `docs/status/pending-decisions.md` §13.2c) |
 | SCAN-1 | Confirm `SHELL_WALL_MM` proxy is moot now that the interior is scanned directly; measure the actual clear-window thickness + module face standoff for the emitting-face dose distance (§3.4) | Dose budget; emitting-face position |
 | ACT-1 | Set the **active-surface boundary** deliberately from the over-ear audio-cup footprint + clinical coverage targets (≥ Neuronic active area); it defines which boundary tiles are element-masked (§3.4) | Active-surface descriptor; masking |
 | ACT-2 | New firmware: `active_surface` descriptor + element-mask API extending `(socket:element)` addressing so boundary tiles disable out-of-surface elements (§3.4) | Masking enforcement |
 | REGEN-1 | **DONE (v1, 2026-07-20, principal direction).** Re-cut `sync-socket-map.ts` / `00-zones.npps` / `socketMap.generated.ts` from the scan-grounded 80-socket lattice (widths 3 6 7 8 9 8 9 8 7 6 5 4). Artifacts stamped PROVISIONAL; REG-1 + ACT-1 still confirm the boundaries/active surface before v1 is treated as final. Active-surface descriptor deferred to ACT-2. | Generated artifacts |
-| SMART-1 | **DECIDED 2026-07-28: full coverage — every socket I2C/TIA-capable** (research-mission flexibility over per-socket cost; see §4a). Residual: Hub PCB I2C fan-out architecture for ~30–80 sockets not yet designed. | Socket PCB cost/scope; Hub PCB Rev C+ scoping |
+| SMART-1 | **DECIDED 2026-07-28: full coverage — every socket I2C/TIA-capable** (research-mission flexibility over per-socket cost; see §4a). **Residual CLOSED 2026-07-29** — the I2C fan-out + TIA gain architecture is designed in **NP-HW-HUB-001 Rev C** (`docs/np_hw_hub_001.md`, DRAFT): distributed cluster-controller tier, one board per 8 sockets, hub PCB socket-count-agnostic across 30–128. Successor open items OI-HUB-C01…C12 live in that document. | Socket PCB cost/scope; Hub PCB Rev C |
 | SW-1 | Wire `np_module_map_check_placement()` presence-gates into modality enable (Oz-before-visual-stim; electrodes-before-tES) | Safety enforcement (primitive delivered) |
-| OI-HUB-SOCKET-01 | Dispatch socket-addressed commands: socket-indexed control registry + per-socket safety-MCU enable (today `NP_SAFETY_EN_PBM_ZONE_0..4` is per-zone-slot). Until then `dispatch_command()` logs and DROPS a socket target rather than falling back to the slot path — a missed dose is recoverable, a wrong-site dose is not | Cranial session execution (parse + resolve delivered) |
+| OI-HUB-SOCKET-01 | Dispatch socket-addressed commands: socket-indexed control registry + per-socket safety-MCU enable (today `NP_SAFETY_EN_PBM_ZONE_0..4` is per-zone-slot). Until then `dispatch_command()` logs and DROPS a socket target rather than falling back to the slot path — a missed dose is recoverable, a wrong-site dose is not. **Safety-enable half answered 2026-07-29 by NP-HW-HUB-001 Rev C §7:** per-socket enable is *impossible* in the current wire format — the enable mask is 16 bits (`enable_lo`/`enable_hi`, `NP_SAFETY_EN_ALL_MASK = 0x3FFF`, 2 spare) and even per-*cluster* needs 16 bits for clusters alone plus 9 surviving modality bits = 25 > 16. Rev C replaces bits 0–4 with a single `NP_SAFETY_EN_PBM_CRANIAL` (bits 1–4 reserved, not reused), arguing the interlock needs to *cut*, not select — per-socket dose shutdown is a Class B duty=0 write, and the per-tile 62 °C throttle is analog hardware. Physical gating still distributes (one gate per cluster on its LED rail). Accepted consequence: safety cuts are all-or-nothing across the lattice — routed to safety review as OI-HUB-C07 | Cranial session execution (parse + resolve delivered) |
 | OI-HUB-SOCKET-02 | Socket-address the remaining socket-based modalities (1170 nm deep PBM, EEG/qEEG, BES/tACS/tDCS/HD-tDCS). They stay slot-addressed today because their param types carry no socket selector — EEG names 10-20 channels, tES names electrode pairs. Needs the param types to gain zone refs first | Per-socket cranial targeting beyond PBM transcranial |
 | EMF-1 | Prototype 2-layer attenuation ≥ single-shell baseline | Shield claim |
 | EMF-2 | Ground-bond ≤50 mΩ over clamp-cycle life; SHDR trend armed | Driven-shield function |
