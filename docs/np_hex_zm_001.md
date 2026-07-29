@@ -477,16 +477,36 @@ expresses a map as an array of per-socket `type_mask` requirements.
   and tES requirements.
 
 **Smart-socket coverage — DECIDED 2026-07-28 (SMART-1).** T1-C (1064) needs the I2C
-bus + switchable-gain TIA and carries a distinct mechanical key. **Decision: every
-socket is I2C/TIA-capable — full coverage, not a subset.** Rationale: NeurOne's
-research mission (SBIR trials, IRB-approved custom studies, the research suggestion
-portal — CLAUDE.md §6.3) depends on being able to place any current or future smart
-module type at any socket for arbitrary montage/protocol design, not just the subset
-that happened to be wired smart at tooling freeze. A subset-coverage design would
-permanently constrain which sockets any future smart module type (not just T1-C) can
-occupy — a decision baked into the shell/Hub PCB tooling, not reversible by a later
-firmware or protocol change. Full coverage removes that constraint at the cost of
-socket PCB/BOM complexity (below).
+bus + switchable-gain TIA. **Decision: every socket is I2C/TIA-capable — full
+coverage, not a subset.** Rationale: NeurOne's research mission (SBIR trials,
+IRB-approved custom studies, the research suggestion portal — CLAUDE.md §6.3)
+depends on being able to place any current or future smart module type at any
+socket for arbitrary montage/protocol design, not just the subset that happened to
+be wired smart at tooling freeze. A subset-coverage design would permanently
+constrain which sockets any future smart module type (not just T1-C) can occupy —
+a decision baked into the shell/Hub PCB tooling, not reversible by a later firmware
+or protocol change. Full coverage removes that constraint at the cost of socket
+PCB/BOM complexity (below).
+
+**No type-differentiating mechanical key — corrected 2026-07-28.** An earlier
+version of this document said T1-C "carries a distinct mechanical key," which
+directly contradicted §4a's own placement-validation model just above:
+"any type (T1-A/B/C) inserts into any socket — same size, same mount,
+orientation-only key (no type keying)." That was a leftover from the retired
+per-slot architecture (`NP-TOOL-ZM-SM-001`'s F-SM-03, a physically distinct
+smart-module key body ≥2.0mm wider on the lateral face, sized specifically to
+block insertion into a Hub PCB slot that lacked the TIA gain switch). SMART-1
+removes the hazard that key existed to prevent — with every socket I2C/TIA-capable
+by design, there is no "wrong socket" left to key against, for T1-C or any future
+smart module type. **Downstream effect:** this also removes the need for
+`OI-SM-SHELL-01` (the retired plan's shell Rev B with dual base/smart slot-cutout
+geometry per zone position) — a single universal socket cutout is sufficient, one
+less shell tooling revision. Type identity is established entirely by module
+self-report at insertion (UID → element inventory via `np_module_map`), not by
+mechanical exclusion. If a *new* hardware-safety hazard from mis-insertion is ever
+identified for a future module type, it should be solved the same way SMART-1
+solved this one — make every socket capable — rather than reintroducing a
+type-differentiating key.
 
 **Known cost, not yet quantified:** every socket (not five) now needs I2C bus wiring
 and a DG2788A-class switchable-gain TIA stage. The Hub PCB Rev B design as recorded
