@@ -112,7 +112,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 |-------|----------|-------------------|--------|----------|-------|
 | DI-PERF-01 | Performance | EEG: 8-channel semi-dry hydrogel, 500 Hz, 24-bit ADS1299, Fp1/2 F3/4 C3/4 P3/4; ADS1299 self-calibration at session start | CLAUDE.md §3 modality 3 | High | T1+T2 |
 | DI-PERF-02 | Performance | EEG T2: 21-channel wet-gel qEEG, full 10-20 + FC3/FC4 + Oz + A1/A2 (linked-ear reference on VNS clips) | CLAUDE.md §3 T2 | High | T2 |
-| DI-PERF-03 | Performance | PBM transcranial: 600 LEDs (300×660 nm + 300×808–830 nm), 5 independently addressable zones, 6 mm inter-LED pitch, 120–180 mA/LED, L70 ≥80,000 hours | CLAUDE.md §3 modality 1 | High | T1+T2 |
+| DI-PERF-03 | Performance | PBM transcranial: 660nm + 808–830nm on T1-A base PBM tiles, tiled across the hex-socket lattice (NP-HEX-ZM-001) — LED total scales with tiles populated, not a fixed 5-zone count; 120–180 mA/LED, L70 ≥80,000 hours | CLAUDE.md §3 modality 1 | High | T1+T2 |
 | DI-PERF-04 | Performance | PBM irradiance: 400 mW/cm² peak pulsed (≤25% duty cycle, firmware-enforced); 200 mW/cm² CW max; 7 frequency presets | CLAUDE.md §3 modality 1 | High | T1+T2 |
 | DI-PERF-05 | Performance | Real-time J/cm² dose metering per zone per wavelength; dual-PD (PD1 forward + PD2 scalp backscatter); PD1/PD2 ratio separates fouling from LED aging | CLAUDE.md §3 modality 1, RISK-14 | High | T1+T2 |
 | DI-PERF-06 | Performance | 1064 nm smart zone module: ATtiny402 on-module I2C driver + 3× IRLML6344 N-FETs, 550 LEDs (200×660 nm + 200×808 nm + 150×1064 nm), Hamamatsu G12180-010A InGaAs PD dose-metering; ZONE_ID 3.3 kΩ detection | CLAUDE.md §3 modality 1; NP-HW-FPC-001 Rev E | High | T1+T2 |
@@ -261,7 +261,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 |-------|---------------|----------|----------------|----------|--------|
 | DI-PERF-01 | 8-ch EEG 500 Hz 24-bit ADS1299 | DO-HW-01, DO-FW-08, DO-SW-07, DO-SW-09 | FPC spec; hub control; iOS app | VE-05 | Partial |
 | DI-PERF-02 | 21-ch qEEG (T2) full 10-20 | DO-HW-01, DO-FW-05, DO-SW-04 | FPC spec; HD-tDCS fw; sLORETA source | VE-06 | Open |
-| DI-PERF-03 | 600 LEDs 5 zones 6 mm pitch | DO-HW-01, DO-HW-04, DO-HW-06 | FPC; zone module tooling; shell tooling | VE-07 | Partial |
+| DI-PERF-03 | 660/808nm on hex-tiled T1-A modules (NP-HEX-ZM-001) | DO-HW-01, DO-HW-04, DO-HW-06 | FPC; zone module tooling; shell tooling | VE-07 | Partial |
 | DI-PERF-04 | 400 mW/cm² pulsed ≤25% DC | DO-HW-01, DO-FW-07, DO-RISK-01, DO-REG-01 | FPC; 1064 nm fw duty ceiling; risk register; reg opinion | VE-01 | Partial |
 | DI-PERF-05 | Real-time J/cm² metering dual-PD | DO-HW-01, DO-FW-07, DO-SW-06 | FPC dual-PD RISK-14; 1064 nm fw dose accumulator; source | VE-01, VE-07 | Partial |
 | DI-PERF-06 | 1064 nm smart module ATtiny402 | DO-HW-01, DO-HW-02, DO-HW-05, DO-FW-07, DO-SW-06 | FPC Rev E; Hub PCB Rev B TIA switch; mould variant; fw spec | VE-07 | Partial |

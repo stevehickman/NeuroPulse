@@ -34,9 +34,9 @@ Minimum ingredients: (a) ≥2 suitable wavelengths, (b) a detector at a defined 
 
 | Asset | Spec | fNIRS relevance |
 |---|---|---|
-| Transcranial LEDs | 300×660nm + 300×808–830nm, 5 zones, 6 mm pitch (base module); +150×1064nm on smart module | Light **sources** — already scalp-coupled and per-channel PWM-addressable |
+| Transcranial LEDs | 660nm + 808–830nm on each T1-A base PBM tile, tiled across the hex-socket lattice (NP-HEX-ZM-001) — count scales with tiles populated, not a fixed 5-zone total; +1064nm on T1-C smart tiles | Light **sources** — already scalp-coupled and per-channel PWM-addressable |
 | Dual photodiodes / zone | PD1 (behind PDMS, forward emission) + PD2 (scalp-facing, backscatter). Smart module: InGaAs Hamamatsu G12180-010A | Candidate **detectors** — but co-located with source (see Risk B) |
-| Hub TIA + gain switch | Per-slot TIA (47 kΩ; 22 kΩ for InGaAs via DG2788A) | Detector front-end — gain path already switchable (extensible) |
+| Hub TIA + gain switch | Per-socket TIA (47 kΩ; 22 kΩ for InGaAs via DG2788A) — every socket I2C/TIA-capable per SMART-1 (NP-HEX-ZM-001 §4a) | Detector front-end — gain path already switchable (extensible) |
 | Main processor | i.MX RT1062 M7, 600 MHz, ~98.9% idle | mBLL + source multiplexing + scalp regression trivially fit |
 | PPG optics (VNS clip) | 808–830nm PPG for HRV | Proves NeurOne already does NIR photoplethysmetric sensing |
 

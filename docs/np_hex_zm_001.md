@@ -414,7 +414,7 @@ cost, and it eats LED area everywhere. Instead:
   (Fp1/2, F3/4, C3/4, P3/4 ≈ 8 sites) plus any tES montage positions. NOTE
   §3.2: at 40 mm the Fp row holds a single tile, so Fp1/Fp2 share socket 1 —
   an open item against REG-1.
-- **T1-C** goes only at the 1–5 zones chosen for 1064 depth.
+- **T1-C** goes only at the sockets chosen for 1064 depth (protocol-defined, not capped at a fixed count — see §4a SMART-1).
 
 Representative T1 build: **~8–9 × T1-B** (8 neurofeedback sites + Oz when visual
 stim is used) **+ the balance in T1-A**, with T1-C substituted at the configured
@@ -476,11 +476,26 @@ expresses a map as an array of per-socket `type_mask` requirements.
 - The T1-B electrode is typed `NP_ELEM_DUAL_ELECTRODE`, so it satisfies both EEG
   and tES requirements.
 
-**Smart-socket coverage (open decision — SMART-1).** T1-C (1064) needs the I2C bus
-+ switchable-gain TIA and carries a distinct mechanical key. Decide: **every socket
-smart-capable** (T1-C anywhere; higher per-socket cost) **or a subset** (cheaper;
-T1-C key matches only those sockets). This is the only real limit on "any type,
-any socket."
+**Smart-socket coverage — DECIDED 2026-07-28 (SMART-1).** T1-C (1064) needs the I2C
+bus + switchable-gain TIA and carries a distinct mechanical key. **Decision: every
+socket is I2C/TIA-capable — full coverage, not a subset.** Rationale: NeurOne's
+research mission (SBIR trials, IRB-approved custom studies, the research suggestion
+portal — CLAUDE.md §6.3) depends on being able to place any current or future smart
+module type at any socket for arbitrary montage/protocol design, not just the subset
+that happened to be wired smart at tooling freeze. A subset-coverage design would
+permanently constrain which sockets any future smart module type (not just T1-C) can
+occupy — a decision baked into the shell/Hub PCB tooling, not reversible by a later
+firmware or protocol change. Full coverage removes that constraint at the cost of
+socket PCB/BOM complexity (below).
+
+**Known cost, not yet quantified:** every socket (not five) now needs I2C bus wiring
+and a DG2788A-class switchable-gain TIA stage. The Hub PCB Rev B design as recorded
+in `docs/status/completed-decisions.md` sized this for **five** zone slots (one
+PCA9546A I2C mux covers 4 channels directly, plus one GPIO-muxed fifth) — that does
+not scale to ~30–80 sockets without a materially different I2C fan-out architecture
+(cascaded/multi-stage muxing) and a much larger per-socket analog-switch count. This
+is real Hub PCB NRE, not a documentation change — flagged for EE Lead scoping, not
+sized here.
 
 **PBM dose islands (accepted).** T1-B has ~half the LED count (pod clearance), so
 electrode sites deliver less PBM. Per-tile PD metering stays accurate (the J/cm²
@@ -742,7 +757,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | ACT-1 | Set the **active-surface boundary** deliberately from the over-ear audio-cup footprint + clinical coverage targets (≥ Neuronic active area); it defines which boundary tiles are element-masked (§3.4) | Active-surface descriptor; masking |
 | ACT-2 | New firmware: `active_surface` descriptor + element-mask API extending `(socket:element)` addressing so boundary tiles disable out-of-surface elements (§3.4) | Masking enforcement |
 | REGEN-1 | **DONE (v1, 2026-07-20, principal direction).** Re-cut `sync-socket-map.ts` / `00-zones.npps` / `socketMap.generated.ts` from the scan-grounded 80-socket lattice (widths 3 6 7 8 9 8 9 8 7 6 5 4). Artifacts stamped PROVISIONAL; REG-1 + ACT-1 still confirm the boundaries/active surface before v1 is treated as final. Active-surface descriptor deferred to ACT-2. | Generated artifacts |
-| SMART-1 | Smart-socket coverage decision: all sockets I2C+TIA-capable vs a subset (governs where T1-C can seat) | Socket PCB cost/scope |
+| SMART-1 | **DECIDED 2026-07-28: full coverage — every socket I2C/TIA-capable** (research-mission flexibility over per-socket cost; see §4a). Residual: Hub PCB I2C fan-out architecture for ~30–80 sockets not yet designed. | Socket PCB cost/scope; Hub PCB Rev C+ scoping |
 | SW-1 | Wire `np_module_map_check_placement()` presence-gates into modality enable (Oz-before-visual-stim; electrodes-before-tES) | Safety enforcement (primitive delivered) |
 | OI-HUB-SOCKET-01 | Dispatch socket-addressed commands: socket-indexed control registry + per-socket safety-MCU enable (today `NP_SAFETY_EN_PBM_ZONE_0..4` is per-zone-slot). Until then `dispatch_command()` logs and DROPS a socket target rather than falling back to the slot path — a missed dose is recoverable, a wrong-site dose is not | Cranial session execution (parse + resolve delivered) |
 | OI-HUB-SOCKET-02 | Socket-address the remaining socket-based modalities (1170 nm deep PBM, EEG/qEEG, BES/tACS/tDCS/HD-tDCS). They stay slot-addressed today because their param types carry no socket selector — EEG names 10-20 channels, tES names electrode pairs. Needs the param types to gain zone refs first | Per-socket cranial targeting beyond PBM transcranial |

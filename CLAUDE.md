@@ -64,7 +64,7 @@ Two-tier platform sharing a single chassis, processor stack, app, and USB-C conn
 | Config | BOM | COGS | Retail | GM% | Modalities included |
 |--------|-----|------|--------|-----|---------------------|
 | Core — EEG only | $168–169 | $258–260 | $449 | 42% | 4-ch EEG · all connectivity · EMF shielding · processor stack · 8GB eMMC |
-| Home Lite | $265–266 | $370–372 | $599 | 38% | Core + PBM 5 zones (660+810nm, 600 LEDs) · 8-ch EEG · VNS+HRV clip |
+| Home Lite | $265–266 | $370–372 | $599 | 38% | Core + PBM tiles (660+810nm) · 8-ch EEG · VNS+HRV clip |
 | Home Standard ★ (flagship) | $405 | $540 | $849 | 36% | All T1 modalities (see §3) |
 | Home Premium | $460 | $622 | $1,199 | 48% | All T1 + EC lens (+$89 value) · 2yr warranty · priority support |
 | Pro Entry | $833 | $1,365 | $4,999 | 73% | All T1 + 21-ch qEEG · 1170nm deep PBM · clinical tACS · HIPAA cloud · sLORETA |
@@ -117,8 +117,7 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 - 660–670nm + 808–830nm LEDs (base module)
 - **1064nm snap-in smart zone module upgrade (accessory):** Path B smart module architecture — on-module Microchip ATtiny402 I2C slave + 3× Infineon IRLML6344 N-FETs drives 660nm (CH_A), 808nm (CH_B), and 1064nm (CH_C) independently from existing 20-pin FPC connector. 550 LEDs per module (200+200+150). InGaAs PDs (Hamamatsu G12180-010A) for dose metering. Smart module detected via 3.3kΩ ZONE_ID resistor (pin 18, ADC < 1100 counts). Hub enables dedicated LPI2C3 bus (400kHz fast mode) per slot on detection. Hub PCB Rev B adds Vishay DG2788A TIA gain switch per slot (OI-PBM-HW-01, BLOCKING). Base modules unchanged. BOM delta +$23–28, retail $149–199/zone. See NP-FW-PBM1064-001 Rev A, NP-HW-FPC-001 Rev E.
 - **T2 combined 1064nm + 1170nm session:** 1064nm smart zone modules (cortical depth) + existing 1170nm laser system (subcortical depth) coordinated by session orchestrator. Three-tier penetration stack: 660nm surface → 1064nm cortical → 1170nm deep. Thermal throttle priority: 1170nm throttled first, then 1064nm CH_C, then CH_B. See NP-FW-PBM1064-001 §8 and NP-SES-1064-001 §6.
-- 5 independently addressable zones
-- **600 total LEDs: 300×660nm + 300×808–830nm** on FPC strips (launches at 600 from day one — no Rev A/Rev B)
+- Tiled across the hex-socket lattice (NP-HEX-ZM-001) — zones are protocol-defined sets of sockets (`00-zones.npps`), not a fixed hardware slot count. Total LED count scales with how many T1-A (base PBM) tiles are populated in a given build/config.
 - 6mm inter-LED pitch → ±15–25% irradiance variation (near-uniform field)
 - 120–180mA per LED → L70 80,000–100,000 hours
 - **400 mW/cm² peak pulsed** (≤25% duty cycle, firmware-enforced) / 200 mW/cm² CW max
