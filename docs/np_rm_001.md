@@ -185,7 +185,7 @@ The following hazard categories apply to NeurOne. Each category must be systemat
 | Mechanical | Zone module ejection during use; Boa dial failure; eye goggle impact | Snap-fit detent on eject lever; Boa 50,000-cycle rating; clamshell case |
 | Biological / chemical | Skin sensitisation from silicone/PDMS; infection risk from shared intranasal probe | ISO 10993 biocompatibility; single-use hygiene sleeves; no shared electrode tips |
 | Software / cybersecurity | Malicious session protocol; unauthorised firmware; UHDR data breach | Ed25519 session signing; Ed25519 OTA firmware verification; biometric-derived UHDR key |
-| Usability | Incorrect zone module insertion; confusion between modalities; failure to notice thermal warning | Five-layer keying (RISK-15); bone conduction audio alerts; non-dismissible safety alerts |
+| Usability | Incorrect zone module insertion; confusion between modalities; failure to notice thermal warning | Orientation-only mating feature + software placement validation (RISK-15, **REDESIGNED 2026-07-28** — mechanical type/position keying retired under SMART-1, `docs/np_hex_zm_001.md` §4a; see `docs/np_hfe_001.md` CT-01); companion-app audio confirmation at insertion (bone conduction confirmed unusable for this — requires head contact, unavailable while accessing a socket, see `docs/np_fw_za_001.md`); bone conduction retained for while-worn alerts only; non-dismissible safety alerts |
 | Cardiac (T2 cervical VNS) | Vasovagal response; cardiac arrhythmia from carotid stimulation | Safety MCU cardiac monitor; HR change >15 BPM → GPIO cutoff <100ms (RISK-25) |
 
 ---

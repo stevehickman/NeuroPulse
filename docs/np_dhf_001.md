@@ -107,11 +107,11 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-HW-FPC-001 | FPC Zone Module Specification (base module, ZM-01–ZM-05) | D | 2026-05-09 | [neurone_fpc_zone_module_spec_revA.docx](./neurone_fpc_zone_module_spec_revA.docx) | ACTIVE | SPEC-HW |
-| NP-HW-FPC-001 (variant) | FPC Smart Zone Module (1064nm) — layout variant NP-FPC-ZM-SM-01 | E | 2026-05-13 | [np_hw_fpc_001.md](./np_hw_fpc_001.md) | ACTIVE | SPEC-HW |
-| NP-HW-HUB-001 | Hub PCB Rev B — Vishay DG2788A TIA Gain Switch + NXP PCA9546A I2C Mux | B | 2026-05-13 | [np_hw_hub_001.md](./np_hw_hub_001.md) | ACTIVE | SPEC-HW |
+| NP-HW-FPC-001 | FPC Zone Module Specification (base module, ZM-01–ZM-05) | D | 2026-05-09 | [neurone_fpc_zone_module_spec_revA.docx](./neurone_fpc_zone_module_spec_revA.docx) | **SUPERSEDED 2026-07-28** (5-slot/66×78mm architecture retired — see NP-HEX-ZM-001) | SPEC-HW |
+| NP-HW-FPC-001 (variant) | FPC Smart Zone Module (1064nm) — layout variant NP-FPC-ZM-SM-01 | E | 2026-05-13 | [np_hw_fpc_001.md](./np_hw_fpc_001.md) | **SUPERSEDED 2026-07-28** — see in-doc note | SPEC-HW |
+| NP-HW-HUB-001 | Hub PCB Rev B — Vishay DG2788A TIA Gain Switch + NXP PCA9546A I2C Mux | B | 2026-05-13 | [np_hw_hub_001.md](./np_hw_hub_001.md) | **SUPERSEDED 2026-07-28** — needs Rev C per SMART-1, see in-doc note | SPEC-HW |
 | NP-PROC-FPC-001 | FPC Procurement Requirements | B | 2026-05-08 | [neurone_fpc_procurement_requirements.docx](./neurone_fpc_procurement_requirements.docx) | ACTIVE | PROC |
-| NP-PROC-FPC-1064-001 | 1064nm Smart Module Component Procurement | A | 2026-05-12 | [np_proc_fpc_1064_001.md](./np_proc_fpc_1064_001.md) | ACTIVE | PROC |
+| NP-PROC-FPC-1064-001 | 1064nm Smart Module Component Procurement | A | 2026-05-12 | [np_proc_fpc_1064_001.md](./np_proc_fpc_1064_001.md) | **SUPERSEDED 2026-07-28** — see in-doc note | PROC |
 | NP-FEAS-FNIRS-001 | fNIRS on Existing NIR Optics — Feasibility Assessment (Neurode Labs competitive analysis; reuse of PBM LEDs + dual-PD detectors for hemodynamic brain monitoring) | A | 2026-07-13 | [np_fnirs_feasibility_001.md](./np_fnirs_feasibility_001.md) | EXPLORATORY — see note below | FEAS |
 
 **Note on NP-FEAS-FNIRS-001:** This is a competitive-analysis feasibility assessment, **not a §820.30 design record** (no design input, output, or locked decision is created). It is indexed here for traceability of the engineering evaluation. If an fNIRS modality is pursued, its findings would be formalised into design inputs (NP-DT-001) and a hardware/firmware spec at that time. Gating unknown is empirical (far-field optical coupling through hair); resolve via the breath-hold bench in §6 before any spec work.
@@ -139,7 +139,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-SES-1064-001 | 1064nm Multi-Wavelength Session Protocol | A | 2026-05-12 | [np_ses_1064_001.md](./np_ses_1064_001.md) | ACTIVE | SES |
+| NP-SES-1064-001 | 1064nm Multi-Wavelength Session Protocol | A | 2026-05-12 | [np_ses_1064_001.md](./np_ses_1064_001.md) | **SUPERSEDED 2026-07-28** — wire format fixed at 5 slots, see in-doc note | SES |
 | NP-APP-ISA-001 | Core iOS App ISA — Ideal State Artifact for Issue #51 | E4 | 2026-06-04 | [../app/ios/ISA.md](../app/ios/ISA.md) | ACTIVE — 164 ISCs, 17 groups, **progress 36/164** (2026-06-09). ISC-107–113 OTA update verified (OTAManager, FirmwareUpdateService, OTAModels, OTAView; 27 OTAManagerTests pass). ISC-154 ConsumableTracker verified (23 tests). ISC-11–20 BLE GATT layer verified (25 NeurOneGATTManagerTests pass). ISC-21–34, ISC-161/162/164 Session Display Mode 1 verified. OI-PA-01 (age gate legal threshold) open. | APP |
 | NP-APP-ROADMAP-001 | iOS App Development Roadmap | B | 2026-06-03 | [np_app_roadmap_001.md](./np_app_roadmap_001.md) | ACTIVE — Rev B adds §9 Privacy Constraints (binding engineering constraints): HealthKit residency, minimum age gate (16+), biometric (BIPA-derived) written release screen — shown to ALL users (§9.3, universalized 2026-07-10), Adaptive Adjustments card, SDK init gate; OI-PA-01 OPEN; OI-PA-02 OPEN; OI-PA-03 RESOLVED (locale gate removed); OI-WA-06 OPEN. AgeGateView.swift now implemented (Issue #51, PR #106) — OI-PA-01 (legal counsel threshold confirmation) remains open. | APP |
 | NP-APP-TELEMETRY-001 | App Analytics and Crash Reporting Policy | B | 2026-06-03 | [np_app_telemetry_001.md](./np_app_telemetry_001.md) | ACTIVE — Rev B: `session_sequence` (raw integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev B LOW-03; §3.2 implementation note added | APP |
@@ -155,8 +155,8 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-TOOL-ZM-001 | Zone Module Tooling Specification | A | 2026-05-06 | [neurone_tool_zone_module_001.docx](./neurone_tool_zone_module_001.docx) | ACTIVE | SPEC-TOOL |
-| NP-TOOL-ZM-SM-001 | 1064nm Smart Zone Module Tooling Variant | A | 2026-05-12 | [np_tool_zm_sm_001.md](./np_tool_zm_sm_001.md) | ACTIVE | SPEC-TOOL |
+| NP-TOOL-ZM-001 | Zone Module Tooling Specification | A | 2026-05-06 | [neurone_tool_zone_module_001.docx](./neurone_tool_zone_module_001.docx) | **SUPERSEDED 2026-07-28** — named "legacy zone-module tooling" predecessor in NP-HEX-ZM-001 §8; replaced by the universal hex-tile mould | SPEC-TOOL |
+| NP-TOOL-ZM-SM-001 | 1064nm Smart Zone Module Tooling Variant | A | 2026-05-12 | [np_tool_zm_sm_001.md](./np_tool_zm_sm_001.md) | **SUPERSEDED 2026-07-28** — see in-doc note | SPEC-TOOL |
 | NP-TOOL-SHELL-001 | Shell Tooling Specification | A | 2026-05-10 | [neurone_tool_shell_001.docx](./neurone_tool_shell_001.docx) | ACTIVE | SPEC-TOOL |
 | NP-TOOL-LENS-001 | Lens and Goggle Assembly Tooling Specification | B | 2026-05-10 | [neurone_tool_lens_001.docx](./neurone_tool_lens_001.docx) | ACTIVE | SPEC-TOOL |
 | NP-TOOL-HUB-001 | Hub Enclosure Tooling Specification | A | 2026-07-27 | [np_tool_hub_001.md](./np_tool_hub_001.md) | ACTIVE — 6 open items (OI-HTOOL-01–06), hub-to-shell mechanical interface not yet CAD-locked | SPEC-TOOL |

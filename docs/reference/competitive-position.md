@@ -5,7 +5,7 @@
 | Feature | NeurOne Home | NeurOne Pro | Vielight Neuro Pro 2 (~$5K) | Neuronic 1070 ($3K–5K) | Sens.ai (~$1.5–2K + sub) | Neurode (~$999 + $29/mo) |
 |---------|----------------|----------------|------------------------------|------------------------|--------------------------|--------------------------|
 | PBM wavelengths | 660+810nm base / 660+810+1064nm with smart module upgrade (3λ) | 660+810+1064nm+1170nm (4λ) | 810nm (1λ) | 1070nm (1λ) | ~810nm (1λ) | None |
-| Total LED count | 600 (300/wavelength) | 600 + 1170nm LDs | ~12 transcranial | 256–300 (1 wavelength) | ~7 midline | None (no PBM) |
+| Total LED count | **⚠ needs recompute** — was 600 (300/wavelength) fixed across 5 zone modules; that hardware model is retired (NP-HEX-ZM-001), total now scales with T1-A tiles populated per build, pending REG-1 tile-count lock | 600 + 1170nm LDs | ~12 transcranial | 256–300 (1 wavelength) | ~7 midline | None (no PBM) |
 | Peak irradiance | 400 mW/cm² pulsed* | 400 + 1,000 mW/cm² | 400 mW/cm² | Not specified | Not specified | N/A |
 | Real-time dose (J/cm²) | Yes — per zone | Yes | No | No | No | N/A |
 | Brain monitoring | EEG (electrical) | EEG (electrical) | None | None | EEG (electrical) | **fNIRS (hemodynamic, "152"-ch)** — NeurOne has no fNIRS |
@@ -28,8 +28,8 @@
 **Neurode gap note (2026-07-13):** Two Neurode capabilities have no NeurOne equivalent today — **fNIRS hemodynamic brain monitoring** and **tRNS**. Both are low-cost to close: fNIRS reuses NeurOne's existing NIR optics (see `docs/np_fnirs_feasibility_001.md`); tRNS is a firmware preset on the T2 arbitrary-waveform driver. Neurode is otherwise a single-modality ADHD/focus device with no PBM, EEG, EMF shielding, or phone-free operation.
 
 **Key competitive claims:**
-- "50× more transcranial LEDs than Vielight at 17% of the price"
-- "300 LEDs per wavelength — matching Neuronic's total LED count at each of the two CCO absorption peaks they don't cover"
+- ⚠ **"50× more transcranial LEDs than Vielight at 17% of the price" — NEEDS RECOMPUTE.** Based on the retired fixed 600-LED/5-zone hardware count (see Total LED count row above); do not use until re-derived against the hex-tile architecture (NP-HEX-ZM-001).
+- ⚠ **"300 LEDs per wavelength — matching Neuronic's total LED count..." — NEEDS RECOMPUTE.** Same stale 300/wavelength basis.
 - "Real-time J/cm² dose metering — the only device that shows you the exact dose your brain received"
 - "Only consumer brain device with palladium-fabric EMF shielding verified by continuous fleet monitoring"
 - "Autonomous closed-loop operation from any power bank — no phone required"

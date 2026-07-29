@@ -17,6 +17,16 @@
 
 ---
 
+> **⚠ SUPERSEDED (2026-07-28) — mechanical/addressing model retired, do not use for new design work.** This document specifies the position-unique, large-format (66×78mm) zone-module architecture: one Hirose FH34S 20-pin connector per zone, five fixed zone-slot positions (ZM-01..05), and ZONE_ID resistor-ladder detection. `NP-HEX-ZM-001` (2026-07-15) replaced this entirely with a universal 40mm hex-tile SKU tiling ~30–80 sockets, addressed by UID-based auto-inventory (`np_module_map`), not a resistor ladder — see `docs/np_hex_zm_001.md` §4a (module-type taxonomy: this document's smart module ≈ today's **T1-C**).
+>
+> **Retired outright, do not reuse:** the 66×78mm FPC footprint and LED counts/pitch derived from it (§4); the 20-pin connector and full pinout (§2, §3); the ZONE_ID resistor-ladder table and threshold scheme (§3.2); per-slot I2C bus/pull-up counts sized for 5 slots (§3.1, §6.4); the 5-slot TIA gain-switch BOM (§5.3, superseded by the SMART-1 decision — *every* socket is now I2C/TIA-capable, not 5).
+>
+> **Likely still-reusable engineering, NOT yet re-validated against the hex-tile form factor:** the on-module ATtiny402 (I2C slave) + 3× N-FET driver architecture (§6.2–6.3) — this is conceptually what `NP-HEX-ZM-001` §4a now calls T1-C's "on-module driver"; the InGaAs PD choice for 1064nm dose metering (§5.1, Hamamatsu G12180-010A); the PDMS bonding process/material spec (§7); the TIA-saturation analysis *methodology* (§5.3 — the physics, not the per-slot numbers).
+>
+> **Open gap this note does not fill:** no document yet specifies the T1-A/T1-C hex-tile FPC pinout or electrical layout at the level of detail this document provided for the retired architecture. That is unwritten, not merely superseded.
+
+---
+
 ## 1. Scope
 
 This document specifies the FPC layout variant for the 1064nm smart zone module accessory (SKU: NP-ZM-1064). It is a **variant document** layered on NP-HW-FPC-001 Rev D. All base module FPC decisions (connector, PD1/PD2 annular ring positions, PDMS bonding process, EEG channel routing separation, gasket groove geometry) are inherited unchanged. Only the differences are documented here.

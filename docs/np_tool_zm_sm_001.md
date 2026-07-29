@@ -17,6 +17,14 @@
 
 ---
 
+> **⚠ SUPERSEDED (2026-07-28) — parent mould family retired, do not use for new tooling work.** This is a variant of `NP-TOOL-ZM-001`, itself named a "legacy zone-module tooling" predecessor in `docs/np_hex_zm_001.md` §8. `NP-HEX-ZM-001` §1 replaces the whole position-unique-mould-plus-variant approach with **one universal 40mm hex-tile mould**, where element population (T1-A/B/C) is an FPC/loading difference, not a separate mould tool — see §6 "one universal module-shell mould... the inventory/tooling win."
+>
+> **CONFIRMED 2026-07-28 — the F-SM-03 mechanical key is not needed, do not carry it forward.** F-SM-03 existed to physically prevent a smart module from being inserted into a hub slot not wired for it. Under the SMART-1 decision, *every* socket is I2C/TIA-capable, so there is no "wrong socket" left to key against — for T1-C or any future smart module type. `NP-HEX-ZM-001` §4a is explicit that hex-tile modules use an orientation-only key with no type differentiation. **Downstream effect on this document's own content:** §3 F-SM-03 (the "two-slot design," the ≥2.0mm wider key body, the per-zone smart-key dimension table) and `OI-SM-SHELL-01` (the shell Rev B dual-slot-cutout requirement this key drove) do not carry forward to the hex-tile mould — that requirement is gone, not just the mould geometry. §4 checklist items SM-MDR-07/SM-MDR-08 and §5 FAI-SM-MOULD-02 (all key-specific) are moot for the same reason. The rest of the F-SM-03 section below is retained as historical record of the retired design, not as a spec to implement.
+>
+> **Possibly still-reusable:** the rigidizer-cavity concept (F-SM-01, accommodating an on-module driver sub-board) — NP-HEX-ZM-001's T1-C also carries an on-module driver, so a cavity of this kind is still plausibly needed, but its dimensions (sized for the retired 66×78mm module) are not validated against the 40mm hex tile.
+
+---
+
 ## 1. Scope
 
 This document specifies the mould variant for the 1064nm smart zone module shell (SKU: NP-ZM-1064). The base zone module mould (NP-TOOL-ZM-001 Rev A, features F-01 through F-08) is **unchanged and not re-tooled**. The smart module mould variant is a **separate mould tool** designated **NP-MOULD-ZM-SM-01**, sharing geometry with the base module mould with the following differences:
