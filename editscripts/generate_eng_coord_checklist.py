@@ -1,4 +1,14 @@
 """
+⚠ PARTIALLY SUPERSEDED (2026-07-28): this generator's G2-01 (multi-FPC/5 zone tails), G2-02
+(5-variant zone-differentiating mechanical key), and the G1-13/G2-10 ZONE_ID-based firmware
+items describe the retired 5-zone-slot architecture — see docs/np_hex_zm_001.md. Do NOT
+re-run: docs/neurone_eng_coordination_checklist.docx has since been extended by many later
+patch_*.py scripts (fix_coord_duplicates, patch_risk16_cont, patch_t2_additions, etc.), so a
+from-scratch regeneration here would discard that work. The corrected G2-01/G2-02/G2-05/
+G3-03/G2-10 state is applied in place by editscripts/patch_hexzm_eng_coord_corrections.py.
+Most of this document (G1, G3, and the rest of G2) is unrelated to zone-module architecture
+and remains current. Kept here as the historical base generator.
+
 Generate NP-COORD-001 Rev A:
   Zone Module FPC — Engineering Coordination Checklist
 Covers RISK-13 (primary) and consolidates all cross-discipline coordination items

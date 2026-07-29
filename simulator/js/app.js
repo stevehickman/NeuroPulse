@@ -11,7 +11,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { HelmetModel }  from './helmet.js';
 import { SessionEngine } from './session.js';
 import { UIManager }    from './ui.js';
-import { PROTOCOLS }    from './protocols.js';
+import { PROTOCOLS }    from './protocols.generated.js';
 import { DeviceAPI }    from './api.js';
 import { SIM_VERSION }  from './version.js';
 

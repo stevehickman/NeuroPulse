@@ -1,4 +1,12 @@
 """
+⚠ SUPERSEDED (2026-07-28): the FAI-A09..A14 items this script adds test the retired 5-layer
+zone-keying system (mechanical zone-differentiating key + ZONE_ID resistor ladder + per-zone
+braille/tactile markers) — see editscripts/patch_risk15.py's header note for why that system
+no longer exists under the hex-tile/socket architecture (NP-HEX-ZM-001). Do not re-run. The
+corrected FAI-A01..A15 state (including A09-A14 rewritten for the universal orientation key
+and the UID-based placement-check software gate) is applied by
+editscripts/patch_hexzm_fai_corrections.py. Kept here as historical record.
+
 Patch NP-FAI-ZM-001: add RISK-15 accessibility verification items to §4a
 and cross-reference table in §9.
 """

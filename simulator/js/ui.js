@@ -4,16 +4,12 @@
  */
 
 import { WL, MODALITY_COLORS } from './colors.js';
-import { PROTOCOLS } from './protocols.js';
+import { PROTOCOLS } from './protocols.generated.js';
+import { ZONES } from './sockets.generated.js';
 
-const ZONE_IDS = ['ZM-01', 'ZM-02', 'ZM-03', 'ZM-04', 'ZM-05'];
-const ZONE_NAMES = {
-  'ZM-01': 'Frontal',
-  'ZM-02': 'Left Temporal',
-  'ZM-03': 'Right Temporal',
-  'ZM-04': 'Left Parietal',
-  'ZM-05': 'Occipital',
-};
+// Real named zones (protocols/predefined/00-zones.npps), not the retired
+// 5-slot ZM-01..05 model — see docs/np_hex_zm_001.md.
+const ZONE_NAMES = ZONES.map(z => z.name);
 
 const WL_CHOICES_T1 = ['660nm', '808nm', '1064nm'];
 const WL_CHOICES_T2 = ['660nm', '808nm', '1064nm', '1170nm'];
@@ -35,8 +31,8 @@ export class UIManager {
   constructor(callbacks) {
     this.cb = callbacks;
     this._zoneState = {};
-    ZONE_IDS.forEach(id => {
-      this._zoneState[id] = { installed: false, wavelengths: [], frequency: 10 };
+    ZONE_NAMES.forEach(name => {
+      this._zoneState[name] = { installed: false, wavelengths: [], frequency: 10 };
     });
 
     this._buildZoneConfig();
@@ -83,11 +79,17 @@ export class UIManager {
 
   // ─── zone configuration ────────────────────────────────────────────────────
 
+  /** DOM-safe id fragment for a zone name ("Vault (excl. Occipital)" -> "vault-excl-occipital"). */
+  _slug(name) {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  }
+
   _buildZoneConfig() {
     const container = document.getElementById('zone-config');
     if (!container) return;
 
-    ZONE_IDS.forEach(id => {
+    ZONE_NAMES.forEach(name => {
+      const id = this._slug(name);
       const card = document.createElement('div');
       card.className = 'zone-card';
       card.id = `zone-card-${id}`;
@@ -101,7 +103,7 @@ export class UIManager {
       const chk = document.createElement('input');
       chk.type = 'checkbox';
       chk.id   = `zone-chk-${id}`;
-      chk.addEventListener('change', () => this._onZoneToggle(id));
+      chk.addEventListener('change', () => this._onZoneToggle(name));
 
       const slider = document.createElement('span');
       slider.className = 'toggle-slider';
@@ -110,7 +112,7 @@ export class UIManager {
 
       const label = document.createElement('span');
       label.className = 'zone-label-text';
-      label.textContent = `${id} — ${ZONE_NAMES[id]}`;
+      label.textContent = name;
 
       header.append(toggle, label);
       card.appendChild(header);
@@ -136,7 +138,7 @@ export class UIManager {
         btn.title = WL[wl]?.description ?? wl;
         btn.style.setProperty('--wl-color', WL[wl]?.hex ?? '#ff4400');
         btn.textContent = wl;
-        btn.addEventListener('click', () => this._onWLToggle(id, wl, btn));
+        btn.addEventListener('click', () => this._onWLToggle(name, wl, btn));
         wlPicker.appendChild(btn);
       });
 
@@ -167,7 +169,7 @@ export class UIManager {
         if (p.value === 10) opt.selected = true;
         freqSel.appendChild(opt);
       });
-      freqSel.addEventListener('change', () => this._onFreqChange(id));
+      freqSel.addEventListener('change', () => this._onFreqChange(name));
       freqWrap.appendChild(freqSel);
 
       wlWrap.append(wlLabel, wlPicker, freqLabel, freqWrap);
@@ -177,21 +179,22 @@ export class UIManager {
     });
   }
 
-  _onZoneToggle(id) {
+  _onZoneToggle(name) {
+    const id = this._slug(name);
     const chk = document.getElementById(`zone-chk-${id}`);
     const wlWrap = document.getElementById(`zone-wl-${id}`);
     const card  = document.getElementById(`zone-card-${id}`);
     const inst  = chk.checked;
 
-    this._zoneState[id].installed = inst;
+    this._zoneState[name].installed = inst;
     wlWrap?.classList.toggle('hidden', !inst);
     card?.classList.toggle('zone-active', inst);
 
-    this.cb.onZoneChange(id, { ...this._zoneState[id] });
+    this.cb.onZoneChange(name, { ...this._zoneState[name] });
   }
 
-  _onWLToggle(id, wl, btn) {
-    const state = this._zoneState[id];
+  _onWLToggle(name, wl, btn) {
+    const state = this._zoneState[name];
     const idx = state.wavelengths.indexOf(wl);
     if (idx >= 0) {
       state.wavelengths.splice(idx, 1);
@@ -200,13 +203,14 @@ export class UIManager {
       state.wavelengths.push(wl);
       btn.classList.add('active');
     }
-    this.cb.onZoneChange(id, { ...state });
+    this.cb.onZoneChange(name, { ...state });
   }
 
-  _onFreqChange(id) {
+  _onFreqChange(name) {
+    const id = this._slug(name);
     const sel = document.getElementById(`zone-freq-${id}`);
-    this._zoneState[id].frequency = Number(sel.value);
-    this.cb.onZoneChange(id, { ...this._zoneState[id] });
+    this._zoneState[name].frequency = Number(sel.value);
+    this.cb.onZoneChange(name, { ...this._zoneState[name] });
   }
 
   // ─── accessories ───────────────────────────────────────────────────────────
@@ -318,15 +322,16 @@ export class UIManager {
     const pbm = p.modalities.pbm;
     if (!pbm) return;
 
-    ZONE_IDS.forEach(id => {
-      const inst = pbm.zones?.includes(id) ?? false;
+    ZONE_NAMES.forEach(name => {
+      const id = this._slug(name);
+      const inst = pbm.zones?.includes(name) ?? false;
       const chk  = document.getElementById(`zone-chk-${id}`);
       if (chk) chk.checked = inst;
 
       // Trigger wavelength pre-selection
-      this._zoneState[id].installed   = inst;
-      this._zoneState[id].wavelengths = inst ? [...(pbm.wavelengths ?? [])] : [];
-      this._zoneState[id].frequency   = pbm.frequency ?? 10;
+      this._zoneState[name].installed   = inst;
+      this._zoneState[name].wavelengths = inst ? [...(pbm.wavelengths ?? [])] : [];
+      this._zoneState[name].frequency   = pbm.frequency ?? 10;
 
       document.getElementById(`zone-wl-${id}`)?.classList.toggle('hidden', !inst);
       document.getElementById(`zone-card-${id}`)?.classList.toggle('zone-active', inst);
@@ -335,14 +340,14 @@ export class UIManager {
       if (inst) {
         const picker = document.getElementById(`zone-wl-picker-${id}`);
         picker?.querySelectorAll('.wl-btn').forEach(btn => {
-          btn.classList.toggle('active', this._zoneState[id].wavelengths.includes(btn.dataset.wl));
+          btn.classList.toggle('active', this._zoneState[name].wavelengths.includes(btn.dataset.wl));
         });
 
         const freqSel = document.getElementById(`zone-freq-${id}`);
         if (freqSel) freqSel.value = String(pbm.frequency ?? 10);
       }
 
-      this.cb.onZoneChange(id, { ...this._zoneState[id] });
+      this.cb.onZoneChange(name, { ...this._zoneState[name] });
     });
   }
 
@@ -404,15 +409,18 @@ export class UIManager {
       { id: 'met-hr',     label: 'Heart rate',      unit: 'bpm',    icon: '♡' },
       { id: 'met-hrv',    label: 'RMSSD',           unit: 'ms',     icon: '~' },
       { id: 'met-coh',    label: 'HRV coherence',   unit: '/10',    icon: '◉' },
-      { id: 'met-dose1',  label: 'ZM-01 dose',      unit: 'J/cm²',  icon: '☀' },
+      { id: 'met-dose1',  label: 'PBM dose',        unit: 'J/cm²',  icon: '☀', labelId: 'met-dose1-label' },
     ];
 
-    METRICS.forEach(({ id, label, unit, icon }) => {
+    METRICS.forEach(({ id, label, unit, icon, labelId }) => {
       const row = document.createElement('div');
       row.className = 'metric-row';
+      const labelHtml = labelId
+        ? `<span class="metric-label" id="${labelId}">${label}</span>`
+        : `<span class="metric-label">${label}</span>`;
       row.innerHTML = `
         <span class="metric-icon">${icon}</span>
-        <span class="metric-label">${label}</span>
+        ${labelHtml}
         <span class="metric-value" id="${id}">—</span>
         <span class="metric-unit">${unit}</span>`;
       container.appendChild(row);
@@ -450,9 +458,15 @@ export class UIManager {
       v('met-hr', '—'); v('met-hrv', '—'); v('met-coh', '—');
     }
 
-    if (snap.pbm.active && snap.pbm.dose['ZM-01']) {
-      v('met-dose1', snap.pbm.dose['ZM-01']);
+    // Real protocols can target several named zones at once (00-zones.npps);
+    // show the dose of the first targeted zone rather than a fixed "ZM-01".
+    const firstZone = snap.pbm.zones?.[0];
+    const labelEl = document.getElementById('met-dose1-label');
+    if (snap.pbm.active && firstZone && snap.pbm.dose[firstZone] !== undefined) {
+      if (labelEl) labelEl.textContent = `PBM dose (${firstZone})`;
+      v('met-dose1', snap.pbm.dose[firstZone]);
     } else {
+      if (labelEl) labelEl.textContent = 'PBM dose';
       v('met-dose1', '—');
     }
   }

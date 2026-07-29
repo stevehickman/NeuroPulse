@@ -5,7 +5,7 @@
  * correct so the UI displays realistic-looking numbers.
  */
 
-import { PROTOCOLS } from './protocols.js';
+import { PROTOCOLS } from './protocols.generated.js';
 
 export class SessionEngine {
   constructor() {

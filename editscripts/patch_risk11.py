@@ -1,4 +1,13 @@
 """
+⚠ SUPERSEDED (2026-07-28): this script's NP-DRV-SHELL-001 mitigation (5 fixed zone-slot FPC
+routing paths) is retired by the hex-tile/socket architecture (NP-HEX-ZM-001) — see
+editscripts/generate_fpc_routing_review.py's header note. The generic bend-radius physics
+this script adds to FPC spec §11.2 (IPC-2223D basis, ≥25mm dynamic / ≥12.5mm static) remain
+valid engineering constraints, but the RISK-11 mitigation claim itself needed correcting. Do
+not re-run this script (its §11.2 insertion isn't idempotent and its risk-register mitigation
+text is stale). The corrected RISK-11 state is applied by
+editscripts/patch_hexzm_risk_corrections.py. Kept here as historical record.
+
 Patch RISK-11:
 1. Populate §11.2 in FPC spec with bend radius requirements + reference to NP-DRV-SHELL-001
 2. Update risk register RISK-11 summary row and body text

@@ -1,4 +1,16 @@
 """
+⚠ PARTIALLY SUPERSEDED (2026-07-28): this generator's §4a (FAI-A01..A08, EEG-site CMM checks
+tied to 5 named zones), §6a (FAI-SY01/SY02, "all 5 zones"/"Zone 1..5" system tests), and §6
+(FAI-R04, bend radius "all 5 zones") describe the retired 5-zone-slot architecture — see
+docs/np_hex_zm_001.md. Do NOT re-run: docs/neurone_fai_zone_module.docx has since been
+extended by many later patch_*.py scripts (patch_fai_risk15, patch_risk16, patch_t2_additions,
+patch_risk22, etc.), so a from-scratch regeneration here would discard that work. The
+corrected FAI-A01..A15/R04/SY01/SY02 state is applied in place by
+editscripts/patch_hexzm_fai_corrections.py (which also supersedes the retired-keying items
+added later by patch_fai_risk15.py). Most of this document (PDMS adhesion, thermal cycling,
+lifecycle, etc.) is unrelated to zone-module architecture and remains current. Kept here as
+the historical base generator.
+
 Generate NP-FAI-ZM-001 Rev A:
   Zone Module FPC Assembly — First Article Inspection (FAI) Checklist
 Covers RISK-12 (alignment) and consolidates all inspection items from previous
