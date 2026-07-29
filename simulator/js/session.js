@@ -81,11 +81,23 @@ export class SessionEngine {
     const dur = this.protocol.duration;
     const m   = this.protocol.modalities;
     const rampFraction = this._rampEnvelope(t, dur);
+    // "running" alone doesn't account for pause — every modality's `active`
+    // flag must gate on this, not `this.running`, or paused sessions keep
+    // animating (LED pulses, VNS clip, TMS coil, modality pills) even though
+    // the session clock (tick(), above) correctly freezes.
+    const live = this.running && !this.paused;
 
     // ── PBM ──────────────────────────────────────────────────────────────────
+    // `configured` (protocol includes this modality) is distinct from `active`
+    // (currently live-emitting, false while paused — see `live` above).
+    // Readouts derived purely from frozen state (`t`/`this.elapsed`, which
+    // tick() already holds while paused) should key on `configured` so a
+    // paused session still shows its last values instead of blanking to "—";
+    // only in-use indicators (LED pulses, modality pills) should key on `active`.
     const pbm = m.pbm ?? {};
     const pbmState = {
-      active:      this.running && (pbm.active ?? false),
+      active:      live && (pbm.active ?? false),
+      configured:  !!(pbm.active),
       zones:       pbm.zones ?? [],
       wavelengths: pbm.wavelengths ?? [],
       frequency:   pbm.frequency ?? 0,
@@ -93,7 +105,7 @@ export class SessionEngine {
       intensity:   rampFraction,
       dose:        {},
     };
-    if (pbmState.active) {
+    if (pbmState.configured) {
       (pbm.zones ?? []).forEach(z => {
         if (!this._dose[z]) this._dose[z] = 0;
         const irr = 200; // mW/cm² average simulated
@@ -104,7 +116,8 @@ export class SessionEngine {
 
     // ── EEG ──────────────────────────────────────────────────────────────────
     const eegState = {
-      active: this.running && (m.eeg?.active ?? false),
+      active: live && (m.eeg?.active ?? false),
+      configured: !!(m.eeg?.active),
       channels: m.eeg?.channels ?? [],
       bands: { ...this._eegState.bands },
       impedance: { ...this._eegState.impedance },
@@ -114,20 +127,21 @@ export class SessionEngine {
 
     // ── BES ──────────────────────────────────────────────────────────────────
     const besState = {
-      active: this.running && (m.bes?.active ?? false),
+      active: live && (m.bes?.active ?? false),
       frequency: m.bes?.frequency ?? 10,
       intensity_ma: ((m.bes?.intensity_ma ?? 0.5) * rampFraction).toFixed(2),
     };
 
     // ── tDCS ─────────────────────────────────────────────────────────────────
     const tdcsState = {
-      active: this.running && (m.tdcs?.active ?? false),
+      active: live && (m.tdcs?.active ?? false),
       intensity_ma: ((m.tdcs?.intensity_ma ?? 1.0) * rampFraction).toFixed(2),
     };
 
     // ── VNS + HRV ────────────────────────────────────────────────────────────
     const vnsState = {
-      active: this.running && (m.vns?.active ?? false),
+      active: live && (m.vns?.active ?? false),
+      configured: !!(m.vns?.active),
       frequency: m.vns?.frequency ?? 25,
       hrv_sync: m.vns?.hrv_sync ?? false,
       coherence: this._hrvState.coherence,
@@ -138,7 +152,7 @@ export class SessionEngine {
 
     // ── Audio ─────────────────────────────────────────────────────────────────
     const audioState = {
-      active: this.running && (m.audio?.active ?? false),
+      active: live && (m.audio?.active ?? false),
       binaural_hz: m.audio?.binaural_hz ?? 10,
       type: m.audio?.type ?? 'binaural',
       breathing_pacer: m.audio?.breathing_pacer ?? false,
@@ -147,14 +161,14 @@ export class SessionEngine {
 
     // ── Visual ───────────────────────────────────────────────────────────────
     const visualState = {
-      active: this.running && (m.visual?.active ?? false),
+      active: live && (m.visual?.active ?? false),
       frequency: m.visual?.frequency ?? 40,
       mode: m.visual?.mode ?? 'photic_driving',
     };
 
     // ── TMS ──────────────────────────────────────────────────────────────────
     const tmsState = {
-      active: this.running && (m.tms?.active ?? false),
+      active: live && (m.tms?.active ?? false),
       frequency: m.tms?.frequency ?? 10,
       target: m.tms?.target ?? 'DLPFC_L',
       pattern: m.tms?.pattern ?? 'rTMS',
@@ -162,7 +176,7 @@ export class SessionEngine {
 
     // ── HD-tDCS ───────────────────────────────────────────────────────────────
     const hdtdcsState = {
-      active: this.running && (m.hd_tdcs?.active ?? false),
+      active: live && (m.hd_tdcs?.active ?? false),
       target: m.hd_tdcs?.target ?? 'DLPFC_L',
       intensity_ma: ((m.hd_tdcs?.intensity_ma ?? 2.0) * rampFraction).toFixed(2),
     };
@@ -192,11 +206,11 @@ export class SessionEngine {
     return {
       running: false, paused: false,
       elapsed: 0, duration: 0, progress: 0, wallTime: 0,
-      pbm: { active: false, zones: [], wavelengths: [], frequency: 0, dutyCycle: 0, intensity: 0, dose: {} },
-      eeg: { active: false, channels: [], bands: {}, impedance: {}, alphaPower: 0, neurofeedbackScore: 0 },
+      pbm: { active: false, configured: false, zones: [], wavelengths: [], frequency: 0, dutyCycle: 0, intensity: 0, dose: {} },
+      eeg: { active: false, configured: false, channels: [], bands: {}, impedance: {}, alphaPower: 0, neurofeedbackScore: 0 },
       bes: { active: false, frequency: 0, intensity_ma: '0.00' },
       tdcs: { active: false, intensity_ma: '0.00' },
-      vns: { active: false, frequency: 0, hrv_sync: false, coherence: 0, rmssd: 0, hr: 0, breathing_phase: 0 },
+      vns: { active: false, configured: false, frequency: 0, hrv_sync: false, coherence: 0, rmssd: 0, hr: 0, breathing_phase: 0 },
       audio: { active: false, binaural_hz: 0, type: 'binaural', breathing_pacer: false, breathing_bpm: 6 },
       visual: { active: false, frequency: 0, mode: '' },
       tms: { active: false, frequency: 0, target: '', pattern: '' },

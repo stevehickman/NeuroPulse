@@ -443,14 +443,21 @@ export class UIManager {
       if (el) el.textContent = val;
     };
 
-    if (snap.eeg.active) {
+    // Readouts show the frozen last value while paused (session.js keeps
+    // `configured` true independent of pause) and only blank to "—" once the
+    // session actually stops (snap.running false) or the protocol never used
+    // that modality. `active` (in-use, false while paused) drives the LED/pill
+    // animations elsewhere, not these numeric readouts.
+    const holding = snap.running;
+
+    if (holding && snap.eeg.configured) {
       v('met-alpha', snap.eeg.alphaPower.toFixed(1));
       v('met-nf',    snap.eeg.neurofeedbackScore.toFixed(1));
     } else {
       v('met-alpha', '—'); v('met-nf', '—');
     }
 
-    if (snap.vns.active) {
+    if (holding && snap.vns.configured) {
       v('met-hr',  snap.vns.hr.toFixed(0));
       v('met-hrv', snap.vns.rmssd.toFixed(1));
       v('met-coh', snap.vns.coherence.toFixed(1));
@@ -462,7 +469,7 @@ export class UIManager {
     // show the dose of the first targeted zone rather than a fixed "ZM-01".
     const firstZone = snap.pbm.zones?.[0];
     const labelEl = document.getElementById('met-dose1-label');
-    if (snap.pbm.active && firstZone && snap.pbm.dose[firstZone] !== undefined) {
+    if (holding && snap.pbm.configured && firstZone && snap.pbm.dose[firstZone] !== undefined) {
       if (labelEl) labelEl.textContent = `PBM dose (${firstZone})`;
       v('met-dose1', snap.pbm.dose[firstZone]);
     } else {

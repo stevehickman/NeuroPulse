@@ -20,7 +20,7 @@
 
 import * as THREE from 'three';
 import { WL, IMPEDANCE_COLORS } from './colors.js';
-import { SOCKETS, ZONES, SOCKET_ZONE_NAMES } from './sockets.generated.js';
+import { SOCKETS, ZONES, SOCKET_ZONE_NAMES, UNIT_ANGULAR_PITCH } from './sockets.generated.js';
 
 // ── shell geometry parameters ────────────────────────────────────────────────
 const SHELL_R    = 1.02;
@@ -173,6 +173,11 @@ export class HelmetModel {
     }
 
     // ── Hub status LEDs ────────────────────────────────────────────────────
+    // CLAUDE.md §4.7: the session LED's pulse is what lets a caregiver confirm
+    // the protocol is actively running from across the room — it must stop
+    // pulsing on pause, not just when fully stopped, or a paused session looks
+    // identical to a running one.
+    const live = snap.running && !snap.paused;
     if (this.parts.hubLedPower) {
       const breathe = 0.4 + 0.4 * Math.sin(t * 1.5);
       this.parts.hubLedPower.material.emissiveIntensity = snap.running ? 0.9 : breathe;
@@ -181,9 +186,9 @@ export class HelmetModel {
       // Pulse at session frequency / 4 for visible indication across room
       const sessionFreq = snap.pbm.frequency || 1;
       const sPhase = (t * (sessionFreq / 4)) % 1;
-      this.parts.hubLedSession.material.emissiveIntensity = snap.running
+      this.parts.hubLedSession.material.emissiveIntensity = live
         ? (sPhase < 0.5 ? 0.9 : 0.1)
-        : 0;
+        : (snap.running ? 0.3 : 0); // paused: dim steady, not pulsing; stopped: off
     }
 
     // ── VNS clip (auricular) ───────────────────────────────────────────────
@@ -330,7 +335,22 @@ export class HelmetModel {
    */
   _buildSockets() {
     const hexShape = new THREE.Shape();
-    const HEX_R = 0.062; // ~half the socket pitch at this scale
+    // Size each hex tile from the real lattice pitch (UNIT_ANGULAR_PITCH: the
+    // angular size, at this projection's calibration, of one 40mm lattice
+    // unit — also the verified nearest-neighbor spacing between adjacent
+    // sockets, see scripts/generate-simulator-data.ts). World-space distance
+    // between adjacent tile centers ≈ UNIT_ANGULAR_PITCH * draw radius
+    // (tangential arc-length approximation). For a regular hexagon, the
+    // flat-to-flat width equals that center-to-center spacing, and
+    // circumradius = flat-to-flat / √3. A small TILE_FILL factor leaves a
+    // visible gap between tiles (a bezel) rather than sizing them to
+    // perfectly touch, since the azimuthal-equidistant projection increasingly
+    // compresses tangential spacing away from the crown pole and hexes at the
+    // far/temporal edge would otherwise start to overlap.
+    const drawR = SHELL_R * 1.002;
+    const centerSpacing = UNIT_ANGULAR_PITCH * drawR;
+    const TILE_FILL = 0.86;
+    const HEX_R = (centerSpacing / Math.sqrt(3)) * TILE_FILL;
     for (let i = 0; i < 6; i++) {
       const a = (Math.PI / 3) * i + Math.PI / 6;
       const px = HEX_R * Math.cos(a);

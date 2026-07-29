@@ -174,35 +174,61 @@ function buildModalities(def: NPProtocolDefinition, durationSeconds: number) {
 // convention (phi: azimuth from +Z front, 0=front, π=back; theta: polar angle from +Y
 // crown, 0=crown). This is a projection of real, sourced lattice data — not invented
 // geometry. See NP-HEX-ZM-001 §3.4 for the lattice's own provisional status.
-function toSpherical(row: number, x: number, rowCount: number, maxAbsX: number) {
-  const CROWN_ROW = (rowCount - 1) / 2; // 5.5 for 12 rows — matches the ~50% central-sulcus landmark
-  const THETA_MAX = 0.58 * Math.PI;      // stays within the shell's 0.62π dome coverage (helmet.js SHELL)
+//
+// hardware/np_socket_map.json's x/y are a proper offset hex lattice, not two
+// independently-scaled axes: verified nearest-neighbor center-to-center distance is
+// exactly 1.0 unit (= moduleWidthMm, 40mm) everywhere, same-row or cross-row. Any
+// projection that normalizes the sagittal (row/y) and lateral (x) components by
+// different constants before combining them breaks that real, uniform spacing —
+// which is exactly what produced overlapping/non-adjacent hex tiles in the first
+// version of this script. The fix: recenter x/y on a single shared origin (the
+// crown) and take ONE radial distance (rho, in real lattice units) from it, so
+// equal real distances always map to equal angular distances regardless of
+// direction — a standard azimuthal-equidistant projection from the crown point.
+function toSpherical(x: number, y: number, yCrown: number, angularScale: number) {
+  const lateralUnits = -x;              // sign-flipped: anatomical LEFT -> +X (mirrored clinical view, matches EEG_POSITIONS convention in helmet.js)
+  const forwardUnits = yCrown - y;      // +front (toward Fp/row0) .. -back (toward O/row11)
 
-  const sagNorm = (row - CROWN_ROW) / CROWN_ROW;       // -1 (front/Fp row) .. +1 (back/O row)
-  const lateralNorm = -x / maxAbsX;                     // sign-flipped: anatomical LEFT -> +X (mirrored clinical view, matches existing EEG_POSITIONS convention in helmet.js)
-  const forward = -sagNorm;                             // +1 front .. -1 back
+  const rho = Math.sqrt(lateralUnits * lateralUnits + forwardUnits * forwardUnits); // real lattice units (1 unit = 40mm)
+  const theta = rho * angularScale;
+  const phi = Math.atan2(lateralUnits, forwardUnits);
 
-  const rho = Math.min(1, Math.sqrt(sagNorm * sagNorm + lateralNorm * lateralNorm));
-  const theta = rho * THETA_MAX;
-  const phi = Math.atan2(lateralNorm, forward);
-
-  return { phi, theta };
+  return { phi, theta, rho };
 }
 
 function generateSockets() {
   const socketMap = JSON.parse(readFileSync(SOCKET_MAP_PATH, 'utf8'));
   const rows: number[] = socketMap.rowWidths;
   const rowCount = rows.length;
-  const maxAbsX = Math.max(...socketMap.sockets.map((s: any) => Math.abs(s.x)));
+  const THETA_MAX = 0.58 * Math.PI; // stays within the shell's 0.62π dome coverage (helmet.js SHELL)
+
+  // Row-to-row y advances by sqrt(3)/2 per row (standard offset-hex packing,
+  // confirmed against the actual data: row1.y/row0.y step = 0.8660254). The
+  // crown sits at the mid-row (~50% central-sulcus landmark), not a real row.
+  const HEX_ROW_Y_STEP = Math.sqrt(3) / 2;
+  const CROWN_ROW = (rowCount - 1) / 2; // 5.5 for 12 rows
+  const yCrown = CROWN_ROW * HEX_ROW_Y_STEP;
+
+  // Single global angular scale (radians per lattice unit), calibrated so the
+  // single farthest-from-crown socket lands exactly at THETA_MAX. Every other
+  // socket's angular position is this same scale times its real rho — the
+  // property that makes adjacent tiles land adjacent.
+  const rhosRaw = socketMap.sockets.map((s: any) => Math.hypot(-s.x, yCrown - s.y));
+  const rhoMax = Math.max(...rhosRaw);
+  const angularScale = THETA_MAX / rhoMax;
 
   let thetaMax = 0;
   const sockets = socketMap.sockets.map((s: any) => {
-    const { phi, theta } = toSpherical(s.row, s.x, rowCount, maxAbsX);
+    const { phi, theta } = toSpherical(s.x, s.y, yCrown, angularScale);
     thetaMax = Math.max(thetaMax, theta);
     return { id: s.id, lobe: s.lobe, side: s.side, row: s.row, phi, theta };
   });
-  console.log(`  Sockets: ${sockets.length}, max theta = ${(thetaMax / Math.PI).toFixed(3)}π`);
-  return sockets;
+  // Angular size of one lattice unit (40mm) at the render radius — helmet.js
+  // uses this to size each hex tile so flat-to-flat width matches the real
+  // adjacent-tile spacing instead of a guessed constant.
+  const unitAngularPitch = angularScale;
+  console.log(`  Sockets: ${sockets.length}, max theta = ${(thetaMax / Math.PI).toFixed(3)}π, unit angular pitch = ${unitAngularPitch.toFixed(4)} rad`);
+  return { sockets, unitAngularPitch };
 }
 
 function generateZonesAndProtocols() {
@@ -253,7 +279,7 @@ function generateZonesAndProtocols() {
 
 // ── Emit ──────────────────────────────────────────────────────────────────────
 
-function emitSocketsModule(sockets: any[], zones: NPZoneDefinition[]) {
+function emitSocketsModule(sockets: any[], unitAngularPitch: number, zones: NPZoneDefinition[]) {
   const banner = `// GENERATED by scripts/generate-simulator-data.ts — DO NOT EDIT BY HAND.
 // Source of truth: hardware/np_socket_map.json (socket geometry) +
 // protocols/predefined/00-zones.npps (named zones), both parsed with the real
@@ -263,6 +289,15 @@ function emitSocketsModule(sockets: any[], zones: NPZoneDefinition[]) {
   const body = `${banner}
 /** All 80 hex-tile sockets, with 3D dome position (phi, theta — see helmet.js _sph()). */
 export const SOCKETS = ${JSON.stringify(sockets, null, 2)};
+
+/**
+ * Angular size (radians) of one real lattice unit (40mm, the hex module's
+ * flat-to-flat width — also the verified nearest-neighbor spacing between
+ * adjacent sockets) at the projection's calibrated scale. helmet.js uses this
+ * to size each rendered hex tile so tiles actually tile edge-to-edge instead
+ * of a guessed constant.
+ */
+export const UNIT_ANGULAR_PITCH = ${unitAngularPitch};
 
 /** Named zones (sets of socket ids), from protocols/predefined/00-zones.npps. */
 export const ZONES = ${JSON.stringify(
@@ -304,8 +339,8 @@ export const PROTOCOL_IDS = Object.keys(PROTOCOLS);
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 console.log('Generating simulator data...');
-const sockets = generateSockets();
+const { sockets, unitAngularPitch } = generateSockets();
 const { zones, protocols } = generateZonesAndProtocols();
-emitSocketsModule(sockets, zones);
+emitSocketsModule(sockets, unitAngularPitch, zones);
 emitProtocolsModule(protocols);
 console.log('Done.');
