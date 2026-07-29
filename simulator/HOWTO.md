@@ -290,7 +290,6 @@ Switching modes takes effect immediately and doesn't affect the running session 
 |---------------|-------------------|
 | **Hex-tile sockets — glowing** | Active PBM sockets, colour-coded by wavelength. Only visible from the **Inside** camera preset — see §6.2. |
 | **Hex-tile sockets — dark** | Socket has no module installed |
-| **Zone labels** (floating text) | One label per named zone with at least one installed socket, centred on that zone's installed sockets |
 | **EEG pods** (8 small cylinders) | Electrode contact points; colour = impedance: green (good) → amber (marginal) → red (poor) |
 | **Power LED** (left temple, green) | Breathes slowly at idle; steady during session |
 | **Session LED** (right temple, amber) | Pulses at session frequency ÷ 4 while running |

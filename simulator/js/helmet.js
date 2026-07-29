@@ -225,41 +225,6 @@ export class HelmetModel {
     this._updateProbeAnimation(dt, snap);
   }
 
-  /**
-   * Returns an array of { id, name, installed, screenX, screenY, visible }
-   * (screen coords) for zone label placement by the HTML overlay system.
-   * One label per named zone that currently has at least one installed
-   * socket, positioned at the centroid of that zone's installed sockets
-   * (80 individual per-socket labels would be unreadable clutter).
-   */
-  getZoneLabelPositions(camera, renderer) {
-    const positions = [];
-    const w = renderer.domElement.clientWidth;
-    const h = renderer.domElement.clientHeight;
-
-    ZONES.forEach(zone => {
-      const installedMeshes = zone.sockets
-        .map(id => this.sockets[id])
-        .filter(s => s && s.installed);
-      if (installedMeshes.length === 0) return;
-
-      const centroid = new THREE.Vector3();
-      installedMeshes.forEach(s => centroid.add(s.center));
-      centroid.divideScalar(installedMeshes.length);
-
-      const ndc = centroid.clone().project(camera);
-      positions.push({
-        id: zone.name,
-        name: zone.name,
-        installed: true,
-        screenX: ((ndc.x + 1) / 2) * w,
-        screenY: ((-ndc.y + 1) / 2) * h,
-        visible: ndc.z < 1, // behind camera test (rough)
-      });
-    });
-    return positions;
-  }
-
   // ─── build helpers ─────────────────────────────────────────────────────────
 
   _build() {
@@ -414,7 +379,6 @@ export class HelmetModel {
 
       this.sockets[cfg.id] = {
         mesh,
-        center: new THREE.Vector3(center.x, center.y, center.z),
         lobe: cfg.lobe,
         side: cfg.side,
         zoneNames: SOCKET_ZONE_NAMES[cfg.id] ?? [],

@@ -285,10 +285,6 @@ class NeurOneSimulator {
     // Update UI panels
     this._ui.updateFromSnapshot(snap);
 
-    // Update zone label overlays
-    const labelPositions = this._helmet.getZoneLabelPositions(this._camera, this._renderer);
-    this._ui.setZoneLabelPositions(labelPositions);
-
     // Controls damping
     this._controls.update();
 

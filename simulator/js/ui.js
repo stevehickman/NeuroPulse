@@ -60,25 +60,6 @@ export class UIManager {
     this._updateBreathingRing(snap);
   }
 
-  setZoneLabelPositions(positions) {
-    const container = document.getElementById('zone-labels');
-    if (!container) return;
-    positions.forEach(({ id, name, installed, screenX, screenY, visible }) => {
-      let el = document.getElementById(`zone-label-${id}`);
-      if (!el) {
-        el = document.createElement('div');
-        el.id = `zone-label-${id}`;
-        el.className = 'zone-label';
-        container.appendChild(el);
-      }
-      el.textContent = `${id}\n${name}`;
-      el.style.left  = `${screenX}px`;
-      el.style.top   = `${screenY}px`;
-      el.style.opacity = visible ? '1' : '0';
-      el.classList.toggle('installed', installed);
-    });
-  }
-
   // ─── zone configuration ────────────────────────────────────────────────────
 
   /** DOM-safe id fragment for a zone name ("Vault (excl. Occipital)" -> "vault-excl-occipital"). */
