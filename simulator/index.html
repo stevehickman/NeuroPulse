@@ -31,10 +31,19 @@
     <div class="panel panel-left">
 
       <div class="panel-section">
+        <h3 class="section-title">Display</h3>
+        <div class="view-controls" id="display-mode-controls">
+          <button class="view-btn active" data-display-mode="floating">Floating</button>
+          <button class="view-btn" data-display-mode="mannequin">On Mannequin</button>
+        </div>
+      </div>
+
+      <div class="panel-section">
         <h3 class="section-title">Zone Modules</h3>
         <p style="font-size:10px;color:var(--text-faint);margin-bottom:10px;">
-          Install snap-in LED zone modules. Each zone: 60 LEDs per wavelength (300 per wavelength, 600 total).
-          Frequency applies per zone; select wavelengths to mix multi-channel sessions.
+          Install hex-tile PBM modules across the ~80-socket helmet lattice (NP-HEX-ZM-001),
+          grouped by named zone (protocols/predefined/00-zones.npps). Frequency applies per
+          zone; select wavelengths to mix multi-channel sessions.
         </p>
         <div id="zone-config"></div>
       </div>
@@ -63,6 +72,7 @@
           <button class="view-btn" data-view="front">Front</button>
           <button class="view-btn" data-view="side">Side</button>
           <button class="view-btn" data-view="top">Top</button>
+          <button class="view-btn" data-view="inside" title="Look up into the cavity — PBM modules emit inward, toward the scalp, so this is the only angle that actually shows them lit">Inside</button>
           <button class="view-btn active" data-view="orbit">Free</button>
         </div>
       </div>
@@ -70,9 +80,6 @@
       <div class="overlay-bottom">
         <span class="view-hint">Drag to rotate &nbsp;·&nbsp; Scroll to zoom &nbsp;·&nbsp; Right-drag to pan</span>
       </div>
-
-      <!-- HTML zone label overlays (positioned by JS from 3D world coords) -->
-      <div id="zone-labels"></div>
     </div><!-- /viewport-wrap -->
 
     <!-- Right panel: session & metrics ─────────────────────────────────────── -->

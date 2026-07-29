@@ -189,25 +189,6 @@ html, body {
   text-align: center;
 }
 
-/* Zone labels (HTML overlays on top of canvas) */
-#zone-labels { position: absolute; inset: 0; pointer-events: none; }
-
-.zone-label {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  font-size: 9px;
-  font-weight: 700;
-  text-align: center;
-  line-height: 1.3;
-  letter-spacing: 0.06em;
-  color: var(--text-faint);
-  white-space: pre;
-  transition: opacity .2s;
-  pointer-events: none;
-  text-shadow: 0 0 4px #000, 0 0 8px #000;
-}
-.zone-label.installed { color: #FF9944; }
-
 /* ── Zone Configuration ──────────────────────────────────────────────────── */
 
 .zone-card {

@@ -1,4 +1,12 @@
 """
+⚠ SUPERSEDED (2026-07-28): this script's entire premise — 5 discrete zone-slot FPC tails with
+pairwise adjacent-crosstalk analysis — is retired by the hex-tile/socket architecture
+(NP-HEX-ZM-001, ~80 sockets, no fixed zone-slot tails). Do not re-run. The corrected RISK-17
+and G2-01 state is applied by editscripts/patch_hexzm_risk_corrections.py and
+editscripts/patch_hexzm_eng_coord_corrections.py; NP-DRV-SHELL-001 itself is marked
+SUPERSEDED by editscripts/patch_hexzm_shell_routing_supersession.py. Kept here as historical
+record of the retired architecture's crosstalk mitigation approach.
+
 Patch RISK-17 — Multi-FPC routing + EEG cable separation.
 
 Changes:

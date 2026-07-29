@@ -1,4 +1,17 @@
 """
+⚠ SUPERSEDED (2026-07-28): this generator builds the entire document around 5 fixed,
+position-unique zone-module FPC routing paths — retired by the hex-tile/socket architecture
+(NP-HEX-ZM-001, ~80 sockets, no fixed zone-slot positions). Do NOT re-run this script: the
+current docs/neurone_shell_fpc_routing_review.docx has since been extended by
+editscripts/patch_risk17.py (§2.3, Rev B) and other patches, so a from-scratch regeneration
+here would discard that later work, not just fix the zone count. The replacement per-socket
+interconnect design for ~80 sockets does not exist yet — that is real, unscoped EE work (see
+MECH-1/MECH-2/SMART-1 in docs/np_hex_zm_001.md §7), not something to invent by re-running
+this generator with a new number. The current document has been marked SUPERSEDED in place by
+editscripts/patch_hexzm_shell_routing_supersession.py, preserving the still-reusable generic
+bend-radius methodology (§3-4) while flagging the 5-zone-specific content as retired. Kept
+here as historical record of the retired architecture's routing review.
+
 Generate NP-DRV-SHELL-001 Rev A:
   Zone Module FPC Routing Path — Shell Tooling Design Review
 Cross-referenced from FPC spec NP-HW-FPC-001 §11.2 and risk register RISK-11.

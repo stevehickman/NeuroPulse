@@ -1,5 +1,16 @@
 """
 Generate NeurOne clinical trials strategy document and additional modalities document.
+
+NOTE (2026-07-28): the "5 independently addressable zones" / "600 LEDs" device-equivalence
+claim below was fixed in place (both here and via editscripts/patch_hexzm_light_fixes.py
+against the current docx) to describe the hex-tile/socket architecture (NP-HEX-ZM-001)
+without asserting a specific socket count — REG-1/ACT-1 registration is still open, see
+docs/np_hex_zm_001.md §7. Do NOT re-run this script wholesale: doc2 below saves to
+"docs/neurone_additional_modalities.docx", but the checked-in artifact was deliberately
+renamed to "docs/neurone_additional_modalities_superseded.docx" in an earlier, unrelated
+pass; re-running this script would resurrect a stale file under the old, no-longer-current
+filename. Only docs/neurone_clinical_trials_strategy.docx (doc, not doc2) is safe to
+regenerate from this script as-is.
 """
 from docx import Document
 from docx.shared import Pt, RGBColor, Inches, Cm
@@ -183,8 +194,9 @@ add_bullet(doc,
 add_para(doc, "WHAT DOES NOT TRANSFER:", size=9, bold=True)
 add_bullet(doc,
     "Device equivalence: Vielight RCTs used Vielight devices at specific irradiance, "
-    "duty cycle, and LED count. NeurOne (600 LEDs, dual-wavelength, 400 mW/cm² "
-    "pulsed, 5 independently addressable zones) has no published comparator. Any "
+    "duty cycle, and LED count. NeurOne (dual-wavelength, 400 mW/cm² pulsed, "
+    "individually addressable hex-tile PBM modules across the socket lattice with "
+    "real-time per-module J/cm² dose metering) has no published comparator. Any "
     "marketing claim implying NeurOne produces outcomes 'at least as good as Vielight' "
     "requires head-to-head data or regulatory counsel opinion.")
 add_bullet(doc,

@@ -1,4 +1,15 @@
 """
+⚠ SUPERSEDED (2026-07-28): the 5-layer zone-keying system this script writes (mechanical
+type-differentiating key + ZONE_ID resistor ladder + per-zone braille/tactile markers +
+bone-conduction zone-name announcement) is retired by the hex-tile/socket architecture
+(NP-HEX-ZM-001) — SMART-1 makes every socket I2C/TIA-capable, so there is no "wrong zone"
+left to key against, and modules carry only a universal orientation-only key. Do not re-run
+this script; it targets an already-patched document with insert-only logic (re-running
+duplicates content) and, more importantly, would reintroduce retired content. The corrected
+RISK-15 state is applied by editscripts/patch_hexzm_risk_corrections.py. Kept here as the
+historical record of what was originally shipped and why (RISK-15 rationale, ISO reference
+numbers for the braille/tactile approach) — still useful context, not current guidance.
+
 Patch RISK-15:
 Mitigate zone keying for colour-vision-deficient AND blind users.
 

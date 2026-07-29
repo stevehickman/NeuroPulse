@@ -1,4 +1,14 @@
 """
+NOTE (2026-07-28): the self-sealing compression gasket approach this script describes is
+architecture-independent and still valid under the hex-tile/socket architecture
+(NP-HEX-ZM-001 §6: "each hex needs a perimeter gasket... a per-tile seam-length budget is
+required") — this script is NOT retired the way its RISK-11/15/17 siblings are. Only its
+"zone module" terminology was stale; editscripts/patch_hexzm_light_fixes.py generalizes the
+RISK-16 risk-register text to "hex-tile module" in place. Do not re-run this script itself
+(not idempotent against the now-further-patched documents); its FPC-spec §12 gasket
+dimensions and FAI-IPX-01..04 test protocol remain the current guidance, just described with
+the old noun in the FPC spec / FAI doc bodies this script wrote directly.
+
 Patch RISK-16 — Option A: self-sealing compression gasket.
 
 Changes:
