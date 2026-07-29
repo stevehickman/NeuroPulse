@@ -29,7 +29,7 @@ cases C3/C4 → thermal high bounds); NP-REQ-FANHEALTH-001 (SR-FAN Class C gate)
 | Modality | Low bound (°C) | High bound (°C) | Limiting mechanism | Class | Enforce | Sensed by |
 |----------|---------------|-----------------|--------------------|-------|---------|-----------|
 | **PBM 660/808 (T1-A)** | −10 §(condensation/warm-up) | full ≤ **+35†** · derate +35→**+43†** · block > +43† | scalp headroom to 42 °C shrinks with ambient | **Safety** | **HARD** | ambient NTC + THERM-1a envelope |
-| **PBM 1064 smart (T1-C)** | **0 ‡**(ATtiny402/FET grade) | same as T1-A † | above + on-module driver IC range | Safety+comp | **HARD** | ambient NTC; module detection (`np_module_map`, retired ZONE_ID) |
+| **PBM 1064 smart (T1-C)** | **0 ‡**(ATtiny402/FET grade) | same as T1-A † | above + on-module driver IC range | Safety+comp | **HARD** | ambient NTC; module detection (`np_module_map`) |
 | **PBM 1170 laser+TEC (T2-D)** | −10 § | full ≤ **+30†** · derate +30→**+35†** · block > +35† | **tightest** — TEC can't hold laser setpoint at high ambient; higher power → less scalp headroom | Safety+eff | **HARD** | ambient NTC; TEC setpoint error |
 | **EEG hydrogel (ADS1299)** | +5 §(gel conductivity) | +40 §(gel dry-out) | hydrogel state, not electronics (ADS −40/+85‡) | Efficacy | **SOFT** | **electrode impedance** (existing) |
 | **BES/tACS, tDCS** | −10 § | +45 § | delivery bounded by charge-density + impedance interlocks, not ambient | Safety*(interlocked) | interlock + SOFT | charge-density MCU, impedance |
