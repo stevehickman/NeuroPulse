@@ -450,23 +450,34 @@ struct SessionView: View {
         score >= 7 ? .green : score >= 4 ? .yellow : .orange
     }
 
+    /// In-session module readout.
+    ///
+    /// A count, not a five-cell grid: the helmet may have any number of its ~80
+    /// sockets populated, so enumerating fixed slots here would be both wrong and
+    /// unreadable. The per-socket detail lives in the setup step.
     private var zoneModuleRow: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(String(localized: "SESSION_ZONE_MODULES")).font(.caption).foregroundColor(.secondary)
+        let present = gatt.zoneModules.presentSockets.count
+        let faulted = gatt.zoneModules.faultedSockets.count
+        return VStack(alignment: .leading, spacing: 8) {
+            Text(String(localized: "SESSION_ZONE_MODULES"))
+                .font(.caption).foregroundColor(.secondary)
             HStack(spacing: 8) {
-                ForEach(0..<5, id: \.self) { slot in
-                    let isPresent = slot < gatt.zoneModules.count && gatt.zoneModules[slot] != 0
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(isPresent ? Color.green.opacity(0.2) : Color(.systemGray5))
-                        .overlay {
-                            Text("\(slot + 1)")
-                                .font(.caption2.bold())
-                                .foregroundColor(isPresent ? .green : .secondary)
-                        }
-                        .frame(minHeight: 36)
+                Image(systemName: faulted > 0
+                      ? "exclamationmark.triangle.fill" : "square.grid.3x3.fill")
+                    .foregroundColor(faulted > 0 ? .orange : .green)
+                    .accessibilityHidden(true)
+                Text(String(format: String(localized: "SESSION_ZONE_MODULE_COUNT"), present))
+                    .font(.subheadline)
+                if faulted > 0 {
+                    Spacer()
+                    Text(String(format: String(localized: "SESSION_ZONE_MODULE_FAULTS"), faulted))
+                        .font(.caption)
+                        .foregroundColor(.orange)
                 }
             }
+            .frame(minHeight: 36)
         }
+        .accessibilityElement(children: .combine)
     }
 
     private var sessionControls: some View {

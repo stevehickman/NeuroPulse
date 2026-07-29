@@ -23,6 +23,44 @@ cmake_minimum_required(VERSION 3.20)
 
 project(np_zone_announce C)
 
+option(NP_BUILD_TESTS "Build host-native unit tests (no ARM toolchain needed)" OFF)
+
+# ── Host unit-test build ───────────────────────────────────────────────────────
+# np_zone_notify is pure C with no HAL and no FreeRTOS dependency — it is the
+# frame encoder for the module-status characteristic, so it is host-testable and
+# its tests pin the wire contract the iOS GATTParser decodes.
+#
+# It includes np_module_map.h only for the static assertions that keep the wire
+# socket/lobe/side domains pinned to the addressing domains they mirror, so the
+# hub_control include dir is on the path but no hub_control source is linked.
+if(NP_BUILD_TESTS)
+    add_executable(np_zone_notify_tests
+        tests/np_zone_notify_tests.c
+        src/np_zone_notify.c
+    )
+    target_include_directories(np_zone_notify_tests
+        PRIVATE include ${CMAKE_CURRENT_SOURCE_DIR}/../hub_control/include)
+    target_compile_options(np_zone_notify_tests
+        PRIVATE -Wall -Wextra -Werror -std=c11)
+
+    # Slot state machine. Host-testable for the first time here: the platform HAL
+    # (LPADC, SAI3, tick) is stubbed in the test, so the insertion path can be
+    # asserted behaviourally — above all that it notifies the app and starts NO
+    # bone-conduction audio.
+    add_executable(np_zone_announce_tests
+        tests/np_zone_announce_tests.c
+        src/np_zone_announce.c
+        src/np_zone_detect.c
+        src/np_zone_audio.c
+        src/np_zone_notify.c
+    )
+    target_include_directories(np_zone_announce_tests
+        PRIVATE include ${CMAKE_CURRENT_SOURCE_DIR}/../hub_control/include)
+    target_compile_options(np_zone_announce_tests
+        PRIVATE -Wall -Wextra -Werror -Wno-unused-parameter -std=c11)
+    return()
+endif()
+
 # ── Toolchain guard ────────────────────────────────────────────────────────────
 if(NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR
@@ -35,13 +73,17 @@ set(ZA_SOURCES
     src/np_zone_detect.c
     src/np_zone_audio.c
     src/np_zone_announce.c
+    src/np_zone_notify.c
 )
 
 add_library(np_zone_announce STATIC ${ZA_SOURCES})
 
 target_include_directories(np_zone_announce
     PUBLIC  include
-    PRIVATE ${NP_PLATFORM_INCLUDE_DIRS}
+    # np_zone_notify.c includes np_module_map.h for the static assertions that
+    # pin the wire domains to the addressing domains.
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../hub_control/include
+            ${NP_PLATFORM_INCLUDE_DIRS}
 )
 
 # ── Compiler flags ─────────────────────────────────────────────────────────────

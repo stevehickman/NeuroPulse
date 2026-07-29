@@ -462,31 +462,72 @@ private struct StarterProtocol: Identifiable {
 
 // MARK: - Supporting subviews
 
+/// Live socket list for the zone-module setup step.
+///
+/// Renders however many sockets the hub reports — not a fixed five-slot grid.
+/// The helmet tiles ~80 sockets with a universal module and any number may be
+/// populated, so both the count and the anatomical names come from the device
+/// (NP-HEX-ZM-001 §3.4).
 struct ZoneModuleStatusGrid: View {
     let configuration: ZoneModuleConfiguration
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(configuration.slots) { slot in
-                HStack {
-                    Image(systemName: slot.isPresent ? "checkmark.circle.fill" : "circle.dashed")
-                        .foregroundColor(slot.isPresent ? .green : .secondary)
-                        .accessibilityHidden(true)
-                    Text(slot.anatomicalLabel)
-                        .font(.subheadline)
-                    Spacer()
-                    if slot.isPresent {
-                        Text(slot.displayName)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+            if configuration.isEmpty {
+                Text("SETUP_ZONE_WAITING")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                summaryLine
+                ForEach(configuration.orderedSockets) { socket in
+                    row(for: socket)
                 }
-                .padding(.vertical, 4)
             }
         }
         .padding()
         .background(Color(.systemGray6))
         .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+
+    private var summaryLine: some View {
+        Text(String(format: String(localized: "SETUP_ZONE_SUMMARY"),
+                    configuration.presentSockets.count,
+                    configuration.sockets.count))
+            .font(.caption)
+            .foregroundColor(.secondary)
+    }
+
+    @ViewBuilder
+    private func row(for socket: ZoneModuleStatus) -> some View {
+        HStack {
+            Image(systemName: iconName(for: socket))
+                .foregroundColor(iconColor(for: socket))
+                .accessibilityHidden(true)
+            Text(socket.displayName)
+                .font(.subheadline)
+            Spacer()
+            if let type = socket.moduleType.displayName, socket.isPresent {
+                Text(type)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 4)
+        // One combined label per socket so VoiceOver reads "Socket 12, frontal
+        // left, connected" rather than three unlabelled fragments.
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(socket.spokenConfirmation)
+    }
+
+    private func iconName(for socket: ZoneModuleStatus) -> String {
+        if socket.hasFault { return "exclamationmark.triangle.fill" }
+        return socket.isPresent ? "checkmark.circle.fill" : "circle.dashed"
+    }
+
+    private func iconColor(for socket: ZoneModuleStatus) -> Color {
+        if socket.hasFault { return .orange }
+        return socket.isPresent ? .green : .secondary
     }
 }
 

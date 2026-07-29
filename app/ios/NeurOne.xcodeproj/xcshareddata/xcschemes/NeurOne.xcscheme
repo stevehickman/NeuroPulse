@@ -15,7 +15,7 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "E42D4A8EC149633D91D415DA"
+               BlueprintIdentifier = "919DD729CE75F166C8BC88B3"
                BuildableName = "NeurOne.app"
                BlueprintName = "NeurOne"
                ReferencedContainer = "container:NeurOne.xcodeproj">
@@ -32,7 +32,7 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E42D4A8EC149633D91D415DA"
+            BlueprintIdentifier = "919DD729CE75F166C8BC88B3"
             BuildableName = "NeurOne.app"
             BlueprintName = "NeurOne"
             ReferencedContainer = "container:NeurOne.xcodeproj">
@@ -44,7 +44,7 @@
             parallelizable = "NO">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "AAE0B51BD4547818552C93DB"
+               BlueprintIdentifier = "D3C1723CBBCD80C57A170013"
                BuildableName = "NeurOneTests.xctest"
                BlueprintName = "NeurOneTests"
                ReferencedContainer = "container:NeurOne.xcodeproj">
@@ -68,7 +68,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E42D4A8EC149633D91D415DA"
+            BlueprintIdentifier = "919DD729CE75F166C8BC88B3"
             BuildableName = "NeurOne.app"
             BlueprintName = "NeurOne"
             ReferencedContainer = "container:NeurOne.xcodeproj">
@@ -87,7 +87,7 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "E42D4A8EC149633D91D415DA"
+            BlueprintIdentifier = "919DD729CE75F166C8BC88B3"
             BuildableName = "NeurOne.app"
             BlueprintName = "NeurOne"
             ReferencedContainer = "container:NeurOne.xcodeproj">

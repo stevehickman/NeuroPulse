@@ -1,14 +1,27 @@
 /*
  * NeurOne Zone Module Announcement — Public API
- * Document: NP-FW-ZA-001 Rev A §5
+ * Document: NP-FW-ZA-001 Rev A §5, as amended by the 2026-07-28 supersession
+ * note at the top of docs/np_fw_za_001.md.
  *
- * Implements RISK-15 Layer 5 (five-layer zone module keying): bone conduction
- * audio announcement on module insertion ("Frontal Left connected", etc.).
+ * Detects zone module insertion/removal and reports it to the COMPANION APP,
+ * which delivers the user-facing confirmation.
+ *
+ * ── The insertion cue is no longer played on this device ─────────────────────
+ *
+ * Rev A announced insertions through the mastoid bone-conduction transducer.
+ * That confirmation could never be heard: seating a module requires the helmet
+ * off the head, and bone conduction only reaches a head the transducer is
+ * touching. Insertion confirmations now travel to the companion app over the
+ * module-status characteristic (np_zone_notify.h) and are spoken there.
+ *
+ * The tone engine remains for announcements delivered WHILE THE HELMET IS WORN
+ * — see np_za_play_worn_cue() below.
  *
  * Usage:
- *   1. np_za_init()        — call once at firmware startup.
- *   2. np_za_tick()        — call from a 50 ms periodic task (all slots).
- *   3. np_za_audio_tick()  — call from DMA half-transfer ISR to refill buffer.
+ *   1. np_zone_notify_init() — bind the app transmit path (np_zone_notify.h).
+ *   2. np_za_init()          — call once at firmware startup.
+ *   3. np_za_tick()          — call from a 50 ms periodic task (all slots).
+ *   4. np_za_audio_tick()    — call from DMA half-transfer ISR to refill buffer.
  *
  * Platform HAL stubs (np_za_platform_*) must be implemented by the FW team
  * for the target i.MX RT1062 peripherals (LPADC1, SAI3, eDMA channel 5).
@@ -63,6 +76,23 @@ void np_za_tick(uint32_t now_ms);
  * @param half  0 = fill first half, 1 = fill second half.
  */
 void np_za_audio_tick(uint8_t half);
+
+/* ── While-worn audio cue ───────────────────────────────────────────────────── */
+
+/*
+ * Play one tone clip on the bone-conduction transducer.
+ *
+ * ⚠ FOR WHILE-WORN ANNOUNCEMENTS ONLY. Bone conduction reaches the user only
+ * while the transducer is pressed against the mastoid, so this must not be used
+ * for anything that happens with the helmet off the head — module insertion
+ * above all, which is exactly the mistake this API's existence documents.
+ * Legitimate callers: session-start configuration readback, in-session fault
+ * alerts. The CALLER is responsible for establishing that the helmet is worn.
+ *
+ * Returns NP_ZA_ERR_AUDIO_BUSY if a clip is already playing (bone conduction is
+ * a single output), or NP_ZA_ERR_INVALID_ARG for a cue with no clip defined.
+ */
+np_za_status_t np_za_play_worn_cue(np_zone_id_t cue);
 
 /* ── Query ──────────────────────────────────────────────────────────────────── */
 

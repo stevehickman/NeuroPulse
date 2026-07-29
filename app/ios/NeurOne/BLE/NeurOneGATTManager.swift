@@ -40,8 +40,14 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// Live session data decoded from hub NOTIFY characteristics.
     @Published private(set) var session: SessionState = .empty
 
-    /// Zone module presence — one byte per slot (0 = absent, 1–5 = zone ID confirmed).
-    @Published private(set) var zoneModules: [UInt8] = [0, 0, 0, 0, 0]
+    /// Live zone-module socket map — variable length, keyed by 1-based socket id.
+    ///
+    /// Not a fixed-size array: the helmet is tiled with a universal hex module
+    /// across ~80 sockets out of a 128-socket addressing domain, and which
+    /// sockets are populated is a runtime fact the hub reports (NP-HEX-ZM-001
+    /// §3.4). Fed by fragmented ZONE_MODULE_STATUS frames via
+    /// `ZoneModuleFrameAssembler`.
+    @Published private(set) var zoneModules = ZoneModuleConfiguration()
 
     /// Latest OTA progress/error packet from the hub.
     @Published private(set) var otaStatus: OTAStatusPacket?
@@ -119,6 +125,16 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// In-flight partial session state accumulated from individual characteristic notifications.
     private var pending: SessionState = .empty
 
+    /// Reassembles multi-fragment ZONE_MODULE_STATUS snapshots. A full 80-socket
+    /// inventory does not fit one ATT notification.
+    private var zoneFrameAssembler = ZoneModuleFrameAssembler()
+
+    /// Fires once per socket whose module-presence state actually changed.
+    /// HardwareSetupManager speaks these during the zone-module setup step; a
+    /// republish that changes nothing emits nothing, so the step does not
+    /// re-announce sockets that were already seated.
+    private let zoneModuleEventSubject = PassthroughSubject<ZoneModuleStatus, Never>()
+
     // MARK: - Initialisers
 
     /// Production initialiser — creates a real CBCentralManager on the main queue.
@@ -172,7 +188,12 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         peripheral = nil
         session = .empty
         pending = .empty
-        zoneModules = [0, 0, 0, 0, 0]
+        // Clear the map entirely rather than zeroing a fixed shape — on
+        // reconnect the hub sends a fresh snapshot, and a stale "present" socket
+        // would let a placement gate pass on a module that may have been pulled
+        // while disconnected.
+        zoneModules.removeAll()
+        zoneFrameAssembler.reset()
         allCharacteristicsResolved = false
         warrantyToken = nil
         hubFirmwareVersion = nil
@@ -205,6 +226,32 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// Production path: centralManager(_:didConnect:) in CBCentralManagerDelegate.
     func applyConnected() {
         connectionState = .connected
+    }
+
+    /// Decode one ZONE_MODULE_STATUS frame and fold it into the socket map.
+    ///
+    /// Malformed frames are dropped whole: presence gates safety-critical
+    /// placement checks (Oz-before-visual-stim, tES montage), so a frame that is
+    /// not exactly well-formed must not be partially believed. Multi-fragment
+    /// snapshots are committed only when the final fragment arrives.
+    ///
+    /// Emits a per-socket event for each socket whose presence or fault state
+    /// actually CHANGED — a re-sent snapshot describing the same hardware emits
+    /// nothing, which is what keeps the setup step from re-announcing sockets
+    /// that were already seated.
+    func applyZoneModuleStatus(_ data: Data) {
+        guard let frame = GATTParser.parseZoneModuleStatus(data),
+              let complete = zoneFrameAssembler.accept(frame) else { return }
+
+        let previous = zoneModules
+        zoneModules.apply(complete)
+
+        for record in complete.records {
+            let before = previous.status(forSocket: record.socketID)
+            guard before?.isPresent != record.isPresent
+                    || before?.hasFault != record.hasFault else { continue }
+            zoneModuleEventSubject.send(record)
+        }
     }
 
     // MARK: - Scan / connection helpers
@@ -458,6 +505,15 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             return
         }
 
+        if characteristic.uuid == NPUUID.zoneModuleStatus {
+            // Socket occupancy, module type and module health are COMPONENT
+            // facts — SHDR class, exactly as np_module_map.h classifies module
+            // UID. Handled here, above the `session = pending` path, so it can
+            // never be folded into a UHDR session record.
+            applyZoneModuleStatus(data)
+            return
+        }
+
         // ── UHDR session characteristics ─────────────────────────────────────────
         // All cases below accumulate into `pending` (user health data) and publish
         // via `session = pending` at the end.
@@ -495,9 +551,6 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
         case NPUUID.otaStatus:
             otaStatus = GATTParser.parseOTAStatus(data)
 
-        case NPUUID.zoneModuleStatus:
-            zoneModules = GATTParser.parseZoneModuleStatus(data) ?? zoneModules
-
         default:
             break
         }
@@ -534,8 +587,11 @@ extension NeurOneGATTManager: SetupGATTProviding {
     var sessionPublisher: AnyPublisher<SessionState, Never> {
         $session.eraseToAnyPublisher()
     }
-    var zoneModulesPublisher: AnyPublisher<[UInt8], Never> {
+    var zoneModulesPublisher: AnyPublisher<ZoneModuleConfiguration, Never> {
         $zoneModules.eraseToAnyPublisher()
+    }
+    var zoneModuleEventPublisher: AnyPublisher<ZoneModuleStatus, Never> {
+        zoneModuleEventSubject.eraseToAnyPublisher()
     }
     var impedanceResultPublisher: AnyPublisher<UInt16, Never> {
         impedanceResultSubject.eraseToAnyPublisher()

@@ -33,11 +33,11 @@ private final class MockSetupGATT: SetupGATTProviding {
     /// TEST-ONLY: synthetic values, no user data.
     /// Impedance flags injected via dedicated impedanceSubject — not actual hardware readings.
     var impedanceFlagsToInject: UInt16 = 0xFF   // all 8 pass by default
-    /// Zone module bytes to publish.
-    var zoneModulesToInject: [UInt8] = [1, 2, 3, 4, 5]  // all present by default
 
     private let sessionSubject   = CurrentValueSubject<SessionState, Never>(.empty)
-    private let zonesSubject     = CurrentValueSubject<[UInt8], Never>([0, 0, 0, 0, 0])
+    private let zonesSubject     = CurrentValueSubject<ZoneModuleConfiguration, Never>(
+        ZoneModuleConfiguration())
+    private let zoneEventSubject = PassthroughSubject<ZoneModuleStatus, Never>()
     private let impedanceSubject = PassthroughSubject<UInt16, Never>()
 
     var connectionState: NeurOneGATTManager.ConnectionState { mockConnectionState }
@@ -46,8 +46,12 @@ private final class MockSetupGATT: SetupGATTProviding {
         sessionSubject.eraseToAnyPublisher()
     }
 
-    var zoneModulesPublisher: AnyPublisher<[UInt8], Never> {
+    var zoneModulesPublisher: AnyPublisher<ZoneModuleConfiguration, Never> {
         zonesSubject.eraseToAnyPublisher()
+    }
+
+    var zoneModuleEventPublisher: AnyPublisher<ZoneModuleStatus, Never> {
+        zoneEventSubject.eraseToAnyPublisher()
     }
 
     var impedanceResultPublisher: AnyPublisher<UInt16, Never> {
@@ -66,12 +70,52 @@ private final class MockSetupGATT: SetupGATTProviding {
         completion(mockCalibrationResult)
     }
 
-    func pushZones(_ zones: [UInt8]) {
-        zonesSubject.send(zones)
+    func pushZones(_ configuration: ZoneModuleConfiguration) {
+        zonesSubject.send(configuration)
+    }
+
+    /// Publish a socket map AND the per-socket events that produced it, the way
+    /// NeurOneGATTManager does on a real frame.
+    func pushZoneEvent(_ status: ZoneModuleStatus) {
+        var next = zonesSubject.value
+        next.apply(ZoneModuleFrame(isSnapshot: false, isLastFragment: true,
+                                   fragmentIndex: 0, records: [status]))
+        zonesSubject.send(next)
+        zoneEventSubject.send(status)
     }
 }
 
+// MARK: - Spy announcer
+
+/// Captures what the app would speak, without an audio session.
+@MainActor
+private final class SpyAnnouncer: ZoneModuleAnnouncing {
+    var spoken: [String] = []
+    var cancelCount = 0
+
+    func announce(_ message: String) { spoken.append(message) }
+    func cancel() { cancelCount += 1 }
+}
+
 // MARK: - Helpers
+
+/// Build a socket status the way a decoded frame record would.
+private func socketStatus(_ id: UInt8,
+                          type: ZoneModuleType = .eeg,
+                          lobe: ZoneLobe = .frontal,
+                          side: ZoneSide = .left,
+                          present: Bool = true,
+                          fault: Bool = false) -> ZoneModuleStatus {
+    ZoneModuleStatus(socketID: id, moduleType: type, lobe: lobe, side: side,
+                     isPresent: present, hasFault: fault)
+}
+
+private func configuration(_ statuses: [ZoneModuleStatus]) -> ZoneModuleConfiguration {
+    var c = ZoneModuleConfiguration()
+    c.apply(ZoneModuleFrame(isSnapshot: true, isLastFragment: true,
+                            fragmentIndex: 0, records: statuses))
+    return c
+}
 
 /// Counts bits set in a UInt16 bitmask.
 private func popCount(_ v: UInt16) -> Int {
@@ -413,13 +457,19 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertNil(mgr.lastError, "retry() must clear lastError")
     }
 
-    // MARK: Zone module confirmation (pre-existing step, validate gating still works)
+    // MARK: Zone module confirmation (socket-keyed)
 
-    func testZoneModuleConfirmationAdvancesWhenAllPresent() {
+    func testZoneModuleConfirmationAdvancesWithAnyPopulatedSockets() {
+        // Tiles are type-agnostic and a build is a configuration choice, so the
+        // app cannot know how many modules "should" be installed. Any populated,
+        // fault-free set advances; per-protocol requirements are the firmware
+        // placement check's job (NP-HEX-ZM-001 SW-1).
         let mock = MockSetupGATT()
-        mock.zoneModulesToInject = [1, 2, 3, 4, 5]  // all 5 zones present
         let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults)
-        mock.pushZones([1, 2, 3, 4, 5])
+        mock.pushZones(configuration([
+            socketStatus(12), socketStatus(47, lobe: .parietal, side: .midline),
+            socketStatus(80, present: false),
+        ]))
         mgr.setStepForTesting(.zoneModules)
 
         mgr.confirmZoneModules()
@@ -428,18 +478,137 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertEqual(mgr.currentStep, .impedanceCheck)
     }
 
-    func testZoneModuleConfirmationFailsWhenSomeMissing() {
+    func testZoneModuleConfirmationAdvancesWithMoreThanFiveSockets() {
+        // The retired model could not represent a sixth socket at all.
         let mock = MockSetupGATT()
         let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults)
-        mock.pushZones([1, 0, 3, 0, 5])  // slots 1, 3 absent
+        mock.pushZones(configuration((1...78).map { socketStatus(UInt8($0)) }))
         mgr.setStepForTesting(.zoneModules)
 
         mgr.confirmZoneModules()
 
-        guard case .zoneModulesMissing(let missing) = mgr.lastError else {
+        XCTAssertNil(mgr.lastError)
+        XCTAssertEqual(mgr.zoneConfiguration.presentSockets.count, 78)
+        XCTAssertEqual(mgr.currentStep, .impedanceCheck)
+    }
+
+    func testZoneModuleConfirmationFailsOnFaultedSocket() {
+        let mock = MockSetupGATT()
+        let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults)
+        mock.pushZones(configuration([
+            socketStatus(12),
+            socketStatus(31, present: false, fault: true),
+        ]))
+        mgr.setStepForTesting(.zoneModules)
+
+        mgr.confirmZoneModules()
+
+        guard case .zoneModulesMissing(let faulted) = mgr.lastError else {
             XCTFail("Expected .zoneModulesMissing"); return
         }
-        XCTAssertEqual(missing.sorted(), [1, 3])
+        XCTAssertEqual(faulted, [31])
+        XCTAssertEqual(mgr.currentStep, .zoneModules, "a faulted socket blocks the step")
+    }
+
+    func testZoneModuleConfirmationFailsWhenNothingReported() {
+        let mock = MockSetupGATT()
+        let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults)
+        mgr.setStepForTesting(.zoneModules)
+
+        mgr.confirmZoneModules()
+
+        guard case .noZoneModulesDetected = mgr.lastError else {
+            XCTFail("Expected .noZoneModulesDetected"); return
+        }
+    }
+
+    // MARK: Spoken insertion confirmation
+    //
+    // The confirmation the headset's bone-conduction transducer could never
+    // deliver: seating a module requires the helmet off the head, so the cue is
+    // spoken by this device instead (see ZoneModuleAnnouncer).
+
+    func testInsertionIsSpokenDuringZoneModuleStep() {
+        let mock = MockSetupGATT()
+        let spy = SpyAnnouncer()
+        let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults, announcer: spy)
+        mgr.setStepForTesting(.zoneModules)
+
+        mock.pushZoneEvent(socketStatus(12, type: .eeg, lobe: .frontal, side: .left))
+
+        XCTAssertEqual(spy.spoken.count, 1, "an insertion during the step is spoken")
+        let said = spy.spoken[0]
+        XCTAssertTrue(said.contains("12"), "the spoken string names the socket: \(said)")
+        XCTAssertTrue(said.localizedCaseInsensitiveContains("frontal"),
+                      "the spoken string names the anatomy: \(said)")
+    }
+
+    func testInsertionIsNotSpokenOutsideZoneModuleStep() {
+        // The same events arrive during a session, where narrating socket changes
+        // would be noise rather than confirmation.
+        let mock = MockSetupGATT()
+        let spy = SpyAnnouncer()
+        let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults, announcer: spy)
+        mgr.setStepForTesting(.impedanceCheck)
+
+        mock.pushZoneEvent(socketStatus(12))
+
+        XCTAssertTrue(spy.spoken.isEmpty)
+    }
+
+    func testRemovalIsNotSpoken() {
+        // The user pulled it out; they know. The list already reflects it.
+        let mock = MockSetupGATT()
+        let spy = SpyAnnouncer()
+        let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults, announcer: spy)
+        mgr.setStepForTesting(.zoneModules)
+
+        mock.pushZoneEvent(socketStatus(12, present: false))
+
+        XCTAssertTrue(spy.spoken.isEmpty)
+    }
+
+    func testEachInsertionSpokenOnceInSocketOrder() {
+        let mock = MockSetupGATT()
+        let spy = SpyAnnouncer()
+        let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults, announcer: spy)
+        mgr.setStepForTesting(.zoneModules)
+
+        mock.pushZoneEvent(socketStatus(12))
+        mock.pushZoneEvent(socketStatus(47, lobe: .parietal, side: .right))
+        mock.pushZoneEvent(socketStatus(80, lobe: .occipital, side: .midline))
+
+        XCTAssertEqual(spy.spoken.count, 3, "one confirmation per insertion")
+        XCTAssertTrue(spy.spoken[1].contains("47"))
+        XCTAssertTrue(spy.spoken[2].contains("80"))
+    }
+
+    func testLeavingZoneStepCancelsSpeech() {
+        // A confirmation must not trail into the next screen.
+        let mock = MockSetupGATT()
+        let spy = SpyAnnouncer()
+        let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults, announcer: spy)
+        mock.pushZones(configuration([socketStatus(12)]))
+        mgr.setStepForTesting(.zoneModules)
+
+        mgr.confirmZoneModules()
+
+        XCTAssertEqual(spy.cancelCount, 1)
+    }
+
+    func testUnidentifiedModuleIsSpokenWithoutClaimingAType() {
+        // The retired ZONE_ID ladder reports position but cannot distinguish a
+        // base tile from an electrode tile. The app must not invent one.
+        let mock = MockSetupGATT()
+        let spy = SpyAnnouncer()
+        let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults, announcer: spy)
+        mgr.setStepForTesting(.zoneModules)
+
+        mock.pushZoneEvent(socketStatus(12, type: .unknown))
+
+        XCTAssertEqual(spy.spoken.count, 1)
+        XCTAssertFalse(spy.spoken[0].localizedCaseInsensitiveContains("EEG"),
+                       "no type may be claimed when the hub could not identify one")
     }
 
     // MARK: - ISC-115: impedanceFlags zeroed after advancing past impedanceCheck

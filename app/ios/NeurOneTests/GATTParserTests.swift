@@ -107,13 +107,223 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(err?.isError, true)
     }
 
-    // MARK: - ZONE_MODULE_STATUS (5 bytes, one per slot)
+    // MARK: - ZONE_MODULE_STATUS (socket-keyed frame)
+    //
+    // Wire contract: firmware/zone_announce/include/np_zone_notify.h, pinned on
+    // the firmware side by np_zone_notify_tests.c. These cases mirror those.
 
-    func testParseZoneModuleStatus() {
-        // slot0 absent, slot1=zone1, slot2=zone2, slot3 absent, slot4=zone5
-        let data = Data([0x00, 0x01, 0x02, 0x00, 0x05])
-        let slots = GATTParser.parseZoneModuleStatus(data)
-        XCTAssertEqual(slots, [0, 1, 2, 0, 5])
+    /// Build a frame the way the firmware encoder does.
+    private func frame(version: UInt8 = 0x01,
+                       snapshot: Bool,
+                       last: Bool,
+                       fragment: UInt8 = 0,
+                       records: [(socket: UInt8, type: UInt8, anatomy: UInt8, flags: UInt8)],
+                       declaredCount: UInt8? = nil) -> Data {
+        var d = Data([version,
+                      (snapshot ? 0x01 : 0x00) | (last ? 0x02 : 0x00),
+                      fragment,
+                      declaredCount ?? UInt8(records.count)])
+        for r in records { d.append(contentsOf: [r.socket, r.type, r.anatomy, r.flags]) }
+        return d
+    }
+
+    func testParseZoneModuleStatusDecodesRecord() {
+        // Socket 12, EEG tile, frontal-left, present.
+        // anatomy byte: lobe 1 (frontal) in bits[2:0], side 1 (left) in bits[4:3].
+        let data = frame(snapshot: true, last: true,
+                         records: [(12, 2, 0x01 | (0x01 << 3), 0x01)])
+        let f = GATTParser.parseZoneModuleStatus(data)
+        XCTAssertEqual(f?.records.count, 1)
+        XCTAssertEqual(f?.records.first?.socketID, 12)
+        XCTAssertEqual(f?.records.first?.moduleType, .eeg)
+        XCTAssertEqual(f?.records.first?.lobe, .frontal)
+        XCTAssertEqual(f?.records.first?.side, .left)
+        XCTAssertEqual(f?.records.first?.isPresent, true)
+        XCTAssertEqual(f?.records.first?.hasFault, false)
+        XCTAssertEqual(f?.isSnapshot, true)
+        XCTAssertEqual(f?.isLastFragment, true)
+    }
+
+    func testParseZoneModuleStatusAcceptsFullSocketDomain() {
+        // 128 is the top of the 7-bit major addressing domain — the app must not
+        // clamp the lattice to whatever count ships today (it has moved twice).
+        let data = frame(snapshot: false, last: true,
+                         records: [(128, 1, 0x03, 0x01)])
+        XCTAssertEqual(GATTParser.parseZoneModuleStatus(data)?.records.first?.socketID, 128)
+    }
+
+    func testParseZoneModuleStatusRejectsSocketZeroAndOutOfDomain() {
+        // 0 is never emitted; >128 would alias onto a real socket, which is a
+        // wrong-site targeting path rather than a display glitch.
+        XCTAssertNil(GATTParser.parseZoneModuleStatus(
+            frame(snapshot: false, last: true, records: [(0, 1, 0x00, 0x01)])),
+            "socket id 0 must be rejected")
+        XCTAssertNil(GATTParser.parseZoneModuleStatus(
+            frame(snapshot: false, last: true, records: [(129, 1, 0x00, 0x01)])),
+            "socket id above the 128-socket domain must be rejected")
+    }
+
+    func testParseZoneModuleStatusRejectsWrongVersion() {
+        XCTAssertNil(GATTParser.parseZoneModuleStatus(
+            frame(version: 0x02, snapshot: true, last: true, records: [(1, 1, 0, 1)])),
+            "an unknown format version must be rejected, not guessed at")
+    }
+
+    func testParseZoneModuleStatusRejectsRetiredFiveBytePayload() {
+        // The retired format was five raw slot bytes with no version header. A hub
+        // still speaking it decodes as version 0x00 and must be refused rather
+        // than misread as socket data.
+        XCTAssertNil(GATTParser.parseZoneModuleStatus(Data([0x00, 0x01, 0x02, 0x00, 0x05])),
+                     "the retired 5-byte slot payload must not decode")
+    }
+
+    func testParseZoneModuleStatusRejectsTruncatedBody() {
+        // Header claims 3 records, body carries 1.
+        let data = frame(snapshot: true, last: true,
+                         records: [(1, 1, 0, 1)], declaredCount: 3)
+        XCTAssertNil(GATTParser.parseZoneModuleStatus(data),
+                     "a record count the body cannot satisfy must be rejected")
+    }
+
+    func testParseZoneModuleStatusRejectsShortHeader() {
+        XCTAssertNil(GATTParser.parseZoneModuleStatus(Data()))
+        XCTAssertNil(GATTParser.parseZoneModuleStatus(Data([0x01, 0x03, 0x00])))
+    }
+
+    func testParseZoneModuleStatusEmptySnapshotIsValid() {
+        // "The helmet reports no modules" is a real answer and must be
+        // distinguishable from "nothing arrived".
+        let f = GATTParser.parseZoneModuleStatus(frame(snapshot: true, last: true, records: []))
+        XCTAssertNotNil(f)
+        XCTAssertEqual(f?.records.isEmpty, true)
+    }
+
+    func testParseZoneModuleStatusFaultIsNeverPresent() {
+        // Both bits set by a misbehaving hub: presence gates safety-critical
+        // placement checks, so fault must win.
+        let data = frame(snapshot: false, last: true,
+                         records: [(7, 2, 0x00, 0x01 | 0x02)])
+        let record = GATTParser.parseZoneModuleStatus(data)?.records.first
+        XCTAssertEqual(record?.hasFault, true)
+        XCTAssertEqual(record?.isPresent, false,
+                       "a faulted module must never be reported as present")
+    }
+
+    func testParseZoneModuleStatusHandlesSlicedData() {
+        // Data sliced out of a larger buffer does not start at index 0. Indexing
+        // it as if it did is a silent misparse.
+        let padded = Data([0xAA, 0xBB]) + frame(snapshot: false, last: true,
+                                                records: [(9, 1, 0x03, 0x01)])
+        let sliced = padded.dropFirst(2)
+        XCTAssertEqual(GATTParser.parseZoneModuleStatus(sliced)?.records.first?.socketID, 9)
+    }
+
+    func testParseZoneModuleStatusUnknownEnumsDegradeSafely() {
+        // Forward compatibility: a module type or lobe this app build does not
+        // know must not drop the whole frame — the socket is still real.
+        let data = frame(snapshot: false, last: true,
+                         records: [(3, 99, 0x07 | (0x03 << 3), 0x01)])
+        let record = GATTParser.parseZoneModuleStatus(data)?.records.first
+        XCTAssertEqual(record?.moduleType, .unknown)
+        XCTAssertEqual(record?.lobe, .unspecified)
+        XCTAssertEqual(record?.side, .midline)
+        XCTAssertEqual(record?.isPresent, true)
+    }
+
+    // MARK: - Snapshot fragment reassembly
+
+    func testAssemblerReassemblesMultiFragmentSnapshot() {
+        var assembler = ZoneModuleFrameAssembler()
+        let f0 = GATTParser.parseZoneModuleStatus(
+            frame(snapshot: true, last: false, fragment: 0, records: [(1, 1, 0x01, 0x01)]))!
+        let f1 = GATTParser.parseZoneModuleStatus(
+            frame(snapshot: true, last: true, fragment: 1, records: [(2, 2, 0x01, 0x01)]))!
+
+        XCTAssertNil(assembler.accept(f0), "a non-final fragment must not commit")
+        let complete = assembler.accept(f1)
+        XCTAssertEqual(complete?.records.map(\.socketID), [1, 2])
+        XCTAssertEqual(assembler.isAccumulating, false, "run resets after commit")
+    }
+
+    func testAssemblerDropsRunOnMissingFragment() {
+        // A snapshot with a hole reads as "that module is not installed" — the
+        // wrong answer for a placement gate. Abandon the run instead.
+        var assembler = ZoneModuleFrameAssembler()
+        let f0 = GATTParser.parseZoneModuleStatus(
+            frame(snapshot: true, last: false, fragment: 0, records: [(1, 1, 0x01, 0x01)]))!
+        let f2 = GATTParser.parseZoneModuleStatus(
+            frame(snapshot: true, last: true, fragment: 2, records: [(3, 1, 0x01, 0x01)]))!
+
+        XCTAssertNil(assembler.accept(f0))
+        XCTAssertNil(assembler.accept(f2), "a gap in the fragment run must abandon it")
+        XCTAssertEqual(assembler.isAccumulating, false)
+    }
+
+    func testAssemblerPassesDeltasThrough() {
+        var assembler = ZoneModuleFrameAssembler()
+        let delta = GATTParser.parseZoneModuleStatus(
+            frame(snapshot: false, last: true, records: [(5, 2, 0x01, 0x01)]))!
+        XCTAssertEqual(assembler.accept(delta)?.records.first?.socketID, 5)
+    }
+
+    func testAssemblerDeltaDuringSnapshotRunSurvivesTheCommit() {
+        // A snapshot describes the hardware as of when the hub STARTED sending it.
+        // A removal observed mid-run is newer. If the snapshot simply replaced the
+        // map, the pulled module would come back marked present — and presence
+        // gates safety-critical placement checks.
+        var assembler = ZoneModuleFrameAssembler()
+        let snap0 = GATTParser.parseZoneModuleStatus(
+            frame(snapshot: true, last: false, fragment: 0,
+                  records: [(7, 2, 0x09, 0x01)]))!            // socket 7 present
+        let removal = GATTParser.parseZoneModuleStatus(
+            frame(snapshot: false, last: true,
+                  records: [(7, 0, 0x09, 0x00)]))!            // socket 7 pulled
+        let snap1 = GATTParser.parseZoneModuleStatus(
+            frame(snapshot: true, last: true, fragment: 1,
+                  records: [(8, 2, 0x09, 0x01)]))!
+
+        XCTAssertNil(assembler.accept(snap0))
+        XCTAssertNil(assembler.accept(removal),
+                     "a delta mid-run is held back, not applied then overwritten")
+
+        let complete = assembler.accept(snap1)
+        var config = ZoneModuleConfiguration()
+        config.apply(complete!)
+
+        XCTAssertFalse(config.isPresent(socket: 7),
+                       "the mid-run removal must win over the older snapshot")
+        XCTAssertTrue(config.isPresent(socket: 8))
+    }
+
+    func testAssemblerBoundsRunLength() {
+        // A hub that never sends a terminating fragment must not grow the
+        // accumulation buffer without limit.
+        var assembler = ZoneModuleFrameAssembler()
+        var committed = false
+        for i in 0..<40 {
+            let records = (0..<4).map { j -> (UInt8, UInt8, UInt8, UInt8) in
+                (UInt8((i * 4 + j) % 128 + 1), 1, 0x09, 0x01)
+            }
+            let f = GATTParser.parseZoneModuleStatus(
+                frame(snapshot: true, last: false, fragment: UInt8(i), records: records))!
+            if assembler.accept(f) != nil { committed = true }
+        }
+        XCTAssertFalse(committed, "no unterminated run may commit")
+        XCTAssertFalse(assembler.isAccumulating,
+                       "an over-long run must be abandoned, not accumulated forever")
+    }
+
+    func testAssemblerRestartsOnNewSnapshotRun() {
+        // A fresh fragment 0 supersedes anything part-received.
+        var assembler = ZoneModuleFrameAssembler()
+        let stale = GATTParser.parseZoneModuleStatus(
+            frame(snapshot: true, last: false, fragment: 0, records: [(1, 1, 0x01, 0x01)]))!
+        let fresh = GATTParser.parseZoneModuleStatus(
+            frame(snapshot: true, last: true, fragment: 0, records: [(9, 1, 0x01, 0x01)]))!
+
+        XCTAssertNil(assembler.accept(stale))
+        XCTAssertEqual(assembler.accept(fresh)?.records.map(\.socketID), [9],
+                       "a new run must discard the abandoned one, not merge with it")
     }
 
     // MARK: - CONSUMABLE_STATUS routing isolation (NP-PRIV-ANALYSIS-003, item 3)
@@ -270,9 +480,10 @@ final class GATTParserTests: XCTestCase {
         XCTAssertNotNil(GATTParser.parseOTAStatus(Data([0x01, 0x19, 0x00, 0x00])),
                         "parseOTAStatus must return non-nil for a valid 4-byte payload.")
 
-        // parseZoneModuleStatus: 5 slots — ZM-01 through ZM-05 all present
-        XCTAssertNotNil(GATTParser.parseZoneModuleStatus(Data([0x01, 0x02, 0x03, 0x04, 0x05])),
-                        "parseZoneModuleStatus must return non-nil for a valid 5-byte payload.")
+        // parseZoneModuleStatus: v1 delta frame, one present socket
+        XCTAssertNotNil(GATTParser.parseZoneModuleStatus(
+            Data([0x01, 0x02, 0x00, 0x01, 0x0C, 0x02, 0x09, 0x01])),
+            "parseZoneModuleStatus must return non-nil for a valid v1 frame.")
     }
 
     // MARK: - Short / truncated / empty input rejection (ISC-152)
@@ -296,6 +507,6 @@ final class GATTParserTests: XCTestCase {
         XCTAssertNil(GATTParser.parseImpedanceResult(Data([0x00])))             // needs 2
         XCTAssertNil(GATTParser.parseConsumableStatus(Data(repeating: 0, count: 7)))  // needs 8
         XCTAssertNil(GATTParser.parseOTAStatus(Data([0x00, 0x00, 0x00])))        // needs 4
-        XCTAssertNil(GATTParser.parseZoneModuleStatus(Data(repeating: 0, count: 4))) // needs 5
+        XCTAssertNil(GATTParser.parseZoneModuleStatus(Data([0x01, 0x02, 0x00]))) // needs 4B header
     }
 }

@@ -20,7 +20,10 @@ enum NPUUID {
     static let otaCommand       = CBUUID(string: "4E455550-000A-1000-8000-00805F9B34FB") // WRITE/NOTIFY
     static let otaStatus        = CBUUID(string: "4E455550-000B-1000-8000-00805F9B34FB") // NOTIFY
     static let calibrationCmd   = CBUUID(string: "4E455550-000C-1000-8000-00805F9B34FB") // WRITE
-    static let zoneModuleStatus = CBUUID(string: "4E455550-000D-1000-8000-00805F9B34FB") // READ/NOTIFY 5B
+    // READ/NOTIFY, variable length. Socket-keyed module-status frames — see
+    // ZoneModuleFrame and firmware/zone_announce/include/np_zone_notify.h.
+    // Was a fixed 5-byte one-per-slot payload under the retired zone architecture.
+    static let zoneModuleStatus = CBUUID(string: "4E455550-000D-1000-8000-00805F9B34FB")
     static let shdrUploadStatus = CBUUID(string: "4E455550-000E-1000-8000-00805F9B34FB") // NOTIFY
 
     // PENDING FIRMWARE CONFIRMATION — placeholder UUID for session stop command.
@@ -127,10 +130,25 @@ struct GATTParser {
         }
     }
 
-    /// ZONE_MODULE_STATUS: 5 bytes — one uint8 per zone slot (0=absent, 1–5=zone ID confirmed)
-    static func parseZoneModuleStatus(_ data: Data) -> [UInt8]? {
-        guard data.count >= 5 else { return nil }
-        return (0..<5).map { data[$0] }
+    /// ZONE_MODULE_STATUS: socket-keyed module-status frame.
+    ///
+    /// Wire contract is defined by `firmware/zone_announce/include/np_zone_notify.h`
+    /// and pinned by `np_zone_notify_tests.c`. Layout:
+    ///
+    ///     byte 0 : format version (must equal ZoneModuleFrame.formatVersion)
+    ///     byte 1 : flags — bit0 snapshot, bit1 last fragment
+    ///     byte 2 : fragment index, 0-based
+    ///     byte 3 : record count in this fragment
+    ///     byte 4+: records, 4 bytes each:
+    ///                byte 0 socket id (1-based), byte 1 module type,
+    ///                byte 2 bits[2:0] lobe / bits[4:3] side, byte 3 record flags
+    ///
+    /// Returns nil for any frame that is not exactly well-formed — wrong version,
+    /// short header, a record count the body cannot satisfy, or a socket id
+    /// outside the addressing domain. Presence gates safety-critical placement
+    /// checks, so a malformed frame is discarded rather than partially believed.
+    static func parseZoneModuleStatus(_ data: Data) -> ZoneModuleFrame? {
+        ZoneModuleFrame(data)
     }
 
     /// FIRMWARE_VERSION: uint32 little-endian — bits [23:16]=major [15:8]=minor [7:0]=patch

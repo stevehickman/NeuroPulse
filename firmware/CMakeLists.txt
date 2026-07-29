@@ -114,6 +114,7 @@ if(NP_BUILD_TESTS)
     add_subdirectory(safety_mcu)  # OI-SW01-M07-01: SPI frame tests
                                   # OI-CHARGE-01:   charge monitor tests
     add_subdirectory(hub_control) # OI-CVNS-HUB-01: CVNS re-enable manager tests
+    add_subdirectory(zone_announce) # module-status frame encoder (app notify path)
     add_subdirectory(vendor/freertos) # NP-SW-001 §9.4: FreeRTOS kernel smoke test
 
     add_test(NAME np_crypto_tests
@@ -182,6 +183,14 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_mod_cvns_tests
         COMMAND np_mod_cvns_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_zone_notify_tests
+        COMMAND np_zone_notify_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_zone_announce_tests
+        COMMAND np_zone_announce_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_freertos_smoke_tests
