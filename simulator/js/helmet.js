@@ -53,6 +53,11 @@ export class HelmetModel {
     // name → NPZoneDefinition-shaped object ({ name, sockets, description })
     this._zonesByName = Object.fromEntries(ZONES.map(z => [z.name, z]));
 
+    // Per-zone configuration + selection recency, used to resolve overlapping
+    // zone selections — see configureZone()'s doc comment for the rule.
+    this._zoneConfigs = {};       // zoneName → { installed, wavelengths, frequency, order }
+    this._zoneSelectionSeq = 0;
+
     this._build();
     scene.add(this.group);
   }
@@ -61,38 +66,117 @@ export class HelmetModel {
 
   /**
    * Install/remove modules across every socket belonging to a named zone
-   * (see protocols/predefined/00-zones.npps). A socket may belong to more
-   * than one zone (midline sockets belong to both hemisphere zones of their
-   * lobe) — the most recent configureZone() call wins for those sockets.
+   * (see protocols/predefined/00-zones.npps). Sockets are frequently shared
+   * by more than one zone — not just incidentally (midline sockets belong to
+   * both hemisphere zones of their lobe) but by design: aggregate zones like
+   * "Frontal", "Vault (excl. Occipital)", and "All" are deliberately built as
+   * unions of the more specific zones, and "Motor / SMA" is a subset of
+   * "Frontal" that also straddles "Frontal Left" and "Frontal Right".
+   *
+   * OVERLAP RESOLUTION RULE, for any socket claimed by more than one
+   * currently-installed zone:
+   *
+   *   1. If one of the claiming zones is a PROPER SUBSET of another (every
+   *      socket in the smaller zone is also in the larger one, and the
+   *      larger one has at least one socket the smaller doesn't) — the
+   *      subset zone's configuration wins for every socket it contains. The
+   *      containing (superset) zone's configuration only applies to the
+   *      sockets it has that the subset zone does NOT — i.e. the subset
+   *      zone always "cuts a hole" in its superset(s), regardless of which
+   *      one was toggled on more recently. This applies transitively through
+   *      a chain of nested zones (e.g. "Motor / SMA" ⊂ "Frontal" ⊂ "Vault
+   *      (excl. Occipital)" ⊂ "All": for a socket in all four, "Motor / SMA"
+   *      always wins).
+   *   2. Otherwise (neither zone's socket set contains the other's — a true
+   *      partial overlap, e.g. "Motor / SMA" and "Frontal Left" both contain
+   *      socket 26 but neither contains the other) — whichever zone was
+   *      selected (installed, or reconfigured while installed) most
+   *      recently wins for the shared sockets. This is also the tiebreak
+   *      when a socket is claimed by several zones that are mutually
+   *      non-subset (none of them is the single most specific one).
+   *
+   * A socket claimed by no currently-installed zone is uninstalled.
    */
   configureZone(zoneName, { installed, wavelengths, frequency }) {
     const zone = this._zonesByName[zoneName];
     if (!zone) return;
 
-    zone.sockets.forEach(socketId => {
-      const s = this.sockets[socketId];
-      if (!s) return;
-      s.installed   = !!installed;
-      s.wavelengths = wavelengths ?? [];
-      s.frequency   = frequency ?? 10;
+    this._zoneConfigs[zoneName] = {
+      installed: !!installed,
+      wavelengths: wavelengths ?? [],
+      frequency: frequency ?? 10,
+      order: ++this._zoneSelectionSeq,
+    };
 
-      // Tiles are opaque (see _buildSockets) — installed/idle state is
-      // conveyed by base color + emissive, not opacity. Using real
-      // transparency for this was the direct cause of the z-fighting "bite"
-      // artifacts between overlapping/adjacent tiles: Three.js sorts
-      // transparent objects per-object (not per-pixel), so neighboring
-      // semi-transparent tiles punched holes in each other depending on draw
-      // order. Opaque materials use the depth buffer correctly instead.
-      const mat = s.mesh.material;
-      if (!s.installed) {
-        mat.color.setHex(0x0a0a16);
-        mat.emissiveIntensity = 0;
-      } else {
-        mat.color.setHex(0x14141f);
-        const primaryWL = WL[s.wavelengths[0]];
-        mat.emissive.setHex(primaryWL ? primaryWL.threeHex : 0x334455);
-      }
-    });
+    zone.sockets.forEach(socketId => this._recomputeSocket(socketId));
+  }
+
+  /** Re-derives one socket's effective installed/wavelengths/frequency from
+   * every currently-installed zone that contains it, applying the overlap
+   * resolution rule documented on configureZone(). */
+  _recomputeSocket(socketId) {
+    const s = this.sockets[socketId];
+    if (!s) return;
+
+    const claimants = ZONES
+      .filter(z => this._zoneConfigs[z.name]?.installed && z.sockets.includes(socketId))
+      .map(z => z.name);
+
+    const winner = this._pickWinningZone(claimants);
+    const cfg = winner ? this._zoneConfigs[winner] : null;
+
+    s.installed   = !!cfg;
+    s.wavelengths = cfg ? cfg.wavelengths : [];
+    s.frequency   = cfg ? cfg.frequency : 10;
+
+    // Tiles are opaque (see _buildSockets) — installed/idle state is
+    // conveyed by base color + emissive, not opacity. Using real
+    // transparency for this was the direct cause of the z-fighting "bite"
+    // artifacts between overlapping/adjacent tiles: Three.js sorts
+    // transparent objects per-object (not per-pixel), so neighboring
+    // semi-transparent tiles punched holes in each other depending on draw
+    // order. Opaque materials use the depth buffer correctly instead.
+    const mat = s.mesh.material;
+    if (!s.installed) {
+      mat.color.setHex(0x0a0a16);
+      mat.emissiveIntensity = 0;
+    } else {
+      mat.color.setHex(0x14141f);
+      const primaryWL = WL[s.wavelengths[0]];
+      mat.emissive.setHex(primaryWL ? primaryWL.threeHex : 0x334455);
+    }
+  }
+
+  /** Among currently-installed zones claiming a socket, picks the winner per
+   * configureZone()'s overlap resolution rule: the most specific (subset)
+   * zone wins outright; among zones that are mutually non-subset (a true
+   * overlap, not nesting), the most recently selected wins. */
+  _pickWinningZone(claimantNames) {
+    if (claimantNames.length === 0) return null;
+    if (claimantNames.length === 1) return claimantNames[0];
+
+    // Most specific: a claimant is eliminated if some OTHER claimant is a
+    // proper subset of it (a strictly smaller zone that also claims this
+    // socket exists, so that smaller zone should win instead).
+    const mostSpecific = claimantNames.filter(name =>
+      !claimantNames.some(other => other !== name && this._isProperSubsetZone(other, name))
+    );
+
+    if (mostSpecific.length === 1) return mostSpecific[0];
+
+    // True overlap among mutually non-subset zones — most recently selected wins.
+    return mostSpecific.reduce((latest, name) =>
+      this._zoneConfigs[name].order > this._zoneConfigs[latest].order ? name : latest
+    );
+  }
+
+  /** True if zoneA's socket set is a proper subset of zoneB's. */
+  _isProperSubsetZone(nameA, nameB) {
+    const a = this._zonesByName[nameA].sockets;
+    const b = this._zonesByName[nameB].sockets;
+    if (a.length >= b.length) return false;
+    const bSet = new Set(b);
+    return a.every(id => bSet.has(id));
   }
 
   /** Configure which accessories are present. */
@@ -301,9 +385,9 @@ export class HelmetModel {
       0, Math.PI * 0.62 // polar extent (top to just below equator)
     );
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x111122,
-      roughness: 0.28,
-      metalness: 0.55,
+      color: 0xf2f2ef,
+      roughness: 0.32,
+      metalness: 0.08,
       side: THREE.FrontSide,
       envMapIntensity: 1.0,
     });
