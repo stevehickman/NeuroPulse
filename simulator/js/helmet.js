@@ -20,7 +20,7 @@
 
 import * as THREE from 'three';
 import { WL, IMPEDANCE_COLORS } from './colors.js';
-import { SOCKETS, ZONES, SOCKET_ZONE_NAMES } from './sockets.generated.js';
+import { SOCKETS, ZONES } from './sockets.generated.js';
 
 // ── shell geometry parameters ────────────────────────────────────────────────
 const SHELL_R    = 1.02;
@@ -128,13 +128,25 @@ export class HelmetModel {
     const t = wallTimeSec;
 
     // ── PBM socket glow ────────────────────────────────────────────────────
+    // Each socket lights up from its OWN configured state (installed,
+    // frequency) rather than matching its zone names against the loaded
+    // protocol's declared zone list. That zone-name-matching approach meant
+    // any zone toggled on manually — "All", or any zone a loaded protocol
+    // doesn't itself target — never actually glowed: the protocol's snapshot
+    // only ever lists ITS OWN target zones, regardless of what's manually
+    // installed. It also meant per-zone frequency (the "PBM Frequency"
+    // dropdown on each zone card, including "CW") had no effect on
+    // rendering — every socket pulsed at the single protocol-wide frequency.
+    // installed/frequency are already set correctly for manual overrides by
+    // configureZone(), so using them directly here is both the fix and the
+    // simpler design — a module doesn't need to know which named zone it's
+    // in to know whether IT is installed and running.
     SOCKETS.forEach(cfg => {
       const s = this.sockets[cfg.id];
       if (!s || !s.installed) return;
 
-      const socketTargeted = s.zoneNames.some(zn => snap.pbm.zones.includes(zn));
-      const pbmActive  = snap.pbm.active && socketTargeted;
-      const freq       = snap.pbm.frequency;
+      const pbmActive  = snap.pbm.active;
+      const freq       = s.frequency;
       const duty       = snap.pbm.dutyCycle;
       const rampI      = snap.pbm.intensity;
 
@@ -381,7 +393,6 @@ export class HelmetModel {
         mesh,
         lobe: cfg.lobe,
         side: cfg.side,
-        zoneNames: SOCKET_ZONE_NAMES[cfg.id] ?? [],
         installed: false,
         wavelengths: [],
         frequency: 10,

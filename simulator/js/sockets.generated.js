@@ -3146,15 +3146,3 @@ export const ZONES = [
     "description": "Union of Parietal Left/Right and Occipital Left/Right — everything posterior to the central sulcus that is not temporal. Migration target for the retired `zones: rear` selector and the numeric `zones: [3, 4, 5]` (ZM slots 2-4 = parietal L/R + occipital). The retired occipital ZM slot was a single zone; it maps to both new occipital hemisphere zones."
   }
 ];
-
-/** socketId -> array of zone names containing it (a socket can be in multiple zones). */
-export const SOCKET_ZONE_NAMES = (() => {
-  const map = {};
-  for (const s of SOCKETS) map[s.id] = [];
-  for (const z of ZONES) {
-    for (const id of z.sockets) {
-      if (map[id]) map[id].push(z.name);
-    }
-  }
-  return map;
-})();

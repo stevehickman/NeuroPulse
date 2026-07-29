@@ -340,18 +340,6 @@ export const ZONES = ${JSON.stringify(
     zones.map(z => ({ name: z.name, sockets: z.sockets, description: z.description ?? '' })),
     null, 2
   )};
-
-/** socketId -> array of zone names containing it (a socket can be in multiple zones). */
-export const SOCKET_ZONE_NAMES = (() => {
-  const map = {};
-  for (const s of SOCKETS) map[s.id] = [];
-  for (const z of ZONES) {
-    for (const id of z.sockets) {
-      if (map[id]) map[id].push(z.name);
-    }
-  }
-  return map;
-})();
 `;
   writeFileSync(OUT_SOCKETS, body);
   console.log(`  Wrote ${OUT_SOCKETS}`);
