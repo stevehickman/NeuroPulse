@@ -760,6 +760,31 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   "flower"** (1 center + 6 neighbors) → 30 tiles ≈ **4 clusters**; the smaller
   **3-hex triad** → ~9–10 clusters. (So total actuators ≈ 4 corner layer-latches +
   4–10 cluster clamps, vs 4 + 30–42 with per-module levers — a 4–10× reduction.)
+- **⚠ Cluster size is no longer a purely mechanical tradeoff (2026-07-29).**
+  NP-HW-HUB-001 Rev C §4.4 puts **one electrical cluster-controller board per
+  mechanical cluster**, and recommends the two be the same thing. The board is
+  **capacity-8, not exactly-8** — a 7-tile flower populates 14 of 16 mux channels
+  and 7 of 8 I2C channels on the identical board at the identical cost, because no
+  7-channel I2C switch or 14:1 analog mux exists to buy instead. So **one universal
+  cluster-board SKU covers a flower, an 8-tile patch, or a 3–6-tile partial boundary
+  cluster** — the same "standardize the sold part, not the geometry" move this brief
+  makes for the tiles themselves, applied one level up. Consequence for MECH-2: board
+  count, hence cluster-tier BOM, is driven by cluster *count*, so **smaller mechanical
+  clusters are now materially more expensive**:
+
+  | MECH-2 cluster | Boards at n=80 | Tier BOM | Boards at n=128 | Fits 32-controller bus? |
+  |---|---|---|---|---|
+  | 3-hex triad | 27 | **$171.18** | 43 | **No** — exceeds the 5-bit address strap |
+  | **7-hex flower ★ recommended** | **12** | **$76.08** | 19 | Yes |
+  | 8-tile patch | 10 | $63.40 | 16 | Yes |
+
+  The triad is now the expensive option at 2.2× the flower. The 8-tile patch saves
+  $12.68 at n=80 but is not a centred-hex super-cell, buying that saving with less
+  regular clamp-plate geometry. Aligning also gives short symmetric FPC tails from a
+  centroid-mounted board (matters — the PD lines are current-mode analog and must be
+  guarded from LED drive), clean per-cluster "module absent" reporting on clamp
+  release, and board + clamp + sockets as a single FRU. **MECH-2 still owns the
+  decision** (curvature span, plate seating, HFE formative); Rev C only prices it.
 - **Mechanism:** one **over-center lever-throw clamp per cluster** — a push/pull
   toggle latch (NOT a twist cam; see accessibility below) — drives a **clamp plate
   carrying a spring-loaded plunger per module.** Throwing it closed compresses every
@@ -873,7 +898,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | EMF-3 | Gasket line-pressure map: min compression at back-center (PL–PR) span AND the two side (ear) spans ≥ seal threshold with the four-corner AL/AR/PL/PR pattern; if marginal → lip/gasket stiffening (or lateral/posterior-center latch) | Latch-pattern sign-off; RF seal |
 | MECH-1 | Four-corner clamp (AL/AR/PL/PR) + posterior-center connector boss + Hall interlock detail | Shell tooling |
 | ZONE-1 | **DECIDED 2026-07-30 (principal): lobes are not a system concept — nothing in code or docs may define, derive or hardcode one.** Zones live only in `protocols/predefined/00-zones.npps`, which is already self-contained (14 zones, explicit `sockets:` lists); a zone whose socket set corresponds to a lobe is an authoring fact, not a system type. Deletes the `Lobe` type + four anatomical constants from `scripts/sync-socket-map.ts` and its lobe-zone diff (redundant, and its "evidence the model is not a guess" claim is circular — the file is regenerated from those same constants); deletes `lobe` from `socketMap.generated.ts` and its 7 app consumers (`SocketPicker.tsx` groups by zone instead — user-defined zones then appear too); firmware side is **OI-HUB-C14**. Generator keeps **structural** zone-file validation (ids exist, `"All"` covers all, aggregates are unions, no dupes) and loses **content** derivation. See §3.3. **CODE SIDE DONE 2026-07-30** — generator, generated map and app consumers landed; `00-zones.npps` socket sets byte-identical (this deleted a redundant derivation, it re-authored no zone); structural checks verified to fail loudly against five deliberately corrupted zone files; app suite 238/238, `tsc --noEmit` clean, firmware host suite 18/18 unchanged. **Firmware share still OPEN under OI-HUB-C14.** | Source-of-truth hygiene; removes the model that produced the 2026-07-30 lattice-generation drift |
-| MECH-2 | Module cluster-clamp design: cluster size (3–7), over-center lever-throw actuator (not a twist cam) + per-module spring plungers, curvature span, low one-handed input force | Inner-bowl tooling; serviceability |
+| MECH-2 | Module cluster-clamp design: cluster size (3–7), over-center lever-throw actuator (not a twist cam) + per-module spring plungers, curvature span, low one-handed input force. **New input 2026-07-29 (NP-HW-HUB-001 Rev C §4.4, §5.4a table above):** the electrical cluster-controller tier places one capacity-8 board per mechanical cluster, so cluster size now carries a BOM gradient — **3-hex triad $171.18 vs 7-hex flower $76.08 at n=80**, and the triad's 43 boards at n=128 exceed the 32-controller tier-1 address strap. **Flower recommended**; also raise cluster size to ≤8 only if the clamp plate tolerates it. Decision still MECH-2's (curvature, seating, HFE formative) | Inner-bowl tooling; serviceability; cluster-tier BOM |
 | DOC-1 | CLAUDE.md §7/§13 integration once GATE-1/2 PASS | Baseline promotion |
 
 ## 8. Cross-references

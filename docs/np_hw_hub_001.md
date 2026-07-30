@@ -181,24 +181,35 @@ two per socket.
 
 ## 4. Socket-to-cluster topology
 
-### 4.1 Cluster size = 8 sockets
+### 4.1 Cluster **capacity** = 8 sockets — a capacity, not a shape
 
-Set by the analog mux, which is the tightest fit in the chain: a single 16:1 low-leakage CMOS mux
-carries exactly 8 sockets × (PD1 + PD2). Other per-cluster resources are slack at 8 (PCA9548A is an
-8-channel part — an exact fit; NTC needs an 8:1; the MCU ADC needs ~4 channels total).
+Set by the analog mux, the tightest fit in the chain: one 16:1 low-leakage CMOS mux carries exactly
+8 sockets × (PD1 + PD2). Other per-cluster resources are slack at 8 (PCA9548A is an 8-channel part —
+exact fit; NTC needs an 8:1; the MCU ADC needs ~4 channels total).
 
-Cluster count = `ceil(n_sockets / 8)`.
+**8 is a ceiling the board is built to, not a count every board must hit.** This distinction is
+load-bearing — see §4.4. A board serving 7 sockets leaves 2 mux channels and 1 I2C channel spare,
+and that spare costs **nothing**: I2C switches come in 4- and 8-channel parts and analog muxes in
+4:1/8:1/16:1, so there is no 7-channel part to buy instead. Capacity 8 is the natural part boundary
+and is the same price as a hypothetical capacity 7.
 
-| n_sockets | Clusters | Note |
+Board count = `ceil(n_sockets / sockets_per_cluster)`, with `sockets_per_cluster ≤ 8`.
+
+Board counts at full capacity-8 population (the **lower bound** on board count; §4.4 tabulates the
+7-hex-flower case, which is the recommended MECH-2 alignment and costs ~20 % more boards):
+
+| n_sockets | Boards at 8/cluster | Note |
 |---|---|---|
 | 30 (§3.1 area-quotient lattice) | 4 | low end of the provisional range |
 | 42 (§3.1 geometry ceiling at W = 34 mm) | 6 | |
 | **80 (v1 scan-grounded lattice, PROVISIONAL)** | **10** | worked example throughout this document |
-| 128 (`NP_HEXMAP_MAX_SOCKETS`) | 16 | design maximum |
+| 128 (`NP_HEXMAP_MAX_SOCKETS`) | 16 | design maximum at 8/cluster |
 
-**16 clusters × 8 sockets = 128 = the full 7-bit `NP_HEXMAP_SOCKET_BITS` domain exactly.** That
-coincidence is why 8 is the right cluster size rather than 6 or 7: the tier's maximum capacity lands
-precisely on the firmware addressing ceiling, so neither bound can be reached before the other.
+**16 boards × 8 sockets = 128 = the full 7-bit `NP_HEXMAP_SOCKET_BITS` domain exactly** — the tier's
+maximum capacity lands precisely on the firmware addressing ceiling, so neither bound binds before
+the other. Note this is an aesthetically pleasing coincidence, **not** an argument that every board
+must be full: at the recommended 7-tile flower the count is 19 at n = 128, still inside the
+32-controller tier-1 bus (§4.3, §4.4).
 
 ### 4.2 Socket numbering stays anatomical — the tempting bit-packing is rejected
 
@@ -232,6 +243,115 @@ the **inner bowl** — which is already the part that gets re-tooled when the la
 Only the inner-bowl cluster-board count and their FPC fan-outs move. This is the single most valuable
 property of the architecture and it is worth more than the BOM difference between any two options in
 §3.3.
+
+The tier-1 bus is specified for **up to 32 cluster controllers** (5-bit strapped address), which
+bounds every MECH-2 cluster shape worth considering — see §4.4.
+
+### 4.4 Electrical clusters and the mechanical cluster clamps SHOULD be the same
+
+`NP-HEX-ZM-001` §5.4a clamps modules in **mechanical** clusters — one over-center actuator per
+cluster driving a plate of per-module spring plungers — with the **7-hex "flower"** (1 centre +
+6 neighbours) named as the natural super-cell and a **3-hex triad** as the smaller alternative.
+Final size is open as **MECH-2**. The question is whether that cluster and this document's
+electrical cluster can be one and the same thing.
+
+**They can, and they should. §4.1's capacity framing is what makes it nearly free.**
+
+The apparent obstacle is that 8 (electrical) ≠ 7 (flower). It dissolves once the board is understood
+as capacity-8 rather than exactly-8: a 7-tile flower populates 14 of 16 mux channels and 7 of 8 I2C
+channels on the *same board design*, at the *same board cost* (§4.1). Neither number divides 80
+anyway, and a bounded lattice with irregular row widths (`3 6 7 8 9 8 9 8 7 6 5 4`) has partial
+clusters at its boundary under any tiling — so "every board full" was never achievable and is not
+the property to optimise for.
+
+**One universal cluster-board SKU, capacity 8, populated to whatever shape MECH-2 picks.** This is
+the same move `NP-HEX-ZM-001` makes one level down for the tiles themselves — "standardize the sold
+part, not the geometry" (§Principles), one module SKU absorbing the head's variability in the shell.
+Applied one level up: one board SKU absorbing the lattice's boundary irregularity and MECH-2's
+still-open shape choice. A partial boundary flower of 3–6 tiles takes the identical board.
+
+**What alignment buys:**
+
+1. **FPC routing.** The board sits at its cluster's centroid in the inter-bowl gap, beside the clamp
+   actuator, with short symmetric tails. This matters more than usual here because the PD lines are
+   current-mode analog and must be guarded away from LED drive (**HUB-DRC-C15**); misaligned clusters
+   mean tails crossing cluster boundaries and getting longer for no benefit.
+2. **Service atomicity.** Releasing one clamp takes exactly one board's sockets to "not present".
+   `NP-HEX-ZM-001` §5.4a already relies on an unseated tile self-detecting via failed inventory poll;
+   alignment makes that signal clean and per-cluster rather than smeared across two boards.
+3. **One FRU.** Board + clamp + sockets becomes a single tested sub-assembly and a single service
+   part — relevant to the partner-tier service network.
+
+**And a finding that flows the other way — into MECH-2.** The electrical tier puts a real cost
+gradient on the mechanical cluster size, which §5.4a's 3-vs-7 discussion (a purely mechanical
+tradeoff at the time it was written) could not have seen:
+
+| MECH-2 cluster | Boards at n=80 | Cost at n=80 | Boards at n=128 | Fits 32-controller bus? |
+|---|---|---|---|---|
+| 3-hex triad | 27 | **$171.18** | 43 | **No** — exceeds the 5-bit strap |
+| **7-hex flower ★** | **12** | **$76.08** | 19 | Yes |
+| 8-tile patch | 10 | $63.40 | 16 | Yes |
+
+**Recommendation: the 7-hex flower.** The triad is now the expensive option — 2.2× the cluster-tier
+BOM, and it does not fit the tier-1 address strap at the top of the lattice range. The 8-tile patch
+is $12.68 cheaper than the flower at n=80 but is not a natural centred-hex super-cell, so it buys
+that saving by making the clamp plate geometry less regular. Paying $12.68 for the flower's
+mechanical regularity plus items 1–3 above is the conservative trade.
+
+This is an **input to MECH-2, not a decision this document can take** — clamp size is governed by
+curvature span, plate seating and the HFE formative (§5.4a accessibility requirements). What Rev C
+contributes is that the electrical tier no longer constrains the choice to a single number, and now
+prices it.
+
+### 4.5 Why this does NOT become a three-level address
+
+The natural next thought is that an aligned cluster gives a three-level hardware address —
+`(cluster : module-in-cluster : element-in-module)` — replacing today's two-level
+`(socket : element)`. **Rejected**, for the same reason §4.2 rejects bit-packing `socket_id`, only
+more strongly.
+
+**The middle level is not a new identity.** "Module within cluster" and "socket" name the same
+physical thing. Splitting one level into two adds no information; it re-expresses position as
+`(where the wiring goes, which pin)` instead of `(which place on the head)`.
+
+**And it swaps a stable axis for an unstable one.** Socket id is *anatomical* — it is what
+`00-zones.npps`, `socketMap.generated.ts`, saved user protocols, published protocol files, and the
+REG-1 10-20 registration all key on. Cluster membership is *topological* — it changes whenever
+MECH-2 revisits the clamp shape or REG-1 re-cuts the lattice. Encoding cluster in the address makes
+every clamp-pattern revision renumber the clinical address space. Worse, it routes a mechanical
+service decision through the safety-critical addressing path: `np_module_map.h` is explicit that a
+mis-resolved socket "is a wrong-site stimulation path, not a data-quality issue."
+
+It also does not fit the wire. Cluster (5 bits, ≤32) + module (3 bits) + element (7 bits) = **15
+bits**, against the 14-bit packed address `np_hex_addr_pack()` produces, `NP_HEX_ADDR_MAX = 0x3FFF`,
+and the `_np_hexmap_socket_mask_fits` compile-time assert. A wire-format change, for negative value.
+
+**The correct model is two address spaces, and conflating them is the trap:**
+
+| | Logical / clinical | Physical / transport |
+|---|---|---|
+| Form | `(socket : element)` — 7 + 7 | `(cluster : channel : element)` — 5 + 3 + 7 |
+| Axis | Anatomical, stable | Topological, changes with MECH-2 / REG-1 |
+| Used by | Protocols, zones, groups, the app, REG-1 | The hub HAL and cluster-controller firmware only |
+| Bridge | `socket_id → (cluster_id, channel)`, generated by `sync-socket-map.ts` (§4.2, **OI-HUB-C10**) | |
+
+So the three-level structure **does** exist — it is real, and it is exactly what
+`np_hub_cluster_read_frame(cluster_id, …)` (§9.3) addresses. It lives at the transport layer, below
+the logical address, where a re-clustering costs one regenerated table and nothing else. The
+existing firmware already has this shape latent: `np_module_map` separates GEOMETRY
+(`socket → lobe/side/x/y`) from INVENTORY (`socket → UID/elements`); the cluster map is a third map
+of the same kind, not a fourth address field.
+
+**What is worth adding — a group kind, not an address level.** "Disable cluster 3", "which cluster
+is open", "report faults per cluster" are genuinely useful operations. They belong in the existing
+group machinery: a `NP_GROUP_KIND_CLUSTER` alongside `NP_GROUP_KIND_LOBE` / `_SOCKET_SET` /
+`_ADDR_SET` in `np_group_query_t`, resolving to a socket set through the same table. Cheap, and it
+inherits the resolver's dedup guarantee.
+
+**What is not worth adding:** a `NP_PROTO_TARGET_CLUSTER_MASK` target kind in NP Hub Protocol v2.
+The existing 16-byte socket bitmap already expresses any cluster; a cluster target kind would save
+12 bytes on the wire and create a second way to say the same thing — precisely what §10 argues
+against on dedup grounds. Expand cluster → sockets in the app compiler instead.
 
 ---
 
@@ -486,15 +606,20 @@ ids 0–127 unchanged — no wire change needed there.
 
 ### 8.2 Scaling, and the hub PCB delta
 
-Cluster tier cost = **$6.34 × ceil(n_sockets / 8)**:
+Cluster tier cost = **$6.34 × ceil(n_sockets / sockets_per_cluster)**. Board cost is flat regardless
+of how many of its 8 channels are populated (§4.1), so the driver is board *count*:
 
-| n_sockets | Clusters | Cluster tier |
-|---|---|---|
-| 30 | 4 | $25.36 |
-| 42 | 6 | $38.04 |
-| 64 | 8 | $50.72 |
-| **80 (v1 provisional)** | **10** | **$63.40** |
-| 128 (ceiling) | 16 | $101.44 |
+| n_sockets | At 8/cluster | | At 7/cluster (**recommended flower**, §4.4) | |
+|---|---|---|---|---|
+| | Boards | Cost | Boards | Cost |
+| 30 | 4 | $25.36 | 5 | $31.70 |
+| 42 | 6 | $38.04 | 6 | $38.04 |
+| 64 | 8 | $50.72 | 10 | $63.40 |
+| **80 (v1 provisional)** | **10** | **$63.40** | **12** | **$76.08** |
+| 128 (ceiling) | 16 | $101.44 | 19 | $120.46 |
+
+The 3-hex triad is omitted: 27 boards / $171.18 at n = 80, and 43 boards at n = 128 exceeds the
+32-controller tier-1 address strap (§4.4).
 
 Hub PCB itself barely moves:
 
@@ -667,7 +792,8 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C06 | **Calibration coefficients re-keyed to module UID, not socket** (§9.5) — against `NP-FW-PBM1064-001` Rev C and `NP-HEX-ZM-001` | Dose-metering accuracy claim |
 | OI-HUB-C07 | Safety review to confirm all-or-nothing `NP_SAFETY_EN_PBM_CRANIAL` granularity is acceptable, vs. widening the Class C safety wire format (§7.1–7.2) | Safety wire format; OI-HUB-SOCKET-01 |
 | OI-HUB-C08 | **Net the $63.40 cluster tier against the retired 5-zone-module drive electronics** already inside the $405 Home Standard BOM (§8.4) — needs a post-hex module BOM that does not yet exist | BOM sign-off |
-| OI-HUB-C09 | Align electrical clusters (8 sockets) with `NP-HEX-ZM-001` §5.4a mechanical clusters (7-hex flower / 3-hex triad) under MECH-2, **or** explicitly accept the decoupling (§4.1) | Inner-bowl FPC routing; MECH-2 |
+| OI-HUB-C09 | **Answered 2026-07-29 (§4.4–4.5) — now a MECH-2 input, not an open question.** Electrical and mechanical clusters **should be the same**: the board is **capacity-8**, not exactly-8, and capacity 8 costs the same as a hypothetical 7 (no 7-channel I2C switch or 14:1 mux exists), so one universal board SKU serves a 7-hex flower, an 8-tile patch, or a 3–6-tile partial boundary cluster. Recommendation: **7-hex flower** — the triad is 2.2× the tier BOM ($171.18 vs $76.08 at n=80) and 43 boards at n=128 exceeds the 32-controller tier-1 strap. Residual for MECH-2: confirm flower clamp-plate seating over the curvature span and the HFE formative. **Three-level `(cluster:module:element)` addressing is explicitly rejected** (§4.5) — it swaps an anatomical axis for a topological one and needs 15 bits against the 14-bit `np_hex_addr_pack()` wire. | MECH-2 (input delivered); inner-bowl FPC routing |
+| OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER` to `np_group_query_t` (resolving to a socket set via the §4.2 table) so "disable cluster N" / per-cluster fault reporting are expressible without a new address level (§4.5). **Do not** add a `NP_PROTO_TARGET_CLUSTER_MASK` wire target kind — the existing socket bitmap already covers it | Service + fault-isolation UX |
 | OI-HUB-C10 | `scripts/sync-socket-map.ts` to emit the `socket_id → (cluster_id, channel)` table alongside existing artifacts so it cannot drift from the lattice (§4.2) | Generated artifacts |
 | OI-HUB-C11 | Hub 3.3 V and cluster-rail current budget at 16 clusters (supersedes Rev B's OI-HUB-01, which sized 5 × 50 mA smart modules) | Pre-prototype |
 | OI-HUB-C12 | Cluster-bus EMI qualification: confirm differential signalling + bus-quiet window keeps EEG noise floor within budget (§5.1) | EMF-1; EEG noise floor |
