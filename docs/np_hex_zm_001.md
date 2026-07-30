@@ -361,6 +361,21 @@ checks; Cortex-M7 `-Werror` clean; CI test #12). Summary:
   (L/R × frontal/temporal/parietal/occipital) + user socket-sets + address-sets,
   each with an element-type include/exclude filter. Protocol authors manipulate
   individual elements or whole groups.
+  > **⚠ Correction (2026-07-29) — the 8 predefined lobe groups are test-only, not
+  > delivered functionality.** `np_module_map_predefined()` / `NP_PGROUP_*` have **no
+  > production caller**; there is **no production `np_socket_geom_t` table** in the
+  > tree (the `lobe`/`side` fields are populated only by test fixtures); and
+  > `scripts/sync-socket-map.ts` **emits no firmware C**, so nothing keeps a firmware
+  > lobe assignment in sync with `00-zones.npps`. Zone membership is **data**, owned
+  > by the zone file, and it already reaches firmware correctly by the live path —
+  > app compiles `00-zones.npps` → `NP_PROTO_TARGET_SOCKET_MASK` bitmap →
+  > `np_protocol_socket_expand()` → `NP_GROUP_KIND_SOCKET_SET` (§4b). The firmware
+  > lobe path is a second source of truth with no generator behind it, and becomes a
+  > wrong-site-dose hazard the moment anyone calls it after REG-1 re-cuts the lobe
+  > boundaries. Retirement tracked as **OI-HUB-C14** (NP-HW-HUB-001 Rev C §4.5.2).
+  > The general rule that fell out: **firmware may hold a socket grouping only if
+  > changing it requires re-tooling hardware** — true of cluster membership (inner-bowl
+  > FPC routing), false of lobe membership (a data re-cut). See Rev C §4.5.1.
 - **NVRAM:** CRC-32-protected serialize/load behind an injected HAL (bad
   magic/version/CRC rejected). Two integration seams remain: the module I2C
   `inventory_fn` and the Config-partition NVRAM HAL (OI-HEXMAP-01).

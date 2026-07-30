@@ -349,11 +349,63 @@ PD self-test on every photodiode in cluster 3" are genuinely useful operations, 
 `NP_GROUP_KIND_CLUSTER = 3` alongside `NP_GROUP_KIND_LOBE` / `_SOCKET_SET` / `_ADDR_SET` in
 `np_group_query_t`, plus a `uint8_t cluster_id` field, resolving through the §4.2 table.
 
-It is the cheapest possible addition because it is **structurally identical to the existing
-`NP_GROUP_KIND_LOBE` case** in `np_module_map_resolve_group()` — one ascending pass over the
-geometry visiting each socket exactly once (so, like LOBE, it cannot self-duplicate and needs no
-`seen` bitmap), with the predicate `cluster_of(socket) == q->cluster_id` substituted for the
-lobe/side match. It inherits the type filter and the resolver's dedup guarantee for free.
+Mechanically it is the cheapest possible addition: one ascending pass over the socket table visiting
+each socket exactly once (so it cannot self-duplicate and needs no `seen` bitmap), with the predicate
+`cluster_of(socket) == q->cluster_id`. It inherits the type filter and the resolver's dedup guarantee
+for free.
+
+#### 4.5.1 The discriminator: does changing this membership require re-tooling hardware?
+
+An earlier draft justified this kind by noting it is structurally a clone of the existing
+`NP_GROUP_KIND_LOBE` case. **That was the wrong justification** — LOBE is the example that should be
+deleted, and the reason it should be deleted is exactly the reason CLUSTER is legitimate.
+
+| Group kind | Source of truth | Changed by | Belongs in firmware? |
+|---|---|---|---|
+| `LOBE` | `protocols/predefined/00-zones.npps`, derived from the lattice | zone re-cut / **REG-1** — no hardware change | **No — retire (§4.5.2)** |
+| `SOCKET_SET` | the protocol itself, via the socket bitmap | protocol author | n/a — passed in per query |
+| `ADDR_SET` | the protocol itself | protocol author | n/a — passed in per query |
+| `CLUSTER` | the inner-bowl FPC routing | **inner-bowl re-tool only** | **Yes — legitimately** |
+
+**The test is whether the membership can change without re-tooling hardware.** Lobe membership can:
+REG-1 will re-cut the row/lobe boundaries against shell CAD and regenerate `00-zones.npps`, with no
+physical change whatsoever. A firmware-resident lobe table is therefore a second source of truth for
+a data file, and one that goes stale silently. Cluster membership cannot: which sockets land on which
+cluster board is a physical property of a built inner bowl, fixed at assembly, and no protocol
+author, zone re-cut, or REG-1 iteration can alter it. It is a fact *about the board the firmware is
+running on* — the only category that belongs in firmware.
+
+#### 4.5.2 `NP_GROUP_KIND_LOBE` is not merely outdated — it is unbacked
+
+Three findings, each verifiable by grep:
+
+1. **No caller.** `np_module_map_predefined()` and the `NP_PGROUP_*` enum have zero references outside
+   their own definition and `np_module_map_tests.c`. `NP_GROUP_KIND_LOBE` is reachable in production
+   only through that uncalled function.
+2. **No data.** There is no production `np_socket_geom_t` table anywhere in the tree — only the
+   typedef, the `np_module_map_init()` parameter, and dereferences. The `lobe`/`side` fields are
+   populated exclusively by test fixtures.
+3. **No generator.** `scripts/sync-socket-map.ts` emits `socketMap.generated.ts` and
+   `hardware/np_socket_map.json`. It emits no firmware C, so nothing could keep a firmware lobe table
+   in sync with `00-zones.npps` even if one were written.
+
+Meanwhile the live path carries zone membership end to end without touching any of it: the app reads
+`00-zones.npps`, compiles to a `NP_PROTO_TARGET_SOCKET_MASK` bitmap, and firmware turns that into a
+`NP_GROUP_KIND_SOCKET_SET` query via `np_protocol_socket_expand()`. Zones are data, and the data path
+already works.
+
+**This matters beyond tidiness.** If anything ever does call `np_module_map_predefined()` after REG-1
+re-cuts the boundaries, it resolves against a lobe assignment with no generator behind it — a
+wrong-site dose from a stale anatomical map, the hazard class `np_module_map.h` is otherwise loud
+about. Retiring the path is the conservative action; leaving dead code that only becomes dangerous
+when someone finds it is not.
+
+Retirement is **not** done in this PR — it deletes an enum, a public function, struct fields, and
+touches several of the 63 host checks, which is a firmware change that deserves its own review rather
+than riding along with a hardware spec. Tracked as **OI-HUB-C14**. Note `np_physical_loc_t` also
+carries `lobe`/`side` from `np_module_map_resolve()`; `x_mm`/`y_mm` stay (simulator selection uses
+them), so the retirement needs to decide whether callers of `resolve()` lose the anatomical fields or
+whether those become app-side lookups.
 
 **Scope guardrail — device-state operations only, never therapeutic targeting.** Every use case
 above is service, fault isolation, or diagnostics. **No clinical protocol may ever target a
@@ -819,7 +871,8 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C07 | Safety review to confirm all-or-nothing `NP_SAFETY_EN_PBM_CRANIAL` granularity is acceptable, vs. widening the Class C safety wire format (§7.1–7.2) | Safety wire format; OI-HUB-SOCKET-01 |
 | OI-HUB-C08 | **Net the $63.40 cluster tier against the retired 5-zone-module drive electronics** already inside the $405 Home Standard BOM (§8.4) — needs a post-hex module BOM that does not yet exist | BOM sign-off |
 | OI-HUB-C09 | **Answered 2026-07-29 (§4.4–4.5) — now a MECH-2 input, not an open question.** Electrical and mechanical clusters **should be the same**: the board is **capacity-8**, not exactly-8, and capacity 8 costs the same as a hypothetical 7 (no 7-channel I2C switch or 14:1 mux exists), so one universal board SKU serves a 7-hex flower, an 8-tile patch, or a 3–6-tile partial boundary cluster. Recommendation: **7-hex flower** — the triad is 2.2× the tier BOM ($171.18 vs $76.08 at n=80) and 43 boards at n=128 exceeds the 32-controller tier-1 strap. Residual for MECH-2: confirm flower clamp-plate seating over the curvature span and the HFE formative. **Three-level `(cluster:module:element)` addressing is explicitly rejected** (§4.5) — it swaps an anatomical axis for a topological one and needs 15 bits against the 14-bit `np_hex_addr_pack()` wire. | MECH-2 (input delivered); inner-bowl FPC routing |
-| OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table — structurally a clone of the existing `NP_GROUP_KIND_LOBE` case (single ascending pass, no `seen` bitmap needed). Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
+| OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table (single ascending pass, no `seen` bitmap needed). Legitimate as a firmware-resident group because socket→cluster changes only on an inner-bowl re-tool (§4.5.1) — unlike lobe. Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
+| OI-HUB-C14 | **Retire the firmware lobe path** — `NP_GROUP_KIND_LOBE`, `np_pgroup_t`, `np_module_map_predefined()`, and the `lobe`/`side` fields of `np_socket_geom_t`. It is unbacked: no production caller, no production geometry table (test fixtures only), and no generator emitting firmware C (§4.5.2). Zones are data owned by `00-zones.npps` and already reach firmware as a socket bitmap → `NP_GROUP_KIND_SOCKET_SET`. Risk if left: a future caller resolves against a stale post-REG-1 lobe map — a wrong-site dose from dead code. Decide whether `np_physical_loc_t` keeps `lobe`/`side` (from `np_module_map_resolve()`) or those become app-side lookups; `x_mm`/`y_mm` stay for simulator selection. Touches several of the 63 host checks — own PR, own review | Firmware source-of-truth hygiene; REG-1 safety |
 | OI-HUB-C10 | `scripts/sync-socket-map.ts` to emit the `socket_id → (cluster_id, channel)` table alongside existing artifacts so it cannot drift from the lattice (§4.2) | Generated artifacts |
 | OI-HUB-C11 | Hub 3.3 V and cluster-rail current budget at 16 clusters (supersedes Rev B's OI-HUB-01, which sized 5 × 50 mA smart modules) | Pre-prototype |
 | OI-HUB-C12 | Cluster-bus EMI qualification: confirm differential signalling + bus-quiet window keeps EEG noise floor within budget (§5.1) | EMF-1; EEG noise floor |
