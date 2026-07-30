@@ -374,25 +374,44 @@ checks; Cortex-M7 `-Werror` clean; CI test #12). Summary:
   NVRAM) **only when its UID differs** from the one stored for that socket.
   Unchanged modules are never re-inventoried. Fail-closed on bad/oversized/absent
   inventory.
-- **Resolution:** `(socket:element)` → lobe/side/x-y/type. **Groups:** 8 predefined
-  (L/R × frontal/temporal/parietal/occipital) + user socket-sets + address-sets,
+- **Resolution:** `(socket:element)` → ~~lobe/side/~~x-y/type. **Groups:** ~~8 predefined
+  (L/R × frontal/temporal/parietal/occipital) +~~ user socket-sets + address-sets,
   each with an element-type include/exclude filter. Protocol authors manipulate
   individual elements or whole groups.
-  > **⚠ Correction (2026-07-29) — the 8 predefined lobe groups are test-only, not
-  > delivered functionality.** `np_module_map_predefined()` / `NP_PGROUP_*` have **no
-  > production caller**; there is **no production `np_socket_geom_t` table** in the
-  > tree (the `lobe`/`side` fields are populated only by test fixtures); and
-  > `scripts/sync-socket-map.ts` **emits no firmware C**, so nothing keeps a firmware
+  > **⚠ SUPERSEDED (2026-07-29) — the 8 predefined lobe groups were never delivered
+  > functionality, and are now RETIRED (OI-HUB-C14, closed).** Struck through above
+  > rather than erased, per the marking-superseded convention.
+  >
+  > *Why they were never real:* `np_module_map_predefined()` / `NP_PGROUP_*` had **no
+  > production caller**; there was **no production `np_socket_geom_t` table** in the
+  > tree (the `lobe`/`side` fields were populated only by test fixtures); and
+  > `scripts/sync-socket-map.ts` **emits no firmware C**, so nothing kept a firmware
   > lobe assignment in sync with `00-zones.npps`. Zone membership is **data**, owned
   > by the zone file, and it already reaches firmware correctly by the live path —
   > app compiles `00-zones.npps` → `NP_PROTO_TARGET_SOCKET_MASK` bitmap →
   > `np_protocol_socket_expand()` → `NP_GROUP_KIND_SOCKET_SET` (§4b). The firmware
-  > lobe path is a second source of truth with no generator behind it, and becomes a
-  > wrong-site-dose hazard the moment anyone calls it after REG-1 re-cuts the lobe
-  > boundaries. Retirement tracked as **OI-HUB-C14** (NP-HW-HUB-001 Rev C §4.5.2).
+  > lobe path was a second source of truth with no generator behind it, and would
+  > have become a wrong-site-dose hazard the moment anyone called it after REG-1
+  > re-cut the lobe boundaries.
+  >
+  > *What was actually removed:* `NP_GROUP_KIND_LOBE`, the `lobe`/`side` fields of
+  > `np_group_query_t`, `np_pgroup_t`, `np_module_map_predefined()`, the
+  > `lobe_side_matches()` helper, **and** the `lobe`/`side` fields of both
+  > `np_socket_geom_t` and `np_physical_loc_t` — the fields went too, because the
+  > ungenerated anatomical store was the hazard and the query kind was merely the one
+  > path that read it. `x_mm`/`y_mm` are retained (simulator selection; metric
+  > geometry does not go stale on a zone re-cut). Anatomical labelling of a socket id
+  > is now an app-side lookup against `app/web/src/lib/socketMap.generated.ts`, which
+  > *does* have a generator that fails the build on drift from the zone file.
+  > Resolver properties that had been demonstrated via the lobe path (dedup, type
+  > include/exclude, mask-0, overflow, inclusive-midline membership) were
+  > re-expressed over `NP_GROUP_KIND_SOCKET_SET`, not dropped.
+  >
   > The general rule that fell out: **firmware may hold a socket grouping only if
   > changing it requires re-tooling hardware** — true of cluster membership (inner-bowl
-  > FPC routing), false of lobe membership (a data re-cut). See Rev C §4.5.1.
+  > FPC routing), false of lobe membership (a data re-cut). See Rev C §4.5.1. The
+  > inclusive-midline **zone-authoring** rule now lives in full in
+  > `protocols/predefined/00-zones.npps`, which is the file it governs.
 - **NVRAM:** CRC-32-protected serialize/load behind an injected HAL (bad
   magic/version/CRC rejected). Two integration seams remain: the module I2C
   `inventory_fn` and the Config-partition NVRAM HAL (OI-HEXMAP-01).

@@ -22,12 +22,15 @@
  * Three maps compose here:
  *
  *   1. GEOMETRY (fixed helmet property, const, lives in flash):
- *        socket_id → { lobe, side, x_mm, y_mm }.
+ *        socket_id → { x_mm, y_mm }.
  *      Because a socket's asymmetric key forces one mount orientation, the
  *      socket position fully determines physical location; element_id indexes
  *      within that module. Any finer intra-module element offset is a per-type
  *      layout concern and is out of scope here — protocol/group resolution
  *      operates at socket+type granularity, which this map delivers.
+ *
+ *      GEOMETRY IS METRIC, NOT ANATOMICAL — deliberately. There is no lobe or
+ *      hemisphere here; see the note on ANATOMICAL LABELLING below.
  *
  *   2. INVENTORY (per-socket, cached in NVRAM):
  *        socket_id → { module UID, health, element type[element_id] }.
@@ -36,11 +39,46 @@
  *      stored for that socket does the module stream its element-type inventory,
  *      which is written to NVRAM. Unchanged modules are never re-inventoried.
  *
- *   3. GROUPS (predefined + user-defined):
- *        a set of (socket:element) addresses, resolved from a lobe+side, an
- *        explicit socket list, or an explicit address list, with an optional
- *        element-type include/exclude filter. Eight predefined groups (L/R ×
- *        frontal/temporal/parietal/occipital) plus arbitrary user groups.
+ *   3. GROUPS (all caller-supplied):
+ *        a set of (socket:element) addresses, resolved from an explicit socket
+ *        list or an explicit address list, with an optional element-type
+ *        include/exclude filter. This module defines NO groups of its own.
+ *
+ * ── ANATOMICAL LABELLING IS NOT A FIRMWARE CONCERN (OI-HUB-C14, 2026-07-29) ──
+ *
+ * This module once held a lobe/hemisphere assignment per socket, an eight-entry
+ * predefined-lobe-group table (`np_pgroup_t` / `np_module_map_predefined()`) and a
+ * `NP_GROUP_KIND_LOBE` query. All of it is retired. It was unbacked on three
+ * independent axes: no production caller, no production geometry table (the
+ * lobe/side columns were populated only by test fixtures), and no generator — the
+ * one generator in the tree, scripts/sync-socket-map.ts, emits TypeScript and JSON,
+ * never firmware C. So nothing could have kept a firmware lobe assignment in sync
+ * with protocols/predefined/00-zones.npps.
+ *
+ * THE DISCRIMINATOR (NP-HW-HUB-001 Rev C §4.5.1): firmware may hold a socket
+ * grouping only if changing that membership requires RE-TOOLING HARDWARE. Cluster
+ * membership qualifies — which sockets land on which cluster board is a physical
+ * property of a built inner bowl. Lobe membership does not: gate REG-1 will re-cut
+ * the row/lobe boundaries against shell CAD and regenerate 00-zones.npps with no
+ * hardware change whatsoever. A firmware lobe table would then be a stale second
+ * source of truth for a data file — and because this module addresses PBM and tES
+ * elements, resolving against it is a WRONG-SITE STIMULATION path, not a
+ * data-quality issue.
+ *
+ * WHERE LOBE/SIDE LIVE NOW: protocols/predefined/00-zones.npps is the source of
+ * truth for zone membership, and app/web/src/lib/socketMap.generated.ts is its
+ * generated per-socket view carrying `lobe` and `side`. That generator re-derives
+ * all eight lobe zones from the lattice and FAILS THE BUILD if they stop matching
+ * the zone file — the sync guarantee firmware never had. Anatomical labelling of a
+ * socket id is therefore an app-side lookup.
+ *
+ * HOW ZONES REACH FIRMWARE: the app compiles the zone's socket list into an
+ * NP_PROTO_TARGET_SOCKET_MASK bitmap (NP Hub Protocol v2), and firmware expands
+ * that into a NP_GROUP_KIND_SOCKET_SET query via np_protocol_socket_expand().
+ * Zones are data; the data path already carries them end to end.
+ *
+ * x_mm/y_mm are retained: they are metric geometry consumed by simulator socket
+ * selection, not an anatomical claim, and they do not go stale on a zone re-cut.
  *
  * ── Privacy ──────────────────────────────────────────────────────────────────
  *
@@ -113,9 +151,12 @@
  * documented here so the offset is explicit at the protocol/app boundary rather
  * than assumed.
  *
- * Zone MEMBERSHIP semantics now agree with 00-zones.npps too: a midline socket
- * appears in BOTH the Left and Right zone of its lobe. See the membership rule
- * on np_group_query_t. */
+ * Zone MEMBERSHIP is authored in 00-zones.npps and reaches this module already
+ * expanded into a socket list — including the consequence that a midline socket
+ * appears in BOTH the Left and Right zone of its lobe, so a union of the two
+ * names it twice. This module's job is to not double-drive it; see the dedup
+ * guarantee on np_group_query_t. The authoring rule itself lives in
+ * 00-zones.npps. */
 
 /* ── NVRAM blob sizing ────────────────────────────────────────────────────────
  * Serialized layout: header + fixed-size per-socket records + CRC-32 trailer.
@@ -160,23 +201,9 @@ typedef enum {
 /* Bit for a type in a type-filter mask (uint64_t). */
 #define NP_ELEM_BIT(t)  ((uint64_t)1u << (unsigned)(t))
 
-/* ── Lobe / side ─────────────────────────────────────────────────────────────
- * NP_SIDE_MIDLINE used as a QUERY side means "any hemisphere" (wildcard). */
-
-typedef enum {
-    NP_LOBE_NONE      = 0,
-    NP_LOBE_FRONTAL   = 1,
-    NP_LOBE_TEMPORAL  = 2,
-    NP_LOBE_PARIETAL  = 3,
-    NP_LOBE_OCCIPITAL = 4,
-    NP_LOBE_COUNT     = 5,
-} np_lobe_t;
-
-typedef enum {
-    NP_SIDE_MIDLINE = 0,
-    NP_SIDE_LEFT    = 1,
-    NP_SIDE_RIGHT   = 2,
-} np_side_t;
+/* np_lobe_t / np_side_t were removed with the lobe path (OI-HUB-C14). Lobe and
+ * hemisphere are app-side attributes of a socket id, read from
+ * app/web/src/lib/socketMap.generated.ts. See the ANATOMICAL LABELLING note above. */
 
 /* ── Two-level address ────────────────────────────────────────────────────── */
 
@@ -261,19 +288,21 @@ bool np_module_uid_is_zero(const np_module_uid_t *a);   /* zero UID = empty sock
 
 /* ── Fixed helmet geometry (const table, one entry per socket) ──────────────── */
 
+/* Metric only — no lobe/side. Both were dropped with the lobe path (OI-HUB-C14):
+ * they had no generator, so they could only ever go stale. x_mm/y_mm stay because
+ * they are a physical property of the shell, changed only by re-tooling it. */
 typedef struct {
-    bool      present_in_helmet;  /* false = socket not wired in this shell      */
-    np_lobe_t lobe;
-    np_side_t side;
-    int16_t   x_mm;               /* unrolled-vault coords (simulator selection)  */
-    int16_t   y_mm;
+    bool    present_in_helmet;    /* false = socket not wired in this shell       */
+    int16_t x_mm;                 /* unrolled-vault coords (simulator selection)  */
+    int16_t y_mm;
 } np_socket_geom_t;
 
-/* ── Physical resolution result ─────────────────────────────────────────────── */
+/* ── Physical resolution result ───────────────────────────────────────────────
+ * Metric + element type. A caller that needs a human-readable anatomical label
+ * for the socket looks it up app-side against socketMap.generated.ts — firmware
+ * does not report one (OI-HUB-C14). */
 
 typedef struct {
-    np_lobe_t      lobe;
-    np_side_t      side;
     int16_t        x_mm;
     int16_t        y_mm;
     np_elem_type_t elem_type;
@@ -281,50 +310,42 @@ typedef struct {
 
 /* ── Group query ───────────────────────────────────────────────────────────────
  *
- * MEMBERSHIP RULE (locked): a socket holding a module that falls even PARTIALLY
- * within a zone is INCLUDED in that zone, unless a protocol specifically
- * dis-includes it. Inclusion is the default; exclusion is the explicit override.
+ * Every group is caller-supplied: an explicit socket list or an explicit address
+ * list. This module holds no group definitions of its own.
  *
- * The consequence that matters in practice: a socket whose geometry side is
- * NP_SIDE_MIDLINE straddles the hemispheres, so it belongs to BOTH the Left and
- * the Right zone of its lobe — matching 00-zones.npps, which states that midline
- * sockets "appear in both the Left and Right zone of their lobe". Six of the
- * helmet's 80 sockets are midline -- {2,13,29,46,62,74}, 1-based -- because only
- * ODD-width rows have a centre socket (alternate rows are offset half a module); under a strict-equality side filter they
- * would drop out of all eight predefined lobe groups.
+ * WHERE THE MEMBERSHIP RULE LIVES: membership — which sockets are in a zone, and
+ * the inclusive-by-default rule that decides borderline ones — is a ZONE-AUTHORING
+ * concern, stated in full in protocols/predefined/00-zones.npps. It is not a
+ * runtime filter and never was: KIND_SOCKET_SET and KIND_ADDR_SET dis-include a
+ * socket by simply not listing it, so authoring a narrower zone is the only
+ * exclusion mechanism, and there is no exclusion list because none is needed.
  *
- * Note the two independent MIDLINE meanings, which is why this needs stating:
- *   - as a QUERY side (q->side)  — wildcard: "either hemisphere"
- *   - as a GEOMETRY side (g->side) — straddling: "belongs to both hemispheres"
- * Both are inclusive; neither is an exclusion.
- *
- * DIS-INCLUDE: a protocol dis-includes a socket by OMITTING it from the list —
- * i.e. by naming a narrower zone. There is no exclusion list, because none is
- * needed: KIND_SOCKET_SET and KIND_ADDR_SET dis-include by simply not listing
- * the socket, and KIND_LOBE dis-includes by defining a new zone (which in NPPS
- * is itself an explicit socket list). Err-on-the-side-of-less is a zone
- * authoring decision, not a runtime filter.
+ * What survives HERE is the one consequence the resolver must honour:
  *
  * DEDUP GUARANTEE: resolve_group NEVER emits the same (socket:element) address
  * twice, however the query is built. This matters because overlapping zones are
- * the normal case under inclusive membership — a protocol requesting both
- * "Frontal Left" and "Frontal Right" passes a union containing the three frontal
+ * the normal case under inclusive membership — a midline socket belongs to BOTH
+ * the Left and the Right zone of its lobe, so a protocol requesting both
+ * "Frontal Left" and "Frontal Right" passes a union containing the frontal
  * midline sockets TWICE. Without dedup those modules would be driven twice in
  * one session: double J/cm² on real clinical PBM protocols. Dedup is a property
  * of the resolver so no caller can forget it. */
 
+/* Enumerator values are UNCHANGED from when NP_GROUP_KIND_LOBE occupied 0
+ * (OI-HUB-C14 retired it) — deliberately, so nothing keyed to these values shifts,
+ * and so OI-HUB-C13 can add NP_GROUP_KIND_CLUSTER = 3 without reshuffling.
+ *
+ * Leaving 0 unassigned is a safety improvement, not an oversight: a
+ * memset(&q, 0, sizeof q) query used to mean KIND_LOBE by accident. It now falls
+ * to the default arm of resolve_group and is rejected with NP_HUB_ERR_INVALID_ARG,
+ * so a forgotten `q.kind =` fails closed instead of silently resolving a group. */
 typedef enum {
-    NP_GROUP_KIND_LOBE       = 0,  /* all elements in sockets matching lobe+side  */
     NP_GROUP_KIND_SOCKET_SET = 1,  /* all elements in an explicit socket list      */
     NP_GROUP_KIND_ADDR_SET   = 2,  /* explicit (socket:element) address list       */
 } np_group_kind_t;
 
 typedef struct {
     np_group_kind_t kind;
-
-    /* KIND_LOBE */
-    np_lobe_t lobe;
-    np_side_t side;                 /* NP_SIDE_MIDLINE = any hemisphere (wildcard)  */
 
     /* KIND_SOCKET_SET */
     const uint16_t *sockets;
@@ -338,15 +359,6 @@ typedef struct {
     uint64_t type_mask;
     bool     type_exclude;          /* false: include only listed; true: exclude   */
 } np_group_query_t;
-
-/* Predefined lobe groups. */
-typedef enum {
-    NP_PGROUP_FRONTAL_L = 0, NP_PGROUP_FRONTAL_R,
-    NP_PGROUP_TEMPORAL_L,    NP_PGROUP_TEMPORAL_R,
-    NP_PGROUP_PARIETAL_L,    NP_PGROUP_PARIETAL_R,
-    NP_PGROUP_OCCIPITAL_L,   NP_PGROUP_OCCIPITAL_R,
-    NP_PGROUP_COUNT,
-} np_pgroup_t;
 
 /* ── Inventory callback ───────────────────────────────────────────────────────
  * Called by np_module_map_apply_poll ONLY when a socket's module UID changed
@@ -414,16 +426,8 @@ np_hub_status_t np_module_map_resolve_group(const np_group_query_t *q,
                                             uint16_t                max,
                                             uint16_t               *count_out);
 
-/*
- * np_module_map_predefined — resolve one of the eight predefined lobe groups,
- * with an optional type filter (type_mask == 0 → all types).
- */
-np_hub_status_t np_module_map_predefined(np_pgroup_t     g,
-                                         uint64_t        type_mask,
-                                         bool            type_exclude,
-                                         np_hex_addr_t  *out,
-                                         uint16_t        max,
-                                         uint16_t       *count_out);
+/* np_module_map_predefined() was removed with the lobe path (OI-HUB-C14). There is
+ * no firmware-defined group; callers pass the socket list the protocol carried. */
 
 /* ── Placement validation ──────────────────────────────────────────────────────
  * "Are the appropriate modules in the appropriate sockets?" Because tiles are

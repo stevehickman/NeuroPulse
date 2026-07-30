@@ -85,8 +85,36 @@
 #                          temporal line (>=7 wide) and only within the lobe's
 #                          own front-to-back extent (F7/T3 to T5/P5, 35-78%).
 #
-# Center-column (midline) sockets belong to BOTH the Left and Right zone of
-# their lobe. They are 2, 13, 29, 46, 62 and 74.
+# ── MEMBERSHIP RULE (locked) — this file is where the rule lives ──────────────
+#
+# A socket holding a module that falls even PARTIALLY within a zone is INCLUDED in
+# that zone, unless a protocol specifically dis-includes it. Inclusion is the
+# default; exclusion is the explicit override.
+#
+# The consequence that matters in practice: center-column (midline) sockets
+# straddle the hemispheres, so each belongs to BOTH the Left and the Right zone of
+# its lobe. They are 2, 13, 29, 46, 62 and 74. Under a strict-equality side test
+# they would drop out of all eight lobe zones entirely.
+#
+# DIS-INCLUDE: a protocol dis-includes a socket by OMITTING it from the list — i.e.
+# by authoring a narrower zone. There is no exclusion list, because none is needed:
+# a zone IS a socket list, so not listing a socket is the whole mechanism.
+# "Frontal Right (excl. midline)" below is the worked example.
+# Err-on-the-side-of-less is a ZONE-AUTHORING decision, not a runtime filter.
+#
+# THIS RULE IS NOT EVALUATED IN FIRMWARE, BY DESIGN. Firmware receives the RESULT
+# of this rule — a socket list, compiled by the app into an
+# NP_PROTO_TARGET_SOCKET_MASK bitmap and expanded to a NP_GROUP_KIND_SOCKET_SET
+# query. It holds no lobe or hemisphere assignment of its own: that would be a
+# second source of truth for this file with no generator behind it, and it would go
+# stale the moment gate REG-1 re-cuts the boundaries — a wrong-site-dose hazard, not
+# a data-quality one. The firmware lobe path was retired for exactly this reason
+# (OI-HUB-C14; NP-HW-HUB-001 Rev C §4.5.1–4.5.2).
+#
+# What firmware DOES owe this rule is dedup: because midline sockets are in two
+# zones, a protocol naming both hemispheres passes a list containing them twice,
+# and the resolver must drive each module exactly once (double J/cm² otherwise).
+# That guarantee is documented and tested in firmware/hub_control.
 
 zone "Frontal Left" {
     id: "40000001-0000-0000-0000-000000000000"

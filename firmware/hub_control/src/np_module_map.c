@@ -267,8 +267,6 @@ np_hub_status_t np_module_map_resolve(np_hex_addr_t addr, np_physical_loc_t *out
         return NP_HUB_ERR_NOT_PRESENT;
     }
     const np_socket_geom_t *g = &s_map.geom[addr.socket_id];
-    out->lobe      = g->lobe;
-    out->side      = g->side;
     out->x_mm      = g->x_mm;
     out->y_mm      = g->y_mm;
     out->elem_type = (np_elem_type_t)r->elem_type[addr.element_id];
@@ -329,25 +327,6 @@ static bool addr_already_out(const np_hex_addr_t *out, uint16_t count,
     return false;
 }
 
-/*
- * Zone membership for a lobe query, per the locked rule in np_module_map.h: a
- * socket that falls even partially within the zone is included.
- *
- * MIDLINE is inclusive on BOTH sides of the comparison, for two distinct reasons:
- *   q->side == MIDLINE — the QUERY is a wildcard: "either hemisphere".
- *   g->side == MIDLINE — the SOCKET straddles: it holds a module that is
- *                        partially in each hemisphere, so it belongs to the Left
- *                        AND the Right zone of its lobe (matches 00-zones.npps).
- * Only a left-vs-right MISMATCH between two committed sides excludes.
- */
-static bool lobe_side_matches(np_side_t query_side, np_side_t geom_side)
-{
-    if (query_side == NP_SIDE_MIDLINE || geom_side == NP_SIDE_MIDLINE) {
-        return true;
-    }
-    return query_side == geom_side;
-}
-
 /* Emit every passing element of one socket. Returns false on overflow. */
 static bool emit_socket(uint16_t socket_id, uint64_t mask, bool exclude,
                         np_hex_addr_t *out, uint16_t max, uint16_t *count)
@@ -389,22 +368,6 @@ np_hub_status_t np_module_map_resolve_group(const np_group_query_t *q,
     memset(seen, 0, sizeof(seen));
 
     switch (q->kind) {
-    case NP_GROUP_KIND_LOBE:
-        /* One ascending pass over the geometry visits each socket exactly once,
-         * so this kind cannot self-duplicate and needs no `seen` check. */
-        for (uint16_t s = 0; s < s_map.n_sockets && ok; s++) {
-            const np_socket_geom_t *g = &s_map.geom[s];
-            if (!g->present_in_helmet || g->lobe != q->lobe) {
-                continue;
-            }
-            /* Inclusive membership — midline sockets match both hemispheres. */
-            if (!lobe_side_matches(q->side, g->side)) {
-                continue;
-            }
-            ok = emit_socket(s, q->type_mask, q->type_exclude, out, max, count_out);
-        }
-        break;
-
     case NP_GROUP_KIND_SOCKET_SET:
         if (q->sockets == NULL && q->socket_count != 0u) {
             return NP_HUB_ERR_INVALID_ARG;
@@ -445,36 +408,13 @@ np_hub_status_t np_module_map_resolve_group(const np_group_query_t *q,
         break;
 
     default:
+        /* Includes kind == 0, which a memset-zeroed query leaves behind — see the
+         * note on np_group_kind_t. Fails closed rather than resolving a group the
+         * caller never named. */
         return NP_HUB_ERR_INVALID_ARG;
     }
 
     return ok ? NP_HUB_OK : NP_HUB_ERR_CMD_TOO_MANY;
-}
-
-np_hub_status_t np_module_map_predefined(np_pgroup_t     g,
-                                         uint64_t        type_mask,
-                                         bool            type_exclude,
-                                         np_hex_addr_t  *out,
-                                         uint16_t        max,
-                                         uint16_t       *count_out)
-{
-    static const struct { np_lobe_t lobe; np_side_t side; } tbl[NP_PGROUP_COUNT] = {
-        { NP_LOBE_FRONTAL,   NP_SIDE_LEFT  }, { NP_LOBE_FRONTAL,   NP_SIDE_RIGHT },
-        { NP_LOBE_TEMPORAL,  NP_SIDE_LEFT  }, { NP_LOBE_TEMPORAL,  NP_SIDE_RIGHT },
-        { NP_LOBE_PARIETAL,  NP_SIDE_LEFT  }, { NP_LOBE_PARIETAL,  NP_SIDE_RIGHT },
-        { NP_LOBE_OCCIPITAL, NP_SIDE_LEFT  }, { NP_LOBE_OCCIPITAL, NP_SIDE_RIGHT },
-    };
-    if (g >= NP_PGROUP_COUNT) {   /* enum is unsigned; a negative int cast wraps high */
-        return NP_HUB_ERR_INVALID_ARG;
-    }
-    np_group_query_t q;
-    memset(&q, 0, sizeof(q));
-    q.kind         = NP_GROUP_KIND_LOBE;
-    q.lobe         = tbl[g].lobe;
-    q.side         = tbl[g].side;
-    q.type_mask    = type_mask;
-    q.type_exclude = type_exclude;
-    return np_module_map_resolve_group(&q, out, max, count_out);
 }
 
 /* ── Placement validation ─────────────────────────────────────────────────────── */

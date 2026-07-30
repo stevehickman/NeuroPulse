@@ -30,22 +30,43 @@ static void check(int cond, const char *name)
     }
 }
 
-/* ── Test helmet geometry: 8 lobe/side sockets + 1 unwired socket (index 8) ──── */
+/* ── Test helmet geometry: 8 wired sockets + 1 unwired socket (index 8) ────────
+ * Geometry is metric only (OI-HUB-C14 retired lobe/side). The socket NAMES below
+ * still carry anatomical intent so the tests read like real montages, but that
+ * intent lives in the name, not in a field the firmware stores. */
 
 enum { SOCK_FL = 0, SOCK_FR, SOCK_TL, SOCK_TR, SOCK_PL, SOCK_PR, SOCK_OL, SOCK_OR,
        SOCK_UNWIRED, N_SOCK };
 
 static const np_socket_geom_t GEOM[N_SOCK] = {
-    { true,  NP_LOBE_FRONTAL,   NP_SIDE_LEFT,  -30,  -80 },
-    { true,  NP_LOBE_FRONTAL,   NP_SIDE_RIGHT,  30,  -80 },
-    { true,  NP_LOBE_TEMPORAL,  NP_SIDE_LEFT,  -70,    0 },
-    { true,  NP_LOBE_TEMPORAL,  NP_SIDE_RIGHT,  70,    0 },
-    { true,  NP_LOBE_PARIETAL,  NP_SIDE_LEFT,  -25,   40 },
-    { true,  NP_LOBE_PARIETAL,  NP_SIDE_RIGHT,  25,   40 },
-    { true,  NP_LOBE_OCCIPITAL, NP_SIDE_LEFT,  -25,  110 },
-    { true,  NP_LOBE_OCCIPITAL, NP_SIDE_RIGHT,  25,  110 },
-    { false, NP_LOBE_NONE,      NP_SIDE_MIDLINE, 0,    0 },  /* not wired */
+    { true,  -30,  -80 },
+    { true,   30,  -80 },
+    { true,  -70,    0 },
+    { true,   70,    0 },
+    { true,  -25,   40 },
+    { true,   25,   40 },
+    { true,  -25,  110 },
+    { true,   25,  110 },
+    { false,   0,    0 },  /* not wired */
 };
+
+/* Resolve one zone's socket list — the shape every zone query now takes: the app
+ * compiles a zone from 00-zones.npps into a socket bitmap, firmware expands it to
+ * a KIND_SOCKET_SET query. Replaces the retired np_module_map_predefined(). */
+static np_hub_status_t resolve_sockets(const uint16_t *sockets, uint16_t count,
+                                      uint64_t type_mask, bool type_exclude,
+                                      np_hex_addr_t *out, uint16_t max,
+                                      uint16_t *count_out)
+{
+    np_group_query_t q;
+    memset(&q, 0, sizeof(q));
+    q.kind         = NP_GROUP_KIND_SOCKET_SET;
+    q.sockets      = sockets;
+    q.socket_count = count;
+    q.type_mask    = type_mask;
+    q.type_exclude = type_exclude;
+    return np_module_map_resolve_group(&q, out, max, count_out);
+}
 
 /* ── Inventory callback: hands out a fixed type list, counts its own calls ───── */
 
@@ -199,8 +220,8 @@ static void test_poll_new_and_resolve(void)
     np_physical_loc_t loc;
     np_hex_addr_t a0 = { SOCK_FL, 0 };
     check(np_module_map_resolve(a0, &loc) == NP_HUB_OK, "resolve element 0 ok");
-    check(loc.lobe == NP_LOBE_FRONTAL && loc.side == NP_SIDE_LEFT,
-          "resolve → frontal-left geometry");
+    check(loc.x_mm == -30 && loc.y_mm == -80,
+          "resolve → the socket's own metric geometry row");
     check(loc.elem_type == NP_ELEM_LED_660, "resolve elem 0 → LED_660");
 
     np_hex_addr_t a2 = { SOCK_FL, 2 };
@@ -325,28 +346,56 @@ static void populate_all(void)
     }
 }
 
-static void test_group_predefined(void)
+/* Zone resolution, at the only granularity firmware now has: a socket list.
+ * Was test_group_predefined, which drove the same assertions through the retired
+ * np_module_map_predefined() / NP_GROUP_KIND_LOBE path (OI-HUB-C14). The properties
+ * proven are unchanged — socket fidelity of the output, and a multi-socket zone
+ * expanding to every member's elements. What is gone is firmware's opinion about
+ * WHICH sockets those are; the zone file owns that. */
+static void test_group_zone_socket_set(void)
 {
     populate_all();
     np_hex_addr_t out[64];
     uint16_t n = 0;
-    check(np_module_map_predefined(NP_PGROUP_FRONTAL_L, 0, false, out, 64, &n) == NP_HUB_OK,
-          "predefined frontal-L ok");
-    check(n == PBM_TILE_N, "frontal-L returns one tile's worth of elements");
+
+    /* A single-socket zone. */
+    const uint16_t frontal_l[] = { SOCK_FL };
+    check(resolve_sockets(frontal_l, 1, 0, false, out, 64, &n) == NP_HUB_OK,
+          "single-socket zone resolves");
+    check(n == PBM_TILE_N, "single-socket zone returns one tile's worth of elements");
     bool all_fl = true;
     for (uint16_t i = 0; i < n; i++) {
         if (out[i].socket_id != SOCK_FL) { all_fl = false; }
     }
-    check(all_fl, "frontal-L addresses all from SOCK_FL");
+    check(all_fl, "every returned address names the requested socket");
 
-    /* Occipital wildcard side = both hemispheres. */
+    /* A two-socket zone — what "both hemispheres of a lobe" now looks like on the
+     * wire: the app unions the two zones' socket lists and sends one bitmap. */
+    const uint16_t occipital_lr[] = { SOCK_OL, SOCK_OR };
+    check(resolve_sockets(occipital_lr, 2, 0, false, out, 64, &n) == NP_HUB_OK,
+          "two-socket zone resolves");
+    check(n == 2 * PBM_TILE_N, "two-socket zone → both sockets' elements");
+}
+
+/* A query whose `kind` was never set must fail closed. This is newly reachable:
+ * kind 0 used to mean NP_GROUP_KIND_LOBE, so a memset-zeroed query silently
+ * resolved a frontal-left lobe group. With the lobe kind retired, 0 is unassigned
+ * and lands on the default arm (OI-HUB-C14). */
+static void test_group_invalid_kind_fails_closed(void)
+{
+    populate_all();
+    np_hex_addr_t out[64];
+    uint16_t n = 99;
     np_group_query_t q;
+
+    memset(&q, 0, sizeof(q));   /* kind == 0 — no longer a valid group kind */
+    check(np_module_map_resolve_group(&q, out, 64, &n) == NP_HUB_ERR_INVALID_ARG,
+          "memset-zeroed query (kind 0) → INVALID_ARG, not a silent lobe group");
+
     memset(&q, 0, sizeof(q));
-    q.kind = NP_GROUP_KIND_LOBE;
-    q.lobe = NP_LOBE_OCCIPITAL;
-    q.side = NP_SIDE_MIDLINE;
-    check(np_module_map_resolve_group(&q, out, 64, &n) == NP_HUB_OK, "occipital wildcard ok");
-    check(n == 2 * PBM_TILE_N, "occipital MIDLINE query → both L and R");
+    q.kind = (np_group_kind_t)99;
+    check(np_module_map_resolve_group(&q, out, 64, &n) == NP_HUB_ERR_INVALID_ARG,
+          "unknown group kind → INVALID_ARG");
 }
 
 static void test_group_type_filter(void)
@@ -354,10 +403,11 @@ static void test_group_type_filter(void)
     populate_all();
     np_hex_addr_t out[64];
     uint16_t n = 0;
+    const uint16_t one_socket[] = { SOCK_FL };
 
-    /* Include only 808 nm across frontal-left. */
-    np_hub_status_t rc = np_module_map_predefined(
-        NP_PGROUP_FRONTAL_L, NP_ELEM_BIT(NP_ELEM_LED_808), false, out, 64, &n);
+    /* Include only 808 nm across the zone. */
+    np_hub_status_t rc = resolve_sockets(one_socket, 1, NP_ELEM_BIT(NP_ELEM_LED_808),
+                                         false, out, 64, &n);
     check(rc == NP_HUB_OK && n == 1, "include-only LED_808 → 1 element");
     np_physical_loc_t loc;
     check(np_module_map_resolve(out[0], &loc) == NP_HUB_OK && loc.elem_type == NP_ELEM_LED_808,
@@ -367,13 +417,13 @@ static void test_group_type_filter(void)
     uint64_t sensors = NP_ELEM_BIT(NP_ELEM_PD_FORWARD) |
                        NP_ELEM_BIT(NP_ELEM_PD_BACK) |
                        NP_ELEM_BIT(NP_ELEM_NTC);
-    rc = np_module_map_predefined(NP_PGROUP_FRONTAL_L, sensors, true, out, 64, &n);
+    rc = resolve_sockets(one_socket, 1, sensors, true, out, 64, &n);
     check(rc == NP_HUB_OK && n == 3, "exclude sensors → 3 LEDs remain");
 
     /* mask 0 = no filter, in BOTH modes → all elements of the tile. */
-    rc = np_module_map_predefined(NP_PGROUP_FRONTAL_L, 0, false, out, 64, &n);
+    rc = resolve_sockets(one_socket, 1, 0, false, out, 64, &n);
     check(rc == NP_HUB_OK && n == PBM_TILE_N, "mask 0 include → all elements");
-    rc = np_module_map_predefined(NP_PGROUP_FRONTAL_L, 0, true, out, 64, &n);
+    rc = resolve_sockets(one_socket, 1, 0, true, out, 64, &n);
     check(rc == NP_HUB_OK && n == PBM_TILE_N, "mask 0 exclude → still all elements");
 }
 
@@ -406,12 +456,9 @@ static void test_group_overflow(void)
     populate_all();
     np_hex_addr_t out[4];
     uint16_t n = 0;
-    np_group_query_t q;
-    memset(&q, 0, sizeof(q));
-    q.kind = NP_GROUP_KIND_LOBE;
-    q.lobe = NP_LOBE_FRONTAL;
-    q.side = NP_SIDE_MIDLINE;      /* both frontal sockets = 12 elements > 4 */
-    np_hub_status_t rc = np_module_map_resolve_group(&q, out, 4, &n);
+    /* Both frontal sockets = 12 elements > the 4-entry out[]. */
+    const uint16_t frontal_lr[] = { SOCK_FL, SOCK_FR };
+    np_hub_status_t rc = resolve_sockets(frontal_lr, 2, 0, false, out, 4, &n);
     check(rc == NP_HUB_ERR_CMD_TOO_MANY, "overflow → CMD_TOO_MANY");
     check(n == 4, "overflow fills exactly max");
 }
@@ -549,14 +596,12 @@ static void test_placement_check(void)
 
 static np_socket_geom_t FULL_GEOM[NP_HEXMAP_MAX_SOCKETS];
 
-/* Every socket wired. Lobe by quarter (32 sockets each), side by parity, so the
- * upper half lands in parietal (64..95) and occipital (96..127). */
+/* Every socket wired, with distinct metric coordinates per socket so a
+ * field-shift or off-by-one in geometry indexing shows up as a wrong x/y. */
 static void full_geom_build(void)
 {
     for (uint16_t s = 0; s < NP_HEXMAP_MAX_SOCKETS; s++) {
         FULL_GEOM[s].present_in_helmet = true;
-        FULL_GEOM[s].lobe = (np_lobe_t)(NP_LOBE_FRONTAL + (s / 32u));
-        FULL_GEOM[s].side = (s % 2u == 0u) ? NP_SIDE_LEFT : NP_SIDE_RIGHT;
         FULL_GEOM[s].x_mm = (int16_t)s;
         FULL_GEOM[s].y_mm = (int16_t)(1000 + s);
     }
@@ -586,8 +631,7 @@ static void test_high_socket_init_and_resolve(void)
     check(np_module_map_resolve(a64, &loc) == NP_HUB_OK, "resolve socket 64 ok");
     check(loc.x_mm == (int16_t)SOCK_HI_FIRST && loc.y_mm == (int16_t)(1000 + SOCK_HI_FIRST),
           "socket 64 resolves to its own geometry row");
-    check(loc.lobe == NP_LOBE_PARIETAL && loc.side == NP_SIDE_LEFT,
-          "socket 64 resolves to parietal-left");
+    check(loc.elem_type != NP_ELEM_NONE, "socket 64 resolves a populated element");
     check(loc.elem_type == NP_ELEM_LED_660, "socket 64 elem 0 → LED_660");
 
     np_hex_addr_t a77 = { SOCK_NPPS_78, 2 };
@@ -596,8 +640,8 @@ static void test_high_socket_init_and_resolve(void)
 
     np_hex_addr_t a127 = { SOCK_HI_LAST, 0 };
     check(np_module_map_resolve(a127, &loc) == NP_HUB_OK, "resolve socket 127 ok");
-    check(loc.lobe == NP_LOBE_OCCIPITAL && loc.side == NP_SIDE_RIGHT,
-          "socket 127 resolves to occipital-right");
+    check(loc.x_mm == (int16_t)SOCK_HI_LAST && loc.y_mm == (int16_t)(1000 + SOCK_HI_LAST),
+          "socket 127 resolves to its own geometry row");
 
     /* A high socket with no module still fails closed. */
     np_hex_addr_t a_empty = { 90, 0 };
@@ -639,18 +683,20 @@ static void test_high_socket_groups(void)
     check(n == 1 && g_hi_out[0].socket_id == SOCK_HI_LAST,
           "addr-set keeps socket 127, drops the empty high socket");
 
-    /* KIND_LOBE / predefined: occipital-right is sockets 97,99,..127 — all high. */
-    check(np_module_map_predefined(NP_PGROUP_OCCIPITAL_R, 0, false,
-                                   g_hi_out, 1024, &n) == NP_HUB_OK,
-          "predefined occipital-R over high sockets ok");
-    check(n == PBM_TILE_N, "predefined occipital-R → the one populated high tile");
+    /* A zone whose socket list lies wholly in the upper half. Was driven through
+     * the retired predefined occipital-R lobe group (OI-HUB-C14); the properties
+     * proven — a group resolving socket id 127, and the type filter applying above
+     * the old 64 ceiling — are unchanged. */
+    const uint16_t high_zone[] = { SOCK_HI_LAST };
+    check(resolve_sockets(high_zone, 1, 0, false, g_hi_out, 1024, &n) == NP_HUB_OK,
+          "zone over high sockets ok");
+    check(n == PBM_TILE_N, "high zone → the one populated high tile");
     check(g_hi_out[0].socket_id == SOCK_HI_LAST,
-          "predefined lobe group resolved a socket id of 127");
+          "group resolved a socket id of 127");
 
     /* Type filter still applies in the upper half. */
-    check(np_module_map_predefined(NP_PGROUP_OCCIPITAL_R,
-                                   NP_ELEM_BIT(NP_ELEM_LED_808), false,
-                                   g_hi_out, 1024, &n) == NP_HUB_OK && n == 1,
+    check(resolve_sockets(high_zone, 1, NP_ELEM_BIT(NP_ELEM_LED_808), false,
+                          g_hi_out, 1024, &n) == NP_HUB_OK && n == 1,
           "type filter on high socket → 1 element");
 }
 
@@ -797,18 +843,30 @@ static void test_addr_validation(void)
 }
 
 /* ── Zone membership: inclusive by default, explicit dis-include overrides ─────
- * Locked rule: a socket holding a module partially within a zone is IN the zone
- * unless a protocol dis-includes it. Midline sockets straddle, so they belong to
- * both hemispheres of their lobe. */
+ * The authoring rule lives in protocols/predefined/00-zones.npps: a socket falling
+ * even partially within a zone is IN it unless a protocol dis-includes it by
+ * authoring a narrower zone. Midline sockets straddle, so the zone file lists each
+ * in BOTH hemisphere zones of its lobe.
+ *
+ * Firmware does not evaluate that rule — it receives its RESULT as a socket list
+ * (OI-HUB-C14 retired the lobe filter). What these tests hold firmware to is the
+ * consequence: the socket lists the zone file produces must resolve correctly, and
+ * a union of two overlapping zones must not drive the shared socket twice. */
 
 enum { MG_L = 0, MG_MID, MG_R, MG_PAR_L, MG_N };
 
 static const np_socket_geom_t MID_GEOM[MG_N] = {
-    { true, NP_LOBE_FRONTAL,  NP_SIDE_LEFT,    -30, -80 },
-    { true, NP_LOBE_FRONTAL,  NP_SIDE_MIDLINE,   0, -80 },   /* straddles */
-    { true, NP_LOBE_FRONTAL,  NP_SIDE_RIGHT,    30, -80 },
-    { true, NP_LOBE_PARIETAL, NP_SIDE_LEFT,    -25,  40 },
+    { true, -30, -80 },
+    { true,   0, -80 },   /* the midline socket — straddles, so it is in both zones */
+    { true,  30, -80 },
+    { true, -25,  40 },
 };
+
+/* The socket lists 00-zones.npps yields for a lobe's two hemisphere zones. The
+ * midline socket appears in BOTH — that overlap is the point. */
+static const uint16_t ZONE_FRONTAL_L[] = { MG_L, MG_MID };
+static const uint16_t ZONE_FRONTAL_R[] = { MG_R, MG_MID };
+static const uint16_t ZONE_PARIETAL_L[] = { MG_PAR_L };
 
 static void mid_geom_populate(void)
 {
@@ -831,33 +889,30 @@ static void test_midline_included_in_both_hemispheres(void)
     mid_geom_populate();
     uint16_t n = 0;
 
-    check(np_module_map_predefined(NP_PGROUP_FRONTAL_L, 0, false,
-                                   g_hi_out, 1024, &n) == NP_HUB_OK,
-          "frontal-L with a midline socket ok");
+    check(resolve_sockets(ZONE_FRONTAL_L, 2, 0, false, g_hi_out, 1024, &n) == NP_HUB_OK,
+          "frontal-L zone list with a midline socket ok");
     check(n == 2 * PBM_TILE_N, "frontal-L → left socket + midline socket");
     check(out_contains_socket(g_hi_out, n, MG_MID), "midline socket IS in frontal-LEFT");
     check(!out_contains_socket(g_hi_out, n, MG_R), "frontal-L excludes the right socket");
 
-    check(np_module_map_predefined(NP_PGROUP_FRONTAL_R, 0, false,
-                                   g_hi_out, 1024, &n) == NP_HUB_OK,
-          "frontal-R with a midline socket ok");
+    check(resolve_sockets(ZONE_FRONTAL_R, 2, 0, false, g_hi_out, 1024, &n) == NP_HUB_OK,
+          "frontal-R zone list with a midline socket ok");
     check(n == 2 * PBM_TILE_N, "frontal-R → right socket + midline socket");
     check(out_contains_socket(g_hi_out, n, MG_MID), "midline socket IS in frontal-RIGHT");
     check(!out_contains_socket(g_hi_out, n, MG_L), "frontal-R excludes the left socket");
 
-    /* Wildcard query side still means "either hemisphere" — all three sockets. */
-    np_group_query_t q;
-    memset(&q, 0, sizeof(q));
-    q.kind = NP_GROUP_KIND_LOBE;
-    q.lobe = NP_LOBE_FRONTAL;
-    q.side = NP_SIDE_MIDLINE;
-    check(np_module_map_resolve_group(&q, g_hi_out, 1024, &n) == NP_HUB_OK &&
-          n == 3 * PBM_TILE_N, "MIDLINE query → all three frontal sockets, once each");
+    /* Both hemispheres together — the whole lobe, each socket exactly once. */
+    const uint16_t both[] = { MG_L, MG_MID, MG_R, MG_MID };
+    check(resolve_sockets(both, 4, 0, false, g_hi_out, 1024, &n) == NP_HUB_OK &&
+          n == 3 * PBM_TILE_N, "both hemispheres → all three frontal sockets, once each");
 
-    /* Lobe still gates: the parietal socket never appears in a frontal group. */
-    check(np_module_map_predefined(NP_PGROUP_PARIETAL_L, 0, false,
-                                   g_hi_out, 1024, &n) == NP_HUB_OK && n == PBM_TILE_N,
+    /* A zone that does not list the midline socket does not get it: membership is
+     * exactly what the zone file said, with no firmware inference on top. */
+    check(resolve_sockets(ZONE_PARIETAL_L, 1, 0, false, g_hi_out, 1024, &n) == NP_HUB_OK &&
+          n == PBM_TILE_N,
           "parietal-L unaffected by the frontal midline socket");
+    check(!out_contains_socket(g_hi_out, n, MG_MID),
+          "a zone that omits the midline socket never receives it");
 }
 
 /* How many entries in out[] name this socket? */
@@ -920,14 +975,16 @@ static void test_overlapping_zone_union_dedups(void)
     check(count_socket(g_hi_out, n, MG_MID) == 2,
           "two distinct elements of the midline socket both kept");
 
-    /* A single lobe query cannot self-duplicate — one pass over geometry. */
+    /* Dedup is per-resolve, not per-list-position: the same union resolved again
+     * gives the same single-emission result, so no `seen` state leaks between calls. */
     memset(&q, 0, sizeof(q));
-    q.kind = NP_GROUP_KIND_LOBE;
-    q.lobe = NP_LOBE_FRONTAL;
-    q.side = NP_SIDE_MIDLINE;
+    q.kind = NP_GROUP_KIND_SOCKET_SET;
+    q.sockets = union_lr;
+    q.socket_count = 4;
     check(np_module_map_resolve_group(&q, g_hi_out, 1024, &n) == NP_HUB_OK &&
+          n == 3 * PBM_TILE_N &&
           count_socket(g_hi_out, n, MG_MID) == PBM_TILE_N,
-          "lobe query emits the midline socket once");
+          "re-resolving the same union still emits the midline socket once");
 }
 
 int main(void)
@@ -942,7 +999,8 @@ int main(void)
     test_poll_invalid();
     test_poll_fail_closed_overflow();
     test_poll_new_null_cb_fail_closed();
-    test_group_predefined();
+    test_group_zone_socket_set();
+    test_group_invalid_kind_fails_closed();
     test_group_type_filter();
     test_group_socket_and_addr_set();
     test_group_overflow();
