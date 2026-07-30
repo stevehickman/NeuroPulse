@@ -363,8 +363,9 @@ active surface follows at ACT-1/ACT-2.
 
 ## 4. Two-level addressing + NVRAM element map (firmware — DELIVERED)
 
-Implemented and verified in `firmware/hub_control/np_module_map.*` (63 host
-checks; Cortex-M7 `-Werror` clean; CI test #12). Summary:
+Implemented and verified in `firmware/hub_control/np_module_map.*` (148 host
+checks as of 2026-07-29 — the long-stale "63" predated several rounds of coverage;
+Cortex-M7 `-Werror` clean; CI test #12). Summary:
 
 - **HW address = (socket_id : element_id)** packed 7 + 7 bits. Socket ≥7 bits so
   addressing never binds before the 42-tile geometry ceiling (§3.1); element 7 bits covers
@@ -922,8 +923,8 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   forgiving target, clear open/closed state. **Validate by HFE formative** (5 subjects, Parkinson's
   H&Y II–III / post-stroke) — the NP-TOOL-ZM-001 OI-4 eject-lever study re-pointed
   at the cluster actuator.
-- **Optional alignment:** cluster boundaries may align to the lobe groups (a
-  frontal-left cluster ≈ the frontal-left group), but are ultimately set by
+- **Optional alignment:** cluster boundaries may align to the lobe *zones* of
+  `00-zones.npps` (a frontal-left cluster ≈ the "Frontal Left" zone), but are ultimately set by
   geometry/curvature — final cluster size is decided with the lattice work (§7
   REG-1 / MECH-2).
 

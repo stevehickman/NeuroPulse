@@ -4,8 +4,11 @@
  *
  * Exercises the 2-level (socket:element) addressing, the power-on poll /
  * UID-change inventory cache, address→physical resolution, group resolution
- * (predefined lobe groups, socket sets, address sets, type include/exclude),
+ * (socket sets, address sets, type include/exclude, invalid-kind fail-closed),
  * and NVRAM serialize/load + persist/restore via injected HAL stubs.
+ *
+ * There are no firmware-defined groups: the predefined-lobe-group path was retired
+ * (OI-HUB-C14) and zone membership arrives as a caller-supplied socket list.
  *
  * No FreeRTOS, no hardware. IEC 62304 Class B — SW-02 hub control.
  * Build with -DNP_BUILD_TESTS=ON (see firmware/hub_control/CMakeLists.txt).
@@ -582,7 +585,7 @@ static void test_placement_check(void)
 /* ── High-socket coverage (64..127) ────────────────────────────────────────────
  * MAX_SOCKETS went 64 -> 128 so all 78 helmet sockets are addressable. The tests
  * above all run on the 9-socket GEOM, which cannot reach the upper half of the
- * major domain. These exercise it directly: resolution, all three group kinds,
+ * major domain. These exercise it directly: resolution, both group kinds,
  * placement (whose socket ids travel through uint8_t), and a full-occupancy
  * NVRAM round-trip at the exact NP_HEXMAP_NVRAM_MAX_BYTES bound.
  *

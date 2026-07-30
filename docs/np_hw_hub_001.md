@@ -451,15 +451,18 @@ So the three-level structure **does** exist — it is real, and it is exactly wh
 `np_hub_cluster_read_frame(cluster_id, …)` (§9.3) addresses. It lives at the transport layer, below
 the logical address, where a re-clustering costs one regenerated table and nothing else. The
 existing firmware already has this shape latent: `np_module_map` separates GEOMETRY
-(`socket → lobe/side/x/y`) from INVENTORY (`socket → UID/elements`); the cluster map is a third map
-of the same kind, not a fourth address field.
+(`socket → x/y` — metric only since OI-HUB-C14 removed the lobe/side columns, §4.5.2) from INVENTORY
+(`socket → UID/elements`); the cluster map is a third map of the same kind, not a fourth address
+field.
 
 **What is worth adding — a group kind, not an address level.** "Which sockets did that clamp
 release just unseat", "this cluster controller stopped answering, mark its sockets absent", "run a
 PD self-test on every photodiode in cluster 3" are genuinely useful operations, and all of them are
 *cluster → sockets* enumerations. They belong in the existing group machinery: a
-`NP_GROUP_KIND_CLUSTER = 3` alongside `NP_GROUP_KIND_LOBE` / `_SOCKET_SET` / `_ADDR_SET` in
-`np_group_query_t`, plus a `uint8_t cluster_id` field, resolving through the §4.2 table.
+`NP_GROUP_KIND_CLUSTER = 3` alongside `NP_GROUP_KIND_SOCKET_SET` / `_ADDR_SET` in
+`np_group_query_t`, plus a `uint8_t cluster_id` field, resolving through the §4.2 table. (Value 3 is
+still the right one: `SOCKET_SET = 1` and `ADDR_SET = 2` kept their values when OI-HUB-C14 retired
+`NP_GROUP_KIND_LOBE` from 0, so nothing reshuffles — see §4.5.2.)
 
 Mechanically it is the cheapest possible addition: one ascending pass over the socket table visiting
 each socket exactly once (so it cannot self-duplicate and needs no `seen` bitmap), with the predicate
