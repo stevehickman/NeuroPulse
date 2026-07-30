@@ -342,11 +342,37 @@ existing firmware already has this shape latent: `np_module_map` separates GEOME
 (`socket → lobe/side/x/y`) from INVENTORY (`socket → UID/elements`); the cluster map is a third map
 of the same kind, not a fourth address field.
 
-**What is worth adding — a group kind, not an address level.** "Disable cluster 3", "which cluster
-is open", "report faults per cluster" are genuinely useful operations. They belong in the existing
-group machinery: a `NP_GROUP_KIND_CLUSTER` alongside `NP_GROUP_KIND_LOBE` / `_SOCKET_SET` /
-`_ADDR_SET` in `np_group_query_t`, resolving to a socket set through the same table. Cheap, and it
-inherits the resolver's dedup guarantee.
+**What is worth adding — a group kind, not an address level.** "Which sockets did that clamp
+release just unseat", "this cluster controller stopped answering, mark its sockets absent", "run a
+PD self-test on every photodiode in cluster 3" are genuinely useful operations, and all of them are
+*cluster → sockets* enumerations. They belong in the existing group machinery: a
+`NP_GROUP_KIND_CLUSTER = 3` alongside `NP_GROUP_KIND_LOBE` / `_SOCKET_SET` / `_ADDR_SET` in
+`np_group_query_t`, plus a `uint8_t cluster_id` field, resolving through the §4.2 table.
+
+It is the cheapest possible addition because it is **structurally identical to the existing
+`NP_GROUP_KIND_LOBE` case** in `np_module_map_resolve_group()` — one ascending pass over the
+geometry visiting each socket exactly once (so, like LOBE, it cannot self-duplicate and needs no
+`seen` bitmap), with the predicate `cluster_of(socket) == q->cluster_id` substituted for the
+lobe/side match. It inherits the type filter and the resolver's dedup guarantee for free.
+
+**Scope guardrail — device-state operations only, never therapeutic targeting.** Every use case
+above is service, fault isolation, or diagnostics. **No clinical protocol may ever target a
+cluster**, because a cluster is not an anatomical object: a protocol naming one would silently
+change meaning when MECH-2 revisits the clamp shape — the exact hazard this section rejects for
+addressing, re-entering through a side door.
+
+**This guardrail needs no new enforcement — the existing boundary already provides it.**
+`NP_GROUP_KIND_*` is firmware-internal and appears nowhere in `app/`: the app cannot name a group
+kind at all. It emits a `NP_PROTO_TARGET_SOCKET_MASK` bitmap, and firmware builds a
+`NP_GROUP_KIND_SOCKET_SET` query from it via `np_protocol_socket_expand()`. So a protocol
+structurally cannot express a cluster target today, and adding this enum value does not change that.
+It is recorded here so that no one later "helpfully" adds a cluster selector to the NPPS language or
+the hub compiler.
+
+**Minimum viable form.** If the type-filtered diagnostic case (PD self-test per cluster) turns out
+not to be needed, the simpler `np_module_map_cluster_sockets(cluster_id, out, max, count_out)`
+enumerator covers service and fault isolation on its own. The group kind subsumes it; start with
+whichever the cluster-controller bring-up actually calls for rather than building both.
 
 **What is not worth adding:** a `NP_PROTO_TARGET_CLUSTER_MASK` target kind in NP Hub Protocol v2.
 The existing 16-byte socket bitmap already expresses any cluster; a cluster target kind would save
@@ -793,7 +819,7 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C07 | Safety review to confirm all-or-nothing `NP_SAFETY_EN_PBM_CRANIAL` granularity is acceptable, vs. widening the Class C safety wire format (§7.1–7.2) | Safety wire format; OI-HUB-SOCKET-01 |
 | OI-HUB-C08 | **Net the $63.40 cluster tier against the retired 5-zone-module drive electronics** already inside the $405 Home Standard BOM (§8.4) — needs a post-hex module BOM that does not yet exist | BOM sign-off |
 | OI-HUB-C09 | **Answered 2026-07-29 (§4.4–4.5) — now a MECH-2 input, not an open question.** Electrical and mechanical clusters **should be the same**: the board is **capacity-8**, not exactly-8, and capacity 8 costs the same as a hypothetical 7 (no 7-channel I2C switch or 14:1 mux exists), so one universal board SKU serves a 7-hex flower, an 8-tile patch, or a 3–6-tile partial boundary cluster. Recommendation: **7-hex flower** — the triad is 2.2× the tier BOM ($171.18 vs $76.08 at n=80) and 43 boards at n=128 exceeds the 32-controller tier-1 strap. Residual for MECH-2: confirm flower clamp-plate seating over the curvature span and the HFE formative. **Three-level `(cluster:module:element)` addressing is explicitly rejected** (§4.5) — it swaps an anatomical axis for a topological one and needs 15 bits against the 14-bit `np_hex_addr_pack()` wire. | MECH-2 (input delivered); inner-bowl FPC routing |
-| OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER` to `np_group_query_t` (resolving to a socket set via the §4.2 table) so "disable cluster N" / per-cluster fault reporting are expressible without a new address level (§4.5). **Do not** add a `NP_PROTO_TARGET_CLUSTER_MASK` wire target kind — the existing socket bitmap already covers it | Service + fault-isolation UX |
+| OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table — structurally a clone of the existing `NP_GROUP_KIND_LOBE` case (single ascending pass, no `seen` bitmap needed). Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
 | OI-HUB-C10 | `scripts/sync-socket-map.ts` to emit the `socket_id → (cluster_id, channel)` table alongside existing artifacts so it cannot drift from the lattice (§4.2) | Generated artifacts |
 | OI-HUB-C11 | Hub 3.3 V and cluster-rail current budget at 16 clusters (supersedes Rev B's OI-HUB-01, which sized 5 × 50 mA smart modules) | Pre-prototype |
 | OI-HUB-C12 | Cluster-bus EMI qualification: confirm differential signalling + bus-quiet window keeps EEG noise floor within budget (§5.1) | EMF-1; EEG noise floor |
