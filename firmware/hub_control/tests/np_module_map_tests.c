@@ -634,7 +634,6 @@ static void test_high_socket_init_and_resolve(void)
     check(np_module_map_resolve(a64, &loc) == NP_HUB_OK, "resolve socket 64 ok");
     check(loc.x_mm == (int16_t)SOCK_HI_FIRST && loc.y_mm == (int16_t)(1000 + SOCK_HI_FIRST),
           "socket 64 resolves to its own geometry row");
-    check(loc.elem_type != NP_ELEM_NONE, "socket 64 resolves a populated element");
     check(loc.elem_type == NP_ELEM_LED_660, "socket 64 elem 0 → LED_660");
 
     np_hex_addr_t a77 = { SOCK_NPPS_78, 2 };
@@ -689,16 +688,27 @@ static void test_high_socket_groups(void)
     /* A zone whose socket list lies wholly in the upper half. Was driven through
      * the retired predefined occipital-R lobe group (OI-HUB-C14); the properties
      * proven — a group resolving socket id 127, and the type filter applying above
-     * the old 64 ceiling — are unchanged. */
-    const uint16_t high_zone[] = { SOCK_HI_LAST };
-    check(resolve_sockets(high_zone, 1, 0, false, g_hi_out, 1024, &n) == NP_HUB_OK,
-          "zone over high sockets ok");
+     * the old 64 ceiling — are unchanged.
+     *
+     * The list deliberately includes sockets 90 and 91, which are WIRED BUT EMPTY in
+     * FULL_GEOM. A PARTIALLY-POPULATED ZONE IS THE NORMAL CASE — a Core or Home Lite
+     * build populates only a subset of the lattice — and emit_socket() must skip an
+     * empty member by returning "continue", not "overflow". The retired lobe query
+     * covered this incidentally: it swept the whole geometry for a lobe, so every
+     * call pushed unpopulated sockets through emit_socket. Nothing on the socket-set
+     * path inherited that, so the members are named explicitly here. Without them,
+     * a regression turning that skip into a `false` return would make any protocol
+     * targeting a partly-populated zone fail with a spurious CMD_TOO_MANY, and no
+     * test would notice. */
+    const uint16_t high_zone[] = { 90, 91, SOCK_HI_LAST };
+    check(resolve_sockets(high_zone, 3, 0, false, g_hi_out, 1024, &n) == NP_HUB_OK,
+          "zone over high sockets ok, empty members skipped not treated as overflow");
     check(n == PBM_TILE_N, "high zone → the one populated high tile");
     check(g_hi_out[0].socket_id == SOCK_HI_LAST,
           "group resolved a socket id of 127");
 
     /* Type filter still applies in the upper half. */
-    check(resolve_sockets(high_zone, 1, NP_ELEM_BIT(NP_ELEM_LED_808), false,
+    check(resolve_sockets(high_zone, 3, NP_ELEM_BIT(NP_ELEM_LED_808), false,
                           g_hi_out, 1024, &n) == NP_HUB_OK && n == 1,
           "type filter on high socket → 1 element");
 }
