@@ -363,7 +363,7 @@ active surface follows at ACT-1/ACT-2.
 
 ## 4. Two-level addressing + NVRAM element map (firmware — DELIVERED)
 
-Implemented and verified in `firmware/hub_control/np_module_map.*` (148 host
+Implemented and verified in `firmware/hub_control/np_module_map.*` (147 host
 checks as of 2026-07-29 — the long-stale "63" predated several rounds of coverage;
 Cortex-M7 `-Werror` clean; CI test #12). Summary:
 
