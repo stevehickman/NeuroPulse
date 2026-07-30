@@ -27,6 +27,48 @@ component-level circuit work (DG2788A dual-SPDT switching 47 kΩ ↔ 22 kΩ, and
 TIA saturation analysis that motivated it) is carried forward unchanged — §6 reuses it,
 relocated and shared rather than replicated 80×.
 
+> ### ⚠⚠ RECONCILIATION REQUIRED — NP-HW-HEXTILE-001 Rev A (2026-07-30) lands under this document
+>
+> **Read this before §3, §5, §6 or §8.** `NP-HW-HEXTILE-001` Rev A merged to `main` *after* this
+> revision was drafted, and it fills the exact gap this document scoped out as unwritten
+> (**OI-HUB-C01**: the per-socket FPC pinout and LED drive stage). It makes two decisions one level
+> down that **delete large parts of the design below**. This banner records the collision honestly
+> rather than leaving two documents asserting incompatible architectures; the merge is **not yet
+> done** and is tracked as **OI-HUB-C15**.
+>
+> **What HEXTILE supersedes here:**
+>
+> | This document | Superseded by | Effect |
+> |---|---|---|
+> | **§6 entirely** — shared muxed TIA, one DG2788A per cluster, 16:1 PD current mux, per-sample gain, scan-timing budget | HEXTILE **D-4**: TIA + ADC move **on-module**; no PD analog crosses the socket interface | **Deleted, not revised.** HEXTILE states it outright: *"The ~80× DG2788A + cascaded-analog-mux Hub PCB NRE that SMART-1 opened is not redesigned — it is deleted."* §6 *is* that redesign. Gain switching ceases to exist: the module knows its own PD, so gain is fixed at design time. |
+> | **§3.2** — "the tier needs local intelligence because LED drive must distribute" | HEXTILE **D-3**: constant-current driver on-module; socket carries a **24 V DC bus** (D-6), not per-string drive | The load-bearing argument for a cluster **MCU** is removed. |
+> | **§5.2** — cluster MCU as I2C master behind a per-cluster PCA9548A, tunnelled transactions | HEXTILE **D-7**: **dynamic UID-based address assignment** (SMBus-ARP style) over per-cluster segments, driven directly from RT1062 LPI2C1–4 through **one** PCA9548A tier | The 0x30 collision is *removed*, not worked around, so muxing is needed only for bus capacitance — one tier, no cascade, no intermediate master. HEXTILE is right and this is the better answer. |
+> | **§8 BOM** | above | Per-cluster TIA op-amp, DG2788A, PD mux and NTC mux all drop out. The $6.34/board figure is void. |
+>
+> **What survives, and is independently corroborated by HEXTILE:**
+>
+> - **The interconnect-first finding (§2).** HEXTILE §7 reaches it separately — *"80 sockets × up to 16 current-carrying conductors = ~1,280 power conductors… None of that is buildable."* Two documents, two routes, same conclusion.
+> - **Per-cluster safety gating (§7.2).** HEXTILE **D-8** gates VLED per cluster, "replacing the retired `NP_SAFETY_EN_PBM_ZONE_0..4`", on the identical reasoning that an STM32G071 cannot present 80 GPIOs. Convergent, including the accepted coarse-granularity consequence.
+> - **Electrical segmentation follows the mechanical clusters (§4.4).** HEXTILE **D-7** states it as *"one physical grouping serving mechanics, power, safety, and addressing rather than four incompatible partitions"* — the same answer to the same question.
+> - **§4.2** anatomical socket numbering + generated `socket_id → (cluster, channel)` table; **§4.3** the hub not encoding socket count (REG-1 unblocked); **§4.5/4.5.1/4.5.2** the two address spaces, the rejection of 3-level addressing, and the unbacked-`NP_GROUP_KIND_LOBE` finding — all untouched by HEXTILE and still current.
+> - **§9.5** calibration keyed to the module, not the socket — *strengthened*: with the TIA and PD both on-module, the coefficients are unambiguously module property.
+>
+> **The gap HEXTILE leaves, which this document must now answer (OI-HUB-C16).** HEXTILE's 16-pin
+> socket reserves pins **13 `ELEC_SIG` / 14 `ELEC_SHLD` / 15 `AGND`** at *every* socket for T1-B, and
+> is explicit that *"an electrode signal cannot be carried over I2C — it is a µV analog recording path
+> to the ADS1299 **and** a stimulation current path from the tES driver."* It then declares T1-B out
+> of scope for Rev A and never routes them. At 80 sockets that is **240 µV-analog + stimulation
+> conductors to the hub** — the same unbuildable star HEXTILE just used to kill hub-side LED drive and
+> hub-side PD analog, now applied to the one signal class that genuinely *cannot* be digitised at the
+> module. It cannot be dodged by restricting T1-B to a subset of sockets: that re-imposes precisely
+> the placement constraint SMART-1 was decided to remove.
+>
+> **So the cluster tier survives — with a different and stronger justification.** Not PD analog, not
+> LED drive, not I2C mastering (HEXTILE takes all three), but an **electrode analog crosspoint**:
+> routing any socket's ELEC_SIG to one of N ADS1299 / tES channels (8 for T1, 21 for T2), plus
+> `/ALERT` and `SEAT_N` aggregation. That is per-cluster, and it aligns with the same partition D-7
+> and D-8 already use. Whether it needs an MCU or reduces to a switch matrix is the open question.
+
 > **⚠ STATUS: DRAFT, NOT BASELINED.** The socket count (~80, provisional pending REG-1) and every
 > specific part number below are **open engineering decisions**, deliberately presented with the
 > reasoning that produced them rather than as settled selections. §4.3 is the load-bearing claim:
@@ -872,6 +914,8 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C08 | **Net the $63.40 cluster tier against the retired 5-zone-module drive electronics** already inside the $405 Home Standard BOM (§8.4) — needs a post-hex module BOM that does not yet exist | BOM sign-off |
 | OI-HUB-C09 | **Answered 2026-07-29 (§4.4–4.5) — now a MECH-2 input, not an open question.** Electrical and mechanical clusters **should be the same**: the board is **capacity-8**, not exactly-8, and capacity 8 costs the same as a hypothetical 7 (no 7-channel I2C switch or 14:1 mux exists), so one universal board SKU serves a 7-hex flower, an 8-tile patch, or a 3–6-tile partial boundary cluster. Recommendation: **7-hex flower** — the triad is 2.2× the tier BOM ($171.18 vs $76.08 at n=80) and 43 boards at n=128 exceeds the 32-controller tier-1 strap. Residual for MECH-2: confirm flower clamp-plate seating over the curvature span and the HFE formative. **Three-level `(cluster:module:element)` addressing is explicitly rejected** (§4.5) — it swaps an anatomical axis for a topological one and needs 15 bits against the 14-bit `np_hex_addr_pack()` wire. | MECH-2 (input delivered); inner-bowl FPC routing |
 | OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table (single ascending pass, no `seen` bitmap needed). Legitimate as a firmware-resident group because socket→cluster changes only on an inner-bowl re-tool (§4.5.1) — unlike lobe. Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
+| OI-HUB-C15 | **Merge this document with `NP-HW-HEXTILE-001` Rev A** per the reconciliation banner at the head of this file: delete §6 (TIA/gain switching — HEXTILE D-4 moves it on-module), rewrite §5.2 to HEXTILE's D-7 single-tier UID-addressed segmentation, drop the cluster-MCU LED-drive rationale in §3.2 (D-3/D-6: on-module driver, 24 V bus), and recost §8. Retain §2, §4.2–4.5.2, §7.2, §9.5, §10. **Until this lands the two documents assert incompatible architectures and HEXTILE is the more recent** | Rev C baselining — **blocking** |
+| OI-HUB-C16 | **Route the T1-B electrode path at ~80 sockets.** HEXTILE reserves pins 13/14/15 (`ELEC_SIG`/`ELEC_SHLD`/`AGND`) at every socket, notes an electrode signal cannot be carried over I2C (µV to the ADS1299 *and* stimulation current from the tES driver), then leaves T1-B out of scope. 80 × 3 = **240 analog conductors to the hub** — the same unbuildable star HEXTILE used to kill hub-side LED drive and PD analog. Restricting T1-B to a socket subset is not available (re-imposes what SMART-1 removed). Proposed: a **per-cluster electrode crosspoint** onto N ADS1299/tES channels (8 T1, 21 T2) + `/ALERT`/`SEAT_N` aggregation — the surviving justification for the cluster tier. Open: switch matrix vs. MCU; contact-resistance and leakage budget on a µV path through a pogo contact and a crosspoint; tES current rating through the same switch | T1-B tile; EEG/tES at scale; cluster-tier scope |
 | OI-HUB-C14 | **Retire the firmware lobe path** — `NP_GROUP_KIND_LOBE`, `np_pgroup_t`, `np_module_map_predefined()`, and the `lobe`/`side` fields of `np_socket_geom_t`. It is unbacked: no production caller, no production geometry table (test fixtures only), and no generator emitting firmware C (§4.5.2). Zones are data owned by `00-zones.npps` and already reach firmware as a socket bitmap → `NP_GROUP_KIND_SOCKET_SET`. Risk if left: a future caller resolves against a stale post-REG-1 lobe map — a wrong-site dose from dead code. Decide whether `np_physical_loc_t` keeps `lobe`/`side` (from `np_module_map_resolve()`) or those become app-side lookups; `x_mm`/`y_mm` stay for simulator selection. Touches several of the 63 host checks — own PR, own review | Firmware source-of-truth hygiene; REG-1 safety |
 | OI-HUB-C10 | `scripts/sync-socket-map.ts` to emit the `socket_id → (cluster_id, channel)` table alongside existing artifacts so it cannot drift from the lattice (§4.2) | Generated artifacts |
 | OI-HUB-C11 | Hub 3.3 V and cluster-rail current budget at 16 clusters (supersedes Rev B's OI-HUB-01, which sized 5 × 50 mA smart modules) | Pre-prototype |
