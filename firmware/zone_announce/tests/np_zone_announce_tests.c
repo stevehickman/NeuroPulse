@@ -247,12 +247,17 @@ static void test_socket_map_published_once_carries_anatomy(void)
     CHECK(g_frame_count >= 1, "at least one map fragment");
     CHECK((g_frames[0][1] & NP_ZN_FLAG_MAP) != 0u, "carries the MAP kind bit");
 
-    /* First record: slot 0 == ZM-01 Frontal Left. */
+    /* First record: slot 0, forward and to the LEFT (negative y), above the
+     * origin (negative z) — aircraft body axes. */
     const uint8_t *rec = &g_frames[0][NP_ZN_HEADER_BYTES];
     CHECK(rec[0] == 1u, "slot 0 -> wire socket 1");
-    CHECK((rec[1] & 0x07u) == (uint8_t)NP_ZN_LOBE_FRONTAL, "frontal lobe");
-    CHECK(((rec[1] >> 3) & 0x03u) == (uint8_t)NP_ZN_SIDE_LEFT, "left side");
-    CHECK((rec[2] & NP_ZN_MAP_WIRED) != 0u, "wired in this shell");
+    CHECK((rec[1] & NP_ZN_MAP_WIRED) != 0u, "wired in this shell");
+    int16_t x = (int16_t)((uint16_t)rec[2] | ((uint16_t)rec[3] << 8));
+    int16_t y = (int16_t)((uint16_t)rec[4] | ((uint16_t)rec[5] << 8));
+    int16_t z = (int16_t)((uint16_t)rec[6] | ((uint16_t)rec[7] << 8));
+    CHECK(x > 0, "frontal position is forward of the origin");
+    CHECK(y < 0, "left is negative y");
+    CHECK(z < 0, "a vault socket is above the origin, so z is negative");
 
     int mapped = 0;
     for (int f = 0; f < g_frame_count; f++) { mapped += g_frames[f][3]; }

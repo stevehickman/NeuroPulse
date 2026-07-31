@@ -18,12 +18,17 @@ import Foundation
 // Where a socket IS cannot change when a module is inserted or removed, so it
 // does not belong in a change notification:
 //
-//   SocketMap   — read ONCE when the app links to the helmet. The permanent
-//                 description of every socket: lobe, side, layout coordinates,
-//                 whether the shell wires it. The helmet is the single source of
-//                 truth; the app never keeps its own copy of the lattice, which
-//                 matters because that lattice is PROVISIONAL and has been re-cut
-//                 twice already (30 → 78 → 80).
+//   SocketMap   — read ONCE when the app links to the helmet. Where every socket
+//                 physically is, in 3-space, plus whether the shell wires it. The
+//                 helmet is the single source of truth; the app never keeps its
+//                 own copy of the lattice, which matters because that lattice is
+//                 PROVISIONAL and has been re-cut twice already (30 → 78 → 80).
+//
+//   SocketZones — which zones name each socket. Authored in 00-zones.npps and
+//                 generated into SocketZones.generated.swift. This is the app's
+//                 to own: zones are protocol data, user-extensible, overlapping,
+//                 and meaningless to the helmet. Zones are what replaced lobe and
+//                 side — neither is a property of the hardware.
 //
 //   ZoneModuleStatus / Configuration — what actually changes. Socket id, module
 //                 type, flags. Three bytes on the wire per change.
@@ -60,47 +65,44 @@ enum ZoneModuleType: UInt8 {
     }
 }
 
-/// Cortical lobe of a socket, from the hub's geometry table (`np_zn_lobe_t`).
-enum ZoneLobe: UInt8 {
-    /// Hub reports no lobe for this socket. Named `unspecified`, not `none`,
-    /// for the same Optional-collision reason as ZoneModuleType.
-    case unspecified = 0
-    case frontal   = 1
-    case temporal  = 2
-    case parietal  = 3
-    case occipital = 4
-}
-
-/// Hemisphere of a socket (`np_zn_side_t`).
+/// A socket's position in 3-space, millimetres.
 ///
-/// `.midline` is a real position, not "unspecified": a midline socket straddles
-/// the hemispheres and belongs to BOTH the Left and Right zone of its lobe
-/// (see the membership rule in `np_module_map.h`).
-enum ZoneSide: UInt8 {
-    case midline = 0
-    case left    = 1
-    case right   = 2
+/// Aircraft body axes, origin at the centre of the approximately oblate spheroid
+/// the helmet forms a partial shell of:
+///
+///   - `forward` — +x, toward the face
+///   - `right`   — +y, toward the right ear
+///   - `down`    — +z, toward the neck
+///
+/// Right-handed, the same convention an aircraft uses. The vault the sockets
+/// tile sits above the origin, so `down` is negative for every socket and the
+/// crown is the most negative.
+struct SocketPosition: Equatable {
+    let forwardMm: Int16
+    let rightMm: Int16
+    let downMm: Int16
 }
 
 // MARK: - Static: the socket map
 
 /// One socket's PERMANENT description, from the helmet's geometry table.
 /// Read once at link time; never carried in a change notification.
+///
+/// There is deliberately no lobe and no side here. Neither is a property of the
+/// hardware and nothing in the system derives one (ZONE-1). A socket's
+/// anatomical meaning is its ZONE MEMBERSHIP — authored by a human in
+/// `protocols/predefined/00-zones.npps`, resolved app-side via
+/// `SocketZones.generated.swift`, and unknown to the helmet.
 struct SocketDescriptor: Identifiable, Equatable {
 
-    /// 1-based socket id, matching NPPS zone files, `hardware/np_socket_map.json`
-    /// and the generated app-side socket map. Firmware ids are 0-based; the
-    /// conversion happens at the firmware encoder boundary.
+    /// 1-based socket id, matching NPPS zone `sockets:` lists,
+    /// `hardware/np_socket_map.json` and the generated map. Firmware ids are
+    /// 0-based; the conversion happens at the firmware encoder boundary.
     let socketID: UInt8
 
-    let lobe: ZoneLobe
-    let side: ZoneSide
-
-    /// Unrolled-vault coordinates in millimetres, for laying out a helmet
-    /// diagram. Provisional until the lattice is registered against shell CAD
-    /// (NP-HEX-ZM-001 REG-1).
-    let xMillimetres: Int16
-    let yMillimetres: Int16
+    /// Where this socket physically is. Provisional until the lattice is
+    /// registered against shell CAD (NP-HEX-ZM-001 REG-1).
+    let position: SocketPosition
 
     /// This shell physically wires this socket. A geometry table may describe
     /// addresses a given build does not populate.
@@ -108,32 +110,21 @@ struct SocketDescriptor: Identifiable, Equatable {
 
     var id: UInt8 { socketID }
 
-    /// Anatomical name of the position, e.g. "Frontal left".
-    /// Empty when the hub reports no lobe for this socket.
-    var anatomicalLabel: String {
-        let lobeName: String
-        switch lobe {
-        case .unspecified: return ""
-        case .frontal:   lobeName = String(localized: "ZONE_LOBE_FRONTAL")
-        case .temporal:  lobeName = String(localized: "ZONE_LOBE_TEMPORAL")
-        case .parietal:  lobeName = String(localized: "ZONE_LOBE_PARIETAL")
-        case .occipital: lobeName = String(localized: "ZONE_LOBE_OCCIPITAL")
-        }
-        let sideName: String
-        switch side {
-        case .midline: sideName = String(localized: "ZONE_SIDE_MIDLINE")
-        case .left:    sideName = String(localized: "ZONE_SIDE_LEFT")
-        case .right:   sideName = String(localized: "ZONE_SIDE_RIGHT")
-        }
-        return String(format: String(localized: "ZONE_POSITION_FORMAT"), lobeName, sideName)
-    }
+    /// Most specific zone naming this socket, e.g. "Frontal Left" — the smallest
+    /// authored zone containing it. nil when no zone lists it, which is possible:
+    /// the helmet is authoritative for which sockets exist, the zone file is not.
+    var zoneName: String? { SocketZones.primaryZone(for: socketID) }
+
+    /// Every zone naming this socket, smallest first. Sockets belong to several.
+    var zoneNames: [String] { SocketZones.zones(for: socketID) }
 }
 
 /// The helmet's permanent socket geometry, as read at link time.
 ///
-/// Deliberately the ONLY place anatomy lives app-side, and it is never persisted
-/// across links — a firmware update can re-cut the lattice, and a cached copy
-/// would then name sockets wrongly with no way to notice.
+/// Deliberately never persisted across links — a firmware update can re-cut the
+/// lattice, and a cached copy would then place sockets wrongly with no way to
+/// notice. Zone NAMES are the opposite: authored, versioned with the app, and
+/// held in `SocketZones.generated.swift`.
 struct SocketMap: Equatable {
 
     private(set) var descriptors: [UInt8: SocketDescriptor]
@@ -156,16 +147,24 @@ struct SocketMap: Equatable {
 
     func descriptor(for socketID: UInt8) -> SocketDescriptor? { descriptors[socketID] }
 
-    /// Label for a socket: "Socket 12 — Frontal left", or just "Socket 12" when
-    /// the map has no entry (the hub named a socket its own map omits) or the
-    /// hub reports no lobe.
+    /// Position of a socket, if the helmet reported one.
+    func position(for socketID: UInt8) -> SocketPosition? {
+        descriptors[socketID]?.position
+    }
+
+    /// Label for a socket: "Socket 12 — Frontal Left", or just "Socket 12" when
+    /// no authored zone names it.
+    ///
+    /// The zone comes from the app's generated table, not from the helmet: zones
+    /// are authored protocol data, users may define their own, and a socket
+    /// belongs to several at once. The helmet supplies position; the app supplies
+    /// meaning.
     func label(for socketID: UInt8) -> String {
-        let position = descriptor(for: socketID)?.anatomicalLabel ?? ""
-        if position.isEmpty {
+        guard let zone = SocketZones.primaryZone(for: socketID) else {
             return String(format: String(localized: "ZONE_SOCKET_LABEL"), Int(socketID))
         }
         return String(format: String(localized: "ZONE_SOCKET_POSITION_LABEL"),
-                      Int(socketID), position)
+                      Int(socketID), zone)
     }
 
     /// Sentence the app speaks when a module seats. Names the type only when the

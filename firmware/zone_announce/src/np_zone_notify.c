@@ -15,21 +15,6 @@ typedef char _np_zn_socket_domain_matches[
     (NP_ZN_MAX_SOCKET_ID == NP_HEXMAP_MAX_SOCKETS) ? 1 : -1];
 typedef char _np_zn_socket_fits_u8[(NP_ZN_MAX_SOCKET_ID <= 255) ? 1 : -1];
 
-/* The map record packs lobe in 3 bits and side in 2. Both enums are duplicated
- * in np_zone_notify.h so this unit host-compiles standalone; assert they agree
- * with np_module_map.h rather than trusting two hand-kept copies. */
-typedef char _np_zn_lobe_agrees[
-    ((int)NP_ZN_LOBE_FRONTAL   == (int)NP_LOBE_FRONTAL   &&
-     (int)NP_ZN_LOBE_TEMPORAL  == (int)NP_LOBE_TEMPORAL  &&
-     (int)NP_ZN_LOBE_PARIETAL  == (int)NP_LOBE_PARIETAL  &&
-     (int)NP_ZN_LOBE_OCCIPITAL == (int)NP_LOBE_OCCIPITAL &&
-     (int)NP_LOBE_COUNT <= 8) ? 1 : -1];
-typedef char _np_zn_side_agrees[
-    ((int)NP_ZN_SIDE_MIDLINE == (int)NP_SIDE_MIDLINE &&
-     (int)NP_ZN_SIDE_LEFT    == (int)NP_SIDE_LEFT    &&
-     (int)NP_ZN_SIDE_RIGHT   == (int)NP_SIDE_RIGHT   &&
-     (int)NP_SIDE_RIGHT <= 3) ? 1 : -1];
-
 /* The minimum frame must admit the LARGER of the two record kinds, or a map
  * fragment could never be emitted at the floor. */
 typedef char _np_zn_min_frame_admits_map[
@@ -113,14 +98,16 @@ np_zn_status_t np_zone_notify_encode_map(const np_zn_socket_desc_t *desc,
     }
 
     buf[0] = wire_id;
-    buf[1] = (uint8_t)(((uint8_t)desc->lobe & 0x07u) |
-                       (((uint8_t)desc->side & 0x03u) << 3));
-    buf[2] = (uint8_t)(desc->wired ? NP_ZN_MAP_WIRED : 0u);
-    /* int16 little-endian, matching every other multi-byte field on this link. */
-    buf[3] = (uint8_t)((uint16_t)desc->x_mm & 0xFFu);
-    buf[4] = (uint8_t)(((uint16_t)desc->x_mm >> 8) & 0xFFu);
-    buf[5] = (uint8_t)((uint16_t)desc->y_mm & 0xFFu);
-    buf[6] = (uint8_t)(((uint16_t)desc->y_mm >> 8) & 0xFFu);
+    buf[1] = (uint8_t)(desc->wired ? NP_ZN_MAP_WIRED : 0u);
+    /* Position in aircraft body axes, int16 little-endian, matching every other
+     * multi-byte field on this link. No lobe, no side — see the frame note in
+     * the header. */
+    buf[2] = (uint8_t)((uint16_t)desc->x_mm & 0xFFu);
+    buf[3] = (uint8_t)(((uint16_t)desc->x_mm >> 8) & 0xFFu);
+    buf[4] = (uint8_t)((uint16_t)desc->y_mm & 0xFFu);
+    buf[5] = (uint8_t)(((uint16_t)desc->y_mm >> 8) & 0xFFu);
+    buf[6] = (uint8_t)((uint16_t)desc->z_mm & 0xFFu);
+    buf[7] = (uint8_t)(((uint16_t)desc->z_mm >> 8) & 0xFFu);
     return NP_ZN_OK;
 }
 

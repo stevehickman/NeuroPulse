@@ -74,17 +74,15 @@ static np_zn_socket_state_t mk(uint8_t socket, np_zn_module_type_t type,
     return s;
 }
 
-static np_zn_socket_desc_t mkdesc(uint8_t socket, np_zn_lobe_t lobe,
-                                  np_zn_side_t side, int16_t x, int16_t y,
+static np_zn_socket_desc_t mkdesc(uint8_t socket, int16_t x, int16_t y, int16_t z,
                                   bool wired)
 {
     np_zn_socket_desc_t d;
     memset(&d, 0, sizeof(d));
     d.socket_id = socket;
-    d.lobe      = lobe;
-    d.side      = side;
     d.x_mm      = x;
     d.y_mm      = y;
+    d.z_mm      = z;
     d.wired     = wired;
     return d;
 }
@@ -156,40 +154,47 @@ static void test_status_record_socket_range(void)
 static void test_map_record_layout(void)
 {
     uint8_t buf[NP_ZN_MAP_REC_BYTES];
-    np_zn_socket_desc_t d = mkdesc(11, NP_ZN_LOBE_FRONTAL, NP_ZN_SIDE_LEFT,
-                                   -42, 137, true);
+    /* Aircraft body axes: +x forward, +y right, +z down. A vault socket is above
+     * the ellipsoid centre, so z is negative. */
+    np_zn_socket_desc_t d = mkdesc(11, 119, -44, -38, true);
 
     CHECK(np_zone_notify_encode_map(&d, buf) == NP_ZN_OK, "encode ok");
     CHECK(buf[0] == 12u, "socket id 1-based here too");
-    CHECK((buf[1] & 0x07u) == (uint8_t)NP_ZN_LOBE_FRONTAL, "lobe in bits [2:0]");
-    CHECK(((buf[1] >> 3) & 0x03u) == (uint8_t)NP_ZN_SIDE_LEFT, "side in bits [4:3]");
-    CHECK((buf[2] & NP_ZN_MAP_WIRED) != 0u, "wired flag");
-    /* int16 little-endian; -42 == 0xFFD6 */
-    CHECK(buf[3] == 0xD6u && buf[4] == 0xFFu, "negative x_mm little-endian");
-    CHECK(buf[5] == 137u && buf[6] == 0u, "positive y_mm little-endian");
+    CHECK((buf[1] & NP_ZN_MAP_WIRED) != 0u, "wired flag");
+    CHECK(buf[2] == 119u && buf[3] == 0u, "x_mm forward, little-endian");
+    /* -44 == 0xFFD4 */
+    CHECK(buf[4] == 0xD4u && buf[5] == 0xFFu, "negative y_mm (left) little-endian");
+    /* -38 == 0xFFDA */
+    CHECK(buf[6] == 0xDAu && buf[7] == 0xFFu, "negative z_mm (up) little-endian");
+    CHECK(NP_ZN_MAP_REC_BYTES == 8u,
+          "a map record is socket id + flags + three int16 coordinates");
 }
 
-static void test_map_record_midline_and_unwired(void)
+static void test_map_record_crown_and_extremes(void)
 {
     uint8_t buf[NP_ZN_MAP_REC_BYTES];
-    /* Midline is a real, distinct value — a midline socket belongs to BOTH
-     * hemisphere zones of its lobe (np_module_map.h membership rule), so it must
-     * not collide with "no side reported". */
-    np_zn_socket_desc_t d = mkdesc(79, NP_ZN_LOBE_OCCIPITAL, NP_ZN_SIDE_MIDLINE,
-                                   0, 0, false);
-    CHECK(np_zone_notify_encode_map(&d, buf) == NP_ZN_OK, "encode ok");
+    /* The crown is the most negative z on the vault: directly above the origin. */
+    np_zn_socket_desc_t crown = mkdesc(40, 0, 0, -157, true);
+    CHECK(np_zone_notify_encode_map(&crown, buf) == NP_ZN_OK, "encode ok");
+    CHECK(buf[2] == 0u && buf[3] == 0u, "crown is on the fore/aft centreline");
+    CHECK(buf[4] == 0u && buf[5] == 0u, "and on the left/right centreline");
+    /* -157 == 0xFF63 */
+    CHECK(buf[6] == 0x63u && buf[7] == 0xFFu, "crown z = -157 mm");
+
+    /* A socket the shell does not wire still has a position. */
+    np_zn_socket_desc_t unwired = mkdesc(79, -130, 28, 0, false);
+    CHECK(np_zone_notify_encode_map(&unwired, buf) == NP_ZN_OK, "encode ok");
     CHECK(buf[0] == 80u, "socket 79 -> wire 80 (top of the current lattice)");
-    CHECK((buf[1] & 0x07u) == (uint8_t)NP_ZN_LOBE_OCCIPITAL, "occipital lobe");
-    CHECK(((buf[1] >> 3) & 0x03u) == (uint8_t)NP_ZN_SIDE_MIDLINE, "midline side");
-    CHECK((buf[2] & NP_ZN_MAP_WIRED) == 0u,
+    CHECK((buf[1] & NP_ZN_MAP_WIRED) == 0u,
           "a socket in the geometry table that this shell does not wire");
+    /* -130 == 0xFF7E */
+    CHECK(buf[2] == 0x7Eu && buf[3] == 0xFFu, "negative x_mm (aft) little-endian");
 }
 
 static void test_map_record_socket_range(void)
 {
     uint8_t buf[NP_ZN_MAP_REC_BYTES];
-    np_zn_socket_desc_t over = mkdesc(200, NP_ZN_LOBE_FRONTAL, NP_ZN_SIDE_LEFT,
-                                      0, 0, true);
+    np_zn_socket_desc_t over = mkdesc(200, 0, 0, 0, true);
     CHECK(np_zone_notify_encode_map(&over, buf) == NP_ZN_ERR_SOCKET_RANGE,
           "out-of-domain socket rejected in map records too");
     CHECK(np_zone_notify_encode_map(NULL, buf) == NP_ZN_ERR_INVALID_ARG,
@@ -202,12 +207,11 @@ static void test_socket_map_run(void)
 
     np_zn_socket_desc_t descs[80];
     for (uint8_t i = 0u; i < 80u; i++) {
-        descs[i] = mkdesc(i, NP_ZN_LOBE_PARIETAL, NP_ZN_SIDE_LEFT,
-                          (int16_t)i, (int16_t)(-i), true);
+        descs[i] = mkdesc(i, (int16_t)i, (int16_t)(-i), (int16_t)(-2 * i), true);
     }
     CHECK(np_zone_notify_socket_map(descs, 80u) == NP_ZN_OK, "80-socket map ok");
 
-    /* (20 - 4) / 7 = 2 records per fragment -> 40 fragments. Paid ONCE per link. */
+    /* (20 - 4) / 8 = 2 records per fragment -> 40 fragments. Paid ONCE per link. */
     CHECK(g_frame_count == 40, "80 map records at 2/fragment -> 40 fragments");
 
     int total = 0;
@@ -239,9 +243,9 @@ static void test_map_validates_before_emitting(void)
 {
     reset_capture(NP_ZN_ATT_FLOOR_BYTES);
     np_zn_socket_desc_t descs[3];
-    descs[0] = mkdesc(0,   NP_ZN_LOBE_FRONTAL, NP_ZN_SIDE_LEFT, 0, 0, true);
-    descs[1] = mkdesc(200, NP_ZN_LOBE_FRONTAL, NP_ZN_SIDE_LEFT, 0, 0, true);
-    descs[2] = mkdesc(2,   NP_ZN_LOBE_FRONTAL, NP_ZN_SIDE_LEFT, 0, 0, true);
+    descs[0] = mkdesc(0,   0, 0, 0, true);
+    descs[1] = mkdesc(200, 0, 0, 0, true);
+    descs[2] = mkdesc(2,   0, 0, 0, true);
 
     CHECK(np_zone_notify_socket_map(descs, 3u) == NP_ZN_ERR_SOCKET_RANGE,
           "a bad socket anywhere fails the whole map");
@@ -420,7 +424,7 @@ static void test_format_constants(void)
      * Swift side must move in the same commit. */
     CHECK(NP_ZN_HEADER_BYTES == 4u, "header is 4 bytes");
     CHECK(NP_ZN_STATUS_REC_BYTES == 3u, "status record is 3 bytes");
-    CHECK(NP_ZN_MAP_REC_BYTES == 7u, "map record is 7 bytes");
+    CHECK(NP_ZN_MAP_REC_BYTES == 8u, "map record is 8 bytes (id + flags + xyz)");
     CHECK(NP_ZN_FORMAT_VERSION == 0x02u, "format version 2 (static/dynamic split)");
     CHECK(NP_ZN_FLAG_MAP == 0x04u, "map kind bit");
     CHECK(NP_ZN_MAP_WIRED == 0x01u, "map wired flag");
@@ -437,7 +441,7 @@ int main(void)
     test_status_record_fault_is_never_present();
     test_status_record_socket_range();
     test_map_record_layout();
-    test_map_record_midline_and_unwired();
+    test_map_record_crown_and_extremes();
     test_map_record_socket_range();
     test_socket_map_run();
     test_status_frames_are_not_map_frames();

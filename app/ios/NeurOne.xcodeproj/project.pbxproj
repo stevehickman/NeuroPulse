@@ -87,6 +87,7 @@
 		BE83A3D8FB6667CC7E4A9917 /* ResearchAnalyticsGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 37FF2673F6FA11AEF75F6D8E /* ResearchAnalyticsGate.swift */; };
 		C2A55DBAD06AED349862D89E /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = 8027991FC8C3383C50B5412E /* PostHog */; };
 		C4274D49DE80999B5467F769 /* NPProtocolLibrary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D166E18D65E55F876E0F345 /* NPProtocolLibrary.swift */; };
+		C4CB367B44C46434DD25CBA6 /* SocketZones.generated.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1EC12BCF0006155AF5104C87 /* SocketZones.generated.swift */; };
 		C572F36985EAE4B8F7B7E22B /* ModalityEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10BBEF21A2269F8309286AF6 /* ModalityEditorView.swift */; };
 		C5B796A5F366837EDF354E6C /* ProtocolUploadGateway.swift in Sources */ = {isa = PBXBuildFile; fileRef = E35DC80D6B9640F68720C150 /* ProtocolUploadGateway.swift */; };
 		C6737108125EB3A8DBA0D197 /* ResearchSuggestionPortalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE288A8466D1C2E882C19C01 /* ResearchSuggestionPortalView.swift */; };
@@ -144,6 +145,7 @@
 		1917AE42CF810EAFD72D8B38 /* NPBundledProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPBundledProtocols.swift; sourceTree = "<group>"; };
 		1AD55BF18814654CABAAF303 /* AgeGateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgeGateView.swift; sourceTree = "<group>"; };
 		1DF0D915565C5BC17D0A1770 /* UHDRBackupScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UHDRBackupScheduler.swift; sourceTree = "<group>"; };
+		1EC12BCF0006155AF5104C87 /* SocketZones.generated.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SocketZones.generated.swift; sourceTree = "<group>"; };
 		21EF29312EB334D97DBD6BD3 /* ZoneModuleAnnouncer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZoneModuleAnnouncer.swift; sourceTree = "<group>"; };
 		22B2B34EB58C583A05B7614F /* GATTCharacteristics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GATTCharacteristics.swift; sourceTree = "<group>"; };
 		2BBE5EE2C24E00D0AE3859D1 /* BIPAConsentFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BIPAConsentFlowTests.swift; sourceTree = "<group>"; };
@@ -322,6 +324,7 @@
 				3340437AFB2197A3E561674B /* OTAModels.swift */,
 				11E0331496FE4F4009A6CF1F /* ResearchSuggestion.swift */,
 				0F5EF5775724E9F466BB0B51 /* SessionState.swift */,
+				1EC12BCF0006155AF5104C87 /* SocketZones.generated.swift */,
 				DFA0FC9F4B5E984859C2A762 /* ZoneModuleInfo.swift */,
 			);
 			path = Models;
@@ -699,6 +702,7 @@
 				5965DEF4A08C71B02398A964 /* SessionState.swift in Sources */,
 				9CE66D2B1CBAA1A341757E67 /* SessionView.swift in Sources */,
 				FB6B7845D57B8EFCB88E7942 /* SetupView.swift in Sources */,
+				C4CB367B44C46434DD25CBA6 /* SocketZones.generated.swift in Sources */,
 				6300D5981D78D8E50B355B4C /* UHDRBackupScheduler.swift in Sources */,
 				D8BB52481FACC35DDF8C0141 /* UHDRKeyManager.swift in Sources */,
 				04B38A7EB6ED06FB90B016AA /* Under16View.swift in Sources */,

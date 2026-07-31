@@ -8,7 +8,7 @@ import Foundation
 //
 // ── Two shapes over one header ───────────────────────────────────────────────
 //
-// SOCKET_MAP frames carry 7-byte descriptor records and are read once at link.
+// SOCKET_MAP frames carry 8-byte descriptor records and are read once at link.
 // ZONE_MODULE_STATUS frames carry 3-byte status records and arrive on every
 // change. Both use the same 4-byte header; byte 1's MAP bit says which shape the
 // body holds, so a decoder checks rather than infers — reading one as the other
@@ -16,7 +16,7 @@ import Foundation
 //
 // ── Why frames fragment ──────────────────────────────────────────────────────
 //
-// A full 80-socket map is ~564 bytes; a full status snapshot ~244. An ATT
+// A full 80-socket map is ~644 bytes; a full status snapshot ~244. An ATT
 // notification is only guaranteed to carry 20 bytes, so both arrive as ordered
 // fragment runs, the last one flagged. `ZoneModuleFrameAssembler` accumulates a
 // run and emits it only when the final fragment lands — a partial sequence is
@@ -34,7 +34,7 @@ enum ZoneFrameFormat {
     static let version: UInt8 = 0x02
     static let headerBytes = 4
     static let statusRecordBytes = 3
-    static let mapRecordBytes = 7
+    static let mapRecordBytes = 8
 
     /// Mirrors `NP_ZN_MAX_SOCKET_ID` — the full 7-bit major addressing domain.
     static let maxSocketID: UInt8 = 128
@@ -113,18 +113,19 @@ struct SocketMapFrame: Equatable {
             let socketID = data[r]
             guard ZoneFrameFormat.isValidSocketID(socketID) else { return nil }
 
-            let anatomy = data[r + 1]
-            let flags   = data[r + 2]
-            // int16 little-endian, matching every other multi-byte field here.
-            let x = Int16(bitPattern: UInt16(data[r + 3]) | (UInt16(data[r + 4]) << 8))
-            let y = Int16(bitPattern: UInt16(data[r + 5]) | (UInt16(data[r + 6]) << 8))
+            let flags = data[r + 1]
+            // Aircraft body axes, int16 little-endian: +x forward, +y right,
+            // +z down. No lobe or side — the helmet reports position only.
+            func int16(at offset: Int) -> Int16 {
+                Int16(bitPattern: UInt16(data[r + offset])
+                      | (UInt16(data[r + offset + 1]) << 8))
+            }
 
             decoded.append(SocketDescriptor(
                 socketID: socketID,
-                lobe: ZoneLobe(rawValue: anatomy & 0x07) ?? .unspecified,
-                side: ZoneSide(rawValue: (anatomy >> 3) & 0x03) ?? .midline,
-                xMillimetres: x,
-                yMillimetres: y,
+                position: SocketPosition(forwardMm: int16(at: 2),
+                                         rightMm: int16(at: 4),
+                                         downMm: int16(at: 6)),
                 isWiredInShell: (flags & ZoneFrameFormat.mapWired) != 0))
         }
 

@@ -385,15 +385,20 @@ final class NeurOneGATTManagerTests: XCTestCase {
     }
 
     /// v2 socket-map frame — 7-byte records, MAP kind bit set.
+    /// 8-byte map records: socket id, flags, then x/y/z as int16 little-endian
+    /// in aircraft body axes (+x forward, +y right, +z down).
     private func socketMapFrame(last: Bool, fragment: UInt8 = 0,
-                                records: [(UInt8, UInt8, UInt8, Int16, Int16)]) -> Data {
+                                records: [(UInt8, UInt8, Int16, Int16, Int16)]) -> Data {
         var d = Data([0x02, 0x01 | (last ? 0x02 : 0x00) | 0x04, fragment,
                       UInt8(records.count)])
         for r in records {
-            let ux = UInt16(bitPattern: r.3), uy = UInt16(bitPattern: r.4)
-            d.append(contentsOf: [r.0, r.1, r.2,
+            let ux = UInt16(bitPattern: r.2)
+            let uy = UInt16(bitPattern: r.3)
+            let uz = UInt16(bitPattern: r.4)
+            d.append(contentsOf: [r.0, r.1,
                                   UInt8(ux & 0xFF), UInt8(ux >> 8),
-                                  UInt8(uy & 0xFF), UInt8(uy >> 8)])
+                                  UInt8(uy & 0xFF), UInt8(uy >> 8),
+                                  UInt8(uz & 0xFF), UInt8(uz >> 8)])
         }
         return d
     }
@@ -469,7 +474,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         manager.applyZoneModuleStatus(Data([0x03, 0x03, 0x00, 0x01, 0x05, 0x01, 0x01]))
         manager.applyZoneModuleStatus(Data([0x02, 0x03, 0x00, 0x04, 0x05]))
         manager.applyZoneModuleStatus(socketMapFrame(last: true,
-                                                     records: [(5, 0x09, 0x01, 0, 0)]))
+                                                     records: [(5, 0x01, 0, 0, -10)]))
 
         XCTAssertEqual(manager.zoneModules.orderedSockets.map(\.socketID), [12],
                        "malformed frames must be dropped whole, not partially applied")
@@ -505,9 +510,11 @@ final class NeurOneGATTManagerTests: XCTestCase {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
 
         manager.applySocketMap(socketMapFrame(last: true, records: [
-            (12, 0x01 | (0x01 << 3), 0x01, -42, 137),   // frontal left
+            (12, 0x01, 119, -44, -38),   // forward, left, above the origin
         ]))
         XCTAssertEqual(manager.socketMap.count, 1)
+        XCTAssertEqual(manager.socketMap.position(for: 12)?.downMm, -38)
+        // The NAME comes from the authored zone file, not from the wire.
         XCTAssertTrue(manager.socketMap.label(for: 12).localizedCaseInsensitiveContains("frontal"))
 
         manager.applyZoneModuleStatus(
@@ -522,7 +529,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
         mock.state = .poweredOn
         let manager = NeurOneGATTManager(mockCentral: mock)
         manager.applyStateUpdate(state: .poweredOn)
-        manager.applySocketMap(socketMapFrame(last: true, records: [(1, 0x09, 0x01, 0, 0)]))
+        manager.applySocketMap(socketMapFrame(last: true, records: [(1, 0x01, 0, 0, -10)]))
         XCTAssertFalse(manager.socketMap.isEmpty, "precondition")
 
         manager.applyDisconnection()

@@ -108,16 +108,18 @@ static uint8_t np_za_slot_socket_id(uint8_t slot_index)
  * real x/y from the shell CAD.
  */
 static const np_zn_socket_desc_t s_legacy_socket_map[NP_ZONE_COUNT] = {
-    /* slot 0 — ZM-01 Frontal Left  */
-    { 0u, NP_ZN_LOBE_FRONTAL,  NP_ZN_SIDE_LEFT,    -1, 0, true },
-    /* slot 1 — ZM-02 Frontal Right */
-    { 1u, NP_ZN_LOBE_FRONTAL,  NP_ZN_SIDE_RIGHT,    1, 0, true },
-    /* slot 2 — ZM-03 Vertex        */
-    { 2u, NP_ZN_LOBE_PARIETAL, NP_ZN_SIDE_MIDLINE,  0, 1, true },
-    /* slot 3 — ZM-04 Parietal Left */
-    { 3u, NP_ZN_LOBE_PARIETAL, NP_ZN_SIDE_LEFT,    -1, 2, true },
-    /* slot 4 — ZM-05 Parietal Right*/
-    { 4u, NP_ZN_LOBE_PARIETAL, NP_ZN_SIDE_RIGHT,    1, 2, true },
+    /* Positions in aircraft body axes, mm, origin at the shell ellipsoid centre
+     * (+x forward, +y right, +z down). These five are the retired ZONE_ID
+     * ladder's fixed positions, approximated on the scan-grounded surface — the
+     * ladder itself only reports WHICH of five, so anything finer would be
+     * invented. Real per-socket coordinates arrive with np_module_map's geometry
+     * table (OI-HEXMAP-02); hardware/np_socket_map.json is where they are
+     * derived today. */
+    /* slot 0 — ZM-01 Frontal Left  */ { 0u,  119, -44, -38, true },
+    /* slot 1 — ZM-02 Frontal Right */ { 1u,  119,  44, -38, true },
+    /* slot 2 — ZM-03 Vertex        */ { 2u,    0,   0, -157, true },
+    /* slot 3 — ZM-04 Parietal Left */ { 3u,  -60, -76, -119, true },
+    /* slot 4 — ZM-05 Parietal Right*/ { 4u,  -60,  76, -119, true },
 };
 
 /*

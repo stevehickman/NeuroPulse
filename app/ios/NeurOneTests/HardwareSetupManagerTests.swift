@@ -115,11 +115,13 @@ private func socketStatus(_ id: UInt8,
                      isPresent: present, hasFault: fault)
 }
 
-/// A socket map covering the ids these tests use, so labels resolve to places.
-private func socketMap(_ entries: [(UInt8, ZoneLobe, ZoneSide)]) -> SocketMap {
-    SocketMap(entries.map { id, lobe, side in
-        SocketDescriptor(socketID: id, lobe: lobe, side: side,
-                         xMillimetres: 0, yMillimetres: 0, isWiredInShell: true)
+/// A socket map covering the ids these tests use. Only positions — the zone name
+/// the app speaks comes from the generated table, not from here.
+private func socketMap(_ ids: [UInt8]) -> SocketMap {
+    SocketMap(ids.map { id in
+        SocketDescriptor(socketID: id,
+                         position: SocketPosition(forwardMm: 0, rightMm: 0, downMm: -10),
+                         isWiredInShell: true)
     })
 }
 
@@ -546,7 +548,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         let spy = SpyAnnouncer()
         let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults, announcer: spy)
         // The map arrives at link time; the status change carries no anatomy.
-        mock.pushSocketMap(socketMap([(12, .frontal, .left)]))
+        mock.pushSocketMap(socketMap([12]))
         mgr.setStepForTesting(.zoneModules)
 
         mock.pushZoneEvent(socketStatus(12, type: .eeg))
@@ -554,8 +556,10 @@ final class HardwareSetupManagerTests: XCTestCase {
         XCTAssertEqual(spy.spoken.count, 1, "an insertion during the step is spoken")
         let said = spy.spoken[0]
         XCTAssertTrue(said.contains("12"), "the spoken string names the socket: \(said)")
+        // Socket 12 is in "Frontal Left" per 00-zones.npps. The zone — not a lobe
+        // or a side from the wire — is what gives the socket a place name.
         XCTAssertTrue(said.localizedCaseInsensitiveContains("frontal"),
-                      "the spoken string names the anatomy: \(said)")
+                      "the spoken string names the zone: \(said)")
     }
 
     func testInsertionIsNotSpokenOutsideZoneModuleStep() {

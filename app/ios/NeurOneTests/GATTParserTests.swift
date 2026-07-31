@@ -131,18 +131,21 @@ final class GATTParserTests: XCTestCase {
     private func mapFrame(version: UInt8 = 0x02,
                           last: Bool,
                           fragment: UInt8 = 0,
-                          records: [(socket: UInt8, anatomy: UInt8, flags: UInt8,
-                                     x: Int16, y: Int16)],
+                          records: [(socket: UInt8, flags: UInt8,
+                                     x: Int16, y: Int16, z: Int16)],
                           declaredCount: UInt8? = nil) -> Data {
         var d = Data([version,
                       0x01 | (last ? 0x02 : 0x00) | 0x04,   // snapshot | last | map
                       fragment,
                       declaredCount ?? UInt8(records.count)])
         for r in records {
-            let ux = UInt16(bitPattern: r.x), uy = UInt16(bitPattern: r.y)
-            d.append(contentsOf: [r.socket, r.anatomy, r.flags,
+            let ux = UInt16(bitPattern: r.x)
+            let uy = UInt16(bitPattern: r.y)
+            let uz = UInt16(bitPattern: r.z)
+            d.append(contentsOf: [r.socket, r.flags,
                                   UInt8(ux & 0xFF), UInt8(ux >> 8),
-                                  UInt8(uy & 0xFF), UInt8(uy >> 8)])
+                                  UInt8(uy & 0xFF), UInt8(uy >> 8),
+                                  UInt8(uz & 0xFF), UInt8(uz >> 8)])
         }
         return d
     }
@@ -164,35 +167,45 @@ final class GATTParserTests: XCTestCase {
 
     // MARK: - SOCKET_MAP (the static half — read once at link)
 
-    func testParseSocketMapDecodesDescriptor() {
-        // anatomy byte: lobe 1 (frontal) in bits[2:0], side 1 (left) in bits[4:3].
-        let data = mapFrame(last: true,
-                            records: [(12, 0x01 | (0x01 << 3), 0x01, -42, 137)])
+    func testParseSocketMapDecodesPosition() {
+        // Aircraft body axes: +x forward, +y right, +z down. A vault socket sits
+        // above the ellipsoid centre, so z is negative.
+        let data = mapFrame(last: true, records: [(12, 0x01, 119, -44, -38)])
         let f = GATTParser.parseSocketMap(data)
         XCTAssertEqual(f?.descriptors.count, 1)
         let d = f?.descriptors.first
         XCTAssertEqual(d?.socketID, 12)
-        XCTAssertEqual(d?.lobe, .frontal)
-        XCTAssertEqual(d?.side, .left)
-        XCTAssertEqual(d?.xMillimetres, -42, "negative coordinates survive as int16")
-        XCTAssertEqual(d?.yMillimetres, 137)
+        XCTAssertEqual(d?.position.forwardMm, 119)
+        XCTAssertEqual(d?.position.rightMm, -44, "left is negative y")
+        XCTAssertEqual(d?.position.downMm, -38, "above the origin is negative z")
         XCTAssertEqual(d?.isWiredInShell, true)
     }
 
-    func testParseSocketMapMidlineAndUnwired() {
-        let data = mapFrame(last: true, records: [(80, 0x04, 0x00, 0, 0)])
-        let d = GATTParser.parseSocketMap(data)?.descriptors.first
-        XCTAssertEqual(d?.lobe, .occipital)
-        XCTAssertEqual(d?.side, .midline,
-                       "midline is a real position — a midline socket is in BOTH "
-                       + "hemisphere zones of its lobe")
-        XCTAssertEqual(d?.isWiredInShell, false)
+    func testParseSocketMapCrownAndUnwired() {
+        // The crown is directly above the origin: on both centrelines, most
+        // negative z.
+        let crown = GATTParser.parseSocketMap(
+            mapFrame(last: true, records: [(40, 0x01, 0, 0, -157)]))?.descriptors.first
+        XCTAssertEqual(crown?.position, SocketPosition(forwardMm: 0, rightMm: 0,
+                                                       downMm: -157))
+
+        let unwired = GATTParser.parseSocketMap(
+            mapFrame(last: true, records: [(80, 0x00, -130, 28, 0)]))?.descriptors.first
+        XCTAssertEqual(unwired?.isWiredInShell, false)
+        XCTAssertEqual(unwired?.position.forwardMm, -130, "aft is negative x")
+    }
+
+    func testSocketMapCarriesNoAnatomy() {
+        // Lobe and side are gone from the wire entirely (ZONE-1). A record is
+        // socket id + flags + three int16 coordinates and nothing else.
+        let data = mapFrame(last: true, records: [(12, 0x01, 1, 2, -3)])
+        XCTAssertEqual(data.count, 4 + 8, "header + one 8-byte record")
     }
 
     func testMapAndStatusFramesAreNotInterchangeable() {
         // The kind bit is what stops a 7-byte map record being read as 3-byte
         // status records — that would misparse silently instead of failing.
-        let map = mapFrame(last: true, records: [(12, 0x09, 0x01, 0, 0)])
+        let map = mapFrame(last: true, records: [(12, 0x01, 0, 0, -10)])
         let status = frame(snapshot: true, last: true, records: [(12, 2, 0x01)])
 
         XCTAssertNil(GATTParser.parseZoneModuleStatus(map),
@@ -203,46 +216,68 @@ final class GATTParserTests: XCTestCase {
 
     func testParseSocketMapRejectsBadSocketAndVersion() {
         XCTAssertNil(GATTParser.parseSocketMap(
-            mapFrame(last: true, records: [(0, 0x09, 0x01, 0, 0)])),
+            mapFrame(last: true, records: [(0, 0x01, 0, 0, 0)])),
             "socket id 0 rejected in maps too")
         XCTAssertNil(GATTParser.parseSocketMap(
-            mapFrame(version: 0x01, last: true, records: [(1, 0x09, 0x01, 0, 0)])),
+            mapFrame(version: 0x01, last: true, records: [(1, 0x01, 0, 0, 0)])),
             "an older format version is rejected, not reinterpreted")
         XCTAssertNil(GATTParser.parseSocketMap(
-            mapFrame(last: true, records: [(1, 0x09, 0x01, 0, 0)], declaredCount: 4)),
+            mapFrame(last: true, records: [(1, 0x01, 0, 0, 0)], declaredCount: 4)),
             "a record count the body cannot satisfy is rejected")
     }
 
     func testSocketMapAssemblerReassemblesRun() {
         var assembler = SocketMapFrameAssembler()
         let f0 = GATTParser.parseSocketMap(
-            mapFrame(last: false, fragment: 0, records: [(1, 0x09, 0x01, 0, 0)]))!
+            mapFrame(last: false, fragment: 0, records: [(1, 0x01, 0, 0, -10)]))!
         let f1 = GATTParser.parseSocketMap(
-            mapFrame(last: true, fragment: 1, records: [(2, 0x11, 0x01, 5, 6)]))!
+            mapFrame(last: true, fragment: 1, records: [(2, 0x01, 5, 6, -20)]))!
 
         XCTAssertNil(assembler.accept(f0), "a non-final fragment must not commit")
         let complete = assembler.accept(f1)
         XCTAssertEqual(complete?.descriptors.map(\.socketID), [1, 2])
     }
 
-    func testSocketMapResolvesLabelsAndSpokenText() {
-        // The point of the split: the map answers "where is socket 12", so the
-        // status change never has to.
+    // MARK: - Zones name a socket; the helmet only places it
+
+    func testZoneNameComesFromTheAuthoredZoneFileNotTheWire() {
+        // Socket 1 is in "Frontal Left" per protocols/predefined/00-zones.npps.
+        // Nothing on the wire said so — the helmet sent coordinates only.
         let map = SocketMap([
-            SocketDescriptor(socketID: 12, lobe: .frontal, side: .left,
-                             xMillimetres: 0, yMillimetres: 0, isWiredInShell: true)
+            SocketDescriptor(socketID: 1,
+                             position: SocketPosition(forwardMm: 130, rightMm: -26,
+                                                      downMm: -12),
+                             isWiredInShell: true)
         ])
-        let status = ZoneModuleStatus(socketID: 12, moduleType: .eeg,
+        let status = ZoneModuleStatus(socketID: 1, moduleType: .eeg,
                                       isPresent: true, hasFault: false)
 
-        XCTAssertTrue(map.label(for: 12).contains("12"))
-        XCTAssertTrue(map.label(for: 12).localizedCaseInsensitiveContains("frontal"))
+        XCTAssertEqual(SocketZones.primaryZone(for: 1), "Frontal Left")
+        XCTAssertTrue(map.label(for: 1).contains("1"))
+        XCTAssertTrue(map.label(for: 1).localizedCaseInsensitiveContains("frontal"))
         XCTAssertTrue(map.spokenConfirmation(for: status)
                         .localizedCaseInsensitiveContains("frontal"))
+    }
 
-        // A socket the map does not describe still gets a usable label rather
-        // than an empty string or a crash.
-        XCTAssertTrue(map.label(for: 77).contains("77"))
+    func testMostSpecificZoneWins() {
+        // Socket 26 is in "Motor / SMA" (7 sockets) and "Frontal Left" (20).
+        // The smaller zone is the more useful description.
+        XCTAssertEqual(SocketZones.primaryZone(for: 26), "Motor / SMA")
+        XCTAssertTrue(SocketZones.zones(for: 26).contains("Frontal Left"))
+        XCTAssertTrue(SocketZones.zones(for: 26).contains("All"),
+                      "every socket is in All, but All is never the primary")
+    }
+
+    func testSocketWithNoZoneStillGetsAUsableLabel() {
+        // The helmet is authoritative for which sockets exist; the zone file is
+        // not. A socket beyond the authored lattice must not crash or go unnamed.
+        let map = SocketMap([
+            SocketDescriptor(socketID: 120,
+                             position: SocketPosition(forwardMm: 0, rightMm: 0, downMm: 0),
+                             isWiredInShell: true)
+        ])
+        XCTAssertNil(SocketZones.primaryZone(for: 120))
+        XCTAssertTrue(map.label(for: 120).contains("120"))
     }
 
     func testParseZoneModuleStatusAcceptsFullSocketDomain() {
@@ -331,15 +366,7 @@ final class GATTParserTests: XCTestCase {
         XCTAssertEqual(record?.isPresent, true)
     }
 
-    func testParseSocketMapUnknownEnumsDegradeSafely() {
-        // Same forward-compatibility rule on the map side: an unrecognised lobe
-        // or side must not discard a socket whose position is otherwise usable.
-        let data = mapFrame(last: true, records: [(3, 0x07 | (0x03 << 3), 0x01, 1, 2)])
-        let d = GATTParser.parseSocketMap(data)?.descriptors.first
-        XCTAssertEqual(d?.lobe, .unspecified)
-        XCTAssertEqual(d?.side, .midline)
-        XCTAssertEqual(d?.socketID, 3)
-    }
+
 
     // MARK: - Snapshot fragment reassembly
 

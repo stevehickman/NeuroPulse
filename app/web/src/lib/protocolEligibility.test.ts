@@ -19,6 +19,23 @@ import {
   MODALITY_REQUIREMENTS,
 } from './protocolEligibility';
 import { NP_SOCKETS, NP_ROW_WIDTHS, NP_TILE_GEOMETRY } from './socketMap.generated';
+
+/**
+ * Which side of the centreline a socket sits on, derived from its POSITION.
+ *
+ * There is no `side` field any more: ZONE-1 removed lobe, and the 3-space
+ * coordinate change removed side, because neither is a property of the hardware.
+ * A socket is on the midline when its lateral offset is zero — that is a
+ * measurable geometric fact rather than a label, and it is what these tests
+ * actually mean when they say "midline".
+ *
+ * Coordinates are aircraft body axes: +y is RIGHT. The 1 mm band absorbs the
+ * 2-decimal rounding the generator emits.
+ */
+const MIDLINE_BAND_MM = 1;
+const isMidline = (s: { yMm: number }) => Math.abs(s.yMm) < MIDLINE_BAND_MM;
+const isLeft = (s: { yMm: number }) => s.yMm <= -MIDLINE_BAND_MM;
+const isRight = (s: { yMm: number }) => s.yMm >= MIDLINE_BAND_MM;
 import {
   NP_SOCKET_COUNT,
   NP_SOCKET_ID_MAX,
@@ -190,7 +207,7 @@ describe('generated socket map', () => {
     // Left and the Right zone it belongs to, so a naive union would sneak the
     // occipital one in. Which sockets those are is read from the zone file — the
     // test asks the file what is occipital, it does not decide for itself.
-    const allMidline = NP_SOCKETS.filter(s => s.side === 'midline').map(s => s.id);
+    const allMidline = NP_SOCKETS.filter(isMidline).map(s => s.id);
     const occipitalMidline = allMidline.filter(id => occipital.has(id));
 
     expect(occipitalMidline.length).toBeGreaterThan(0);
@@ -218,11 +235,11 @@ describe('generated socket map', () => {
     const geo = (id: number) => NP_SOCKETS.find(s => s.id === id)!;
 
     // Balanced bilateral, with exactly one midline site.
-    const left = motor.filter(id => geo(id).side === 'left');
-    const right = motor.filter(id => geo(id).side === 'right');
+    const left = motor.filter(id => isLeft(geo(id)));
+    const right = motor.filter(id => isRight(geo(id)));
     expect(left.length).toBe(right.length);
     expect(left.length).toBeGreaterThan(0);
-    expect(motor.filter(id => geo(id).side === 'midline').length).toBe(1);
+    expect(motor.filter(id => isMidline(geo(id))).length).toBe(1);
 
     // A single coronal band — the precentral motor strip — nothing spread across
     // rows.
@@ -268,7 +285,7 @@ describe('generated socket map', () => {
    * pair double-counts it. There is exactly one per odd-width row.
    */
   it('marks the midline sockets shared between hemispheres', () => {
-    const midline = NP_SOCKETS.filter(s => s.side === 'midline').map(s => s.id);
+    const midline = NP_SOCKETS.filter(isMidline).map(s => s.id);
     const oddRows = NP_ROW_WIDTHS.filter(w => w % 2 === 1).length;
     expect(midline.length).toBe(oddRows);
 

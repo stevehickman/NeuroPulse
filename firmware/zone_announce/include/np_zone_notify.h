@@ -28,18 +28,19 @@
  * change notification.
  *
  *   SOCKET MAP  — read ONCE when the app links to the helmet. The authoritative
- *                 description of where every socket physically is: lobe, side,
- *                 unrolled-vault coordinates, whether the shell wires it at all.
- *                 The helmet is the single source of truth for this and the app
- *                 never keeps its own copy of the lattice.
+ *                 description of where every socket physically IS: its position
+ *                 in 3-space (see the coordinate frame below) and whether the
+ *                 shell wires it at all. The helmet is the single source of
+ *                 truth for this and the app never keeps its own copy of the
+ *                 lattice.
  *
  *   STATUS      — emitted on every insertion/removal/fault. Carries ONLY what
  *                 actually changed: socket id, module type, flags. Three bytes.
  *
- * The payoff of the split is that the map can grow — 10-20 labels, per-socket
- * element counts, curvature, whatever later needs — WITHOUT changing the size of
- * anything sent on a hot path. Static data is paid for once per link; dynamic
- * data stays minimal forever.
+ * The payoff of the split is that the map can grow — 10-20 registration,
+ * per-socket element counts, surface normals, whatever later needs — WITHOUT
+ * changing the size of anything sent on a hot path. Static data is paid for once
+ * per link; dynamic data stays minimal forever.
  *
  * ── Addressing ───────────────────────────────────────────────────────────────
  *
@@ -102,9 +103,9 @@ extern "C" {
 /* Status record: socket id (1-based), module type, flags. */
 #define NP_ZN_STATUS_REC_BYTES  3u
 
-/* Map record: socket id (1-based), packed lobe|side, flags, x_mm, y_mm.
- * Coordinates are int16 little-endian, unrolled-vault millimetres. */
-#define NP_ZN_MAP_REC_BYTES     7u
+/* Map record: socket id (1-based), flags, then x_mm, y_mm, z_mm as int16
+ * little-endian. See the coordinate frame note below. */
+#define NP_ZN_MAP_REC_BYTES     8u
 
 /* Largest 1-based socket id the wire can carry. Firmware ids are 0-based over
  * NP_HEXMAP_MAX_SOCKETS (128), so the 1-based domain is 1..128 — which is
@@ -144,7 +145,7 @@ extern "C" {
  * unidentified module is never reported as usable. */
 #define NP_ZN_REC_FAULT         0x02u
 
-/* ── Map record flags (map record byte 2) ─────────────────────────────────── */
+/* ── Map record flags (map record byte 1) ─────────────────────────────────── */
 
 /* This socket is physically wired in this shell. Clear = the address exists in
  * the geometry table but the shell does not populate it. */
@@ -163,36 +164,41 @@ typedef enum {
     NP_ZN_MODULE_UNKNOWN    = 255 /* seated but not identified                 */
 } np_zn_module_type_t;
 
-/* ── Anatomy ──────────────────────────────────────────────────────────────────
- * Mirrors np_lobe_t / np_side_t in np_module_map.h. Duplicated rather than
- * included so this unit stays free of the hub_control include path and can be
- * host-compiled standalone; np_zone_notify.c static-asserts the two agree.
+/* ── Coordinate frame ─────────────────────────────────────────────────────────
  *
- * Carried ONLY in the socket map, never in a status record. */
-
-typedef enum {
-    NP_ZN_LOBE_NONE      = 0,
-    NP_ZN_LOBE_FRONTAL   = 1,
-    NP_ZN_LOBE_TEMPORAL  = 2,
-    NP_ZN_LOBE_PARIETAL  = 3,
-    NP_ZN_LOBE_OCCIPITAL = 4,
-} np_zn_lobe_t;
-
-typedef enum {
-    NP_ZN_SIDE_MIDLINE = 0,   /* straddles the midline — in BOTH hemisphere zones */
-    NP_ZN_SIDE_LEFT    = 1,
-    NP_ZN_SIDE_RIGHT   = 2,
-} np_zn_side_t;
+ * A socket's PHYSICAL LOCATION is its position in 3-space, in millimetres, in
+ * AIRCRAFT BODY AXES, with the origin at the centre of the approximately oblate
+ * spheroid the helmet forms a partial shell of:
+ *
+ *     +x  forward   (toward the face)
+ *     +y  right     (toward the right ear)
+ *     +z  down      (toward the neck)
+ *
+ * Right-handed — the same convention an aircraft uses for fore/aft, right/left
+ * and up/down. The vault the sockets tile sits ABOVE the origin, so every socket
+ * has z <= 0 and the crown is the most negative z.
+ *
+ * ── There is no lobe and no side on this wire ────────────────────────────────
+ *
+ * Neither is a property of the hardware, and nothing in the system derives one
+ * (ZONE-1, 2026-07-30). A socket's anatomical meaning is its ZONE MEMBERSHIP,
+ * authored by a human in protocols/predefined/00-zones.npps, where zones are
+ * arbitrary, overlapping, user-extensible sets of sockets. The helmet does not
+ * know about zones and must not pretend to: it reports where each socket
+ * physically is, and the app resolves that to whatever zones name it.
+ *
+ * Coordinates rather than an index because a position is checkable against the
+ * shell, survives a lattice re-cut with its meaning intact, and makes no claim
+ * the hardware is not entitled to make. */
 
 /* ── One socket's PERMANENT description (socket map) ───────────────────────── */
 
 typedef struct {
-    uint8_t      socket_id;   /* 0-BASED firmware id; encoder emits +1          */
-    np_zn_lobe_t lobe;
-    np_zn_side_t side;
-    int16_t      x_mm;        /* unrolled-vault coordinates, for app layout     */
-    int16_t      y_mm;
-    bool         wired;       /* shell physically populates this socket         */
+    uint8_t socket_id;   /* 0-BASED firmware id; encoder emits +1               */
+    int16_t x_mm;        /* forward positive                                     */
+    int16_t y_mm;        /* right positive                                       */
+    int16_t z_mm;        /* DOWN positive — vault sockets are negative           */
+    bool    wired;       /* shell physically populates this socket               */
 } np_zn_socket_desc_t;
 
 /* ── One socket's CHANGEABLE state (status) ───────────────────────────────── */
