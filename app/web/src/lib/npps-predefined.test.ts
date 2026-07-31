@@ -47,11 +47,21 @@ describe('predefined NPPS library', () => {
     expect(warnings).toEqual([]);
   });
 
-  it('defines the 8 predefined lobe zones', () => {
-    for (const lobe of ['Frontal', 'Temporal', 'Parietal', 'Occipital']) {
-      for (const side of ['Left', 'Right']) {
-        expect(namespace.zones.has(`${lobe} ${side}`), `${lobe} ${side}`).toBe(true);
-      }
+  /**
+   * Zones are defined ONLY in 00-zones.npps, so this asserts the shape every
+   * zone must have rather than a list of expected names — naming them here would
+   * just be a second copy of the file, and would quietly reject the user-defined
+   * and research zones the .npps tree is designed to accept (SMART-1).
+   */
+  it('every declared zone carries a non-empty, deduplicated socket set', () => {
+    expect(namespace.zones.size).toBeGreaterThan(0);
+
+    for (const [name, zone] of namespace.zones) {
+      expect(zone.sockets.length, `zone ${name} is empty`).toBeGreaterThan(0);
+      expect(
+        new Set(zone.sockets).size,
+        `zone ${name} lists a socket more than once`,
+      ).toBe(zone.sockets.length);
     }
   });
 

@@ -52,8 +52,10 @@
  *
  *     3 6 7 8 9 8 9 8 7 6 5 4   (sum 80)
  *
- * Row r sits at arc fraction arcFrac(r) = 0.08 + (r/11)*0.86 of the
- * nasion->inion arc — the 10-20 system's own longitudinal ruler.
+ * Row r sits at arc fraction 0.08 + (r/11)*0.86 of the nasion->inion arc — the
+ * 10-20 system's own longitudinal ruler. That is recorded here as the scan
+ * observation it is; no code reads it, because nothing downstream of the lattice
+ * is derived from where a row falls on the arc.
  *
  * ── Socket lattice ≠ active surface (architecture, §3.4) ─────────────────────
  *
@@ -72,7 +74,29 @@
  * longitudinal ruler while a single 40 mm tile still cannot split two adjacent
  * lateral 10-20 columns). The socket-to-10-20 registration is the open REG-1
  * gate and must be confirmed against shell CAD before any clinical placement
- * claim; the row/lobe boundaries here are the v1 proposal, not a final map.
+ * claim; the row boundaries here are the v1 proposal, not a final map.
+ *
+ * ── What this generator owns, and what it does NOT (ZONE-1, 2026-07-30) ──────
+ *
+ * This generator owns exactly one thing: the PHYSICAL LATTICE — socket ids,
+ * socket count, row, col, x/y and midline parity. That is a hardware fact and
+ * changes only on an inner-bowl re-tool.
+ *
+ * It does NOT own zone CONTENT. `protocols/predefined/00-zones.npps` is the sole
+ * definition of every zone; each zone carries its own explicit `sockets:` list,
+ * authored by a human. Nothing here defines, derives or hardcodes a brain lobe.
+ * A zone whose socket set happens to correspond to a human brain lobe is a
+ * property of how its author chose and named that set, not a concept this code
+ * knows about.
+ *
+ * Earlier revisions derived lobe membership a SECOND time here, from four
+ * guessed arc constants, and diffed the result against the zone file. That check
+ * was circular: on disagreement the zone file was re-cut from the same constants
+ * (see the pre-ZONE-1 note in `validateAgainstZoneFile`), so it proved only that
+ * the file matched the code. No anatomy was ever validated by it. Real
+ * anatomical validation is gate REG-1 against the shell CAD — a physical
+ * activity, not an arithmetic one. The derivation is deleted; the STRUCTURAL
+ * checks it used to sit alongside are kept and strengthened.
  *
  * ── Why a derived structure and not a hand-written table ─────────────────────
  *
@@ -81,11 +105,6 @@
  * right-hemisphere, and an odd-width row's exact centre socket is MIDLINE -- it
  * belongs to BOTH hemispheres, which is what produces the duplicated sockets in
  * 00-zones.npps (2, 13, 29, 46, 62, 74).
- *
- * `validateAgainstZoneFile` regenerates all eight lobe zones AND every aggregate
- * union from the derived lobe/side assignment and fails the build if they do not
- * match 00-zones.npps. That check passing is the evidence the model is the real
- * addressing scheme and not a guess.
  *
  * ── Coordinate status ────────────────────────────────────────────────────────
  *
@@ -107,7 +126,6 @@ const ZONE_FILE = join(ROOT, "protocols", "predefined", "00-zones.npps");
 const JSON_OUT = join(ROOT, "hardware", "np_socket_map.json");
 const TS_OUT = join(ROOT, "app", "web", "src", "lib", "socketMap.generated.ts");
 
-type Lobe = "frontal" | "temporal" | "parietal" | "occipital";
 type Side = "left" | "right" | "midline";
 
 // ─── Scan-measured geometry constants (NP-HEX-ZM-001 §3.4) ────────────────────
@@ -156,24 +174,6 @@ const INTERIOR_BREADTH_MM = 229;
 // counted per coronal band. Parity ALTERNATES o e o e o e o e o e o e — required
 // (see the packing note below), and satisfied by construction here.
 const ROW_WIDTHS: readonly number[] = [3, 6, 7, 8, 9, 8, 9, 8, 7, 6, 5, 4];
-
-/** Position of row r along the nasion->inion arc (= the 10-20 coordinate). */
-function arcFrac(r: number): number {
-  return 0.08 + (r / 11) * 0.86;
-}
-
-// ── Lobe boundaries, in nasion->inion arc fraction (skull geography) ──────────
-//
-//   central sulcus       ~= the C line  = 0.50  -> frontal | parietal
-//   parieto-occipital    ~= the PO line = 0.80  -> parietal | occipital
-//
-// Temporal is a LATERAL lobe, below the Sylvian fissure: the outermost socket of
-// a row, only where the row is wide enough to reach the temporal line, and only
-// within the lobe's own front-to-back extent (F7/T3 junction to T5/P5).
-const CENTRAL_SULCUS_ARC = 0.5;
-const PARIETO_OCCIPITAL_ARC = 0.8;
-const TEMPORAL_ARC_RANGE: [number, number] = [0.35, 0.78];
-const TEMPORAL_MIN_ROW_WIDTH = 7;
 
 // ─── Derivations ──────────────────────────────────────────────────────────────
 
@@ -250,8 +250,8 @@ const NUMBERING_BASE = 1;
 export interface SocketGeometry {
   /** 1-based socket id, matching the `sockets:` lists in .npps zone files. */
   id: number;
-  lobe: Lobe;
-  /** `midline` sockets belong to BOTH hemisphere zones of their lobe. */
+  /** `midline` sockets sit on the centre column, so a zone file may legitimately
+   *  list them in both a left-side and a right-side zone. */
   side: Side;
   row: number;
   col: number;
@@ -268,31 +268,12 @@ function buildSockets(): SocketGeometry[] {
   let id = NUMBERING_BASE;
 
   ROW_WIDTHS.forEach((width, r) => {
-    const f = arcFrac(r);
-
-    // Temporal is a LATERAL lobe, not a longitudinal band: it sits below the
-    // Sylvian fissure, so it can only be the outermost socket of a row, only
-    // where the row is wide enough to reach the temporal line, and only within
-    // the lobe's own front-to-back extent (F7/T3 junction to T5/P5).
-    const temporalRow =
-      width >= TEMPORAL_MIN_ROW_WIDTH &&
-      f >= TEMPORAL_ARC_RANGE[0] &&
-      f <= TEMPORAL_ARC_RANGE[1];
-
     for (let col = 0; col < width; col++) {
       const isCentre = width % 2 === 1 && col === (width - 1) / 2;
       const side: Side = isCentre ? "midline" : col < width / 2 ? "left" : "right";
-      const outermost = col === 0 || col === width - 1;
-
-      const lobe: Lobe =
-        temporalRow && outermost ? "temporal"
-        : f < CENTRAL_SULCUS_ARC ? "frontal"
-        : f < PARIETO_OCCIPITAL_ARC ? "parietal"
-        : "occipital";
 
       sockets.push({
         id,
-        lobe,
         side,
         row: r,
         col,
@@ -308,33 +289,54 @@ function buildSockets(): SocketGeometry[] {
 
 // ─── Validation against the locked zone file ───────────────────────────────────
 
-const LOBE_LABEL: Record<Lobe, string> = {
-  frontal: "Frontal",
-  temporal: "Temporal",
-  parietal: "Parietal",
-  occipital: "Occipital",
+/**
+ * Aggregate zones, and the zones each one unions. These are ZONE NAMES authored
+ * in 00-zones.npps — this table says nothing about anatomy and no entry is
+ * derived from geometry. It is the composition contract: whoever authored
+ * "Frontal" asserted it is exactly "Frontal Left" ∪ "Frontal Right", and this
+ * generator holds them to it.
+ *
+ * Checking only "do the referenced sockets exist" is not enough: re-cut the
+ * lattice larger and a stale `All` would keep listing a subset, every id would
+ * still resolve, the build would pass, and the helmet would silently address
+ * part of itself. "All" means every socket.
+ */
+const AGGREGATES: Record<string, string[]> = {
+  "All": [
+    "Frontal Left", "Frontal Right", "Temporal Left", "Temporal Right",
+    "Parietal Left", "Parietal Right", "Occipital Left", "Occipital Right",
+  ],
+  "Frontal": ["Frontal Left", "Frontal Right"],
+  "Posterior": [
+    "Parietal Left", "Parietal Right", "Occipital Left", "Occipital Right",
+  ],
+  "Vault (excl. Occipital)": [
+    "Frontal Left", "Frontal Right", "Temporal Left", "Temporal Right",
+    "Parietal Left", "Parietal Right",
+  ],
 };
 
-/** Regenerate the eight lobe zones from the derived geometry. */
-function zonesFromGeometry(sockets: SocketGeometry[]): Map<string, number[]> {
-  const zones = new Map<string, number[]>();
-  const push = (name: string, id: number) => {
-    const list = zones.get(name) ?? [];
-    list.push(id);
-    zones.set(name, list);
-  };
+/**
+ * Zones that are deliberately NOT unions of other zones — a subset or novel
+ * grouping. "Motor / SMA" is a single coronal band minus its two outermost
+ * sockets (PROVISIONAL pending REG-1). "Frontal Right (excl. midline)" is
+ * "Frontal Right" minus the shared midline sockets, for a lateralized protocol
+ * that must stay off the midline (the PBM optical-resolution floor,
+ * np_opt_psf_001). Both still have to reference real, deduplicated sockets —
+ * they are exempt only from the union check, and must be listed here rather than
+ * silently skipped.
+ */
+const NON_UNION_ZONES = new Set([
+  "Motor / SMA",
+  "Frontal Right (excl. midline)",
+]);
 
-  for (const s of sockets) {
-    const lobe = LOBE_LABEL[s.lobe];
-    if (s.side === "midline") {
-      push(`${lobe} Left`, s.id);
-      push(`${lobe} Right`, s.id);
-    } else {
-      push(`${lobe} ${s.side === "left" ? "Left" : "Right"}`, s.id);
-    }
-  }
-  return zones;
-}
+/**
+ * Zones named as a part of some aggregate. Derived from AGGREGATES rather than
+ * listed again, so there is exactly one place a zone name is written down and no
+ * second list to fall out of step with it.
+ */
+const PART_ZONES = new Set(Object.values(AGGREGATES).flat());
 
 function parseZoneFile(source: string): Map<string, number[]> {
   const zones = new Map<string, number[]>();
@@ -350,19 +352,35 @@ function parseZoneFile(source: string): Map<string, number[]> {
 }
 
 /**
- * Fail loudly if the row structure no longer matches the tile geometry, or no
- * longer reproduces the shipped zone definitions.
+ * Fail loudly if the row structure no longer matches the tile geometry, or if
+ * the shipped zone definitions are not STRUCTURALLY sound against the lattice.
  *
- * Note the direction of authority: TILE GEOMETRY is the locked artefact, not the
- * zone file. `00-zones.npps` is a downstream expression of the lattice, so when
- * these disagree the lattice is right and the zone file is re-cut — the reverse
- * of the pre-2026-07-20 rule, which is how a physically impossible 78-socket
- * lattice survived review.
+ * Note the direction of authority, and its limit (ZONE-1, 2026-07-30). The TILE
+ * GEOMETRY here is the locked artefact for the LATTICE — socket ids, count, row,
+ * col, x/y, parity — and `00-zones.npps` may not contradict it; that is what
+ * stopped a physically impossible 78-socket lattice in 2026-07-20.
+ *
+ * Authority stops there. Zone CONTENT — which sockets are in which zone — is
+ * authored in `00-zones.npps` and is never re-derived here. What is checked is
+ * structure, which is verifiable without knowing what any zone MEANS:
+ *
+ *   - every socket a zone names exists on this lattice
+ *   - no zone lists the same socket twice (a zone is a set)
+ *   - no zone is empty, and no declared zone is silently unparsed
+ *   - "All" is exactly every socket
+ *   - each aggregate is exactly the deduplicated union of its named parts
+ *   - every zone in the file is registered as an aggregate, a named part of one,
+ *     or an explicit non-union zone
+ *
+ * A structural failure here means the file and the hardware disagree about what
+ * is addressable. It does NOT mean the file is anatomically wrong — that is gate
+ * REG-1 against the shell CAD, and no arithmetic in this script can stand in for
+ * it.
  */
 function validateAgainstZoneFile(sockets: SocketGeometry[]): string[] {
   const errors: string[] = [];
-  const actual = parseZoneFile(readFileSync(ZONE_FILE, "utf-8"));
-  const derived = zonesFromGeometry(sockets);
+  const source = readFileSync(ZONE_FILE, "utf-8");
+  const actual = parseZoneFile(source);
 
   // Geometry must tessellate: the parity rule and the packing it produces are
   // both asserted directly (parity on the widths, overlap on the coordinates).
@@ -393,119 +411,107 @@ function validateAgainstZoneFile(sockets: SocketGeometry[]): string[] {
     );
   }
 
-  // Only the eight lobe zones are derivable from geometry. The zone file also
-  // carries aggregate zones (All / Frontal / Posterior — unions of lobe zones,
-  // added as legacy-migration targets), which by construction have no
-  // lobe+side derivation. Validate the lobe zones; verify aggregates are
-  // unions of real sockets rather than silently skipping them.
-  for (const [name, derivedIds] of derived) {
-    const actualIds = actual.get(name);
-    if (!actualIds) {
-      errors.push(`derived lobe zone "${name}" is missing from the zone file`);
-      continue;
-    }
-    const sorted = [...derivedIds].sort((a, b) => a - b);
-    if (JSON.stringify(sorted) !== JSON.stringify(actualIds)) {
+  // Every `zone "..."` in the file must have produced a parsed socket list.
+  // parseZoneFile skips a block whose `sockets:` key is missing or malformed;
+  // without this a typo'd zone would vanish from every check below and the build
+  // would go green on a file that no longer defines it.
+  const declared = [...source.matchAll(/zone\s+"((?:[^"\\]|\\.)*)"\s*\{/g)].map(m => m[1]!);
+  for (const name of declared) {
+    if (!actual.has(name)) {
       errors.push(
-        `zone "${name}" mismatch\n    derived: [${sorted}]\n    zone file: [${actualIds}]`,
+        `zone "${name}" is declared but has no parsable \`sockets: [...]\` list — ` +
+        `every zone must carry its own explicit socket set.`,
+      );
+    }
+  }
+  const dupeDecls = declared.filter((n, i) => declared.indexOf(n) !== i);
+  if (dupeDecls.length > 0) {
+    errors.push(
+      `zone name(s) declared more than once: [${[...new Set(dupeDecls)].join(", ")}] — ` +
+      `the later block silently wins, so names must be unique.`,
+    );
+  }
+
+  const validIds = new Set(sockets.map(s => s.id));
+
+  // Per-zone structural soundness. Applies to EVERY zone in the file, including
+  // user-authored and research zones — none of them is exempt from naming real,
+  // deduplicated sockets.
+  for (const [name, ids] of actual) {
+    if (ids.length === 0) {
+      errors.push(`zone "${name}" is empty — a zone with no sockets addresses nothing.`);
+    }
+    const unknown = ids.filter(id => !validIds.has(id));
+    if (unknown.length > 0) {
+      errors.push(
+        `zone "${name}" references non-existent sockets: [${unknown}] — ` +
+        `this helmet has sockets ${sockets[0]!.id}-${sockets[sockets.length - 1]!.id}.`,
+      );
+    }
+    const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
+    if (dupes.length > 0) {
+      errors.push(`zone "${name}" lists duplicate sockets: [${[...new Set(dupes)]}] — a zone is a set`);
+    }
+    if (!AGGREGATES[name] && !PART_ZONES.has(name) && !NON_UNION_ZONES.has(name)) {
+      errors.push(
+        `zone "${name}" is not registered in scripts/sync-socket-map.ts. Add it to ` +
+        `AGGREGATES (with the zones it unions), name it as a part of an existing ` +
+        `aggregate, or add it to NON_UNION_ZONES (a deliberate novel grouping).`,
       );
     }
   }
 
-  const validIds = new Set(sockets.map(s => s.id));
+  // Each aggregate must be exactly the deduplicated union of its named parts,
+  // read from the zone file on both sides. Nothing here is derived from geometry
+  // — this is the file being held to its own composition contract.
   const union = (...names: string[]) =>
-    [...new Set(names.flatMap(n => derived.get(n) ?? []))].sort((a, b) => a - b);
+    [...new Set(names.flatMap(n => actual.get(n) ?? []))].sort((a, b) => a - b);
 
-  /**
-   * Aggregate zones ARE derivable — each is a union of lobe zones — so derive
-   * and diff them like the lobe zones. Checking only "do the referenced sockets
-   * exist" is not enough: re-cut the lattice larger and a stale `All` would keep
-   * listing a subset, every id would still resolve, the build would pass, and
-   * the helmet would silently address part of itself. "All" means every socket.
-   */
-  const AGGREGATES: Record<string, string[]> = {
-    "All": [
-      "Frontal Left", "Frontal Right", "Temporal Left", "Temporal Right",
-      "Parietal Left", "Parietal Right", "Occipital Left", "Occipital Right",
-    ],
-    "Frontal": ["Frontal Left", "Frontal Right"],
-    "Posterior": [
-      "Parietal Left", "Parietal Right", "Occipital Left", "Occipital Right",
-    ],
-    "Vault (excl. Occipital)": [
-      "Frontal Left", "Frontal Right", "Temporal Left", "Temporal Right",
-      "Parietal Left", "Parietal Right",
-    ],
-  };
-
-  /**
-   * Zones that are deliberately NOT unions of lobe zones — a subset or novel
-   * grouping. "Motor / SMA" is the precentral motor row minus its lateral
-   * temporal sockets (PROVISIONAL pending REG-1). "Frontal Right (excl. midline)"
-   * is Frontal Right minus the shared midline sockets, for a lateralized protocol
-   * that must stay off the midline (the PBM optical-resolution floor, np_opt_psf_001).
-   * Both still have to reference real, deduplicated sockets — they are exempt
-   * only from the union check, and must be listed here rather than silently skipped.
-   */
-  const NON_UNION_ZONES = new Set([
-    "Motor / SMA",
-    "Frontal Right (excl. midline)",
-  ]);
-
-  for (const [name, expectedNames] of Object.entries(AGGREGATES)) {
+  for (const [name, partNames] of Object.entries(AGGREGATES)) {
     const ids = actual.get(name);
     if (!ids) {
       errors.push(`aggregate zone "${name}" is missing from the zone file`);
       continue;
     }
-    const want = union(...expectedNames);
+    const missingParts = partNames.filter(p => !actual.has(p));
+    if (missingParts.length > 0) {
+      errors.push(
+        `aggregate zone "${name}" names part zone(s) missing from the zone file: ` +
+        `[${missingParts.join(", ")}]`,
+      );
+      continue;
+    }
+    const want = union(...partNames);
     if (JSON.stringify(ids) !== JSON.stringify(want)) {
       errors.push(
-        `aggregate zone "${name}" is not the union of [${expectedNames.join(", ")}]\n` +
-        `    derived:   [${want}]\n` +
-        `    zone file: [${ids}]`,
+        `aggregate zone "${name}" is not the union of [${partNames.join(", ")}]\n` +
+        `    union of parts: [${want}]\n` +
+        `    zone file:      [${ids}]`,
       );
     }
   }
 
-  // "All" additionally means EVERY socket — pin that independently of the union,
-  // so a lobe zone that lost a socket cannot quietly shrink "All" with it.
+  // "All" additionally means EVERY socket — pinned independently of the union,
+  // so a part zone that lost a socket cannot quietly shrink "All" with it.
   const all = actual.get("All");
-  if (all && all.length !== sockets.length) {
+  if (all && (all.length !== sockets.length || all.some(id => !validIds.has(id)))) {
     errors.push(
       `zone "All" lists ${all.length} sockets but the helmet has ${sockets.length}. ` +
       `"All" must mean every socket on the helmet and nothing less.`,
     );
   }
 
-  for (const [name, ids] of actual) {
-    if (derived.has(name)) continue;
-    const unknown = ids.filter(id => !validIds.has(id));
-    if (unknown.length > 0) {
-      errors.push(`zone "${name}" references non-existent sockets: [${unknown}]`);
-    }
-    const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
-    if (dupes.length > 0) {
-      errors.push(`zone "${name}" lists duplicate sockets: [${[...new Set(dupes)]}] — a zone is a set`);
-    }
-    if (!AGGREGATES[name] && !NON_UNION_ZONES.has(name)) {
-      errors.push(
-        `zone "${name}" is neither a lobe zone, a known aggregate, nor listed in ` +
-        `NON_UNION_ZONES. Add it to AGGREGATES (with the lobe zones it unions) ` +
-        `or to NON_UNION_ZONES (if it is a deliberate novel grouping).`,
-      );
-    }
-  }
   return errors;
 }
 
 // ─── Lateralized-protocol audit ────────────────────────────────────────────────
 //
 // Why this lives here: zone membership is INCLUSIVE by default (PR #210 ruling) — a
-// midline socket belongs to BOTH hemisphere zones of its lobe, and the only way to
-// narrow a zone is to author a narrower one. There is no runtime exclusion filter.
+// midline socket is listed in BOTH the left- and right-side zone it belongs to, and the
+// only way to narrow a zone is to author a narrower one. There is no runtime exclusion
+// filter.
 //
-// That rule is free for a protocol that targets both hemispheres, a whole lobe, or the
+// That rule is free for a protocol that targets both hemispheres or the
 // whole vault: the midline sockets belong there anyway. It has a real cost for a
 // protocol that targets ONE hemisphere, because the midline modules push roughly half
 // their cortical energy across the midline (50% exactly, by symmetry — NP-OPT-PSF-001 §4), which
@@ -520,9 +526,9 @@ function validateAgainstZoneFile(sockets: SocketGeometry[]): string[] {
 //
 //   1. Zone-using protocols:  grep -l "zones:" protocols/predefined/*.npps | grep -v 00-zones
 //   2. For each, resolve its zone names against 00-zones.npps and check whether any zone
-//      is a single hemisphere ("* Left" or "* Right" alone). A bilateral pair, a
-//      whole-lobe zone, or a whole-region zone (All, Frontal, Posterior, Vault (excl.
-//      Occipital), Motor / SMA) is not boundary-sensitive.
+//      is a single hemisphere ("* Left" or "* Right" alone). A bilateral pair or a
+//      whole-region zone (All, Frontal, Posterior, Vault (excl. Occipital),
+//      Motor / SMA) is not boundary-sensitive.
 //   3. Any NEW single-hemisphere zone protocol re-opens the partial-module question.
 //
 // ── Modalities deliberately NOT checked ─────────────────────────────────────────
@@ -536,8 +542,18 @@ function validateAgainstZoneFile(sockets: SocketGeometry[]): string[] {
 //
 // Only PBM addresses sockets by zone, so only PBM is audited.
 
-/** Zone names that are a single hemisphere: "<Lobe> Left" or "<Lobe> Right", nothing else. */
-const SINGLE_HEMISPHERE_RE = /^(Frontal|Temporal|Parietal|Occipital) (Left|Right)$/;
+/**
+ * Zone names that name a single hemisphere: anything ending in " Left" or
+ * " Right", nothing else.
+ *
+ * Deliberately open-ended (ZONE-1): it used to enumerate four lobe names, which
+ * meant a user- or research-authored zone called "DLPFC Left" fell straight
+ * through the midline-spill gate. The pairing test below is what decides whether
+ * a hit is really lateralized, and it works on any name. A name with a trailing
+ * qualifier — "Frontal Right (excl. midline)" — does not match, which is
+ * correct: narrowing IS the remedy this gate asks for.
+ */
+const SINGLE_HEMISPHERE_RE = /^(.+) (Left|Right)$/;
 
 /**
  * Legal non-list values for `zones:`. Anything else is a typo and must fail the audit
@@ -653,9 +669,12 @@ function auditLateralizedProtocols(
     if (badInFile.length > 0) unresolved.push({ file: name, zones: [...new Set(badInFile)] });
 
     const lateral = namesInFile.filter(z => SINGLE_HEMISPHERE_RE.test(z));
-    const lobes = new Set(lateral.map(z => z.replace(/ (Left|Right)$/, "")));
-    const unpaired = [...lobes].filter(
-      lobe => !(namesInFile.includes(`${lobe} Left`) && namesInFile.includes(`${lobe} Right`)),
+    // A hit is only really lateralized if its counterpart is absent: "<stem> Left"
+    // without "<stem> Right" (or vice versa). The stem is whatever precedes the
+    // side word — this makes no assumption about what the stem names.
+    const stems = new Set(lateral.map(z => z.replace(/ (Left|Right)$/, "")));
+    const unpaired = [...stems].filter(
+      stem => !(namesInFile.includes(`${stem} Left`) && namesInFile.includes(`${stem} Right`)),
     );
     if (unpaired.length > 0) {
       hits.push({
@@ -729,19 +748,21 @@ function emitJson(sockets: SocketGeometry[]): string {
 
 function emitTypeScript(sockets: SocketGeometry[]): string {
   const rows = sockets
-    .map(s => `  { id: ${s.id}, lobe: '${s.lobe}', side: '${s.side}', row: ${s.row}, col: ${s.col}, x: ${s.x}, y: ${s.y} },`)
+    .map(s => `  { id: ${s.id}, side: '${s.side}', row: ${s.row}, col: ${s.col}, x: ${s.x}, y: ${s.y} },`)
     .join("\n");
   const g = geometryFields();
 
   return `${BANNER}
-export type NPLobe = 'frontal' | 'temporal' | 'parietal' | 'occipital';
 export type NPSide = 'left' | 'right' | 'midline';
 
 export interface NPSocketGeometry {
   /** 1-based socket id, matching the \`sockets:\` lists in .npps zone files. */
   id: number;
-  lobe: NPLobe;
-  /** \`midline\` sockets belong to BOTH hemisphere zones of their lobe. */
+  /**
+   * Which side of the centre column this socket sits on. \`midline\` sockets are
+   * ON the centre column, so a zone file may legitimately list one in both a
+   * left-side and a right-side zone — which is why zone unions must dedup.
+   */
   side: NPSide;
   row: number;
   col: number;
@@ -830,15 +851,19 @@ const sockets = buildSockets();
 const errors = validateAgainstZoneFile(sockets);
 
 if (errors.length > 0) {
-  console.error("Socket geometry does not reproduce the shipped zone definitions:\n");
+  console.error("The shipped zone definitions are not structurally sound:\n");
   for (const e of errors) console.error(`  - ${e}`);
   console.error(
     "\nEither the row structure in this script or 00-zones.npps is wrong.\n" +
-    "TILE GEOMETRY IS THE LOCKED ARTEFACT: the row structure is the scan-measured " +
-    "ROW_WIDTHS on the interior surface (NP-HEX-ZM-001 §3.4), and 00-zones.npps is " +
-    "downstream of it. Fix the zone file to match the lattice -- not the reverse. " +
-    "(The reverse was the old rule, and it is how a physically impossible " +
-    "78-socket lattice passed review.)",
+    "THE LATTICE IS THE LOCKED ARTEFACT -- socket ids, count, row, col, x/y and " +
+    "parity are the scan-measured ROW_WIDTHS on the interior surface " +
+    "(NP-HEX-ZM-001 §3.4), and no zone may address a socket that lattice does not " +
+    "have. (Letting the zone file win on the LATTICE is how a physically " +
+    "impossible 78-socket lattice passed review.)\n" +
+    "ZONE CONTENT IS THE OPPOSITE: which sockets are in which zone is AUTHORED in " +
+    "00-zones.npps and is never re-derived here. If a zone's membership looks " +
+    "wrong, that is an editorial decision in the zone file -- do not 'fix' it from " +
+    "this script.",
   );
   process.exit(1);
 }
@@ -920,8 +945,8 @@ if (unreviewed.length > 0) {
   );
   for (const h of unreviewed) console.error(`  - ${h.file}: [${h.zones.join(", ")}]`);
   console.error(
-    "\nZone membership is inclusive (PR #210): the midline sockets of a lobe belong to BOTH\n" +
-    "its Left and Right zones, so a single-hemisphere zone leaks a share of its cortical\n" +
+    "\nZone membership is inclusive (PR #210): a midline socket is listed in BOTH the Left\n" +
+    "and the Right zone it belongs to, so a single-hemisphere zone leaks a share of its cortical\n" +
     "energy to the other hemisphere. The size of that share depends on how many of the\n" +
     "zone's sockets are midline — for Frontal Right it is 16.3%, and each midline module\n" +
     "contributes exactly 50% of its own output (docs/np_opt_psf_001.md §4). Decide one of:\n" +
@@ -940,7 +965,8 @@ if (checkOnly && stale > 0) {
 if (auditFailed || (checkOnly && stale > 0)) process.exit(1);
 
 console.log(
-  `${sockets.length} sockets — all 8 lobe zones reproduced exactly from 00-zones.npps.`,
+  `${sockets.length} sockets — all ${parseZoneFile(readFileSync(ZONE_FILE, "utf-8")).size} ` +
+  `zones in 00-zones.npps are structurally sound against the lattice.`,
 );
 if (auditDirOverride) {
   console.log(`lateralization audit: FIXTURE RUN against ${auditDirOverride} — not a real check.`);

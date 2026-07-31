@@ -152,8 +152,9 @@ export function zoneCoverageFor(
  * Per-zone coverage is reported separately because the operator needs to see
  * which zone is short. But the set of sockets that will be driven is a union,
  * and it must not repeat: "Frontal Left" + "Frontal Right" share midline socket
- * 2, and every lobe pair shares its midline. Dosing, socket counts and
- * per-socket iteration all read this, never a concatenation.
+ * 2, and any left/right zone pair that spans the centre column shares its
+ * midline sockets the same way. Dosing, socket counts and per-socket iteration
+ * all read this, never a concatenation.
  */
 export function targetSocketsFor(
   modality: NPProtocolModality,

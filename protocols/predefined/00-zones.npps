@@ -6,13 +6,34 @@
 # zones definable. Users may define their own zones in any .npps file in the
 # protocol directory tree.
 #
-# ── MEMBERSHIP IS DERIVED, NOT AUTHORED ───────────────────────────────────────
+# ── MEMBERSHIP IS AUTHORED HERE (ZONE-1, 2026-07-30) ──────────────────────────
 #
-# scripts/sync-socket-map.ts builds the lattice from the SCAN-MEASURED interior
+# THIS FILE is the only definition of a zone. Every zone below carries its own
+# explicit `sockets:` list, authored by a human. Nothing in the codebase defines,
+# derives or hardcodes a brain lobe — several zones below are NAMED after lobes,
+# and their socket sets were chosen to correspond to them (see the boundaries
+# noted further down), but that is a fact about how a person authored this data,
+# not a concept the system knows about. To change a zone, edit it HERE.
+#
+# scripts/sync-socket-map.ts builds the LATTICE from the SCAN-MEASURED interior
 # surface (NP-HEX-ZM-001 §3.4) — a Scaniverse LiDAR scan of the reference helmet
-# interior, not an ellipsoid — then assigns each socket a lobe from 10-20
-# landmarks. It fails the build if the zones below stop matching. Edit the model
-# there.
+# interior, not an ellipsoid — and owns socket ids, count, row, col, x/y and
+# midline parity. It does NOT own anything below. What it checks on this file is
+# STRUCTURE, and it fails the build loudly on any of:
+#
+#   - a zone naming a socket the lattice does not have
+#   - a zone listing the same socket twice, or listing none
+#   - a zone declared without a parsable `sockets:` list, or a duplicate name
+#   - "All" not covering exactly every socket
+#   - an aggregate that is not the deduplicated union of the zones it names
+#   - a zone not registered in that script (as an aggregate, a named part of one,
+#     or an explicit non-union zone)
+#
+# It previously ALSO re-derived the eight lobe-named zones from four anatomical
+# constants and diffed them against this file. That check was circular — on
+# disagreement this file was re-cut from those same constants, so it only ever
+# proved the file matched the code — and is deleted. Anatomical registration is
+# gate REG-1 against the shell CAD (NP-HEX-ZM-001 §7), a physical activity.
 #
 # ── PROVISIONAL — scan-grounded v1 (2026-07-20) ───────────────────────────────
 #

@@ -118,40 +118,35 @@ describe('generated socket map', () => {
   });
 
   /**
-   * The load-bearing invariant: the derived geometry must explain the locked
-   * zone files. The generator enforces this too, but a stale committed table
-   * would slip past that, so the test re-derives from the shipped artefact.
+   * The load-bearing invariant, post-ZONE-1: every zone the file defines must be
+   * ADDRESSABLE on the lattice this app ships. Membership itself is authored in
+   * 00-zones.npps and is deliberately NOT re-derived here — an earlier version of
+   * this test rebuilt the eight named zones from a `lobe` field and diffed them,
+   * which proved only that two copies of the same guess agreed. Anatomical
+   * registration is gate REG-1 against the shell CAD, not an assertion.
+   *
+   * The generator enforces the same structural rules, but a stale committed
+   * socket map would slip past that, so this reads the shipped artefacts.
    */
-  it('reproduces every shipped lobe zone exactly', () => {
-    const derived = new Map<string, number[]>();
-    const push = (name: string, id: number) =>
-      derived.set(name, [...(derived.get(name) ?? []), id]);
+  it('every zone addresses only sockets that exist on this helmet', () => {
+    expect(zoneNamespace.size).toBeGreaterThan(0);
 
-    const label = { frontal: 'Frontal', temporal: 'Temporal', parietal: 'Parietal', occipital: 'Occipital' };
+    for (const [name, zone] of zoneNamespace) {
+      expect(zone.sockets.length, `zone ${name} is empty`).toBeGreaterThan(0);
 
-    for (const s of NP_SOCKETS) {
-      const lobe = label[s.lobe];
-      if (s.side === 'midline') {
-        push(`${lobe} Left`, s.id);
-        push(`${lobe} Right`, s.id);
-      } else {
-        push(`${lobe} ${s.side === 'left' ? 'Left' : 'Right'}`, s.id);
-      }
-    }
+      const unknown = zone.sockets.filter(id => !isValidSocketId(id));
+      expect(unknown, `zone ${name} references non-existent sockets`).toEqual([]);
 
-    // The eight lobe zones must match exactly. The file also carries aggregate
-    // zones (All / Frontal / Posterior) that are unions of these, so they have
-    // no lobe+side derivation of their own.
-    expect(derived.size).toBe(8);
-    for (const [name, ids] of derived) {
-      const zone = zoneNamespace.get(name);
-      expect(zone, `lobe zone ${name} missing from zone file`).toBeDefined();
-      expect(ids.sort((a, b) => a - b), `zone ${name}`)
-        .toEqual([...zone!.sockets].sort((a, b) => a - b));
+      // A zone is a SET — a repeat would double-dose that site and inflate every
+      // coverage denominator computed from the zone.
+      expect(
+        [...zone.sockets].sort((a, b) => a - b),
+        `zone ${name} lists a socket twice`,
+      ).toEqual(unionSockets(zone.sockets));
     }
   });
 
-  it('aggregate zones are exact unions of the lobe zones they replace', () => {
+  it('aggregate zones are exact unions of the zones they name', () => {
     // Deliberately the SAME union helper the app uses: an aggregate that matched
     // a hand-rolled concatenation but not `unionSockets` would mean the shipped
     // list double-counts a midline socket.
@@ -191,16 +186,19 @@ describe('generated socket map', () => {
     expect(covered.length).toBe(NP_SOCKET_COUNT - occipital.size);
     expect(covered.filter(s => occipital.has(s))).toEqual([]);
 
-    const midlineOf = (lobes: string[]) =>
-      NP_SOCKETS.filter(s => s.side === 'midline' && lobes.includes(s.lobe)).map(s => s.id);
+    // The midline sockets are the interesting ones: each is listed in BOTH the
+    // Left and the Right zone it belongs to, so a naive union would sneak the
+    // occipital one in. Which sockets those are is read from the zone file — the
+    // test asks the file what is occipital, it does not decide for itself.
+    const allMidline = NP_SOCKETS.filter(s => s.side === 'midline').map(s => s.id);
+    const occipitalMidline = allMidline.filter(id => occipital.has(id));
 
-    // ...including the occipital midline, which is in both hemisphere zones and
-    // so would sneak in via a naive union.
-    for (const id of midlineOf(['occipital'])) {
+    expect(occipitalMidline.length).toBeGreaterThan(0);
+    for (const id of occipitalMidline) {
       expect(covered, `occipital midline socket ${id}`).not.toContain(id);
     }
-    // ...but the frontal/parietal midline sockets ARE covered.
-    for (const id of midlineOf(['frontal', 'parietal'])) {
+    // ...but every other midline socket IS covered.
+    for (const id of allMidline.filter(id => !occipital.has(id))) {
       expect(covered, `midline socket ${id}`).toContain(id);
     }
     expect(zoneNamespace.get('All')!.sockets.filter(s => occipital.has(s)).length)
@@ -209,12 +207,11 @@ describe('generated socket map', () => {
 
   /**
    * §8 targets "bilateral, midline over SMA/motor". The zone must therefore be
-   * balanced across hemispheres and include a midline site. On the scan-grounded
-   * 80-socket lattice the motor strip is the precentral row r4 (39.3% of the
-   * nasion-inion arc); the zone is that single row minus its two lateral temporal
-   * sockets, so every remaining socket is frontal (the precentral gyrus is
-   * anterior to the central sulcus). That is documented in the zone description
-   * and pinned here rather than left to drift.
+   * balanced across hemispheres and include a midline site. Its author placed it
+   * on a single coronal row minus that row's two outermost sockets. Those are
+   * lattice facts, so they are pinned here; whether that row is really over the
+   * motor representation is gate REG-1 against the shell CAD, and no assertion
+   * in this file can answer it.
    */
   it('Motor / SMA is a balanced bilateral band over the motor strip', () => {
     const motor = zoneNamespace.get('Motor / SMA')!.sockets;
@@ -231,10 +228,17 @@ describe('generated socket map', () => {
     // rows.
     expect(new Set(motor.map(id => geo(id).row)).size).toBe(1);
 
-    // Every socket is frontal: the precentral gyrus is anterior to the central
-    // sulcus, and the lateral temporal sockets of the row are excluded. This
-    // also rules out any occipital bleed.
-    expect(motor.every(id => geo(id).lobe === 'frontal')).toBe(true);
+    // The two outermost sockets of that row are excluded — the zone is the
+    // interior of the band, not the whole band. Stated on the lattice (col
+    // position within the row), which is what the zone description claims and
+    // what a re-cut would change.
+    const row = geo(motor[0]).row;
+    const rowSockets = NP_SOCKETS.filter(s => s.row === row);
+    const outermost = [rowSockets[0].id, rowSockets[rowSockets.length - 1].id];
+    expect(motor.length).toBe(rowSockets.length - 2);
+    for (const id of outermost) {
+      expect(motor, `outermost socket ${id} of the row`).not.toContain(id);
+    }
   });
 
   it("the Parkinson's protocol targets Motor / SMA, not All", () => {
@@ -259,23 +263,33 @@ describe('generated socket map', () => {
   });
 
   /**
-   * Midline sockets are the reason zone unions must dedup: each one is a member
-   * of BOTH hemisphere zones of its lobe, so concatenating a lobe pair
-   * double-counts it. There is exactly one per odd-width row.
+   * Midline sockets are the reason zone unions must dedup: the zone file lists
+   * each one in both a left-side and a right-side zone, so concatenating such a
+   * pair double-counts it. There is exactly one per odd-width row.
    */
   it('marks the midline sockets shared between hemispheres', () => {
     const midline = NP_SOCKETS.filter(s => s.side === 'midline').map(s => s.id);
     const oddRows = NP_ROW_WIDTHS.filter(w => w % 2 === 1).length;
     expect(midline.length).toBe(oddRows);
 
+    // Every midline socket appears in at least one "* Left" and one "* Right"
+    // zone. Which zones those are is the zone file's business — this only checks
+    // that the double membership the picker and the union logic assume is real.
+    const sideZones = (side: 'Left' | 'Right') =>
+      [...zoneNamespace.values()].filter(z => z.name.endsWith(` ${side}`));
+
     for (const id of midline) {
-      const { lobe } = NP_SOCKETS.find(s => s.id === id)!;
-      const label = lobe[0].toUpperCase() + lobe.slice(1);
-      expect(zoneNamespace.get(`${label} Left`)!.sockets, `${id} in Left`).toContain(id);
-      expect(zoneNamespace.get(`${label} Right`)!.sockets, `${id} in Right`).toContain(id);
+      expect(
+        sideZones('Left').filter(z => z.sockets.includes(id)).map(z => z.name),
+        `${id} in a Left zone`,
+      ).not.toEqual([]);
+      expect(
+        sideZones('Right').filter(z => z.sockets.includes(id)).map(z => z.name),
+        `${id} in a Right zone`,
+      ).not.toEqual([]);
     }
 
-    // The union of a lobe pair must count each midline socket once.
+    // The union of a left/right pair must count each midline socket once.
     const fl = zoneNamespace.get('Frontal Left')!.sockets;
     const fr = zoneNamespace.get('Frontal Right')!.sockets;
     expect(unionSockets(fl, fr).length).toBeLessThan(fl.length + fr.length);
@@ -318,11 +332,12 @@ describe('inventory', () => {
     provider.setPreset('pbm-only');
     expect(provider.getInventory()!.occupiedSockets.length).toBe(NP_SOCKET_COUNT);
 
-    provider.setPreset('partial-frontal');
-    // The frontal band, whatever the lattice makes it — the preset selects by
-    // lobe, so the expectation reads the lobe too.
+    provider.setPreset('partial-anterior');
+    // The front half of the lattice rows, whatever the lattice makes it — the
+    // preset selects by row, so the expectation reads the row too.
+    const anteriorRows = Math.floor(NP_ROW_WIDTHS.length / 2);
     expect(provider.getInventory()!.occupiedSockets).toEqual(
-      NP_SOCKETS.filter(s => s.lobe === 'frontal').map(s => s.id),
+      NP_SOCKETS.filter(s => s.row < anteriorRows).map(s => s.id),
     );
   });
 });
@@ -408,11 +423,12 @@ function pbmProtocol(zoneRefs: string[]): NPProtocolDefinition {
 }
 
 /**
- * Three sockets outside the frontal band, taken from the map rather than named,
- * so the clinician-targeting tests survive a re-cut lattice. `partial-frontal`
- * leaves these empty, which is what those tests need.
+ * Three sockets in the rear half of the lattice, taken from the map rather than
+ * named, so the clinician-targeting tests survive a re-cut lattice.
+ * `partial-anterior` leaves these empty, which is what those tests need.
  */
-const POSTERIOR_TARGETS = NP_SOCKETS.filter(s => s.lobe === 'parietal')
+const POSTERIOR_TARGETS = NP_SOCKETS
+  .filter(s => s.row >= Math.floor(NP_ROW_WIDTHS.length / 2))
   .slice(0, 3)
   .map(s => s.id);
 
@@ -558,8 +574,8 @@ describe('protocol eligibility', () => {
   });
 
   it('still checks the fitted hardware at the operator-chosen sockets', () => {
-    // Frontal band only, so the posterior targets are empty sockets.
-    const inv = new NPSimulatedInventoryProvider('partial-frontal').getInventory()!;
+    // Anterior rows only, so the posterior targets are empty sockets.
+    const inv = new NPSimulatedInventoryProvider('partial-anterior').getInventory()!;
     const targeting = new Map([['pbm_transcranial' as const, POSTERIOR_TARGETS.slice(0, 2)]]);
     const result = evaluateProtocol(clinicianTargetedProtocol(), inv, zoneNamespace, targeting);
 

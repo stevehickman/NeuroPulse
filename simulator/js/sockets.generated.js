@@ -17,7 +17,6 @@
 export const SOCKETS = [
   {
     "id": 1,
-    "lobe": "frontal",
     "side": "left",
     "row": 0,
     "phi": 0.2069400458014474,
@@ -51,7 +50,6 @@ export const SOCKETS = [
   },
   {
     "id": 2,
-    "lobe": "frontal",
     "side": "midline",
     "row": 0,
     "phi": 0,
@@ -85,7 +83,6 @@ export const SOCKETS = [
   },
   {
     "id": 3,
-    "lobe": "frontal",
     "side": "right",
     "row": 0,
     "phi": -0.2069400458014474,
@@ -119,7 +116,6 @@ export const SOCKETS = [
   },
   {
     "id": 4,
-    "lobe": "frontal",
     "side": "left",
     "row": 1,
     "phi": 0.5703738475126223,
@@ -153,7 +149,6 @@ export const SOCKETS = [
   },
   {
     "id": 5,
-    "lobe": "frontal",
     "side": "left",
     "row": 1,
     "phi": 0.36741971936042883,
@@ -187,7 +182,6 @@ export const SOCKETS = [
   },
   {
     "id": 6,
-    "lobe": "frontal",
     "side": "left",
     "row": 1,
     "phi": 0.12760213080541774,
@@ -221,7 +215,6 @@ export const SOCKETS = [
   },
   {
     "id": 7,
-    "lobe": "frontal",
     "side": "right",
     "row": 1,
     "phi": -0.12760213080541774,
@@ -255,7 +248,6 @@ export const SOCKETS = [
   },
   {
     "id": 8,
-    "lobe": "frontal",
     "side": "right",
     "row": 1,
     "phi": -0.36741971936042883,
@@ -289,7 +281,6 @@ export const SOCKETS = [
   },
   {
     "id": 9,
-    "lobe": "frontal",
     "side": "right",
     "row": 1,
     "phi": -0.5703738475126223,
@@ -323,7 +314,6 @@ export const SOCKETS = [
   },
   {
     "id": 10,
-    "lobe": "frontal",
     "side": "left",
     "row": 2,
     "phi": 0.7802515471928994,
@@ -357,7 +347,6 @@ export const SOCKETS = [
   },
   {
     "id": 11,
-    "lobe": "frontal",
     "side": "left",
     "row": 2,
     "phi": 0.5832612599709174,
@@ -391,7 +380,6 @@ export const SOCKETS = [
   },
   {
     "id": 12,
-    "lobe": "frontal",
     "side": "left",
     "row": 2,
     "phi": 0.31867522927060576,
@@ -425,7 +413,6 @@ export const SOCKETS = [
   },
   {
     "id": 13,
-    "lobe": "frontal",
     "side": "midline",
     "row": 2,
     "phi": 0,
@@ -459,7 +446,6 @@ export const SOCKETS = [
   },
   {
     "id": 14,
-    "lobe": "frontal",
     "side": "right",
     "row": 2,
     "phi": -0.31867522927060576,
@@ -493,7 +479,6 @@ export const SOCKETS = [
   },
   {
     "id": 15,
-    "lobe": "frontal",
     "side": "right",
     "row": 2,
     "phi": -0.5832612599709174,
@@ -527,7 +512,6 @@ export const SOCKETS = [
   },
   {
     "id": 16,
-    "lobe": "frontal",
     "side": "right",
     "row": 2,
     "phi": -0.7802515471928994,
@@ -561,7 +545,6 @@ export const SOCKETS = [
   },
   {
     "id": 17,
-    "lobe": "frontal",
     "side": "left",
     "row": 3,
     "phi": 1.0168249581750683,
@@ -595,7 +578,6 @@ export const SOCKETS = [
   },
   {
     "id": 18,
-    "lobe": "frontal",
     "side": "left",
     "row": 3,
     "phi": 0.8570773852806919,
@@ -629,7 +611,6 @@ export const SOCKETS = [
   },
   {
     "id": 19,
-    "lobe": "frontal",
     "side": "left",
     "row": 3,
     "phi": 0.6058962623686067,
@@ -663,7 +644,6 @@ export const SOCKETS = [
   },
   {
     "id": 20,
-    "lobe": "frontal",
     "side": "left",
     "row": 3,
     "phi": 0.2269634880436789,
@@ -697,7 +677,6 @@ export const SOCKETS = [
   },
   {
     "id": 21,
-    "lobe": "frontal",
     "side": "right",
     "row": 3,
     "phi": -0.2269634880436789,
@@ -731,7 +710,6 @@ export const SOCKETS = [
   },
   {
     "id": 22,
-    "lobe": "frontal",
     "side": "right",
     "row": 3,
     "phi": -0.6058962623686067,
@@ -765,7 +743,6 @@ export const SOCKETS = [
   },
   {
     "id": 23,
-    "lobe": "frontal",
     "side": "right",
     "row": 3,
     "phi": -0.8570773852806919,
@@ -799,7 +776,6 @@ export const SOCKETS = [
   },
   {
     "id": 24,
-    "lobe": "frontal",
     "side": "right",
     "row": 3,
     "phi": -1.0168249581750683,
@@ -833,7 +809,6 @@ export const SOCKETS = [
   },
   {
     "id": 25,
-    "lobe": "temporal",
     "side": "left",
     "row": 4,
     "phi": 1.256781577951615,
@@ -867,7 +842,6 @@ export const SOCKETS = [
   },
   {
     "id": 26,
-    "lobe": "frontal",
     "side": "left",
     "row": 4,
     "phi": 1.1621580183253921,
@@ -901,7 +875,6 @@ export const SOCKETS = [
   },
   {
     "id": 27,
-    "lobe": "frontal",
     "side": "left",
     "row": 4,
     "phi": 0.9947587124872598,
@@ -935,7 +908,6 @@ export const SOCKETS = [
   },
   {
     "id": 28,
-    "lobe": "frontal",
     "side": "left",
     "row": 4,
     "phi": 0.656052773079319,
@@ -969,7 +941,6 @@ export const SOCKETS = [
   },
   {
     "id": 29,
-    "lobe": "frontal",
     "side": "midline",
     "row": 4,
     "phi": 0,
@@ -1003,7 +974,6 @@ export const SOCKETS = [
   },
   {
     "id": 30,
-    "lobe": "frontal",
     "side": "right",
     "row": 4,
     "phi": -0.656052773079319,
@@ -1037,7 +1007,6 @@ export const SOCKETS = [
   },
   {
     "id": 31,
-    "lobe": "frontal",
     "side": "right",
     "row": 4,
     "phi": -0.9947587124872598,
@@ -1071,7 +1040,6 @@ export const SOCKETS = [
   },
   {
     "id": 32,
-    "lobe": "frontal",
     "side": "right",
     "row": 4,
     "phi": -1.1621580183253921,
@@ -1105,7 +1073,6 @@ export const SOCKETS = [
   },
   {
     "id": 33,
-    "lobe": "temporal",
     "side": "right",
     "row": 4,
     "phi": -1.256781577951615,
@@ -1139,7 +1106,6 @@ export const SOCKETS = [
   },
   {
     "id": 34,
-    "lobe": "temporal",
     "side": "left",
     "row": 5,
     "phi": 1.4476962882817814,
@@ -1173,7 +1139,6 @@ export const SOCKETS = [
   },
   {
     "id": 35,
-    "lobe": "frontal",
     "side": "left",
     "row": 5,
     "phi": 1.3992822800262354,
@@ -1207,7 +1172,6 @@ export const SOCKETS = [
   },
   {
     "id": 36,
-    "lobe": "frontal",
     "side": "left",
     "row": 5,
     "phi": 1.2897447983428487,
@@ -1241,7 +1205,6 @@ export const SOCKETS = [
   },
   {
     "id": 37,
-    "lobe": "frontal",
     "side": "left",
     "row": 5,
     "phi": 0.8570410699076516,
@@ -1275,7 +1238,6 @@ export const SOCKETS = [
   },
   {
     "id": 38,
-    "lobe": "frontal",
     "side": "right",
     "row": 5,
     "phi": -0.8570410699076516,
@@ -1309,7 +1271,6 @@ export const SOCKETS = [
   },
   {
     "id": 39,
-    "lobe": "frontal",
     "side": "right",
     "row": 5,
     "phi": -1.2897447983428487,
@@ -1343,7 +1304,6 @@ export const SOCKETS = [
   },
   {
     "id": 40,
-    "lobe": "frontal",
     "side": "right",
     "row": 5,
     "phi": -1.3992822800262354,
@@ -1377,7 +1337,6 @@ export const SOCKETS = [
   },
   {
     "id": 41,
-    "lobe": "temporal",
     "side": "right",
     "row": 5,
     "phi": -1.4476962882817814,
@@ -1411,7 +1370,6 @@ export const SOCKETS = [
   },
   {
     "id": 42,
-    "lobe": "temporal",
     "side": "left",
     "row": 6,
     "phi": 1.67864134343671,
@@ -1445,7 +1403,6 @@ export const SOCKETS = [
   },
   {
     "id": 43,
-    "lobe": "parietal",
     "side": "left",
     "row": 6,
     "phi": 1.7141594311081574,
@@ -1479,7 +1436,6 @@ export const SOCKETS = [
   },
   {
     "id": 44,
-    "lobe": "parietal",
     "side": "left",
     "row": 6,
     "phi": 1.7840345599919285,
@@ -1513,7 +1469,6 @@ export const SOCKETS = [
   },
   {
     "id": 45,
-    "lobe": "parietal",
     "side": "left",
     "row": 6,
     "phi": 1.979474246286555,
@@ -1547,7 +1502,6 @@ export const SOCKETS = [
   },
   {
     "id": 46,
-    "lobe": "parietal",
     "side": "midline",
     "row": 6,
     "phi": -3.141592653589793,
@@ -1581,7 +1535,6 @@ export const SOCKETS = [
   },
   {
     "id": 47,
-    "lobe": "parietal",
     "side": "right",
     "row": 6,
     "phi": -1.979474246286555,
@@ -1615,7 +1568,6 @@ export const SOCKETS = [
   },
   {
     "id": 48,
-    "lobe": "parietal",
     "side": "right",
     "row": 6,
     "phi": -1.7840345599919285,
@@ -1649,7 +1601,6 @@ export const SOCKETS = [
   },
   {
     "id": 49,
-    "lobe": "parietal",
     "side": "right",
     "row": 6,
     "phi": -1.7141594311081574,
@@ -1683,7 +1634,6 @@ export const SOCKETS = [
   },
   {
     "id": 50,
-    "lobe": "temporal",
     "side": "right",
     "row": 6,
     "phi": -1.67864134343671,
@@ -1717,7 +1667,6 @@ export const SOCKETS = [
   },
   {
     "id": 51,
-    "lobe": "temporal",
     "side": "left",
     "row": 7,
     "phi": 1.9261962490404632,
@@ -1751,7 +1700,6 @@ export const SOCKETS = [
   },
   {
     "id": 52,
-    "lobe": "parietal",
     "side": "left",
     "row": 7,
     "phi": 2.0500196913966464,
@@ -1785,7 +1733,6 @@ export const SOCKETS = [
   },
   {
     "id": 53,
-    "lobe": "parietal",
     "side": "left",
     "row": 7,
     "phi": 2.28452915272889,
@@ -1819,7 +1766,6 @@ export const SOCKETS = [
   },
   {
     "id": 54,
-    "lobe": "parietal",
     "side": "left",
     "row": 7,
     "phi": 2.7741764710807755,
@@ -1853,7 +1799,6 @@ export const SOCKETS = [
   },
   {
     "id": 55,
-    "lobe": "parietal",
     "side": "right",
     "row": 7,
     "phi": -2.7741764710807755,
@@ -1887,7 +1832,6 @@ export const SOCKETS = [
   },
   {
     "id": 56,
-    "lobe": "parietal",
     "side": "right",
     "row": 7,
     "phi": -2.28452915272889,
@@ -1921,7 +1865,6 @@ export const SOCKETS = [
   },
   {
     "id": 57,
-    "lobe": "parietal",
     "side": "right",
     "row": 7,
     "phi": -2.0500196913966464,
@@ -1955,7 +1898,6 @@ export const SOCKETS = [
   },
   {
     "id": 58,
-    "lobe": "temporal",
     "side": "right",
     "row": 7,
     "phi": -1.9261962490404632,
@@ -1989,7 +1931,6 @@ export const SOCKETS = [
   },
   {
     "id": 59,
-    "lobe": "temporal",
     "side": "left",
     "row": 8,
     "phi": 2.1959293712019883,
@@ -2023,7 +1964,6 @@ export const SOCKETS = [
   },
   {
     "id": 60,
-    "lobe": "parietal",
     "side": "left",
     "row": 8,
     "phi": 2.3958035089061647,
@@ -2057,7 +1997,6 @@ export const SOCKETS = [
   },
   {
     "id": 61,
-    "lobe": "parietal",
     "side": "left",
     "row": 8,
     "phi": 2.7089026081866137,
@@ -2091,7 +2030,6 @@ export const SOCKETS = [
   },
   {
     "id": 62,
-    "lobe": "parietal",
     "side": "midline",
     "row": 8,
     "phi": -3.141592653589793,
@@ -2125,7 +2063,6 @@ export const SOCKETS = [
   },
   {
     "id": 63,
-    "lobe": "parietal",
     "side": "right",
     "row": 8,
     "phi": -2.7089026081866137,
@@ -2159,7 +2096,6 @@ export const SOCKETS = [
   },
   {
     "id": 64,
-    "lobe": "parietal",
     "side": "right",
     "row": 8,
     "phi": -2.3958035089061647,
@@ -2193,7 +2129,6 @@ export const SOCKETS = [
   },
   {
     "id": 65,
-    "lobe": "temporal",
     "side": "right",
     "row": 8,
     "phi": -2.1959293712019883,
@@ -2227,7 +2162,6 @@ export const SOCKETS = [
   },
   {
     "id": 66,
-    "lobe": "parietal",
     "side": "left",
     "row": 9,
     "phi": 2.451915259868588,
@@ -2261,7 +2195,6 @@ export const SOCKETS = [
   },
   {
     "id": 67,
-    "lobe": "parietal",
     "side": "left",
     "row": 9,
     "phi": 2.682052371929501,
@@ -2295,7 +2228,6 @@ export const SOCKETS = [
   },
   {
     "id": 68,
-    "lobe": "parietal",
     "side": "left",
     "row": 9,
     "phi": 2.978106164412793,
@@ -2329,7 +2261,6 @@ export const SOCKETS = [
   },
   {
     "id": 69,
-    "lobe": "parietal",
     "side": "right",
     "row": 9,
     "phi": -2.978106164412793,
@@ -2363,7 +2294,6 @@ export const SOCKETS = [
   },
   {
     "id": 70,
-    "lobe": "parietal",
     "side": "right",
     "row": 9,
     "phi": -2.682052371929501,
@@ -2397,7 +2327,6 @@ export const SOCKETS = [
   },
   {
     "id": 71,
-    "lobe": "parietal",
     "side": "right",
     "row": 9,
     "phi": -2.451915259868588,
@@ -2431,7 +2360,6 @@ export const SOCKETS = [
   },
   {
     "id": 72,
-    "lobe": "occipital",
     "side": "left",
     "row": 10,
     "phi": 2.6674454962906453,
@@ -2465,7 +2393,6 @@ export const SOCKETS = [
   },
   {
     "id": 73,
-    "lobe": "occipital",
     "side": "left",
     "row": 10,
     "phi": 2.890414663908455,
@@ -2499,7 +2426,6 @@ export const SOCKETS = [
   },
   {
     "id": 74,
-    "lobe": "occipital",
     "side": "midline",
     "row": 10,
     "phi": -3.141592653589793,
@@ -2533,7 +2459,6 @@ export const SOCKETS = [
   },
   {
     "id": 75,
-    "lobe": "occipital",
     "side": "right",
     "row": 10,
     "phi": -2.890414663908455,
@@ -2567,7 +2492,6 @@ export const SOCKETS = [
   },
   {
     "id": 76,
-    "lobe": "occipital",
     "side": "right",
     "row": 10,
     "phi": -2.6674454962906453,
@@ -2601,7 +2525,6 @@ export const SOCKETS = [
   },
   {
     "id": 77,
-    "lobe": "occipital",
     "side": "left",
     "row": 11,
     "phi": 2.8365073663315195,
@@ -2635,7 +2558,6 @@ export const SOCKETS = [
   },
   {
     "id": 78,
-    "lobe": "occipital",
     "side": "left",
     "row": 11,
     "phi": 3.0370033710848388,
@@ -2669,7 +2591,6 @@ export const SOCKETS = [
   },
   {
     "id": 79,
-    "lobe": "occipital",
     "side": "right",
     "row": 11,
     "phi": -3.0370033710848388,
@@ -2703,7 +2624,6 @@ export const SOCKETS = [
   },
   {
     "id": 80,
-    "lobe": "occipital",
     "side": "right",
     "row": 11,
     "phi": -2.8365073663315195,

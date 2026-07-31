@@ -16,8 +16,15 @@
 // the same class as accessory authentication. No user biology passes through
 // here, and nothing in this file is UHDR (see np_module_map.h "Privacy").
 
-import { NP_SOCKETS, type NPSocketGeometry } from './socketMap.generated';
+import { NP_SOCKETS, NP_ROW_WIDTHS, type NPSocketGeometry } from './socketMap.generated';
 import { isValidSocketId, socketRangeLabel } from './socketSet';
+
+/**
+ * Rows the `partial-anterior` preset populates: the front half of the lattice,
+ * rounded down. Expressed against NP_ROW_WIDTHS rather than as a literal so a
+ * re-cut lattice keeps meaning "the front half" instead of some stale row count.
+ */
+const ANTERIOR_ROW_COUNT = Math.floor(NP_ROW_WIDTHS.length / 2);
 
 // ─── Element types ─────────────────────────────────────────────────────────────
 
@@ -201,7 +208,7 @@ export type NPInventoryPreset =
   | 'full-t2'
   | 'pbm-only'
   | 'eeg-only'
-  | 'partial-frontal';
+  | 'partial-anterior';
 
 export class NPSimulatedInventoryProvider implements NPInventoryProvider {
   constructor(private preset: NPInventoryPreset = 'full-t1') {}
@@ -232,10 +239,12 @@ export class NPSimulatedInventoryProvider implements NPInventoryProvider {
           return 'ZM-PBM-DUAL';
         case 'eeg-only':
           return 'ZM-EEG';
-        case 'partial-frontal':
-          // Only the frontal band is populated — the case that should surface
-          // coverage warnings on posterior zones.
-          return geo.lobe === 'frontal' ? 'ZM-COMBO' : null;
+        case 'partial-anterior':
+          // Only the front half of the lattice rows is populated — the case that
+          // should surface coverage warnings on rear zones. Defined on the ROW
+          // structure, which is a hardware fact this module already imports;
+          // nothing here knows or asks which zones those rows fall in.
+          return geo.row < ANTERIOR_ROW_COUNT ? 'ZM-COMBO' : null;
         default:
           return null;
       }

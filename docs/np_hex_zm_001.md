@@ -128,15 +128,26 @@ Rows are coronal bands, positioned as a fraction of the nasion→inion arc — w
 | r7 | 83.3% | PO | 2 | 28–29 | occipital |
 | r8 | 93.8% | O | 1 | 30 | occipital — **Oz** |
 
-**Lobe assignment uses skull geography, not convenience:**
+> **⚠ SUPERSEDED as a mechanism by ZONE-1 (§3.3, 2026-07-30).** The rule below was
+> implemented in `scripts/sync-socket-map.ts` as four anatomical constants, and the
+> generator used it to re-derive zone membership and diff the result against
+> `00-zones.npps`. **That code is deleted.** Nothing in the repo now defines, derives
+> or hardcodes a lobe. The rule is retained here as the record of *how a human author
+> chose those socket sets* — which is legitimate, and is why several shipped zones are
+> named after lobes — not as a mechanism the system runs. The socket ids below are also
+> from the retired 30-socket lattice; see the §3 staleness banner and §3.4.
+
+**Lobe assignment used skull geography, not convenience:**
 
 - **Central sulcus ≈ the C line (50% of the arc)** → frontal | parietal.
 - **Parieto-occipital sulcus ≈ the PO line (80%)** → parietal | occipital.
 - **Temporal is a LATERAL band**, below the Sylvian fissure — the outermost
   socket of a row, only where the row reaches the temporal line (≥5 wide) and
   only across the lobe's own front-to-back extent (F7/T3 at 38% to T5/P5 at 78%).
-- **Midline sockets (1, 3, 11, 16, 21, 30) belong to BOTH hemisphere zones** of
-  their lobe, so a lobe's two hemispheric zones together cover the whole lobe.
+- **Midline sockets (1, 3, 11, 16, 21, 30) appear in BOTH hemisphere zones** of
+  their lobe, so a lobe's two hemispheric zones together cover the whole lobe. (Still
+  live, and still why zone unions must deduplicate — but now a property of the
+  authored socket lists, not a derived one.)
 
 Resulting membership: frontal 11, temporal 6, parietal 10, occipital 3 = 30.
 
@@ -168,14 +179,67 @@ lattice, asserts the row construction never exceeds the area bound, and emits
 | `VAULT_HEIGHT_MM` | 100 | vault above the circumference plane |
 | `TILEABLE_FRACTION` | 0.70 | minus rim, bridge, Boa arch, ear drop |
 | `MODULE_WIDTH_MM` | 40 | the design point above |
-| `CENTRAL_SULCUS_ARC` / `PARIETO_OCCIPITAL_ARC` | 0.50 / 0.80 | lobe boundaries |
+| ~~`CENTRAL_SULCUS_ARC` / `PARIETO_OCCIPITAL_ARC`~~ | ~~0.50 / 0.80~~ | ~~lobe boundaries~~ — **DELETED by ZONE-1 (2026-07-30)**, with `TEMPORAL_ARC_RANGE` and `TEMPORAL_MIN_ROW_WIDTH`. See the banner below. |
 
-It also re-derives the eight lobe zones **and every aggregate union** from the
-lattice and diffs them against `protocols/predefined/00-zones.npps`, with an
+> ### ⚠ ZONE-1 — DECIDED 2026-07-30 (principal): lobes are not a system concept
+>
+> **Nothing in code or in a document may define, derive, or hardcode a lobe.** Zones are
+> defined **only** in `protocols/predefined/00-zones.npps`. That file may contain zones whose
+> socket sets happen to correspond to human brain lobes — that is a property of how a human
+> authored those sets, and of their names, not a concept the system knows about.
+>
+> **The generator's lobe derivation is redundant AND its justification is circular.**
+> `00-zones.npps` is already fully self-contained: 14 zones, each with an explicit
+> `sockets: [...]` list. The generator derives lobe membership a second time from four guessed
+> anatomical constants (`CENTRAL_SULCUS_ARC`, `PARIETO_OCCIPITAL_ARC`, `TEMPORAL_ARC_RANGE`,
+> `TEMPORAL_MIN_ROW_WIDTH`), then diffs the result against the file — and the script claims
+> that "check passing is the evidence the model is the real addressing scheme and not a
+> guess." It is not. The file is regenerated *from those same constants* whenever they
+> disagree, so the check proves only that the file matches the code. **No anatomy is
+> validated by it.** Anatomical validation is REG-1, against shell CAD — a physical activity
+> no script can perform.
+>
+> **What the 2026-07-20 authority flip got right, and where it overshot.** That flip made the
+> lattice upstream of the zone file, correctly: a physically impossible 78-socket lattice had
+> passed review because the zone file was treated as locked. But it took **zone content**
+> along with **lattice geometry**, and only the second belongs to code. The correct split —
+> the same discriminator as `NP-HW-HUB-001` Rev C §4.5.1, generalised from firmware to all
+> code:
+>
+> | Owns | Artefact | Changing it requires |
+> |---|---|---|
+> | **`sync-socket-map.ts`** | socket ids, count, row/col, x/y, parity — **the lattice** | re-tooling the inner bowl (a hardware fact) |
+> | **`00-zones.npps`** | **every zone**, as an authored socket set — including the lobe-named ones | a human editing data |
+>
+> The generator keeps its **structural** checks on the zone file — every socket id exists,
+> `"All"` covers every socket, aggregates are the union of their parts, no duplicates — and
+> loses the **content** derivation. Structure is verifiable; anatomy is authored and then
+> verified physically.
+>
+> **Consequences:** the `Lobe` type and the four constants leave `sync-socket-map.ts`; the
+> `lobe` field leaves `socketMap.generated.ts` (7 app consumers follow, and `SocketPicker.tsx`
+> should group by zone — strictly better, since user-defined zones then appear too); and
+> `np_lobe_t` / `np_socket_geom_t.lobe` / `np_physical_loc_t.lobe` / `NP_GROUP_KIND_LOBE`
+> leave firmware, which **OI-HUB-C14** already covers. Tracked as **ZONE-1** (§7).
+>
+> This also removes the model that produced the drift corrected on 2026-07-30 — three
+> coexisting lattice generations, a stale midline list, and an Oz reference pointing at a
+> mid-frontal socket. Each was a lobe/anatomy restatement kept in a second place.
+>
+> **Implementation status (this PR):** the generator, generated map and app consumers are
+> DONE. Firmware is untouched and remains OI-HUB-C14 — `np_lobe_t`, `np_socket_geom_t.lobe`,
+> `np_physical_loc_t.lobe`, `NP_GROUP_KIND_LOBE` and `np_module_map_predefined()` are all
+> still present.
+
+
+~~It also re-derives the eight lobe zones **and every aggregate union** from the
+lattice and diffs them against `protocols/predefined/00-zones.npps`~~, with an
 extra check that `"All"` covers every socket. **Direction of authority: skull
 anatomy is upstream of the zone file** — when they disagree the zone file is
-re-cut. (The previous rule was the reverse, treating `00-zones.npps` as the
-locked artefact, which is how an impossible lattice passed review.)
+re-cut. *(⚠ Superseded by ZONE-1 above for zone CONTENT — that derivation and diff
+are deleted; still correct for lattice GEOMETRY.)* (The previous rule was the
+reverse, treating `00-zones.npps` as the locked artefact, which is how an
+impossible lattice passed review.)
 
 ### 3.4 Scan-grounded geometry — the authoritative basis (2026-07-20)
 
@@ -772,7 +836,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | GATE-2 | PBM coupling bench: rigid 40 mm coupon at temporal worst case meets dose spec | Tooling; go/no-go A-vs-B |
 | OI-HEXMAP-01 | Config-partition NVRAM HAL for the module map | FW integration |
 | OI-HEXMAP-02 | Module I2C/1-wire `inventory_fn` | FW integration |
-| REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget. **§3.4 measured the real interior surface → ~80-socket v1 lattice.** Fix the row/lobe boundaries against shell CAD before re-cutting the generated artifacts. | Lattice design; EEG/tES placement; **artifact regeneration**; **clinical-03 evidence-grade claim gate** (`protocols/predefined/clinical-03-pbm-cognitive-1064.npps` — "Grade A"/gold-standard wording withheld until REG-1 lands and the zone is re-authored to the 1–2 module Fp2/F4 footprint the literature actually describes; see `docs/status/pending-decisions.md` §13.2c) |
+| REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget. **§3.4 measured the real interior surface → ~80-socket v1 lattice.** Fix the row boundaries against shell CAD before re-cutting the generated artifacts. **Scope narrowed by ZONE-1 (§3.3, 2026-07-30): row boundaries ONLY.** The four "lobe boundary" constants this row used to also cover are deleted, not re-tuned — lobes are not a system concept. Whether a zone named "Frontal Left" actually covers the frontal lobe is a clinical review of `00-zones.npps` against the registered lattice, not a constant to fix here. | Lattice design; EEG/tES placement; **artifact regeneration**; **clinical-03 evidence-grade claim gate** (`protocols/predefined/clinical-03-pbm-cognitive-1064.npps` — "Grade A"/gold-standard wording withheld until REG-1 lands and the zone is re-authored to the 1–2 module Fp2/F4 footprint the literature actually describes; see `docs/status/pending-decisions.md` §13.2c) |
 | SCAN-1 | Confirm `SHELL_WALL_MM` proxy is moot now that the interior is scanned directly; measure the actual clear-window thickness + module face standoff for the emitting-face dose distance (§3.4) | Dose budget; emitting-face position |
 | ACT-1 | Set the **active-surface boundary** deliberately from the over-ear audio-cup footprint + clinical coverage targets (≥ Neuronic active area); it defines which boundary tiles are element-masked (§3.4) | Active-surface descriptor; masking |
 | ACT-2 | New firmware: `active_surface` descriptor + element-mask API extending `(socket:element)` addressing so boundary tiles disable out-of-surface elements (§3.4) | Masking enforcement |
@@ -785,6 +849,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | EMF-2 | Ground-bond ≤50 mΩ over clamp-cycle life; SHDR trend armed | Driven-shield function |
 | EMF-3 | Gasket line-pressure map: min compression at back-center (PL–PR) span AND the two side (ear) spans ≥ seal threshold with the four-corner AL/AR/PL/PR pattern; if marginal → lip/gasket stiffening (or lateral/posterior-center latch) | Latch-pattern sign-off; RF seal |
 | MECH-1 | Four-corner clamp (AL/AR/PL/PR) + posterior-center connector boss + Hall interlock detail | Shell tooling |
+| ZONE-1 | **DECIDED 2026-07-30 (principal): lobes are not a system concept — nothing in code or docs may define, derive or hardcode one.** Zones live only in `protocols/predefined/00-zones.npps`, which is already self-contained (14 zones, explicit `sockets:` lists); a zone whose socket set corresponds to a lobe is an authoring fact, not a system type. Deletes the `Lobe` type + four anatomical constants from `scripts/sync-socket-map.ts` and its lobe-zone diff (redundant, and its "evidence the model is not a guess" claim is circular — the file is regenerated from those same constants); deletes `lobe` from `socketMap.generated.ts` and its 7 app consumers (`SocketPicker.tsx` groups by zone instead — user-defined zones then appear too); firmware side is **OI-HUB-C14**. Generator keeps **structural** zone-file validation (ids exist, `"All"` covers all, aggregates are unions, no dupes) and loses **content** derivation. See §3.3. **CODE SIDE DONE 2026-07-30** — generator, generated map and app consumers landed; `00-zones.npps` socket sets byte-identical (this deleted a redundant derivation, it re-authored no zone); structural checks verified to fail loudly against five deliberately corrupted zone files; app suite 238/238, `tsc --noEmit` clean, firmware host suite 18/18 unchanged. **Firmware share still OPEN under OI-HUB-C14.** | Source-of-truth hygiene; removes the model that produced the 2026-07-30 lattice-generation drift |
 | MECH-2 | Module cluster-clamp design: cluster size (3–7), over-center lever-throw actuator (not a twist cam) + per-module spring plungers, curvature span, low one-handed input force | Inner-bowl tooling; serviceability |
 | DOC-1 | CLAUDE.md §7/§13 integration once GATE-1/2 PASS | Baseline promotion |
 

@@ -56,7 +56,7 @@ t "new single-hemisphere protocol"  1 'protocol "P" { pbm_transcranial { zones: 
 t "unknown zone name"               1 'protocol "P" { pbm_transcranial { zones: ["Frontal Rihgt"] } }'
 t "unrecognised bare selector"      1 'protocol "P" { pbm_transcranial { zones: frontal_right_typo } }'
 t "quoted scalar (fails closed)"    1 'protocol "P" { pbm_transcranial { zones: "Frontal Right" } }'
-t "unpaired lobe among paired ones" 1 'protocol "P" { pbm_transcranial { zones: ["Frontal Left", "Frontal Right", "Temporal Left"] } }'
+t "unpaired hemisphere among paired ones" 1 'protocol "P" { pbm_transcranial { zones: ["Frontal Left", "Frontal Right", "Temporal Left"] } }'
 
 echo
 echo "tolerance — what must PASS"

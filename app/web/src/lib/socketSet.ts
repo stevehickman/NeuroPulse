@@ -6,8 +6,9 @@
 //   1. A socket id is valid only if it names a real socket on THIS helmet.
 //      Ids are 1-based (NP_SOCKET_NUMBERING_BASE) and the count is derived from
 //      tile geometry, so nothing may hardcode a bound — see socketMap.generated.
-//   2. A socket set is a SET. Midline sockets belong to both hemispheres of
-//      their lobe, so unioning "Frontal Left" with "Frontal Right" double-counts
+//   2. A socket set is a SET. A midline socket sits on the centre column, so the
+//      zone file lists it in both the left- and the right-side zone it belongs
+//      to, and unioning "Frontal Left" with "Frontal Right" double-counts
 //      socket 2 unless the union dedups. Duplicates silently inflate coverage
 //      denominators ("4/5 sockets" when the zone has 4) and double-dose a site
 //      in any per-socket iteration.

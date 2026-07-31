@@ -96,7 +96,7 @@ const KEYWORDS = new Set([
   'description', 'author', 'version',
   'tags', 'duration', 'interval_count',
   'conditions', 'references', 'link',
-  'lobe', 'side', 'sockets', 'addrs', 'types', 'exclude_types',
+  'side', 'sockets', 'addrs', 'types', 'exclude_types',
   'enabled', 'repeat', 'layer',
   'start', 'end', 'intensity_scale', 'conflict_resolution',
   'level', 'global', 'helmet', 'individual', 'helmet_id', 'individual_id',
