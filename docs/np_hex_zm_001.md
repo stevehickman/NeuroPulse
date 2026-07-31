@@ -775,6 +775,54 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   "flower"** (1 center + 6 neighbors) → 30 tiles ≈ **4 clusters**; the smaller
   **3-hex triad** → ~9–10 clusters. (So total actuators ≈ 4 corner layer-latches +
   4–10 cluster clamps, vs 4 + 30–42 with per-module levers — a 4–10× reduction.)
+
+- **★ DECIDED 2026-07-30 (principal direction) — CLUSTER-1: the 7-hex flower is
+  the cluster unit wherever the lattice allows one; where a full flower does not
+  fit, use a PARTIAL flower.** Not a larger patch, and not a triad. The governing
+  reason is mechanical: **the flower minimizes the cluster's longest dimension**,
+  and both the clamp-plate stress and the assembly's stored curvature scale off
+  that dimension. The flower is the *most compact possible* 7-tile group (7 is the
+  centered-hexagonal number), so any 8th tile must attach on the perimeter and
+  necessarily lengthens the shape.
+
+  Computed at W = 40 mm (circumradius a = 23.09 mm) against the curvature median
+  R_m = 87 mm, by the same sagitta method that yields this brief's own 3.1 mm
+  single-tile dome depth (§3.1):
+
+  | Cluster | Longest span | Arc subtended | Dome depth (sagitta) |
+  |---|---|---|---|
+  | single tile | 46.2 mm | 30.8° | 3.12 mm *(brief: 3.1 mm ✓)* |
+  | **7-hex flower ★** | **122.2 mm** | **89.2°** | **25.1 mm** |
+  | 8-tile (flower + 1) | 161.8 mm | 136.8° | 55.0 mm |
+
+  **Consequences of the 1.32× span increase an 8th tile forces:**
+  - **Clamp-plate bending stress ×1.75**, beam-mode deflection **×2.32**,
+    plate-mode (distributed load) deflection **×3.07**. Plate deflection is the
+    one that matters: §5.4a's per-module spring plungers exist *because* "a rigid
+    plate over a curved cluster could not seat evenly", so plate compliance is
+    precisely the failure the design is guarding against. Tripling it attacks the
+    mechanism's premise.
+  - **Breakage risk from end-to-end lever action** — a longer plate is a longer
+    lever arm on the outermost tile and its socket during a throw or a mis-seat.
+  - **Stored curvature more than doubles** (25.1 → 55.0 mm dome depth), so a
+    cluster sub-assembly is far bulkier to package, stock and ship.
+  - **An 8-tile patch subtends 136.8° of the curvature sphere — over a third of it.**
+    A rigid clamp plate over that much dome is arguably marginal rather than merely
+    suboptimal, and it is a direct hazard to the ≤1 N one-handed input-force intent
+    (RISK-22) because plate stiffness must rise to compensate for the span.
+
+  **Partial flowers at the boundary.** The socket lattice is set by §3.4 geometry;
+  clusters group whatever sockets exist. Where the lattice edge cannot host a full
+  flower, drop outer petals rather than reshaping — a partial flower keeps the same
+  ≤122 mm envelope, the same plate family, the same actuator, and (per
+  NP-HW-HUB-001 Rev C §4.1) the same capacity-8 electrical board. Note this is a
+  *cluster grouping* decision and is independent of active-surface element masking
+  (ACT-1/ACT-2), which concerns which elements on an existing socket emit.
+
+  **Robust to the electrical BOM.** This argument is purely mechanical, so it does
+  not move if the cluster-board cost changes — which matters, because that BOM is
+  currently under revision (NP-HW-HEXTILE-001 Rev A moved the driver and TIA
+  on-module; see NP-HW-HUB-001 Rev C §11 OI-HUB-C15).
 - **⚠ Cluster size is no longer a purely mechanical tradeoff (2026-07-29).**
   NP-HW-HUB-001 Rev C §4.4 puts **one electrical cluster-controller board per
   mechanical cluster**, and recommends the two be the same thing. The board is
@@ -913,7 +961,8 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | EMF-3 | Gasket line-pressure map: min compression at back-center (PL–PR) span AND the two side (ear) spans ≥ seal threshold with the four-corner AL/AR/PL/PR pattern; if marginal → lip/gasket stiffening (or lateral/posterior-center latch) | Latch-pattern sign-off; RF seal |
 | MECH-1 | Four-corner clamp (AL/AR/PL/PR) + posterior-center connector boss + Hall interlock detail | Shell tooling |
 | ZONE-1 | **DECIDED 2026-07-30 (principal): lobes are not a system concept — nothing in code or docs may define, derive or hardcode one.** Zones live only in `protocols/predefined/00-zones.npps`, which is already self-contained (14 zones, explicit `sockets:` lists); a zone whose socket set corresponds to a lobe is an authoring fact, not a system type. Deletes the `Lobe` type + four anatomical constants from `scripts/sync-socket-map.ts` and its lobe-zone diff (redundant, and its "evidence the model is not a guess" claim is circular — the file is regenerated from those same constants); deletes `lobe` from `socketMap.generated.ts` and its 7 app consumers (`SocketPicker.tsx` groups by zone instead — user-defined zones then appear too); firmware side is **OI-HUB-C14**. Generator keeps **structural** zone-file validation (ids exist, `"All"` covers all, aggregates are unions, no dupes) and loses **content** derivation. See §3.3. **CODE SIDE DONE 2026-07-30** — generator, generated map and app consumers landed; `00-zones.npps` socket sets byte-identical (this deleted a redundant derivation, it re-authored no zone); structural checks verified to fail loudly against five deliberately corrupted zone files; app suite 238/238, `tsc --noEmit` clean, firmware host suite 18/18 unchanged. **Firmware share still OPEN under OI-HUB-C14.** | Source-of-truth hygiene; removes the model that produced the 2026-07-30 lattice-generation drift |
-| MECH-2 | Module cluster-clamp design: cluster size (3–7), over-center lever-throw actuator (not a twist cam) + per-module spring plungers, curvature span, low one-handed input force. **New input 2026-07-29 (NP-HW-HUB-001 Rev C §4.4, §5.4a table above):** the electrical cluster-controller tier places one capacity-8 board per mechanical cluster, so cluster size now carries a BOM gradient — **3-hex triad $171.18 vs 7-hex flower $76.08 at n=80**, and the triad's 43 boards at n=128 exceed the 32-controller tier-1 address strap. **Flower recommended**; also raise cluster size to ≤8 only if the clamp plate tolerates it. Decision still MECH-2's (curvature, seating, HFE formative) | Inner-bowl tooling; serviceability; cluster-tier BOM |
+| CLUSTER-1 | **DECIDED 2026-07-30 (principal): the 7-hex flower is the cluster unit wherever the lattice allows one; partial flowers at the boundary.** Rationale is mechanical and independent of electrical cost — the flower is the most compact possible 7-group, so an 8th tile lengthens the span 1.32× (122.2 → 161.8 mm), raising clamp-plate bending stress ×1.75 and plate-mode deflection ×3.07, more than doubling stored dome depth (25.1 → 55.0 mm), and subtending 136.8° of the R_m = 87 mm curvature sphere. See §5.4a. Residual for MECH-2: verify plate seating and one-handed input force at the 122 mm flower span | Cluster geometry — **settled**; MECH-2 verifies, does not re-choose |
+| MECH-2 | Module cluster-clamp design: **cluster size now fixed by CLUSTER-1 (7-hex flower / partial flower)** — MECH-2 verifies rather than selects it. Remaining: over-center lever-throw actuator (not a twist cam) + per-module spring plungers, curvature span at 122 mm, low one-handed input force. **New input 2026-07-29 (NP-HW-HUB-001 Rev C §4.4, §5.4a table above):** the electrical cluster-controller tier places one capacity-8 board per mechanical cluster, so cluster size now carries a BOM gradient — **3-hex triad $171.18 vs 7-hex flower $76.08 at n=80**, and the triad's 43 boards at n=128 exceed the 32-controller tier-1 address strap. **Flower recommended**; also raise cluster size to ≤8 only if the clamp plate tolerates it. Decision still MECH-2's (curvature, seating, HFE formative) | Inner-bowl tooling; serviceability; cluster-tier BOM |
 | DOC-1 | CLAUDE.md §7/§13 integration once GATE-1/2 PASS | Baseline promotion |
 
 ## 8. Cross-references

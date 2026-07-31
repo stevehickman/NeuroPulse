@@ -324,26 +324,40 @@ still-open shape choice. A partial boundary flower of 3–6 tiles takes the iden
 3. **One FRU.** Board + clamp + sockets becomes a single tested sub-assembly and a single service
    part — relevant to the partner-tier service network.
 
-**And a finding that flows the other way — into MECH-2.** The electrical tier puts a real cost
-gradient on the mechanical cluster size, which §5.4a's 3-vs-7 discussion (a purely mechanical
-tradeoff at the time it was written) could not have seen:
+**Cluster shape is now DECIDED — CLUSTER-1, 2026-07-30, principal direction:** the **7-hex flower**
+wherever the lattice allows one, **partial flowers** at the boundary. Recorded in `NP-HEX-ZM-001`
+§5.4a; this document adopts it.
 
-| MECH-2 cluster | Boards at n=80 | Cost at n=80 | Boards at n=128 | Fits 32-controller bus? |
-|---|---|---|---|---|
-| 3-hex triad | 27 | **$171.18** | 43 | **No** — exceeds the 5-bit strap |
-| **7-hex flower ★** | **12** | **$76.08** | 19 | Yes |
-| 8-tile patch | 10 | $63.40 | 16 | Yes |
+The deciding argument is **mechanical, not electrical**, and it is the stronger one. The flower is
+the most compact possible 7-tile group (7 being the centred-hexagonal number), so an 8th tile must
+attach on the perimeter and necessarily lengthens the cluster. Computed at W = 40 mm against the
+R_m = 87 mm curvature median, by the sagitta method that reproduces `NP-HEX-ZM-001` §3.1's own
+3.1 mm single-tile dome depth:
 
-**Recommendation: the 7-hex flower.** The triad is now the expensive option — 2.2× the cluster-tier
-BOM, and it does not fit the tier-1 address strap at the top of the lattice range. The 8-tile patch
-is $12.68 cheaper than the flower at n=80 but is not a natural centred-hex super-cell, so it buys
-that saving by making the clamp plate geometry less regular. Paying $12.68 for the flower's
-mechanical regularity plus items 1–3 above is the conservative trade.
+| Cluster | Longest span | Arc subtended | Dome depth |
+|---|---|---|---|
+| **7-hex flower ★** | **122.2 mm** | **89.2°** | **25.1 mm** |
+| 8-tile (flower + 1) | 161.8 mm | 136.8° | 55.0 mm |
 
-This is an **input to MECH-2, not a decision this document can take** — clamp size is governed by
-curvature span, plate seating and the HFE formative (§5.4a accessibility requirements). What Rev C
-contributes is that the electrical tier no longer constrains the choice to a single number, and now
-prices it.
+The 1.32× span increase costs clamp-plate bending stress ×1.75 and plate-mode deflection ×3.07 —
+and plate compliance is exactly what §5.4a's per-module plungers exist to defeat ("a rigid plate
+over a curved cluster could not seat evenly"). Stored dome depth more than doubles, so cluster
+sub-assemblies pack far bulkier. An 8-tile patch spans 136.8° of the curvature sphere — over a third
+of it — which makes a rigid plate arguably marginal rather than merely suboptimal, and pushes against
+the ≤1 N one-handed input-force intent (RISK-22) because plate stiffness must rise to compensate.
+
+**Why the earlier BOM-gradient argument is withdrawn.** A previous revision of this section
+recommended the flower on cost (12 boards / $76.08 vs 10 / $63.40 at n = 80, with the 3-hex triad at
+$171.18). Those figures rested on the $6.34/board BOM that `NP-HW-HEXTILE-001` Rev A has since
+voided by moving the driver and TIA on-module (see the reconciliation banner and **OI-HUB-C15**), so
+they are no longer quotable. The mechanical argument is unaffected by that revision — which is the
+useful property: **the cluster shape is now settled independently of an electrical BOM still in
+flux.** The one electrical constraint that survives is a bound, not a preference: the triad's 43
+segments at n = 128 exceed the 32-segment addressing budget, so the triad remains excluded on
+electrical grounds too.
+
+MECH-2 now **verifies** the flower (plate seating and one-handed input force at the 122 mm span)
+rather than selecting a cluster size.
 
 ### 4.5 Why this does NOT become a three-level address
 
@@ -709,6 +723,18 @@ ids 0–127 unchanged — no wire change needed there.
 
 ## 8. BOM
 
+> **⚠ EVERY FIGURE IN §8 IS VOID — do not quote.** `NP-HW-HEXTILE-001` Rev A (**D-3**, **D-4**,
+> **D-6**, **D-7**) moved the constant-current driver *and* the TIA + ADC on-module, put the socket on
+> a 24 V DC bus, and removed the I2C address collision. That deletes the TIA op-amp, the DG2788A, the
+> 16:1 PD mux, the 8:1 NTC mux, and the cluster MCU's role as I2C master from the bill below — i.e.
+> most of the $6.34 board. The surviving cluster-tier function is the **electrode analog crosspoint**
+> of **OI-HUB-C16**, which is not costed anywhere yet. §8 is retained unedited as the derivation of
+> record for what the pre-HEXTILE architecture would have cost, and because §8.5's interconnect
+> comparison (~100 vs ~880 conductors) stands on its own. Recosting is part of **OI-HUB-C15**.
+>
+> Note this does **not** disturb the cluster-shape decision: CLUSTER-1 (§4.4) rests on clamp-plate
+> mechanics, not on any number below.
+
 ### 8.1 Per cluster controller (excludes LED drive stage — §1, out of scope)
 
 | Component | Qty | Unit | Ext |
@@ -912,7 +938,7 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C06 | **Calibration coefficients re-keyed to module UID, not socket** (§9.5) — against `NP-FW-PBM1064-001` Rev C and `NP-HEX-ZM-001` | Dose-metering accuracy claim |
 | OI-HUB-C07 | Safety review to confirm all-or-nothing `NP_SAFETY_EN_PBM_CRANIAL` granularity is acceptable, vs. widening the Class C safety wire format (§7.1–7.2) | Safety wire format; OI-HUB-SOCKET-01 |
 | OI-HUB-C08 | **Net the $63.40 cluster tier against the retired 5-zone-module drive electronics** already inside the $405 Home Standard BOM (§8.4) — needs a post-hex module BOM that does not yet exist | BOM sign-off |
-| OI-HUB-C09 | **Answered 2026-07-29 (§4.4–4.5) — now a MECH-2 input, not an open question.** Electrical and mechanical clusters **should be the same**: the board is **capacity-8**, not exactly-8, and capacity 8 costs the same as a hypothetical 7 (no 7-channel I2C switch or 14:1 mux exists), so one universal board SKU serves a 7-hex flower, an 8-tile patch, or a 3–6-tile partial boundary cluster. Recommendation: **7-hex flower** — the triad is 2.2× the tier BOM ($171.18 vs $76.08 at n=80) and 43 boards at n=128 exceeds the 32-controller tier-1 strap. Residual for MECH-2: confirm flower clamp-plate seating over the curvature span and the HFE formative. **Three-level `(cluster:module:element)` addressing is explicitly rejected** (§4.5) — it swaps an anatomical axis for a topological one and needs 15 bits against the 14-bit `np_hex_addr_pack()` wire. | MECH-2 (input delivered); inner-bowl FPC routing |
+| OI-HUB-C09 | **CLOSED 2026-07-30.** Electrical and mechanical clusters are **the same thing**: the board is **capacity-8**, not exactly-8, and capacity 8 costs the same as a hypothetical 7 (no 7-channel I2C switch or 14:1 mux exists), so one board SKU serves a full flower or any partial one. Shape settled by **CLUSTER-1** (principal, 2026-07-30): **7-hex flower wherever the lattice allows, partial flowers at the boundary** — decided on clamp-plate mechanics (span 122.2 vs 161.8 mm; stress ×1.75, plate deflection ×3.07, dome depth 25.1 → 55.0 mm, 136.8° subtended), *not* on the earlier BOM gradient, whose figures HEXTILE has voided. The triad stays excluded electrically too (43 segments at n=128 > the 32-segment budget). MECH-2 now verifies rather than selects. **Three-level `(cluster:module:element)` addressing remains explicitly rejected** (§4.5). | Closed — MECH-2 verifies |
 | OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table (single ascending pass, no `seen` bitmap needed). Legitimate as a firmware-resident group because socket→cluster changes only on an inner-bowl re-tool (§4.5.1) — unlike lobe. Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
 | OI-HUB-C15 | **Merge this document with `NP-HW-HEXTILE-001` Rev A** per the reconciliation banner at the head of this file: delete §6 (TIA/gain switching — HEXTILE D-4 moves it on-module), rewrite §5.2 to HEXTILE's D-7 single-tier UID-addressed segmentation, drop the cluster-MCU LED-drive rationale in §3.2 (D-3/D-6: on-module driver, 24 V bus), and recost §8. Retain §2, §4.2–4.5.2, §7.2, §9.5, §10. **Until this lands the two documents assert incompatible architectures and HEXTILE is the more recent** | Rev C baselining — **blocking** |
 | OI-HUB-C16 | **Route the T1-B electrode path at ~80 sockets.** HEXTILE reserves pins 13/14/15 (`ELEC_SIG`/`ELEC_SHLD`/`AGND`) at every socket, notes an electrode signal cannot be carried over I2C (µV to the ADS1299 *and* stimulation current from the tES driver), then leaves T1-B out of scope. 80 × 3 = **240 analog conductors to the hub** — the same unbuildable star HEXTILE used to kill hub-side LED drive and PD analog. Restricting T1-B to a socket subset is not available (re-imposes what SMART-1 removed). Proposed: a **per-cluster electrode crosspoint** onto N ADS1299/tES channels (8 T1, 21 T2) + `/ALERT`/`SEAT_N` aggregation — the surviving justification for the cluster tier. Open: switch matrix vs. MCU; contact-resistance and leakage budget on a µV path through a pogo contact and a crosspoint; tES current rating through the same switch | T1-B tile; EEG/tES at scale; cluster-tier scope |
