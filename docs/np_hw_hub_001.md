@@ -423,6 +423,16 @@ deleted, and the reason it should be deleted is exactly the reason CLUSTER is le
 | `ADDR_SET` | the protocol itself | protocol author | n/a — passed in per query |
 | `CLUSTER` | the inner-bowl FPC routing | **inner-bowl re-tool only** | **Yes — legitimately** |
 
+> **Generalised by ZONE-1 (2026-07-30, principal — `NP-HEX-ZM-001` §3.3).** The rule below was
+> written for firmware; it holds for **all code**. Zones live only in `00-zones.npps`, and
+> nothing anywhere may define, derive or hardcode a lobe — including
+> `scripts/sync-socket-map.ts`, which currently derives lobe membership from four anatomical
+> constants and diffs it against the zone file. That derivation is redundant (the zone file is
+> self-contained) and its stated justification is circular (the file is regenerated from those
+> same constants, so the check proves only that the file matches the code — it validates no
+> anatomy). Firmware's share of the cleanup is **OI-HUB-C14**; the generator and app share is
+> ZONE-1.
+
 **The test is whether the membership can change without re-tooling hardware.** Lobe membership can:
 REG-1 will re-cut the row/lobe boundaries against shell CAD and regenerate `00-zones.npps`, with no
 physical change whatsoever. A firmware-resident lobe table is therefore a second source of truth for
