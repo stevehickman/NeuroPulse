@@ -167,8 +167,8 @@ typedef enum {
 /* ── Coordinate frame ─────────────────────────────────────────────────────────
  *
  * A socket's PHYSICAL LOCATION is its position in 3-space, in millimetres, in
- * AIRCRAFT BODY AXES, with the origin at the centre of the approximately oblate
- * spheroid the helmet forms a partial shell of:
+ * AIRCRAFT BODY AXES, with the origin at the centre of the shell the helmet
+ * forms — approximately an oblate spheroid, though see the datum note below:
  *
  *     +x  forward   (toward the face)
  *     +y  right     (toward the right ear)
@@ -189,7 +189,20 @@ typedef enum {
  *
  * Coordinates rather than an index because a position is checkable against the
  * shell, survives a lattice re-cut with its meaning intact, and makes no claim
- * the hardware is not entitled to make. */
+ * the hardware is not entitled to make.
+ *
+ * ── Datum: the values are interim, the FRAME is not ──────────────────────────
+ *
+ * The frame above is settled. The numbers filling it are not: today they come
+ * from an ellipsoid fitted to the measured extents, and the principal has ruled
+ * (2026-07-31) that the ellipsoid is a convenient DESCRIPTION rather than a fact
+ * about the shell. The reference of record is the measured interior scan
+ * (cad/HelmetScan.3dm) until exact CAD drawings exist.
+ *
+ * This wire format does not change when that datum does — which is the point of
+ * sending coordinates. A socket map re-derived from the scan is the same eight
+ * bytes per socket with better numbers in them. See the header of
+ * scripts/sync-socket-map.ts for what blocks that move. */
 
 /* ── One socket's PERMANENT description (socket map) ───────────────────────── */
 

@@ -168,42 +168,62 @@ const HEAD_CIRCUMFERENCE_MM = 620;
 const INTERIOR_LENGTH_MM = 267;
 const INTERIOR_BREADTH_MM = 229;
 
-// ── The helmet as a partial ellipsoidal shell ─────────────────────────────────
+// ── Socket positions in 3-space ───────────────────────────────────────────────
 //
-// Socket positions are emitted as real coordinates in 3-space, so that anything
-// downstream — the firmware socket map on the wire, a layout view, a future
-// optical model — reads one physical description instead of re-deriving position
-// from row/col and a pitch.
+// Socket positions are emitted as real coordinates in 3-space, so anything
+// downstream — the firmware socket map on the wire, a layout view, an optical
+// model — reads one physical description instead of re-deriving position from
+// row/col and a pitch.
 //
-// FRAME (aircraft body axes, right-handed), origin at the ELLIPSOID CENTRE:
+// FRAME (aircraft body axes, right-handed), origin at the shell centre:
 //
 //     +x  forward   (toward the face)
 //     +y  right     (toward the right ear)
 //     +z  down      (toward the neck)
 //
-// So the vault the sockets tile has NEGATIVE z, the crown sits at z = -c, and
-// the rim plane is z = 0 through the origin.
+// So the vault the sockets tile has NEGATIVE z, the crown sits at the most
+// negative z, and the rim plane is z = 0 through the origin.
 //
-// The surface is the ellipsoid through the three measured extents. It is
-// "approximately oblate" as a description of the head, but the measurements give
-// three distinct semi-axes, so this is a triaxial ellipsoid and is treated as
-// one — no axis is assumed equal to another.
+// ── ⚠ THE ELLIPSOID BELOW IS A DESCRIPTION, NOT THE GEOMETRY ─────────────────
 //
-//     x²/a² + y²/b² + z²/c² = 1
+// Principal direction, 2026-07-31: the ellipsoid is a convenient approximation
+// useful for describing the shell. It is NOT a fact about it. The reference of
+// record is the measured interior scan — `cad/HelmetScan.3dm` — until CAD
+// drawings with exact measurements exist.
 //
-// PROVISIONAL with everything else here: these are scan-derived extents, not
-// shell CAD. REG-1 is what fixes them.
+// This code has not yet been moved onto that scan, and the gap is not cosmetic:
+//
+//   - The scan in the repo is a raw Scaniverse capture (98,003 vertices,
+//     181,944 faces) that includes the surroundings it was captured with. It
+//     segments into 341 disconnected components; the helmet is not one of them.
+//   - A RANSAC fit does recover a shell at R ~ 157 mm, which agrees with the
+//     documented rim->crown 157 mm. But the radial histogram about that centre
+//     shows ONE broad peak (r ~ 145-175 mm) on a heavy background, not the two
+//     clean peaks an interior and an exterior surface would give. Which surface
+//     the points belong to is therefore not established, and the inner face is
+//     the datum every other layer offsets from (NP-HELMET-GEOM-001 §1).
+//   - The scan frame is arbitrary. The rim plane and crown are recoverable, so
+//     the vertical axis and the fore-aft LINE are too — but which end of that
+//     line is the face is not, and getting it backwards mirrors every socket
+//     front-to-back. That is a wrong-site error, not a display one.
+//
+// So the ellipsoid stays as the INTERIM stand-in, labelled as such, and every
+// emitted coordinate is provisional in the stronger sense: not merely unlocked,
+// but derived from a shape the principal has explicitly said is not the thing
+// itself. Replacing it is scan-segmentation work with two decisions in it that
+// belong to a person, not to this script.
 
-/** Semi-axis fore/aft, mm — half the measured interior length. */
+/** INTERIM. Semi-axis fore/aft, mm — half the measured interior length. */
 const SEMI_AXIS_FORE_AFT_MM = INTERIOR_LENGTH_MM / 2;
 
-/** Semi-axis left/right, mm — half the measured interior breadth. */
+/** INTERIM. Semi-axis left/right, mm — half the measured interior breadth. */
 const SEMI_AXIS_LATERAL_MM = INTERIOR_BREADTH_MM / 2;
 
 /**
- * Semi-axis vertical, mm. The rim sits at the widest station, so rim->crown IS
- * the semi-axis and the rim plane passes through the centre. That is what makes
- * the origin a physically meaningful point rather than an arbitrary datum.
+ * INTERIM. Semi-axis vertical, mm. The rim sits at the widest station, so
+ * rim->crown IS the semi-axis and the rim plane passes through the centre —
+ * which is what makes the origin a physically meaningful point rather than an
+ * arbitrary datum. That much survives replacing the ellipsoid with the scan.
  */
 const SEMI_AXIS_VERTICAL_MM = RIM_TO_CROWN_MM;
 
@@ -1070,7 +1090,13 @@ function emitJson(sockets: SocketGeometry[]): string {
         "right, +z down), origin at the ellipsoid centre — PROVISIONAL, replace " +
         "from shell CAD before any physical claim. No lobe or side: a socket's " +
         "anatomical meaning is its zone membership, authored in 00-zones.npps.",
-      _basis: "scan-measured",
+      _basis: "scan-measured lattice; INTERIM ellipsoid for 3-space coordinates",
+      _coordinateBasis:
+        "xMm/yMm/zMm are derived from an INTERIM ellipsoid through the measured " +
+        "extents. Principal direction 2026-07-31: the ellipsoid is a description, " +
+        "not a fact. The reference of record is the measured interior scan " +
+        "(cad/HelmetScan.3dm) until exact CAD exists. See the header of " +
+        "scripts/sync-socket-map.ts for what blocks the move.",
       socketCount: sockets.length,
       /** Socket ids are 1-based, matching .npps zone `sockets:` lists. */
       numberingBase: NUMBERING_BASE,

@@ -1,7 +1,8 @@
 {
   "_generator": "scripts/sync-socket-map.ts",
   "_note": "Socket geometry for the NeurOne helmet. Scan-grounded v1 lattice (NP-HEX-ZM-001 §3.4), PROVISIONAL pending gates REG-1 and ACT-1. Validated against protocols/predefined/00-zones.npps. x/y are provisional unit-hex lattice coordinates for UI layout only. xMm/yMm/zMm are positions in 3-space on the modelled ellipsoid, aircraft body axes (+x forward, +y right, +z down), origin at the ellipsoid centre — PROVISIONAL, replace from shell CAD before any physical claim. No lobe or side: a socket's anatomical meaning is its zone membership, authored in 00-zones.npps.",
-  "_basis": "scan-measured",
+  "_basis": "scan-measured lattice; INTERIM ellipsoid for 3-space coordinates",
+  "_coordinateBasis": "xMm/yMm/zMm are derived from an INTERIM ellipsoid through the measured extents. Principal direction 2026-07-31: the ellipsoid is a description, not a fact. The reference of record is the measured interior scan (cad/HelmetScan.3dm) until exact CAD exists. See the header of scripts/sync-socket-map.ts for what blocks the move.",
   "socketCount": 80,
   "numberingBase": 1,
   "socketIdMin": 1,
