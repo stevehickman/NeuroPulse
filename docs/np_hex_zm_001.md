@@ -148,6 +148,11 @@ Rows are coronal bands, positioned as a fraction of the nasion→inion arc — w
   their lobe, so a lobe's two hemispheric zones together cover the whole lobe. (Still
   live, and still why zone unions must deduplicate — but now a property of the
   authored socket lists, not a derived one.)
+  > ⚠ **Those ids are the retired 30-socket lattice.** In the shipped 80-socket
+  > lattice the midline sockets are **{2, 13, 29, 46, 62, 74}** — only **odd**-width
+  > rows have one, because alternate rows are offset half a module (§3.4 parity
+  > rule), so r0/r2/r4/r6/r8/r10 do and r1/r3/r5/r7/r9/r11 do not.
+  > `00-zones.npps` is authoritative.
 
 Resulting membership: frontal 11, temporal 6, parietal 10, occipital 3 = 30.
 
@@ -161,8 +166,20 @@ Resulting membership: frontal 11, temporal 6, parietal 10, occipital 3 = 30.
 >   cannot each have their own socket** — socket 1 straddles the midline and
 >   covers the prefrontal montage as a single site. This narrows the 8-channel
 >   T1 neurofeedback montage and is an open item against REG-1.
-> - **Oz does get its own address (socket 30)**, so the photoparoxysmal halt has
+> - **Oz does get its own address — ~~socket 30~~ → socket 74** *(corrected
+>   2026-07-30; 30 was the retired 30-socket lattice's Oz. In the shipped 80-socket
+>   lattice socket 30 sits in row r4 at arc 0.393 — mid-**frontal**, the motor strip.
+>   `00-zones.npps` is authoritative: "Socket 74 is Oz — the midline occipital
+>   address the photoparoxysmal halt depends on")* — so the photoparoxysmal halt has
 >   the electrode site it requires (§4a safety presence-gates).
+>
+> ⚠ **Caveat REG-1 must close:** Oz sits at ~90% of the arc, but the shipped lattice
+> brackets it — r10 is at 86.2% (width 5, midline socket 74) and r11 at 94.0%
+> (width **4**, and even-width rows have **no** midline socket, because alternate
+> rows are offset half a module). Socket 74 is therefore the *nearest* midline
+> occipital address, ~3.8% of arc (~18 mm) anterior of the true O line, not a socket
+> centred on Oz. Whether that is inside photoparoxysmal-detection tolerance is a
+> REG-1 question, not an answered one.
 
 ### 3.3 Single point of truth
 
@@ -548,8 +565,14 @@ expresses a map as an array of per-socket `type_mask` requirements.
 **Safety presence-gates (firmware enforces before modality enable — SW-1):**
 - **Visual stim → EEG element at Oz.** The photoparoxysmal halt (<200 ms, §4.2)
   needs an Oz electrode, and **Oz is NOT in the 8-ch neurofeedback montage** — so a
-  visual-stim build needs a T1-B at Oz — socket 30 in the derived lattice (§3.2), and visual
-  stim is blocked unless `check_placement({Oz, EEG|DUAL})` passes.
+  visual-stim build needs a T1-B at Oz — **socket 74** in the shipped 80-socket lattice
+  (`00-zones.npps`; *corrected 2026-07-30 from "socket 30 in the derived lattice (§3.2)"*,
+  which was the retired 30-socket lattice — socket 30 is now mid-**frontal**, so the gate
+  named the wrong site). See the §3.2 Oz caveat: 74 is the nearest midline occipital
+  address, not one centred on Oz. Visual stim is blocked unless
+  `check_placement({Oz, EEG|DUAL})` passes. Firmware does **not** hardcode this number —
+  `np_module_map_tests.c` uses a symbolic `SOCK_OL` — so the defect was confined to the
+  documents, but both instances were safety text.
 - **tES (BES/tACS/tDCS) → electrodes at all montage sockets** (anode + returns;
   HD-tDCS 4×1 = 5) before enable.
 - The T1-B electrode is typed `NP_ELEM_DUAL_ELECTRODE`, so it satisfies both EEG
@@ -947,7 +970,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | GATE-2 | PBM coupling bench: rigid 40 mm coupon at temporal worst case meets dose spec | Tooling; go/no-go A-vs-B |
 | OI-HEXMAP-01 | Config-partition NVRAM HAL for the module map | FW integration |
 | OI-HEXMAP-02 | Module I2C/1-wire `inventory_fn` | FW integration |
-| REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget. **§3.4 measured the real interior surface → ~80-socket v1 lattice.** Fix the row boundaries against shell CAD before re-cutting the generated artifacts. **Scope narrowed by ZONE-1 (§3.3, 2026-07-30): row boundaries ONLY.** The four "lobe boundary" constants this row used to also cover are deleted, not re-tuned — lobes are not a system concept. Whether a zone named "Frontal Left" actually covers the frontal lobe is a clinical review of `00-zones.npps` against the registered lattice, not a constant to fix here. **No longer blocks Hub PCB tooling (2026-07-29):** NP-HW-HUB-001 Rev C §4.3 makes the hub socket-count-agnostic across 30–128, so REG-1 moving the count re-tools only inner-bowl cluster boards. | Lattice design; EEG/tES placement; **artifact regeneration**; **clinical-03 evidence-grade claim gate** (`protocols/predefined/clinical-03-pbm-cognitive-1064.npps` — "Grade A"/gold-standard wording withheld until REG-1 lands and the zone is re-authored to the 1–2 module Fp2/F4 footprint the literature actually describes; see `docs/status/pending-decisions.md` §13.2c) |
+| REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget. **§3.4 measured the real interior surface → ~80-socket v1 lattice.** Fix the row boundaries against shell CAD before re-cutting the generated artifacts. **Scope narrowed by ZONE-1 (§3.3, 2026-07-30): row boundaries ONLY.** The four "lobe boundary" constants this row used to also cover are deleted, not re-tuned — lobes are not a system concept. Whether a zone named "Frontal Left" actually covers the frontal lobe is a clinical review of `00-zones.npps` against the registered lattice, not a constant to fix here. **Which row boundaries, concretely:** where each coronal row sits along the nasion→inion arc — set by `ROW_WIDTHS = [3,6,7,8,9,8,9,8,7,6,5,4]` at `ROW_PITCH_MM_MEASURED = 34.6` in `scripts/sync-socket-map.ts`, spanning ~8–94 % of the arc. Post-ZONE-1 that arc placement is **documentation only** — the generator now states outright that "no code reads it, because nothing downstream of the lattice is derived from where a row falls on the arc" — so the row→10-20 mapping is an unverified scan observation, which is precisely what REG-1 must establish against shell CAD plus a measured rim-to-nasion registration. **No longer blocks Hub PCB tooling (2026-07-29):** NP-HW-HUB-001 Rev C §4.3 makes the hub socket-count-agnostic across 30–128, so REG-1 moving the count re-tools only inner-bowl cluster boards. | Lattice design; EEG/tES placement; **artifact regeneration**; **clinical-03 evidence-grade claim gate** (`protocols/predefined/clinical-03-pbm-cognitive-1064.npps` — "Grade A"/gold-standard wording withheld until REG-1 lands and the zone is re-authored to the 1–2 module Fp2/F4 footprint the literature actually describes; see `docs/status/pending-decisions.md` §13.2c) |
 | SCAN-1 | Confirm `SHELL_WALL_MM` proxy is moot now that the interior is scanned directly; measure the actual clear-window thickness + module face standoff for the emitting-face dose distance (§3.4) | Dose budget; emitting-face position |
 | ACT-1 | Set the **active-surface boundary** deliberately from the over-ear audio-cup footprint + clinical coverage targets (≥ Neuronic active area); it defines which boundary tiles are element-masked (§3.4) | Active-surface descriptor; masking |
 | ACT-2 | New firmware: `active_surface` descriptor + element-mask API extending `(socket:element)` addressing so boundary tiles disable out-of-surface elements (§3.4) | Masking enforcement |

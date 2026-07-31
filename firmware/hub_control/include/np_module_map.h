@@ -106,9 +106,9 @@
  * Firmware socket_id is 0-based: 0 .. NP_HEXMAP_MAX_SOCKETS-1, indexing the
  * geometry table directly. The NPPS zone files under protocols/predefined/,
  * hardware/np_socket_map.json ("numberingBase": 1), and the generated app-side
- * map (app/web/src/lib/socketMap.generated.ts) are all 1-based, 1..78.
+ * map (app/web/src/lib/socketMap.generated.ts) are all 1-based, 1..80 (the shipped scan-grounded lattice; was 78 in the retired one).
  *
- * The 78th (highest) 1-based socket maps to firmware socket_id 77 — comfortably
+ * The 80th (highest) 1-based socket maps to firmware socket_id 79 — comfortably
  * inside the 128 domain. Nothing in THIS module performs the +1/-1; it is
  * documented here so the offset is explicit at the protocol/app boundary rather
  * than assumed.
@@ -288,8 +288,9 @@ typedef struct {
  * The consequence that matters in practice: a socket whose geometry side is
  * NP_SIDE_MIDLINE straddles the hemispheres, so it belongs to BOTH the Left and
  * the Right zone of its lobe — matching 00-zones.npps, which states that midline
- * sockets "appear in both the Left and Right zone of their lobe". Ten of the
- * helmet's 78 sockets are midline; under a strict-equality side filter they
+ * sockets "appear in both the Left and Right zone of their lobe". Six of the
+ * helmet's 80 sockets are midline -- {2,13,29,46,62,74}, 1-based -- because only
+ * ODD-width rows have a centre socket (alternate rows are offset half a module); under a strict-equality side filter they
  * would drop out of all eight predefined lobe groups.
  *
  * Note the two independent MIDLINE meanings, which is why this needs stating:
