@@ -371,14 +371,30 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
     // MARK: — Zone module socket map (socket-keyed, variable length)
 
-    /// v1 module-status frame, matching np_zone_notify.h.
+    /// v2 module-status frame, matching np_zone_notify.h — 3-byte records
+    /// (socket id, module type, flags). Anatomy is not here; it arrives once via
+    /// the socket map at link time.
     private func zoneFrame(snapshot: Bool, last: Bool, fragment: UInt8 = 0,
-                           records: [(UInt8, UInt8, UInt8, UInt8)]) -> Data {
-        var d = Data([0x01,
+                           records: [(UInt8, UInt8, UInt8)]) -> Data {
+        var d = Data([0x02,
                       (snapshot ? 0x01 : 0x00) | (last ? 0x02 : 0x00),
                       fragment,
                       UInt8(records.count)])
-        for r in records { d.append(contentsOf: [r.0, r.1, r.2, r.3]) }
+        for r in records { d.append(contentsOf: [r.0, r.1, r.2]) }
+        return d
+    }
+
+    /// v2 socket-map frame — 7-byte records, MAP kind bit set.
+    private func socketMapFrame(last: Bool, fragment: UInt8 = 0,
+                                records: [(UInt8, UInt8, UInt8, Int16, Int16)]) -> Data {
+        var d = Data([0x02, 0x01 | (last ? 0x02 : 0x00) | 0x04, fragment,
+                      UInt8(records.count)])
+        for r in records {
+            let ux = UInt16(bitPattern: r.3), uy = UInt16(bitPattern: r.4)
+            d.append(contentsOf: [r.0, r.1, r.2,
+                                  UInt8(ux & 0xFF), UInt8(ux >> 8),
+                                  UInt8(uy & 0xFF), UInt8(uy >> 8)])
+        }
         return d
     }
 
@@ -390,7 +406,7 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
         // Seat a module first so the reset has something to clear.
         manager.applyZoneModuleStatus(
-            zoneFrame(snapshot: true, last: true, records: [(12, 2, 0x09, 0x01)]))
+            zoneFrame(snapshot: true, last: true, records: [(12, 2, 0x01)]))
         XCTAssertFalse(manager.zoneModules.isEmpty, "precondition: map populated")
 
         manager.applyDisconnection()
@@ -405,9 +421,9 @@ final class NeurOneGATTManagerTests: XCTestCase {
 
         // Sockets well beyond the retired five, including the top of the domain.
         manager.applyZoneModuleStatus(zoneFrame(snapshot: true, last: true, records: [
-            (12, 2, 0x09, 0x01),    // frontal left, EEG, present
-            (47, 1, 0x03, 0x01),    // parietal midline, base PBM, present
-            (128, 1, 0x04, 0x00),   // occipital midline, empty
+            (12, 2, 0x01),    // frontal left, EEG, present
+            (47, 1, 0x01),    // parietal midline, base PBM, present
+            (128, 1, 0x00),   // occipital midline, empty
         ]))
 
         XCTAssertEqual(manager.zoneModules.orderedSockets.map(\.socketID), [12, 47, 128])
@@ -419,13 +435,13 @@ final class NeurOneGATTManagerTests: XCTestCase {
     func testZoneModuleDeltaUpdatesOnlyNamedSocket() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         manager.applyZoneModuleStatus(zoneFrame(snapshot: true, last: true, records: [
-            (12, 2, 0x09, 0x01),
-            (47, 1, 0x03, 0x01),
+            (12, 2, 0x01),
+            (47, 1, 0x01),
         ]))
 
         // Socket 12 removed; socket 47 untouched by the delta.
         manager.applyZoneModuleStatus(
-            zoneFrame(snapshot: false, last: true, records: [(12, 0, 0x09, 0x00)]))
+            zoneFrame(snapshot: false, last: true, records: [(12, 0, 0x00)]))
 
         XCTAssertFalse(manager.zoneModules.isPresent(socket: 12))
         XCTAssertTrue(manager.zoneModules.isPresent(socket: 47),
@@ -435,9 +451,9 @@ final class NeurOneGATTManagerTests: XCTestCase {
     func testZoneModuleSnapshotReplacesRatherThanMerges() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         manager.applyZoneModuleStatus(
-            zoneFrame(snapshot: true, last: true, records: [(12, 2, 0x09, 0x01)]))
+            zoneFrame(snapshot: true, last: true, records: [(12, 2, 0x01)]))
         manager.applyZoneModuleStatus(
-            zoneFrame(snapshot: true, last: true, records: [(47, 1, 0x03, 0x01)]))
+            zoneFrame(snapshot: true, last: true, records: [(47, 1, 0x01)]))
 
         XCTAssertEqual(manager.zoneModules.orderedSockets.map(\.socketID), [47],
                        "a snapshot is a complete inventory claim and must replace, not merge")
@@ -446,11 +462,14 @@ final class NeurOneGATTManagerTests: XCTestCase {
     func testZoneModuleMalformedFrameLeavesMapUntouched() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
         manager.applyZoneModuleStatus(
-            zoneFrame(snapshot: true, last: true, records: [(12, 2, 0x09, 0x01)]))
+            zoneFrame(snapshot: true, last: true, records: [(12, 2, 0x01)]))
 
-        // Wrong version, then a truncated body.
-        manager.applyZoneModuleStatus(Data([0x02, 0x03, 0x00, 0x01, 0x05, 0x01, 0x00, 0x01]))
-        manager.applyZoneModuleStatus(Data([0x01, 0x03, 0x00, 0x04, 0x05]))
+        // Wrong version, then a truncated body, then a map frame on the status
+        // path (wrong kind bit).
+        manager.applyZoneModuleStatus(Data([0x03, 0x03, 0x00, 0x01, 0x05, 0x01, 0x01]))
+        manager.applyZoneModuleStatus(Data([0x02, 0x03, 0x00, 0x04, 0x05]))
+        manager.applyZoneModuleStatus(socketMapFrame(last: true,
+                                                     records: [(5, 0x09, 0x01, 0, 0)]))
 
         XCTAssertEqual(manager.zoneModules.orderedSockets.map(\.socketID), [12],
                        "malformed frames must be dropped whole, not partially applied")
@@ -463,33 +482,65 @@ final class NeurOneGATTManagerTests: XCTestCase {
         defer { sub.cancel() }
 
         manager.applyZoneModuleStatus(
-            zoneFrame(snapshot: true, last: true, records: [(12, 2, 0x09, 0x01)]))
+            zoneFrame(snapshot: true, last: true, records: [(12, 2, 0x01)]))
         XCTAssertEqual(events.count, 1, "first insertion emits one event")
 
         // Same hardware re-reported — the hub re-sends snapshots freely.
         manager.applyZoneModuleStatus(
-            zoneFrame(snapshot: true, last: true, records: [(12, 2, 0x09, 0x01)]))
+            zoneFrame(snapshot: true, last: true, records: [(12, 2, 0x01)]))
         XCTAssertEqual(events.count, 1,
                        "an unchanged republish must emit nothing — otherwise setup "
                        + "re-announces sockets that were already seated")
 
         // Now actually removed.
         manager.applyZoneModuleStatus(
-            zoneFrame(snapshot: true, last: true, records: [(12, 0, 0x09, 0x00)]))
+            zoneFrame(snapshot: true, last: true, records: [(12, 0, 0x00)]))
         XCTAssertEqual(events.count, 2, "a real change emits")
         XCTAssertEqual(events.last?.isPresent, false)
+    }
+
+    func testSocketMapReadAtLinkResolvesLabelsForLaterChanges() {
+        // The static/dynamic split end to end: the map arrives once, then a
+        // 3-byte status change is enough to name a place.
+        let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
+
+        manager.applySocketMap(socketMapFrame(last: true, records: [
+            (12, 0x01 | (0x01 << 3), 0x01, -42, 137),   // frontal left
+        ]))
+        XCTAssertEqual(manager.socketMap.count, 1)
+        XCTAssertTrue(manager.socketMap.label(for: 12).localizedCaseInsensitiveContains("frontal"))
+
+        manager.applyZoneModuleStatus(
+            zoneFrame(snapshot: false, last: true, records: [(12, 2, 0x01)]))
+        XCTAssertTrue(manager.zoneModules.isPresent(socket: 12))
+    }
+
+    func testSocketMapClearedOnDisconnect() {
+        // The map describes THIS helmet. The next link may be a different one, or
+        // the same one after a lattice-changing firmware update.
+        let mock = MockBLECentral()
+        mock.state = .poweredOn
+        let manager = NeurOneGATTManager(mockCentral: mock)
+        manager.applyStateUpdate(state: .poweredOn)
+        manager.applySocketMap(socketMapFrame(last: true, records: [(1, 0x09, 0x01, 0, 0)]))
+        XCTAssertFalse(manager.socketMap.isEmpty, "precondition")
+
+        manager.applyDisconnection()
+
+        XCTAssertTrue(manager.socketMap.isEmpty,
+                      "a cached lattice would name sockets wrongly after a re-cut")
     }
 
     func testZoneModuleFragmentedSnapshotCommitsOnlyWhenComplete() {
         let manager = NeurOneGATTManager(mockCentral: MockBLECentral())
 
         manager.applyZoneModuleStatus(zoneFrame(snapshot: true, last: false, fragment: 0,
-                                                records: [(1, 1, 0x09, 0x01)]))
+                                                records: [(1, 1, 0x01)]))
         XCTAssertTrue(manager.zoneModules.isEmpty,
                       "a part-received snapshot must not be applied")
 
         manager.applyZoneModuleStatus(zoneFrame(snapshot: true, last: true, fragment: 1,
-                                                records: [(2, 1, 0x09, 0x01)]))
+                                                records: [(2, 1, 0x01)]))
         XCTAssertEqual(manager.zoneModules.orderedSockets.map(\.socketID), [1, 2],
                        "the snapshot commits as one map when the last fragment lands")
     }

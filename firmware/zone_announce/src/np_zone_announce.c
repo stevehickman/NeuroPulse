@@ -93,38 +93,46 @@ static uint8_t np_za_slot_socket_id(uint8_t slot_index)
     return slot_index;
 }
 
-/* Anatomy for a legacy zone. The retired ladder named five fixed positions;
- * these are their lobe/side, which is what the app speaks. Once detection moves
- * to np_module_map this comes from the geometry table instead. */
-static void zone_anatomy(np_zone_id_t zone, np_zn_lobe_t *lobe, np_zn_side_t *side)
-{
-    switch (zone) {
-    case NP_ZONE_FRONTAL_LEFT:
-        *lobe = NP_ZN_LOBE_FRONTAL;  *side = NP_ZN_SIDE_LEFT;    break;
-    case NP_ZONE_FRONTAL_RIGHT:
-        *lobe = NP_ZN_LOBE_FRONTAL;  *side = NP_ZN_SIDE_RIGHT;   break;
-    case NP_ZONE_VERTEX:
-        *lobe = NP_ZN_LOBE_PARIETAL; *side = NP_ZN_SIDE_MIDLINE; break;
-    case NP_ZONE_PARIETAL_LEFT:
-        *lobe = NP_ZN_LOBE_PARIETAL; *side = NP_ZN_SIDE_LEFT;    break;
-    case NP_ZONE_PARIETAL_RIGHT:
-        *lobe = NP_ZN_LOBE_PARIETAL; *side = NP_ZN_SIDE_RIGHT;   break;
-    default:
-        *lobe = NP_ZN_LOBE_NONE;     *side = NP_ZN_SIDE_MIDLINE; break;
-    }
-}
+/*
+ * The helmet's permanent socket geometry, published ONCE when the app links.
+ *
+ * Anatomy lives here, not in the per-change status record: where a socket IS
+ * cannot change when a module is swapped, so transmitting it on every insertion
+ * would be paying repeatedly for a fixed fact. The app reads this map at link
+ * time and thereafter needs only (socket, type, flags) per change.
+ *
+ * These five entries are the retired ZONE_ID ladder's fixed positions, which is
+ * all this transitional detector can describe. When detection moves to
+ * np_module_map (OI-HEXMAP-02) this table is replaced wholesale by that module's
+ * np_socket_geom_t geometry — same wire format, ~80 entries instead of 5, and
+ * real x/y from the shell CAD.
+ */
+static const np_zn_socket_desc_t s_legacy_socket_map[NP_ZONE_COUNT] = {
+    /* slot 0 — ZM-01 Frontal Left  */
+    { 0u, NP_ZN_LOBE_FRONTAL,  NP_ZN_SIDE_LEFT,    -1, 0, true },
+    /* slot 1 — ZM-02 Frontal Right */
+    { 1u, NP_ZN_LOBE_FRONTAL,  NP_ZN_SIDE_RIGHT,    1, 0, true },
+    /* slot 2 — ZM-03 Vertex        */
+    { 2u, NP_ZN_LOBE_PARIETAL, NP_ZN_SIDE_MIDLINE,  0, 1, true },
+    /* slot 3 — ZM-04 Parietal Left */
+    { 3u, NP_ZN_LOBE_PARIETAL, NP_ZN_SIDE_LEFT,    -1, 2, true },
+    /* slot 4 — ZM-05 Parietal Right*/
+    { 4u, NP_ZN_LOBE_PARIETAL, NP_ZN_SIDE_RIGHT,    1, 2, true },
+};
 
 /*
  * Report one socket's change to the companion app. This is what replaced the
  * bone-conduction announcement: the confirmation is delivered where the user
  * actually is, on the phone or tablet they are holding during setup.
  *
+ * Three bytes on the wire. The app resolves the socket to a place using the map
+ * it already holds.
+ *
  * Failure to transmit is deliberately non-fatal to the state machine — a module
  * that is seated IS seated whether or not the app heard about it. The next
  * snapshot re-synchronises the app.
  */
-static void notify_app(uint8_t slot_index, np_zone_id_t zone,
-                       bool present, bool fault)
+static void notify_app(uint8_t slot_index, bool present, bool fault)
 {
     np_zn_socket_state_t st;
     memset(&st, 0, sizeof(st));
@@ -138,7 +146,6 @@ static void notify_app(uint8_t slot_index, np_zone_id_t zone,
     st.module_type = present ? NP_ZN_MODULE_UNKNOWN : NP_ZN_MODULE_NONE;
     st.present     = present;
     st.fault       = fault;
-    zone_anatomy(zone, &st.lobe, &st.side);
 
     (void)np_zone_notify_event(&st);
 }
@@ -230,8 +237,7 @@ static void tick_slot(uint8_t slot_index, uint32_t now_ms)
         if (rc != NP_ZA_OK || zone == NP_ZONE_NONE) {
             /* Debounce failed or module disappeared — log and return to IDLE. */
             log_shdr(slot_index, NP_ZONE_UNKNOWN, false, agree);
-            notify_app(slot_index, NP_ZONE_UNKNOWN, /*present=*/false,
-                       /*fault=*/true);
+            notify_app(slot_index, /*present=*/false, /*fault=*/true);
             slot->fault_reported = true;   /* report once; see the latch note */
             slot->state = NP_ZA_STATE_IDLE;
             break;
@@ -243,8 +249,7 @@ static void tick_slot(uint8_t slot_index, uint32_t now_ms)
          * for the same reason. The app surfaces the fault instead. */
         if (zone == NP_ZONE_UNKNOWN) {
             log_shdr(slot_index, NP_ZONE_UNKNOWN, false, agree);
-            notify_app(slot_index, NP_ZONE_UNKNOWN, /*present=*/false,
-                       /*fault=*/true);
+            notify_app(slot_index, /*present=*/false, /*fault=*/true);
             slot->fault_reported = true;   /* report once; see the latch note */
             slot->confirmed_zone = NP_ZONE_NONE;
             slot->state          = NP_ZA_STATE_IDLE;
@@ -264,7 +269,7 @@ static void tick_slot(uint8_t slot_index, uint32_t now_ms)
 
         /* Deliver the user-facing confirmation to the companion app. This is
          * where Rev A queued a bone-conduction clip nobody could hear. */
-        notify_app(slot_index, zone, /*present=*/true, /*fault=*/false);
+        notify_app(slot_index, /*present=*/true, /*fault=*/false);
 
         /* announcement_done=true now means "the user-facing confirmation has
          * been dispatched to the app", not "the headset finished a clip". */
@@ -299,7 +304,7 @@ static void tick_slot(uint8_t slot_index, uint32_t now_ms)
             /* Tell the app the socket is empty so its map clears — a stale
              * "present" would let a placement gate pass on a module that is no
              * longer there. */
-            notify_app(slot_index, removed, /*present=*/false, /*fault=*/false);
+            notify_app(slot_index, /*present=*/false, /*fault=*/false);
             if (s_ctx.remove_cb) {
                 s_ctx.remove_cb(removed);
             }
@@ -343,6 +348,13 @@ void np_za_tick(uint32_t now_ms)
     /* No audio is scheduled from here any more. Insertion confirmations go to
      * the companion app (notify_app); the tone engine is driven only by
      * np_za_play_worn_cue(), which its caller gates on the helmet being worn. */
+}
+
+np_za_status_t np_za_publish_socket_map(void)
+{
+    np_zn_status_t rc = np_zone_notify_socket_map(s_legacy_socket_map,
+                                                  (uint16_t)NP_ZONE_COUNT);
+    return (rc == NP_ZN_OK) ? NP_ZA_OK : NP_ZA_ERR_INVALID_ARG;
 }
 
 np_za_status_t np_za_play_worn_cue(np_zone_id_t cue)

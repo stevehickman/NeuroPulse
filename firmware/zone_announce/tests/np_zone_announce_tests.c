@@ -64,9 +64,9 @@ static uint8_t g_frames[64][255];
 static uint8_t g_lens[64];
 static int     g_frame_count;
 
-static bool capture_tx(const uint8_t *frame, uint8_t len, void *ctx)
+static bool capture_tx(const uint8_t *frame, uint8_t len, bool is_map, void *ctx)
 {
-    (void)ctx;
+    (void)ctx; (void)is_map;
     if (g_frame_count < 64) {
         memcpy(g_frames[g_frame_count], frame, len);
         g_lens[g_frame_count] = len;
@@ -146,12 +146,10 @@ static void test_insertion_notifies_app_and_plays_no_audio(void)
     /* The frame must name socket 1 (0-based slot 0 -> 1-based wire) and say present. */
     CHECK(g_frames[0][0] == NP_ZN_FORMAT_VERSION, "versioned frame");
     CHECK(g_frames[0][NP_ZN_HEADER_BYTES] == 1u, "slot 0 -> wire socket 1");
-    CHECK((g_frames[0][NP_ZN_HEADER_BYTES + 3] & NP_ZN_REC_PRESENT) != 0u,
+    CHECK((g_frames[0][NP_ZN_HEADER_BYTES + 2] & NP_ZN_REC_PRESENT) != 0u,
           "record marked present");
-    CHECK((g_frames[0][NP_ZN_HEADER_BYTES + 2] & 0x07u) == (uint8_t)NP_ZN_LOBE_FRONTAL,
-          "anatomy travels on the wire: frontal");
-    CHECK(((g_frames[0][NP_ZN_HEADER_BYTES + 2] >> 3) & 0x03u) == (uint8_t)NP_ZN_SIDE_LEFT,
-          "anatomy travels on the wire: left");
+    CHECK(g_lens[0] == NP_ZN_HEADER_BYTES + NP_ZN_STATUS_REC_BYTES,
+          "a change costs header + ONE 3-byte record — no anatomy repeated");
 }
 
 static void test_removal_notifies_app(void)
@@ -168,7 +166,7 @@ static void test_removal_notifies_app(void)
     CHECK(g_remove_calls == 1, "remove_cb fires once");
 
     const uint8_t *last = g_frames[g_frame_count - 1];
-    CHECK((last[NP_ZN_HEADER_BYTES + 3] & NP_ZN_REC_PRESENT) == 0u,
+    CHECK((last[NP_ZN_HEADER_BYTES + 2] & NP_ZN_REC_PRESENT) == 0u,
           "removal clears present — a stale 'present' would let a placement gate "
           "pass on a module that is no longer there");
     CHECK(g_audio_started == false, "removal plays no audio either");
@@ -188,9 +186,9 @@ static void test_unknown_module_reports_once_not_every_poll(void)
           "a stuck unidentifiable module notifies exactly once, not per poll");
     CHECK(g_shdr_fail_calls == 1,
           "and burns exactly one SHDR flash write, not one per poll");
-    CHECK((g_frames[0][NP_ZN_HEADER_BYTES + 3] & NP_ZN_REC_FAULT) != 0u,
+    CHECK((g_frames[0][NP_ZN_HEADER_BYTES + 2] & NP_ZN_REC_FAULT) != 0u,
           "the record carries the fault bit");
-    CHECK((g_frames[0][NP_ZN_HEADER_BYTES + 3] & NP_ZN_REC_PRESENT) == 0u,
+    CHECK((g_frames[0][NP_ZN_HEADER_BYTES + 2] & NP_ZN_REC_PRESENT) == 0u,
           "a faulted module is never reported present");
     CHECK(g_insert_pre == 0 && g_insert_post == 0,
           "a faulted module never fires insert_cb");
@@ -240,6 +238,35 @@ static void test_worn_cue_still_plays(void)
     CHECK(g_sai_init_calls == 1, "initialising SAI on first use");
 }
 
+static void test_socket_map_published_once_carries_anatomy(void)
+{
+    /* The static half of the split: anatomy is published here, at link time, and
+     * never again. Every later change about the same socket costs three bytes. */
+    reset_all();
+    CHECK(np_za_publish_socket_map() == NP_ZA_OK, "map publishes");
+    CHECK(g_frame_count >= 1, "at least one map fragment");
+    CHECK((g_frames[0][1] & NP_ZN_FLAG_MAP) != 0u, "carries the MAP kind bit");
+
+    /* First record: slot 0 == ZM-01 Frontal Left. */
+    const uint8_t *rec = &g_frames[0][NP_ZN_HEADER_BYTES];
+    CHECK(rec[0] == 1u, "slot 0 -> wire socket 1");
+    CHECK((rec[1] & 0x07u) == (uint8_t)NP_ZN_LOBE_FRONTAL, "frontal lobe");
+    CHECK(((rec[1] >> 3) & 0x03u) == (uint8_t)NP_ZN_SIDE_LEFT, "left side");
+    CHECK((rec[2] & NP_ZN_MAP_WIRED) != 0u, "wired in this shell");
+
+    int mapped = 0;
+    for (int f = 0; f < g_frame_count; f++) { mapped += g_frames[f][3]; }
+    CHECK(mapped == (int)NP_ZONE_COUNT, "every socket described exactly once");
+
+    /* An insertion afterwards must not re-send any of that. */
+    int after_map = g_frame_count;
+    g_adc[1] = 2818u;
+    run_ticks(10, NP_ZA_DEBOUNCE_INTERVAL_MS);
+    CHECK(g_frame_count == after_map + 1, "one change -> one frame");
+    CHECK(g_lens[after_map] == NP_ZN_HEADER_BYTES + NP_ZN_STATUS_REC_BYTES,
+          "and it is 7 bytes total, not carrying geometry again");
+}
+
 static void test_get_zone_reports_active_slot(void)
 {
     reset_all();
@@ -259,6 +286,7 @@ int main(void)
     test_fault_latch_clears_on_real_removal();
     test_multiple_slots_each_notify();
     test_worn_cue_still_plays();
+    test_socket_map_published_once_carries_anatomy();
     test_get_zone_reports_active_slot();
 
     printf("np_zone_announce_tests: %d checks, %d failures\n", g_checks, g_failures);

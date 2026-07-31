@@ -20,6 +20,9 @@ protocol SetupGATTProviding {
     /// This is the insertion event the app speaks — the confirmation the headset's
     /// bone-conduction transducer could never deliver (see ZoneModuleAnnouncer).
     var zoneModuleEventPublisher: AnyPublisher<ZoneModuleStatus, Never> { get }
+    /// The helmet's permanent socket geometry, read once at link. Resolves a
+    /// socket id to a place, so status changes need not carry anatomy.
+    var socketMapPublisher: AnyPublisher<SocketMap, Never> { get }
     /// Fires exactly once per impedance check, carrying the raw pass-flags bitmask.
     /// Backed by a dedicated PassthroughSubject in production — distinct from sessionPublisher
     /// so waitForImpedanceResult cannot false-trigger on unrelated session updates.
@@ -141,6 +144,9 @@ final class HardwareSetupManager: ObservableObject {
     @Published private(set) var lastError: SetupError?
     @Published private(set) var impedanceFlags: UInt16 = 0     // bitmask from GATT
     @Published private(set) var zoneConfiguration = ZoneModuleConfiguration()
+    /// Socket geometry from the helmet. Empty until the link delivers it; the UI
+    /// falls back to bare socket numbers in that window.
+    @Published private(set) var socketMap = SocketMap()
     @Published private(set) var isFirstSetupComplete = false
 
     // Separate signal for wait logic — set whenever ANY impedance update arrives from the hub,
@@ -328,6 +334,12 @@ final class HardwareSetupManager: ObservableObject {
         // path. Gated to the zone-module step: the same events also arrive during
         // a session, where narrating socket changes would be noise rather than
         // confirmation.
+        gatt.socketMapPublisher
+            .sink { [weak self] map in
+                self?.socketMap = map
+            }
+            .store(in: &cancellables)
+
         gatt.zoneModuleEventPublisher
             .sink { [weak self] event in
                 self?.announceZoneModuleEvent(event)
@@ -341,7 +353,11 @@ final class HardwareSetupManager: ObservableObject {
     /// a tile back out — they know they did that, and the list already shows it.
     private func announceZoneModuleEvent(_ event: ZoneModuleStatus) {
         guard currentStep == .zoneModules, event.isPresent else { return }
-        announcer.announce(event.spokenConfirmation)
+        // The map turns the socket id into a place. If it has not arrived yet the
+        // announcement degrades to the bare socket number rather than going
+        // silent — a number the user can still match to the socket they just
+        // filled beats no confirmation at all.
+        announcer.announce(socketMap.spokenConfirmation(for: event))
     }
 
     private func triggerCalibration(_ opcode: CalibrationOpcode) async throws {

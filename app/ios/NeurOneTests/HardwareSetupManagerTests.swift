@@ -38,6 +38,7 @@ private final class MockSetupGATT: SetupGATTProviding {
     private let zonesSubject     = CurrentValueSubject<ZoneModuleConfiguration, Never>(
         ZoneModuleConfiguration())
     private let zoneEventSubject = PassthroughSubject<ZoneModuleStatus, Never>()
+    private let socketMapSubject = CurrentValueSubject<SocketMap, Never>(SocketMap())
     private let impedanceSubject = PassthroughSubject<UInt16, Never>()
 
     var connectionState: NeurOneGATTManager.ConnectionState { mockConnectionState }
@@ -53,6 +54,12 @@ private final class MockSetupGATT: SetupGATTProviding {
     var zoneModuleEventPublisher: AnyPublisher<ZoneModuleStatus, Never> {
         zoneEventSubject.eraseToAnyPublisher()
     }
+
+    var socketMapPublisher: AnyPublisher<SocketMap, Never> {
+        socketMapSubject.eraseToAnyPublisher()
+    }
+
+    func pushSocketMap(_ map: SocketMap) { socketMapSubject.send(map) }
 
     var impedanceResultPublisher: AnyPublisher<UInt16, Never> {
         impedanceSubject.eraseToAnyPublisher()
@@ -102,12 +109,18 @@ private final class SpyAnnouncer: ZoneModuleAnnouncing {
 /// Build a socket status the way a decoded frame record would.
 private func socketStatus(_ id: UInt8,
                           type: ZoneModuleType = .eeg,
-                          lobe: ZoneLobe = .frontal,
-                          side: ZoneSide = .left,
                           present: Bool = true,
                           fault: Bool = false) -> ZoneModuleStatus {
-    ZoneModuleStatus(socketID: id, moduleType: type, lobe: lobe, side: side,
+    ZoneModuleStatus(socketID: id, moduleType: type,
                      isPresent: present, hasFault: fault)
+}
+
+/// A socket map covering the ids these tests use, so labels resolve to places.
+private func socketMap(_ entries: [(UInt8, ZoneLobe, ZoneSide)]) -> SocketMap {
+    SocketMap(entries.map { id, lobe, side in
+        SocketDescriptor(socketID: id, lobe: lobe, side: side,
+                         xMillimetres: 0, yMillimetres: 0, isWiredInShell: true)
+    })
 }
 
 private func configuration(_ statuses: [ZoneModuleStatus]) -> ZoneModuleConfiguration {
@@ -467,7 +480,7 @@ final class HardwareSetupManagerTests: XCTestCase {
         let mock = MockSetupGATT()
         let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults)
         mock.pushZones(configuration([
-            socketStatus(12), socketStatus(47, lobe: .parietal, side: .midline),
+            socketStatus(12), socketStatus(47),
             socketStatus(80, present: false),
         ]))
         mgr.setStepForTesting(.zoneModules)
@@ -532,9 +545,11 @@ final class HardwareSetupManagerTests: XCTestCase {
         let mock = MockSetupGATT()
         let spy = SpyAnnouncer()
         let mgr = HardwareSetupManager(gatt: mock, userDefaults: defaults, announcer: spy)
+        // The map arrives at link time; the status change carries no anatomy.
+        mock.pushSocketMap(socketMap([(12, .frontal, .left)]))
         mgr.setStepForTesting(.zoneModules)
 
-        mock.pushZoneEvent(socketStatus(12, type: .eeg, lobe: .frontal, side: .left))
+        mock.pushZoneEvent(socketStatus(12, type: .eeg))
 
         XCTAssertEqual(spy.spoken.count, 1, "an insertion during the step is spoken")
         let said = spy.spoken[0]
@@ -575,8 +590,8 @@ final class HardwareSetupManagerTests: XCTestCase {
         mgr.setStepForTesting(.zoneModules)
 
         mock.pushZoneEvent(socketStatus(12))
-        mock.pushZoneEvent(socketStatus(47, lobe: .parietal, side: .right))
-        mock.pushZoneEvent(socketStatus(80, lobe: .occipital, side: .midline))
+        mock.pushZoneEvent(socketStatus(47))
+        mock.pushZoneEvent(socketStatus(80))
 
         XCTAssertEqual(spy.spoken.count, 3, "one confirmation per insertion")
         XCTAssertTrue(spy.spoken[1].contains("47"))

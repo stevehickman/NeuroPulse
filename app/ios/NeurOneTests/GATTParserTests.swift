@@ -112,43 +112,144 @@ final class GATTParserTests: XCTestCase {
     // Wire contract: firmware/zone_announce/include/np_zone_notify.h, pinned on
     // the firmware side by np_zone_notify_tests.c. These cases mirror those.
 
-    /// Build a frame the way the firmware encoder does.
-    private func frame(version: UInt8 = 0x01,
+    /// Build a STATUS frame the way the firmware encoder does — 3-byte records.
+    private func frame(version: UInt8 = 0x02,
                        snapshot: Bool,
                        last: Bool,
                        fragment: UInt8 = 0,
-                       records: [(socket: UInt8, type: UInt8, anatomy: UInt8, flags: UInt8)],
+                       records: [(socket: UInt8, type: UInt8, flags: UInt8)],
                        declaredCount: UInt8? = nil) -> Data {
         var d = Data([version,
                       (snapshot ? 0x01 : 0x00) | (last ? 0x02 : 0x00),
                       fragment,
                       declaredCount ?? UInt8(records.count)])
-        for r in records { d.append(contentsOf: [r.socket, r.type, r.anatomy, r.flags]) }
+        for r in records { d.append(contentsOf: [r.socket, r.type, r.flags]) }
+        return d
+    }
+
+    /// Build a SOCKET MAP frame — 7-byte records, MAP kind bit set.
+    private func mapFrame(version: UInt8 = 0x02,
+                          last: Bool,
+                          fragment: UInt8 = 0,
+                          records: [(socket: UInt8, anatomy: UInt8, flags: UInt8,
+                                     x: Int16, y: Int16)],
+                          declaredCount: UInt8? = nil) -> Data {
+        var d = Data([version,
+                      0x01 | (last ? 0x02 : 0x00) | 0x04,   // snapshot | last | map
+                      fragment,
+                      declaredCount ?? UInt8(records.count)])
+        for r in records {
+            let ux = UInt16(bitPattern: r.x), uy = UInt16(bitPattern: r.y)
+            d.append(contentsOf: [r.socket, r.anatomy, r.flags,
+                                  UInt8(ux & 0xFF), UInt8(ux >> 8),
+                                  UInt8(uy & 0xFF), UInt8(uy >> 8)])
+        }
         return d
     }
 
     func testParseZoneModuleStatusDecodesRecord() {
-        // Socket 12, EEG tile, frontal-left, present.
-        // anatomy byte: lobe 1 (frontal) in bits[2:0], side 1 (left) in bits[4:3].
-        let data = frame(snapshot: true, last: true,
-                         records: [(12, 2, 0x01 | (0x01 << 3), 0x01)])
+        // Socket 12, EEG tile, present. No anatomy: a status record is three
+        // bytes, because where socket 12 is cannot change when its module does.
+        let data = frame(snapshot: true, last: true, records: [(12, 2, 0x01)])
         let f = GATTParser.parseZoneModuleStatus(data)
         XCTAssertEqual(f?.records.count, 1)
         XCTAssertEqual(f?.records.first?.socketID, 12)
         XCTAssertEqual(f?.records.first?.moduleType, .eeg)
-        XCTAssertEqual(f?.records.first?.lobe, .frontal)
-        XCTAssertEqual(f?.records.first?.side, .left)
         XCTAssertEqual(f?.records.first?.isPresent, true)
         XCTAssertEqual(f?.records.first?.hasFault, false)
         XCTAssertEqual(f?.isSnapshot, true)
         XCTAssertEqual(f?.isLastFragment, true)
+        XCTAssertEqual(data.count, 4 + 3, "header + one 3-byte record")
+    }
+
+    // MARK: - SOCKET_MAP (the static half — read once at link)
+
+    func testParseSocketMapDecodesDescriptor() {
+        // anatomy byte: lobe 1 (frontal) in bits[2:0], side 1 (left) in bits[4:3].
+        let data = mapFrame(last: true,
+                            records: [(12, 0x01 | (0x01 << 3), 0x01, -42, 137)])
+        let f = GATTParser.parseSocketMap(data)
+        XCTAssertEqual(f?.descriptors.count, 1)
+        let d = f?.descriptors.first
+        XCTAssertEqual(d?.socketID, 12)
+        XCTAssertEqual(d?.lobe, .frontal)
+        XCTAssertEqual(d?.side, .left)
+        XCTAssertEqual(d?.xMillimetres, -42, "negative coordinates survive as int16")
+        XCTAssertEqual(d?.yMillimetres, 137)
+        XCTAssertEqual(d?.isWiredInShell, true)
+    }
+
+    func testParseSocketMapMidlineAndUnwired() {
+        let data = mapFrame(last: true, records: [(80, 0x04, 0x00, 0, 0)])
+        let d = GATTParser.parseSocketMap(data)?.descriptors.first
+        XCTAssertEqual(d?.lobe, .occipital)
+        XCTAssertEqual(d?.side, .midline,
+                       "midline is a real position — a midline socket is in BOTH "
+                       + "hemisphere zones of its lobe")
+        XCTAssertEqual(d?.isWiredInShell, false)
+    }
+
+    func testMapAndStatusFramesAreNotInterchangeable() {
+        // The kind bit is what stops a 7-byte map record being read as 3-byte
+        // status records — that would misparse silently instead of failing.
+        let map = mapFrame(last: true, records: [(12, 0x09, 0x01, 0, 0)])
+        let status = frame(snapshot: true, last: true, records: [(12, 2, 0x01)])
+
+        XCTAssertNil(GATTParser.parseZoneModuleStatus(map),
+                     "a map frame must not decode as status")
+        XCTAssertNil(GATTParser.parseSocketMap(status),
+                     "a status frame must not decode as a map")
+    }
+
+    func testParseSocketMapRejectsBadSocketAndVersion() {
+        XCTAssertNil(GATTParser.parseSocketMap(
+            mapFrame(last: true, records: [(0, 0x09, 0x01, 0, 0)])),
+            "socket id 0 rejected in maps too")
+        XCTAssertNil(GATTParser.parseSocketMap(
+            mapFrame(version: 0x01, last: true, records: [(1, 0x09, 0x01, 0, 0)])),
+            "an older format version is rejected, not reinterpreted")
+        XCTAssertNil(GATTParser.parseSocketMap(
+            mapFrame(last: true, records: [(1, 0x09, 0x01, 0, 0)], declaredCount: 4)),
+            "a record count the body cannot satisfy is rejected")
+    }
+
+    func testSocketMapAssemblerReassemblesRun() {
+        var assembler = SocketMapFrameAssembler()
+        let f0 = GATTParser.parseSocketMap(
+            mapFrame(last: false, fragment: 0, records: [(1, 0x09, 0x01, 0, 0)]))!
+        let f1 = GATTParser.parseSocketMap(
+            mapFrame(last: true, fragment: 1, records: [(2, 0x11, 0x01, 5, 6)]))!
+
+        XCTAssertNil(assembler.accept(f0), "a non-final fragment must not commit")
+        let complete = assembler.accept(f1)
+        XCTAssertEqual(complete?.descriptors.map(\.socketID), [1, 2])
+    }
+
+    func testSocketMapResolvesLabelsAndSpokenText() {
+        // The point of the split: the map answers "where is socket 12", so the
+        // status change never has to.
+        let map = SocketMap([
+            SocketDescriptor(socketID: 12, lobe: .frontal, side: .left,
+                             xMillimetres: 0, yMillimetres: 0, isWiredInShell: true)
+        ])
+        let status = ZoneModuleStatus(socketID: 12, moduleType: .eeg,
+                                      isPresent: true, hasFault: false)
+
+        XCTAssertTrue(map.label(for: 12).contains("12"))
+        XCTAssertTrue(map.label(for: 12).localizedCaseInsensitiveContains("frontal"))
+        XCTAssertTrue(map.spokenConfirmation(for: status)
+                        .localizedCaseInsensitiveContains("frontal"))
+
+        // A socket the map does not describe still gets a usable label rather
+        // than an empty string or a crash.
+        XCTAssertTrue(map.label(for: 77).contains("77"))
     }
 
     func testParseZoneModuleStatusAcceptsFullSocketDomain() {
         // 128 is the top of the 7-bit major addressing domain — the app must not
         // clamp the lattice to whatever count ships today (it has moved twice).
         let data = frame(snapshot: false, last: true,
-                         records: [(128, 1, 0x03, 0x01)])
+                         records: [(128, 1, 0x01)])
         XCTAssertEqual(GATTParser.parseZoneModuleStatus(data)?.records.first?.socketID, 128)
     }
 
@@ -156,17 +257,20 @@ final class GATTParserTests: XCTestCase {
         // 0 is never emitted; >128 would alias onto a real socket, which is a
         // wrong-site targeting path rather than a display glitch.
         XCTAssertNil(GATTParser.parseZoneModuleStatus(
-            frame(snapshot: false, last: true, records: [(0, 1, 0x00, 0x01)])),
+            frame(snapshot: false, last: true, records: [(0, 1, 0x01)])),
             "socket id 0 must be rejected")
         XCTAssertNil(GATTParser.parseZoneModuleStatus(
-            frame(snapshot: false, last: true, records: [(129, 1, 0x00, 0x01)])),
+            frame(snapshot: false, last: true, records: [(129, 1, 0x01)])),
             "socket id above the 128-socket domain must be rejected")
     }
 
     func testParseZoneModuleStatusRejectsWrongVersion() {
         XCTAssertNil(GATTParser.parseZoneModuleStatus(
-            frame(version: 0x02, snapshot: true, last: true, records: [(1, 1, 0, 1)])),
-            "an unknown format version must be rejected, not guessed at")
+            frame(version: 0x03, snapshot: true, last: true, records: [(1, 1, 1)])),
+            "a future format version must be rejected, not guessed at")
+        XCTAssertNil(GATTParser.parseZoneModuleStatus(
+            frame(version: 0x01, snapshot: true, last: true, records: [(1, 1, 1)])),
+            "v1 (anatomy inline on every change) must not decode as v2")
     }
 
     func testParseZoneModuleStatusRejectsRetiredFiveBytePayload() {
@@ -180,7 +284,7 @@ final class GATTParserTests: XCTestCase {
     func testParseZoneModuleStatusRejectsTruncatedBody() {
         // Header claims 3 records, body carries 1.
         let data = frame(snapshot: true, last: true,
-                         records: [(1, 1, 0, 1)], declaredCount: 3)
+                         records: [(1, 1, 1)], declaredCount: 3)
         XCTAssertNil(GATTParser.parseZoneModuleStatus(data),
                      "a record count the body cannot satisfy must be rejected")
     }
@@ -202,7 +306,7 @@ final class GATTParserTests: XCTestCase {
         // Both bits set by a misbehaving hub: presence gates safety-critical
         // placement checks, so fault must win.
         let data = frame(snapshot: false, last: true,
-                         records: [(7, 2, 0x00, 0x01 | 0x02)])
+                         records: [(7, 2, 0x01 | 0x02)])
         let record = GATTParser.parseZoneModuleStatus(data)?.records.first
         XCTAssertEqual(record?.hasFault, true)
         XCTAssertEqual(record?.isPresent, false,
@@ -213,21 +317,28 @@ final class GATTParserTests: XCTestCase {
         // Data sliced out of a larger buffer does not start at index 0. Indexing
         // it as if it did is a silent misparse.
         let padded = Data([0xAA, 0xBB]) + frame(snapshot: false, last: true,
-                                                records: [(9, 1, 0x03, 0x01)])
+                                                records: [(9, 1, 0x01)])
         let sliced = padded.dropFirst(2)
         XCTAssertEqual(GATTParser.parseZoneModuleStatus(sliced)?.records.first?.socketID, 9)
     }
 
     func testParseZoneModuleStatusUnknownEnumsDegradeSafely() {
-        // Forward compatibility: a module type or lobe this app build does not
-        // know must not drop the whole frame — the socket is still real.
-        let data = frame(snapshot: false, last: true,
-                         records: [(3, 99, 0x07 | (0x03 << 3), 0x01)])
+        // Forward compatibility: a module type this app build does not know must
+        // not drop the whole frame — the socket is still real and still occupied.
+        let data = frame(snapshot: false, last: true, records: [(3, 99, 0x01)])
         let record = GATTParser.parseZoneModuleStatus(data)?.records.first
         XCTAssertEqual(record?.moduleType, .unknown)
-        XCTAssertEqual(record?.lobe, .unspecified)
-        XCTAssertEqual(record?.side, .midline)
         XCTAssertEqual(record?.isPresent, true)
+    }
+
+    func testParseSocketMapUnknownEnumsDegradeSafely() {
+        // Same forward-compatibility rule on the map side: an unrecognised lobe
+        // or side must not discard a socket whose position is otherwise usable.
+        let data = mapFrame(last: true, records: [(3, 0x07 | (0x03 << 3), 0x01, 1, 2)])
+        let d = GATTParser.parseSocketMap(data)?.descriptors.first
+        XCTAssertEqual(d?.lobe, .unspecified)
+        XCTAssertEqual(d?.side, .midline)
+        XCTAssertEqual(d?.socketID, 3)
     }
 
     // MARK: - Snapshot fragment reassembly
@@ -235,9 +346,9 @@ final class GATTParserTests: XCTestCase {
     func testAssemblerReassemblesMultiFragmentSnapshot() {
         var assembler = ZoneModuleFrameAssembler()
         let f0 = GATTParser.parseZoneModuleStatus(
-            frame(snapshot: true, last: false, fragment: 0, records: [(1, 1, 0x01, 0x01)]))!
+            frame(snapshot: true, last: false, fragment: 0, records: [(1, 1, 0x01)]))!
         let f1 = GATTParser.parseZoneModuleStatus(
-            frame(snapshot: true, last: true, fragment: 1, records: [(2, 2, 0x01, 0x01)]))!
+            frame(snapshot: true, last: true, fragment: 1, records: [(2, 2, 0x01)]))!
 
         XCTAssertNil(assembler.accept(f0), "a non-final fragment must not commit")
         let complete = assembler.accept(f1)
@@ -250,9 +361,9 @@ final class GATTParserTests: XCTestCase {
         // wrong answer for a placement gate. Abandon the run instead.
         var assembler = ZoneModuleFrameAssembler()
         let f0 = GATTParser.parseZoneModuleStatus(
-            frame(snapshot: true, last: false, fragment: 0, records: [(1, 1, 0x01, 0x01)]))!
+            frame(snapshot: true, last: false, fragment: 0, records: [(1, 1, 0x01)]))!
         let f2 = GATTParser.parseZoneModuleStatus(
-            frame(snapshot: true, last: true, fragment: 2, records: [(3, 1, 0x01, 0x01)]))!
+            frame(snapshot: true, last: true, fragment: 2, records: [(3, 1, 0x01)]))!
 
         XCTAssertNil(assembler.accept(f0))
         XCTAssertNil(assembler.accept(f2), "a gap in the fragment run must abandon it")
@@ -262,7 +373,7 @@ final class GATTParserTests: XCTestCase {
     func testAssemblerPassesDeltasThrough() {
         var assembler = ZoneModuleFrameAssembler()
         let delta = GATTParser.parseZoneModuleStatus(
-            frame(snapshot: false, last: true, records: [(5, 2, 0x01, 0x01)]))!
+            frame(snapshot: false, last: true, records: [(5, 2, 0x01)]))!
         XCTAssertEqual(assembler.accept(delta)?.records.first?.socketID, 5)
     }
 
@@ -274,13 +385,13 @@ final class GATTParserTests: XCTestCase {
         var assembler = ZoneModuleFrameAssembler()
         let snap0 = GATTParser.parseZoneModuleStatus(
             frame(snapshot: true, last: false, fragment: 0,
-                  records: [(7, 2, 0x09, 0x01)]))!            // socket 7 present
+                  records: [(7, 2, 0x01)]))!            // socket 7 present
         let removal = GATTParser.parseZoneModuleStatus(
             frame(snapshot: false, last: true,
-                  records: [(7, 0, 0x09, 0x00)]))!            // socket 7 pulled
+                  records: [(7, 0, 0x00)]))!            // socket 7 pulled
         let snap1 = GATTParser.parseZoneModuleStatus(
             frame(snapshot: true, last: true, fragment: 1,
-                  records: [(8, 2, 0x09, 0x01)]))!
+                  records: [(8, 2, 0x01)]))!
 
         XCTAssertNil(assembler.accept(snap0))
         XCTAssertNil(assembler.accept(removal),
@@ -301,8 +412,8 @@ final class GATTParserTests: XCTestCase {
         var assembler = ZoneModuleFrameAssembler()
         var committed = false
         for i in 0..<40 {
-            let records = (0..<4).map { j -> (UInt8, UInt8, UInt8, UInt8) in
-                (UInt8((i * 4 + j) % 128 + 1), 1, 0x09, 0x01)
+            let records = (0..<4).map { j -> (UInt8, UInt8, UInt8) in
+                (UInt8((i * 4 + j) % 128 + 1), 1, 0x01)
             }
             let f = GATTParser.parseZoneModuleStatus(
                 frame(snapshot: true, last: false, fragment: UInt8(i), records: records))!
@@ -317,9 +428,9 @@ final class GATTParserTests: XCTestCase {
         // A fresh fragment 0 supersedes anything part-received.
         var assembler = ZoneModuleFrameAssembler()
         let stale = GATTParser.parseZoneModuleStatus(
-            frame(snapshot: true, last: false, fragment: 0, records: [(1, 1, 0x01, 0x01)]))!
+            frame(snapshot: true, last: false, fragment: 0, records: [(1, 1, 0x01)]))!
         let fresh = GATTParser.parseZoneModuleStatus(
-            frame(snapshot: true, last: true, fragment: 0, records: [(9, 1, 0x01, 0x01)]))!
+            frame(snapshot: true, last: true, fragment: 0, records: [(9, 1, 0x01)]))!
 
         XCTAssertNil(assembler.accept(stale))
         XCTAssertEqual(assembler.accept(fresh)?.records.map(\.socketID), [9],
@@ -480,10 +591,10 @@ final class GATTParserTests: XCTestCase {
         XCTAssertNotNil(GATTParser.parseOTAStatus(Data([0x01, 0x19, 0x00, 0x00])),
                         "parseOTAStatus must return non-nil for a valid 4-byte payload.")
 
-        // parseZoneModuleStatus: v1 delta frame, one present socket
+        // parseZoneModuleStatus: v2 delta frame, one present socket (3-byte record)
         XCTAssertNotNil(GATTParser.parseZoneModuleStatus(
-            Data([0x01, 0x02, 0x00, 0x01, 0x0C, 0x02, 0x09, 0x01])),
-            "parseZoneModuleStatus must return non-nil for a valid v1 frame.")
+            Data([0x02, 0x02, 0x00, 0x01, 0x0C, 0x02, 0x01])),
+            "parseZoneModuleStatus must return non-nil for a valid v2 frame.")
     }
 
     // MARK: - Short / truncated / empty input rejection (ISC-152)
@@ -507,6 +618,6 @@ final class GATTParserTests: XCTestCase {
         XCTAssertNil(GATTParser.parseImpedanceResult(Data([0x00])))             // needs 2
         XCTAssertNil(GATTParser.parseConsumableStatus(Data(repeating: 0, count: 7)))  // needs 8
         XCTAssertNil(GATTParser.parseOTAStatus(Data([0x00, 0x00, 0x00])))        // needs 4
-        XCTAssertNil(GATTParser.parseZoneModuleStatus(Data([0x01, 0x02, 0x00]))) // needs 4B header
+        XCTAssertNil(GATTParser.parseZoneModuleStatus(Data([0x02, 0x02, 0x00]))) // needs 4B header
     }
 }

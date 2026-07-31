@@ -202,7 +202,8 @@ struct SetupView: View {
         case .bleConfirmation:
             BLEConnectionStatusCard()
         case .zoneModules:
-            ZoneModuleStatusGrid(configuration: setup.zoneConfiguration)
+            ZoneModuleStatusGrid(configuration: setup.zoneConfiguration,
+                                 socketMap: setup.socketMap)
         case .impedanceCheck:
             ImpedanceStatusGrid(flags: setup.impedanceFlags)
         case .ads1299Calibration:
@@ -470,6 +471,9 @@ private struct StarterProtocol: Identifiable {
 /// (NP-HEX-ZM-001 §3.4).
 struct ZoneModuleStatusGrid: View {
     let configuration: ZoneModuleConfiguration
+    /// Resolves socket ids to places. Anatomy is not in the status records —
+    /// it arrives once with the socket map at link time.
+    let socketMap: SocketMap
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -504,7 +508,7 @@ struct ZoneModuleStatusGrid: View {
             Image(systemName: iconName(for: socket))
                 .foregroundColor(iconColor(for: socket))
                 .accessibilityHidden(true)
-            Text(socket.displayName)
+            Text(socketMap.label(for: socket.socketID))
                 .font(.subheadline)
             Spacer()
             if let type = socket.moduleType.displayName, socket.isPresent {
@@ -517,7 +521,7 @@ struct ZoneModuleStatusGrid: View {
         // One combined label per socket so VoiceOver reads "Socket 12, frontal
         // left, connected" rather than three unlabelled fragments.
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(socket.spokenConfirmation)
+        .accessibilityLabel(socketMap.spokenConfirmation(for: socket))
     }
 
     private func iconName(for socket: ZoneModuleStatus) -> String {

@@ -77,6 +77,22 @@ void np_za_tick(uint32_t now_ms);
  */
 void np_za_audio_tick(uint8_t half);
 
+/* ── Socket map publication ─────────────────────────────────────────────────── */
+
+/*
+ * Publish the helmet's permanent socket geometry to the companion app.
+ *
+ * Call ONCE when the app links (and again only if the geometry table itself is
+ * replaced — e.g. an OTA that re-cuts the lattice). Anatomy is a fixed property
+ * of a socket, so it is sent here rather than repeated in every status change;
+ * after this the app resolves any socket id to a place on its own, and each
+ * insertion or removal costs three bytes.
+ *
+ * Requires np_zone_notify_init() to have bound a transmit path first.
+ * Returns whatever the encoder returns (NP_ZA_OK on success).
+ */
+np_za_status_t np_za_publish_socket_map(void);
+
 /* ── While-worn audio cue ───────────────────────────────────────────────────── */
 
 /*
