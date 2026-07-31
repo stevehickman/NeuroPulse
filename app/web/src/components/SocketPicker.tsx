@@ -3,38 +3,58 @@
 // Uses the unrolled-helmet map drawn in the Module redesign study
 // (widget `hexagonal_zone_module_helmet_layout`, PR #207 / NP-HEX-ZM-001):
 // front at the top, occiput at the bottom, dashed midline, L/R hemispheres,
-// hexagonal tiles coloured by lobe group, ear/audio and neck zones marked as
-// excluded, and each tile labelled with its socket (major) address.
+// hexagonal tiles, ear/audio and neck zones marked as excluded, and each tile
+// labelled with its socket (major) address.
 //
 // Carried over verbatim from that widget: the unrolled ellipse framing, the
 // FRONT/BACK and L/R annotations, the dashed midline, the excluded ear/audio
-// arcs and neck-attach label, the `S-NN` address labels, and the lobe palette
-// (frontal #3b82f6, temporal #f59e0b, parietal #10b981, occipital #8b5cf6).
+// arcs and neck-attach label, and the `S-NN` address labels.
+//
+// ── Tiles are coloured by ZONE, not by lobe (ZONE-1, 2026-07-30) ─────────────
+//
+// The picker used to colour tiles from a `lobe` field on the generated socket
+// map, against a four-entry palette. That field is gone: nothing in this repo
+// defines, derives or hardcodes a brain lobe, and zones are defined only in
+// protocols/predefined/00-zones.npps.
+//
+// Colouring from the zone namespace instead is strictly better for the operator,
+// which is the SMART-1 research-flexibility rationale: the picker now shows
+// EVERY zone the helmet has loaded — the shipped ones, plus any user-authored or
+// research zone in any .npps file in the protocol tree. Under the old model a
+// research zone was invisible here no matter how it was authored, because it was
+// not one of four hardcoded lobes.
+//
+// A socket usually belongs to several zones at once ("All" contains everything,
+// and membership is inclusive by PR #210). Its colour comes from the SMALLEST
+// zone containing it — the most specific thing true of that socket — with ties
+// broken by name so the map is stable across reloads. The tooltip lists every
+// zone the socket is in, so the broader memberships stay discoverable.
 //
 // NOT carried over: that widget generated its own cells by scanning a hex
 // lattice inside the ellipse. Tile positions here come from
-// socketMap.generated.ts (derived from the row structure that reproduces all
-// eight lobe zones in 00-zones.npps) rather than from the widget's lattice
-// scan. Lobe colour comes from that same validated map, not from the widget's
-// positional thresholds.
-//
-// Worth recording: the widget's scan yielded ~29 tiles at 40 mm and was
-// overridden by a 78-socket lattice. The scan was right — 40 mm tiles over the
-// vault hold 30 (NP-HEX-ZM-001 §3) — and the lattice is now derived from that
-// arithmetic. Nothing here hardcodes a count; NP_SOCKETS is the source.
+// socketMap.generated.ts. Nothing here hardcodes a count; NP_SOCKETS is the
+// source.
 //
 // Positions remain PROVISIONAL pending shell CAD — see the note in
 // socketMap.generated.ts. Selection and eligibility never depend on them.
 
 import { useMemo } from 'react';
-import { NP_SOCKETS, type NPSocketGeometry, type NPLobe } from '../lib/socketMap.generated';
+import { NP_SOCKETS, type NPSocketGeometry } from '../lib/socketMap.generated';
 import { NP_SOCKET_COUNT } from '../lib/socketSet';
 import type { NPHelmetInventory, NPElementType } from '../lib/helmetInventory';
+import type { NPZoneDefinition } from '../types/protocol';
 
 interface SocketPickerProps {
   selected: ReadonlySet<number>;
   onToggle: (socketId: number) => void;
   inventory: NPHelmetInventory | null;
+  /**
+   * Every zone in the loaded namespace — shipped, user-authored and research
+   * zones alike. Drives the tile colouring and the legend. An empty map is
+   * legitimate (the namespace loads asynchronously); the map then renders
+   * uncoloured rather than failing.
+   */
+  zones: ReadonlyMap<string, NPZoneDefinition>;
   /**
    * When set, sockets whose fitted module cannot supply these elements are
    * marked — they stay selectable, since a zone may legitimately span sockets
@@ -43,20 +63,22 @@ interface SocketPickerProps {
   requiredElements?: readonly NPElementType[][];
 }
 
-/** Lobe palette, verbatim from the Module redesign layout widget. */
-const LOBE_COLOR: Record<NPLobe, string> = {
-  frontal: '#3b82f6',
-  temporal: '#f59e0b',
-  parietal: '#10b981',
-  occipital: '#8b5cf6',
-};
+/**
+ * Qualitative palette, assigned to zones in display order. The first four are
+ * the Module redesign layout widget's original swatches, kept so the shipped
+ * zones look familiar; the rest extend it far enough that a protocol tree with
+ * many user zones still reads. It cycles if a helmet somehow loads more zones
+ * than there are entries — repeating a hue is a cosmetic collision, not a
+ * correctness problem, and the legend disambiguates by name.
+ */
+const ZONE_PALETTE = [
+  '#3b82f6', '#f59e0b', '#10b981', '#8b5cf6',
+  '#ef4444', '#06b6d4', '#ec4899', '#84cc16',
+  '#f97316', '#6366f1', '#14b8a6', '#a855f7',
+];
 
-const LOBE_LABEL: Record<NPLobe, string> = {
-  frontal: 'Frontal L/R',
-  temporal: 'Temporal L/R',
-  parietal: 'Parietal L/R',
-  occipital: 'Occipital L/R',
-};
+/** Colour used when a socket is in no loaded zone at all. */
+const UNZONED_COLOR = '#94a3b8';
 
 // Unit-lattice → SVG. The map is pointy-top hex packing: horizontal pitch 1
 // unit, vertical pitch sqrt(3)/2, which is what socketMap.generated.ts emits.
@@ -74,7 +96,55 @@ function hexPoints(cx: number, cy: number, r: number): string {
   return pts.join(' ');
 }
 
-export function SocketPicker({ selected, onToggle, inventory, requiredElements }: SocketPickerProps) {
+export interface ZoneGrouping {
+  /** Colour per zone name, for the legend and the tiles. */
+  colorOf: ReadonlyMap<string, string>;
+  /** Most specific zone containing each socket, or undefined if it is in none. */
+  primaryOf: ReadonlyMap<number, string>;
+  /** Every zone containing each socket, smallest first — for the tooltip. */
+  membershipOf: ReadonlyMap<number, string[]>;
+  /** Zones that are the primary zone of at least one socket, in display order. */
+  legend: string[];
+}
+
+/**
+ * Assign each socket the smallest zone that contains it.
+ *
+ * Smallest wins because it is the most specific true statement about the socket:
+ * every socket is in "All", so colouring by any larger zone would paint the
+ * whole helmet one colour. Ties break on name so the map does not shuffle
+ * between reloads when two zones have equal size.
+ */
+export function groupByZone(zones: ReadonlyMap<string, NPZoneDefinition>): ZoneGrouping {
+  const byName = [...zones.values()].sort((a, b) => a.name.localeCompare(b.name));
+
+  const colorOf = new Map<string, string>();
+  byName.forEach((z, i) => colorOf.set(z.name, ZONE_PALETTE[i % ZONE_PALETTE.length]));
+
+  // Smallest-first, then by name — one pass, and the first zone to claim a
+  // socket is by construction its most specific one.
+  const bySpecificity = [...byName].sort(
+    (a, b) => a.sockets.length - b.sockets.length || a.name.localeCompare(b.name),
+  );
+
+  const primaryOf = new Map<number, string>();
+  const membershipOf = new Map<number, string[]>();
+  for (const zone of bySpecificity) {
+    for (const id of zone.sockets) {
+      if (!primaryOf.has(id)) primaryOf.set(id, zone.name);
+      membershipOf.set(id, [...(membershipOf.get(id) ?? []), zone.name]);
+    }
+  }
+
+  const claimed = new Set(primaryOf.values());
+  const legend = byName.map(z => z.name).filter(n => claimed.has(n));
+
+  return { colorOf, primaryOf, membershipOf, legend };
+}
+
+export function SocketPicker({
+  selected, onToggle, inventory, zones, requiredElements,
+}: SocketPickerProps) {
   const { width, height, cells, midX } = useMemo(() => {
     const xs = NP_SOCKETS.map(s => s.x);
     const minX = Math.min(...xs);
@@ -95,6 +165,16 @@ export function SocketPicker({ selected, onToggle, inventory, requiredElements }
     };
   }, []);
 
+  const { colorOf, primaryOf, membershipOf, legend } = useMemo(
+    () => groupByZone(zones),
+    [zones],
+  );
+
+  function colorFor(socketId: number): string {
+    const primary = primaryOf.get(socketId);
+    return primary ? colorOf.get(primary)! : UNZONED_COLOR;
+  }
+
   function statusOf(socket: NPSocketGeometry): 'empty' | 'incompatible' | 'fitted' {
     const entry = inventory?.at(socket.id);
     if (!entry?.present) return 'empty';
@@ -105,18 +185,27 @@ export function SocketPicker({ selected, onToggle, inventory, requiredElements }
   return (
     <div className="socket-picker">
       <div className="socket-picker-legend">
-        {(Object.keys(LOBE_COLOR) as NPLobe[]).map(lobe => (
-          <span key={lobe}>
-            <i className="swatch" style={{ background: LOBE_COLOR[lobe], opacity: 0.45, border: `2px solid ${LOBE_COLOR[lobe]}` }} />
-            {LOBE_LABEL[lobe]}
+        {legend.map(name => (
+          <span key={name}>
+            <i
+              className="swatch"
+              style={{
+                background: colorOf.get(name),
+                opacity: 0.45,
+                border: `2px solid ${colorOf.get(name)}`,
+              }}
+            />
+            {name}
           </span>
         ))}
-        <span className="socket-picker-legend-note">S-NN = socket (major address) · L/R split at midline</span>
+        <span className="socket-picker-legend-note">
+          S-NN = socket (major address) · tile colour = smallest zone containing it
+        </span>
       </div>
 
       <div className="socket-picker-scroll">
         <svg viewBox={`0 0 ${width} ${height}`} width={width} role="img" className="socket-picker-svg">
-          <title>Unrolled helmet interior — {NP_SOCKET_COUNT} sockets by lobe group</title>
+          <title>Unrolled helmet interior — {NP_SOCKET_COUNT} sockets by zone</title>
 
           {/* Unrolled-map framing, as in the Module redesign widget. */}
           <text x={midX} y={20} textAnchor="middle" className="map-axis">FRONT</text>
@@ -138,8 +227,9 @@ export function SocketPicker({ selected, onToggle, inventory, requiredElements }
           {cells.map(({ socket, cx, cy }) => {
             const isSelected = selected.has(socket.id);
             const status = statusOf(socket);
-            const color = LOBE_COLOR[socket.lobe];
+            const color = colorFor(socket.id);
             const fitted = inventory?.at(socket.id);
+            const memberOf = membershipOf.get(socket.id) ?? [];
 
             return (
               <g
@@ -157,17 +247,19 @@ export function SocketPicker({ selected, onToggle, inventory, requiredElements }
                 }}
               >
                 <title>
-                  {`Socket ${socket.id} — ${socket.lobe} ${socket.side}\n` +
+                  {`Socket ${socket.id} — ${socket.side}\n` +
+                    `Zones: ${memberOf.length > 0 ? memberOf.join(', ') : 'none'}\n` +
                     (fitted?.present ? `Fitted: ${fitted.partNumber}` : 'Empty') +
                     (status === 'incompatible' ? '\nDoes not supply the required elements' : '')}
                 </title>
                 <polygon
                   points={hexPoints(cx, cy, HEX_R - 2)}
-                  fill={isSelected ? color : color}
+                  fill={color}
                   fillOpacity={isSelected ? 0.85 : status === 'empty' ? 0.07 : 0.2}
                   stroke={color}
                   strokeWidth={isSelected ? 3.5 : 2}
-                  /* Midline sockets belong to BOTH hemisphere zones — dashed so
+                  /* Midline sockets sit on the centre column and so are listed in
+                     both the left- and right-side zone they belong to — dashed so
                      the double membership is visible rather than surprising. */
                   strokeDasharray={socket.side === 'midline' ? '4 3' : undefined}
                 />
@@ -185,10 +277,13 @@ export function SocketPicker({ selected, onToggle, inventory, requiredElements }
 
       <div className="socket-picker-caption">
         Unrolled interior map from the Module redesign study — front at top, occiput at bottom,
-        dashed midline, tiles coloured by lobe. Dashed outlines are midline sockets, which belong
-        to both hemisphere zones. Amber dot = fitted module cannot supply the selected modality.
-        Tile <em>positions</em> are provisional pending shell CAD; socket identity and lobe grouping
-        are derived from the shipped zone definitions.
+        dashed midline. Each tile is coloured by the smallest zone that contains it, from the
+        zones loaded out of the .npps protocol tree, so user-defined and research zones appear
+        here alongside the shipped ones; hover a tile for its full zone membership. Dashed
+        outlines are midline sockets, which the zone file lists in both the left- and right-side
+        zone they belong to. Amber dot = fitted module cannot supply the selected modality.
+        Tile <em>positions</em> are provisional pending shell CAD; socket identity is from the
+        generated lattice and zone membership is from the zone file.
       </div>
     </div>
   );

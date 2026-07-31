@@ -155,16 +155,16 @@ The centre viewport takes up the majority of the screen. The left and right pane
 
 ### 5.1 Zone Modules
 
-The helmet tiles its interior with ~80 identical hex-tile PBM sockets (NP-HEX-ZM-001) — there is no fixed 5-slot module architecture. A **zone** is a named set of sockets, defined in `protocols/predefined/00-zones.npps` and read directly from that file by the simulator's data generator (`scripts/generate-simulator-data.ts`). Sockets can belong to more than one zone — a midline socket belongs to both hemisphere zones of its lobe.
+The helmet tiles its interior with ~80 identical hex-tile PBM sockets (NP-HEX-ZM-001) — there is no fixed 5-slot module architecture. A **zone** is a named set of sockets, defined in `protocols/predefined/00-zones.npps` and read directly from that file by the simulator's data generator (`scripts/generate-simulator-data.ts`). Sockets can belong to more than one zone — a midline socket is listed in both the left- and the right-side zone it belongs to.
 
 The Zone Modules panel lists the predefined zones from `00-zones.npps`:
 
 | Zone name | Coverage |
 |-----------|----------|
-| Frontal Left / Frontal Right | Frontal lobe, anterior to the central sulcus, by hemisphere |
+| Frontal Left / Frontal Right | Anterior to the central sulcus, by hemisphere (named for the frontal lobe) |
 | Temporal Left / Temporal Right | Lateral temporal band, by hemisphere |
-| Parietal Left / Parietal Right | Parietal lobe, by hemisphere |
-| Occipital Left / Occipital Right | Occipital lobe (incl. Oz), by hemisphere |
+| Parietal Left / Parietal Right | By hemisphere (named for the parietal lobe) |
+| Occipital Left / Occipital Right | By hemisphere, incl. Oz (named for the occipital lobe) |
 | Frontal | Union of Frontal Left + Frontal Right |
 | Posterior | Union of Parietal + Occipital (both hemispheres) |
 | Vault (excl. Occipital) | Union of Frontal + Temporal + Parietal — the "whole-head" PBM evidence site list |
@@ -212,7 +212,7 @@ Different zones can be set to different frequencies for split-zone protocols.
 
 #### Overlapping Zones
 
-Sockets are frequently claimed by more than one zone at once — not just incidentally (a midline socket belongs to both hemisphere zones of its lobe), but by design: "Frontal", "Vault (excl. Occipital)", and "All" are deliberately built as unions of the more specific zones, and "Motor / SMA" is a subset of "Frontal" that also straddles "Frontal Left" and "Frontal Right". When two or more currently-installed zones claim the same socket, the simulator resolves the conflict with this rule:
+Sockets are frequently claimed by more than one zone at once — not just incidentally (a midline socket is listed in both the left- and the right-side zone it belongs to), but by design: "Frontal", "Vault (excl. Occipital)", and "All" are deliberately built as unions of the more specific zones, and "Motor / SMA" is a subset of "Frontal" that also straddles "Frontal Left" and "Frontal Right". When two or more currently-installed zones claim the same socket, the simulator resolves the conflict with this rule:
 
 1. **If one zone is a proper subset of another** (every socket in the smaller zone is also in the larger one), **the subset zone's settings win for every socket it contains** — regardless of which zone was toggled on more recently. The containing zone's settings only apply to the sockets it has that the subset zone doesn't. This nests through a chain of zones: for a socket in "Motor / SMA", "Frontal", "Vault (excl. Occipital)", and "All" all at once, "Motor / SMA" always wins, because it's the most specific of the four.
 2. **Otherwise** — a true overlap where neither zone's sockets contain the other's (e.g. "Motor / SMA" and "Frontal Left" both include socket 26–28, but neither zone contains the other) — **whichever zone was selected more recently wins** for the shared sockets. "Selected" means toggled on, or reconfigured (wavelength/frequency changed) while already on.

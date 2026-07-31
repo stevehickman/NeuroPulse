@@ -5,9 +5,11 @@
 //
 // Rev B (2026-07-17): zones are no longer fixed hardware indices. A zone is a
 // NAMED SET OF MODULES, defined by a top-level `zone` block and referenced by
-// name from protocol modality blocks. Eight predefined lobe zones ship with the
-// app (L/R × frontal/temporal/parietal/occipital), matching the firmware
-// np_module_map predefined groups; users may define their own. Added top-level
+// name from protocol modality blocks. A set of predefined zones ships with the
+// app in 00-zones.npps; users may define their own in any .npps file. Nothing in
+// the grammar or the toolchain knows what a zone MEANS — several shipped zones
+// are named after brain lobes, but that is authored data, not a concept the
+// system models (ZONE-1, NP-HEX-ZM-001 §3.3). Added top-level
 // `condition` blocks (condition name → external reference link) and protocol
 // `conditions` / `references` fields. All loaded files share ONE namespace
 // (see NP-NPPS-REF-001 §1.6): a zone or condition defined in any file under the
@@ -111,7 +113,8 @@ LayerField
 // arbitrary, non-contiguous zones definable:
 //   sockets: [int, ...]      → the modules (by socket id) in this zone
 // Optional element-type filter: types: [<elem-type>, ...] with exclude_types.
-// The eight predefined lobe zones ship as socket lists in 00-zones.npps.
+// The predefined zones ship as socket lists in 00-zones.npps — that file is the
+// only place a zone is defined.
 
 ZoneEntry
   = "zone" __ name:StringLiteral _ "{" _ fields:ZoneField* _ "}" _

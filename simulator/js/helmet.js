@@ -68,7 +68,7 @@ export class HelmetModel {
    * Install/remove modules across every socket belonging to a named zone
    * (see protocols/predefined/00-zones.npps). Sockets are frequently shared
    * by more than one zone — not just incidentally (midline sockets belong to
-   * both hemisphere zones of their lobe) but by design: aggregate zones like
+   * both the left- and right-side zone that lists them) but by design: aggregate zones like
    * "Frontal", "Vault (excl. Occipital)", and "All" are deliberately built as
    * unions of the more specific zones, and "Motor / SMA" is a subset of
    * "Frontal" that also straddles "Frontal Left" and "Frontal Right".
@@ -475,7 +475,6 @@ export class HelmetModel {
 
       this.sockets[cfg.id] = {
         mesh,
-        lobe: cfg.lobe,
         side: cfg.side,
         installed: false,
         wavelengths: [],

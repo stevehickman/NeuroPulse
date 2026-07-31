@@ -261,7 +261,7 @@ function generateSockets() {
       const c = toSpherical(s.x + dx, s.y + dy, yCrown, angularScale);
       return { phi: c.phi, theta: c.theta };
     });
-    return { id: s.id, lobe: s.lobe, side: s.side, row: s.row, phi, theta, corners };
+    return { id: s.id, side: s.side, row: s.row, phi, theta, corners };
   });
   console.log(`  Sockets: ${sockets.length}, max theta = ${(thetaMax / Math.PI).toFixed(3)}π`);
   return { sockets };

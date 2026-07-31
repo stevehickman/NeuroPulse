@@ -107,7 +107,8 @@ describe('toSocketSet', () => {
 
 describe('unionSockets', () => {
   it('counts a socket shared by two lists once', () => {
-    // This is the midline case: a socket in both hemisphere zones of its lobe.
+    // This is the midline case: a socket the zone file lists in both a
+    // left-side and a right-side zone.
     expect(unionSockets([1, 2, 3], [3, 4])).toEqual([1, 2, 3, 4]);
   });
 

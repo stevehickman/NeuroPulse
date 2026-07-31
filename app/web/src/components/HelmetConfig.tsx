@@ -48,7 +48,7 @@ const PRESETS: Array<{ id: NPInventoryPreset; label: string }> = [
   { id: 'full-t2', label: 'T2 — fully fitted' },
   { id: 'pbm-only', label: 'PBM modules only' },
   { id: 'eeg-only', label: 'EEG modules only' },
-  { id: 'partial-frontal', label: 'Frontal band only' },
+  { id: 'partial-anterior', label: 'Anterior rows only' },
   { id: 'none', label: 'No helmet connected' },
 ];
 
@@ -146,6 +146,7 @@ export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
               conditionRegistry={conditionRegistry}
               eligibility={eligibility}
               inventory={inventory}
+              zones={zones}
               targetedSockets={targeting[entryName(entry)] ?? []}
               // Toggle by id, resolved against `prev` inside the setter. Passing
               // a precomputed array would read a stale `targetedSockets` when
@@ -213,7 +214,7 @@ function InventoryPane({
 // ─── Protocol row ──────────────────────────────────────────────────────────────
 
 function ProtocolRow({
-  entry, conditions, conditionRegistry, eligibility, inventory,
+  entry, conditions, conditionRegistry, eligibility, inventory, zones,
   targetedSockets, onToggleSocket, expanded, onSelect,
 }: {
   entry: NPProtocolEntry;
@@ -221,6 +222,7 @@ function ProtocolRow({
   conditionRegistry: ReadonlyMap<string, NPConditionDefinition>;
   eligibility: NPEligibility;
   inventory: NPHelmetInventory | null;
+  zones: ReadonlyMap<string, NPZoneDefinition>;
   targetedSockets: number[];
   onToggleSocket: (socketId: number) => void;
   expanded: boolean;
@@ -260,6 +262,7 @@ function ProtocolRow({
                 selected={new Set(unionSockets(targetedSockets))}
                 onToggle={onToggleSocket}
                 inventory={inventory}
+                zones={zones}
                 requiredElements={
                   MODALITY_REQUIREMENTS[eligibility.clinicianTargeted[0]]?.requires
                 }
@@ -370,6 +373,7 @@ function ZonePane({
         <ZoneEditor
           existingNames={new Set(zones.keys())}
           inventory={inventory}
+          zones={zones}
           modality={modality}
           onDone={() => setEditing(false)}
         />
@@ -388,10 +392,11 @@ function ZonePane({
  * invariant true by construction.
  */
 function ZoneEditor({
-  existingNames, inventory, modality, onDone,
+  existingNames, inventory, zones, modality, onDone,
 }: {
   existingNames: ReadonlySet<string>;
   inventory: NPHelmetInventory | null;
+  zones: ReadonlyMap<string, NPZoneDefinition>;
   modality: NPModalityTypeId;
   onDone: () => void;
 }) {
@@ -458,6 +463,7 @@ function ZoneEditor({
         selected={selected}
         onToggle={toggle}
         inventory={inventory}
+        zones={zones}
         requiredElements={MODALITY_REQUIREMENTS[modality].requires}
       />
 
