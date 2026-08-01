@@ -236,7 +236,69 @@ const SEMI_AXIS_VERTICAL_MM = RIM_TO_CROWN_MM;
  * Satisfies the ellipsoid equation identically:
  *   cos²t + sin²t·sin²u + sin²t·cos²u = cos²t + sin²t = 1
  */
+// ── The measured interior surface ────────────────────────────────────────────
+//
+// Socket positions come from the LiDAR interior scan, not from the ellipsoid.
+// `hardware/np_helmet_surface.json` holds radius as a function of direction,
+// sampled from cad/HelmetScan.3dm and expressed in these same body axes; see
+// scripts/extract-helmet-surface.ts for how it is segmented and framed.
+//
+// The ellipsoid survives ONLY as a parametrisation — a way to sweep directions
+// smoothly and evenly across the vault. It no longer supplies any distance. Each
+// direction it generates is looked up in the measured table and given the radius
+// the real helmet has there.
+
+interface HelmetSurface {
+  sampling: { azimuthStepDeg: number; elevationStepDeg: number;
+              measuredCells: number; interpolatedCells: number };
+  radiusMm: Record<string, { r: number; n: number; measured: boolean }>;
+}
+const SURFACE: HelmetSurface = JSON.parse(
+  readFileSync(join(ROOT, "hardware/np_helmet_surface.json"), "utf8"),
+);
+
+/**
+ * Measured radius, millimetres, in the given direction — bilinear over the
+ * sampled grid. Azimuth 0 is forward and +90 is right; elevation 0 is the rim
+ * plane and 90 the crown, matching the extractor's convention.
+ */
+function measuredRadius(dx: number, dy: number, dz: number): number {
+  const horiz = Math.hypot(dx, dy);
+  const azDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const elDeg = Math.max(0, Math.min(90, (Math.atan2(-dz, horiz) * 180) / Math.PI));
+  const { azimuthStepDeg: A, elevationStepDeg: E } = SURFACE.sampling;
+
+  const a0 = Math.floor(azDeg / A) * A, e0 = Math.floor(elDeg / E) * E;
+  const fa = (azDeg - a0) / A, fe = (elDeg - e0) / E;
+  const wrap = (a: number) => (((a + 180) % 360) + 360) % 360 - 180;
+  const at = (a: number, e: number) =>
+    SURFACE.radiusMm[`${wrap(a)},${Math.min(90, e)}`]?.r ??
+    SURFACE.radiusMm[`${wrap(a)},${Math.min(90, Math.max(0, e - E))}`]?.r ?? 0;
+
+  const r00 = at(a0, e0), r10 = at(a0 + A, e0);
+  const r01 = at(a0, e0 + E), r11 = at(a0 + A, e0 + E);
+  return (r00 * (1 - fa) + r10 * fa) * (1 - fe) + (r01 * (1 - fa) + r11 * fa) * fe;
+}
+
+/**
+ * A point on the MEASURED interior surface.
+ *
+ *   t: 0 = front rim, PI/2 = crown, PI = back rim
+ *   u: 0 = midline, positive = right (+y)
+ *
+ * The (t, u) sweep is ellipsoidal; the RADIUS is the helmet's own.
+ */
 function surfacePoint(t: number, u: number): { x: number; y: number; z: number } {
+  const ex = SEMI_AXIS_FORE_AFT_MM * Math.cos(t);
+  const ey = SEMI_AXIS_LATERAL_MM * Math.sin(t) * Math.sin(u);
+  const ez = -SEMI_AXIS_VERTICAL_MM * Math.sin(t) * Math.cos(u);
+  const len = Math.hypot(ex, ey, ez) || 1;
+  const [dx, dy, dz] = [ex / len, ey / len, ez / len];
+  const r = measuredRadius(dx, dy, dz);
+  return { x: dx * r, y: dy * r, z: dz * r };
+}
+
+function ellipsoidPoint(t: number, u: number): { x: number; y: number; z: number } {
   return {
     x: SEMI_AXIS_FORE_AFT_MM * Math.cos(t),
     y: SEMI_AXIS_LATERAL_MM * Math.sin(t) * Math.sin(u),
@@ -377,13 +439,18 @@ function checkEllipsoid(sockets: SocketGeometry[]): string[] {
 
   for (const s of sockets) {
     const r =
-      (s.xMm / SEMI_AXIS_FORE_AFT_MM) ** 2 +
-      (s.yMm / SEMI_AXIS_LATERAL_MM) ** 2 +
-      (s.zMm / SEMI_AXIS_VERTICAL_MM) ** 2;
-    if (Math.abs(r - 1) > 1e-3) {
-      errors.push(
-        `socket ${s.id} at (${s.xMm}, ${s.yMm}, ${s.zMm}) is not on the ellipsoid ` +
-        `— x²/a²+y²/b²+z²/c² = ${r.toFixed(6)}, expected 1.`,
+      0; // (unused — the ellipsoid residual is no longer the invariant)
+    const rMeasured = measuredRadius(
+      s.xMm / Math.hypot(s.xMm, s.yMm, s.zMm),
+      s.yMm / Math.hypot(s.xMm, s.yMm, s.zMm),
+      s.zMm / Math.hypot(s.xMm, s.yMm, s.zMm),
+    );
+    const rActual = Math.hypot(s.xMm, s.yMm, s.zMm);
+    if (Math.abs(rActual - rMeasured) > 0.5) {
+      throw new Error(
+        `socket ${s.id} at (${s.xMm}, ${s.yMm}, ${s.zMm}) is ${rActual.toFixed(1)} mm ` +
+        `from the origin but the measured surface is ${rMeasured.toFixed(1)} mm in that ` +
+        `direction. Positions must lie ON the scanned interior, not near it.`,
       );
     }
     if (s.zMm > 0) {
