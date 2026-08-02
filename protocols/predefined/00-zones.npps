@@ -93,8 +93,16 @@
 #
 # The consequence that matters in practice: center-column (midline) sockets
 # straddle the hemispheres, so each belongs to BOTH the Left and the Right zone of
-# its lobe. They are 2, 13, 29, 46, 62 and 74. Under a strict-equality side test
-# they would drop out of all eight lobe zones entirely.
+# its lobe. They are 2, 13, 29, 46, 62 and 74 -- six of the 80 sockets, because
+# only ODD-width rows have a centre socket (alternate rows are offset by half a
+# module). Under a strict-equality side test they would drop out of all eight lobe
+# zones entirely.
+#
+# Note "its lobe" above is shorthand for "the zone its author named after a lobe".
+# Per ZONE-1 (NP-HEX-ZM-001 3.3) a lobe is not a system concept: no code defines,
+# derives or hardcodes one, and every zone below is a hand-authored socket list.
+# The rule is about ZONE membership generally; lobes are just what most of the
+# shipped zones happen to be named after.
 #
 # DIS-INCLUDE: a protocol dis-includes a socket by OMITTING it from the list — i.e.
 # by authoring a narrower zone. There is no exclusion list, because none is needed:

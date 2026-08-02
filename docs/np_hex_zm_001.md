@@ -401,9 +401,13 @@ Cortex-M7 `-Werror` clean; CI test #12). Summary:
   > `np_socket_geom_t` and `np_physical_loc_t` — the fields went too, because the
   > ungenerated anatomical store was the hazard and the query kind was merely the one
   > path that read it. `x_mm`/`y_mm` are retained (simulator selection; metric
-  > geometry does not go stale on a zone re-cut). Anatomical labelling of a socket id
-  > is now an app-side lookup against `app/web/src/lib/socketMap.generated.ts`, which
-  > *does* have a generator that fails the build on drift from the zone file.
+  > geometry does not go stale on a zone re-cut). Anatomical labelling has no home in
+  > code at all — **ZONE-1** (§3.3) deleted the lobe derivation from
+  > `sync-socket-map.ts` and the `lobe` field from `socketMap.generated.ts`, so a
+  > socket is "frontal" only insofar as a human authored it into a zone named that
+  > way in `00-zones.npps`. ZONE-1 names this firmware removal as its firmware share.
+  > (`side` survives app-side as lattice structure — midline parity is a re-tool-only
+  > hardware fact — and is absent here only for want of a firmware caller.)
   > Resolver properties that had been demonstrated via the lobe path (dedup, type
   > include/exclude, mask-0, overflow, inclusive-midline membership) were
   > re-expressed over `NP_GROUP_KIND_SOCKET_SET`, not dropped.

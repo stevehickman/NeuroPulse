@@ -65,12 +65,19 @@
  * elements, resolving against it is a WRONG-SITE STIMULATION path, not a
  * data-quality issue.
  *
- * WHERE LOBE/SIDE LIVE NOW: protocols/predefined/00-zones.npps is the source of
- * truth for zone membership, and app/web/src/lib/socketMap.generated.ts is its
- * generated per-socket view carrying `lobe` and `side`. That generator re-derives
- * all eight lobe zones from the lattice and FAILS THE BUILD if they stop matching
- * the zone file — the sync guarantee firmware never had. Anatomical labelling of a
- * socket id is therefore an app-side lookup.
+ * WHERE LOBE/SIDE LIVE NOW: nowhere in code — that is the point (ZONE-1,
+ * NP-HEX-ZM-001 §3.3, which names this firmware removal as its firmware share).
+ * protocols/predefined/00-zones.npps is the SOLE definition of every zone, and each
+ * zone carries its own human-authored `sockets:` list. A zone whose socket set
+ * happens to correspond to a brain lobe is a property of how its author chose and
+ * named that set, not a concept any code models. `lobe` is not a field anywhere:
+ * scripts/sync-socket-map.ts derives none, and it left socketMap.generated.ts too.
+ *
+ * `side` does survive in socketMap.generated.ts, and is a different kind of thing:
+ * midline parity is LATTICE STRUCTURE — which column a socket sits in — a hardware
+ * fact that changes only on an inner-bowl re-tool, exactly like row/col/x/y. It is
+ * absent HERE only because no firmware caller needs it once membership arrives as a
+ * socket list, not because it would fail the §4.5.1 discriminator.
  *
  * HOW ZONES REACH FIRMWARE: the app compiles the zone's socket list into an
  * NP_PROTO_TARGET_SOCKET_MASK bitmap (NP Hub Protocol v2), and firmware expands
@@ -201,9 +208,9 @@ typedef enum {
 /* Bit for a type in a type-filter mask (uint64_t). */
 #define NP_ELEM_BIT(t)  ((uint64_t)1u << (unsigned)(t))
 
-/* np_lobe_t / np_side_t were removed with the lobe path (OI-HUB-C14). Lobe and
- * hemisphere are app-side attributes of a socket id, read from
- * app/web/src/lib/socketMap.generated.ts. See the ANATOMICAL LABELLING note above. */
+/* np_lobe_t / np_side_t were removed with the lobe path (OI-HUB-C14). There is no
+ * lobe type anywhere in the system (ZONE-1); hemisphere is app-side lattice
+ * structure in socketMap.generated.ts. See the ANATOMICAL LABELLING note above. */
 
 /* ── Two-level address ────────────────────────────────────────────────────── */
 
@@ -298,9 +305,9 @@ typedef struct {
 } np_socket_geom_t;
 
 /* ── Physical resolution result ───────────────────────────────────────────────
- * Metric + element type. A caller that needs a human-readable anatomical label
- * for the socket looks it up app-side against socketMap.generated.ts — firmware
- * does not report one (OI-HUB-C14). */
+ * Metric + element type. Firmware reports no anatomical label (OI-HUB-C14) — and
+ * no other layer synthesises one either: a socket is "frontal" only insofar as a
+ * human put it in a zone they named that way, in 00-zones.npps (ZONE-1). */
 
 typedef struct {
     int16_t        x_mm;
