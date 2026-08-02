@@ -1111,6 +1111,48 @@ function geometryFields() {
  * membership is the opposite: authored, versioned with the app, and meaningless
  * to the device.
  */
+/**
+ * SwiftLint's line_length warning threshold for app/ios (see .swiftlint.yml).
+ * CI runs `swiftlint --strict`, so a warning fails the build — generated Swift
+ * has to clear this exactly like hand-written source does.
+ */
+const SWIFT_MAX_LINE = 140;
+
+/**
+ * Fail the generator if anything it emits would fail the linter.
+ *
+ * The alternative — excluding generated files in .swiftlint.yml — would also
+ * switch off the custom ISC-8 (no print) and ISC-9 (no hardcoded URLs/keys)
+ * rules for this file, and those are worth keeping pointed at generated output.
+ * Checking here means a future emitter change surfaces in the generator run
+ * rather than three steps later in CI.
+ */
+function assertSwiftLintClean(source: string, path: string): void {
+  // A length-only check let an emitter bug through once: the array items were
+  // joined with spaces and no commas, which is short, lint-clean and not Swift.
+  const items = source.match(/"[^"\n]*"\s+"/g);
+  if (items !== null) {
+    throw new Error(
+      `${path} has ${items.length} adjacent string literal(s) with no comma ` +
+      `between them — the array wrapper dropped its separators. First: ${items[0]}`,
+    );
+  }
+
+  const overlong = source.split("\n")
+    .map((line, i) => ({ n: i + 1, len: line.length, line }))
+    .filter(l => l.len > SWIFT_MAX_LINE);
+  if (overlong.length > 0) {
+    const shown = overlong.slice(0, 5)
+      .map(l => `    line ${l.n}: ${l.len} chars — ${l.line.slice(0, 60)}...`)
+      .join("\n");
+    throw new Error(
+      `${path} has ${overlong.length} line(s) over SwiftLint's ${SWIFT_MAX_LINE}-char ` +
+      `limit, and CI runs \`swiftlint --strict\` so a warning fails the build:\n${shown}\n` +
+      `Fix the emitter's wrapping — do not exclude the file from linting.`,
+    );
+  }
+}
+
 function emitSwiftZones(
   sockets: SocketGeometry[], zones: Map<string, number[]>,
 ): string {
@@ -1119,13 +1161,50 @@ function emitSwiftZones(
   // "Motor / SMA" (7) is described by that rather than by "Frontal Left" (20).
   const bySize = [...zones.entries()].sort((a, b) => a[1].length - b[1].length);
 
+  // Emitted Swift has to pass `swiftlint --strict` like hand-written source —
+  // the app lints its whole source tree and generated files are not carved out
+  // (which also keeps the ISC-8/9 security rules applying to whatever this
+  // emits). line_length warns at 140, and a socket in six zones blows past that
+  // on one line, so entries wrap.
   const rows = sockets.map(s => {
     const all = bySize.filter(([, ids]) => ids.includes(s.id)).map(([n]) => n);
     const primary = all[0] ?? null;
-    const list = all.map(n => JSON.stringify(n)).join(", ");
-    return `    ${s.id}: SocketZoneEntry(` +
-      `primary: ${primary === null ? "nil" : JSON.stringify(primary)}, ` +
-      `all: [${list}]),`;
+    const head = `    ${s.id}: SocketZoneEntry(`;
+    const primaryArg = `primary: ${primary === null ? "nil" : JSON.stringify(primary)}`;
+    const items = all.map(n => JSON.stringify(n));
+
+    // One line when it fits, which keeps the common short cases readable.
+    const oneLine = `${head}${primaryArg}, all: [${items.join(", ")}]),`;
+    if (oneLine.length <= SWIFT_MAX_LINE) { return oneLine; }
+
+    // Otherwise: argument per line, and the array itself greedily wrapped to the
+    // same budget rather than one element per line, which would be unreadable
+    // for a socket in six zones.
+    const indent = "            ";
+    const wrapped: string[] = [];
+    let line = "";
+    for (const item of items) {
+      // Comma travels WITH the item — building the line without it and adding
+      // separators later is how the first cut of this emitted a Swift array of
+      // space-separated strings with no commas at all.
+      const piece = `${item},`;
+      const next = line === "" ? piece : `${line} ${piece}`;
+      if (`${indent}${next}`.length > SWIFT_MAX_LINE) {
+        wrapped.push(`${indent}${line}`);
+        line = piece;
+      } else {
+        line = next;
+      }
+    }
+    if (line !== "") { wrapped.push(`${indent}${line}`); }
+
+    return [
+      `    ${s.id}: SocketZoneEntry(`,
+      `        ${primaryArg},`,
+      `        all: [`,
+      ...wrapped,
+      `        ]),`,
+    ].join("\n");
   }).join("\n");
 
   return `${BANNER.replace(/^\/\*/, "/*").replace(/\/\/ /g, "// ")}
@@ -1353,6 +1432,10 @@ const outputs: Array<[string, string]> = [
   [TS_OUT, emitTypeScript(sockets)],
   [SWIFT_OUT, emitSwiftZones(sockets, parseZoneFile(readFileSync(ZONE_FILE, "utf-8")))],
 ];
+
+// Generated Swift is linted like any other source, so check it here rather than
+// discovering it in CI.
+assertSwiftLintClean(outputs.find(([p]) => p === SWIFT_OUT)![1], SWIFT_OUT);
 
 let stale = 0;
 for (const [path, content] of outputs) {

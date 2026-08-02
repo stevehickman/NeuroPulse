@@ -26,23 +26,55 @@ enum SocketZones {
     static let bySocket: [UInt8: SocketZoneEntry] = [
     1: SocketZoneEntry(primary: "Frontal Left", all: ["Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
     2: SocketZoneEntry(primary: "Frontal Left", all: ["Frontal Left", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
-    3: SocketZoneEntry(primary: "Frontal Right (excl. midline)", all: ["Frontal Right (excl. midline)", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
+    3: SocketZoneEntry(
+        primary: "Frontal Right (excl. midline)",
+        all: [
+            "Frontal Right (excl. midline)", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All",
+        ]),
     4: SocketZoneEntry(primary: "Frontal Left", all: ["Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
     5: SocketZoneEntry(primary: "Frontal Left", all: ["Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
-    6: SocketZoneEntry(primary: "Frontal Right (excl. midline)", all: ["Frontal Right (excl. midline)", "Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
+    6: SocketZoneEntry(
+        primary: "Frontal Right (excl. midline)",
+        all: [
+            "Frontal Right (excl. midline)", "Frontal Left", "Frontal", "Vault (excl. Occipital)", "All",
+        ]),
     7: SocketZoneEntry(primary: "Frontal Right", all: ["Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
     8: SocketZoneEntry(primary: "Frontal Right", all: ["Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
-    9: SocketZoneEntry(primary: "Frontal Right (excl. midline)", all: ["Frontal Right (excl. midline)", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
-    10: SocketZoneEntry(primary: "Frontal Right (excl. midline)", all: ["Frontal Right (excl. midline)", "Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
+    9: SocketZoneEntry(
+        primary: "Frontal Right (excl. midline)",
+        all: [
+            "Frontal Right (excl. midline)", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All",
+        ]),
+    10: SocketZoneEntry(
+        primary: "Frontal Right (excl. midline)",
+        all: [
+            "Frontal Right (excl. midline)", "Frontal Left", "Frontal", "Vault (excl. Occipital)", "All",
+        ]),
     11: SocketZoneEntry(primary: "Frontal Left", all: ["Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
     12: SocketZoneEntry(primary: "Frontal Left", all: ["Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
     13: SocketZoneEntry(primary: "Frontal Left", all: ["Frontal Left", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
-    14: SocketZoneEntry(primary: "Frontal Right (excl. midline)", all: ["Frontal Right (excl. midline)", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
-    15: SocketZoneEntry(primary: "Frontal Right (excl. midline)", all: ["Frontal Right (excl. midline)", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
+    14: SocketZoneEntry(
+        primary: "Frontal Right (excl. midline)",
+        all: [
+            "Frontal Right (excl. midline)", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All",
+        ]),
+    15: SocketZoneEntry(
+        primary: "Frontal Right (excl. midline)",
+        all: [
+            "Frontal Right (excl. midline)", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All",
+        ]),
     16: SocketZoneEntry(primary: "Frontal Right", all: ["Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
     17: SocketZoneEntry(primary: "Frontal Left", all: ["Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
-    18: SocketZoneEntry(primary: "Frontal Right (excl. midline)", all: ["Frontal Right (excl. midline)", "Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
-    19: SocketZoneEntry(primary: "Frontal Right (excl. midline)", all: ["Frontal Right (excl. midline)", "Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
+    18: SocketZoneEntry(
+        primary: "Frontal Right (excl. midline)",
+        all: [
+            "Frontal Right (excl. midline)", "Frontal Left", "Frontal", "Vault (excl. Occipital)", "All",
+        ]),
+    19: SocketZoneEntry(
+        primary: "Frontal Right (excl. midline)",
+        all: [
+            "Frontal Right (excl. midline)", "Frontal Left", "Frontal", "Vault (excl. Occipital)", "All",
+        ]),
     20: SocketZoneEntry(primary: "Frontal Left", all: ["Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
     21: SocketZoneEntry(primary: "Frontal Right", all: ["Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
     22: SocketZoneEntry(primary: "Frontal Right", all: ["Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
@@ -52,7 +84,11 @@ enum SocketZones {
     26: SocketZoneEntry(primary: "Motor / SMA", all: ["Motor / SMA", "Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
     27: SocketZoneEntry(primary: "Motor / SMA", all: ["Motor / SMA", "Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
     28: SocketZoneEntry(primary: "Motor / SMA", all: ["Motor / SMA", "Frontal Left", "Frontal", "Vault (excl. Occipital)", "All"]),
-    29: SocketZoneEntry(primary: "Motor / SMA", all: ["Motor / SMA", "Frontal Left", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
+    29: SocketZoneEntry(
+        primary: "Motor / SMA",
+        all: [
+            "Motor / SMA", "Frontal Left", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All",
+        ]),
     30: SocketZoneEntry(primary: "Motor / SMA", all: ["Motor / SMA", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
     31: SocketZoneEntry(primary: "Motor / SMA", all: ["Motor / SMA", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
     32: SocketZoneEntry(primary: "Motor / SMA", all: ["Motor / SMA", "Frontal Right", "Frontal", "Vault (excl. Occipital)", "All"]),
