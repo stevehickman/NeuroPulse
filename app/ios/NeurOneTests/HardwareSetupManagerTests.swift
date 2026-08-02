@@ -543,6 +543,23 @@ final class HardwareSetupManagerTests: XCTestCase {
     // deliver: seating a module requires the helmet off the head, so the cue is
     // spoken by this device instead (see ZoneModuleAnnouncer).
 
+    func testSpokenConfirmationLeadsWithZoneNotSocketNumber() {
+        // NP-HFE-002 §7.2 / HFE-R-07: raw socket numbers are never the primary
+        // form. A user following a spoken instruction navigates by zone and
+        // landmark; the id is a detail on screen.
+        let map = SocketMap([SocketDescriptor(
+            socketID: 12, position: SocketPosition(forwardMm: 0, rightMm: 0, downMm: -100),
+            isWiredInShell: true)])
+        let status = ZoneModuleStatus(socketID: 12, moduleType: .eeg,
+                                      isPresent: true, hasFault: false)
+        let said = map.spokenConfirmation(for: status)
+
+        if SocketZones.primaryZone(for: 12) != nil {
+            XCTAssertFalse(said.contains("12"),
+                           "a zoned socket must not lead with its raw id: \(said)")
+        }
+    }
+
     func testInsertionIsSpokenDuringZoneModuleStep() {
         let mock = MockSetupGATT()
         let spy = SpyAnnouncer()
@@ -555,11 +572,14 @@ final class HardwareSetupManagerTests: XCTestCase {
 
         XCTAssertEqual(spy.spoken.count, 1, "an insertion during the step is spoken")
         let said = spy.spoken[0]
-        XCTAssertTrue(said.contains("12"), "the spoken string names the socket: \(said)")
         // Socket 12 is in "Frontal Left" per 00-zones.npps. The zone — not a lobe
         // or a side from the wire — is what gives the socket a place name.
         XCTAssertTrue(said.localizedCaseInsensitiveContains("frontal"),
                       "the spoken string names the zone: \(said)")
+        // NP-HFE-002 §7.2 / HFE-R-07: the raw id is NOT the primary form. It stays
+        // on screen; it does not lead the utterance.
+        XCTAssertFalse(said.contains("12"),
+                       "a zoned socket must not be spoken by its raw id: \(said)")
     }
 
     func testInsertionIsNotSpokenOutsideZoneModuleStep() {
@@ -598,8 +618,6 @@ final class HardwareSetupManagerTests: XCTestCase {
         mock.pushZoneEvent(socketStatus(80))
 
         XCTAssertEqual(spy.spoken.count, 3, "one confirmation per insertion")
-        XCTAssertTrue(spy.spoken[1].contains("47"))
-        XCTAssertTrue(spy.spoken[2].contains("80"))
     }
 
     func testLeavingZoneStepCancelsSpeech() {

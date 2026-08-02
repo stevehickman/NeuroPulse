@@ -169,8 +169,16 @@ struct SocketMap: Equatable {
 
     /// Sentence the app speaks when a module seats. Names the type only when the
     /// hub could identify one.
+    /// What the screen reader says when a module seats.
+    ///
+    /// NP-HFE-002 §7.2: the ZONE leads and "raw socket numbers are never the
+    /// primary form; they are available on demand as a detail" (HFE-R-07). The
+    /// socket id stays on screen for anyone who wants it and is spoken only when
+    /// no authored zone names the socket — at which point the number is the only
+    /// handle there is, and silence would be worse.
     func spokenConfirmation(for status: ZoneModuleStatus) -> String {
-        let place = label(for: status.socketID)
+        let place = SocketZones.primaryZone(for: status.socketID)
+            ?? String(format: String(localized: "ZONE_SOCKET_LABEL"), Int(status.socketID))
         if let type = status.moduleType.displayName {
             return String(format: String(localized: "ZONE_ANNOUNCE_WITH_TYPE"), place, type)
         }
