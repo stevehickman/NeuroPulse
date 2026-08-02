@@ -819,13 +819,31 @@ CLUSTER-1's 7-hex flower):
 > | Output current | **~1.46 A** at 24 V (vs ~2.9 A at 12 V — halved, and I²R quartered) |
 > | Placement | Hub PCB or PAN — **open**, see below |
 >
-> Three consequences for Rev C: board area and a magnetics part that the Rev B hub never carried; a
-> ~5 % conversion loss (~1.8 W) added to the hub's own thermal load, which is *outside* the shielded
-> shell and fan-served, so it lands in the easier place; and a **placement question** — a boost at
-> the hub means 24 V crosses the parting-plane boss (lower current, better), while a boost at the PAN
-> keeps the high-voltage node off the tail at the cost of putting magnetics inside the envelope near
-> the fluxgates (`NP-HEX-ZM-001` §5.3.1). **Recommend the Hub PCB**, outside the shield, consistent
-> with §5.3.1's rule of siting each element where its physics wants. Tracked as **OI-HUB-C19**.
+> **Placement DECIDED (provisional) 2026-07-30 (principal): on the Hub PCB.** "For now" — revisit if
+> the hub thermal budget or EMI bench says otherwise. Three reasons, the third of which is
+> quantitative and was not obvious:
+>
+> 1. **Magnetics stay outside the shielded envelope**, away from the inner-bowl fluxgates —
+>    `NP-HEX-ZM-001` §5.3.1's rule of siting each element where its physics wants.
+> 2. **The ~1.8 W conversion loss lands on the fan-served side**, outside the 42 °C scalp envelope,
+>    rather than adding to the load the vault heat-sink path is already being sized for.
+> 3. **It reduces the modulated current crossing the parting plane.** `NP-DRV-SHELL-002` §9.2
+>    establishes that the 0.5–100 Hz therapeutic envelope *is* bus current in the EEG band, is
+>    irreducible (15.6 mF/tile would be needed to hold a 40 Hz/25 % pulse — unplaceable), and must be
+>    handled geometrically by §9.3 loop-area control rather than filtered. That current crosses the
+>    boss under **either** placement — but the voltage it crosses at differs: **boost at the hub →
+>    ~1.46 A at 24 V; boost at the PAN → ~1.75 A at 15–20 V PD.** Hub placement carries **~17 % less
+>    modulated current** through the aperture §9.3 is trying to minimise loop area around.
+>
+> **HUB-REQ-C04 (derived):** the boost control-loop bandwidth must be **≫ 40 Hz** (kHz-class, i.e.
+> ≥10× the highest PBM PWM frequency) so that the LED duty modulation stays in the **current** domain,
+> where §9.3 handles it geometrically, and does not appear as **rail-voltage** ripple at 2–40 Hz —
+> which would be a second coupling path, in-band, at exactly the entrainment frequencies, and
+> therefore capable of masquerading as an entrainment response in the EEG. Verify on the EMI bench
+> alongside EMF-1.
+>
+> Remaining Rev C cost: board area and a magnetics part the Rev B hub never carried. Tracked as
+> **OI-HUB-C19**.
 
 **This supersedes §4.3's "the hub terminates a bus with up to 16 addressable peers" as the concrete
 form** — but not its *principle*, which SHELL-002 states identically: "nothing downstream of this
@@ -1315,7 +1333,7 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table (single ascending pass, no `seen` bitmap needed). Legitimate as a firmware-resident group because socket→cluster changes only on an inner-bowl re-tool (§4.5.1) — unlike lobe. Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
 | OI-HUB-C17 | **PARTIALLY DECIDED 2026-07-30 (principal) — see §7.5.0.** **C17a ADOPTED:** `NP-DRV-SHELL-002`'s cluster-carrier architecture for N1/N2/N4/N5. **C17b ADOPTED:** HEXTILE **D-6**, 24 V vault rail — resolves SHELL-002 **OI-SHELL2-01** against its 12 V estimate. **C17c OPEN:** HEXTILE **D-4** (TIA + ADC on-module) deferred **pending the module heat-sink / helmet-cooling design** (§7.5.0a) — not pending cost, which §7.5.0(a)/(b) showed to be ~neutral and dominated 30× by PD population (OI-HEXTILE-06). Thermal gate has two parts: continuous on-tile dissipation inside the 42 °C face / 62 °C junction envelope, and **ADC drift 25 → 62 °C against the ±15 % dose claim (FAI-SM-06)**, which a cooler carrier-mounted ADC never faces. Decide after the heat-sink path is fixed and jointly with OI-HEXTILE-06. Only artefact still waiting: socket contact count (18 vs 14–15). Hub PCB §7.4 is unaffected either way (§7.5.7). | Socket tooling + carrier schematic only — **not** Hub PCB |
 | OI-HUB-C18 | **Propagate the 24 V adoption (C17b) into `NP-DRV-SHELL-002`.** Its §5.4 power budget, ~2.9 A vault bus figure, N1 conductor sizing and cluster power-gate part class are all computed at 12 V; at 24 V the bus current halves to ~1.46 A and I²R quarters. Its **OI-SHELL2-01** closes. Also re-check the 2-contact `VLED+` budget, which §7.5.5 shows had zero derating at 12 V and ~2× at 24 V | `NP-DRV-SHELL-002` Rev B |
-| OI-HUB-C19 | **24 V boost stage — new Rev C hardware created by C17b, specified in neither source document.** USB-C PD tops out at 20 V and Standard T1 runs from 15 V, so the vault rail is a **boost**, not the buck SHELL-002 implicitly assumed: 15–20 V → 24 V, ~35 W, ~1.46 A. Adds magnetics + board area the Rev B hub never carried and ~1.8 W of conversion loss. **Placement open — recommend Hub PCB** (outside the shield, fan-served) over the PAN (magnetics inside the envelope near the fluxgates, `NP-HEX-ZM-001` §5.3.1) | Rev C schematic; hub thermal budget |
+| OI-HUB-C19 | **PLACEMENT DECIDED (provisional) 2026-07-30 (principal): Hub PCB** — magnetics outside the shielded envelope away from the fluxgates; ~1.8 W conversion loss on the fan-served side; and **~17 % less modulated current across the parting-plane boss** (~1.46 A at 24 V vs ~1.75 A at 15–20 V if sited at the PAN), which directly helps `NP-DRV-SHELL-002` §9.3 loop-area control. Revisit if the hub thermal budget or the EMI bench objects. **Residual:** size and select the boost (15–20 V → 24 V, ~35 W, ~1.46 A); confirm hub thermal headroom for ~1.8 W against the `NP-TOOL-HUB-001` F-04 fan/heatsink path; and verify **HUB-REQ-C04** — control-loop bandwidth ≫40 Hz so LED duty modulation stays in the current domain and never becomes 2–40 Hz rail-voltage ripple, which would be in-band at the entrainment frequencies and could masquerade as an EEG entrainment response | Rev C schematic; hub thermal budget; EMI bench (with EMF-1) |
 | OI-HUB-C15 | **Merge this document with BOTH `NP-HW-HEXTILE-001` Rev A and `NP-DRV-SHELL-002` Rev A** per the three-way banner at the head of this file. Adopt SHELL-002 §7.1 as the interface contract (done, §7.4). §6's fate follows OI-HUB-C17: deleted if HEXTILE D-4 wins, relocated to the cluster carrier if SHELL-002 wins — it does not stay on the Hub PCB either way. Rewrite §5.2 to the two-level UID-addressed tree; drop the cluster-MCU LED-drive rationale in §3.2; recost §8. Retain §2, §4.2–4.5.2, §7.2–7.4, §9.5, §10 | Rev C baselining — §7.4 unblocked (§7.5.7); §6's fate blocked on OI-HUB-C17 |
 | OI-HUB-C16 | **CLOSED 2026-07-30 by `NP-DRV-SHELL-002` network N4** — a per-cluster low-leakage analog mux onto N shared guarded lanes, terminating at an **ADS1299 bank at the posterior aggregation node** (not the Hub PCB), sized by channel count (8 T1 / 21 T2) rather than socket count. That is the crosspoint this item proposed, and it is the surviving justification for the cluster tier. Residual — contact resistance and leakage on a µV path through a pogo contact plus a mux, and tES current rating through the same switch — sits with SHELL-002, not here | Closed |
 | OI-HUB-C14 | **Retire the firmware lobe path** — `NP_GROUP_KIND_LOBE`, `np_pgroup_t`, `np_module_map_predefined()`, and the `lobe`/`side` fields of `np_socket_geom_t`. It is unbacked: no production caller, no production geometry table (test fixtures only), and no generator emitting firmware C (§4.5.2). Zones are data owned by `00-zones.npps` and already reach firmware as a socket bitmap → `NP_GROUP_KIND_SOCKET_SET`. Risk if left: a future caller resolves against a stale post-REG-1 lobe map — a wrong-site dose from dead code. Decide whether `np_physical_loc_t` keeps `lobe`/`side` (from `np_module_map_resolve()`) or those become app-side lookups; `x_mm`/`y_mm` stay for simulator selection. Touches several of the 63 host checks — own PR, own review | Firmware source-of-truth hygiene; REG-1 safety |
