@@ -363,8 +363,9 @@ active surface follows at ACT-1/ACT-2.
 
 ## 4. Two-level addressing + NVRAM element map (firmware — DELIVERED)
 
-Implemented and verified in `firmware/hub_control/np_module_map.*` (63 host
-checks; Cortex-M7 `-Werror` clean; CI test #12). Summary:
+Implemented and verified in `firmware/hub_control/np_module_map.*` (147 host
+checks as of 2026-07-29 — the long-stale "63" predated several rounds of coverage;
+Cortex-M7 `-Werror` clean; CI test #12). Summary:
 
 - **HW address = (socket_id : element_id)** packed 7 + 7 bits. Socket ≥7 bits so
   addressing never binds before the 42-tile geometry ceiling (§3.1); element 7 bits covers
@@ -374,25 +375,48 @@ checks; Cortex-M7 `-Werror` clean; CI test #12). Summary:
   NVRAM) **only when its UID differs** from the one stored for that socket.
   Unchanged modules are never re-inventoried. Fail-closed on bad/oversized/absent
   inventory.
-- **Resolution:** `(socket:element)` → lobe/side/x-y/type. **Groups:** 8 predefined
-  (L/R × frontal/temporal/parietal/occipital) + user socket-sets + address-sets,
+- **Resolution:** `(socket:element)` → ~~lobe/side/~~x-y/type. **Groups:** ~~8 predefined
+  (L/R × frontal/temporal/parietal/occipital) +~~ user socket-sets + address-sets,
   each with an element-type include/exclude filter. Protocol authors manipulate
   individual elements or whole groups.
-  > **⚠ Correction (2026-07-29) — the 8 predefined lobe groups are test-only, not
-  > delivered functionality.** `np_module_map_predefined()` / `NP_PGROUP_*` have **no
-  > production caller**; there is **no production `np_socket_geom_t` table** in the
-  > tree (the `lobe`/`side` fields are populated only by test fixtures); and
-  > `scripts/sync-socket-map.ts` **emits no firmware C**, so nothing keeps a firmware
+  > **⚠ SUPERSEDED (2026-07-29) — the 8 predefined lobe groups were never delivered
+  > functionality, and are now RETIRED (OI-HUB-C14, closed).** Struck through above
+  > rather than erased, per the marking-superseded convention.
+  >
+  > *Why they were never real:* `np_module_map_predefined()` / `NP_PGROUP_*` had **no
+  > production caller**; there was **no production `np_socket_geom_t` table** in the
+  > tree (the `lobe`/`side` fields were populated only by test fixtures); and
+  > `scripts/sync-socket-map.ts` **emits no firmware C**, so nothing kept a firmware
   > lobe assignment in sync with `00-zones.npps`. Zone membership is **data**, owned
   > by the zone file, and it already reaches firmware correctly by the live path —
   > app compiles `00-zones.npps` → `NP_PROTO_TARGET_SOCKET_MASK` bitmap →
   > `np_protocol_socket_expand()` → `NP_GROUP_KIND_SOCKET_SET` (§4b). The firmware
-  > lobe path is a second source of truth with no generator behind it, and becomes a
-  > wrong-site-dose hazard the moment anyone calls it after REG-1 re-cuts the lobe
-  > boundaries. Retirement tracked as **OI-HUB-C14** (NP-HW-HUB-001 Rev C §4.5.2).
+  > lobe path was a second source of truth with no generator behind it, and would
+  > have become a wrong-site-dose hazard the moment anyone called it after REG-1
+  > re-cut the lobe boundaries.
+  >
+  > *What was actually removed:* `NP_GROUP_KIND_LOBE`, the `lobe`/`side` fields of
+  > `np_group_query_t`, `np_pgroup_t`, `np_module_map_predefined()`, the
+  > `lobe_side_matches()` helper, **and** the `lobe`/`side` fields of both
+  > `np_socket_geom_t` and `np_physical_loc_t` — the fields went too, because the
+  > ungenerated anatomical store was the hazard and the query kind was merely the one
+  > path that read it. `x_mm`/`y_mm` are retained (simulator selection; metric
+  > geometry does not go stale on a zone re-cut). Anatomical labelling has no home in
+  > code at all — **ZONE-1** (§3.3) deleted the lobe derivation from
+  > `sync-socket-map.ts` and the `lobe` field from `socketMap.generated.ts`, so a
+  > socket is "frontal" only insofar as a human authored it into a zone named that
+  > way in `00-zones.npps`. ZONE-1 names this firmware removal as its firmware share.
+  > (`side` survives app-side as lattice structure — midline parity is a re-tool-only
+  > hardware fact — and is absent here only for want of a firmware caller.)
+  > Resolver properties that had been demonstrated via the lobe path (dedup, type
+  > include/exclude, mask-0, overflow, inclusive-midline membership) were
+  > re-expressed over `NP_GROUP_KIND_SOCKET_SET`, not dropped.
+  >
   > The general rule that fell out: **firmware may hold a socket grouping only if
   > changing it requires re-tooling hardware** — true of cluster membership (inner-bowl
-  > FPC routing), false of lobe membership (a data re-cut). See Rev C §4.5.1.
+  > FPC routing), false of lobe membership (a data re-cut). See Rev C §4.5.1. The
+  > inclusive-midline **zone-authoring** rule now lives in full in
+  > `protocols/predefined/00-zones.npps`, which is the file it governs.
 - **NVRAM:** CRC-32-protected serialize/load behind an injected HAL (bad
   magic/version/CRC rejected). Two integration seams remain: the module I2C
   `inventory_fn` and the Config-partition NVRAM HAL (OI-HEXMAP-01).
@@ -903,8 +927,8 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   forgiving target, clear open/closed state. **Validate by HFE formative** (5 subjects, Parkinson's
   H&Y II–III / post-stroke) — the NP-TOOL-ZM-001 OI-4 eject-lever study re-pointed
   at the cluster actuator.
-- **Optional alignment:** cluster boundaries may align to the lobe groups (a
-  frontal-left cluster ≈ the frontal-left group), but are ultimately set by
+- **Optional alignment:** cluster boundaries may align to the lobe *zones* of
+  `00-zones.npps` (a frontal-left cluster ≈ the "Frontal Left" zone), but are ultimately set by
   geometry/curvature — final cluster size is decided with the lattice work (§7
   REG-1 / MECH-2).
 

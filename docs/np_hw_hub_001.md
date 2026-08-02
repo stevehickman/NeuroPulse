@@ -451,15 +451,18 @@ So the three-level structure **does** exist — it is real, and it is exactly wh
 `np_hub_cluster_read_frame(cluster_id, …)` (§9.3) addresses. It lives at the transport layer, below
 the logical address, where a re-clustering costs one regenerated table and nothing else. The
 existing firmware already has this shape latent: `np_module_map` separates GEOMETRY
-(`socket → lobe/side/x/y`) from INVENTORY (`socket → UID/elements`); the cluster map is a third map
-of the same kind, not a fourth address field.
+(`socket → x/y` — metric only since OI-HUB-C14 removed the lobe/side columns, §4.5.2) from INVENTORY
+(`socket → UID/elements`); the cluster map is a third map of the same kind, not a fourth address
+field.
 
 **What is worth adding — a group kind, not an address level.** "Which sockets did that clamp
 release just unseat", "this cluster controller stopped answering, mark its sockets absent", "run a
 PD self-test on every photodiode in cluster 3" are genuinely useful operations, and all of them are
 *cluster → sockets* enumerations. They belong in the existing group machinery: a
-`NP_GROUP_KIND_CLUSTER = 3` alongside `NP_GROUP_KIND_LOBE` / `_SOCKET_SET` / `_ADDR_SET` in
-`np_group_query_t`, plus a `uint8_t cluster_id` field, resolving through the §4.2 table.
+`NP_GROUP_KIND_CLUSTER = 3` alongside `NP_GROUP_KIND_SOCKET_SET` / `_ADDR_SET` in
+`np_group_query_t`, plus a `uint8_t cluster_id` field, resolving through the §4.2 table. (Value 3 is
+still the right one: `SOCKET_SET = 1` and `ADDR_SET = 2` kept their values when OI-HUB-C14 retired
+`NP_GROUP_KIND_LOBE` from 0, so nothing reshuffles — see §4.5.2.)
 
 Mechanically it is the cheapest possible addition: one ascending pass over the socket table visiting
 each socket exactly once (so it cannot self-duplicate and needs no `seen` bitmap), with the predicate
@@ -474,7 +477,7 @@ deleted, and the reason it should be deleted is exactly the reason CLUSTER is le
 
 | Group kind | Source of truth | Changed by | Belongs in firmware? |
 |---|---|---|---|
-| `LOBE` | `protocols/predefined/00-zones.npps`, derived from the lattice | zone re-cut / **REG-1** — no hardware change | **No — retire (§4.5.2)** |
+| `LOBE` | `protocols/predefined/00-zones.npps`, derived from the lattice | zone re-cut / **REG-1** — no hardware change | **No — RETIRED 2026-07-29 (§4.5.2, OI-HUB-C14 closed)** |
 | `SOCKET_SET` | the protocol itself, via the socket bitmap | protocol author | n/a — passed in per query |
 | `ADDR_SET` | the protocol itself | protocol author | n/a — passed in per query |
 | `CLUSTER` | the inner-bowl FPC routing | **inner-bowl re-tool only** | **Yes — legitimately** |
@@ -522,12 +525,60 @@ wrong-site dose from a stale anatomical map, the hazard class `np_module_map.h` 
 about. Retiring the path is the conservative action; leaving dead code that only becomes dangerous
 when someone finds it is not.
 
-Retirement is **not** done in this PR — it deletes an enum, a public function, struct fields, and
-touches several of the 63 host checks, which is a firmware change that deserves its own review rather
-than riding along with a hardware spec. Tracked as **OI-HUB-C14**. Note `np_physical_loc_t` also
-carries `lobe`/`side` from `np_module_map_resolve()`; `x_mm`/`y_mm` stay (simulator selection uses
-them), so the retirement needs to decide whether callers of `resolve()` lose the anatomical fields or
-whether those become app-side lookups.
+Retirement was **not** done in the PR that wrote this section — it deletes an enum, a public function,
+struct fields, and touches many host checks, a firmware change that deserved its own review rather
+than riding along with a hardware spec. It was tracked as **OI-HUB-C14**.
+
+> **✅ OI-HUB-C14 CLOSED (2026-07-29).** Retirement landed in its own PR. Removed:
+> `NP_GROUP_KIND_LOBE`, the `lobe`/`side` fields of `np_group_query_t`, `np_pgroup_t`,
+> `np_module_map_predefined()`, and the `lobe_side_matches()` helper.
+>
+> **The open question — does `np_physical_loc_t` keep `lobe`/`side`? — resolved: no. Both structs
+> lose them.** `np_socket_geom_t` is now `{ present_in_helmet, x_mm, y_mm }` and
+> `np_physical_loc_t` is `{ x_mm, y_mm, elem_type }`. Rationale, in the order it was verified:
+>
+> 1. **No caller wanted them.** §4.5.2 left open whether a diagnostic path needed a human-readable
+>    location. Checked: `loc.lobe` / `loc.side` were read at exactly three sites, all of them
+>    assertions inside `np_module_map_tests.c`. Zero production readers. The "legitimate intermediate"
+>    the item allowed for has no claimant.
+> 2. **Keeping the fields keeps the hazard.** The fields, not the query kind, are the ungenerated
+>    anatomical map. `NP_GROUP_KIND_LOBE` was merely the one path that had learned to read them.
+>    Deleting the reader while retaining a stale store removes the trigger and leaves the wrong-site
+>    dose loaded — the same failure mode one level down, and now with no test exercising it.
+> 3. **The label has no home in code at all — and should not.** *(Rationale restated 2026-08-02 after
+>    ZONE-1 landed; the original wording pointed at an app-side lobe generator that ZONE-1 has since
+>    deleted, so the argument below is the surviving one — and it is stronger.)* `00-zones.npps` is the
+>    SOLE definition of every zone, each carrying a human-authored `sockets:` list. Nothing derives a
+>    lobe anywhere: `scripts/sync-socket-map.ts` owns lattice STRUCTURE only, and the `lobe` field left
+>    `socketMap.generated.ts` too. A socket is "frontal" only insofar as a human put it in a zone named
+>    that way. Firmware holding a lobe assignment was therefore not a second source of truth competing
+>    with a better one — it was a *model of a concept the system does not have*. ZONE-1
+>    (`NP-HEX-ZM-001` §3.3) names `np_lobe_t` / `np_socket_geom_t.lobe` / `np_physical_loc_t.lobe` /
+>    `NP_GROUP_KIND_LOBE` as its firmware share and points at this item, independently reaching the
+>    same conclusion on `np_physical_loc_t` that finding (1) reached from caller analysis.
+>
+>    Note `side` is a different category and survives app-side: midline parity is lattice structure —
+>    which column a socket sits in — a hardware fact changing only on an inner-bowl re-tool, exactly
+>    like row/col/x/y. It is absent from firmware only because no firmware caller needs it once
+>    membership arrives as a socket list, **not** because it fails the §4.5.1 discriminator.
+>
+> `x_mm`/`y_mm` retained as required: metric geometry is a property of the moulded shell, changed only
+> by re-tooling it, so it satisfies §4.5.1 on its own terms and does not go stale on a zone re-cut.
+>
+> **Two side effects worth noting.** (a) `np_group_kind_t` keeps its existing enumerator values —
+> `SOCKET_SET = 1`, `ADDR_SET = 2` — so nothing keyed to them shifts and OI-HUB-C13 can still add
+> `CLUSTER = 3`. Leaving 0 unassigned is a *safety improvement*: a `memset`-zeroed query used to mean
+> `KIND_LOBE` by accident and would silently resolve a frontal-left group; it now hits the `default:`
+> arm and returns `NP_HUB_ERR_INVALID_ARG`. A test was added for this, since the arm was previously
+> unreachable. (b) Resolver properties that had been demonstrated *through* the lobe path — dedup,
+> type include/exclude, mask-0-in-both-modes, overflow truncation, inclusive-midline membership,
+> high-socket resolution above the old 64 ceiling — were re-expressed over `NP_GROUP_KIND_SOCKET_SET`
+> rather than deleted. Host suite: 18/18 ctest green, map-test check count 145 → 147.
+>
+> The inclusive-midline **zone-authoring** rule that had been documented at length on
+> `np_group_query_t` was relocated to `protocols/predefined/00-zones.npps` — the file it actually
+> governs — rather than lost with the firmware code. Firmware retains only the part it owes that rule:
+> the dedup guarantee.
 
 **Scope guardrail — device-state operations only, never therapeutic targeting.** Every use case
 above is service, fault isolation, or diagnostics. **No clinical protocol may ever target a
@@ -1336,7 +1387,7 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C19 | **PLACEMENT DECIDED (provisional) 2026-07-30 (principal): Hub PCB** — magnetics outside the shielded envelope away from the fluxgates; ~1.8 W conversion loss on the fan-served side; and **~17 % less modulated current across the parting-plane boss** (~1.46 A at 24 V vs ~1.75 A at 15–20 V if sited at the PAN), which directly helps `NP-DRV-SHELL-002` §9.3 loop-area control. Revisit if the hub thermal budget or the EMI bench objects. **Residual:** size and select the boost (15–20 V → 24 V, ~35 W, ~1.46 A); confirm hub thermal headroom for ~1.8 W against the `NP-TOOL-HUB-001` F-04 fan/heatsink path; and verify **HUB-REQ-C04** — control-loop bandwidth ≫40 Hz so LED duty modulation stays in the current domain and never becomes 2–40 Hz rail-voltage ripple, which would be in-band at the entrainment frequencies and could masquerade as an EEG entrainment response | Rev C schematic; hub thermal budget; EMI bench (with EMF-1) |
 | OI-HUB-C15 | **Merge this document with BOTH `NP-HW-HEXTILE-001` Rev A and `NP-DRV-SHELL-002` Rev A** per the three-way banner at the head of this file. Adopt SHELL-002 §7.1 as the interface contract (done, §7.4). §6's fate follows OI-HUB-C17: deleted if HEXTILE D-4 wins, relocated to the cluster carrier if SHELL-002 wins — it does not stay on the Hub PCB either way. Rewrite §5.2 to the two-level UID-addressed tree; drop the cluster-MCU LED-drive rationale in §3.2; recost §8. Retain §2, §4.2–4.5.2, §7.2–7.4, §9.5, §10 | Rev C baselining — §7.4 unblocked (§7.5.7); §6's fate blocked on OI-HUB-C17 |
 | OI-HUB-C16 | **CLOSED 2026-07-30 by `NP-DRV-SHELL-002` network N4** — a per-cluster low-leakage analog mux onto N shared guarded lanes, terminating at an **ADS1299 bank at the posterior aggregation node** (not the Hub PCB), sized by channel count (8 T1 / 21 T2) rather than socket count. That is the crosspoint this item proposed, and it is the surviving justification for the cluster tier. Residual — contact resistance and leakage on a µV path through a pogo contact plus a mux, and tES current rating through the same switch — sits with SHELL-002, not here | Closed |
-| OI-HUB-C14 | **Retire the firmware lobe path** — `NP_GROUP_KIND_LOBE`, `np_pgroup_t`, `np_module_map_predefined()`, and the `lobe`/`side` fields of `np_socket_geom_t`. It is unbacked: no production caller, no production geometry table (test fixtures only), and no generator emitting firmware C (§4.5.2). Zones are data owned by `00-zones.npps` and already reach firmware as a socket bitmap → `NP_GROUP_KIND_SOCKET_SET`. Risk if left: a future caller resolves against a stale post-REG-1 lobe map — a wrong-site dose from dead code. Decide whether `np_physical_loc_t` keeps `lobe`/`side` (from `np_module_map_resolve()`) or those become app-side lookups; `x_mm`/`y_mm` stay for simulator selection. Touches several of the 63 host checks — own PR, own review | Firmware source-of-truth hygiene; REG-1 safety |
+| ~~OI-HUB-C14~~ | **✅ CLOSED 2026-07-29 — firmware lobe path retired.** Removed `NP_GROUP_KIND_LOBE`, the `lobe`/`side` query fields, `np_pgroup_t`, `np_module_map_predefined()`, and `lobe_side_matches()`. **The open decision resolved: BOTH `np_socket_geom_t` and `np_physical_loc_t` lose `lobe`/`side`** — `np_physical_loc_t.lobe/side` had zero production readers (only three test assertions), and retaining an ungenerated anatomical store is the hazard itself, not just the query kind that read it. `x_mm`/`y_mm` retained for simulator selection. Anatomical labelling has no home in code at all — **ZONE-1** deleted the lobe derivation from `sync-socket-map.ts` and the `lobe` field from `socketMap.generated.ts`, and names this firmware removal as its firmware share; a socket is "frontal" only insofar as a human authored it into a zone named that way in `00-zones.npps`. Lobe-path resolver-property tests re-expressed over `NP_GROUP_KIND_SOCKET_SET`; inclusive-midline authoring rule relocated to `00-zones.npps`. 18/18 ctest green; map checks 145 → 147. Full rationale at §4.5.2 | — (closed) |
 | OI-HUB-C10 | `scripts/sync-socket-map.ts` to emit the `socket_id → (cluster_id, channel)` table alongside existing artifacts so it cannot drift from the lattice (§4.2) | Generated artifacts |
 | OI-HUB-C11 | Hub 3.3 V and cluster-rail current budget at 16 clusters (supersedes Rev B's OI-HUB-01, which sized 5 × 50 mA smart modules) | Pre-prototype |
 | OI-HUB-C12 | Cluster-bus EMI qualification: confirm differential signalling + bus-quiet window keeps EEG noise floor within budget (§5.1) | EMF-1; EEG noise floor |
