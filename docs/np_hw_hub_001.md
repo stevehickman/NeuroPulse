@@ -27,20 +27,76 @@ component-level circuit work (DG2788A dual-SPDT switching 47 kΩ ↔ 22 kΩ, and
 TIA saturation analysis that motivated it) is carried forward unchanged — §6 reuses it,
 relocated and shared rather than replicated 80×.
 
-> ### ⚠⚠ RECONCILIATION REQUIRED — NP-HW-HEXTILE-001 Rev A (2026-07-30) lands under this document
+> ### ⚠⚠ THREE-WAY RECONCILIATION — and a blocking conflict between two merged specs
 >
-> **Read this before §3, §5, §6 or §8.** `NP-HW-HEXTILE-001` Rev A merged to `main` *after* this
-> revision was drafted, and it fills the exact gap this document scoped out as unwritten
-> (**OI-HUB-C01**: the per-socket FPC pinout and LED drive stage). It makes two decisions one level
-> down that **delete large parts of the design below**. This banner records the collision honestly
-> rather than leaving two documents asserting incompatible architectures; the merge is **not yet
-> done** and is tracked as **OI-HUB-C15**.
+> **Read this before §3, §5, §6 or §8.** Two documents merged to `main` after this revision was
+> drafted, both filling the gap it scoped out as unwritten (**OI-HUB-C01**):
 >
-> **What HEXTILE supersedes here:**
+> - **`NP-DRV-SHELL-002` Rev A** (2026-07-29, PR #232) — shell socket interconnect. Its **§7 is
+>   literally "Hub PCB Rev C interface contract"**: written *for* this task.
+> - **`NP-HW-HEXTILE-001` Rev A** (2026-07-30, PR #229) — hex-tile electrical / FPC.
+>
+> **⚠ They contradict each other, neither cites the other (zero cross-references, written in
+> parallel), and the disagreement is on the socket contact array — molded, tooled hardware.
+> This is tooling-blocking and is NOT resolved here. Tracked as OI-HUB-C17.**
+>
+> | Item | `NP-DRV-SHELL-002` (7-29) | `NP-HW-HEXTILE-001` (7-30) |
+> |---|---|---|
+> | TIA + ADC location | **Cluster carrier** (§3.2, §3.3) | **On-module** (D-4) |
+> | PD analog crosses the socket? | **Yes** — `PD1_K`/`PD2_K`/`NTC`/`AGND`, network N3 | **No** — *"No PD analog signal crosses the socket interface"* |
+> | Socket contacts | **18** | **16** |
+> | Bus rail | **12 V** (est., OI-SHELL2-01) | **24 V** (D-6) |
+> | Presence detect | *"No dedicated presence contact. Presence **is** a successful I2C probe"* | **`SEAT_N` pin 16** — and argues it is *not* redundant: a partially seated tile can answer I2C while PD/NTC/electrode contacts are marginal → *"a plausible-looking but wrong dose reading"* |
+>
+> The last row is a **reasoned** disagreement — HEXTILE anticipated SHELL-002's position and
+> rejected it with a named failure mode. The rail conflict is squarely inside SHELL-002 §7.3's own
+> invitation ("assumptions the Rev C task should challenge"), item 1.
+>
+> **Recommendation (not a decision — EE Lead owns it): adopt HEXTILE D-4, TIA on-module, and keep
+> SHELL-002's cluster-carrier architecture for everything else.** The two documents agree on the
+> *direction* — shorten the high-impedance photocurrent node and get analog off the hub — and
+> SHELL-002's own stated reason for moving the TIA to the cluster is that it *"shrinks the
+> high-impedance node from ~200 mm to ≤50 mm, which is the actual reason to do it."* On-module
+> shrinks it to ~5 mm. HEXTILE simply goes further in the direction SHELL-002 argues for, and
+> three consequences follow that SHELL-002 wants anyway:
+> - **It removes 4 socket contacts** (`PD1_K`, `PD2_K`, `NTC`, `AGND`), 18 → ~14. SHELL-002 §5.1
+>   flags its own 18-contact count as an accessibility problem — ~38–63 N per 7-tile clamp plate
+>   against RISK-22's one-handed force intent — and says *"dropping 18 → 12 contacts would cut
+>   plate load by a third."* This is that reduction, arriving from the other document.
+> - **PD1/PD2 ratio integrity improves further.** SHELL-002 §3.3 argues a ratio taken on one small
+>   carrier beats one taken across two shell crossings; same die on the module beats both.
+> - **The marginal cost is near zero if every tile already has an MCU** — which HEXTILE D-3 requires
+>   for on-module constant-current drive regardless, and whose tinyAVR (U1) already carries a 12-bit
+>   ADC with PGA. Note SHELL-002 §5.1's *"minimum viable module identity device is a UID EEPROM"*
+>   appears **underspecified rather than opposed**: its socket budget has no per-channel drive lines,
+>   only `VLED+`/`PGND`, so a T1-A tile must already hold some on-module driver under SHELL-002 too.
+>
+> **Correction to this banner's previous version.** It said HEXTILE "deletes" §6 and treated that as
+> settled. That was premature: `NP-DRV-SHELL-002` independently reproduces §6's design — one
+> switched-gain TIA + mux + ADC per cluster carrier, gain as an I2C register write, zero hub
+> `GAIN_SEL` — and its §7.2 says the reusable Rev B content *"is replicated onto the cluster
+> carriers, not onto Rev C."* §6 is **contested between two merged specs**, not superseded by one.
+>
+> **What SHELL-002 independently confirms in this document** (written in parallel, no shared draft):
+> the cluster-carrier tier itself; **≤8 sockets per cluster stated as a bound, not a count**, so
+> boundary clusters use the same rule (§4.1 "capacity, not a shape"); the **7-hex flower** and
+> **12 clusters at n = 80** (§4.4 / CLUSTER-1); one 8-channel I2C switch per cluster resolving the
+> shared-0x30 collision (§5.2); per-cluster safety enable (§7.2); the PD1/PD2-ratio argument (§6.4);
+> and — explicitly — that *"nothing downstream depends on 80 or on 12"* (§4.3). Two independent
+> derivations reaching the same architecture is the strongest evidence available that it is right.
+>
+> **It also answers OI-HUB-C16**, the electrode-routing gap this document opened: SHELL-002's
+> **network N4** is a per-cluster analog mux onto N shared guarded lanes terminating at an **ADS1299
+> bank at the posterior aggregation node**, not on the Hub PCB. That is the crosspoint §4.5's
+> successor paragraph proposed. C16 is closed against it.
+>
+> **The concrete Rev C deliverable is now SHELL-002 §7.1**, adopted below as §7.4.
+>
+> **What HEXTILE supersedes here (unchanged from the previous banner, except §6):**
 >
 > | This document | Superseded by | Effect |
 > |---|---|---|
-> | **§6 entirely** — shared muxed TIA, one DG2788A per cluster, 16:1 PD current mux, per-sample gain, scan-timing budget | HEXTILE **D-4**: TIA + ADC move **on-module**; no PD analog crosses the socket interface | **Deleted, not revised.** HEXTILE states it outright: *"The ~80× DG2788A + cascaded-analog-mux Hub PCB NRE that SMART-1 opened is not redesigned — it is deleted."* §6 *is* that redesign. Gain switching ceases to exist: the module knows its own PD, so gain is fixed at design time. |
+> | **§6** — shared muxed TIA, one DG2788A per cluster, 16:1 PD current mux, per-sample gain, scan-timing budget | **CONTESTED — do not treat as settled.** HEXTILE **D-4** moves TIA + ADC on-module; `NP-DRV-SHELL-002` §3.2/§3.3 independently puts the *same* switched-gain TIA + mux + ADC on the **cluster carrier** and calls it Rev C's replacement | **Not deleted — disputed between two merged specs (OI-HUB-C17).** Either way §6 does not belong on the *Hub PCB*, which is the claim that matters here and which both agree on. If HEXTILE D-4 wins (recommended above) §6 is deleted outright and gain becomes design-time-fixed; if SHELL-002 wins, §6 survives essentially as written, relocated to the carrier. |
 > | **§3.2** — "the tier needs local intelligence because LED drive must distribute" | HEXTILE **D-3**: constant-current driver on-module; socket carries a **24 V DC bus** (D-6), not per-string drive | The load-bearing argument for a cluster **MCU** is removed. |
 > | **§5.2** — cluster MCU as I2C master behind a per-cluster PCA9548A, tunnelled transactions | HEXTILE **D-7**: **dynamic UID-based address assignment** (SMBus-ARP style) over per-cluster segments, driven directly from RT1062 LPI2C1–4 through **one** PCA9548A tier | The 0x30 collision is *removed*, not worked around, so muxing is needed only for bus capacitance — one tier, no cascade, no intermediate master. HEXTILE is right and this is the better answer. |
 > | **§8 BOM** | above | Per-cluster TIA op-amp, DG2788A, PD mux and NTC mux all drop out. The $6.34/board figure is void. |
@@ -731,6 +787,57 @@ ids 0–127 unchanged — no wire change needed there.
 
 ---
 
+### 7.4 The Rev C interface contract — adopted from `NP-DRV-SHELL-002` §7.1
+
+`NP-DRV-SHELL-002` §7 was written as the coordination surface for this task and is more specific
+than anything derived above. **Rev C adopts it**, at the v1 lattice (12 clusters of ≤8, per
+CLUSTER-1's 7-hex flower):
+
+| Item | Quantity | Note |
+|---|---|---|
+| Cluster tail connectors | **12** populated, **16** positions specified | 16 = 8 branches × 2 → lattice headroom with no re-layout |
+| Pins per connector | **12** | Pinout fixed by SHELL-002 §5.2 |
+| Total interface pins | **144** (192 if all 16 populated) | vs 100 on the retired 5-slot design |
+| Host I2C branch switch | 1 × 8-channel | Hub-level stage of the two-level tree |
+| Safety-MCU enable GPIO | **12** (16 provisioned) | `SAFE_EN_n`, **Safety-MCU sourced**, default LOW at reset |
+| `SYNC` driver | 1 | Broadcast, phase-locked to the EEG sample frame |
+| `ALERT#` input | 1 per cluster, wire-OR | Or one aggregate with I2C interrogation |
+| PDN feed | 1 | Rated at the vault ceiling |
+| ADS1299 bank interface | SPI | Bank sits at the **PAN**, not on the Hub PCB |
+
+**This supersedes §4.3's "the hub terminates a bus with up to 16 addressable peers" as the concrete
+form** — but not its *principle*, which SHELL-002 states identically: "nothing downstream of this
+section depends on 80 or on 12." 16 tail positions with 12 populated is exactly socket-count
+independence expressed in connectors instead of bus addresses. **REG-1 still does not block hub
+tooling.**
+
+**Responses to SHELL-002 §7.3's four invited challenges:**
+
+1. **12 V bus rail — CHALLENGED, and not by this document.** HEXTILE **D-6** independently specifies
+   **24 V**, deriving it from contact current (1.04 A vs 2.08 A per tile at peak) and from series
+   string length (11 × 660 nm ≈ 23.1 V, so linear overhead stays ≤7 %; a 12 V rail halves string
+   length and doubles parallel strings and sense resistors on a tile with no room for them). That
+   derivation is the more complete of the two — SHELL-002's 12 V is marked "est." against
+   **OI-SHELL2-01**, which is precisely the item this resolves. **Recommend 24 V.** Folded into
+   OI-HUB-C17.
+2. **12-conductor tail** — accepted, no challenge. Note it moves with the OI-HUB-C17 outcome: if
+   HEXTILE D-4 wins, the socket sheds `PD1_K`/`PD2_K`/`NTC`/`AGND` and the tail's N3 share
+   disappears, so 12 may fall.
+3. **ADS1299 bank at the PAN, not the Hub PCB** — accepted, and it is the better placement. It keeps
+   the µV electrode lanes from crossing the parting-plane boss, consistent with `NP-HEX-ZM-001`
+   §5.3.1's rule of assigning each element to the layer its physics wants.
+4. **`SAFE_EN_n` sourced by the Safety MCU, not the i.MX RT1062** — accepted and **required**, not
+   merely preferred. It is what preserves CLAUDE.md §4.2's "safety MCU physically owns all
+   stimulation enable GPIO" across the new tier; it is the same requirement as **HUB-REQ-C02** (§7.3)
+   and it is what keeps the cluster tier IEC 62304 **Class B** rather than Class C.
+
+**One divergence to record.** §7.2 of this document collapses `NP_SAFETY_EN_PBM_ZONE_0..4` to a
+single `NP_SAFETY_EN_PBM_CRANIAL` bit, because 16 cluster bits + 9 surviving modality bits = 25
+exceeds the 16-bit enable word. SHELL-002 §7.1 asks for **12 discrete `SAFE_EN_n` GPIO**. These are
+compatible and were reached from different ends: 12–16 physical enable *lines* fanned out from **one**
+policy *bit*. What does not fit the wire format is 16 independently-commanded cluster bits. If
+per-cluster *policy* is genuinely wanted, the Class C safety wire format must widen — **OI-HUB-C07**.
+
 ## 8. BOM
 
 > **⚠ EVERY FIGURE IN §8 IS VOID — do not quote.** `NP-HW-HEXTILE-001` Rev A (**D-3**, **D-4**,
@@ -894,6 +1001,17 @@ a socket-indexed table silently applies the wrong module's calibration, degradin
 J/cm² dose claim that is the stated differentiator over Vielight (CLAUDE.md §3 modality 1) — and
 doing so invisibly, because `cal_source` would still read `NP_CAL_FACTORY`.
 
+> **Strengthened by both new specs (2026-07-30).** This section's finding — that the coefficients
+> belong to the *module*, not the socket — gets stronger under either OI-HUB-C17 outcome, and
+> strongest under HEXTILE D-4. If the TIA **and** the ADC sit on the module (D-4), then the entire
+> measurement chain the coefficients characterise is on the module, and the natural store is the
+> module's own non-volatile memory — the tinyAVR's EEPROM on T1-C, or the UID EEPROM
+> `NP-DRV-SHELL-002` §5.1 already specifies for T1-A/T1-B (24AA02UID class, ~$0.12), which would
+> simply be sized a little larger. Calibration then travels with the part physically and cannot be
+> orphaned by a swap at all, rather than being re-associated by a UID lookup. The hub-side UID-keyed
+> NVRAM cache below remains the correct fallback if the module store proves too small or if a tile
+> type ships without writable NVM.
+
 **Recommended resolution:** key the coefficients to **module UID** and store them in the existing
 `np_module_map` NVRAM record, which is already UID-keyed and already has the UID-change detection
 machinery (`np_module_map_apply_poll`) to invalidate a stale entry. Record grows by 9 floats
@@ -940,7 +1058,7 @@ binding constraint on how its calibration coefficients are re-indexed.
 
 | ID | Description | Blocking |
 |----|-------------|----------|
-| OI-HUB-C01 | **Per-socket FPC pinout + LED drive stage** for the hex tile — unwritten, not merely superseded (`NP-HW-FPC-001` Rev E note). §3.2 establishes it must sit on the cluster tier; the topology, current regulation and connector are unspecified. | Cluster-board design; inner-bowl tooling |
+| OI-HUB-C01 | **CLOSED 2026-07-30** — written twice, in parallel: `NP-HW-HEXTILE-001` Rev A (tile electrical/FPC, 16-position socket) and `NP-DRV-SHELL-002` Rev A (shell interconnect, 18-contact socket, five networks, cluster tails). Both merged. **They disagree on the socket contact array — see OI-HUB-C17.** | Closed; superseded by OI-HUB-C17 |
 | OI-HUB-C02 | PD current-mux part selection bench: off-leakage at 85 °C, charge injection, settling into the shared TIA (§6.2) | Cluster-board BOM |
 | OI-HUB-C03 | Cluster MCU final selection — confirm STM32G071 vs in-family G031 downgrade once cluster firmware SRAM footprint is known (§8.3) | Cluster-board BOM |
 | OI-HUB-C04 | Confirm one pull-up pair per cluster controller suffices, or add per-PCA9548A-channel pull-ups if socket FPC stub capacitance requires (§5.3) | Cluster-board layout |
@@ -950,8 +1068,9 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C08 | **Net the $63.40 cluster tier against the retired 5-zone-module drive electronics** already inside the $405 Home Standard BOM (§8.4) — needs a post-hex module BOM that does not yet exist | BOM sign-off |
 | OI-HUB-C09 | **CLOSED 2026-07-30.** Electrical and mechanical clusters are **the same thing**: the board is **capacity-8**, not exactly-8, and capacity 8 costs the same as a hypothetical 7 (no 7-channel I2C switch or 14:1 mux exists), so one board SKU serves a full flower or any partial one. Shape settled by **CLUSTER-1** (principal, 2026-07-30): **7-hex flower wherever the lattice allows, partial flowers at the boundary** — decided on clamp-plate mechanics (span 122.2 vs 161.8 mm; stress ×1.75, plate deflection ×3.07, dome depth 25.1 → 55.0 mm, 136.8° subtended), *not* on the earlier BOM gradient, whose figures HEXTILE has voided. The triad stays excluded electrically too (43 segments at n=128 > the 32-segment budget). MECH-2 now verifies rather than selects. **Three-level `(cluster:module:element)` addressing remains explicitly rejected** (§4.5). | Closed — MECH-2 verifies |
 | OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table (single ascending pass, no `seen` bitmap needed). Legitimate as a firmware-resident group because socket→cluster changes only on an inner-bowl re-tool (§4.5.1) — unlike lobe. Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
-| OI-HUB-C15 | **Merge this document with `NP-HW-HEXTILE-001` Rev A** per the reconciliation banner at the head of this file: delete §6 (TIA/gain switching — HEXTILE D-4 moves it on-module), rewrite §5.2 to HEXTILE's D-7 single-tier UID-addressed segmentation, drop the cluster-MCU LED-drive rationale in §3.2 (D-3/D-6: on-module driver, 24 V bus), and recost §8. Retain §2, §4.2–4.5.2, §7.2, §9.5, §10. **Until this lands the two documents assert incompatible architectures and HEXTILE is the more recent** | Rev C baselining — **blocking** |
-| OI-HUB-C16 | **Route the T1-B electrode path at ~80 sockets.** HEXTILE reserves pins 13/14/15 (`ELEC_SIG`/`ELEC_SHLD`/`AGND`) at every socket, notes an electrode signal cannot be carried over I2C (µV to the ADS1299 *and* stimulation current from the tES driver), then leaves T1-B out of scope. 80 × 3 = **240 analog conductors to the hub** — the same unbuildable star HEXTILE used to kill hub-side LED drive and PD analog. Restricting T1-B to a socket subset is not available (re-imposes what SMART-1 removed). Proposed: a **per-cluster electrode crosspoint** onto N ADS1299/tES channels (8 T1, 21 T2) + `/ALERT`/`SEAT_N` aggregation — the surviving justification for the cluster tier. Open: switch matrix vs. MCU; contact-resistance and leakage budget on a µV path through a pogo contact and a crosspoint; tES current rating through the same switch | T1-B tile; EEG/tES at scale; cluster-tier scope |
+| OI-HUB-C17 | **⚠ BLOCKING — two merged specs give incompatible socket contact arrays.** `NP-DRV-SHELL-002` Rev A (7-29) and `NP-HW-HEXTILE-001` Rev A (7-30) were written in parallel with **zero cross-references** and disagree on: TIA+ADC location (cluster carrier vs on-module); whether PD analog crosses the socket (yes/no); contact count (**18 vs 16**); bus rail (**12 V vs 24 V**); and presence detection (I2C probe vs a dedicated `SEAT_N` pin, which HEXTILE argues is *not* redundant because a partially seated tile can ACK on two contacts while PD/NTC/electrode contacts are marginal → "a plausible-looking but wrong dose reading"). The socket contact array is molded, tooled hardware, so this blocks tooling, not just Rev C. **Recommendation in the head-of-file banner: HEXTILE D-4 (TIA on-module) + HEXTILE D-6 (24 V) + SHELL-002's cluster-carrier architecture for N1/N2/N4/N5** — it goes further in the direction SHELL-002 itself argues for, and it delivers the 18→~14 contact reduction SHELL-002 asks for under its own OI-SHELL2-03 accessibility concern. **EE Lead decides; this document does not.** | Socket tooling; cluster-carrier schematic; Rev C baselining; SHELL-002 OI-SHELL2-01/03 |
+| OI-HUB-C15 | **Merge this document with BOTH `NP-HW-HEXTILE-001` Rev A and `NP-DRV-SHELL-002` Rev A** per the three-way banner at the head of this file. Adopt SHELL-002 §7.1 as the interface contract (done, §7.4). §6's fate follows OI-HUB-C17: deleted if HEXTILE D-4 wins, relocated to the cluster carrier if SHELL-002 wins — it does not stay on the Hub PCB either way. Rewrite §5.2 to the two-level UID-addressed tree; drop the cluster-MCU LED-drive rationale in §3.2; recost §8. Retain §2, §4.2–4.5.2, §7.2–7.4, §9.5, §10 | Rev C baselining — **blocked on OI-HUB-C17** |
+| OI-HUB-C16 | **CLOSED 2026-07-30 by `NP-DRV-SHELL-002` network N4** — a per-cluster low-leakage analog mux onto N shared guarded lanes, terminating at an **ADS1299 bank at the posterior aggregation node** (not the Hub PCB), sized by channel count (8 T1 / 21 T2) rather than socket count. That is the crosspoint this item proposed, and it is the surviving justification for the cluster tier. Residual — contact resistance and leakage on a µV path through a pogo contact plus a mux, and tES current rating through the same switch — sits with SHELL-002, not here | Closed |
 | OI-HUB-C14 | **Retire the firmware lobe path** — `NP_GROUP_KIND_LOBE`, `np_pgroup_t`, `np_module_map_predefined()`, and the `lobe`/`side` fields of `np_socket_geom_t`. It is unbacked: no production caller, no production geometry table (test fixtures only), and no generator emitting firmware C (§4.5.2). Zones are data owned by `00-zones.npps` and already reach firmware as a socket bitmap → `NP_GROUP_KIND_SOCKET_SET`. Risk if left: a future caller resolves against a stale post-REG-1 lobe map — a wrong-site dose from dead code. Decide whether `np_physical_loc_t` keeps `lobe`/`side` (from `np_module_map_resolve()`) or those become app-side lookups; `x_mm`/`y_mm` stay for simulator selection. Touches several of the 63 host checks — own PR, own review | Firmware source-of-truth hygiene; REG-1 safety |
 | OI-HUB-C10 | `scripts/sync-socket-map.ts` to emit the `socket_id → (cluster_id, channel)` table alongside existing artifacts so it cannot drift from the lattice (§4.2) | Generated artifacts |
 | OI-HUB-C11 | Hub 3.3 V and cluster-rail current budget at 16 clusters (supersedes Rev B's OI-HUB-01, which sized 5 × 50 mA smart modules) | Pre-prototype |
