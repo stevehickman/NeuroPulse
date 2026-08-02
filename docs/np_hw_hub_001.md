@@ -842,6 +842,54 @@ per-cluster *policy* is genuinely wanted, the Class C safety wire format must wi
 
 ### 7.5 The recommended synthesis, in detail (input to OI-HUB-C17)
 
+#### 7.5.0 The recommendation, stated — and it is not one bet, it is three
+
+**Yes, there is a recommendation, and two of its three parts are effectively settled.** §7.5.6's
+falsification tests apply to *one* element, not to the whole, and listing them should not be read as
+walking the recommendation back.
+
+| # | Element | Confidence | Why |
+|---|---|---|---|
+| 1 | **SHELL-002's cluster architecture for N1/N2/N4/N5** | **Settled** | Not actually contested — HEXTILE proposes no alternative interconnect. Independently derived three times (SHELL-002, this document, and HEXTILE's own cluster-gated VLED in D-8). Adopt regardless of how the rest resolves. |
+| 2 | **HEXTILE D-6 — 24 V rail** | **High** | Derived twice by HEXTILE (contact current; series-string length, the latter unaddressed by SHELL-002), and a third argument in §7.5.5: SHELL-002's own 2-contact `VLED+` budget has *zero* derating at its assumed 12 V and ~2× at 24 V, so its contact count and its rail are mutually inconsistent. SHELL-002's 12 V is explicitly an estimate against its own OI-SHELL2-01. |
+| 3 | **HEXTILE D-4 — TIA + ADC on-module** | **Recommended, with real residual risk** | The direction is agreed by both documents; only the distance differs. Carries the one assumption that can invert it (§7.5.6 item 1). |
+
+**⚠ Two corrections to my own earlier reasoning, found by checking HEXTILE §6.4 / OI-HEXTILE-06.**
+Both matter, and the second changes what the decisive question *is*.
+
+**(a) D-4 is cost-NEUTRAL, not free.** §7.5.3 claimed the carrier's deleted AFE (~$25–35 across 12)
+is absorbed at ~$0 because the MCU already has an ADC. The ADC genuinely is free — it is inside U1,
+which **D-3** requires anyway. But HEXTILE §6.4 also lists **U2, a discrete dual TIA, at $0.32/tile
+= ~$26 at 80 tiles.** That very nearly cancels the carrier saving. D-4 should be argued on
+signal integrity and contact count, **not** on cost.
+
+**(b) The decisive question is NOT whether T1-A has an MCU.** An earlier version of this subsection
+said so. It is wrong by an order of magnitude: U1 + FETs are $0.86/tile, and **both** architectures
+require on-module drive anyway. HEXTILE §6.4's real finding is that driver + metering is
+**~$11.53/tile ≈ $920 per headset against a $405 Home Standard BOM** — and that **~$10 of the
+~$11.50 is two InGaAs photodiodes per tile.** Those PDs are on the tile under SHELL-002 too (its
+socket carries `PD1_K`/`PD2_K` *from tile-mounted PDs*), so **~$800 of the $920 is common to both
+sides of C17 and is not a D-4 cost at all.**
+
+The programme-level question is therefore **PD population**, which is *orthogonal* to where the TIA
+sits, and it is already open as **OI-HEXTILE-06** with three options: don't populate all sockets;
+silicon PD on T1-A (~−$9/tile ≈ −$720); or one PD pair per cluster (HEXTILE's own "not recommended",
+since it breaks the per-tile J/cm² claim `NP-HEX-ZM-001` §4a protects).
+
+**And that reframing strengthens item 3, for a reason I had not given.** HEXTILE's option 2 — silicon
+PD on T1-A, the single largest available saving — is annotated *"which D-4 makes safe, since gain is
+now set on-module per fitted part."* With the TIA on the module, a lattice mixing silicon T1-A and
+InGaAs T1-C tiles needs no runtime gain coordination at all: each module owns gain matched to its own
+fitted part. Under SHELL-002's shared per-carrier TIA the same mix is still *possible* — it is
+precisely §6.3's per-sample switched gain driven from inventory — but it re-creates a per-socket gain
+problem one level up, in the one place C17 is trying to simplify. **So D-4's real payoff is that it
+unlocks a ~$720 saving safely, not that it saves $26.**
+
+**Net: adopt 1 and 2 now. Item 3 is recommended and its argument is stronger than stated above, but
+it should be decided jointly with OI-HEXTILE-06, not before it** — the PD-population choice is worth
+~30× the TIA-placement choice, and D-4's main value is that it keeps the cheapest PD option open.
+Nothing about item 3 blocks the Hub PCB either way (§7.5.7).
+
 The one-line form — "HEXTILE D-4 + D-6 plus SHELL-002's cluster architecture" — is too compressed to
 build from. Concretely:
 
@@ -895,9 +943,11 @@ From SHELL-002 §3.2, one line is struck:
 
 The carrier stays **passive-plus-switches with no MCU**, which is SHELL-002's model — the synthesis
 makes it *more* so, not less. Carrier BOM drops the TIA + gain switch + mux + ADC set, order
-**$2–3 per carrier ≈ $25–35 across 12**, and that function lands on the tile at close to zero
-marginal cost, because HEXTILE **D-3** already mandates an on-module MCU for constant-current drive
-and its tinyAVR (U1) carries a 12-bit ADC with PGA. **The cost is not moved; it is absorbed.**
+**$2–3 per carrier ≈ $25–35 across 12** — but it is **not absorbed for free**, and an earlier draft
+of this paragraph said it was. The *ADC* is free (inside U1, which D-3 mandates regardless), but
+HEXTILE §6.4 also lists **U2, a discrete dual TIA, at $0.32/tile ≈ $26 at 80 tiles**, which very
+nearly cancels the carrier saving. **D-4 is cost-neutral.** Argue it on signal integrity and contact
+count (§7.5.2), and on keeping the cheap-PD option open (§7.5.0), never on this $26.
 
 #### 7.5.4 The one real cost — N2 traffic
 
@@ -949,12 +999,13 @@ never considering.
 
 #### 7.5.6 What would falsify this recommendation
 
-1. **If T1-A can genuinely ship without an on-module MCU.** Then D-3/D-4 impose ~80 MCUs where
-   SHELL-002 needs 12 carrier AFEs, and the cost argument inverts. This is the load-bearing
-   assumption. Evidence it holds: SHELL-002's own socket budget has no per-channel drive lines — only
-   `VLED+`/`PGND` — so a tile must already regulate and switch its own strings under SHELL-002 too,
-   and its "minimum viable identity device is a UID EEPROM" line reads as underspecified rather than
-   opposed. **Check this first.**
+1. ~~**If T1-A can genuinely ship without an on-module MCU**, the cost argument inverts.~~
+   **WITHDRAWN — this was never load-bearing.** U1 + FETs are $0.86/tile and *both* architectures
+   need on-module drive (SHELL-002's socket budget has no per-channel drive lines either). The real
+   money is elsewhere: HEXTILE §6.4 puts driver + metering at ~$11.53/tile ≈ **$920/headset**, of
+   which **~$10/tile is the two InGaAs PDs** — present on the tile under SHELL-002 as well, so ~$800
+   is common to both sides and orthogonal to C17. That decision is **OI-HEXTILE-06**, and it is worth
+   ~30× this one. See §7.5.0(b).
 2. **If N2 traffic (§7.5.4) collides with the EEG quiet window** and 1 MHz Fm+ does not recover it.
    Carrier-side aggregation would then be worth the four contacts.
 3. **If per-tile ADC accuracy or thermal drift fails FAI-SM-06** (±15 % dose metering) at 42–62 °C
