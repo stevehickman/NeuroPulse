@@ -802,8 +802,30 @@ CLUSTER-1's 7-hex flower):
 | Safety-MCU enable GPIO | **12** (16 provisioned) | `SAFE_EN_n`, **Safety-MCU sourced**, default LOW at reset |
 | `SYNC` driver | 1 | Broadcast, phase-locked to the EEG sample frame |
 | `ALERT#` input | 1 per cluster, wire-OR | Or one aggregate with I2C interrogation |
-| PDN feed | 1 | Rated at the vault ceiling |
+| PDN feed | 1 | Rated at the vault ceiling — **now a 24 V BOOST stage, see below** |
 | ADS1299 bank interface | SPI | Bank sits at the **PAN**, not on the Hub PCB |
+
+> **⚠ New Rev C hardware, created by adopting D-6 (HUB-C17b) — stated in neither source document.**
+> `NP-DRV-SHELL-002` specifies the PDN feed only as "rated at the vault ceiling", because at its
+> assumed 12 V the rail is a **buck** from USB-C PD. **At 24 V it is a boost**: CLAUDE.md §4.5
+> negotiates at most 20 V, and Standard T1 runs from **15 V/2 A**, so the vault rail sits *above* the
+> input in normal operation and must be regulated independently of what PD negotiated (the same
+> argument that rejected the 20 V PD-native option, §7.5.5).
+>
+> | Parameter | Value |
+> |---|---|
+> | Topology | Boost, 15–20 V in → 24 V out |
+> | Output power | ~35 W (SHELL-002 §5.4 vault instantaneous ceiling) |
+> | Output current | **~1.46 A** at 24 V (vs ~2.9 A at 12 V — halved, and I²R quartered) |
+> | Placement | Hub PCB or PAN — **open**, see below |
+>
+> Three consequences for Rev C: board area and a magnetics part that the Rev B hub never carried; a
+> ~5 % conversion loss (~1.8 W) added to the hub's own thermal load, which is *outside* the shielded
+> shell and fan-served, so it lands in the easier place; and a **placement question** — a boost at
+> the hub means 24 V crosses the parting-plane boss (lower current, better), while a boost at the PAN
+> keeps the high-voltage node off the tail at the cost of putting magnetics inside the envelope near
+> the fluxgates (`NP-HEX-ZM-001` §5.3.1). **Recommend the Hub PCB**, outside the shield, consistent
+> with §5.3.1's rule of siting each element where its physics wants. Tracked as **OI-HUB-C19**.
 
 **This supersedes §4.3's "the hub terminates a bus with up to 16 addressable peers" as the concrete
 form** — but not its *principle*, which SHELL-002 states identically: "nothing downstream of this
@@ -842,7 +864,47 @@ per-cluster *policy* is genuinely wanted, the Class C safety wire format must wi
 
 ### 7.5 The recommended synthesis, in detail (input to OI-HUB-C17)
 
-#### 7.5.0 The recommendation, stated — and it is not one bet, it is three
+#### 7.5.0 DECIDED 2026-07-30 (principal) — items 1 and 2 ADOPTED; item 3 open on thermal
+
+> **HUB-C17a — ADOPTED: `NP-DRV-SHELL-002`'s cluster-carrier architecture for N1 / N2 / N4 / N5.**
+> **HUB-C17b — ADOPTED: `NP-HW-HEXTILE-001` D-6, the 24 V vault rail.** This resolves
+> `NP-DRV-SHELL-002` **OI-SHELL2-01** ("fix the N1 bus rail voltage, 12 V assumed") against the
+> 12 V estimate — SHELL-002 needs a downstream update, flagged as **OI-HUB-C18**.
+> **HUB-C17c — OPEN: HEXTILE D-4, TIA + ADC on-module.** Deferred by principal direction **pending
+> the module heat-sink / helmet-cooling design**, not pending cost. See §7.5.0a.
+
+##### 7.5.0a Why thermal is the right gate on item 3
+
+D-4 places active silicon — U1 (tinyAVR), U2 (dual TIA) and the ADC — on the tile, i.e. **inside the
+thermal envelope that CLAUDE.md §4.2 caps at 42 °C scalp face and 62 °C junction**, alongside
+emitters already dissipating ~25 W instantaneous / ~6.25 W average at the 25 % duty ceiling. The
+carrier alternative puts that same silicon in the inter-bowl gap, which is cooler, fan-served, and
+not against the scalp.
+
+Two distinct thermal questions, and neither is answerable from the documents as they stand:
+
+1. **Added dissipation.** Small in absolute terms — U1 at ≤25 mA active is ~82 mW, U2 a few mW,
+   against ~6.25 W of emitter average — but it is **continuous**, where the emitters are duty-cycled,
+   and it sits *behind* the emitting face rather than radiating out of it. Whether the module
+   heat-sink path absorbs it is a heat-sink question.
+2. **ADC accuracy across the operating range.** This was §7.5.6 item 3 and is now the binding one:
+   a 12-bit ADC with PGA has ample *resolution* for the ±15 % dose target (FAI-SM-06), but **drift
+   between 25 °C and a 62 °C junction is a tile-level specification** that a carrier-mounted ADC in a
+   cooler, more stable location never faces. The dose claim is a stated competitive differentiator
+   (CLAUDE.md §3 modality 1), so this is not a margin question.
+
+Both depend on work in flight: `NP-THERM-CFD-R1-001` (Path B1 scalp-facing NTC), the SR-FAN-01…06
+forced-convection interlock, and `NP-THERM-BEZEL-001` — whose 1.0 mm vs 2.5 mm bezel conflict
+(**OI-HEXTILE-01**) itself moves the per-tile thermal budget. **Item 3 should be decided after the
+module heat-sink path is fixed, and jointly with OI-HEXTILE-06 (PD population).**
+
+**What this does not hold up.** Nothing. §7.4's hub interface is identical under either outcome
+(§7.5.7), the carrier architecture and the rail are now adopted, and the socket contact count is the
+only artefact still waiting — 18 if the carrier keeps the AFE, 14–15 if D-4 lands (§7.5.2).
+
+---
+
+#### 7.5.0b The recommendation as originally stated — and it is not one bet, it is three
 
 **Yes, there is a recommendation, and two of its three parts are effectively settled.** §7.5.6's
 falsification tests apply to *one* element, not to the whole, and listing them should not be read as
@@ -1251,7 +1313,9 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C08 | **Net the $63.40 cluster tier against the retired 5-zone-module drive electronics** already inside the $405 Home Standard BOM (§8.4) — needs a post-hex module BOM that does not yet exist | BOM sign-off |
 | OI-HUB-C09 | **CLOSED 2026-07-30.** Electrical and mechanical clusters are **the same thing**: the board is **capacity-8**, not exactly-8, and capacity 8 costs the same as a hypothetical 7 (no 7-channel I2C switch or 14:1 mux exists), so one board SKU serves a full flower or any partial one. Shape settled by **CLUSTER-1** (principal, 2026-07-30): **7-hex flower wherever the lattice allows, partial flowers at the boundary** — decided on clamp-plate mechanics (span 122.2 vs 161.8 mm; stress ×1.75, plate deflection ×3.07, dome depth 25.1 → 55.0 mm, 136.8° subtended), *not* on the earlier BOM gradient, whose figures HEXTILE has voided. The triad stays excluded electrically too (43 segments at n=128 > the 32-segment budget). MECH-2 now verifies rather than selects. **Three-level `(cluster:module:element)` addressing remains explicitly rejected** (§4.5). | Closed — MECH-2 verifies |
 | OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table (single ascending pass, no `seen` bitmap needed). Legitimate as a firmware-resident group because socket→cluster changes only on an inner-bowl re-tool (§4.5.1) — unlike lobe. Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
-| OI-HUB-C17 | **⚠ BLOCKING — two merged specs give incompatible socket contact arrays.** `NP-DRV-SHELL-002` Rev A (7-29) and `NP-HW-HEXTILE-001` Rev A (7-30) were written in parallel with **zero cross-references** and disagree on: TIA+ADC location (cluster carrier vs on-module); whether PD analog crosses the socket (yes/no); contact count (**18 vs 16**); bus rail (**12 V vs 24 V**); and presence detection (I2C probe vs a dedicated `SEAT_N` pin, which HEXTILE argues is *not* redundant because a partially seated tile can ACK on two contacts while PD/NTC/electrode contacts are marginal → "a plausible-looking but wrong dose reading"). The socket contact array is molded, tooled hardware, so this blocks tooling, not just Rev C. **Recommendation in the head-of-file banner: HEXTILE D-4 (TIA on-module) + HEXTILE D-6 (24 V) + SHELL-002's cluster-carrier architecture for N1/N2/N4/N5** — it goes further in the direction SHELL-002 itself argues for, and it delivers the 18→~14 contact reduction SHELL-002 asks for under its own OI-SHELL2-03 accessibility concern. **EE Lead decides; this document does not.** **Detailed synthesis + falsification tests: §7.5.** Note §7.5.7: C17 does **not** block the Hub PCB interface (§7.4) — N3 never crossed the parting plane in either design, so the tail, connector count and pin budget are identical either way. It blocks socket tooling and the carrier schematic only. | Socket tooling; cluster-carrier schematic; SHELL-002 OI-SHELL2-01/03 — **not** Hub PCB §7.4 |
+| OI-HUB-C17 | **PARTIALLY DECIDED 2026-07-30 (principal) — see §7.5.0.** **C17a ADOPTED:** `NP-DRV-SHELL-002`'s cluster-carrier architecture for N1/N2/N4/N5. **C17b ADOPTED:** HEXTILE **D-6**, 24 V vault rail — resolves SHELL-002 **OI-SHELL2-01** against its 12 V estimate. **C17c OPEN:** HEXTILE **D-4** (TIA + ADC on-module) deferred **pending the module heat-sink / helmet-cooling design** (§7.5.0a) — not pending cost, which §7.5.0(a)/(b) showed to be ~neutral and dominated 30× by PD population (OI-HEXTILE-06). Thermal gate has two parts: continuous on-tile dissipation inside the 42 °C face / 62 °C junction envelope, and **ADC drift 25 → 62 °C against the ±15 % dose claim (FAI-SM-06)**, which a cooler carrier-mounted ADC never faces. Decide after the heat-sink path is fixed and jointly with OI-HEXTILE-06. Only artefact still waiting: socket contact count (18 vs 14–15). Hub PCB §7.4 is unaffected either way (§7.5.7). | Socket tooling + carrier schematic only — **not** Hub PCB |
+| OI-HUB-C18 | **Propagate the 24 V adoption (C17b) into `NP-DRV-SHELL-002`.** Its §5.4 power budget, ~2.9 A vault bus figure, N1 conductor sizing and cluster power-gate part class are all computed at 12 V; at 24 V the bus current halves to ~1.46 A and I²R quarters. Its **OI-SHELL2-01** closes. Also re-check the 2-contact `VLED+` budget, which §7.5.5 shows had zero derating at 12 V and ~2× at 24 V | `NP-DRV-SHELL-002` Rev B |
+| OI-HUB-C19 | **24 V boost stage — new Rev C hardware created by C17b, specified in neither source document.** USB-C PD tops out at 20 V and Standard T1 runs from 15 V, so the vault rail is a **boost**, not the buck SHELL-002 implicitly assumed: 15–20 V → 24 V, ~35 W, ~1.46 A. Adds magnetics + board area the Rev B hub never carried and ~1.8 W of conversion loss. **Placement open — recommend Hub PCB** (outside the shield, fan-served) over the PAN (magnetics inside the envelope near the fluxgates, `NP-HEX-ZM-001` §5.3.1) | Rev C schematic; hub thermal budget |
 | OI-HUB-C15 | **Merge this document with BOTH `NP-HW-HEXTILE-001` Rev A and `NP-DRV-SHELL-002` Rev A** per the three-way banner at the head of this file. Adopt SHELL-002 §7.1 as the interface contract (done, §7.4). §6's fate follows OI-HUB-C17: deleted if HEXTILE D-4 wins, relocated to the cluster carrier if SHELL-002 wins — it does not stay on the Hub PCB either way. Rewrite §5.2 to the two-level UID-addressed tree; drop the cluster-MCU LED-drive rationale in §3.2; recost §8. Retain §2, §4.2–4.5.2, §7.2–7.4, §9.5, §10 | Rev C baselining — §7.4 unblocked (§7.5.7); §6's fate blocked on OI-HUB-C17 |
 | OI-HUB-C16 | **CLOSED 2026-07-30 by `NP-DRV-SHELL-002` network N4** — a per-cluster low-leakage analog mux onto N shared guarded lanes, terminating at an **ADS1299 bank at the posterior aggregation node** (not the Hub PCB), sized by channel count (8 T1 / 21 T2) rather than socket count. That is the crosspoint this item proposed, and it is the surviving justification for the cluster tier. Residual — contact resistance and leakage on a µV path through a pogo contact plus a mux, and tES current rating through the same switch — sits with SHELL-002, not here | Closed |
 | OI-HUB-C14 | **Retire the firmware lobe path** — `NP_GROUP_KIND_LOBE`, `np_pgroup_t`, `np_module_map_predefined()`, and the `lobe`/`side` fields of `np_socket_geom_t`. It is unbacked: no production caller, no production geometry table (test fixtures only), and no generator emitting firmware C (§4.5.2). Zones are data owned by `00-zones.npps` and already reach firmware as a socket bitmap → `NP_GROUP_KIND_SOCKET_SET`. Risk if left: a future caller resolves against a stale post-REG-1 lobe map — a wrong-site dose from dead code. Decide whether `np_physical_loc_t` keeps `lobe`/`side` (from `np_module_map_resolve()`) or those become app-side lookups; `x_mm`/`y_mm` stay for simulator selection. Touches several of the 63 host checks — own PR, own review | Firmware source-of-truth hygiene; REG-1 safety |
