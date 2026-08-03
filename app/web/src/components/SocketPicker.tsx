@@ -230,6 +230,9 @@ export function SocketPicker({
             const color = colorFor(socket.id);
             const fitted = inventory?.at(socket.id);
             const memberOf = membershipOf.get(socket.id) ?? [];
+            const straddlesMidline =
+              memberOf.some(z => /\bLeft\b/.test(z)) &&
+              memberOf.some(z => /\bRight\b/.test(z));
 
             return (
               <g
@@ -247,7 +250,7 @@ export function SocketPicker({
                 }}
               >
                 <title>
-                  {`Socket ${socket.id} — ${socket.side}\n` +
+                  {`Socket ${socket.id}\n` +
                     `Zones: ${memberOf.length > 0 ? memberOf.join(', ') : 'none'}\n` +
                     (fitted?.present ? `Fitted: ${fitted.partNumber}` : 'Empty') +
                     (status === 'incompatible' ? '\nDoes not supply the required elements' : '')}
@@ -260,8 +263,13 @@ export function SocketPicker({
                   strokeWidth={isSelected ? 3.5 : 2}
                   /* Midline sockets sit on the centre column and so are listed in
                      both the left- and right-side zone they belong to — dashed so
-                     the double membership is visible rather than surprising. */
-                  strokeDasharray={socket.side === 'midline' ? '4 3' : undefined}
+                     the double membership is visible rather than surprising.
+                     Read from the AUTHORED zone membership, not from a `side`
+                     field: laterality is a property of the zone file, not of the
+                     hardware, and the helmet reports neither lobe nor side
+                     (ZONE-1). Socket 2 is in "Frontal Left" AND "Frontal Right";
+                     socket 3 is only in the Right zones. */
+                  strokeDasharray={straddlesMidline ? '4 3' : undefined}
                 />
                 {status === 'incompatible' && (
                   <circle cx={cx} cy={cy - HEX_R * 0.52} r={3.2} fill="#f59e0b" />

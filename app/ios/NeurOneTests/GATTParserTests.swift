@@ -119,9 +119,10 @@ final class GATTParserTests: XCTestCase {
                        fragment: UInt8 = 0,
                        records: [(socket: UInt8, type: UInt8, flags: UInt8)],
                        declaredCount: UInt8? = nil) -> Data {
-        var d = Data([version,
-                      (snapshot ? 0x01 : 0x00) | (last ? 0x02 : 0x00),
-                      fragment,
+        // Explicit UInt8: inside a Data([...]) literal, `|` over untyped integer
+        // literals resolves to Int on some Swift versions and fails to convert.
+        let flags: UInt8 = (snapshot ? 0x01 : 0x00) | (last ? 0x02 : 0x00)
+        var d = Data([version, flags, fragment,
                       declaredCount ?? UInt8(records.count)])
         for r in records { d.append(contentsOf: [r.socket, r.type, r.flags]) }
         return d
@@ -134,9 +135,9 @@ final class GATTParserTests: XCTestCase {
                           records: [(socket: UInt8, flags: UInt8,
                                      x: Int16, y: Int16, z: Int16)],
                           declaredCount: UInt8? = nil) -> Data {
-        var d = Data([version,
-                      0x01 | (last ? 0x02 : 0x00) | 0x04,   // snapshot | last | map
-                      fragment,
+        // snapshot | last | map, explicitly UInt8 for the same reason as above.
+        let flags: UInt8 = 0x01 | (last ? 0x02 : 0x00) | 0x04
+        var d = Data([version, flags, fragment,
                       declaredCount ?? UInt8(records.count)])
         for r in records {
             let ux = UInt16(bitPattern: r.x)
@@ -340,8 +341,9 @@ final class GATTParserTests: XCTestCase {
     func testParseZoneModuleStatusFaultIsNeverPresent() {
         // Both bits set by a misbehaving hub: presence gates safety-critical
         // placement checks, so fault must win.
+        let bothBits: UInt8 = 0x01 | 0x02   // PRESENT | FAULT
         let data = frame(snapshot: false, last: true,
-                         records: [(7, 2, 0x01 | 0x02)])
+                         records: [(7, 2, bothBits)])
         let record = GATTParser.parseZoneModuleStatus(data)?.records.first
         XCTAssertEqual(record?.hasFault, true)
         XCTAssertEqual(record?.isPresent, false,

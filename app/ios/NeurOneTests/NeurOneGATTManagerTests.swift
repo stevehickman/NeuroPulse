@@ -376,10 +376,8 @@ final class NeurOneGATTManagerTests: XCTestCase {
     /// the socket map at link time.
     private func zoneFrame(snapshot: Bool, last: Bool, fragment: UInt8 = 0,
                            records: [(UInt8, UInt8, UInt8)]) -> Data {
-        var d = Data([0x02,
-                      (snapshot ? 0x01 : 0x00) | (last ? 0x02 : 0x00),
-                      fragment,
-                      UInt8(records.count)])
+        let flags: UInt8 = (snapshot ? 0x01 : 0x00) | (last ? 0x02 : 0x00)
+        var d = Data([0x02, flags, fragment, UInt8(records.count)])
         for r in records { d.append(contentsOf: [r.0, r.1, r.2]) }
         return d
     }
@@ -389,8 +387,8 @@ final class NeurOneGATTManagerTests: XCTestCase {
     /// in aircraft body axes (+x forward, +y right, +z down).
     private func socketMapFrame(last: Bool, fragment: UInt8 = 0,
                                 records: [(UInt8, UInt8, Int16, Int16, Int16)]) -> Data {
-        var d = Data([0x02, 0x01 | (last ? 0x02 : 0x00) | 0x04, fragment,
-                      UInt8(records.count)])
+        let flags: UInt8 = 0x01 | (last ? 0x02 : 0x00) | 0x04
+        var d = Data([0x02, flags, fragment, UInt8(records.count)])
         for r in records {
             let ux = UInt16(bitPattern: r.2)
             let uy = UInt16(bitPattern: r.3)
