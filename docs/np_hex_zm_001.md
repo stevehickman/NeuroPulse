@@ -189,6 +189,46 @@ lattice, asserts the row construction never exceeds the area bound, and emits
 `NP_TILE_GEOMETRY` to `app/web/src/lib/socketMap.generated.ts` and
 `hardware/np_socket_map.json`.
 
+> ### 🔒 NUMBER-1 — DECIDED 2026-08-03 (principal): socket numbers are 1-based, project-wide
+>
+> **A socket number is 1-based everywhere in this project.** `NP_SOCKET_NUMBERING_BASE = 1`,
+> and the valid domain is `1 .. NP_SOCKET_COUNT`. **Socket 0 does not exist** and is rejected,
+> not clamped, wherever a socket id is accepted.
+>
+> This binds every artefact in which a socket is *named* — `.npps` zone files,
+> `hardware/np_socket_map.json`, the generated app maps, every app-side API, every
+> error message, log line, UI label and telemetry field, and every wire format that
+> carries a socket id as a value (the zone-announce BLE frames convert at their encoder
+> and say so).
+>
+> **Two things inside firmware are NOT socket numbers and are deliberately exempt.**
+> Both are *index space* — an offset into a container, which is 0-based in C the way
+> every other array is. Neither is ever shown to a human or written to a file:
+>
+> | Index space | Where | Conversion site |
+> |---|---|---|
+> | `np_hex_addr_t.socket_id` — a direct index into the geometry table, `0 .. NP_HEXMAP_MAX_SOCKETS-1` | `firmware/hub_control/include/np_module_map.h` | callers, at the boundary; documented in that header |
+> | Bit position in the `NP_PROTO_TARGET_SOCKET_MASK` bitmap — bit 0 selects socket 1 | `np_hub_config.h`, `hubCompiler.socketBitmap()`, `NPSocketMask` | exactly one function per producer |
+>
+> **Why the bitmap bit is not renumbered to match.** 16 bytes is 128 bits. Mapping sockets
+> `1..128` onto bits `1..128` needs a bit 128 — a 17th byte — so a 1-based bitmap would
+> either grow the mask (breaking `NP_PBM1064_SOCKET_MASK_BYTES == NP_HUB_SOCKET_MASK_BYTES`
+> and its alignment) or cap the lattice at 127 sockets. A bit position is an offset, not a
+> number the system quotes; renumbering it would buy nothing and cost a coordinated
+> firmware + web + iOS + simulator wire-format release.
+>
+> **Why `socket_id` is not renumbered either.** Making an array index 1-based means either
+> wasting element 0 or writing `- 1` at every access — which moves the conversion *from* one
+> documented seam *to* every call site. That is the opposite of what this rule is for.
+>
+> **The test of a violation** is therefore not "is this value 0-based" but: *does a 0-based
+> value escape its conversion site?* Any socket id in a message, a file, a wire field, or an
+> app-side type is 1-based, or it is a bug.
+>
+> Enforced by: `assertNumberingBase()` in `scripts/sync-socket-map.ts` (emission),
+> `socketSet.test.ts` and `npps-zones-conditions.test.ts` (web), `NPSocketMaskTests` (iOS),
+> and `np_zone_notify_tests.c` (the firmware encoder boundary).
+
 | Constant | Value | Meaning |
 |---|---|---|
 | `HEAD_CIRCUMFERENCE_MM` | 620 | largest head the single adult SKU covers |

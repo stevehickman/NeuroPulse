@@ -50,8 +50,11 @@ np_hub_status_t np_protocol_verify_and_parse(const uint8_t   *buf,
  * On a command of any other target kind they behave as though no socket is
  * selected (false / 0 / empty list) — the fail-closed reading.
  *
- * Socket ids here are 0-BASED firmware ids, directly usable as np_hex_addr_t
- * .socket_id and as np_group_query_t.sockets entries.
+ * The values here are INDEX SPACE, not socket numbers: 0-based, directly usable
+ * as np_hex_addr_t.socket_id and as np_group_query_t.sockets entries. A socket
+ * NUMBER is 1-based project-wide (NUMBER-1, docs/np_hex_zm_001.md §3.3), so
+ * anything that displays, logs or transmits one of these must add the base first
+ * — index 0 is socket 1. Nothing in this module performs that conversion.
  */
 
 /* True iff socket_id is selected by this command. Out-of-domain ids are false. */

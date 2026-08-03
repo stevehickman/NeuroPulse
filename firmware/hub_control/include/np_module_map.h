@@ -142,11 +142,18 @@
 #define NP_HEXMAP_MAX_ELEMENTS     128     /* 7-bit minor domain                 */
 #define NP_HEXMAP_UID_LEN          8       /* 64-bit module UID                  */
 
-/* ── Numbering base: firmware is 0-based, NPPS/app are 1-based ────────────────
+/* ── Numbering base: socket NUMBERS are 1-based; this index is not a number ───
+ * NUMBER-1 (docs/np_hex_zm_001.md §3.3): a socket NUMBER is 1-based everywhere in
+ * the project, and socket 0 does not exist. `socket_id` here is deliberately
+ * exempt because it is not a socket number — it is INDEX SPACE, a direct offset
+ * into the geometry table, 0-based like every other C array index. It is never
+ * displayed, logged, serialized or put on a wire in this form; np_zone_notify
+ * converts at its encoder and np_protocol's bitmap converts at the producer.
+ *
  * This is a real seam, and the conversion is the CALLER's job at the boundary:
  *
- *     socket_id (firmware)  =  socket id (NPPS/app)  -  1
- *     socket id (NPPS/app)  =  socket_id (firmware)  +  1
+ *     socket_id (index)     =  socket number (NPPS/app)  -  1
+ *     socket number (NPPS/app)  =  socket_id (index)     +  1
  *
  * Firmware socket_id is 0-based: 0 .. NP_HEXMAP_MAX_SOCKETS-1, indexing the
  * geometry table directly. The NPPS zone files under protocols/predefined/,

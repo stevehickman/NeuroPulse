@@ -32,10 +32,17 @@ enum NPSocketIDProblem: Equatable {
 }
 
 /// Socket id domain, derived from the generated zone table rather than hardcoded.
+///
+/// NUMBER-1 (docs/np_hex_zm_001.md §3.3): a socket NUMBER is 1-based everywhere in
+/// this project, and socket 0 does not exist. Every id this app holds, displays,
+/// logs or serialises is in this space. The only 0-based quantity anywhere near it
+/// is the BIT POSITION inside `NPSocketMask` — index space, not a socket number,
+/// converted in exactly one place (`NPSocketMask.init(sockets:source:)`).
 enum NPSocketID {
 
-    /// Ids are 1-based in .npps files and in this app; firmware numbers from 0.
-    /// The single conversion happens in `NPSocketMask`.
+    /// Fixed at 1 by NUMBER-1. Written as a named constant rather than a bare `1`
+    /// so the conversion in `NPSocketMask` reads as a base change and not as an
+    /// unexplained off-by-one.
     static let numberingBase = 1
 
     static var minimum: Int { numberingBase }
@@ -143,7 +150,11 @@ struct NPSocketMask: Equatable, Hashable, Codable {
     /// numeric match against a byte-level fixture.
     static let byteCount = 16
 
-    /// Bit `n` set == firmware socket_id `n` targeted == app socket id `n + 1`.
+    /// Bit `n` set == socket number `n + NPSocketID.numberingBase` targeted.
+    ///
+    /// The bit position is INDEX SPACE, not a socket number (NUMBER-1). It is
+    /// 0-based because 16 bytes hold 128 sockets only if the first one starts at
+    /// bit 0 — a 1-based bitmap would need a 129th bit for socket 128.
     private(set) var bytes: [UInt8]
 
     /// The empty mask. Never valid as a command target — see `emptyTarget`.
@@ -153,11 +164,13 @@ struct NPSocketMask: Equatable, Hashable, Codable {
         self.bytes = bytes
     }
 
-    /// Build a mask from 1-based app socket ids.
+    /// Build a mask from socket NUMBERS (1-based, NUMBER-1).
     ///
-    /// Two conversions happen here and nowhere else, which is the point of having
-    /// a single initialiser: 1-based app id -> 0-based firmware socket_id, and
-    /// set membership -> bit membership, so a socket named twice is delivered once.
+    /// **This is the app's only socket-number-to-bit-position conversion.** Two
+    /// things happen here and nowhere else: the base change from socket number to
+    /// bit index, and set membership becoming bit membership, so a socket named
+    /// twice is delivered once. If a `- 1` on a socket id appears anywhere else in
+    /// the app, that is the bug NUMBER-1 exists to catch.
     ///
     /// - Parameter source: what named these sockets, for the error message
     ///   (a zone name, or "the operator's selection").
@@ -173,9 +186,10 @@ struct NPSocketMask: Equatable, Hashable, Codable {
         self.bytes = bytes
     }
 
-    /// The targeted socket ids, 1-based and ascending — deduplicated by
-    /// construction. For display, tests and dose accounting; the wire carries
-    /// `bytes`.
+    /// The targeted socket NUMBERS (1-based, NUMBER-1), ascending and
+    /// deduplicated by construction. This is the boundary back out of index
+    /// space: everything downstream — display, logs, tests, dose accounting —
+    /// sees socket numbers only. The wire carries `bytes`.
     var socketIDs: [Int] {
         var ids: [Int] = []
         for (index, byte) in bytes.enumerated() where byte != 0 {

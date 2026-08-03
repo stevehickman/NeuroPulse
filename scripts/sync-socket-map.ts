@@ -566,8 +566,50 @@ function checkParity(): string[] {
   return errors;
 }
 
-/** Socket ids start at 1, matching the `sockets:` lists in .npps zone files. */
+/**
+ * Socket ids start at 1, matching the `sockets:` lists in .npps zone files.
+ *
+ * NUMBER-1 (np_hex_zm_001.md §3.3) makes this project-wide: a socket NUMBER is
+ * 1-based everywhere it is named, and socket 0 does not exist. The two 0-based
+ * things in firmware — the geometry-table index and the protocol bitmap's bit
+ * position — are index space, not socket numbers, and convert at one documented
+ * site each. See `assertNumberingBase` for what this file enforces.
+ */
 const NUMBERING_BASE = 1;
+
+/**
+ * Refuse to emit anything that would put a 0-based socket id into an artefact.
+ *
+ * This generator is upstream of every app-side socket map, so a base changed
+ * here would propagate silently into the web app, the iOS app and
+ * np_socket_map.json at once — and a 0 reaching a `sockets:` list would be
+ * indistinguishable from an authored id until something aimed light at the wrong
+ * tile. Cheaper to refuse than to detect downstream.
+ */
+function assertNumberingBase(sockets: SocketGeometry[]): void {
+  if (NUMBERING_BASE !== 1) {
+    throw new Error(
+      `NUMBERING_BASE is ${NUMBERING_BASE}, but NUMBER-1 (np_hex_zm_001.md §3.3) fixes ` +
+      `socket numbering at 1 project-wide. Changing it is a decision for the principal, ` +
+      `not an edit here: it would silently re-point every zone file, both app maps and ` +
+      `np_socket_map.json at different tiles.`,
+    );
+  }
+  const first = sockets[0]?.id;
+  if (first !== NUMBERING_BASE) {
+    throw new Error(
+      `the lowest emitted socket id is ${first}, not ${NUMBERING_BASE} — ids must run ` +
+      `${NUMBERING_BASE}..${sockets.length} with no gap at the start.`,
+    );
+  }
+  const zero = sockets.find(s => s.id === 0);
+  if (zero !== undefined) {
+    throw new Error(
+      `a socket was emitted with id 0. Socket 0 does not exist (NUMBER-1); every ` +
+      `consumer rejects it, so emitting it would produce a map nothing can load.`,
+    );
+  }
+}
 
 export interface SocketGeometry {
   /** 1-based socket id, matching the `sockets:` lists in .npps zone files. */
@@ -1471,6 +1513,9 @@ function parseArg(flag: string): string | undefined {
 }
 
 const sockets = buildSockets();
+// Before any structural check, and before anything is written: nothing downstream
+// can recover from a wrongly-based map, so this throws rather than collecting.
+assertNumberingBase(sockets);
 const errors = validateAgainstZoneFile(sockets);
 
 if (errors.length > 0) {

@@ -88,8 +88,9 @@ final class NPSocketMaskTests: XCTestCase {
         XCTAssertEqual(mask.hexString.count, 32)
     }
 
-    func testBitOrderIsLSBFirstAndZeroBased() throws {
-        // App socket id 1 is firmware socket_id 0, which is bit 0 of byte 0.
+    func testBitOrderIsLSBFirstWithBitZeroMeaningSocketOne() throws {
+        // The bit position is INDEX space; the socket number is not. Socket 1 —
+        // the lowest that exists — is bit 0 of byte 0.
         let mask = try NPSocketMask(sockets: [1], source: "test")
         XCTAssertEqual(mask.bytes[0], 0x01)
         XCTAssertEqual(mask.hexString, "01000000000000000000000000000000")
@@ -97,6 +98,51 @@ final class NPSocketMaskTests: XCTestCase {
         let ninth = try NPSocketMask(sockets: [9], source: "test")
         XCTAssertEqual(ninth.bytes[0], 0x00)
         XCTAssertEqual(ninth.bytes[1], 0x01)
+    }
+
+    // MARK: - NUMBER-1: socket numbers are 1-based, project-wide
+
+    func testNumberingBaseIsOne() {
+        // NUMBER-1 (docs/np_hex_zm_001.md §3.3). Pinned here as well as in the
+        // generator and the web suite because iOS holds its own copy of the
+        // constant — a drift between the two would put every mask one tile off.
+        XCTAssertEqual(NPSocketID.numberingBase, 1)
+        XCTAssertEqual(NPSocketID.minimum, 1)
+        XCTAssertEqual(NPSocketID.maximum, SocketZones.socketCount)
+        XCTAssertEqual(NPSocketID.rangeLabel, "1–\(SocketZones.socketCount)")
+    }
+
+    func testSocketZeroDoesNotExist() {
+        // Rejected, never clamped to 1 and never treated as "no socket".
+        XCTAssertFalse(NPSocketID.isValid(0))
+        XCTAssertEqual(NPSocketID.problem(0), .outOfRange)
+        XCTAssertThrowsError(try NPSocketMask(sockets: [0], source: "test"))
+    }
+
+    func testEveryAuthoredZoneUsesOneBasedSocketNumbers() {
+        // The generated table is the app's view of 00-zones.npps. If a 0-based
+        // list ever reached it, every zone would resolve one tile off — silently,
+        // because the ids would still all be in range.
+        for name in SocketZones.zoneNames {
+            for socket in SocketZones.sockets(forZone: name) ?? [] {
+                XCTAssertGreaterThanOrEqual(Int(socket), NPSocketID.minimum,
+                                            "zone \(name) names socket \(socket)")
+                XCTAssertLessThanOrEqual(Int(socket), NPSocketID.maximum,
+                                         "zone \(name) names socket \(socket)")
+            }
+        }
+        XCTAssertEqual(SocketZones.bySocket.keys.min(), 1)
+        XCTAssertEqual(Int(SocketZones.bySocket.keys.max() ?? 0), SocketZones.socketCount)
+    }
+
+    func testTheLowestAndHighestSocketsBothAddress() throws {
+        // The two ends are where an off-by-one shows up first: socket 1 must not
+        // fall off the bottom, and the last socket must not overflow the mask.
+        let lowest = try NPSocketMask(sockets: [NPSocketID.minimum], source: "test")
+        XCTAssertEqual(lowest.socketIDs, [1])
+        let highest = try NPSocketMask(sockets: [NPSocketID.maximum], source: "test")
+        XCTAssertEqual(highest.socketIDs, [SocketZones.socketCount])
+        XCTAssertEqual(highest.bytes.count, NPSocketMask.byteCount)
     }
 
     // MARK: - Retired forms parse but never resolve
