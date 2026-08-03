@@ -165,7 +165,7 @@ void np_pbm1064_detect_tick(np_pbm1064_detect_ctx_t *ctx,
                  * gain to default, then back to IDLE. */
                 np_pbm1064_shdr_fault_entry_t fe = {
                     .device_session_count = ctx->device_session_count,
-                    .slot                 = slot,
+                    .socket_id            = slot,
                     .channel              = 0xFF,
                     .fault_reason         = NP_PBM1064_FAULT_I2C_LOST,
                     .status_reg_value     = 0xFF,

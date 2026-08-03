@@ -143,7 +143,62 @@
 /* ── Calibration ─────────────────────────────────────────────────────────────── */
 
 #define NP_PBM1064_WL_COUNT             3U      /* 0=660nm, 1=808nm, 2=1064nm     */
-#define NP_PBM1064_ZONE_COUNT           5U      /* ZM-01 through ZM-05            */
+
+/*
+ * NP_PBM1064_ZONE_COUNT bounds np_pbm1064_detect_ctx_t (the physical ZONE_ID
+ * resistor-ladder debounce state machine) ONLY. It is retained solely to keep
+ * that RETIRED-but-still-linked code building (NP-HW-HUB-001 Rev C §9.1: UID
+ * auto-inventory replaces ZONE_ID detection). Do NOT use it to size any
+ * session-descriptor / dose / drive / calibration array — those are bounded
+ * by NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS below.
+ */
+#define NP_PBM1064_ZONE_COUNT           5U      /* ZM-01 through ZM-05 (retired detection path) */
+
+/*
+ * ── Session descriptor v5 addressing (NP-SES-1064-001 §1) ───────────────────
+ *
+ * NP-HEX-ZM-001 replaced the 5 fixed zone-module slots with a hex-tiled
+ * lattice of ~30-80 sockets (up to the 128-socket addressing domain). Per
+ * NP-HW-HUB-001 Rev C §10, the session descriptor's socket targeting reuses
+ * NP Hub Protocol v2's NP_PROTO_TARGET_SOCKET_MASK representation — a 16-byte
+ * (128-bit), LSB-first, 0-based socket bitmap sized to NP_HEXMAP_MAX_SOCKETS
+ * (firmware/hub_control/include/np_hub_config.h) — rather than a per-socket
+ * ID list: under inclusive midline zone membership a list can carry a socket
+ * twice, and a duplicate means double J/cm² on the same module. A bitmap
+ * cannot express the duplicate.
+ *
+ * NP_PBM1064_SOCKET_MASK_BYTES is deliberately kept equal in VALUE to
+ * hub_control's NP_HUB_SOCKET_MASK_BYTES (both 128 bits / NP_HEXMAP_MAX_SOCKETS)
+ * without a #include dependency: firmware/hub_control links firmware/pbm_1064nm
+ * (not the reverse), so pulling in hub_control's header here would invert that
+ * edge. The two constants are cross-referenced by comment on both sides;
+ * host tests assert the numeric match. Tightening this into a shared header
+ * both modules include is flagged as a follow-on, not done here.
+ */
+#define NP_PBM1064_SOCKET_MASK_BYTES    16U     /* 128 bits; == hub_control NP_HUB_SOCKET_MASK_BYTES */
+
+/*
+ * A session descriptor carries a small list of (socket_mask, preset) groups
+ * rather than one mask + one preset, because v4's per-zone independence
+ * (distinct current/freq/duty per zone — e.g. "Gamma+theta coupled" split-
+ * zone protocols, NP-SES-1064-001 §2 preset 0x05) must carry over unchanged
+ * (NP-HW-HUB-001 Rev C §10). A realistic session needs at most a couple of
+ * distinct simultaneous presets; 4 is a generous bound.
+ */
+#define NP_PBM1064_SESSION_MAX_PRESET_GROUPS  4U
+
+/*
+ * Runtime bound on individual sockets actuated by ONE session, after
+ * expanding every group's bitmap. A session realistically only touches a
+ * handful of sockets even on the largest (~80-128) lattice (a T1 build with
+ * full EEG/tES coverage runs ~8-9 sites plus a few 1064nm depth zones — see
+ * NP-HEX-ZM-001 §4a), so per-target working arrays (drive state, dose state,
+ * calibration) are sized to this capacity, not to NP_HEXMAP_MAX_SOCKETS.
+ * A session whose combined groups address more than this many distinct
+ * sockets is rejected at preflight (fail closed) rather than silently
+ * truncated — see np_pbm1064_session_desc_expand().
+ */
+#define NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS  32U
 
 /* ── TIA gain switch (Vishay DG2788A, Hub PCB Rev B — OI-PBM-HW-01) ────────── */
 

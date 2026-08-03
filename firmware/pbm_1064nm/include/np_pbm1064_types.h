@@ -121,19 +121,70 @@ typedef struct {
     uint8_t channel_mask;   /* which channels to enable (CH_A/B/C bits)           */
 } np_pbm1064_preset_t;
 
-/* ── Session descriptor v4 (from signed app protocol) ───────────────────────── */
+/* ── Session descriptor v5 (from signed app protocol) ─────────────────────────
+ *
+ * Supersedes v4's 8-bit smart_module_mask + fixed zone[NP_PBM1064_ZONE_COUNT]
+ * array, neither of which can name more than 5-8 of the ~30-128 sockets
+ * NP-HEX-ZM-001's hex lattice actually has. Per NP-HW-HUB-001 Rev C §10, the
+ * replacement reuses NP Hub Protocol v2's socket-bitmap representation (a
+ * list of socket IDs is rejected: under inclusive midline zone membership a
+ * list can carry the same socket twice, and a duplicate means double J/cm²
+ * on the same module — a bitmap cannot express the duplicate). Per-socket
+ * field independence (distinct current/freq/duty per socket — e.g.
+ * "Gamma+theta coupled" split-zone protocols, NP-SES-1064-001 §2 preset
+ * 0x05) carries over unchanged via multiple (mask, preset) groups.
+ * ────────────────────────────────────────────────────────────────────────── */
 
-#define NP_SES1064_VERSION  0x04U
+#define NP_SES1064_VERSION  0x05U
 
+/*
+ * One preset applied to every socket set in mask. mask is 128-bit,
+ * LSB-first, 0-based: socket S is byte S/8, bit S%8 — identical convention
+ * to NP_PROTO_TARGET_SOCKET_MASK (np_hub_types.h).
+ */
 typedef struct {
-    uint8_t  version;               /* NP_SES1064_VERSION                         */
-    uint8_t  smart_module_mask;     /* bit[n]=1 → slot n is smart module          */
-    uint8_t  eeg_adaptive_mode;     /* 0=uniform, 1=gradient (OI-SES-02)          */
+    uint8_t              mask[NP_PBM1064_SOCKET_MASK_BYTES];
+    np_pbm1064_preset_t  preset;
+} np_pbm1064_preset_group_t;
+
+typedef char _np_pbm1064_group_size_check[
+    (sizeof(np_pbm1064_preset_group_t) == NP_PBM1064_SOCKET_MASK_BYTES + 6U) ? 1 : -1];
+
+/* Fixed-size wire header — 8 bytes, unchanged from v4's header size.
+ * group_count replaces smart_module_mask: a plain count instead of an 8-bit
+ * bitmask that could name at most 8 sockets. */
+typedef struct {
+    uint8_t  version;              /* NP_SES1064_VERSION                         */
+    uint8_t  eeg_adaptive_mode;    /* 0=uniform, 1=gradient (OI-SES-02)          */
+    uint8_t  group_count;          /* 0..NP_PBM1064_SESSION_MAX_PRESET_GROUPS entries follow on the wire */
     uint8_t  reserved0;
     uint16_t duration_s;
     uint16_t reserved1;
-    np_pbm1064_preset_t zone[NP_PBM1064_ZONE_COUNT];
-    uint8_t  signature[64];         /* Ed25519                                    */
+} np_pbm1064_session_desc_hdr_t;
+
+typedef char _np_pbm1064_hdr_size_check[
+    (sizeof(np_pbm1064_session_desc_hdr_t) == 8U) ? 1 : -1];
+
+/*
+ * In-RAM parsed session descriptor. `groups` is a fixed capacity
+ * (NP_PBM1064_SESSION_MAX_PRESET_GROUPS) so firmware can hold a parsed
+ * descriptor without dynamic allocation — it is NOT the wire format. Only
+ * the first hdr.group_count entries are meaningful; np_pbm1064_session_desc_parse()
+ * zeroes the rest, and callers must never read past group_count.
+ *
+ * The WIRE format (what is transmitted and what the Ed25519 signature
+ * covers) is variable-length: hdr (8B) + hdr.group_count * sizeof(group),
+ * then the 64-byte signature — NOT hdr + MAX_PRESET_GROUPS * sizeof(group).
+ * See np_pbm1064_session_desc_wire_len() / _signed_len() / _serialize() /
+ * _parse() in np_pbm1064_session.h. Signing the unused group capacity would
+ * let bytes from one descriptor's padding be spliced into another's signed
+ * range — the wire encoding must track group_count exactly, not sizeof(this
+ * struct).
+ */
+typedef struct {
+    np_pbm1064_session_desc_hdr_t hdr;
+    np_pbm1064_preset_group_t     groups[NP_PBM1064_SESSION_MAX_PRESET_GROUPS];
+    uint8_t  signature[64];        /* Ed25519; see np_pbm1064_session_desc_signed_len() */
 } np_pbm1064_session_desc_t;
 
 /* ── Session stage ───────────────────────────────────────────────────────────── */
@@ -173,38 +224,62 @@ typedef enum {
 
 /* ── UHDR session record ─────────────────────────────────────────────────────── */
 
+/*
+ * Per-socket dose record. Array position i corresponds to the i-th entry of
+ * the session's expanded active-socket list (np_pbm1064_session_desc_expand()),
+ * NOT array-index == socket_id — a session may address any subset of the
+ * 128-socket domain, not just the lowest-numbered ones, so socket_id is
+ * carried explicitly per entry.
+ */
+typedef struct {
+    uint8_t socket_id;
+    float   dose_J_cm2[NP_PBM1064_WL_COUNT];
+} np_pbm1064_socket_dose_record_t;
+
 typedef struct {
     uint32_t session_start_unix;
     uint32_t duration_s;
-    uint8_t  smart_module_mask;
+    uint8_t  active_socket_count;    /* populated entries in `sockets`            */
     uint8_t  eeg_adaptive_mode;
     uint8_t  abort_reason;           /* 0=normal; else np_pbm1064_status_t        */
     uint8_t  reserved;
-    /* Per-zone, per-wavelength dose (J/cm²) */
-    float    dose_J_cm2[NP_PBM1064_ZONE_COUNT][NP_PBM1064_WL_COUNT];
+    np_pbm1064_socket_dose_record_t sockets[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS];
     uint16_t eeg_adapt_event_count;  /* number of freq code changes during session */
 } np_pbm1064_session_record_t;
 
 /* ── SHDR session summary (no user biology) ──────────────────────────────────── */
 
+/* Per-socket device-health entry — device condition only, no user biology. */
 typedef struct {
-    uint8_t  smart_module_mask;
+    uint8_t socket_id;
+    float   pd_ratio;          /* mean PD1/PD2 ratio for this socket, this session */
+    uint8_t i2c_probe_pass;    /* 1 = probe ACKed at session preflight             */
+} np_pbm1064_socket_shdr_t;
+
+typedef struct {
+    uint8_t  active_socket_count;    /* populated entries in `sockets`            */
     uint32_t duration_s;
     uint8_t  abort_reason;
     uint8_t  fault_reason;           /* np_pbm1064_fault_t                        */
-    uint8_t  cal_source;             /* np_cal_source_t for each slot (packed)    */
-    /* LED health metrics (device condition) */
-    float    pd_ratio_zone[NP_PBM1064_ZONE_COUNT]; /* mean PD1/PD2 ratio per zone */
+    /*
+     * np_cal_source_t, session-uniform: today's stub calibration loader
+     * (np_pbm1064_dose_load_cal_stub(), pending OI-HUB-C06 module-UID-keyed
+     * Config-partition storage) returns the same source for every socket in
+     * a session, so one flag suffices. Once OI-HUB-C06 lands and calibration
+     * genuinely varies per module, this becomes per-socket like the fields
+     * below — do not widen it to a socket-indexed table before that lands.
+     */
+    uint8_t  cal_source;
+    np_pbm1064_socket_shdr_t sockets[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS];
     uint8_t  ocp_event_count;
     uint8_t  thermal_event_count;
-    uint8_t  i2c_probe_pass_mask;    /* bit[n]=1 → slot n I2C probe passed        */
 } np_pbm1064_shdr_summary_t;
 
 /* ── SHDR fault log entry ─────────────────────────────────────────────────────── */
 
 typedef struct {
     uint32_t device_session_count;   /* unsigned; no timestamp                    */
-    uint8_t  slot;
+    uint8_t  socket_id;
     uint8_t  channel;                /* 0=A, 1=B, 2=C, 0xFF=all                  */
     uint8_t  fault_reason;           /* np_pbm1064_fault_t                        */
     uint8_t  status_reg_value;       /* STATUS register at time of fault          */
@@ -273,17 +348,29 @@ typedef struct {
 
 /*
  * Signed by the app Ed25519 key.  Hub firmware verifies the signature before
- * any laser enable.  Contains the 1064nm sub-descriptor plus 1170nm laser params
+ * any laser enable.  Carries the 1064nm sub-descriptor's header + preset
+ * groups (NOT a nested np_pbm1064_session_desc_t) plus 1170nm laser params
  * and optional sLORETA coordination flags.
+ *
+ * The 1064nm fields are inlined rather than embedding np_pbm1064_session_desc_t
+ * by value so there is exactly ONE signature field in this struct: v4 embedded
+ * the sub-descriptor (including ITS OWN unused signature[64] field) by value,
+ * which read as if the inner descriptor could be independently verified when
+ * only the outer signature ever was. np_pbm1064_t2_start_combined() builds a
+ * standalone np_pbm1064_session_desc_t from pbm1064_hdr + pbm1064_groups to
+ * hand to np_pbm1064_session_start().
  */
 typedef struct {
     uint8_t  version;              /* NP_T2_COMBINED_VERSION (0x01)                */
     uint8_t  t2_combined_enable;   /* 1 = activate 1170nm laser                    */
     uint8_t  sloreta_enable;       /* 1 = read sLORETA MNI target at session start  */
     uint8_t  reserved;
-    np_pbm1064_session_desc_t pbm1064; /* 1064nm smart zone sub-descriptor          */
-    np_t2_1170_preset_t       laser1170;
-    uint8_t  signature[64];        /* Ed25519 over all preceding fields             */
+    np_pbm1064_session_desc_hdr_t pbm1064_hdr;
+    np_pbm1064_preset_group_t     pbm1064_groups[NP_PBM1064_SESSION_MAX_PRESET_GROUPS];
+    np_t2_1170_preset_t           laser1170;
+    uint8_t  signature[64];        /* Ed25519 over all preceding fields, up to
+                                     * pbm1064_hdr.group_count groups — see
+                                     * np_pbm1064_t2_combined_desc_signed_len() */
 } np_t2_combined_desc_t;
 
 /* ── T2 combined UHDR session record ─────────────────────────────────────────── */

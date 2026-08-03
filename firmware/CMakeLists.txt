@@ -62,6 +62,7 @@
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
+#   firmware/pbm_1064nm/      → np_pbm1064_session_desc_tests (NP-SES-1064-001 v5 wire format)
 #   firmware/vendor/freertos/ → np_freertos_smoke_tests   (kernel + config, POSIX port)
 
 cmake_minimum_required(VERSION 3.20)
@@ -115,6 +116,7 @@ if(NP_BUILD_TESTS)
                                   # OI-CHARGE-01:   charge monitor tests
     add_subdirectory(hub_control) # OI-CVNS-HUB-01: CVNS re-enable manager tests
     add_subdirectory(zone_announce) # module-status frame encoder (app notify path)
+    add_subdirectory(pbm_1064nm)  # NP-SES-1064-001 v5: session descriptor wire format
     add_subdirectory(vendor/freertos) # NP-SW-001 §9.4: FreeRTOS kernel smoke test
 
     add_test(NAME np_crypto_tests
@@ -191,6 +193,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_zone_announce_tests
         COMMAND np_zone_announce_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_pbm1064_session_desc_tests
+        COMMAND np_pbm1064_session_desc_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_freertos_smoke_tests
