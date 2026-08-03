@@ -198,8 +198,8 @@ struct PBMTranscranialParamsView: View {
     private enum ZoneChoice: Hashable {
         case zone(String)
         case clinicianSelected
-        /// A target this picker cannot construct — a multi-zone target, or a
-        /// retired one. Selectable only in the sense that it is already selected.
+        /// A multi-zone target, which this one-row picker cannot construct.
+        /// Selectable only in the sense that it is already selected.
         case asAuthored(String)
 
         var displayName: String {
@@ -267,7 +267,7 @@ struct PBMTranscranialParamsView: View {
                 .pickerStyle(.menu)
                 Text(targetSummary)
                     .font(.caption2)
-                    .foregroundColor(params.target.isRetired ? .orange : .secondary)
+                    .foregroundColor(.secondary)
             }
 
             // Wavelength

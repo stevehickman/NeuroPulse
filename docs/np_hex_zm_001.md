@@ -519,14 +519,22 @@ scheme all stopped at the app boundary. **Protocol v2 closes that gap.**
   into the ascending `uint16_t` socket array `np_group_query_t` wants for
   `NP_GROUP_KIND_SOCKET_SET`, so a compiled target feeds
   `np_module_map_resolve_group()` directly.
-- **Retired selectors do not migrate silently.** `zones: all|front|rear` now
-  refuse to compile, naming their `00-zones.npps` migration target in the error.
-  Two documented meanings conflict and the consequence is wrong-site dosing:
-  v1's `front` mask was `0x07` = frontal L/R **plus parietal L**, while
-  `00-zones.npps` says `front` migrates to "Frontal" (frontal only); and
-  `nppsParser.ts` documents numeric `custom_zones` as 0-based while
-  `00-zones.npps` documents them as 1-based. No shipped protocol uses either
-  form. See OI-HUB-SOCKET-02.
+- **Retired selectors are gone, not retained-and-refused.** `zones: all|front|rear`,
+  numeric `zones: [n, ...]` and `custom_zones` no longer parse in any component —
+  removed from `PBMTranscranialParams`, `nppsParser.ts`, `hubCompiler.ts` and the
+  iOS `NPPBMTarget`. There are no existing users, so nothing needs to keep reading
+  them; should a corpus of old files ever need moving, that is a one-shot
+  conversion tool, not a permanent parser branch. `zones` now has exactly two
+  forms (named zone refs, `clinician_selected`), and the web resolver's `never`
+  check makes a third a type error rather than a silent fall-through.
+
+  They were never auto-migrated, and the reason is worth keeping on record: two
+  documented meanings conflicted and the consequence was wrong-site dosing. v1's
+  `front` mask was `0x07` = frontal L/R **plus parietal L**, while `00-zones.npps`
+  named "Frontal" (frontal only) as the equivalent; and `nppsParser.ts` documented
+  numeric `custom_zones` as 0-based while `00-zones.npps` documented them as
+  1-based. Any conversion tool must resolve that ambiguity by asking, not by
+  guessing. See OI-HUB-SOCKET-02.
 
 Verified: `np_protocol_tests` (56 host checks) + `np_mod_stim_tests` (21 checks),
 full firmware host suite **18/18**; `np_protocol.c`, `np_session_runner.c`,

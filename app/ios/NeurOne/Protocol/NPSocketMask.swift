@@ -69,12 +69,6 @@ enum NPSocketID {
 /// and "invalid target" names nothing they can go and fix.
 enum NPSocketTargetError: Error, LocalizedError, Equatable {
 
-    /// `zones: all` / `front` / `rear` — the retired five-slot selectors.
-    case retiredSelector(selector: String, replacement: String)
-
-    /// `zones: [1, 2]` or `zones: custom` + `custom_zones:` — retired numeric indices.
-    case retiredNumeric(zoneIndices: [Int])
-
     /// A named zone this app build does not know.
     case unknownZone(name: String)
 
@@ -89,26 +83,6 @@ enum NPSocketTargetError: Error, LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-        case .retiredSelector(let selector, let replacement):
-            // Deliberately NOT auto-migrated. The old `front` was slot mask 0x07 —
-            // frontal L/R PLUS parietal L — so the old front/rear split cut the
-            // parietal pair in half. Mapping the selector onto sockets would
-            // reproduce that bug rather than fix it, so the author re-states the
-            // intent once and the file is correct from then on.
-            return "PBM transcranial uses the retired zone selector '\(selector)', which addressed the "
-                + "five legacy zone-module slots. Use the named zone \"\(replacement)\" instead "
-                + "(zones: [\"\(replacement)\"]) — see protocols/predefined/00-zones.npps."
-
-        case .retiredNumeric(let zoneIndices):
-            // Two contradictory documented bases for the same value: the parser
-            // documents 0-based legacy zone indices, 00-zones.npps documents
-            // 1-based. One reading targets a whole zone away from the other.
-            let listed = zoneIndices.map(String.init).joined(separator: ", ")
-            return "PBM transcranial uses the retired numeric zone selector (custom_zones: [\(listed)]). "
-                + "Its base is ambiguous — the parser documents 0-based indices, 00-zones.npps documents "
-                + "1-based — so it cannot be migrated automatically. Replace it with named zones "
-                + "(e.g. zones: [\"Frontal Left\", \"Frontal Right\"])."
-
         case .unknownZone(let name):
             return "PBM transcranial references zone \"\(name)\", which is not a zone this app build "
                 + "knows. Zone names are authored in protocols/predefined/00-zones.npps."

@@ -19,7 +19,7 @@ protocol "Gamma Focus" {
         intensity: 80%
         frequency: 40Hz
         duty_cycle: 25%
-        zones: all
+        zones: ["All"]
         wavelength: 660_808nm
     }
 
@@ -62,7 +62,7 @@ protocol "All T1 Modalities" {
         intensity: 75%
         frequency: 20Hz
         duty_cycle: 25%
-        zones: all
+        zones: ["All"]
         wavelength: 660_808nm
     }
 
@@ -255,7 +255,8 @@ describe('parser — new format', () => {
       expect(pbm.params.intensityPercent).toBe(80);
       expect(pbm.params.frequencyHz).toBe(40);
       expect(pbm.params.dutyCyclePercent).toBe(25);
-      expect(pbm.params.zones).toBe('all');
+      expect(pbm.params.zones).toBe('named');
+      expect(pbm.params.zoneRefs).toEqual(['All']);
       expect(pbm.params.wavelength).toBe('660_808nm');
     }
   });
@@ -390,7 +391,7 @@ describe('serializer', () => {
     expect(out).toContain('intensity: 80%');
     expect(out).toContain('frequency: 40Hz');
     expect(out).toContain('duty_cycle: 25%');
-    expect(out).toContain('zones: all');
+    expect(out).toContain('zones: ["All"]');
     expect(out).toContain('wavelength: 660_808nm');
   });
 

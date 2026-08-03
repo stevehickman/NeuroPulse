@@ -11,7 +11,7 @@ protocol "Gamma Focus" {
         intensity: 80%
         frequency: 40Hz
         duty_cycle: 25%
-        zones: all
+        zones: ["All"]
         wavelength: 660_808nm
     }
 

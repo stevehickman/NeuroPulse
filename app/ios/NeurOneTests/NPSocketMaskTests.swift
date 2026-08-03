@@ -1,7 +1,7 @@
 import XCTest
 @testable import NeurOne
 
-/// Socket-lattice targeting: zone resolution, the retired forms, and byte-level
+/// Socket-lattice targeting: zone resolution, socket numbering, and byte-level
 /// agreement with the web encoder.
 ///
 /// iOS is the component that signs and uploads the session protocol
@@ -143,43 +143,6 @@ final class NPSocketMaskTests: XCTestCase {
         let highest = try NPSocketMask(sockets: [NPSocketID.maximum], source: "test")
         XCTAssertEqual(highest.socketIDs, [SocketZones.socketCount])
         XCTAssertEqual(highest.bytes.count, NPSocketMask.byteCount)
-    }
-
-    // MARK: - Retired forms parse but never resolve
-
-    func testRetiredSelectorsFailWithTheirMigrationTarget() {
-        let expected: [(NPRetiredZoneSelector, String)] = [
-            (.all,   "All"),
-            (.front, "Frontal"),
-            (.rear,  "Posterior"),
-        ]
-        for (selector, replacement) in expected {
-            XCTAssertThrowsError(try NPPBMTarget.retiredSelector(selector).resolve()) { error in
-                let message = (error as? NPSocketTargetError)?.errorDescription ?? ""
-                XCTAssertTrue(message.contains("'\(selector.rawValue)'"),
-                              "message must quote the retired selector: \(message)")
-                XCTAssertTrue(message.contains("\"\(replacement)\""),
-                              "message must name the replacement zone: \(message)")
-            }
-        }
-    }
-
-    func testRetiredSelectorsAreNotSilentlyMigrated() {
-        // `front` was slot mask 0x07 — frontal L/R PLUS parietal L — so mapping
-        // it onto the "Frontal" zone would change which sockets light. Refusing
-        // is the point; this test fails if someone "helpfully" makes it resolve.
-        XCTAssertThrowsError(try NPPBMTarget.retiredSelector(.front).resolve())
-        XCTAssertThrowsError(try NPPBMTarget.retiredSelector(.all).resolve())
-    }
-
-    func testRetiredNumericFailsAndQuotesTheIndices() {
-        XCTAssertThrowsError(try NPPBMTarget.retiredNumeric([1, 2]).resolve()) { error in
-            let message = (error as? NPSocketTargetError)?.errorDescription ?? ""
-            XCTAssertTrue(message.contains("custom_zones: [1, 2]"), message)
-            XCTAssertTrue(message.contains("ambiguous"),
-                          "the message must say WHY it cannot be migrated: \(message)")
-        }
-        XCTAssertThrowsError(try NPPBMTarget.retiredNumeric([]).resolve())
     }
 
     // MARK: - Bad targets

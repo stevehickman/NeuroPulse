@@ -696,43 +696,21 @@ struct NPPSParser {
 
     /// Parse a `zones:` value into a PBM target.
     ///
-    /// Four authored forms, all of which must PARSE so an existing file still
-    /// loads, and only two of which RESOLVE (see `NPPBMTarget`):
+    /// Exactly two authored forms, and nothing else parses:
     ///
-    ///   `zones: ["Frontal", ...]`   -> named zones                (resolves)
-    ///   `zones: clinician_selected` -> operator picks at run time  (resolves)
-    ///   `zones: all | front | rear` -> retired five-slot selector  (throws later)
-    ///   `zones: [1, 2]`, `zones: custom` + `custom_zones: [...]`
-    ///                               -> retired numeric indices     (throws later)
+    ///   `zones: ["Frontal", ...]`   -> named zones from 00-zones.npps
+    ///   `zones: clinician_selected` -> the operator picks sockets at run time
     ///
-    /// There is deliberately NO default branch. The previous parser mapped every
-    /// unrecognised selector to `.all` — so `zones: ["Frontal Right (excl. midline)"]`,
-    /// the lateralized clinical-03 target, silently became "every module": a
-    /// wrong-site stimulation path that produced no error anywhere. An
-    /// unrecognised selector is now a parse error.
-    private func parsePBMTarget(
-        _ value: NPPSFieldValue, fields: [String: NPPSFieldValue], line: Int
-    ) throws -> NPPBMTarget {
+    /// There is deliberately NO default branch and no retired-form handling. The
+    /// previous parser mapped every unrecognised selector to `.all` — so
+    /// `zones: ["Frontal Right (excl. midline)"]`, the lateralized clinical-03
+    /// target, silently became "every module": a wrong-site stimulation path that
+    /// produced no error anywhere. Anything this function does not recognise is a
+    /// parse error, which is the only safe reading of an unknown target.
+    private func parsePBMTarget(_ value: NPPSFieldValue, line: Int) throws -> NPPBMTarget {
         switch value {
-        case .ident(let selector):
-            if selector == "clinician_selected" { return .clinicianSelected }
-            if let retired = NPRetiredZoneSelector(rawValue: selector) {
-                return .retiredSelector(retired)
-            }
-            if selector == "custom" {
-                // `custom` is meaningless on its own; its indices live in a
-                // sibling field. Absent, that is an empty retired list — still
-                // retired, and the resolution error says so.
-                guard case .array(let items)? = fields["custom_zones"] else {
-                    return .retiredNumeric([])
-                }
-                return .retiredNumeric(try numericZoneIndices(items, line: line))
-            }
-            throw NPPSError(
-                message: "Unknown zone selector '\(selector)'. Use named zones "
-                    + "(zones: [\"Frontal\"]) or clinician_selected.",
-                line: line
-            )
+        case .ident("clinician_selected"):
+            return .clinicianSelected
 
         case .array(let items):
             guard !items.isEmpty else {
@@ -741,35 +719,35 @@ struct NPPSParser {
                     line: line
                 )
             }
-            // A string array is the Rev B named form; a numeric array is the
-            // retired index form. A mixture is neither, and guessing which the
-            // author meant is exactly the class of error this change removes.
-            if items.allSatisfy({ if case .string = $0 { return true } else { return false } }) {
-                return .named(items.compactMap { if case .string(let s) = $0 { return s } else { return nil } })
+            let names = items.compactMap { item -> String? in
+                if case .string(let s) = item { return s }
+                return nil
             }
-            return .retiredNumeric(try numericZoneIndices(items, line: line))
-
-        default:
-            throw NPPSError(
-                message: "zones must be a list of zone names or a selector identifier.",
-                line: line
-            )
-        }
-    }
-
-    /// Retired numeric zone indices, kept EXACTLY as authored — no re-basing.
-    /// The .npps parser documents these as 0-based and 00-zones.npps documents
-    /// them as 1-based; the old code silently subtracted 1, picking a side.
-    private func numericZoneIndices(_ items: [NPPSFieldValue], line: Int) throws -> [Int] {
-        try items.map { item in
-            guard let n = item.asDouble else {
+            guard names.count == items.count else {
                 throw NPPSError(
-                    message: "zones list mixes zone names with other values — it must be "
-                        + "either all zone-name strings or all numbers.",
+                    message: "zones must be a list of quoted zone names, e.g. "
+                        + "zones: [\"Frontal Left\", \"Frontal Right\"].",
                     line: line
                 )
             }
-            return Int(n)
+            return .named(names)
+
+        case .ident(let selector):
+            // Quote what was actually written. The author needs to find the token
+            // in their file, and an unrecognised identifier here is most often a
+            // typo in `clinician_selected` or a zone name that lost its quotes.
+            throw NPPSError(
+                message: "Unknown zone selector '\(selector)'. zones must be a list of quoted "
+                    + "zone names (e.g. zones: [\"Frontal\"]) or the identifier clinician_selected.",
+                line: line
+            )
+
+        default:
+            throw NPPSError(
+                message: "zones must be a list of quoted zone names (e.g. zones: [\"Frontal\"]) "
+                    + "or the identifier clinician_selected.",
+                line: line
+            )
         }
     }
 
@@ -783,7 +761,7 @@ struct NPPSParser {
             if let v = fields["frequency"]?.asHz { p.frequencyHz = v }
             if let v = fields["duty_cycle"]?.asPercent { p.dutyCyclePercent = Int(v) }
             if let v = fields["zones"] {
-                p.target = try parsePBMTarget(v, fields: fields, line: line)
+                p.target = try parsePBMTarget(v, line: line)
             }
             if let v = fields["wavelength"]?.asIdent {
                 switch v {
@@ -1355,24 +1333,12 @@ struct NPPSSerializer {
             if p.frequencyHz > 0 {
                 lines.append("duty_cycle: \(p.dutyCyclePercent)%")
             }
-            // Round-trips every authored form unchanged, retired ones included:
-            // serializing is not the place to migrate a file, and re-basing the
-            // numeric indices on the way out would silently rewrite a target
-            // whose base is ambiguous.
             switch p.target {
             case .named(let names):
                 let refs = names.map { "\"\($0)\"" }.joined(separator: ", ")
                 lines.append("zones: [\(refs)]")
             case .clinicianSelected:
                 lines.append("zones: clinician_selected")
-            case .retiredSelector(let selector):
-                lines.append("zones: \(selector.rawValue)")
-            case .retiredNumeric(let indices):
-                if indices.isEmpty {
-                    lines.append("zones: custom")
-                } else {
-                    lines.append("zones: [\(indices.map(String.init).joined(separator: ", "))]")
-                }
             }
             lines.append("wavelength: \(p.wavelength.rawValue)")
             return lines

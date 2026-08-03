@@ -195,13 +195,20 @@ describe('protocol conditions, references, and zone refs', () => {
     expect(pbm2.zoneRefs).toEqual(['Left Frontal', 'Right Frontal']);
   });
 
-  it('preserves legacy keyword zones', () => {
-    const legacy = parseNPPS(
-      'protocol "L" { id: "x" pbm_transcranial { zones: all wavelength: 660_808nm } }'
-    )[0] as { kind: 'single'; protocol: NPProtocolDefinition };
-    const pbm = legacy.protocol.modalities[0].modalityParams.params as PBMTranscranialParams;
-    expect(pbm.zones).toBe('all');
-    expect(pbm.zoneRefs).toBeUndefined();
+  it('rejects the retired keyword zone selectors outright', () => {
+    // Not "parses but refuses to resolve" — there are no existing users, so the
+    // five-slot forms are gone from the grammar entirely.
+    for (const selector of ['all', 'front', 'rear', 'custom']) {
+      expect(() => parseNPPS(
+        `protocol "L" { id: "x" pbm_transcranial { zones: ${selector} wavelength: 660_808nm } }`
+      )).toThrow(/unknown zone selector/);
+    }
+  });
+
+  it('rejects a numeric zone list', () => {
+    expect(() => parseNPPS(
+      'protocol "L" { id: "x" pbm_transcranial { zones: [1, 2] wavelength: 660_808nm } }'
+    )).toThrow(/quoted zone names/);
   });
 });
 

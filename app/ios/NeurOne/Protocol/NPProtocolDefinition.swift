@@ -20,15 +20,16 @@ struct NPIntervalConfig: Codable, Equatable {
 
 /// Where a PBM transcranial command lands on the helmet lattice.
 ///
-/// Mirrors the web app's `PBMTranscranialParams.zones` + `zoneRefs` +
-/// `customZones` (app/web/src/types/protocol.ts), expressed as a sum type because
-/// the payload differs per case and "selector plus two optional side fields" made
-/// invalid combinations representable.
+/// Mirrors the web app's `PBMTranscranialParams.zones` + `zoneRefs`
+/// (app/web/src/types/protocol.ts), expressed as a sum type because the payload
+/// differs per case and "selector plus an optional side field" made invalid
+/// combinations representable.
 ///
-/// The two `retired*` cases exist so old `.npps` files still PARSE. They never
-/// RESOLVE: `resolve()` throws on both, naming the replacement zone. See
-/// `NPSocketTargetError` for why auto-migrating them would reproduce a bug rather
-/// than fix one.
+/// There are exactly two ways to name a target and no third. The five-slot
+/// selectors (`all` / `front` / `rear` / numeric indices) are gone rather than
+/// retained-but-refused: there are no existing users, so nothing needs to keep
+/// parsing them. Should a corpus of old files ever need moving, that is a
+/// one-shot conversion tool, not a permanent branch in the parser.
 enum NPPBMTarget: Codable, Equatable {
 
     /// Named zones from protocols/predefined/00-zones.npps, as authored. Zones
@@ -39,35 +40,6 @@ enum NPPBMTarget: Codable, Equatable {
     /// chooses sockets before the protocol can run (e.g. perilesional cortex in
     /// post-stroke rehab).
     case clinicianSelected
-
-    /// RETIRED `zones: all` / `front` / `rear`. Parses, never resolves.
-    case retiredSelector(NPRetiredZoneSelector)
-
-    /// RETIRED numeric indices — `zones: [1, 2]`, or `zones: custom` with a
-    /// `custom_zones:` list (empty when the list was absent). Retained exactly as
-    /// authored: the base is ambiguous, so re-basing them here would be a guess.
-    case retiredNumeric([Int])
-}
-
-/// The three retired five-slot selectors, each with the named zone it migrates to.
-///
-/// The replacements are the migration targets declared in the aggregate-zone block
-/// of protocols/predefined/00-zones.npps, which is the authority on what the old
-/// selectors meant — and they deliberately do NOT agree with the bit patterns the
-/// five-slot mask emitted.
-enum NPRetiredZoneSelector: String, Codable, CaseIterable, Equatable {
-    case all
-    case front
-    case rear
-
-    /// The named zone an author should write instead.
-    var replacementZone: String {
-        switch self {
-        case .all:   return "All"
-        case .front: return "Frontal"
-        case .rear:  return "Posterior"
-        }
-    }
 }
 
 // MARK: PBM target resolution
@@ -108,22 +80,6 @@ extension NPPBMTarget {
                 throw NPSocketTargetError.clinicianSelectionMissing
             }
             return try NPSocketMask(sockets: chosen, source: "the operator's selection")
-
-        case .retiredSelector(let selector):
-            throw NPSocketTargetError.retiredSelector(
-                selector: selector.rawValue, replacement: selector.replacementZone
-            )
-
-        case .retiredNumeric(let indices):
-            throw NPSocketTargetError.retiredNumeric(zoneIndices: indices)
-        }
-    }
-
-    /// True when this target can never resolve, whatever the operator does.
-    var isRetired: Bool {
-        switch self {
-        case .retiredSelector, .retiredNumeric: return true
-        case .named, .clinicianSelected:        return false
         }
     }
 
@@ -134,12 +90,6 @@ extension NPPBMTarget {
             return names.isEmpty ? "No zones" : names.joined(separator: " + ")
         case .clinicianSelected:
             return "Clinician-selected sockets"
-        case .retiredSelector(let selector):
-            return "Retired selector '\(selector.rawValue)'"
-        case .retiredNumeric(let indices):
-            return indices.isEmpty
-                ? "Retired numeric zones"
-                : "Retired numeric zones [\(indices.map(String.init).joined(separator: ", "))]"
         }
     }
 }

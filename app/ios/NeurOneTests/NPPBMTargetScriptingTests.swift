@@ -78,29 +78,28 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         XCTAssertEqual(try parseTarget(zonesLine: "zones: clinician_selected"), .clinicianSelected)
     }
 
-    // MARK: - Parsing the forms that are retained but do not resolve
+    // MARK: - The five-slot forms do not parse at all
 
-    func testRetiredSelectorsParseAsRetired() throws {
-        XCTAssertEqual(try parseTarget(zonesLine: "zones: all"),   .retiredSelector(.all))
-        XCTAssertEqual(try parseTarget(zonesLine: "zones: front"), .retiredSelector(.front))
-        XCTAssertEqual(try parseTarget(zonesLine: "zones: rear"),  .retiredSelector(.rear))
+    // There are no existing users, so nothing has to keep reading these. They are
+    // gone rather than retained-and-refused: a target the parser does not
+    // understand must stop the file, not become a second way to express a target.
+
+    func testFiveSlotSelectorsNoLongerParse() {
+        for selector in ["all", "front", "rear", "custom"] {
+            XCTAssertThrowsError(try parseTarget(zonesLine: "zones: \(selector)"),
+                                 "'\(selector)' must not parse")
+        }
     }
 
-    func testNumericZoneArrayParsesAsRetiredNumericWithoutRebasing() throws {
-        // Kept EXACTLY as authored. The old parser subtracted 1, silently picking
-        // one of the two contradictory documented bases.
-        XCTAssertEqual(try parseTarget(zonesLine: "zones: [1, 2]"), .retiredNumeric([1, 2]))
+    func testNumericZoneArrayNoLongerParses() {
+        XCTAssertThrowsError(try parseTarget(zonesLine: "zones: [1, 2]"))
+        XCTAssertThrowsError(try parseTarget(zonesLine: "zones: [0]"))
     }
 
-    func testCustomWithSiblingListParsesAsRetiredNumeric() throws {
-        let target = try parseTarget(
-            zonesLine: "zones: custom", extra: "        custom_zones: [3, 4, 5]"
+    func testCustomZonesSiblingFieldIsIgnoredAndTheSelectorStillFails() {
+        XCTAssertThrowsError(
+            try parseTarget(zonesLine: "zones: custom", extra: "        custom_zones: [3, 4, 5]")
         )
-        XCTAssertEqual(target, .retiredNumeric([3, 4, 5]))
-    }
-
-    func testBareCustomParsesAsAnEmptyRetiredNumeric() throws {
-        XCTAssertEqual(try parseTarget(zonesLine: "zones: custom"), .retiredNumeric([]))
     }
 
     // MARK: - The silent fallback is gone
@@ -124,19 +123,15 @@ final class NPPBMTargetScriptingTests: XCTestCase {
     // MARK: - Serializing round-trips every form as authored
 
     func testSerializerRoundTripsEveryForm() throws {
+        // Every form the type can hold, which is now every form that parses —
+        // there is no third shape the serializer could emit.
         let cases: [(NPPBMTarget, String)] = [
             (.named(["All"]),                          #"zones: ["All"]"#),
             (.named(["Frontal Left", "Frontal Right"]), #"zones: ["Frontal Left", "Frontal Right"]"#),
             (.clinicianSelected,                       "zones: clinician_selected"),
-            (.retiredSelector(.all),                   "zones: all"),
-            (.retiredSelector(.front),                 "zones: front"),
-            (.retiredSelector(.rear),                  "zones: rear"),
-            (.retiredNumeric([1, 2]),                  "zones: [1, 2]"),
-            (.retiredNumeric([]),                      "zones: custom"),
         ]
         for (target, expected) in cases {
             XCTAssertEqual(serializedZonesLine(for: target), expected)
-            // And back again, unchanged — serializing is not a migration step.
             XCTAssertEqual(try parseTarget(zonesLine: expected), target)
         }
     }
@@ -179,18 +174,6 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         XCTAssertTrue(validate(.named(["Frontal"])).isValid)
     }
 
-    func testValidatorRejectsRetiredSelector() {
-        let result = validate(.retiredSelector(.front))
-        XCTAssertFalse(result.isValid)
-        let message = result.errors.first?.message ?? ""
-        XCTAssertTrue(message.contains("\"Frontal\""),
-                      "the validation error must name the replacement zone: \(message)")
-    }
-
-    func testValidatorRejectsRetiredNumeric() {
-        XCTAssertFalse(validate(.retiredNumeric([1, 2])).isValid)
-    }
-
     func testValidatorRejectsUnknownZoneName() {
         let result = validate(.named(["Left Frontal"]))
         XCTAssertFalse(result.isValid)
@@ -221,9 +204,9 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         XCTAssertEqual(config.socketMask.socketIDs, [72, 73, 74, 77, 78])
     }
 
-    func testWireProtocolRefusesARetiredTarget() {
+    func testWireProtocolRefusesAnUnresolvableTarget() {
         var params = NPPBMTranscranialParams()
-        params.target = .retiredSelector(.all)
+        params.target = .named(["Left Frontal"])   // not a zone; the correct name is "Frontal Left"
         let definition = NPProtocolDefinition(
             name: "Wire Test",
             modalities: [NPProtocolModality(params: .pbmTranscranial(params))]

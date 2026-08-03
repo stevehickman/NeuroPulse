@@ -274,10 +274,10 @@ struct NPProtocolValidator {
         // Targeting: the modality must resolve to at least one real socket.
         //
         // Checked here, before upload, rather than left to throw at wire-build
-        // time: a retired selector or a mistyped zone name is an authoring error,
-        // and the clinician needs it as a readable message next to the protocol
-        // they are editing. `clinicianSelected` is exempt — it is unresolvable by
-        // design until the operator picks sockets at session start.
+        // time: a mistyped zone name is an authoring error, and the clinician
+        // needs it as a readable message next to the protocol they are editing.
+        // `clinicianSelected` is exempt — it is unresolvable by design until the
+        // operator picks sockets at session start.
         if p.target != .clinicianSelected {
             do {
                 let mask = try p.resolveSocketMask()
