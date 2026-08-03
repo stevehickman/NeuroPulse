@@ -228,7 +228,7 @@ np_pbm1064_status_t np_pbm1064_drive_poll_status(uint8_t slot,
     /* Log to SHDR. */
     np_pbm1064_shdr_fault_entry_t fe = {
         .device_session_count = device_session_count,
-        .slot                 = slot,
+        .socket_id            = slot,
         .channel              = (disable_mask == NP_PBM1064_CH_ALL_EN) ? 0xFF :
                                 (disable_mask & NP_PBM1064_CH_C_EN) ? 2U :
                                 (disable_mask & NP_PBM1064_CH_B_EN) ? 1U : 0U,

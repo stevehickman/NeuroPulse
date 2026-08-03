@@ -30,25 +30,28 @@ static const np_pbm1064_cal_t k_default_cal[NP_PBM1064_WL_COUNT] = {
 
 /* ── Calibration loading ─────────────────────────────────────────────────────── */
 
-void np_pbm1064_dose_load_cal(
-    np_pbm1064_cal_t cal[NP_PBM1064_ZONE_COUNT][NP_PBM1064_WL_COUNT])
+void np_pbm1064_dose_load_cal_stub(np_pbm1064_cal_t cal_out[NP_PBM1064_WL_COUNT])
 {
     /*
      * Attempt to read factory calibration from Config partition.
-     * Platform HAL for Config read is not yet implemented (OI-PBM-04);
-     * fall back to firmware defaults for all zones and wavelengths.
+     * Platform HAL for Config read is not yet implemented (OI-PBM-04, and the
+     * module-UID-keyed store itself is OI-HUB-C06); fall back to firmware
+     * defaults for every wavelength, for every socket that calls this.
+     * Deliberately takes no socket_id / UID parameter: keying this by
+     * socket_id would reintroduce the exact defect OI-HUB-C06 tracks (a
+     * module swap silently inheriting the previous occupant's calibration
+     * while cal_source still reads FACTORY). The caller (session start)
+     * calls this once per active socket.
      */
-    for (uint8_t z = 0; z < NP_PBM1064_ZONE_COUNT; z++) {
-        for (uint8_t w = 0; w < NP_PBM1064_WL_COUNT; w++) {
-            cal[z][w] = k_default_cal[w]; /* valid = false → SHDR: DEFAULT */
-        }
+    for (uint8_t w = 0; w < NP_PBM1064_WL_COUNT; w++) {
+        cal_out[w] = k_default_cal[w]; /* valid = false → SHDR: DEFAULT */
     }
 }
 
 /* ── Dose tick ───────────────────────────────────────────────────────────────── */
 
 np_pbm1064_status_t np_pbm1064_dose_tick(
-    uint8_t                    slot,
+    uint8_t                    socket_id,
     const np_pbm1064_cal_t     cal[NP_PBM1064_WL_COUNT],
     np_pbm1064_dose_state_t   *dose)
 {
@@ -60,8 +63,8 @@ np_pbm1064_status_t np_pbm1064_dose_tick(
         }
 
         uint16_t pd1_raw = 0, pd2_raw = 0;
-        if (!np_pbm1064_hal_adc_read_pd(slot, 0, &pd1_raw)) { continue; }
-        if (!np_pbm1064_hal_adc_read_pd(slot, 1, &pd2_raw)) { continue; }
+        if (!np_pbm1064_hal_adc_read_pd(socket_id, 0, &pd1_raw)) { continue; }
+        if (!np_pbm1064_hal_adc_read_pd(socket_id, 1, &pd2_raw)) { continue; }
 
         dose->pd1_counts[w] = (float)pd1_raw;
         dose->pd2_counts[w] = (float)pd2_raw;
@@ -111,7 +114,7 @@ float np_pbm1064_dose_aggregate_irradiance(const np_pbm1064_dose_state_t *dose)
 /* ── PD1/PD2 ratio evaluation (fouling vs aging) ─────────────────────────────── */
 
 void np_pbm1064_dose_evaluate_ratio(
-    uint8_t                        slot,
+    uint8_t                        socket_id,
     const np_pbm1064_cal_t        *cal_1064,
     const np_pbm1064_dose_state_t *dose,
     uint32_t                       device_session_count,
@@ -156,7 +159,7 @@ void np_pbm1064_dose_evaluate_ratio(
     if (*fouling_out || *aging_out) {
         np_pbm1064_shdr_fault_entry_t fe = {
             .device_session_count = device_session_count,
-            .slot                 = slot,
+            .socket_id            = socket_id,
             .channel              = 2U,  /* CH_C (1064nm) */
             .fault_reason         = *fouling_out ? NP_PBM1064_FAULT_NONE :
                                                     NP_PBM1064_FAULT_NONE,
@@ -171,7 +174,7 @@ void np_pbm1064_dose_evaluate_ratio(
 /* ── Aggregate irradiance throttle cascade ───────────────────────────────────── */
 
 np_pbm1064_status_t np_pbm1064_dose_apply_throttle(
-    uint8_t slot,
+    uint8_t socket_id,
     float   aggregate_irradiance,
     np_pbm1064_drv_slot_t *drv)
 {
@@ -191,21 +194,21 @@ np_pbm1064_status_t np_pbm1064_dose_apply_throttle(
     /* CH_C first (1064nm, deepest). */
     if (drv->ch_enable & NP_PBM1064_CH_C_EN) {
         uint8_t new_duty_c = (uint8_t)((float)drv->duty[2] * (1.0f - reduction_frac));
-        np_pbm1064_drive_set_duty(slot, drv, NP_PBM1064_CH_C_EN, new_duty_c);
+        np_pbm1064_drive_set_duty(socket_id, drv, NP_PBM1064_CH_C_EN, new_duty_c);
         return NP_PBM1064_OK;
     }
 
     /* CH_B (808nm). */
     if (drv->ch_enable & NP_PBM1064_CH_B_EN) {
         uint8_t new_duty_b = (uint8_t)((float)drv->duty[1] * (1.0f - reduction_frac));
-        np_pbm1064_drive_set_duty(slot, drv, NP_PBM1064_CH_B_EN, new_duty_b);
+        np_pbm1064_drive_set_duty(socket_id, drv, NP_PBM1064_CH_B_EN, new_duty_b);
         return NP_PBM1064_OK;
     }
 
     /* CH_A (660nm) last resort. */
     if (drv->ch_enable & NP_PBM1064_CH_A_EN) {
         uint8_t new_duty_a = (uint8_t)((float)drv->duty[0] * (1.0f - reduction_frac));
-        np_pbm1064_drive_set_duty(slot, drv, NP_PBM1064_CH_A_EN, new_duty_a);
+        np_pbm1064_drive_set_duty(socket_id, drv, NP_PBM1064_CH_A_EN, new_duty_a);
     }
 
     return NP_PBM1064_ERR_IRRADIANCE_LIMIT;

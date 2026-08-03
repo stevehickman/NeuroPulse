@@ -244,8 +244,9 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm09(void)
     ctx.t2_1170_active         = true;
     ctx.t2_1170_duty_pct       = 100U;
 
-    /* Set up one smart slot with all channels enabled at max duty. */
-    ctx.pbm1064.desc.smart_module_mask = 0x01U;
+    /* Set up one active socket with all channels enabled at max duty. */
+    ctx.pbm1064.active_socket_count = 1U;
+    ctx.pbm1064.active_socket_id[0] = 0U;
     ctx.pbm1064.drv[0].ch_enable = NP_PBM1064_CH_ALL_EN;
     ctx.pbm1064.drv[0].duty[0]   = NP_PBM1064_DUTY_MAX_REG;
     ctx.pbm1064.drv[0].duty[1]   = NP_PBM1064_DUTY_MAX_REG;
@@ -289,8 +290,8 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm10(void)
     /*
      * Verify T2 combined session state machine stage transitions using stub API.
      * Stages: IDLE → PREFLIGHT → RAMP_UP → ACTIVE → RAMP_DOWN → COMPLETE.
-     * Uses minimal session descriptor with smart_module_mask = 0x00 (no real
-     * slots) so inner session_start bypasses hardware preflight.
+     * Uses a minimal session descriptor with group_count = 0 (no active
+     * sockets) so inner session_start bypasses hardware preflight.
      */
     np_pbm1064_t2_ctx_t ctx;
     np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
@@ -301,12 +302,12 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm10(void)
             "Initial stage is not NP_T2_STAGE_IDLE");
     }
 
-    /* Build a minimal valid session descriptor with no smart slots (mask=0). */
+    /* Build a minimal valid session descriptor with no preset groups. */
     np_pbm1064_session_desc_t desc;
     memset(&desc, 0, sizeof(desc));
-    desc.version            = NP_SES1064_VERSION;
-    desc.smart_module_mask  = 0x00U;  /* no slots → preflight is trivial */
-    desc.duration_s         = 62U;    /* 62 s = 30 ramp up + 2 active + 30 ramp dn */
+    desc.hdr.version      = NP_SES1064_VERSION;
+    desc.hdr.group_count  = 0U;  /* no active sockets → preflight is trivial */
+    desc.hdr.duration_s   = 62U; /* 62 s = 30 ramp up + 2 active + 30 ramp dn */
 
     np_pbm1064_status_t rc = np_pbm1064_t2_start(&ctx, &desc);
     if (rc != NP_PBM1064_OK) {
@@ -362,15 +363,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm11(void)
     np_pbm1064_dose_reset(&dose);
 
     np_pbm1064_cal_t cal[NP_PBM1064_WL_COUNT];
-    np_pbm1064_dose_load_cal((np_pbm1064_cal_t (*)[NP_PBM1064_WL_COUNT])
-                               /* cast workaround for single-zone test */ NULL);
-    /* Re-use default cal directly. */
-    for (uint8_t w = 0; w < NP_PBM1064_WL_COUNT; w++) {
-        cal[w].K_PD1      = 0.088f;
-        cal[w].K_PD2      = 0.072f;
-        cal[w].K_ratio_nom = 1.222f;
-        cal[w].valid      = false;
-    }
+    np_pbm1064_dose_load_cal_stub(cal);
 
     np_pbm1064_status_t rc = np_pbm1064_dose_tick(0U, cal, &dose);
     /* Expect OK (stub returns counts below dose limit). */
@@ -406,21 +399,27 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm11(void)
      * Static assert: np_pbm1064_shdr_summary_t must not contain pd1_counts
      * or pd2_counts fields.  This is enforced by the type definition in
      * np_pbm1064_types.h (reviewed manually; no raw per-sample PD fields exist).
-     * Runtime check: verify that the struct size is ≤ expected maximum,
-     * which rules out accidentally included large arrays.
+     * Runtime check: the struct size must not exceed what its declared
+     * per-socket entries account for — a formula, not a hardcoded literal,
+     * because the socket-indexed v5 struct legitimately grew (5 → up to
+     * NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS entries) without adding any new
+     * per-sample or user-biology field; only a size beyond that budget would
+     * indicate an accidentally-included large field.
      */
-    if (sizeof(np_pbm1064_shdr_summary_t) > 64U) {
+    if (sizeof(np_pbm1064_shdr_summary_t) >
+        (size_t)NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS * sizeof(np_pbm1064_socket_shdr_t) + 32U) {
         return fai_fail("FAI-SM-11",
             "UHDR/SHDR data routing boundary test",
             "np_pbm1064_shdr_summary_t unexpectedly large — may contain UHDR data");
     }
 
-    /* (d) Verify UHDR session record has dose fields per zone per wavelength. */
+    /* (d) Verify UHDR session record has dose fields per socket per wavelength. */
     np_pbm1064_session_record_t rec;
     memset(&rec, 0, sizeof(rec));
-    rec.dose_J_cm2[0][NP_WL_1064NM] = 1.5f; /* simulated accumulated dose */
+    rec.sockets[0].socket_id = 0U;
+    rec.sockets[0].dose_J_cm2[NP_WL_1064NM] = 1.5f; /* simulated accumulated dose */
 
-    if (rec.dose_J_cm2[0][NP_WL_1064NM] <= 0.0f) {
+    if (rec.sockets[0].dose_J_cm2[NP_WL_1064NM] <= 0.0f) {
         return fai_fail("FAI-SM-11",
             "UHDR/SHDR data routing boundary test",
             "UHDR session record dose field not populated");
@@ -430,8 +429,9 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm11(void)
         "UHDR/SHDR data routing boundary test",
         "PD1/PD2 raw counts captured in dose_state (UHDR); "
         "ratio_current (not raw counts) in SHDR fault log; "
-        "np_pbm1064_shdr_summary_t contains no per-sample PD count fields (≤64 bytes); "
-        "UHDR session record contains per-zone per-wavelength dose (J/cm²).");
+        "np_pbm1064_shdr_summary_t contains no per-sample PD count fields, "
+        "sized to the per-socket entry budget; "
+        "UHDR session record contains per-socket per-wavelength dose (J/cm²).");
 }
 
 /* ── FAI-T2-01: Combined session descriptor validation ───────────────────────── */
@@ -477,9 +477,9 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_01(void)
     desc.version             = NP_T2_COMBINED_VERSION;
     desc.t2_combined_enable  = 1U;
     desc.sloreta_enable      = 1U;
-    desc.pbm1064.version     = NP_SES1064_VERSION;
-    desc.pbm1064.smart_module_mask = 0x00U; /* no slots → preflight trivial */
-    desc.pbm1064.duration_s  = 62U;
+    desc.pbm1064_hdr.version     = NP_SES1064_VERSION;
+    desc.pbm1064_hdr.group_count = 0U; /* no active sockets → preflight trivial */
+    desc.pbm1064_hdr.duration_s  = 62U;
     desc.laser1170.duty_pct  = 80U;
 
     rc = np_pbm1064_t2_start_combined(&ctx, &desc);
@@ -541,7 +541,8 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_02(void)
     ctx.t2_1170_duty_pct        = 100U;
     ctx.t2_1170_target_duty_pct = 100U;
 
-    ctx.pbm1064.desc.smart_module_mask = 0x01U; /* slot 0 smart */
+    ctx.pbm1064.active_socket_count = 1U;
+    ctx.pbm1064.active_socket_id[0] = 0U;
     ctx.pbm1064.drv[0].ch_enable = NP_PBM1064_CH_ALL_EN;
     ctx.pbm1064.drv[0].duty[0]   = NP_PBM1064_DUTY_MAX_REG; /* CH_A */
     ctx.pbm1064.drv[0].duty[1]   = NP_PBM1064_DUTY_MAX_REG; /* CH_B */
@@ -632,9 +633,10 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
     np_pbm1064_t2_ctx_t ctx;
     np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
 
-    /* (a) Verify struct has per-zone dose fields via pbm1064_record. */
-    ctx.combined_record.pbm1064_record.dose_J_cm2[0][NP_WL_1064NM] = 5.3f;
-    if (ctx.combined_record.pbm1064_record.dose_J_cm2[0][NP_WL_1064NM] <= 0.0f) {
+    /* (a) Verify struct has per-socket dose fields via pbm1064_record. */
+    ctx.combined_record.pbm1064_record.sockets[0].socket_id = 0U;
+    ctx.combined_record.pbm1064_record.sockets[0].dose_J_cm2[NP_WL_1064NM] = 5.3f;
+    if (ctx.combined_record.pbm1064_record.sockets[0].dose_J_cm2[NP_WL_1064NM] <= 0.0f) {
         return fai_fail("FAI-T2-03",
             "Combined UHDR record completeness",
             "(a) 1064nm dose field not accessible in combined UHDR record");
@@ -657,11 +659,11 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
     /* (c) Verify sLORETA fields exist and match stub values after start. */
     np_t2_combined_desc_t desc;
     memset(&desc, 0, sizeof(desc));
-    desc.version            = NP_T2_COMBINED_VERSION;
-    desc.sloreta_enable     = 1U;
-    desc.pbm1064.version    = NP_SES1064_VERSION;
-    desc.pbm1064.duration_s = 62U;
-    desc.laser1170.duty_pct = 50U;
+    desc.version                = NP_T2_COMBINED_VERSION;
+    desc.sloreta_enable         = 1U;
+    desc.pbm1064_hdr.version    = NP_SES1064_VERSION;
+    desc.pbm1064_hdr.duration_s = 62U;
+    desc.laser1170.duty_pct     = 50U;
 
     np_pbm1064_t2_start_combined(&ctx, &desc);
     const np_t2_combined_uhdr_record_t *rec = np_pbm1064_t2_get_combined_record(&ctx);
@@ -676,11 +678,17 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
     }
     np_pbm1064_t2_abort(&ctx, NP_PBM1064_FAULT_NONE);
 
-    /* (d) SHDR summary struct — must not contain raw user biology. */
-    if (sizeof(np_t2_combined_shdr_summary_t) > 128U) {
+    /*
+     * (d) SHDR summary struct — must not contain raw user biology. As with
+     * FAI-SM-11(c), the budget is a formula tied to the socket-indexed inner
+     * summary plus this struct's own handful of scalar fields, not a
+     * hardcoded literal — the v5 struct legitimately grew with the
+     * addressing domain, not with any new per-sample field.
+     */
+    if (sizeof(np_t2_combined_shdr_summary_t) > sizeof(np_pbm1064_shdr_summary_t) + 32U) {
         return fai_fail("FAI-T2-03",
             "Combined UHDR record completeness",
-            "(d) np_t2_combined_shdr_summary_t exceeds expected maximum size (>128 bytes) "
+            "(d) np_t2_combined_shdr_summary_t exceeds expected maximum size "
             "— may contain UHDR data");
     }
 
@@ -718,11 +726,11 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_04(void)
 
     np_t2_combined_desc_t desc;
     memset(&desc, 0, sizeof(desc));
-    desc.version             = NP_T2_COMBINED_VERSION;
-    desc.t2_combined_enable  = 1U;
-    desc.pbm1064.version     = NP_SES1064_VERSION;
-    desc.pbm1064.duration_s  = 62U;
-    desc.laser1170.duty_pct  = 100U;
+    desc.version                 = NP_T2_COMBINED_VERSION;
+    desc.t2_combined_enable      = 1U;
+    desc.pbm1064_hdr.version     = NP_SES1064_VERSION;
+    desc.pbm1064_hdr.duration_s  = 62U;
+    desc.laser1170.duty_pct      = 100U;
 
     np_pbm1064_status_t rc = np_pbm1064_t2_start_combined(&ctx, &desc);
     if (rc != NP_PBM1064_OK) {

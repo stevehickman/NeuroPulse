@@ -19,6 +19,32 @@ cmake_minimum_required(VERSION 3.20)
 
 project(np_pbm_1064nm C)
 
+# ── Host unit tests (no ARM toolchain required) ────────────────────────────────
+# Build with -DNP_BUILD_TESTS=ON from the firmware super-project.
+# Exercises the session descriptor v5 wire format (NP-SES-1064-001 §1): pure C,
+# no FreeRTOS dependency, HAL calls are the deterministic stubs in
+# src/np_pbm1064_hal.c.
+option(NP_BUILD_TESTS "Build host-native unit tests (no ARM toolchain needed)" OFF)
+
+if(NP_BUILD_TESTS)
+    add_executable(np_pbm1064_session_desc_tests
+        tests/np_pbm1064_session_desc_tests.c
+        src/np_pbm1064_session.c
+        src/np_pbm1064_dose.c
+        src/np_pbm1064_drive.c
+        src/np_pbm1064_detect.c
+        src/np_pbm1064_t2_combined.c
+        src/np_pbm1064_hal.c
+        src/np_pbm1064_fai.c
+    )
+    target_include_directories(np_pbm1064_session_desc_tests PRIVATE include)
+    target_compile_options(np_pbm1064_session_desc_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g)
+    target_link_libraries(np_pbm1064_session_desc_tests m)
+
+    return()
+endif()
+
 # ── Toolchain guard ────────────────────────────────────────────────────────────
 if(NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR

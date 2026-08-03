@@ -26,6 +26,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include "np_pbm1064_types.h"
 #include "np_pbm1064_session.h"
 
@@ -139,6 +140,37 @@ np_t2_stage_t np_pbm1064_t2_stage(const np_pbm1064_t2_ctx_t *ctx);
  */
 const np_t2_combined_uhdr_record_t *np_pbm1064_t2_get_combined_record(
     const np_pbm1064_t2_ctx_t *ctx);
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * T2 combined descriptor wire encode/decode — mirrors
+ * np_pbm1064_session_desc_wire_len() / _signed_len() / _serialize() / _parse()
+ * in np_pbm1064_session.h. The signature covers exactly the transmitted
+ * bytes (fixed 4B header + pbm1064_hdr (8B) + pbm1064_group_count groups +
+ * fixed 4B laser1170), never the full NP_PBM1064_SESSION_MAX_PRESET_GROUPS
+ * capacity.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Byte length of the full wire encoding for the given pbm1064 group count. */
+size_t np_pbm1064_t2_combined_desc_wire_len(uint8_t pbm1064_group_count);
+
+/* Byte length of the SIGNED span only (wire length minus the 64-byte signature). */
+size_t np_pbm1064_t2_combined_desc_signed_len(uint8_t pbm1064_group_count);
+
+/*
+ * Serialize desc->pbm1064_hdr.group_count groups (not the full array
+ * capacity) into `out`. Returns bytes written, or 0 on invalid group_count
+ * or insufficient out_cap.
+ */
+size_t np_pbm1064_t2_combined_desc_serialize(const np_t2_combined_desc_t *desc,
+                                              uint8_t *out, size_t out_cap);
+
+/*
+ * Parse `in_len` wire bytes into `desc_out`. Does NOT verify the Ed25519
+ * signature — see np_pbm1064_session_desc_parse()'s doc comment; the same
+ * stub status (OI-PBM-SIG) applies here.
+ */
+np_pbm1064_status_t np_pbm1064_t2_combined_desc_parse(const uint8_t *in, size_t in_len,
+                                                        np_t2_combined_desc_t *desc_out);
 
 #ifdef __cplusplus
 }
