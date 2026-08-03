@@ -18,32 +18,133 @@ struct NPIntervalConfig: Codable, Equatable {
 
 // MARK: PBM Transcranial
 
-struct NPPBMTranscranialParams: Codable, Equatable {
-    enum ZoneSelection: String, Codable, CaseIterable, Equatable, Identifiable {
-        var id: String { rawValue }
-        case all
-        case front
-        case rear
-        case custom
+/// Where a PBM transcranial command lands on the helmet lattice.
+///
+/// Mirrors the web app's `PBMTranscranialParams.zones` + `zoneRefs` +
+/// `customZones` (app/web/src/types/protocol.ts), expressed as a sum type because
+/// the payload differs per case and "selector plus two optional side fields" made
+/// invalid combinations representable.
+///
+/// The two `retired*` cases exist so old `.npps` files still PARSE. They never
+/// RESOLVE: `resolve()` throws on both, naming the replacement zone. See
+/// `NPSocketTargetError` for why auto-migrating them would reproduce a bug rather
+/// than fix one.
+enum NPPBMTarget: Codable, Equatable {
 
-        var displayName: String {
-            switch self {
-            case .all:    return "All Zones (1–5)"
-            case .front:  return "Front (1–3)"
-            case .rear:   return "Rear (3–5)"
-            case .custom: return "Custom"
-            }
-        }
+    /// Named zones from protocols/predefined/00-zones.npps, as authored. Zones
+    /// overlap at the midline by design; the mask deduplicates.
+    case named([String])
 
-        var defaultZones: [Int] {
-            switch self {
-            case .all:    return [0, 1, 2, 3, 4]
-            case .front:  return [0, 1, 2]
-            case .rear:   return [2, 3, 4]
-            case .custom: return []
-            }
+    /// The target is patient-specific and CANNOT be predefined — the operator
+    /// chooses sockets before the protocol can run (e.g. perilesional cortex in
+    /// post-stroke rehab).
+    case clinicianSelected
+
+    /// RETIRED `zones: all` / `front` / `rear`. Parses, never resolves.
+    case retiredSelector(NPRetiredZoneSelector)
+
+    /// RETIRED numeric indices — `zones: [1, 2]`, or `zones: custom` with a
+    /// `custom_zones:` list (empty when the list was absent). Retained exactly as
+    /// authored: the base is ambiguous, so re-basing them here would be a guess.
+    case retiredNumeric([Int])
+}
+
+/// The three retired five-slot selectors, each with the named zone it migrates to.
+///
+/// The replacements are the migration targets declared in the aggregate-zone block
+/// of protocols/predefined/00-zones.npps, which is the authority on what the old
+/// selectors meant — and they deliberately do NOT agree with the bit patterns the
+/// five-slot mask emitted.
+enum NPRetiredZoneSelector: String, Codable, CaseIterable, Equatable {
+    case all
+    case front
+    case rear
+
+    /// The named zone an author should write instead.
+    var replacementZone: String {
+        switch self {
+        case .all:   return "All"
+        case .front: return "Frontal"
+        case .rear:  return "Posterior"
         }
     }
+}
+
+// MARK: PBM target resolution
+
+extension NPPBMTarget {
+
+    /// Resolve to the firmware socket bitmap, or throw with a message naming what
+    /// to fix.
+    ///
+    /// - Parameter clinicianSockets: operator-chosen 1-based socket ids, required
+    ///   only by `.clinicianSelected`.
+    func resolve(clinicianSockets: [Int]? = nil) throws -> NPSocketMask {
+        switch self {
+        case .named(let names):
+            guard !names.isEmpty else {
+                throw NPSocketTargetError.emptyTarget(target: "zones: []")
+            }
+            // Union across zones, then build one mask: two zones sharing a midline
+            // socket must dose it once, and a bit set twice is still one bit.
+            var sockets: [Int] = []
+            for name in names {
+                guard let zoneSockets = SocketZones.sockets(forZone: name) else {
+                    throw NPSocketTargetError.unknownZone(name: name)
+                }
+                sockets.append(contentsOf: zoneSockets.map(Int.init))
+            }
+            let mask = try NPSocketMask(
+                sockets: sockets,
+                source: "zone \(names.map { "\"\($0)\"" }.joined(separator: " + "))"
+            )
+            guard !mask.isEmpty else {
+                throw NPSocketTargetError.emptyTarget(target: "zones: \(names.joined(separator: ", "))")
+            }
+            return mask
+
+        case .clinicianSelected:
+            guard let chosen = clinicianSockets, !chosen.isEmpty else {
+                throw NPSocketTargetError.clinicianSelectionMissing
+            }
+            return try NPSocketMask(sockets: chosen, source: "the operator's selection")
+
+        case .retiredSelector(let selector):
+            throw NPSocketTargetError.retiredSelector(
+                selector: selector.rawValue, replacement: selector.replacementZone
+            )
+
+        case .retiredNumeric(let indices):
+            throw NPSocketTargetError.retiredNumeric(zoneIndices: indices)
+        }
+    }
+
+    /// True when this target can never resolve, whatever the operator does.
+    var isRetired: Bool {
+        switch self {
+        case .retiredSelector, .retiredNumeric: return true
+        case .named, .clinicianSelected:        return false
+        }
+    }
+
+    /// Short human-readable form, for pickers and validation messages.
+    var displayName: String {
+        switch self {
+        case .named(let names):
+            return names.isEmpty ? "No zones" : names.joined(separator: " + ")
+        case .clinicianSelected:
+            return "Clinician-selected sockets"
+        case .retiredSelector(let selector):
+            return "Retired selector '\(selector.rawValue)'"
+        case .retiredNumeric(let indices):
+            return indices.isEmpty
+                ? "Retired numeric zones"
+                : "Retired numeric zones [\(indices.map(String.init).joined(separator: ", "))]"
+        }
+    }
+}
+
+struct NPPBMTranscranialParams: Codable, Equatable {
 
     enum Wavelength: String, Codable, CaseIterable, Equatable, Identifiable {
         var id: String { rawValue }
@@ -64,16 +165,21 @@ struct NPPBMTranscranialParams: Codable, Equatable {
         }
     }
 
-    var zones: ZoneSelection = .all
-    var customZones: [Int]? = nil
+    /// Defaults to the whole vault. A default that resolves is deliberate: the
+    /// old default was the five-slot `.all`, which silently became "every module"
+    /// for any target the parser did not recognise.
+    var target: NPPBMTarget = .named(["All"])
     var wavelength: Wavelength = .base660_808nm
     var intensityPercent: Double = 75
     var frequencyHz: Double = 20        // 0 = CW
     var dutyCyclePercent: Int = 25      // ≤25, only shown when frequencyHz > 0
 
-    var resolvedZones: [Int] {
-        if zones == .custom, let cz = customZones { return cz }
-        return zones.defaultZones
+    /// The sockets this modality drives, as the firmware bitmap. Throws — with a
+    /// message naming the zone or selector at fault — rather than falling back to
+    /// any default, because a silently-substituted target is wrong-site
+    /// stimulation.
+    func resolveSocketMask(clinicianSockets: [Int]? = nil) throws -> NPSocketMask {
+        try target.resolve(clinicianSockets: clinicianSockets)
     }
 }
 

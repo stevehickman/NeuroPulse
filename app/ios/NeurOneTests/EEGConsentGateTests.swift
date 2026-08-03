@@ -46,7 +46,7 @@ final class EEGConsentGateTests: XCTestCase {
             name: "Test PBM Vascular",
             modalities: [
                 NPProtocolModality(params: .pbmTranscranial(
-                    NPPBMTranscranialParams(zones: .all, customZones: nil,
+                    NPPBMTranscranialParams(target: .named(["All"]),
                                             wavelength: .base660_808nm,
                                             intensityPercent: 75, frequencyHz: 0,
                                             dutyCyclePercent: 25)))

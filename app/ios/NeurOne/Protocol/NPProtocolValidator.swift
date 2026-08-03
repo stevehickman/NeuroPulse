@@ -271,6 +271,34 @@ struct NPProtocolValidator {
         let lim = resolvedLimits.pbmTranscranial
         let srcs = sourceMap.pbmTranscranial
 
+        // Targeting: the modality must resolve to at least one real socket.
+        //
+        // Checked here, before upload, rather than left to throw at wire-build
+        // time: a retired selector or a mistyped zone name is an authoring error,
+        // and the clinician needs it as a readable message next to the protocol
+        // they are editing. `clinicianSelected` is exempt — it is unresolvable by
+        // design until the operator picks sockets at session start.
+        if p.target != .clinicianSelected {
+            do {
+                let mask = try p.resolveSocketMask()
+                if mask.isEmpty {
+                    result.addError(
+                        modality: m, param: "target", displayName: "Target Zones",
+                        actual: p.target.displayName, limit: "≥1 socket", source: .hardware,
+                        message: "PBM transcranial target \(p.target.displayName) resolves to no sockets"
+                            + " — a session would report a delivered dose while lighting nothing."
+                    )
+                }
+            } catch {
+                result.addError(
+                    modality: m, param: "target", displayName: "Target Zones",
+                    actual: p.target.displayName,
+                    limit: "a named zone in 00-zones.npps", source: .hardware,
+                    message: error.localizedDescription
+                )
+            }
+        }
+
         // Hardware: duty cycle ≤ 25%
         if p.dutyCyclePercent > NPHardwareLimits.pbmDutyCycleMaxPercent {
             result.addError(

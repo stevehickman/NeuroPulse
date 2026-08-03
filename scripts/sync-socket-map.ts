@@ -1153,6 +1153,35 @@ function assertSwiftLintClean(source: string, path: string): void {
   }
 }
 
+/**
+ * Greedily pack already-rendered array items onto lines within the SwiftLint
+ * budget, at a fixed indent.
+ *
+ * Shared by both emitted tables. Each of them has an array that cannot fit on
+ * one line — a socket in six zones, and the 80-socket "All" zone — and one-item-
+ * per-line for either would be unreadable. Duplicating this once produced the
+ * bug the comment below guards against, so it lives in one place.
+ */
+function wrapSwiftArrayItems(items: string[], indent: string): string[] {
+  const wrapped: string[] = [];
+  let line = "";
+  for (const item of items) {
+    // Comma travels WITH the item — building the line without it and adding
+    // separators later is how the first cut of this emitted a Swift array of
+    // space-separated strings with no commas at all.
+    const piece = `${item},`;
+    const next = line === "" ? piece : `${line} ${piece}`;
+    if (`${indent}${next}`.length > SWIFT_MAX_LINE) {
+      wrapped.push(`${indent}${line}`);
+      line = piece;
+    } else {
+      line = next;
+    }
+  }
+  if (line !== "") { wrapped.push(`${indent}${line}`); }
+  return wrapped;
+}
+
 function emitSwiftZones(
   sockets: SocketGeometry[], zones: Map<string, number[]>,
 ): string {
@@ -1180,23 +1209,7 @@ function emitSwiftZones(
     // Otherwise: argument per line, and the array itself greedily wrapped to the
     // same budget rather than one element per line, which would be unreadable
     // for a socket in six zones.
-    const indent = "            ";
-    const wrapped: string[] = [];
-    let line = "";
-    for (const item of items) {
-      // Comma travels WITH the item — building the line without it and adding
-      // separators later is how the first cut of this emitted a Swift array of
-      // space-separated strings with no commas at all.
-      const piece = `${item},`;
-      const next = line === "" ? piece : `${line} ${piece}`;
-      if (`${indent}${next}`.length > SWIFT_MAX_LINE) {
-        wrapped.push(`${indent}${line}`);
-        line = piece;
-      } else {
-        line = next;
-      }
-    }
-    if (line !== "") { wrapped.push(`${indent}${line}`); }
+    const wrapped = wrapSwiftArrayItems(items, "            ");
 
     return [
       `    ${s.id}: SocketZoneEntry(`,
@@ -1206,6 +1219,30 @@ function emitSwiftZones(
       `        ]),`,
     ].join("\n");
   }).join("\n");
+
+  // The other direction: zone -> sockets. bySocket answers "what do I call this
+  // socket", which is a display question; targeting asks the reverse — "which
+  // sockets does this zone name" — and deriving it by scanning bySocket in the
+  // app would rebuild, at runtime, a table this script already holds.
+  //
+  // Emitted in the order 00-zones.npps declares its zones (Map insertion order),
+  // so `zoneNames` below is stable across regenerations and a UI list built from
+  // it does not reshuffle when an unrelated zone is edited.
+  const zoneRows = [...zones.entries()].map(([name, ids]) => {
+    const key = `    ${JSON.stringify(name)}: `;
+    const items = ids.map(String);
+    const oneLine = `${key}[${items.join(", ")}],`;
+    if (oneLine.length <= SWIFT_MAX_LINE) { return oneLine; }
+    return [
+      `${key}[`,
+      ...wrapSwiftArrayItems(items, "        "),
+      `    ],`,
+    ].join("\n");
+  }).join("\n");
+
+  const zoneNameRows = wrapSwiftArrayItems(
+    [...zones.keys()].map(n => JSON.stringify(n)), "        ",
+  ).join("\n");
 
   return `${BANNER.replace(/^\/\*/, "/*").replace(/\/\/ /g, "// ")}
 import Foundation
@@ -1240,6 +1277,33 @@ ${rows}
     static func zones(for socketID: UInt8) -> [String] {
         bySocket[socketID]?.all ?? []
     }
+
+    /// Zone name -> the 1-based socket ids that zone contains, ascending.
+    ///
+    /// This is the direction TARGETING needs. \`bySocket\` answers "what do I call
+    /// this socket", which is a display question; a protocol saying
+    /// \`zones: ["Frontal"]\` asks the reverse.
+    ///
+    /// A socket may appear under several zones — the midline sockets are listed
+    /// in both hemisphere zones of their region, by design (00-zones.npps). Any
+    /// caller unioning two zones must therefore deduplicate; \`NPSocketMask\` does
+    /// it structurally, because a bit cannot be set twice.
+    static let byZone: [String: [UInt8]] = [
+${zoneRows}
+    ]
+
+    /// Sockets a zone contains, or nil when this build knows no zone by that
+    /// name — which is an authoring error in the protocol, not a device state.
+    static func sockets(forZone zoneName: String) -> [UInt8]? {
+        byZone[zoneName]
+    }
+
+    /// Every authored zone name, in the order protocols/predefined/00-zones.npps
+    /// declares them. Stable across regenerations, so a UI list built from this
+    /// does not reshuffle when an unrelated zone is edited.
+    static let zoneNames: [String] = [
+${zoneNameRows}
+    ]
 
     /// Socket ids this table covers. Not a hardware claim — the helmet's own
     /// socket map is authoritative for which sockets physically exist.

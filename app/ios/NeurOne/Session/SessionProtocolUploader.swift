@@ -12,6 +12,11 @@ enum UploadError: LocalizedError {
     case hubRejected(String)
     case timeout
     case validationFailed([NPValidationIssue])
+    /// A PBM target could not be resolved to helmet sockets. Distinct from
+    /// `validationFailed` so it is obvious when the backstop fired rather than
+    /// the validator — that combination means a target the validator does not
+    /// yet check.
+    case targetUnresolvable(Error)
 
     var errorDescription: String? {
         switch self {
@@ -27,6 +32,8 @@ enum UploadError: LocalizedError {
             let summary = issues.prefix(3).map(\.message).joined(separator: "; ")
             let extra = issues.count > 3 ? " (and \(issues.count - 3) more)" : ""
             return "Protocol validation failed: \(summary)\(extra)"
+        case .targetUnresolvable(let e):
+            return "Protocol target could not be resolved: \(e.localizedDescription)"
         }
     }
 }
@@ -154,6 +161,16 @@ final class SessionProtocolUploader: ObservableObject {
             lastError = err
             throw err
         }
-        return NPSessionProtocol(from: definition, mode: mode)
+        // Target resolution can still throw here even though the validator ran:
+        // the validator reports an unresolvable target as an error, so in practice
+        // the guard above catches it first and this is the backstop that keeps a
+        // bad target from ever reaching a signed blob.
+        do {
+            return try NPSessionProtocol(from: definition, mode: mode)
+        } catch {
+            let err = UploadError.targetUnresolvable(error)
+            lastError = err
+            throw err
+        }
     }
 }
