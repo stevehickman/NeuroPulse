@@ -1,0 +1,14 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "rhino3dm": "^8.32.1",
+      },
+    },
+  },
+  "packages": {
+    "rhino3dm": ["rhino3dm@8.32.1", "", {}, "sha512-Opb+WAEh41j+YoUQOhG7C8egfG1ZVIW6/pbTuOHoJULFCSTAQgIzOibHCCbRKtQfAuTOPbjm0bCiST3rK2k2sw=="],
+  }
+}

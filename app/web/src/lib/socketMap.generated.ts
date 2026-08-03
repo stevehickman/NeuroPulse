@@ -4,106 +4,118 @@
 // Scan-grounded v1 lattice (NP-HEX-ZM-001 §3.4) — PROVISIONAL pending REG-1 / ACT-1.
 // x/y are PROVISIONAL unit-hex lattice coordinates for layout only, not mm.
 
-export type NPSide = 'left' | 'right' | 'midline';
-
 export interface NPSocketGeometry {
   /** 1-based socket id, matching the `sockets:` lists in .npps zone files. */
   id: number;
-  /**
-   * Which side of the centre column this socket sits on. `midline` sockets are
-   * ON the centre column, so a zone file may legitimately list one in both a
-   * left-side and a right-side zone — which is why zone unions must dedup.
-   */
-  side: NPSide;
   row: number;
   col: number;
   /** Provisional unit-hex lattice coordinates — layout only, not millimetres. */
   x: number;
   y: number;
+  /**
+   * Position in 3-space, MILLIMETRES, aircraft body axes, origin at the centre
+   * of the ellipsoid the helmet is a partial shell of:
+   *   +x forward (toward the face), +y right, +z down.
+   * The vault has negative z; the crown sits at z = -157.
+   *
+   * There is deliberately no lobe and no side here. A socket's anatomical
+   * meaning is its ZONE MEMBERSHIP, authored in
+   * protocols/predefined/00-zones.npps — not a property of the hardware.
+   */
+  xMm: number;
+  yMm: number;
+  zMm: number;
 }
+
+/** Semi-axes of the modelled ellipsoid, mm (fore/aft, lateral, vertical). */
+export const NP_ELLIPSOID_SEMI_AXES_MM = {
+  foreAft: 133.5,
+  lateral: 114.5,
+  vertical: 157,
+} as const;
 
 /** Every socket in the helmet, ordered by id. */
 export const NP_SOCKETS: readonly NPSocketGeometry[] = [
-  { id: 1, side: 'left', row: 0, col: 0, x: -1, y: 0 },
-  { id: 2, side: 'midline', row: 0, col: 1, x: 0, y: 0 },
-  { id: 3, side: 'right', row: 0, col: 2, x: 1, y: 0 },
-  { id: 4, side: 'left', row: 1, col: 0, x: -2.5, y: 0.866 },
-  { id: 5, side: 'left', row: 1, col: 1, x: -1.5, y: 0.866 },
-  { id: 6, side: 'left', row: 1, col: 2, x: -0.5, y: 0.866 },
-  { id: 7, side: 'right', row: 1, col: 3, x: 0.5, y: 0.866 },
-  { id: 8, side: 'right', row: 1, col: 4, x: 1.5, y: 0.866 },
-  { id: 9, side: 'right', row: 1, col: 5, x: 2.5, y: 0.866 },
-  { id: 10, side: 'left', row: 2, col: 0, x: -3, y: 1.7321 },
-  { id: 11, side: 'left', row: 2, col: 1, x: -2, y: 1.7321 },
-  { id: 12, side: 'left', row: 2, col: 2, x: -1, y: 1.7321 },
-  { id: 13, side: 'midline', row: 2, col: 3, x: 0, y: 1.7321 },
-  { id: 14, side: 'right', row: 2, col: 4, x: 1, y: 1.7321 },
-  { id: 15, side: 'right', row: 2, col: 5, x: 2, y: 1.7321 },
-  { id: 16, side: 'right', row: 2, col: 6, x: 3, y: 1.7321 },
-  { id: 17, side: 'left', row: 3, col: 0, x: -3.5, y: 2.5981 },
-  { id: 18, side: 'left', row: 3, col: 1, x: -2.5, y: 2.5981 },
-  { id: 19, side: 'left', row: 3, col: 2, x: -1.5, y: 2.5981 },
-  { id: 20, side: 'left', row: 3, col: 3, x: -0.5, y: 2.5981 },
-  { id: 21, side: 'right', row: 3, col: 4, x: 0.5, y: 2.5981 },
-  { id: 22, side: 'right', row: 3, col: 5, x: 1.5, y: 2.5981 },
-  { id: 23, side: 'right', row: 3, col: 6, x: 2.5, y: 2.5981 },
-  { id: 24, side: 'right', row: 3, col: 7, x: 3.5, y: 2.5981 },
-  { id: 25, side: 'left', row: 4, col: 0, x: -4, y: 3.4641 },
-  { id: 26, side: 'left', row: 4, col: 1, x: -3, y: 3.4641 },
-  { id: 27, side: 'left', row: 4, col: 2, x: -2, y: 3.4641 },
-  { id: 28, side: 'left', row: 4, col: 3, x: -1, y: 3.4641 },
-  { id: 29, side: 'midline', row: 4, col: 4, x: 0, y: 3.4641 },
-  { id: 30, side: 'right', row: 4, col: 5, x: 1, y: 3.4641 },
-  { id: 31, side: 'right', row: 4, col: 6, x: 2, y: 3.4641 },
-  { id: 32, side: 'right', row: 4, col: 7, x: 3, y: 3.4641 },
-  { id: 33, side: 'right', row: 4, col: 8, x: 4, y: 3.4641 },
-  { id: 34, side: 'left', row: 5, col: 0, x: -3.5, y: 4.3301 },
-  { id: 35, side: 'left', row: 5, col: 1, x: -2.5, y: 4.3301 },
-  { id: 36, side: 'left', row: 5, col: 2, x: -1.5, y: 4.3301 },
-  { id: 37, side: 'left', row: 5, col: 3, x: -0.5, y: 4.3301 },
-  { id: 38, side: 'right', row: 5, col: 4, x: 0.5, y: 4.3301 },
-  { id: 39, side: 'right', row: 5, col: 5, x: 1.5, y: 4.3301 },
-  { id: 40, side: 'right', row: 5, col: 6, x: 2.5, y: 4.3301 },
-  { id: 41, side: 'right', row: 5, col: 7, x: 3.5, y: 4.3301 },
-  { id: 42, side: 'left', row: 6, col: 0, x: -4, y: 5.1962 },
-  { id: 43, side: 'left', row: 6, col: 1, x: -3, y: 5.1962 },
-  { id: 44, side: 'left', row: 6, col: 2, x: -2, y: 5.1962 },
-  { id: 45, side: 'left', row: 6, col: 3, x: -1, y: 5.1962 },
-  { id: 46, side: 'midline', row: 6, col: 4, x: 0, y: 5.1962 },
-  { id: 47, side: 'right', row: 6, col: 5, x: 1, y: 5.1962 },
-  { id: 48, side: 'right', row: 6, col: 6, x: 2, y: 5.1962 },
-  { id: 49, side: 'right', row: 6, col: 7, x: 3, y: 5.1962 },
-  { id: 50, side: 'right', row: 6, col: 8, x: 4, y: 5.1962 },
-  { id: 51, side: 'left', row: 7, col: 0, x: -3.5, y: 6.0622 },
-  { id: 52, side: 'left', row: 7, col: 1, x: -2.5, y: 6.0622 },
-  { id: 53, side: 'left', row: 7, col: 2, x: -1.5, y: 6.0622 },
-  { id: 54, side: 'left', row: 7, col: 3, x: -0.5, y: 6.0622 },
-  { id: 55, side: 'right', row: 7, col: 4, x: 0.5, y: 6.0622 },
-  { id: 56, side: 'right', row: 7, col: 5, x: 1.5, y: 6.0622 },
-  { id: 57, side: 'right', row: 7, col: 6, x: 2.5, y: 6.0622 },
-  { id: 58, side: 'right', row: 7, col: 7, x: 3.5, y: 6.0622 },
-  { id: 59, side: 'left', row: 8, col: 0, x: -3, y: 6.9282 },
-  { id: 60, side: 'left', row: 8, col: 1, x: -2, y: 6.9282 },
-  { id: 61, side: 'left', row: 8, col: 2, x: -1, y: 6.9282 },
-  { id: 62, side: 'midline', row: 8, col: 3, x: 0, y: 6.9282 },
-  { id: 63, side: 'right', row: 8, col: 4, x: 1, y: 6.9282 },
-  { id: 64, side: 'right', row: 8, col: 5, x: 2, y: 6.9282 },
-  { id: 65, side: 'right', row: 8, col: 6, x: 3, y: 6.9282 },
-  { id: 66, side: 'left', row: 9, col: 0, x: -2.5, y: 7.7942 },
-  { id: 67, side: 'left', row: 9, col: 1, x: -1.5, y: 7.7942 },
-  { id: 68, side: 'left', row: 9, col: 2, x: -0.5, y: 7.7942 },
-  { id: 69, side: 'right', row: 9, col: 3, x: 0.5, y: 7.7942 },
-  { id: 70, side: 'right', row: 9, col: 4, x: 1.5, y: 7.7942 },
-  { id: 71, side: 'right', row: 9, col: 5, x: 2.5, y: 7.7942 },
-  { id: 72, side: 'left', row: 10, col: 0, x: -2, y: 8.6603 },
-  { id: 73, side: 'left', row: 10, col: 1, x: -1, y: 8.6603 },
-  { id: 74, side: 'midline', row: 10, col: 2, x: 0, y: 8.6603 },
-  { id: 75, side: 'right', row: 10, col: 3, x: 1, y: 8.6603 },
-  { id: 76, side: 'right', row: 10, col: 4, x: 2, y: 8.6603 },
-  { id: 77, side: 'left', row: 11, col: 0, x: -1.5, y: 9.5263 },
-  { id: 78, side: 'left', row: 11, col: 1, x: -0.5, y: 9.5263 },
-  { id: 79, side: 'right', row: 11, col: 2, x: 0.5, y: 9.5263 },
-  { id: 80, side: 'right', row: 11, col: 3, x: 1.5, y: 9.5263 },
+  { id: 1, row: 0, col: 0, x: -1, y: 0, xMm: 127.16, yMm: -26.06, zMm: -8.58 },
+  { id: 2, row: 0, col: 1, x: 0, y: 0, xMm: 119.13, yMm: 0, zMm: -34.43 },
+  { id: 3, row: 0, col: 2, x: 1, y: 0, xMm: 124.67, yMm: 25.55, zMm: -8.42 },
+  { id: 4, row: 1, col: 0, x: -2.5, y: 0.866, xMm: 120.03, yMm: -53.08, zMm: -11.05 },
+  { id: 5, row: 1, col: 1, x: -1.5, y: 0.866, xMm: 111.97, yMm: -38.66, zMm: -43.67 },
+  { id: 6, row: 1, col: 2, x: -0.5, y: 0.866, xMm: 93.19, yMm: -17.44, zMm: -51.92 },
+  { id: 7, row: 1, col: 3, x: 0.5, y: 0.866, xMm: 101.29, yMm: 18.96, zMm: -56.43 },
+  { id: 8, row: 1, col: 4, x: 1.5, y: 0.866, xMm: 115.04, yMm: 39.72, zMm: -44.87 },
+  { id: 9, row: 1, col: 5, x: 2.5, y: 0.866, xMm: 117.43, yMm: 51.93, zMm: -10.81 },
+  { id: 10, row: 2, col: 0, x: -3, y: 1.7321, xMm: 101.35, yMm: -75.45, zMm: -21.7 },
+  { id: 11, row: 2, col: 1, x: -2, y: 1.7321, xMm: 84.23, yMm: -53.62, zMm: -48.08 },
+  { id: 12, row: 2, col: 2, x: -1, y: 1.7321, xMm: 80.68, yMm: -32.4, zMm: -71.46 },
+  { id: 13, row: 2, col: 3, x: 0, y: 1.7321, xMm: 87.38, yMm: 0, zMm: -91.14 },
+  { id: 14, row: 2, col: 4, x: 1, y: 1.7321, xMm: 86.04, yMm: 34.56, zMm: -76.21 },
+  { id: 15, row: 2, col: 5, x: 2, y: 1.7321, xMm: 86.84, yMm: 55.29, zMm: -49.57 },
+  { id: 16, row: 2, col: 6, x: 3, y: 1.7321, xMm: 100.56, yMm: 74.86, zMm: -21.53 },
+  { id: 17, row: 3, col: 0, x: -3.5, y: 2.5981, xMm: 78.62, yMm: -98.8, zMm: -46.27 },
+  { id: 18, row: 3, col: 1, x: -2.5, y: 2.5981, xMm: 70.82, yMm: -78.84, zMm: -70.31 },
+  { id: 19, row: 3, col: 2, x: -1.5, y: 2.5981, xMm: 66.32, yMm: -50.68, zMm: -98.77 },
+  { id: 20, row: 3, col: 3, x: -0.5, y: 2.5981, xMm: 65.92, yMm: -16.1, zMm: -117.98 },
+  { id: 21, row: 3, col: 4, x: 0.5, y: 2.5981, xMm: 65.13, yMm: 15.91, zMm: -116.58 },
+  { id: 22, row: 3, col: 5, x: 1.5, y: 2.5981, xMm: 65.84, yMm: 50.31, zMm: -98.05 },
+  { id: 23, row: 3, col: 6, x: 2.5, y: 2.5981, xMm: 66.19, yMm: 73.69, zMm: -65.72 },
+  { id: 24, row: 3, col: 7, x: 3.5, y: 2.5981, xMm: 67.62, yMm: 84.98, zMm: -39.8 },
+  { id: 25, row: 4, col: 0, x: -4, y: 3.4641, xMm: 45.77, yMm: -109.19, zMm: -35.13 },
+  { id: 26, row: 4, col: 1, x: -3, y: 3.4641, xMm: 42.67, yMm: -92.14, zMm: -67.76 },
+  { id: 27, row: 4, col: 2, x: -2, y: 3.4641, xMm: 40.08, yMm: -66.75, zMm: -98.78 },
+  { id: 28, row: 4, col: 3, x: -1, y: 3.4641, xMm: 40.08, yMm: -37.34, zMm: -124.56 },
+  { id: 29, row: 4, col: 4, x: 0, y: 3.4641, xMm: 40.11, yMm: 0, zMm: -134.76 },
+  { id: 30, row: 4, col: 5, x: 1, y: 3.4641, xMm: 40.15, yMm: 37.4, zMm: -124.77 },
+  { id: 31, row: 4, col: 6, x: 2, y: 3.4641, xMm: 39.55, yMm: 65.87, zMm: -97.49 },
+  { id: 32, row: 4, col: 7, x: 3, y: 3.4641, xMm: 40.43, yMm: 87.32, zMm: -64.21 },
+  { id: 33, row: 4, col: 8, x: 4, y: 3.4641, xMm: 41.33, yMm: 98.61, zMm: -31.72 },
+  { id: 34, row: 5, col: 0, x: -3.5, y: 4.3301, xMm: 7.94, yMm: -105.04, zMm: -65.43 },
+  { id: 35, row: 5, col: 1, x: -2.5, y: 4.3301, xMm: 7.32, yMm: -80.6, zMm: -95.31 },
+  { id: 36, row: 5, col: 2, x: -1.5, y: 4.3301, xMm: 7.37, yMm: -55.47, zMm: -125.64 },
+  { id: 37, row: 5, col: 3, x: -0.5, y: 4.3301, xMm: 7.35, yMm: -20, zMm: -143.92 },
+  { id: 38, row: 5, col: 4, x: 0.5, y: 4.3301, xMm: 7.25, yMm: 19.74, zMm: -142.07 },
+  { id: 39, row: 5, col: 5, x: 1.5, y: 4.3301, xMm: 7.43, yMm: 55.94, zMm: -126.69 },
+  { id: 40, row: 5, col: 6, x: 2.5, y: 4.3301, xMm: 7.37, yMm: 81.13, zMm: -95.95 },
+  { id: 41, row: 5, col: 7, x: 3.5, y: 4.3301, xMm: 7.05, yMm: 93.36, zMm: -58.15 },
+  { id: 42, row: 6, col: 0, x: -4, y: 5.1962, xMm: -25.18, yMm: -92.72, zMm: -38.83 },
+  { id: 43, row: 6, col: 1, x: -3, y: 5.1962, xMm: -26.98, yMm: -88.96, zMm: -73.56 },
+  { id: 44, row: 6, col: 2, x: -2, y: 5.1962, xMm: -26.85, yMm: -67.71, zMm: -107.08 },
+  { id: 45, row: 6, col: 3, x: -1, y: 5.1962, xMm: -26.91, yMm: -38.24, zMm: -132.04 },
+  { id: 46, row: 6, col: 4, x: 0, y: 5.1962, xMm: -26.93, yMm: 0, zMm: -142.16 },
+  { id: 47, row: 6, col: 5, x: 1, y: 5.1962, xMm: -27.39, yMm: 38.91, zMm: -134.37 },
+  { id: 48, row: 6, col: 6, x: 2, y: 5.1962, xMm: -26.8, yMm: 67.6, zMm: -106.91 },
+  { id: 49, row: 6, col: 7, x: 3, y: 5.1962, xMm: -26.82, yMm: 88.43, zMm: -73.12 },
+  { id: 50, row: 6, col: 8, x: 4, y: 5.1962, xMm: -27.72, yMm: 102.07, zMm: -42.74 },
+  { id: 51, row: 7, col: 0, x: -3.5, y: 6.0622, xMm: -62.39, yMm: -95.64, zMm: -41.54 },
+  { id: 52, row: 7, col: 1, x: -2.5, y: 6.0622, xMm: -59.11, yMm: -76.57, zMm: -77.22 },
+  { id: 53, row: 7, col: 2, x: -1.5, y: 6.0622, xMm: -59.49, yMm: -53.64, zMm: -108.61 },
+  { id: 54, row: 7, col: 3, x: -0.5, y: 6.0622, xMm: -60.02, yMm: -19.98, zMm: -129.49 },
+  { id: 55, row: 7, col: 4, x: 0.5, y: 6.0622, xMm: -59.68, yMm: 19.87, zMm: -128.73 },
+  { id: 56, row: 7, col: 5, x: 1.5, y: 6.0622, xMm: -59.83, yMm: 53.95, zMm: -109.24 },
+  { id: 57, row: 7, col: 6, x: 2.5, y: 6.0622, xMm: -57.66, yMm: 74.7, zMm: -75.33 },
+  { id: 58, row: 7, col: 7, x: 3.5, y: 6.0622, xMm: -56.06, yMm: 85.93, zMm: -37.33 },
+  { id: 59, row: 8, col: 0, x: -3, y: 6.9282, xMm: -92.8, yMm: -82.36, zMm: -31.99 },
+  { id: 60, row: 8, col: 1, x: -2, y: 6.9282, xMm: -84, yMm: -60.83, zMm: -65.81 },
+  { id: 61, row: 8, col: 2, x: -1, y: 6.9282, xMm: -86.02, yMm: -36.44, zMm: -96.65 },
+  { id: 62, row: 8, col: 3, x: 0, y: 6.9282, xMm: -86.48, yMm: 0, zMm: -109.39 },
+  { id: 63, row: 8, col: 4, x: 1, y: 6.9282, xMm: -86.53, yMm: 36.66, zMm: -97.22 },
+  { id: 64, row: 8, col: 5, x: 2, y: 6.9282, xMm: -83.91, yMm: 60.77, zMm: -65.75 },
+  { id: 65, row: 8, col: 6, x: 3, y: 6.9282, xMm: -82.89, yMm: 73.56, zMm: -28.57 },
+  { id: 66, row: 9, col: 0, x: -2.5, y: 7.7942, xMm: -117, yMm: -63.02, zMm: -23.24 },
+  { id: 67, row: 9, col: 1, x: -1.5, y: 7.7942, xMm: -105.64, yMm: -45.83, zMm: -50.79 },
+  { id: 68, row: 9, col: 2, x: -0.5, y: 7.7942, xMm: -109.72, yMm: -19.54, zMm: -79.52 },
+  { id: 69, row: 9, col: 3, x: 0.5, y: 7.7942, xMm: -109.32, yMm: 19.47, zMm: -79.24 },
+  { id: 70, row: 9, col: 4, x: 1.5, y: 7.7942, xMm: -105.47, yMm: 45.76, zMm: -50.71 },
+  { id: 71, row: 9, col: 5, x: 2.5, y: 7.7942, xMm: -115.23, yMm: 62.07, zMm: -22.88 },
+  { id: 72, row: 10, col: 0, x: -2, y: 8.6603, xMm: -118.4, yMm: -36.41, zMm: -2.01 },
+  { id: 73, row: 10, col: 1, x: -1, y: 8.6603, xMm: -122.41, yMm: -30.23, zMm: -30.81 },
+  { id: 74, row: 10, col: 2, x: 0, y: 8.6603, xMm: -120.86, yMm: 0, zMm: -51 },
+  { id: 75, row: 10, col: 3, x: 1, y: 8.6603, xMm: -121.31, yMm: 29.96, zMm: -30.54 },
+  { id: 76, row: 10, col: 4, x: 2, y: 8.6603, xMm: -118.32, yMm: 36.38, zMm: -2.01 },
+  { id: 77, row: 11, col: 0, x: -1.5, y: 9.5263, xMm: -125.03, yMm: -18.18, zMm: 0 },
+  { id: 78, row: 11, col: 1, x: -0.5, y: 9.5263, xMm: -136.55, yMm: -12.06, zMm: -21.62 },
+  { id: 79, row: 11, col: 2, x: 0.5, y: 9.5263, xMm: -135.27, yMm: 11.95, zMm: -21.42 },
+  { id: 80, row: 11, col: 3, x: 1.5, y: 9.5263, xMm: -124.18, yMm: 18.06, zMm: 0 },
 ];
 
 export const NP_SOCKET_COUNT = 80;

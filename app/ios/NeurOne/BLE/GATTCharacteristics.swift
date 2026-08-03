@@ -20,7 +20,10 @@ enum NPUUID {
     static let otaCommand       = CBUUID(string: "4E455550-000A-1000-8000-00805F9B34FB") // WRITE/NOTIFY
     static let otaStatus        = CBUUID(string: "4E455550-000B-1000-8000-00805F9B34FB") // NOTIFY
     static let calibrationCmd   = CBUUID(string: "4E455550-000C-1000-8000-00805F9B34FB") // WRITE
-    static let zoneModuleStatus = CBUUID(string: "4E455550-000D-1000-8000-00805F9B34FB") // READ/NOTIFY 5B
+    // READ/NOTIFY, variable length. Socket-keyed module-status frames — see
+    // ZoneModuleFrame and firmware/zone_announce/include/np_zone_notify.h.
+    // Was a fixed 5-byte one-per-slot payload under the retired zone architecture.
+    static let zoneModuleStatus = CBUUID(string: "4E455550-000D-1000-8000-00805F9B34FB")
     static let shdrUploadStatus = CBUUID(string: "4E455550-000E-1000-8000-00805F9B34FB") // NOTIFY
 
     // PENDING FIRMWARE CONFIRMATION — placeholder UUID for session stop command.
@@ -33,6 +36,15 @@ enum NPUUID {
     // NOT included in NPUUID.all — hub firmware not yet implemented; omitting it prevents
     // allCharacteristicsResolved from blocking until hub ships this characteristic.
     static let warrantyToken    = CBUUID(string: "4E455550-0010-1000-8000-00805F9B34FB") // READ 32B
+
+    // Helmet socket geometry — READ/NOTIFY, variable length, read ONCE at link.
+    // The permanent description of where every socket is (lobe, side, layout
+    // coordinates, wired-in-shell). Carrying this here rather than in every
+    // status change is what keeps a change to three bytes, and lets the map grow
+    // without touching the hot path. See SocketMapFrame.
+    // NOT in NPUUID.all — the hub does not ship it yet (OI-WA-03); its absence
+    // must not block allCharacteristicsResolved.
+    static let socketMap        = CBUUID(string: "4E455550-0012-1000-8000-00805F9B34FB")
 
     // Current hub firmware version — READ/NOTIFY 4B little-endian uint32.
     // Encoding: bits [23:16]=major, [15:8]=minor, [7:0]=patch.
@@ -127,10 +139,30 @@ struct GATTParser {
         }
     }
 
-    /// ZONE_MODULE_STATUS: 5 bytes — one uint8 per zone slot (0=absent, 1–5=zone ID confirmed)
-    static func parseZoneModuleStatus(_ data: Data) -> [UInt8]? {
-        guard data.count >= 5 else { return nil }
-        return (0..<5).map { data[$0] }
+    /// ZONE_MODULE_STATUS: socket-keyed status frame (the dynamic half).
+    ///
+    /// Wire contract: `firmware/zone_announce/include/np_zone_notify.h`, pinned by
+    /// `np_zone_notify_tests.c`. Header (4B): version, flags, fragment index,
+    /// record count. Records (3B each): socket id (1-based), module type, flags.
+    ///
+    /// No anatomy — that is in the socket map, because where a socket is cannot
+    /// change when a module is swapped.
+    ///
+    /// Returns nil for any frame that is not exactly well-formed — wrong version,
+    /// wrong kind bit, short header, a record count the body cannot satisfy, or a
+    /// socket id outside the addressing domain. Presence gates safety-critical
+    /// placement checks, so a malformed frame is discarded rather than partially
+    /// believed.
+    static func parseZoneModuleStatus(_ data: Data) -> ZoneModuleFrame? {
+        ZoneModuleFrame(data)
+    }
+
+    /// SOCKET_MAP: the helmet's permanent socket geometry (the static half).
+    ///
+    /// Same header; records are 7B: socket id (1-based), packed lobe|side, flags,
+    /// x_mm and y_mm as int16 little-endian. Read once when the app links.
+    static func parseSocketMap(_ data: Data) -> SocketMapFrame? {
+        SocketMapFrame(data)
     }
 
     /// FIRMWARE_VERSION: uint32 little-endian — bits [23:16]=major [15:8]=minor [7:0]=patch

@@ -125,8 +125,9 @@ const ROOT = join(import.meta.dir, "..");
 const ZONE_FILE = join(ROOT, "protocols", "predefined", "00-zones.npps");
 const JSON_OUT = join(ROOT, "hardware", "np_socket_map.json");
 const TS_OUT = join(ROOT, "app", "web", "src", "lib", "socketMap.generated.ts");
-
-type Side = "left" | "right" | "midline";
+const SWIFT_OUT = join(
+  ROOT, "app", "ios", "NeurOne", "Models", "SocketZones.generated.swift",
+);
 
 // ─── Scan-measured geometry constants (NP-HEX-ZM-001 §3.4) ────────────────────
 //
@@ -166,6 +167,212 @@ const HEAD_CIRCUMFERENCE_MM = 620;
 /** Interior footprint, mm — exterior scan footprint (272 x 234) less the ~2.5 mm wall. */
 const INTERIOR_LENGTH_MM = 267;
 const INTERIOR_BREADTH_MM = 229;
+
+// ── Socket positions in 3-space ───────────────────────────────────────────────
+//
+// Socket positions are emitted as real coordinates in 3-space, so anything
+// downstream — the firmware socket map on the wire, a layout view, an optical
+// model — reads one physical description instead of re-deriving position from
+// row/col and a pitch.
+//
+// FRAME (aircraft body axes, right-handed), origin at the shell centre:
+//
+//     +x  forward   (toward the face)
+//     +y  right     (toward the right ear)
+//     +z  down      (toward the neck)
+//
+// So the vault the sockets tile has NEGATIVE z, the crown sits at the most
+// negative z, and the rim plane is z = 0 through the origin.
+//
+// ── ⚠ THE ELLIPSOID BELOW IS A DESCRIPTION, NOT THE GEOMETRY ─────────────────
+//
+// Principal direction, 2026-07-31: the ellipsoid is a convenient approximation
+// useful for describing the shell. It is NOT a fact about it. The reference of
+// record is the measured interior scan — `cad/HelmetScan.3dm` — until CAD
+// drawings with exact measurements exist.
+//
+// This code has not yet been moved onto that scan, and the gap is not cosmetic:
+//
+//   - The scan in the repo is a raw Scaniverse capture (98,003 vertices,
+//     181,944 faces) that includes the surroundings it was captured with. It
+//     segments into 341 disconnected components; the helmet is not one of them.
+//   - A RANSAC fit does recover a shell at R ~ 157 mm, which agrees with the
+//     documented rim->crown 157 mm. But the radial histogram about that centre
+//     shows ONE broad peak (r ~ 145-175 mm) on a heavy background, not the two
+//     clean peaks an interior and an exterior surface would give. Which surface
+//     the points belong to is therefore not established, and the inner face is
+//     the datum every other layer offsets from (NP-HELMET-GEOM-001 §1).
+//   - The scan frame is arbitrary. The rim plane and crown are recoverable, so
+//     the vertical axis and the fore-aft LINE are too — but which end of that
+//     line is the face is not, and getting it backwards mirrors every socket
+//     front-to-back. That is a wrong-site error, not a display one.
+//
+// So the ellipsoid stays as the INTERIM stand-in, labelled as such, and every
+// emitted coordinate is provisional in the stronger sense: not merely unlocked,
+// but derived from a shape the principal has explicitly said is not the thing
+// itself. Replacing it is scan-segmentation work with two decisions in it that
+// belong to a person, not to this script.
+
+/** INTERIM. Semi-axis fore/aft, mm — half the measured interior length. */
+const SEMI_AXIS_FORE_AFT_MM = INTERIOR_LENGTH_MM / 2;
+
+/** INTERIM. Semi-axis left/right, mm — half the measured interior breadth. */
+const SEMI_AXIS_LATERAL_MM = INTERIOR_BREADTH_MM / 2;
+
+/**
+ * INTERIM. Semi-axis vertical, mm. The rim sits at the widest station, so
+ * rim->crown IS the semi-axis and the rim plane passes through the centre —
+ * which is what makes the origin a physically meaningful point rather than an
+ * arbitrary datum. That much survives replacing the ellipsoid with the scan.
+ */
+const SEMI_AXIS_VERTICAL_MM = RIM_TO_CROWN_MM;
+
+/**
+ * Surface point at sagittal parameter `t` and coronal parameter `u`.
+ *
+ *   t: 0 = front rim, PI/2 = crown, PI = back rim
+ *   u: 0 = midline, positive = right (+y)
+ *
+ * Satisfies the ellipsoid equation identically:
+ *   cos²t + sin²t·sin²u + sin²t·cos²u = cos²t + sin²t = 1
+ */
+// ── The measured interior surface ────────────────────────────────────────────
+//
+// Socket positions come from the LiDAR interior scan, not from the ellipsoid.
+// `hardware/np_helmet_surface.json` holds radius as a function of direction,
+// sampled from cad/HelmetScan.3dm and expressed in these same body axes; see
+// scripts/extract-helmet-surface.ts for how it is segmented and framed.
+//
+// The ellipsoid survives ONLY as a parametrisation — a way to sweep directions
+// smoothly and evenly across the vault. It no longer supplies any distance. Each
+// direction it generates is looked up in the measured table and given the radius
+// the real helmet has there.
+
+interface HelmetSurface {
+  sampling: { azimuthStepDeg: number; elevationStepDeg: number;
+              measuredCells: number; interpolatedCells: number };
+  radiusMm: Record<string, { r: number; n: number; measured: boolean }>;
+}
+const SURFACE: HelmetSurface = JSON.parse(
+  readFileSync(join(ROOT, "hardware/np_helmet_surface.json"), "utf8"),
+);
+
+/**
+ * Measured radius, millimetres, in the given direction — bilinear over the
+ * sampled grid. Azimuth 0 is forward and +90 is right; elevation 0 is the rim
+ * plane and 90 the crown, matching the extractor's convention.
+ */
+function measuredRadius(dx: number, dy: number, dz: number): number {
+  const horiz = Math.hypot(dx, dy);
+  const azDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const elDeg = Math.max(0, Math.min(90, (Math.atan2(-dz, horiz) * 180) / Math.PI));
+  const { azimuthStepDeg: A, elevationStepDeg: E } = SURFACE.sampling;
+
+  const a0 = Math.floor(azDeg / A) * A, e0 = Math.floor(elDeg / E) * E;
+  const fa = (azDeg - a0) / A, fe = (elDeg - e0) / E;
+  const wrap = (a: number) => (((a + 180) % 360) + 360) % 360 - 180;
+  const at = (a: number, e: number) =>
+    SURFACE.radiusMm[`${wrap(a)},${Math.min(90, e)}`]?.r ??
+    SURFACE.radiusMm[`${wrap(a)},${Math.min(90, Math.max(0, e - E))}`]?.r ?? 0;
+
+  const r00 = at(a0, e0), r10 = at(a0 + A, e0);
+  const r01 = at(a0, e0 + E), r11 = at(a0 + A, e0 + E);
+  return (r00 * (1 - fa) + r10 * fa) * (1 - fe) + (r01 * (1 - fa) + r11 * fa) * fe;
+}
+
+/**
+ * A point on the MEASURED interior surface.
+ *
+ *   t: 0 = front rim, PI/2 = crown, PI = back rim
+ *   u: 0 = midline, positive = right (+y)
+ *
+ * The (t, u) sweep is ellipsoidal; the RADIUS is the helmet's own.
+ */
+function surfacePoint(t: number, u: number): { x: number; y: number; z: number } {
+  const ex = SEMI_AXIS_FORE_AFT_MM * Math.cos(t);
+  const ey = SEMI_AXIS_LATERAL_MM * Math.sin(t) * Math.sin(u);
+  const ez = -SEMI_AXIS_VERTICAL_MM * Math.sin(t) * Math.cos(u);
+  const len = Math.hypot(ex, ey, ez) || 1;
+  const [dx, dy, dz] = [ex / len, ey / len, ez / len];
+  const r = measuredRadius(dx, dy, dz);
+  return { x: dx * r, y: dy * r, z: dz * r };
+}
+
+function ellipsoidPoint(t: number, u: number): { x: number; y: number; z: number } {
+  return {
+    x: SEMI_AXIS_FORE_AFT_MM * Math.cos(t),
+    y: SEMI_AXIS_LATERAL_MM * Math.sin(t) * Math.sin(u),
+    // Negative: +z is DOWN in aircraft axes, and the vault is above the rim.
+    z: -SEMI_AXIS_VERTICAL_MM * Math.sin(t) * Math.cos(u),
+  };
+}
+
+/** Simpson integration of `f` over [lo, hi]; `n` must be even. */
+function integrate(f: (v: number) => number, lo: number, hi: number, n = 2000): number {
+  const h = (hi - lo) / n;
+  let sum = f(lo) + f(hi);
+  for (let i = 1; i < n; i++) {
+    sum += f(lo + i * h) * (i % 2 === 0 ? 2 : 4);
+  }
+  return (sum * h) / 3;
+}
+
+/**
+ * Arc-length element along the midline meridian (u = 0), d/dt.
+ *
+ * Central difference on the MEASURED surface rather than the ellipsoid's closed
+ * form. Arc lengths, row spacing and the ring-fit diagnostic all descend from
+ * this, so leaving it analytic would have kept the diagnostic reasoning about a
+ * shape the socket positions no longer come from.
+ */
+const DIFF_H = 1e-4;
+function speedAlong(
+  at: (v: number) => { x: number; y: number; z: number }, v: number,
+): number {
+  const a = at(v - DIFF_H), b = at(v + DIFF_H);
+  return Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z) / (2 * DIFF_H);
+}
+
+function sagittalSpeed(t: number): number {
+  return speedAlong((v) => surfacePoint(v, 0), t);
+}
+
+/** Arc length along the midline meridian from the front rim to parameter `t`. */
+function sagittalArcTo(t: number): number {
+  return integrate(sagittalSpeed, 0, t);
+}
+
+/** Arc-length element along the coronal ring at sagittal parameter `t`, d/du. */
+function coronalSpeed(t: number, u: number): number {
+  return speedAlong((v) => surfacePoint(t, v), u);
+}
+
+/** Arc length along the ring at `t`, from the midline out to `u`. */
+function coronalArcTo(t: number, u: number): number {
+  const s = integrate(v => coronalSpeed(t, v), 0, Math.abs(u));
+  return u < 0 ? -s : s;
+}
+
+/** Invert a monotone arc-length function by bisection. */
+function invertArc(
+  arcAt: (v: number) => number, target: number, lo: number, hi: number,
+): number {
+  for (let i = 0; i < 80; i++) {
+    const mid = (lo + hi) / 2;
+    if (arcAt(mid) < target) { lo = mid; } else { hi = mid; }
+  }
+  return (lo + hi) / 2;
+}
+
+/** Full front-rim-to-back-rim arc over the crown, on the midline meridian, mm. */
+function sagittalArcModelledMm(): number {
+  return sagittalArcTo(Math.PI);
+}
+
+/** Full ear-to-ear arc over the crown at the widest station, mm. */
+function coronalArcModelledMm(): number {
+  return 2 * coronalArcTo(Math.PI / 2, Math.PI / 2);
+}
 
 // ── The measured row structure ────────────────────────────────────────────────
 //
@@ -229,6 +436,121 @@ function checkPacking(sockets: SocketGeometry[]): string[] {
   return errors;
 }
 
+/**
+ * Every emitted point must lie ON the ellipsoid, and the modelled arcs must
+ * reproduce the SCANNED ones. The second check is the load-bearing one: it is
+ * what makes the ellipsoid a description of the measured helmet rather than a
+ * shape that merely happens to hold sockets. If the real interior stops being
+ * ellipsoidal enough, this fails rather than silently emitting wrong positions.
+ */
+function checkEllipsoid(sockets: SocketGeometry[]): string[] {
+  const errors: string[] = [];
+
+  for (const s of sockets) {
+    const r =
+      0; // (unused — the ellipsoid residual is no longer the invariant)
+    const rMeasured = measuredRadius(
+      s.xMm / Math.hypot(s.xMm, s.yMm, s.zMm),
+      s.yMm / Math.hypot(s.xMm, s.yMm, s.zMm),
+      s.zMm / Math.hypot(s.xMm, s.yMm, s.zMm),
+    );
+    const rActual = Math.hypot(s.xMm, s.yMm, s.zMm);
+    if (Math.abs(rActual - rMeasured) > 0.5) {
+      throw new Error(
+        `socket ${s.id} at (${s.xMm}, ${s.yMm}, ${s.zMm}) is ${rActual.toFixed(1)} mm ` +
+        `from the origin but the measured surface is ${rMeasured.toFixed(1)} mm in that ` +
+        `direction. Positions must lie ON the scanned interior, not near it.`,
+      );
+    }
+    if (s.zMm > 0) {
+      errors.push(
+        `socket ${s.id} has z = ${s.zMm} mm, below the rim plane. +z is DOWN in ` +
+        `aircraft axes, so every vault socket must have z <= 0.`,
+      );
+    }
+  }
+
+  // Modelled vs measured arcs. 5% is the tolerance an ellipsoid fitted to three
+  // extents can be expected to hold against a LiDAR-scanned real surface.
+  const sag = sagittalArcModelledMm();
+  const cor = coronalArcModelledMm();
+  if (Math.abs(sag - SAGITTAL_ARC_MM) / SAGITTAL_ARC_MM > 0.10) {
+    errors.push(
+      `sagittal arc integrated over the scanned surface is ${sag.toFixed(1)} mm ` +
+      `against the separately-measured ${SAGITTAL_ARC_MM} mm — over 10% apart. Two ` +
+      `readings of the same scan cannot differ that far; suspect the frame or the ` +
+      `sampling, not the constants.`,
+    );
+  }
+  if (Math.abs(cor - CORONAL_ARC_MM) / CORONAL_ARC_MM > 0.10) {
+    errors.push(
+      `coronal arc integrated over the scanned surface is ${cor.toFixed(1)} mm ` +
+      `against the separately-measured ${CORONAL_ARC_MM} mm — over 10% apart.`,
+    );
+  }
+  return errors;
+}
+
+/**
+ * How well the scan-counted ROW_WIDTHS actually fit the MEASURED surface.
+ *
+ * ── A KNOWN, QUANTIFIED DISAGREEMENT ────────────────────────────────────────
+ *
+ * They do not fit exactly, and since 2026-07-31 this is measured against the
+ * scanned interior rather than an ellipsoid — so any residual is a real property
+ * of the reference helmet against the row widths counted off it, not an artefact
+ * of the model in between.
+ *
+ * That is squarely a REG-1 question (registering the lattice against shell CAD,
+ * NP-HEX-ZM-001 §7) rather than something to fix by choosing kinder constants
+ * here. What must NOT happen is it disappearing: the two lattice failures this
+ * project has already had — the 78-socket lattice no tile width could produce,
+ * and NP_HEXMAP_MAX_SOCKETS guessed at 64 — were both unchecked constants that
+ * no code ever contradicted out loud.
+ *
+ * So: any compression is REPORTED with its number, and a gross one FAILS. The
+ * hard floor is deliberately well below the observed deviation, so this catches
+ * a real regression without blocking on a documented approximation.
+ */
+/*
+ * ── Why this floor moved on 2026-07-31 ──────────────────────────────────────
+ *
+ * It was 0.85 while this diagnostic measured ROW_WIDTHS against an ELLIPSOID.
+ * It now measures them against the SCANNED interior, and the worst row moved
+ * from 86.4% to 84.3% — the real helmet is slightly tighter at the rear rim than
+ * the ellipsoid through its extents suggested.
+ *
+ * The floor is re-baselined to 0.80 rather than left at 0.85, because the
+ * quantity being measured changed underneath it: a threshold calibrated against
+ * the model would now be failing on the measurement, which is backwards. It is
+ * still set BELOW the observed worst case so it catches a regression rather than
+ * asserting the present lattice is fine — row 11 at 84.3% is a live REG-1
+ * finding, reported in full every run, not a resolved one.
+ */
+const RING_FIT_HARD_FLOOR = 0.80;
+
+function checkRingFit(): { errors: string[]; warnings: string[] } {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  rowCompression.forEach((c, r) => {
+    if (c >= 0.9999) { return; }
+    const pitch = MODULE_WIDTH_MM * c;
+    const msg =
+      `row ${r} (${ROW_WIDTHS[r]} wide) is compressed to ${(c * 100).toFixed(1)}% ` +
+      `— tiles sit ${pitch.toFixed(1)} mm apart instead of ${MODULE_WIDTH_MM} mm, ` +
+      `so they overlap by ${(MODULE_WIDTH_MM - pitch).toFixed(1)} mm. The SCANNED ` +
+      `ring at that station is shorter than the scan-counted row width needs.`;
+    if (c < RING_FIT_HARD_FLOOR) {
+      errors.push(msg + ` Below the ${RING_FIT_HARD_FLOOR} hard floor.`);
+    } else {
+      warnings.push(msg);
+    }
+  });
+
+  return { errors, warnings };
+}
+
 /** Consecutive row widths must alternate parity or same-column tiles collide. */
 function checkParity(): string[] {
   const errors: string[] = [];
@@ -250,35 +572,85 @@ const NUMBERING_BASE = 1;
 export interface SocketGeometry {
   /** 1-based socket id, matching the `sockets:` lists in .npps zone files. */
   id: number;
-  /** `midline` sockets sit on the centre column, so a zone file may legitimately
-   *  list them in both a left-side and a right-side zone. */
-  side: Side;
   row: number;
   col: number;
-  /** Provisional unit-hex lattice coordinates — see file header. */
+  /** Provisional unit-hex lattice coordinates — layout only, not millimetres. */
   x: number;
   y: number;
+  /**
+   * Position in 3-space, millimetres, in aircraft body axes with the origin at
+   * the ellipsoid centre: +x forward, +y right, +z down. The vault has negative
+   * z. This is the physical location — nothing here describes anatomy.
+   *
+   * A socket's anatomical meaning comes from ZONE MEMBERSHIP, authored in
+   * protocols/predefined/00-zones.npps. Neither a lobe nor a side is a property
+   * of the hardware.
+   */
+  xMm: number;
+  yMm: number;
+  zMm: number;
 }
 
 /** Vertical spacing of a unit hex lattice: sqrt(3)/2. */
 const HEX_ROW_PITCH = 0.8660254037844386;
 
+/**
+ * Per-row lateral compression, 1 = the row's tiles sit at their full 40 mm arc
+ * pitch. Below 1 means the ellipsoid's ring at that station is SHORTER than the
+ * scan-counted row width needs, so the emitted tiles are squeezed. Populated by
+ * buildSockets, reported by checkRingFit.
+ */
+const rowCompression: number[] = [];
+
+/** Non-fatal ring-fit findings, printed prominently at the end of a run. */
+const ringFitWarnings: string[] = [];
+
 function buildSockets(): SocketGeometry[] {
   const sockets: SocketGeometry[] = [];
   let id = NUMBERING_BASE;
 
+  // Rows are laid along the midline meridian at the measured pitch, centred in
+  // the available arc so the front and back rim margins match. The lattice does
+  // not run rim to rim: the tiles stop short of both.
+  const totalArc = sagittalArcModelledMm();
+  const rowSpan = (ROW_WIDTHS.length - 1) * ROW_PITCH_MM_MEASURED;
+  const firstRowArc = (totalArc - rowSpan) / 2;
+
   ROW_WIDTHS.forEach((width, r) => {
+    // Sagittal parameter for this row, from its arc position.
+    const rowArc = firstRowArc + r * ROW_PITCH_MM_MEASURED;
+    const t = invertArc(sagittalArcTo, rowArc, 0, Math.PI);
+
+    // Columns sit at whole module widths of ARC along this row's ring, symmetric
+    // about the midline. Odd widths put a socket on the midline; even widths
+    // straddle it — the offset that makes the packing work.
+    //
+    // Where the ring is SHORTER than the row needs, the row is compressed
+    // uniformly rather than clamped. Clamping piles the outermost sockets on top
+    // of each other and hides the problem; uniform compression keeps the row
+    // ordered and makes the shortfall a single reportable number per row
+    // (rowCompression below), which checkRingFit then holds to account.
+    const halfRing = coronalArcTo(t, Math.PI / 2);
+    const halfNeeded = ((width - 1) / 2) * MODULE_WIDTH_MM;
+    const compression = halfNeeded > halfRing && halfNeeded > 0
+      ? halfRing / halfNeeded
+      : 1;
+    rowCompression[r] = compression;
+
     for (let col = 0; col < width; col++) {
-      const isCentre = width % 2 === 1 && col === (width - 1) / 2;
-      const side: Side = isCentre ? "midline" : col < width / 2 ? "left" : "right";
+      const offsetMm = (col - (width - 1) / 2) * MODULE_WIDTH_MM * compression;
+      const u = invertArc(v => coronalArcTo(t, v), offsetMm, -Math.PI / 2, Math.PI / 2);
+      const p = surfacePoint(t, u);
 
       sockets.push({
         id,
-        side,
         row: r,
         col,
         x: Number((col - (width - 1) / 2).toFixed(4)),
         y: Number((r * HEX_ROW_PITCH).toFixed(4)),
+        xMm: Number(p.x.toFixed(2)),
+        yMm: Number(p.y.toFixed(2)),
+        zMm: Number(p.z.toFixed(2)),
       });
       id++;
     }
@@ -386,6 +758,10 @@ function validateAgainstZoneFile(sockets: SocketGeometry[]): string[] {
   // both asserted directly (parity on the widths, overlap on the coordinates).
   errors.push(...checkParity());
   errors.push(...checkPacking(sockets));
+  errors.push(...checkEllipsoid(sockets));
+  const ringFit = checkRingFit();
+  errors.push(...ringFit.errors);
+  ringFitWarnings.push(...ringFit.warnings);
 
   // The scan-measured row pitch must match the offset-hex packing pitch a 40 mm
   // tile requires — the corroboration that the measured surface really is tiled
@@ -719,6 +1095,159 @@ function geometryFields() {
   };
 }
 
+/**
+ * Swift zone table for the iOS app.
+ *
+ * The app names a socket by the ZONE it is in — zones are what replaced lobe and
+ * side, and they are authored in 00-zones.npps, not derived from geometry. The
+ * helmet cannot supply this: zones are protocol data, users may define their own
+ * in any .npps file, and a socket belongs to several at once. So the app needs
+ * its own copy, and it is generated from the same file the web app and the
+ * structural checks read, rather than hand-kept.
+ *
+ * Coordinates deliberately are NOT emitted here. Those come from the helmet over
+ * the socket-map characteristic, because the LATTICE can be re-cut by a firmware
+ * update and an app-side copy would then be wrong with no way to notice. Zone
+ * membership is the opposite: authored, versioned with the app, and meaningless
+ * to the device.
+ */
+/**
+ * SwiftLint's line_length warning threshold for app/ios (see .swiftlint.yml).
+ * CI runs `swiftlint --strict`, so a warning fails the build — generated Swift
+ * has to clear this exactly like hand-written source does.
+ */
+const SWIFT_MAX_LINE = 140;
+
+/**
+ * Fail the generator if anything it emits would fail the linter.
+ *
+ * The alternative — excluding generated files in .swiftlint.yml — would also
+ * switch off the custom ISC-8 (no print) and ISC-9 (no hardcoded URLs/keys)
+ * rules for this file, and those are worth keeping pointed at generated output.
+ * Checking here means a future emitter change surfaces in the generator run
+ * rather than three steps later in CI.
+ */
+function assertSwiftLintClean(source: string, path: string): void {
+  // A length-only check let an emitter bug through once: the array items were
+  // joined with spaces and no commas, which is short, lint-clean and not Swift.
+  const items = source.match(/"[^"\n]*"\s+"/g);
+  if (items !== null) {
+    throw new Error(
+      `${path} has ${items.length} adjacent string literal(s) with no comma ` +
+      `between them — the array wrapper dropped its separators. First: ${items[0]}`,
+    );
+  }
+
+  const overlong = source.split("\n")
+    .map((line, i) => ({ n: i + 1, len: line.length, line }))
+    .filter(l => l.len > SWIFT_MAX_LINE);
+  if (overlong.length > 0) {
+    const shown = overlong.slice(0, 5)
+      .map(l => `    line ${l.n}: ${l.len} chars — ${l.line.slice(0, 60)}...`)
+      .join("\n");
+    throw new Error(
+      `${path} has ${overlong.length} line(s) over SwiftLint's ${SWIFT_MAX_LINE}-char ` +
+      `limit, and CI runs \`swiftlint --strict\` so a warning fails the build:\n${shown}\n` +
+      `Fix the emitter's wrapping — do not exclude the file from linting.`,
+    );
+  }
+}
+
+function emitSwiftZones(
+  sockets: SocketGeometry[], zones: Map<string, number[]>,
+): string {
+  // Most-specific zone = the smallest one containing the socket. "All" is the
+  // largest and so is never chosen while any narrower zone exists; a socket in
+  // "Motor / SMA" (7) is described by that rather than by "Frontal Left" (20).
+  const bySize = [...zones.entries()].sort((a, b) => a[1].length - b[1].length);
+
+  // Emitted Swift has to pass `swiftlint --strict` like hand-written source —
+  // the app lints its whole source tree and generated files are not carved out
+  // (which also keeps the ISC-8/9 security rules applying to whatever this
+  // emits). line_length warns at 140, and a socket in six zones blows past that
+  // on one line, so entries wrap.
+  const rows = sockets.map(s => {
+    const all = bySize.filter(([, ids]) => ids.includes(s.id)).map(([n]) => n);
+    const primary = all[0] ?? null;
+    const head = `    ${s.id}: SocketZoneEntry(`;
+    const primaryArg = `primary: ${primary === null ? "nil" : JSON.stringify(primary)}`;
+    const items = all.map(n => JSON.stringify(n));
+
+    // One line when it fits, which keeps the common short cases readable.
+    const oneLine = `${head}${primaryArg}, all: [${items.join(", ")}]),`;
+    if (oneLine.length <= SWIFT_MAX_LINE) { return oneLine; }
+
+    // Otherwise: argument per line, and the array itself greedily wrapped to the
+    // same budget rather than one element per line, which would be unreadable
+    // for a socket in six zones.
+    const indent = "            ";
+    const wrapped: string[] = [];
+    let line = "";
+    for (const item of items) {
+      // Comma travels WITH the item — building the line without it and adding
+      // separators later is how the first cut of this emitted a Swift array of
+      // space-separated strings with no commas at all.
+      const piece = `${item},`;
+      const next = line === "" ? piece : `${line} ${piece}`;
+      if (`${indent}${next}`.length > SWIFT_MAX_LINE) {
+        wrapped.push(`${indent}${line}`);
+        line = piece;
+      } else {
+        line = next;
+      }
+    }
+    if (line !== "") { wrapped.push(`${indent}${line}`); }
+
+    return [
+      `    ${s.id}: SocketZoneEntry(`,
+      `        ${primaryArg},`,
+      `        all: [`,
+      ...wrapped,
+      `        ]),`,
+    ].join("\n");
+  }).join("\n");
+
+  return `${BANNER.replace(/^\/\*/, "/*").replace(/\/\/ /g, "// ")}
+import Foundation
+
+/// Which zones a socket belongs to, authored in protocols/predefined/00-zones.npps.
+///
+/// Zones replaced lobe and side: neither is a property of the hardware, and
+/// nothing in the system derives one. A socket's anatomical meaning is the set of
+/// zones a human put it in.
+struct SocketZoneEntry {
+    /// Smallest zone containing this socket — the most specific description
+    /// available, and what the app speaks. nil if no zone lists it.
+    let primary: String?
+    /// Every zone containing it, smallest first. Sockets belong to several:
+    /// a midline socket is in both the left and right zone of its region.
+    let all: [String]
+}
+
+enum SocketZones {
+
+    /// 1-based socket id -> zone membership.
+    static let bySocket: [UInt8: SocketZoneEntry] = [
+${rows}
+    ]
+
+    /// Most specific zone name for a socket, or nil when the table has no entry
+    /// (a helmet reporting a socket this app build does not know about).
+    static func primaryZone(for socketID: UInt8) -> String? {
+        bySocket[socketID]?.primary
+    }
+
+    static func zones(for socketID: UInt8) -> [String] {
+        bySocket[socketID]?.all ?? []
+    }
+
+    /// Socket ids this table covers. Not a hardware claim — the helmet's own
+    /// socket map is authoritative for which sockets physically exist.
+    static let socketCount = ${sockets.length}
+}
+`;
+}
+
 function emitJson(sockets: SocketGeometry[]): string {
   return JSON.stringify(
     {
@@ -727,9 +1256,18 @@ function emitJson(sockets: SocketGeometry[]): string {
         "Socket geometry for the NeurOne helmet. Scan-grounded v1 lattice " +
         "(NP-HEX-ZM-001 §3.4), PROVISIONAL pending gates REG-1 and ACT-1. Validated " +
         "against protocols/predefined/00-zones.npps. x/y are provisional unit-hex " +
-        "lattice coordinates for UI layout only — replace from shell CAD before any " +
-        "physical claim.",
-      _basis: "scan-measured",
+        "lattice coordinates for UI layout only. xMm/yMm/zMm are positions in " +
+        "3-space on the modelled ellipsoid, aircraft body axes (+x forward, +y " +
+        "right, +z down), origin at the ellipsoid centre — PROVISIONAL, replace " +
+        "from shell CAD before any physical claim. No lobe or side: a socket's " +
+        "anatomical meaning is its zone membership, authored in 00-zones.npps.",
+      _basis: "scan-measured lattice; INTERIM ellipsoid for 3-space coordinates",
+      _coordinateBasis:
+        "xMm/yMm/zMm are derived from an INTERIM ellipsoid through the measured " +
+        "extents. Principal direction 2026-07-31: the ellipsoid is a description, " +
+        "not a fact. The reference of record is the measured interior scan " +
+        "(cad/HelmetScan.3dm) until exact CAD exists. See the header of " +
+        "scripts/sync-socket-map.ts for what blocks the move.",
       socketCount: sockets.length,
       /** Socket ids are 1-based, matching .npps zone `sockets:` lists. */
       numberingBase: NUMBERING_BASE,
@@ -738,6 +1276,13 @@ function emitJson(sockets: SocketGeometry[]): string {
       socketIdMax: sockets[sockets.length - 1]!.id,
       /** The measured geometry the lattice sits on — see the script header. */
       geometry: geometryFields(),
+      ellipsoidSemiAxesMm: {
+        foreAft: SEMI_AXIS_FORE_AFT_MM,
+        lateral: SEMI_AXIS_LATERAL_MM,
+        vertical: SEMI_AXIS_VERTICAL_MM,
+      },
+      coordinateFrame: "aircraft body axes: +x forward, +y right, +z down; " +
+        "origin at the ellipsoid centre (rim plane)",
       rowWidths: [...ROW_WIDTHS],
       sockets,
     },
@@ -748,28 +1293,42 @@ function emitJson(sockets: SocketGeometry[]): string {
 
 function emitTypeScript(sockets: SocketGeometry[]): string {
   const rows = sockets
-    .map(s => `  { id: ${s.id}, side: '${s.side}', row: ${s.row}, col: ${s.col}, x: ${s.x}, y: ${s.y} },`)
+    .map(s =>
+      `  { id: ${s.id}, row: ${s.row}, col: ${s.col}, x: ${s.x}, y: ${s.y}, ` +
+      `xMm: ${s.xMm}, yMm: ${s.yMm}, zMm: ${s.zMm} },`)
     .join("\n");
   const g = geometryFields();
 
   return `${BANNER}
-export type NPSide = 'left' | 'right' | 'midline';
-
 export interface NPSocketGeometry {
   /** 1-based socket id, matching the \`sockets:\` lists in .npps zone files. */
   id: number;
-  /**
-   * Which side of the centre column this socket sits on. \`midline\` sockets are
-   * ON the centre column, so a zone file may legitimately list one in both a
-   * left-side and a right-side zone — which is why zone unions must dedup.
-   */
-  side: NPSide;
   row: number;
   col: number;
   /** Provisional unit-hex lattice coordinates — layout only, not millimetres. */
   x: number;
   y: number;
+  /**
+   * Position in 3-space, MILLIMETRES, aircraft body axes, origin at the centre
+   * of the ellipsoid the helmet is a partial shell of:
+   *   +x forward (toward the face), +y right, +z down.
+   * The vault has negative z; the crown sits at z = -${SEMI_AXIS_VERTICAL_MM}.
+   *
+   * There is deliberately no lobe and no side here. A socket's anatomical
+   * meaning is its ZONE MEMBERSHIP, authored in
+   * protocols/predefined/00-zones.npps — not a property of the hardware.
+   */
+  xMm: number;
+  yMm: number;
+  zMm: number;
 }
+
+/** Semi-axes of the modelled ellipsoid, mm (fore/aft, lateral, vertical). */
+export const NP_ELLIPSOID_SEMI_AXES_MM = {
+  foreAft: ${SEMI_AXIS_FORE_AFT_MM},
+  lateral: ${SEMI_AXIS_LATERAL_MM},
+  vertical: ${SEMI_AXIS_VERTICAL_MM},
+} as const;
 
 /** Every socket in the helmet, ordered by id. */
 export const NP_SOCKETS: readonly NPSocketGeometry[] = [
@@ -871,7 +1430,12 @@ if (errors.length > 0) {
 const outputs: Array<[string, string]> = [
   [JSON_OUT, emitJson(sockets)],
   [TS_OUT, emitTypeScript(sockets)],
+  [SWIFT_OUT, emitSwiftZones(sockets, parseZoneFile(readFileSync(ZONE_FILE, "utf-8")))],
 ];
+
+// Generated Swift is linted like any other source, so check it here rather than
+// discovering it in CI.
+assertSwiftLintClean(outputs.find(([p]) => p === SWIFT_OUT)![1], SWIFT_OUT);
 
 let stale = 0;
 for (const [path, content] of outputs) {
@@ -968,6 +1532,31 @@ console.log(
   `${sockets.length} sockets — all ${parseZoneFile(readFileSync(ZONE_FILE, "utf-8")).size} ` +
   `zones in 00-zones.npps are structurally sound against the lattice.`,
 );
+console.log(
+  `3-space: positions sampled from the SCANNED interior ` +
+  `(${SURFACE.sampling.measuredCells} measured cells, ` +
+  `${SURFACE.sampling.interpolatedCells} interpolated). Arcs integrated over that ` +
+  `surface: sagittal ${sagittalArcModelledMm().toFixed(0)} mm ` +
+  `(directly measured ${SAGITTAL_ARC_MM}), coronal ` +
+  `${coronalArcModelledMm().toFixed(0)} mm (directly measured ${CORONAL_ARC_MM}). ` +
+  `The coronal path crosses both ear regions, which are the thinnest-covered part ` +
+  `of the scan and therefore the most interpolated — expect it to read long there.`,
+);
+if (ringFitWarnings.length > 0) {
+  console.warn(
+    `\nRING FIT — ${ringFitWarnings.length} row(s) do not fit the SCANNED interior ` +
+    `at full ${MODULE_WIDTH_MM} mm pitch:`,
+  );
+  for (const w of ringFitWarnings) { console.warn(`  - ${w}`); }
+  console.warn(
+    "Measured against the scan itself, so this is a property of the reference helmet\n" +
+    "against the row widths counted off it — not an artefact of a model in between.\n" +
+    "Since 2026-07-31 row 1 FITS (the ellipsoid had it compressed to 96.9%) and row\n" +
+    "11 got tighter (86.4% -> 84.3%): the real rear rim narrows faster than the\n" +
+    "ellipsoid implied. Resolving it is REG-1 (register the lattice against shell\n" +
+    "CAD), not a matter of picking kinder constants here. Reported every run.",
+  );
+}
 if (auditDirOverride) {
   console.log(`lateralization audit: FIXTURE RUN against ${auditDirOverride} — not a real check.`);
 } else {

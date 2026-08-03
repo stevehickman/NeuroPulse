@@ -140,6 +140,16 @@ typedef struct {
     uint32_t            settle_until_ms;  /* system time when settle ends        */
     uint32_t            removal_since_ms; /* system time when removal first seen */
     bool                removal_debounce_active;
+    /*
+     * A failed identification returns the slot to IDLE, which immediately
+     * re-detects the still-seated module and fails again — an unbounded loop for
+     * as long as the bad module stays in. Rev A was rate-limited only
+     * incidentally, by the ~700 ms error clip it played in ANNOUNCING; with the
+     * audio gone that accident is gone too. This latch reports each fault ONCE
+     * and is cleared only when the slot reads genuinely empty, so a stuck module
+     * cannot flood the app with notifications or burn SHDR flash writes.
+     */
+    bool                fault_reported;
 } np_za_slot_ctx_t;
 
 /* ── Module-level context (single instance, static allocation) ─────────────── */

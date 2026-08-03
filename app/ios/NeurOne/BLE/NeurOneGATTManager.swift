@@ -40,8 +40,24 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// Live session data decoded from hub NOTIFY characteristics.
     @Published private(set) var session: SessionState = .empty
 
-    /// Zone module presence — one byte per slot (0 = absent, 1–5 = zone ID confirmed).
-    @Published private(set) var zoneModules: [UInt8] = [0, 0, 0, 0, 0]
+    /// Live zone-module socket map — variable length, keyed by 1-based socket id.
+    ///
+    /// Not a fixed-size array: the helmet is tiled with a universal hex module
+    /// across ~80 sockets out of a 128-socket addressing domain, and which
+    /// sockets are populated is a runtime fact the hub reports (NP-HEX-ZM-001
+    /// §3.4). Fed by fragmented ZONE_MODULE_STATUS frames via
+    /// `ZoneModuleFrameAssembler`.
+    @Published private(set) var zoneModules = ZoneModuleConfiguration()
+
+    /// The helmet's permanent socket geometry, read ONCE when the link is
+    /// established. Anatomy lives here rather than in every status change: where
+    /// a socket is cannot change when a module is swapped, so repeating it on
+    /// each insertion would pay indefinitely for a fixed fact.
+    ///
+    /// Never persisted across links — a firmware update can re-cut the lattice
+    /// (it has moved 30 → 78 → 80 already), and a cached copy would then name
+    /// sockets wrongly with no way to notice.
+    @Published private(set) var socketMap = SocketMap()
 
     /// Latest OTA progress/error packet from the hub.
     @Published private(set) var otaStatus: OTAStatusPacket?
@@ -113,11 +129,27 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     private let impedanceResultSubject = PassthroughSubject<UInt16, Never>()
 
     // Optional — not in NPUUID.all; hub firmware pending (OI-WA-03).
+    private var socketMapChar:        CBCharacteristic?
     private var warrantyTokenChar:    CBCharacteristic?
     private var firmwareVersionChar:  CBCharacteristic?
 
     /// In-flight partial session state accumulated from individual characteristic notifications.
     private var pending: SessionState = .empty
+
+    /// Reassembles multi-fragment ZONE_MODULE_STATUS snapshots. A full 80-socket
+    /// inventory does not fit one ATT notification.
+    private var zoneFrameAssembler = ZoneModuleFrameAssembler()
+
+    /// Reassembles the multi-fragment socket map. ~80 descriptors do not fit one
+    /// ATT notification either, but this is paid once per link rather than per
+    /// change.
+    private var socketMapAssembler = SocketMapFrameAssembler()
+
+    /// Fires once per socket whose module-presence state actually changed.
+    /// HardwareSetupManager speaks these during the zone-module setup step; a
+    /// republish that changes nothing emits nothing, so the step does not
+    /// re-announce sockets that were already seated.
+    private let zoneModuleEventSubject = PassthroughSubject<ZoneModuleStatus, Never>()
 
     // MARK: - Initialisers
 
@@ -172,7 +204,17 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         peripheral = nil
         session = .empty
         pending = .empty
-        zoneModules = [0, 0, 0, 0, 0]
+        // Clear the map entirely rather than zeroing a fixed shape — on
+        // reconnect the hub sends a fresh snapshot, and a stale "present" socket
+        // would let a placement gate pass on a module that may have been pulled
+        // while disconnected.
+        zoneModules.removeAll()
+        zoneFrameAssembler.reset()
+        // The map goes too. It describes THIS helmet's geometry; the next link
+        // may be a different helmet, or the same one after a lattice-changing
+        // firmware update.
+        socketMap.removeAll()
+        socketMapAssembler.reset()
         allCharacteristicsResolved = false
         warrantyToken = nil
         hubFirmwareVersion = nil
@@ -205,6 +247,43 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
     /// Production path: centralManager(_:didConnect:) in CBCentralManagerDelegate.
     func applyConnected() {
         connectionState = .connected
+    }
+
+    /// Decode one ZONE_MODULE_STATUS frame and fold it into the socket map.
+    ///
+    /// Malformed frames are dropped whole: presence gates safety-critical
+    /// placement checks (Oz-before-visual-stim, tES montage), so a frame that is
+    /// not exactly well-formed must not be partially believed. Multi-fragment
+    /// snapshots are committed only when the final fragment arrives.
+    ///
+    /// Emits a per-socket event for each socket whose presence or fault state
+    /// actually CHANGED — a re-sent snapshot describing the same hardware emits
+    /// nothing, which is what keeps the setup step from re-announcing sockets
+    /// that were already seated.
+    /// Decode one SOCKET_MAP frame and commit it when the run completes.
+    ///
+    /// The map replaces wholesale rather than merging — it is a complete
+    /// statement of the helmet's geometry, and a socket missing from a newer map
+    /// is a socket that no longer exists.
+    func applySocketMap(_ data: Data) {
+        guard let frame = GATTParser.parseSocketMap(data),
+              let complete = socketMapAssembler.accept(frame) else { return }
+        socketMap.apply(complete)
+    }
+
+    func applyZoneModuleStatus(_ data: Data) {
+        guard let frame = GATTParser.parseZoneModuleStatus(data),
+              let complete = zoneFrameAssembler.accept(frame) else { return }
+
+        let previous = zoneModules
+        zoneModules.apply(complete)
+
+        for record in complete.records {
+            let before = previous.status(forSocket: record.socketID)
+            guard before?.isPresent != record.isPresent
+                    || before?.hasFault != record.hasFault else { continue }
+            zoneModuleEventSubject.send(record)
+        }
     }
 
     // MARK: - Scan / connection helpers
@@ -286,6 +365,7 @@ final class NeurOneGATTManager: NSObject, ObservableObject {
         otaStatusChar = nil;      zoneModuleStatusChar = nil; shdrUploadStatusChar = nil
         protocolUploadChar = nil; edfRequestChar = nil; otaCommandChar = nil
         calibrationCmdChar = nil; sessionStopChar = nil; warrantyTokenChar = nil
+        socketMapChar = nil
         firmwareVersionChar = nil
     }
 }
@@ -340,7 +420,8 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
         else { return }
         // Discover required chars plus optional warrantyToken and firmwareVersion (OI-WA-03).
         peripheral.discoverCharacteristics(
-            NPUUID.all + [NPUUID.warrantyToken, NPUUID.firmwareVersion], for: service)
+            NPUUID.all + [NPUUID.warrantyToken, NPUUID.firmwareVersion,
+                          NPUUID.socketMap], for: service)
     }
 
     func peripheral(_ peripheral: CBPeripheral,
@@ -382,6 +463,13 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
 
             case NPUUID.zoneModuleStatus:
                 zoneModuleStatusChar = char
+                peripheral.setNotifyValue(true, for: char)
+                peripheral.readValue(for: char)
+
+            case NPUUID.socketMap:
+                // Optional — hub firmware not yet shipped (OI-WA-03). Read once
+                // at link; subscribe so a lattice-changing OTA can re-publish.
+                socketMapChar = char
                 peripheral.setNotifyValue(true, for: char)
                 peripheral.readValue(for: char)
 
@@ -458,6 +546,21 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
             return
         }
 
+        if characteristic.uuid == NPUUID.socketMap {
+            // Device geometry — SHDR class, like zone module status below.
+            applySocketMap(data)
+            return
+        }
+
+        if characteristic.uuid == NPUUID.zoneModuleStatus {
+            // Socket occupancy, module type and module health are COMPONENT
+            // facts — SHDR class, exactly as np_module_map.h classifies module
+            // UID. Handled here, above the `session = pending` path, so it can
+            // never be folded into a UHDR session record.
+            applyZoneModuleStatus(data)
+            return
+        }
+
         // ── UHDR session characteristics ─────────────────────────────────────────
         // All cases below accumulate into `pending` (user health data) and publish
         // via `session = pending` at the end.
@@ -495,9 +598,6 @@ extension NeurOneGATTManager: @preconcurrency CBPeripheralDelegate {
         case NPUUID.otaStatus:
             otaStatus = GATTParser.parseOTAStatus(data)
 
-        case NPUUID.zoneModuleStatus:
-            zoneModules = GATTParser.parseZoneModuleStatus(data) ?? zoneModules
-
         default:
             break
         }
@@ -534,8 +634,14 @@ extension NeurOneGATTManager: SetupGATTProviding {
     var sessionPublisher: AnyPublisher<SessionState, Never> {
         $session.eraseToAnyPublisher()
     }
-    var zoneModulesPublisher: AnyPublisher<[UInt8], Never> {
+    var zoneModulesPublisher: AnyPublisher<ZoneModuleConfiguration, Never> {
         $zoneModules.eraseToAnyPublisher()
+    }
+    var zoneModuleEventPublisher: AnyPublisher<ZoneModuleStatus, Never> {
+        zoneModuleEventSubject.eraseToAnyPublisher()
+    }
+    var socketMapPublisher: AnyPublisher<SocketMap, Never> {
+        $socketMap.eraseToAnyPublisher()
     }
     var impedanceResultPublisher: AnyPublisher<UInt16, Never> {
         impedanceResultSubject.eraseToAnyPublisher()

@@ -14,7 +14,15 @@ import UIKit
 protocol SetupGATTProviding {
     var connectionState: NeurOneGATTManager.ConnectionState { get }
     var sessionPublisher: AnyPublisher<SessionState, Never> { get }
-    var zoneModulesPublisher: AnyPublisher<[UInt8], Never> { get }
+    /// Full socket map, republished on every accepted module-status frame.
+    var zoneModulesPublisher: AnyPublisher<ZoneModuleConfiguration, Never> { get }
+    /// Fires once per socket whose presence or fault state actually changed.
+    /// This is the insertion event the app speaks — the confirmation the headset's
+    /// bone-conduction transducer could never deliver (see ZoneModuleAnnouncer).
+    var zoneModuleEventPublisher: AnyPublisher<ZoneModuleStatus, Never> { get }
+    /// The helmet's permanent socket geometry, read once at link. Resolves a
+    /// socket id to a place, so status changes need not carry anatomy.
+    var socketMapPublisher: AnyPublisher<SocketMap, Never> { get }
     /// Fires exactly once per impedance check, carrying the raw pass-flags bitmask.
     /// Backed by a dedicated PassthroughSubject in production — distinct from sessionPublisher
     /// so waitForImpedanceResult cannot false-trigger on unrelated session updates.
@@ -30,7 +38,10 @@ enum SetupStep: Int, CaseIterable, Identifiable {
     case bleConfirmation     = 1   // Hub BLE pairing confirmation (ISC-114)
     case boaDial             = 2   // Fit adjustment — 52–62cm head range
     case electrodePods       = 3   // Spring-decoupled pods, 80–120g contact force
-    case zoneModules         = 4   // Zone module insertion + bone conduction confirmation
+    // Zone module insertion. The confirmation is spoken by THIS device
+    // (ZoneModuleAnnouncer), not by the headset: seating a module requires the
+    // helmet off the head, where its bone-conduction transducer reaches nobody.
+    case zoneModules         = 4
     case impedanceCheck      = 5   // ADS1299 electrode impedance < 5 kΩ target
     case ads1299Calibration  = 6   // ADS1299 internal reference self-calibration
     case hydrationCaps       = 7   // Moisture-barrier hydration cap removal before use
@@ -90,7 +101,12 @@ enum SetupError: LocalizedError {
     case notConnected
     case calibrationFailed
     case impedanceFailed(failedElectrodes: [Int])
-    case zoneModulesMissing([Int])
+    /// Sockets the hub reports as faulted — a module is seated but could not be
+    /// identified. Carries 1-based socket ids.
+    case zoneModulesMissing([UInt8])
+    /// The hub has not reported a single populated socket. Distinct from a
+    /// faulted module: nothing is installed, or nothing has been reported yet.
+    case noZoneModulesDetected
     case timeout
     case safetyAcknowledgementRequired
 
@@ -103,9 +119,13 @@ enum SetupError: LocalizedError {
         case .impedanceFailed(let els):
             let names = els.map { String(format: String(localized: "SETUP_ELECTRODE_LABEL"), $0 + 1) }.joined(separator: ", ")
             return String(format: String(localized: "SETUP_ERROR_IMPEDANCE_FAILED"), names)
-        case .zoneModulesMissing(let slots):
-            let names = slots.map { String(format: String(localized: "SETUP_SLOT_LABEL"), $0 + 1) }.joined(separator: ", ")
+        case .zoneModulesMissing(let sockets):
+            let names = sockets
+                .map { String(format: String(localized: "SETUP_SOCKET_LABEL"), Int($0)) }
+                .joined(separator: ", ")
             return String(format: String(localized: "SETUP_ERROR_ZONE_MISSING"), names)
+        case .noZoneModulesDetected:
+            return String(localized: "SETUP_ERROR_NO_ZONE_MODULES")
         case .timeout:
             return String(localized: "SETUP_ERROR_TIMEOUT")
         case .safetyAcknowledgementRequired:
@@ -124,6 +144,9 @@ final class HardwareSetupManager: ObservableObject {
     @Published private(set) var lastError: SetupError?
     @Published private(set) var impedanceFlags: UInt16 = 0     // bitmask from GATT
     @Published private(set) var zoneConfiguration = ZoneModuleConfiguration()
+    /// Socket geometry from the helmet. Empty until the link delivers it; the UI
+    /// falls back to bare socket numbers in that window.
+    @Published private(set) var socketMap = SocketMap()
     @Published private(set) var isFirstSetupComplete = false
 
     // Separate signal for wait logic — set whenever ANY impedance update arrives from the hub,
@@ -141,14 +164,21 @@ final class HardwareSetupManager: ObservableObject {
 
     private let gatt: SetupGATTProviding
     private let userDefaults: UserDefaults
+    private let announcer: ZoneModuleAnnouncing
     private var cancellables = Set<AnyCancellable>()
 
     private let firstSetupKey = "np.setup.first-complete"
     private let expectedElectrodeCount = 8  // 8-ch semi-dry EEG
 
-    init(gatt: SetupGATTProviding, userDefaults: UserDefaults = .standard) {
+    /// - Parameter announcer: injected by tests; nil builds the production
+    ///   announcer here rather than in a default argument, which Swift evaluates
+    ///   in a nonisolated context this @MainActor type cannot reach.
+    init(gatt: SetupGATTProviding,
+         userDefaults: UserDefaults = .standard,
+         announcer: ZoneModuleAnnouncing? = nil) {
         self.gatt = gatt
         self.userDefaults = userDefaults
+        self.announcer = announcer ?? ZoneModuleAnnouncer()
         isFirstSetupComplete = userDefaults.bool(forKey: "np.setup.first-complete")
         observeGATT()
     }
@@ -164,6 +194,9 @@ final class HardwareSetupManager: ObservableObject {
         // Zero out impedance flags when leaving the check step — UHDR-class data should not
         // linger in memory beyond the step that requires it.
         if currentStep == .impedanceCheck { impedanceFlags = 0 }
+        // Leaving the zone-module step: drop anything still being spoken so a
+        // confirmation does not trail into the next screen.
+        if currentStep == .zoneModules { announcer.cancel() }
         currentStep = next
         lastError = nil
         if currentStep == .complete { markFirstSetupComplete() }
@@ -249,15 +282,29 @@ final class HardwareSetupManager: ObservableObject {
         }
     }
 
+    /// Confirm the zone-module step.
+    ///
+    /// The old rule was "all five slots present" — meaningless now that tiles are
+    /// type-agnostic and any number of the ~80 sockets may be populated. A build
+    /// is a configuration choice (NP-HEX-ZM-001 §4a), so the app cannot know how
+    /// many modules *should* be installed and must not invent a number.
+    ///
+    /// What it can check is that the hub reports at least one populated socket
+    /// and no socket where a module is seated but unidentifiable. Whether a
+    /// given protocol has the modules it needs is a separate, per-protocol
+    /// question answered by the firmware placement check
+    /// (`np_module_map_check_placement`, NP-HEX-ZM-001 SW-1).
     func confirmZoneModules() {
-        let missingSlots = zoneConfiguration.slots.enumerated()
-            .filter { !$0.element.isPresent }
-            .map(\.offset)
-        if missingSlots.isEmpty {
-            advance()
-        } else {
-            lastError = .zoneModulesMissing(missingSlots)
+        let faulted = zoneConfiguration.faultedSockets.map(\.socketID)
+        guard faulted.isEmpty else {
+            lastError = .zoneModulesMissing(faulted)
+            return
         }
+        guard !zoneConfiguration.presentSockets.isEmpty else {
+            lastError = .noZoneModulesDetected
+            return
+        }
+        advance()
     }
 
     // MARK: - GATT observation
@@ -278,10 +325,39 @@ final class HardwareSetupManager: ObservableObject {
             .store(in: &cancellables)
 
         gatt.zoneModulesPublisher
-            .sink { [weak self] rawSlots in
-                self?.zoneConfiguration.update(rawSlotData: rawSlots)
+            .sink { [weak self] configuration in
+                self?.zoneConfiguration = configuration
             }
             .store(in: &cancellables)
+
+        // Spoken insertion confirmation — the whole point of the app-side audio
+        // path. Gated to the zone-module step: the same events also arrive during
+        // a session, where narrating socket changes would be noise rather than
+        // confirmation.
+        gatt.socketMapPublisher
+            .sink { [weak self] map in
+                self?.socketMap = map
+            }
+            .store(in: &cancellables)
+
+        gatt.zoneModuleEventPublisher
+            .sink { [weak self] event in
+                self?.announceZoneModuleEvent(event)
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Speak one socket's change, if the user is on the step that asked for it.
+    ///
+    /// Only insertions are announced. A removal during setup is the user pulling
+    /// a tile back out — they know they did that, and the list already shows it.
+    private func announceZoneModuleEvent(_ event: ZoneModuleStatus) {
+        guard currentStep == .zoneModules, event.isPresent else { return }
+        // The map turns the socket id into a place. If it has not arrived yet the
+        // announcement degrades to the bare socket number rather than going
+        // silent — a number the user can still match to the socket they just
+        // filled beats no confirmation at all.
+        announcer.announce(socketMap.spokenConfirmation(for: event))
     }
 
     private func triggerCalibration(_ opcode: CalibrationOpcode) async throws {
