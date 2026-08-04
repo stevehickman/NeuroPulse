@@ -135,21 +135,66 @@ np_hd_status_t np_hd_montage_select_ring(const np_hd_mni_t *target_mni,
         n_candidates++;
     }
 
-    /* Partial insertion sort: put the 4 smallest distances first.               */
-    for (uint8_t i = 0U; i < NP_HD_RING_CATHODE_COUNT && i < n_candidates; i++) {
-        uint8_t min_idx = i;
-        for (uint8_t j = i + 1U; j < n_candidates; j++) {
-            if (dist[j] < dist[min_idx]) {
+    if (n_candidates < NP_HD_RING_CATHODE_COUNT) {
+        return NP_HD_ERR_MONTAGE_INVALID;
+    }
+
+    /*
+     * Steps 3 and 5 (NP-FW-HD-001 §6.2): take the 4 nearest candidates, but only
+     * from those whose tACS driver channel is not already claimed by the anode or
+     * an earlier cathode.
+     *
+     * Step 5 — "verify all electrodes map to distinct tACS driver channels" — was
+     * previously absent here and left entirely to np_hd_montage_validate().  That
+     * ordering cannot work: 21 electrodes share 16 driver channels
+     * (k_driver_channel above), so a ring picked purely by distance can name one
+     * driver twice, and validate() then correctly rejects a montage the selector
+     * had already committed to.  M1_R is the case that bites — center C4 with
+     * cathodes FC4/F4/Cz/P4, where C4 and P4 are both driver 12, asking one
+     * current source to source +1000 µA and sink −250 µA simultaneously.
+     *
+     * Applying the constraint during selection instead of after it makes the
+     * distinctness invariant hold by construction for every target, so
+     * np_hd_montage_validate() becomes a genuine post-condition rather than a
+     * gate that some clinical targets simply fail.
+     *
+     * Skipped candidates fall through to the next-nearest, preserving the
+     * nearest-first ordering step 3 specifies rather than substituting a
+     * spread-optimising heuristic that no bench data supports.  For M1_R this
+     * yields Fz in place of P4: mean ring radius 45.9 mm against the ideal
+     * 44.6 mm, so ring size is essentially preserved.
+     */
+    uint32_t used_channels = (1UL << k_driver_channel[center]);
+    uint8_t  n_selected    = 0U;
+
+    for (uint8_t i = 0U; i < NP_HD_RING_CATHODE_COUNT; i++) {
+        bool    found   = false;
+        uint8_t min_idx = 0U;
+
+        for (uint8_t j = i; j < n_candidates; j++) {
+            if (used_channels & (1UL << k_driver_channel[order[j]])) {
+                continue;   /* driver channel already claimed — not selectable */
+            }
+            if (!found || dist[j] < dist[min_idx]) {
                 min_idx = j;
+                found   = true;
             }
         }
+
+        if (!found) {
+            /* Every remaining candidate collides; no 4×1 ring is deliverable. */
+            return NP_HD_ERR_MONTAGE_INVALID;
+        }
+
         if (min_idx != i) {
             int32_t  tmp_d = dist[i];  dist[i]  = dist[min_idx];  dist[min_idx]  = tmp_d;
             uint8_t  tmp_o = order[i]; order[i] = order[min_idx]; order[min_idx] = tmp_o;
         }
+        used_channels |= (1UL << k_driver_channel[order[i]]);
+        n_selected++;
     }
 
-    if (n_candidates < NP_HD_RING_CATHODE_COUNT) {
+    if (n_selected < NP_HD_RING_CATHODE_COUNT) {
         return NP_HD_ERR_MONTAGE_INVALID;
     }
 
