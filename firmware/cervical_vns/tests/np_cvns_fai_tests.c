@@ -51,6 +51,31 @@ static int g_fail_count = 0;
 #define ASSERT_GT(a, b)           ASSERT((a) > (b), #a " not > " #b)
 #define ASSERT_LT(a, b)           ASSERT((a) < (b), #a " not < " #b)
 
+/* ── Test callbacks ──────────────────────────────────────────────────────────── */
+/*
+ * File-scope C functions, not block-scope lambdas: this is a C11 translation
+ * unit and the lambda form it previously used is C++ syntax that no C compiler
+ * accepts.
+ */
+
+/* Records the most recent interlock fault reason for the CV02-D lockout test. */
+static np_cvns_fault_reason_t g_last_fault;
+
+static void test_fault_cb(np_cvns_interlock_ctx_t *ctx, np_cvns_fault_reason_t reason)
+{
+    (void)ctx;
+    g_last_fault = reason;
+}
+
+/* Inert safety callback — the stim parameter-validation tests only need a
+ * non-NULL pointer, since np_cvns_stim_init() rejects a NULL callback. */
+static void test_safety_cb(np_cvns_stim_ctx_t *ctx, bool gate, const float impedance[])
+{
+    (void)ctx;
+    (void)gate;
+    (void)impedance;
+}
+
 /* ── Safety constant regression ─────────────────────────────────────────────── */
 /*
  * Verifies that all configuration constants in np_cvns_config.h are within
@@ -196,13 +221,7 @@ static int fai_cv02_interlock_state_machine(void)
         np_cvns_interlock_config_t cfg = { .ppg_sample_rate_hz = NP_CVNS_PPG_SAMPLE_RATE_HZ,
                                              .now_s = 1000U };
 
-        static np_cvns_fault_reason_t last_fault;
-        void (*fault_cb)(np_cvns_interlock_ctx_t *, np_cvns_fault_reason_t) =
-            [](np_cvns_interlock_ctx_t *c, np_cvns_fault_reason_t r) {
-                (void)c; last_fault = r;
-            };
-
-        ASSERT_OK(np_cvns_interlock_init(&interlock, cfg, fault_cb));
+        ASSERT_OK(np_cvns_interlock_init(&interlock, cfg, test_fault_cb));
         ASSERT_EQ(np_cvns_interlock_state(&interlock), NP_CVNS_INTERLOCK_IDLE);
 
         /* Manually set fault state and fault_time to simulate post-cutoff. */
@@ -357,48 +376,42 @@ static int fai_stim_validation(void)
     int failures_before = g_fail_count;
     printf("Stim parameter validation\n");
 
-    /* Helper safety callback. */
-    void (*safety_cb)(np_cvns_stim_ctx_t *, bool, const float[]) =
-        [](np_cvns_stim_ctx_t *c, bool g, const float imp[]) {
-            (void)c; (void)g; (void)imp;
-        };
-
     np_cvns_stim_ctx_t stim;
 
     /* Frequency out of range. */
     np_cvns_session_config_t cfg = { .freq_hz=0, .current_ua=1000, .pulse_width_us=500,
                                        .duration_s=120, .electrode_config=0 };
-    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, safety_cb), NP_CVNS_ERR_INVALID_ARG);
+    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, test_safety_cb), NP_CVNS_ERR_INVALID_ARG);
 
     cfg.freq_hz = NP_CVNS_FREQ_HZ_MAX + 1U;
-    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, safety_cb), NP_CVNS_ERR_INVALID_ARG);
+    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, test_safety_cb), NP_CVNS_ERR_INVALID_ARG);
 
     /* Current over limit. */
     cfg.freq_hz = 25U;
     cfg.current_ua = NP_CVNS_CURRENT_UA_MAX + 1U;
-    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, safety_cb), NP_CVNS_ERR_INVALID_ARG);
+    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, test_safety_cb), NP_CVNS_ERR_INVALID_ARG);
 
     /* Pulse width under limit. */
     cfg.current_ua = 1000U;
     cfg.pulse_width_us = NP_CVNS_PULSE_WIDTH_US_MIN - 1U;
-    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, safety_cb), NP_CVNS_ERR_INVALID_ARG);
+    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, test_safety_cb), NP_CVNS_ERR_INVALID_ARG);
 
     /* Pulse width over limit. */
     cfg.pulse_width_us = NP_CVNS_PULSE_WIDTH_US_MAX + 1U;
-    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, safety_cb), NP_CVNS_ERR_INVALID_ARG);
+    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, test_safety_cb), NP_CVNS_ERR_INVALID_ARG);
 
     /* Session too short. */
     cfg.pulse_width_us = 500U;
     cfg.duration_s = NP_CVNS_SESSION_MIN_S - 1U;
-    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, safety_cb), NP_CVNS_ERR_INVALID_ARG);
+    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, test_safety_cb), NP_CVNS_ERR_INVALID_ARG);
 
     /* Session too long. */
     cfg.duration_s = NP_CVNS_SESSION_MAX_S + 1U;
-    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, safety_cb), NP_CVNS_ERR_INVALID_ARG);
+    ASSERT_EQ(np_cvns_stim_init(&stim, &cfg, test_safety_cb), NP_CVNS_ERR_INVALID_ARG);
 
     /* Valid configuration. */
     cfg.duration_s = NP_CVNS_SESSION_MAX_S;
-    ASSERT_OK(np_cvns_stim_init(&stim, &cfg, safety_cb));
+    ASSERT_OK(np_cvns_stim_init(&stim, &cfg, test_safety_cb));
     ASSERT_EQ(np_cvns_stim_phase(&stim), NP_CVNS_STIM_IDLE);
     ASSERT_EQ(np_cvns_stim_current_ua(&stim), 0U);
     printf("  All invalid parameter combinations correctly rejected\n");

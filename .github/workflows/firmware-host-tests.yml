@@ -1,21 +1,42 @@
 name: Firmware Host Unit Tests
 
-# Builds and runs the five host-native test targets.
-# Does NOT require the ARM cross-compiler.
+# Builds and runs the 23 host-native test targets registered by
+# firmware/CMakeLists.txt.  Does NOT require the ARM cross-compiler.
+#
 # Modules with NP_BUILD_TESTS host targets:
-#   firmware/crypto        → np_crypto_tests   (SHA-256/512, CRC-32, Ed25519)
-#   firmware/anon          → np_anon_tests     (Scratch encryption)
-#   firmware/edf           → np_edf_tests      (EDF+ privacy header)
-#   firmware/factory_reset → np_factory_reset_tests (device reset)
-#   firmware/uhdr_key      → np_uhdr_key_tests (two-layer UHDR key, §C)
-#   firmware/ota           → np_ota_tests      (OTA state CRC + rollback)
-#   firmware/safety_mcu    → np_safety_spi_proto_tests, np_charge_monitor_tests,
-#                            np_impedance_report_tests, np_fault_latch_privacy_tests
-#   firmware/hub_control   → np_cvns_reenable_tests (OI-CVNS-HUB-01)
-#                          → np_log_backend_tests   (OI-LOG-01..04)
-#                          → np_transport_tests     (OI-HUB-MAIN-01)
-#                          → np_module_map_tests    (hex zone-module addressing/NVRAM map)
+#   firmware/crypto          → np_crypto_tests   (SHA-256/512, CRC-32, Ed25519)
+#   firmware/anon            → np_anon_tests     (Scratch encryption)
+#   firmware/edf             → np_edf_tests      (EDF+ privacy header)
+#   firmware/factory_reset   → np_factory_reset_tests (device reset)
+#   firmware/uhdr_key        → np_uhdr_key_tests (two-layer UHDR key, §C)
+#   firmware/ota             → np_ota_tests      (OTA state CRC + rollback)
+#   firmware/safety_mcu      → np_safety_spi_proto_tests     (OI-SW01-M07-01)
+#                            → np_charge_monitor_tests       (OI-CHARGE-01)
+#                            → np_impedance_report_tests     (OI-CVNS-HUB-11)
+#                            → np_fault_latch_privacy_tests  (fault-latch privacy gate)
+#   firmware/hub_control     → np_cvns_reenable_tests (OI-CVNS-HUB-01)
+#                            → np_log_backend_tests   (OI-LOG-01..04)
+#                            → np_transport_tests     (OI-HUB-MAIN-01)
+#                            → np_mod_cvns_tests      (hub ↔ CVNS library)
+#                            → np_module_map_tests    (hex zone-module addressing/NVRAM map)
+#                            → np_protocol_tests      (hub protocol v2 socket-mask targets)
+#                            → np_mod_stim_tests      (BES/tACS + tDCS slot dispatch)
+#   firmware/zone_announce   → np_zone_announce_tests (module-status frame encoder)
+#                            → np_zone_notify_tests   (app-notify dispatch)
+#   firmware/pbm_1064nm      → np_pbm1064_session_desc_tests (NP-SES-1064-001 v5 wire format)
+#   firmware/cervical_vns    → np_cvns_fai_tests      (FAI CV01..CV06, cardiac interlock)
+#   firmware/sloreta_hdtdcs  → np_hd_fai_tests        (FAI HD02/HD05.., montage + sLORETA)
 #   firmware/vendor/freertos → np_freertos_smoke_tests (kernel + config, POSIX port)
+#
+# ── Keeping the `paths:` filters correct ──────────────────────────────────────
+# The push: and pull_request: path lists below MUST stay identical to each other
+# and MUST cover every module add_subdirectory()'d by the NP_BUILD_TESTS branch
+# of firmware/CMakeLists.txt.  A module that is tested but unlisted here builds
+# and runs locally while silently having no CI at all.
+#
+# The duplication is deliberate, not an oversight: the GitHub Actions workflow
+# parser does not support YAML anchors/aliases, so `&paths` / `*paths` cannot be
+# used to collapse the two lists.  When adding a module, edit BOTH lists.
 
 on:
   push:
@@ -28,10 +49,15 @@ on:
       - 'firmware/ota/**'
       - 'firmware/safety_mcu/**'
       - 'firmware/hub_control/**'
+      - 'firmware/zone_announce/**'
+      - 'firmware/pbm_1064nm/**'
+      - 'firmware/cervical_vns/**'
+      - 'firmware/sloreta_hdtdcs/**'
       - 'firmware/vendor/**'
       - 'firmware/common/**'
       - 'firmware/CMakeLists.txt'
       - 'firmware/cmake/**'
+      - '.github/workflows/firmware-host-tests.yml'
   pull_request:
     paths:
       - 'firmware/crypto/**'
@@ -42,15 +68,20 @@ on:
       - 'firmware/ota/**'
       - 'firmware/safety_mcu/**'
       - 'firmware/hub_control/**'
+      - 'firmware/zone_announce/**'
+      - 'firmware/pbm_1064nm/**'
+      - 'firmware/cervical_vns/**'
+      - 'firmware/sloreta_hdtdcs/**'
       - 'firmware/vendor/**'
       - 'firmware/common/**'
       - 'firmware/CMakeLists.txt'
       - 'firmware/cmake/**'
+      - '.github/workflows/firmware-host-tests.yml'
   workflow_dispatch:
 
 jobs:
   firmware-host-tests:
-    name: CMake host tests (crypto + anon + edf + factory_reset + ota + safety_mcu + hub_control)
+    name: CMake host tests (23 targets)
     runs-on: ubuntu-latest
 
     steps:
