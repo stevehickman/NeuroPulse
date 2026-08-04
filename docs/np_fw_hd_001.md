@@ -247,6 +247,17 @@ Angular spread requirement prevents pathological "all-anterior" cathode selectio
 
 Mirrors left hemisphere ring to right hemisphere by negating x-coordinate. Both hemispheres driven simultaneously from separate driver channel pairs. Independent impedance check per hemisphere.
 
+Because both rings are energised **simultaneously**, "separate" is an invariant over all ten electrodes together, not over each ring in isolation:
+
+1. No electrode may appear in both rings. One Ag/AgCl pellet carries one net current; it cannot serve two independently driven rings.
+2. All ten electrodes must map to distinct tACS driver channels (§6.4), across hemispheres as well as within one.
+
+Both rings are selected against a single shared claim set (`ring_select_cathodes()` in `np_hd_montage.c`), so the invariant holds by construction; `np_hd_montage_validate()` re-checks it independently across all ten electrodes as a post-condition.
+
+**Contention.** Where the two rings want the same electrode — in practice a midline one such as Cz, which both M1_L and M1_R rings select as a cathode — the **primary** ring keeps it and the **mirror** ring falls through to its next-nearest candidate. Primary is the ring built at the caller's target; mirror is the one built from the reflected coordinate. Priority follows provenance, not laterality. The rings are consequently not required to be geometrically symmetric; only distinct. With 16 driver channels and 10 simultaneously active electrodes the headroom is thin, and a target whose mirror ring cannot be completed returns `NP_HD_ERR_MONTAGE_INVALID` rather than a ring that `np_hd_montage_validate()` would reject.
+
+**Midline targets.** A target on x = 0 mirrors onto itself, so it has no contralateral homologue and bilateral is undefined for it — not merely contended. `np_hd_montage_select_bilateral()` returns `NP_HD_ERR_MONTAGE_INVALID`. This covers the predefined targets ACC (0, 28, 28) and MPFC (0, 52, 6), and also near-midline targets whose mirrored coordinate resolves to the same nearest electrode. Use `NP_HD_MONTAGE_RING_4X1` for these.
+
 ### 6.4 tACS driver channel assignment
 
 Fixed mapping from T2 cap wiring specification (NP-HW-TCAP-001, TBD). All 5 electrodes in a ring montage use distinct driver channels (validated by `np_hd_montage_validate()`). Maximum 5 of 16 channels active simultaneously per ring.

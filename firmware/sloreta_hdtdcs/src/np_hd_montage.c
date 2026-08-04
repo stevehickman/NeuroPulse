@@ -76,6 +76,150 @@ static int32_t mni_dist_sq(const np_hd_mni_t *a, const np_hd_mni_t *b)
     return dx*dx + dy*dy + dz*dz;
 }
 
+/* ── Electrode / driver-channel claim tracking ───────────────────────────────── */
+/*
+ * A montage may contain more than one ring, and NP-FW-HD-001 §6.3 drives every
+ * ring of a bilateral montage SIMULTANEOUSLY.  Two claims therefore have to hold
+ * across the whole montage, not merely within one ring:
+ *
+ *   electrodes — one physical electrode carries one net current.  A 3.5 mm
+ *                Ag/AgCl pellet cannot be a cathode for two independently driven
+ *                rings at once, whatever the wiring says.
+ *   channels   — one tACS driver channel is one current source, and §7.1 asks
+ *                each montage electrode for its own current (+I_a at the anode,
+ *                −I_a/4 at each cathode).
+ *
+ * The two are not redundant.  They coincide today only because k_driver_channel[]
+ * aliases 21 electrodes onto 16 channels, so a duplicate electrode always shows up
+ * as a duplicate channel.  When NP-HW-TCAP-001 lands and the channels are
+ * distinct, the channel check stops catching duplicate electrodes — and Kirchhoff
+ * will not have changed its mind.  The electrode claim is the invariant that
+ * survives the wiring spec; the channel claim is the one that depends on it.
+ */
+typedef struct {
+    uint32_t channels;    /* bit c set → driver channel c already claimed         */
+    uint32_t electrodes;  /* bit e set → electrode e already claimed              */
+} np_hd_claims_t;
+
+static bool claim_taken(const np_hd_claims_t *claims, np_hd_electrode_t electrode)
+{
+    return ((claims->electrodes & (1UL << (uint8_t)electrode)) != 0UL) ||
+           ((claims->channels   & (1UL << k_driver_channel[electrode])) != 0UL);
+}
+
+static void claim_take(np_hd_claims_t *claims, np_hd_electrode_t electrode)
+{
+    claims->electrodes |= (1UL << (uint8_t)electrode);
+    claims->channels   |= (1UL << k_driver_channel[electrode]);
+}
+
+/* ── Shared 4×1 ring cathode selection ───────────────────────────────────────── */
+/*
+ * Implements NP-FW-HD-001 §6.2 steps 2, 3 and 5 for ONE ring centred on `center`,
+ * against a claim set that may already hold another ring's electrodes.
+ *
+ * This is the single copy of the selection loop.  It previously existed three
+ * times — once in np_hd_montage_select_ring() and again, in its pre-step-5 form,
+ * inside np_hd_montage_select_bilateral().  The duplicate is how the bilateral
+ * right ring came to reproduce the very C4/P4 driver-12 collision that step 5 was
+ * added to prevent: the fix landed on one copy and not the other.
+ *
+ * On success `center` and all four cathodes are claimed, so a subsequent call for
+ * another ring of the same montage cannot select any of them.  On failure the
+ * claim set is left partially updated and must be discarded by the caller — every
+ * caller here abandons the whole montage on failure.
+ */
+static np_hd_status_t ring_select_cathodes(
+    np_hd_electrode_t  center,
+    np_hd_claims_t    *claims,
+    np_hd_electrode_t  out_cathodes[NP_HD_RING_CATHODE_COUNT])
+{
+    if (center >= NP_HD_CH_COUNT) {
+        return NP_HD_ERR_MONTAGE_INVALID;
+    }
+    /*
+     * The centre itself may already belong to another ring.  This is what rejects
+     * a bilateral montage whose two targets collapse onto one electrode — exactly
+     * what a midline target does, since mirroring x = 0 yields x = 0 and the
+     * "contralateral" ring is the ring you already have.  Handling it here rather
+     * than with an explicit `x == 0` test also covers near-midline targets (x = ±1
+     * or ±2), where the mirrored coordinate is distinct but still resolves to the
+     * same nearest electrode.
+     */
+    if (claim_taken(claims, center)) {
+        return NP_HD_ERR_MONTAGE_INVALID;
+    }
+    claim_take(claims, center);
+
+    /* Step 2: candidates = all electrodes except the centre, by distance to it.  */
+    int32_t  dist[NP_HD_CH_COUNT];
+    uint8_t  order[NP_HD_CH_COUNT];
+    uint8_t  n_candidates = 0U;
+
+    for (uint8_t ch = 0U; ch < NP_HD_CH_COUNT; ch++) {
+        if (ch == (uint8_t)center) {
+            continue;
+        }
+        dist[n_candidates]  = mni_dist_sq(&k_electrode_mni[center],
+                                           &k_electrode_mni[ch]);
+        order[n_candidates] = ch;
+        n_candidates++;
+    }
+
+    if (n_candidates < NP_HD_RING_CATHODE_COUNT) {
+        return NP_HD_ERR_MONTAGE_INVALID;
+    }
+
+    /*
+     * Steps 3 and 5 together: take the 4 nearest candidates, but only from those
+     * not already claimed.  Applying step 5 during selection rather than after it
+     * is what makes np_hd_montage_validate() a genuine post-condition instead of a
+     * gate that some clinical targets simply fail.  Skipped candidates fall through
+     * to the next-nearest, preserving the nearest-first ordering step 3 specifies.
+     */
+    for (uint8_t i = 0U; i < NP_HD_RING_CATHODE_COUNT; i++) {
+        bool    found   = false;
+        uint8_t min_idx = 0U;
+
+        for (uint8_t j = i; j < n_candidates; j++) {
+            if (claim_taken(claims, (np_hd_electrode_t)order[j])) {
+                continue;   /* electrode or its driver already claimed          */
+            }
+            if (!found || dist[j] < dist[min_idx]) {
+                min_idx = j;
+                found   = true;
+            }
+        }
+
+        if (!found) {
+            /* Every remaining candidate collides; no 4×1 ring is deliverable.  */
+            return NP_HD_ERR_MONTAGE_INVALID;
+        }
+
+        if (min_idx != i) {
+            int32_t  tmp_d = dist[i];  dist[i]  = dist[min_idx];  dist[min_idx]  = tmp_d;
+            uint8_t  tmp_o = order[i]; order[i] = order[min_idx]; order[min_idx] = tmp_o;
+        }
+        claim_take(claims, (np_hd_electrode_t)order[i]);
+        out_cathodes[i] = (np_hd_electrode_t)order[i];
+    }
+
+    /* Step 3 spread rule: cathodes must cover ≥ 2 quadrants around the centre.   */
+    /* Quadrant defined by sign of (cathode_mni - center_mni) in x and y.        */
+    uint8_t quadrant_mask = 0U;
+    for (uint8_t k = 0U; k < NP_HD_RING_CATHODE_COUNT; k++) {
+        int16_t dx = k_electrode_mni[out_cathodes[k]].x - k_electrode_mni[center].x;
+        int16_t dy = k_electrode_mni[out_cathodes[k]].y - k_electrode_mni[center].y;
+        uint8_t q  = (uint8_t)((dx >= 0 ? 1U : 0U) | ((dy >= 0 ? 1U : 0U) << 1));
+        quadrant_mask |= (uint8_t)(1U << q);
+    }
+    if (__builtin_popcount(quadrant_mask) < 2) {
+        return NP_HD_ERR_MONTAGE_INVALID;
+    }
+
+    return NP_HD_OK;
+}
+
 /* ── Public API ──────────────────────────────────────────────────────────────── */
 
 np_hd_status_t np_hd_electrode_mni(np_hd_electrode_t electrode, np_hd_mni_t *out)
@@ -119,97 +263,13 @@ np_hd_status_t np_hd_montage_select_ring(const np_hd_mni_t *target_mni,
     /* Step 1: find center electrode (anode). */
     np_hd_electrode_t center = np_hd_nearest_electrode(target_mni, NULL);
 
-    /* Step 2: find 4 nearest electrodes to the center, excluding itself.       */
-    /* Sort by distance to center using a simple insertion selection.            */
-    int32_t  dist[NP_HD_CH_COUNT];
-    uint8_t  order[NP_HD_CH_COUNT];
-    uint8_t  n_candidates = 0U;
+    /* Steps 2, 3 and 5: one ring, starting from an empty claim set.            */
+    np_hd_claims_t    claims = { 0U, 0U };
+    np_hd_electrode_t cathodes[NP_HD_RING_CATHODE_COUNT];
 
-    for (uint8_t ch = 0U; ch < NP_HD_CH_COUNT; ch++) {
-        if (ch == (uint8_t)center) {
-            continue;
-        }
-        dist[n_candidates]  = mni_dist_sq(&k_electrode_mni[center],
-                                           &k_electrode_mni[ch]);
-        order[n_candidates] = ch;
-        n_candidates++;
-    }
-
-    if (n_candidates < NP_HD_RING_CATHODE_COUNT) {
-        return NP_HD_ERR_MONTAGE_INVALID;
-    }
-
-    /*
-     * Steps 3 and 5 (NP-FW-HD-001 §6.2): take the 4 nearest candidates, but only
-     * from those whose tACS driver channel is not already claimed by the anode or
-     * an earlier cathode.
-     *
-     * Step 5 — "verify all electrodes map to distinct tACS driver channels" — was
-     * previously absent here and left entirely to np_hd_montage_validate().  That
-     * ordering cannot work: 21 electrodes share 16 driver channels
-     * (k_driver_channel above), so a ring picked purely by distance can name one
-     * driver twice, and validate() then correctly rejects a montage the selector
-     * had already committed to.  M1_R is the case that bites — center C4 with
-     * cathodes FC4/F4/Cz/P4, where C4 and P4 are both driver 12, asking one
-     * current source to source +1000 µA and sink −250 µA simultaneously.
-     *
-     * Applying the constraint during selection instead of after it makes the
-     * distinctness invariant hold by construction for every target, so
-     * np_hd_montage_validate() becomes a genuine post-condition rather than a
-     * gate that some clinical targets simply fail.
-     *
-     * Skipped candidates fall through to the next-nearest, preserving the
-     * nearest-first ordering step 3 specifies rather than substituting a
-     * spread-optimising heuristic that no bench data supports.  For M1_R this
-     * yields Fz in place of P4: mean ring radius 45.9 mm against the ideal
-     * 44.6 mm, so ring size is essentially preserved.
-     */
-    uint32_t used_channels = (1UL << k_driver_channel[center]);
-    uint8_t  n_selected    = 0U;
-
-    for (uint8_t i = 0U; i < NP_HD_RING_CATHODE_COUNT; i++) {
-        bool    found   = false;
-        uint8_t min_idx = 0U;
-
-        for (uint8_t j = i; j < n_candidates; j++) {
-            if (used_channels & (1UL << k_driver_channel[order[j]])) {
-                continue;   /* driver channel already claimed — not selectable */
-            }
-            if (!found || dist[j] < dist[min_idx]) {
-                min_idx = j;
-                found   = true;
-            }
-        }
-
-        if (!found) {
-            /* Every remaining candidate collides; no 4×1 ring is deliverable. */
-            return NP_HD_ERR_MONTAGE_INVALID;
-        }
-
-        if (min_idx != i) {
-            int32_t  tmp_d = dist[i];  dist[i]  = dist[min_idx];  dist[min_idx]  = tmp_d;
-            uint8_t  tmp_o = order[i]; order[i] = order[min_idx]; order[min_idx] = tmp_o;
-        }
-        used_channels |= (1UL << k_driver_channel[order[i]]);
-        n_selected++;
-    }
-
-    if (n_selected < NP_HD_RING_CATHODE_COUNT) {
-        return NP_HD_ERR_MONTAGE_INVALID;
-    }
-
-    /* Validate angular spread: cathodes must cover ≥ 2 quadrants around center.*/
-    /* Quadrant defined by sign of (cathode_mni - center_mni) in x and y.       */
-    uint8_t quadrant_mask = 0U;
-    for (uint8_t k = 0U; k < NP_HD_RING_CATHODE_COUNT; k++) {
-        uint8_t ch = order[k];
-        int16_t dx = k_electrode_mni[ch].x - k_electrode_mni[center].x;
-        int16_t dy = k_electrode_mni[ch].y - k_electrode_mni[center].y;
-        uint8_t q  = (uint8_t)((dx >= 0 ? 1U : 0U) | ((dy >= 0 ? 1U : 0U) << 1));
-        quadrant_mask |= (uint8_t)(1U << q);
-    }
-    if (__builtin_popcount(quadrant_mask) < 2U) {
-        return NP_HD_ERR_MONTAGE_INVALID;
+    np_hd_status_t ret = ring_select_cathodes(center, &claims, cathodes);
+    if (ret != NP_HD_OK) {
+        return ret;
     }
 
     memset(out, 0, sizeof(*out));
@@ -219,7 +279,7 @@ np_hd_status_t np_hd_montage_select_ring(const np_hd_mni_t *target_mni,
     out->target_mni    = *target_mni;
 
     for (uint8_t k = 0U; k < NP_HD_RING_CATHODE_COUNT; k++) {
-        out->cathodes[k] = (np_hd_electrode_t)order[k];
+        out->cathodes[k] = cathodes[k];
     }
 
     return NP_HD_OK;
@@ -232,49 +292,81 @@ np_hd_status_t np_hd_montage_select_bilateral(const np_hd_mni_t *target_mni,
         return NP_HD_ERR_INVALID_ARG;
     }
 
-    /* Left hemisphere ring (use provided target). */
-    np_hd_status_t ret = np_hd_montage_select_ring(target_mni, out);
+    /*
+     * NP-FW-HD-001 §6.3 drives both hemispheres SIMULTANEOUSLY, so the two rings
+     * are ten electrodes energised at once, not two montages that happen to be
+     * described together.  Both are therefore selected against ONE claim set:
+     * whatever the first ring takes, the second cannot have.  The invariant then
+     * holds by construction and np_hd_montage_validate() is a real post-condition.
+     *
+     * Contention policy — the PRIMARY ring wins, the MIRROR ring yields.
+     *
+     * "Primary" is the ring built at the caller's actual target; "mirror" is the
+     * one built from the reflected coordinate this function derives.  Priority
+     * follows provenance rather than laterality: the caller asked for the primary
+     * target, and the mirror is inferred from it.  The contested electrode is in
+     * practice a midline one — Cz for M1_L/M1_R, where both rings want it as a
+     * cathode — and the mirror ring falls through to its next-nearest candidate.
+     *
+     * The alternative, rejecting bilateral outright whenever the hemispheres
+     * contend, was considered and not taken.  It would leave M1_L and M1_R — named
+     * motor-rehabilitation targets — with no deliverable bilateral montage in order
+     * to preserve geometric symmetry between the rings, and §6.3 never required
+     * that symmetry.  It says the hemispheres are driven "from separate driver
+     * channel pairs", which is a distinctness requirement, not a mirror-image one.
+     *
+     * With 16 driver channels and 10 simultaneously active electrodes the headroom
+     * is thin, so a target whose mirror ring cannot be completed is a real
+     * possibility; ring_select_cathodes() reports it as NP_HD_ERR_MONTAGE_INVALID
+     * rather than emitting a ring that validate() would reject.
+     */
+    /* Copy the target before zeroing `out`: a caller may legitimately refresh a  */
+    /* montage in place with np_hd_montage_select_bilateral(&m.target_mni, &m),   */
+    /* in which case target_mni aliases into the buffer about to be cleared.      */
+    const np_hd_mni_t target = *target_mni;
+
+    memset(out, 0, sizeof(*out));
+
+    np_hd_claims_t    claims = { 0U, 0U };
+    np_hd_electrode_t primary_cathodes[NP_HD_RING_CATHODE_COUNT];
+    np_hd_electrode_t mirror_cathodes[NP_HD_RING_CATHODE_COUNT];
+
+    np_hd_electrode_t primary_center = np_hd_nearest_electrode(&target, NULL);
+
+    np_hd_status_t ret = ring_select_cathodes(primary_center, &claims,
+                                               primary_cathodes);
     if (ret != NP_HD_OK) {
         return ret;
     }
 
-    /* Right hemisphere ring: mirror x-coordinate. */
-    np_hd_mni_t target_r = *target_mni;
-    target_r.x = (int16_t)(-target_mni->x);
+    /* Mirror ring: negate x.  A midline target mirrors onto itself, so its       */
+    /* centre is already claimed and ring_select_cathodes() rejects it — bilateral */
+    /* is undefined for a target with no contralateral homologue, not merely       */
+    /* contended.  ACC (0, 28, 28) and MPFC (0, 52, 6) are the two predefined      */
+    /* clinical targets that hit this; both previously returned a unilateral       */
+    /* montage with every electrode duplicated and validate() reported it OK.      */
+    np_hd_mni_t target_r = target;
+    target_r.x = (int16_t)(-target.x);
 
-    out->center_r = np_hd_nearest_electrode(&target_r, NULL);
+    np_hd_electrode_t mirror_center = np_hd_nearest_electrode(&target_r, NULL);
 
-    int32_t  dist[NP_HD_CH_COUNT];
-    uint8_t  order[NP_HD_CH_COUNT];
-    uint8_t  n_candidates = 0U;
-
-    for (uint8_t ch = 0U; ch < NP_HD_CH_COUNT; ch++) {
-        if (ch == (uint8_t)out->center_r) {
-            continue;
-        }
-        dist[n_candidates]  = mni_dist_sq(&k_electrode_mni[out->center_r],
-                                           &k_electrode_mni[ch]);
-        order[n_candidates] = ch;
-        n_candidates++;
+    ret = ring_select_cathodes(mirror_center, &claims, mirror_cathodes);
+    if (ret != NP_HD_OK) {
+        return ret;   /* `out` stays zeroed — never a half-built bilateral ring */
     }
-    for (uint8_t i = 0U; i < NP_HD_RING_CATHODE_COUNT && i < n_candidates; i++) {
-        uint8_t min_idx = i;
-        for (uint8_t j = i + 1U; j < n_candidates; j++) {
-            if (dist[j] < dist[min_idx]) {
-                min_idx = j;
-            }
-        }
-        if (min_idx != i) {
-            int32_t  td = dist[i];  dist[i]  = dist[min_idx];  dist[min_idx]  = td;
-            uint8_t  to = order[i]; order[i] = order[min_idx]; order[min_idx] = to;
-        }
-    }
+
+    out->type          = NP_HD_MONTAGE_BILATERAL_4X1;
+    out->center        = primary_center;
+    out->center_r      = mirror_center;
+    out->cathode_count = NP_HD_RING_CATHODE_COUNT;
+    out->target_mni    = target;
+    out->bilateral     = 1U;
+
     for (uint8_t k = 0U; k < NP_HD_RING_CATHODE_COUNT; k++) {
-        out->cathodes_r[k] = (np_hd_electrode_t)order[k];
+        out->cathodes[k]   = primary_cathodes[k];
+        out->cathodes_r[k] = mirror_cathodes[k];
     }
 
-    out->type      = NP_HD_MONTAGE_BILATERAL_4X1;
-    out->bilateral = 1U;
     return NP_HD_OK;
 }
 
@@ -325,20 +417,68 @@ np_hd_status_t np_hd_montage_validate(const np_hd_montage_t *montage)
     if (montage->center >= NP_HD_CH_COUNT) {
         return NP_HD_ERR_MONTAGE_INVALID;
     }
+    if (montage->cathode_count > NP_HD_RING_CATHODE_COUNT) {
+        return NP_HD_ERR_MONTAGE_INVALID;  /* would over-read cathodes[]        */
+    }
 
-    uint32_t used_channels = (1UL << k_driver_channel[montage->center]);
+    /*
+     * One claim set spans the WHOLE montage.  For a bilateral montage that is all
+     * ten electrodes of both rings together (NP-FW-HD-001 §6.3 energises them
+     * simultaneously), so a conflict between hemispheres is as disqualifying as one
+     * inside a hemisphere.  Checking the rings separately would miss exactly the
+     * case that matters: a midline electrode such as Cz named as a cathode by both.
+     *
+     * claim_taken() rejects on either a repeated electrode or a repeated driver
+     * channel; see the note above the claim helpers for why both are required.
+     */
+    np_hd_claims_t claims = { 0U, 0U };
+    claim_take(&claims, montage->center);
 
     for (uint8_t k = 0U; k < montage->cathode_count; k++) {
-        uint8_t ch = (uint8_t)montage->cathodes[k];
+        np_hd_electrode_t ch = montage->cathodes[k];
         if (ch >= NP_HD_CH_COUNT) {
             return NP_HD_ERR_MONTAGE_INVALID;
         }
-        uint32_t mask = (1UL << k_driver_channel[ch]);
-        if (used_channels & mask) {
-            return NP_HD_ERR_MONTAGE_INVALID;  /* driver channel conflict        */
+        if (claim_taken(&claims, ch)) {
+            return NP_HD_ERR_MONTAGE_INVALID;  /* duplicate electrode or driver  */
         }
-        used_channels |= mask;
+        claim_take(&claims, ch);
     }
+
+    if (!montage->bilateral) {
+        return NP_HD_OK;
+    }
+
+    /*
+     * A bilateral montage is two full 4×1 rings (NP_HD_BILATERAL_ELEC_COUNT = 10).
+     * The loop below walks cathodes_r[] with cathode_count, so a montage claiming
+     * `bilateral` with a shorter count would leave the tail of the right ring
+     * unexamined while still reporting OK.
+     */
+    if (montage->cathode_count != NP_HD_RING_CATHODE_COUNT) {
+        return NP_HD_ERR_MONTAGE_INVALID;
+    }
+
+    /* Right-hemisphere ring, against the same claims — never a fresh set.       */
+    if (montage->center_r >= NP_HD_CH_COUNT) {
+        return NP_HD_ERR_MONTAGE_INVALID;
+    }
+    if (claim_taken(&claims, montage->center_r)) {
+        return NP_HD_ERR_MONTAGE_INVALID;
+    }
+    claim_take(&claims, montage->center_r);
+
+    for (uint8_t k = 0U; k < montage->cathode_count; k++) {
+        np_hd_electrode_t ch = montage->cathodes_r[k];
+        if (ch >= NP_HD_CH_COUNT) {
+            return NP_HD_ERR_MONTAGE_INVALID;
+        }
+        if (claim_taken(&claims, ch)) {
+            return NP_HD_ERR_MONTAGE_INVALID;
+        }
+        claim_take(&claims, ch);
+    }
+
     return NP_HD_OK;
 }
 
