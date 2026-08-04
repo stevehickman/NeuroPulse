@@ -524,7 +524,7 @@ class Parser {
       throw new NPPSParseError(`Unknown modality block type: '${typeName}'`, this.current.line);
     }
 
-    const params = this.buildModalityParams(typeId, raw);
+    const params = this.buildModalityParams(typeId, raw, this.current.line);
     const interval: NPIntervalConfig = { intervalOnSeconds, intervalOffSeconds };
     if (repeatCount !== undefined) interval.repeatCount = repeatCount;
 
@@ -945,7 +945,9 @@ class Parser {
     return obj;
   }
 
-  private buildModalityParams(typeId: NPModalityTypeId, raw: Record<string, unknown>): NPModalityParams {
+  private buildModalityParams(
+    typeId: NPModalityTypeId, raw: Record<string, unknown>, line: number,
+  ): NPModalityParams {
     const def = defaultParams(typeId);
 
     function str(key: string, fallback: string): string {
@@ -967,25 +969,44 @@ class Parser {
     switch (typeId) {
       case 'pbm_transcranial': {
         const d = def as PBMTranscranialParams;
-        // zones may be:
-        //   - a keyword ('all'/'front'/'rear'/'custom')
-        //   - a numeric array [0,1,2] → LEGACY custom zone indices (zones:'custom')
-        //   - a string array ["Left Frontal", ...] → Rev B named zone refs (zones:'named')
+        // zones is one of exactly two forms:
+        //   - a string array ["Frontal Left", ...] → named zone refs
+        //   - the keyword clinician_selected      → operator picks at run time
+        //
+        // The retired five-slot forms ('all'/'front'/'rear'/'custom', numeric
+        // arrays, custom_zones) do NOT parse. There are no existing users, so
+        // nothing needs to keep reading them, and a target the parser does not
+        // understand must stop the file rather than become a second way to say
+        // where light lands.
         const rawZones = raw['zones'];
         let zones: PBMTranscranialParams['zones'] = d.zones;
         let zoneRefs: string[] | undefined;
-        let inlineCustomZones: number[] | undefined;
         if (Array.isArray(rawZones)) {
           const els = rawZones as unknown[];
-          if (els.every(e => typeof e === 'number')) {
-            zones = 'custom';
-            inlineCustomZones = els as number[];
-          } else {
-            zones = 'named';
-            zoneRefs = els.map(String);
+          if (!els.every(e => typeof e === 'string')) {
+            throw new NPPSParseError(
+              `pbm_transcranial: zones must be a list of quoted zone names, ` +
+              `e.g. zones: ["Frontal Left", "Frontal Right"]`,
+              line,
+            );
           }
-        } else if (typeof rawZones === 'string') {
-          zones = rawZones as PBMTranscranialParams['zones'];
+          if (els.length === 0) {
+            throw new NPPSParseError(
+              `pbm_transcranial: zones: [] names no zone — a session cannot target nothing`,
+              line,
+            );
+          }
+          zones = 'named';
+          zoneRefs = els as string[];
+        } else if (rawZones !== undefined) {
+          if (rawZones !== 'clinician_selected') {
+            throw new NPPSParseError(
+              `pbm_transcranial: unknown zone selector '${String(rawZones)}'. zones must be a ` +
+              `list of quoted zone names (e.g. zones: ["Frontal"]) or clinician_selected`,
+              line,
+            );
+          }
+          zones = 'clinician_selected';
         }
         const params: PBMTranscranialParams = {
           zones,
@@ -995,9 +1016,6 @@ class Parser {
           dutyCyclePercent: num('duty_cycle_percent', d.dutyCyclePercent),
         };
         if (zoneRefs) params.zoneRefs = zoneRefs;
-        const customZones = raw['custom_zones'];
-        if (Array.isArray(customZones)) params.customZones = customZones as number[];
-        else if (inlineCustomZones) params.customZones = inlineCustomZones;
         return { type: 'pbm_transcranial', params };
       }
       case 'pbm_intranasal': {

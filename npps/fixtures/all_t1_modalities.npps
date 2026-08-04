@@ -10,7 +10,7 @@ protocol "All T1 Modalities" {
         intensity: 75%
         frequency: 20Hz
         duty_cycle: 25%
-        zones: all
+        zones: ["All"]
         wavelength: 660_808nm
     }
 

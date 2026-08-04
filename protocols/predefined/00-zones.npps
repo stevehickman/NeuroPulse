@@ -176,9 +176,10 @@ zone "Occipital Right" {
 #
 # "All", "Frontal", "Posterior" and "Vault (excl. Occipital)" are each an exact
 # DEDUPLICATED union of the lobe zones above — no new socket grouping. They
-# exist so protocols authored against the retired 5-slot zone-module scheme
-# (`zones: all | front | rear` and numeric `zones: [n, ...]`) can be expressed
-# as named zones. Each union lists every socket once: midline sockets belong to
+# exist because whole-region targeting is a real authoring need, not as
+# compatibility shims: the retired 5-slot selectors are gone from every parser,
+# so nothing resolves to these by migration.
+# Each union lists every socket once: midline sockets belong to
 # both hemispheres of their lobe, so a naive concatenation would double-count
 # sockets 2, 13, 29, 46, 62 and 74. sync-socket-map.ts re-derives every union
 # below and diffs it, and additionally checks that "All" covers every socket.
@@ -192,13 +193,13 @@ zone "Occipital Right" {
 
 zone "All" {
     id: "40000009-0000-0000-0000-000000000000"
-    description: "Every socket on the helmet. Migration target for the retired `zones: all` selector. NOTE: this is BROADER than old `all`, which addressed the five ZM slots (frontal L/R, parietal L/R, occipital) and had no temporal coverage at all; the ten temporal sockets are new."
+    description: "Every socket on the helmet, temporal included."
     sockets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80]
 }
 
 zone "Frontal" {
     id: "4000000A-0000-0000-0000-000000000000"
-    description: "Union of Frontal Left and Frontal Right — the frontal lobe, anterior to the central sulcus. Migration target for the retired numeric selector `zones: [1, 2]` (ZM slots 0-1 = frontal L/R). Excludes the lateral temporal sockets 25, 33, 34 and 41."
+    description: "Union of Frontal Left and Frontal Right — the frontal lobe, anterior to the central sulcus. Excludes the lateral temporal sockets 25, 33, 34 and 41."
     sockets: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 32, 35, 36, 37, 38, 39, 40]
 }
 
@@ -222,6 +223,6 @@ zone "Motor / SMA" {
 
 zone "Posterior" {
     id: "4000000B-0000-0000-0000-000000000000"
-    description: "Union of Parietal Left/Right and Occipital Left/Right — everything posterior to the central sulcus that is not temporal. Migration target for the retired `zones: rear` selector and the numeric `zones: [3, 4, 5]` (ZM slots 2-4 = parietal L/R + occipital). The retired occipital ZM slot was a single zone; it maps to both new occipital hemisphere zones."
+    description: "Union of Parietal Left/Right and Occipital Left/Right — everything posterior to the central sulcus that is not temporal."
     sockets: [43, 44, 45, 46, 47, 48, 49, 52, 53, 54, 55, 56, 57, 60, 61, 62, 63, 64, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80]
 }

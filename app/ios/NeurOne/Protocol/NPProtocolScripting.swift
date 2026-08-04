@@ -654,6 +654,9 @@ struct NPPSParser {
     // MARK: Modality block
 
     mutating func parseModalityBlock(name: String) throws -> NPProtocolModality {
+        // Captured before the block is consumed: buildParams reports errors, and
+        // by the time it runs `currentLine` has moved past the closing brace.
+        let blockLine = currentLine
         try expect(.lbrace)
 
         // Parse all key-value pairs into a dictionary for easier dispatch
@@ -685,13 +688,72 @@ struct NPPSParser {
             repeatCount: repeatCount
         )
 
-        let params = try buildParams(name: name, fields: fields)
+        let params = try buildParams(name: name, fields: fields, line: blockLine)
         return NPProtocolModality(params: params, interval: interval, enabled: true)
     }
 
     // MARK: Params builder
 
-    private func buildParams(name: String, fields: [String: NPPSFieldValue]) throws -> NPModalityParams {
+    /// Parse a `zones:` value into a PBM target.
+    ///
+    /// Exactly two authored forms, and nothing else parses:
+    ///
+    ///   `zones: ["Frontal", ...]`   -> named zones from 00-zones.npps
+    ///   `zones: clinician_selected` -> the operator picks sockets at run time
+    ///
+    /// There is deliberately NO default branch and no retired-form handling. The
+    /// previous parser mapped every unrecognised selector to `.all` — so
+    /// `zones: ["Frontal Right (excl. midline)"]`, the lateralized clinical-03
+    /// target, silently became "every module": a wrong-site stimulation path that
+    /// produced no error anywhere. Anything this function does not recognise is a
+    /// parse error, which is the only safe reading of an unknown target.
+    private func parsePBMTarget(_ value: NPPSFieldValue, line: Int) throws -> NPPBMTarget {
+        switch value {
+        case .ident("clinician_selected"):
+            return .clinicianSelected
+
+        case .array(let items):
+            guard !items.isEmpty else {
+                throw NPPSError(
+                    message: "zones: [] names no zone — a session cannot target nothing.",
+                    line: line
+                )
+            }
+            let names = items.compactMap { item -> String? in
+                if case .string(let s) = item { return s }
+                return nil
+            }
+            guard names.count == items.count else {
+                throw NPPSError(
+                    message: "zones must be a list of quoted zone names, e.g. "
+                        + "zones: [\"Frontal Left\", \"Frontal Right\"].",
+                    line: line
+                )
+            }
+            return .named(names)
+
+        case .ident(let selector):
+            // Quote what was actually written. The author needs to find the token
+            // in their file, and an unrecognised identifier here is most often a
+            // typo in `clinician_selected` or a zone name that lost its quotes.
+            throw NPPSError(
+                message: "Unknown zone selector '\(selector)'. zones must be a list of quoted "
+                    + "zone names (e.g. zones: [\"Frontal\"]) or the identifier clinician_selected.",
+                line: line
+            )
+
+        default:
+            throw NPPSError(
+                message: "zones must be a list of quoted zone names (e.g. zones: [\"Frontal\"]) "
+                    + "or the identifier clinician_selected.",
+                line: line
+            )
+        }
+    }
+
+    private func buildParams(
+        name: String, fields: [String: NPPSFieldValue], line: Int
+    ) throws -> NPModalityParams {
         switch name {
         case "pbm_transcranial":
             var p = NPPBMTranscranialParams()
@@ -699,22 +761,7 @@ struct NPPSParser {
             if let v = fields["frequency"]?.asHz { p.frequencyHz = v }
             if let v = fields["duty_cycle"]?.asPercent { p.dutyCyclePercent = Int(v) }
             if let v = fields["zones"] {
-                switch v {
-                case .ident(let s):
-                    switch s {
-                    case "all":   p.zones = .all
-                    case "front": p.zones = .front
-                    case "rear":  p.zones = .rear
-                    default:      p.zones = .all
-                    }
-                case .array(let items):
-                    p.zones = .custom
-                    p.customZones = items.compactMap { item -> Int? in
-                        if case .number(let n) = item { return Int(n) - 1 } // 1-indexed in script
-                        return nil
-                    }
-                default: break
-                }
+                p.target = try parsePBMTarget(v, line: line)
             }
             if let v = fields["wavelength"]?.asIdent {
                 switch v {
@@ -1286,13 +1333,12 @@ struct NPPSSerializer {
             if p.frequencyHz > 0 {
                 lines.append("duty_cycle: \(p.dutyCyclePercent)%")
             }
-            switch p.zones {
-            case .all:    lines.append("zones: all")
-            case .front:  lines.append("zones: front")
-            case .rear:   lines.append("zones: rear")
-            case .custom:
-                let zs = (p.customZones ?? []).map { "\($0 + 1)" }.joined(separator: ", ")
-                lines.append("zones: [\(zs)]")
+            switch p.target {
+            case .named(let names):
+                let refs = names.map { "\"\($0)\"" }.joined(separator: ", ")
+                lines.append("zones: [\(refs)]")
+            case .clinicianSelected:
+                lines.append("zones: clinician_selected")
             }
             lines.append("wavelength: \(p.wavelength.rawValue)")
             return lines

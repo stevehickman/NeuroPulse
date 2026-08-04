@@ -10,7 +10,11 @@ import CryptoKit
 
 struct NPSessionProtocol: Codable {
     var id: UUID = UUID()
-    var schemaVersion: UInt8 = 1
+    /// v2: cranial targeting is a socket bitmap, not five zone-slot indices
+    /// (NP-HEX-ZM-001). The blob SHAPE changed, so the version had to move with
+    /// it — a hub reading a v2 blob as v1 would read a 16-byte mask where it
+    /// expects a zone list.
+    var schemaVersion: UInt8 = 2
     var name: String
     var modalities: [ModalityConfig]
     var totalDurationSeconds: Int
@@ -38,7 +42,11 @@ enum ModalityConfig: Codable {
 }
 
 struct PBMTranscranialConfig: Codable {
-    var zones: [Int]            // active zone indices 0–4
+    /// Which sockets on the hex lattice this command drives — the firmware's
+    /// NP_PROTO_TARGET_SOCKET_MASK representation (16 bytes, LSB-first, 0-based).
+    /// Replaces the five zone-slot indices, which named hardware that no longer
+    /// exists.
+    var socketMask: NPSocketMask
     var frequencyHz: Double     // 0 = CW, >0 = pulsed
     var dutyCyclePercent: Int   // ≤25 (firmware-enforced for pulsed)
     var durationSeconds: Int

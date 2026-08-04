@@ -17,7 +17,10 @@
         "type": "pbm_transcranial",
         "enabled": true,
         "params": {
-          "zones": "all",
+          "zones": "named",
+          "zoneRefs": [
+            "All"
+          ],
           "wavelength": "660_808_1064nm",
           "intensityPercent": 80,
           "frequencyHz": 40,

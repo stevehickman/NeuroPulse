@@ -51,6 +51,7 @@
 		64207716D966A25B982D5516 /* SessionHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4257A55FD7256C82902F183E /* SessionHistoryStore.swift */; };
 		67FE8AC53E85AD086D2A7E79 /* NPConditionDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6F8EFE9C056DB359C333A45 /* NPConditionDefinition.swift */; };
 		6DFAA165495635223A25FE97 /* NPProtocolValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1760490CA117477D04B14A45 /* NPProtocolValidator.swift */; };
+		9CACCD04878545ED8B53AA9E /* NPSocketMask.swift in Sources */ = {isa = PBXBuildFile; fileRef = ABFFC39904CC471EA13133BE /* NPSocketMask.swift */; };
 		6E08B5E2A9939D98016EE596 /* ProtocolComposerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 535FE1A1A3F7EA07C70A9659 /* ProtocolComposerView.swift */; };
 		6F3E6C90D55E7F0EA939A9B7 /* SessionProtocolUploader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 885CB34BD3476108181CD490 /* SessionProtocolUploader.swift */; };
 		723DAE8BCFBB63EDA4754516 /* SpyAnalyticsBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE569BC31AB8E2D5813C9AC2 /* SpyAnalyticsBackend.swift */; };
@@ -105,6 +106,8 @@
 		EF9E700FE1FCE680AD7F5AD2 /* SessionProtocolUploaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7EC781D7CEC2B0942EA70BA /* SessionProtocolUploaderTests.swift */; };
 		F3129974C32F4BAAB028E8AE /* BIPAConsentFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2BBE5EE2C24E00D0AE3859D1 /* BIPAConsentFlowTests.swift */; };
 		F3C9296D0882AB74FDCFED6A /* NPProtocolValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0B6D74CAD1A262659C68FEF8 /* NPProtocolValidatorTests.swift */; };
+		312EB6BAC0924EAF8289FC6A /* NPPBMTargetScriptingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C212591D696B4A56AC365D71 /* NPPBMTargetScriptingTests.swift */; };
+		2BB418EDE35A45EFA375D265 /* NPSocketMaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FFA87C95FA54976A9E82012 /* NPSocketMaskTests.swift */; };
 		F7FD1ECED44EC2FCFD908129 /* EEGConsentGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5271749F3B374AE615562C /* EEGConsentGateTests.swift */; };
 		FA4ECAEF4B31258D42A3178D /* WarrantyAnalyticsGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949828B8F89888798184F922 /* WarrantyAnalyticsGate.swift */; };
 		FADA964537EE7400E6D8A122 /* OTAModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3340437AFB2197A3E561674B /* OTAModels.swift */; };
@@ -131,12 +134,15 @@
 		061FB05A74D1AB085EA1F477 /* PostHogAnalyticsBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostHogAnalyticsBackend.swift; sourceTree = "<group>"; };
 		0799E0F5B635E574DE63C68E /* ConditionLinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConditionLinkView.swift; sourceTree = "<group>"; };
 		0B6D74CAD1A262659C68FEF8 /* NPProtocolValidatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolValidatorTests.swift; sourceTree = "<group>"; };
+		C212591D696B4A56AC365D71 /* NPPBMTargetScriptingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPPBMTargetScriptingTests.swift; sourceTree = "<group>"; };
+		5FFA87C95FA54976A9E82012 /* NPSocketMaskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPSocketMaskTests.swift; sourceTree = "<group>"; };
 		0CDB12A75FE69E0B99813FA9 /* NPLimitsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPLimitsStore.swift; sourceTree = "<group>"; };
 		0F5EF5775724E9F466BB0B51 /* SessionState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionState.swift; sourceTree = "<group>"; };
 		10BBEF21A2269F8309286AF6 /* ModalityEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModalityEditorView.swift; sourceTree = "<group>"; };
 		11E0331496FE4F4009A6CF1F /* ResearchSuggestion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchSuggestion.swift; sourceTree = "<group>"; };
 		170CBB3058C1D4BA119B10A5 /* ProtocolChunker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolChunker.swift; sourceTree = "<group>"; };
 		1760490CA117477D04B14A45 /* NPProtocolValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolValidator.swift; sourceTree = "<group>"; };
+		ABFFC39904CC471EA13133BE /* NPSocketMask.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPSocketMask.swift; sourceTree = "<group>"; };
 		17A2F730199CA3A6D4945D00 /* EngagementTierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EngagementTierTests.swift; sourceTree = "<group>"; };
 		183E14AFA6D31EFCDE01E7E0 /* ConsentDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsentDashboardView.swift; sourceTree = "<group>"; };
 		1917AE42CF810EAFD72D8B38 /* NPBundledProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPBundledProtocols.swift; sourceTree = "<group>"; };
@@ -264,6 +270,8 @@
 				A2ADE40B08A9BD7DE7FA0E05 /* NeurOneTests.swift */,
 				AF19B17E283A9BEBA9A7721A /* NPProtocolLibraryTests.swift */,
 				0B6D74CAD1A262659C68FEF8 /* NPProtocolValidatorTests.swift */,
+				C212591D696B4A56AC365D71 /* NPPBMTargetScriptingTests.swift */,
+				5FFA87C95FA54976A9E82012 /* NPSocketMaskTests.swift */,
 				4EE6335051DEDC20B6587B3C /* OTAManagerTests.swift */,
 				AE33DDFEEC790861FFA441E3 /* PhoneSessionManagerTests.swift */,
 				76D6557AD24572EF69FB3A21 /* ProtocolChunkerTests.swift */,
@@ -477,6 +485,7 @@
 				8D166E18D65E55F876E0F345 /* NPProtocolLibrary.swift */,
 				5EBA328FC765B76F0658FAA5 /* NPProtocolScripting.swift */,
 				1760490CA117477D04B14A45 /* NPProtocolValidator.swift */,
+				ABFFC39904CC471EA13133BE /* NPSocketMask.swift */,
 				170CBB3058C1D4BA119B10A5 /* ProtocolChunker.swift */,
 			);
 			path = Protocol;
@@ -665,6 +674,7 @@
 				C4274D49DE80999B5467F769 /* NPProtocolLibrary.swift in Sources */,
 				40439B626AC3D215298B8279 /* NPProtocolScripting.swift in Sources */,
 				6DFAA165495635223A25FE97 /* NPProtocolValidator.swift in Sources */,
+				9CACCD04878545ED8B53AA9E /* NPSocketMask.swift in Sources */,
 				7A0B95455C43F74DAD22C541 /* NPSessionProtocol+FromDefinition.swift in Sources */,
 				899B65D425C2656FDF6FFDC3 /* NeurOneApp.swift in Sources */,
 				7785D0E7465592857C7FFEDE /* NeurOneGATTManager.swift in Sources */,
@@ -720,6 +730,8 @@
 				1CFE070095545217F6607859 /* HardwareSetupManagerTests.swift in Sources */,
 				DCF7D5677BA27C9FC2E0FC07 /* NPProtocolLibraryTests.swift in Sources */,
 				F3C9296D0882AB74FDCFED6A /* NPProtocolValidatorTests.swift in Sources */,
+				312EB6BAC0924EAF8289FC6A /* NPPBMTargetScriptingTests.swift in Sources */,
+				2BB418EDE35A45EFA375D265 /* NPSocketMaskTests.swift in Sources */,
 				3972FDF920960F47DCEEAE32 /* NeurOneGATTManagerTests.swift in Sources */,
 				B17ECCCD1FD13C9EA6BA08A0 /* NeurOneTests.swift in Sources */,
 				D9E517B1F5D00C4B93F2B5DE /* OTAManagerTests.swift in Sources */,

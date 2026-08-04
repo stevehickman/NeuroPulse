@@ -235,11 +235,11 @@ export interface NPEligibility {
 /**
  * Which zones a modality targets.
  *
- * Only `named` + `zoneRefs` is a real zone reference. `all` means every zone in
- * the namespace. The legacy `front`/`rear`/`custom` numeric forms predate named
- * zones and cannot be resolved against socket ids, so they are reported as
- * unresolved rather than silently treated as full coverage — every zone
- * reference must resolve to an NPPS-defined zone (NP-CFG-UI-001).
+ * `named` + `zoneRefs` is the only real zone reference. A modality with no
+ * `zones` field at all targets the whole helmet implicitly, which is most of
+ * them. Anything else is reported as unresolved rather than silently treated as
+ * full coverage — every zone reference must resolve to an NPPS-defined zone
+ * (NP-CFG-UI-001).
  */
 function targetZones(
   modality: NPProtocolModality,
@@ -264,11 +264,11 @@ function targetZones(
     return { zones, unresolved };
   }
 
-  if (selection === 'all' || selection === undefined) {
+  if (selection === undefined) {
     return { zones: [...namespace.values()], unresolved: [] };
   }
 
-  return { zones: [], unresolved: [`legacy '${selection}' selection — not an NPPS zone`] };
+  return { zones: [], unresolved: [`'${selection}' is not an NPPS zone reference`] };
 }
 
 function shortfallFor(

@@ -25,7 +25,7 @@ enum NPBundledProtocols {
             intensity: 80%
             frequency: 40Hz
             duty_cycle: 25%
-            zones: all
+            zones: ["Vault (excl. Occipital)"]
             wavelength: 660_808nm
         }
 
@@ -71,7 +71,7 @@ enum NPBundledProtocols {
             intensity: 75%
             frequency: 10Hz
             duty_cycle: 25%
-            zones: all
+            zones: ["All"]
             wavelength: 660_808nm
         }
 
@@ -115,7 +115,7 @@ enum NPBundledProtocols {
             intensity: 60%
             frequency: 2Hz
             duty_cycle: 25%
-            zones: rear
+            zones: ["Posterior"]
             wavelength: 660_808nm
         }
 
@@ -158,7 +158,7 @@ enum NPBundledProtocols {
             intensity: 70%
             frequency: 6Hz
             duty_cycle: 25%
-            zones: all
+            zones: ["Frontal"]
             wavelength: 660_808nm
         }
 
@@ -209,7 +209,7 @@ enum NPBundledProtocols {
             intensity: 65%
             frequency: 10Hz
             duty_cycle: 25%
-            zones: front
+            zones: ["Frontal"]
             wavelength: 660_808nm
         }
 
@@ -246,7 +246,7 @@ enum NPBundledProtocols {
             intensity: 80%
             frequency: 40Hz
             duty_cycle: 25%
-            zones: [1, 2]
+            zones: ["Frontal"]
             wavelength: 660_808nm
         }
 
@@ -254,7 +254,7 @@ enum NPBundledProtocols {
             intensity: 75%
             frequency: 6Hz
             duty_cycle: 25%
-            zones: [3, 4, 5]
+            zones: ["Posterior"]
             wavelength: 660_808nm
         }
 
@@ -291,7 +291,7 @@ enum NPBundledProtocols {
         pbm_transcranial {
             intensity: 80%
             frequency: 0Hz
-            zones: all
+            zones: ["All"]
             wavelength: 660_808nm
         }
 
@@ -341,7 +341,7 @@ enum NPBundledProtocols {
             intensity: 70%
             frequency: 20Hz
             duty_cycle: 25%
-            zones: front
+            zones: ["Frontal"]
             wavelength: 660_808nm
         }
 
@@ -489,7 +489,7 @@ enum NPBundledProtocols {
             intensity: 80%
             frequency: 20Hz
             duty_cycle: 25%
-            zones: all
+            zones: ["All"]
             wavelength: 660_808nm
         }
 
@@ -544,7 +544,7 @@ enum NPBundledProtocols {
             intensity: 75%
             frequency: 40Hz
             duty_cycle: 25%
-            zones: front
+            zones: ["Frontal"]
             wavelength: 660_808nm
         }
 
@@ -552,7 +552,7 @@ enum NPBundledProtocols {
             intensity: 70%
             frequency: 6Hz
             duty_cycle: 25%
-            zones: rear
+            zones: ["Posterior"]
             wavelength: 660_808nm
         }
 
@@ -602,7 +602,7 @@ enum NPBundledProtocols {
             intensity: 75%
             frequency: 40Hz
             duty_cycle: 25%
-            zones: all
+            zones: ["All"]
             wavelength: 660_808nm
         }
 

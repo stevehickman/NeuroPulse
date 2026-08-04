@@ -290,6 +290,81 @@ static void test_socket_expand_matches_module_map_input(void)
     check(ascending, "expand: strictly ascending (so duplicate-free)");
 }
 
+/*
+ * The socket-number <-> bit-position conversion contract (NUMBER-1).
+ *
+ * A socket NUMBER is 1-based project-wide (docs/np_hex_zm_001.md §3.3). The bit
+ * position in this bitmap is NOT a socket number — it is index space, and bit 0
+ * means socket 1. Every producer converts once on the way in and every consumer
+ * adds the base back before quoting a socket number. The contract is what the
+ * other two tests above assume; this one states it.
+ *
+ * The bytes below are a FROZEN FIXTURE, captured from the app-side producer
+ * (app/web/src/lib/hubCompiler.ts socketBitmap(), via compileProtocol, reading
+ * the 16-byte target block at offset 64+14) for the zone "Occipital Left" =
+ * NPPS sockets 72,73,74,77,78. The identical hex is asserted in the iOS suite
+ * (NPSocketMaskTests.testMaskBytesMatchTheWebEncoder), so all three producers
+ * are pinned to one byte pattern. It is a fixture and not a read of
+ * 00-zones.npps deliberately, for the reason given on FRONTAL_LEFT_FW above.
+ */
+#define NP_SOCKET_NUMBERING_BASE  1U   /* NUMBER-1; app-side NP_SOCKET_NUMBERING_BASE */
+
+static const uint8_t OCCIPITAL_LEFT_MASK[NP_HUB_SOCKET_MASK_BYTES] = {
+    /* bytes 0-7 clear; byte 8 = bit 71 (socket 72); byte 9 = bits 72,73,76,77 */
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x80, 0x33, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+static const uint16_t OCCIPITAL_LEFT_NPPS[] = { 72U, 73U, 74U, 77U, 78U };
+#define OCCIPITAL_LEFT_N (sizeof OCCIPITAL_LEFT_NPPS / sizeof OCCIPITAL_LEFT_NPPS[0])
+
+static void test_numbering_base_conversion_contract(void)
+{
+    blob_t b;
+    const uint8_t params[4] = { 40, 0x32, 200, 200 };
+    blob_begin(&b, NP_HUB_PROTO_VERSION);
+    blob_add_cmd(&b, NP_MOD_PBM_BASE, NP_HUB_SLOT_NONE, 0U, 0U,
+                 NP_PROTO_TARGET_SOCKET_MASK, OCCIPITAL_LEFT_MASK,
+                 NP_HUB_SOCKET_MASK_BYTES, params, sizeof params);
+    size_t len = blob_finish(&b);
+
+    np_session_desc_t desc;
+    check(np_protocol_verify_and_parse(b.buf, len, &desc) == NP_HUB_OK,
+          "numbering: an app-produced mask parses");
+
+    const np_session_cmd_t *c = &desc.cmds[0];
+    check(np_protocol_socket_count(c) == OCCIPITAL_LEFT_N,
+          "numbering: the app-produced mask selects 5 sockets");
+
+    uint16_t sockets[NP_HUB_SOCKET_MASK_BYTES * 8U];
+    uint16_t n = 0U;
+    (void)np_protocol_socket_expand(c, sockets,
+                                    (uint16_t)(sizeof sockets / sizeof *sockets), &n);
+
+    /* The contract: index + base == the socket number a human authored. */
+    bool exact = (n == OCCIPITAL_LEFT_N);
+    for (uint16_t i = 0U; exact && i < n; i++) {
+        exact = ((uint16_t)(sockets[i] + NP_SOCKET_NUMBERING_BASE)
+                 == OCCIPITAL_LEFT_NPPS[i]);
+    }
+    check(exact,
+          "numbering: expanded index + NP_SOCKET_NUMBERING_BASE == the authored "
+          "NPPS socket numbers 72,73,74,77,78");
+
+    /* Stated the other way round, at the top edge of the zone — the one place a
+     * base error is visible as a MISS rather than as a neighbouring hit. Socket
+     * 78 is the highest in Occipital Left, so bit 77 is set and bit 78 is not.
+     * A consumer that read this mask 1-based would look at bit 78, find nothing,
+     * and quietly drop the socket; inside the zone the same error merely shifts
+     * onto the adjacent tile, which is why the edge is the witness. */
+    check(np_protocol_socket_is_set(c, 78U - NP_SOCKET_NUMBERING_BASE),
+          "numbering: NPPS socket 78 is bit 77");
+    check(!np_protocol_socket_is_set(c, 78U),
+          "numbering: bit 78 is NOT set — reading this mask 1-based would lose the "
+          "zone's highest socket entirely");
+    check(!np_protocol_socket_is_set(c, 71U - NP_SOCKET_NUMBERING_BASE),
+          "numbering: NPPS socket 71 is not in Occipital Left");
+}
+
 static void test_socket_expand_overflow(void)
 {
     blob_t  b;
@@ -615,6 +690,7 @@ int main(void)
     test_socket_target_roundtrip();
     test_socket_membership();
     test_socket_expand_matches_module_map_input();
+    test_numbering_base_conversion_contract();
     test_socket_expand_overflow();
     test_bitmap_makes_double_drive_unrepresentable();
 

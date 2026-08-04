@@ -64,8 +64,6 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
       ];
       if (p.zones === 'named' && p.zoneRefs) {
         lines.push(`zones: ${strArr(p.zoneRefs)}`);
-      } else if (p.zones === 'custom' && p.customZones) {
-        lines.push(`custom_zones: ${numArr(p.customZones)}`);
       } else {
         lines.push(`zones: ${p.zones}`);
       }

@@ -64,7 +64,3 @@ export function getCachedPredefinedProtocols(): NPProtocolEntry[] {
 export function getPredefinedNamespace(): NPNamespace | null {
   return _cachedNamespace;
 }
-
-// Backward-compatibility export — synchronous empty array at module load time.
-// Replaced by async loading; kept so any remaining static imports don't break at compile time.
-export const PREDEFINED_PROTOCOLS: NPProtocolEntry[] = [];

@@ -6,7 +6,17 @@ import Foundation
 
 extension NPSessionProtocol {
 
-    init(from definition: NPProtocolDefinition, mode: OperatingMode = .mode2Programming) {
+    /// - Parameter clinicianSockets: operator-chosen 1-based socket ids, needed
+    ///   only when a PBM modality targets `clinician_selected`.
+    /// - Throws: `NPSocketTargetError` when a PBM target cannot be resolved to
+    ///   sockets. Building the wire protocol is the last point at which that can
+    ///   be caught, and it must fail rather than substitute a default — the
+    ///   validator surfaces the same condition earlier and more readably.
+    init(
+        from definition: NPProtocolDefinition,
+        mode: OperatingMode = .mode2Programming,
+        clinicianSockets: [Int]? = nil
+    ) throws {
         let durationSeconds = definition.totalDurationSeconds ?? 20 * 60
         var modalities: [ModalityConfig] = []
 
@@ -14,7 +24,7 @@ extension NPSessionProtocol {
             switch mod.params {
             case .pbmTranscranial(let p):
                 modalities.append(.pbmTranscranial(PBMTranscranialConfig(
-                    zones: p.resolvedZones,
+                    socketMask: try p.resolveSocketMask(clinicianSockets: clinicianSockets),
                     frequencyHz: p.frequencyHz,
                     dutyCyclePercent: p.dutyCyclePercent,
                     durationSeconds: durationSeconds,

@@ -152,6 +152,60 @@ enum SocketZones {
         bySocket[socketID]?.all ?? []
     }
 
+    /// Zone name -> the 1-based socket ids that zone contains, ascending.
+    ///
+    /// This is the direction TARGETING needs. `bySocket` answers "what do I call
+    /// this socket", which is a display question; a protocol saying
+    /// `zones: ["Frontal"]` asks the reverse.
+    ///
+    /// A socket may appear under several zones — the midline sockets are listed
+    /// in both hemisphere zones of their region, by design (00-zones.npps). Any
+    /// caller unioning two zones must therefore deduplicate; `NPSocketMask` does
+    /// it structurally, because a bit cannot be set twice.
+    static let byZone: [String: [UInt8]] = [
+    "Frontal Left": [1, 2, 4, 5, 6, 10, 11, 12, 13, 17, 18, 19, 20, 26, 27, 28, 29, 35, 36, 37],
+    "Frontal Right": [2, 3, 7, 8, 9, 13, 14, 15, 16, 21, 22, 23, 24, 29, 30, 31, 32, 38, 39, 40],
+    "Temporal Left": [25, 34, 42, 51, 59],
+    "Temporal Right": [33, 41, 50, 58, 65],
+    "Parietal Left": [43, 44, 45, 46, 52, 53, 54, 60, 61, 62, 66, 67, 68],
+    "Parietal Right": [46, 47, 48, 49, 55, 56, 57, 62, 63, 64, 69, 70, 71],
+    "Occipital Left": [72, 73, 74, 77, 78],
+    "Occipital Right": [74, 75, 76, 79, 80],
+    "All": [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+        36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68,
+        69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+    ],
+    "Frontal": [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 32, 35, 36, 37, 38,
+        39, 40,
+    ],
+    "Vault (excl. Occipital)": [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+        36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68,
+        69, 70, 71,
+    ],
+    "Frontal Right (excl. midline)": [3, 6, 9, 10, 14, 15, 18, 19],
+    "Motor / SMA": [26, 27, 28, 29, 30, 31, 32],
+    "Posterior": [
+        43, 44, 45, 46, 47, 48, 49, 52, 53, 54, 55, 56, 57, 60, 61, 62, 63, 64, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+    ],
+    ]
+
+    /// Sockets a zone contains, or nil when this build knows no zone by that
+    /// name — which is an authoring error in the protocol, not a device state.
+    static func sockets(forZone zoneName: String) -> [UInt8]? {
+        byZone[zoneName]
+    }
+
+    /// Every authored zone name, in the order protocols/predefined/00-zones.npps
+    /// declares them. Stable across regenerations, so a UI list built from this
+    /// does not reshuffle when an unrelated zone is edited.
+    static let zoneNames: [String] = [
+        "Frontal Left", "Frontal Right", "Temporal Left", "Temporal Right", "Parietal Left", "Parietal Right", "Occipital Left",
+        "Occipital Right", "All", "Frontal", "Vault (excl. Occipital)", "Frontal Right (excl. midline)", "Motor / SMA", "Posterior",
+    ]
+
     /// Socket ids this table covers. Not a hardware claim — the helmet's own
     /// socket map is authoritative for which sockets physically exist.
     static let socketCount = 80

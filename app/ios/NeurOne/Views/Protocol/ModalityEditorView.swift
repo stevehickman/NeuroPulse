@@ -191,17 +191,83 @@ struct PBMTranscranialParamsView: View {
         ("CW", 0), ("2Hz", 2), ("6Hz", 6), ("10Hz", 10), ("20Hz", 20), ("40Hz", 40)
     ]
 
+    /// One picker row. The editor offers a single named zone or the
+    /// clinician-selected target; multi-zone targets (`zones: ["A", "B"]`) are
+    /// authored in .npps script today, so an existing one is shown as its own
+    /// row rather than being silently collapsed to its first zone.
+    private enum ZoneChoice: Hashable {
+        case zone(String)
+        case clinicianSelected
+        /// A multi-zone target, which this one-row picker cannot construct.
+        /// Selectable only in the sense that it is already selected.
+        case asAuthored(String)
+
+        var displayName: String {
+            switch self {
+            case .zone(let name):         return name
+            case .clinicianSelected:      return "Clinician selects at session start"
+            case .asAuthored(let label):  return label
+            }
+        }
+    }
+
+    /// The current target as a picker row, plus the standard rows.
+    private var currentChoice: ZoneChoice {
+        switch params.target {
+        case .named(let names) where names.count == 1: return .zone(names[0])
+        case .clinicianSelected:                       return .clinicianSelected
+        default:                                       return .asAuthored(params.target.displayName)
+        }
+    }
+
+    private var zoneChoices: [ZoneChoice] {
+        var choices: [ZoneChoice] = SocketZones.zoneNames.map { .zone($0) }
+        choices.append(.clinicianSelected)
+        if case .asAuthored = currentChoice { choices.append(currentChoice) }
+        return choices
+    }
+
+    private var zoneChoice: Binding<ZoneChoice> {
+        Binding(
+            get: { currentChoice },
+            set: { choice in
+                switch choice {
+                case .zone(let name):    params.target = .named([name])
+                case .clinicianSelected: params.target = .clinicianSelected
+                case .asAuthored:        break   // not constructible from here
+                }
+            }
+        )
+    }
+
+    /// What the current target actually reaches — the number that matters, and
+    /// the one a retired selector cannot produce.
+    private var targetSummary: String {
+        if case .clinicianSelected = params.target {
+            return "Sockets chosen by the operator at session start."
+        }
+        do {
+            let mask = try params.resolveSocketMask()
+            return "\(mask.socketCount) socket\(mask.socketCount == 1 ? "" : "s") targeted."
+        } catch {
+            return error.localizedDescription
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             // Zone selection
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "MODALITY_ZONES")).font(.caption).foregroundColor(.secondary)
-                Picker("Zones", selection: $params.zones) {
-                    ForEach(NPPBMTranscranialParams.ZoneSelection.allCases) { sel in
-                        Text(sel.displayName).tag(sel)
+                Picker("Zones", selection: zoneChoice) {
+                    ForEach(zoneChoices, id: \.self) { choice in
+                        Text(choice.displayName).tag(choice)
                     }
                 }
                 .pickerStyle(.menu)
+                Text(targetSummary)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
 
             // Wavelength

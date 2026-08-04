@@ -53,6 +53,14 @@
  * Sized to NP_HEXMAP_MAX_SOCKETS (128, the full 7-bit socket domain), NOT to the
  * 78 sockets this shell wires — the wire format must not need a revision when a
  * shell wires more of the domain it already addresses.
+ *
+ * BIT POSITION IS INDEX SPACE, NOT A SOCKET NUMBER. Bit 0 selects socket 1. A
+ * socket NUMBER is 1-based project-wide (NUMBER-1, docs/np_hex_zm_001.md §3.3);
+ * this bitmap is exempt because a bit position is an offset, and because the
+ * exemption is what makes the sizing work — mapping sockets 1..128 onto bits
+ * 1..128 would need a 129th bit, i.e. a 17th byte, or a lattice capped at 127.
+ * Producers convert once (hubCompiler.socketBitmap, NPSocketMask) and consumers
+ * add the base back before any socket number is shown or logged.
  */
 #define NP_HUB_SOCKET_MASK_BYTES    16U   /* 128 bits == NP_HEXMAP_MAX_SOCKETS */
 #define NP_HUB_PROTO_TARGET_MAX     NP_HUB_SOCKET_MASK_BYTES

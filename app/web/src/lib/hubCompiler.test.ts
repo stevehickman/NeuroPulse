@@ -268,31 +268,27 @@ describe('clinician-selected targets', () => {
 });
 
 describe('retired five-slot selectors', () => {
-  // These named the legacy zone-module slots. They are not migrated silently:
-  // 00-zones.npps and nppsParser.ts disagree about what the numeric form meant,
-  // and v1's `front` bitmask (0x07) covered frontal L/R *plus parietal L*, which
-  // is not what 00-zones.npps says `front` migrates to.
-  it.each([
-    ['all', 'All'],
-    ['front', 'Frontal'],
-    ['rear', 'Posterior'],
-  ])('refuses zones: %s and names the migration target %s', (selector, target) => {
+  // The five-slot selectors are gone from the type, so `zones` has exactly two
+  // members and the compiler's resolver has no branch that could accept one.
+  // These assert the removal from the outside: a hand-built object carrying an
+  // old selector is not silently treated as coverage.
+  it.each(['all', 'front', 'rear', 'custom'])('does not compile zones: %s', (selector) => {
     expect(() => compileProtocol(
-      pbmProtocol({ zones: selector as PBMTranscranialParams['zones'] }), { zones }))
-      .toThrow(new RegExp(`retired zone selector '${selector}'[\\s\\S]*"${target}"`));
+      pbmProtocol({ zones: selector as unknown as PBMTranscranialParams['zones'] }), { zones }))
+      .toThrow();
   });
 
-  it('refuses numeric custom zones as ambiguous rather than guessing a base', () => {
+  it('does not resolve a numeric zone list', () => {
     expect(() => compileProtocol(
-      pbmProtocol({ zones: 'custom', customZones: [1, 2] }), { zones }))
-      .toThrow(/base is ambiguous/);
+      pbmProtocol({ zones: [1, 2] as unknown as PBMTranscranialParams['zones'] }), { zones }))
+      .toThrow();
   });
 });
 
 describe('newly-created protocols', () => {
   // defaultParams() seeds the UI's "add a modality" flow. It used to seed the
-  // retired `zones: 'all'` selector, which the compiler now refuses — so a
-  // freshly-created protocol would not have compiled at all.
+  // retired `zones: 'all'` selector, which no longer exists — so a freshly-created
+  // protocol would not have compiled at all.
   it('compiles a protocol built from defaultParams', () => {
     const proto = pbmProtocol({});
     proto.modalities[0].modalityParams = {

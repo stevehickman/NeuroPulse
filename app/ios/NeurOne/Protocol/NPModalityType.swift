@@ -83,7 +83,8 @@ enum NPModalityType: String, CaseIterable, Codable, Identifiable {
     var shortDescription: String {
         switch self {
         case .pbmTranscranial:
-            return "660nm + 810nm LED arrays across 5 scalp zones; pulsed or CW; real-time J/cm² dose metering."
+            return "660nm + 810nm LED arrays tiled across the socket lattice; zone-targeted;"
+                + " pulsed or CW; real-time J/cm² dose metering."
         case .pbmIntranasal:
             return "Bilateral Y-probe; 660nm + 810nm; depth-stop rings; authenticated hygiene sleeves."
         case .eegNeurofeedback:

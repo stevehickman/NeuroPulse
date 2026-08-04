@@ -520,8 +520,13 @@ describe('protocol eligibility', () => {
     expect(result.shortfalls[0].unresolvedZones).toEqual(['Nonexistent Zone']);
   });
 
-  /** Legacy front/rear/custom selections are not NPPS zones and must not pass. */
-  it('rejects legacy non-NPPS zone selections', () => {
+  /**
+   * The retired five-slot selectors no longer exist in the type or the grammar,
+   * so this can only arise from a hand-built object. It must still be reported
+   * as unresolved rather than waved through as full coverage — an unrecognised
+   * target is not "everywhere".
+   */
+  it('rejects a zone selection that is not an NPPS zone reference', () => {
     const proto = pbmProtocol([]);
     (proto.modalities[0].modalityParams.params as { zones: string }).zones = 'front';
 
@@ -529,7 +534,7 @@ describe('protocol eligibility', () => {
     const result = evaluateProtocol(proto, inv, zoneNamespace);
 
     expect(result.eligible).toBe(false);
-    expect(result.shortfalls[0].unresolvedZones[0]).toContain('legacy');
+    expect(result.shortfalls[0].unresolvedZones[0]).toContain('not an NPPS zone reference');
   });
 
   it('ignores accessory-delivered modalities when judging socket fit', () => {

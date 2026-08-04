@@ -471,30 +471,13 @@ function intensityReg(pct: number): number {
 // ─── Zone → socket resolution ─────────────────────────────────────────────────
 
 /**
- * The retired five-slot selectors, and the named zone each one migrates to.
- *
- * These names are the migration targets declared in the aggregate-zone block of
- * `protocols/predefined/00-zones.npps`, which is the authority on what the old
- * selectors meant. Note that they do NOT agree with the bit patterns v1's
- * `zoneSlotMask()` emitted: `front` was `0x07`, i.e. zone slots 0–2 = frontal
- * L/R **plus parietal L**, so the old front/rear split cut the parietal pair in
- * half. Reproducing that bitmask against sockets would be reproducing a bug.
- *
- * Rather than pick between two documented meanings for a value that decides
- * where light lands on a skull, these selectors do not compile — the message
- * names the zone to use instead, so the migration is one edit.
- */
-const RETIRED_SELECTOR_MIGRATION: Record<string, string> = {
-  all:   'All',
-  front: 'Frontal',
-  rear:  'Posterior',
-};
-
-/**
  * Resolve a PBM transcranial zone spec to the 1-based NPPS socket ids it names.
  *
  * Overlap is fine and expected: zones share midline sockets by design, and the
  * bitmap collapses the duplicates (see socketBitmap).
+ *
+ * There are two target forms and no third — the retired five-slot selectors are
+ * gone from the type, so there is no branch here that can fail to compile one.
  */
 function resolvePbmSockets(p: PBMTranscranialParams, opts: CompileOptions): number[] {
   if (p.zones === 'named') {
@@ -533,27 +516,11 @@ function resolvePbmSockets(p: PBMTranscranialParams, opts: CompileOptions): numb
     return [...chosen];
   }
 
-  // 'all' | 'front' | 'rear' | 'custom' — retired.
-  const migration = RETIRED_SELECTOR_MIGRATION[p.zones];
-  if (migration) {
-    throw new Error(
-      `PBM transcranial uses the retired zone selector '${p.zones}', which addressed the ` +
-      `five legacy zone-module slots. Use the named zone "${migration}" instead ` +
-      `(zones: ["${migration}"]) — see protocols/predefined/00-zones.npps.`
-    );
-  }
-
-  // 'custom' with numeric indices. These are genuinely ambiguous: nppsParser.ts
-  // documents them as 0-based legacy zone indices, 00-zones.npps documents them
-  // as 1-based (`zones: [1, 2]` = zone slots 0–1). One reading targets a whole
-  // zone away from the other, so neither is safe to assume.
-  throw new Error(
-    `PBM transcranial uses the retired numeric zone selector ` +
-    `(custom_zones: [${(p.customZones ?? []).join(', ')}]). Its base is ambiguous — ` +
-    `nppsParser documents 0-based indices, 00-zones.npps documents 1-based — so it ` +
-    `cannot be migrated automatically. Replace it with named zones ` +
-    `(e.g. zones: ["Frontal Left", "Frontal Right"]).`
-  );
+  // Unreachable while `zones` has exactly the two members above — the compiler
+  // proves it via `never`. Kept so adding a third form is a type error here
+  // rather than a silent fall-through to an untargeted session.
+  const exhaustive: never = p.zones;
+  throw new Error(`PBM transcranial has an unhandled zone target: ${String(exhaustive)}`);
 }
 
 /** Map TMS / HD-tDCS target string to 3-bit index. */
