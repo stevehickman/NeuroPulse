@@ -7,17 +7,21 @@ on:
   push:
     paths:
       - 'app/web/**'
+      - 'locales/**'
       - 'npps/fixtures/**'
       - 'protocols/predefined/**'
       - 'scripts/sync-conditions.ts'
+      - 'scripts/sync-locales.ts'
       - 'scripts/sync-socket-map.ts'
       - 'scripts/test-lateralization-audit.sh'
   pull_request:
     paths:
       - 'app/web/**'
+      - 'locales/**'
       - 'npps/fixtures/**'
       - 'protocols/predefined/**'
       - 'scripts/sync-conditions.ts'
+      - 'scripts/sync-locales.ts'
       - 'scripts/sync-socket-map.ts'
       - 'scripts/test-lateralization-audit.sh'
   workflow_dispatch:
@@ -60,6 +64,18 @@ jobs:
       - name: Socket map in sync + no unreviewed lateralized protocols
         working-directory: .
         run: bun scripts/sync-socket-map.ts --check
+
+      # The iOS String Catalog and the web locale copies are both generated from
+      # locales/*.json. Without this step, canonical and catalogue drift silently
+      # and re-running the generator destroys live data: 26 keys existed only in
+      # the committed .xcstrings (18 of them referenced by iOS source), and the
+      # NP-HFE-002 rewording of two setup strings had been applied to the
+      # generated catalogue only — regenerating would have reverted them to
+      # instructing users to listen for a bone-conduction tone the firmware no
+      # longer emits (docs/np_fw_za_001.md, NP-HFE-002 §7.2).
+      - name: Locale catalogues in sync with canonical locales/*.json
+        working-directory: .
+        run: bun scripts/sync-locales.ts --check
 
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .
