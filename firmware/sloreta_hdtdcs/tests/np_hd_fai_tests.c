@@ -191,7 +191,8 @@ static int fai_hd02_electrode_mapping(void)
  *   HD01-C: localization error ≤ 15 mm for 5/6 standard clinical targets
  *            (DLPFC_L, DLPFC_R, ACC, MPFC, M1_L, M1_R).
  *
- * This test stub verifies the software plumbing with a synthetic noise source.
+ * This test stub verifies the software plumbing with a synthetic sinusoidal
+ * source (see the stimulus comment below for why it must not be DC).
  * The numerical accuracy requirement (≤ 15 mm) is verified only on hardware.
  */
 static int fai_hd01_sloreta_plumbing(void)
@@ -211,11 +212,37 @@ static int fai_hd01_sloreta_plumbing(void)
     np_sloreta_ctx_t ctx;
     ASSERT_OK(np_sloreta_init(&ctx, W, voxel_mni, 2U));
 
-    /* Inject synthetic signal: F3 driven at 10 µV, all others 0. */
+    /*
+     * Inject a synthetic epoch: F3 carries a 10 µV alpha-band sinusoid, O2 a
+     * 1 µV tone standing in for background activity at the undriven voxel.
+     *
+     * The stimulus MUST be time-varying.  np_sloreta_push_epoch() subtracts the
+     * per-channel epoch mean before accumulating the covariance, so the DC level
+     * this test used to inject left an exactly zero residual on every sample.
+     * The covariance stayed zero, every voxel's W^T·C·W evaluated to zero, and
+     * the dominance/band-power/covariance-norm assertions all failed against
+     * firmware that was behaving correctly — a covariance-based localiser has no
+     * power to report for a zero-variance input.
+     *
+     * Cycle counts are whole numbers per 1024-sample epoch, so each channel's
+     * epoch mean is exactly zero and mean subtraction introduces no leakage.
+     * At 500 Hz: 20 cycles = 9.77 Hz (alpha), 7 cycles = 3.42 Hz (delta).
+     *
+     * M_PI is deliberately not used — it is POSIX, not ISO C, and these tests
+     * compile with a strict -std=c11 where glibc hides it.
+     */
+    static const float    k_two_pi          = 6.283185307179586f;
+    static const float    k_f3_amplitude_uv = 10.0f;
+    static const float    k_o2_amplitude_uv = 1.0f;
+    static const uint16_t k_f3_cycles       = 20U;
+    static const uint16_t k_o2_cycles       = 7U;
+
     static float samples[NP_HD_SLORETA_N_CH][NP_HD_SLORETA_FFT_SIZE];
     memset(samples, 0, sizeof(samples));
     for (uint16_t s = 0U; s < NP_HD_SLORETA_FFT_SIZE; s++) {
-        samples[NP_HD_CH_F3][s] = 10.0f;
+        float phase = k_two_pi * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
+        samples[NP_HD_CH_F3][s] = k_f3_amplitude_uv * sinf(phase * (float)k_f3_cycles);
+        samples[NP_HD_CH_O2][s] = k_o2_amplitude_uv * sinf(phase * (float)k_o2_cycles);
     }
 
     /* Push enough epochs to satisfy NP_HD_SLORETA_EPOCHS. */
