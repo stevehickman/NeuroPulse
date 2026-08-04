@@ -63,12 +63,29 @@ interface LocaleData {
   [key: string]: string;
 }
 
+/**
+ * The sort is load-bearing, not cosmetic. Map iteration order is insertion
+ * order, and generateXCStrings writes each entry's `localizations` in that
+ * order — so an unsorted readdirSync leaks the filesystem's directory order
+ * into the generated JSON. That makes the output differ between machines
+ * (APFS yielded "bn, ru, en, ..."; the Linux CI runner yields another order)
+ * for byte-identical inputs, which a --check that compares bytes would flag as
+ * stale forever on one platform or the other. Sorting makes the generator a
+ * pure function of the locale file names and contents.
+ */
 function loadLocales(): Map<string, LocaleData> {
+  // Sorted on the locale code, not the file name: "en-GB.json" sorts before
+  // "en.json" ('-' < '.'), which would emit en-GB ahead of en for no reason.
+  const codes = readdirSync(LOCALES_DIR)
+    .filter((f) => f.endsWith(".json") && !f.startsWith("_"))
+    .map((f) => basename(f, ".json"))
+    .sort();
+
   const locales = new Map<string, LocaleData>();
-  for (const file of readdirSync(LOCALES_DIR)) {
-    if (!file.endsWith(".json") || file.startsWith("_")) continue;
-    const locale = basename(file, ".json");
-    const data: LocaleData = JSON.parse(readFileSync(join(LOCALES_DIR, file), "utf-8"));
+  for (const locale of codes) {
+    const data: LocaleData = JSON.parse(
+      readFileSync(join(LOCALES_DIR, `${locale}.json`), "utf-8"),
+    );
     locales.set(locale, data);
   }
   return locales;
