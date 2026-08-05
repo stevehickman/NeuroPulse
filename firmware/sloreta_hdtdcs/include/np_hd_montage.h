@@ -80,6 +80,30 @@ np_hd_status_t np_hd_montage_from_mni(const np_hd_mni_t    *target_mni,
                                         np_hd_montage_t      *out);
 
 /*
+ * Return the tACS driver channel (0 – NP_HD_DRIVER_CHANNELS-1) that the T2 cap
+ * wires to a given electrode.  Returns NP_HD_DRIVER_CH_NONE if electrode is
+ * NP_HD_CH_NONE or >= NP_HD_CH_COUNT.
+ *
+ * SINGLE SOURCE OF TRUTH for the electrode → driver channel mapping.  The table
+ * is file-static in np_hd_montage.c; this accessor is the only way to reach it
+ * from another translation unit.  np_hd_stim_init(), which actually programs the
+ * driver, resolves through it, so the layer that certifies channel distinctness
+ * and the layer that delivers current cannot disagree.
+ *
+ * Do not hand-copy the table into another module.  np_hd_stim.c did exactly that
+ * — a clone kept in sync only by a comment — and the duplicated-selection-loop
+ * form of the same mistake is what shipped the C4/P4 driver-12 collision on the
+ * bilateral right ring (see ring_select_cathodes() in np_hd_montage.c).
+ *
+ * The mapping is currently the identity: 21 electrodes, 21 driver channels, one
+ * each.  It is still reached through this accessor rather than assumed, because
+ * the note above k_driver_channel[] records the conditions under which channel
+ * sharing could return — at which point every caller must follow the table, not
+ * an assumption that electrode index equals channel index.
+ */
+uint8_t np_hd_electrode_driver_channel(np_hd_electrode_t electrode);
+
+/*
  * Validate that every electrode in the montage is in range, appears exactly once,
  * and maps to a tACS driver channel no other montage electrode uses.
  *

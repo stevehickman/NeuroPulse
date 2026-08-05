@@ -70,6 +70,8 @@
 /* 21-ch tACS driver: one channel per cap electrode, no sharing.  See the note  */
 /* above k_driver_channel[] in np_hd_montage.c for why this is not 16.          */
 #define NP_HD_DRIVER_CHANNELS       21U
+/* Returned by np_hd_electrode_driver_channel() for an out-of-range electrode. */
+#define NP_HD_DRIVER_CH_NONE        0xFFU
 
 /* ── Impedance and quality checks ───────────────────────────────────────────── */
 #define NP_HD_MAX_IMPEDANCE_KOHM    10U     /* abort stimulation if exceeded     */
