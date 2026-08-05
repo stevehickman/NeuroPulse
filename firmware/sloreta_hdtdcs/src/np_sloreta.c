@@ -80,24 +80,32 @@ np_hd_status_t np_sloreta_push_epoch(np_sloreta_ctx_t *ctx,
         means[ch] = sum / (float)n_samples;
     }
 
-    /* Accumulate outer product of mean-subtracted epoch mean into covariance.  */
-    /* Use epoch mean vector (one sample per channel after mean subtraction)    */
-    /* as a rank-1 update: C += (x - mean)(x - mean)^T per sample.             */
-    /* For efficiency: accumulate full sample covariance as running mean.        */
+    /* This epoch's sample covariance is C_e = (1/N) Σ_s (x_s - μ)(x_s - μ)^T.  */
+    /* Fold it into the running across-epoch mean with a single blend per epoch: */
+    /*                                                                          */
+    /*     C ← β·C + α·C_e,   α = 1/(epoch_count + 1),  β = 1 − α               */
+    /*                                                                          */
+    /* The blend MUST happen once per epoch, not once per sample.  Applying it   */
+    /* inside the sample loop turns it into a geometric decay with rate β per    */
+    /* sample: with N = 1024 samples, β^N ≈ 0 for every α, so all but the last   */
+    /* handful of samples are annihilated and the result is low by ~1/N.  On the */
+    /* first epoch (α = 1, β = 0) it collapses to the final sample alone.        */
+    /*                                                                          */
+    /* Pair-outer/sample-inner ordering lets each channel pair accumulate into a */
+    /* scalar, so no 21×21 epoch-covariance temporary is needed on the stack.    */
 
     float alpha = 1.0f / (float)(ctx->epoch_count + 1U);
     float beta  = 1.0f - alpha;
 
-    for (uint16_t s = 0U; s < n_samples; s++) {
-        for (uint8_t i = 0U; i < NP_HD_SLORETA_N_CH; i++) {
-            float xi = samples[i][s] - means[i];
-            for (uint8_t j = i; j < NP_HD_SLORETA_N_CH; j++) {
-                float xj = samples[j][s] - means[j];
-                float outer = xi * xj / (float)n_samples;
-                /* Welford-style running mean update across epochs.             */
-                ctx->cov[i][j] = beta * ctx->cov[i][j] + alpha * outer;
-                ctx->cov[j][i] = ctx->cov[i][j];  /* symmetric                */
+    for (uint8_t i = 0U; i < NP_HD_SLORETA_N_CH; i++) {
+        for (uint8_t j = i; j < NP_HD_SLORETA_N_CH; j++) {
+            float acc = 0.0f;
+            for (uint16_t s = 0U; s < n_samples; s++) {
+                acc += (samples[i][s] - means[i]) * (samples[j][s] - means[j]);
             }
+            float c_e = acc / (float)n_samples;
+            ctx->cov[i][j] = beta * ctx->cov[i][j] + alpha * c_e;
+            ctx->cov[j][i] = ctx->cov[i][j];  /* symmetric                     */
         }
     }
 

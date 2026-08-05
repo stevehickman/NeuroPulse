@@ -683,6 +683,9 @@ static int fai_hd02l_driver_channel_single_source(void)
  * This test stub verifies the software plumbing with a synthetic sinusoidal
  * source (see the stimulus comment below for why it must not be DC).
  * The numerical accuracy requirement (≤ 15 mm) is verified only on hardware.
+ *
+ * A deterministic stimulus cannot bound estimator variance — see HD01-D
+ * (fai_hd01d_estimator_variance) for the stochastic-input case that does.
  */
 static int fai_hd01_sloreta_plumbing(void)
 {
@@ -734,6 +737,22 @@ static int fai_hd01_sloreta_plumbing(void)
         samples[NP_HD_CH_O2][s] = k_o2_amplitude_uv * sinf(phase * (float)k_o2_cycles);
     }
 
+    /* Expected source power is exactly derivable, so assert magnitude and not
+     * merely ordering (see the magnitude check below for why that matters).
+     *
+     * W_0 is the unit vector e_F3 and W_1 is e_O2, so each quadratic form
+     * W_v^T C W_v collapses to a single covariance diagonal entry — the
+     * variance of that channel's trace, A²/2 for a coherent sinusoid.
+     *
+     * The two tones sit on whole-cycle counts (20 and 7) over the same
+     * 1024-sample window, so they are orthogonal and the F3–O2 cross-covariance
+     * is exactly zero.  The Frobenius norm therefore reduces to the two
+     * diagonal terms. */
+    const float k_expected_power_f3 = k_f3_amplitude_uv * k_f3_amplitude_uv / 2.0f;
+    const float k_expected_power_o2 = k_o2_amplitude_uv * k_o2_amplitude_uv / 2.0f;
+    const float k_expected_cov_norm = sqrtf(k_expected_power_f3 * k_expected_power_f3 +
+                                            k_expected_power_o2 * k_expected_power_o2);
+
     /* Push enough epochs to satisfy NP_HD_SLORETA_EPOCHS. */
     for (uint16_t e = 0U; e < NP_HD_SLORETA_EPOCHS; e++) {
         ASSERT_OK(np_sloreta_push_epoch(&ctx,
@@ -754,6 +773,20 @@ static int fai_hd01_sloreta_plumbing(void)
            source_power[0], source_power[1],
            source_power[1] > 0.0f ? source_power[0]/source_power[1] : 999.0f);
 
+    /* Magnitude check, not just ordering.
+     *
+     * Ordering and ratio assertions are both blind to a uniform scale error: a
+     * covariance accumulator that mis-weights samples reports every voxel low
+     * by the same factor, so voxel 0 still dominates voxel 1 and the ratio is
+     * still (10 µV / 1 µV)² = 100.  That is exactly how the per-sample
+     * running-mean blend defect in np_sloreta_push_epoch() survived here — it
+     * scaled the whole map down by ~NP_HD_SLORETA_FFT_SIZE (source_power[0]
+     * read 0.0490 instead of 50.0) while every relative assertion passed.
+     *
+     * Pinning the absolute value is what closes that hole. */
+    ASSERT_APPROX(source_power[0], k_expected_power_f3, 0.5f);
+    ASSERT_APPROX(source_power[1], k_expected_power_o2, 0.05f);
+
     /* Find peak. */
     np_hd_sloreta_result_t result;
     ASSERT_OK(np_sloreta_find_peak(&ctx, source_power, 2U, &result));
@@ -768,9 +801,12 @@ static int fai_hd01_sloreta_plumbing(void)
     ASSERT(bands.alpha + bands.theta + bands.delta + bands.beta > 0.0f,
            "HD01: band power all zero");
 
-    /* Covariance norm should be non-zero. */
+    /* Covariance norm should be non-zero, and should match the two populated
+     * diagonal terms (see k_expected_cov_norm above). */
     float cnorm = np_sloreta_covariance_norm(&ctx);
     ASSERT(cnorm > 0.0f, "HD01: covariance norm is zero");
+    ASSERT_APPROX(cnorm, k_expected_cov_norm, 0.5f);
+    printf("  covariance norm=%.4f (expected %.4f)\n", cnorm, k_expected_cov_norm);
 
     /* Reset and verify epoch count clears. */
     np_sloreta_reset(&ctx);
@@ -784,6 +820,147 @@ static int fai_hd01_sloreta_plumbing(void)
     printf("FAI-HD01 (software plumbing): %s (%d failures)\n\n",
            result2 == 0 ? "PASS" : "FAIL", result2);
     return result2;
+}
+
+/* ── FAI-HD01-D: covariance estimator variance (stochastic input) ───────────── */
+/*
+ * HD01-D: the accumulated covariance must be an unbiased, low-variance
+ * estimator of the true signal covariance on STOCHASTIC input.
+ *
+ * Why this exists as a separate case from fai_hd01_sloreta_plumbing().
+ *
+ * That test drives a deterministic sinusoid, and a deterministic stimulus
+ * cannot distinguish "used all the samples" from "used a few of them": every
+ * epoch's tail resembles every other, so discarding samples shows up purely as
+ * a constant factor.  A constant factor is then invisible to ordering and ratio
+ * assertions, and cancels outright in the argmax that selects the peak voxel.
+ *
+ * That is not a hypothetical gap.  np_sloreta_push_epoch() applied its
+ * per-epoch running-mean blend inside the per-sample loop, which decayed the
+ * accumulator geometrically and left it computing over ~1/N of the acquired
+ * data.  Under the deterministic stimulus the whole defect presented as a
+ * ~1024x scale factor with a textbook dominance ratio.
+ *
+ * Real EEG is stochastic, where the same defect is an estimator-variance
+ * problem rather than a scale problem, and it degrades source localisation:
+ * measured over 400 trials with a source implanted among 8 voxels, correct
+ * localisation fell from 100% to 46% at moderate SNR, approaching the chance
+ * rate as SNR dropped.  The peak voxel drives montage selection
+ * (np_hd_session.c), so that is a targeting-reliability failure.
+ *
+ * Method: drive one channel with zero-mean uniform white noise of amplitude A,
+ * whose true variance is A^2/12, and repeat over independent runs.  W is the
+ * unit vector on that channel, so the quadratic form is one covariance diagonal
+ * and np_sloreta_covariance_norm() reports it directly.
+ *
+ * Pass criteria:
+ *   HD01-D1 (bias):     mean estimate within 2% of A^2/12.
+ *   HD01-D2 (variance): coefficient of variation across runs within 3x the
+ *                       theoretical floor for this estimator.
+ *
+ * The CV floor is derived, not tuned.  For a variance estimator over n_eff
+ * independent samples, CV = sqrt((kurtosis_excess + 2) / n_eff); uniform noise
+ * has kurtosis_excess = -1.2, giving sqrt(0.8 / n_eff).  Here n_eff is
+ * NP_HD_SLORETA_EPOCHS * NP_HD_SLORETA_FFT_SIZE = 65536, so the floor is
+ * 0.349%.  Measured: 0.25-0.43% across seeds (i.e. at the floor), against
+ * 7.8-9.1% for the defect above — the 3x limit sits with wide margin on both
+ * sides and is not sensitive to the seed.
+ *
+ * The generator is a self-contained xorshift32 rather than rand(), whose
+ * sequence differs between glibc and macOS libc; this must produce identical
+ * values on the ubuntu CI runner and on a developer Mac.
+ */
+#define HD01D_RUNS      24U     /* CV estimate SE ~16% rel; limit is 3x floor  */
+#define HD01D_AMPLITUDE 10.0f   /* uV, peak-to-peak span of the uniform noise  */
+
+static uint32_t hd01d_rng_next(uint32_t *state)
+{
+    uint32_t x = *state;
+    x ^= x << 13;
+    x ^= x >> 17;
+    x ^= x << 5;
+    *state = x;
+    return x;
+}
+
+/* Uniform on [-0.5, 0.5).  Takes the top 24 bits so every value is exactly
+ * representable in float32 and the sequence is bit-identical across hosts. */
+static float hd01d_rng_centered(uint32_t *state)
+{
+    return ((float)(hd01d_rng_next(state) >> 8) / (float)(1UL << 24)) - 0.5f;
+}
+
+static int fai_hd01d_estimator_variance(void)
+{
+    int failures_before = g_fail_count;
+    printf("FAI-HD01-D: covariance estimator variance (stochastic input)\n");
+
+    static float       W[NP_HD_SLORETA_N_CH];
+    static np_hd_mni_t voxel_mni[1] = { { 0, 0, 0 } };
+    static float       samples[NP_HD_SLORETA_N_CH][NP_HD_SLORETA_FFT_SIZE];
+
+    memset(W, 0, sizeof(W));
+    W[NP_HD_CH_F3] = 1.0f;
+
+    double estimate[HD01D_RUNS];
+
+    for (uint32_t r = 0U; r < HD01D_RUNS; r++) {
+        /* Odd, run-dependent seed: xorshift32 has an all-zero fixed point. */
+        uint32_t state = (uint32_t)(r * 2654435761U) | 1U;
+
+        np_sloreta_ctx_t ctx;
+        ASSERT_OK(np_sloreta_init(&ctx, W, voxel_mni, 1U));
+
+        for (uint16_t e = 0U; e < NP_HD_SLORETA_EPOCHS; e++) {
+            memset(samples, 0, sizeof(samples));
+            for (uint16_t s = 0U; s < NP_HD_SLORETA_FFT_SIZE; s++) {
+                samples[NP_HD_CH_F3][s] = HD01D_AMPLITUDE * hd01d_rng_centered(&state);
+            }
+            ASSERT_OK(np_sloreta_push_epoch(&ctx,
+                                             (const float (*)[NP_HD_SLORETA_FFT_SIZE])samples,
+                                             NP_HD_SLORETA_FFT_SIZE));
+        }
+        estimate[r] = (double)np_sloreta_covariance_norm(&ctx);
+    }
+
+    double mean = 0.0;
+    for (uint32_t r = 0U; r < HD01D_RUNS; r++) {
+        mean += estimate[r];
+    }
+    mean /= (double)HD01D_RUNS;
+
+    double sum_sq = 0.0;
+    for (uint32_t r = 0U; r < HD01D_RUNS; r++) {
+        double d = estimate[r] - mean;
+        sum_sq += d * d;
+    }
+    double sd = sqrt(sum_sq / (double)(HD01D_RUNS - 1U));   /* Bessel-corrected */
+    double cv = sd / mean;
+
+    /* Uniform on a span of A has variance A^2/12. */
+    double true_variance = (double)HD01D_AMPLITUDE * (double)HD01D_AMPLITUDE / 12.0;
+    double n_eff         = (double)NP_HD_SLORETA_EPOCHS * (double)NP_HD_SLORETA_FFT_SIZE;
+    double cv_floor      = sqrt(0.8 / n_eff);
+    double cv_limit      = 3.0 * cv_floor;
+
+    printf("  mean=%.6f (true %.6f, error %.3f%%)\n",
+           mean, true_variance, 100.0 * fabs(mean - true_variance) / true_variance);
+    printf("  cv=%.4f%% (floor %.4f%%, limit %.4f%%) over %u runs\n",
+           100.0 * cv, 100.0 * cv_floor, 100.0 * cv_limit, (unsigned)HD01D_RUNS);
+
+    /* HD01-D1: unbiased.  Catches a scale error such as the ~1024x low map. */
+    ASSERT(fabs(mean - true_variance) <= 0.02 * true_variance,
+           "HD01-D1: covariance estimate biased >2% from true variance");
+
+    /* HD01-D2: at the variance floor.  Catches an estimator that silently
+     * discards samples even when the mean has been corrected — the failure
+     * mode a deterministic stimulus structurally cannot see. */
+    ASSERT(cv <= cv_limit,
+           "HD01-D2: estimator variance >3x floor — accumulator discarding samples");
+
+    int result = g_fail_count - failures_before;
+    printf("FAI-HD01-D: %s (%d failures)\n\n", result == 0 ? "PASS" : "FAIL", result);
+    return result;
 }
 
 /* ── FAI-HD03: 4×1 ring focality (saline phantom bench procedure) ────────────── */
@@ -946,6 +1123,7 @@ int main(void)
 
     fai_safety_constants();
     fai_hd01_sloreta_plumbing();
+    fai_hd01d_estimator_variance();
     fai_hd02_electrode_mapping();
     fai_hd02l_driver_channel_single_source();
     fai_hd03_focality_algorithm();
