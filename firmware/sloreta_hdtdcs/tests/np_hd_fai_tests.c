@@ -51,8 +51,9 @@ static int g_fail_count = 0;
  * No hardware required.
  *
  * Pass criteria:
- *   HD02-A: For each predefined clinical target, nearest electrode is
- *            within 35 mm MNI distance.
+ *   HD02-A: Each predefined clinical target is within 35 mm of its nearest
+ *            electrode if classed SURFACE, or beyond 35 mm if classed DEEP
+ *            (§2.3 focality applies to surface targets only).
  *   HD02-B: 4×1 ring montage has center electrode closest to target
  *            (not outcompeted by any cathode).
  *   HD02-C: 4 cathodes cover ≥ 2 angular quadrants around center.
@@ -87,8 +88,44 @@ static int fai_hd02_electrode_mapping(void)
         printf("  %s: nearest=%s dist=%.1f mm\n",
                targets[t].name, np_hd_electrode_name(nearest), dist_mm);
 
-        ASSERT(dist_mm <= 35.0f, "HD02-A: nearest electrode >35 mm from target");
         ASSERT(nearest < NP_HD_CH_COUNT, "HD02-A: nearest electrode out of range");
+
+        /*
+         * The 35 mm limit is a claim about 4×1 focality (§2.3: ~1.5 cm FWHM at
+         * 10 mm depth), so it applies to targets on the cortical surface.  ACC
+         * sits on the medial wall at 47.1 mm from Fz; no 10-10 scalp position
+         * gets closer than ~37.9 mm (Fpz), so the limit is unsatisfiable there
+         * by any electrode placement, not merely by this cap.
+         *
+         * Checked in BOTH directions so neither class can be quietly
+         * misclassified: a SURFACE target must actually be within 35 mm, and a
+         * DEEP target must actually be beyond it.  Reclassifying ACC to SURFACE
+         * to silence this, or moving a surface target's coordinates below the
+         * scalp, fails here rather than passing vacuously.
+         */
+        np_hd_target_depth_t depth;
+        ASSERT_OK(np_hd_clinical_target_depth(targets[t].target, &depth));
+
+        if (depth == NP_HD_TARGET_DEPTH_SURFACE) {
+            ASSERT(dist_mm <= 35.0f,
+                   "HD02-A: surface target >35 mm from nearest electrode");
+        } else {
+            ASSERT(dist_mm > 35.0f,
+                   "HD02-A: target classed DEEP but is within 35 mm — reclassify");
+            printf("    ^ DEEP target: 4x1 delivers indirect network modulation "
+                   "here, not focal stimulation (§2.3)\n");
+        }
+    }
+
+    /* HD02-A2: NP_HD_TARGET_CUSTOM has no precomputed depth class.              */
+    {
+        np_hd_target_depth_t depth;
+        ASSERT(np_hd_clinical_target_depth(NP_HD_TARGET_CUSTOM, &depth)
+                   == NP_HD_ERR_INVALID_ARG,
+               "HD02-A2: CUSTOM target returned a depth class");
+        ASSERT(np_hd_clinical_target_depth(NP_HD_TARGET_DLPFC_L, NULL)
+                   == NP_HD_ERR_INVALID_ARG,
+               "HD02-A2: NULL out accepted");
     }
 
     /* HD02-B/C/D: 4×1 ring montage for each clinical target. */

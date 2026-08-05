@@ -107,6 +107,22 @@ np_hd_status_t np_hd_clinical_target_mni(np_hd_clinical_target_t target,
                                           np_hd_mni_t            *out);
 
 /*
+ * Return whether a 4×1 ring can focally reach the predefined clinical target, or
+ * whether the target is deep enough that stimulation there is indirect network
+ * modulation only (NP-FW-HD-001 §2.3, §4.3).
+ *
+ * ACC is the only DEEP target in the current list.  Selecting a montage for a deep
+ * target is permitted and returns a valid ring, but any UI or report that presents
+ * it must not claim focal stimulation of the structure.
+ *
+ * Returns NP_HD_ERR_INVALID_ARG for NP_HD_TARGET_CUSTOM — caller-supplied MNI has
+ * no precomputed depth class; classify it from the nearest-electrode distance
+ * returned by np_hd_nearest_electrode() instead.
+ */
+np_hd_status_t np_hd_clinical_target_depth(np_hd_clinical_target_t target,
+                                            np_hd_target_depth_t   *out);
+
+/*
  * Human-readable electrode label string for display / logging.
  */
 const char *np_hd_electrode_name(np_hd_electrode_t electrode);

@@ -532,6 +532,32 @@ np_hd_status_t np_hd_clinical_target_mni(np_hd_clinical_target_t target,
     return NP_HD_OK;
 }
 
+np_hd_status_t np_hd_clinical_target_depth(np_hd_clinical_target_t target,
+                                            np_hd_target_depth_t   *out)
+{
+    if (!out || target >= NP_HD_TARGET_CUSTOM) {
+        return NP_HD_ERR_INVALID_ARG;
+    }
+    /*
+     * Indexed by np_hd_clinical_target_t.  Distances are to the nearest electrode
+     * on the 21-ch cap: DLPFC_L/R 24.7 mm, VLPFC_L 11.2 mm, MPFC 25.3 mm,
+     * M1_L/R 29.1 mm — all cortical surface.  ACC is 47.1 mm (Fz), and no 10-10
+     * scalp position does better than ~37.9 mm (Fpz), so it is not focally
+     * reachable by any electrode placement, not merely by this cap.
+     */
+    static const np_hd_target_depth_t k_target_depth[] = {
+        /* DLPFC_L */ NP_HD_TARGET_DEPTH_SURFACE,
+        /* DLPFC_R */ NP_HD_TARGET_DEPTH_SURFACE,
+        /* VLPFC_L */ NP_HD_TARGET_DEPTH_SURFACE,
+        /* ACC     */ NP_HD_TARGET_DEPTH_DEEP,
+        /* MPFC    */ NP_HD_TARGET_DEPTH_SURFACE,
+        /* M1_L    */ NP_HD_TARGET_DEPTH_SURFACE,
+        /* M1_R    */ NP_HD_TARGET_DEPTH_SURFACE,
+    };
+    *out = k_target_depth[target];
+    return NP_HD_OK;
+}
+
 const char *np_hd_electrode_name(np_hd_electrode_t electrode)
 {
     if (electrode >= NP_HD_CH_COUNT) {

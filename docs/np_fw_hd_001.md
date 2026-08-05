@@ -56,6 +56,10 @@ This document specifies the firmware implementation of sLORETA-guided HD-tDCS fo
 
 4×1 ring montage provides ~3–5× spatial focality improvement vs standard 2-electrode tDCS, quantified as FWHM of cortical electric field. Typical 4×1 FWHM: ~1.5 cm at 10 mm depth in MRI-derived head models (Datta et al. 2009, Edwards et al. 2013). Hardware FAI-HD03 measures this in saline phantom (see §12).
 
+**Depth limit of this claim.** The figure above is quoted at 10 mm depth and is a claim about *cortical surface* targets, which sit 11–29 mm from their nearest cap electrode (§4.3). It does not extend to structures on the medial wall. ACC at (0, 28, 28) is **47.1 mm** from Fz, its nearest electrode on the 21-ch cap, and ~37.9 mm from Fpz — the closest any 10-10 scalp position reaches. No electrode placement makes ACC focally reachable, so this is a property of head geometry, not of the cap or the selection algorithm.
+
+Targets are therefore classified `NP_HD_TARGET_DEPTH_SURFACE` or `NP_HD_TARGET_DEPTH_DEEP` (`np_hd_clinical_target_depth()`). A 4×1 over a DEEP target delivers **indirect network modulation, not focal stimulation of the structure**, and must not be presented to a clinician as the latter. Deep targets remain fully valid *sLORETA source-localization* targets — sLORETA resolves deep sources — and the two roles must not be conflated: locating an abnormality at ACC does not imply the anode can be placed to reach it.
+
 ---
 
 ## 3. Configuration Constants (`np_hd_config.h`)
@@ -126,7 +130,7 @@ C3(10) Cz(11) C4(12) T8(13) P7(14) P3(15) Pz(16) P4(17) P8(18) O1(19) O2(20)
 | `DLPFC_L` | (-46, 36, 20) | Depression, executive function |
 | `DLPFC_R` | (46, 36, 20) | Depression bilateral, working memory |
 | `VLPFC_L` | (-51, 15, 0) | Language, mood |
-| `ACC` | (0, 28, 28) | Anxiety, anterior cingulate |
+| `ACC` | (0, 28, 28) | Anxiety, anterior cingulate — **DEEP** (47.1 mm from Fz; indirect modulation only, see §2.3) |
 | `MPFC` | (0, 52, 6) | Default mode network |
 | `M1_L` | (-37, -21, 58) | Motor rehabilitation (TMS targeting, FC3) |
 | `M1_R` | (37, -21, 58) | Motor rehabilitation (TMS targeting, FC4) |
@@ -452,14 +456,14 @@ Test specification: **NP-FAI-HD-001 Rev A** (embedded in `tests/np_hd_fai_tests.
 
 | ID | Criterion | Limit |
 |----|-----------|-------|
-| HD02-A | Nearest electrode distance | ≤ 35 mm for all 7 clinical targets |
+| HD02-A | Nearest electrode distance | ≤ 35 mm for SURFACE targets; > 35 mm for DEEP targets (checked both ways so neither class can be silently misclassified) |
 | HD02-B | Centre electrode closest to target | Always: no cathode closer |
 | HD02-C | Cathode angular spread | ≥ 2 quadrants around centre |
 | HD02-D | Driver channel conflicts | Zero: `np_hd_montage_validate()` returns OK |
 | HD02-E | Standard 2-electrode | Anode ≠ cathode always |
 | HD02-F | Bilateral hemisphere laterality | L anode x < 0, R anode x > 0 |
 
-All 6 sub-criteria pass in `fai_hd02_electrode_mapping()` (see test file).
+All sub-criteria (HD02-A through HD02-K) pass in `fai_hd02_electrode_mapping()` (see test file).
 
 ### 12.3 FAI-HD03 — 4×1 ring focality measurement
 
