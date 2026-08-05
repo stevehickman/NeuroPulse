@@ -4,10 +4,10 @@ project: NeurOne
 slug: hex-zone-module
 effort: E4
 phase: plan
-progress: 38/113
+progress: 38/122
 mode: design-study
 started: 2026-07-15
-updated: 2026-07-20
+updated: 2026-08-04
 ---
 
 # Hexagonal Zone-Module Redesign — ISA (NP-HEX-ZM)
@@ -134,11 +134,20 @@ bench.
 - [ ] ISC-66: Smart-socket coverage decided — all sockets I2C+TIA-capable vs a subset — governing where T1-C can seat (SMART-1).
 - [ ] ISC-67: Socket lattice registers to the 10-20 system (8–9 T1, ~19 T2 scalp) within tolerance without violating the coverage/bezel budget (REG-1).
 - [ ] ISC-68: PBM dose at electrode sites is lower (T1-B reduced LEDs) but per-tile PD metering stays accurate; firmware compensates within duty/thermal limits or accepts the ±15–25% non-uniformity.
-- [ ] ISC-69: Modules are clamped in clusters (3–7) by one over-center lever-throw clamp each (push/pull, not a twist cam) with per-module spring plungers; swapping one module releases only its cluster; a loose/unseated tile is caught by the inventory/contact poll → the placement gate disables dependent protocols (MECH-2).
+- [ ] ISC-69: Modules are clamped in clusters (**3–6 realized, 7 the CLUSTER-1 cap** — amended 2026-08-04; the original "3–7" spanned the 3-hex triad, which CLUSTER-1 excludes, and full flowers are largely unavailable under SYM-1, see ISC-92..96) by one over-center lever-throw clamp each (push/pull, not a twist cam) with per-module spring plungers; swapping one module releases only its cluster; a loose/unseated tile is caught by the inventory/contact poll → the placement gate disables dependent protocols (MECH-2).
 - [ ] ISC-70: Anti: no socket is type-keyed so a tile type can seat only in position-specific sockets (would reintroduce position-unique SKUs) — except the T1-C smart key per SMART-1.
 - [ ] ISC-71: The cluster actuator carries the RISK-22 accessibility intent (Parkinson's H&Y II–III / post-stroke): large easy-grip control; a push/pull over-center lever throw (NOT a twist cam); low input force via mechanical advantage; one-handed; ejector springs self-present the module and the plate auto-reseats the whole cluster — so an impaired user makes ONE coarse low-force action, not N precise placements.
 - [ ] ISC-72: HFE formative validates cluster-actuator accessibility with 5 Parkinson's H&Y II–III / post-stroke subjects (NP-TOOL-ZM-001 OI-4 eject-lever study re-pointed at the cluster actuator).
 - [ ] ISC-73: Anti: the cluster actuator is not a small recessed twist cam (twisting defeats weak grip / limited forearm rotation / tremor — worse than the per-module lever it replaces).
+- [ ] ISC-92: **SYM-1** — the cluster partition is mirror-symmetric about the sagittal midline: every cluster is either self-symmetric (centred on a midline socket) or one of a left/right mirror pair. *Probe:* for every cluster in the partition, the mirror image of its socket set (x → −x) is itself a cluster of the partition.
+- [ ] ISC-92.1: The six midline sockets **{2, 13, 29, 46, 62, 74}** each sit in a distinct midline-centred cluster — a forced consequence of ISC-92, not an independent choice (a cluster containing a midline socket must equal its own mirror image, so its centre is self-mirror; only odd-width rows carry a midline socket and a flower spans only rows r−1…r+1, so each such cluster holds exactly one). *Probe:* exactly 6 clusters have a centre at x = 0, and each contains exactly one midline socket.
+- [ ] ISC-92.2: SYM-1 is honoured because the cluster is simultaneously the safety-cut domain (NP-HW-HEXTILE-001 D-8) and the I2C segment (D-7) — so a per-cluster safety cut is symmetric across hemispheres, and the inclusive-midline zone-membership rule (a midline socket belongs to BOTH hemisphere zones of its lobe) is never split across two bus segments. *Probe:* no zone in `00-zones.npps` has its midline socket and that socket's hemisphere partners on different bus segments.
+- [ ] ISC-93: **CONTIG-1** — every cluster's petals form a contiguous arc around its centre, measured over ring positions that exist in the lattice. *Probe:* for each cluster, the in-cluster flags over existing ring positions are cyclically contiguous. A single missing petal in an otherwise complete ring (a horseshoe plate) passes; an isolated petal does not.
+- [ ] ISC-93.1: Anti: **no pendant petal** — no cluster contains a petal whose only in-cluster contact is the centre. Such a petal forces the §5.4a clamp plate onto a ~40 mm cantilever arm necked to ≤23.09 mm (one hex edge) through a corridor between two foreign, independently-clamped modules, following 2.33 mm of dome. Consequences it must prevent: that plunger under-seats (defeating ISC-69's "individual, controlled force"), a re-entrant notch sits on the sole load path, and withdrawal has a snag path whose failure modes are breaking the arm or levering a neighbouring module out of its socket. *Probe:* for every non-centre member of every cluster, at least one other in-cluster member is adjacent to it.
+- [ ] ISC-93.2: Anti: CONTIG-1 is not satisfied merely by minimising cluster count. *Probe:* a count-minimal partition is additionally checked against ISC-93/93.1 — the first computed 18-cluster partition was count-minimal and symmetric yet contained four pendant petals (sockets 27, 31, 77, 80).
+- [ ] ISC-94: The cluster count is **derived from the live lattice** under CLUSTER-1 + SYM-1 + CONTIG-1, never carried from another lattice generation. At the v1 80-socket lattice it is **18** (six forced midline clusters + six lateral mirror pairs), provably minimal. *Probe:* re-derive from `ROW_WIDTHS` on any REG-1 lattice re-cut or MECH-2 clamp-shape change; the derivation is NP-HW-HEXTILE-001 §8.2.1 and the partition is `docs/diagrams/np_hextile_cluster_map.svg`.
+- [ ] ISC-95: Anti: **no downstream quantity is sized off a cluster count from a different lattice generation.** Covers at minimum the safety-MCU VLED high-side switch count, I2C segment and pull-up counts, cluster-controller board count and tier BOM, and Hub PCB cluster-tail connector positions. *Probe:* each such figure cites the lattice it was derived against. (This is the criterion that would have caught NP-HW-HEXTILE-001 Rev A carrying the retired 30-socket lattice's "4–10 clusters" onto the 80-socket lattice.)
+- [ ] ISC-96: Cluster sizes stay within the I2C segment capacitance budget with margin. *Probe:* max cluster size ≤ 7 (CLUSTER-1 cap) against the ~10–19 modules-per-segment limit at 400 kHz; realized max is 6.
 
 ### Addressing + NVRAM map (firmware — DONE)
 - [x] ISC-9: 2-level packed address (7-bit socket : 7-bit element) with pack/unpack round-trip. — `np_hex_addr_pack/unpack`, tested.
@@ -261,6 +270,22 @@ bench.
 | design-brief | NP-HEX-ZM-001 narrative | ISC-42, 46 | all above | no |
 
 ## Decisions
+
+- 2026-08-04 — **SYM-1 and CONTIG-1 recorded; cluster count at the 80-socket
+  lattice is 18, not 4–10 or 12 (principal direction).** SYM-1: the cluster
+  partition is mirror-symmetric about the sagittal midline. CONTIG-1: a cluster's
+  petals must form a contiguous arc — no pendant petal. **CLUSTER-1 is unchanged**;
+  both constrain how the unit is applied, not what it is. SYM-1 forces six
+  midline-centred clusters (a cluster holding a midline socket must equal its own
+  mirror image), which absorb exactly 30 sockets and leave two mirror bands of 25
+  needing 6 clusters each — **18 total, provably minimal**, against 12 unconstrained.
+  The 50 % increase is accepted because the cluster is both the safety-cut domain
+  and the I2C segment, so an asymmetric partition would make a per-cluster safety
+  cut asymmetric across hemispheres and split the inclusive-midline membership rule
+  across two bus segments. CONTIG-1 was added after the first count-minimal
+  symmetric partition was found to contain four pendant petals; it cost **nothing**
+  in cluster count (reassignment 73→C16, 75→C18, 27→C8, 31→C9). Criteria:
+  ISC-92..96; ISC-69 amended from "3–7" to "3–6 realized, 7 cap".
 
 - 2026-07-20 — **Geometry basis is now a 3D SCAN of the reference helmet
   interior; count is ~80, NOT 30/54 (principal-supplied scans).** Two Scaniverse
@@ -457,6 +482,37 @@ bench.
   promotes it. Prevents recording an un-gated decision as "locked".
 
 ## Changelog
+
+- conjectured: minimising the number of clusters, subject to the cluster unit
+  (CLUSTER-1) and midline symmetry (SYM-1), would fully determine the partition.
+  refuted_by: the count-minimal symmetric partition contained four **pendant
+  petals** — petals whose only in-cluster contact is the centre (sockets 27, 31,
+  77, 80). Count is a property of the partition; *shape* is not constrained by it.
+  Because the cluster's structural member is the clamp plate rather than the tile
+  group, and the plate cannot bridge a gap owned by an independently-actuated
+  neighbouring cluster, a pendant petal forces a ~40 mm cantilever arm necked to
+  ≤23.09 mm — which under-seats that plunger and creates a withdrawal snag path.
+  learned: an optimisation states its objective and inherits everything else as
+  unconstrained. CLUSTER-1's prose ("drop OUTER petals") implies contiguity, but
+  implication is not a constraint a solver can see — it had to be stated as one.
+  Note the defect also **defeated the metric CLUSTER-1 optimised** (clamp-plate
+  stress and deflection, measured via the cluster's longest dimension) without
+  breaking CLUSTER-1's stated rule, because a pendant petal does not lengthen the
+  cluster. A rule and the reasoning that justifies it can diverge silently.
+  criterion_now: ISC-93, ISC-93.1, ISC-93.2.
+
+- conjectured: a cluster count recorded in the parent brief could be reused
+  downstream without re-deriving it.
+  refuted_by: NP-HEX-ZM-001 §5.4a's "4–10 clusters" was a **30-socket-lattice**
+  figure; NP-HW-HEXTILE-001 Rev A carried it to the 80-socket lattice and sized the
+  safety-MCU VLED switch count, the I2C pull-up count and the cluster-board BOM off
+  it. Two further generations of the number (`ceil(n/8)` = 10, and 12) were live in
+  peer documents simultaneously, none of them the answer under the standing
+  decisions.
+  learned: a derived quantity must carry the basis it was derived against, or it
+  will be lifted out of context. The fix is not only to correct the consumer but to
+  annotate the source — the origin figures now carry a do-not-quote banner.
+  criterion_now: ISC-94, ISC-95.
 
 - conjectured: a careful geometric model of the tiling surface (skull anatomy,
   then a helmet-interior ellipsoid from the published envelope) would give the

@@ -1,10 +1,30 @@
-# NP-HEX-ZM-001 Rev A — Hexagonal Standardized Zone-Module Design Brief
+# Hexagonal Standardized Zone-Module Design Brief
 
-**Program:** NeurOne zone-module redesign
+**Project:** NeurOne
+**Document:** NP-HEX-ZM-001
+**Revision:** B
+**Date:** 2026-08-04
 **Status:** DESIGN STUDY — Option A committed as baseline, Option B documented as future path. NOT a locked tooling baseline; gated by the curvature-scan go/no-go (§7).
+**Effective Date:** 2026-08-04
+**Author:** NeurOne Mechanical + Hardware Engineering
+**Approved By:** — (design study; principal directions recorded inline)
+**References:** NP-HW-HEXTILE-001 Rev B (electrical/FPC counterpart; §8.2.1 cluster-count derivation); NP-HW-HUB-001 Rev C (cluster-controller tier); NP-DRV-SHELL-002 Rev A (shell interconnect); NP-OPT-PSF-001 Rev A (lateralization model); NP-THERM-BEZEL-001 Rev A (bezel conflict); CLAUDE.md §3, §4
+**Related Issues:** —
+**Gate:** curvature-scan go/no-go (§7); REG-1 10-20 registration
+**IEC 62304 Class:** N/A (mechanical/architectural brief)
+**Program:** NeurOne zone-module redesign
 **Companion ISA:** `docs/np_hex_zm_isa.md` (NP-HEX-ZM ISA)
 **Firmware delivered:** `firmware/hub_control/np_module_map.{h,c}` + `tests/np_module_map_tests.c`
-**Date:** 2026-07-15
+**Parent of:** NP-HW-HEXTILE-001 (electrical/FPC), NP-DRV-SHELL-002 (interconnect)
+
+---
+
+## Revision History
+
+| Rev | Date | Author | Change |
+|---|---|---|---|
+| A | 2026-07-15 | NeurOne Mechanical Engineering | Initial release. Option A (rigid median-curved 40 mm hexagon) committed as baseline, Option B (semi-flex) recorded as future path. Hex lattice geometry (§3), module-type taxonomy + SMART-1 (§4a), addressing and wire format (§4/§4b), two-layer shell + EMF seam (§5), cluster clamps (§5.4a), gates (§7). **CLUSTER-1 (7-hex flower as the cluster unit) was added to §5.4a on 2026-07-30 without a revision bump** — a bookkeeping lapse corrected at Rev B, which registers this document into the DHF index for the first time. |
+| **B** | **2026-08-04** | NeurOne Mechanical + Hardware Engineering | **Front matter brought to `docs/FRONT_MATTER_TEMPLATES.md` (the title carried the revision, and Document/Revision/Effective Date/Author/Approved By/References/Gate/Class fields were absent); revision history added; document registered in NP-DHF-001 §5.2 and `docs/status/document-register.md` for the first time.** Content changes, all in §4a and §5.4a: **two new principal directions recorded — SYM-1** (cluster partition mirror-symmetric about the sagittal midline) and **CONTIG-1** (a cluster's petals must form a contiguous arc; no pendant petal), with their derivations and mechanical rationale. **CLUSTER-1 itself is unchanged.** The §5.4a "30 tiles ≈ 4 clusters / 4–10 cluster clamps" figures are annotated as **retired-30-socket-lattice values that do not rescale** — NP-HW-HEXTILE-001 Rev A had carried them to the 80-socket lattice and sized hardware off them; the count under the standing decisions is **18** (six forced midline clusters + six lateral mirror pairs, provably minimal). §4a's `ceil(n/8)` cluster-board cost model reconciled as a *capacity floor* rather than a board count, with board count = cluster count and the tier BOM restated at **$114.12** at n = 80; the §5.4a MECH-2 comparison table annotated as pre-SYM-1 and marked "do not size hardware off this table". Peer documents (NP-HW-HUB-001, NP-DRV-SHELL-002) deliberately **not** modified — their stale counts are routed to their own revisions via OI-HEXTILE-14. No firmware changed. |
 
 ---
 
@@ -708,11 +728,28 @@ Two consequences that matter to this brief:
   discriminant the fouling-vs-aging detection rests on. Rev B's ≤0.5% per-slot PD1/PD2
   matching requirement disappears.
 
-**Cost:** ~$6.34 per cluster board → **$63.40 at n=80** (scales `$6.34 × ceil(n/8)`;
-$25.36 at 30, $101.44 at 128), plus ≈**+$1.09** net on the hub PCB itself. Comparable to
-naively scaling Rev B (~$67) — but buildable, at ~100 conductors across the parting plane
-instead of ~880. This has NOT been netted against the retired 5-zone-module drive
-electronics already inside the $405 Home Standard BOM (OI-HUB-C08).
+**Cost:** ~$6.34 per cluster board. `ceil(n/8)` is the **capacity floor**, not the board
+count: it assumes every board is filled to its 8-socket capacity, which no real partition
+achieves. **The board count equals the *cluster* count**, because NP-HW-HUB-001 Rev C §4.4
+puts one cluster-controller board per mechanical cluster and the board is **capacity-8, not
+exactly-8** — one universal SKU covers a 7-tile flower, an 8-tile patch, or a 3–6-tile
+partial boundary cluster at identical cost (no 7-channel I2C switch or 14:1 analog mux
+exists to buy instead). The two partitions are therefore deliberately *aligned*, not merely
+similar, and the cost scales with cluster count:
+
+| Basis | Boards at n = 80 | Tier BOM |
+|---|---|---|
+| `ceil(n/8)` capacity floor — **not achievable** | 10 | $63.40 |
+| CLUSTER-1 flower, no symmetry constraint | 12 | $76.08 |
+| **CLUSTER-1 + SYM-1 (current decisions) ★** | **18** | **$114.12** |
+
+So the figure for the committed design is **$114.12 at n = 80**, plus ≈**+$1.09** net on the
+hub PCB itself — against ~$67 for naively scaling Rev B. The architecture is still the
+buildable one (~100 conductors across the parting plane instead of ~880) and the hub still
+encodes no socket count, but **the cluster tier is no longer cost-comparable to Rev B**; it
+is ~1.7× it. This has NOT been netted against the retired 5-zone-module drive electronics
+already inside the $405 Home Standard BOM (OI-HUB-C08). Derivation of 18: §5.4a SYM-1 and
+NP-HW-HEXTILE-001 §8.2.1.
 
 **PBM dose islands (accepted).** T1-B has ~half the LED count (pod clearance), so
 electrode sites deliver less PBM. Per-tile PD metering stays accurate (the J/cm²
@@ -871,6 +908,26 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   **3-hex triad** → ~9–10 clusters. (So total actuators ≈ 4 corner layer-latches +
   4–10 cluster clamps, vs 4 + 30–42 with per-module levers — a 4–10× reduction.)
 
+  > ### ⚠ THESE ARE 30-SOCKET-LATTICE FIGURES. DO NOT QUOTE THEM FOR THE SHIPPED LATTICE.
+  >
+  > **`4`, `9–10` and `4–10` above are counts for the RETIRED 30-socket lattice**
+  > and are retained only because the *ratio* argument they support (one actuator
+  > per cluster beats one lever per module) is what this bullet exists to make.
+  > **They do not rescale** — NP-HW-HEXTILE-001 Rev A carried "4–10" across to the
+  > shipped ~80-socket lattice and sized the safety-MCU VLED switch count, the I2C
+  > pull-up count and the cluster-board BOM off it before the error was caught
+  > (corrected in that document's Rev B, 2026-08-04).
+  >
+  > **The count for the shipped 80-socket lattice is 18** — six forced midline
+  > clusters plus six lateral mirror pairs, provably minimal under CLUSTER-1 +
+  > SYM-1 + CONTIG-1. Derivation: the SYM-1 block below and NP-HW-HEXTILE-001
+  > §8.2.1. Diagram: `docs/diagrams/np_hextile_cluster_map.svg`.
+  >
+  > Also note the **3-hex triad is excluded by CLUSTER-1** (decided below), so
+  > "~9–10 clusters" describes a rejected option, not a live alternative. Any
+  > surviving "3–7 tile" phrasing means *partial flower (3–6) up to full flower
+  > (7)*, not a triad.
+
 - **★ DECIDED 2026-07-30 (principal direction) — CLUSTER-1: the 7-hex flower is
   the cluster unit wherever the lattice allows one; where a full flower does not
   fit, use a PARTIAL flower.** Not a larger patch, and not a triad. The governing
@@ -906,6 +963,81 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
     suboptimal, and it is a direct hazard to the ≤1 N one-handed input-force intent
     (RISK-22) because plate stiffness must rise to compensate for the span.
 
+- **★ DECIDED 2026-08-04 (principal direction) — SYM-1: the cluster partition is
+  MIRROR-SYMMETRIC about the sagittal midline.** Every cluster is either
+  self-symmetric (centred on a midline socket) or one of a left/right mirror pair.
+  This constrains *which* sockets group together, not the cluster unit — CLUSTER-1
+  is unchanged.
+
+  **Consequence — the count is forced, and it is not the one the peer documents
+  carry.** A cluster containing a midline socket must equal its own mirror image,
+  so its centre must be self-mirror, i.e. **on** the midline. Only odd-width rows
+  carry a midline socket (§3.2: sockets **{2, 13, 29, 46, 62, 74}**) and a flower
+  spans only rows *r*−1…*r*+1, so each midline cluster holds exactly one of them —
+  **six midline clusters, forced, absorbing exactly 30 sockets.** The residual 50
+  sockets form two mirror-image lateral bands of 25; exhaustive search over all
+  flower/partial-flower covers gives a minimum of **6 clusters per band**.
+
+  | Constraint set | Clusters at n = 80 | Cluster-tier BOM |
+  |---|---|---|
+  | CLUSTER-1 only (what NP-HW-HUB-001 Rev C §4.4 and NP-DRV-SHELL-002 §7.1 carry) | 12 | $76.08 |
+  | **CLUSTER-1 + SYM-1 ★** | **18** *(6 midline + 6 mirror pairs; provably minimal)* | **$114.12** |
+
+  **SYM-1 costs 6 clusters and ~$38.** It is worth stating why that is accepted
+  rather than traded away: the cluster is simultaneously the **safety cut domain**
+  (NP-HW-HEXTILE-001 D-8) and the **I2C segment** (D-7). An asymmetric partition
+  would make a per-cluster safety cut asymmetric across hemispheres, and would
+  split the inclusive-midline zone-membership rule (§4.5.2 — a midline socket
+  belongs to BOTH hemisphere zones of its lobe) across two bus segments. Every
+  lateralized protocol in the tree — EMDR L/R alternation, bilateral montages,
+  hemispheric PBM targeting, and the `NP-OPT-PSF-001` §4 lateralization model in
+  which a midline module is exactly 50/50 by symmetry — assumes the L/R structure
+  the hardware partition should therefore preserve.
+
+- **★ DECIDED 2026-08-04 (principal direction) — CONTIG-1: a cluster's petals must
+  form a CONTIGUOUS ARC around its centre.** No **pendant petal** (a petal whose
+  only in-cluster contact is the centre, with foreign sockets on both flanks).
+  Dropping *outer* petals per CLUSTER-1 gives this for free; only a
+  count-minimising search violates it, and the first computed 18-cluster partition
+  did — four pendant petals (sockets 27, 31, 77, 80).
+
+  **The reason is the clamp plate, not the tiles.** Tiles are independent modules
+  in independent sockets and are not structurally coupled to one another, so the
+  cluster's structural member is the §5.4a clamp plate. The plate cannot bridge a
+  gap, because the gap socket belongs to a **different cluster whose plate is
+  actuated independently** — so it must reach a pendant petal on a cantilever arm
+  **40 mm** long, necked to at most **23.09 mm** (one hex edge, W/√3) where it
+  crosses the tile boundary, following **2.33 mm** of dome. That arm (a) is far
+  more compliant than the plate body, so its plunger seats at lower force and
+  defeats this section's "individual, controlled force" property exactly there;
+  (b) carries a re-entrant notch on the sole load path; and (c) must withdraw
+  through a corridor between two *seated, foreign* modules against the ±0.4 mm
+  lateral / ±0.5 mm Z blind-mate tolerance — a snag path whose failure modes are
+  breaking the arm or levering a neighbouring module out of its socket.
+
+  **Note this defeats the metric CLUSTER-1 optimised without breaking its stated
+  rule.** CLUSTER-1 rejected the 8-tile patch on clamp-plate bending stress
+  (×1.75) and plate deflection (×3.07), measured via the cluster's *longest
+  dimension*. A pendant cantilever is a worse **local** plate defect than that, but
+  it does not lengthen the cluster, so it is invisible to that metric. CONTIG-1
+  closes the gap between the rule and its reasoning.
+
+  **Cost: none.** The four pendant petals were resolved by reassignment to an
+  adjacent cluster that already touches them — 73→C16, 75→C18, 27→C8, 31→C9 —
+  leaving 18 clusters, mirror-symmetric, max size 6, zero pendants.
+
+  Realised cluster sizes are **3–6 tiles**; full 7-flowers are largely unavailable
+  under SYM-1 because the residual lateral bands are only 2–3 sockets wide. This
+  does not weaken CLUSTER-1 (the flower remains the unit and the compactness
+  argument above is untouched) but it does mean the *typical* cluster is a partial
+  flower, not a full one. Diagram and derivation:
+  `docs/diagrams/np_hextile_cluster_map.svg`, NP-HW-HEXTILE-001 §8.2.1.
+
+  **⚠ Peer documents are not yet updated** — NP-DRV-SHELL-002 §7.1 provisions 12
+  tail connectors (16 positions, which 18 exceeds), NP-HW-HUB-001 §6.3 sizes
+  DG2788A at 10, and the MECH-2 table below prices 12. Tracked as
+  **OI-HEXTILE-14**.
+
   **Partial flowers at the boundary.** The socket lattice is set by §3.4 geometry;
   clusters group whatever sockets exist. Where the lattice edge cannot host a full
   flower, drop outer petals rather than reshaping — a partial flower keeps the same
@@ -935,6 +1067,14 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   | 3-hex triad | 27 | **$171.18** | 43 | **No** — exceeds the 5-bit address strap |
   | **7-hex flower ★ recommended** | **12** | **$76.08** | 19 | Yes |
   | 8-tile patch | 10 | $63.40 | 16 | Yes |
+
+  > **⚠ This table predates SYM-1 (2026-08-04) and its flower row is now the
+  > unconstrained lower bound, not the design figure.** Under CLUSTER-1 + SYM-1 the
+  > flower partition is **18 boards / $114.12** at n = 80 (see the SYM-1 block
+  > above). The row is retained because the *relative* comparison it makes between
+  > cluster units is unaffected — the triad is still the expensive option and the
+  > 8-tile patch still buys its saving with less regular geometry. **Do not size
+  > hardware off this table.** OI-HEXTILE-14.
 
   The triad is now the expensive option at 2.2× the flower. The 8-tile patch saves
   $12.68 at n=80 but is not a centred-hex super-cell, buying that saving with less
