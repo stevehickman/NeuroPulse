@@ -2,7 +2,7 @@
  * NeurOne HD-tDCS — Stimulation Delivery
  * Document: NP-FW-HD-001 Rev A §7
  *
- * Programs the 16-ch tACS driver with independent DC currents for HD-tDCS.
+ * Programs the 21-ch tACS driver with independent DC currents for HD-tDCS.
  * Safety MCU owns all enable GPIO.  This module manages the ramp state machine
  * and tracks charge density for display and UHDR.
  *
@@ -30,7 +30,7 @@ static void platform_driver_set_current(uint8_t driver_channel, int32_t current_
 
 static void platform_driver_all_off(void)
 {
-    /* Platform HAL: set all 16 driver channels to 0 in one atomic transaction. */
+    /* Platform HAL: set all 21 driver channels to 0 in one atomic transaction. */
     /* np_platform_tacs_all_off(); */
 }
 
@@ -82,16 +82,17 @@ np_hd_status_t np_hd_stim_init(np_hd_stim_ctx_t         *ctx,
     /* Build per-electrode state array: anode at [0], cathodes at [1..4]. */
     ctx->n_elec = 0U;
 
-    /* Anode: T2 cap wiring maps electrode index → driver channel externally.   */
-    /* We borrow the driver channel from the montage via a private lookup.       */
-    /* Platform HAL provides np_platform_elec_to_driver(np_hd_electrode_t).     */
-    /* Here we use a fixed assignment from the T2 cap wiring spec.              */
-
-    /* Electrode-to-driver channel mapping encoded inline for portability.       */
-    /* Values match k_driver_channel[] in np_hd_montage.c.                      */
+    /* Electrode → driver channel, per the T2 cap wiring spec.  21-ch driver:   */
+    /* one electrode, one channel, no sharing.                                   */
+    /*                                                                           */
+    /* This MUST stay identical to k_driver_channel[] in np_hd_montage.c.  The   */
+    /* montage layer validates distinctness against its copy; this copy is what  */
+    /* actually gets programmed, so a divergence is a wrong-channel stimulation  */
+    /* path that nothing would catch.  Nothing enforces the match today — see    */
+    /* the follow-up to expose a single accessor from the montage module.        */
     static const uint8_t k_ch_to_drv[NP_HD_CH_COUNT] = {
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
-        11, 12, 13, 14, 15
+        0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,
+        11, 12, 13, 14, 15, 16, 17, 18, 19, 20
     };
 
     ctx->elec[0].label          = montage->center;

@@ -2,7 +2,7 @@
  * NeurOne HD-tDCS — Stimulation Delivery API
  * Document: NP-FW-HD-001 Rev A §7
  *
- * Programs the 16-ch tACS driver with per-channel DC currents.
+ * Programs the 21-ch tACS driver with per-channel DC currents.
  * All enable/disable lines are owned by the safety MCU.
  * Charge density is enforced by safety MCU hardware; this module also
  * tracks it in software for display and UHDR recording.

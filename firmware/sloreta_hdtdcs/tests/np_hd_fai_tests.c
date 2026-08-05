@@ -51,14 +51,19 @@ static int g_fail_count = 0;
  * No hardware required.
  *
  * Pass criteria:
- *   HD02-A: For each predefined clinical target, nearest electrode is
- *            within 35 mm MNI distance.
+ *   HD02-A: Each predefined clinical target is within 35 mm of its nearest
+ *            electrode if classed SURFACE, or beyond 35 mm if classed DEEP
+ *            (§2.3 focality applies to surface targets only).
  *   HD02-B: 4×1 ring montage has center electrode closest to target
  *            (not outcompeted by any cathode).
  *   HD02-C: 4 cathodes cover ≥ 2 angular quadrants around center.
  *   HD02-D: All montage electrodes map to distinct tACS driver channels.
  *   HD02-E: Standard 2-electrode montage: anode ≠ cathode.
  *   HD02-F: Bilateral 4×1: left and right anodes are in opposite hemispheres.
+ *   HD02-G: Bilateral 4×1: all 10 electrodes across both rings are distinct.
+ *   HD02-H: Bilateral on a midline target is rejected, not silently unilateral.
+ *   HD02-I: validate() rejects cross-ring conflicts in hand-built montages.
+ *   HD02-K: All 21 cap electrodes map to distinct tACS driver channels (§6.4).
  */
 static int fai_hd02_electrode_mapping(void)
 {
@@ -83,8 +88,44 @@ static int fai_hd02_electrode_mapping(void)
         printf("  %s: nearest=%s dist=%.1f mm\n",
                targets[t].name, np_hd_electrode_name(nearest), dist_mm);
 
-        ASSERT(dist_mm <= 35.0f, "HD02-A: nearest electrode >35 mm from target");
         ASSERT(nearest < NP_HD_CH_COUNT, "HD02-A: nearest electrode out of range");
+
+        /*
+         * The 35 mm limit is a claim about 4×1 focality (§2.3: ~1.5 cm FWHM at
+         * 10 mm depth), so it applies to targets on the cortical surface.  ACC
+         * sits on the medial wall at 47.1 mm from Fz; no 10-10 scalp position
+         * gets closer than ~37.9 mm (Fpz), so the limit is unsatisfiable there
+         * by any electrode placement, not merely by this cap.
+         *
+         * Checked in BOTH directions so neither class can be quietly
+         * misclassified: a SURFACE target must actually be within 35 mm, and a
+         * DEEP target must actually be beyond it.  Reclassifying ACC to SURFACE
+         * to silence this, or moving a surface target's coordinates below the
+         * scalp, fails here rather than passing vacuously.
+         */
+        np_hd_target_depth_t depth;
+        ASSERT_OK(np_hd_clinical_target_depth(targets[t].target, &depth));
+
+        if (depth == NP_HD_TARGET_DEPTH_SURFACE) {
+            ASSERT(dist_mm <= 35.0f,
+                   "HD02-A: surface target >35 mm from nearest electrode");
+        } else {
+            ASSERT(dist_mm > 35.0f,
+                   "HD02-A: target classed DEEP but is within 35 mm — reclassify");
+            printf("    ^ DEEP target: 4x1 delivers indirect network modulation "
+                   "here, not focal stimulation (§2.3)\n");
+        }
+    }
+
+    /* HD02-A2: NP_HD_TARGET_CUSTOM has no precomputed depth class.              */
+    {
+        np_hd_target_depth_t depth;
+        ASSERT(np_hd_clinical_target_depth(NP_HD_TARGET_CUSTOM, &depth)
+                   == NP_HD_ERR_INVALID_ARG,
+               "HD02-A2: CUSTOM target returned a depth class");
+        ASSERT(np_hd_clinical_target_depth(NP_HD_TARGET_DLPFC_L, NULL)
+                   == NP_HD_ERR_INVALID_ARG,
+               "HD02-A2: NULL out accepted");
     }
 
     /* HD02-B/C/D: 4×1 ring montage for each clinical target. */
@@ -166,6 +207,263 @@ static int fai_hd02_electrode_mapping(void)
         printf("  bilateral: L_center=%s (x=%d) R_center=%s (x=%d)\n",
                np_hd_electrode_name(mont.center),   lmni.x,
                np_hd_electrode_name(mont.center_r), rmni.x);
+    }
+
+    /* HD02-G: bilateral 4×1 — all 10 electrodes of both rings are distinct.     */
+    /*
+     * NP-FW-HD-001 §6.3 drives both hemispheres simultaneously, so the ten
+     * electrodes are energised at once and a cross-hemisphere conflict is as
+     * disqualifying as one inside a hemisphere.  Before this check existed the
+     * bilateral path shipped Cz as a cathode in BOTH rings for M1_L and M1_R
+     * (driver 11 twice), and the M1_L right ring additionally carried the
+     * C4/P4 driver-12 collision, because select_bilateral() had its own copy of
+     * the selection loop that never received §6.2 step 5.
+     */
+    {
+        static const struct {
+            np_hd_clinical_target_t target;
+            const char             *name;
+        } lateral[] = {
+            { NP_HD_TARGET_DLPFC_L, "DLPFC_L" }, { NP_HD_TARGET_DLPFC_R, "DLPFC_R" },
+            { NP_HD_TARGET_VLPFC_L, "VLPFC_L" },
+            { NP_HD_TARGET_M1_L,    "M1_L"    }, { NP_HD_TARGET_M1_R,    "M1_R"    },
+        };
+        uint8_t n_lateral = (uint8_t)(sizeof(lateral) / sizeof(lateral[0]));
+
+        for (uint8_t t = 0U; t < n_lateral; t++) {
+            np_hd_mni_t mni;
+            np_hd_clinical_target_mni(lateral[t].target, &mni);
+
+            np_hd_montage_t mont;
+            memset(&mont, 0, sizeof(mont));
+            np_hd_status_t ret = np_hd_montage_select_bilateral(&mni, &mont);
+            ASSERT(ret == NP_HD_OK, "HD02-G: bilateral selection failed on lateral target");
+            if (ret != NP_HD_OK) {
+                continue;
+            }
+            ASSERT(mont.bilateral == 1U, "HD02-G: bilateral flag not set");
+            ASSERT_EQ(mont.type, NP_HD_MONTAGE_BILATERAL_4X1);
+
+            /* Flatten both rings into one array and scan every pair.            */
+            np_hd_electrode_t all[NP_HD_BILATERAL_ELEC_COUNT];
+            all[0] = mont.center;
+            all[1 + NP_HD_RING_CATHODE_COUNT] = mont.center_r;
+            for (uint8_t k = 0U; k < NP_HD_RING_CATHODE_COUNT; k++) {
+                all[1U + k]                              = mont.cathodes[k];
+                all[2U + NP_HD_RING_CATHODE_COUNT + k]   = mont.cathodes_r[k];
+            }
+
+            for (uint8_t i = 0U; i < NP_HD_BILATERAL_ELEC_COUNT; i++) {
+                ASSERT(all[i] < NP_HD_CH_COUNT, "HD02-G: electrode index out of range");
+                for (uint8_t j = (uint8_t)(i + 1U); j < NP_HD_BILATERAL_ELEC_COUNT; j++) {
+                    ASSERT(all[i] != all[j],
+                           "HD02-G: same electrode in both rings (one pellet, two currents)");
+                }
+            }
+
+            /*
+             * Driver-channel distinctness across all ten.  k_driver_channel[] is
+             * file-static in np_hd_montage.c, so validate() is the probe: it now
+             * walks both rings against one claim set and rejects a repeat of
+             * either the electrode or its driver channel.
+             */
+            ASSERT_OK(np_hd_montage_validate(&mont));
+
+            printf("  bilateral %s: L=%s[%s,%s,%s,%s] R=%s[%s,%s,%s,%s]\n",
+                   lateral[t].name,
+                   np_hd_electrode_name(mont.center),
+                   np_hd_electrode_name(mont.cathodes[0]),
+                   np_hd_electrode_name(mont.cathodes[1]),
+                   np_hd_electrode_name(mont.cathodes[2]),
+                   np_hd_electrode_name(mont.cathodes[3]),
+                   np_hd_electrode_name(mont.center_r),
+                   np_hd_electrode_name(mont.cathodes_r[0]),
+                   np_hd_electrode_name(mont.cathodes_r[1]),
+                   np_hd_electrode_name(mont.cathodes_r[2]),
+                   np_hd_electrode_name(mont.cathodes_r[3]));
+        }
+    }
+
+    /* HD02-H: bilateral on a midline target is rejected, not silently unilateral.*/
+    /*
+     * ACC (0, 28, 28) and MPFC (0, 52, 6) sit on x = 0, so negating x yields the
+     * same coordinate and the "contralateral" ring resolves to the ring already
+     * selected.  Both previously returned NP_HD_OK with center_r == center and all
+     * four cathodes duplicated — a unilateral montage labelled as ten electrodes,
+     * which np_hd_montage_validate() reported as fine.
+     */
+    {
+        static const struct {
+            np_hd_clinical_target_t target;
+            const char             *name;
+        } midline[] = {
+            { NP_HD_TARGET_ACC,  "ACC"  },
+            { NP_HD_TARGET_MPFC, "MPFC" },
+        };
+        uint8_t n_midline = (uint8_t)(sizeof(midline) / sizeof(midline[0]));
+
+        for (uint8_t t = 0U; t < n_midline; t++) {
+            np_hd_mni_t mni;
+            np_hd_clinical_target_mni(midline[t].target, &mni);
+            ASSERT_EQ(mni.x, 0);
+
+            np_hd_montage_t mont;
+            memset(&mont, 0xAA, sizeof(mont));   /* poison: prove we overwrite  */
+            np_hd_status_t ret = np_hd_montage_select_bilateral(&mni, &mont);
+
+            ASSERT(ret == NP_HD_ERR_MONTAGE_INVALID,
+                   "HD02-H: midline target did not reject bilateral");
+            ASSERT(mont.bilateral == 0U,
+                   "HD02-H: bilateral flag left set on a rejected montage");
+            printf("  bilateral %s (x=0): rejected (%d), bilateral flag clear\n",
+                   midline[t].name, (int)ret);
+        }
+    }
+
+    /* HD02-I: validate() rejects cross-ring conflicts in hand-built montages.   */
+    /*
+     * These montages are constructed by hand rather than obtained from the
+     * selector, deliberately.  The selector can no longer produce a conflicting
+     * bilateral montage, so if these cases were only exercised through it,
+     * validate()'s right-ring branches would run zero times and could be deleted
+     * or broken without any test objecting.  The selector guarantees the invariant;
+     * these assertions are what keep the independent check honest.
+     *
+     * Each negative case is paired with a positive control that differs only in the
+     * conflicting electrode, so a rejection cannot be credited to the wrong cause.
+     */
+    {
+        /* Positive control: two disjoint rings, no shared electrode or driver.  */
+        np_hd_montage_t ok;
+        memset(&ok, 0, sizeof(ok));
+        ok.type          = NP_HD_MONTAGE_BILATERAL_4X1;
+        ok.bilateral     = 1U;
+        ok.cathode_count = NP_HD_RING_CATHODE_COUNT;
+        ok.center        = NP_HD_CH_C3;
+        ok.cathodes[0]   = NP_HD_CH_FC3; ok.cathodes[1] = NP_HD_CH_F3;
+        ok.cathodes[2]   = NP_HD_CH_CZ;  ok.cathodes[3] = NP_HD_CH_P3;
+        ok.center_r      = NP_HD_CH_C4;
+        ok.cathodes_r[0] = NP_HD_CH_FC4; ok.cathodes_r[1] = NP_HD_CH_F4;
+        ok.cathodes_r[2] = NP_HD_CH_FZ;  ok.cathodes_r[3] = NP_HD_CH_T8;
+        ASSERT_OK(np_hd_montage_validate(&ok));
+
+        /* I-1: same electrode (Cz) as a cathode in both rings.                  */
+        /* This is the M1 case as it actually shipped.  It must stay non-vacuous  */
+        /* under any future k_driver_channel[]: one pellet cannot carry two       */
+        /* independently driven currents regardless of how the cap is wired.      */
+        np_hd_montage_t dup = ok;
+        dup.cathodes_r[2] = NP_HD_CH_CZ;    /* was Fz; Cz is already in the left */
+        ASSERT(np_hd_montage_validate(&dup) == NP_HD_ERR_MONTAGE_INVALID,
+               "HD02-I1: duplicate electrode across rings accepted");
+
+        /*
+         * NOTE: there is deliberately no "distinct electrodes sharing one driver
+         * channel" case here.  Under the 21-channel mapping (§6.4) that is
+         * unconstructible — electrode i is driven by channel i, so two different
+         * electrodes can never name the same channel.  An earlier revision used
+         * Cz/Pz, which both mapped to driver 11 under the 16-channel placeholder;
+         * with the identity map that assertion would still PASS while testing
+         * nothing at all.  HD02-K below tests the property that makes it
+         * unconstructible, which is the thing that can actually regress.
+         */
+
+        /* I-2b: the conflict is on center_r itself, not on a right cathode.     */
+        /* Distinct branch from I-1: that enters validate()'s cathodes_r         */
+        /* loop, this one is rejected before the loop is reached.  Verified with */
+        /* gcov — without this case that rejection executes zero times while     */
+        /* every assertion still passes.                                         */
+        np_hd_montage_t dup_c = ok;
+        dup_c.center_r = NP_HD_CH_CZ;       /* Cz is already left cathodes[2]    */
+        ASSERT(np_hd_montage_validate(&dup_c) == NP_HD_ERR_MONTAGE_INVALID,
+               "HD02-I2b: right anode duplicating a left cathode accepted");
+
+        np_hd_montage_t same_c = ok;
+        same_c.center_r = NP_HD_CH_C3;      /* both rings anchored on one anode  */
+        ASSERT(np_hd_montage_validate(&same_c) == NP_HD_ERR_MONTAGE_INVALID,
+               "HD02-I2b: center_r == center accepted");
+
+        /* I-2c: a bilateral montage must carry a full right ring.  With a short  */
+        /* cathode_count the right-ring loop would stop early and the untouched   */
+        /* tail of cathodes_r[] would never be examined.                          */
+        np_hd_montage_t short_r = ok;
+        short_r.cathode_count = 1U;
+        ASSERT(np_hd_montage_validate(&short_r) == NP_HD_ERR_MONTAGE_INVALID,
+               "HD02-I2c: bilateral montage with partial right ring accepted");
+
+        /* I-3: out-of-range right-ring indices are caught, not indexed with.    */
+        np_hd_montage_t bad_c = ok;
+        bad_c.center_r = (np_hd_electrode_t)NP_HD_CH_COUNT;
+        ASSERT(np_hd_montage_validate(&bad_c) == NP_HD_ERR_MONTAGE_INVALID,
+               "HD02-I3: out-of-range center_r accepted");
+
+        np_hd_montage_t bad_k = ok;
+        bad_k.cathodes_r[1] = NP_HD_CH_NONE;
+        ASSERT(np_hd_montage_validate(&bad_k) == NP_HD_ERR_MONTAGE_INVALID,
+               "HD02-I3: out-of-range cathodes_r accepted");
+
+        /* I-4: the same right-ring content is ignored when bilateral is clear,  */
+        /* so unilateral montages keep their previous validate() behaviour.      */
+        np_hd_montage_t uni = dup;          /* still carries the Cz duplicate    */
+        uni.bilateral = 0U;
+        uni.type      = NP_HD_MONTAGE_RING_4X1;
+        ASSERT_OK(np_hd_montage_validate(&uni));
+
+        printf("  validate(): cross-ring duplicate/driver/range rejected; "
+               "unilateral path unchanged\n");
+    }
+
+    /* HD02-K: every cap electrode maps to its own tACS driver channel.          */
+    /*
+     * §6.4 specifies 21 driver channels, one per electrode, no sharing.  This is
+     * what lets each 4×1 ring take its geometrically nearest cathodes instead of
+     * routing around a wiring artifact, and it is what makes a cross-ring driver
+     * collision between two DIFFERENT electrodes impossible to construct.
+     *
+     * k_driver_channel[] is file-static in np_hd_montage.c, so the property is
+     * probed through the public API: for every unordered pair (i, j), a two-
+     * electrode montage {i, j} must validate.  validate() rejects on a repeated
+     * driver channel, so a single passing sweep over all 210 pairs is equivalent
+     * to "all 21 channels are distinct".
+     *
+     * If anyone re-aliases the table — the 16-channel placeholder wrapped
+     * electrodes 16–20 onto channels 11–15 — this fails immediately and names the
+     * offending pair, rather than surfacing later as an undeliverable clinical
+     * montage the way C4/P4 did for M1_R.
+     */
+    {
+        uint16_t pairs_checked = 0U;
+        uint8_t  first_bad_i = 0U, first_bad_j = 0U;
+        bool     found_bad = false;
+
+        for (uint8_t i = 0U; i < NP_HD_CH_COUNT; i++) {
+            for (uint8_t j = (uint8_t)(i + 1U); j < NP_HD_CH_COUNT; j++) {
+                np_hd_montage_t pair;
+                memset(&pair, 0, sizeof(pair));
+                pair.type          = NP_HD_MONTAGE_STANDARD_2E;
+                pair.cathode_count = 1U;
+                pair.center        = (np_hd_electrode_t)i;
+                pair.cathodes[0]   = (np_hd_electrode_t)j;
+
+                if (np_hd_montage_validate(&pair) != NP_HD_OK && !found_bad) {
+                    found_bad   = true;
+                    first_bad_i = i;
+                    first_bad_j = j;
+                }
+                pairs_checked++;
+            }
+        }
+
+        ASSERT(!found_bad, "HD02-K: two electrodes share a tACS driver channel");
+        ASSERT_EQ(pairs_checked, (NP_HD_CH_COUNT * (NP_HD_CH_COUNT - 1U)) / 2U);
+
+        if (found_bad) {
+            printf("  HD02-K: %s and %s collide\n",
+                   np_hd_electrode_name((np_hd_electrode_t)first_bad_i),
+                   np_hd_electrode_name((np_hd_electrode_t)first_bad_j));
+        } else {
+            printf("  %u electrode pairs checked: all map to distinct drivers\n",
+                   (unsigned)pairs_checked);
+        }
     }
 
     int result = g_fail_count - failures_before;

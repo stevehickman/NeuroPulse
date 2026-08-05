@@ -42,9 +42,24 @@ np_hd_status_t np_hd_montage_select_ring(const np_hd_mni_t *target_mni,
                                           np_hd_montage_t   *out);
 
 /*
- * Select a bilateral 4×1 montage.
+ * Select a bilateral 4×1 montage (NP-FW-HD-001 §6.3).
  * Mirrors the ring montage to the contralateral hemisphere by negating x-MNI.
- * Both hemispheres are independent — driven by separate tACS driver channels.
+ *
+ * Both hemispheres are driven SIMULTANEOUSLY, so all 10 electrodes are selected
+ * against one shared claim set: no electrode may appear in both rings, and all 10
+ * must map to distinct tACS driver channels. The invariant therefore holds by
+ * construction, and np_hd_montage_validate() re-checks it as a post-condition.
+ *
+ * Where the two rings contend for an electrode (typically a midline one such as
+ * Cz), the ring at the caller's target keeps it and the mirrored ring takes its
+ * next-nearest candidate. The two rings are consequently NOT guaranteed to be
+ * geometrically symmetric — only distinct.
+ *
+ * Returns NP_HD_ERR_MONTAGE_INVALID if no conflict-free mirror ring exists, or if
+ * the target has no contralateral homologue — a target on (or very near) x = 0
+ * mirrors onto itself, for which bilateral is undefined. ACC and MPFC are both in
+ * this category; use NP_HD_MONTAGE_RING_4X1 for them. On any error `out` is
+ * zeroed, never left holding a half-built montage with `bilateral` set.
  */
 np_hd_status_t np_hd_montage_select_bilateral(const np_hd_mni_t *target_mni,
                                                np_hd_montage_t   *out);
@@ -65,9 +80,15 @@ np_hd_status_t np_hd_montage_from_mni(const np_hd_mni_t    *target_mni,
                                         np_hd_montage_t      *out);
 
 /*
- * Validate that all electrodes in the montage map to distinct tACS driver
- * channels and are within the 16-channel driver range.
- * Also checks spatial validity: cathodes must not be collinear or all ipsilateral.
+ * Validate that every electrode in the montage is in range, appears exactly once,
+ * and maps to a tACS driver channel no other montage electrode uses.
+ *
+ * For a montage with `bilateral` set this spans all 10 electrodes of BOTH rings
+ * together, not each ring separately — §6.3 energises them simultaneously, so a
+ * cross-hemisphere conflict is as disqualifying as one within a hemisphere.
+ *
+ * Angular-spread validation is NOT performed here; it is applied during selection
+ * (see np_hd_montage_select_ring).
  */
 np_hd_status_t np_hd_montage_validate(const np_hd_montage_t *montage);
 
@@ -84,6 +105,22 @@ np_hd_status_t np_hd_montage_assign_channels(np_hd_montage_t *montage);
  */
 np_hd_status_t np_hd_clinical_target_mni(np_hd_clinical_target_t target,
                                           np_hd_mni_t            *out);
+
+/*
+ * Return whether a 4×1 ring can focally reach the predefined clinical target, or
+ * whether the target is deep enough that stimulation there is indirect network
+ * modulation only (NP-FW-HD-001 §2.3, §4.3).
+ *
+ * ACC is the only DEEP target in the current list.  Selecting a montage for a deep
+ * target is permitted and returns a valid ring, but any UI or report that presents
+ * it must not claim focal stimulation of the structure.
+ *
+ * Returns NP_HD_ERR_INVALID_ARG for NP_HD_TARGET_CUSTOM — caller-supplied MNI has
+ * no precomputed depth class; classify it from the nearest-electrode distance
+ * returned by np_hd_nearest_electrode() instead.
+ */
+np_hd_status_t np_hd_clinical_target_depth(np_hd_clinical_target_t target,
+                                            np_hd_target_depth_t   *out);
 
 /*
  * Human-readable electrode label string for display / logging.

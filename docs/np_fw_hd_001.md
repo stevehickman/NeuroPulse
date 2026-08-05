@@ -24,7 +24,7 @@ This document specifies the firmware implementation of sLORETA-guided HD-tDCS fo
 - Real-time sLORETA cortical source localization from 21-ch qEEG resting-state data
 - Automatic MNI target → T2 cap electrode mapping
 - 4×1 ring montage configuration with independent per-channel current control
-- HD-tDCS stimulation delivery via the existing 16-ch tACS driver
+- HD-tDCS stimulation delivery via the 21-ch tACS driver
 - Concurrent EEG recording during stimulation with artifact suppression
 - Safety limit enforcement by the STM32G071 safety MCU
 
@@ -55,6 +55,10 @@ This document specifies the firmware implementation of sLORETA-guided HD-tDCS fo
 ### 2.3 Spatial focality claim
 
 4×1 ring montage provides ~3–5× spatial focality improvement vs standard 2-electrode tDCS, quantified as FWHM of cortical electric field. Typical 4×1 FWHM: ~1.5 cm at 10 mm depth in MRI-derived head models (Datta et al. 2009, Edwards et al. 2013). Hardware FAI-HD03 measures this in saline phantom (see §12).
+
+**Depth limit of this claim.** The figure above is quoted at 10 mm depth and is a claim about *cortical surface* targets, which sit 11–29 mm from their nearest cap electrode (§4.3). It does not extend to structures on the medial wall. ACC at (0, 28, 28) is **47.1 mm** from Fz, its nearest electrode on the 21-ch cap, and ~37.9 mm from Fpz — the closest any 10-10 scalp position reaches. No electrode placement makes ACC focally reachable, so this is a property of head geometry, not of the cap or the selection algorithm.
+
+Targets are therefore classified `NP_HD_TARGET_DEPTH_SURFACE` or `NP_HD_TARGET_DEPTH_DEEP` (`np_hd_clinical_target_depth()`). A 4×1 over a DEEP target delivers **indirect network modulation, not focal stimulation of the structure**, and must not be presented to a clinician as the latter. Deep targets remain fully valid *sLORETA source-localization* targets — sLORETA resolves deep sources — and the two roles must not be conflated: locating an abnormality at ACC does not imply the anode can be placed to reach it.
 
 ---
 
@@ -126,7 +130,7 @@ C3(10) Cz(11) C4(12) T8(13) P7(14) P3(15) Pz(16) P4(17) P8(18) O1(19) O2(20)
 | `DLPFC_L` | (-46, 36, 20) | Depression, executive function |
 | `DLPFC_R` | (46, 36, 20) | Depression bilateral, working memory |
 | `VLPFC_L` | (-51, 15, 0) | Language, mood |
-| `ACC` | (0, 28, 28) | Anxiety, anterior cingulate |
+| `ACC` | (0, 28, 28) | Anxiety, anterior cingulate — **DEEP** (47.1 mm from Fz; indirect modulation only, see §2.3) |
 | `MPFC` | (0, 52, 6) | Default mode network |
 | `M1_L` | (-37, -21, 58) | Motor rehabilitation (TMS targeting, FC3) |
 | `M1_R` | (37, -21, 58) | Motor rehabilitation (TMS targeting, FC4) |
@@ -247,9 +251,28 @@ Angular spread requirement prevents pathological "all-anterior" cathode selectio
 
 Mirrors left hemisphere ring to right hemisphere by negating x-coordinate. Both hemispheres driven simultaneously from separate driver channel pairs. Independent impedance check per hemisphere.
 
+Because both rings are energised **simultaneously**, "separate" is an invariant over all ten electrodes together, not over each ring in isolation:
+
+1. No electrode may appear in both rings. One Ag/AgCl pellet carries one net current; it cannot serve two independently driven rings.
+2. All ten electrodes must map to distinct tACS driver channels (§6.4), across hemispheres as well as within one.
+
+Both rings are selected against a single shared claim set (`ring_select_cathodes()` in `np_hd_montage.c`), so the invariant holds by construction; `np_hd_montage_validate()` re-checks it independently across all ten electrodes as a post-condition.
+
+**Contention.** Where the two rings want the same electrode — in practice a midline one such as Cz, which both M1_L and M1_R rings select as a cathode — the **primary** ring keeps it and the **mirror** ring falls through to its next-nearest candidate. Primary is the ring built at the caller's target; mirror is the one built from the reflected coordinate. Priority follows provenance, not laterality. The rings are consequently not required to be geometrically symmetric; only distinct. With 21 driver channels for 10 simultaneously active electrodes, the only remaining contention is for the electrodes themselves, so the mirror ring yields only where the two rings genuinely overlap — on this cap, the midline. A target whose mirror ring still cannot be completed returns `NP_HD_ERR_MONTAGE_INVALID` rather than a ring that `np_hd_montage_validate()` would reject.
+
+**Midline targets.** A target on x = 0 mirrors onto itself, so it has no contralateral homologue and bilateral is undefined for it — not merely contended. `np_hd_montage_select_bilateral()` returns `NP_HD_ERR_MONTAGE_INVALID`. This covers the predefined targets ACC (0, 28, 28) and MPFC (0, 52, 6), and also near-midline targets whose mirrored coordinate resolves to the same nearest electrode. Use `NP_HD_MONTAGE_RING_4X1` for these.
+
 ### 6.4 tACS driver channel assignment
 
-Fixed mapping from T2 cap wiring specification (NP-HW-TCAP-001, TBD). All 5 electrodes in a ring montage use distinct driver channels (validated by `np_hd_montage_validate()`). Maximum 5 of 16 channels active simultaneously per ring.
+**21 driver channels, one per cap electrode, no sharing.** `k_driver_channel[]` is the identity map: electrode *i* is driven by channel *i*. Maximum 5 of 21 channels active per ring, 10 for bilateral. Distinctness is validated by `np_hd_montage_validate()`.
+
+This supersedes a 16-channel placeholder that wrapped electrodes 16–20 back onto channels 11–15. **16 was never the binding number** — a bilateral 4×1 energises 10 electrodes, so 16 channels were always sufficient. Every observed collision came from the *mapping*, which aliased geometric neighbours (Cz↔Pz, C4↔P4, T8↔P8, P7↔O1, P3↔O2). Because a 4×1 ring draws its cathodes from the electrodes nearest its anode, aliasing neighbours guarantees collisions: C4↔P4 made the M1_R ring undeliverable, since P4 is one of C4's four nearest electrodes.
+
+The T2 cap already carries 21 conductors — its Ag/AgCl electrodes are dual-rated for EEG recording and stimulation current (CLAUDE.md §3 T2) — so only the driver was ever 16-channel, not the harness.
+
+**Constraint of record if sharing is ever reintroduced:** never alias two electrodes within one ring radius (~60 mm) of each other.
+
+**NP-HW-TCAP-001 (T2 cap wiring specification) still requires authoring** to become the controlled hardware source of truth; the firmware table is the current authority until it exists.
 
 ---
 
@@ -381,8 +404,8 @@ Target: ≥ 20 dB SNR in alpha band (8–13 Hz) during 1 mA anode stimulation. V
 |----|----------|------------|---------|
 | OI-HD-01 | `platform_ads1299_start/stop()` | ADS1299 + LPSPI + DMA | Integration test |
 | OI-HD-02 | `platform_now_ms()` | FreeRTOS tick | Integration test |
-| OI-HD-03 | `platform_driver_set_current(ch, ua)` | 16-ch tACS driver SPI | Stimulation |
-| OI-HD-04 | `platform_driver_all_off()` | 16-ch tACS driver | Safety |
+| OI-HD-03 | `platform_driver_set_current(ch, ua)` | 21-ch tACS driver SPI | Stimulation |
+| OI-HD-04 | `platform_driver_all_off()` | 21-ch tACS driver | Safety |
 | OI-HD-05 | `platform_safety_mcu_request_impedance()` | STM32G071 SPI | Impedance check |
 | OI-HD-06 | `platform_safety_mcu_request_enable()` | STM32G071 SPI | Stimulation start |
 | OI-HD-07 | `platform_safety_mcu_disable()` | STM32G071 SPI | Stim abort |
@@ -433,14 +456,14 @@ Test specification: **NP-FAI-HD-001 Rev A** (embedded in `tests/np_hd_fai_tests.
 
 | ID | Criterion | Limit |
 |----|-----------|-------|
-| HD02-A | Nearest electrode distance | ≤ 35 mm for all 7 clinical targets |
+| HD02-A | Nearest electrode distance | ≤ 35 mm for SURFACE targets; > 35 mm for DEEP targets (checked both ways so neither class can be silently misclassified) |
 | HD02-B | Centre electrode closest to target | Always: no cathode closer |
 | HD02-C | Cathode angular spread | ≥ 2 quadrants around centre |
 | HD02-D | Driver channel conflicts | Zero: `np_hd_montage_validate()` returns OK |
 | HD02-E | Standard 2-electrode | Anode ≠ cathode always |
 | HD02-F | Bilateral hemisphere laterality | L anode x < 0, R anode x > 0 |
 
-All 6 sub-criteria pass in `fai_hd02_electrode_mapping()` (see test file).
+All sub-criteria (HD02-A through HD02-K) pass in `fai_hd02_electrode_mapping()` (see test file).
 
 ### 12.3 FAI-HD03 — 4×1 ring focality measurement
 

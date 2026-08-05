@@ -65,12 +65,34 @@ typedef enum {
     NP_HD_TARGET_DLPFC_L   = 0,  /* (-46,  36, 20) — depression, executive fn     */
     NP_HD_TARGET_DLPFC_R   = 1,  /* ( 46,  36, 20) — depression bilateral, WM     */
     NP_HD_TARGET_VLPFC_L   = 2,  /* (-51,  15,  0) — language, mood               */
-    NP_HD_TARGET_ACC       = 3,  /* (  0,  28, 28) — anxiety, cingulate           */
+    NP_HD_TARGET_ACC       = 3,  /* (  0,  28, 28) — anxiety, cingulate; DEEP:    */
+                                 /* indirect modulation only, see §2.3           */
     NP_HD_TARGET_MPFC      = 4,  /* (  0,  52,  6) — default mode network         */
     NP_HD_TARGET_M1_L      = 5,  /* (-37, -21, 58) — motor rehab, TMS targeting   */
     NP_HD_TARGET_M1_R      = 6,  /* ( 37, -21, 58) — motor rehab, TMS targeting   */
     NP_HD_TARGET_CUSTOM    = 7,  /* app-supplied MNI coordinate                   */
 } np_hd_clinical_target_t;
+
+/* ── Target depth class (NP-FW-HD-001 §2.3) ─────────────────────────────────── */
+/*
+ * Whether a 4×1 ring can focally reach the target, which is a fact about head
+ * geometry rather than about the montage algorithm.
+ *
+ * §2.3 claims ~1.5 cm FWHM at 10 mm depth.  That holds for targets on the
+ * cortical surface, which sit 11–29 mm from their nearest cap electrode.  It does
+ * not hold for a structure on the medial wall: ACC (0, 28, 28) is 47.1 mm from Fz,
+ * its nearest electrode on the 21-ch cap, and ~37.9 mm from Fpz — the closest any
+ * 10-10 scalp position gets.  No electrode placement reaches it focally.
+ *
+ * DEEP targets remain valid sLORETA SOURCE-LOCALIZATION targets — sLORETA resolves
+ * deep sources — and remain selectable for stimulation, but what a 4×1 delivers
+ * there is indirect network modulation, not focal stimulation of the structure.
+ * Callers presenting a deep target to a clinician must say so.
+ */
+typedef enum {
+    NP_HD_TARGET_DEPTH_SURFACE = 0,  /* cortical surface — 4×1 focality applies  */
+    NP_HD_TARGET_DEPTH_DEEP    = 1,  /* medial/deep — indirect modulation only   */
+} np_hd_target_depth_t;
 
 /* ── MNI coordinate (mm, integer, MNI305 space) ─────────────────────────────── */
 typedef struct {
@@ -112,7 +134,7 @@ typedef struct {
 /* ── Per-electrode stimulation state ────────────────────────────────────────── */
 typedef struct {
     np_hd_electrode_t label;
-    uint8_t           driver_channel;   /* tACS driver channel index 0–15        */
+    uint8_t           driver_channel;   /* tACS driver channel index 0–20        */
     int32_t           target_current_ua;/* signed: + = anode, - = cathode        */
     int32_t           actual_current_ua;/* current after ramp computation         */
     float             impedance_kohm;   /* last measured impedance                */
