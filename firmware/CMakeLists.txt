@@ -32,7 +32,12 @@
 #                                 runner, session log, safety SPI heartbeat)
 #   firmware/pbm_1064nm/      — 1064nm smart zone module detection + drive
 #   firmware/hrv_biofeedback/ — HRV+taVNS biofeedback protocol library
-#   firmware/zone_announce/   — RISK-15 Layer 5 bone-conduction zone announcement
+#   firmware/zone_announce/   — zone-module insertion FSM → companion-app notify
+#                                 (module-status GATT characteristic).  The Rev A
+#                                 bone-conduction insertion cue is retired: it
+#                                 fired with the helmet off the head, so it could
+#                                 never be heard.  See the header of
+#                                 src/np_zone_announce.c and docs/np_fw_za_001.md.
 #   firmware/sloreta_hdtdcs/  — sLORETA-guided HD-tDCS (T2)
 #   firmware/cervical_vns/    — Cervical VNS main-processor side (T2)
 #   firmware/anon/            — Research anonymisation Scratch encryption
@@ -62,8 +67,15 @@
 #                             → np_module_map_tests       (hex zone-module addressing/NVRAM map)
 #                             → np_protocol_tests         (hub protocol v2 socket-mask targets)
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
+#   firmware/zone_announce/   → np_zone_announce_tests    (module-status frame encoder)
+#                             → np_zone_notify_tests      (app-notify dispatch)
 #   firmware/pbm_1064nm/      → np_pbm1064_session_desc_tests (NP-SES-1064-001 v5 wire format)
+#   firmware/cervical_vns/    → np_cvns_fai_tests         (FAI CV01..CV06, cardiac interlock)
+#   firmware/sloreta_hdtdcs/  → np_hd_fai_tests           (FAI montage + sLORETA algorithm)
 #   firmware/vendor/freertos/ → np_freertos_smoke_tests   (kernel + config, POSIX port)
+#
+# Every module listed above must also appear in the `paths:` filters of
+# .github/workflows/firmware-host-tests.yml, or edits to it run no CI.
 
 cmake_minimum_required(VERSION 3.20)
 
@@ -117,6 +129,8 @@ if(NP_BUILD_TESTS)
     add_subdirectory(hub_control) # OI-CVNS-HUB-01: CVNS re-enable manager tests
     add_subdirectory(zone_announce) # module-status frame encoder (app notify path)
     add_subdirectory(pbm_1064nm)  # NP-SES-1064-001 v5: session descriptor wire format
+    add_subdirectory(cervical_vns)   # NP-FAI-CVNS-001: cardiac interlock FAI suite
+    add_subdirectory(sloreta_hdtdcs) # NP-FW-HD-001: montage + sLORETA FAI suite
     add_subdirectory(vendor/freertos) # NP-SW-001 §9.4: FreeRTOS kernel smoke test
 
     add_test(NAME np_crypto_tests
@@ -197,6 +211,14 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_pbm1064_session_desc_tests
         COMMAND np_pbm1064_session_desc_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_cvns_fai_tests
+        COMMAND np_cvns_fai_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_hd_fai_tests
+        COMMAND np_hd_fai_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_freertos_smoke_tests

@@ -20,10 +20,16 @@ cmake_minimum_required(VERSION 3.20)
 project(np_sloreta_hdtdcs C)
 
 # ── Toolchain guard ────────────────────────────────────────────────────────────
-if(NOT CMAKE_CROSSCOMPILING)
+# Mirrors the root firmware/CMakeLists.txt guard: the ARM toolchain is required
+# for a device build, but the host unit-test build (-DNP_BUILD_TESTS=ON) is a
+# legitimate non-cross configuration.  Without the NP_BUILD_TESTS escape this
+# fires before the host test target below, making np_hd_fai_tests unreachable
+# in any host build.
+if(NOT NP_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR
         "This project requires the ARM cross-compiler toolchain.\n"
-        "Pass -DCMAKE_TOOLCHAIN_FILE=../../cmake/arm-none-eabi.cmake")
+        "Pass -DCMAKE_TOOLCHAIN_FILE=../../cmake/arm-none-eabi.cmake\n"
+        "or build only host unit tests with -DNP_BUILD_TESTS=ON.")
 endif()
 
 # ── Sources ────────────────────────────────────────────────────────────────────
@@ -42,29 +48,41 @@ target_include_directories(np_sloreta_hdtdcs
 )
 
 # ── Compiler flags ─────────────────────────────────────────────────────────────
-set(CPU_FLAGS
-    -mcpu=cortex-m7
-    -mthumb
-    -mfpu=fpv5-d16
-    -mfloat-abi=hard
-)
-
-target_compile_options(np_sloreta_hdtdcs PRIVATE
-    ${CPU_FLAGS}
-    -std=c11
-    -Wall
-    -Wextra
-    -Werror
-    -Wno-unused-parameter
-    -O2
-    -ffunction-sections
-    -fdata-sections
-    -fno-common
-    -ffreestanding
-    -ffast-math
-    -fno-math-errno
-    -fstack-usage
-)
+# The Cortex-M7 and freestanding/section-GC flags are meaningful only for the
+# cross-compiled device build; a host compiler rejects -mcpu=cortex-m7 outright.
+if(CMAKE_CROSSCOMPILING)
+    target_compile_options(np_sloreta_hdtdcs PRIVATE
+        -mcpu=cortex-m7
+        -mthumb
+        -mfpu=fpv5-d16
+        -mfloat-abi=hard
+        -std=c11
+        -Wall
+        -Wextra
+        -Werror
+        -Wno-unused-parameter
+        -O2
+        -ffunction-sections
+        -fdata-sections
+        -fno-common
+        -ffreestanding
+        -ffast-math
+        -fno-math-errno
+        -fstack-usage
+    )
+else()
+    # Host build: same warning discipline, no target-specific codegen flags.
+    # NPTEST_HOST drops the ARM linker-script section placement (see
+    # src/np_hd_session.c) that a host object format has no equivalent for.
+    target_compile_options(np_sloreta_hdtdcs PRIVATE
+        -std=c11
+        -Wall
+        -Wextra
+        -Wno-unused-parameter
+        -O2
+        -DNPTEST_HOST
+    )
+endif()
 
 # ── Dependencies ───────────────────────────────────────────────────────────────
 # sqrtf, fabsf used in sloreta and montage source files.

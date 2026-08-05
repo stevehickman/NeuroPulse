@@ -16,7 +16,20 @@
 /* ── Source power buffer (caller allocates in LPSDR4 or SRAM) ───────────────── */
 /* 2447 voxels × float32 = 9.6 KB — placed in LPSDR4 (32 MB available).        */
 /* For linker purposes, allocated as a file-scope array in LPSDR4 section.      */
-static float s_source_power[NP_HD_SLORETA_N_VOXELS] __attribute__((section(".lpsdr4")));
+/*                                                                             */
+/* NP_HD_LPSDR4 is the placement attribute for the device build only.  ".lpsdr4"
+ * names a region in the ARM linker script; host object formats have no such
+ * region, and Mach-O rejects a section name without a "segment,section" pair
+ * outright.  Host test builds (NPTEST_HOST) therefore place the array normally
+ * — placement is a link-time concern with no bearing on the logic under test,
+ * so the cross-compiled device build is unaffected.                           */
+#ifdef NPTEST_HOST
+#define NP_HD_LPSDR4
+#else
+#define NP_HD_LPSDR4 __attribute__((section(".lpsdr4")))
+#endif
+
+static float s_source_power[NP_HD_SLORETA_N_VOXELS] NP_HD_LPSDR4;
 
 /* ── Internal context ────────────────────────────────────────────────────────── */
 

@@ -3,17 +3,27 @@ project(np_cervical_vns C)
 
 # ── Toolchain ────────────────────────────────────────────────────────────────── #
 # Cross-compile target: arm-none-eabi (NXP i.MX RT1062)                         #
-# Host build for test: -DNPTEST_HOST=ON                                          #
-if(NOT NPTEST_HOST)
-    set(CMAKE_TOOLCHAIN_FILE ${CMAKE_SOURCE_DIR}/../cmake/arm-none-eabi.cmake)
-endif()
+# Host build for test: -DNP_BUILD_TESTS=ON (the repo-wide host-test switch)     #
+#                                                                               #
+# The toolchain is selected by the root project, which is the only scope where  #
+# CMAKE_TOOLCHAIN_FILE has any effect — setting it here (after the top-level    #
+# project() has already run) was a silent no-op and has been removed.           #
+
+# Declared before first use below.  When this directory is added by the root
+# firmware/CMakeLists.txt the value already comes from the cache; this option()
+# only supplies the default for a standalone configure of this module.
+option(NP_BUILD_TESTS "Build host-native FAI test binary" OFF)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
 # ── Compiler flags ───────────────────────────────────────────────────────────── #
-if(NOT NPTEST_HOST)
+# Gated on NP_BUILD_TESTS, the same variable the test target below uses.  These
+# previously gated on a separate NPTEST_HOST variable, so a plain
+# -DNP_BUILD_TESTS=ON configured cleanly and then failed to build with
+# "unsupported option '-mcpu=' for target 'arm64-apple-darwin'".
+if(NOT NP_BUILD_TESTS)
     add_compile_options(
         -mcpu=cortex-m7
         -mfpu=fpv5-d16
@@ -46,9 +56,7 @@ target_include_directories(np_cervical_vns
 target_link_libraries(np_cervical_vns m)
 
 # ── FAI test binary ──────────────────────────────────────────────────────────── #
-option(NP_BUILD_TESTS "Build FAI test binary" OFF)
-
-if(NP_BUILD_TESTS OR NPTEST_HOST)
+if(NP_BUILD_TESTS)
     add_executable(np_cvns_fai_tests
         tests/np_cvns_fai_tests.c
     )
