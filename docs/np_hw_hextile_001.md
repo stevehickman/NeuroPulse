@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** A
-**Date:** 2026-07-30
+**Revision:** B
+**Date:** 2026-08-04
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
@@ -14,6 +14,22 @@
 **IEC 62304 Class:** — (hardware; the on-module driver firmware is Class B, see §6.5)
 **Supersedes:** — (new document; fills the gap declared in NP-HW-FPC-001 Rev E supersession note: *"no document yet specifies the T1-A/T1-C hex-tile FPC pinout or electrical layout"*)
 **Parent Document:** NP-HEX-ZM-001
+
+---
+
+> **Rev B (2026-08-04) — cluster-count correction. Documentation only; no firmware change.**
+>
+> Rev A §8.2 stated that NP-HEX-ZM-001 §5.4a "partitions ~80 tiles into 4–10 clusters". **4–10 was that document's figure for the retired 30-socket lattice** and was carried over to ~80 sockets without rescaling. Several component counts were sized off it. This revision derives the count from the lattice and the two standing principal decisions (**CLUSTER-1**, 7-hex flower; **SYM-1**, mirror-symmetric partition, 2026-08-04) and propagates it.
+>
+> | Quantity | Rev A | Rev B | Where |
+> |---|---|---|---|
+> | Clusters at n = 80 | 4–10 | **18** (provably minimal) | §8.2.1 |
+> | D-8 VLED high-side switches | 4–10 | **18** | §8.4 |
+> | I2C pull-up resistors | 20 (at 10 segments) | **36** (18 segments) | §8.2 |
+> | I2C segments used of 32 available | "a small fraction" | **18 / 32 (56 %)** | §8.2 |
+> | Cluster-controller boards / tier BOM | 10 / $63.40 | **18 / $114.12** | §8.2.1, NP-HEX-ZM-001 §4a |
+>
+> **Neither CLUSTER-1 nor D-7's muxing architecture changes.** One tier of PCA9548A muxing over LPI2C1–4 still suffices (32 ≥ 18). Two new open items are raised rather than papered over: **OI-HEXTILE-13** (whether per-cluster safety *policy* is wanted at 18 clusters — the same question NP-HW-HUB-001 §7.4 routes to OI-HUB-C07; the safety-MCU GPIO budget does *not* demonstrably close at 18, and the package is unspecified. **A proposed resolution is recorded at §8.4.1** — split the enable by IEC 62304 class — for safety review to accept or falsify, plus **§8.4.2**, which establishes what the Class C enable word can and cannot absorb — the active 38-byte heartbeat has **zero spare bytes**, and enable-bit positions double as charge-monitor channel indices, so only the §7.2 collapse-with-holes is genuinely free) and **OI-HEXTILE-14** (peer documents still sized off 10 or 12, and 18 exceeds the 16 cluster-tail connectors NP-DRV-SHELL-002 §7.1 provisions — **options and a recommendation at §8.2.2**).
 
 ---
 
@@ -369,11 +385,63 @@ The retired design needed a mux per slot for one reason: every smart module shar
 
 **Decision (D-7): dynamic address assignment from the module UID, over per-cluster bus segments.**
 
-- **Segmentation follows the mechanical clusters.** NP-HEX-ZM-001 §5.4a already partitions ~80 tiles into 4–10 clusters (7-hex "flower" or 3-hex triad super-cells). Reusing that partition electrically means one bus segment ≈ one cluster ≈ one VLED switching domain (§8.4) — one physical grouping serving mechanics, power, safety, and addressing rather than four incompatible partitions.
-- **The i.MX RT1062 provides LPI2C1–LPI2C4.** One PCA9548A-class 8-channel switch per bus gives up to 32 segments; 4–10 clusters uses a small fraction of that, leaving margin for a lattice re-cut. Note this is *one tier* of muxing, not the cascade the parent document anticipated — because addresses no longer collide, muxing is only needed for bus capacitance, not arbitration.
+- **Segmentation follows the mechanical clusters.** NP-HEX-ZM-001 §5.4a partitions the lattice into clusters under **CLUSTER-1** (7-hex "flower", partial flower where the lattice edge cannot host a full one) and **SYM-1** (the partition is mirror-symmetric about the sagittal midline). Reusing that partition electrically means one bus segment = one cluster = one VLED switching domain (§8.4) — one physical grouping serving mechanics, power, safety, and addressing rather than four incompatible partitions.
+- **The cluster count is 18 at the v1 80-socket lattice — derived, not carried over.** See §8.2.1. Earlier revisions of this section stated "4–10 clusters", which was NP-HEX-ZM-001 §5.4a's figure for the **retired 30-socket** lattice and does not survive rescaling; 4 clusters at 80 sockets would mean 20 tiles per cluster, which exceeds this section's own 10–19-modules-per-segment capacitance limit and is impossible under CLUSTER-1's 7-tile ceiling.
+- **The i.MX RT1062 provides LPI2C1–LPI2C4.** One PCA9548A-class 8-channel switch per bus gives up to 32 segments; **18 clusters uses 56 % of that**, leaving 14 segments of headroom for a REG-1 lattice re-cut. Note this is *one tier* of muxing, not the cascade the parent document anticipated — because addresses no longer collide, muxing is only needed for bus capacitance, not arbitration. **The muxing architecture is unaffected by the count correction** (32 ≥ 18 with margin), but the two-level `8 branches × ≤2 clusters = 16` topology of NP-DRV-SHELL-002 §3.4 **is** — 18 > 16 (OI-HEXTILE-14; options at §8.2.2).
 - **Address assignment uses the UID that already exists.** NP-HEX-ZM-001 §4 specifies power-on UID polling with re-inventory only on UID change. An SMBus-ARP-style assignment (address resolution from a unique device identifier) maps onto that directly: the hub enumerates a segment, assigns each module an address from its UID, and the resulting map feeds `np_module_map` unchanged. **No new identity concept is introduced** — the UID the addressing layer already depends on becomes the addressing key.
-- **Capacitance:** at 400 kHz fast mode the 400 pF bus limit permits roughly 10–19 modules per segment with disciplined routing, which brackets the 3–7-tile cluster sizes and the 7-hex flower's 7. Segment routing length is the real constraint and is a Hub PCB Rev C layout item.
-- **Pull-ups:** one 4.7 kΩ pair per segment (not per socket). At 10 segments, 20 resistors — versus the 160 that a per-socket scheme would need.
+- **Capacitance:** at 400 kHz fast mode the 400 pF bus limit permits roughly 10–19 modules per segment with disciplined routing. Realised cluster sizes under CLUSTER-1 + SYM-1 are **3–6 tiles** (§8.2.1), comfortably inside that, with ≥1.7× margin even against a full 7-tile flower. Segment routing length is the real constraint and is a Hub PCB Rev C layout item. Note the earlier "3–7-tile cluster sizes" phrasing bracketed the **3-hex triad**, which CLUSTER-1 excludes; the surviving range is the partial flower (3–6) up to the full flower (7).
+- **Pull-ups:** one 4.7 kΩ pair per segment (not per socket). At **18 segments, 36 resistors** — versus the 160 that a per-socket scheme would need.
+
+### 8.2.1 Where 18 comes from
+
+The count is fixed by the lattice, not chosen. Inputs: the v1 socket lattice `ROW_WIDTHS = [3,6,7,8,9,8,9,8,7,6,5,4]` (80 sockets, 12 coronal rows, `scripts/sync-socket-map.ts`), **CLUSTER-1** (flower or partial flower only), and **SYM-1** (mirror-symmetric partition).
+
+1. **The six midline clusters are forced.** A cluster containing a midline socket must equal its own mirror image, so its centre must be self-mirror — i.e. *on* the midline. Only odd-width rows carry a midline socket (r0, r2, r4, r6, r8, r10 → sockets **{2, 13, 29, 46, 62, 74}**, NP-HEX-ZM-001 §3.2), and a flower spans only rows *r*−1…*r*+1, so each midline cluster holds **exactly one** midline socket. Hence exactly **6** midline-centred, self-symmetric clusters.
+2. **They absorb exactly 30 sockets** — 6 centres + 12 in-row petals (x = ±1) + 10 contested petals at x = ±0.5 on r1…r9 + 2 on r11.
+3. **The residual is 50 sockets: two mirror-image lateral bands of 25.** Exhaustive branch-and-bound over all flower/partial-flower covers of one band gives a minimum of **6** clusters per band (the naïve ceil(25/7)=4 is unreachable — the residual bands are only 2–3 sockets wide, so most flowers cannot fill).
+
+**Total: 6 + 2 × 6 = 18 clusters, and this is provably minimal**, not a greedy result. Cluster sizes are 3–6 tiles. Diagram: `docs/diagrams/np_hextile_cluster_map.svg`.
+
+**Contiguity is a binding shape rule, not an aesthetic one (CONTIG-1).** Minimising cluster *count* does not by itself constrain cluster *shape*: a partition can satisfy CLUSTER-1 and SYM-1 while still placing a petal whose only in-cluster contact is the centre — a **pendant petal**, with a foreign socket on both flanks. The first 18-cluster partition generated for this revision contained four (sockets 27, 31, 77, 80). That shape is mechanically inadmissible, because the cluster's structural member is the **clamp plate**, not the tile group (tiles are independent modules in independent sockets), and the plate cannot bridge the gap — the gap socket belongs to a different cluster whose plate actuates independently. The plate must therefore reach a pendant petal on a **cantilever arm**:
+
+| Arm geometry | Value | Source |
+|---|---|---|
+| Length, centre plunger → pendant plunger | 40.0 mm | tile pitch, §4.1 |
+| Maximum neck width crossing one tile boundary | **23.09 mm** (one hex edge, W/√3), less clearance for the two flanking plates | §3 |
+| Dome the arm must follow over that span | 2.33 mm sagitta at R_m = 87 mm | R-1 |
+
+**Rule: a cluster's petals must form a contiguous arc around its centre**, measured over ring positions that exist in the lattice. Dropping *outer* petals — CLUSTER-1's own wording — yields this automatically; only a count-minimising search violates it. A single missing petal in an otherwise complete ring (a horseshoe plate, e.g. C2/C4) is admissible: the petals still chain, so there is no cantilever. What is excluded is an **isolated** petal.
+
+The four pendant petals were resolved at **zero cost in cluster count** by reassigning each to an adjacent cluster that already touches it — 73→C16, 75→C18, 27→C8, 31→C9 (principal direction, 2026-08-04). The partition remains 18 clusters, mirror-symmetric, max size 6, with **zero pendant petals and zero broken arcs**.
+
+**The symmetry constraint costs clusters.** Without SYM-1 the minimum is **12** (ceil(80/7), the figure NP-HW-HUB-001 Rev C §4.4 and NP-DRV-SHELL-002 §7.1 both carry). SYM-1 raises it to 18 — a 50 % increase — because the midline forces a column of six clusters that are mostly partial flowers, and the residual lateral bands are too narrow to pack efficiently. **Every peer document currently sizes hardware off 12 or off `ceil(n/8)` = 10; all three counts are now in play and only 18 satisfies the standing decisions** (OI-HEXTILE-14).
+
+### 8.2.2 Interconnect capacity at 18 clusters — options for OI-HEXTILE-14
+
+**Status: PROPOSED, not decided.** Recorded so Hub PCB Rev C and NP-DRV-SHELL-002 can be coordinated before either is released.
+
+**Two independent "16"s bind, and they belong to different documents.** They must not be conflated:
+
+| # | Constraint | Source | Binds at |
+|---|---|---|---|
+| **C1** | Cluster-tail **connector positions** on the Hub PCB, 12 pins each | NP-DRV-SHELL-002 §7.1 | 16 (12 populated) |
+| **C2** | I2C **tree capacity**, `8 branches × ≤2 clusters` | NP-DRV-SHELL-002 §3.4 | 16 |
+
+**C2 does not exist under this document's own D-7.** D-7 is 4 × LPI2C, each with one 8-channel PCA9548A = **32 segments**, of which 18 uses 56 %. The two documents describe different trees, and that disagreement is already open as **OI-HUB-C17** — where NP-HW-HUB-001 §7's own comparison recommends D-4/D-7 prevailing. So C2 may resolve itself; **C1 will not**, and is the one that must be fixed before Rev C layout.
+
+| # | Option | Effect | Assessment |
+|---|---|---|---|
+| **1** | **Provision 18 → 20 connector positions** | +24…+96 conductors through the §5.3c posterior boss (216–240 vs 192) | **Recommended.** The cheap axis: SHELL-002 §7.3 notes adding a *conductor* costs 16 hub pins, so widening the tail is expensive while adding tails is not. Still far below the ~880 that Rev B's star implied. 20 rather than 18 absorbs a REG-1 re-cut without a second re-spin |
+| **2** | Raise branch fan-out `8 × 2` → `8 × 3` = 24 | Fixes C2 with **no new silicon** — the tier-1 bus already addresses 32 controllers on a 5-bit strap | Only needed if SHELL-002's cluster-MCU tree survives OI-HUB-C17. Capacitance is not the obstacle either way: with a cluster MCU the branch sees 3 controllers; under D-7 the segment sees ≤6 modules, both inside the 10–19 limit (§8.2) |
+| **3** | **Adopt D-7's topology wholesale for Rev C** | C2 disappears; 18 of 32 segments, 14 spare | **Recommended.** Costs nothing new — already the standing requirement in OI-HEXTILE-10. Needs OI-HUB-C17 decided |
+| **4** | **Multi-drop trunk instead of per-cluster star** | Connector count becomes largely **insensitive** to cluster count | **Recommended if §8.4.1 is accepted** — see the interaction below |
+| 5 | Decouple electrical from mechanical clusters (populate fewer sockets, OI-HEXTILE-06) | Electrical clusters < 18 while mechanical stays 18; the capacity-8 board SKU already tolerates it | Legitimate but trades a stated principle — D-7's "one physical grouping serving mechanics, power, safety and addressing" — for connector count. Not the lead option |
+| 6 | Re-cut the lattice to ≤16 clusters | — | **Not available without breaking a principal decision.** The 6 midline clusters are forced by SYM-1 given six odd-width rows, and 18 is provably minimal at n = 80 (§8.2.1); reaching 16 needs ~10 fewer sockets, which REG-1 registration is unlikely to permit |
+| 7 | Pair clusters onto shared tails | 18 clusters over ≤16 tails | Breaks "board + clamp + sockets as a single FRU" (NP-HW-HUB-001 §4.4) and forces an asymmetric pairing under a symmetric partition. Rejected |
+
+**Interaction with §8.4.1 — the reason option 4 is strategic rather than cosmetic.** N1 (power) is already a broadside tree and N2 (control) is already a two-level tree; **`SAFE_EN_n` (N5) is the only star component of the tail** (NP-DRV-SHELL-002 §4 network table), and it is therefore the structural reason each cluster must terminate at the hub individually. If §8.4.1's single Class C `NP_SAFETY_EN_PBM_CRANIAL` is accepted, that line becomes a **broadcast**: the tail drops 12 → 11 conductors and clusters can tap a trunk instead of each running a dedicated star leg. The per-cluster high-side gate already sits on the cluster carrier (SHELL-002 §5.1 BOM), so local gating is unaffected. **This is what makes the interconnect robust to a future REG-1 re-cut** rather than merely sufficient at 18.
+
+**Recommendation: options 1 + 3, with 4 if §8.4.1 survives safety review.** Adopt D-7's 32-segment tree, provision **20** connector positions, and — if the single cranial enable is accepted — remove `SAFE_EN_n` from the tail and let a trunk absorb future count changes. **The failure mode to avoid is cutting Rev C against 16 and discovering the shortfall in layout**, which is precisely what OI-HEXTILE-14's "coordinate before either is released" exists to prevent.
 
 ### 8.3 3.3 V logic budget
 
@@ -393,9 +461,98 @@ This is achievable — tinyAVR 2-series parts wake from standby on TWI address m
 
 R-11 requires the safety MCU to physically own the enable path. The STM32G071 cannot present 80 GPIOs, so per-socket gating is not available at the safety layer.
 
-**Decision (D-8): the safety MCU gates VLED per cluster** — 4–10 high-side switches on the cluster segments defined in §8.2, replacing the retired `NP_SAFETY_EN_PBM_ZONE_0..4` five-zone scheme. Cutting VLED removes emitter drive regardless of on-module state, so a wedged module MCU cannot sustain output. Per-socket granularity is provided by the on-module driver (fine, fast, not safety-rated); the cluster gate is the coarse, hardware, safety-rated backstop.
+**Decision (D-8): the safety MCU gates VLED per cluster** — **18 high-side switches** on the cluster segments defined in §8.2, replacing the retired `NP_SAFETY_EN_PBM_ZONE_0..4` five-zone scheme. Cutting VLED removes emitter drive regardless of on-module state, so a wedged module MCU cannot sustain output. Per-socket granularity is provided by the on-module driver (fine, fast, not safety-rated); the cluster gate is the coarse, hardware, safety-rated backstop.
 
 This is proposed as the hardware half of the resolution to **OI-HUB-SOCKET-01**.
+
+**The GPIO argument this decision rests on does not close at 18, and is now an open item.** D-8's premise is that "the STM32G071 cannot present 80 GPIOs", which is true and unaffected. But the inference that the cluster count is therefore comfortable was written against 4–10. At 18 it needs re-checking, and re-checking surfaces three problems:
+
+| # | Finding | Evidence |
+|---|---|---|
+| 1 | **The safety MCU package is not specified anywhere in the document tree.** STM32G071 spans UFQFPN28 (~22 I/O) to LQFP64 (~52 I/O). The only package-qualified STM32G071 in the tree is NP-HW-HUB-001 §8.3's **UFQFPN32 cluster MCU** — a different part. | `docs/np_hw_hub_001.md:1173`; no package in `firmware/safety_mcu/` |
+| 2 | **Demand at 18 enables is ~38–40 I/O.** SPI1 slave 4 (NSS is load-bearing — frames are delineated by NSS transfer length) + R-peak capture 1 + nine non-cranial modality enables + 6 NTC ADC channels + fault-indicator LED (FMEA-M08-04 requires it on a *different port* from the enables) + SWD 2 ≈ 22, **plus 18** = ~40. That excludes every ≤32-pin package and leaves LQFP48 with almost no margin. | `firmware/safety_mcu/include/np_safety_config.h`; `docs/np_fmea_001.md` FMEA-M08-04 |
+| 3 | **The open question is per-cluster *policy*, not a conflict between the peer documents.** An earlier draft of this section called NP-HW-HUB-001 §7.2 and NP-DRV-SHELL-002 §6 *incompatible*; **that was wrong and is withdrawn.** NP-HW-HUB-001 **§7.4 already reconciles them**: *"These are compatible and were reached from different ends: 12–16 physical enable **lines** fanned out from **one** policy **bit**."* Physical per-cluster gates and a single policy bit are the same design. What is genuinely undecided is whether **per-cluster policy** — independently commanded cluster bits — is wanted, which §7.4 routes to **OI-HUB-C07**. | `docs/np_hw_hub_001.md` §7.2, **§7.4:928**; `docs/np_drv_shell_002.md:190,378,432,482` |
+| 4 | **Per-cluster policy does not fit the current Class C enable word, but the word can now be widened cheaply.** The enable mask is `uint16_t` (`NP_SAFETY_EN_ALL_MASK = 0x3FFF`, 14 bits used, 2 spare). 18 cluster bits + 9 surviving modality bits = **27 > 16**; §7.4 found the same at 16 clusters (25 bits). Collapsing the five zone bits to one cranial bit yields 10 used / **6 spare** — still short, so recycling bits alone is insufficient. **However (principal, 2026-08-04): no SHDR fault records have been generated yet**, so §7.2's "bits 1–4 reserved, not reused" rule does not bind and widening to `uint32_t` is a pre-production change with no migration and no ambiguous historical logs. **The wire format is therefore a cost, not a ceiling.** | `firmware/safety_mcu/include/np_safety_protocol.h:46–60, 90–118`; `docs/np_hw_hub_001.md` §7.4 |
+
+**The open question is finding 3: it is not decided whether the safety layer can cut one cluster or only the whole cranial lattice.** Raised as **OI-HEXTILE-13**, and the same question NP-HW-HUB-001 §7.4 routes to **OI-HUB-C07**. Until it closes, D-8's **switch** count is 18 while its **policy-bit** count is either 18 or 1. Note findings 1, 2 and 4 are all *costs* of per-cluster policy rather than blockers — none of them decides the question. The argument that does is in §8.4.1.
+
+> **Note (firmware, no change requested) — the PA4 collision sits inside a macro set that is already slated for deletion.**
+>
+> `np_safety_config.h:24` declares **PA4** as SPI1 NSS (load-bearing — `np_safety_main.c` distinguishes frame types by NSS-delineated transfer length), while `:45` assigns `NP_EN_PBM_ZONE4_PIN = (1U << 4)` on GPIOA. Same pin, two owners. (`NP_EN_INTRANASAL_PIN` is also `1U << 4` but on GPIOB — not a collision.) The header calls bank assignments *"provisional pending PCB layout (G1 gate)"*, so this is a provisional-allocation artifact, not a live defect.
+>
+> **It should not be tracked as a standalone pin conflict.** `NP_SAFETY_EN_PBM_ZONE_0..4` / `NP_EN_PBM_ZONE0..4` encode the **retired 5-module-slot** meaning of "zone". Under the current architecture a zone is *"a named SET OF MODULES, defined as a list of socket addresses"*, authored in `protocols/predefined/00-zones.npps`, with **no fixed count and user-extensible** (CLAUDE.md §3). Crucially, **zones overlap** — that file's §"inclusive membership" rule puts every midline socket in BOTH the Left and the Right zone of its lobe, and requires firmware to dedup. **An overlapping, user-definable set can never be a hardware enable domain**: "cut zone *X*" is undefined when a socket belongs to two zones. Clusters *partition* the lattice; zones do not. This is why D-8 gates per **cluster**, and it makes the zone-enable macros structurally dead rather than merely miscounted.
+>
+> NP-HW-HUB-001 §7.2 already mandates their removal (five zone bits → one `NP_SAFETY_EN_PBM_CRANIAL`), which deletes PA4's second owner as a side effect. **The correct home is therefore that cleanup, not this open item** — cross-referenced from **NP-FMEA-001 FMEA-M08-04**, which already covers "stimulation enable GPIO shares a pin with another function" (S5 → ALARP, control = *"GPIO assignment verified against schematic in hardware design review"* — a control that has not yet executed, which is why the collision is still present).
+>
+> **Two siblings carry the same retired concept and should be cleaned up together:** `NP_NTC_CHANNEL_COUNT 6 /* 5 zones + 1 hub */` in `np_safety_config.h`, and NP-FMEA-001 FMEA-M04's *"reads the NTC thermistor ADC channel for each PBM zone (5 zones)"*.
+>
+> **No firmware change is made by this revision** — the deletion belongs to NP-HW-HUB-001 §7.2 and is gated on OI-HUB-C07 / OI-HUB-C17.
+
+### 8.4.1 Proposed resolution to OI-HEXTILE-13 — keep per-cluster policy out of Class C
+
+**Status: PROPOSED, not decided. Safety review (OI-HUB-C07) arbitrates.**
+
+**This confirms NP-HW-HUB-001 §7.4 rather than proposing something new.** §7.4 already states the synthesis — *"12–16 physical enable lines fanned out from one policy bit"* — and already identifies the residual question as whether per-cluster *policy* is wanted. What this section adds is the arithmetic at **18** clusters and the argument that decides it.
+
+**The trade is not safety-vs-safety.** Both peer documents concede that coarser cutting is never less safe: NP-HW-HUB-001 §7.2 ("over-cutting is a usability cost, never a hazard") and NP-DRV-SHELL-002 §6 ("an **availability** regression, not a safety one, and it is the conservative direction"). Per-cluster policy therefore buys **availability only**.
+
+**Two arguments previously offered here are withdrawn.** They were costs, not blockers, and resting the case on them was wrong:
+
+| Withdrawn argument | Why it does not decide the question |
+|---|---|
+| *"The peer documents specify incompatible architectures."* | They do not — NP-HW-HUB-001 §7.4 reconciles them explicitly. Per-cluster physical gates and a single policy bit are the same design, and the gates exist in **both** columns |
+| *"27 enable bits do not fit the 16-bit Class C wire format."* | True today, but **no SHDR fault records have been generated yet** (principal, 2026-08-04), so §7.2's "bits 1–4 reserved, not reused" rule does not bind and the word can be widened to `uint32_t` as a pre-production change — no migration, no ambiguous historical logs. A cost, not a ceiling. See §8.4.2 |
+
+**The argument that survives, and it is sufficient on its own:**
+
+> **Per-cluster policy puts a *topological* map behind a Class C certification boundary, to buy an availability benefit that Class B can deliver instead.**
+
+Eighteen independently-commanded cluster bits require the safety MCU to hold a socket→cluster mapping. That mapping is not identity — it changes whenever **MECH-2** revisits the clamp shape or **REG-1** re-cuts the lattice. NP-HW-HUB-001 §4.5.1 rejects encoding cluster identity in the logical address for exactly this reason. Behind a Class C boundary the consequence is worse than an awkward table: **a re-clustering becomes a Class C recertification** rather than a regenerated map. It also creates a failure mode that cannot otherwise exist — cutting the *wrong* cluster from a stale map, leaving the faulted one energised.
+
+**Proposal — extend D-8's own two-level logic by one tier, and make only the top tier safety-rated:**
+
+| Tier | Granularity | IEC 62304 class | Mechanism |
+|---|---|---|---|
+| Fine | per socket (~80) | B | on-module driver register (already D-8) |
+| Coarse | **per cluster (18)** | **B** | per-cluster gate enables, for *availability* management |
+| Hard | **whole cranial lattice** | **C** | single `NP_SAFETY_EN_PBM_CRANIAL`, in series with everything above |
+
+This keeps NP-DRV-SHELL-002's per-cluster hardware gates and its availability benefit, keeps §7.2's single Class C bit and its 1-GPIO cost, and keeps the topological map outside the certified boundary. **R-11 is preserved** — the Class C bit is in series, so the safety MCU still physically owns the enable path and no Class B fault can re-energise a cut lattice. It also drops safety-MCU demand from ~40 to ~23 I/O, which closes on a mid-range package with margin.
+
+**What would falsify this proposal.** It fails if safety review identifies a hazard where continuing to stimulate on the *other* clusters is safe, continuing on the faulted cluster is not, **and** a whole-lattice cut is itself unacceptable. Since a whole-lattice cut is always available and always safe, that requires the cut to be harmful in its own right — which nothing in the tree claims for PBM. (The cervical-VNS cardiac interlock has its own dedicated <100 ms enable path and is unaffected either way.) **Safety review should either produce such a hazard or close the item.**
+
+### 8.4.2 The Class C enable word — what can and cannot be re-laid out
+
+**Standing principal instruction (2026-08-04): no SHDR fault records have been generated, and none are to be assumed until the principal states otherwise.** NP-HW-HUB-001 §7.2 requires enable-word bits 1–4 to be *"reserved, not reused"* on the grounds that *"enable-bit positions appear in SHDR fault records; silently recycling a position would make historical logs misread."* With no records in existence, **that stated rationale does not currently bind.**
+
+> **⚠ But the reservation rule survives the rationale it was given, and §7.2 does not say so.** Enable-bit positions have a **second consumer inside the firmware**: they are identical to charge-monitor channel indices. `NP_SAFETY_MAX_CHANNELS` (14) is specified as *"must match the `s_charge_nc[]` array size in `np_charge_monitor.c` **and the number of `NP_SAFETY_EN_* ` bits**"*; `NP_SAFETY_CH_CLIN_STIM` is defined as *"charge-monitor channel INDEX for CLIN_STIM (**= bit position of the enable bit**)"*; and the test suite shifts the index straight into the mask (`granted_mask & (1U << NP_SAFETY_CH_CLIN_STIM_IDX)`). **Enable-bit position ≡ `current_ua[]` slot ≡ charge accumulator index — a three-way identity, and it is Class C** (the 40 µC/cm² charge-density limit rests on it). A reader combining §7.2 with the no-SHDR-records finding would reasonably conclude that recycling bits 1–4 is now safe. **It is not.** NP-HW-HUB-001 should record this second rationale — raised as part of **OI-HEXTILE-14**.
+
+**Frame capacity: there is none.** The active heartbeat `np_safety_rx_ext_frame_t` (`firmware/common/include/np_spi_wire_types.h`) allocates all 38 bytes:
+
+| Offset | Field | Bytes |
+|---|---|---|
+| 0 | `magic[2]` | 2 |
+| 2 | `session_status` | 1 |
+| 3–4 | `enable_lo` / `enable_hi` | 2 |
+| 5 | `channel_count` | 1 |
+| 6 | `checksum` (over bytes 0–5) | 2 |
+| 8 | `current_ua[NP_SAFETY_MAX_CHANNELS]` | 28 |
+| 36 | `ext_checksum` (over bytes 8–35) | 2 |
+| | **total** | **38 — no reserved field** |
+
+*(The single reserved byte in `np_safety_rx_frame_t` is not available: that is the legacy 8-byte base retained only for the test suite and to document layout origin. The active heartbeat is the extended frame.)*
+
+**Three changes, three different costs:**
+
+| Change | Bit budget | Cost | Verdict |
+|---|---|---|---|
+| **Collapse `ZONE_0..4` → one `CRANIAL` bit, leaving bits 1–4 as holes** | 10 of 16 used | **Free.** Nothing above bit 4 moves; `current_ua[]` semantics, `NP_SAFETY_MAX_CHANNELS` and `s_charge_nc[]` all untouched | **Take it.** Worth doing regardless of how OI-HUB-C07 resolves — and it does not depend on the no-SHDR-records finding at all |
+| **Compact the word — actually recycle bits 1–4** | 10 of 16, contiguous | **Not free.** Every modality bit shifts down 4, so `NP_SAFETY_CH_CLIN_STIM` 13 → 9 and every `current_ua[i]` slot changes meaning. Touches `s_charge_nc[]`, the hub-side packing in `np_hub_config.h`, and the charge-monitor tests | Only if a positive reason appears. Cosmetic tidiness is not one |
+| **Widen for per-cluster policy (18 cluster + 9 modality = 27 bits)** | 27 — does not fit 16 | **Substantial.** `uint16_t` → `uint32_t`; frame must **grow** (zero spare bytes), moving `NP_SAFETY_RX_EXT_FRAME_LEN`, both checksum spans, the compile-time size assertion and eight `offsetof` assertions. If the bit ≡ channel identity is preserved, 27 bits implies `current_ua[27]` = 54 bytes, taking the 200 ms heartbeat from 38 to ~64 bytes | A real cost, on top of §8.4.1's Class C map objection |
+
+**One escape, if per-cluster policy is ever adopted:** PBM clusters plausibly need no charge monitoring at all — charge density is a tES concept (BES/tDCS/CVNS), and `NP_SAFETY_CH_CLIN_STIM` is the only channel index the tree names explicitly. Breaking the bit ≡ channel identity would decouple enable width from `current_ua[]` width and remove most of the frame-growth cost. **That must be a deliberate Class C decision, not a side effect of a re-layout.**
+
+**Net:** the enable word is **a cost, not a ceiling** — but the cost is larger than the GPIO count and larger than an earlier draft of this section stated. The only genuinely free move is the §7.2 collapse with bits 1–4 left as holes.
 
 ---
 
@@ -448,8 +605,8 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **D-4** | TIA + ADC on-module; no PD analog signal crosses the socket | Deletes the ~80× DG2788A gain-switch NRE rather than redesigning it; gain fixed to the PD actually fitted; removes the longest high-impedance analog path in the system | **No** — same coupling as D-3 |
 | **D-5** | 16-position pogo interface, 2.00 mm pitch, springs on socket | A per-tile ZIF lever contradicts the NP-HEX-ZM-001 §5.4a accessibility premise; spring contacts absorb the cluster-clamp Z variation the plungers do not | Partly — pin count is load-bearing, contact style less so |
 | **D-6** | VLED = 24 V | Holds peak contact current to 0.26 A/pin (4× derating) and keeps linear drive overhead ≤7 % at practical string lengths | Yes, with pin-count consequences |
-| **D-7** | Per-cluster I2C segments with UID-derived dynamic addressing | Removes the address collision instead of muxing around it; reuses the UID `np_module_map` already depends on; collapses cascaded muxing to one tier | Yes |
-| **D-8** | Safety MCU gates VLED per cluster, not per socket | STM32G071 has no 80-GPIO option; coarse hardware cut + fine on-module control is defence in depth, not a compromise | Partly |
+| **D-7** | Per-cluster I2C segments with UID-derived dynamic addressing, **18 segments** at the v1 lattice (§8.2.1) | Removes the address collision instead of muxing around it; reuses the UID `np_module_map` already depends on; collapses cascaded muxing to one tier. 18 of 32 available segments — the one-tier conclusion survives the count correction | Yes |
+| **D-8** | Safety MCU gates VLED per cluster, not per socket — **18 high-side switches** | STM32G071 has no 80-GPIO option; coarse hardware cut + fine on-module control is defence in depth, not a compromise. **Switch count 18; enable count unresolved (18 vs 1) — OI-HEXTILE-13, proposed resolution at §8.4.1 (single Class C bit + Class B per-cluster gates)** | Partly |
 
 **Rejected, with reasons:**
 
@@ -475,7 +632,9 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **OI-HEXTILE-07** | On-module driver firmware spec — register map extending NP-FW-PBM1064-001 §5.1 with PD ADC readback and local NTC throttle; binding ≤2 mA standby / ≤25 mA active budget (§8.3). Successor to the retired NP-FW-ZM-TINY402-001 (OI-PBM-08) | Module bring-up; IEC 62304 Class B item registration in NP-SW-001 |
 | **OI-HEXTILE-08** | Re-scope NP-SW-001 §5.2.1 / RISK-18 ZONE_ID debounce: no ZONE_ID pin exists on this interface (§7.2). Requirement remains in force for surviving non-tile accessory detection; its module-detection scope needs restating under UID inventory | NP-SW-001 revision; traceability |
 | **OI-HEXTILE-09** | **Global concurrent-power governor** in the protocol compiler and session runner: a `NP_PROTO_TARGET_SOCKET_MASK` naming more than ~6 tiles exceeds the PD contract (§9.3). Gap in the delivered v2 wire format | Session execution safety; **decide with OI-HEXTILE-06** |
-| **OI-HEXTILE-10** | Hub PCB **Rev C** must adopt this interface: 4× LPI2C + one-tier PCA9548A segmentation, per-cluster 24 V high-side switches with safety-MCU enable, 3.3 V budget per §8.3. **Deletes** Rev B's `GAIN_SEL[0..4]`, its five DG2788A switches, and its ZONE_ID-to-gain sequencing (§5 of that document) | Hub PCB Rev C; **coordinate before either is released** |
+| **OI-HEXTILE-10** | Hub PCB **Rev C** must adopt this interface: 4× LPI2C + one-tier PCA9548A segmentation, **18** per-cluster 24 V high-side switches with safety-MCU enable (count per §8.2.1 — **was stated as 4–10; that figure was the retired 30-socket lattice's**), 3.3 V budget per §8.3. **Deletes** Rev B's `GAIN_SEL[0..4]`, its five DG2788A switches, and its ZONE_ID-to-gain sequencing (§5 of that document). **Rev C must not be released against the old count** — 18 exceeds the 16 cluster-tail connectors NP-DRV-SHELL-002 §7.1 provisions (OI-HEXTILE-14) | Hub PCB Rev C; **coordinate before either is released** |
+| **OI-HEXTILE-13** | **Is per-cluster safety *policy* wanted at 18 clusters? (§8.4)** The same question NP-HW-HUB-001 §7.4 routes to **OI-HUB-C07**. **Not a conflict between peer documents** — an earlier draft called §7.2 and NP-DRV-SHELL-002 §6 incompatible and that is **withdrawn**; §7.4 reconciles them as *"12–16 physical enable lines fanned out from one policy bit"*, and per-cluster physical gates exist in both. The undecided part is whether independently-commanded **cluster bits** are wanted. Costs of saying yes, none of them decisive: (a) the STM32G071 **package is unspecified** anywhere in the tree and demand at 18 enables is ~40 I/O, excluding every ≤32-pin option; (b) 18 cluster + 9 modality = **27 bits against a 16-bit Class C enable word** — a cost rather than a ceiling, since no SHDR fault records exist so the word can be widened pre-production (§8.4.2); (c) `np_safety_config.h` double-assigns **PA4** to SPI1 NSS and `NP_EN_PBM_ZONE4_PIN` — **re-homed to the §7.2 dead-macro cleanup** (the zone-enable macros encode the retired 5-slot meaning of "zone"; zones are now overlapping authored socket sets in `00-zones.npps` and can never be enable domains), cross-referenced from NP-FMEA-001 FMEA-M08-04. **→ PROPOSED RESOLUTION at §8.4.1:** split the enable by IEC 62304 class — per-cluster gates retained but owned by **Class B** for availability, with a **single Class C** `NP_SAFETY_EN_PBM_CRANIAL` in series as the hard interlock. **The one sufficient argument:** per-cluster policy puts a *topological* socket→cluster map behind a Class C boundary, so a MECH-2 or REG-1 change becomes a recertification rather than a regenerated table, and a stale map can cut the wrong cluster. Preserves R-11 (Class C bit in series), keeps NP-DRV-SHELL-002's availability benefit, drops demand to ~23 I/O. **Falsifier stated:** a hazard where cutting only the faulted cluster is required *and* a whole-lattice cut is unacceptable | **Safety review (OI-HUB-C07) arbitrates; blocks D-8 closure.** Review should either produce the falsifying hazard or close the item. Package selection follows. **Sequence before first SHDR fault record** — §8.4.2 |
+| **OI-HEXTILE-14** | **Stale cluster counts in peer documents.** SYM-1 makes the count 18; peers are sized off 12 or 10: NP-DRV-SHELL-002 §7.1 provisions **12 cluster-tail connectors, 16 positions** (18 does not fit, and its §3.4 `8 branches × ≤2 clusters = 16` tree cannot reach 18 without a third branch tier or 3-deep branches); NP-HW-HUB-001 §6.3 sizes DG2788A at "**1 per cluster (10 at n = 80)**"; NP-HEX-ZM-001 §5.4a's MECH-2 table prices the flower at **12 boards / $76.08**, actual is **18 / $114.12**. Each needs an editorial pass on its own revision — **not corrected by this revision**, which owns only NP-HW-HEXTILE-001. **Additionally: NP-HW-HUB-001 §7.2 justifies its "bits 1–4 reserved, not reused" rule *solely* by SHDR fault records, but a second, unstated rationale also holds — enable-bit position is identical to the charge-monitor channel index (`NP_SAFETY_MAX_CHANNELS`, `NP_SAFETY_CH_CLIN_STIM`, `current_ua[]`), which is Class C.** A reader combining §7.2 with the standing no-SHDR-records instruction would wrongly conclude that recycling bits 1–4 is safe. §7.2 must record the second rationale (§8.4.2). **→ PROPOSED RESOLUTION at §8.2.2:** two independent limits bind — **C1** the 16 provisioned connector positions, and **C2** the `8 branches × ≤2` I2C tree. **C2 does not exist under this document's D-7** (4 × LPI2C × PCA9548A = 32 segments, 18 used), so it resolves with OI-HUB-C17; **C1 does not self-resolve** and must be fixed before Rev C layout. Recommended: **adopt D-7's tree + provision 20 connector positions** (the cheap axis — adding tails costs far less than widening them, per SHELL-002 §7.3), and **if §8.4.1 is accepted, remove `SAFE_EN_n` from the tail** — it is the only star component of the 12-conductor tail, so a single broadcast cranial enable permits a multi-drop trunk and makes connector count insensitive to a future REG-1 re-cut. Options 5–7 (decouple electrical/mechanical clusters, re-cut the lattice, pair clusters onto shared tails) assessed and not recommended | NP-DRV-SHELL-002, NP-HW-HUB-001 Rev C, NP-HEX-ZM-001 revisions; **coordinate with OI-HEXTILE-10 and OI-HUB-C17 before either is released** |
 | **OI-HEXTILE-11** | Pogo contact qualification: ≤50 mΩ over ≥500 cycles **in the EEG signal path** (pin 13). Contact noise in a µV recording chain is not covered by the resistance spec alone | T1-B EEG performance; FAI |
 | **OI-HEXTILE-12** | FPC stack-up, trace width/spacing, and copper weight for a 24 V / 1.04 A tile. PDMS bonding (SiO₂ 75 nm interlayer + O₂ plasma) and the 200-cycle IEC 60068-2-14 qualification inherit unchanged from NP-HW-FPC-001 Rev E §7 and remain BLOCKING | FPC artwork release |
 
@@ -497,7 +656,12 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | HT-DRC-10 | Contact mating sequence prevents powered-floating-return and false-seated states | ✓ (§7.3) |
 | HT-DRC-11 | I2C address collision structurally impossible across ~80 modules | ✓ (UID-derived assignment, D-7) — needs firmware confirmation, OI-HEXTILE-07 |
 | HT-DRC-12 | 3.3 V logic budget ≤1 W across 80 modules | Open — depends on standby firmware, OI-HEXTILE-07 |
-| HT-DRC-13 | Safety MCU retains physical ownership of emitter enable (R-11) | ✓ (per-cluster VLED gate, D-8) — needs Hub PCB Rev C, OI-HEXTILE-10 |
+| HT-DRC-13 | Safety MCU retains physical ownership of emitter enable (R-11) | ✓ in principle (per-cluster VLED gate, D-8) — **enable count and MCU package unresolved, OI-HEXTILE-13** (proposed resolution §8.4.1 preserves R-11 by keeping the Class C bit in series); needs Hub PCB Rev C, OI-HEXTILE-10 |
+| HT-DRC-17 | Cluster count derived from the lattice under CLUSTER-1 + SYM-1, not carried from another lattice generation | ✓ (18, exhaustively verified, §8.2.1) — re-derive on any REG-1 lattice re-cut |
+| HT-DRC-21 | No cluster contains a pendant petal; every cluster's petals form a contiguous arc (CONTIG-1) | ✓ (0 pendants, 0 broken arcs, §8.2.1) — **re-verify on any re-clustering**, this is not implied by cluster count |
+| HT-DRC-18 | I2C segment count within one-tier mux capacity | ✓ (18 of 32, 56 %, §8.2) |
+| HT-DRC-19 | Safety-MCU free-GPIO count covers the cluster enables plus all existing modality enables | **Open — OI-HEXTILE-13.** Package unspecified; demand ~40 I/O at 18 enables, or **~23 I/O under the §8.4.1 proposal** |
+| HT-DRC-20 | Peer documents (NP-DRV-SHELL-002, NP-HW-HUB-001, NP-HEX-ZM-001) agree on the cluster count | **Open — OI-HEXTILE-14.** Currently 12 / 10 / 12 against this document's 18; interconnect options at §8.2.2 |
 | HT-DRC-14 | Concurrent-tile power ceiling enforced before a protocol can be signed | Open — OI-HEXTILE-09 **(safety-adjacent)** |
 | HT-DRC-15 | Per-tile J/cm² dose metering claim preserved | ✓ as specified (PD1/PD2 per tile) — **at risk from OI-HEXTILE-06 option 3** |
 | HT-DRC-16 | PDMS bond + 200-cycle thermal cycling qualification carried forward | Inherited — remains BLOCKING, OI-HEXTILE-12 |
@@ -508,7 +672,10 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 
 - **Parent:** NP-HEX-ZM-001 (`docs/np_hex_zm_001.md`) — §3 geometry, §4/§4b addressing and wire format, §4a taxonomy + SMART-1, §5.4a cluster clamps, §7 gates
 - **Predecessor (SUPERSEDED, reused in part):** NP-HW-FPC-001 Rev E (`docs/np_hw_fpc_001.md`) — §5.1 InGaAs PD selection, §5.3 TIA-saturation methodology, §6.2 driver topology, §7 PDMS bonding all carried forward; §2/§3 connector and pinout, §3.2 ZONE_ID ladder, §4 LED counts all retired
-- **Must co-revise:** NP-HW-HUB-001 (`docs/np_hw_hub_001.md`) — Rev C per OI-HEXTILE-10
+- **Must co-revise:** NP-HW-HUB-001 (`docs/np_hw_hub_001.md`) — Rev C per OI-HEXTILE-10; §6.3 DG2788A count and §7.2 enable architecture per OI-HEXTILE-13/14
+- **Must co-revise:** NP-DRV-SHELL-002 (`docs/np_drv_shell_002.md`) — §3.4 branch tree, §6 `SAFE_EN_n`, §7.1 cluster-tail connector count (12/16 provisioned vs 18) per OI-HEXTILE-13/14
+- **Cluster partition diagram:** `docs/diagrams/np_hextile_cluster_map.svg` — the 18-cluster midline-symmetric partition of the 80-socket lattice, socket ids and cluster boundaries (§8.2.1)
+- **Lattice source of truth:** `scripts/sync-socket-map.ts` (`ROW_WIDTHS`) → `hardware/np_socket_map.json`, `app/web/src/lib/socketMap.generated.ts`
 - **Firmware:** NP-FW-PBM1064-001 Rev B (register map, §6.6 factory calibration); `firmware/hub_control/np_module_map.{h,c}` (UID inventory, `check_placement`)
 - **Optics:** NP-OPT-PSF-001 (`docs/np_opt_psf_001.md`) — ~26 mm resolution floor at cortical depth; the basis for §4.2's acceptance of sub-millimetre wavelength interleave irregularity
 - **Thermal:** NP-THERM-CFD-R1-001 (Path B1, scalp-facing NTC), NP-THERM-BEZEL-001 (bezel conflict, OI-HEXTILE-01)
