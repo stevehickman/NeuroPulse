@@ -94,7 +94,7 @@
 #define NP_HUB_SLOT_QEEG            11U   /* T2: 21-ch qEEG wet-gel cap */
 #define NP_HUB_SLOT_TMS             12U   /* T2: TMS focal figure-8 coil */
 #define NP_HUB_SLOT_PBM_1170NM      13U   /* T2: 1170nm deep PBM laser unit */
-#define NP_HUB_SLOT_CLIN_TACS       14U   /* T2: 16-ch clinical tACS (≤4mA) */
+#define NP_HUB_SLOT_CLIN_TACS       14U   /* T2: 21-ch clinical tACS (≤4mA) */
 #define NP_HUB_SLOT_HD_TDCS         15U   /* T2: sLORETA-guided 4×1 HD-tDCS (shares CLIN_TACS HW) */
 #define NP_HUB_SLOT_VIBROTACTILE    16U   /* Accessory: mastoid LRA 40Hz ± 0.5Hz pad */
 /* BES/tACS and tDCS share one driver (np_mod_stim.c) but are separate slots:
@@ -161,7 +161,7 @@
 #define NP_SAFETY_EN_CVNS           (1U << 10)
 #define NP_SAFETY_EN_TMS            (1U << 11)  /* gates TMS coil; EMF cancellation gated off per NP-FW-HUB §4.2 */
 #define NP_SAFETY_EN_PBM_1170NM     (1U << 12)  /* gates 1170nm laser diodes */
-#define NP_SAFETY_EN_CLIN_STIM      (1U << 13)  /* gates 16-ch tACS driver (covers CLIN_TACS + HD_TDCS) */
+#define NP_SAFETY_EN_CLIN_STIM      (1U << 13)  /* gates 21-ch tACS driver (covers CLIN_TACS + HD_TDCS) */
 #define NP_SAFETY_EN_AUDIO          0U    /* audio not safety-MCU-gated */
 
 /* Safety-MCU charge-monitor channel INDEX for CLIN_STIM (= bit position of

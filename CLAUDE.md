@@ -214,11 +214,11 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 - **21-ch qEEG wet gel:** Full 10-20 + FC3/FC4 (M1 TMS targeting) + Oz (photoparoxysmal detection) + A1/A2 (linked-ear normative reference, on VNS clips)
 - **TMS focal figure-8 coil:** 0.1–0.5T · rTMS + TBS · non-conductive CFRP window at coil site · TMS-gated EMF cancellation (safety MCU gates Helmholtz off 5ms pre-pulse, 50ms post-pulse hold)
 - **1170nm deep PBM:** Laser diodes · 35–40mm subcortical depth · TEC stabilisation · ≤1,000 mW/cm²
-- **Clinical tACS:** ≤4mA · 16-ch arbitrary waveform
+- **Clinical tACS:** ≤4mA · 21-ch arbitrary waveform (one channel per cap electrode)
 - **sLORETA-guided HD-tDCS:**
   - 4×1 ring montage: center anode + 4 return cathodes positioned by sLORETA source map — provides ~3–5× spatial focality vs standard 2-electrode tDCS
   - Electrode: Ag/AgCl sintered 3.5mm diameter, dual-rated for EEG recording AND stimulation current (simultaneous or sequential); part of T2 qEEG wet-gel cap
-  - Current sourcing: 16-ch tACS driver (already in T2) provides independently controlled channels — no additional stimulation hardware
+  - Current sourcing: 21-ch tACS driver (already in T2) provides independently controlled channels — one per cap electrode, no sharing — no additional stimulation hardware
   - Workflow: (1) T2 21-ch qEEG resting-state session → (2) sLORETA computes cortical source map (real-time or post-session) → (3) app identifies target region (e.g., DLPFC hypoactivity, anterior cingulate hyperactivation) → (4) firmware maps MNI target to nearest 10-20 electrode positions → (5) configures 4×1 current distribution automatically → (6) delivers personalized tDCS session
   - Montage options: 4×1 ring (most focal, ~1.5cm FWHM), bilateral 4×1 (dual hemisphere), standard 2-electrode (T1-compatible fallback)
   - Safety: 40µC/cm² charge density limit enforced by safety MCU; ≤2mA per electrode; focal electrode density ≤6 A/m² (within Bikson lab safety limits for 3.5mm electrode geometry)

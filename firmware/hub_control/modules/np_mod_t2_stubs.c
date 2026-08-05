@@ -10,8 +10,8 @@
  *   NP_HUB_SLOT_QEEG        (11) — T2 21-ch wet-gel qEEG cap
  *   NP_HUB_SLOT_TMS         (12) — T2 TMS focal figure-8 coil
  *   NP_HUB_SLOT_PBM_1170NM  (13) — T2 1170nm deep PBM laser unit
- *   NP_HUB_SLOT_CLIN_TACS   (14) — T2 16-ch clinical tACS (tACS mode)
- *   NP_HUB_SLOT_HD_TDCS     (15) — T2 16-ch clinical tACS (HD-tDCS mode)
+ *   NP_HUB_SLOT_CLIN_TACS   (14) — T2 21-ch clinical tACS (tACS mode)
+ *   NP_HUB_SLOT_HD_TDCS     (15) — T2 21-ch clinical tACS (HD-tDCS mode)
  *   NP_HUB_SLOT_VIBROTACTILE (16) — Accessory mastoid LRA 40Hz pad
  *
  * Safety MCU enable bits for T2 stimulation modalities:
@@ -80,7 +80,7 @@ STUB_CONTROL  (np_mod_pbm_1170nm_control)
 STUB_TELEMETRY(np_mod_pbm_1170nm_telemetry)
 STUB_SHUTDOWN (np_mod_pbm_1170nm_shutdown)
 
-/* ── T2: 16-ch clinical tACS (tACS mode) ────────────────────────────────────── */
+/* ── T2: 21-ch clinical tACS (tACS mode) ────────────────────────────────────── */
 
 STUB_DETECT   (np_mod_clin_tacs_detect)
 STUB_INIT     (np_mod_clin_tacs_init)
@@ -88,7 +88,7 @@ STUB_CONTROL  (np_mod_clin_tacs_control)
 STUB_TELEMETRY(np_mod_clin_tacs_telemetry)
 STUB_SHUTDOWN (np_mod_clin_tacs_shutdown)
 
-/* ── T2: 16-ch clinical tACS (HD-tDCS mode) ─────────────────────────────────── */
+/* ── T2: 21-ch clinical tACS (HD-tDCS mode) ─────────────────────────────────── */
 
 STUB_DETECT   (np_mod_hd_tdcs_detect)
 STUB_INIT     (np_mod_hd_tdcs_init)

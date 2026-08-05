@@ -89,14 +89,14 @@ extern np_hub_status_t np_mod_pbm_1170nm_control(uint8_t slot, const void *param
 extern np_hub_status_t np_mod_pbm_1170nm_telemetry(uint8_t slot, np_telem_record_t *out);
 extern np_hub_status_t np_mod_pbm_1170nm_shutdown(uint8_t slot);
 
-/* T2: 16-ch clinical tACS driver (tACS mode) */
+/* T2: 21-ch clinical tACS driver (tACS mode) */
 extern np_hub_status_t np_mod_clin_tacs_detect(uint8_t slot, np_hub_mod_type_t *type_out);
 extern np_hub_status_t np_mod_clin_tacs_init(uint8_t slot);
 extern np_hub_status_t np_mod_clin_tacs_control(uint8_t slot, const void *params, uint16_t len);
 extern np_hub_status_t np_mod_clin_tacs_telemetry(uint8_t slot, np_telem_record_t *out);
 extern np_hub_status_t np_mod_clin_tacs_shutdown(uint8_t slot);
 
-/* T2: 16-ch clinical tACS driver (HD-tDCS mode — same PCB, different firmware config) */
+/* T2: 21-ch clinical tACS driver (HD-tDCS mode — same PCB, different firmware config) */
 extern np_hub_status_t np_mod_hd_tdcs_detect(uint8_t slot, np_hub_mod_type_t *type_out);
 extern np_hub_status_t np_mod_hd_tdcs_init(uint8_t slot);
 extern np_hub_status_t np_mod_hd_tdcs_control(uint8_t slot, const void *params, uint16_t len);

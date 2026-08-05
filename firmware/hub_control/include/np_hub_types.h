@@ -60,7 +60,7 @@ typedef enum {
     NP_MOD_QEEG_21CH    = 0x0B,  /* T2: 21-ch 10-20 wet gel + sLORETA */
     NP_MOD_TMS          = 0x0C,  /* T2: focal figure-8 coil, rTMS/TBS */
     NP_MOD_PBM_1170NM   = 0x0D,  /* T2: 1170nm laser diodes, 35–40mm depth */
-    NP_MOD_CLIN_TACS    = 0x0E,  /* T2: 16-ch arbitrary waveform tACS ≤4mA */
+    NP_MOD_CLIN_TACS    = 0x0E,  /* T2: 21-ch arbitrary waveform tACS ≤4mA */
     NP_MOD_HD_TDCS      = 0x0F,  /* T2: sLORETA-guided 4×1 ring HD-tDCS */
     /* ── Accessory ──────────────────────────────────────────────────────────── */
     NP_MOD_VIBROTACTILE = 0x10,  /* Accessory: mastoid LRA 40Hz ± 0.5Hz (provisional) */
@@ -337,7 +337,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  tec_target_c;      /* TEC stabilization target °C; 0=auto (37°C) */
 } np_mod_pbm_1170nm_params_t;
 
-/* ── T2: 16-ch clinical tACS (NP_MOD_CLIN_TACS) ────────────────────────────── */
+/* ── T2: 21-ch clinical tACS (NP_MOD_CLIN_TACS) ────────────────────────────── */
 
 typedef struct __attribute__((packed)) {
     uint16_t freq_mhz;          /* mHz; adaptive EMF notch enforced by safety MCU */

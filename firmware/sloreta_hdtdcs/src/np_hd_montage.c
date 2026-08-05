@@ -55,15 +55,34 @@ static const np_hd_mni_t k_clinical_targets[] = {
     /* M1_R     */ {  37, -21,  58 },
 };
 
-/* ── tACS driver channel assignment (T2 cap wiring, 16-ch driver) ────────────── */
-/* Index = np_hd_electrode_t; value = driver channel 0–15.                      */
+/* ── tACS driver channel assignment (T2 cap wiring, 21-ch driver) ────────────── */
+/*
+ * Index = np_hd_electrode_t; value = driver channel 0–20.  One electrode, one
+ * driver channel, no sharing.
+ *
+ * This replaces a 16-channel placeholder that wrapped electrodes 16–20 back onto
+ * channels 11–15.  That wrap was an arbitrary modulo rather than a wiring design,
+ * and it aliased geometric NEIGHBOURS: Cz↔Pz, C4↔P4, T8↔P8, P7↔O1, P3↔O2.  Since
+ * a 4×1 ring draws its cathodes from the electrodes nearest its anode, aliasing
+ * neighbours guarantees collisions — C4↔P4 in particular made the M1_R ring
+ * undeliverable, because P4 is one of C4's four nearest electrodes.
+ *
+ * 16 was never the binding number.  A bilateral 4×1 energises 10 electrodes, so
+ * 16 channels were always sufficient; every collision came from the mapping, not
+ * the count.  Going to 21 removes the question entirely and lets each ring take
+ * its geometrically nearest cathodes instead of routing around a wiring artifact.
+ *
+ * The T2 cap already carries 21 conductors — its Ag/AgCl electrodes are dual-rated
+ * for EEG recording and stimulation current (CLAUDE.md §3 T2), so the harness side
+ * of this was never 16-channel.  Only the driver was.
+ *
+ * If cost pressure ever forces sharing again, the rule this table now embodies is:
+ * never alias two electrodes within one ring radius (~60 mm) of each other.
+ */
 static const uint8_t k_driver_channel[NP_HD_CH_COUNT] = {
-    /*FP1*/0, /*FP2*/1, /*F7*/2,  /*F3*/3,  /*FZ*/4,  /*F4*/5,  /*F8*/6,
-    /*FC3*/7, /*FC4*/8, /*T7*/9,  /*C3*/10, /*CZ*/11, /*C4*/12, /*T8*/13,
-    /*P7*/14, /*P3*/15,
-    /* P3–O2: channels 15 and above wrap to shared channels for standard 2-elec.*/
-    /* In 4×1 montages, only 5 of the 16 channels are active simultaneously.   */
-    /*PZ*/11, /*P4*/12, /*P8*/13, /*O1*/14, /*O2*/15,
+    /*FP1*/ 0, /*FP2*/ 1, /*F7*/  2, /*F3*/  3, /*FZ*/  4, /*F4*/  5, /*F8*/  6,
+    /*FC3*/ 7, /*FC4*/ 8, /*T7*/  9, /*C3*/ 10, /*CZ*/ 11, /*C4*/ 12, /*T8*/ 13,
+    /*P7*/ 14, /*P3*/ 15, /*PZ*/ 16, /*P4*/ 17, /*P8*/ 18, /*O1*/ 19, /*O2*/ 20,
 };
 
 /* ── Euclidean distance squared (integer, mm²) ───────────────────────────────── */
@@ -89,12 +108,15 @@ static int32_t mni_dist_sq(const np_hd_mni_t *a, const np_hd_mni_t *b)
  *                each montage electrode for its own current (+I_a at the anode,
  *                −I_a/4 at each cathode).
  *
- * The two are not redundant.  They coincide today only because k_driver_channel[]
- * aliases 21 electrodes onto 16 channels, so a duplicate electrode always shows up
- * as a duplicate channel.  When NP-HW-TCAP-001 lands and the channels are
- * distinct, the channel check stops catching duplicate electrodes — and Kirchhoff
- * will not have changed its mind.  The electrode claim is the invariant that
- * survives the wiring spec; the channel claim is the one that depends on it.
+ * Under the current 21-channel mapping the two are equivalent: one electrode maps
+ * to exactly one channel, so a repeated channel can only mean a repeated
+ * electrode.  The electrode claim is nonetheless the one that matters — it is a
+ * statement about physics and holds under ANY wiring, whereas the channel claim
+ * only bites if the mapping ever shares a channel between electrodes again.
+ *
+ * Both are kept.  §6.4 states distinct driver channels as a requirement in its own
+ * right, and if cost pressure ever reintroduces sharing the check is already here
+ * rather than needing to be rediscovered by another field failure.
  */
 typedef struct {
     uint32_t channels;    /* bit c set → driver channel c already claimed         */
@@ -121,8 +143,13 @@ static void claim_take(np_hd_claims_t *claims, np_hd_electrode_t electrode)
  * This is the single copy of the selection loop.  It previously existed three
  * times — once in np_hd_montage_select_ring() and again, in its pre-step-5 form,
  * inside np_hd_montage_select_bilateral().  The duplicate is how the bilateral
- * right ring came to reproduce the very C4/P4 driver-12 collision that step 5 was
+ * right ring came to reproduce the very C4/P4 driver collision that step 5 was
  * added to prevent: the fix landed on one copy and not the other.
+ *
+ * With the 21-channel mapping a single ring can no longer collide with itself, so
+ * for NP_HD_MONTAGE_RING_4X1 the claim check never fires and selection is pure
+ * nearest-neighbour.  It still does real work for bilateral, where the second ring
+ * must avoid the first ring's electrodes.
  *
  * On success `center` and all four cathodes are claimed, so a subsequent call for
  * another ring of the same montage cannot select any of them.  On failure the
@@ -315,10 +342,12 @@ np_hd_status_t np_hd_montage_select_bilateral(const np_hd_mni_t *target_mni,
      * that symmetry.  It says the hemispheres are driven "from separate driver
      * channel pairs", which is a distinctness requirement, not a mirror-image one.
      *
-     * With 16 driver channels and 10 simultaneously active electrodes the headroom
-     * is thin, so a target whose mirror ring cannot be completed is a real
-     * possibility; ring_select_cathodes() reports it as NP_HD_ERR_MONTAGE_INVALID
-     * rather than emitting a ring that validate() would reject.
+     * With 21 driver channels for 10 simultaneously active electrodes, the only
+     * contention left is for the electrodes themselves — the two rings must not
+     * share a pellet — so the mirror ring yields only where the rings genuinely
+     * overlap, which on this cap means the midline.  A target whose mirror ring
+     * still cannot be completed is reported as NP_HD_ERR_MONTAGE_INVALID rather
+     * than emitting a ring that validate() would reject.
      */
     /* Copy the target before zeroing `out`: a caller may legitimately refresh a  */
     /* montage in place with np_hd_montage_select_bilateral(&m.target_mni, &m),   */

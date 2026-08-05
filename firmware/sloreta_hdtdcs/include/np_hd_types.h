@@ -112,7 +112,7 @@ typedef struct {
 /* ── Per-electrode stimulation state ────────────────────────────────────────── */
 typedef struct {
     np_hd_electrode_t label;
-    uint8_t           driver_channel;   /* tACS driver channel index 0–15        */
+    uint8_t           driver_channel;   /* tACS driver channel index 0–20        */
     int32_t           target_current_ua;/* signed: + = anode, - = cathode        */
     int32_t           actual_current_ua;/* current after ramp computation         */
     float             impedance_kohm;   /* last measured impedance                */

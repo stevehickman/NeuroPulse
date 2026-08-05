@@ -59,6 +59,10 @@ static int g_fail_count = 0;
  *   HD02-D: All montage electrodes map to distinct tACS driver channels.
  *   HD02-E: Standard 2-electrode montage: anode ≠ cathode.
  *   HD02-F: Bilateral 4×1: left and right anodes are in opposite hemispheres.
+ *   HD02-G: Bilateral 4×1: all 10 electrodes across both rings are distinct.
+ *   HD02-H: Bilateral on a midline target is rejected, not silently unilateral.
+ *   HD02-I: validate() rejects cross-ring conflicts in hand-built montages.
+ *   HD02-K: All 21 cap electrodes map to distinct tACS driver channels (§6.4).
  */
 static int fai_hd02_electrode_mapping(void)
 {
@@ -315,18 +319,19 @@ static int fai_hd02_electrode_mapping(void)
         ASSERT(np_hd_montage_validate(&dup) == NP_HD_ERR_MONTAGE_INVALID,
                "HD02-I1: duplicate electrode across rings accepted");
 
-        /* I-2: distinct electrodes that share one driver channel.               */
-        /* Cz is driver 11 and Pz is driver 11 in k_driver_channel[] (21          */
-        /* electrodes aliased onto 16 channels, np_hd_montage.c).  If             */
-        /* NP-HW-TCAP-001 later de-aliases the cap this assertion goes vacuous —  */
-        /* it will still pass, but I-1 above is the one that must never do so.    */
-        np_hd_montage_t drv = ok;
-        drv.cathodes_r[2] = NP_HD_CH_PZ;    /* distinct pellet, driver 11 as Cz  */
-        ASSERT(np_hd_montage_validate(&drv) == NP_HD_ERR_MONTAGE_INVALID,
-               "HD02-I2: cross-ring driver channel collision accepted");
+        /*
+         * NOTE: there is deliberately no "distinct electrodes sharing one driver
+         * channel" case here.  Under the 21-channel mapping (§6.4) that is
+         * unconstructible — electrode i is driven by channel i, so two different
+         * electrodes can never name the same channel.  An earlier revision used
+         * Cz/Pz, which both mapped to driver 11 under the 16-channel placeholder;
+         * with the identity map that assertion would still PASS while testing
+         * nothing at all.  HD02-K below tests the property that makes it
+         * unconstructible, which is the thing that can actually regress.
+         */
 
         /* I-2b: the conflict is on center_r itself, not on a right cathode.     */
-        /* Distinct branch from I-1/I-2: those enter validate()'s cathodes_r     */
+        /* Distinct branch from I-1: that enters validate()'s cathodes_r         */
         /* loop, this one is rejected before the loop is reached.  Verified with */
         /* gcov — without this case that rejection executes zero times while     */
         /* every assertion still passes.                                         */
@@ -368,6 +373,60 @@ static int fai_hd02_electrode_mapping(void)
 
         printf("  validate(): cross-ring duplicate/driver/range rejected; "
                "unilateral path unchanged\n");
+    }
+
+    /* HD02-K: every cap electrode maps to its own tACS driver channel.          */
+    /*
+     * §6.4 specifies 21 driver channels, one per electrode, no sharing.  This is
+     * what lets each 4×1 ring take its geometrically nearest cathodes instead of
+     * routing around a wiring artifact, and it is what makes a cross-ring driver
+     * collision between two DIFFERENT electrodes impossible to construct.
+     *
+     * k_driver_channel[] is file-static in np_hd_montage.c, so the property is
+     * probed through the public API: for every unordered pair (i, j), a two-
+     * electrode montage {i, j} must validate.  validate() rejects on a repeated
+     * driver channel, so a single passing sweep over all 210 pairs is equivalent
+     * to "all 21 channels are distinct".
+     *
+     * If anyone re-aliases the table — the 16-channel placeholder wrapped
+     * electrodes 16–20 onto channels 11–15 — this fails immediately and names the
+     * offending pair, rather than surfacing later as an undeliverable clinical
+     * montage the way C4/P4 did for M1_R.
+     */
+    {
+        uint16_t pairs_checked = 0U;
+        uint8_t  first_bad_i = 0U, first_bad_j = 0U;
+        bool     found_bad = false;
+
+        for (uint8_t i = 0U; i < NP_HD_CH_COUNT; i++) {
+            for (uint8_t j = (uint8_t)(i + 1U); j < NP_HD_CH_COUNT; j++) {
+                np_hd_montage_t pair;
+                memset(&pair, 0, sizeof(pair));
+                pair.type          = NP_HD_MONTAGE_STANDARD_2E;
+                pair.cathode_count = 1U;
+                pair.center        = (np_hd_electrode_t)i;
+                pair.cathodes[0]   = (np_hd_electrode_t)j;
+
+                if (np_hd_montage_validate(&pair) != NP_HD_OK && !found_bad) {
+                    found_bad   = true;
+                    first_bad_i = i;
+                    first_bad_j = j;
+                }
+                pairs_checked++;
+            }
+        }
+
+        ASSERT(!found_bad, "HD02-K: two electrodes share a tACS driver channel");
+        ASSERT_EQ(pairs_checked, (NP_HD_CH_COUNT * (NP_HD_CH_COUNT - 1U)) / 2U);
+
+        if (found_bad) {
+            printf("  HD02-K: %s and %s collide\n",
+                   np_hd_electrode_name((np_hd_electrode_t)first_bad_i),
+                   np_hd_electrode_name((np_hd_electrode_t)first_bad_j));
+        } else {
+            printf("  %u electrode pairs checked: all map to distinct drivers\n",
+                   (unsigned)pairs_checked);
+        }
     }
 
     int result = g_fail_count - failures_before;

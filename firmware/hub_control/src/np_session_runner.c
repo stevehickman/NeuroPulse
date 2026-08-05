@@ -78,7 +78,7 @@ static uint16_t slot_to_safety_bit(uint8_t slot)
         [NP_HUB_SLOT_CVNS]       = NP_SAFETY_EN_CVNS,
         [NP_HUB_SLOT_TMS]        = NP_SAFETY_EN_TMS,
         [NP_HUB_SLOT_PBM_1170NM] = NP_SAFETY_EN_PBM_1170NM,
-        /* CLIN_TACS and HD_TDCS share the one 16-ch driver, hence one gate. */
+        /* CLIN_TACS and HD_TDCS share the one 21-ch driver, hence one gate. */
         [NP_HUB_SLOT_CLIN_TACS]  = NP_SAFETY_EN_CLIN_STIM,
         [NP_HUB_SLOT_HD_TDCS]    = NP_SAFETY_EN_CLIN_STIM,
         [NP_HUB_SLOT_BES_TACS]   = NP_SAFETY_EN_BES_TACS,

@@ -67,8 +67,9 @@
 #define NP_HD_CATHODE_SPLIT_DENOM   4U
 
 /* ── tACS driver channel mapping ────────────────────────────────────────────── */
-/* 16-ch tACS driver (existing T2 hardware) provides independent HD-tDCS ch.   */
-#define NP_HD_DRIVER_CHANNELS       16U
+/* 21-ch tACS driver: one channel per cap electrode, no sharing.  See the note  */
+/* above k_driver_channel[] in np_hd_montage.c for why this is not 16.          */
+#define NP_HD_DRIVER_CHANNELS       21U
 
 /* ── Impedance and quality checks ───────────────────────────────────────────── */
 #define NP_HD_MAX_IMPEDANCE_KOHM    10U     /* abort stimulation if exceeded     */
