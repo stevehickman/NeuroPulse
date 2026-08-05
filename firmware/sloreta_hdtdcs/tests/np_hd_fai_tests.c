@@ -734,6 +734,22 @@ static int fai_hd01_sloreta_plumbing(void)
         samples[NP_HD_CH_O2][s] = k_o2_amplitude_uv * sinf(phase * (float)k_o2_cycles);
     }
 
+    /* Expected source power is exactly derivable, so assert magnitude and not
+     * merely ordering (see the magnitude check below for why that matters).
+     *
+     * W_0 is the unit vector e_F3 and W_1 is e_O2, so each quadratic form
+     * W_v^T C W_v collapses to a single covariance diagonal entry — the
+     * variance of that channel's trace, A²/2 for a coherent sinusoid.
+     *
+     * The two tones sit on whole-cycle counts (20 and 7) over the same
+     * 1024-sample window, so they are orthogonal and the F3–O2 cross-covariance
+     * is exactly zero.  The Frobenius norm therefore reduces to the two
+     * diagonal terms. */
+    const float k_expected_power_f3 = k_f3_amplitude_uv * k_f3_amplitude_uv / 2.0f;
+    const float k_expected_power_o2 = k_o2_amplitude_uv * k_o2_amplitude_uv / 2.0f;
+    const float k_expected_cov_norm = sqrtf(k_expected_power_f3 * k_expected_power_f3 +
+                                            k_expected_power_o2 * k_expected_power_o2);
+
     /* Push enough epochs to satisfy NP_HD_SLORETA_EPOCHS. */
     for (uint16_t e = 0U; e < NP_HD_SLORETA_EPOCHS; e++) {
         ASSERT_OK(np_sloreta_push_epoch(&ctx,
@@ -754,6 +770,20 @@ static int fai_hd01_sloreta_plumbing(void)
            source_power[0], source_power[1],
            source_power[1] > 0.0f ? source_power[0]/source_power[1] : 999.0f);
 
+    /* Magnitude check, not just ordering.
+     *
+     * Ordering and ratio assertions are both blind to a uniform scale error: a
+     * covariance accumulator that mis-weights samples reports every voxel low
+     * by the same factor, so voxel 0 still dominates voxel 1 and the ratio is
+     * still (10 µV / 1 µV)² = 100.  That is exactly how the per-sample
+     * running-mean blend defect in np_sloreta_push_epoch() survived here — it
+     * scaled the whole map down by ~NP_HD_SLORETA_FFT_SIZE (source_power[0]
+     * read 0.0490 instead of 50.0) while every relative assertion passed.
+     *
+     * Pinning the absolute value is what closes that hole. */
+    ASSERT_APPROX(source_power[0], k_expected_power_f3, 0.5f);
+    ASSERT_APPROX(source_power[1], k_expected_power_o2, 0.05f);
+
     /* Find peak. */
     np_hd_sloreta_result_t result;
     ASSERT_OK(np_sloreta_find_peak(&ctx, source_power, 2U, &result));
@@ -768,9 +798,12 @@ static int fai_hd01_sloreta_plumbing(void)
     ASSERT(bands.alpha + bands.theta + bands.delta + bands.beta > 0.0f,
            "HD01: band power all zero");
 
-    /* Covariance norm should be non-zero. */
+    /* Covariance norm should be non-zero, and should match the two populated
+     * diagonal terms (see k_expected_cov_norm above). */
     float cnorm = np_sloreta_covariance_norm(&ctx);
     ASSERT(cnorm > 0.0f, "HD01: covariance norm is zero");
+    ASSERT_APPROX(cnorm, k_expected_cov_norm, 0.5f);
+    printf("  covariance norm=%.4f (expected %.4f)\n", cnorm, k_expected_cov_norm);
 
     /* Reset and verify epoch count clears. */
     np_sloreta_reset(&ctx);
