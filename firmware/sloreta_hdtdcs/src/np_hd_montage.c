@@ -280,6 +280,14 @@ np_hd_electrode_t np_hd_nearest_electrode(const np_hd_mni_t *target_mni,
     return (np_hd_electrode_t)best_ch;
 }
 
+uint8_t np_hd_electrode_driver_channel(np_hd_electrode_t electrode)
+{
+    if (electrode >= NP_HD_CH_COUNT) {
+        return NP_HD_DRIVER_CH_NONE;   /* covers NP_HD_CH_NONE (0xFF) too       */
+    }
+    return k_driver_channel[electrode];
+}
+
 np_hd_status_t np_hd_montage_select_ring(const np_hd_mni_t *target_mni,
                                           np_hd_montage_t   *out)
 {
@@ -517,8 +525,8 @@ np_hd_status_t np_hd_montage_assign_channels(np_hd_montage_t *montage)
         return NP_HD_ERR_INVALID_ARG;
     }
     /* Channel assignments are static (from T2 cap wiring spec).                */
-    /* np_hd_stim_init() reads them directly from k_driver_channel[] via        */
-    /* np_hd_electrode_t indices — no further action needed here.               */
+    /* np_hd_stim_init() resolves them through                                   */
+    /* np_hd_electrode_driver_channel() — no further action needed here.        */
     return np_hd_montage_validate(montage);
 }
 

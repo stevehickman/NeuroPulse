@@ -11,7 +11,8 @@
  */
 
 #include "np_hd_stim.h"
-#include "np_hd_montage.h"   /* np_hd_montage_validate() used below */
+#include "np_hd_montage.h"   /* np_hd_montage_validate(),                        */
+                             /* np_hd_electrode_driver_channel() used below      */
 #include <string.h>
 
 /* struct np_hd_stim_ctx is defined transparently in np_hd_stim.h so the session  */
@@ -82,27 +83,33 @@ np_hd_status_t np_hd_stim_init(np_hd_stim_ctx_t         *ctx,
     /* Build per-electrode state array: anode at [0], cathodes at [1..4]. */
     ctx->n_elec = 0U;
 
-    /* Electrode → driver channel, per the T2 cap wiring spec.  21-ch driver:   */
-    /* one electrode, one channel, no sharing.                                   */
+    /* Electrode → driver channel comes from np_hd_electrode_driver_channel(),  */
+    /* the single source of truth in np_hd_montage.c.  This module used to keep  */
+    /* its own copy of that table, synchronised only by a comment.               */
     /*                                                                           */
-    /* This MUST stay identical to k_driver_channel[] in np_hd_montage.c.  The   */
-    /* montage layer validates distinctness against its copy; this copy is what  */
-    /* actually gets programmed, so a divergence is a wrong-channel stimulation  */
-    /* path that nothing would catch.  Nothing enforces the match today — see    */
-    /* the follow-up to expose a single accessor from the montage module.        */
-    static const uint8_t k_ch_to_drv[NP_HD_CH_COUNT] = {
-        0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10,
-        11, 12, 13, 14, 15, 16, 17, 18, 19, 20
-    };
+    /* It must not: the montage layer selects and validates electrodes against   */
+    /* ITS table, and this is the code that actually programs the driver, so a   */
+    /* divergence would stimulate channels nothing ever certified as distinct —  */
+    /* a wrong-electrode current path, not cosmetic drift.  That is the same     */
+    /* failure mode as the duplicated ring-selection loop which shipped the      */
+    /* C4/P4 driver-12 collision on the bilateral right ring.                    */
+    /*                                                                           */
+    /* There is no np_platform_elec_to_driver() HAL hook and none is planned:    */
+    /* the cap wiring is a firmware constant, not a runtime platform property,   */
+    /* so this accessor supersedes that idea.                                    */
+    /*                                                                           */
+    /* np_hd_montage_validate() above already rejected out-of-range electrodes,  */
+    /* so NP_HD_DRIVER_CH_NONE cannot appear here.                               */
 
     ctx->elec[0].label          = montage->center;
-    ctx->elec[0].driver_channel = k_ch_to_drv[montage->center];
+    ctx->elec[0].driver_channel = np_hd_electrode_driver_channel(montage->center);
     ctx->elec[0].target_current_ua = (int32_t)0;  /* set in np_hd_stim_start() */
     ctx->n_elec = 1U;
 
     for (uint8_t k = 0U; k < montage->cathode_count && k < NP_HD_RING_CATHODE_COUNT; k++) {
         ctx->elec[ctx->n_elec].label          = montage->cathodes[k];
-        ctx->elec[ctx->n_elec].driver_channel = k_ch_to_drv[montage->cathodes[k]];
+        ctx->elec[ctx->n_elec].driver_channel =
+            np_hd_electrode_driver_channel(montage->cathodes[k]);
         ctx->elec[ctx->n_elec].target_current_ua = (int32_t)0;
         ctx->n_elec++;
     }

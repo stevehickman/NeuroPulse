@@ -64,6 +64,9 @@ static int g_fail_count = 0;
  *   HD02-H: Bilateral on a midline target is rejected, not silently unilateral.
  *   HD02-I: validate() rejects cross-ring conflicts in hand-built montages.
  *   HD02-K: All 21 cap electrodes map to distinct tACS driver channels (§6.4).
+ *   HD02-L: The driver channels np_hd_stim_init() programs equal
+ *            np_hd_electrode_driver_channel() for every montage electrode
+ *            (see fai_hd02l_driver_channel_single_source() below).
  */
 static int fai_hd02_electrode_mapping(void)
 {
@@ -471,6 +474,194 @@ static int fai_hd02_electrode_mapping(void)
     return result;
 }
 
+/* ── HD02-L: stim driver channels match the montage accessor ────────────────── */
+/*
+ * Regression guard against re-duplicating the electrode→driver-channel table.
+ *
+ * np_hd_stim.c used to carry a hand-copied clone of k_driver_channel[] from
+ * np_hd_montage.c, kept in step only by a comment.  HD02-K proves the montage
+ * module's table assigns every electrode its own driver channel; this test
+ * proves the STIM module actually programs those same channels.  Without it,
+ * HD02-K can pass while np_hd_stim_init() drives something else entirely —
+ * a wrong-electrode current path, not cosmetic drift.  The duplicated
+ * ring-selection loop that shipped the C4/P4 driver-12 collision is the same
+ * failure mode: a second copy that the fix never reached.
+ *
+ * Pass criteria:
+ *   HD02-L1: for every electrode of every selected montage, the driver channel
+ *            np_hd_stim_init() stored equals np_hd_electrode_driver_channel().
+ *   HD02-L2: the accessor returns an in-range channel for every valid electrode
+ *            and NP_HD_DRIVER_CH_NONE for out-of-range ones.
+ *   HD02-L3: the channels the stim context programs are mutually distinct —
+ *            the property np_hd_montage_validate() certified.
+ */
+static void hd02l_stim_cb(np_hd_stim_ctx_t *ctx, bool granted, const float imp[])
+{
+    (void)ctx; (void)granted; (void)imp;
+}
+
+static void hd02l_check_montage(const np_hd_montage_t *mont, const char *what)
+{
+    np_hd_stim_ctx_t ctx;
+    np_hd_status_t   ret = np_hd_stim_init(&ctx, mont, hd02l_stim_cb);
+    if (ret != NP_HD_OK) {
+        printf("FAIL [%s] HD02-L: np_hd_stim_init failed (%d)\n", what, (int)ret);
+        g_fail_count++;
+        return;
+    }
+
+    np_hd_electrode_state_t states[NP_HD_RING_ELECTRODE_COUNT];
+    memset(states, 0, sizeof(states));
+    ASSERT_OK(np_hd_stim_get_electrode_states(&ctx, states,
+                                               NP_HD_RING_ELECTRODE_COUNT));
+
+    /* Expected electrode order: anode at [0], then cathodes in montage order. */
+    np_hd_electrode_t expect[NP_HD_RING_ELECTRODE_COUNT];
+    uint8_t n_expect = 0U;
+    expect[n_expect++] = mont->center;
+    for (uint8_t k = 0U; k < mont->cathode_count &&
+                          k < NP_HD_RING_CATHODE_COUNT; k++) {
+        expect[n_expect++] = mont->cathodes[k];
+    }
+
+    uint32_t seen = 0U;
+    for (uint8_t i = 0U; i < n_expect; i++) {
+        uint8_t want = np_hd_electrode_driver_channel(expect[i]);
+        uint8_t got  = states[i].driver_channel;
+
+        if (states[i].label != expect[i]) {
+            printf("FAIL [%s] HD02-L: elec[%u] label=%s expected %s\n", what, i,
+                   np_hd_electrode_name(states[i].label),
+                   np_hd_electrode_name(expect[i]));
+            g_fail_count++;
+        }
+
+        /* HD02-L1: the programmed channel IS the accessor's channel. */
+        if (got != want) {
+            printf("FAIL [%s] HD02-L1: %s programmed driver ch %u, "
+                   "montage accessor says %u — duplicated table has drifted\n",
+                   what, np_hd_electrode_name(expect[i]),
+                   (unsigned)got, (unsigned)want);
+            g_fail_count++;
+        }
+
+        /* HD02-L2 (in-range half): a valid electrode never yields NONE. */
+        if (want == NP_HD_DRIVER_CH_NONE || want >= NP_HD_DRIVER_CHANNELS) {
+            printf("FAIL [%s] HD02-L2: %s maps to out-of-range driver ch %u\n",
+                   what, np_hd_electrode_name(expect[i]), (unsigned)want);
+            g_fail_count++;
+            continue;
+        }
+
+        /* HD02-L3: distinctness — the invariant validate() certified. */
+        if (seen & (1UL << want)) {
+            printf("FAIL [%s] HD02-L3: driver ch %u used twice (at %s)\n",
+                   what, (unsigned)want, np_hd_electrode_name(expect[i]));
+            g_fail_count++;
+        }
+        seen |= (1UL << want);
+    }
+
+    /* NOTE: for a bilateral montage np_hd_stim_init() builds state for the left
+     * ring only — center_r / cathodes_r are not programmed, and ctx->elec[] is
+     * NP_HD_RING_ELECTRODE_COUNT (5) entries, not NP_HD_BILATERAL_ELEC_COUNT.
+     * That gap is a separate open question about how §6.3 simultaneous delivery
+     * reaches the driver; this test covers the channels init does set.        */
+    np_hd_stim_deinit(&ctx);
+}
+
+static int fai_hd02l_driver_channel_single_source(void)
+{
+    int failures_before = g_fail_count;
+    printf("HD02-L: stim driver channels == montage accessor (single source)\n");
+
+    /* HD02-L2: accessor contract across the whole electrode domain. */
+    for (uint16_t e = 0U; e < NP_HD_CH_COUNT; e++) {
+        uint8_t drv = np_hd_electrode_driver_channel((np_hd_electrode_t)e);
+        ASSERT(drv < NP_HD_DRIVER_CHANNELS,
+               "HD02-L2: valid electrode maps outside the driver range");
+    }
+    ASSERT_EQ(np_hd_electrode_driver_channel(NP_HD_CH_NONE),
+              NP_HD_DRIVER_CH_NONE);
+    ASSERT_EQ(np_hd_electrode_driver_channel((np_hd_electrode_t)NP_HD_CH_COUNT),
+              NP_HD_DRIVER_CH_NONE);
+
+    static const struct { np_hd_clinical_target_t target; const char *name; } targets[] = {
+        { NP_HD_TARGET_DLPFC_L, "DLPFC_L" }, { NP_HD_TARGET_DLPFC_R, "DLPFC_R" },
+        { NP_HD_TARGET_VLPFC_L, "VLPFC_L" }, { NP_HD_TARGET_ACC,      "ACC"     },
+        { NP_HD_TARGET_MPFC,    "MPFC"    }, { NP_HD_TARGET_M1_L,    "M1_L"   },
+        { NP_HD_TARGET_M1_R,    "M1_R"   },
+    };
+    uint8_t n_targets = (uint8_t)(sizeof(targets) / sizeof(targets[0]));
+
+    static const struct { np_hd_montage_type_t type; const char *label; } kinds[] = {
+        { NP_HD_MONTAGE_RING_4X1,      "ring4x1"   },
+        { NP_HD_MONTAGE_BILATERAL_4X1, "bilateral" },
+        { NP_HD_MONTAGE_STANDARD_2E,   "std2elec"  },
+    };
+    uint8_t n_kinds = (uint8_t)(sizeof(kinds) / sizeof(kinds[0]));
+
+    uint8_t n_checked = 0U;
+    uint8_t n_midline_skips = 0U;
+
+    for (uint8_t t = 0U; t < n_targets; t++) {
+        np_hd_mni_t mni;
+        ASSERT_OK(np_hd_clinical_target_mni(targets[t].target, &mni));
+
+        for (uint8_t m = 0U; m < n_kinds; m++) {
+            np_hd_montage_t mont;
+            memset(&mont, 0, sizeof(mont));
+
+            np_hd_status_t sel = np_hd_montage_from_mni(&mni, kinds[m].type, &mont);
+            np_hd_status_t val = (sel == NP_HD_OK) ? np_hd_montage_validate(&mont)
+                                                    : sel;
+
+            if (sel != NP_HD_OK || val != NP_HD_OK) {
+                /*
+                 * Guard the guard: a montage this test cannot build is a montage
+                 * it cannot check, so an unexplained skip must fail rather than
+                 * quietly shrinking coverage toward nothing.
+                 *
+                 * Only one skip is legitimate.  Both bilateral and standard
+                 * 2-electrode place their second site at the contralateral
+                 * homologue (mirror x); a midline target (x == 0) mirrors onto
+                 * itself, so no such site exists and selection correctly returns
+                 * NP_HD_ERR_MONTAGE_INVALID (see np_hd_montage_select_bilateral's
+                 * contract, and HD02-H).  ACC (0,28,28) and MPFC (0,52,6) are the
+                 * two midline targets, so this accounts for exactly 4 skips.
+                 * Every 4×1 ring must build for every target.
+                 */
+                bool mirrored_kind = (kinds[m].type == NP_HD_MONTAGE_STANDARD_2E) ||
+                                      (kinds[m].type == NP_HD_MONTAGE_BILATERAL_4X1);
+                if (mirrored_kind && mni.x == 0) {
+                    n_midline_skips++;
+                } else {
+                    printf("FAIL [%s/%s] HD02-L: montage unavailable "
+                           "(select=%d validate=%d) — coverage lost\n",
+                           targets[t].name, kinds[m].label, (int)sel, (int)val);
+                    g_fail_count++;
+                }
+                continue;
+            }
+
+            char what[64];
+            snprintf(what, sizeof(what), "%s/%s", targets[t].name, kinds[m].label);
+            hd02l_check_montage(&mont, what);
+            n_checked++;
+        }
+    }
+
+    /* 2 midline targets × 2 mirrored montage kinds. */
+    ASSERT_EQ(n_midline_skips, 4U);
+    ASSERT_EQ(n_checked, (uint8_t)(n_targets * n_kinds - 4U));
+    printf("  checked %u montages against the accessor (%u midline skips)\n",
+           (unsigned)n_checked, (unsigned)n_midline_skips);
+
+    int result = g_fail_count - failures_before;
+    printf("HD02-L: %s (%d failures)\n\n", result == 0 ? "PASS" : "FAIL", result);
+    return result;
+}
+
 /* ── FAI-HD01: sLORETA source localization accuracy (phantom bench) ─────────── */
 /*
  * Hardware bench procedure (not software-executable in CI).
@@ -756,6 +947,7 @@ int main(void)
     fai_safety_constants();
     fai_hd01_sloreta_plumbing();
     fai_hd02_electrode_mapping();
+    fai_hd02l_driver_channel_single_source();
     fai_hd03_focality_algorithm();
     fai_hd04_snr_constants();
 
