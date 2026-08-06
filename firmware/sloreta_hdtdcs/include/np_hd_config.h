@@ -40,6 +40,24 @@
 #define NP_HD_BETA_BIN_LO           27U     /* 13.18 Hz                          */
 #define NP_HD_BETA_BIN_HI           61U     /* 29.79 Hz                          */
 
+/* Number of analysis bands (delta, theta, alpha, beta — see np_hd_band_t).     */
+#define NP_HD_BAND_COUNT            4U
+
+/*
+ * Contiguous FFT-bin span retained per epoch for the per-band cross-spectral
+ * covariance.  Only these bins are kept, so the per-epoch spectral scratch is
+ * 21 ch × 61 bins × 2 (re/im) × float32 ≈ 10 KB rather than the 168 KB a full
+ * 21 × 1024 complex spectrum would need.
+ *
+ * The four bands above happen to tile this span without gaps today.  Nothing
+ * depends on that: np_sloreta.c derives a bin→band table from the macros above
+ * at init, and a bin inside the span belonging to no band is simply dropped.
+ * Widening or re-cutting a band therefore needs no change outside this header.
+ */
+#define NP_HD_BAND_BIN_LO           NP_HD_DELTA_BIN_LO
+#define NP_HD_BAND_BIN_HI           NP_HD_BETA_BIN_HI
+#define NP_HD_BAND_BIN_COUNT        ((NP_HD_BAND_BIN_HI) - (NP_HD_BAND_BIN_LO) + 1U)
+
 /* ── Electrode geometry ─────────────────────────────────────────────────────── */
 /* Ag/AgCl sintered 3.5 mm diameter, dual-rated EEG recording + tDCS delivery. */
 #define NP_HD_ELECTRODE_DIAM_MM     3.5f

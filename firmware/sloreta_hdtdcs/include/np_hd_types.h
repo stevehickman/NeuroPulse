@@ -101,12 +101,36 @@ typedef struct {
     int16_t z;
 } np_hd_mni_t;
 
+/* ── Analysis band index ────────────────────────────────────────────────────── */
+/*
+ * Indexes the per-band cross-spectral covariance set in np_sloreta_ctx_t.  Bin
+ * ranges for each band are in np_hd_config.h; this enum fixes only their order.
+ */
+typedef enum {
+    NP_HD_BAND_DELTA = 0,
+    NP_HD_BAND_THETA = 1,
+    NP_HD_BAND_ALPHA = 2,
+    NP_HD_BAND_BETA  = 3,
+} np_hd_band_t;
+
 /* ── Band power for one electrode or voxel ─────────────────────────────────── */
+/*
+ * Voxel band power is a SOURCE-SPACE quantity: W_v^T C_band W_v, where C_band is
+ * the cross-spectral covariance summed over the band's FFT bins.  Its scale is
+ * that of the scalp signal (µV²) carried through the weight matrix W, so the
+ * absolute magnitude depends on how W was normalised offline.  Ratios between
+ * bands at one voxel, and between voxels within one band, are the meaningful
+ * readings.  See NP-FW-HD-001 §5.3.
+ *
+ * `valid` is false whenever the values are not backed by accumulated spectra —
+ * check it before reading.  A cleared struct is not a measurement of silence.
+ */
 typedef struct {
-    float delta;   /* µV²/Hz or source power units (voxel) */
+    float delta;   /* source power units (voxel), band-integrated */
     float theta;
     float alpha;
     float beta;
+    bool  valid;
 } np_hd_band_power_t;
 
 /* ── sLORETA source map result ──────────────────────────────────────────────── */
