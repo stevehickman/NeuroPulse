@@ -58,6 +58,7 @@
 #   firmware/ota/             → np_ota_tests  (OTA state CRC + rollback logic)
 #   firmware/safety_mcu/      → np_safety_spi_proto_tests (OI-SW01-M07-01)
 #                             → np_charge_monitor_tests   (OI-CHARGE-01)
+#                             → np_thermal_interlock_tests (SW01-M04 NTC cutoff, NP-HW-HUB-001 §7.2)
 #                             → np_impedance_report_tests (OI-CVNS-HUB-11)
 #                             → np_fault_latch_privacy_tests (fault-latch privacy gate)
 #                             → np_cardiac_interlock_tests (SW01-M05 Class C cardiac interlock)
