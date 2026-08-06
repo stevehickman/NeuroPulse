@@ -179,6 +179,7 @@ Step 2: For each voxel v:
         [2447 voxels × 441 mults ≈ 1.1M flops → <20 ms on Cortex-M7 @ 600 MHz]
 
 Step 3: Peak detection: argmax(P[v]) → peak voxel → MNI lookup
+        Exact ties resolve to the LOWEST voxel index (see §5.2)
 
 Step 4: Band power at the peak voxel from the per-band cross-spectral
         covariances accumulated in parallel with C (§5.3).  Independent of
@@ -194,6 +195,8 @@ C_n = (1 - 1/n) × C_{n-1} + (1/n) × x_epoch x_epoch^T / n_samples
 ```
 
 The blend is applied **once per epoch**, not once per sample. Applying it inside the sample loop turns it into a geometric decay of rate (1 − 1/n) per sample, which annihilates all but the last few samples of a 1024-sample epoch and reports the whole map low by ~1/N. FAI-HD01's absolute-magnitude assertion and FAI-HD01-D's estimator-variance floor exist to pin this.
+
+**Peak tie-breaking (step 3) is specified, not incidental.** The argmax uses a strict `>` against a `peak_val` seeded from `P[0]`, so on an exact tie the **lowest voxel index** wins. Two tied voxels are two different scalp targets and the peak drives montage selection, so the outcome cannot be left to whichever candidate the comparison happens to visit last. Lowest index is chosen because it makes the result depend only on voxel ordering in the weight matrix, which is fixed at build time and reproducible across runs and revisions. FAI-HD01-F4 (§12.1) pins this, so a refactor to `>=` — which would silently select the highest tied index — fails in CI.
 
 **This broadband covariance is deliberately unwindowed.** A window would scale the variance estimate by the window power factor U (0.375 for Hann) and bias every source-power value low by that factor for no benefit — windowing is a spectral-leakage control, and this accumulator produces no spectrum. Hann windowing applies only to the band-power path in §5.3, which does produce one. The two accumulators run over the same epochs and the same mean-subtracted samples, but are otherwise independent; neither can perturb the other.
 
@@ -539,6 +542,28 @@ A bin-centred tone is placed inside each band in turn: delta bin 5 (2.44 Hz), th
 
 **HD01-E5 is the load-bearing criterion.** E1's dominance could in principle be satisfied by a per-band fudge factor; E5 cannot. For any implementation that scales one broadband scalar by fixed per-band weights, both sides of the comparison reduce to `w_alpha · w_delta · P_a · P_d` and the assertion becomes 1 > 100 — false for every possible choice of weights. Measured against the Rev A implementation the HD01-E suite produces 25 failures, E5 among them; the upgraded HD01 band assertion adds a 26th.
 
+#### HD01-F — peak selection is a real argmax (CI)
+
+**Category:** Software-only (full CI coverage). See `fai_hd01f_peak_argmax()`.
+
+Every other HD01 case builds its synthetic weight matrix so that **voxel 0** is the driven one. `np_sloreta_find_peak()` seeds `peak_val` from `source_power[0]` and updates only inside the comparison, so under those stimuli the update body never executed — gcov reported both of its lines as `#####` with the whole suite passing. This matters because `np_hd_session_compute_sloreta()` feeds `peak_mni` directly into `np_hd_montage_select_*()`: the argmax picks the electrode ring current is delivered through, so a silent defect is a wrong-target stimulation path, not a cosmetic one.
+
+The property is probed twice. `find_peak()` takes the source-power array as an argument, so hand-built arrays isolate the comparison from the covariance and weight-matrix path entirely; the covariance path is then exercised separately with a `W` in which a **later** voxel reads the largest-amplitude channel, which proves the two halves are wired together.
+
+| ID | Criterion | Limit |
+|----|-----------|-------|
+| HD01-F1 | Peak found at index 0, 1, mid-array, and last | exact index, all four positions |
+| HD01-F2 | A larger value one past `n_voxels` is ignored; `n_voxels == 1` returns voxel 0 | `n_voxels` is a hard bound |
+| HD01-F3 | All-negative map peaks at its least-negative entry | exact index (pins the `source_power[0]` seed) |
+| HD01-F4 | Exact tie | **lowest** index wins |
+| HD01-F5 | `peak_mni` / `peak_source_power` correspond to the reported `peak_voxel` | exact (verbatim copy, no tolerance) |
+| HD01-F6 | NULL `ctx` / `source_power` / `out`, and `n_voxels == 0` | `INVALID_ARG` |
+| HD01-F7 | Through `compute_map()`, a later driven voxel is the reported peak | mid-array and last |
+
+**HD01-F4 pins a deliberate choice, not an accident.** Tie-breaking was previously unspecified. The strict `>` comparison retains the lowest index, which is chosen because it makes the result depend only on voxel ordering in the weight matrix — fixed at build time and reproducible across runs and revisions. Two tied voxels are two different scalp targets, so "whichever the compiler felt like" is not an acceptable answer for a stimulation target. A refactor to `>=` would silently switch to the highest tied index and must fail here.
+
+Verified by mutation rather than by coverage alone. Seven defective `find_peak()` variants were built and run: argmin (`<`), update body deleted, `>=` tie-break, short loop bound, over-reading loop bound, `peak_val` seeded from `0.0f`, and a loop starting at `v == 2`. **Five of the seven survived the pre-existing suite with zero failures**; all seven are killed by HD01-F, each by the criterion aimed at it.
+
 ### 12.2 FAI-HD02 — MNI→10-20 electrode mapping accuracy
 
 **Category:** Software-only (full CI coverage)
@@ -641,3 +666,4 @@ All sub-criteria (HD02-A through HD02-K) pass in `fai_hd02_electrode_mapping()` 
 |-----|------|---------|
 | A | 2026-05-11 | Initial release — Issue #23, G3-07 software baselined |
 | B | 2026-08-05 | §5.3 band power reimplemented as a real spectral measurement. Rev A computed one broadband quadratic form and scaled it by four compile-time bin-count constants, so the four band values were always in fixed proportion and every EEG input produced the same decomposition; no FFT existed in the module. Rev B accumulates a per-band cross-spectral covariance from a Hann-windowed 1024-point FFT per channel per epoch and evaluates `W_v^T C_b W_v` per band. Adds §5.3.1 stating units, band-edge softness, frequency span, and validity semantics, and a superseded-implementation notice for any Rev A band figure. `np_sloreta_band_power()` loses its unused `source_power` argument (§5.4); `np_hd_band_power_t` gains `valid`. §5.2 clarifies that the broadband covariance is deliberately unwindowed and that Hann applies to the spectral path only. §11 memory budget corrected — the Rev A `np_sloreta_ctx_t` figure omitted the covariance matrix — and extended with the per-band matrices and spectral statics. §12.1 adds FAI-HD01-E (single-band dominance, cross-stimulus ratio inversion, Parseval reconciliation) and documents the existing HD01-D criteria. No safety limit, montage, stimulation, or data-routing behaviour changed. |
+| C | 2026-08-05 | §12.1 adds FAI-HD01-F — `np_sloreta_find_peak()`'s argmax update body had zero test executions, because every existing case drove voxel 0 and the peak is seeded from `P[0]`. Mutation testing confirms five of seven defective `find_peak()` variants survived the pre-existing suite with zero failures. §5.1/§5.2 now specify peak tie-breaking (lowest voxel index on an exact tie), which was previously unspecified; HD01-F4 pins it. **Test and documentation only — no firmware source changed.** |

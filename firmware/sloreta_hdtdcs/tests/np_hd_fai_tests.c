@@ -5,6 +5,7 @@
  * FAI-HD01: sLORETA source localization accuracy vs known phantom
  *           HD01-D: covariance estimator variance on stochastic input
  *           HD01-E: per-band source power is spectral, not a fixed ratio
+ *           HD01-F: peak selection is a real argmax, not "voxel 0"
  * FAI-HD02: Automatic MNI→10-20 electrode mapping accuracy
  * FAI-HD03: 4×1 ring focality vs standard 2-electrode (saline phantom)
  * FAI-HD04: EEG signal quality during concurrent tDCS (SNR ≥ 20 dB)
@@ -1317,6 +1318,297 @@ static int fai_hd01e_band_power_spectral(void)
     return result;
 }
 
+/* ── FAI-HD01-F: peak selection is a real argmax ─────────────────────────────── */
+/*
+ * HD01-F: np_sloreta_find_peak() must return the index of the LARGEST source
+ * power, wherever in the array it sits.
+ *
+ * Why this exists.
+ *
+ * Every other FAI case builds its synthetic weight matrix so that voxel 0 is the
+ * driven one — HD01 puts a 10 µV tone on F3 and reads it at W row 0, HD01-E does
+ * the same.  find_peak() initialises peak_val from source_power[0] and only
+ * updates inside the comparison, so under those stimuli the update body never
+ * runs: gcov reported both of its lines as ##### with the whole suite passing.
+ * A find_peak() that returned voxel 0 unconditionally, or whose comparison was
+ * inverted to an argmin, satisfied the entire suite.
+ *
+ * That is not a coverage-hygiene complaint.  np_hd_session_compute_sloreta()
+ * feeds sloreta_result.peak_mni straight into np_hd_montage_select_*(), so the
+ * argmax picks the electrode ring that current is delivered through.  A silent
+ * defect here is a wrong-target stimulation path.
+ *
+ * Method.  Two independent probes of the same property:
+ *
+ *   1. Hand-built source-power arrays passed directly to find_peak().  The
+ *      function takes the array as an argument, so this isolates the comparison
+ *      from the covariance and weight-matrix path entirely — nothing but the
+ *      argmax is under test, and the expected answer is by inspection.
+ *   2. The full covariance path, with a synthetic W in which a LATER voxel reads
+ *      the channel carrying the largest tone.  This proves the two halves are
+ *      wired together, i.e. that the array find_peak() sees is the map
+ *      compute_map() produced.
+ *
+ * Pass criteria:
+ *   HD01-F1 (position):    the peak is found at the start, at v == 1, in the
+ *                          middle, and at the last index — so an argmin, a
+ *                          missing update body, a loop starting past v == 1, and
+ *                          an off-by-one on either end of the bound all fail.
+ *   HD01-F2 (bound):       a larger value one past n_voxels is NOT selected; and
+ *                          n_voxels == 1 returns voxel 0.
+ *   HD01-F3 (negatives):   an all-negative map peaks at its least-negative entry
+ *                          (catches peak_val seeded from 0.0f rather than [0]).
+ *   HD01-F4 (tie-break):   on an exact tie the LOWEST index wins — the strict '>'
+ *                          contract, pinned deliberately (see the comment there).
+ *   HD01-F5 (payload):     peak_mni and peak_source_power correspond to the
+ *                          reported peak_voxel, not to voxel 0 or to a stale
+ *                          value.
+ *   HD01-F6 (args):        NULL ctx / power / out and n_voxels == 0 are rejected.
+ *   HD01-F7 (end-to-end):  through compute_map(), a later voxel reading the
+ *                          largest-amplitude channel is the reported peak, both
+ *                          when it sits mid-array and when it sits last.
+ */
+#define HD01F_VOXELS 6U
+
+/* Six distinct MNI coordinates, so peak_mni identifies the voxel unambiguously:
+ * a peak_mni assertion cannot be satisfied by the wrong index. */
+static float       hd01f_W[HD01F_VOXELS * NP_HD_SLORETA_N_CH];
+static np_hd_mni_t hd01f_mni[HD01F_VOXELS] = {
+    { -46,  36,  20 }, { -35, -55,  64 }, {  55,   0,  67 },
+    {  21, -85,   5 }, {   0, -10,  83 }, {  35,  36,  64 },
+};
+static float hd01f_samples[NP_HD_SLORETA_N_CH][NP_HD_SLORETA_FFT_SIZE];
+
+/* Voxel v reads channel hd01f_channel[v]; each carries its own whole-cycle tone
+ * so every channel's epoch mean is exactly zero and the tones stay orthogonal. */
+static const uint8_t  hd01f_channel[HD01F_VOXELS] = {
+    NP_HD_CH_F3, NP_HD_CH_P3, NP_HD_CH_C4, NP_HD_CH_O2, NP_HD_CH_CZ, NP_HD_CH_F4,
+};
+static const uint16_t hd01f_cycles[HD01F_VOXELS] = { 20U, 12U, 40U, 5U, 30U, 17U };
+
+/*
+ * Drive find_peak() with a caller-supplied map and check the whole result.
+ *
+ * peak_source_power is compared with == rather than a tolerance: find_peak()
+ * copies the winning element verbatim and performs no arithmetic on it, so an
+ * exact match is the correct contract.  A tolerance here would let a value
+ * computed from the wrong element pass whenever the two happened to be close.
+ */
+static void hd01f_expect_peak(np_sloreta_ctx_t *ctx,
+                              const float      *power,
+                              uint16_t          n,
+                              uint16_t          want_idx,
+                              const char       *what)
+{
+    np_hd_sloreta_result_t r;
+    memset(&r, 0xAA, sizeof(r));        /* poison: prove every field is written */
+
+    np_hd_status_t ret = np_sloreta_find_peak(ctx, power, n, &r);
+    if (ret != NP_HD_OK) {
+        printf("FAIL [%s] HD01-F: find_peak returned %d\n", what, (int)ret);
+        g_fail_count++;
+        return;
+    }
+
+    if (r.peak_voxel != want_idx) {
+        printf("FAIL [%s] HD01-F1: peak_voxel=%u (power %.4f), expected %u "
+               "(power %.4f)\n", what, (unsigned)r.peak_voxel,
+               power[r.peak_voxel < n ? r.peak_voxel : 0U],
+               (unsigned)want_idx, power[want_idx]);
+        g_fail_count++;
+    }
+
+    /* HD01-F5: the payload must describe the voxel that was reported. */
+    if (r.peak_source_power != power[want_idx]) {
+        printf("FAIL [%s] HD01-F5: peak_source_power=%.4f, expected %.4f\n",
+               what, r.peak_source_power, power[want_idx]);
+        g_fail_count++;
+    }
+    if (r.peak_mni.x != hd01f_mni[want_idx].x ||
+        r.peak_mni.y != hd01f_mni[want_idx].y ||
+        r.peak_mni.z != hd01f_mni[want_idx].z) {
+        printf("FAIL [%s] HD01-F5: peak_mni=(%d,%d,%d), expected (%d,%d,%d)\n",
+               what, r.peak_mni.x, r.peak_mni.y, r.peak_mni.z,
+               hd01f_mni[want_idx].x, hd01f_mni[want_idx].y,
+               hd01f_mni[want_idx].z);
+        g_fail_count++;
+    }
+    ASSERT(r.valid, "HD01-F: result not marked valid");
+}
+
+static int fai_hd01f_peak_argmax(void)
+{
+    int failures_before = g_fail_count;
+    printf("FAI-HD01-F: peak selection is a real argmax\n");
+
+    /* Row v is the unit vector on hd01f_channel[v]. */
+    memset(hd01f_W, 0, sizeof(hd01f_W));
+    for (uint8_t v = 0U; v < HD01F_VOXELS; v++) {
+        hd01f_W[v * NP_HD_SLORETA_N_CH + hd01f_channel[v]] = 1.0f;
+    }
+
+    /* ── Part 1: the argmax alone, driven with hand-built maps ────────────── */
+    {
+        np_sloreta_ctx_t ctx;
+        ASSERT_OK(np_sloreta_init(&ctx, hd01f_W, hd01f_mni, HD01F_VOXELS));
+
+        /*
+         * HD01-F1: the peak in each structurally distinct position.
+         *
+         * "at v == 1" and "last" are not redundant with "middle": v == 1 is the
+         * first loop iteration, so a loop that started at v == 2 would still find
+         * a middle peak, and "last" is the only case an off-by-one shortening the
+         * bound can miss.  "at 0" is the control — it is the only arrangement the
+         * pre-existing suite ever produced, and on its own it is satisfied by a
+         * function that never enters the loop at all.
+         */
+        static const float p_first[HD01F_VOXELS]  = { 9.0f, 2.0f, 3.0f, 4.0f, 5.0f, 1.0f };
+        static const float p_second[HD01F_VOXELS] = { 1.0f, 9.0f, 3.0f, 4.0f, 5.0f, 2.0f };
+        static const float p_middle[HD01F_VOXELS] = { 1.0f, 2.0f, 9.0f, 4.0f, 5.0f, 3.0f };
+        static const float p_last[HD01F_VOXELS]   = { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 9.0f };
+
+        hd01f_expect_peak(&ctx, p_first,  HD01F_VOXELS, 0U, "peak@0 (control)");
+        hd01f_expect_peak(&ctx, p_second, HD01F_VOXELS, 1U, "peak@1 (first iter)");
+        hd01f_expect_peak(&ctx, p_middle, HD01F_VOXELS, 2U, "peak@middle");
+        hd01f_expect_peak(&ctx, p_last,   HD01F_VOXELS, 5U, "peak@last");
+
+        /*
+         * HD01-F2: n_voxels is a hard bound, not a hint.
+         *
+         * The array is deliberately HD01F_VOXELS long while only the first five
+         * entries are offered, and the sixth is by far the largest.  Reading it
+         * is therefore defined behaviour rather than an out-of-bounds access, so
+         * a `v <= n_voxels` bound fails this assertion loudly instead of
+         * depending on whatever happens to sit past the array.
+         */
+        static const float p_short[HD01F_VOXELS] = { 1.0f, 2.0f, 7.0f, 4.0f, 5.0f, 1000.0f };
+        hd01f_expect_peak(&ctx, p_short, 5U, 2U, "peak within bound (tail ignored)");
+
+        /* Degenerate map: one voxel, no loop iterations at all. */
+        static const float p_one[HD01F_VOXELS] = { 3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f };
+        hd01f_expect_peak(&ctx, p_one, 1U, 0U, "single voxel");
+
+        /*
+         * HD01-F3: an all-negative map.  Source power from a covariance quadratic
+         * form is non-negative in practice, so this is about the seed and not
+         * about real data: peak_val must start at source_power[0], and an
+         * implementation that seeded it from 0.0f (or from FLT_MIN, or memset the
+         * result and compared against a zeroed field) would report voxel 0 here
+         * while agreeing with every non-negative case above.
+         */
+        static const float p_neg[HD01F_VOXELS] = { -9.0f, -2.0f, -5.0f, -1.0f, -7.0f, -3.0f };
+        hd01f_expect_peak(&ctx, p_neg, HD01F_VOXELS, 3U, "all-negative map");
+
+        /*
+         * HD01-F4: tie-breaking.
+         *
+         * The comparison is strict '>', so on an exact tie the LOWEST index is
+         * retained.  Pinning this is a DELIBERATE CHOICE, not an accident of the
+         * current code: the two coordinates are different scalp targets, so which
+         * one wins decides which montage is built, and "whichever the compiler
+         * felt like" is not an acceptable answer for a stimulation target.  Lowest
+         * index is chosen because it makes the result depend only on the voxel
+         * ordering in the weight matrix, which is fixed at build time and
+         * reproducible across runs and revisions.
+         *
+         * A refactor to '>=' — which would silently switch to the HIGHEST tied
+         * index — must fail here rather than quietly changing which electrode
+         * ring a tied map selects.
+         */
+        static const float p_tie[HD01F_VOXELS]     = { 1.0f, 9.0f, 3.0f, 9.0f, 5.0f, 2.0f };
+        static const float p_all_tie[HD01F_VOXELS] = { 4.0f, 4.0f, 4.0f, 4.0f, 4.0f, 4.0f };
+        hd01f_expect_peak(&ctx, p_tie,     HD01F_VOXELS, 1U, "tie -> lowest index");
+        hd01f_expect_peak(&ctx, p_all_tie, HD01F_VOXELS, 0U, "all tied -> index 0");
+
+        /* HD01-F6: argument validation. */
+        {
+            np_hd_sloreta_result_t r;
+            ASSERT(np_sloreta_find_peak(NULL, p_last, HD01F_VOXELS, &r)
+                       == NP_HD_ERR_INVALID_ARG, "HD01-F6: NULL ctx accepted");
+            ASSERT(np_sloreta_find_peak(&ctx, NULL, HD01F_VOXELS, &r)
+                       == NP_HD_ERR_INVALID_ARG, "HD01-F6: NULL source_power accepted");
+            ASSERT(np_sloreta_find_peak(&ctx, p_last, HD01F_VOXELS, NULL)
+                       == NP_HD_ERR_INVALID_ARG, "HD01-F6: NULL out accepted");
+            ASSERT(np_sloreta_find_peak(&ctx, p_last, 0U, &r)
+                       == NP_HD_ERR_INVALID_ARG, "HD01-F6: n_voxels == 0 accepted");
+        }
+
+        printf("  direct argmax: first/second/middle/last, bound, negatives, "
+               "ties, bad args\n");
+    }
+
+    /* ── Part 2: the same property through the covariance path ────────────── */
+    /*
+     * Part 1 proves the comparison; this proves the wiring.  If compute_map()
+     * wrote the map in a different voxel order, or find_peak() were handed
+     * something other than that map, Part 1 would still pass and the delivered
+     * target would still be wrong.
+     *
+     * W row v is the unit vector on hd01f_channel[v], so source_power[v] is that
+     * channel's variance — exactly A_v^2 / 2 for a coherent tone of amplitude A_v.
+     * The amplitudes below put the maximum on a LATER voxel in both arrangements.
+     */
+    {
+        static const float k_two_pi = 6.283185307179586f;
+
+        static const struct {
+            const char *name;
+            float       amplitude_uv[HD01F_VOXELS];
+            uint16_t    want_idx;
+        } cases[] = {
+            /* Largest tone on voxel 2 — peak mid-array.                        */
+            { "driven voxel 2 (middle)", { 2.0f, 4.0f, 10.0f, 6.0f, 3.0f, 5.0f }, 2U },
+            /* Largest tone on voxel 5 — peak at the last index.                */
+            { "driven voxel 5 (last)",   { 2.0f, 4.0f,  6.0f, 3.0f, 5.0f, 10.0f }, 5U },
+        };
+        const uint8_t n_cases = (uint8_t)(sizeof(cases) / sizeof(cases[0]));
+
+        for (uint8_t c = 0U; c < n_cases; c++) {
+            np_sloreta_ctx_t ctx;
+            ASSERT_OK(np_sloreta_init(&ctx, hd01f_W, hd01f_mni, HD01F_VOXELS));
+
+            memset(hd01f_samples, 0, sizeof(hd01f_samples));
+            for (uint8_t v = 0U; v < HD01F_VOXELS; v++) {
+                for (uint16_t s = 0U; s < NP_HD_SLORETA_FFT_SIZE; s++) {
+                    float ph = k_two_pi * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
+                    hd01f_samples[hd01f_channel[v]][s] =
+                        cases[c].amplitude_uv[v] * sinf(ph * (float)hd01f_cycles[v]);
+                }
+            }
+
+            for (uint16_t e = 0U; e < NP_HD_SLORETA_EPOCHS; e++) {
+                ASSERT_OK(np_sloreta_push_epoch(
+                    &ctx, (const float (*)[NP_HD_SLORETA_FFT_SIZE])hd01f_samples,
+                    NP_HD_SLORETA_FFT_SIZE));
+            }
+
+            float power[HD01F_VOXELS];
+            ASSERT_OK(np_sloreta_compute_map(&ctx, power, HD01F_VOXELS));
+
+            /* The map itself must carry A^2/2 per voxel, so a peak assertion
+             * below cannot be credited to a map that is wrong in some other way. */
+            for (uint8_t v = 0U; v < HD01F_VOXELS; v++) {
+                float expect = cases[c].amplitude_uv[v] *
+                               cases[c].amplitude_uv[v] / 2.0f;
+                ASSERT_APPROX(power[v], expect, 0.02f * expect);
+            }
+
+            /* HD01-F7: the later driven voxel is the reported peak, with the
+             * MNI coordinate and power that belong to it. */
+            hd01f_expect_peak(&ctx, power, HD01F_VOXELS, cases[c].want_idx,
+                              cases[c].name);
+
+            printf("  %-24s: power = %.2f %.2f %.2f %.2f %.2f %.2f -> voxel %u\n",
+                   cases[c].name, power[0], power[1], power[2],
+                   power[3], power[4], power[5], (unsigned)cases[c].want_idx);
+        }
+    }
+
+    int result = g_fail_count - failures_before;
+    printf("FAI-HD01-F: %s (%d failures)\n\n", result == 0 ? "PASS" : "FAIL", result);
+    return result;
+}
+
 /* ── FAI-HD03: 4×1 ring focality (saline phantom bench procedure) ────────────── */
 /*
  * Hardware bench procedure (not software-executable in CI).
@@ -1479,6 +1771,7 @@ int main(void)
     fai_hd01_sloreta_plumbing();
     fai_hd01d_estimator_variance();
     fai_hd01e_band_power_spectral();
+    fai_hd01f_peak_argmax();
     fai_hd02_electrode_mapping();
     fai_hd02l_driver_channel_single_source();
     fai_hd03_focality_algorithm();
