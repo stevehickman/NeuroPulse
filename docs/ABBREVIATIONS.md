@@ -216,7 +216,7 @@ Digital control lines for microcontroller. NeurOne: safety MCU (STM32G071) physi
 
 ### [I2C](#i2c)
 **I2C** — [Inter-Integrated Circuit](https://en.wikipedia.org/wiki/I%C2%B2C)  
-Serial communication bus (Philips/NXP standard). NeurOne: dedicated LPI2C3 bus (400kHz fast mode) per smart zone module slot, zone ID resistor (3.3kΩ) on pin 18 for detection. See CLAUDE.md § 3 (1064nm smart zone modules).
+Serial communication bus (Philips/NXP standard). NeurOne: modules sit behind a cluster controller's PCA9548A, reached over a single differential cluster bus — there is no per-socket I2C peripheral. The earlier "dedicated LPI2C3 bus per smart zone module slot, ZONE_ID 3.3kΩ resistor on pin 18 for detection" scheme is **retired** (superseded by NP-HW-HUB-001 Rev C §5 cluster-controller fan-out + `np_module_map` UID-based auto-inventory). See CLAUDE.md § 3 (1064nm smart zone modules).
 
 ### [LittleFS](#littlefs)
 **LittleFS** — [Lightweight File System](https://github.com/littlefs-project/littlefs)  
@@ -428,7 +428,7 @@ Hardware socket array specification for snap-in zone module placement. Defines p
 
 ### [NP-HW-FPC-001](#np-hw-fpc-001)
 **NP-HW-FPC-001** — 20-Pin FPC Connector Specification (Rev E)  
-Flexible printed circuit connector specification between hub and zone modules. 20-pin FPC carries: I2C data/clock (LPI2C3, 400kHz fast mode) + 3.3V power rails + zone detection resistor (ZONE_ID 3.3kΩ on pin 18, ADC-read for smart module detection). Bandwidth supports real-time zone control during adaptive EEG-driven sessions. See CLAUDE.md § 4.1.
+Flexible printed circuit connector specification between hub and zone modules. 20-pin FPC carries I2C data/clock + 3.3V power rails. The pin-18 ZONE_ID 3.3kΩ detection resistor and the per-slot LPI2C3 addressing it served are **retired** — modules are identified by UID-based auto-inventory (`np_module_map`) over NP-HW-HUB-001 Rev C's cluster-controller fan-out. Bandwidth supports real-time zone control during adaptive EEG-driven sessions. See CLAUDE.md § 4.1.
 
 ### [NP-OPT-PSF-001](#np-opt-psf-001)
 **NP-OPT-PSF-001** — Optical Point-Spread Function Characterization  
@@ -444,7 +444,7 @@ Specification for cervical VNS safety MCU impedance monitoring. Hub measures ele
 
 ### [OI-PBM-HW-01](#oi-pbm-hw-01)
 **OI-PBM-HW-01** — Base PBM Module Hardware Specification (Rev B pending)  
-Hardware specification for base (660nm + 808nm) transcranial PBM module. Defines: 550 LEDs per zone (split across wavelengths), photodiode duo (forward + backscattered), dual PD PDMS fouling detection, Microchip ATtiny402 I2C interface. Rev B adds Vishay DG2788A TIA gain switch per slot (on hold, blocking implementation). BOM delta +$23–28, retail $149–199/zone. See CLAUDE.md § 3 (PBM 1064nm smart zone module architecture).
+Hardware specification for base (660nm + 808nm) transcranial PBM module. Defines: 550 LEDs per zone (split across wavelengths), photodiode duo (forward + backscattered), dual PD PDMS fouling detection, Microchip ATtiny402 I2C interface. The Hub PCB Rev B **per-slot** Vishay DG2788A TIA gain switch is **superseded**: SMART-1 requires every socket to be I2C/TIA-capable, which reopened the hub TIA-gain design as an NP-HW-HUB-001 Rev C item rather than a five-slot Rev B addition. BOM delta +$23–28, retail $149–199/zone. See CLAUDE.md § 3 (PBM 1064nm smart zone module architecture).
 
 ## Wavelengths
 
@@ -533,7 +533,7 @@ PAI internal tooling for code optimization and compression. PreToolUse hook rewr
 ### Part numbers
 - **NP-* and OI-* codes:** Internal NeurOne design tracking identifiers.
 - **Versioning:** Many include revision (Rev A, Rev B, Rev E) — always reference current revision in CLAUDE.md locked decisions.
-- **Status flags:** Some part numbers are "pending" or "on hold" (e.g., OI-PBM-HW-01 Rev B — TIA gain switch on hold, blocking). See `docs/status/pending-decisions.md` for current status.
+- **Status flags:** Some part numbers are "pending", "on hold" or "superseded" (e.g., OI-PBM-HW-01's per-slot TIA gain switch — superseded, reopened as an NP-HW-HUB-001 Rev C item). See `docs/status/pending-decisions.md` for current status.
 
 ### Wavelengths
 - **Always with "nm" (nanometers)** to avoid ambiguity.
