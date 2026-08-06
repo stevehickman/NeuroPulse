@@ -1,5 +1,7 @@
 # NeurOne Firmware — Root Super-Project
-# Document: NP-FW-HUB-001 Rev A, NP-FW-EMMC-001 Rev A, NP-SW-001 Rev A
+# Document: NP-FW-HUB-001 Rev A (⚠ registered but NOT WRITTEN — docs/np_fw_hub_001.md
+#           does not exist; this code is its only description. See OI-DOC-01),
+#           NP-FW-EMMC-001 Rev A, NP-SW-001 Rev A
 #
 # Aggregates all i.MX RT1062 (main processor) firmware modules.
 # The STM32G071 safety MCU has its own separate project in firmware/safety_mcu/.

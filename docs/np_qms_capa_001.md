@@ -218,7 +218,9 @@ The Quality Lead presents CAPA status (open count by severity, closure trends, o
 
 ## 7. CAPA Log
 
-The CAPA log is maintained by the Quality Lead and contains a record of every CAPA opened. Until a formal eQMS platform is implemented, the CAPA log is maintained as a controlled document in the GitHub repository at `docs/np_qms_capa_log.md`.
+The CAPA log is maintained by the Quality Lead and contains a record of every CAPA opened. Until a formal eQMS platform is implemented, the CAPA log will be maintained as a controlled document in the GitHub repository at `docs/np_qms_capa_log.md`.
+
+> **Status (2026-08-05): that file does not exist yet, deliberately.** No CAPA has been opened — the programme is pre-tooling, with no hardware built, no bench data, and no complaint or non-conformance records to act on. The log is created **when the first CAPA is initiated** (step 1 of the §5 process), not in advance: an empty controlled document with a revision history and no entries would assert an active CAPA system that is not yet operating, which is the opposite of what a QMS record should do. The field specification below is the binding format for that file when it is created.
 
 **Minimum CAPA log fields:**
 
