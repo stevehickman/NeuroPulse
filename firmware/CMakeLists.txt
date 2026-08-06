@@ -60,6 +60,7 @@
 #                             → np_charge_monitor_tests   (OI-CHARGE-01)
 #                             → np_impedance_report_tests (OI-CVNS-HUB-11)
 #                             → np_fault_latch_privacy_tests (fault-latch privacy gate)
+#                             → np_cardiac_interlock_tests (SW01-M05 Class C cardiac interlock)
 #   firmware/hub_control/     → np_cvns_reenable_tests    (OI-CVNS-HUB-01)
 #                             → np_log_backend_tests      (OI-LOG-01..04)
 #                             → np_transport_tests        (OI-HUB-MAIN-01)
@@ -175,6 +176,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_fault_latch_privacy_tests
         COMMAND np_fault_latch_privacy_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_cardiac_interlock_tests
+        COMMAND np_cardiac_interlock_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_cvns_reenable_tests
