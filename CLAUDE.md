@@ -249,7 +249,7 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 ### 4.2 Safety architecture
 - Safety MCU physically owns all stimulation enable GPIO — app crash cannot cause unsafe stimulation
 - SPI heartbeat from main processor every 200ms; 1.5s watchdog → all-stimulation cutoff <50ms
-- Dual-processor isolation: IEC 62304 Class C (safety MCU, ~500 lines bare-metal) + Class B (main processor) separately certified
+- Dual-processor isolation: IEC 62304 Class C (safety MCU, bare-metal — ~1,600 physical lines across 9 modules as of 2026-08; `wc -l firmware/safety_mcu/src/*.c` is the source of truth, not this line) + Class B (main processor) separately certified
 - Session protocol cryptographically signed by app — headset rejects unsigned or corrupted protocols
 
 **Modality-specific interlocks:**
