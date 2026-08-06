@@ -148,11 +148,28 @@
  * Safety MCU owns the GPIO that physically gates each channel — the main
  * processor cannot enable stimulation without the safety MCU granting it.
  */
-#define NP_SAFETY_EN_PBM_ZONE_0     (1U << 0)
-#define NP_SAFETY_EN_PBM_ZONE_1     (1U << 1)
-#define NP_SAFETY_EN_PBM_ZONE_2     (1U << 2)
-#define NP_SAFETY_EN_PBM_ZONE_3     (1U << 3)
-#define NP_SAFETY_EN_PBM_ZONE_4     (1U << 4)
+/*
+ * Bit 0 gates ALL cranial PBM (NP-HW-HUB-001 Rev C §7.2), replacing the five
+ * per-zone bits of Rev B.  "Zone" is not a firmware concept — a zone is a
+ * human-authored socket set in protocols/predefined/00-zones.npps and changing
+ * its membership requires no hardware change, so the §4.5.1 discriminator
+ * (np_module_map.h) forbids firmware holding it.  Cranial PBM as a whole IS a
+ * hardware property.  One logical enable, fanned out to one gate transistor per
+ * cluster on the LED drive rails (§7.4).  Full reasoning and the accepted
+ * all-or-nothing consequence (OI-HUB-C07): safety_mcu/np_safety_protocol.h.
+ */
+#define NP_SAFETY_EN_PBM_CRANIAL    (1U << 0)
+
+/*
+ * Bits 1–4: RESERVED — NOT REUSED.  Formerly NP_SAFETY_EN_PBM_ZONE_1..4.  The
+ * safety MCU strips them via NP_SAFETY_EN_ALL_MASK, so a hub that sets one
+ * enables nothing.  Two reasons they stay holes, one of which binds today:
+ * (a) enable-bit positions appear in SHDR fault records — currently non-binding,
+ * since no SHDR fault records exist yet (principal, 2026-08-04); (b) bit
+ * position IS the charge-monitor channel index into current_ua[] and
+ * s_charge_nc[], which is Class C and binds now.  See the long-form note in
+ * safety_mcu/np_safety_protocol.h — this block must stay byte-identical with it.
+ */
 #define NP_SAFETY_EN_BES_TACS       (1U << 5)
 #define NP_SAFETY_EN_TDCS           (1U << 6)
 #define NP_SAFETY_EN_VNS_HRV        (1U << 7)

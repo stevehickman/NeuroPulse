@@ -798,9 +798,41 @@ sides of the SPI heartbeat — a disproportionate change to buy selectivity the 
 
 ### 7.2 Resolution — one `NP_SAFETY_EN_PBM_CRANIAL` bit, distributed gating
 
+> **STATUS: IMPLEMENTED IN FIRMWARE, 2026-08-05.** This section decided the collapse at Rev C and
+> the firmware did not follow for two revisions. It now does. `NP_SAFETY_EN_PBM_CRANIAL` is bit 0 in
+> both `firmware/safety_mcu/include/np_safety_protocol.h` and
+> `firmware/hub_control/include/np_hub_config.h`; `NP_SAFETY_EN_ALL_MASK` is **`0x3FE1`** (was
+> `0x3FFF`), which excludes the reserved holes so a hub that still sets a retired zone bit has it
+> stripped rather than enabling something. `NP_EN_PBM_ZONE0..4_PORT/PIN` collapse to one
+> `NP_EN_PBM_CRANIAL_PORT/PIN` on **PA0**, which also clears the **PA4 double-assignment** flagged at
+> OI-HEXTILE-13 note (c) (PA4 was claimed by both SPI1 NSS and `NP_EN_PBM_ZONE4_PIN`; it is now SPI1
+> NSS only). Regression tests: `np_safety_spi_proto_tests` (`test_enable_word_layout`,
+> `test_enable_word_matches_hub` — the latter compares the two headers through a test-only mirror TU,
+> so the "must match" contract is now checked rather than asserted in a comment) and the new
+> `np_thermal_interlock_tests`. **HUB-DRC-C12 closes.** Per-cluster policy bits remain undecided and
+> untouched — still **OI-HUB-C07** / **OI-HEXTILE-13**.
+
 Bits 0–4 (`NP_SAFETY_EN_PBM_ZONE_0..4`) are replaced by a **single** `NP_SAFETY_EN_PBM_CRANIAL` bit.
-Bits 1–4 become **reserved, not reused** (enable-bit positions appear in SHDR fault records; silently
-recycling a position would make historical logs misread).
+Bits 1–4 become **reserved, not reused**, for **two independent reasons**. The first was the only one
+this section originally recorded; the second is the one that actually binds today, and its omission
+was raised as **OI-HEXTILE-14**:
+
+1. **SHDR fault records.** Enable-bit positions appear in SHDR device-health fault records; silently
+   recycling a position would make historical logs misread. **This rationale does not currently
+   bind:** no SHDR fault records have been generated yet (principal, 2026-08-04;
+   `NP-HW-HEXTILE-001` §8.4.2 finding 4). It begins binding the moment a real fault record exists.
+2. **Bit position *is* the charge-monitor channel index — and this binds now.**
+   `NP_SAFETY_CH_CLIN_STIM` is *defined* as a bit position; `np_safety_main.c` tests
+   `granted_mask & (1U << ch)` against `rx.current_ua[ch]`; and `s_charge_nc[]` /
+   `NP_SAFETY_MAX_CHANNELS` are sized off the enable-bit count. Enable-bit position ≡ `current_ua[]`
+   slot ≡ charge accumulator index is a three-way identity, and it is **Class C** — the 40 µC/cm²
+   limit rests on it. Compacting the word would move every modality bit down four positions and
+   change what every `current_ua[i]` slot means.
+
+**A reader combining reason 1 with the standing no-SHDR-records instruction would wrongly conclude
+that recycling bits 1–4 is now safe. It is not** — reason 2 is unaffected by the record count. The
+collapse-with-holes taken here is the only genuinely free move (`NP-HW-HEXTILE-001` §8.4.2); the word
+was **not** compacted.
 
 The argument that this is sufficient, not merely convenient:
 
@@ -1262,7 +1294,7 @@ LED drive spec (§1, **OI-HUB-C01**).
 | `np_pbm1064_hal_i2c_mux_enable(slot, bool)` | **Retired.** Each cluster controller owns its own PCA9548A. |
 | `np_pbm1064_hal_adc_read_zone_id(slot, …)`, `NP_PBM1064_ADC_SMART_MAX/_BASE_MIN/_NO_MODULE_MIN`, `np_slot_type_t`, `np_pbm1064_detect.c` §4 detection state machine | **Retired.** ZONE_ID resistor-ladder detection is replaced by UID-based auto-inventory (`np_module_map`), per `NP-FW-PBM1064-001`'s own supersession note. |
 | `np_sm_slot_ctx_t.tia_gain` | **Retired** as hub state. Gain actually used is reported per-frame by the cluster controller for SHDR (§9.5). |
-| `NP_SAFETY_EN_PBM_ZONE_0..4` | Replaced by `NP_SAFETY_EN_PBM_CRANIAL`; bits 1–4 reserved (§7.2). Touches `np_safety_protocol.h`, `np_hub_config.h`, `np_session_runner.c:68-72`, `np_mod_pbm.c:137`. |
+| `NP_SAFETY_EN_PBM_ZONE_0..4` | **DONE 2026-08-05.** Replaced by `NP_SAFETY_EN_PBM_CRANIAL`; bits 1–4 reserved, `NP_SAFETY_EN_ALL_MASK` narrowed `0x3FFF` → `0x3FE1` (§7.2). Landed in `np_safety_protocol.h`, `np_hub_config.h`, `np_safety_config.h` (`NP_EN_PBM_CRANIAL_*` on PA0, freeing the PA4 SPI1-NSS clash), `np_gpio_mgr.c`, `np_thermal_interlock.c`, `np_session_runner.c`, `np_mod_pbm.c`. |
 
 ### 9.2 Reshaped — hub-side signatures stay socket-indexed
 
@@ -1415,7 +1447,7 @@ specified, now at §6 and §5 respectively.
 | HUB-DRC-C09 | Zero `GAIN_SEL` nets between RT1062 and any socket | ✓ (§6.1) |
 | HUB-DRC-C10 | PCA9548A + cluster-controller I2C address map non-conflicting with existing hub I2C peripherals | Open — hub I2C address audit |
 | HUB-DRC-C11 | Each cluster's LED drive rail gated by safety-MCU enable **upstream** of the cluster MCU (HUB-REQ-C02) | Open — schematic review; gates Class B allocation |
-| HUB-DRC-C12 | `NP_SAFETY_EN_PBM_ZONE_1..4` bit positions reserved, not reused | Open — `np_safety_protocol.h` / `np_hub_config.h` edit |
+| HUB-DRC-C12 | `NP_SAFETY_EN_PBM_ZONE_1..4` bit positions reserved, not reused | ✓ (2026-08-05) — holes excluded from `NP_SAFETY_EN_ALL_MASK` (`0x3FE1`); pinned by `np_safety_spi_proto_tests::test_enable_word_layout` |
 | HUB-DRC-C13 | Conductors at parting plane ≤ 120 at n = 80 | ✓ by count (§8.5) — confirm against harness CAD |
 | HUB-DRC-C14 | Cluster-bus traffic confined to ADS1299 inter-conversion gaps; EEG noise floor unchanged | Open — OI-HUB-C12 bench |
 | HUB-DRC-C15 | PD analog traces guarded and routed away from LED drive on the cluster board | Open — cluster-board layout DRC |

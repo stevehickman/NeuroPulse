@@ -31,18 +31,23 @@
 #define NP_SAFETY_SYSTICK_HZ        1000U  /* 1ms SysTick resolution */
 
 /* ── Stimulation enable GPIOs (active-LOW open-drain) ────────────────────── */
-/* Each bit position matches NP_SAFETY_EN_* in hub_control/np_hub_config.h   */
-/* PBM zone modules — PA0..PA4 */
-#define NP_EN_PBM_ZONE0_PORT    GPIOA
-#define NP_EN_PBM_ZONE0_PIN     (1U << 0)
-#define NP_EN_PBM_ZONE1_PORT    GPIOA
-#define NP_EN_PBM_ZONE1_PIN     (1U << 1)
-#define NP_EN_PBM_ZONE2_PORT    GPIOA
-#define NP_EN_PBM_ZONE2_PIN     (1U << 2)
-#define NP_EN_PBM_ZONE3_PORT    GPIOA
-#define NP_EN_PBM_ZONE3_PIN     (1U << 3)
-#define NP_EN_PBM_ZONE4_PORT    GPIOA
-#define NP_EN_PBM_ZONE4_PIN     (1U << 4)
+/* One line per allocated NP_SAFETY_EN_* bit (10 since NP-HW-HUB-001 Rev C
+ * §7.2).  GPIO pin numbering is per-port and does NOT track enable-bit
+ * position — the mapping is the explicit one in np_gpio_mgr_apply().        */
+
+/* Cranial PBM — PA0, one policy line for the whole lattice (NP-HW-HUB-001
+ * Rev C §7.2).  Fanned out on the hub side to one gate transistor per cluster
+ * on each cluster's LED drive rail (NP-HW-HEXTILE-001 D-8); §7.4 states the
+ * contract as "12–16 physical enable lines fanned out from one policy bit", so
+ * the safety MCU spends exactly one GPIO here, not one per cluster.
+ *
+ * PA1..PA4 are released by this change.  PA4 in particular was DOUBLE-ASSIGNED:
+ * the SPI1 block above claims it for hardware NSS, and the retired
+ * NP_EN_PBM_ZONE4_PIN also claimed it (NP-HW-HEXTILE-001 OI-HEXTILE-13 note (c),
+ * cross-referenced from NP-FMEA-001 FMEA-M08-04).  Retiring the zone-enable
+ * macros removes that conflict; PA4 is now SPI1 NSS only.                     */
+#define NP_EN_PBM_CRANIAL_PORT  GPIOA
+#define NP_EN_PBM_CRANIAL_PIN   (1U << 0)
 /* Stimulation channels — PB0..PB7 */
 #define NP_EN_BES_PORT          GPIOB
 #define NP_EN_BES_PIN           (1U << 0)
@@ -78,11 +83,19 @@
 #define NP_CARDIAC_BASELINE_BEATS 8U        /* beats to establish baseline */
 
 /* ── Thermal interlock (SW01-M04) ────────────────────────────────────────── */
-/* ADC1 channels: NTC per zone (5 channels) and hub NTC (1 channel)          */
+/* ADC1 channels: 5 cranial thermal sense domains + 1 hub NTC.
+ * A THERMAL SENSE DOMAIN IS NOT A ZONE.  It is the physical region of the shell
+ * an NTC actually senses — a hardware property fixed by where the thermistors
+ * are placed, so firmware may hold it (NP-HW-HUB-001 Rev C §4.5.1
+ * discriminator).  Zones are authored socket sets in 00-zones.npps and can be
+ * re-cut without touching hardware; they are never enable or sense domains.
+ * Channel index is NOT a module slot id and NOT an enable-bit position — every
+ * cranial domain clears the one NP_SAFETY_EN_PBM_CRANIAL bit (§7.2).          */
 #define NP_NTC_CUTOFF_DEG_C     62U   /* junction temperature (not case) */
 #define NP_NTC_REARM_DEG_C      55U   /* re-arm below this (7°C hysteresis) after cooldown */
 #define NP_NTC_ADC_INSTANCE     ADC1
-#define NP_NTC_CHANNEL_COUNT    6U    /* 5 zones + 1 hub */
+#define NP_NTC_CHANNEL_COUNT    6U    /* 5 cranial sense domains + 1 hub */
+#define NP_NTC_CRANIAL_CHANNELS 5U    /* channels [0, 5) are cranial; 5 is the hub */
 
 /* ── Charge density monitor (SW01-M03) ───────────────────────────────────── */
 /* 40 µC/cm² charge density limit; enforced per electrode, per session.      */

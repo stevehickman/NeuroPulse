@@ -12,7 +12,9 @@
 /* Each module driver file provides these; declared extern here to keep the
  * registry the single place that wires detect → register. */
 
-/* PBM zone modules (base and smart) */
+/* Retired zone slots 0-4 (PBM base and smart).  Kept only so slot numbering
+ * does not shift; the parser rejects these slot ids and they carry no safety
+ * enable bit (NP-HW-HUB-001 Rev C §7.2).  Cranial targeting is by socket. */
 extern np_hub_status_t np_mod_pbm_detect(uint8_t slot, np_hub_mod_type_t *type_out);
 extern np_hub_status_t np_mod_pbm_init(uint8_t slot);
 extern np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t len);

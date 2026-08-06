@@ -1,8 +1,13 @@
 /*
- * NeurOne Safety MCU — SW01-M04: Zone Thermal Interlock
+ * NeurOne Safety MCU — SW01-M04: Thermal Interlock
  * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M04
  *
- * Reads NTC thermistors on ADC1 for all 5 zone modules + hub.
+ * Reads NTC thermistors on ADC1 for all 5 cranial thermal sense domains + hub.
+ * A sense domain is the shell region one thermistor actually senses — a fixed
+ * hardware property, NOT a zone (zones are authored socket sets in
+ * 00-zones.npps and can be re-cut with no hardware change; NP-HW-HUB-001
+ * Rev C §4.5.1).  Domain index is therefore not a slot id and not an enable-bit
+ * position: every cranial domain cuts the one NP_SAFETY_EN_PBM_CRANIAL bit.
  * Cutoff at 62°C junction temperature (NP_NTC_CUTOFF_DEG_C).
  * Per IEC 60601 42°C case limit; 62°C junction corresponds to ~42°C
  * case surface given PCB thermal resistance.
@@ -50,13 +55,13 @@ static uint8_t adc_to_celsius(uint16_t adc)
 
 /* ── Module state ────────────────────────────────────────────────────────── */
 static uint32_t s_last_poll_ms = 0U;
-static bool     s_cutoff[6];  /* one per zone + hub */
+static bool     s_cutoff[NP_NTC_CHANNEL_COUNT];  /* one per sense domain + hub */
 
 #define NP_THERMAL_POLL_MS 10U
 
 np_safe_status_t np_thermal_interlock_init(void)
 {
-    for (uint8_t i = 0U; i < 6U; i++) {
+    for (uint8_t i = 0U; i < NP_NTC_CHANNEL_COUNT; i++) {
         s_cutoff[i] = false;
     }
     s_last_poll_ms = 0U;
@@ -78,9 +83,26 @@ void np_thermal_interlock_tick(np_safety_state_t *state)
         if (deg >= NP_NTC_CUTOFF_DEG_C && !s_cutoff[ch]) {
             s_cutoff[ch] = true;
 
-            if (ch < 5U) {
-                /* Zone ch: clear corresponding PBM enable bit */
-                state->granted_mask &= (uint16_t)~(1U << ch);
+            if (ch < NP_NTC_CRANIAL_CHANNELS) {
+                /* Cranial sense domain over-temp: cut ALL cranial PBM.
+                 *
+                 * This was `granted_mask &= ~(1U << ch)` — the domain index used
+                 * as an enable-bit position, valid only while bits 0–4 were the
+                 * five per-zone PBM enables.  Under NP-HW-HUB-001 Rev C §7.2 the
+                 * cranial lattice has ONE enable bit, so that expression would
+                 * clear reserved bits 1–4 for domains 1–4 and cut nothing at all.
+                 *
+                 * Cutting the whole lattice on any single domain over-temp is the
+                 * §7.2 accepted consequence, not a widening of the response: the
+                 * safety MCU is the interlock, and over-cutting is a usability
+                 * cost, never a hazard.  Selective per-tile throttling lives
+                 * elsewhere — the 62 °C hardware current throttle and the
+                 * Class B duty=0 path (NP-FW-PBM1064-001 §6.5).
+                 *
+                 * fault_slot carries the sense-domain index for diagnosis.  It is
+                 * NOT a module slot: slots 0–4 are retired and the parser rejects
+                 * them, so no other path can write 0–4 here.                    */
+                state->granted_mask &= (uint16_t)~NP_SAFETY_EN_PBM_CRANIAL;
                 state->fault_slot    = ch;
             } else {
                 /* Hub NTC: cut all stimulation */
@@ -92,8 +114,8 @@ void np_thermal_interlock_tick(np_safety_state_t *state)
             /* Cooling recovery with 7°C hysteresis: a channel that has fallen
              * back below the re-arm threshold clears its own cutoff latch.
              * Without this, a single transient over-temp reading would keep the
-             * zone (or, for the hub NTC, the whole device) disabled until a
-             * power-cycle, because np_spi_watchdog_tick keeps forcing
+             * cranial lattice (or, for the hub NTC, the whole device) disabled
+             * until a power-cycle, because np_spi_watchdog_tick keeps forcing
              * granted_mask=0 while NP_SAFETY_STATUS_THERMAL is set.  Re-granting
              * the enable bit is left to np_spi_watchdog_tick, which recomputes
              * granted_mask from requested_mask once no interlock is asserting.  */
@@ -102,8 +124,8 @@ void np_thermal_interlock_tick(np_safety_state_t *state)
     }
 
     /* Clear the module-wide THERMAL status only when NO channel remains latched,
-     * so one zone cooling down cannot unblock the mask while another is still
-     * over-temp.  CUTOFF is cleared by np_spi_watchdog_tick on the next valid
+     * so one sense domain cooling down cannot unblock the mask while another is
+     * still over-temp.  CUTOFF is cleared by np_spi_watchdog_tick on the next valid
      * heartbeat once no other interlock is asserting it. */
     bool any_cutoff = false;
     for (uint8_t ch = 0U; ch < NP_NTC_CHANNEL_COUNT; ch++) {
