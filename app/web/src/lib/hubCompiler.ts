@@ -32,12 +32,12 @@
  * ── v2: sockets, not zone slots ──────────────────────────────────────────────
  *
  * v1 addressed cranial commands with a five-bit mask over the legacy zone-module
- * slots. Those slots are gone: the helmet is a 78-socket hexagonal lattice
+ * slots. Those slots are gone: the helmet is an 80-socket hexagonal lattice
  * (protocols/predefined/00-zones.npps, socketMap.generated.ts) addressed by the
  * firmware's two-level (socket:element) scheme (np_module_map.h). A v2 cranial
  * command therefore carries a 16-byte socket bitmap in its target block — one
  * bit per socket, LSB-first, sized to the firmware's full 7-bit socket domain
- * (NP_HEXMAP_MAX_SOCKETS = 128), not to the 78 this shell wires.
+ * (NP_HEXMAP_MAX_SOCKETS = 128), not to the 80 this shell wires.
  *
  * Modules that really are single fixed devices — the ADS1299, the audio cups,
  * the goggles, the auricular clip, the intranasal probe, the T2 units — keep

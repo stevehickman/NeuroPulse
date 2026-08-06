@@ -113,9 +113,10 @@
 
  * Socket field 7 bits (holds 0..127). The tiling surface was re-measured from a
  * 3D scan of the reference helmet interior (Neuronic LIGHT shape): at the 40 mm
- * design point the full regular lattice is ~78 sockets, well above the old 64
+ * design point the full regular lattice is ~80 sockets, well above the old 64
  * ceiling. 64 was a guessed "physical ceiling" that the scan disproved -- the
- * same class of unchecked constant that once let a 78-socket lattice ship, only
+ * same class of unchecked constant that once let the retired 78-socket lattice
+ * ship, only
  * this time the physics is real -- so the bound is set to 128 = the full 7-bit
  * major domain (1 << SOCKET_BITS): the entire addressable field is usable, with
  * no arbitrary sub-ceiling to re-justify, and the max socket id is 0x7F.

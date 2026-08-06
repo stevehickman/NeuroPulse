@@ -20,7 +20,7 @@
 /* ── Command target block (v2) ────────────────────────────────────────────────
  * v1 addressed every command with the single `slot_mask` byte, so a cranial
  * command could name only the five legacy zone-module slots. The helmet is now
- * a lattice of 78 sockets (NP-HEX-ZM-001; firmware addressing in
+ * a lattice of 80 sockets (NP-HEX-ZM-001; firmware addressing in
  * np_module_map.h), which does not fit in five bits and is not a slot at all.
  *
  * v2 therefore gives each command an optional variable-length TARGET BLOCK,
@@ -51,7 +51,7 @@
  * The dedup guarantee stops being something every producer must remember.
  *
  * Sized to NP_HEXMAP_MAX_SOCKETS (128, the full 7-bit socket domain), NOT to the
- * 78 sockets this shell wires — the wire format must not need a revision when a
+ * 80 sockets this shell wires — the wire format must not need a revision when a
  * shell wires more of the domain it already addresses.
  *
  * BIT POSITION IS INDEX SPACE, NOT A SOCKET NUMBER. Bit 0 selects socket 1. A
