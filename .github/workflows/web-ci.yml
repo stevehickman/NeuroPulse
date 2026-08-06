@@ -14,12 +14,15 @@ on:
       - 'scripts/sync-locales.ts'
       - 'scripts/sync-socket-map.ts'
       - 'scripts/test-lateralization-audit.sh'
-      # Section-ref guard: it must fire on the edits it guards. A CLAUDE.md
-      # reorganization touches CLAUDE.md and docs/ and nothing under app/web/,
-      # so without these two lines the guard would never run on the exact change
-      # that broke 100 references last time.
+      # Section-ref guard: it must fire on the edits it guards. The guard scans the
+      # whole repo, so its `paths:` must cover everywhere a CLAUDE.md citation can
+      # live — not just app/web/. A reorganization touches CLAUDE.md and docs/ and
+      # nothing under app/web/; and five of the 100 dangling refs it caught were in
+      # app/android Kotlin sources, which no earlier grep even scanned.
       - 'CLAUDE.md'
       - 'docs/**'
+      - 'app/android/**'
+      - 'firmware/**'
       - 'scripts/check-section-refs.ts'
   pull_request:
     paths:
@@ -31,12 +34,15 @@ on:
       - 'scripts/sync-locales.ts'
       - 'scripts/sync-socket-map.ts'
       - 'scripts/test-lateralization-audit.sh'
-      # Section-ref guard: it must fire on the edits it guards. A CLAUDE.md
-      # reorganization touches CLAUDE.md and docs/ and nothing under app/web/,
-      # so without these two lines the guard would never run on the exact change
-      # that broke 100 references last time.
+      # Section-ref guard: it must fire on the edits it guards. The guard scans the
+      # whole repo, so its `paths:` must cover everywhere a CLAUDE.md citation can
+      # live — not just app/web/. A reorganization touches CLAUDE.md and docs/ and
+      # nothing under app/web/; and five of the 100 dangling refs it caught were in
+      # app/android Kotlin sources, which no earlier grep even scanned.
       - 'CLAUDE.md'
       - 'docs/**'
+      - 'app/android/**'
+      - 'firmware/**'
       - 'scripts/check-section-refs.ts'
   workflow_dispatch:
 
@@ -100,13 +106,12 @@ jobs:
       # rotting silently. It also enforces the no-space §N form, which is what let
       # the first audit of this miscount 94 instead of 100.
       #
-      # ⚠ KNOWN COVERAGE GAP: the script scans the whole repo, but this workflow's
-      # `paths:` filter does not list app/android/** or firmware/**. Five of the
-      # 100 dangling refs were in Kotlin sources, so an edit that reintroduces one
-      # there will NOT trigger this job. Fixing it means either adding those paths
-      # (this whole web job then runs on every firmware commit) or moving this step
-      # to its own unfiltered workflow — the latter is cleaner and is the
-      # recommendation. Tracked as OI-DOC-02.
+      # The `paths:` filter above is deliberately wider than the rest of this
+      # workflow needs (CLAUDE.md, docs/**, app/android/**, firmware/**): the guard
+      # scans the whole repo, so it has to be triggerable from anywhere a citation
+      # can live. The cost is that this web job also runs on docs- and
+      # firmware-only commits. Accepted on purpose — a guard that cannot see the
+      # edit that breaks it is not a guard.
       - name: Section refs resolve and use the canonical form
         working-directory: .
         run: bun scripts/check-section-refs.ts
