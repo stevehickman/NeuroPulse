@@ -110,9 +110,13 @@ if(NP_BUILD_TESTS)
     # 30 s re-enable lockout, conservative pre-baseline hold (NP-FW-CVNS-001 §5).
     # Distinct from np_cvns_fai_tests, which covers the MAIN PROCESSOR module on
     # the other side of the SPI boundary.
+    # src/np_spi_watchdog.c is linked in for test_cardiac_latch_blocks_all_grants()
+    # (OI-CVNS-12): the grant gate is the mechanism that makes the post-lockout
+    # baseline refresh harmless, so it is exercised for real rather than mirrored.
     add_executable(np_cardiac_interlock_tests
         tests/np_cardiac_interlock_tests.c
         src/np_cardiac_interlock.c
+        src/np_spi_watchdog.c
     )
     np_host_test(np_cardiac_interlock_tests)
 

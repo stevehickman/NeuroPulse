@@ -36,6 +36,15 @@ extern np_safe_status_t np_cardiac_interlock_init(void);
 extern void             np_cardiac_interlock_tick(np_safety_state_t *state);
 extern void             np_cardiac_interlock_reenable(np_safety_state_t *state);
 
+/* SW01-M02, linked in for test_cardiac_latch_blocks_all_grants() only: the
+ * rewritten OI-CVNS-12 comment in np_cardiac_interlock.c asserts that a latched
+ * CARDIAC bit zeroes granted_mask, and that claim belongs under test next to the
+ * comment that depends on it. */
+extern np_safe_status_t np_spi_watchdog_init(void);
+extern void             np_spi_watchdog_tick(np_safety_state_t *state,
+                                             const np_safety_rx_ext_frame_t *rx,
+                                             np_safety_tx_frame_t *tx);
+
 /* ── Mocked HAL stubs ────────────────────────────────────────────────────────── */
 /* g_capture is the free-running 1 MHz TIM2 count; g_tick_ms is the 1 kHz
  * SysTick.  They are advanced INDEPENDENTLY on purpose: a test can deliver a
@@ -422,6 +431,158 @@ static void test_rolling_baseline_absorbs_slow_drift(void)
           "refresh: baseline advanced to 75 (86 BPM is within 15 of it)");
 }
 
+/* ── OI-CVNS-12: post-lockout refresh + the mechanism that makes it safe ────── */
+
+/*
+ * PINS THE BEHAVIOUR THE REMOVED GUARD CLAIMED TO PREVENT.
+ *
+ * np_cardiac_interlock.c carried a `!s_cutoff_active` term on the rolling-
+ * baseline refresh whose comment said it stopped the baseline adopting the
+ * elevated post-event rate.  It never did: s_cutoff_active is only ever true
+ * while s_lockout_active is also true, and tick() returns early in that case,
+ * so the term was unreachable.  Because NP_CARDIAC_LOCKOUT_MS (30 s) exceeds
+ * NP_CARDIAC_OBS_MS (5 s), the refresh fires on the very tick the lockout
+ * expires and the baseline moves to the post-event rate.
+ *
+ * Discriminator: sustain the elevated rate through the lockout, cross the
+ * expiry with NO reenable(), then return to the ORIGINAL resting rate.  If the
+ * baseline moved to 120 the return to 60 is a 60 BPM excursion and cuts off; if
+ * the baseline had stayed at 60 it would be a 0 BPM delta and nothing happens.
+ *
+ * This test passes identically against the pre-OI-CVNS-12 implementation — that
+ * is the point.  Removing the dead term changed no behaviour, and this suite is
+ * the evidence.  See NP-FW-CVNS-001 Rev C §14.5.
+ */
+static void test_post_lockout_refresh_adopts_elevated_rate(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    establish_baseline(&st, RR_60_BPM);
+
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) {
+        beat(&st, RR_120_BPM);
+    }
+    check(cutoff_fired(&st), "post-lockout refresh: cutoff fired at 120 BPM");
+    uint32_t cutoff_ms = g_tick_ms;
+
+    /* Sustain the elevated rate through the lockout so the RR ring holds 120. */
+    while (g_tick_ms < (cutoff_ms + NP_CARDIAC_LOCKOUT_MS) - 1000U) {
+        beat(&st, RR_120_BPM);
+        g_tick_ms += 100U;
+    }
+
+    /* Cross the lockout boundary.  No reenable() — the hub has not confirmed. */
+    g_tick_ms = cutoff_ms + NP_CARDIAC_LOCKOUT_MS;
+    np_cardiac_interlock_tick(&st);
+
+    /* Return to the original 60 BPM resting rate.  Re-grant first so the enable
+     * bit is observable; the real hub could not do this while CARDIAC is set,
+     * which is exactly what test_cardiac_latch_blocks_all_grants() pins. */
+    st.granted_mask |= NP_SAFETY_EN_CVNS;
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) {
+        beat(&st, RR_60_BPM);
+    }
+    check(cutoff_fired(&st),
+          "post-lockout refresh: baseline adopted 120, so return to 60 cuts off");
+}
+
+/*
+ * Mechanism step 2 of the rewritten comment: the CARDIAC latch is NOT cleared
+ * by lockout expiry.  Only np_cardiac_interlock_reenable() clears it, and the
+ * hub gates that on confirm + an active session (np_safety_main.c).
+ */
+static void test_cardiac_latch_survives_lockout_expiry(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) {
+        beat(&st, RR_120_BPM);
+    }
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) != 0U,
+          "latch: CARDIAC set on cutoff");
+
+    g_tick_ms += NP_CARDIAC_LOCKOUT_MS;
+    np_cardiac_interlock_tick(&st);
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) != 0U,
+          "latch: CARDIAC still set after lockout expiry with no reenable");
+    check((st.status & NP_SAFETY_STATUS_CUTOFF) != 0U,
+          "latch: CUTOFF still set after lockout expiry with no reenable");
+}
+
+/*
+ * Mechanism step 3: the baseline refreshed at lockout expiry is discarded by
+ * reenable() before CVNS can be re-granted.  After reenable() and eight fresh
+ * 60 BPM intervals the baseline must be 60, not the 120 the refresh installed.
+ *
+ * Discriminator: 75 BPM is a delta of 15 against a 60 baseline, which HOLDS
+ * (the comparison is strictly greater-than), but a delta of 45 against a 120
+ * baseline, which would fire.
+ */
+static void test_refreshed_baseline_discarded_by_reenable(void)
+{
+    np_safety_state_t st;
+    reset_all(&st, true, 0U);
+    establish_baseline(&st, RR_60_BPM);
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE && !cutoff_fired(&st); i++) {
+        beat(&st, RR_120_BPM);
+    }
+    uint32_t cutoff_ms = g_tick_ms;
+    while (g_tick_ms < (cutoff_ms + NP_CARDIAC_LOCKOUT_MS) - 1000U) {
+        beat(&st, RR_120_BPM);
+        g_tick_ms += 100U;
+    }
+    g_tick_ms = cutoff_ms + NP_CARDIAC_LOCKOUT_MS;
+    np_cardiac_interlock_tick(&st);   /* refresh installs the elevated baseline */
+
+    np_cardiac_interlock_reenable(&st);
+    st.granted_mask |= NP_SAFETY_EN_CVNS;   /* hub re-grants after confirm */
+    check((st.status & NP_SAFETY_STATUS_CARDIAC) == 0U,
+          "discard: reenable accepted once the lockout elapsed");
+
+    establish_baseline(&st, RR_60_BPM);     /* eight fresh 60 BPM intervals */
+    for (uint8_t i = 0U; i < TEST_RR_BUF_SIZE; i++) { beat(&st, RR_75_BPM); }
+    check(!cutoff_fired(&st),
+          "discard: baseline is 60 not 120 (75 BPM is within 15 of it)");
+}
+
+/*
+ * Mechanism step 1, and the load-bearing reason the post-lockout refresh is
+ * harmless: while NP_SAFETY_STATUS_CARDIAC is latched, np_spi_watchdog_tick()
+ * zeroes granted_mask — ALL stimulation, not only CVNS.
+ *
+ * np_safety_spi_proto_tests covers the active_faults mask by re-implementing
+ * the grant expression locally; this calls the real function, so a change to
+ * np_spi_watchdog.c that dropped CARDIAC from active_faults would be caught
+ * here rather than passing against a copy that still listed it.
+ */
+static void test_cardiac_latch_blocks_all_grants(void)
+{
+    np_safety_state_t         st;
+    np_safety_rx_ext_frame_t  rx;
+    np_safety_tx_frame_t      tx;
+
+    memset(&st, 0, sizeof(st));
+    memset(&rx, 0, sizeof(rx));
+    memset(&tx, 0, sizeof(tx));
+    g_tick_ms = 0U;
+    np_spi_watchdog_init();
+
+    st.requested_mask = NP_SAFETY_EN_ALL_MASK;   /* hub asks for everything */
+
+    st.status = 0U;
+    np_spi_watchdog_tick(&st, &rx, &tx);
+    check(st.granted_mask == NP_SAFETY_EN_ALL_MASK,
+          "grant gate: full mask granted when no fault is latched");
+
+    st.status = NP_SAFETY_STATUS_CARDIAC;
+    np_spi_watchdog_tick(&st, &rx, &tx);
+    check(st.granted_mask == 0U,
+          "grant gate: CARDIAC latched blocks ALL stimulation, not only CVNS");
+    check((st.granted_mask & NP_SAFETY_EN_CVNS) == 0U,
+          "grant gate: CVNS specifically cannot be re-granted while CARDIAC set");
+}
+
 int main(void)
 {
     test_no_cutoff_before_baseline();
@@ -436,6 +597,10 @@ int main(void)
     test_reenable_refused_during_lockout();
     test_reenable_forces_fresh_baseline();
     test_rolling_baseline_absorbs_slow_drift();
+    test_post_lockout_refresh_adopts_elevated_rate();
+    test_cardiac_latch_survives_lockout_expiry();
+    test_refreshed_baseline_discarded_by_reenable();
+    test_cardiac_latch_blocks_all_grants();
 
     if (g_failures == 0) { printf("ALL TESTS PASSED\n"); return 0; }
     printf("%d TEST(S) FAILED\n", g_failures);

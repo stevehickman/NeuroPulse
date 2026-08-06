@@ -156,13 +156,36 @@ void np_cardiac_interlock_tick(np_safety_state_t *state)
      * arrives between the two calls (ring buffer updates mid-tick). */
     int16_t cur_bpm = current_hr_bpm();
 
-    /* Refresh rolling baseline every observation window, but ONLY when no cutoff
-     * is active.  Refreshing after a cutoff event would adopt the elevated
-     * post-event HR as the new resting baseline, desensitising the interlock
-     * for subsequent events.  Gate: s_cutoff_active = true during and after
-     * the event until explicit reenable clears it. */
-    if (!s_cutoff_active &&
-        (now_ms - s_baseline_established_ms) >= NP_CARDIAC_OBS_MS &&
+    /* Refresh the rolling baseline every observation window so a slow
+     * physiological drift does not accumulate into a spurious cutoff.
+     *
+     * This DOES refresh on the tick the lockout expires, adopting the elevated
+     * post-event rate as the new baseline — NP_CARDIAC_LOCKOUT_MS (30 s) is
+     * longer than NP_CARDIAC_OBS_MS (5 s), so the observation window has always
+     * elapsed by the time the early return above stops firing.  That is safe and
+     * does NOT desensitise the interlock, because the refreshed value is
+     * discarded before any stimulation can resume:
+     *
+     *   1. The cutoff latches NP_SAFETY_STATUS_CARDIAC, which np_spi_watchdog.c
+     *      counts in active_faults — so granted_mask is forced to 0.  ALL
+     *      stimulation is blocked while that bit is set, not just CVNS.
+     *   2. Nothing clears the bit except np_cardiac_interlock_reenable(), which
+     *      np_safety_main.c gates on hub confirm + an active session.  The
+     *      session-start reset block does not clear it either, so the latch
+     *      survives a session restart.
+     *   3. reenable() sets s_baseline_valid = false and empties the RR ring, so
+     *      the refreshed baseline is thrown away and NP_CARDIAC_BASELINE_BEATS
+     *      fresh intervals must accumulate before the interlock re-arms.
+     *
+     * A `!s_cutoff_active` term here was dead code (OI-CVNS-12, removed
+     * 2026-08-06): s_cutoff_active is only ever true while s_lockout_active is
+     * also true, and the early return above has already returned in that case.
+     * The comment it carried claimed to prevent the post-lockout refresh; it
+     * never did, and the protection it described is not needed.  Do not
+     * reinstate it to make a comment true — see NP-FW-CVNS-001 Rev C §14.5.
+     * Pinned by test_post_lockout_refresh_adopts_elevated_rate() and
+     * test_cardiac_latch_blocks_all_grants(). */
+    if ((now_ms - s_baseline_established_ms) >= NP_CARDIAC_OBS_MS &&
         s_rr_count >= NP_CARDIAC_BASELINE_BEATS) {
         s_baseline_bpm            = cur_bpm;
         s_baseline_established_ms = now_ms;
