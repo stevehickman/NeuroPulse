@@ -134,7 +134,12 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
             (void)np_mod_pbm_hal_pwm_set(slot, 0U, 0U, 0U, 0U);
         }
         s_state[slot].active = false;
-        np_safety_spi_request_disable(NP_SAFETY_EN_PBM_ZONE_0 << slot);
+        /* One cranial enable bit for the whole lattice (NP-HW-HUB-001 Rev C
+         * §7.2) — there is no per-slot bit left to shift into.  Disable is
+         * unconditionally safe, so dropping the whole cranial gate when any
+         * cranial emitter stops is the conservative behaviour; re-enable comes
+         * from the next control command that names a live target.            */
+        np_safety_spi_request_disable(NP_SAFETY_EN_PBM_CRANIAL);
         return NP_HUB_OK;
     }
 

@@ -4,14 +4,16 @@
 #           NP-FW-EMMC-001 Rev A §4.2, NP-FMEA-001 Rev A
 #
 # IEC 62304 Class C — safety-critical; MISRA C:2012 mandatory.
-# Safety MCU owns all stimulation GPIO enable lines (14 channels).
+# Safety MCU owns all stimulation GPIO enable lines (10 since NP-HW-HUB-001
+# Rev C §7.2 collapsed the five per-zone PBM enables to one cranial enable).
 # SPI slave to i.MX RT1062 main processor; 200ms heartbeat, 1.5s watchdog.
 #
 # ── SW-01 Modules (NP-SW-001 Rev A §4.1) ─────────────────────────────────────
-#   SW01-M01  np_gpio_mgr          — stimulation GPIO owner (14 channels)
+#   SW01-M01  np_gpio_mgr          — stimulation GPIO owner (10 lines; one
+#                                     cranial PBM line since NP-HW-HUB-001 §7.2)
 #   SW01-M02  np_spi_watchdog      — 200ms heartbeat + 1.5s watchdog cutoff
 #   SW01-M03  np_charge_monitor    — per-electrode charge accumulator (40µC/cm²)
-#   SW01-M04  np_thermal_interlock — NTC zone thermal cutoff (62°C junction)
+#   SW01-M04  np_thermal_interlock — NTC sense-domain thermal cutoff (62°C junction)
 #   SW01-M05  np_cardiac_interlock — cervical VNS cardiac rhythm monitor
 #   SW01-M06  np_impedance_check   — pre-session contact impedance verification
 #   SW01-M07  np_session_sig       — Ed25519 session descriptor signature gate
@@ -57,8 +59,13 @@ if(NP_BUILD_TESTS)
     endmacro()
 
     # np_safety_spi_proto_tests: SPI frame struct tests (sig cmd + ext heartbeat)
+    # np_hub_enable_mirror.c is a test-only TU that reads the hub's enable-word
+    # macros, so the "must match hub_control/np_hub_config.h" contract in
+    # np_safety_protocol.h can be checked instead of merely stated
+    # (NP-HW-HUB-001 Rev C §7.2).  The two headers cannot share a TU.
     add_executable(np_safety_spi_proto_tests
         tests/np_safety_spi_proto_tests.c
+        tests/np_hub_enable_mirror.c
     )
     np_host_test(np_safety_spi_proto_tests)
 
@@ -68,6 +75,16 @@ if(NP_BUILD_TESTS)
         src/np_charge_monitor.c
     )
     np_host_test(np_charge_monitor_tests)
+
+    # np_thermal_interlock_tests: SW01-M04 NTC cutoff.  Covers the §7.2 change
+    # that every cranial thermal sense domain now cuts the single
+    # NP_SAFETY_EN_PBM_CRANIAL bit — the retired `~(1U << ch)` expression cut
+    # nothing for domains 1-4 once bits 1-4 became reserved.
+    add_executable(np_thermal_interlock_tests
+        tests/np_thermal_interlock_tests.c
+        src/np_thermal_interlock.c
+    )
+    np_host_test(np_thermal_interlock_tests)
 
     # np_impedance_report_tests: SW01-M06 per-electrode CVNS impedance report
     # for the hub cross-validation (OI-CVNS-HUB-11).

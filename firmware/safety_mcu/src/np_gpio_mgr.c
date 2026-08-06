@@ -2,9 +2,14 @@
  * NeurOne Safety MCU — SW01-M01: Stimulation GPIO Manager
  * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M01
  *
- * Owns all 14 stimulation enable GPIO lines.  All lines are active-LOW
+ * Owns all 10 stimulation enable GPIO lines.  All lines are active-LOW
  * open-drain with external pull-ups to Vcc.  Asserting a GPIO LOW enables
  * the downstream stimulation driver via an inverting buffer.
+ *
+ * Ten, not fourteen: NP-HW-HUB-001 Rev C §7.2 collapsed the five per-zone PBM
+ * enables into the single NP_EN_PBM_CRANIAL line.  The per-cluster gate
+ * transistors on the LED drive rails are fanned out downstream of this one line
+ * (§7.4) — they are not separate GPIO here.
  *
  * This is the ONLY module that writes stimulation GPIO.  All other modules
  * communicate intent via the safety state's granted_mask.
@@ -21,11 +26,7 @@ np_safe_status_t np_gpio_mgr_init(void)
 {
     /* All stimulation enables driven HIGH (disabled) at init.
      * np_hal_gpio_init() configures direction; this call sets initial state. */
-    np_hal_gpio_write_pin(NP_EN_PBM_ZONE0_PORT, NP_EN_PBM_ZONE0_PIN, 1);
-    np_hal_gpio_write_pin(NP_EN_PBM_ZONE1_PORT, NP_EN_PBM_ZONE1_PIN, 1);
-    np_hal_gpio_write_pin(NP_EN_PBM_ZONE2_PORT, NP_EN_PBM_ZONE2_PIN, 1);
-    np_hal_gpio_write_pin(NP_EN_PBM_ZONE3_PORT, NP_EN_PBM_ZONE3_PIN, 1);
-    np_hal_gpio_write_pin(NP_EN_PBM_ZONE4_PORT, NP_EN_PBM_ZONE4_PIN, 1);
+    np_hal_gpio_write_pin(NP_EN_PBM_CRANIAL_PORT, NP_EN_PBM_CRANIAL_PIN, 1);
     np_hal_gpio_write_pin(NP_EN_BES_PORT,        NP_EN_BES_PIN,        1);
     np_hal_gpio_write_pin(NP_EN_TDCS_PORT,       NP_EN_TDCS_PIN,       1);
     np_hal_gpio_write_pin(NP_EN_VNS_PORT,        NP_EN_VNS_PIN,        1);
@@ -48,17 +49,10 @@ void np_gpio_mgr_apply(const np_safety_state_t *state)
 {
     uint16_t m = state->granted_mask;
 
-    /* Any fault clears the full granted mask before this call */
-    np_hal_gpio_write_pin(NP_EN_PBM_ZONE0_PORT, NP_EN_PBM_ZONE0_PIN,
-                          (m & NP_SAFETY_EN_PBM_ZONE_0) ? 0 : 1);
-    np_hal_gpio_write_pin(NP_EN_PBM_ZONE1_PORT, NP_EN_PBM_ZONE1_PIN,
-                          (m & NP_SAFETY_EN_PBM_ZONE_1) ? 0 : 1);
-    np_hal_gpio_write_pin(NP_EN_PBM_ZONE2_PORT, NP_EN_PBM_ZONE2_PIN,
-                          (m & NP_SAFETY_EN_PBM_ZONE_2) ? 0 : 1);
-    np_hal_gpio_write_pin(NP_EN_PBM_ZONE3_PORT, NP_EN_PBM_ZONE3_PIN,
-                          (m & NP_SAFETY_EN_PBM_ZONE_3) ? 0 : 1);
-    np_hal_gpio_write_pin(NP_EN_PBM_ZONE4_PORT, NP_EN_PBM_ZONE4_PIN,
-                          (m & NP_SAFETY_EN_PBM_ZONE_4) ? 0 : 1);
+    /* Any fault clears the full granted mask before this call.
+     * One write covers the whole cranial lattice — see the file header. */
+    np_hal_gpio_write_pin(NP_EN_PBM_CRANIAL_PORT, NP_EN_PBM_CRANIAL_PIN,
+                          (m & NP_SAFETY_EN_PBM_CRANIAL) ? 0 : 1);
     np_hal_gpio_write_pin(NP_EN_BES_PORT,        NP_EN_BES_PIN,
                           (m & NP_SAFETY_EN_BES_TACS)    ? 0 : 1);
     np_hal_gpio_write_pin(NP_EN_TDCS_PORT,       NP_EN_TDCS_PIN,

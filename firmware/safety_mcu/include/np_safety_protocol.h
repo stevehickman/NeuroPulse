@@ -43,11 +43,62 @@
 #define NP_SAFETY_BEAT_MAGIC_1  0xA7U
 
 /* ── Enable bitmask bits (must match hub_control/np_hub_config.h) ─────────── */
-#define NP_SAFETY_EN_PBM_ZONE_0     (1U << 0)
-#define NP_SAFETY_EN_PBM_ZONE_1     (1U << 1)
-#define NP_SAFETY_EN_PBM_ZONE_2     (1U << 2)
-#define NP_SAFETY_EN_PBM_ZONE_3     (1U << 3)
-#define NP_SAFETY_EN_PBM_ZONE_4     (1U << 4)
+/*
+ * Bit 0 gates ALL cranial PBM (NP-HW-HUB-001 Rev C §7.2).  It replaces the five
+ * per-zone bits of Rev B, which were retired for two independent reasons:
+ *
+ *  1. "Zone" is not a firmware concept.  A zone is a human-authored set of
+ *     sockets in protocols/predefined/00-zones.npps; changing that membership
+ *     needs no hardware change, so under the §4.5.1 discriminator (quoted at
+ *     length in hub_control/include/np_module_map.h) firmware must not model it.
+ *     Cranial PBM as a whole IS a hardware property, so one bit for it is legal.
+ *  2. Five was the retired zone-slot count, and the mask happened to have five
+ *     spare bits — an artifact, not a derived safety requirement.
+ *
+ * Why one bit is sufficient, not merely convenient: the safety MCU's function is
+ * the interlock — cut stimulation — not dose selectivity.  Cutting all cranial
+ * PBM is always a safe response; over-cutting is a usability cost, never a
+ * hazard.  Per-socket thermal response does not go through this MCU anyway (the
+ * per-tile 62 °C junction limit is a hardware current throttle, and per-socket
+ * dose shutdown is a Class B duty=0 write, NP-FW-PBM1064-001 §6.5).  Physical
+ * gating still distributes — one gate transistor per cluster on each cluster's
+ * LED drive rail (NP-HW-HEXTILE-001 D-8, 18 high-side switches) — but fanned out
+ * from this ONE policy bit (§7.4).
+ *
+ * ACCEPTED CONSEQUENCE, stated for safety review (OI-HUB-C07): a safety-layer
+ * cut is all-or-nothing across the cranial lattice.  A single socket cannot be
+ * safety-cut without the whole lattice.  Whether independently-commanded
+ * per-cluster POLICY bits are wanted is undecided (OI-HUB-C07 / OI-HEXTILE-13)
+ * and would need this enable word widened to uint32_t — deliberately not done
+ * here.
+ */
+#define NP_SAFETY_EN_PBM_CRANIAL    (1U << 0)
+
+/*
+ * Bits 1–4: RESERVED — NOT REUSED.  Formerly NP_SAFETY_EN_PBM_ZONE_1..4.
+ * Excluded from NP_SAFETY_EN_ALL_MASK, so a hub that still sets one has it
+ * stripped in np_spi_watchdog_tick rather than silently enabling something.
+ *
+ * Two independent reasons the holes stay holes:
+ *
+ *  a. SHDR fault records.  Enable-bit positions appear in SHDR device-health
+ *     fault records; silently recycling a position would make historical logs
+ *     misread (NP-HW-HUB-001 Rev C §7.2).  CAVEAT, current as of 2026-08-05:
+ *     no SHDR fault records have been generated yet (principal, 2026-08-04,
+ *     NP-HW-HEXTILE-001 §8.4.2 finding 4), so THIS rationale does not bind
+ *     today.  It begins binding the moment a real fault record exists.
+ *  b. Bit position IS a charge-monitor channel index — and this one binds now.
+ *     NP_SAFETY_CH_CLIN_STIM below is defined as a bit position; np_safety_main.c
+ *     tests `granted_mask & (1U << ch)` against rx.current_ua[ch]; and
+ *     s_charge_nc[]/NP_SAFETY_MAX_CHANNELS are sized off the enable-bit count.
+ *     Enable-bit position ≡ current_ua[] slot ≡ charge accumulator index is a
+ *     three-way identity, and it is Class C — the 40 µC/cm² limit rests on it.
+ *     Compacting the word would move every modality bit down four positions and
+ *     change what every current_ua[i] slot means (NP-HW-HEXTILE-001 §8.4.2,
+ *     raised as OI-HEXTILE-14).
+ *
+ * Reason (b) is why the no-SHDR-records finding does NOT make recycling safe.
+ */
 #define NP_SAFETY_EN_BES_TACS       (1U << 5)
 #define NP_SAFETY_EN_TDCS           (1U << 6)
 #define NP_SAFETY_EN_VNS_HRV        (1U << 7)
@@ -57,11 +108,13 @@
 #define NP_SAFETY_EN_TMS            (1U << 11)
 #define NP_SAFETY_EN_PBM_1170NM     (1U << 12)
 #define NP_SAFETY_EN_CLIN_STIM      (1U << 13)
-#define NP_SAFETY_EN_ALL_MASK       0x3FFFU
+/* 0x3FFF with bits 1–4 (0x001E) cleared: 10 allocated bits, 4 reserved holes. */
+#define NP_SAFETY_EN_ALL_MASK       0x3FE1U
 
 /* Charge-monitor channel INDEX for CLIN_STIM (= bit position of the enable
  * bit above).  HD-tDCS accumulates charge on this channel and is subject to
- * the OI-CHARGE-03 fail-safe geometry gate.                                 */
+ * the OI-CHARGE-03 fail-safe geometry gate.  See the reserved-bits note above:
+ * this identity is why bit positions above 4 must never shift.               */
 #define NP_SAFETY_CH_CLIN_STIM      13U
 
 /* ── Frame lengths ────────────────────────────────────────────────────────── */

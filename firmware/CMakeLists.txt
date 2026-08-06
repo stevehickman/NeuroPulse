@@ -165,6 +165,10 @@ if(NP_BUILD_TESTS)
         COMMAND np_charge_monitor_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    add_test(NAME np_thermal_interlock_tests
+        COMMAND np_thermal_interlock_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_impedance_report_tests
         COMMAND np_impedance_report_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

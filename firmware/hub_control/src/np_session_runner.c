@@ -65,11 +65,15 @@ static uint32_t elapsed_ms_now(void)
 static uint16_t slot_to_safety_bit(uint8_t slot)
 {
     static const uint16_t k_map[NP_HUB_SLOT_MAX] = {
-        [NP_HUB_SLOT_ZONE_0]     = NP_SAFETY_EN_PBM_ZONE_0,
-        [NP_HUB_SLOT_ZONE_1]     = NP_SAFETY_EN_PBM_ZONE_1,
-        [NP_HUB_SLOT_ZONE_2]     = NP_SAFETY_EN_PBM_ZONE_2,
-        [NP_HUB_SLOT_ZONE_3]     = NP_SAFETY_EN_PBM_ZONE_3,
-        [NP_HUB_SLOT_ZONE_4]     = NP_SAFETY_EN_PBM_ZONE_4,
+        /* Slots 0-4 (the retired zone slots) deliberately have NO entry, so they
+         * zero-init to 0 and request no enable.  Cranial PBM is gated by the one
+         * NP_SAFETY_EN_PBM_CRANIAL bit (NP-HW-HUB-001 Rev C §7.2), and the
+         * requester for it is the socket-dispatch path, which does not exist yet
+         * (OI-HUB-SOCKET-01 — see the dispatch_command note below).  Mapping a
+         * retired slot to the cranial bit instead would let a stale zone target
+         * enable the WHOLE lattice; 0 fails closed.  np_protocol_verify_and_parse
+         * already rejects slot_id < NP_HUB_SLOT_FIRST_VALID, so this is the
+         * second of two independent barriers, not the only one.               */
         [NP_HUB_SLOT_EEG]        = 0U,  /* EEG is passive — no safety MCU gate */
         [NP_HUB_SLOT_AUDIO]      = NP_SAFETY_EN_AUDIO,
         [NP_HUB_SLOT_VISUAL]     = NP_SAFETY_EN_VISUAL,
@@ -98,9 +102,11 @@ static uint16_t slot_to_safety_bit(uint8_t slot)
  * (np_proto_target_kind_t). The parser understands them and np_module_map
  * resolves them to (socket:element) addresses — but the control-dispatch path
  * below is still the legacy fixed-slot registry (np_module_registry), which has
- * no socket-indexed entries, and the safety-MCU enable bitmap
- * (NP_SAFETY_EN_PBM_ZONE_0..4) is still per-zone-slot. Wiring sockets end to end
- * needs both, and both are their own change.
+ * no socket-indexed entries. The safety-MCU enable bitmap is no longer the
+ * blocker it once was — NP-HW-HUB-001 Rev C §7.2 replaced the per-zone-slot
+ * NP_SAFETY_EN_PBM_ZONE_0..4 with the single NP_SAFETY_EN_PBM_CRANIAL bit, which
+ * a socket-addressed command can request unchanged. What remains missing is the
+ * socket-indexed dispatch registry itself.
  *
  * Until then a socket-addressed command is logged and DROPPED. The alternative
  * — falling back to the slot path — would dispatch a command targeting, say,

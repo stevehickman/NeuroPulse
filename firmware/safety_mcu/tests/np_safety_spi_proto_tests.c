@@ -26,6 +26,10 @@
 #include "../include/np_safety_config.h"
 #include "../include/np_safety_protocol.h"
 
+/* Hub-side enable-word values, read in a separate TU (the macro names collide
+ * with the safety-MCU ones by design).  See np_hub_enable_mirror.c.          */
+#include "np_hub_enable_mirror.h"
+
 static int g_failures = 0;
 
 static void check(int cond, const char *name)
@@ -293,6 +297,102 @@ static void test_fault_slot_constants(void)
     check(NP_FAULT_SLOT_UNPROV      != NP_FAULT_SLOT_SIG_CORRUPT,  "UNPROV != SIG_CORRUPT");
 }
 
+/* ── Test: enable-word layout after the §7.2 cranial collapse ────────────────
+ *
+ * NP-HW-HUB-001 Rev C §7.2 replaced NP_SAFETY_EN_PBM_ZONE_0..4 with a single
+ * NP_SAFETY_EN_PBM_CRANIAL at bit 0 and left bits 1–4 as reserved holes.  These
+ * checks pin the three things that would silently break if someone later
+ * "tidied" the word by compacting it.
+ */
+
+static void test_enable_word_layout(void)
+{
+    check(NP_SAFETY_EN_PBM_CRANIAL == (1U << 0),
+          "NP_SAFETY_EN_PBM_CRANIAL is bit 0");
+
+    /* Bits 1–4 are reserved, not reused.  They must be absent from ALL_MASK so
+     * np_spi_watchdog_tick strips them: a hub that still sets a retired zone bit
+     * enables nothing rather than enabling something else.                     */
+    check((NP_SAFETY_EN_ALL_MASK & 0x001EU) == 0U,
+          "reserved bits 1-4 excluded from NP_SAFETY_EN_ALL_MASK");
+    check(NP_SAFETY_EN_ALL_MASK == 0x3FE1U,
+          "NP_SAFETY_EN_ALL_MASK == 0x3FE1 (10 allocated, 4 holes)");
+
+    /* Every allocated modality bit keeps its Rev B position.  Bit position IS
+     * the charge-monitor channel index into current_ua[] / s_charge_nc[]
+     * (NP-HW-HEXTILE-001 §8.4.2), so shifting any of these silently changes what
+     * the 40 µC/cm² Class C limit is accumulating against.                     */
+    check(NP_SAFETY_EN_BES_TACS   == (1U << 5),  "BES_TACS still bit 5");
+    check(NP_SAFETY_EN_TDCS       == (1U << 6),  "TDCS still bit 6");
+    check(NP_SAFETY_EN_VNS_HRV    == (1U << 7),  "VNS_HRV still bit 7");
+    check(NP_SAFETY_EN_VISUAL     == (1U << 8),  "VISUAL still bit 8");
+    check(NP_SAFETY_EN_INTRANASAL == (1U << 9),  "INTRANASAL still bit 9");
+    check(NP_SAFETY_EN_CVNS       == (1U << 10), "CVNS still bit 10");
+    check(NP_SAFETY_EN_TMS        == (1U << 11), "TMS still bit 11");
+    check(NP_SAFETY_EN_PBM_1170NM == (1U << 12), "PBM_1170NM still bit 12");
+    check(NP_SAFETY_EN_CLIN_STIM  == (1U << 13), "CLIN_STIM still bit 13");
+
+    /* The bit ≡ channel-index identity itself. */
+    check(NP_SAFETY_EN_CLIN_STIM == (1U << NP_SAFETY_CH_CLIN_STIM),
+          "NP_SAFETY_CH_CLIN_STIM is the CLIN_STIM bit position");
+    check(NP_SAFETY_CH_CLIN_STIM < NP_SAFETY_MAX_CHANNELS,
+          "NP_SAFETY_CH_CLIN_STIM indexes within current_ua[]");
+
+    /* ALL_MASK must be exactly the union of the allocated bits — no bit granted
+     * that no modality claims.                                                */
+    check(NP_SAFETY_EN_ALL_MASK == (NP_SAFETY_EN_PBM_CRANIAL |
+                                    NP_SAFETY_EN_BES_TACS    |
+                                    NP_SAFETY_EN_TDCS        |
+                                    NP_SAFETY_EN_VNS_HRV     |
+                                    NP_SAFETY_EN_VISUAL      |
+                                    NP_SAFETY_EN_INTRANASAL  |
+                                    NP_SAFETY_EN_CVNS        |
+                                    NP_SAFETY_EN_TMS         |
+                                    NP_SAFETY_EN_PBM_1170NM  |
+                                    NP_SAFETY_EN_CLIN_STIM),
+          "ALL_MASK == union of the 10 allocated modality bits");
+}
+
+/* ── Test: safety-MCU and hub enable words agree bit for bit ────────────────── */
+
+static void test_enable_word_matches_hub(void)
+{
+    /* Same modalities, same order, same count. */
+    check(np_hub_enable_mirror_count == 10U,
+          "hub declares 10 allocated enable bits");
+
+    const uint16_t safety_bits[10] = {
+        NP_SAFETY_EN_PBM_CRANIAL, NP_SAFETY_EN_BES_TACS, NP_SAFETY_EN_TDCS,
+        NP_SAFETY_EN_VNS_HRV,     NP_SAFETY_EN_VISUAL,   NP_SAFETY_EN_INTRANASAL,
+        NP_SAFETY_EN_CVNS,        NP_SAFETY_EN_TMS,      NP_SAFETY_EN_PBM_1170NM,
+        NP_SAFETY_EN_CLIN_STIM,
+    };
+
+    uint16_t hub_union = 0U;
+    unsigned i;
+    for (i = 0U; i < np_hub_enable_mirror_count && i < 10U; i++) {
+        char name[96];
+        (void)snprintf(name, sizeof(name), "hub %s bit == safety MCU bit",
+                       np_hub_enable_mirror[i].name);
+        check(np_hub_enable_mirror[i].bit == safety_bits[i], name);
+        hub_union |= np_hub_enable_mirror[i].bit;
+    }
+
+    /* Agreement on the whole word, not just per-bit: a hub bit outside ALL_MASK
+     * would be requested and silently stripped.                               */
+    check(hub_union == NP_SAFETY_EN_ALL_MASK,
+          "union of hub enable bits == NP_SAFETY_EN_ALL_MASK");
+
+    /* Charge-monitor channel index must agree across the boundary too. */
+    check(np_hub_ch_clin_stim == NP_SAFETY_CH_CLIN_STIM,
+          "hub NP_SAFETY_CH_CLIN_STIM == safety MCU value");
+
+    /* Audio carries no safety gate on either side. */
+    check(np_hub_en_audio == 0U, "hub NP_SAFETY_EN_AUDIO is 0 (not gated)");
+    check((np_hub_en_audio & NP_SAFETY_EN_ALL_MASK) == 0U,
+          "audio claims no allocated enable bit");
+}
+
 /* ── Test: extended heartbeat frame size and field offsets ───────────────────
  *
  * OI-CHARGE-01 CLOSED — the ext frame carries current_ua[14] enabling the
@@ -501,6 +601,10 @@ int main(void)
     test_cmd_constants();
     test_heartbeat_unaffected();
     test_fault_slot_constants();
+
+    /* NP-HW-HUB-001 Rev C §7.2 — cranial enable collapse + hub agreement */
+    test_enable_word_layout();
+    test_enable_word_matches_hub();
 
     /* OI-CHARGE-01 — extended heartbeat frame tests */
     test_ext_frame_sizes();
