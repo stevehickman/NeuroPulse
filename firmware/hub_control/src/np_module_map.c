@@ -50,7 +50,7 @@ static struct {
  * socket-domain sizing that the layout depends on:
  *
  *   0x0001  Initial layout. NP_HEXMAP_MAX_SOCKETS == 64.
- *   0x0002  NP_HEXMAP_MAX_SOCKETS raised to 128 (all 78 helmet sockets
+ *   0x0002  NP_HEXMAP_MAX_SOCKETS raised to 128 (all 80 helmet sockets
  *           addressable). Record layout itself is UNCHANGED.
  *
  * There is deliberately NO migration path. np_module_map_load rejects any blob

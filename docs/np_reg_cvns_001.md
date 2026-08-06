@@ -29,7 +29,7 @@ Q-Sub meeting target: approximately Month 20 from T1 launch (free, prevents avoi
 
 ### 2.1 Device name (proposed)
 
-NeurOne Pro Cervical VNS Accessory (working name; subject to trademark clearance per CLAUDE.md §13.1)
+NeurOne Pro Cervical VNS Accessory (working name; subject to trademark clearance per docs/status/pending-decisions.md §13.1)
 
 ### 2.2 Device classification
 
@@ -172,7 +172,7 @@ The gammaCore clinical programme (K163334: n=150 cluster headache RCT; K173323: 
 
 ### 5.2 Evidence for expanded indications (post-launch)
 
-The following indications are not included in the initial 510(k) filing but are planned for subsequent submissions following T2 seeding studies (CLAUDE.md §11):
+The following indications are not included in the initial 510(k) filing but are planned for subsequent submissions following T2 seeding studies (docs/reference/clinical.md §11):
 
 | Indication | Planned study design |
 |-----------|---------------------|
@@ -234,7 +234,7 @@ Type B Pre-Submission meeting (30-day FDA response target).
 
 ### 8.2 Proposed timing
 
-Month 20 from T1 NeurOne launch (aligns with CLAUDE.md §10 regulatory timeline).
+Month 20 from T1 NeurOne launch (aligns with docs/reference/regulatory-strategy.md regulatory timeline).
 
 ### 8.3 Agenda proposed
 
@@ -253,13 +253,13 @@ Month 20 from T1 NeurOne launch (aligns with CLAUDE.md §10 regulatory timeline)
 | Regulatory Affairs Lead | Primary reviewer, DNPMD |
 | Clinical Affairs Lead | Branch Chief (if available) |
 | Chief Medical Officer | |
-| Outside Regulatory Counsel (PBM/digital health specialist, to be selected per CLAUDE.md §13.1 RISK-03 engagement) | |
+| Outside Regulatory Counsel (PBM/digital health specialist, to be selected per docs/status/pending-decisions.md §13.1 RISK-03 engagement) | |
 
 ---
 
 ## 9. Relationship to T2 Platform 510(k)
 
-The NeurOne Pro (T2) platform requires separate 510(k) submissions for each modality with FDA-regulated claims. The cervical VNS accessory 510(k) (this document) covers the tcVNS modality. The T2 platform's TMS and clinical tACS modalities will be filed under separate 510(k)s using their own modular predicates (CLAUDE.md §10):
+The NeurOne Pro (T2) platform requires separate 510(k) submissions for each modality with FDA-regulated claims. The cervical VNS accessory 510(k) (this document) covers the tcVNS modality. The T2 platform's TMS and clinical tACS modalities will be filed under separate 510(k)s using their own modular predicates (docs/reference/regulatory-strategy.md):
 
 | T2 modality | Primary predicate | 510(k) |
 |------------|------------------|--------|

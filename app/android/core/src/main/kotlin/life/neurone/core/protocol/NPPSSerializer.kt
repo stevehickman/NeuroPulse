@@ -6,7 +6,7 @@ import kotlin.math.abs
 // NPPS serializer + round-trip — Kotlin port of the Swift `NPPSSerializer` and
 // the free `nppsRoundTrip(_:)` function.
 //
-// Locked bug fix preserved (project CLAUDE.md §13.5):
+// Locked bug fix preserved (project docs/status/completed-decisions.md):
 //   (5) serializeTag() quotes any tag containing a character outside
 //       [A-Za-z0-9_] and escapes embedded double quotes. It is used at every
 //       tag-emission site so a serialize→reparse round-trip preserves

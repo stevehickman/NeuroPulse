@@ -15,7 +15,7 @@
 
 ---
 
-> **Rev B (2026-07-17) — module-set zones, conditions, references, one namespace.** With the hexagonal module redesign (NP-HEX-ZM-001) a *zone* is no longer a fixed hardware index — it is a **named set of modules**. Rev B adds top-level `zone` blocks (eight predefined lobe zones + user-defined), top-level `condition` blocks (condition name → external definition link), protocol `conditions` and `references` fields, and the single-namespace / whole-directory loading model (§1.6). Legacy `zones: all|front|rear` and `zones: [0,1]` numeric forms still parse.
+> **Rev B (2026-07-17) — module-set zones, conditions, references, one namespace.** With the hexagonal module redesign (NP-HEX-ZM-001) a *zone* is no longer a fixed hardware index — it is a **named set of modules**, and nothing more. Several predefined sets happen to correspond to anatomical lobes, but that is a property of how their author chose the membership, not a concept any code models: the firmware lobe/hemisphere assignment, the eight-entry predefined-lobe-group table and the `NP_GROUP_KIND_LOBE` query were all retired outright (OI-HUB-C14 — see the header of `firmware/hub_control/include/np_module_map.h`). Rev B adds top-level `zone` blocks (**14** predefined zones in `00-zones.npps` + user-defined), top-level `condition` blocks (condition name → external definition link), protocol `conditions` and `references` fields, and the single-namespace / whole-directory loading model (§1.6). Legacy `zones: all|front|rear` and `zones: [0,1]` numeric forms still parse.
 
 **NeurOne Protocol Script (NPPS)** is the text format used to define, share, and store NeurOne session protocols. Files use the `.npps` extension.
 

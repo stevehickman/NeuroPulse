@@ -14,6 +14,16 @@ on:
       - 'scripts/sync-locales.ts'
       - 'scripts/sync-socket-map.ts'
       - 'scripts/test-lateralization-audit.sh'
+      # Section-ref guard: it must fire on the edits it guards. The guard scans the
+      # whole repo, so its `paths:` must cover everywhere a CLAUDE.md citation can
+      # live — not just app/web/. A reorganization touches CLAUDE.md and docs/ and
+      # nothing under app/web/; and five of the 100 dangling refs it caught were in
+      # app/android Kotlin sources, which no earlier grep even scanned.
+      - 'CLAUDE.md'
+      - 'docs/**'
+      - 'app/android/**'
+      - 'firmware/**'
+      - 'scripts/check-section-refs.ts'
   pull_request:
     paths:
       - 'app/web/**'
@@ -24,6 +34,16 @@ on:
       - 'scripts/sync-locales.ts'
       - 'scripts/sync-socket-map.ts'
       - 'scripts/test-lateralization-audit.sh'
+      # Section-ref guard: it must fire on the edits it guards. The guard scans the
+      # whole repo, so its `paths:` must cover everywhere a CLAUDE.md citation can
+      # live — not just app/web/. A reorganization touches CLAUDE.md and docs/ and
+      # nothing under app/web/; and five of the 100 dangling refs it caught were in
+      # app/android Kotlin sources, which no earlier grep even scanned.
+      - 'CLAUDE.md'
+      - 'docs/**'
+      - 'app/android/**'
+      - 'firmware/**'
+      - 'scripts/check-section-refs.ts'
   workflow_dispatch:
 
 # Least privilege. This job only checks out the repo and type-checks/tests/builds
@@ -84,6 +104,25 @@ jobs:
       - name: Locale catalogues in sync with canonical locales/*.json
         working-directory: .
         run: bun scripts/sync-locales.ts --check
+
+      # CLAUDE.md Rev 33 relocated sections 7-15 into docs/status/ and
+      # docs/reference/ and left every inbound pointer intact — 100 citations in
+      # firmware headers, the DHF, Android sources and design specs stopped
+      # resolving and nothing noticed for a revision. Those citations are the
+      # regulatory record. The check re-derives valid section numbers from
+      # CLAUDE.md's own headings, so the next reorganization fails here instead of
+      # rotting silently. It also enforces the no-space §N form, which is what let
+      # the first audit of this miscount 94 instead of 100.
+      #
+      # The `paths:` filter above is deliberately wider than the rest of this
+      # workflow needs (CLAUDE.md, docs/**, app/android/**, firmware/**): the guard
+      # scans the whole repo, so it has to be triggerable from anywhere a citation
+      # can live. The cost is that this web job also runs on docs- and
+      # firmware-only commits. Accepted on purpose — a guard that cannot see the
+      # edit that breaks it is not a guard.
+      - name: Section refs resolve and use the canonical form
+        working-directory: .
+        run: bun scripts/check-section-refs.ts
 
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .

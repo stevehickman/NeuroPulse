@@ -1,5 +1,7 @@
 # NeurOne Firmware — Root Super-Project
-# Document: NP-FW-HUB-001 Rev A, NP-FW-EMMC-001 Rev A, NP-SW-001 Rev A
+# Document: NP-FW-HUB-001 Rev A (⚠ registered but NOT WRITTEN — docs/np_fw_hub_001.md
+#           does not exist; this code is its only description. See OI-DOC-01),
+#           NP-FW-EMMC-001 Rev A, NP-SW-001 Rev A
 #
 # Aggregates all i.MX RT1062 (main processor) firmware modules.
 # The STM32G071 safety MCU has its own separate project in firmware/safety_mcu/.
@@ -58,8 +60,10 @@
 #   firmware/ota/             → np_ota_tests  (OTA state CRC + rollback logic)
 #   firmware/safety_mcu/      → np_safety_spi_proto_tests (OI-SW01-M07-01)
 #                             → np_charge_monitor_tests   (OI-CHARGE-01)
+#                             → np_thermal_interlock_tests (SW01-M04 NTC cutoff, NP-HW-HUB-001 §7.2)
 #                             → np_impedance_report_tests (OI-CVNS-HUB-11)
 #                             → np_fault_latch_privacy_tests (fault-latch privacy gate)
+#                             → np_cardiac_interlock_tests (SW01-M05 Class C cardiac interlock)
 #   firmware/hub_control/     → np_cvns_reenable_tests    (OI-CVNS-HUB-01)
 #                             → np_log_backend_tests      (OI-LOG-01..04)
 #                             → np_transport_tests        (OI-HUB-MAIN-01)
@@ -175,6 +179,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_fault_latch_privacy_tests
         COMMAND np_fault_latch_privacy_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_cardiac_interlock_tests
+        COMMAND np_cardiac_interlock_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_cvns_reenable_tests

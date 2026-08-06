@@ -16,6 +16,12 @@ export const NPHardwareLimits = {
   // tDCS (consumer: Cortical Priming Stimulation)
   tdcsMinMilliamps: 0.1,
   tdcsMaxMilliamps: 2.0,
+  // NOTE: this limit is carried but never checked here. Unlike iOS
+  // (NPHardwareLimits.tdcsDefaultElectrodeAreaCm2) the web table has no electrode-area
+  // constant, and charge density cannot be computed without one — so the web performs no
+  // charge-density pre-flight at all. Adding one means first resolving which area is
+  // correct: iOS assumes 35 cm² (DHF Rev K), the safety MCU enforces against 25 cm²
+  // (OI-CHARGE-02). See OI-CHARGE-04 in docs/status/pending-decisions.md §13.4.
   tdcsMaxChargeDensityUCcm2: 40.0,  // safety MCU enforced, app cannot override
   tdcsRampSeconds: 30,               // hardware-enforced minimum ramp
   tdcsMaxElectrodePairs: 3,

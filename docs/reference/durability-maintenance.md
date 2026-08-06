@@ -1,6 +1,6 @@
 # Durability + Maintenance (all locked)
 
-> Relocated from CLAUDE.md §7 (Rev 32) to slim the always-loaded core. Authoritative content for durability/maintenance design changes. Referenced from CLAUDE.md → Document Map.
+> Relocated from CLAUDE.md Rev 32 §7 to slim the always-loaded core. Authoritative content for durability/maintenance design changes. Referenced from CLAUDE.md → Document Map.
 
 ## 7.1 Critical design changes (must be in tooling specifications before first cut)
 

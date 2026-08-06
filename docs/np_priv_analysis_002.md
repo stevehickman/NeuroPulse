@@ -86,7 +86,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 **Where:** `app/ios/NeurOne/Data/UHDRKeyManager.swift:76` — `.deviceOwnerAuthenticationWithBiometrics`  
 **Category:** Pure privacy failure (usability → data inaccessibility)  
-**Issue:** `canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)` returns false if the device has no biometric enrolled — the error is thrown immediately and UHDR can never be decrypted. Users with physical disabilities that prevent biometric enrollment (e.g., severe Parkinson's, post-stroke), users who deliberately don't use Face ID, and enterprise-deployed devices without biometric policies would have permanently inaccessible UHDR data. This is adverse to the "user owns their health data" principle and creates an accessibility barrier for the exact patient populations NeurOne serves (CLAUDE.md §10 HFE plan, IEC 62366-1).  
+**Issue:** `canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics)` returns false if the device has no biometric enrolled — the error is thrown immediately and UHDR can never be decrypted. Users with physical disabilities that prevent biometric enrollment (e.g., severe Parkinson's, post-stroke), users who deliberately don't use Face ID, and enterprise-deployed devices without biometric policies would have permanently inaccessible UHDR data. This is adverse to the "user owns their health data" principle and creates an accessibility barrier for the exact patient populations NeurOne serves (docs/reference/regulatory-strategy.md HFE plan, IEC 62366-1).  
 **Reference:** Cavoukian Principle 4 (full functionality, positive-sum); WCAG 2.2 AA; NP-HFE-001 (planned)  
 **Remediation (shipped — PR #112):** Changed both `canEvaluatePolicy` and `evaluatePolicy` calls to use `.deviceOwnerAuthentication` — which attempts biometrics first but falls back to PIN/passcode when biometrics are unavailable or fail, matching Apple's own HIG guidance for health-adjacent apps.
 
@@ -94,7 +94,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### MEDIUM — AnalyticsGate: `isConfigured` static flag not reset on consent withdrawal; SDK runs silently
 
-**Where:** `app/ios/NeurOne/Analytics/AnalyticsGate.swift` — static `isConfigured` flag  
+**Where:** `app/ios/NeurOne/Analytics/ResearchAnalyticsGate.swift` — static `isConfigured` flag. (This finding was written against `AnalyticsGate.swift`, which was deleted by the 2026-06-16 research/warranty gate split — see NP-PRIV-KEYSPLIT-001. The gate it describes is now `ResearchAnalyticsGate`; `WarrantyAnalyticsGate` is the separate SHDR-upload gate and is not the subject of this finding.)  
 **Category:** Pure privacy failure  
 **Issue:** When a user withdraws consent, the `isOpen` property reads `false` from UserDefaults and `track()` no-ops correctly. However `isConfigured` remains `true` and the underlying analytics SDK (when a real vendor is selected at OI-AUDIT-01) continues running in whatever background mode it supports. Analytics SDKs commonly instrument app lifecycle events, crash events, and performance metrics passively without `track()` being called — this is exactly the pattern the FTC called out in the BetterHelp and GoodRx enforcement actions.  
 **Reference:** "Third-party Free-for-all" anti-pattern; FTC Act §5; FTC HBNR 16 CFR Part 318; GDPR Art. 7(3) (right to withdraw consent)  

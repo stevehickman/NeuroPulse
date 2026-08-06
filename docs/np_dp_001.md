@@ -135,7 +135,7 @@ The NeurOne design and development programme is structured in six phases. Phases
 
 **Period:** Pre-2026-05-13 (all records retroactively entered under QMS change control at formation per NP-DHF-001).
 
-**Status:** Complete. All Phase 0 outputs are recorded in the DHF under NP-DHF-001 and are listed in CLAUDE.md §13.5 (completed and locked decisions).
+**Status:** Complete. All Phase 0 outputs are recorded in the DHF under NP-DHF-001 and are listed in docs/status/completed-decisions.md (completed and locked decisions).
 
 **Key outputs produced in Phase 0:**
 - Complete product specification (CLAUDE.md Rev 1–10, Design Brief R1–R5)
@@ -166,14 +166,14 @@ The NeurOne design and development programme is structured in six phases. Phases
 
 | Activity | Owner | Target | Reference |
 |----------|-------|--------|-----------|
-| Trademark clearance (US, EU, CA, AU) | CEO/Legal | Month 2 | CLAUDE.md §13.1 BLOCKING |
-| 400 mW/cm² regulatory opinion letter (RISK-03) | External counsel | Month 2–3 | CLAUDE.md §13.1 BLOCKING |
-| CFRP shell slot rim Ra ≤ 1.6 µm supplier confirmation (RISK-20) | Engineering Lead | Month 3 | CLAUDE.md §13.1 BLOCKING |
-| PDMS CAT-C supplier selection + thermal cycling qualification start (RISK-04) | Engineering Lead | Month 3 | CLAUDE.md §13.1 BLOCKING |
+| Trademark clearance (US, EU, CA, AU) | CEO/Legal | Month 2 | docs/status/pending-decisions.md §13.1 BLOCKING |
+| 400 mW/cm² regulatory opinion letter (RISK-03) | External counsel | Month 2–3 | docs/status/pending-decisions.md §13.1 BLOCKING |
+| CFRP shell slot rim Ra ≤ 1.6 µm supplier confirmation (RISK-20) | Engineering Lead | Month 3 | docs/status/pending-decisions.md §13.1 BLOCKING |
+| PDMS CAT-C supplier selection + thermal cycling qualification start (RISK-04) | Engineering Lead | Month 3 | docs/status/pending-decisions.md §13.1 BLOCKING |
 | Zone module mould design review (NP-TOOL-ZM-001 §5 checklist, all F-01–F-08) | ME Lead + supplier | Month 4 | NP-COORD-001 G1-05 |
-| LED emitter pulse current verification (660nm + 808nm at 120–180 mA) | EE Lead | Month 3 | CLAUDE.md §13.4 |
+| LED emitter pulse current verification (660nm + 808nm at 120–180 mA) | EE Lead | Month 3 | docs/status/pending-decisions.md §13.4 |
 | ZONE_ID firmware debounce spec in firmware requirements | FW Lead | Month 2 | NP-COORD-001 |
-| Hub tooling design review (probe dock, anchor posts, Boa channel, fan) | ME Lead + supplier | Month 4 | CLAUDE.md §13.4 |
+| Hub tooling design review (probe dock, anchor posts, Boa channel, fan) | ME Lead + supplier | Month 4 | docs/status/pending-decisions.md §13.4 |
 | Factory calibration procedure for InGaAs PD coefficients (OI-PBM-04) | FW Lead | Month 5 | NP-FW-PBM1064-001 |
 | Safety MCU unit-level FMEA for SW01-M01..M08 (IEC 62304 §7.1, Class C) | FW Lead | Month 5 | NP-SW-001 §11 |
 | G1 gate review | CEO + independent reviewer | Month 6 | NP-COORD-001 G1 |
@@ -197,11 +197,11 @@ The NeurOne design and development programme is structured in six phases. Phases
 | N42 magnet pocket ≥1 mm polymer wall verification (MR in NP-TOOL-LENS-001) | ME Lead | Month 7 | NP-TOOL-LENS-001 |
 | AgNW outer coating supplier qualification | ME + Procurement | Month 7 | NP-TOOL-LENS-001 P-01 |
 | All remaining firmware HAL stubs implemented (OI-ZA-01..04, OI-HRV-01..05, OI-PBM-01..08) | FW Lead | Month 8 | All FW specs |
-| eQMS platform selection and deployment | Quality Lead | Month 9 | CLAUDE.md §13.4 |
+| eQMS platform selection and deployment | Quality Lead | Month 9 | docs/status/pending-decisions.md §13.4 |
 | Human factors engineering plan (NP-HFE-001) authoring | HFE Lead | Month 9 | IEC 62366-1 |
 | Design input/output traceability matrix (NP-DT-001) authoring | Quality Lead | Month 9 | 21 CFR §820.30 |
 | Formative HFE study — sliding eject lever with Parkinson's/post-stroke (n=5) | HFE Lead | Month 9 | NP-FAI-ZM-001 FAI-A15 |
-| Partner optician network contract (S3 Rx programme) | CEO/Commercial | Month 10 | CLAUDE.md §13.4 |
+| Partner optician network contract (S3 Rx programme) | CEO/Commercial | Month 10 | docs/status/pending-decisions.md §13.4 |
 | G2 gate review | CEO + Engineering Lead + independent reviewer | Month 10 | NP-COORD-001 G2 |
 
 **Gate G2 exit criteria:** All 14 items in NP-COORD-001 G2 checklist verified and signed. Prototype build authorised. Gate review meeting minutes in DHF.
@@ -221,11 +221,11 @@ The NeurOne design and development programme is structured in six phases. Phases
 | Hub control system integration test (FAI-HUB-01..03) | FW Lead + QE | Month 12 | NP-FW-HUB-001 |
 | EEG signal quality verification (ADS1299 noise floor, calibration) | EE + QE | Month 12 | CLAUDE.md §3 |
 | Safety interlock full-stack test (all modality interlocks in §4.2) | FW Lead + Safety MCU | Month 12 | CLAUDE.md §4.2 |
-| EMC pre-compliance (FCC Part 15, IEC 61000 radiated/conducted) | EE Lead + test house | Month 13 | CLAUDE.md §10 |
+| EMC pre-compliance (FCC Part 15, IEC 61000 radiated/conducted) | EE Lead + test house | Month 13 | docs/reference/regulatory-strategy.md |
 | IEC 62471 photobiological hazard assessment (PBM + visual) | External lab | Month 13 | CLAUDE.md §3 |
-| IEC 60601-1 safety (electrical safety, thermal, mechanical) | External lab | Month 13 | CLAUDE.md §10 |
-| IEC 62133 battery/cell safety | External lab | Month 13 | CLAUDE.md §10 |
-| SBOM (NP-SBOM-001) authoring | FW Lead | Month 13 | CLAUDE.md §13.4 |
+| IEC 60601-1 safety (electrical safety, thermal, mechanical) | External lab | Month 13 | docs/reference/regulatory-strategy.md |
+| IEC 62133 battery/cell safety | External lab | Month 13 | docs/reference/regulatory-strategy.md |
+| SBOM (NP-SBOM-001) authoring | FW Lead | Month 13 | docs/status/pending-decisions.md §13.4 |
 | G3 gate review | CEO + Engineering + Quality Lead + Regulatory Lead | Month 14 | NP-COORD-001 G3 |
 
 **Gate G3 exit criteria:** All 6 items in NP-COORD-001 G3 checklist verified and signed. All FAI items for G3 modalities complete. Safety testing at accredited lab complete or formally scheduled. Gate review minutes in DHF. Design validation plan approved (NP-HFE-001 summative section).
@@ -245,7 +245,7 @@ The NeurOne design and development programme is structured in six phases. Phases
 | Performance qualification — full T1 configuration at operating extremes | QE | Month 15–16 | All modality specs |
 | Residual risk evaluation (pre-launch) per ISO 14971 §8 | Quality Lead | Month 16 | NP-RM-001 |
 | Risk Management Report — T1 | Quality Lead | Month 16–17 | NP-RM-001 |
-| 21 CFR Part 11 / cybersecurity review | FW Lead + external | Month 16 | CLAUDE.md §10 |
+| 21 CFR Part 11 / cybersecurity review | FW Lead + external | Month 16 | docs/reference/regulatory-strategy.md |
 
 **Phase 4 exit criteria:** All validation activities complete with objective evidence in DHF. Overall residual risk formally accepted. Risk Management Report signed. Summative HFE study report complete.
 
@@ -261,8 +261,8 @@ The NeurOne design and development programme is structured in six phases. Phases
 | Manufacturing process qualification (IQ/OQ/PQ) — first production line | Manufacturing + QE | Month 17 | 21 CFR §820.75 |
 | Pilot production run (n=25–50 units) — process capability confirmation | Manufacturing + QE | Month 17 | — |
 | Factory acceptance test (FAT) procedure sign-off | Quality Lead | Month 17 | — |
-| Post-market surveillance plan finalisation (NP-PMS-001) | Quality Lead | Month 17 | CLAUDE.md §13.4 |
-| FTC claim substantiation review (all T1 marketing claims) | Regulatory + Legal | Month 17 | CLAUDE.md §10 |
+| Post-market surveillance plan finalisation (NP-PMS-001) | Quality Lead | Month 17 | docs/status/pending-decisions.md §13.4 |
+| FTC claim substantiation review (all T1 marketing claims) | Regulatory + Legal | Month 17 | docs/reference/regulatory-strategy.md |
 | Product registration / UDI assignment | Regulatory Lead | Month 17–18 | 21 CFR §830 |
 | T1 commercial launch | CEO | Month 18 | — |
 
@@ -334,14 +334,14 @@ Design inputs define the physical and performance requirements of the device. Th
 | Category | Sources | Primary document |
 |----------|---------|-----------------|
 | User needs — T1 wellness | Consumer user research; intended use definition §5.1 | CLAUDE.md §1, §2 |
-| User needs — T2 clinical | Clinician advisory input; researcher candidates (NP-CLIN-001) | CLAUDE.md §11, NP-CLIN-001 |
-| Regulatory requirements — T1 | 21 CFR general wellness guidance; IEC 60601-1; IEC 62471; FCC Part 15 | CLAUDE.md §10 |
-| Regulatory requirements — T2 | 21 CFR §820, 510(k) predicate devices (K083538, K122288, K142485, K163334, K173323) | CLAUDE.md §10, NP-REG-CVNS-001 |
+| User needs — T2 clinical | Clinician advisory input; researcher candidates (NP-CLIN-001) | docs/reference/clinical.md §11, NP-CLIN-001 |
+| Regulatory requirements — T1 | 21 CFR general wellness guidance; IEC 60601-1; IEC 62471; FCC Part 15 | docs/reference/regulatory-strategy.md |
+| Regulatory requirements — T2 | 21 CFR §820, 510(k) predicate devices (K083538, K122288, K142485, K163334, K173323) | docs/reference/regulatory-strategy.md, NP-REG-CVNS-001 |
 | Safety requirements | ISO 14971 risk register (RISK-01..25); modality-specific interlocks | NP-RM-001, CLAUDE.md §4.2 |
 | Software requirements | IEC 62304 classification; safety response time requirements | NP-SW-001, CLAUDE.md §4.2 |
 | Human factors requirements | Intended users; use environments; accessibility (Parkinson's/post-stroke — RISK-22) | CLAUDE.md §4.4, NP-HFE-001 |
-| Standards | IEC 60601-1, -2-10; IEC 62471; IEC 62133; IEC 62304; IEC 62366-1; ISO 14971; ISO 10993 | CLAUDE.md §10 |
-| Competitive and commercial | Competitive position; pricing constraints; configuration structure | CLAUDE.md §9 |
+| Standards | IEC 60601-1, -2-10; IEC 62471; IEC 62133; IEC 62304; IEC 62366-1; ISO 14971; ISO 10993 | docs/reference/regulatory-strategy.md |
+| Competitive and commercial | Competitive position; pricing constraints; configuration structure | docs/reference/competitive-position.md |
 
 ### 8.2 Design input changes
 
@@ -510,7 +510,7 @@ All design changes after G1 gate closure are subject to the change control proce
 
 ### 14.2 CLAUDE.md as the locked decisions record
 
-CLAUDE.md §13.5 (Completed and Locked Decisions) serves as the authoritative record of all design decisions that have been through full design review. Any change to a locked decision requires a Significant design change order with CEO approval. CLAUDE.md revision history is maintained in the GitHub repository.
+docs/status/completed-decisions.md (Completed and Locked Decisions) serves as the authoritative record of all design decisions that have been through full design review. Any change to a locked decision requires a Significant design change order with CEO approval. CLAUDE.md revision history is maintained in the GitHub repository.
 
 ### 14.3 Changes during verification and validation
 
@@ -606,7 +606,7 @@ This document is NP-DP-001 Rev A. Subsequent revisions shall be lettered sequent
 
 ## 19. Open Items and Pending Decisions
 
-The following items from CLAUDE.md §13.4 are unresolved at the date of this document and must be resolved within the Phase timelines noted.
+The following items from docs/status/pending-decisions.md §13.4 are unresolved at the date of this document and must be resolved within the Phase timelines noted.
 
 | Item | Blocking for | Phase |
 |------|-------------|-------|

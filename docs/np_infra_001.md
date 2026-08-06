@@ -34,7 +34,7 @@ Everything here is cross-referenced to the Swift source file that embeds each UR
 
 ## 2. Domain registrations required
 
-Purchase these domains from your registrar (Namecheap, Cloudflare Registrar, etc.) before any external-facing work begins. Trademark clearance for `neurone` is a pending action — confirm clearance before registering (see CLAUDE.md §13.1).
+Purchase these domains from your registrar (Namecheap, Cloudflare Registrar, etc.) before any external-facing work begins. Trademark clearance for `neurone` is a pending action — confirm clearance before registering (see docs/status/pending-decisions.md §13.1).
 
 | Domain | Why | Notes |
 |--------|-----|-------|
@@ -68,7 +68,7 @@ fleet.neurone.internal:443
   └── Writes to fleet analytics database
 ```
 
-The device token is a 256-bit TRNG opaque warranty token — it is never joined to user identity (no-join rule enforced by CI, see CLAUDE.md §13.4 OI-EMMC2-07). The fleet DB links to the hub device only.
+The device token is a 256-bit TRNG opaque warranty token — it is never joined to user identity (no-join rule enforced by CI, see docs/status/pending-decisions.md §13.4 OI-EMMC2-07). The fleet DB links to the hub device only.
 
 ### 3.3 API contract
 
@@ -365,7 +365,7 @@ When the self-hosted stack (NP-ANALYTICS-001 Rev A, `docs/np_analytics_001.md`) 
 - [ ] **OTA:** `firmware.neurone.ai` CDN live; first signed `manifest.json` uploaded; first `.npfw` binary uploaded; SPKI hashes derived and replaced in `FirmwareUpdateService.pinnedSPKIHashes`; OTA tested end-to-end on physical device
 - [ ] **Consumables shop:** subscription billing configured for intranasal sleeves ($19/mo) and electrode tips ($9.99/mo)
 - [ ] **PostHog:** PostHog DPA executed (if still on EU cloud) or self-hosted stack deployed in EU region
-- [ ] **Trademark clearance:** `neurone` cleared before domains are publicly associated with marketing material (CLAUDE.md §13.1)
+- [ ] **Trademark clearance:** `neurone` cleared before domains are publicly associated with marketing material (docs/status/pending-decisions.md §13.1)
 
 ---
 

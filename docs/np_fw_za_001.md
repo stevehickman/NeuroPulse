@@ -8,7 +8,7 @@
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** CLAUDE.md §7.1 (RISK-15 Layer 5); NP-FW-EMMC-001 Rev A
+**References:** docs/reference/durability-maintenance.md §7.1 (RISK-15 Layer 5); NP-FW-EMMC-001 Rev A
 **Related Issues:** GitHub Issue #22
 **Gate:** NP-COORD-001 G2-10
 **IEC 62304 Class:** SW-02 Class B (main processor)
@@ -63,7 +63,7 @@
 > - **Frames fragment.** An 80-socket map is ~644 bytes and a full status snapshot ~244, against a 20-byte guaranteed ATT payload. The app commits a run only when the last fragment lands; a gapped run is abandoned rather than committed with a hole (a missing socket reads as "not installed" — the wrong answer for a placement gate). One `FragmentRunAssembler` governs both shapes so the ordering rules cannot diverge.
 > - **Fault is never present.** Encoder and decoder both force the present bit clear when the fault bit is set, so an unidentified module cannot satisfy a presence gate.
 >
-> **⚠ Known geometric disagreement, reported every generator run.** The ellipsoid through the three measured extents narrows toward the front and back rims faster than the scanned interior does, so two rows do not fit at full 40 mm pitch: row 1 is compressed to 96.9% (tiles 1.3 mm into each other) and row 11 to 86.4% (5.4 mm). The generator prints this with numbers on every run and hard-fails below 85%, rather than clamping — the earlier clamp piled the outermost sockets on top of each other and hid it. Resolving it is **REG-1** (register the lattice against shell CAD), not a matter of choosing kinder constants. Flagged loudly because this project's two previous lattice failures — the 78-socket lattice no tile width could produce, and `NP_HEXMAP_MAX_SOCKETS` guessed at 64 — were both unchecked constants nothing ever contradicted out loud.
+> **⚠ Known geometric disagreement, reported every generator run.** Since 2026-07-31 the fit is measured against the scanned interior itself rather than an ellipsoid through the three measured extents, and **one** row does not fit at full 40 mm pitch: row 11 (4 wide) is compressed to **84.3%** — tiles sit 33.7 mm apart instead of 40 mm, so they overlap by 6.3 mm. Row 1, which the ellipsoid model had compressed to 96.9%, now **fits**; row 11 went the other way (86.4% → 84.3%) because the real rear rim narrows faster than the ellipsoid implied. The generator prints this with numbers on every run and hard-fails below the **0.80** floor (`RING_FIT_HARD_FLOOR` in `scripts/sync-socket-map.ts`, re-baselined from 0.85 on 2026-07-31 when the check moved onto the scan), rather than clamping — the earlier clamp piled the outermost sockets on top of each other and hid it. Row 11 at 84.3% is therefore **above** the floor: the disagreement is reported on every run but does not fail CI. Resolving it is **REG-1** (register the lattice against shell CAD), not a matter of choosing kinder constants. **These figures are as of 2026-08-06 and will move whenever the lattice does — `bun scripts/sync-socket-map.ts --check` prints the current values and is the source of truth, not this paragraph.** (It is worth saying explicitly: this paragraph previously claimed two rows failed and an 85% floor, which read as "CI should be failing right now" for a week after neither was true.) Flagged loudly because this project's two previous lattice failures — the 78-socket lattice no tile width could produce, and `NP_HEXMAP_MAX_SOCKETS` guessed at 64 — were both unchecked constants nothing ever contradicted out loud.
 >
 > (v1 carried lobe|side inline in every 4-byte status record; it was never deployed.)
 >
@@ -84,7 +84,7 @@
 
 ## 1. Scope
 
-This document specifies the firmware module that detects zone module insertion via the ZONE_ID resistor (FPC pin 18) and announces the connected zone through the bone conduction piezoelectric element at the mastoid.  This implements **RISK-15 Layer 5** of the five-layer zone module keying system specified in CLAUDE.md §7.1.
+This document specifies the firmware module that detects zone module insertion via the ZONE_ID resistor (FPC pin 18) and announces the connected zone through the bone conduction piezoelectric element at the mastoid.  This implements **RISK-15 Layer 5** of the five-layer zone module keying system specified in docs/reference/durability-maintenance.md §7.1.
 
 **In scope:**
 - ZONE_ID ADC classification (5 zones, 1% resistor ladder)
@@ -130,7 +130,7 @@ Voltage divider: Vout = 3.3 V × R_Z / (R_PU + R_Z).
 | DMA channel | eDMA 5, ping-pong circular buffer |
 | Buffer depth | 128 samples (64 per half) |
 | Transducer | Piezoelectric bone conduction element, mastoid placement |
-| Isolator | Shore 20–30A silicone (CLAUDE.md §7.2 locked change) |
+| Isolator | Shore 20–30A silicone (docs/reference/durability-maintenance.md §7.2 locked change) |
 
 ---
 
@@ -140,9 +140,9 @@ All constants are in `include/np_zone_announce_config.h`.  Key values:
 
 | Constant | Value | Source |
 |----------|-------|--------|
-| `NP_ZA_DEBOUNCE_READS` | 3 | CLAUDE.md §7.1 RISK-18 |
-| `NP_ZA_DEBOUNCE_MAJORITY` | 2 | CLAUDE.md §7.1 RISK-18 |
-| `NP_ZA_DEBOUNCE_INTERVAL_MS` | 100 ms | CLAUDE.md §7.1 RISK-18 |
+| `NP_ZA_DEBOUNCE_READS` | 3 | docs/reference/durability-maintenance.md §7.1 RISK-18 |
+| `NP_ZA_DEBOUNCE_MAJORITY` | 2 | docs/reference/durability-maintenance.md §7.1 RISK-18 |
+| `NP_ZA_DEBOUNCE_INTERVAL_MS` | 100 ms | docs/reference/durability-maintenance.md §7.1 RISK-18 |
 | `NP_ZA_INSERTION_SETTLE_MS` | 20 ms | contact bounce margin |
 | `NP_ZA_REMOVAL_DEBOUNCE_MS` | 50 ms | |
 | `NP_ZA_AUDIO_SAMPLE_RATE_HZ` | 8000 Hz | |
