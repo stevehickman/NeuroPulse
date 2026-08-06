@@ -25,6 +25,16 @@ enum NPHardwareLimits {
     /// Assumed area per individual electrode (cm²) used for charge-density estimation when the
     /// electrode geometry is not explicitly provided. 35 cm² is a standard tDCS sponge pad.
     /// Total area = tdcsDefaultElectrodeAreaCm2 × number of electrode positions across all pairs.
+    ///
+    /// ⚠ DIVERGES FROM THE ENFORCER. The safety MCU computes the same 40 µC/cm² limit against
+    /// `NP_ELECTRODE_AREA_CM2 = 25` (firmware/safety_mcu/include/np_safety_config.h, per
+    /// OI-CHARGE-02: "correct for a standard 25 cm² tDCS electrode"). This 35.0 comes from
+    /// DHF Rev K. The MCU owns the hard cutoff, so this is NOT a safety hole — but this
+    /// pre-flight check is 40% more permissive than the thing that actually stops the session,
+    /// so the app will accept a protocol the MCU terminates at ~71% (25/35) of its authored
+    /// duration, and nothing links the two constants. Do not "fix" either number in isolation:
+    /// 35.0 is a DHF-recorded decision and 25 is an IEC 62304 Class C constant.
+    /// Tracked as OI-CHARGE-04 in docs/status/pending-decisions.md §13.4.
     static let tdcsDefaultElectrodeAreaCm2: Double = 35.0
     static let tdcsRampSeconds: Int = 30                 // hardware-enforced, always applied
     static let tdcsMaxElectrodePairs: Int = 3
