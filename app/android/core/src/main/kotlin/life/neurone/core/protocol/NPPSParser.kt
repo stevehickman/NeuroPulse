@@ -5,7 +5,7 @@ import java.util.UUID
 // =============================================================================
 // NPPS parser — Kotlin port of the Swift `NPPSParser`.
 //
-// Locked bug fix preserved (project CLAUDE.md §13.5):
+// Locked bug fix preserved (project docs/status/completed-decisions.md):
 //   (4) FieldValue.asIdent also returns quoted-string cases, so
 //       `wavelength: "660_808nm"` works in user-authored scripts.
 //

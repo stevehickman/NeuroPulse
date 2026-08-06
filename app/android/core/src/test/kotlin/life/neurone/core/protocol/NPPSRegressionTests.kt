@@ -9,7 +9,7 @@ import kotlin.test.fail
 /**
  * NPPS engine regression tests — Kotlin port of the four iOS tests
  * (NPProtocolLibraryTests) that lock in the five NPPS lexer/serializer bug
- * fixes (project CLAUDE.md §13.5), plus additional round-trip coverage.
+ * fixes (project docs/status/completed-decisions.md), plus additional round-trip coverage.
  */
 class NPPSRegressionTests {
 

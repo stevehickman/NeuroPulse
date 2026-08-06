@@ -1,7 +1,7 @@
 package life.neurone.core.models
 
 // Port of app/ios/NeurOne/Models/OTAModels.swift.
-// Wire values are frozen — hub firmware contract (CLAUDE.md §13.5 OTA entry).
+// Wire values are frozen — hub firmware contract (docs/status/completed-decisions.md OTA entry).
 
 enum class OtaPhase(val rawValue: Int) {
     IDLE(0x00),

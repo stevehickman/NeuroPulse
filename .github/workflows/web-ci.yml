@@ -14,6 +14,13 @@ on:
       - 'scripts/sync-locales.ts'
       - 'scripts/sync-socket-map.ts'
       - 'scripts/test-lateralization-audit.sh'
+      # Section-ref guard: it must fire on the edits it guards. A CLAUDE.md
+      # reorganization touches CLAUDE.md and docs/ and nothing under app/web/,
+      # so without these two lines the guard would never run on the exact change
+      # that broke 100 references last time.
+      - 'CLAUDE.md'
+      - 'docs/**'
+      - 'scripts/check-section-refs.ts'
   pull_request:
     paths:
       - 'app/web/**'
@@ -24,6 +31,13 @@ on:
       - 'scripts/sync-locales.ts'
       - 'scripts/sync-socket-map.ts'
       - 'scripts/test-lateralization-audit.sh'
+      # Section-ref guard: it must fire on the edits it guards. A CLAUDE.md
+      # reorganization touches CLAUDE.md and docs/ and nothing under app/web/,
+      # so without these two lines the guard would never run on the exact change
+      # that broke 100 references last time.
+      - 'CLAUDE.md'
+      - 'docs/**'
+      - 'scripts/check-section-refs.ts'
   workflow_dispatch:
 
 jobs:
@@ -78,14 +92,24 @@ jobs:
         run: bun scripts/sync-locales.ts --check
 
       # CLAUDE.md Rev 33 relocated sections 7-15 into docs/status/ and
-      # docs/reference/ and left every inbound pointer intact — 95 citations in
-      # firmware headers, the DHF, and design specs stopped resolving and nothing
-      # noticed for a revision. Those citations are the regulatory record. The
-      # check re-derives valid section numbers from CLAUDE.md's own headings, so
-      # the next reorganization fails here instead of rotting silently.
-      - name: CLAUDE.md section citations all resolve
+      # docs/reference/ and left every inbound pointer intact — 100 citations in
+      # firmware headers, the DHF, Android sources and design specs stopped
+      # resolving and nothing noticed for a revision. Those citations are the
+      # regulatory record. The check re-derives valid section numbers from
+      # CLAUDE.md's own headings, so the next reorganization fails here instead of
+      # rotting silently. It also enforces the no-space §N form, which is what let
+      # the first audit of this miscount 94 instead of 100.
+      #
+      # ⚠ KNOWN COVERAGE GAP: the script scans the whole repo, but this workflow's
+      # `paths:` filter does not list app/android/** or firmware/**. Five of the
+      # 100 dangling refs were in Kotlin sources, so an edit that reintroduces one
+      # there will NOT trigger this job. Fixing it means either adding those paths
+      # (this whole web job then runs on every firmware commit) or moving this step
+      # to its own unfiltered workflow — the latter is cleaner and is the
+      # recommendation. Tracked as OI-DOC-02.
+      - name: Section refs resolve and use the canonical form
         working-directory: .
-        run: bun scripts/check-claude-md-refs.ts
+        run: bun scripts/check-section-refs.ts
 
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .

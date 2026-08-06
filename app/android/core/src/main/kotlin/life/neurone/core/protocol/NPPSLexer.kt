@@ -3,7 +3,7 @@ package life.neurone.core.protocol
 // =============================================================================
 // NPPS lexer — Kotlin port of the Swift `NPPSLexer`.
 //
-// Locked bug fixes preserved (project CLAUDE.md §13.5 "NPPS lexer/serializer"):
+// Locked bug fixes preserved (project docs/status/completed-decisions.md "NPPS lexer/serializer"):
 //   (1) Compound digit-idents: after a number's unit-reading backtrack, if the
 //       cursor sits at '_', read a compound ident consuming letters/digits/'_',
 //       so `660_808nm` and `660_808_1064nm` lex as a single ident, not a number
