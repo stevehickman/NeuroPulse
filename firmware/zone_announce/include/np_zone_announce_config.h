@@ -14,7 +14,7 @@
  *
  *   No module (open circuit): Vout ≈ 3.3 V (pulled high) → ADC ≈ 4095
  *
- * ZONE_ID debounce (RISK-18, CLAUDE.md §7.1):
+ * ZONE_ID debounce (RISK-18, docs/reference/durability-maintenance.md §7.1):
  *   3× ADC reads at 100 ms intervals; ≥ 2/3 reads must agree.
  */
 
@@ -55,7 +55,7 @@
 #define NP_ZA_ADC_ZM05_HI          3999U
 #define NP_ZA_ADC_NO_MODULE_LO     4000U   /* ≥ this → no module present        */
 
-/* ── Debounce timing (CLAUDE.md §7.1 / RISK-18) ─────────────────────────────── */
+/* ── Debounce timing (durability-maintenance.md §7.1 / RISK-18) ────────────── */
 #define NP_ZA_DEBOUNCE_READS        3U     /* total ADC reads per debounce cycle */
 #define NP_ZA_DEBOUNCE_MAJORITY     2U     /* minimum agreeing reads to pass     */
 #define NP_ZA_DEBOUNCE_INTERVAL_MS  100U   /* ms between successive reads        */

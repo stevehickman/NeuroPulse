@@ -1,6 +1,6 @@
 # Clinical — Researcher Candidates + Evidence Bibliography
 
-> Relocated from CLAUDE.md §11 + §12 (Rev 32) to slim the always-loaded core. Authoritative content for clinical trial researchers and evidence base. Referenced from CLAUDE.md → Document Map.
+> Relocated from CLAUDE.md Rev 32 §11 + §12 to slim the always-loaded core. Authoritative content for clinical trial researchers and evidence base. Referenced from CLAUDE.md → Document Map.
 
 ## 11. Clinical Trial Researcher Candidates
 

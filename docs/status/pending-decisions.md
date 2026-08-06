@@ -1,6 +1,6 @@
 # Remaining Weaknesses + Open Items
 
-> Relocated from CLAUDE.md §13.1–§13.4 (Rev 32) to slim the always-loaded core. This is the authoritative open-items log. Referenced from CLAUDE.md → Document Map.
+> Relocated from CLAUDE.md Rev 32 §13.1–§13.4 to slim the always-loaded core. This is the authoritative open-items log. Referenced from CLAUDE.md → Document Map.
 >
 > **Note on overlap:** much of the completed detail here and in `completed-decisions.md` also appears in the DHF index (`docs/np_dhf_001.md`) and git history. Content was relocated faithfully, not deduped — a dedup pass against the DHF is flagged as a follow-up (deleting authoritative memory should be a reviewed, per-item decision).
 

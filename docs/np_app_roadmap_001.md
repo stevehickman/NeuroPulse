@@ -113,7 +113,7 @@ Development priority order is determined by implementation complexity and user u
 - Sync: session epoch is UHDR-class and excluded from the WatchConnectivity bridge (NP-PRIV-ANALYSIS-002 MEDIUM-08); the cue starts immediately with no meaningful sync offset. Auto-stops on session idle/completed and on a 20-minute safety cap.
 - Thermal guard: a repeating haptic timer carries far less thermal/battery cost than the (nonexistent) continuous Core Haptics path, but the manager still monitors `ProcessInfo.thermalState` and pauses the cue at `.serious`/`.critical`.
 - Where true 40Hz lives: the **mastoid LRA pad** (hardware, DRV2605L @ 40Hz ±0.5Hz) is the therapeutic vibrotactile channel. The **iPhone** app can render 40Hz via Core Haptics where the phone is the contact surface. The Watch delivers the coarse cue only.
-- Marketing caveat displayed in-app: "For the full 40Hz vibrotactile experience, use the NeurOne mastoid vibrotactile pad (available separately). The Apple Watch haptic is a complementary wrist cue — not a substitute for mastoid bone coupling." (See CLAUDE.md §15 for approved marketing copy.)
+- Marketing caveat displayed in-app: "For the full 40Hz vibrotactile experience, use the NeurOne mastoid vibrotactile pad (available separately). The Apple Watch haptic is a complementary wrist cue — not a substitute for mastoid bone coupling." (See docs/reference/marketing-notes.md for approved marketing copy.)
 - Implemented in `app/watchos/NeurOneWatch/Phase3/HapticSyncManager.swift`.
 
 #### Phase 4 — 40Hz Visual Flicker

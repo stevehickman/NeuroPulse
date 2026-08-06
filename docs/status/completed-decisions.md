@@ -1,6 +1,6 @@
 # Completed and Locked Decisions
 
-> Relocated from CLAUDE.md §13.5 (Rev 32) to slim the always-loaded core. This is the authoritative narrative log of completed/locked decisions.
+> Relocated from CLAUDE.md Rev 32 §13.5 to slim the always-loaded core. This is the authoritative narrative log of completed/locked decisions.
 >
 > **Note on overlap:** many entries here also appear in the formal DHF index (`docs/np_dhf_001.md`) and in git history. Content was relocated faithfully, not deduped — a dedup pass against the DHF is flagged as a follow-up (deleting authoritative memory should be a reviewed, per-item decision). Referenced from CLAUDE.md → Document Map.
 

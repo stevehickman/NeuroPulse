@@ -9,7 +9,7 @@
 **Effective Date:** 2026-05-13  
 **Author:** NeurOne Regulatory Affairs  
 **Approved By:** Steve Hickman, CEO  
-**References:** CLAUDE.md §13.1 (RISK-03 OPEN); NP-FW-PBM1064-001 Rev A §5.4; NP-SES-1064-001 Rev A  
+**References:** docs/status/pending-decisions.md §13.1 (RISK-03 OPEN); NP-FW-PBM1064-001 Rev A §5.4; NP-SES-1064-001 Rev A  
 **Related Issues:** GitHub Issue #5 (existing RISK-03 engagement), GitHub Issue #56  
 **Gate:** —  
 **IEC 62304 Class:** —  
@@ -187,7 +187,7 @@ Until counsel provides the expanded opinion letter covering all four scope items
 | Real-time irradiance/dose display to user in app on their own device | **NOT gated** — internal device display, not marketing claim |
 | Existing 660/808nm irradiance claim (400 mW/cm²) | **Gated separately** — existing RISK-03 (Issue #5) |
 
-These gates are tracked in CLAUDE.md §13.1 and §13.4. They are lifted independently; receipt of the expanded opinion may lift some or all 1064nm gates while Issue #5 remains open for the existing 660/808nm gate.
+These gates are tracked in docs/status/pending-decisions.md §13.1 and §13.4. They are lifted independently; receipt of the expanded opinion may lift some or all 1064nm gates while Issue #5 remains open for the existing 660/808nm gate.
 
 ---
 
@@ -231,7 +231,7 @@ Upon receipt of the expanded opinion letter:
 | RISK-03 extended: depth-tier penetration claim | MITIGATED (pending letter receipt) |
 | OI-PBM-05 (`PBM_AGGREGATE_IRRADIANCE_LIMIT_MW_CM2`) | CLOSED — value confirmed or revised per Q5/Q6 |
 
-Update CLAUDE.md §13.4 and the risk register document (`docs/neurone_fpc_zone_module_risks_revA.docx`) when opinion is received.
+Update docs/status/pending-decisions.md §13.4 and the risk register document (`docs/neurone_fpc_zone_module_risks_revA.docx`) when opinion is received.
 
 ---
 

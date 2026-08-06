@@ -1,6 +1,6 @@
 # Competitive Position
 
-> Relocated from CLAUDE.md §9 (Rev 32) to slim the always-loaded core. Authoritative content for competitive positioning and claims. Referenced from CLAUDE.md → Document Map.
+> Relocated from CLAUDE.md Rev 32 §9 to slim the always-loaded core. Authoritative content for competitive positioning and claims. Referenced from CLAUDE.md → Document Map.
 
 | Feature | NeurOne Home | NeurOne Pro | Vielight Neuro Pro 2 (~$5K) | Neuronic 1070 ($3K–5K) | Sens.ai (~$1.5–2K + sub) | Neurode (~$999 + $29/mo) |
 |---------|----------------|----------------|------------------------------|------------------------|--------------------------|--------------------------|

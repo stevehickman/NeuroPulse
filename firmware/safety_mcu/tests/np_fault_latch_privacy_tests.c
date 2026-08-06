@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — Fault Latch Privacy-Gate Host Tests
  * Document: NP-SW-001 (SW01-M08), NP-FW-EMMC-001 Rev A §12,
- *           CLAUDE.md §13.4 "Fault latch extended SPI command privacy gate"
+ *           docs/status/pending-decisions.md §13.4 "Fault latch extended SPI command privacy gate"
  *
  * Host-native tests for the privacy-gated marshalling helpers that any future
  * dedicated fault-latch SPI read command MUST use to surface the `count` and

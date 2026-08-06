@@ -8,7 +8,7 @@ FDA pathway for demonstrating substantial equivalence to a predicate device. Neu
 
 ### [DHF](#dhf)
 **DHF** — Design History File  
-Comprehensive design control documentation required by IEC 62304. NeurOne formal index at `docs/np_dhf_001.md`; contains all design rationales, risk analyses, and verification records. See CLAUDE.md § 14.
+Comprehensive design control documentation required by IEC 62304. NeurOne formal index at `docs/np_dhf_001.md`; contains all design rationales, risk analyses, and verification records. See docs/status/document-register.md.
 
 ### [FDA](#fda)
 **FDA** — [Food and Drug Administration](https://www.fda.gov)  

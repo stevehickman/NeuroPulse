@@ -3,7 +3,7 @@
  * Document: NP-FW-ZA-001 Rev A §6
  *
  * Implements the ZONE_ID resistor classification and the 3×100 ms debounce
- * specified in CLAUDE.md §7.1 (RISK-18):
+ * specified in docs/reference/durability-maintenance.md §7.1 (RISK-18):
  *   "3× ADC reads at 100 ms intervals before FAULT; ≥ 2/3 must pass."
  *
  * Hardware: pin 18 of the 20-pin ZIF FPC connector (Hirose FH34S-20S-0.5SH).

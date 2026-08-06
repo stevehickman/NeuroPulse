@@ -1,6 +1,6 @@
 # Optional Accessories + Companion Software (provisional specs)
 
-> Relocated from CLAUDE.md §3b (Rev 32) to slim the always-loaded core. This is the authoritative content for provisional accessories. Referenced from CLAUDE.md → Document Map.
+> Relocated from CLAUDE.md Rev 32 §3b to slim the always-loaded core. This is the authoritative content for provisional accessories. Referenced from CLAUDE.md → Document Map.
 
 ## 40Hz Vibrotactile — Mastoid LRA Pad (provisional)
 

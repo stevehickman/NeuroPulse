@@ -8,7 +8,7 @@
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** CLAUDE.md §7.1 (RISK-15 Layer 5); NP-FW-EMMC-001 Rev A
+**References:** docs/reference/durability-maintenance.md §7.1 (RISK-15 Layer 5); NP-FW-EMMC-001 Rev A
 **Related Issues:** GitHub Issue #22
 **Gate:** NP-COORD-001 G2-10
 **IEC 62304 Class:** SW-02 Class B (main processor)
@@ -84,7 +84,7 @@
 
 ## 1. Scope
 
-This document specifies the firmware module that detects zone module insertion via the ZONE_ID resistor (FPC pin 18) and announces the connected zone through the bone conduction piezoelectric element at the mastoid.  This implements **RISK-15 Layer 5** of the five-layer zone module keying system specified in CLAUDE.md §7.1.
+This document specifies the firmware module that detects zone module insertion via the ZONE_ID resistor (FPC pin 18) and announces the connected zone through the bone conduction piezoelectric element at the mastoid.  This implements **RISK-15 Layer 5** of the five-layer zone module keying system specified in docs/reference/durability-maintenance.md §7.1.
 
 **In scope:**
 - ZONE_ID ADC classification (5 zones, 1% resistor ladder)
@@ -130,7 +130,7 @@ Voltage divider: Vout = 3.3 V × R_Z / (R_PU + R_Z).
 | DMA channel | eDMA 5, ping-pong circular buffer |
 | Buffer depth | 128 samples (64 per half) |
 | Transducer | Piezoelectric bone conduction element, mastoid placement |
-| Isolator | Shore 20–30A silicone (CLAUDE.md §7.2 locked change) |
+| Isolator | Shore 20–30A silicone (docs/reference/durability-maintenance.md §7.2 locked change) |
 
 ---
 
@@ -140,9 +140,9 @@ All constants are in `include/np_zone_announce_config.h`.  Key values:
 
 | Constant | Value | Source |
 |----------|-------|--------|
-| `NP_ZA_DEBOUNCE_READS` | 3 | CLAUDE.md §7.1 RISK-18 |
-| `NP_ZA_DEBOUNCE_MAJORITY` | 2 | CLAUDE.md §7.1 RISK-18 |
-| `NP_ZA_DEBOUNCE_INTERVAL_MS` | 100 ms | CLAUDE.md §7.1 RISK-18 |
+| `NP_ZA_DEBOUNCE_READS` | 3 | docs/reference/durability-maintenance.md §7.1 RISK-18 |
+| `NP_ZA_DEBOUNCE_MAJORITY` | 2 | docs/reference/durability-maintenance.md §7.1 RISK-18 |
+| `NP_ZA_DEBOUNCE_INTERVAL_MS` | 100 ms | docs/reference/durability-maintenance.md §7.1 RISK-18 |
 | `NP_ZA_INSERTION_SETTLE_MS` | 20 ms | contact bounce margin |
 | `NP_ZA_REMOVAL_DEBOUNCE_MS` | 50 ms | |
 | `NP_ZA_AUDIO_SAMPLE_RATE_HZ` | 8000 Hz | |
