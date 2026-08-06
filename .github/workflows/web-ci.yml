@@ -77,6 +77,16 @@ jobs:
         working-directory: .
         run: bun scripts/sync-locales.ts --check
 
+      # CLAUDE.md Rev 33 relocated sections 7-15 into docs/status/ and
+      # docs/reference/ and left every inbound pointer intact — 95 citations in
+      # firmware headers, the DHF, and design specs stopped resolving and nothing
+      # noticed for a revision. Those citations are the regulatory record. The
+      # check re-derives valid section numbers from CLAUDE.md's own headings, so
+      # the next reorganization fails here instead of rotting silently.
+      - name: CLAUDE.md section citations all resolve
+        working-directory: .
+        run: bun scripts/check-claude-md-refs.ts
+
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .
         run: bash scripts/test-lateralization-audit.sh
