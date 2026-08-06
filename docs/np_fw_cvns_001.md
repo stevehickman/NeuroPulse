@@ -2,17 +2,17 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** B
-**Date:** 2026-08-05
+**Revision:** C
+**Date:** 2026-08-06
 **Status:** BASELINED
-**Effective Date:** 2026-08-05
+**Effective Date:** 2026-08-06
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
 **References:** CLAUDE.md §3 T2 additions (cervical VNS accessory)
 **Related Issues:** GitHub Issue #24
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev A
+**Supersedes:** NP-FW-CVNS-001 Rev B
 **Parent Document:** NP-SW-001
 
 ---
@@ -29,6 +29,14 @@
 *Escalated, deliberately NOT resolved here* — each is a design or clinical decision, not a documentation defect: **OI-CVNS-08** (STM32G071 pin map), **OI-CVNS-09** (single vs dual CVNS enable line), **OI-CVNS-10** (baseline window 5 vs 8), **OI-CVNS-11** (R-R validity filtering on the MCU). Each carries two candidate resolutions, the evidence for each, and what would settle it. No number in either the doc or the firmware was changed to make the other side agree.
 
 *Verification added:* `firmware/safety_mcu/tests/np_cardiac_interlock_tests.c` — the first host-test coverage of the Class C cardiac interlock. Rev A's only "cardiac interlock" suite (`np_cvns_fai_tests`, registered as NP-FAI-CVNS-001) exercises the **main-processor** module on the other side of the SPI boundary and asserts on main-processor constants; it never touched the unit that owns the enable GPIO. The new suite pins current behaviour, including the constants under OI-CVNS-10, so any later change surfaces as a reviewed failing assertion rather than a silent edit.
+
+**Rev C (2026-08-06):** Resolves a dead-code finding Rev B surfaced but deliberately left unactioned: the rolling-baseline refresh in `np_cardiac_interlock.c` carried a `!s_cutoff_active` term whose comment claimed it prevented the baseline adopting the elevated post-event heart rate. **The term was unreachable and the comment was false.** Registered and analysed as **OI-CVNS-12** (§14.5).
+
+*Firmware changed (behaviour-neutral):* the dead term is removed from the refresh condition and the comment above it rewritten to state the mechanism that actually prevents desensitisation — the `NP_SAFETY_STATUS_CARDIAC` latch zeroing `granted_mask` in `np_spi_watchdog.c`, plus baseline invalidation in `np_cardiac_interlock_reenable()`. **No constant, threshold, or timing value changed on either side.** Neutrality is evidenced, not asserted: the full 45-assertion suite produces byte-identical output against the pre-change and post-change implementations.
+
+*Verification added:* four tests covering the post-lockout path, which had no coverage at all. `test_post_lockout_refresh_adopts_elevated_rate()` pins the refresh the old comment denied; `test_cardiac_latch_survives_lockout_expiry()` and `test_cardiac_latch_blocks_all_grants()` pin the two mechanism steps the rewritten comment now cites (the latter calling the real `np_spi_watchdog_tick()` rather than a local re-implementation of its grant expression); `test_refreshed_baseline_discarded_by_reenable()` pins that the refreshed value is thrown away before CVNS can be re-granted. Before Rev C, **no assertion in the suite could distinguish the shipped behaviour from the rejected candidate B** — all 35 passed against both. One now does.
+
+*Explicitly NOT changed:* the second `!s_cutoff_active` term on the cutoff condition itself, which is dead by the same argument — see §14.5 residual. Removing it is a wider Class C diff than this item's finding supports and was not in scope.
 
 ---
 
@@ -719,6 +727,7 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 | OI-CVNS-09 | One CVNS enable line or two (per-electrode)? Clinical/regulatory question, not a code-style one. | Regulatory/Clinical + Embedded safety | PCB layout (G1); T2 510(k) |
 | OI-CVNS-10 | Cardiac baseline window: safety MCU 8 intervals vs main processor 5. Deliberate or accidental? | Embedded safety team | Class C design freeze |
 | OI-CVNS-11 | Safety MCU applies no R-R validity filter (§5.3 step 2). Intended, or a gap? | Embedded safety team | Class C design freeze |
+| OI-CVNS-12 | Baseline refresh dead guard removed (Rev C). Residual: should a second cutoff be possible after lockout expiry, and the now-dead `!s_cutoff_active` on the cutoff condition. | Embedded safety team | Class C design freeze |
 
 ### 14.1 OI-CVNS-08 — STM32G071 pin map
 
@@ -779,3 +788,33 @@ Rev A §5.3 step 2 specified discarding intervals outside 300–2000 ms. Those b
 | **B — a gap.** A stuck-high or noisy `RPEAK_IN` line injects garbage intervals straight into the baseline. | The saturation clamp is a *containment* measure, not rejection: a burst of impossible intervals still shifts the mean and can move the baseline or trip a cutoff. | Adding a filter adds Class C code and a new way to reject real beats (a false negative on a cardiac interlock is worse than a false positive). |
 
 **What would settle it:** an FMEA line for `RPEAK_IN` line faults (stuck high, stuck low, ringing) tracing what each does to the baseline and to cutoff behaviour. If the answer is "the main processor's Pan-Tompkins stage is the mitigation", that mitigation needs to be stated as a requirement on the SW-02 side rather than left implicit — at which point the ±5 BPM cross-validation's independence assumption should be re-examined.
+
+### 14.5 OI-CVNS-12 — dead guard on the rolling-baseline refresh
+
+**Resolved in Rev C by candidate A.** Recorded here in full because the reasoning — not the edit — is the part that matters, and because a residual question remains open.
+
+Rev B's new host suite exercised the refresh path but could not reach the guard on it. `np_cardiac_interlock.c` gated the rolling-baseline refresh on `!s_cutoff_active`, with a comment stating the gate existed so that refreshing after a cutoff could not "adopt the elevated post-event HR as the new resting baseline, desensitising the interlock for subsequent events."
+
+**The gated condition is unreachable.** `s_cutoff_active && !s_lockout_active` never holds: the cutoff sets both flags together; the only path that clears the lockout clears `s_cutoff_active` on the same tick; and `np_cardiac_interlock_reenable()` returns early while the lockout is set, so it cannot run first. Every evaluation of the refresh condition therefore saw `!s_cutoff_active` as true.
+
+**The behaviour the comment denied is what the module actually does.** `NP_CARDIAC_LOCKOUT_MS` (30 s) exceeds `NP_CARDIAC_OBS_MS` (5 s), so on the tick the lockout expires the observation window has always elapsed and the refresh fires immediately, adopting the elevated post-event rate. Verified directly: sustaining 120 BPM through a lockout that began from a 60 BPM baseline, then returning to 60 BPM with no re-enable, produces a second cutoff — a 60 BPM delta measured against a baseline that has moved to 120.
+
+**This is not a desensitisation window, and the reason is a different mechanism entirely.** The refreshed value can never be compared against anything before it is discarded:
+
+1. The cutoff latches `NP_SAFETY_STATUS_CARDIAC`, which `np_spi_watchdog.c` counts in `active_faults`, forcing `granted_mask` to 0 — **all** stimulation, not only CVNS.
+2. Nothing clears that bit except `np_cardiac_interlock_reenable()`, gated by `np_safety_main.c` on hub confirm plus an active session. The session-start reset block does not clear it, so the latch survives a session restart.
+3. `reenable()` sets `s_baseline_valid = false` and empties the RR ring, so the refreshed baseline is discarded and `NP_CARDIAC_BASELINE_BEATS` fresh intervals must accumulate before the interlock re-arms.
+
+| Candidate | Evidence for | Evidence against |
+|-----------|--------------|------------------|
+| **A — delete the dead guard; fix the comment.** *(adopted, Rev C)* Remove the term and rewrite the comment to state the latch-plus-invalidation mechanism above. | Smallest Class C diff and provably behaviour-neutral — the full 45-assertion suite emits byte-identical output before and after. Leaves a comment that describes what the code does rather than a protection it never provided. Claims least: no threshold, timing value, or state transition moves. | Leaves the module without an *explicit* guard against post-event baseline adoption; a future reader must follow the latch into `np_spi_watchdog.c` to see why that is safe. Mitigated by the rewritten comment naming the mechanism and by `test_cardiac_latch_blocks_all_grants()` pinning it. |
+| **B — make the guard reachable.** Stop clearing `s_cutoff_active` at lockout expiry, leaving it to `reenable()`. | Makes the existing comment true and blocks the post-lockout refresh outright, without depending on a mechanism in another translation unit. | Changes Class C behaviour to no safety benefit — the CARDIAC latch already blocks all stimulation, so the refresh it prevents was already inert. It also suppresses a second cutoff after lockout expiry, restoring precisely the state the 2026-06-08 review removed as bug #5 ("`s_cutoff_active` never reset: after 30 s lockout expiry, cardiac interlock was permanently disabled for the session"). Verified to fail `test_post_lockout_refresh_adopts_elevated_rate()`. |
+
+**Why A rather than B.** B changes the behaviour of a Class C cardiac interlock in order to make a comment accurate. The hazard the comment describes is real in principle but is already mitigated, twice over, by mechanisms that B does not improve. Where a comment and the code disagree and the code is safe, the comment is the defect.
+
+**Residual — what is still open.** Two things, both deliberately out of scope for Rev C:
+
+- **The second `!s_cutoff_active`**, on the cutoff condition itself, is dead by the identical argument — reaching it requires passing the same early return. It is harmless and defensively reasonable, but it is not doing what a reader would assume. Whether to remove it, or to keep it as an explicit belt-and-braces on the early return, is the same design question as the one below and should be answered once, for both.
+- **Should a second cutoff be possible after lockout expiry but before re-enable?** Today it can fire (`s_cutoff_active` is cleared at expiry), though it changes nothing observable because stimulation is already fully blocked. Whether that re-arm is intended defence-in-depth or vestigial is unrecorded.
+
+**What would settle it:** a Class C design rationale entry stating whether the interlock is intended to re-arm at lockout expiry or to stay latched until the hub completes the re-enable handshake. That single answer determines both residuals — if the interlock is meant to stay latched, both `!s_cutoff_active` terms become live guards and B becomes correct after all; if it is meant to re-arm, both are dead and the second should follow the first. **Do not resolve this by deleting the remaining term as a tidy-up**; it is the enable path of a cardiac interlock, and its removal should follow a recorded decision, not a code-cleanliness pass.
