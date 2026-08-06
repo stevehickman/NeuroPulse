@@ -49,7 +49,7 @@ semi-flex tile tomorrow with zero shell change.
 - Per-element intra-module physical offset mapping (sub-position within one
   module) is out of scope; protocol/group resolution operates at socket+type
   granularity.
-- tFUS/LIFU and any non-existing modality are out of scope (see CLAUDE.md §13.2b).
+- tFUS/LIFU and any non-existing modality are out of scope (see docs/status/pending-decisions.md §13.2b).
 - No change to the UHDR/SHDR data architecture or the safety-MCU interlock model.
 
 ## Principles
@@ -221,7 +221,7 @@ bench.
 - [ ] ISC-42: Design brief NP-HEX-ZM-001 exists and carries geometry tables, EMF seam detail, BOM deltas, and open items.
 - [x] ISC-43: Firmware addressing/NVRAM map builds `-Werror`-clean on Cortex-M7 and passes host tests. — 63 checks pass; full 16-binary host suite green.
 - [x] ISC-44: The map test is wired into CMake + CI. — test #12 in `firmware/CMakeLists.txt`; CI triggers on `firmware/hub_control/**`.
-- [ ] ISC-45: CLAUDE.md §13/§7 integration deferred until the go/no-go PASS promotes the study to a committed baseline (tracked, not done now).
+- [ ] ISC-45: docs/status/pending-decisions.md + docs/reference/durability-maintenance.md integration deferred until the go/no-go PASS promotes the study to a committed baseline (tracked, not done now).
 - [ ] ISC-46: Antecedent: euphoric surprise lands only if a reviewer sees that A→B needs no shell change — the socket-interface invariant is stated explicitly and early.
 - [ ] ISC-47: Anti: the ISA never claims the redesign is "locked" while the go/no-go gate is open.
 
@@ -478,7 +478,7 @@ bench.
   one contract expressed in two languages that must agree byte for byte, which
   splits badly across parallel authors.
 - 2026-07-15 — **CLAUDE.md integration deferred:** the redesign is a study; the
-  big locked CLAUDE.md §13/§7 tables are not edited until the go/no-go PASS
+  big locked docs/status/pending-decisions.md + docs/reference/durability-maintenance.md tables are not edited until the go/no-go PASS
   promotes it. Prevents recording an un-gated decision as "locked".
 
 ## Changelog

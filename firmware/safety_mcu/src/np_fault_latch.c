@@ -19,7 +19,7 @@
  *   offset 12: uint8_t  pad[52] (reserved)
  *
  * Privacy classification of the latch fields for any hub-facing read
- * (NP-FW-EMMC-001 Rev A §12; CLAUDE.md §13.4 "Fault latch extended SPI command
+ * (NP-FW-EMMC-001 Rev A §12; docs/status/pending-decisions.md §13.4 "Fault latch extended SPI command
  * privacy gate", resolved): `status` and `slot` are already surfaced in the
  * 8-byte reply frame and are SHDR device-condition data.  `count` and `tick_ms`
  * are NOT in that frame; when a future dedicated read command is added it must
@@ -123,7 +123,7 @@ uint8_t np_fault_latch_get_slot(void)
  * `count` and `tick_ms` never leave SRAM today.  When a future dedicated
  * fault-latch SPI read command is designed to let the hub retrieve the full
  * latch, it MUST read `count` and `tick_ms` through these two helpers instead of
- * touching s_latch directly.  That bakes the CLAUDE.md §13.4 privacy-gate
+ * touching s_latch directly.  That bakes the docs/status/pending-decisions.md §13.4 privacy-gate
  * resolution into enforceable code rather than prose:
  *
  *   count   → SHDR unconditionally.  A tally of DISTINCT fault transitions since

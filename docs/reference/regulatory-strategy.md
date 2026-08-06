@@ -1,6 +1,6 @@
 # Regulatory Strategy
 
-> Relocated from CLAUDE.md §10 (Rev 32) to slim the always-loaded core. Authoritative content for regulatory strategy. Referenced from CLAUDE.md → Document Map.
+> Relocated from CLAUDE.md Rev 32 §10 to slim the always-loaded core. Authoritative content for regulatory strategy. Referenced from CLAUDE.md → Document Map.
 
 ## T1 — FDA-exempt wellness pathway
 - General wellness device (same category as Muse, sens.ai, Apollo Neuro)

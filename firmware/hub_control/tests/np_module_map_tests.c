@@ -583,7 +583,7 @@ static void test_placement_check(void)
 }
 
 /* ── High-socket coverage (64..127) ────────────────────────────────────────────
- * MAX_SOCKETS went 64 -> 128 so all 78 helmet sockets are addressable. The tests
+ * MAX_SOCKETS went 64 -> 128 so all 80 helmet sockets are addressable. The tests
  * above all run on the 9-socket GEOM, which cannot reach the upper half of the
  * major domain. These exercise it directly: resolution, both group kinds,
  * placement (whose socket ids travel through uint8_t), and a full-occupancy

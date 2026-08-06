@@ -1,6 +1,6 @@
 # Service Network (all locked)
 
-> Relocated from CLAUDE.md §8 (Rev 32) to slim the always-loaded core. Authoritative content for service network design. Referenced from CLAUDE.md → Document Map.
+> Relocated from CLAUDE.md Rev 32 §8 to slim the always-loaded core. Authoritative content for service network design. Referenced from CLAUDE.md → Document Map.
 
 ## 8.1 Partner tiers
 

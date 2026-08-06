@@ -92,7 +92,7 @@ The NeurOne iOS app is App Store-live at Month 12, passing App Store review on f
 - [x] ISC-28: The `End Session` button is visible only when `gatt.session.status == .running`.
 - [x] ISC-29: Tapping `End Session` presents a confirmation alert ("End this session?") before sending the stop command.
 - [x] ISC-30: A session-completed state (`gatt.session.status == .completed`) surfaces a "Download Session Data" button that triggers `EDFDownloader.requestDownload(sessionID:)`.
-- [x] ISC-31: The regulatory footer text appears on `SessionView` and matches the text in `CLAUDE.md §10` ("NeurOne is a general wellness device…").
+- [x] ISC-31: The regulatory footer text appears on `SessionView` and matches the text in `docs/reference/regulatory-strategy.md` ("NeurOne is a general wellness device…").
 - [x] ISC-32: `blockingConsumableAlert` renders when `consumable.sessionIsBlocked == true` and hides `sessionControls` and `liveMetricsGrid` completely.
 - [x] ISC-33: Zone module row shows five slots with correct colour coding: green-tinted for present (non-zero GATT value), grey for absent.
 - [x] ISC-34: `Anti:` The `SessionView` does not display a stimulation state that has not been confirmed by the hub — it never optimistically updates `gatt.session.status` on the app side before receiving a GATT notification.

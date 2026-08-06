@@ -133,7 +133,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-06 — Mode F: default-off + separate consent + ambient indicator spec
-**Document:** CLAUDE.md §13.5 (locked decision), NP-FW-EMMC-002 Rev A §F  
+**Document:** docs/status/completed-decisions.md (locked decision), NP-FW-EMMC-002 Rev A §F  
 **Finding:** HIGH-04 (Mode F autonomous retinal PBM — consent capture undefined)  
 **Trigger:** Before any app UI or firmware code references Mode F as an enabled feature.  
 **Status:** DIRECT REMEDIATION COMPLETE → CLAUDE.md updated; `docs/np_fw_emmc_002.md §F`  
@@ -1027,7 +1027,7 @@ The following documents were authored as part of this remediation programme.
 | NP-FW-EMMC-002 §G added — SHDR accelerometer reclassification spec | NP-FW-EMMC-002 Rev A (§G appended) | `docs/np_fw_emmc_002.md` | MEDIUM-06 (Rev B finding); unblocks STEP-10 |
 | NP-PRIV-REM-001 Rev B — STEP-31, STEP-32, STEP-33 added; capability matrix rows added | NP-PRIV-REM-001 Rev B | `docs/np_priv_rem_001.md` | STEP-31 through STEP-33 |
 
-CLAUDE.md §13.4 updates applied in Session 2:
+docs/status/pending-decisions.md §13.4 updates applied in Session 2:
 - BIPA legal opinion (before Illinois device activation) added as pending decision
 - Washington MHMD regulatory analysis added as pending decision
 - Children's age gate (minimum age 16 declaration) added as pending decision

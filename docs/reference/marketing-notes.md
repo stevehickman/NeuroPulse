@@ -1,6 +1,6 @@
 # Marketing Notes
 
-> Relocated from CLAUDE.md §15 (Rev 32) to slim the always-loaded core. Authoritative content for marketing messaging. Referenced from CLAUDE.md → Document Map.
+> Relocated from CLAUDE.md Rev 32 §15 to slim the always-loaded core. Authoritative content for marketing messaging. Referenced from CLAUDE.md → Document Map.
 
 ## Mastoid LRA pad vs Apple Watch — messaging for marketing literature
 

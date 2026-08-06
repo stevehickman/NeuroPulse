@@ -110,7 +110,7 @@ Four languages, so "common" means one behavioral contract, not one binary:
 | Layer | Shared how |
 |-------|-----------|
 | Condition data | One file: `protocols/predefined/00-conditions.npps` |
-| Parse result | Shared fixture `npps/fixtures/conditions.npps` + `.expected.json` |
+| Parse result | **No shared fixture.** `npps/fixtures/conditions.npps` + `.expected.json` do not exist and never have — the `.npps`/`.expected.json` pairs in `npps/fixtures/` cover protocol parsing only, and none of them contains a `condition` block. Condition parsing is exercised per platform (e.g. `app/web/src/lib/npps-zones-conditions.test.ts`), not against a shared vector. |
 | Link policy | Shared vectors `npps/fixtures/condition_links.json`, consumed by all four test suites |
 | Interaction spec | This document |
 | View code | Shared within the Apple family only — one SwiftUI view serves iOS and macOS |
