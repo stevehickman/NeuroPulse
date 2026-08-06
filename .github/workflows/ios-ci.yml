@@ -20,6 +20,14 @@ on:
       - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 
+# Least privilege. Both jobs only check out the repo and build/test it; nothing
+# reads GITHUB_TOKEN, calls the API, or publishes. contents:read is what
+# actions/checkout needs and is therefore the complete required scope.
+# (actions/upload-artifact authenticates with ACTIONS_RUNTIME_TOKEN, not
+# GITHUB_TOKEN, so it needs no `actions:` permission.)
+permissions:
+  contents: read
+
 # Cancel superseded runs when new commits land on the same PR/branch.
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}

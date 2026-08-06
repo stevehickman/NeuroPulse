@@ -26,6 +26,14 @@ on:
       - 'scripts/test-lateralization-audit.sh'
   workflow_dispatch:
 
+# Least privilege. This job only checks out the repo and type-checks/tests/builds
+# it; nothing reads GITHUB_TOKEN, calls the API, or publishes. contents:read is
+# what actions/checkout needs and is therefore the complete required scope.
+# (actions/upload-artifact authenticates with ACTIONS_RUNTIME_TOKEN, not
+# GITHUB_TOKEN, so it needs no `actions:` permission.)
+permissions:
+  contents: read
+
 jobs:
   web-ci:
     name: TypeScript type-check + Vitest + Vite build

@@ -13,6 +13,14 @@ on:
       - 'ci/test_warranty_nojoin.py'
   workflow_dispatch:
 
+# Least privilege. This gate only checks out the repo and runs the no-join test;
+# nothing reads GITHUB_TOKEN, calls the API, or publishes. contents:read is what
+# actions/checkout needs and is therefore the complete required scope.
+# (actions/upload-artifact authenticates with ACTIONS_RUNTIME_TOKEN, not
+# GITHUB_TOKEN, so it needs no `actions:` permission.)
+permissions:
+  contents: read
+
 jobs:
   warranty-nojoin-gate:
     name: Warranty No-Join Privacy Gate

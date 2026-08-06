@@ -18,6 +18,14 @@ on:
       - 'ci/test_shdr_schema_selftest.py'
   workflow_dispatch:
 
+# Least privilege. This gate only checks out the repo and runs the schema tests;
+# nothing reads GITHUB_TOKEN, calls the API, or publishes. contents:read is what
+# actions/checkout needs and is therefore the complete required scope.
+# (actions/upload-artifact authenticates with ACTIONS_RUNTIME_TOKEN, not
+# GITHUB_TOKEN, so it needs no `actions:` permission.)
+permissions:
+  contents: read
+
 jobs:
   shdr-schema-gate:
     name: SHDR Schema Privacy Gate

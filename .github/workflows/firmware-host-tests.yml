@@ -79,6 +79,14 @@ on:
       - '.github/workflows/firmware-host-tests.yml'
   workflow_dispatch:
 
+# Least privilege. Every job here only checks out the repo and builds/tests it;
+# nothing reads GITHUB_TOKEN, calls the API, or publishes. contents:read is what
+# actions/checkout needs and is therefore the complete required scope.
+# (actions/upload-artifact authenticates with ACTIONS_RUNTIME_TOKEN, not
+# GITHUB_TOKEN, so it needs no `actions:` permission.)
+permissions:
+  contents: read
+
 jobs:
   firmware-host-tests:
     name: CMake host tests (23 targets)
