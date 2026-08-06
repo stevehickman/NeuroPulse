@@ -105,6 +105,17 @@ if(NP_BUILD_TESTS)
     np_host_test(np_fault_latch_privacy_tests)
     target_compile_definitions(np_fault_latch_privacy_tests PRIVATE NPTEST_HOST)
 
+    # np_cardiac_interlock_tests: SW01-M05 cervical VNS cardiac rhythm interlock —
+    # baseline arming, ±15 BPM cutoff, FMEA-M05-02 signed-delta underflow guard,
+    # 30 s re-enable lockout, conservative pre-baseline hold (NP-FW-CVNS-001 §5).
+    # Distinct from np_cvns_fai_tests, which covers the MAIN PROCESSOR module on
+    # the other side of the SPI boundary.
+    add_executable(np_cardiac_interlock_tests
+        tests/np_cardiac_interlock_tests.c
+        src/np_cardiac_interlock.c
+    )
+    np_host_test(np_cardiac_interlock_tests)
+
     return()
 endif()
 
