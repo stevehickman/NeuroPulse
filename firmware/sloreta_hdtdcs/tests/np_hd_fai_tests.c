@@ -3,6 +3,8 @@
  * Document: NP-FW-HD-001 Rev A §12 / NP-FAI-HD-001 Rev A
  *
  * FAI-HD01: sLORETA source localization accuracy vs known phantom
+ *           HD01-D: covariance estimator variance on stochastic input
+ *           HD01-E: per-band source power is spectral, not a fixed ratio
  * FAI-HD02: Automatic MNI→10-20 electrode mapping accuracy
  * FAI-HD03: 4×1 ring focality vs standard 2-electrode (saline phantom)
  * FAI-HD04: EEG signal quality during concurrent tDCS (SNR ≥ 20 dB)
@@ -795,11 +797,23 @@ static int fai_hd01_sloreta_plumbing(void)
     printf("  peak_voxel=%u MNI=(%d,%d,%d)\n",
            result.peak_voxel, result.peak_mni.x, result.peak_mni.y, result.peak_mni.z);
 
-    /* Band power decomposition. */
+    /* Band power decomposition.
+     *
+     * This assertion used to read only "the four bands sum to > 0", which any
+     * non-zero broadband power satisfies — and the implementation it was guarding
+     * scaled ONE broadband quadratic form by four compile-time bin-count ratios,
+     * so it passed while returning the same decomposition for every possible
+     * input.  Voxel 0 is driven by F3, which carries a 9.77 Hz tone (bin 20,
+     * alpha), so the correct decomposition is alpha-dominant and that is what is
+     * asserted.  FAI-HD01-E below sweeps all four bands and adds the
+     * cross-stimulus check that a fixed-ratio implementation cannot satisfy. */
     np_hd_band_power_t bands;
-    ASSERT_OK(np_sloreta_band_power(&ctx, 0U, source_power, &bands));
-    ASSERT(bands.alpha + bands.theta + bands.delta + bands.beta > 0.0f,
-           "HD01: band power all zero");
+    ASSERT_OK(np_sloreta_band_power(&ctx, 0U, &bands));
+    ASSERT(bands.valid, "HD01: band power not marked valid");
+    ASSERT(bands.alpha > 20.0f * (bands.delta + bands.theta + bands.beta),
+           "HD01: alpha-driven voxel is not alpha-dominant");
+    printf("  bands@voxel0: delta=%.4f theta=%.4f alpha=%.4f beta=%.4f\n",
+           bands.delta, bands.theta, bands.alpha, bands.beta);
 
     /* Covariance norm should be non-zero, and should match the two populated
      * diagonal terms (see k_expected_cov_norm above). */
@@ -960,6 +974,346 @@ static int fai_hd01d_estimator_variance(void)
 
     int result = g_fail_count - failures_before;
     printf("FAI-HD01-D: %s (%d failures)\n\n", result == 0 ? "PASS" : "FAIL", result);
+    return result;
+}
+
+/* ── FAI-HD01-E: per-band source power is spectral, not a fixed ratio ────────── */
+/*
+ * HD01-E: np_sloreta_band_power() must return a decomposition that DEPENDS ON THE
+ * INPUT SPECTRUM.
+ *
+ * Why this exists.
+ *
+ * The shipped implementation computed the broadband quadratic form W_v^T C W_v
+ * once and multiplied it by four compile-time constants derived from the band
+ * bin-edge macros — w_delta = 8/61, w_theta = 8/61, w_alpha = 10/61,
+ * w_beta = 35/61.  No FFT existed anywhere in the module; NP_HD_SLORETA_FFT_SIZE
+ * was only ever an array dimension.  Consequently the four returned values were
+ * always in fixed proportion to one another, and a pure 9.8 Hz alpha epoch, a
+ * pure 2.4 Hz delta epoch and a pure 19.5 Hz beta epoch all produced the byte-
+ * identical output (delta 6.5574, theta 6.5574, alpha 8.1967, beta 28.6885), with
+ * beta always "dominant" purely because it spans 35 of the 61 bins.
+ *
+ * The only guard was FAI-HD01's "the four bands sum to > 0", which any non-zero
+ * broadband power satisfies.  That is the failure this case is shaped to prevent
+ * recurring: an assertion can pass, and the pass count can rise, while the
+ * property under test is not being tested at all.
+ *
+ * Method.  Drive one channel with a bin-centred tone placed squarely inside each
+ * band in turn, and require that band to carry essentially all the power.  W is
+ * the unit vector on that channel, so each quadratic form collapses to one
+ * covariance diagonal entry and the expected value is derivable in closed form.
+ *
+ * Bin centring matters and is not incidental.  At 500 Hz over 1024 samples the
+ * grid is 0.48828 Hz/bin, so a tone of exactly k whole cycles per epoch lands on
+ * bin k.  Under the PERIODIC Hann window the module uses, such a tone occupies
+ * exactly three bins (k-1, k, k+1) with no sidelobe leakage whatsoever, so the
+ * 2 % magnitude tolerance below is a derivation and not a tuned number.  Every
+ * test tone sits at least 3 bins clear of its band edges, so all three bins fall
+ * inside the intended band.
+ *
+ * Pass criteria:
+ *   HD01-E1 (dominance):    target band > 20x each of the other three.
+ *   HD01-E2 (magnitude):    target band within 2 % of A^2/2 (the tone's variance).
+ *   HD01-E3 (purity):       target band >= 95 % of the four-band total.
+ *   HD01-E4 (sign):         no band value is ever negative.
+ *   HD01-E5 (anti-ratio):   the alpha:delta ratio under an alpha stimulus exceeds
+ *                           the alpha:delta ratio under a delta stimulus by >100x.
+ *                           A fixed-ratio implementation has these EQUAL by
+ *                           construction and cannot pass under any choice of
+ *                           weights — this is the assertion that kills it.
+ *   HD01-E6 (Parseval):     for a two-tone input the band sum reconciles with the
+ *                           independently accumulated time-domain variance to 2 %.
+ *   HD01-E7 (per-voxel):    two voxels reading different channels get different
+ *                           decompositions — band power is voxel-specific, not a
+ *                           single scalar redistributed.
+ *   HD01-E8 (contract):     NOT_READY before any full epoch, after reset, and
+ *                           after a short (non-transform-length) epoch; and
+ *                           INVALID_ARG on a bad voxel index or NULL out.
+ */
+#define HD01E_TONE_AMPLITUDE_UV 10.0f
+
+/* Whole cycles per 1024-sample epoch == FFT bin index.  Each is >= 3 bins from
+ * both edges of its band, so Hann's 3-bin mainlobe stays inside the band:
+ *   delta bins  1-8  -> 5  (2.44 Hz)     theta bins  9-16 -> 12 (5.86 Hz)
+ *   alpha bins 17-26 -> 20 (9.77 Hz)     beta  bins 27-61 -> 40 (19.53 Hz)  */
+#define HD01E_CYCLES_DELTA 5U
+#define HD01E_CYCLES_THETA 12U
+#define HD01E_CYCLES_ALPHA 20U
+#define HD01E_CYCLES_BETA  40U
+
+static float hd01e_W[2 * NP_HD_SLORETA_N_CH];
+static np_hd_mni_t hd01e_mni[2] = { { -46, 36, 20 }, { 0, 0, 0 } };
+static float hd01e_samples[NP_HD_SLORETA_N_CH][NP_HD_SLORETA_FFT_SIZE];
+
+/* Write A*sin(2*pi*cycles*n/N) into one channel; zero every other channel. */
+static void hd01e_fill_tone(uint8_t ch, uint16_t cycles, float amplitude_uv)
+{
+    static const float k_two_pi = 6.283185307179586f;
+    for (uint16_t s = 0U; s < NP_HD_SLORETA_FFT_SIZE; s++) {
+        float phase = k_two_pi * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
+        hd01e_samples[ch][s] = amplitude_uv * sinf(phase * (float)cycles);
+    }
+}
+
+/* Accumulate n_epochs identical epochs of the current hd01e_samples content. */
+static void hd01e_push(np_sloreta_ctx_t *ctx, uint16_t n_epochs)
+{
+    for (uint16_t e = 0U; e < n_epochs; e++) {
+        ASSERT_OK(np_sloreta_push_epoch(
+            ctx, (const float (*)[NP_HD_SLORETA_FFT_SIZE])hd01e_samples,
+            NP_HD_SLORETA_FFT_SIZE));
+    }
+}
+
+static int fai_hd01e_band_power_spectral(void)
+{
+    int failures_before = g_fail_count;
+    printf("FAI-HD01-E: band power is spectral (single-band dominance)\n");
+
+    /* Voxel 0 reads F3, voxel 1 reads O2 (used by HD01-E7). */
+    memset(hd01e_W, 0, sizeof(hd01e_W));
+    hd01e_W[0 * NP_HD_SLORETA_N_CH + NP_HD_CH_F3] = 1.0f;
+    hd01e_W[1 * NP_HD_SLORETA_N_CH + NP_HD_CH_O2] = 1.0f;
+
+    /* A coherent tone of amplitude A has variance A^2/2; W is a unit vector, so
+     * the quadratic form is exactly that channel's in-band variance. */
+    const float k_expected = HD01E_TONE_AMPLITUDE_UV * HD01E_TONE_AMPLITUDE_UV / 2.0f;
+    const float k_tol      = 0.02f * k_expected;
+
+    static const struct {
+        const char  *name;
+        uint16_t     cycles;
+        np_hd_band_t band;
+    } cases[] = {
+        { "delta", HD01E_CYCLES_DELTA, NP_HD_BAND_DELTA },
+        { "theta", HD01E_CYCLES_THETA, NP_HD_BAND_THETA },
+        { "alpha", HD01E_CYCLES_ALPHA, NP_HD_BAND_ALPHA },
+        { "beta",  HD01E_CYCLES_BETA,  NP_HD_BAND_BETA  },
+    };
+    const uint8_t n_cases = (uint8_t)(sizeof(cases) / sizeof(cases[0]));
+
+    /* profile[stimulus][band] — retained for the HD01-E5 cross-stimulus check. */
+    float profile[4][NP_HD_BAND_COUNT];
+
+    for (uint8_t c = 0U; c < n_cases; c++) {
+        np_sloreta_ctx_t ctx;
+        ASSERT_OK(np_sloreta_init(&ctx, hd01e_W, hd01e_mni, 2U));
+
+        memset(hd01e_samples, 0, sizeof(hd01e_samples));
+        hd01e_fill_tone(NP_HD_CH_F3, cases[c].cycles, HD01E_TONE_AMPLITUDE_UV);
+        hd01e_push(&ctx, NP_HD_SLORETA_EPOCHS);
+
+        np_hd_band_power_t b;
+        ASSERT_OK(np_sloreta_band_power(&ctx, 0U, &b));
+        ASSERT(b.valid, "HD01-E: band result not marked valid");
+
+        const float v[NP_HD_BAND_COUNT] = { b.delta, b.theta, b.alpha, b.beta };
+        for (uint8_t k = 0U; k < NP_HD_BAND_COUNT; k++) {
+            profile[c][k] = v[k];
+        }
+
+        float target = v[cases[c].band];
+        float total  = v[0] + v[1] + v[2] + v[3];
+
+        /* HD01-E1: dominance.  Written as a product, not a ratio, so an exactly
+         * zero off-band value is a pass rather than a division by zero. */
+        for (uint8_t k = 0U; k < NP_HD_BAND_COUNT; k++) {
+            if (k == (uint8_t)cases[c].band) {
+                continue;
+            }
+            ASSERT(target > 20.0f * v[k],
+                   "HD01-E1: stimulus band does not dominate by 20x");
+        }
+
+        /* HD01-E2: absolute magnitude, derived (A^2/2), not tuned. */
+        ASSERT_APPROX(target, k_expected, k_tol);
+
+        /* HD01-E3: purity. */
+        ASSERT(total > 0.0f, "HD01-E3: band total is zero");
+        ASSERT(target >= 0.95f * total,
+               "HD01-E3: stimulus band holds <95% of total band power");
+
+        /* HD01-E4: no negative band power at either voxel. */
+        for (uint8_t k = 0U; k < NP_HD_BAND_COUNT; k++) {
+            ASSERT(v[k] >= 0.0f, "HD01-E4: negative band power");
+        }
+
+        printf("  %-5s tone (bin %2u): delta=%8.4f theta=%8.4f alpha=%8.4f "
+               "beta=%8.4f  purity=%.4f\n",
+               cases[c].name, (unsigned)cases[c].cycles,
+               v[0], v[1], v[2], v[3], target / total);
+    }
+
+    /*
+     * HD01-E5: the assertion the placeholder cannot survive.
+     *
+     * Compare the alpha:delta ratio measured under an alpha stimulus against the
+     * same ratio measured under a delta stimulus.  Cross-multiplied to stay
+     * defined when an off-band value is exactly zero:
+     *
+     *     (alpha|alpha-stim) * (delta|delta-stim)
+     *         >  100 * (alpha|delta-stim) * (delta|alpha-stim)
+     *
+     * For ANY implementation that scales one broadband scalar by fixed per-band
+     * weights, both sides reduce to w_alpha * w_delta * P_a * P_d and the
+     * inequality is 1 > 100 — false regardless of the weights chosen.  Dominance
+     * alone (E1) could in principle be gamed by a per-band-tuned fudge; this
+     * cannot, because it requires the ratio to INVERT with the stimulus.
+     */
+    {
+        const uint8_t S_DELTA = 0U, S_ALPHA = 2U;
+        float lhs = profile[S_ALPHA][NP_HD_BAND_ALPHA] *
+                    profile[S_DELTA][NP_HD_BAND_DELTA];
+        float rhs = profile[S_DELTA][NP_HD_BAND_ALPHA] *
+                    profile[S_ALPHA][NP_HD_BAND_DELTA];
+
+        ASSERT(lhs > 100.0f * rhs,
+               "HD01-E5: alpha:delta ratio does not invert with the stimulus — "
+               "band values are in a stimulus-independent fixed ratio");
+        printf("  cross-stimulus alpha:delta inversion: %.4e vs %.4e (>100x)\n",
+               (double)lhs, (double)rhs);
+    }
+
+    /*
+     * HD01-E6: Parseval reconciliation on a two-tone input.
+     *
+     * Alpha at amplitude 10 and beta at amplitude 4 on the same channel, on
+     * whole-cycle counts over one window, so the tones are orthogonal and the
+     * total variance is 10^2/2 + 4^2/2 = 58.  Only F3 is populated, so the
+     * covariance Frobenius norm equals that channel's variance exactly.  This ties
+     * the spectral accumulator to the independently computed time-domain one:
+     * an FFT scale error would move the band sum away from the covariance norm
+     * even though every relative assertion above still passed.
+     */
+    {
+        const float k_beta_amp = 4.0f;
+        np_sloreta_ctx_t ctx;
+        ASSERT_OK(np_sloreta_init(&ctx, hd01e_W, hd01e_mni, 2U));
+
+        memset(hd01e_samples, 0, sizeof(hd01e_samples));
+        static const float k_two_pi = 6.283185307179586f;
+        for (uint16_t s = 0U; s < NP_HD_SLORETA_FFT_SIZE; s++) {
+            float ph = k_two_pi * (float)s / (float)NP_HD_SLORETA_FFT_SIZE;
+            hd01e_samples[NP_HD_CH_F3][s] =
+                HD01E_TONE_AMPLITUDE_UV * sinf(ph * (float)HD01E_CYCLES_ALPHA) +
+                k_beta_amp              * sinf(ph * (float)HD01E_CYCLES_BETA);
+        }
+        hd01e_push(&ctx, NP_HD_SLORETA_EPOCHS);
+
+        np_hd_band_power_t b;
+        ASSERT_OK(np_sloreta_band_power(&ctx, 0U, &b));
+
+        float expect_alpha = HD01E_TONE_AMPLITUDE_UV * HD01E_TONE_AMPLITUDE_UV / 2.0f;
+        float expect_beta  = k_beta_amp * k_beta_amp / 2.0f;
+        float band_sum     = b.delta + b.theta + b.alpha + b.beta;
+        float cov_variance = np_sloreta_covariance_norm(&ctx);
+
+        /* Each tone resolves to its own band at its own amplitude. */
+        ASSERT_APPROX(b.alpha, expect_alpha, 0.02f * expect_alpha);
+        ASSERT_APPROX(b.beta,  expect_beta,  0.02f * expect_beta);
+
+        /* And the four bands together reconcile with the time-domain variance. */
+        ASSERT_APPROX(band_sum, cov_variance, 0.02f * cov_variance);
+        printf("  two-tone: alpha=%.4f (exp %.1f) beta=%.4f (exp %.1f) "
+               "sum=%.4f vs cov_norm=%.4f\n",
+               b.alpha, (double)expect_alpha, b.beta, (double)expect_beta,
+               band_sum, cov_variance);
+    }
+
+    /*
+     * HD01-E7: band power is per-voxel.  F3 carries alpha, O2 carries delta;
+     * voxel 0 reads F3 and voxel 1 reads O2, so one call must come back
+     * alpha-dominant and the other delta-dominant from the SAME context.  A
+     * band decomposition derived from a single global scalar cannot do this.
+     */
+    {
+        np_sloreta_ctx_t ctx;
+        ASSERT_OK(np_sloreta_init(&ctx, hd01e_W, hd01e_mni, 2U));
+
+        memset(hd01e_samples, 0, sizeof(hd01e_samples));
+        hd01e_fill_tone(NP_HD_CH_F3, HD01E_CYCLES_ALPHA, HD01E_TONE_AMPLITUDE_UV);
+        hd01e_fill_tone(NP_HD_CH_O2, HD01E_CYCLES_DELTA, HD01E_TONE_AMPLITUDE_UV);
+        hd01e_push(&ctx, NP_HD_SLORETA_EPOCHS);
+
+        np_hd_band_power_t v0, v1;
+        ASSERT_OK(np_sloreta_band_power(&ctx, 0U, &v0));
+        ASSERT_OK(np_sloreta_band_power(&ctx, 1U, &v1));
+
+        ASSERT(v0.alpha > 20.0f * (v0.delta + v0.theta + v0.beta),
+               "HD01-E7: voxel 0 (F3, alpha tone) is not alpha-dominant");
+        ASSERT(v1.delta > 20.0f * (v1.theta + v1.alpha + v1.beta),
+               "HD01-E7: voxel 1 (O2, delta tone) is not delta-dominant");
+        printf("  per-voxel: v0 alpha=%.4f delta=%.4f | v1 alpha=%.4f delta=%.4f\n",
+               v0.alpha, v0.delta, v1.alpha, v1.delta);
+    }
+
+    /* HD01-E8: contract — nothing reads as a measurement unless it is one. */
+    {
+        np_sloreta_ctx_t ctx;
+        ASSERT_OK(np_sloreta_init(&ctx, hd01e_W, hd01e_mni, 2U));
+
+        np_hd_band_power_t b;
+        memset(&b, 0xAA, sizeof(b));    /* poison: prove we overwrite */
+        ASSERT(np_sloreta_band_power(&ctx, 0U, &b) == NP_HD_ERR_NOT_READY,
+               "HD01-E8: band power returned a value with no epochs accumulated");
+        ASSERT(!b.valid, "HD01-E8: NOT_READY result left valid set");
+        ASSERT(b.delta == 0.0f && b.theta == 0.0f &&
+               b.alpha == 0.0f && b.beta  == 0.0f,
+               "HD01-E8: NOT_READY result left stale values");
+
+        /* A short epoch feeds the broadband covariance but cannot feed a
+         * transform-length FFT, so bands must stay NOT_READY rather than
+         * reporting a zero-padded — and therefore low-biased — spectrum. */
+        memset(hd01e_samples, 0, sizeof(hd01e_samples));
+        hd01e_fill_tone(NP_HD_CH_F3, HD01E_CYCLES_ALPHA, HD01E_TONE_AMPLITUDE_UV);
+        ASSERT_OK(np_sloreta_push_epoch(
+            &ctx, (const float (*)[NP_HD_SLORETA_FFT_SIZE])hd01e_samples,
+            (uint16_t)(NP_HD_SLORETA_FFT_SIZE / 2U)));
+        ASSERT(np_sloreta_epoch_count(&ctx) == 1U,
+               "HD01-E8: short epoch rejected by the broadband path");
+        ASSERT(np_sloreta_band_power(&ctx, 0U, &b) == NP_HD_ERR_NOT_READY,
+               "HD01-E8: short epoch produced a band measurement");
+
+        /* Argument validation. */
+        ASSERT(np_sloreta_band_power(&ctx, 2U, &b) == NP_HD_ERR_INVALID_ARG,
+               "HD01-E8: out-of-range voxel index accepted");
+        ASSERT(np_sloreta_band_power(&ctx, 0U, NULL) == NP_HD_ERR_INVALID_ARG,
+               "HD01-E8: NULL out accepted");
+        ASSERT(np_sloreta_band_power(NULL, 0U, &b) == NP_HD_ERR_INVALID_ARG,
+               "HD01-E8: NULL ctx accepted");
+
+        /*
+         * Unbound weight matrix.  Built by hand rather than obtained from
+         * np_sloreta_init(), which rejects a NULL W — same reason HD02-I builds
+         * its conflicting montages by hand: a guard only reachable through an
+         * invalid state still has to be exercised, or it can be deleted without
+         * any test objecting.  The state is not hypothetical: np_hd_session_destroy()
+         * memsets the session, zeroing the embedded ctx's W, and n_voxels is set
+         * here only so the range check does not mask the guard under test.
+         */
+        np_sloreta_ctx_t bare;
+        memset(&bare, 0, sizeof(bare));
+        bare.n_voxels        = 1U;
+        bare.spectral_epochs = 1U;
+        ASSERT(np_sloreta_band_power(&bare, 0U, &b) == NP_HD_ERR_NO_WEIGHT_MATRIX,
+               "HD01-E8: band power computed with no weight matrix bound");
+
+        /* Reset must clear the spectral accumulator too, not just the
+         * broadband one — otherwise a new session inherits the last one's
+         * spectrum, which is a UHDR cross-contamination bug as well as a
+         * measurement bug. */
+        hd01e_push(&ctx, NP_HD_SLORETA_EPOCHS);
+        ASSERT_OK(np_sloreta_band_power(&ctx, 0U, &b));
+        np_sloreta_reset(&ctx);
+        ASSERT(np_sloreta_band_power(&ctx, 0U, &b) == NP_HD_ERR_NOT_READY,
+               "HD01-E8: reset did not clear the spectral accumulator");
+        printf("  contract: NOT_READY when empty / short-epoch / after reset; "
+               "bad args rejected\n");
+    }
+
+    int result = g_fail_count - failures_before;
+    printf("FAI-HD01-E: %s (%d failures)\n\n", result == 0 ? "PASS" : "FAIL", result);
     return result;
 }
 
@@ -1124,6 +1478,7 @@ int main(void)
     fai_safety_constants();
     fai_hd01_sloreta_plumbing();
     fai_hd01d_estimator_variance();
+    fai_hd01e_band_power_spectral();
     fai_hd02_electrode_mapping();
     fai_hd02l_driver_channel_single_source();
     fai_hd03_focality_algorithm();

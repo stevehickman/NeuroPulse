@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HD-001
-**Revision:** A
-**Date:** 2026-05-11
+**Revision:** B
+**Date:** 2026-08-05
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -179,19 +179,69 @@ Step 2: For each voxel v:
         [2447 voxels × 441 mults ≈ 1.1M flops → <20 ms on Cortex-M7 @ 600 MHz]
 
 Step 3: Peak detection: argmax(P[v]) → peak voxel → MNI lookup
+
+Step 4: Band power at the peak voxel from the per-band cross-spectral
+        covariances accumulated in parallel with C (§5.3).  Independent of
+        steps 1-3: a band-power failure leaves the peak result intact.
 ```
 
 ### 5.2 Covariance accumulation
 
-Welford-style running mean across epochs. Each epoch: Hann-windowed 1024-sample block at 500 Hz (2.048 s). Mean subtracted per epoch per channel. Covariance updated as:
+Welford-style running mean across epochs. Each epoch is a 1024-sample block at 500 Hz (2.048 s), with the per-channel epoch mean subtracted. Covariance updated as:
 
 ```
 C_n = (1 - 1/n) × C_{n-1} + (1/n) × x_epoch x_epoch^T / n_samples
 ```
 
+The blend is applied **once per epoch**, not once per sample. Applying it inside the sample loop turns it into a geometric decay of rate (1 − 1/n) per sample, which annihilates all but the last few samples of a 1024-sample epoch and reports the whole map low by ~1/N. FAI-HD01's absolute-magnitude assertion and FAI-HD01-D's estimator-variance floor exist to pin this.
+
+**This broadband covariance is deliberately unwindowed.** A window would scale the variance estimate by the window power factor U (0.375 for Hann) and bias every source-power value low by that factor for no benefit — windowing is a spectral-leakage control, and this accumulator produces no spectrum. Hann windowing applies only to the band-power path in §5.3, which does produce one. The two accumulators run over the same epochs and the same mean-subtracted samples, but are otherwise independent; neither can perturb the other.
+
 ### 5.3 Band power decomposition
 
-`np_sloreta_band_power()` decomposes voxel source power into delta/theta/alpha/beta bands using relative bin count weighting. Used by the app to characterize hypo-/hyperactivation (e.g., high frontal theta → depressive phenotype target DLPFC_L).
+`np_sloreta_band_power()` returns source power in each of delta / theta / alpha / beta at a specified voxel, computed from a **per-band cross-spectral covariance** accumulated alongside the broadband one.
+
+**Per epoch** (`sloreta_accumulate_spectra()`), for each of the 21 channels:
+
+1. Subtract the epoch mean, apply a **periodic Hann window** (denominator N, not N−1 — the periodic form places a bin-centred tone in exactly three bins with no sidelobe leakage).
+2. Run a 1024-point radix-2 DIT FFT (precomputed twiddle table; the per-butterfly complex recurrence used elsewhere in the codebase compounds float32 rotation error across 512 steps in the final stage).
+3. Retain only bins `NP_HD_BAND_BIN_LO … NP_HD_BAND_BIN_HI` (1…61, i.e. 0.49–29.8 Hz) — 10 KB of scratch rather than the 168 KB a full 21 × 1024 complex spectrum would need.
+
+Then, for each band *b* and each channel pair (i, j):
+
+```
+C_b[i][j] = (2 / (N² · U)) · Σ_{k ∈ band b} Re( X_i[k] · conj(X_j[k]) )
+```
+
+where `U = (1/N)·Σ w[n]²` is the window power (computed numerically at init, not hardcoded) and the factor 2 accounts for summing positive frequencies only. `C_b` is folded into a running across-epoch mean with the same once-per-epoch blend as §5.2.
+
+Band power at a voxel is then the same scalar quadratic form evaluated against the band's matrix:
+
+```
+P_b[v] = W_v^T · C_b · W_v
+```
+
+Each band is an independent measurement over a disjoint bin set. Nothing in this path reads the broadband source-power map from §5.1.
+
+**Properties.** Each `P_b[v]` equals `|W_v · X[k]|²` summed over the band's bins, so it is non-negative by construction. For a coherent tone of amplitude A lying inside one band, that band evaluates to exactly A²/2 — the tone's variance — so the four bands sum to the in-band portion of the time-domain variance from §5.2. FAI-HD01-E asserts both identities.
+
+**Bin extents are declared once**, in `np_hd_config.h`. `np_sloreta.c` iterates each band over its own `[lo, hi]` range, so bands may be re-cut with gaps or overlaps with no code change; `_Static_assert`s enforce that every band lies inside the retained span, above DC and below Nyquist.
+
+#### 5.3.1 Limitations — what this output is and is not
+
+Stated explicitly because §2.1 step 3 uses band output to characterise hypo-/hyperactivation (e.g. high frontal theta → DLPFC_L), and that is a clinical reading.
+
+| | |
+|---|---|
+| **Units** | Source-space, **not** absolute cortical µV²/Hz. The value carries the scalp signal's µV² scale through the weight matrix W, so its absolute magnitude depends on how W was normalised offline (§5.1). **Ratios** — between bands at one voxel, and between voxels within one band — are the defensible readings. A raw magnitude must not be compared across devices, cap montages, or W revisions. |
+| **Band edges** | A Hann-windowed tone occupies three bins, so a component within one bin (0.49 Hz) of a band edge contributes to the neighbouring band. Band boundaries are soft at that scale; a "theta vs alpha" distinction at 7.8–8.3 Hz is not resolvable by this method. |
+| **Frequency span** | 0.49–29.8 Hz only. No gamma band is defined for this module. Activity above 29.8 Hz is not represented in any returned value and is **not** folded into beta. |
+| **Spectral resolution** | 0.4883 Hz/bin, fixed by 1024 points at 500 Hz. Delta spans only 8 bins, so delta estimates carry the fewest degrees of freedom of the four. |
+| **Availability** | Requires at least one full 1024-sample epoch. A short epoch still feeds the broadband covariance but is **skipped** here rather than zero-padded, because padding would rescale the spectrum and bias every band low. Until then the call returns `NP_HD_ERR_NOT_READY` with `valid == false` and all values zeroed. |
+| **Validity** | Consumers **must** check `np_hd_band_power_t.valid`. A zeroed struct means "not measured", never "no activity in this band". |
+| **Not localisation** | Peak voxel selection (§5.1) uses the broadband covariance only. Band power is a descriptor of the peak once found; it does not participate in choosing it. |
+
+> **Superseded implementation (Rev A).** Rev A computed the broadband quadratic form once and multiplied it by four compile-time constants derived from the bin counts of each band. Because those multipliers were constants, the four returned values were always in fixed proportion, and beta was always largest purely because it spans 35 of the 61 bins. Every possible EEG input produced the same decomposition. No FFT existed in the module. Any Rev A band figure appearing in an analysis, report, or submission is **not a spectral measurement** and must not be relied upon. FAI-HD01-E's cross-stimulus assertion (§12.1) is the regression guard: it cannot be satisfied by any fixed-ratio implementation, under any choice of weights.
 
 ### 5.4 API
 
@@ -199,10 +249,14 @@ C_n = (1 - 1/n) × C_{n-1} + (1/n) × x_epoch x_epoch^T / n_samples
 |----------|-------------|
 | `np_sloreta_init(ctx, W, mni_lut, n_voxels)` | Bind weight matrix + MNI LUT |
 | `np_sloreta_reset(ctx)` | Clear covariance; prepare for new session |
-| `np_sloreta_push_epoch(ctx, samples, n_samples)` | Accumulate one EEG epoch |
+| `np_sloreta_push_epoch(ctx, samples, n_samples)` | Accumulate one EEG epoch into both the broadband and per-band accumulators |
 | `np_sloreta_compute_map(ctx, source_power, n)` | Compute full voxel power map |
-| `np_sloreta_find_peak(ctx, power, n, result)` | Peak detection + MNI lookup |
-| `np_sloreta_band_power(ctx, voxel, power, bands)` | Band decomposition at voxel |
+| `np_sloreta_find_peak(ctx, power, n, result)` | Peak detection + MNI lookup (also fills `result.peak_bands`) |
+| `np_sloreta_band_power(ctx, voxel, bands)` | Per-band source power at voxel (§5.3) |
+
+`np_sloreta_band_power()` takes no source-power argument. It reads the per-band cross-spectral covariances directly; it does not partition the broadband map, and a signature implying otherwise would misrepresent the computation.
+
+`np_sloreta_push_epoch()` is **not reentrant and not ISR-safe** — the spectral path drives 21 transforms through ~26 KB of module-static scratch. Call it from one task. At one epoch per 2.048 s the ~1.3 Mflop cost is ≈0.1 % of one core.
 | `np_sloreta_epoch_count(ctx)` | Query accumulated epoch count |
 | `np_sloreta_covariance_norm(ctx)` | Frobenius norm (quality indicator) |
 
@@ -418,12 +472,19 @@ Target: ≥ 20 dB SNR in alpha band (8–13 Hz) during 1 mA anode stimulation. V
 |------|------|----------|
 | Weight matrix W | 205 KB | LPSDR4 (loaded from Config partition) |
 | Source power array | 9.6 KB | LPSDR4 (`.lpsdr4` section) |
-| `np_sloreta_ctx_t` (covariance + metadata) | ≤48 B | SRAM |
+| `np_sloreta_ctx_t` — broadband covariance 21×21 | 1.8 KB | SRAM (inside session pool) |
+| `np_sloreta_ctx_t` — per-band covariances 4×21×21 | 7.1 KB | SRAM (inside session pool) |
+| `np_sloreta_ctx_t` — pointers, counters, channel means | ≈110 B | SRAM (inside session pool) |
 | `np_hd_stim_ctx_t` | ≤256 B | SRAM |
-| `np_hd_session_t` (static pool) | ≈1.5 KB | SRAM |
 | `np_hd_montage_t` | ≈32 B | SRAM |
-| **Total SRAM** | **≈2 KB** | — |
-| **Total LPSDR4** | **≈215 KB** | — |
+| `np_hd_session_t` (static pool, includes the sLORETA ctx above) | ≈9.5 KB | SRAM |
+| Spectral module statics — Hann 4 KB + twiddles 4 KB + FFT workspace 8 KB + retained spectra 10 KB | ≈26 KB | SRAM (`np_sloreta.c` file-scope) |
+| **Total SRAM** | **≈36 KB** | of 1 MB on-chip |
+| **Total LPSDR4** | **≈215 KB** | of 32 MB |
+
+The Rev A figure of "≤48 B" for `np_sloreta_ctx_t` counted only the pointers and counters and omitted the 21×21 covariance matrix the struct has always contained; the ≈1.5 KB session-pool line inherited the same omission. Both are corrected above alongside the Rev B additions.
+
+The spectral statics are shared across contexts and hold no per-session state — they are live only between entry and return of `np_sloreta_push_epoch()`, which is what makes that function non-reentrant (§5.4). Both totals sit far inside budget; SRAM is the binding resource and is at ≈3.5 % of the 1 MB on-chip pool.
 
 ---
 
@@ -448,7 +509,35 @@ Test specification: **NP-FAI-HD-001 Rev A** (embedded in `tests/np_hd_fai_tests.
 | HD01-B | Peak-to-median source power ratio | ≥ 3× |
 | HD01-C | HD01-A satisfied for | 5 of 6 clinical targets |
 
-**Software plumbing check (CI):** Synthetic weight matrix with known dominant channel; verify peak voxel correct, epoch accumulation clears on reset. See `fai_hd01_sloreta_plumbing()`.
+**Software plumbing check (CI):** Synthetic weight matrix with known dominant channel; verify peak voxel correct, absolute source-power magnitude correct, epoch accumulation clears on reset. See `fai_hd01_sloreta_plumbing()`.
+
+#### HD01-D — covariance estimator variance (CI, stochastic input)
+
+Zero-mean uniform white noise of known variance A²/12, repeated over 24 independent runs. A deterministic stimulus cannot separate "used all the samples" from "used a few of them" — a discard shows up only as a constant factor, which ordering and ratio assertions are blind to and which cancels in the argmax. See `fai_hd01d_estimator_variance()`.
+
+| ID | Criterion | Limit |
+|----|-----------|-------|
+| HD01-D1 | Mean estimate vs true variance | within 2 % |
+| HD01-D2 | Coefficient of variation across runs | ≤ 3× the derived floor √(0.8/n_eff) |
+
+#### HD01-E — band power is spectral, not a fixed ratio (CI)
+
+**Category:** Software-only (full CI coverage). See `fai_hd01e_band_power_spectral()`.
+
+A bin-centred tone is placed inside each band in turn: delta bin 5 (2.44 Hz), theta bin 12 (5.86 Hz), alpha bin 20 (9.77 Hz), beta bin 40 (19.53 Hz). Each sits ≥3 bins clear of its band edges, so the periodic-Hann 3-bin mainlobe falls entirely inside the intended band and the expected magnitude is derivable in closed form rather than tuned.
+
+| ID | Criterion | Limit |
+|----|-----------|-------|
+| HD01-E1 | Stimulus band vs each other band | > 20× |
+| HD01-E2 | Stimulus band absolute magnitude vs A²/2 | within 2 % |
+| HD01-E3 | Stimulus band share of four-band total | ≥ 95 % |
+| HD01-E4 | Any band value negative | never |
+| HD01-E5 | alpha:delta ratio under alpha stimulus vs under delta stimulus | > 100× (ratio must **invert**) |
+| HD01-E6 | Two-tone: band sum vs independently accumulated time-domain variance | within 2 % |
+| HD01-E7 | Two voxels reading different channels | different decompositions |
+| HD01-E8 | `NOT_READY` when empty / short-epoch / post-reset; `INVALID_ARG` and `NO_WEIGHT_MATRIX` on bad arguments | exact status codes |
+
+**HD01-E5 is the load-bearing criterion.** E1's dominance could in principle be satisfied by a per-band fudge factor; E5 cannot. For any implementation that scales one broadband scalar by fixed per-band weights, both sides of the comparison reduce to `w_alpha · w_delta · P_a · P_d` and the assertion becomes 1 > 100 — false for every possible choice of weights. Measured against the Rev A implementation the HD01-E suite produces 25 failures, E5 among them; the upgraded HD01 band assertion adds a 26th.
 
 ### 12.2 FAI-HD02 — MNI→10-20 electrode mapping accuracy
 
@@ -551,3 +640,4 @@ All sub-criteria (HD02-A through HD02-K) pass in `fai_hd02_electrode_mapping()` 
 | Rev | Date | Changes |
 |-----|------|---------|
 | A | 2026-05-11 | Initial release — Issue #23, G3-07 software baselined |
+| B | 2026-08-05 | §5.3 band power reimplemented as a real spectral measurement. Rev A computed one broadband quadratic form and scaled it by four compile-time bin-count constants, so the four band values were always in fixed proportion and every EEG input produced the same decomposition; no FFT existed in the module. Rev B accumulates a per-band cross-spectral covariance from a Hann-windowed 1024-point FFT per channel per epoch and evaluates `W_v^T C_b W_v` per band. Adds §5.3.1 stating units, band-edge softness, frequency span, and validity semantics, and a superseded-implementation notice for any Rev A band figure. `np_sloreta_band_power()` loses its unused `source_power` argument (§5.4); `np_hd_band_power_t` gains `valid`. §5.2 clarifies that the broadband covariance is deliberately unwindowed and that Hann applies to the spectral path only. §11 memory budget corrected — the Rev A `np_sloreta_ctx_t` figure omitted the covariance matrix — and extended with the per-band matrices and spectral statics. §12.1 adds FAI-HD01-E (single-band dominance, cross-stimulus ratio inversion, Parseval reconciliation) and documents the existing HD01-D criteria. No safety limit, montage, stimulation, or data-routing behaviour changed. |
