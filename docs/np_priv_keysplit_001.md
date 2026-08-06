@@ -103,14 +103,14 @@ to `ConsentStore` or `ResearchAnalyticsGate`.
 
 | File | Change |
 |------|--------|
-| `Analytics/AnalyticsGate.swift` | Now contains only `typealias AnalyticsGate = ResearchAnalyticsGate` |
+| `Analytics/AnalyticsGate.swift` | **Deleted.** An earlier revision of this row said the file "now contains only `typealias AnalyticsGate = ResearchAnalyticsGate`"; no such file or typealias exists. The split removed it outright — `app/ios/NeurOne/Analytics/` now holds only `AnalyticsBackend`, `EngagementTier`, `PostHogAnalyticsBackend`, `ResearchAnalyticsGate` and `WarrantyAnalyticsGate`. |
 | `Analytics/ResearchAnalyticsGate.swift` | New file — authoritative implementation (was `AnalyticsGate`) |
 | `Analytics/WarrantyAnalyticsGate.swift` | New file — SHDR upload gate |
 | `Consent/ConsentStore.swift` | `withdrawBlanketConsent()` → `withdrawBlanketResearchConsent()`; `revokeAnalyticsConsent()` → `revokeResearchAnalytics()` |
 | `Views/ConsentOnboardingView.swift` | `AnalyticsGate` → `ResearchAnalyticsGate` |
 | `NeurOneApp.swift` | `AnalyticsGate.configure()` → `ResearchAnalyticsGate.configure()` |
 | `Data/SHDRUploader.swift` | Removed inline `warrantyConsentGranted` property; now reads `WarrantyAnalyticsGate.isOpen` |
-| `NeurOneTests/AnalyticsGateTests.swift` | Full rewrite: subject is `ResearchAnalyticsGate`; blanket withdrawal test INVERTED (now correctly asserts gate closes + SDK tears down) |
+| `NeurOneTests/ResearchAnalyticsGateTests.swift` (was `AnalyticsGateTests.swift`) | Full rewrite: subject is `ResearchAnalyticsGate`; blanket withdrawal test INVERTED (now correctly asserts gate closes + SDK tears down) |
 | `NeurOneTests/SHDRUploaderTests.swift` | `setUp`/`tearDown` clear warranty key; `@MainActor` tests call `WarrantyAnalyticsGate.revoke()` |
 | `NeurOneTests/ConsentStoreTests.swift` | Test names updated to `withdrawBlanketResearchConsent` |
 | `app/ios/ISA.md` | Line 159: `withdrawBlanketConsent()` → `withdrawBlanketResearchConsent()` |

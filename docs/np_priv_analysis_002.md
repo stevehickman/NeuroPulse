@@ -94,7 +94,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 #### MEDIUM — AnalyticsGate: `isConfigured` static flag not reset on consent withdrawal; SDK runs silently
 
-**Where:** `app/ios/NeurOne/Analytics/AnalyticsGate.swift` — static `isConfigured` flag  
+**Where:** `app/ios/NeurOne/Analytics/ResearchAnalyticsGate.swift` — static `isConfigured` flag. (This finding was written against `AnalyticsGate.swift`, which was deleted by the 2026-06-16 research/warranty gate split — see NP-PRIV-KEYSPLIT-001. The gate it describes is now `ResearchAnalyticsGate`; `WarrantyAnalyticsGate` is the separate SHDR-upload gate and is not the subject of this finding.)  
 **Category:** Pure privacy failure  
 **Issue:** When a user withdraws consent, the `isOpen` property reads `false` from UserDefaults and `track()` no-ops correctly. However `isConfigured` remains `true` and the underlying analytics SDK (when a real vendor is selected at OI-AUDIT-01) continues running in whatever background mode it supports. Analytics SDKs commonly instrument app lifecycle events, crash events, and performance metrics passively without `track()` being called — this is exactly the pattern the FTC called out in the BetterHelp and GoodRx enforcement actions.  
 **Reference:** "Third-party Free-for-all" anti-pattern; FTC Act §5; FTC HBNR 16 CFR Part 318; GDPR Art. 7(3) (right to withdraw consent)  
