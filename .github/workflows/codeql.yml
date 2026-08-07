@@ -140,11 +140,22 @@ jobs:
     # --no-daemon: CodeQL traces compilation with preload_tracer. A reused Gradle daemon
     # can host the compile outside the traced process tree, producing an empty database
     # that still reports success.
+    #
+    # --no-build-cache: same failure shape, different cause. app/android/gradle.properties
+    # does not currently set org.gradle.caching, but if it ever does, cached compile task
+    # outputs would be replayed instead of recompiled — CodeQL would trace nothing, the
+    # database would be empty, and this job would still go green. A silently empty scan is
+    # worse than a red one, because it stops anyone from looking again. Costs nothing on a
+    # cold runner.
+    #
+    # If Kotlin extraction is ever empty despite a successful build, the next thing to try
+    # is -Dkotlin.compiler.execution.strategy=in-process: --no-daemon stops the *Gradle*
+    # daemon, but Kotlin still compiles in a separate KotlinCompileDaemon JVM.
     - name: Build Android project (:core + :app)
       if: matrix.language == 'java-kotlin'
       shell: bash
       working-directory: app/android
-      run: gradle :core:assemble :app:assembleDebug --no-daemon --stacktrace
+      run: gradle :core:assemble :app:assembleDebug --no-daemon --no-build-cache --stacktrace
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
