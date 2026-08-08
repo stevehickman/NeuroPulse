@@ -1,0 +1,191 @@
+name: Build All / Test All
+
+# The unscoped backstop for the per-PR path scoping in NP-SW-CI-001 §5.0/§5.5.
+#
+# There is NO `paths:` filter anywhere in this file, deliberately: this exists
+# to catch what scoped triggers structurally cannot.
+#
+#   1. Undeclared dependency edges.  If module A's build depends on module B and
+#      nobody put `firmware/B/**` in A's paths list, a change to B never
+#      triggers A.  A stays green forever while being broken.  The enumerated
+#      lists in safety-mcu-ci.yml and firmware-cross-build.yml are
+#      hand-maintained and WILL drift — that is not pessimism, it is the failure
+#      mode the firmware workflows have documented since day one.
+#   2. Rot from outside the repository.  Runner images update, actions publish
+#      new majors, the pinned toolchain gets yanked, an upstream SOUP dependency
+#      changes.  None of that is a code change, so no `paths:` filter can ever
+#      fire on it.  A repo with only scoped triggers can sit broken for months
+#      and look green, because nothing ran.
+#
+# It also re-checks the host-test PARTITION.  firmware-host-tests.yml was
+# absorbed and retired (OI-SWCI-09); its 25 targets were split 6 (Class C,
+# safety-mcu-ci.yml) + 19 (Class B, firmware-cross-build.yml).  Nothing in
+# either scoped workflow can see the other side of that split, so the weekly
+# run is the only place the arithmetic 6 + 19 = 25 is actually checked.  A
+# reduced target count that still shows green is precisely the failure mode
+# the absorption risked.
+#
+# ── Failure policy ────────────────────────────────────────────────────────────
+# A red build-all does not block any PR — it is not a PR check.  It means
+# something drifted, and it should be loud out-of-band rather than a status
+# badge nobody reads.  How that notification is delivered is OI-SWCI-10, still
+# open; until it is closed, this workflow's value depends on someone looking.
+#
+# ── Cadence ───────────────────────────────────────────────────────────────────
+# Weekly is the starting proposal, not a measured one.  Nightly costs more
+# runner minutes for a repo where firmware changes are not daily; weekly risks
+# up to seven days of undetected drift.  Revisit once there is a base rate for
+# how often it catches something.
+
+on:
+  schedule:
+    - cron: '0 6 * * 1'        # Mondays 06:00 UTC — one clean full build per week
+  workflow_dispatch:            # on demand, e.g. before a release or a tooling cut
+
+permissions:
+  contents: read
+
+env:
+  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock)_tests$'
+  NP_TOTAL_TEST_COUNT: '25'
+  NP_SAFETY_TEST_COUNT: '6'
+  NP_CLASS_B_TEST_COUNT: '19'
+
+jobs:
+  host-tests-all:
+    name: CMake host tests (25 targets, unfiltered)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake ninja-build gcc
+
+      - name: Configure (host test build)
+        run: |
+          cmake -B build/host-tests \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DNP_BUILD_TESTS=ON \
+                -DCMAKE_CROSSCOMPILING=OFF \
+                firmware
+
+      - name: Build
+        run: cmake --build build/host-tests
+
+      # The partition guard.  Asserts three things the scoped workflows cannot:
+      # the total is still 25, the two halves still sum to it, and they do not
+      # overlap.  Any of add-a-test / rename-a-test / broaden-the-regex trips
+      # this, which is the point.
+      - name: Assert host-test partition still sums to 25
+        run: |
+          count() { ctest --test-dir build/host-tests -N "$@" | sed -n 's/^Total Tests: //p'; }
+          names() { ctest --test-dir build/host-tests -N "$@" \
+                      | sed -n 's/^[[:space:]]*Test[[:space:]]*#[0-9]*:[[:space:]]*//p' | sort -u; }
+
+          total=$(count)
+          safety=$(count -R "$NP_SAFETY_TESTS")
+          classb=$(count -E "$NP_SAFETY_TESTS")
+          echo "total=${total} safety=${safety} classb=${classb}"
+
+          rc=0
+          [ "${total}"  = "${NP_TOTAL_TEST_COUNT}"   ] || { echo "::error::total is ${total}, expected ${NP_TOTAL_TEST_COUNT} — update all three workflows together."; rc=1; }
+          [ "${safety}" = "${NP_SAFETY_TEST_COUNT}"  ] || { echo "::error::safety-mcu-ci.yml selects ${safety}, expected ${NP_SAFETY_TEST_COUNT}."; rc=1; }
+          [ "${classb}" = "${NP_CLASS_B_TEST_COUNT}" ] || { echo "::error::firmware-cross-build.yml selects ${classb}, expected ${NP_CLASS_B_TEST_COUNT}."; rc=1; }
+          [ $(( safety + classb )) -eq "${total}" ] || { echo "::error::partition does not sum: ${safety} + ${classb} != ${total} — a target belongs to neither scoped workflow."; rc=1; }
+
+          names -R "$NP_SAFETY_TESTS" > /tmp/np-safety.txt
+          names -E "$NP_SAFETY_TESTS" > /tmp/np-classb.txt
+          names                       > /tmp/np-all.txt
+          comm -12 /tmp/np-safety.txt /tmp/np-classb.txt > /tmp/np-overlap.txt
+          if [ -s /tmp/np-overlap.txt ]; then
+            echo "::error::partition overlaps — these targets run in BOTH workflows:"; cat /tmp/np-overlap.txt; rc=1
+          fi
+          sort -u /tmp/np-safety.txt /tmp/np-classb.txt > /tmp/np-union.txt
+          if ! diff -u /tmp/np-all.txt /tmp/np-union.txt; then
+            echo "::error::a ctest target belongs to neither scoped workflow (diff above)."; rc=1
+          fi
+          exit $rc
+
+      - name: Run all tests
+        run: ctest --test-dir build/host-tests --output-on-failure --no-tests=error
+
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-all-host-test-results
+          path: build/host-tests/
+          retention-days: 7
+
+  safety-mcu-cross:
+    name: Safety MCU cross-compile (STM32G071, Class C)
+    runs-on: ubuntu-latest
+    # Mirrors safety-mcu-ci.yml's cross-build leg, minus the paths: filter.
+    # Also minus the `needs:` gate: this is the backstop, so it reports the
+    # target build state even on a week when a host test is red.
+    continue-on-error: true      # ← Phase 0 only; drop at phase 4
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM GNU toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '13.2.Rel1'
+      - name: Record toolchain version
+        run: arm-none-eabi-gcc --version
+      - name: Configure
+        run: |
+          cmake -B build/safety-mcu -G Ninja \
+                -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/firmware/cmake/stm32g071.cmake \
+                -DCMAKE_BUILD_TYPE=Release \
+                firmware/safety_mcu
+      # EXPECTED TO FAIL — Defect A (§4.1), STM32G0 CMSIS/HAL not vendored.
+      - name: Build
+        run: cmake --build build/safety-mcu
+
+  bootloader-cross:
+    name: Bootloader cross-compile (i.MX RT1062)
+    runs-on: ubuntu-latest
+    continue-on-error: true      # ← Phase 0 only; drop at phase 3
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM GNU toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '13.2.Rel1'
+      - name: Record toolchain version
+        run: arm-none-eabi-gcc --version
+      - name: Configure
+        run: |
+          cmake -B build/cross -G Ninja \
+                -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/firmware/cmake/arm-none-eabi.cmake \
+                -DCMAKE_BUILD_TYPE=Release \
+                firmware/bootloader
+      # EXPECTED TO FAIL — Defects B (§4.2) and C (§4.3).
+      - name: Build
+        run: cmake --build build/cross
+
+  main-firmware-cross:
+    name: Main firmware cross-compile (i.MX RT1062, Class B)
+    runs-on: ubuntu-latest
+    continue-on-error: true      # ← Phase 0 only; drop at phase 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM GNU toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '13.2.Rel1'
+      - name: Record toolchain version
+        run: arm-none-eabi-gcc --version
+      - name: Configure
+        run: |
+          cmake -B build/cross -G Ninja \
+                -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/firmware/cmake/arm-none-eabi.cmake \
+                -DCMAKE_BUILD_TYPE=Release \
+                firmware
+      # EXPECTED TO FAIL — see firmware-cross-build.yml's main-firmware leg.
+      - name: Build
+        run: cmake --build build/cross

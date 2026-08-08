@@ -78,8 +78,16 @@
 #   firmware/sloreta_hdtdcs/  → np_hd_fai_tests           (FAI montage + sLORETA algorithm)
 #   firmware/vendor/freertos/ → np_freertos_smoke_tests   (kernel + config, POSIX port)
 #
-# Every module listed above must also appear in the `paths:` filters of
-# .github/workflows/firmware-host-tests.yml, or edits to it run no CI.
+# Every module listed above must also appear in the `paths:` filters of the
+# workflow that owns its host tests, or edits to it run no CI.  Ownership is
+# split by IEC 62304 class (NP-SW-CI-001 §5.0.1 — the workflows are
+# self-contained because `needs:` only works within one workflow):
+#   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (6 targets, Class C)
+#   everything else above → .github/workflows/firmware-cross-build.yml (19 targets, Class B)
+# 6 + 19 = 25.  .github/workflows/build-all.yml re-checks that partition weekly
+# and fails if a target ever belongs to neither list.
+# (firmware-host-tests.yml was absorbed into the two above and retired —
+#  NP-SW-CI-001 §5.0.1, OI-SWCI-09.)
 
 cmake_minimum_required(VERSION 3.20)
 

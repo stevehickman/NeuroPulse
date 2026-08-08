@@ -1,0 +1,186 @@
+name: Safety MCU CI (STM32G071, Class C)
+
+# SW-01 Class C — the firmware that owns every stimulation enable GPIO.
+# Its own workflow rather than a matrix leg so its build status is a single
+# named check rather than something you read out of a mixed-class matrix
+# (NP-SW-CI-001 §5, OI-SWCI-03).
+#
+# Self-contained by construction: native host tests THEN the cross-compile,
+# in one file, because `needs:` only works within a single workflow
+# (NP-SW-CI-001 §5.0.1).  Crossing workflow boundaries would mean
+# `workflow_run`, which only fires on the default branch, runs in base-repo
+# context, and does not attach cleanly to a pull request's check list.
+#
+# ── Host-test targets owned by this workflow (6 of the repo's 25) ─────────────
+# Absorbed from the retired firmware-host-tests.yml (OI-SWCI-09).  These are
+# the firmware/safety_mcu/ targets registered by the NP_BUILD_TESTS branch of
+# firmware/CMakeLists.txt:
+#   np_safety_spi_proto_tests     (OI-SW01-M07-01)
+#   np_charge_monitor_tests       (OI-CHARGE-01)
+#   np_thermal_interlock_tests    (SW01-M04 NTC cutoff, NP-HW-HUB-001 §7.2)
+#   np_impedance_report_tests     (OI-CVNS-HUB-11)
+#   np_fault_latch_privacy_tests  (fault-latch privacy gate)
+#   np_cardiac_interlock_tests    (SW01-M05 Class C cardiac interlock)
+#
+# The remaining 19 belong to firmware-cross-build.yml.  6 + 19 = 25, disjoint;
+# build-all.yml re-checks that partition every week so the split cannot rot
+# into lost coverage.
+#
+# ── Keeping the `paths:` filters correct ──────────────────────────────────────
+# Per NP-SW-CI-001 §5.0 this triggers on what it actually builds, NOT on
+# `firmware/**`.  firmware/crypto/** is listed because np_crypto is linked into
+# np_safety_mcu (see firmware/safety_mcu/CMakeLists.txt) and is recorded as
+# Class C as well as Class B — a change there can genuinely break this build.
+# Dependencies count; proximity in the tree does not.
+#
+# The push: and pull_request: lists below MUST stay identical.  The duplication
+# is deliberate, not an oversight: the GitHub Actions workflow parser does not
+# support YAML anchors/aliases, so `&paths` / `*paths` cannot be used to
+# collapse the two.  When adding a path, edit BOTH lists.
+
+on:
+  push:
+    paths:
+      - 'firmware/safety_mcu/**'
+      - 'firmware/crypto/**'
+      - 'firmware/cmake/stm32g071.cmake'
+      - 'firmware/CMakeLists.txt'
+      - '.github/workflows/safety-mcu-ci.yml'
+  pull_request:
+    paths:
+      - 'firmware/safety_mcu/**'
+      - 'firmware/crypto/**'
+      - 'firmware/cmake/stm32g071.cmake'
+      - 'firmware/CMakeLists.txt'
+      - '.github/workflows/safety-mcu-ci.yml'
+  workflow_dispatch:
+
+# Least privilege.  Required for actions/checkout, which hard-fails without it
+# once the repository is private.  Matches every other workflow in the repo.
+# (actions/upload-artifact authenticates with ACTIONS_RUNTIME_TOKEN, not
+# GITHUB_TOKEN, so it needs no `actions:` permission.)
+permissions:
+  contents: read
+
+env:
+  # The six Class C host-test targets, as a ctest -R regex, and the count they
+  # must select.  The count assertion is the point: a silently-shrinking test
+  # selection is the OI-SWCI-09 failure mode, and `ctest` exits 0 on a subset
+  # just as happily as on the whole suite.
+  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock)_tests$'
+  NP_SAFETY_TEST_COUNT: '6'
+
+jobs:
+  host-tests:
+    name: Safety MCU host tests (6 targets)
+    runs-on: ubuntu-latest
+    # Deliberately NOT continue-on-error.  These six targets were a blocking
+    # check under firmware-host-tests.yml; Phase 0's reporting-only mandate
+    # covers the NEW cross-compile verification below, not the coverage this
+    # workflow absorbed.  Downgrading them here would be a silent regression.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake ninja-build gcc
+
+      # Configured from the firmware super-project, not from firmware/safety_mcu
+      # directly: the six add_test() registrations live in the NP_BUILD_TESTS
+      # branch of firmware/CMakeLists.txt, while firmware/safety_mcu/CMakeLists.txt
+      # only add_executable()s them.  Pointing cmake at the subdirectory would
+      # build six binaries and register zero ctest tests.
+      - name: Configure (host test build)
+        run: |
+          cmake -B build/host-tests \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DNP_BUILD_TESTS=ON \
+                -DCMAKE_CROSSCOMPILING=OFF \
+                firmware
+
+      - name: Build
+        run: cmake --build build/host-tests
+
+      # Guard against selection drift before running anything: if the regex
+      # stops matching the six targets — renamed target, deleted test, typo —
+      # this fails loudly instead of reporting green over a shrunken suite.
+      - name: Assert test selection covers all 6 targets
+        run: |
+          ctest --test-dir build/host-tests -N -R "$NP_SAFETY_TESTS" | tee selection.txt
+          selected=$(sed -n 's/^Total Tests: //p' selection.txt)
+          echo "selected=${selected} expected=${NP_SAFETY_TEST_COUNT}"
+          if [ "${selected}" != "${NP_SAFETY_TEST_COUNT}" ]; then
+            echo "::error::ctest selection drift — expected ${NP_SAFETY_TEST_COUNT} safety-MCU targets, matched ${selected}."
+            exit 1
+          fi
+
+      - name: Run tests
+        run: |
+          ctest --test-dir build/host-tests \
+                -R "$NP_SAFETY_TESTS" \
+                --output-on-failure --no-tests=error
+
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safety-mcu-host-test-results
+          path: build/host-tests/
+          retention-days: 7
+
+  cross-build:
+    name: Cross-compile (STM32G071, Cortex-M0+)
+    runs-on: ubuntu-latest
+    # A genuine native counterpart exists for this code, so §5.0.1 applies:
+    # do not spend runner minutes cross-compiling what already failed natively.
+    needs: host-tests
+    continue-on-error: true      # ← Phase 0 only; drop at phase 4
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ARM GNU toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '13.2.Rel1'
+
+      # Pinned rather than `latest` so a toolchain change is a reviewable commit
+      # and not an unexplained red build.  Must satisfy the
+      # NP_ARM_GCC_MIN_VERSION 12.3 gate in firmware/cmake/arm-none-eabi.cmake.
+      - name: Record toolchain version
+        run: arm-none-eabi-gcc --version
+
+      - name: Configure
+        run: |
+          cmake -B build/safety-mcu -G Ninja \
+                -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/firmware/cmake/stm32g071.cmake \
+                -DCMAKE_BUILD_TYPE=Release \
+                firmware/safety_mcu
+
+      # EXPECTED TO FAIL — NP-SW-CI-001 §4.1, Defect A: np_safety_config.h maps
+      # the stimulation enable lines to CMSIS symbols (GPIOA/GPIOB) that nothing
+      # in-tree defines, because the STM32G0 CMSIS/HAL is not vendored yet.
+      # Closing that is phase 4 (§9.4 — Class C SOUP, OI-SWCI-06).
+      #
+      # Not piped through `tail`/`grep`: `cmd | tail` reports tail's exit status,
+      # which masked a failure during the §3 measurements.
+      - name: Build
+        run: cmake --build build/safety-mcu
+
+      - name: Report image size
+        if: success()
+        run: find build/safety-mcu -name '*.elf' | xargs -r arm-none-eabi-size
+
+      - name: Upload map and logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safety-mcu-build
+          path: |
+            build/safety-mcu/**/*.map
+            build/safety-mcu/**/CMakeFiles/*.log
+          retention-days: 7
+          if-no-files-found: ignore
