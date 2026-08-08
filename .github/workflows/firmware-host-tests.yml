@@ -41,6 +41,25 @@ name: Firmware Host Unit Tests
 # The duplication is deliberate, not an oversight: the GitHub Actions workflow
 # parser does not support YAML anchors/aliases, so `&paths` / `*paths` cannot be
 # used to collapse the two lists.  When adding a module, edit BOTH lists.
+#
+# ── Modules deliberately NOT listed (do not "fix" this) ───────────────────────
+# firmware/bootloader and firmware/hrv_biofeedback are absent from the paths
+# lists ON PURPOSE.  Read "by the NP_BUILD_TESTS branch" above literally: that
+# branch (firmware/CMakeLists.txt:122-242) ends in return(), so every
+# add_subdirectory() below line 243 — bootloader and hrv_biofeedback among them —
+# is cross-compile-only and is never reached by this workflow's configuration.
+# bootloader/CMakeLists.txt:33 hard-errors under `if(NOT CMAKE_CROSSCOMPILING)`
+# and requires arm-none-eabi-objcopy/-size, which this runner does not have.
+#
+# Adding them here would fire a job that returns before compiling them: a green
+# check that proves nothing about the code that changed.  That is strictly worse
+# than the current honest silence.  An audit that greps ALL add_subdirectory()
+# calls rather than only the NP_BUILD_TESTS branch will report these two as
+# missing coverage — that audit is wrong, and this note exists because one did.
+#
+# The real gap they represent is that the repo has NO ARM cross-compile CI job,
+# so nothing proves the firmware builds for its target at all.  Closing that is
+# a new job, not a paths edit.
 
 on:
   push:
@@ -82,6 +101,14 @@ on:
       - 'firmware/cmake/**'
       - '.github/workflows/firmware-host-tests.yml'
   workflow_dispatch:
+
+# Least privilege. Every job here only checks out the repo and builds/tests it;
+# nothing reads GITHUB_TOKEN, calls the API, or publishes. contents:read is what
+# actions/checkout needs and is therefore the complete required scope.
+# (actions/upload-artifact authenticates with ACTIONS_RUNTIME_TOKEN, not
+# GITHUB_TOKEN, so it needs no `actions:` permission.)
+permissions:
+  contents: read
 
 jobs:
   firmware-host-tests:

@@ -16,6 +16,12 @@ on:
       - 'app/NeurOneShared/**'
   workflow_dispatch:
 
+# Least privilege. This build gate only checks out the repo and compiles it;
+# nothing reads GITHUB_TOKEN, calls the API, or publishes. contents:read is what
+# actions/checkout needs and is therefore the complete required scope.
+permissions:
+  contents: read
+
 jobs:
   watchos-build:
     name: xcodebuild build — NeurOneWatch

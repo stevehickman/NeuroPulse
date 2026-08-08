@@ -19,6 +19,20 @@ on:
   schedule:
     - cron: '33 15 * * 4'
 
+# Least privilege, workflow-level default: deny everything.
+#
+# This is the one workflow in the repo that genuinely needs a write scope
+# (security-events: write, to upload SARIF), so unlike the other seven it cannot
+# just declare `contents: read` at the top. Instead the default is an empty map —
+# every permission set to `none` — and the `analyze` job below re-grants exactly
+# what CodeQL requires. That is the correct shape when per-job scopes exist: the
+# job's grant becomes the ONLY grant, and a job added to this file later starts
+# from zero rather than inheriting the repository default.
+#
+# Do not "simplify" this to `contents: read`; that would silently widen the
+# baseline for every future job here.
+permissions: {}
+
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})

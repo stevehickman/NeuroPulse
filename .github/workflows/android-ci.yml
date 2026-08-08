@@ -25,6 +25,13 @@ on:
       - '.github/workflows/android-ci.yml'
   workflow_dispatch:
 
+# Least privilege. This job only checks out the repo and builds/tests it; nothing
+# reads GITHUB_TOKEN, calls the API, or publishes. contents:read is what
+# actions/checkout needs and is therefore the complete required scope.
+# (actions/upload-artifact authenticates with ACTIONS_RUNTIME_TOKEN, not
+# GITHUB_TOKEN, so it needs no `actions:` permission. gradle/actions/setup-gradle
+# would need contents:write only for `dependency-graph: generate-and-submit`,
+# which this workflow does not enable.)
 permissions:
   contents: read
 
