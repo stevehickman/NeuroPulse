@@ -5,10 +5,14 @@ name: Android CI (Gradle)
 # runner is sufficient and cheap. Add a separate connectedCheck job on a
 # macOS/KVM runner only if instrumented (androidTest) tests are ever added.
 #
-# Gradle is provisioned by gradle/actions/setup-gradle (gradle-version), so this
-# job does NOT depend on a committed wrapper — it is green from the first run.
-# Once app/android/gradlew + gradle/wrapper/gradle-wrapper.jar are committed, the
-# run steps below may be switched from `gradle` to `./gradlew` if preferred.
+# Gradle is provisioned by gradle/actions/setup-gradle (gradle-version) rather than
+# by the wrapper. The wrapper IS committed (app/android/gradlew +
+# gradle/wrapper/gradle-wrapper.jar, pinned to the same 8.11.1), so the run steps
+# below could be switched from `gradle` to `./gradlew`; pinning the version here
+# instead keeps the CI toolchain explicit and independent of the checked-in wrapper.
+#
+# .github/workflows/codeql.yml provisions the same toolchain for its java-kotlin
+# leg. Keep the JDK, SDK, and Gradle versions in the two files in sync.
 
 on:
   push:

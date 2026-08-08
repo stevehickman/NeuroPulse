@@ -49,8 +49,16 @@ jobs:
           build-mode: none
         - language: csharp
           build-mode: none
+        # 'manual', not 'autobuild': CodeQL's Java autobuilder runs from the source
+        # root, and this repo's root holds no JVM build file — the Gradle project is
+        # at app/android/. Autobuild therefore exits with "Could not detect a suitable
+        # build command for the source checkout" and the job ends as a configuration
+        # error. The explicit build steps below compile it instead. Buildless
+        # ('none') would also go green, but CodeQL notes that buildless extraction
+        # "will generally yield less accurate analysis results", and app/android holds
+        # the BLE, consent, and session-data code — worth a real build.
         - language: java-kotlin
-          build-mode: autobuild
+          build-mode: manual
         - language: javascript-typescript
           build-mode: none
         - language: python
@@ -69,11 +77,38 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v7
 
-    # Add any setup steps before running the `github/codeql-action/init` action.
-    # This includes steps like installing compilers or runtimes (`actions/setup-node`
-    # or others). This is typically only required for manual builds.
-    # - name: Setup runtime (example)
-    #   uses: actions/setup-example@v1
+    # Setup steps for the 'manual' java-kotlin build below. These MUST run before
+    # `github/codeql-action/init` — CodeQL resolves the toolchain at init time.
+    #
+    # Every step here is gated on the java-kotlin leg: the other six languages in the
+    # matrix are all build-mode 'none' and need no toolchain, so an ungated step would
+    # add minutes of Android SDK download to six jobs that are already green.
+    #
+    # The versions mirror .github/workflows/android-ci.yml, which builds this same
+    # Gradle project successfully on ubuntu-latest. Keep the two in sync.
+
+    - name: Set up JDK 17
+      if: matrix.language == 'java-kotlin'
+      uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: '17'   # AGP 8.9.3 requires JDK 17
+
+    - name: Set up Android SDK
+      if: matrix.language == 'java-kotlin'
+      uses: android-actions/setup-android@v3
+
+    - name: Install SDK packages (compileSdk 36 + build-tools + platform-tools)
+      if: matrix.language == 'java-kotlin'
+      run: |
+        yes | sdkmanager --licenses >/dev/null || true
+        sdkmanager "platforms;android-36" "build-tools;35.0.0" "platform-tools"
+
+    - name: Set up Gradle 8.11.1
+      if: matrix.language == 'java-kotlin'
+      uses: gradle/actions/setup-gradle@v4
+      with:
+        gradle-version: '8.11.1'   # AGP 8.9.3 requires Gradle >= 8.11.1
 
     # Initializes the CodeQL tools for scanning.
     - name: Initialize CodeQL
@@ -88,22 +123,39 @@ jobs:
         # For more details on CodeQL's query packs, refer to: https://docs.github.com/en/code-security/code-scanning/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#using-queries-in-ql-packs
         # queries: security-extended,security-and-quality
 
-    # If the analyze step fails for one of the languages you are analyzing with
-    # "We were unable to automatically build your code", modify the matrix above
-    # to set the build mode to "manual" for that language. Then modify this step
-    # to build your code.
-    # ℹ️ Command-line programs to run using the OS shell.
-    # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - name: Run manual build steps
-      if: matrix.build-mode == 'manual'
+    # Manual build for java-kotlin. Must run AFTER init (so CodeQL is tracing) and
+    # BEFORE analyze (which needs a populated database).
+    #
+    # Gated on the language, not just `build-mode == 'manual'`: if another language is
+    # ever switched to manual, it must get its own step rather than silently inheriting
+    # a Gradle command that has nothing to do with it.
+    #
+    # `:core` is a plain kotlin("jvm") + java-library module, so it has NO assembleDebug
+    # task — `:core:assemble` is its equivalent. `:app:assembleDebug` pulls :core in
+    # anyway via implementation(project(":core")); naming it explicitly keeps the trace
+    # unambiguous. Main sources only: the 19 test sources are compiled and run by
+    # android-ci.yml, and coupling the security scan to test-code health would make a
+    # red CodeQL check mean two unrelated things.
+    #
+    # --no-daemon: CodeQL traces compilation with preload_tracer. A reused Gradle daemon
+    # can host the compile outside the traced process tree, producing an empty database
+    # that still reports success.
+    #
+    # --no-build-cache: same failure shape, different cause. app/android/gradle.properties
+    # does not currently set org.gradle.caching, but if it ever does, cached compile task
+    # outputs would be replayed instead of recompiled — CodeQL would trace nothing, the
+    # database would be empty, and this job would still go green. A silently empty scan is
+    # worse than a red one, because it stops anyone from looking again. Costs nothing on a
+    # cold runner.
+    #
+    # If Kotlin extraction is ever empty despite a successful build, the next thing to try
+    # is -Dkotlin.compiler.execution.strategy=in-process: --no-daemon stops the *Gradle*
+    # daemon, but Kotlin still compiles in a separate KotlinCompileDaemon JVM.
+    - name: Build Android project (:core + :app)
+      if: matrix.language == 'java-kotlin'
       shell: bash
-      run: |
-        echo 'If you are using a "manual" build mode for one or more of the' \
-          'languages you are analyzing, replace this with the commands to build' \
-          'your code, for example:'
-        echo '  make bootstrap'
-        echo '  make release'
-        exit 1
+      working-directory: app/android
+      run: gradle :core:assemble :app:assembleDebug --no-daemon --no-build-cache --stacktrace
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v4
