@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** A  
-**Date:** 2026-08-06  
+**Revision:** B  
+**Date:** 2026-08-08  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -13,7 +13,7 @@
 **Gate:** —  
 **IEC 62304 Class:** SW-01 Class C (safety MCU), SW-02 Class B (main processor)  
 **Supersedes:** None  
-**Change Summary:** Initial revision. Establishes that no CI verifies the firmware cross-compiles for its target, records three measured blocking defects, and specifies a phased cross-compile workflow.  
+**Change Summary:** Rev B (2026-08-08) — adds §9 recording the decision to vendor all SDKs in-tree, which closes OI-SWCI-01 and unblocks phases 4 and 5. Flags that the STM32G0 CMSIS/HAL is Class C SOUP and therefore carries the IEC 62304 §7.1.2 anomaly-list obligation, and raises OI-SWCI-06 (CMSIS device headers only vs full ST HAL). No change to the measured defects in §4 or the workflow in §5. Rev A (2026-08-06) — initial revision: establishes that no CI verifies the firmware cross-compiles for its target, records three measured blocking defects, and specifies a phased cross-compile workflow.  
 **Review Cadence:** On each phase transition in §6, and on any change to `firmware/cmake/*.cmake`
 
 ---
@@ -197,17 +197,18 @@ A permanently red required check trains reviewers to ignore it, which is worse t
 | 5 | Populate `NP_PLATFORM_INCLUDE_DIRS` with the MCUX SDK path — currently an empty stub in `firmware/CMakeLists.txt` | Main firmware leg builds; drop its `experimental` |
 | 6 | Add the three legs to branch protection as required checks | Cross-compile regressions become unmergeable |
 
-Phases 4 and 5 both mean bringing a vendor SDK into the build, which is an SOUP decision with design-control consequences. FreeRTOS is the existing precedent — vendored in `firmware/vendor/freertos/` and recorded as Class B SOUP under NP-SW-001 — and MCUX SDK and STM32G0 CMSIS would follow that pattern if vendored.
+Phases 4 and 5 both mean bringing a vendor SDK into the build, which is an SOUP decision with design-control consequences. That decision is now made — see §9.
 
 ## 7. Open items
 
 | ID | Item | Owner | Blocking |
 |----|------|-------|----------|
-| OI-SWCI-01 | Vendored or fetched SDKs? FreeRTOS sets a vendoring precedent; fetching at build time is lighter but adds a network dependency and supply-chain surface to a medical-device build | Quality / Firmware | Phases 4, 5 |
+| ~~OI-SWCI-01~~ | ~~Vendored or fetched SDKs?~~ **CLOSED 2026-08-08 — vendored in all cases.** See §9 | Quality / Firmware | ~~Phases 4, 5~~ |
 | OI-SWCI-02 | Is 448 KiB app staging a hard requirement, or can it drop to 440 KiB to make room for the 8 KiB stack? Product constraint, not a build one | Firmware / Product | Phase 2 |
 | OI-SWCI-03 | Should the Class C safety MCU get its own workflow rather than a matrix leg? Separate project, separate toolchain, different 62304 class — a dedicated workflow makes its status legible at a glance, which has audit value | Quality | Phase 4 |
 | OI-SWCI-04 | Required-check policy: all PRs, or `main` only? Branch protection is an admin setting outside the repository | Steve | Phase 6 |
 | OI-SWCI-05 | `firmware/hrv_biofeedback` has no test target at all, only a static library. Whether it warrants host tests alongside cross-compile coverage is a separate question this plan does not answer | Firmware | — |
+| OI-SWCI-06 | For the safety MCU: vendor CMSIS device headers only (register/bit definitions — essentially a hardware description) or the full ST HAL drivers (substantive third-party logic)? Different Class C SOUP consequences under IEC 62304 §7.1.2. Opened by the §9 vendoring decision | Quality / Firmware | Phase 4 |
 
 ## 8. Traceability
 
@@ -217,3 +218,41 @@ Phases 4 and 5 both mean bringing a vendor SDK into the build, which is an SOUP 
 | SW-01 Class C firmware builds for STM32G071 | NP-SW-001 Rev C | Matrix leg 1, phase 4 |
 | Bootloader fits its OCRAM allocation | `bootloader_imxrt1062.ld` ASSERT | Matrix leg 2, phase 3 |
 | Host-native logic verified | NP-SW-001 Rev C | `firmware-host-tests.yml` (existing, unchanged) |
+
+## 9. Vendoring decision (closes OI-SWCI-01)
+
+**Decision (2026-08-08, Steve Hickman): vendor SDKs in-tree in all cases.** No build-time fetching of MCUX SDK, STM32G0 CMSIS/HAL, or any future third-party SDK.
+
+### 9.1 Rationale
+
+A build that reaches the network is not reproducible, and a medical-device build that reaches the network has a supply-chain surface that has to be assessed and re-assessed. Vendoring makes the exact bytes that went into a release part of the design record, reviewable in a diff and recoverable from the repository alone. It is also what the repo already does twice over, so this is consistency rather than novelty.
+
+### 9.2 Existing precedents to follow
+
+| Component | Location | SOUP record | Class |
+|-----------|----------|-------------|-------|
+| FreeRTOS-Kernel V11.3.0 | `firmware/vendor/freertos/` | `VERSION` + `README-NEURONE.md`; NP-SW-001 §9.4 | SW-02 Class B |
+| Monocypher 4.0.2 | `firmware/crypto/vendor/monocypher/` | `VERSION` (IEC 62304 §8.1.2 header, per-file provenance) | Class B + Class C |
+
+The FreeRTOS record is the stronger template because it does two things the new SDKs also need: it declares a **byte-exact subset** of a named upstream tag, and it declares explicitly what was **intentionally not vendored** and why. The second half is what stops a later reader assuming an omission is an oversight.
+
+### 9.3 Obligations this creates
+
+Vendoring is not just copying files in. Each SDK brought in under this decision needs:
+
+1. **A `VERSION` SOUP record** in the vendored directory, following the Monocypher header format — component, version, upstream URL, exact tag, license, SW item, IEC 62304 class, vendoring date.
+2. **A byte-exact subset from a named upstream tag**, with the "intentionally NOT vendored" list spelled out, per the FreeRTOS pattern. Vendor only what the build actually needs — the full MCUX SDK for MIMXRT1062 is large, and pulling all of it in would bloat the repository and widen the SOUP surface for no benefit.
+3. **A SOUP entry in NP-SW-001**, alongside the existing §9.4 FreeRTOS entry.
+4. **A document-register entry** in `docs/status/document-register.md`.
+
+### 9.4 Consequence worth flagging: the STM32G0 CMSIS/HAL is Class C SOUP
+
+The two existing vendored components are Class B (FreeRTOS) and Class B + C (Monocypher, already handled as such). **The STM32G0 CMSIS/HAL headers feed the safety MCU, which is SW-01 Class C** — the software that owns every stimulation enable GPIO.
+
+SOUP in Class C software carries a higher bar under IEC 62304 than the Class B case: the anomaly-list evaluation under §7.1.2 applies, and the published anomaly list for the SDK version has to be reviewed for defects that could contribute to a hazardous situation, with the review recorded. That is a real activity with a real cost, and it is a consequence of this decision rather than a consequence of the CI work that surfaced it.
+
+Two things follow. First, vendor the **narrowest possible subset** for the safety MCU — the register/bit definitions `np_safety_config.h` actually needs, not the whole HAL, since every vendored file is SOUP surface that has to be justified. Second, whether to vendor CMSIS device headers only (register definitions, essentially a hardware description) versus the full ST HAL drivers (substantive third-party logic) is a genuine engineering choice with different Class C consequences, and should be decided deliberately rather than by whichever is easier to copy. This is raised as OI-SWCI-06.
+
+### 9.5 What this unblocks
+
+Phases 4 and 5 in §6 are no longer blocked on a decision — they are now ordinary work items, gated only on the vendoring being performed to the standard in §9.3. Phase 0 (the workflow itself) never depended on this and can proceed independently.
