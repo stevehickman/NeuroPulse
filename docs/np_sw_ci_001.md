@@ -8,7 +8,7 @@
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved By:** — (DRAFT, not approved)  
-**References:** NP-SW-001 Rev C (Software Development Plan), NP-FW-EMMC-001 Rev A (bootloader boot sequence), NP-FW-CVNS-001 Rev A (safety MCU interlock), `.github/workflows/firmware-host-tests.yml`  
+**References:** NP-SW-001 Rev C (Software Development Plan), NP-FW-EMMC-001 Rev A (bootloader boot sequence), NP-FW-CVNS-001 Rev A (safety MCU interlock), `.github/workflows/firmware-host-tests.yml` (retired 2026-08-08, Phase 0 — see §6.1)  
 **Related Issues:** PR #250 (workflow least-privilege pass — where this gap was found)  
 **Gate:** —  
 **IEC 62304 Class:** SW-01 Class C (safety MCU), SW-02 Class B (main processor)  
@@ -26,9 +26,11 @@ This plan covers **build verification for the cross-compiled firmware targets** 
 
 In scope: the i.MX RT1062 main-processor firmware (SW-02 Class B), the STM32G071 safety MCU firmware (SW-01 Class C), and the dual-bank OTA bootloader.
 
-Out of scope: flashing, on-target execution, and hardware-in-the-loop testing. This plan verifies that the firmware **builds**, nothing more. Host-native unit testing is already covered by `firmware-host-tests.yml` and is not restated here.
+Out of scope: flashing, on-target execution, and hardware-in-the-loop testing. This plan verifies that the firmware **builds**, nothing more. Host-native unit testing is not restated here — as of Phase 0 it lives in the `host-tests` job of each of the two scoped workflows, absorbed from the retired `firmware-host-tests.yml` (§5.0.1, §6.1).
 
 ## 2. The gap
+
+> **Historical as of Phase 0 (2026-08-08).** This section records the state that motivated the plan. The workflows described in §5 now exist and `firmware-host-tests.yml` is retired — see §6.1. Points 1 and 2 below remain true of the *code*; point 3's "nothing anywhere builds them" is closed.
 
 The repository has one firmware workflow, `.github/workflows/firmware-host-tests.yml`. It configures with `-DNP_BUILD_TESTS=ON -DCMAKE_CROSSCOMPILING=OFF`, builds 13 modules host-native, and runs 25 ctest targets. That verifies *logic*. It does not verify that any of it builds for the target, because:
 
@@ -117,7 +119,7 @@ Note also that the application executes *from OCRAM*: `load_and_jump()` copies t
 
 ## 5. Specified workflows
 
-**Two** new workflow files, not one. The Class C safety MCU gets its own workflow rather than a matrix leg — decision 2026-08-08, closing OI-SWCI-03.
+**Two** scoped workflow files, not one, plus the unscoped `build-all.yml` backstop in §5.5 — three files in total. The Class C safety MCU gets its own workflow rather than a matrix leg — decision 2026-08-08, closing OI-SWCI-03.
 
 | Workflow | Covers | Class |
 |----------|--------|-------|
@@ -405,7 +407,7 @@ A permanently red required check trains reviewers to ignore it, which is worse t
 
 | Phase | Workflow | Action | Exit criterion |
 |-------|----------|--------|----------------|
-| 0 | both | Land `firmware-cross-build.yml` (2 legs) and `safety-mcu-ci.yml` (1 job), all with `continue-on-error: true` | Jobs run, log the three known failures, block nothing |
+| ~~0~~ | both | ~~Land `firmware-cross-build.yml` and `safety-mcu-ci.yml`, cross-build legs `continue-on-error: true`~~ **COMPLETE 2026-08-08** | ~~Jobs run, log the known failures, block nothing~~ **Met — see §6.1** |
 | 1 | cross-build | Fix Defect B (bootloader C runtime) | Bootloader link resolves `memcpy`/`memset` |
 | 2 | cross-build | Fix Defect C (OCRAM arithmetic) — see §4.3; the linker script **and** the duplicate constant in `np_main.c` | Bootloader links; `--print-memory-usage` under 100% |
 | 3 | cross-build | Drop `continue-on-error` on the bootloader leg | Bootloader leg blocking |
@@ -416,6 +418,26 @@ A permanently red required check trains reviewers to ignore it, which is worse t
 Phase 4 is independent of phases 1–3 and 5 and can be worked in parallel — giving the safety MCU its own workflow is what makes that separation clean.
 
 Phases 4 and 5 both mean bringing a vendor SDK into the build, which is an SOUP decision with design-control consequences. That decision is now made — see §9.
+
+### 6.1 Phase 0 as implemented (2026-08-08)
+
+Three workflows landed, not two: §5's table covers the two scoped ones, and §5.5's `build-all.yml` is the third.
+
+| File | Jobs | Blocking? |
+|------|------|-----------|
+| `safety-mcu-ci.yml` | `host-tests` (6 Class C targets) → `cross-build` (`needs: host-tests`) | host-tests yes; cross-build no |
+| `firmware-cross-build.yml` | `host-tests` (19 Class B targets) → `main-firmware` (`needs: host-tests`); `bootloader` unconditional | host-tests yes; cross legs no |
+| `build-all.yml` | `host-tests-all` (25, unfiltered, + partition guard), `safety-mcu-cross`, `bootloader-cross`, `main-firmware-cross` | not a PR check |
+
+**`firmware-host-tests.yml` is retired** (OI-SWCI-09). Its 25 ctest targets were partitioned 6 + 19 across the two scoped workflows — disjoint, union verified equal to the original 25-name list. Two things make the split self-detecting rather than audit-dependent: each scoped workflow asserts its own selected-target count before running anything, and `build-all.yml` re-checks the whole partition (total = 25, 6 + 19 = 25, no overlap, no orphan) every week. That is a partial down-payment on OI-SWCI-08 for the ctest axis; the `paths:`-vs-build-graph axis is still open.
+
+**The host-test jobs are NOT `continue-on-error`.** Phase 0's reporting-only mandate covers the *new* cross-compile verification. `firmware-host-tests.yml` was a blocking check, and making its successor non-blocking during absorption would have been exactly the silent coverage regression OI-SWCI-09 warned about.
+
+**Verified before retirement:** `main` carries no branch-protection object and the sole ruleset (`Safety`) has an empty rules array, so no required status check referenced `CMake host tests (25 targets)`. Retiring the workflow could not wedge merges.
+
+**Defect D (new, undocumented in §4).** §4 row 4 records the main-firmware super-project as "fails at bootloader; remainder never attempted" — measured under a sequential generator. Under Ninja it fails *first* at `firmware/hub_control/modules/np_mod_pbm.c:112`, `implicit declaration of function 'np_pbm1064_dose_load_cal'` (did you mean `np_pbm1064_dose_load_cal_stub`?). With `-k 0` both that and the bootloader link failure appear. This is a fourth blocking defect, independent of A, B and C; the main-firmware leg therefore carries diagnostic value the bootloader leg does not. Not fixed here — it is a firmware change needing design review. Raised as OI-SWCI-12.
+
+**Also still stale:** references to `firmware-host-tests.yml` remain in `docs/np_sw_001.md`, `docs/np_dhf_001.md`, `docs/status/pending-decisions.md`, `docs/status/document-register.md` and `docs/status/completed-decisions.md`. The in-repo section-ref guard does not validate workflow filenames, so nothing fails on them. Sweeping them is OI-SWCI-13.
 
 ## 7. Open items
 
@@ -429,7 +451,9 @@ Phases 4 and 5 both mean bringing a vendor SDK into the build, which is an SOUP 
 | OI-SWCI-06 | For the safety MCU: vendor CMSIS device headers only (register/bit definitions — essentially a hardware description) or the full ST HAL drivers (substantive third-party logic)? Different Class C SOUP consequences under IEC 62304 §7.1.2. Opened by the §9 vendoring decision | Quality / Firmware | Phase 4 |
 | ~~OI-SWCI-07~~ | ~~Move the six safety-MCU host-test targets into `safety-mcu-ci.yml`?~~ **CLOSED 2026-08-08 — yes, forced by the §5.0.1 ordering decision.** `needs:` only works within one workflow, so each workflow must be self-contained | Quality / Firmware | ~~—~~ |
 | OI-SWCI-08 | Build a guard that fails CI when a module in the CMake build graph is missing from the corresponding workflow's `paths:` list, making enumerated-path drift self-detecting rather than audit-dependent. `scripts/check-section-refs.ts` is the in-repo precedent for this shape of guard | Firmware | — |
-| OI-SWCI-09 | Sequence the absorption and retirement of `firmware-host-tests.yml` into the two self-contained workflows (§5.0.1) without losing coverage. It is currently green and working; its job name, `25 targets` count and header inventory must move with it. Highest-risk item in this plan — it is the only one that touches something already working | Firmware | Phase 0 |
+| ~~OI-SWCI-09~~ | ~~Sequence the absorption and retirement of `firmware-host-tests.yml`~~ **CLOSED 2026-08-08 — absorbed and retired in Phase 0.** 25 targets partitioned 6 + 19, union verified identical to the original list, per-workflow count assertions plus a weekly partition guard added so the split is self-detecting. See §6.1 | Firmware | ~~Phase 0~~ |
+| OI-SWCI-12 | **Defect D (new).** `firmware/hub_control/modules/np_mod_pbm.c:112` calls `np_pbm1064_dose_load_cal`, which is not declared — `-Wimplicit-function-declaration` makes it a hard error in the cross build. Nearest in-scope symbol is `np_pbm1064_dose_load_cal_stub`. Independent of Defects A/B/C; blocks the main-firmware leg before the bootloader is reached under Ninja. Firmware change, needs design review | Firmware | Phase 5 |
+| OI-SWCI-13 | Sweep the five documents still citing the retired `firmware-host-tests.yml` (`np_sw_001.md`, `np_dhf_001.md`, `status/pending-decisions.md`, `status/document-register.md`, `status/completed-decisions.md`). The section-ref guard does not validate workflow filenames, so nothing fails on them | Quality | — |
 | OI-SWCI-10 | How should a red `build-all` be surfaced? It is not a PR check and blocks nothing, so a status badge nobody reads is not sufficient — it needs an out-of-band notification | Steve | Phase 0 |
 | OI-SWCI-11 | Per-PR ctest granularity: should a change to one module run only that module's ctest targets, or is the full 25-target host suite cheap enough that selection adds drift risk for no gain? The §5.0 principle argues for selection; the suite's runtime may argue against. Measure before deciding | Firmware | — |
 
@@ -440,7 +464,9 @@ Phases 4 and 5 both mean bringing a vendor SDK into the build, which is an SOUP 
 | SW-02 Class B firmware builds for i.MX RT1062 | NP-SW-001 Rev C | `firmware-cross-build.yml` — main firmware leg, phase 5 |
 | SW-01 Class C firmware builds for STM32G071 | NP-SW-001 Rev C | `safety-mcu-ci.yml`, phase 4 |
 | Bootloader fits its OCRAM allocation | `bootloader_imxrt1062.ld` ASSERT | `firmware-cross-build.yml` — bootloader leg, phase 3 |
-| Host-native logic verified | NP-SW-001 Rev C | `firmware-host-tests.yml` (existing, unchanged) |
+| Host-native logic verified (Class B, 19 targets) | NP-SW-001 Rev C | `firmware-cross-build.yml` — `host-tests` job |
+| Host-native logic verified (Class C, 6 targets) | NP-SW-001 Rev C | `safety-mcu-ci.yml` — `host-tests` job |
+| Host-test partition remains complete (6 + 19 = 25) | OI-SWCI-09 | `build-all.yml` — `host-tests-all` partition guard, weekly |
 
 ## 9. Vendoring decision (closes OI-SWCI-01)
 

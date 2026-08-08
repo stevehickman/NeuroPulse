@@ -1,0 +1,308 @@
+name: Firmware Cross-Compile (ARM)
+
+# SW-02 Class B — i.MX RT1062 main processor firmware and the dual-bank OTA
+# bootloader, plus the 19 Class B host-test targets absorbed from the retired
+# firmware-host-tests.yml (NP-SW-CI-001 §5.0.1, OI-SWCI-09).
+#
+# Self-contained by construction: native host tests THEN the cross-compile, in
+# one file, because `needs:` only works within a single workflow.  Crossing
+# workflow boundaries would mean `workflow_run`, which only fires on the default
+# branch, runs in base-repo context, and does not attach cleanly to a pull
+# request's check list — fragile in exactly the situation the gate exists for.
+#
+# ── Host-test targets owned by this workflow (19 of the repo's 25) ────────────
+# Registered by the NP_BUILD_TESTS branch of firmware/CMakeLists.txt:
+#   firmware/crypto          → np_crypto_tests   (SHA-256/512, CRC-32, Ed25519)
+#   firmware/anon            → np_anon_tests     (Scratch encryption)
+#   firmware/edf             → np_edf_tests      (EDF+ privacy header)
+#   firmware/factory_reset   → np_factory_reset_tests (device reset)
+#   firmware/uhdr_key        → np_uhdr_key_tests (two-layer UHDR key, §C)
+#   firmware/ota             → np_ota_tests      (OTA state CRC + rollback)
+#   firmware/hub_control     → np_cvns_reenable_tests (OI-CVNS-HUB-01)
+#                            → np_log_backend_tests   (OI-LOG-01..04)
+#                            → np_transport_tests     (OI-HUB-MAIN-01)
+#                            → np_mod_cvns_tests      (hub ↔ CVNS library)
+#                            → np_module_map_tests    (hex zone-module addressing/NVRAM map)
+#                            → np_protocol_tests      (hub protocol v2 socket-mask targets)
+#                            → np_mod_stim_tests      (BES/tACS + tDCS slot dispatch)
+#   firmware/zone_announce   → np_zone_announce_tests (module-status frame encoder)
+#                            → np_zone_notify_tests   (app-notify dispatch)
+#   firmware/pbm_1064nm      → np_pbm1064_session_desc_tests (NP-SES-1064-001 v5 wire format)
+#   firmware/cervical_vns    → np_cvns_fai_tests      (FAI CV01..CV06, cardiac interlock)
+#   firmware/sloreta_hdtdcs  → np_hd_fai_tests        (FAI HD02/HD05.., montage + sLORETA)
+#   firmware/vendor/freertos → np_freertos_smoke_tests (kernel + config, POSIX port)
+#
+# The other 6 (firmware/safety_mcu) belong to safety-mcu-ci.yml.  6 + 19 = 25,
+# disjoint; build-all.yml re-checks that partition weekly.
+#
+# ── Modules with NO host tests (do not "fix" this) ────────────────────────────
+# firmware/bootloader and firmware/hrv_biofeedback ARE in the paths lists below
+# — this workflow cross-compiles them — but they are deliberately absent from
+# the host-tests job's scope, and that is correct.  Read the NP_BUILD_TESTS
+# branch of firmware/CMakeLists.txt literally: it ends in return() at line 242,
+# so every add_subdirectory() below it — bootloader and hrv_biofeedback among
+# them — is cross-compile-only and is never reached by a host-test
+# configuration.  bootloader/CMakeLists.txt:33 hard-errors under
+# `if(NOT CMAKE_CROSSCOMPILING)` and needs arm-none-eabi-objcopy/-size.
+#
+# Adding them to a host-test run would fire a job that returns before compiling
+# them: a green check that proves nothing about the code that changed.  That is
+# strictly worse than honest silence.  An audit that greps ALL
+# add_subdirectory() calls rather than only the NP_BUILD_TESTS branch will
+# report these two as missing coverage — that audit is wrong, and this note
+# exists because one did.  (See also OI-SWCI-05: whether hrv_biofeedback
+# warrants host tests at all is an open question, not a defect in this file.)
+#
+# ── Keeping the `paths:` filters correct ──────────────────────────────────────
+# Per NP-SW-CI-001 §5.0 this triggers on the modules it actually compiles, NOT
+# on `firmware/**`.  firmware/safety_mcu/** is deliberately ABSENT: it is a
+# separate CMake project with its own toolchain file and its own workflow, and
+# it is not a dependency of the bootloader or the main firmware.  A change
+# confined to the safety MCU must not rebuild either.  Dependencies count;
+# proximity in the tree does not.
+#
+# The push: and pull_request: lists below MUST stay identical.  The duplication
+# is deliberate, not an oversight: the GitHub Actions workflow parser does not
+# support YAML anchors/aliases, so `&paths` / `*paths` cannot be used to
+# collapse the two.  When adding a module, edit BOTH lists.
+#
+# These lists are hand-maintained and will drift.  build-all.yml is the
+# backstop that makes the drift survivable; OI-SWCI-08 is the guard that would
+# make it self-detecting.
+
+on:
+  push:
+    paths:
+      - 'firmware/bootloader/**'
+      - 'firmware/hub_control/**'
+      - 'firmware/vendor/**'
+      - 'firmware/crypto/**'
+      - 'firmware/ota/**'
+      - 'firmware/zone_announce/**'
+      - 'firmware/hrv_biofeedback/**'
+      - 'firmware/pbm_1064nm/**'
+      - 'firmware/cervical_vns/**'
+      - 'firmware/sloreta_hdtdcs/**'
+      - 'firmware/anon/**'
+      - 'firmware/edf/**'
+      - 'firmware/factory_reset/**'
+      - 'firmware/uhdr_key/**'
+      - 'firmware/common/**'
+      - 'firmware/CMakeLists.txt'
+      - 'firmware/cmake/arm-none-eabi.cmake'
+      - '.github/workflows/firmware-cross-build.yml'
+  pull_request:
+    paths:
+      - 'firmware/bootloader/**'
+      - 'firmware/hub_control/**'
+      - 'firmware/vendor/**'
+      - 'firmware/crypto/**'
+      - 'firmware/ota/**'
+      - 'firmware/zone_announce/**'
+      - 'firmware/hrv_biofeedback/**'
+      - 'firmware/pbm_1064nm/**'
+      - 'firmware/cervical_vns/**'
+      - 'firmware/sloreta_hdtdcs/**'
+      - 'firmware/anon/**'
+      - 'firmware/edf/**'
+      - 'firmware/factory_reset/**'
+      - 'firmware/uhdr_key/**'
+      - 'firmware/common/**'
+      - 'firmware/CMakeLists.txt'
+      - 'firmware/cmake/arm-none-eabi.cmake'
+      - '.github/workflows/firmware-cross-build.yml'
+  workflow_dispatch:
+
+# Least privilege.  Required for actions/checkout, which hard-fails without it
+# once the repository is private.  Matches every other workflow in the repo.
+# (actions/upload-artifact authenticates with ACTIONS_RUNTIME_TOKEN, not
+# GITHUB_TOKEN, so it needs no `actions:` permission.)
+permissions:
+  contents: read
+
+env:
+  # The 6 Class C targets, EXCLUDED here — they run in safety-mcu-ci.yml.
+  # Kept as the same regex string in both files so the partition is one
+  # expression, negated on one side.
+  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock)_tests$'
+  NP_CLASS_B_TEST_COUNT: '19'
+
+jobs:
+  host-tests:
+    name: CMake host tests (19 Class B targets)
+    runs-on: ubuntu-latest
+    # Deliberately NOT continue-on-error.  These 19 targets were a blocking
+    # check under firmware-host-tests.yml; Phase 0's reporting-only mandate
+    # covers the NEW cross-compile verification below, not the coverage this
+    # workflow absorbed.  Downgrading them here would be a silent regression.
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y cmake ninja-build gcc
+
+      - name: Configure (host test build)
+        run: |
+          cmake -B build/host-tests \
+                -G Ninja \
+                -DCMAKE_BUILD_TYPE=Debug \
+                -DNP_BUILD_TESTS=ON \
+                -DCMAKE_CROSSCOMPILING=OFF \
+                firmware
+
+      - name: Build
+        run: cmake --build build/host-tests
+
+      # Guard against selection drift before running anything: `ctest` exits 0
+      # on a shrunken subset just as happily as on the whole suite, so a green
+      # check is not evidence the targets ran.  Assert the count.
+      - name: Assert test selection covers all 19 Class B targets
+        run: |
+          ctest --test-dir build/host-tests -N -E "$NP_SAFETY_TESTS" | tee selection.txt
+          selected=$(sed -n 's/^Total Tests: //p' selection.txt)
+          echo "selected=${selected} expected=${NP_CLASS_B_TEST_COUNT}"
+          if [ "${selected}" != "${NP_CLASS_B_TEST_COUNT}" ]; then
+            echo "::error::ctest selection drift — expected ${NP_CLASS_B_TEST_COUNT} Class B targets, matched ${selected}."
+            exit 1
+          fi
+
+      - name: Run tests
+        run: |
+          ctest --test-dir build/host-tests \
+                -E "$NP_SAFETY_TESTS" \
+                --output-on-failure --no-tests=error
+
+      - name: Upload test output on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: firmware-test-results
+          path: build/host-tests/
+          retention-days: 7
+
+  bootloader:
+    name: Bootloader (i.MX RT1062)
+    runs-on: ubuntu-latest
+    # NO `needs:` — deliberate, and NOT an oversight (NP-SW-CI-001 §5.0.1).
+    # The bootloader is cross-compile-only: it is absent from the
+    # NP_BUILD_TESTS branch entirely, and np_signature.c is deliberately
+    # self-contained rather than depending on np_crypto, because
+    # -nostdlib/-nodefaultlibs makes Monocypher unavailable.  There is no
+    # native counterpart to gate on, so gating this leg on the Class B host
+    # tests would be a FALSE dependency: an unrelated np_edf_tests failure
+    # would block bootloader verification for no reason.  The rule is "do not
+    # cross-build what failed natively", not "serialise everything behind
+    # something".
+    continue-on-error: true      # ← Phase 0 only; drop at phase 3
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ARM GNU toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '13.2.Rel1'
+
+      # Pinned rather than `latest` so a toolchain change is a reviewable commit
+      # and not an unexplained red build.  Must satisfy the
+      # NP_ARM_GCC_MIN_VERSION 12.3 gate in firmware/cmake/arm-none-eabi.cmake.
+      - name: Record toolchain version
+        run: arm-none-eabi-gcc --version
+
+      - name: Configure
+        run: |
+          cmake -B build/cross -G Ninja \
+                -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/firmware/cmake/arm-none-eabi.cmake \
+                -DCMAKE_BUILD_TYPE=Release \
+                firmware/bootloader
+
+      # EXPECTED TO FAIL — two independent blocking defects, NP-SW-CI-001 §4:
+      #   Defect B (§4.2): 19 unresolved memcpy + 7 memset under the deliberate
+      #     -nostdlib -nostartfiles -nodefaultlibs.  GCC still emits them for
+      #     structure copies and array initialisation.  Phase 1.
+      #   Defect C (§4.3): "OCRAM: 520 KB / 512 KB / 101.56%".  Linker-script
+      #     arithmetic, not code size — .app_staging reserves 448 KiB where the
+      #     correct figure is 440 KiB, because 512 - 64 ignored the 8 KiB stack.
+      #     The same wrong constant is duplicated at np_main.c:220, where it is
+      #     a latent stack-corruption bug; both must change together.  Phase 2.
+      #
+      # No separate size-checking step: the bootloader links with
+      # -Wl,--print-memory-usage and its linker script carries an ASSERT, so a
+      # region overflow fails the link and therefore the job.  The link failing
+      # IS the size test, and the linker is authoritative (§5.4).
+      #
+      # Not piped through `tail`/`grep`: `cmd | tail` reports tail's exit
+      # status, which masked a failure during the §3 measurements.
+      - name: Build
+        run: cmake --build build/cross
+
+      - name: Report image size
+        if: success()
+        run: find build/cross -name '*.elf' | xargs -r arm-none-eabi-size
+
+      - name: Upload map and logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-build-bootloader
+          path: |
+            build/cross/**/*.map
+            build/cross/**/CMakeFiles/*.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+  main-firmware:
+    name: Main firmware (i.MX RT1062, Class B)
+    runs-on: ubuntu-latest
+    # A genuine native counterpart exists for these modules (the 19 host-test
+    # targets above), so §5.0.1 applies: do not spend runner minutes
+    # cross-compiling what already failed natively.
+    needs: host-tests
+    continue-on-error: true      # ← Phase 0 only; drop at phase 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ARM GNU toolchain
+        uses: carlosperate/arm-none-eabi-gcc-action@v1
+        with:
+          release: '13.2.Rel1'
+
+      - name: Record toolchain version
+        run: arm-none-eabi-gcc --version
+
+      - name: Configure
+        run: |
+          cmake -B build/cross -G Ninja \
+                -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/firmware/cmake/arm-none-eabi.cmake \
+                -DCMAKE_BUILD_TYPE=Release \
+                firmware
+
+      # EXPECTED TO FAIL.  NP-SW-CI-001 §4 row 4 records this as "fails at
+      # bootloader; remainder never attempted" — measured under a sequential
+      # generator.  Under Ninja the super-project fails FIRST at
+      # firmware/hub_control/modules/np_mod_pbm.c:112, "implicit declaration of
+      # function 'np_pbm1064_dose_load_cal'", which is not Defect A, B or C.
+      # That is an undocumented fourth defect, reported rather than fixed here
+      # (firmware change → design review).  Phase 5 additionally needs
+      # NP_PLATFORM_INCLUDE_DIRS populated with the MCUX SDK path, currently an
+      # empty stub in firmware/CMakeLists.txt.
+      - name: Build
+        run: cmake --build build/cross
+
+      - name: Report image size
+        if: success()
+        run: find build/cross -name '*.elf' | xargs -r arm-none-eabi-size
+
+      - name: Upload map and logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cross-build-main-firmware
+          path: |
+            build/cross/**/*.map
+            build/cross/**/CMakeFiles/*.log
+          retention-days: 7
+          if-no-files-found: ignore
