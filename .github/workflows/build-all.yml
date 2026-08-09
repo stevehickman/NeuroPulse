@@ -150,7 +150,10 @@ jobs:
   bootloader-cross:
     name: Bootloader cross-compile (i.MX RT1062)
     runs-on: ubuntu-latest
-    continue-on-error: true      # ← Phase 0 only; drop at phase 3
+    # NOT `continue-on-error` as of phase 3 (NP-SW-CI-001 §6.4) — mirrors the
+    # promotion of the same leg in firmware-cross-build.yml.  Note this file is
+    # schedule + workflow_dispatch only and is not a PR check, so "the run goes
+    # red" is the whole of the effect here; surfacing that is still OI-SWCI-10.
     steps:
       - uses: actions/checkout@v4
       - name: Install ARM GNU toolchain
@@ -165,7 +168,10 @@ jobs:
                 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/firmware/cmake/arm-none-eabi.cmake \
                 -DCMAKE_BUILD_TYPE=Release \
                 firmware/bootloader
-      # EXPECTED TO FAIL — Defects B (§4.2) and C (§4.3).
+      # EXPECTED TO PASS as of phase 3 — Defects B (§4.2) and C (§4.3) closed in
+      # phases 1 and 2.  OCRAM reports exactly 100.00% by design (the regions
+      # tile it); the code-size gate is the linker ASSERT on 48 KiB, not this
+      # percentage.  See §6.2, §6.3, §6.4.
       - name: Build
         run: cmake --build build/cross
 

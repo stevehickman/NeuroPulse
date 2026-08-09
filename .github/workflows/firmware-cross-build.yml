@@ -208,7 +208,14 @@ jobs:
     # would block bootloader verification for no reason.  The rule is "do not
     # cross-build what failed natively", not "serialise everything behind
     # something".
-    continue-on-error: true      # ← Phase 0 only; drop at phase 3
+    #
+    # NOT `continue-on-error` as of phase 3 (NP-SW-CI-001 §6.4).  Defects B and
+    # C are closed (§6.2, §6.3) and this leg builds clean on the pinned
+    # toolchain, so a failure here is a regression rather than a known-bad
+    # state.  A failing job now takes the workflow run with it.  Note what that
+    # does and does not mean: the run reports failure, which is not the same as
+    # the merge being blocked — no required-check policy exists yet, that is
+    # OI-SWCI-04 at phase 6.
     steps:
       - uses: actions/checkout@v4
 
@@ -230,15 +237,22 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release \
                 firmware/bootloader
 
-      # EXPECTED TO FAIL — two independent blocking defects, NP-SW-CI-001 §4:
-      #   Defect B (§4.2): 19 unresolved memcpy + 7 memset under the deliberate
-      #     -nostdlib -nostartfiles -nodefaultlibs.  GCC still emits them for
-      #     structure copies and array initialisation.  Phase 1.
-      #   Defect C (§4.3): "OCRAM: 520 KB / 512 KB / 101.56%".  Linker-script
-      #     arithmetic, not code size — .app_staging reserves 448 KiB where the
-      #     correct figure is 440 KiB, because 512 - 64 ignored the 8 KiB stack.
-      #     The same wrong constant is duplicated at np_main.c:220, where it is
-      #     a latent stack-corruption bug; both must change together.  Phase 2.
+      # EXPECTED TO PASS as of phase 3.  This step was the reporting-only leg's
+      # known failure through phases 0–2; both causes are now closed:
+      #   Defect B (§4.2, phase 1): 19 unresolved memcpy + 7 memset under the
+      #     deliberate -nostdlib -nostartfiles -nodefaultlibs.  Closed by
+      #     freestanding implementations in src/np_mem.c — 26 unresolved → 0.
+      #   Defect C (§4.3, phase 2): "OCRAM: 520 KB / 512 KB / 101.56%".  Linker
+      #     arithmetic, not code size.  Closed by deriving the staging
+      #     reservation from LENGTH(OCRAM) - _app_load_offset - _stack_size so
+      #     the figure is written down nowhere — 101.56% → 100.00%, rc=0.
+      #
+      # 100.00% is the pass condition, not a near miss: the bootloader, the
+      # staging area and the stack are specified to TILE OCRAM, and ld errors on
+      # overflow rather than on full allocation.  That number will not move with
+      # code size.  The code-size gate is a different mechanism — the linker
+      # script's ASSERT on the 48 KiB _bl_max_size, currently ~26 KB used.  This
+      # step being blocking protects both.
       #
       # No separate size-checking step: the bootloader links with
       # -Wl,--print-memory-usage and its linker script carries an ASSERT, so a
