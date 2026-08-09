@@ -409,9 +409,12 @@ permissions:
 
 jobs:
   safety-mcu-cross-build:
-    name: Cross-compile (STM32G071, Cortex-M0+)
+    # Phase 4 (§6.5) renamed this to "…, Class C" and promoted it out of
+    # continue-on-error.  "Cross-compile" is now literal: the step below builds
+    # np_safety_mcu_objs, not the image, because Defect E (§4.4) means no image
+    # can link.  Phase 7 re-points it at the full build.
+    name: Cross-compile (STM32G071, Cortex-M0+, Class C)
     runs-on: ubuntu-latest
-    continue-on-error: true      # ← Phase 0 only; drop at phase 4
     steps:
       - uses: actions/checkout@v4
 
@@ -430,12 +433,12 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release \
                 firmware/safety_mcu
 
-      - name: Build
-        run: cmake --build build/safety-mcu
-
-      - name: Report image size
-        if: success()
-        run: find build/safety-mcu -name '*.elf' | xargs -r arm-none-eabi-size
+      # Phase 4: --target np_safety_mcu_objs.  The image-size step that stood
+      # here is removed with it — there is no image, and `find … *.elf` matching
+      # nothing exits 0, so it would have been a step that always passed while
+      # proving nothing.  Both return at phase 7.
+      - name: Compile (all Class C translation units)
+        run: cmake --build build/safety-mcu --target np_safety_mcu_objs
 
       - name: Upload map and logs on failure
         if: failure()

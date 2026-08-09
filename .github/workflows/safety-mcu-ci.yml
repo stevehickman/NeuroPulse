@@ -133,12 +133,20 @@ jobs:
           retention-days: 7
 
   cross-build:
-    name: Cross-compile (STM32G071, Cortex-M0+)
+    # "Compile" and not "Build", deliberately: this leg proves every Class C
+    # translation unit compiles for STM32G071, and NOT that a linkable image
+    # exists — it does not (Defect E, §4.4).  The job name is the only thing most
+    # readers see, so it must not overclaim.
+    name: Cross-compile (STM32G071, Cortex-M0+, Class C)
     runs-on: ubuntu-latest
     # A genuine native counterpart exists for this code, so §5.0.1 applies:
     # do not spend runner minutes cross-compiling what already failed natively.
     needs: host-tests
-    continue-on-error: true      # ← Phase 0 only; drop at phase 4
+    # NOT `continue-on-error` as of phase 4 (NP-SW-CI-001 §6.5).  Defect A is
+    # closed — the STM32G0 CMSIS device headers are vendored (firmware/vendor/
+    # cmsis_core + cmsis_device_g0, Class C SOUP, anomaly review
+    # NP-SOUP-CMSIS-001) — so this leg is green and a regression should turn the
+    # run red rather than be masked.
     steps:
       - uses: actions/checkout@v4
 
@@ -160,19 +168,29 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release \
                 firmware/safety_mcu
 
-      # EXPECTED TO FAIL — NP-SW-CI-001 §4.1, Defect A: np_safety_config.h maps
-      # the stimulation enable lines to CMSIS symbols (GPIOA/GPIOB) that nothing
-      # in-tree defines, because the STM32G0 CMSIS/HAL is not vendored yet.
-      # Closing that is phase 4 (§9.4 — Class C SOUP, OI-SWCI-06).
+      # GATING since phase 4 (§6.5).  The target is `np_safety_mcu_objs`, not the
+      # default target, and the difference is the whole point:
+      #
+      #   np_safety_mcu_objs  every Class C TU compiled for STM32G071 under
+      #                       -Wall -Wextra -Werror.  This is exactly the property
+      #                       Defect A broke, it is green, and it gates.
+      #   np_safety_mcu       the linked image.  CANNOT succeed: Defect E (§4.4,
+      #                       OI-SWCI-17) leaves 24 first-party np_hal_* platform
+      #                       symbols undefined, so SW-01 has no platform layer.
+      #                       Building it here would make this leg permanently
+      #                       red, which §6 opens by refusing to do.
+      #
+      # Pointing this at the full build is phase 7, once OI-SWCI-17 lands.  Do not
+      # "fix" this line by dropping --target; that reintroduces a red leg.
       #
       # Not piped through `tail`/`grep`: `cmd | tail` reports tail's exit status,
       # which masked a failure during the §3 measurements.
-      - name: Build
-        run: cmake --build build/safety-mcu
+      - name: Compile (all Class C translation units)
+        run: cmake --build build/safety-mcu --target np_safety_mcu_objs
 
-      - name: Report image size
-        if: success()
-        run: find build/safety-mcu -name '*.elf' | xargs -r arm-none-eabi-size
+      # No image size step: there is no image (Defect E).  A `find … *.elf` that
+      # matches nothing exits 0, so leaving it would have been a step that always
+      # passed while proving nothing — restore it with the phase-7 link.
 
       - name: Upload map and logs on failure
         if: failure()
