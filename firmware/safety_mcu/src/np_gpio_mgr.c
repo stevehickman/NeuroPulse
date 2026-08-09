@@ -22,6 +22,17 @@
 /* ── HAL stub (FMEA OI-FMEA-01: bench test required) ─────────────────────── */
 extern void np_hal_gpio_write_pin(void *port, uint16_t pin, int state);
 
+/* TEMPORARY — phase-4 gate probe.  Reverted in the next commit.
+ * Deliberately the same shape as Defect A: an undeclared CMSIS device symbol
+ * used from the enable-GPIO path, so the failure is a compile diagnostic in a
+ * Class C translation unit — exactly the regression class this leg exists to
+ * catch.  NP-SW-CI-001 §6.5. */
+void np_phase4_gate_probe(void);
+void np_phase4_gate_probe(void)
+{
+    np_hal_gpio_write_pin(GPIOZ, 1U, 1);
+}
+
 np_safe_status_t np_gpio_mgr_init(void)
 {
     /* All stimulation enables driven HIGH (disabled) at init.
