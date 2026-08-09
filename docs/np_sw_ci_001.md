@@ -475,7 +475,7 @@ Phases 4 and 5 both mean bringing a vendor SDK into the build, which is an SOUP 
 
 ### 6.1 Phase 0 as implemented (2026-08-08)
 
-> **Historical record — the counts below are as of 2026-08-08.** Phase 1 added `np_bootloader_mem_tests` and phase 2 added `np_bootloader_app_image_tests` to the Class B side, so the live figures are 6 + 21 = 27. See §6.2 and §6.3. The reasoning in this section is unaffected; only the arithmetic moved.
+> **Historical record — the counts and the blocking column below are as of 2026-08-08.** Phase 1 added `np_bootloader_mem_tests` and phase 2 added `np_bootloader_app_image_tests` to the Class B side, so the live figures are 6 + 21 = 27 (see §6.2, §6.3). The "Blocking?" column is also superseded: phase 3 promoted the bootloader leg in both `firmware-cross-build.yml` and `build-all.yml`, so "cross legs no" is no longer true of the bootloader (see §6.4). The reasoning in this section is unaffected; only the arithmetic and the one column moved.
 
 Three workflows landed, not two: §5's table covers the two scoped ones, and §5.5's `build-all.yml` is the third.
 
@@ -528,7 +528,7 @@ Defect B is closed. Measured before and after on the same host (macOS, ARM GNU 1
 | unresolved, any symbol | 26 | **0** |
 | remaining errors | region overflow + 26 unresolved | **region overflow only** |
 
-**The bootloader leg is still red, and that is the expected phase-1 outcome, not a failure.** The sole remaining error is Defect C — `OCRAM: 520 KB / 512 KB / 101.56%`, `region 'OCRAM' overflowed by 8192 bytes`. That was phase 2, **closed 2026-08-09 — see §6.3**; it needed `bootloader_imxrt1062.ld` and the duplicate constant at `np_main.c:220` addressed together (OI-SWCI-02). `continue-on-error` stays on the bootloader leg even now that it is green; dropping it is phase 3.
+**The bootloader leg is still red, and that is the expected phase-1 outcome, not a failure.** The sole remaining error is Defect C — `OCRAM: 520 KB / 512 KB / 101.56%`, `region 'OCRAM' overflowed by 8192 bytes`. That was phase 2, **closed 2026-08-09 — see §6.3**; it needed `bootloader_imxrt1062.ld` and the duplicate constant at `np_main.c:220` addressed together (OI-SWCI-02). `continue-on-error` stays on the bootloader leg even now that it is green; dropping it is phase 3 — **done 2026-08-09, see §6.4**.
 
 **The bootloader gained its first host test.** `np_bootloader_mem_tests` covers `src/np_mem.c` only — zero length; 1/2/3/4/8-byte lengths; unaligned source, unaligned destination and both; lengths crossing a word boundary; an exhaustive 8×8×18 offset/length matrix; non-zero and high-bit `memset` fills; `int`→`unsigned char` truncation; 4 KiB and 8 KiB transfers at every start alignment — against the host libc as oracle, in canary-framed buffers so a one-byte overrun fails rather than passes. The rest of the bootloader stays cross-compile-only: it is device firmware with no host-executable surface, and a host job that cannot run it would produce a green check proving nothing.
 
@@ -601,7 +601,7 @@ M2 is the one worth noting: it is the fix this phase was told not to make, and t
 
 **Count guards moved in the same commit.** Adding `np_bootloader_app_image_tests` makes the Class B selection 21 and the repo total 27. `NP_CLASS_B_TEST_COUNT` is `21` in both `firmware-cross-build.yml` and `build-all.yml`; `build-all.yml`'s partition arithmetic is `6 + 21 = 27`. `NP_SAFETY_TEST_COUNT` is untouched at 6 — the bootloader is Class B. Verified locally: `ctest` reports `Total Tests: 27`, the Class C selection 6, its complement 21, and 27/27 pass.
 
-**The bootloader leg is now green, and `continue-on-error` still stays on it.** Dropping it is phase 3, deliberately a separate reviewable change. The main-firmware leg remains red on Defect D (`np_mod_pbm.c:112`, OI-SWCI-12) — unrelated to this fix and expected until phase 5.
+**The bootloader leg is now green, and `continue-on-error` still stays on it.** Dropping it is phase 3, deliberately a separate reviewable change — **done 2026-08-09, see §6.4**. The main-firmware leg remains red on Defect D (`np_mod_pbm.c:112`, OI-SWCI-12) — unrelated to this fix and expected until phase 5.
 
 ### 6.4 Phase 3 as implemented (2026-08-09)
 
