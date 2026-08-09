@@ -1,0 +1,73 @@
+# ARM CMSIS-Core(M) SOUP Record — IEC 62304 §8.1.2
+
+Component:   ARM CMSIS-Core(M)  (CMSIS 5 "Core" component)
+Version:     CMSIS-Core(M) 5.6.0, as released in the CMSIS_5 5.9.0 pack
+Source:      https://github.com/ARM-software/CMSIS_5/tree/5.9.0
+Tag:         5.9.0
+License:     Apache-2.0  (SPDX-License-Identifier in every vendored header;
+                          full text in LICENSE.txt, copied from the same tag)
+SW item:     SW-01 (STM32G071 safety MCU)
+IEC 62304:   Class C
+Vendored:    2026-08-09
+Anomaly review (§7.1.2):  docs/np_soup_cmsis_001.md  — REQUIRED READING; this is
+             the first SOUP component vendored specifically for Class C software.
+
+Files vendored (byte-exact from CMSIS/Core/Include/ at tag 5.9.0):
+  Include/core_cm0plus.h     — Cortex-M0+ core peripheral access layer (V5.0.9)
+  Include/cmsis_version.h    — CMSIS-Core(M) version macros (5.6.0)
+  Include/cmsis_compiler.h   — compiler-family dispatch header
+  Include/cmsis_gcc.h        — GCC intrinsics/attributes (the only branch we take)
+  Include/mpu_armv7.h        — ARMv7-M MPU helpers
+  LICENSE.txt                — Apache-2.0, from the repository root of the tag
+
+Byte-exactness was verified by an independent second download of the same five
+raw URLs and a byte comparison (`cmp`) against the vendored copies — all
+identical.  SHA-256, recorded so the claim stays checkable without network access:
+  a09fa9c6b8b21d1920bce15b98aa56182b027e9278cca0b154812bac2aea3cfa  core_cm0plus.h
+  184c19fd3ee73632edf35a0b4d49cd48be75fbf49e6ccb19d9db05fa83bea4b3  cmsis_version.h
+  b51963d271c1571ca3463654c76aa7ea50c4eac5d0a2710df10414ac64d9e0f8  cmsis_compiler.h
+  43bfd1fe69fbbc2ca70aaf7d43cc3e20f16e0c7f66e1bdef9b51af6dc14b2617  cmsis_gcc.h
+  29206b52ee02290ed6f5a5415ebd4187de802cf176d9b3cb844390d8e5571372  mpu_armv7.h
+  b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1  LICENSE.txt
+
+Why each file is here — none is aspirational:
+  core_cm0plus.h    included unconditionally by stm32g071xx.h line 115.  There is
+                    no way to use the ST device header without it.
+  cmsis_version.h   included by core_cm0plus.h line 63.
+  cmsis_compiler.h  included by core_cm0plus.h line 115.
+  cmsis_gcc.h       selected by cmsis_compiler.h line 54 for __GNUC__ builds.
+  mpu_armv7.h       included by core_cm0plus.h line 1007 because stm32g071xx.h
+                    sets __MPU_PRESENT 1U.  Verified by deletion: removing this
+                    file fails the compile with "mpu_armv7.h: No such file".
+                    NeurOne calls no MPU function; the file is a transitive
+                    requirement of the device header, not a feature choice.
+
+Intentionally NOT vendored:
+  Everything else in CMSIS_5.  Named explicitly so a later reader does not read
+  the omissions as oversight:
+    CMSIS/DSP/**          CMSIS-DSP — not used by SW-01
+    CMSIS/NN/**           CMSIS-NN — not used
+    CMSIS/RTOS/**, RTOS2/**  CMSIS-RTOS — SW-01 is bare-metal by design
+                          (NP-SW-001 §4.1); SW-02's RTOS is FreeRTOS, vendored
+                          separately at firmware/vendor/freertos/
+    CMSIS/DAP/**          debug probe firmware — host-side tooling
+    CMSIS/Driver/**       peripheral driver API — SW-01 is register-level
+    CMSIS/Pack/**, Utilities/**, SVD/**  packaging and tooling
+    Core/Include/core_cm{0,3,4,7,23,33,35P,55,85}.h and core_ca*.h,
+    core_armv8*.h         other cores; SW-01 is Cortex-M0+ only
+    Core/Include/mpu_armv8.h  ARMv8-M MPU; STM32G071 is ARMv7-M
+    Core/Include/cmsis_armcc.h, cmsis_armclang*.h, cmsis_iccarm.h,
+    cmsis_ccs.h, cmsis_csm.h, tz_context.h
+                          other compiler families.  cmsis_compiler.h references
+                          them from #elif branches that a __GNUC__ build never
+                          takes; NeurOne builds SW-01 with arm-none-eabi-gcc only
+                          (firmware/cmake/stm32g071.cmake), so these are
+                          unreachable and are deliberately absent rather than
+                          carried as unreviewed Class C SOUP surface.
+
+This narrowness is the point, not tidiness.  Every vendored file is Class C SOUP
+that has to be justified and anomaly-reviewed (NP-SW-CI-001 §9.4).  Five headers
+of register and intrinsic definitions is a materially smaller review burden than
+the DSP/NN/RTOS/Driver bodies of logic, and — see the anomaly review — it is also
+what makes the §7.1.2 finding as clean as it is: essentially the whole published
+anomaly surface of CMSIS_5 lies in components that are not here.

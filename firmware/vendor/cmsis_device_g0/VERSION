@@ -1,0 +1,81 @@
+# ST CMSIS-Device STM32G0 SOUP Record — IEC 62304 §8.1.2
+
+Component:   STMicroelectronics CMSIS-Device STM32G0 (device peripheral access layer)
+Version:     1.4.5  (in-source: __STM32G0_CMSIS_VERSION 0x01040500)
+Source:      https://github.com/STMicroelectronics/cmsis-device-g0/tree/v1.4.5
+Tag:         v1.4.5   (released 27-February-2026)
+License:     Apache-2.0  (LICENSE.md at the repository root of the same tag; the
+                          headers themselves carry ST's "licensed under terms in
+                          the LICENSE file" attention block rather than an SPDX
+                          identifier, so the licence was read from LICENSE.md)
+SW item:     SW-01 (STM32G071 safety MCU)
+IEC 62304:   Class C
+Vendored:    2026-08-09
+Anomaly review (§7.1.2):  docs/np_soup_cmsis_001.md  — REQUIRED READING; this is
+             the first SOUP component vendored specifically for Class C software.
+
+Files vendored (byte-exact from Include/ at tag v1.4.5):
+  Include/stm32g0xx.h          — family header; selects the device by STM32G071xx
+  Include/stm32g071xx.h        — STM32G071 register/bit definitions + memory map
+  Include/system_stm32g0xx.h   — SystemInit/SystemCoreClock declarations
+  LICENSE.md                   — Apache-2.0, from the repository root of the tag
+
+Byte-exactness was verified by an independent second download of the same raw
+URLs and a byte comparison (`cmp`) against the vendored copies — all identical.
+SHA-256, recorded so the claim stays checkable without network access:
+  f67dcdf72b69776ef2308a84090cd3ea87affc83470c225d39377494fac7c296  stm32g0xx.h
+  0b19058af668cff72649ae3871f6729b0fa68c6e81794cefbd1b0d63e0943fb3  stm32g071xx.h
+  20ee999e4431472a7c351e2412537aa0ef7f5f5e499a21a92c1d4cc21f84ebf1  system_stm32g0xx.h
+  c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4  LICENSE.md
+
+Why each file is here:
+  stm32g0xx.h         the header np_safety_config.h includes.  Dispatches on the
+                      STM32G071xx define set by firmware/safety_mcu/CMakeLists.txt.
+  stm32g071xx.h       supplies GPIOA/GPIOB — the symbols Defect A was about
+                      (NP-SW-CI-001 §4.1) — plus SPI1, TIM2, ADC1 and the rest of
+                      the peripheral map.  Selected by stm32g0xx.h.
+  system_stm32g0xx.h  included unconditionally by stm32g071xx.h line 116.
+
+Intentionally NOT vendored:
+  Source/Templates/system_stm32g0xx.c
+      The SystemInit() implementation, and the only .c file this component would
+      contribute.  It is NOT needed and is deliberately absent: the NeurOne
+      startup code does not call SystemInit.  Reset_Handler in
+      firmware/safety_mcu/startup/startup_stm32g071xx.s copies .data, zeroes .bss
+      and branches straight to main — verified by reading the assembly, which is
+      the reason this was determined rather than assumed.  (The file's own header
+      comment says "then call SystemInit and main"; the comment is wrong and the
+      code is the record.  Flagged as OI-SWCI-19.)  Nothing in SW-01 references
+      SystemInit, SystemCoreClock, AHBPrescTable or APBPrescTable — those are
+      declarations only in system_stm32g0xx.h, so no definition is required to
+      link.  Clock bring-up is np_hal_clock_init(), first-party code.
+  Source/Templates/gcc/startup_stm32g071xx.s and the IAR/KEIL equivalents
+      NeurOne has its own startup and vector table (above), which is first-party
+      Class C code and not SOUP.
+  Source/Templates/gcc/linker/*.ld
+      NeurOne uses firmware/safety_mcu/startup/stm32g071_flash.ld.
+  Include/stm32g0*.h for every other STM32G0 part
+      (g030/g031/g041/g050/g051/g061/g070/g081/g0b0/g0b1/g0c1).  SW-01 ships on
+      STM32G071 only (NP-SW-001 §5.1, CLAUDE.md §4.1).
+
+  THE ST HAL AND LL DRIVERS ARE NOT VENDORED — and are not part of this component
+  at all.  This resolves OI-SWCI-06 in favour of device headers only.  They live
+  in a separate upstream repository (STMicroelectronics/stm32g0xx-hal-driver);
+  bringing them in would add tens of thousands of lines of substantive third-party
+  *logic* to Class C SOUP surface, each line carrying the §7.1.2 obligation, in
+  exchange for nothing.  The safety MCU makes ZERO HAL_* and ZERO LL_* calls —
+  measured with word-boundary matching (`rg '\bHAL_|\bLL_[A-Z]'` over
+  firmware/safety_mcu/{src,include,startup}: no matches).  Note that a naive
+  substring search for "LL_" appears to find hits; they are NP_SAFETY_EN_ALL_MASK
+  and NP_THERMAL_POLL_MS, and they are not driver calls.  The firmware is
+  register-level throughout.
+
+  Consequently USE_HAL_DRIVER is NOT defined by the build.  stm32g0xx.h ends with
+      #if defined (USE_HAL_DRIVER)
+       #include "stm32g0xx_hal.h"
+      #endif
+  so defining it would demand the un-vendored HAL and hard-fail the compile.  It
+  *was* defined in firmware/safety_mcu/CMakeLists.txt before this change, where it
+  had never been load-bearing because no device header existed in-tree to act on
+  it; removing it is part of this vendoring.  A regression test for exactly this
+  is recorded as mutant M2 in NP-SW-CI-001 §6.5.

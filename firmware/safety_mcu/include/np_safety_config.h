@@ -16,6 +16,23 @@
 
 #include <stdint.h>
 
+/* CMSIS device header — supplies GPIOA/GPIOB and the peripheral register maps
+ * this file names below (SPI1, TIM2, ADC1).  Vendored SOUP: see
+ * firmware/vendor/cmsis_device_g0/VERSION and NP-SW-001 §9.5.
+ *
+ * Gated on STM32G071xx because that define is set by the CROSS build only
+ * (firmware/safety_mcu/CMakeLists.txt, below the NP_BUILD_TESTS return), and the
+ * host-test build must not pull an ARM CMSIS core header into an x86 compile.
+ * That gate is exact rather than convenient: every macro guarded by it —
+ * NP_EN_*_PORT, NP_RPEAK_IN_PORT, NP_CARDIAC_TIM, NP_NTC_ADC_INSTANCE,
+ * NP_SAFETY_SPI_INSTANCE — is used in np_gpio_mgr.c alone, and np_gpio_mgr.c is
+ * in no host-test target.  A host test that starts using one of them fails to
+ * compile on the undeclared symbol, which is the loud outcome, not a silent one.
+ */
+#if defined(STM32G071xx)
+#  include "stm32g0xx.h"
+#endif
+
 /* ── Clock ────────────────────────────────────────────────────────────────── */
 
 #define NP_SAFETY_SYSCLK_HZ     64000000UL  /* 64 MHz from HSI16 × PLL */
