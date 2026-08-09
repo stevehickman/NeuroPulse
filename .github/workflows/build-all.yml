@@ -19,9 +19,10 @@ name: Build All / Test All
 #
 # It also re-checks the host-test PARTITION.  firmware-host-tests.yml was
 # absorbed and retired (OI-SWCI-09); its 25 targets were split 6 (Class C,
-# safety-mcu-ci.yml) + 19 (Class B, firmware-cross-build.yml).  Nothing in
-# either scoped workflow can see the other side of that split, so the weekly
-# run is the only place the arithmetic 6 + 19 = 25 is actually checked.  A
+# safety-mcu-ci.yml) + 19 (Class B, firmware-cross-build.yml).  NP-SW-CI-001
+# phase 1 added np_bootloader_mem_tests to the Class B side, so the arithmetic
+# is now 6 + 20 = 26.  Nothing in either scoped workflow can see the other side
+# of that split, so the weekly run is the only place it is actually checked.  A
 # reduced target count that still shows green is precisely the failure mode
 # the absorption risked.
 #
@@ -47,13 +48,13 @@ permissions:
 
 env:
   NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock)_tests$'
-  NP_TOTAL_TEST_COUNT: '25'
+  NP_TOTAL_TEST_COUNT: '26'
   NP_SAFETY_TEST_COUNT: '6'
-  NP_CLASS_B_TEST_COUNT: '19'
+  NP_CLASS_B_TEST_COUNT: '20'
 
 jobs:
   host-tests-all:
-    name: CMake host tests (25 targets, unfiltered)
+    name: CMake host tests (26 targets, unfiltered)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -77,10 +78,10 @@ jobs:
         run: cmake --build build/host-tests
 
       # The partition guard.  Asserts three things the scoped workflows cannot:
-      # the total is still 25, the two halves still sum to it, and they do not
+      # the total is still 26, the two halves still sum to it, and they do not
       # overlap.  Any of add-a-test / rename-a-test / broaden-the-regex trips
       # this, which is the point.
-      - name: Assert host-test partition still sums to 25
+      - name: Assert host-test partition still sums to 26
         run: |
           count() { ctest --test-dir build/host-tests -N "$@" | sed -n 's/^Total Tests: //p'; }
           names() { ctest --test-dir build/host-tests -N "$@" \

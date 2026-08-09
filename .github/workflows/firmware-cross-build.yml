@@ -1,8 +1,9 @@
 name: Firmware Cross-Compile (ARM)
 
 # SW-02 Class B — i.MX RT1062 main processor firmware and the dual-bank OTA
-# bootloader, plus the 19 Class B host-test targets absorbed from the retired
-# firmware-host-tests.yml (NP-SW-CI-001 §5.0.1, OI-SWCI-09).
+# bootloader, plus the 20 Class B host-test targets: the 19 absorbed from the
+# retired firmware-host-tests.yml (NP-SW-CI-001 §5.0.1, OI-SWCI-09) and one
+# added by NP-SW-CI-001 phase 1.
 #
 # Self-contained by construction: native host tests THEN the cross-compile, in
 # one file, because `needs:` only works within a single workflow.  Crossing
@@ -10,8 +11,10 @@ name: Firmware Cross-Compile (ARM)
 # branch, runs in base-repo context, and does not attach cleanly to a pull
 # request's check list — fragile in exactly the situation the gate exists for.
 #
-# ── Host-test targets owned by this workflow (19 of the repo's 25) ────────────
+# ── Host-test targets owned by this workflow (20 of the repo's 26) ────────────
 # Registered by the NP_BUILD_TESTS branch of firmware/CMakeLists.txt:
+#   firmware/bootloader      → np_bootloader_mem_tests (freestanding memcpy/
+#                              memset, NP-SW-CI-001 §4.2 — see the note below)
 #   firmware/crypto          → np_crypto_tests   (SHA-256/512, CRC-32, Ed25519)
 #   firmware/anon            → np_anon_tests     (Scratch encryption)
 #   firmware/edf             → np_edf_tests      (EDF+ privacy header)
@@ -32,26 +35,30 @@ name: Firmware Cross-Compile (ARM)
 #   firmware/sloreta_hdtdcs  → np_hd_fai_tests        (FAI HD02/HD05.., montage + sLORETA)
 #   firmware/vendor/freertos → np_freertos_smoke_tests (kernel + config, POSIX port)
 #
-# The other 6 (firmware/safety_mcu) belong to safety-mcu-ci.yml.  6 + 19 = 25,
+# The other 6 (firmware/safety_mcu) belong to safety-mcu-ci.yml.  6 + 20 = 26,
 # disjoint; build-all.yml re-checks that partition weekly.
 #
-# ── Modules with NO host tests (do not "fix" this) ────────────────────────────
-# firmware/bootloader and firmware/hrv_biofeedback ARE in the paths lists below
-# — this workflow cross-compiles them — but they are deliberately absent from
-# the host-tests job's scope, and that is correct.  Read the NP_BUILD_TESTS
-# branch of firmware/CMakeLists.txt literally: it ends in return() at line 242,
-# so every add_subdirectory() below it — bootloader and hrv_biofeedback among
-# them — is cross-compile-only and is never reached by a host-test
-# configuration.  bootloader/CMakeLists.txt:33 hard-errors under
-# `if(NOT CMAKE_CROSSCOMPILING)` and needs arm-none-eabi-objcopy/-size.
+# ── Partial host-test coverage, and why it is partial ─────────────────────────
+# firmware/bootloader has exactly ONE host test target, np_bootloader_mem_tests,
+# added by NP-SW-CI-001 phase 1.  It covers src/np_mem.c — the freestanding
+# memcpy/memset the bootloader must supply for itself under -nostdlib — and
+# nothing else.  The remaining bootloader sources stay cross-compile-only on
+# purpose: they are device firmware (eMMC transport, USB DFU, vector-table
+# handoff) with no host-executable surface, so a host job could not run them
+# and a green check would prove nothing about the code that changed.  Honest
+# silence beats a vacuous pass.
 #
-# Adding them to a host-test run would fire a job that returns before compiling
-# them: a green check that proves nothing about the code that changed.  That is
-# strictly worse than honest silence.  An audit that greps ALL
-# add_subdirectory() calls rather than only the NP_BUILD_TESTS branch will
-# report these two as missing coverage — that audit is wrong, and this note
-# exists because one did.  (See also OI-SWCI-05: whether hrv_biofeedback
-# warrants host tests at all is an open question, not a defect in this file.)
+# firmware/hrv_biofeedback still has NO host test target at all, and that too
+# is deliberate rather than drift — see OI-SWCI-05, which records whether it
+# warrants one as an open question, not a defect in this file.
+#
+# Read the NP_BUILD_TESTS branch of firmware/CMakeLists.txt literally: it ends
+# in return(), so every add_subdirectory() below that point is cross-compile-
+# only.  bootloader/ now appears in BOTH places — inside the branch, where its
+# CMakeLists builds only the test target, and below it, where the same file
+# builds the ELF and needs arm-none-eabi-objcopy/-size.  An audit that greps
+# add_subdirectory() calls without reading which side of the return() they fall
+# on will misreport this; that is what this note is for, because one did.
 #
 # ── Keeping the `paths:` filters correct ──────────────────────────────────────
 # Per NP-SW-CI-001 §5.0 this triggers on the modules it actually compiles, NOT
@@ -125,13 +132,13 @@ env:
   # Kept as the same regex string in both files so the partition is one
   # expression, negated on one side.
   NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock)_tests$'
-  NP_CLASS_B_TEST_COUNT: '19'
+  NP_CLASS_B_TEST_COUNT: '20'
 
 jobs:
   host-tests:
-    name: CMake host tests (19 Class B targets)
+    name: CMake host tests (20 Class B targets)
     runs-on: ubuntu-latest
-    # Deliberately NOT continue-on-error.  These 19 targets were a blocking
+    # Deliberately NOT continue-on-error.  19 of these 20 targets were a blocking
     # check under firmware-host-tests.yml; Phase 0's reporting-only mandate
     # covers the NEW cross-compile verification below, not the coverage this
     # workflow absorbed.  Downgrading them here would be a silent regression.
@@ -160,7 +167,7 @@ jobs:
       # Guard against selection drift before running anything: `ctest` exits 0
       # on a shrunken subset just as happily as on the whole suite, so a green
       # check is not evidence the targets ran.  Assert the count.
-      - name: Assert test selection covers all 19 Class B targets
+      - name: Assert test selection covers all 20 Class B targets
         run: |
           ctest --test-dir build/host-tests -N -E "$NP_SAFETY_TESTS" | tee selection.txt
           selected=$(sed -n 's/^Total Tests: //p' selection.txt)

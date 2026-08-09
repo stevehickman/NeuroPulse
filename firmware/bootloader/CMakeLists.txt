@@ -30,7 +30,12 @@ cmake_minimum_required(VERSION 3.20)
 project(np_bootloader C ASM)
 
 # ── Toolchain guard ────────────────────────────────────────────────────────
-if(NOT CMAKE_CROSSCOMPILING)
+# Only the bootloader IMAGE requires the cross-compiler.  Since NP-SW-CI-001
+# phase 1 this file also carries a host-native test target for the freestanding
+# memory primitives (below, under NP_BUILD_TESTS), which builds with the host
+# compiler and no ARM toolchain at all — the same shape every other module in
+# firmware/ uses.
+if(NOT NP_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
     message(FATAL_ERROR
         "This project requires the ARM cross-compiler toolchain.\n"
         "Pass -DCMAKE_TOOLCHAIN_FILE=../../cmake/arm-none-eabi.cmake")
@@ -44,7 +49,10 @@ set(BOOTLOADER_SOURCES
     src/np_signature.c
     src/np_ota.c
     src/np_dfu.c
+    src/np_mem.c        # freestanding memcpy/memset (NP-SW-CI-001 §4.2)
 )
+
+if(CMAKE_CROSSCOMPILING)
 
 add_executable(np_bootloader ${BOOTLOADER_SOURCES})
 
@@ -77,6 +85,26 @@ target_compile_options(np_bootloader PRIVATE
     -fno-stack-protector           # no libc in bootloader
     -fwrapv                        # defined signed integer overflow
 )
+
+# ── np_mem.c: suppress loop-idiom recognition ──────────────────────────────
+# NP-SW-CI-001 §4.2.  At -O2, -ftree-loop-distribute-patterns rewrites a naive
+# byte-copy or byte-fill loop into a call to memcpy/memset — including when
+# that loop is the body of memcpy/memset itself.  The result LINKS, and
+# recurses until the 8 KiB stack is gone.
+#
+# Applied per-source, not to the target: every other bootloader translation
+# unit is entitled to the optimisation, and the risk is confined to the one
+# file that defines the primitives the pass would call.
+#
+# Measured 2026-08-09 on ARM GNU 14.2.1 (cortex-m7, hard float) against these
+# exact loops: plain -O2 emits a memset call; adding -fno-builtin suppresses
+# it.  So the bootloader's existing -fno-builtin above already covers this on
+# THIS compiler.  That is an implementation detail of how GCC's loop
+# distribution looks up an implicit builtin declaration, it is not a
+# guarantee, and the host-test build is a different compiler at different
+# flags.  Belt and braces, on a failure mode that is silent and fatal.
+set_source_files_properties(src/np_mem.c
+    PROPERTIES COMPILE_OPTIONS "-fno-tree-loop-distribute-patterns")
 
 # ── Linker flags ────────────────────────────────────────────────────────────
 set(LINKER_SCRIPT
@@ -115,3 +143,43 @@ add_custom_command(TARGET np_bootloader POST_BUILD
         "NOTICE: Verify bootloader .bin size is ≤ 49152 bytes (48 KiB limit)"
     VERBATIM
 )
+
+endif() # CMAKE_CROSSCOMPILING
+
+# ── Host test build (NOT cross-compiled) ───────────────────────────────────
+# NP-SW-CI-001 phase 1.  The bootloader's first host test target: the
+# freestanding memory primitives, checked against the host libc as oracle.
+#
+# NP_MEM_HOST_TEST drops the memcpy/memset alias definitions from np_mem.c, so
+# the host libc used as the oracle is not displaced by the code under test —
+# and so the tests call np_memcpy/np_memset, names for which the host compiler
+# has no builtin to substitute.  Without that, a test could pass having never
+# entered this repository's code.
+#
+# The rest of the bootloader stays cross-compile-only: it is device firmware
+# with no host-executable surface.  Adding it here would produce a green check
+# that proves nothing.
+if(NP_BUILD_TESTS)
+    add_executable(np_bootloader_mem_tests
+        tests/np_bootloader_mem_tests.c
+        src/np_mem.c
+    )
+    target_include_directories(np_bootloader_mem_tests PRIVATE include)
+    target_compile_options(np_bootloader_mem_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g -DNP_MEM_HOST_TEST)
+
+    # Same reasoning as the cross build above, for the host compiler.  -O0 does
+    # not run loop distribution today, but the flag is what keeps that true if
+    # the host optimisation level is ever raised.  Guarded because clang, which
+    # is the host compiler on macOS, rejects the flag outright.
+    include(CheckCCompilerFlag)
+    check_c_compiler_flag("-fno-tree-loop-distribute-patterns"
+                          NP_HAVE_NO_LOOP_DISTRIBUTE)
+    if(NP_HAVE_NO_LOOP_DISTRIBUTE)
+        set_source_files_properties(src/np_mem.c PROPERTIES COMPILE_OPTIONS
+            "-fno-builtin;-fno-tree-loop-distribute-patterns")
+    else()
+        set_source_files_properties(src/np_mem.c PROPERTIES COMPILE_OPTIONS
+            "-fno-builtin")
+    endif()
+endif()
