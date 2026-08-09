@@ -77,14 +77,17 @@
 #   firmware/cervical_vns/    → np_cvns_fai_tests         (FAI CV01..CV06, cardiac interlock)
 #   firmware/sloreta_hdtdcs/  → np_hd_fai_tests           (FAI montage + sLORETA algorithm)
 #   firmware/vendor/freertos/ → np_freertos_smoke_tests   (kernel + config, POSIX port)
+#   firmware/bootloader/      → np_bootloader_mem_tests   (freestanding memcpy/memset —
+#                              np_mem.c ONLY; the rest of the bootloader is
+#                              cross-compile-only, NP-SW-CI-001 §4.2)
 #
 # Every module listed above must also appear in the `paths:` filters of the
 # workflow that owns its host tests, or edits to it run no CI.  Ownership is
 # split by IEC 62304 class (NP-SW-CI-001 §5.0.1 — the workflows are
 # self-contained because `needs:` only works within one workflow):
 #   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (6 targets, Class C)
-#   everything else above → .github/workflows/firmware-cross-build.yml (19 targets, Class B)
-# 6 + 19 = 25.  .github/workflows/build-all.yml re-checks that partition weekly
+#   everything else above → .github/workflows/firmware-cross-build.yml (20 targets, Class B)
+# 6 + 20 = 26.  .github/workflows/build-all.yml re-checks that partition weekly
 # and fails if a target ever belongs to neither list.
 # (firmware-host-tests.yml was absorbed into the two above and retired —
 #  NP-SW-CI-001 §5.0.1, OI-SWCI-09.)
@@ -144,6 +147,11 @@ if(NP_BUILD_TESTS)
     add_subdirectory(cervical_vns)   # NP-FAI-CVNS-001: cardiac interlock FAI suite
     add_subdirectory(sloreta_hdtdcs) # NP-FW-HD-001: montage + sLORETA FAI suite
     add_subdirectory(vendor/freertos) # NP-SW-001 §9.4: FreeRTOS kernel smoke test
+    add_subdirectory(bootloader)  # NP-SW-CI-001 §4.2: freestanding memcpy/memset.
+                                  # ONLY the np_mem.c primitives have a host
+                                  # test — the rest of the bootloader is device
+                                  # firmware with no host-executable surface and
+                                  # stays cross-compile-only.
 
     add_test(NAME np_crypto_tests
         COMMAND np_crypto_tests
@@ -239,6 +247,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_hd_fai_tests
         COMMAND np_hd_fai_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_bootloader_mem_tests
+        COMMAND np_bootloader_mem_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_freertos_smoke_tests
