@@ -39,6 +39,7 @@
 
 #include "np_config.h"
 #include "np_types.h"
+#include "np_app_image.h"
 #include "np_emmc.h"
 #include "np_boot_selector.h"
 #include "np_signature.h"
@@ -193,9 +194,13 @@ static np_status_t verify_bank_header(np_bank_t bank)
 /* We read the firmware into OCRAM above the bootloader, then relocate the   */
 /* vector table and jump.                                                     */
 
-/* Firmware is loaded to a fixed address just above the bootloader.          */
-/* The linker script ensures the bootloader occupies the bottom of OCRAM.    */
-#define NP_APP_LOAD_ADDR    (NP_FW_LOAD_ADDR + 64U * 1024U)  /* 64 KiB above BL */
+/* The staging area's base address and size are owned by the linker script and  */
+/* read through np_app_image.h.  They used to be recomputed here —              */
+/* NP_APP_LOAD_ADDR as NP_FW_LOAD_ADDR + 64 KiB, and the size as NP_OCRAM_SIZE  */
+/* minus that offset — which is Defect C: the size arithmetic omitted the 8 KiB */
+/* stack, so this function accepted a 448 KiB image and copied 8 KiB of it over */
+/* the stack it was running on.  Neither value is computed in C any more.       */
+/* NP-SW-CI-001 §4.3.                                                           */
 
 static np_status_t load_and_jump(np_bank_t bank)
 {
@@ -208,22 +213,19 @@ static np_status_t load_and_jump(np_bank_t bank)
 
     /* Validate header one more time before loading */
     if (hdr.magic != NP_IMAGE_MAGIC) return NP_ERR_BAD_MAGIC;
-    if (hdr.image_size == 0U || hdr.image_size > NP_FW_MAX_SIZE) {
-        return NP_ERR_IMAGE_TOO_LARGE;
-    }
+
+    /* Bank capacity — the image must fit the partition it was read from. */
+    if (hdr.image_size > NP_FW_MAX_SIZE) return NP_ERR_IMAGE_TOO_LARGE;
+
+    /* Staging capacity — rejects an empty image and anything that would run
+     * past the end of the reservation.  The limit comes from the linker. */
+    uint8_t *app_dest = np_app_staging_base();
+    ret = np_app_image_size_check(hdr.image_size, np_app_max_image_size());
+    if (ret != NP_OK) return ret;
 
     /* Read firmware sectors from the bank into OCRAM                        */
     /* Firmware starts at bank LBA + 1 (first sector after header).          */
     uint32_t app_sectors = (hdr.image_size + NP_EMMC_SECTOR_SIZE - 1U) / NP_EMMC_SECTOR_SIZE;
-    uint8_t *app_dest    = (uint8_t *)NP_APP_LOAD_ADDR;
-
-    uint32_t remaining_ocram = NP_OCRAM_SIZE - (NP_APP_LOAD_ADDR - NP_FW_LOAD_ADDR);
-    if (hdr.image_size > remaining_ocram) {
-        /* Application too large for OCRAM: jump via XIP from eMMC.          */
-        /* For initial implementation, return error — tooling must ensure    */
-        /* application fits in available OCRAM for this platform.            */
-        return NP_ERR_IMAGE_TOO_LARGE;
-    }
 
     /* Load firmware into OCRAM */
     ret = np_emmc_read(np_emmc_bank_lba(bank) + 1U, app_dest, app_sectors);
@@ -231,14 +233,14 @@ static np_status_t load_and_jump(np_bank_t bank)
 
     /* Relocate vector table to application's vectors */
     /* SCB_VTOR = 0xE000ED08 */
-    *((volatile uint32_t *)0xE000ED08UL) = NP_APP_LOAD_ADDR;
+    *((volatile uint32_t *)0xE000ED08UL) = (uint32_t)(uintptr_t)app_dest;
 
     /* Data synchronization barrier before jump */
     __asm volatile("dsb" ::: "memory");
     __asm volatile("isb" ::: "memory");
 
     /* Extract application stack pointer and reset handler from its vectors */
-    const uint32_t *app_vectors  = (const uint32_t *)NP_APP_LOAD_ADDR;
+    const uint32_t *app_vectors  = (const uint32_t *)(const void *)app_dest;
     uint32_t        app_sp       = app_vectors[0];
     uint32_t        app_entry    = app_vectors[1];
 

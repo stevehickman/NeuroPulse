@@ -1,9 +1,9 @@
 name: Firmware Cross-Compile (ARM)
 
 # SW-02 Class B — i.MX RT1062 main processor firmware and the dual-bank OTA
-# bootloader, plus the 20 Class B host-test targets: the 19 absorbed from the
-# retired firmware-host-tests.yml (NP-SW-CI-001 §5.0.1, OI-SWCI-09) and one
-# added by NP-SW-CI-001 phase 1.
+# bootloader, plus the 21 Class B host-test targets: the 19 absorbed from the
+# retired firmware-host-tests.yml (NP-SW-CI-001 §5.0.1, OI-SWCI-09), one added
+# by NP-SW-CI-001 phase 1 and one by phase 2.
 #
 # Self-contained by construction: native host tests THEN the cross-compile, in
 # one file, because `needs:` only works within a single workflow.  Crossing
@@ -11,10 +11,12 @@ name: Firmware Cross-Compile (ARM)
 # branch, runs in base-repo context, and does not attach cleanly to a pull
 # request's check list — fragile in exactly the situation the gate exists for.
 #
-# ── Host-test targets owned by this workflow (20 of the repo's 26) ────────────
+# ── Host-test targets owned by this workflow (21 of the repo's 27) ────────────
 # Registered by the NP_BUILD_TESTS branch of firmware/CMakeLists.txt:
 #   firmware/bootloader      → np_bootloader_mem_tests (freestanding memcpy/
 #                              memset, NP-SW-CI-001 §4.2 — see the note below)
+#                            → np_bootloader_app_image_tests (OCRAM staging
+#                              limit + linker-script agreement, §4.3)
 #   firmware/crypto          → np_crypto_tests   (SHA-256/512, CRC-32, Ed25519)
 #   firmware/anon            → np_anon_tests     (Scratch encryption)
 #   firmware/edf             → np_edf_tests      (EDF+ privacy header)
@@ -39,10 +41,12 @@ name: Firmware Cross-Compile (ARM)
 # disjoint; build-all.yml re-checks that partition weekly.
 #
 # ── Partial host-test coverage, and why it is partial ─────────────────────────
-# firmware/bootloader has exactly ONE host test target, np_bootloader_mem_tests,
-# added by NP-SW-CI-001 phase 1.  It covers src/np_mem.c — the freestanding
-# memcpy/memset the bootloader must supply for itself under -nostdlib — and
-# nothing else.  The remaining bootloader sources stay cross-compile-only on
+# firmware/bootloader has TWO host test targets: np_bootloader_mem_tests (phase 1,
+# covering src/np_mem.c — the freestanding memcpy/memset the bootloader must
+# supply for itself under -nostdlib) and np_bootloader_app_image_tests (phase 2,
+# covering src/np_app_image.c — the OCRAM staging ceiling, checked against the
+# reservation parsed out of the linker script itself).  The remaining
+# bootloader sources stay cross-compile-only on
 # purpose: they are device firmware (eMMC transport, USB DFU, vector-table
 # handoff) with no host-executable surface, so a host job could not run them
 # and a green check would prove nothing about the code that changed.  Honest
@@ -132,13 +136,13 @@ env:
   # Kept as the same regex string in both files so the partition is one
   # expression, negated on one side.
   NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock)_tests$'
-  NP_CLASS_B_TEST_COUNT: '20'
+  NP_CLASS_B_TEST_COUNT: '21'
 
 jobs:
   host-tests:
-    name: CMake host tests (20 Class B targets)
+    name: CMake host tests (21 Class B targets)
     runs-on: ubuntu-latest
-    # Deliberately NOT continue-on-error.  19 of these 20 targets were a blocking
+    # Deliberately NOT continue-on-error.  19 of these 21 targets were a blocking
     # check under firmware-host-tests.yml; Phase 0's reporting-only mandate
     # covers the NEW cross-compile verification below, not the coverage this
     # workflow absorbed.  Downgrading them here would be a silent regression.
@@ -167,7 +171,7 @@ jobs:
       # Guard against selection drift before running anything: `ctest` exits 0
       # on a shrunken subset just as happily as on the whole suite, so a green
       # check is not evidence the targets ran.  Assert the count.
-      - name: Assert test selection covers all 20 Class B targets
+      - name: Assert test selection covers all 21 Class B targets
         run: |
           ctest --test-dir build/host-tests -N -E "$NP_SAFETY_TESTS" | tee selection.txt
           selected=$(sed -n 's/^Total Tests: //p' selection.txt)

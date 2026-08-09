@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** C  
+**Revision:** D  
 **Date:** 2026-08-09  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -13,12 +13,12 @@
 **Gate:** —  
 **IEC 62304 Class:** SW-01 Class C (safety MCU), SW-02 Class B (main processor)  
 **Supersedes:** None  
-**Change Summary:** Rev C (2026-08-09) — **phase 1 complete; Defect B closed.** (1) §4.2 rewritten: `-lgcc` is removed as an option because it was empirically falsified — the Cortex-M7 hard-float libgcc defines neither `memcpy`/`memset` nor any `__aeabi_mem*` variant — and `--specs=nano.specs` is recorded as rejected for pulling newlib into a Class B bootloader as new SOUP. The chosen fix, freestanding `memcpy`/`memset` in `firmware/bootloader/src/np_mem.c`, is recorded with its rationale, the `-O2` `-ftree-loop-distribute-patterns` self-recursion trap, and the disassembly check that is the actual evidence (a successful link is not). (2) New §6.2 records the measured before/after (26 unresolved → 0, region overflow now the sole error), the bootloader's first host test target, and a mutation run in which five of six broken implementations were killed and the survivor — an unaligned word-copy, undetectable by any output-comparison test — is named rather than buried. (3) Class B host-test count 19 → 20 and repo total 25 → 26 across `firmware-cross-build.yml` and `build-all.yml`; `NP_SAFETY_TEST_COUNT` untouched. (4) §8 traceability updated. Defects A, C and D unchanged; phases 2–6 unchanged. Rev B (2026-08-08) — records five decisions and one investigation. (1) §9: all SDKs vendored in-tree, closing OI-SWCI-01 and unblocking phases 4–5; flags the STM32G0 CMSIS/HAL as Class C SOUP carrying the IEC 62304 §7.1.2 anomaly-list obligation, raising OI-SWCI-06. (2) §5: the Class C safety MCU gets its own workflow rather than a matrix leg, closing OI-SWCI-03. (3) §5.0: build and test only what the PR could have changed — `paths:` lists narrowed to real dependency sets, not `firmware/**`. (4) §5.5: `build-all.yml`, an unscoped scheduled backstop, without which per-PR scoping would let undeclared dependency edges and out-of-repo rot go undetected indefinitely. (5) §5.0.1: no cross-build unless the native build is green; because `needs:` works only within a workflow, this forces each workflow to be self-contained and closes OI-SWCI-07 (safety-MCU host tests move in), at the cost of absorbing and retiring `firmware-host-tests.yml` (OI-SWCI-09). Investigation: §4.3 now records that the 448 KiB OCRAM staging figure is derived arithmetic from the original bootloader commit rather than a requirement, that the correct value is 440 KiB, and that the same wrong constant in `np_main.c:220` is a latent stack-corruption bug rather than merely a link error — restating OI-SWCI-02. No change to Defects A or B. Rev A (2026-08-06) — initial revision: establishes that no CI verifies the firmware cross-compiles for its target, records three measured blocking defects, and specifies a phased cross-compile workflow.  
+**Change Summary:** Rev D (2026-08-09) — **phase 2 complete; Defect C closed.** (1) §4.3 gains a Resolution subsection: the defect was the *duplication*, not the number, so neither `448K` nor `440K` is written anywhere in the build. `bootloader_imxrt1062.ld` derives the reservation as `LENGTH(OCRAM) - _app_load_offset - _stack_size` and exports `_app_staging_start`/`_app_staging_size`; the new `np_app_image.c` reads those symbols and `np_main.c` computes neither the ceiling nor the load address — `NP_APP_LOAD_ADDR` is retired along with `remaining_ocram`, being the same defect shape one line away. Two link-time `ASSERT`s make the OCRAM tiling a law: staging starts at `_app_load_offset` and ends at `_stack_base`. (2) New §6.3 records the measured before/after (101.56% → **100.00%**, build `rc=2` → **`rc=0`**, region overflow gone), the `nm`/`objdump` artifact evidence that the compiled `np_app_max_image_size()` returns the linker's own `0x6e000` — a binding no host test can reach, so it is checked where it exists — and a 7-of-7 mutation run that includes M2, the forbidden "change 448 to 440" fix, and M4, the original `np_main.c` stack-overwrite bug. (3) **§6's phase-2 exit criterion is corrected.** "`--print-memory-usage` under 100%" was unachievable as written: the three regions are specified to tile OCRAM, so a correct layout reports exactly 100.00%, and `ld` errors on overflow rather than on full allocation. It now reads "links successfully; no region overflow". (4) OI-SWCI-02 closed. (5) Class B host-test count 20 → 21 and repo total 26 → 27 across `firmware-cross-build.yml` and `build-all.yml`, for the new `np_bootloader_app_image_tests`; `NP_SAFETY_TEST_COUNT` untouched at 6. (6) §8 traceability gains two rows. Defects A and D unchanged; phases 3–6 unchanged. Rev C (2026-08-09) — **phase 1 complete; Defect B closed.** (1) §4.2 rewritten: `-lgcc` is removed as an option because it was empirically falsified — the Cortex-M7 hard-float libgcc defines neither `memcpy`/`memset` nor any `__aeabi_mem*` variant — and `--specs=nano.specs` is recorded as rejected for pulling newlib into a Class B bootloader as new SOUP. The chosen fix, freestanding `memcpy`/`memset` in `firmware/bootloader/src/np_mem.c`, is recorded with its rationale, the `-O2` `-ftree-loop-distribute-patterns` self-recursion trap, and the disassembly check that is the actual evidence (a successful link is not). (2) New §6.2 records the measured before/after (26 unresolved → 0, region overflow now the sole error), the bootloader's first host test target, and a mutation run in which five of six broken implementations were killed and the survivor — an unaligned word-copy, undetectable by any output-comparison test — is named rather than buried. (3) Class B host-test count 19 → 20 and repo total 25 → 26 across `firmware-cross-build.yml` and `build-all.yml`; `NP_SAFETY_TEST_COUNT` untouched. (4) §8 traceability updated. Defects A, C and D unchanged; phases 2–6 unchanged. Rev B (2026-08-08) — records five decisions and one investigation. (1) §9: all SDKs vendored in-tree, closing OI-SWCI-01 and unblocking phases 4–5; flags the STM32G0 CMSIS/HAL as Class C SOUP carrying the IEC 62304 §7.1.2 anomaly-list obligation, raising OI-SWCI-06. (2) §5: the Class C safety MCU gets its own workflow rather than a matrix leg, closing OI-SWCI-03. (3) §5.0: build and test only what the PR could have changed — `paths:` lists narrowed to real dependency sets, not `firmware/**`. (4) §5.5: `build-all.yml`, an unscoped scheduled backstop, without which per-PR scoping would let undeclared dependency edges and out-of-repo rot go undetected indefinitely. (5) §5.0.1: no cross-build unless the native build is green; because `needs:` works only within a workflow, this forces each workflow to be self-contained and closes OI-SWCI-07 (safety-MCU host tests move in), at the cost of absorbing and retiring `firmware-host-tests.yml` (OI-SWCI-09). Investigation: §4.3 now records that the 448 KiB OCRAM staging figure is derived arithmetic from the original bootloader commit rather than a requirement, that the correct value is 440 KiB, and that the same wrong constant in `np_main.c:220` is a latent stack-corruption bug rather than merely a link error — restating OI-SWCI-02. No change to Defects A or B. Rev A (2026-08-06) — initial revision: establishes that no CI verifies the firmware cross-compiles for its target, records three measured blocking defects, and specifies a phased cross-compile workflow.  
 **Review Cadence:** On each phase transition in §6, and on any change to `firmware/cmake/*.cmake`
 
 ---
 
-> **⚠ DRAFT — not a baselined verification plan.** The three workflows in §5/§5.5 landed in phase 0 (§6.1) and the bootloader's C-runtime defect closed in phase 1 (§6.2), but the cross-compile legs are still `continue-on-error` and none is a required check. §4 records four independent blocking defects; **B is closed, A, C and D are open.** Defect C is not blocked on a product decision — §4.3 established that the 448 KiB figure is derived arithmetic that omitted the 8 KiB stack, and that the same wrong constant at `np_main.c:220` is a latent stack-corruption bug that must be fixed with the linker script, not after it.
+> **⚠ DRAFT — not a baselined verification plan.** The three workflows in §5/§5.5 landed in phase 0 (§6.1), the bootloader's C-runtime defect closed in phase 1 (§6.2) and its OCRAM over-subscription closed in phase 2 (§6.3), but the cross-compile legs are still `continue-on-error` and none is a required check. §4 records four independent blocking defects; **B and C are closed, A and D are open.** The bootloader now configures and links cleanly (`rc=0`, OCRAM 100.00%); the main-firmware leg is still red on Defect D (OI-SWCI-12, phase 5) and the safety MCU on Defect A (phase 4).
 
 ## 1. Purpose and scope
 
@@ -146,6 +146,14 @@ That evaluates to `512K − 64K = 448K` again. `load_and_jump()` will therefore 
 The link failure is loud and blocks the build. This one is silent and fires only for images in a specific 8 KiB band. **Critically, the obvious fix for the link error — dropping the linker script to 440K — leaves the C guard untouched.** Both constants must change together.
 
 Note also that the application executes *from OCRAM*: `load_and_jump()` copies the image in and jumps, and the XIP-from-eMMC alternative is explicitly unimplemented (`return NP_ERR_IMAGE_TOO_LARGE`). So 440 KiB is a genuine hard ceiling on application image size, not a staging buffer — worth knowing whether the real application is anywhere near it.
+
+**Resolution (phase 2, 2026-08-09): the defect is the duplication, not the number, so neither number is written down any more.** Setting both sites to 440 would have been correct on the day and would have re-armed the identical trap — two independent computations of one limit is precisely what produced this. Instead:
+
+- `bootloader_imxrt1062.ld` derives the reservation from the boundaries that actually bound it: `_app_staging_size = LENGTH(OCRAM) - _app_load_offset - _stack_size`. `448K` is gone and `440K` was never written; the 64 KiB offset now exists once, used both as the `.app_staging` alignment and in the derivation. Two `ASSERT`s make the tiling a link-time law rather than a comment: staging must *start* at `ORIGIN(OCRAM) + _app_load_offset` (so bootloader growth past 64 KiB reports its own cause instead of a bare byte count) and must *end* at `_stack_base`, which catches over-subscription — Defect C — and silent under-subscription alike.
+- Both bounds are exported (`_app_staging_start`, `_app_staging_size`). `np_app_image.c` reads them; `np_main.c` computes neither. `NP_APP_LOAD_ADDR` went with `remaining_ocram`: it duplicated the load *address* in exactly the same shape, one line away from the size bug, so leaving it would have de-duplicated half the defect. The linker-symbol-import idiom is not new here — `np_main.c` already imported `_stack_top` this way to seed the vector table.
+- The runtime guard is now a pure function, `np_app_image_size_check(image_size, staging_size)`, separated from the symbol read so the boundary is testable on a host that has no linker script. `np_bootloader_app_image_tests` covers it and — the assertion that would have caught this defect — checks it against the reservation **parsed out of the shipping linker script**, so the two cannot diverge again without failing CI.
+
+The C-to-linker binding itself is verified on the artifact rather than in a host test, because it is not a property any host-computable value can express (§6.3).
 
 ## 5. Specified workflows
 
@@ -439,11 +447,13 @@ A permanently red required check trains reviewers to ignore it, which is worse t
 |-------|----------|--------|----------------|
 | ~~0~~ | both | ~~Land `firmware-cross-build.yml` and `safety-mcu-ci.yml`, cross-build legs `continue-on-error: true`~~ **COMPLETE 2026-08-08** | ~~Jobs run, log the known failures, block nothing~~ **Met — see §6.1** |
 | ~~1~~ | cross-build | ~~Fix Defect B (bootloader C runtime)~~ **COMPLETE 2026-08-09** | ~~Bootloader link resolves `memcpy`/`memset`~~ **Met — 26 unresolved → 0; see §6.2** |
-| 2 | cross-build | Fix Defect C (OCRAM arithmetic) — see §4.3; the linker script **and** the duplicate constant in `np_main.c` | Bootloader links; `--print-memory-usage` under 100% |
+| ~~2~~ | cross-build | ~~Fix Defect C (OCRAM arithmetic) — see §4.3; the linker script **and** the duplicate constant in `np_main.c`~~ **COMPLETE 2026-08-09** | ~~Bootloader links; no region overflow~~ **Met — 101.56% → 100.00%, `rc=0`; see §6.3** |
 | 3 | cross-build | Drop `continue-on-error` on the bootloader leg | Bootloader leg blocking |
 | 4 | safety-mcu | Vendor STM32G0 CMSIS/HAL (Defect A) per §9 | Safety MCU compiles; drop its `continue-on-error` |
 | 5 | cross-build | Populate `NP_PLATFORM_INCLUDE_DIRS` with the MCUX SDK path — currently an empty stub in `firmware/CMakeLists.txt` | Main firmware leg builds; drop its `continue-on-error` |
 | 6 | both | Add all three checks to branch protection | Cross-compile regressions become unmergeable |
+
+**The phase-2 exit criterion was corrected when phase 2 landed.** Rev B and Rev C stated it as "`--print-memory-usage` under 100%", which is not achievable and never was: the bootloader, the staging area and the stack are specified to *tile* OCRAM, so a correct layout reports exactly 100.00%. `ld` errors on **overflow**, not on full allocation, so 100.00% links cleanly and zero headroom is the design rather than a near miss. Anyone working to the original wording would have concluded a correct fix had failed, and the obvious way to "reach" under 100% is to shrink the staging reservation below what the memory map actually allows. The criterion now reads "links successfully; no region overflow".
 
 Phase 4 is independent of phases 1–3 and 5 and can be worked in parallel — giving the safety MCU its own workflow is what makes that separation clean.
 
@@ -451,7 +461,7 @@ Phases 4 and 5 both mean bringing a vendor SDK into the build, which is an SOUP 
 
 ### 6.1 Phase 0 as implemented (2026-08-08)
 
-> **Historical record — the counts below are as of 2026-08-08.** Phase 1 added `np_bootloader_mem_tests` to the Class B side, so the live figures are 6 + 20 = 26. See §6.2. The reasoning in this section is unaffected; only the arithmetic moved.
+> **Historical record — the counts below are as of 2026-08-08.** Phase 1 added `np_bootloader_mem_tests` and phase 2 added `np_bootloader_app_image_tests` to the Class B side, so the live figures are 6 + 21 = 27. See §6.2 and §6.3. The reasoning in this section is unaffected; only the arithmetic moved.
 
 Three workflows landed, not two: §5's table covers the two scoped ones, and §5.5's `build-all.yml` is the third.
 
@@ -504,7 +514,7 @@ Defect B is closed. Measured before and after on the same host (macOS, ARM GNU 1
 | unresolved, any symbol | 26 | **0** |
 | remaining errors | region overflow + 26 unresolved | **region overflow only** |
 
-**The bootloader leg is still red, and that is the expected phase-1 outcome, not a failure.** The sole remaining error is Defect C — `OCRAM: 520 KB / 512 KB / 101.56%`, `region 'OCRAM' overflowed by 8192 bytes`. That is phase 2 and needs `bootloader_imxrt1062.ld` and the duplicate constant at `np_main.c:220` changed together (OI-SWCI-02). `continue-on-error` therefore stays on the bootloader leg; dropping it is phase 3.
+**The bootloader leg is still red, and that is the expected phase-1 outcome, not a failure.** The sole remaining error is Defect C — `OCRAM: 520 KB / 512 KB / 101.56%`, `region 'OCRAM' overflowed by 8192 bytes`. That was phase 2, **closed 2026-08-09 — see §6.3**; it needed `bootloader_imxrt1062.ld` and the duplicate constant at `np_main.c:220` addressed together (OI-SWCI-02). `continue-on-error` stays on the bootloader leg even now that it is green; dropping it is phase 3.
 
 **The bootloader gained its first host test.** `np_bootloader_mem_tests` covers `src/np_mem.c` only — zero length; 1/2/3/4/8-byte lengths; unaligned source, unaligned destination and both; lengths crossing a word boundary; an exhaustive 8×8×18 offset/length matrix; non-zero and high-bit `memset` fills; `int`→`unsigned char` truncation; 4 KiB and 8 KiB transfers at every start alignment — against the host libc as oracle, in canary-framed buffers so a one-byte overrun fails rather than passes. The rest of the bootloader stays cross-compile-only: it is device firmware with no host-executable surface, and a host job that cannot run it would produce a green check proving nothing.
 
@@ -520,12 +530,71 @@ A UBSan host build would also catch it and is worth having, but it is a wider CI
 
 This is a partial down-payment on the "two modules have no CI at all" gap in §2: `firmware/bootloader` now has both a cross-compile leg and a host test. `firmware/hrv_biofeedback` still has neither a host test nor a reason recorded for wanting one — that remains OI-SWCI-05.
 
+### 6.3 Phase 2 as implemented (2026-08-09)
+
+Defect C is closed and OI-SWCI-02 with it. Measured on the same host as phase 1 (macOS, ARM GNU 14.2.1), exit codes captured directly rather than through a pipe — `cmd | tail` reports `tail`'s status and had already masked a failure twice in this work:
+
+| | before | after |
+|---|---|---|
+| configure | `rc=0` | `rc=0` |
+| build | `rc=2` | **`rc=0`** |
+| OCRAM used | 520 KB / 512 KB — **101.56%** | 512 KB / 512 KB — **100.00%** |
+| `region 'OCRAM' overflowed` | by 8192 bytes | **absent** |
+| errors of any kind in the build log | 1 | **0** |
+| C image-size ceiling | 448 KiB, computed in `np_main.c` | 440 KiB, read from the linker |
+
+**100.00% is the pass condition, not a near miss.** `ld` errors on overflow, so a fully allocated region links cleanly. The three regions are specified to tile OCRAM and now provably do:
+
+```
+bootloader ≤48K │ slack + .usb_qh │ .app_staging 64K–504K (440K) │ .stack 504K–512K (8K)
+```
+
+The 48 KiB bootloader `ASSERT` is unaffected and still passes — measured `_bootloader_end = 0x20207078`, i.e. 28 792 bytes of the 49 152 allowed. `_bl_max_size`, `_stack_size` and the OCRAM `LENGTH` are untouched.
+
+**The C-to-linker binding is verified on the artifact, because it is not in any output a host can compute.** A host build has no linker script. Feeding `np_app_max_image_size()` a host stand-in would let the suite pass while the device binding was broken — the exact failure the suite exists to catch — so `np_app_image.c`'s symbol readers are `#ifdef`-excluded from the host build (`NP_APP_IMAGE_HOST_TEST`) rather than substituted. This is the same shape of compensating control as the §4.2 disassembly check, and for the same reason: some properties are properties of the linked image, not of any value. Measured on `np_bootloader`:
+
+```
+$ arm-none-eabi-nm np_bootloader | grep -E '_app_staging|_stack_base'
+0006e000 A _app_staging_size      ← 440 KiB, derived by ld
+20210000 B _app_staging_start     ← ORIGIN(OCRAM) + 64 KiB
+2027e000 B _app_staging_end       ← identical to _stack_base
+2027e000 A _stack_base
+
+$ arm-none-eabi-objdump -d np_bootloader | sed -n '/<np_app_max_image_size>:/,/^$/p'
+20203d30 <np_app_max_image_size>:
+20203d30:  4800   ldr r0, [pc, #0]
+20203d32:  4770   bx  lr
+20203d34:  0006e000  .word 0x0006e000     ← the linker's value, not C's
+```
+
+**The suite was falsified before it was believed.** Seven mutants, all killed:
+
+| Mutant | Killed by | Assertions |
+|---|---|---|
+| M1 linker reverted to the literal `448K` — the original defect | derivation + value + tiling | 4 |
+| M2 linker set to the literal `440K` — right number, still duplicated | "must reference LENGTH/offset/stack, no numeric literal" | 4 |
+| M3 `.app_staging` body hardcodes its size, symbol defined but unused | section-body check | 1 |
+| M4 C ceiling = `staging_size + 8192` — **the original `np_main.c` bug** | 440–448 KiB band scan | 20 |
+| M5 C off-by-one (`>=`), rejects an image that exactly fits | boundary | 2 |
+| M6 C zero-length check removed | empty-image | 2 |
+| M7 C size limit removed entirely | boundary + band | 21 |
+
+M2 is the one worth noting: it is the fix this phase was told not to make, and the suite rejects it. M4 is the defect itself, and the assertion that kills it is a scan of every 512-byte-aligned image size in the old 440–448 KiB acceptance band — each one a size that would have been copied over the live stack.
+
+**The linker script is parsed, not grepped.** The §4.3 rewrite above and the new comment block in the script both contain the strings "448" and "440", and the derivation comment contains the literal text `_stack_size) = 440K`. A regex for `_stack_size *= *([0-9]+)K` finds that comment. The test therefore strips block comments first and reads the assignments out of the stripped text — a probe that matches the text the change itself just wrote is not a probe.
+
+**Residual, stated rather than left implicit.** Nothing executes the cross-compiled image, so the guard is verified as an algorithm (host tests), as a value in the linked artifact (`nm`/`objdump`), and as a layout invariant (link-time `ASSERT`) — but not as behaviour on target. §1 puts on-target execution out of scope. Separately, OI-SWCI-15 remains open and touches this same function: the Ed25519 check covers the image in its eMMC bank, not the copy in staging that actually executes.
+
+**Count guards moved in the same commit.** Adding `np_bootloader_app_image_tests` makes the Class B selection 21 and the repo total 27. `NP_CLASS_B_TEST_COUNT` is `21` in both `firmware-cross-build.yml` and `build-all.yml`; `build-all.yml`'s partition arithmetic is `6 + 21 = 27`. `NP_SAFETY_TEST_COUNT` is untouched at 6 — the bootloader is Class B. Verified locally: `ctest` reports `Total Tests: 27`, the Class C selection 6, its complement 21, and 27/27 pass.
+
+**The bootloader leg is now green, and `continue-on-error` still stays on it.** Dropping it is phase 3, deliberately a separate reviewable change. The main-firmware leg remains red on Defect D (`np_mod_pbm.c:112`, OI-SWCI-12) — unrelated to this fix and expected until phase 5.
+
 ## 7. Open items
 
 | ID | Item | Owner | Blocking |
 |----|------|-------|----------|
 | ~~OI-SWCI-01~~ | ~~Vendored or fetched SDKs?~~ **CLOSED 2026-08-08 — vendored in all cases.** See §9 | Quality / Firmware | ~~Phases 4, 5~~ |
-| OI-SWCI-02 | **Restated 2026-08-08.** Not a product decision — §4.3 established 448 KiB is derived arithmetic that omitted the 8 KiB stack, and the correct value is 440 KiB. The remaining work is a fix in *two* places: the linker script **and** the duplicate constant at `np_main.c:220`, where it is a latent stack-corruption bug. Fixing only the linker script leaves the runtime guard wrong | Firmware | Phase 2 |
+| ~~OI-SWCI-02~~ | ~~Restated 2026-08-08. The remaining work is a fix in *two* places: the linker script **and** the duplicate constant at `np_main.c:220`~~ **CLOSED 2026-08-09 — fixed as one place, not two.** The linker script derives the reservation from `LENGTH(OCRAM) - _app_load_offset - _stack_size` and exports it; `np_app_image.c` reads the symbol; `np_main.c` computes neither the limit nor the load address. Neither `448K` nor `440K` appears in the build. Two link-time `ASSERT`s and a host test that parses the shipping linker script make divergence fail CI. See §4.3 and §6.3 | Firmware | ~~Phase 2~~ |
 | ~~OI-SWCI-03~~ | ~~Own workflow or matrix leg for the Class C safety MCU?~~ **CLOSED 2026-08-08 — its own workflow, `safety-mcu-ci.yml`.** See §5 | Quality | ~~Phase 4~~ |
 | OI-SWCI-04 | Required-check policy: all PRs, or `main` only? Branch protection is an admin setting outside the repository | Steve | Phase 6 |
 | OI-SWCI-05 | `firmware/hrv_biofeedback` has no test target at all, only a static library. Whether it warrants host tests alongside cross-compile coverage is a separate question this plan does not answer | Firmware | — |
@@ -548,10 +617,12 @@ This is a partial down-payment on the "two modules have no CI at all" gap in §2
 | SW-02 Class B firmware builds for i.MX RT1062 | NP-SW-001 Rev C | `firmware-cross-build.yml` — main firmware leg, phase 5 |
 | SW-01 Class C firmware builds for STM32G071 | NP-SW-001 Rev C | `safety-mcu-ci.yml`, phase 4 |
 | Bootloader fits its OCRAM allocation | `bootloader_imxrt1062.ld` ASSERT | `firmware-cross-build.yml` — bootloader leg, phase 3 |
-| Host-native logic verified (Class B, 20 targets) | NP-SW-001 Rev C | `firmware-cross-build.yml` — `host-tests` job |
+| Host-native logic verified (Class B, 21 targets) | NP-SW-001 Rev C | `firmware-cross-build.yml` — `host-tests` job |
 | Host-native logic verified (Class C, 6 targets) | NP-SW-001 Rev C | `safety-mcu-ci.yml` — `host-tests` job |
-| Host-test partition remains complete (6 + 20 = 26) | OI-SWCI-09 | `build-all.yml` — `host-tests-all` partition guard, weekly |
+| Host-test partition remains complete (6 + 21 = 27) | OI-SWCI-09 | `build-all.yml` — `host-tests-all` partition guard, weekly |
 | Bootloader supplies its own freestanding `memcpy`/`memset` | §4.2, phase 1 | `np_bootloader_mem_tests`; `objdump` body check in §4.2 |
+| Application staging area is sized by the linker, not by C | §4.3, phase 2 | `np_bootloader_app_image_tests` (parses the linker script); `nm`/`objdump` checks in §6.3 |
+| OCRAM is tiled exactly by bootloader + staging + stack | §4.3, phase 2 | `bootloader_imxrt1062.ld` `ASSERT`s (`_app_staging_start`, `_app_staging_end`) — link-time |
 
 ## 9. Vendoring decision (closes OI-SWCI-01)
 
