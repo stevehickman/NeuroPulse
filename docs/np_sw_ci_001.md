@@ -463,7 +463,7 @@ A permanently red required check trains reviewers to ignore it, which is worse t
 | 5 | cross-build | Populate `NP_PLATFORM_INCLUDE_DIRS` with the MCUX SDK path — currently an empty stub in `firmware/CMakeLists.txt` | Main firmware leg builds; drop its `continue-on-error` |
 | 6 | both | Add all three checks to branch protection | Cross-compile regressions become unmergeable |
 
-**The phase-3 exit criterion was corrected when phase 3 landed.** Rev A–D stated it as "Bootloader leg blocking", which overclaims in a way worth being precise about, because the two properties have different owners. Dropping `continue-on-error` changes what the *workflow* reports: a failing job stops being excluded from the run conclusion, so the run concludes `failure` instead of `success`. Whether a failing run can actually **prevent a merge** is branch protection — a required-check policy, an admin setting outside the repository, and still an open decision (OI-SWCI-04, phase 6). Nothing in phase 3 touches merge enforcement, and on the day phase 3 landed `main` still carried no branch-protection object and the sole ruleset had an empty rules array. The criterion now reads "a failing bootloader leg makes the workflow run conclude `failure`" — which is what was demonstrated.
+**The phase-3 exit criterion was corrected when phase 3 landed.** Rev A–D stated it as "Bootloader leg blocking", which overclaims in a way worth being precise about, because the two properties have different owners. Dropping `continue-on-error` changes what the *workflow* reports: a failing job stops being excluded from the run conclusion, so the run concludes `failure` instead of `success`. Whether a failing run can actually **prevent a merge** is branch protection — a required-check policy, an admin setting outside the repository, and still an open decision (OI-SWCI-04, phase 6). Nothing in phase 3 touches merge enforcement. Measured on the day phase 3 landed: `main` carries no branch-protection object (`GET /branches/main/protection` → 404), and the sole ruleset (`Safety`, active) contains exactly two rules, `deletion` and `non_fast_forward`. Neither is a `required_status_checks` rule, so no check of any kind can currently prevent a merge. (§6.1 recorded that ruleset as having an empty rules array in 2026-08-08; the two protective rules have been added since, and neither changes the conclusion.) The criterion now reads "a failing bootloader leg makes the workflow run conclude `failure`" — which is what was demonstrated.
 
 Worth reading alongside that: `continue-on-error` suppresses **less** than the name suggests. It does not hide the job and it does not hide the check. A masked job still reports `conclusion: failure` at job level, and its check-run still shows a red ✗ in the PR check list — `Main firmware (i.MX RT1062, Class B)` does exactly this on every run today. The *only* thing `continue-on-error` suppresses is the job's contribution to the run conclusion. So "the job goes red" was never the thing phase 3 changed, and a phase-3 verification that looked only at job or check-run state would have passed identically before the change. The run conclusion is the single discriminating signal, which is why §6.4 is built around it.
 
@@ -602,6 +602,41 @@ M2 is the one worth noting: it is the fix this phase was told not to make, and t
 **Count guards moved in the same commit.** Adding `np_bootloader_app_image_tests` makes the Class B selection 21 and the repo total 27. `NP_CLASS_B_TEST_COUNT` is `21` in both `firmware-cross-build.yml` and `build-all.yml`; `build-all.yml`'s partition arithmetic is `6 + 21 = 27`. `NP_SAFETY_TEST_COUNT` is untouched at 6 — the bootloader is Class B. Verified locally: `ctest` reports `Total Tests: 27`, the Class C selection 6, its complement 21, and 27/27 pass.
 
 **The bootloader leg is now green, and `continue-on-error` still stays on it.** Dropping it is phase 3, deliberately a separate reviewable change. The main-firmware leg remains red on Defect D (`np_mod_pbm.c:112`, OI-SWCI-12) — unrelated to this fix and expected until phase 5.
+
+### 6.4 Phase 3 as implemented (2026-08-09)
+
+`continue-on-error: true` is removed from the bootloader cross-compile leg in the two workflows that carried it — `firmware-cross-build.yml` job `bootloader` and `build-all.yml` job `bootloader-cross`. Four settings remain, all on legs whose defects are still open: `main-firmware` and `main-firmware-cross` (Defect D, OI-SWCI-12, phase 5), `safety-mcu-cross` and `safety-mcu-ci.yml`'s `cross-build` (Defect A, phase 4).
+
+**A green run is not evidence that a gate gates, so the gate was demonstrated by making it fail.** Through phases 0–2 this leg was *already* green while blocking nothing; a phase-3 verification that only observed a passing run would have been satisfied identically by the unchanged file. A deliberate unresolved-symbol breakage was pushed, the run was measured, the breakage was reverted, and the run was measured again.
+
+| | red — breakage present | green — reverted |
+|---|---|---|
+| commit | `1e63026` | `785f1ef` |
+| run | [31333323733](https://github.com/stevehickman/NeuroPulse/actions/runs/31333323733) | [31333406860](https://github.com/stevehickman/NeuroPulse/actions/runs/31333406860) |
+| `Bootloader (i.MX RT1062)` | **failure**, failing step `Build` | **success**, `Build` success |
+| `CMake host tests (21 Class B targets)` | success | success |
+| `Main firmware (i.MX RT1062, Class B)` | failure, failing step `Build` | failure, failing step `Build` |
+| **workflow run conclusion** | **`failure`** | **`success`** |
+
+The breakage was an `extern void np_phase3_gate_probe(void)` declared and called from `Bootloader_Reset()`, chosen so the failure is an *unresolved symbol at link* — deliberately the same shape as Defect B, the class of regression this leg exists to catch — rather than a compile diagnostic:
+
+```
+np_main.c:(.text.Bootloader_Reset+0x6): undefined reference to `np_phase3_gate_probe'
+collect2: error: ld returned 1 exit status
+```
+
+**The pair is a within-run control, not just a before/after.** Two things make the run-conclusion difference attributable to the removed setting and nothing else:
+
+- **`main-firmware` fails on *both* runs and is masked on both.** On the green run a job concluded `failure` and the run still concluded `success` — that is `continue-on-error` working, observed in the same workflow, on the same commit, at the same time as the bootloader leg was gating. The only difference between the two legs is the setting this phase removed.
+- **`host-tests` succeeds on both runs**, so the red run's redness cannot be coming from the one other non-masked job. This is structural rather than lucky: `firmware/bootloader/CMakeLists.txt` puts only `src/np_mem.c` and `src/np_app_image.c` into host-test targets, so a breakage in `np_main.c` is invisible to them.
+
+**What `continue-on-error` actually suppresses — narrower than the name implies.** A masked job still reports `conclusion: failure` at job level and its check-run still shows a red ✗ in the PR check list; `Main firmware` does exactly this on every run, including the green one above. Only the job's contribution to the **run conclusion** is suppressed. Job state and check-run state therefore cannot distinguish a gating leg from a masked one, and any phase-3 verification built on them would have passed before the change was made. The run conclusion is the sole discriminating signal, which is why it is the row in bold.
+
+**`build-all.yml` was exercised separately.** It is `schedule` + `workflow_dispatch` only and never runs on a pull request, so its promoted leg cannot be observed on the PR that changes it. Dispatched against the branch: run [31333420250](https://github.com/stevehickman/NeuroPulse/actions/runs/31333420250), conclusion `success`, with `Bootloader cross-compile (i.MX RT1062)` success and **both** `main-firmware-cross` (Defect D) and `safety-mcu-cross` (Defect A) concluding `failure` while still masked. That is the same control as above with two masked jobs instead of one: three cross-compile legs, two failing, run green — the promoted leg is the only one whose state the run now follows.
+
+**OCRAM stays at exactly 100.00% and that is not a number to watch.** The region is fully allocated by the `NOLOAD` reservations that tile it (§4.3, §6.3), so the figure is a property of the memory map rather than of code size and will not move as code changes. The code-size gate is a different mechanism entirely: the `ASSERT((_bootloader_end - ORIGIN(OCRAM)) <= _bl_max_size)` on the 48 KiB limit, currently about 26 KB used. Making this leg blocking protects both — the `ASSERT` fails the link, the link failure fails the job, and the job now fails the run.
+
+**What this phase did not do.** It did not make the bootloader leg a *required* check, and nothing here prevents a merge. That is branch protection, it is an admin setting outside the repository, and it is OI-SWCI-04 at phase 6. Measured on the day: `main` has no branch-protection object, and the `Safety` ruleset's two rules (`deletion`, `non_fast_forward`) include no `required_status_checks`. Phases 4 and 5 are untouched, as are all three test-count guards and every `permissions:` block.
 
 ## 7. Open items
 
