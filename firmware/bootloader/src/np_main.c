@@ -91,13 +91,6 @@ extern uint32_t  _bootloader_end;   /* provided by linker script             */
 extern void      Bootloader_Reset(void);
 extern void      SysTick_Handler(void);  /* defined in np_dfu.c (DFU timeout tick) */
 
-/* TEMPORARY — NP-SW-CI-001 phase 3 gate demonstration.  Declared but defined
- * nowhere, and called from Bootloader_Reset() below so it cannot be elided.
- * Produces an unresolved-symbol link failure — deliberately the same failure
- * shape as Defect B (§4.2), which is what this leg exists to catch.  REVERTED
- * in the next commit; must not appear in the merged diff.                    */
-extern void      np_phase3_gate_probe(void);
-
 /* IVT at base of OCRAM load address */
 __attribute__((section(".np_ivt"), used))
 static const np_ivt_t g_ivt = {
@@ -273,9 +266,6 @@ static np_status_t load_and_jump(np_bank_t bank)
 __attribute__((noreturn))
 void Bootloader_Reset(void)
 {
-    /* TEMPORARY — NP-SW-CI-001 phase 3 gate demonstration.  Reverted next commit. */
-    np_phase3_gate_probe();
-
     /* B-1: Basic hardware setup ─────────────────────────────────────────── */
     /* Disable watchdog timer (WDOG1, WDOG2) inherited from ROM if running.  */
     /* WDOG1_WCR = 0x400B8000 — disable by setting WDE=0 before any long ops */
