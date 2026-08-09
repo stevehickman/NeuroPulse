@@ -50,6 +50,7 @@ set(BOOTLOADER_SOURCES
     src/np_ota.c
     src/np_dfu.c
     src/np_mem.c        # freestanding memcpy/memset (NP-SW-CI-001 §4.2)
+    src/np_app_image.c  # OCRAM staging limits from the linker (NP-SW-CI-001 §4.3)
 )
 
 if(CMAKE_CROSSCOMPILING)
@@ -182,4 +183,26 @@ if(NP_BUILD_TESTS)
         set_source_files_properties(src/np_mem.c PROPERTIES COMPILE_OPTIONS
             "-fno-builtin")
     endif()
+
+    # ── Application staging limits (NP-SW-CI-001 §4.3, Defect C) ────────────
+    # NP_APP_IMAGE_HOST_TEST drops np_app_image.c's linker-symbol readers, which
+    # cannot exist on a host.  Deliberately NOT replaced with a host stand-in: a
+    # stand-in would let this suite pass while the device's C-to-linker binding
+    # was broken, which is the exact failure it exists to catch.  That binding is
+    # verified on the linked artifact instead (nm/objdump — see the test header).
+    #
+    # The test reads the real linker script and evaluates its arithmetic, so the
+    # limit it checks the predicate against is the one that actually ships.  The
+    # path is passed in rather than discovered at runtime, because ctest runs the
+    # binary from the build tree.
+    add_executable(np_bootloader_app_image_tests
+        tests/np_bootloader_app_image_tests.c
+        src/np_app_image.c
+    )
+    target_include_directories(np_bootloader_app_image_tests PRIVATE include)
+    target_compile_options(np_bootloader_app_image_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g)
+    target_compile_definitions(np_bootloader_app_image_tests PRIVATE
+        NP_APP_IMAGE_HOST_TEST
+        NP_LINKER_SCRIPT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/linker/bootloader_imxrt1062.ld")
 endif()

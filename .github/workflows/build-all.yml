@@ -48,13 +48,13 @@ permissions:
 
 env:
   NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock)_tests$'
-  NP_TOTAL_TEST_COUNT: '26'
+  NP_TOTAL_TEST_COUNT: '27'
   NP_SAFETY_TEST_COUNT: '6'
-  NP_CLASS_B_TEST_COUNT: '20'
+  NP_CLASS_B_TEST_COUNT: '21'
 
 jobs:
   host-tests-all:
-    name: CMake host tests (26 targets, unfiltered)
+    name: CMake host tests (27 targets, unfiltered)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -78,10 +78,10 @@ jobs:
         run: cmake --build build/host-tests
 
       # The partition guard.  Asserts three things the scoped workflows cannot:
-      # the total is still 26, the two halves still sum to it, and they do not
+      # the total is still 27, the two halves still sum to it, and they do not
       # overlap.  Any of add-a-test / rename-a-test / broaden-the-regex trips
       # this, which is the point.
-      - name: Assert host-test partition still sums to 26
+      - name: Assert host-test partition still sums to 27
         run: |
           count() { ctest --test-dir build/host-tests -N "$@" | sed -n 's/^Total Tests: //p'; }
           names() { ctest --test-dir build/host-tests -N "$@" \

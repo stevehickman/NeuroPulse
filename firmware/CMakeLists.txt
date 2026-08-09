@@ -78,16 +78,20 @@
 #   firmware/sloreta_hdtdcs/  → np_hd_fai_tests           (FAI montage + sLORETA algorithm)
 #   firmware/vendor/freertos/ → np_freertos_smoke_tests   (kernel + config, POSIX port)
 #   firmware/bootloader/      → np_bootloader_mem_tests   (freestanding memcpy/memset —
-#                              np_mem.c ONLY; the rest of the bootloader is
-#                              cross-compile-only, NP-SW-CI-001 §4.2)
+#                              NP-SW-CI-001 §4.2)
+#                             → np_bootloader_app_image_tests (OCRAM staging limit +
+#                              linker-script agreement, NP-SW-CI-001 §4.3)
+#                              np_mem.c and np_app_image.c ONLY; the rest of the
+#                              bootloader is device firmware with no host-executable
+#                              surface and stays cross-compile-only.
 #
 # Every module listed above must also appear in the `paths:` filters of the
 # workflow that owns its host tests, or edits to it run no CI.  Ownership is
 # split by IEC 62304 class (NP-SW-CI-001 §5.0.1 — the workflows are
 # self-contained because `needs:` only works within one workflow):
 #   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (6 targets, Class C)
-#   everything else above → .github/workflows/firmware-cross-build.yml (20 targets, Class B)
-# 6 + 20 = 26.  .github/workflows/build-all.yml re-checks that partition weekly
+#   everything else above → .github/workflows/firmware-cross-build.yml (21 targets, Class B)
+# 6 + 21 = 27.  .github/workflows/build-all.yml re-checks that partition weekly
 # and fails if a target ever belongs to neither list.
 # (firmware-host-tests.yml was absorbed into the two above and retired —
 #  NP-SW-CI-001 §5.0.1, OI-SWCI-09.)
@@ -251,6 +255,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_bootloader_mem_tests
         COMMAND np_bootloader_mem_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_bootloader_app_image_tests
+        COMMAND np_bootloader_app_image_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_freertos_smoke_tests
