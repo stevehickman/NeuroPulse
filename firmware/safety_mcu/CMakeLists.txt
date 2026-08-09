@@ -128,9 +128,20 @@ if(NOT CMAKE_CROSSCOMPILING)
 endif()
 
 # ── STM32G071 device define ────────────────────────────────────────────────────
+# STM32G071xx selects the device header out of the CMSIS family header, and is
+# also the gate on the #include in np_safety_config.h — it is set here, below the
+# NP_BUILD_TESTS return(), so it is a cross-build-only define by construction.
+#
+# USE_HAL_DRIVER is deliberately NOT defined.  stm32g0xx.h ends with
+#   #if defined (USE_HAL_DRIVER)
+#    #include "stm32g0xx_hal.h"
+#   #endif
+# so defining it demands the ST HAL, which OI-SWCI-06 resolved NOT to vendor
+# (NP-SW-CI-001 §9.4: every vendored file is Class C SOUP surface, and this
+# firmware makes zero HAL_* and zero LL_* calls).  It was set before any device
+# header existed in-tree, so it had never been load-bearing; it is now.
 add_compile_definitions(
     STM32G071xx
-    USE_HAL_DRIVER
 )
 
 # ── Sources ───────────────────────────────────────────────────────────────────
@@ -162,21 +173,47 @@ set(CPU_FLAGS
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../crypto
                  ${CMAKE_CURRENT_BINARY_DIR}/np_crypto_build)
 
-# ── Firmware image ─────────────────────────────────────────────────────────────
-add_executable(np_safety_mcu ${SAFETY_SOURCES})
+# ── Compilation unit ──────────────────────────────────────────────────────────
+# Every Class C translation unit, compiled for STM32G071 — and nothing else.
+# Split out of the executable so COMPILING and LINKING are separately buildable
+# targets, because as of 2026-08-09 only the first of the two can succeed:
+# Defect E (NP-SW-CI-001 §4.4) leaves 24 first-party np_hal_* platform symbols
+# undefined, so the image cannot link until the safety MCU's platform layer is
+# written.  Compilation for target is exactly the property Defect A broke, it is
+# a real regression surface, and it is gated on its own in CI (§5.2, phase 4)
+# instead of being held hostage to an unrelated open defect.
+#
+# `cmake --build <dir> --target np_safety_mcu_objs` is the gated CI step.
+add_library(np_safety_mcu_objs OBJECT ${SAFETY_SOURCES})
 
-target_include_directories(np_safety_mcu PRIVATE include)
+target_include_directories(np_safety_mcu_objs PRIVATE include)
 
-target_link_libraries(np_safety_mcu PRIVATE np_crypto)
+# Vendored CMSIS SOUP — two components, two upstreams, two records:
+#   ../vendor/cmsis_core       ARM CMSIS-Core(M) 5.6.0 from CMSIS_5 @ 5.9.0
+#   ../vendor/cmsis_device_g0  ST CMSIS-Device STM32G0 @ v1.4.5
+# See each directory's VERSION and NP-SW-001 §9.5/§9.6.
+#
+# SYSTEM, so the -Wall -Wextra -Werror below stays fully in force on first-party
+# code while diagnostics from the vendored headers are suppressed.  This is the
+# header-only analogue of the -w the Monocypher precedent puts on SOUP *sources*;
+# no warning is disabled repo-wide and no first-party file loses a diagnostic.
+target_include_directories(np_safety_mcu_objs SYSTEM PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/cmsis_core/Include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/cmsis_device_g0/Include
+)
+
+# Usage requirements only (np_crypto's headers, for np_session_sig.c).  Linking
+# np_crypto into the image stays on the executable target below.
+target_link_libraries(np_safety_mcu_objs PRIVATE np_crypto)
 
 # C standard: enforce C11 without GNU extensions (MISRA C:2012 requires this).
-set_target_properties(np_safety_mcu PROPERTIES
+set_target_properties(np_safety_mcu_objs PROPERTIES
     C_STANDARD          11
     C_STANDARD_REQUIRED ON
     C_EXTENSIONS        OFF
 )
 
-target_compile_options(np_safety_mcu PRIVATE
+target_compile_options(np_safety_mcu_objs PRIVATE
     ${CPU_FLAGS}
     -Wall
     -Wextra
@@ -191,13 +228,30 @@ target_compile_options(np_safety_mcu PRIVATE
     -Wno-unused-parameter    # remove after HAL stubs filled in
 )
 
+# ── Firmware image ─────────────────────────────────────────────────────────────
+# Links the objects above.  BLOCKED on Defect E (NP-SW-CI-001 §4.4) — 24 first-party
+# np_hal_* platform symbols are undefined, so this target cannot link today and is
+# deliberately NOT what CI gates on at phase 4.  It stays declared so the day the
+# platform layer lands the link is already wired and CI can be pointed at it.
+add_executable(np_safety_mcu $<TARGET_OBJECTS:np_safety_mcu_objs>)
+
+target_link_libraries(np_safety_mcu PRIVATE np_crypto)
+
+# -specs=nano.specs / -specs=nosys.specs are NOT repeated here.  They are already
+# in CMAKE_EXE_LINKER_FLAGS_INIT in firmware/cmake/stm32g071.cmake, which is the
+# single source for them; naming them again put each on the link line twice.
+# ARM GNU 14.2.1 rejects the repeat outright —
+#   nano.specs: attempt to rename spec 'link' to already defined spec 'nano_link'
+# — so the duplication was a latent build break, not a harmless one.  It had
+# never been reachable: the link is downstream of Defect A, which stopped this
+# firmware at compile time, so nothing had linked it since the duplication
+# landed.  Same defect shape as Defect C (NP-SW-CI-001 §4.3): one value, two
+# places to write it.  Deduplicated rather than version-guarded.
 target_link_options(np_safety_mcu PRIVATE
     ${CPU_FLAGS}
     -T${CMAKE_CURRENT_SOURCE_DIR}/startup/stm32g071_flash.ld
     -Wl,--gc-sections
     -Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/np_safety_mcu.map
-    -specs=nano.specs
-    -specs=nosys.specs
 )
 
 # ── Post-build: binary and hex ─────────────────────────────────────────────────
