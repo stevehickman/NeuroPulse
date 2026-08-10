@@ -124,6 +124,8 @@ np_hub_status_t np_mod_pbm_init(uint8_t slot)
      * leave zones 1..N-1 holding zeroed calibration, which is a wrong J/cm² on
      * a dose-metering path rather than a build error. */
     if (!s_cal_loaded) {
+        /* TEMPORARY phase-5 gate probe — reverted in the same PR. */
+        np_phase5_gate_probe(s_cal[0]);
         for (uint8_t z = 0U; z < NP_HUB_ZONE_SLOT_COUNT; z++) {
             np_pbm1064_dose_load_cal_stub(s_cal[z]);
         }
