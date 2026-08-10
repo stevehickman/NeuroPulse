@@ -928,7 +928,43 @@ M1 is the defect this phase closed, and the leg rejects it. M2 is the fix this p
 
 **Phases 3 and 4's within-run control is not available at phase 5, and the replacement is stronger.** Both earlier phases leaned on a second failing-but-masked job in the same run — "job A fails and the run goes red, job B fails and the run stays green, same run, same commit" — to attribute the difference to the removed setting rather than to anything environmental. This phase removes the last masked legs, so no such job exists any more. Instead the **breakage is held constant and only the setting varies**: the same broken commit is run with the setting restored and with it removed. That isolates the setting on *identical code*, which the within-run control never did — it compared two different legs and relied on them being otherwise alike.
 
-<!-- PHASE5-RUNS -->
+Four runs of `firmware-cross-build.yml` on the phase-5 branch. The middle two are the control pair: **the firmware is byte-identical between them, and the only difference in the entire tree is the one line of YAML this phase removed.**
+
+| | 1 — fixed, gating | 2 — broken, setting **restored** | 3 — broken, setting **removed** | 4 — reverted, gating |
+|---|---|---|---|---|
+| commit | `b80b4db` | `e5749f6` | `c5a7ed3` | `2de8cd0` |
+| run | [31346446631](https://github.com/stevehickman/NeuroPulse/actions/runs/31346446631) | [31346536157](https://github.com/stevehickman/NeuroPulse/actions/runs/31346536157) | [31346603332](https://github.com/stevehickman/NeuroPulse/actions/runs/31346603332) | [31346722647](https://github.com/stevehickman/NeuroPulse/actions/runs/31346722647) |
+| `Main firmware (i.MX RT1062, Class B)` | success | **failure**, step `Build` | **failure**, step `Build` | success |
+| `Bootloader (i.MX RT1062)` | success | success | success | success |
+| `CMake host tests (21 Class B targets)` | success | success | success | success |
+| **workflow run conclusion** | `success` | **`success`** | **`failure`** | `success` |
+
+**Read columns 2 and 3 together — that is the whole demonstration.** The `Main firmware` job concludes `failure` in both, with the same failing step, on the same firmware, from the same diagnostic. The **run** concludes `success` in one and `failure` in the other. The only thing that changed is `continue-on-error`. This is a cleaner attribution than phases 3 and 4 achieved: their control compared two *different legs* within one run and relied on the legs being otherwise alike, whereas this compares one leg against itself with the code held constant.
+
+It also demonstrates, on this leg specifically, the property §6 and the phase-3/4 sections both state: **job conclusion is non-discriminating.** Column 2 and column 3 have identical job-level results. A phase-5 verification that read `gh run view --json jobs` and stopped there would have reported the same answer whether or not the setting had been removed.
+
+The breakage was an implicit declaration of a non-existent function called from the calibration-load path in `np_mod_pbm.c`, chosen so the failure is **the same shape as Defect D** — the class of regression this leg exists to catch — rather than an arbitrary syntax error:
+
+```
+firmware/hub_control/modules/np_mod_pbm.c:128:9: error: implicit declaration
+  of function 'np_phase5_gate_probe' [-Werror=implicit-function-declaration]
+ninja: build stopped: subcommand failed.
+```
+
+**`host-tests` succeeds on all four runs**, so the red run's redness cannot be coming from the other non-masked job in that workflow. This is structural rather than lucky: `np_mod_pbm.c` is compiled into no host-test target — the Class B suite reaches `np_hub_control` through `np_cvns_reenable_tests`, `np_log_backend_tests`, `np_transport_tests`, `np_mod_cvns_tests`, `np_module_map_tests`, `np_protocol_tests` and `np_mod_stim_tests`, none of which build the PBM module. Which is also why Defect D survived to be found by a cross-build in the first place.
+
+**`build-all.yml` was exercised separately.** It is `schedule` + `workflow_dispatch` only and never runs on a pull request, so its promoted leg cannot be observed on the PR that changes it. Dispatched twice against the branch:
+
+| Dispatch | commit | `main-firmware-cross` | `bootloader-cross` | `safety-mcu-cross` | run conclusion |
+|---|---|---|---|---|---|
+| [31346672311](https://github.com/stevehickman/NeuroPulse/actions/runs/31346672311) | `c5a7ed3` (broken) | **failure** (gating) | success | success | **`failure`** |
+| [31346727224](https://github.com/stevehickman/NeuroPulse/actions/runs/31346727224) | `2de8cd0` (reverted) | success (gating) | success | success | **`success`** |
+
+Both dispatches double as the check that this phase left the other legs alone: `bootloader-cross` and `safety-mcu-cross` succeed on both, including on the run where the main-firmware leg took the run down. `safety-mcu-ci.yml` did not trigger on this branch at all, which is its `paths:` filter behaving correctly — nothing under `firmware/safety_mcu/**` was touched.
+
+**The breakage was reverted in the same PR, and the revert was verified as a revert rather than assumed.** `git diff b80b4db 2de8cd0` is empty: the tree after the demonstration is byte-identical to the tree before it.
+
+
 
 **What this phase did not do.** It did not make the main-firmware leg a *required* check, and nothing here prevents a merge — that is branch protection, an admin setting outside the repository, and it remains OI-SWCI-04 at phase 6. It did not touch any `permissions:` block, any test-count guard, or the bootloader and safety-MCU legs. It did not vendor or reference the MCUX SDK (OI-SWCI-20). It did not touch Defect E or the SW-01 platform layer (OI-SWCI-17, phase 7). And it did not produce an SW-02 application image, because no target for one exists (§4.7, OI-SWCI-21).
 
