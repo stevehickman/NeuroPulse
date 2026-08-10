@@ -1072,8 +1072,13 @@ Read that as corroboration and nothing more. The rollup is computed over all che
 
 **Therefore §6.7.8 is written to be applied in an order that is safe if the assumption is wrong**, and §6.7.9 is the rollback:
 
-1. Run the `PUT` in §6.7.8.
-2. **Immediately** re-check scratch PR [#262](https://github.com/stevehickman/NeuroPulse/pull/262), which is **deliberately left open for this** — it is docs-only, based on the phase-6 branch, and already has all six firmware contexts sitting at `conclusion: skipped`. It is the exact shape that would deadlock, ready to answer the question in one page load. (Re-target its base to `main` after phase 6 merges, or open an equivalent one-file docs PR.)
+1. Apply the rule — §6.7.8, and note its step 0: the conversion must already be on `main`.
+2. **Immediately** re-check scratch PR [#262](https://github.com/stevehickman/NeuroPulse/pull/262), which is **deliberately left open for this** — a one-file docs-only PR against `main` (re-targeted there on 2026-08-10, once phase 6 merged), with the firmware contexts sitting at `conclusion: skipped`. It is the exact shape that would deadlock, ready to answer the question in one page load. If it has since been closed, any one-file PR touching only `docs/` does the same job.
+
+   The discriminator, in one command:
+   ```bash
+   gh pr view 262 --json mergeStateStatus --jq .mergeStateStatus
+   ```
 3. If it shows the firmware checks as satisfied, the assumption holds and phase 6 is complete.
 4. If it shows *"Expected — waiting for status"*, the assumption does not hold — run the §6.7.9 rollback and require only the checks that never skip: `Class B scope`, `Class C scope`, `Web scope`, plus the `codeql.yml` contexts.
 
@@ -1140,9 +1145,60 @@ The second was not in the phase-6 brief; it was found by reading the contexts of
 
 Workflows still `paths:`-filtered and therefore **still not requirable**: `android-ci.yml`, `ios-ci.yml`, `watchos-ci.yml`, `shdr-schema-ci.yml`, `warranty-nojoin-ci.yml`. Converting them is the same mechanical change if they are ever wanted as required checks.
 
-#### 6.7.8 The prepared payload — Steve runs this, not CI
+#### 6.7.8 Applying it — the runbook Steve runs, not CI
 
-Read §6.7.5 first. The contexts below were read from live runs on 2026-08-10, not hand-written; `integration_id: 15368` is the GitHub Actions app, confirmed from `GET /commits/{sha}/check-runs`.
+Read §6.7.5 first.
+
+**Where:** a terminal on the workstation, or a browser — both routes are given below. Nothing here runs in CI, and nothing here is automatable: it is an admin action on the repository by design.
+
+##### Step 0 — ORDER OF OPERATIONS. Merge first.
+
+**The workflow conversion must be on `main` BEFORE the rule is added. Not after, and not at the same time.**
+
+This is not a stylistic preference. Required contexts are matched by exact string against the checks a PR actually reports, and a PR reports whatever the workflows on *its* branch produce. Until the conversion is on `main`:
+
+- the old, `paths:`-filtered workflows are what PRs run, so on a docs-only PR the firmware checks do not report at all — the §6.7.1 deadlock, still live;
+- the check names are still the old count-bearing ones (`CMake host tests (21 Class B targets)`), so the seven contexts below match nothing;
+- and the PR carrying the conversion **cannot itself merge**, because it too would be waiting on seven contexts that do not exist. The fix locks itself out.
+
+Sequence:
+
+1. Merge the phase-6 PR ([#261](https://github.com/stevehickman/NeuroPulse/pull/261), merged 2026-08-10 — this step is done).
+2. Confirm `main` carries the new names before going further:
+   ```bash
+   gh api repos/stevehickman/NeuroPulse/contents/.github/workflows/firmware-cross-build.yml \
+     --jq '.content' | base64 -d | grep -E '^    name: '
+   ```
+   Expect `Class B scope`, `CMake host tests (Class B)`, `Bootloader (i.MX RT1062)`, `Main firmware (i.MX RT1062, Class B)` — no digits.
+3. Have an open docs-only PR ready (§6.7.5 step 2). [#262](https://github.com/stevehickman/NeuroPulse/pull/262) was re-targeted to `main` for this on 2026-08-10; without one, the admin action is spent and observes nothing.
+4. Then apply — Option A or Option B below.
+
+##### Option A — the ruleset UI (preferred)
+
+**Use this one.** Almost every hazard in Option B — the whole-ruleset replacement, the `before.json` capture, the `enforcement`-defaults-to-disabled warning — is an artefact of the API route and does not exist here. The UI edits the ruleset in place; the two existing rules are never resent, so they cannot be lost.
+
+1. **https://github.com/stevehickman/NeuroPulse/settings/rules** → the **Safety** ruleset.
+2. Tick **Require status checks to pass**.
+3. Leave **Require branches to be up to date before merging** unticked — that is the `strict_required_status_checks_policy: false` choice discussed below.
+4. Add these seven contexts, exactly as written:
+   ```
+   Class B scope
+   CMake host tests (Class B)
+   Bootloader (i.MX RT1062)
+   Main firmware (i.MX RT1062, Class B)
+   Class C scope
+   Safety MCU host tests (Class C)
+   Cross-compile (STM32G071, Cortex-M0+, Class C)
+   ```
+5. **Save changes**, then go to §6.7.5 step 2 before merging anything else.
+
+To undo: untick the box and save. That is the whole rollback for this route.
+
+##### Option B — the API payload
+
+Equivalent to Option A and offered for the record, for scripting, and because it makes the resulting state explicit. It carries hazards Option A does not — read the warnings.
+
+The contexts below were read from live runs on 2026-08-10, not hand-written; `integration_id: 15368` is the GitHub Actions app, confirmed from `GET /commits/{sha}/check-runs`.
 
 > **`PUT /rulesets/{id}` REPLACES the entire ruleset.** It is not a merge. The payload below therefore restates the two rules the `Safety` ruleset already has (`deletion`, `non_fast_forward`), its existing `bypass_actors` entry, **and `enforcement: active`**. Omitting any of them deletes or defaults it — and an `enforcement` that silently defaults to `disabled` would switch the whole `Safety` ruleset off while every check still reported green, which is the exact "gate becomes a no-op" failure this phase exists to prevent.
 
@@ -1158,7 +1214,7 @@ gh api repos/stevehickman/NeuroPulse/rulesets/16412379 > before.json   # KEEP TH
 
 Measured: `Safety` is the **only** ruleset (`16412379`, `active`), targeting `~DEFAULT_BRANCH`, rules exactly `deletion` + `non_fast_forward`, one bypass actor (`RepositoryRole` 5, `always`). `GET /branches/main/protection` → 404: there is no classic branch-protection object, so nothing else can be holding a stale required context.
 
-**Precondition:** have an open docs-only PR live *before* running this, or the verification step in §6.7.5 observes nothing and the admin action is spent for no answer. PR #262 is left open for exactly this.
+**Preconditions:** step 0 above — the conversion is on `main`, and an open docs-only PR is live.
 
 ```bash
 gh api --method PUT repos/stevehickman/NeuroPulse/rulesets/16412379 --input - <<'JSON'
@@ -1217,6 +1273,8 @@ Four notes on the choices, all of which are Steve's to overrule:
 
 If a docs-only PR shows the firmware checks as *"Expected — waiting for status"* rather than satisfied, §6.7.5's assumption does not hold.
 
+**If §6.7.8 Option A was used, the rollback is: untick "Require status checks to pass" and save.** Nothing below applies — the rest of this section is the Option B rollback.
+
 **Prefer the captured `before.json` over the payload below.** Reconstructing a pre-state at rollback time is how a rollback quietly becomes a second change; the file captured in §6.7.8's pre-flight is the authoritative record:
 
 ```bash
@@ -1260,7 +1318,7 @@ It did not make any check required, and nothing here prevents a merge — that i
 | ~~OI-SWCI-01~~ | ~~Vendored or fetched SDKs?~~ **CLOSED 2026-08-08 — vendored in all cases.** See §9 | Quality / Firmware | ~~Phases 4, 5~~ |
 | ~~OI-SWCI-02~~ | ~~Restated 2026-08-08. The remaining work is a fix in *two* places: the linker script **and** the duplicate constant at `np_main.c:220`~~ **CLOSED 2026-08-09 — fixed as one place, not two.** The linker script derives the reservation from `LENGTH(OCRAM) - _app_load_offset - _stack_size` and exports it; `np_app_image.c` reads the symbol; `np_main.c` computes neither the limit nor the load address. Neither `448K` nor `440K` appears in the build. Two link-time `ASSERT`s and a host test that parses the shipping linker script make divergence fail CI. See §4.3 and §6.3 | Firmware | ~~Phase 2~~ |
 | ~~OI-SWCI-03~~ | ~~Own workflow or matrix leg for the Class C safety MCU?~~ **CLOSED 2026-08-08 — its own workflow, `safety-mcu-ci.yml`.** See §5 | Quality | ~~Phase 4~~ |
-| OI-SWCI-04 | Required-check policy: all PRs, or `main` only? Branch protection is an admin setting outside the repository. **Still open — this is what phase 6 is waiting on.** The mechanical blocker is closed as of 2026-08-10: every firmware check now reports on every PR, so the checks are *requirable* without deadlocking docs-only PRs (§6.7). The ready-to-run payload is §6.7.8 and the rollback is §6.7.9; read §6.7.5 first, which records the one assumption that could not be verified from inside the repository | Steve | Phase 6 |
+| OI-SWCI-04 | Required-check policy: all PRs, or `main` only? Branch protection is an admin setting outside the repository. **Still open — this is what phase 6 is waiting on.** The mechanical blocker is closed as of 2026-08-10: every firmware check now reports on every PR, so the checks are *requirable* without deadlocking docs-only PRs (§6.7). The runbook is §6.7.8 — start at its step 0, which is the merge-ordering constraint — and the rollback is §6.7.9; read §6.7.5 first, which records the one assumption that could not be verified from inside the repository | Steve | Phase 6 |
 | OI-SWCI-22 | **Raised 2026-08-10 during phase 6 (§6.7.10). A direct push to `main` is currently permitted and bypasses every status check.** The `Safety` ruleset (`16412379`) contains exactly `deletion` and `non_fast_forward`, and there is no classic branch-protection object (`GET /branches/main/protection` → 404). `non_fast_forward` blocks force-pushes but **not** ordinary fast-forward pushes, and no `pull_request` rule exists. Status checks are only ever evaluated on pull requests, so requiring them (OI-SWCI-04) constrains the PR path while leaving the direct-push path entirely open — a regression could land on `main` without any check having run. The decision is whether to add a `pull_request` rule (with what review count, and which bypass actors), which changes how everyone commits and is not a side effect a CI phase should apply. Deliberately not changed by phase 6 | Steve | — |
 | OI-SWCI-23 | **Raised 2026-08-10 during phase 6 (§6.7.7). `build-all.yml` must never become a required check.** It is `schedule` + `workflow_dispatch` only by design (§5.5) and has no `pull_request` trigger, so it never reports on any PR; requiring it would block every PR unconditionally and permanently. Its job names also carry counts (`CMake host tests (27 targets, unfiltered)`), which is harmless only because it is not requirable. Recorded as an open item purely so there is an ID to cite when someone proposes adding it "for completeness" | Quality | — |
 | OI-SWCI-24 | **Raised 2026-08-10 during phase 6.** Header arithmetic in `safety-mcu-ci.yml` is stale: it says "6 of the repo's 25" and "The remaining 19 belong to firmware-cross-build.yml. 6 + 19 = 25", while the live partition is 6 + 21 = 27 (`build-all.yml`'s own job is named `CMake host tests (27 targets, unfiltered)`, and §8 records 6 + 21 = 27). `firmware-cross-build.yml` has the same drift in the other direction — its header says "21 of the repo's 27" in one place and "6 + 20 = 26" in another. Phases 1 and 2 each added a Class B target and the prose counts were not swept. No check is affected — the enforced counts are the `NP_*_TEST_COUNT` env vars, which are correct — so this is a documentation defect, not a coverage one. Related to OI-SWCI-13 (the other stale-reference sweep) and naturally worked with it | Quality | — |
