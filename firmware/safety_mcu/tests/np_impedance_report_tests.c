@@ -20,6 +20,7 @@
 #include <stdio.h>
 
 #include "../include/np_safety_config.h"
+#include "../include/np_safety_hal.h"
 #include "../include/np_safety_protocol.h"
 
 /* ── Unit under test ─────────────────────────────────────────────────────────── */
@@ -28,7 +29,10 @@ extern void             np_impedance_check_request(uint16_t requested_mask);
 extern void             np_impedance_check_poll(np_safety_state_t *state);
 extern bool             np_impedance_check_build_cvns_report(np_safety_imp_report_t *out);
 
-/* ── Mocked HAL stubs ────────────────────────────────────────────────────────── */
+/* ── Mocked HAL stubs ──────────────────────────────────────────────────────────
+ * These DEFINE symbols DECLARED in np_safety_hal.h (included above), which is
+ * the point: a signature that drifts from the production contract is now a
+ * compile error here rather than a silently mislinked call (OI-SWCI-18).     */
 static bool     g_result_ready[16];
 static uint32_t g_read_ohm[16];
 static uint32_t g_electrode_ohm[NP_SAFETY_IMP_CVNS_ELECTRODES];

@@ -19,6 +19,13 @@
 #   SW01-M07  np_session_sig       — Ed25519 session descriptor signature gate
 #   SW01-M08  np_fault_latch       — non-volatile fault latch in backup SRAM
 #
+# ── Platform contract ─────────────────────────────────────────────────────────
+#   include/np_safety_hal.h is the SINGLE declaration point for all 25 np_hal_*
+#   platform symbols (NP-SW-CI-001 §4.4.1, closes OI-SWCI-18).  Every module
+#   above and every host-test double includes it, so a signature change is a
+#   compile error at both ends rather than silent cross-TU UB.  It declares
+#   only — no implementation exists (Defect E, §4.4, OI-SWCI-17).
+#
 # ── Build ─────────────────────────────────────────────────────────────────────
 #   cmake -B build/safety_mcu firmware/safety_mcu \
 #         -DCMAKE_TOOLCHAIN_FILE=../cmake/stm32g071.cmake \

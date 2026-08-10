@@ -9,12 +9,14 @@
  */
 
 #include "np_safety_config.h"
+#include "np_safety_hal.h"
 #include "np_safety_protocol.h"
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ── HAL (SysTick-backed millisecond counter) ────────────────────────────── */
-extern uint32_t np_hal_get_tick_ms(void);
+/* HAL: np_hal_get_tick_ms — SysTick-backed millisecond counter, declared in
+ * np_safety_hal.h.  The 1500 ms NP_SAFETY_WDG_TIMEOUT_MS below is in the same
+ * unit by contract, not by coincidence.                                     */
 
 /* ── Module state ────────────────────────────────────────────────────────── */
 static uint32_t s_last_beat_ms  = 0U;

@@ -16,11 +16,13 @@
  */
 
 #include "np_safety_config.h"
+#include "np_safety_hal.h"
 #include "np_safety_protocol.h"
 #include <stdint.h>
 
-/* ── HAL stub (FMEA OI-FMEA-01: bench test required) ─────────────────────── */
-extern void np_hal_gpio_write_pin(void *port, uint16_t pin, int state);
+/* HAL: np_hal_gpio_write_pin — declared in np_safety_hal.h, where the
+ * active-LOW polarity (1 = HIGH = disabled) is recorded.  FMEA OI-FMEA-01:
+ * bench test required.                                                      */
 
 np_safe_status_t np_gpio_mgr_init(void)
 {

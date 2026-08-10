@@ -23,6 +23,7 @@
 #include <stdio.h>
 
 #include "../include/np_safety_config.h"
+#include "../include/np_safety_hal.h"
 #include "../include/np_safety_protocol.h"
 
 /* ── Unit under test ─────────────────────────────────────────────────────────── */
@@ -34,7 +35,9 @@ extern uint8_t          np_fault_latch_get_slot(void);
 extern uint32_t         np_fault_latch_report_tick_ms(void);
 extern uint16_t         np_fault_latch_report_count(void);
 
-/* ── Mocked HAL: controllable SysTick ────────────────────────────────────────── */
+/* ── Mocked HAL: controllable SysTick ──────────────────────────────────────────
+ * Defines a symbol declared in np_safety_hal.h — drift is a compile error
+ * (OI-SWCI-18).                                                              */
 static uint32_t g_tick_ms = 0U;
 uint32_t np_hal_get_tick_ms(void) { return g_tick_ms; }
 

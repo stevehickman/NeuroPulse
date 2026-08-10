@@ -15,15 +15,13 @@
  */
 
 #include "np_safety_config.h"
+#include "np_safety_hal.h"
 #include "np_safety_protocol.h"
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ── HAL stubs ───────────────────────────────────────────────────────────── */
-extern uint32_t np_hal_get_tick_ms(void);
-extern uint32_t np_hal_tim2_get_capture(void);    /* last captured TIM2 count */
-extern bool     np_hal_rpeak_edge_pending(void);  /* R-peak edge detected */
-extern void     np_hal_rpeak_edge_clear(void);
+/* HAL: np_hal_get_tick_ms (ms), np_hal_tim2_get_capture (µs, 1 MHz free-run),
+ * np_hal_rpeak_edge_pending / _clear — all declared in np_safety_hal.h.     */
 
 /* ── Module state ─────────────────────────────────────────────────────────── */
 #define NP_RR_BUF_SIZE   8U

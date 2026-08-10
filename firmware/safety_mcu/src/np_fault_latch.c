@@ -29,6 +29,7 @@
  */
 
 #include "np_safety_config.h"
+#include "np_safety_hal.h"
 #include "np_safety_protocol.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -57,8 +58,9 @@ typedef struct __attribute__((packed)) {
 
 static NP_FAULT_LATCH_SECTION np_fault_latch_t s_latch;
 
-/* ── HAL stub ────────────────────────────────────────────────────────────── */
-extern uint32_t np_hal_get_tick_ms(void);
+/* HAL: np_hal_get_tick_ms — declared in np_safety_hal.h.  Its value lands in
+ * s_latch.tick_ms, which is SHDR-reportable except when the latched fault
+ * carries NP_SAFETY_STATUS_CARDIAC (CLAUDE.md §5.1).                        */
 
 np_safe_status_t np_fault_latch_init(bool *prior_fault_out)
 {
