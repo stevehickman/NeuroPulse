@@ -3,47 +3,15 @@ name: Web App CI (TypeScript + Vitest)
 # Runs on every push or PR that touches the NPPS web editor.
 # Steps: type-check → unit tests (vitest) → production build (vite).
 
+# The relevance list moved out of `on: … paths:` into the `changes` job below at
+# NP-SW-CI-001 phase 6 (§6.7): a workflow-level `paths:` filter suppresses the
+# whole workflow, so its check never reports, and a REQUIRED status check that
+# never reports blocks the pull request forever. A job skipped by `if:` reports
+# `conclusion: skipped`, which satisfies a required check. Same build surface,
+# one list instead of two kept identical by hand.
 on:
   push:
-    paths:
-      - 'app/web/**'
-      - 'locales/**'
-      - 'npps/fixtures/**'
-      - 'protocols/predefined/**'
-      - 'scripts/sync-conditions.ts'
-      - 'scripts/sync-locales.ts'
-      - 'scripts/sync-socket-map.ts'
-      - 'scripts/test-lateralization-audit.sh'
-      # Section-ref guard: it must fire on the edits it guards. The guard scans the
-      # whole repo, so its `paths:` must cover everywhere a CLAUDE.md citation can
-      # live — not just app/web/. A reorganization touches CLAUDE.md and docs/ and
-      # nothing under app/web/; and five of the 100 dangling refs it caught were in
-      # app/android Kotlin sources, which no earlier grep even scanned.
-      - 'CLAUDE.md'
-      - 'docs/**'
-      - 'app/android/**'
-      - 'firmware/**'
-      - 'scripts/check-section-refs.ts'
   pull_request:
-    paths:
-      - 'app/web/**'
-      - 'locales/**'
-      - 'npps/fixtures/**'
-      - 'protocols/predefined/**'
-      - 'scripts/sync-conditions.ts'
-      - 'scripts/sync-locales.ts'
-      - 'scripts/sync-socket-map.ts'
-      - 'scripts/test-lateralization-audit.sh'
-      # Section-ref guard: it must fire on the edits it guards. The guard scans the
-      # whole repo, so its `paths:` must cover everywhere a CLAUDE.md citation can
-      # live — not just app/web/. A reorganization touches CLAUDE.md and docs/ and
-      # nothing under app/web/; and five of the 100 dangling refs it caught were in
-      # app/android Kotlin sources, which no earlier grep even scanned.
-      - 'CLAUDE.md'
-      - 'docs/**'
-      - 'app/android/**'
-      - 'firmware/**'
-      - 'scripts/check-section-refs.ts'
   workflow_dispatch:
 
 # Least privilege. This job only checks out the repo and type-checks/tests/builds
@@ -55,9 +23,146 @@ permissions:
   contents: read
 
 jobs:
+  # The relevance list that used to live in `on: … paths:`. Always runs, always
+  # reports (NP-SW-CI-001 §6.7).
+  changes:
+    name: Web scope
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.scope.outputs.relevant }}
+    env:
+      # ── THE WEB RELEVANCE LIST ────────────────────────────────────────────
+      # Same 13 entries the retired `paths:` blocks carried, plus the matcher
+      # itself. Blank lines and `#` comments are stripped by
+      # ci-changed-scope.sh, so the reasoning lives next to the entries.
+      NP_SCOPE_PATHS: |
+        app/web/**
+        locales/**
+        npps/fixtures/**
+        protocols/predefined/**
+        scripts/sync-conditions.ts
+        scripts/sync-locales.ts
+        scripts/sync-socket-map.ts
+        scripts/test-lateralization-audit.sh
+        # Section-ref guard: it must fire on the edits it guards. The guard scans
+        # the whole repo, so this list must cover everywhere a CLAUDE.md citation
+        # can live — not just app/web/. A reorganization touches CLAUDE.md and
+        # docs/ and nothing under app/web/; and five of the 100 dangling refs it
+        # caught were in app/android Kotlin sources, which no earlier grep even
+        # scanned. NP-SW-CI-001 §5.0 records this as a deliberate, accepted
+        # exception to the build-only-what-changed principle: a guard that cannot
+        # see the edit that breaks it is not a guard.
+        CLAUDE.md
+        docs/**
+        app/android/**
+        firmware/**
+        scripts/check-section-refs.ts
+        scripts/ci-changed-scope.sh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Matcher self-test
+        run: scripts/ci-changed-scope.sh --self-test
+
+      - name: Write the relevance list
+        run: printf '%s\n' "$NP_SCOPE_PATHS" > scope.paths
+
+      # Assert THIS list. The first case is the §5.0 accepted exception: a
+      # docs-only change MUST still run this workflow, because the section-ref
+      # guard is what a docs reorganization breaks.
+      # A well-formed pattern that matches nothing is a typo, not a scope
+      # decision: `firmware/bootlaoder/**` would silently take the module out
+      # of scope and every firmware job would skip while every check went green.
+      - name: Every relevance pattern still resolves in the tree
+        run: scripts/ci-changed-scope.sh --check-tree scope.paths
+
+      - name: Scope assertions
+        run: |
+          set -euo pipefail
+          assert() { # <expected> <path>
+            printf '%s\n' "$2" > .scope-probe
+            got=$(scripts/ci-changed-scope.sh --relevant scope.paths .scope-probe)
+            if [ "$got" != "$1" ]; then
+              echo "::error::Web scope assertion failed: '$2' expected relevant=$1, got $got"
+              exit 1
+            fi
+            echo "ok: $2 → $got"
+          }
+          assert true  docs/np_sw_ci_001.md
+          assert true  CLAUDE.md
+          assert true  app/web/src/main.ts
+          assert false app/ios/NeurOne/ContentView.swift
+
+      - name: Changed files
+        id: diff
+        env:
+          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          # Fail-safe direction is BUILD.  Anything that leaves the scope of the
+          # change genuinely unknown is treated as in scope rather than skipped:
+          # skipping on uncertainty is how a gate becomes a no-op without anyone
+          # noticing.  But "unknown" must mean actually unknown — see below.
+          base=""
+          if [ -n "${NP_BASE:-}" ] && [ "${NP_BASE}" != "0000000000000000000000000000000000000000" ] \
+             && git cat-file -e "${NP_BASE}^{commit}" 2>/dev/null; then
+            base="${NP_BASE}"
+          elif [ "${{ github.event_name }}" = "push" ] \
+               && git cat-file -e "origin/${NP_DEFAULT_BRANCH}^{commit}" 2>/dev/null; then
+            # A branch's FIRST push carries an all-zero `before`, so the naive
+            # fail-safe ran a full firmware build on every new branch regardless
+            # of what it touched — a §5.0 regression introduced by this very
+            # change.  Measured on the phase-6 scratch PR (§6.7) before this
+            # branch existed: the pull_request event skipped correctly while the
+            # push event for the same commit built everything.  Scoping against
+            # the default branch is both correct and cheaper.
+            echo "::notice::no usable event base — scoping against origin/${NP_DEFAULT_BRANCH}"
+            base="origin/${NP_DEFAULT_BRANCH}"
+          fi
+          # workflow_dispatch deliberately gets NO fallback.  A human asked for
+          # this run, and on the default branch a default-branch fallback would
+          # diff main against itself, find nothing, and skip every job — turning
+          # the manual "build it now" button into a no-op.
+          if [ -z "${base}" ] || ! git cat-file -e "${NP_HEAD}^{commit}" 2>/dev/null; then
+            echo "::notice::no usable base revision (event=${{ github.event_name }}, base='${NP_BASE:-}') — treating as in scope"
+            echo "unknown_base=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! merge_base=$(git merge-base "${base}" "${NP_HEAD}"); then
+            echo "::notice::no merge base between ${base} and ${NP_HEAD} — treating as in scope"
+            echo "unknown_base=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --name-only "${merge_base}" "${NP_HEAD}" > changed.txt
+          echo "unknown_base=false" >> "$GITHUB_OUTPUT"
+          echo "--- changed files (base ${merge_base}) ---"
+          cat changed.txt
+
+      - name: Relevance
+        id: scope
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.diff.outputs.unknown_base }}" = "true" ]; then
+            relevant=true
+          else
+            relevant=$(scripts/ci-changed-scope.sh --relevant scope.paths changed.txt)
+            echo "--- in-scope files ---"
+            scripts/ci-changed-scope.sh --match scope.paths changed.txt
+          fi
+          echo "relevant=${relevant}" | tee -a "$GITHUB_OUTPUT"
+
   web-ci:
     name: TypeScript type-check + Vitest + Vite build
     runs-on: ubuntu-latest
+    needs: changes
+    # Skip ONLY on a definite negative — see firmware-cross-build.yml for the
+    # full reasoning on `!= 'false'` and `!cancelled()`.
+    if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
 
     defaults:
       run:
