@@ -1096,7 +1096,9 @@ Measured on PR [#262](https://github.com/stevehickman/NeuroPulse/pull/262) on 20
 Two honest caveats on that reading, neither of which changes the conclusion:
 
 - **A `CLEAN` reading taken *before* the rule existed would have been vacuous** — with no required checks, nothing can block, so `CLEAN` is guaranteed and identical whether or not skipped satisfies. It was in fact observed in that state first. The measurement only discriminates once `required_status_checks` is present and `isRequired` is true, which is why both are quoted above rather than the merge state alone.
-- **The `Safety` ruleset grants `RepositoryRole` 5 `bypass_mode: always`**, so the observer is an actor who could bypass. `isRequired` is not viewer-dependent and `BLOCKED` is reported to bypassing admins rather than suppressed, so this does not undercut the result — but it is the reason the seven `isRequired` flags, not the single merge state, are the evidence of record.
+- **The `Safety` ruleset grants `RepositoryRole` 5 `bypass_mode: always`**, so the observer is an actor who could bypass. That raised the question of whether a non-`BLOCKED` reading was simply bypass showing through. **It is not, and this was observed rather than argued:** PR [#264](https://github.com/stevehickman/NeuroPulse/pull/264) — opened by the same actor, minutes later — read `mergeStateStatus: BLOCKED` while `Class B scope` was still `IN_PROGRESS`, and moved to `UNSTABLE`/`MERGEABLE` when it finished. `BLOCKED` is therefore reachable and reported to this viewer, so a non-`BLOCKED` reading on #262 carries information. The `isRequired` flags remain the primary evidence; this is the control that makes the merge state admissible alongside them.
+
+  Note also what #264 demonstrates on its own: a **pending** required check blocks, exactly as a never-reporting one would. That is the §6.7.1 deadlock in miniature, resolving itself in about a minute because the check does eventually report — which is the entire difference this phase created.
 
 ##### The order §6.7.8 was written to be applied in
 
