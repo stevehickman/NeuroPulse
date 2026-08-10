@@ -95,18 +95,40 @@ jobs:
         env:
           NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
           NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -euo pipefail
-          # Fail-safe direction is BUILD.
-          if [ -z "${NP_BASE:-}" ] || [ "${NP_BASE}" = "0000000000000000000000000000000000000000" ] \
-             || ! git cat-file -e "${NP_BASE}^{commit}" 2>/dev/null \
-             || ! git cat-file -e "${NP_HEAD}^{commit}" 2>/dev/null; then
+          # Fail-safe direction is BUILD.  Anything that leaves the scope of the
+          # change genuinely unknown is treated as in scope rather than skipped:
+          # skipping on uncertainty is how a gate becomes a no-op without anyone
+          # noticing.  But "unknown" must mean actually unknown — see below.
+          base=""
+          if [ -n "${NP_BASE:-}" ] && [ "${NP_BASE}" != "0000000000000000000000000000000000000000" ] \
+             && git cat-file -e "${NP_BASE}^{commit}" 2>/dev/null; then
+            base="${NP_BASE}"
+          elif [ "${{ github.event_name }}" = "push" ] \
+               && git cat-file -e "origin/${NP_DEFAULT_BRANCH}^{commit}" 2>/dev/null; then
+            # A branch's FIRST push carries an all-zero `before`, so the naive
+            # fail-safe ran a full firmware build on every new branch regardless
+            # of what it touched — a §5.0 regression introduced by this very
+            # change.  Measured on the phase-6 scratch PR (§6.7) before this
+            # branch existed: the pull_request event skipped correctly while the
+            # push event for the same commit built everything.  Scoping against
+            # the default branch is both correct and cheaper.
+            echo "::notice::no usable event base — scoping against origin/${NP_DEFAULT_BRANCH}"
+            base="origin/${NP_DEFAULT_BRANCH}"
+          fi
+          # workflow_dispatch deliberately gets NO fallback.  A human asked for
+          # this run, and on the default branch a default-branch fallback would
+          # diff main against itself, find nothing, and skip every job — turning
+          # the manual "build it now" button into a no-op.
+          if [ -z "${base}" ] || ! git cat-file -e "${NP_HEAD}^{commit}" 2>/dev/null; then
             echo "::notice::no usable base revision (event=${{ github.event_name }}, base='${NP_BASE:-}') — treating as in scope"
             echo "unknown_base=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          if ! merge_base=$(git merge-base "${NP_BASE}" "${NP_HEAD}"); then
-            echo "::notice::no merge base between ${NP_BASE} and ${NP_HEAD} — treating as in scope"
+          if ! merge_base=$(git merge-base "${base}" "${NP_HEAD}"); then
+            echo "::notice::no merge base between ${base} and ${NP_HEAD} — treating as in scope"
             echo "unknown_base=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
