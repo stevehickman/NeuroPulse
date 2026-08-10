@@ -137,6 +137,11 @@ jobs:
   # runs and always reports, which is the whole point (§6.7).
   changes:
     name: Class B scope
+    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
+    # Renaming it, or adding a `strategy: matrix:` to this job (which renames
+    # the check to "name (value)"), un-gates the branch SILENTLY: the required
+    # context stops matching and nothing reports the mismatch. Change it only
+    # together with the ruleset.
     runs-on: ubuntu-latest
     outputs:
       relevant: ${{ steps.scope.outputs.relevant }}
@@ -191,6 +196,12 @@ jobs:
       # glob semantics; these four cases prove the §5.0 dependency reasoning is
       # actually in force for Class B, and would fail loudly if someone widened
       # the list to `firmware/**` or narrowed it to nothing.
+      # A well-formed pattern that matches nothing is a typo, not a scope
+      # decision: `firmware/bootlaoder/**` would silently take the module out
+      # of scope and every firmware job would skip while every check went green.
+      - name: Every relevance pattern still resolves in the tree
+        run: scripts/ci-changed-scope.sh --check-tree scope.paths
+
       - name: Scope assertions
         run: |
           set -euo pipefail
@@ -270,6 +281,11 @@ jobs:
 
   host-tests:
     name: CMake host tests (Class B)
+    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
+    # Renaming it, or adding a `strategy: matrix:` to this job (which renames
+    # the check to "name (value)"), un-gates the branch SILENTLY: the required
+    # context stops matching and nothing reports the mismatch. Change it only
+    # together with the ruleset.
     runs-on: ubuntu-latest
     needs: changes
     # Skip ONLY on a definite negative.  `!= 'false'` rather than `== 'true'` is
@@ -334,6 +350,11 @@ jobs:
 
   bootloader:
     name: Bootloader (i.MX RT1062)
+    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
+    # Renaming it, or adding a `strategy: matrix:` to this job (which renames
+    # the check to "name (value)"), un-gates the branch SILENTLY: the required
+    # context stops matching and nothing reports the mismatch. Change it only
+    # together with the ruleset.
     runs-on: ubuntu-latest
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
@@ -424,6 +445,11 @@ jobs:
 
   main-firmware:
     name: Main firmware (i.MX RT1062, Class B)
+    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
+    # Renaming it, or adding a `strategy: matrix:` to this job (which renames
+    # the check to "name (value)"), un-gates the branch SILENTLY: the required
+    # context stops matching and nothing reports the mismatch. Change it only
+    # together with the ruleset.
     runs-on: ubuntu-latest
     # A genuine native counterpart exists for these modules (the 19 host-test
     # targets above), so §5.0.1 applies: do not spend runner minutes

@@ -214,8 +214,42 @@ np_self_test() {
   printf 'ci-changed-scope: self-test OK\n'
 }
 
+# np_check_tree <patterns-file>
+# Assert every pattern still points at something that exists in the tracked tree.
+#
+# The `!= 'false'` fail-safe in the calling workflows protects against the matcher
+# ERRORING.  It does not protect against a pattern that is merely WRONG:
+# `firmware/bootlaoder/**` is a perfectly well-formed pattern that matches nothing,
+# so a typo silently takes the whole module out of scope, every firmware job skips,
+# and every check goes green.  A pattern pointing at nothing is an error here, for
+# the same reason an empty pattern list is.
+np_check_tree() {
+  patterns=$(np_read_patterns "$1")
+  bad=0
+  printf '%s\n' "$patterns" | {
+    while IFS= read -r pattern || [ -n "$pattern" ]; do
+      [ -n "$pattern" ] || continue
+      case $pattern in
+        */'**') probe=${pattern%'**'} ;;
+        *)      probe=$pattern ;;
+      esac
+      if [ -z "$(git ls-files -- "$probe" | head -n 1)" ]; then
+        printf '::error::relevance pattern matches nothing in the tracked tree: %s\n' "$pattern" >&2
+        bad=$((bad + 1))
+      else
+        printf 'ok: %s\n' "$pattern"
+      fi
+    done
+    [ "$bad" -eq 0 ]
+  }
+}
+
 case ${1:-} in
   --self-test) np_self_test ;;
+  --check-tree)
+    [ $# -eq 2 ] || np_die "usage: --check-tree <patterns-file>"
+    np_check_tree "$2"
+    ;;
   --match)
     [ $# -eq 3 ] || np_die "usage: --match <patterns-file> <files-file>"
     np_match "$2" "$3"

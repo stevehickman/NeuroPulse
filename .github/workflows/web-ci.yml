@@ -73,6 +73,12 @@ jobs:
       # Assert THIS list. The first case is the §5.0 accepted exception: a
       # docs-only change MUST still run this workflow, because the section-ref
       # guard is what a docs reorganization breaks.
+      # A well-formed pattern that matches nothing is a typo, not a scope
+      # decision: `firmware/bootlaoder/**` would silently take the module out
+      # of scope and every firmware job would skip while every check went green.
+      - name: Every relevance pattern still resolves in the tree
+        run: scripts/ci-changed-scope.sh --check-tree scope.paths
+
       - name: Scope assertions
         run: |
           set -euo pipefail

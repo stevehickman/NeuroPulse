@@ -83,6 +83,11 @@ jobs:
   # reports (§6.7).
   changes:
     name: Class C scope
+    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
+    # Renaming it, or adding a `strategy: matrix:` to this job (which renames
+    # the check to "name (value)"), un-gates the branch SILENTLY: the required
+    # context stops matching and nothing reports the mismatch. Change it only
+    # together with the ruleset.
     runs-on: ubuntu-latest
     outputs:
       relevant: ${{ steps.scope.outputs.relevant }}
@@ -122,6 +127,12 @@ jobs:
       # Assert THIS list, not just the matcher: the §5.0 dependency reasoning
       # (crypto in, bootloader out) is executable here rather than only written
       # down in the header.
+      # A well-formed pattern that matches nothing is a typo, not a scope
+      # decision: `firmware/bootlaoder/**` would silently take the module out
+      # of scope and every firmware job would skip while every check went green.
+      - name: Every relevance pattern still resolves in the tree
+        run: scripts/ci-changed-scope.sh --check-tree scope.paths
+
       - name: Scope assertions
         run: |
           set -euo pipefail
@@ -201,6 +212,11 @@ jobs:
 
   host-tests:
     name: Safety MCU host tests (Class C)
+    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
+    # Renaming it, or adding a `strategy: matrix:` to this job (which renames
+    # the check to "name (value)"), un-gates the branch SILENTLY: the required
+    # context stops matching and nothing reports the mismatch. Change it only
+    # together with the ruleset.
     runs-on: ubuntu-latest
     needs: changes
     # Skip ONLY on a definite negative.  `!= 'false'` rather than `== 'true'`:
@@ -272,6 +288,11 @@ jobs:
     # exists — it does not (Defect E, §4.4).  The job name is the only thing most
     # readers see, so it must not overclaim.
     name: Cross-compile (STM32G071, Cortex-M0+, Class C)
+    # ⚠ This string is a required-status-check CONTEXT (NP-SW-CI-001 §6.7.8).
+    # Renaming it, or adding a `strategy: matrix:` to this job (which renames
+    # the check to "name (value)"), un-gates the branch SILENTLY: the required
+    # context stops matching and nothing reports the mismatch. Change it only
+    # together with the ruleset.
     runs-on: ubuntu-latest
     # A genuine native counterpart exists for this code, so §5.0.1 applies:
     # do not spend runner minutes cross-compiling what already failed natively.

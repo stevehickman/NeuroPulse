@@ -1013,6 +1013,16 @@ Change detection is a ~40-line in-repo shell script, `scripts/ci-changed-scope.s
 
 The script supports exactly two pattern shapes, `prefix/**` and an exact path, which is all the retired `paths:` lists ever used. **Any other shape is a hard error, not a silent non-match** — a pattern the matcher does not understand must be loud, because the failure mode of quietly matching nothing is a gate that reports green having built nothing.
 
+Three guards run in every `changes` job before the matcher is trusted, because everything about this mechanism fails toward green:
+
+| Guard | Catches |
+|---|---|
+| `--self-test` | The matcher itself being wrong — prefix-boundary bugs, an unsupported shape silently not matching, an empty list read as "nothing is relevant" |
+| `--check-tree` | A *well-formed but wrong* pattern. `firmware/bootlaoder/**` is valid, matches nothing, and silently takes the whole module out of scope. Measured: with that one typo, a real `firmware/bootloader/src/np_main.c` change evaluates `relevant=false`. Every pattern must still resolve to something tracked |
+| *Scope assertions* | The list being wrong at the §5.0 level — Class B judging a safety-MCU-only change in scope, Class C judging a `firmware/crypto/**` change out of scope |
+
+The first two were each falsified against deliberately broken copies before being relied on: three mutants of the matcher (dropped prefix slash, unsupported shape returning "no match", exact-match becoming a glob) and one typo'd relevance list. The first two mutants and the typo were caught. The third was not, and is an **equivalent mutant** rather than a test gap: shell glob treats `.` literally, and every glob metacharacter is rejected upstream by the shape guard that mutant 2 does test. Recorded rather than papered over.
+
 #### 6.7.3 What the conversion also fixed, and what it broke
 
 Three things came out of this that were not the goal:
@@ -1047,9 +1057,18 @@ Runs: `pull_request` [31388830758](https://github.com/stevehickman/NeuroPulse/ac
 
 #### 6.7.5 What is still NOT verified, and why — read before applying §6.7.6
 
-**Whether a `skipped` check satisfies a *required* check has not been directly verified, because verifying it requires the exact admin action this phase is forbidden to take.** Stating that plainly rather than burying it: it is the load-bearing assumption of the whole phase.
+**The behaviour is documented by GitHub and corroborated by measurement here, but it has NOT been exercised against a live `required_status_checks` rule on this repository** — because exercising it requires the exact admin action this phase is forbidden to take. Stating that plainly rather than burying it: it is the load-bearing assumption of the whole phase.
 
-The strongest evidence obtainable without applying a rule was measured, and it points the right way. On PR #262 with **10 check-runs concluding `skipped`**, GitHub's own status aggregate reports `statusCheckRollup.state = SUCCESS`, not `PENDING`. That is GitHub computing "are these checks satisfied" over a set that is mostly skipped, and answering yes. It is *not* the required-status-checks evaluation path, so it is corroboration, not proof.
+**Primary evidence — GitHub's own documentation** ([Troubleshooting required status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks), retrieved 2026-08-10) states both halves of the distinction this phase is built on, and states them separately:
+
+- when a **workflow** is skipped by path or branch filtering — *"Associated checks stay in a 'Pending' state and block merging"*
+- when a **job** is skipped by a conditional — *"The job reports 'Success'"*
+
+That is precisely the transformation §6.7.2 performs: the same scoping decision, moved from the first mechanism to the second.
+
+**Corroborating measurement.** On PR #262 with **10 check-runs concluding `skipped`**, GitHub's own status aggregate reports `statusCheckRollup.state = SUCCESS`, not `PENDING`.
+
+Read that as corroboration and nothing more. The rollup is computed over all check runs regardless of whether any are required, and it never touches the required-context **name-matching** path — which is the part that could actually surprise, since a required context is an exact string match and a mismatch produces no error anywhere. A green rollup shows `skipped` is not treated as failing in general; it does not show that these seven specific strings will be matched and satisfied. Absence of a symptom is not absence of the hazard.
 
 **Therefore §6.7.8 is written to be applied in an order that is safe if the assumption is wrong**, and §6.7.9 is the rollback:
 
@@ -1125,9 +1144,21 @@ Workflows still `paths:`-filtered and therefore **still not requirable**: `andro
 
 Read §6.7.5 first. The contexts below were read from live runs on 2026-08-10, not hand-written; `integration_id: 15368` is the GitHub Actions app, confirmed from `GET /commits/{sha}/check-runs`.
 
-> **`PUT /rulesets/{id}` REPLACES the entire ruleset.** It is not a merge. The payload below therefore restates the two rules the `Safety` ruleset already has (`deletion`, `non_fast_forward`) and its existing `bypass_actors` entry. **Omitting them deletes them** — that is the trap this block exists to avoid.
+> **`PUT /rulesets/{id}` REPLACES the entire ruleset.** It is not a merge. The payload below therefore restates the two rules the `Safety` ruleset already has (`deletion`, `non_fast_forward`), its existing `bypass_actors` entry, **and `enforcement: active`**. Omitting any of them deletes or defaults it — and an `enforcement` that silently defaults to `disabled` would switch the whole `Safety` ruleset off while every check still reported green, which is the exact "gate becomes a no-op" failure this phase exists to prevent.
 
-Current state, verified 2026-08-10: ruleset `16412379`, name `Safety`, `enforcement: active`, target `branch`, conditions `~DEFAULT_BRANCH`, rules exactly `deletion` + `non_fast_forward`, one bypass actor (`RepositoryRole` 5, `always`). `GET /branches/main/protection` returns 404 — there is no classic branch-protection object.
+**The payload below is hand-constructed, not a round-trip of the GET.** A `GET` response carries `id`, `source`, `source_type`, `created_at`, `updated_at`, `node_id` and `_links`, none of which belong in a `PUT` body; piping GET output back into PUT is a known foot-gun. Diff the two by eye before running.
+
+**Read-only pre-flight, verified 2026-08-10** — repeat it, because either could hold an orphaned context referencing the old count-bearing names:
+
+```bash
+gh api repos/stevehickman/NeuroPulse/rulesets --jq '.[] | "\(.id) \(.name) \(.enforcement)"'
+gh api repos/stevehickman/NeuroPulse/branches/main/protection   # expect: 404 Branch not protected
+gh api repos/stevehickman/NeuroPulse/rulesets/16412379 > before.json   # KEEP THIS — it is the rollback
+```
+
+Measured: `Safety` is the **only** ruleset (`16412379`, `active`), targeting `~DEFAULT_BRANCH`, rules exactly `deletion` + `non_fast_forward`, one bypass actor (`RepositoryRole` 5, `always`). `GET /branches/main/protection` → 404: there is no classic branch-protection object, so nothing else can be holding a stale required context.
+
+**Precondition:** have an open docs-only PR live *before* running this, or the verification step in §6.7.5 observes nothing and the admin action is spent for no answer. PR #262 is left open for exactly this.
 
 ```bash
 gh api --method PUT repos/stevehickman/NeuroPulse/rulesets/16412379 --input - <<'JSON'
@@ -1163,21 +1194,37 @@ gh api --method PUT repos/stevehickman/NeuroPulse/rulesets/16412379 --input - <<
 JSON
 ```
 
-Then, immediately:
+Then, immediately — assert the delta is *only* the added rule, rather than assuming it:
 
 ```bash
-gh api repos/stevehickman/NeuroPulse/rulesets/16412379 --jq '.rules[].type'
+gh api repos/stevehickman/NeuroPulse/rulesets/16412379 > after.json
+diff <(jq -S 'del(.rules)|del(.updated_at)|del(._links)' before.json) \
+     <(jq -S 'del(.rules)|del(.updated_at)|del(._links)' after.json)   # expect: no output
+jq -r '.rules[].type' after.json   # expect: deletion, non_fast_forward, required_status_checks
+jq -r '.enforcement' after.json    # expect: active
 ```
 
-Three notes on the choices, all of which are Steve's to overrule:
+Then do §6.7.5 step 2 — check the docs-only PR — before merging anything. The discriminator is `gh pr view 262 --json mergeStateStatus`: `BLOCKED` means the assumption failed and §6.7.9 is needed; anything else (`CLEAN`, `UNSTABLE`, `BEHIND`) means the skipped checks were satisfied.
+
+Four notes on the choices, all of which are Steve's to overrule:
 
 - **The two `* scope` jobs are required deliberately.** They are what run the matcher's self-test and the scope assertions. If the matcher breaks, that job goes red and the PR blocks — which is the point. The downstream jobs are already written to build rather than skip when `changes` fails (`!= 'false'`, not `== 'true'`), so this is belt and braces, not the only guard.
 - **`strict_required_status_checks_policy: false`** — does not force a branch to be up to date with `main` before merging. `true` adds real merge friction on a busy branch; it is the more conservative choice for correctness and the less conservative one for throughput.
+- **A merge queue would reinstate the deadlock in a new shape.** If a `merge_queue` rule is ever added to `Safety`, required checks must also report on `merge_group` events — and none of these workflows subscribe to that trigger, so every check would sit un-reported in the queue. Adding `merge_group:` to the three converted workflows is the fix, and it must land *before* the queue does. Same family as the `build-all.yml` finding: a later well-meant addition that wedges the repository.
 - **Web and CodeQL are not in the payload.** `Web scope` + `TypeScript type-check + Vitest + Vite build`, and the seven `Analyze (…)` contexts from `codeql.yml`, all report on every PR and are equally requirable — add them as further `{ "context": …, "integration_id": 15368 }` entries. Left out because OI-SWCI-04 asks about the *firmware* checks and adding more surface is a separate decision.
 
 #### 6.7.9 Rollback
 
-If a docs-only PR shows the firmware checks as *"Expected — waiting for status"* rather than satisfied, §6.7.5's assumption does not hold. Restore the ruleset to exactly its pre-phase-6 state:
+If a docs-only PR shows the firmware checks as *"Expected — waiting for status"* rather than satisfied, §6.7.5's assumption does not hold.
+
+**Prefer the captured `before.json` over the payload below.** Reconstructing a pre-state at rollback time is how a rollback quietly becomes a second change; the file captured in §6.7.8's pre-flight is the authoritative record:
+
+```bash
+jq '{name,target,enforcement,conditions,bypass_actors,rules}' before.json \
+  | gh api --method PUT repos/stevehickman/NeuroPulse/rulesets/16412379 --input -
+```
+
+The literal payload, for the case where `before.json` was not captured:
 
 ```bash
 gh api --method PUT repos/stevehickman/NeuroPulse/rulesets/16412379 --input - <<'JSON'
@@ -1204,7 +1251,7 @@ The fallback is then to require only the checks that never skip: `Class B scope`
 
 #### 6.7.11 What this phase did not do
 
-It did not make any check required, and nothing here prevents a merge — that is §6.7.8, and it is Steve's to run under OI-SWCI-04, which remains open. It did not modify branch protection or any ruleset, and made no mutating API call of any kind. It did not touch any `permissions:` block, or change `NP_CLASS_B_TEST_COUNT` (21) or `NP_SAFETY_TEST_COUNT` (6), or alter `build-all.yml`. It did not add a third-party action. It did not change what any workflow builds — only when the jobs are allowed to skip. It did not touch Defect E, the SW-01 platform layer (OI-SWCI-17, phase 7), the MCUX SDK (OI-SWCI-20) or the missing SW-02 application target (OI-SWCI-21, phase 8). And it did not convert the five remaining `paths:`-filtered workflows, which stay non-requirable by omission rather than by decision.
+It did not make any check required, and nothing here prevents a merge — that is §6.7.8, and it is Steve's to run under OI-SWCI-04, which remains open. It did not modify branch protection or any ruleset, and made no mutating API call of any kind: every `gh api` call in this phase was a plain `GET`, with no `--method`, no `--input`, and no `-f`/`-F` field flags (any of which silently promote `gh api` to `POST`). Independently corroborated by the ruleset's own `updated_at`, still `2026-05-14T11:50:38.699-07:00` after the phase — untouched since the day it was created. It did not touch any `permissions:` block, or change `NP_CLASS_B_TEST_COUNT` (21) or `NP_SAFETY_TEST_COUNT` (6), or alter `build-all.yml`. It did not add a third-party action. It did not change what any workflow builds — only when the jobs are allowed to skip. It did not touch Defect E, the SW-01 platform layer (OI-SWCI-17, phase 7), the MCUX SDK (OI-SWCI-20) or the missing SW-02 application target (OI-SWCI-21, phase 8). And it did not convert the five remaining `paths:`-filtered workflows, which stay non-requirable by omission rather than by decision.
 
 ## 7. Open items
 
@@ -1217,6 +1264,7 @@ It did not make any check required, and nothing here prevents a merge — that i
 | OI-SWCI-22 | **Raised 2026-08-10 during phase 6 (§6.7.10). A direct push to `main` is currently permitted and bypasses every status check.** The `Safety` ruleset (`16412379`) contains exactly `deletion` and `non_fast_forward`, and there is no classic branch-protection object (`GET /branches/main/protection` → 404). `non_fast_forward` blocks force-pushes but **not** ordinary fast-forward pushes, and no `pull_request` rule exists. Status checks are only ever evaluated on pull requests, so requiring them (OI-SWCI-04) constrains the PR path while leaving the direct-push path entirely open — a regression could land on `main` without any check having run. The decision is whether to add a `pull_request` rule (with what review count, and which bypass actors), which changes how everyone commits and is not a side effect a CI phase should apply. Deliberately not changed by phase 6 | Steve | — |
 | OI-SWCI-23 | **Raised 2026-08-10 during phase 6 (§6.7.7). `build-all.yml` must never become a required check.** It is `schedule` + `workflow_dispatch` only by design (§5.5) and has no `pull_request` trigger, so it never reports on any PR; requiring it would block every PR unconditionally and permanently. Its job names also carry counts (`CMake host tests (27 targets, unfiltered)`), which is harmless only because it is not requirable. Recorded as an open item purely so there is an ID to cite when someone proposes adding it "for completeness" | Quality | — |
 | OI-SWCI-24 | **Raised 2026-08-10 during phase 6.** Header arithmetic in `safety-mcu-ci.yml` is stale: it says "6 of the repo's 25" and "The remaining 19 belong to firmware-cross-build.yml. 6 + 19 = 25", while the live partition is 6 + 21 = 27 (`build-all.yml`'s own job is named `CMake host tests (27 targets, unfiltered)`, and §8 records 6 + 21 = 27). `firmware-cross-build.yml` has the same drift in the other direction — its header says "21 of the repo's 27" in one place and "6 + 20 = 26" in another. Phases 1 and 2 each added a Class B target and the prose counts were not swept. No check is affected — the enforced counts are the `NP_*_TEST_COUNT` env vars, which are correct — so this is a documentation defect, not a coverage one. Related to OI-SWCI-13 (the other stale-reference sweep) and naturally worked with it | Quality | — |
+| OI-SWCI-26 | **Raised 2026-08-10 during phase 6 (§6.7.7).** Once OI-SWCI-04 is applied, seven job `name:` strings become required-check contexts, and a required context is an exact string match whose mismatch produces **no error anywhere** — the check simply never satisfies and the PR waits forever. Phase 6 mitigated this with an in-file `⚠` comment on each of the seven `name:` lines, which is a convention, not a guard. The real fix is a checked-in manifest of the exact context strings, diffed against the parsed workflow YAML in CI, so a phase-7 rename fails a check instead of silently un-gating the branch. Note the same hazard has a second trigger: adding `strategy: matrix:` to any of these jobs renames its check to `name (value)`. Same shape as OI-SWCI-08 and OI-SWCI-14 — a hand-maintained correspondence that nothing verifies — and naturally worked with them | Quality | — |
 | OI-SWCI-25 | **Raised 2026-08-10 during phase 6.** `web-ci.yml`'s relevance list does not contain `.github/workflows/web-ci.yml`, so a change to that workflow does not re-run it — observed on PR #261, where a commit touching only the three converted workflow files left `TypeScript type-check + Vitest + Vite build` correctly `skipped`. This is faithful to the retired `paths:` list, which never self-referenced either, and phase 6 preserved it rather than silently widening scope. `firmware-cross-build.yml` and `safety-mcu-ci.yml` both DO list themselves, so the inconsistency is real. Decide whether every workflow should list its own file — the argument for is that a workflow edit is exactly the change most likely to break the workflow | Quality | — |
 | OI-SWCI-05 | `firmware/hrv_biofeedback` has no test target at all, only a static library. Whether it warrants host tests alongside cross-compile coverage is a separate question this plan does not answer | Firmware | — |
 | ~~OI-SWCI-06~~ | ~~For the safety MCU: vendor CMSIS device headers only or the full ST HAL drivers?~~ **CLOSED 2026-08-09 — device headers only.** Two components, eight header files, no translation unit: ARM CMSIS-Core(M) 5.6.0 (CMSIS_5 `5.9.0`) and ST CMSIS-Device STM32G0 `v1.4.5`, both Apache-2.0, both with `VERSION` SOUP records. **The HAL and LL drivers are not vendored** — SW-01 makes zero `HAL_*` and zero `LL_*` calls (word-boundary matched), so the HAL would add substantive third-party logic to Class C SOUP surface for no benefit; `USE_HAL_DRIVER` removed accordingly. The §7.1.2 anomaly evaluation the Class C classification demands is recorded as NP-SOUP-CMSIS-001 Rev A, and its cleanest finding is a direct consequence of this choice: essentially the whole published anomaly surface of CMSIS_5 lies in components that were not vendored. See §4.1 and §6.5 | Quality / Firmware | ~~Phase 4~~ |
