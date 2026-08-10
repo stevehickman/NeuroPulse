@@ -184,7 +184,14 @@ jobs:
   main-firmware-cross:
     name: Main firmware cross-compile (i.MX RT1062, Class B)
     runs-on: ubuntu-latest
-    continue-on-error: true      # ← Phase 0 only; drop at phase 5
+    # NOT `continue-on-error` as of phase 5 (NP-SW-CI-001 §6.6) — mirrors the
+    # promotion of the same leg in firmware-cross-build.yml.  Defect D is closed
+    # (§4.6) and this was the last masked leg in the repository.  As with the
+    # other two cross legs here, this file is schedule + workflow_dispatch only
+    # and is not a PR check, so "the run goes red" is the whole of the effect;
+    # surfacing that is still OI-SWCI-10.  Covers compilation of every SW-02
+    # translation unit, not the linking of an SW-02 image — there is no such
+    # executable target in-tree (§4.7, OI-SWCI-21).
     steps:
       - uses: actions/checkout@v4
       - name: Install ARM GNU toolchain
@@ -199,6 +206,7 @@ jobs:
                 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/firmware/cmake/arm-none-eabi.cmake \
                 -DCMAKE_BUILD_TYPE=Release \
                 firmware
-      # EXPECTED TO FAIL — see firmware-cross-build.yml's main-firmware leg.
+      # EXPECTED TO PASS as of phase 5 — see firmware-cross-build.yml's
+      # main-firmware leg for what a green result here does and does not claim.
       - name: Build
         run: cmake --build build/cross

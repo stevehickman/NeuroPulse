@@ -54,10 +54,19 @@ static np_mod_pbm_state_t s_state[NP_HUB_ZONE_SLOT_COUNT];
 
 /*
  * Per-zone, per-wavelength InGaAs PD dose-metering calibration.  Loaded once
- * (from the Config partition, or firmware defaults) via np_pbm1064_dose_load_cal();
- * np_pbm1064_dose_tick() consumes the per-slot row s_cal[slot].
+ * (from the Config partition, or firmware defaults) via
+ * np_pbm1064_dose_load_cal_stub(), which fills ONE wavelength row per call —
+ * hence the per-zone loop in np_mod_pbm_init().  np_pbm1064_dose_tick()
+ * consumes the per-slot row s_cal[slot].
+ *
+ * Bounded by NP_HUB_ZONE_SLOT_COUNT — the same macro that guards every index
+ * into this array — and deliberately NOT by NP_PBM1064_ZONE_COUNT.  Both are 5
+ * today, but np_pbm1064_config.h states that NP_PBM1064_ZONE_COUNT bounds the
+ * retired ZONE_ID resistor-ladder detection state machine ONLY, and that it
+ * must not size a calibration array.  Sizing by the bound that indexes it
+ * means the two are not required to stay equal.
  */
-static np_pbm1064_cal_t s_cal[NP_PBM1064_ZONE_COUNT][NP_PBM1064_WL_COUNT];
+static np_pbm1064_cal_t s_cal[NP_HUB_ZONE_SLOT_COUNT][NP_PBM1064_WL_COUNT];
 static bool             s_cal_loaded = false;
 
 /* ── Duty ceiling enforcement ────────────────────────────────────────────────── */
@@ -107,9 +116,17 @@ np_hub_status_t np_mod_pbm_init(uint8_t slot)
     memset(&s_state[slot], 0, sizeof(np_mod_pbm_state_t));
     s_state[slot].ntc_peak_c = 0.0f;
 
-    /* Load dose-metering calibration once (idempotent across all zone slots). */
+    /* Load dose-metering calibration once (idempotent across all zone slots).
+     * The loader fills a single wavelength row per call and takes no socket or
+     * UID argument (see np_pbm1064_dose.h and OI-HUB-C06), so it is called once
+     * per zone — the same per-row pattern as np_pbm1064_session.c's loop over
+     * active sockets.  Handing it s_cal whole would populate row 0 only and
+     * leave zones 1..N-1 holding zeroed calibration, which is a wrong J/cm² on
+     * a dose-metering path rather than a build error. */
     if (!s_cal_loaded) {
-        np_pbm1064_dose_load_cal(s_cal);
+        for (uint8_t z = 0U; z < NP_HUB_ZONE_SLOT_COUNT; z++) {
+            np_pbm1064_dose_load_cal_stub(s_cal[z]);
+        }
         s_cal_loaded = true;
     }
 

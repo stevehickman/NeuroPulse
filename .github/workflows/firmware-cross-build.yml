@@ -286,7 +286,24 @@ jobs:
     # targets above), so §5.0.1 applies: do not spend runner minutes
     # cross-compiling what already failed natively.
     needs: host-tests
-    continue-on-error: true      # ← Phase 0 only; drop at phase 5
+    # NOT `continue-on-error` as of phase 5 (NP-SW-CI-001 §6.6).  Defect D is
+    # closed — np_mod_pbm.c:112 called np_pbm1064_dose_load_cal, a symbol that
+    # never existed, and now loads calibration one wavelength row per zone via
+    # np_pbm1064_dose_load_cal_stub (§4.6).  It was the sole error in the whole
+    # super-project, so this leg is green and a regression should turn the run
+    # red rather than be masked.  This is the last leg to be promoted: no
+    # `continue-on-error` remains anywhere in .github/workflows/.
+    #
+    # Read this leg for exactly what it claims: every SW-02 translation unit
+    # COMPILES for the i.MX RT1062 under -Wall -Wextra -Werror.  It is not an
+    # assertion that an SW-02 application image links, because no such
+    # executable target exists in-tree — every SW-02 module archives to a
+    # static library and the only ELF this build links is np_bootloader, which
+    # the bootloader leg above has gated since phase 3.  See §4.7/OI-SWCI-21.
+    #
+    # As at phases 3 and 4: the run reporting failure is not the same as the
+    # merge being blocked.  No required-check policy exists yet — OI-SWCI-04,
+    # phase 6.
     steps:
       - uses: actions/checkout@v4
 
@@ -305,15 +322,24 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release \
                 firmware
 
-      # EXPECTED TO FAIL.  NP-SW-CI-001 §4 row 4 records this as "fails at
-      # bootloader; remainder never attempted" — measured under a sequential
-      # generator.  Under Ninja the super-project fails FIRST at
-      # firmware/hub_control/modules/np_mod_pbm.c:112, "implicit declaration of
-      # function 'np_pbm1064_dose_load_cal'", which is not Defect A, B or C.
-      # That is an undocumented fourth defect, reported rather than fixed here
-      # (firmware change → design review).  Phase 5 additionally needs
-      # NP_PLATFORM_INCLUDE_DIRS populated with the MCUX SDK path, currently an
-      # empty stub in firmware/CMakeLists.txt.
+      # EXPECTED TO PASS as of phase 5 — Defect D (§4.6) closed.  The super-
+      # project builds clean on the pinned toolchain: 86 targets, 0 errors,
+      # 0 warnings, 0 unresolved symbols.
+      #
+      # NP_PLATFORM_INCLUDE_DIRS is still an empty MCUX stub in
+      # firmware/CMakeLists.txt and that is NOT what this leg is waiting on.
+      # Measured at phase 5: zero missing-header errors in the whole cross
+      # build, because the platform layer is stubbed rather than called into.
+      # The SDK is real device-bring-up work, not build-gating work —
+      # OI-SWCI-20.
+      #
+      # What a green result here means: every SW-02 translation unit compiled.
+      # 13 static libraries are archived; exactly one executable is linked, and
+      # it is np_bootloader, gated separately by the bootloader leg since
+      # phase 3.  There is no np_application target (§4.7, OI-SWCI-21).
+      #
+      # Not piped through `tail`/`grep`: `cmd | tail` reports tail's exit
+      # status, which masked a failure during the §3 measurements.
       - name: Build
         run: cmake --build build/cross
 
