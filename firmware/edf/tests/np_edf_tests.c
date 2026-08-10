@@ -325,6 +325,12 @@ int main(void)
     test_anon_gate_all_fail_does_not_abort();
     test_anon_gate_null_and_empty();
 
+    /* TEMPORARY — NP-SW-CI-001 phase 6 ordering probe.  Reverted in this PR.
+     * One line, so every real assertion above still runs and the only
+     * difference is the exit status.  Fails a Class B host test so the
+     * `main-firmware` leg can be observed SKIPPING rather than running. */
+    g_fail_count++;
+
     printf("=== Results: %d total failure(s) ===\n", g_fail_count);
     if (g_fail_count == 0) {
         printf("SOFTWARE TESTS: PASS\n");
