@@ -26,33 +26,33 @@ name: Safety MCU CI (STM32G071, Class C)
 # build-all.yml re-checks that partition every week so the split cannot rot
 # into lost coverage.
 #
-# ── Keeping the `paths:` filters correct ──────────────────────────────────────
-# Per NP-SW-CI-001 §5.0 this triggers on what it actually builds, NOT on
-# `firmware/**`.  firmware/crypto/** is listed because np_crypto is linked into
+# ── Scoping: why there is no `paths:` filter here any more ────────────────────
+# NP-SW-CI-001 §5.0 still governs: this workflow triggers on what it actually
+# builds, NOT on `firmware/**`.  What changed at phase 6 (§6.7) is WHERE that
+# decision is made.
+#
+# A workflow-level `paths:` filter suppresses the whole workflow, so on an
+# unrelated PR these checks never report at all — and a REQUIRED status check
+# that never reports renders as "Expected — waiting for status" and blocks the
+# pull request forever.  For the Class C firmware, which owns every stimulation
+# enable GPIO, being requirable is the point of phase 6.
+#
+# The relevance list therefore moved into the `changes` job below, which diffs
+# against the merge base and exposes a boolean the other jobs gate on with
+# `if:`.  Out-of-scope jobs now report `skipped`, which DOES satisfy a required
+# check, instead of not reporting at all.  The build surface is unchanged.
+# One list now, not two kept identical by hand.
+#
+# firmware/crypto/** is still listed because np_crypto is linked into
 # np_safety_mcu (see firmware/safety_mcu/CMakeLists.txt) and is recorded as
 # Class C as well as Class B — a change there can genuinely break this build.
-# Dependencies count; proximity in the tree does not.
-#
-# The push: and pull_request: lists below MUST stay identical.  The duplication
-# is deliberate, not an oversight: the GitHub Actions workflow parser does not
-# support YAML anchors/aliases, so `&paths` / `*paths` cannot be used to
-# collapse the two.  When adding a path, edit BOTH lists.
+# Dependencies count; proximity in the tree does not.  That reasoning is now
+# ASSERTED as well as stated: the "Scope assertions" step fails this job if a
+# crypto-only change is ever judged out of scope here.
 
 on:
   push:
-    paths:
-      - 'firmware/safety_mcu/**'
-      - 'firmware/crypto/**'
-      - 'firmware/cmake/stm32g071.cmake'
-      - 'firmware/CMakeLists.txt'
-      - '.github/workflows/safety-mcu-ci.yml'
   pull_request:
-    paths:
-      - 'firmware/safety_mcu/**'
-      - 'firmware/crypto/**'
-      - 'firmware/cmake/stm32g071.cmake'
-      - 'firmware/CMakeLists.txt'
-      - '.github/workflows/safety-mcu-ci.yml'
   workflow_dispatch:
 
 # Least privilege.  Required for actions/checkout, which hard-fails without it
@@ -68,12 +68,125 @@ env:
   # selection is the OI-SWCI-09 failure mode, and `ctest` exits 0 on a subset
   # just as happily as on the whole suite.
   NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock)_tests$'
+  # The count lives here and in the assertion step — and NOT in the `host-tests`
+  # job `name:`, which is what a required status check matches on.  The job used
+  # to be called "Safety MCU host tests (6 targets)".  A required context is an
+  # exact string match, so the phase that adds a seventh Class C target would
+  # have renamed the check and silently stopped satisfying the requirement — a
+  # merge deadlock with no error message anywhere.  The Class B side had the
+  # same defect with a count that has already moved three times.  The number
+  # belongs to the assertion, not to the check name.  NP-SW-CI-001 §6.7.
   NP_SAFETY_TEST_COUNT: '6'
 
 jobs:
-  host-tests:
-    name: Safety MCU host tests (6 targets)
+  # The relevance list that used to live in `on: … paths:`.  Always runs, always
+  # reports (§6.7).
+  changes:
+    name: Class C scope
     runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.scope.outputs.relevant }}
+    env:
+      # ── THE Class C RELEVANCE LIST ────────────────────────────────────────
+      # Same 5 entries the retired `paths:` blocks carried, plus the matcher
+      # itself, so a change to the matcher re-runs what it gates.  Blank lines
+      # and `#` comments are stripped by ci-changed-scope.sh.
+      #
+      # firmware/crypto/** is present ON PURPOSE — np_crypto links into
+      # np_safety_mcu.  See the header, and the "Scope assertions" step below.
+      NP_SCOPE_PATHS: |
+        firmware/safety_mcu/**
+        firmware/crypto/**
+        firmware/cmake/stm32g071.cmake
+        firmware/CMakeLists.txt
+        .github/workflows/safety-mcu-ci.yml
+        scripts/ci-changed-scope.sh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: the matcher diffs against the merge base, which a
+          # shallow clone does not contain.
+          fetch-depth: 0
+
+      # A broken matcher would skip every Class C job while every check went
+      # green — a gate that reports success having verified nothing, on the
+      # software that owns every stimulation enable GPIO.  Its unit assertions
+      # run before it is trusted, on every invocation.
+      - name: Matcher self-test
+        run: scripts/ci-changed-scope.sh --self-test
+
+      - name: Write the relevance list
+        run: printf '%s\n' "$NP_SCOPE_PATHS" > scope.paths
+
+      # Assert THIS list, not just the matcher: the §5.0 dependency reasoning
+      # (crypto in, bootloader out) is executable here rather than only written
+      # down in the header.
+      - name: Scope assertions
+        run: |
+          set -euo pipefail
+          assert() { # <expected> <path>
+            printf '%s\n' "$2" > .scope-probe
+            got=$(scripts/ci-changed-scope.sh --relevant scope.paths .scope-probe)
+            if [ "$got" != "$1" ]; then
+              echo "::error::Class C scope assertion failed: '$2' expected relevant=$1, got $got"
+              exit 1
+            fi
+            echo "ok: $2 → $got"
+          }
+          assert true  firmware/safety_mcu/src/np_gpio_mgr.c
+          assert true  firmware/crypto/np_sha256.c
+          assert false firmware/bootloader/src/np_main.c
+          assert false docs/np_sw_ci_001.md
+
+      - name: Changed files
+        id: diff
+        env:
+          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          # Fail-safe direction is BUILD.  Any event without a usable base
+          # revision is treated as in scope rather than skipped.
+          if [ -z "${NP_BASE:-}" ] || [ "${NP_BASE}" = "0000000000000000000000000000000000000000" ] \
+             || ! git cat-file -e "${NP_BASE}^{commit}" 2>/dev/null \
+             || ! git cat-file -e "${NP_HEAD}^{commit}" 2>/dev/null; then
+            echo "::notice::no usable base revision (event=${{ github.event_name }}, base='${NP_BASE:-}') — treating as in scope"
+            echo "unknown_base=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! merge_base=$(git merge-base "${NP_BASE}" "${NP_HEAD}"); then
+            echo "::notice::no merge base between ${NP_BASE} and ${NP_HEAD} — treating as in scope"
+            echo "unknown_base=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --name-only "${merge_base}" "${NP_HEAD}" > changed.txt
+          echo "unknown_base=false" >> "$GITHUB_OUTPUT"
+          echo "--- changed files (base ${merge_base}) ---"
+          cat changed.txt
+
+      - name: Relevance
+        id: scope
+        run: |
+          set -euo pipefail
+          if [ "${{ steps.diff.outputs.unknown_base }}" = "true" ]; then
+            relevant=true
+          else
+            relevant=$(scripts/ci-changed-scope.sh --relevant scope.paths changed.txt)
+            echo "--- in-scope files ---"
+            scripts/ci-changed-scope.sh --match scope.paths changed.txt
+          fi
+          echo "relevant=${relevant}" | tee -a "$GITHUB_OUTPUT"
+
+  host-tests:
+    name: Safety MCU host tests (Class C)
+    runs-on: ubuntu-latest
+    needs: changes
+    # Skip ONLY on a definite negative.  `!= 'false'` rather than `== 'true'`:
+    # if the `changes` job errors, its output is empty and this job runs anyway.
+    # `!cancelled()` is required so a failed `changes` job does not silently
+    # skip this one.  See firmware-cross-build.yml for the full reasoning.
+    if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' }}
     # Deliberately NOT continue-on-error.  These six targets were a blocking
     # check under firmware-host-tests.yml; Phase 0's reporting-only mandate
     # covers the NEW cross-compile verification below, not the coverage this
@@ -141,7 +254,13 @@ jobs:
     runs-on: ubuntu-latest
     # A genuine native counterpart exists for this code, so §5.0.1 applies:
     # do not spend runner minutes cross-compiling what already failed natively.
-    needs: host-tests
+    needs: [changes, host-tests]
+    # `needs.host-tests.result == 'success'` is written out EXPLICITLY rather
+    # than left to GitHub's implicit skip-on-failed-need: a custom `if:` that
+    # contains a status function (`!cancelled()`) replaces the default
+    # `success()`, so without this clause a failed `host-tests` would no longer
+    # stop the cross-compile and §5.0.1's ordering rule would be silently gone.
+    if: ${{ !cancelled() && needs.changes.outputs.relevant != 'false' && needs.host-tests.result == 'success' }}
     # NOT `continue-on-error` as of phase 4 (NP-SW-CI-001 §6.5).  Defect A is
     # closed — the STM32G0 CMSIS device headers are vendored (firmware/vendor/
     # cmsis_core + cmsis_device_g0, Class C SOUP, anomaly review
