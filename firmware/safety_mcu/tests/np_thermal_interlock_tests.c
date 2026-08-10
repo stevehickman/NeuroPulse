@@ -26,13 +26,16 @@
 #include <string.h>
 
 #include "../include/np_safety_config.h"
+#include "../include/np_safety_hal.h"
 #include "../include/np_safety_protocol.h"
 
 /* ── Unit under test ─────────────────────────────────────────────────────────── */
 extern np_safe_status_t np_thermal_interlock_init(void);
 extern void             np_thermal_interlock_tick(np_safety_state_t *state);
 
-/* ── HAL stubs ───────────────────────────────────────────────────────────────── */
+/* ── HAL stubs ─────────────────────────────────────────────────────────────────
+ * Definitions of symbols declared in np_safety_hal.h — drift from the
+ * production contract is a compile error (OI-SWCI-18).                       */
 
 static uint32_t s_now_ms;
 static uint16_t s_adc[NP_NTC_CHANNEL_COUNT];

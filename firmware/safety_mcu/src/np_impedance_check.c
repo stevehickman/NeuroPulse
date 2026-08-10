@@ -12,23 +12,16 @@
  */
 
 #include "np_safety_config.h"
+#include "np_safety_hal.h"
 #include "np_safety_protocol.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
 
-/* ── HAL stubs ───────────────────────────────────────────────────────────── */
-extern uint32_t np_hal_get_tick_ms(void);
-extern void     np_hal_impedance_start_test(uint8_t channel);
-extern bool     np_hal_impedance_result_ready(uint8_t channel);
-extern uint32_t np_hal_impedance_read_ohm(uint8_t channel);
-/* OI-CVNS-HUB-11: per-electrode impedance read for the cervical VNS channel.
- * electrode 0 = left, 1 = right.  Returns the electrode-tissue interface
- * impedance in ohms.  Used only to populate the cross-validation report the
- * hub compares against its own per-electrode measurement — the enable GATE
- * remains the existing single-value np_hal_impedance_read_ohm() check below,
- * so this is purely additive and does not alter the Class C interlock. */
-extern uint32_t np_hal_impedance_read_cvns_electrode_ohm(uint8_t electrode);
+/* HAL: np_hal_get_tick_ms, np_hal_impedance_start_test / _result_ready /
+ * _read_ohm / _read_cvns_electrode_ohm — all declared in np_safety_hal.h,
+ * where the ohm units, the 0..3 channel indexing and the OI-CVNS-HUB-11
+ * additive-not-gating property of the per-electrode read are recorded.     */
 
 /* ── Module state ─────────────────────────────────────────────────────────── */
 #define NP_IMP_CHANNELS     4U  /* VNS_HRV, tDCS, BES_TACS, CVNS */

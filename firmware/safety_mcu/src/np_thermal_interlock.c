@@ -17,13 +17,13 @@
  */
 
 #include "np_safety_config.h"
+#include "np_safety_hal.h"
 #include "np_safety_protocol.h"
 #include <stdint.h>
 #include <stdbool.h>
 
-/* ── HAL stub ────────────────────────────────────────────────────────────── */
-extern uint32_t np_hal_get_tick_ms(void);
-extern uint16_t np_hal_adc_read_channel(uint8_t channel); /* 0-4095, 12-bit */
+/* HAL: np_hal_get_tick_ms (ms), np_hal_adc_read_channel (0-4095, 12-bit) —
+ * both declared in np_safety_hal.h.                                        */
 
 /* ── NTC conversion (B=3950K, R25=10kΩ, Rdivider=10kΩ) ─────────────────── */
 /* Lookup table: ADC counts → temperature °C (0..110°C range, 1°C steps)    */

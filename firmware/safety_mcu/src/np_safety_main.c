@@ -21,6 +21,7 @@
  */
 
 #include "np_safety_config.h"
+#include "np_safety_hal.h"
 #include "np_safety_protocol.h"
 #include <stdint.h>
 #include <stdbool.h>
@@ -60,35 +61,10 @@ extern np_safe_status_t np_session_sig_verify(np_safety_state_t *state,
 extern void np_gpio_mgr_apply(const np_safety_state_t *state);
 extern void np_fault_latch_commit(const np_safety_state_t *state);
 
-/* ── HAL stubs (platform-specific — to be implemented against STM32G071 HAL) */
-extern void np_hal_clock_init(void);         /* configure PLL for 64 MHz */
-extern void np_hal_systick_init(void);       /* 1ms SysTick */
-extern void np_hal_gpio_init(void);          /* configure all GPIO banks */
-extern void np_hal_spi_slave_init(void);     /* SPI1 slave, 38-byte ext heartbeat frames */
-extern void np_hal_adc_init(void);           /* ADC1 for NTC channels */
-extern void np_hal_tim2_init(void);          /* TIM2 for R-peak capture */
-/* Extended heartbeat frame (38 bytes, np_safety_rx_ext_frame_t).
- * OI-CHARGE-01 CLOSED: frame carries current_ua[14] for charge monitor.     */
-extern bool np_hal_spi_frame_ready(void);
-extern void np_hal_spi_get_ext_frame(np_safety_rx_ext_frame_t *rx_out);
-extern void np_hal_spi_send_frame(const np_safety_tx_frame_t *tx);
-/* OI-CVNS-HUB-11: stage the full MISO reply for the next 38-byte heartbeat
- * transfer.  buf[0..7] = the 8-byte MCU reply frame; buf[8..15] = the extended
- * per-electrode impedance report; buf[16..37] = 0.  The SPI slave clocks these
- * out on MISO during the master's next heartbeat transfer.                    */
-extern void np_hal_spi_send_reply(const uint8_t *buf, uint8_t len);
-/* Session signature command frame (102 bytes) — called when hub delivers sig.
- * HAL distinguishes from heartbeat by NSS-delineated transfer length.
- * np_hal_spi_cmd_ready() returns true when a 102-byte frame is buffered.
- * np_hal_spi_get_cmd() copies the buffered frame into *cmd_out.            */
-extern bool np_hal_spi_cmd_ready(void);
-extern void np_hal_spi_get_cmd(np_safety_sig_cmd_t *cmd_out);
-/* Per-channel charge-limit command frame (34 bytes, OI-CHARGE-02).
- * Distinguished from heartbeat/sig frames by NSS-delineated transfer length.
- * np_hal_spi_chan_limit_ready() returns true when a 34-byte frame is buffered.
- * np_hal_spi_get_chan_limit() copies the buffered frame into *cmd_out.       */
-extern bool np_hal_spi_chan_limit_ready(void);
-extern void np_hal_spi_get_chan_limit(np_safety_chan_limit_cmd_t *cmd_out);
+/* ── HAL ──────────────────────────────────────────────────────────────────
+ * Platform symbols come from np_safety_hal.h (included above) — the single
+ * declaration point for all 25.  No implementation exists: Defect E,
+ * NP-SW-CI-001 §4.4, OI-SWCI-17.  Declare nothing locally.                 */
 
 /* ── Shared safety state ─────────────────────────────────────────────────── */
 static np_safety_state_t s_state;

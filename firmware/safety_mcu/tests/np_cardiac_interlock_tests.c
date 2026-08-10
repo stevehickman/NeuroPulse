@@ -29,6 +29,7 @@
 #include <stdio.h>
 
 #include "../include/np_safety_config.h"
+#include "../include/np_safety_hal.h"
 #include "../include/np_safety_protocol.h"
 
 /* ── Unit under test ─────────────────────────────────────────────────────────── */
@@ -36,7 +37,9 @@ extern np_safe_status_t np_cardiac_interlock_init(void);
 extern void             np_cardiac_interlock_tick(np_safety_state_t *state);
 extern void             np_cardiac_interlock_reenable(np_safety_state_t *state);
 
-/* ── Mocked HAL stubs ────────────────────────────────────────────────────────── */
+/* ── Mocked HAL stubs ──────────────────────────────────────────────────────────
+ * Definitions of symbols declared in np_safety_hal.h — drift from the
+ * production contract is a compile error (OI-SWCI-18).                       */
 /* g_capture is the free-running 1 MHz TIM2 count; g_tick_ms is the 1 kHz
  * SysTick.  They are advanced INDEPENDENTLY on purpose: a test can deliver a
  * physiologically realistic R-R interval (1 s of TIM2) while advancing SysTick

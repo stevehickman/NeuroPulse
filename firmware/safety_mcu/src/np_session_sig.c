@@ -20,13 +20,14 @@
 
 #include "np_crypto.h"
 #include "np_safety_config.h"
+#include "np_safety_hal.h"
 #include "np_safety_protocol.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include <string.h>
 
-/* ── HAL stubs ───────────────────────────────────────────────────────────── */
-extern void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len);
+/* HAL: np_hal_otp_read_pubkey — declared in np_safety_hal.h, where the
+ * all-zero-means-unprovisioned sentinel is recorded.                        */
 
 /* ── Module state ─────────────────────────────────────────────────────────── */
 static uint8_t  s_pubkey[NP_ED25519_PUB_KEY_LEN];
