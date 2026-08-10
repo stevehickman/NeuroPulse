@@ -1081,12 +1081,13 @@ firmware/hub_control/modules/np_mod_pbm.c:132:9: error: implicit declaration
 
 Measured by failing a Class B host test — a one-line `g_fail_count++` in `np_edf_tests.c`, so every real assertion still runs and the only difference is the exit status, and with `np_mod_pbm.c` byte-identical to the green baseline so a skip cannot be attributed to the firmware:
 
-| Job | Conclusion on run [31389139410](https://github.com/stevehickman/NeuroPulse/actions/runs/31389139410) |
-|---|---|
-| `Class B scope` | success |
-| `CMake host tests (Class B)` | **failure** |
-| `Bootloader (i.MX RT1062)` | success — correct: it deliberately has no `needs: host-tests` (§5.0.1) |
-| `Main firmware (i.MX RT1062, Class B)` | **`skipped`** — the ordering gate held |
+| Job | `push` run [31389139410](https://github.com/stevehickman/NeuroPulse/actions/runs/31389139410) | `pull_request` run [31389142982](https://github.com/stevehickman/NeuroPulse/actions/runs/31389142982) |
+|---|---|---|
+| `Class B scope` | success | success |
+| `CMake host tests (Class B)` | **failure** | **failure** |
+| `Bootloader (i.MX RT1062)` | success — correct: it deliberately has no `needs: host-tests` (§5.0.1) | success |
+| `Main firmware (i.MX RT1062, Class B)` | **`skipped`** — the ordering gate held | **`skipped`** |
+| **workflow run conclusion** | **`failure`** | **`failure`** |
 
 **Both probes were reverted in this PR, and the reverts were verified as reverts rather than assumed** — `git diff` between the pre-probe and post-revert trees is empty for `np_mod_pbm.c` and for `np_edf_tests.c`.
 
