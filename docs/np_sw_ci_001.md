@@ -1051,7 +1051,14 @@ Runs: `pull_request` [31388830758](https://github.com/stevehickman/NeuroPulse/ac
 
 The strongest evidence obtainable without applying a rule was measured, and it points the right way. On PR #262 with **10 check-runs concluding `skipped`**, GitHub's own status aggregate reports `statusCheckRollup.state = SUCCESS`, not `PENDING`. That is GitHub computing "are these checks satisfied" over a set that is mostly skipped, and answering yes. It is *not* the required-status-checks evaluation path, so it is corroboration, not proof.
 
-**Therefore §6.7.6 is written to be applied in an order that is safe if the assumption is wrong**, and §6.7.7 is the rollback. Apply the rule, then immediately open or re-check a docs-only PR: if its firmware checks show "Expected — waiting for status" instead of satisfied, the assumption does not hold — run the rollback and require only the unfiltered checks (`Class B scope`, `Class C scope`, `Web scope`, which always run for real and never skip). Do not merge anything else until that check is done.
+**Therefore §6.7.8 is written to be applied in an order that is safe if the assumption is wrong**, and §6.7.9 is the rollback:
+
+1. Run the `PUT` in §6.7.8.
+2. **Immediately** re-check scratch PR [#262](https://github.com/stevehickman/NeuroPulse/pull/262), which is **deliberately left open for this** — it is docs-only, based on the phase-6 branch, and already has all six firmware contexts sitting at `conclusion: skipped`. It is the exact shape that would deadlock, ready to answer the question in one page load. (Re-target its base to `main` after phase 6 merges, or open an equivalent one-file docs PR.)
+3. If it shows the firmware checks as satisfied, the assumption holds and phase 6 is complete.
+4. If it shows *"Expected — waiting for status"*, the assumption does not hold — run the §6.7.9 rollback and require only the checks that never skip: `Class B scope`, `Class C scope`, `Web scope`, plus the `codeql.yml` contexts.
+
+Do not merge anything else until step 2 has been read.
 
 #### 6.7.6 The gate demonstration — the conversion did not create a no-op
 
