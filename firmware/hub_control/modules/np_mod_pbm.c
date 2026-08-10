@@ -124,6 +124,12 @@ np_hub_status_t np_mod_pbm_init(uint8_t slot)
      * leave zones 1..N-1 holding zeroed calibration, which is a wrong J/cm² on
      * a dose-metering path rather than a build error. */
     if (!s_cal_loaded) {
+        /* TEMPORARY — NP-SW-CI-001 phase 6 gate probe.  Reverted in this PR.
+         * Same shape as Defect D (§4.6): an implicit declaration of a function
+         * that does not exist, on the calibration-load path.  Chosen so the
+         * failure is the class of regression this leg exists to catch, and so
+         * it is directly comparable with the phase-5 demonstration (§6.6.1). */
+        np_phase6_gate_probe();
         for (uint8_t z = 0U; z < NP_HUB_ZONE_SLOT_COUNT; z++) {
             np_pbm1064_dose_load_cal_stub(s_cal[z]);
         }
