@@ -588,7 +588,7 @@ A permanently red required check trains reviewers to ignore it, which is worse t
 | ~~3~~ | cross-build | ~~Drop `continue-on-error` on the bootloader leg~~ **COMPLETE 2026-08-09** | ~~Bootloader leg blocking~~ **Corrected — see below. Met: a failing bootloader leg makes the workflow run conclude `failure`; demonstrated by breakage/revert, §6.4** |
 | ~~4~~ | safety-mcu | ~~Vendor STM32G0 CMSIS/HAL (Defect A) per §9~~ **COMPLETE 2026-08-09 — CMSIS device headers only, not the HAL (OI-SWCI-06 closed)** | ~~Safety MCU compiles; drop its `continue-on-error`~~ **Corrected — see below. Met: all 10 Class C TUs compile for STM32G071 (4 errors → 0), and the compile leg is promoted to gating; see §6.5** |
 | ~~5~~ | cross-build | ~~Populate `NP_PLATFORM_INCLUDE_DIRS` with the MCUX SDK path — currently an empty stub in `firmware/CMakeLists.txt`~~ **COMPLETE 2026-08-09 — the MCUX premise was wrong; the work was Defect D (§4.6). MCUX decoupled to OI-SWCI-20** | ~~Main firmware leg builds; drop its `continue-on-error`~~ **Met as written — 1 error → 0, `rc=1` → `rc=0`, and the leg is promoted to gating; see §6.6** |
-| 6 | both | **PREPARED, NOT APPLIED (2026-08-10).** Make the checks *requirable* — convert workflow-level `paths:` filters to job-level `if:` so every check reports on every PR, and remove the moving counts from two check contexts. Adding the `required_status_checks` rule is an admin action gated on OI-SWCI-04 and is **Steve's to run**; the exact payload is in §6.7 | Cross-compile regressions become unmergeable — **NOT MET.** The mechanical blocker is closed and measured (§6.7); the policy decision (OI-SWCI-04) and the `PUT` remain outstanding. Phase 6 is not complete |
+| ~~6~~ | both | ~~Add all three checks to branch protection~~ **COMPLETE 2026-08-10.** Made the checks *requirable* — workflow-level `paths:` filters converted to job-level `if:` so every check reports on every PR, and the moving counts removed from two check contexts — then Steve added the `required_status_checks` rule to the `Safety` ruleset with seven contexts (§6.7.8) | ~~Cross-compile regressions become unmergeable~~ **Met — and the load-bearing assumption was verified rather than assumed.** A docs-only PR carries five of the seven required contexts at `conclusion: skipped`, GitHub marks all seven `isRequired: true`, and the PR reads `CLEAN`/`MERGEABLE`, not `BLOCKED`. See §6.7.5 |
 | 7 | safety-mcu | Implement the SW-01 platform layer (Defect E, §4.4, OI-SWCI-17) and re-point the CI leg from `np_safety_mcu_objs` to the full build | Safety MCU **links**; the image exists |
 | 8 | cross-build | Create the SW-02 application target (§4.7, OI-SWCI-21), which needs the SW-02 platform layer and the MCUX SDK integration (OI-SWCI-20), and point the main-firmware leg at it | Main firmware **links**; an SW-02 image exists |
 
@@ -981,9 +981,13 @@ Both dispatches double as the check that this phase left the other legs alone: `
 
 **What this phase did not do.** It did not make the main-firmware leg a *required* check, and nothing here prevents a merge — that is branch protection, an admin setting outside the repository, and it remains OI-SWCI-04 at phase 6. It did not touch any `permissions:` block, any test-count guard, or the bootloader and safety-MCU legs. It did not vendor or reference the MCUX SDK (OI-SWCI-20). It did not touch Defect E or the SW-01 platform layer (OI-SWCI-17, phase 7). And it did not produce an SW-02 application image, because no target for one exists (§4.7, OI-SWCI-21).
 
-### 6.7 Phase 6 as prepared (2026-08-10) — NOT COMPLETE
+### 6.7 Phase 6 as implemented (2026-08-10) — COMPLETE
 
-**Phase 6 is prepared, not applied.** Everything inside the repository is done and measured. The remaining step — adding a `required_status_checks` rule to the `Safety` ruleset — is an admin action with merge-blocking consequences for every PR in the repository, it is gated on an unanswered policy question (OI-SWCI-04), and it is **Steve's to run**. The exact command is in §6.7.6. It was deliberately not run, including not run "to test": a failed experiment there blocks every merge in the repository, and the blocked state is not obvious from inside a PR.
+**Cross-compile regressions are now unmergeable.** The `Safety` ruleset carries a `required_status_checks` rule with seven contexts, applied by Steve on 2026-08-10 (`updated_at 2026-08-10T12:24:38-07:00`).
+
+The phase ran in two halves, and the split was deliberate. Everything inside the repository — the `paths:` → `if:` conversion, the check renames, the measurements and the two gate demonstrations — was prepared and verified first, with **no mutating API call of any kind**. Adding the rule is an admin action with merge-blocking consequences for every PR in the repository, it was gated on an open policy question (OI-SWCI-04), and it was Steve's to run. It was deliberately not run from inside the repository, including not run "to test": a failed experiment there blocks every merge, and the blocked state is not obvious from inside a PR.
+
+The apply step is §6.7.8, its rollback is §6.7.9, and §6.7.5 records the one assumption that could not be verified before the rule existed — together with the measurement, taken afterwards, that settled it.
 
 #### 6.7.1 The deadlock — `paths:` and "required" are mutually exclusive
 
@@ -1055,9 +1059,11 @@ Runs: `pull_request` [31388830758](https://github.com/stevehickman/NeuroPulse/ac
 
 **The load-bearing observation is that these contexts are PRESENT with `conclusion: skipped`, not absent.** That is the whole difference between a check that satisfies a requirement and one that hangs a PR forever. Before the conversion, `GET /commits/{sha}/check-runs` on a docs-only PR returned no row for any of them.
 
-#### 6.7.5 What is still NOT verified, and why — read before applying §6.7.6
+#### 6.7.5 The load-bearing assumption — and how it was settled
 
-**The behaviour is documented by GitHub and corroborated by measurement here, but it has NOT been exercised against a live `required_status_checks` rule on this repository** — because exercising it requires the exact admin action this phase is forbidden to take. Stating that plainly rather than burying it: it is the load-bearing assumption of the whole phase.
+**Does a `skipped` check satisfy a *required* check?** Everything in this phase rests on yes. It was documented and corroborated before the rule was applied, and **directly measured after** — recorded here in that order, because the order is the point: the corroborating evidence available beforehand was weaker than it looked, and saying so was what made the apply step safe.
+
+##### Before the rule existed — documented, corroborated, not exercised
 
 **Primary evidence — GitHub's own documentation** ([Troubleshooting required status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/troubleshooting-required-status-checks), retrieved 2026-08-10) states both halves of the distinction this phase is built on, and states them separately:
 
@@ -1070,7 +1076,31 @@ That is precisely the transformation §6.7.2 performs: the same scoping decision
 
 Read that as corroboration and nothing more. The rollup is computed over all check runs regardless of whether any are required, and it never touches the required-context **name-matching** path — which is the part that could actually surprise, since a required context is an exact string match and a mismatch produces no error anywhere. A green rollup shows `skipped` is not treated as failing in general; it does not show that these seven specific strings will be matched and satisfied. Absence of a symptom is not absence of the hazard.
 
-**Therefore §6.7.8 is written to be applied in an order that is safe if the assumption is wrong**, and §6.7.9 is the rollback:
+##### After the rule was applied — measured, and the assumption holds
+
+Measured on PR [#262](https://github.com/stevehickman/NeuroPulse/pull/262) on 2026-08-10, immediately after Steve saved the rule. All seven contexts are marked required **by GitHub, for this pull request** — `isRequired(pullRequestNumber: 262)` via GraphQL, not inferred from the ruleset:
+
+| Required context | Conclusion on a docs-only PR |
+|---|---|
+| `Class B scope` | `SUCCESS` |
+| `Class C scope` | `SUCCESS` |
+| `CMake host tests (Class B)` | **`SKIPPED`** |
+| `Bootloader (i.MX RT1062)` | **`SKIPPED`** |
+| `Main firmware (i.MX RT1062, Class B)` | **`SKIPPED`** |
+| `Safety MCU host tests (Class C)` | **`SKIPPED`** |
+| `Cross-compile (STM32G071, Cortex-M0+, Class C)` | **`SKIPPED`** |
+| | `mergeStateStatus = CLEAN`, `mergeable = MERGEABLE` |
+
+**Five required checks in `skipped` state, and the PR is `CLEAN` rather than `BLOCKED`.** That is the assumption, exercised on this repository against a live rule, on exactly the PR shape that would otherwise deadlock. It matches GitHub's documentation.
+
+Two honest caveats on that reading, neither of which changes the conclusion:
+
+- **A `CLEAN` reading taken *before* the rule existed would have been vacuous** — with no required checks, nothing can block, so `CLEAN` is guaranteed and identical whether or not skipped satisfies. It was in fact observed in that state first. The measurement only discriminates once `required_status_checks` is present and `isRequired` is true, which is why both are quoted above rather than the merge state alone.
+- **The `Safety` ruleset grants `RepositoryRole` 5 `bypass_mode: always`**, so the observer is an actor who could bypass. `isRequired` is not viewer-dependent and `BLOCKED` is reported to bypassing admins rather than suppressed, so this does not undercut the result — but it is the reason the seven `isRequired` flags, not the single merge state, are the evidence of record.
+
+##### The order §6.7.8 was written to be applied in
+
+§6.7.8 was deliberately sequenced to be safe if the assumption turned out to be wrong, and §6.7.9 is the rollback. Retained as the record of how it was done, and as the procedure to reuse if the required set is ever changed:
 
 1. Apply the rule — §6.7.8, and note its step 0: the conversion must already be on `main`.
 2. **Immediately** re-check scratch PR [#262](https://github.com/stevehickman/NeuroPulse/pull/262), which is **deliberately left open for this** — a one-file docs-only PR against `main` (re-targeted there on 2026-08-10, once phase 6 merged), with the firmware contexts sitting at `conclusion: skipped`. It is the exact shape that would deadlock, ready to answer the question in one page load. If it has since been closed, any one-file PR touching only `docs/` does the same job.
@@ -1079,10 +1109,12 @@ Read that as corroboration and nothing more. The rollup is computed over all che
    ```bash
    gh pr view 262 --json mergeStateStatus --jq .mergeStateStatus
    ```
-3. If it shows the firmware checks as satisfied, the assumption holds and phase 6 is complete.
+3. If it shows the firmware checks as satisfied, the assumption holds and phase 6 is complete. **This is what happened.**
 4. If it shows *"Expected — waiting for status"*, the assumption does not hold — run the §6.7.9 rollback and require only the checks that never skip: `Class B scope`, `Class C scope`, `Web scope`, plus the `codeql.yml` contexts.
 
 Do not merge anything else until step 2 has been read.
+
+**One thing this sequence got wrong in practice, worth recording.** The first `mergeStateStatus` reading was taken before the rule had actually been saved, and returned `CLEAN` — the right answer for the wrong reason, and indistinguishable from success. The ruleset's own `updated_at` (still `2026-05-14`) is what exposed it. **Assert that the rule landed before reading the thing the rule is supposed to affect**; step 2's `gh pr view` is only meaningful downstream of the `.rules[].type` check in §6.7.8.
 
 #### 6.7.6 The gate demonstration — the conversion did not create a no-op
 
@@ -1309,7 +1341,11 @@ The fallback is then to require only the checks that never skip: `Class B scope`
 
 #### 6.7.11 What this phase did not do
 
-It did not make any check required, and nothing here prevents a merge — that is §6.7.8, and it is Steve's to run under OI-SWCI-04, which remains open. It did not modify branch protection or any ruleset, and made no mutating API call of any kind: every `gh api` call in this phase was a plain `GET`, with no `--method`, no `--input`, and no `-f`/`-F` field flags (any of which silently promote `gh api` to `POST`). Independently corroborated by the ruleset's own `updated_at`, still `2026-05-14T11:50:38.699-07:00` after the phase — untouched since the day it was created. It did not touch any `permissions:` block, or change `NP_CLASS_B_TEST_COUNT` (21) or `NP_SAFETY_TEST_COUNT` (6), or alter `build-all.yml`. It did not add a third-party action. It did not change what any workflow builds — only when the jobs are allowed to skip. It did not touch Defect E, the SW-01 platform layer (OI-SWCI-17, phase 7), the MCUX SDK (OI-SWCI-20) or the missing SW-02 application target (OI-SWCI-21, phase 8). And it did not convert the five remaining `paths:`-filtered workflows, which stay non-requirable by omission rather than by decision.
+**The in-repository half of this phase changed no ruleset and made no mutating API call of any kind** — every `gh api` call while preparing it was a plain `GET`, with no `--method`, no `--input`, and no `-f`/`-F` field flags (any of which silently promote `gh api` to `POST`). Corroborated at the time by the ruleset's own `updated_at`, still `2026-05-14T11:50:38.699-07:00` when the preparation was handed over — untouched since the day it was created. **Steve applied the rule himself on 2026-08-10** (`updated_at 2026-08-10T12:24:38-07:00`); that is the only change to merge enforcement, and it is recorded in §6.7.8 and OI-SWCI-04.
+
+**Still open after this phase.** A direct push to `main` bypasses every one of these checks — `Safety` has no `pull_request` rule, and status checks are only evaluated on pull requests (OI-SWCI-22). Requiring the checks constrained the PR path and left that one untouched. The web and CodeQL contexts remain requirable but unrequired, a separate decision. Neither `strict_required_status_checks_policy` nor the bypass actor was changed.
+
+It did not touch any `permissions:` block, or change `NP_CLASS_B_TEST_COUNT` (21) or `NP_SAFETY_TEST_COUNT` (6), or alter `build-all.yml`. It did not add a third-party action. It did not change what any workflow builds — only when the jobs are allowed to skip. It did not touch Defect E, the SW-01 platform layer (OI-SWCI-17, phase 7), the MCUX SDK (OI-SWCI-20) or the missing SW-02 application target (OI-SWCI-21, phase 8). And it did not convert the five remaining `paths:`-filtered workflows, which stay non-requirable by omission rather than by decision.
 
 ## 7. Open items
 
@@ -1318,7 +1354,7 @@ It did not make any check required, and nothing here prevents a merge — that i
 | ~~OI-SWCI-01~~ | ~~Vendored or fetched SDKs?~~ **CLOSED 2026-08-08 — vendored in all cases.** See §9 | Quality / Firmware | ~~Phases 4, 5~~ |
 | ~~OI-SWCI-02~~ | ~~Restated 2026-08-08. The remaining work is a fix in *two* places: the linker script **and** the duplicate constant at `np_main.c:220`~~ **CLOSED 2026-08-09 — fixed as one place, not two.** The linker script derives the reservation from `LENGTH(OCRAM) - _app_load_offset - _stack_size` and exports it; `np_app_image.c` reads the symbol; `np_main.c` computes neither the limit nor the load address. Neither `448K` nor `440K` appears in the build. Two link-time `ASSERT`s and a host test that parses the shipping linker script make divergence fail CI. See §4.3 and §6.3 | Firmware | ~~Phase 2~~ |
 | ~~OI-SWCI-03~~ | ~~Own workflow or matrix leg for the Class C safety MCU?~~ **CLOSED 2026-08-08 — its own workflow, `safety-mcu-ci.yml`.** See §5 | Quality | ~~Phase 4~~ |
-| OI-SWCI-04 | Required-check policy: all PRs, or `main` only? Branch protection is an admin setting outside the repository. **Still open — this is what phase 6 is waiting on.** The mechanical blocker is closed as of 2026-08-10: every firmware check now reports on every PR, so the checks are *requirable* without deadlocking docs-only PRs (§6.7). The runbook is §6.7.8 — start at its step 0, which is the merge-ordering constraint — and the rollback is §6.7.9; read §6.7.5 first, which records the one assumption that could not be verified from inside the repository | Steve | Phase 6 |
+| ~~OI-SWCI-04~~ | ~~Required-check policy: all PRs, or `main` only?~~ **CLOSED 2026-08-10 — all PRs targeting the default branch.** Applied by Steve to the `Safety` ruleset (`16412379`) as a `required_status_checks` rule over seven contexts: `Class B scope`, `CMake host tests (Class B)`, `Bootloader (i.MX RT1062)`, `Main firmware (i.MX RT1062, Class B)`, `Class C scope`, `Safety MCU host tests (Class C)`, `Cross-compile (STM32G071, Cortex-M0+, Class C)`. `strict_required_status_checks_policy: false` — a branch need not be up to date with `main` to merge. The two `* scope` contexts are required deliberately: they run the matcher self-test, the pattern-resolution check and the scope assertions, so a broken relevance list blocks rather than silently skips. Web and CodeQL contexts are requirable but were **not** added — a separate decision, still open. Verified on a docs-only PR: five of the seven required contexts `SKIPPED`, `mergeStateStatus: CLEAN` (§6.7.5) | Steve | ~~Phase 6~~ |
 | OI-SWCI-22 | **Raised 2026-08-10 during phase 6 (§6.7.10). A direct push to `main` is currently permitted and bypasses every status check.** The `Safety` ruleset (`16412379`) contains exactly `deletion` and `non_fast_forward`, and there is no classic branch-protection object (`GET /branches/main/protection` → 404). `non_fast_forward` blocks force-pushes but **not** ordinary fast-forward pushes, and no `pull_request` rule exists. Status checks are only ever evaluated on pull requests, so requiring them (OI-SWCI-04) constrains the PR path while leaving the direct-push path entirely open — a regression could land on `main` without any check having run. The decision is whether to add a `pull_request` rule (with what review count, and which bypass actors), which changes how everyone commits and is not a side effect a CI phase should apply. Deliberately not changed by phase 6 | Steve | — |
 | OI-SWCI-23 | **Raised 2026-08-10 during phase 6 (§6.7.7). `build-all.yml` must never become a required check.** It is `schedule` + `workflow_dispatch` only by design (§5.5) and has no `pull_request` trigger, so it never reports on any PR; requiring it would block every PR unconditionally and permanently. Its job names also carry counts (`CMake host tests (27 targets, unfiltered)`), which is harmless only because it is not requirable. Recorded as an open item purely so there is an ID to cite when someone proposes adding it "for completeness" | Quality | — |
 | OI-SWCI-24 | **Raised 2026-08-10 during phase 6.** Header arithmetic in `safety-mcu-ci.yml` is stale: it says "6 of the repo's 25" and "The remaining 19 belong to firmware-cross-build.yml. 6 + 19 = 25", while the live partition is 6 + 21 = 27 (`build-all.yml`'s own job is named `CMake host tests (27 targets, unfiltered)`, and §8 records 6 + 21 = 27). `firmware-cross-build.yml` has the same drift in the other direction — its header says "21 of the repo's 27" in one place and "6 + 20 = 26" in another. Phases 1 and 2 each added a Class B target and the prose counts were not swept. No check is affected — the enforced counts are the `NP_*_TEST_COUNT` env vars, which are correct — so this is a documentation defect, not a coverage one. Related to OI-SWCI-13 (the other stale-reference sweep) and naturally worked with it | Quality | — |
@@ -1357,6 +1393,9 @@ It did not make any check required, and nothing here prevents a merge — that i
 | Host-native logic verified (Class B, 21 targets) | NP-SW-001 Rev C | `firmware-cross-build.yml` — `host-tests` job |
 | Host-native logic verified (Class C, 6 targets) | NP-SW-001 Rev C | `safety-mcu-ci.yml` — `host-tests` job |
 | Host-test partition remains complete (6 + 21 = 27) | OI-SWCI-09 | `build-all.yml` — `host-tests-all` partition guard, weekly |
+| A cross-compile or host-test regression cannot be merged to `main` | §6, phase 6 | `Safety` ruleset (`16412379`) — `required_status_checks` over seven contexts, **applied 2026-08-10** (§6.7.8). Read this row with its limit: it binds the **pull-request** path only. A direct push to `main` still bypasses every check, because `Safety` carries no `pull_request` rule — OI-SWCI-22 |
+| An out-of-scope PR is not blocked by checks it never needed to run | §5.0, phase 6 | Job-level `if:` on every gated job, so out-of-scope jobs report `skipped` rather than not reporting. Measured: a docs-only PR carries five required contexts at `SKIPPED` and reads `CLEAN` (§6.7.5) |
+| The relevance list that decides what to skip is itself checked | §6.7.2 | `changes` job — `ci-changed-scope.sh --self-test` (matcher semantics), `--check-tree` (every pattern resolves to something tracked), and per-workflow scope assertions. All three gate, because `Class B scope` and `Class C scope` are required contexts |
 | Bootloader supplies its own freestanding `memcpy`/`memset` | §4.2, phase 1 | `np_bootloader_mem_tests`; `objdump` body check in §4.2 |
 | Application staging area is sized by the linker, not by C | §4.3, phase 2 | `np_bootloader_app_image_tests` (parses the linker script); `nm`/`objdump` checks in §6.3 |
 | OCRAM is tiled exactly by bootloader + staging + stack | §4.3, phase 2 | `bootloader_imxrt1062.ld` `ASSERT`s (`_app_staging_start`, `_app_staging_end`) — link-time |
