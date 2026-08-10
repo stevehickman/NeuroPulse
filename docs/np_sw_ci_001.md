@@ -409,9 +409,12 @@ permissions:
 
 jobs:
   safety-mcu-cross-build:
-    name: Cross-compile (STM32G071, Cortex-M0+)
+    # Phase 4 (§6.5) renamed this to "…, Class C" and promoted it out of
+    # continue-on-error.  "Cross-compile" is now literal: the step below builds
+    # np_safety_mcu_objs, not the image, because Defect E (§4.4) means no image
+    # can link.  Phase 7 re-points it at the full build.
+    name: Cross-compile (STM32G071, Cortex-M0+, Class C)
     runs-on: ubuntu-latest
-    continue-on-error: true      # ← Phase 0 only; drop at phase 4
     steps:
       - uses: actions/checkout@v4
 
@@ -430,12 +433,12 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release \
                 firmware/safety_mcu
 
-      - name: Build
-        run: cmake --build build/safety-mcu
-
-      - name: Report image size
-        if: success()
-        run: find build/safety-mcu -name '*.elf' | xargs -r arm-none-eabi-size
+      # Phase 4: --target np_safety_mcu_objs.  The image-size step that stood
+      # here is removed with it — there is no image, and `find … *.elf` matching
+      # nothing exits 0, so it would have been a step that always passed while
+      # proving nothing.  Both return at phase 7.
+      - name: Compile (all Class C translation units)
+        run: cmake --build build/safety-mcu --target np_safety_mcu_objs
 
       - name: Upload map and logs on failure
         if: failure()
@@ -742,6 +745,45 @@ M1 is the one that matters: it is the exact defect this phase closed, and the le
 **Two defects were discovered behind Defect A, one closed and one not.** Defect F (duplicate `-specs=`, §4.5) is fixed in this phase. Defect E (§4.4) — 24 undefined `np_hal_*` platform symbols — is **open** and is Class C driver work needing design review; it is OI-SWCI-17 and phase 7. The safety MCU compiles for its target and still has no linkable image, and §6's phase-4 criterion was corrected to say exactly that rather than to imply an image exists.
 
 **Count guards untouched.** No test target was added or removed: `NP_SAFETY_TEST_COUNT` stays `6`, `NP_CLASS_B_TEST_COUNT` stays `21`, and `build-all.yml`'s partition arithmetic stays `6 + 21 = 27`. Verified locally: the Class C selection matches 6 targets and 6/6 pass. The host build is genuinely unaffected — the device-header include is gated on `STM32G071xx`, which the `NP_BUILD_TESTS` branch returns before ever defining.
+
+#### 6.5.1 The gate promotion, and its demonstration
+
+`continue-on-error: true` is removed from the two safety-MCU cross-compile legs — `safety-mcu-ci.yml` job `cross-build` and `build-all.yml` job `safety-mcu-cross`. **Two settings remain, both on `main-firmware` legs, both Defect D / OI-SWCI-12 / phase 5.** Landed as a separate PR from the vendoring so a two-line gate change is reviewable on its own rather than buried under ~14,000 lines of vendored headers.
+
+Both legs build `--target np_safety_mcu_objs`. The job is renamed `Cross-compile (STM32G071, Cortex-M0+, Class C)` and the `Report image size` step is deleted — there is no image, and `find … -name '*.elf'` matching nothing exits `0`, so that step would have passed forever while proving nothing. Both revert at phase 7.
+
+**A green run is not evidence that a gate gates, so the gate was demonstrated by making it fail** — the same requirement and the same reason as phase 3. Through the vendoring PR this leg was *already* green while blocking nothing, so a verification that only observed a passing run would have been satisfied identically by the unpromoted file.
+
+| | red — breakage present | green — reverted |
+|---|---|---|
+| commit | `a0ee6c6` | `4b203f5` |
+| `safety-mcu-ci.yml` run | [31336301542](https://github.com/stevehickman/NeuroPulse/actions/runs/31336301542) | [31336559374](https://github.com/stevehickman/NeuroPulse/actions/runs/31336559374) |
+| `Cross-compile (STM32G071, Cortex-M0+, Class C)` | **failure**, failing step `Compile (all Class C translation units)` | **success** |
+| `Safety MCU host tests (6 targets)` | success | success |
+| **workflow run conclusion** | **`failure`** | **`success`** |
+
+The breakage was an undeclared CMSIS device symbol used from the enable-GPIO path in `np_gpio_mgr.c`, chosen so the failure is **the same shape as Defect A** — a compile diagnostic on a missing device symbol in a Class C translation unit — rather than an arbitrary syntax error:
+
+```
+np_gpio_mgr.c:31:27: error: 'GPIOZ' undeclared (first use in this function);
+                     did you mean 'GPIOD'?
+ninja: build stopped: subcommand failed.
+```
+
+**`host-tests` succeeds on both runs**, so the red run's redness cannot be coming from the other non-masked job in that workflow. This is structural rather than lucky: no host-test target compiles `np_gpio_mgr.c` (§6.5), so a breakage there is invisible to them — which is also the reason this leg exists.
+
+**`build-all.yml` was exercised separately, and supplies the within-run masked control.** It is `schedule` + `workflow_dispatch` only and never runs on a pull request, so its promoted leg cannot be observed on the PR that changes it. Dispatched twice against the branch:
+
+| Dispatch | commit | `safety-mcu-cross` | `main-firmware-cross` | `bootloader-cross` | run conclusion |
+|---|---|---|---|---|---|
+| [31336496931](https://github.com/stevehickman/NeuroPulse/actions/runs/31336496931) | `a0ee6c6` (broken) | **failure** (gating) | failure (masked) | success | **`failure`** |
+| [31336735985](https://github.com/stevehickman/NeuroPulse/actions/runs/31336735985) | `4b203f5` (reverted) | success (gating) | failure (**masked**) | success | **`success`** |
+
+The second row is the control that makes the difference attributable to the removed setting and nothing else: **a job concluded `failure` and the run still concluded `success`** — `continue-on-error` working, observed in the same workflow, on the same commit, at the same time as the safety-MCU leg was gating. The only difference between the two legs is the setting phase 4 removed. It also confirms the phase-5 legs were not promoted by accident.
+
+As at phase 3, `continue-on-error` suppresses **less** than its name implies: `main-firmware-cross` reports `conclusion: failure` at job level on both runs and shows a red ✗ regardless. Only its contribution to the **run conclusion** is suppressed, which is why the run conclusion is the row in bold and the sole discriminating signal.
+
+**What this phase did not do.** It did not make the safety-MCU leg a *required* check, and nothing here prevents a merge — that is branch protection, an admin setting outside the repository, and it remains OI-SWCI-04 at phase 6. It did not touch any `permissions:` block, any test-count guard, or the phase-5 `main-firmware` legs. And it did not make the Class C firmware *link* — see Defect E.
 
 ## 7. Open items
 

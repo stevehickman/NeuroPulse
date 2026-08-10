@@ -128,7 +128,10 @@ jobs:
     # Mirrors safety-mcu-ci.yml's cross-build leg, minus the paths: filter.
     # Also minus the `needs:` gate: this is the backstop, so it reports the
     # target build state even on a week when a host test is red.
-    continue-on-error: true      # ← Phase 0 only; drop at phase 4
+    # NOT `continue-on-error` as of phase 4 (NP-SW-CI-001 §6.5) — mirrors the
+    # promotion of the same leg in safety-mcu-ci.yml.  As with bootloader-cross,
+    # this file is schedule + workflow_dispatch only and is not a PR check, so
+    # "the run goes red" is the whole effect here.
     steps:
       - uses: actions/checkout@v4
       - name: Install ARM GNU toolchain
@@ -143,9 +146,12 @@ jobs:
                 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/firmware/cmake/stm32g071.cmake \
                 -DCMAKE_BUILD_TYPE=Release \
                 firmware/safety_mcu
-      # EXPECTED TO FAIL — Defect A (§4.1), STM32G0 CMSIS/HAL not vendored.
-      - name: Build
-        run: cmake --build build/safety-mcu
+      # GATING since phase 4 (§6.5).  Target is `np_safety_mcu_objs` — compilation
+      # of every Class C TU, which is green and is what Defect A broke.  The
+      # linked image cannot succeed until Defect E (§4.4, OI-SWCI-17) supplies
+      # SW-01's platform layer; pointing this at the full build is phase 7.
+      - name: Compile (all Class C translation units)
+        run: cmake --build build/safety-mcu --target np_safety_mcu_objs
 
   bootloader-cross:
     name: Bootloader cross-compile (i.MX RT1062)
