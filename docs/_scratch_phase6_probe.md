@@ -6,3 +6,5 @@ so NP-SW-CI-001 phase 6 can measure whether the firmware checks report
 
 No section references, deliberately, so the section-ref guard has nothing to
 resolve here.
+
+Second docs-only commit so the push and pull_request events agree on scope.
