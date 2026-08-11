@@ -33,6 +33,34 @@
  * reports "ready" would test the happy path and silently skip every timeout
  * branch, which is worse than no coverage because it reads as coverage.
  *
+ * ── THE CIRCULARITY LIMIT — READ BEFORE QUOTING THESE TESTS AS EVIDENCE ──────
+ * This file re-declares the peripheral structs and the bit macros under the
+ * SAME NAMES the CMSIS device header uses.  The target build resolves those
+ * names against CMSIS; the host build resolves them against this file.  They
+ * are two independent transcriptions that the compiler never compares.
+ *
+ * CONSEQUENCE: these tests verify LOGIC — which register a driver writes, in
+ * what order, with which of the named bits, and what it does with an
+ * out-of-range argument.  They CANNOT verify REGISTER IDENTITY.  If a driver
+ * names the wrong bit, or if a value here disagrees with the real CMSIS
+ * definition, the host test and the target build simply disagree silently and
+ * the test still passes.  Every assertion here is of the form "the driver set
+ * the bit it calls X", never "the bit the driver set is the bit the STM32G071
+ * calls X".
+ *
+ * So: a passing run of np_hal_platform_tests is evidence about the driver's
+ * decisions, and is NOT evidence that the peripheral is correctly programmed.
+ * The latter needs the datasheet on one side and an oscilloscope on the other,
+ * and is bench work that no host test can substitute for (NP-SW-CI-001 §4.4.2
+ * says the same thing about the whole platform layer).  Do not let a green
+ * suite here be read as register-level verification.
+ *
+ * The narrower guarantee is still worth having, because the highest-consequence
+ * defects in this layer are logic defects, not transcription ones: inverted
+ * enable polarity, a fail-safe that fails toward "enabled", an erased-OTP value
+ * that is not the agreed sentinel, a frame demux that accepts a wrong length.
+ * Those are exactly what is covered, and all four are mutation-verified.
+ *
  * Field layouts match the STM32G0 reference manual by NAME and by the offsets
  * this firmware relies on; they are not byte-exact peripheral maps and must not
  * be treated as such.

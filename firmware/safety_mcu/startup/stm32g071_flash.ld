@@ -127,6 +127,23 @@ SECTIONS
         KEEP(*(.fault_latch))
     } >SRAM
 
+    /* ── Fault-latch placement assertion ────────────────────────────────── */
+    /* The bug fixed above was LATENT for as long as it existed because nothing
+     * asserted where this section lands — it took supplying the platform layer,
+     * a year later, for anything to reach the linker script at all.  Fixing the
+     * placement without asserting it just resets that clock: the next edit to
+     * this file can move the latch off the warm-reset-persistent window and
+     * nothing will say so.  SW01-M08 reads this region across a warm reset to
+     * detect prior fault state, so a silently relocated latch means prior
+     * faults stop surviving reset — a Class C behaviour change that no host
+     * test can see, because the property lives in the image layout and not in
+     * any function's return value.
+     *
+     * ADDR() is the placed address of the output section, so this compares the
+     * outcome against the intent rather than restating the intent. */
+    ASSERT(ADDR(.fault_latch) == _fault_latch_start,
+           ".fault_latch is not at the top-64-byte warm-reset-persistent window")
+
     /* ── Stack headroom assertion ───────────────────────────────────────── */
     /* The MEMORY block catches a section that overflows SRAM outright, but it
      * cannot catch .data + .bss growing INTO the descending stack — both fit

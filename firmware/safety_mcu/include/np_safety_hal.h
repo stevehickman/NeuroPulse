@@ -196,10 +196,16 @@ uint16_t np_hal_adc_read_channel(uint8_t channel);
  *                          passes NP_SAFETY_RX_EXT_FRAME_LEN.
  *
  * np_hal_spi_send_frame()  DECLARED BUT NEVER CALLED anywhere in this firmware.
- *                          It is the only one of the 25 with no call site, and
- *                          it is why the linker reports 24 undefined np_hal_*
- *                          symbols while 25 are declared — an unreferenced
- *                          declaration produces no undefined reference.  It
+ *                          It is the only one of the 25 with no call site.
+ *                          Before phase 7 that was why the linker reported 24
+ *                          undefined np_hal_* symbols while 25 were declared —
+ *                          an unreferenced declaration produces no undefined
+ *                          reference.  The same fact now shows up at the other
+ *                          end: it IS implemented in platform/np_hal_spi.c and
+ *                          IS in the object file, but -Wl,--gc-sections drops
+ *                          it from the linked image, so a symbol census over
+ *                          np_safety_mcu.elf finds 24 of the 25 and that is
+ *                          correct rather than a gap.  It
  *                          appears to have been superseded by
  *                          np_hal_spi_send_reply() when OI-CVNS-HUB-11 widened
  *                          the reply window from 8 bytes to 38.  Retained
