@@ -124,8 +124,8 @@ digraph NeurOneCADParts {
   subgraph cluster_interconnect {
     label="K. L1 Socket Interconnect (NP-DRV-SHELL-002 / NP-HW-HUB-001 Rev C) — NEW"; style="rounded"; color="#444444"; fontsize=12;
 
-    CLUSTER_CARRIER[shape=box3d, fillcolor="#e6d5f5", color="#c0392b", penwidth=2, style="filled,dashed",
-      label="CLUSTER-CARRIER (x18)\nRigid-flex board laminated\ninto L1; every socket <=50mm\nfrom its own carrier.\nLocal MCU? UNRESOLVED\n[OI-HUB-C15 / C17]"];
+    CLUSTER_CARRIER[shape=box3d, fillcolor="#e6d5f5",
+      label="CLUSTER-CARRIER (x18)\nCluster CONTROLLER board,\nrigid-flex laminated into L1.\nLOCAL MCU - DECIDED 2026-08-11\n(STM32G071 UFQFPN32 + PCA9548A\n+ 16:1 PD mux + shared TIA\n+ NTC mux/ADC + power gate)\nActive board: size height and\ndissipation accordingly"];
     CLUSTER_TAIL  [shape=box, fillcolor="#e6d5f5", color="#c0392b", penwidth=2, style="filled,dashed",
       label="CLUSTER-TAIL (x18)\nStatic-only flex, formed once.\n>=12.5mm static bend radius;\nno bend within 5mm of a\ntransition, under a clamp plate,\nor under a socket"];
     PAN           [shape=box3d, fillcolor="#e6d5f5", color="#c0392b", penwidth=2, style="filled,dashed",
@@ -340,7 +340,8 @@ digraph NeurOneCADParts {
   N4_GUARD_LANE -> AG_AGCL_CONTACT [label="the one contact pair on which <=50mohm and fretting are genuinely binding - it sits in the uV EEG path (OI-HEXTILE-11)"];
   N1_BUS_PAIR -> FLUXGATE_MOUNT [label="the LED bus is an ELF dB/dt source on the fluxgates' own layer: cancellation calibration becomes configuration-dependent and must re-run on module-map rebuild (REQ-EMI-11)"];
   N1_BUS_PAIR -> HELMHOLTZ_FORMER [label="feed-forward self-field subtraction must bind to MEASURED PD/dose telemetry, not commanded current (REQ-EMI-05)"];
-  HEATSINK_ASSY -> RIGIDIZER_BOARD [label="whether the TIA+ADC stay on-module (D-4) is deferred pending the module heat-sink / helmet-cooling design - 42C face / 62C junction, plus ADC drift vs the +/-15% dose claim (OI-HUB-C17c)"];
+  HEATSINK_ASSY -> RIGIDIZER_BOARD [label="D-4 (TIA+ADC on-module) is effectively resolved AGAINST by the 2026-08-11 carrier-MCU decision, which keeps the analog front end on the cooler carrier; C17c's on-tile dissipation half is still open"];
+  CLUSTER_CARRIER -> HEATSINK_ASSY [label="18 ACTIVE boards now dissipate into the inter-bowl gap, which is STAGNANT air (0.231 m2K/W) - a thermal input no document currently owns (see L-4 / L-10a)"];
   HEATSINK_ASSY -> SOCKET_CONTACT [label="and the socket contact count is blocked behind that same decision"];
   BLANK_PLUG -> CASE_CLAMSHELL [label="partial-population option (~6 concurrent tiles, ~$920 to fill 80 sockets) may put 50-60 plugs in a build - OI-HEXTILE-06 sizes both the plug tool and the packaging"];
 

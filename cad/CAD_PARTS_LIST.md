@@ -194,7 +194,7 @@ their content is electrical.
 
 | ID | Part | Qty | Key CAD constraints |
 |----|------|----|----------------------|
-| CLUSTER-CARRIER | Cluster carrier board (rigid-flex, laminated into L1) | **18** (see §L-3) | Hosts its cluster's ≤8 socket contact arrays plus local conditioning; **fixed — laminated into L1, never moves.** Must stay a different part from the clamp plate on the opposite side of the same cluster footprint: if the carrier were the plate, every module swap would cycle the electrical connection of an entire cluster. **Every socket must sit ≤50mm from its own carrier** (SH2-DRC-03) — that is the whole reason the analog front end moved here. Components mount on the gap-facing (outboard) side, out of the scalp thermal path. Field-replaceable at cluster level: a damaged carrier replaces 7 sockets, not the bowl (OI-SHELL2-08 — service tiering not yet reflected). **Whether it carries a local MCU is unresolved — see §L-4.** |
+| CLUSTER-CARRIER | Cluster **controller** board (rigid-flex, laminated into L1) | **18** (see §L-3) | **★ DECIDED 2026-08-11 (principal direction) — the carrier carries a LOCAL MCU.** NP-HW-HUB-001 Rev C §3.1/§8.3's analysis prevails over the passive-carrier model §7.5.3 inherited from NP-DRV-SHELL-002 (see §L-4). Per board: cluster MCU (STM32G071 **UFQFPN32** — the only package-qualified MCU in the tree), PCA9548A I2C isolation (1 channel/socket), 16:1 PD current mux, one shared switched-gain TIA (DG2788A), 8:1 NTC mux + ADC, and the cluster power gate. **Mechanical envelope consequence: this is an active board with an MCU package and a TIA/ADC set, not a passive switch board — fix component height on the gap-facing side and local dissipation inside the inter-bowl gap against this content, not against the passive model.** Hosts its cluster's ≤8 socket contact arrays; **fixed — laminated into L1, never moves.** Must stay a different part from the clamp plate on the opposite side of the same cluster footprint: if the carrier were the plate, every module swap would cycle the electrical connection of an entire cluster. **Every socket must sit ≤50mm from its own carrier** (SH2-DRC-03). Components mount on the gap-facing (outboard) side, out of the scalp thermal path. Field-replaceable at cluster level: a damaged carrier replaces 7 sockets, not the bowl (OI-SHELL2-08 — service tiering not yet reflected). |
 | CLUSTER-TAIL | Cluster tail (laminated flex, carrier → PAN) | 18 | **Static-only flex — formed once at assembly and never handled again.** ≥**12.5mm** static bend radius at every formed bend (REQ-BR2-01, deliberately conservative against IPC-2223D's ~1.2mm dynamic floor). **No bend within 5mm** of a rigid-flex transition, stiffener edge, boss or carrier edge — bending there delaminates rather than merely fatiguing (REQ-BR2-03). **L1 lamination geometry must ENFORCE the radius by construction** — a tail must not be *capable* of a tighter radius during assembly (REQ-BR2-04). **No formed bend may fall under a clamp-plate footprint or under a socket** (REQ-BR2-05). 12 conductors as drawn (11 if the single cranial enable is adopted, §L-3). |
 | PAN | Posterior aggregation node (L1, occiput centreline) | 1 | All 18 cluster tails converge here, co-sited with the BLIND-MATE-BOSS. Hosts the hub-level I2C branch switch, the ADS1299 bank, the tES driver interface and the PDN feed point. Whether the ADS1299 bank actually sits here or moves to the Hub PCB is open (OI-SHELL2-10) — it moves an SPI interface across the boss either way. |
 | N1-BUS-PAIR | VLED/PGND broadside-coupled supply pair (laminate core of L1) | per cluster feed | **Every `VLED+`/`PGND` pair broadside-coupled with full overlap across its entire run, dielectric ≤0.2mm, loop area ≤25mm² per cluster feed** (REQ-EMI-06). Same-layer 5mm spacing gives ~1,000mm² and ~1.9µT at 30mm; broadside at 0.1mm gives ~20mm² and ~37nT — fifty-fold, and still the same order as the ambient ELF the cancellation loop nulls. **Two absolute prohibitions:** the shell, shield stack, mu-metal and any DRL-driven structure may **NOT** carry LED or tES return current (REQ-EMI-08 — the shell is bonded to the EEG DRL output, so returning therapeutic-band current through it injects that current into the EEG reference); and N1 may **NOT** form a closed ring around L1 — topology is a tree from the PAN (REQ-EMI-09). |
@@ -216,7 +216,7 @@ they bite. **None of these is resolved by this document.**
 > | Socket contact count (L-1) | **[ENVELOPE]** for space claim, **[BLOCKING]** for the pattern | Reserve area and clamp-plate load for **18**; do **not** cut the pad/spring pattern |
 > | ~~Bezel height (L-2)~~ | **RESOLVED 2026-08-11** | `h_b` = **1.0mm** by principal direction. Residual: BEZEL-1a comfort/fit may still reject it |
 > | Cluster-tail connector positions (L-3) | **[ENVELOPE]** | Reserve boss real estate for **20**; do not fix the contact layout (MECH-1 time-box) |
-> | Cluster-carrier MCU (L-4) | **[BLOCKING]** | None — board thickness and component height both depend on it |
+> | ~~Cluster-carrier MCU (L-4)~~ | **RESOLVED 2026-08-11** | Carrier **has** a local MCU. Size the envelope for an active board (MCU + TIA/ADC), not a passive switch board |
 
 ### L-0. Blocking before any steel is cut
 
@@ -312,13 +312,42 @@ Class C `NP_SAFETY_EN_PBM_CRANIAL` enable survives safety review — drop `SAFE_
 **insensitive to a future REG-1 re-cut**. Until it closes, the boss contact layout is unfixed — and
 the boss is tooled by **MECH-1**, which is why OI-SHELL2-02 is explicitly time-boxed.
 
-### L-4. Does the cluster carrier hold an MCU? (OI-HUB-C15, OI-HUB-C17)
+### L-4. Cluster carrier MCU — **RESOLVED 2026-08-11 (principal direction): the carrier carries a local MCU**
 
-NP-HW-HUB-001 §3/§8.1–8.3 describes a distributed **cluster-controller** tier with an STM32G071
-(UFQFPN32) per board. Its own §7.5.3 — written after C17a adopted NP-DRV-SHELL-002's architecture —
-says the carrier stays *"passive-plus-switches with no MCU."* OI-HUB-C15 flags the §3/§5.2/§8 rewrite
-as pending. **Mechanical consequence: board thickness, component height on the gap-facing side, and
-local dissipation inside the inter-bowl gap all differ.** Do not fix the carrier envelope yet.
+NP-HW-HUB-001 Rev C §3.1/§8.3's distributed cluster-controller analysis prevails over the
+passive-carrier model that §7.5.3 inherited from NP-DRV-SHELL-002. **NP-DRV-SHELL-002 was not fully
+worked through after the cluster architecture replaced zone modules, and the record supports that:
+SHELL-002 has had exactly one commit since it landed (2026-07-31, never revised), against twenty on
+NP-HW-HUB-001 (last 2026-08-05).** A chip is open to bring SHELL-002 forward.
+
+> **The decision is right; the justification on the record is not — and that matters for anyone
+> reading the source documents.** The two positions are both *inside* NP-HW-HUB-001, not
+> SHELL-002-versus-HUB-001. §3.1–3.3 is its older layer, §7.5.3 its newer one. And **§3.2's stated
+> reason for the MCU is dead:** it argues the tier needs local intelligence because *"T1-A base tiles
+> … carry no on-module driver; their LED current comes from the hub"*, so LED drive must distribute.
+> **NP-HW-HEXTILE-001 D-3 (2026-08-04) subsequently put a driver on every tile type and marked it
+> irreversible.** HUB-001's own OI-HUB-C15 already says to *"drop the cluster-MCU LED-drive rationale
+> in §3.2."* The MCU therefore needs a different recorded justification, and the available one is the
+> surviving carrier content: a switched-gain TIA, a 16:1 PD current mux, an 8:1 NTC mux and an ADC
+> are a scan-and-sequence job, which is an MCU's work.
+
+**Coupling this decision creates — flag it, because it is not obvious.** §7.5.3's no-MCU carrier was
+conditional on **HEXTILE D-4** (TIA + ADC move on-module, so the carrier loses its whole analog front
+end). Keeping the front end *on the carrier* is the opposite of D-4. **This decision therefore
+effectively resolves OI-HUB-C17c against D-4** — it is no longer a free-standing thermal decision.
+
+That direction is **consistent with the thermal concern rather than in tension with it**: OI-HUB-C17c
+defers D-4 precisely because of *"ADC drift 25 → 62 °C against the ±15 % dose claim (FAI-SM-06), which
+a cooler carrier-mounted ADC never faces."* A carrier-mounted ADC is the conservative side of that
+worry. **What still needs confirming is the other half of C17c** — continuous on-tile dissipation
+inside the 42 °C face / 62 °C junction envelope — which this decision does not address either way.
+
+**Mechanical consequences now fixed** (they were the reason this was [BLOCKING]): the carrier is an
+**active** board — MCU package plus TIA/ADC set — so component height on the gap-facing side, board
+thickness, and local dissipation inside the inter-bowl gap should be sized against that content, not
+against a passive switch board. Note the inter-bowl gap is **stagnant air** (0.231 m²K/W,
+NP-THERM-CFD-C2-001 §7), so 18 active boards dissipating in it is a thermal input that no document
+currently owns — related to L-10a, and worth raising with the CFD.
 
 ### L-5. The tile cost/population decision (OI-HEXTILE-06 + OI-HEXTILE-09)
 
