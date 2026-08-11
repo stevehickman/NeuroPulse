@@ -69,9 +69,21 @@ SHDR_FLEET_TABLE_NAMES: frozenset[str] = frozenset({
     "devices",
     "firmware_history",
     "ota_events",
-    "pbm_zone_telemetry",
+    # Rev D: the fixed five-zone tables were replaced by socket+module-keyed
+    # ones. pbm_zone_telemetry → pbm_module_telemetry; thermal_profiles →
+    # module_thermal_telemetry + hub_thermal_telemetry. The retired names are
+    # deliberately absent: a stale entry here would silently stop guarding a
+    # table that still exists. TABLESET-01 (below) pins this set to the schema.
+    "module_inventory",
+    "module_placement_events",
+    "module_life",
+    "socket_life",
+    "socket_part_type_wear",
+    "pbm_module_telemetry",
     "emf_shielding_telemetry",
-    "thermal_profiles",
+    "module_thermal_telemetry",
+    "hub_thermal_telemetry",
+    "module_rotation_advice",
     "power_telemetry",
     "consumable_counts",
     "accessory_auth_log",
@@ -149,7 +161,12 @@ def parse_columns(sql: str) -> list[ColumnDef]:
         if skip_re.match(line):
             continue
 
-        col_m = col_re.match(line)
+        # Strip any trailing inline comment before matching — a nullable column
+        # carrying an explanatory "-- ..." comment and no other modifier matched
+        # nothing, making it invisible to NOJOIN-SHDR-02 (the PII check) and
+        # TOKEN-*-01.  Same defect and same fix as ci/test_shdr_schema.py; both
+        # gates carry a copy of this parser, so both had it.
+        col_m = col_re.match(re.sub(r"--.*$", "", line).rstrip())
         if col_m:
             col_name = col_m.group(1).lower()
             col_type = col_m.group(2).strip().upper()
@@ -335,6 +352,53 @@ class CheckResult:
     failures: list[Failure] = field(default_factory=list)
 
 
+def check_shdr_table_set_current(shdr_sql: str) -> list[Failure]:
+    """
+    TABLESET-01 — SHDR_FLEET_TABLE_NAMES must equal the set of tables the SHDR
+    schema actually declares.
+
+    That frozenset is what NOJOIN-WARRANTY-01 scans the warranty schema for, so
+    it fails silently in BOTH directions if it drifts:
+      * a table added to the schema but not to the set is never guarded — the
+        warranty schema could reference it and the gate would still report PASS;
+      * a name left in the set after the table was renamed guards nothing, while
+        making the set look complete.
+
+    Rev D renamed two tables and added five, which is exactly the drift this
+    catches. The check parses CREATE TABLE out of the DDL rather than grepping
+    for the names — a grep would be satisfied by the very comment above the
+    frozenset that lists the retired names.
+    """
+    declared = {
+        m.group(1).lower()
+        for m in re.finditer(
+            r"^\s*CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(\w+)\s*\(",
+            shdr_sql,
+            re.IGNORECASE | re.MULTILINE,
+        )
+    }
+    failures: list[Failure] = []
+    for missing in sorted(declared - SHDR_FLEET_TABLE_NAMES):
+        failures.append(Failure(
+            check_id="TABLESET-01",
+            description=(
+                f"SHDR table '{missing}' is declared in the schema but absent from "
+                f"SHDR_FLEET_TABLE_NAMES — NOJOIN-WARRANTY-01 is not guarding it"
+            ),
+            location=f"shdr_fleet_schema.sql:{missing}",
+        ))
+    for stale in sorted(SHDR_FLEET_TABLE_NAMES - declared):
+        failures.append(Failure(
+            check_id="TABLESET-01",
+            description=(
+                f"SHDR_FLEET_TABLE_NAMES lists '{stale}', which no longer exists in "
+                f"the schema — stale entry guards nothing"
+            ),
+            location=f"test_warranty_nojoin.py:SHDR_FLEET_TABLE_NAMES",
+        ))
+    return failures
+
+
 def run_all_checks(shdr_sql: str, warranty_sql: str, verbose: bool = False) -> CheckResult:
     result = CheckResult()
     shdr_columns = parse_columns(shdr_sql)
@@ -363,6 +427,8 @@ def run_all_checks(shdr_sql: str, warranty_sql: str, verbose: bool = False) -> C
         check_warranty_token_type, warranty_columns, "TOKEN-WARRANTY-01")
     run("SCHEMA-ISOLATION-01: schemas load independently",
         check_schema_isolation, shdr_sql, warranty_sql)
+    run("TABLESET-01:        SHDR table list matches the schema",
+        check_shdr_table_set_current, shdr_sql)
 
     return result
 
