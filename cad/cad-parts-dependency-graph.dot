@@ -62,8 +62,8 @@ digraph NeurOneCADParts {
     BLANK_PLUG    [shape=box, fillcolor="#cfe2f3", label="BLANK-PLUG\nBlanking plug"];
     SOCKET_GASKET [shape=box, fillcolor="#cfe2f3", label="SOCKET-GASKET\nPer-socket LSR gasket land"];
     ELEC_HYDRO_CAP[shape=box, fillcolor="#cfe2f3", label="ELEC-HYDRO-CAP\nElectrode hydration cap\n(tethered)"];
-    BEZEL         [shape=box, fillcolor="#cfe2f3", color="#c0392b", penwidth=2, style="filled,dashed",
-      label="BEZEL\nSacrificial bezel land\n(optical modules)\nheight CONTESTED 1.0 vs 2.5mm\n[OI-HEXTILE-01]"];
+    BEZEL         [shape=box, fillcolor="#cfe2f3",
+      label="BEZEL\nSacrificial bezel land\n(optical modules)\nh_b = 1.0mm - DECIDED\n2026-08-11 (principal)\nresidual: BEZEL-1a comfort"];
     CLUSTER_CLAMP [shape=box, fillcolor="#cfe2f3", label="CLUSTER-CLAMP (x18)\nModule cluster clamp\n(lever+plate+plungers)\nCLUSTER-1 / SYM-1 / CONTIG-1"];
     SOCKET_CONTACT[shape=component, fillcolor="#cfe2f3", color="#c0392b", penwidth=2, style="filled,dashed",
       label="SOCKET-CONTACT (x~80)\nSpring-contact (pogo) array\n2.00mm pitch, springs on socket\ncount UNRESOLVED 18/16/14-15\n[OI-HUB-C17]"];
@@ -246,7 +246,9 @@ digraph NeurOneCADParts {
   SOCKET_BODY -> BLANK_PLUG [label="blanking plug shares the identical hex footprint as a live module"];
   SOCKET_BODY -> SOCKET_GASKET [label="gasket land is co-molded to the socket rim"];
   SOCKET_BODY -> BEZEL [label="bezel land is molded at the socket rim, proud of optical module faces only"];
-  BEZEL -> ELECTRODE_POD [label="bezel height consumes 5-8% of pod's +/-12mm spring travel where co-located; electrode aperture stays bezel-free"];
+  BEZEL -> ELECTRODE_POD [label="at h_b=1.0mm the bezel consumes 8% of the pod's +/-12mm one-sided travel; electrode aperture stays bezel-free (BEZEL-1b)"];
+  BEZEL -> HEATSINK_ASSY [label="h_b sets R_gap=s/k_air: at 1.0mm (0.0385) the forced outward path (0.010-0.040) is the preferred sink; at 0.6mm (0.0231) the scalp competes - the bezel is what lets the fan do the work"];
+  BEZEL -> TILE_T1A [label="h_b sets the active field: W_a=38.0mm, A_a=12.51cm2 (+17.9% vs the 2.5mm assumption), so per-channel E falls 403->342 mW/cm2 at 150mA and needs ~176mA to reach the 400 ceiling"];
 
   TILE_SHELL -> TILE_T1A [label="element-population variant on the shared tile mould"];
   TILE_SHELL -> TILE_T1B [label="element-population variant on the shared tile mould"];

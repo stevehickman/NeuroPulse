@@ -12,8 +12,17 @@ interface contract, 24 V rail, safety gating — current, DRAFT)** + `docs/np_th
 (SUPERSEDED — retained only for the sub-elements their own supersession banners still name as
 reusable) + `docs/np_pwr_budget_001.md` + `docs/reference/accessories-roadmap.md`.
 
-**Date:** 2026-08-10 (rev 2 — re-baselined against `origin/main` @ `e1f8a51`)
+**Date:** 2026-08-11 (rev 2 — re-baselined against `origin/main` @ `e1f8a51`)
 **Previous:** 2026-07-29 (rev 1, commit `79e2ccc`)
+
+> **★ Principal direction 2026-08-11 — bezel height decided at `h_b` = 1.0 mm** (the calculated
+> NP-THERM-BEZEL-001 value), conditional on it allowing forced cooling airflow. **Condition tested and
+> met**: the bezel gap is a still-air conduction decoupler and is not in the forced-airflow path at
+> all — forced convection lives on the outward junction → BN-boss → shell → fan path, and the shielded
+> interior is deliberately unventilated. At 1.0 mm the outward path is the preferred sink across the
+> whole forced-convection range; at 0.6 mm it is marginal. The competing 2.5 mm was a table-header
+> assumption in `NP-HEX-ZM-001` §3.1, never a derivation. **Full reasoning and the six consequences to
+> propagate are at §L-2.**
 
 **Status:** Working parts inventory for CAD tooling planning. Several source documents are explicitly
 **PROVISIONAL / DESIGN STUDY / DRAFT** (not a locked tooling baseline) — those parts are flagged
@@ -54,7 +63,7 @@ Rev-1 IDs are preserved verbatim — the graph references them.
 | BLANK-PLUG | Blanking plug (empty/unpopulated socket cover) | up to ~80 | Overmoulded PC core + LSR seal face, opaque, identical hex footprint to a live module — seals exactly like a filled socket. **Quantity is now a first-order question, not a rounding:** the power envelope permits only ~6 concurrent tiles (NP-HW-HEXTILE-001 §9.2) and full population costs ~$920/headset in driver+metering, so a 20–30-tile build with 50–60 blanking plugs is an explicitly-tabled option (OI-HEXTILE-06). Tool for the high count. |
 | SOCKET-GASKET | Per-socket co-molded LSR gasket land | ~80 | Shore 40–50A medical silicone, D-section 2.5×2.0mm (legacy 5-slot dimension, carried forward pending hex-lattice FAI), 20% compression when seated. IPX4 target after 10 field swap cycles (FAI-IPX-02, BLOCKING). Isolates a leak to one socket by design (rejected the continuous-grommet-sheet alternative). **New ingress path to qualify:** the compression contact array itself is a seam the rev-1 ZIF-tail model did not have — SH2-DRC-11. |
 | ELEC-HYDRO-CAP | Electrode hydration/fouling cap (tethered) | per electrode socket | Silicone, WVTR <0.5 g/m²/day, tethered (loss-prevention). Protects sintered Ag/AgCl face when module uninstalled; extends factory-sealed storage to 24+ months. |
-| BEZEL | Sacrificial bezel land (optical modules only) | per optical socket | Standing proud of face; impact + thermal-decoupling dual function. Electrode-pod aperture is **bezel-free** (s=0 by design). **Height CONTESTED — 1.0mm (NP-THERM-BEZEL-001 Rev A, raised from 0.6mm on thermal-decoupling grounds) vs 2.5mm (NP-HEX-ZM-001 §3.1 coverage assumption, used by NP-HW-HEXTILE-001 §3 as the conservative case). Not a rounding: it moves tile active area ±14.5% and every irradiance figure with it, and it is the dominant whole-vault uniformity term. OI-HEXTILE-01. See §L-2.** |
+| BEZEL | Sacrificial bezel land (optical modules only) | per optical socket | **★ DECIDED 2026-08-11 (principal direction) — `h_b` = 1.0mm, the NP-THERM-BEZEL-001 Rev A §4.5 value.** Standing 1.0mm proud of face; impact + thermal-decoupling dual function. Electrode-pod aperture is **bezel-free** (s=0 by design). The competing 2.5mm was **never derived** — it appears in NP-HEX-ZM-001 §3.1 only as a table column header (*"Active coverage (2.5 mm bezel)"*), an input to the coverage arithmetic, and in NP-HW-HEXTILE-001 §3 only as the conservative carry-forward of that input. 1.0mm is the calculated value: `R_gap` = `s`/`k_air` = 0.0385 m²K/W, raising the module-face ceiling to ~45.5 °C. **Condition tested and met — see §L-2: the bezel gap is not in the forced-airflow path at all, and 1.0mm makes the forced-convection outward path the preferred sink where 0.6mm leaves it marginal.** Consumes 8% of one-sided electrode-pod travel (was 5% at 0.6mm) — accepted. Residual gates BEZEL-1a (comfort/fit over 52–62cm heads) and BEZEL-1b (pod still seats at 80–120 g) remain open; they can reject 1.0mm on comfort, in which case 0.6mm is the fallback and the face ceiling tightens to ~44 °C. |
 | CLUSTER-CLAMP | Module cluster-clamp assembly (over-center lever-throw + clamp plate + per-module spring plungers) | **18** (was 4–10 in rev 1) | **CLUSTER-1** (principal, 2026-07-30): the 7-hex flower is the cluster unit wherever the lattice allows one, partial flower at the boundary; the 3-hex triad is **excluded**. Longest span **122.2mm**, arc 89.2°, stored dome depth **25.1mm**. An 8th tile would raise plate bending stress ×1.75 and plate-mode deflection ×3.07 — plate compliance is the very failure the per-module plungers exist to guard, so ≤7 is load-bearing. **SYM-1** (principal, 2026-08-04): the partition is mirror-symmetric about the sagittal midline, which **forces the count to 18** (6 midline-centred + 6 mirror pairs, provably minimal; cluster sizes 3–6). **CONTIG-1** (principal, 2026-08-04): a cluster's petals must form a **contiguous arc** — no pendant petal, because the clamp plate cannot cantilever 40mm across a foreign socket on a 23.09mm-wide neck over a 2.33mm dome. Push/pull over-center toggle latch — **not a twist cam** (RISK-22: Parkinson's H&Y II–III / post-stroke grip). Plate carries one spring plunger per module through clearance features and **carries no conductors** (it must actuate no electrical disconnection except at the module pads). Validate via HFE formative (n=5), MECH-2. |
 | RIM-LATCH | Rim layer-latch, four-corner (AL/AR/PL/PR) | 4 | Symmetric four-corner clamp at the outer-bowl/inner-bowl parting plane, seated between ear and neck-attachment zones. Integrates **hard-gold-plated BeCu spring fingers** (shield-to-ground bond, ≤50mΩ target) and a **Hall/contact closed-sensor** (safety interlock: no modality enable unless all 4 report closed). |
 | RIM-LABYRINTH | Labyrinth rim lip + conductive elastomer bead | 1 (continuous, both bowls) | ≥2× overlap fold; target residual slot ≤ λ/20 at 6GHz ≈ 2.5mm. Conductive elastomer bead closes residual RF gap. Replaceable/tethered service part (elastomer takes compression set over clamp cycles). |
@@ -205,7 +214,7 @@ they bite. **None of these is resolved by this document.**
 > | Conflict | Type | Reservation that is safe today |
 > |---|---|---|
 > | Socket contact count (L-1) | **[ENVELOPE]** for space claim, **[BLOCKING]** for the pattern | Reserve area and clamp-plate load for **18**; do **not** cut the pad/spring pattern |
-> | Bezel height (L-2) | **[BLOCKING]** | None — it moves tile active area ±14.5% and the L-10a thermal basis is itself stale |
+> | ~~Bezel height (L-2)~~ | **RESOLVED 2026-08-11** | `h_b` = **1.0mm** by principal direction. Residual: BEZEL-1a comfort/fit may still reject it |
 > | Cluster-tail connector positions (L-3) | **[ENVELOPE]** | Reserve boss real estate for **20**; do not fix the contact layout (MECH-1 time-box) |
 > | Cluster-carrier MCU (L-4) | **[BLOCKING]** | None — board thickness and component height both depend on it |
 
@@ -234,16 +243,57 @@ remaining gap stays with MECH-2 and the HFE formative.** It also decides the pad
 the tile's back face and the socket's spring-array tooling. **Blocked behind OI-HUB-C17c**, which is
 itself blocked behind the module heat-sink design.
 
-### L-2. Bezel width — 1.0 mm vs 2.5 mm (OI-HEXTILE-01)
+### L-2. Bezel height — **RESOLVED 2026-08-11 (principal direction): `h_b` = 1.0 mm** (closes OI-HEXTILE-01 on the value)
 
-NP-THERM-BEZEL-001 Rev A recommends **1.0mm** (raising from 0.6mm) because thermal decoupling of the
-scalp from the module face is the binding constraint — it lifts the module-face ceiling ~1.5 K at
-~0.2% optical cost. NP-HEX-ZM-001 §3.1's coverage budget assumes **2.5mm**, and NP-HW-HEXTILE-001 §3
-adopts 2.5mm as the *conservative* case. The gap changes tile active area by **±14.5%** and every
-irradiance figure with it. It is also the **dominant whole-vault uniformity term**: 2.5mm on each of
-two adjacent tiles puts 5mm of unpopulated width between neighbouring emitters — wider than the
-3.80mm intra-tile pitch. Residual gates BEZEL-1a (comfort/fit 0.6 vs 1.0mm over 52–62cm heads) and
-BEZEL-1b (electrode pod still seats at 80–120 g with the offset) have not run.
+**Why 2.5 mm was never a real competitor.** It is not a calculation. It appears in NP-HEX-ZM-001 §3.1
+only as a **table column header** — *"Active coverage (2.5 mm bezel)"* — i.e. an assumed input to the
+coverage arithmetic, with no derivation anywhere in that section. NP-HW-HEXTILE-001 §3 then carried it
+forward explicitly as *"the conservative choice of the two conflicting figures."* A conservative
+carry-forward of an undefended assumption is not a second opinion. **1.0 mm is the only value in the
+tree that was derived**, from a resistance network and an areal flux budget (NP-THERM-BEZEL-001 §4.2–4.5).
+
+**The airflow condition — tested, and it resolves in favour of 1.0 mm.** The bezel gap is *not* a
+forced-airflow channel and was never modelled as one: NP-THERM-BEZEL-001 §4.2 treats it as still air
+(`R_gap` = `s`/`k_air`), a **conduction decoupler**. Forced convection lives entirely on the **outward**
+path — junction → BN-filled boss → socket → inter-bowl → shell → fan/vent — and NP-THERM-CFD-R1-001 §1
+states the design *"keeps the junction throttle-free **without ventilating the shielded interior**"*;
+the inter-bowl gap is explicitly **stagnant** (0.231 m²K/W). So the bezel obstructs no airflow at any
+height. **Affirmatively, 1.0 mm is what makes forced cooling work:**
+
+| `h_b` | `R_gap` (still air) | Forced-convection `R_conv` (h = 25–100 W/m²K) | Which sink does heat prefer? |
+|---|---|---|---|
+| 0.6 mm | 0.0231 | 0.010–0.040 | **Straddles** — the scalp is competitive as a sink |
+| **1.0 mm ★** | **0.0385** | 0.010–0.040 | **Outward path is at-or-better across the whole forced range** |
+
+That is precisely the condition NP-THERM-BEZEL-001 §4.4 names as load-bearing (*"without airflow the
+scalp is the lower-resistance sink and heat prefers the patient"*). **The larger bezel is the
+patient-protective direction, and it is the direction that lets the fan do its job.**
+
+**Third independent confirmation:** the thermal CFD case matrix (NP-THERM-CFD-001 §6) sweeps bezel
+**{0.6, 1.0 mm}** only. 2.5 mm appears in no thermal analysis in the tree.
+
+**Consequences to propagate — flagged for the owning documents, not corrected here:**
+
+| # | Consequence | Direction |
+|---|---|---|
+| a | Tile active field `A_a` rises 10.61 → **12.51 cm²** (W_a = 38.0 mm) | +17.9% |
+| b | **NP-HW-HEXTILE-001 §3 states "+14.5%, A_a rises to 12.15 cm²" for the 1.0 mm case. That back-solves to a 1.27 mm bezel, not 1.0 mm** — a small arithmetic slip in that document. Raise against its owner | correction needed |
+| c | T1-A per-channel irradiance at 150 mA falls **403 → ~342 mW/cm²**. HEXTILE §4.3.1's design property — *"full drive at the top of the L70 current window equals the firmware-enforced peak ceiling"* — now needs **~176 mA**, not 150 mA, to reach 400 mW/cm². Still inside the 120–180 mA L70 window, but at 98% of its top. **The property survives with almost no headroom; this should be re-checked when emitters are actually selected (OI-HEXTILE-02)** | tighter |
+| d | T1-C three-channel aggregate falls **566 → ~480 mW/cm²** against the 600 mW/cm² ceiling — margin **5.7% → 20%** | better |
+| e | Inter-tile seam falls from 5.0 mm to **2.0 mm** of unpopulated width between neighbouring tiles — now **below** the 3.80 mm intra-tile pitch instead of above it. HEXTILE §4.4's *"whole-vault uniformity is a bezel problem"* resolves in the good direction | better |
+| f | Electrode-pod travel consumed rises 5% → **8%** of one-sided travel | accepted |
+
+**Still open, and not closed by this decision:** BEZEL-1a (comfort/fit test 0.6 vs 1.0 mm across
+52–62 cm heads — it can still reject 1.0 mm on point-load or fit-gap grounds, with 0.6 mm as the
+fallback at a tighter ~44 °C face ceiling) and BEZEL-1b (electrode-pod aperture stays bezel-free and
+seats at 80–120 g with the offset).
+
+> **Scope note on NP-THERM-BEZEL-001's credibility.** Its §2 optical argument carries a stale
+> parenthetical — *"600 LEDs"*, the retired 66 × 78 mm module's count, against the current 90 emitters.
+> It does **not** enter the calculation: the spreading term uses the uniform-disk radius a = 20 mm,
+> which is the current 40 mm tile. The bezel conclusion is areal (mW/cm², m²K/W) and therefore
+> module-size independent. Do not discount the document for that line — but see L-10a for the part of
+> it that genuinely is superseded.
 
 ### L-3. Cluster count propagation — 18 vs 12 vs 10 vs 16 (OI-HEXTILE-14, OI-HEXTILE-10)
 
@@ -341,7 +391,8 @@ an owner assigned; none is decided here.**
 
 | # | Gap | Why it bites mechanically |
 |---|---|---|
-| L-10a | **`NP-THERM-BEZEL-001` Rev A (2026-07-21) predates the on-module driver decision** and has not been touched since. It models scalp/module-face temperature for a tile whose electronics sat on the *hub*. `NP-HW-HEXTILE-001` D-3 puts a driver on **every** tile and D-4 adds a TIA + ADC, and `NP-HW-HUB-001` OI-HUB-C17c names *"continuous on-tile dissipation inside the 42 °C face / 62 °C junction envelope"* as an open gate. **The bezel analysis that produced the 1.0 mm recommendation therefore did not model the dissipation the tile now carries** — which is a second, independent reason L-2 is unsettled, on top of the 1.0-vs-2.5 mm conflict. | BEZEL height; TILE-SHELL face temperature; HEATSINK-ASSY sizing |
+| L-10a | **The bezel HEIGHT is decided (L-2); the face-temperature CEILING it implies is not.** `NP-THERM-BEZEL-001` Rev A (2026-07-21, untouched since) computes a ~45.5 °C module-face ceiling at `h_b` = 1.0 mm for a tile whose electronics sat on the *hub*. `NP-HW-HEXTILE-001` D-3 has since put a driver on **every** tile and D-4 adds a TIA + ADC, and `NP-HW-HUB-001` OI-HUB-C17c names *"continuous on-tile dissipation inside the 42 °C face / 62 °C junction envelope"* as an open gate. **Choosing 1.0 mm does not close this — it makes the ceiling more attainable (45.5 vs 44 °C) but does not verify it against dissipation the analysis never saw.** THERM-1a (CFD) and THERM-1b (bench) are the gates that close it. | TILE-SHELL face temperature; HEATSINK-ASSY sizing; the D-4 on-module-TIA decision |
+| L-10f | **`NP-HEX-ZM-001` §3.1 should be treated as a stale source generally, not just on the bezel.** Two of its figures have already been caught propagating into peer documents as if derived — the *"4–10 clusters"* count (a 30-socket-lattice figure that sized safety-MCU switches, I2C pull-ups and cluster-board BOM at ~80 sockets before it was caught) and the *"2.5 mm bezel"* column header (L-2). The section carries a 30-socket-generation residue that its own in-place warnings only partly fence off. **Anything sourced from §3.1 should be re-derived before it reaches a drawing**, not carried forward on the strength of appearing in a current document. | Any dimension traced to §3.1 |
 | L-10b | **No document owns a Z tolerance stack-up for the new seating chain**: tile back-face pads → pogo array → cluster carrier laminated into L1 → molded shell datum. `NP-HW-HEXTILE-001` §7.1 gives a per-contact blind-mate allowance (±0.4 mm lateral, ±0.5 mm Z) and `NP-HELMET-GEOM-001` §2 gives the L0–L3 radial stack, but nothing budgets the chain **between** them across a compliant laminated-in carrier on a doubly-curved bowl. The chain spans NP-DRV-SHELL-002 and NP-HW-HEXTILE-001, which is exactly why neither states it. | Whether pogo working travel is actually consumed by tolerance before it reaches contact force — a first-article risk for SOCKET-CONTACT / CLUSTER-CARRIER / CLUSTER-CLAMP together |
 | L-10c | **`NP-HELMET-GEOM-001` §2's L1 module-depth budget assumes a module with a 20-pin FPC tail.** Tiles now have no tail, and L1 has gained 18 carriers, their tails and the PAN. NP-DRV-SHELL-002 OI-SHELL2-09 lists this as a controlled-document update *"this architecture implies but does not make"* — it has not been made. The 18–22 mm L1 subtotal is therefore carried forward unverified. | SHELL-INNER radial depth; whether the carriers fit the inter-bowl gap alongside the clamp plates |
 | L-10d | **No owning document was identified in this pass for head-borne mass or centre of gravity.** `NP-PWR-BUDGET-001` owns watts; nothing found owns grams. Eighteen carriers, a PAN and a hub-sited 24 V boost all landed after the last revision of the geometry documents. Recorded as *not found*, not as *does not exist* — if an owner exists, point this row at it. | Fit-system loading (BOA-DIAL, FOREHEAD-BRIDGE, TEMPORAL-WING), comfort, and the 52–62 cm single-SKU claim |
