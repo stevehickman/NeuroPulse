@@ -561,13 +561,13 @@ neither is right.
 | `SDA` | N2 | 1 | 1 (pin 10) | ✓ |
 | `SCL` | N2 | 1 | 1 (pin 11) | ✓ |
 | `SYNC` | N2 | **1** | **absent** | ✗ |
-| `ALERT#` / `/ALERT` | N2 | 1 | 1 (pin 12) | ✓ |
+| `ALERT#` | N2 | 1 | 1 (pin 12) | ✓ — *HEXTILE Rev B called this `/ALERT`; **`ALERT#` adopted**, §5.1.7* |
 | `PD1_K` | N3 | 1 | absent (D-4) | ✓ *now* — N3 survives (§5.1.1) |
 | `PD2_K` | N3 | 1 | absent (D-4) | ✓ *now* |
 | `NTC` | N3 | 1 | absent (D-4) | ✓ *now* |
 | `AGND` | N3 | 1 | 1 (pin 15) | ✓ |
 | `ELEC` | N4 | 1 | 1 (pin 13) | ✓ |
-| `GUARD` / `ELEC_SHLD` | N4 | 1 | 1 (pin 14) | ✓ — same signal, two names |
+| `ELEC_SHLD` | N4 | 1 | 1 (pin 14) | ✓ — *Rev A called this `GUARD`; **`ELEC_SHLD` adopted**, §5.1.7* |
 | `SEAT_N` | — | **absent** | **1** (pin 16) | ✗ |
 | reserved | — | **2** | **0** | ✗ |
 | | | **18** | **16** | |
@@ -629,13 +629,13 @@ pinout revision on a pre-tooling interface, which is what §1.3 already scopes.
 | 5 | `SDA` | 1 | N2 | Agreed |
 | 6 | `SCL` | 1 | N2 | Agreed |
 | 7 | `SYNC` | 1 | N2 | Retained — §5.1.3(b); consumer OI-HUB-C05 |
-| 8 | `ALERT#` | 1 | N2 | Agreed. Open-drain, wire-OR per cluster. **= HEXTILE `/ALERT`** — one conductor, two names (**OI-HEXTILE-16**) |
+| 8 | `ALERT#` | 1 | N2 | Open-drain, wire-OR per cluster. **`ALERT#` adopted over HEXTILE's `/ALERT` — §5.1.7** |
 | 9 | `PD1_K` | 1 | N3 | **Survives** — §3.3a resolves C17c against D-4 |
 | 10 | `PD2_K` | 1 | N3 | Survives |
 | 11 | `NTC` | 1 | N3 | Survives. 42 °C/62 °C interlock chain |
 | 12 | `AGND` | 1 | N3 | Sense return — **separate from `PGND`**, star-referenced at the controller |
 | 13 | `ELEC` | 1 | N4 | Agreed. Dual-rated: EEG record **and** tES drive |
-| 14 | `GUARD` | 1 | N4 | Agreed (= HEXTILE `ELEC_SHLD`). **Adopt one name in the next revision of both — OI-HEXTILE-16**, which also covers `ALERT#`/`/ALERT` |
+| 14 | `ELEC_SHLD` | 1 | N4 | DRL-driven shield for contact 13. **Renamed from Rev A's `GUARD` — §5.1.7** |
 | 15 | `SEAT_N` | **1** | — | **Adopted from D-5** — §5.1.3(a). Last to mate |
 | | **Total** | **19** | | |
 
@@ -765,6 +765,35 @@ hold over a doubly-curved cluster.
 Adopting 3+3 is what converts this from the conditional note Rev B first carried ("above ~17
 contacts the array *should* go to two rows") into a binding layout requirement — a 19-contact single
 row is not viable at 2.00 mm pitch on a 40 mm hex.
+
+#### 5.1.7 Signal naming — one name per conductor (decided 2026-08-11)
+
+**Two conductors carried two names each between `NP-DRV-SHELL-002` and `NP-HW-HEXTILE-001`. Both
+are settled here; neither choice has technical content, and both were chosen on a stated hazard
+rather than on taste.**
+
+| Conductor | Names in use | **Adopted** | Why |
+|---|---|---|---|
+| Socket pin 14 / 18 — DRL-driven shield for `ELEC` | `GUARD` (SHELL-002) · `ELEC_SHLD` (HEXTILE, HUB-001 §113) | **`ELEC_SHLD`** | **`GUARD` collides with a different conductor these same documents already name.** §3.5, §4.1 and REQ-EMI-02 all specify a *DRL-driven **guard plane*** on L1's scalp-facing face, under which the N4 shared electrode lanes run. The socket pin is driven **from** that plane but is not it — they are different nets with different extents. Naming the pin `GUARD` makes "the guard" ambiguous in the one document that specifies both. `ELEC_SHLD` names what it shields and pairs typographically with `ELEC` |
+| Socket pin 12 / 8 — open-drain module fault | `/ALERT` (HEXTILE) · `ALERT#` (SHELL-002, HUB-001 §7.4/§7.5.1) | **`ALERT#`** | **A leading `/` is the hierarchical-path separator in EDA net naming** (KiCad, Altium): a net literally named `/ALERT` reads as a root-scope hierarchical path and can be silently re-scoped or duplicated on netlist import. That is a mechanism, not a preference. `ALERT#` was also already the majority usage across the document set |
+
+**Why this was worth a decision at all.** A conductor with two names is harmless in prose and is not
+harmless in a netlist, a test fixture, or a firmware pin table, where the failure mode is a silent
+duplicate net or an unconnected pin — a defect that *reads* as agreement. Both collisions were found
+by diffing the two pin tables mechanically rather than by reading them, which is why
+**SH2-DRC-05b** / **HT-DRC-23** specify that check as a diff rather than a review.
+
+**Two residual naming inconsistencies are recorded, not fixed — they were outside this decision:**
+
+1. **`SEAT_N` is a third active-low convention on the same connector.** After adopting `ALERT#`, the
+   19-position interface carries `ALERT#` (suffix `#`) alongside `SEAT_N` (suffix `_N`). Both are
+   correct and unambiguous in isolation; together they are two conventions on one part.
+2. **`NP-HW-HUB-001` §113 calls socket pin 13/17 `ELEC_SIG`**, where both other documents call it
+   `ELEC` — a third name for a third conductor.
+
+Neither is a hazard of the kind that decided the two above, and renaming `SEAT_N` or `ELEC` was not
+in scope. Raised as **OI-HEXTILE-17**, to be settled before any schematic capture, because that is
+the point at which a name becomes a net.
 
 ### 5.2 Cluster tail pinout
 
@@ -1305,6 +1334,7 @@ pass/fail with supporting evidence.
 | SH2-DRC-03 | Every cluster carrier ≤50 mm from its furthest socket (N3 run length) | CAD measurement | ≤50 mm | ME |
 | SH2-DRC-04 | Cluster tail static bend radius at every formed bend | CAD measurement | ≥12.5 mm (REQ-BR2-01) | ME |
 | SH2-DRC-05 | No bend within 5 mm of any rigid-flex transition, stiffener, boss or carrier edge | CAD | REQ-BR2-03 | ME |
+| SH2-DRC-05b | Socket pin table matches `NP-HW-HEXTILE-001` §7.2 pin for pin **and name for name** | Mechanical diff of the two tables, not a review | Identical; zero signals differing only in spelling (§5.1.7) | EE |
 | SH2-DRC-05a | **19-contact pad array is two staggered rows** and fits inside the tile inradius with mis-key asymmetry and `SEAT_N` at a mechanical extreme (**REQ-SKT-01**, §5.1.6) | CAD | Span ≤20 mm; ±0.4 mm lateral blind-mate tolerance held across a full cluster | ME/EE |
 | SH2-DRC-06 | No formed bend under a clamp plate footprint or a socket | CAD | REQ-BR2-05 | ME |
 | SH2-DRC-07 | Zero dynamic-flex paths in the module interconnect | Design review | Set is empty (REQ-BR2-02) | ME |
@@ -1348,7 +1378,7 @@ pass/fail with supporting evidence.
 | OI-SHELL2-06 | Bus dwell-time budget: worst-case addressed-read sweep of all sockets vs closed-loop adaptation cadence | FW | Session timing |
 | OI-SHELL2-07 | Set the fluxgate self-field budget the N1 bus must stay within (SH2-DRC-17 pass criterion) | EE Lead | EMF-1/EMF-2 sign-off |
 | OI-SHELL2-08 | Reflect cluster-level repair in the service-network tiering | Service | `docs/reference/service-network.md` |
-| OI-SHELL2-09 | **Controlled-document updates this architecture implies but does not make:** NP-HEX-ZM-001 §5.3.1/§5.4a (bus on L1 vs reasons 3–4), NP-HELMET-GEOM-001 §2 (L1 module depth assumes a "20-pin FPC"; tiles now have no tail) and §3.2, and a new FMEA entry for the §4.3 shared-return failure alongside FMEA-G07-01. **Rev B adds three:** (i) ~~**`NP-HW-HEXTILE-001` §7.1–7.2 (D-5)**~~ — **✅ DONE 2026-08-11, HEXTILE Rev C.** The 16-position count and pin table are superseded by §5.1.4's 19; the 2.00 mm pitch, spring-on-socket choice, ≥0.8 µm hard-gold plating, ≤50 mΩ / ≥500-cycle specs and §7.3 mating sequence carried over unchanged, and REQ-SKT-01's two-row array is reflected there. HEXTILE Rev C also raises **OI-HEXTILE-15** (its §5.3/§6 still read as though D-4 holds — module BOM, not tooling-blocking) and **OI-HEXTILE-16** (`GUARD` vs `ELEC_SHLD`, one conductor two names — pick one before Hub PCB Rev C release). (ii) `NP-HW-HUB-001` §3.2 (LED-drive rationale, per OI-HUB-C15), §7.4 (12/16 → 18/20 connectors), §7.5.2 (14–15 figures void) and §7.5.3 (passive-carrier model). (iii) `NP-HEX-ZM-001` §5.4a MECH-2 (prices the flower at 12 boards / $76.08; actual 18 / $114.12) | Quality | DHF consistency; **(i) blocks socket tooling** |
+| OI-SHELL2-09 | **Controlled-document updates this architecture implies but does not make:** NP-HEX-ZM-001 §5.3.1/§5.4a (bus on L1 vs reasons 3–4), NP-HELMET-GEOM-001 §2 (L1 module depth assumes a "20-pin FPC"; tiles now have no tail) and §3.2, and a new FMEA entry for the §4.3 shared-return failure alongside FMEA-G07-01. **Rev B adds three:** (i) ~~**`NP-HW-HEXTILE-001` §7.1–7.2 (D-5)**~~ — **✅ DONE 2026-08-11, HEXTILE Rev C.** The 16-position count and pin table are superseded by §5.1.4's 19; the 2.00 mm pitch, spring-on-socket choice, ≥0.8 µm hard-gold plating, ≤50 mΩ / ≥500-cycle specs and §7.3 mating sequence carried over unchanged, and REQ-SKT-01's two-row array is reflected there. HEXTILE Rev C also raises **OI-HEXTILE-15** (its §5.3/§6 still read as though D-4 holds — module BOM, not tooling-blocking) and **OI-HEXTILE-16** (`GUARD` vs `ELEC_SHLD`, one conductor two names — pick one before Hub PCB Rev C release). (ii) `NP-HW-HUB-001` §3.2 (LED-drive rationale, per OI-HUB-C15), §7.4 (12/16 → 18/20 connectors), §7.5.2 (14–15 figures void) and §7.5.3 (passive-carrier model) — **the signal-naming portion is done (2026-08-11): `ELEC`/`ELEC_SHLD` in §7.5.2 and `ALERT#` in §125 aligned per §5.1.7; §113's `ELEC_SIG` remains, as OI-HEXTILE-17**. (iii) `NP-HEX-ZM-001` §5.4a MECH-2 (prices the flower at 12 boards / $76.08; actual 18 / $114.12) | Quality | DHF consistency; **(i) blocks socket tooling** |
 | OI-SHELL2-10 | Decide whether the ADS1299 bank sits at the PAN (assumed) or the Hub PCB; moves an SPI interface across the boss. `NP-HW-HUB-001` §7.4 response 3 **accepts the PAN** as the better placement; the item stays open only for the Rev C schematic to confirm | EE Lead | Hub PCB Rev C |
 | **OI-SHELL2-11** | **NEW — inter-bowl thermal load from 18 active cluster controllers (§10.3).** Rev A's passive carrier dissipated essentially nothing and raised no thermal question. Eighteen boards each carrying an STM32G071, a zero-drift TIA op-amp, three mux banks and an I2C switch dissipate **continuously** (emitters are duty-cycled; this is not) into the inter-bowl gap, which `NP-THERM-CFD-C2-001` §7 characterises as **stagnant air at 0.231 m²K/W — ~59 % of the entire outward resistance path** (total outward ≈ 0.393 vs inward ≈ 0.108 m²K/W). That analysis already concluded the outward path is **~4× more resistive than the inward path to the perfused scalp**, which is why Path A was NO-GO and Path B1 committed. Heat added on the gap-facing side of L1 therefore sits *behind* the dominant outward resistance, and §4.1's claim that gap-facing components are "out of the scalp thermal path" is **not established**. **Two inputs do not exist yet:** a budgeted per-controller dissipation figure, and a CFD case placing the source on the **gap-facing side of L1** rather than at the LED junction plane. **This is the thermal load that moved sides when OI-HUB-C17c resolved against D-4** (§3.3a) — D-4 would have put this silicon on the tile instead, which is the question C17c's *other*, still-open half asks. The two must be assessed as one budget, not separately | Thermal + EE Lead | **THERM-1a CFD** (`NP-THERM-CFD-001` case matrix); interacts with **OI-HUB-C17c**, SR-FAN-01…06, OI-FAN-01a |
 

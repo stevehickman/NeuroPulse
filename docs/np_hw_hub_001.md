@@ -122,7 +122,7 @@ relocated and shared rather than replicated 80×.
 > **So the cluster tier survives — with a different and stronger justification.** Not PD analog, not
 > LED drive, not I2C mastering (HEXTILE takes all three), but an **electrode analog crosspoint**:
 > routing any socket's ELEC_SIG to one of N ADS1299 / tES channels (8 for T1, 21 for T2), plus
-> `/ALERT` and `SEAT_N` aggregation. That is per-cluster, and it aligns with the same partition D-7
+> `ALERT#` and `SEAT_N` aggregation. That is per-cluster, and it aligns with the same partition D-7
 > and D-8 already use. Whether it needs an MCU or reduces to a switch matrix is the open question.
 
 > **⚠ STATUS: DRAFT, NOT BASELINED.** The socket count (~80, provisional pending REG-1) and every
@@ -1090,7 +1090,7 @@ Two consequences beyond contact count:
   criterion for moving the TIA off the hub, taken one step further.
 - **No spring contact sits in the photocurrent path at all.** Contact resistance drift, fretting and
   the 50,000-cycle wear budget stop being dose-metering error terms. SHELL-002's ≤50 mΩ contact
-  requirement then binds on exactly one pair — `ELEC`/`GUARD` — instead of being spread across six.
+  requirement then binds on exactly one pair — `ELEC`/`ELEC_SHLD` — instead of being spread across six.
 
 #### 7.5.3 What the cluster carrier becomes
 
