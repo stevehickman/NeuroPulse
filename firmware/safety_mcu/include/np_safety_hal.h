@@ -4,21 +4,29 @@
  * Document: NP-SW-001 Rev A — SW-01 Class C; NP-SW-CI-001 §4.4 (Defect E)
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
- * │  THERE IS NO IMPLEMENTATION OF ANYTHING IN THIS FILE.                    │
+ * │  IMPLEMENTED AT PHASE 7 — firmware/safety_mcu/platform/  (OI-SWCI-17)    │
  * │                                                                          │
- * │  Every symbol below is a DECLARATION ONLY.  No STM32G071 register driver │
- * │  for GPIO, ADC, SPI slave, TIM2, R-peak capture, impedance or OTP exists │
- * │  in this repository.  The `np_safety_mcu` target image HAS NEVER LINKED. │
+ * │  This file remains DECLARATION-ONLY (rule 3 below), but the declarations  │
+ * │  are no longer unbacked.  STM32G071 register drivers for clock/timebase, │
+ * │  GPIO, ADC, SPI slave, TIM2 + R-peak capture, impedance and OTP now live  │
+ * │  in platform/, written against vendored CMSIS device headers with no ST   │
+ * │  HAL or LL (OI-SWCI-06).  `np_safety_mcu.elf` LINKS; the gated CI target  │
+ * │  is the image, not `np_safety_mcu_objs`.                                  │
  * │                                                                          │
- * │  Implementing these is Defect E — NP-SW-CI-001 §4.4, tracked as          │
- * │  OI-SWCI-17, scheduled as phase 7.  It is Class C register-driver work   │
- * │  for the software that owns every stimulation enable GPIO, and it needs  │
- * │  design review and bench validation.  Do not write it speculatively to   │
- * │  make a CI leg go green, and do NOT add do-nothing stubs here: a         │
- * │  linkable image made of stubs is worse than no image, because the        │
- * │  safety-MCU check would go green while the firmware could not drive a    │
- * │  single enable line.  The gated CI target is `np_safety_mcu_objs`        │
- * │  (compile-only) until the real drivers land.                             │
+ * │  The warning that stood here still governs, and phase 7 was built to      │
+ * │  satisfy it rather than to route around it: a linkable image made of      │
+ * │  stubs is worse than no image.  So the drivers touch real registers, and  │
+ * │  the behavioural claims this header could not enforce are enforced by     │
+ * │  np_hal_platform_tests — which compiles the REAL driver sources against a │
+ * │  plain-C register file and asserts on what they write.  Inverting the     │
+ * │  enable polarity now fails a test instead of shipping.                    │
+ * │                                                                          │
+ * │  WHAT PHASE 7 DID NOT DO: bench validation.  No hardware exists (design   │
+ * │  phase, no tooling committed), so nothing here has been measured on       │
+ * │  silicon.  Register sequences, the NTC pin map, and the entire impedance  │
+ * │  analog front end are DESIGN-REVIEW ARTIFACTS awaiting the G1 gate —      │
+ * │  OI-SWCI-27..OI-SWCI-34.  Read "it links and its unit tests pass" as      │
+ * │  exactly that, and no further.                                            │
  * └──────────────────────────────────────────────────────────────────────────┘
  *
  * WHY THIS FILE EXISTS (closes OI-SWCI-18)
@@ -51,16 +59,25 @@
  * Three rules that keep this file doing its job:
  *
  *   1. THE DRIVER TU MUST INCLUDE THIS HEADER.  Nothing in the build system
- *      can compel it.  A future np_stm32g071_hal.c that defines all 25 symbols
- *      without including this file links fine with wrong signatures and puts
- *      us back at the original defect with a header sitting next to it looking
- *      like protection.  This is an acceptance criterion for OI-SWCI-17.
+ *      can compel it.  A driver that defines these symbols without including
+ *      this file links fine with wrong signatures and puts us back at the
+ *      original defect with a header sitting next to it looking like
+ *      protection.  This was an acceptance criterion for OI-SWCI-17 and it is
+ *      MET: every TU in platform/ includes np_hal_internal.h, which includes
+ *      this file, so all 25 definitions are checked against these declarations.
  *
  *   2. THE HOST-TEST DOUBLES MUST NEVER BE ADDED TO THE FIRMWARE LINK TARGET.
- *      Since they are now ABI-guaranteed against this header, the doubles in
- *      tests/ are a drop-in definition set for exactly the 24 undefined
- *      symbols — i.e. the shortest path to a green, useless link.  The correct
- *      resolution of those symbols is Defect E, not the doubles.
+ *      Since they are ABI-guaranteed against this header, the doubles in
+ *      tests/ are a drop-in definition set for exactly the symbols the image
+ *      needs — i.e. the shortest path to a green, useless link.  Now that the
+ *      image DOES link, this rule matters more than it did when it was written,
+ *      not less: the difference between the real platform layer and the doubles
+ *      is no longer "links vs does not link".  It is asserted rather than
+ *      trusted — safety-mcu-ci.yml's "Assert no test double reached the image"
+ *      step greps the link map for any object built from tests/ and fails the
+ *      job.  (Spelled out rather than written as a glob: a literal
+ *      tests-slash-star-dot-c-dot-obj here opens a nested comment and is an
+ *      error under -Werror=comment, which is how this very line was caught.)
  *
  *   3. THIS HEADER STAYS DECLARATION-ONLY.  No static inline, no register
  *      typedef, no vendor/CMSIS include.  Host tests now depend on it, so any
@@ -276,14 +293,27 @@ uint32_t np_hal_impedance_read_cvns_electrode_ohm(uint8_t electrode);
 void np_hal_otp_read_pubkey(uint8_t *buf, uint8_t len);
 
 /*
- * ── WHAT THIS HEADER CANNOT TELL YOU ─────────────────────────────────────────
+ * ── WHAT THIS HEADER COULD NOT TELL YOU — AND WHERE PHASE 7 ANSWERED IT ──────
  *
- * Everything above is derived from the existing declarations and their call
- * sites.  The following are NOT knowable from anything in this repository, and
- * are listed rather than guessed because they are exactly the questions the
- * Defect E (OI-SWCI-17) design review has to answer.  Guessing any of them in
- * an implementation would produce firmware that links, compiles clean, and is
- * wrong in Class C software.
+ * These ten were listed rather than guessed because they were exactly the
+ * questions the Defect E (OI-SWCI-17) design review had to answer.  Phase 7 is
+ * that review's implementation, so each now carries its resolution and the file
+ * that owns it.  The answers are DESIGN DECISIONS with stated reasoning, not
+ * measurements — nothing below has been validated on silicon.
+ *
+ *   1  BLOCKING/WCET .................. answered (bounded) — np_hal_adc.c
+ *   2  tick atomicity ................. answered (safe on ARMv6-M) — np_hal_clock.c
+ *   3  out-of-range arguments ......... answered (fail-safe) — adc/impedance
+ *   4  impedance settling ownership ... answered (the HAL owns it) — np_hal_impedance.c
+ *   5  capture before first edge ...... answered (zero) — np_hal_rpeak.c
+ *   6  `state` domain ................. answered (non-zero = HIGH) — np_hal_gpio.c
+ *   7  SPI arrival semantics .......... answered (per-type buffers, newest-wins) — np_hal_spi.c
+ *   8  OTP failure signalling ......... NOT fixable without a signature change; mitigated
+ *   9  np_hal_spi_send_frame .......... STILL OPEN as a protocol question; symbol now bound
+ *  10  reset-state guarantees ......... firmware half closed; pull-up sizing OPEN (OI-SWCI-27)
+ *
+ * The original text of each follows unchanged, so the question a decision was
+ * made against is still legible next to the decision.
  *
  *  1. BLOCKING AND WCET.  Not one of the 25 states whether it may block, or
  *     what its worst-case execution time is.  Every one is called from the

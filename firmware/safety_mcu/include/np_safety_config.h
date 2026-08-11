@@ -114,6 +114,36 @@
 #define NP_NTC_CHANNEL_COUNT    6U    /* 5 cranial sense domains + 1 hub */
 #define NP_NTC_CRANIAL_CHANNELS 5U    /* channels [0, 5) are cranial; 5 is the hub */
 
+/* NTC sense-node pins and ADC1 input channels, one per sense domain.
+ * PROVISIONAL pending PCB layout (G1 gate) — same status as every other GPIO
+ * assignment in this file; recorded as OI-SWCI-28.  Added at phase 7 because
+ * np_hal_adc.c must name a concrete input per domain and the platform layer is
+ * not the place to invent a pin map: it belongs beside the enable lines, where
+ * the double-assignment that bit NP_EN_PBM_ZONE4_PIN/PA4 would be visible.
+ *
+ * Constrained by what is already spoken for: PA0 is the cranial PBM enable,
+ * PA4..PA7 are SPI1, PA8 is the R-peak input, PB0..PB8 are the nine remaining
+ * enable lines.  The domain index is NOT a module slot and NOT an enable-bit
+ * position (see the note above); np_hal_adc.c maps it through a table.        */
+#define NP_NTC0_PORT            GPIOA
+#define NP_NTC0_PIN             (1U << 1)
+#define NP_NTC0_ADC_CH          1U
+#define NP_NTC1_PORT            GPIOA
+#define NP_NTC1_PIN             (1U << 2)
+#define NP_NTC1_ADC_CH          2U
+#define NP_NTC2_PORT            GPIOA
+#define NP_NTC2_PIN             (1U << 3)
+#define NP_NTC2_ADC_CH          3U
+#define NP_NTC3_PORT            GPIOB
+#define NP_NTC3_PIN             (1U << 10)
+#define NP_NTC3_ADC_CH          11U
+#define NP_NTC4_PORT            GPIOB
+#define NP_NTC4_PIN             (1U << 11)
+#define NP_NTC4_ADC_CH          12U
+#define NP_NTC5_PORT            GPIOB   /* hub NTC */
+#define NP_NTC5_PIN             (1U << 12)
+#define NP_NTC5_ADC_CH          16U
+
 /* ── Charge density monitor (SW01-M03) ───────────────────────────────────── */
 /* 40 µC/cm² charge density limit; enforced per electrode, per session.      */
 /* Electrode area for standard tDCS/BES electrode: 25 cm².                   */
@@ -127,6 +157,28 @@
 #define NP_IMPEDANCE_TEST_HZ    1000U
 #define NP_IMPEDANCE_TEST_MS    50U
 #define NP_IMPEDANCE_MAX_OHM    10000U  /* above this → contacts not confirmed */
+
+/* Impedance analog front end — ALL PROVISIONAL, recorded as OI-SWCI-34.
+ *
+ * Unlike SPI1/TIM2/ADC1/GPIO, which this file already named before phase 7,
+ * NOTHING in this repository specifies the impedance excitation source, the
+ * sense amplifier, the reference leg or their pins.  np_hal_impedance.c needs
+ * concrete names to be a driver rather than a stub, so they are declared here
+ * — beside the other provisional assignments and clearly marked — instead of
+ * being buried in the platform layer where the analog review would not find
+ * them.  NP_IMP_SENSE_R_OHM in particular is an UNCALIBRATED placeholder: the
+ * ohms np_hal_impedance_read_ohm() returns do not rest on any bench
+ * measurement.  The FAIL-SAFE DIRECTION (errors report an impedance above
+ * NP_IMPEDANCE_MAX_OHM, refusing the enable) holds regardless of calibration. */
+#define NP_IMP_EXC_TIM          TIM3    /* 1 kHz excitation source */
+#define NP_IMP_SENSE_PORT       GPIOA
+#define NP_IMP_SENSE_R_OHM      10000U  /* reference leg — UNCALIBRATED */
+#define NP_IMP0_ADC_CH          4U      /* VNS_HRV  */
+#define NP_IMP1_ADC_CH          5U      /* tDCS     */
+#define NP_IMP2_ADC_CH          6U      /* BES_TACS */
+#define NP_IMP3_ADC_CH          7U      /* CVNS     */
+#define NP_IMP_CVNS_L_ADC_CH    8U      /* CVNS electrode 0 = left  */
+#define NP_IMP_CVNS_R_ADC_CH    9U      /* CVNS electrode 1 = right */
 
 /* ── Fault latch (SW01-M08) ─────────────────────────────────────────────── */
 #define NP_FAULT_LATCH_MAGIC    0xDEADBEEFUL  /* sentinel for latch validity */

@@ -4,7 +4,25 @@
  * Document: NP-SW-001 Rev A — SW-01 Class C
  *
  * Minimal startup: copy .data from Flash, zero .bss (excluding fault_latch
- * region), then call SystemInit and main.
+ * region), then branch to main.
+ *
+ * SystemInit IS NOT CALLED, AND THAT IS DELIBERATE (closes OI-SWCI-19).
+ * Until phase 7 this comment claimed a SystemInit call that the code below has
+ * never made; the code was the record, and OI-SWCI-19 flagged the discrepancy
+ * rather than let either side be "corrected" silently, because the two possible
+ * fixes were materially different decisions — delete four words, or add a call
+ * to clock-init code that did not exist yet.
+ *
+ * Phase 7 resolves it in the direction the code already chose: clock bring-up
+ * is np_hal_clock_init(), which np_safety_main.c calls as its FIRST statement,
+ * before every other HAL call and every module init.  ST's system_stm32g0xx.c
+ * is therefore still not vendored (consistent with OI-SWCI-06, headers only) —
+ * and would not have helped: ST's SystemInit does not configure the PLL, so it
+ * would leave the core at HSI16 and the 64 MHz claim unmet.
+ *
+ * CONSEQUENCE: the code between reset and main() runs at HSI16 = 16 MHz.
+ * Nothing here is timing-dependent (a .data copy, a .bss zero, one branch), but
+ * anything ADDED to Reset_Handler will run at 16 MHz, not 64 MHz.
  *
  * The fault_latch section at the top of SRAM is intentionally NOT zeroed
  * on warm reset — SW01-M08 reads it to detect prior fault state.

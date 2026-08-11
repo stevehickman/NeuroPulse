@@ -47,14 +47,14 @@ permissions:
   contents: read
 
 env:
-  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock)_tests$'
-  NP_TOTAL_TEST_COUNT: '27'
-  NP_SAFETY_TEST_COUNT: '6'
+  NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform)_tests$'
+  NP_TOTAL_TEST_COUNT: '28'
+  NP_SAFETY_TEST_COUNT: '7'
   NP_CLASS_B_TEST_COUNT: '21'
 
 jobs:
   host-tests-all:
-    name: CMake host tests (27 targets, unfiltered)
+    name: CMake host tests (28 targets, unfiltered)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -78,10 +78,10 @@ jobs:
         run: cmake --build build/host-tests
 
       # The partition guard.  Asserts three things the scoped workflows cannot:
-      # the total is still 27, the two halves still sum to it, and they do not
+      # the total is still 28, the two halves still sum to it, and they do not
       # overlap.  Any of add-a-test / rename-a-test / broaden-the-regex trips
       # this, which is the point.
-      - name: Assert host-test partition still sums to 27
+      - name: Assert host-test partition still sums to 28
         run: |
           count() { ctest --test-dir build/host-tests -N "$@" | sed -n 's/^Total Tests: //p'; }
           names() { ctest --test-dir build/host-tests -N "$@" \
@@ -146,12 +146,28 @@ jobs:
                 -DCMAKE_TOOLCHAIN_FILE=${{ github.workspace }}/firmware/cmake/stm32g071.cmake \
                 -DCMAKE_BUILD_TYPE=Release \
                 firmware/safety_mcu
-      # GATING since phase 4 (§6.5).  Target is `np_safety_mcu_objs` — compilation
-      # of every Class C TU, which is green and is what Defect A broke.  The
-      # linked image cannot succeed until Defect E (§4.4, OI-SWCI-17) supplies
-      # SW-01's platform layer; pointing this at the full build is phase 7.
+      # Compilation of every Class C TU has gated since phase 4 (§6.5) — the
+      # property Defect A broke.  PHASE 7 added the link: Defect E (§4.4,
+      # OI-SWCI-17) is closed, SW-01 has a platform layer, and np_safety_mcu.elf
+      # is a real artifact.  This weekly leg builds both for the same reason
+      # safety-mcu-ci.yml does — a break is attributable to compile or to link
+      # from the step name alone.
+      #
+      # Unlike safety-mcu-ci.yml, this file is schedule + workflow_dispatch only
+      # and is never a required check (OI-SWCI-23), so it carries the size report
+      # for trend-watching rather than as a gate.
       - name: Compile (all Class C translation units)
         run: cmake --build build/safety-mcu --target np_safety_mcu_objs
+
+      - name: Link (np_safety_mcu image)
+        run: cmake --build build/safety-mcu
+
+      - name: Report image size
+        run: |
+          set -euo pipefail
+          elf=build/safety-mcu/np_safety_mcu.elf
+          [ -f "$elf" ] || { echo "::error::${elf} was not produced by the link."; exit 1; }
+          arm-none-eabi-size "$elf"
 
   bootloader-cross:
     name: Bootloader cross-compile (i.MX RT1062)

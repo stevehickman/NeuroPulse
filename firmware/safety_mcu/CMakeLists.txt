@@ -123,6 +123,38 @@ if(NP_BUILD_TESTS)
     )
     np_host_test(np_cardiac_interlock_tests)
 
+    # np_hal_platform_tests: the SW-01 platform layer itself (phase 7,
+    # OI-SWCI-17).  The SEVENTH Class C target — NP_SAFETY_TEST_COUNT moves
+    # 6 → 7 in safety-mcu-ci.yml and build-all.yml, which is why that count
+    # lives in an env var and not in a job `name:` (NP-SW-CI-001 §6.7).
+    #
+    # Compiles the REAL platform sources against the plain-C register file in
+    # platform/np_hal_fake_regs.h.  Linking np_safety_mcu.elf proves the 25
+    # np_hal_* symbols exist; it proves nothing about polarity, and
+    # np_safety_hal.h is explicit that a driver with inverted polarity
+    # "compiles clean, links clean, and inverts every stimulation enable line".
+    # This target is what makes that statement false for this repository.
+    #
+    # np_thermal_interlock.c is linked in deliberately: the ADC fail-safe
+    # direction is a claim about a static table in THAT file, so it is verified
+    # by driving the real interlock rather than by reading the table.
+    #
+    # Only drivers WITHOUT a hardware handshake are here.  Clock, ADC and
+    # impedance are excluded because a fake that always reports "ready" would
+    # exercise the happy path and skip every timeout branch while reading as
+    # coverage — see np_hal_fake_regs.h.
+    add_executable(np_hal_platform_tests
+        tests/np_hal_platform_tests.c
+        platform/np_hal_pin.c
+        platform/np_hal_gpio.c
+        platform/np_hal_spi.c
+        platform/np_hal_otp.c
+        src/np_thermal_interlock.c
+    )
+    np_host_test(np_hal_platform_tests)
+    target_include_directories(np_hal_platform_tests PRIVATE platform)
+    target_compile_definitions(np_hal_platform_tests PRIVATE NP_HAL_HOST_TEST)
+
     return()
 endif()
 
@@ -165,6 +197,31 @@ set(SAFETY_SOURCES
     src/np_fault_latch.c
 )
 
+# ── SW-01 platform layer (phase 7 — closes Defect E / OI-SWCI-17) ─────────────
+# The STM32G071 register drivers behind the 25 np_hal_* symbols declared in
+# include/np_safety_hal.h.  Before phase 7 there were none, and the image had
+# never linked (NP-SW-CI-001 §4.4).
+#
+# A SEPARATE VARIABLE, not appended into SAFETY_SOURCES, so the two lists stay
+# individually visible: SAFETY_SOURCES is the Class C application modules that
+# the six host tests also exercise natively, PLATFORM_SOURCES is target-only
+# register code that no host test can compile as-is.  The distinction matters
+# when reading which translation units the compile gate covers.
+#
+# Both go into np_safety_mcu_objs, so `--target np_safety_mcu_objs` still means
+# "every Class C TU compiles for STM32G071" — the property phase 4 gates — and
+# now covers the platform layer too.
+set(PLATFORM_SOURCES
+    platform/np_hal_pin.c
+    platform/np_hal_clock.c
+    platform/np_hal_gpio.c
+    platform/np_hal_adc.c
+    platform/np_hal_spi.c
+    platform/np_hal_rpeak.c
+    platform/np_hal_impedance.c
+    platform/np_hal_otp.c
+)
+
 # ── CPU flags (Cortex-M0+, no FPU) ────────────────────────────────────────────
 set(CPU_FLAGS
     -mcpu=cortex-m0plus
@@ -183,17 +240,23 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../crypto
 # ── Compilation unit ──────────────────────────────────────────────────────────
 # Every Class C translation unit, compiled for STM32G071 — and nothing else.
 # Split out of the executable so COMPILING and LINKING are separately buildable
-# targets, because as of 2026-08-09 only the first of the two can succeed:
-# Defect E (NP-SW-CI-001 §4.4) leaves 24 first-party np_hal_* platform symbols
-# undefined, so the image cannot link until the safety MCU's platform layer is
-# written.  Compilation for target is exactly the property Defect A broke, it is
-# a real regression surface, and it is gated on its own in CI (§5.2, phase 4)
-# instead of being held hostage to an unrelated open defect.
+# targets.  That split was forced between phases 4 and 7 by Defect E
+# (NP-SW-CI-001 §4.4): 24 first-party np_hal_* symbols were undefined, so only
+# compilation could succeed and CI gated it alone rather than being held hostage
+# to an unrelated open defect.
 #
-# `cmake --build <dir> --target np_safety_mcu_objs` is the gated CI step.
-add_library(np_safety_mcu_objs OBJECT ${SAFETY_SOURCES})
+# PHASE 7 CLOSED DEFECT E — the platform layer exists (PLATFORM_SOURCES above)
+# and the image links, so CI now gates the LINK.  The object library is KEPT
+# rather than folded back into the executable, for two reasons that outlived the
+# defect: it keeps "compiles" and "links" separately diagnosable when a build
+# breaks, and §8's traceability matrix carries them as two distinct requirement
+# rows that want two distinct pieces of evidence.
+#
+# `cmake --build <dir> --target np_safety_mcu_objs` remains buildable; the gated
+# CI step is now the default target, which links np_safety_mcu.
+add_library(np_safety_mcu_objs OBJECT ${SAFETY_SOURCES} ${PLATFORM_SOURCES})
 
-target_include_directories(np_safety_mcu_objs PRIVATE include)
+target_include_directories(np_safety_mcu_objs PRIVATE include platform)
 
 # Vendored CMSIS SOUP — two components, two upstreams, two records:
 #   ../vendor/cmsis_core       ARM CMSIS-Core(M) 5.6.0 from CMSIS_5 @ 5.9.0
@@ -232,15 +295,50 @@ target_compile_options(np_safety_mcu_objs PRIVATE
     -ffreestanding
     -fstack-usage
     # MISRA C:2012 advisory checks (full enforcement via MISRA tool at G2 gate)
-    -Wno-unused-parameter    # remove after HAL stubs filled in
+    #
+    # -Wno-unused-parameter was carried here with the note "remove after HAL
+    # stubs filled in".  Phase 7 filled them in, so it is removed: the platform
+    # layer uses every parameter it declares, and the suppression's only
+    # remaining effect would be to hide a genuinely ignored argument in a Class C
+    # interlock — precisely the diagnostic that matters most in a driver whose
+    # `channel` and `state` parameters decide whether stimulation is enabled.
 )
 
 # ── Firmware image ─────────────────────────────────────────────────────────────
-# Links the objects above.  BLOCKED on Defect E (NP-SW-CI-001 §4.4) — 24 first-party
-# np_hal_* platform symbols are undefined, so this target cannot link today and is
-# deliberately NOT what CI gates on at phase 4.  It stays declared so the day the
-# platform layer lands the link is already wired and CI can be pointed at it.
+# Links the objects above plus np_crypto.  UNBLOCKED AT PHASE 7: Defect E
+# (NP-SW-CI-001 §4.4, OI-SWCI-17) is closed — the platform layer in platform/
+# defines all 25 np_hal_* symbols — and this target is what CI gates on.
+#
+# Producing it also required fixing the .fault_latch placement in
+# startup/stm32g071_flash.ld, which had never linked either: a SECOND link
+# blocker that had been invisible behind Defect E because nothing ever reached
+# the linker script.  See the comment there.
 add_executable(np_safety_mcu $<TARGET_OBJECTS:np_safety_mcu_objs>)
+
+# ── The `.elf` suffix is load-bearing, not cosmetic ────────────────────────────
+# CMake gives a cross-compiled executable NO suffix by default, so this target
+# produced a file literally named `np_safety_mcu` — while the header of this
+# file (and every document describing the build) says it produces
+# `np_safety_mcu.elf`.  Nothing had ever noticed, because nothing had ever
+# linked.
+#
+# It matters because of how image size gets checked in CI.  The established
+# pattern in firmware-cross-build.yml is
+#
+#     find build/cross -name '*.elf' | xargs -r arm-none-eabi-size
+#
+# and `find` matching nothing, piped to `xargs -r`, EXITS 0.  A size step
+# written that way against a suffix-less binary is precisely the "step that
+# always passed while proving nothing" that NP-SW-CI-001 §6.5 refused to leave
+# in place at phase 4.  Setting the suffix makes the artifact match its
+# documented name, and phase 7's restored size step additionally asserts the
+# file count rather than trusting the glob (§6.7).
+#
+# NOTE, and NOT fixed here because it is the Class B leg's scope: np_bootloader
+# has the same mismatch — it documents `np_bootloader.elf`, sets no suffix, and
+# firmware-cross-build.yml's `Report image size` step has therefore been
+# reporting on zero files since it was written.  Recorded as OI-SWCI-35.
+set_target_properties(np_safety_mcu PROPERTIES SUFFIX ".elf")
 
 target_link_libraries(np_safety_mcu PRIVATE np_crypto)
 
