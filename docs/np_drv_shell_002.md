@@ -8,7 +8,7 @@
 **Effective Date:** —
 **Author:** NeurOne Mechanical + Hardware Engineering
 **Approved By:** — (unapproved; see §1.2)
-**References:** NP-HEX-ZM-001 Rev A (§3.4 lattice, §4a taxonomy/SMART-1, §5 two-bowl shell + cluster clamps, §7 open items); NP-HELMET-GEOM-001 Rev A (§0 L0–L3 layer topology, §2 radial stack-up, §3.2 L1 material constraints); **NP-HW-HUB-001 Rev C** (§3.1 cluster-controller tier, §5 three-tier I2C, §7.4 interface contract, §7.5 synthesis, §8.1 controller BOM, §8.3 STM32G071 selection, OI-HUB-C07/C15/C17/C18/C19); **NP-HW-HEXTILE-001 Rev B** (D-3 on-module driver, D-4 on-module TIA, D-5 16-position socket, D-6 24 V rail, D-7 32-segment I2C, §7.1–7.2 socket interface, §8.2.1 cluster derivation, §8.2.2 connector options, §8.4.1 enable class split, OI-HEXTILE-13/14); **NP-THERM-BEZEL-001 Rev A** (§4.5 bezel height); **NP-THERM-CFD-C2-001 Rev A** (§7 inter-bowl stagnant-air resistance); NP-HW-FPC-001 Rev E (superseded — dual-PD, TIA saturation analysis); NP-DRV-SHELL-001 Rev B (superseded — bend-radius basis, EEG separation); NP-OPT-PSF-001 Rev A; CLAUDE.md §3, §4.1–4.5, §5.1; IPC-2223D; IEC 60068-2-21
+**References:** NP-HEX-ZM-001 Rev A (§3.4 lattice, §4a taxonomy/SMART-1, §5 two-bowl shell + cluster clamps, §7 open items); NP-HELMET-GEOM-001 Rev A (§0 L0–L3 layer topology, §2 radial stack-up, §3.2 L1 material constraints); **NP-HW-HUB-001 Rev C** (§3.1 cluster-controller tier, §5 three-tier I2C, §7.4 interface contract, §7.5 synthesis, §8.1 controller BOM, §8.3 STM32G071 selection, OI-HUB-C07/C15/C17/C18/C19); **NP-HW-HEXTILE-001 Rev C** (D-3 on-module driver, D-4 on-module TIA — **not adopted**, D-5 **19-position** socket, D-6 24 V rail, D-7 32-segment I2C, §7.1–7.2 socket interface, §8.2.1 cluster derivation, §8.2.2 connector options, §8.4.1 enable class split, OI-HEXTILE-13/14); **NP-THERM-BEZEL-001 Rev A** (§4.5 bezel height); **NP-THERM-CFD-C2-001 Rev A** (§7 inter-bowl stagnant-air resistance); NP-HW-FPC-001 Rev E (superseded — dual-PD, TIA saturation analysis); NP-DRV-SHELL-001 Rev B (superseded — bend-radius basis, EEG separation); NP-OPT-PSF-001 Rev A; CLAUDE.md §3, §4.1–4.5, §5.1; IPC-2223D; IEC 60068-2-21
 **Related Issues:** —
 **Gate:** NP-COORD-001 G2 (pre-tooling) — this document is an input to shell tooling release
 **IEC 62304 Class:** N/A (hardware architecture; safety-MCU firmware implications flagged, not specified here)
@@ -629,21 +629,23 @@ pinout revision on a pre-tooling interface, which is what §1.3 already scopes.
 | 5 | `SDA` | 1 | N2 | Agreed |
 | 6 | `SCL` | 1 | N2 | Agreed |
 | 7 | `SYNC` | 1 | N2 | Retained — §5.1.3(b); consumer OI-HUB-C05 |
-| 8 | `ALERT#` | 1 | N2 | Agreed. Open-drain, wire-OR per cluster |
+| 8 | `ALERT#` | 1 | N2 | Agreed. Open-drain, wire-OR per cluster. **= HEXTILE `/ALERT`** — one conductor, two names (**OI-HEXTILE-16**) |
 | 9 | `PD1_K` | 1 | N3 | **Survives** — §3.3a resolves C17c against D-4 |
 | 10 | `PD2_K` | 1 | N3 | Survives |
 | 11 | `NTC` | 1 | N3 | Survives. 42 °C/62 °C interlock chain |
 | 12 | `AGND` | 1 | N3 | Sense return — **separate from `PGND`**, star-referenced at the controller |
 | 13 | `ELEC` | 1 | N4 | Agreed. Dual-rated: EEG record **and** tES drive |
-| 14 | `GUARD` | 1 | N4 | Agreed (= HEXTILE `ELEC_SHLD`). **Adopt one name in the next revision of both** |
+| 14 | `GUARD` | 1 | N4 | Agreed (= HEXTILE `ELEC_SHLD`). **Adopt one name in the next revision of both — OI-HEXTILE-16**, which also covers `ALERT#`/`/ALERT` |
 | 15 | `SEAT_N` | **1** | — | **Adopted from D-5** — §5.1.3(a). Last to mate |
 | | **Total** | **19** | | |
 
 > **19 is the closed count.** Rev A's 18, HEXTILE D-5's 16, and `NP-HW-HUB-001` §7.5.2's 14–15 are
-> all superseded. **`NP-HW-HEXTILE-001` §7.1–7.2 must be co-revised** — D-5 fixes a *16-position*
-> interface and its pin-by-pin table, and neither survives; the pitch (2.00 mm), the spring-on-socket
-> choice, the ≥0.8 µm hard-gold plating, the ≤50 mΩ / ≥500-cycle specs and the §7.3 mating sequence
-> all carry over unchanged. Tracked in **OI-SHELL2-09**.
+> all superseded. **`NP-HW-HEXTILE-001` §7.1–7.2 has been co-revised — Rev C (2026-08-11) adopts
+> this pinout, and the two documents now agree pin for pin.** Its D-5 becomes a 19-position, two-row,
+> 3+3 interface; the pitch (2.00 mm), spring-on-socket choice, ≥0.8 µm hard-gold plating,
+> ≤50 mΩ / ≥500-cycle specs and §7.3 mating sequence all carried over unchanged, with `DGND` promoted
+> into the first mating group and the N3 sense lines added to the third. HEXTILE **HT-DRC-23** exists
+> to keep the two in step. **OI-SHELL2-09(i) closes.**
 
 **No `ZONE_ID` contact.** SMART-1 retired the resistor ladder; identity is a UID read over I2C.
 
@@ -1346,7 +1348,7 @@ pass/fail with supporting evidence.
 | OI-SHELL2-06 | Bus dwell-time budget: worst-case addressed-read sweep of all sockets vs closed-loop adaptation cadence | FW | Session timing |
 | OI-SHELL2-07 | Set the fluxgate self-field budget the N1 bus must stay within (SH2-DRC-17 pass criterion) | EE Lead | EMF-1/EMF-2 sign-off |
 | OI-SHELL2-08 | Reflect cluster-level repair in the service-network tiering | Service | `docs/reference/service-network.md` |
-| OI-SHELL2-09 | **Controlled-document updates this architecture implies but does not make:** NP-HEX-ZM-001 §5.3.1/§5.4a (bus on L1 vs reasons 3–4), NP-HELMET-GEOM-001 §2 (L1 module depth assumes a "20-pin FPC"; tiles now have no tail) and §3.2, and a new FMEA entry for the §4.3 shared-return failure alongside FMEA-G07-01. **Rev B adds three, and the first is the most urgent because it is a *tooled* interface:** (i) **`NP-HW-HEXTILE-001` §7.1–7.2 (D-5)** — the 16-position count and its pin-by-pin table are superseded by §5.1.4's 19; the 2.00 mm pitch, spring-on-socket choice, ≥0.8 µm hard-gold plating, ≤50 mΩ / ≥500-cycle specs and §7.3 mating sequence all carry over unchanged, and REQ-SKT-01's two-row array must be reflected there. (ii) `NP-HW-HUB-001` §3.2 (LED-drive rationale, per OI-HUB-C15), §7.4 (12/16 → 18/20 connectors), §7.5.2 (14–15 figures void) and §7.5.3 (passive-carrier model). (iii) `NP-HEX-ZM-001` §5.4a MECH-2 (prices the flower at 12 boards / $76.08; actual 18 / $114.12) | Quality | DHF consistency; **(i) blocks socket tooling** |
+| OI-SHELL2-09 | **Controlled-document updates this architecture implies but does not make:** NP-HEX-ZM-001 §5.3.1/§5.4a (bus on L1 vs reasons 3–4), NP-HELMET-GEOM-001 §2 (L1 module depth assumes a "20-pin FPC"; tiles now have no tail) and §3.2, and a new FMEA entry for the §4.3 shared-return failure alongside FMEA-G07-01. **Rev B adds three:** (i) ~~**`NP-HW-HEXTILE-001` §7.1–7.2 (D-5)**~~ — **✅ DONE 2026-08-11, HEXTILE Rev C.** The 16-position count and pin table are superseded by §5.1.4's 19; the 2.00 mm pitch, spring-on-socket choice, ≥0.8 µm hard-gold plating, ≤50 mΩ / ≥500-cycle specs and §7.3 mating sequence carried over unchanged, and REQ-SKT-01's two-row array is reflected there. HEXTILE Rev C also raises **OI-HEXTILE-15** (its §5.3/§6 still read as though D-4 holds — module BOM, not tooling-blocking) and **OI-HEXTILE-16** (`GUARD` vs `ELEC_SHLD`, one conductor two names — pick one before Hub PCB Rev C release). (ii) `NP-HW-HUB-001` §3.2 (LED-drive rationale, per OI-HUB-C15), §7.4 (12/16 → 18/20 connectors), §7.5.2 (14–15 figures void) and §7.5.3 (passive-carrier model). (iii) `NP-HEX-ZM-001` §5.4a MECH-2 (prices the flower at 12 boards / $76.08; actual 18 / $114.12) | Quality | DHF consistency; **(i) blocks socket tooling** |
 | OI-SHELL2-10 | Decide whether the ADS1299 bank sits at the PAN (assumed) or the Hub PCB; moves an SPI interface across the boss. `NP-HW-HUB-001` §7.4 response 3 **accepts the PAN** as the better placement; the item stays open only for the Rev C schematic to confirm | EE Lead | Hub PCB Rev C |
 | **OI-SHELL2-11** | **NEW — inter-bowl thermal load from 18 active cluster controllers (§10.3).** Rev A's passive carrier dissipated essentially nothing and raised no thermal question. Eighteen boards each carrying an STM32G071, a zero-drift TIA op-amp, three mux banks and an I2C switch dissipate **continuously** (emitters are duty-cycled; this is not) into the inter-bowl gap, which `NP-THERM-CFD-C2-001` §7 characterises as **stagnant air at 0.231 m²K/W — ~59 % of the entire outward resistance path** (total outward ≈ 0.393 vs inward ≈ 0.108 m²K/W). That analysis already concluded the outward path is **~4× more resistive than the inward path to the perfused scalp**, which is why Path A was NO-GO and Path B1 committed. Heat added on the gap-facing side of L1 therefore sits *behind* the dominant outward resistance, and §4.1's claim that gap-facing components are "out of the scalp thermal path" is **not established**. **Two inputs do not exist yet:** a budgeted per-controller dissipation figure, and a CFD case placing the source on the **gap-facing side of L1** rather than at the LED junction plane. **This is the thermal load that moved sides when OI-HUB-C17c resolved against D-4** (§3.3a) — D-4 would have put this silicon on the tile instead, which is the question C17c's *other*, still-open half asks. The two must be assessed as one budget, not separately | Thermal + EE Lead | **THERM-1a CFD** (`NP-THERM-CFD-001` case matrix); interacts with **OI-HUB-C17c**, SR-FAN-01…06, OI-FAN-01a |
 
