@@ -44,11 +44,17 @@
 > untouched and remains open**: whether continuous on-tile dissipation fits inside the 42 °C face /
 > 62 °C junction envelope is a question about the module heat-sink path, and nothing here answers it.
 >
-> **What Rev B does not resolve.** The socket contact count (§5.1) is **still live** and is *not*
-> settled by the MCU decision — but its terms have changed materially, because NP-HW-HUB-001
-> §7.5.2's 14–15 synthesis figures assumed D-4 deletes network N3. **N3 survives**, so those figures
-> no longer apply. §5.1 works the question through from the surviving networks rather than restating
-> three stale numbers, and reaches **17** as the reasoned merge with one genuinely open sub-question.
+> **A sixth change, added during review: the socket contact count is now DECIDED at 19.** It is not
+> settled by the MCU decision — that only changes its terms, because NP-HW-HUB-001 §7.5.2's 14–15
+> synthesis figures assumed D-4 deletes network N3, and **N3 survives**, so those figures no longer
+> apply. §5.1 works the question through from the surviving networks rather than restating three
+> stale numbers: `SEAT_N` adopted from D-5, `SYNC` and `DGND` retained with reasons, 2 reserved
+> dropped, N3 retained → 17; then **`VLED+`/`PGND` = 3+3 by principal decision, 2026-08-11**, under
+> the rule *loss of any one contact must still leave ≥2× derating* → **19**. Rev A's 18, D-5's 16 and
+> HUB-001's 14–15 are all superseded, and **`NP-HW-HEXTILE-001` §7.1–7.2 must be co-revised**
+> (OI-SHELL2-09). Two consequences: **REQ-SKT-01** makes the two-staggered-row pad array binding
+> rather than advisory, and the clamp-plate load — despite two more contacts — lands *below* Rev A's,
+> because the 18-cluster partition caps a plate at 6 tiles rather than 7 (§5.1.6).
 
 ---
 
@@ -275,7 +281,7 @@ with one **STM32G071 in UFQFPN32** per board.
 | Function | Part class | Qty per controller | Note |
 |---|---|---|---|
 | **Cluster MCU** | **STM32G071, UFQFPN32** | **1** | **NEW in Rev B.** I2C slave to the hub, I2C master to the PCA9548A, 12-bit ADC, timers. Rationale §3.2a; part choice HUB-001 §8.3 |
-| Socket contacts | spring-contact array | ≤8 × 17 (§5.1) | Seated by the §5.4a clamp plunger. **17, not 18** — see §5.1 |
+| Socket contacts | spring-contact array | ≤8 × **19** (§5.1) | Seated by the §5.4a clamp plunger. **19, not 18** — two staggered rows, REQ-SKT-01 |
 | I2C segment switch | **PCA9548A** 8-channel | 1 | Exact fit at capacity 8. Per-socket isolation — resolves the shared-0x30 collision |
 | **PD current mux** | **16:1 (2 × TMUX1308 class)** | **1 set** | PD1 + PD2 of ≤8 sockets into one TIA. Rev A said "mux" without sizing it |
 | PD front end | **one shared switched-gain TIA (DG2788A + zero-drift op-amp)** | 1 | Per-*cluster*, per-sample gain — not per socket (§3.3) |
@@ -548,8 +554,8 @@ neither is right.
 
 | Signal | Net | Rev A (this doc) | HEXTILE **D-5** §7.2 | Agreed? |
 |---|---|---|---|---|
-| `VLED+` | N1 | **2** | **4** (pins 1–4) | ✗ count |
-| `PGND` | N1 | **2** | **4** (pins 5–8) | ✗ count |
+| `VLED+` | N1 | **2** | **4** (pins 1–4) | ✗ → **3 ADOPTED** (§5.1.5) |
+| `PGND` | N1 | **2** | **4** (pins 5–8) | ✗ → **3 ADOPTED**, paired 1:1 |
 | `V3V3` / `VCC_3V3` | N1 | 1 | 1 (pin 9) | ✓ |
 | `DGND` | N1 | **1** | **absent** — logic returns on `PGND` | ✗ |
 | `SDA` | N2 | 1 | 1 (pin 10) | ✓ |
@@ -612,12 +618,12 @@ that matters — every one is spring force on an accessibility budget (§5.1.6).
 loses to a live RISK-22 constraint.** If a future type genuinely needs a conductor, that is a
 pinout revision on a pre-tooling interface, which is what §1.3 already scopes.
 
-#### 5.1.4 The reconciled budget — 17
+#### 5.1.4 The reconciled budget — 19
 
 | # | Contact | Qty | Network | Source of the decision |
 |---|---|---|---|---|
-| 1 | `VLED+` | **2** | N1 | Rev A count, now *justified* by 24 V (§5.1.5) |
-| 2 | `PGND` | **2** | N1 | Paired 1:1 with `VLED+` — REQ-EMI-06 needs full broadside overlap. **LED return only** |
+| 1 | `VLED+` | **3** | N1 | **Principal decision, 2026-08-11** — neither Rev A's 2 nor D-5's 4. Sized on the *degraded* case, §5.1.5 |
+| 2 | `PGND` | **3** | N1 | Paired 1:1 with `VLED+` — REQ-EMI-06 needs full broadside overlap. **LED return only** |
 | 3 | `V3V3` | 1 | N1 | Agreed. ≤2 mA standby / ≤25 mA active (HEXTILE §8.3 — *not* Rev A's ≤50 mA) |
 | 4 | `DGND` | 1 | N1 | Retained — §5.1.3(c) |
 | 5 | `SDA` | 1 | N2 | Agreed |
@@ -631,7 +637,13 @@ pinout revision on a pre-tooling interface, which is what §1.3 already scopes.
 | 13 | `ELEC` | 1 | N4 | Agreed. Dual-rated: EEG record **and** tES drive |
 | 14 | `GUARD` | 1 | N4 | Agreed (= HEXTILE `ELEC_SHLD`). **Adopt one name in the next revision of both** |
 | 15 | `SEAT_N` | **1** | — | **Adopted from D-5** — §5.1.3(a). Last to mate |
-| | **Total** | **17** | | |
+| | **Total** | **19** | | |
+
+> **19 is the closed count.** Rev A's 18, HEXTILE D-5's 16, and `NP-HW-HUB-001` §7.5.2's 14–15 are
+> all superseded. **`NP-HW-HEXTILE-001` §7.1–7.2 must be co-revised** — D-5 fixes a *16-position*
+> interface and its pin-by-pin table, and neither survives; the pitch (2.00 mm), the spring-on-socket
+> choice, the ≥0.8 µm hard-gold plating, the ≤50 mΩ / ≥500-cycle specs and the §7.3 mating sequence
+> all carry over unchanged. Tracked in **OI-SHELL2-09**.
 
 **No `ZONE_ID` contact.** SMART-1 retired the resistor ladder; identity is a UID read over I2C.
 
@@ -640,19 +652,24 @@ T1-A/T1-B because only T1-C had an MCU. `NP-HW-HEXTILE-001` **D-3** fits a drive
 tile type, so every tile can self-report its UID and the EEPROM is redundant. This removes
 ~$8.50/headset from §10.1 and makes **OI-HEXMAP-02**'s `inventory_fn` a plain I2C read on all types.
 
-#### 5.1.5 The one genuinely open sub-question — `VLED+` redundancy
+#### 5.1.5 `VLED+` redundancy — **3 adopted** (principal decision, 2026-08-11)
 
-This is where the 18-vs-16 gap actually lives: HEXTILE allots **4** `VLED+` and **4** `PGND`; this
-document allots **2** and **2**. The rail decision (§5.4) settles the *nominal* case and does not
-settle the *degraded* case.
+> **DECIDED: 3 `VLED+` + 3 `PGND`.** Neither Rev A's 2+2 nor `NP-HW-HEXTILE-001` D-5's 4+4. The
+> analysis below was written as an open question with a recommendation; the recommendation was
+> accepted and the section is retained in full, because the *reason* 3 was chosen is the thing that
+> must survive into the bench plan (**SH2-DRC-10a**) and into any future proposal to trim contacts.
+
+This is where the 18-vs-16 gap actually lived: HEXTILE allots **4** `VLED+` and **4** `PGND`; Rev A
+allotted **2** and **2**. The rail decision (§5.4) settles the *nominal* case and does not settle
+the *degraded* case — and **the degraded case is what set the number.**
 
 At 24 V, T1-A peak instantaneous = 25.0 W → **1.04 A per tile** (HEXTILE §8.1):
 
 | `VLED+` count | Nominal per contact | **On loss of one contact** | Margin vs ≥1.0 A rating | Contacts spent |
 |---|---|---|---|---|
-| **2** | 0.52 A | **1.04 A** | **at the rating, zero margin** | 4 (with `PGND`) |
-| 3 | 0.35 A | 0.52 A | ~2× | 6 |
-| **4** (D-5) | **0.26 A** | 0.35 A | ~3× | 8 |
+| 2 (Rev A) | 0.52 A | **1.04 A** | **at the rating, zero margin** | 4 (with `PGND`) |
+| **3 ★ ADOPTED** | **0.35 A** | **0.52 A** | **~2×** | **6** |
+| 4 (D-5) | 0.26 A | 0.35 A | ~3× | 8 |
 
 **Pros of 2+2 (this document):** four fewer contacts, ~1.2–2.0 N less per module and ~7–12 N less
 per clamp plate, against a **live** accessibility constraint (RISK-22, Parkinson's H&Y II–III,
@@ -672,15 +689,32 @@ current *imbalance* sensitivity, which 2-way does not.
 **Cons of 4+4:** eight contacts on power alone out of a ~19-contact interface, on a mechanism whose
 accessibility requirement is stated and whose electrical requirement is met at 2.
 
-**Recommendation: 3+3, giving a 19-contact interface — but do not lock it here.** Three preserves
-~2× derating *under single-contact loss*, which is the failure case that decides this, at half the
-contact cost of going to four. It is not a compromise for its own sake: the binding number is the
-degraded-case margin, and 3 is the smallest count that keeps it.
+**Decision: 3+3, giving a 19-contact interface.** Three preserves ~2× derating *under
+single-contact loss* — the failure case that decides this — at half the contact cost of going to
+four. It is not a compromise for its own sake: **the binding quantity is the degraded-case margin,
+and 3 is the smallest count that keeps it.** Stated as a rule so it survives future trimming:
 
-**This is deliberately left open** as an extension of **OI-SHELL2-03**, because it cannot be closed
-from electrical reasoning alone — it trades a bench-measurable contact-degradation distribution
-(SH2-DRC-08/09) against a human-factors force budget (MECH-2 + the §5.4a HFE formative). Committing
-to 17 or 19 before either measurement exists would be asserting more than is known.
+> **`VLED+` is sized so that the loss of any one contact still leaves ≥2× derating against the
+> contact current rating.** At 24 V and 1.04 A/tile that is 3 contacts. If the rail, the tile peak
+> power or the contact rating changes, re-derive the count from this rule — do not carry 3 forward
+> as a constant.
+
+**What choosing 3 gives up, and what it does not.** It gives up two contacts of accessibility
+budget against RISK-22 (+0.6–1.0 N per module, +3.6–6.0 N per 6-tile plate versus 2+2) and it gives
+up 4-way paralleling's better tolerance to *current imbalance* between nominally-identical contacts,
+which 3-way improves on 2-way but does not match. It does **not** give up the nominal-case margin —
+0.35 A against a ≥1.0 A rating is ~3× before any contact degrades.
+
+**This was previously deliberately open**, on the grounds that it trades a bench-measurable
+contact-degradation distribution against a human-factors force budget and could not be closed from
+electrical reasoning alone. The principal closed it on the conservative side: **the failure mode is
+silent, thermal and self-accelerating, and the accessibility cost is small, measurable and
+recoverable through the §5.4a actuator's mechanical advantage.** That asymmetry is the argument.
+
+**SH2-DRC-10a is not cancelled by this decision — it is re-pointed.** It no longer selects between
+2, 3 and 4; it **verifies that 3 delivers the ≥2× degraded-case margin the rule above asserts**, on
+real contacts with real degradation. If the bench shows the survivor exceeding 0.5 A under a
+realistic single-contact fault, the rule — not the number — is what governs the response.
 
 #### 5.1.6 Consequences of the count
 
@@ -690,24 +724,45 @@ to 17 or 19 before either measurement exists would be asserting more than is kno
 > | Count | Per module | Per clamp plate (**max 6 tiles**, §3.1) | *Rev A's stated 7-tile figure* |
 > |---|---|---|---|
 > | 16 (D-5) | 4.8–8.0 N | 28.8–48.0 N | *33.6–56.0 N* |
-> | **17 (§5.1.4)** | **5.1–8.5 N** | **30.6–51.0 N** | *35.7–59.5 N* |
-> | 19 (3+3 option) | 5.7–9.5 N | 34.2–57.0 N | *39.9–66.5 N* |
+> | 17 (2+2 variant) | 5.1–8.5 N | 30.6–51.0 N | *35.7–59.5 N* |
 > | 18 (Rev A) | 5.4–9.0 N | 32.4–54.0 N | *37.8–63.0 N* |
+> | **19 ★ ADOPTED (3+3)** | **5.7–9.5 N** | **34.2–57.0 N** | *39.9–66.5 N* |
 >
-> **Rev A's "~38–63 N per 7-tile clamp plate" overstates the load for a second reason nobody has
-> flagged: under the 18-cluster partition no cluster has 7 tiles.** Sizes are 3–6
-> (`NP-HW-HEXTILE-001` §8.2.1), so the worst plate carries 6. The SYM-1 correction that *raised* the
-> cluster count therefore *lowered* the worst-case plate load ~14 %. OI-SHELL2-03's target
-> ("dropping 18 → 12 would cut plate load by a third") should be restated against 6 tiles.
+> **Two things this table makes visible, and they pull in opposite directions.**
+>
+> **(1) The adopted 19 is the highest per-module force of the four candidates** — +0.9–1.5 N over
+> D-5's 16. That is the accessibility price of the §5.1.5 redundancy rule and it is not hidden.
+>
+> **(2) It is still below Rev A's own stated load, because the plate shrank.** Rev A's
+> "~38–63 N per 7-tile clamp plate" overstates for a reason nobody had flagged: **under the
+> 18-cluster partition no cluster has 7 tiles.** Sizes are 3–6 (`NP-HW-HEXTILE-001` §8.2.1), so the
+> worst plate carries 6. The SYM-1 correction that *raised* the cluster count therefore *lowered*
+> worst-case plate load ~14 %, and **34.2–57.0 N at 19 contacts on a 6-tile plate is below Rev A's
+> 37.8–63.0 N at 18 contacts on a 7-tile plate.** The contact-count increase is more than paid for
+> by the partition correction — net, the clamp actuator sees *less* load than Rev A specified, not
+> more.
+>
+> **OI-SHELL2-03's target must still be restated.** Its "dropping 18 → 12 would cut plate load by a
+> third" was written against a 7-tile plate and a count that is now 19. The residual accessibility
+> question is unchanged in kind — whether 34–57 N is one-handed-achievable through the §5.4a
+> over-centre actuator for a user at Parkinson's H&Y II–III — and it belongs to MECH-2 and the HFE
+> formative, not to contact arithmetic.
 
-**Pad geometry consequence.** D-5 fixes 2.00 mm pitch and notes `16 × 2.0 = 32 mm across a 40 mm
-tile; fits with margin`. At 17 the single-row span is 34 mm and at 19 it is 38 mm, against a
-vertex-to-vertex 46.19 mm — it still fits, but only along the long diagonal, and the row tapers into
-the hex corners exactly where §7.1's ±0.4 mm lateral blind-mate tolerance is hardest to hold over a
-doubly-curved cluster. **Above ~17 contacts the pad array should go to two staggered rows** (e.g.
-8 + 9 at 2.0 mm pitch, ~16 mm span), which also gives §7.1's required mis-key asymmetry somewhere to
-live and keeps `SEAT_N` at a genuine mechanical extreme. Recorded in **OI-SHELL2-03**; it is a
-layout item, not a blocker.
+**Pad geometry consequence — now a requirement, not a suggestion.** D-5 fixes 2.00 mm pitch and
+notes `16 × 2.0 = 32 mm across a 40 mm tile; fits with margin`. **At 19 the single-row span is
+38 mm**, against a vertex-to-vertex 46.19 mm: it fits only along the long diagonal, and the row
+tapers into the hex corners exactly where §7.1's ±0.4 mm lateral blind-mate tolerance is hardest to
+hold over a doubly-curved cluster.
+
+> **REQ-SKT-01 (new): the 19-contact pad array is laid out as two staggered rows**, nominally
+> 9 + 10 at 2.00 mm pitch (~18 mm span), not a single row. This keeps the array inside the tile
+> inradius rather than the circumradius, leaves room for §7.1's required mis-key asymmetry, and
+> keeps `SEAT_N` at a genuine mechanical extreme so §7.3's last-to-mate sequencing is real. Verified
+> by **SH2-DRC-05a**.
+
+Adopting 3+3 is what converts this from the conditional note Rev B first carried ("above ~17
+contacts the array *should* go to two rows") into a binding layout requirement — a 19-contact single
+row is not viable at 2.00 mm pitch on a 40 mm hex.
 
 ### 5.2 Cluster tail pinout
 
@@ -1164,7 +1219,7 @@ the same **$114.12** that `NP-HW-HEXTILE-001`'s Rev B banner records — the two
 |---|---|---|---|---|
 | Low-leakage electrode mux (N4) | 18 | $0.60–1.20 | $11–22 | Record/stim select |
 | High-side load switch, **24 V-rated** | 18 | $0.35–0.50 | $6–9 | Part class changed by §5.4 |
-| Socket spring-contact array | 80 | $0.35–0.70 | $28–56 | **17 contacts each** (§5.1) |
+| Socket spring-contact array | 80 | $0.40–0.80 | $32–64 | **19 contacts each**, two staggered rows (§5.1, REQ-SKT-01) |
 | Cluster tail flex + PAN | 1 set | $8–14 | $8–14 | Laminated into L1, 18 tails |
 | Blind-mate boss contact set | 1 | $3–6 | $3–6 | 20 tail groups, segregated returns |
 | Hub-side: 4 × PCA9548A + PCA9615 pair | 1 set | — | $4.60 | D-7 tree + differential link |
@@ -1248,12 +1303,13 @@ pass/fail with supporting evidence.
 | SH2-DRC-03 | Every cluster carrier ≤50 mm from its furthest socket (N3 run length) | CAD measurement | ≤50 mm | ME |
 | SH2-DRC-04 | Cluster tail static bend radius at every formed bend | CAD measurement | ≥12.5 mm (REQ-BR2-01) | ME |
 | SH2-DRC-05 | No bend within 5 mm of any rigid-flex transition, stiffener, boss or carrier edge | CAD | REQ-BR2-03 | ME |
+| SH2-DRC-05a | **19-contact pad array is two staggered rows** and fits inside the tile inradius with mis-key asymmetry and `SEAT_N` at a mechanical extreme (**REQ-SKT-01**, §5.1.6) | CAD | Span ≤20 mm; ±0.4 mm lateral blind-mate tolerance held across a full cluster | ME/EE |
 | SH2-DRC-06 | No formed bend under a clamp plate footprint or a socket | CAD | REQ-BR2-05 | ME |
 | SH2-DRC-07 | Zero dynamic-flex paths in the module interconnect | Design review | Set is empty (REQ-BR2-02) | ME |
 | SH2-DRC-08 | Socket contact force, wipe distance and mating cycle rating | Bench | ≥1,000 cycles, wipe ≥0.3 mm | ME/EE |
 | SH2-DRC-09 | Contact plating hard gold ≥0.5 µm both halves; fretting resistance | Coupon | Contact R drift <20 % over cycle life | EE |
 | SH2-DRC-10 | Cluster clamp plate load with final contact count vs one-handed input force — **restate against a 6-tile plate, not 7** (§5.1.6) | Bench + HFE | RISK-22 intent met with §5.4a actuator | ME/HFE |
-| SH2-DRC-10a | **`VLED+` contact count survives single-contact degradation** (§5.1.5) — the case that decides 2 vs 3 vs 4 | Bench: force one contact to elevated R, measure current share + local ΔT | Survivor current ≤50 % of contact rating; no thermal runaway over cycle life | EE/ME |
+| SH2-DRC-10a | **The adopted 3 `VLED+` deliver the ≥2× degraded-case margin §5.1.5's rule asserts.** *(Re-pointed: this no longer selects between 2/3/4 — 3 is decided. It verifies the rule on real contacts.)* | Bench: force one contact to elevated R, measure current share + local ΔT | Survivor ≤0.5 A (≥2× vs ≥1.0 A rating); no thermal runaway over cycle life | EE/ME |
 | SH2-DRC-10b | `SEAT_N` asserts only when every other contact is home; a partially-seated tile that answers I2C is detected (§5.1.3a) | Bench: partial insertion sweep with PD readback | No plausible-but-wrong dose reading at any insertion depth | EE/FW |
 | SH2-DRC-11 | IPX4 maintained at the socket contact array after 10 swap cycles | Test | IPX4 (RISK-16 precedent) | ME |
 | SH2-DRC-12 | `SAFE_EN_n` gates the cluster LED rail and the tES record/stim selector | Schematic + bench | No emission with `SAFE_EN_n` low, any bus state | EE/Safety |
@@ -1274,7 +1330,7 @@ pass/fail with supporting evidence.
 | SH2-DRC-27 | Electrode mux leakage and Ron mismatch impact on EEG CMRR | Bench | Leakage <1 nA; CMRR within ADS1299 spec | EE |
 | SH2-DRC-28 | Broadcast-write and addressed-read modes verified with a full cluster set | Bench | Whole-vault stop in one transaction | FW |
 
-*(32 items at Rev B; 28 at Rev A; the retired document carried 23.)*
+*(33 items at Rev B; 28 at Rev A; the retired document carried 23.)*
 
 ---
 
@@ -1284,13 +1340,13 @@ pass/fail with supporting evidence.
 |---|---|---|---|
 | ~~OI-SHELL2-01~~ | **✅ CLOSED 2026-08-11 — N1 bus rail is 24 V.** Rev A assumed 12 V as an explicit estimate against this item. `OI-HUB-C17b` **ADOPTED** `NP-HW-HEXTILE-001` **D-6**, derived twice (contact current 1.04 A/tile; series-string length keeping linear overhead ≤7 %) plus a third argument from `NP-HW-HUB-001` §7.5.5 that Rev A's own 2-contact `VLED+` budget had **zero derating at 12 V and ~2× at 24 V** — i.e. Rev A's contact count and its rail were mutually inconsistent. **20 V PD-native was considered and rejected**: Mode 3 runs from any PD source and Standard T1 from 15 V, so the rail must be regulated independently of what PD negotiated, which puts a conversion stage back regardless. Propagated at §5.4, §5.1.5, §7.1, §9.3, §10.1. **Residual, tracked as OI-HUB-C19, not here:** sizing and siting the 15–20 V → 24 V boost (provisionally the Hub PCB) and verifying HUB-REQ-C04 | — (closed) | — |
 | OI-SHELL2-02 | **Boss contact-group segregation and independent returns** (§4.3). Cheap now, expensive after MECH-1 tools the posterior boss. **Rev B changes the input, not the requirement: the boss now carries 20 tail groups rather than 16** (§7.1), and if §7.1a's broadcast enable is adopted the {N2/N5} group loses its per-cluster star leg and becomes a trunk — **which changes the segregation layout, not just its size**. Still time-boxed, and now additionally **gated on OI-HUB-C07** for the group structure | EE + ME Lead | **MECH-1 — time-boxed;** input from OI-HUB-C07 |
-| OI-SHELL2-03 | Close the contact-count ↔ clamp-input-force coupling (§5.1) jointly with MECH-2 and the §5.4a HFE formative. **Rev B narrows and re-bases it.** (a) The count is **17** (§5.1.4), not 18 — `SEAT_N` adopted, 2 reserved dropped, N3 retained. (b) The **only open sub-question is `VLED+` redundancy — 2, 3 or 4 contacts (§5.1.5)** — and it turns on the *degraded*-contact case, so it needs **SH2-DRC-10a** bench data, not more analysis. Recommendation is 3+3 → 19 contacts. (c) The force target must be **restated against a 6-tile plate**; no cluster has 7 under the 18-cluster partition, which lowers worst-case plate load ~14 %. (d) Above ~17 contacts the pad array should go to **two staggered rows** — §7.1's ±0.4 mm blind-mate tolerance over a doubly-curved cluster degrades with row length. **`NP-HW-HUB-001` §7.5.2's 14–15 figures are void** — they assumed D-4 deletes N3, and §3.3a keeps N3 | ME + HFE + EE | MECH-2; RISK-22 accessibility; **SH2-DRC-10a bench** |
+| OI-SHELL2-03 | Close the contact-count ↔ clamp-input-force coupling (§5.1) jointly with MECH-2 and the §5.4a HFE formative. **Rev B re-bases it, and the count half is now CLOSED.** (a) **The socket contact count is 19 and is decided** (§5.1.4): `SEAT_N` adopted from D-5, `SYNC`/`DGND` retained, 2 reserved dropped, N3 retained, and **`VLED+`/`PGND` = 3+3 by principal decision 2026-08-11** under §5.1.5's rule — *loss of any one contact must still leave ≥2× derating*. Rev A's 18, D-5's 16 and **`NP-HW-HUB-001` §7.5.2's 14–15 (void — they assumed D-4 deletes N3, and §3.3a keeps N3)** are all superseded. (b) **What remains is the force question only**, and it is a human-factors one: is **34.2–57.0 N** on a 6-tile plate one-handed-achievable through the §5.4a over-centre actuator at Parkinson's H&Y II–III? Note the count increase is **more than paid for by the partition correction** — 19 contacts on a 6-tile plate is *below* Rev A's 18 on a 7-tile plate (§5.1.6). (c) OI-SHELL2-03's original target ("18 → 12 cuts plate load by a third") was written against a 7-tile plate and must be restated. (d) **REQ-SKT-01 is now binding, not conditional** — a 19-contact single row spans 38 mm and is not viable at 2.00 mm pitch on a 40 mm hex; two staggered rows, verified by **SH2-DRC-05a**. **SH2-DRC-10a is re-pointed** from selecting 2/3/4 to verifying that 3 delivers the asserted margin | ME + HFE + EE | MECH-2; RISK-22 accessibility; **SH2-DRC-05a**, **SH2-DRC-10a** |
 | OI-SHELL2-04 | Add a rigid-flex-into-molded-carrier supplier category to NP-PROC-SUP-001. **Rev B widens the scope:** the board is no longer passive, so the category must cover MCU placement, firmware load, board-level functional test and IEC 62304 Class B software traceability on an assembly laminated into a molded part (§10.2) | Procurement + Quality | L1 sourcing; SW item registration |
 | OI-SHELL2-05 | Confirm §10.1 BOM estimates against quotations. **Also reconcile the per-tile power allocation**: this document's ≤3 W sustained share vs `NP-HW-HEXTILE-001` §9.2's 6.25 W duty-cycled average (25.0 W instantaneous). They answer different questions and are nowhere reconciled; N1 conductor sizing depends on which binds (§5.4) | EE Lead | Costed BOM; N1 conductor sizing |
 | OI-SHELL2-06 | Bus dwell-time budget: worst-case addressed-read sweep of all sockets vs closed-loop adaptation cadence | FW | Session timing |
 | OI-SHELL2-07 | Set the fluxgate self-field budget the N1 bus must stay within (SH2-DRC-17 pass criterion) | EE Lead | EMF-1/EMF-2 sign-off |
 | OI-SHELL2-08 | Reflect cluster-level repair in the service-network tiering | Service | `docs/reference/service-network.md` |
-| OI-SHELL2-09 | **Controlled-document updates this architecture implies but does not make:** NP-HEX-ZM-001 §5.3.1/§5.4a (bus on L1 vs reasons 3–4), NP-HELMET-GEOM-001 §2 (L1 module depth assumes a "20-pin FPC"; tiles now have no tail) and §3.2, and a new FMEA entry for the §4.3 shared-return failure alongside FMEA-G07-01 | Quality | DHF consistency |
+| OI-SHELL2-09 | **Controlled-document updates this architecture implies but does not make:** NP-HEX-ZM-001 §5.3.1/§5.4a (bus on L1 vs reasons 3–4), NP-HELMET-GEOM-001 §2 (L1 module depth assumes a "20-pin FPC"; tiles now have no tail) and §3.2, and a new FMEA entry for the §4.3 shared-return failure alongside FMEA-G07-01. **Rev B adds three, and the first is the most urgent because it is a *tooled* interface:** (i) **`NP-HW-HEXTILE-001` §7.1–7.2 (D-5)** — the 16-position count and its pin-by-pin table are superseded by §5.1.4's 19; the 2.00 mm pitch, spring-on-socket choice, ≥0.8 µm hard-gold plating, ≤50 mΩ / ≥500-cycle specs and §7.3 mating sequence all carry over unchanged, and REQ-SKT-01's two-row array must be reflected there. (ii) `NP-HW-HUB-001` §3.2 (LED-drive rationale, per OI-HUB-C15), §7.4 (12/16 → 18/20 connectors), §7.5.2 (14–15 figures void) and §7.5.3 (passive-carrier model). (iii) `NP-HEX-ZM-001` §5.4a MECH-2 (prices the flower at 12 boards / $76.08; actual 18 / $114.12) | Quality | DHF consistency; **(i) blocks socket tooling** |
 | OI-SHELL2-10 | Decide whether the ADS1299 bank sits at the PAN (assumed) or the Hub PCB; moves an SPI interface across the boss. `NP-HW-HUB-001` §7.4 response 3 **accepts the PAN** as the better placement; the item stays open only for the Rev C schematic to confirm | EE Lead | Hub PCB Rev C |
 | **OI-SHELL2-11** | **NEW — inter-bowl thermal load from 18 active cluster controllers (§10.3).** Rev A's passive carrier dissipated essentially nothing and raised no thermal question. Eighteen boards each carrying an STM32G071, a zero-drift TIA op-amp, three mux banks and an I2C switch dissipate **continuously** (emitters are duty-cycled; this is not) into the inter-bowl gap, which `NP-THERM-CFD-C2-001` §7 characterises as **stagnant air at 0.231 m²K/W — ~59 % of the entire outward resistance path** (total outward ≈ 0.393 vs inward ≈ 0.108 m²K/W). That analysis already concluded the outward path is **~4× more resistive than the inward path to the perfused scalp**, which is why Path A was NO-GO and Path B1 committed. Heat added on the gap-facing side of L1 therefore sits *behind* the dominant outward resistance, and §4.1's claim that gap-facing components are "out of the scalp thermal path" is **not established**. **Two inputs do not exist yet:** a budgeted per-controller dissipation figure, and a CFD case placing the source on the **gap-facing side of L1** rather than at the LED junction plane. **This is the thermal load that moved sides when OI-HUB-C17c resolved against D-4** (§3.3a) — D-4 would have put this silicon on the tile instead, which is the question C17c's *other*, still-open half asks. The two must be assessed as one budget, not separately | Thermal + EE Lead | **THERM-1a CFD** (`NP-THERM-CFD-001` case matrix); interacts with **OI-HUB-C17c**, SR-FAN-01…06, OI-FAN-01a |
 
@@ -1338,5 +1394,5 @@ pass/fail with supporting evidence.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
-| **B** | **2026-08-11** | NeurOne Mechanical + Hardware Engineering | **Five Rev A positions replaced, each stated with what it was and why it changed (banner at head of file).** (1) **Cluster carrier → cluster controller** — adds an STM32G071 UFQFPN32, PCA9548A, 16:1 PD current mux, one shared switched-gain TIA (DG2788A), 8:1 NTC mux + ADC, 24 V power gate (principal direction 2026-08-11; NP-HW-HUB-001 Rev C §3.1/§8.3 prevails). **HUB-001 §3.2's LED-drive justification is explicitly NOT carried forward** — HEXTILE D-3 fitted an on-module driver to every tile type and made it irreversible, and OI-HUB-C15 already directs its removal; the surviving justification is scanning/sequencing the retained TIA + PD mux + NTC mux + ADC (§3.2a). Records that this **effectively resolves OI-HUB-C17c against D-4** — the conservative side of C17c's ADC-drift worry (FAI-SM-06), with C17c's on-tile-dissipation half untouched and still open (§3.3a). (2) **N1 rail 12 V → 24 V** per OI-HUB-C17b / D-6; vault bus current ~2.9 A → **~1.46 A**, I²R quartered, N1 conductor sizing and gate part class re-rated, `VLED+` derating 1.0× → ~2×, §9.3 self-field figures halved; **OI-SHELL2-01 CLOSED**; boost siting noted as OI-HUB-C19 (Hub PCB, provisional). Finds the worst-case **cluster feed is the whole vault budget**, not 1/18 of it. (3) **12 clusters → 18** under CLUSTER-1 + SYM-1 + CONTIG-1, provably minimal; Rev A's `8 branches × ≤2 = 16` I2C tree **cannot reach 18** and is replaced by D-7's 32-segment tree; connector positions **16 → 20**, tails 12 → 18, interface pins 144 → 216 (OI-HEXTILE-14, §8.2.2 option 1 + 3). §7.1a records option 4 — broadcast cranial enable → 11-conductor tail and a multi-drop trunk — as **conditional on OI-HUB-C07, not decided**. (4) **Bezel 1.0 mm** where it binds (principal direction; NP-THERM-BEZEL-001 §4.5 is the only calculated value). (5) **Socket contact budget reconciled against NP-HW-HEXTILE-001 §7.1–7.2 (D-5)**: `SEAT_N` adopted, `SYNC`/`DGND` retained with reasons, 2 reserved dropped, N3 retained → **17**, with `VLED+` redundancy (2/3/4) the one open sub-question and 3+3 recommended; **HUB-001 §7.5.2's 14–15 figures voided** as conditional on D-4. New **OI-SHELL2-11** — inter-bowl thermal load from 18 active boards into NP-THERM-CFD-C2-001 §7's stagnant air (0.231 m²K/W, ~59 % of the outward path). BOM restated $125–216 → **$175–225**. DRC grows 28 → 32 items; 11 open items (1 closed, 4 re-scoped, 1 new). Status remains DRAFT pending REG-1/ACT-1. |
+| **B** | **2026-08-11** | NeurOne Mechanical + Hardware Engineering | **Five Rev A positions replaced, each stated with what it was and why it changed (banner at head of file).** (1) **Cluster carrier → cluster controller** — adds an STM32G071 UFQFPN32, PCA9548A, 16:1 PD current mux, one shared switched-gain TIA (DG2788A), 8:1 NTC mux + ADC, 24 V power gate (principal direction 2026-08-11; NP-HW-HUB-001 Rev C §3.1/§8.3 prevails). **HUB-001 §3.2's LED-drive justification is explicitly NOT carried forward** — HEXTILE D-3 fitted an on-module driver to every tile type and made it irreversible, and OI-HUB-C15 already directs its removal; the surviving justification is scanning/sequencing the retained TIA + PD mux + NTC mux + ADC (§3.2a). Records that this **effectively resolves OI-HUB-C17c against D-4** — the conservative side of C17c's ADC-drift worry (FAI-SM-06), with C17c's on-tile-dissipation half untouched and still open (§3.3a). (2) **N1 rail 12 V → 24 V** per OI-HUB-C17b / D-6; vault bus current ~2.9 A → **~1.46 A**, I²R quartered, N1 conductor sizing and gate part class re-rated, `VLED+` derating 1.0× → ~2×, §9.3 self-field figures halved; **OI-SHELL2-01 CLOSED**; boost siting noted as OI-HUB-C19 (Hub PCB, provisional). Finds the worst-case **cluster feed is the whole vault budget**, not 1/18 of it. (3) **12 clusters → 18** under CLUSTER-1 + SYM-1 + CONTIG-1, provably minimal; Rev A's `8 branches × ≤2 = 16` I2C tree **cannot reach 18** and is replaced by D-7's 32-segment tree; connector positions **16 → 20**, tails 12 → 18, interface pins 144 → 216 (OI-HEXTILE-14, §8.2.2 option 1 + 3). §7.1a records option 4 — broadcast cranial enable → 11-conductor tail and a multi-drop trunk — as **conditional on OI-HUB-C07, not decided**. (4) **Bezel 1.0 mm** where it binds (principal direction; NP-THERM-BEZEL-001 §4.5 is the only calculated value). (5) **Socket contact budget reconciled against NP-HW-HEXTILE-001 §7.1–7.2 (D-5) and CLOSED at 19**: `SEAT_N` adopted from D-5 (a partially-seated tile answering I2C while `PD1_K` sits at elevated resistance produces a silent dose under-read), `SYNC` retained (REQ-EMI-03 needs a deterministic phase reference; OI-HUB-C05 is its consumer), `DGND` retained (REQ-EMI-07 requires `PGND` to be LED return *only* for §9.3's broadside pair to cancel), 2 reserved dropped, N3 retained → 17; then **`VLED+`/`PGND` = 3+3 by principal decision 2026-08-11** under the stated rule *loss of any one contact must still leave ≥2× derating* (2 leaves the survivor at exactly the rating, into the fretting→resistance→heating runaway SH2-DRC-09 bounds; 4 spends eight contacts against RISK-22) → **19**. Rev A's 18, D-5's 16 and **HUB-001 §7.5.2's 14–15 (voided — conditional on D-4 deleting N3)** all superseded. New **REQ-SKT-01**: the array is **two staggered rows** (a 19-contact single row spans 38 mm and is not viable at 2.00 mm pitch on a 40 mm hex) — binding, not advisory. Despite two more contacts the 6-tile plate load (34.2–57.0 N) lands *below* Rev A's 7-tile figure, because the 18-cluster partition caps a plate at 6. **`NP-HW-HEXTILE-001` §7.1–7.2 must be co-revised (OI-SHELL2-09(i) — blocks socket tooling).** New **OI-SHELL2-11** — inter-bowl thermal load from 18 active boards into NP-THERM-CFD-C2-001 §7's stagnant air (0.231 m²K/W, ~59 % of the outward path). BOM restated $125–216 → **$175–225**. DRC grows 28 → 33 items (adds SH2-DRC-02a/02b/05a/10a/10b); 11 open items (1 closed, 5 re-scoped, 1 new). Status remains DRAFT pending REG-1/ACT-1. |
 | A | 2026-07-29 | NeurOne Mechanical + Hardware Engineering | Initial release. Replaces the retired 5-slot FPC routing architecture of NP-DRV-SHELL-001 Rev B with a cluster-carrier interconnect for the ~80-socket hex lattice. Five-network split (N1–N5); cluster as electrical aggregation boundary; two-level I2C tree reaching exactly `NP_HEXMAP_MAX_SOCKETS = 128`; TIA/AFE relocated from Hub PCB to cluster carriers; per-cluster hardware safety enable; Hub PCB Rev C interface contract (12 connectors × 12 pins, 16 positions provisioned); zero dynamic-flex paths; ≥15 mm EEG separation shown unachievable and replaced by four mechanisms retaining the <5 µVpp threshold; 28-item design review checklist; 10 open items. Status DRAFT pending REG-1/ACT-1. |
