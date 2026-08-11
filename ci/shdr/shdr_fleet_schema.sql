@@ -151,6 +151,20 @@
 --   This removes a per-row docking-time correlator keyed to warranty_token and
 --   brings the schema into line with the §5.1 "no timestamps in SHDR" rule.
 --
+-- VERIFICATION. Two gates cover this file, and they answer different questions:
+--   * ci/test_shdr_schema.py — STATIC. Reads the DDL as text and enforces the
+--     privacy invariants (no PII, no wall clock, no dose columns, correct
+--     socket/UID declarations). It cannot tell whether this file is valid SQL,
+--     nor whether a CHECK actually fires — a constraint with a typo'd predicate
+--     parses fine and passes every name-and-type check while silently admitting
+--     the rows it was written to block.
+--   * ci/run_shdr_constraint_tests.sh — LIVE. Executes this schema against a
+--     real PostgreSQL and then runs ci/shdr/shdr_schema_constraint_tests.sql,
+--     which proves each constraint rejects what it exists to reject (28
+--     reject-cases) and still accepts the valid form (20 accept-cases, so a
+--     uniformly hostile constraint cannot pass by refusing everything).
+--   Both are wired into .github/workflows/shdr-schema-ci.yml.
+--
 -- PRIVACY RULES enforced by CI test (ci/test_shdr_schema.py, OI-EMMC2-07):
 --   1. No raw accelerometer columns (g-force, orientation, drop_count, timestamps)
 --   2. No personal-data columns (name, email, address, phone, postal)

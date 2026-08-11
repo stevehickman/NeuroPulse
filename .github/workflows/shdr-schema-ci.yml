@@ -9,13 +9,19 @@ on:
   push:
     paths:
       - 'ci/shdr/shdr_fleet_schema.sql'
+      - 'ci/shdr/shdr_schema_constraint_tests.sql'
       - 'ci/test_shdr_schema.py'
       - 'ci/test_shdr_schema_selftest.py'
+      - 'ci/run_shdr_constraint_tests.sh'
+      - '.github/workflows/shdr-schema-ci.yml'
   pull_request:
     paths:
       - 'ci/shdr/shdr_fleet_schema.sql'
+      - 'ci/shdr/shdr_schema_constraint_tests.sql'
       - 'ci/test_shdr_schema.py'
       - 'ci/test_shdr_schema_selftest.py'
+      - 'ci/run_shdr_constraint_tests.sh'
+      - '.github/workflows/shdr-schema-ci.yml'
   workflow_dispatch:
 
 # Least privilege. This gate only checks out the repo and runs the schema tests;
@@ -31,6 +37,26 @@ jobs:
     name: SHDR Schema Privacy Gate
     runs-on: ubuntu-latest
 
+    # A real PostgreSQL for the live constraint tests. A service container is
+    # used rather than the runner's own packages because initdb/pg_ctl are not
+    # on PATH on ubuntu-latest (they live under /usr/lib/postgresql/<v>/bin),
+    # so the harness's throwaway-cluster path would not start. It falls back to
+    # DATABASE_URL, which is what this provides.
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: np
+          POSTGRES_PASSWORD: np
+          POSTGRES_DB: shdr_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U np -d shdr_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -45,6 +71,19 @@ jobs:
 
       - name: Self-test the accelerometer assertion (test-of-the-test)
         run: python3 ci/test_shdr_schema_selftest.py
+
+      # The Python gate above is a static analyser over the DDL text. It cannot
+      # tell whether the file is valid SQL, nor whether a CHECK actually fires:
+      # a constraint with a typo'd predicate parses fine and passes every
+      # name-and-type check while silently admitting the rows it was written to
+      # block. The step below makes PostgreSQL itself the judge — it loads the
+      # schema for real and then proves each constraint rejects what it exists
+      # to reject (28 reject-cases, 20 accept-cases so a uniformly hostile
+      # constraint cannot pass by refusing everything).
+      - name: Execute schema + live constraint tests (real PostgreSQL)
+        env:
+          DATABASE_URL: postgres://np:np@127.0.0.1:5432/shdr_test
+        run: ci/run_shdr_constraint_tests.sh
 
       - name: Upload test output on failure
         if: failure()
