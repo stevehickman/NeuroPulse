@@ -205,6 +205,12 @@ if(NP_BUILD_TESTS)
         COMMAND np_cardiac_interlock_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # Seventh Class C target — SW-01 platform layer (NP-SW-CI-001 phase 7,
+    # OI-SWCI-17).  Moves the Class C count 6 → 7 and the repo total 27 → 28.
+    add_test(NAME np_hal_platform_tests
+        COMMAND np_hal_platform_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_cvns_reenable_tests
         COMMAND np_cvns_reenable_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

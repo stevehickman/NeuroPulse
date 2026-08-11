@@ -95,16 +95,65 @@ SECTIONS
 
     /* ── Fault latch (top 64 bytes, warm-reset-persistent) ──────────────── */
     /* Pinned to _fault_latch_start so it is not placed after .bss by default.
-     * Without the explicit address assignment the linker would place it
-     * immediately after .bss (mid-SRAM), not at the protected top-64-byte
-     * region.  The NOLOAD attribute means startup code does NOT zero this
-     * section on warm reset — fault data survives until power-on reset. */
-    .fault_latch (NOLOAD) :
+     * Without the explicit address the linker would place it immediately after
+     * .bss (mid-SRAM), not at the protected top-64-byte region.  The NOLOAD
+     * attribute means startup code does NOT zero this section on warm reset —
+     * fault data survives until power-on reset.
+     *
+     * ── PHASE 7: THE ADDRESS MOVED TO THE OUTPUT-SECTION LINE ─────────────
+     * This section previously pinned itself with `. = _fault_latch_start;`
+     * INSIDE the braces.  That form does not link.  Assigning the location
+     * counter an absolute address inside an output section that also has a
+     * `>SRAM` region makes ld compute the section's SIZE from the location
+     * counter delta, so a 64-byte region read as ~0x20000008 bytes:
+     *
+     *   ld: section `.fault_latch' will not fit in region `SRAM'
+     *   ld: region `SRAM' overflowed by 536870984 bytes
+     *
+     * This was never observed because nothing had ever linked: Defect E
+     * (NP-SW-CI-001 §4.4) stopped the image at 24 undefined np_hal_* symbols,
+     * upstream of the linker script.  Supplying the platform layer exposed a
+     * SECOND, independent link blocker sitting behind the first — the image
+     * would not have linked even with all 25 symbols defined.
+     *
+     * The fix is the idiomatic form: the address goes on the output-section
+     * line, where it sets the section's VMA without touching the size
+     * calculation.  PLACEMENT AND SEMANTICS ARE UNCHANGED — same address, same
+     * NOLOAD, same KEEP, same region.  Verified by `nm` on the linked image:
+     * s_latch lands at 0x20008FC0 = ORIGIN(SRAM) + LENGTH(SRAM) - 64.        */
+    .fault_latch _fault_latch_start (NOLOAD) :
     {
-        . = _fault_latch_start;  /* pin to top 64 bytes of SRAM */
         . = ALIGN(4);
         KEEP(*(.fault_latch))
     } >SRAM
+
+    /* ── Fault-latch placement assertion ────────────────────────────────── */
+    /* The bug fixed above was LATENT for as long as it existed because nothing
+     * asserted where this section lands — it took supplying the platform layer,
+     * a year later, for anything to reach the linker script at all.  Fixing the
+     * placement without asserting it just resets that clock: the next edit to
+     * this file can move the latch off the warm-reset-persistent window and
+     * nothing will say so.  SW01-M08 reads this region across a warm reset to
+     * detect prior fault state, so a silently relocated latch means prior
+     * faults stop surviving reset — a Class C behaviour change that no host
+     * test can see, because the property lives in the image layout and not in
+     * any function's return value.
+     *
+     * ADDR() is the placed address of the output section, so this compares the
+     * outcome against the intent rather than restating the intent. */
+    ASSERT(ADDR(.fault_latch) == _fault_latch_start,
+           ".fault_latch is not at the top-64-byte warm-reset-persistent window")
+
+    /* ── Stack headroom assertion ───────────────────────────────────────── */
+    /* The MEMORY block catches a section that overflows SRAM outright, but it
+     * cannot catch .data + .bss growing INTO the descending stack — both fit
+     * the region right up until the moment the stack corrupts .bss at runtime.
+     * On a Class C part with 36 KB and a Monocypher SHA-512 context on the
+     * stack, that margin is worth asserting at link time rather than
+     * discovering as a hard fault.  Fails the link, which fails the CI job. */
+    _stack_min_size = 4K;
+    ASSERT(_ebss <= (_estack - _stack_min_size),
+           "SRAM exhausted: .data + .bss leave less than 4K for the stack")
 
     /* ── Discard ────────────────────────────────────────────────────────── */
     /DISCARD/ :
