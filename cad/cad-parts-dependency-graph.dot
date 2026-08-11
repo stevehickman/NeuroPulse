@@ -2,10 +2,13 @@
  * NeurOne — Mechanical CAD Parts Dependency Graph
  * Companion to: cad/CAD_PARTS_LIST.md
  * Source basis: CLAUDE.md §1-6, docs/np_helmet_geom_001.md, docs/np_hex_zm_001.md,
- *               docs/np_therm_bezel_001.md, docs/reference/durability-maintenance.md,
+ *               docs/np_hw_hextile_001.md, docs/np_drv_shell_002.md, docs/np_hw_hub_001.md (Rev C),
+ *               docs/np_therm_bezel_001.md, docs/np_hfe_002.md,
+ *               docs/reference/durability-maintenance.md,
  *               docs/np_tool_hub_001.md, docs/neurone_tool_shell_001.docx,
- *               docs/neurone_tool_lens_001.docx, docs/reference/accessories-roadmap.md
- * Date: 2026-07-29
+ *               docs/neurone_tool_lens_001.docx, docs/np_pwr_budget_001.md,
+ *               docs/reference/accessories-roadmap.md
+ * Date: 2026-08-10 (rev 2 — re-baselined against origin/main @ e1f8a51)
  *
  * READING THE GRAPH
  *   Edge A -> B means "B's CAD geometry/tooling depends on A" (A must be defined,
@@ -19,9 +22,13 @@
  *             box               = single manufactured part / molded feature
  *   BORDER  = solid black  -> part is on the current locked/committed architecture
  *             dashed red   -> [PROVISIONAL] parent document is a design study, gated
- *             dotted orange-> [ARCH-TRANSITION] concept reusable, dimensions NOT
- *                              yet re-validated at the current (hex-tile) form factor
+ *             dashed grey  -> [RETIRED] architecture deleted; kept as a tombstone so
+ *                              older drawings resolve to an explicit retirement
  *   FILL    = light color per subassembly cluster (see cluster labels)
+ *
+ * NOTE (rev 2): the [ARCH-TRANSITION] border class is retired. Both parts that carried
+ *   it are resolved — RIGIDIZER-BOARD favourably (22x14mm fits the 40mm hex with 7mm
+ *   margin; cavity is now a standard mould feature), ZONE-PLUG-ANCHOR by supersession.
  *
  * Render: dot -Tsvg cad-parts-dependency-graph.dot -o cad-parts-dependency-graph.svg
  *         dot -Tpng cad-parts-dependency-graph.dot -o cad-parts-dependency-graph.png
@@ -31,7 +38,7 @@ digraph NeurOneCADParts {
   rankdir="LR";
   graph [fontname="Helvetica", fontsize=20, labelloc=t, labeljust=l, splines=spline,
          nodesep=0.35, ranksep=0.9, bgcolor="white", compound=true,
-         label="NeurOne — Mechanical CAD Parts Dependency Graph (2026-07-29)\nA -> B: \"B depends on A\"  |  dashed red border = PROVISIONAL  |  dotted orange border = ARCH-TRANSITION (dimensions not yet re-validated)"];
+         label="NeurOne — Mechanical CAD Parts Dependency Graph (2026-08-10, rev 2)\nA -> B: \"B depends on A\"  |  dashed red border = PROVISIONAL  |  dashed grey border = RETIRED (tombstone)"];
   node  [fontname="Helvetica", fontsize=10, style="filled", margin="0.15,0.10"];
   edge  [fontname="Helvetica", fontsize=8, color="#555555", arrowsize=0.8];
 
@@ -55,17 +62,24 @@ digraph NeurOneCADParts {
     BLANK_PLUG    [shape=box, fillcolor="#cfe2f3", label="BLANK-PLUG\nBlanking plug"];
     SOCKET_GASKET [shape=box, fillcolor="#cfe2f3", label="SOCKET-GASKET\nPer-socket LSR gasket land"];
     ELEC_HYDRO_CAP[shape=box, fillcolor="#cfe2f3", label="ELEC-HYDRO-CAP\nElectrode hydration cap\n(tethered)"];
-    BEZEL         [shape=box, fillcolor="#cfe2f3", label="BEZEL\nSacrificial bezel land\n(optical modules, 1.0mm)"];
-    CLUSTER_CLAMP [shape=box, fillcolor="#cfe2f3", label="CLUSTER-CLAMP (x4-10)\nModule cluster clamp\n(lever+plate+plungers)"];
+    BEZEL         [shape=box, fillcolor="#cfe2f3", color="#c0392b", penwidth=2, style="filled,dashed",
+      label="BEZEL\nSacrificial bezel land\n(optical modules)\nheight CONTESTED 1.0 vs 2.5mm\n[OI-HEXTILE-01]"];
+    CLUSTER_CLAMP [shape=box, fillcolor="#cfe2f3", label="CLUSTER-CLAMP (x18)\nModule cluster clamp\n(lever+plate+plungers)\nCLUSTER-1 / SYM-1 / CONTIG-1"];
+    SOCKET_CONTACT[shape=component, fillcolor="#cfe2f3", color="#c0392b", penwidth=2, style="filled,dashed",
+      label="SOCKET-CONTACT (x~80)\nSpring-contact (pogo) array\n2.00mm pitch, springs on socket\ncount UNRESOLVED 18/16/14-15\n[OI-HUB-C17]"];
     RIM_LATCH     [shape=box, fillcolor="#cfe2f3", label="RIM-LATCH (x4: AL/AR/PL/PR)\nRim layer-latch\n+ Hall sensor + BeCu fingers"];
     RIM_LABYRINTH [shape=box, fillcolor="#cfe2f3", label="RIM-LABYRINTH\nLabyrinth lip +\nconductive elastomer bead"];
-    BLIND_MATE_BOSS[shape=box, fillcolor="#cfe2f3", label="BLIND-MATE-BOSS\nPosterior-center\nsensor/coil connector"];
+    BLIND_MATE_BOSS[shape=box, fillcolor="#cfe2f3", color="#c0392b", penwidth=2, style="filled,dashed",
+      label="BLIND-MATE-BOSS\nPosterior-center connector\nnow ALSO the module interconnect\ncrossing: 4 segregated contact\ngroups, independent returns\n[TIME-BOXED before MECH-1\nOI-SHELL2-02]"];
     FLUXGATE_MOUNT[shape=box, fillcolor="#cfe2f3", label="FLUXGATE-MOUNT\nFluxgate magnetometer\nmount (3-axis)"];
     HELMHOLTZ_FORMER[shape=box, fillcolor="#cfe2f3", label="HELMHOLTZ-FORMER\nHelmholtz coil former\n(3-axis pairs)"];
     TMS_WINDOW    [shape=box, fillcolor="#cfe2f3", label="TMS-WINDOW\nNon-conductive CFRP\nTMS window (T2)"];
-    EEG_ROUTE_CHANNEL[shape=box, fillcolor="#cfe2f3", label="EEG-ROUTE-CHANNEL\nEEG cable routing\nchannel (8x5mm)"];
-    ZONE_PLUG_ANCHOR[shape=box, fillcolor="#cfe2f3", color="#e67e22", penwidth=2, style="filled,dotted",
-      label="ZONE-PLUG-ANCHOR (x5 legacy)\nZone-slot plug anchor post\n[ARCH-TRANSITION]"];
+    EEG_ROUTE_CHANNEL[shape=box, fillcolor="#e8e8e8", color="#888888", penwidth=2, style="filled,dashed",
+      fontcolor="#666666",
+      label="EEG-ROUTE-CHANNEL\n[RETIRED - NP-DRV-SHELL-002]\nREQ-ST-01..07 deleted from\nshell tooling; >=15mm separation\nunachievable, <5uVpp retained"];
+    ZONE_PLUG_ANCHOR[shape=box, fillcolor="#e8e8e8", color="#888888", penwidth=2, style="filled,dashed",
+      fontcolor="#666666",
+      label="ZONE-PLUG-ANCHOR\n[RETIRED - superseded by\nBLANK-PLUG / ELEC-HYDRO-CAP;\nNP-HFE-002 retired the\ncolour/tactile keying layer]"];
     PORT_COVER_ANCHOR_SHELL[shape=box, fillcolor="#cfe2f3", label="PORT-COVER-ANCHOR\nAccessory port cover\nanchor post (x3)"];
     TEMPORAL_WING_BOSS[shape=box, fillcolor="#cfe2f3", color="#c0392b", penwidth=2, style="filled,dashed",
       label="TEMPORAL-WING-BOSS (x2)\nMastoid pad anchor boss\n[PROVISIONAL]"];
@@ -92,15 +106,34 @@ digraph NeurOneCADParts {
 
     TILE_SHELL    [shape=box3d, fillcolor="#fff2cc", color="#c0392b", penwidth=2, style="filled,dashed",
       label="TILE-SHELL\nUniversal hex-tile mould\n[PROVISIONAL - GATE-1/2]"];
-    TILE_T1A      [shape=box, fillcolor="#fff2cc", label="TILE-T1A\nBase PBM population"];
-    TILE_T1B      [shape=box, fillcolor="#fff2cc", label="TILE-T1B\nEEG/electrode population"];
-    TILE_T1C      [shape=box, fillcolor="#fff2cc", label="TILE-T1C\nSmart 1064nm population"];
-    TILE_T2D      [shape=box, fillcolor="#fff2cc", label="TILE-T2D\n1170nm deep-PBM laser"];
-    RIGIDIZER_BOARD[shape=component, fillcolor="#fff2cc", color="#e67e22", penwidth=2, style="filled,dotted",
-      label="RIGIDIZER-BOARD\nOn-module driver sub-board\n[ARCH-TRANSITION - not\nrevalidated at 40mm]"];
+    TILE_T1A      [shape=box, fillcolor="#fff2cc", label="TILE-T1A\nBase PBM population\n(45+45 of 91-site lattice)"];
+    TILE_T1B      [shape=box, fillcolor="#fff2cc", color="#c0392b", penwidth=2, style="filled,dashed",
+      label="TILE-T1B\nEEG/electrode population\nmasking derivation; ring count\nawaits pod dia. [OI-HEXTILE-05]"];
+    TILE_T1C      [shape=box, fillcolor="#fff2cc", label="TILE-T1C\nSmart 1064nm population\n(30+30+30)"];
+    TILE_T2D      [shape=box, fillcolor="#fff2cc", label="TILE-T2D\n1170nm deep-PBM laser\n(no successor elec. spec yet)"];
+    RIGIDIZER_BOARD[shape=component, fillcolor="#fff2cc",
+      label="RIGIDIZER-BOARD\nOn-module driver sub-board\n22x14mm - FITS (13.0 half-diag\nvs 20.0 inradius); cavity is now\na STANDARD mould feature,\nfitted to EVERY tile type"];
     PDMS_WINDOW_TILE[shape=box, fillcolor="#fff2cc", label="PDMS-WINDOW (tile)\nOptical window +\nSiO2 interlayer"];
     AG_AGCL_CONTACT[shape=box, fillcolor="#fff2cc", label="AG-AGCL-CONTACT\nSintered Ag/AgCl\ndual-rated electrode"];
-    PD_PAIR_TILE  [shape=box, fillcolor="#fff2cc", label="PD-PAIR (tile)\nPD1/PD2 photodiode pair"];
+    PD_PAIR_TILE  [shape=box, fillcolor="#fff2cc", label="PD-PAIR (tile)\nPD1 at reserved centre site 0,\nPD2 co-located in XY on the\nscalp-facing layer.\nInGaAs on ALL types (one SKU)"];
+  }
+
+  /* ============================================================ */
+  /* CLUSTER K: L1 SOCKET INTERCONNECT (NEW rev 2)                 */
+  /* ============================================================ */
+  subgraph cluster_interconnect {
+    label="K. L1 Socket Interconnect (NP-DRV-SHELL-002 / NP-HW-HUB-001 Rev C) — NEW"; style="rounded"; color="#444444"; fontsize=12;
+
+    CLUSTER_CARRIER[shape=box3d, fillcolor="#e6d5f5", color="#c0392b", penwidth=2, style="filled,dashed",
+      label="CLUSTER-CARRIER (x18)\nRigid-flex board laminated\ninto L1; every socket <=50mm\nfrom its own carrier.\nLocal MCU? UNRESOLVED\n[OI-HUB-C15 / C17]"];
+    CLUSTER_TAIL  [shape=box, fillcolor="#e6d5f5", color="#c0392b", penwidth=2, style="filled,dashed",
+      label="CLUSTER-TAIL (x18)\nStatic-only flex, formed once.\n>=12.5mm static bend radius;\nno bend within 5mm of a\ntransition, under a clamp plate,\nor under a socket"];
+    PAN           [shape=box3d, fillcolor="#e6d5f5", color="#c0392b", penwidth=2, style="filled,dashed",
+      label="PAN\nPosterior aggregation node\n(occiput centreline, on L1).\nADS1299 bank here or on the\nHub PCB? [OI-SHELL2-10]"];
+    N1_BUS_PAIR   [shape=box, fillcolor="#e6d5f5", color="#c0392b", penwidth=2, style="filled,dashed",
+      label="N1-BUS-PAIR\nVLED/PGND broadside pair,\ndielectric <=0.2mm, loop area\n<=25mm^2 per cluster feed.\nTREE from PAN, never a ring.\nNO return via shell/shield/DRL"];
+    N4_GUARD_LANE [shape=box, fillcolor="#e6d5f5", color="#c0392b", penwidth=2, style="filled,dashed",
+      label="N4-GUARD-LANE (8 T1 / ~21 T2)\nElectrode lanes under a DRL\nguard on L1's scalp-facing face.\nSized by channel count,\nnot socket count"];
   }
 
   /* ============================================================ */
@@ -177,7 +210,8 @@ digraph NeurOneCADParts {
   subgraph cluster_t2 {
     label="I. T2-Only Accessories (non-tile)"; style="rounded"; color="#444444"; fontsize=12;
 
-    TMS_COIL_HOUSING[shape=box, fillcolor="#d9d2e9", label="TMS-COIL-HOUSING\nFocal figure-8 coil housing"];
+    TMS_COIL_HOUSING[shape=box, fillcolor="#d9d2e9", color="#c0392b", penwidth=2, style="filled,dashed",
+      label="TMS-COIL-HOUSING\nFocal figure-8 coil housing\nCANNOT BE SIZED: TMS has NO\nelectrical spec anywhere; est.\n~15-400W, never in T2-peak\n[OI-PWR-04]"];
     CVNS_NECKBAND [shape=box3d, fillcolor="#d9d2e9", label="CVNS-NECKBAND\nCervical VNS neckband"];
     CVNS_GEL_ELECTRODE_HOUSING[shape=box, fillcolor="#d9d2e9", label="CVNS-GEL-ELECTRODE-HOUSING (x2)\nGel electrode housing"];
     QEEG21_CAP_ELECTRODE[shape=box, fillcolor="#d9d2e9", label="QEEG21-CAP-ELECTRODE (x21)\nWet-gel cap electrode housing"];
@@ -206,6 +240,9 @@ digraph NeurOneCADParts {
 
   SHELL_INNER -> SOCKET_BODY [label="~80-socket lattice is a molded feature array of the inner bowl"];
   SOCKET_BODY -> TILE_SHELL [label="module footprint must mate socket cutout (40mm hex, orientation key)"];
+  SOCKET_BODY -> SOCKET_CONTACT [label="spring-contact array seats in the socket floor; pad pattern asymmetric so a mis-key fails OPEN, not wrong"];
+  SOCKET_CONTACT -> TILE_SHELL [label="tile presents a flat gold PAD ARRAY on its back face - no FPC tail, no dynamic flex anywhere in the module interconnect"];
+  SOCKET_CONTACT -> CLUSTER_CLAMP [label="contact count x0.3-0.5N sets clamp-plate load (18/16/14 contacts = 63/56/49N per 7-tile plate) against RISK-22 one-handed force (OI-SHELL2-03)"];
   SOCKET_BODY -> BLANK_PLUG [label="blanking plug shares the identical hex footprint as a live module"];
   SOCKET_BODY -> SOCKET_GASKET [label="gasket land is co-molded to the socket rim"];
   SOCKET_BODY -> BEZEL [label="bezel land is molded at the socket rim, proud of optical module faces only"];
@@ -221,8 +258,9 @@ digraph NeurOneCADParts {
   TILE_T1B -> AG_AGCL_CONTACT [label="electrode tile carries the dual-rated Ag/AgCl contact in place of a full LED window"];
   TILE_T1A -> PD_PAIR_TILE [label="dose metering requires PD1/PD2 pair behind the window"];
   TILE_T1C -> PD_PAIR_TILE [label="dose metering requires PD1/PD2 pair (InGaAs variant) behind the window"];
-  TILE_T1C -> RIGIDIZER_BOARD [label="on-module driver cavity must fit the rigidizer sub-board envelope"];
-  TILE_T1B -> ELECTRODE_POD [label="electrode tile's Ag/AgCl contact is carried on the spring-decoupled pod"];
+  TILE_SHELL -> RIGIDIZER_BOARD [label="rigidizer cavity is a STANDARD feature of the universal mould - every tile type carries a driver (D-3), so there is no smart-module mould variant"];
+  TILE_T1B -> PD_PAIR_TILE [label="electrode tile still meters its own reduced PBM population"];
+  ELECTRODE_POD -> TILE_T1B [label="REVERSED rev 2: the pod BODY DIAMETER (unspecified anywhere, OI-HEXTILE-05) decides how many emitter rings T1-B depopulates - 0-1/0-2/0-3 opens 7.6/15.2/22.8mm clear"];
   TILE_T1B -> QEEG21_CAP_ELECTRODE [label="qEEG-21 electrode reuses T1-B's dual-rated Ag/AgCl mechanical family at higher density"];
 
   SHELL_INNER -> CLUSTER_CLAMP [label="clamp actuator mounts on the inner bowl's outer (gap-facing) face, one per 7-hex flower"];
@@ -237,9 +275,9 @@ digraph NeurOneCADParts {
   HELMHOLTZ_FORMER -> BLIND_MATE_BOSS [label="Helmholtz coil harness crosses the parting plane via the blind-mate boss"];
   SHELL_OUTER -> TMS_WINDOW [label="TMS window is a local non-conductive break in the outer bowl's CFRP layer"];
   TMS_WINDOW -> TMS_COIL_HOUSING [label="coil housing mates directly over the non-conductive window to avoid eddy-current field loss"];
-  SHELL_OUTER -> EEG_ROUTE_CHANNEL [label="EEG channel is molded into the outer-CFRP inner surface, opposite the zone-module FPC bundle"];
-  EEG_ROUTE_CHANNEL -> ELECTRODE_POD [label="channel feed-throughs terminate at each electrode pod seating recess"];
-  SHELL_OUTER -> ZONE_PLUG_ANCHOR [label="legacy anchor post is a molded feature of the outer shell surface"];
+  SHELL_OUTER -> EEG_ROUTE_CHANNEL [style=dotted, color="#aaaaaa", fontcolor="#888888", label="RETIRED: there is no zone-module FPC bundle to route opposite, and no separate EEG harness"];
+  EEG_ROUTE_CHANNEL -> N4_GUARD_LANE [style=dashed, color="#888888", fontcolor="#666666", label="SUCCESSOR: the <5uVpp threshold survives (SH2-DRC-16); it is now met by guarding + short analog paths + deterministic artifact, not by >=15mm of geometry"];
+  SHELL_OUTER -> ZONE_PLUG_ANCHOR [style=dotted, color="#aaaaaa", fontcolor="#888888", label="RETIRED: 5-zone colour-coded tether scheme superseded"];
   SHELL_OUTER -> PORT_COVER_ANCHOR_SHELL [label="anchor post is molded adjacent to each hub port opening on the shell/hub boundary"];
   PORT_COVER_ANCHOR_SHELL -> PORT_COVER_HUB [label="tether anchor retains the port cover when detached"];
   TEMPORAL_WING -> TEMPORAL_WING_BOSS [label="anchor boss is an integral molded feature of the temporal wing body"];
@@ -286,5 +324,22 @@ digraph NeurOneCADParts {
   CVNS_NECKBAND -> CVNS_GEL_ELECTRODE_HOUSING [label="gel electrode housings mount bilaterally on the neckband body"];
 
   TILE_SHELL -> CASE_CLAMSHELL [label="case's internal cavity profile is fitted to the assembled headset + module envelope"];
+
+  /* ---- K: L1 socket interconnect (new rev 2) ---- */
+  SHELL_INNER -> CLUSTER_CARRIER [label="carriers are LAMINATED INTO L1 - the inner bowl stops being a molded part and becomes an electro-mechanical assembly (new supplier CAT, OI-SHELL2-04)"];
+  CLUSTER_CARRIER -> SOCKET_CONTACT [label="carrier hosts its cluster's contact arrays; every socket must sit <=50mm from its own carrier (SH2-DRC-03) - the whole reason the analog front end moved here"];
+  CLUSTER_CLAMP -> CLUSTER_CARRIER [label="MUST STAY SEPARATE PARTS on opposite faces of the same cluster footprint: if the carrier were the plate, every module swap would cycle a whole cluster's electrical connection"];
+  CLUSTER_CARRIER -> CLUSTER_TAIL [label="one tail per carrier, formed once at assembly"];
+  CLUSTER_CLAMP -> CLUSTER_TAIL [label="no formed bend may fall under a clamp-plate footprint or under a socket, so clamp load never bears on a bend (REQ-BR2-05)"];
+  CLUSTER_TAIL -> PAN [label="all 18 tails converge at the occiput centreline"];
+  PAN -> BLIND_MATE_BOSS [label="PAN is co-sited with the boss; the module interconnect SHARES the existing aperture rather than opening a second RF slot"];
+  CLUSTER_CARRIER -> N1_BUS_PAIR [label="cluster power gate feeds the broadside supply pair"];
+  CLUSTER_CARRIER -> N4_GUARD_LANE [label="per-cluster analog mux drops the montage onto the shared guarded lanes"];
+  N4_GUARD_LANE -> AG_AGCL_CONTACT [label="the one contact pair on which <=50mohm and fretting are genuinely binding - it sits in the uV EEG path (OI-HEXTILE-11)"];
+  N1_BUS_PAIR -> FLUXGATE_MOUNT [label="the LED bus is an ELF dB/dt source on the fluxgates' own layer: cancellation calibration becomes configuration-dependent and must re-run on module-map rebuild (REQ-EMI-11)"];
+  N1_BUS_PAIR -> HELMHOLTZ_FORMER [label="feed-forward self-field subtraction must bind to MEASURED PD/dose telemetry, not commanded current (REQ-EMI-05)"];
+  HEATSINK_ASSY -> RIGIDIZER_BOARD [label="whether the TIA+ADC stay on-module (D-4) is deferred pending the module heat-sink / helmet-cooling design - 42C face / 62C junction, plus ADC drift vs the +/-15% dose claim (OI-HUB-C17c)"];
+  HEATSINK_ASSY -> SOCKET_CONTACT [label="and the socket contact count is blocked behind that same decision"];
+  BLANK_PLUG -> CASE_CLAMSHELL [label="partial-population option (~6 concurrent tiles, ~$920 to fill 80 sockets) may put 50-60 plugs in a build - OI-HEXTILE-06 sizes both the plug tool and the packaging"];
 
 }
