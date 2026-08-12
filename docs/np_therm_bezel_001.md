@@ -1,4 +1,4 @@
-# NP-THERM-BEZEL-001 Rev A — THERM-1 / BEZEL-1 Coupling Analysis
+# NP-THERM-BEZEL-001 — THERM-1 / BEZEL-1 Coupling Analysis
 
 **Program:** NeurOne chassis / mechanical stack
 **Status:** ANALYSIS — first-order coupled thermal/optical model, not a measurement.

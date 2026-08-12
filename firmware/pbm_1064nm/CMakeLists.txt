@@ -1,6 +1,6 @@
 # NeurOne 1064nm Smart Zone Module — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
-# Document: NP-FW-PBM1064-001 Rev A
+# Document: NP-FW-PBM1064-001 Rev 1
 #
 # Compiled as a static library linked into the main application.
 # Does NOT produce a standalone binary — link np_pbm_1064nm into the

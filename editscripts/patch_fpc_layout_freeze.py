@@ -2,7 +2,7 @@
 Issue #10 — FPC layout freeze + PD2 aperture position for mould spec.
 
 Changes:
-  NP-HW-FPC-001  Rev D — pin 19 notes locked, §8.4 XY position specified,
+  NP-HW-FPC-001  Rev 4 — pin 19 notes locked, §8.4 XY position specified,
                           doc status changed to LAYOUT FROZEN
   NP-TOOL-ZM-001        — F-04 updated with XY coords, critical dims added,
                           OI-3 closed
@@ -87,7 +87,7 @@ def append_row(table, cells_text, widths_inches, bg=None, bold_col0=True):
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. NP-HW-FPC-001 — pin 19 + §8.4 position + doc freeze (Rev D)
 # ══════════════════════════════════════════════════════════════════════════════
-FPC_PATH = "docs/neurone_fpc_zone_module_spec_revA.docx"
+FPC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 fpc = Document(FPC_PATH)
 
 # 1a. Update pin 19 Notes cell (Table 7, row where col 0 = '19')
@@ -167,7 +167,7 @@ for para in fpc.paragraphs:
         for run in para.runs:
             run.text = ""
         para.runs[0].text = "Revision:  D (Layout Frozen — Released for Mould Specification)"
-        print("  Revision header updated to Rev D")
+        print("  Revision header updated to Rev 4")
         break
 
 for para in fpc.paragraphs:
@@ -190,7 +190,7 @@ for para in fpc.paragraphs:
         print("  Date updated to 2026-05-09")
         break
 
-# 1d. Add Rev D entry to revision history table (Table 17)
+# 1d. Add Rev 4 entry to revision history table (Table 17)
 rev_tbl = fpc.tables[17]
 rev_d = (
     "D",
@@ -205,7 +205,7 @@ rev_d = (
 )
 rev_widths = [0.4, 0.8, 1.6, 3.7]
 append_row(rev_tbl, rev_d, rev_widths)
-print("  Rev D entry added to revision history")
+print("  Rev 4 entry added to revision history")
 
 fpc.save(FPC_PATH)
 print(f"  NP-HW-FPC-001 saved (Rev D, LAYOUT FROZEN)")
@@ -214,7 +214,7 @@ print(f"  NP-HW-FPC-001 saved (Rev D, LAYOUT FROZEN)")
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. NP-TOOL-ZM-001 — F-04 XY coords, critical dims, close OI-3
 # ══════════════════════════════════════════════════════════════════════════════
-TOOL_PATH = "docs/neurone_tool_zone_module_001.docx"
+TOOL_PATH = "docs/superseded/np_tool_zm_001.docx"
 tool = Document(TOOL_PATH)
 
 # 2a. Update F-04 description (Table 1)
@@ -230,7 +230,7 @@ for row in features_tbl.rows:
             "Aperture wall: angled 15° inward (funnel entry) to maximise backscattered "
             "light collection from scalp tissue. Aperture must be free of flash and "
             "burr (Ra ≤ 1.6 µm interior surface). "
-            "POSITION LOCKED — NP-HW-FPC-001 Rev D §8.4 — 2026-05-09.",
+            "POSITION LOCKED — NP-HW-FPC-001 Rev 4 §8.4 — 2026-05-09.",
             size=8)
         set_text(row.cells[4], "☐", size=8)
         print("  F-04 description updated with locked XY position")
@@ -322,9 +322,9 @@ oi_tbl = tool.tables[6]
 for row in oi_tbl.rows:
     if row.cells[0].text.strip() == "OI-3":
         set_text(row.cells[4],
-            "CLOSED — NP-HW-FPC-001 Rev D frozen 2026-05-09. "
+            "CLOSED — NP-HW-FPC-001 Rev 4 frozen 2026-05-09. "
             "PD2 at X = 33.0 mm, Y = 39.0 mm from module reference corner. "
-            "See NP-HW-FPC-001 Rev D §8.4 and pin 19 notes. "
+            "See NP-HW-FPC-001 Rev 4 §8.4 and pin 19 notes. "
             "F-04 position handed to mould designer.",
             bold=True, color=(0x00, 0x70, 0x00), size=8)
         set_bg(row.cells[4], "E2EFDA")
@@ -343,7 +343,7 @@ for row in mdr_tbl.rows:
             set_text(cells[3],
                 "F-04 aperture centre: X = 33.0 ± 0.2 mm, Y = 39.0 ± 0.2 mm "
                 "from module reference corner. Confirm in mould drawing. "
-                "Position locked per NP-HW-FPC-001 Rev D §8.4 (2026-05-09).",
+                "Position locked per NP-HW-FPC-001 Rev 4 §8.4 (2026-05-09).",
                 size=8)
         print("  MDR checklist item 4 (F-04) notes updated")
         break
@@ -355,7 +355,7 @@ print(f"  NP-TOOL-ZM-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. NP-DRV-SHELL-001 — DRC-23 note update
 # ══════════════════════════════════════════════════════════════════════════════
-SHELL_PATH = "docs/neurone_shell_fpc_routing_review.docx"
+SHELL_PATH = "docs/superseded/np_drv_shell_001.docx"
 shell = Document(SHELL_PATH)
 
 for tbl in shell.tables:
@@ -367,7 +367,7 @@ for tbl in shell.tables:
             cur = last_c.text.strip()
             if "OPEN" in cur or not cur:
                 set_text(last_c,
-                    "OPEN — FPC layout frozen (NP-HW-FPC-001 Rev D, 2026-05-09). "
+                    "OPEN — FPC layout frozen (NP-HW-FPC-001 Rev 4, 2026-05-09). "
                     "EEG routing strategy per §2.4.2 confirmed (dedicated 8 × 5 mm "
                     "channel, opposite CFRP surface from FPC bundle). "
                     "CAD overlay measurement (DRC-18a) to proceed at G2 gate when "
@@ -384,7 +384,7 @@ print(f"  NP-DRV-SHELL-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. NP-COORD-001 — add G1-15 layout freeze CLOSED
 # ══════════════════════════════════════════════════════════════════════════════
-COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
+COORD_PATH = "docs/np_coord_001.docx"
 coord = Document(COORD_PATH)
 
 # Find the summary table (Table 15 based on scan — 35 rows, 5 cols) and
@@ -410,7 +410,7 @@ if SUMMARY_TBL_IDX is not None:
                     "G1",
                     "HW EE",
                     "FPC layout freeze + PD2 aperture position (Issue #10): "
-                    "NP-HW-FPC-001 Rev D released with PD2 at X = 33.0 mm, "
+                    "NP-HW-FPC-001 Rev 4 released with PD2 at X = 33.0 mm, "
                     "Y = 39.0 mm. F-04 in NP-TOOL-ZM-001 updated. OI-3 closed. "
                     "Enables mould design review (NP-TOOL-ZM-001 §5). "
                     "DRC-18 CAD verification to follow at G2 (G2-11).",

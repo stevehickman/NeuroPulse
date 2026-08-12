@@ -1,4 +1,4 @@
-# NP-FW-POE-001 Rev A — Protocol Operating-Envelope Encoding
+# NP-FW-POE-001 — Protocol Operating-Envelope Encoding
 
 **Program:** NeurOne firmware / thermal-safety
 **Status:** DRAFT design (OI-OPR-05). Defines how a protocol's operating envelope + derate curve is

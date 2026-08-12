@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HD-001
-**Revision:** B
+**Revision:** 2
 **Date:** 2026-08-05
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
@@ -244,7 +244,7 @@ Stated explicitly because §2.1 step 3 uses band output to characterise hypo-/hy
 | **Validity** | Consumers **must** check `np_hd_band_power_t.valid`. A zeroed struct means "not measured", never "no activity in this band". |
 | **Not localisation** | Peak voxel selection (§5.1) uses the broadband covariance only. Band power is a descriptor of the peak once found; it does not participate in choosing it. |
 
-> **Superseded implementation (Rev A).** Rev A computed the broadband quadratic form once and multiplied it by four compile-time constants derived from the bin counts of each band. Because those multipliers were constants, the four returned values were always in fixed proportion, and beta was always largest purely because it spans 35 of the 61 bins. Every possible EEG input produced the same decomposition. No FFT existed in the module. Any Rev A band figure appearing in an analysis, report, or submission is **not a spectral measurement** and must not be relied upon. FAI-HD01-E's cross-stimulus assertion (§12.1) is the regression guard: it cannot be satisfied by any fixed-ratio implementation, under any choice of weights.
+> **Superseded implementation (Rev A).** Rev 1 computed the broadband quadratic form once and multiplied it by four compile-time constants derived from the bin counts of each band. Because those multipliers were constants, the four returned values were always in fixed proportion, and beta was always largest purely because it spans 35 of the 61 bins. Every possible EEG input produced the same decomposition. No FFT existed in the module. Any Rev 1 band figure appearing in an analysis, report, or submission is **not a spectral measurement** and must not be relied upon. FAI-HD01-E's cross-stimulus assertion (§12.1) is the regression guard: it cannot be satisfied by any fixed-ratio implementation, under any choice of weights.
 
 ### 5.4 API
 
@@ -406,7 +406,7 @@ COMPLETE           —                 end_cb() called
 
 #### UHDR (user biology — NeurOne never holds key)
 
-Written to UHDR partition at session end via `end_cb`. Caller commits to eMMC via AES-256-XTS write (biometric key — NP-FW-EMMC-001 Rev A §6).
+Written to UHDR partition at session end via `end_cb`. Caller commits to eMMC via AES-256-XTS write (biometric key — NP-FW-EMMC-001 Rev 1 §6).
 
 | Field | Content | Classification rationale |
 |-------|---------|--------------------------|
@@ -485,7 +485,7 @@ Target: ≥ 20 dB SNR in alpha band (8–13 Hz) during 1 mA anode stimulation. V
 | **Total SRAM** | **≈36 KB** | of 1 MB on-chip |
 | **Total LPSDR4** | **≈215 KB** | of 32 MB |
 
-The Rev A figure of "≤48 B" for `np_sloreta_ctx_t` counted only the pointers and counters and omitted the 21×21 covariance matrix the struct has always contained; the ≈1.5 KB session-pool line inherited the same omission. Both are corrected above alongside the Rev B additions.
+The Rev 1 figure of "≤48 B" for `np_sloreta_ctx_t` counted only the pointers and counters and omitted the 21×21 covariance matrix the struct has always contained; the ≈1.5 KB session-pool line inherited the same omission. Both are corrected above alongside the Rev 2 additions.
 
 The spectral statics are shared across contexts and hold no per-session state — they are live only between entry and return of `np_sloreta_push_epoch()`, which is what makes that function non-reentrant (§5.4). Both totals sit far inside budget; SRAM is the binding resource and is at ≈3.5 % of the 1 MB on-chip pool.
 
@@ -493,7 +493,7 @@ The spectral statics are shared across contexts and hold no per-session state �
 
 ## 12. First Article Inspection (FAI)
 
-Test specification: **NP-FAI-HD-001 Rev A** (embedded in `tests/np_hd_fai_tests.c` and documented here).
+Test specification: **NP-FAI-HD-001 Rev 1** (embedded in `tests/np_hd_fai_tests.c` and documented here).
 
 ### 12.1 FAI-HD01 — sLORETA source localisation accuracy
 
@@ -540,7 +540,7 @@ A bin-centred tone is placed inside each band in turn: delta bin 5 (2.44 Hz), th
 | HD01-E7 | Two voxels reading different channels | different decompositions |
 | HD01-E8 | `NOT_READY` when empty / short-epoch / post-reset; `INVALID_ARG` and `NO_WEIGHT_MATRIX` on bad arguments | exact status codes |
 
-**HD01-E5 is the load-bearing criterion.** E1's dominance could in principle be satisfied by a per-band fudge factor; E5 cannot. For any implementation that scales one broadband scalar by fixed per-band weights, both sides of the comparison reduce to `w_alpha · w_delta · P_a · P_d` and the assertion becomes 1 > 100 — false for every possible choice of weights. Measured against the Rev A implementation the HD01-E suite produces 25 failures, E5 among them; the upgraded HD01 band assertion adds a 26th.
+**HD01-E5 is the load-bearing criterion.** E1's dominance could in principle be satisfied by a per-band fudge factor; E5 cannot. For any implementation that scales one broadband scalar by fixed per-band weights, both sides of the comparison reduce to `w_alpha · w_delta · P_a · P_d` and the assertion becomes 1 > 100 — false for every possible choice of weights. Measured against the Rev 1 implementation the HD01-E suite produces 25 failures, E5 among them; the upgraded HD01 band assertion adds a 26th.
 
 #### HD01-F — peak selection is a real argmax (CI)
 
@@ -631,7 +631,7 @@ All sub-criteria (HD02-A through HD02-K) pass in `fai_hd02_electrode_mapping()` 
 | FAI-HD02 electrode mapping accuracy | ✅ PASS (software, all 6 criteria) |
 | FAI-HD03 focality algorithm check | ✅ PASS (bench pending) |
 | FAI-HD04 SNR constants | ✅ PASS (bench pending) |
-| UHDR/SHDR data routing (§8.2) | ✅ Consistent with NP-FW-EMMC-001 Rev A §12 |
+| UHDR/SHDR data routing (§8.2) | ✅ Consistent with NP-FW-EMMC-001 Rev 1 §12 |
 | BOM delta confirmed | ✅ $0 (Ag/AgCl dual-rated in T2 cap; tACS driver existing hardware) |
 
 **Hardware bench tests (FAI-HD01, HD03, HD04):** BLOCKING for G3 gate sign-off. Must be completed with T2 prototype hardware before G3-07 can be fully closed.
@@ -664,6 +664,6 @@ All sub-criteria (HD02-A through HD02-K) pass in `fai_hd02_electrode_mapping()` 
 
 | Rev | Date | Changes |
 |-----|------|---------|
-| A | 2026-05-11 | Initial release — Issue #23, G3-07 software baselined |
-| B | 2026-08-05 | §5.3 band power reimplemented as a real spectral measurement. Rev A computed one broadband quadratic form and scaled it by four compile-time bin-count constants, so the four band values were always in fixed proportion and every EEG input produced the same decomposition; no FFT existed in the module. Rev B accumulates a per-band cross-spectral covariance from a Hann-windowed 1024-point FFT per channel per epoch and evaluates `W_v^T C_b W_v` per band. Adds §5.3.1 stating units, band-edge softness, frequency span, and validity semantics, and a superseded-implementation notice for any Rev A band figure. `np_sloreta_band_power()` loses its unused `source_power` argument (§5.4); `np_hd_band_power_t` gains `valid`. §5.2 clarifies that the broadband covariance is deliberately unwindowed and that Hann applies to the spectral path only. §11 memory budget corrected — the Rev A `np_sloreta_ctx_t` figure omitted the covariance matrix — and extended with the per-band matrices and spectral statics. §12.1 adds FAI-HD01-E (single-band dominance, cross-stimulus ratio inversion, Parseval reconciliation) and documents the existing HD01-D criteria. No safety limit, montage, stimulation, or data-routing behaviour changed. |
-| C | 2026-08-05 | §12.1 adds FAI-HD01-F — `np_sloreta_find_peak()`'s argmax update body had zero test executions, because every existing case drove voxel 0 and the peak is seeded from `P[0]`. Mutation testing confirms five of seven defective `find_peak()` variants survived the pre-existing suite with zero failures. §5.1/§5.2 now specify peak tie-breaking (lowest voxel index on an exact tie), which was previously unspecified; HD01-F4 pins it. **Test and documentation only — no firmware source changed.** |
+| 1 | 2026-05-11 | Initial release — Issue #23, G3-07 software baselined |
+| 2 | 2026-08-05 | §5.3 band power reimplemented as a real spectral measurement. Rev 1 computed one broadband quadratic form and scaled it by four compile-time bin-count constants, so the four band values were always in fixed proportion and every EEG input produced the same decomposition; no FFT existed in the module. Rev 2 accumulates a per-band cross-spectral covariance from a Hann-windowed 1024-point FFT per channel per epoch and evaluates `W_v^T C_b W_v` per band. Adds §5.3.1 stating units, band-edge softness, frequency span, and validity semantics, and a superseded-implementation notice for any Rev 1 band figure. `np_sloreta_band_power()` loses its unused `source_power` argument (§5.4); `np_hd_band_power_t` gains `valid`. §5.2 clarifies that the broadband covariance is deliberately unwindowed and that Hann applies to the spectral path only. §11 memory budget corrected — the Rev 1 `np_sloreta_ctx_t` figure omitted the covariance matrix — and extended with the per-band matrices and spectral statics. §12.1 adds FAI-HD01-E (single-band dominance, cross-stimulus ratio inversion, Parseval reconciliation) and documents the existing HD01-D criteria. No safety limit, montage, stimulation, or data-routing behaviour changed. |
+| 3 | 2026-08-05 | §12.1 adds FAI-HD01-F — `np_sloreta_find_peak()`'s argmax update body had zero test executions, because every existing case drove voxel 0 and the peak is seeded from `P[0]`. Mutation testing confirms five of seven defective `find_peak()` variants survived the pre-existing suite with zero failures. §5.1/§5.2 now specify peak tie-breaking (lowest voxel index on an exact tie), which was previously unspecified; HD01-F4 pins it. **Test and documentation only — no firmware source changed.** |

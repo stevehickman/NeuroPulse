@@ -1,6 +1,6 @@
 /*
  * NeurOne Safety MCU — SW01-M06: Contact Impedance Check
- * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M06
+ * Document: NP-SW-001 Rev 1, NP-FMEA-001 Rev 1 §SW01-M06
  *
  * Performs a 1kHz AC impedance check before enabling VNS and tDCS channels.
  * Injects a test current for NP_IMPEDANCE_TEST_MS and measures the

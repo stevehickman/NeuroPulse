@@ -132,7 +132,7 @@ for label, val in [
     ('Document ID:',    'NP-PROC-FPC-001'),
     ('Revision:',       'A  —  2026-05-06'),
     ('Status:',         'Active — must be reviewed before first purchase orders are placed'),
-    ('Applies to:',     'All components for Zone Module FPC (NP-HW-FPC-001 Rev C)'),
+    ('Applies to:',     'All components for Zone Module FPC (NP-HW-FPC-001 Rev 3)'),
     ('Owner:',          'Supply Chain / Hardware Engineering'),
     ('Risk register:',  'NP-HW-FPC-001 Risk Register — items RISK-01, RISK-07, RISK-08 addressed here'),
 ]:
@@ -164,7 +164,7 @@ body(
     'component parameters critical to device performance and safety are not enforced by '
     'default supplier processes — they must be explicitly stated on purchase orders or '
     'they will not be controlled. Requirements are derived from risk analysis in the '
-    'companion risk register (NP-HW-FPC-001 Risk Register Rev A).'
+    'companion risk register (NP-HW-FPC-001 Risk Register Rev 1).'
 )
 body(
     'All specifications in this document are MANDATORY unless marked ADVISORY. '
@@ -568,12 +568,12 @@ tbl(
         ['A', '2026-05-06', 'Claude / NeurOne Engineering',
          'Initial release. Addresses RISK-01 (connector), RISK-04 (PDMS), '
          'RISK-07 (BCR421W), RISK-08 (LED Vf binning), RISK-10 (RA copper) '
-         'from NP-HW-FPC-001 Risk Register Rev A.'],
+         'from NP-HW-FPC-001 Risk Register Rev 1.'],
     ],
     widths=[0.4, 0.9, 2.3, 3.6]
 )
 
 # ── save ──────────────────────────────────────────────────────────────────────
-out = '/home/user/NeurOne/docs/neurone_fpc_procurement_requirements.docx'
+out = '/home/user/NeurOne/docs/np_proc_fpc_001.docx'
 doc.save(out)
 print(f'Saved: {out}')

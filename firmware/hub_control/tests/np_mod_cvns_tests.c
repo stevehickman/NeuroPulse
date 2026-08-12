@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — Cervical VNS Module Driver Host Tests
- * Document: NP-FW-HUB-001 Rev A §8.8, NP-FW-CVNS-001 Rev A
+ * Document: NP-FW-HUB-001 Rev 1 §8.8, NP-FW-CVNS-001 Rev 1
  *
  * Host-native tests for the hub ↔ np_cervical_vns integration layer
  * (modules/np_mod_cvns.c).  Focus is on the integration seams this driver owns,

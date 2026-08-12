@@ -1,6 +1,6 @@
 # NeurOne Bootloader — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
-# Document: NP-FW-EMMC-001 Rev A §8
+# Document: NP-FW-EMMC-001 Rev 1 §8
 #
 # Prerequisites:
 #   - ARM GNU Toolchain (arm-none-eabi-gcc ≥ 12.3)

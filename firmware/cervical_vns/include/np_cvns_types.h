@@ -1,6 +1,6 @@
 /*
  * NeurOne Cervical VNS — Type Definitions
- * Document: NP-FW-CVNS-001 Rev A §4
+ * Document: NP-FW-CVNS-001 Rev 1 §4
  */
 
 #ifndef NP_CVNS_TYPES_H

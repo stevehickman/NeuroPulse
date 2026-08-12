@@ -1,6 +1,6 @@
 /*
  * NeurOne HRV Biofeedback — Session Management
- * Document: NP-FW-HRV-001 Rev A §10
+ * Document: NP-FW-HRV-001 Rev 1 §10
  *
  * Single static session pool (one active session at a time, matching the
  * single-user, single-headset device model).

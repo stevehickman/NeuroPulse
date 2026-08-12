@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — Application Staging Area Limits
- * Document: NP-SW-CI-001 Rev D §4.3 (Defect C), phase 2
+ * Document: NP-SW-CI-001 Rev 4 §4.3 (Defect C), phase 2
  *
  * See include/np_app_image.h for why the limit lives in the linker script.
  */

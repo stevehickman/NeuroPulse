@@ -33,7 +33,7 @@ def bold_para(doc, text, size=11):
 # 1. Patch Risk Register — RISK-08, RISK-09, RISK-10
 # ─────────────────────────────────────────────────────────────────────────────
 
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 doc = Document(RISK_PATH)
 
 # --- Update the summary table ---
@@ -149,7 +149,7 @@ for risk_id, para_indices in risk_sections.items():
 # We'll search for specific paragraphs by content and insert/replace mitigation text.
 
 RISK08_MITIGATION = (
-    "MITIGATED (Rev B / Procurement Doc NP-PROC-FPC-001 Rev A): "
+    "MITIGATED (Rev B / Procurement Doc NP-PROC-FPC-001 Rev 1): "
     "LED Vf binning requirements are now mandated on all purchase orders. "
     "Within-order tolerance: ±0.10 V at rated current. Lot-to-lot tolerance: ±0.15 V. "
     "Verbatim PO language is defined in NP-PROC-FPC-001 §2. "
@@ -166,11 +166,11 @@ RISK09_MITIGATION = (
     "zone draw. SBIR Phase I proposal updated to replace all references to Molex SlimStack "
     "and 0.35 mm pitch. FPC procurement document NP-PROC-FPC-001 §4 mandates Hirose FH34S "
     "or JAE FF03 only; Molex SlimStack explicitly prohibited. Connector spec cross-references "
-    "NP-HW-FPC-001 Rev C §5."
+    "NP-HW-FPC-001 Rev 3 §5."
 )
 
 RISK10_MITIGATION = (
-    "MITIGATED (Rev A / Procurement Doc NP-PROC-FPC-001 Rev A / FPC Spec NP-HW-FPC-001 §13): "
+    "MITIGATED (Rev A / Procurement Doc NP-PROC-FPC-001 Rev 1 / FPC Spec NP-HW-FPC-001 §13): "
     "Rolled Annealed (RA) copper is mandated in three locations: "
     "(1) FPC fabrication specification §13 Fab Note 1 — mandatory RA copper requirement "
     "with explicit prohibition on Electrodeposited (ED) copper; "
@@ -253,7 +253,7 @@ print(f"\nRisk register saved: {RISK_PATH}")
 # 2. Patch SBIR Proposal — RISK-09: replace Molex/0.35mm connector references
 # ─────────────────────────────────────────────────────────────────────────────
 
-SBIR_PATH = "docs/neurone_sbir_phase1_draft.docx"
+SBIR_PATH = "docs/np_sbir_001.docx"
 sbir = Document(SBIR_PATH)
 
 sbir_changes = 0
@@ -294,7 +294,7 @@ print(f"  SBIR saved: {SBIR_PATH}")
 # 3. Verify / Strengthen FPC Spec Fab Note for RISK-10 (RA copper)
 # ─────────────────────────────────────────────────────────────────────────────
 
-SPEC_PATH = "docs/neurone_fpc_zone_module_spec_revA.docx"
+SPEC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 spec = Document(SPEC_PATH)
 
 spec_changes = 0

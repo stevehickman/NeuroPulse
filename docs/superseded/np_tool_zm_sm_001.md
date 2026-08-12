@@ -4,7 +4,7 @@
 **Document:** NP-TOOL-ZM-SM-001  
 **Revision:** A  
 **Date:** 2026-05-13  
-**Status:** BASELINED  
+**Status:** SUPERSEDED
 **Effective Date:** 2026-05-13  
 **Author:** NeurOne Mechanical Engineering  
 **Approved By:** Steve Hickman, CEO  

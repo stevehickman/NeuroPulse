@@ -1,6 +1,6 @@
 /*
  * NeurOne HRV Biofeedback — Session Management
- * Document: NP-FW-HRV-001 Rev A §10
+ * Document: NP-FW-HRV-001 Rev 1 §10
  *
  * Owns the session lifecycle for all four HRV biofeedback protocols.
  * Orchestrates PPG processing, coherence computation, pacer, taVNS sync,

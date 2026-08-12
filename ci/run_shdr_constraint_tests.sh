@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # NeurOne SHDR fleet schema — live constraint test harness (OI-EMMC2-07)
-# Document: NP-FW-EMMC-002 Rev A §G.4 / schema Rev D
+# Document: NP-FW-EMMC-002 Rev 1 §G.4 / schema Rev 4
 #
 # Executes ci/shdr/shdr_fleet_schema.sql against a REAL PostgreSQL and then runs
 # ci/shdr/shdr_schema_constraint_tests.sql, which proves each integrity
@@ -150,4 +150,4 @@ echo "── Constraint tests ────────────────�
 "${PSQL[@]}" -q -t -f "$TESTS"
 
 echo
-echo "SHDR Rev D live constraint tests: PASS"
+echo "SHDR Rev 4 live constraint tests: PASS"

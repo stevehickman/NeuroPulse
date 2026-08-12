@@ -1,7 +1,7 @@
-/* Document: NP-FW-EMMC-002 Rev A §E */
+/* Document: NP-FW-EMMC-002 Rev 1 §E */
 /*
  * NeurOne EDF+ Privacy Header — Writer and Validator API
- * Document: NP-FW-EMMC-002 Rev A §E
+ * Document: NP-FW-EMMC-002 Rev 1 §E
  */
 
 #ifndef NP_EDF_WRITER_H

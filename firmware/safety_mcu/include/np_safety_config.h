@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — Hardware Configuration
  * Target: STM32G071 (Cortex-M0+, 64 MHz)
- * Document: NP-SW-001 Rev A, NP-FW-EMMC-001 Rev A §4.2
+ * Document: NP-SW-001 Rev 1, NP-FW-EMMC-001 Rev 1 §4.2
  *
  * GPIO assignments, peripheral config, and timing constants for the
  * safety MCU.  All stimulation enable GPIOs are active-LOW open-drain:
@@ -48,12 +48,12 @@
 #define NP_SAFETY_SYSTICK_HZ        1000U  /* 1ms SysTick resolution */
 
 /* ── Stimulation enable GPIOs (active-LOW open-drain) ────────────────────── */
-/* One line per allocated NP_SAFETY_EN_* bit (10 since NP-HW-HUB-001 Rev C
+/* One line per allocated NP_SAFETY_EN_* bit (10 since NP-HW-HUB-001 Rev 3
  * §7.2).  GPIO pin numbering is per-port and does NOT track enable-bit
  * position — the mapping is the explicit one in np_gpio_mgr_apply().        */
 
 /* Cranial PBM — PA0, one policy line for the whole lattice (NP-HW-HUB-001
- * Rev C §7.2).  Fanned out on the hub side to one gate transistor per cluster
+ * Rev 3 §7.2).  Fanned out on the hub side to one gate transistor per cluster
  * on each cluster's LED drive rail (NP-HW-HEXTILE-001 D-8); §7.4 states the
  * contract as "12–16 physical enable lines fanned out from one policy bit", so
  * the safety MCU spends exactly one GPIO here, not one per cluster.
@@ -103,7 +103,7 @@
 /* ADC1 channels: 5 cranial thermal sense domains + 1 hub NTC.
  * A THERMAL SENSE DOMAIN IS NOT A ZONE.  It is the physical region of the shell
  * an NTC actually senses — a hardware property fixed by where the thermistors
- * are placed, so firmware may hold it (NP-HW-HUB-001 Rev C §4.5.1
+ * are placed, so firmware may hold it (NP-HW-HUB-001 Rev 3 §4.5.1
  * discriminator).  Zones are authored socket sets in 00-zones.npps and can be
  * re-cut without touching hardware; they are never enable or sense domains.
  * Channel index is NOT a module slot id and NOT an enable-bit position — every

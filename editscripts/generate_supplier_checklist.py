@@ -1,5 +1,5 @@
 """
-Generate NP-PROC-SUP-001 Rev A: NeurOne Tooling Supplier Selection Checklist.
+Generate NP-PROC-SUP-001 Rev 1: NeurOne Tooling Supplier Selection Checklist.
 Covers injection moulding (zone module + shell), FPC fabrication, and PDMS bonding.
 RISK-20 (CFRP Ra ≤ 1.6 µm) is a BLOCKING qualification item.
 """
@@ -521,6 +521,6 @@ add_row(rev_tbl,
      "Claude/ME"),
     rev_widths, 0)
 
-OUT_PATH = "docs/neurone_supplier_selection_checklist.docx"
+OUT_PATH = "docs/np_proc_sup_001.docx"
 doc.save(OUT_PATH)
 print(f"Saved: {OUT_PATH}")

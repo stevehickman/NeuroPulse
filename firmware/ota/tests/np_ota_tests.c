@@ -1,6 +1,6 @@
 /*
  * NeurOne OTA State — Host Smoke Tests
- * Document: NP-FW-EMMC-001 Rev A §8.3
+ * Document: NP-FW-EMMC-001 Rev 1 §8.3
  *
  * Tests the host-compilable np_ota_state logic: CRC32 computation, magic
  * validation, boot-attempt counter, and rollback threshold detection.

@@ -24,7 +24,7 @@ def set_cell_text(cell, text, bold=False, color=None):
         run.font.color.rgb = RGBColor(*color)
 
 # ── Risk register ──
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk_doc = Document(RISK_PATH)
 
 tbl = risk_doc.tables[0]
@@ -33,7 +33,7 @@ for row in tbl.rows:
         set_cell_text(row.cells[1], "MEDIUM\n(MITIGATED)", bold=True, color=(0x00, 0x70, 0x00))
         set_cell_bg(row.cells[1], "E2EFDA")
         set_cell_text(row.cells[5],
-            "MITIGATED: First Article Inspection checklist NP-FAI-ZM-001 Rev A created. "
+            "MITIGATED: First Article Inspection checklist NP-FAI-ZM-001 Rev 1 created. "
             "FAI-A01 to FAI-A08 (Section 4a) mandate CMM measurement of all 5 zone module "
             "positions to ±0.3 mm tolerance (±0.2 mm margin against ±0.5 mm system requirement). "
             "FAI-A08 verifies re-insertion repeatability (±0.1 mm). "
@@ -41,7 +41,7 @@ for row in tbl.rows:
             "Zone module alignment is re-verified after 50 connector insertion cycles (FAI-K14). "
             "FPC spec §11.4 references NP-FAI-ZM-001 as mandatory pre-production gate.")
         set_cell_text(row.cells[8],
-            "MITIGATED — NP-FAI-ZM-001 Rev A created; CMM alignment check (FAI-A01–A08) "
+            "MITIGATED — NP-FAI-ZM-001 Rev 1 created; CMM alignment check (FAI-A01–A08) "
             "required before production release",
             bold=True, color=(0x00, 0x70, 0x00))
         set_cell_bg(row.cells[8], "92D050")
@@ -67,7 +67,7 @@ risk_doc.save(RISK_PATH)
 print(f"Risk register saved")
 
 # ── FPC spec §11.4 — add FAI reference ──
-SPEC_PATH = "docs/neurone_fpc_zone_module_spec_revA.docx"
+SPEC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 spec = Document(SPEC_PATH)
 
 for i, para in enumerate(spec.paragraphs):
@@ -91,7 +91,7 @@ if s12_idx:
     CONTENT = [
         ("[DRAWING REQUIREMENT] First Article Inspection: All 5 zone module positions must be "
          "verified by CMM measurement before production release. CMM verification protocol is "
-         "defined in NP-FAI-ZM-001 Rev A (Zone Module FPC Assembly — FAI Checklist) §4a, "
+         "defined in NP-FAI-ZM-001 Rev 1 (Zone Module FPC Assembly — FAI Checklist) §4a, "
          "items FAI-A01 to FAI-A08. The FAI checklist is the mandatory pre-production gate "
          "for zone module alignment.",
          True, (0xC0, 0x00, 0x00)),

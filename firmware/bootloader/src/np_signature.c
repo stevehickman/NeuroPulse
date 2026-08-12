@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — Ed25519 Firmware Signature Verification
- * Document: NP-FW-EMMC-001 Rev A §8.2
+ * Document: NP-FW-EMMC-001 Rev 1 §8.2
  *
  * Ed25519 implementation based on RFC 8032 §5.1.7 (verify).
  * Uses Curve25519 in Edwards form (twisted Edwards curve).

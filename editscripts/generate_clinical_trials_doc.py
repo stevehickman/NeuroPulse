@@ -7,9 +7,9 @@ against the current docx) to describe the hex-tile/socket architecture (NP-HEX-Z
 without asserting a specific socket count — REG-1/ACT-1 registration is still open, see
 docs/np_hex_zm_001.md §7. Do NOT re-run this script wholesale: doc2 below saves to
 "docs/neurone_additional_modalities.docx", but the checked-in artifact was deliberately
-renamed to "docs/neurone_additional_modalities_superseded.docx" in an earlier, unrelated
+renamed to "docs/superseded/np_mod_ext_001.docx" in an earlier, unrelated
 pass; re-running this script would resurrect a stale file under the old, no-longer-current
-filename. Only docs/neurone_clinical_trials_strategy.docx (doc, not doc2) is safe to
+filename. Only docs/np_clin_001.docx (doc, not doc2) is safe to
 regenerate from this script as-is.
 """
 from docx import Document
@@ -133,7 +133,7 @@ r = p.add_run("NeurOne — Clinical Evidence & Trials Strategy")
 r.bold = True; r.font.size = Pt(14); r.font.color.rgb = RGBColor(0xFF,0xFF,0xFF)
 p.paragraph_format.space_before = Pt(6); p.paragraph_format.space_after = Pt(2)
 p2 = t.rows[0].cells[0].add_paragraph()
-r2 = p2.add_run("NP-CLIN-001 Rev A  |  Confidential — Pre-Decisional  |  May 2026")
+r2 = p2.add_run("NP-CLIN-001 Rev 1  |  Confidential — Pre-Decisional  |  May 2026")
 r2.font.size = Pt(9); r2.font.color.rgb = RGBColor(0xBB,0xCC,0xFF)
 p2.paragraph_format.space_before = Pt(0); p2.paragraph_format.space_after = Pt(6)
 doc.add_paragraph()
@@ -751,7 +751,7 @@ add_divider(doc)
 
 # ── §7 Key Bibliography ────────────────────────────────────────────────────────
 add_heading(doc, "7. Key Bibliography", level=1, color=(0x1F,0x38,0x64))
-add_para(doc, "Cite-ready format. See neurone_bibliography.docx for full 33-entry bibliography.", size=8, italic=True)
+add_para(doc, "Cite-ready format. See np_bib_001.docx for full 33-entry bibliography.", size=8, italic=True)
 doc.add_paragraph()
 
 bibs = [
@@ -819,8 +819,8 @@ for category, citation in bibs:
     r2 = p.add_run(citation)
     r2.font.size = Pt(8)
 
-doc.save("docs/neurone_clinical_trials_strategy.docx")
-print("NP-CLIN-001 saved: docs/neurone_clinical_trials_strategy.docx")
+doc.save("docs/np_clin_001.docx")
+print("NP-CLIN-001 saved: docs/np_clin_001.docx")
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -842,7 +842,7 @@ r = p.add_run("NeurOne — Additional Modalities to Consider")
 r.bold = True; r.font.size = Pt(14); r.font.color.rgb = RGBColor(0xFF,0xFF,0xFF)
 p.paragraph_format.space_before = Pt(6); p.paragraph_format.space_after = Pt(2)
 p2 = t2.rows[0].cells[0].add_paragraph()
-r2 = p2.add_run("NP-MOD-EXT-001 Rev A  |  Confidential — Pre-Decisional  |  May 2026")
+r2 = p2.add_run("NP-MOD-EXT-001 Rev 1  |  Confidential — Pre-Decisional  |  May 2026")
 r2.font.size = Pt(9); r2.font.color.rgb = RGBColor(0xBB,0xCC,0xFF)
 p2.paragraph_format.space_before = Pt(0); p2.paragraph_format.space_after = Pt(6)
 doc2.add_paragraph()
@@ -887,10 +887,10 @@ modalities_ext = [
             "audio channel (same as bone conduction but haptic). "
             "No new MCU required.",
         "priority": "HIGH — if HOPE Phase 3 (mid-2026) is positive, 40Hz tactile becomes "
-                    "the logical Rev B NeurOne addition. Plan hardware provision now. "
+                    "the logical Rev 2 NeurOne addition. Plan hardware provision now. "
                     "Tsai SAB engagement is the critical path.",
         "action": "Await HOPE results (mid-2026). If positive: engage Tsai for tactile "
-                  "protocol. Design vibrotactile module as hardware option Rev B or C.",
+                  "protocol. Design vibrotactile module as hardware option Rev 2 or C.",
         "bg": "FFF2CC",
     },
     {

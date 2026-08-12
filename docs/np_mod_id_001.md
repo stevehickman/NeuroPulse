@@ -2,24 +2,24 @@
 
 **Project:** NeurOne
 **Document:** NP-MOD-ID-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-08-11
 **Status:** DRAFT
 **Effective Date:** TBD — pending principal approval and the two BLOCKING open items in §9
 **Author:** NeurOne Firmware + Data Architecture
 **Approved By:** Pending
-**References:** NP-FW-EMMC-002 Rev A (§A warranty token, §B factory reset, §C UKMD), NP-HEX-ZM-001 Rev B (§4 UID inventory, §4a SMART-1), NP-HW-HEXTILE-001 Rev B (§6.2 on-module driver, D-3/D-4/D-7), NP-THERM-CFD-001 (§4 zone power map), NP-HW-HUB-001 Rev C (OI-HUB-C06), CLAUDE.md §5.1 (UHDR/SHDR boundary), §5.2 (predictive maintenance), §6.0 (two consent subjects), `firmware/hub_control/include/np_module_map.h`
-**Related Issues:** PR #268 (SHDR schema Rev D), OI-EMMC2-08
+**References:** NP-FW-EMMC-002 Rev 1 (§A warranty token, §B factory reset, §C UKMD), NP-HEX-ZM-001 Rev 2 (§4 UID inventory, §4a SMART-1), NP-HW-HEXTILE-001 Rev 2 (§6.2 on-module driver, D-3/D-4/D-7), NP-THERM-CFD-001 (§4 zone power map), NP-HW-HUB-001 Rev 3 (OI-HUB-C06), CLAUDE.md §5.1 (UHDR/SHDR boundary), §5.2 (predictive maintenance), §6.0 (two consent subjects), `firmware/hub_control/include/np_module_map.h`
+**Related Issues:** PR #268 (SHDR schema Rev 4), OI-EMMC2-08
 **Gate:** NP-COORD-001 — new gate MOD-ID-1 proposed (§10)
 **IEC 62304 Class:** SW-02 Class B (hub control + on-module firmware); no Class C surface
 **Supersedes:** None
-**Parent Document:** NP-FW-EMMC-002 Rev A
+**Parent Document:** NP-FW-EMMC-002 Rev 1
 
 ---
 
 ## 1. Purpose
 
-SHDR schema Rev D (PR #268) re-keyed PBM and thermal fleet telemetry on
+SHDR schema Rev 4 (PR #268) re-keyed PBM and thermal fleet telemetry on
 `(socket_number, module_uid)` so that a module's degradation history follows the
 part rather than the position. That change opened **OI-EMMC2-08**, recorded as
 BLOCKING: a persistent per-module hardware UID stored fleet-wide defeats the
@@ -34,7 +34,7 @@ custodial events, each of which has a legitimate authorising act attached. The
 resolution is therefore to make linkage an *event* rather than a *state*.
 
 This document also specifies the **fleet characterisation data programme** — a
-time-boxed relaxation of the Rev D `DOSE-01` invariant, adopted so that the
+time-boxed relaxation of the Rev 4 `DOSE-01` invariant, adopted so that the
 question "does socket position drive module aging?" can be answered empirically
 rather than assumed.
 
@@ -45,7 +45,7 @@ history storage; history portability across devices and owners; the extended
 SHDR field set collected during characterisation, its expiry, and its review
 gate.
 
-Out of scope: the SHDR schema DDL itself (a Rev E change, specified here but
+Out of scope: the SHDR schema DDL itself (a Rev 5 change, specified here but
 implemented separately); the rotation optimiser algorithm; fleet-key transport
 UX in the app; the statistical model implementation.
 
@@ -243,7 +243,7 @@ used-part disclosure an odometer provides, and it is a feature.
 
 `module_life` gains carried-in baseline columns. The fleet-wide figure for a
 module becomes `carried_in + Σ(per-device partials)`, which remains
-order-free — the property §5 of the Rev D schema header depends on.
+order-free — the property §5 of the Rev 4 schema header depends on.
 
 ### 6.3 The counter-value join, and its mitigation (MODID-6)
 
@@ -309,7 +309,7 @@ window only, per socket per session:
 - `emitter_on_seconds` — optical duty, the exposure denominator
 - `thermal_seconds_over_threshold`
 - `throttle_event_count`
-- `peak_ntc_celsius` (already present in Rev D)
+- `peak_ntc_celsius` (already present in Rev 4)
 
 `DOSE-01` is **narrowed, not removed**: delivered *dose* in J/cm² and raw
 irradiance remain prohibited, being direct readouts of the therapeutic quantity
@@ -317,7 +317,7 @@ rather than of drive time. The CI check is amended to allow the enumerated
 fields above and continue rejecting everything else.
 
 Because collection is opt-in (§7.5), the relaxation is **cohort-scoped**:
-`DOSE-01` continues to hold in its Rev D form for every device that has not
+`DOSE-01` continues to hold in its Rev 4 form for every device that has not
 opted in, which will be the large majority of the fleet. The narrowed invariant
 describes what the schema *may* carry, not what any given device *does* carry.
 
@@ -409,7 +409,7 @@ against the schema rather than argued. §6.0 rightly holds
 that a clinic has not consented on any patient's behalf, but that principle
 bites on data *about a patient*, and for a mixed-use device the extended set is
 not that. SHDR carries **no per-session subject identifier and no clock**,
-verified against the live catalog of the Rev D schema:
+verified against the live catalog of the Rev 4 schema:
 
 | Probe | Result |
 |---|---|
@@ -511,7 +511,7 @@ Consequences for §7.4:
 
 ## 8. Impact
 
-### 8.1 SHDR schema (a Rev E change, not made here)
+### 8.1 SHDR schema (a Rev 5 change, not made here)
 
 | Change | Tables |
 |---|---|
@@ -556,10 +556,10 @@ item is unaffected and remains a live judgment.
 | OI | Description | Blocking for |
 |---|---|---|
 | **OI-MODID-01** | Opt-in enrolment and withdrawal text. **DRAFTED — Appendix A.** One ungated enrolment screen for all registrants, withdrawal, and programme-close copy. Remaining to close: legal review, and OI-MODID-08 first (consent text cannot contradict the standing privacy notice) | **BLOCKING — before any characterisation-window collection** |
-| **OI-MODID-08** | **NP-PRIV-NOTICE-001 Rev C §2 conflict.** The notice states SHDR *"contains no user biology and cannot identify you — it describes your device's condition only."* True of the standard set; **false for an opted-in single-user device**, where per-socket drive time is a record of which areas of that user's head are treated. Scope the §2 claim to non-participating devices and cross-reference the enrolment disclosure | **BLOCKING — must land BEFORE enrolment copy ships** |
-| **OI-MODID-07** | **ELEVATED — now the sole guarantor of the consent model.** Extend `PII-01` to reject a per-session subject tag (`session_tag`, `anon_session_tag`, and the T2 anonymized-session-tag concept generally). §7.5.1 rests entirely on no wearer identifier ever entering SHDR; this check is what enforces it, and the T2 tag is designed with the *clinic* holding the mapping. Without it the registrant-scoped consent argument fails in every configuration, not just some | **BLOCKING for schema Rev E** |
+| **OI-MODID-08** | **NP-PRIV-NOTICE-001 Rev 3 §2 conflict.** The notice states SHDR *"contains no user biology and cannot identify you — it describes your device's condition only."* True of the standard set; **false for an opted-in single-user device**, where per-socket drive time is a record of which areas of that user's head are treated. Scope the §2 claim to non-participating devices and cross-reference the enrolment disclosure | **BLOCKING — must land BEFORE enrolment copy ships** |
+| **OI-MODID-07** | **ELEVATED — now the sole guarantor of the consent model.** Extend `PII-01` to reject a per-session subject tag (`session_tag`, `anon_session_tag`, and the T2 anonymized-session-tag concept generally). §7.5.1 rests entirely on no wearer identifier ever entering SHDR; this check is what enforces it, and the T2 tag is designed with the *clinic* holding the mapping. Without it the registrant-scoped consent argument fails in every configuration, not just some | **BLOCKING for schema Rev 5** |
 | **OI-MODID-06** | Cohort-vs-fleet skew analysis plan (§7.6) — which comparison variables, and the statement of assumption required before generalising a positive socket result beyond the cohort | Review gate (§7.4) |
-| **OI-MODID-02** | Coarsening bucket widths for carried-in baselines (§6.3), sized against real fleet figures | Schema Rev E |
+| **OI-MODID-02** | Coarsening bucket widths for carried-in baselines (§6.3), sized against real fleet figures | Schema Rev 5 |
 | **OI-MODID-03** | EEPROM retention derating at the module's actual time-at-temperature distribution vs the 55 °C / 40-year figure (§5.4) | Module firmware release |
 | **OI-MODID-04** | `fleet_key` enrolment UX and its authentication requirements; behaviour when an owner sells one device out of a group | App + firmware |
 | **OI-MODID-05** | N and M for the §7.3 window, and the effect-size threshold for the §7.4 decision rule | Programme start |
@@ -579,7 +579,7 @@ Proposed gate **MOD-ID-1** (NP-COORD-001):
 | Extended fields stop at window expiry | Build-time expiry test with a clock past the boundary |
 | Extended fields absent without opt-in | Upload from a non-opted-in device asserted to carry none of §7.2 |
 | **No per-session subject identifier in SHDR** | Catalog assertion over `information_schema.columns` — the §7.5.1.1 invariant, checked against the live schema, not the DDL text |
-| **No sub-month clock in SHDR** | `TIME-01` plus the month-truncation CHECKs already in Rev D |
+| **No sub-month clock in SHDR** | `TIME-01` plus the month-truncation CHECKs already in Rev 4 |
 | Non-participation does not degrade safety | Assert every §4.2 interlock and safety-critical reminder fires identically with opt-in off |
 
 ---
@@ -593,7 +593,7 @@ from whether it was bought by a person or an institution (§A.2).
 
 ### A.1 Prerequisite — a conflict with the live privacy notice
 
-**NP-PRIV-NOTICE-001 Rev C §2 currently states, of SHDR:**
+**NP-PRIV-NOTICE-001 Rev 3 §2 currently states, of SHDR:**
 
 > *"Your SHDR contains data about the device's condition, not about you"* … *"SHDR
 > contains no user biology and cannot identify you — it describes your device's
@@ -774,6 +774,6 @@ research-consent L4 commitment (CLAUDE.md §6.2) and is the point at which a
 
 ---
 
-*NP-MOD-ID-001 Rev A is a DRAFT for principal review. It specifies no code and
+*NP-MOD-ID-001 Rev 1 is a DRAFT for principal review. It specifies no code and
 changes no schema; implementation follows approval, OI-MODID-08 (privacy-notice
 correction), and legal review of Appendix A.*

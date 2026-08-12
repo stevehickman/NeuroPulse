@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 SHDR Fleet DB Schema CI Gate — OI-EMMC2-07
-Document: NP-FW-EMMC-002 Rev A §G.5
+Document: NP-FW-EMMC-002 Rev 1 §G.5
 Revision: A — 2026-06-03
 BLOCKING: must PASS before SHDR fleet DB schema freeze.
 
@@ -698,7 +698,7 @@ def main() -> int:
 
     print(f"NeurOne SHDR Schema CI Gate — OI-EMMC2-07")
     print(f"Schema: {args.schema}")
-    print(f"Checks: NP-FW-EMMC-002 Rev A §G.3, §G.4, §A.4")
+    print(f"Checks: NP-FW-EMMC-002 Rev 1 §G.3, §G.4, §A.4")
     print()
 
     if args.verbose:
@@ -716,7 +716,7 @@ def main() -> int:
             print(f"         at {f.location}")
         print()
         print("Schema freeze is BLOCKED until all violations are resolved.")
-        print("Reference: NP-FW-EMMC-002 Rev A §G.5 (OI-EMMC2-07)")
+        print("Reference: NP-FW-EMMC-002 Rev 1 §G.5 (OI-EMMC2-07)")
         return 1
 
     checks_run = len(result.passed)

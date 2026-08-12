@@ -1,6 +1,6 @@
 /*
  * NeurOne Zone Module Announcement — Type Definitions
- * Document: NP-FW-ZA-001 Rev A §4
+ * Document: NP-FW-ZA-001 Rev 1 §4
  */
 
 #ifndef NP_ZONE_ANNOUNCE_TYPES_H
@@ -101,7 +101,7 @@ typedef struct {
 /* ── SHDR authentication log entry ─────────────────────────────────────────── */
 
 /*
- * Logged to SHDR partition per NP-FW-EMMC-001 Rev A §12.
+ * Logged to SHDR partition per NP-FW-EMMC-001 Rev 1 §12.
  * Fields: accessory authentication pass/fail only — no user biology.
  */
 typedef struct {
@@ -143,7 +143,7 @@ typedef struct {
     /*
      * A failed identification returns the slot to IDLE, which immediately
      * re-detects the still-seated module and fails again — an unbounded loop for
-     * as long as the bad module stays in. Rev A was rate-limited only
+     * as long as the bad module stays in. Rev 1 was rate-limited only
      * incidentally, by the ~700 ms error clip it played in ANNOUNCING; with the
      * audio gone that accident is gone too. This latch reports each fault ONCE
      * and is cleared only when the slot reads genuinely empty, so a stuck module

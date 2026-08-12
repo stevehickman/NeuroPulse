@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — InGaAs PD Dose Metering API
- * Document: NP-FW-PBM1064-001 Rev A §6
+ * Document: NP-FW-PBM1064-001 Rev 1 §6
  */
 
 #ifndef NP_PBM1064_DOSE_H
@@ -19,7 +19,7 @@ extern "C" {
  * Load calibration coefficients (one per wavelength) for a single active
  * socket. Stub: always installs firmware defaults with valid = false (SHDR:
  * cal_source = NP_CAL_DEFAULT) — real Config-partition sourcing is pending
- * OI-HUB-C06 and, per NP-HW-HUB-001 Rev C §9.5, MUST be keyed to module UID
+ * OI-HUB-C06 and, per NP-HW-HUB-001 Rev 3 §9.5, MUST be keyed to module UID
  * (via np_module_map), never to socket_id: modules are swappable, and a
  * socket-indexed store would silently apply the previous occupant's
  * calibration after a swap while cal_source still read FACTORY. Called once

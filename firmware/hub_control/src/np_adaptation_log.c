@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Closed-Loop Adaptation Event Ring Buffer
- * Document: NP-FW-HUB-001 Rev B (STEP-33 of NP-PRIV-REM-001)
+ * Document: NP-FW-HUB-001 Rev 2 (STEP-33 of NP-PRIV-REM-001)
  *
  * Implements np_adapt_log_event(), np_adapt_log_flush(), np_adapt_log_reset().
  * Events are queued here; np_log_adapt_event() (from np_session_log) writes

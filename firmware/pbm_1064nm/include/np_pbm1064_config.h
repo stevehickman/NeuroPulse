@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — Configuration Constants
- * Document: NP-FW-PBM1064-001 Rev A §3
+ * Document: NP-FW-PBM1064-001 Rev 1 §3
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  *
  * Hardware context:
@@ -147,7 +147,7 @@
 /*
  * NP_PBM1064_ZONE_COUNT bounds np_pbm1064_detect_ctx_t (the physical ZONE_ID
  * resistor-ladder debounce state machine) ONLY. It is retained solely to keep
- * that RETIRED-but-still-linked code building (NP-HW-HUB-001 Rev C §9.1: UID
+ * that RETIRED-but-still-linked code building (NP-HW-HUB-001 Rev 3 §9.1: UID
  * auto-inventory replaces ZONE_ID detection). Do NOT use it to size any
  * session-descriptor / dose / drive / calibration array — those are bounded
  * by NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS below.
@@ -159,7 +159,7 @@
  *
  * NP-HEX-ZM-001 replaced the 5 fixed zone-module slots with a hex-tiled
  * lattice of ~30-80 sockets (up to the 128-socket addressing domain). Per
- * NP-HW-HUB-001 Rev C §10, the session descriptor's socket targeting reuses
+ * NP-HW-HUB-001 Rev 3 §10, the session descriptor's socket targeting reuses
  * NP Hub Protocol v2's NP_PROTO_TARGET_SOCKET_MASK representation — a 16-byte
  * (128-bit), LSB-first, 0-based socket bitmap sized to NP_HEXMAP_MAX_SOCKETS
  * (firmware/hub_control/include/np_hub_config.h) — rather than a per-socket
@@ -182,7 +182,7 @@
  * rather than one mask + one preset, because v4's per-zone independence
  * (distinct current/freq/duty per zone — e.g. "Gamma+theta coupled" split-
  * zone protocols, NP-SES-1064-001 §2 preset 0x05) must carry over unchanged
- * (NP-HW-HUB-001 Rev C §10). A realistic session needs at most a couple of
+ * (NP-HW-HUB-001 Rev 3 §10). A realistic session needs at most a couple of
  * distinct simultaneous presets; 4 is a generous bound.
  */
 #define NP_PBM1064_SESSION_MAX_PRESET_GROUPS  4U

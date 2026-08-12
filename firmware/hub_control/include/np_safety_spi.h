@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Safety MCU SPI Interface
- * Document: NP-FW-HUB-001 Rev A §7
+ * Document: NP-FW-HUB-001 Rev 1 §7
  *
  * Two SPI frame types (hub is always SPI master):
  *

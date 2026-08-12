@@ -1,4 +1,4 @@
-# NP-THERM-CFD-R1-001 Rev A — THERM-1a First-Pass Analysis Results (C2 / C3 / C6) + BN-Boss Conductive-Export Study
+# NP-THERM-CFD-R1-001 — THERM-1a First-Pass Analysis Results (C2 / C3 / C6) + BN-Boss Conductive-Export Study
 
 **Program:** NeurOne chassis / thermal
 **Status:** DESIGN STUDY — **1D closed-form + rough non-verification-grade axisymmetric FD.** Advances
@@ -139,7 +139,7 @@ k 400), **perfect sink** (via end pinned at ambient — the best any fan-cooled 
 | OI-R1-02 | THERM-1b scalp-phantom fan-stall bench — correlate before any result is verification-grade | Thermal + ME |
 | OI-R1-03 | Pin the fan-airflow path (does the fan ventilate the inter-bowl gap or only cool the outer shell?) — swings C4 and C6; the conductive-export architecture makes it moot for the junction but it must be documented | ME + Thermal |
 | OI-R1-04 | Replace literature property placeholders (PBT / BN / foam / CFRP k; PDMS measured) and the fan-nominal convection coefficient with datasheet/measured values | Thermal + EE |
-| OI-R1-05 | Register outcomes under change control. **DONE 2026-07-22 (DHF Rev V):** Path B1 + SR-FAN-03/04 constants → NP-REQ-FANHEALTH-001 §4a; FMEA-G07-01 closure path → NP-FMEA-GEOM-001 (feeder); THERM-1a gate → NP-HELMET-GEOM-001 §8; BN-boss export adopted → completed-decisions.md. **Remaining:** NP-RISK-001 `.docx` RISK-2x line (register Rev B→C, owner-signed); BN-boss export → NP-DT-001 design input; accept SR-FAN-01…06 into NP-SW-001. | Quality |
+| OI-R1-05 | Register outcomes under change control. **DONE 2026-07-22 (DHF Rev 22):** Path B1 + SR-FAN-03/04 constants → NP-REQ-FANHEALTH-001 §4a; FMEA-G07-01 closure path → NP-FMEA-GEOM-001 (feeder); THERM-1a gate → NP-HELMET-GEOM-001 §8; BN-boss export adopted → completed-decisions.md. **Remaining:** NP-RISK-001 `.docx` RISK-2x line (register Rev 2→C, owner-signed); BN-boss export → NP-DT-001 design input; accept SR-FAN-01…06 into NP-SW-001. | Quality |
 
 ## 8. Assumptions / limits
 

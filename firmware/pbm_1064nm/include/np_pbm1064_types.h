@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — Type Definitions
- * Document: NP-FW-PBM1064-001 Rev A §4
+ * Document: NP-FW-PBM1064-001 Rev 1 §4
  */
 
 #ifndef NP_PBM1064_TYPES_H
@@ -125,7 +125,7 @@ typedef struct {
  *
  * Supersedes v4's 8-bit smart_module_mask + fixed zone[NP_PBM1064_ZONE_COUNT]
  * array, neither of which can name more than 5-8 of the ~30-128 sockets
- * NP-HEX-ZM-001's hex lattice actually has. Per NP-HW-HUB-001 Rev C §10, the
+ * NP-HEX-ZM-001's hex lattice actually has. Per NP-HW-HUB-001 Rev 3 §10, the
  * replacement reuses NP Hub Protocol v2's socket-bitmap representation (a
  * list of socket IDs is rejected: under inclusive midline zone membership a
  * list can carry the same socket twice, and a duplicate means double J/cm²

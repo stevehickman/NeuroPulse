@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-APP-ROADMAP-001  
-**Revision:** C  
+**Revision:** 3
 **Date:** 2026-07-13  
 **Status:** BASELINED  
 **Effective Date:** 2026-07-13  
@@ -12,8 +12,8 @@
 **Related Issues:** GitHub Issue #32  
 **Gate:** —  
 **IEC 62304 Class:** —  
-**Supersedes:** NP-APP-ROADMAP-001 Rev B  
-**Change Summary:** Corrected a platform-fact error in the Watch Phase 3 haptic spec. Core Haptics (`CHHapticEngine`) does not exist on watchOS; the only watchOS haptic API is `WKInterfaceDevice.play(_:)`, which cannot render a continuous 40Hz waveform. Phase 3 on the Watch is rescoped from "40Hz continuous Core Haptics" to a low-rate **rhythmic session cue** (WKInterfaceDevice named haptic, explicitly not 40Hz, honestly labelled as a supplement per §3b/§15). True 40Hz Core Haptics is achievable only on iPhone (where the phone is the contact surface); therapeutic 40Hz vibrotactile remains the mastoid LRA pad. OI-WA-01 and OI-WA-04 superseded (no continuous Core Haptics path exists on watchOS to characterise); OI-WA-05 rescoped. §4.1 diagram + channel table, §4.2 Phase 3, §7/§10 open items updated. Rev B change (retained): §9 Privacy Constraints; HealthKit binding; age gate; BIPA release; adaptive transparency card; OI-WA-06, OI-PA-01..04.
+**Supersedes:** NP-APP-ROADMAP-001 Rev 2  
+**Change Summary:** Corrected a platform-fact error in the Watch Phase 3 haptic spec. Core Haptics (`CHHapticEngine`) does not exist on watchOS; the only watchOS haptic API is `WKInterfaceDevice.play(_:)`, which cannot render a continuous 40Hz waveform. Phase 3 on the Watch is rescoped from "40Hz continuous Core Haptics" to a low-rate **rhythmic session cue** (WKInterfaceDevice named haptic, explicitly not 40Hz, honestly labelled as a supplement per §3b/§15). True 40Hz Core Haptics is achievable only on iPhone (where the phone is the contact surface); therapeutic 40Hz vibrotactile remains the mastoid LRA pad. OI-WA-01 and OI-WA-04 superseded (no continuous Core Haptics path exists on watchOS to characterise); OI-WA-05 rescoped. §4.1 diagram + channel table, §4.2 Phase 3, §7/§10 open items updated. Rev 2 change (retained): §9 Privacy Constraints; HealthKit binding; age gate; BIPA release; adaptive transparency card; OI-WA-06, OI-PA-01..04.
 
 ---
 
@@ -106,7 +106,7 @@ Development priority order is determined by implementation complexity and user u
 #### Phase 3 — Haptic Session Cue (WKInterfaceDevice, NOT 40Hz)
 **Target:** Month 4–5 post-core-app-launch
 
-**Platform correction (2026-07-13):** The Rev A/B spec assumed a continuous 40Hz `CHHapticEngine` waveform on the Watch. **Core Haptics does not exist on watchOS** — `CHHapticEngine`, `CHHapticPattern`, and `CHHapticEvent` are iOS/iPadOS only. The sole watchOS haptic API is `WKInterfaceDevice.play(_:)`, which fires a fixed set of *named* haptics on demand and **cannot render an arbitrary continuous 40Hz waveform**. Phase 3 on the Watch is therefore delivered as a low-rate rhythmic session cue, not a 40Hz vibrotactile channel.
+**Platform correction (2026-07-13):** The Rev 1/B spec assumed a continuous 40Hz `CHHapticEngine` waveform on the Watch. **Core Haptics does not exist on watchOS** — `CHHapticEngine`, `CHHapticPattern`, and `CHHapticEvent` are iOS/iPadOS only. The sole watchOS haptic API is `WKInterfaceDevice.play(_:)`, which fires a fixed set of *named* haptics on demand and **cannot render an arbitrary continuous 40Hz waveform**. Phase 3 on the Watch is therefore delivered as a low-rate rhythmic session cue, not a 40Hz vibrotactile channel.
 
 - Implementation: `WKInterfaceDevice.current().play(.click)` fired by a repeating timer at a gentle, reliable cadence (default 2Hz / one tap per 500ms). watchOS coalesces/rate-limits rapid `play()` calls, so a continuous buzz — and any true 40Hz drive — is not attainable; the cadence is a deliberately low, *felt* "session-active" pulse.
 - Purpose: a supplementary wrist presence indicating the session is running. Declared as a user-interface aid, not therapeutic delivery (consistent with §6 regulatory notes).
@@ -193,7 +193,7 @@ All Watch-delivered functions must be described in App Store metadata and in-app
 
 ---
 
-## 9. Privacy Constraints (Binding — NP-PRIV-REM-001 Rev B)
+## 9. Privacy Constraints (Binding — NP-PRIV-REM-001 Rev 2)
 
 The following are binding engineering constraints, not optional guidelines. Deviation requires a formal design change order with Privacy Lead sign-off under NP-QMS-DC-001.
 
@@ -205,7 +205,7 @@ Permitted HealthKit quantity types (Phase 1): `HKQuantityTypeIdentifierHeartRate
 
 Any future proposal to transmit HealthKit data to NeurOne servers or any third party requires: (a) Privacy Lead written approval; (b) updated App Privacy Nutrition Label in App Store Connect; (c) updated GDPR Art. 13 privacy notice; (d) new BAA/DPA if the recipient is a vendor.
 
-### 9.2 Minimum age gate (NP-PRIV-001 Rev B MEDIUM-03)
+### 9.2 Minimum age gate (NP-PRIV-001 Rev 2 MEDIUM-03)
 
 The app consent flow must include a minimum age declaration **before** any personal data is collected or any consent is presented:
 
@@ -252,16 +252,16 @@ OI-PA-03 (locale gating of the BIPA screen) is RESOLVED: the screen is shown to 
 
 The Session History screen must include an "Adaptive Adjustments" card for any session containing closed-loop adaptive events. Requirements:
 
-- Rendered from a fixed plain-language enum (maintained in the app codebase — see NP-PRIV-001 Rev B MEDIUM-05 for the full trigger enum mapping)
+- Rendered from a fixed plain-language enum (maintained in the app codebase — see NP-PRIV-001 Rev 2 MEDIUM-05 for the full trigger enum mapping)
 - Maximum 5 events displayed; "and N more" with "View all" link for longer lists
 - No raw EEG values visible (band power ratios stay in UHDR, not displayed to user)
 - Each event is a single plain-language sentence from the approved trigger enum
 - The trigger enum must be extended whenever new adaptive triggers are added to firmware (add as a change control checklist item in NP-QMS-DC-001)
 - Add OI-PA-04: Privacy Lead sign-off on plain-language trigger copy before any build with the Adaptive Adjustments card ships
 
-### 9.5 SDK initialisation gate (NP-APP-TELEMETRY-001 Rev B §5)
+### 9.5 SDK initialisation gate (NP-APP-TELEMETRY-001 Rev 2 §5)
 
-No analytics or crash reporting SDK may initialise before the consent flow is complete. See NP-APP-TELEMETRY-001 Rev B for full requirements. The `engagement_tier` property (coarsened 3-bucket enum) replaces any raw session counter in all analytics events.
+No analytics or crash reporting SDK may initialise before the consent flow is complete. See NP-APP-TELEMETRY-001 Rev 2 for full requirements. The `engagement_tier` property (coarsened 3-bucket enum) replaces any raw session counter in all analytics events.
 
 ---
 

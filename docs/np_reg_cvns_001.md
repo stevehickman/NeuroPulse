@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-REG-CVNS-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-05-11
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-FW-CVNS-001 Rev A (safety interlock specification)
+**References:** NP-FW-CVNS-001 Rev 1 (safety interlock specification)
 **Related Issues:** GitHub Issue #24
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** —
@@ -154,7 +154,7 @@ Does FDA expect full human factors summative testing for the cervical VNS access
 
 The gammaCore clinical programme (K163334: n=150 cluster headache RCT; K173323: migraine study) used up to 24 mA and a fixed 25 Hz waveform. The NeurOne device operates at ≤ 2 mA and configurable 1–25 Hz. Does FDA agree that the gammaCore clinical data is applicable to the NeurOne device given its substantially lower current range? Alternatively, what clinical data does FDA recommend to establish safety and effectiveness for the NeurOne operating range?
 
-*NeurOne position:* We propose that a focused tolerability study in 3 healthy adults (FAI-CV03, equivalent to what is described in NP-FW-CVNS-001 Rev A) is sufficient to confirm safety at the NeurOne operating range, combined with literature support for the gammaCore programme at the overlapping 25 Hz frequency.
+*NeurOne position:* We propose that a focused tolerability study in 3 healthy adults (FAI-CV03, equivalent to what is described in NP-FW-CVNS-001 Rev 1) is sufficient to confirm safety at the NeurOne operating range, combined with literature support for the gammaCore programme at the overlapping 25 Hz frequency.
 
 ---
 
@@ -275,4 +275,4 @@ NeurOne will request that FDA consider bundling the Q-Sub for all three modaliti
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| Rev A | 2026-05-11 | NeurOne Regulatory Affairs | Initial baseline; Issue #24 |
+| Rev 1 | 2026-05-11 | NeurOne Regulatory Affairs | Initial baseline; Issue #24 |

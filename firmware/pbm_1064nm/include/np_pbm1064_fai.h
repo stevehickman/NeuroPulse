@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — FAI Test Declarations
- * Document: NP-FW-PBM1064-001 Rev A §11
+ * Document: NP-FW-PBM1064-001 Rev 1 §11
  *
  * FAI-SM-01, -02, -03, -05, -09, -10, -11: software-passable; implemented here.
  * FAI-SM-04, -06, -07, -08: hardware bench required (return PENDING status).

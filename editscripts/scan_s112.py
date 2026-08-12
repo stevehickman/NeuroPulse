@@ -1,7 +1,7 @@
 """Get full content of §11.2 in FPC spec."""
 from docx import Document
 
-spec = Document("docs/neurone_fpc_zone_module_spec_revA.docx")
+spec = Document("docs/superseded/np_hw_fpc_001.docx")
 for i, para in enumerate(spec.paragraphs):
     t = para.text.strip()
     if "11.2" in t:

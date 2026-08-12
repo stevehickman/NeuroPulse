@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — Application Staging Area Limits
- * Document: NP-SW-CI-001 Rev D §4.3 (Defect C), phase 2
+ * Document: NP-SW-CI-001 Rev 4 §4.3 (Defect C), phase 2
  *
  * The bootloader copies an application image out of its eMMC bank into the
  * OCRAM staging area and executes it in place.  Two facts about that area —

@@ -2,25 +2,25 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-REM-001  
-**Revision:** B  
+**Revision:** 2
 **Date:** 2026-06-03  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-03  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001 Rev B, NP-FW-EMMC-002  
+**References:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001 Rev 2, NP-FW-EMMC-002  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —  
-**Supersedes:** NP-PRIV-REM-001 Rev A  
-**Change Summary:** Three new steps added (STEP-31, STEP-32, STEP-33) from NP-PRIV-001 Rev B delta findings: HIPAA Expert Determination certification pathway, adaptive stimulation right-to-explanation, and session_sequence coarsening. NP-APP-TELEMETRY-001 updated to Rev B (session_sequence → engagement_tier). NP-FW-EMMC-002 §G added. Capability matrix rows added for STEP-31 through STEP-33. Direct remediations section updated.  
-**Parent Analysis:** NP-PRIV-001 Rev A + Rev B delta (Privacy Analysis and Repair — 2026-06-02 / 2026-06-03)
+**Supersedes:** NP-PRIV-REM-001 Rev 1  
+**Change Summary:** Three new steps added (STEP-31, STEP-32, STEP-33) from NP-PRIV-001 Rev 2 delta findings: HIPAA Expert Determination certification pathway, adaptive stimulation right-to-explanation, and session_sequence coarsening. NP-APP-TELEMETRY-001 updated to Rev 2 (session_sequence → engagement_tier). NP-FW-EMMC-002 §G added. Capability matrix rows added for STEP-31 through STEP-33. Direct remediations section updated.  
+**Parent Analysis:** NP-PRIV-001 Rev 1 + Rev 2 delta (Privacy Analysis and Repair — 2026-06-02 / 2026-06-03)
 
 ---
 
 ## 1. Purpose and Scope
 
-This document translates every finding in NP-PRIV-001 Rev A into a tracked remediation programme. It serves four functions:
+This document translates every finding in NP-PRIV-001 Rev 1 into a tracked remediation programme. It serves four functions:
 
 1. **Option selection** — where NP-PRIV-001 presented multiple remediation paths, this document selects the most thorough option and records the rationale.
 2. **Master calendar** — all remediation steps are integrated into a single milestone-linked schedule, cross-referenced to the NeurOne design timeline in NP-DP-001.
@@ -68,7 +68,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-01 — Firmware spec: warrant token architecture
-**Document:** NP-FW-EMMC-002 Rev A  
+**Document:** NP-FW-EMMC-002 Rev 1  
 **Finding:** CRITICAL-01 (Warranty Owner ID re-identifies SHDR)  
 **Trigger:** Before warranty registration system is built or any warranty ID is issued.  
 **Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md`  
@@ -81,7 +81,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-02 — Firmware spec: device factory reset procedure
-**Document:** NP-FW-EMMC-002 Rev A  
+**Document:** NP-FW-EMMC-002 Rev 1  
 **Finding:** HIGH-03 (UHDR key lifecycle — device transfer)  
 **Trigger:** Before device serial numbers are assigned or any device is shipped outside the company.  
 **Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md`  
@@ -94,7 +94,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-03 — Firmware spec: two-layer UHDR key scheme
-**Document:** NP-FW-EMMC-002 Rev A  
+**Document:** NP-FW-EMMC-002 Rev 1  
 **Finding:** HIGH-03 (UHDR key lifecycle — biometric revocation)  
 **Trigger:** Before any UHDR is written to production firmware; must precede eMMC firmware implementation.  
 **Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md`  
@@ -107,7 +107,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-04 — Firmware spec: Scratch partition encryption for research anonymisation
-**Document:** NP-FW-EMMC-002 Rev A  
+**Document:** NP-FW-EMMC-002 Rev 1  
 **Finding:** MEDIUM-04 (Research Scratch partition anonymisation window)  
 **Trigger:** Before research anonymisation code is written; must precede first study descriptor deployment.  
 **Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md`  
@@ -120,7 +120,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-05 — Firmware spec: EDF+ header policy
-**Document:** NP-FW-EMMC-002 Rev A  
+**Document:** NP-FW-EMMC-002 Rev 1  
 **Finding:** MEDIUM-05 (EDF+ patient header field handling)  
 **Trigger:** Before EDF+ writer code is written; must precede any EEG session recording implementation.  
 **Status:** DIRECT REMEDIATION COMPLETE → `docs/np_fw_emmc_002.md`  
@@ -133,7 +133,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-06 — Mode F: default-off + separate consent + ambient indicator spec
-**Document:** docs/status/completed-decisions.md (locked decision), NP-FW-EMMC-002 Rev A §F  
+**Document:** docs/status/completed-decisions.md (locked decision), NP-FW-EMMC-002 Rev 1 §F  
 **Finding:** HIGH-04 (Mode F autonomous retinal PBM — consent capture undefined)  
 **Trigger:** Before any app UI or firmware code references Mode F as an enabled feature.  
 **Status:** DIRECT REMEDIATION COMPLETE → CLAUDE.md updated; `docs/np_fw_emmc_002.md §F`  
@@ -146,7 +146,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-07 — Breach Response Plan: NP-SEC-BR-001
-**Document:** NP-SEC-BR-001 Rev A  
+**Document:** NP-SEC-BR-001 Rev 1  
 **Finding:** CRITICAL-02 (No documented breach detection or response plan)  
 **Trigger:** Before any personal data (warranty registrant, SHDR fleet upload, clinical data) is held by NeurOne on any server.  
 **Status:** DIRECT REMEDIATION COMPLETE → `docs/np_sec_br_001.md`  
@@ -159,7 +159,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-08 — POA Upload Procedure: NP-PROC-POA-001
-**Document:** NP-PROC-POA-001 Rev A  
+**Document:** NP-PROC-POA-001 Rev 1  
 **Finding:** HIGH-06 (POA document upload is an unspecified high-risk data flow)  
 **Trigger:** Before the POA upload feature is included in any app build, even internal.  
 **Status:** DIRECT REMEDIATION COMPLETE → `docs/np_proc_poa_001.md`  
@@ -172,7 +172,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-09 — App Telemetry Policy: NP-APP-TELEMETRY-001
-**Document:** NP-APP-TELEMETRY-001 Rev A  
+**Document:** NP-APP-TELEMETRY-001 Rev 1  
 **Finding:** LOW-01 (App telemetry and crash reporting scope unspecified)  
 **Trigger:** Before any analytics or crash reporting SDK is added to the iOS or Android codebase.  
 **Status:** DIRECT REMEDIATION COMPLETE → `docs/np_app_telemetry_001.md`  
@@ -189,8 +189,8 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-10 — SHDR impact-event data: Option C on-device processing
-**Document:** NP-FW-EMMC-002 Rev A §G (COMPLETE — authored 2026-06-03); firmware/shdr/np_accel_shdr.h/.c (to author)  
-**Finding:** HIGH-01 (SHDR impact-event data enables motor-health inference); NP-PRIV-001 Rev B MEDIUM-06 (§G spec now complete)  
+**Document:** NP-FW-EMMC-002 Rev 1 §G (COMPLETE — authored 2026-06-03); firmware/shdr/np_accel_shdr.h/.c (to author)  
+**Finding:** HIGH-01 (SHDR impact-event data enables motor-health inference); NP-PRIV-001 Rev 2 MEDIUM-06 (§G spec now complete)  
 **Trigger:** Before any SHDR schema is frozen for the fleet database. §G spec is now complete — unblocks implementation.  
 **Target milestone:** G1 (Month 6)  
 **Status:** OPEN — spec complete, implementation pending  
@@ -212,7 +212,7 @@ These steps must be complete before any external engagement (beta users, warrant
 
 4. **SHDR fleet DB schema migration:** Before any SHDR data is written to the fleet DB, apply the schema migration adding `drop_detected BOOLEAN` and `maintenance_alert BOOLEAN` columns. Run CI schema test `ci/test_shdr_schema.py` (OI-EMMC2-07) against the migration before deploying. The test must pass — no prohibited column patterns.
 
-5. **CAPA trigger:** This is a design change (data element reclassification). Initiate a change order per NP-QMS-DC-001. Document the reclassification rationale: "Raw accelerometer series reclassified from SHDR to NEVER-WRITTEN due to motor-health inference risk identified in NP-PRIV-001 Rev A."
+5. **CAPA trigger:** This is a design change (data element reclassification). Initiate a change order per NP-QMS-DC-001. Document the reclassification rationale: "Raw accelerometer series reclassified from SHDR to NEVER-WRITTEN due to motor-health inference risk identified in NP-PRIV-001 Rev 1."
 
 **Performer:** Firmware engineer + data architect (DB schema migration)  
 **Authority required:** CEO sign-off on design change order (NP-QMS-DC-001).  
@@ -222,15 +222,15 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-11 — Research anonymisation: l-diversity + differential privacy spec
-**Document:** NP-FW-ANON-001 Rev A (COMPLETE — authored 2026-06-03); firmware/anon/ (to implement)  
+**Document:** NP-FW-ANON-001 Rev 1 (COMPLETE — authored 2026-06-03); firmware/anon/ (to implement)  
 **Finding:** HIGH-02 (k-anonymity alone is insufficient)  
 **Trigger:** Before the research anonymisation engine is implemented; must precede first study descriptor deployment.  
 **Target milestone:** G1 (Month 6)  
-**Status:** OPEN — spec complete (NP-FW-ANON-001 Rev A), implementation pending  
+**Status:** OPEN — spec complete (NP-FW-ANON-001 Rev 1), implementation pending  
 
 **Detailed implementation instructions:**
 
-1. **Read NP-FW-ANON-001 Rev A** (`docs/np_fw_anon_001.md`) in full before beginning implementation. The spec is complete and covers all module interfaces, data structures, algorithms, and FAI requirements.
+1. **Read NP-FW-ANON-001 Rev 1** (`docs/np_fw_anon_001.md`) in full before beginning implementation. The spec is complete and covers all module interfaces, data structures, algorithms, and FAI requirements.
 
 2. **Create firmware/anon/ directory** with four modules:
    - `np_anon_kgroup.h/c` — k-anonymity grouping and l-diversity check (§5 of spec)
@@ -256,7 +256,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-12 — EU-US Data Privacy Framework: self-certification
-**Document:** NP-REG-DPF-001 Rev A (new regulatory document)  
+**Document:** NP-REG-DPF-001 Rev 1 (new regulatory document)  
 **Finding:** LOW-03 (EU cross-border data transfer mechanism not specified)  
 **Trigger:** Before any EU resident's personal data (warranty registration, SHDR fleet upload) is transmitted to or stored on US infrastructure.  
 **Target milestone:** Month 3 (before any EU marketing or pre-order activity)  
@@ -298,7 +298,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-13 — Clinician BAA: consent revocation + deletion cascade obligations
-**Document:** NP-LEGAL-BAA-001 Rev A (COMPLETE — template authored 2026-06-03); execution with each counterparty pending  
+**Document:** NP-LEGAL-BAA-001 Rev 1 (COMPLETE — template authored 2026-06-03); execution with each counterparty pending  
 **Finding:** HIGH-05 (clinician consent revocation path); MEDIUM-07 (deletion cascade to third-party processors)  
 **Trigger:** Before any clinician subscription is sold or any UHDR-derived data is shared with a clinician.  
 **Target milestone:** Month 3 (template reviewed); first execution before first T2 clinical subscription  
@@ -306,7 +306,7 @@ These steps must be complete before any external engagement (beta users, warrant
 
 **Detailed execution instructions:**
 
-1. **Legal counsel review of template (NP-LEGAL-BAA-001 Rev A):** Healthcare legal counsel must review the template at `docs/np_legal_baa_001.md` before any execution. Key items for counsel to confirm:
+1. **Legal counsel review of template (NP-LEGAL-BAA-001 Rev 1):** Healthcare legal counsel must review the template at `docs/np_legal_baa_001.md` before any execution. Key items for counsel to confirm:
    - §5.1 (consent revocation cascade, 30-day deletion obligation) is enforceable in the relevant jurisdiction
    - §5.4 (biometric-data provision — BIPA-derived, but applied to all users per NeurOne's universal biometric protection, not gated to Illinois) is accurate and sufficient
    - The tier table in §4.2 correctly describes the minimum necessary data for each tier
@@ -335,15 +335,15 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-14 — FHIR ImplementationGuide: NP-INT-FHIR-001
-**Document:** NP-INT-FHIR-001 Rev A (COMPLETE — authored 2026-06-03); IG package publication and CI integration pending  
+**Document:** NP-INT-FHIR-001 Rev 1 (COMPLETE — authored 2026-06-03); IG package publication and CI integration pending  
 **Finding:** MEDIUM-01 (FHIR R4 minimum population not bounded)  
 **Trigger:** Before any T2 EHR integration code is written.  
 **Target milestone:** G1 (Month 6) gate item NP-COORD-001 G3-09  
-**Status:** OPEN — spec complete (NP-INT-FHIR-001 Rev A), IG package publication and CI integration pending  
+**Status:** OPEN — spec complete (NP-INT-FHIR-001 Rev 1), IG package publication and CI integration pending  
 
 **Detailed implementation instructions:**
 
-1. **Review NP-INT-FHIR-001 Rev A** (`docs/np_int_fhir_001.md`) with the T2 clinical engineering team before any EHR integration code is written.
+1. **Review NP-INT-FHIR-001 Rev 1** (`docs/np_int_fhir_001.md`) with the T2 clinical engineering team before any EHR integration code is written.
 
 2. **Resolve open items** (NP-INT-FHIR-001 §10, OI-FHIR-01 through OI-FHIR-05) before the IG package is published:
    - OI-FHIR-01 (LOINC mapping): Engage a clinical informatics specialist to confirm the NP-EEG-* local codes are appropriate given no standard LOINC codes exist for quantitative EEG spectral features. Budget: $2,000–5,000 for a single clinical informatics review session.
@@ -417,12 +417,12 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-18 — Mode F: add Q-13 to RISK-03 regulatory counsel scope
-**Document:** NP-REG-PBM1064-001 Rev B (update to existing counsel engagement brief)  
+**Document:** NP-REG-PBM1064-001 Rev 2 (update to existing counsel engagement brief)  
 **Finding:** HIGH-04 (Mode F retinal PBM consent and safety)  
 **Trigger:** When RISK-03 regulatory counsel engagement is initiated or next time counsel is contacted.  
 **Target milestone:** Month 3 (RISK-03 is already a pre-existing blocking item)  
 **Status:** OPEN — dependent on RISK-03 counsel engagement initiation.  
-**Deliverable:** Updated NP-REG-PBM1064-001 Rev B adding Q-13: "For Mode F (continuous 808–830nm bilateral retinal PBM during normal-looking wear, ≤[X] mW/cm², ≤[Y] min/day cumulative): (a) IEC 62471 group classification for this operating mode; (b) whether the cumulative daily dose calculation method differs from peak pulsed session calculation; (c) whether Mode F requires separate user consent disclosure distinct from session-based PBM consent; (d) FDA general wellness pathway applicability for continuous ambient retinal exposure."  
+**Deliverable:** Updated NP-REG-PBM1064-001 Rev 2 adding Q-13: "For Mode F (continuous 808–830nm bilateral retinal PBM during normal-looking wear, ≤[X] mW/cm², ≤[Y] min/day cumulative): (a) IEC 62471 group classification for this operating mode; (b) whether the cumulative daily dose calculation method differs from peak pulsed session calculation; (c) whether Mode F requires separate user consent disclosure distinct from session-based PBM consent; (d) FDA general wellness pathway applicability for continuous ambient retinal exposure."  
 **Performer:** Regulatory counsel (external, existing RISK-03 engagement)  
 **Authority required:** CEO instruction to counsel to expand scope.  
 **Automation:** No.  
@@ -435,7 +435,7 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-19 — EU data residency for T2 clinical cloud: architecture decision
-**Document:** NP-ARCH-CLOUD-001 Rev A (new architecture document)  
+**Document:** NP-ARCH-CLOUD-001 Rev 1 (new architecture document)  
 **Finding:** LOW-03 (EU cross-border data transfer mechanism)  
 **Trigger:** When T2 clinical cloud infrastructure vendor is selected.  
 **Target milestone:** Month 9 (eQMS platform selection is already a Month 9 item — cloud architecture decision should be concurrent)  
@@ -462,7 +462,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 **Step 1 — Initial outreach to Neda Rashidi-Ranjbar (neda.rashidi-ranjbar@unityhealth.to):**
 - Email subject: "NeurOne — Research Collaboration Opportunity: EEG + HRV + PBM Platform Study"
 - Content: Brief description of NeurOne (wearable multi-modal neuromodulation); reference her 2025 MCI PBM RCT; propose a pilot study using NeurOne as the platform; offer device loan + data access + co-authorship
-- Attach: NP-CLIN-001 clinical evidence summary (2-page executive summary from `docs/neurone_clinical_trials_strategy.docx`)
+- Attach: NP-CLIN-001 clinical evidence summary (2-page executive summary from `docs/np_clin_001.docx`)
 - Goal of call: confirm interest; identify whether she can serve as PI or co-PI on a NeurOne IRB protocol; discuss her REB (Research Ethics Board — Canadian equivalent of IRB) process at Unity Health Toronto
 
 **Step 2 — If Rashidi-Ranjbar agrees, prepare REB/IRB protocol:**
@@ -490,7 +490,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 ---
 
 #### STEP-21 — Internal privacy audit: app source code review
-**Document:** NP-PRIV-AUDIT-001 Rev A (new audit record)  
+**Document:** NP-PRIV-AUDIT-001 Rev 1 (new audit record)  
 **Finding:** LOW-01 (app telemetry scope — app source code not reviewed)  
 **Trigger:** When iOS and Android app source code reaches feature-complete state for a major version.  
 **Target milestone:** Month 9 (before first external beta)  
@@ -550,7 +550,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 ---
 
 #### STEP-25 — POA vault implementation and penetration test
-**Document:** NP-PROC-POA-001 Rev A update; NP-SEC-PENTEST-001 (new)  
+**Document:** NP-PROC-POA-001 Rev 1 update; NP-SEC-PENTEST-001 (new)  
 **Finding:** HIGH-06 (POA document upload)  
 **Trigger:** When POA upload infrastructure is built (before the feature is available in any app build).  
 **Target milestone:** G3 (Month 14)  
@@ -600,12 +600,12 @@ The preferred IRB path is through a university collaborator who already has a fu
 ---
 
 #### STEP-28 — EU T2 data residency: IaC implementation and certification
-**Document:** NP-ARCH-CLOUD-001 Rev B  
+**Document:** NP-ARCH-CLOUD-001 Rev 2  
 **Finding:** LOW-03 (EU transfer mechanism)  
 **Trigger:** When T2 clinical cloud infrastructure is provisioned.  
 **Target milestone:** T2 pre-launch  
 **Status:** OPEN — dependent on STEP-19 architecture decision  
-**Deliverable:** (a) IaC configuration (Terraform or equivalent) with EEA region constraints enforced for all T2 clinical data resources; (b) test confirming no clinical data writes to non-EEA regions; (c) EU customer service agreement updated to reflect EEA data residency commitment; (d) NP-ARCH-CLOUD-001 Rev B updated with implemented configuration.  
+**Deliverable:** (a) IaC configuration (Terraform or equivalent) with EEA region constraints enforced for all T2 clinical data resources; (b) test confirming no clinical data writes to non-EEA regions; (c) EU customer service agreement updated to reflect EEA data residency commitment; (d) NP-ARCH-CLOUD-001 Rev 2 updated with implemented configuration.  
 **Performer:** Infrastructure engineer  
 **Authority required:** CEO sign-off on service agreement updates.  
 **Automation:** Fully automatable via IaC. Cross-region writes can be blocked at the cloud IAM/policy level.  
@@ -630,10 +630,10 @@ The preferred IRB path is through a university collaborator who already has a fu
 #### STEP-30 — Annual privacy programme review
 **Document:** NP-PRIV-REVIEW-001 (new annual review record)  
 **Finding:** All findings — ongoing programme maintenance  
-**Trigger:** Annual — first review 12 months after NP-PRIV-001 Rev A (June 2027). Subsequent reviews: within 12 months of the previous.  
+**Trigger:** Annual — first review 12 months after NP-PRIV-001 Rev 1 (June 2027). Subsequent reviews: within 12 months of the previous.  
 **Target milestone:** Recurring annually  
 **Status:** OPEN  
-**Deliverable:** Review of: (a) all OPEN items in this calendar (confirm still applicable or close with justification); (b) new privacy risks from product changes, new modalities, or new data flows in the previous 12 months; (c) regulatory changes (new US state privacy laws, GDPR guidance updates, FDA digital health guidance); (d) threat model update (new attack vectors, new adversary capabilities); (e) findings documented in NP-PRIV-REVIEW-001; (f) this document updated to Rev B with any new steps.  
+**Deliverable:** Review of: (a) all OPEN items in this calendar (confirm still applicable or close with justification); (b) new privacy risks from product changes, new modalities, or new data flows in the previous 12 months; (c) regulatory changes (new US state privacy laws, GDPR guidance updates, FDA digital health guidance); (d) threat model update (new attack vectors, new adversary capabilities); (e) findings documented in NP-PRIV-REVIEW-001; (f) this document updated to Rev 2 with any new steps.  
 **Performer:** Privacy Lead (by Month 6, a dedicated role should exist; interim: CEO) + Legal counsel  
 **Authority required:** Quality Lead sign-off. CEO review of any new Critical or High findings.  
 **Automation:** Regulatory change monitoring can be automated (RSS feeds for FR, EDPB, FTC; services like Radar/OneTrust regulatory intelligence). Human judgment required for applicability assessment.  
@@ -641,17 +641,17 @@ The preferred IRB path is through a university collaborator who already has a fu
 
 ---
 
-### Phase 6 (continued) — Post-T1 / T2 Pre-Launch, New STEPS from Rev B
+### Phase 6 (continued) — Post-T1 / T2 Pre-Launch, New STEPS from Rev 2
 
 ---
 
 #### STEP-31 — Designate standing HIPAA Expert Determination certifier
 **Document:** NP-ANON-CERT template (new document type); engagement agreement with certifier  
-**Finding:** NP-PRIV-001 Rev B MEDIUM-04 (HIPAA Expert Determination certification gap)  
+**Finding:** NP-PRIV-001 Rev 2 MEDIUM-04 (HIPAA Expert Determination certification gap)  
 **Trigger:** Before NP-FW-ANON-001 (research anonymisation engine spec) is finalised; before any study descriptor is authored. Must precede STEP-32.  
 **Target milestone:** Month 9 (concurrent with NP-IRB-001 and NP-FW-ANON-001)  
 **Status:** OPEN  
-**Deliverable:** (a) Named certifier (individual or specialist firm) under a standing engagement agreement; (b) NP-ANON-CERT document template finalised (see NP-PRIV-001 Rev B for required content: expert qualifications, methods, data elements reviewed, risk assessment, signed certification); (c) NP-ANON-CERT added to DHF planned document types; (d) STEP-32 procedure incorporated into the study deployment gate checklist.  
+**Deliverable:** (a) Named certifier (individual or specialist firm) under a standing engagement agreement; (b) NP-ANON-CERT document template finalised (see NP-PRIV-001 Rev 2 for required content: expert qualifications, methods, data elements reviewed, risk assessment, signed certification); (c) NP-ANON-CERT added to DHF planned document types; (d) STEP-32 procedure incorporated into the study deployment gate checklist.  
 **Performer:** CEO + clinical research coordinator  
 **Authority required:** CEO sign-off on certifier engagement. Quality Lead confirms NP-ANON-CERT template meets HHS Guidance on De-identification (2012) requirements.  
 **Automation:** No — certification is a human expert judgment per 45 CFR §164.514(b)(1).  
@@ -661,12 +661,12 @@ The preferred IRB path is through a university collaborator who already has a fu
 ---
 
 #### STEP-32 — Obtain NP-ANON-CERT for each study before descriptor deployment
-**Document:** NP-ANON-CERT-[study_id] Rev A (one per study)  
-**Finding:** NP-PRIV-001 Rev B MEDIUM-04 (HIPAA Expert Determination certification gap)  
+**Document:** NP-ANON-CERT-[study_id] Rev 1 (one per study)  
+**Finding:** NP-PRIV-001 Rev 2 MEDIUM-04 (HIPAA Expert Determination certification gap)  
 **Trigger:** For each individual study, before the study descriptor is cryptographically signed and deployed to any device.  
 **Target milestone:** Recurring — before each study launch, from Month 9 onwards  
 **Status:** OPEN — dependent on STEP-31 (certifier engaged)  
-**Deliverable:** Completed and signed NP-ANON-CERT-[study_id] Rev A on file in DHF before any study descriptor is signed. Content: expert qualifications; specific DP parameters (ε, δ) applied to this study's data elements; l-diversity (l) and k-anonymity (k) values; per-element re-identification risk assessment; expert's signed certification that re-identification risk is very small per 45 CFR §164.514(b)(1).  
+**Deliverable:** Completed and signed NP-ANON-CERT-[study_id] Rev 1 on file in DHF before any study descriptor is signed. Content: expert qualifications; specific DP parameters (ε, δ) applied to this study's data elements; l-diversity (l) and k-anonymity (k) values; per-element re-identification risk assessment; expert's signed certification that re-identification risk is very small per 45 CFR §164.514(b)(1).  
 **Performer:** Expert certifier (engaged in STEP-31)  
 **Authority required:** Quality Lead confirms certification is on file before authorising the study descriptor signing key to be used. Without NP-ANON-CERT on file, the study descriptor must not be signed.  
 **Automation:** No. Gate enforcement can be partially automated: deployment pipeline can check for presence of a file matching `NP-ANON-CERT-[study_id]-signed.pdf` in the DHF vault before permitting the descriptor signing step.  
@@ -676,12 +676,12 @@ The preferred IRB path is through a university collaborator who already has a fu
 
 #### STEP-33 — Adaptive stimulation transparency: firmware log + app UI + privacy notice
 **Document:** firmware/hub_control/include/np_adaptation_log.h (existing header); NP-APP-ROADMAP-001; NP-API-001 (T2 clinical report); app privacy notice  
-**Finding:** NP-PRIV-001 Rev B MEDIUM-05 (right to explanation for adaptive stimulation)  
+**Finding:** NP-PRIV-001 Rev 2 MEDIUM-05 (right to explanation for adaptive stimulation)  
 **Trigger:** Before NP-FW-HUB-001 session runner is implemented; before the iOS/Android session-results screen UI is designed.  
 **Target milestone:** G2 (Month 10) for firmware struct; G3 (Month 14) for T2 clinical report in NP-API-001  
 **Status:** OPEN  
 **Deliverable:**  
-(a) `np_adaptation_event_t` struct and `np_adapt_trigger_t` enum added to hub_control firmware (see NP-PRIV-001 Rev B for full C struct definition) — logged to UHDR for every adaptive event during a session;  
+(a) `np_adaptation_event_t` struct and `np_adapt_trigger_t` enum added to hub_control firmware (see NP-PRIV-001 Rev 2 for full C struct definition) — logged to UHDR for every adaptive event during a session;  
 (b) Session History "Adaptive Adjustments" card added to iOS/Android app UI spec (NP-APP-ROADMAP-001) — displays plain-language adaptive events from the trigger enum; maximum 5 shown; "view all" for longer sessions;  
 (c) Plain-language trigger enum mapping (firmware code → user-facing copy) maintained in the app codebase and extended whenever new adaptive triggers are added;  
 (d) T2 clinical adaptation report schema added to NP-API-001 — JSON format with session_offset_ms, trigger, feature_percentile, param_id, value_before, value_after, confidence_pct; accessible to Full Clinical and Assess tier clinicians;  
@@ -693,12 +693,12 @@ The preferred IRB path is through a university collaborator who already has a fu
 
 ---
 
-### Phase 0 (continued) — Immediate, from Rev B findings
+### Phase 0 (continued) — Immediate, from Rev 2 findings
 
 ---
 
 #### STEP-34 — BIPA compliance programme (biometric written release — applied to ALL users)
-**Document:** NP-REG-BIPA-001 Rev A (new); NP-APP-ROADMAP-001 §9.3 (BIPA release screen)  
+**Document:** NP-REG-BIPA-001 Rev 1 (new); NP-APP-ROADMAP-001 §9.3 (BIPA release screen)  
 **Finding:** NP-PRIV-001 HIGH-01 (EEG data is biometric under BIPA)  
 **Universalization note (2026-07-10):** Per NeurOne's most-privacy-protecting-globally principle, the BIPA *user protection* — the biometric written-release screen and the public retention/destruction policy — is applied to EVERY user, not gated to Illinois residents. Illinois/BIPA is the WHY; the control is global. The written-release screen (iOS `BIPADisclosureView`, Android `BipaConsentScreen`) and website policy are the shipping deliverables and are complete/universal. The BIPA legal opinion below **confirms scope and possession analysis; it does NOT gate shipping the protection.**  
 **Trigger:** Protection ships to all users unconditionally (done). The legal opinion is desired before commercial launch to confirm scope — it does not gate device activation, and it is decoupled from the user-facing control.  
@@ -733,7 +733,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 ---
 
 #### STEP-35 — Washington My Health My Data Act (MHMD) — protections applied to ALL users
-**Document:** NP-REG-MHMD-001 Rev A (new)  
+**Document:** NP-REG-MHMD-001 Rev 1 (new)  
 **Finding:** NP-PRIV-001 HIGH-02 (Washington MHMD applies to SHDR behavioral patterns)  
 **Universalization note (2026-07-10):** Per NeurOne's most-privacy-protecting-globally principle, the MHMD *user protections* on SHDR behavioral data (consumable counts, session counts) are applied to EVERY user, not gated to Washington activations. Washington/MHMD is the WHY; the controls are global: (1) **no-sale** of SHDR behavioral data (and all user data) — universal, stated unconditionally in NP-PRIV-NOTICE-001 §11; (2) **standalone authorization** — the warranty-owner authorization for SHDR uploads is separate and distinct from any HIPAA consent and is obtained from every warranty owner. The WA counsel analysis below **confirms scope (the "consumer health data" classification); it does NOT gate shipping these protections.**  
 **Trigger:** No-sale + standalone warranty authorization apply to all users unconditionally (done). Counsel analysis is desired before commercial launch to confirm classification scope — it does not gate device activation.  
@@ -767,8 +767,8 @@ The preferred IRB path is through a university collaborator who already has a fu
 ---
 
 #### STEP-36 — Minimum age gate and minor patient pathway
-**Document:** NP-APP-ROADMAP-001 §9.2 (binding constraint); NP-PROC-MINOR-001 Rev A (new — T2 minor patient guardian consent procedure)  
-**Finding:** NP-PRIV-001 Rev B MEDIUM-03 (no minimum age or children's privacy mechanism)  
+**Document:** NP-APP-ROADMAP-001 §9.2 (binding constraint); NP-PROC-MINOR-001 Rev 1 (new — T2 minor patient guardian consent procedure)  
+**Finding:** NP-PRIV-001 Rev 2 MEDIUM-03 (no minimum age or children's privacy mechanism)  
 **Trigger:** Before any app consent flow is designed or implemented.  
 **Target milestone:** Month 3 (age gate in app); Month 9 (T2 minor patient pathway for clinical launch)  
 **Status:** OPEN  
@@ -1009,23 +1009,23 @@ Online form at dataprivacyframework.gov/s/join-the-framework. Required fields:
 
 The following documents were authored as part of this remediation programme.
 
-**Session 1 — 2026-06-02 (NP-PRIV-001 Rev A):**
+**Session 1 — 2026-06-02 (NP-PRIV-001 Rev 1):**
 
 | Document | Document number | File | Steps addressed |
 |---|---|---|---|
-| Firmware spec: warranty token, factory reset, two-layer key, Scratch encryption, EDF+ headers, Mode F spec | NP-FW-EMMC-002 Rev A | `docs/np_fw_emmc_002.md` | STEP-01 through STEP-06 |
-| Breach Response Plan | NP-SEC-BR-001 Rev A | `docs/np_sec_br_001.md` | STEP-07 |
-| POA Upload Procedure | NP-PROC-POA-001 Rev A | `docs/np_proc_poa_001.md` | STEP-08 |
-| App Telemetry Policy | NP-APP-TELEMETRY-001 Rev A | `docs/np_app_telemetry_001.md` | STEP-09 |
-| This document | NP-PRIV-REM-001 Rev A | `docs/np_priv_rem_001.md` | Framework for STEP-01 through STEP-30 |
+| Firmware spec: warranty token, factory reset, two-layer key, Scratch encryption, EDF+ headers, Mode F spec | NP-FW-EMMC-002 Rev 1 | `docs/np_fw_emmc_002.md` | STEP-01 through STEP-06 |
+| Breach Response Plan | NP-SEC-BR-001 Rev 1 | `docs/np_sec_br_001.md` | STEP-07 |
+| POA Upload Procedure | NP-PROC-POA-001 Rev 1 | `docs/np_proc_poa_001.md` | STEP-08 |
+| App Telemetry Policy | NP-APP-TELEMETRY-001 Rev 1 | `docs/np_app_telemetry_001.md` | STEP-09 |
+| This document | NP-PRIV-REM-001 Rev 1 | `docs/np_priv_rem_001.md` | Framework for STEP-01 through STEP-30 |
 
-**Session 2 — 2026-06-03 (NP-PRIV-001 Rev B delta — 8 new findings):**
+**Session 2 — 2026-06-03 (NP-PRIV-001 Rev 2 delta — 8 new findings):**
 
 | Document / change | Number | File | Steps addressed |
 |---|---|---|---|
-| NP-APP-TELEMETRY-001 Rev B — `session_sequence` replaced with `engagement_tier` coarsened enum; §3.2 added | NP-APP-TELEMETRY-001 Rev B | `docs/np_app_telemetry_001.md` | LOW-03 (Rev B finding) |
-| NP-FW-EMMC-002 §G added — SHDR accelerometer reclassification spec | NP-FW-EMMC-002 Rev A (§G appended) | `docs/np_fw_emmc_002.md` | MEDIUM-06 (Rev B finding); unblocks STEP-10 |
-| NP-PRIV-REM-001 Rev B — STEP-31, STEP-32, STEP-33 added; capability matrix rows added | NP-PRIV-REM-001 Rev B | `docs/np_priv_rem_001.md` | STEP-31 through STEP-33 |
+| NP-APP-TELEMETRY-001 Rev 2 — `session_sequence` replaced with `engagement_tier` coarsened enum; §3.2 added | NP-APP-TELEMETRY-001 Rev 2 | `docs/np_app_telemetry_001.md` | LOW-03 (Rev B finding) |
+| NP-FW-EMMC-002 §G added — SHDR accelerometer reclassification spec | NP-FW-EMMC-002 Rev 1 (§G appended) | `docs/np_fw_emmc_002.md` | MEDIUM-06 (Rev B finding); unblocks STEP-10 |
+| NP-PRIV-REM-001 Rev 2 — STEP-31, STEP-32, STEP-33 added; capability matrix rows added | NP-PRIV-REM-001 Rev 2 | `docs/np_priv_rem_001.md` | STEP-31 through STEP-33 |
 
 docs/status/pending-decisions.md §13.4 updates applied in Session 2:
 - BIPA legal opinion (before Illinois device activation) added as pending decision

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-INFRA-001  
-**Revision:** A  
+**Revision:** 1
 **Date:** 2026-06-14  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-14  
@@ -51,7 +51,7 @@ Purchase these domains from your registrar (Namecheap, Cloudflare Registrar, etc
 
 ### 3.1 Purpose
 
-The app uploads SHDR (System Health Data Record) binary blobs after each USB-C session. SHDR is device-condition telemetry only — LED degradation, NTC temperatures, impedance trends, firmware version history — never user biology (CLAUDE.md §5.1). See `NP-FW-EMMC-001 Rev A §7` for the full SHDR data schema.
+The app uploads SHDR (System Health Data Record) binary blobs after each USB-C session. SHDR is device-condition telemetry only — LED degradation, NTC temperatures, impedance trends, firmware version history — never user biology (CLAUDE.md §5.1). See `NP-FW-EMMC-001 Rev 1 §7` for the full SHDR data schema.
 
 ### 3.2 Architecture
 
@@ -64,7 +64,7 @@ iOS App (SHDRUploader)
   ▼
 fleet.neurone.internal:443
   ├── Receives SHDR blob
-  ├── Associates with opaque device token (NP-FW-EMMC-002 Rev A §A)
+  ├── Associates with opaque device token (NP-FW-EMMC-002 Rev 1 §A)
   └── Writes to fleet analytics database
 ```
 
@@ -83,7 +83,7 @@ The device token is a 256-bit TRNG opaque warranty token — it is never joined 
 | Success response | `200 OK` (body ignored by client) |
 | Error responses | `400` for malformed token format; `5xx` for server error (client retries on next USB-C connect) |
 
-The server must not attempt to correlate `X-NP-Device-Token` with any user identity, email, or purchase record. The token is the sole linkage key between the SHDR blob and any warranty record. See NP-FW-EMMC-002 Rev A §A for the token architecture.
+The server must not attempt to correlate `X-NP-Device-Token` with any user identity, email, or purchase record. The token is the sole linkage key between the SHDR blob and any warranty record. See NP-FW-EMMC-002 Rev 1 §A for the token architecture.
 
 ### 3.4 Infrastructure setup
 
@@ -135,7 +135,7 @@ iOS App (FirmwareUpdateService)
   └── GET /firmware/main-<version>.npfw  ─────────────────→ CDN origin
       Static path derived from version string only.
       Response: Ed25519-signed binary firmware image
-                (verified by hub before flashing — NP-FW-EMMC-001 Rev A §8)
+                (verified by hub before flashing — NP-FW-EMMC-001 Rev 1 §8)
 ```
 
 **Privacy design:** all requests are anonymous. The CDN receives no user, device, or session identifier. The manifest URL is the same for every client. Download URLs are deterministically derived from the version string in the manifest; no presigned or personalised URLs are used.
@@ -179,7 +179,7 @@ The manifest is a JSON object at `https://firmware.neurone.ai/manifest.json`. It
 | `imageSizeBytes` | Int | Exact byte count of the `.npfw` binary. The app validates download size matches before transferring to hub. |
 | `sha256Hex` | String | Lowercase hex SHA-256 of the `.npfw` binary. Used by the hub for post-transfer integrity check. |
 | `ed25519KeyFingerprint` | String | Hex fingerprint of the Ed25519 public key used to sign this image. Shown to the user in the OTA confirmation screen before they approve the update. |
-| `isSafetyMCUFirmware` | Bool | `true` if this image targets the STM32G071 Safety MCU. Safety MCU updates trigger a separate explicit user confirmation flow (per NP-FW-EMMC-001 Rev A §8). |
+| `isSafetyMCUFirmware` | Bool | `true` if this image targets the STM32G071 Safety MCU. Safety MCU updates trigger a separate explicit user confirmation flow (per NP-FW-EMMC-001 Rev 1 §8). |
 | `releaseNotes` | String | Plain-text release notes shown to user. Keep concise — the OTA UI card has limited vertical space. |
 
 ### 4.5 Firmware image path convention
@@ -191,7 +191,7 @@ https://firmware.neurone.ai/firmware/main-<version>.npfw
 
 Example: `https://firmware.neurone.ai/firmware/main-1.2.3.npfw`
 
-The file is the Ed25519-signed binary produced by the secure build pipeline (manufacturing root key — see NP-FW-EMMC-001 Rev A §8.1 and `firmware/bootloader/src/np_signature.c`). The manufacturing root Ed25519 private key must be stored in an HSM and never exposed in CI.
+The file is the Ed25519-signed binary produced by the secure build pipeline (manufacturing root key — see NP-FW-EMMC-001 Rev 1 §8.1 and `firmware/bootloader/src/np_signature.c`). The manufacturing root Ed25519 private key must be stored in an HSM and never exposed in CI.
 
 **Signing workflow:**
 ```bash
@@ -282,7 +282,7 @@ The current integer-path scheme (`/consumables/0`) is implementation-coupled to 
 
 ### 6.1 Two deployment options
 
-The codebase currently uses **PostHog EU cloud** (`eu.i.posthog.com`) as the analytics ingestion endpoint. A separate self-hosted PostHog deployment specification exists in `docs/np_analytics_001.md` (NP-ANALYTICS-001 Rev A).
+The codebase currently uses **PostHog EU cloud** (`eu.i.posthog.com`) as the analytics ingestion endpoint. A separate self-hosted PostHog deployment specification exists in `docs/np_analytics_001.md` (NP-ANALYTICS-001 Rev 1).
 
 | Option | Host | DPA required | Data residency | When to use |
 |--------|------|-------------|----------------|-------------|
@@ -322,7 +322,7 @@ The codebase currently uses **PostHog EU cloud** (`eu.i.posthog.com`) as the ana
    | Event retention | 90 days |
    | Person retention | 90 days |
 
-5. **Server-side property filter:** install the PostHog "Property Filter" transformation (Data Pipeline → Transformations). Add all prohibited properties from `NP-APP-TELEMETRY-001 Rev B §3` to the denylist. Full property list: see `docs/np_analytics_001.md §8.2`.
+5. **Server-side property filter:** install the PostHog "Property Filter" transformation (Data Pipeline → Transformations). Add all prohibited properties from `NP-APP-TELEMETRY-001 Rev 2 §3` to the denylist. Full property list: see `docs/np_analytics_001.md §8.2`.
 
 6. **Execute PostHog DPA:** download and sign PostHog's Data Processing Agreement from your account settings before any EU/EEA user data flows through the account. File with NP-LEGAL.
 
@@ -343,7 +343,7 @@ PostHogConfig(projectToken: token, host: "https://eu.i.posthog.com")
 
 ### 6.4 Migrating to self-hosted
 
-When the self-hosted stack (NP-ANALYTICS-001 Rev A, `docs/np_analytics_001.md`) is deployed in an EU region:
+When the self-hosted stack (NP-ANALYTICS-001 Rev 1, `docs/np_analytics_001.md`) is deployed in an EU region:
 
 1. Obtain the self-hosted PostHog project API token (from the self-hosted UI)
 2. Update the `POSTHOG_PROJECT_TOKEN` build variable to point to the new token
@@ -373,10 +373,10 @@ When the self-hosted stack (NP-ANALYTICS-001 Rev A, `docs/np_analytics_001.md`) 
 
 | Document | Relationship |
 |----------|-------------|
-| `docs/neurone_fw_emmc_001.docx` (NP-FW-EMMC-001 Rev A) | SHDR partition schema; dual-bank OTA bootloader protocol |
-| `docs/np_fw_emmc_002.md` (NP-FW-EMMC-002 Rev A §A) | Warranty token architecture; no-join rule for fleet DB |
-| `docs/np_app_telemetry_001.md` (NP-APP-TELEMETRY-001 Rev B) | Permitted/prohibited analytics event properties; `engagement_tier` enum |
-| `docs/np_analytics_001.md` (NP-ANALYTICS-001 Rev A) | Full self-hosted PostHog deployment specification |
+| `docs/np_fw_emmc_001.docx` (NP-FW-EMMC-001 Rev 1) | SHDR partition schema; dual-bank OTA bootloader protocol |
+| `docs/np_fw_emmc_002.md` (NP-FW-EMMC-002 Rev 1 §A) | Warranty token architecture; no-join rule for fleet DB |
+| `docs/np_app_telemetry_001.md` (NP-APP-TELEMETRY-001 Rev 2) | Permitted/prohibited analytics event properties; `engagement_tier` enum |
+| `docs/np_analytics_001.md` (NP-ANALYTICS-001 Rev 1) | Full self-hosted PostHog deployment specification |
 | `docs/np_priv_rem_001.md` (NP-PRIV-REM-001) | STEP-05 (analytics DPA), STEP-19 (EU data residency for T2 cloud) |
-| `docs/np_app_roadmap_001.md` (NP-APP-ROADMAP-001 Rev B) | iOS app development phases; OTA Watch app phases |
+| `docs/np_app_roadmap_001.md` (NP-APP-ROADMAP-001 Rev 2) | iOS app development phases; OTA Watch app phases |
 | `app/ios/ISA.md` | ISC-3/8/9: SwiftLint enforcement; ISC-157: single PostHog integration point |

@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — Detection API
- * Document: NP-FW-PBM1064-001 Rev A §4
+ * Document: NP-FW-PBM1064-001 Rev 1 §4
  */
 
 #ifndef NP_PBM1064_DETECT_H

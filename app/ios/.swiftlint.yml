@@ -103,7 +103,7 @@ custom_rules:
       - identifier
     severity: warning
 
-  # ISC-93 / NP-APP-TELEMETRY-001 Rev B §3: raw session counts must never be
+  # ISC-93 / NP-APP-TELEMETRY-001 Rev 2 §3: raw session counts must never be
   # transmitted in analytics. Catch `"session_count"` / `"session_sequence"`
   # used as analytics dictionary keys. Scoped to a `key: value` dictionary-entry
   # shape (string literal immediately followed by a colon) so that prose,
@@ -111,20 +111,20 @@ custom_rules:
   # only permitted bucket.
   no_session_count_analytics:
     name: "No raw session count in analytics"
-    message: "Raw session_count/session_sequence must not be an analytics key. Use the engagement_tier enum. See ISA ISC-93 / NP-APP-TELEMETRY-001 Rev B §3."
+    message: "Raw session_count/session_sequence must not be an analytics key. Use the engagement_tier enum. See ISA ISC-93 / NP-APP-TELEMETRY-001 Rev 2 §3."
     regex: '"(session_count|session_sequence)"\s*:'
     match_kinds:
       - string
     severity: warning
 
-  # ISC-97 / NP-APP-TELEMETRY-001 Rev B: these biometric / identifier strings
+  # ISC-97 / NP-APP-TELEMETRY-001 Rev 2: these biometric / identifier strings
   # must never appear as analytics event property keys. Scoped to the
   # dictionary-key shape (`"<key>":`) so that UI labels, search tags, and
   # WatchConnectivity message keys are not flagged — only string literals used
   # as keys in event property dictionaries.
   no_analytics_keys:
     name: "No prohibited analytics property keys"
-    message: "eeg/hrv/rmssd/coherence/session_id/protocol_id must not be analytics event property keys. See ISA ISC-97 / NP-APP-TELEMETRY-001 Rev B."
+    message: "eeg/hrv/rmssd/coherence/session_id/protocol_id must not be analytics event property keys. See ISA ISC-97 / NP-APP-TELEMETRY-001 Rev 2."
     regex: '"(eeg|hrv|rmssd|coherence|session_id|protocol_id)"\s*:'
     match_kinds:
       - string
@@ -134,7 +134,7 @@ custom_rules:
   # Broader than no_session_count_analytics — covers subscript access too.
   no_session_count_key:
     name: "No session_count/session_sequence key"
-    message: "Use engagement_tier enum. See ISA ISC-93/ISC-144 / NP-APP-TELEMETRY-001 Rev B §3."
+    message: "Use engagement_tier enum. See ISA ISC-93/ISC-144 / NP-APP-TELEMETRY-001 Rev 2 §3."
     regex: '"(session_count|session_sequence)"\s*[:\)\]]'
     match_kinds:
       - string

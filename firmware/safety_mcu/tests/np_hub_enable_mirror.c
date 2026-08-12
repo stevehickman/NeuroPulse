@@ -1,10 +1,10 @@
 /*
  * NeurOne — hub-side enable-word mirror (test support only)
- * Document: NP-HW-HUB-001 Rev C §7.2
+ * Document: NP-HW-HUB-001 Rev 3 §7.2
  *
  * np_safety_protocol.h says its enable-bit block "must match
  * hub_control/np_hub_config.h".  Nothing enforced that, and the two drifted
- * apart in exactly the way this change exists to fix: NP-HW-HUB-001 Rev C §7.2
+ * apart in exactly the way this change exists to fix: NP-HW-HUB-001 Rev 3 §7.2
  * decided the collapse to one NP_SAFETY_EN_PBM_CRANIAL bit and neither header
  * followed for two revisions.
  *

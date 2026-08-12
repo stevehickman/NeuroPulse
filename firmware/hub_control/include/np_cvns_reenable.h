@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Cervical VNS Re-Enable Manager (OI-CVNS-HUB-01)
- * Document: NP-FW-HUB-001 Rev A §7a, NP-FW-CVNS-001 Rev A
+ * Document: NP-FW-HUB-001 Rev 1 §7a, NP-FW-CVNS-001 Rev 1
  *
  * Decides when the hub may assert NP_SESSION_STATUS_CVNS_REENABLE (heartbeat
  * session_status bit 1) after the safety MCU's cardiac interlock has cut

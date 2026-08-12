@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — SW01-M05 Cardiac Interlock Host Tests
- * Document: NP-SW-001 §4.1 (SW01-M05), NP-FW-CVNS-001 Rev B §5,
- *           NP-FMEA-001 Rev A §SW01-M05 (FMEA-M05-02)
+ * Document: NP-SW-001 §4.1 (SW01-M05), NP-FW-CVNS-001 Rev 2 §5,
+ *           NP-FMEA-001 Rev 1 §SW01-M05 (FMEA-M05-02)
  *
  * Host-native tests for the STM32G071 bare-metal cervical VNS cardiac rhythm
  * interlock (np_cardiac_interlock.c) — the IEC 62304 Class C unit that owns the

@@ -1,5 +1,5 @@
 """
-Correct the First Article Inspection checklist (docs/neurone_fai_zone_module.docx,
+Correct the First Article Inspection checklist (docs/superseded/np_fai_zm_001.docx,
 NP-FAI-ZM-001) for the hex-tile/socket architecture (NP-HEX-ZM-001).
 
 FAI-A01..A08 (§4a): CMM verification of EEG electrode position was written
@@ -34,7 +34,7 @@ from docx.shared import Pt, RGBColor
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-FAI_PATH = "docs/neurone_fai_zone_module.docx"
+FAI_PATH = "docs/superseded/np_fai_zm_001.docx"
 
 MARKER = "hex-tile/socket architecture (NP-HEX-ZM-001)"
 

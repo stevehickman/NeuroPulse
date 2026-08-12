@@ -1,4 +1,4 @@
-# NP-FW-M09-ARCH-001 Rev A — Architecture Decision: Operating-Envelope Gate as SW01-M09 vs. extending SW01-M04
+# NP-FW-M09-ARCH-001 — Architecture Decision: Operating-Envelope Gate as SW01-M09 vs. extending SW01-M04
 
 **Program:** NeurOne firmware / Safety MCU
 **Status:** DRAFT decision note (settles **OI-POE-02**). Recommends a home for the predictive

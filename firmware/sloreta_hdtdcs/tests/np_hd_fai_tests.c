@@ -1,6 +1,6 @@
 /*
  * NeurOne sLORETA-guided HD-tDCS — First Article Inspection Tests
- * Document: NP-FW-HD-001 Rev A §12 / NP-FAI-HD-001 Rev A
+ * Document: NP-FW-HD-001 Rev 1 §12 / NP-FAI-HD-001 Rev 1
  *
  * FAI-HD01: sLORETA source localization accuracy vs known phantom
  *           HD01-D: covariance estimator variance on stochastic input
@@ -1764,8 +1764,8 @@ static int fai_safety_constants(void)
 
 int main(void)
 {
-    printf("=== NP-FAI-HD-001 Rev A — sLORETA-guided HD-tDCS FAI Tests ===\n");
-    printf("Date: 2026-05-11  Document: NP-FW-HD-001 Rev A  Issue: #23\n\n");
+    printf("=== NP-FAI-HD-001 Rev 1 — sLORETA-guided HD-tDCS FAI Tests ===\n");
+    printf("Date: 2026-05-11  Document: NP-FW-HD-001 Rev 1  Issue: #23\n\n");
 
     fai_safety_constants();
     fai_hd01_sloreta_plumbing();
@@ -1782,7 +1782,7 @@ int main(void)
     if (g_fail_count == 0) {
         printf("SOFTWARE FAI: PASS\n");
         printf("HARDWARE FAI (FAI-HD01 full, FAI-HD03, FAI-HD04): bench required\n");
-        printf("See NP-FAI-HD-001 Rev A for complete hardware test procedures.\n");
+        printf("See NP-FAI-HD-001 Rev 1 for complete hardware test procedures.\n");
     } else {
         printf("FAIL — %d assertion(s) failed. Review output above.\n", g_fail_count);
     }

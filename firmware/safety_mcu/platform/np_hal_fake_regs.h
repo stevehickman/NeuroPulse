@@ -1,6 +1,6 @@
 /*
  * NeurOne Safety MCU — SW-01 Platform Layer: host-test register file
- * Document: NP-SW-001 Rev A — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
+ * Document: NP-SW-001 Rev 1 — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
  *
  * TEST-ONLY.  Included by np_hal_internal.h if and only if NP_HAL_HOST_TEST is
  * defined, which only np_hal_platform_tests does.  The cross build defines

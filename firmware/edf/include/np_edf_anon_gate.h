@@ -1,7 +1,7 @@
-/* Document: NP-FW-EMMC-002 Rev A §E.4 */
+/* Document: NP-FW-EMMC-002 Rev 1 §E.4 */
 /*
  * NeurOne EDF+ Privacy Header — Anonymization-Pipeline File Gate
- * Document: NP-FW-EMMC-002 Rev A §E.4
+ * Document: NP-FW-EMMC-002 Rev 1 §E.4
  *
  * §E.4 requires that, before any EDF+ file is included in a research extract,
  * a privacy-header validator runs over it.  A file whose header violates the

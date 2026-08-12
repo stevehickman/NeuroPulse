@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — Audio Driver
- * Document: NP-FW-HUB-001 Rev A §8.5
+ * Document: NP-FW-HUB-001 Rev 1 §8.5
  *
  * Controls:
  *   - Over-ear planar magnetic driver (binaural beats, isochronic tones, noise)

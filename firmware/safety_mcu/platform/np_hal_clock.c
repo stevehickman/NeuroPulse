@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — SW-01 Platform Layer: clock tree and 1 ms timebase
  * Target: STM32G071 (Cortex-M0+, 64 MHz), bare metal, CMSIS registers only
- * Document: NP-SW-001 Rev A — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
+ * Document: NP-SW-001 Rev 1 — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
  *
  * Implements np_hal_clock_init(), np_hal_systick_init() and
  * np_hal_get_tick_ms() from np_safety_hal.h, plus SysTick_Handler.

@@ -1,4 +1,4 @@
-/* Document: NP-FW-EMMC-002 Rev A §B */
+/* Document: NP-FW-EMMC-002 Rev 1 §B */
 /*
  * NeurOne Device Factory Reset — Host Smoke + Failure-Path Test
  * Build: -DNPTEST_HOST (host execution, not cross-compiled)

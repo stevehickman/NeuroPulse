@@ -2,13 +2,13 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-NOTICE-001  
-**Revision:** C  
+**Revision:** 3
 **Date:** 2026-07-10  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-10  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-PRIV-001 Rev B; NP-PRIV-REM-001 Rev B; NP-FW-EMMC-001 Rev A; NP-FW-EMMC-002 Rev A  
+**References:** NP-PRIV-001 Rev 2; NP-PRIV-REM-001 Rev 2; NP-FW-EMMC-001 Rev 1; NP-FW-EMMC-002 Rev 1  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —  

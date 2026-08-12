@@ -1,8 +1,8 @@
 """
-Add a SUPERSEDED banner to NP-HW-FPC-001 Rev D (docs/neurone_fpc_zone_module_spec_revA.docx).
+Add a SUPERSEDED banner to NP-HW-FPC-001 Rev 4 (docs/superseded/np_hw_fpc_001.docx).
 
 docs/status/document-register.md already flags this .docx as superseded
-(2026-07-28, alongside its markdown sibling docs/np_hw_fpc_001.md, see commit
+(2026-07-28, alongside its markdown sibling docs/superseded/np_hw_fpc_001.md, see commit
 b96f2d4). That pass explicitly deferred opening/editing the .docx itself
 ("out of scope for this pass"). This script closes that gap by inserting the
 same style of in-document supersession banner used on the markdown siblings
@@ -24,7 +24,7 @@ from docx.shared import Pt, RGBColor
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-SPEC_PATH = "docs/neurone_fpc_zone_module_spec_revA.docx"
+SPEC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 
 BANNER_MARKER = "SUPERSEDED (2026-07-28)"
 

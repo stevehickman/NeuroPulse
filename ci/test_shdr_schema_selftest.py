@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Self-test for the SHDR schema CI gate — OI-EMMC2-07
-Document: NP-FW-EMMC-002 Rev A §G.5
+Document: NP-FW-EMMC-002 Rev 1 §G.5
 
 The gate in ci/test_shdr_schema.py asserts that the SHDR fleet DB schema
 contains NO raw accelerometer columns (only the two permitted booleans

@@ -258,7 +258,7 @@ static void test_session_start_beyond_old_domain(void)
     /*
      * Regression test for the actual bug: a session addressing socket 0 (a
      * socket the v4 8-bit mask COULD represent) succeeds through preflight,
-     * because today's HAL stub only wires slots 0-4 (NP-HW-HUB-001 Rev C's
+     * because today's HAL stub only wires slots 0-4 (NP-HW-HUB-001 Rev 3's
      * cluster-controller fan-out for the full ~80-128 socket domain is
      * separately-tracked, undesigned hardware — OI-HUB-C* items). What this
      * test actually proves is that the DESCRIPTOR and its expansion are no

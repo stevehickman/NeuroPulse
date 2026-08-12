@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HRV-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-05-11
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
@@ -305,7 +305,7 @@ This document and its accompanying firmware (`firmware/hrv_biofeedback/`) satisf
 - [x] taVNS inspiration-phase timing fully specified and implemented (§5, np_hrv_tavns_sync.c)
 - [x] Dual EEG+HRV display state and adaptive step implemented (§6, np_hrv_eeg_biofeedback.c)
 - [x] All four protocols orchestrated in session manager (np_hrv_session.c)
-- [x] UHDR/SHDR data routing consistent with NP-FW-EMMC-001 Rev A §12 classification table
+- [x] UHDR/SHDR data routing consistent with NP-FW-EMMC-001 Rev 1 §12 classification table
 - [x] Safety interlocks documented and implemented (§5.2)
 - [x] No new hardware required (BOM delta $0)
 

@@ -1,6 +1,6 @@
 # NeurOne Hub Control Program — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz), FreeRTOS
-# Document: NP-FW-HUB-001 Rev A
+# Document: NP-FW-HUB-001 Rev 1
 #
 # Produces a static library (np_hub_control) linked into the main application
 # image (alongside FreeRTOS, np_bootloader, np_pbm_1064nm, np_hrv_biofeedback,

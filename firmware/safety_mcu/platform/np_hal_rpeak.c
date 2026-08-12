@@ -1,8 +1,8 @@
 /*
  * NeurOne Safety MCU — SW-01 Platform Layer: TIM2 timebase + R-peak capture
  * Target: STM32G071 (Cortex-M0+, 64 MHz), bare metal, CMSIS registers only
- * Document: NP-SW-001 Rev A — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
- *           NP-FW-CVNS-001 Rev B §5; CLAUDE.md §4.2 (cervical VNS cardiac interlock)
+ * Document: NP-SW-001 Rev 1 — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
+ *           NP-FW-CVNS-001 Rev 2 §5; CLAUDE.md §4.2 (cervical VNS cardiac interlock)
  *
  * Implements np_hal_tim2_init(), np_hal_tim2_get_capture(),
  * np_hal_rpeak_edge_pending() and np_hal_rpeak_edge_clear(), plus the

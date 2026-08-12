@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** B
+**Revision:** 2
 **Date:** 2026-08-05
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
@@ -12,23 +12,23 @@
 **Related Issues:** GitHub Issue #24
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev A
+**Supersedes:** NP-FW-CVNS-001 Rev 1
 **Parent Document:** NP-SW-001
 
 ---
 
-**Rev B (2026-08-05):** Reconciles §5 (safety MCU, Class C) with the firmware it specifies. Rev A §5 described the safety MCU using the **main processor's** constants and behaviours — the root cause of most of the divergences below — and specified one operation the firmware cannot perform.
+**Rev B (2026-08-05):** Reconciles §5 (safety MCU, Class C) with the firmware it specifies. Rev 1 §5 described the safety MCU using the **main processor's** constants and behaviours — the root cause of most of the divergences below — and specified one operation the firmware cannot perform.
 
 *Corrected outright (documentation errors; no firmware behaviour changed):*
-- **§5.3 constants.** Rev A cited `NP_CVNS_RR_WINDOW_SIZE` (20) and `NP_CVNS_BASELINE_BEATS_MIN` (5) as the safety MCU's. Both live in `firmware/cervical_vns/include/np_cvns_config.h` — the **main-processor** module specified in §6 of this same document. The safety MCU has its own header and its own values (`NP_CARDIAC_BASELINE_BEATS` = 8, `NP_RR_BUF_SIZE` = 8). §5.3 now names the safety MCU's own constants and states explicitly that the two sides compute baselines independently and cross-validate at ±5 BPM — which is the *reason* they are separate implementations.
+- **§5.3 constants.** Rev 1 cited `NP_CVNS_RR_WINDOW_SIZE` (20) and `NP_CVNS_BASELINE_BEATS_MIN` (5) as the safety MCU's. Both live in `firmware/cervical_vns/include/np_cvns_config.h` — the **main-processor** module specified in §6 of this same document. The safety MCU has its own header and its own values (`NP_CARDIAC_BASELINE_BEATS` = 8, `NP_RR_BUF_SIZE` = 8). §5.3 now names the safety MCU's own constants and states explicitly that the two sides compute baselines independently and cross-validate at ±5 BPM — which is the *reason* they are separate implementations.
 - **§5.3 step 2 R-R validity window.** The 300–2000 ms discard rule is main-processor behaviour; the safety MCU applies no such filter. Marked as not implemented on the MCU side and escalated (OI-CVNS-11).
-- **§5.4.2a dual-enable cutoff.** Rev A instructed asserting `CVNS_ENABLE_L` **and** `CVNS_ENABLE_R`. The firmware has a single CVNS enable (`NP_EN_CVNS`); the two-line assertion is unimplementable as written. §5.4.2a now describes the cutoff the firmware actually performs, and the enable-line count is escalated (OI-CVNS-09).
+- **§5.4.2a dual-enable cutoff.** Rev 1 instructed asserting `CVNS_ENABLE_L` **and** `CVNS_ENABLE_R`. The firmware has a single CVNS enable (`NP_EN_CVNS`); the two-line assertion is unimplementable as written. §5.4.2a now describes the cutoff the firmware actually performs, and the enable-line count is escalated (OI-CVNS-09).
 - **§5.4.3 conservative hold.** The "fewer than 3 valid intervals → warning flag → 10 s → soft cutoff" behaviour is the main processor's (`NP_CVNS_DATA_LOSS_TIMEOUT_S`). The safety MCU's hold is different and stricter: it will not arm at all until 8 intervals have accumulated, and it has no soft-cutoff timer. Corrected to describe the MCU.
-- **§5.1 pin map.** Marked **unverified** rather than corrected in either direction — see OI-CVNS-08. Rev A's map is retained verbatim as the claim under dispute; it is no longer presented as the requirement.
+- **§5.1 pin map.** Marked **unverified** rather than corrected in either direction — see OI-CVNS-08. Rev 1's map is retained verbatim as the claim under dispute; it is no longer presented as the requirement.
 
 *Escalated, deliberately NOT resolved here* — each is a design or clinical decision, not a documentation defect: **OI-CVNS-08** (STM32G071 pin map), **OI-CVNS-09** (single vs dual CVNS enable line), **OI-CVNS-10** (baseline window 5 vs 8), **OI-CVNS-11** (R-R validity filtering on the MCU). Each carries two candidate resolutions, the evidence for each, and what would settle it. No number in either the doc or the firmware was changed to make the other side agree.
 
-*Verification added:* `firmware/safety_mcu/tests/np_cardiac_interlock_tests.c` — the first host-test coverage of the Class C cardiac interlock. Rev A's only "cardiac interlock" suite (`np_cvns_fai_tests`, registered as NP-FAI-CVNS-001) exercises the **main-processor** module on the other side of the SPI boundary and asserts on main-processor constants; it never touched the unit that owns the enable GPIO. The new suite pins current behaviour, including the constants under OI-CVNS-10, so any later change surfaces as a reviewed failing assertion rather than a silent edit.
+*Verification added:* `firmware/safety_mcu/tests/np_cardiac_interlock_tests.c` — the first host-test coverage of the Class C cardiac interlock. Rev 1's only "cardiac interlock" suite (`np_cvns_fai_tests`, registered as NP-FAI-CVNS-001) exercises the **main-processor** module on the other side of the SPI boundary and asserts on main-processor constants; it never touched the unit that owns the enable GPIO. The new suite pins current behaviour, including the constants under OI-CVNS-10, so any later change surfaces as a reviewed failing assertion rather than a silent edit.
 
 ---
 
@@ -46,7 +46,7 @@ Modules covered:
 
 **Safety MCU bare-metal behavior** is specified in §5 below; the C implementation of the safety MCU firmware is separate (IEC 62304 Class C, ~500 lines bare-metal on STM32G071, certified independently).
 
-**Not in scope:** auricular taVNS (handled by HRV biofeedback firmware, NP-FW-HRV-001 Rev A); hub accessory port electrical driver.
+**Not in scope:** auricular taVNS (handled by HRV biofeedback firmware, NP-FW-HRV-001 Rev 1); hub accessory port electrical driver.
 
 ---
 
@@ -61,7 +61,7 @@ Modules covered:
 | Stimulation modality | Biphasic charge-balanced electrical stimulation |
 | Indication (T2 target) | Cluster headache, migraine, depression, PTSD, post-stroke rehabilitation |
 | FDA predicate | electroCore gammaCore K163334 (cluster headache, 2016) and K173323 (migraine, 2017) |
-| Regulatory pathway | 510(k); substantial equivalence to gammaCore predicates (see NP-REG-CVNS-001 Rev A) |
+| Regulatory pathway | 510(k); substantial equivalence to gammaCore predicates (see NP-REG-CVNS-001 Rev 1) |
 
 ### 2.2 Rationale for safety MCU ownership
 
@@ -247,7 +247,7 @@ This section specifies the STM32G071 safety MCU bare-metal behavior. The C imple
 
 ### 5.1 Hardware interfaces
 
-> **⚠ UNVERIFIED — do not build to this table.** Every row below disagrees with `firmware/safety_mcu/include/np_safety_config.h`, and there is no schematic in this repository to settle which is intended (`hardware/` holds only `np_socket_map.json` and `np_helmet_surface.json`). The table is retained verbatim as Rev A's claim, not as the requirement. **Tracked as OI-CVNS-08 (pin map) and OI-CVNS-09 (enable-line count); both are BLOCKING on PCB layout (gate G1).** `np_safety_config.h` itself carries the caveat "GPIO bank assignments are provisional pending PCB layout (G1 gate)", so neither side is currently authoritative.
+> **⚠ UNVERIFIED — do not build to this table.** Every row below disagrees with `firmware/safety_mcu/include/np_safety_config.h`, and there is no schematic in this repository to settle which is intended (`hardware/` holds only `np_socket_map.json` and `np_helmet_surface.json`). The table is retained verbatim as Rev 1's claim, not as the requirement. **Tracked as OI-CVNS-08 (pin map) and OI-CVNS-09 (enable-line count); both are BLOCKING on PCB layout (gate G1).** `np_safety_config.h` itself carries the caveat "GPIO bank assignments are provisional pending PCB layout (G1 gate)", so neither side is currently authoritative.
 
 | Signal | Direction | STM32G071 pin (Rev A claim) | In-tree firmware | Description |
 |--------|-----------|------------------------------|------------------|-------------|
@@ -258,7 +258,7 @@ This section specifies the STM32G071 safety MCU bare-metal behavior. The C imple
 | `SPI1_SCK/MOSI/MISO/NSS` | SPI slave | PA1–PA4 | **PA5/PA6/PA7 + PA4 NSS** per the header comment at `np_safety_config.h:24` | SPI interface to main processor |
 | `HEARTBEAT_WATCHDOG` | Input | PA7 | *no such pin* — the heartbeat is **in-band on SPI** (`NP_SAFETY_WDG_TIMEOUT_MS` = 1500) | SPI heartbeat; 1.5 s timeout → force cutoff |
 
-Note that PB0 in the firmware is `NP_EN_BES_PIN`, the BES stimulation **enable output** — so Rev A's map places a cardiac *input* on a stimulation *output*. That single row is sufficient reason not to treat this table as buildable.
+Note that PB0 in the firmware is `NP_EN_BES_PIN`, the BES stimulation **enable output** — so Rev 1's map places a cardiac *input* on a stimulation *output*. That single row is sufficient reason not to treat this table as buildable.
 
 ### 5.2 R-peak GPIO protocol
 
@@ -268,7 +268,7 @@ Debounce: any edge detected within 30 µs of the previous edge is discarded (`NP
 
 ### 5.3 Baseline establishment
 
-**Two independent baselines exist; do not conflate them.** The main processor computes its own baseline from PPG-derived R-peaks using the §3.4 constants in `firmware/cervical_vns/include/np_cvns_config.h`. The safety MCU computes its own, from the `RPEAK_IN` pulse train, using its own constants. The two sides are **deliberately separate implementations** — that is precisely what makes the ±5 BPM cross-validation in step 5 (`NP_CVNS_BASELINE_CROSSVAL_BPM`) a meaningful check rather than a computation compared against itself. Rev A of this section attributed the main processor's constants to the safety MCU; the safety MCU has never used them.
+**Two independent baselines exist; do not conflate them.** The main processor computes its own baseline from PPG-derived R-peaks using the §3.4 constants in `firmware/cervical_vns/include/np_cvns_config.h`. The safety MCU computes its own, from the `RPEAK_IN` pulse train, using its own constants. The two sides are **deliberately separate implementations** — that is precisely what makes the ±5 BPM cross-validation in step 5 (`NP_CVNS_BASELINE_CROSSVAL_BPM`) a meaningful check rather than a computation compared against itself. Rev 1 of this section attributed the main processor's constants to the safety MCU; the safety MCU has never used them.
 
 Safety MCU constants — the values that actually govern §5.3 and §5.4:
 
@@ -284,7 +284,7 @@ Safety MCU constants — the values that actually govern §5.3 and §5.4:
 
 Before stimulation is enabled:
 1. Safety MCU accumulates R-R intervals in a circular buffer of depth `NP_RR_BUF_SIZE` (8). The first R-peak after init or re-enable is a priming edge and produces no interval, so 8 intervals require 9 edges.
-2. **Not implemented on the safety MCU.** Rev A specified discarding intervals outside [`NP_CVNS_RR_MIN_VALID_MS`, `NP_CVNS_RR_MAX_VALID_MS`] (300–2000 ms); those are main-processor constants and the safety MCU applies no validity filter — every measured interval enters the buffer. A physiologically impossible interval is handled downstream instead, by saturating the BPM conversion at `INT16_MAX` (see `rr_to_bpm()`). Escalated as **OI-CVNS-11**.
+2. **Not implemented on the safety MCU.** Rev 1 specified discarding intervals outside [`NP_CVNS_RR_MIN_VALID_MS`, `NP_CVNS_RR_MAX_VALID_MS`] (300–2000 ms); those are main-processor constants and the safety MCU applies no validity filter — every measured interval enters the buffer. A physiologically impossible interval is handled downstream instead, by saturating the BPM conversion at `INT16_MAX` (see `rr_to_bpm()`). Escalated as **OI-CVNS-11**.
 3. The baseline arms when `NP_CARDIAC_BASELINE_BEATS` (8) intervals have accumulated. There is no outlier-rejection criterion on the MCU side.
 4. Baseline HR (BPM) = 60,000,000 / mean(all intervals currently in the ring buffer, in µs). Because the buffer is 8 deep and arming requires 8 intervals, at the arming tick this is the mean of the last 8.
 5. The main processor confirms baseline via `NP_CVNS_SPI_CMD_HR_BASELINE_SET`. Both baselines must agree within `NP_CVNS_BASELINE_CROSSVAL_BPM` (5 BPM); if not, the safety MCU rejects the enable request.
@@ -304,7 +304,7 @@ Once stimulation is enabled, the safety MCU runs a 200 Hz interrupt-driven loop 
    b. Record the fault: `NP_SAFETY_STATUS_CARDIAC` and `NP_SAFETY_STATUS_CUTOFF` set, `fault_slot` = 10 (CVNS).
    c. Start the `NP_CARDIAC_LOCKOUT_MS` (30 s) re-enable lockout. Re-enable is refused for the whole window; after it expires, re-enable additionally requires explicit app confirmation and a repeat impedance check (§5.5, CLAUDE.md §4.2).
    d. Send FAULT SPI notification to main processor on next SPI transaction.
-3. **Conservative hold.** The safety MCU will not fire a cutoff at all until the baseline has armed — that is, until `NP_CARDIAC_BASELINE_BEATS` (8) intervals have accumulated. This is stricter than Rev A's "fewer than 3 valid intervals" rule, which described the *main processor's* data-loss handling (`NP_CVNS_DATA_LOSS_TIMEOUT_S`, §6). The safety MCU has **no** warning flag and **no** 10 s soft-cutoff timer; it holds, silently and unconditionally, until armed. Re-enable invalidates the baseline, so the hold applies again after every cutoff.
+3. **Conservative hold.** The safety MCU will not fire a cutoff at all until the baseline has armed — that is, until `NP_CARDIAC_BASELINE_BEATS` (8) intervals have accumulated. This is stricter than Rev 1's "fewer than 3 valid intervals" rule, which described the *main processor's* data-loss handling (`NP_CVNS_DATA_LOSS_TIMEOUT_S`, §6). The safety MCU has **no** warning flag and **no** 10 s soft-cutoff timer; it holds, silently and unconditionally, until armed. Re-enable invalidates the baseline, so the hold applies again after every cutoff.
 
 **Cutoff latency guarantee:** The GPIO assertion occurs within the TIM6 ISR, with a maximum latency of one 5 ms tick after the condition is first detected. The ISR itself executes in < 100 µs on the STM32G071 at 64 MHz (< 6,400 cycles). **Total worst-case cutoff latency: < 5.1 ms — well within the 100 ms specification (`NP_CVNS_CUTOFF_LATENCY_MAX_MS`).**
 
@@ -651,7 +651,7 @@ np_cvns_stage_t np_cvns_session_stage(const np_cvns_session_ctx_t *ctx);
 
 ## 11. UHDR / SHDR Data Routing Summary
 
-Consistent with NP-FW-EMMC-001 Rev A §12 (27-element classification table). Key additions from the cervical VNS module:
+Consistent with NP-FW-EMMC-001 Rev 1 §12 (27-element classification table). Key additions from the cervical VNS module:
 
 | Data element | Partition | Reasoning |
 |---|---|---|
@@ -676,10 +676,10 @@ This document and its accompanying firmware (`firmware/cervical_vns/`) satisfy t
 - [x] FAI-CV01 procedure specified (§9, hardware bench pending)
 - [x] FAI-CV02 software constants verified, hardware bench pending (§9)
 - [x] FAI-CV03 tolerability procedure specified (§9, clinical pending)
-- [x] UHDR/SHDR data routing consistent with NP-FW-EMMC-001 Rev A §12
+- [x] UHDR/SHDR data routing consistent with NP-FW-EMMC-001 Rev 1 §12
 - [x] Re-enable policy specified (§3.5): lockout + app confirm + re-check
-- [x] RISK-25 documented in risk register (NP-FW-CVNS-001 Rev A §13)
-- [x] 510(k) Q-Sub substantial equivalence argument baselined (NP-REG-CVNS-001 Rev A)
+- [x] RISK-25 documented in risk register (NP-FW-CVNS-001 Rev 1 §13)
+- [x] 510(k) Q-Sub substantial equivalence argument baselined (NP-REG-CVNS-001 Rev 1)
 
 **G3-08 SOFTWARE BASELINED — 2026-05-11**
 Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T2 clinical release, not for software gate.
@@ -724,20 +724,20 @@ Hardware FAI (CV01 bench, CV02 timing, CV03 clinical) PENDING — blocking for T
 
 Rev A §5.1 and `firmware/safety_mcu/include/np_safety_config.h` disagree on **every** signal: `RPEAK_IN` (PB0 vs PA8), SPI1 (PA1–PA4 vs the header's own PA4–PA7 comment), `HEARTBEAT_WATCHDOG` (PA7 vs no such pin — the heartbeat is in-band on SPI), and the CVNS enable itself (PA5/PA6 vs PB5).
 
-This is not a typo. Rev A puts the cardiac *input* `RPEAK_IN` on PB0, which the header assigns to `NP_EN_BES_PIN`, a stimulation *output*. That single row means Rev A's map cannot be adopted wholesale, whatever is decided about the rest.
+This is not a typo. Rev 1 puts the cardiac *input* `RPEAK_IN` on PB0, which the header assigns to `NP_EN_BES_PIN`, a stimulation *output*. That single row means Rev 1's map cannot be adopted wholesale, whatever is decided about the rest.
 
-**Updated 2026-08-05 after NP-HW-HUB-001 §7.2 landed (PR #247).** The PA-bank picture changed materially and *in Rev A's favour*. The five per-zone PBM enables were retired for one `NP_EN_PBM_CRANIAL` on PA0, **releasing PA1–PA3 and resolving the PA4 double-assignment** (PA4 was claimed by both `NP_EN_PBM_ZONE4_PIN` and the SPI1 NSS comment; it is now SPI1 NSS only — see the header's own note and NP-HW-HEXTILE-001 OI-HEXTILE-13(c)). Consequences for this open item:
+**Updated 2026-08-05 after NP-HW-HUB-001 §7.2 landed (PR #247).** The PA-bank picture changed materially and *in Rev 1's favour*. The five per-zone PBM enables were retired for one `NP_EN_PBM_CRANIAL` on PA0, **releasing PA1–PA3 and resolving the PA4 double-assignment** (PA4 was claimed by both `NP_EN_PBM_ZONE4_PIN` and the SPI1 NSS comment; it is now SPI1 NSS only — see the header's own note and NP-HW-HEXTILE-001 OI-HEXTILE-13(c)). Consequences for this open item:
 
-- Rev A's "SPI1 on PA1–PA4" is **no longer blocked** — PA1–PA3 are free and PA4 is already NSS. The remaining disagreement is only *which* of the freed pins carry SCK/MOSI/MISO, not whether they exist.
-- Rev A's `CVNS_ENABLE_L`/`_R` on PA5/PA6 and `HEARTBEAT_WATCHDOG` on PA7 are consistent with that placement — the whole PA-bank half of Rev A's map is now internally coherent as a board, which it was not before.
+- Rev 1's "SPI1 on PA1–PA4" is **no longer blocked** — PA1–PA3 are free and PA4 is already NSS. The remaining disagreement is only *which* of the freed pins carry SCK/MOSI/MISO, not whether they exist.
+- Rev 1's `CVNS_ENABLE_L`/`_R` on PA5/PA6 and `HEARTBEAT_WATCHDOG` on PA7 are consistent with that placement — the whole PA-bank half of Rev 1's map is now internally coherent as a board, which it was not before.
 - **`RPEAK_IN` on PB0 remains the one row that cannot work in either reading**, since PB0 is still `NP_EN_BES_PIN`.
 
-So the earlier framing — "one of the two documents a board that cannot exist" — was true of Rev A when written and is now too strong. The disagreement has narrowed to one impossible row plus a genuine bank-allocation choice.
+So the earlier framing — "one of the two documents a board that cannot exist" — was true of Rev 1 when written and is now too strong. The disagreement has narrowed to one impossible row plus a genuine bank-allocation choice.
 
 | Candidate | Evidence for | Evidence against |
 |-----------|--------------|------------------|
 | **A — the code is right; §5.1 is stale.** Correct §5.1 to PA8 / PB5 / in-band SPI heartbeat. | The code is self-consistent for the cardiac path, is internally consistent on the PA bank since §7.2 resolved the PA4 double-assignment, and is what the Class C unit and its new host tests actually exercise. `np_safety_config.h` is the file an implementer reads. | The header states of itself that "GPIO bank assignments are provisional pending PCB layout (G1 gate)" — it does not claim to be authoritative, so "the code is right" is an assumption, not a finding. |
-| **B — §5.1 is the intended board; the code's provisional map is stale.** Re-map the firmware at G1. | `np_safety_config.h` states in its own header comment: "GPIO bank assignments are provisional pending PCB layout (G1 gate)" — the code does not claim authority. | §5.1's `RPEAK_IN`-on-a-stimulation-output row means Rev A's map cannot be adopted wholesale regardless. |
+| **B — §5.1 is the intended board; the code's provisional map is stale.** Re-map the firmware at G1. | `np_safety_config.h` states in its own header comment: "GPIO bank assignments are provisional pending PCB layout (G1 gate)" — the code does not claim authority. | §5.1's `RPEAK_IN`-on-a-stimulation-output row means Rev 1's map cannot be adopted wholesale regardless. |
 
 **Why the zone enables were never good evidence.** `NP_EN_PBM_ZONE0..4` was stale before it was retired: zones are not a fixed set of five hardware slots — a zone is a named set of sockets on the hex lattice, and `protocols/predefined/00-zones.npps` states in its own header that it "is the only definition of a zone" (see also CLAUDE.md §3 and `hardware/np_socket_map.json`). Anyone re-opening this item should not resurrect "SPI1 collides with the PBM zone enables" as an argument; that collision is gone.
 
@@ -758,7 +758,7 @@ Rev A §5.1 specified `CVNS_ENABLE_L` and `CVNS_ENABLE_R`; §5.4.2a instructed a
 
 ### 14.3 OI-CVNS-10 — cardiac baseline window, 8 vs 5
 
-The safety MCU arms on 8 intervals (`NP_CARDIAC_BASELINE_BEATS`, ring buffer `NP_RR_BUF_SIZE` = 8); the main processor uses 5 (`NP_CVNS_BASELINE_BEATS_MIN`, buffer 20). Rev A documented the main processor's 5 as if it were the MCU's — so **the divergence was invisible until now, and no record exists of anyone choosing it.**
+The safety MCU arms on 8 intervals (`NP_CARDIAC_BASELINE_BEATS`, ring buffer `NP_RR_BUF_SIZE` = 8); the main processor uses 5 (`NP_CVNS_BASELINE_BEATS_MIN`, buffer 20). Rev 1 documented the main processor's 5 as if it were the MCU's — so **the divergence was invisible until now, and no record exists of anyone choosing it.**
 
 | Candidate | Evidence for | Evidence against |
 |-----------|--------------|------------------|

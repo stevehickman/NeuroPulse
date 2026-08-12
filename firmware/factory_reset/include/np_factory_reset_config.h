@@ -1,4 +1,4 @@
-/* Document: NP-FW-EMMC-002 Rev A §B */
+/* Document: NP-FW-EMMC-002 Rev 1 §B */
 /*
  * NeurOne Device Factory Reset — Hardware Configuration
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)

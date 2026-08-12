@@ -1,7 +1,7 @@
-/* Document: NP-FW-EMMC-002 Rev A §E */
+/* Document: NP-FW-EMMC-002 Rev 1 §E */
 /*
  * NeurOne EDF+ Privacy Header — Writer
- * Document: NP-FW-EMMC-002 Rev A §E.2
+ * Document: NP-FW-EMMC-002 Rev 1 §E.2
  *
  * Produces a privacy-preserving EDF+ main header.  No real patient name, no
  * date of birth, no sex code ever appears: the local patient identification

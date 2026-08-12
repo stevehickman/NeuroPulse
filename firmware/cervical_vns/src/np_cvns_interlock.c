@@ -1,6 +1,6 @@
 /*
  * NeurOne Cervical VNS — Cardiac Interlock (Main Processor Side)
- * Document: NP-FW-CVNS-001 Rev A §6
+ * Document: NP-FW-CVNS-001 Rev 1 §6
  *
  * Implements Pan-Tompkins R-peak detection on the PPG signal from the cervical
  * VNS accessory, maintains a rolling R-R interval buffer, and computes baseline

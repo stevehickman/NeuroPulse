@@ -2,23 +2,23 @@
 
 **Project:** NeurOne
 **Document:** NP-PMS-001
-**Revision:** B
+**Revision:** 2
 **Date:** 2026-07-27
 **Status:** ACTIVE
 **Effective Date:** 2026-07-27
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** 21 CFR Part 803 (Medical Device Reporting); 21 CFR Part 820 (QSR); ISO 13485:2016 §8.2 (feedback), §8.5 (improvement); ISO 14971:2019 §10 (post-market information); NP-QMS-CAPA-001 Rev A; NP-RM-001 Rev A §12; NP-SEC-BR-001 Rev A (privacy/security incident — distinct scope, cross-referenced not duplicated); NP-DP-001 Rev A
+**References:** 21 CFR Part 803 (Medical Device Reporting); 21 CFR Part 820 (QSR); ISO 13485:2016 §8.2 (feedback), §8.5 (improvement); ISO 14971:2019 §10 (post-market information); NP-QMS-CAPA-001 Rev 1; NP-RM-001 Rev 1 §12; NP-SEC-BR-001 Rev 1 (privacy/security incident — distinct scope, cross-referenced not duplicated); NP-DP-001 Rev 1
 **Related Issues:** —
 **Gate:** T1 launch prerequisite (NP-DP-001 §6.4 gate schedule, Month 17 target)
 **IEC 62304 Class:** N/A
 **Applicable Standard:** 21 CFR Part 803; ISO 13485:2016 §8.2; ISO 14971:2019 §10; EU MDR 2017/745 Art. 83–86 (if/when EU CE marking is pursued — see §8)
 **Next Review:** Annual, and after any CAPA classified Critical or any regulatory reporting event
-**Supersedes:** NP-PMS-001 Rev A. Referenced as "planned Month 12" / "planned Year 2" in NP-DHF-001, NP-DP-001, NP-QMS-001, NP-RM-001 prior to Rev A.
+**Supersedes:** NP-PMS-001 Rev 1. Referenced as "planned Month 12" / "planned Year 2" in NP-DHF-001, NP-DP-001, NP-QMS-001, NP-RM-001 prior to Rev 1.
 
 ---
 
-**Rev B (2026-07-27):** §3.1 Intake channels expanded with three channels omitted from Rev A: a website contact form (distinct from the in-app form — reaches prospective buyers and anyone without a working app install), a phone support line for customers with an active priority-support benefit (Home Premium, T2 service contract), and a website chatbot for first-contact capture and response. No other content changed from Rev A.
+**Rev B (2026-07-27):** §3.1 Intake channels expanded with three channels omitted from Rev 1: a website contact form (distinct from the in-app form — reaches prospective buyers and anyone without a working app install), a phone support line for customers with an active priority-support benefit (Home Premium, T2 service contract), and a website chatbot for first-contact capture and response. No other content changed from Rev 1.
 
 ---
 

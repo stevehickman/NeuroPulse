@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — eMMC Interface (USDHC2)
- * Document: NP-FW-EMMC-001 Rev A §3, §8
+ * Document: NP-FW-EMMC-001 Rev 1 §3, §8
  */
 
 #ifndef NP_EMMC_H

@@ -1,6 +1,6 @@
 /*
  * NeurOne HD-tDCS — Stimulation Delivery
- * Document: NP-FW-HD-001 Rev A §7
+ * Document: NP-FW-HD-001 Rev 1 §7
  *
  * Programs the 21-ch tACS driver with independent DC currents for HD-tDCS.
  * Safety MCU owns all enable GPIO.  This module manages the ramp state machine

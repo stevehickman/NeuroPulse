@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — CVNS Re-Enable Manager Host Tests (OI-CVNS-HUB-01)
- * Document: NP-FW-HUB-001 Rev A §7a, NP-FW-CVNS-001 Rev A
+ * Document: NP-FW-HUB-001 Rev 1 §7a, NP-FW-CVNS-001 Rev 1
  *
  * Host-native tests for the three-gate CVNS re-enable state machine and the
  * session_status bit-construction helper:

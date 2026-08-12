@@ -1,6 +1,6 @@
 /*
  * NeurOne Safety MCU — SW01-M08: Non-Volatile Fault Latch
- * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M08
+ * Document: NP-SW-001 Rev 1, NP-FMEA-001 Rev 1 §SW01-M08
  *
  * Stores fault state in the .fault_latch section (top 64 bytes of SRAM,
  * explicitly NOT zeroed by startup code on warm reset).
@@ -19,7 +19,7 @@
  *   offset 12: uint8_t  pad[52] (reserved)
  *
  * Privacy classification of the latch fields for any hub-facing read
- * (NP-FW-EMMC-001 Rev A §12; docs/status/pending-decisions.md §13.4 "Fault latch extended SPI command
+ * (NP-FW-EMMC-001 Rev 1 §12; docs/status/pending-decisions.md §13.4 "Fault latch extended SPI command
  * privacy gate", resolved): `status` and `slot` are already surfaced in the
  * 8-byte reply frame and are SHDR device-condition data.  `count` and `tick_ms`
  * are NOT in that frame; when a future dedicated read command is added it must
@@ -119,7 +119,7 @@ uint8_t np_fault_latch_get_slot(void)
     return (s_latch.magic == NP_FAULT_LATCH_MAGIC) ? s_latch.slot : 0xFFU;
 }
 
-/* ── Privacy-gated read marshalling (NP-FW-EMMC-001 Rev A §12) ────────────────
+/* ── Privacy-gated read marshalling (NP-FW-EMMC-001 Rev 1 §12) ────────────────
  *
  * The current 8-byte MCU→hub reply frame carries `status` and `fault_slot` only;
  * `count` and `tick_ms` never leave SRAM today.  When a future dedicated

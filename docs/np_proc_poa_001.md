@@ -2,13 +2,13 @@
 
 **Project:** NeurOne  
 **Document:** NP-PROC-POA-001  
-**Revision:** A  
+**Revision:** 1
 **Date:** 2026-06-02  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-02  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-PRIV-REM-001 STEP-08; HIPAA §164.312; GDPR Art. 9(2)(c); 45 CFR Part 46; NP-QMS-CAPA-001 Rev A  
+**References:** NP-PRIV-REM-001 STEP-08; HIPAA §164.312; GDPR Art. 9(2)(c); 45 CFR Part 46; NP-QMS-CAPA-001 Rev 1  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —  

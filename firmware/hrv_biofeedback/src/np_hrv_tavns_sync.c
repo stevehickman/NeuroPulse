@@ -1,6 +1,6 @@
 /*
  * NeurOne HRV Biofeedback — taVNS Inspiration-Phase Synchronization
- * Document: NP-FW-HRV-001 Rev A §8
+ * Document: NP-FW-HRV-001 Rev 1 §8
  *
  * RSA slope detection: inspiration = negative mean dRR/dt over the sliding
  * window.  A hysteresis deadband prevents rapid re-triggering on noise.

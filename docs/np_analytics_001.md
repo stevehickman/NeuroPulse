@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-ANALYTICS-001  
-**Revision:** A  
+**Revision:** 1
 **Date:** 2026-06-13  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-13  
@@ -482,8 +482,8 @@ docker compose exec clickhouse clickhouse-client \
 
 | Document | Relationship |
 |----------|-------------|
-| `docs/np_app_telemetry_001.md` (NP-APP-TELEMETRY-001 Rev B) | **Source of truth** for permitted/prohibited properties and SDK init gate |
-| `docs/np_priv_audit_001.md` (NP-PRIV-AUDIT-001 Rev A) | AUDIT-01 (analytics vendor not selected) and AUDIT-02 (SDK init gate) — self-hosting closes AUDIT-01 |
+| `docs/np_app_telemetry_001.md` (NP-APP-TELEMETRY-001 Rev 2) | **Source of truth** for permitted/prohibited properties and SDK init gate |
+| `docs/np_priv_audit_001.md` (NP-PRIV-AUDIT-001 Rev 1) | AUDIT-01 (analytics vendor not selected) and AUDIT-02 (SDK init gate) — self-hosting closes AUDIT-01 |
 | `docs/np_priv_analysis_002.md` (NP-PRIV-ANALYSIS-002) | AnalyticsGate.reset() wired to consent withdrawal — applies equally to PostHog SDK |
 | `docs/np_priv_rem_001.md` (NP-PRIV-REM-001) | STEP-05 (analytics vendor DPA) — self-hosting eliminates the third-party DPA requirement |
 | `docs/np_priv_notice_001.md` (NP-PRIV-NOTICE-001) | §3 (app analytics disclosure) — references self-hosted analytics; no third-party name needed |

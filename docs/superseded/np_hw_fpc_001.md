@@ -4,7 +4,7 @@
 **Document:** NP-HW-FPC-001
 **Revision:** E
 **Date:** 2026-05-13
-**Status:** BASELINED
+**Status:** SUPERSEDED
 **Effective Date:** 2026-05-13
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO

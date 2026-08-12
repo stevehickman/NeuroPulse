@@ -1,6 +1,6 @@
 /*
  * NeurOne Safety MCU — SW01-M04 Thermal Interlock Host Tests
- * Document: NP-SW-001 Rev A §SW01-M04, NP-HW-HUB-001 Rev C §7.2
+ * Document: NP-SW-001 Rev 1 §SW01-M04, NP-HW-HUB-001 Rev 3 §7.2
  *
  * Why this file exists.  np_thermal_interlock.c is compiled only into the ARM
  * cross target, so nothing executable covered it.  It also contained the one

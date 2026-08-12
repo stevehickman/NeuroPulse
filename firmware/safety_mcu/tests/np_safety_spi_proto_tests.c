@@ -299,7 +299,7 @@ static void test_fault_slot_constants(void)
 
 /* ── Test: enable-word layout after the §7.2 cranial collapse ────────────────
  *
- * NP-HW-HUB-001 Rev C §7.2 replaced NP_SAFETY_EN_PBM_ZONE_0..4 with a single
+ * NP-HW-HUB-001 Rev 3 §7.2 replaced NP_SAFETY_EN_PBM_ZONE_0..4 with a single
  * NP_SAFETY_EN_PBM_CRANIAL at bit 0 and left bits 1–4 as reserved holes.  These
  * checks pin the three things that would silently break if someone later
  * "tidied" the word by compacting it.
@@ -318,7 +318,7 @@ static void test_enable_word_layout(void)
     check(NP_SAFETY_EN_ALL_MASK == 0x3FE1U,
           "NP_SAFETY_EN_ALL_MASK == 0x3FE1 (10 allocated, 4 holes)");
 
-    /* Every allocated modality bit keeps its Rev B position.  Bit position IS
+    /* Every allocated modality bit keeps its Rev 2 position.  Bit position IS
      * the charge-monitor channel index into current_ua[] / s_charge_nc[]
      * (NP-HW-HEXTILE-001 §8.4.2), so shifting any of these silently changes what
      * the 40 µC/cm² Class C limit is accumulating against.                     */
@@ -602,7 +602,7 @@ int main(void)
     test_heartbeat_unaffected();
     test_fault_slot_constants();
 
-    /* NP-HW-HUB-001 Rev C §7.2 — cranial enable collapse + hub agreement */
+    /* NP-HW-HUB-001 Rev 3 §7.2 — cranial enable collapse + hub agreement */
     test_enable_word_layout();
     test_enable_word_matches_hub();
 

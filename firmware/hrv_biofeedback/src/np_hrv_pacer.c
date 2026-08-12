@@ -1,6 +1,6 @@
 /*
  * NeurOne HRV Biofeedback — Breathing Pacer
- * Document: NP-FW-HRV-001 Rev A §7
+ * Document: NP-FW-HRV-001 Rev 1 §7
  */
 
 #include "np_hrv_pacer.h"

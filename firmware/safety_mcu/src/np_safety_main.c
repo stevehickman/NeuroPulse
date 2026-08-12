@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — Main Entry Point
  * Target: STM32G071 (Cortex-M0+, 64 MHz), bare metal
- * Document: NP-SW-001 Rev A — SW-01 Class C
+ * Document: NP-SW-001 Rev 1 — SW-01 Class C
  *
  * Execution flow:
  *   Reset → startup (copy .data, zero .bss, skip fault_latch)

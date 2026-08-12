@@ -1,6 +1,6 @@
 /*
  * NeurOne Zone Module Announcement — Bone Conduction Audio Synthesis
- * Document: NP-FW-ZA-001 Rev A §7
+ * Document: NP-FW-ZA-001 Rev 1 §7
  *
  * Produces the zone identification audio cue via the bone conduction
  * piezoelectric element at the mastoid (SAI3 I2S output, eDMA channel 5).

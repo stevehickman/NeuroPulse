@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — SW-01 Platform Layer: contact impedance measurement
  * Target: STM32G071 (Cortex-M0+, 64 MHz), bare metal, CMSIS registers only
- * Document: NP-SW-001 Rev A — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
+ * Document: NP-SW-001 Rev 1 — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
  *           CLAUDE.md §4.2 (VNS contact confirmation interlock); OI-CVNS-HUB-11
  *
  * Implements the four impedance symbols in np_safety_hal.h.  1 kHz AC contact

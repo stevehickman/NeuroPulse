@@ -2,26 +2,26 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-06-02
 **Status:** ACTIVE
 **Effective Date:** 2026-06-02
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-PRIV-REM-001 STEP-01 through STEP-06, STEP-10; NP-PRIV-001 Rev A findings CRITICAL-01, HIGH-03, HIGH-04, MEDIUM-04, MEDIUM-05; NP-PRIV-001 Rev B finding MEDIUM-06 (§G added 2026-06-03)
+**References:** NP-PRIV-REM-001 STEP-01 through STEP-06, STEP-10; NP-PRIV-001 Rev 1 findings CRITICAL-01, HIGH-03, HIGH-04, MEDIUM-04, MEDIUM-05; NP-PRIV-001 Rev 2 finding MEDIUM-06 (§G added 2026-06-03)
 **Related Issues:** —
 **Gate:** —
 **IEC 62304 Class:** SW-02 Class B (main processor)
-**Supersedes:** N/A — this is a delta specification to NP-FW-EMMC-001 Rev A
-**Parent Document:** NP-FW-EMMC-001 (all sections below amend or add to NP-FW-EMMC-001 Rev A; where this document conflicts, this document takes precedence; NP-FW-EMMC-001 Rev B will incorporate all delta sections)  
+**Supersedes:** N/A — this is a delta specification to NP-FW-EMMC-001 Rev 1
+**Parent Document:** NP-FW-EMMC-001 (all sections below amend or add to NP-FW-EMMC-001 Rev 1; where this document conflicts, this document takes precedence; NP-FW-EMMC-001 Rev 2 will incorporate all delta sections)  
 
 ---
 
-## §A — Warranty Token Architecture (replaces NP-FW-EMMC-001 Rev A §7 warranty owner ID references)
+## §A — Warranty Token Architecture (replaces NP-FW-EMMC-001 Rev 1 §7 warranty owner ID references)
 
 ### A.1 Rationale
 
-NP-PRIV-001 Rev A CRITICAL-01 identified that using a "warranty owner ID" as the SHDR-to-person linkage creates a re-identification path. The warranty registration system necessarily collects name, email, and address. If the warranty owner ID is a foreign key into that system, SHDR is person-linked and the UHDR/SHDR privacy separation fails.
+NP-PRIV-001 Rev 1 CRITICAL-01 identified that using a "warranty owner ID" as the SHDR-to-person linkage creates a re-identification path. The warranty registration system necessarily collects name, email, and address. If the warranty owner ID is a foreign key into that system, SHDR is person-linked and the UHDR/SHDR privacy separation fails.
 
 ### A.2 Warranty token definition
 
@@ -66,7 +66,7 @@ On factory reset (see §B below), the warranty token is cleared from the Config 
 
 ### B.1 Rationale
 
-NP-PRIV-001 Rev A HIGH-03 identified that no factory reset procedure exists for device transfer. Without a reset, a new owner's usage is associated with the previous owner's SHDR history, and UHDR ciphertext (though unreadable without the key) remains on the device.
+NP-PRIV-001 Rev 1 HIGH-03 identified that no factory reset procedure exists for device transfer. Without a reset, a new owner's usage is associated with the previous owner's SHDR history, and UHDR ciphertext (though unreadable without the key) remains on the device.
 
 ### B.2 User-initiated factory reset
 
@@ -113,7 +113,7 @@ The iOS/Android app must also:
 
 ### C.1 Rationale
 
-NP-PRIV-001 Rev A HIGH-03 identified that the single-layer Argon2id-derived key creates a lifecycle problem: biometric template changes render UHDR inaccessible; recovering requires re-encrypting the full partition. A two-layer scheme decouples the biometric from the bulk encryption key.
+NP-PRIV-001 Rev 1 HIGH-03 identified that the single-layer Argon2id-derived key creates a lifecycle problem: biometric template changes render UHDR inaccessible; recovering requires re-encrypting the full partition. A two-layer scheme decouples the biometric from the bulk encryption key.
 
 ### C.2 Key architecture
 
@@ -125,7 +125,7 @@ Layer 1 — UHDR Master Key (UKMD):
   - Stored in Config partition encrypted under the Layer 2 wrapper key
 
 Layer 2 — Master Key Wrapper Key (WKMD):
-  - Derived from user's biometric/PIN using Argon2id (same parameters as NP-FW-EMMC-001 Rev A §6)
+  - Derived from user's biometric/PIN using Argon2id (same parameters as NP-FW-EMMC-001 Rev 1 §6)
   - Used only to encrypt/decrypt the 32-byte UKMD stored in Config
   - Held in on-chip SRAM only during the unlock window (app foreground session)
   - Zeroed from SRAM using memset_explicit when app moves to background
@@ -187,7 +187,7 @@ PIN-based WKMD derivation is always available as a fallback when biometric is un
 
 ### D.1 Rationale
 
-NP-PRIV-001 Rev A MEDIUM-04 identified that the Scratch partition's unencrypted nature creates a cleartext UHDR window during research anonymisation. During the anonymisation task, UHDR data is decrypted and written to Scratch for processing. If the device loses power mid-process, this plaintext data persists until next boot.
+NP-PRIV-001 Rev 1 MEDIUM-04 identified that the Scratch partition's unencrypted nature creates a cleartext UHDR window during research anonymisation. During the anonymisation task, UHDR data is decrypted and written to Scratch for processing. If the device loses power mid-process, this plaintext data persists until next boot.
 
 ### D.2 Session key generation
 
@@ -268,7 +268,7 @@ An `anon_in_progress` flag is set in SNVS_LPGPR2 at step D.5.1 and cleared at D.
 
 ### E.1 Rationale
 
-NP-PRIV-001 Rev A MEDIUM-05 identified that EDF+ files generated by clinical EEG tools typically contain patient name, date of birth, and other personal identifiers in the mandatory header fields. If NeurOne-generated EDF+ files follow clinical convention, every UHDR EDF+ file contains plaintext PII within the decrypted UHDR partition.
+NP-PRIV-001 Rev 1 MEDIUM-05 identified that EDF+ files generated by clinical EEG tools typically contain patient name, date of birth, and other personal identifiers in the mandatory header fields. If NeurOne-generated EDF+ files follow clinical convention, every UHDR EDF+ file contains plaintext PII within the decrypted UHDR partition.
 
 ### E.2 NeurOne EDF+ header standard
 
@@ -368,7 +368,7 @@ The following are locked design decisions for Mode F (808-830nm bilateral retina
 3. **App toggle:** A dedicated per-device Mode F toggle exists in the app's device settings. Default: OFF. The toggle is not exposed in general session configuration.
 4. **Ambient indicator — hardware:** When Mode F is active, the right temple amber LED enters a **triple-pulse pattern**: 3 pulses at 150ms on / 150ms off, followed by a 2-second pause, then repeat. This pattern is distinct from the normal in-session single-pulse pattern (which mirrors session frequency, per §4.7 of CLAUDE.md). The triple-pulse pattern is not suppressible by stealth mode — it is a safety indicator, not a status indicator.
 5. **IEC 62471 cumulative dose:** The IEC 62471 retinal exposure assessment for Mode F must be calculated as **cumulative daily dose across all Mode F wear time per calendar day**, not as peak pulsed power per session. The firmware dose counter for Mode F (`mode_f_daily_joules_per_cm2`) resets at midnight UTC and prevents Mode F operation beyond the daily IEC 62471 limit.
-6. **Regulatory gate:** Mode F must not be enabled in any shipping firmware until the RISK-03 regulatory opinion letter explicitly covers 808-830nm bilateral retinal PBM in Mode F operating conditions (see NP-REG-PBM1064-001 Rev B, Q-13). A firmware build flag `NP_MODE_F_REGULATORY_CLEARED = 0` must be set to `1` by the firmware gating process only after the opinion letter is received and reviewed.
+6. **Regulatory gate:** Mode F must not be enabled in any shipping firmware until the RISK-03 regulatory opinion letter explicitly covers 808-830nm bilateral retinal PBM in Mode F operating conditions (see NP-REG-PBM1064-001 Rev 2, Q-13). A firmware build flag `NP_MODE_F_REGULATORY_CLEARED = 0` must be set to `1` by the firmware gating process only after the opinion letter is received and reviewed.
 
 ### F.2 Firmware constants
 
@@ -407,11 +407,11 @@ The following are locked design decisions for Mode F (808-830nm bilateral retina
 
 ## §G — SHDR Accelerometer Data Reclassification
 
-*(Added 2026-06-03 — NP-PRIV-001 Rev B finding MEDIUM-06. Addresses NP-PRIV-REM-001 STEP-10. BLOCKING for SHDR fleet DB schema freeze.)*
+*(Added 2026-06-03 — NP-PRIV-001 Rev 2 finding MEDIUM-06. Addresses NP-PRIV-REM-001 STEP-10. BLOCKING for SHDR fleet DB schema freeze.)*
 
 ### G.1 Rationale
 
-NP-PRIV-001 Rev B HIGH-01 (originally NP-PRIV-001 Rev A HIGH-01) confirmed that raw accelerometer series written to SHDR reveal motor-control patterns that are health-inferrable (Parkinson's, post-stroke hemiplegia, essential tremor). Only the derived maintenance signal is permitted in SHDR. This section specifies the permitted fields and prohibited fields so the SHDR fleet DB schema can be frozen correctly.
+NP-PRIV-001 Rev 2 HIGH-01 (originally NP-PRIV-001 Rev 1 HIGH-01) confirmed that raw accelerometer series written to SHDR reveal motor-control patterns that are health-inferrable (Parkinson's, post-stroke hemiplegia, essential tremor). Only the derived maintenance signal is permitted in SHDR. This section specifies the permitted fields and prohibited fields so the SHDR fleet DB schema can be frozen correctly.
 
 ### G.2 Permitted SHDR fields (per session gap)
 
@@ -501,7 +501,7 @@ The raw accelerometer buffer is allocated in SRAM only, processed in-place, and 
 
 ## Change Control
 
-This delta document (NP-FW-EMMC-002 Rev A) is under change control per NP-QMS-DC-001 Rev A. It will be incorporated into NP-FW-EMMC-001 Rev B. Until Rev B is released, NP-FW-EMMC-002 Rev A takes precedence over conflicting sections of NP-FW-EMMC-001 Rev A.
+This delta document (NP-FW-EMMC-002 Rev 1) is under change control per NP-QMS-DC-001 Rev 1. It will be incorporated into NP-FW-EMMC-001 Rev 2. Until Rev 2 is released, NP-FW-EMMC-002 Rev 1 takes precedence over conflicting sections of NP-FW-EMMC-001 Rev 1.
 
 Open items created by this document:
 
@@ -510,8 +510,8 @@ Open items created by this document:
 | OI-EMMC2-01 | Factory reset UI/UX design — two-step confirmation flow, copy reviewed by legal counsel | STEP-02 completion |
 | OI-EMMC2-02 | Argon2id implementation review by qualified cryptography reviewer | STEP-03 completion |
 | OI-EMMC2-03 | SANITIZE timing characterisation on target eMMC (time to complete SANITIZE on 6.9 GiB UHDR partition) | FAI-RESET-01 |
-| OI-EMMC2-04 | Mode F regulatory opinion letter scope expansion (Q-13) added to NP-REG-PBM1064-001 Rev B | STEP-06, STEP-18 |
+| OI-EMMC2-04 | Mode F regulatory opinion letter scope expansion (Q-13) added to NP-REG-PBM1064-001 Rev 2 | STEP-06, STEP-18 |
 | OI-EMMC2-05 | EDF+ writer unit test: generate 100 EDF+ files and confirm all pass header validator | First EEG session recording implementation |
 | OI-EMMC2-06 | No-join CI test: confirm warranty_db × shdr_db join fails with authorisation error | STEP-01 completion |
 | OI-EMMC2-07 | SHDR schema CI test: confirm no prohibited accelerometer column types or names in fleet DB schema | STEP-10; BLOCKING for SHDR fleet DB schema freeze |
-| OI-EMMC2-08 | **Module UID re-linking channel — principal decision required.** Schema Rev D (2026-08-10) re-keys PBM and thermal fleet telemetry on `(socket_number, module_uid)`, storing the raw 8-byte module UID so a module's degradation history follows the part across sockets **and across devices** (clinic pools). Consequence: a persistent per-module hardware UID **defeats the factory-reset de-linking mechanism** that `devices.device_transferred` exists to provide — after a reset the device re-uploads the same ~80 module UIDs, and joining the old token's `module_inventory` to the new token's on `module_uid` re-links the two pseudonymous identities with ~80-way corroboration. It equally links a clinic's devices to each other and a resold device to its previous owner's token. **Neither CI gate can detect this**: both are name/type matchers, and OI-EMMC2-06 guards SHDR↔warranty joins while saying nothing about SHDR↔SHDR self-joins across tokens. Mitigations already applied in Rev D: `module_life` is keyed `(warranty_token, module_uid)` so no row spans devices, and the linkage is device↔device never device↔person (warranty_token→person still requires the consented warranty_db). **Conservative alternative, costed and not taken:** store `module_ref = HMAC(device-local key, uid)` — stable within a device, incomparable across devices — which closes the channel entirely at the cost of the cross-device part history that motivated Rev D. Drop-in column swap if the principal judges the channel unacceptable. Secondary, same class: `*_mate_cycles_observed` are cumulative physical-handling counters, structurally the same object as the `drop_count` this schema bans by name, and the placement-event rate distinguishes a clinic swapping modules between patients from a home user who never touches them. | **BLOCKING for SHDR fleet DB schema freeze** |
+| OI-EMMC2-08 | **Module UID re-linking channel — principal decision required.** Schema Rev 4 (2026-08-10) re-keys PBM and thermal fleet telemetry on `(socket_number, module_uid)`, storing the raw 8-byte module UID so a module's degradation history follows the part across sockets **and across devices** (clinic pools). Consequence: a persistent per-module hardware UID **defeats the factory-reset de-linking mechanism** that `devices.device_transferred` exists to provide — after a reset the device re-uploads the same ~80 module UIDs, and joining the old token's `module_inventory` to the new token's on `module_uid` re-links the two pseudonymous identities with ~80-way corroboration. It equally links a clinic's devices to each other and a resold device to its previous owner's token. **Neither CI gate can detect this**: both are name/type matchers, and OI-EMMC2-06 guards SHDR↔warranty joins while saying nothing about SHDR↔SHDR self-joins across tokens. Mitigations already applied in Rev 4: `module_life` is keyed `(warranty_token, module_uid)` so no row spans devices, and the linkage is device↔device never device↔person (warranty_token→person still requires the consented warranty_db). **Conservative alternative, costed and not taken:** store `module_ref = HMAC(device-local key, uid)` — stable within a device, incomparable across devices — which closes the channel entirely at the cost of the cross-device part history that motivated Rev 4. Drop-in column swap if the principal judges the channel unacceptable. Secondary, same class: `*_mate_cycles_observed` are cumulative physical-handling counters, structurally the same object as the `drop_count` this schema bans by name, and the placement-event rate distinguishes a clinic swapping modules between patients from a home user who never touches them. | **BLOCKING for SHDR fleet DB schema freeze** |

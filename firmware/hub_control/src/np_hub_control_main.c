@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — FreeRTOS Task Definitions and Entry Point
- * Document: NP-FW-HUB-001 Rev A §2
+ * Document: NP-FW-HUB-001 Rev 1 §2
  *
  * Four tasks:
  *

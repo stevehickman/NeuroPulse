@@ -2,18 +2,18 @@
 
 **Project:** NeurOne  
 **Document:** NP-PROC-FPC-1064-001  
-**Revision:** A  
+**Revision:** 1
 **Date:** 2026-05-13  
 **Status:** BASELINED  
 **Effective Date:** 2026-05-13  
 **Author:** NeurOne Hardware Engineering  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-HW-FPC-001 Rev E; NP-TOOL-ZM-SM-001 Rev A; NP-FW-PBM1064-001 Rev A  
+**References:** NP-HW-FPC-001 Rev 5; NP-TOOL-ZM-SM-001 Rev 1; NP-FW-PBM1064-001 Rev 1  
 **Related Issues:** GitHub Issue #54  
 **Gate:** —  
 **IEC 62304 Class:** —  
 **Supersedes:** —  
-**Parent Document:** NP-PROC-FPC-001 Rev A (base module FPC procurement — unchanged)
+**Parent Document:** NP-PROC-FPC-001 Rev 1 (base module FPC procurement — unchanged)
 
 ---
 
@@ -33,7 +33,7 @@ This document covers component selection and procurement specifications for the 
 
 It also covers the TIA gain compatibility analysis (§5) and full smart module BOM summary (§6).
 
-This document supplements NP-PROC-FPC-001 Rev A. The existing 660nm and 808nm LED emitter binning specs in NP-PROC-FPC-001 Rev A are unchanged and apply to the 660nm and 808nm emitters in the smart module's CH_A and CH_B channels.
+This document supplements NP-PROC-FPC-001 Rev 1. The existing 660nm and 808nm LED emitter binning specs in NP-PROC-FPC-001 Rev 1 are unchanged and apply to the 660nm and 808nm emitters in the smart module's CH_A and CH_B channels.
 
 ---
 
@@ -41,7 +41,7 @@ This document supplements NP-PROC-FPC-001 Rev A. The existing 660nm and 808nm LE
 
 ### 2.1 Requirements
 
-From NP-FW-PBM1064-001 Rev A §3.3 and NP-HW-FPC-001 Rev E §6:
+From NP-FW-PBM1064-001 Rev 1 §3.3 and NP-HW-FPC-001 Rev 5 §6:
 
 | Requirement | Value |
 |-------------|-------|
@@ -91,7 +91,7 @@ Candidates: NXP PCA9685 (16-ch 12-bit PWM controller) + IRLML6344 N-FETs.
 
 #### Option C: I2C Slave MCU + External FETs (Recommended)
 
-A small microcontroller programmed as an I2C slave precisely implements the register map from NP-FW-PBM1064-001 Rev A §5.1. Three MCU PWM outputs drive N-channel MOSFET gates; the FETs switch LED current through series sense resistors.
+A small microcontroller programmed as an I2C slave precisely implements the register map from NP-FW-PBM1064-001 Rev 1 §5.1. Three MCU PWM outputs drive N-channel MOSFET gates; the FETs switch LED current through series sense resistors.
 
 **Selected: Microchip ATtiny402 + 3× Infineon IRLML6344**
 
@@ -145,7 +145,7 @@ Series sense resistors at 1.0 Ω, 1%:
 
 ATtiny402 ADC (VREF = internal 2.5 V, 10-bit) resolution: 2.5 V / 1024 = 2.44 mV/count. At 180 mA: 180 mV / 2.44 = 74 counts — adequate for current monitoring and OCP detection.
 
-OCP threshold register (NP-FW-PBM1064-001 Rev A §5.1, STATUS byte OCP bits): set in ATtiny402 firmware at ADC count corresponding to 220 mA (226 mV → 93 counts). Safety margin: 22% above 180 mA maximum operating current.
+OCP threshold register (NP-FW-PBM1064-001 Rev 1 §5.1, STATUS byte OCP bits): set in ATtiny402 firmware at ADC count corresponding to 220 mA (226 mV → 93 counts). Safety margin: 22% above 180 mA maximum operating current.
 
 Power dissipation in sense resistor at 180 mA: P = 0.18² × 1.0 = **32.4 mW**. At 0.25W rated 0402 resistor: 13% derating — acceptable.
 
@@ -153,7 +153,7 @@ Power dissipation in sense resistor at 180 mA: P = 0.18² × 1.0 = **32.4 mW**. 
 
 Firmware document: **NP-FW-ZM-TINY402-001** (to be authored). Firmware shall implement:
 - I2C TWI peripheral in slave mode, fixed address 0x30, 100 kHz
-- Register map exactly per NP-FW-PBM1064-001 Rev A §5.1 (registers 0x00–0x0D)
+- Register map exactly per NP-FW-PBM1064-001 Rev 1 §5.1 (registers 0x00–0x0D)
 - TCA split mode: WO0/WO1/WO2 → Q1/Q2/Q3 gate drive (channels CH_A/CH_B/CH_C)
 - TCB in single-shot mode: optionally used for OCP sampling timing
 - PWM frequency calculation: PERIOD register = (F_CPU / (prescaler × freq_hz)) − 1; F_CPU = 20 MHz (internal oscillator, ±3%)
@@ -168,7 +168,7 @@ UPDI programming: performed on the rigidizer sub-board before assembly into modu
 
 ### 3.1 Overview
 
-This section supplements NP-PROC-FPC-001 Rev A with procurement requirements for 1064nm LED emitters used in the smart module CH_C channel. The structure mirrors the existing 660nm and 808nm sections of NP-PROC-FPC-001 Rev A.
+This section supplements NP-PROC-FPC-001 Rev 1 with procurement requirements for 1064nm LED emitters used in the smart module CH_C channel. The structure mirrors the existing 660nm and 808nm sections of NP-PROC-FPC-001 Rev 1.
 
 ### 3.2 Wavelength Specification
 
@@ -185,17 +185,17 @@ This section supplements NP-PROC-FPC-001 Rev A with procurement requirements for
 | Forward voltage Vf | 1.9–2.3 V nominal at 150 mA | 1064nm GaAs/AlGaAs emitters; Vf lower than 660nm (1.8–2.0 V) and 808nm (1.6–1.8 V) |
 | Vf binning tolerance | ±0.1 V max spread within a single module lot | For uniform parallel string current sharing on FPC. Wider spread causes current hot-spots. |
 | Drive current: continuous | 80–180 mA | Nominal drive range per LED |
-| Drive current: pulsed | 200 mA at ≤ 25% duty cycle, ≤ 10 ms pulse width | Firmware-enforced ceiling (NP-FW-PBM1064-001 Rev A §5.5) |
+| Drive current: pulsed | 200 mA at ≤ 25% duty cycle, ≤ 10 ms pulse width | Firmware-enforced ceiling (NP-FW-PBM1064-001 Rev 1 §5.5) |
 | Wall-plug efficiency (WPE) | ≥ 10% at 150 mA | 1064nm GaAs emitters are less efficient than 808nm (WPE ~30–40%). Minimum 10% acceptable for this application. |
 | Radiant flux at 150 mA | ≥ 45 mW per LED | From 10% WPE × 150 mA × 2.1 V = 31.5 mW minimum; specify 45 mW as procurement floor |
-| L70 lifetime | ≥ 80,000 hours at rated drive | Same requirement as 660nm/808nm emitters in NP-PROC-FPC-001 Rev A §4.3 |
+| L70 lifetime | ≥ 80,000 hours at rated drive | Same requirement as 660nm/808nm emitters in NP-PROC-FPC-001 Rev 1 §4.3 |
 | Lumen maintenance binning | ≤ 15% flux spread within a single module lot | Consistent irradiance across zone |
 
 ### 3.4 Package Requirements
 
 | Parameter | Requirement |
 |-----------|-------------|
-| Package family | SMD, reflow-compatible; same footprint as 660nm/808nm emitters used in base module (NP-PROC-FPC-001 Rev A §3.1) |
+| Package family | SMD, reflow-compatible; same footprint as 660nm/808nm emitters used in base module (NP-PROC-FPC-001 Rev 1 §3.1) |
 | Footprint compatibility | Must match existing LED pads on NP-FPC-ZM-SM-01 artwork |
 | Thermal pad | Exposed thermal pad or bottom-side pad preferred for FPC heat spreading |
 | Window material | Epoxy lens or flat-top; PDMS optical window above LED (per zone module design) provides diffusion |
@@ -216,7 +216,7 @@ Session dose at 131 mW/cm² peak, 25% duty, 20-minute session:
 - Average irradiance: 32.75 mW/cm²
 - Dose: 32.75 mW/cm² × 0.001 W/mW × 1200 s = **39.3 J/cm²**
 
-This exceeds the 36 J/cm² per-session limit in NP-FW-PBM1064-001 Rev A §6.5. The firmware dose limit will gate the session at 36 J/cm², which corresponds to: 36 J/cm² / (0.13075 W/cm²) = **275 seconds = 4.6 minutes** of CW-equivalent dose time, or approximately **18.4 minutes at 25% duty cycle**. This is consistent with the 20-minute session target with a ~2-minute ramp-down buffer.
+This exceeds the 36 J/cm² per-session limit in NP-FW-PBM1064-001 Rev 1 §6.5. The firmware dose limit will gate the session at 36 J/cm², which corresponds to: 36 J/cm² / (0.13075 W/cm²) = **275 seconds = 4.6 minutes** of CW-equivalent dose time, or approximately **18.4 minutes at 25% duty cycle**. This is consistent with the 20-minute session target with a ~2-minute ramp-down buffer.
 
 If higher irradiance emitters become available (WPE ≥ 15%), reconfirm dose limit with regulatory opinion (OI-SES-01).
 
@@ -264,7 +264,7 @@ Wavelength shift: +6 nm over 20°C range → 1070 nm maximum. Remains within ±5
 | Wavelength sensitivity | Peak responsivity at 1064 nm ≥ 0.70 A/W | 1064nm LED emission; silicon PDs are blind beyond ~1100 nm |
 | Spectral range | 900–1700 nm minimum | Covers 808nm CH_B, 1064nm CH_C, and 1170nm T2 reference |
 | Active area | ≥ 0.5 mm² | Sufficient photocurrent at dose-metering irradiance levels (§4.3) |
-| Package | SMD or compatible with 1.6 mm annular ring pad on FPC | Must match NP-HW-FPC-001 Rev E §5 footprint |
+| Package | SMD or compatible with 1.6 mm annular ring pad on FPC | Must match NP-HW-FPC-001 Rev 5 §5 footprint |
 | Response time | < 1 ms | 10 Hz dose accumulation tick (100 ms period) |
 | Operating temperature | −20°C to +70°C | Storage and in-use range |
 | Dark current | < 10 nA at 0V reverse bias | Low bias preferred; TIA front-end designed for low dark current |
@@ -294,7 +294,7 @@ Rationale:
 
 ### 4.3 TIA Gain Compatibility
 
-Detailed analysis is in NP-HW-FPC-001 Rev E §5.3. Summary of findings:
+Detailed analysis is in NP-HW-FPC-001 Rev 5 §5.3. Summary of findings:
 
 - InGaAs responsivity at 1064nm (~0.90 A/W) is approximately 2× higher than silicon responsivity at 808nm (~0.45 A/W)
 - With base module TIA gain (Rf = 47 kΩ assumed), InGaAs PD1 output saturates at the 3.3V ADC rail at moderate irradiance levels
@@ -306,7 +306,7 @@ At Rf = 22 kΩ for smart module slots:
 - PD2 at 3 mW/cm² (max backscatter): 0.59 V — safe ✓
 - ADC dynamic range (12-bit, 3.3V ref): 1.58V / 3.3V = 48% of range — good linearity margin
 
-Calibration K coefficients per NP-FW-PBM1064-001 Rev A §6.2 absorb the gain change into factory calibration.
+Calibration K coefficients per NP-FW-PBM1064-001 Rev 1 §6.2 absorb the gain change into factory calibration.
 
 ### 4.4 Per-Unit Cost and BOM Impact
 

@@ -3,13 +3,13 @@
 
 **Project:** NeurOne  
 **Document:** NP-REG-PBM1064-001  
-**Revision:** A  
+**Revision:** 1
 **Date:** 2026-05-13  
 **Status:** DRAFT  
 **Effective Date:** 2026-05-13  
 **Author:** NeurOne Regulatory Affairs  
 **Approved By:** Steve Hickman, CEO  
-**References:** docs/status/pending-decisions.md §13.1 (RISK-03 OPEN); NP-FW-PBM1064-001 Rev A §5.4; NP-SES-1064-001 Rev A  
+**References:** docs/status/pending-decisions.md §13.1 (RISK-03 OPEN); NP-FW-PBM1064-001 Rev 1 §5.4; NP-SES-1064-001 Rev 1  
 **Related Issues:** GitHub Issue #5 (existing RISK-03 engagement), GitHub Issue #56  
 **Gate:** —  
 **IEC 62304 Class:** —  
@@ -162,7 +162,7 @@ The depth-tier penetration claim rests on biophysical tissue optics data:
 - **1064nm:** Falls in the NIR "optical window" (900–1100nm) where water absorption is minimal and oxyhemoglobin/deoxyhemoglobin absorption is relatively low. Published tissue optics studies indicate effective penetration depth ~25–35mm (mid-cortex / deep cortex).
 - **1170nm:** Between water absorption bands (970nm and 1450nm peaks), with deeper penetration than 1064nm. Published data: ~35–40mm effective penetration depth for neural tissue. Used in T2 subcortical targeting.
 
-The primary human clinical evidence for 1064nm transcranial effects at cortical depth is Yao et al. (2022), Science Advances (DOI: 10.1126/sciadv.abj7390; see bibliography addendum NP-BIB-1064-001 Rev A).
+The primary human clinical evidence for 1064nm transcranial effects at cortical depth is Yao et al. (2022), Science Advances (DOI: 10.1126/sciadv.abj7390; see bibliography addendum NP-BIB-1064-001 Rev 1).
 
 ### 6.3 Questions for Counsel
 
@@ -231,7 +231,7 @@ Upon receipt of the expanded opinion letter:
 | RISK-03 extended: depth-tier penetration claim | MITIGATED (pending letter receipt) |
 | OI-PBM-05 (`PBM_AGGREGATE_IRRADIANCE_LIMIT_MW_CM2`) | CLOSED — value confirmed or revised per Q5/Q6 |
 
-Update docs/status/pending-decisions.md §13.4 and the risk register document (`docs/neurone_fpc_zone_module_risks_revA.docx`) when opinion is received.
+Update docs/status/pending-decisions.md §13.4 and the risk register document (`docs/superseded/np_risk_001.docx`) when opinion is received.
 
 ---
 
@@ -239,10 +239,10 @@ Update docs/status/pending-decisions.md §13.4 and the risk register document (`
 
 | Document | Relevance |
 |----------|-----------|
-| NP-FW-PBM1064-001 Rev A §5.4 | OI-PBM-05: aggregate irradiance ceiling firmware spec |
-| NP-SES-1064-001 Rev A | Session presets and dose limits by wavelength |
-| NP-HW-FPC-001 Rev E | 1064nm smart module FPC and LED emitter spec |
-| `docs/np_bib_1064_001.md` (NP-BIB-1064-001 Rev A) | 1064nm evidence bibliography — supports Q10/Q11 |
+| NP-FW-PBM1064-001 Rev 1 §5.4 | OI-PBM-05: aggregate irradiance ceiling firmware spec |
+| NP-SES-1064-001 Rev 1 | Session presets and dose limits by wavelength |
+| NP-HW-FPC-001 Rev 5 | 1064nm smart module FPC and LED emitter spec |
+| `docs/np_bib_1064_001.md` (NP-BIB-1064-001 Rev 1) | 1064nm evidence bibliography — supports Q10/Q11 |
 | IEC 62471:2006 | Photobiological safety of lamps — assessment standard |
 | IEC TR 62778:2014 | Application of IEC 62471 for blue light hazard (reference) |
 | IEC 60825-1:2014 | Safety of laser products — T2 1170nm subsystem |

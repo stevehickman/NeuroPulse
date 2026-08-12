@@ -1,5 +1,5 @@
 # NeurOne PostHog Self-Hosted Analytics Stack
-# NP-ANALYTICS-001 Rev A
+# NP-ANALYTICS-001 Rev 1
 #
 # Privacy constraints enforced:
 #   - GeoIP database disabled (DISABLE_MMDB=true) — no IP-to-location mapping

@@ -2,8 +2,8 @@
 ⚠ SUPERSEDED (2026-07-28): this generator builds the entire document around 5 fixed,
 position-unique zone-module FPC routing paths — retired by the hex-tile/socket architecture
 (NP-HEX-ZM-001, ~80 sockets, no fixed zone-slot positions). Do NOT re-run this script: the
-current docs/neurone_shell_fpc_routing_review.docx has since been extended by
-editscripts/patch_risk17.py (§2.3, Rev B) and other patches, so a from-scratch regeneration
+current docs/superseded/np_drv_shell_001.docx has since been extended by
+editscripts/patch_risk17.py (§2.3, Rev 2) and other patches, so a from-scratch regeneration
 here would discard that later work, not just fix the zone count. The replacement per-socket
 interconnect design for ~80 sockets does not exist yet — that is real, unscoped EE work (see
 MECH-1/MECH-2/SMART-1 in docs/np_hex_zm_001.md §7), not something to invent by re-running
@@ -12,7 +12,7 @@ editscripts/patch_hexzm_shell_routing_supersession.py, preserving the still-reus
 bend-radius methodology (§3-4) while flagging the 5-zone-specific content as retired. Kept
 here as historical record of the retired architecture's routing review.
 
-Generate NP-DRV-SHELL-001 Rev A:
+Generate NP-DRV-SHELL-001 Rev 1:
   Zone Module FPC Routing Path — Shell Tooling Design Review
 Cross-referenced from FPC spec NP-HW-FPC-001 §11.2 and risk register RISK-11.
 """
@@ -174,7 +174,7 @@ p3 = doc.add_paragraph()
 p3.alignment = WD_ALIGN_PARAGRAPH.CENTER
 run3 = p3.add_run(
     f"{DOC_NUM}  {REV}  |  {DATE}  |  Pre-Tooling Draft\n"
-    "Companion to NP-HW-FPC-001 Rev C (Zone Module FPC Spec)\n"
+    "Companion to NP-HW-FPC-001 Rev 3 (Zone Module FPC Spec)\n"
     "Addresses RISK-11 in Zone Module FPC Risk Register"
 )
 run3.font.size = Pt(10)
@@ -201,7 +201,7 @@ body(doc,
 tbl(doc,
     headers=["Document", "Number", "Relationship"],
     rows=[
-        ("Zone Module FPC Specification", "NP-HW-FPC-001 Rev C", "Parent spec — defines FPC stackup, bend radius, and connector"),
+        ("Zone Module FPC Specification", "NP-HW-FPC-001 Rev 3", "Parent spec — defines FPC stackup, bend radius, and connector"),
         ("Zone Module FPC Risk Register", "NP-FPC-RISK-001", "RISK-11: shell tooling/FPC routing coordination — this doc is the mitigation"),
         ("CLAUDE.md §13.4", "Project memory", "Shell tooling listed as pending decision — must resolve before first cut"),
         ("IPC-2223D", "Industry standard", "Flexible circuit design standard — bend radius, dynamic flex requirements"),
@@ -462,6 +462,6 @@ tbl(doc,
     widths=[0.5, 1.0, 1.7, 3.55],
 )
 
-OUT = "docs/neurone_shell_fpc_routing_review.docx"
+OUT = "docs/superseded/np_drv_shell_001.docx"
 doc.save(OUT)
 print(f"Saved: {OUT}")

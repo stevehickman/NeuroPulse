@@ -1,12 +1,12 @@
 /*
  * NeurOne Zone Module Announcement — Configuration Constants
- * Document: NP-FW-ZA-001 Rev A §3
+ * Document: NP-FW-ZA-001 Rev 1 §3
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  *
  * This header defines all compile-time constants for the zone module
  * insertion detection and bone conduction announcement subsystem.
  *
- * Hardware context (from NP-HW-FPC-001 Rev D):
+ * Hardware context (from NP-HW-FPC-001 Rev 4):
  *   Pin 18 = ZONE_ID: 1% resistor in module (R_Z) to GND; 10 kΩ pull-up
  *   (R_PU) to 3.3 V on the hub PCB forms a voltage divider read by LPADC.
  *
@@ -113,7 +113,7 @@
 /* ── SHDR logging keys ───────────────────────────────────────────────────────── */
 
 /* Written to SHDR partition: accessory authentication pass/fail per insertion   */
-/* (listed in NP-FW-EMMC-001 Rev A §12 session data classification table).      */
+/* (listed in NP-FW-EMMC-001 Rev 1 §12 session data classification table).      */
 #define NP_ZA_SHDR_AUTH_KEY         "zm_auth_v1"
 
 /* ── Polling / task timing ───────────────────────────────────────────────────── */

@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — Visual Stimulation Goggles Driver
- * Document: NP-FW-HUB-001 Rev A §8.6
+ * Document: NP-FW-HUB-001 Rev 1 §8.6
  *
  * Controls 108 micro-LEDs per lens (660nm + 808-830nm), 6 zones per eye.
  * Safety interlocks (all three layers independently enforced):

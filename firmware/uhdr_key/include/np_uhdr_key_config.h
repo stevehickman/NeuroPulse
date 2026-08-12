@@ -1,7 +1,7 @@
 /*
  * NeurOne Two-Layer UHDR Key Scheme — Configuration Constants
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
- * Document: NP-FW-EMMC-002 Rev A §C
+ * Document: NP-FW-EMMC-002 Rev 1 §C
  *
  * Two-layer architecture (§C.2), hardened per the 2026-07-08 privacy review:
  *   Layer 1 UKMD — 32-byte TRNG master key, used directly as the UHDR
@@ -52,7 +52,7 @@
  */
 #define NP_UHDR_AAD_LEN            (NP_UHDR_SALT_LEN + 16U)
 
-/* ── Argon2id parameters (§C.3 — identical to NP-FW-EMMC-001 Rev A §6) ────── */
+/* ── Argon2id parameters (§C.3 — identical to NP-FW-EMMC-001 Rev 1 §6) ────── */
 
 #define NP_UHDR_ARGON2ID_VERSION       0x13U    /* Argon2 v1.3                   */
 #define NP_UHDR_ARGON2ID_M_COST        65536U   /* 64 MiB, in KiB                */

@@ -1,4 +1,4 @@
-/* Document: NP-FW-EMMC-002 Rev A §B */
+/* Document: NP-FW-EMMC-002 Rev 1 §B */
 /*
  * NeurOne Device Factory Reset — Host Test HAL Control (HOST TEST ONLY)
  *

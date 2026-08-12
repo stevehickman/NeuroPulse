@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — OTA Update State Machine
- * Document: NP-FW-EMMC-001 Rev A §8.3 (9-step OTA sequence)
+ * Document: NP-FW-EMMC-001 Rev 1 §8.3 (9-step OTA sequence)
  *
  * This file implements both the application-side API (steps 1–7) and the
  * bootloader-side verification logic (steps 8–9).

@@ -6,11 +6,11 @@ engineering concept (per-module gasket, per-module dose metering) carries
 over unchanged, per docs/np_hex_zm_001.md §6 ("each hex needs a perimeter
 gasket... a per-tile seam-length budget is required").
 
-1. RISK-16 (docs/neurone_fpc_zone_module_risks_revA.docx) — IPX4
+1. RISK-16 (docs/superseded/np_risk_001.docx) — IPX4
    field-replacement seal. The self-sealing compression gasket approach is
    architecture-independent; only the noun needs updating.
 
-2. docs/neurone_clinical_trials_strategy.docx — "5 independently addressable
+2. docs/np_clin_001.docx — "5 independently addressable
    zones" asserted a retired, fixed slot count as a marketing differentiator.
    The real differentiator (individually addressable modules with real-time
    per-module dose metering) is still true and is in fact stronger under the
@@ -27,8 +27,8 @@ from docx.shared import Pt, RGBColor
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
-CLINICAL_PATH = "docs/neurone_clinical_trials_strategy.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
+CLINICAL_PATH = "docs/np_clin_001.docx"
 
 OLD_CLINICAL = (
     "Device equivalence: Vielight RCTs used Vielight devices at specific irradiance, "

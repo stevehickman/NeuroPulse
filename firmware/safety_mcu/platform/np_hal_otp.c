@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — SW-01 Platform Layer: OTP root public key
  * Target: STM32G071 (Cortex-M0+, 64 MHz), bare metal, CMSIS registers only
- * Document: NP-SW-001 Rev A — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
+ * Document: NP-SW-001 Rev 1 — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
  *           CLAUDE.md §4.2 (session protocol cryptographically signed)
  *
  * Implements np_hal_otp_read_pubkey(): reads the manufacturing root Ed25519

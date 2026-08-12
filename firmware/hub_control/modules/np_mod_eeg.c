@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — EEG Module Driver (ADS1299, 8-ch, 500Hz, 24-bit)
- * Document: NP-FW-HUB-001 Rev A §8.2
+ * Document: NP-FW-HUB-001 Rev 1 §8.2
  *
  * The ADS1299 is fixed hardware — always present (detect always returns OK).
  * EEG waveform data is DMA-driven and written directly to UHDR via
@@ -9,7 +9,7 @@
  *
  * EEG self-calibration at session start:  ADS1299 internal reference is routed
  * to all channels for one calibration epoch; gain/offset coefficients are stored
- * in the Config partition (SHDR) per NP-FW-EMMC-001 Rev A §9.
+ * in the Config partition (SHDR) per NP-FW-EMMC-001 Rev 1 §9.
  *
  * HAL stubs:
  *   OI-EEG-01: np_mod_eeg_hal_spi_write_reg(reg, val)     — ADS1299 SPI reg write

@@ -1,6 +1,6 @@
 /*
  * NeurOne sLORETA-guided HD-tDCS — Session Orchestration API
- * Document: NP-FW-HD-001 Rev A §8
+ * Document: NP-FW-HD-001 Rev 1 §8
  *
  * Implements the 5-stage workflow from CLAUDE.md §3 T2 additions:
  *   Stage 1: 21-ch qEEG resting-state acquisition (2 min)

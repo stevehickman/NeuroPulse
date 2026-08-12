@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — Session Orchestration API
- * Document: NP-FW-PBM1064-001 Rev A §7 / NP-SES-1064-001 §1 (v5)
+ * Document: NP-FW-PBM1064-001 Rev 1 §7 / NP-SES-1064-001 §1 (v5)
  */
 
 #ifndef NP_PBM1064_SESSION_H

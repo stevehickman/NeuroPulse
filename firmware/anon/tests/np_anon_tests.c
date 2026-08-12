@@ -1,6 +1,6 @@
 /*
  * NeurOne Research Anonymization — Scratch Encryption Host Tests
- * Document: NP-FW-EMMC-002 Rev A §D
+ * Document: NP-FW-EMMC-002 Rev 1 §D
  *
  * Exercises the init → write → read → complete cycle on the host using the
  * NPTEST_HOST HAL stubs.  Verifies the security-relevant invariants:

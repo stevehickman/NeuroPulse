@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Protocol Compiler
- * Document: NP-FW-HUB-001 Rev A — ⚠ registered but NOT WRITTEN. docs/np_fw_hub_001.md
+ * Document: NP-FW-HUB-001 Rev 1 — ⚠ registered but NOT WRITTEN. docs/np_fw_hub_001.md
  *           does not exist; the firmware in firmware/hub_control/ is its only
  *           description, so treat that code (not a spec) as the wire-format
  *           authority this compiler must match. Tracked as OI-DOC-01.

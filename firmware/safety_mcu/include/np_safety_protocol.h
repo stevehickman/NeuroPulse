@@ -1,6 +1,6 @@
 /*
  * NeurOne Safety MCU — SPI Protocol Types
- * Document: NP-FW-HUB-001 Rev A §7, NP-SW-001 Rev A
+ * Document: NP-FW-HUB-001 Rev 1 §7, NP-SW-001 Rev 1
  *
  * Three SPI frame types, distinguished by transfer length (NSS-delineated):
  *
@@ -44,8 +44,8 @@
 
 /* ── Enable bitmask bits (must match hub_control/np_hub_config.h) ─────────── */
 /*
- * Bit 0 gates ALL cranial PBM (NP-HW-HUB-001 Rev C §7.2).  It replaces the five
- * per-zone bits of Rev B, which were retired for two independent reasons:
+ * Bit 0 gates ALL cranial PBM (NP-HW-HUB-001 Rev 3 §7.2).  It replaces the five
+ * per-zone bits of Rev 2, which were retired for two independent reasons:
  *
  *  1. "Zone" is not a firmware concept.  A zone is a human-authored set of
  *     sockets in protocols/predefined/00-zones.npps; changing that membership
@@ -83,7 +83,7 @@
  *
  *  a. SHDR fault records.  Enable-bit positions appear in SHDR device-health
  *     fault records; silently recycling a position would make historical logs
- *     misread (NP-HW-HUB-001 Rev C §7.2).  CAVEAT, current as of 2026-08-05:
+ *     misread (NP-HW-HUB-001 Rev 3 §7.2).  CAVEAT, current as of 2026-08-05:
  *     no SHDR fault records have been generated yet (principal, 2026-08-04,
  *     NP-HW-HEXTILE-001 §8.4.2 finding 4), so THIS rationale does not bind
  *     today.  It begins binding the moment a real fault record exists.

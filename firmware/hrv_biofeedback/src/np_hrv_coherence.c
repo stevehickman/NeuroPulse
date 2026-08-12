@@ -1,6 +1,6 @@
 /*
  * NeurOne HRV Biofeedback — Coherence Algorithm
- * Document: NP-FW-HRV-001 Rev A §6
+ * Document: NP-FW-HRV-001 Rev 1 §6
  *
  * Self-contained radix-2 DIT FFT (float32, fixed size NP_HRV_FFT_SIZE = 256).
  * Welch's periodogram with Hann window and 50 % overlap.

@@ -4,7 +4,7 @@
 **Document:** NP-FW-ZA-001
 **Revision:** A
 **Date:** 2026-05-11
-**Status:** BASELINED
+**Status:** SUPERSEDED
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO

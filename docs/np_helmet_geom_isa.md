@@ -69,10 +69,10 @@ seal); per-socket LSR land over grommet sheet; glass-filled PBT inner bowl; clus
 over per-module levers; CFRP outer bowl as specced.
 
 ## Changelog
-- **2026-07-21 Rev A** — first derivation; ISC-1..8 met, ISC-9 gates carried open.
-- **2026-07-21 Rev A.1** — THERM-1/BEZEL-1 coupling worked (NP-THERM-BEZEL-001): BEZEL-1 resolved
+- **2026-07-21 Rev 1** — first derivation; ISC-1..8 met, ISC-9 gates carried open.
+- **2026-07-21 Rev 1.1** — THERM-1/BEZEL-1 coupling worked (NP-THERM-BEZEL-001): BEZEL-1 resolved
   (bezel 0.6 → 1.0 mm, optical modules only), THERM-1 re-specified to a face-temp ceiling; ISC-10 added.
-- **2026-07-21 Rev A.2** — FMEA-RECON done (NP-FMEA-GEOM-001): mechanical failure modes moved into the
+- **2026-07-21 Rev 1.2** — FMEA-RECON done (NP-FMEA-GEOM-001): mechanical failure modes moved into the
   NP-RM-001 S×P framework; new un-interlocked thermal-path failure mode FMEA-G07-01 raised
   (OI-GEOM-FMEA-01); G06-01 confirmed = RISK-20; ISC-11 added.
 

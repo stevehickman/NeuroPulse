@@ -2,7 +2,7 @@
 
 **Document:** App Privacy declaration for App Store Connect manual entry
 **Satisfies:** ISA ISC-6, ISC-132
-**Cross-reference:** `NP-APP-TELEMETRY-001 Rev B`, `PrivacyInfo.xcprivacy`, CLAUDE.md §5 (UHDR/SHDR)
+**Cross-reference:** `NP-APP-TELEMETRY-001 Rev 2`, `PrivacyInfo.xcprivacy`, CLAUDE.md §5 (UHDR/SHDR)
 **Tracking:** This app does **not** track users. `NSPrivacyTracking` is `false`; App Tracking Transparency prompt is never shown.
 
 This document is the source of truth for the "App Privacy" section in App Store Connect.
@@ -38,7 +38,7 @@ Enter each row below exactly as stated. No placeholder entries may remain (ISC-6
 ### Crash Data — **Collected (only after consent)**
 - **App Store Connect category:** Diagnostics → Crash Data
 - **Collection gate:** The crash-reporting SDK is initialised only after the user
-  completes the consent flow and opts in (NP-APP-TELEMETRY-001 Rev B). No crash
+  completes the consent flow and opts in (NP-APP-TELEMETRY-001 Rev 2). No crash
   data leaves the device before consent.
 - **Linked to the user's identity:** Yes.
 - **Used for tracking:** No.
@@ -74,7 +74,7 @@ Enter each row below exactly as stated. No placeholder entries may remain (ISC-6
 - **What:** Anonymous in-app events (app opens, session starts, screen names) sent
   via PostHog after the user opts in to analytics.
 - **Collection gate:** PostHog is initialised only after the consent flow completes
-  and the user opts in (NP-APP-TELEMETRY-001 Rev B). No events leave the device
+  and the user opts in (NP-APP-TELEMETRY-001 Rev 2). No events leave the device
   before consent.
 - **Linked to the user's identity:** No. `personProfiles = .never` — PostHog builds
   no Person record.

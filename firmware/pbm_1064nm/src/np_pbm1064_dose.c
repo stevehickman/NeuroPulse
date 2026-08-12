@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — InGaAs PD Dose Metering
- * Document: NP-FW-PBM1064-001 Rev A §6
+ * Document: NP-FW-PBM1064-001 Rev 1 §6
  *
  * Dual-PD architecture (RISK-14 Option B):
  *   PD1 — behind PDMS optical window (forward emission)

@@ -1,6 +1,6 @@
 /*
  * NeurOne Research Anonymization — Status Types
- * Document: NP-FW-EMMC-002 Rev A §D
+ * Document: NP-FW-EMMC-002 Rev 1 §D
  *
  * Status enum for the scratch-partition AES-256-CTR encryption layer.
  * Convention (project-wide): NP_ANON_OK = 0, all error codes negative.

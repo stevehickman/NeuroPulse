@@ -1,5 +1,5 @@
 -- NeurOne SHDR Fleet Database Schema
--- Document: NP-FW-EMMC-002 Rev A §G.4 / NP-FW-EMMC-001 Rev A §7
+-- Document: NP-FW-EMMC-002 Rev 1 §G.4 / NP-FW-EMMC-001 Rev 1 §7
 -- Revision: D
 -- Effective date: 2026-08-10
 -- Status: ACTIVE — BLOCKING for schema freeze (OI-EMMC2-07 must PASS)
@@ -68,7 +68,7 @@
 --
 --   PRECEDENT, not a new direction: OI-HUB-C06 already requires PBM calibration
 --   coefficients (K_PD1 / K_PD2 / K_ratio_nom) to be keyed to module UID via
---   np_module_map "because modules are swappable", and NP-SES-1064-001 Rev B
+--   np_module_map "because modules are swappable", and NP-SES-1064-001 Rev 2
 --   (2026-08-02) already retired the fixed zone[5] arrays on the firmware side
 --   in favour of per-socket entries (np_pbm1064_shdr_summary_t). Rev D is the
 --   fleet-DB completion of a move the firmware has already made.
@@ -751,7 +751,7 @@ GROUP BY module_uid;
 -- Table: pbm_module_telemetry   (replaces pbm_zone_telemetry, Rev C)
 -- Photodiode dose-metering and LED aging data per MODULE per session, recorded
 -- against the socket the module occupied at the time.
--- Per NP-FW-EMMC-001 Rev A §12: PD1/PD2 ratio → SHDR; raw irradiance → UHDR.
+-- Per NP-FW-EMMC-001 Rev 1 §12: PD1/PD2 ratio → SHDR; raw irradiance → UHDR.
 -- ---------------------------------------------------------------------------
 CREATE TABLE pbm_module_telemetry (
     id                  BIGSERIAL    PRIMARY KEY,
@@ -1111,7 +1111,7 @@ CREATE TABLE calibration_history (
 -- ---------------------------------------------------------------------------
 -- Table: eeg_impedance_trend
 -- EEG electrode impedance trend slope — SHDR only (raw impedance series → UHDR).
--- Per NP-FW-EMMC-001 Rev A §12: "raw EEG impedance → UHDR; derived trend slope → SHDR"
+-- Per NP-FW-EMMC-001 Rev 1 §12: "raw EEG impedance → UHDR; derived trend slope → SHDR"
 -- ---------------------------------------------------------------------------
 CREATE TABLE eeg_impedance_trend (
     id                  BIGSERIAL    PRIMARY KEY,

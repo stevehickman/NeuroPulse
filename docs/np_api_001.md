@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-API-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-06-07
 **Status:** DRAFT
 **Effective Date:** 2026-06-07
 **Author:** SmartyPants / PAI
 **Approved By:** TBD (Privacy Lead sign-off required before external publication)
-**References:** NP-INT-FHIR-001 Rev A, NP-PRIV-REM-001 Rev A (STEP-15), NP-LEGAL-BAA-001 Rev A, np_npps_ref_001.md, NP-SW-001 Rev A, NP-APP-TELEMETRY-001 Rev B
+**References:** NP-INT-FHIR-001 Rev 1, NP-PRIV-REM-001 Rev 1 (STEP-15), NP-LEGAL-BAA-001 Rev 1, np_npps_ref_001.md, NP-SW-001 Rev 1, NP-APP-TELEMETRY-001 Rev 2
 **Related Issues:** —
 **Gate:** NP-COORD-001 G1 (NP-PRIV-REM-001 STEP-15)
 **IEC 62304 Class:** —
@@ -295,7 +295,7 @@ Returns the caller's own API audit log entries. Query parameters: `from`, `to` (
 
 ## §5 FHIR Data Model
 
-See NP-INT-FHIR-001 Rev A for full resource profiles. Summary:
+See NP-INT-FHIR-001 Rev 1 for full resource profiles. Summary:
 
 | Resource | Usage | Key constraint |
 |----------|-------|----------------|
@@ -343,7 +343,7 @@ Audit logs are retained for 7 years (HIPAA minimum). Callers can retrieve their 
 
 ### 6.4 Research tier anonymisation
 
-Research tier responses use on-device anonymisation (NP-FW-ANON-001 Rev A): k-anonymity k≥10, l-diversity l≥3, differential privacy ε≤1.0, δ≤10⁻⁵. NeurOne never processes raw UHDR — anonymisation is performed entirely on-device; only the anonymised extract is transmitted. NP-ANON-CERT-[study_id] (signed Expert Determination certification) required before each study descriptor is deployed (NP-PRIV-REM-001 STEP-32).
+Research tier responses use on-device anonymisation (NP-FW-ANON-001 Rev 1): k-anonymity k≥10, l-diversity l≥3, differential privacy ε≤1.0, δ≤10⁻⁵. NeurOne never processes raw UHDR — anonymisation is performed entirely on-device; only the anonymised extract is transmitted. NP-ANON-CERT-[study_id] (signed Expert Determination certification) required before each study descriptor is deployed (NP-PRIV-REM-001 STEP-32).
 
 ---
 
@@ -419,4 +419,4 @@ All error responses: `{ "np_error_code": "...", "message": "...", "request_id": 
 
 | Rev | Date | Author | Description |
 |-----|------|--------|-------------|
-| A | 2026-06-07 | SmartyPants / PAI | Initial issue — G1 gate deliverable; NP-PRIV-REM-001 STEP-15 |
+| 1 | 2026-06-07 | SmartyPants / PAI | Initial issue — G1 gate deliverable; NP-PRIV-REM-001 STEP-15 |

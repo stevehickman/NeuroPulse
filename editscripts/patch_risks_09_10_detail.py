@@ -8,7 +8,7 @@ from docx.shared import Pt, RGBColor
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 doc = Document(RISK_PATH)
 
 # Print all table content to find where RISK-09 and RISK-10 are

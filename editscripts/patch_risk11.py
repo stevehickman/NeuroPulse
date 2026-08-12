@@ -41,7 +41,7 @@ def set_cell_text(cell, text, bold=False, color=None):
 # 1. Patch FPC spec §11.2
 # ─────────────────────────────────────────────────────────────────────────────
 
-SPEC_PATH = "docs/neurone_fpc_zone_module_spec_revA.docx"
+SPEC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 spec = Document(SPEC_PATH)
 
 # Find §11.2 heading and insert content after it
@@ -79,7 +79,7 @@ if s112_idx is not None:
          "(excess causes spontaneous tight bend in channel).",
          False, False, None),
         ("Design review reference: Shell tooling FPC routing path must be reviewed against requirements in "
-         "NP-DRV-SHELL-001 Rev A (Zone Module FPC Routing Path — Shell Tooling Design Review) before "
+         "NP-DRV-SHELL-001 Rev 1 (Zone Module FPC Routing Path — Shell Tooling Design Review) before "
          "tooling specification release. NP-DRV-SHELL-001 §5 contains the design review checklist (15 items) "
          "that must pass before first-cut approval.",
          False, False, None),
@@ -109,7 +109,7 @@ print(f"  FPC spec saved: {SPEC_PATH}")
 # 2. Patch Risk Register — RISK-11
 # ─────────────────────────────────────────────────────────────────────────────
 
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk_doc = Document(RISK_PATH)
 
 tbl = risk_doc.tables[0]
@@ -121,14 +121,14 @@ for row in tbl.rows:
         # Col 5: Required Mitigation — update to reference the new doc
         set_cell_text(row.cells[5],
             "MITIGATED: Shell tooling FPC routing design review document created "
-            "(NP-DRV-SHELL-001 Rev A). Document specifies 5 routing path requirements "
+            "(NP-DRV-SHELL-001 Rev 1). Document specifies 5 routing path requirements "
             "(REQ-BR-01 to REQ-BR-05), 7 shell tooling requirements (REQ-ST-01 to REQ-ST-07), "
             "15-item design review checklist (DRC-01 to DRC-15), FPC length and slack "
             "requirements for all 5 zones, and sign-off gate before tooling release. "
             "FPC spec §11.2 updated with bend radius callouts and reference to NP-DRV-SHELL-001.")
         # Col 8: Status
         set_cell_text(row.cells[8],
-            "MITIGATED — NP-DRV-SHELL-001 Rev A created; §11.2 populated; "
+            "MITIGATED — NP-DRV-SHELL-001 Rev 1 created; §11.2 populated; "
             "DRC sign-off required before first-cut",
             bold=True, color=(0x00, 0x70, 0x00))
         set_cell_bg(row.cells[8], "92D050")
@@ -144,7 +144,7 @@ for row in open_issues_tbl.rows:
         old_txt = row.cells[2].text
         set_cell_text(row.cells[2],
             "Shell tooling FPC routing path with ≥25 mm bend radius — "
-            "design review doc NP-DRV-SHELL-001 Rev A created. "
+            "design review doc NP-DRV-SHELL-001 Rev 1 created. "
             "CAD model and physical prototype still required to close (see NP-DRV-SHELL-001 §7).")
         print(f"  OI-09 updated")
         break

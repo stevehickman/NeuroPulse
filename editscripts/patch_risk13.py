@@ -23,7 +23,7 @@ def set_cell_text(cell, text, bold=False, color=None):
     if color:
         run.font.color.rgb = RGBColor(*color)
 
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk_doc = Document(RISK_PATH)
 
 # ── Summary table ──
@@ -33,7 +33,7 @@ for row in tbl.rows:
         set_cell_text(row.cells[1], "MEDIUM\n(MITIGATED)", bold=True, color=(0x00,0x70,0x00))
         set_cell_bg(row.cells[1], "E2EFDA")
         set_cell_text(row.cells[5],
-            "MITIGATED: Engineering coordination checklist NP-COORD-001 Rev A created. "
+            "MITIGATED: Engineering coordination checklist NP-COORD-001 Rev 1 created. "
             "Item G1-03 mandates a signed Engineering Decision Record (EDR) between HW EE "
             "and Firmware Lead agreeing the carrier frequency (≥1 kHz confirmed); "
             "EDR must verify all harmonics up to Nyquist (250 Hz) do not coincide with "
@@ -93,7 +93,7 @@ def ins_para(doc, target_para, text, bold=False, bullet=False, color=None, size=
 ins_para(risk_doc, target, "")  # spacer
 
 ins_para(risk_doc, target,
-    "→ Action 4 (DONE): Engineering coordination checklist NP-COORD-001 Rev A created. "
+    "→ Action 4 (DONE): Engineering coordination checklist NP-COORD-001 Rev 1 created. "
     "Items G1-03 and G1-04 track EDR and firmware implementation. "
     "Items G2-07 and G3-04 lock values and validate on prototype.",
     bullet=True, color=(0x00,0x70,0x00))

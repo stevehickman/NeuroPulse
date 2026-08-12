@@ -1,6 +1,6 @@
 /*
  * NeurOne Cervical VNS — Session Management
- * Document: NP-FW-CVNS-001 Rev A §8
+ * Document: NP-FW-CVNS-001 Rev 1 §8
  *
  * Orchestrates the full cervical VNS session:
  *   impedance check → cardiac baseline → ramp-up → active → ramp-down → complete.

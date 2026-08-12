@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-HFE-002
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-07-31
 **Status:** DRAFT
 **Effective Date:** 2026-07-31
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-HFE-001 Rev A (CT-01); NP-HEX-ZM-001 Rev A §3.2/§3.4/§4a/§5.4a; NP-DT-001 Rev B (DI-USE-05); NP-RM-001 Rev A (RISK-15, RISK-22); NP-FW-ZA-001 Rev A (superseded — bone-conduction supersession note); NP-TOOL-ZM-SM-001 Rev A (superseded — F-05/F-06 braille + tactile dots); IEC 62366-1:2015+AMD1:2020; FDA HFE Guidance 2016; ISO 17049:2013; ISO 21542:2021 §75 (tactile wayfinding); WCAG 2.2 / Apple VoiceOver + Android TalkBack platform conventions
+**References:** NP-HFE-001 Rev 1 (CT-01); NP-HEX-ZM-001 Rev 1 §3.2/§3.4/§4a/§5.4a; NP-DT-001 Rev 2 (DI-USE-05); NP-RM-001 Rev 1 (RISK-15, RISK-22); NP-FW-ZA-001 Rev 1 (superseded — bone-conduction supersession note); NP-TOOL-ZM-SM-001 Rev 1 (superseded — F-05/F-06 braille + tactile dots); IEC 62366-1:2015+AMD1:2020; FDA HFE Guidance 2016; ISO 17049:2013; ISO 21542:2021 §75 (tactile wayfinding); WCAG 2.2 / Apple VoiceOver + Android TalkBack platform conventions
 **Related Issues:** —
 **Gate:** NP-COORD-001 G3 (VE-12), via NP-HFE-001 §7/§8
 **IEC 62304 Class:** SW-03 Class B (companion app guidance); SW-02 Class B (hub inventory reporting). No Class C content — no layer of this design is a safety interlock (see §10).
@@ -379,4 +379,4 @@ No layer of this design is an ISO 14971 §7.4 risk control. L4 (`check_placement
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
-| A | 2026-07-31 | Steve Hickman (CEO, interim Quality authority) | Initial release. Replaces the RISK-15 Layer 3/4/5 accessible position-identification scheme, which did not survive the hex-tile redesign. Adopts a layered design: tactile landmark grid (L1), companion-app guided placement (L2, primary), module-type tactile marking (L3), existing `check_placement` gate (L4), while-worn bone conduction (L5, constrained only), tactile placement card (F, fallback). Rejects per-socket tactile symbols (geometry and discriminability) and per-socket touch-to-speak (cost). Records the RISK-15 severity reframe and the DONT-CARE/wavelength authoring gap (HFE-R-15). Closes the open gap flagged at NP-HFE-001 CT-01 and NP-DT-001 DI-USE-05. |
+| 1 | 2026-07-31 | Steve Hickman (CEO, interim Quality authority) | Initial release. Replaces the RISK-15 Layer 3/4/5 accessible position-identification scheme, which did not survive the hex-tile redesign. Adopts a layered design: tactile landmark grid (L1), companion-app guided placement (L2, primary), module-type tactile marking (L3), existing `check_placement` gate (L4), while-worn bone conduction (L5, constrained only), tactile placement card (F, fallback). Rejects per-socket tactile symbols (geometry and discriminability) and per-socket touch-to-speak (cost). Records the RISK-15 severity reframe and the DONT-CARE/wavelength authoring gap (HFE-R-15). Closes the open gap flagged at NP-HFE-001 CT-01 and NP-DT-001 DI-USE-05. |
