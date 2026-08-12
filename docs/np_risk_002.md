@@ -8,7 +8,7 @@
 **Effective Date:** 2026-08-11
 **Author:** NeurOne Quality (interim: Steve Hickman, CEO)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-RISK-001 Rev 3 (superseded — `docs/superseded/neurone_fpc_zone_module_risks_revA.docx`); NP-RM-001 Rev 1 §4 (scales), §8.1 (baseline), §8.2 (change control); NP-RISK-003 Rev 1; NP-RISK-004 Rev 1; NP-ART-001 Rev 1; NP-FAI-001 Rev 1 §7; NP-FMEA-001 Rev 4; NP-FMEA-GEOM-001 Rev 1; NP-QMS-DC-001 Rev 1; NP-QMS-CAPA-001 Rev 1; NP-DHF-001 Rev 27; ISO 14971:2019
+**References:** NP-RISK-001 Rev 3 (superseded — `docs/superseded/np_risk_001.docx`); NP-RM-001 Rev 1 §4 (scales), §8.1 (baseline), §8.2 (change control); NP-RISK-003 Rev 1; NP-RISK-004 Rev 1; NP-ART-001 Rev 1; NP-FAI-001 Rev 1 §7; NP-FMEA-001 Rev 4; NP-FMEA-GEOM-001 Rev 1; NP-QMS-DC-001 Rev 1; NP-QMS-CAPA-001 Rev 1; NP-DHF-001 Rev 27; ISO 14971:2019
 **Related Issues:** —
 **Gate:** NP-COORD-001 G2
 **IEC 62304 Class:** N/A (hardware risk file)

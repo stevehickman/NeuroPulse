@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-CONV-001
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-08-11
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
@@ -127,12 +127,129 @@ OI-FMEA-01 has a convention to adopt if it is ever closed.
 | Item | Convention | Example |
 |---|---|---|
 | Document ID | `NP-<DOMAIN>-<NNN>` | `NP-HW-HEXTILE-001`, `NP-DRV-SHELL-002` |
-| Filename | lower-snake of the ID, `.md` | `docs/np_hw_hextile_001.md` |
+| Filename | **the document serial, and nothing else** — lower-snake of the ID plus the extension (§4.0) | `docs/np_hw_hextile_001.md` |
 | **New number vs new revision** | **New number** when the *architecture is replaced*; **new revision** when decisions are *inherited* | `NP-DRV-SHELL-002` took a new number from `-001` (architecture replaced); `NP-HW-FPC-001 Rev 5` layered on Rev 4 (inherited) |
 | Revision | **positive integer**, in the `**Revision:**` field only — **never in the title, never in the filename** | `**Revision:** 3` |
 | Status | `DRAFT` · `ACTIVE` · `BASELINED` · `SUPERSEDED` · `ARCHIVED` | |
 | Superseded documents | live in `docs/superseded/`, indexed by `docs/superseded/README.md` | |
 | Front matter | first 12 fields fixed and ordered | `docs/FRONT_MATTER_TEMPLATES.md` is normative |
+
+### 4.0 The filename IS the document serial (BINDING, added at Rev 3)
+
+> **A controlled document's filename is the lower-snake form of its document serial, plus the
+> extension. Nothing more, nothing less, nothing else.**
+>
+> `NP-TOOL-HEXTILE-001` → `np_tool_hextile_001.md`. Not `np_tool_hextile.md`, not
+> `np_hextile_tooling_001.md`, not `np_tool_hextile_001_rev2.md`, not
+> `neurone_hextile_tooling.docx`.
+
+**Why the filename carries the serial rather than a description.** The serial is the only part of a
+document that never changes. Titles get rewritten, authors leave, status moves DRAFT → BASELINED →
+SUPERSEDED, and the document itself gets superseded and moved. A reference that names any of those
+things eventually dangles. This document set proves the point at scale: **~38 references to
+`NP-RISK-001` still resolve today**, after that document was retired, re-baselined into three
+successors, and moved to `docs/superseded/`. Had they cited "the Zone Module Risk Register", every
+one would have broken on 2026-08-11.
+
+Three further properties fall out of it, and they are the reason the rule is worth its cost:
+
+| Property | What it buys |
+|---|---|
+| **Mechanically derivable** | Given `NP-FAI-HUB-001` in any citation, the file is `docs/np_fai_hub_001.md` without a lookup table, an index, or a search. |
+| **Absence is detectable** | The set becomes enumerable, so "which artifacts have no tooling specification?" is answerable by listing `np_tool_*`. That is exactly how `NP-ART-001` §4 found nine artifacts with no owning document. You cannot detect a gap in a set with no naming scheme. |
+| **A document can be named before it exists** | `NP-FAI-CVNS-001` was cited in three places and had never been written. Under this rule that is a *findable* absence, not an invisible one — it became `OI-ART-05`. |
+
+#### 4.0.1 The rule is exclusive, not just prescriptive
+
+> **Nothing that is not a serialed controlled document may have a filename matching
+> `np_<domain>_<nnn>.<ext>`.**
+
+A rule that says "documents look like this" is worth little if other things also look like this —
+the pattern stops being evidence. So the converse binds too: if a file matches the serial shape, it
+**is** a controlled document with that serial, and the claim is checkable by opening it and reading
+the `**Document:**` field.
+
+Two consequences, both applied on 2026-08-11:
+
+- Files that *had* a serial but a descriptive filename were renamed to the serial —
+  `neurone_shell_fpc_routing_review.docx` → `np_drv_shell_001.docx`,
+  `neurone_supplier_selection_checklist.docx` → `np_proc_sup_001.docx`, and 23 others.
+- A file that matched the serial shape but carried no serial had to be resolved rather than
+  tolerated: `np_condition_links_001.md` looked like a serial while its front matter had no
+  `**Document:**` field at all (it stated the revision inside `**Status:**`). Its real serial is
+  `NP-COND-LINK-001`, so it became `np_cond_link_001.md` and gained the missing fields.
+
+Files with no serial and no serial-shaped name are unaffected and need no serial:
+`ABBREVIATIONS.md`, `FRONT_MATTER_TEMPLATES.md`, `np_hex_zm_isa.md`, `pbm_neuro_protocols.md`,
+`docs/status/*`, `docs/reference/*`.
+
+#### 4.0.1a Enforced by script, not by care
+
+Per §8 — *a convention worth writing down is worth a script* — both halves are checked by
+**`scripts/check-doc-filenames.ts`**:
+
+```bash
+bun scripts/check-doc-filenames.ts
+```
+
+It resolves each file's serial from the authority that is actually reliable for that file type: the
+`**Document:**` field for `.md`, and the `NP-DHF-001` register row for `.docx`/`.pdf`. **That split
+is not fastidiousness.** An earlier version of the check read the first `NP-…-NNN` token in a
+`.docx` body and concluded the bibliography's serial was `NP-REG-PBM1064-001` — it had found a
+*citation*, not the document's own ID, and it would have renamed nine files wrongly with complete
+confidence.
+
+The check was **falsified before it was trusted**, in both directions: renaming a conforming file
+away from its serial trips A, and adding a serial-shaped file with no serial of record trips B.
+A checker that has only ever been run against a passing tree has demonstrated nothing.
+
+#### 4.0.2 Serial versus revision — they are different numbers
+
+This is the distinction the rule depends on, and the two are easy to conflate because both are
+digits attached to a document:
+
+| | **Serial** (`-003`) | **Revision** (`Rev 3`) |
+|---|---|---|
+| Answers | *which document* | *which version of that document* |
+| Two current at once? | **Yes** — `NP-RISK-003` and `NP-RISK-004` are peers, both Rev 1 | **No** — Rev 3 supersedes Rev 2 |
+| Ordered? | No. `-004` is not "after" `-003`; they cover different artifacts | Strictly ordered |
+| A new one means | a new document came into existence | an existing document changed |
+| Written in | the document ID, and therefore the filename | the `**Revision:**` field **only** |
+
+**The two collide numerically by accident, and that accident is what makes the rule necessary to
+state.** `NP-PRIV-ANALYSIS-002` is at **Rev 2**; `NP-PRIV-ANALYSIS-003` is at **Rev 3**. Reading
+either filename as carrying a revision is a reasonable inference and is wrong. Only §4.0 makes the
+number in a filename unambiguous.
+
+The operational test for which one to increment is unchanged, and is in the table above: **new
+serial when the architecture is replaced; new revision when decisions are inherited.**
+
+#### 4.0.3 Vendored files are the only exception
+
+> **A vendored file keeps the name its vendor gave it.** Renaming it breaks correspondence with
+> upstream — the datasheet, the release tarball, the SOUP record, the diff against a new version.
+
+`firmware/vendor/freertos/`, `firmware/vendor/cmsis_core/` and `firmware/vendor/cmsis_device_g0/`
+hold byte-exact upstream subsets whose per-file provenance and SHA-256 are recorded in their
+`VERSION` files. Byte-exactness is verified by re-download and `cmp`; a rename would void that.
+This is the same principle as §Scope's vendor-name rule: **where a vendor name conflicts with a
+NeurOne convention, the vendor wins.**
+
+#### 4.0.4 One serial resolving to two files
+
+`NP-HW-FPC-001` currently exists as `np_hw_fpc_001.docx` (Rev 3) **and** `np_hw_fpc_001.md`
+(Rev 5) — two revisions of one document retained as two files. Both are superseded.
+
+The names are correct under §4.0; the *situation* is not, because the serial no longer resolves to a
+single file. **The fix is not a filename.** Adding a disambiguator would put revision information
+back into a filename, which §4.3 forbids — and the reason it forbids it is exactly this: a filename
+that encodes a revision makes every reference to that document version-specific, which is what
+version control already handles. Tracked as **OI-CONV-05**; it is a records question about whether
+an intermediate revision should be retained as a separate file at all.
+
+> **The rule surfaced this rather than created it.** Two revisions had been sitting as two files
+> since the `.docx` set began; nothing pointed at the collision until filenames were required to
+> equal serials.
 
 ### 4.1 Revisions are integers (BINDING, changed at Rev 2)
 
@@ -167,9 +284,9 @@ through each) — so the mapping is positional with no gaps, and it is injective
 > deliberate.** `Rev H`, `Rev AA` and `Rev A.10` are quoted above as *evidence for the change*; a
 > mapping table that could not name what it maps from would be unusable. §5 already records the same
 > trap for section marking — *"a rule document that quotes its own anti-pattern fails its own rule"*
-> — and it applies here too. An audit finding letter revisions in `np_conventions_001.md` §4.1 has
+> — and it applies here too. An audit finding letter revisions in `np_conv_001.md` §4.1 has
 > found the explanation, not a miss. The other two known survivors are
-> `docs/superseded/**` (§1.1, by design) and `neurone_privacy_analysis_001.pdf` (binary, OI-CONV-04).
+> `docs/superseded/**` (§1.1, by design) and `np_priv_001.pdf` (binary, OI-CONV-04).
 
 ### 4.2 What the integer rule does NOT cover
 
@@ -186,10 +303,25 @@ stated here because a blanket conversion would have silently rewritten all three
 
 > **A filename names the document, not the issue of it.** Version control holds the revision history.
 
-`neurone_design_brief_r5.docx` was renamed to `neurone_design_brief.docx` on 2026-08-11 for this
-reason: a rename on every revision breaks every inbound link, and the `_r5` was already stale
-relative to the register in two places. Files under `docs/superseded/` are exempt — they are
-historical records and are not renamed backward (§1.1).
+A revision in a filename means a rename on every revision, and a rename on every revision breaks
+every inbound link. It is also the one piece of metadata version control already holds perfectly.
+
+The design brief was `neurone_design_brief_r5.docx` until 2026-08-11, and the `_r5` was **already
+stale in two register entries** — which is the failure mode in miniature. Under §4.0 it is now
+`np_db_005.docx`, where the `005` is `NP-DB-005`'s serial, not its revision. Its revision is 5 as
+well, coincidentally, which is precisely the collision §4.0.2 exists to disambiguate.
+
+**Superseded documents are not exempt from §4.0.** Rev 2 of this document exempted them, reasoning
+from §1.1's *rename forward, never backward*. That was wrong and is corrected here: §1.1 protects
+historical **records of what was written** — revision-history rows, decision logs, the text inside a
+retired document. A filename is not a record; it is an address, and the whole point of §4.0 is that
+the address is derivable from the serial. A retired document is the case where derivability matters
+*most*, because it is the one nobody remembers the descriptive name of. `NP-RISK-001`'s ~38 inbound
+citations now resolve to `docs/superseded/np_risk_001.docx` by rule rather than by lookup.
+
+What *is* retained inside `docs/superseded/` is the **revision label** each document was written
+with (§1.1 proper) and a record of its former filename, in `docs/superseded/README.md`, so an
+external citation of the old name still leads somewhere.
 
 ## 5. Section references
 
@@ -250,7 +382,8 @@ confirm the check fails.
 |---|---|---|---|
 | **OI-CONV-01** | **`SAFE_EN[n]` polarity disagrees with the safety-MCU firmware, and §1.1 made it visible.** `NP-DRV-SHELL-002` §6 specifies **LOW = rail removed = disabled** (so `SAFE_EN[n]` is active-**HIGH**, and SH2-DRC-13's "defaults LOW at reset" is the *safe* state). The safety MCU specifies the opposite for its enable lines: *"Active-LOW open-drain: **LOW = stimulation enabled**; HIGH = disabled. Power loss or reset [→ disabled]"* (`np_safety_config.h:7-8`, `np_safety_main.c:14`). **Both are internally coherent and fail-safe on their own terms; together they are inverted.** The hazard is the undocumented mismatch: anyone implementing `SAFE_EN[n]` to the safety MCU's house convention would make LOW *enable* the cluster, turning SH2-DRC-13's "default LOW at reset" from the safe state into **stimulation enabled at power-on reset**. Naming has been applied **as the documents currently state polarity** — `SAFE_EN[n]` carries no `#` because SHELL-002 declares it active-high — so **resolving this item may require a rename to `SAFE_EN#[n]`**. Not resolved here: this is a safety-architecture question, not a naming one. **The inversion is now visible in `NP-HW-HUB-001` §3.1's own block diagram**, where an active-low `PBM_CRANIAL_EN#` from the safety MCU feeds a tier whose per-cluster gate is declared active-high — which is precisely the effect §1.4 intends | Safety + EE Lead | **Cluster-carrier schematic; Hub PCB Rev C.** Assess with **OI-FMEA-01** and **OI-HUB-C07** |
 | **OI-CONV-03** | **`NP-COORD-001`'s dotted minor revisions are not resolved, only mapped.** That document reached `Rev A.10` under a two-part scheme (`A`, `A.1` … `A.10`) that no other NeurOne document uses and §4.1 does not describe. The 2026-08-11 conversion mapped the **major only** — `Rev A.10` → `Rev 1.10` — because flattening the eleven issues to `Rev 1`…`Rev 11` would assert an ordering the revision history does not actually establish (it is not recorded whether `Rev A` and `Rev A.1` were distinct issues or the same issue relabelled). Resolving it means reading the eleven change records and re-issuing the document under a flat integer. **Note also that the document and the register disagree**: `docs/status/document-register.md` and `NP-DHF-001` both cite `Rev A.9` while the `.docx` itself reads `Rev A.10` | Quality | Documentation consistency; not tooling-blocking |
-| **OI-CONV-04** | **The eleven active `.docx` documents still carry letter revisions internally.** §4.1's conversion was applied to the Markdown corpus — which is the set of record — and to every Markdown citation of a `.docx` document's revision, so the register, the DHF and all cross-references are numeric. The Word files' own header text was not edited: in every file sampled the revision string is split across Word runs (`Rev</w:t>…<w:t> A`), so a text substitution would have silently missed occurrences, and a partial conversion is worse than none. These files are on the path to Markdown conversion anyway (`np_*.md` is the newer generation); the revision label should convert with the format, in one step, not before it. Until then §4.1's mapping table resolves the discrepancy. Affected: `neurone_bibliography`, `neurone_clinical_trials_strategy`, `neurone_design_brief`, `neurone_eng_coordination_checklist`, `neurone_fpc_procurement_requirements`, `neurone_fw_emmc_001`, `neurone_researchers`, `neurone_sbir_phase1_draft`, `neurone_supplier_selection_checklist`, `neurone_tool_lens_001`, `neurone_tool_shell_001` | Quality | Documentation consistency; not tooling-blocking |
+| **OI-CONV-04** | **The eleven active `.docx` documents still carry letter revisions internally.** §4.1's conversion was applied to the Markdown corpus — which is the set of record — and to every Markdown citation of a `.docx` document's revision, so the register, the DHF and all cross-references are numeric. The Word files' own header text was not edited: in every file sampled the revision string is split across Word runs (`Rev</w:t>…<w:t> A`), so a text substitution would have silently missed occurrences, and a partial conversion is worse than none. These files are on the path to Markdown conversion anyway (`np_*.md` is the newer generation); the revision label should convert with the format, in one step, not before it. Until then §4.1's mapping table resolves the discrepancy. Affected (by serial, per §4.0): `NP-BIB-001`, `NP-CLIN-001`, `NP-DB-005`, `NP-COORD-001`, `NP-PROC-FPC-001`, `NP-FW-EMMC-001`, `NP-SBIR-001`, `NP-PROC-SUP-001`, `NP-TOOL-LENS-001`, `NP-TOOL-SHELL-001`, plus every `.docx` under `docs/superseded/`, `neurone_tool_shell_001` | Quality | Documentation consistency; not tooling-blocking |
+| **OI-CONV-05** | **`NP-HW-FPC-001` resolves to two files** — `docs/superseded/np_hw_fpc_001.docx` (Rev 3) and `docs/superseded/np_hw_fpc_001.md` (Rev 5), two revisions of one document retained separately. Both filenames are correct under §4.0; the situation is not, because a serial must resolve to one document. **Deliberately not fixed with a filename** — any disambiguator would reintroduce revision information into a filename (§4.3). This is a records question: should an intermediate revision be retained as its own file, or does the current revision plus git history carry it? Same question applies to `NP-FW-EMMC-001` (`.docx`) against `NP-FW-EMMC-002` (`.md`), which took a new serial and so is *not* an instance of this | Quality | Records policy; not tooling-blocking |
 | **OI-CONV-02** | Sweep the remaining document set against §1 and §5. This revision covers the socket/cluster interface documents (`NP-HW-HEXTILE-001`, `NP-DRV-SHELL-002`, `NP-HW-HUB-001`); the modality, firmware and app specs have not been audited for active-low signals carrying no `#` | Systems | Documentation consistency; not tooling-blocking |
 
 ---
@@ -259,5 +392,6 @@ confirm the check fails.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
-| **2** | **2026-08-11** | NeurOne Systems Engineering | **Document revisions become integers (§4.1), replacing Rev 1's single-uppercase-letter rule.** Rev 1's rule is stated, then replaced with the four pieces of evidence that took it: `NP-DHF-001` had reached **Rev AA** (27th issue) which text-sorts before `B`; letters carry no magnitude; `NP-DHF-001` §5.1 was *already* numbering the design briefs 1–4 in a table whose other rows used letters; and `NP-COORD-001` had a third, dotted scheme (`Rev A.10`) that no rule described. Mapping is **positional and total** (`A`=1 … `Z`=26, `AA`=27) and published as a table, so revisions cited in git history stay resolvable; no letter was skipped in this set, so it is injective. **§4.2 states the boundary the conversion did not cross** — PCB revisions, SHDR database schema revisions and vendor/standards revisions keep letters, each with its reason; the exclusions were established by enumerating every token preceding `Rev <letter>` in the tree, not by assumption. **§4.3 forbids revision information in filenames** (`neurone_design_brief_r5.docx` → `neurone_design_brief.docx`) and **§4 adds `docs/superseded/`** as the home for retired documents. Superseded documents are **not** converted — §1.1's *rename forward, never backward* applies to revision labels as it does to signal names. Raises **OI-CONV-03** (NP-COORD-001's dotted scheme mapped, not resolved; register and document also disagree on A.9 vs A.10) and **OI-CONV-04** (eleven active `.docx` retain letters internally — their revision text is split across Word runs, so partial conversion was the only mechanical option and was refused). |
+| **3** | **2026-08-11** | NeurOne Systems Engineering | **The filename IS the document serial (§4.0) — new binding rule, and it is *exclusive*.** Rev 2 said only "lower-snake of the ID" in a table cell, with no statement that nothing else may match that shape. That was too weak to be checkable: a rule that says documents look like `np_x_nnn.md` is worth little if other files also do, because the pattern stops being evidence. §4.0 states the rule, §4.0.1 states the converse, and both were enforced on the whole set: **25 files renamed to their serial** (`neurone_shell_fpc_routing_review.docx` → `np_drv_shell_001.docx`, `neurone_supplier_selection_checklist.docx` → `np_proc_sup_001.docx`, and 23 more), and the one file that matched the serial *shape* while carrying no serial (`np_condition_links_001.md`, whose front matter had no `**Document:**` field and stated its revision inside `**Status:**`) was resolved to `np_cond_link_001.md` and given the missing fields. **§4.0.2 states the serial-versus-revision distinction explicitly**, because the two collide numerically by accident — `NP-PRIV-ANALYSIS-002` is at Rev 2 — and reading a filename's digits as a revision is a reasonable inference that §4.0 now forecloses. **§4.0.3 makes vendored files the sole exception**: upstream names are kept because byte-exactness against a recorded SHA-256 is verified by re-download and `cmp`, which a rename voids. **§4.3 corrected**: Rev 2 exempted `docs/superseded/` from filename normalisation on a misreading of §1.1. §1.1 protects records of *what was written*, not addresses; a retired document is where derivability matters most, since nobody remembers its descriptive name. `NP-RISK-001`'s ~38 citations now resolve by rule. Raises **OI-CONV-05** — `NP-HW-FPC-001` resolves to two files, which the rule surfaced rather than created, and which is deliberately not fixed with a filename. |
+| **2** | **2026-08-11** | NeurOne Systems Engineering | **Document revisions become integers (§4.1), replacing Rev 1's single-uppercase-letter rule.** Rev 1's rule is stated, then replaced with the four pieces of evidence that took it: `NP-DHF-001` had reached **Rev AA** (27th issue) which text-sorts before `B`; letters carry no magnitude; `NP-DHF-001` §5.1 was *already* numbering the design briefs 1–4 in a table whose other rows used letters; and `NP-COORD-001` had a third, dotted scheme (`Rev A.10`) that no rule described. Mapping is **positional and total** (`A`=1 … `Z`=26, `AA`=27) and published as a table, so revisions cited in git history stay resolvable; no letter was skipped in this set, so it is injective. **§4.2 states the boundary the conversion did not cross** — PCB revisions, SHDR database schema revisions and vendor/standards revisions keep letters, each with its reason; the exclusions were established by enumerating every token preceding `Rev <letter>` in the tree, not by assumption. **§4.3 forbids revision information in filenames** (`np_db_005.docx` → `np_db_005.docx`) and **§4 adds `docs/superseded/`** as the home for retired documents. Superseded documents are **not** converted — §1.1's *rename forward, never backward* applies to revision labels as it does to signal names. Raises **OI-CONV-03** (NP-COORD-001's dotted scheme mapped, not resolved; register and document also disagree on A.9 vs A.10) and **OI-CONV-04** (eleven active `.docx` retain letters internally — their revision text is split across Word runs, so partial conversion was the only mechanical option and was refused). |
 | 1 | 2026-08-11 | NeurOne Systems Engineering | Initial release. Consolidates rules previously stated inline in `NP-HW-HEXTILE-001` §7.4 and `NP-DRV-SHELL-002` §5.1.7. **Binding rule: all active-low NeurOne signals terminate with `#`** (§1.1), applied to `ALERT#`, `SEAT#` and newly to `ATTN#`. §1.2 records the five suffixes and one prefix that are unavailable for polarity, each with the evidence that took it. §1.3 introduces `SIGNAL[n]` index notation, replacing `SAFE_EN_n`. **§2 corrects the firmware mapping from `_L` to `_ACTIVE_LOW`** — `_L` already means *Left* in `NP-FW-CVNS-001` §5.1, which the original mapping missed. §3 states the Class C boundary: no firmware identifier is renamed, and OI-FMEA-01 keeps ownership of the unmarked safety-MCU enable lines. §4–§8 record document-ID, section-marking, identifier-family, revision-practice and verification conventions already in use but never written down. **Raises OI-CONV-01** — applying §1.1 exposed an inverted `SAFE_EN[n]` polarity between `NP-DRV-SHELL-002` §6 and the safety-MCU firmware, which is a safety-architecture question and is not resolved here. |

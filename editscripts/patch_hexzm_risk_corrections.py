@@ -1,6 +1,6 @@
 """
 Correct RISK-11, RISK-15, and RISK-17 in the zone module risk register
-(docs/superseded/neurone_fpc_zone_module_risks_revA.docx) for the hex-tile/socket
+(docs/superseded/np_risk_001.docx) for the hex-tile/socket
 architecture (NP-HEX-ZM-001), following PR #223's commits and the
 supersession-note convention it established for the markdown docs.
 
@@ -31,7 +31,7 @@ from docx.shared import Pt, RGBColor
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 
 MARKER = "hex-tile/socket architecture (NP-HEX-ZM-001)"
 

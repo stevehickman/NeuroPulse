@@ -7,8 +7,8 @@ interface, cluster count — current)** + **`docs/np_drv_shell_002.md` Rev 1 (L1
 cluster carriers, parting-plane crossing — current, DRAFT)** + **`docs/np_hw_hub_001.md` Rev 3 (hub
 interface contract, 24 V rail, safety gating — current, DRAFT)** + `docs/np_therm_bezel_001.md`
 + `docs/reference/durability-maintenance.md` + `docs/np_tool_hub_001.md` + **`docs/np_hfe_002.md`
-(retires the module braille / tactile-dot keying features)** + `docs/neurone_tool_shell_001.docx`
-+ `docs/neurone_tool_lens_001.docx` + `docs/superseded/np_hw_fpc_001.md` / `docs/superseded/np_tool_zm_sm_001.md`
+(retires the module braille / tactile-dot keying features)** + `docs/np_tool_shell_001.docx`
++ `docs/np_tool_lens_001.docx` + `docs/superseded/np_hw_fpc_001.md` / `docs/superseded/np_tool_zm_sm_001.md`
 (SUPERSEDED — retained only for the sub-elements their own supersession banners still name as
 reusable) + `docs/np_pwr_budget_001.md` + `docs/reference/accessories-roadmap.md`.
 
@@ -437,8 +437,8 @@ an owner assigned; none is decided here.**
    I2C coverage at every socket (SMART-1), **18 mirror-symmetric clusters**, and a cluster-carrier
    interconnect laminated into L1. This supersedes the five-position zone-module architecture
    (`ZM-01`…`ZM-05`) described in `np_hw_fpc_001.md`, `np_tool_zm_sm_001.md` and
-   `neurone_shell_fpc_routing_review.docx` (NP-DRV-SHELL-001), and is **still not reconciled** in
-   `neurone_tool_shell_001.docx` (written against 5 zone slots).
+   `np_drv_shell_001.docx` (NP-DRV-SHELL-001), and is **still not reconciled** in
+   `np_tool_shell_001.docx` (written against 5 zone slots).
 2. `NP-DRV-SHELL-002` and `NP-HW-HUB-001` Rev 3 are **DRAFT**; `NP-HW-HEXTILE-001` is a **DESIGN
    STUDY**. They are releasable as design inputs to shell tooling scoping and Hub PCB Rev C; they are
    **not** tooling baselines. An interconnect cannot be more certain than its lattice, and the

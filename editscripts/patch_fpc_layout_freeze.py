@@ -87,7 +87,7 @@ def append_row(table, cells_text, widths_inches, bg=None, bold_col0=True):
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. NP-HW-FPC-001 — pin 19 + §8.4 position + doc freeze (Rev D)
 # ══════════════════════════════════════════════════════════════════════════════
-FPC_PATH = "docs/superseded/neurone_fpc_zone_module_spec_revA.docx"
+FPC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 fpc = Document(FPC_PATH)
 
 # 1a. Update pin 19 Notes cell (Table 7, row where col 0 = '19')
@@ -214,7 +214,7 @@ print(f"  NP-HW-FPC-001 saved (Rev D, LAYOUT FROZEN)")
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. NP-TOOL-ZM-001 — F-04 XY coords, critical dims, close OI-3
 # ══════════════════════════════════════════════════════════════════════════════
-TOOL_PATH = "docs/superseded/neurone_tool_zone_module_001.docx"
+TOOL_PATH = "docs/superseded/np_tool_zm_001.docx"
 tool = Document(TOOL_PATH)
 
 # 2a. Update F-04 description (Table 1)
@@ -355,7 +355,7 @@ print(f"  NP-TOOL-ZM-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. NP-DRV-SHELL-001 — DRC-23 note update
 # ══════════════════════════════════════════════════════════════════════════════
-SHELL_PATH = "docs/superseded/neurone_shell_fpc_routing_review.docx"
+SHELL_PATH = "docs/superseded/np_drv_shell_001.docx"
 shell = Document(SHELL_PATH)
 
 for tbl in shell.tables:
@@ -384,7 +384,7 @@ print(f"  NP-DRV-SHELL-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. NP-COORD-001 — add G1-15 layout freeze CLOSED
 # ══════════════════════════════════════════════════════════════════════════════
-COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
+COORD_PATH = "docs/np_coord_001.docx"
 coord = Document(COORD_PATH)
 
 # Find the summary table (Table 15 based on scan — 35 rows, 5 cols) and

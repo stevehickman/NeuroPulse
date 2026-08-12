@@ -31,7 +31,7 @@ def set_text(cell, text, bold=False, color=None, size=8):
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. Risk register — update RISK-20 spec ref + RISK-18 → MITIGATED
 # ══════════════════════════════════════════════════════════════════════════════
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk = Document(RISK_PATH)
 
 for tbl in risk.tables:
@@ -87,7 +87,7 @@ print(f"  Risk register saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. FPC spec — add firmware debounce note to §5.2 ZONE_ID description
 # ══════════════════════════════════════════════════════════════════════════════
-FPC_PATH = "docs/superseded/neurone_fpc_zone_module_spec_revA.docx"
+FPC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 fpc = Document(FPC_PATH)
 
 # Update pin 18 row in pinout table to add debounce note
@@ -146,7 +146,7 @@ print(f"  FPC spec saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. Coord checklist — add G1-07 (ZONE_ID firmware debounce spec)
 # ══════════════════════════════════════════════════════════════════════════════
-COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
+COORD_PATH = "docs/np_coord_001.docx"
 coord = Document(COORD_PATH)
 
 # Find G1-06 and insert G1-07 after it

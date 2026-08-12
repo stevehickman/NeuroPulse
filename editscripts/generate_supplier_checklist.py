@@ -521,6 +521,6 @@ add_row(rev_tbl,
      "Claude/ME"),
     rev_widths, 0)
 
-OUT_PATH = "docs/neurone_supplier_selection_checklist.docx"
+OUT_PATH = "docs/np_proc_sup_001.docx"
 doc.save(OUT_PATH)
 print(f"Saved: {OUT_PATH}")

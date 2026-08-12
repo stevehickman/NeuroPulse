@@ -1,6 +1,6 @@
 """
 Correct G2-01, G2-02, G2-05/G3-03, and G2-10 in the engineering coordination
-checklist (docs/neurone_eng_coordination_checklist.docx) for the hex-tile/
+checklist (docs/np_coord_001.docx) for the hex-tile/
 socket architecture (NP-HEX-ZM-001). Each item exists in two places: a
 7-column detail table (G1/G2/G3 sections) and a 5-column dashboard summary
 table — both are updated to stay consistent.
@@ -33,7 +33,7 @@ from docx.shared import Pt, RGBColor
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
+COORD_PATH = "docs/np_coord_001.docx"
 
 MARKER = "hex-tile/socket architecture (NP-HEX-ZM-001)"
 

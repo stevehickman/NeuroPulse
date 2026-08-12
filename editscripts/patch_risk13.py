@@ -23,7 +23,7 @@ def set_cell_text(cell, text, bold=False, color=None):
     if color:
         run.font.color.rgb = RGBColor(*color)
 
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk_doc = Document(RISK_PATH)
 
 # ── Summary table ──

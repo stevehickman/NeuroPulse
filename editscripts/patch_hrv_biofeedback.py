@@ -146,7 +146,7 @@ print(f"  Additional modalities doc saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. FAI checklist — add HRV biofeedback test section
 # ══════════════════════════════════════════════════════════════════════════════
-FAI_PATH = "docs/superseded/neurone_fai_zone_module.docx"
+FAI_PATH = "docs/superseded/np_fai_zm_001.docx"
 fai = Document(FAI_PATH)
 
 # Find FAI-A15 (last accessibility item) or last item in accessibility section
@@ -244,7 +244,7 @@ print(f"  FAI checklist saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. Coordination checklist — add G2-12 (HRV biofeedback firmware spec)
 # ══════════════════════════════════════════════════════════════════════════════
-COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
+COORD_PATH = "docs/np_coord_001.docx"
 coord = Document(COORD_PATH)
 
 # Find G2-11 in the tables and add G2-12 after it

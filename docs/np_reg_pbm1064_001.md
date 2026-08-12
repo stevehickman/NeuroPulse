@@ -231,7 +231,7 @@ Upon receipt of the expanded opinion letter:
 | RISK-03 extended: depth-tier penetration claim | MITIGATED (pending letter receipt) |
 | OI-PBM-05 (`PBM_AGGREGATE_IRRADIANCE_LIMIT_MW_CM2`) | CLOSED — value confirmed or revised per Q5/Q6 |
 
-Update docs/status/pending-decisions.md §13.4 and the risk register document (`docs/superseded/neurone_fpc_zone_module_risks_revA.docx`) when opinion is received.
+Update docs/status/pending-decisions.md §13.4 and the risk register document (`docs/superseded/np_risk_001.docx`) when opinion is received.
 
 ---
 

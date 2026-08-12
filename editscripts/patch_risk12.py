@@ -24,7 +24,7 @@ def set_cell_text(cell, text, bold=False, color=None):
         run.font.color.rgb = RGBColor(*color)
 
 # ── Risk register ──
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk_doc = Document(RISK_PATH)
 
 tbl = risk_doc.tables[0]
@@ -67,7 +67,7 @@ risk_doc.save(RISK_PATH)
 print(f"Risk register saved")
 
 # ── FPC spec §11.4 — add FAI reference ──
-SPEC_PATH = "docs/superseded/neurone_fpc_zone_module_spec_revA.docx"
+SPEC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 spec = Document(SPEC_PATH)
 
 for i, para in enumerate(spec.paragraphs):

@@ -1430,7 +1430,7 @@ pass/fail with supporting evidence.
 - **L0–L3 layer topology, L1 material constraints:** `docs/np_helmet_geom_001.md`
   (NP-HELMET-GEOM-001 Rev 1) §0, §2, §3.2
 - **Superseded predecessor (bend-radius basis §3; EEG separation §2.4; 23-item DRC §5):**
-  `docs/superseded/neurone_shell_fpc_routing_review.docx` (NP-DRV-SHELL-001 Rev 2)
+  `docs/superseded/np_drv_shell_001.docx` (NP-DRV-SHELL-001 Rev 2)
 - **Hub PCB Rev C — the cluster-controller tier this revision adopts:** `docs/np_hw_hub_001.md`
   (NP-HW-HUB-001 **Rev C**) §3.1 (decision), §3.2 (**rationale NOT carried forward — see §3.2a**),
   §5 (three-tier I2C), §7.4 (interface contract + 24 V boost), §7.5 (synthesis, OI-HUB-C17),

@@ -19,7 +19,7 @@ Full researcher candidate list (12 researchers, 7 modalities, contact info, cost
 
 ## 12. Clinical Evidence Bibliography
 
-33-entry bibliography across 11 modality sections available: `neurone_bibliography.docx`
+33-entry bibliography across 11 modality sections available: `np_bib_001.docx`
 
 **Evidence summary:**
 - TMS for depression: strongest — FDA pivotal trial (n=301), CPT reimbursement codes, 50–55% response rate

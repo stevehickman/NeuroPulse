@@ -30,7 +30,7 @@ def set_text(cell, text, bold=False, color=None, size=8):
         run.font.color.rgb = RGBColor(*color)
 
 # ── 1. Coord checklist: renumber in Table 6 ───────────────────────────────────
-COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
+COORD_PATH = "docs/np_coord_001.docx"
 coord = Document(COORD_PATH)
 
 # Table 6: find the two items in the right section
@@ -106,7 +106,7 @@ print(f"\nNP-COORD-001 saved")
 # ── 4. Update risk register cross-refs ────────────────────────────────────────
 # RISK-18 mitigation spec ref: G2-07 → keep (was correct), but update "G1-07"
 # reference if it appears in RISK-18 or RISK-04 entries
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk = Document(RISK_PATH)
 
 for tbl in risk.tables:
@@ -128,7 +128,7 @@ risk.save(RISK_PATH)
 print(f"Risk register saved")
 
 # ── 5. Update FPC spec ZONE_ID paragraph ─────────────────────────────────────
-FPC_PATH = "docs/superseded/neurone_fpc_zone_module_spec_revA.docx"
+FPC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 fpc = Document(FPC_PATH)
 changed = 0
 for p in fpc.paragraphs:

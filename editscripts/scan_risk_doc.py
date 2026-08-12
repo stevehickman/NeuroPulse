@@ -1,7 +1,7 @@
 """Scan full structure of risk register document."""
 from docx import Document
 
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 doc = Document(RISK_PATH)
 
 print(f"Tables: {len(doc.tables)}")

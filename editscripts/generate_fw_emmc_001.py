@@ -908,5 +908,5 @@ rev_row.cells[3].text = (
     'thresholds (§14); research anonymization workspace (§15); processor ownership (§16).'
 )
 
-doc.save('/home/user/NeurOne/docs/neurone_fw_emmc_001.docx')
-print('Done: docs/neurone_fw_emmc_001.docx written')
+doc.save('/home/user/NeurOne/docs/np_fw_emmc_001.docx')
+print('Done: docs/np_fw_emmc_001.docx written')

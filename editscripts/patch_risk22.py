@@ -32,7 +32,7 @@ def set_text(cell, text, bold=False, color=None, size=8):
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. NP-TOOL-ZM-001 — replace F-08 pull tab with sliding eject lever
 # ══════════════════════════════════════════════════════════════════════════════
-TOOL_PATH = "docs/superseded/neurone_tool_zone_module_001.docx"
+TOOL_PATH = "docs/superseded/np_tool_zm_001.docx"
 tool = Document(TOOL_PATH)
 
 NEW_F08 = (
@@ -148,7 +148,7 @@ print(f"  NP-TOOL-ZM-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. NP-FAI-ZM-001 — update HFE accessibility test for lever
 # ══════════════════════════════════════════════════════════════════════════════
-FAI_PATH = "docs/superseded/neurone_fai_zone_module.docx"
+FAI_PATH = "docs/superseded/np_fai_zm_001.docx"
 fai = Document(FAI_PATH)
 
 # Find FAI-A09 through FAI-A14 section — add FAI-A15 for lever HFE test
@@ -245,7 +245,7 @@ print(f"  NP-FAI-ZM-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. Risk register — RISK-22 → MITIGATED
 # ══════════════════════════════════════════════════════════════════════════════
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk = Document(RISK_PATH)
 
 for tbl in risk.tables:

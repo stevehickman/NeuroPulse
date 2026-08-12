@@ -2,7 +2,7 @@
 from docx import Document
 
 print("=== Risk Register — RISK-11 detail ===")
-risks = Document("docs/superseded/neurone_fpc_zone_module_risks_revA.docx")
+risks = Document("docs/superseded/np_risk_001.docx")
 tbl = risks.tables[0]
 for row in tbl.rows:
     if row.cells[0].text.strip() == "RISK-11":
@@ -26,7 +26,7 @@ for i, para in enumerate(risks.paragraphs):
 
 print()
 print("=== FPC Spec — §11 Mechanical ===")
-spec = Document("docs/superseded/neurone_fpc_zone_module_spec_revA.docx")
+spec = Document("docs/superseded/np_hw_fpc_001.docx")
 in_s11 = False
 for i, para in enumerate(spec.paragraphs):
     t = para.text.strip()

@@ -2,7 +2,7 @@
 ⚠ PARTIALLY SUPERSEDED (2026-07-28): this generator's G2-01 (multi-FPC/5 zone tails), G2-02
 (5-variant zone-differentiating mechanical key), and the G1-13/G2-10 ZONE_ID-based firmware
 items describe the retired 5-zone-slot architecture — see docs/np_hex_zm_001.md. Do NOT
-re-run: docs/neurone_eng_coordination_checklist.docx has since been extended by many later
+re-run: docs/np_coord_001.docx has since been extended by many later
 patch_*.py scripts (fix_coord_duplicates, patch_risk16_cont, patch_t2_additions, etc.), so a
 from-scratch regeneration here would discard that work. The corrected G2-01/G2-02/G2-05/
 G3-03/G2-10 state is applied in place by editscripts/patch_hexzm_eng_coord_corrections.py.
@@ -717,6 +717,6 @@ for row in t_rev.rows:
     row.cells[2].width = Inches(1.5)
     row.cells[3].width = Inches(4.0)
 
-OUT = "docs/neurone_eng_coordination_checklist.docx"
+OUT = "docs/np_coord_001.docx"
 doc.save(OUT)
 print(f"Saved: {OUT}")

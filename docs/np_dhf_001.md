@@ -95,11 +95,11 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-DB-001 | Design Brief | 1 | 2026-05-02 | [neurone_design_brief_superseded.docx](./superseded/neurone_design_brief_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
-| NP-DB-002 | Design Brief | 2 | 2026-05-03 | [neurone_design_brief_r2_superseded.docx](./superseded/neurone_design_brief_r2_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
-| NP-DB-003 | Design Brief | 3 | 2026-05-04 | [neurone_brief_r3_superseded.docx](./superseded/neurone_brief_r3_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
-| NP-DB-004 | Design Brief | 4 | 2026-05-07 | [neurone_brief_r4_superseded.docx](./superseded/neurone_brief_r4_superseded.docx) | SUPERSEDED by NP-DB-005 | REQ |
-| NP-DB-005 | Master Design Brief | 5 | 2026-05-16 | [neurone_design_brief.docx](./neurone_design_brief.docx) | ACTIVE | REQ |
+| NP-DB-001 | Design Brief | 1 | 2026-05-02 | [np_db_001.docx](./superseded/np_db_001.docx) | SUPERSEDED by NP-DB-005 | REQ |
+| NP-DB-002 | Design Brief | 2 | 2026-05-03 | [np_db_002.docx](./superseded/np_db_002.docx) | SUPERSEDED by NP-DB-005 | REQ |
+| NP-DB-003 | Design Brief | 3 | 2026-05-04 | [np_db_003.docx](./superseded/np_db_003.docx) | SUPERSEDED by NP-DB-005 | REQ |
+| NP-DB-004 | Design Brief | 4 | 2026-05-07 | [np_db_004.docx](./superseded/np_db_004.docx) | SUPERSEDED by NP-DB-005 | REQ |
+| NP-DB-005 | Master Design Brief | 5 | 2026-05-16 | [np_db_005.docx](./np_db_005.docx) | ACTIVE | REQ |
 | NP-HEX-ZM-001 | Hexagonal Standardized Zone-Module Design Brief — replaces position-unique zone modules with a single universal 40 mm hex tile SKU tiling the helmet interior (one mould, one part number). Option A (rigid, median-curved) committed as baseline; Option B (semi-flex) recorded as future path. Contains the socket lattice geometry (§3, `ROW_WIDTHS` 80 sockets over 12 coronal rows), the module-type taxonomy and **SMART-1** (§4a, every socket I2C- and TIA-capable), addressing and the v2 wire format (§4/§4b), the two-nested-bowl shell and EMF seam (§5), and the **module cluster clamps** (§5.4a). **Home of three principal directions governing the cluster partition: CLUSTER-1** (7-hex flower is the cluster unit; partial flower at the boundary), **SYM-1** (partition mirror-symmetric about the sagittal midline), **CONTIG-1** (petals form a contiguous arc; no pendant petal). Parent document of NP-HW-HEXTILE-001 (electrical/FPC) and NP-DRV-SHELL-002 (interconnect). **Registered into this index at Rev 2 (2026-08-04) — it had been an unregistered design brief since Rev 1 despite being the parent of two indexed specifications and the home of the cluster decisions.** | 2 | 2026-08-04 | [np_hex_zm_001.md](./np_hex_zm_001.md) | DESIGN STUDY — not a locked tooling baseline; gated by the curvature-scan go/no-go (§7) and REG-1 | REQ |
 | — | CLAUDE.md — Project Design Memory | 24 | 2026-06-09 | [CLAUDE.md](../CLAUDE.md) | ACTIVE | REQ |
 
@@ -109,13 +109,13 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-HW-FPC-001 | FPC Zone Module Specification (base module, ZM-01–ZM-05) | 4 (written as Rev D) | 2026-05-09 | [neurone_fpc_zone_module_spec_revA.docx](./superseded/neurone_fpc_zone_module_spec_revA.docx) | **SUPERSEDED 2026-07-28** (5-slot/66×78mm architecture retired — see NP-HEX-ZM-001) | SPEC-HW |
+| NP-HW-FPC-001 | FPC Zone Module Specification (base module, ZM-01–ZM-05) | 4 (written as Rev D) | 2026-05-09 | [np_hw_fpc_001.docx](./superseded/np_hw_fpc_001.docx) | **SUPERSEDED 2026-07-28** (5-slot/66×78mm architecture retired — see NP-HEX-ZM-001) | SPEC-HW |
 | NP-HW-FPC-001 (variant) | FPC Smart Zone Module (1064nm) — layout variant NP-FPC-ZM-SM-01 | 5 | 2026-05-13 | [np_hw_fpc_001.md](./superseded/np_hw_fpc_001.md) | **SUPERSEDED 2026-07-28** — see in-doc note | SPEC-HW |
 | NP-HW-HUB-001 | Hub PCB Rev B — Vishay DG2788A TIA Gain Switch + NXP PCA9546A I2C Mux | 2 | 2026-05-13 | [np_hw_hub_001.md](./np_hw_hub_001.md) | **SUPERSEDED 2026-07-28** — needs Rev 3 per SMART-1, see in-doc note; Rev 3 interface requirements now specified in NP-HW-HEXTILE-001 §8 / OI-HEXTILE-10 | SPEC-HW |
 | NP-HW-HEXTILE-001 | Hex-Tile Module Electrical / FPC Specification (T1-A, T1-C) — fills the gap declared in the NP-HW-FPC-001 Rev 5 supersession note. **Rev B (2026-08-04): cluster count corrected 4–10 → 18** under CLUSTER-1 + SYM-1, propagated to D-8 switch count, I2C pull-ups and cluster-tier BOM; OI-HEXTILE-13/14 raised. 91-site 5-ring centered-hexagonal emitter lattice at 3.80 mm pitch (site 0 reserved for PD1), identical on every tile type; T1-A 45+45, T1-C 30+30+30; 16-position pogo socket interface; on-module driver + TIA on **every** type (deletes the ~80× DG2788A gain-switch NRE rather than scaling it); VLED 24 V; per-cluster I2C segments with UID-derived dynamic addressing; per-cluster safety-MCU VLED gate. 8 decisions (D-1..D-8), 12 open items (OI-HEXTILE-01..12), 16-item DRC. **Surfaces a ~6-concurrent-tile power ceiling (§9) and a ~$920/headset driver+metering BOM at 80 sockets (§6.4)** — both routed to principal decision | 2 | 2026-08-04 | [np_hw_hextile_001.md](./np_hw_hextile_001.md) | DESIGN STUDY — not a tooling baseline; see note below | SPEC-HW |
-| NP-PROC-FPC-001 | FPC Procurement Requirements | 2 | 2026-05-08 | [neurone_fpc_procurement_requirements.docx](./neurone_fpc_procurement_requirements.docx) | ACTIVE | PROC |
+| NP-PROC-FPC-001 | FPC Procurement Requirements | 2 | 2026-05-08 | [np_proc_fpc_001.docx](./np_proc_fpc_001.docx) | ACTIVE | PROC |
 | NP-PROC-FPC-1064-001 | 1064nm Smart Module Component Procurement | 1 | 2026-05-12 | [np_proc_fpc_1064_001.md](./np_proc_fpc_1064_001.md) | **SUPERSEDED 2026-07-28** — see in-doc note | PROC |
-| NP-FEAS-FNIRS-001 | fNIRS on Existing NIR Optics — Feasibility Assessment (Neurode Labs competitive analysis; reuse of PBM LEDs + dual-PD detectors for hemodynamic brain monitoring) | 1 | 2026-07-13 | [np_fnirs_feasibility_001.md](./np_fnirs_feasibility_001.md) | EXPLORATORY — see note below | FEAS |
+| NP-FEAS-FNIRS-001 | fNIRS on Existing NIR Optics — Feasibility Assessment (Neurode Labs competitive analysis; reuse of PBM LEDs + dual-PD detectors for hemodynamic brain monitoring) | 1 | 2026-07-13 | [np_feas_fnirs_001.md](./np_feas_fnirs_001.md) | EXPLORATORY — see note below | FEAS |
 
 **Note on NP-HW-HEXTILE-001:** This is the electrical/FPC counterpart to NP-HEX-ZM-001's mechanical/socket/addressing model, and the successor to the retired NP-HW-FPC-001 for the hex-tile form factor. It is a **DESIGN STUDY, not a tooling baseline** — every numeric value is a derived engineering proposal with its assumption stated inline, not a measured or locked figure, and the document says so in its own status line and §10. It is indexed here for traceability of the design reasoning. It will formalise into design inputs (NP-DT-001) and a baselined hardware specification once its blocking open items close — principally OI-HEXTILE-01 (bezel-width conflict between NP-HEX-ZM-001 §3.1 and NP-THERM-BEZEL-001, which moves every irradiance figure by ±14.5 %) and OI-HEXTILE-02 (base-tile emitter selection, on which the irradiance derivation depends). **Two findings need principal decisions rather than engineering closure:** the ~$920/headset driver-and-metering BOM at 80 populated sockets (§6.4, quantifying the cost NP-HEX-ZM-001 §4a recorded as "not yet quantified"), and the ~6-concurrent-tile power ceiling the existing USB-C PD envelope imposes on whole-vault tiling (§9). The latter also surfaces OI-HEXTILE-09, a safety-adjacent gap in the delivered Protocol v2 wire format: nothing currently prevents a socket-mask protocol from commanding more tiles than the power contract supports. **No existing controlled document was modified by this release** beyond index entries; NP-HW-HUB-001's Rev 3 requirements (OI-HEXTILE-10) are stated as requirements on that future revision, not applied to Rev 2.
 
@@ -125,7 +125,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | 1 | 2026-05-11 | [neurone_fw_emmc_001.docx](./neurone_fw_emmc_001.docx) | ACTIVE — Rev 2 planned to incorporate NP-FW-EMMC-002 delta | SPEC-FW |
+| NP-FW-EMMC-001 | eMMC Partition Architecture and Storage Encryption | 1 | 2026-05-11 | [np_fw_emmc_001.docx](./np_fw_emmc_001.docx) | ACTIVE — Rev 2 planned to incorporate NP-FW-EMMC-002 delta | SPEC-FW |
 | NP-FW-EMMC-002 | Firmware Privacy Remediation Delta — §A warranty token, §B factory reset, §C two-layer UHDR key, §D Scratch encryption, §E EDF+ header policy, §F Mode F spec, **§G SHDR accelerometer reclassification** (added 2026-06-03: `drop_detected: bool` + `maintenance_alert: bool` only; raw accelerometer prohibited; fleet DB schema CI test OI-EMMC2-07 BLOCKING for schema freeze) | 1 | 2026-06-02 (§G: 2026-06-03) | [np_fw_emmc_002.md](./np_fw_emmc_002.md) | ACTIVE — supersedes conflicting sections of NP-FW-EMMC-001 Rev 1; to be incorporated in NP-FW-EMMC-001 Rev 2 | SPEC-FW |
 | NP-FW-ANON-001 | Research Anonymisation Engine Firmware Specification — on-device k-anonymity (k≥10) + l-diversity (l≥3) + differential privacy Laplace mechanism (ε≤1.0, δ≤10⁻⁵); study descriptor schema v1 with Ed25519 verification; prohibited element list (raw EEG waveforms, sub-week timestamps); per-study privacy budget tracking; output encrypted with study public key (NeurOne cannot read); 9 FAI tests (FAI-ANON-01 through FAI-ANON-09) including adversarial re-identification; 5 open items (OI-ANON-01 through OI-ANON-05) | 1 | 2026-06-03 | [np_fw_anon_001.md](./np_fw_anon_001.md) | ACTIVE — implementation pending; OI-ANON-01 (DP reviewer sign-off) BLOCKING for FAI-ANON-04/09 | SPEC-FW |
 | NP-FW-HUB-001 | Hub Control Program — main SW-02 application firmware (module registry, session runner, telemetry, safety SPI) | 1 | 2026-05-16 | [../firmware/hub_control/](../firmware/hub_control/) | ACTIVE | SPEC-FW |
@@ -134,7 +134,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 | NP-FW-HD-001 | sLORETA-Guided HD-tDCS Firmware Specification | 1 | 2026-05-11 | [np_fw_hd_001.md](./np_fw_hd_001.md) | ACTIVE | SPEC-FW |
 | NP-FW-CVNS-001 | Cervical VNS Safety Interlock Firmware Specification | 1 | 2026-05-11 | [np_fw_cvns_001.md](./np_fw_cvns_001.md) | ACTIVE | SPEC-FW |
 | NP-FW-PBM1064-001 | 1064nm Smart Zone Module Firmware Specification — Rev 2 adds §6.6 factory calibration procedure, closing OI-PBM-04 | 2 | 2026-07-27 | [np_fw_pbm1064_001.md](./np_fw_pbm1064_001.md) | ACTIVE | SPEC-FW |
-| NP-FW-REQ-001 | Zone Module Firmware Requirements | 1 | 2026-05-10 | [neurone_fw_requirements_001_superseded.docx](./superseded/neurone_fw_requirements_001_superseded.docx) | SUPERSEDED by individual firmware specs (NP-FW-PBM1064-001, NP-FW-HRV-001, NP-FW-CVNS-001, NP-FW-HD-001, NP-FW-ZA-001, NP-FW-EMMC-001) | REQ |
+| NP-FW-REQ-001 | Zone Module Firmware Requirements | 1 | 2026-05-10 | [np_fw_req_001.docx](./superseded/np_fw_req_001.docx) | SUPERSEDED by individual firmware specs (NP-FW-PBM1064-001, NP-FW-HRV-001, NP-FW-CVNS-001, NP-FW-HD-001, NP-FW-ZA-001, NP-FW-EMMC-001) | REQ |
 
 **Note on NP-FW-EMMC-002:** Delta specification created by the privacy analysis programme. All sections take precedence over NP-FW-EMMC-001 Rev 1. §G (SHDR accelerometer reclassification) was added 2026-06-03 by NP-PRIV-001 Rev 2 finding MEDIUM-06; it is BLOCKING for SHDR fleet DB schema freeze (OI-EMMC2-07 CI test must pass before schema is frozen). NP-FW-EMMC-001 Rev 2 will incorporate all delta sections and this document will then be marked INCORPORATED.
 
@@ -160,18 +160,18 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-TOOL-ZM-001 | Zone Module Tooling Specification | 1 (written as Rev A) | 2026-05-06 | [neurone_tool_zone_module_001.docx](./superseded/neurone_tool_zone_module_001.docx) | **SUPERSEDED 2026-07-28** — named "legacy zone-module tooling" predecessor in NP-HEX-ZM-001 §8; replaced by the universal hex-tile mould | SPEC-TOOL |
+| NP-TOOL-ZM-001 | Zone Module Tooling Specification | 1 (written as Rev A) | 2026-05-06 | [np_tool_zm_001.docx](./superseded/np_tool_zm_001.docx) | **SUPERSEDED 2026-07-28** — named "legacy zone-module tooling" predecessor in NP-HEX-ZM-001 §8; replaced by the universal hex-tile mould | SPEC-TOOL |
 | **NP-TOOL-HEXTILE-001** | **Universal Hex-Tile Module Shell Tooling Specification** — replaces NP-TOOL-ZM-001 and NP-TOOL-ZM-SM-001: six position-unique tools become one universal mould. Nine mandatory features (F-TH-01…09), 12-item mould design review. Three features BLOCKED (PD2 aperture position void, gasket/bezel band, bezel value). Steel cut gated on GATE-1 + GATE-2 | 1 | 2026-08-11 | [np_tool_hextile_001.md](./np_tool_hextile_001.md) | DRAFT | SPEC-TOOL |
 | NP-TOOL-ZM-SM-001 | 1064nm Smart Zone Module Tooling Variant | 1 | 2026-05-12 | [np_tool_zm_sm_001.md](./superseded/np_tool_zm_sm_001.md) | **SUPERSEDED 2026-07-28** — see in-doc note | SPEC-TOOL |
-| NP-TOOL-SHELL-001 | Shell Tooling Specification | 1 | 2026-05-10 | [neurone_tool_shell_001.docx](./neurone_tool_shell_001.docx) | ACTIVE | SPEC-TOOL |
-| NP-TOOL-LENS-001 | Lens and Goggle Assembly Tooling Specification | 2 | 2026-05-10 | [neurone_tool_lens_001.docx](./neurone_tool_lens_001.docx) | ACTIVE | SPEC-TOOL |
+| NP-TOOL-SHELL-001 | Shell Tooling Specification | 1 | 2026-05-10 | [np_tool_shell_001.docx](./np_tool_shell_001.docx) | ACTIVE | SPEC-TOOL |
+| NP-TOOL-LENS-001 | Lens and Goggle Assembly Tooling Specification | 2 | 2026-05-10 | [np_tool_lens_001.docx](./np_tool_lens_001.docx) | ACTIVE | SPEC-TOOL |
 | NP-TOOL-HUB-001 | Hub Enclosure Tooling Specification | 1 | 2026-07-27 | [np_tool_hub_001.md](./np_tool_hub_001.md) | ACTIVE — 6 open items (OI-HTOOL-01–06), hub-to-shell mechanical interface not yet CAD-locked | SPEC-TOOL |
 
 ### 5.7 Risk Management Records
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-RISK-001 | Zone Module Risk Register (RISK-01 through RISK-26) | 3 (written as Rev C) | 2026-07-22 | [neurone_fpc_zone_module_risks_revA.docx](./superseded/neurone_fpc_zone_module_risks_revA.docx) | **SUPERSEDED 2026-08-11** by NP-RISK-002/003/004 — was the ISO 14971 baseline risk file; all 26 RISK IDs dispositioned in NP-RISK-002 §3; retained as the record for 2026-05-13 to 2026-08-11 | RISK |
+| NP-RISK-001 | Zone Module Risk Register (RISK-01 through RISK-26) | 3 (written as Rev C) | 2026-07-22 | [np_risk_001.docx](./superseded/np_risk_001.docx) | **SUPERSEDED 2026-08-11** by NP-RISK-002/003/004 — was the ISO 14971 baseline risk file; all 26 RISK IDs dispositioned in NP-RISK-002 §3; retained as the record for 2026-05-13 to 2026-08-11 | RISK |
 | **NP-RISK-002** | **Risk File Re-Baseline and NP-RISK-001 Disposition** — ISO 14971 file of record. Dispositions all 26 RISK IDs (5 retired, 20 carried, 1 closed-confirmed); `RISK-NN` sequence closed at 26 and append-only; surfaces that three shipping T1 modalities have never had a hazard analysis (OI-RISK2-02) | 1 | 2026-08-11 | [np_risk_002.md](./np_risk_002.md) | ACTIVE | RISK |
 | **NP-RISK-003** | **Hex-Tile Module Risk Register and Problem Analysis** — artifacts A1/A2. Carries RISK-02/03/04/05/06/08/14/16/19/23 plus RISK-HEX-01…03. RISK-16 carried at raised severity (perimeter seals 5 → ~30) | 1 | 2026-08-11 | [np_risk_003.md](./np_risk_003.md) | ACTIVE | RISK |
 | **NP-RISK-004** | **Shell, Socket, Interconnect and Hub Risk Register and Problem Analysis** — artifacts A3–A9. Carries RISK-10/12/13/17/18/20/21/22/26 plus RISK-SHELL-01…04 and RISK-HUB-01…03. RISK-SHELL-03 (`SAFE_EN[n]` polarity inversion) is the only CRITICAL entry | 1 | 2026-08-11 | [np_risk_004.md](./np_risk_004.md) | ACTIVE | RISK |
@@ -183,7 +183,7 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-FAI-ZM-001 | Zone Module FAI Checklist | 1 (written as Rev A) | 2026-05-06 | [neurone_fai_zone_module.docx](./superseded/neurone_fai_zone_module.docx) | **SUPERSEDED 2026-08-11** by NP-FAI-001 + NP-ART-001 + NP-FAI-HUB-001 — it conflated a programme, a method and one artifact's checklist; the method survives in NP-FAI-001 §4–§5 | FAI |
+| NP-FAI-ZM-001 | Zone Module FAI Checklist | 1 (written as Rev A) | 2026-05-06 | [np_fai_zm_001.docx](./superseded/np_fai_zm_001.docx) | **SUPERSEDED 2026-08-11** by NP-FAI-001 + NP-ART-001 + NP-FAI-HUB-001 — it conflated a programme, a method and one artifact's checklist; the method survives in NP-FAI-001 §4–§5 | FAI |
 | **NP-FAI-001** | **First Article Inspection Programme** — method, structure, and the two process qualifications that are properties of materials rather than geometry: PDMS–PI bond (FAI-M01…M03, FAI-TC01…TC06) and post-service ingress (FAI-IPX-01…05). §2 states the four conditions under which a checklist may be issued at all. **FAI-TC02 remains BLOCKING and unrun** | 1 | 2026-08-11 | [np_fai_001.md](./np_fai_001.md) | ACTIVE | FAI |
 | **NP-FAI-HUB-001** | **Hub Enclosure FAI Checklist** — 26 items, artifact A8. The only NeurOne artifact FAI meeting NP-FAI-001 §2 F1 (NP-TOOL-HUB-001 is the sole BASELINED artifact spec). Two items `[GATED]` (OI-HTOOL-02, OI-HTOOL-03), two `[BLOCKING]` | 1 | 2026-08-11 | [np_fai_hub_001.md](./np_fai_hub_001.md) | DRAFT | FAI |
 | **NP-ART-001** | **Manufactured Artifact Register and Documentation Readiness** — the 15 manufactured artifacts, and per artifact whether its tooling spec, risk register and FAI checklist exist or are blocked, with every blocker named by open-item ID. **Finding: nine of fifteen artifacts have no owning specification document, four of them shipping T1 modalities** | 1 | 2026-08-11 | [np_art_001.md](./np_art_001.md) | ACTIVE | REQ |
@@ -192,14 +192,14 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-PROC-SUP-001 | Tooling and Process Supplier Selection Checklist | 1 | 2026-05-06 | [neurone_supplier_selection_checklist.docx](./neurone_supplier_selection_checklist.docx) | ACTIVE | PROC |
+| NP-PROC-SUP-001 | Tooling and Process Supplier Selection Checklist | 1 | 2026-05-06 | [np_proc_sup_001.docx](./np_proc_sup_001.docx) | ACTIVE | PROC |
 
 ### 5.10 Engineering Coordination and Gate Records
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-COORD-001 | Engineering Coordination Checklist | A.8 | 2026-05-17 | [neurone_eng_coordination_checklist.docx](./neurone_eng_coordination_checklist.docx) | ACTIVE — Rev 1.9 required to add G3-09 (FHIR ImplementationGuide gate) per NP-PRIV-REM-001 STEP-14 | COORD |
-| NP-DRV-SHELL-001 | Shell FPC Routing Review | 2 (written as Rev B) | 2026-05-10 | [neurone_shell_fpc_routing_review.docx](./superseded/neurone_shell_fpc_routing_review.docx) | **SUPERSEDED** — architecture replaced by NP-DRV-SHELL-002; its design-review *record* function replaced by NP-REV-SHELL-001 (2026-08-11) | COORD |
+| NP-COORD-001 | Engineering Coordination Checklist | A.8 | 2026-05-17 | [np_coord_001.docx](./np_coord_001.docx) | ACTIVE — Rev 1.9 required to add G3-09 (FHIR ImplementationGuide gate) per NP-PRIV-REM-001 STEP-14 | COORD |
+| NP-DRV-SHELL-001 | Shell FPC Routing Review | 2 (written as Rev B) | 2026-05-10 | [np_drv_shell_001.docx](./superseded/np_drv_shell_001.docx) | **SUPERSEDED** — architecture replaced by NP-DRV-SHELL-002; its design-review *record* function replaced by NP-REV-SHELL-001 (2026-08-11) | COORD |
 | **NP-REV-SHELL-001** | **Shell Interconnect Design Review Record** — the record instrument that gates shell tooling first cut, restored after NP-DRV-SHELL-001's §8 sign-off block was retired with it. Holds reviewer/date/verdict/evidence for SH2-DRC-01…28 (33 items); holds no criteria of its own. Three items open BLOCKED: SH2-DRC-13 (OI-CONV-01), -17 (OI-SHELL2-07), -20 (OI-HUB-C07) | 1 | 2026-08-11 | [np_rev_shell_001.md](./np_rev_shell_001.md) | DRAFT | COORD |
 
 **Note on NP-COORD-001:** Rev 1.9 is required to add gate item G3-09 (NP-INT-FHIR-001 FHIR ImplementationGuide approved before first T2 EHR integration pilot), per NP-PRIV-REM-001 STEP-14.
@@ -217,11 +217,11 @@ Change description for all initial-entry documents: **"Initial DHF entry — ret
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-CLIN-001 | Clinical Trials Strategy | 1 | 2026-05-02 | [neurone_clinical_trials_strategy.docx](./neurone_clinical_trials_strategy.docx) | ACTIVE | CLIN |
-| NP-MOD-EXT-001 | Additional Modalities Specification | 1 | 2026-05-02 | [neurone_additional_modalities_superseded.docx](./superseded/neurone_additional_modalities_superseded.docx) | SUPERSEDED — all modalities incorporated into individual firmware specs and CLAUDE.md | CLIN |
-| NP-BIB-001 | Clinical Evidence Bibliography (39 entries, 12 modality sections) | — | 2026-05-02 | [neurone_bibliography.docx](./neurone_bibliography.docx) | ACTIVE | CLIN |
+| NP-CLIN-001 | Clinical Trials Strategy | 1 | 2026-05-02 | [np_clin_001.docx](./np_clin_001.docx) | ACTIVE | CLIN |
+| NP-MOD-EXT-001 | Additional Modalities Specification | 1 | 2026-05-02 | [np_mod_ext_001.docx](./superseded/np_mod_ext_001.docx) | SUPERSEDED — all modalities incorporated into individual firmware specs and CLAUDE.md | CLIN |
+| NP-BIB-001 | Clinical Evidence Bibliography (39 entries, 12 modality sections) | — | 2026-05-02 | [np_bib_001.docx](./np_bib_001.docx) | ACTIVE | CLIN |
 | NP-BIB-1064-001 | 1064nm PBM Clinical Evidence Bibliography Addendum | 1 | 2026-05-13 | [np_bib_1064_001.md](./np_bib_1064_001.md) | ACTIVE — entries incorporated into NP-BIB-001 | CLIN |
-| NP-SBIR-001 | SBIR Phase I Draft | — | 2026-05-02 | [neurone_sbir_phase1_draft.docx](./neurone_sbir_phase1_draft.docx) | ACTIVE | CLIN |
+| NP-SBIR-001 | SBIR Phase I Draft | — | 2026-05-02 | [np_sbir_001.docx](./np_sbir_001.docx) | ACTIVE | CLIN |
 | — | Researcher Candidate List | — | 2026-05-02 | [neurone_researchers.docx](./neurone_researchers.docx) | ACTIVE | CLIN |
 
 ### 5.13 Privacy and Security Documents
@@ -230,7 +230,7 @@ Privacy and security documents are design programme records under NP-QMS-001. Th
 
 | Doc number | Title | Rev | Date | File | Status | Category |
 |---|---|---|---|---|---|---|
-| NP-PRIV-001 | Privacy Analysis and Repair — full system review of UHDR/SHDR architecture, consent engine, research data flows, clinical platform. 18 findings (2 Critical, 6 High, 7 Medium, 3 Low). | 1 | 2026-06-02 | [neurone_privacy_analysis_001.pdf](./neurone_privacy_analysis_001.pdf) | ACTIVE | PRIV |
+| NP-PRIV-001 | Privacy Analysis and Repair — full system review of UHDR/SHDR architecture, consent engine, research data flows, clinical platform. 18 findings (2 Critical, 6 High, 7 Medium, 3 Low). | 1 | 2026-06-02 | [np_priv_001.pdf](./np_priv_001.pdf) | ACTIVE | PRIV |
 | NP-PRIV-REM-001 | Privacy Remediation Master Plan — **Rev B** (2026-06-03): expanded to 36 steps (STEP-01 through STEP-36); new steps STEP-31 (HIPAA Expert Determination certifier), STEP-32 (per-study NP-ANON-CERT), STEP-33 (adaptive stimulation transparency), STEP-34 (BIPA), STEP-35 (MHMD), STEP-36 (children's age gate); enhanced detail on STEP-10/11/12/13/14/20 with operational instructions; direct remediations updated with Session 2 (2026-06-03) table. | 2 | 2026-06-03 | [np_priv_rem_001.md](./np_priv_rem_001.md) | ACTIVE — STEP-01 through STEP-11 specs COMPLETE (STEP-09 direct; STEP-10/11 specs authored); STEP-12 through STEP-36 OPEN | PRIV |
 | NP-SEC-BR-001 | Breach Response Plan — escalation chain (**updated 2026-06-03: TBD contacts replaced with interim named roles — CEO is Incident Commander/Technical Lead/Communications**); detection signals; P1/P2/P3 severity; containment; regulatory notification (HIPAA, FTC HBNR, GDPR Art. 33–34, US state laws); notification templates (Appendices A–C); annual tabletop exercise procedure. | 1 | 2026-06-02 | [np_sec_br_001.md](./np_sec_br_001.md) | ACTIVE — tabletop exercise required before T1 launch; Legal Counsel to be named before first production data store | SEC |
 | NP-PROC-POA-001 | Healthcare Power of Attorney Upload Procedure — accepted document types; E2E encrypted upload via signed URL; vault access controls (≤3 named reviewers; every access logged); structured review record schema (no PII retained); 30-day document deletion; annual re-verification; capacity restoration; P1 incident classification for vault breach. | 1 | 2026-06-02 | [np_proc_poa_001.md](./np_proc_poa_001.md) | ACTIVE — implementation required before POA feature in any app build | PRIV |

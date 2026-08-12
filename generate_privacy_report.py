@@ -14,7 +14,7 @@ from reportlab.platypus import (
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from datetime import date
 
-OUTPUT = "docs/neurone_privacy_analysis_001.pdf"
+OUTPUT = "docs/np_priv_001.pdf"
 
 # ── Colour palette ────────────────────────────────────────────────────────────
 C_CRITICAL  = colors.HexColor("#C0392B")

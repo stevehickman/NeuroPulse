@@ -194,7 +194,7 @@ The following hazard categories apply to NeurOne. Each category must be systemat
 
 ### 8.1 Baseline risk register
 
-The risk register RISK-01 through RISK-25, documented in NP-RISK-001 (`docs/superseded/neurone_fpc_zone_module_risks_revA.docx`), is hereby formally placed under QMS change control effective 2026-05-13. This constitutes the baseline ISO 14971 risk file.
+The risk register RISK-01 through RISK-25, documented in NP-RISK-001 (`docs/superseded/np_risk_001.docx`), is hereby formally placed under QMS change control effective 2026-05-13. This constitutes the baseline ISO 14971 risk file.
 
 > **⚠ RE-BASELINED 2026-08-11 — the risk file of record has moved. This paragraph is retained as the record for the period 2026-05-13 to 2026-08-11.**
 >

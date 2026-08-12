@@ -25,7 +25,7 @@
 
 *See regulatory-strategy.md and pending-decisions.md for pending actions on irradiance claim and evidence gap.
 
-**Neurode gap note (2026-07-13):** Two Neurode capabilities have no NeurOne equivalent today — **fNIRS hemodynamic brain monitoring** and **tRNS**. Both are low-cost to close: fNIRS reuses NeurOne's existing NIR optics (see `docs/np_fnirs_feasibility_001.md`); tRNS is a firmware preset on the T2 arbitrary-waveform driver. Neurode is otherwise a single-modality ADHD/focus device with no PBM, EEG, EMF shielding, or phone-free operation.
+**Neurode gap note (2026-07-13):** Two Neurode capabilities have no NeurOne equivalent today — **fNIRS hemodynamic brain monitoring** and **tRNS**. Both are low-cost to close: fNIRS reuses NeurOne's existing NIR optics (see `docs/np_feas_fnirs_001.md`); tRNS is a firmware preset on the T2 arbitrary-waveform driver. Neurode is otherwise a single-modality ADHD/focus device with no PBM, EEG, EMF shielding, or phone-free operation.
 
 **Key competitive claims:**
 - ⚠ **"50× more transcranial LEDs than Vielight at 17% of the price" — NEEDS RECOMPUTE.** Based on the retired fixed 600-LED/5-zone hardware count (see Total LED count row above); do not use until re-derived against the hex-tile architecture (NP-HEX-ZM-001).

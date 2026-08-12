@@ -7,9 +7,9 @@ against the current docx) to describe the hex-tile/socket architecture (NP-HEX-Z
 without asserting a specific socket count — REG-1/ACT-1 registration is still open, see
 docs/np_hex_zm_001.md §7. Do NOT re-run this script wholesale: doc2 below saves to
 "docs/neurone_additional_modalities.docx", but the checked-in artifact was deliberately
-renamed to "docs/superseded/neurone_additional_modalities_superseded.docx" in an earlier, unrelated
+renamed to "docs/superseded/np_mod_ext_001.docx" in an earlier, unrelated
 pass; re-running this script would resurrect a stale file under the old, no-longer-current
-filename. Only docs/neurone_clinical_trials_strategy.docx (doc, not doc2) is safe to
+filename. Only docs/np_clin_001.docx (doc, not doc2) is safe to
 regenerate from this script as-is.
 """
 from docx import Document
@@ -751,7 +751,7 @@ add_divider(doc)
 
 # ── §7 Key Bibliography ────────────────────────────────────────────────────────
 add_heading(doc, "7. Key Bibliography", level=1, color=(0x1F,0x38,0x64))
-add_para(doc, "Cite-ready format. See neurone_bibliography.docx for full 33-entry bibliography.", size=8, italic=True)
+add_para(doc, "Cite-ready format. See np_bib_001.docx for full 33-entry bibliography.", size=8, italic=True)
 doc.add_paragraph()
 
 bibs = [
@@ -819,8 +819,8 @@ for category, citation in bibs:
     r2 = p.add_run(citation)
     r2.font.size = Pt(8)
 
-doc.save("docs/neurone_clinical_trials_strategy.docx")
-print("NP-CLIN-001 saved: docs/neurone_clinical_trials_strategy.docx")
+doc.save("docs/np_clin_001.docx")
+print("NP-CLIN-001 saved: docs/np_clin_001.docx")
 
 
 # ══════════════════════════════════════════════════════════════════════════════

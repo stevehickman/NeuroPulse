@@ -38,7 +38,7 @@ def ins_before(doc, target, text, bold=False, color=None, size=10):
     return None
 
 # ── Coord checklist: fix dashboard G2-05 ──
-COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
+COORD_PATH = "docs/np_coord_001.docx"
 coord = Document(COORD_PATH)
 for tbl in coord.tables:
     for row in tbl.rows:
@@ -54,7 +54,7 @@ coord.save(COORD_PATH)
 print(f"  Coord checklist saved")
 
 # ── FAI: add §4c Sealing and IPX4 Verification ──
-FAI_PATH = "docs/superseded/neurone_fai_zone_module.docx"
+FAI_PATH = "docs/superseded/np_fai_zm_001.docx"
 fai = Document(FAI_PATH)
 
 # Find SECTION 5 heading paragraph

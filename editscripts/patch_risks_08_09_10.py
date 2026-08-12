@@ -33,7 +33,7 @@ def bold_para(doc, text, size=11):
 # 1. Patch Risk Register — RISK-08, RISK-09, RISK-10
 # ─────────────────────────────────────────────────────────────────────────────
 
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 doc = Document(RISK_PATH)
 
 # --- Update the summary table ---
@@ -253,7 +253,7 @@ print(f"\nRisk register saved: {RISK_PATH}")
 # 2. Patch SBIR Proposal — RISK-09: replace Molex/0.35mm connector references
 # ─────────────────────────────────────────────────────────────────────────────
 
-SBIR_PATH = "docs/neurone_sbir_phase1_draft.docx"
+SBIR_PATH = "docs/np_sbir_001.docx"
 sbir = Document(SBIR_PATH)
 
 sbir_changes = 0
@@ -294,7 +294,7 @@ print(f"  SBIR saved: {SBIR_PATH}")
 # 3. Verify / Strengthen FPC Spec Fab Note for RISK-10 (RA copper)
 # ─────────────────────────────────────────────────────────────────────────────
 
-SPEC_PATH = "docs/superseded/neurone_fpc_zone_module_spec_revA.docx"
+SPEC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 spec = Document(SPEC_PATH)
 
 spec_changes = 0

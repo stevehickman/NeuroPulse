@@ -76,7 +76,7 @@ def add_drc_rows(tbl, rows):
 # 1.  NP-DRV-SHELL-001 — add §2.3 and new DRC items 16–21
 # ─────────────────────────────────────────────────────────────────────────────
 
-SHELL_PATH = "docs/superseded/neurone_shell_fpc_routing_review.docx"
+SHELL_PATH = "docs/superseded/np_drv_shell_001.docx"
 shell = Document(SHELL_PATH)
 
 # ── Insert §2.3 after §2.2 heading + table ──
@@ -260,7 +260,7 @@ print(f"  NP-DRV-SHELL-001 saved")
 # 2.  Risk register — RISK-17 → MITIGATED
 # ─────────────────────────────────────────────────────────────────────────────
 
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk_doc = Document(RISK_PATH)
 
 for row in risk_doc.tables[0].rows:
@@ -354,7 +354,7 @@ print(f"  Risk register saved")
 # 3.  NP-COORD-001 — update G2-01 deliverables
 # ─────────────────────────────────────────────────────────────────────────────
 
-COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
+COORD_PATH = "docs/np_coord_001.docx"
 coord = Document(COORD_PATH)
 
 for tbl in coord.tables:

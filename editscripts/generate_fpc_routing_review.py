@@ -2,7 +2,7 @@
 ⚠ SUPERSEDED (2026-07-28): this generator builds the entire document around 5 fixed,
 position-unique zone-module FPC routing paths — retired by the hex-tile/socket architecture
 (NP-HEX-ZM-001, ~80 sockets, no fixed zone-slot positions). Do NOT re-run this script: the
-current docs/superseded/neurone_shell_fpc_routing_review.docx has since been extended by
+current docs/superseded/np_drv_shell_001.docx has since been extended by
 editscripts/patch_risk17.py (§2.3, Rev 2) and other patches, so a from-scratch regeneration
 here would discard that later work, not just fix the zone count. The replacement per-socket
 interconnect design for ~80 sockets does not exist yet — that is real, unscoped EE work (see
@@ -462,6 +462,6 @@ tbl(doc,
     widths=[0.5, 1.0, 1.7, 3.55],
 )
 
-OUT = "docs/superseded/neurone_shell_fpc_routing_review.docx"
+OUT = "docs/superseded/np_drv_shell_001.docx"
 doc.save(OUT)
 print(f"Saved: {OUT}")

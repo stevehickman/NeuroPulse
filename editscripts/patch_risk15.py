@@ -75,7 +75,7 @@ def ins_before(doc, target_para, text, bold=False, bullet=False, color=None, siz
 # 1.  FPC Spec — update pin 18 in the pinout table
 # ─────────────────────────────────────────────────────────────────────────────
 
-SPEC_PATH = "docs/superseded/neurone_fpc_zone_module_spec_revA.docx"
+SPEC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 spec = Document(SPEC_PATH)
 
 pin18_updated = False
@@ -214,7 +214,7 @@ print(f"  FPC spec saved: {SPEC_PATH}")
 # 3.  Risk Register — RISK-15 → MITIGATED
 # ─────────────────────────────────────────────────────────────────────────────
 
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk_doc = Document(RISK_PATH)
 
 tbl = risk_doc.tables[0]
@@ -322,7 +322,7 @@ print(f"  Risk register saved: {RISK_PATH}")
 #     note the addition in the revision history table.
 # ─────────────────────────────────────────────────────────────────────────────
 
-COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
+COORD_PATH = "docs/np_coord_001.docx"
 coord = Document(COORD_PATH)
 
 # Find G2-02 row and update its text to reference blind accessibility

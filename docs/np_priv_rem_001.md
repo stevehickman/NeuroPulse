@@ -462,7 +462,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 **Step 1 — Initial outreach to Neda Rashidi-Ranjbar (neda.rashidi-ranjbar@unityhealth.to):**
 - Email subject: "NeurOne — Research Collaboration Opportunity: EEG + HRV + PBM Platform Study"
 - Content: Brief description of NeurOne (wearable multi-modal neuromodulation); reference her 2025 MCI PBM RCT; propose a pilot study using NeurOne as the platform; offer device loan + data access + co-authorship
-- Attach: NP-CLIN-001 clinical evidence summary (2-page executive summary from `docs/neurone_clinical_trials_strategy.docx`)
+- Attach: NP-CLIN-001 clinical evidence summary (2-page executive summary from `docs/np_clin_001.docx`)
 - Goal of call: confirm interest; identify whether she can serve as PI or co-PI on a NeurOne IRB protocol; discuss her REB (Research Ethics Board — Canadian equivalent of IRB) process at Unity Health Toronto
 
 **Step 2 — If Rashidi-Ranjbar agrees, prepare REB/IRB protocol:**

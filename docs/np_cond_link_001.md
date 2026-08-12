@@ -1,6 +1,9 @@
 # NP-COND-LINK-001 — Condition external-link UI
 
-**Status:** Rev 1 (2026-07-18)
+**Document:** NP-COND-LINK-001
+**Revision:** 1
+**Date:** 2026-07-18
+**Status:** ACTIVE
 **Applies to:** iOS, macOS, Android, Windows, Web
 **Related:** NP-NPPS-REF-001 (grammar), `protocols/predefined/00-conditions.npps` (registry)
 

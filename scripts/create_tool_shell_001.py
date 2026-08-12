@@ -753,6 +753,6 @@ make_table(doc,
     col_widths=[1.2, 2.2, 3.8, 9.5])
 
 # ── save ──────────────────────────────────────────────────────────────────────
-out_path = '/home/user/NeurOne/docs/neurone_tool_shell_001.docx'
+out_path = '/home/user/NeurOne/docs/np_tool_shell_001.docx'
 doc.save(out_path)
 print(f'Saved: {out_path}')

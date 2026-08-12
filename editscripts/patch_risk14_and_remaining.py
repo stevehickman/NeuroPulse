@@ -1,11 +1,11 @@
 """
 Patch: RISK-14 Option B implementation, RISK-21 mitigation, NP-TOOL-ZM-001 creation.
 Targets:
-  - docs/superseded/neurone_fpc_zone_module_spec_revA.docx  (pin 19, §8 dual-PD update)
-  - docs/neurone_eng_coordination_checklist.docx (G1-06 → CLOSED, add G2-11)
-  - docs/superseded/neurone_shell_fpc_routing_review.docx   (add §2.4 EEG cable routing)
-  - docs/superseded/neurone_tool_zone_module_001.docx       (new: NP-TOOL-ZM-001)
-  - docs/superseded/neurone_fpc_zone_module_risks_revA.docx (RISK-14, 18-24 status updates)
+  - docs/superseded/np_hw_fpc_001.docx  (pin 19, §8 dual-PD update)
+  - docs/np_coord_001.docx (G1-06 → CLOSED, add G2-11)
+  - docs/superseded/np_drv_shell_001.docx   (add §2.4 EEG cable routing)
+  - docs/superseded/np_tool_zm_001.docx       (new: NP-TOOL-ZM-001)
+  - docs/superseded/np_risk_001.docx (RISK-14, 18-24 status updates)
 """
 from docx import Document
 from docx.shared import Pt, RGBColor, Inches
@@ -80,7 +80,7 @@ def add_tbl_row(tbl, data, widths_in, alternating_idx=0):
 # ══════════════════════════════════════════════════════════════════════════════
 # 1. FPC SPEC — update pin 19 to PD2_CATHODE + add §8.4 dual-PD architecture
 # ══════════════════════════════════════════════════════════════════════════════
-FPC_PATH = "docs/superseded/neurone_fpc_zone_module_spec_revA.docx"
+FPC_PATH = "docs/superseded/np_hw_fpc_001.docx"
 fpc = Document(FPC_PATH)
 
 # 1a. Update pinout table: row 19 (index 19) — SPARE_2 → PD2_CATHODE
@@ -162,7 +162,7 @@ print(f"  FPC spec saved: {FPC_PATH}")
 # ══════════════════════════════════════════════════════════════════════════════
 # 2. COORD CHECKLIST — close G1-06 + add G2-11 EEG cable routing
 # ══════════════════════════════════════════════════════════════════════════════
-COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
+COORD_PATH = "docs/np_coord_001.docx"
 coord = Document(COORD_PATH)
 
 # 2a. Find G1-06 (PD2 decision row) and mark CLOSED
@@ -230,7 +230,7 @@ print(f"  Coord checklist saved: {COORD_PATH}")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. SHELL ROUTING REVIEW — add §2.4 EEG cable routing specification
 # ══════════════════════════════════════════════════════════════════════════════
-SHELL_PATH = "docs/superseded/neurone_shell_fpc_routing_review.docx"
+SHELL_PATH = "docs/superseded/np_drv_shell_001.docx"
 shell = Document(SHELL_PATH)
 
 # Find §3 heading to anchor insertion before it
@@ -361,7 +361,7 @@ print(f"  Shell routing review saved: {SHELL_PATH}")
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. CREATE NP-TOOL-ZM-001 — Zone Module Tooling Specification
 # ══════════════════════════════════════════════════════════════════════════════
-TOOL_PATH = "docs/superseded/neurone_tool_zone_module_001.docx"
+TOOL_PATH = "docs/superseded/np_tool_zm_001.docx"
 tool = Document()
 
 # Title block
@@ -614,7 +614,7 @@ print(f"  NP-TOOL-ZM-001 saved: {TOOL_PATH}")
 # 5. RISK REGISTER — update RISK-14, RISK-21, RISK-23 to MITIGATED
 #    Update RISK-18 through RISK-24 statuses
 # ══════════════════════════════════════════════════════════════════════════════
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk = Document(RISK_PATH)
 
 MITIGATED_NOW = {

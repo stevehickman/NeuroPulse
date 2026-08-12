@@ -20,7 +20,7 @@
 ## 0. The question this document was created to answer
 
 > *"Is there a set of routing requirements and a routing review document to replace
-> `neurone_shell_fpc_routing_review.docx`? If not, create as needed."*
+> `np_drv_shell_001.docx`? If not, create as needed."*
 
 **Requirements: yes, they exist.** They are not missing and were not lost when
 `NP-DRV-SHELL-001` was retired. They live in `NP-DRV-SHELL-002` Rev 2, restated rather than

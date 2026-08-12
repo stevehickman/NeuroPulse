@@ -373,7 +373,7 @@ When the self-hosted stack (NP-ANALYTICS-001 Rev 1, `docs/np_analytics_001.md`) 
 
 | Document | Relationship |
 |----------|-------------|
-| `docs/neurone_fw_emmc_001.docx` (NP-FW-EMMC-001 Rev 1) | SHDR partition schema; dual-bank OTA bootloader protocol |
+| `docs/np_fw_emmc_001.docx` (NP-FW-EMMC-001 Rev 1) | SHDR partition schema; dual-bank OTA bootloader protocol |
 | `docs/np_fw_emmc_002.md` (NP-FW-EMMC-002 Rev 1 §A) | Warranty token architecture; no-join rule for fleet DB |
 | `docs/np_app_telemetry_001.md` (NP-APP-TELEMETRY-001 Rev 2) | Permitted/prohibited analytics event properties; `engagement_tier` enum |
 | `docs/np_analytics_001.md` (NP-ANALYTICS-001 Rev 1) | Full self-hosted PostHog deployment specification |

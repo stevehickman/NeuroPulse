@@ -138,7 +138,7 @@ print("  Additional modalities doc saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. FAI checklist — add HD-tDCS and cervical VNS test items
 # ══════════════════════════════════════════════════════════════════════════════
-FAI_PATH = "docs/superseded/neurone_fai_zone_module.docx"
+FAI_PATH = "docs/superseded/np_fai_zm_001.docx"
 fai = Document(FAI_PATH)
 
 # Find last HRV item (FAI-H04) as insertion anchor
@@ -276,7 +276,7 @@ print("  FAI checklist saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. Coordination checklist — G3-07 and G3-08
 # ══════════════════════════════════════════════════════════════════════════════
-COORD_PATH = "docs/neurone_eng_coordination_checklist.docx"
+COORD_PATH = "docs/np_coord_001.docx"
 coord = Document(COORD_PATH)
 
 # Find G3-06 (last G3 item) — add G3-07 and G3-08 after it
@@ -321,7 +321,7 @@ print("  Coordination checklist saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 5. Risk register — RISK-25 cervical VNS cardiac proximity
 # ══════════════════════════════════════════════════════════════════════════════
-RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/np_risk_001.docx"
 risk = Document(RISK_PATH)
 
 # Find last risk row (RISK-24) to insert after

@@ -31,7 +31,7 @@ This document is the IRB/REB protocol template and submission-readiness package 
 | Type | Example | Regulatory posture | Data source |
 |---|---|---|---|
 | **A — Usability/accessibility study of the device itself** | NP-HFE-001 §7.2 eject-lever study (n=5, Parkinson's/post-stroke) | May qualify for exempt or expedited IRB review as minimal-risk usability observation of a commercial product, but eligibility is determined per-study by IRB/REB counsel, not assumed here, because the subject population is selected by diagnosis (Parkinson's, post-stroke), which some IRBs treat as inherently non-exempt regardless of task risk | Observational (force, time, verbal feedback) — no NeurOne device UHDR/session data collected as research data |
-| **B — Clinical/observational research using NeurOne as a data platform** | e.g., a PBM/EEG/HRV combination-therapy study per `docs/neurone_clinical_trials_strategy.docx` | Full IRB/REB review; may also qualify for 45 CFR §46.104(d)(4) exemption if data is de-identified at the point of collection (see §5) | On-device anonymized UHDR extracts per NP-FW-ANON-001 |
+| **B — Clinical/observational research using NeurOne as a data platform** | e.g., a PBM/EEG/HRV combination-therapy study per `docs/np_clin_001.docx` | Full IRB/REB review; may also qualify for 45 CFR §46.104(d)(4) exemption if data is de-identified at the point of collection (see §5) | On-device anonymized UHDR extracts per NP-FW-ANON-001 |
 
 Both types share the recruitment, consent-withdrawal, and data-security sections below; Type A does not need §5 (anonymization architecture) if no device UHDR is collected as research data, but must still address consent and withdrawal for the observational data actually collected (video/audio recording of the task, if used).
 
@@ -50,7 +50,7 @@ Both types share the recruitment, consent-withdrawal, and data-security sections
 
 ### 3.2 Outreach sequence
 
-1. Initial email to Rashidi-Ranjbar: brief NeurOne description, reference to her 2025 MCI PBM RCT, proposed pilot using NeurOne as the study platform, offer of device loan + data access + co-authorship. Attach the 2-page executive summary of `docs/neurone_clinical_trials_strategy.docx`.
+1. Initial email to Rashidi-Ranjbar: brief NeurOne description, reference to her 2025 MCI PBM RCT, proposed pilot using NeurOne as the study platform, offer of device loan + data access + co-authorship. Attach the 2-page executive summary of `docs/np_clin_001.docx`.
 2. If interested: confirm whether she can serve as PI or co-PI on a NeurOne-facilitated protocol, and discuss the Unity Health REB submission process.
 3. If she agrees to PI: proceed to §4 (protocol content) using the REB's submission format, with NP-FW-ANON-001 attached as the primary technical appendix describing the anonymization architecture.
 4. File for a US exemption determination under **45 CFR §46.104(d)(4)** (secondary research with de-identified data) in parallel with REB review, using the same protocol document — applicable to Type B studies where on-device anonymization means no identifiable data leaves the device (see §5).
