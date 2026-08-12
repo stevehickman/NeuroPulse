@@ -311,8 +311,20 @@ static void test_enable_word_layout(void)
           "NP_SAFETY_EN_PBM_CRANIAL is bit 0");
 
     /* Bits 1–4 are reserved, not reused.  They must be absent from ALL_MASK so
-     * np_spi_watchdog_tick strips them: a hub that still sets a retired zone bit
-     * enables nothing rather than enabling something else.                     */
+     * np_spi_watchdog_tick strips them and they can never enable anything.
+     *
+     * What this guard is, and is not (NP-HW-HUB-001 Rev 4 §7.2): NO hub can set
+     * a retired zone bit today.  No hub hardware exists, and the
+     * NP_SAFETY_EN_PBM_ZONE_0..4 macros were deleted in the same 2026-08-05
+     * change that added this test -- they survive only in "Formerly ..."
+     * comments.  So this is defence in depth against a FUTURE authoring error
+     * re-introducing those bit positions, not compatibility with a deployed or
+     * legacy hub.  Stated precisely because a guard described as mitigating a
+     * live hazard reads as load-bearing when it is currently vacuous.
+     *
+     * The check still earns its place: the reservation it pins is required by
+     * the charge-accumulator identity asserted below (bit position IS the
+     * current_ua[] index), which binds regardless of whether any hub exists.  */
     check((NP_SAFETY_EN_ALL_MASK & 0x001EU) == 0U,
           "reserved bits 1-4 excluded from NP_SAFETY_EN_ALL_MASK");
     check(NP_SAFETY_EN_ALL_MASK == 0x3FE1U,

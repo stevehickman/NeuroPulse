@@ -235,7 +235,7 @@ add_table(
          'Sized for five slots. Scaling the Rev B star to 80 sockets needs ~880 conductors '
          'through one blind-mate boss, 160 TIA channels and 160 ADC channels against ~32 '
          'available on the RT1062.',
-         'Hub PCB Rev C (NP-HW-HUB-001 Rev 3, DRAFT): distributed cluster-controller tier. '
+         'Hub PCB Rev C (NP-HW-HUB-001 Rev 4, DRAFT): distributed cluster-controller tier. '
          'Rev 2 (Hub PCB Rev B) is archived verbatim as Appendix A; its DG2788A topology and TIA-saturation '
          'analysis carry forward onto the cluster carriers — only the count and the control '
          'source change. Zero GAIN_SEL GPIO remain.'],
@@ -275,8 +275,14 @@ add_table(
          'hardware change. Because these symbols gate PBM and tES, a stale grouping is a '
          'wrong-site stimulation path.',
          'Single NP_SAFETY_EN_PBM_CRANIAL bit (bit 0); bits 1–4 reserved and excluded from '
-         'NP_SAFETY_EN_ALL_MASK (0x3FFF → 0x3FE1), so a hub still setting a retired zone bit '
-         'has it stripped rather than enabling something else. PA4 double-assignment cleared.'],
+         'NP_SAFETY_EN_ALL_MASK (0x3FFF → 0x3FE1), so bits 1–4 are stripped in '
+         'np_spi_watchdog_tick and can never enable anything. Note what that guard is NOT: no hub '
+         'can set a retired zone bit — no hub hardware exists, and the ZONE macros were deleted in '
+         'the same change — so the exclusion is defence in depth against a future authoring error, '
+         'not compatibility with a deployed hub (NP-HW-HUB-001 Rev 4 §7.2). The reservation itself '
+         'binds on separate Class C grounds: enable-bit position ≡ current_ua[] slot ≡ '
+         'charge-accumulator index, which the 40 µC/cm² limit rests on. PA4 double-assignment '
+         'cleared.'],
 
         ['T2 clinical tACS as "16-channel arbitrary waveform"',
          'The 16-channel figure had no sourcing document, no BOM line and no named silicon; '
@@ -343,7 +349,7 @@ add_table(
          'count overflow. Cluster map diagram at docs/diagrams/np_hextile_cluster_map.svg.'],
 
         ['Hub PCB Rev C',
-         'NP-HW-HUB-001 Rev 3 (DRAFT) — distributed cluster-controller tier replaces the '
+         'NP-HW-HUB-001 Rev 4 (DRAFT) — distributed cluster-controller tier replaces the '
          'five-slot star. The hub PCB no longer encodes the socket count at all, so REG-1 no '
          'longer blocks hub tooling.'],
 
@@ -877,7 +883,8 @@ add_para(
     'docs/diagrams/np_hextile_cluster_map.svg.', bold=True)
 
 add_notice(
-    'The 18-cluster count post-dates NP-DRV-SHELL-002 Rev 2 and NP-HW-HUB-001 Rev 3, both of '
+    'The 18-cluster count post-dates NP-DRV-SHELL-002 Rev 2 and NP-HW-HUB-001 Rev 3 (still '
+    'uncorrected at Rev 4, which was a documentation-only change), both of '
     'which were written against ~12. Consequences not yet corrected in those documents '
     '(OI-HEXTILE-14): cluster-tier BOM $76.08 → $114.12; analog front ends scale with 18, not '
     '12; and 18 exceeds BOTH the 16 provisioned connector positions AND the 8 branches × ≤2 '
@@ -1014,15 +1021,21 @@ add_bullets([
     'Session protocols are cryptographically signed by the app; the headset rejects unsigned or '
     'corrupted protocols.',
     'Enable word: bit 0 is NP_SAFETY_EN_PBM_CRANIAL; bits 1–4 are reserved holes EXCLUDED from '
-    'NP_SAFETY_EN_ALL_MASK (0x3FFF → 0x3FE1), so a hub still setting a retired zone bit has it '
-    'stripped in np_spi_watchdog_tick rather than enabling something else. The bit position is '
-    'deliberately NOT compacted: enable-bit position ≡ current_ua[] slot ≡ charge-accumulator '
-    'index is a three-way Class C identity that the 40 µC/cm² limit rests on.',
+    'NP_SAFETY_EN_ALL_MASK (0x3FFF → 0x3FE1), so bits 1–4 are stripped in np_spi_watchdog_tick '
+    'and can never enable anything. That exclusion is defence in depth against a FUTURE authoring '
+    'error re-introducing those positions — NOT compatibility with a deployed or legacy hub. No '
+    'hub can set a retired zone bit: no hub hardware exists, and the NP_SAFETY_EN_PBM_ZONE_0..4 '
+    'macros were deleted in the same change, surviving only in "Formerly …" comments '
+    '(NP-HW-HUB-001 Rev 4 §7.2, corrected 2026-08-12). The reservation of bits 1–4 is unaffected '
+    'and remains correct on independent Class C grounds: the bit position is '
+    'deliberately NOT compacted, because enable-bit position ≡ current_ua[] slot ≡ '
+    'charge-accumulator index is a three-way Class C identity that the 40 µC/cm² limit rests on, '
+    'and that binds regardless of whether any hub exists.',
 ])
 
 add_notice(
     'Whether the safety layer can cut ONE cluster or only the whole cranial lattice is open. '
-    'NP-DRV-SHELL-002 specifies per-cluster SAFE_EN_n (18 GPIO); NP-HW-HUB-001 Rev 3 §7.2 '
+    'NP-DRV-SHELL-002 specifies per-cluster SAFE_EN_n (18 GPIO); NP-HW-HUB-001 Rev 4 §7.2 '
     'specifies a single cranial bit (1 GPIO, all-or-nothing). Per-cluster policy bits would need '
     'the enable word widened to uint32_t (18 cluster + 9 modality = 27 > 16). Tracked as '
     'OI-HUB-C07 / OI-HEXTILE-13; proposed resolution at NP-HW-HEXTILE-001 §8.4.1 — split the '
@@ -1741,7 +1754,7 @@ add_table(
         ['NP-SOUP-CMSIS-001', 'Rev 1, DRAFT', 'First Class C IEC 62304 §7.1.2 anomaly evaluation'],
         ['NP-HEX-ZM-001', 'Rev 2, DESIGN STUDY', 'Hex-tile module architecture; CLUSTER-1/SYM-1/CONTIG-1'],
         ['NP-HW-HEXTILE-001', 'Rev 3, DESIGN STUDY', 'Hex-tile electrical/FPC spec; 18-cluster derivation'],
-        ['NP-HW-HUB-001', 'Rev 3, DRAFT', 'Cluster-controller tier (Hub PCB Rev B archived as Appendix A)'],
+        ['NP-HW-HUB-001', 'Rev 4, DRAFT', 'Cluster-controller tier (Hub PCB Rev B archived as Appendix A)'],
         ['NP-DRV-SHELL-002', 'Rev 2, DRAFT', 'Cluster-carrier shell socket interconnect. NP-DRV-SHELL-001 retired to docs/superseded/'],
         ['NP-HELMET-GEOM-001', '—', 'Scan-derived helmet geometry and socket coordinates'],
         ['NP-OPT-PSF-001', 'Rev 1, ACTIVE', 'PBM optical resolution floor; lateralization model'],

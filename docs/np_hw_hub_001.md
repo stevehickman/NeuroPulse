@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HUB-001
-**Revision:** 4
+**Revision:** 5
 **Date:** 2026-08-16
 **Status:** DRAFT
 **Effective Date:** —
@@ -16,6 +16,21 @@
 **Parent Document:** —
 
 ---
+
+**Rev 5 (2026-08-16):** Documentation-only correction to §7.2's STATUS banner; **no hardware,
+firmware, mask value or bit allocation changed.** Rev 3 justified excluding the reserved holes from
+`NP_SAFETY_EN_ALL_MASK` as protecting against *"a hub that still sets a retired zone bit"*. That
+scenario is impossible on two independent grounds — no hub hardware exists, and the
+`NP_SAFETY_EN_PBM_ZONE_0..4` macros were deleted in the 2026-08-05 change itself, surviving only in
+`Formerly …` comments — so the guard is defence in depth against a *future* authoring error, not
+compatibility with any deployed or legacy hub. `0x3FE1` and the reservation of bits 1–4 stand
+unchanged on §7.2 reason 2 (bit position ≡ `current_ua[]` slot ≡ charge-accumulator index), which
+binds regardless of whether a hub exists. Raised by the principal, 2026-08-12. The same wording was
+corrected in `firmware/safety_mcu/tests/np_safety_spi_proto_tests.c` and `NP-DB-005` Rev 6; the
+`docs/status/completed-decisions.md` entry of 2026-08-05 is append-only and keeps its original
+wording, with a new correction entry appended naming it.
+
+*Renumbered during rebase: this correction was authored as Rev 4 on 2026-08-12, but `NP-HW-HUB-001` Rev 4 was taken on 2026-08-16 by the OI-HUB-C07 decision below. Two documents may not share a revision (`NP-CONV-001` §4.0.2), so it is re-issued here as Rev 5. The correction itself is unchanged and was raised by the principal on 2026-08-12.*
 
 > **Rev 4 (2026-08-16) — OI-HUB-C07 DECIDED: the cranial PBM safety enable is one Class C policy bit. Documentation only; no firmware change, no Class C behaviour change.**
 >
@@ -837,8 +852,24 @@ sides of the SPI heartbeat — a disproportionate change to buy selectivity the 
 > the firmware did not follow for two revisions. It now does. `NP_SAFETY_EN_PBM_CRANIAL` is bit 0 in
 > both `firmware/safety_mcu/include/np_safety_protocol.h` and
 > `firmware/hub_control/include/np_hub_config.h`; `NP_SAFETY_EN_ALL_MASK` is **`0x3FE1`** (was
-> `0x3FFF`), which excludes the reserved holes so a hub that still sets a retired zone bit has it
-> stripped rather than enabling something. `NP_EN_PBM_ZONE0..4_PORT/PIN` collapse to one
+> `0x3FFF`), which excludes the reserved holes, so bits 1–4 are stripped in `np_spi_watchdog_tick`
+> (`np_spi_watchdog.c`: `granted_mask = requested_mask & NP_SAFETY_EN_ALL_MASK`) and can never
+> enable anything.
+>
+> **What that guard is, and is not — corrected at Rev 4.** Rev 3 justified the exclusion as
+> protecting against *"a hub that still sets a retired zone bit"*. **No such hub exists or has ever
+> existed**, on two independent grounds: no hub hardware has been built, and the
+> `NP_SAFETY_EN_PBM_ZONE_0..4` macros were **deleted in this same change** — they survive only in
+> `Formerly …` comments, so no in-tree hub source can set those bits either. The exclusion is
+> therefore **defence in depth against a future authoring error re-introducing those bit
+> positions**, not backward compatibility with a deployed or legacy hub. The distinction matters
+> because a guard described as mitigating a live hazard reads as load-bearing when it is currently
+> vacuous, and a vacuous guard is exactly the kind that survives a later "tidy-up" unchallenged.
+> **The `0x3FE1` value and the reservation of bits 1–4 are unchanged and remain correct** — they
+> rest on reason 2 below (enable-bit position ≡ `current_ua[]` slot ≡ charge-accumulator index),
+> which binds regardless of whether any hub exists.
+>
+> `NP_EN_PBM_ZONE0..4_PORT/PIN` collapse to one
 > `NP_EN_PBM_CRANIAL_PORT/PIN` on **PA0**, which also clears the **PA4 double-assignment** flagged at
 > OI-HEXTILE-13 note (c) (PA4 was claimed by both SPI1 NSS and `NP_EN_PBM_ZONE4_PIN`; it is now SPI1
 > NSS only). Regression tests: `np_safety_spi_proto_tests` (`test_enable_word_layout`,
