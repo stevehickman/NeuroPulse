@@ -25,9 +25,12 @@ someone is looking for the last place a number was derived.
   leads somewhere. Inside git, these are renames — `git log --follow` traverses them.
 - **Nothing here is edited except to add a supersession banner.** The text is a record of what was
   believed when it was written.
-- **Only the latest revision of a serial lives here.** Intermediate revisions are deleted once
-  confirmed committed (`NP-CONV-001` §4.0.4) — a superseded *document* is retained; a superseded
-  *revision of it* is git's job. This directory holds retired documents, not a revision archive.
+- **Superseded revisions are retained, not deleted.** `NP-CONV-001` §4.0.4: a document stays if it
+  is referenced anywhere or if a process/legal duty requires it. `NP-QMS-001` §Records sets DHF
+  retention at life of device + 2 years (21 CFR §820.180), and everything here is a design record
+  indexed by `NP-DHF-001`, so both limbs say retain. `NP-HW-FPC-001` accordingly holds two files —
+  Rev 4 (`.docx`) and Rev 5 (`.md`) — which is legitimate: §4.0 binds the filename, and each
+  basename is the serial and nothing else.
 
 ## Index
 
@@ -44,6 +47,7 @@ this group died with that decision.
 | `np_risk_001.docx` | **NP-RISK-001** | C | `NP-RISK-002` (re-baseline + disposition of all 26), `NP-RISK-003`, `NP-RISK-004` | **This was the ISO 14971 baseline risk file**, not merely a stale document. Every one of RISK-01…RISK-26 has an explicit disposition in `NP-RISK-002` §3 (5 retired, 20 carried, 1 closed-confirmed). |
 | `np_drv_shell_001.docx` | **NP-DRV-SHELL-001** | B | `NP-DRV-SHELL-002` (architecture + requirements + DRC), `NP-REV-SHELL-001` (the review record instrument) | Already carried a 2026-07-28 supersession banner. Its IPC-2223D bend-radius basis survives, re-derived, as `NP-DRV-SHELL-002` REQ-BR2-01…05. |
 | `np_tool_zm_001.docx` | **NP-TOOL-ZM-001** | A | `NP-TOOL-HEXTILE-001` | Specified position-unique moulds (F-01 zone key, F-02 numeral, F-03 braille) that the type-agnostic socket makes meaningless. F-04–F-07 carry forward as concepts. |
+| `np_hw_fpc_001.docx` | **NP-HW-FPC-001** | D | `NP-HW-HEXTILE-001` | Base-module FPC spec, 5 slots. Retained: referenced by `NP-DHF-001` and under the §820.180 DHF retention duty. |
 | `np_hw_fpc_001.md` | **NP-HW-FPC-001** (1064 variant) | E | `NP-HW-HEXTILE-001`, tile type T1-C | Dual-PD architecture and InGaAs PD choice survive and are cited from `NP-DRV-SHELL-002` §13. |
 | `np_tool_zm_sm_001.md` | **NP-TOOL-ZM-SM-001** | A | `NP-TOOL-HEXTILE-001` | Smart-module mould variant of a mould family that no longer exists. Its F-SM-03 mechanical key was **confirmed unnecessary** — SMART-1 makes every socket I2C/TIA-capable, so there is no wrong socket to key against. |
 | `np_fw_za_001.md` | **NP-FW-ZA-001** | A | `firmware/hub_control/np_module_map.*`; `firmware/zone_announce/np_zone_notify.h` | Detection mechanism (ZONE_ID resistor ladder on FPC pin 18) fully retired. The audio/debounce implementation in `firmware/zone_announce/` is still live code and still builds; only its trigger changed. |
@@ -77,7 +81,7 @@ an old name from an external citation, this is where it went.
 | `neurone_fpc_zone_module_risks_revA.docx` | `np_risk_001.docx` | NP-RISK-001 |
 | `neurone_shell_fpc_routing_review.docx` | `np_drv_shell_001.docx` | NP-DRV-SHELL-001 |
 | `neurone_tool_zone_module_001.docx` | `np_tool_zm_001.docx` | NP-TOOL-ZM-001 |
-| `neurone_fpc_zone_module_spec_revA.docx` | *(deleted — see below)* | NP-HW-FPC-001 (Rev 4) |
+| `neurone_fpc_zone_module_spec_revA.docx` | `np_hw_fpc_001.docx` | NP-HW-FPC-001 (Rev 4) |
 | `neurone_fw_requirements_001_superseded.docx` | `np_fw_req_001.docx` | NP-FW-REQ-001 |
 | `neurone_additional_modalities_superseded.docx` | `np_mod_ext_001.docx` | NP-MOD-EXT-001 |
 | `neurone_design_brief_superseded.docx` | `np_db_001.docx` | NP-DB-001 |
@@ -85,22 +89,13 @@ an old name from an external citation, this is where it went.
 | `neurone_brief_r3_superseded.docx` | `np_db_003.docx` | NP-DB-003 |
 | `neurone_brief_r4_superseded.docx` | `np_db_004.docx` | NP-DB-004 |
 
-> **`NP-HW-FPC-001` Rev 4 was deleted from the tree on 2026-08-11, not renamed.** It was an
-> *intermediate* revision — Rev 5 (`np_hw_fpc_001.md`) supersedes it — and `NP-CONV-001` §4.0.4
-> holds that version control is the revision store, so a serial resolves to exactly one file.
-> Retrievability was established **before** deletion, which is the precondition the rule turns on:
-> 15 commits of history, first introduced on `9939182` as
-> `docs/neuropulse_fpc_zone_module_spec_revA.docx` (a third filename, predating the project rename),
-> blob at HEAD verified byte-identical at 64,767 bytes.
+> **`NP-HW-FPC-001` holds two files here, and that is correct.** `np_hw_fpc_001.docx` is Rev 4;
+> `np_hw_fpc_001.md` is Rev 5. Both are retained under `NP-CONV-001` §4.0.4 — each is referenced
+> from `NP-DHF-001` and covered by the §820.180 DHF retention duty. §4.0 binds the *filename*, and
+> both satisfy it: the basename is the serial and nothing else.
 >
-> ```bash
-> git show 19be91d:docs/superseded/np_hw_fpc_001.docx > np_hw_fpc_001_rev4.docx
-> ```
->
-> **OI-CONV-05 closed.** The design briefs `NP-DB-001`…`NP-DB-005` show the same mis-application of
-> §4's serial-vs-revision test, but each of those serials resolves to exactly one file, so nothing
-> collides and they are **left as written** (OI-CONV-06, closed by decision). §4.0.4 binds the
-> issuing of new revisions, not the archive.
+> Rev 4 of the conventions briefly held the opposite ("one serial, one file") and deleted the
+> `.docx`; §4.0.4 records the reversal and the two claims that were wrong. **OI-CONV-05 closed.**
 
 ## What is deliberately *not* here
 

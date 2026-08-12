@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-CONV-001
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-08-11
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
@@ -235,86 +235,76 @@ hold byte-exact upstream subsets whose per-file provenance and SHA-256 are recor
 This is the same principle as §Scope's vendor-name rule: **where a vendor name conflicts with a
 NeurOne convention, the vendor wins.**
 
-#### 4.0.4 An intermediate revision is not a document (BINDING, decided 2026-08-11)
+#### 4.0.4 Retaining a superseded revision — the test is references and retention duty (BINDING, decided 2026-08-11)
 
-> **A serial resolves to exactly one file: the current revision. Intermediate revisions are not
-> retained as independent documents — version control holds them.**
+> **Whether a superseded document or revision stays on disk is not a matter of preference. Two
+> questions decide it, and either one alone is sufficient to retain:**
+>
+> 1. **Is it referenced anywhere?**
+> 2. **Is it required to be retained for process or legal reasons?**
+>
+> If neither, retention is optional and nobody need care. If either, it stays.
 
-This follows from §4.0 rather than merely coexisting with it. If a serial is the address of a
-document, it cannot be the address of two things; and if the filename may not carry a revision
-(§4.3), then two revisions on disk have no legal way to be told apart. Retaining an intermediate
-revision as its own file is therefore not a naming problem with a naming fix — it is a records
-practice that the naming rule forbids.
+**For NeurOne, question 2 is already answered, and the answer is yes.** `NP-QMS-001` §Records sets
+the Design History File retention period at **life of device + 2 years (21 CFR §820.180)**, and
+`NP-DHF-001` is the §820.30(j) index of design records. A superseded design document is a design
+record — indeed superseded revisions are much of what a DHF exists to hold, since the file must
+demonstrate the design *was developed in accordance with the plan*, which is a claim about history.
 
-**Git is the revision store.** That is what it is for, and it does the job better than a parallel
-set of files does: it keeps every intermediate state, not just the ones somebody thought to save
-under a new name, and it keeps them with authorship, date and the change that produced them.
+So the operating position for this project is: **superseded design documents are retained.** They
+live in `docs/superseded/`, indexed, with their successors named.
 
-##### The precondition — and it is the whole safety of this rule
+##### What "retained in version control" does and does not satisfy
 
-> **An intermediate revision may only be deleted if it was committed first.** Git can only return
-> what it was given. A file that was never committed, or that only ever existed in a working tree,
-> is not "held by version control" — deleting it destroys it.
+Git holds every committed state, and for an *uncommitted* working file it holds nothing — which is
+why the precondition below exists at all. But a git blob is not a substitute for a retained record
+when a controlled index links to that record: `NP-DHF-001` cites files by path, and a path that
+resolves only via `git show <sha>:<path>` is not an index entry, it is an instruction to reconstruct
+one.
 
-Before deleting, establish retrievability positively, not by assumption:
+> **Deletion is therefore reserved for the case where both questions above answer *no*.** In this
+> document set that case has not yet arisen.
 
-```bash
-git log --follow --oneline -- <path>          # it has history
-git show <commit>:<path> > /tmp/check          # the blob comes back
-cmp /tmp/check <path>                          # and it is byte-identical
-```
+##### The precondition, if deletion is ever justified
 
-**Applied 2026-08-11 to the one case in the set.** `NP-HW-FPC-001` held two files —
-`np_hw_fpc_001.docx` (Rev 4) and `np_hw_fpc_001.md` (Rev 5). Before removing the Rev 4 `.docx`, its
-history was confirmed: **15 commits**, first introduced on `9939182` as
-`docs/neuropulse_fpc_zone_module_spec_revA.docx` — under a *third* filename, from before the project
-was renamed — and the blob at `HEAD` was verified byte-identical (64,767 bytes) to the working file.
-Only then was it deleted. `NP-HW-FPC-001` now resolves to exactly one file.
-
-To retrieve it:
+An intermediate revision may be deleted **only if it was committed first**, established positively
+rather than assumed — git can only return what it was given:
 
 ```bash
-git show 19be91d:docs/superseded/np_hw_fpc_001.docx > np_hw_fpc_001_rev4.docx
+git log --follow --oneline -- <path>     # it has history
+git show <commit>:<path> > /tmp/check    # the blob comes back
+cmp /tmp/check <path>                    # byte-identical
 ```
 
-> The rule surfaced this rather than created it. Two revisions had been sitting as two files since
-> the `.docx` set began; nothing pointed at the collision until filenames were required to equal
-> serials. **OI-CONV-05 is closed by this section.**
+##### Correction of record — this section reversed its own Rev 4 position
 
-##### Scope: this binds going forward; it is not a retroactive sweep
+Rev 4 of this document stated the opposite rule: *"a serial resolves to exactly one file …
+intermediate revisions are not retained as independent documents"*, and acted on it by **deleting**
+`np_hw_fpc_001.docx` (`NP-HW-FPC-001` Rev 4). That was wrong on both limbs of the test above — the
+file is referenced from `NP-DHF-001` and `docs/status/document-register.md`, and it falls under the
+§820.180 retention duty. **It has been restored, along with its DHF index link.**
 
-> **§4.0.4 governs how documents are issued from now on. Existing superseded material is left as
-> written, with one exception: a serial that resolves to two files.**
+Two claims made in support of that deletion were also wrong, and are corrected here rather than
+quietly dropped:
 
-The distinction that matters is **collision, not tidiness**, and the two cases in this set have
-different shapes:
+| Rev 4 claim | Actual |
+|---|---|
+| "`check-doc-filenames.ts` fails on the two-file case" | **It passed.** Verified by checking out the decision commit `19be91d` with both files present and running it: `A PASS · B PASS`. The failure observed later was self-inflicted — it appeared only *after* the DHF link was removed, which is what stripped the file of a serial of record. |
+| "§4.0 cannot hold — the serial addresses two things" | **§4.0 holds.** It binds the *filename*, and `np_hw_fpc_001.docx` and `np_hw_fpc_001.md` both satisfy it: each basename is the serial and nothing else. "One serial, one file" was a stronger principle, invented here and never stated in §4.0. |
 
-| | `NP-HW-FPC-001` | `NP-DB-001`…`NP-DB-005` |
-|---|---|---|
-| Files per serial | **two** — Rev 4 `.docx` and Rev 5 `.md` | one each |
-| Does a serial resolve uniquely? | **No** | Yes |
-| Does `check-doc-filenames.ts` fail? | **Yes** | No |
-| Action | **deleted** (the intermediate revision) | **left as written** |
+The generalisation that survives is narrower and is what §4's own test already said: **do not issue
+what is really a new revision as a new document.** That is a rule about authoring, applied when a
+document is about to be issued — see §4's *new number vs new revision* row. It is not a licence to
+delete history.
 
-`NP-HW-FPC-001` had to be resolved because §4.0 could not hold otherwise — the serial addressed two
-things, and no filename could legally separate them. The design briefs break no mechanical rule:
-each serial resolves to exactly one file, and the checker passes.
+##### Going forward, not retroactively
 
-What the design briefs *do* show is a **historical mis-application of §4's own test** — R2 inherited
-R1's decisions rather than replacing an architecture, so it should have been `NP-DB-001` Rev 2, not
-`NP-DB-002`. Their revision numbers track their serials one-for-one (`NP-DB-001` is Rev 1 through
-`NP-DB-005` Rev 5), which is the signature of that mistake.
+`NP-DB-001`…`NP-DB-005` are the clearest example of the authoring mistake: five serials whose
+revision numbers track them one-for-one, four titled simply *Design Brief* — one document issued
+five times under new **serials** when each had inherited the previous one's decisions and should
+have taken a new **revision**. They are referenced from the DHF and covered by the same retention
+duty, so they stay exactly as written. **OI-CONV-06 is closed on that basis.**
 
-**Four of the five are superseded, and superseded documents are already out of active use** —
-retirement did the work that deletion would. Renumbering them now would collapse five
-`21 CFR §820.30(j)` design-record entries and rewrite their DHF index rows, which is a records
-change with regulatory surface, taken against documents nobody will design from again. The cost is
-real and the benefit is cosmetic.
-
-> **So: apply §4.0.4 when issuing a revision, not by going back through the archive.** A superseded
-> intermediate revision that collides with nothing is not worth disturbing. The rule earns its keep
-> on the next document that is about to be issued under a new serial when it should be a new
-> revision — which is exactly the decision `NP-DB-002` got wrong five times in a row.
 
 ### 4.1 Revisions are integers (BINDING, changed at Rev 2)
 
@@ -448,7 +438,7 @@ confirm the check fails.
 | **OI-CONV-01** | **`SAFE_EN[n]` polarity disagrees with the safety-MCU firmware, and §1.1 made it visible.** `NP-DRV-SHELL-002` §6 specifies **LOW = rail removed = disabled** (so `SAFE_EN[n]` is active-**HIGH**, and SH2-DRC-13's "defaults LOW at reset" is the *safe* state). The safety MCU specifies the opposite for its enable lines: *"Active-LOW open-drain: **LOW = stimulation enabled**; HIGH = disabled. Power loss or reset [→ disabled]"* (`np_safety_config.h:7-8`, `np_safety_main.c:14`). **Both are internally coherent and fail-safe on their own terms; together they are inverted.** The hazard is the undocumented mismatch: anyone implementing `SAFE_EN[n]` to the safety MCU's house convention would make LOW *enable* the cluster, turning SH2-DRC-13's "default LOW at reset" from the safe state into **stimulation enabled at power-on reset**. Naming has been applied **as the documents currently state polarity** — `SAFE_EN[n]` carries no `#` because SHELL-002 declares it active-high — so **resolving this item may require a rename to `SAFE_EN#[n]`**. Not resolved here: this is a safety-architecture question, not a naming one. **The inversion is now visible in `NP-HW-HUB-001` §3.1's own block diagram**, where an active-low `PBM_CRANIAL_EN#` from the safety MCU feeds a tier whose per-cluster gate is declared active-high — which is precisely the effect §1.4 intends | Safety + EE Lead | **Cluster-carrier schematic; Hub PCB Rev C.** Assess with **OI-FMEA-01** and **OI-HUB-C07** |
 | **OI-CONV-03** | **`NP-COORD-001`'s dotted minor revisions are not resolved, only mapped.** That document reached `Rev A.10` under a two-part scheme (`A`, `A.1` … `A.10`) that no other NeurOne document uses and §4.1 does not describe. The 2026-08-11 conversion mapped the **major only** — `Rev A.10` → `Rev 1.10` — because flattening the eleven issues to `Rev 1`…`Rev 11` would assert an ordering the revision history does not actually establish (it is not recorded whether `Rev A` and `Rev A.1` were distinct issues or the same issue relabelled). Resolving it means reading the eleven change records and re-issuing the document under a flat integer. **Note also that the document and the register disagree**: `docs/status/document-register.md` and `NP-DHF-001` both cite `Rev A.9` while the `.docx` itself reads `Rev A.10` | Quality | Documentation consistency; not tooling-blocking |
 | **OI-CONV-04** | **The eleven active `.docx` documents still carry letter revisions internally.** §4.1's conversion was applied to the Markdown corpus — which is the set of record — and to every Markdown citation of a `.docx` document's revision, so the register, the DHF and all cross-references are numeric. The Word files' own header text was not edited: in every file sampled the revision string is split across Word runs (`Rev</w:t>…<w:t> A`), so a text substitution would have silently missed occurrences, and a partial conversion is worse than none. These files are on the path to Markdown conversion anyway (`np_*.md` is the newer generation); the revision label should convert with the format, in one step, not before it. Until then §4.1's mapping table resolves the discrepancy. Affected (by serial, per §4.0): `NP-BIB-001`, `NP-CLIN-001`, `NP-DB-005`, `NP-COORD-001`, `NP-PROC-FPC-001`, `NP-FW-EMMC-001`, `NP-SBIR-001`, `NP-PROC-SUP-001`, `NP-TOOL-LENS-001`, `NP-TOOL-SHELL-001`, plus every `.docx` under `docs/superseded/`, `neurone_tool_shell_001` | Quality | Documentation consistency; not tooling-blocking |
-| ~~OI-CONV-05~~ | **✅ CLOSED 2026-08-11 — an intermediate revision is not a document (§4.0.4).** `NP-HW-FPC-001` held Rev 4 (`.docx`) and Rev 5 (`.md`). Principal decision: version control is the revision store, so the intermediate revision is deleted rather than kept as a second file — with the precondition that it must have been committed first. Retrievability was established positively before deletion (15 commits; first introduced on `9939182` under a third filename, `neuropulse_fpc_zone_module_spec_revA.docx`; blob at HEAD byte-identical at 64,767 bytes). The serial now resolves to one file | — (closed) | — |
+| ~~OI-CONV-05~~ | **✅ CLOSED 2026-08-11 — `NP-HW-FPC-001` legitimately holds two files, and that is fine.** Rev 4 read the two-file case as a rule violation and deleted the Rev 4 `.docx`; Rev 6 reversed that and restored it. §4.0 binds the *filename*, and `np_hw_fpc_001.docx` and `np_hw_fpc_001.md` each satisfy it — basename is the serial and nothing else. "One serial, one file" was a stronger principle invented at Rev 4 and never stated in §4.0. The file is referenced from `NP-DHF-001` and falls under the §820.180 DHF retention duty, so both limbs of §4.0.4's test say retain | — (closed) | — |
 | ~~OI-CONV-06~~ | **✅ CLOSED 2026-08-11 by decision — leave them as written.** `NP-DB-001`…`NP-DB-005` are five serials whose revision numbers track them one-for-one, four titled simply *Design Brief*: one document issued five times under new **serials** instead of new **revisions**, inverting §4's own test. **But each serial resolves to exactly one file, so §4.0 holds and `check-doc-filenames.ts` passes** — unlike `NP-HW-FPC-001`, this is not a collision. Four of the five are superseded and therefore already out of active use; renumbering would collapse five `21 CFR §820.30(j)` design-record entries and rewrite their DHF rows, a records change with regulatory surface taken against documents nobody will design from again. **§4.0.4 binds the issuing of new revisions, not the archive** (see *Scope* under §4.0.4) | — (closed) | — |
 | **OI-CONV-02** | Sweep the remaining document set against §1 and §5. This revision covers the socket/cluster interface documents (`NP-HW-HEXTILE-001`, `NP-DRV-SHELL-002`, `NP-HW-HUB-001`); the modality, firmware and app specs have not been audited for active-low signals carrying no `#` | Systems | Documentation consistency; not tooling-blocking |
 
@@ -458,6 +448,7 @@ confirm the check fails.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| **6** | **2026-08-11** | NeurOne Systems Engineering | **§4.0.4 replaced — retention is decided by two objective questions, not by preference or tidiness.** Principal direction: a superseded document stays if it is **referenced anywhere**, or if there is a **process or legal requirement to retain it**; absent both, nobody need care. **For NeurOne question 2 is already answered yes** — `NP-QMS-001` §Records sets DHF retention at *life of device + 2 years (21 CFR §820.180)*, and a superseded design document is a design record, since a DHF exists to demonstrate the design *was developed in accordance with the plan*, which is a claim about history. **This section reverses its own Rev 4 position and the action taken under it**: `np_hw_fpc_001.docx` (`NP-HW-FPC-001` Rev 4) was deleted at Rev 4 and is **restored**, with its `NP-DHF-001` index link. Two supporting claims are corrected rather than dropped — (i) Rev 4 asserted `check-doc-filenames.ts` failed on the two-file case; **it passed**, verified by checking out the decision commit `19be91d` with both files present, and the later failure was self-inflicted, appearing only after the DHF link was removed; (ii) Rev 4 asserted §4.0 could not hold, but §4.0 binds the filename and both files satisfy it — *one serial, one file* was a stronger principle invented at Rev 4 and never stated. What survives is narrower and was already in §4's *new number vs new revision* row: **do not issue what is really a new revision as a new document.** That is an authoring rule, not a licence to delete history. Records the distinction between a git blob and a retained record: a path resolvable only via `git show <sha>:<path>` is not an index entry, it is an instruction to reconstruct one. **OI-CONV-06 stays closed** — `NP-DB-001`…`NP-DB-005` are referenced and covered by the same retention duty, so they stay as written. |
 | **5** | **2026-08-11** | NeurOne Systems Engineering | **§4.0.4 scoped — it binds going forward, and is not a retroactive sweep of the archive.** Principal direction. Rev 4 stated the rule without bounding its reach, which left it reading as a mandate to renumber history. The bound is **collision, not tidiness**: a superseded intermediate revision that collides with nothing is left as written, because retirement has already removed it from active use and deletion would add nothing. The one case that *was* actioned, `NP-HW-FPC-001`, is a different shape and the section now tabulates the difference — its serial resolved to **two** files, so §4.0 could not hold and `check-doc-filenames.ts` failed; the design briefs resolve one-to-one and the checker passes. **Closes OI-CONV-06 by decision: `NP-DB-001`…`NP-DB-005` stay as written.** They remain the clearest example of the mistake §4's test exists to prevent — five consecutive issues that took a new serial when they had inherited the previous one's decisions and should have taken a new revision — and the section now says plainly that this is what the rule is *for*: the next document about to be issued, not the archive behind it. |
 | **4** | **2026-08-11** | NeurOne Systems Engineering | **§4.0.4 added — an intermediate revision is not an independent document; version control is the revision store.** Principal decision, and it *follows* from §4.0 rather than sitting beside it: if a serial is an address it cannot address two things, and since §4.3 bars a revision from appearing in a filename, two revisions on disk have no legal way to be distinguished. **The precondition is the whole safety of the rule and is stated as such: an intermediate revision may be deleted only if it was committed first**, established positively (`git log --follow`, `git show`, `cmp`) rather than assumed — git can only return what it was given. Closes **OI-CONV-05** by deleting `np_hw_fpc_001.docx` (Rev 4) after confirming 15 commits of history, first introduction on `9939182` under a third filename (`neuropulse_fpc_zone_module_spec_revA.docx`, predating the project rename), and a byte-identical 64,767-byte blob at HEAD. Corrects Rev 3's description of that file as Rev 3 — the DHF records it as Rev 4 (written as Rev D). Raises **OI-CONV-06**: `NP-DB-001`…`NP-DB-005` are the same pathology at larger scale — five serials whose revisions track them one-for-one, four titled identically — i.e. one document issued five times under new *serials* instead of new *revisions*, inverting §4's own test. Deliberately not acted on: it collapses five DHF design-record rows and carries regulatory surface. |
 | **3** | **2026-08-11** | NeurOne Systems Engineering | **The filename IS the document serial (§4.0) — new binding rule, and it is *exclusive*.** Rev 2 said only "lower-snake of the ID" in a table cell, with no statement that nothing else may match that shape. That was too weak to be checkable: a rule that says documents look like `np_x_nnn.md` is worth little if other files also do, because the pattern stops being evidence. §4.0 states the rule, §4.0.1 states the converse, and both were enforced on the whole set: **25 files renamed to their serial** (`neurone_shell_fpc_routing_review.docx` → `np_drv_shell_001.docx`, `neurone_supplier_selection_checklist.docx` → `np_proc_sup_001.docx`, and 23 more), and the one file that matched the serial *shape* while carrying no serial (`np_condition_links_001.md`, whose front matter had no `**Document:**` field and stated its revision inside `**Status:**`) was resolved to `np_cond_link_001.md` and given the missing fields. **§4.0.2 states the serial-versus-revision distinction explicitly**, because the two collide numerically by accident — `NP-PRIV-ANALYSIS-002` is at Rev 2 — and reading a filename's digits as a revision is a reasonable inference that §4.0 now forecloses. **§4.0.3 makes vendored files the sole exception**: upstream names are kept because byte-exactness against a recorded SHA-256 is verified by re-download and `cmp`, which a rename voids. **§4.3 corrected**: Rev 2 exempted `docs/superseded/` from filename normalisation on a misreading of §1.1. §1.1 protects records of *what was written*, not addresses; a retired document is where derivability matters most, since nobody remembers its descriptive name. `NP-RISK-001`'s ~38 citations now resolve by rule. Raises **OI-CONV-05** — `NP-HW-FPC-001` resolves to two files, which the rule surfaced rather than created, and which is deliberately not fixed with a filename. |
