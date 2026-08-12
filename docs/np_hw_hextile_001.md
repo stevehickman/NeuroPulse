@@ -2,18 +2,40 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** B
-**Date:** 2026-08-04
+**Revision:** C
+**Date:** 2026-08-11
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
 **Approved By:** — (pending design review)
-**References:** NP-HEX-ZM-001 (2026-07-15) §3 geometry, §4 addressing, §4a module-type taxonomy + SMART-1; NP-HW-FPC-001 Rev E (SUPERSEDED — reused for driver topology §6.2, InGaAs PD selection §5.1, PDMS bonding §7, TIA-saturation methodology §5.3); NP-HW-HUB-001 Rev B (SUPERSEDED — needs Rev C); NP-FW-PBM1064-001 Rev B; NP-OPT-PSF-001 Rev A; NP-THERM-CFD-R1-001 Rev A; NP-THERM-BEZEL-001 Rev A; CLAUDE.md §3 (modality stack), §4.2 (safety architecture), §4.5 (power)
+**References:** NP-HEX-ZM-001 (2026-07-15) §3 geometry, §4 addressing, §4a module-type taxonomy + SMART-1; NP-HW-FPC-001 Rev E (SUPERSEDED — reused for driver topology §6.2, InGaAs PD selection §5.1, PDMS bonding §7, TIA-saturation methodology §5.3); NP-HW-HUB-001 Rev C (§3.1 cluster-controller tier, §7.4 interface contract, §7.5 OI-HUB-C17 synthesis, §8.1/§8.3); NP-DRV-SHELL-002 Rev B (§3.3a OI-HUB-C17c resolution, §5.1 socket contact budget, REQ-SKT-01, REQ-EMI-03/07); NP-FW-PBM1064-001 Rev B; NP-OPT-PSF-001 Rev A; NP-THERM-CFD-R1-001 Rev A; NP-THERM-BEZEL-001 Rev A; CLAUDE.md §3 (modality stack), §4.2 (safety architecture), §4.5 (power)
 **Related Issues:** —
 **Gate:** GATE-2 (PBM coupling bench) — LED array must meet dose spec at the temporal worst case before this layout is tooled
 **IEC 62304 Class:** — (hardware; the on-module driver firmware is Class B, see §6.5)
 **Supersedes:** — (new document; fills the gap declared in NP-HW-FPC-001 Rev E supersession note: *"no document yet specifies the T1-A/T1-C hex-tile FPC pinout or electrical layout"*)
 **Parent Document:** NP-HEX-ZM-001
+
+---
+
+> **Rev C (2026-08-11) — socket interface re-cut to 19 positions (§7.1–7.2, §7.3, §8.1). Hardware interface change; no firmware change requested here.**
+>
+> Closes `NP-DRV-SHELL-002` Rev B **OI-SHELL2-09(i)**, which flagged this document's 16-position interface as **blocking socket tooling** — a tooled interface, not a paper inconsistency.
+>
+> | Quantity | Rev B | **Rev C** | Cause |
+> |---|---|---|---|
+> | Socket positions | 16 | **19** | Two independent causes, below |
+> | `VLED` / `PGND` | 4 + 4 | **3 + 3** | Principal decision 2026-08-11; ≥2× degraded-case rule (§8.1) |
+> | `PD1_K`, `PD2_K`, `NTC` | absent (D-4) | **restored** | **OI-HUB-C17c resolved against D-4** — N3 survives |
+> | `SYNC`, `DGND` | absent | **added** | REQ-EMI-03 phase reference (also OI-HUB-C05); REQ-EMI-07 return separation |
+> | Pad layout | single row, 32 mm | **two staggered rows, ~18 mm** | Forced — 19 at 2.00 mm pitch does not fit a 40 mm hex in one row |
+> | Current per `VLED` contact | 0.26 A | **0.35 A** nominal / **0.52 A** degraded | §8.1 |
+> | Peak contact force per module | 4.8–8.0 N | **5.7–9.5 N** (34.2–57.0 N per 6-tile plate) | §7.1 |
+>
+> **The two causes are independent and should not be conflated.** Three of the four added positions come from a *decision reversal elsewhere* — `NP-DRV-SHELL-002` §3.3a keeps the TIA + ADC on the cluster controller, so network N3 still crosses the socket. Two more (`SYNC`, `DGND`) come from *requirements this document had not accounted for*: REQ-EMI-03 needs a deterministic phase reference that I2C broadcast cannot provide, and REQ-EMI-07 needs `PGND` to be LED return only. Against those five, `VLED`/`PGND` dropping 4+4 → 3+3 returns two positions.
+>
+> **What is NOT changed, deliberately.** **D-4's reasoning is not withdrawn** — §5.3's TIA-saturation analysis and its case for on-module conversion remain correct, and were outweighed rather than refuted (the conservative ADC-drift argument, FAI-SM-06). **§5.3 and §6 still read as though D-4 holds**, because rewriting them is a larger change than this revision's scope and would touch the driver topology, the BOM, and OI-HEXTILE-06. Raised as **OI-HEXTILE-15**. Nothing in §4 (emitter lattice), §9 (concurrency ceiling) or §8.2 (I2C fan-out) is affected.
+>
+> **`NP-HW-HEXTILE-001` §7.2 and `NP-DRV-SHELL-002` §5.1.4 now agree pin for pin.** They specify one physical interface; **HT-DRC-23** exists so that stays true.
 
 ---
 
@@ -54,7 +76,7 @@ Specifies the electrical design of the universal 40 mm hex tile as populated for
 5. Per-socket power and I2C delivery at ~80 sockets under SMART-1 (§8)
 6. The concurrency ceiling that the existing power envelope imposes on whole-vault tiling (§9)
 
-**Invariant inherited from NP-HEX-ZM-001 §4a and not re-opened here:** all tile types share one mould, one outline, one socket interface, and one orientation-only mechanical key. A "type" is an FPC population difference and nothing else. Consequently **the socket pinout is the union of every type's needs**, including types not specified in this revision — any pin that T1-B or a future type requires must be present at every socket. This is what makes §7 a 16-position interface rather than a 10-position one.
+**Invariant inherited from NP-HEX-ZM-001 §4a and not re-opened here:** all tile types share one mould, one outline, one socket interface, and one orientation-only mechanical key. A "type" is an FPC population difference and nothing else. Consequently **the socket pinout is the union of every type's needs**, including types not specified in this revision — any pin that T1-B or a future type requires must be present at every socket. This is what makes §7 a **19**-position interface rather than a 10-position one. *(Rev B said 16; see the §7.1 Rev C banner. The union rule is unchanged — what changed is which networks cross the socket, after OI-HUB-C17c restored N3.)*
 
 ---
 
@@ -297,63 +319,160 @@ Firmware specification is **not** in this document; it is **OI-HEXTILE-07** (suc
 
 The retired design used a Hirose FH34S 20-pin 0.5 mm ZIF with a back-flip lever. **That is not usable here.** A ZIF lever must be manually actuated per connector; NP-HEX-ZM-001 §5.4a's whole premise is that a user with Parkinson's H&Y II–III swaps tiles by throwing one cluster clamp and lifting the tile out on its ejector spring. A lever per tile contradicts the accessibility requirement the cluster clamp exists to satisfy.
 
-**Decision (D-5): 16-position spring-contact (pogo) interface at 2.00 mm pitch. Spring pins on the socket, flat pads on the module.**
+**Decision (D-5, Rev C): 19-position spring-contact (pogo) interface at 2.00 mm pitch, in two staggered rows. Spring pins on the socket, flat pads on the module.**
+
+> **⚠ Rev B said 16 positions in a single row. Both figures are superseded, and the two changes have
+> different causes — neither is a correction of an arithmetic slip.**
+>
+> | | Rev B | **Rev C** | Cause |
+> |---|---|---|---|
+> | Positions | 16 | **19** | §7.2 — three signals returned that **D-4** had removed, plus three the interconnect needs |
+> | `VLED` / `PGND` | 4 + 4 | **3 + 3** | `NP-DRV-SHELL-002` Rev B §5.1.5, **principal decision 2026-08-11** |
+> | Row layout | single row, 32 mm | **two staggered rows, ~18 mm** | forced by 19 at 2.00 mm pitch — see below |
+> | Current per contact | 0.26 A | **0.35 A** nominal, **0.52 A** on loss of one | §8.1 |
+>
+> **What changed and why.** `NP-DRV-SHELL-002` Rev B §3.3a resolved **OI-HUB-C17c against D-4**
+> (principal direction, 2026-08-11): the switched-gain TIA, PD mux, NTC mux and ADC stay on the
+> cluster controller rather than moving on-module. **Network N3 therefore survives**, and with it
+> `PD1_K`, `PD2_K` and `NTC` at the socket. That single decision accounts for three of the four added
+> positions; `SYNC` and `DGND` are the fourth and fifth, and `SEAT#` — this document's own
+> contribution — is retained. **Rev B's own §7.2 count was correct given D-4; D-4 no longer holds.**
+>
+> **`VLED`/`PGND` 4+4 → 3+3 is a separate decision with its own rule**, and the rule matters more
+> than the number: *`VLED` is sized so the loss of any one contact still leaves ≥2× derating against
+> the contact rating.* Rev B's 4+4 gives ~3× degraded and was never wrong — it was more than the rule
+> requires, at the cost of two extra contacts on an interface with a live RISK-22 one-handed-force
+> constraint. See `NP-DRV-SHELL-002` §5.1.5 for the 2-vs-3-vs-4 comparison in full.
 
 | Property | Value | Rationale |
 |---|---|---|
-| Positions | 16 | §7.2 |
-| Pitch | 2.00 mm | 16 × 2.0 = 32 mm across a 40 mm tile; fits with margin |
+| Positions | **19** | §7.2 |
+| Pitch | 2.00 mm | unchanged |
+| **Row layout** | **two staggered rows, nominally 9 + 10** | **Forced, not preferred.** A 19-position single row spans 36 mm pad-centre to pad-centre (38 mm including pads), which fits a 40 mm flat-to-flat hex only along the 46.19 mm vertex-to-vertex diagonal and tapers into the corners exactly where the ±0.4 mm lateral tolerance below is hardest to hold. Two rows span ~18 mm, inside the 20.0 mm **inradius**. This is `NP-DRV-SHELL-002` **REQ-SKT-01** |
 | Springs on | socket (inner bowl) | keeps the moving, wearing, fatiguing element in the part that is never removed; the swappable tile is passive gold pad |
 | Plating | hard gold ≥0.8 µm over nickel, both sides | fretting/oxidation resistance, per the §5.3b spring-finger precedent |
-| Current per contact | ≥1.0 A continuous | pogo pins in this size class support 1–3 A; §8.1 needs 0.26 A/pin |
-| Contact resistance | ≤50 mΩ | matched to the NP-HEX-ZM-001 §5.3b ground-bond target; binding for the electrode line (§7.2 note) |
+| Current per contact | ≥1.0 A continuous | pogo pins in this size class support 1–3 A; §8.1 needs **0.35 A/pin nominal, 0.52 A on loss of one contact** |
+| Contact resistance | ≤50 mΩ | matched to the NP-HEX-ZM-001 §5.3b ground-bond target; binding for the electrode line (§7.2 note) **and now for `PD1_K`/`PD2_K`**, which carry 14–72 µA photocurrent (§7.2 note) |
 | Mating cycles | ≥500 | service-event frequency, not daily; far below the Boa dial's 50,000 |
-| Blind-mate tolerance | ±0.4 mm lateral, ±0.5 mm Z | spring travel absorbs cluster-clamp plate variation across a curved cluster |
+| Blind-mate tolerance | ±0.4 mm lateral, ±0.5 mm Z | spring travel absorbs cluster-clamp plate variation across a curved cluster. **The two-row layout is what keeps this holdable at 19 positions** |
+| Contact force | 0.3–0.5 N per contact → **5.7–9.5 N per module** | **34.2–57.0 N per 6-tile clamp plate.** Note this is *below* the 18-contact/7-tile figure `NP-DRV-SHELL-002` Rev A carried, because no cluster reaches 7 tiles under the 18-cluster partition (§8.2.1) |
 
 Pogo contacts also suit the **cluster clamp mechanics** directly: NP-HEX-ZM-001 §5.4a describes a clamp plate with a spring-loaded plunger per module, precisely because a rigid plate over a curved cluster cannot seat evenly. Spring contacts tolerate the residual Z variation that survives the plungers; a ZIF or board-edge connector would not.
 
-Orientation is fixed by the tile's existing asymmetric mechanical key (R-2). The pad pattern is additionally asymmetric about the tile's long axis so a mis-keyed insertion cannot make contact — a fail-open, not a fail-wrong, geometry.
+Orientation is fixed by the tile's existing asymmetric mechanical key (R-2). The pad pattern is additionally asymmetric about the tile's long axis so a mis-keyed insertion cannot make contact — a fail-open, not a fail-wrong, geometry. **The two-row layout makes this easier, not harder:** a row-length difference (9 vs 10) is itself an asymmetry, where a single symmetric row needed a deliberate keying feature to carry it.
 
 ### 7.2 Pinout
 
-Sixteen positions. The count is derived, not chosen: it is the union of every tile type's needs (§1), at the conductor width the power budget requires (§8.1).
+**Nineteen positions.** The count is derived, not chosen: it is the union of every tile type's needs (§1), at the conductor width the power budget requires (§8.1), across the networks that actually cross the socket after **OI-HUB-C17c** (§7.1 banner). It is identical to `NP-DRV-SHELL-002` Rev B §5.1.4 — the two documents specify one physical interface and now agree pin for pin.
 
-| Pin | Signal | Direction | Notes |
-|---|---|---|---|
-| 1 | VLED | socket → module | 24 V LED supply, §8.1 |
-| 2 | VLED | socket → module | paralleled for current sharing |
-| 3 | VLED | socket → module | |
-| 4 | VLED | socket → module | |
-| 5 | PGND | — | LED return; paralleled ×4 to match VLED |
-| 6 | PGND | — | |
-| 7 | PGND | — | |
-| 8 | PGND | — | |
-| 9 | VCC_3V3 | socket → module | logic supply, ≤2 mA standby / ≤25 mA active (§8.3) |
-| 10 | SDA | bidirectional | I2C data, 400 kHz fast mode |
-| 11 | SCL | socket → module | I2C clock |
-| 12 | /ALERT | module → socket | open-drain, wired-OR per bus segment; thermal/fault/OCP assertion so the hub need not poll ~80 modules |
-| 13 | **ELEC** | bidirectional | dual-rated Ag/AgCl electrode — EEG µV signal **and** BES/tACS/tDCS current. Unused on T1-A/T1-C; **present at every socket** because R-2 permits a T1-B in any socket |
-| 14 | **ELEC_SHLD** | socket → module | driven shield / DRL for pin 13, referenced to the EEG DRL output (CLAUDE.md §4.3) |
-| 15 | AGND | — | analog/electrode return, star-referenced at the hub, **not** tied to PGND on the module |
-| 16 | SEAT_N | module → socket | tied to PGND on the module through 1 kΩ; detects *partial* seating (§7.3) |
+| Pin | Signal | Net | Direction | Rev B | Notes |
+|---|---|---|---|---|---|
+| 1 | VLED | N1 | socket → module | pins 1–4 | 24 V LED supply, §8.1 |
+| 2 | VLED | N1 | socket → module | | paralleled ×3 for current sharing and single-contact redundancy |
+| 3 | VLED | N1 | socket → module | | |
+| 4 | PGND | N1 | — | pins 5–8 | **LED return only** — see the `DGND` note below; paralleled ×3 to match VLED |
+| 5 | PGND | N1 | — | | |
+| 6 | PGND | N1 | — | | |
+| 7 | VCC_3V3 | N1 | socket → module | pin 9 | logic supply, ≤2 mA standby / ≤25 mA active (§8.3) |
+| 8 | **DGND** | N1 | — | **NEW** | logic return, **separate from PGND** — see note |
+| 9 | SDA | N2 | bidirectional | pin 10 | I2C data, 400 kHz fast mode |
+| 10 | SCL | N2 | socket → module | pin 11 | I2C clock |
+| 11 | **SYNC** | N2 | socket → module | **NEW** | broadcast sample/pulse-phase reference — see note |
+| 12 | ALERT# | N2 | module → socket | pin 12 | open-drain, wired-OR per bus segment; thermal/fault/OCP assertion so the hub need not poll ~80 modules. **Renamed from Rev B's `/ALERT`** — §7.4 |
+| 13 | **PD1_K** | N3 | module → socket | **RESTORED** | PD1 forward-emission photocurrent, 14–72 µA |
+| 14 | **PD2_K** | N3 | module → socket | **RESTORED** | PD2 scalp-facing backscatter photocurrent |
+| 15 | **NTC** | N3 | module → socket | **RESTORED** | per-tile thermistor, 42 °C / 62 °C interlock chain (R-9) |
+| 16 | AGND | N3 | — | pin 15 | analog/sense return, star-referenced **at the cluster controller**, **not** tied to PGND on the module |
+| 17 | **ELEC** | N4 | bidirectional | pin 13 | dual-rated Ag/AgCl electrode — EEG µV signal **and** BES/tACS/tDCS current. Unused on T1-A/T1-C; **present at every socket** because R-2 permits a T1-B in any socket |
+| 18 | **ELEC_SHLD** | N4 | socket → module | pin 14 | driven shield / DRL for pin 17, referenced to the EEG DRL output (CLAUDE.md §4.3). **`ELEC_SHLD` adopted over `NP-DRV-SHELL-002`'s `GUARD`** — §7.4 |
+| 19 | SEAT# | — | module → socket | pin 16 | tied to PGND on the module through 1 kΩ; detects *partial* seating (§7.3) |
 
 **Notes on the contentious pins:**
 
-- **Pins 13–15 are the price of R-2.** T1-A and T1-C do not use them. They exist at every socket because "any type in any socket" means a T1-B may be inserted anywhere, and an electrode signal cannot be carried over I2C — it is a µV analog recording path to the ADS1299 *and* a stimulation current path from the tES driver. Removing them would silently re-impose the type-restricted placement model that SMART-1 was decided to eliminate. Contact resistance on pin 13 is in the EEG signal path, which is why the ≤50 mΩ target in §7.1 is binding rather than nominal.
-- **Pin 12 (/ALERT) earns its position by arithmetic.** Polling 80 modules over segmented I2C for thermal status at the 10 ms cadence R-9 implies is not achievable; a wired-OR interrupt turns an 80-module poll into an exception path.
-- **Pin 16 (SEAT_N) is not redundant with the I2C presence poll.** NP-HEX-ZM-001 §5.4a correctly notes an unseated tile fails its inventory poll. But a *partially* seated tile can answer I2C on two contacts while the PD, NTC, or electrode contacts are marginal — the failure mode that produces a plausible-looking but wrong dose reading. SEAT_N is positioned at the mechanical extreme of the pad pattern so it is the **last** contact to mate; if it reads low, every other contact is seated.
+- **Pins 13–15 (`PD1_K`, `PD2_K`, `NTC`) are back, and this is the consequence of OI-HUB-C17c, not a reversal of anything this document argued.** **D-4** removed them by moving the TIA and ADC on-module, and §5.3's reasoning for that is unchanged physics that this revision does not withdraw. What changed is the *decision*: `NP-DRV-SHELL-002` Rev B §3.3a keeps the analog front end on the cluster controller, on the conservative ground that **a carrier-mounted ADC never faces the 25 → 62 °C drift question that a tile-mounted one must answer against the ±15 % dose claim (FAI-SM-06)**. The cost is exactly what §5.3 warned of and it is now carried openly: **three spring contacts sit in the photocurrent path**, so contact-resistance drift and fretting become dose-metering error terms rather than being designed out. The ≤50 mΩ / ≥500-cycle spec in §7.1 is therefore binding on pins 13–15 as well as on pin 17. **§5.3 and §6 are NOT rewritten by this revision** — see **OI-HEXTILE-15**.
+- **Pin 8 (`DGND`) is not redundant with `PGND`.** The obvious argument for merging them — ground bounce is small, ~52 mV at ≤50 mΩ and 1.04 A against a 0.99 V I2C threshold — is true and is not the point. `NP-DRV-SHELL-002` **REQ-EMI-07** forbids the LED return from using *"any structure other than its paired `PGND` conductor"*, because that is what makes the §9.3 broadside supply/return pair cancel. If module logic current also flows in `PGND`, the current in the return is no longer the current in the supply and the cancellation is exact only for the LED term. **One pin keeps a requirement enforceable.**
+- **Pin 11 (`SYNC`) closes a gap this document had left unowned.** Rev B had no phase-reference contact, but `NP-DRV-SHELL-002` **REQ-EMI-03** requires bus traffic and PBM pulse phase to be deterministic and phase-locked to the EEG/fluxgate sample frame, and **REQ-EMI-04** prohibits the usual EMC escape (dithered PWM) precisely so the artifact stays a subtractable known line. An I2C broadcast carries arbitration and segment-switch jitter and cannot serve that. This is also the pin **OI-HUB-C05** was asking for from the other end — *"T1-C PWM phase sync routing from the on-module ATtiny402 … is not yet defined"*. It now has a home.
+- **Pins 17–18 and 16 are the price of R-2.** T1-A and T1-C do not use the electrode pair. They exist at every socket because "any type in any socket" means a T1-B may be inserted anywhere, and an electrode signal cannot be carried over I2C — it is a µV analog recording path to the ADS1299 *and* a stimulation current path from the tES driver. Removing them would silently re-impose the type-restricted placement model that SMART-1 was decided to eliminate.
+- **Pin 12 (`ALERT#`) earns its position by arithmetic.** Polling 80 modules over segmented I2C for thermal status at the 10 ms cadence R-9 implies is not achievable; a wired-OR interrupt turns an 80-module poll into an exception path.
+- **Pin 19 (SEAT#) is not redundant with the I2C presence poll — and the case for it is now stronger.** NP-HEX-ZM-001 §5.4a correctly notes an unseated tile fails its inventory poll. But a *partially* seated tile can answer I2C on two contacts while the PD, NTC, or electrode contacts are marginal. **With N3 restored that failure mode is live rather than hypothetical:** a tile answering I2C while `PD1_K` sits at elevated contact resistance returns an *under-read* photocurrent, which firmware interprets as low optical output and compensates for by driving harder — a silent dose-integrity failure against a stated competitive claim. SEAT# is positioned at the mechanical extreme of the pad pattern so it is the **last** contact to mate; if it reads low, every other contact is seated.
 - **No ZONE_ID pin.** The retired resistor ladder (NP-HW-FPC-001 Rev E §3.2) is gone, replaced by UID self-report over I2C (R-12). Its ADC channel, its 1 %-tolerance resistor requirement, its threshold-margin analysis, and its debounce requirement (RISK-18, NP-SW-001 §5.2.1) do not apply to this interface. **NP-SW-001 §5.2.1 and the RISK-18 debounce requirement will need re-scoping** where they bind on module detection — flagged as **OI-HEXTILE-08**; they remain in force for any surviving non-tile accessory detection.
+- **No UID EEPROM at any socket.** **D-3** fits a driver MCU to every tile type, so every tile self-reports its UID over I2C. `NP-DRV-SHELL-002` Rev A's separate 24AA02UID line for T1-A/T1-B is deleted (~$8.50/headset).
 
 ### 7.3 Contact sequencing
 
-Pad lengths are staggered so mating order is deterministic:
+Pad lengths are staggered so mating order is deterministic. **Rev C adds the four new pins to the sequence rather than leaving them at group 3 by default** — `DGND` moves up because it is a return, and the N3 sense lines stay last-but-one because nothing is harmed by their being late:
 
-1. **PGND** (longest) — return established before any supply
+1. **PGND, `DGND`** (longest) — **every return established before any supply.** Rev B had only `PGND` here because logic shared it; with a separate logic return (pin 8) both must lead
 2. **VLED, AGND, ELEC_SHLD**
-3. **VCC_3V3, SDA, SCL, /ALERT, ELEC**
-4. **SEAT_N** (shortest) — asserts only when the stack is fully home
+3. **VCC_3V3, SDA, SCL, `SYNC`, `ALERT#`, ELEC, `PD1_K`, `PD2_K`, `NTC`**
+4. **SEAT#** (shortest) — asserts only when the stack is fully home
 
-Break order is the reverse. This prevents the module logic powering up against a floating return, and guarantees SEAT_N cannot read seated during a partial insertion.
+Break order is the reverse. This prevents the module logic powering up against a floating return, and guarantees SEAT# cannot read seated during a partial insertion.
+
+**Two-row consequence.** With the array in two staggered rows (§7.1), the length stagger must be applied **within each row and consistently across both**, and `SEAT#` must sit at the extreme of whichever row seats last under the worst-case tilt the ±0.5 mm Z tolerance permits. A stagger that is correct row-by-row but inconsistent between rows can let one row make full contact while the other is still partial — which is precisely the state SEAT# exists to detect. Verified by `NP-DRV-SHELL-002` **SH2-DRC-05a** and **SH2-DRC-10b**.
+
+---
+
+### 7.4 Signal naming — one name per conductor (decided 2026-08-11)
+
+**Two conductors carried two names each between `NP-DRV-SHELL-002` and `NP-HW-HEXTILE-001`. Both
+are settled here; neither choice has technical content, and both were chosen on a stated hazard
+rather than on taste.**
+
+| Conductor | Names in use | **Adopted** | Why |
+|---|---|---|---|
+| Socket pin 14 / 18 — DRL-driven shield for `ELEC` | `GUARD` (SHELL-002) · `ELEC_SHLD` (HEXTILE, HUB-001 §113) | **`ELEC_SHLD`** | **`GUARD` collides with a different conductor these same documents already name.** §3.5, §4.1 and REQ-EMI-02 all specify a *DRL-driven **guard plane*** on L1's scalp-facing face, under which the N4 shared electrode lanes run. The socket pin is driven **from** that plane but is not it — they are different nets with different extents. Naming the pin `GUARD` makes "the guard" ambiguous in the one document that specifies both. `ELEC_SHLD` names what it shields and pairs typographically with `ELEC` |
+| Socket pin 12 / 8 — open-drain module fault | `/ALERT` (HEXTILE) · `ALERT#` (SHELL-002, HUB-001 §7.4/§7.5.1) | **`ALERT#`** | **A leading `/` is the hierarchical-path separator in EDA net naming** (KiCad, Altium): a net literally named `/ALERT` reads as a root-scope hierarchical path and can be silently re-scoped or duplicated on netlist import. That is a mechanism, not a preference. `ALERT#` was also already the majority usage across the document set |
+
+**Why this was worth a decision at all.** A conductor with two names is harmless in prose and is not
+harmless in a netlist, a test fixture, or a firmware pin table, where the failure mode is a silent
+duplicate net or an unconnected pin — a defect that *reads* as agreement. Both collisions were found
+by diffing the two pin tables mechanically rather than by reading them, which is why
+**SH2-DRC-05b** / **HT-DRC-23** specify that check as a diff rather than a review.
+
+**A third and fourth name were settled on the same criterion (OI-HEXTILE-17, closed 2026-08-11).**
+Both were initially recorded as cosmetic residuals. Checking the codebase showed the first is not
+cosmetic at all:
+
+| Conductor | Names in use | **Adopted** | Why |
+|---|---|---|---|
+| Socket pin 19 — partial-seating detect | `SEAT_N` | **`SEAT#`** | **`_N` already means *cardinality* in this codebase, not active-low.** `firmware/hub_control/tests/np_module_map_tests.c` defines `PBM_TILE_N` and `EEG_TILE_N` as `sizeof(x)/sizeof(x[0])` — so `SEAT_N` reads as *"number of seats"* to anyone who has read the module map. That is a live ambiguity in the same class as the `GUARD` / guard-plane collision above, not a style difference |
+| Socket pin 13 / 17 — dual-rated electrode | `ELEC` (HEXTILE §7.2, SHELL-002 §5.1.4) · `ELEC_SIG` (HUB-001 §113/§124) | **`ELEC`** | Two reasons. **Ownership:** the socket interface is defined by the two pin tables; `NP-HW-HUB-001` §7.4 explicitly *adopts* SHELL-002's contract, so it is the consumer — two normative pin tables do not change to match one banner's prose. **Accuracy:** this pin is dual-rated to carry **tES stimulation current** (≤2 mA T1 / ≤4 mA T2), not only a recording signal. `_SIG` biases the reader toward the recording role, which is the half that is *not* safety-relevant. `ELEC` / `ELEC_SHLD` is asymmetric and costs nothing |
+
+> **Rule of record — now programme-wide, in `NP-CONV-001` §1.1: every active-low NeurOne signal name
+> terminates with `#`.** Not `_N` (cardinality), not `_L`/`_R` (Left/Right — `NP-FW-CVNS-001` §5.1),
+> not `_B` (channel B), not `_LOW` (threshold), and not a leading `/` (EDA path separator).
+> `NP-CONV-001` §1.2 records each with the evidence that took it.
+>
+> Active-**high** signals take no suffix, so the absence of `#` is meaningful. Applying this beyond
+> the socket found one further active-low signal: `NP-HW-HUB-001`'s tier-0 service-request line,
+> now **`ATTN#`**. Indices use bracket notation — **`SAFE_EN[n]`**, not `SAFE_EN_n`, because a
+> lowercase `_n` is indistinguishable from a polarity marker in a plain-text diff
+> (`NP-CONV-001` §1.3).
+>
+> **⚠ The rule exposed a live safety-architecture conflict, which is raised and not resolved:**
+> `SAFE_EN[n]` is written here as active-**high** (§6: LOW removes the rail), while the safety MCU
+> specifies the opposite for its enable lines (*"LOW = stimulation enabled"*,
+> `np_safety_config.h:7-8`). Both are internally fail-safe; together they are inverted, and
+> SH2-DRC-13's "defaults LOW at reset" would flip from *safe* to *stimulation enabled* under the
+> firmware's convention. **`NP-CONV-001` OI-CONV-01.**
+
+**`#` is not a legal identifier character, so the doc→firmware mapping is stated rather than left to
+whoever writes the driver. The full rule now lives in `NP-CONV-001` §2:**
+
+> **`<SIGNAL>#` maps to `<SIGNAL>_ACTIVE_LOW` in firmware identifiers.**
+
+> **⚠ Correction.** An earlier draft of this section specified **`_L`**. That was wrong: **`_L`
+> already means *Left*** — `NP-FW-CVNS-001` §5.1 defines `CVNS_ENABLE_L` / `CVNS_ENABLE_R` as the
+> left and right electrode drivers. Every other short candidate is taken as well: `_N` is
+> cardinality, `_B` is channel B (`CH_B`, `LED_B`, `NP_BANK_B`), `_LOW` is a threshold
+> (`NP_TIA_GAIN_LOW`). `NP-CONV-001` §1.2 records all of them with evidence.
+
+**No firmware change is requested here, and none should be made to satisfy this.** The safety MCU's
+ten stimulation enable lines are all active-LOW and carry polarity only in header comments
+(`np_safety_config.h:7`, `np_gpio_mgr.c:5`); that is IEC 62304 **Class C** code already owned by
+`NP-FMEA-001` **OI-FMEA-01**. §2 of `NP-CONV-001` exists so *new* names converge and so OI-FMEA-01
+has a convention to adopt. See `NP-CONV-001` §3.
 
 ---
 
@@ -365,13 +484,25 @@ Break order is the reverse. This prevents the module logic powering up against a
 
 Derived from conductor current, not from convenience. With the driver on-module (D-3), the socket carries DC bus power rather than per-string drive, so the only free variable is rail voltage, and it trades directly against contact current.
 
-| Rail | T1-A peak current per tile (both channels, 150 mA) | Per VLED pin (×4) |
-|---|---|---|
-| 5 V | 5.0 A | 1.25 A — exceeds comfortable pogo derating |
-| 12 V | 2.08 A | 0.52 A |
-| **24 V ★** | **1.04 A** | **0.26 A** |
+| Rail | T1-A peak current per tile (both channels, 150 mA) | Per VLED pin (**×3**, Rev C) | *Per VLED pin (×4, Rev B)* |
+|---|---|---|---|
+| 5 V | 5.0 A | 1.67 A — exceeds the contact rating outright | *1.25 A — exceeds comfortable pogo derating* |
+| 12 V | 2.08 A | 0.69 A | *0.52 A* |
+| **24 V ★** | **1.04 A** | **0.35 A** | *0.26 A* |
 
-T1-A peak electrical: CH_A 45 × 0.315 W = 14.2 W, CH_B 45 × 0.24 W = 10.8 W → **25.0 W instantaneous**. At 24 V that is 1.04 A, or 0.26 A per contact across four paralleled VLED pins — a 4× derating margin against the ≥1.0 A contact rating (§7.1).
+T1-A peak electrical: CH_A 45 × 0.315 W = 14.2 W, CH_B 45 × 0.24 W = 10.8 W → **25.0 W instantaneous**. At 24 V that is 1.04 A, or **0.35 A per contact across three paralleled VLED pins — ~3× derating against the ≥1.0 A contact rating (§7.1)**.
+
+> **The nominal figure is not what set the count.** Three contacts were chosen on the **degraded**
+> case, under the rule stated in `NP-DRV-SHELL-002` §5.1.5: *`VLED` is sized so the loss of any one
+> contact still leaves ≥2× derating.* At 3 contacts a single-contact loss puts 0.52 A on each
+> survivor (~2×); at 2 it puts **1.04 A — exactly the rating, zero margin**, into the fretting →
+> resistance → local I²R heating → more fretting runaway that HT-DRC-08 and `NP-DRV-SHELL-002`
+> SH2-DRC-09 exist to bound. Rev B's 4 contacts gave ~3× degraded, which exceeds the rule at the
+> cost of two contacts on an interface carrying a live RISK-22 one-handed-force constraint.
+> **If the rail, the tile peak power or the contact rating changes, re-derive the count from the
+> rule — 3 is a result, not a constant.**
+
+The 5 V row is now excluded twice over: it exceeded comfortable derating at 4 contacts and exceeds the **rating itself** at 3.
 
 24 V also suits series-string construction: at 11 series 660 nm emitters (11 × 2.10 = 23.1 V) or 14 series 808 nm (14 × 1.60 = 22.4 V), the residual dropped across the FET and sense resistor is ≤1.6 V, so linear-loss overhead stays under 7 %. A 12 V rail would halve the string length and double the number of parallel strings and sense resistors on a tile that has no room for them.
 
@@ -439,9 +570,9 @@ The four pendant petals were resolved at **zero cost in cluster count** by reass
 | 6 | Re-cut the lattice to ≤16 clusters | — | **Not available without breaking a principal decision.** The 6 midline clusters are forced by SYM-1 given six odd-width rows, and 18 is provably minimal at n = 80 (§8.2.1); reaching 16 needs ~10 fewer sockets, which REG-1 registration is unlikely to permit |
 | 7 | Pair clusters onto shared tails | 18 clusters over ≤16 tails | Breaks "board + clamp + sockets as a single FRU" (NP-HW-HUB-001 §4.4) and forces an asymmetric pairing under a symmetric partition. Rejected |
 
-**Interaction with §8.4.1 — the reason option 4 is strategic rather than cosmetic.** N1 (power) is already a broadside tree and N2 (control) is already a two-level tree; **`SAFE_EN_n` (N5) is the only star component of the tail** (NP-DRV-SHELL-002 §4 network table), and it is therefore the structural reason each cluster must terminate at the hub individually. If §8.4.1's single Class C `NP_SAFETY_EN_PBM_CRANIAL` is accepted, that line becomes a **broadcast**: the tail drops 12 → 11 conductors and clusters can tap a trunk instead of each running a dedicated star leg. The per-cluster high-side gate already sits on the cluster carrier (SHELL-002 §5.1 BOM), so local gating is unaffected. **This is what makes the interconnect robust to a future REG-1 re-cut** rather than merely sufficient at 18.
+**Interaction with §8.4.1 — the reason option 4 is strategic rather than cosmetic.** N1 (power) is already a broadside tree and N2 (control) is already a two-level tree; **`SAFE_EN[n]` (N5) is the only star component of the tail** (NP-DRV-SHELL-002 §4 network table), and it is therefore the structural reason each cluster must terminate at the hub individually. If §8.4.1's single Class C `NP_SAFETY_EN_PBM_CRANIAL` is accepted, that line becomes a **broadcast**: the tail drops 12 → 11 conductors and clusters can tap a trunk instead of each running a dedicated star leg. The per-cluster high-side gate already sits on the cluster carrier (SHELL-002 §5.1 BOM), so local gating is unaffected. **This is what makes the interconnect robust to a future REG-1 re-cut** rather than merely sufficient at 18.
 
-**Recommendation: options 1 + 3, with 4 if §8.4.1 survives safety review.** Adopt D-7's 32-segment tree, provision **20** connector positions, and — if the single cranial enable is accepted — remove `SAFE_EN_n` from the tail and let a trunk absorb future count changes. **The failure mode to avoid is cutting Rev C against 16 and discovering the shortfall in layout**, which is precisely what OI-HEXTILE-14's "coordinate before either is released" exists to prevent.
+**Recommendation: options 1 + 3, with 4 if §8.4.1 survives safety review.** Adopt D-7's 32-segment tree, provision **20** connector positions, and — if the single cranial enable is accepted — remove `SAFE_EN[n]` from the tail and let a trunk absorb future count changes. **The failure mode to avoid is cutting Rev C against 16 and discovering the shortfall in layout**, which is precisely what OI-HEXTILE-14's "coordinate before either is released" exists to prevent.
 
 ### 8.3 3.3 V logic budget
 
@@ -602,9 +733,9 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **D-1** | 91-site 5-ring centered-hexagonal lattice at 3.80 mm pitch, site 0 reserved, identical on every tile type | Hexagonal array registers to a hexagonal tile with no corner waste; 3-colourable for the 3-wavelength case; independently reproduces NP-HEX-ZM-001 §3.1's ~90-element estimate; makes T1-B a masking derivation (§4.5) | Yes — FPC artwork only, pre-tooling |
 | **D-2** | PD1 at the reserved centre site; PD2 co-located in XY on the scalp-facing layer | Type-independent position; maximum optical symmetry; centre-vs-average offset absorbed by existing factory K coefficients; co-location required for the PD1/PD2 fouling-vs-ageing ratio to be valid | Yes |
 | **D-3** | On-module driver on **every** tile type, not only T1-C | 240 hub-side driver channels and ~1,280 power conductors are not buildable, and would put 80 dI/dt sources inside the Faraday envelope beside the EEG harness | **No** — sets the socket pinout and the Hub PCB Rev C architecture |
-| **D-4** | TIA + ADC on-module; no PD analog signal crosses the socket | Deletes the ~80× DG2788A gain-switch NRE rather than redesigning it; gain fixed to the PD actually fitted; removes the longest high-impedance analog path in the system | **No** — same coupling as D-3 |
-| **D-5** | 16-position pogo interface, 2.00 mm pitch, springs on socket | A per-tile ZIF lever contradicts the NP-HEX-ZM-001 §5.4a accessibility premise; spring contacts absorb the cluster-clamp Z variation the plungers do not | Partly — pin count is load-bearing, contact style less so |
-| **D-6** | VLED = 24 V | Holds peak contact current to 0.26 A/pin (4× derating) and keeps linear drive overhead ≤7 % at practical string lengths | Yes, with pin-count consequences |
+| ~~**D-4**~~ | ~~TIA + ADC on-module; no PD analog signal crosses the socket~~ **⚠ NOT ADOPTED — OI-HUB-C17c resolved against D-4, principal direction 2026-08-11.** The AFE stays on the cluster controller; **N3 survives** and `PD1_K`/`PD2_K`/`NTC` are back at the socket (§7.2, pins 13–15) | The rationale is **not withdrawn** — deleting the ~80× DG2788A NRE, design-time-fixed gain, and removing the longest high-impedance path were all real, and §5.3's physics is unchanged. It was **outweighed**, on the conservative ground that a controller-mounted ADC never faces the 25 → 62 °C drift question a tile-mounted one must answer against the ±15 % dose claim (FAI-SM-06). See `NP-DRV-SHELL-002` §3.3a for the full trade | **Superseded, not reversible-by-this-document** — §5.3 and §6 still read as if D-4 holds; **OI-HEXTILE-15** |
+| **D-5** *(Rev C)* | **19-position** pogo interface, 2.00 mm pitch, **two staggered rows**, springs on socket. `VLED`/`PGND` = **3 + 3** | A per-tile ZIF lever contradicts the NP-HEX-ZM-001 §5.4a accessibility premise; spring contacts absorb the cluster-clamp Z variation the plungers do not. **Count is the union of the networks that actually cross the socket after D-4 was not adopted** (§7.2); `VLED` count follows the ≥2× degraded-case rule (§8.1); two rows are forced by 19 at 2.00 mm pitch inside a 40 mm hex (§7.1) | Partly — **pin count is load-bearing and now tooling-blocking**; contact style less so. *(Rev B: 16 positions, single row, 4 + 4)* |
+| **D-6** | VLED = 24 V | Holds peak contact current to **0.35 A/pin (~3× derating nominal, ~2× on loss of one contact)** at Rev C's 3 `VLED` pins — *Rev B stated 0.26 A/pin and 4× at 4 pins* — and keeps linear drive overhead ≤7 % at practical string lengths. **Adopted programme-wide as OI-HUB-C17b**, which closed `NP-DRV-SHELL-002` OI-SHELL2-01 against its 12 V estimate | Yes, with pin-count consequences |
 | **D-7** | Per-cluster I2C segments with UID-derived dynamic addressing, **18 segments** at the v1 lattice (§8.2.1) | Removes the address collision instead of muxing around it; reuses the UID `np_module_map` already depends on; collapses cascaded muxing to one tier. 18 of 32 available segments — the one-tier conclusion survives the count correction | Yes |
 | **D-8** | Safety MCU gates VLED per cluster, not per socket — **18 high-side switches** | STM32G071 has no 80-GPIO option; coarse hardware cut + fine on-module control is defence in depth, not a compromise. **Switch count 18; enable count unresolved (18 vs 1) — OI-HEXTILE-13, proposed resolution at §8.4.1 (single Class C bit + Class B per-cluster gates)** | Partly |
 
@@ -634,7 +765,10 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **OI-HEXTILE-09** | **Global concurrent-power governor** in the protocol compiler and session runner: a `NP_PROTO_TARGET_SOCKET_MASK` naming more than ~6 tiles exceeds the PD contract (§9.3). Gap in the delivered v2 wire format | Session execution safety; **decide with OI-HEXTILE-06** |
 | **OI-HEXTILE-10** | Hub PCB **Rev C** must adopt this interface: 4× LPI2C + one-tier PCA9548A segmentation, **18** per-cluster 24 V high-side switches with safety-MCU enable (count per §8.2.1 — **was stated as 4–10; that figure was the retired 30-socket lattice's**), 3.3 V budget per §8.3. **Deletes** Rev B's `GAIN_SEL[0..4]`, its five DG2788A switches, and its ZONE_ID-to-gain sequencing (§5 of that document). **Rev C must not be released against the old count** — 18 exceeds the 16 cluster-tail connectors NP-DRV-SHELL-002 §7.1 provisions (OI-HEXTILE-14) | Hub PCB Rev C; **coordinate before either is released** |
 | **OI-HEXTILE-13** | **Is per-cluster safety *policy* wanted at 18 clusters? (§8.4)** The same question NP-HW-HUB-001 §7.4 routes to **OI-HUB-C07**. **Not a conflict between peer documents** — an earlier draft called §7.2 and NP-DRV-SHELL-002 §6 incompatible and that is **withdrawn**; §7.4 reconciles them as *"12–16 physical enable lines fanned out from one policy bit"*, and per-cluster physical gates exist in both. The undecided part is whether independently-commanded **cluster bits** are wanted. Costs of saying yes, none of them decisive: (a) the STM32G071 **package is unspecified** anywhere in the tree and demand at 18 enables is ~40 I/O, excluding every ≤32-pin option; (b) 18 cluster + 9 modality = **27 bits against a 16-bit Class C enable word** — a cost rather than a ceiling, since no SHDR fault records exist so the word can be widened pre-production (§8.4.2); (c) `np_safety_config.h` double-assigns **PA4** to SPI1 NSS and `NP_EN_PBM_ZONE4_PIN` — **re-homed to the §7.2 dead-macro cleanup** (the zone-enable macros encode the retired 5-slot meaning of "zone"; zones are now overlapping authored socket sets in `00-zones.npps` and can never be enable domains), cross-referenced from NP-FMEA-001 FMEA-M08-04. **→ PROPOSED RESOLUTION at §8.4.1:** split the enable by IEC 62304 class — per-cluster gates retained but owned by **Class B** for availability, with a **single Class C** `NP_SAFETY_EN_PBM_CRANIAL` in series as the hard interlock. **The one sufficient argument:** per-cluster policy puts a *topological* socket→cluster map behind a Class C boundary, so a MECH-2 or REG-1 change becomes a recertification rather than a regenerated table, and a stale map can cut the wrong cluster. Preserves R-11 (Class C bit in series), keeps NP-DRV-SHELL-002's availability benefit, drops demand to ~23 I/O. **Falsifier stated:** a hazard where cutting only the faulted cluster is required *and* a whole-lattice cut is unacceptable | **Safety review (OI-HUB-C07) arbitrates; blocks D-8 closure.** Review should either produce the falsifying hazard or close the item. Package selection follows. **Sequence before first SHDR fault record** — §8.4.2 |
-| **OI-HEXTILE-14** | **Stale cluster counts in peer documents.** SYM-1 makes the count 18; peers are sized off 12 or 10: NP-DRV-SHELL-002 §7.1 provisions **12 cluster-tail connectors, 16 positions** (18 does not fit, and its §3.4 `8 branches × ≤2 clusters = 16` tree cannot reach 18 without a third branch tier or 3-deep branches); NP-HW-HUB-001 §6.3 sizes DG2788A at "**1 per cluster (10 at n = 80)**"; NP-HEX-ZM-001 §5.4a's MECH-2 table prices the flower at **12 boards / $76.08**, actual is **18 / $114.12**. Each needs an editorial pass on its own revision — **not corrected by this revision**, which owns only NP-HW-HEXTILE-001. **Additionally: NP-HW-HUB-001 §7.2 justifies its "bits 1–4 reserved, not reused" rule *solely* by SHDR fault records, but a second, unstated rationale also holds — enable-bit position is identical to the charge-monitor channel index (`NP_SAFETY_MAX_CHANNELS`, `NP_SAFETY_CH_CLIN_STIM`, `current_ua[]`), which is Class C.** A reader combining §7.2 with the standing no-SHDR-records instruction would wrongly conclude that recycling bits 1–4 is safe. §7.2 must record the second rationale (§8.4.2). **→ PROPOSED RESOLUTION at §8.2.2:** two independent limits bind — **C1** the 16 provisioned connector positions, and **C2** the `8 branches × ≤2` I2C tree. **C2 does not exist under this document's D-7** (4 × LPI2C × PCA9548A = 32 segments, 18 used), so it resolves with OI-HUB-C17; **C1 does not self-resolve** and must be fixed before Rev C layout. Recommended: **adopt D-7's tree + provision 20 connector positions** (the cheap axis — adding tails costs far less than widening them, per SHELL-002 §7.3), and **if §8.4.1 is accepted, remove `SAFE_EN_n` from the tail** — it is the only star component of the 12-conductor tail, so a single broadcast cranial enable permits a multi-drop trunk and makes connector count insensitive to a future REG-1 re-cut. Options 5–7 (decouple electrical/mechanical clusters, re-cut the lattice, pair clusters onto shared tails) assessed and not recommended | NP-DRV-SHELL-002, NP-HW-HUB-001 Rev C, NP-HEX-ZM-001 revisions; **coordinate with OI-HEXTILE-10 and OI-HUB-C17 before either is released** |
+| **OI-HEXTILE-14** | **✅ LARGELY RESOLVED 2026-08-11 by `NP-DRV-SHELL-002` Rev B**, which adopted the §8.2.2 recommendation: **20 connector positions** (options 1 + 3) and D-7's 32-segment tree, replacing its 12/16 provisioning and its `8 branches × ≤2 = 16` tree — so both C1 and C2 close, and 18 clusters now fit. Option 4 (broadcast `SAFE_EN[n]`, 11-conductor tail, multi-drop trunk) is recorded there as **conditional on OI-HUB-C07**, not adopted. `NP-HW-HUB-001` §7.4 and §6.3 still carry 12/16 and "1 per cluster (10 at n = 80)" and remain to be corrected at its next revision; `NP-HEX-ZM-001` §5.4a's MECH-2 table still prices the flower at 12 boards / $76.08 against an actual 18 / $114.12. The §7.2 enable-word second-rationale amendment landed 2026-08-05. **Residual: NP-HW-HUB-001 and NP-HEX-ZM-001 editorial passes only.** Original analysis retained below. — **Stale cluster counts in peer documents.** SYM-1 makes the count 18; peers are sized off 12 or 10: NP-DRV-SHELL-002 §7.1 provisions **12 cluster-tail connectors, 16 positions** (18 does not fit, and its §3.4 `8 branches × ≤2 clusters = 16` tree cannot reach 18 without a third branch tier or 3-deep branches); NP-HW-HUB-001 §6.3 sizes DG2788A at "**1 per cluster (10 at n = 80)**"; NP-HEX-ZM-001 §5.4a's MECH-2 table prices the flower at **12 boards / $76.08**, actual is **18 / $114.12**. Each needs an editorial pass on its own revision — **not corrected by this revision**, which owns only NP-HW-HEXTILE-001. **Additionally: NP-HW-HUB-001 §7.2 justifies its "bits 1–4 reserved, not reused" rule *solely* by SHDR fault records, but a second, unstated rationale also holds — enable-bit position is identical to the charge-monitor channel index (`NP_SAFETY_MAX_CHANNELS`, `NP_SAFETY_CH_CLIN_STIM`, `current_ua[]`), which is Class C.** A reader combining §7.2 with the standing no-SHDR-records instruction would wrongly conclude that recycling bits 1–4 is safe. §7.2 must record the second rationale (§8.4.2). **→ PROPOSED RESOLUTION at §8.2.2:** two independent limits bind — **C1** the 16 provisioned connector positions, and **C2** the `8 branches × ≤2` I2C tree. **C2 does not exist under this document's D-7** (4 × LPI2C × PCA9548A = 32 segments, 18 used), so it resolves with OI-HUB-C17; **C1 does not self-resolve** and must be fixed before Rev C layout. Recommended: **adopt D-7's tree + provision 20 connector positions** (the cheap axis — adding tails costs far less than widening them, per SHELL-002 §7.3), and **if §8.4.1 is accepted, remove `SAFE_EN[n]` from the tail** — it is the only star component of the 12-conductor tail, so a single broadcast cranial enable permits a multi-drop trunk and makes connector count insensitive to a future REG-1 re-cut. Options 5–7 (decouple electrical/mechanical clusters, re-cut the lattice, pair clusters onto shared tails) assessed and not recommended | NP-DRV-SHELL-002, NP-HW-HUB-001 Rev C, NP-HEX-ZM-001 revisions; **coordinate with OI-HEXTILE-10 and OI-HUB-C17 before either is released** |
+| **OI-HEXTILE-15** | **§5.3 and §6 still read as though D-4 holds, and D-4 was not adopted.** `NP-DRV-SHELL-002` Rev B §3.3a resolved **OI-HUB-C17c against D-4** (principal, 2026-08-11): the switched-gain TIA, PD mux, NTC mux and ADC stay on the cluster controller. §7 is re-cut accordingly (Rev C), but **§5.3 ("The TIA question — and why it stops being a hub problem"), §6.2's U2 dual-TIA line, and §6.4's BOM still describe on-module conversion.** This revision deliberately did **not** rewrite them — the change reaches the driver topology, the per-tile BOM and OI-HEXTILE-06's PD-population options, and is larger than a socket-interface re-cut. **What is affected:** U2 (dual TIA, $0.32/tile ≈ $26 at 80 tiles) may be deleted from the module and its function returns to the controller; the 12-bit-ADC-with-PGA requirement on U1 (§5.3, §6.2) relaxes, since dose metering no longer depends on the on-module ADC — which may reopen the ATtiny402-vs-tinyAVR-2-series choice; §6.4's ~$11.53/tile figure moves. **What is NOT affected:** the InGaAs PD selection and co-location (D-2, §5.1–5.2), which are optical decisions independent of where the transimpedance stage sits, and therefore OI-HEXTILE-06's ~$10/tile PD-population question — still the dominant term, still orthogonal | **Module BOM; OI-HEXTILE-06; §6.2 part selection.** Not tooling-blocking — the socket interface (§7) is already correct |
+| ~~**OI-HEXTILE-16**~~ | **✅ CLOSED 2026-08-11 — one name per conductor adopted (§7.4).** Pin 18 is **`ELEC_SHLD`** (over `GUARD`, which collides with the *DRL-driven guard plane* on L1 that `NP-DRV-SHELL-002` §3.5/§4.1/REQ-EMI-02 specify — the pin is driven from that plane but is not it). Pin 12 is **`ALERT#`** (over `/ALERT`: a leading `/` is the hierarchical-path separator in EDA net naming, so `/ALERT` reads as a root-scope path and can be silently re-scoped on netlist import). Propagated through this document, `NP-DRV-SHELL-002` and `NP-HW-HUB-001`. Residual naming items split out to **OI-HEXTILE-17** | — (closed) |
+| ~~**OI-HEXTILE-17**~~ | **✅ CLOSED 2026-08-11 — both residuals settled on the same criterion that decided OI-HEXTILE-16 (§7.4).** **(a) `SEAT_N` → `SEAT#`.** The item was raised as "a third active-low convention", i.e. cosmetic. It is not: **`_N` already means *cardinality* in this codebase** — `firmware/hub_control/tests/np_module_map_tests.c` defines `PBM_TILE_N` / `EEG_TILE_N` as `sizeof(x)/sizeof(x[0])` — so `SEAT_N` reads as *"number of seats"*. That is a live ambiguity, not a style difference, and it settles the convention **toward `#`** rather than away from it: `ALERT#` is confirmed, not reversed, with SMBus precedent (`SMBALERT#`; the in-tree vendor header exposes `I2C_ISR_ALERT` for the same line). **Rule of record: active-low interface signals take `#` — never `_N`, never a leading `/`.** **(b) `ELEC_SIG` → `ELEC`.** Ownership: the interface is defined by this §7.2 and `NP-DRV-SHELL-002` §5.1.4, and `NP-HW-HUB-001` §7.4 explicitly *adopts* that contract, so two normative pin tables do not change to match one banner's prose. Accuracy: the pin is dual-rated to carry **tES stimulation current** (≤2 mA T1 / ≤4 mA T2), and `_SIG` biases the reader toward the recording role — the half that is *not* safety-relevant. **Doc→firmware mapping stated, since `#` is not a legal identifier character: `<SIGNAL>#` → `<SIGNAL>_L`, never `_N`.** Related but NOT closed by this: `NP-FMEA-001` **OI-FMEA-01** records that the firmware's ten active-LOW enable lines carry polarity only in comments; this decision adds no further unmarked names and gives that item a convention to converge on. **No firmware change requested** | — (closed) |
 | **OI-HEXTILE-11** | Pogo contact qualification: ≤50 mΩ over ≥500 cycles **in the EEG signal path** (pin 13). Contact noise in a µV recording chain is not covered by the resistance spec alone | T1-B EEG performance; FAI |
 | **OI-HEXTILE-12** | FPC stack-up, trace width/spacing, and copper weight for a 24 V / 1.04 A tile. PDMS bonding (SiO₂ 75 nm interlayer + O₂ plasma) and the 200-cycle IEC 60068-2-14 qualification inherit unchanged from NP-HW-FPC-001 Rev E §7 and remain BLOCKING | FPC artwork release |
 
@@ -651,8 +785,10 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | HT-DRC-05 | 1064 nm session reaches 36 J/cm² in an acceptable session length | Open — 21 min minimum, OI-HEXTILE-03 |
 | HT-DRC-06 | Intra-tile irradiance uniformity quantified | Open — OI-HEXTILE-04 |
 | HT-DRC-07 | Rigidizer fits the tile outline | ✓ (13.0 mm half-diagonal vs 20.0 mm inradius, §6.3) |
-| HT-DRC-08 | Peak contact current ≤50 % of pogo rating | ✓ (0.26 A vs ≥1.0 A, 4× margin, §8.1) |
-| HT-DRC-09 | Socket pinout covers every tile type including T1-B and future types | ✓ by union construction (§1, §7.2) — re-verify on any new type |
+| HT-DRC-08 | Peak contact current ≤50 % of pogo rating, **nominal and on loss of any one `VLED` contact** | ✓ (**0.35 A nominal / 0.52 A degraded** vs ≥1.0 A — ~3× and ~2×, §8.1). Degraded case verified on real contacts by `NP-DRV-SHELL-002` **SH2-DRC-10a** |
+| HT-DRC-09 | Socket pinout covers every tile type including T1-B and future types | ✓ by union construction (§1, §7.2) at **19 positions** — re-verify on any new type, **and on any change to which networks cross the socket** (the Rev B → Rev C count change came from exactly that, not from a new tile type) |
+| HT-DRC-22 | **19-contact pad array is two staggered rows** and fits inside the 20.0 mm tile inradius, with mis-key asymmetry and `SEAT#` at the extreme of the last-seating row | Open — CAD; `NP-DRV-SHELL-002` REQ-SKT-01 / SH2-DRC-05a |
+| HT-DRC-23 | Socket pinout matches `NP-DRV-SHELL-002` §5.1.4 pin for pin **and signal name for signal name** | ✓ at Rev C (§7.2, §7.4) — **run as a mechanical diff, not a review**: both name collisions closed by OI-HEXTILE-16 read as agreement to a human reader. Re-verify on either document's next revision |
 | HT-DRC-10 | Contact mating sequence prevents powered-floating-return and false-seated states | ✓ (§7.3) |
 | HT-DRC-11 | I2C address collision structurally impossible across ~80 modules | ✓ (UID-derived assignment, D-7) — needs firmware confirmation, OI-HEXTILE-07 |
 | HT-DRC-12 | 3.3 V logic budget ≤1 W across 80 modules | Open — depends on standby firmware, OI-HEXTILE-07 |
@@ -673,7 +809,7 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 - **Parent:** NP-HEX-ZM-001 (`docs/np_hex_zm_001.md`) — §3 geometry, §4/§4b addressing and wire format, §4a taxonomy + SMART-1, §5.4a cluster clamps, §7 gates
 - **Predecessor (SUPERSEDED, reused in part):** NP-HW-FPC-001 Rev E (`docs/np_hw_fpc_001.md`) — §5.1 InGaAs PD selection, §5.3 TIA-saturation methodology, §6.2 driver topology, §7 PDMS bonding all carried forward; §2/§3 connector and pinout, §3.2 ZONE_ID ladder, §4 LED counts all retired
 - **Must co-revise:** NP-HW-HUB-001 (`docs/np_hw_hub_001.md`) — Rev C per OI-HEXTILE-10; §6.3 DG2788A count and §7.2 enable architecture per OI-HEXTILE-13/14
-- **Must co-revise:** NP-DRV-SHELL-002 (`docs/np_drv_shell_002.md`) — §3.4 branch tree, §6 `SAFE_EN_n`, §7.1 cluster-tail connector count (12/16 provisioned vs 18) per OI-HEXTILE-13/14
+- **Must co-revise:** NP-DRV-SHELL-002 (`docs/np_drv_shell_002.md`) — §3.4 branch tree, §6 `SAFE_EN[n]`, §7.1 cluster-tail connector count (12/16 provisioned vs 18) per OI-HEXTILE-13/14
 - **Cluster partition diagram:** `docs/diagrams/np_hextile_cluster_map.svg` — the 18-cluster midline-symmetric partition of the 80-socket lattice, socket ids and cluster boundaries (§8.2.1)
 - **Lattice source of truth:** `scripts/sync-socket-map.ts` (`ROW_WIDTHS`) → `hardware/np_socket_map.json`, `app/web/src/lib/socketMap.generated.ts`
 - **Firmware:** NP-FW-PBM1064-001 Rev B (register map, §6.6 factory calibration); `firmware/hub_control/np_module_map.{h,c}` (UID inventory, `check_placement`)

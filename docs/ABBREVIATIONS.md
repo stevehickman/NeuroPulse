@@ -1,5 +1,10 @@
 # NeurOne Design Abbreviations Glossary
 
+> **Naming and notation conventions live in `docs/np_conventions_001.md` (NP-CONV-001)** — signal
+> naming (active-low signals terminate with `#`), index notation, document IDs, `§N` section
+> marking, and identifier families. This file defines *what terms mean*; NP-CONV-001 defines
+> *how names are formed*.
+
 ## Product & Regulatory
 
 ### [510(k)](#510k)

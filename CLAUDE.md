@@ -20,6 +20,7 @@ The core sections (§1–§6, §16) stay in this file — they are invariants th
 | **Data architecture (UHDR/SHDR)** | always available | §5 below |
 | **Clinical consent engine** | always available | §6 below |
 | **Naming conventions (UHDR/SHDR)** | always available | §16 below |
+| **Naming + notation conventions** (signal names, `§N`, document IDs, identifier families) | authoring or revising ANY doc, naming a signal, or reviewing an interface | `docs/np_conventions_001.md` |
 | Optional accessories + companion SW (mastoid pad, Watch app) | working on accessories / app roadmap | `docs/reference/accessories-roadmap.md` |
 | Durability + maintenance design changes | tooling / BOM / mechanical work | `docs/reference/durability-maintenance.md` |
 | Service network (partner tiers, covers) | service / warranty / logistics work | `docs/reference/service-network.md` |

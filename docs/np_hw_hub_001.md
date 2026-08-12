@@ -46,7 +46,7 @@ relocated and shared rather than replicated 80×.
 > | PD analog crosses the socket? | **Yes** — `PD1_K`/`PD2_K`/`NTC`/`AGND`, network N3 | **No** — *"No PD analog signal crosses the socket interface"* |
 > | Socket contacts | **18** | **16** |
 > | Bus rail | **12 V** (est., OI-SHELL2-01) | **24 V** (D-6) |
-> | Presence detect | *"No dedicated presence contact. Presence **is** a successful I2C probe"* | **`SEAT_N` pin 16** — and argues it is *not* redundant: a partially seated tile can answer I2C while PD/NTC/electrode contacts are marginal → *"a plausible-looking but wrong dose reading"* |
+> | Presence detect | *"No dedicated presence contact. Presence **is** a successful I2C probe"* | **`SEAT#` pin 16** — and argues it is *not* redundant: a partially seated tile can answer I2C while PD/NTC/electrode contacts are marginal → *"a plausible-looking but wrong dose reading"* |
 >
 > The last row is a **reasoned** disagreement — HEXTILE anticipated SHELL-002's position and
 > rejected it with a named failure mode. The rail conflict is squarely inside SHELL-002 §7.3's own
@@ -110,7 +110,7 @@ relocated and shared rather than replicated 80×.
 > - **§9.5** calibration keyed to the module, not the socket — *strengthened*: with the TIA and PD both on-module, the coefficients are unambiguously module property.
 >
 > **The gap HEXTILE leaves, which this document must now answer (OI-HUB-C16).** HEXTILE's 16-pin
-> socket reserves pins **13 `ELEC_SIG` / 14 `ELEC_SHLD` / 15 `AGND`** at *every* socket for T1-B, and
+> socket reserves pins **13 `ELEC` / 14 `ELEC_SHLD` / 15 `AGND`** at *every* socket for T1-B, and
 > is explicit that *"an electrode signal cannot be carried over I2C — it is a µV analog recording path
 > to the ADS1299 **and** a stimulation current path from the tES driver."* It then declares T1-B out
 > of scope for Rev A and never routes them. At 80 sockets that is **240 µV-analog + stimulation
@@ -121,8 +121,8 @@ relocated and shared rather than replicated 80×.
 >
 > **So the cluster tier survives — with a different and stronger justification.** Not PD analog, not
 > LED drive, not I2C mastering (HEXTILE takes all three), but an **electrode analog crosspoint**:
-> routing any socket's ELEC_SIG to one of N ADS1299 / tES channels (8 for T1, 21 for T2), plus
-> `/ALERT` and `SEAT_N` aggregation. That is per-cluster, and it aligns with the same partition D-7
+> routing any socket's `ELEC` to one of N ADS1299 / tES channels (8 for T1, 21 for T2), plus
+> `ALERT#` and `SEAT#` aggregation. That is per-cluster, and it aligns with the same partition D-7
 > and D-8 already use. Whether it needs an MCU or reduces to a switch matrix is the open question.
 
 > **⚠ STATUS: DRAFT, NOT BASELINED.** The socket count (~80, provisional pending REG-1) and every
@@ -211,7 +211,7 @@ signal of any kind.**
 
 ```
   i.MX RT1062 (hub PCB)
-        │  LPI2C  +  ATTN(open-drain)  +  PBM_CRANIAL_EN (from safety MCU)
+        │  LPI2C  +  ATTN#(open-drain)  +  PBM_CRANIAL_EN# (from safety MCU)
         │
    [PCA9615-class I2C↔differential transceiver]      ← hub PCB, §5.1
         │
@@ -227,7 +227,7 @@ signal of any kind.**
    │    · 16:1 current mux    → PD1/PD2 of 8 sockets                  §6.2
    │    · 1 shared TIA        → DG2788A gain switch, per-sample       §6.3
    │    · 8:1 mux + ADC       → NTC per socket
-   │    · LED drive stage     → gated by PBM_CRANIAL_EN               §7.2
+   │    · LED drive stage     → gated by PBM_CRANIAL_EN#              §7.2
    │
  socket ×8 (unchanged FPC per socket)
 ```
@@ -635,7 +635,7 @@ conversion. The ADS1299 runs at 500 Hz (CLAUDE.md §3 modality 3); cluster-bus t
 the inter-conversion gaps. This is specified as a firmware requirement in §9.4 and verified by
 **HUB-DRC-C14**.
 
-Also on tier 0: a shared open-drain **ATTN** line (any controller pulls low to request service —
+Also on tier 0: a shared open-drain **`ATTN#`** line (any controller pulls low to request service —
 hot-plug detected, fault latched) so the hub is not obliged to poll 16 peers at idle.
 
 ### 5.2 Tier 1 — the cluster bus, and Tier 2 — within a cluster
@@ -882,7 +882,7 @@ CLUSTER-1's 7-hex flower):
 | Pins per connector | **12** | Pinout fixed by SHELL-002 §5.2 |
 | Total interface pins | **144** (192 if all 16 populated) | vs 100 on the retired 5-slot design |
 | Host I2C branch switch | 1 × 8-channel | Hub-level stage of the two-level tree |
-| Safety-MCU enable GPIO | **12** (16 provisioned) | `SAFE_EN_n`, **Safety-MCU sourced**, default LOW at reset |
+| Safety-MCU enable GPIO | **12** (16 provisioned) | `SAFE_EN[n]`, **Safety-MCU sourced**, default LOW at reset |
 | `SYNC` driver | 1 | Broadcast, phase-locked to the EEG sample frame |
 | `ALERT#` input | 1 per cluster, wire-OR | Or one aggregate with I2C interrogation |
 | PDN feed | 1 | Rated at the vault ceiling — **now a 24 V BOOST stage, see below** |
@@ -951,14 +951,14 @@ tooling.**
 3. **ADS1299 bank at the PAN, not the Hub PCB** — accepted, and it is the better placement. It keeps
    the µV electrode lanes from crossing the parting-plane boss, consistent with `NP-HEX-ZM-001`
    §5.3.1's rule of assigning each element to the layer its physics wants.
-4. **`SAFE_EN_n` sourced by the Safety MCU, not the i.MX RT1062** — accepted and **required**, not
+4. **`SAFE_EN[n]` sourced by the Safety MCU, not the i.MX RT1062** — accepted and **required**, not
    merely preferred. It is what preserves CLAUDE.md §4.2's "safety MCU physically owns all
    stimulation enable GPIO" across the new tier; it is the same requirement as **HUB-REQ-C02** (§7.3)
    and it is what keeps the cluster tier IEC 62304 **Class B** rather than Class C.
 
 **One divergence to record.** §7.2 of this document collapses `NP_SAFETY_EN_PBM_ZONE_0..4` to a
 single `NP_SAFETY_EN_PBM_CRANIAL` bit, because 16 cluster bits + 9 surviving modality bits = 25
-exceeds the 16-bit enable word. SHELL-002 §7.1 asks for **12 discrete `SAFE_EN_n` GPIO**. These are
+exceeds the 16-bit enable word. SHELL-002 §7.1 asks for **12 discrete `SAFE_EN[n]` GPIO**. These are
 compatible and were reached from different ends: 12–16 physical enable *lines* fanned out from **one**
 policy *bit*. What does not fit the wire format is 16 independently-commanded cluster bits. If
 per-cluster *policy* is genuinely wanted, the Class C safety wire format must widen — **OI-HUB-C07**.
@@ -1067,7 +1067,7 @@ build from. Concretely:
 | **N2** Control | `SDA`, `SCL`, `SYNC`, `ALERT#`; two-level segmented I2C tree + broadcast sync | **Kept, but it inherits N3's job** — dose telemetry now returns as I2C register reads instead of carrier ADC samples. Quantified in §7.5.4. |
 | **N3** Local sense | `PD1`, `PD2`, `NTC` point-to-point tile → carrier, ≤50 mm, terminating at a carrier ADC | **DELETED.** Under D-4 the photocurrent never leaves the tile. |
 | **N4** Electrode | Per-cluster analog mux onto N shared guarded lanes → ADS1299 bank at the PAN | **Kept unchanged.** Becomes the *only* analog network crossing a socket contact. |
-| **N5** Safety enable | `SAFE_EN_n` per cluster, star from the Safety MCU, gates the cluster PDN | **Kept**, gate re-rated for 24 V. |
+| **N5** Safety enable | `SAFE_EN[n]` per cluster, star from the Safety MCU, gates the cluster PDN | **Kept**, gate re-rated for 24 V. |
 
 #### 7.5.2 What the socket becomes
 
@@ -1090,7 +1090,7 @@ Two consequences beyond contact count:
   criterion for moving the TIA off the hub, taken one step further.
 - **No spring contact sits in the photocurrent path at all.** Contact resistance drift, fretting and
   the 50,000-cycle wear budget stop being dose-metering error terms. SHELL-002's ≤50 mΩ contact
-  requirement then binds on exactly one pair — `ELEC`/`GUARD` — instead of being spread across six.
+  requirement then binds on exactly one pair — `ELEC`/`ELEC_SHLD` — instead of being spread across six.
 
 #### 7.5.3 What the cluster carrier becomes
 
@@ -1101,7 +1101,7 @@ From SHELL-002 §3.2, one line is struck:
 | 8-channel I2C segment switch (TCA9548A class) | keep |
 | ~~PD/NTC front end: switched-gain TIA + mux + ADC~~ | **delete** |
 | Electrode mux (low-leakage analog) | keep |
-| Cluster power gate (high-side, `SAFE_EN_n`) | keep, 24 V-rated |
+| Cluster power gate (high-side, `SAFE_EN[n]`) | keep, 24 V-rated |
 | Local bulk decoupling | keep |
 
 The carrier stays **passive-plus-switches with no MCU**, which is SHELL-002's model — the synthesis
@@ -1274,7 +1274,7 @@ against a post-hex module BOM that does not exist yet. **Flagged as OI-HUB-C08**
 | | Conductors at the parting plane |
 |---|---|
 | Rev B architecture scaled to 80 sockets | ~880 |
-| **Rev C** (≈10 per cluster: 4 differential I2C, ATTN, PBM_CRANIAL_EN, VCC, GND, 2 × LED rail) × 10 clusters | **~100** |
+| **Rev C** (≈10 per cluster: 4 differential I2C, ATTN#, PBM_CRANIAL_EN#, VCC, GND, 2 × LED rail) × 10 clusters | **~100** |
 
 An **8.8× reduction**, through the existing posterior blind-mate boss rather than a new one. LED power
 distributes as a shared higher-voltage rail (e.g. 12 V) regulated locally per cluster rather than as
