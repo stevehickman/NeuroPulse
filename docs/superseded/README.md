@@ -97,8 +97,10 @@ an old name from an external citation, this is where it went.
 > git show 19be91d:docs/superseded/np_hw_fpc_001.docx > np_hw_fpc_001_rev4.docx
 > ```
 >
-> **OI-CONV-05 closed.** The same pathology at larger scale — `NP-DB-001`…`NP-DB-005`, five serials
-> whose revisions track them one-for-one — is **OI-CONV-06** and is not acted on here.
+> **OI-CONV-05 closed.** The design briefs `NP-DB-001`…`NP-DB-005` show the same mis-application of
+> §4's serial-vs-revision test, but each of those serials resolves to exactly one file, so nothing
+> collides and they are **left as written** (OI-CONV-06, closed by decision). §4.0.4 binds the
+> issuing of new revisions, not the archive.
 
 ## What is deliberately *not* here
 
