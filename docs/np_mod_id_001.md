@@ -377,21 +377,36 @@ the honest exchange it is: the fleet model cannot personalise for a device whose
 exposure it cannot see, so participants get better predictions *because* of what
 they contributed, not as an inducement bolted on afterwards.
 
-#### 7.5.1 Owner-scoped opt-in is sufficient — and exactly what that rests on
+#### 7.5.1 Who may consent depends on how many people use the device
 
 The opt-in binds to the **warranty owner**, consistent with the existing SHDR
-consent subject (CLAUDE.md §6.0). It does **not** need to bind to the individual
-wearer, and it is worth being precise about why, because the reason is
-structural rather than incidental.
+consent subject (CLAUDE.md §6.0), in every configuration except one — a device
+with a single wearer who did not register it. The reason the general case holds
+is structural rather than incidental, and worth stating precisely, because the
+exception falls out of the same reasoning.
 
-**Individual purchaser.** Owner and wearer are the same person, so an
-owner-scoped opt-in *is* the wearer's consent. No gap.
+**The determining variable is how many people use the device, not who bought
+it.** A home device is not reliably single-user — households contain several
+people and any subset may use the headset — and a single-user device is not
+reliably worn by its registrant, since one may be bought and registered by a
+family member for a child, partner or parent. Home-versus-clinic is a prior on
+the question, not the question. The full taxonomy and its consequence for the
+enrolment flow are in §A.2; the summary is:
 
-**Clinic-owned, multi-patient device.** §6.0 rightly holds that a clinic has not
-consented on any patient's behalf — but that principle bites on data *about a
-patient*, and the extended set is not that. SHDR carries **no per-session
-subject identifier and no clock**, verified against the live catalog of the
-Rev D schema:
+- **Several users** (shared household device, or a multi-patient clinic device) —
+  the duty stream is a mixture with no attribution path, so registrant-scoped
+  consent is sound. This is the case the rest of this section analyses.
+- **One user who is the registrant** — attributable, and the registrant is the
+  subject, so their consent is the wearer's consent. Sound.
+- **One user who is *not* the registrant** — attributable, and the registrant is
+  **not** the subject. Registrant-scoped consent is **not** sufficient here, and
+  the enrolment flow must route the decision to the wearer (§A.3.2).
+
+**Multi-user devices — why registrant consent suffices.** §6.0 rightly holds
+that a clinic has not consented on any patient's behalf, but that principle
+bites on data *about a patient*, and for a mixed-use device the extended set is
+not that. SHDR carries **no per-session subject identifier and no clock**,
+verified against the live catalog of the Rev D schema:
 
 | Probe | Result |
 |---|---|
@@ -400,18 +415,24 @@ Rev D schema:
 | `date`-typed columns | `ingest_month`, `last_seen_month` (month-truncated retention anchors) and `manufacture_date`, `module_manufacture_date` (factory facts) |
 
 A duty row is therefore `(warranty_token, session_index, socket_number,
-module_ref, duty)` — a device, an **ordinal**, a position, and a number. On a
-shared clinic device the duty stream is a **mixture over every patient who used
-it**, with nothing marking where one patient's sessions end and another's begin.
-Attributing a socket pattern to a person would require aligning session ordinals
-against an appointment book, and the timestamp that alignment needs does not
-exist: `ingest_month` is month-granular by construction (Rev B timestamp
-minimisation), and `session_index` is a counter, not a clock.
+module_ref, duty)` — a device, an **ordinal**, a position, and a number. On any
+shared device — a clinic's, or a household's — the duty stream is a **mixture
+over everyone who used it**, with nothing marking where one person's sessions end
+and another's begin. Attributing a socket pattern to an individual would require
+aligning session ordinals against an appointment book or a household routine, and
+the timestamp that alignment needs does not exist: `ingest_month` is
+month-granular by construction (Rev B timestamp minimisation), and
+`session_index` is a counter, not a clock.
 
-So the clinic is not disclosing patient data. It is disclosing **device
-utilisation** data that happens to sit downstream of clinical decisions the
-clinic already owns as its own record. That is a disclosure the warranty owner
-is entitled to authorise.
+So the registrant of a shared device is not disclosing data about any wearer.
+They are disclosing **device utilisation**, which for a clinic sits downstream of
+clinical decisions the clinic already owns as its own record. That is a
+disclosure the registrant is entitled to authorise.
+
+Note what this argument does **not** cover: it depends on the mixture, so it
+lapses entirely on a sole-wearer device. There the duty map resolves to one
+person, and consent must come from that person — which is why the enrolment flow
+asks before disclosing (§A.3) rather than assuming a configuration.
 
 #### 7.5.1.1 INVARIANT — the two absences the consent model depends on
 
@@ -561,9 +582,9 @@ Proposed gate **MOD-ID-1** (NP-COORD-001):
 ## Appendix A — Enrolment and withdrawal copy (addresses OI-MODID-01)
 
 Draft product copy for the §7.5 opt-in. Voice and structure follow
-NP-PRIV-NOTICE-001. Two variants, because the honest disclosure genuinely
-differs between an individual owner and an institutional registrant — and it
-differs in the direction opposite to first intuition (§A.2).
+NP-PRIV-NOTICE-001. **One gated flow, not per-audience variants** — the
+disclosure branches on how many people use the device, which is not knowable
+from whether it was bought by a person or an institution (§A.2).
 
 ### A.1 Prerequisite — a conflict with the live privacy notice
 
@@ -583,26 +604,45 @@ contradicts the standing privacy notice is not informed consent. See
 **OI-MODID-08** (§9). The minimum change is to scope the §2 claim to
 non-participating devices and cross-reference the enrolment disclosure.
 
-### A.2 Which audience carries the greater disclosure
+### A.2 The axis is how many people use the device — not who bought it
 
-Counter-intuitively, the **individual owner** is the more exposed party, not the
-clinic patient:
+An earlier draft of this appendix split the copy by audience, individual owner
+versus clinic, on the assumption that a home device has one user. **That
+assumption is false.** Households contain more than one person and any subset of
+them may use the device; a home device can be single-user or shared, and the
+purchaser is not necessarily the wearer.
 
-| | Individual owner | Clinic-owned, multi-patient |
-|---|---|---|
-| Sessions per device | One person's | Mixed across many, unmarked |
-| Duty map describes | **That person's treatment pattern** | Aggregate device utilisation |
-| Attributable to a person? | Yes — device ≈ person | No (§7.5.1) |
+Home-versus-clinic is therefore the wrong axis. It is a *prior* on the real
+question, not the question. What determines whether the extended set is
+attributable to a person is:
 
-So the individual text must disclose the inference risk directly. The clinic
-text must explain why patient consent is not required — and where that reasoning
-stops holding.
+| Configuration | Duty map describes | Attributable? | Registrant = wearer? | Consent sound? |
+|---|---|---|---|---|
+| **One user, who registered the device** | that person's treatment pattern | **Yes** | Yes | **Yes** |
+| **One user, who did *not* register it** — a device bought and registered by a family member for a child, partner, or parent | that person's treatment pattern | **Yes** | **No** | **No — the wearer must choose** |
+| **Several users** — shared household device, or a multi-patient clinic device | mixed utilisation, unmarked | No (§7.5.1) | n/a | **Yes** |
 
-### A.3 Individual owner — enrolment screen
+The middle row is a genuine gap, and it is *structurally identical* to the clinic
+single-patient case already flagged — a sole wearer who is not the consenting
+party. The earlier draft caught it for clinics and missed it for homes, purely
+because of the false single-user assumption.
+
+**NeurOne cannot determine which row applies.** SHDR carries no user identifier
+by design (§7.5.1), so nothing in the uploaded data distinguishes one person's
+sessions from a household's. Only the registrant knows. The enrolment flow must
+therefore *ask*, and branch the disclosure on the answer — which is what §A.3
+does, replacing the two audience variants with one gated flow.
+
+**The answer is an app-side gate only.** The household's user count must **not**
+be written to SHDR. It is a fact about who lives in a house, it is not needed
+after the gating decision, and a `household_user_count` column would be a new
+disclosure introduced by the very mechanism meant to protect against one.
+
+### A.3 Enrolment — screen 1, common to all registrants
 
 > **Help us learn what actually wears your modules out**
 >
-> We want to find out whether *where* a module sits in your headset affects how
+> We want to find out whether *where* a module sits in the headset affects how
 > fast it wears out. We genuinely don't know yet. Answering it needs detail we
 > don't normally collect, so we're asking rather than assuming.
 >
@@ -613,89 +653,133 @@ stops holding.
 > - how often the heat limiter engaged
 > - the peak temperature each module reached
 >
-> **What this can show about you — read this part**
->
-> Because your headset is yours, this data shows **which areas of your head you
-> treat, and how much**. Someone reading it could form an impression of what you
-> are using the device for. That is a real disclosure and it is why we are
-> asking rather than switching it on.
->
-> **What it does not include**
+> **What it never includes**
 >
 > No brainwave or heart-rate data. No treatment dose. No names, email, or
 > address. **No clock** — we record which session number something happened in,
-> never the date or time of day, so this cannot show when you use your device or
-> build a picture of your routine.
+> never the date or time of day. This cannot show *when* the device is used or
+> build a picture of anyone's routine.
 >
-> **What you get**
+> **First, one question.** What this data can reveal depends entirely on how many
+> people use this headset, so we need to ask before explaining the rest.
 >
-> Your device joins the group we can build personalised maintenance predictions
-> for first. We can only predict wear for a device whose workload we can see — so
-> this is a direct consequence of taking part, not a reward for it. If too few
-> people take part, the personalised models may not arrive; we will tell you
-> either way.
+> **Who uses this headset?**
 >
-> **What does not change**
->
-> Every safety feature works identically whether you take part or not. Every
-> safety-critical alert reaches you the same way. Taking part buys earlier and
-> better *maintenance* predictions. It never buys safety.
->
-> **This ends by itself**
->
-> Collection stops automatically at the end of the study window. You don't have
-> to remember to turn it off; your device stops sending it.
->
-> **You can stop at any time** — Settings → Device data → Maintenance study.
->
-> ☐ **Yes, include my device** ☐ **No thanks**
->
-> Choosing "No thanks" changes nothing about how your device works.
+> ☐ **Only me**
+> ☐ **Only one person, and it isn't me** — I bought or registered it for someone else
+> ☐ **More than one person**
 
-### A.4 Clinic or institutional registrant — enrolment screen
+The three answers branch to §A.3.1, §A.3.2 and §A.3.3. The question is asked
+because NeurOne cannot determine the answer from the data (§A.2), and it is
+**not stored in SHDR**.
 
-> **Maintenance study — device utilisation detail**
+Institutional registrants see the same question phrased for their context —
+"Only one patient / More than one patient" — and reach the same three branches.
+There is no separate clinic flow, because a single-patient clinic device and a
+single-user home device raise the identical issue.
+
+#### A.3.1 "Only me" — the registrant is the sole wearer
+
+> **What this shows about you — read this part**
 >
-> We are studying whether socket position affects how quickly modules wear out,
-> so we can tell you when to rotate modules and which sockets to move them to.
+> Because you are the only person using this headset, this data shows **which
+> areas of your head you treat, and how much**. Someone reading it could form an
+> impression of what you are using the device for. That is a real disclosure, and
+> it is why we are asking rather than switching it on.
 >
-> **What we'd collect, per module, per session:** emitter drive seconds, time
-> above the warm threshold, heat-limiter engagements, and peak module
-> temperature.
+> **What you get.** Your device joins the group we can build personalised
+> maintenance predictions for first. We can only predict wear for a device whose
+> workload we can see — so this follows from taking part rather than being a
+> reward for it. If too few people take part the personalised models may not
+> arrive, and we will tell you either way.
 >
-> **Why this does not require patient consent**
+> **What does not change.** Every safety feature works identically whether you
+> take part or not, and every safety-critical alert reaches you the same way.
+> Taking part buys earlier and better *maintenance* predictions. It never buys
+> safety.
 >
-> This records what the *device* did, not what any patient received, and it
-> cannot be traced back to an individual:
+> **This ends by itself.** Collection stops automatically at the end of the study
+> window — you don't have to remember to turn it off.
 >
-> - There is **no patient or session identifier** in this data.
-> - There is **no clock**. Sessions are numbered (1, 2, 3 …) with no date or
->   time attached, so records cannot be matched against your appointment
->   schedule.
-> - On a shared device the result is a single stream mixed across every patient
->   who used it, with nothing marking where one patient's sessions end and the
->   next begins.
+> ☐ **Yes, include my device**  ☐ **No thanks**
 >
-> What you are disclosing is device utilisation, which sits downstream of
-> clinical decisions already recorded in your own systems. You are entitled to
-> authorise it as the registrant.
+> "No thanks" changes nothing about how your device works.
+
+#### A.3.2 "Only one person, and it isn't me" — the wearer must choose
+
+> **This choice isn't yours to make — and that's deliberate**
 >
-> **⚠ One case where this reasoning does not hold**
+> Because one person is the only user of this headset, the data would show
+> **which areas of their head are treated, and how much**. Someone reading it
+> could form an impression of what they are using it for.
 >
-> If you assign a device to a **single patient for their exclusive use**, the
-> mixing described above does not happen, and the data becomes a record of that
-> one patient's treatment pattern. Only you know whether that applies. **In that
-> case, treat the device as that patient's own** and obtain their consent, or
-> leave it out of the study.
+> That is personal to them, not to whoever bought the device. So we need **their**
+> decision, not yours.
 >
-> **What you get:** priority access to module rotation guidance and remaining-life
-> estimates as they become available.
+> **What to do:** hand them the device, or send them this invitation, and they can
+> decide from their own account. Nothing is collected until they do.
+>
+> **If they'd rather not decide, or cannot,** simply leave this device out of the
+> study. It will work exactly as it does now.
+>
+> ☐ **Send them the invitation**  ☐ **Leave this device out**
+
+This branch is the case the earlier audience-split draft missed for homes while
+catching it for clinics (§A.2). It covers a device bought by a family member for
+a child, partner or parent, and a clinic device assigned to one patient — the
+same structure, the same answer.
+
+#### A.3.3 "More than one person" — mixed use
+
+> **Why this doesn't single anyone out**
+>
+> Because several people use this headset, what we receive is a single stream
+> mixed across all of them, and nothing marks where one person's sessions end and
+> the next begins:
+>
+> - There is **no user or session identifier** in this data.
+> - There is **no clock** — sessions are numbered 1, 2, 3 … with no date or time
+>   attached, so records cannot be matched against anyone's schedule or
+>   appointment book.
+>
+> What you are sharing is how the *device* was used, not what any individual
+> received. As the registrant, that is yours to authorise.
+>
+> **Please tell the others.** They can't be identified in this data, but they
+> should know it is being collected. We'd rather you tell them than have them
+> find out from a settings screen.
+>
+> **If that changes.** If the headset later becomes one person's alone, come back
+> to this screen — the answer above stops being true, and we'll ask again.
+>
+> **What you get:** priority access to module rotation guidance and
+> remaining-life estimates as they become available.
 >
 > **What does not change:** all safety interlocks and safety-critical alerts are
-> identical for enrolled and non-enrolled devices.
+> identical whether or not a device takes part.
 >
-> **Per-device control.** Enrol your fleet or select individual devices.
-> Collection ends automatically at the close of the study window.
+> ☐ **Yes, include this device**  ☐ **No thanks**
+
+Institutional registrants additionally get **per-device control** — enrol a whole
+fleet or select individual devices — and a reminder that any device assigned to a
+single patient belongs in §A.3.2, not here.
+
+### A.4 Household composition is not static
+
+The gating answer is a point-in-time statement about a household or a clinic's
+device assignment, and both change. A device answered "more than one person" can
+become one person's alone; a device bought for someone else can be handed on.
+
+Two consequences:
+
+1. The §A.3.3 copy invites the registrant back if the situation changes, and the
+   setting must remain reachable and editable — not a one-time onboarding
+   question that can never be revisited.
+2. Re-confirmation should be prompted at the natural boundary rather than on a
+   timer. **Factory reset is the right trigger:** it already marks a change of
+   custody (`device_transferred`, NP-FW-EMMC-002 §A.6), it already rotates
+   `fleet_key` (§4.3), and enrolment should not survive it. A device coming out
+   of reset starts un-enrolled and asks again.
 
 ### A.5 Withdrawal
 
