@@ -1,5 +1,5 @@
 -- NeurOne SHDR Fleet Schema — LIVE CONSTRAINT TESTS
--- Document: NP-FW-EMMC-002 Rev A §G.4 / schema Rev D
+-- Document: NP-FW-EMMC-002 Rev 1 §G.4 / schema Rev D
 -- Revision: A — 2026-08-11
 --
 -- Runs the Rev D schema against a real PostgreSQL and proves each integrity

@@ -1,7 +1,7 @@
-/* Document: NP-FW-EMMC-002 Rev A §E */
+/* Document: NP-FW-EMMC-002 Rev 1 §E */
 /*
  * NeurOne EDF+ Privacy Header — Layout Constants
- * Document: NP-FW-EMMC-002 Rev A §E (EDF+ patient header policy)
+ * Document: NP-FW-EMMC-002 Rev 1 §E (EDF+ patient header policy)
  * Target: NXP i.MX RT1062 (Cortex-M7) — also host-compilable for tests.
  *
  * EDF+ header layout per the EDF+ specification §2.1.3.  The 256-byte fixed

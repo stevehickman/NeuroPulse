@@ -45,8 +45,8 @@ subtitle.style = doc.styles['Normal']
 subtitle.runs[0].bold = True
 subtitle.runs[0].font.size = Pt(13)
 
-doc.add_paragraph('NP-FW-REQ-001  Rev A  |  2026-05-10  |  Pre-Layout / Pre-Tooling Draft').style = doc.styles['Normal']
-doc.add_paragraph('References: NP-HW-FPC-001 Rev D · NP-COORD-001 Rev A · NP-FAI-ZM-001 Rev A · RISK-18').style = doc.styles['Normal']
+doc.add_paragraph('NP-FW-REQ-001  Rev 1  |  2026-05-10  |  Pre-Layout / Pre-Tooling Draft').style = doc.styles['Normal']
+doc.add_paragraph('References: NP-HW-FPC-001 Rev 4 · NP-COORD-001 Rev 1 · NP-FAI-ZM-001 Rev 1 · RISK-18').style = doc.styles['Normal']
 doc.add_paragraph('Addresses G1-13 in NP-COORD-001: ZONE_ID firmware debounce specification for zone module detection.').style = doc.styles['Normal']
 
 # Section 1
@@ -57,9 +57,9 @@ add_normal(doc, 'This document was created to close NP-COORD-001 G1-13. It must 
 # Section 2
 add_heading(doc, '2.  REFERENCES')
 refs = [
-    ('NP-HW-FPC-001 Rev D', '20-pin zone module FPC pinout; §11.4 five-layer keying; §8.4 dual-photodiode; Pin 18 = ZONE_ID; Pin 19 = PD2_CATHODE'),
-    ('NP-COORD-001 Rev A', 'Engineering coordination checklist; G1-13 (this document closes it); G2-10 (audio zone ID firmware)'),
-    ('NP-FAI-ZM-001 Rev A', 'FAI checklist; FAI-K04 (pin 18 contact resistance ≤30 mΩ); FAI-A15 (accessibility HFE test)'),
+    ('NP-HW-FPC-001 Rev 4', '20-pin zone module FPC pinout; §11.4 five-layer keying; §8.4 dual-photodiode; Pin 18 = ZONE_ID; Pin 19 = PD2_CATHODE'),
+    ('NP-COORD-001 Rev 1', 'Engineering coordination checklist; G1-13 (this document closes it); G2-10 (audio zone ID firmware)'),
+    ('NP-FAI-ZM-001 Rev 1', 'FAI checklist; FAI-K04 (pin 18 contact resistance ≤30 mΩ); FAI-A15 (accessibility HFE test)'),
     ('RISK-18', 'Zone module risk register — ZONE_ID ENABLE interlock availability failure; three-layer mitigation (firmware debounce + FAI-K04 + app UX)'),
     ('CLAUDE.md §13.5', 'Locked decisions: ZONE_ID firmware debounce 3×ADC at 100ms, ≥2/3 pass; FPC 20-pin pinout locked'),
 ]
@@ -197,7 +197,7 @@ xrefs = [
     ('NP-COORD-001 G2-10', 'Audio zone ID firmware — bone conduction zone name on insertion / wrong-module alert', 'OPEN — implementation required'),
     ('NP-FAI-ZM-001 FAI-K04', 'Pin 18 contact resistance ≤30 mΩ at 100 g insertion force — catches high-resistance contacts before field deployment', 'OPEN — FAI required'),
     ('RISK-18', 'ZONE_ID ENABLE interlock availability failure — 3-layer mitigation: (1) firmware debounce [this document], (2) FAI-K04, (3) app UX diagnostic', 'MITIGATED — firmware layer complete; FAI-K04 and app UX layers pending'),
-    ('NP-HW-FPC-001 Rev D §11.4', 'Layer 2 electronic zone identity — ADC thresholds and ZONE_ID resistor map', 'CLOSED — hardware spec frozen'),
+    ('NP-HW-FPC-001 Rev 4 §11.4', 'Layer 2 electronic zone identity — ADC thresholds and ZONE_ID resistor map', 'CLOSED — hardware spec frozen'),
     ('CLAUDE.md §13.5', 'Locked decision: ZONE_ID firmware debounce 3×ADC at 100ms, ≥2/3 pass', 'LOCKED'),
 ]
 for ref, item, status in xrefs:

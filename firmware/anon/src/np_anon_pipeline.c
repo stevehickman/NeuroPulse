@@ -1,6 +1,6 @@
 /*
  * NeurOne Research Anonymization — Atomic Pipeline Orchestrator
- * Document: NP-FW-EMMC-002 Rev A §D.5 (atomic pipeline) + §D.6 (power-loss)
+ * Document: NP-FW-EMMC-002 Rev 1 §D.5 (atomic pipeline) + §D.6 (power-loss)
  *
  * See np_anon_pipeline.h for the contract and the two safety invariants
  * (no partial extract; always tear down).  This file holds no secrets of its

@@ -1,12 +1,12 @@
-# NP-OPT-PSF-001 Rev A — Transcranial PBM Optical Point-Spread Function and Spatial Resolution Floor
+# NP-OPT-PSF-001 — Transcranial PBM Optical Point-Spread Function and Spatial Resolution Floor
 
 **Project:** NeurOne
 **Document:** NP-OPT-PSF-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-07-20
 **Status:** ACTIVE — modelling result, not a measurement
 **Author:** NeurOne Systems
-**References:** NP-HEX-ZM-001 Rev A §3 (module geometry); `docs/pbm_neuro_protocols.md` §3; `docs/np_bib_1064_001.md`; `protocols/predefined/00-zones.npps`; PR #210 (zone membership ruling)
+**References:** NP-HEX-ZM-001 Rev 1 §3 (module geometry); `docs/pbm_neuro_protocols.md` §3; `docs/np_bib_1064_001.md`; `protocols/predefined/00-zones.npps`; PR #210 (zone membership ruling)
 **Model source:** `scripts/pbm-optical-psf.ts` (re-runnable)
 **Gate:** —
 **IEC 62304 Class:** — (analysis tool, not device software)

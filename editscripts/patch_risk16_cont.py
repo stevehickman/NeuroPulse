@@ -54,7 +54,7 @@ coord.save(COORD_PATH)
 print(f"  Coord checklist saved")
 
 # ── FAI: add §4c Sealing and IPX4 Verification ──
-FAI_PATH = "docs/neurone_fai_zone_module.docx"
+FAI_PATH = "docs/superseded/neurone_fai_zone_module.docx"
 fai = Document(FAI_PATH)
 
 # Find SECTION 5 heading paragraph

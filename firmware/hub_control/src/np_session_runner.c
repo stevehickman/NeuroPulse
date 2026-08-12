@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Session Runner Implementation
- * Document: NP-FW-HUB-001 Rev A §5
+ * Document: NP-FW-HUB-001 Rev 1 §5
  *
  * Execution model:
  *  - Commands in desc.cmds[] are pre-sorted by start_ms (np_protocol_sort_cmds).
@@ -67,7 +67,7 @@ static uint16_t slot_to_safety_bit(uint8_t slot)
     static const uint16_t k_map[NP_HUB_SLOT_MAX] = {
         /* Slots 0-4 (the retired zone slots) deliberately have NO entry, so they
          * zero-init to 0 and request no enable.  Cranial PBM is gated by the one
-         * NP_SAFETY_EN_PBM_CRANIAL bit (NP-HW-HUB-001 Rev C §7.2), and the
+         * NP_SAFETY_EN_PBM_CRANIAL bit (NP-HW-HUB-001 Rev 3 §7.2), and the
          * requester for it is the socket-dispatch path, which does not exist yet
          * (OI-HUB-SOCKET-01 — see the dispatch_command note below).  Mapping a
          * retired slot to the cranial bit instead would let a stale zone target
@@ -103,7 +103,7 @@ static uint16_t slot_to_safety_bit(uint8_t slot)
  * resolves them to (socket:element) addresses — but the control-dispatch path
  * below is still the legacy fixed-slot registry (np_module_registry), which has
  * no socket-indexed entries. The safety-MCU enable bitmap is no longer the
- * blocker it once was — NP-HW-HUB-001 Rev C §7.2 replaced the per-zone-slot
+ * blocker it once was — NP-HW-HUB-001 Rev 3 §7.2 replaced the per-zone-slot
  * NP_SAFETY_EN_PBM_ZONE_0..4 with the single NP_SAFETY_EN_PBM_CRANIAL bit, which
  * a socket-addressed command can request unchanged. What remains missing is the
  * socket-indexed dispatch registry itself.

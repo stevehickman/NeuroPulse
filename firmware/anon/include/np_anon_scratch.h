@@ -1,6 +1,6 @@
 /*
  * NeurOne Research Anonymization — Scratch Partition AES-256-CTR API
- * Document: NP-FW-EMMC-002 Rev A §D
+ * Document: NP-FW-EMMC-002 Rev 1 §D
  *
  * Encrypts every block written to the eMMC Scratch partition during a
  * research anonymization run, so that no decrypted UHDR data persists in

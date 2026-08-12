@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — Protocol Transport Host Tests (OI-HUB-MAIN-01)
- * Document: NP-FW-HUB-001 Rev A §2
+ * Document: NP-FW-HUB-001 Rev 1 §2
  *
  * Host-native tests for the length-prefixed reassembly + single-slot mailbox:
  *   - single-chunk and fragmented delivery reassemble identically

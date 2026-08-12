@@ -1,4 +1,4 @@
-# NP-ENV-001 Rev A — Environmental Envelopes: Survival/Warranty vs. Operating
+# NP-ENV-001 — Environmental Envelopes: Survival/Warranty vs. Operating
 
 **Program:** NeurOne chassis / systems
 **Status:** DRAFT — corrects a conflation in the earlier specs: the original "60–110 °F, 0–100 % RH"

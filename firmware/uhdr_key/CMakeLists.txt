@@ -1,6 +1,6 @@
 # NeurOne Two-Layer UHDR Key Scheme — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
-# Document: NP-FW-EMMC-002 Rev A §C
+# Document: NP-FW-EMMC-002 Rev 1 §C
 #
 # Static library linked into the main application.  Does NOT produce a
 # standalone binary.

@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Module Registry
- * Document: NP-FW-HUB-001 Rev A §3
+ * Document: NP-FW-HUB-001 Rev 1 §3
  *
  * The registry is a flat table of np_mod_entry_t records, one per physical slot.
  * On powerup, np_mod_reg_scan() probes each interface, calls each module type's

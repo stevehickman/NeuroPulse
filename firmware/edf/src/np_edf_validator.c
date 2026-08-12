@@ -1,7 +1,7 @@
-/* Document: NP-FW-EMMC-002 Rev A §E */
+/* Document: NP-FW-EMMC-002 Rev 1 §E */
 /*
  * NeurOne EDF+ Privacy Header — Validator
- * Document: NP-FW-EMMC-002 Rev A §E.2
+ * Document: NP-FW-EMMC-002 Rev 1 §E.2
  *
  * Confirms a header conforms to the privacy policy before any research extract
  * is transmitted.  This is the gate in the research anonymization pipeline: a

@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Session Log eMMC Backing (OI-LOG-01..04)
- * Document: NP-FW-HUB-001 Rev A §6, NP-FW-EMMC-001 Rev A §4–§7, §12
+ * Document: NP-FW-HUB-001 Rev 1 §6, NP-FW-EMMC-001 Rev 1 §4–§7, §12
  *
  * Backs the four session-logger HAL entry points declared in np_session_log.h:
  *

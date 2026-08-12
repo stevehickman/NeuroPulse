@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Cervical VNS Re-Enable Manager (OI-CVNS-HUB-01)
- * Document: NP-FW-HUB-001 Rev A §7a, NP-FW-CVNS-001 Rev A
+ * Document: NP-FW-HUB-001 Rev 1 §7a, NP-FW-CVNS-001 Rev 1
  *
  * See np_cvns_reenable.h for the full state-machine contract.
  *

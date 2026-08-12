@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-CONV-001
-**Revision:** A
+**Revision:** 2
 **Date:** 2026-08-11
 **Status:** ACTIVE
 **Effective Date:** 2026-08-11
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (new document)
-**References:** NP-HW-HEXTILE-001 Rev C §7.4; NP-DRV-SHELL-002 Rev B §5.1.7; NP-HW-HUB-001 Rev C; NP-FW-CVNS-001 Rev B §5.1; NP-FMEA-001 (OI-FMEA-01); `docs/FRONT_MATTER_TEMPLATES.md`; `docs/ABBREVIATIONS.md`
+**References:** NP-HW-HEXTILE-001 Rev 3 §7.4; NP-DRV-SHELL-002 Rev 2 §5.1.7; NP-HW-HUB-001 Rev 3; NP-FW-CVNS-001 Rev 2 §5.1; NP-FMEA-001 (OI-FMEA-01); `docs/FRONT_MATTER_TEMPLATES.md`; `docs/ABBREVIATIONS.md`
 **Related Issues:** —
 **Gate:** — (applies continuously; binding at schematic capture and at firmware pin-table authoring)
 **IEC 62304 Class:** N/A (documentation convention; §3 has Class C consumers and is flagged accordingly)
@@ -76,7 +76,7 @@ evidence, not taste.
 > plain-text diff.
 
 `SAFE_EN[n]` is the per-cluster safety enable for cluster *n*. It was written `SAFE_EN_n` through
-NP-DRV-SHELL-002 Rev B, where the `_n` was an index and repeatedly read as a polarity flag.
+NP-DRV-SHELL-002 Rev 2, where the `_n` was an index and repeatedly read as a polarity flag.
 
 ### 1.4 The polarity of a signal is part of its specification, not its implementation
 
@@ -128,10 +128,68 @@ OI-FMEA-01 has a convention to adopt if it is ever closed.
 |---|---|---|
 | Document ID | `NP-<DOMAIN>-<NNN>` | `NP-HW-HEXTILE-001`, `NP-DRV-SHELL-002` |
 | Filename | lower-snake of the ID, `.md` | `docs/np_hw_hextile_001.md` |
-| **New number vs new revision** | **New number** when the *architecture is replaced*; **new revision** when decisions are *inherited* | `NP-DRV-SHELL-002` took a new number from `-001` (architecture replaced); `NP-HW-FPC-001 Rev E` layered on Rev D (inherited) |
-| Revision | single uppercase letter, in the `**Revision:**` field only — **never in the title** | `**Revision:** C` |
+| **New number vs new revision** | **New number** when the *architecture is replaced*; **new revision** when decisions are *inherited* | `NP-DRV-SHELL-002` took a new number from `-001` (architecture replaced); `NP-HW-FPC-001 Rev 5` layered on Rev 4 (inherited) |
+| Revision | **positive integer**, in the `**Revision:**` field only — **never in the title, never in the filename** | `**Revision:** 3` |
 | Status | `DRAFT` · `ACTIVE` · `BASELINED` · `SUPERSEDED` · `ARCHIVED` | |
+| Superseded documents | live in `docs/superseded/`, indexed by `docs/superseded/README.md` | |
 | Front matter | first 12 fields fixed and ordered | `docs/FRONT_MATTER_TEMPLATES.md` is normative |
+
+### 4.1 Revisions are integers (BINDING, changed at Rev 2)
+
+> **A document revision is a positive integer. First issue is Rev 1.**
+
+Rev 1 of this document specified a single uppercase letter, which is what the set had been using.
+That failed on its own terms and was replaced rather than patched:
+
+| Failure | Evidence |
+|---|---|
+| The alphabet ran out | `NP-DHF-001` reached **Rev AA** — the 27th issue. `AA` sorts before `B` in every tool that sorts text, so the register's own index was mis-ordering its newest entry. |
+| Letters do not carry magnitude | Nothing in "Rev H" says *eighth*. Readers were counting on their fingers to tell whether `NP-SW-CI-001` Rev H was ahead of `NP-FMEA-001` Rev D. |
+| A parallel numeric scheme already existed | `NP-DHF-001` §5.1 listed the design briefs as revisions **1, 2, 3, 4** while every other row used letters. Two schemes, one table. |
+| A third, dotted scheme also existed | `NP-COORD-001` reached `Rev A.10`, which no other document used and no rule described. |
+
+**The mapping applied on 2026-08-11 is positional and total** — `A`=1 … `Z`=26, `AA`=27 — so any
+revision cited in git history, in a commit message, or in a `.docx` still on file resolves without
+ambiguity:
+
+| A | B | C | D | E | F | G | H | I | J | K | L | M |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 |
+
+| N | O | P | Q | R | S | T | U | V | W | X | Y | Z | AA |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 14 | 15 | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 | 24 | 25 | 26 | 27 |
+
+No letter was skipped in this document set — `I`, `O` and `Q` were all in use (`NP-DHF-001` passed
+through each) — so the mapping is positional with no gaps, and it is injective within every document.
+
+> **This section is the one place in the active set where letter revisions still appear, and that is
+> deliberate.** `Rev H`, `Rev AA` and `Rev A.10` are quoted above as *evidence for the change*; a
+> mapping table that could not name what it maps from would be unusable. §5 already records the same
+> trap for section marking — *"a rule document that quotes its own anti-pattern fails its own rule"*
+> — and it applies here too. An audit finding letter revisions in `np_conventions_001.md` §4.1 has
+> found the explanation, not a miss. The other two known survivors are
+> `docs/superseded/**` (§1.1, by design) and `neurone_privacy_analysis_001.pdf` (binary, OI-CONV-04).
+
+### 4.2 What the integer rule does NOT cover
+
+This rule binds **document** revisions. Three neighbouring things keep letters, and the boundary is
+stated here because a blanket conversion would have silently rewritten all three:
+
+| Not a document revision | Example | Why it keeps letters |
+|---|---|---|
+| **PCB revision** | `Hub PCB Rev C` | A board revision is a hardware artifact identity that appears on silkscreen and in fabrication packages. It is set by the EE release, not by this register. `NP-HW-HUB-001 Rev 3` and `Hub PCB Rev C` currently move together; that coupling is now visible instead of implied. |
+| **Database schema revision** | SHDR `schema Rev D` | An on-disk format identity (`ci/shdr/shdr_fleet_schema.sql`). Renaming it would invalidate the migration record. |
+| **Vendor / standards revision** | `IPC-2223D` | Owned by the issuing body — §Scope's vendor-wins rule applies. |
+
+### 4.3 No revision information in filenames
+
+> **A filename names the document, not the issue of it.** Version control holds the revision history.
+
+`neurone_design_brief_r5.docx` was renamed to `neurone_design_brief.docx` on 2026-08-11 for this
+reason: a rename on every revision breaks every inbound link, and the `_r5` was already stale
+relative to the register in two places. Files under `docs/superseded/` are exempt — they are
+historical records and are not renamed backward (§1.1).
 
 ## 5. Section references
 
@@ -144,7 +202,7 @@ OI-FMEA-01 has a convention to adopt if it is ever closed.
 >
 > *Note: the incorrect form is described here rather than quoted, because the checker scans for
 > the literal pattern and a rule document that quotes its own anti-pattern fails its own rule.
-> Rev A did exactly that and was caught by CI — which is the intended behaviour of both.*
+> Rev 1 did exactly that and was caught by CI — which is the intended behaviour of both.*
 
 Cross-document references name the document first: `` `NP-HW-HUB-001` §7.4 ``.
 
@@ -165,7 +223,7 @@ reference to it, and those references are the only mechanism keeping this docume
 ## 7. Revising a locked position
 
 When a document replaces one of its own earlier positions, **state what it was, what replaced it,
-and why** — do not overwrite silently. The pattern of record is `NP-HW-HEXTILE-001` Rev B's
+and why** — do not overwrite silently. The pattern of record is `NP-HW-HEXTILE-001` Rev 2's
 cluster-count correction banner: a table of *was → is → cause*, then the surviving rationale.
 
 A superseded rationale that was **outweighed rather than refuted** is marked as such and retained.
@@ -191,6 +249,8 @@ confirm the check fails.
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
 | **OI-CONV-01** | **`SAFE_EN[n]` polarity disagrees with the safety-MCU firmware, and §1.1 made it visible.** `NP-DRV-SHELL-002` §6 specifies **LOW = rail removed = disabled** (so `SAFE_EN[n]` is active-**HIGH**, and SH2-DRC-13's "defaults LOW at reset" is the *safe* state). The safety MCU specifies the opposite for its enable lines: *"Active-LOW open-drain: **LOW = stimulation enabled**; HIGH = disabled. Power loss or reset [→ disabled]"* (`np_safety_config.h:7-8`, `np_safety_main.c:14`). **Both are internally coherent and fail-safe on their own terms; together they are inverted.** The hazard is the undocumented mismatch: anyone implementing `SAFE_EN[n]` to the safety MCU's house convention would make LOW *enable* the cluster, turning SH2-DRC-13's "default LOW at reset" from the safe state into **stimulation enabled at power-on reset**. Naming has been applied **as the documents currently state polarity** — `SAFE_EN[n]` carries no `#` because SHELL-002 declares it active-high — so **resolving this item may require a rename to `SAFE_EN#[n]`**. Not resolved here: this is a safety-architecture question, not a naming one. **The inversion is now visible in `NP-HW-HUB-001` §3.1's own block diagram**, where an active-low `PBM_CRANIAL_EN#` from the safety MCU feeds a tier whose per-cluster gate is declared active-high — which is precisely the effect §1.4 intends | Safety + EE Lead | **Cluster-carrier schematic; Hub PCB Rev C.** Assess with **OI-FMEA-01** and **OI-HUB-C07** |
+| **OI-CONV-03** | **`NP-COORD-001`'s dotted minor revisions are not resolved, only mapped.** That document reached `Rev A.10` under a two-part scheme (`A`, `A.1` … `A.10`) that no other NeurOne document uses and §4.1 does not describe. The 2026-08-11 conversion mapped the **major only** — `Rev A.10` → `Rev 1.10` — because flattening the eleven issues to `Rev 1`…`Rev 11` would assert an ordering the revision history does not actually establish (it is not recorded whether `Rev A` and `Rev A.1` were distinct issues or the same issue relabelled). Resolving it means reading the eleven change records and re-issuing the document under a flat integer. **Note also that the document and the register disagree**: `docs/status/document-register.md` and `NP-DHF-001` both cite `Rev A.9` while the `.docx` itself reads `Rev A.10` | Quality | Documentation consistency; not tooling-blocking |
+| **OI-CONV-04** | **The eleven active `.docx` documents still carry letter revisions internally.** §4.1's conversion was applied to the Markdown corpus — which is the set of record — and to every Markdown citation of a `.docx` document's revision, so the register, the DHF and all cross-references are numeric. The Word files' own header text was not edited: in every file sampled the revision string is split across Word runs (`Rev</w:t>…<w:t> A`), so a text substitution would have silently missed occurrences, and a partial conversion is worse than none. These files are on the path to Markdown conversion anyway (`np_*.md` is the newer generation); the revision label should convert with the format, in one step, not before it. Until then §4.1's mapping table resolves the discrepancy. Affected: `neurone_bibliography`, `neurone_clinical_trials_strategy`, `neurone_design_brief`, `neurone_eng_coordination_checklist`, `neurone_fpc_procurement_requirements`, `neurone_fw_emmc_001`, `neurone_researchers`, `neurone_sbir_phase1_draft`, `neurone_supplier_selection_checklist`, `neurone_tool_lens_001`, `neurone_tool_shell_001` | Quality | Documentation consistency; not tooling-blocking |
 | **OI-CONV-02** | Sweep the remaining document set against §1 and §5. This revision covers the socket/cluster interface documents (`NP-HW-HEXTILE-001`, `NP-DRV-SHELL-002`, `NP-HW-HUB-001`); the modality, firmware and app specs have not been audited for active-low signals carrying no `#` | Systems | Documentation consistency; not tooling-blocking |
 
 ---
@@ -199,4 +259,5 @@ confirm the check fails.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
-| A | 2026-08-11 | NeurOne Systems Engineering | Initial release. Consolidates rules previously stated inline in `NP-HW-HEXTILE-001` §7.4 and `NP-DRV-SHELL-002` §5.1.7. **Binding rule: all active-low NeurOne signals terminate with `#`** (§1.1), applied to `ALERT#`, `SEAT#` and newly to `ATTN#`. §1.2 records the five suffixes and one prefix that are unavailable for polarity, each with the evidence that took it. §1.3 introduces `SIGNAL[n]` index notation, replacing `SAFE_EN_n`. **§2 corrects the firmware mapping from `_L` to `_ACTIVE_LOW`** — `_L` already means *Left* in `NP-FW-CVNS-001` §5.1, which the original mapping missed. §3 states the Class C boundary: no firmware identifier is renamed, and OI-FMEA-01 keeps ownership of the unmarked safety-MCU enable lines. §4–§8 record document-ID, section-marking, identifier-family, revision-practice and verification conventions already in use but never written down. **Raises OI-CONV-01** — applying §1.1 exposed an inverted `SAFE_EN[n]` polarity between `NP-DRV-SHELL-002` §6 and the safety-MCU firmware, which is a safety-architecture question and is not resolved here. |
+| **2** | **2026-08-11** | NeurOne Systems Engineering | **Document revisions become integers (§4.1), replacing Rev 1's single-uppercase-letter rule.** Rev 1's rule is stated, then replaced with the four pieces of evidence that took it: `NP-DHF-001` had reached **Rev AA** (27th issue) which text-sorts before `B`; letters carry no magnitude; `NP-DHF-001` §5.1 was *already* numbering the design briefs 1–4 in a table whose other rows used letters; and `NP-COORD-001` had a third, dotted scheme (`Rev A.10`) that no rule described. Mapping is **positional and total** (`A`=1 … `Z`=26, `AA`=27) and published as a table, so revisions cited in git history stay resolvable; no letter was skipped in this set, so it is injective. **§4.2 states the boundary the conversion did not cross** — PCB revisions, SHDR database schema revisions and vendor/standards revisions keep letters, each with its reason; the exclusions were established by enumerating every token preceding `Rev <letter>` in the tree, not by assumption. **§4.3 forbids revision information in filenames** (`neurone_design_brief_r5.docx` → `neurone_design_brief.docx`) and **§4 adds `docs/superseded/`** as the home for retired documents. Superseded documents are **not** converted — §1.1's *rename forward, never backward* applies to revision labels as it does to signal names. Raises **OI-CONV-03** (NP-COORD-001's dotted scheme mapped, not resolved; register and document also disagree on A.9 vs A.10) and **OI-CONV-04** (eleven active `.docx` retain letters internally — their revision text is split across Word runs, so partial conversion was the only mechanical option and was refused). |
+| 1 | 2026-08-11 | NeurOne Systems Engineering | Initial release. Consolidates rules previously stated inline in `NP-HW-HEXTILE-001` §7.4 and `NP-DRV-SHELL-002` §5.1.7. **Binding rule: all active-low NeurOne signals terminate with `#`** (§1.1), applied to `ALERT#`, `SEAT#` and newly to `ATTN#`. §1.2 records the five suffixes and one prefix that are unavailable for polarity, each with the evidence that took it. §1.3 introduces `SIGNAL[n]` index notation, replacing `SAFE_EN_n`. **§2 corrects the firmware mapping from `_L` to `_ACTIVE_LOW`** — `_L` already means *Left* in `NP-FW-CVNS-001` §5.1, which the original mapping missed. §3 states the Class C boundary: no firmware identifier is renamed, and OI-FMEA-01 keeps ownership of the unmarked safety-MCU enable lines. §4–§8 record document-ID, section-marking, identifier-family, revision-practice and verification conventions already in use but never written down. **Raises OI-CONV-01** — applying §1.1 exposed an inverted `SAFE_EN[n]` polarity between `NP-DRV-SHELL-002` §6 and the safety-MCU firmware, which is a safety-architecture question and is not resolved here. |

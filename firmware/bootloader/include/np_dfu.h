@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — USB-C DFU Recovery
- * Document: NP-FW-EMMC-001 Rev A §8.4
+ * Document: NP-FW-EMMC-001 Rev 1 §8.4
  *
  * DFU recovery is entered when:
  *  (a) Both firmware banks fail signature verification, OR

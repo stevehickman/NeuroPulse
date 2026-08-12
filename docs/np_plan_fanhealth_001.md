@@ -1,10 +1,10 @@
-# NP-PLAN-FANHEALTH-001 Rev A — Fan-Health Interlock Sequenced Work Plan
+# NP-PLAN-FANHEALTH-001 — Fan-Health Interlock Sequenced Work Plan
 
 **Program:** NeurOne chassis / thermal-safety
 **Status:** DRAFT plan — sequences the four open items (OI-FAN-01…04) from NP-REQ-FANHEALTH-001 §8 to
 close **FMEA-G07-01** and land **SR-FAN-01…06** with verified constants.
 **References:** NP-REQ-FANHEALTH-001 (SR-FAN-01…06), NP-THERM-CFD-001 (THERM-1a BCs), NP-FMEA-GEOM-001
-(FMEA-G07-01), NP-THERM-BEZEL-001 (THERM-1), NP-SW-001 §6.2, NP-RM-001 / NP-RISK-001.
+(FMEA-G07-01), NP-THERM-BEZEL-001 (THERM-1), NP-SW-001 §6.2, NP-RM-001 / NP-RISK-004 (RISK-26).
 **Date:** 2026-07-21
 
 ---
@@ -17,7 +17,7 @@ close **FMEA-G07-01** and land **SR-FAN-01…06** with verified constants.
 | **ME** | Scalp-NTC-at-PD2 feasibility, module/FPC change, phantom-bench fixture |
 | **FW** | SW01-M04 Class C change, unit/integration tests, requirement text |
 | **EE** | NTC ADC channel / fan-tach routing (if Path B2) |
-| **Quality** | NP-RISK-001 hazard entry, NP-SW-001 change control, traceability |
+| **Quality** | NP-RISK-004 hazard entry (RISK-26), NP-SW-001 change control, traceability |
 
 ## 2. Dependency shape
 
@@ -43,7 +43,7 @@ OI-FAN-02 and OI-FAN-04a run off the critical path, in parallel from day 0.
 
 | Phase | Task | Owner | Depends on | Exit criteria | Est. |
 |-------|------|-------|-----------|---------------|------|
-| **0** | **OI-FAN-04a** — Enter FMEA-G07-01 in NP-RISK-001 as a new RISK-2x hazard; accept SR-FAN-01…06 into NP-SW-001 §6.2 **provisionally** (constants marked TBD-per-THERM-1a) | Quality | — | Hazard under QMS control; requirement baselined | 1–2 wk |
+| **0** | **OI-FAN-04a** — **DONE: FMEA-G07-01 is RISK-26, carried in NP-RISK-004** (NP-RISK-001 superseded 2026-08-11); accept SR-FAN-01…06 into NP-SW-001 §6.2 **provisionally** (constants marked TBD-per-THERM-1a) | Quality | — | Hazard under QMS control; requirement baselined | 1–2 wk |
 | **0** | **OI-FAN-01a** — Run CFD **case C2** first (bezel 0.6, T2-peak, fan OFF, 43.3 °C, low perfusion) — the Path-A go/no-go | Thermal | NP-THERM-CFD-001 | Face-vs-junction result at worst fault → Path A admissible? y/n | 1–2 wk |
 | **0** | **OI-FAN-01b** — Full case matrix C1–C6 + perfusion sweep + τ_face transient | Thermal | C2 | τ_face, natural-convection-safe duty ceilings, heat-split | +2–3 wk |
 | **0** | **OI-FAN-02** — Scalp-NTC-at-PD2 feasibility + BOM delta (parallel de-risk so Path B1 is ready) | ME (+EE) | — | Go/no-go on the sensor + $/unit | 2–3 wk |
@@ -57,7 +57,7 @@ OI-FAN-02 and OI-FAN-04a run off the critical path, in parallel from day 0.
 
 - **C2 first (cheap go/no-go).** The single most decision-relevant CFD case runs before the full
   matrix, so Path A is confirmed or killed in ~1–2 weeks — before any interlock spend.
-- **Baseline the hazard now (OI-FAN-04a).** A known S3 thermal hazard should be in NP-RISK-001 under
+- **Baseline the hazard now (OI-FAN-04a).** A known S3 thermal hazard should be in the risk file (now NP-RISK-004) under
   QMS control immediately; the requirement is accepted provisionally with constants as TBD so it does
   not wait on the CFD.
 - **OI-FAN-02 in parallel, not after.** Knowing the scalp-NTC is feasible *before* the gate means a
@@ -72,4 +72,4 @@ OI-FAN-02 and OI-FAN-04a run off the critical path, in parallel from day 0.
 ## 5. Cross-references
 
 NP-REQ-FANHEALTH-001 §8 (source OIs) · NP-THERM-CFD-001 (case matrix) · NP-FMEA-GEOM-001 (FMEA-G07-01) ·
-NP-SW-001 §6.2 · NP-RM-001 / NP-RISK-001 · NP-DT-001 (traceability, planned).
+NP-SW-001 §6.2 · NP-RM-001 / NP-RISK-004 (index NP-RISK-002) · NP-DT-001 (traceability, planned).

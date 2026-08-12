@@ -5,7 +5,7 @@ They are committed to the repository intentionally as development infrastructure
 
 **DO NOT use these keys in production.** The production manufacturing root key pair
 is managed separately under HSM-backed secure key management and is never committed
-to version control. See NP-FW-EMMC-001 Rev A §8.3.
+to version control. See NP-FW-EMMC-001 Rev 1 §8.3.
 
 ## Signing a test descriptor
 

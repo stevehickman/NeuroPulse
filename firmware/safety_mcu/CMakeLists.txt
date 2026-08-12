@@ -1,14 +1,14 @@
 # NeurOne Safety MCU Firmware — CMake Build
 # Target: STMicroelectronics STM32G071 (Cortex-M0+, 64 MHz)
-# Document: NP-SW-001 Rev A — SW-01 Class C firmware
-#           NP-FW-EMMC-001 Rev A §4.2, NP-FMEA-001 Rev A
+# Document: NP-SW-001 Rev 1 — SW-01 Class C firmware
+#           NP-FW-EMMC-001 Rev 1 §4.2, NP-FMEA-001 Rev 1
 #
 # IEC 62304 Class C — safety-critical; MISRA C:2012 mandatory.
 # Safety MCU owns all stimulation GPIO enable lines (10 since NP-HW-HUB-001
-# Rev C §7.2 collapsed the five per-zone PBM enables to one cranial enable).
+# Rev 3 §7.2 collapsed the five per-zone PBM enables to one cranial enable).
 # SPI slave to i.MX RT1062 main processor; 200ms heartbeat, 1.5s watchdog.
 #
-# ── SW-01 Modules (NP-SW-001 Rev A §4.1) ─────────────────────────────────────
+# ── SW-01 Modules (NP-SW-001 Rev 1 §4.1) ─────────────────────────────────────
 #   SW01-M01  np_gpio_mgr          — stimulation GPIO owner (10 lines; one
 #                                     cranial PBM line since NP-HW-HUB-001 §7.2)
 #   SW01-M02  np_spi_watchdog      — 200ms heartbeat + 1.5s watchdog cutoff
@@ -39,7 +39,7 @@
 #
 # NOTE: Safety MCU firmware is NEVER updated via automated OTA.
 #       Update requires explicit user confirmation + per-page SPI flash with
-#       readback verification per NP-FW-EMMC-001 Rev A §8.4.
+#       readback verification per NP-FW-EMMC-001 Rev 1 §8.4.
 
 cmake_minimum_required(VERSION 3.20)
 
@@ -69,7 +69,7 @@ if(NP_BUILD_TESTS)
     # np_hub_enable_mirror.c is a test-only TU that reads the hub's enable-word
     # macros, so the "must match hub_control/np_hub_config.h" contract in
     # np_safety_protocol.h can be checked instead of merely stated
-    # (NP-HW-HUB-001 Rev C §7.2).  The two headers cannot share a TU.
+    # (NP-HW-HUB-001 Rev 3 §7.2).  The two headers cannot share a TU.
     add_executable(np_safety_spi_proto_tests
         tests/np_safety_spi_proto_tests.c
         tests/np_hub_enable_mirror.c

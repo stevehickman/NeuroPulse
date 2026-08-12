@@ -1,6 +1,6 @@
 /*
  * NeurOne Two-Layer UHDR Key Scheme
- * Document: NP-FW-EMMC-002 Rev A §C.2–§C.6
+ * Document: NP-FW-EMMC-002 Rev 1 §C.2–§C.6
  *
  * See np_uhdr_key.h for the architecture, contract, and SRAM-secret hygiene
  * rules.  This translation unit contains the pure key-lifecycle logic plus, in

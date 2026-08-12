@@ -8,13 +8,13 @@ for para in sbir.paragraphs:
         print(f"  {para.text[:120]!r}")
 
 print("\n=== FPC Spec — fab note RA copper ===")
-spec = Document("docs/neurone_fpc_zone_module_spec_revA.docx")
+spec = Document("docs/superseded/neurone_fpc_zone_module_spec_revA.docx")
 for i, para in enumerate(spec.paragraphs):
     if "Rolled Annealed" in para.text or "DRAWING REQUIREMENT" in para.text or "IPC-4204" in para.text:
         print(f"  [{i}] {para.text[:120]!r}")
 
 print("\n=== Risk Register — RISK-08/09/10 Summary Table ===")
-risks = Document("docs/neurone_fpc_zone_module_risks_revA.docx")
+risks = Document("docs/superseded/neurone_fpc_zone_module_risks_revA.docx")
 tbl = risks.tables[0]
 for row in tbl.rows:
     rid = row.cells[0].text.strip()

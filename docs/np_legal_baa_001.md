@@ -2,13 +2,13 @@
 
 **Project:** NeurOne  
 **Document:** NP-LEGAL-BAA-001  
-**Revision:** A  
+**Revision:** 1
 **Date:** 2026-06-03  
 **Status:** DRAFT  
 **Effective Date:** 2026-06-03  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-PRIV-REM-001 STEP-13; 45 CFR §164.504(e); 45 CFR §§164.308(b), 164.502(e); NP-PRIV-001 Rev A HIGH-05, MEDIUM-07  
+**References:** NP-PRIV-REM-001 STEP-13; 45 CFR §164.504(e); 45 CFR §§164.308(b), 164.502(e); NP-PRIV-001 Rev 1 HIGH-05, MEDIUM-07  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —  

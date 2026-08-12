@@ -1,6 +1,6 @@
 """
 NeurOne Privacy Analysis Report Generator
-NP-PRIV-001 Rev A — 2026-06-02
+NP-PRIV-001 Rev 1 — 2026-06-02
 """
 
 from reportlab.lib.pagesizes import letter
@@ -91,7 +91,7 @@ def on_page(canvas, doc):
     canvas.setFont("Helvetica-Bold", 8)
     canvas.setFillColor(colors.white)
     canvas.drawString(0.5*inch, h - 18, "NeurOne — CONFIDENTIAL")
-    canvas.drawRightString(w - 0.5*inch, h - 18, "NP-PRIV-001 Rev A  |  2026-06-02")
+    canvas.drawRightString(w - 0.5*inch, h - 18, "NP-PRIV-001 Rev 1  |  2026-06-02")
     # footer
     canvas.setFillColor(C_RULE)
     canvas.rect(0.5*inch, 0.4*inch, w - inch, 0.5, fill=1, stroke=0)
@@ -197,7 +197,7 @@ def build_content(st):
     story.append(Paragraph("Privacy Analysis and Repair", st["cover_title"]))
     story.append(Paragraph("NeurOne Design Programme", st["cover_sub"]))
     story.append(SP(1, 16))
-    story.append(Paragraph("NP-PRIV-001 Rev A", st["cover_meta"]))
+    story.append(Paragraph("NP-PRIV-001 Rev 1", st["cover_meta"]))
     story.append(Paragraph("Date: 2026-06-02", st["cover_meta"]))
     story.append(Paragraph("Classification: CONFIDENTIAL — Internal Use Only", st["cover_meta"]))
     story.append(Paragraph("Scope: CLAUDE.md Rev 14 · UHDR/SHDR architecture · Consent engine · Research data flows · Clinical platform", st["cover_meta"]))
@@ -251,7 +251,7 @@ def build_content(st):
     story += finding_block(st,
         "CRITICAL",
         "Warranty Owner ID re-identifies SHDR",
-        "CLAUDE.md §5.1 — SHDR definition; §5.1 boundary resolution table; NP-FW-EMMC-001 Rev A §7",
+        "CLAUDE.md §5.1 — SHDR definition; §5.1 boundary resolution table; NP-FW-EMMC-001 Rev 1 §7",
         "Pure privacy failure",
         "SHDR is documented as 'linked to device ID + warranty owner ID only — never to user identity.' "
         "But warranty registration collects name, email, postal address, and serial number. "
@@ -266,13 +266,13 @@ def build_content(st):
         "warranty system only. Store only the token in SHDR. The warranty database and SHDR fleet "
         "database are never joined in production. Add a SHDR boundary test: 'Could NeurOne identify "
         "a named individual from SHDR plus the warranty registration table?' If yes → the data is UHDR. "
-        "Document in NP-FW-EMMC-001 Rev B and NP-RM-001."
+        "Document in NP-FW-EMMC-001 Rev 2 and NP-RM-001."
     )
 
     story += finding_block(st,
         "CRITICAL",
         "No documented breach detection or response plan",
-        "CLAUDE.md §13 (absent); NP-QMS-CAPA-001 Rev A — regulatory reporting mentioned but no breach runbook",
+        "CLAUDE.md §13 (absent); NP-QMS-CAPA-001 Rev 1 — regulatory reporting mentioned but no breach runbook",
         "Pure privacy failure",
         "The QMS documents CAPA triggers but there is no breach detection, containment, or notification "
         "runbook. Hard regulatory deadlines apply: HIPAA Breach Notification Rule — 60 days from "
@@ -337,7 +337,7 @@ def build_content(st):
     story += finding_block(st,
         "HIGH",
         "UHDR key lifecycle gap: biometric revocation and device transfer",
-        "CLAUDE.md §5.1 UHDR encryption spec; NP-FW-EMMC-001 Rev A §6",
+        "CLAUDE.md §5.1 UHDR encryption spec; NP-FW-EMMC-001 Rev 1 §6",
         "Pure privacy failure + security failure",
         "Two lifecycle gaps are unaddressed. (1) Biometric compromise or change: Argon2id is "
         "deterministic — if the biometric template changes, the derived key changes and previously "
@@ -468,7 +468,7 @@ def build_content(st):
     story += finding_block(st,
         "MEDIUM",
         "Apple Watch sync app HealthKit access scope unspecified",
-        "CLAUDE.md §3b Apple Watch Sync App; NP-APP-ROADMAP-001 Rev A Phases 1-4",
+        "CLAUDE.md §3b Apple Watch Sync App; NP-APP-ROADMAP-001 Rev 1 Phases 1-4",
         "Pure privacy failure",
         "The Watch app reads HRV data and potentially other HealthKit quantities. The roadmap does not "
         "specify which HealthKit types are requested. If the app follows a broad permission model, it "
@@ -490,7 +490,7 @@ def build_content(st):
     story += finding_block(st,
         "MEDIUM",
         "Research Scratch partition anonymisation window",
-        "NP-FW-EMMC-001 Rev A §15; CLAUDE.md §5.1 — 'Scratch: raw blocks, no filesystem, no encryption'",
+        "NP-FW-EMMC-001 Rev 1 §15; CLAUDE.md §5.1 — 'Scratch: raw blocks, no filesystem, no encryption'",
         "Security failure",
         "The research anonymisation pipeline uses the Scratch partition as a working area. Scratch is "
         "explicitly unencrypted. Three exploitable windows: (1) unexpected power loss mid-anonymisation "
@@ -506,13 +506,13 @@ def build_content(st):
         "Store K_scratch only in on-chip SRAM; zero with memset_explicit on completion or reset. "
         "Design the pipeline as an atomic transaction — interrupted runs are discarded, never partially "
         "transmitted. Issue eMMC SANITIZE (CMD38) on Scratch blocks after extract is written and "
-        "verified. Document in NP-FW-EMMC-001 Rev B §15."
+        "verified. Document in NP-FW-EMMC-001 Rev 2 §15."
     )
 
     story += finding_block(st,
         "MEDIUM",
         "EDF+ patient header field handling",
-        "NP-FW-EMMC-001 Rev A §6 — session data stored as EDF+; CLAUDE.md §5.1 UHDR file structure",
+        "NP-FW-EMMC-001 Rev 1 §6 — session data stored as EDF+; CLAUDE.md §5.1 UHDR file structure",
         "Pure privacy failure",
         "EDF+ file headers (first 256 bytes) contain mandatory plaintext fields: local patient "
         "identification (name, sex, DOB, patient code) and local recording identification (start date, "
@@ -523,7 +523,7 @@ def build_content(st):
         "is the Fake Anonymisation anti-pattern applied to file metadata.",
         "Strip Invisible Metadata pattern; Fake Anonymisation anti-pattern; GDPR Art. 5(1)(c) data "
         "minimisation; HIPAA Minimum Necessary; EDF+ specification §2.1",
-        "Define NeurOne EDF+ header policy in NP-FW-EMMC-001 Rev B §6. Patient code: opaque "
+        "Define NeurOne EDF+ header policy in NP-FW-EMMC-001 Rev 2 §6. Patient code: opaque "
         "UHDR_TOKEN (16 chars). Sex: X (never populated). Birthdate: X. Patient name: X. "
         "Recording start date: preserved. Hospital code: 'NeurOne'. Technician: X. "
         "Equipment: 'NeurOne_v[FW_VER]'. For research anonymisation: add a header validation step "
@@ -559,7 +559,7 @@ def build_content(st):
     story += finding_block(st,
         "LOW",
         "App telemetry and crash reporting scope unspecified",
-        "CLAUDE.md §10 iOS/Android app — Class B software; NP-SW-001 Rev A",
+        "CLAUDE.md §10 iOS/Android app — Class B software; NP-SW-001 Rev 1",
         "Pure privacy failure",
         "The iOS/Android app will ship with analytics and crash reporting, but neither vendor selection "
         "nor data scope is documented. Analytics event names reconstruct health-management behaviour "
@@ -604,7 +604,7 @@ def build_content(st):
     story += finding_block(st,
         "LOW",
         "Apple Watch sync app HealthKit data residency",
-        "CLAUDE.md §3b Apple Watch Sync App — Phases 1-4; NP-APP-ROADMAP-001 Rev A",
+        "CLAUDE.md §3b Apple Watch Sync App — Phases 1-4; NP-APP-ROADMAP-001 Rev 1",
         "Pure privacy failure",
         "Related to the HealthKit finding above: the roadmap does not explicitly state that HealthKit "
         "data accessed on the Watch stays on the Watch/iPhone and is not transmitted to NeurOne "
@@ -614,7 +614,7 @@ def build_content(st):
         "guidelines and FTC HBNR.",
         "Apple HealthKit Review Guideline 5.1.1(iv); FTC HBNR 16 CFR §318.3; "
         "User-data confinement pattern",
-        "Add to NP-APP-ROADMAP-001 Rev B a binding data residency constraint for all HealthKit data: "
+        "Add to NP-APP-ROADMAP-001 Rev 2 a binding data residency constraint for all HealthKit data: "
         "'HealthKit data accessed by the Watch app is used for real-time session display only. "
         "It is not persisted, not cached, not transmitted to NeurOne servers or any third party, "
         "and not used for any purpose outside the active session.' Any future proposal to transmit "
@@ -693,7 +693,7 @@ def build_content(st):
     next_items = [
         ("1", "Resolve Warranty Owner ID (Critical) — before any external beta or warranty registration",
          "~1 week engineering, 1 week legal. Highest regulatory exposure. Define the opaque token "
-         "architecture and confirm in NP-FW-EMMC-001 Rev B."),
+         "architecture and confirm in NP-FW-EMMC-001 Rev 2."),
         ("2", "Author NP-SEC-BR-001 (Breach Response Plan) — Month 3 deliverable",
          "~3 days plus legal input. Hard deadlines (72 hours GDPR, 60 days HIPAA, 30 days most US "
          "state laws) cannot be met without a pre-existing runbook. Pre-T1-launch blocker."),
@@ -738,7 +738,7 @@ def main():
         rightMargin=0.55*inch,
         topMargin=0.55*inch,
         bottomMargin=0.6*inch,
-        title="NeurOne Privacy Analysis — NP-PRIV-001 Rev A",
+        title="NeurOne Privacy Analysis — NP-PRIV-001 Rev 1",
         author="PAI / SmartyPants",
         subject="Privacy Analysis and Repair",
     )

@@ -11,7 +11,7 @@ const BASE_URL = '/protocols/predefined/';
 interface Manifest {
   protocols: string[];
   composites: string[];
-  // Rev B: zone and condition definition files. All files load into ONE shared
+  // Rev 2: zone and condition definition files. All files load into ONE shared
   // namespace (NP-NPPS-REF-001 §1.6); definition files are loaded first so
   // protocol zone/condition references resolve.
   zones?: string[];

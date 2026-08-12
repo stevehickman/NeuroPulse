@@ -9,7 +9,7 @@ G3-03/G2-10 state is applied in place by editscripts/patch_hexzm_eng_coord_corre
 Most of this document (G1, G3, and the rest of G2) is unrelated to zone-module architecture
 and remains current. Kept here as the historical base generator.
 
-Generate NP-COORD-001 Rev A:
+Generate NP-COORD-001 Rev 1:
   Zone Module FPC — Engineering Coordination Checklist
 Covers RISK-13 (primary) and consolidates all cross-discipline coordination items
 from RISK-01 through RISK-17 and OI-01 through OI-13.
@@ -168,8 +168,8 @@ p3 = doc.add_paragraph()
 p3.alignment = WD_ALIGN_PARAGRAPH.CENTER
 r3 = p3.add_run(
     f"{DOC_NUM}  {REV}  |  {DATE}  |  Pre-Layout / Pre-Tooling Draft\n"
-    "References: NP-HW-FPC-001 Rev C · NP-PROC-FPC-001 Rev A · "
-    "NP-DRV-SHELL-001 Rev A · NP-FAI-ZM-001 Rev A\n"
+    "References: NP-HW-FPC-001 Rev 3 · NP-PROC-FPC-001 Rev 1 · "
+    "NP-DRV-SHELL-001 Rev 1 · NP-FAI-ZM-001 Rev 1\n"
     "Addresses RISK-13 (primary) and all cross-discipline coordination items "
     "from RISK-01 through RISK-17"
 )
@@ -609,7 +609,7 @@ coord_table(doc, [
      "OPEN — component orders required first"),
     ("G3-06",
      "Manufacturing Eng + HW EE + Mech Eng",
-     "NP-FAI-ZM-001 Rev A — complete all 50+ FAI items before production release. "
+     "NP-FAI-ZM-001 Rev 1 — complete all 50+ FAI items before production release. "
      "All BLOCKING items (FAI-D01, FAI-C01, FAI-K01, FAI-F01, FAI-A01–A05) must pass. "
      "Non-conformances in §7 must be dispositioned with Engineering sign-off.",
      "Completed NP-FAI-ZM-001 checklist with all items PASS or formally dispositioned. "

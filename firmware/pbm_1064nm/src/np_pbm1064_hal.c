@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — Platform HAL Stub Implementations
- * Document: NP-FW-PBM1064-001 Rev A §3
+ * Document: NP-FW-PBM1064-001 Rev 1 §3
  *
  * OI-PBM-01: np_pbm1064_hal_adc_read_pd    — STUB (platform team: wire to LPADC1)
  * OI-PBM-02: np_pbm1064_hal_i2c_write/_read — STUB (platform team: wire to LPI2C3)
@@ -215,7 +215,7 @@ np_pbm1064_status_t np_pbm1064_hal_t2_sloreta_get_target(int16_t *mni_x_out,
 {
     /*
      * Real implementation: read computed MNI target from np_fw_sloreta engine
-     * (NP-FW-HD-001 Rev A).  Stub returns DLPFC_L default so that software-
+     * (NP-FW-HD-001 Rev 1).  Stub returns DLPFC_L default so that software-
      * passable FAI-T2-03 can verify the sLORETA logging path.  OI-SES-T2-01.
      */
     if (!mni_x_out || !mni_y_out || !mni_z_out || !valid_out) {
@@ -245,7 +245,7 @@ np_pbm1064_status_t np_pbm1064_hal_tia_gain_set(uint8_t slot, np_tia_gain_t gain
     s_stub_tia_gain[slot] = gain;
     /*
      * Real implementation: drive GPIO_B0_(04 + slot) HIGH for NP_TIA_GAIN_LOW,
-     * LOW for NP_TIA_GAIN_HIGH (see NP-HW-HUB-001 Rev B §3.4).
+     * LOW for NP_TIA_GAIN_HIGH (see NP-HW-HUB-001 Rev 2 §3.4).
      * After asserting HIGH, wait NP_PBM1064_TIA_GAIN_SETTLE_US before returning
      * to allow DG2788A switch to settle before I2C mux enable is called.
      */
@@ -257,7 +257,7 @@ void np_pbm1064_hal_tia_gain_boot_init(void)
     /*
      * Real implementation: configure GPIO_B0_04..08 as GPIO2 push-pull outputs
      * driven LOW (NP_TIA_GAIN_HIGH = Rf 47 kΩ default) before zone detect starts.
-     * See NP-HW-HUB-001 Rev B §5.3.
+     * See NP-HW-HUB-001 Rev 2 §5.3.
      */
     for (uint8_t i = 0; i < 5U; i++) {
         s_stub_tia_gain[i] = NP_TIA_GAIN_HIGH;

@@ -1,4 +1,4 @@
-# NP-THERM-CFD-C2-001 Rev A — Case C2 Go/No-Go Run Card (Path-A admissibility)
+# NP-THERM-CFD-C2-001 — Case C2 Go/No-Go Run Card (Path-A admissibility)
 
 **Program:** NeurOne chassis / thermal
 **Status:** DRAFT run card — fully-pinned parameters for the single worst-fault case that decides

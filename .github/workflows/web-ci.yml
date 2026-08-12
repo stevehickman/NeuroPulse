@@ -205,7 +205,7 @@ jobs:
       # NP-HFE-002 rewording of two setup strings had been applied to the
       # generated catalogue only — regenerating would have reverted them to
       # instructing users to listen for a bone-conduction tone the firmware no
-      # longer emits (docs/np_fw_za_001.md, NP-HFE-002 §7.2).
+      # longer emits (docs/superseded/np_fw_za_001.md, NP-HFE-002 §7.2).
       - name: Locale catalogues in sync with canonical locales/*.json
         working-directory: .
         run: bun scripts/sync-locales.ts --check

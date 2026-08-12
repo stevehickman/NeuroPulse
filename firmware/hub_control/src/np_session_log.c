@@ -1,12 +1,12 @@
 /*
  * NeurOne Hub Control Program — Session Logger (UHDR / SHDR)
- * Document: NP-FW-HUB-001 Rev A §6
+ * Document: NP-FW-HUB-001 Rev 1 §6
  *
  * All writes are buffered; np_log_flush() triggers eMMC writes.
  * EEG sample blocks bypass the main buffer and go directly to HAL to avoid
  * copying 12 KB/s through a small intermediate buffer.
  *
- * Data routing follows NP-FW-EMMC-001 Rev A §12:
+ * Data routing follows NP-FW-EMMC-001 Rev 1 §12:
  *  UHDR: session UUID+timestamps, dose, HRV waveforms, coherence, impedance,
  *        EEG band power, EEG waveforms, eye state, protocol parameters used.
  *  SHDR: device health metrics only — no HR values, no EEG amplitudes,

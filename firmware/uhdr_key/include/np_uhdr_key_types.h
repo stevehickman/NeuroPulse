@@ -1,6 +1,6 @@
 /*
  * NeurOne Two-Layer UHDR Key Scheme — Status Types + Config Record
- * Document: NP-FW-EMMC-002 Rev A §C
+ * Document: NP-FW-EMMC-002 Rev 1 §C
  *
  * Convention (project-wide): NP_UHDR_OK = 0, all error codes negative.
  */
@@ -24,7 +24,7 @@ typedef enum {
 } np_uhdr_status_t;
 
 /*
- * Config partition UKMD record — NP-FW-EMMC-002 Rev A §C.3.
+ * Config partition UKMD record — NP-FW-EMMC-002 Rev 1 §C.3.
  *
  * Stored at Config offset NP_UHDR_UKMD_RECORD_OFFSET.  This is the ONLY
  * on-storage representation of the UHDR master key, and it is always the
@@ -42,7 +42,7 @@ typedef enum {
  * The layout is byte-exact and packed so the on-flash image is stable across
  * toolchains: 32 + 12 + 16 + 32 + 4 + 4 + 4 + 4 + 84 = 192 bytes.
  *
- * SPEC DISCREPANCY (flagged — OI-UHDRK-08): NP-FW-EMMC-002 Rev A §C.3 prints
+ * SPEC DISCREPANCY (flagged — OI-UHDRK-08): NP-FW-EMMC-002 Rev 1 §C.3 prints
  * `reserved[44]` while its own comment states "Pad to 192 bytes".  Those two
  * are inconsistent: the named fields before `reserved` sum to 108 bytes, so
  * reaching the stated 192-byte record requires reserved = 84, not 44 (44 would

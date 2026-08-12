@@ -1,13 +1,13 @@
 /*
  * NeurOne 1064nm Smart Zone Module — Session Orchestration
- * Document: NP-FW-PBM1064-001 Rev A §7 / NP-SES-1064-001 §1 (v5)
+ * Document: NP-FW-PBM1064-001 Rev 1 §7 / NP-SES-1064-001 §1 (v5)
  *
  * Session stages: PREFLIGHT → RAMP_UP (30 s) → ACTIVE → RAMP_DOWN (30 s) → COMPLETE
  * Tick rate: 100 ms (10 Hz dose tick).  NTC poll: 1 Hz.  I2C status poll: 5 s.
  * EEG-adaptive: 1 Hz input.
  *
  * v5 addresses sockets via a small list of (128-bit socket mask, preset)
- * groups (NP-HW-HUB-001 Rev C §10) rather than v4's 8-bit smart_module_mask +
+ * groups (NP-HW-HUB-001 Rev 3 §10) rather than v4's 8-bit smart_module_mask +
  * fixed zone[5] array. np_pbm1064_session_desc_expand() flattens the groups
  * into an ascending, deduplicated active-socket list once at session start;
  * every tick loop below walks that flat list instead of a fixed zone range.

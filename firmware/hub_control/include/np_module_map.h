@@ -55,7 +55,7 @@
  * never firmware C. So nothing could have kept a firmware lobe assignment in sync
  * with protocols/predefined/00-zones.npps.
  *
- * THE DISCRIMINATOR (NP-HW-HUB-001 Rev C §4.5.1): firmware may hold a socket
+ * THE DISCRIMINATOR (NP-HW-HUB-001 Rev 3 §4.5.1): firmware may hold a socket
  * grouping only if changing that membership requires RE-TOOLING HARDWARE. Cluster
  * membership qualifies — which sockets land on which cluster board is a physical
  * property of a built inner bowl. Lobe membership does not: gate REG-1 will re-cut

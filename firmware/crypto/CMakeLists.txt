@@ -1,5 +1,5 @@
 # NeurOne — Shared Cryptographic Primitives
-# Document: NP-SW-001 Rev A §4.1
+# Document: NP-SW-001 Rev 1 §4.1
 #
 # Static library consumed by:
 #   • firmware/bootloader/  (Cortex-M7 hard-FPU, SW-02 Class B)

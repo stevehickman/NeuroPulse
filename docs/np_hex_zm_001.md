@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-HEX-ZM-001
-**Revision:** B
+**Revision:** 2
 **Date:** 2026-08-04
 **Status:** DESIGN STUDY — Option A committed as baseline, Option B documented as future path. NOT a locked tooling baseline; gated by the curvature-scan go/no-go (§7).
 **Effective Date:** 2026-08-04
 **Author:** NeurOne Mechanical + Hardware Engineering
 **Approved By:** — (design study; principal directions recorded inline)
-**References:** NP-HW-HEXTILE-001 Rev B (electrical/FPC counterpart; §8.2.1 cluster-count derivation); NP-HW-HUB-001 Rev C (cluster-controller tier); NP-DRV-SHELL-002 Rev A (shell interconnect); NP-OPT-PSF-001 Rev A (lateralization model); NP-THERM-BEZEL-001 Rev A (bezel conflict); CLAUDE.md §3, §4
+**References:** NP-HW-HEXTILE-001 Rev 2 (electrical/FPC counterpart; §8.2.1 cluster-count derivation); NP-HW-HUB-001 Rev 3 (cluster-controller tier); NP-DRV-SHELL-002 Rev 1 (shell interconnect); NP-OPT-PSF-001 Rev 1 (lateralization model); NP-THERM-BEZEL-001 Rev 1 (bezel conflict); CLAUDE.md §3, §4
 **Related Issues:** —
 **Gate:** curvature-scan go/no-go (§7); REG-1 10-20 registration
 **IEC 62304 Class:** N/A (mechanical/architectural brief)
@@ -23,8 +23,8 @@
 
 | Rev | Date | Author | Change |
 |---|---|---|---|
-| A | 2026-07-15 | NeurOne Mechanical Engineering | Initial release. Option A (rigid median-curved 40 mm hexagon) committed as baseline, Option B (semi-flex) recorded as future path. Hex lattice geometry (§3), module-type taxonomy + SMART-1 (§4a), addressing and wire format (§4/§4b), two-layer shell + EMF seam (§5), cluster clamps (§5.4a), gates (§7). **CLUSTER-1 (7-hex flower as the cluster unit) was added to §5.4a on 2026-07-30 without a revision bump** — a bookkeeping lapse corrected at Rev B, which registers this document into the DHF index for the first time. |
-| **B** | **2026-08-04** | NeurOne Mechanical + Hardware Engineering | **Front matter brought to `docs/FRONT_MATTER_TEMPLATES.md` (the title carried the revision, and Document/Revision/Effective Date/Author/Approved By/References/Gate/Class fields were absent); revision history added; document registered in NP-DHF-001 §5.2 and `docs/status/document-register.md` for the first time.** Content changes, all in §4a and §5.4a: **two new principal directions recorded — SYM-1** (cluster partition mirror-symmetric about the sagittal midline) and **CONTIG-1** (a cluster's petals must form a contiguous arc; no pendant petal), with their derivations and mechanical rationale. **CLUSTER-1 itself is unchanged.** The §5.4a "30 tiles ≈ 4 clusters / 4–10 cluster clamps" figures are annotated as **retired-30-socket-lattice values that do not rescale** — NP-HW-HEXTILE-001 Rev A had carried them to the 80-socket lattice and sized hardware off them; the count under the standing decisions is **18** (six forced midline clusters + six lateral mirror pairs, provably minimal). §4a's `ceil(n/8)` cluster-board cost model reconciled as a *capacity floor* rather than a board count, with board count = cluster count and the tier BOM restated at **$114.12** at n = 80; the §5.4a MECH-2 comparison table annotated as pre-SYM-1 and marked "do not size hardware off this table". Peer documents (NP-HW-HUB-001, NP-DRV-SHELL-002) deliberately **not** modified — their stale counts are routed to their own revisions via OI-HEXTILE-14. No firmware changed. |
+| 1 | 2026-07-15 | NeurOne Mechanical Engineering | Initial release. Option A (rigid median-curved 40 mm hexagon) committed as baseline, Option B (semi-flex) recorded as future path. Hex lattice geometry (§3), module-type taxonomy + SMART-1 (§4a), addressing and wire format (§4/§4b), two-layer shell + EMF seam (§5), cluster clamps (§5.4a), gates (§7). **CLUSTER-1 (7-hex flower as the cluster unit) was added to §5.4a on 2026-07-30 without a revision bump** — a bookkeeping lapse corrected at Rev 2, which registers this document into the DHF index for the first time. |
+| **2** | **2026-08-04** | NeurOne Mechanical + Hardware Engineering | **Front matter brought to `docs/FRONT_MATTER_TEMPLATES.md` (the title carried the revision, and Document/Revision/Effective Date/Author/Approved By/References/Gate/Class fields were absent); revision history added; document registered in NP-DHF-001 §5.2 and `docs/status/document-register.md` for the first time.** Content changes, all in §4a and §5.4a: **two new principal directions recorded — SYM-1** (cluster partition mirror-symmetric about the sagittal midline) and **CONTIG-1** (a cluster's petals must form a contiguous arc; no pendant petal), with their derivations and mechanical rationale. **CLUSTER-1 itself is unchanged.** The §5.4a "30 tiles ≈ 4 clusters / 4–10 cluster clamps" figures are annotated as **retired-30-socket-lattice values that do not rescale** — NP-HW-HEXTILE-001 Rev 1 had carried them to the 80-socket lattice and sized hardware off them; the count under the standing decisions is **18** (six forced midline clusters + six lateral mirror pairs, provably minimal). §4a's `ceil(n/8)` cluster-board cost model reconciled as a *capacity floor* rather than a board count, with board count = cluster count and the tier BOM restated at **$114.12** at n = 80; the §5.4a MECH-2 comparison table annotated as pre-SYM-1 and marked "do not size hardware off this table". Peer documents (NP-HW-HUB-001, NP-DRV-SHELL-002) deliberately **not** modified — their stale counts are routed to their own revisions via OI-HEXTILE-14. No firmware changed. |
 
 ---
 
@@ -280,7 +280,7 @@ lattice, asserts the row construction never exceeds the area bound, and emits
 > lattice upstream of the zone file, correctly: a physically impossible 78-socket lattice had
 > passed review because the zone file was treated as locked. But it took **zone content**
 > along with **lattice geometry**, and only the second belongs to code. The correct split —
-> the same discriminator as `NP-HW-HUB-001` Rev C §4.5.1, generalised from firmware to all
+> the same discriminator as `NP-HW-HUB-001` Rev 3 §4.5.1, generalised from firmware to all
 > code:
 >
 > | Owns | Artefact | Changing it requires |
@@ -474,7 +474,7 @@ Cortex-M7 `-Werror` clean; CI test #12). Summary:
   >
   > The general rule that fell out: **firmware may hold a socket grouping only if
   > changing it requires re-tooling hardware** — true of cluster membership (inner-bowl
-  > FPC routing), false of lobe membership (a data re-cut). See Rev C §4.5.1. The
+  > FPC routing), false of lobe membership (a data re-cut). See Rev 3 §4.5.1. The
   > inclusive-midline **zone-authoring** rule now lives in full in
   > `protocols/predefined/00-zones.npps`, which is the file it governs.
 - **NVRAM:** CRC-32-protected serialize/load behind an injected HAL (bad
@@ -693,7 +693,7 @@ block insertion into a Hub PCB slot that lacked the TIA gain switch). SMART-1
 removes the hazard that key existed to prevent — with every socket I2C/TIA-capable
 by design, there is no "wrong socket" left to key against, for T1-C or any future
 smart module type. **Downstream effect:** this also removes the need for
-`OI-SM-SHELL-01` (the retired plan's shell Rev B with dual base/smart slot-cutout
+`OI-SM-SHELL-01` (the retired plan's shell Rev 2 with dual base/smart slot-cutout
 geometry per zone position) — a single universal socket cutout is sufficient, one
 less shell tooling revision. Type identity is established entirely by module
 self-report at insertion (UID → element inventory via `np_module_map`), not by
@@ -702,11 +702,11 @@ identified for a future module type, it should be solved the same way SMART-1
 solved this one — make every socket capable — rather than reintroducing a
 type-differentiating key.
 
-**Cost + architecture — now designed: see NP-HW-HUB-001 Rev C (`docs/np_hw_hub_001.md`).**
+**Cost + architecture — now designed: see NP-HW-HUB-001 Rev 3 (`docs/np_hw_hub_001.md`).**
 Every socket (not five) needs I2C bus access and a switchable-gain TIA stage. Hub PCB
 Rev B sized this for **five** zone slots (one PCA9546A covering 4 channels plus one
-GPIO-muxed fifth), which does not scale. Rev C's finding is that the binding constraint
-is **interconnect, not mux count**: Rev B is a star in which every socket's analog *and*
+GPIO-muxed fifth), which does not scale. Rev 3's finding is that the binding constraint
+is **interconnect, not mux count**: Rev 2 is a star in which every socket's analog *and*
 digital lines terminate at the hub — ~11 conductors × 80 sockets ≈ **880 conductors**
 through the §5.3c posterior blind-mate boss, plus 160 TIA channels and 80 `GAIN_SEL`
 GPIO. A deeper I2C mux tree fixes address collision and leaves all of that intact.
@@ -725,12 +725,12 @@ Two consequences that matter to this brief:
   sockets without a hub re-spin**; only inner-bowl cluster boards move.
 - **PD1/PD2 ratio accuracy improves.** Both PDs of a socket now pass through the same
   mux, Rf, op-amp and ADC, so gain error is common-mode and cancels in the ratio — the
-  discriminant the fouling-vs-aging detection rests on. Rev B's ≤0.5% per-slot PD1/PD2
+  discriminant the fouling-vs-aging detection rests on. Rev 2's ≤0.5% per-slot PD1/PD2
   matching requirement disappears.
 
 **Cost:** ~$6.34 per cluster board. `ceil(n/8)` is the **capacity floor**, not the board
 count: it assumes every board is filled to its 8-socket capacity, which no real partition
-achieves. **The board count equals the *cluster* count**, because NP-HW-HUB-001 Rev C §4.4
+achieves. **The board count equals the *cluster* count**, because NP-HW-HUB-001 Rev 3 §4.4
 puts one cluster-controller board per mechanical cluster and the board is **capacity-8, not
 exactly-8** — one universal SKU covers a 7-tile flower, an 8-tile patch, or a 3–6-tile
 partial boundary cluster at identical cost (no 7-channel I2C switch or 14:1 analog mux
@@ -744,9 +744,9 @@ similar, and the cost scales with cluster count:
 | **CLUSTER-1 + SYM-1 (current decisions) ★** | **18** | **$114.12** |
 
 So the figure for the committed design is **$114.12 at n = 80**, plus ≈**+$1.09** net on the
-hub PCB itself — against ~$67 for naively scaling Rev B. The architecture is still the
+hub PCB itself — against ~$67 for naively scaling Rev 2. The architecture is still the
 buildable one (~100 conductors across the parting plane instead of ~880) and the hub still
-encodes no socket count, but **the cluster tier is no longer cost-comparable to Rev B**; it
+encodes no socket count, but **the cluster tier is no longer cost-comparable to Rev 2**; it
 is ~1.7× it. This has NOT been netted against the retired 5-zone-module drive electronics
 already inside the $405 Home Standard BOM (OI-HUB-C08). Derivation of 18: §5.4a SYM-1 and
 NP-HW-HEXTILE-001 §8.2.1.
@@ -913,10 +913,10 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   > **`4`, `9–10` and `4–10` above are counts for the RETIRED 30-socket lattice**
   > and are retained only because the *ratio* argument they support (one actuator
   > per cluster beats one lever per module) is what this bullet exists to make.
-  > **They do not rescale** — NP-HW-HEXTILE-001 Rev A carried "4–10" across to the
+  > **They do not rescale** — NP-HW-HEXTILE-001 Rev 1 carried "4–10" across to the
   > shipped ~80-socket lattice and sized the safety-MCU VLED switch count, the I2C
   > pull-up count and the cluster-board BOM off it before the error was caught
-  > (corrected in that document's Rev B, 2026-08-04).
+  > (corrected in that document's Rev 2, 2026-08-04).
   >
   > **The count for the shipped 80-socket lattice is 18** — six forced midline
   > clusters plus six lateral mirror pairs, provably minimal under CLUSTER-1 +
@@ -980,7 +980,7 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
 
   | Constraint set | Clusters at n = 80 | Cluster-tier BOM |
   |---|---|---|
-  | CLUSTER-1 only (what NP-HW-HUB-001 Rev C §4.4 and NP-DRV-SHELL-002 §7.1 carry) | 12 | $76.08 |
+  | CLUSTER-1 only (what NP-HW-HUB-001 Rev 3 §4.4 and NP-DRV-SHELL-002 §7.1 carry) | 12 | $76.08 |
   | **CLUSTER-1 + SYM-1 ★** | **18** *(6 midline + 6 mirror pairs; provably minimal)* | **$114.12** |
 
   **SYM-1 costs 6 clusters and ~$38.** It is worth stating why that is accepted
@@ -1042,16 +1042,16 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   clusters group whatever sockets exist. Where the lattice edge cannot host a full
   flower, drop outer petals rather than reshaping — a partial flower keeps the same
   ≤122 mm envelope, the same plate family, the same actuator, and (per
-  NP-HW-HUB-001 Rev C §4.1) the same capacity-8 electrical board. Note this is a
+  NP-HW-HUB-001 Rev 3 §4.1) the same capacity-8 electrical board. Note this is a
   *cluster grouping* decision and is independent of active-surface element masking
   (ACT-1/ACT-2), which concerns which elements on an existing socket emit.
 
   **Robust to the electrical BOM.** This argument is purely mechanical, so it does
   not move if the cluster-board cost changes — which matters, because that BOM is
-  currently under revision (NP-HW-HEXTILE-001 Rev A moved the driver and TIA
-  on-module; see NP-HW-HUB-001 Rev C §11 OI-HUB-C15).
+  currently under revision (NP-HW-HEXTILE-001 Rev 1 moved the driver and TIA
+  on-module; see NP-HW-HUB-001 Rev 3 §11 OI-HUB-C15).
 - **⚠ Cluster size is no longer a purely mechanical tradeoff (2026-07-29).**
-  NP-HW-HUB-001 Rev C §4.4 puts **one electrical cluster-controller board per
+  NP-HW-HUB-001 Rev 3 §4.4 puts **one electrical cluster-controller board per
   mechanical cluster**, and recommends the two be the same thing. The board is
   **capacity-8, not exactly-8** — a 7-tile flower populates 14 of 16 mux channels
   and 7 of 8 I2C channels on the identical board at the identical cost, because no
@@ -1082,7 +1082,7 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   centroid-mounted board (matters — the PD lines are current-mode analog and must be
   guarded from LED drive), clean per-cluster "module absent" reporting on clamp
   release, and board + clamp + sockets as a single FRU. **MECH-2 still owns the
-  decision** (curvature span, plate seating, HFE formative); Rev C only prices it.
+  decision** (curvature span, plate seating, HFE formative); Rev 3 only prices it.
 - **Mechanism:** one **over-center lever-throw clamp per cluster** — a push/pull
   toggle latch (NOT a twist cam; see accessibility below) — drives a **clamp plate
   carrying a spring-loaded plunger per module.** Throwing it closed compresses every
@@ -1182,14 +1182,14 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | GATE-2 | PBM coupling bench: rigid 40 mm coupon at temporal worst case meets dose spec | Tooling; go/no-go A-vs-B |
 | OI-HEXMAP-01 | Config-partition NVRAM HAL for the module map | FW integration |
 | OI-HEXMAP-02 | Module I2C/1-wire `inventory_fn` | FW integration |
-| REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget. **§3.4 measured the real interior surface → ~80-socket v1 lattice.** Fix the row boundaries against shell CAD before re-cutting the generated artifacts. **Scope narrowed by ZONE-1 (§3.3, 2026-07-30): row boundaries ONLY.** The four "lobe boundary" constants this row used to also cover are deleted, not re-tuned — lobes are not a system concept. Whether a zone named "Frontal Left" actually covers the frontal lobe is a clinical review of `00-zones.npps` against the registered lattice, not a constant to fix here. **Which row boundaries, concretely:** where each coronal row sits along the nasion→inion arc — set by `ROW_WIDTHS = [3,6,7,8,9,8,9,8,7,6,5,4]` at `ROW_PITCH_MM_MEASURED = 34.6` in `scripts/sync-socket-map.ts`, spanning ~8–94 % of the arc. Post-ZONE-1 that arc placement is **documentation only** — the generator now states outright that "no code reads it, because nothing downstream of the lattice is derived from where a row falls on the arc" — so the row→10-20 mapping is an unverified scan observation, which is precisely what REG-1 must establish against shell CAD plus a measured rim-to-nasion registration. **No longer blocks Hub PCB tooling (2026-07-29):** NP-HW-HUB-001 Rev C §4.3 makes the hub socket-count-agnostic across 30–128, so REG-1 moving the count re-tools only inner-bowl cluster boards. | Lattice design; EEG/tES placement; **artifact regeneration**; **clinical-03 evidence-grade claim gate** (`protocols/predefined/clinical-03-pbm-cognitive-1064.npps` — "Grade A"/gold-standard wording withheld until REG-1 lands and the zone is re-authored to the 1–2 module Fp2/F4 footprint the literature actually describes; see `docs/status/pending-decisions.md` §13.2c) |
+| REG-1 | Socket lattice registers to 10-20 (8–9 T1, ~19 T2 scalp) within tolerance, without violating the coverage/bezel budget. **§3.4 measured the real interior surface → ~80-socket v1 lattice.** Fix the row boundaries against shell CAD before re-cutting the generated artifacts. **Scope narrowed by ZONE-1 (§3.3, 2026-07-30): row boundaries ONLY.** The four "lobe boundary" constants this row used to also cover are deleted, not re-tuned — lobes are not a system concept. Whether a zone named "Frontal Left" actually covers the frontal lobe is a clinical review of `00-zones.npps` against the registered lattice, not a constant to fix here. **Which row boundaries, concretely:** where each coronal row sits along the nasion→inion arc — set by `ROW_WIDTHS = [3,6,7,8,9,8,9,8,7,6,5,4]` at `ROW_PITCH_MM_MEASURED = 34.6` in `scripts/sync-socket-map.ts`, spanning ~8–94 % of the arc. Post-ZONE-1 that arc placement is **documentation only** — the generator now states outright that "no code reads it, because nothing downstream of the lattice is derived from where a row falls on the arc" — so the row→10-20 mapping is an unverified scan observation, which is precisely what REG-1 must establish against shell CAD plus a measured rim-to-nasion registration. **No longer blocks Hub PCB tooling (2026-07-29):** NP-HW-HUB-001 Rev 3 §4.3 makes the hub socket-count-agnostic across 30–128, so REG-1 moving the count re-tools only inner-bowl cluster boards. | Lattice design; EEG/tES placement; **artifact regeneration**; **clinical-03 evidence-grade claim gate** (`protocols/predefined/clinical-03-pbm-cognitive-1064.npps` — "Grade A"/gold-standard wording withheld until REG-1 lands and the zone is re-authored to the 1–2 module Fp2/F4 footprint the literature actually describes; see `docs/status/pending-decisions.md` §13.2c) |
 | SCAN-1 | Confirm `SHELL_WALL_MM` proxy is moot now that the interior is scanned directly; measure the actual clear-window thickness + module face standoff for the emitting-face dose distance (§3.4) | Dose budget; emitting-face position |
 | ACT-1 | Set the **active-surface boundary** deliberately from the over-ear audio-cup footprint + clinical coverage targets (≥ Neuronic active area); it defines which boundary tiles are element-masked (§3.4) | Active-surface descriptor; masking |
 | ACT-2 | New firmware: `active_surface` descriptor + element-mask API extending `(socket:element)` addressing so boundary tiles disable out-of-surface elements (§3.4) | Masking enforcement |
 | REGEN-1 | **DONE (v1, 2026-07-20, principal direction).** Re-cut `sync-socket-map.ts` / `00-zones.npps` / `socketMap.generated.ts` from the scan-grounded 80-socket lattice (widths 3 6 7 8 9 8 9 8 7 6 5 4). Artifacts stamped PROVISIONAL; REG-1 + ACT-1 still confirm the boundaries/active surface before v1 is treated as final. Active-surface descriptor deferred to ACT-2. | Generated artifacts |
-| SMART-1 | **DECIDED 2026-07-28: full coverage — every socket I2C/TIA-capable** (research-mission flexibility over per-socket cost; see §4a). **Residual CLOSED 2026-07-29** — the I2C fan-out + TIA gain architecture is designed in **NP-HW-HUB-001 Rev C** (`docs/np_hw_hub_001.md`, DRAFT): distributed cluster-controller tier, one board per 8 sockets, hub PCB socket-count-agnostic across 30–128. Successor open items OI-HUB-C01…C12 live in that document. | Socket PCB cost/scope; Hub PCB Rev C |
+| SMART-1 | **DECIDED 2026-07-28: full coverage — every socket I2C/TIA-capable** (research-mission flexibility over per-socket cost; see §4a). **Residual CLOSED 2026-07-29** — the I2C fan-out + TIA gain architecture is designed in **NP-HW-HUB-001 Rev 3** (`docs/np_hw_hub_001.md`, DRAFT): distributed cluster-controller tier, one board per 8 sockets, hub PCB socket-count-agnostic across 30–128. Successor open items OI-HUB-C01…C12 live in that document. | Socket PCB cost/scope; Hub PCB Rev C |
 | SW-1 | Wire `np_module_map_check_placement()` presence-gates into modality enable (Oz-before-visual-stim; electrodes-before-tES) | Safety enforcement (primitive delivered) |
-| OI-HUB-SOCKET-01 | Dispatch socket-addressed commands: socket-indexed control registry + per-socket safety-MCU enable (today `NP_SAFETY_EN_PBM_ZONE_0..4` is per-zone-slot). Until then `dispatch_command()` logs and DROPS a socket target rather than falling back to the slot path — a missed dose is recoverable, a wrong-site dose is not. **Safety-enable half answered 2026-07-29 by NP-HW-HUB-001 Rev C §7:** per-socket enable is *impossible* in the current wire format — the enable mask is 16 bits (`enable_lo`/`enable_hi`, `NP_SAFETY_EN_ALL_MASK = 0x3FFF`, 2 spare) and even per-*cluster* needs 16 bits for clusters alone plus 9 surviving modality bits = 25 > 16. Rev C replaces bits 0–4 with a single `NP_SAFETY_EN_PBM_CRANIAL` (bits 1–4 reserved, not reused), arguing the interlock needs to *cut*, not select — per-socket dose shutdown is a Class B duty=0 write, and the per-tile 62 °C throttle is analog hardware. Physical gating still distributes (one gate per cluster on its LED rail). Accepted consequence: safety cuts are all-or-nothing across the lattice — routed to safety review as OI-HUB-C07 | Cranial session execution (parse + resolve delivered) |
+| OI-HUB-SOCKET-01 | Dispatch socket-addressed commands: socket-indexed control registry + per-socket safety-MCU enable (today `NP_SAFETY_EN_PBM_ZONE_0..4` is per-zone-slot). Until then `dispatch_command()` logs and DROPS a socket target rather than falling back to the slot path — a missed dose is recoverable, a wrong-site dose is not. **Safety-enable half answered 2026-07-29 by NP-HW-HUB-001 Rev 3 §7:** per-socket enable is *impossible* in the current wire format — the enable mask is 16 bits (`enable_lo`/`enable_hi`, `NP_SAFETY_EN_ALL_MASK = 0x3FFF`, 2 spare) and even per-*cluster* needs 16 bits for clusters alone plus 9 surviving modality bits = 25 > 16. Rev 3 replaces bits 0–4 with a single `NP_SAFETY_EN_PBM_CRANIAL` (bits 1–4 reserved, not reused), arguing the interlock needs to *cut*, not select — per-socket dose shutdown is a Class B duty=0 write, and the per-tile 62 °C throttle is analog hardware. Physical gating still distributes (one gate per cluster on its LED rail). Accepted consequence: safety cuts are all-or-nothing across the lattice — routed to safety review as OI-HUB-C07 | Cranial session execution (parse + resolve delivered) |
 | OI-HUB-SOCKET-02 | Socket-address the remaining socket-based modalities (1170 nm deep PBM, EEG/qEEG, BES/tACS/tDCS/HD-tDCS). They stay slot-addressed today because their param types carry no socket selector — EEG names 10-20 channels, tES names electrode pairs. Needs the param types to gain zone refs first | Per-socket cranial targeting beyond PBM transcranial |
 | EMF-1 | Prototype 2-layer attenuation ≥ single-shell baseline | Shield claim |
 | EMF-2 | Ground-bond ≤50 mΩ over clamp-cycle life; SHDR trend armed | Driven-shield function |
@@ -1197,7 +1197,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | MECH-1 | Four-corner clamp (AL/AR/PL/PR) + posterior-center connector boss + Hall interlock detail | Shell tooling |
 | ZONE-1 | **DECIDED 2026-07-30 (principal): lobes are not a system concept — nothing in code or docs may define, derive or hardcode one.** Zones live only in `protocols/predefined/00-zones.npps`, which is already self-contained (14 zones, explicit `sockets:` lists); a zone whose socket set corresponds to a lobe is an authoring fact, not a system type. Deletes the `Lobe` type + four anatomical constants from `scripts/sync-socket-map.ts` and its lobe-zone diff (redundant, and its "evidence the model is not a guess" claim is circular — the file is regenerated from those same constants); deletes `lobe` from `socketMap.generated.ts` and its 7 app consumers (`SocketPicker.tsx` groups by zone instead — user-defined zones then appear too); firmware side is **OI-HUB-C14**. Generator keeps **structural** zone-file validation (ids exist, `"All"` covers all, aggregates are unions, no dupes) and loses **content** derivation. See §3.3. **CODE SIDE DONE 2026-07-30** — generator, generated map and app consumers landed; `00-zones.npps` socket sets byte-identical (this deleted a redundant derivation, it re-authored no zone); structural checks verified to fail loudly against five deliberately corrupted zone files; app suite 238/238, `tsc --noEmit` clean, firmware host suite 18/18 unchanged. **Firmware share still OPEN under OI-HUB-C14.** | Source-of-truth hygiene; removes the model that produced the 2026-07-30 lattice-generation drift |
 | CLUSTER-1 | **DECIDED 2026-07-30 (principal): the 7-hex flower is the cluster unit wherever the lattice allows one; partial flowers at the boundary.** Rationale is mechanical and independent of electrical cost — the flower is the most compact possible 7-group, so an 8th tile lengthens the span 1.32× (122.2 → 161.8 mm), raising clamp-plate bending stress ×1.75 and plate-mode deflection ×3.07, more than doubling stored dome depth (25.1 → 55.0 mm), and subtending 136.8° of the R_m = 87 mm curvature sphere. See §5.4a. Residual for MECH-2: verify plate seating and one-handed input force at the 122 mm flower span | Cluster geometry — **settled**; MECH-2 verifies, does not re-choose |
-| MECH-2 | Module cluster-clamp design: **cluster size now fixed by CLUSTER-1 (7-hex flower / partial flower)** — MECH-2 verifies rather than selects it. Remaining: over-center lever-throw actuator (not a twist cam) + per-module spring plungers, curvature span at 122 mm, low one-handed input force. **New input 2026-07-29 (NP-HW-HUB-001 Rev C §4.4, §5.4a table above):** the electrical cluster-controller tier places one capacity-8 board per mechanical cluster, so cluster size now carries a BOM gradient — **3-hex triad $171.18 vs 7-hex flower $76.08 at n=80**, and the triad's 43 boards at n=128 exceed the 32-controller tier-1 address strap. **Flower recommended**; also raise cluster size to ≤8 only if the clamp plate tolerates it. Decision still MECH-2's (curvature, seating, HFE formative) | Inner-bowl tooling; serviceability; cluster-tier BOM |
+| MECH-2 | Module cluster-clamp design: **cluster size now fixed by CLUSTER-1 (7-hex flower / partial flower)** — MECH-2 verifies rather than selects it. Remaining: over-center lever-throw actuator (not a twist cam) + per-module spring plungers, curvature span at 122 mm, low one-handed input force. **New input 2026-07-29 (NP-HW-HUB-001 Rev 3 §4.4, §5.4a table above):** the electrical cluster-controller tier places one capacity-8 board per mechanical cluster, so cluster size now carries a BOM gradient — **3-hex triad $171.18 vs 7-hex flower $76.08 at n=80**, and the triad's 43 boards at n=128 exceed the 32-controller tier-1 address strap. **Flower recommended**; also raise cluster size to ≤8 only if the clamp plate tolerates it. Decision still MECH-2's (curvature, seating, HFE formative) | Inner-bowl tooling; serviceability; cluster-tier BOM |
 | DOC-1 | docs/reference/durability-maintenance.md + docs/status/pending-decisions.md integration once GATE-1/2 PASS | Baseline promotion |
 
 ## 8. Cross-references

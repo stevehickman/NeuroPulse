@@ -1,7 +1,7 @@
 """Scan RISK-12 detail and all previously-specified inspection items."""
 from docx import Document
 
-risks = Document("docs/neurone_fpc_zone_module_risks_revA.docx")
+risks = Document("docs/superseded/neurone_fpc_zone_module_risks_revA.docx")
 tbl = risks.tables[0]
 
 print("=== RISK-11 and RISK-12 rows ===")

@@ -75,7 +75,7 @@ def ins_before(doc, target_para, text, bold=False, bullet=False, color=None, siz
 # 1.  FPC Spec — update pin 18 in the pinout table
 # ─────────────────────────────────────────────────────────────────────────────
 
-SPEC_PATH = "docs/neurone_fpc_zone_module_spec_revA.docx"
+SPEC_PATH = "docs/superseded/neurone_fpc_zone_module_spec_revA.docx"
 spec = Document(SPEC_PATH)
 
 pin18_updated = False
@@ -214,7 +214,7 @@ print(f"  FPC spec saved: {SPEC_PATH}")
 # 3.  Risk Register — RISK-15 → MITIGATED
 # ─────────────────────────────────────────────────────────────────────────────
 
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
 risk_doc = Document(RISK_PATH)
 
 tbl = risk_doc.tables[0]
@@ -425,10 +425,10 @@ for tbl in coord.tables:
     for row in tbl.rows:
         for cell in row.cells:
             if "Initial release" in cell.text and "RISK-13" in cell.text:
-                # Add Rev B note to next row or update this cell
+                # Add Rev 2 note to next row or update this cell
                 existing = cell.text
                 set_cell_text(cell,
-                    existing + " | Rev A.1 update: G2-02 extended with blind-user "
+                    existing + " | Rev 1.1 update: G2-02 extended with blind-user "
                     "accessibility requirements (RISK-15): tactile dots, braille, "
                     "raised numeral. G2-10 added: audio zone ID firmware.", size=8)
                 print("  Revision history updated")

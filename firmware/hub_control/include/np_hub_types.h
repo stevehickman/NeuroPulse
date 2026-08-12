@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Type Definitions
- * Document: NP-FW-HUB-001 Rev A
+ * Document: NP-FW-HUB-001 Rev 1
  *
  * Defines the protocol binary format, module type enum, per-module parameter
  * structs, session state, telemetry records, and all shared types used by
@@ -398,7 +398,7 @@ typedef enum {
  *
  * Each module's np_mod_telemetry_fn fills one np_telemetry_record_t per tick.
  * The session logger routes it to UHDR or SHDR per the data classification
- * table in NP-FW-EMMC-001 Rev A §12.
+ * table in NP-FW-EMMC-001 Rev 1 §12.
  * ═══════════════════════════════════════════════════════════════════════════════ */
 
 typedef struct {

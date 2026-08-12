@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — I2C LED Driver API
- * Document: NP-FW-PBM1064-001 Rev A §5
+ * Document: NP-FW-PBM1064-001 Rev 1 §5
  */
 
 #ifndef NP_PBM1064_DRIVE_H

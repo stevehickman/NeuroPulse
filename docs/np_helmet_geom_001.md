@@ -1,4 +1,4 @@
-# NP-HELMET-GEOM-001 Rev A — Helmet Layer Geometry & Material Constraints
+# NP-HELMET-GEOM-001 — Helmet Layer Geometry & Material Constraints
 
 **Program:** NeurOne chassis / mechanical stack
 **Status:** DESIGN STUDY — first physical-requirements derivation of the four-station
@@ -210,7 +210,7 @@ modules contact skin (s = 0), which is harmless because they are the low-power m
 
 > **FMEA-RECON done (2026-07-21) — see NP-FMEA-GEOM-001.** Reconciling these estimates against the
 > repo showed NP-FMEA-001 is **software-only** (SW-01 firmware) and hardware failure modes live in
-> NP-RISK-001, which had **no layer-stack entries** — so there was nothing to merge into. The
+> NP-RISK-001, which had **no layer-stack entries** — so there was nothing to merge into. (That register was superseded 2026-08-11; layer-stack entries now belong in NP-RISK-004.) The
 > mechanical failure modes are now expressed in the NP-RM-001 S×P risk framework in
 > `docs/np_fmea_geom_001.md`, cross-referenced to existing RISK IDs and software backstops. Two
 > results feed back here: (1) a **new un-interlocked failure mode** — fan/vent degradation can push
@@ -312,7 +312,7 @@ the single biggest mechanical line; everything inboard is low-cost polymer + LSR
 - **FMEA-RECON** — *done (NP-FMEA-GEOM-001).* Mechanical failure modes re-expressed in the NP-RM-001
   S×P framework; cross-referenced to RISK-14/15/20 + software backstops (FMEA-M04/M06). Surfaced the
   new thermal-path gap (FMEA-G07-01 / OI-GEOM-FMEA-01) and confirmed G06-01 = RISK-20 (OPEN/BLOCKING).
-  Remaining: author these into NP-RISK-001 proper (OI-GEOM-FMEA-02) and fill MTBF numbers as
+  Remaining: author these into NP-RISK-004 (OI-GEOM-FMEA-02; NP-RISK-001 superseded) and fill MTBF numbers as
   reliability tests complete (OI-GEOM-FMEA-03).
 
 ## 9. Cross-references
@@ -321,7 +321,7 @@ np_hex_zm_001 (§3.4 geometry, §4a module taxonomy, §5 two-bowl shell + EMF se
 CLAUDE.md §4.2 (interlocks), §4.3 (EMF stack), §4.5 (power/heat) · np_opt_psf_001
 (optical resolution floor) · **np_therm_bezel_001 (THERM-1/BEZEL-1 coupling)** ·
 **np_fmea_geom_001 (layer-stack hardware FMEA)** · np_fmea_001 (SW-01 software FMEA) ·
-np_rm_001 / NP-RISK-001 (system risk register) · np_hw_hub_001 (hub thermal/power).
+np_rm_001 / np_risk_002 (risk file index; NP-RISK-004 holds the shell/hub entries — NP-RISK-001 superseded) · np_hw_hub_001 (hub thermal/power).
 
 ---
 

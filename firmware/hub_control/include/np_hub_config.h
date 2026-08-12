@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Configuration Constants
- * Document: NP-FW-HUB-001 Rev A
+ * Document: NP-FW-HUB-001 Rev 1
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz), FreeRTOS
  */
 
@@ -149,8 +149,8 @@
  * processor cannot enable stimulation without the safety MCU granting it.
  */
 /*
- * Bit 0 gates ALL cranial PBM (NP-HW-HUB-001 Rev C §7.2), replacing the five
- * per-zone bits of Rev B.  "Zone" is not a firmware concept — a zone is a
+ * Bit 0 gates ALL cranial PBM (NP-HW-HUB-001 Rev 3 §7.2), replacing the five
+ * per-zone bits of Rev 2.  "Zone" is not a firmware concept — a zone is a
  * human-authored socket set in protocols/predefined/00-zones.npps and changing
  * its membership requires no hardware change, so the §4.5.1 discriminator
  * (np_module_map.h) forbids firmware holding it.  Cranial PBM as a whole IS a
@@ -300,7 +300,7 @@
 
 /* Mode F (NIR retinal walk, 808-830nm daily retinal PBM) must be gated by this
  * compile-time flag. Must remain 0 until the RISK-03 Q-13 regulatory opinion
- * letter is received. See NP-FW-EMMC-002 Rev A §F and NP-REG-PBM1064-001 Q-13. */
+ * letter is received. See NP-FW-EMMC-002 Rev 1 §F and NP-REG-PBM1064-001 Q-13. */
 #define NP_MODE_F_REGULATORY_CLEARED  0
 
 #endif /* NP_HUB_CONFIG_H */

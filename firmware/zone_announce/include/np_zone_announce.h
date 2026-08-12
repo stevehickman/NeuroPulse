@@ -1,14 +1,14 @@
 /*
  * NeurOne Zone Module Announcement — Public API
- * Document: NP-FW-ZA-001 Rev A §5, as amended by the 2026-07-28 supersession
- * note at the top of docs/np_fw_za_001.md.
+ * Document: NP-FW-ZA-001 Rev 1 §5, as amended by the 2026-07-28 supersession
+ * note at the top of docs/superseded/np_fw_za_001.md.
  *
  * Detects zone module insertion/removal and reports it to the COMPANION APP,
  * which delivers the user-facing confirmation.
  *
  * ── The insertion cue is no longer played on this device ─────────────────────
  *
- * Rev A announced insertions through the mastoid bone-conduction transducer.
+ * Rev 1 announced insertions through the mastoid bone-conduction transducer.
  * That confirmation could never be heard: seating a module requires the helmet
  * off the head, and bone conduction only reaches a head the transducer is
  * touching. Insertion confirmations now travel to the companion app over the

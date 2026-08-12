@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — Intranasal Y-Probe Driver
- * Document: NP-FW-HUB-001 Rev A §8.7
+ * Document: NP-FW-HUB-001 Rev 1 §8.7
  *
  * Bilateral intranasal PBM Y-probe: 660nm + 808-830nm per probe.
  * Authentication: optical code (resistive pogo-pin sleeve ID, no NFC/EMF).

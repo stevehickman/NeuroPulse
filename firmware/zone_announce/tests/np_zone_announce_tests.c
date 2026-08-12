@@ -3,7 +3,7 @@
  *
  * The point of these is the bug-2 claim, asserted behaviourally rather than by
  * inspection: a confirmed insertion must notify the COMPANION APP and must NOT
- * start bone-conduction audio. Rev A did the opposite, at a moment when the
+ * start bone-conduction audio. Rev 1 did the opposite, at a moment when the
  * transducer is not touching the user (seating a module requires the helmet off
  * the head), so the confirmation was inaudible by construction.
  *
@@ -174,7 +174,7 @@ static void test_removal_notifies_app(void)
 
 static void test_unknown_module_reports_once_not_every_poll(void)
 {
-    /* Rev A was rate-limited only incidentally, by the ~700 ms error clip it
+    /* Rev 1 was rate-limited only incidentally, by the ~700 ms error clip it
      * played in ANNOUNCING. With the audio gone, an unidentifiable module that
      * stays seated would re-notify and re-write SHDR on every poll forever. */
     reset_all();
@@ -212,7 +212,7 @@ static void test_fault_latch_clears_on_real_removal(void)
 
 static void test_multiple_slots_each_notify(void)
 {
-    /* Rev A serialised these through a bone-conduction queue because the
+    /* Rev 1 serialised these through a bone-conduction queue because the
      * transducer is a single output. Frames have no such constraint. */
     reset_all();
     g_adc[0] = 2048u;   /* Frontal Left  */

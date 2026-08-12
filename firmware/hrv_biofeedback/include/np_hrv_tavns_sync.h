@@ -1,6 +1,6 @@
 /*
  * NeurOne HRV Biofeedback — taVNS Inspiration-Phase Synchronization
- * Document: NP-FW-HRV-001 Rev A §8
+ * Document: NP-FW-HRV-001 Rev 1 §8
  *
  * Inspiration detection algorithm (RSA slope method):
  *

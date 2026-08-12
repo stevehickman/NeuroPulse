@@ -1,6 +1,6 @@
 /*
  * NeurOne Safety MCU — SW01-M03 Charge Monitor Host Tests
- * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev B §SW01-M03
+ * Document: NP-SW-001 Rev 1, NP-FMEA-001 Rev 2 §SW01-M03
  *
  * Tests np_charge_monitor_init(), np_charge_monitor_accumulate(),
  * np_charge_monitor_tick(), np_charge_monitor_reset_session(), and

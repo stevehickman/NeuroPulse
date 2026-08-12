@@ -1,6 +1,6 @@
 /*
  * NeurOne Research Anonymization — Scratch Partition AES-256-CTR
- * Document: NP-FW-EMMC-002 Rev A §D.2–§D.6
+ * Document: NP-FW-EMMC-002 Rev 1 §D.2–§D.6
  *
  * Implements the per-run encryption lifecycle for the Scratch partition used
  * by the on-device research anonymization pipeline.  See np_anon_scratch.h for

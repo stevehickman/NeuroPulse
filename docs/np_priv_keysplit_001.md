@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-PRIV-KEYSPLIT-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-06-16
 **Status:** ACTIVE
 **Effective Date:** 2026-06-16

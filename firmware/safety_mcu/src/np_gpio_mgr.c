@@ -1,12 +1,12 @@
 /*
  * NeurOne Safety MCU — SW01-M01: Stimulation GPIO Manager
- * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M01
+ * Document: NP-SW-001 Rev 1, NP-FMEA-001 Rev 1 §SW01-M01
  *
  * Owns all 10 stimulation enable GPIO lines.  All lines are active-LOW
  * open-drain with external pull-ups to Vcc.  Asserting a GPIO LOW enables
  * the downstream stimulation driver via an inverting buffer.
  *
- * Ten, not fourteen: NP-HW-HUB-001 Rev C §7.2 collapsed the five per-zone PBM
+ * Ten, not fourteen: NP-HW-HUB-001 Rev 3 §7.2 collapsed the five per-zone PBM
  * enables into the single NP_EN_PBM_CRANIAL line.  The per-cluster gate
  * transistors on the LED drive rails are fanned out downstream of this one line
  * (§7.4) — they are not separate GPIO here.

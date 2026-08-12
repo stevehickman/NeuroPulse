@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — Types and Status Codes
- * Document: NP-FW-EMMC-001 Rev A §8
+ * Document: NP-FW-EMMC-001 Rev 1 §8
  */
 
 #ifndef NP_TYPES_H

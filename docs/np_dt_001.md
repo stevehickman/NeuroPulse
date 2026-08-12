@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-DT-001
-**Revision:** B
+**Revision:** 2
 **Date:** 2026-07-22
 **Status:** DRAFT
 **Effective Date:** 2026-06-07
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-QMS-DC-001 Rev A, NP-DP-001 Rev A, NP-DHF-001 Rev F, NP-RM-001 Rev A, NP-SW-001 Rev A, 21 CFR §820.30, ISO 13485:2016 §7.3
+**References:** NP-QMS-DC-001 Rev 1, NP-DP-001 Rev 1, NP-DHF-001 Rev 6, NP-RM-001 Rev 1, NP-SW-001 Rev 1, 21 CFR §820.30, ISO 13485:2016 §7.3
 **Related Issues:** GitHub Issue #122
 **Gate:** NP-DP-001 §6.4 G2 exit criterion
 **IEC 62304 Class:** —
@@ -123,17 +123,17 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-PERF-11 | Performance | Cervical VNS (tcVNS) T2: gel electrodes at carotid sheath; ≤2 mA; bilateral or unilateral; 10 s ramp-up, 5 s ramp-down | CLAUDE.md §3 T2 | High | T2 |
 | DI-PERF-12 | Performance | TMS T2: focal figure-8 coil, 0.1–0.5 T, rTMS + TBS; non-conductive CFRP window at coil site; EMF gating 5 ms pre-pulse / 50 ms post-pulse hold | CLAUDE.md §3 T2 | High | T2 |
 | DI-PERF-13 | Performance | 1170 nm deep PBM T2: laser diodes, 35–40 mm subcortical depth, TEC stabilisation, ≤1,000 mW/cm² | CLAUDE.md §3 T2 | High | T2 |
-| DI-PERF-14 | Performance | sLORETA-guided HD-tDCS T2: scalar sLORETA 2447 voxels × 21 channels; 4×1 ring montage; 7 clinical targets (DLPFC_L/R, VLPFC_L, ACC, MPFC, M1_L/R); ≤2 mA/electrode | CLAUDE.md §3 T2; NP-FW-HD-001 Rev A | High | T2 |
+| DI-PERF-14 | Performance | sLORETA-guided HD-tDCS T2: scalar sLORETA 2447 voxels × 21 channels; 4×1 ring montage; 7 clinical targets (DLPFC_L/R, VLPFC_L, ACC, MPFC, M1_L/R); ≤2 mA/electrode | CLAUDE.md §3 T2; NP-FW-HD-001 Rev 1 | High | T2 |
 | DI-PERF-15 | Performance | Neural audio entrainment: over-ear planar magnetic 40 mm + bone conduction at mastoid; binaural beats + isochronic tones + pink/brown noise; EEG-adaptive frequency | CLAUDE.md §3 modality 7 | Medium | T1+T2 |
 | DI-PERF-16 | Performance | Visual stimulation: 108 micro-LEDs/lens (660 nm + 808–830 nm), 6 zones/eye; photic driving 0.5–100 Hz; EMDR L/R alternation; Mode F invisible NIR retinal PBM | CLAUDE.md §3 modality 8 | High | T1+T2 |
 | DI-PERF-17 | Performance | Closed-loop EEG-adaptive stimulation: autonomous without phone or app in Mode 3; full modality orchestration from signed session descriptor on eMMC | CLAUDE.md §4.6 | High | T1+T2 |
 | DI-PERF-18 | Performance | Operating modes: Mode 1 connected real-time <1 ms; Mode 2 protocol upload <5 s; Mode 3 autonomous from any USB-C PD power bank; Mode 4 download EDF+ on reconnect | CLAUDE.md §4.6 | High | T1+T2 |
 | DI-PERF-19 | Performance | UHDR/SHDR separation: AES-256-XTS Argon2id-derived key; biometric/PIN input; NeurOne never holds decryption key; two-layer UKMD/WKMD wrapper | CLAUDE.md §5; NP-FW-EMMC-002 §C | High | T1+T2 |
-| DI-PERF-20 | Performance | Storage: 8 GB industrial eMMC (SLC, 30,000+ P/E cycles), 9-partition GPT layout; LittleFS; UHDR 6,903 MiB; SHDR 512 MiB; Scratch 500 MiB zeroed on boot | CLAUDE.md §4.1; NP-FW-EMMC-001 Rev A §4 | Medium | T1+T2 |
-| DI-PERF-21 | Performance | Dual-bank OTA firmware: Ed25519 signature verification on all images; SNVS_LPGPR0 bank flag; 9-step OTA sequence with readback; USB-C DFU recovery always available | CLAUDE.md §4.1; NP-FW-EMMC-001 Rev A §8 | High | T1+T2 |
+| DI-PERF-20 | Performance | Storage: 8 GB industrial eMMC (SLC, 30,000+ P/E cycles), 9-partition GPT layout; LittleFS; UHDR 6,903 MiB; SHDR 512 MiB; Scratch 500 MiB zeroed on boot | CLAUDE.md §4.1; NP-FW-EMMC-001 Rev 1 §4 | Medium | T1+T2 |
+| DI-PERF-21 | Performance | Dual-bank OTA firmware: Ed25519 signature verification on all images; SNVS_LPGPR0 bank flag; 9-step OTA sequence with readback; USB-C DFU recovery always available | CLAUDE.md §4.1; NP-FW-EMMC-001 Rev 1 §8 | High | T1+T2 |
 | DI-PERF-22 | Performance | EMF shielding: 5-layer passive (CFRP 30–50 dB + mu-metal 15–25 dB ELF + palladium fabric 40–60 dB RF + absorber foam + port filters) + active Helmholtz 35–45 dB ELF combined | CLAUDE.md §4.3 | High | T1+T2 |
 | DI-PERF-23 | Performance | Fit system: Boa dial 10 cm range, 0.5 mm/click, 50,000-cycle; enclosed PTFE-lined cable channel; 5-position bridge; spring-decoupled electrode pods 80–120 g / ±12 mm; 1 adult SKU covers 52–62 cm | CLAUDE.md §4.4 | Medium | T1+T2 |
-| DI-PERF-24 | Performance | Zone modules: snap-in field-upgradeable hex tiles, count scales with sockets populated (not a fixed 5); user self-service swap; connector ≥1,000 insertion cycles; sliding eject lever ≤1 N extraction force. **⚠ Superseded 2026-07-28** — "5 snap-in" and the Hirose FH34S connector-per-zone assumption are retired; see `docs/np_hw_fpc_001.md`. | docs/reference/durability-maintenance.md §7.1; NP-HEX-ZM-001 | Medium | T1+T2 |
+| DI-PERF-24 | Performance | Zone modules: snap-in field-upgradeable hex tiles, count scales with sockets populated (not a fixed 5); user self-service swap; connector ≥1,000 insertion cycles; sliding eject lever ≤1 N extraction force. **⚠ Superseded 2026-07-28** — "5 snap-in" and the Hirose FH34S connector-per-zone assumption are retired; see `docs/superseded/np_hw_fpc_001.md`. | docs/reference/durability-maintenance.md §7.1; NP-HEX-ZM-001 | Medium | T1+T2 |
 | DI-PERF-25 | Performance | HRV biofeedback: resonance-frequency breathing pacer (default 6 BPM, personalised sweep 4–7 BPM); coherence score 0–10; 4 protocols (standalone, HRV+taVNS, HRV+EEG dual, HRV+PBM); software-only | CLAUDE.md §3 modality 6 | Medium | T1+T2 |
 
 ### §3.2 Safety inputs (DI-SAFE)
@@ -142,7 +142,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 |-------|----------|-------------------|--------|----------|-------|
 | DI-SAFE-01 | Safety | Charge density limit: 40 µC/cm² hardware-enforced by safety MCU STM32G071; app and main processor cannot override; covers BES/tDCS/tACS/HD-tDCS | CLAUDE.md §4.2; NP-SW-001 SW01-M03 | Safety-Critical | T1+T2 |
 | DI-SAFE-02 | Safety | SPI heartbeat watchdog: safety MCU receives 200 ms heartbeat; 1.5 s timeout without heartbeat → all stimulation GPIO cutoff ≤50 ms; fault latch requires explicit clear | CLAUDE.md §4.2; NP-SW-001 SW01-M02 | Safety-Critical | T1+T2 |
-| DI-SAFE-03 | Safety | Cervical VNS cardiac interlock: HR change >15 BPM within 5 s rolling observation window → CVNS GPIO cutoff ≤100 ms; 30 s lockout; baseline cross-validation PPG vs GPIO-timer within ±5 BPM | CLAUDE.md §4.2; NP-FW-CVNS-001 Rev A; NP-SW-001 SW01-M05 | Safety-Critical | T2 |
+| DI-SAFE-03 | Safety | Cervical VNS cardiac interlock: HR change >15 BPM within 5 s rolling observation window → CVNS GPIO cutoff ≤100 ms; 30 s lockout; baseline cross-validation PPG vs GPIO-timer within ±5 BPM | CLAUDE.md §4.2; NP-FW-CVNS-001 Rev 1; NP-SW-001 SW01-M05 | Safety-Critical | T2 |
 | DI-SAFE-04 | Safety | Photoparoxysmal EEG detection at Oz electrode → goggle LED hard cutoff ≤200 ms; clinician-unlock required to re-enable for 3–30 Hz frequency range | CLAUDE.md §3 modality 8; NP-SW-001 SW01-M06 | Safety-Critical | T1+T2 |
 | DI-SAFE-05 | Safety | Visual retinal safety: IEC 62471 MPE ceiling enforced by 3 independent hardware layers — IR proximity sensor, Hall sensor (goggle lift), and hardware current limit; 50% of exempt group threshold | CLAUDE.md §3 modality 8 | Safety-Critical | T1+T2 |
 | DI-SAFE-06 | Safety | Session protocol: Ed25519 cryptographic signature required before any stimulation GPIO enable; headset rejects unsigned or corrupted protocol descriptors | CLAUDE.md §4.2; NP-SW-001 SW01-M07 | Safety-Critical | T1+T2 |
@@ -150,7 +150,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-SAFE-08 | Safety | Thermal management: NTC thermistor per zone; hardware throttle at 62 °C junction temperature; hardware cutoff at 65 °C; IEC 60601-1 scalp surface ≤42 °C compliance required | CLAUDE.md §4.2; NP-SW-001 SW01-M04 | Safety-Critical | T1+T2 |
 | DI-SAFE-09 | Safety | Fault latch: any safety cutoff latches the fault state; explicit app confirmation + repeat impedance check required to re-enable; safety faults cannot be suppressed by stealth mode | CLAUDE.md §4.2; NP-SW-001 SW01-M08 | Safety-Critical | T1+T2 |
 | DI-SAFE-10 | Safety | TMS pulse protection: EMF Helmholtz cancellation gated off 5 ms before pulse trigger; 50 ms hold-off after pulse; non-conductive CFRP window at coil site prevents eddy current field loss | CLAUDE.md §4.2 | Safety-Critical | T2 |
-| DI-SAFE-11 | Safety | Mode F retinal PBM: default-off; requires separate explicit user consent distinct from session consent; right temple amber LED triple-pulse pattern (3×150 ms) when active and not suppressible; firmware build flag `NP_MODE_F_REGULATORY_CLEARED = 0` until RISK-03 Q-13 opinion received | NP-FW-EMMC-002 Rev A §F | Safety-Critical | T1+T2 |
+| DI-SAFE-11 | Safety | Mode F retinal PBM: default-off; requires separate explicit user consent distinct from session consent; right temple amber LED triple-pulse pattern (3×150 ms) when active and not suppressible; firmware build flag `NP_MODE_F_REGULATORY_CLEARED = 0` until RISK-03 Q-13 opinion received | NP-FW-EMMC-002 Rev 1 §F | Safety-Critical | T1+T2 |
 | DI-SAFE-12 | Safety | Impedance check: 1 kHz AC synchronous impedance measurement required before any stimulation pulse; no timeout condition shall produce a false PASS; contact not confirmed → GPIO enable held low | CLAUDE.md §4.2; NP-SW-001 SW01-M06 | Safety-Critical | T1+T2 |
 | DI-SAFE-13 | Safety | Scalp-facing surface (applied part) ≤42 °C maintained under normal operation **and single-fault loss of forced convection** (fan / heatsink airflow loss): direct scalp-facing NTC co-located with PD2 (SR-FAN-01/02, Path B1) + natural-convection-safe PBM duty derate (SR-FAN-03: halt/trickle on fan loss, ≈4.5 mW/cm² ceiling at 43.3 °C ambient) + firmware ambient/duty envelope gate (NP-ENV-OPRANGE-001 / NP-FW-POE-001). **Base thermal design rejects module heat via BN-boss conductive export to an external heatsink with the shielded interior left un-ventilated** (preserves the EMF-shield / IP-seal). The DI-SAFE-08 junction throttle (62/65 °C) is proven insufficient to bound the face and does not substitute for this requirement (NP-THERM-CFD-R1-001). | NP-REQ-FANHEALTH-001 (SR-FAN-01…06); NP-THERM-CFD-R1-001; NP-SW-001 SW01-M04; IEC 60601-1 | Safety-Critical | T1+T2 |
 
@@ -162,7 +162,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-USE-02 | Usability | Zone module extraction: ≤1 N force via 3:1 mechanical advantage sliding eject lever; target user: Parkinson's Hoehn & Yahr stage II–III; RISK-22 Option A eject lever required | docs/reference/durability-maintenance.md §7.1 RISK-22 | High | T1+T2 |
 | DI-USE-03 | Usability | Status LED readability: amber right-temple LED pulses at session frequency; caregiver-readable at ≥3 m to confirm correct protocol is running; fault = power LED red blink | CLAUDE.md §4.7 | Medium | T1+T2 |
 | DI-USE-04 | Usability | Interface protection covers: all tethered to headset by integral anchor posts; cannot be permanently lost without deliberate cutting; zone slot plugs 5 colours position-coded | docs/reference/service-network.md §8.3 | Medium | T1+T2 |
-| DI-USE-05 | Usability | **REDESIGNED 2026-07-28 (replaces RISK-15 five-layer keying, retired):** all sockets share one identical shape — mechanical type/position keying is gone, replaced by (1) an orientation-only mating feature (not rotationally symmetric where pin alignment requires it) and (2) software placement validation (`np_module_map` UID inventory + `np_module_map_check_placement()` blocks a protocol from running against a mismatched module map), and (3) accessible position identification per **NP-HFE-002 Rev A** — **gap CLOSED 2026-07-31**. The old braille/raised-numeral and tactile-dot layers were designed for 5 positions and cannot be re-scaled to ~80 sockets: an 80-symbol tactile code is not discriminable by touch, and the tessellating hex lattice leaves only a few mm of structural web between sockets, where an ISO 17049 braille cell (~6 × 10 mm) does not fit. NP-HFE-002 replaces them by following the architecture's own identity split: **tactile marking follows module *type*** (closed 3–4 member set, on the module's non-mating face), **position moves to guidance** — a closed set of coarse shell landmarks (dashed midline spine, three coded band ridges, standard-electrode-site markers) plus **companion-app guided placement as the primary channel**, with `np_module_map_check_placement()` as backstop. **Bone-conduction audio (old Layer 5) does not work for this at all, at any socket count** — it requires head contact, but module insertion requires the helmet off-head; retained for while-worn readback only. Requirements HFE-R-01..15. See `docs/np_hfe_002.md`, `docs/np_hfe_001.md` CT-01, `docs/np_fw_za_001.md`. | docs/reference/durability-maintenance.md §7.1 RISK-15; NP-HFE-002 | High | T1+T2 |
+| DI-USE-05 | Usability | **REDESIGNED 2026-07-28 (replaces RISK-15 five-layer keying, retired):** all sockets share one identical shape — mechanical type/position keying is gone, replaced by (1) an orientation-only mating feature (not rotationally symmetric where pin alignment requires it) and (2) software placement validation (`np_module_map` UID inventory + `np_module_map_check_placement()` blocks a protocol from running against a mismatched module map), and (3) accessible position identification per **NP-HFE-002 Rev 1** — **gap CLOSED 2026-07-31**. The old braille/raised-numeral and tactile-dot layers were designed for 5 positions and cannot be re-scaled to ~80 sockets: an 80-symbol tactile code is not discriminable by touch, and the tessellating hex lattice leaves only a few mm of structural web between sockets, where an ISO 17049 braille cell (~6 × 10 mm) does not fit. NP-HFE-002 replaces them by following the architecture's own identity split: **tactile marking follows module *type*** (closed 3–4 member set, on the module's non-mating face), **position moves to guidance** — a closed set of coarse shell landmarks (dashed midline spine, three coded band ridges, standard-electrode-site markers) plus **companion-app guided placement as the primary channel**, with `np_module_map_check_placement()` as backstop. **Bone-conduction audio (old Layer 5) does not work for this at all, at any socket count** — it requires head contact, but module insertion requires the helmet off-head; retained for while-worn readback only. Requirements HFE-R-01..15. See `docs/np_hfe_002.md`, `docs/np_hfe_001.md` CT-01, `docs/superseded/np_fw_za_001.md`. | docs/reference/durability-maintenance.md §7.1 RISK-15; NP-HFE-002 | High | T1+T2 |
 | DI-USE-06 | Usability | EEG pod contact force: spring-decoupled pods 80–120 g contact force, ±12 mm travel, Shore 30A silicone mount; independent of Boa dial tension; snap-off bayonet hydrogel tips | CLAUDE.md §4.4 | Medium | T1+T2 |
 | DI-USE-07 | Usability | Electrode tip replacement: snap-off bayonet; 30–60 sessions per tip; app impedance trend prompts replacement; moisture-barrier hydration caps WVTR <0.5 g/m²/day for storage | CLAUDE.md §3 modality 3 | Medium | T1+T2 |
 
@@ -189,7 +189,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 |-------|----------|-------------------|--------|----------|-------|
 | DI-INT-01 | Interface | USB-C PD compliance: any PD-compliant charger must work; app displays "power level: reduced" informatively and never blocks session; EU requirement: no proprietary lock-in | CLAUDE.md §2.2 | High | T1+T2 |
 | DI-INT-02 | Interface | BT 5.3 LE Audio GATT custom service: session status, HRV breathing ring, protocol upload; antennas in hub only; single rear toggle; sub-50 ms sync latency target | CLAUDE.md §4.1; NP-APP-ROADMAP-001 | Medium | T1+T2 |
-| DI-INT-03 | Interface | FHIR R4 NeurOne T2 Clinical Profile: NP-Patient (opaque MRN), NP-Observation (EEG bands, HRV RMSSD, coherence, dose), NP-DiagnosticReport, NP-Procedure; LSL TLS streaming | NP-INT-FHIR-001 Rev A | High | T2 |
+| DI-INT-03 | Interface | FHIR R4 NeurOne T2 Clinical Profile: NP-Patient (opaque MRN), NP-Observation (EEG bands, HRV RMSSD, coherence, dose), NP-DiagnosticReport, NP-Procedure; LSL TLS streaming | NP-INT-FHIR-001 Rev 1 | High | T2 |
 | DI-INT-04 | Interface | Apple Watch WatchConnectivity sync (provisional, HOPE Phase 3 gated): Channel 1 haptic 40 Hz; Channel 2 audio sync; Channel 3 visual flicker ≥100 nits; OI-WA-02 brightness gate | CLAUDE.md §3b; NP-APP-ROADMAP-001 | Low | T1 |
 | DI-INT-05 | Interface | LSL streaming for research data acquisition: real-time EEG, HRV, PBM dose, session events over Lab Streaming Layer; TLS encryption required | CLAUDE.md §3 T2 | Medium | T2 |
 
@@ -201,28 +201,28 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 
 | DO-ID | Type | Document / Artefact | Rev | Status | Scope |
 |-------|------|---------------------|-----|--------|-------|
-| DO-HW-01 | HW Spec | NP-HW-FPC-001 — FPC Zone Module Specification (20-pin pinout, dual-PD RISK-14 Option B, PDMS bonding, five-layer keying, gasket, eject lever) | Rev E | **Superseded 2026-07-28** — see in-doc note | T1+T2 |
-| DO-HW-02 | HW Spec | NP-HW-HUB-001 — Hub PCB Rev B (Vishay DG2788A TIA gain switch ×5, NXP PCA9546A I2C mux, GAIN_SEL GPIO sequencing) | Rev B | **Superseded 2026-07-28** — needs Rev C per SMART-1 | T1+T2 |
-| DO-HW-03 | HW Spec | NP-PROC-FPC-001 — FPC Procurement Requirements (LED Vf binning, Hirose FH34S exclusions, BCR421W spec, RA copper) | Rev A | Active | T1+T2 |
-| DO-HW-04 | HW Spec | NP-TOOL-ZM-001 — Zone Module Tooling Specification (8 features F-01 through F-08, 12-item mould design review checklist, PDMS gasket, eject lever, keying) | Rev A | **Superseded 2026-07-28** — replaced by universal hex-tile mould (NP-HEX-ZM-001) | T1+T2 |
-| DO-HW-05 | HW Spec | NP-TOOL-ZM-SM-001 — 1064 nm Smart Module Tooling Variant (rigidizer cavity 24×16×3.5 mm, +2.0 mm mechanical key prevents unprotected insertion) | Rev A | **Superseded 2026-07-28** — see in-doc note | T1+T2 |
-| DO-HW-06 | HW Spec | NP-TOOL-SHELL-001 — Shell Tooling Specification (F-01 zone slot anchor posts ×5, F-02 accessory port anchor posts ×3, F-03 EEG cable routing channel, F-04 temporal wing boss PROVISIONAL) | Rev A | **⚠ Needs review** — F-01 anchor posts (×5) sized for the retired 5-zone shell; not yet checked against the hex-socket lattice | T1+T2 |
-| DO-HW-07 | HW Spec | NP-TOOL-LENS-001 — Lens and Goggle Assembly Tooling (F-01/F-02 sliding rail, F-03/F-04 N42 magnet pockets, F-05/F-06 EC driver contacts, P-01 AgNW, P-02 hard coat, P-03 PDMS diffuser, F-07 lens rim guard hooks) | Rev B | Active | T1+T2 |
+| DO-HW-01 | HW Spec | NP-HW-FPC-001 — FPC Zone Module Specification (20-pin pinout, dual-PD RISK-14 Option B, PDMS bonding, five-layer keying, gasket, eject lever) | Rev 5 | **Superseded 2026-07-28** — see in-doc note | T1+T2 |
+| DO-HW-02 | HW Spec | NP-HW-HUB-001 — Hub PCB Rev B (Vishay DG2788A TIA gain switch ×5, NXP PCA9546A I2C mux, GAIN_SEL GPIO sequencing) | Rev 2 | **Superseded 2026-07-28** — needs Rev 3 per SMART-1 | T1+T2 |
+| DO-HW-03 | HW Spec | NP-PROC-FPC-001 — FPC Procurement Requirements (LED Vf binning, Hirose FH34S exclusions, BCR421W spec, RA copper) | Rev 1 | Active | T1+T2 |
+| DO-HW-04 | HW Spec | NP-TOOL-ZM-001 — Zone Module Tooling Specification (8 features F-01 through F-08, 12-item mould design review checklist, PDMS gasket, eject lever, keying) | Rev 1 | **Superseded 2026-07-28** — replaced by universal hex-tile mould (NP-HEX-ZM-001) | T1+T2 |
+| DO-HW-05 | HW Spec | NP-TOOL-ZM-SM-001 — 1064 nm Smart Module Tooling Variant (rigidizer cavity 24×16×3.5 mm, +2.0 mm mechanical key prevents unprotected insertion) | Rev 1 | **Superseded 2026-07-28** — see in-doc note | T1+T2 |
+| DO-HW-06 | HW Spec | NP-TOOL-SHELL-001 — Shell Tooling Specification (F-01 zone slot anchor posts ×5, F-02 accessory port anchor posts ×3, F-03 EEG cable routing channel, F-04 temporal wing boss PROVISIONAL) | Rev 1 | **⚠ Needs review** — F-01 anchor posts (×5) sized for the retired 5-zone shell; not yet checked against the hex-socket lattice | T1+T2 |
+| DO-HW-07 | HW Spec | NP-TOOL-LENS-001 — Lens and Goggle Assembly Tooling (F-01/F-02 sliding rail, F-03/F-04 N42 magnet pockets, F-05/F-06 EC driver contacts, P-01 AgNW, P-02 hard coat, P-03 PDMS diffuser, F-07 lens rim guard hooks) | Rev 2 | Active | T1+T2 |
 
 ### §4.2 Firmware outputs
 
 | DO-ID | Type | Document / Artefact | Rev | Status | Scope |
 |-------|------|---------------------|-----|--------|-------|
-| DO-FW-01 | FW Spec | NP-FW-EMMC-001 — eMMC Partition Architecture + OTA Bootloader (9-partition GPT, AES-256-XTS, Argon2id, dual-bank OTA, Ed25519, DFU) | Rev A | Active | T1+T2 |
-| DO-FW-02 | FW Spec | NP-FW-EMMC-002 — Privacy Remediation Firmware Delta (warranty TRNG token, factory reset, two-layer key, Scratch encryption, EDF+ header, Mode F spec, SHDR accel reclassification) | Rev A | Active | T1+T2 |
-| DO-FW-03 | FW Spec | NP-FW-HRV-001 — HRV Biofeedback Protocol Firmware (np_hrv_ppg, np_hrv_coherence 256-pt Welch, np_hrv_pacer, np_hrv_tavns_sync RSA slope, np_hrv_eeg_biofeedback, np_hrv_session) | Rev A | Active | T1+T2 |
-| DO-FW-04 | FW Spec | NP-FW-ZA-001 — Zone Module Bone Conduction Announcement Firmware (RISK-15 Layer 5; LPADC1 ZONE_ID detection; DDS 8 kHz SAI3; 5 parallel slot state machines; SHDR auth log) | Rev A | **Superseded 2026-07-28** — detection retired, audio engine reusable, see in-doc note | T1+T2 |
-| DO-FW-05 | FW Spec | NP-FW-HD-001 — sLORETA-Guided HD-tDCS Firmware (2447×21 weight matrix, 64-epoch covariance, 4×1 ring selection, ramp state machine, safety MCU SPI, 7 clinical targets) | Rev A | Active | T2 |
-| DO-FW-06 | FW Spec | NP-FW-CVNS-001 — Cervical VNS Safety Interlock Firmware (STM32G071 TIM6 ISR 5 ms, RPEAK_IN GPIO, baseline cross-validation, 30 s lockout, np_cvns_interlock + np_cvns_stim + np_cvns_session) | Rev A | Active | T2 |
-| DO-FW-07 | FW Spec | NP-FW-PBM1064-001 — 1064 nm Smart Zone Module Firmware (smart module detection 3.3 kΩ, LPI2C3 400 kHz, CH_A/B/C register map, dose metering, aggregate ceiling 600 mW/cm², T2 combined session) | Rev A | **Superseded 2026-07-28** — addressing retired, register map/calibration model reusable, see in-doc note | T1+T2 |
-| DO-FW-08 | FW Spec | NP-FW-HUB-001 — Hub Control Program (FreeRTOS i.MX RT1062; module registry, session runner, session log UHDR/SHDR routing, safety SPI heartbeat; NPPS Ed25519 deserialiser) | Rev A | Active | T1+T2 |
-| DO-FW-09 | FW Spec | NP-FW-ANON-001 — Research Anonymisation Engine Firmware (l-diversity l≥3, DP ε≤1.0, k-anonymity, on-device Scratch workspace, AES-256-CTR per-study key, eMMC SANITIZE post-run) | Rev A | Active | T1+T2 |
-| DO-FW-10 | FW Spec | NP-FMEA-001 — SW-01 Safety MCU Unit-Level FMEA (SW01-M01 through SW01-M08 failure modes, potential harms, response times, mitigations) | Rev A | Active | T1+T2 |
+| DO-FW-01 | FW Spec | NP-FW-EMMC-001 — eMMC Partition Architecture + OTA Bootloader (9-partition GPT, AES-256-XTS, Argon2id, dual-bank OTA, Ed25519, DFU) | Rev 1 | Active | T1+T2 |
+| DO-FW-02 | FW Spec | NP-FW-EMMC-002 — Privacy Remediation Firmware Delta (warranty TRNG token, factory reset, two-layer key, Scratch encryption, EDF+ header, Mode F spec, SHDR accel reclassification) | Rev 1 | Active | T1+T2 |
+| DO-FW-03 | FW Spec | NP-FW-HRV-001 — HRV Biofeedback Protocol Firmware (np_hrv_ppg, np_hrv_coherence 256-pt Welch, np_hrv_pacer, np_hrv_tavns_sync RSA slope, np_hrv_eeg_biofeedback, np_hrv_session) | Rev 1 | Active | T1+T2 |
+| DO-FW-04 | FW Spec | NP-FW-ZA-001 — Zone Module Bone Conduction Announcement Firmware (RISK-15 Layer 5; LPADC1 ZONE_ID detection; DDS 8 kHz SAI3; 5 parallel slot state machines; SHDR auth log) | Rev 1 | **Superseded 2026-07-28** — detection retired, audio engine reusable, see in-doc note | T1+T2 |
+| DO-FW-05 | FW Spec | NP-FW-HD-001 — sLORETA-Guided HD-tDCS Firmware (2447×21 weight matrix, 64-epoch covariance, 4×1 ring selection, ramp state machine, safety MCU SPI, 7 clinical targets) | Rev 1 | Active | T2 |
+| DO-FW-06 | FW Spec | NP-FW-CVNS-001 — Cervical VNS Safety Interlock Firmware (STM32G071 TIM6 ISR 5 ms, RPEAK_IN GPIO, baseline cross-validation, 30 s lockout, np_cvns_interlock + np_cvns_stim + np_cvns_session) | Rev 1 | Active | T2 |
+| DO-FW-07 | FW Spec | NP-FW-PBM1064-001 — 1064 nm Smart Zone Module Firmware (smart module detection 3.3 kΩ, LPI2C3 400 kHz, CH_A/B/C register map, dose metering, aggregate ceiling 600 mW/cm², T2 combined session) | Rev 1 | **Superseded 2026-07-28** — addressing retired, register map/calibration model reusable, see in-doc note | T1+T2 |
+| DO-FW-08 | FW Spec | NP-FW-HUB-001 — Hub Control Program (FreeRTOS i.MX RT1062; module registry, session runner, session log UHDR/SHDR routing, safety SPI heartbeat; NPPS Ed25519 deserialiser) | Rev 1 | Active | T1+T2 |
+| DO-FW-09 | FW Spec | NP-FW-ANON-001 — Research Anonymisation Engine Firmware (l-diversity l≥3, DP ε≤1.0, k-anonymity, on-device Scratch workspace, AES-256-CTR per-study key, eMMC SANITIZE post-run) | Rev 1 | Active | T1+T2 |
+| DO-FW-10 | FW Spec | NP-FMEA-001 — SW-01 Safety MCU Unit-Level FMEA (SW01-M01 through SW01-M08 failure modes, potential harms, response times, mitigations) | Rev 1 | Active | T1+T2 |
 
 ### §4.3 Software source outputs
 
@@ -242,18 +242,18 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 
 | DO-ID | Type | Document / Artefact | Rev | Status | Scope |
 |-------|------|---------------------|-----|--------|-------|
-| DO-API-01 | API Spec | NP-API-001 — T2 Clinical Scripting API Specification (multi-patient dashboard, protocol scripting, FHIR export, LSL streaming endpoint) | Rev A | Active | T2 |
-| DO-FHIR-01 | INT Spec | NP-INT-FHIR-001 — FHIR R4 ImplementationGuide (NP-Patient opaque MRN, NP-Observation EEG/HRV/dose, NP-DiagnosticReport, NP-Procedure; LSL TLS; FHIR validator CI) | Rev A | Active | T2 |
-| DO-RISK-01 | Risk | NP-RISK-001 — Zone Module Risk Register (RISK-01 through RISK-25; 23 MITIGATED; RISK-03 and RISK-20 OPEN) | Rev B | Active | T1+T2 |
-| DO-RISK-02 | Risk | NP-RM-001 — ISO 14971 Risk Management Plan (S1–S5/P1–P5 matrix, 9 hazard categories, formal QMS entry of RISK-01..25) | Rev A | Active | T1+T2 |
-| DO-RISK-03 | Risk | NP-FMEA-001 — SW-01 Safety MCU Unit-Level FMEA (SW01-M01..M08: tDCS ramp, watchdog, charge density, thermal, CVNS interlock, impedance, Ed25519, fault latch) | Rev A | Active | T1+T2 |
-| DO-REG-01 | Regulatory | NP-REG-PBM1064-001 — RISK-03 Scope Expansion Brief to outside regulatory counsel (12 questions: 1064 nm FDA pathway, aggregate irradiance, T2 combined session, FTC depth claim) | Rev A | Active | T1+T2 |
-| DO-REG-02 | Regulatory | NP-REG-CVNS-001 — Cervical VNS 510(k) Pre-Submission Q-Sub (predicate: electroCore gammaCore K163334/K173323; SE argument; 6 Q-Sub questions; Type B meeting Month 20) | Rev A | Active | T2 |
-| DO-TEST-01 | Test | NP-FAI-ZM-001 — Zone Module FAI Checklist (PDMS adhesion FAI-M01..M03, thermal cycling FAI-TC01..TC06 BLOCKING, accessibility FAI-A09..A15, IPX4 FAI-IPX-01..04 BLOCKING, lifecycle, system test) | Rev A | Active | T1+T2 |
-| DO-TEST-02 | Test | NP-COORD-001 — Engineering Coordination Checklist (G1 15 items, G2 14 items, G3 6 items gate structure; G2-10/11/12/14 closed; G3-07/08 software baselined) | Rev A.8 | Active | T1+T2 |
-| DO-TEST-03 | Test | NP-DRV-SHELL-001 — Shell FPC Routing Review (DRC 23-item checklist; EEG cable routing §2.4; DRC-18/22/23 CLOSED; 8×5 mm channel locked routing) | Rev B | Active | T1+T2 |
-| DO-HFE-01 | HFE Plan | NP-HFE-001 — Human Factors Engineering Plan (IEC 62366-1 / FDA HFE 2016; use specification; CT-01..CT-07 URRA; formative + summative plans) | Rev A | Active | T1+T2 |
-| DO-HFE-02 | HFE Design | NP-HFE-002 — Accessible Zone-Module Position Identification and Guided Placement (L1 tactile landmark grid; L2 companion-app guided placement; L3 module-type tactile marking; L4 `check_placement` backstop; F tactile placement card; HFE-R-01..15; supersedes RISK-15 Layers 3/4/5) | Rev A | DRAFT | T1+T2 |
+| DO-API-01 | API Spec | NP-API-001 — T2 Clinical Scripting API Specification (multi-patient dashboard, protocol scripting, FHIR export, LSL streaming endpoint) | Rev 1 | Active | T2 |
+| DO-FHIR-01 | INT Spec | NP-INT-FHIR-001 — FHIR R4 ImplementationGuide (NP-Patient opaque MRN, NP-Observation EEG/HRV/dose, NP-DiagnosticReport, NP-Procedure; LSL TLS; FHIR validator CI) | Rev 1 | Active | T2 |
+| DO-RISK-01 | Risk | **NP-RISK-002 / NP-RISK-003 / NP-RISK-004** — risk file re-baselined 2026-08-11; NP-RISK-002 §3 dispositions all 26 IDs (5 retired, 20 carried, 1 closed-confirmed), NP-RISK-003 holds the hex-tile module, NP-RISK-004 the shell/socket/interconnect/hub. RISK-03 and RISK-20 remain OPEN. *(was NP-RISK-001 — Zone Module Risk Register, superseded)* | Rev 1 | Active | T1+T2 |
+| DO-RISK-02 | Risk | NP-RM-001 — ISO 14971 Risk Management Plan (S1–S5/P1–P5 matrix, 9 hazard categories, formal QMS entry of RISK-01..25) | Rev 1 | Active | T1+T2 |
+| DO-RISK-03 | Risk | NP-FMEA-001 — SW-01 Safety MCU Unit-Level FMEA (SW01-M01..M08: tDCS ramp, watchdog, charge density, thermal, CVNS interlock, impedance, Ed25519, fault latch) | Rev 1 | Active | T1+T2 |
+| DO-REG-01 | Regulatory | NP-REG-PBM1064-001 — RISK-03 Scope Expansion Brief to outside regulatory counsel (12 questions: 1064 nm FDA pathway, aggregate irradiance, T2 combined session, FTC depth claim) | Rev 1 | Active | T1+T2 |
+| DO-REG-02 | Regulatory | NP-REG-CVNS-001 — Cervical VNS 510(k) Pre-Submission Q-Sub (predicate: electroCore gammaCore K163334/K173323; SE argument; 6 Q-Sub questions; Type B meeting Month 20) | Rev 1 | Active | T2 |
+| DO-TEST-01 | Test | NP-FAI-ZM-001 — Zone Module FAI Checklist (PDMS adhesion FAI-M01..M03, thermal cycling FAI-TC01..TC06 BLOCKING, accessibility FAI-A09..A15, IPX4 FAI-IPX-01..04 BLOCKING, lifecycle, system test) | Rev 1 | Active | T1+T2 |
+| DO-TEST-02 | Test | NP-COORD-001 — Engineering Coordination Checklist (G1 15 items, G2 14 items, G3 6 items gate structure; G2-10/11/12/14 closed; G3-07/08 software baselined) | Rev 1.8 | Active | T1+T2 |
+| DO-TEST-03 | Test | NP-DRV-SHELL-001 — Shell FPC Routing Review (DRC 23-item checklist; EEG cable routing §2.4; DRC-18/22/23 CLOSED; 8×5 mm channel locked routing) | Rev 2 | Active | T1+T2 |
+| DO-HFE-01 | HFE Plan | NP-HFE-001 — Human Factors Engineering Plan (IEC 62366-1 / FDA HFE 2016; use specification; CT-01..CT-07 URRA; formative + summative plans) | Rev 1 | Active | T1+T2 |
+| DO-HFE-02 | HFE Design | NP-HFE-002 — Accessible Zone-Module Position Identification and Guided Placement (L1 tactile landmark grid; L2 companion-app guided placement; L3 module-type tactile marking; L4 `check_placement` backstop; F tactile placement card; HFE-R-01..15; supersedes RISK-15 Layers 3/4/5) | Rev 1 | DRAFT | T1+T2 |
 
 ---
 
@@ -266,7 +266,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-PERF-03 | 660/808nm on hex-tiled T1-A modules (NP-HEX-ZM-001) | DO-HW-01, DO-HW-04, DO-HW-06 | FPC; zone module tooling; shell tooling | VE-07 | Partial |
 | DI-PERF-04 | 400 mW/cm² pulsed ≤25% DC | DO-HW-01, DO-FW-07, DO-RISK-01, DO-REG-01 | FPC; 1064 nm fw duty ceiling; risk register; reg opinion | VE-01 | Partial |
 | DI-PERF-05 | Real-time J/cm² metering dual-PD | DO-HW-01, DO-FW-07, DO-SW-06 | FPC dual-PD RISK-14; 1064 nm fw dose accumulator; source | VE-01, VE-07 | Partial |
-| DI-PERF-06 | 1064 nm smart module ATtiny402 | DO-HW-01, DO-HW-02, DO-HW-05, DO-FW-07, DO-SW-06 | FPC Rev E; Hub PCB Rev B TIA switch; mould variant; fw spec | VE-07 | Partial |
+| DI-PERF-06 | 1064 nm smart module ATtiny402 | DO-HW-01, DO-HW-02, DO-HW-05, DO-FW-07, DO-SW-06 | FPC Rev 5; Hub PCB Rev B TIA switch; mould variant; fw spec | VE-07 | Partial |
 | DI-PERF-07 | BES/tACS ≤1 mA 0.5–40 Hz (T1) | DO-FW-08, DO-SW-07, DO-RISK-02 | Hub control session runner; risk plan | VE-05 | Partial |
 | DI-PERF-08 | Clinical tACS ≤4 mA 16-ch (T2) | DO-FW-08, DO-SW-07, DO-RISK-02 | Hub control; risk plan | VE-05 | Partial |
 | DI-PERF-09 | tDCS 0.1–2 mA ≤3 pairs | DO-FW-08, DO-SW-07, DO-RISK-01 | Hub control; risk register | VE-05 | Partial |
@@ -280,7 +280,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-PERF-17 | Autonomous Mode 3 closed-loop | DO-FW-08, DO-SW-07 | Hub control session runner NPPS Ed25519 | VE-05 | Partial |
 | DI-PERF-18 | 4 operating modes <1 ms / <5 s | DO-FW-01, DO-FW-08, DO-SW-01, DO-SW-07 | eMMC spec; hub control; bootloader | VE-02, VE-05 | Partial |
 | DI-PERF-19 | UHDR/SHDR AES-256 biometric key | DO-FW-01, DO-FW-02, DO-SW-01, DO-SW-08, DO-SW-09 | eMMC spec; priv delta UKMD/WKMD; bootloader; anon; iOS | VE-09 | Partial |
-| DI-PERF-20 | 8 GB eMMC 9-partition LittleFS | DO-FW-01, DO-SW-01 | eMMC spec Rev A §4; bootloader source | VE-02 | Traced |
+| DI-PERF-20 | 8 GB eMMC 9-partition LittleFS | DO-FW-01, DO-SW-01 | eMMC spec Rev 1 §4; bootloader source | VE-02 | Traced |
 | DI-PERF-21 | Dual-bank OTA Ed25519 + DFU | DO-FW-01, DO-SW-01 | eMMC spec §8 9-step; bootloader source | VE-02 | Traced |
 | DI-PERF-22 | 5-layer EMF + active Helmholtz | DO-HW-06, DO-RISK-01 | Shell tooling palladium fabric; risk register RISK-10 | VE-08 | Partial |
 | DI-PERF-23 | Boa dial 50,000-cycle PTFE | DO-HW-06, DO-HW-04 | Shell tooling F-03 channel; ZM tooling | VE-08 | Partial |
@@ -303,7 +303,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-USE-02 | ≤1 N eject lever Parkinson's target | DO-HW-04, DO-RISK-01 | ZM tooling F-06 eject lever RISK-22; risk register | VE-07 | Partial |
 | DI-USE-03 | Amber LED ≥3 m caregiver readable | DO-FW-08, DO-SW-07 | Hub control §4.7 LED driver | VE-05 | Partial |
 | DI-USE-04 | Covers tethered anchor posts | DO-HW-06, DO-HW-07 | Shell tooling F-01/F-02 anchor posts; lens tooling F-07 hook | VE-08 | Partial |
-| DI-USE-05 | Orientation feature + software placement validation + accessible position ID | DO-HFE-02, ~~DO-HW-04~~, ~~DO-FW-04~~, ~~DO-SW-03~~ | NP-HFE-002 Rev A (L1 landmark grid, L2 app guided placement, L3 module-type marking, L4 `check_placement`); superseded outputs struck — the 5-layer keying they implemented is retired. Insertion-time confirmation redirected off bone conduction to the companion app 2026-07-29 (`np_zone_notify`, the separate work item NP-HFE-002 §7.5 constrains); L5 while-worn readback retained behind `np_za_play_worn_cue()` | VE-12 | **Partial** — design output baselined; HFE-R-01..15 evidence pending formative/summative |
+| DI-USE-05 | Orientation feature + software placement validation + accessible position ID | DO-HFE-02, ~~DO-HW-04~~, ~~DO-FW-04~~, ~~DO-SW-03~~ | NP-HFE-002 Rev 1 (L1 landmark grid, L2 app guided placement, L3 module-type marking, L4 `check_placement`); superseded outputs struck — the 5-layer keying they implemented is retired. Insertion-time confirmation redirected off bone conduction to the companion app 2026-07-29 (`np_zone_notify`, the separate work item NP-HFE-002 §7.5 constrains); L5 while-worn readback retained behind `np_za_play_worn_cue()` | VE-12 | **Partial** — design output baselined; HFE-R-01..15 evidence pending formative/summative |
 | DI-USE-06 | EEG pods 80–120 g ±12 mm travel | DO-HW-06, DO-HW-04 | Shell tooling spring pod seat; ZM tooling | VE-08 | Partial |
 | DI-USE-07 | Hydrogel tips snap-off bayonet 30–60 sessions | DO-HW-04, DO-SW-09 | ZM tooling bayonet seat; iOS consumable tracker | VE-07 | Partial |
 | DI-REG-01 | IEC 60601-1 general safety | DO-RISK-02, DO-TEST-01, DO-TEST-02 | Risk plan; FAI checklist; coord checklist | VE-11 | Open |
@@ -330,18 +330,18 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 
 | VE-ID | Evidence Type | Document / Test | Status | Gate |
 |-------|---------------|-----------------|--------|------|
-| VE-01 | Regulatory opinion | NP-REG-PBM1064-001 Rev A — RISK-03 outside counsel opinion letter; 12 questions on irradiance, aggregate IEC 62471, T2 combined 1064+1170 nm, FTC depth claims | Open (external) | G1 close |
-| VE-02 | Software PASS | NP-FW-EMMC-001 Rev A §8 + firmware/bootloader/ — OTA 9-step sequence, Ed25519 RFC 8032 self-contained, DFU 1.1 USB class, rollback after 3 failed attempts | Complete | — |
-| VE-03 | Software PASS | NP-FW-CVNS-001 Rev A FAI-CV02 software constants — TIM6 ISR ≤5.1 ms worst-case; cardiac interlock timing PASS on paper analysis; hardware oscilloscope bench pending | Partial (HW bench pending) | G3 |
-| VE-04 | Software PASS | NP-FW-HRV-001 Rev A — 6-module HRV library PASS; coherence Welch PSD algorithm verified; taVNS RSA slope PASS; G2-12 CLOSED | Complete | — |
-| VE-05 | Software PASS | NP-FW-HUB-001 Rev A G2-14 PARTIAL — hub control session runner, module registry, session log, safety SPI heartbeat; FAI-HUB-01..03 hardware bench pending | Partial | G2 |
-| VE-06 | Software PASS | NP-FW-HD-001 Rev A FAI-HD02 — sLORETA electrode mapping software PASS all 6 criteria; FAI-HD01 phantom localisation ≤15 mm and FAI-HD03 FWHM ≤25 mm hardware bench pending | Partial (phantom bench pending) | G3 |
-| VE-07 | FAI Checklist | NP-FAI-ZM-001 Rev A — zone module FAI; PDMS 200-cycle IEC 60068-2-14 thermal cycling BLOCKING (FAI-TC02); IPX4 after 10 swap cycles BLOCKING (FAI-IPX-02); eject lever ≤1 N FAI-A09 pending | Open | G2 |
-| VE-08 | Design Review | NP-COORD-001 Rev A.8 G2 items — shell tooling NP-TOOL-SHELL-001 Rev A; lens tooling NP-TOOL-LENS-001 Rev B; G2-11 CLOSED (EEG routing); G2-13 OPEN (lens G2 deliverable) | Partial | G2 |
-| VE-09 | Privacy Audit | NP-PRIV-ANALYSIS-002 Rev A — iOS app second-pass audit 12 findings all resolved; GDPR Art. 13(2)(f) adaptive trigger enum and disclosure; OI-PA-04 copy sign-off open | Complete (OI-PA-04 process item) | — |
-| VE-10 | FMEA | NP-FMEA-001 Rev A — SW-01 Safety MCU FMEA SW01-M01..M08 complete; OI-FMEA-01 watchdog GPIO timing hardware bench and OI-FMEA-02 cardiac interlock oscilloscope bench open | Complete (HW bench OI items open) | G3 |
+| VE-01 | Regulatory opinion | NP-REG-PBM1064-001 Rev 1 — RISK-03 outside counsel opinion letter; 12 questions on irradiance, aggregate IEC 62471, T2 combined 1064+1170 nm, FTC depth claims | Open (external) | G1 close |
+| VE-02 | Software PASS | NP-FW-EMMC-001 Rev 1 §8 + firmware/bootloader/ — OTA 9-step sequence, Ed25519 RFC 8032 self-contained, DFU 1.1 USB class, rollback after 3 failed attempts | Complete | — |
+| VE-03 | Software PASS | NP-FW-CVNS-001 Rev 1 FAI-CV02 software constants — TIM6 ISR ≤5.1 ms worst-case; cardiac interlock timing PASS on paper analysis; hardware oscilloscope bench pending | Partial (HW bench pending) | G3 |
+| VE-04 | Software PASS | NP-FW-HRV-001 Rev 1 — 6-module HRV library PASS; coherence Welch PSD algorithm verified; taVNS RSA slope PASS; G2-12 CLOSED | Complete | — |
+| VE-05 | Software PASS | NP-FW-HUB-001 Rev 1 G2-14 PARTIAL — hub control session runner, module registry, session log, safety SPI heartbeat; FAI-HUB-01..03 hardware bench pending | Partial | G2 |
+| VE-06 | Software PASS | NP-FW-HD-001 Rev 1 FAI-HD02 — sLORETA electrode mapping software PASS all 6 criteria; FAI-HD01 phantom localisation ≤15 mm and FAI-HD03 FWHM ≤25 mm hardware bench pending | Partial (phantom bench pending) | G3 |
+| VE-07 | FAI Checklist | NP-FAI-ZM-001 Rev 1 — zone module FAI; PDMS 200-cycle IEC 60068-2-14 thermal cycling BLOCKING (FAI-TC02); IPX4 after 10 swap cycles BLOCKING (FAI-IPX-02); eject lever ≤1 N FAI-A09 pending | Open | G2 |
+| VE-08 | Design Review | NP-COORD-001 Rev 1.8 G2 items — shell tooling NP-TOOL-SHELL-001 Rev 1; lens tooling NP-TOOL-LENS-001 Rev 2; G2-11 CLOSED (EEG routing); G2-13 OPEN (lens G2 deliverable) | Partial | G2 |
+| VE-09 | Privacy Audit | NP-PRIV-ANALYSIS-002 Rev 1 — iOS app second-pass audit 12 findings all resolved; GDPR Art. 13(2)(f) adaptive trigger enum and disclosure; OI-PA-04 copy sign-off open | Complete (OI-PA-04 process item) | — |
+| VE-10 | FMEA | NP-FMEA-001 Rev 1 — SW-01 Safety MCU FMEA SW01-M01..M08 complete; OI-FMEA-01 watchdog GPIO timing hardware bench and OI-FMEA-02 cardiac interlock oscilloscope bench open | Complete (HW bench OI items open) | G3 |
 | VE-11 | Standards testing | IEC 60601-1, IEC 60601-2-10, IEC 62471, IEC 62133, FCC Part 15 at accredited laboratory; planned G3 phase Month 10–14 | Open | G3 |
-| VE-12 | HFE Testing | NP-HFE-001 Rev A (released 2026-07-27) — URRA; formative testing including eject-lever Parkinson's/post-stroke study (n=5) **and the NP-HFE-002 accessible-placement study with blind/low-vision participants (a separate population — NP-HFE-001 OI-HFE-07)**; summative Month 14–18 including NP-HFE-002 HFE-R-13 (blind user completes a standard T1 build unaided) | Open — plans authored, no testing performed | G3 |
+| VE-12 | HFE Testing | NP-HFE-001 Rev 1 (released 2026-07-27) — URRA; formative testing including eject-lever Parkinson's/post-stroke study (n=5) **and the NP-HFE-002 accessible-placement study with blind/low-vision participants (a separate population — NP-HFE-001 OI-HFE-07)**; summative Month 14–18 including NP-HFE-002 HFE-R-13 (blind user completes a standard T1 build unaided) | Open — plans authored, no testing performed | G3 |
 | VE-13 | Watch App testing | OI-WA-02 — Watch 40 Hz visual flicker brightness characterisation; ≥100 nits at 40 Hz required before phase 4 Watch app development begins | Open | Post-G3 |
 
 ---
@@ -399,15 +399,15 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 
 ## §9 DHF Completeness Impact
 
-With NP-DT-001 Rev A authored, the DHF design inputs completeness rating (previously **"Partial"** per NP-DHF-001 §7) is upgraded to **"Good"**.
+With NP-DT-001 Rev 1 authored, the DHF design inputs completeness rating (previously **"Partial"** per NP-DHF-001 §7) is upgraded to **"Good"**.
 
 **DHF completeness progression:**
 
 | Phase | Event | Completeness |
 |-------|-------|-------------|
-| Pre-NP-DT-001 | DHF Rev F design inputs rating | Partial |
-| NP-DT-001 Rev A issued | 57 DIs documented; DI→DO→VE chains established | Good |
-| NP-HFE-001 Rev A (Month 9) | URRA complete; VE-12 entered | Good+ |
+| Pre-NP-DT-001 | DHF Rev 6 design inputs rating | Partial |
+| NP-DT-001 Rev 1 issued | 57 DIs documented; DI→DO→VE chains established | Good |
+| NP-HFE-001 Rev 1 (Month 9) | URRA complete; VE-12 entered | Good+ |
 | Formative HFE testing (Month 10–12) | First VE-12 evidence | Good+ |
 | Standards lab testing (G3) | VE-11 results entered | Near-Complete |
 | Summative HFE testing + clinical validation (Month 14–18) | VE-12 complete | Complete |
@@ -432,13 +432,13 @@ Remaining requirements to reach **"Complete"**:
 | OI-DT-05 | Confirm Apple Watch app DI-INT-04 scope: update from provisional/low to committed/medium if HOPE Phase 3 positive and Watch app moves to committed roadmap | Engineering | Month 12 |
 | OI-DT-06 | Enter VE-07 FAI-TC02 (PDMS thermal cycling) and FAI-IPX-02 (IPX4 swap cycles) when PDMS CAT-C supplier qualification complete and 200-cycle test passes | Quality Lead | Pre-production |
 | OI-DT-07 | Enter VE-03 hardware bench result (FAI-CV02 oscilloscope) and VE-06 phantom bench results (FAI-HD01/HD03/HD04) once T2 prototype hardware is available | Engineering | G3 hardware bench |
-| OI-DT-08 | Update NP-DHF-001 to Rev G to reflect NP-DT-001 Rev A as active DHF document; update design inputs completeness rating from Partial to Good | Quality Lead | Within 5 business days of NP-DT-001 approval |
+| OI-DT-08 | Update NP-DHF-001 to Rev 7 to reflect NP-DT-001 Rev 1 as active DHF document; update design inputs completeness rating from Partial to Good | Quality Lead | Within 5 business days of NP-DT-001 approval |
 
 ---
 
 ## §11 Change Control
 
-This document is under QMS change control per NP-QMS-DC-001 Rev A §8.3.
+This document is under QMS change control per NP-QMS-DC-001 Rev 1 §8.3.
 
 **Significant changes** (requiring full Quality Lead review and DHF update):
 - Addition of new design inputs (new DI-ID entries)
@@ -461,5 +461,5 @@ All changes must update the §10 revision history entry.
 
 | Rev | Date | Author | Change Summary |
 |-----|------|--------|----------------|
-| A | 2026-06-07 | SmartyPants / PAI | Initial issue — G1 gate deliverable; 57 DIs across PERF/SAFE/USE/REG/INT; 35 DOs covering HW/FW/SW/Risk/Reg/Test; 13 VEs; full DI→DO→VE traceability matrix; §7 gap analysis; §8 statistics; §9 DHF completeness impact upgraded from Partial to Good |
-| B | 2026-07-22 | Steve Hickman (CEO, interim Quality authority) | **DI-SAFE-13 added** — scalp-facing surface ≤42 °C under single-fault loss of forced convection (fan/heatsink loss): Path B1 scalp-facing NTC at PD2 (SR-FAN-01/02) + natural-convection-safe duty derate (SR-FAN-03) + ambient/duty envelope gate; **base thermal design = BN-boss conductive export to an external heatsink, shielded interior un-ventilated.** Records the THERM-1a first-pass outcome (NP-THERM-CFD-R1-001: DI-SAFE-08 junction throttle proven insufficient to bound the face → Path A rejected). Added to §3.2 registry + §5 DI→DO→VE matrix (status Open — SW01-M04 face-NTC implementation + THERM-1b verification pending); DI total 57 → 58. Traces to NP-REQ-FANHEALTH-001, NP-FMEA-GEOM-001 (FMEA-G07-01), NP-DHF-001 Rev V. Rev A → B. |
+| 1 | 2026-06-07 | SmartyPants / PAI | Initial issue — G1 gate deliverable; 57 DIs across PERF/SAFE/USE/REG/INT; 35 DOs covering HW/FW/SW/Risk/Reg/Test; 13 VEs; full DI→DO→VE traceability matrix; §7 gap analysis; §8 statistics; §9 DHF completeness impact upgraded from Partial to Good |
+| 2 | 2026-07-22 | Steve Hickman (CEO, interim Quality authority) | **DI-SAFE-13 added** — scalp-facing surface ≤42 °C under single-fault loss of forced convection (fan/heatsink loss): Path B1 scalp-facing NTC at PD2 (SR-FAN-01/02) + natural-convection-safe duty derate (SR-FAN-03) + ambient/duty envelope gate; **base thermal design = BN-boss conductive export to an external heatsink, shielded interior un-ventilated.** Records the THERM-1a first-pass outcome (NP-THERM-CFD-R1-001: DI-SAFE-08 junction throttle proven insufficient to bound the face → Path A rejected). Added to §3.2 registry + §5 DI→DO→VE matrix (status Open — SW01-M04 face-NTC implementation + THERM-1b verification pending); DI total 57 → 58. Traces to NP-REQ-FANHEALTH-001, NP-FMEA-GEOM-001 (FMEA-G07-01), NP-DHF-001 Rev 22. Rev 1 → B. |

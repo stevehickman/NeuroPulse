@@ -1,6 +1,6 @@
 /*
  * NeurOne HRV Biofeedback — Breathing Pacer
- * Document: NP-FW-HRV-001 Rev A §7
+ * Document: NP-FW-HRV-001 Rev 1 §7
  *
  * Manages the breathing cadence cue delivered as:
  *   - Visual ring expand/contract events (relayed to app via callback).

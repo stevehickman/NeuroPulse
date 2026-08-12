@@ -146,7 +146,7 @@ print(f"  Additional modalities doc saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. FAI checklist — add HRV biofeedback test section
 # ══════════════════════════════════════════════════════════════════════════════
-FAI_PATH = "docs/neurone_fai_zone_module.docx"
+FAI_PATH = "docs/superseded/neurone_fai_zone_module.docx"
 fai = Document(FAI_PATH)
 
 # Find FAI-A15 (last accessibility item) or last item in accessibility section

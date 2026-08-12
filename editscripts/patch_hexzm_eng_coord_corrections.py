@@ -24,7 +24,7 @@ seam-length budget is required").
 
 G2-10 (audio zone ID firmware) is real shipped firmware
 (firmware/zone_announce/) built on the retired ZONE_ID mechanism. Per commit
-b96f2d4's supersession note on docs/np_fw_za_001.md, it needs porting to
+b96f2d4's supersession note on docs/superseded/np_fw_za_001.md, it needs porting to
 UID-based detection, not a doc-only fix — flagged here, not implemented here.
 """
 
@@ -163,9 +163,9 @@ def main():
             "(np_module_map) replaces zone-slot detection outright — the DDS audio engine and "
             "debounce algorithm are addressing-independent and remain reusable, but the slot "
             "state machine needs porting to per-socket UID-change events. See supersession note "
-            "in docs/np_fw_za_001.md.")
+            "in docs/superseded/np_fw_za_001.md.")
         set_cell_text(row.cells[6],
-            "PARTIAL — NP-FW-ZA-001 Rev A baselined against the retired ZONE_ID mechanism; needs "
+            "PARTIAL — NP-FW-ZA-001 Rev 1 baselined against the retired ZONE_ID mechanism; needs "
             "porting to UID-based per-socket detection before it matches NP-HEX-ZM-001",
             bold=True, color=(0xBF, 0x60, 0x00))
         set_cell_bg(row.cells[6], "FFE699")
@@ -174,7 +174,7 @@ def main():
     row = find_row(doc, "G2-10", 5)
     if row:
         old = row.cells[3].text
-        set_cell_text(row.cells[3], old + " NEEDS PORT to NP-HEX-ZM-001 UID-based detection (see docs/np_fw_za_001.md).")
+        set_cell_text(row.cells[3], old + " NEEDS PORT to NP-HEX-ZM-001 UID-based detection (see docs/superseded/np_fw_za_001.md).")
         set_cell_text(row.cells[4], "PARTIAL — needs port off retired ZONE_ID mechanism", bold=True, color=(0xBF, 0x60, 0x00))
         set_cell_bg(row.cells[4], "FFE699")
         print("  G2-10 dashboard row flagged for firmware port")

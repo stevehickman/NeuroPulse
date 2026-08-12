@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — Platform HAL Stubs
- * Document: NP-FW-PBM1064-001 Rev A §3
+ * Document: NP-FW-PBM1064-001 Rev 1 §3
  *
  * These functions are implemented as stubs in np_pbm1064_hal.c and must be
  * replaced by the platform team with real peripheral driver implementations:
@@ -25,7 +25,7 @@ extern "C" {
 #endif
 
 /*
- * ⚠ RETIRED by NP-HW-HUB-001 Rev C (2026-07-29) — DO NOT IMPLEMENT ON TARGET.
+ * ⚠ RETIRED by NP-HW-HUB-001 Rev 3 (2026-07-29) — DO NOT IMPLEMENT ON TARGET.
  * ZONE_ID resistor-ladder detection is gone: module type comes from UID-based
  * auto-inventory (np_module_map), per NP-FW-PBM1064-001's supersession note.
  * Retained only to keep the host-test build linking.
@@ -39,25 +39,25 @@ bool np_pbm1064_hal_adc_read_zone_id(uint8_t slot, uint16_t *counts_out);
  * counts_out: 12-bit ADC result.
  * Returns true on success.  OI-PBM-01.
  *
- * NP-HW-HUB-001 Rev C (2026-07-29) RESHAPES rather than retires this call.
+ * NP-HW-HUB-001 Rev 3 (2026-07-29) RESHAPES rather than retires this call.
  * It survives as a thin accessor (so np_pbm1064_dose.c needs no restructuring)
  * but `slot` becomes a uint16_t socket_id (0..127) and the value is served from
  * a CACHED cluster frame, not a direct LPADC conversion: at 80 sockets the
  * 10 Hz dose tick must pull 10 per-cluster frames via
  * np_hub_cluster_read_frame(), not issue 160 individual bus reads.
- * See NP-HW-HUB-001 Rev C §9.2–9.3.
+ * See NP-HW-HUB-001 Rev 3 §9.2–9.3.
  */
 bool np_pbm1064_hal_adc_read_pd(uint8_t slot, uint8_t pd_ch,
                                  uint16_t *counts_out);
 
 /*
- * ⚠ RETIRED by NP-HW-HUB-001 Rev C (2026-07-29) — DO NOT IMPLEMENT ON TARGET.
- * Rev B enabled a hub-side LPI2C3 GPIO mux (or a PCA9546A channel) per zone
- * slot. Under Rev C the hub has ONE differential cluster bus and no per-socket
+ * ⚠ RETIRED by NP-HW-HUB-001 Rev 3 (2026-07-29) — DO NOT IMPLEMENT ON TARGET.
+ * Rev 2 enabled a hub-side LPI2C3 GPIO mux (or a PCA9546A channel) per zone
+ * slot. Under Rev 3 the hub has ONE differential cluster bus and no per-socket
  * I2C peripheral: each cluster controller owns its own PCA9548A and isolates
  * its ≤8 sockets locally, one hop from the module. Module transactions are
  * TUNNELLED — the hub asks a cluster controller to relay them. Retained only
- * to keep the host-test build linking. See NP-HW-HUB-001 Rev C §5.2, §9.1.
+ * to keep the host-test build linking. See NP-HW-HUB-001 Rev 3 §5.2, §9.1.
  */
 np_pbm1064_status_t np_pbm1064_hal_i2c_mux_enable(uint8_t slot, bool enable);
 
@@ -121,22 +121,22 @@ void np_pbm1064_hal_shdr_log_fault(const np_pbm1064_shdr_fault_entry_t *entry);
 void np_pbm1064_hal_zone_announce(uint8_t slot_index);
 
 /*
- * ⚠ RETIRED by NP-HW-HUB-001 Rev C (2026-07-29) — DO NOT IMPLEMENT ON TARGET.
+ * ⚠ RETIRED by NP-HW-HUB-001 Rev 3 (2026-07-29) — DO NOT IMPLEMENT ON TARGET.
  *
  * Both functions below exist only to keep the current host-test build linking.
  * They describe Hub PCB Rev B's 5-slot scheme: one DG2788A per zone slot driven
  * by a dedicated GAIN_SEL[0..4] GPIO on the i.MX RT1062 GPIO2 bank.
  *
- * Under Rev C there is NO GAIN_SEL signal between the RT1062 and any socket.
+ * Under Rev 3 there is NO GAIN_SEL signal between the RT1062 and any socket.
  * TIA gain is a pin on the cluster-controller MCU, set per-SAMPLE inside that
  * controller's PD scan loop from the module type it learned via UID inventory
  * (np_module_map) — not latched per slot from a ZONE_ID resistor ladder. One
  * shared switchable-gain TIA serves all 8 sockets of a cluster, so PD1 and PD2
  * of a socket now pass through the same Rf and the same amplifier (their gain
- * error cancels in the PD1/PD2 ratio — see Rev C §6.4).
+ * error cancels in the PD1/PD2 ratio — see Rev 3 §6.4).
  *
  * Replacement surface: firmware/cluster_ctrl/ (new IEC 62304 Class B unit) and
- * np_hub_cluster_read_frame() on the hub side. See NP-HW-HUB-001 Rev C §6, §9.1.
+ * np_hub_cluster_read_frame() on the hub side. See NP-HW-HUB-001 Rev 3 §6, §9.1.
  */
 np_pbm1064_status_t np_pbm1064_hal_tia_gain_set(uint8_t slot, np_tia_gain_t gain);
 void np_pbm1064_hal_tia_gain_boot_init(void);

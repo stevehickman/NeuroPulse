@@ -2,18 +2,18 @@
 
 **Project:** NeurOne  
 **Document:** NP-SOUP-CMSIS-001  
-**Revision:** A  
+**Revision:** 1
 **Date:** 2026-08-09  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved By:** — (DRAFT, not approved)  
-**References:** NP-SW-001 Rev C §9.4 (SOUP register), NP-SW-CI-001 Rev F §9 (vendoring decision) and §6.5 (phase 4), `firmware/vendor/cmsis_core/VERSION`, `firmware/vendor/cmsis_device_g0/VERSION`  
+**References:** NP-SW-001 Rev 3 §9.4 (SOUP register), NP-SW-CI-001 Rev 6 §9 (vendoring decision) and §6.5 (phase 4), `firmware/vendor/cmsis_core/VERSION`, `firmware/vendor/cmsis_device_g0/VERSION`  
 **Related Issues:** OI-SWCI-06 (device headers vs full HAL — closed by this work)  
 **Gate:** G2  
 **IEC 62304 Class:** SW-01 Class C  
 **Supersedes:** None  
-**Change Summary:** Rev A (2026-08-09) — initial revision. The IEC 62304 §7.1.2 anomaly-list evaluation for the two CMSIS SOUP components vendored for the safety MCU at NP-SW-CI-001 phase 4.  
+**Change Summary:** Rev 1 (2026-08-09) — initial revision. The IEC 62304 §7.1.2 anomaly-list evaluation for the two CMSIS SOUP components vendored for the safety MCU at NP-SW-CI-001 phase 4.  
 **Review Cadence:** On any change to the pinned tag of either component, and at G2
 
 ---

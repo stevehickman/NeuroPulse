@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — SW-01 Platform Layer: GPIO pin configuration primitives
  * Target: STM32G071 (Cortex-M0+, 64 MHz), bare metal, CMSIS registers only
- * Document: NP-SW-001 Rev A — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
+ * Document: NP-SW-001 Rev 1 — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
  *
  * Not part of the SW-01 platform contract — these are the shared primitives the
  * seven contract-implementing translation units use.  See np_hal_internal.h.

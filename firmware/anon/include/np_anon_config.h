@@ -1,7 +1,7 @@
 /*
  * NeurOne Research Anonymization — Scratch Encryption Configuration
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
- * Document: NP-FW-EMMC-002 Rev A §D
+ * Document: NP-FW-EMMC-002 Rev 1 §D
  *
  * Defines the AES-256-CTR scratch-partition encryption constants for the
  * on-device research anonymization pipeline.  Decrypted UHDR data is staged
@@ -10,7 +10,7 @@
  * nothing recoverable.
  *
  * Scratch partition LBA geometry is owned by the bootloader storage map
- * (NP-FW-EMMC-001 Rev A §4).  This header re-exports it from np_config.h so
+ * (NP-FW-EMMC-001 Rev 1 §4).  This header re-exports it from np_config.h so
  * the anonymization module and the bootloader agree on the same region.
  */
 
@@ -19,13 +19,13 @@
 
 #include <stdint.h>
 
-/* Scratch partition geometry (NP-FW-EMMC-001 Rev A §4).                       */
+/* Scratch partition geometry (NP-FW-EMMC-001 Rev 1 §4).                       */
 /* np_config.h defines NP_SCRATCH_LBA_START and NP_SCRATCH_SIZE_LBA in LBA    */
 /* (512-byte sector) units.  Both the bootloader and this module reference the */
 /* identical region so a recovery SANITIZE wipes exactly the staged ciphertext.*/
 #include "np_config.h"
 
-/* ── AES-256-CTR parameters (NP-FW-EMMC-002 Rev A §D.2) ──────────────────── */
+/* ── AES-256-CTR parameters (NP-FW-EMMC-002 Rev 1 §D.2) ──────────────────── */
 
 /* Block size for scratch read/write staging — matches the eMMC sector size  */
 /* so each plaintext block maps to exactly one ciphertext sector.             */

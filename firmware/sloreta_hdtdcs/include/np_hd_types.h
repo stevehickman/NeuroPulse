@@ -1,6 +1,6 @@
 /*
  * NeurOne sLORETA-guided HD-tDCS — Type Definitions
- * Document: NP-FW-HD-001 Rev A §4
+ * Document: NP-FW-HD-001 Rev 1 §4
  */
 
 #ifndef NP_HD_TYPES_H

@@ -1,9 +1,9 @@
 /*
  * NeurOne Hub Control Program — Session Logger (UHDR / SHDR)
- * Document: NP-FW-HUB-001 Rev A §6
+ * Document: NP-FW-HUB-001 Rev 1 §6
  *
  * Routes telemetry and session records to the correct eMMC partition per the
- * data classification table in NP-FW-EMMC-001 Rev A §12.
+ * data classification table in NP-FW-EMMC-001 Rev 1 §12.
  * UHDR writes are AES-256-XTS encrypted with the user biometric-derived key.
  * SHDR writes use the HKDF manufacturing key.
  *

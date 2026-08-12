@@ -1,7 +1,7 @@
-/* Document: NP-FW-EMMC-002 Rev A §E.4 */
+/* Document: NP-FW-EMMC-002 Rev 1 §E.4 */
 /*
  * NeurOne EDF+ Privacy Header — Anonymization-Pipeline File Gate
- * Document: NP-FW-EMMC-002 Rev A §E.4
+ * Document: NP-FW-EMMC-002 Rev 1 §E.4
  *
  * See np_edf_anon_gate.h for the contract.  Implements the per-file, exclude-
  * not-abort staging filter §E.4 requires: validate each candidate EDF+ header,

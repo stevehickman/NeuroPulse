@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — SW-01 Platform Layer, internal helpers
  * Target: STM32G071 (Cortex-M0+, 64 MHz), bare metal, CMSIS registers only
- * Document: NP-SW-001 Rev A — SW-01 Class C; NP-SW-CI-001 §4.4 (Defect E, OI-SWCI-17)
+ * Document: NP-SW-001 Rev 1 — SW-01 Class C; NP-SW-CI-001 §4.4 (Defect E, OI-SWCI-17)
  *
  * PRIVATE TO firmware/safety_mcu/platform/.  Nothing in src/ or tests/ includes
  * this file, and nothing here is part of the SW-01 platform contract — that is

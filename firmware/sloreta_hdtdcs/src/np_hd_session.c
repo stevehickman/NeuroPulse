@@ -1,11 +1,11 @@
 /*
  * NeurOne sLORETA-guided HD-tDCS — Session Orchestration
- * Document: NP-FW-HD-001 Rev A §8
+ * Document: NP-FW-HD-001 Rev 1 §8
  *
  * Drives the 5-stage workflow:
  *   EEG_ACQUIRE → SLORETA → MONTAGE → STIMULATION → COMPLETE
  *
- * UHDR and SHDR data routing follows NP-FW-EMMC-001 Rev A §12 classification.
+ * UHDR and SHDR data routing follows NP-FW-EMMC-001 Rev 1 §12 classification.
  * UHDR data (user biology) is returned to caller via end_cb for encrypted write.
  * SHDR data (device metrics) is returned via shdr field for fleet telemetry.
  */

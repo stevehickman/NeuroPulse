@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-QMS-DC-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-05-13
 **Status:** ACTIVE
 **Effective Date:** 2026-05-13
@@ -75,7 +75,7 @@ The NeurOne design process uses three gates defined in NP-COORD-001:
 
 | Gate | Phase | Key design control milestones |
 |---|---|---|
-| G1 | Pre-tooling design freeze | All design inputs defined; specifications at Rev A; risk register populated |
+| G1 | Pre-tooling design freeze | All design inputs defined; specifications at Rev 1; risk register populated |
 | G2 | Firmware baseline | Software architecture complete; safety MCU interlock firmware baselined |
 | G3 | T2 clinical readiness | Verification evidence complete; validation plan approved; 510(k) pre-sub filed |
 
@@ -158,7 +158,7 @@ Design outputs are the results of the design process that define the device. The
 | Manufacturing specifications | Bill of materials, tooling drawings | NP-TOOL-* documents |
 | Test specifications | FAI checklists, acceptance criteria | NP-FAI-* documents |
 | Labelling | Device labelling, IFU | TBD (Year 1) |
-| Risk management outputs | Risk register, residual risk report | NP-RISK-001 |
+| Risk management outputs | Risk register, residual risk report | NP-RISK-002 (index + disposition), NP-RISK-003 (hex-tile module), NP-RISK-004 (shell/socket/interconnect/hub). NP-RISK-001 superseded 2026-08-11 — retained in `docs/superseded/` as the record for 2026-05-13 to 2026-08-11 |
 
 ### 6.2 Design output requirements
 
@@ -329,4 +329,4 @@ Design transfer is the process of moving the device from design into production.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
-| A | 2026-05-13 | Interim Quality (CEO) | Initial release. Design controls procedure established at QMS formation. Applies retroactively to all in-progress design activities. |
+| 1 | 2026-05-13 | Interim Quality (CEO) | Initial release. Design controls procedure established at QMS formation. Applies retroactively to all in-progress design activities. |

@@ -1,6 +1,6 @@
 # ARM GNU Toolchain file for NeurOne Safety MCU
 # Target: STMicroelectronics STM32G071 (Cortex-M0+, 64 MHz)
-# Document: NP-SW-001 Rev A — SW-01 Class C firmware
+# Document: NP-SW-001 Rev 1 — SW-01 Class C firmware
 #
 # The safety MCU uses the same ARM GNU cross-compiler as the main processor
 # firmware but with Cortex-M0+ flags and no FPU.

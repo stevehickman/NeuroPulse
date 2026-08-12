@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-ANON-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-06-03
 **Status:** ACTIVE
 **Effective Date:** 2026-06-03
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-PRIV-REM-001 STEP-11; NP-FW-EMMC-002 §A §D §E; NP-FW-EMMC-001 Rev A §6 §15; 45 CFR §164.514(b)(1) (HIPAA Expert Determination); NP-PRIV-001 Rev A HIGH-02
+**References:** NP-PRIV-REM-001 STEP-11; NP-FW-EMMC-002 §A §D §E; NP-FW-EMMC-001 Rev 1 §6 §15; 45 CFR §164.514(b)(1) (HIPAA Expert Determination); NP-PRIV-001 Rev 1 HIGH-02
 **Related Issues:** —
 **Gate:** —
 **IEC 62304 Class:** SW-02 Class B (main processor — anonymisation does not control stimulation)
@@ -21,7 +21,7 @@
 
 This specification governs the firmware research anonymisation engine that runs on the i.MX RT1062 main processor. The engine transforms UHDR data into study-specific anonymised extracts for researcher delivery, entirely on-device, before any data leaves the NeurOne hub. NeurOne cannot access raw UHDR at any point — the UHDR partition key (UKMD) is derived from the user's biometric/PIN and never held by NeurOne infrastructure.
 
-The engine satisfies the anonymisation standard required by NP-PRIV-001 Rev A HIGH-02:
+The engine satisfies the anonymisation standard required by NP-PRIV-001 Rev 1 HIGH-02:
 - **k-anonymity:** k ≥ 10 (minimum group size; groups smaller than k are suppressed)
 - **l-diversity:** l ≥ 3 (minimum distinct sensitive-attribute values per k-group)
 - **Differential privacy:** ε ≤ 1.0 (total privacy loss budget), δ ≤ 10⁻⁵ (failure probability)
@@ -348,5 +348,5 @@ FAI-ANON-09 uses synthetic test data with known ground truth. The adversarial at
 | OI-ANON-01 | External DP reviewer sign-off on ε=1.0 and Δ values (per element) | FAI-ANON-04, FAI-ANON-09; STEP-11 completion |
 | OI-ANON-02 | TRNG health test integration with SNVS entropy source on i.MX RT1062 | FAI-ANON-03; first firmware build |
 | OI-ANON-03 | study_public_key scheme selection — NaCl box vs AES-256-GCM+ECDH | Output format finalisation |
-| OI-ANON-04 | age_decile collection in app onboarding — voluntary bracket, no DOB | App spec (NP-APP-ROADMAP-001 Rev B) |
+| OI-ANON-04 | age_decile collection in app onboarding — voluntary bracket, no DOB | App spec (NP-APP-ROADMAP-001 Rev 2) |
 | OI-ANON-05 | Expert Determination certification template (NP-ANON-CERT) finalised | STEP-32; IRB protocol approval |

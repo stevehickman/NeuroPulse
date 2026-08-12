@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Warranty Token No-Join CI Gate — OI-EMMC2-06
-Document: NP-FW-EMMC-002 Rev A §A.5
+Document: NP-FW-EMMC-002 Rev 1 §A.5
 Revision: A — 2026-06-06
 BLOCKING: must PASS before warranty registration system build and SHDR fleet
 DB schema freeze.
@@ -456,7 +456,7 @@ def main() -> int:
     print(f"NeurOne Warranty No-Join CI Gate — OI-EMMC2-06")
     print(f"SHDR schema:    {args.shdr_schema}")
     print(f"Warranty schema: {args.warranty_schema}")
-    print(f"Checks: NP-FW-EMMC-002 Rev A §A.4, §A.5")
+    print(f"Checks: NP-FW-EMMC-002 Rev 1 §A.4, §A.5")
     print()
 
     if args.verbose:
@@ -474,7 +474,7 @@ def main() -> int:
             print(f"         at {f.location}")
         print()
         print("Warranty token no-join gate is BLOCKED until all violations are resolved.")
-        print("Reference: NP-FW-EMMC-002 Rev A §A.5 (OI-EMMC2-06)")
+        print("Reference: NP-FW-EMMC-002 Rev 1 §A.5 (OI-EMMC2-06)")
         return 1
 
     checks_run = len(result.passed)

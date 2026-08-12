@@ -424,7 +424,7 @@ export interface NPProtocolDefinition {
   isReadOnly?: boolean;
   timingMode: NPTimingMode;
   modalities: NPProtocolModality[];
-  // Rev B: clinical context. `conditions` lists condition names that MUST each
+  // Rev 2: clinical context. `conditions` lists condition names that MUST each
   // resolve to an NPConditionDefinition in the namespace. `references` links to
   // documents describing the protocol / its evidence (openable in a browser).
   conditions?: string[];

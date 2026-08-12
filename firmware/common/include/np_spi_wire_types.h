@@ -1,6 +1,6 @@
 /*
  * NeurOne Firmware — Shared SPI Wire-Format Types
- * Document: NP-FW-HUB-001 Rev A §7, NP-SW-001 Rev A
+ * Document: NP-FW-HUB-001 Rev 1 §7, NP-SW-001 Rev 1
  *
  * Single source of truth for SPI frame types shared between the STM32G071
  * safety MCU (SW-01, Class C) and the i.MX RT1062 hub control program
@@ -88,7 +88,7 @@
  * bytes of the 38-byte receive buffer as the MCU reply and discards the rest
  * (which the MCU's SPI slave clocks out as zeros).
  *
- * ── Privacy gate (NP-FW-EMMC-001 Rev A §12) ──────────────────────────────
+ * ── Privacy gate (NP-FW-EMMC-001 Rev 1 §12) ──────────────────────────────
  * current_ua[] carries COMMANDED current from the session descriptor.
  * Classification: SHDR (device metric — what the protocol requested).
  *
@@ -202,7 +202,7 @@ typedef char _np_spi_chan_limit_cmd_size_check[
  * NSS-delineated length, and does not touch the base 8-byte reply frame or its
  * checksum.  Bytes [16..37] of the MISO window stay zero (unused).
  *
- * ── Privacy gate (NP-FW-EMMC-001 Rev A §12) ──────────────────────────────
+ * ── Privacy gate (NP-FW-EMMC-001 Rev 1 §12) ──────────────────────────────
  * cvns_kohm_x100[] is measured tissue impedance → UHDR (user biology).  It is
  * transferred device-internally (MCU → hub) purely for cross-validation and is
  * NEVER written to SHDR.  Only a per-device DIVERGENCE FLAG (a device-condition

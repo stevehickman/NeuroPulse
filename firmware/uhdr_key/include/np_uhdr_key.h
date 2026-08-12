@@ -1,7 +1,7 @@
 /*
  * NeurOne Two-Layer UHDR Key Scheme — Public API and Platform HAL
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
- * Document: NP-FW-EMMC-002 Rev A §C
+ * Document: NP-FW-EMMC-002 Rev 1 §C
  *
  * Implements the two-layer key lifecycle:
  *

@@ -1,6 +1,6 @@
 /*
  * NeurOne Safety MCU — SW01-M03: Per-Electrode Charge Density Monitor
- * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M03
+ * Document: NP-SW-001 Rev 1, NP-FMEA-001 Rev 1 §SW01-M03
  *
  * Enforces the 40 µC/cm² charge density limit per electrode.
  * App cannot override this limit (hardware enforcement via safety MCU GPIO).

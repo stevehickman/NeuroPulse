@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-IRB-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-07-27
 **Status:** DRAFT
 **Effective Date:** N/A (effective on IRB/REB approval or exemption determination)
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Pending — requires PI co-signature and IRB/REB approval before ACTIVE status
-**References:** NP-PRIV-REM-001 Rev A STEP-20; NP-FW-ANON-001 Rev A; NP-FW-EMMC-001 Rev A §15; CLAUDE.md §6.2 (a priori research consent), §5.3 (research data anonymization architecture); NP-PRIV-NOTICE-001 Rev C §5; NP-HFE-001 Rev A §7.2 (eject-lever accessibility study — the first study anticipated to run under this protocol's exemption/expedited pathway)
+**References:** NP-PRIV-REM-001 Rev 1 STEP-20; NP-FW-ANON-001 Rev 1; NP-FW-EMMC-001 Rev 1 §15; CLAUDE.md §6.2 (a priori research consent), §5.3 (research data anonymization architecture); NP-PRIV-NOTICE-001 Rev 3 §5; NP-HFE-001 Rev 1 §7.2 (eject-lever accessibility study — the first study anticipated to run under this protocol's exemption/expedited pathway)
 **Related Issues:** —
 **Gate:** Prerequisite for NP-HFE-001 §7.2 eject-lever study and for any research study descriptor sent to a device (NP-FW-ANON-001)
 **IEC 62304 Class:** N/A

@@ -1,6 +1,6 @@
 /*
  * NeurOne Research Anonymization — Atomic Pipeline Orchestrator
- * Document: NP-FW-EMMC-002 Rev A §D.5 (atomic pipeline) + §D.6 (power-loss)
+ * Document: NP-FW-EMMC-002 Rev 1 §D.5 (atomic pipeline) + §D.6 (power-loss)
  *
  * Sequences one anonymization run as an all-or-nothing transaction over the
  * encrypted Scratch partition:

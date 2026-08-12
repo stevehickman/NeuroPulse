@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DP-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-05-17
 **Status:** ACTIVE
 **Effective Date:** 2026-05-17
@@ -14,7 +14,7 @@
 **IEC 62304 Class:** —
 **Applicable Standard:** 21 CFR §820.30(b), ISO 13485:2016 §7.3.1
 **Next Review:** At each gate review (G1, G2, G3)
-**Supersedes:** None (first issue). CLAUDE.md and NP-COORD-001 Rev A.8 served as interim design plan prior to this document.
+**Supersedes:** None (first issue). CLAUDE.md and NP-COORD-001 Rev 1.8 served as interim design plan prior to this document.
 
 ---
 
@@ -146,8 +146,8 @@ The NeurOne design and development programme is structured in six phases. Phases
 - Safety architecture (Safety MCU ownership of stimulation GPIO)
 - UHDR/SHDR data separation framework
 - All tooling specifications (NP-TOOL-ZM-001, NP-TOOL-ZM-SM-001, NP-TOOL-SHELL-001, NP-TOOL-LENS-001)
-- FPC zone module specification (NP-HW-FPC-001 Rev E)
-- Hub PCB Rev B specification (NP-HW-HUB-001 Rev B)
+- FPC zone module specification (NP-HW-FPC-001 Rev 5)
+- Hub PCB Rev B specification (NP-HW-HUB-001 Rev 2)
 - All firmware module specifications (NP-FW-EMMC-001, NP-FW-PBM1064-001, NP-FW-HD-001, NP-FW-CVNS-001, NP-FW-HRV-001, NP-FW-HUB-001, NP-FW-ZA-001)
 - Firmware source code: bootloader, zone_announce, hrv_biofeedback, sloreta_hdtdcs, cervical_vns, pbm_1064nm, hub_control
 - QMS establishment (NP-QMS-001, NP-DHF-001, NP-QMS-DC-001, NP-RM-001, NP-SW-001, NP-QMS-CAPA-001)
@@ -188,10 +188,10 @@ The NeurOne design and development programme is structured in six phases. Phases
 
 | Activity | Owner | Target | Reference |
 |----------|-------|--------|-----------|
-| Hub PCB Rev B Gerber build (OI-HUB-03) | EE Lead | Month 7 | NP-HW-HUB-001 Rev B |
+| Hub PCB Rev B Gerber build (OI-HUB-03) | EE Lead | Month 7 | NP-HW-HUB-001 Rev 2 |
 | InGaAs PD calibration bench setup (OI-PBM-04) | EE + FW Lead | Month 7 | NP-FW-PBM1064-001 |
 | Shell CAD release to supplier (EEG channel OI-09, anchor posts) | ME Lead | Month 7 | NP-TOOL-SHELL-001 |
-| Lens/goggle arm CAD sign-off (OI-10: rim guard tether clearance) | ME Lead | Month 7 | NP-TOOL-LENS-001 Rev B |
+| Lens/goggle arm CAD sign-off (OI-10: rim guard tether clearance) | ME Lead | Month 7 | NP-TOOL-LENS-001 Rev 2 |
 | IEC 60068-2-14 200-cycle PDMS thermal cycling qualification (FAI-TC02) | Supplier + QE | Month 8 | NP-FAI-ZM-001 BLOCKING |
 | IPX4 qualification after 10 field swap cycles (FAI-IPX-02) | QE | Month 8 | NP-FAI-ZM-001 BLOCKING |
 | N42 magnet pocket ≥1 mm polymer wall verification (MR in NP-TOOL-LENS-001) | ME Lead | Month 7 | NP-TOOL-LENS-001 |
@@ -359,7 +359,7 @@ Design outputs are the translated result of design inputs — specifications, dr
 |----------|------------------------|
 | Product specification | CLAUDE.md Rev 11; Design Brief R5 (NP-DB-005) |
 | Mechanical design | NP-TOOL-ZM-001, NP-TOOL-ZM-SM-001, NP-TOOL-SHELL-001, NP-TOOL-LENS-001; supplier CAD (pending) |
-| Electronic design | NP-HW-FPC-001 Rev E; NP-HW-HUB-001 Rev B; PCB layouts (pending) |
+| Electronic design | NP-HW-FPC-001 Rev 5; NP-HW-HUB-001 Rev 2; PCB layouts (pending) |
 | Firmware | firmware/bootloader/, firmware/zone_announce/, firmware/hrv_biofeedback/, firmware/sloreta_hdtdcs/, firmware/cervical_vns/, firmware/pbm_1064nm/, firmware/hub_control/ |
 | Software specifications | NP-FW-EMMC-001, NP-FW-PBM1064-001, NP-FW-HD-001, NP-FW-CVNS-001, NP-FW-HRV-001, NP-FW-HUB-001, NP-FW-ZA-001 |
 | iOS/Android app | NP-APP-ROADMAP-001; app source (pending) |
@@ -537,10 +537,10 @@ Risk management activities are integrated throughout all design phases per NP-RM
 ### 15.2 Open risks
 
 At the date of this document, two risks remain open:
-- **RISK-03:** 400 mW/cm² irradiance regulatory opinion — BLOCKING for all public material. Scope extended to include 1064nm, aggregate irradiance, and T2 combined sessions (NP-REG-PBM1064-001 Rev A). External counsel engaged. Target resolution: Month 2–3.
+- **RISK-03:** 400 mW/cm² irradiance regulatory opinion — BLOCKING for all public material. Scope extended to include 1064nm, aggregate irradiance, and T2 combined sessions (NP-REG-PBM1064-001 Rev 1). External counsel engaged. Target resolution: Month 2–3.
 - **RISK-20:** CFRP shell slot rim Ra ≤ 1.6 µm — written supplier confirmation required. BLOCKING for tooling release. Target resolution: Month 3.
 
-RISK-25 (cervical VNS cardiac reflex) is mitigated at the software level (NP-FW-CVNS-001 Rev A) but remains HARDWARE BENCH PENDING pending FAI-CV02 and FAI-CV03. Full RISK-25 closure is a G3-T2 gate requirement.
+RISK-25 (cervical VNS cardiac reflex) is mitigated at the software level (NP-FW-CVNS-001 Rev 1) but remains HARDWARE BENCH PENDING pending FAI-CV02 and FAI-CV03. Full RISK-25 closure is a G3-T2 gate requirement.
 
 ---
 
@@ -576,7 +576,7 @@ Selected design activities are outsourced to suppliers. All suppliers performing
 | Zone module injection moulding | CAT-A (moulding) | SUP-M-07 qualification items; NP-TOOL-ZM-001 mould design review |
 | Lens tooling (AgNW, hard coat, PDMS diffuser) | CAT-A / specialist coating | AgNW supplier qualification (BLOCKING, NP-TOOL-LENS-001 P-01) |
 | IEC 60601-1 / IEC 62471 / EMC testing | Accredited test laboratory | ISO 17025 accreditation; NeurOne test plan approval |
-| Regulatory counsel (RISK-03, NP-REG-CVNS-001) | External legal/regulatory | Engaged; scope per NP-REG-PBM1064-001 Rev A |
+| Regulatory counsel (RISK-03, NP-REG-CVNS-001) | External legal/regulatory | Engaged; scope per NP-REG-PBM1064-001 Rev 1 |
 
 Outsourced design activities do not reduce NeurOne's responsibility for device safety and compliance. All supplier design outputs are reviewed and approved by NeurOne before acceptance into the DHF.
 
@@ -591,7 +591,7 @@ Until the eQMS platform is deployed (target Month 9), document control is mainta
 - **GitHub repository** (`stevehickman/neurone`) — version-controlled storage for all `.md` and source code design outputs
 - **CLAUDE.md** — authoritative locked decisions record; revision tracked in git history
 - **NP-DHF-001** — master DHF index listing all documents with status, location, and revision
-- **Document numbering:** NP-[SYSTEM]-[SEQ]-[REV] scheme per NP-QMS-001. Revisions are sequential (Rev A, Rev B, ...). Each revision requires a documented reason for change.
+- **Document numbering:** NP-[SYSTEM]-[SEQ]-[REV] scheme per NP-QMS-001. Revisions are sequential (Rev A, Rev 2, ...). Each revision requires a documented reason for change.
 - **Approval:** Until Quality Lead is hired, the CEO approves all design output documents. From Month 6, Quality Lead co-approves all documents with safety or regulatory impact.
 
 ### 18.2 eQMS transition (Month 9)
@@ -600,7 +600,7 @@ On eQMS deployment, all existing controlled documents shall be migrated per a mi
 
 ### 18.3 Document numbering for this plan
 
-This document is NP-DP-001 Rev A. Subsequent revisions shall be lettered sequentially. This plan shall be reviewed and a new revision issued at each gate review or whenever design phase timelines change by more than four weeks.
+This document is NP-DP-001 Rev 1. Subsequent revisions shall be lettered sequentially. This plan shall be reviewed and a new revision issued at each gate review or whenever design phase timelines change by more than four weeks.
 
 ---
 
@@ -655,4 +655,4 @@ Responsibility for maintaining this document: Quality Lead (from Month 6) or CEO
 
 | Rev | Date | Author | Description |
 |-----|------|--------|-------------|
-| A | 2026-05-17 | Steve Hickman | Initial release. Formalises design and development plan per 21 CFR §820.30(b) and ISO 13485:2016 §7.3.1. Incorporates all design decisions made during pre-formation concept phase (pre-2026-05-13). |
+| 1 | 2026-05-17 | Steve Hickman | Initial release. Formalises design and development plan per 21 CFR §820.30(b) and ISO 13485:2016 §7.3.1. Incorporates all design decisions made during pre-formation concept phase (pre-2026-05-13). |

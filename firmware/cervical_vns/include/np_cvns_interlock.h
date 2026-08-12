@@ -1,6 +1,6 @@
 /*
  * NeurOne Cervical VNS — Cardiac Interlock API
- * Document: NP-FW-CVNS-001 Rev A §6
+ * Document: NP-FW-CVNS-001 Rev 1 §6
  *
  * Main-processor side of the dual-processor cardiac safety interlock.
  * The safety MCU (STM32G071) independently holds the cervical VNS enable GPIO

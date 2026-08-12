@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — I2C LED Driver Protocol
- * Document: NP-FW-PBM1064-001 Rev A §5
+ * Document: NP-FW-PBM1064-001 Rev 1 §5
  *
  * All duty register writes clamp to NP_PBM1064_DUTY_MAX_REG (0x32 = 25%).
  * Startup sequence: CONFIG → CUR → FREQ → DUTY → CH_ENABLE → STATUS check.

@@ -2,25 +2,25 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-ANALYSIS-002  
-**Revision:** B  
+**Revision:** 2
 **Date:** 2026-06-05  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-05  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-PRIV-AUDIT-001 Rev A (2026-06-03); NP-PRIV-REM-001 Rev A  
+**References:** NP-PRIV-AUDIT-001 Rev 1 (2026-06-03); NP-PRIV-REM-001 Rev 1  
 **Related Issues:** PR #112 (branch `privacy/analysis-and-repair-20260605`)  
 **Gate:** —  
 **IEC 62304 Class:** —  
 **Jurisdiction Scope:** Global — US federal (FTC Act §5, HBNR, HIPAA T2), US state (BIPA IL, WA MHMD, CCPA/CPRA CA), EU/EEA GDPR, UK GDPR + DPA 2018, Canada PIPEDA + Quebec Law 25  
-**Change Summary:** Rev B — All twelve findings repaired (session 2). MEDIUM-08 promoted from "could not review" to explicit finding. Recommended next steps updated.
+**Change Summary:** Rev 2 — All twelve findings repaired (session 2). MEDIUM-08 promoted from "could not review" to explicit finding. Recommended next steps updated.
 
 **Revision history:**
 
 | Rev | Date | Summary |
 |-----|------|---------|
-| A | 2026-06-05 | Initial analysis. Six of twelve findings repaired on PR #112; six carried forward. |
-| B | 2026-06-05 | All twelve findings repaired (session 2). MEDIUM-08 promoted from "could not review" to explicit finding. Recommended next steps updated. |
+| 1 | 2026-06-05 | Initial analysis. Six of twelve findings repaired on PR #112; six carried forward. |
+| 2 | 2026-06-05 | All twelve findings repaired (session 2). MEDIUM-08 promoted from "could not review" to explicit finding. Recommended next steps updated. |
 
 ---
 
@@ -43,9 +43,9 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 **Where:** `app/ios/NeurOne/Data/UHDRKeyManager.swift:93` — `deriveKey(password: "biometric-placeholder", salt: salt)`  
 **Category:** Security failure + Pure privacy failure  
 **Issue:** The KDF call passes the literal string `"biometric-placeholder"` as the password input, not the user's actual biometric credential or PIN. Both the password and the salt (SHA256 of `identifierForVendor`) are knowable to anyone who reads the source code. In practice this means every user's "UHDR key" is derived from the same fixed password and a device-stable but not user-specific value — the key offers no user-specific protection. The CLAUDE.md guarantee that "NeurOne cannot decrypt UHDR" and "the biometric-derived key is never held by NeurOne" is violated in spirit by the current code: any party who knows the source code and can read the device identifier can derive the key.  
-**Reference:** "Encryption with User-Managed Keys" security pattern; GDPR Art. 32 (security of processing); NIST SP 800-132 §5 (password-based key derivation); NP-FW-EMMC-002 Rev A §C (UHDR two-layer key scheme)  
+**Reference:** "Encryption with User-Managed Keys" security pattern; GDPR Art. 32 (security of processing); NIST SP 800-132 §5 (password-based key derivation); NP-FW-EMMC-002 Rev 1 §C (UHDR two-layer key scheme)  
 **Remediation (shipped — PR #112):** Added `#if !DEBUG … #error(…) #endif` guard in `UHDRKeyManager.authenticate()` that produces a compile-time failure in release builds until the placeholder is replaced with Argon2id + a real biometric/PIN credential. This prevents silent production shipping while keeping debug builds functional for development. Also changed `.deviceOwnerAuthenticationWithBiometrics` → `.deviceOwnerAuthentication` so users without Face ID/Touch ID (Parkinson's, post-stroke, no biometric enrollment) can unlock UHDR via PIN/passcode.  
-**Remaining action:** Replace the PBKDF2 placeholder with Argon2id (link `swift-crypto-extras` or the Argon2 reference C library) and pass the LAContext biometric token (or a PIN digest from a secure enclave) as the password input. Spec: NP-FW-EMMC-002 Rev A §C. The `#error` compile gate will block all release builds until this is done.
+**Remaining action:** Replace the PBKDF2 placeholder with Argon2id (link `swift-crypto-extras` or the Argon2 reference C library) and pass the LAContext biometric token (or a PIN digest from a secure enclave) as the password input. Spec: NP-FW-EMMC-002 Rev 1 §C. The `#error` compile gate will block all release builds until this is done.
 
 ---
 
@@ -53,8 +53,8 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 
 **Where:** `app/ios/NeurOne/Data/SHDRUploader.swift:74` (pre-fix) — `request.setValue(deviceID, forHTTPHeaderField: "X-NP-Device-ID")`  
 **Category:** Pure privacy failure  
-**Issue:** `UIDevice.current.identifierForVendor` is an app-bundle-scoped stable identifier that can persist across device restores and can be correlated across any app or service in the same vendor bundle ID group. The design specification (NP-FW-EMMC-002 Rev A §A) explicitly requires an opaque 256-bit TRNG warranty token as the SHDR linkage key, with no-join CI enforcement between the warranty DB and the SHDR fleet DB. Using `identifierForVendor` instead creates a linkable identifier that could be joined to App Store purchase records, Apple's device-identity infrastructure, or any other service that received the same vendor UUID. Under GDPR Art. 4(1) a pseudonym that permits re-identification with "reasonably likely" means is still personal data.  
-**Reference:** "Pseudonymous Identity" pattern; "Linkable Identifiers" anti-pattern; GDPR Art. 4(1), 25; NP-FW-EMMC-002 Rev A §A  
+**Issue:** `UIDevice.current.identifierForVendor` is an app-bundle-scoped stable identifier that can persist across device restores and can be correlated across any app or service in the same vendor bundle ID group. The design specification (NP-FW-EMMC-002 Rev 1 §A) explicitly requires an opaque 256-bit TRNG warranty token as the SHDR linkage key, with no-join CI enforcement between the warranty DB and the SHDR fleet DB. Using `identifierForVendor` instead creates a linkable identifier that could be joined to App Store purchase records, Apple's device-identity infrastructure, or any other service that received the same vendor UUID. Under GDPR Art. 4(1) a pseudonym that permits re-identification with "reasonably likely" means is still personal data.  
+**Reference:** "Pseudonymous Identity" pattern; "Linkable Identifiers" anti-pattern; GDPR Art. 4(1), 25; NP-FW-EMMC-002 Rev 1 §A  
 **Remediation (shipped — PR #112):** Replaced `identifierForVendor` with `warrantyTokenFromKeychain()` — a 32-byte `SecRandomCopyBytes` token generated once at first run and stored in the Keychain with `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly` and `kSecAttrSynchronizable: false`. The header field renamed from `X-NP-Device-ID` to `X-NP-Device-Token`. The token is not correlated to any Apple identity service.  
 **Remaining action:** When hub firmware delivers the 256-bit TRNG warranty token over the GATT warranty characteristic, replace the app-generated fallback with the hub-provisioned token per NP-FW-EMMC-002 §A.
 
@@ -130,7 +130,7 @@ This review covers the iOS app source as committed to `main` on 2026-06-05. The 
 **Where:** `app/ios/NeurOne/Onboarding/RegionHelper.swift` — `Locale.current.region?.identifier == "US-IL"`  
 **Category:** Pure privacy failure (non-compliance risk)  
 **Issue:** Locale is a user preference, not a verified location. A user with an Illinois billing address who uses an `en_US` locale (not `en_US-IL`) will not receive the BIPA written-release disclosure. BIPA applies to any person whose biometric data is collected by a business operating in Illinois — it is not limited to people whose locale reports Illinois. BIPA §15(b) requires written releases from "each subject of the biometric identifier or information." The `// Note: locale-based detection is best-effort. OI-PA-03 open.` comment in the code acknowledged this, but it had not been actioned.  
-**Reference:** BIPA 740 ILCS 14/15(b); "Unawareness" LINDDUN threat; NP-PRIV-001 Rev B HIGH-01; OI-PA-03  
+**Reference:** BIPA 740 ILCS 14/15(b); "Unawareness" LINDDUN threat; NP-PRIV-001 Rev 2 HIGH-01; OI-PA-03  
 **Remediation (shipped — session 2, 2026-06-05):** `RegionHelper.isLikelyIllinois` removed. The biometric consent disclosure (`BIPADisclosureView`) is now shown to all users unconditionally before their first EEG session — locale detection is eliminated entirely. `NeurOneApp.swift` onboarding gate changed from `RegionHelper.isLikelyIllinois && !bipaShown` to `!bipaShown`. `SessionView.eegConsentGranted` changed from `!isLikelyIllinois || bipaAccepted` to `bipaAccepted` — the locale bypass is gone. `SetupView` shows the privacy consent card unconditionally. `BIPADisclosureView` title changed from "Brain Activity Data Consent (Illinois)" to "Brain Activity Data Consent"; intro no longer cites "Under Illinois law (BIPA)" — now: "Brainwave data is sensitive personal information — biometric data under applicable law." This approach satisfies BIPA (all IL users), GDPR Art. 9 (all EU users), and WA MHMD without any location detection. No legal guidance was required: showing more disclosure is unambiguously conservative.
 
 ---

@@ -1,10 +1,10 @@
-/* Document: NP-FW-EMMC-002 Rev A §B */
+/* Document: NP-FW-EMMC-002 Rev 1 §B */
 /*
  * NeurOne Device Factory Reset — Public API and Platform HAL
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  *
  * Implements the 12-step device factory reset procedure (R-1..R-12) from
- * NP-FW-EMMC-002 Rev A §B.3:
+ * NP-FW-EMMC-002 Rev 1 §B.3:
  *
  *   R-1  Caller has already verified signed FACTORY_RESET command (Ed25519).
  *   R-2  Verify command authenticity (module stub: accept; real validation at

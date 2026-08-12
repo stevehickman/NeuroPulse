@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — T2 and Accessory Module Stubs
- * Document: NP-FW-HUB-001 Rev B
+ * Document: NP-FW-HUB-001 Rev 2
  *
  * Placeholder detect/init/control/telemetry/shutdown implementations for T2
  * and accessory modalities.  All detect functions return NP_HUB_ERR_NOT_PRESENT

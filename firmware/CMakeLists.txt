@@ -1,7 +1,7 @@
 # NeurOne Firmware — Root Super-Project
-# Document: NP-FW-HUB-001 Rev A (⚠ registered but NOT WRITTEN — docs/np_fw_hub_001.md
+# Document: NP-FW-HUB-001 Rev 1 (⚠ registered but NOT WRITTEN — docs/np_fw_hub_001.md
 #           does not exist; this code is its only description. See OI-DOC-01),
-#           NP-FW-EMMC-001 Rev A, NP-SW-001 Rev A
+#           NP-FW-EMMC-001 Rev 1, NP-SW-001 Rev 1
 #
 # Aggregates all i.MX RT1062 (main processor) firmware modules.
 # The STM32G071 safety MCU has its own separate project in firmware/safety_mcu/.
@@ -25,7 +25,7 @@
 #         -DCMAKE_BUILD_TYPE=Release
 #   cmake --build build/safety_mcu
 #
-# ── Module inventory (NP-SW-001 Rev A) ───────────────────────────────────────
+# ── Module inventory (NP-SW-001 Rev 1) ───────────────────────────────────────
 #
 # SW-02 (Class B) — i.MX RT1062 main processor firmware modules:
 #   firmware/vendor/freertos/ — vendored FreeRTOS-Kernel V11.3.0 SOUP (SW-02 RTOS)
@@ -35,11 +35,11 @@
 #   firmware/pbm_1064nm/      — 1064nm smart zone module detection + drive
 #   firmware/hrv_biofeedback/ — HRV+taVNS biofeedback protocol library
 #   firmware/zone_announce/   — zone-module insertion FSM → companion-app notify
-#                                 (module-status GATT characteristic).  The Rev A
+#                                 (module-status GATT characteristic).  The Rev 1
 #                                 bone-conduction insertion cue is retired: it
 #                                 fired with the helmet off the head, so it could
 #                                 never be heard.  See the header of
-#                                 src/np_zone_announce.c and docs/np_fw_za_001.md.
+#                                 src/np_zone_announce.c and docs/superseded/np_fw_za_001.md.
 #   firmware/sloreta_hdtdcs/  — sLORETA-guided HD-tDCS (T2)
 #   firmware/cervical_vns/    — Cervical VNS main-processor side (T2)
 #   firmware/anon/            — Research anonymisation Scratch encryption

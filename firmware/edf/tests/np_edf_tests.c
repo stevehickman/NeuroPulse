@@ -1,7 +1,7 @@
-/* Document: NP-FW-EMMC-002 Rev A §E */
+/* Document: NP-FW-EMMC-002 Rev 1 §E */
 /*
  * NeurOne EDF+ Privacy Header — Host Unit Tests
- * Document: NP-FW-EMMC-002 Rev A §E.2 / OI-EMMC2-05
+ * Document: NP-FW-EMMC-002 Rev 1 §E.2 / OI-EMMC2-05
  *
  * Build for host: -DNPTEST_HOST (see CMakeLists.txt NP_BUILD_TESTS option).
  * Return convention: 0 = all PASS, non-zero = count of failed assertions.
@@ -311,7 +311,7 @@ static void test_anon_gate_null_and_empty(void)
 
 int main(void)
 {
-    printf("=== NP-FW-EMMC-002 Rev A §E — EDF+ Privacy Header Unit Tests ===\n");
+    printf("=== NP-FW-EMMC-002 Rev 1 §E — EDF+ Privacy Header Unit Tests ===\n");
 
     test_write_100_headers();
     test_validator_rejects_real_sex();

@@ -1,4 +1,4 @@
-# NP-THERM-CFD-001 Rev A — THERM-1a Conjugate-Heat CFD Boundary Conditions
+# NP-THERM-CFD-001 — THERM-1a Conjugate-Heat CFD Boundary Conditions
 
 **Program:** NeurOne chassis / thermal
 **Status:** DRAFT analysis spec — defines the boundary conditions, property set, case matrix, and

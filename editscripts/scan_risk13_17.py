@@ -1,7 +1,7 @@
 """Scan RISK-13 through RISK-17 and all open issues for engineering coordination items."""
 from docx import Document
 
-risks = Document("docs/neurone_fpc_zone_module_risks_revA.docx")
+risks = Document("docs/superseded/neurone_fpc_zone_module_risks_revA.docx")
 
 print("=== RISK-13 through RISK-17 (summary table) ===")
 tbl = risks.tables[0]

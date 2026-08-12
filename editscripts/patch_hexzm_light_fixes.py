@@ -6,7 +6,7 @@ engineering concept (per-module gasket, per-module dose metering) carries
 over unchanged, per docs/np_hex_zm_001.md §6 ("each hex needs a perimeter
 gasket... a per-tile seam-length budget is required").
 
-1. RISK-16 (docs/neurone_fpc_zone_module_risks_revA.docx) — IPX4
+1. RISK-16 (docs/superseded/neurone_fpc_zone_module_risks_revA.docx) — IPX4
    field-replacement seal. The self-sealing compression gasket approach is
    architecture-independent; only the noun needs updating.
 
@@ -27,7 +27,7 @@ from docx.shared import Pt, RGBColor
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
 CLINICAL_PATH = "docs/neurone_clinical_trials_strategy.docx"
 
 OLD_CLINICAL = (

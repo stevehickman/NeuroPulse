@@ -2,7 +2,7 @@
 ⚠ PARTIALLY SUPERSEDED (2026-07-28): this generator's §4a (FAI-A01..A08, EEG-site CMM checks
 tied to 5 named zones), §6a (FAI-SY01/SY02, "all 5 zones"/"Zone 1..5" system tests), and §6
 (FAI-R04, bend radius "all 5 zones") describe the retired 5-zone-slot architecture — see
-docs/np_hex_zm_001.md. Do NOT re-run: docs/neurone_fai_zone_module.docx has since been
+docs/np_hex_zm_001.md. Do NOT re-run: docs/superseded/neurone_fai_zone_module.docx has since been
 extended by many later patch_*.py scripts (patch_fai_risk15, patch_risk16, patch_t2_additions,
 patch_risk22, etc.), so a from-scratch regeneration here would discard that work. The
 corrected FAI-A01..A15/R04/SY01/SY02 state is applied in place by
@@ -11,7 +11,7 @@ added later by patch_fai_risk15.py). Most of this document (PDMS adhesion, therm
 lifecycle, etc.) is unrelated to zone-module architecture and remains current. Kept here as
 the historical base generator.
 
-Generate NP-FAI-ZM-001 Rev A:
+Generate NP-FAI-ZM-001 Rev 1:
   Zone Module FPC Assembly — First Article Inspection (FAI) Checklist
 Covers RISK-12 (alignment) and consolidates all inspection items from previous
 risk mitigations: RISK-01, 02, 04, 05, 06, 07, 08, 10, 11, 12.
@@ -151,7 +151,7 @@ p3 = doc.add_paragraph()
 p3.alignment = WD_ALIGN_PARAGRAPH.CENTER
 r3 = p3.add_run(
     f"{DOC_NUM}  {REV}  |  {DATE}  |  Pre-Production Draft\n"
-    "References: NP-HW-FPC-001 Rev C · NP-PROC-FPC-001 Rev A · NP-DRV-SHELL-001 Rev A\n"
+    "References: NP-HW-FPC-001 Rev 3 · NP-PROC-FPC-001 Rev 1 · NP-DRV-SHELL-001 Rev 1\n"
     "Risk mitigations consolidated: RISK-01, 02, 04, 05, 06, 07, 08, 10, 11, 12"
 )
 r3.font.size = Pt(9)
@@ -194,9 +194,9 @@ heading(doc, "SECTION 1 — PRE-INSPECTION DOCUMENT CHECK")
 body(doc, "Verify all required documents and BOM revisions are current before physical inspection.")
 
 fai_table(doc, None, None, [
-    ("FAI-D01", "FPC specification NP-HW-FPC-001 Rev C on file", "Document check", "Rev C or later confirmed", "", ""),
-    ("FAI-D02", "Procurement requirements NP-PROC-FPC-001 Rev A on file", "Document check", "Rev A or later confirmed", "", ""),
-    ("FAI-D03", "Shell tooling design review NP-DRV-SHELL-001 Rev A fully signed off (all 8 signatories)", "Document check", "All sign-off boxes in §8 completed", "", ""),
+    ("FAI-D01", "FPC specification NP-HW-FPC-001 Rev 3 on file", "Document check", "Rev C or later confirmed", "", ""),
+    ("FAI-D02", "Procurement requirements NP-PROC-FPC-001 Rev 1 on file", "Document check", "Rev A or later confirmed", "", ""),
+    ("FAI-D03", "Shell tooling design review NP-DRV-SHELL-001 Rev 1 fully signed off (all 8 signatories)", "Document check", "All sign-off boxes in §8 completed", "", ""),
     ("FAI-D04", "BOM confirms BCR421W (not BCR421U) — verify against approved BOM revision", "BOM review", "BCR421W in all LED driver positions", "", ""),
     ("FAI-D05", "BOM confirms Hirose FH34S-20S-0.5SH(50) — no Molex SlimStack or 0.35 mm pitch connectors", "BOM review", "FH34S or JAE FF03 only in connector positions", "", ""),
     ("FAI-D06", "FPC fab drawing specifies RA copper (IPC-4204/11 Type I) — check drawing fab notes", "Drawing review", "'ROLLED ANNEALED' or 'RA per IPC-4204/11' visible as fab note 1", "", ""),
@@ -442,6 +442,6 @@ for row in t_rev.rows:
     row.cells[2].width = Inches(1.5)
     row.cells[3].width = Inches(4.0)
 
-OUT = "docs/neurone_fai_zone_module.docx"
+OUT = "docs/superseded/neurone_fai_zone_module.docx"
 doc.save(OUT)
 print(f"Saved: {OUT}")

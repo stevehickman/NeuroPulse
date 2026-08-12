@@ -1,5 +1,5 @@
 """
-Generate NP-TOOL-SHELL-001 Rev A
+Generate NP-TOOL-SHELL-001 Rev 1
 NeurOne Headset Shell Tooling Specification
 Covers: anchor posts (5 zone + 3 port), EEG cable channel, temporal wing anchor boss
 """
@@ -167,13 +167,13 @@ add_heading(doc, 'Related Documents', level=2)
 make_table(doc,
     ['Document Number', 'Title', 'Relationship'],
     [
-        ['NP-DRV-SHELL-001 Rev A', 'Zone Module FPC Routing Path / Shell Tooling Design Review',
+        ['NP-DRV-SHELL-001 Rev 1', 'Zone Module FPC Routing Path / Shell Tooling Design Review',
          'Parent design review — FPC routing channels, EEG separation (DRC-18). F-03 EEG channel in §2.4.'],
-        ['NP-TOOL-ZM-001 Rev A', 'Zone Module Tooling Specification',
+        ['NP-TOOL-ZM-001 Rev 1', 'Zone Module Tooling Specification',
          'Zone module body features (F-01 through F-08). Zone colour codes for F-01 anchor post colour-match.'],
-        ['NP-COORD-001 Rev A', 'Engineering Coordination Checklist',
+        ['NP-COORD-001 Rev 1', 'Engineering Coordination Checklist',
          'G2 gate items. G2-01 (multi-FPC + EEG separation), G2-02 (keying), G2-11 (EEG routing spec) all cross-reference this document.'],
-        ['NP-FAI-ZM-001 Rev A', 'First-Article Inspection Checklist — Zone Module',
+        ['NP-FAI-ZM-001 Rev 1', 'First-Article Inspection Checklist — Zone Module',
          'FAI items FAI-CV-01–CV-04 (anchor post / tether inspection) and FAI-TW-01 (temporal wing boss) cross-reference this spec.'],
         ['CLAUDE.md §7.1', 'Interface protection covers — anchor post specification', 'Design intent and cover descriptions.'],
         ['CLAUDE.md §3b', '40Hz Mastoid LRA Pad — temporal wing anchor boss', 'Provisional accessory requiring boss provision at first cut.'],
@@ -409,7 +409,7 @@ bullet_items_f04 = [
      'same anchor post tether spec as F-01) keeps the pocket closed.',
     'PROVISIONAL marking: Do not add any external product marking indicating '
      'mastoid pad compatibility until HOPE Phase 3 results are confirmed. '
-     'Boss is non-labelled in Rev A tooling.',
+     'Boss is non-labelled in Rev 1 tooling.',
     'Draft angle: ≥ 1° on all boss interior surfaces for clean demoulding.',
 ]
 for item in bullet_items_f04:
@@ -746,8 +746,8 @@ make_table(doc,
          'Initial release. Addresses Issue #16 (shell tooling: anchor posts 5 zone + '
          '3 port colour-coded + EEG cable channel + temporal wing anchor boss). '
          'Features F-01 through F-04 specified. 23-item design review checklist '
-         '(SH-01 through SH-23). Companion to NP-DRV-SHELL-001 Rev A and '
-         'NP-TOOL-ZM-001 Rev A. CLAUDE.md §13.4 shell tooling pending decisions '
+         '(SH-01 through SH-23). Companion to NP-DRV-SHELL-001 Rev 1 and '
+         'NP-TOOL-ZM-001 Rev 1. CLAUDE.md §13.4 shell tooling pending decisions '
          'addressed (CAD verification remains open — OI-01 through OI-07).'],
     ],
     col_widths=[1.2, 2.2, 3.8, 9.5])

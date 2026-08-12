@@ -1,6 +1,6 @@
 name: SHDR Schema CI Gate (OI-EMMC2-07)
 
-# NP-FW-EMMC-002 Rev A §G.5
+# NP-FW-EMMC-002 Rev 1 §G.5
 # BLOCKING for SHDR fleet DB schema freeze.
 # Confirms no prohibited accelerometer columns, no PII columns,
 # no cross-DB references, and warranty_token is opaque BYTEA.

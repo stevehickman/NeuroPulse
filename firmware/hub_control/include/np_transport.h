@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — App Protocol Transport (OI-HUB-MAIN-01)
- * Document: NP-FW-HUB-001 Rev A §2
+ * Document: NP-FW-HUB-001 Rev 1 §2
  *
  * Reassembles a complete, length-prefixed protocol blob from the fragmented
  * chunks delivered by either transport and hands it to the hub control task:

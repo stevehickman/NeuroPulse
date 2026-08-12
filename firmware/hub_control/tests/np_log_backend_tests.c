@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — Session Log eMMC Backing Host Tests (OI-LOG-01..04)
- * Document: NP-FW-HUB-001 Rev A §6, NP-FW-EMMC-001 Rev A §12
+ * Document: NP-FW-HUB-001 Rev 1 §6, NP-FW-EMMC-001 Rev 1 §12
  *
  * Host-native tests for the block-coalescing append writer that backs the four
  * np_log_hal_* entry points:

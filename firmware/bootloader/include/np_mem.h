@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — Freestanding C Runtime Memory Primitives
- * Document: NP-SW-CI-001 Rev B §4.2 (Defect B), phase 1
+ * Document: NP-SW-CI-001 Rev 2 §4.2 (Defect B), phase 1
  *
  * The bootloader links with -nostdlib -nostartfiles -nodefaultlibs, so no libc
  * is present.  A freestanding C implementation is nevertheless REQUIRED to

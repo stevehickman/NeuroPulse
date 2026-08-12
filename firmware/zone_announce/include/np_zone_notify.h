@@ -2,7 +2,7 @@
  * NeurOne Zone Module Notification — socket map + socket-keyed status frames
  *
  * Supersedes the insertion-time bone-conduction announcement of NP-FW-ZA-001
- * Rev A §7–8. See the supersession note at the top of docs/np_fw_za_001.md.
+ * Rev 1 §7–8. See the supersession note at the top of docs/superseded/np_fw_za_001.md.
  *
  * ── Why this unit exists ─────────────────────────────────────────────────────
  *

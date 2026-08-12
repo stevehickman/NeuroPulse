@@ -1,11 +1,11 @@
 /*
  * NeurOne Zone Module Announcement — Orchestration
- * Document: NP-FW-ZA-001 Rev A §8, as amended by the 2026-07-28 supersession
- * note at the top of docs/np_fw_za_001.md.
+ * Document: NP-FW-ZA-001 Rev 1 §8, as amended by the 2026-07-28 supersession
+ * note at the top of docs/superseded/np_fw_za_001.md.
  *
  * ── The insertion cue no longer plays here ───────────────────────────────────
  *
- * Rev A routed a confirmed insertion through NP_ZA_STATE_ANNOUNCING, which
+ * Rev 1 routed a confirmed insertion through NP_ZA_STATE_ANNOUNCING, which
  * played a bone-conduction clip at the mastoid. That could never be heard:
  * seating a module requires the helmet OFF the head, and bone conduction only
  * reaches a user whose head the transducer is pressed against. The cue fired the
@@ -56,7 +56,7 @@
  * socket-keyed and np_module_map can be swapped in underneath without touching
  * the wire format or the app.
  *
- * SHDR entries (NP-FW-EMMC-001 Rev A §12): accessory authentication pass/fail
+ * SHDR entries (NP-FW-EMMC-001 Rev 1 §12): accessory authentication pass/fail
  * logged at DEBOUNCING exit.  No user biology — SHDR classification confirmed.
  */
 
@@ -79,7 +79,7 @@ static np_za_ctx_t s_ctx;
 
 /* ── App notification helpers ────────────────────────────────────────────────
  *
- * The Rev A announcement queue lived here: it serialised bone-conduction clips
+ * The Rev 1 announcement queue lived here: it serialised bone-conduction clips
  * because the transducer is a single output and five slots could confirm at
  * once. Frames have no such constraint — each socket's change is its own delta —
  * so the queue is gone with the insertion-time audio it existed to schedule.
@@ -246,7 +246,7 @@ static void tick_slot(uint8_t slot_index, uint32_t now_ms)
         }
 
         /* UNKNOWN zone (unrecognized resistor value) — log fault, tell the app,
-         * stay idle. Rev A played a descending two-tone error cue on the
+         * stay idle. Rev 1 played a descending two-tone error cue on the
          * bone-conduction transducer here; the user could not hear that either,
          * for the same reason. The app surfaces the fault instead. */
         if (zone == NP_ZONE_UNKNOWN) {
@@ -264,13 +264,13 @@ static void tick_slot(uint8_t slot_index, uint32_t now_ms)
         slot->state          = NP_ZA_STATE_ACTIVE;
 
         /* Notify the application first so it can enable the PBM zone
-         * immediately (announcement_done=false preserves the Rev A contract). */
+         * immediately (announcement_done=false preserves the Rev 1 contract). */
         if (s_ctx.insert_cb) {
             s_ctx.insert_cb(zone, false);
         }
 
         /* Deliver the user-facing confirmation to the companion app. This is
-         * where Rev A queued a bone-conduction clip nobody could hear. */
+         * where Rev 1 queued a bone-conduction clip nobody could hear. */
         notify_app(slot_index, /*present=*/true, /*fault=*/false);
 
         /* announcement_done=true now means "the user-facing confirmation has

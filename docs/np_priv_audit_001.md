@@ -2,13 +2,13 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-AUDIT-001  
-**Revision:** A  
+**Revision:** 1
 **Date:** 2026-06-03  
 **Status:** ACTIVE  
 **Effective Date:** 2026-06-03  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-PRIV-REM-001 Rev A STEP-21; NP-PRIV-001 Rev A; NP-APP-TELEMETRY-001 Rev B; NP-APP-ROADMAP-001 Rev B; NP-FW-EMMC-001 Rev A; NP-FW-EMMC-002 Rev A; NP-FW-ANON-001 Rev A; CLAUDE.md §5 (UHDR/SHDR), §6 (Consent Engine)  
+**References:** NP-PRIV-REM-001 Rev 1 STEP-21; NP-PRIV-001 Rev 1; NP-APP-TELEMETRY-001 Rev 2; NP-APP-ROADMAP-001 Rev 2; NP-FW-EMMC-001 Rev 1; NP-FW-EMMC-002 Rev 1; NP-FW-ANON-001 Rev 1; CLAUDE.md §5 (UHDR/SHDR), §6 (Consent Engine)  
 **Related Issues:** —  
 **Gate:** BLOCKING for first external beta (TestFlight / Play Store open beta)  
 **IEC 62304 Class:** —  
@@ -82,10 +82,10 @@ The NeurOne iOS/Android app handles some of the most sensitive personal data a c
 
 #### HIGH — BIPA written release screen implementation not verified
 
-**Where:** NP-APP-ROADMAP-001 §9.3; NP-PRIV-001 Rev B HIGH-01; OI-PA-03  
+**Where:** NP-APP-ROADMAP-001 §9.3; NP-PRIV-001 Rev 2 HIGH-01; OI-PA-03  
 **Category:** Pure privacy failure + legal exposure (Illinois BIPA statutory damages)  
 **Issue:** The BIPA written release screen is specified in NP-APP-ROADMAP-001 §9.3 and is a binding engineering constraint, but it has not been implemented and OI-PA-03 (legal counsel review of the copy) remains open. BIPA provides a private right of action with statutory damages of $1,000–$5,000 per violation — the Facebook ($650M) and TikTok ($92M) settlements quantify the exposure scale. EEG waveforms are biometric information under BIPA 740 ILCS 14/10. Any Illinois resident who activates the device and runs a neurofeedback session without a BIPA-compliant written release creates individual liability. The app cannot ship to the US App Store without this screen being complete and legally reviewed, because geographic blocking at device activation is not an adequate substitute.  
-**Reference:** BIPA 740 ILCS 14/15(b)(1)–(3); NP-APP-ROADMAP-001 §9.3; NP-PRIV-001 Rev B HIGH-01  
+**Reference:** BIPA 740 ILCS 14/15(b)(1)–(3); NP-APP-ROADMAP-001 §9.3; NP-PRIV-001 Rev 2 HIGH-01  
 **Remediation:**  
 1. Implement the BIPA written release screen using the approved copy in NP-APP-ROADMAP-001 §9.3 before any US App Store submission.  
 2. Resolve OI-PA-03: engage Illinois-qualified privacy counsel to review the BIPA release copy. Budget 2–4 weeks for legal review.  
@@ -99,10 +99,10 @@ The NeurOne iOS/Android app handles some of the most sensitive personal data a c
 
 #### HIGH — Washington My Health My Data compliance not verified for SHDR behavioural data
 
-**Where:** SHDR data schema; NP-FW-EMMC-002 §G; NP-PRIV-001 Rev B HIGH-02  
+**Where:** SHDR data schema; NP-FW-EMMC-002 §G; NP-PRIV-001 Rev 2 HIGH-02  
 **Category:** Pure privacy failure (potential unauthorised use of consumer health data)  
-**Issue:** Washington's My Health My Data Act (MHMD, RCW 70.372) covers "consumer health data" — which explicitly includes data that is used to infer health-related characteristics. SHDR fields such as consumable session counts, device session count (even as an unsigned integer), and the `maintenance_alert` flag are counts of stimulation device usage that could reveal health management behaviour. docs/status/completed-decisions.md confirms `engagement_tier` replaces `session_sequence` in analytics, but the SHDR device session count (`device_session_count`, unsigned integer in NP-FW-EMMC-001) is still a raw integer in SHDR. MHMD requires standalone authorisation (separate from HIPAA consent), prohibits sale, and provides a private right of action with AG enforcement. NP-PRIV-001 Rev B HIGH-02 flags this but the regulatory analysis has not yet been obtained (docs/status/pending-decisions.md §13.4 open item: "Washington MHMD regulatory analysis — obtain before any Washington state device activation").  
-**Reference:** Washington MHMD RCW 70.372; GDPR Art. 9 (inferrable health data); NP-PRIV-001 Rev B HIGH-02; docs/status/pending-decisions.md §13.4  
+**Issue:** Washington's My Health My Data Act (MHMD, RCW 70.372) covers "consumer health data" — which explicitly includes data that is used to infer health-related characteristics. SHDR fields such as consumable session counts, device session count (even as an unsigned integer), and the `maintenance_alert` flag are counts of stimulation device usage that could reveal health management behaviour. docs/status/completed-decisions.md confirms `engagement_tier` replaces `session_sequence` in analytics, but the SHDR device session count (`device_session_count`, unsigned integer in NP-FW-EMMC-001) is still a raw integer in SHDR. MHMD requires standalone authorisation (separate from HIPAA consent), prohibits sale, and provides a private right of action with AG enforcement. NP-PRIV-001 Rev 2 HIGH-02 flags this but the regulatory analysis has not yet been obtained (docs/status/pending-decisions.md §13.4 open item: "Washington MHMD regulatory analysis — obtain before any Washington state device activation").  
+**Reference:** Washington MHMD RCW 70.372; GDPR Art. 9 (inferrable health data); NP-PRIV-001 Rev 2 HIGH-02; docs/status/pending-decisions.md §13.4  
 **Remediation:**  
 1. Engage Washington-qualified privacy counsel for MHMD regulatory analysis before any US device activation (not just Washington state). Estimated cost: $5,000–8,000; timeline: 3–4 weeks.  
 2. Pending the legal analysis, apply the same coarsening principle that resolved the `session_sequence` issue in analytics: replace raw `device_session_count` (integer) in SHDR with a coarsened tier enum if the analysis determines the raw count is consumer health data.  
@@ -211,7 +211,7 @@ The NeurOne iOS/Android app handles some of the most sensitive personal data a c
 
 #### LOW — App privacy notice update process not documented
 
-**Where:** App distribution; NP-PRIV-001 Rev A; GDPR Art. 13–14  
+**Where:** App distribution; NP-PRIV-001 Rev 1; GDPR Art. 13–14  
 **Category:** Pure privacy failure (unawareness — stale notice creates legal exposure)  
 **Issue:** No process exists for updating the in-app privacy notice when the data processing scope changes (new SDK, new GATT characteristic, new UHDR element, new research study type). GDPR Art. 13 requires that the notice accurately reflects current processing at all times. If the app adds the Watch app data relay (Phase 1), audio sync to AirPods (Phase 2), or any new analytics event, the privacy notice must be updated before the new version ships and existing users must be notified.  
 **Reference:** GDPR Art. 13 (transparency at collection), Art. 14 (transparency from other sources), Art. 34 (communication to data subjects); ICO guidance on privacy notices  
@@ -292,7 +292,7 @@ The NeurOne iOS/Android app handles some of the most sensitive personal data a c
 
 ---
 
-There are 4 additional items in this audit (the four Low findings) beyond the top 5 above. To continue, either apply the five changes above and re-run NP-PRIV-AUDIT-001 Rev B against the resulting implementation (which will retire several findings and reveal any new ones), or request the full action list for all 16 findings as a flat implementation backlog.
+There are 4 additional items in this audit (the four Low findings) beyond the top 5 above. To continue, either apply the five changes above and re-run NP-PRIV-AUDIT-001 Rev 2 against the resulting implementation (which will retire several findings and reveal any new ones), or request the full action list for all 16 findings as a flat implementation backlog.
 
 ---
 
@@ -327,7 +327,7 @@ The following items must all be verified before first external beta (TestFlight 
 
 | ID | Item | Raised by | Priority |
 |----|------|-----------|---------|
-| OI-AUDIT-01 | Code-level privacy audit (OWASP MASVS) — conduct when first prototype build exists | NP-PRIV-AUDIT-001 Rev A | High |
-| OI-AUDIT-02 | Vendor SDK privacy manifest review — conduct at vendor selection | NP-PRIV-AUDIT-001 Rev A | High |
-| OI-AUDIT-03 | T2 clinical backend privacy audit (FHIR, scripting API, BAA cascade) — separate scope from this document | NP-PRIV-AUDIT-001 Rev A | Medium |
-| OI-AUDIT-04 | NP-PRIV-AUDIT-001 Rev B — re-audit against first implementation build; target Month 9 | NP-PRIV-AUDIT-001 Rev A | High |
+| OI-AUDIT-01 | Code-level privacy audit (OWASP MASVS) — conduct when first prototype build exists | NP-PRIV-AUDIT-001 Rev 1 | High |
+| OI-AUDIT-02 | Vendor SDK privacy manifest review — conduct at vendor selection | NP-PRIV-AUDIT-001 Rev 1 | High |
+| OI-AUDIT-03 | T2 clinical backend privacy audit (FHIR, scripting API, BAA cascade) — separate scope from this document | NP-PRIV-AUDIT-001 Rev 1 | Medium |
+| OI-AUDIT-04 | NP-PRIV-AUDIT-001 Rev 2 — re-audit against first implementation build; target Month 9 | NP-PRIV-AUDIT-001 Rev 1 | High |

@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — Freestanding Memory Primitive Host Tests
- * Document: NP-SW-CI-001 Rev B §4.2 (Defect B), phase 1
+ * Document: NP-SW-CI-001 Rev 2 §4.2 (Defect B), phase 1
  *
  * The bootloader's first host test target.  Exercises np_memcpy/np_memset —
  * the same source that provides memcpy/memset to the cross build via alias —

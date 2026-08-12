@@ -1,6 +1,6 @@
 /*
  * NeurOne OTA — State record CRC + validation implementation.
- * Document: NP-FW-EMMC-001 Rev A §8.3
+ * Document: NP-FW-EMMC-001 Rev 1 §8.3
  *
  * No hardware dependencies — compiles on host for unit tests.
  */

@@ -1,6 +1,6 @@
 /*
  * NeurOne sLORETA Source Imaging — Public API
- * Document: NP-FW-HD-001 Rev A §5
+ * Document: NP-FW-HD-001 Rev 1 §5
  *
  * Scalar sLORETA: weight matrix W (N_voxels × 21) precomputed offline from
  * BEM forward model on MNI152 head.  Loaded from Config partition at session

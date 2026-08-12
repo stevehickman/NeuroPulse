@@ -1,9 +1,9 @@
-# NP-FMEA-GEOM-001 Rev A — Helmet Layer-Stack Hardware FMEA
+# NP-FMEA-GEOM-001 — Helmet Layer-Stack Hardware FMEA
 
 **Program:** NeurOne chassis / mechanical stack
 **Status:** DRAFT — first hardware FMEA for the four-station layer stack. Complements the
 **software** FMEA (NP-FMEA-001, SW-01 Safety MCU) and the system risk register
-(NP-RISK-001, RISK-01…25). Uses the NP-RM-001 §4 severity/probability/acceptability scales.
+(NP-RISK-002 §3, which dispositions RISK-01…26; hardware entries now live in NP-RISK-003 and NP-RISK-004). Uses the NP-RM-001 §4 severity/probability/acceptability scales.
 **Parent:** `docs/np_helmet_geom_001.md` (this closes its §8 **FMEA-RECON** gate)
 **Sources:** `docs/np_fmea_001.md` §2 (scales), `docs/np_rm_001.md` §4/§7 (RISK register,
 RISK-14/15/20/25), `docs/np_therm_bezel_001.md` (THERM-1 coupling), `CLAUDE.md` §4.2/§4.3.
@@ -17,8 +17,8 @@ The parent brief §6 carried **design-stage MTBF estimates** with an ad-hoc `$/$
 Reconciling them against the repo's FMEA revealed a scope gap, not a numbers mismatch:
 
 - **NP-FMEA-001 covers only SW-01 firmware** (IEC 62304 Class C). Its §1.2 explicitly excludes
-  "hardware-level failure modes outside firmware behaviour (covered in NP-RISK-001)."
-- **NP-RISK-001** (RISK-01…25) is the system risk register, but it predates the per-module hex /
+  "hardware-level failure modes outside firmware behaviour (covered in NP-RISK-003 for the hex-tile module and NP-RISK-004 for shell/socket/interconnect/hub; NP-RISK-001 superseded 2026-08-11)."
+- **NP-RISK-001** (RISK-01…26) was the system risk register. **Superseded 2026-08-11** by NP-RISK-002 (index + disposition) with NP-RISK-003 / NP-RISK-004; the observation below is what motivated the split. It predates the per-module hex /
   layer-stack redesign and has **no failure-mode-level entries for the L0–L3 mechanical stack**.
 - So there is **no hardware FMEA to merge into.** The correct reconciliation is to (a) re-express
   the parent §6 failure modes in the shared NP-RM-001 S×P framework, (b) cross-reference each to the
@@ -53,7 +53,7 @@ in §4 (G07) and raised as **OI-GEOM-FMEA-01**.
 One "module" per layer station, mirroring NP-FMEA-001's module-by-module structure:
 G01 L0 optical window · G02 L0 electrode face + cap · G03 L0 gap seal / plugs · G04 L1 socket-layer
 structure · G05 L1 clamps/latches + ground bond · G06 L2/L3 outer bowl (EMF+shell) · **G07 thermal
-path** (spans L1→L3). The fit system (Boa, wings) is already in NP-RISK-001 (mechanical row) and is
+path** (spans L1→L3). The fit system (Boa, wings) is already in the risk file (mechanical row, now NP-RISK-004) and is
 cross-referenced, not re-derived.
 
 ---
@@ -134,11 +134,11 @@ OI-GEOM-FMEA-01 mitigation lands). No mechanical failure mode reaches UNACCEPTAB
 | ID | Description | Owner | Blocking |
 |---|---|---|---|
 | **OI-GEOM-FMEA-01** | Close FMEA-G07-01. **Path selection RESOLVED (NP-THERM-CFD-R1-001):** junction-throttle sufficiency (Path A) disproven → **scalp-facing NTC at PD2 (Path B1) committed** + SR-FAN-03 duty-derate; SR-FAN-01…06 drafted in **NP-REQ-FANHEALTH-001 §4a**. Remaining: implement SR-FAN-01/03/04 in SW01-M04 (OI-FAN-02), verification-grade CFD + THERM-1b (OI-FAN-01/03), accept into NP-SW-001 + NP-RISK-001 (OI-FAN-04). | FW + Thermal | G2 firmware / THERM-1 close |
-| OI-GEOM-FMEA-02 | Author L0–L3 hardware failure modes into NP-RISK-001 proper (this doc is the feeder); assign RISK-2x IDs under QMS change control. | Quality | Risk-file baseline update |
+| OI-GEOM-FMEA-02 | Author L0–L3 hardware failure modes into **NP-RISK-004** (this doc is the feeder; NP-RISK-001 superseded 2026-08-11). **The `RISK-NN` sequence is closed at 26 and append-only (NP-RISK-002 §1), so these take prefixed `RISK-SHELL-nn` IDs, not RISK-2x** — assign under QMS change control. | Quality | Risk-file baseline update |
 | OI-GEOM-FMEA-03 | Populate the "MTBF source" column with numbers as each reliability test completes (PDMS-QUAL, SEAL-1, clamp/creep/contact-R benches). | Reliability | Quantitative MTBF claims |
 | — | G06-01 tracked as **RISK-20** (already OPEN, BLOCKING) — no new OI. | VP Eng | Tooling release |
 
 ## 7. Cross-references
 
 np_helmet_geom_001 §6/§8 · np_therm_bezel_001 (THERM-1) · np_fmea_001 (SW-01; FMEA-M04, M06) ·
-np_rm_001 §4/§7 (scales, RISK-14/15/20) · NP-RISK-001 (system register) · CLAUDE.md §4.2/§4.3.
+np_rm_001 §4/§7 (scales) · risk file: NP-RISK-002 (index) — **RISK-14** in NP-RISK-003, **RISK-20** in NP-RISK-004, **RISK-15 retired** (NP-RISK-002 §3) · CLAUDE.md §4.2/§4.3.

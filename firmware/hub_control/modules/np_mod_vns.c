@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — VNS + HRV Auricular Clip Driver
- * Document: NP-FW-HUB-001 Rev A §8.4
+ * Document: NP-FW-HUB-001 Rev 1 §8.4
  *
  * Manages the auricular VNS + PPG HRV clip on NP_HUB_SLOT_VNS_HRV.
  * Detected by accessory port impedance check.  Delegates HRV biofeedback

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-QMS-001  
-**Revision:** A  
+**Revision:** 1
 **Date:** 2026-05-13  
 **Status:** ACTIVE  
 **Effective Date:** 2026-05-13  
@@ -89,13 +89,13 @@ NP-[CATEGORY]-[SUBJECT]-[SEQ]  Rev [LETTER]
 
 ### 3.2 Revision convention
 
-- Rev A: Initial release
-- Rev B, C, ...: Each change requiring approval
+- Rev 1: Initial release
+- Rev 2, C, ...: Each change requiring approval
 - Draft suffix (e.g., "Rev A DRAFT"): Pre-approval working version
 
 ### 3.3 Change control
 
-All documents at Rev A or above are under change control. Changes require:
+All documents at Rev 1 or above are under change control. Changes require:
 1. Author drafts revision with tracked changes or new rev letter
 2. Technical reviewer approval (subject matter expert)
 3. Quality approval (Quality Lead or interim authority)
@@ -207,7 +207,7 @@ For documents requiring wet or electronic signatures before GitHub release (e.g.
 
 ## 7. Design Controls — Process Summary
 
-Full procedure: **NP-QMS-DC-001 Rev A**
+Full procedure: **NP-QMS-DC-001 Rev 1**
 
 Design controls apply to all T1 and T2 design activities. The process follows 21 CFR §820.30 and ISO 13485:2016 clause 7.3:
 
@@ -253,7 +253,7 @@ Class C requires unit-level traceability from requirement → design → impleme
 
 ## 10. Supplier Controls — Process Summary
 
-Full procedure: **NP-PROC-SUP-001 Rev A** (existing document)
+Full procedure: **NP-PROC-SUP-001 Rev 1** (existing document)
 
 QMS adds the following requirements to existing supplier selection:
 - Supplier qualification records filed in DHF under the procurement category
@@ -265,7 +265,7 @@ QMS adds the following requirements to existing supplier selection:
 
 ## 11. CAPA — Process Summary
 
-Full procedure: **NP-QMS-CAPA-001 Rev A**
+Full procedure: **NP-QMS-CAPA-001 Rev 1**
 
 CAPA is triggered by:
 - Internal audit findings
@@ -307,4 +307,4 @@ This QMS Manual is the apex document. The Design History File (NP-DHF-001) index
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
-| A | 2026-05-13 | Interim Quality (CEO) | Initial release. QMS established at company formation. All NP-QMS, NP-DHF, NP-RM, NP-SW, and NP-QMS-CAPA procedures released simultaneously. |
+| 1 | 2026-05-13 | Interim Quality (CEO) | Initial release. QMS established at company formation. All NP-QMS, NP-DHF, NP-RM, NP-SW, and NP-QMS-CAPA procedures released simultaneously. |

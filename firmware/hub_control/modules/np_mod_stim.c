@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — Stimulation Driver (BES/tACS + tDCS)
- * Document: NP-FW-HUB-001 Rev A §8.3
+ * Document: NP-FW-HUB-001 Rev 1 §8.3
  *
  * Covers two protocol module types on a shared driver because both use the same
  * stimulation DAC hardware.  The session runner dispatches NP_MOD_BES_TACS and

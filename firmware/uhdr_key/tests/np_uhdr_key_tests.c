@@ -1,6 +1,6 @@
 /*
  * NeurOne Two-Layer UHDR Key Scheme — Host Tests
- * Document: NP-FW-EMMC-002 Rev A §C  (+ 2026-07-08 privacy-review hardening)
+ * Document: NP-FW-EMMC-002 Rev 1 §C  (+ 2026-07-08 privacy-review hardening)
  *
  * Exercises provision → unlock → background → change_credential on the host
  * using the NPTEST_HOST HAL stubs (Argon2id/hw_bind/GCM modeled with np_crypto

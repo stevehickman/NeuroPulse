@@ -1,12 +1,12 @@
 /*
  * NeurOne Safety MCU — SW01-M04: Thermal Interlock
- * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M04
+ * Document: NP-SW-001 Rev 1, NP-FMEA-001 Rev 1 §SW01-M04
  *
  * Reads NTC thermistors on ADC1 for all 5 cranial thermal sense domains + hub.
  * A sense domain is the shell region one thermistor actually senses — a fixed
  * hardware property, NOT a zone (zones are authored socket sets in
  * 00-zones.npps and can be re-cut with no hardware change; NP-HW-HUB-001
- * Rev C §4.5.1).  Domain index is therefore not a slot id and not an enable-bit
+ * Rev 3 §4.5.1).  Domain index is therefore not a slot id and not an enable-bit
  * position: every cranial domain cuts the one NP_SAFETY_EN_PBM_CRANIAL bit.
  * Cutoff at 62°C junction temperature (NP_NTC_CUTOFF_DEG_C).
  * Per IEC 60601 42°C case limit; 62°C junction corresponds to ~42°C
@@ -88,7 +88,7 @@ void np_thermal_interlock_tick(np_safety_state_t *state)
                  *
                  * This was `granted_mask &= ~(1U << ch)` — the domain index used
                  * as an enable-bit position, valid only while bits 0–4 were the
-                 * five per-zone PBM enables.  Under NP-HW-HUB-001 Rev C §7.2 the
+                 * five per-zone PBM enables.  Under NP-HW-HUB-001 Rev 3 §7.2 the
                  * cranial lattice has ONE enable bit, so that expression would
                  * clear reserved bits 1–4 for domains 1–4 and cut nothing at all.
                  *

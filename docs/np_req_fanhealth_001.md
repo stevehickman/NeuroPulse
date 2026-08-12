@@ -1,4 +1,4 @@
-# NP-REQ-FANHEALTH-001 Rev A — Forced-Convection (Fan) Health Thermal Interlock Requirement
+# NP-REQ-FANHEALTH-001 — Forced-Convection (Fan) Health Thermal Interlock Requirement
 
 **Program:** NeurOne
 **Status:** DRAFT for change-control review — proposed addition to **NP-SW-001 §6.2** (SW-01 Class C
@@ -157,9 +157,9 @@ they are baselined as verified. Path **selection** is firm: Path A cannot be res
 | OI-FAN-01 | THERM-1a analysis: τ_face, natural-convection-safe duty ceiling per config, Path A admissibility. **First-pass DONE → NP-THERM-CFD-R1-001** (1D + rough FD): Path A REJECTED, **Path B1 selected**, provisional SR-FAN-03/04 constants published (§4a). Residual: verification-grade 2D CFD (NP-THERM-CFD-001 §9 step 2) to baseline the constants. | Thermal | Constants baselining (path selection now firm) |
 | OI-FAN-02 | Mechanical feasibility of a scalp-facing NTC co-located with PD2 (Path B1); BOM delta. | ME | Path B1 commit |
 | OI-FAN-03 | THERM-1b scalp-phantom fan-stall bench (design verification of SR-FAN-01). | ME + Thermal | Design verification |
-| OI-FAN-04 | Accept SR-FAN-01…06 into NP-SW-001 under change control; assign a RISK-2x ID in NP-RISK-001 for FMEA-G07-01. | Quality | QMS baseline |
+| OI-FAN-04 | Accept SR-FAN-01…06 into NP-SW-001 under change control; **RISK ID assigned — FMEA-G07-01 is RISK-26**, carried in **NP-RISK-004** (NP-RISK-001 superseded 2026-08-11). | Quality | QMS baseline |
 
 ## 9. Cross-references
 
 NP-SW-001 · NP-FMEA-001 (SW01-M04 / FMEA-M04) · NP-FMEA-GEOM-001 (FMEA-G07-01, OI-GEOM-FMEA-01) ·
-NP-THERM-BEZEL-001 (THERM-1) · NP-HELMET-GEOM-001 · NP-RM-001 / NP-RISK-001 · IEC 60601-1 · IEC 62304 §7.1.
+NP-THERM-BEZEL-001 (THERM-1) · NP-HELMET-GEOM-001 · NP-RM-001 / NP-RISK-004 (RISK-26; index NP-RISK-002) · IEC 60601-1 · IEC 62304 §7.1.

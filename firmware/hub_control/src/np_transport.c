@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — App Protocol Transport (OI-HUB-MAIN-01)
- * Document: NP-FW-HUB-001 Rev A §2
+ * Document: NP-FW-HUB-001 Rev 1 §2
  *
  * Length-prefixed reassembly of a protocol blob arriving in fragments over BLE
  * GATT or USB-C CDC, into a single-slot mailbox drained by task_protocol_rx.

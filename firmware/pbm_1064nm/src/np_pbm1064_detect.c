@@ -1,6 +1,6 @@
 /*
  * NeurOne 1064nm Smart Zone Module — Smart Module Detection
- * Document: NP-FW-PBM1064-001 Rev A §4
+ * Document: NP-FW-PBM1064-001 Rev 1 §4
  *
  * Distinguishes smart modules (3.3 kΩ ZONE_ID, ADC < 1100) from base modules
  * (10 k–220 kΩ, ADC 1100–4000) using the same 3×100 ms debounce policy as
@@ -142,7 +142,7 @@ void np_pbm1064_detect_tick(np_pbm1064_detect_ctx_t *ctx,
                 /*
                  * Smart module confirmed by ZONE_ID debounce.
                  * Assert TIA gain switch BEFORE enabling I2C mux (NP-HW-HUB-001
-                 * Rev B §5.1): InGaAs PD2× responsivity saturates the TIA at
+                 * Rev 2 §5.1): InGaAs PD2× responsivity saturates the TIA at
                  * Rf = 47 kΩ; switch to Rf = 22 kΩ first.
                  */
                 np_pbm1064_hal_tia_gain_set(slot, NP_TIA_GAIN_LOW);
@@ -231,7 +231,7 @@ void np_pbm1064_detect_tick(np_pbm1064_detect_ctx_t *ctx,
             }
             if (s->slot_type == NP_SLOT_SMART) {
                 /* Disable I2C mux first, then reset TIA gain to default (NP-HW-HUB-001
-                 * Rev B §5.2): restores Rf = 47 kΩ ready for a subsequent base module. */
+                 * Rev 2 §5.2): restores Rf = 47 kΩ ready for a subsequent base module. */
                 np_pbm1064_hal_i2c_mux_enable(slot, false);
                 np_pbm1064_hal_tia_gain_set(slot, NP_TIA_GAIN_HIGH);
             }

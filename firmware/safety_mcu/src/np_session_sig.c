@@ -1,6 +1,6 @@
 /*
  * NeurOne Safety MCU — SW01-M07: Session Descriptor Signature Gate
- * Document: NP-SW-001 Rev A, NP-FMEA-001 Rev A §SW01-M07
+ * Document: NP-SW-001 Rev 1, NP-FMEA-001 Rev 1 §SW01-M07
  *
  * Verifies the Ed25519 signature on the session descriptor before allowing
  * stimulation enable.  The main processor sends the 32-byte session hash

@@ -2,12 +2,12 @@
 
 **Project:** NeurOne
 **Document:** NP-FEAS-FNIRS-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-07-13
 **Status:** EXPLORATORY — feasibility assessment only; creates no locked decision. Feeds a go/no-go on adding an fNIRS brain-monitoring modality.
 **Author:** SmartyPants (competitive analysis, Neurode Labs comparison)
 **Approved By:** — (pending Steve Hickman review)
-**References:** CLAUDE.md §3 (modality 1 PBM Transcranial, modality 6 PPG/HRV), §9 (competitive position — Neurode gap note); NP-HW-FPC-001 Rev E (dual-PD, 1064nm InGaAs); NP-FW-PBM1064-001 Rev A (per-channel dose metering, InGaAs PD coefficients); NP-HW-HUB-001 Rev B (DG2788A per-slot TIA gain switch); RISK-03 (NP-REG-PBM1064-001 — marketing/regulatory gate)
+**References:** CLAUDE.md §3 (modality 1 PBM Transcranial, modality 6 PPG/HRV), §9 (competitive position — Neurode gap note); NP-HW-FPC-001 Rev 5 (dual-PD, 1064nm InGaAs); NP-FW-PBM1064-001 Rev 1 (per-channel dose metering, InGaAs PD coefficients); NP-HW-HUB-001 Rev 2 (DG2788A per-slot TIA gain switch); RISK-03 (NP-REG-PBM1064-001 — marketing/regulatory gate)
 **Related:** Neurode headband competitive analysis (2026-07-13); GitHub Issue #193 (breath-hold coupling bench — §6 step 1)
 **Gate:** —
 **IEC 62304 Class:** — (would inherit SW-02 Class B if built)

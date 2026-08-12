@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — SW-01 Platform Layer: ADC1 (NTC thermal sense)
  * Target: STM32G071 (Cortex-M0+, 64 MHz), bare metal, CMSIS registers only
- * Document: NP-SW-001 Rev A — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
+ * Document: NP-SW-001 Rev 1 — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
  *           CLAUDE.md §4.2 (IEC 60601 42 °C limit, 62 °C junction cutoff)
  *
  * Implements np_hal_adc_init() and np_hal_adc_read_channel().
@@ -77,7 +77,7 @@ _Static_assert(NP_NTC_CHANNEL_COUNT == 6U,
  * channel index "is NOT a module slot id and NOT an enable-bit position", and
  * np_safety_config.h says the same about sense domains.  Any expression that
  * derives an ADC channel from the domain index would re-create exactly the
- * defect NP-HW-HUB-001 Rev C §7.2 removed from np_thermal_interlock.c, where an
+ * defect NP-HW-HUB-001 Rev 3 §7.2 removed from np_thermal_interlock.c, where an
  * index was used as a bit position and cut nothing.
  *
  * PIN ASSIGNMENT IS PROVISIONAL, on the same footing as every other GPIO

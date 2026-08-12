@@ -1,6 +1,6 @@
 /*
  * NeurOne Cervical VNS — Configuration Constants
- * Document: NP-FW-CVNS-001 Rev A §3
+ * Document: NP-FW-CVNS-001 Rev 1 §3
  */
 
 #ifndef NP_CVNS_CONFIG_H

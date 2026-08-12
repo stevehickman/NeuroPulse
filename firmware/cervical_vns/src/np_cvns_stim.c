@@ -1,6 +1,6 @@
 /*
  * NeurOne Cervical VNS — Stimulation Delivery
- * Document: NP-FW-CVNS-001 Rev A §7
+ * Document: NP-FW-CVNS-001 Rev 1 §7
  *
  * Manages the biphasic charge-balanced waveform parameters and ramp state
  * machine for the cervical VNS accessory.  The safety MCU physically generates

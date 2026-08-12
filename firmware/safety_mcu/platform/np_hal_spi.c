@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — SW-01 Platform Layer: SPI1 slave (to i.MX RT1062)
  * Target: STM32G071 (Cortex-M0+, 64 MHz), bare metal, CMSIS registers only
- * Document: NP-SW-001 Rev A — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
+ * Document: NP-SW-001 Rev 1 — SW-01 Class C; NP-SW-CI-001 §4.4 (OI-SWCI-17)
  *           CLAUDE.md §4.2 (200 ms heartbeat, 1.5 s watchdog); OI-CVNS-HUB-11
  *
  * Implements the eight SPI symbols in np_safety_hal.h plus SPI1_IRQHandler.

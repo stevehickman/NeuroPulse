@@ -138,7 +138,7 @@ print("  Additional modalities doc saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 3. FAI checklist — add HD-tDCS and cervical VNS test items
 # ══════════════════════════════════════════════════════════════════════════════
-FAI_PATH = "docs/neurone_fai_zone_module.docx"
+FAI_PATH = "docs/superseded/neurone_fai_zone_module.docx"
 fai = Document(FAI_PATH)
 
 # Find last HRV item (FAI-H04) as insertion anchor
@@ -321,7 +321,7 @@ print("  Coordination checklist saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 5. Risk register — RISK-25 cervical VNS cardiac proximity
 # ══════════════════════════════════════════════════════════════════════════════
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
 risk = Document(RISK_PATH)
 
 # Find last risk row (RISK-24) to insert after

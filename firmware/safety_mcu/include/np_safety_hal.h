@@ -1,7 +1,7 @@
 /*
  * NeurOne Safety MCU — SW-01 Platform (HAL) Contract
  * Target: STM32G071 (Cortex-M0+, 64 MHz), bare metal
- * Document: NP-SW-001 Rev A — SW-01 Class C; NP-SW-CI-001 §4.4 (Defect E)
+ * Document: NP-SW-001 Rev 1 — SW-01 Class C; NP-SW-CI-001 §4.4 (Defect E)
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
  * │  IMPLEMENTED AT PHASE 7 — firmware/safety_mcu/platform/  (OI-SWCI-17)    │

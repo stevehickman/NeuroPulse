@@ -1,6 +1,6 @@
 /*
  * NeurOne Cervical VNS — Stimulation Delivery API
- * Document: NP-FW-CVNS-001 Rev A §7
+ * Document: NP-FW-CVNS-001 Rev 1 §7
  *
  * Manages biphasic charge-balanced waveform parameters and current ramp.
  * Safety MCU owns the physical enable GPIO; this module computes target current

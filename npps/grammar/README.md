@@ -1,6 +1,6 @@
 # NPPS PEG Grammar
 
-**Document:** NP-NPPS-GRAM-001 Rev A  
+**Document:** NP-NPPS-GRAM-001 Rev 1  
 **Status:** ACTIVE  
 **Date:** 2026-06-28
 

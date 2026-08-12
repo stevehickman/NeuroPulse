@@ -76,7 +76,7 @@ def add_drc_rows(tbl, rows):
 # 1.  NP-DRV-SHELL-001 — add §2.3 and new DRC items 16–21
 # ─────────────────────────────────────────────────────────────────────────────
 
-SHELL_PATH = "docs/neurone_shell_fpc_routing_review.docx"
+SHELL_PATH = "docs/superseded/neurone_shell_fpc_routing_review.docx"
 shell = Document(SHELL_PATH)
 
 # ── Insert §2.3 after §2.2 heading + table ──
@@ -260,7 +260,7 @@ print(f"  NP-DRV-SHELL-001 saved")
 # 2.  Risk register — RISK-17 → MITIGATED
 # ─────────────────────────────────────────────────────────────────────────────
 
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
 risk_doc = Document(RISK_PATH)
 
 for row in risk_doc.tables[0].rows:
@@ -269,7 +269,7 @@ for row in risk_doc.tables[0].rows:
                  color=(0x00, 0x70, 0x00))
         set_bg(row.cells[1], "E2EFDA")
         set_text(row.cells[5],
-            "MITIGATED: NP-DRV-SHELL-001 Rev A extended with §2.3 "
+            "MITIGATED: NP-DRV-SHELL-001 Rev 1 extended with §2.3 "
             "(multi-FPC bundle management and EEG cable separation). "
             "New requirements: ≥ 2 mm inter-FPC separation; ≥ 15 mm FPC-to-EEG cable "
             "separation (or grounded barrier); 3 anchor/tie-down points per FPC; "
@@ -323,7 +323,7 @@ ins_before(risk_doc, target,
     bold=False, color=(0xC0, 0x60, 0x00), size=10)
 
 ins_before(risk_doc, target,
-    "→ Action 1 (DONE): NP-DRV-SHELL-001 Rev A extended with §2.3 (multi-FPC bundle "
+    "→ Action 1 (DONE): NP-DRV-SHELL-001 Rev 1 extended with §2.3 (multi-FPC bundle "
     "management) and DRC-16 to DRC-21 (6 new design review checklist items). "
     "Requirements now specified for: bundle cross-section clearance, ≥ 2 mm inter-FPC "
     "separation, ≥ 15 mm FPC-to-EEG separation, anchor/tie-down points, "

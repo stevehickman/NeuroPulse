@@ -1,6 +1,6 @@
 /*
  * NeurOne HRV Biofeedback — Dual EEG + HRV Biofeedback
- * Document: NP-FW-HRV-001 Rev A §9
+ * Document: NP-FW-HRV-001 Rev 1 §9
  *
  * Protocol NP_HRV_PROTO_EEG_DUAL displays HRV coherence score and EEG band
  * power simultaneously, and drives a closed-loop adaptive breathing rate.

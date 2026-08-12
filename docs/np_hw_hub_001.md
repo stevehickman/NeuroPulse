@@ -2,27 +2,27 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HUB-001
-**Revision:** C
+**Revision:** 3
 **Date:** 2026-07-29
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
 **Approved By:** — (DRAFT — not yet baselined)
-**References:** NP-HEX-ZM-001 §3.4/§4a/§5.4a/§7 (SMART-1, REG-1, MECH-2, OI-HUB-SOCKET-01); NP-HW-HUB-001 Rev B (retired, Appendix A); NP-HW-FPC-001 Rev E §5.3 (SUPERSEDED — TIA saturation physics retained); NP-FW-PBM1064-001 Rev B (SUPERSEDED); NP-SES-1064-001 Rev A (SUPERSEDED); CLAUDE.md §4.1/§4.2/§4.5
-**Related Issues:** GitHub Issue #62 (OI-PBM-HW-01, closed against Rev B)
+**References:** NP-HEX-ZM-001 §3.4/§4a/§5.4a/§7 (SMART-1, REG-1, MECH-2, OI-HUB-SOCKET-01); NP-HW-HUB-001 Rev 2 (retired, Appendix A); NP-HW-FPC-001 Rev 5 §5.3 (SUPERSEDED — TIA saturation physics retained); NP-FW-PBM1064-001 Rev 2 (SUPERSEDED); NP-SES-1064-001 Rev 1 (SUPERSEDED); CLAUDE.md §4.1/§4.2/§4.5
+**Related Issues:** GitHub Issue #62 (OI-PBM-HW-01, closed against Rev 2)
 **Gate:** —
 **IEC 62304 Class:** — (hardware; allocates firmware to SW-02 Class B and a new cluster-controller unit, §9.6)
-**Supersedes:** NP-HW-HUB-001 Rev B (5-slot DG2788A gain switch + single PCA9546A I2C mux)
+**Supersedes:** NP-HW-HUB-001 Rev 2 (5-slot DG2788A gain switch + single PCA9546A I2C mux)
 **Parent Document:** —
 
 ---
 
 **Rev C (2026-07-29):** Complete re-architecture of the cranial socket interface for the
-`NP-HEX-ZM-001` hex-tile lattice under **SMART-1** (every socket I2C/TIA-capable). Rev B's
+`NP-HEX-ZM-001` hex-tile lattice under **SMART-1** (every socket I2C/TIA-capable). Rev 2's
 hub-centric star — five per-slot TIAs, five `GAIN_SEL` GPIO, one 4-channel I2C mux — is
-retired and archived verbatim in **Appendix A**. Rev C introduces a **distributed
+retired and archived verbatim in **Appendix A**. Rev 3 introduces a **distributed
 cluster-controller tier** on the inner bowl: the hub PCB no longer terminates per-socket
-analog or per-socket I2C at all, and **no longer encodes the socket count**. Rev B's
+analog or per-socket I2C at all, and **no longer encodes the socket count**. Rev 2's
 component-level circuit work (DG2788A dual-SPDT switching 47 kΩ ↔ 22 kΩ, and the silicon-vs-InGaAs
 TIA saturation analysis that motivated it) is carried forward unchanged — §6 reuses it,
 relocated and shared rather than replicated 80×.
@@ -32,9 +32,9 @@ relocated and shared rather than replicated 80×.
 > **Read this before §3, §5, §6 or §8.** Two documents merged to `main` after this revision was
 > drafted, both filling the gap it scoped out as unwritten (**OI-HUB-C01**):
 >
-> - **`NP-DRV-SHELL-002` Rev A** (2026-07-29, PR #232) — shell socket interconnect. Its **§7 is
+> - **`NP-DRV-SHELL-002` Rev 1** (2026-07-29, PR #232) — shell socket interconnect. Its **§7 is
 >   literally "Hub PCB Rev C interface contract"**: written *for* this task.
-> - **`NP-HW-HEXTILE-001` Rev A** (2026-07-30, PR #229) — hex-tile electrical / FPC.
+> - **`NP-HW-HEXTILE-001` Rev 1** (2026-07-30, PR #229) — hex-tile electrical / FPC.
 >
 > **⚠ They contradict each other, neither cites the other (zero cross-references, written in
 > parallel), and the disagreement is on the socket contact array — molded, tooled hardware.
@@ -50,7 +50,7 @@ relocated and shared rather than replicated 80×.
 >
 > The last row is a **reasoned** disagreement — HEXTILE anticipated SHELL-002's position and
 > rejected it with a named failure mode. The rail conflict is squarely inside SHELL-002 §7.3's own
-> invitation ("assumptions the Rev C task should challenge"), item 1.
+> invitation ("assumptions the Rev 3 task should challenge"), item 1.
 >
 > **Recommendation (not a decision — EE Lead owns it): adopt HEXTILE D-4, TIA on-module, and keep
 > SHELL-002's cluster-carrier architecture for everything else.** The two documents agree on the
@@ -74,8 +74,8 @@ relocated and shared rather than replicated 80×.
 > **Correction to this banner's previous version.** It said HEXTILE "deletes" §6 and treated that as
 > settled. That was premature: `NP-DRV-SHELL-002` independently reproduces §6's design — one
 > switched-gain TIA + mux + ADC per cluster carrier, gain as an I2C register write, zero hub
-> `GAIN_SEL` — and its §7.2 says the reusable Rev B content *"is replicated onto the cluster
-> carriers, not onto Rev C."* §6 is **contested between two merged specs**, not superseded by one.
+> `GAIN_SEL` — and its §7.2 says the reusable Rev 2 content *"is replicated onto the cluster
+> carriers, not onto Rev 3."* §6 is **contested between two merged specs**, not superseded by one.
 >
 > **What SHELL-002 independently confirms in this document** (written in parallel, no shared draft):
 > the cluster-carrier tier itself; **≤8 sockets per cluster stated as a bound, not a count**, so
@@ -90,13 +90,13 @@ relocated and shared rather than replicated 80×.
 > bank at the posterior aggregation node**, not on the Hub PCB. That is the crosspoint §4.5's
 > successor paragraph proposed. C16 is closed against it.
 >
-> **The concrete Rev C deliverable is now SHELL-002 §7.1**, adopted below as §7.4.
+> **The concrete Rev 3 deliverable is now SHELL-002 §7.1**, adopted below as §7.4.
 >
 > **What HEXTILE supersedes here (unchanged from the previous banner, except §6):**
 >
 > | This document | Superseded by | Effect |
 > |---|---|---|
-> | **§6** — shared muxed TIA, one DG2788A per cluster, 16:1 PD current mux, per-sample gain, scan-timing budget | **CONTESTED — do not treat as settled.** HEXTILE **D-4** moves TIA + ADC on-module; `NP-DRV-SHELL-002` §3.2/§3.3 independently puts the *same* switched-gain TIA + mux + ADC on the **cluster carrier** and calls it Rev C's replacement | **Not deleted — disputed between two merged specs (OI-HUB-C17).** Either way §6 does not belong on the *Hub PCB*, which is the claim that matters here and which both agree on. If HEXTILE D-4 wins (recommended above) §6 is deleted outright and gain becomes design-time-fixed; if SHELL-002 wins, §6 survives essentially as written, relocated to the carrier. |
+> | **§6** — shared muxed TIA, one DG2788A per cluster, 16:1 PD current mux, per-sample gain, scan-timing budget | **CONTESTED — do not treat as settled.** HEXTILE **D-4** moves TIA + ADC on-module; `NP-DRV-SHELL-002` §3.2/§3.3 independently puts the *same* switched-gain TIA + mux + ADC on the **cluster carrier** and calls it Rev 3's replacement | **Not deleted — disputed between two merged specs (OI-HUB-C17).** Either way §6 does not belong on the *Hub PCB*, which is the claim that matters here and which both agree on. If HEXTILE D-4 wins (recommended above) §6 is deleted outright and gain becomes design-time-fixed; if SHELL-002 wins, §6 survives essentially as written, relocated to the carrier. |
 > | **§3.2** — "the tier needs local intelligence because LED drive must distribute" | HEXTILE **D-3**: constant-current driver on-module; socket carries a **24 V DC bus** (D-6), not per-string drive | The load-bearing argument for a cluster **MCU** is removed. |
 > | **§5.2** — cluster MCU as I2C master behind a per-cluster PCA9548A, tunnelled transactions | HEXTILE **D-7**: **dynamic UID-based address assignment** (SMBus-ARP style) over per-cluster segments, driven directly from RT1062 LPI2C1–4 through **one** PCA9548A tier | The 0x30 collision is *removed*, not worked around, so muxing is needed only for bus capacitance — one tier, no cascade, no intermediate master. HEXTILE is right and this is the better answer. |
 > | **§8 BOM** | above | Per-cluster TIA op-amp, DG2788A, PD mux and NTC mux all drop out. The $6.34/board figure is void. |
@@ -113,7 +113,7 @@ relocated and shared rather than replicated 80×.
 > socket reserves pins **13 `ELEC` / 14 `ELEC_SHLD` / 15 `AGND`** at *every* socket for T1-B, and
 > is explicit that *"an electrode signal cannot be carried over I2C — it is a µV analog recording path
 > to the ADS1299 **and** a stimulation current path from the tES driver."* It then declares T1-B out
-> of scope for Rev A and never routes them. At 80 sockets that is **240 µV-analog + stimulation
+> of scope for Rev 1 and never routes them. At 80 sockets that is **240 µV-analog + stimulation
 > conductors to the hub** — the same unbuildable star HEXTILE just used to kill hub-side LED drive and
 > hub-side PD analog, now applied to the one signal class that genuinely *cannot* be digitised at the
 > module. It cannot be dodged by restricting T1-B to a subset of sockets: that re-imposes precisely
@@ -149,18 +149,18 @@ HAL impact.
 pinout and the LED drive stage. §3.2 shows the LED drive *must* distribute onto the same cluster tier
 — that is a direct consequence of this architecture and is stated as a requirement here — but the
 driver topology, current regulation, and connector pinout belong with the socket-interconnect spec
-that `NP-HW-FPC-001` Rev E's supersession note correctly identifies as **unwritten, not merely
-superseded**. Rev C does not attempt to write it.
+that `NP-HW-FPC-001` Rev 5's supersession note correctly identifies as **unwritten, not merely
+superseded**. Rev 3 does not attempt to write it.
 
 ---
 
-## 2. Why Rev B does not extend — the constraint is interconnect, not mux count
+## 2. Why Rev 2 does not extend — the constraint is interconnect, not mux count
 
 The obvious framing of this problem is "one 4-channel I2C mux does not cover 80 sockets, so build a
 mux tree." That framing is true but it is not the binding constraint, and designing to it produces a
 hub PCB that cannot be built.
 
-Rev B is a **star**: every socket's analog and digital lines terminate at the hub. Per socket, Rev B's
+Rev B is a **star**: every socket's analog and digital lines terminate at the hub. Per socket, Rev 2's
 architecture requires the hub to terminate:
 
 | Signal | Conductors | Note |
@@ -173,12 +173,12 @@ architecture requires the hub to terminate:
 | VCC_3V3, GND | 2 | |
 | **Total** | **~11** | |
 
-At the five slots Rev B was written for, that is ~55 conductors — a routable harness. At the v1
+At the five slots Rev 2 was written for, that is ~55 conductors — a routable harness. At the v1
 80-socket lattice it is **~880 conductors crossing the inner-bowl-to-hub boundary**, through the
 single posterior blind-mate boss defined in `NP-HEX-ZM-001` §5.3c. That is not a hard problem; it is
-a different product. It also multiplies against every other Rev B quantity:
+a different product. It also multiplies against every other Rev 2 quantity:
 
-| Rev B quantity | At 5 slots | Naive scale to 80 sockets |
+| Rev 2 quantity | At 5 slots | Naive scale to 80 sockets |
 |---|---|---|
 | TIA op-amp channels on hub | 10 | **160** |
 | Hub ADC channels consumed | 10 | **160** (i.MX RT1062 LPADC1+LPADC2 provide ~32 external — needs a second fan-in mux tier regardless) |
@@ -194,7 +194,7 @@ a different product. It also multiplies against every other Rev B quantity:
 because it leaves the other six rows of that table untouched — it solves address collision while
 still requiring 160 analog channels and 880 conductors to reach the hub.
 
-So Rev C does not choose between mux topologies. It **moves the termination point**: the per-socket
+So Rev 3 does not choose between mux topologies. It **moves the termination point**: the per-socket
 analog front end, the per-socket I2C master, and the per-socket LED drive relocate from the hub PCB
 onto the inner bowl, and the hub-to-inner-bowl link becomes a short multi-drop bus instead of a
 wide star.
@@ -247,7 +247,7 @@ NTC thermal response. That is a microcontroller's job, and having placed one the
 PD chain and the I2C master locally costs almost nothing extra.
 
 This is the same conclusion the T1-C module reached one level down: `NP-HW-FPC-001` §6.2 put an
-ATtiny402 on the module because the connector had no pins left for a third drive channel. Rev C
+ATtiny402 on the module because the connector had no pins left for a third drive channel. Rev 3
 applies the identical reasoning one level up, where the constraint is conductors at the parting plane
 rather than pins at a connector.
 
@@ -261,9 +261,9 @@ rather than pins at a connector.
 | **Make every socket smart (mandate on-module ATtiny402 on T1-A)** | Rejected | Fixes interconnect, but by adding ~$0.50 × 80 = $40 of *module* BOM and erasing the T1-A/T1-C cost split that `NP-HEX-ZM-001` §4a exists to preserve. It is also a module decision, not a hub decision — out of this document's authority to mandate. |
 | **Distributed cluster-controller tier** | **Selected** | Only option that addresses interconnect. Wins on I2C, TIA count, gain control and PD1/PD2 ratio accuracy as consequences rather than as separate design effort (§6.4). |
 
-### 3.4 What Rev B contributed that survives
+### 3.4 What Rev 2 contributed that survives
 
-Carried forward unchanged, per Rev B's own supersession note:
+Carried forward unchanged, per Rev 2's own supersession note:
 
 - **The TIA saturation analysis** (Appendix A §2): silicon PD ≈ 0.47 A/W at 808 nm vs. Hamamatsu
   G12180-010A InGaAs ≈ 0.90 A/W at 1064 nm; at Rf = 47 kΩ the InGaAs PD1 reaches 3.38 V against a
@@ -331,7 +331,7 @@ the lattice. Anatomical numbering is preserved.
 Rev B baked `5` into hub tooling: five DG2788A footprints, five `GAIN_SEL` nets, a PCA9546A sized
 4-of-5. Any change to the slot count meant a hub re-spin.
 
-In Rev C the hub PCB terminates a bus with up to 16 addressable peers. It contains no per-socket
+In Rev 3 the hub PCB terminates a bus with up to 16 addressable peers. It contains no per-socket
 footprint, no per-socket net, and no constant derived from `n_sockets`. The lattice lives entirely on
 the **inner bowl** — which is already the part that gets re-tooled when the lattice changes
 (`NP-HEX-ZM-001` §5.1: the inner bowl is the module carrier; the outer bowl and the hub are not).
@@ -404,7 +404,7 @@ the ≤1 N one-handed input-force intent (RISK-22) because plate stiffness must 
 
 **Why the earlier BOM-gradient argument is withdrawn.** A previous revision of this section
 recommended the flower on cost (12 boards / $76.08 vs 10 / $63.40 at n = 80, with the 3-hex triad at
-$171.18). Those figures rested on the $6.34/board BOM that `NP-HW-HEXTILE-001` Rev A has since
+$171.18). Those figures rested on the $6.34/board BOM that `NP-HW-HEXTILE-001` Rev 1 has since
 voided by moving the driver and TIA on-module (see the reconciliation banner and **OI-HUB-C15**), so
 they are no longer quotable. The mechanical argument is unaffected by that revision — which is the
 useful property: **the cluster shape is now settled independently of an electrical BOM still in
@@ -665,7 +665,7 @@ Per-cluster-controller, on the inner bowl: 2 × 4.7 kΩ on the local master segm
 enabled PCA9548A downstream channel is **not** required — the PCA9548A passes the master-side pull-up
 to the enabled channel, so one pull-up pair per controller suffices, with per-channel pull-ups added
 only if a socket FPC stub proves too capacitive at bench (**OI-HUB-C04**). Hub side: one pair on the
-LPI2C segment to the transceiver. This is a genuine simplification over Rev B's 12 discrete pull-ups
+LPI2C segment to the transceiver. This is a genuine simplification over Rev 2's 12 discrete pull-ups
 for 5 slots, which scaled to ~162 at 80.
 
 ---
@@ -703,7 +703,7 @@ charge-injection bench (**OI-HUB-C02**).
 Rev B's switching element and both resistor values are kept verbatim (§3.4). Only the count and the
 control source change.
 
-| | Rev B | Rev C |
+| | Rev 2 | Rev 3 |
 |---|---|---|
 | DG2788A count | 1 per slot (5) | 1 per **cluster** (10 at n = 80) |
 | Sections used | A = PD1 gain, B = PD2 gain | A = shared-TIA gain; **B reserved** (§6.5) |
@@ -715,7 +715,7 @@ DG2788A propagation is < 1 µs against a ~20 µs per-channel settling budget, so
 costs nothing. Gain for each channel is looked up from the module type the cluster controller learned
 at inventory (UID-based, `np_module_map`) — **not** from the retired ZONE_ID resistor ladder.
 
-This also removes a coherency hazard Rev B carried structurally: a latched per-slot gain can be stale
+This also removes a coherency hazard Rev 2 carried structurally: a latched per-slot gain can be stale
 relative to the module actually present after a hot-swap. A per-sample gain derived from live
 inventory cannot be.
 
@@ -725,12 +725,12 @@ Sharing the TIA is not only cheaper. It removes the dominant error term from the
 whole fouling-vs-aging discrimination rests on.
 
 `NP-FW-PBM1064-001` §6.3 distinguishes PDMS fouling from LED aging by the **ratio** PD1/PD2, with
-thresholds at ×0.80 and ±15 %. In Rev B, PD1 and PD2 went through two physically different TIAs, so
+thresholds at ×0.80 and ±15 %. In Rev 2, PD1 and PD2 went through two physically different TIAs, so
 Rev B had to require "matched ≤ 0.5 % between PD1 and PD2 TIA channels on the same slot to preserve
 PD1/PD2 ratio accuracy" (Appendix A §3.2) — a matching burden on 160 channels, and a residual error
 directly in the discriminant.
 
-In Rev C, PD1 and PD2 of a socket pass through **the same mux die, the same Rf, the same op-amp, the
+In Rev 3, PD1 and PD2 of a socket pass through **the same mux die, the same Rf, the same op-amp, the
 same ADC**. Gain error, Rf tolerance, op-amp offset and ADC gain error are **common-mode in the ratio
 and cancel exactly**. The per-slot matching requirement disappears; the surviving requirement is only
 that Rf be stable between the two samples, microseconds apart.
@@ -798,7 +798,7 @@ sides of the SPI heartbeat — a disproportionate change to buy selectivity the 
 
 ### 7.2 Resolution — one `NP_SAFETY_EN_PBM_CRANIAL` bit, distributed gating
 
-> **STATUS: IMPLEMENTED IN FIRMWARE, 2026-08-05.** This section decided the collapse at Rev C and
+> **STATUS: IMPLEMENTED IN FIRMWARE, 2026-08-05.** This section decided the collapse at Rev 3 and
 > the firmware did not follow for two revisions. It now does. `NP_SAFETY_EN_PBM_CRANIAL` is bit 0 in
 > both `firmware/safety_mcu/include/np_safety_protocol.h` and
 > `firmware/hub_control/include/np_hub_config.h`; `NP_SAFETY_EN_ALL_MASK` is **`0x3FE1`** (was
@@ -838,7 +838,7 @@ The argument that this is sufficient, not merely convenient:
 
 - **The safety MCU's function is the interlock — cut stimulation — not dose selectivity.** Cutting
   all cranial PBM is always a safe response; over-cutting is a usability cost, never a hazard. The
-  five per-zone bits in Rev B were an artifact of there happening to be five slots and spare bits, not
+  five per-zone bits in Rev 2 were an artifact of there happening to be five slots and spare bits, not
   a derived safety requirement.
 - **Per-socket thermal response does not go through the safety MCU anyway.** CLAUDE.md §4.2 puts the
   per-tile 62 °C junction limit on a *hardware current throttle* driven by the per-zone NTC, and the
@@ -870,7 +870,7 @@ ids 0–127 unchanged — no wire change needed there.
 
 ---
 
-### 7.4 The Rev C interface contract — adopted from `NP-DRV-SHELL-002` §7.1
+### 7.4 The Rev 3 interface contract — adopted from `NP-DRV-SHELL-002` §7.1
 
 `NP-DRV-SHELL-002` §7 was written as the coordination surface for this task and is more specific
 than anything derived above. **Rev C adopts it**, at the v1 lattice (12 clusters of ≤8, per
@@ -888,7 +888,7 @@ CLUSTER-1's 7-hex flower):
 | PDN feed | 1 | Rated at the vault ceiling — **now a 24 V BOOST stage, see below** |
 | ADS1299 bank interface | SPI | Bank sits at the **PAN**, not on the Hub PCB |
 
-> **⚠ New Rev C hardware, created by adopting D-6 (HUB-C17b) — stated in neither source document.**
+> **⚠ New Rev 3 hardware, created by adopting D-6 (HUB-C17b) — stated in neither source document.**
 > `NP-DRV-SHELL-002` specifies the PDN feed only as "rated at the vault ceiling", because at its
 > assumed 12 V the rail is a **buck** from USB-C PD. **At 24 V it is a boost**: CLAUDE.md §4.5
 > negotiates at most 20 V, and Standard T1 runs from **15 V/2 A**, so the vault rail sits *above* the
@@ -925,7 +925,7 @@ CLUSTER-1's 7-hex flower):
 > therefore capable of masquerading as an entrainment response in the EEG. Verify on the EMI bench
 > alongside EMF-1.
 >
-> Remaining Rev C cost: board area and a magnetics part the Rev B hub never carried. Tracked as
+> Remaining Rev 3 cost: board area and a magnetics part the Rev 2 hub never carried. Tracked as
 > **OI-HUB-C19**.
 
 **This supersedes §4.3's "the hub terminates a bus with up to 16 addressable peers" as the concrete
@@ -1181,12 +1181,12 @@ never considering.
 **The hub interface (§7.4) is untouched by C17.** N3 never crossed the parting plane in either
 design — SHELL-002 §5.2: "N3 does not appear — it terminates on the carrier by design." The tail
 stays 12 conductors, the connector count stays 12/16, the pin budget stays 144/192. **C17 blocks
-socket tooling and the carrier schematic; it does not block the Hub PCB.** Rev C can be built against
+socket tooling and the carrier schematic; it does not block the Hub PCB.** Rev 3 can be built against
 §7.4 while C17 is decided.
 
 ## 8. BOM
 
-> **⚠ EVERY FIGURE IN §8 IS VOID — do not quote.** `NP-HW-HEXTILE-001` Rev A (**D-3**, **D-4**,
+> **⚠ EVERY FIGURE IN §8 IS VOID — do not quote.** `NP-HW-HEXTILE-001` Rev 1 (**D-3**, **D-4**,
 > **D-6**, **D-7**) moved the constant-current driver *and* the TIA + ADC on-module, put the socket on
 > a 24 V DC bus, and removed the I2C address collision. That deletes the TIA op-amp, the DG2788A, the
 > 16:1 PD mux, the 8:1 NTC mux, and the cluster MCU's role as I2C master from the bill below — i.e.
@@ -1232,7 +1232,7 @@ The 3-hex triad is omitted: 27 boards / $171.18 at n = 80, and 43 boards at n = 
 
 Hub PCB itself barely moves:
 
-| Hub PCB Rev C delta vs Rev B | Qty | | |
+| Hub PCB Rev C delta vs Rev 2 | Qty | | |
 |---|---|---|---|
 | PCA9615-class I2C↔differential transceiver (hub end + inner-bowl end) | 2 | $1.10 | +$2.20 |
 | Cluster-bus termination, ESD, pull-ups | — | — | +$0.30 |
@@ -1257,9 +1257,9 @@ above costs.
 
 ### 8.4 Honest comparison, and the cost that must be netted out
 
-Scaling Rev B naively to 80 sockets costs roughly: 80 × DG2788A ($16) + ~160 TIA channels in quads
+Scaling Rev 2 naively to 80 sockets costs roughly: 80 × DG2788A ($16) + ~160 TIA channels in quads
 (~$22) + 320 precision resistors ($3.20) + ~27 I2C muxes ($13.50) + hub-side analog fan-in muxes
-(~$12) ≈ **$67** — *comparable to Rev C's $63.40*, while also requiring ~880 conductors through the
+(~$12) ≈ **$67** — *comparable to Rev 3's $63.40*, while also requiring ~880 conductors through the
 parting plane. **The cluster tier is not more expensive; it is the same money spent where it
 works.**
 
@@ -1273,7 +1273,7 @@ against a post-hex module BOM that does not exist yet. **Flagged as OI-HUB-C08**
 
 | | Conductors at the parting plane |
 |---|---|
-| Rev B architecture scaled to 80 sockets | ~880 |
+| Rev 2 architecture scaled to 80 sockets | ~880 |
 | **Rev C** (≈10 per cluster: 4 differential I2C, ATTN#, PBM_CRANIAL_EN#, VCC, GND, 2 × LED rail) × 10 clusters | **~100** |
 
 An **8.8× reduction**, through the existing posterior blind-mate boss rather than a new one. LED power
@@ -1365,7 +1365,7 @@ machinery (`np_module_map_apply_poll`) to invalidate a stale entry. Record grows
 Config partition. T1-A dumb tiles cannot hold their own coefficients, so a hub-side UID-keyed cache
 is the only option that works for every tile type.
 
-Raised as **OI-HUB-C06** against `NP-FW-PBM1064-001` Rev C and `NP-HEX-ZM-001`. It is out of this
+Raised as **OI-HUB-C06** against `NP-FW-PBM1064-001` Rev 3 and `NP-HEX-ZM-001`. It is out of this
 document's scope to fix, but it is in scope to prevent the re-indexing from being done wrongly.
 
 ### 9.6 New firmware unit
@@ -1379,7 +1379,7 @@ channel control, per-socket UID/inventory poll (implementing `NP-HEX-ZM-001`'s *
 
 ## 10. Consistency requirements on the two SUPERSEDED companion specs
 
-Both are being redesigned in parallel. Rev C's requirements on them:
+Both are being redesigned in parallel. Rev 3's requirements on them:
 
 **`NP-SES-1064-001` (session descriptor, `zone[5]` / `smart_module_mask` retired).** The replacement
 must **reuse the existing NP Hub Protocol v2 `NP_PROTO_TARGET_SOCKET_MASK` primitive** — the 16-byte,
@@ -1387,7 +1387,7 @@ must **reuse the existing NP Hub Protocol v2 `NP_PROTO_TARGET_SOCKET_MASK` primi
 and already sized to `NP_HEXMAP_MAX_SOCKETS` — rather than inventing a third socket representation.
 `NP-HEX-ZM-001` §4b's argument for a bitmap over an address list applies verbatim here: under
 inclusive midline membership, a list carries duplicates to the driver and duplicates mean double
-J/cm² on the same module. Rev C's hub expands a socket bitmap to per-cluster frames; any
+J/cm² on the same module. Rev 3's hub expands a socket bitmap to per-cluster frames; any
 socket-indexed representation works, but a third one would be a third place for the dedup guarantee
 to be forgotten. Per-socket field semantics (current setpoints, PWM frequency, duty, channel mask)
 carry over unchanged.
@@ -1404,28 +1404,28 @@ binding constraint on how its calibration coefficients are re-indexed.
 
 | ID | Description | Blocking |
 |----|-------------|----------|
-| OI-HUB-C01 | **CLOSED 2026-07-30** — written twice, in parallel: `NP-HW-HEXTILE-001` Rev A (tile electrical/FPC, 16-position socket) and `NP-DRV-SHELL-002` Rev A (shell interconnect, 18-contact socket, five networks, cluster tails). Both merged. **They disagree on the socket contact array — see OI-HUB-C17.** | Closed; superseded by OI-HUB-C17 |
+| OI-HUB-C01 | **CLOSED 2026-07-30** — written twice, in parallel: `NP-HW-HEXTILE-001` Rev 1 (tile electrical/FPC, 16-position socket) and `NP-DRV-SHELL-002` Rev 1 (shell interconnect, 18-contact socket, five networks, cluster tails). Both merged. **They disagree on the socket contact array — see OI-HUB-C17.** | Closed; superseded by OI-HUB-C17 |
 | OI-HUB-C02 | PD current-mux part selection bench: off-leakage at 85 °C, charge injection, settling into the shared TIA (§6.2) | Cluster-board BOM |
 | OI-HUB-C03 | Cluster MCU final selection — confirm STM32G071 vs in-family G031 downgrade once cluster firmware SRAM footprint is known (§8.3) | Cluster-board BOM |
 | OI-HUB-C04 | Confirm one pull-up pair per cluster controller suffices, or add per-PCA9548A-channel pull-ups if socket FPC stub capacitance requires (§5.3) | Cluster-board layout |
 | OI-HUB-C05 | **T1-C PWM phase sync routing** from on-module ATtiny402 (`CONFIG` bit[2] `sync_enable`) to the cluster controller, so HUB-REQ-C01's in-ON-window scan holds for smart modules (§6.5) | T1-C dose accuracy; FAI-SM-06 |
-| OI-HUB-C06 | **Calibration coefficients re-keyed to module UID, not socket** (§9.5) — against `NP-FW-PBM1064-001` Rev C and `NP-HEX-ZM-001` | Dose-metering accuracy claim |
+| OI-HUB-C06 | **Calibration coefficients re-keyed to module UID, not socket** (§9.5) — against `NP-FW-PBM1064-001` Rev 3 and `NP-HEX-ZM-001` | Dose-metering accuracy claim |
 | OI-HUB-C07 | Safety review to confirm all-or-nothing `NP_SAFETY_EN_PBM_CRANIAL` granularity is acceptable, vs. widening the Class C safety wire format (§7.1–7.2) | Safety wire format; OI-HUB-SOCKET-01 |
 | OI-HUB-C08 | **Net the $63.40 cluster tier against the retired 5-zone-module drive electronics** already inside the $405 Home Standard BOM (§8.4) — needs a post-hex module BOM that does not yet exist | BOM sign-off |
 | OI-HUB-C09 | **CLOSED 2026-07-30.** Electrical and mechanical clusters are **the same thing**: the board is **capacity-8**, not exactly-8, and capacity 8 costs the same as a hypothetical 7 (no 7-channel I2C switch or 14:1 mux exists), so one board SKU serves a full flower or any partial one. Shape settled by **CLUSTER-1** (principal, 2026-07-30): **7-hex flower wherever the lattice allows, partial flowers at the boundary** — decided on clamp-plate mechanics (span 122.2 vs 161.8 mm; stress ×1.75, plate deflection ×3.07, dome depth 25.1 → 55.0 mm, 136.8° subtended), *not* on the earlier BOM gradient, whose figures HEXTILE has voided. The triad stays excluded electrically too (43 segments at n=128 > the 32-segment budget). MECH-2 now verifies rather than selects. **Three-level `(cluster:module:element)` addressing remains explicitly rejected** (§4.5). | Closed — MECH-2 verifies |
 | OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table (single ascending pass, no `seen` bitmap needed). Legitimate as a firmware-resident group because socket→cluster changes only on an inner-bowl re-tool (§4.5.1) — unlike lobe. Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
 | OI-HUB-C17 | **PARTIALLY DECIDED 2026-07-30 (principal) — see §7.5.0.** **C17a ADOPTED:** `NP-DRV-SHELL-002`'s cluster-carrier architecture for N1/N2/N4/N5. **C17b ADOPTED:** HEXTILE **D-6**, 24 V vault rail — resolves SHELL-002 **OI-SHELL2-01** against its 12 V estimate. **C17c OPEN:** HEXTILE **D-4** (TIA + ADC on-module) deferred **pending the module heat-sink / helmet-cooling design** (§7.5.0a) — not pending cost, which §7.5.0(a)/(b) showed to be ~neutral and dominated 30× by PD population (OI-HEXTILE-06). Thermal gate has two parts: continuous on-tile dissipation inside the 42 °C face / 62 °C junction envelope, and **ADC drift 25 → 62 °C against the ±15 % dose claim (FAI-SM-06)**, which a cooler carrier-mounted ADC never faces. Decide after the heat-sink path is fixed and jointly with OI-HEXTILE-06. Only artefact still waiting: socket contact count (18 vs 14–15). Hub PCB §7.4 is unaffected either way (§7.5.7). | Socket tooling + carrier schematic only — **not** Hub PCB |
-| OI-HUB-C18 | **Propagate the 24 V adoption (C17b) into `NP-DRV-SHELL-002`.** Its §5.4 power budget, ~2.9 A vault bus figure, N1 conductor sizing and cluster power-gate part class are all computed at 12 V; at 24 V the bus current halves to ~1.46 A and I²R quarters. Its **OI-SHELL2-01** closes. Also re-check the 2-contact `VLED+` budget, which §7.5.5 shows had zero derating at 12 V and ~2× at 24 V | `NP-DRV-SHELL-002` Rev B |
-| OI-HUB-C19 | **PLACEMENT DECIDED (provisional) 2026-07-30 (principal): Hub PCB** — magnetics outside the shielded envelope away from the fluxgates; ~1.8 W conversion loss on the fan-served side; and **~17 % less modulated current across the parting-plane boss** (~1.46 A at 24 V vs ~1.75 A at 15–20 V if sited at the PAN), which directly helps `NP-DRV-SHELL-002` §9.3 loop-area control. Revisit if the hub thermal budget or the EMI bench objects. **Residual:** size and select the boost (15–20 V → 24 V, ~35 W, ~1.46 A); confirm hub thermal headroom for ~1.8 W against the `NP-TOOL-HUB-001` F-04 fan/heatsink path; and verify **HUB-REQ-C04** — control-loop bandwidth ≫40 Hz so LED duty modulation stays in the current domain and never becomes 2–40 Hz rail-voltage ripple, which would be in-band at the entrainment frequencies and could masquerade as an EEG entrainment response | Rev C schematic; hub thermal budget; EMI bench (with EMF-1) |
-| OI-HUB-C15 | **Merge this document with BOTH `NP-HW-HEXTILE-001` Rev A and `NP-DRV-SHELL-002` Rev A** per the three-way banner at the head of this file. Adopt SHELL-002 §7.1 as the interface contract (done, §7.4). §6's fate follows OI-HUB-C17: deleted if HEXTILE D-4 wins, relocated to the cluster carrier if SHELL-002 wins — it does not stay on the Hub PCB either way. Rewrite §5.2 to the two-level UID-addressed tree; drop the cluster-MCU LED-drive rationale in §3.2; recost §8. Retain §2, §4.2–4.5.2, §7.2–7.4, §9.5, §10 | Rev C baselining — §7.4 unblocked (§7.5.7); §6's fate blocked on OI-HUB-C17 |
+| OI-HUB-C18 | **Propagate the 24 V adoption (C17b) into `NP-DRV-SHELL-002`.** Its §5.4 power budget, ~2.9 A vault bus figure, N1 conductor sizing and cluster power-gate part class are all computed at 12 V; at 24 V the bus current halves to ~1.46 A and I²R quarters. Its **OI-SHELL2-01** closes. Also re-check the 2-contact `VLED+` budget, which §7.5.5 shows had zero derating at 12 V and ~2× at 24 V | `NP-DRV-SHELL-002` Rev 2 |
+| OI-HUB-C19 | **PLACEMENT DECIDED (provisional) 2026-07-30 (principal): Hub PCB** — magnetics outside the shielded envelope away from the fluxgates; ~1.8 W conversion loss on the fan-served side; and **~17 % less modulated current across the parting-plane boss** (~1.46 A at 24 V vs ~1.75 A at 15–20 V if sited at the PAN), which directly helps `NP-DRV-SHELL-002` §9.3 loop-area control. Revisit if the hub thermal budget or the EMI bench objects. **Residual:** size and select the boost (15–20 V → 24 V, ~35 W, ~1.46 A); confirm hub thermal headroom for ~1.8 W against the `NP-TOOL-HUB-001` F-04 fan/heatsink path; and verify **HUB-REQ-C04** — control-loop bandwidth ≫40 Hz so LED duty modulation stays in the current domain and never becomes 2–40 Hz rail-voltage ripple, which would be in-band at the entrainment frequencies and could masquerade as an EEG entrainment response | Rev 3 schematic; hub thermal budget; EMI bench (with EMF-1) |
+| OI-HUB-C15 | **Merge this document with BOTH `NP-HW-HEXTILE-001` Rev 1 and `NP-DRV-SHELL-002` Rev 1** per the three-way banner at the head of this file. Adopt SHELL-002 §7.1 as the interface contract (done, §7.4). §6's fate follows OI-HUB-C17: deleted if HEXTILE D-4 wins, relocated to the cluster carrier if SHELL-002 wins — it does not stay on the Hub PCB either way. Rewrite §5.2 to the two-level UID-addressed tree; drop the cluster-MCU LED-drive rationale in §3.2; recost §8. Retain §2, §4.2–4.5.2, §7.2–7.4, §9.5, §10 | Rev 3 baselining — §7.4 unblocked (§7.5.7); §6's fate blocked on OI-HUB-C17 |
 | OI-HUB-C16 | **CLOSED 2026-07-30 by `NP-DRV-SHELL-002` network N4** — a per-cluster low-leakage analog mux onto N shared guarded lanes, terminating at an **ADS1299 bank at the posterior aggregation node** (not the Hub PCB), sized by channel count (8 T1 / 21 T2) rather than socket count. That is the crosspoint this item proposed, and it is the surviving justification for the cluster tier. Residual — contact resistance and leakage on a µV path through a pogo contact plus a mux, and tES current rating through the same switch — sits with SHELL-002, not here | Closed |
 | ~~OI-HUB-C14~~ | **✅ CLOSED 2026-07-29 — firmware lobe path retired.** Removed `NP_GROUP_KIND_LOBE`, the `lobe`/`side` query fields, `np_pgroup_t`, `np_module_map_predefined()`, and `lobe_side_matches()`. **The open decision resolved: BOTH `np_socket_geom_t` and `np_physical_loc_t` lose `lobe`/`side`** — `np_physical_loc_t.lobe/side` had zero production readers (only three test assertions), and retaining an ungenerated anatomical store is the hazard itself, not just the query kind that read it. `x_mm`/`y_mm` retained for simulator selection. Anatomical labelling has no home in code at all — **ZONE-1** deleted the lobe derivation from `sync-socket-map.ts` and the `lobe` field from `socketMap.generated.ts`, and names this firmware removal as its firmware share; a socket is "frontal" only insofar as a human authored it into a zone named that way in `00-zones.npps`. Lobe-path resolver-property tests re-expressed over `NP_GROUP_KIND_SOCKET_SET`; inclusive-midline authoring rule relocated to `00-zones.npps`. 18/18 ctest green; map checks 145 → 147. Full rationale at §4.5.2 | — (closed) |
 | OI-HUB-C10 | `scripts/sync-socket-map.ts` to emit the `socket_id → (cluster_id, channel)` table alongside existing artifacts so it cannot drift from the lattice (§4.2) | Generated artifacts |
-| OI-HUB-C11 | Hub 3.3 V and cluster-rail current budget at 16 clusters (supersedes Rev B's OI-HUB-01, which sized 5 × 50 mA smart modules) | Pre-prototype |
+| OI-HUB-C11 | Hub 3.3 V and cluster-rail current budget at 16 clusters (supersedes Rev 2's OI-HUB-01, which sized 5 × 50 mA smart modules) | Pre-prototype |
 | OI-HUB-C12 | Cluster-bus EMI qualification: confirm differential signalling + bus-quiet window keeps EEG noise floor within budget (§5.1) | EMF-1; EEG noise floor |
 
 **Rev B's open items OI-HUB-01…05 are closed as moot** — all five concern the retired 5-slot hardware
-(3.3 V budget for 5 modules, DG2788A-to-TIA trace length, Rev B Gerber release, `GPIO_B0_04..08`
+(3.3 V budget for 5 modules, DG2788A-to-TIA trace length, Rev 2 Gerber release, `GPIO_B0_04..08`
 IOMUX, the optional 500 mA LDO). OI-HUB-C11 is the surviving successor to OI-HUB-01.
 **OI-PBM-HW-01 and OI-PBM-HW-02 remain closed** — the gain switch and I2C isolation are still
 specified, now at §6 and §5 respectively.
@@ -1454,23 +1454,23 @@ specified, now at §6 and §5 respectively.
 
 ---
 
-# Appendix A — Rev B (RETIRED 2026-07-28), archived
+# Appendix A — Rev 2 (RETIRED 2026-07-28), archived
 
 > **This appendix is history, retained per program convention. Do NOT use it for new design work.**
-> It is the complete text of NP-HW-HUB-001 Rev B (BASELINED 2026-05-13), which sized the TIA
+> It is the complete text of NP-HW-HUB-001 Rev 2 (BASELINED 2026-05-13), which sized the TIA
 > gain-switch and I2C isolation hardware for exactly five zone slots. It was superseded on
 > 2026-07-28 by SMART-1 (`NP-HEX-ZM-001` §4a/§7) and is replaced by §§1–12 above.
 >
 > **Why it is kept:** §2's TIA saturation analysis and §3.1–3.3's DG2788A switching topology are
-> still the governing component-level engineering, carried forward unchanged into Rev C §6 (see
-> Rev C §3.4). §7's BOM is the baseline the Rev C delta in §8.2 is measured against.
+> still the governing component-level engineering, carried forward unchanged into Rev 3 §6 (see
+> Rev 3 §3.4). §7's BOM is the baseline the Rev 3 delta in §8.2 is measured against.
 >
 > **Rev B open items OI-HUB-01…05 are closed as moot** (Rev C §11). Its GPIO assignment (§3.4),
 > slot-indexed I2C mux plan (§4.2), and 5-slot supply budget (§6) are retired outright.
 
 ## A.1 Scope *(Rev B §1)*
 
-This document specifies the Rev B changes to the NeurOne hub PCB required to support the 1064nm smart zone module accessory (NP-FPC-ZM-SM-01). All changes are additive; the base hub PCB architecture is unchanged.
+This document specifies the Rev 2 changes to the NeurOne hub PCB required to support the 1064nm smart zone module accessory (NP-FPC-ZM-SM-01). All changes are additive; the base hub PCB architecture is unchanged.
 
 **Rev B adds:**
 1. **Five Vishay DG2788A analog switches** — one per zone slot — switching the TIA feedback resistor Rf from 47 kΩ (base module / no module: silicon PD responsivity) to 22 kΩ (smart module: InGaAs PD, 2× higher responsivity). This is **OI-PBM-HW-01**, the blocking item for FAI-SM-04 and FAI-SM-06.
@@ -1482,7 +1482,7 @@ This document specifies the Rev B changes to the NeurOne hub PCB required to sup
 
 The hub PCB TIA front-end for PD1/PD2 dose-metering ADC channels was sized for the base module silicon photodiodes at 808 nm (responsivity ≈ 0.47 A/W). The smart module carries Hamamatsu G12180-010A InGaAs photodiodes with responsivity ≈ 0.90 A/W at 1064 nm — approximately **2× higher**.
 
-**TIA saturation analysis (from NP-HW-FPC-001 Rev E §5.3):**
+**TIA saturation analysis (from NP-HW-FPC-001 Rev 5 §5.3):**
 
 | Condition | PD current | Rf = 47 kΩ (Rev A) | Rf = 22 kΩ (Rev B) |
 |-----------|-----------|---------------------|---------------------|
@@ -1547,7 +1547,7 @@ The DG2788A COM pin is the op-amp feedback node. NO = 47 kΩ to op-amp output. N
 | Base/absent (GAIN_SEL = LOW) | Rf_A | 47 kΩ | 47.0 kΩ (standard E24, 1%) |
 | Smart module (GAIN_SEL = HIGH) | Rf_B | 22 kΩ | 22.1 kΩ (standard E24, 1%) |
 
-Both resistors: 1%, 0402, low-temperature-coefficient (≤ 50 ppm/°C). Matched per slot to ≤ 0.5% between PD1 and PD2 TIA channels on the same slot to preserve PD1/PD2 ratio accuracy. *(Rev C note: this matching requirement is removed — the shared TIA makes the error common-mode. See Rev C §6.4.)*
+Both resistors: 1%, 0402, low-temperature-coefficient (≤ 50 ppm/°C). Matched per slot to ≤ 0.5% between PD1 and PD2 TIA channels on the same slot to preserve PD1/PD2 ratio accuracy. *(Rev C note: this matching requirement is removed — the shared TIA makes the error common-mode. See Rev 3 §6.4.)*
 
 ### A.3.3 One DG2788A per Slot, Section Assignment *(§3.3)*
 
@@ -1574,11 +1574,11 @@ GPIO pins are i.MX RT1062 GPIO2 bank (GPIO_B0_xx). Configured as push-pull outpu
 
 ### A.3.5 TIA Op-Amp Selection Notes *(§3.5)*
 
-The existing hub TIA op-amp must support stable operation across the full Rf range (22 kΩ to 47 kΩ) at the LPADC1 input bandwidth (≤ 100 Hz dose metering). The DG2788A RON ≤ 2.5 Ω adds negligible noise and offset at these values. No change to op-amp selection is required for Rev B; verify GBW and input bias current remain acceptable with Rf = 22 kΩ (verify output swing margin at maximum InGaAs PD current: 72 µA × 22 kΩ = 1.58 V < 3.0 V output swing limit for 3.3 V single-supply).
+The existing hub TIA op-amp must support stable operation across the full Rf range (22 kΩ to 47 kΩ) at the LPADC1 input bandwidth (≤ 100 Hz dose metering). The DG2788A RON ≤ 2.5 Ω adds negligible noise and offset at these values. No change to op-amp selection is required for Rev 2; verify GBW and input bias current remain acceptable with Rf = 22 kΩ (verify output swing margin at maximum InGaAs PD current: 72 µA × 22 kΩ = 1.58 V < 3.0 V output swing limit for 3.3 V single-supply).
 
 ## A.4 I2C Bus Isolation — NXP PCA9546A (OI-PBM-HW-02) *(Rev B §4 — RETIRED)*
 
-### A.4.1 Problem Statement *(§4.1 — the collision itself is still real; see Rev C §5)*
+### A.4.1 Problem Statement *(§4.1 — the collision itself is still real; see Rev 3 §5)*
 
 All smart zone modules implement I2C address 0x30 (factory-programmed into ATtiny402, not field-configurable). Up to five smart modules can be inserted simultaneously. A single shared I2C bus would result in address collisions: all five ATtiny402 ICs would respond simultaneously, corrupting bus arbitration.
 
@@ -1640,7 +1640,7 @@ The sequence between ZONE_ID ADC detection and TIA gain switch assertion is **sa
 
 **Rationale for ordering gain switch before I2C mux:** The ATtiny402 on the module powers up when VCC_3V3 (pin 12) is available. VCC_3V3 on the hub PCB is always live when the hub is powered; the InGaAs PD is therefore powered as soon as the module is physically connected. Although PBM LEDs are not enabled until after I2C session start, ambient light can produce non-trivial PD current. The TIA gain must be at Rf = 22 kΩ before any valid PD ADC readings are taken.
 
-*(Rev C note: the hazard this sequencing prevents — sampling a saturated TIA — is eliminated structurally rather than by sequencing. Gain is set per sample from live UID inventory immediately before the conversion, so there is no window in which a stale gain can be applied. See Rev C §6.3.)*
+*(Rev C note: the hazard this sequencing prevents — sampling a saturated TIA — is eliminated structurally rather than by sequencing. Gain is set per sample from live UID inventory immediately before the conversion, so there is no window in which a stale gain can be applied. See Rev 3 §6.3.)*
 
 ### A.5.2 Required Ordering (Smart Module Removal)
 
@@ -1669,7 +1669,7 @@ This function must execute before `np_pbm1064_detect_init()` is called. See `np_
 
 ### A.6.1 Smart Module VCC_3V3 Load
 
-Each smart module draws ≤ 50 mA on VCC_3V3 (pin 12): ATtiny402 quiescent + IRLML6344 gate drive. This is specified in NP-HW-FPC-001 Rev E §3.1.
+Each smart module draws ≤ 50 mA on VCC_3V3 (pin 12): ATtiny402 quiescent + IRLML6344 gate drive. This is specified in NP-HW-FPC-001 Rev 5 §3.1.
 
 **Maximum simultaneous smart module draw:**
 
@@ -1694,7 +1694,7 @@ Hub PCB 3.3 V rail is generated by an LDO or switching regulator supplying hub p
 
 No significant contribution to 3.3 V budget from gain switch ICs.
 
-## A.7 BOM Delta — Hub PCB Rev B *(Rev B §7 — baseline for the Rev C delta in §8.2)*
+## A.7 BOM Delta — Hub PCB Rev B *(Rev B §7 — baseline for the Rev 3 delta in §8.2)*
 
 | Component | Qty | Unit cost | Total |
 |-----------|-----|-----------|-------|
@@ -1706,7 +1706,7 @@ No significant contribution to 3.3 V budget from gain switch ICs.
 | Optional: 500 mA LDO for smart module VCC_3V3 (if needed) | 1 | $0.30–0.50 | $0.30–0.50 |
 | **Hub PCB Rev B total BOM delta** | | | **$1.41–1.91 (+ optional LDO)** |
 
-## A.8 PCB Layout Notes *(Rev B §8 — retired as written; the principles carry to the cluster board, Rev C HUB-DRC-C15)*
+## A.8 PCB Layout Notes *(Rev B §8 — retired as written; the principles carry to the cluster board, Rev 3 HUB-DRC-C15)*
 
 1. **DG2788A placement:** Mount adjacent to the TIA op-amp for each slot. Keep switched feedback traces (Rf_A and Rf_B paths) as short as possible (< 5 mm) to minimise parasitic capacitance on the high-impedance feedback node.
 2. **Rf_A / Rf_B resistors:** Place both resistors on the same PCB face as the DG2788A. Use 0402 with consistent copper pour treatment to minimise stray capacitance difference between the two paths.
@@ -1714,9 +1714,9 @@ No significant contribution to 3.3 V budget from gain switch ICs.
 4. **PCA9546A placement:** Central hub PCB location; I2C bus segment from PCA9546A to each Hirose ZIF connector. Minimise bus segment length per channel to control capacitance (< 100 pF per segment recommended for 400 kHz fast-mode).
 5. **Ground plane:** Ensure continuous ground plane beneath TIA and DG2788A circuits. No splits near feedback resistors.
 
-## A.9 Firmware Implications *(Rev B §9 — superseded by Rev C §9)*
+## A.9 Firmware Implications *(Rev B §9 — superseded by Rev 3 §9)*
 
-The firmware changes required by this hardware revision are specified in NP-FW-PBM1064-001 Rev A (amended by Issue #62):
+The firmware changes required by this hardware revision are specified in NP-FW-PBM1064-001 Rev 1 (amended by Issue #62):
 
 1. **New HAL function:** `np_pbm1064_hal_tia_gain_set(slot, gain)` — asserts or deasserts `GAIN_SEL[n]` GPIO. Stub provided; platform team implements with actual GPIO_B0 register writes.
 2. **New HAL function:** `np_pbm1064_hal_tia_gain_boot_init()` — configures all 5 GAIN_SEL pins as output LOW at boot. Called before zone detection task.
@@ -1724,21 +1724,21 @@ The firmware changes required by this hardware revision are specified in NP-FW-P
 4. **Removal sequence change:** `np_pbm1064_detect.c` calls `np_pbm1064_hal_tia_gain_set(slot, NP_TIA_GAIN_HIGH)` after I2C mux disable on smart module removal.
 5. **Per-slot gain state:** `np_sm_slot_ctx_t` tracks current TIA gain setting for SHDR logging and diagnostic purposes.
 
-See `firmware/pbm_1064nm/` for implementation. FAI-SM-04 (three-channel bench verification) and FAI-SM-06 (InGaAs dose metering accuracy) require hardware Rev B PCB with DG2788A populated to pass.
+See `firmware/pbm_1064nm/` for implementation. FAI-SM-04 (three-channel bench verification) and FAI-SM-06 (InGaAs dose metering accuracy) require hardware Rev 2 PCB with DG2788A populated to pass.
 
-## A.10 Open Items *(Rev B §10 — ALL CLOSED AS MOOT, Rev C §11)*
+## A.10 Open Items *(Rev B §10 — ALL CLOSED AS MOOT, Rev 3 §11)*
 
-| ID | Description | Blocking | Rev C disposition |
+| ID | Description | Blocking | Rev 3 disposition |
 |----|-------------|---------|---|
 | OI-HUB-01 | Hub PCB designer to verify 3.3 V regulator budget ≥ 500 mA headroom above existing peripherals (§A.6.2). Add dedicated LDO if insufficient. | Pre-prototype | Moot — superseded by **OI-HUB-C11** (16-cluster budget) |
 | OI-HUB-02 | Hub PCB layout DRC: Rf feedback trace length < 5 mm from DG2788A to TIA op-amp (§A.8). Sign-off required before Gerber release. | Pre-prototype | Moot — no DG2788A on hub PCB; principle carried to **HUB-DRC-C15** |
-| OI-HUB-03 | Hub PCB Gerber release for Rev B (includes DG2788A footprint × 5, PCA9546A footprint, pull-up resistors, Rf pairs). | FAI-SM-04/06 bench build | Moot — Rev B Gerber never to be released |
+| OI-HUB-03 | Hub PCB Gerber release for Rev 2 (includes DG2788A footprint × 5, PCA9546A footprint, pull-up resistors, Rf pairs). | FAI-SM-04/06 bench build | Moot — Rev 2 Gerber never to be released |
 | OI-HUB-04 | GPIO_B0_04..08 IOMUX configuration verified in i.MX RT1062 board support package (BSP) before bring-up. | Pre-prototype | Moot — no `GAIN_SEL` nets exist (**HUB-DRC-C09**) |
 | OI-HUB-05 | Optional 500 mA LDO: decision pending 3.3 V regulator current audit (OI-HUB-01). | Pre-prototype | Moot — folded into **OI-HUB-C11** |
 
-**OI-PBM-HW-01 is CLOSED (SPECIFIED)** — hardware design specified in this document. OI-PBM-HW-02 is CLOSED (SPECIFIED) by §A.4. *(Both remain closed under Rev C, now specified at Rev C §6 and §5 respectively.)*
+**OI-PBM-HW-01 is CLOSED (SPECIFIED)** — hardware design specified in this document. OI-PBM-HW-02 is CLOSED (SPECIFIED) by §A.4. *(Both remain closed under Rev 3, now specified at Rev 3 §6 and §5 respectively.)*
 
-## A.11 Design Review Checklist *(Rev B §11 — superseded by Rev C §12)*
+## A.11 Design Review Checklist *(Rev B §11 — superseded by Rev 3 §12)*
 
 | Item | Description | Status at supersession |
 |------|-------------|--------|
@@ -1748,7 +1748,7 @@ See `firmware/pbm_1064nm/` for implementation. FAI-SM-04 (three-channel bench ve
 | HUB-DRC-04 | DG2788A RON ≤ 2.5 Ω impact on TIA offset quantified | ✓ (§A.3.5) — 2.5 Ω << Rf; negligible |
 | HUB-DRC-05 | PCA9546A I2C address non-conflicting with other hub I2C peripherals | Open — hub I2C address map audit |
 | HUB-DRC-06 | 3.3 V supply budget (5× smart modules = 250 mA) verified | Open — OI-HUB-01 |
-| HUB-DRC-07 | Gain switch assert before I2C mux enable sequencing confirmed in firmware | ✓ (§A.5.1; firmware/pbm_1064nm/src/np_pbm1064_detect.c Rev B) |
+| HUB-DRC-07 | Gain switch assert before I2C mux enable sequencing confirmed in firmware | ✓ (§A.5.1; firmware/pbm_1064nm/src/np_pbm1064_detect.c Rev 2) |
 | HUB-DRC-08 | Boot init function configures GAIN_SEL[0..4] LOW before zone detect task | ✓ (§A.5.3; np_pbm1064_hal_tia_gain_boot_init) |
 | HUB-DRC-09 | Feedback trace length ≤ 5 mm from DG2788A to TIA op-amp | Open — layout DRC (OI-HUB-02) |
 | HUB-DRC-10 | PCA9546A channel enable/disable firmware tested with 5-module simultaneous scenario | Open — FAI-SM-04 bench |

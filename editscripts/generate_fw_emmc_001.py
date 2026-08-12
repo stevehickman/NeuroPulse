@@ -1,5 +1,5 @@
 """
-Generate NP-FW-EMMC-001 Rev A
+Generate NP-FW-EMMC-001 Rev 1
 eMMC Partition Architecture and Storage Encryption Specification
 Addresses CLAUDE.md §13.4 pending decisions:
   - eMMC partition architecture + separate UHDR/SHDR encryption (before any storage code)
@@ -45,10 +45,10 @@ subtitle.runs[0].bold = True
 subtitle.runs[0].font.size = Pt(13)
 
 doc.add_paragraph(
-    'NP-FW-EMMC-001  Rev A  |  2026-05-11  |  Pre-Storage-Code Baseline'
+    'NP-FW-EMMC-001  Rev 1  |  2026-05-11  |  Pre-Storage-Code Baseline'
 ).style = doc.styles['Normal']
 doc.add_paragraph(
-    'References: CLAUDE.md §4.1 · §5.1 · §5.3 · §7.1 · §7.2  ·  NP-COORD-001 Rev A.3'
+    'References: CLAUDE.md §4.1 · §5.1 · §5.3 · §7.1 · §7.2  ·  NP-COORD-001 Rev 1.3'
 ).style = doc.styles['Normal']
 doc.add_paragraph(
     'Addresses CLAUDE.md §13.4 pending decisions: (1) eMMC partition architecture + '
@@ -84,8 +84,8 @@ refs = [
     ('CLAUDE.md §5.2', 'Predictive maintenance via SHDR fleet telemetry; write endurance monitoring'),
     ('CLAUDE.md §5.3', 'Research data anonymization architecture: on-device, per-study, fresh per request; NeurOne never holds raw UHDR'),
     ('CLAUDE.md §7.1', 'Industrial eMMC + LittleFS locked design change; dual-bank OTA bootloader must be in bootloader from first firmware line'),
-    ('NP-COORD-001 Rev A.3', 'Engineering coordination checklist; gate structure; summary status dashboard'),
-    ('NP-FW-REQ-001 Rev A', 'Zone module firmware requirements; ZONE_ID debounce; SHDR FAULT event logging format'),
+    ('NP-COORD-001 Rev 1.3', 'Engineering coordination checklist; gate structure; summary status dashboard'),
+    ('NP-FW-REQ-001 Rev 1', 'Zone module firmware requirements; ZONE_ID debounce; SHDR FAULT event logging format'),
     ('IEEE 1619-2007', 'XTS-AES mode for storage encryption (sector-level, no ciphertext expansion)'),
     ('RFC 9106', 'Argon2id — memory-hard key derivation function for UHDR key (resists GPU brute-force of biometric/PIN inputs)'),
     ('RFC 5869', 'HKDF — HMAC-based key derivation for SHDR device manufacturing key'),
@@ -870,12 +870,12 @@ for cell, hdr in zip(t12.rows[0].cells, ['Reference', 'Item', 'Status']):
     for run in cell.paragraphs[0].runs:
         run.bold = True
 xrefs = [
-    ('CLAUDE.md §13.4 pending decision', 'eMMC partition architecture + separate UHDR/SHDR encryption in firmware specification before any storage code is written', 'CLOSED — this document (NP-FW-EMMC-001 Rev A)'),
+    ('CLAUDE.md §13.4 pending decision', 'eMMC partition architecture + separate UHDR/SHDR encryption in firmware specification before any storage code is written', 'CLOSED — this document (NP-FW-EMMC-001 Rev 1)'),
     ('CLAUDE.md §13.4 pending decision', 'Dual-bank OTA bootloader (must be from first firmware line)', 'CLOSED — this document §8.1–§8.4'),
     ('CLAUDE.md §4.1', 'LittleFS filesystem; firmware partition write-protected; separate UHDR/SHDR partitions from first firmware line', 'ADDRESSED — §5 (LittleFS), §8.2 (write protection), §4.3 (separation)'),
     ('CLAUDE.md §5.1', 'UHDR AES-256 biometric-derived key; NeurOne does not hold decryption key; SHDR separate encryption', 'ADDRESSED — §6 (UHDR key), §7 (SHDR key)'),
     ('CLAUDE.md §5.3', 'Research anonymization on-device, per-study, fresh per request', 'ADDRESSED — §15'),
-    ('NP-FW-REQ-001 Rev A §3.6', 'FW-APP-02: ZONE_ID FAULT events logged to SHDR with zone ID, fault type, ADC values, session count', 'CONSISTENT — SHDR /faults/ directory defined in §7.4; session count (not timestamp) as time reference'),
+    ('NP-FW-REQ-001 Rev 1 §3.6', 'FW-APP-02: ZONE_ID FAULT events logged to SHDR with zone ID, fault type, ADC values, session count', 'CONSISTENT — SHDR /faults/ directory defined in §7.4; session count (not timestamp) as time reference'),
     ('CLAUDE.md §13.4 pending decision', 'eMMC partition architecture in firmware specification', 'CLOSED — ALSO closes the dual-bank OTA bootloader pending decision simultaneously'),
 ]
 for row_data in xrefs:

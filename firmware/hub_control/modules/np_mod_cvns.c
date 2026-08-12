@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — Cervical VNS (T2) Module Driver
- * Document: NP-FW-HUB-001 Rev A §8.8, NP-FW-CVNS-001 Rev A
+ * Document: NP-FW-HUB-001 Rev 1 §8.8, NP-FW-CVNS-001 Rev 1
  *
  * Hub ↔ library integration layer for the cervical VNS (tcVNS) T2 accessory.
  * This driver is the ONLY glue between the hub's module framework

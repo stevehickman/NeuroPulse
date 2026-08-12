@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control — PBM Zone Module Driver (Base + Smart)
- * Document: NP-FW-HUB-001 Rev A §8.1
+ * Document: NP-FW-HUB-001 Rev 1 §8.1
  *
  * Handles both base modules (660nm + 808nm, direct PWM) and smart modules
  * (+1064nm, ATtiny402 I2C slave).  Module type is determined by the registry
@@ -151,7 +151,7 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
             (void)np_mod_pbm_hal_pwm_set(slot, 0U, 0U, 0U, 0U);
         }
         s_state[slot].active = false;
-        /* One cranial enable bit for the whole lattice (NP-HW-HUB-001 Rev C
+        /* One cranial enable bit for the whole lattice (NP-HW-HUB-001 Rev 3
          * §7.2) — there is no per-slot bit left to shift into.  Disable is
          * unconditionally safe, so dropping the whole cranial gate when any
          * cranial emitter stops is the conservative behaviour; re-enable comes

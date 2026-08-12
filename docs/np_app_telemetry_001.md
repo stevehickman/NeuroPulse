@@ -2,20 +2,20 @@
 
 **Project:** NeurOne
 **Document:** NP-APP-TELEMETRY-001
-**Revision:** B
+**Revision:** 2
 **Date:** 2026-06-03
 **Status:** ACTIVE
 **Effective Date:** 2026-06-03
 **Author:** Quality Lead (interim: Steve Hickman, CEO)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-PRIV-REM-001 STEP-09; NP-APP-ROADMAP-001 Rev A; FTC HBNR 16 CFR Part 318; GDPR Art. 7, 25; Apple App Store Review Guidelines §5.1; Apple Privacy Manifest requirements (Spring 2024)
+**References:** NP-PRIV-REM-001 STEP-09; NP-APP-ROADMAP-001 Rev 1; FTC HBNR 16 CFR Part 318; GDPR Art. 7, 25; Apple App Store Review Guidelines §5.1; Apple Privacy Manifest requirements (Spring 2024)
 **Related Issues:** —
 **Gate:** —
 **IEC 62304 Class:** —
 **Applicable Standard:** FTC HBNR 16 CFR Part 318; GDPR Art. 7, 25; Apple App Store Review Guidelines §5.1
 **Next Review:** Annual; also triggered by any analytics vendor change or new SDK addition
 **Jurisdiction Scope:** US federal (FTC Act §5, FTC HBNR), US state (WA MHMD), EU/EEA GDPR, Apple/Google platform policies
-**Change Summary:** `session_sequence` (unsigned integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev B finding LOW-03. Rationale: raw session count is health-adjacent behavioural data under Washington MHMD and GDPR Art. 9 by inference. §3.2 added with implementation requirements. NP-PRIV-REM-001 Rev B STEP-33 cross-reference added.
+**Change Summary:** `session_sequence` (unsigned integer) replaced with `engagement_tier` (coarsened 3-bucket enum) per NP-PRIV-001 Rev 2 finding LOW-03. Rationale: raw session count is health-adjacent behavioural data under Washington MHMD and GDPR Art. 9 by inference. §3.2 added with implementation requirements. NP-PRIV-REM-001 Rev 2 STEP-33 cross-reference added.
 
 ---
 
@@ -100,7 +100,7 @@ Screen names must be coarsened to remove health context. The following mapping i
 
 ### 3.2 engagement_tier implementation note
 
-The `engagement_tier` property replaces the raw `session_sequence` counter removed in NP-PRIV-001 Rev B (2026-06-02). Rationale: a raw session count (e.g. `session_sequence = 450`) tells an analytics vendor that a user has launched a neuromodulation app 450 times — health-adjacent behavioural data under Washington MHMD RCW 70.372.010 and inferrable health data under GDPR Art. 9. The coarsened bucket delivers the same product analytics signal (new user retention, habit formation, established user cohort sizing) without exposing usage intensity.
+The `engagement_tier` property replaces the raw `session_sequence` counter removed in NP-PRIV-001 Rev 2 (2026-06-02). Rationale: a raw session count (e.g. `session_sequence = 450`) tells an analytics vendor that a user has launched a neuromodulation app 450 times — health-adjacent behavioural data under Washington MHMD RCW 70.372.010 and inferrable health data under GDPR Art. 9. The coarsened bucket delivers the same product analytics signal (new user retention, habit formation, established user cohort sizing) without exposing usage intensity.
 
 Implementation requirements:
 - The local counter is stored in `UserDefaults` (iOS) / `SharedPreferences` (Android) under the key `NP_APP_LAUNCH_COUNT`
@@ -194,7 +194,7 @@ The crash reporter must be configured with the following settings before the fir
 1. Intentionally trigger a crash in the app on a device running a debug session.
 2. Confirm the crash report received by the vendor contains: stack trace, OS version, app version, device class.
 3. Confirm the crash report does not contain: any text from the session screen, any network request body, any variable value, any screenshot, any user identifier.
-4. Document this verification with a screenshot of the vendor's crash report UI in NP-APP-ROADMAP-001 Rev B (OI-TEL-01).
+4. Document this verification with a screenshot of the vendor's crash report UI in NP-APP-ROADMAP-001 Rev 2 (OI-TEL-01).
 
 ---
 
@@ -226,4 +226,4 @@ This document must be reviewed annually (first review: June 2027) and updated if
 - A regulatory change affects the health app analytics obligations (FTC guidance, state law)
 - The annual app telemetry audit (NP-PRIV-AUDIT-001) identifies a gap
 
-Review is conducted by: Privacy Lead (interim: CEO) + iOS/Android engineering leads. Output: NP-APP-TELEMETRY-001 Rev B (or higher) with change log.
+Review is conducted by: Privacy Lead (interim: CEO) + iOS/Android engineering leads. Output: NP-APP-TELEMETRY-001 Rev 2 (or higher) with change log.

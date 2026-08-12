@@ -1,6 +1,6 @@
 # NeurOne sLORETA-guided HD-tDCS — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
-# Document: NP-FW-HD-001 Rev A
+# Document: NP-FW-HD-001 Rev 1
 #
 # Static library linked into the main application.  Does NOT produce a
 # standalone binary.

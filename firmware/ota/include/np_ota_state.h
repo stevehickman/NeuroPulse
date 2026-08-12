@@ -1,6 +1,6 @@
 /*
  * NeurOne OTA — State structure, CRC validation, and boot-attempt logic.
- * Document: NP-FW-EMMC-001 Rev A §8.3 (dual-bank OTA state record)
+ * Document: NP-FW-EMMC-001 Rev 1 §8.3 (dual-bank OTA state record)
  *
  * This module is host-testable (no hardware dependencies).
  * The state record is persisted to the Config partition by np_ota_stage_swap()

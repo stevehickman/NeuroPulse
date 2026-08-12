@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-QMS-CAPA-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-05-13
 **Status:** ACTIVE
 **Effective Date:** 2026-05-13
@@ -171,7 +171,7 @@ Based on the root cause, actions shall be defined:
 - Procedure update → revise and re-approve the affected QMS procedure
 - Supplier action → issue formal supplier corrective action request (SCAR)
 - Training → document training requirement and completion
-- Risk register update → update NP-RISK-001 per NP-RM-001 §8.2
+- Risk register update → update the per-artifact register (NP-RISK-003 or NP-RISK-004; index in NP-RISK-002) per NP-RM-001 §8.2. NP-RISK-001 is superseded and must not be edited.
 
 **Preventive actions** (address the root cause of a potential non-conformance):
 - Design review trigger → add item to design review checklist
@@ -285,4 +285,4 @@ CAPA records are confidential quality records and are not routinely shared exter
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
-| A | 2026-05-13 | Interim Quality (CEO) | Initial release. CAPA procedure established at QMS formation. |
+| 1 | 2026-05-13 | Interim Quality (CEO) | Initial release. CAPA procedure established at QMS formation. |

@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-SEC-BR-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-06-02
 **Status:** ACTIVE
 **Effective Date:** 2026-06-02
 **Author:** Quality Lead (interim: Steve Hickman, CEO)
 **Approved By:** Steve Hickman, CEO
-**References:** HIPAA 45 CFR §§164.400–414; FTC HBNR 16 CFR Part 318; GDPR Art. 33–34; NP-PRIV-REM-001 §4.5–4.8; NP-QMS-CAPA-001 Rev A
+**References:** HIPAA 45 CFR §§164.400–414; FTC HBNR 16 CFR Part 318; GDPR Art. 33–34; NP-PRIV-REM-001 §4.5–4.8; NP-QMS-CAPA-001 Rev 1
 **Related Issues:** —
 **Gate:** —
 **IEC 62304 Class:** —
@@ -293,7 +293,7 @@ The following states have the most restrictive timelines and/or the highest popu
 Within 14 days of incident closure (or as soon as containment is confirmed if sooner):
 
 1. Conduct post-mortem: timeline of events, root cause, containment effectiveness, notification timeline compliance.
-2. Identify systemic causes and initiate CAPA per NP-QMS-CAPA-001 Rev A.
+2. Identify systemic causes and initiate CAPA per NP-QMS-CAPA-001 Rev 1.
 3. Update NP-PRIV-REM-001 if the incident reveals a gap not already addressed in the remediation calendar.
 4. Update this document (NP-SEC-BR-001) if detection signals, escalation chain, or templates require revision.
 5. Document post-mortem record in DHF.

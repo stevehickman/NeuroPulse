@@ -8,7 +8,7 @@ from docx.shared import Pt, RGBColor, Inches
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
 doc = Document(RISK_PATH)
 
 def set_bg(cell, hex_color):

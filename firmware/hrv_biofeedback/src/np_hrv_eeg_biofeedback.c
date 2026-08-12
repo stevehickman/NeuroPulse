@@ -1,6 +1,6 @@
 /*
  * NeurOne HRV Biofeedback — Dual EEG + HRV Biofeedback
- * Document: NP-FW-HRV-001 Rev A §9
+ * Document: NP-FW-HRV-001 Rev 1 §9
  *
  * Welch periodogram for EEG band power reuses the same radix-2 DIT FFT
  * structure as the HRV coherence module but operates on NP_EEG_FFT_SIZE

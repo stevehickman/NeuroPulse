@@ -146,7 +146,7 @@ bench.
 - [ ] ISC-93.1: Anti: **no pendant petal** — no cluster contains a petal whose only in-cluster contact is the centre. Such a petal forces the §5.4a clamp plate onto a ~40 mm cantilever arm necked to ≤23.09 mm (one hex edge) through a corridor between two foreign, independently-clamped modules, following 2.33 mm of dome. Consequences it must prevent: that plunger under-seats (defeating ISC-69's "individual, controlled force"), a re-entrant notch sits on the sole load path, and withdrawal has a snag path whose failure modes are breaking the arm or levering a neighbouring module out of its socket. *Probe:* for every non-centre member of every cluster, at least one other in-cluster member is adjacent to it.
 - [ ] ISC-93.2: Anti: CONTIG-1 is not satisfied merely by minimising cluster count. *Probe:* a count-minimal partition is additionally checked against ISC-93/93.1 — the first computed 18-cluster partition was count-minimal and symmetric yet contained four pendant petals (sockets 27, 31, 77, 80).
 - [ ] ISC-94: The cluster count is **derived from the live lattice** under CLUSTER-1 + SYM-1 + CONTIG-1, never carried from another lattice generation. At the v1 80-socket lattice it is **18** (six forced midline clusters + six lateral mirror pairs), provably minimal. *Probe:* re-derive from `ROW_WIDTHS` on any REG-1 lattice re-cut or MECH-2 clamp-shape change; the derivation is NP-HW-HEXTILE-001 §8.2.1 and the partition is `docs/diagrams/np_hextile_cluster_map.svg`.
-- [ ] ISC-95: Anti: **no downstream quantity is sized off a cluster count from a different lattice generation.** Covers at minimum the safety-MCU VLED high-side switch count, I2C segment and pull-up counts, cluster-controller board count and tier BOM, and Hub PCB cluster-tail connector positions. *Probe:* each such figure cites the lattice it was derived against. (This is the criterion that would have caught NP-HW-HEXTILE-001 Rev A carrying the retired 30-socket lattice's "4–10 clusters" onto the 80-socket lattice.)
+- [ ] ISC-95: Anti: **no downstream quantity is sized off a cluster count from a different lattice generation.** Covers at minimum the safety-MCU VLED high-side switch count, I2C segment and pull-up counts, cluster-controller board count and tier BOM, and Hub PCB cluster-tail connector positions. *Probe:* each such figure cites the lattice it was derived against. (This is the criterion that would have caught NP-HW-HEXTILE-001 Rev 1 carrying the retired 30-socket lattice's "4–10 clusters" onto the 80-socket lattice.)
 - [ ] ISC-96: Cluster sizes stay within the I2C segment capacitance budget with margin. *Probe:* max cluster size ≤ 7 (CLUSTER-1 cap) against the ~10–19 modules-per-segment limit at 400 kHz; realized max is 6.
 
 ### Addressing + NVRAM map (firmware — DONE)
@@ -504,7 +504,7 @@ bench.
 - conjectured: a cluster count recorded in the parent brief could be reused
   downstream without re-deriving it.
   refuted_by: NP-HEX-ZM-001 §5.4a's "4–10 clusters" was a **30-socket-lattice**
-  figure; NP-HW-HEXTILE-001 Rev A carried it to the 80-socket lattice and sized the
+  figure; NP-HW-HEXTILE-001 Rev 1 carried it to the 80-socket lattice and sized the
   safety-MCU VLED switch count, the I2C pull-up count and the cluster-board BOM off
   it. Two further generations of the number (`ceil(n/8)` = 10, and 12) were live in
   peer documents simultaneously, none of them the answer under the standing

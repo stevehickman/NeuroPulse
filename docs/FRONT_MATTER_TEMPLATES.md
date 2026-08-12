@@ -17,7 +17,7 @@ All `.md` documents in `docs/` must use standardized front matter. The front mat
 
 **Project:** NeurOne
 **Document:** {NP-XXX-NNN}
-**Revision:** {A, B, C... or Rev A, Rev B...}
+**Revision:** {positive integer — 1, 2, 3...; first issue is 1}
 **Date:** {YYYY-MM-DD}
 **Status:** {DRAFT | ACTIVE | BASELINED | SUPERSEDED | ARCHIVED}
 **Effective Date:** {YYYY-MM-DD}
@@ -49,8 +49,8 @@ For: NP-FW-*, NP-HW-*, NP-TOOL-*, NP-PROC-*, NP-SES-* documents.
 Additional fields after base:
 
 ```
-**Supersedes:** {NP-XXX-NNN Rev X or "None"}
-**Parent Document:** {NP-XXX-NNN Rev X or "None"}
+**Supersedes:** {NP-XXX-NNN Rev 24 or "None"}
+**Parent Document:** {NP-XXX-NNN Rev 24 or "None"}
 ```
 
 ### 3. Plan / Roadmap
@@ -60,7 +60,7 @@ For: Design plan, remediation plan, app roadmap, coordination checklist.
 Additional fields after base:
 
 ```
-**Supersedes:** {NP-XXX-NNN Rev X or "None"}
+**Supersedes:** {NP-XXX-NNN Rev 24 or "None"}
 **Change Summary:** {Brief description of changes from previous revision}
 **Review Cadence:** {Minimum frequency of review and update}
 ```
@@ -120,8 +120,10 @@ No additional fields beyond base. Omit fields that are genuinely not applicable 
 ## Notes
 
 - When a field is not applicable, use "N/A" or "—" rather than omitting it, to maintain visual consistency.
-- `Revision` uses letter format (A, B, C...) for formal QMS documents. "Rev A" prefix is acceptable.
+- `Revision` is a **positive integer**; first issue is `1`. `NP-CONV-001` §4.1 is normative and carries the letter→integer mapping applied on 2026-08-11. The field holds the bare integer — write `**Revision:** 3`, not `**Revision:** Rev 3` — and carries no trailing whitespace.
+- **The revision appears in the `**Revision:**` field only** — never in the H1 title (rule 1 above) and never in the filename (`NP-CONV-001` §4.3).
+- Documents whose `Status` is `SUPERSEDED` live in `docs/superseded/` and keep the revision label they were written with; they are historical records and are not renumbered (`NP-CONV-001` §1.1).
 - `Date` is the date of the current revision, not the original creation date.
 - `Effective Date` may differ from `Date` for documents requiring approval before they take effect.
 - `Author` should include role in parentheses when the person is acting in an interim capacity.
-- `Change Summary` is omitted for Rev A documents (first issue).
+- `Change Summary` is omitted for Rev 1 documents (first issue).

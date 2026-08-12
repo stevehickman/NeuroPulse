@@ -1,6 +1,6 @@
 """
 Correct RISK-11, RISK-15, and RISK-17 in the zone module risk register
-(docs/neurone_fpc_zone_module_risks_revA.docx) for the hex-tile/socket
+(docs/superseded/neurone_fpc_zone_module_risks_revA.docx) for the hex-tile/socket
 architecture (NP-HEX-ZM-001), following PR #223's commits and the
 supersession-note convention it established for the markdown docs.
 
@@ -31,7 +31,7 @@ from docx.shared import Pt, RGBColor
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
 
 MARKER = "hex-tile/socket architecture (NP-HEX-ZM-001)"
 
@@ -83,7 +83,7 @@ def main():
         set_cell_text(row.cells[1], "MEDIUM\n(NEEDS REVIEW)", bold=True, color=(0xBF, 0x60, 0x00))
         set_cell_bg(row.cells[1], "FFF2CC")
         set_cell_text(row.cells[5],
-            "NEEDS REVIEW: the cited mitigation (NP-DRV-SHELL-001 Rev A/B — 5 fixed zone-slot FPC "
+            "NEEDS REVIEW: the cited mitigation (NP-DRV-SHELL-001 Rev 1/B — 5 fixed zone-slot FPC "
             "routing paths, REQ-BR-01..05) was scoped to the retired position-unique 5-slot zone "
             "module architecture, itself superseded by the hex-tile/socket architecture "
             "(NP-HEX-ZM-001, 2026-07-15). The ~80-socket interconnect that replaces it is real, "
@@ -134,7 +134,7 @@ def main():
             "which no longer exists as a hazard. The bone-conduction announcement firmware "
             "(NP-FW-ZA-001, tracked by NP-COORD-001 G2-10) is real shipped firmware built on the "
             "retired ZONE_ID mechanism and needs porting to UID-based detection, not new keying "
-            "hardware — see docs/np_fw_za_001.md.", size=9)
+            "hardware — see docs/superseded/np_fw_za_001.md.", size=9)
         set_cell_text(row.cells[8],
             "MITIGATED — risk eliminated by the hex-tile/socket architecture (NP-HEX-ZM-001); "
             "orientation key + software placement-check replace the retired 5-layer zone keying "

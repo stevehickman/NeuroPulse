@@ -1,4 +1,4 @@
-# NP-ENV-OPRANGE-001 Rev A — Per-Modality Operating-Range Working Spec
+# NP-ENV-OPRANGE-001 — Per-Modality Operating-Range Working Spec
 
 **Program:** NeurOne systems / thermal
 **Status:** DRAFT working spec (OI-ENV-04). All bounds are **first-pass provisional** — this doc exists

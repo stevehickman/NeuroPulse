@@ -98,7 +98,7 @@ def insert_xml_row_after(tbl, anchor_tr, data, widths_in, bold_col0=True):
 # ══════════════════════════════════════════════════════════════════════════════
 # 1.  NP-FAI-ZM-001
 # ══════════════════════════════════════════════════════════════════════════════
-FAI_PATH = "docs/neurone_fai_zone_module.docx"
+FAI_PATH = "docs/superseded/neurone_fai_zone_module.docx"
 fai = Document(FAI_PATH)
 
 # 1a. Fix FAI-M02 (peel force) and FAI-M03 (thermal cycles) in §3d table
@@ -431,7 +431,7 @@ print(f"  NP-COORD-001 saved")
 # ══════════════════════════════════════════════════════════════════════════════
 # 4.  Risk register — RISK-04 → MITIGATED
 # ══════════════════════════════════════════════════════════════════════════════
-RISK_PATH = "docs/neurone_fpc_zone_module_risks_revA.docx"
+RISK_PATH = "docs/superseded/neurone_fpc_zone_module_risks_revA.docx"
 risk = Document(RISK_PATH)
 
 for tbl in risk.tables:

@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — Ed25519 Firmware Signature Verification
- * Document: NP-FW-EMMC-001 Rev A §8.2 (Ed25519 + SHA-256 image integrity)
+ * Document: NP-FW-EMMC-001 Rev 1 §8.2 (Ed25519 + SHA-256 image integrity)
  *
  * All firmware images must be signed by the NeurOne manufacturing root key
  * before the bootloader will execute them.

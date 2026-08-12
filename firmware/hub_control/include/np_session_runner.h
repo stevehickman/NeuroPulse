@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Session Runner
- * Document: NP-FW-HUB-001 Rev A §5
+ * Document: NP-FW-HUB-001 Rev 1 §5
  *
  * Executes a parsed np_session_desc_t in real time.  Dispatches commands to
  * registered module control functions at their session-relative start times,

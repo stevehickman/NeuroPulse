@@ -1,6 +1,6 @@
 /*
  * NeurOne Hub Control Program — Closed-Loop Adaptation Event Log
- * Document: NP-FW-HUB-001 Rev B (STEP-33 of NP-PRIV-REM-001)
+ * Document: NP-FW-HUB-001 Rev 2 (STEP-33 of NP-PRIV-REM-001)
  *
  * Declares np_adapt_trigger_t and np_adaptation_event_t for logging every
  * closed-loop parameter adjustment to the UHDR partition.

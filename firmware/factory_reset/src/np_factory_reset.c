@@ -1,9 +1,9 @@
-/* Document: NP-FW-EMMC-002 Rev A §B */
+/* Document: NP-FW-EMMC-002 Rev 1 §B */
 /*
  * NeurOne Device Factory Reset — Implementation
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
  *
- * 12-step sequence R-1..R-12 per NP-FW-EMMC-002 Rev A §B.3.  See
+ * 12-step sequence R-1..R-12 per NP-FW-EMMC-002 Rev 1 §B.3.  See
  * np_factory_reset.h for the step list and the power-loss-resume contract.
  *
  * No heap.  All buffers are stack-allocated and zeroed with memset_explicit()

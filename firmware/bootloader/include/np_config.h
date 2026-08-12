@@ -1,7 +1,7 @@
 /*
  * NeurOne Bootloader — Hardware Configuration
  * Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
- * Document: NP-FW-EMMC-001 Rev A §8.1
+ * Document: NP-FW-EMMC-001 Rev 1 §8.1
  *
  * All eMMC partition offsets are LBA-addressed (512-byte sectors).
  * Partition layout matches the 9-partition GPT defined in the spec.
@@ -41,14 +41,14 @@
 #define NP_BOOT_MAX_ATTEMPTS    3U
 
 /* ── SNVS_LPGPR1 — factory reset in-progress flag ────────────────────────── */
-/* Set at factory-reset step R-3, cleared at R-11 (NP-FW-EMMC-002 Rev A §B).  */
+/* Set at factory-reset step R-3, cleared at R-11 (NP-FW-EMMC-002 Rev 1 §B).  */
 /* If set on boot, a reset was interrupted by power loss; re-run SANITIZE.    */
 #define NP_SNVS_LPGPR1          (*(volatile uint32_t *)(NP_SNVS_BASE + 0x6CU))
 #define NP_SNVS_RESET_IN_PROGRESS  (1UL << 0U)
 
 /* ── SNVS_LPGPR2 — anonymization in-progress flag ────────────────────────── */
 /* Set while the research anonymization pipeline holds an encrypted extract in */
-/* the Scratch partition (NP-FW-EMMC-002 Rev A §D).                           */
+/* the Scratch partition (NP-FW-EMMC-002 Rev 1 §D).                           */
 #define NP_SNVS_LPGPR2          (*(volatile uint32_t *)(NP_SNVS_BASE + 0x70U))
 #define NP_SNVS_ANON_IN_PROGRESS   (1UL << 0U)
 

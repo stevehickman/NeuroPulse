@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — Freestanding C Runtime Memory Primitives
- * Document: NP-SW-CI-001 Rev B §4.2 (Defect B), phase 1
+ * Document: NP-SW-CI-001 Rev 2 §4.2 (Defect B), phase 1
  *
  * Rationale for the whole file is in np_mem.h.  What follows is the part a
  * reader has to get right before touching this code.

@@ -1,6 +1,6 @@
 # NeurOne HRV Biofeedback — CMake Build
 # Target: NXP i.MX RT1062 (Cortex-M7, 600 MHz)
-# Document: NP-FW-HRV-001 Rev A
+# Document: NP-FW-HRV-001 Rev 1
 #
 # This module is compiled as a static library linked into the main application.
 # It does NOT produce a standalone binary — link np_hrv_biofeedback into the

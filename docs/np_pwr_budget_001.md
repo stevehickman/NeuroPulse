@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-PWR-BUDGET-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-08-02
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a derived engineering estimate with its assumption chain stated inline, not a measured or locked figure. See §7 (Decisions) and §8 (Open Items). **Does not modify CLAUDE.md §4.5** — that requires a principal decision (§7).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
 **Approved By:** — (pending design review)
-**References:** CLAUDE.md §3 (modality stack), §4.2 (safety architecture), §4.5 (power — the figure this document interrogates); NP-HW-HEXTILE-001 Rev A §9 (concurrent-tile ceiling, power-derived); NP-THERM-CFD-R1-001 Rev A (single-tile thermal model, BN-boss export study); NP-THERM-CFD-001 (heat-source model, η_wp figures); NP-ENV-OPRANGE-001 (ambient/duty envelope); NP-HELMET-GEOM-001 (scalp area estimate); NP-DT-001 (DI-PERF-12/13, TMS and 1170nm design inputs)
+**References:** CLAUDE.md §3 (modality stack), §4.2 (safety architecture), §4.5 (power — the figure this document interrogates); NP-HW-HEXTILE-001 Rev 1 §9 (concurrent-tile ceiling, power-derived); NP-THERM-CFD-R1-001 Rev 1 (single-tile thermal model, BN-boss export study); NP-THERM-CFD-001 (heat-source model, η_wp figures); NP-ENV-OPRANGE-001 (ambient/duty envelope); NP-HELMET-GEOM-001 (scalp area estimate); NP-DT-001 (DI-PERF-12/13, TMS and 1170nm design inputs)
 **Related Issues:** —
 **Gate:** Routes two items to principal decision (§7) before any change to CLAUDE.md §4.5
 **IEC 62304 Class:** — (analysis document; no code)

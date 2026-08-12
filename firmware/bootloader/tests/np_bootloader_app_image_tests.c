@@ -1,6 +1,6 @@
 /*
  * NeurOne Bootloader — Application Staging Limit Host Tests
- * Document: NP-SW-CI-001 Rev D §4.3 (Defect C), phase 2
+ * Document: NP-SW-CI-001 Rev 4 §4.3 (Defect C), phase 2
  *
  * Defect C was one wrong number written twice.  The linker script reserved
  * 448 KiB for application staging starting at the 64 KiB boundary — "512 - 64

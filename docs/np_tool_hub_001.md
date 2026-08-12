@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-TOOL-HUB-001
-**Revision:** A
+**Revision:** 1
 **Date:** 2026-07-27
 **Status:** BASELINED
 **Effective Date:** 2026-07-27
 **Author:** NeurOne Mechanical Engineering
 **Approved By:** Steve Hickman, CEO
-**References:** CLAUDE.md §2.1, §2.3, §3 (PBM Intranasal), §4.1, §4.3, §4.4, §4.5, §4.7, §5.2; NP-HW-HUB-001 Rev B; NP-DRV-SHELL-001 Rev B §2.4.5 (locked EEG/Hub routing); NP-REQ-FANHEALTH-001 Rev A (SR-FAN-01…06); NP-THERM-CFD-R1-001 Rev A §5 (BN-boss conductive export); NP-FMEA-GEOM-001 Rev A (FMEA-G07-01 / RISK-26); NP-TOOL-ZM-001 Rev A (mold design review checklist pattern); NP-TOOL-SHELL-001 Rev A (anchor post / tether pattern); NP-TOOL-LENS-001 Rev B (captive-fastener / loss-prevention pattern); NP-DP-001 §6.3 (Hub tooling design review, Month 4); docs/status/pending-decisions.md §13.4
+**References:** CLAUDE.md §2.1, §2.3, §3 (PBM Intranasal), §4.1, §4.3, §4.4, §4.5, §4.7, §5.2; NP-HW-HUB-001 Rev 2; NP-DRV-SHELL-001 Rev 2 §2.4.5 (locked EEG/Hub routing); NP-REQ-FANHEALTH-001 Rev 1 (SR-FAN-01…06); NP-THERM-CFD-R1-001 Rev 1 §5 (BN-boss conductive export); NP-FMEA-GEOM-001 Rev 1 (FMEA-G07-01 / RISK-26); NP-TOOL-ZM-001 Rev 1 (mold design review checklist pattern); NP-TOOL-SHELL-001 Rev 1 (anchor post / tether pattern); NP-TOOL-LENS-001 Rev 2 (captive-fastener / loss-prevention pattern); NP-DP-001 §6.3 (Hub tooling design review, Month 4); docs/status/pending-decisions.md §13.4
 **Related Issues:** N/A — closes the `docs/status/pending-decisions.md` §13.4 item "Hub tooling: probe dock + anchor posts + large-radius Boa cable channel + tool-free fan (quarter-turn captive fastener)"
 **Gate:** NP-COORD-001 G1 (Hub tooling design review, per NP-DP-001 §6.3 Phase 1 Month 4 milestone)
 **IEC 62304 Class:** N/A
@@ -36,7 +36,7 @@ This is a **tooling specification**, not a PCB or firmware document — it gover
 
 No prior document fixes the hub enclosure's physical location or its mechanical interface to the headset shell. This specification adopts a placement consistent with three already-locked or already-adopted decisions, rather than inventing a new one:
 
-1. **EEG cable routing is locked from the hub PCB.** `NP-DRV-SHELL-001` Rev B (2026-05-10, `completed-decisions.md`) routes the EEG harness "Hub PCB EEG connector → occipital arch main trunk (~120mm) → crown junction → left/right branches." The hub PCB is therefore already anchored, by an existing locked routing decision, at or immediately adjacent to the headset's **occipital arch** — the same region occupied by the Boa occipital dial (CLAUDE.md §4.4).
+1. **EEG cable routing is locked from the hub PCB.** `NP-DRV-SHELL-001` Rev 2 (2026-05-10, `completed-decisions.md`) routes the EEG harness "Hub PCB EEG connector → occipital arch main trunk (~120mm) → crown junction → left/right branches." The hub PCB is therefore already anchored, by an existing locked routing decision, at or immediately adjacent to the headset's **occipital arch** — the same region occupied by the Boa occipital dial (CLAUDE.md §4.4).
 2. **Antennas live in the hub, not the shell** (CLAUDE.md §4.1), which is only meaningful if the hub sits outside (or at the boundary of) the 5-layer shielded shell envelope described in CLAUDE.md §4.3.
 3. **The BN-boss thermal export path terminates at an external fan-cooled heatsink**, deliberately kept outside the sealed/shielded interior to preserve the shield/IP moat (`NP-THERM-CFD-R1-001` §5). "The hub fan" is the fan referenced by `NP-REQ-FANHEALTH-001` §1 ("depends on forced convection (the hub fan; RPM already logged to SHDR per CLAUDE.md §5.1)") — i.e., the hub enclosure is the physical home of this fan-cooled heatsink.
 
