@@ -234,7 +234,7 @@ coils and sensors to the layer each one's physics wanted.
 | **N2** | Control | `SDA`, `SCL`, `SYNC`, `ALERT#` | Two-level segmented I2C tree (§3.4) + broadcast sync | Per-socket I2C device |
 | **N3** | Local sense | `PD1`, `PD2`, `NTC` | Point-to-point, **≤50 mm**, tile → cluster carrier | Cluster ADC — **never leaves the cluster** |
 | **N4** | Electrode | EEG record lanes, tES drive lanes | Per-cluster mux onto **N shared guarded lanes** (§3.5) | ADS1299 bank at the PAN |
-| **N5** | Safety enable | `SAFE_EN_n`, one per cluster | Star, direct from the Safety MCU | Cluster PDN hard gate (§6) |
+| **N5** | Safety enable | `SAFE_EN[n]`, one per cluster | Star, direct from the Safety MCU | Cluster PDN hard gate (§6) |
 
 ### 3.1 Cluster definition (topological, not lattice-bound)
 
@@ -287,7 +287,7 @@ with one **STM32G071 in UFQFPN32** per board.
 | PD front end | **one shared switched-gain TIA (DG2788A + zero-drift op-amp)** | 1 | Per-*cluster*, per-sample gain — not per socket (§3.3) |
 | **NTC mux + ADC** | **8:1 mux → cluster-MCU ADC** | **1** | Rev A folded this into "TIA + mux + ADC"; it is a separate chain |
 | Electrode mux | low-leakage analog mux | 1 | Record/stim path select (§3.5) |
-| Cluster power gate | high-side load switch, **24 V-rated** | 1 | Gated by `SAFE_EN_n` (§6). Part class changed by the rail decision (§5.4) |
+| Cluster power gate | high-side load switch, **24 V-rated** | 1 | Gated by `SAFE_EN[n]` (§6). Part class changed by the rail decision (§5.4) |
 | Local bulk decoupling | ceramic + polymer bulk | — | Sized for edges/carrier only (§9.2) |
 
 ### 3.2a Why the tier needs local intelligence — and why HUB-001's stated reason is not the reason
@@ -326,7 +326,7 @@ Two corollaries worth stating plainly:
   the AFE moved on-module, the surviving board would be a PCA9548A, an electrode mux and a power
   gate — and Rev A's "no MCU" model would have been correct. The two decisions are one decision;
   §3.3a treats them as one.
-- **The tier stays IEC 62304 Class B.** Adding an MCU does not move the safety boundary: `SAFE_EN_n`
+- **The tier stays IEC 62304 Class B.** Adding an MCU does not move the safety boundary: `SAFE_EN[n]`
   remains Safety-MCU-sourced and gates the high-side switch in hardware (§6), so no cluster-MCU
   firmware state can produce emission from a de-energized cluster. This is HUB-REQ-C02 and
   HUB-001 §7.3, and it is what keeps the new firmware unit out of Class C.
@@ -792,24 +792,40 @@ cosmetic at all:
 | Socket pin 19 — partial-seating detect | `SEAT_N` | **`SEAT#`** | **`_N` already means *cardinality* in this codebase, not active-low.** `firmware/hub_control/tests/np_module_map_tests.c` defines `PBM_TILE_N` and `EEG_TILE_N` as `sizeof(x)/sizeof(x[0])` — so `SEAT_N` reads as *"number of seats"* to anyone who has read the module map. That is a live ambiguity in the same class as the `GUARD` / guard-plane collision above, not a style difference |
 | Socket pin 13 / 17 — dual-rated electrode | `ELEC` (HEXTILE §7.2, SHELL-002 §5.1.4) · `ELEC_SIG` (HUB-001 §113/§124) | **`ELEC`** | Two reasons. **Ownership:** the socket interface is defined by the two pin tables; `NP-HW-HUB-001` §7.4 explicitly *adopts* SHELL-002's contract, so it is the consumer — two normative pin tables do not change to match one banner's prose. **Accuracy:** this pin is dual-rated to carry **tES stimulation current** (≤2 mA T1 / ≤4 mA T2), not only a recording signal. `_SIG` biases the reader toward the recording role, which is the half that is *not* safety-relevant. `ELEC` / `ELEC_SHLD` is asymmetric and costs nothing |
 
-> **Rule of record: active-low signals at the socket and cluster-tail interfaces take a `#` suffix.
-> Not `_N` (cardinality, above), and not a leading `/` (EDA path separator, above).** The interface
-> now carries exactly two active-low conductors, `ALERT#` and `SEAT#`, under one convention.
+> **Rule of record — now programme-wide, in `NP-CONV-001` §1.1: every active-low NeurOne signal name
+> terminates with `#`.** Not `_N` (cardinality), not `_L`/`_R` (Left/Right — `NP-FW-CVNS-001` §5.1),
+> not `_B` (channel B), not `_LOW` (threshold), and not a leading `/` (EDA path separator).
+> `NP-CONV-001` §1.2 records each with the evidence that took it.
+>
+> Active-**high** signals take no suffix, so the absence of `#` is meaningful. Applying this beyond
+> the socket found one further active-low signal: `NP-HW-HUB-001`'s tier-0 service-request line,
+> now **`ATTN#`**. Indices use bracket notation — **`SAFE_EN[n]`**, not `SAFE_EN_n`, because a
+> lowercase `_n` is indistinguishable from a polarity marker in a plain-text diff
+> (`NP-CONV-001` §1.3).
+>
+> **⚠ The rule exposed a live safety-architecture conflict, which is raised and not resolved:**
+> `SAFE_EN[n]` is written here as active-**high** (§6: LOW removes the rail), while the safety MCU
+> specifies the opposite for its enable lines (*"LOW = stimulation enabled"*,
+> `np_safety_config.h:7-8`). Both are internally fail-safe; together they are inverted, and
+> SH2-DRC-13's "defaults LOW at reset" would flip from *safe* to *stimulation enabled* under the
+> firmware's convention. **`NP-CONV-001` OI-CONV-01.**
 
 **`#` is not a legal identifier character, so the doc→firmware mapping is stated rather than left to
-whoever writes the driver:**
+whoever writes the driver. The full rule now lives in `NP-CONV-001` §2:**
 
-> **`<SIGNAL>#` maps to `<SIGNAL>_L` in firmware identifiers — never to `<SIGNAL>_N`,** which this
-> codebase already uses for counts. So `ALERT#` → `NP_..._ALERT_L`, `SEAT#` → `NP_..._SEAT_L`.
+> **`<SIGNAL>#` maps to `<SIGNAL>_ACTIVE_LOW` in firmware identifiers.**
 
-That mapping is worth stating for a reason beyond tidiness. **The firmware's ten stimulation enable
-lines are all active-LOW and none of them carries polarity in its name** — `NP_EN_PBM_CRANIAL_PIN`,
-`NP_EN_BES_PIN`, `NP_EN_TDCS_PIN` and the rest encode it only in a header comment
-(`np_safety_config.h:7`, `np_gpio_mgr.c:5`). `NP-FMEA-001` **OI-FMEA-01** already records that as a
-hazard — *"unstated — and on an active-LOW enable line that is a safety question."* Adopting `_L` for
-the two new interface signals does not fix that, and this document does not claim it does; it avoids
-adding two more unmarked active-low names to a set OI-FMEA-01 is already complaining about, and gives
-that item a convention to converge on if it is ever closed. **No firmware change is requested here.**
+> **⚠ Correction.** An earlier draft of this section specified **`_L`**. That was wrong: **`_L`
+> already means *Left*** — `NP-FW-CVNS-001` §5.1 defines `CVNS_ENABLE_L` / `CVNS_ENABLE_R` as the
+> left and right electrode drivers. Every other short candidate is taken as well: `_N` is
+> cardinality, `_B` is channel B (`CH_B`, `LED_B`, `NP_BANK_B`), `_LOW` is a threshold
+> (`NP_TIA_GAIN_LOW`). `NP-CONV-001` §1.2 records all of them with evidence.
+
+**No firmware change is requested here, and none should be made to satisfy this.** The safety MCU's
+ten stimulation enable lines are all active-LOW and carry polarity only in header comments
+(`np_safety_config.h:7`, `np_gpio_mgr.c:5`); that is IEC 62304 **Class C** code already owned by
+`NP-FMEA-001` **OI-FMEA-01**. §2 of `NP-CONV-001` exists so *new* names converge and so OI-FMEA-01
+has a convention to adopt. See `NP-CONV-001` §3.
 
 ### 5.2 Cluster tail pinout
 
@@ -823,12 +839,12 @@ that item a convention to converge on if it is ever closed. **No firmware change
 | 8 | `SCL` | N2 | |
 | 9 | `SYNC` | N2 | Broadcast phase reference |
 | 10 | `ALERT#` | N2 | Open-drain, wire-OR across cluster |
-| 11 | `SAFE_EN_n` | N5 | **Direct from the Safety MCU** (§6) |
+| 11 | `SAFE_EN[n]` | N5 | **Direct from the Safety MCU** (§6) |
 | 12 | `SHLD` | — | Drain / guard reference |
 | | **12 conductors per cluster tail** | | |
 
 N3 does not appear — it terminates on the controller by design. N4 lanes are a separate shared
-bundle (§3.5), not part of the per-cluster tail. **Conductor 11 (`SAFE_EN_n`) is conditional — see
+bundle (§3.5), not part of the per-cluster tail. **Conductor 11 (`SAFE_EN[n]`) is conditional — see
 §7.1a**; if the single Class C cranial enable is accepted the tail drops to **11 conductors**.
 
 ### 5.3 Conductor count — the honest comparison
@@ -839,7 +855,7 @@ bundle (§3.5), not part of the per-cluster tail. **Conductor 11 (`SAFE_EN_n`) i
 | Option 1 (per-socket tails) | 80 | 80 × 20-pin ZIF | **1,600** |
 | Rev A (cluster carriers, 12 clusters) | 80 | *12 × 12-pin* | *144* |
 | **Rev B (cluster controllers, 18 clusters)** | **80** | **18 × 12-pin** (20 positions) | **216**, EEG included (240 if all 20 populated) |
-| *Rev B if `SAFE_EN_n` broadcasts (§7.1a)* | *80* | *18 × 11-pin* | *198 (220 at 20)* |
+| *Rev B if `SAFE_EN[n]` broadcasts (§7.1a)* | *80* | *18 × 11-pin* | *198 (220 at 20)* |
 
 The replacement is **~2.0× the retired conductor count while serving 16× the sockets and absorbing
 the EEG harness**, and **~7× fewer conductors** than the naive per-socket design. It is *not* a
@@ -923,7 +939,7 @@ path, destroying the property the architecture exists to guarantee.
 
 | Layer | Granularity | Mechanism | Defeatable by a main-processor or bus fault? |
 |---|---|---|---|
-| Hardware | **Per cluster (18)** | `SAFE_EN_n` gates the cluster's 24 V high-side load switch — no rail, no emission | **No** |
+| Hardware | **Per cluster (18)** | `SAFE_EN[n]` gates the cluster's 24 V high-side load switch — no rail, no emission | **No** |
 | Software | Per socket (~80) | Module driver register over I2C | Yes — which is why it is not the safety layer |
 | Global | Whole vault | PAN feed cut | **No** |
 
@@ -938,7 +954,14 @@ Consequences and rationale:
   and leaving LQFP48 with almost no margin. **Rev A's "ample" is withdrawn**; the claim is now
   conditional on a package selection that has not been made. Note this is a cost of per-cluster
   *policy*, not of per-cluster *gates* — see §7.1a, which is the cheaper resolution.
-- **Fail-safe by construction.** `SAFE_EN_n` low removes the LED rail from the cluster. No module
+- **Fail-safe by construction.** `SAFE_EN[n]` low removes the LED rail from the cluster.
+  **⚠ This polarity is opposite to the safety MCU's house convention and the conflict is unresolved.**
+  `np_safety_config.h:7-8` specifies *"All stimulation enable GPIOs are active-LOW open-drain:
+  LOW = stimulation enabled, HIGH = disabled"*. Both schemes are internally fail-safe — this one
+  relies on a pull-down and a de-energized gate, the firmware's on a pull-up and an open drain —
+  but implementing `SAFE_EN[n]` to the firmware's convention would make **SH2-DRC-13's "defaults
+  LOW at reset" mean *stimulation enabled at power-on*.** Raised as **`NP-CONV-001` OI-CONV-01**;
+  assess with OI-FMEA-01 and OI-HUB-C07. Nothing here is changed pending that. No module
   firmware state, no stuck I2C transaction and no main-processor hang can produce emission from a
   de-energized cluster. This preserves the <50 ms all-stimulation cutoff on watchdog expiry
   (CLAUDE.md §4.2) because the cut is a rail cut, not a message.
@@ -960,7 +983,7 @@ Consequences and rationale:
   `dispatch_command()` drops a socket-addressed target rather than falling back to the slot path —
   remains with OI-HUB-SOCKET-01.
 - **tES path interlock.** The `ELEC` contact is dual-rated (record + stimulate). The cluster
-  carrier's record/stim selector must be gated by `SAFE_EN_n` as well, so the ≤2 mA (T1) / ≤4 mA
+  carrier's record/stim selector must be gated by `SAFE_EN[n]` as well, so the ≤2 mA (T1) / ≤4 mA
   (T2) drive path cannot be established on a de-energized cluster. The 40 µC/cm² charge-density
   limit remains where CLAUDE.md §4.2 puts it — in the Safety MCU, not here.
 
@@ -985,7 +1008,7 @@ breaks the tree (§3.4) breaks the connector count. **Both are replaced.**
 | Pins per connector | 12 | **12** (11 if §7.1a) | Pinout fixed by §5.2 |
 | Total interface pins | *144 (192 at 16)* | **216** (240 if all 20 populated) | vs 100 on the retired 5-slot design |
 | Host I2C segmentation | *1 × 8-channel branch switch* | **4 × PCA9548A on LPI2C1–4** | D-7's 32-segment tree (§3.4). 18 of 32 used |
-| Safety-MCU enable GPIO | *12 (16 provisioned)* | **18 (20 provisioned)** — or **1**, per §7.1a | `SAFE_EN_n`, Safety MCU sourced, default LOW at reset |
+| Safety-MCU enable GPIO | *12 (16 provisioned)* | **18 (20 provisioned)** — or **1**, per §7.1a | `SAFE_EN[n]`, Safety MCU sourced, default LOW at reset |
 | `SYNC` driver | 1 | 1 | Broadcast, phase-locked to the EEG sample frame (§9.5) |
 | `ALERT#` input | 1 per cluster, wire-OR | 1 per cluster, wire-OR | Or one wire-OR aggregate with I2C interrogation |
 | PDN feed | *rated at the vault ceiling* | **24 V boost stage**, ~35 W / ~1.46 A | New Rev C hardware — §5.4, OI-HUB-C19 |
@@ -1002,13 +1025,13 @@ onto shared tails), which would also break "board + clamp + sockets as a single 
 **Status: PROPOSED and conditional on OI-HUB-C07. Recorded, not adopted.**
 
 `NP-HW-HEXTILE-001` §8.2.2 option 4 observes something about this document's own tail that this
-document had not noticed: **N1 is already a tree, N2 is already a tree, and `SAFE_EN_n` (N5) is the
+document had not noticed: **N1 is already a tree, N2 is already a tree, and `SAFE_EN[n]` (N5) is the
 only *star* component of the 12-conductor tail** (§3 network table). The star is the structural
 reason each cluster must terminate at the hub individually.
 
 If `NP-HW-HEXTILE-001` §8.4.1's proposal is accepted — per-cluster gates retained but owned by
 **IEC 62304 Class B** for availability, with a **single Class C `NP_SAFETY_EN_PBM_CRANIAL`** in
-series as the hard interlock — then `SAFE_EN_n` becomes a **broadcast**:
+series as the hard interlock — then `SAFE_EN[n]` becomes a **broadcast**:
 
 - the tail drops **12 → 11 conductors**;
 - clusters can tap a **multi-drop trunk** instead of each running a dedicated star leg;
@@ -1050,7 +1073,7 @@ Correct — and it is replicated onto the cluster carriers, not onto Rev C.
 | 1 | 12 V bus rail (**OI-SHELL2-01**) | **CHALLENGED AND OVERTURNED.** 24 V, per D-6 / OI-HUB-C17b. §5.4. OI-SHELL2-01 closes |
 | 2 | 12-conductor tail — adding a conductor costs 16 hub pins | **Accepted, unchallenged.** The cost is now **18–20** hub pins per conductor, which strengthens it. §7.1a may *remove* one |
 | 3 | ADS1299 bank at the PAN, not the Hub PCB | **Accepted, and called the better placement** — keeps µV electrode lanes off the parting-plane boss. Residual **OI-SHELL2-10** stays open |
-| 4 | `SAFE_EN_n` sourced by the Safety MCU, not the i.MX RT1062 | **Accepted and *required*, not merely preferred** — it is HUB-REQ-C02, and it is what keeps the cluster tier IEC 62304 Class B rather than Class C |
+| 4 | `SAFE_EN[n]` sourced by the Safety MCU, not the i.MX RT1062 | **Accepted and *required*, not merely preferred** — it is HUB-REQ-C02, and it is what keeps the cluster tier IEC 62304 Class B rather than Class C |
 
 **Two new assumptions Rev B adds, which the Rev C task should challenge if it disagrees:**
 
@@ -1360,8 +1383,8 @@ pass/fail with supporting evidence.
 | SH2-DRC-10a | **The adopted 3 `VLED+` deliver the ≥2× degraded-case margin §5.1.5's rule asserts.** *(Re-pointed: this no longer selects between 2/3/4 — 3 is decided. It verifies the rule on real contacts.)* | Bench: force one contact to elevated R, measure current share + local ΔT | Survivor ≤0.5 A (≥2× vs ≥1.0 A rating); no thermal runaway over cycle life | EE/ME |
 | SH2-DRC-10b | `SEAT#` asserts only when every other contact is home; a partially-seated tile that answers I2C is detected (§5.1.3a) | Bench: partial insertion sweep with PD readback | No plausible-but-wrong dose reading at any insertion depth | EE/FW |
 | SH2-DRC-11 | IPX4 maintained at the socket contact array after 10 swap cycles | Test | IPX4 (RISK-16 precedent) | ME |
-| SH2-DRC-12 | `SAFE_EN_n` gates the cluster LED rail and the tES record/stim selector | Schematic + bench | No emission with `SAFE_EN_n` low, any bus state | EE/Safety |
-| SH2-DRC-13 | `SAFE_EN_n` defaults LOW at Safety-MCU power-on reset | BSP review | LOW before any modality task starts | FW |
+| SH2-DRC-12 | `SAFE_EN[n]` gates the cluster LED rail and the tES record/stim selector | Schematic + bench | No emission with `SAFE_EN[n]` low, any bus state | EE/Safety |
+| SH2-DRC-13 | `SAFE_EN[n]` defaults LOW at Safety-MCU power-on reset | BSP review | LOW before any modality task starts | FW |
 | SH2-DRC-14 | Watchdog expiry removes all cluster rails <50 ms | Bench | <50 ms (CLAUDE.md §4.2) | EE/Safety |
 | SH2-DRC-15 | `VLED+`/`PGND` broadside overlap and loop area per cluster feed | CAD/stackup | ≤25 mm², dielectric ≤0.2 mm (REQ-EMI-06) | EE |
 | SH2-DRC-16 | **EEG artifact with all LEDs at full PWM load** (retained from retired DRC-18c) | Oscilloscope, prototype | **<5 µVpp**, all frequencies | EE |
