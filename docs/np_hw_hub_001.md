@@ -46,7 +46,7 @@ relocated and shared rather than replicated 80×.
 > | PD analog crosses the socket? | **Yes** — `PD1_K`/`PD2_K`/`NTC`/`AGND`, network N3 | **No** — *"No PD analog signal crosses the socket interface"* |
 > | Socket contacts | **18** | **16** |
 > | Bus rail | **12 V** (est., OI-SHELL2-01) | **24 V** (D-6) |
-> | Presence detect | *"No dedicated presence contact. Presence **is** a successful I2C probe"* | **`SEAT_N` pin 16** — and argues it is *not* redundant: a partially seated tile can answer I2C while PD/NTC/electrode contacts are marginal → *"a plausible-looking but wrong dose reading"* |
+> | Presence detect | *"No dedicated presence contact. Presence **is** a successful I2C probe"* | **`SEAT#` pin 16** — and argues it is *not* redundant: a partially seated tile can answer I2C while PD/NTC/electrode contacts are marginal → *"a plausible-looking but wrong dose reading"* |
 >
 > The last row is a **reasoned** disagreement — HEXTILE anticipated SHELL-002's position and
 > rejected it with a named failure mode. The rail conflict is squarely inside SHELL-002 §7.3's own
@@ -110,7 +110,7 @@ relocated and shared rather than replicated 80×.
 > - **§9.5** calibration keyed to the module, not the socket — *strengthened*: with the TIA and PD both on-module, the coefficients are unambiguously module property.
 >
 > **The gap HEXTILE leaves, which this document must now answer (OI-HUB-C16).** HEXTILE's 16-pin
-> socket reserves pins **13 `ELEC_SIG` / 14 `ELEC_SHLD` / 15 `AGND`** at *every* socket for T1-B, and
+> socket reserves pins **13 `ELEC` / 14 `ELEC_SHLD` / 15 `AGND`** at *every* socket for T1-B, and
 > is explicit that *"an electrode signal cannot be carried over I2C — it is a µV analog recording path
 > to the ADS1299 **and** a stimulation current path from the tES driver."* It then declares T1-B out
 > of scope for Rev A and never routes them. At 80 sockets that is **240 µV-analog + stimulation
@@ -121,8 +121,8 @@ relocated and shared rather than replicated 80×.
 >
 > **So the cluster tier survives — with a different and stronger justification.** Not PD analog, not
 > LED drive, not I2C mastering (HEXTILE takes all three), but an **electrode analog crosspoint**:
-> routing any socket's ELEC_SIG to one of N ADS1299 / tES channels (8 for T1, 21 for T2), plus
-> `ALERT#` and `SEAT_N` aggregation. That is per-cluster, and it aligns with the same partition D-7
+> routing any socket's `ELEC` to one of N ADS1299 / tES channels (8 for T1, 21 for T2), plus
+> `ALERT#` and `SEAT#` aggregation. That is per-cluster, and it aligns with the same partition D-7
 > and D-8 already use. Whether it needs an MCU or reduces to a switch matrix is the open question.
 
 > **⚠ STATUS: DRAFT, NOT BASELINED.** The socket count (~80, provisional pending REG-1) and every
