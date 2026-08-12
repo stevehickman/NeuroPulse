@@ -98,8 +98,18 @@
 
 /*
  * Bits 1–4: RESERVED — NOT REUSED.  Formerly NP_SAFETY_EN_PBM_ZONE_1..4.
- * Excluded from NP_SAFETY_EN_ALL_MASK, so a hub that still sets one has it
- * stripped in np_spi_watchdog_tick rather than silently enabling something.
+ * Excluded from NP_SAFETY_EN_ALL_MASK, so np_spi_watchdog_tick strips them and
+ * they can never enable anything.
+ *
+ * What that exclusion is, and is not (corrected 2026-08-12, NP-HW-HUB-001
+ * Rev 4 §7.2): NO hub can set one of these bits.  No hub hardware exists, and
+ * the NP_SAFETY_EN_PBM_ZONE_0..4 macros were DELETED in the same 2026-08-05
+ * change that created these holes — they survive only in "Formerly ..."
+ * comments like this one.  So the mask exclusion is defence in depth against a
+ * FUTURE authoring error re-introducing those positions, not compatibility with
+ * a deployed or legacy hub.  Stated precisely because a guard described as
+ * mitigating a live hazard reads as load-bearing when it is currently vacuous.
+ * The holes themselves are NOT vacuous — see reason (b) below, which binds now.
  *
  * Two independent reasons the holes stay holes:
  *

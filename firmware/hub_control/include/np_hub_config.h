@@ -169,8 +169,12 @@
 
 /*
  * Bits 1–4: RESERVED — NOT REUSED.  Formerly NP_SAFETY_EN_PBM_ZONE_1..4.  The
- * safety MCU strips them via NP_SAFETY_EN_ALL_MASK, so a hub that sets one
- * enables nothing.  Two reasons they stay holes, one of which binds today:
+ * safety MCU strips them via NP_SAFETY_EN_ALL_MASK, so they can never enable
+ * anything.  That strip is defence in depth against a FUTURE authoring error
+ * re-introducing these positions, NOT compatibility with a deployed or legacy
+ * hub: no hub hardware exists, and the ZONE macros were deleted in the same
+ * change (corrected 2026-08-12, NP-HW-HUB-001 Rev 4 §7.2).  The holes are kept
+ * for reasons independent of any hub — two of them, one of which binds today:
  * (a) enable-bit positions appear in SHDR fault records — currently non-binding,
  * since no SHDR fault records exist yet (principal, 2026-08-04); (b) bit
  * position IS the charge-monitor channel index into current_ua[] and
