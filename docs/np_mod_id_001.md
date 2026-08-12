@@ -529,7 +529,8 @@ item is unaffected and remains a live judgment.
 
 | OI | Description | Blocking for |
 |---|---|---|
-| **OI-MODID-01** | Opt-in enrolment and withdrawal text: plain-language description of the §7.2 extended set, the reciprocal benefit, the §7.5.3 irreversibility notice, and — for clinic registrants — a statement of what is and is not disclosed, per the §7.5.1 reasoning. Owner-scoped per §7.5.1; **no user-binding required** | **BLOCKING — before any characterisation-window collection** |
+| **OI-MODID-01** | Opt-in enrolment and withdrawal text. **DRAFTED — Appendix A.** Individual and institutional variants, withdrawal, and programme-close copy. Remaining to close: legal review, and OI-MODID-08 first (consent text cannot contradict the standing privacy notice) | **BLOCKING — before any characterisation-window collection** |
+| **OI-MODID-08** | **NP-PRIV-NOTICE-001 Rev C §2 conflict.** The notice states SHDR *"contains no user biology and cannot identify you — it describes your device's condition only."* True of the standard set; **false for an opted-in single-user device**, where per-socket drive time is a record of which areas of that user's head are treated. Scope the §2 claim to non-participating devices and cross-reference the enrolment disclosure | **BLOCKING — must land BEFORE enrolment copy ships** |
 | **OI-MODID-07** | Extend `PII-01` patterns to reject a per-session subject tag (`session_tag`, `anon_session_tag`, and the T2 anonymized-session-tag concept generally), closing the enforcement gap under the §7.5.1.1 invariant | Schema Rev E |
 | **OI-MODID-06** | Cohort-vs-fleet skew analysis plan (§7.6) — which comparison variables, and the statement of assumption required before generalising a positive socket result beyond the cohort | Review gate (§7.4) |
 | **OI-MODID-02** | Coarsening bucket widths for carried-in baselines (§6.3), sized against real fleet figures | Schema Rev E |
@@ -557,5 +558,178 @@ Proposed gate **MOD-ID-1** (NP-COORD-001):
 
 ---
 
+## Appendix A — Enrolment and withdrawal copy (addresses OI-MODID-01)
+
+Draft product copy for the §7.5 opt-in. Voice and structure follow
+NP-PRIV-NOTICE-001. Two variants, because the honest disclosure genuinely
+differs between an individual owner and an institutional registrant — and it
+differs in the direction opposite to first intuition (§A.2).
+
+### A.1 Prerequisite — a conflict with the live privacy notice
+
+**NP-PRIV-NOTICE-001 Rev C §2 currently states, of SHDR:**
+
+> *"Your SHDR contains data about the device's condition, not about you"* … *"SHDR
+> contains no user biology and cannot identify you — it describes your device's
+> condition only."*
+
+For the standard SHDR set that is accurate. **For an opted-in single-user
+device it would no longer be**, because per-socket drive time on a device with
+one user is a record of which areas of that user's head are treated and how
+often. The notice would be making a promise the programme breaks.
+
+This must be fixed **before**, not alongside, enrolment: consent text that
+contradicts the standing privacy notice is not informed consent. See
+**OI-MODID-08** (§9). The minimum change is to scope the §2 claim to
+non-participating devices and cross-reference the enrolment disclosure.
+
+### A.2 Which audience carries the greater disclosure
+
+Counter-intuitively, the **individual owner** is the more exposed party, not the
+clinic patient:
+
+| | Individual owner | Clinic-owned, multi-patient |
+|---|---|---|
+| Sessions per device | One person's | Mixed across many, unmarked |
+| Duty map describes | **That person's treatment pattern** | Aggregate device utilisation |
+| Attributable to a person? | Yes — device ≈ person | No (§7.5.1) |
+
+So the individual text must disclose the inference risk directly. The clinic
+text must explain why patient consent is not required — and where that reasoning
+stops holding.
+
+### A.3 Individual owner — enrolment screen
+
+> **Help us learn what actually wears your modules out**
+>
+> We want to find out whether *where* a module sits in your headset affects how
+> fast it wears out. We genuinely don't know yet. Answering it needs detail we
+> don't normally collect, so we're asking rather than assuming.
+>
+> **What we'd collect, per module, per session**
+>
+> - how many seconds each module's emitters were driven
+> - how long each module spent above its warm threshold
+> - how often the heat limiter engaged
+> - the peak temperature each module reached
+>
+> **What this can show about you — read this part**
+>
+> Because your headset is yours, this data shows **which areas of your head you
+> treat, and how much**. Someone reading it could form an impression of what you
+> are using the device for. That is a real disclosure and it is why we are
+> asking rather than switching it on.
+>
+> **What it does not include**
+>
+> No brainwave or heart-rate data. No treatment dose. No names, email, or
+> address. **No clock** — we record which session number something happened in,
+> never the date or time of day, so this cannot show when you use your device or
+> build a picture of your routine.
+>
+> **What you get**
+>
+> Your device joins the group we can build personalised maintenance predictions
+> for first. We can only predict wear for a device whose workload we can see — so
+> this is a direct consequence of taking part, not a reward for it. If too few
+> people take part, the personalised models may not arrive; we will tell you
+> either way.
+>
+> **What does not change**
+>
+> Every safety feature works identically whether you take part or not. Every
+> safety-critical alert reaches you the same way. Taking part buys earlier and
+> better *maintenance* predictions. It never buys safety.
+>
+> **This ends by itself**
+>
+> Collection stops automatically at the end of the study window. You don't have
+> to remember to turn it off; your device stops sending it.
+>
+> **You can stop at any time** — Settings → Device data → Maintenance study.
+>
+> ☐ **Yes, include my device** ☐ **No thanks**
+>
+> Choosing "No thanks" changes nothing about how your device works.
+
+### A.4 Clinic or institutional registrant — enrolment screen
+
+> **Maintenance study — device utilisation detail**
+>
+> We are studying whether socket position affects how quickly modules wear out,
+> so we can tell you when to rotate modules and which sockets to move them to.
+>
+> **What we'd collect, per module, per session:** emitter drive seconds, time
+> above the warm threshold, heat-limiter engagements, and peak module
+> temperature.
+>
+> **Why this does not require patient consent**
+>
+> This records what the *device* did, not what any patient received, and it
+> cannot be traced back to an individual:
+>
+> - There is **no patient or session identifier** in this data.
+> - There is **no clock**. Sessions are numbered (1, 2, 3 …) with no date or
+>   time attached, so records cannot be matched against your appointment
+>   schedule.
+> - On a shared device the result is a single stream mixed across every patient
+>   who used it, with nothing marking where one patient's sessions end and the
+>   next begins.
+>
+> What you are disclosing is device utilisation, which sits downstream of
+> clinical decisions already recorded in your own systems. You are entitled to
+> authorise it as the registrant.
+>
+> **⚠ One case where this reasoning does not hold**
+>
+> If you assign a device to a **single patient for their exclusive use**, the
+> mixing described above does not happen, and the data becomes a record of that
+> one patient's treatment pattern. Only you know whether that applies. **In that
+> case, treat the device as that patient's own** and obtain their consent, or
+> leave it out of the study.
+>
+> **What you get:** priority access to module rotation guidance and remaining-life
+> estimates as they become available.
+>
+> **What does not change:** all safety interlocks and safety-critical alerts are
+> identical for enrolled and non-enrolled devices.
+>
+> **Per-device control.** Enrol your fleet or select individual devices.
+> Collection ends automatically at the close of the study window.
+
+### A.5 Withdrawal
+
+> **You've left the maintenance study**
+>
+> Your device stops sending the extra detail from your next session onward.
+>
+> **What we cannot undo:** detail already contributed remains in the models it
+> has already trained. We cannot remove one device's contribution from a model
+> that has already learned from it. This is the same limitation that applies to
+> research data, and it is why we mention it here rather than at the point you
+> try to leave.
+>
+> **What returns to normal:** your device goes back to standard maintenance
+> predictions — the same ones every non-participating device receives.
+>
+> **What never changed:** every safety feature and safety-critical alert. Those
+> were never part of this.
+
+### A.6 Programme close notice
+
+> **The maintenance study has ended — thank you**
+>
+> Your device has stopped sending the extra detail. Nothing is required from you.
+>
+> **What we learned:** [result summary, including a null result if that is the
+> finding.]
+
+Publishing the outcome to participants — including a null result — mirrors the
+research-consent L4 commitment (CLAUDE.md §6.2) and is the point at which a
+"collect more now, prune later" programme demonstrates it meant the second half.
+
+---
+
 *NP-MOD-ID-001 Rev A is a DRAFT for principal review. It specifies no code and
-changes no schema; implementation follows approval and OI-MODID-01 closure.*
+changes no schema; implementation follows approval, OI-MODID-08 (privacy-notice
+correction), and legal review of Appendix A.*
