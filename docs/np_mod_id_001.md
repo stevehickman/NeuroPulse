@@ -377,29 +377,66 @@ the honest exchange it is: the fleet model cannot personalise for a device whose
 exposure it cannot see, so participants get better predictions *because* of what
 they contributed, not as an inducement bolted on afterwards.
 
-#### 7.5.1 The consent subject is the WEARER, not the warranty owner
+#### 7.5.1 Owner-scoped opt-in is sufficient — and exactly what that rests on
 
-**This is the one part the opt-in does not fix by itself, and it is the reason
-OI-MODID-01 remains open.**
+The opt-in binds to the **warranty owner**, consistent with the existing SHDR
+consent subject (CLAUDE.md §6.0). It does **not** need to bind to the individual
+wearer, and it is worth being precise about why, because the reason is
+structural rather than incidental.
 
-SHDR's consent subject is the warranty owner (CLAUDE.md §6.0). For an individual
-purchaser, owner and wearer are the same person and an owner-scoped opt-in is
-sound. **For a clinic-owned device they are different people**, and §6.0 is
-explicit: *"A clinic that registers a device warranty has NOT consented on behalf
-of any patient."*
+**Individual purchaser.** Owner and wearer are the same person, so an
+owner-scoped opt-in *is* the wearer's consent. No gap.
 
-Since the extended set describes where on a patient's head energy was delivered,
-a clinic administrator cannot opt in on that patient's behalf. The opt-in must
-therefore be bound to the **user**, alongside the L1–L4 research consent managed
-by `ConsentStore`, not to the warranty owner in `SHDRUploader` — and on a
-multi-patient device it must gate per user, with the extended fields suppressed
-for any session whose wearer has not opted in.
+**Clinic-owned, multi-patient device.** §6.0 rightly holds that a clinic has not
+consented on any patient's behalf — but that principle bites on data *about a
+patient*, and the extended set is not that. SHDR carries **no per-session
+subject identifier and no clock**, verified against the live catalog of the
+Rev D schema:
 
-Note this cuts against the existing structural invariant that `SHDRUploader`
-holds no reference to `ConsentStore`. Resolving that cleanly — most likely by
-having the session runner tag sessions as extended-eligible at capture time,
-rather than by having the uploader consult consent state — is the substance of
-OI-MODID-01.
+| Probe | Result |
+|---|---|
+| Columns matching `user\|patient\|subject\|person\|tag\|session_id\|episode\|visit\|operator\|wearer` | **none** |
+| Columns of type `timestamp`/`time`/`interval` | **none** |
+| `date`-typed columns | `ingest_month`, `last_seen_month` (month-truncated retention anchors) and `manufacture_date`, `module_manufacture_date` (factory facts) |
+
+A duty row is therefore `(warranty_token, session_index, socket_number,
+module_ref, duty)` — a device, an **ordinal**, a position, and a number. On a
+shared clinic device the duty stream is a **mixture over every patient who used
+it**, with nothing marking where one patient's sessions end and another's begin.
+Attributing a socket pattern to a person would require aligning session ordinals
+against an appointment book, and the timestamp that alignment needs does not
+exist: `ingest_month` is month-granular by construction (Rev B timestamp
+minimisation), and `session_index` is a counter, not a clock.
+
+So the clinic is not disclosing patient data. It is disclosing **device
+utilisation** data that happens to sit downstream of clinical decisions the
+clinic already owns as its own record. That is a disclosure the warranty owner
+is entitled to authorise.
+
+#### 7.5.1.1 INVARIANT — the two absences the consent model depends on
+
+Owner-scoped consent is sufficient **because of** those two absences, which
+makes them load-bearing rather than hygiene. Either one returning reopens the
+question and would force a user-bound opt-in:
+
+- **No sub-month clock in SHDR.** Enforced by CI check `TIME-01`.
+- **No per-session subject identifier in SHDR.** Partially enforced by `PII-01`
+  (`\buser_id\b`, `\bpatient_id\b`, `\bcustomer_id\b`).
+
+Anyone removing or narrowing those checks must understand they are not tightening
+data hygiene — they are removing the foundation of this consent model.
+
+**A live gap in the second one.** CLAUDE.md §3 (T2 additions) already defines an
+*"anonymized session tag: random session identifier for clinical multi-patient
+environments — clinic holds patient-to-tag mapping"*. That is precisely the
+column that would restore per-patient attribution on a shared device, and a
+column named `session_tag` or `anon_session_tag` would **not** be caught by
+`PII-01`'s current patterns. It is correctly absent from the schema today
+(verified), but nothing stops it being added. **OI-MODID-07** proposes extending
+the pattern list to close that. Note the tag is designed so *NeurOne* cannot
+cross-reference it — but the *clinic* holds the mapping, and the clinic is the
+party whose consent is standing in for the patient's here, so the tag's presence
+would matter even though NeurOne could not resolve it alone.
 
 #### 7.5.2 Non-coercion invariant (CHAR-4)
 
@@ -492,7 +529,8 @@ item is unaffected and remains a live judgment.
 
 | OI | Description | Blocking for |
 |---|---|---|
-| **OI-MODID-01** | Bind the §7.5 opt-in to the **wearer** rather than the warranty owner, and resolve how that reaches the upload path without breaking the §6.0 invariant that `SHDRUploader` holds no reference to `ConsentStore` (proposed: the session runner tags sessions extended-eligible at capture). Includes per-user gating on multi-patient clinic devices, enrolment + withdrawal text, and confirmation that the extended set does not reclassify the remaining SHDR content | **BLOCKING — before any characterisation-window collection** |
+| **OI-MODID-01** | Opt-in enrolment and withdrawal text: plain-language description of the §7.2 extended set, the reciprocal benefit, the §7.5.3 irreversibility notice, and — for clinic registrants — a statement of what is and is not disclosed, per the §7.5.1 reasoning. Owner-scoped per §7.5.1; **no user-binding required** | **BLOCKING — before any characterisation-window collection** |
+| **OI-MODID-07** | Extend `PII-01` patterns to reject a per-session subject tag (`session_tag`, `anon_session_tag`, and the T2 anonymized-session-tag concept generally), closing the enforcement gap under the §7.5.1.1 invariant | Schema Rev E |
 | **OI-MODID-06** | Cohort-vs-fleet skew analysis plan (§7.6) — which comparison variables, and the statement of assumption required before generalising a positive socket result beyond the cohort | Review gate (§7.4) |
 | **OI-MODID-02** | Coarsening bucket widths for carried-in baselines (§6.3), sized against real fleet figures | Schema Rev E |
 | **OI-MODID-03** | EEPROM retention derating at the module's actual time-at-temperature distribution vs the 55 °C / 40-year figure (§5.4) | Module firmware release |
@@ -513,7 +551,8 @@ Proposed gate **MOD-ID-1** (NP-COORD-001):
 | Carried-in baselines are coarsened on upload | Assert uploaded value ≡ 0 mod bucket width |
 | Extended fields stop at window expiry | Build-time expiry test with a clock past the boundary |
 | Extended fields absent without opt-in | Upload from a non-opted-in device asserted to carry none of §7.2 |
-| Per-user gating on a multi-patient device | Two users, one opted in; assert only that user's sessions carry extended fields |
+| **No per-session subject identifier in SHDR** | Catalog assertion over `information_schema.columns` — the §7.5.1.1 invariant, checked against the live schema, not the DDL text |
+| **No sub-month clock in SHDR** | `TIME-01` plus the month-truncation CHECKs already in Rev D |
 | Non-participation does not degrade safety | Assert every §4.2 interlock and safety-critical reminder fires identically with opt-in off |
 
 ---
