@@ -135,7 +135,16 @@ OI-FMEA-01 has a convention to adopt if it is ever closed.
 
 ## 5. Section references
 
-> **`§N` with no space** — `§7.2`, `§8.2.1`, `§5.1.7`. Never `§ 7.2`.
+> **`§N` with no space** — `§7.2`, `§8.2.1`, `§5.1.7`. The section sign goes immediately before
+> the number, with no separating space.
+>
+> **Enforced by `scripts/check-section-refs.ts`**, which runs in CI (*"Section refs resolve and
+> use the canonical form"*) and also verifies that every reference resolves to a section that
+> actually exists. Run it locally before pushing: `bun scripts/check-section-refs.ts`.
+>
+> *Note: the incorrect form is described here rather than quoted, because the checker scans for
+> the literal pattern and a rule document that quotes its own anti-pattern fails its own rule.
+> Rev A did exactly that and was caught by CI — which is the intended behaviour of both.*
 
 Cross-document references name the document first: `` `NP-HW-HUB-001` §7.4 ``.
 
@@ -167,7 +176,9 @@ A superseded rationale that was **outweighed rather than refuted** is marked as 
 > **Cross-document interface agreement is verified by mechanical diff, never by review.**
 
 `SH2-DRC-05b` and `HT-DRC-23` both require the socket pin tables to be compared **name for name**
-programmatically. This is a rule because all three collisions in the header note above survived
+programmatically. The repository already applies this principle to section references —
+`scripts/check-section-refs.ts`, gated in CI — and that is the model: a convention worth writing
+down is worth a script. This is a rule because all three collisions in the header note above survived
 multiple human readings — a name mismatch reads as agreement.
 
 A probe that compares two tables must be **falsified before it is trusted**: perturb one entry and
