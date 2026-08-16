@@ -586,9 +586,10 @@ static void cvns_fault_cb(np_cvns_interlock_ctx_t *interlock,
     /* Fail-safe: drop the unified enable request immediately. */
     cvns_drop_enable();
 
-    /* SHDR safety-interlock log: device-condition flags only.  Timestamp is
-     * suppressed (0) so a cardiac-event time never co-locates with a session
-     * clock in SHDR (privacy gate).
+    /* SHDR safety-interlock log: device-condition flags only.  The 0 timestamp
+     * argument is belt-and-braces — np_log_shdr_fault() discards `session_ms`
+     * for every caller and every fault type (fault event timing is UHDR), so the
+     * suppression is UNCONDITIONAL and discloses nothing about which fault fired.
      *
      * OI-CVNS-HUB-11: suppressed while the driver is faulting the library on an
      * impedance cross-validation failure — that path logs its own dedicated

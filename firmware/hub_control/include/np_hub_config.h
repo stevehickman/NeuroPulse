@@ -229,9 +229,14 @@
 #define NP_CVNS_REENABLE_ASSERT_TIMEOUT_MS 2000U
 
 /* SHDR lifecycle event codes for np_log_shdr_fault() (safety interlock log →
- * SHDR).  Flags only — no HR/RR values, and the cutoff event is logged with
- * a suppressed (0) timestamp so no session-relative time co-locates with a
- * UHDR-class cardiac event (see CLAUDE.md fault-latch privacy gate).        */
+ * SHDR).  Flags only — no HR/RR values.  Callers pass 0 for the timestamp
+ * argument, but note that is belt-and-braces, NOT the mechanism: np_log_shdr_fault()
+ * discards `session_ms` for EVERY caller and every fault type (see
+ * np_session_log.c), because fault event timing is UHDR.  The suppression here
+ * is therefore UNCONDITIONAL — it does not depend on the fault being cardiac,
+ * and so discloses nothing about which fault occurred.  Contrast the fault-latch
+ * defect corrected 2026-08-12, where zeroing a field only for cardiac faults made
+ * the redaction itself a cardiac oracle (CLAUDE.md §5.1).                    */
 #define NP_CVNS_SHDR_EV_CUTOFF          0xC1U
 #define NP_CVNS_SHDR_EV_CONFIRM_OPEN    0xC2U
 #define NP_CVNS_SHDR_EV_IMP_FAILED      0xC3U
@@ -240,8 +245,8 @@
 #define NP_CVNS_SHDR_EV_ASSERT_TIMEOUT  0xC6U
 /* OI-CVNS-HUB-11: hub-side and safety-MCU per-electrode impedance measurements
  * disagreed beyond NP_CVNS_IMPEDANCE_CROSSVAL_KOHM.  Device-condition flag only
- * (no kΩ values); logged with a suppressed (0) timestamp (fault-latch privacy
- * gate).  Raw per-electrode kΩ is UHDR and is NEVER written to SHDR.           */
+ * (no kΩ values); no timestamp reaches SHDR, by the unconditional logger rule
+ * noted above.  Raw per-electrode kΩ is UHDR and is NEVER written to SHDR.     */
 #define NP_CVNS_SHDR_EV_IMP_CROSSVAL    0xC7U
 
 /* Safety MCU status bits that make a fault NON-recoverable in-session.  A

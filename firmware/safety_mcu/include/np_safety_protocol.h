@@ -162,6 +162,23 @@ typedef struct __attribute__((packed)) {
     uint16_t checksum;        /* sum of bytes [0..5], wrapping uint16 */
 } np_safety_tx_frame_t;       /* "transmitted" from the perspective of safety MCU */
 
+/* ── Fault-latch SHDR-reportable projection (SW01-M08) ──────────────────────
+ * The complete set of latch fields any hub-facing read may surface, as ONE
+ * fixed-shape record.  Every member is populated for every fault type; no
+ * member's value is conditioned on WHICH fault is latched.  The shape is fixed
+ * at compile time, so a field cannot be present for one fault kind and absent
+ * for another — which is what made the retired per-field accessors leak.
+ * `tick_ms` is deliberately NOT a member: fault event timing is UHDR.
+ * Rationale and evidence: np_fault_latch.c, block comment above
+ * np_fault_latch_build_report().                                            */
+typedef struct {
+    uint8_t  status;   /* latched NP_SAFETY_STATUS_* bitmask (OK if no valid latch) */
+    uint8_t  slot;     /* latched fault slot (0xFF = none / no valid latch)         */
+    uint16_t count;    /* distinct fault transitions since power-on (0 if no latch) */
+} np_fault_latch_report_t;
+
+void np_fault_latch_build_report(np_fault_latch_report_t *out);
+
 /* ── Safety MCU state (shared across modules) ───────────────────────────── */
 typedef struct {
     uint16_t requested_mask;   /* last requested enable mask from main processor */
