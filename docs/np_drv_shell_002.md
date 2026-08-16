@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-DRV-SHELL-002
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-08-11
 **Status:** DRAFT
 **Effective Date:** —
@@ -16,6 +16,36 @@
 **Parent Document:** None
 
 ---
+
+> **Rev 3 (2026-08-16) — OI-HUB-C07 decided; §6 and §7.1/§7.1a reconciled. Documentation only; no BOM, no network, no socket change.**
+>
+> Safety review closed **OI-HUB-C07** / **OI-HEXTILE-13** (`NP-HW-HUB-001` Rev 4 §7.2.1;
+> `NP-HW-HEXTILE-001` Rev 5 §8.4.1). **§7.1a's conditional is now ADOPTED**, which resolves this
+> document's own §7.1 row and the §6 layer table.
+>
+> | Item | Rev 2 | **Rev 3** |
+> |---|---|---|
+> | Safety-MCU enable GPIO (§7.1) | **18 (20 provisioned)** — or 1, per §7.1a | **1 broadcast Class C line** |
+> | Per-cluster `SAFE_EN[n]` gates (§6) | 18, class unstated | **18 retained — IEC 62304 Class B** |
+> | §7.1a status | PROPOSED and conditional | **ADOPTED** |
+> | Cluster tail conductors | 12 | **12 — unchanged pending OI-HEXTILE-14** |
+> | Connector positions | 20 provisioned, 18 populated | **unchanged pending OI-HEXTILE-14** |
+>
+> **Two things this revision deliberately does NOT do.** (1) It does **not** take the 12 → 11
+> conductor reduction or re-open the connector count. §7.1a's own instruction — *"Rev C must be built
+> against 20 positions and 12-conductor tails … do not pre-empt it by provisioning 11"* — was
+> conditional on OI-HUB-C07, but the count itself belongs to **OI-HEXTILE-14**, which is a separate
+> item and is coordinated here, not absorbed. (2) It does **not** resolve `RISK-SHELL-03`, the
+> `SAFE_EN[n]` polarity conflict and this programme's only CRITICAL risk entry. That conflict
+> **changes basis** under the decision — the disputed line is now a Class B availability gate rather
+> than a Class C stimulation enable — and the changed basis is recorded at §6. It is **not
+> re-scored**: re-scoring is hazard analysis, not editorial correction (the `NP-FMEA-001` Rev 4
+> precedent). Owner remains Safety + EE Lead under **OI-RISK4-01**.
+>
+> One new requirement lands on this document's hardware: **HUB-REQ-C05** (`NP-HW-HUB-001` §7.2.2) —
+> the Class B per-cluster gate must be commanded from a tier *above* the cluster controller that
+> carries it (§3.2), or a wedged controller becomes uncuttable at exactly the granularity the gate
+> exists to provide.
 
 > **Rev B (2026-08-11) — five Rev 1 positions overtaken by peer decisions. Nothing is silently
 > overwritten; each replaced position is stated, sourced, and given its surviving reason.**
@@ -935,19 +965,55 @@ that an app or main-processor fault cannot cause unsafe stimulation. Today that 
 Safety MCU GPIO, and routing enable authority over the I2C bus would put the main processor in the
 path, destroying the property the architecture exists to guarantee.
 
-**Decision: hardware enable at cluster granularity; software enable at socket granularity.**
+**Decision (Rev 3): hardware enable at cluster granularity for *availability*, under IEC 62304
+Class B; the Class C safety cut is one broadcast line across the whole cranial lattice; software
+enable at socket granularity.**
 
-| Layer | Granularity | Mechanism | Defeatable by a main-processor or bus fault? |
-|---|---|---|---|
-| Hardware | **Per cluster (18)** | `SAFE_EN[n]` gates the cluster's 24 V high-side load switch — no rail, no emission | **No** |
-| Software | Per socket (~80) | Module driver register over I2C | Yes — which is why it is not the safety layer |
-| Global | Whole vault | PAN feed cut | **No** |
+> **⚠ Rev 2 stated this as "hardware enable at cluster granularity" with the class unstated, and
+> §7.1 asked for 18 Safety-MCU GPIO. `NP-HW-HUB-001` Rev 4 §7.2.1 decided OI-HUB-C07 against
+> per-cluster *policy*.** The 18 gates are **retained in full** — nothing is deleted from the cluster
+> controller BOM (§3.2) — but they are **Class B**, commanded by the hub, with a **single Class C**
+> `NP_SAFETY_EN_PBM_CRANIAL` in series. §7.1a's conditional is adopted; §7.1's row becomes 1.
+
+| Layer | Granularity | 62304 class of the *commanding software* | Mechanism | Defeatable by a main-processor or bus fault? |
+|---|---|---|---|---|
+| Software | Per socket (~80) | B | Module driver register over I2C | Yes — which is why it is not the safety layer |
+| Hardware, availability | **Per cluster (18)** | **B** | `SAFE_EN[n]` gates the cluster's 24 V high-side load switch — no rail, no emission. **Commanded by the hub, not by the cluster controller it gates (HUB-REQ-C05)** | Yes — it is a Class B tier, which is why it is not the safety layer either |
+| **Hardware, safety** | **Whole cranial lattice** | **C** | **One broadcast Safety-MCU line, in series with all 18 gates** | **No** |
+| Global | Whole vault | C | PAN feed cut | **No** |
+
+> **⚠ Class attaches to software, not to gates.** IEC 62304 classifies **software items**. The 18
+> per-cluster high-side switches are **hardware risk control measures** and carry no 62304 class;
+> the column above states the class of the software that *commands* each tier. The Class C row is
+> the safety-MCU software (SW-01); the per-cluster row is hub software (SW-02). **No item is
+> downgraded from C to B** — Rev 2 stated no class for these gates at all. Corrected form at
+> `NP-HW-HUB-001` §7.2.1. **The per-cluster gates are not load-bearing for any Class C hazard**:
+> the Class C broadcast line is the risk control, and removing all 18 gates would not defeat it.
+
+**Why the safety cut is not per-cluster.** `NP-HW-HUB-001` §7.2.1 records the full argument; the
+short form is that **no hazard in the enumerated hazard list has an extent of one cluster** (hazard-list completeness is the named residual assumption — `NP-HW-HUB-001` §7.2.1). Hazard extents are
+physical — a tile heats (RISK-26), a modality accumulates charge (FMEA-M03), a rail collapses — while
+a cluster is a clamp-plate and FPC-fan-out boundary chosen for one-handed serviceability under
+RISK-22. Per-cluster *policy* would also put a topological socket→cluster map behind a certification
+boundary, making a MECH-2 or REG-1 re-cut a recertification. **R-11 is preserved**: the Class C line
+is in series, so no Class B fault can re-energise a cut lattice.
+
+**⚠ `RISK-SHELL-03` changes basis and is NOT resolved here.** The polarity conflict below is now
+between a **Class B availability gate** and the safety MCU's convention, not between a Class C
+stimulation enable and it. That lowers what is at stake but **does not close the item** — a Class B
+gate defaulting to *enabled* at reset still energises a rail, and only the series Class C line makes
+that safe. **No risk score is changed** (re-scoring is hazard analysis; `NP-FMEA-001` Rev 4
+precedent). Owner: Safety + EE Lead, **OI-RISK4-01**.
 
 Consequences and rationale:
 
 - **Granularity improves, it does not regress — but Rev 1's GPIO claim does not survive the count
-  correction.** Five hardware enable domains become **18**, not 12. Rev 1 asserted the Safety MCU
-  *"is an STM32G071 with ample GPIO for 12 enables plus the existing modality enables"*.
+  correction, and Rev 3 makes the claim moot.** Five hardware enable domains become **18**, not 12.
+  Rev 1 asserted the Safety MCU *"is an STM32G071 with ample GPIO for 12 enables plus the existing
+  modality enables"*. **Rev 3 note: at one broadcast Class C line the Safety MCU needs 1 GPIO here,
+  not 18, and total demand falls ~40 → ~23 I/O — so the package question this bullet raises is
+  unblocked rather than answered. It moves to `NP-HW-HUB-001` OI-HUB-C20.** The rest of this bullet
+  is retained for traceability.
   `NP-HW-HEXTILE-001` §8.4 finding 1 shows why that is not demonstrable: **the safety-MCU package is
   not specified anywhere in the document tree** (STM32G071 spans UFQFPN28 at ~22 I/O to LQFP64 at
   ~52), and finding 2 puts demand at 18 enables at **~38–40 I/O** — excluding every ≤32-pin package
@@ -961,7 +1027,10 @@ Consequences and rationale:
   relies on a pull-down and a de-energized gate, the firmware's on a pull-up and an open drain —
   but implementing `SAFE_EN[n]` to the firmware's convention would make **SH2-DRC-13's "defaults
   LOW at reset" mean *stimulation enabled at power-on*.** Raised as **`NP-CONV-001` OI-CONV-01**;
-  assess with OI-FMEA-01 and OI-HUB-C07. Nothing here is changed pending that. No module
+  assess with OI-FMEA-01. **(Rev 3: OI-HUB-C07 is closed and no longer an input — but the conflict is
+  not, and the safety claim now rests on the reset polarity of the Class C broadcast line rather than
+  of `SAFE_EN[n]`. See the RISK-SHELL-03 note above and `NP-RISK-004` §2.1.)** Nothing here is
+  changed pending that. No module
   firmware state, no stuck I2C transaction and no main-processor hang can produce emission from a
   de-energized cluster. This preserves the <50 ms all-stimulation cutoff on watchdog expiry
   (CLAUDE.md §4.2) because the cut is a rail cut, not a message.
@@ -1008,7 +1077,7 @@ breaks the tree (§3.4) breaks the connector count. **Both are replaced.**
 | Pins per connector | 12 | **12** (11 if §7.1a) | Pinout fixed by §5.2 |
 | Total interface pins | *144 (192 at 16)* | **216** (240 if all 20 populated) | vs 100 on the retired 5-slot design |
 | Host I2C segmentation | *1 × 8-channel branch switch* | **4 × PCA9548A on LPI2C1–4** | D-7's 32-segment tree (§3.4). 18 of 32 used |
-| Safety-MCU enable GPIO | *12 (16 provisioned)* | **18 (20 provisioned)** — or **1**, per §7.1a | `SAFE_EN[n]`, Safety MCU sourced, default LOW at reset |
+| Safety-MCU enable GPIO | *12 (16 provisioned)* | **1** *(Rev 3 — was 18/20 provisioned)* | **One broadcast Class C line**, Safety MCU sourced. §7.1a **ADOPTED** per OI-HUB-C07. The 18 `SAFE_EN[n]` gates remain on the cluster controllers as **Class B**, hub-commanded (**HUB-REQ-C05**). **Reset polarity unresolved — `RISK-SHELL-03` / OI-RISK4-01** |
 | `SYNC` driver | 1 | 1 | Broadcast, phase-locked to the EEG sample frame (§9.5) |
 | `ALERT#` input | 1 per cluster, wire-OR | 1 per cluster, wire-OR | Or one wire-OR aggregate with I2C interrogation |
 | PDN feed | *rated at the vault ceiling* | **24 V boost stage**, ~35 W / ~1.46 A | New Rev 3 hardware — §5.4, OI-HUB-C19 |
@@ -1020,9 +1089,24 @@ because it is paid on every tail. Two extra connector positions cost 24 pins onc
 exactly why `NP-HW-HEXTILE-001` §8.2.2 recommends option 1 and rejects option 7 (pairing clusters
 onto shared tails), which would also break "board + clamp + sockets as a single FRU".
 
-### 7.1a A conditional that would make the connector count REG-1-proof — not decided
+### 7.1a The conditional that makes the connector count REG-1-proof — condition now satisfied
 
-**Status: PROPOSED and conditional on OI-HUB-C07. Recorded, not adopted.**
+> **Status: ✅ ADOPTED 2026-08-16.** OI-HUB-C07 closed in favour of the single Class C bit
+> (`NP-HW-HUB-001` Rev 4 §7.2.1; `NP-HW-HEXTILE-001` Rev 5 §8.4.1). Everything below now holds:
+> `SAFE_EN[n]` **is** a broadcast, and safety-MCU I/O demand **does** fall to ~23.
+>
+> **But the count consequence is NOT taken here.** Whether the tail actually drops 12 → 11 conductors
+> and whether the connector provisioning changes are **OI-HEXTILE-14's** decision — a separate open
+> item with its own arbitration. Until it takes that decision, the closing instruction of this
+> section stands unchanged: **build against 20 positions and 12-conductor tails.** The one thing that
+> has changed is that the instruction is no longer *conditional* — it is now simply the current
+> baseline, held until OI-HEXTILE-14 moves it.
+>
+> **Also unchanged:** the per-cluster high-side gate stays on the cluster controller (§3.2). It is now
+> explicitly **Class B**, and **HUB-REQ-C05** binds it to be commanded from the hub rather than by the
+> controller board that carries it.
+
+*(Original Rev 2 text follows.)* **Status: PROPOSED and conditional on OI-HUB-C07. Recorded, not adopted.**
 
 `NP-HW-HEXTILE-001` §8.2.2 option 4 observes something about this document's own tail that this
 document had not noticed: **N1 is already a tree, N2 is already a tree, and `SAFE_EN[n]` (N5) is the
@@ -1080,8 +1164,12 @@ Correct — and it is replicated onto the cluster carriers, not onto Rev 3.
 5. **The cluster controller keeps the analog front end** (§3.2, §3.3a) — this resolves OI-HUB-C17c
    against `NP-HW-HEXTILE-001` D-4 and is a principal direction, but the thermal half of C17c that
    motivated the deferral is still open, and it has moved sides (**OI-SHELL2-11**).
-6. **20 connector positions, 18 populated** (§7.1) — conditional on OI-HUB-C07 not adopting §7.1a's
-   broadcast enable, which would make the count largely irrelevant.
+6. **20 connector positions, 18 populated** (§7.1) — ~~conditional on OI-HUB-C07 not adopting §7.1a's
+   broadcast enable, which would make the count largely irrelevant.~~ **Rev 3: OI-HUB-C07 DID adopt
+   the broadcast enable, so this assumption's condition has fired.** The count is now largely
+   insensitive to cluster count, and revisiting it — including the 12 → 11 conductor reduction — is
+   **OI-HEXTILE-14's** decision. 20 positions and 12-conductor tails remain the build baseline until
+   that item takes it.
 
 ---
 
