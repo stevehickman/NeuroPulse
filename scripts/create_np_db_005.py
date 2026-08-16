@@ -5,7 +5,7 @@ Written in place to docs/np_db_005.docx per NP-CONV-001 Rev 6 §4.0 (the filenam
 document serial and nothing else) and §4.3 (no revision information in filenames).
 Revision 5's content is retained by version control, not by a second file.
 
-Every figure in this document traces to CLAUDE.md Rev 33, docs/status/*.md,
+Every figure in this document traces to CLAUDE.md Rev 35, docs/status/*.md,
 docs/np_dhf_001.md, or a named NP-* controlled document. Nothing is carried
 forward from Rev 5 without re-verification against a source that still says so.
 
@@ -186,7 +186,7 @@ add_notice(
     bold_lead='SUPERSESSION NOTICE. ')
 
 add_para(
-    'Sources of record for this revision: CLAUDE.md Rev 33; docs/status/completed-decisions.md; '
+    'Sources of record for this revision: CLAUDE.md Rev 35; docs/status/completed-decisions.md; '
     'docs/status/pending-decisions.md; docs/status/document-register.md; NP-DHF-001 Rev 28 '
     '(2026-08-04). Where a figure is gated by an open decision, the gate is named inline. '
     'Where two controlled documents disagree, the disagreement is reported rather than resolved.',
@@ -540,6 +540,17 @@ add_table(
 add_para('Boundary case resolution rule: when in doubt → UHDR. Reclassification to SHDR '
          'requires positive demonstration that the record contains no user biology.', bold=True)
 
+add_para(
+    'A second rule, added 2026-08-12 after it was violated: a reported record must never contain '
+    'a field whose VALUE OR PRESENCE depends on a sensitive predicate. The fault latch reported '
+    'count unconditionally but zeroed tick_ms only for NP_SAFETY_STATUS_CARDIAC, which made '
+    'count > 0 AND tick_ms == 0 a self-interpreting one-bit cardiac oracle — worse than no '
+    'redaction at all, because a bare relative SysTick value needs a session record SHDR does '
+    'not hold, whereas the redaction pattern needed nothing. A redaction conditioned on a '
+    'sensitive predicate leaks that predicate. The suppression was also moot: the cardiac '
+    'predicate is deliberately published to SHDR separately as fault_log.fault_type = '
+    '"CVNS_HR_CUTOFF" under the locked "safety interlock log → SHDR" rule.', size=9)
+
 add_para('Boundary resolutions of record (the last four are new since Revision 5):', bold=True)
 add_table(
     ['Signal', 'UHDR', 'SHDR'],
@@ -564,12 +575,12 @@ add_table(
          'If a device-health signal is needed at all, only a coarse anonymization_failed: bool '
          'without the stage.'],
         ['Safety-MCU fault latch',
-         '—',
-         'count (distinct-fault-transition tally) unconditionally. tick_ms in general — but '
-         'SUPPRESSED to 0 when the latched fault carries NP_SAFETY_STATUS_CARDIAC, because a '
-         'CVNS cardiac cutoff co-locates the event time with a UHDR-class health event. '
-         'Enforced by np_fault_latch_report_tick_ms() / _report_count(); a future read command '
-         'must marshal through these, not read s_latch directly.'],
+         'tick_ms (fault event time) — NOT SHDR-reportable at all. Fault event timing is UHDR, '
+         'matching fault_log\'s own statement in the fleet schema and the hub logger '
+         'np_log_shdr_fault(), which discards its session_ms argument for every caller.',
+         'count (distinct-fault-transition tally); status; slot (the latter two already in the '
+         '8-byte reply frame). Enforced by a single fixed-shape marshaller '
+         'np_fault_latch_build_report() → np_fault_latch_report_t {status, slot, count}.'],
     ],
     widths=[3.6, 6.6, 6.6])
 
@@ -1136,8 +1147,8 @@ add_bullets([
     'page-by-page SPI flash with readback is required.',
     'Device factory reset: eMMC SANITIZE on UHDR + zero SHDR + clear Config + new TRNG salt + '
     'new warranty token, power-loss resilient via a reset_in_progress flag in SNVS_LPGPR1.',
-    'Session data classification table now spans 32 elements (extended from 27 by the '
-    'fault-latch tick_ms and count entries).',
+    'Session data classification table (NP-FW-EMMC-001 Rev 2) reclassifies fault-latch timing: '
+    'tick_ms is UHDR and not SHDR-reportable; count, status and slot are SHDR.',
 ])
 
 add_heading('5.10 T2 clinical firmware', level=2)
@@ -1763,7 +1774,7 @@ add_table(
          'Thermal architecture; BN-boss export; fan-health path'],
         ['NP-REQ-FANHEALTH-001 / NP-PLAN-FANHEALTH-001', '—', 'RISK-26 mitigation requirements'],
         ['NP-FMEA-001 / NP-FMEA-GEOM-001', '—', 'System FMEA and geometry feeder'],
-        ['NP-FW-EMMC-001 / -002', 'Rev 1', 'Storage architecture; warranty token; factory reset; Mode F'],
+        ['NP-FW-EMMC-001 / -002', 'Rev 2 / Rev 1', 'Storage architecture; session-data classification; warranty token; factory reset; Mode F'],
         ['NP-FW-HD-001 / -CVNS-001 / -HRV-001 / -ZA-001 / -PBM1064-001 / -ANON-001 / -POE-001',
          'various', 'Firmware specifications'],
         ['NP-PRIV-001 / -REM-001 / -NOTICE-001 / -AUDIT-001 / -ANALYSIS-002 / -003 / -KEYSPLIT-001',
