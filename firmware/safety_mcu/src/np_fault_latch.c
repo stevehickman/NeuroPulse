@@ -19,13 +19,14 @@
  *   offset 12: uint8_t  pad[52] (reserved)
  *
  * Privacy classification of the latch fields for any hub-facing read
- * (NP-FW-EMMC-001 Rev 1 §12; docs/status/pending-decisions.md §13.4 "Fault latch extended SPI command
- * privacy gate", resolved): `status` and `slot` are already surfaced in the
- * 8-byte reply frame and are SHDR device-condition data.  `count` and `tick_ms`
- * are NOT in that frame; when a future dedicated read command is added it must
- * marshal them through np_fault_latch_report_count() / _report_tick_ms(), which
- * route both to SHDR and suppress tick_ms for cardiac-cutoff faults.  See the
- * block comment above those helpers.
+ * (NP-FW-EMMC-001 Rev 2 §12; docs/status/pending-decisions.md §13.4 "Fault latch extended SPI command
+ * privacy gate", re-resolved 2026-08-12): `status` and `slot` are already
+ * surfaced in the 8-byte reply frame and are SHDR device-condition data.
+ * `count` is not in that frame and is SHDR.  `tick_ms` is NOT SHDR-reportable
+ * at all — fault event timing is UHDR.  A future dedicated read command must
+ * marshal the reportable fields through np_fault_latch_build_report(), which
+ * returns one fixed-shape record with no status-dependent behaviour.  See the
+ * block comment above that function.
  */
 
 #include "np_safety_config.h"
@@ -59,8 +60,9 @@ typedef struct __attribute__((packed)) {
 static NP_FAULT_LATCH_SECTION np_fault_latch_t s_latch;
 
 /* HAL: np_hal_get_tick_ms — declared in np_safety_hal.h.  Its value lands in
- * s_latch.tick_ms, which is SHDR-reportable except when the latched fault
- * carries NP_SAFETY_STATUS_CARDIAC (CLAUDE.md §5.1).                        */
+ * s_latch.tick_ms, which stays device-internal: it is read by MCU-side timing
+ * logic and is never marshalled to the hub.  Fault event timing is UHDR
+ * (CLAUDE.md §5.1).                                                         */
 
 np_safe_status_t np_fault_latch_init(bool *prior_fault_out)
 {
@@ -119,43 +121,70 @@ uint8_t np_fault_latch_get_slot(void)
     return (s_latch.magic == NP_FAULT_LATCH_MAGIC) ? s_latch.slot : 0xFFU;
 }
 
-/* ── Privacy-gated read marshalling (NP-FW-EMMC-001 Rev 1 §12) ────────────────
+/* ── SHDR read marshalling (NP-FW-EMMC-001 Rev 2 §12) ─────────────────────────
  *
  * The current 8-byte MCU→hub reply frame carries `status` and `fault_slot` only;
  * `count` and `tick_ms` never leave SRAM today.  When a future dedicated
- * fault-latch SPI read command is designed to let the hub retrieve the full
- * latch, it MUST read `count` and `tick_ms` through these two helpers instead of
- * touching s_latch directly.  That bakes the docs/status/pending-decisions.md §13.4 privacy-gate
- * resolution into enforceable code rather than prose:
+ * fault-latch SPI read command is designed to let the hub retrieve the latch, it
+ * MUST build its payload from np_fault_latch_build_report() instead of touching
+ * s_latch directly.  That bakes the docs/status/pending-decisions.md §13.4
+ * privacy-gate resolution into enforceable code rather than prose.
+ *
+ *   status  → SHDR.  Already in the reply frame.  It carries the fault KIND,
+ *             including NP_SAFETY_STATUS_CARDIAC.  This disclosure is deliberate
+ *             and pre-existing: the hub's own SHDR fault log already records the
+ *             cardiac cutoff as a first-class named event
+ *             (NP_CVNS_SHDR_EV_CUTOFF 0xC1 → fault_log.fault_type
+ *             'CVNS_HR_CUTOFF', ci/shdr/shdr_fleet_schema.sql), per the locked
+ *             "safety interlock log → SHDR" boundary rule (CLAUDE.md §5.1).
+ *
+ *   slot    → SHDR.  Already in the reply frame.  Device topology, no biology.
  *
  *   count   → SHDR unconditionally.  A tally of DISTINCT fault transitions since
  *             power-on (see np_fault_latch_commit change-gating); device-
  *             condition only, no biology, no timestamp — mirrors the SHDR
- *             "device session count".
+ *             "device session count".  This is the field fleet predictive
+ *             maintenance actually consumes (NP-PMS-001 §5: "fault latch counts").
  *
- *   tick_ms → SHDR in general (a device fault time, consistent with the
- *             "safety interlock log → SHDR" boundary rule).  SUPPRESSED to 0
- *             when the latched fault carries NP_SAFETY_STATUS_CARDIAC: a cardiac
- *             cutoff during cervical VNS co-locates the event time with a
- *             UHDR-class health event (the wearer's cardiac response), and even
- *             this relative SysTick value could be linked back to a session
- *             record.  Suppressing it keeps the SHDR /faults/ record device-only
- *             (mirrors the OI-CVNS-HUB-11 divergence flag's suppressed timestamp).
+ *   tick_ms → NOT REPORTED.  Device-internal only.  Fault event timing is UHDR:
+ *             ci/shdr/shdr_fleet_schema.sql `fault_log` has no timing column and
+ *             states "Precise fault event timing, where it exists at all, is
+ *             UHDR under the user's key", and the hub logger np_log_shdr_fault()
+ *             already discards its `session_ms` argument for EVERY caller.  This
+ *             function is consistent with that existing unconditional rule.
  *
- * Both helpers return 0 when no valid latch is present.
+ * WHY THIS SHAPE — the retired design and the defect it created (2026-08-12):
+ * Until now `count` and `tick_ms` were two INDEPENDENT accessors, and `tick_ms`
+ * was zeroed only when the latched fault carried NP_SAFETY_STATUS_CARDIAC.  That
+ * made the observable pair (count > 0, tick_ms == 0) a one-bit cardiac oracle,
+ * readable with certainty and needing no correlation against anything — strictly
+ * worse than not redacting at all, because a bare relative SysTick value is
+ * meaningless without a session record SHDR does not hold, whereas the redaction
+ * PATTERN was self-interpreting.  A redaction applied conditionally on a
+ * sensitive predicate leaks that predicate; it must be unconditional, or the
+ * predicate must not be inferable from the pattern of redaction.
+ *
+ * The fix is therefore structural, not a different constant: ONE fixed-shape
+ * record, every member populated for every fault type, no branch anywhere in
+ * this path that reads the status word.  A field cannot be present for one fault
+ * kind and absent for another when the struct shape is fixed at compile time.
+ *
+ * IEC 62304 Class C: this is a reporting-path change only.  No stimulation
+ * enable, interlock threshold, cutoff timing, or latch-commit behaviour is
+ * altered; np_fault_latch_commit()/_clear()/_init() are untouched.
+ *
+ * Invalid latch yields the same fixed shape (status OK, slot 0xFF, count 0) —
+ * indistinguishable from a valid latch that has recorded no fault, and carrying
+ * no sensitive predicate either way.
  */
-uint32_t np_fault_latch_report_tick_ms(void)
+void np_fault_latch_build_report(np_fault_latch_report_t *out)
 {
-    if (s_latch.magic != NP_FAULT_LATCH_MAGIC) {
-        return 0U;
+    if (out == NULL) {
+        return;
     }
-    if ((s_latch.status & NP_SAFETY_STATUS_CARDIAC) != 0U) {
-        return 0U;  /* cardiac-cutoff fault: suppress timestamp (see above) */
-    }
-    return s_latch.tick_ms;
-}
-
-uint16_t np_fault_latch_report_count(void)
-{
-    return (s_latch.magic == NP_FAULT_LATCH_MAGIC) ? s_latch.count : 0U;
+    /* Derived from the existing accessors so the invalid-latch sentinels stay
+     * single-sourced.  No member consults NP_SAFETY_STATUS_CARDIAC. */
+    out->status = np_fault_latch_get_status();
+    out->slot   = np_fault_latch_get_slot();
+    out->count  = (s_latch.magic == NP_FAULT_LATCH_MAGIC) ? s_latch.count : 0U;
 }
