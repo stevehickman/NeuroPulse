@@ -357,6 +357,80 @@ SELECT must_reject('unknown reminder_class rejected',
          decode(:'hexA','hex'), decode(:'uidA','hex')));
 
 -- ===========================================================================
+-- Rev E — shdr_accel_characterisation (NP-FW-EMMC-002 §H)
+--
+-- The static gate (ci/test_shdr_schema.py CHAR-01) proves the CHECK clauses are
+-- WRITTEN. It cannot prove they FIRE: a predicate with a typo parses fine and
+-- passes every name-and-type check while admitting exactly the rows it was
+-- written to block. These cases make PostgreSQL the judge.
+--
+-- The consent case is the one that matters most. §H's whole claim is that an
+-- unconsented row is UNSTORABLE rather than merely unsent — i.e. that the
+-- guarantee does not depend on the uploader behaving. That claim is only true
+-- if the database rejects the INSERT, which is what the first case below
+-- asserts.
+-- ===========================================================================
+SELECT must_reject('characterisation row without consent is rejected',
+  format('INSERT INTO shdr_accel_characterisation
+            (warranty_token, char_programme_id, char_consent_granted,
+             char_consent_epoch, char_record_seq, impact_g_bin_6,
+             impact_event_count, gap_index)
+          VALUES (%L, 1, FALSE, 1, 1, 1, 1, 0)', decode(:'hexA','hex')));
+
+SELECT must_reject('characterisation row from a closed programme is rejected',
+  format('INSERT INTO shdr_accel_characterisation
+            (warranty_token, char_programme_id, char_consent_granted,
+             char_consent_epoch, char_record_seq, impact_g_bin_6,
+             impact_event_count, gap_index)
+          VALUES (%L, 2, TRUE, 1, 1, 1, 1, 0)', decode(:'hexA','hex')));
+
+SELECT must_reject('characterisation row with a zero consent epoch is rejected',
+  format('INSERT INTO shdr_accel_characterisation
+            (warranty_token, char_programme_id, char_consent_granted,
+             char_consent_epoch, char_record_seq, impact_g_bin_6,
+             impact_event_count, gap_index)
+          VALUES (%L, 1, TRUE, 0, 1, 1, 1, 0)', decode(:'hexA','hex')));
+
+-- The expiry, enforced by the database as well as by the firmware. Two writers
+-- have to agree that the window is finite; this is the second one.
+SELECT must_reject('characterisation row past the record budget is rejected',
+  format('INSERT INTO shdr_accel_characterisation
+            (warranty_token, char_programme_id, char_consent_granted,
+             char_consent_epoch, char_record_seq, impact_g_bin_6,
+             impact_event_count, gap_index)
+          VALUES (%L, 1, TRUE, 1, 513, 1, 1, 0)', decode(:'hexA','hex')));
+
+SELECT must_reject('characterisation row with a zero record_seq is rejected',
+  format('INSERT INTO shdr_accel_characterisation
+            (warranty_token, char_programme_id, char_consent_granted,
+             char_consent_epoch, char_record_seq, impact_g_bin_6,
+             impact_event_count, gap_index)
+          VALUES (%L, 1, TRUE, 1, 0, 1, 1, 0)', decode(:'hexA','hex')));
+
+-- Positive controls. Without these the five rejections above could all be
+-- satisfied by a table that refuses everything, and a uniformly hostile
+-- constraint would score five PASSes while breaking the programme.
+SELECT must_accept('a valid characterisation row is accepted',
+  format('INSERT INTO shdr_accel_characterisation
+            (warranty_token, char_programme_id, char_consent_granted,
+             char_consent_epoch, char_record_seq, impact_g_bin_6,
+             impact_event_count, gap_index)
+          VALUES (%L, 1, TRUE, 1, 1, 1, 1, 0)', decode(:'hexA','hex')));
+
+SELECT must_accept('the last row inside the budget is accepted',
+  format('INSERT INTO shdr_accel_characterisation
+            (warranty_token, char_programme_id, char_consent_granted,
+             char_consent_epoch, char_record_seq, impact_g_bin_6,
+             impact_event_count, gap_index)
+          VALUES (%L, 1, TRUE, 1, 512, 1, 1, 1)', decode(:'hexA','hex')));
+
+SELECT must_accept('a quiet gap with an empty histogram is accepted',
+  format('INSERT INTO shdr_accel_characterisation
+            (warranty_token, char_programme_id, char_consent_granted,
+             char_consent_epoch, char_record_seq, gap_index)
+          VALUES (%L, 1, TRUE, 1, 2, 2)', decode(:'hexA','hex')));
+
+-- ===========================================================================
 -- Referential integrity + the no-join boundary
 -- ===========================================================================
 SELECT must_reject('telemetry for an unknown warranty_token rejected',

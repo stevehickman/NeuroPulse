@@ -46,6 +46,12 @@
 #   firmware/edf/             — EDF+ privacy header writer/validator
 #   firmware/factory_reset/   — Device factory reset (eMMC SANITIZE + TRNG)
 #   firmware/uhdr_key/        — Two-layer UHDR key scheme (UKMD + WKMD)
+#   firmware/shdr/            — SHDR accelerometer processing: the §G standing
+#                                 rule (two derived booleans) plus the §H
+#                                 characterisation programme, whose window is
+#                                 denominated in records rather than calendar
+#                                 time because this device has no clock that
+#                                 survives a disconnect.
 #
 # SW-01 (Class C) — Safety MCU firmware:
 #   firmware/safety_mcu/      — STM32G071 bare-metal, separate build
@@ -57,6 +63,7 @@
 #   firmware/edf/             → np_edf_tests
 #   firmware/factory_reset/   → np_factory_reset_tests
 #   firmware/uhdr_key/        → np_uhdr_key_tests  (NP-FW-EMMC-002 §C)
+#   firmware/shdr/            → np_accel_shdr_tests (NP-FW-EMMC-002 §G/§H)
 #   firmware/ota/             → np_ota_tests  (OTA state CRC + rollback logic)
 #   firmware/safety_mcu/      → np_safety_spi_proto_tests (OI-SW01-M07-01)
 #                             → np_charge_monitor_tests   (OI-CHARGE-01)
@@ -90,9 +97,15 @@
 # split by IEC 62304 class (NP-SW-CI-001 §5.0.1 — the workflows are
 # self-contained because `needs:` only works within one workflow):
 #   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (6 targets, Class C)
-#   everything else above → .github/workflows/firmware-cross-build.yml (21 targets, Class B)
-# 6 + 21 = 27.  .github/workflows/build-all.yml re-checks that partition weekly
+#   everything else above → .github/workflows/firmware-cross-build.yml (22 targets, Class B)
+# 7 + 22 = 29.  .github/workflows/build-all.yml re-checks that partition weekly
 # and fails if a target ever belongs to neither list.
+# (This line read "6 + 21 = 27" until 2026-08-12 and was already stale by two:
+#  NP-SW-CI-001 phase 3 moved Class C 6 → 7 and the total 27 → 28 — see the note
+#  at the np_hal_platform_tests registration below — without updating it here.
+#  np_accel_shdr_tests then took Class B 21 → 22 and the total 28 → 29.  The
+#  authoritative values are the NP_*_TEST_COUNT env vars in build-all.yml, which
+#  are asserted against a live ctest enumeration; this comment is not.)
 # (firmware-host-tests.yml was absorbed into the two above and retired —
 #  NP-SW-CI-001 §5.0.1, OI-SWCI-09.)
 
@@ -142,6 +155,7 @@ if(NP_BUILD_TESTS)
     add_subdirectory(edf)
     add_subdirectory(factory_reset)
     add_subdirectory(uhdr_key)     # NP-FW-EMMC-002 §C: two-layer UHDR key
+    add_subdirectory(shdr)         # NP-FW-EMMC-002 §G/§H: SHDR accelerometer
     add_subdirectory(ota)
     add_subdirectory(safety_mcu)  # OI-SW01-M07-01: SPI frame tests
                                   # OI-CHARGE-01:   charge monitor tests
@@ -175,6 +189,10 @@ if(NP_BUILD_TESTS)
 
     add_test(NAME np_uhdr_key_tests
         COMMAND np_uhdr_key_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    add_test(NAME np_accel_shdr_tests
+        COMMAND np_accel_shdr_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_ota_tests
@@ -296,6 +314,7 @@ add_subdirectory(anon)
 add_subdirectory(edf)
 add_subdirectory(factory_reset)
 add_subdirectory(uhdr_key)
+add_subdirectory(shdr)
 
 # hub_control links all other libraries and is the top-level application target.
 add_subdirectory(hub_control)

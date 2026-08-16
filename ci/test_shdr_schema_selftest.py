@@ -39,6 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from test_shdr_schema import (  # noqa: E402
     SCHEMA_DEFAULT,
     parse_columns,
+    characterisation_exempt_columns,
     check_prohibited_accel_columns,
     check_accel_table_numeric_types,
     check_permitted_accel_columns_present,
@@ -143,10 +144,23 @@ def test_missing_required_boolean_is_rejected() -> None:
 # ---------------------------------------------------------------------------
 
 def test_production_schema_passes_accel_checks() -> None:
-    """The real schema must PASS all three accelerometer assertions."""
-    columns = parse_columns(SCHEMA_DEFAULT.read_text(encoding="utf-8"))
-    assert not check_prohibited_accel_columns(columns)
-    assert not check_accel_table_numeric_types(columns)
+    """
+    The real schema must PASS all three accelerometer assertions.
+
+    The exemption argument is what run_all_checks passes, and it must be passed
+    HERE and nowhere else in this file. Every other case above drives the checks
+    with NO exemption, which is the correct way to test them: a synthetic bad
+    schema must be rejected on its own terms, not by whatever CHAR-01 happened
+    to grant. Only the production schema legitimately carries the §H
+    characterisation columns, and only because CHAR-01 currently permits them —
+    if it stops permitting them, characterisation_exempt_columns() returns the
+    empty set and this assertion fails, which is the intended coupling.
+    """
+    sql = SCHEMA_DEFAULT.read_text(encoding="utf-8")
+    columns = parse_columns(sql)
+    exempt = characterisation_exempt_columns(sql, columns)
+    assert not check_prohibited_accel_columns(columns, exempt)
+    assert not check_accel_table_numeric_types(columns, exempt)
     assert not check_permitted_accel_columns_present(columns)
 
 

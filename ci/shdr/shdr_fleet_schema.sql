@@ -1,8 +1,33 @@
 -- NeurOne SHDR Fleet Database Schema
--- Document: NP-FW-EMMC-002 Rev 1 §G.4 / NP-FW-EMMC-001 Rev 1 §7
--- Revision: D
--- Effective date: 2026-08-10
+-- Document: NP-FW-EMMC-002 Rev 2 §G.4, §H.2 / NP-FW-EMMC-001 Rev 1 §7
+-- Revision: E
+-- Effective date: 2026-08-12
 -- Status: ACTIVE — BLOCKING for schema freeze (OI-EMMC2-07 must PASS)
+--
+-- (Schema revisions keep LETTERS. NP-CONV-001 §4.2: the integer-revision rule
+--  binds document revisions; a database schema revision is an on-disk format
+--  identity and renaming it would invalidate the migration record.)
+--
+-- Rev E (2026-08-12): ACCELEROMETER CHARACTERISATION WINDOW. Adds ONE table,
+--   shdr_accel_characterisation, and changes nothing else. §G's prohibition
+--   stands unaltered for every device that has not opted in — which is the whole
+--   fleet by default, since the firmware build gate ships off.
+--
+--   WHY. shdr_accel_records carries two booleans derived from two numbers
+--   (15.0 g; 3 drops per rolling window) that were guessed before any hardware
+--   existed, and §G.3 bans every field that could validate them. The spec
+--   forecloses its own evidence. Principal decision 2026-08-12: admit the
+--   evidence under a time-boxed, consented, purpose-bound programme rather than
+--   ship thresholds nobody can check. Pattern taken from NP-MOD-ID-001 §7.
+--
+--   The new table's own comment block carries the four structural markers, the
+--   record-denominated window, the consent argument and the deletion-at-close
+--   rule. NO MIGRATION DML: as Rev D recorded, no SHDR records exist anywhere in
+--   the programme, so the schema is still free to re-layout at zero cost.
+--
+--   Also recorded, not fixed: OI-EMMC2-11 — shdr_accel_records' per-gap rows
+--   already reconstruct both quantities §G.3 bans by name, as aggregates. See
+--   that table's comment.
 --
 -- Rev D (2026-08-10): SOCKET+MODULE RE-KEY. Retires the fixed five-zone model.
 --   Two tables are REPLACED, not edited:
@@ -179,6 +204,20 @@
 --
 -- PERMITTED accelerometer columns per NP-FW-EMMC-002 §G.2:
 --   drop_detected BOOLEAN, maintenance_alert BOOLEAN  — and nothing else.
+--
+--   ONE EXCEPTION, Rev E: the shdr_accel_characterisation table, under
+--   NP-FW-EMMC-002 §H. It is not a widening of the permitted set — the permitted
+--   set is unchanged and still binds everywhere else. It is a separate table
+--   whose extended columns are admitted by CHAR-01 only while all four of its
+--   structural markers hold AND the firmware build gate is open, and the
+--   ACCEL-01/ACCEL-02 exemption is COMPUTED from that check rather than declared
+--   beside it, so it lapses the moment any condition fails.
+--
+-- WHAT THE STATIC GATE DOES AND DOES NOT PROVE. A PASS from ci/test_shdr_schema.py
+-- asserts "no column is named or typed like a known leak". It does NOT assert
+-- "SHDR is not health-inferrable" — no check here reasons about what a query
+-- over accumulated rows can recover, which is exactly how OI-EMMC2-11 went
+-- unnoticed. Read the PASS for what it is.
 --
 -- Column naming conventions:
 --   All column names are snake_case.
@@ -1137,6 +1176,24 @@ CREATE TABLE eeg_impedance_trend (
 -- Permitted columns per NP-FW-EMMC-002 §G.2:
 --   drop_detected BOOLEAN — true if peak g-force exceeded threshold (on-device only)
 --   maintenance_alert BOOLEAN — true if rolling drop rate exceeded threshold
+--
+-- BOTH THRESHOLDS ARE UNVALIDATED PLACEHOLDERS (NP-FW-EMMC-002 Rev 2 §G.2):
+-- NP_ACCEL_DROP_THRESHOLD_G = 15.0f and NP_ACCEL_MAINT_THRESHOLD = 3 were chosen
+-- before any hardware existed and have never been compared against a device that
+-- failed. What a row in this table MEANS is therefore not yet established. That
+-- is what shdr_accel_characterisation (below, §H) exists to fix.
+--
+-- KNOWN LIMIT OF THIS TABLE'S PRIVACY CONTROL — recorded 2026-08-12, OI-EMMC2-11.
+-- This table is append-per-gap with a NON-UNIQUE warranty_token and an index on
+-- it, so both quantities §G.3 bans by name survive as AGGREGATES over the rows:
+--   SELECT count(*) FILTER (WHERE drop_detected) WHERE warranty_token = ?
+--     — this IS "drop count as an integer".
+--   the gap_index values where drop_detected is true
+--     — this IS the inter-drop spacing that "timestamp of individual drop
+--       events" was banned to prevent.
+-- A column-level control cannot express a row-set-level hazard. Not fixed here:
+-- collapsing to one upserted row per device would destroy the per-gap sequencing
+-- the §H programme is built on, so the two have to be decided together.
 -- ---------------------------------------------------------------------------
 CREATE TABLE shdr_accel_records (
     id                  BIGSERIAL    PRIMARY KEY,
@@ -1152,6 +1209,107 @@ CREATE TABLE shdr_accel_records (
     -- Month-granular retention anchor only (ordering via gap_index). The former
     -- per-row created_at wall clock (a docking-time correlator) is removed.
     ingest_month        DATE         NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
+);
+
+-- ---------------------------------------------------------------------------
+-- Table: shdr_accel_characterisation           (Rev E — NP-FW-EMMC-002 §H)
+--
+-- THE ONE PLACE IN THIS SCHEMA WHERE §G.3's PROHIBITION IS RELAXED, and it is
+-- relaxed narrowly, temporarily, with consent, and self-revocably.
+--
+-- WHY IT EXISTS. shdr_accel_records' two booleans are computed from two numbers
+-- nobody has validated, and §G.3 bans every field that could validate them. The
+-- spec forecloses the evidence needed to make the spec correct. §H is the
+-- bounded exception that unblocks it, on the pattern NP-MOD-ID-001 §7 set for
+-- the DOSE-01 relaxation.
+--
+-- THE COLUMNS ARE NAMED HONESTLY. impact_* is a pattern ACCEL-01 rejects, and
+-- these columns keep it deliberately. An innocuous name would have let this
+-- data past the gate without anyone deciding to admit it; carrying the banned
+-- prefix makes the CHAR-01 exemption load-bearing and visible in every diff.
+--
+-- THE FOUR MARKERS are not documentation. ci/test_shdr_schema.py requires all
+-- four, checks them against the firmware constants in
+-- firmware/shdr/include/np_accel_shdr.h, and DERIVES the ACCEL-01/ACCEL-02
+-- exemption from the result. Weaken any marker and the exemption lapses, so the
+-- impact_* columns immediately become ACCEL-01 violations again. The exception
+-- revokes itself rather than needing to be revoked.
+--
+--   char_programme_id      — pinned by CHECK. Consent to programme N does not
+--                            authorise N+1; a closed programme's rows can never
+--                            be silently re-attributed to an open one.
+--   char_consent_granted   — CHECK satisfiable ONLY by TRUE, so a row for a
+--                            non-consented device is not merely unsent, it is
+--                            unstorable. PostgreSQL is the enforcement, not the
+--                            uploader.
+--   char_consent_epoch     — bumped on each grant, so a row cannot outlive the
+--                            consent decision that authorised it.
+--   char_record_seq        — bounded to NP_ACCEL_CHAR_RECORD_BUDGET. This IS
+--                            the window (see below).
+--
+-- THE WINDOW HAS NO CALENDAR. NP-MOD-ID-001 §7.3 bounds its programme at "24
+-- months from first fleet upload"; that is not implementable here. The headset
+-- has no battery, coin cell or VBAT rail — it is USB-C powered (CLAUDE.md §4.5)
+-- — so the RT1062's SNVS RTC has no backup domain: wall time is lost on every
+-- disconnect and re-supplied by the phone. A calendar expiry would be both
+-- losable and settable backwards. So the window is denominated in the records it
+-- admits: char_record_seq counts up to a build-time per-device budget, advances
+-- only when a record is emitted, and cannot be un-advanced. Exhausting the
+-- budget and answering the question are the same act.
+--
+-- CONSENT SUBJECT is the WARRANTY OWNER (CLAUDE.md §6.0) — a separate,
+-- affirmative, granular, revocable opt-in, never folded into warranty
+-- registration. It is sufficient in every device configuration because there is
+-- no identifiable subject: SHDR holds no user identifier, the warranty DB (which
+-- SHDR cannot join) names the REGISTRANT, and nothing anywhere records the
+-- registrant↔wearer relationship (NP-MOD-ID-001 §7.5.1). The argument is
+-- STRONGER here than in the precedent it follows: a duty map at least requires
+-- the device to be WORN, whereas a drop does not — anyone handling the headset
+-- can drop it.
+--
+-- PURPOSE BINDING: predictive-maintenance model training only (§H.5). Rows are
+-- DELETED from this table at window close; the fitted model survives, the
+-- evidence does not.
+--
+-- WHAT IS STILL PROHIBITED HERE, exactly as in shdr_accel_records: any raw
+-- series, any per-event g value, any orientation, any per-event timestamp. What
+-- is admitted is a COARSENED per-gap histogram — counts per fixed bin — which
+-- carries the distribution the review gate needs while destroying the per-event
+-- trajectory that made the raw series health-inferrable.
+-- ---------------------------------------------------------------------------
+CREATE TABLE shdr_accel_characterisation (
+    id                    BIGSERIAL  PRIMARY KEY,
+    warranty_token        BYTEA      NOT NULL REFERENCES devices(warranty_token),
+
+    -- ── The four CHAR-01 structural markers ──────────────────────────────
+    char_programme_id     SMALLINT   NOT NULL CHECK (char_programme_id = 1),
+    char_consent_granted  BOOLEAN    NOT NULL CHECK (char_consent_granted),
+    char_consent_epoch    INTEGER    NOT NULL CHECK (char_consent_epoch >= 1),
+    char_record_seq       INTEGER    NOT NULL CHECK (char_record_seq BETWEEN 1 AND 512),
+
+    -- ── Coarsened impact histogram — counts per fixed bin, per gap ────────
+    -- Bin lower edges in g, from np_accel_char_g_bin_edges:
+    --   1:[2.0,3.0) 2:[3.0,4.5) 3:[4.5,6.5) 4:[6.5,9.5)
+    --   5:[9.5,14.0) 6:[14.0,21.0) 7:[21.0,31.0) 8:[31.0,∞)
+    -- The 15.0 g placeholder sits inside bin 6, with 5 and 7 either side, so the
+    -- review gate can resolve both directions from the number it is testing.
+    impact_g_bin_1        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_1 >= 0),
+    impact_g_bin_2        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_2 >= 0),
+    impact_g_bin_3        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_3 >= 0),
+    impact_g_bin_4        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_4 >= 0),
+    impact_g_bin_5        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_5 >= 0),
+    impact_g_bin_6        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_6 >= 0),
+    impact_g_bin_7        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_7 >= 0),
+    impact_g_bin_8        SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_g_bin_8 >= 0),
+
+    -- Σ of the bins. Explicit so bin saturation is detectable rather than silent.
+    impact_event_count    SMALLINT   NOT NULL DEFAULT 0 CHECK (impact_event_count >= 0),
+
+    -- Between-session gap index — ordering with no wall clock, as elsewhere.
+    gap_index             INTEGER    NOT NULL CHECK (gap_index >= 0),
+
+    -- Month-granular retention anchor only.
+    ingest_month          DATE       NOT NULL DEFAULT DATE_TRUNC('month', NOW())::date
 );
 
 -- ---------------------------------------------------------------------------
