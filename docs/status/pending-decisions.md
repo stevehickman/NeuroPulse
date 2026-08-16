@@ -50,7 +50,15 @@ Narrowing the zone fixed lateralization; it did **not** fix this. clinical-03 st
 
 ### 13.2d NIR wavelength decision (OI-LED-W1): stay in 808–830nm vs. extend to 850–860nm (raised 2026-07-28, OPEN — decision owner: SAB / Regulatory Counsel / EE Lead)
 
-**Problem.** No high-power (≥350mA-class, thermal-pad ceramic SMD) LED shortlisted for the NIR channel actually sits inside the CLAUDE.md §3 "808–830nm" spec. NP-PROC-FPC-001 §2.6.2's two electrically-workable candidates — Lumileds L1IZ-0850 (850nm) and ams-OSRAM SFH 4718A (860nm) — are 20nm and 30nm over the window respectively. The one candidate that **is** in-window, ams-OSRAM SFH 4703AS (820nm), has a Vf of ~3.0–3.6V (AlGaAs epitaxy) vs. the ~1.6–2.2V the existing 660nm string/driver architecture assumes — incompatible without a separate driver rail. Pulse-current rating (closed above) is not the blocker for either path; wavelength-vs-electrical-compatibility is.
+> **⚠ ELECTRICAL PREMISE CORRECTED 2026-08-16 — read §13.2e before using the Problem statement below.**
+> The sentence *"vs. the ~1.6–2.2V the existing 660nm string/driver architecture assumes"* is **not
+> sourced to any controlled document**, is not a 660 nm figure, and the incompatibility it asserts was
+> anchored on a **15 V** rail that no longer exists. Two further facts found in the same pass:
+> **SFH 4703AS's centroid wavelength is 810 nm** (peak 820 nm) per its own datasheet, and the part is
+> **listed discontinued**. §13.2e states what replaces the premise. **OI-LED-W1 remains OPEN and
+> undecided** — this correction changes the facts the owners decide against, nothing else.
+
+**Problem** *(as written 2026-07-28; the Vf clause is superseded by §13.2e)*. No high-power (≥350mA-class, thermal-pad ceramic SMD) LED shortlisted for the NIR channel actually sits inside the CLAUDE.md §3 "808–830nm" spec. NP-PROC-FPC-001 §2.6.2's two electrically-workable candidates — Lumileds L1IZ-0850 (850nm) and ams-OSRAM SFH 4718A (860nm) — are 20nm and 30nm over the window respectively. The one candidate that **is** in-window, ams-OSRAM SFH 4703AS (820nm), has a Vf of ~3.0–3.6V (AlGaAs epitaxy) vs. the ~1.6–2.2V the existing 660nm string/driver architecture assumes — incompatible without a separate driver rail. Pulse-current rating (closed above) is not the blocker for either path; wavelength-vs-electrical-compatibility is.
 
 **This is bigger than a component-sourcing question.** Extending the window is entangled with claims already made elsewhere in the doc set:
 
@@ -72,6 +80,183 @@ Cons: Vf ~3.0–3.6V requires a separate higher-voltage driver stage, string top
 **Option C — keep searching for an alternate in-window, high-power part.** Low-probability based on two research passes: true 800–830nm AlGaAs LEDs at ≥350mA in a thermal-pad ceramic package appear to be a genuinely under-served market segment — vendors in that exact wavelength band (Ushio/Epitex SMT810N, Marktech MTE-8xxx series) top out at 60–100mA (sensor/pulse-oximetry-class parts, not illumination-class), while the high-power ceramic NIR market has concentrated at 850nm/940nm (biometrics/ToF volume). Not recommended as the primary path; could run in parallel as a low-cost contingency via OI-LED-07 (Seoul Semiconductor outreach, already open).
 
 **Not decided here.** This brief hands the tradeoff to whoever owns OI-LED-W1 (SAB for the science call, Regulatory Counsel for the RISK-03 scope question, EE Lead for the driver-rework cost) — it does not pick a path. Whichever option is chosen, update NP-PROC-FPC-001 §2.6.2/§2.6.3 (OI-LED-W1, OI-LED-01) and this entry with the decision and date.
+
+### 13.2e The "~1.6–2.2 V" premise under §13.2d — traced, and it is not a specified constraint (2026-08-16)
+
+**Question asked.** §13.2d rules out the only in-window NIR candidate on one stated ground: its Vf is
+incompatible with *"the ~1.6–2.2V the existing 660nm string/driver architecture assumes."* Since that
+sentence is the sole electrical reason for the exclusion, it was traced to source.
+
+#### (a) The figure is an estimate, and it is not a 660 nm figure
+
+There is **no controlled document that specifies a 1.6–2.2 V forward-voltage constraint.** The number
+is a span welded from two different columns of one estimate table, and from two different channels:
+
+| Source | Value | How the source labels it |
+|---|---|---|
+| `NP-PROC-FPC-001` §2.3, **660 nm** column | **2.0–2.2 V** at 150 mA | *"(confirm from datasheet)"* |
+| `NP-PROC-FPC-001` §2.3, **808–830 nm** column | **1.6–1.8 V** at 150 mA | *"(confirm from datasheet)"* |
+| `NP-HW-HEXTILE-001` §4.3, CH_A **660–670 nm** | **2.10 V** at 150 mA | design target |
+| `NP-HW-HEXTILE-001` §4.3, CH_B **808–830 nm** | **1.60 V** at 150 mA | design target |
+
+`1.6` is the **NIR** channel's lower bound. `2.2` is the **660 nm** channel's upper bound. Nothing in
+the document set asserts `1.6–2.2 V` as a property of the 660 nm string, and the 660 nm figure taken
+alone is `2.0–2.2 V`. **The answer to §13.2d's own framing is (b):** the typical Vf of unselected
+AlGaInP/AlGaAs candidates, carried openly as an estimate, generalised into an architectural constraint
+that was never specified.
+
+Both owning documents say so in their own words, and neither was contradicted:
+
+- `NP-HW-HEXTILE-001` **OI-HEXTILE-02**: *"§4.3's V_f and radiant-flux figures are **design targets,
+  not datasheet values**."*
+- `NP-HW-HEXTILE-001` §10: *"**Values deliberately NOT asserted:** … final emitter part numbers and
+  their V_f/flux (§4.3)."*
+- `NP-PROC-FPC-001` §2.6.1 action row: *"Pull full If-Vf curves from datasheets and confirm at 150mA.
+  **All estimates.**"*
+
+**The 660 nm primary's Vf has still never been read off a datasheet.** OI-LED-04 (closed 2026-07-28)
+pulled *current* ratings for all three shortlisted parts; it did not pull Vf for GH CSSRM5.24, which
+`NP-PROC-FPC-001` §2.6.1 still carries as *"~1.9 V (est. from ~2.0–2.1V @700mA DC; GaAlInP curve
+shape)"*. So the 660 nm half of the range is an estimate of an estimate.
+
+#### (b) The real constraint was a 15 V rail, and that rail is gone
+
+The incompatibility claim §13.2d inherited comes from `NP-PROC-FPC-001` §2.6.2, whose actual wording
+names a **rail**, not a Vf window:
+
+> *"This is fundamentally incompatible with the 1.6–1.8V Vf assumed in §2.3 **and with driving red
+> (660nm) and NIR strings on the same 15V VLED rail at similar string depth**."*
+
+That is the load-bearing half, and it is stale. `NP-HW-HEXTILE-001` **D-6** sets `VLED` = **24 V**,
+adopted programme-wide as **OI-HUB-C17b**, propagated into `NP-DRV-SHELL-002` Rev 2 §5.4 and
+`NP-HW-HUB-001` §7.4, closing OI-SHELL2-01 — and merged to `main` (commit `c6b5dfa`, verified as an
+ancestor of `origin/main`, not an open branch). An independent corroboration that §8.1 is a 24 V-era
+rule while §2.6.2 is a 15 V-era leftover: §8.1's residual budget is 1.6 V, and **1.6 / 24 = 6.7 %**
+(satisfying its own "≤7 %"), whereas **1.6 / 15 = 10.7 %** (violating it). §8.1's numbers are
+self-consistent only at 24 V.
+
+#### (c) The actual forward-voltage budget, derived from the current rail and tile spec
+
+`NP-HW-HEXTILE-001` §8.1 states the governing rule: *"the residual dropped across the FET and sense
+resistor is ≤1.6 V, so linear-loss overhead stays under 7 %."* On a 24 V rail that is:
+
+> **N · V_f ≥ 22.4 V** (thermal/efficiency allocation) **and N · V_f ≤ 24 V − V_dropout(min)**
+> (hard functional ceiling — below it the constant-current stage falls out of regulation).
+
+The two bounds are **not the same kind of constraint** and should not be quoted as one. The upper is
+functional: violate it and the string does not regulate. The lower is a **budget allocation** whose
+dissipation lands on the tile, inside the §9.3 thermal argument — violating it produces heat, not
+failure, but it is not a free preference either.
+
+Against that budget, the currently specified strings and the in-window candidate:
+
+| String | N | N · V_f | Residual | Overhead | Meets §8.1 |
+|---|---|---|---|---|---|
+| 660 nm at the §4.3 design target 2.10 V | 11 | 23.10 V | 0.90 V | 3.8 % | ✓ |
+| 808–830 nm at the §4.3 design target 1.60 V | 14 | 22.40 V | 1.60 V | 6.7 % | ✓ (at the ceiling) |
+| SFH 4703AS at the low end of its datasheet bracket, 2.80 V | **8** | 22.40 V | 1.60 V | 6.7 % | ✓ |
+| SFH 4703AS at its 1 A datasheet typical, 3.30 V | **7** | 23.10 V | 0.90 V | 3.8 % | ✓ |
+| SFH 4703AS anywhere in 3.00 < V_f < 3.20 | 7 or 8 | 21.0–22.1 / 24.0–25.6 V | — | >7 % / none | ✗ **dead band** |
+
+**A 3.0–3.6 V part is therefore not categorically incompatible with a 24 V rail.** At both ends of the
+bracket a compliant string exists, and each lands on a residual the tile spec has already accepted
+somewhere. What remains is a **divisibility** question with an interior dead band at
+**3.00 < V_f < 3.20 V** (≥0.20 V wide, and wider once driver dropout is subtracted) — not a
+driver-architecture question.
+
+**Three limits on that conclusion, stated because they bound it:**
+
+1. **The 150 mA Vf is still unknown, for every candidate.** The datasheet tabulates Vf only at 1 A and
+   2 A. The bracket above (2.80–3.30 V) comes from the datasheet's own `IF = f(VF)` curve, whose
+   abscissa spans **2.8–3.6 V** across 10⁻²–10¹ A, plus the 3.3 V typical at 1 A — i.e. it is read
+   from **axis limits, not from the trace**. Whether the part lands in the dead band or outside it is
+   exactly the open question, and it is one curve-read away. This is OI-LED-01's standing complaint
+   (*"not the 700mA–1A datasheet test points cited here"*) applied to a third part.
+2. **Unbinned, no fixed N survives — for any candidate.** SFH 4703AS's Vf max is **4.0 V**; 7 × 4.0 =
+   28 V, over the rail. The typ→max spread of 0.7 V per die is 4.9 V across seven in series, **three
+   times the entire 1.6 V residual budget.** Fixed-N string construction on a 24 V rail is viable only
+   because `NP-PROC-FPC-001` §2.1 mandates **±0.10 V Vf binning within a purchase order**. That spec
+   is load-bearing for the whole architecture, not just for RISK-08 current matching — worth stating,
+   because §2.1 currently justifies itself only on current-hogging grounds.
+3. **Two inputs the budget needs are not specified anywhere.** Neither `NP-HW-HEXTILE-001`,
+   `NP-HW-HUB-001` nor `NP-DRV-SHELL-002` states **(i)** a minimum dropout for the constant-current
+   stage, or **(ii)** a tolerance on the 24 V rail. At ±5 % the low corner is 22.8 V, which against a
+   22.4 V floor leaves ~0.4 V of window *before* subtracting dropout. Until both are stated, every
+   string-length result above is a nominal-point calculation, not a corner analysis. Raised as
+   **OI-HEXTILE-18** and **OI-HEXTILE-19** in `NP-HW-HEXTILE-001` Rev 4 §11.
+
+#### (d) Two facts about SFH 4703AS that change §13.2d independently of the Vf question
+
+Pulled from the ams-OSRAM datasheet (*Produktdatenblatt* Version 1.1, part footer Version 0.3 /
+2019-07-22) rather than from a distributor parametric field:
+
+| Parameter | Datasheet | What §13.2d / NP-PROC-FPC-001 §2.6.2 carries |
+|---|---|---|
+| **Centroid wavelength** | **810 nm** typ — series is titled *"OSLON Black Series (810 nm)"* | not recorded anywhere; the doc set calls the part "820nm" throughout |
+| Peak wavelength | 820 nm typ | 820 nm ✓ |
+| V_F at I_F = 1 A, t_p = 10 ms | **typ 3.3 V**, max 4.0 V | *"Vf=3.55V @1A"* — **not a datasheet value** |
+| V_F at I_F = 2 A, t_p = 100 µs | typ 3.7 V, max 4.9 V | — |
+| **I_F max (DC)** | **1000 mA** | *"2000mA DC (11× DC margin)"* — **wrong** |
+| I_FSM (surge) | 2 A at t_p ≤ 200 µs, **D = 0.005** | conflated into the DC row above |
+| P_tot / T_j / R_thJS / TC_V | 4 W / 145 °C / 16 K/W / −2 mV/K | not recorded |
+
+- **The part's centroid is 810 nm.** `docs/reference/competitive-position.md` markets the wavelength as
+  **810 nm** and asserts it *is* a CCO absorption peak. The one in-window candidate matches that
+  published claim **exactly, on the manufacturer's own centroid specification** — a materially stronger
+  position than §13.2d's "820nm is 10nm from 810, still inside the band." This is a fact for the SAB,
+  not a decision taken here.
+- **The §2.6.2 "2000mA DC / 11× margin" row is wrong** — 2 A is the surge rating at 0.5 % duty, not a
+  DC maximum. This is the same error class already caught once in this document set (GH CSSRM5.24's
+  "700 mA", which was the optical binning current). **It happens to correct in the safe direction:**
+  §13.2d's residual item — SFH 4703AS's pulse rating at 120–180 mA / ≤25 % duty, never independently
+  verified — **now resolves PASS at 5.6× margin, not the 11× the table claims.** I_F max = 1000 mA is a
+  DC rating, so it bounds any duty cycle up to CW; no interpolation on the duty-cycle-derated pulse
+  family is needed. Same argument the set already accepted for SFH 4718A.
+
+#### (e) …and the part is listed discontinued
+
+The ams-OSRAM product page, DigiKey and RS Components all list **SFH 4703AS as discontinued /
+end-of-life**; the datasheet PDF carries a *"Preliminary datasheet version Discontinued"* status
+stamp on every page. `NP-PROC-FPC-001` §2.6.2 records it as *"DigiKey, Mouser stocked"* — that row
+is stale (it dates from Issue #9, 2026-05-08).
+
+**Stated at the strength of the evidence actually held:** this is three vendor status fields, **not a
+retrieved PCN**. Enough to stop designing the part in; not enough to assert as fact in a controlled
+document. Confirming it against a Product Discontinuation Notice, and confirming the EOL applies to
+the exact orderable variant rather than a sibling suffix, is residual work below.
+
+#### (f) What this correction does and does not license
+
+**It does not make Option B viable, and it is not a decision on OI-LED-W1.** It removes one stated
+objection and replaces it with a narrower, better-evidenced one:
+
+| §13.2d said | Now |
+|---|---|
+| SFH 4703AS is *"incompatible without a separate driver rail"* | **Not supported by the constraint it cites.** That constraint was a 15 V rail; the rail is 24 V |
+| Option B costs *"a separate higher-voltage driver stage, string topology change, and a Hub PCB revision (real NRE and schedule cost)"* | **The Hub-side cost is not established.** The rail already exists. What is established is a **per-tile** consequence: a ~3 V part needs 7–8 emitters per string against the 14 the NIR channel is specified at, roughly **doubling parallel strings and sense resistors on the tile** — which is the same objection §8.1 raises against a 12 V rail, on a tile it says *"has no room for them."* A rigidizer-layout and RISK-08 current-matching question, not a Hub PCB question |
+| Option B's residual risk is an unverified pulse rating | **Resolved PASS** (5.6× margin, §13.2e(d)). Replaced by two harder residuals: the part is **EOL**, and its 150 mA Vf may sit in the dead band |
+| Option C (keep searching in-window) is *"low-probability"*, partly because in-window parts carry the Vf problem | **The search filter was wrong.** If elevated Vf is not disqualifying at 24 V, the candidate set is wider than the two passes assumed. The ams-OSRAM **OSLON Black 810 nm** family is the specific place to look — the EOL part's own series, named for the wavelength the marketing claim asserts |
+
+**Nothing here weakens the 810 nm claims, and no claim is strengthened on this evidence either.** The
+conservative-claim precedent from §13.2c holds: the point of this correction is that the 810 nm-class
+claim may be *keepable more cheaply than §13.2d assumed*, not that it has been vindicated. Per §13.2d,
+OI-LED-W1 still requires **SAB** on the science, **Regulatory Counsel** on RISK-03 scope, and **EE
+Lead** on cost. All three now decide against a corrected electrical premise.
+
+#### (g) Residual work created by this correction
+
+| # | Item | Owner |
+|---|---|---|
+| 1 | **Read Vf at 120–180 mA off the `IF = f(VF)` curve** for GH CSSRM5.24 (660 nm), SFH 4718A, L1IZ-0850 and any in-window candidate. Every string-length number in the set — including the specified 11 × 2.10 and 14 × 1.60 — currently rests on design targets, not datasheet values (OI-HEXTILE-02, OI-LED-01) | EE Lead |
+| 2 | **Confirm SFH 4703AS EOL against a PCN**, and confirm it applies to the exact orderable variant | Procurement |
+| 3 | **Re-run the Option C search with the Vf filter removed**, starting with the ams-OSRAM OSLON Black 810 nm family. Feeds OI-LED-07 | EE Lead + Procurement |
+| 4 | **`NP-PROC-FPC-001` §2.6.2 corrections** (`.docx` — not hand-edited here, per standing practice): the "2000mA DC / 11× margin" row is the surge rating and must read **1000 mA DC / 5.6×**; "Vf=3.55V @1A" is not a datasheet value (**typ 3.3 V, max 4.0 V**); add **centroid 810 nm**; the "DigiKey, Mouser stocked" row is stale; and the §2.6.2 CRITICAL FINDING's **15 V rail** anchor must be restated at 24 V or withdrawn | Hardware Engineering |
+| 5 | **State a minimum driver dropout and a 24 V rail tolerance** — OI-HEXTILE-18 / OI-HEXTILE-19 | EE Lead |
+| 6 | **`NP-PROC-FPC-001` §2.1's ±0.10 V binning spec is load-bearing for string construction**, not only for RISK-08 current matching. Worth stating in §2.1 itself | Hardware Engineering |
+
+**Documents changed by this pass:** this entry (§13.2d banner, §13.2e new); `NP-HW-HEXTILE-001` Rev 3
+→ **Rev 4** (§8.1 string budget generalised; OI-HEXTILE-18/17 raised). **No decision was taken on
+OI-LED-W1, OI-LED-01, OI-HEXTILE-02 or RISK-03.**
 
 ## 13.2b tFUS / LIFU — modality watch (elevated to MEDIUM 2026-05-13)
 
