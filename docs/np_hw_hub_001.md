@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HUB-001
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-08-16
 **Status:** DRAFT
 **Effective Date:** —
@@ -16,6 +16,37 @@
 **Parent Document:** —
 
 ---
+
+**Rev 6 (2026-08-16):** **Socket contact count corrected 18 → 19 throughout, and the conclusions
+this document derived from 18 are corrected with it — the numbers were the smaller half of the
+error.** `NP-DRV-SHELL-002` Rev 2 §5.1.4 closed the count at **19** (`VLED+`/`PGND` = 3+3) and
+`NP-HW-HEXTILE-001` Rev 3 adopted the same pinout, so the head banner's Rev 1-vs-Rev 1 socket
+disagreement — the one this document declared *"tooling-blocking and NOT resolved here"* — is
+**resolved**. Three corrections follow, and the second is the one that matters:
+
+1. **The count.** 18 was `NP-DRV-SHELL-002` **Rev 1**'s figure. The closed count is 19, laid out as
+   **two staggered rows** (REQ-SKT-01, binding — a 19-contact single row spans 38 mm and does not
+   fit inside the 20.0 mm tile inradius).
+2. **§7.5.2's synthesis is superseded in its premise, not merely in its baseline.** It proposed
+   deleting network N3 to reach 15 or 14 contacts. **`NP-DRV-SHELL-002` §3.3a resolved OI-HUB-C17c
+   *against* D-4** — the analog front end stays on the cluster controller, so *"N3 is therefore not
+   deleted"* (§5.1.4), and `PD1_K`, `PD2_K`, `NTC` and `AGND` are all inside the closed 19-contact
+   budget. SHELL-002 §5.1.4 names this document's numbers explicitly: *"`NP-HW-HUB-001` §7.5.2's
+   14–15 are all superseded."* Re-deriving 15/14 against 19 would have been wrong in a way that
+   *looked* right; the table is struck instead.
+3. **The clamp-plate force figure was stale on two counts at once, and overstated reality.** This
+   document carried *"~38–63 N per 7-tile clamp plate"* against RISK-22. Both halves moved: the
+   count went 18 → 19, **and** the plate went 7 tiles → **max 6**, because no cluster reaches 7
+   under the 18-cluster CONTIG-1 partition (`NP-HW-HEXTILE-001` §8.2.1). Net, **34.2–57.0 N at 19
+   contacts on a 6-tile plate is *below* Rev 1's 37.8–63.0 N at 18 on a 7-tile plate** — the
+   contact increase is more than paid for by the partition correction. The clamp actuator sees
+   *less* load than this document asserted, not more. OI-SHELL2-03's *"18 → 12 would cut plate load
+   by a third"* target was written against the retired pair and does not survive restatement.
+
+**Nothing about the Hub PCB changes.** This document *"no longer encodes the socket count"* (Rev C
+note above); the corrections are to its socket-interface commentary and to the accessibility
+arithmetic RISK-22 depends on. Raises **OI-HUB-C22** — this document has not been reconciled to
+`NP-DRV-SHELL-002` Rev 2 or `NP-HW-HEXTILE-001` Rev 4 beyond the contact-count facts corrected here.
 
 **Rev 5 (2026-08-16):** Documentation-only correction to §7.2's STATUS banner; **no hardware,
 firmware, mask value or bit allocation changed.** Rev 3 justified excluding the reserved holes from
@@ -90,6 +121,17 @@ relocated and shared rather than replicated 80×.
 > parallel), and the disagreement is on the socket contact array — molded, tooled hardware.
 > This is tooling-blocking and is NOT resolved here. Tracked as OI-HUB-C17.**
 >
+> > **✅ RESOLVED 2026-08-11, recorded here at Rev 5 — the socket row of this table is closed.**
+> > The contact array is **19 contacts** in **two staggered rows** (`NP-DRV-SHELL-002` Rev 2 §5.1.4,
+> > REQ-SKT-01; `NP-HW-HEXTILE-001` Rev 3 D-5 adopts the same pinout and *"the two documents now
+> > agree pin for pin"*). Neither number in the table below survived: SHELL-002's 18 and HEXTILE's
+> > 16 are both superseded, as are this document's own §7.5.2 figures of 15 and 14. **The TIA row
+> > is also closed, and against the recommendation this banner goes on to make** — SHELL-002 §3.3a
+> > resolved **OI-HUB-C17c against D-4**, keeping the analog front end on the cluster controller.
+> > **The table below is retained as the dated record of the Rev 1-vs-Rev 1 conflict** (§1.1 of
+> > `NP-CONV-001` — historical records keep the wording they were written with); it is evidence of
+> > what was true on 7-29/7-30, not a live disagreement.
+>
 > | Item | `NP-DRV-SHELL-002` (7-29) | `NP-HW-HEXTILE-001` (7-30) |
 > |---|---|---|
 > | TIA + ADC location | **Cluster carrier** (§3.2, §3.3) | **On-module** (D-4) |
@@ -113,6 +155,22 @@ relocated and shared rather than replicated 80×.
 >   flags its own 18-contact count as an accessibility problem — ~38–63 N per 7-tile clamp plate
 >   against RISK-22's one-handed force intent — and says *"dropping 18 → 12 contacts would cut
 >   plate load by a third."* This is that reduction, arriving from the other document.
+>
+>   > **❌ SUPERSEDED (Rev 5). This bullet is wrong twice, and both errors are recorded rather than
+>   > deleted because the argument was reasonable when made.** (i) **The premise was decided
+>   > against.** SHELL-002 §3.3a resolved **OI-HUB-C17c against D-4**: the analog front end stays on
+>   > the cluster controller, so *"N3 is therefore not deleted"* and `PD1_K`, `PD2_K`, `NTC` and
+>   > `AGND` all survive inside the closed 19-contact budget (§5.1.4). No contacts are removed.
+>   > (ii) **Every number is stale, and the stale pair overstated the load.** The count is **19**,
+>   > not 18; the plate is **max 6 tiles**, not 7, because no cluster reaches 7 under the 18-cluster
+>   > CONTIG-1 partition. The real figure is **34.2–57.0 N on a 6-tile plate** — *below* the
+>   > 37.8–63.0 N this bullet quotes as the problem to be solved. **The accessibility saving this
+>   > bullet offered had already been delivered by the partition correction**, and by a mechanism
+>   > that cost no contacts. OI-SHELL2-03's *"18 → 12 cuts plate load by a third"* target was
+>   > written against the 18-contact/7-tile pair and does not survive restatement; what remains of
+>   > OI-SHELL2-03 is purely the human-factors question — whether 34–57 N is one-handed-achievable
+>   > through the §5.4a over-centre actuator at Parkinson's H&Y II–III — owned by MECH-2 and the HFE
+>   > formative (`NP-RISK-004` RISK-22, OI-RISK4-03), not by contact arithmetic.
 > - **PD1/PD2 ratio integrity improves further.** SHELL-002 §3.3 argues a ratio taken on one small
 >   carrier beats one taken across two shell crossings; same die on the module beats both.
 > - **The marginal cost is near zero if every tile already has an MCU** — which HEXTILE D-3 requires
@@ -1312,15 +1370,42 @@ build from. Concretely:
 Deleting N3 removes `PD1_K`, `PD2_K`, `NTC` outright. `AGND` is ambiguous — SHELL-002 assigns it to
 N3 as the sense return, but N4 may want its own analog reference, so it may survive:
 
-| | Contacts | Force per module (0.3–0.5 N each) | Per 7-tile clamp plate |
-|---|---|---|---|
-| SHELL-002 as written | 18 | 5.4–9.0 N | 37.8–63.0 N |
-| Synthesis, `AGND` kept for N4 | **15** | 4.5–7.5 N | 31.5–52.5 N (**−17 %**) |
-| Synthesis, `AGND` also dropped | **14** | 4.2–7.0 N | 29.4–49.0 N (**−22 %**) |
-
-This **partially** closes SHELL-002's own **OI-SHELL2-03**, which asks for 18 → 12 ("would cut plate
-load by a third") against RISK-22's one-handed force intent. 17–22 % is not 33 %; the synthesis helps
-materially but does not finish the job, and the remaining gap stays with MECH-2 and the HFE formative.
+> ### ❌ SUPERSEDED AT Rev 5 — the premise, not just the arithmetic
+>
+> **`NP-DRV-SHELL-002` §3.3a resolved OI-HUB-C17c *against* D-4.** The analog front end stays on the
+> cluster controller, so *"N3 is therefore not deleted"* (§5.1.4 of that document) and `PD1_K`,
+> `PD2_K`, `NTC` and `AGND` are all inside the **closed 19-contact budget**. **No contacts are
+> deleted, so there is no reduction to compute.** SHELL-002 §5.1.4 strikes these figures by name:
+> *"Rev 1's 18, HEXTILE D-5's 16, and `NP-HW-HUB-001` §7.5.2's 14–15 are all superseded."*
+>
+> **The struck table is retained below** because the reasoning it encodes — that contact count is an
+> accessibility variable and not only an electrical one — is correct and survives; only its inputs
+> and its conclusion do not.
+>
+> | | Contacts | Force per module (0.3–0.5 N each) | Per 7-tile clamp plate |
+> |---|---|---|---|
+> | ~~SHELL-002 as written~~ | ~~18~~ | ~~5.4–9.0 N~~ | ~~37.8–63.0 N~~ |
+> | ~~Synthesis, `AGND` kept for N4~~ | ~~**15**~~ | ~~4.5–7.5 N~~ | ~~31.5–52.5 N (**−17 %**)~~ |
+> | ~~Synthesis, `AGND` also dropped~~ | ~~**14**~~ | ~~4.2–7.0 N~~ | ~~29.4–49.0 N (**−22 %**)~~ |
+>
+> **What is actually true, and note that it is better than what this section was trying to achieve:**
+>
+> | | Contacts | Force per module (0.3–0.5 N each) | Per clamp plate (**max 6 tiles**) |
+> |---|---|---|---|
+> | **Closed budget (`VLED+`/`PGND` = 3+3)** | **19** | **5.7–9.5 N** | **34.2–57.0 N** |
+>
+> **The plate shrank, and that more than paid for the two extra contacts.** No cluster reaches 7
+> tiles under the 18-cluster CONTIG-1 partition — sizes are 3–6 (`NP-HW-HEXTILE-001` §8.2.1) — so
+> **34.2–57.0 N at 19 contacts on a 6-tile plate is below the 37.8–63.0 N at 18 contacts on a 7-tile
+> plate** this section took as its baseline. The synthesis was chasing a ~17–22 % reduction against
+> a figure that was already an overstatement; the SYM-1 correction that *raised* the cluster count
+> delivered ~14 % of it for free and cost no contacts.
+>
+> **OI-SHELL2-03's count half is CLOSED.** Its *"18 → 12 would cut plate load by a third"* target
+> was written against the retired 18-contact/7-tile pair and is not restatable. What remains is
+> purely the human-factors question — whether 34–57 N is one-handed-achievable through the §5.4a
+> over-centre actuator at Parkinson's H&Y II–III — and it belongs to **MECH-2** and the HFE
+> formative (`NP-RISK-004` RISK-22, **OI-RISK4-03**), not to contact arithmetic.
 
 Two consequences beyond contact count:
 
@@ -1654,9 +1739,10 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C08 | **Net the $63.40 cluster tier against the retired 5-zone-module drive electronics** already inside the $405 Home Standard BOM (§8.4) — needs a post-hex module BOM that does not yet exist | BOM sign-off |
 | OI-HUB-C09 | **CLOSED 2026-07-30.** Electrical and mechanical clusters are **the same thing**: the board is **capacity-8**, not exactly-8, and capacity 8 costs the same as a hypothetical 7 (no 7-channel I2C switch or 14:1 mux exists), so one board SKU serves a full flower or any partial one. Shape settled by **CLUSTER-1** (principal, 2026-07-30): **7-hex flower wherever the lattice allows, partial flowers at the boundary** — decided on clamp-plate mechanics (span 122.2 vs 161.8 mm; stress ×1.75, plate deflection ×3.07, dome depth 25.1 → 55.0 mm, 136.8° subtended), *not* on the earlier BOM gradient, whose figures HEXTILE has voided. The triad stays excluded electrically too (43 segments at n=128 > the 32-segment budget). MECH-2 now verifies rather than selects. **Three-level `(cluster:module:element)` addressing remains explicitly rejected** (§4.5). | Closed — MECH-2 verifies |
 | OI-HUB-C13 | Add `NP_GROUP_KIND_CLUSTER = 3` + `cluster_id` to `np_group_query_t`, resolving via the §4.2 table (single ascending pass, no `seen` bitmap needed). Legitimate as a firmware-resident group because socket→cluster changes only on an inner-bowl re-tool (§4.5.1) — unlike lobe. Covers clamp-release reporting, cluster-controller fault isolation, per-cluster diagnostics — **device-state operations only, never therapeutic targeting** (§4.5). Already unreachable from NPPS/the app by construction (`NP_GROUP_KIND_*` is firmware-internal; the app emits a socket bitmap), so no new gate is required — but **do not** add a cluster selector to NPPS or a `NP_PROTO_TARGET_CLUSTER_MASK` wire target. Consider the simpler `np_module_map_cluster_sockets()` enumerator instead if the type-filtered diagnostic case proves unnecessary | Service + fault-isolation UX |
-| OI-HUB-C17 | **PARTIALLY DECIDED 2026-07-30 (principal) — see §7.5.0.** **C17a ADOPTED:** `NP-DRV-SHELL-002`'s cluster-carrier architecture for N1/N2/N4/N5. **C17b ADOPTED:** HEXTILE **D-6**, 24 V vault rail — resolves SHELL-002 **OI-SHELL2-01** against its 12 V estimate. **C17c OPEN:** HEXTILE **D-4** (TIA + ADC on-module) deferred **pending the module heat-sink / helmet-cooling design** (§7.5.0a) — not pending cost, which §7.5.0(a)/(b) showed to be ~neutral and dominated 30× by PD population (OI-HEXTILE-06). Thermal gate has two parts: continuous on-tile dissipation inside the 42 °C face / 62 °C junction envelope, and **ADC drift 25 → 62 °C against the ±15 % dose claim (FAI-SM-06)**, which a cooler carrier-mounted ADC never faces. Decide after the heat-sink path is fixed and jointly with OI-HEXTILE-06. Only artefact still waiting: socket contact count (18 vs 14–15). Hub PCB §7.4 is unaffected either way (§7.5.7). | Socket tooling + carrier schematic only — **not** Hub PCB |
+| OI-HUB-C17 | **PARTIALLY DECIDED 2026-07-30 (principal) — see §7.5.0.** **C17a ADOPTED:** `NP-DRV-SHELL-002`'s cluster-carrier architecture for N1/N2/N4/N5. **C17b ADOPTED:** HEXTILE **D-6**, 24 V vault rail — resolves SHELL-002 **OI-SHELL2-01** against its 12 V estimate. **C17c CLOSED 2026-08-11 — resolved AGAINST D-4 by `NP-DRV-SHELL-002` §3.3a** (recorded here at Rev 5): the analog front end stays on the cluster controller, N3 is not deleted, and `PD1_K`/`PD2_K`/`NTC`/`AGND` all survive inside the closed 19-contact socket budget (that document's §5.1.4). **This also closes the socket-contact-array disagreement the head banner declared tooling-blocking: the count is 19, two staggered rows (REQ-SKT-01).** ~~**C17c OPEN:** HEXTILE **D-4** (TIA + ADC on-module) deferred **pending the module heat-sink / helmet-cooling design** (§7.5.0a) — not pending cost, which §7.5.0(a)/(b) showed to be ~neutral and dominated 30× by PD population (OI-HEXTILE-06). Thermal gate has two parts: continuous on-tile dissipation inside the 42 °C face / 62 °C junction envelope, and **ADC drift 25 → 62 °C against the ±15 % dose claim (FAI-SM-06)**, which a cooler carrier-mounted ADC never faces. Decide after the heat-sink path is fixed and jointly with OI-HEXTILE-06. Only artefact still waiting: socket contact count (18 vs 14–15). Hub PCB §7.4 is unaffected either way (§7.5.7).~~ | ~~Socket tooling + carrier schematic only — **not** Hub PCB~~ — **closed; the count is 19** |
 | OI-HUB-C18 | **Propagate the 24 V adoption (C17b) into `NP-DRV-SHELL-002`.** Its §5.4 power budget, ~2.9 A vault bus figure, N1 conductor sizing and cluster power-gate part class are all computed at 12 V; at 24 V the bus current halves to ~1.46 A and I²R quarters. Its **OI-SHELL2-01** closes. Also re-check the 2-contact `VLED+` budget, which §7.5.5 shows had zero derating at 12 V and ~2× at 24 V | `NP-DRV-SHELL-002` Rev 2 |
 | OI-HUB-C19 | **PLACEMENT DECIDED (provisional) 2026-07-30 (principal): Hub PCB** — magnetics outside the shielded envelope away from the fluxgates; ~1.8 W conversion loss on the fan-served side; and **~17 % less modulated current across the parting-plane boss** (~1.46 A at 24 V vs ~1.75 A at 15–20 V if sited at the PAN), which directly helps `NP-DRV-SHELL-002` §9.3 loop-area control. Revisit if the hub thermal budget or the EMI bench objects. **Residual:** size and select the boost (15–20 V → 24 V, ~35 W, ~1.46 A); confirm hub thermal headroom for ~1.8 W against the `NP-TOOL-HUB-001` F-04 fan/heatsink path; and verify **HUB-REQ-C04** — control-loop bandwidth ≫40 Hz so LED duty modulation stays in the current domain and never becomes 2–40 Hz rail-voltage ripple, which would be in-band at the entrainment frequencies and could masquerade as an EEG entrainment response | Rev 3 schematic; hub thermal budget; EMI bench (with EMF-1) |
+| OI-HUB-C22 | **This document has not been reconciled to `NP-DRV-SHELL-002` Rev 2 or `NP-HW-HEXTILE-001` Rev 4 beyond the socket contact count.** Rev 5 corrected the count (18 → **19**), the clamp-plate force pair (18-contact/7-tile → **19-contact/6-tile**, 37.8–63.0 N → **34.2–57.0 N**) and struck §7.5.2's N3-deletion synthesis, because those were load-bearing on RISK-22 accessibility. **The rest of this document's socket commentary still predates both revisions** — §7.4's interface contract, §7.5.1's network table and §6's contested TIA section were all written against Rev 1 pinouts. A full reconciliation pass is a separate work item; nothing in it is expected to change the Hub PCB, which *"no longer encodes the socket count"*. Owner: Systems + EE Lead | Documentation consistency; **not** tooling-blocking — the tooled interface is owned by `NP-DRV-SHELL-002` §5.1 and `NP-TOOL-HEXTILE-001` F-TH-02 |
 | OI-HUB-C15 | **Merge this document with BOTH `NP-HW-HEXTILE-001` Rev 1 and `NP-DRV-SHELL-002` Rev 1** per the three-way banner at the head of this file. Adopt SHELL-002 §7.1 as the interface contract (done, §7.4). §6's fate follows OI-HUB-C17: deleted if HEXTILE D-4 wins, relocated to the cluster carrier if SHELL-002 wins — it does not stay on the Hub PCB either way. Rewrite §5.2 to the two-level UID-addressed tree; drop the cluster-MCU LED-drive rationale in §3.2; recost §8. Retain §2, §4.2–4.5.2, §7.2–7.4, §9.5, §10 | Rev 3 baselining — §7.4 unblocked (§7.5.7); §6's fate blocked on OI-HUB-C17 |
 | OI-HUB-C16 | **CLOSED 2026-07-30 by `NP-DRV-SHELL-002` network N4** — a per-cluster low-leakage analog mux onto N shared guarded lanes, terminating at an **ADS1299 bank at the posterior aggregation node** (not the Hub PCB), sized by channel count (8 T1 / 21 T2) rather than socket count. That is the crosspoint this item proposed, and it is the surviving justification for the cluster tier. Residual — contact resistance and leakage on a µV path through a pogo contact plus a mux, and tES current rating through the same switch — sits with SHELL-002, not here | Closed |
 | ~~OI-HUB-C14~~ | **✅ CLOSED 2026-07-29 — firmware lobe path retired.** Removed `NP_GROUP_KIND_LOBE`, the `lobe`/`side` query fields, `np_pgroup_t`, `np_module_map_predefined()`, and `lobe_side_matches()`. **The open decision resolved: BOTH `np_socket_geom_t` and `np_physical_loc_t` lose `lobe`/`side`** — `np_physical_loc_t.lobe/side` had zero production readers (only three test assertions), and retaining an ungenerated anatomical store is the hazard itself, not just the query kind that read it. `x_mm`/`y_mm` retained for simulator selection. Anatomical labelling has no home in code at all — **ZONE-1** deleted the lobe derivation from `sync-socket-map.ts` and the `lobe` field from `socketMap.generated.ts`, and names this firmware removal as its firmware share; a socket is "frontal" only insofar as a human authored it into a zone named that way in `00-zones.npps`. Lobe-path resolver-property tests re-expressed over `NP_GROUP_KIND_SOCKET_SET`; inclusive-midline authoring rule relocated to `00-zones.npps`. 18/18 ctest green; map checks 145 → 147. Full rationale at §4.5.2 | — (closed) |

@@ -2,9 +2,9 @@
 
 **Source basis:** `CLAUDE.md` §1–§6 (core, locked) + `docs/np_helmet_geom_001.md` (shell layer
 stack) + `docs/np_hex_zm_001.md` (hex socket/module architecture + CLUSTER-1 / SYM-1 / CONTIG-1,
-current) + **`docs/np_hw_hextile_001.md` Rev 2 (tile electrical/FPC, emitter lattice, socket pogo
-interface, cluster count — current)** + **`docs/np_drv_shell_002.md` Rev 1 (L1 socket interconnect,
-cluster carriers, parting-plane crossing — current, DRAFT)** + **`docs/np_hw_hub_001.md` Rev 3 (hub
+current) + **`docs/np_hw_hextile_001.md` Rev 4 (tile electrical/FPC, emitter lattice, socket pogo
+interface, cluster count — current)** + **`docs/np_drv_shell_002.md` Rev 2 (L1 socket interconnect,
+cluster carriers, parting-plane crossing — current, DRAFT)** + **`docs/np_hw_hub_001.md` Rev 5 (hub
 interface contract, 24 V rail, safety gating — current, DRAFT)** + `docs/np_therm_bezel_001.md`
 + `docs/reference/durability-maintenance.md` + `docs/np_tool_hub_001.md` + **`docs/np_hfe_002.md`
 (retires the module braille / tactile-dot keying features)** + `docs/np_tool_shell_001.docx`
@@ -12,8 +12,18 @@ interface contract, 24 V rail, safety gating — current, DRAFT)** + `docs/np_th
 (SUPERSEDED — retained only for the sub-elements their own supersession banners still name as
 reusable) + `docs/np_pwr_budget_001.md` + `docs/reference/accessories-roadmap.md`.
 
-**Date:** 2026-08-11 (rev 2 — re-baselined against `origin/main` @ `e1f8a51`)
-**Previous:** 2026-07-29 (rev 1, commit `79e2ccc`)
+**Date:** 2026-08-16 (rev 3 — socket contact count corrected 18 → **19**, §L-1)
+**Previous:** 2026-08-11 (rev 2 — re-baselined against `origin/main` @ `e1f8a51`) · 2026-07-29 (rev 1, commit `79e2ccc`)
+
+> **rev 3 (2026-08-16).** §L-1 only. The rev 2 re-baseline was cut against `e1f8a51`, which
+> **predates `c6b5dfa`** — the commit that closed the socket contact count at **19** and took
+> `NP-HW-HEXTILE-001` to Rev 3 and `NP-DRV-SHELL-002` to Rev 2. §L-1's "three live numbers" were
+> therefore all stale on arrival, and the force figure derived from them (37.8–63.0 N on a 7-tile
+> plate) **overstated** the load RISK-22 must absorb. Corrected, with the source-basis revisions
+> above updated to match. Two further places carried the same staleness and are corrected with it:
+> the **SOCKET-CONTACT part row** (§B), which asserted *"Contact count is UNRESOLVED — 18 / 16 /
+> 14–15 are all live"*, and the head note that counted the contact count among three contested
+> numbers. No dimension, part count or BOM figure elsewhere in this list depends on it.
 
 > **★ Principal direction 2026-08-11 — bezel height decided at `h_b` = 1.0 mm** (the calculated
 > NP-THERM-BEZEL-001 value), conditional on it allowing forced cooling airflow. **Condition tested and
@@ -42,9 +52,10 @@ reusable) + `docs/np_pwr_budget_001.md` + `docs/reference/accessories-roadmap.md
 > | Rigidizer board is `[ARCH-TRANSITION]` — dimensions not re-validated at 40 mm hex | **Resolved and inverted**: 22 × 14 mm has a 13.0 mm half-diagonal against the hex's 20.0 mm inradius. Because every tile type now carries a driver, the rigidizer cavity is a **standard feature of the universal mould**, not a variant | NP-HW-HEXTILE-001 §6.3, D-3 |
 > | Silicon PDs on base tiles, InGaAs on smart tiles → drives a hub-side TIA gain-switch requirement | **InGaAs on every tile** (one PD SKU); TIA + ADC move **on-module**, so the gain switch is **deleted, not relocated** | NP-HW-HEXTILE-001 D-2, D-4 |
 >
-> **Three numbers are now contested between current documents and this list does not pick between
-> them** — see §L. They are the socket contact count, the perimeter bezel width, and whether the
-> cluster carrier holds a local MCU.
+> **Two numbers are now contested between current documents and this list does not pick between
+> them** — see §L. They are the perimeter bezel width and whether the cluster carrier holds a local
+> MCU. *(The socket contact count was the third; it **closed at 19** on 2026-08-11 —
+> `NP-DRV-SHELL-002` Rev 2 §5.1.4 — and is recorded as closed in §L-1 as of 2026-08-16.)*
 
 **Numbering:** Part IDs are mnemonic (`NP-CAD-<AREA>-<NN>`) for this document and the companion
 dependency graph (`cad-parts-dependency-graph.dot`). They are not yet official drawing numbers.
@@ -59,7 +70,7 @@ Rev-1 IDs are preserved verbatim — the graph references them.
 | SHELL-OUTER | Outer bowl (structural + EMF shell, L2+L3) | 1 | CFRP structural shell, laminated 0.2mm mu-metal (PETG-encapsulated) + palladium-polyester (0.1mm) + carbon-loaded absorber foam (3.0mm) bonded to inner face, unbroken. Total L2+L3 ≈6mm. Never opened in service. Must carry ≥35–45dB ELF / ≥40–60dB RF combined (prototype acceptance: meet/exceed single-shell baseline). Houses Helmholtz coil formers (fixed geometry, calibration-critical) and the non-conductive CFRP TMS window (T2). Crown exterior ≈189mm (157mm rim→crown datum + ~32mm stack). |
 | SHELL-INNER | Inner bowl (module carrier / socket layer, L1) | 1 | Glass-filled PBT (lead) or PA66-GF30 (cost-down fallback) — **non-magnetic, low-eddy** (fluxgate mounts live here; REQ-EMI-10 forbids *any* conductive addition to L1 without fluxgate re-qualification). Radial depth ~18–22mm. Holds ~80 keyed hex sockets on a parity-alternating lattice, cluster-clamp bosses, fluxgate mounts. **No longer a molded part: L1 is now an electro-mechanical assembly** — cluster carrier boards and their tails are *laminated into* the bowl, not harnessed to it. New supplier category (rigid-flex lamination into a molded carrier) required, OI-SHELL2-04. Dimensional stability to REG-1 10-20 registration tolerance across 60–110°F. |
 | SOCKET-BODY | Hex socket body (×~80, one moulded feature repeated) | ~80 | 40mm flat-to-flat hexagon, circumradius a=W/√3, moulded to curvature-median Rm≈87mm. Asymmetric keying (orientation-only — **no per-type mechanical key**, SMART-1 decision 2026-07-28); pad pattern additionally asymmetric about the long axis so a mis-keyed insertion **fails open, not wrong** (NP-HW-HEXTILE-001 §7.1). Every socket I2C-capable (SMART-1 full coverage). *"TIA-capable" no longer means a TIA at the socket* — under NP-HW-HEXTILE-001 D-4 the TIA sits on the tile; D-4 is deferred pending the module heat-sink design (OI-HUB-C17c). Row widths (parity-alternating) 3-6-7-8-9-8-9-8-7-6-5-4. **[PROVISIONAL — REG-1 gate: 10-20 registration vs. shell CAD not yet fixed.]** |
-| SOCKET-CONTACT | Per-socket spring-contact (pogo) array | ~80 arrays | **Springs on the socket, flat gold pads on the module** — the wearing element stays in the part that is never removed. 2.00mm pitch; hard gold ≥0.8µm over nickel both halves; ≥1.0A continuous per contact; ≤50mΩ contact resistance (binding, not nominal, because the `ELEC` contact sits in the µV EEG path); ≥500 mating cycles; blind-mate tolerance ±0.4mm lateral / ±0.5mm Z (absorbs residual clamp-plate variation the plungers do not). Pad lengths **staggered in 4 tiers** for deterministic mate order: PGND → VLED/AGND/ELEC_SHLD → VCC/SDA/SCL/ALERT/ELEC → SEAT_N last. **Contact count is UNRESOLVED — 18 / 16 / 14–15 are all live. See §L-1.** |
+| SOCKET-CONTACT | Per-socket spring-contact (pogo) array | ~80 arrays | **Springs on the socket, flat gold pads on the module** — the wearing element stays in the part that is never removed. 2.00mm pitch; hard gold ≥0.8µm over nickel both halves; ≥1.0A continuous per contact; ≤50mΩ contact resistance (binding, not nominal, because the `ELEC` contact sits in the µV EEG path); ≥500 mating cycles; blind-mate tolerance ±0.4mm lateral / ±0.5mm Z (absorbs residual clamp-plate variation the plungers do not). Pad lengths **staggered in 4 tiers** for deterministic mate order: PGND → VLED/AGND/ELEC_SHLD → VCC/SDA/SCL/`ALERT#`/ELEC → `SEAT#` last. **Contact count CLOSED at 19** (`NP-DRV-SHELL-002` Rev 2 §5.1.4), laid out as **two staggered rows**, nominally 9 + 10 — **REQ-SKT-01, binding**: a 19-contact single row spans 38 mm and will not fit inside the 20.0 mm tile inradius. See §L-1. *(Signal names corrected 2026-08-16 per `NP-CONV-001` §1.1 — `SEAT_N` and `ALERT` were pre-convention spellings; `_N` means cardinality, §1.2.)* |
 | BLANK-PLUG | Blanking plug (empty/unpopulated socket cover) | up to ~80 | Overmoulded PC core + LSR seal face, opaque, identical hex footprint to a live module — seals exactly like a filled socket. **Quantity is now a first-order question, not a rounding:** the power envelope permits only ~6 concurrent tiles (NP-HW-HEXTILE-001 §9.2) and full population costs ~$920/headset in driver+metering, so a 20–30-tile build with 50–60 blanking plugs is an explicitly-tabled option (OI-HEXTILE-06). Tool for the high count. |
 | SOCKET-GASKET | Per-socket co-molded LSR gasket land | ~80 | Shore 40–50A medical silicone, D-section 2.5×2.0mm (legacy 5-slot dimension, carried forward pending hex-lattice FAI), 20% compression when seated. IPX4 target after 10 field swap cycles (FAI-IPX-02, BLOCKING). Isolates a leak to one socket by design (rejected the continuous-grommet-sheet alternative). **New ingress path to qualify:** the compression contact array itself is a seam the rev-1 ZIF-tail model did not have — SH2-DRC-11. |
 | ELEC-HYDRO-CAP | Electrode hydration/fouling cap (tethered) | per electrode socket | Silicone, WVTR <0.5 g/m²/day, tethered (loss-prevention). Protects sintered Ag/AgCl face when module uninstalled; extends factory-sealed storage to 24+ months. |
@@ -228,20 +239,44 @@ they bite. **None of these is resolved by this document.**
 | L-0d | **PDMS 200-cycle IEC 60068-2-14 qualification** — still BLOCKING for production, inherited unchanged. | PDMS-WINDOW release. | OI-HEXTILE-12 |
 | L-0e | **CFRP shell slot rim Ra ≤ 1.6 µm supplier confirmation** — still open (RISK-20, BLOCKING). | SHELL-OUTER supplier qualification. | pending-decisions.md |
 
-### L-1. Socket contact count — three live numbers
+### L-1. Socket contact count — **CLOSED at 19** (was "three live numbers")
 
-| Source | Count | Force/module @0.3–0.5N | Per 7-tile plate |
+> **✅ No longer blocking. Corrected 2026-08-16 — this section was re-baselined against a tree that
+> predated the decision.** This list's source basis (see head) cites `np_hw_hextile_001.md` Rev 2
+> and `np_drv_shell_002.md` Rev 1; both moved on 2026-08-11 (commit `c6b5dfa`), after the
+> `e1f8a51` baseline this list was cut against. All three "live numbers" below are superseded.
+
+| Source | Count | Force/module @0.3–0.5N | Per clamp plate |
 |---|---|---|---|
-| NP-DRV-SHELL-002 §5.1 (as written) | **18** | 5.4–9.0 N | 37.8–63.0 N |
-| NP-HW-HEXTILE-001 D-5 §7.2 | **16** | 4.8–8.0 N | ~34–56 N |
-| NP-HW-HUB-001 §7.5.2 synthesis (if D-4 deletes network N3) | **15** (AGND kept) / **14** (dropped) | 4.2–7.5 N | 29.4–52.5 N |
+| **`NP-DRV-SHELL-002` Rev 2 §5.1.4 — CLOSED, `VLED+`/`PGND` = 3+3** | **19** | **5.7–9.5 N** | **34.2–57.0 N** (max **6** tiles) |
+| ~~`NP-DRV-SHELL-002` Rev 1 §5.1~~ | ~~18~~ | ~~5.4–9.0 N~~ | ~~37.8–63.0 N (7-tile)~~ |
+| ~~`NP-HW-HEXTILE-001` D-5 §7.2 (Rev 2)~~ | ~~16~~ | ~~4.8–8.0 N~~ | ~~~34–56 N (7-tile)~~ |
+| ~~`NP-HW-HUB-001` §7.5.2 synthesis (if D-4 deletes N3)~~ | ~~15 / 14~~ | ~~4.2–7.5 N~~ | ~~29.4–52.5 N (7-tile)~~ |
 
-This is not bookkeeping. **Contact count is an accessibility variable**: OI-SHELL2-03 asks for 18→12
-because that would cut clamp-plate load by a third, against RISK-22's one-handed-input-force intent
-for Parkinson's H&Y II–III and post-stroke users. The synthesis buys 17–22%, not 33% — **the
-remaining gap stays with MECH-2 and the HFE formative.** It also decides the pad-array footprint on
-the tile's back face and the socket's spring-array tooling. **Blocked behind OI-HUB-C17c**, which is
-itself blocked behind the module heat-sink design.
+**`NP-HW-HEXTILE-001` Rev 3 adopts the same 19-position pinout — the two documents now agree pin
+for pin.** The hub synthesis row did not merely lose on arithmetic: **`NP-DRV-SHELL-002` §3.3a
+resolved OI-HUB-C17c *against* D-4**, so the analog front end stays on the cluster controller,
+*"N3 is therefore not deleted"*, and `PD1_K`/`PD2_K`/`NTC`/`AGND` are all inside the 19.
+
+This is still not bookkeeping — **contact count is an accessibility variable** against RISK-22's
+one-handed-input-force intent for Parkinson's H&Y II–III and post-stroke users. But the conclusion
+has flipped, and in the reassuring direction:
+
+- **The clamp plate got lighter, not heavier.** 34.2–57.0 N at 19 contacts on a **6-tile** plate is
+  *below* the 37.8–63.0 N at 18 on a **7-tile** plate this section previously carried. No cluster
+  reaches 7 tiles under the 18-cluster CONTIG-1 partition (sizes 3–6, `NP-HW-HEXTILE-001` §8.2.1),
+  so the SYM-1 correction that *raised* the cluster count more than paid for the two extra contacts.
+- **OI-SHELL2-03's "18→12 cuts plate load by a third" target is not restatable** — it was written
+  against the retired 18-contact/7-tile pair. Its count half is **CLOSED**; what remains is purely
+  the human-factors question (is 34–57 N one-handed-achievable through the §5.4a over-centre
+  actuator?), owned by **MECH-2** and **OI-RISK4-03**, not by contact arithmetic.
+
+**Mechanical consequence — this is the part that touches CAD.** **REQ-SKT-01 is binding**: the
+19-contact pad array is **two staggered rows**, nominally 9 + 10 at 2.00 mm pitch (~18 mm span), not
+a single row — a 19-contact single row spans 38 mm and does not fit inside the 20.0 mm tile
+inradius. That fixes the back-face pad-array footprint and the socket spring-array tooling
+(`NP-TOOL-HEXTILE-001` **F-TH-02**, `NP-DRV-SHELL-002` **SH2-DRC-05a**, `NP-HW-HEXTILE-001`
+**HT-DRC-22**).
 
 ### L-2. Bezel height — **RESOLVED 2026-08-11 (principal direction): `h_b` = 1.0 mm** (closes OI-HEXTILE-01 on the value)
 

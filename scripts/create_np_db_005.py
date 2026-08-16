@@ -235,7 +235,7 @@ add_table(
          'Sized for five slots. Scaling the Rev B star to 80 sockets needs ~880 conductors '
          'through one blind-mate boss, 160 TIA channels and 160 ADC channels against ~32 '
          'available on the RT1062.',
-         'Hub PCB Rev C (NP-HW-HUB-001 Rev 4, DRAFT): distributed cluster-controller tier. '
+         'Hub PCB Rev C (NP-HW-HUB-001 Rev 6, DRAFT): distributed cluster-controller tier. '
          'Rev 2 (Hub PCB Rev B) is archived verbatim as Appendix A; its DG2788A topology and TIA-saturation '
          'analysis carry forward onto the cluster carriers — only the count and the control '
          'source change. Zero GAIN_SEL GPIO remain.'],
@@ -259,8 +259,9 @@ add_table(
          'Sized for five large discrete FPC tails. Hex tiles have no tail at all. Separately, '
          '≥15 mm EEG separation is unachievable in the hex architecture because electrodes now '
          'live inside T1-B tiles on the same L1 carrier as LED drive current.',
-         'NP-DRV-SHELL-002 Rev 2 (2026-07-29) cluster-carrier interconnect. Modules present an '
-         '18-contact back-face pad array — the module interconnect has zero dynamic-flex paths. '
+         'NP-DRV-SHELL-002 Rev 2 (2026-07-29) cluster-carrier interconnect. Modules present a '
+         '19-contact back-face pad array in two staggered rows (REQ-SKT-01) — the module '
+         'interconnect has zero dynamic-flex paths. '
          'The <5 µVpp injected-artifact requirement that separation served is retained verbatim '
          '(DRC-18c → SH2-DRC-16) and met by four other mechanisms.'],
 
@@ -279,7 +280,7 @@ add_table(
          'np_spi_watchdog_tick and can never enable anything. Note what that guard is NOT: no hub '
          'can set a retired zone bit — no hub hardware exists, and the ZONE macros were deleted in '
          'the same change — so the exclusion is defence in depth against a future authoring error, '
-         'not compatibility with a deployed hub (NP-HW-HUB-001 Rev 4 §7.2). The reservation itself '
+         'not compatibility with a deployed hub (NP-HW-HUB-001 Rev 6 §7.2). The reservation itself '
          'binds on separate Class C grounds: enable-bit position ≡ current_ua[] slot ≡ '
          'charge-accumulator index, which the 40 µC/cm² limit rests on. PA4 double-assignment '
          'cleared.'],
@@ -331,6 +332,24 @@ add_notice(
     're-triggering from module-map events.',
     colour=NOTICE_BG)
 
+add_notice(
+    'CORRECTION 2026-08-16, applied to this unapproved draft in place. Three places in this brief '
+    'stated the hex-tile socket contact count as 18 and derived an accessibility conclusion from '
+    'it. The count was CLOSED at 19 on 2026-08-11 (NP-DRV-SHELL-002 Rev 2 §5.1.4, principal '
+    'decision: VLED+/PGND = 3+3), and NP-HW-HEXTILE-001 Rev 3 adopted the same pinout. The derived '
+    'figure mattered more than the count: this brief carried "roughly 38–63 N at 18 contacts per '
+    '7-tile cluster", which was stale on BOTH halves at once — the count is 19 and the plate is at '
+    'most 6 tiles, because no cluster reaches 7 under the 18-cluster CONTIG-1 partition. The stale '
+    'pair asserted a HARSHER load than the design produces: the real figure is 34.2–57.0 N on a '
+    '6-tile plate, below the 37.8–63.0 N it replaced. Because contact count is an explicit RISK-22 '
+    'accessibility variable, correcting the number without correcting the conclusion would have '
+    'left this brief overstating the force a Parkinson\'s H&Y II–III user must produce. Corrected '
+    'in §0.1, §5.5 and the durability table. This revision is authored but not approved, so the '
+    'correction is made in place rather than as Revision 7 — per 21 CFR 820.40(a) an unissued '
+    'draft has no revision of record to supersede.',
+    colour=RETIRE_BG,
+    bold_lead='CONTACT COUNT — 18 SUPERSEDED BY 19. ')
+
 add_heading('0.2 Added since Revision 5', level=2)
 
 add_table(
@@ -344,12 +363,12 @@ add_table(
          'Companion ISA at docs/np_hex_zm_isa.md; firmware np_module_map delivered.'],
 
         ['Hex-tile electrical / FPC spec',
-         'NP-HW-HEXTILE-001 Rev 3 — the electrical and FPC counterpart for T1-A and T1-C; '
+         'NP-HW-HEXTILE-001 Rev 4 — the electrical and FPC counterpart for T1-A and T1-C; '
          '§8.2.1 carries the 18-cluster derivation and §8.2.2 the interconnect options for the '
          'count overflow. Cluster map diagram at docs/diagrams/np_hextile_cluster_map.svg.'],
 
         ['Hub PCB Rev C',
-         'NP-HW-HUB-001 Rev 4 (DRAFT) — distributed cluster-controller tier replaces the '
+         'NP-HW-HUB-001 Rev 6 (DRAFT) — distributed cluster-controller tier replaces the '
          'five-slot star. The hub PCB no longer encodes the socket count at all, so REG-1 no '
          'longer blocks hub tooling.'],
 
@@ -991,12 +1010,20 @@ add_para(
     'must be handled geometrically and computationally, never by filtering.')
 
 add_para(
-    'Modules lose their tail. A hex tile presents an 18-contact back-face pad array seated by '
+    'Modules lose their tail. A hex tile presents a 19-contact back-face pad array seated by '
     'the cluster clamp plunger, so the module interconnect has zero dynamic-flex paths — the '
     'retired architecture\'s dominant failure mode (fatigue cracking at a stiffener edge over '
-    '1,000 swap cycles) is designed out rather than mitigated. Non-obvious coupling recorded: '
-    'contact count drives clamp-plate load (roughly 38–63 N at 18 contacts per 7-tile cluster), '
-    'so contact count is a RISK-22 accessibility variable.')
+    '1,000 swap cycles) is designed out rather than mitigated. The count is CLOSED at 19 '
+    '(NP-DRV-SHELL-002 Rev 2 §5.1.4, principal decision 2026-08-11: VLED+/PGND = 3+3, sized so '
+    'that losing any one power contact still leaves ≥2× derating against the contact rating), and '
+    'REQ-SKT-01 makes the layout binding: two staggered rows of nominally 9 + 10 at 2.00 mm pitch, '
+    'because a 19-contact single row spans 38 mm and does not fit inside the 20.0 mm tile inradius. '
+    'Non-obvious coupling recorded: contact count drives clamp-plate load, so contact count is a '
+    'RISK-22 accessibility variable. The load is 34.2–57.0 N at 19 contacts on a 6-tile plate — '
+    'and note this is BELOW the 37.8–63.0 N that 18 contacts on a 7-tile plate would give, because '
+    'no cluster reaches 7 tiles under the 18-cluster CONTIG-1 partition (sizes are 3–6). The SYM-1 '
+    'correction that raised the cluster count more than paid for the two extra contacts, so the '
+    'clamp actuator sees less load than the earlier figure asserted, not more.')
 
 add_para(
     'Conductor count, stated honestly: 144 conductors at the hub PCB (EEG included) versus 110 '
@@ -1026,7 +1053,7 @@ add_bullets([
     'error re-introducing those positions — NOT compatibility with a deployed or legacy hub. No '
     'hub can set a retired zone bit: no hub hardware exists, and the NP_SAFETY_EN_PBM_ZONE_0..4 '
     'macros were deleted in the same change, surviving only in "Formerly …" comments '
-    '(NP-HW-HUB-001 Rev 4 §7.2, corrected 2026-08-12). The reservation of bits 1–4 is unaffected '
+    '(NP-HW-HUB-001 Rev 6 §7.2, corrected 2026-08-12). The reservation of bits 1–4 is unaffected '
     'and remains correct on independent Class C grounds: the bit position is '
     'deliberately NOT compacted, because enable-bit position ≡ current_ua[] slot ≡ '
     'charge-accumulator index is a three-way Class C identity that the 40 µC/cm² limit rests on, '
@@ -1035,7 +1062,7 @@ add_bullets([
 
 add_notice(
     'Whether the safety layer can cut ONE cluster or only the whole cranial lattice is open. '
-    'NP-DRV-SHELL-002 specifies per-cluster SAFE_EN_n (18 GPIO); NP-HW-HUB-001 Rev 4 §7.2 '
+    'NP-DRV-SHELL-002 specifies per-cluster SAFE_EN_n (18 GPIO); NP-HW-HUB-001 Rev 6 §7.2 '
     'specifies a single cranial bit (1 GPIO, all-or-nothing). Per-cluster policy bits would need '
     'the enable word widened to uint32_t (18 cluster + 9 modality = 27 > 16). Tracked as '
     'OI-HUB-C07 / OI-HEXTILE-13; proposed resolution at NP-HW-HEXTILE-001 §8.4.1 — split the '
@@ -1282,9 +1309,14 @@ add_table(
          'Included in cluster clamp',
          'The retired per-module sliding eject lever is superseded by the cluster clamp — one '
          'actuator per cluster instead of a lever per module. Contact count drives clamp-plate '
-         'load (roughly 38–63 N at 18 contacts per 7-tile cluster), so contact count is now an '
-         'accessibility variable, closed jointly with MECH-2 (OI-SHELL2-03). The Parkinson\'s '
-         'Hoehn & Yahr II–III accessibility target is unchanged; the HFE formative study with 5 '
+         'load, so contact count is an accessibility variable. The count half of OI-SHELL2-03 is '
+         'CLOSED at 19 contacts, giving 34.2–57.0 N on a 6-tile plate — below the 37.8–63.0 N that '
+         '18 contacts on a 7-tile plate would give, because no cluster reaches 7 tiles under the '
+         '18-cluster partition. OI-SHELL2-03\'s original "18 → 12 cuts plate load by a third" '
+         'target was written against that retired pair and is not restatable. The Parkinson\'s '
+         'Hoehn & Yahr II–III accessibility target is unchanged, and what remains open is purely '
+         'the human-factors question — whether 34–57 N is one-handed-achievable through the '
+         'over-centre actuator — owned by MECH-2 and OI-RISK4-03. The HFE formative study with 5 '
          'subjects remains outstanding.'],
         ['Hard clamshell case; intranasal probe hub dock', 'CARRIED FORWARD', '+$8–14',
          'Lens scratching from bag contents is certain within the first month without a hard '
@@ -1753,8 +1785,8 @@ add_table(
         ['NP-SW-CI-001', 'Rev 8, DRAFT', 'Firmware cross-compile CI program'],
         ['NP-SOUP-CMSIS-001', 'Rev 1, DRAFT', 'First Class C IEC 62304 §7.1.2 anomaly evaluation'],
         ['NP-HEX-ZM-001', 'Rev 2, DESIGN STUDY', 'Hex-tile module architecture; CLUSTER-1/SYM-1/CONTIG-1'],
-        ['NP-HW-HEXTILE-001', 'Rev 3, DESIGN STUDY', 'Hex-tile electrical/FPC spec; 18-cluster derivation'],
-        ['NP-HW-HUB-001', 'Rev 4, DRAFT', 'Cluster-controller tier (Hub PCB Rev B archived as Appendix A)'],
+        ['NP-HW-HEXTILE-001', 'Rev 4, DESIGN STUDY', 'Hex-tile electrical/FPC spec; 18-cluster derivation'],
+        ['NP-HW-HUB-001', 'Rev 6, DRAFT', 'Cluster-controller tier (Hub PCB Rev B archived as Appendix A)'],
         ['NP-DRV-SHELL-002', 'Rev 2, DRAFT', 'Cluster-carrier shell socket interconnect. NP-DRV-SHELL-001 retired to docs/superseded/'],
         ['NP-HELMET-GEOM-001', '—', 'Scan-derived helmet geometry and socket coordinates'],
         ['NP-OPT-PSF-001', 'Rev 1, ACTIVE', 'PBM optical resolution floor; lateralization model'],
