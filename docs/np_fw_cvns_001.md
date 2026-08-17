@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-CVNS-001
-**Revision:** 2
-**Date:** 2026-08-05
+**Revision:** 3
+**Date:** 2026-08-12
 **Status:** BASELINED
 **Effective Date:** 2026-08-05
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -12,10 +12,16 @@
 **Related Issues:** GitHub Issue #24
 **Gate:** NP-COORD-001 G3-08
 **IEC 62304 Class:** SW-01 Class C (safety MCU) / SW-02 Class B (main processor)
-**Supersedes:** NP-FW-CVNS-001 Rev 1
+**Supersedes:** NP-FW-CVNS-001 Rev 2
 **Parent Document:** NP-SW-001
 
 ---
+
+**Rev 3 (2026-08-12): §8.2 contradicted itself on the cutoff time offset; resolved to UHDR.** This document classified *Time-of-cutoff offset (s after stim onset)* as **UHDR — user biology**, and then two rows later routed the *Safety MCU fault log (offset, reason, no HR)* to **SHDR** — where §5.6's `np_cvns_fault_log_entry_t` carried that same quantity as `cutoff_offset_ms`, at **finer** resolution than the UHDR original. One datum, two partitions, the SHDR copy the more revealing of the two.
+
+Resolved in favour of UHDR, which is both the conservative reading (CLAUDE.md §5.1: when in doubt → UHDR) and the substantively correct one: for `reason = HR_CHANGE` the offset is the latency from stimulation onset to the wearer's heart rate deviating past `NP_CARDIAC_HR_DELTA_BPM` — an **autonomic response latency**, a measurement of the person. The UHDR session record (§4.5) already carries it as `cutoff_time_offset_s`, so nothing is lost. `cutoff_offset_ms` is removed from the SHDR record (`firmware/cervical_vns/include/np_cvns_types.h`; struct 12 → 8 bytes), **unconditionally** — zeroing it only for the cardiac reason would have recreated the oracle retired from the fault latch the same day, and would leak doubly here because `reason` is in the same record. `reason` is retained: the fault *kind* is the deliberate, already-published SHDR channel (`fault_log.fault_type = 'CVNS_HR_CUTOFF'`). The struct had no producer and no consumer, so no data path or stored record was affected. §8.2, §11 and the stale §11 cross-reference (NP-FW-EMMC-001 "Rev 1 §12, 27 elements") updated; the element is now carried explicitly in NP-FW-EMMC-001 Rev 2 §12, which was silent on it — the silence is why the contradiction survived two revisions. IEC 62304 SW-01 Class C / SW-02 Class B: record-shape change only, no interlock behaviour altered.
+
+*Revision numbering note:* revisions are positive integers per NP-CONV-001 Rev 6 §4.1; the change note below is headed "Rev B", which is this document's Rev 2 under the published letter→integer mapping (B ≡ 2).
 
 **Rev B (2026-08-05):** Reconciles §5 (safety MCU, Class C) with the firmware it specifies. Rev 1 §5 described the safety MCU using the **main processor's** constants and behaviours — the root cause of most of the divergences below — and specified one operation the firmware cannot perform.
 
@@ -325,18 +331,27 @@ Once stimulation is enabled, the safety MCU runs a 200 Hz interrupt-driven loop 
 
 ### 5.6 Safety MCU fault log (SHDR)
 
-Each cutoff event generates a 12-byte fault log entry written to a dedicated SHDR sub-partition:
+Each cutoff event generates an **8-byte** fault log entry written to a dedicated SHDR sub-partition:
 
 ```c
 typedef struct {
     uint32_t session_id;         /* session counter (unsigned, no timestamps) */
-    uint32_t cutoff_offset_ms;   /* ms after stim enable when cutoff occurred */
     uint8_t  reason;             /* 0=HR_CHANGE, 1=DATA_LOSS, 2=WATCHDOG      */
     uint8_t  reserved[3];
 } np_cvns_fault_log_entry_t;
 ```
 
 **No HR values in the fault log** — those are in the UHDR session record (user biology, biometric-derived AES key).
+
+**No event timing in the fault log either (Rev 3, 2026-08-12).** Rev 2 carried a `uint32_t cutoff_offset_ms` ("ms after stim enable when cutoff occurred") in this SHDR record while §8.2 classified the very same quantity — *Time-of-cutoff offset (s after stim onset)* — as **UHDR, user biology**, two rows above routing this record to SHDR. Both could not be right, and the UHDR row is the correct one:
+
+- For `reason = HR_CHANGE`, the offset is the latency from stimulation onset to the wearer's heart rate deviating past `NP_CARDIAC_HR_DELTA_BPM`. That is an **autonomic response latency** — a measurement of the person, not of the device. It fails the §5.1 test ("does this record tell us something about the person?") outright.
+- The UHDR session record (§4.5) **already carries this datum** as `cutoff_time_offset_s`. The SHDR copy was a duplicate at *finer* resolution (ms vs s), so it was strictly more revealing than the UHDR original it shadowed.
+- Fault event timing is UHDR generally: the SHDR fleet schema's `fault_log` has no timing column and states *"Precise fault event timing, where it exists at all, is UHDR under the user's key"*, and `np_log_shdr_fault()` discards its `session_ms` argument for every caller.
+
+The removal is **unconditional** — the field leaves the record shape for every `reason` value. Zeroing it only for the cardiac reason would have recreated exactly the oracle retired from the fault latch on the same date (a redaction conditioned on a sensitive predicate leaks that predicate, CLAUDE.md §5.1); here it would leak doubly, because `reason` is itself in the record. `reason` stays: the fault **kind** is the deliberate, already-published SHDR channel (`fault_log.fault_type`, e.g. `'CVNS_HR_CUTOFF'`), per the locked "safety interlock log → SHDR" rule.
+
+The struct was declared but never populated — no producer and no consumer existed at the time of the change, so no data path or stored record was affected.
 
 ---
 
@@ -500,7 +515,7 @@ STAGE_FAULT                       STAGE_RAMP_DOWN → STAGE_COMPLETE
 | Stimulation parameters (freq, current, pulse width) | UHDR | Linked to a specific user session |
 | Cutoff occurred flag (0/1 only, no HR values) | SHDR | Device safety event — no user biology |
 | Electrode impedance pass/fail (boolean) | SHDR | Device contact quality metric |
-| Safety MCU fault log (offset, reason, no HR) | SHDR | Device event log |
+| Safety MCU fault log (session ordinal + reason; **no offset**, no HR) | SHDR | Device event log. **Rev 3:** the `cutoff_offset_ms` field was removed — it duplicated the *Time-of-cutoff offset* row above, which this same table already classifies UHDR, at finer resolution. Fault event timing is UHDR (§5.6). |
 | Session count increment | SHDR | Unsigned integer |
 
 ### 8.3 Session configuration structure
@@ -651,7 +666,7 @@ np_cvns_stage_t np_cvns_session_stage(const np_cvns_session_ctx_t *ctx);
 
 ## 11. UHDR / SHDR Data Routing Summary
 
-Consistent with NP-FW-EMMC-001 Rev 1 §12 (27-element classification table). Key additions from the cervical VNS module:
+Consistent with NP-FW-EMMC-001 Rev 2 §12 (33-element classification table; was cited at Rev 1 / 27 elements through Rev 2 of this document). Key additions from the cervical VNS module:
 
 | Data element | Partition | Reasoning |
 |---|---|---|
@@ -661,8 +676,9 @@ Consistent with NP-FW-EMMC-001 Rev 1 §12 (27-element classification table). Key
 | Session timestamps | UHDR | Per CLAUDE.md §5.2 resolution: session timestamps → UHDR |
 | Electrode impedance (raw) | UHDR | Raw measurement linked to a user session |
 | Cutoff flag (boolean only) | SHDR | Device safety event; no user biology in the flag itself |
+| Time-of-cutoff offset (s after stim onset) | UHDR | Latency from stim onset to the wearer's HR deviating past the cutoff threshold — an autonomic response latency, i.e. user biology. Carried in the UHDR session record as `cutoff_time_offset_s` (§4.5) and **nowhere in SHDR** (§5.6, Rev 3) |
 | Electrode impedance pass/fail | SHDR | Device contact quality (aggregate) |
-| Safety MCU fault log | SHDR | Device event log; no HR values |
+| Safety MCU fault log | SHDR | Device event log; no HR values **and no event timing** (§5.6) |
 | Session count increment | SHDR | Unsigned integer; no timestamps |
 
 ---
