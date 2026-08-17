@@ -95,10 +95,13 @@ static void shdr_zone_auth_cb(uint8_t slot, np_hub_mod_type_t type, bool pass)
 /*
  * log_cvns_event — route a CVNS re-enable lifecycle event to SHDR.
  *
- * Privacy (NP-FW-CVNS-001: "SHDR: cutoff flag only, no HR values"): every
- * event is logged with a SUPPRESSED (0) timestamp so no session-relative time
- * can co-locate a device log entry with a UHDR-class cardiac event (see the
- * CLAUDE.md fault-latch privacy gate).  Event codes are flags only.
+ * Privacy (NP-FW-CVNS-001: "SHDR: cutoff flag only, no HR values"): event codes
+ * are flags only.  The 0 passed as the timestamp argument is belt-and-braces —
+ * np_log_shdr_fault() discards `session_ms` for every caller and every fault
+ * type, because fault event timing is UHDR.  That suppression is UNCONDITIONAL
+ * and therefore leaks nothing about which fault occurred; do NOT make it
+ * conditional on the event being cardiac (CLAUDE.md §5.1 — a redaction applied
+ * conditionally on a sensitive predicate leaks that predicate).
  */
 static void log_cvns_event(np_cvns_reenable_event_t ev)
 {
