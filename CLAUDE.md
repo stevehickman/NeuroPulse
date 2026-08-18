@@ -1,8 +1,12 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 37 (current)  
+**Revision:** 39 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
+> **Rev 39 (2026-08-16) — RETAIL PRICING UNLOCKED by principal direction. No price is set by this revision.** Taken against Rev 38's finding that all four T1 configurations are gross-margin negative. Unlocking the constraint turns the arithmetic around — GM% becomes the input, retail the output — and yields a **ladder, not a number**, published as new **§2.1a**: break-even Home Standard **$1,196–1,278**, target margin **$1,869–1,997** (a 2.20–2.35× increase on $849); Core $955–1,121; Home Lite $1,445–1,587; Home Premium $2,475–2,637. **The six configurations keep the prices currently in force** — choosing new ones is a separate commercial decision, and §2.1a records four things to weigh first. **Break-even binds before margin does**: Home Standard cannot be sold below ~$1,196 at any margin, already 1.4× its current price. **Three consequences the lock was concealing.** (i) The T1 and T2 ladders **collide** — Home Premium at $2,475–2,637 against a Pro Entry at $4,999 makes §1's two-tier structure one tier with a regulatory footnote (**OI-COST-08**). (ii) **Pro is where the *target*, not the cost, is the thing to question** — both Pro rows are profitable today (+$2,499, +$10,163/unit) and only holding 73%/81% demands $9K and $20K; this is **not** a mandate to raise T2 pricing. (iii) **Every competitive price claim is live again** — `docs/reference/competitive-position.md`'s comparisons were safe *because retail was locked*, and that justification is gone; at $1,997 Home Standard is ~40% of a ~$5K Vielight, not 17%, and becomes a direct Sens.ai price peer (**OI-COST-09**). **Binding sequence: `OI-HEXTILE-06` must be decided BEFORE any price is set** (**OI-COST-10**) — silicon PD plus a 20-tile build moves Home Standard's target-margin retail $1,997 → ~$1,383, so pricing first prices against a cost that decision invalidates. All §2.1a figures inherit §2.1's floor status: term **U** is still excluded, so this is the *least* retail would have to move. §2.2 charger policy remains unaffected — it is keyed to peak draw, not price. See `docs/np_cost_001.md` Rev 2 §8.
+>
+> **Rev 38 (2026-08-16) — §2.1 BOM / COGS / GM% re-derived against the hex-tile architecture. Retail unchanged and still locked. All four T1 configurations are now gross-margin negative.** The old columns (Core $168–169 / 42% … Pro Full $1,506 / 81%) were built on the retired five-zone-module design; they are superseded by `NP-COST-001`, and the stopgap caveat in `NP-DB-005` §4 is replaced with real figures. **Home Standard goes $405 → $897–959 BOM, +36% GM → −41% to −51%.** Pro is unaffected (+50% / +73%) because its retail is 3–6× its cost. The dominant term is not the cluster tier the brief was scoped around — it is **`NP-HW-HEXTILE-001` §6.4's $11.53/tile driver + metering, of which ~$10 is two InGaAs photodiodes**; at 30 tiles that is $346 against a $405 BOM, and **none of `OI-HEXTILE-06`'s three options, alone or combined, restores a positive T1 margin** (NP-COST-001 §6). Two corrections of record: (i) the brief's three deltas are **not additive** — `NP-DRV-SHELL-002` **Rev 2** §10.1's $175–225 already contains the $114.12 controller tier *and* the $32–64 socket arrays, and supersedes Rev 1's $125–216; (ii) `NP-HW-HUB-001` §8's blanket "every figure is VOID" banner is **stale**, because `OI-HUB-C17c` resolved against D-4 and the TIA/mux/ADC lines survive (OI-COST-06). **`OI-HUB-C08` is NOT closed and cannot be**: `OI-HEXTILE-02` has selected no 660/808 nm emitter, so *the dominant BOM line has no unit price on either side of the subtraction* — every figure is therefore a **floor** excluding term **U**, and OI-HUB-C08 is additionally under-scoped because it never covered the emitter-count delta (600 → up to 2,814 emitters). **Three inputs this model needs do not exist anywhere in the document set** and are recorded as assumptions, not decisions: per-configuration tile population (OI-COST-01), whether every configuration carries the full 18-cluster L1 (OI-COST-04), and — because no single BOM→COGS rule is recoverable from the six published pairs — a per-configuration COGS multiplier (OI-COST-05). §2.2 charger policy **confirmed unaffected** (peak draw unchanged; concurrency held at ~5–6 tiles by `NP-HW-HEXTILE-001` §9). Socket count ~80 remains **PROVISIONAL** pending REG-1/ACT-1 and every derived figure inherits that.
+>
 > **Rev 37 (2026-08-16) — a priori research consent goes from four onboarding screens to two; no consent axis removed, no withdrawal path weakened.** `§6.2` now separates **layers from screens**: L1–L4 remain the four consent layers — the units of the data model, the withdrawal surfaces and every citation elsewhere — presented across two screens. **S1 "What you get back" (L4 + L1) comes first**, because L1 and L4 were always the same question (L1 asks *may we contact you*, L4 asks *what about*), and because leading with reciprocity is consistent with §6.2's own reasoning. **S2 "What you share" (L2 + L3) carries two controls, not one.** Selecting all nine categories is **not** blanket consent: L2 is *scope*, L3 is *posture*, and "everything, but ask me" is a real position that survives only while both axes do (§6.2.2). **Select-all deliberately does NOT auto-enable the blanket toggle** (§6.2.3) — ticking nine boxes expresses breadth of interest, not a wish to stop being consulted; the usability objection is answered with copy, not state. §6.2.4 states the three copy rules that keep an L4-first screen from becoming an inducement, reusing `NP-MOD-ID-001` §7.5's honest-exchange framing. **One latent defect fixed as a precondition of the merge:** `withdrawBlanketResearchConsent()` was correct and tested on both platforms, but **nothing on iOS called it from the UI** — turning blanket consent off in Research Preferences committed through `updateResearchConsent()` and skipped the analytics teardown, while Android routed it correctly. Merging L2+L3 onto one commit-at-the-end screen would have made that bypass the ordinary path. The teardown is now enforced at the store ingestion point on a **true→false transition** of blanket consent (§6.2.5), guarding the transition rather than the value so a category-only edit still cannot trigger it. Withdrawal granularity and effectiveness are unchanged.
 
 > **Rev 36 (2026-08-12) — §5.1's accelerometer boundary gains one bounded, self-closing exception; §5.2 gains the cohort that feeds it.** No locked decision was reversed: §G.3's prohibition stands unqualified for every device that has not opted in, which is the fleet by default. The problem it solves is that `drop_detected` and `maintenance_alert` are computed from two numbers (`15.0f` g; 3 drop-bearing gaps) guessed before any hardware existed, while §G.3 prohibits every field that could validate them — **the spec forecloses the evidence needed to make itself correct**, so NP-PRIV-001 HIGH-01's own Option C was a destination with no road to it. NP-FW-EMMC-002 Rev 2 §H opens a time-boxed, opt-in, **warranty-owner**-consented window collecting a coarsened per-gap impact histogram, purpose-bound to predictive-maintenance training, rows deleted at close. **The window is denominated in records, not calendar time** — this device has no battery or coin cell, so its RTC has no backup domain and wall time is re-supplied by the phone; a calendar expiry would be both losable and settable backwards. Consent rests on there being no identifiable subject (NP-MOD-ID-001 §7.5.1) and is *stronger* than that precedent: a duty map at least requires the device to be **worn**, and a drop does not. **Two limits recorded rather than papered over:** §G.3's ban on a cumulative drop count and on per-drop timing is **already defeated by aggregation** over `shdr_accel_records`' per-gap rows, independently of §H (OI-EMMC2-11, principal decision required); and §G.2's "rolling 7-**day** window" was never implementable for the same clock reason, so it is now counted in session gaps, which changes what `maintenance_alert` means (OI-EMMC2-10). See `docs/status/completed-decisions.md` (2026-08-12).
@@ -23,6 +27,7 @@ The core sections (§1–§6, §16) stay in this file — they are invariants th
 |-------|-----------|------|
 | **Product overview** | always available | §1 below |
 | **Configurations + pricing** | always available | §2 below |
+| **Configuration cost model** (BOM/COGS/GM% derivation, the three unsourced assumptions, term U, why OI-HUB-C08 cannot close) | quoting or acting on ANY §2.1 cost figure; any BOM, margin or pricing question | `docs/np_cost_001.md` |
 | **Modality stack** | always available | §3 below |
 | **Hardware specifications** | always available | §4 below |
 | **Data architecture (UHDR/SHDR)** | always available | §5 below |
@@ -73,18 +78,73 @@ Two-tier platform sharing a single chassis, processor stack, app, and USB-C conn
 
 ---
 
-## 2. CONFIGURATIONS + PRICING (all locked)
+## 2. CONFIGURATIONS + PRICING (🔓 retail UNLOCKED 2026-08-16; charger policy §2.2 still locked)
 
 ### 2.1 Integrated system configurations
 
-| Config | BOM | COGS | Retail | GM% | Modalities included |
+> **⚠ RETAIL IS UNLOCKED (principal, 2026-08-16). BOM / COGS / GM% are re-derived against the
+> hex-tile architecture and are FLOORS, not estimates.** The pre-hex figures (Core $168–169 /
+> $258–260 / 42% … Pro Full $1,506 / $2,628 / 81%) were built on the retired five-zone-module design
+> and are superseded. **Every T1 configuration is gross-margin negative at the prices below.** Read
+> `docs/np_cost_001.md` before quoting, citing or acting on any number here — it carries the
+> derivation, the three assumptions that are not sourced anywhere in the document set, and the
+> uncosted term **U** that every row excludes.
+>
+> **Retail prices in the table are the prices currently in force, not a decision.** Unlocking the
+> constraint does not set a price — see §2.1a for the ladder it implies, and note **`OI-HEXTILE-06`
+> must be decided before any price is set** (`OI-COST-10`).
+
+| Config | BOM (floor) | COGS (floor) | Retail (in force, 🔓 unlocked) | GM% (floor) | Modalities included |
 |--------|-----|------|--------|-----|---------------------|
-| Core — EEG only | $168–169 | $258–260 | $449 | 42% | 4-ch EEG · all connectivity · EMF shielding · processor stack · 8GB eMMC |
-| Home Lite | $265–266 | $370–372 | $599 | 38% | Core + PBM tiles (660+810nm) · 8-ch EEG · VNS+HRV clip |
-| Home Standard ★ (flagship) | $405 | $540 | $849 | 36% | All T1 modalities (see §3) |
-| Home Premium | $460 | $622 | $1,199 | 48% | All T1 + EC lens (+$89 value) · 2yr warranty · priority support |
-| Pro Entry | $833 | $1,365 | $4,999 | 73% | All T1 + 21-ch qEEG · 1170nm deep PBM · clinical tACS · HIPAA cloud · sLORETA |
-| Pro Full | $1,506 | $2,628 | $13,999 | 81% | All T2 + TMS hub · multi-patient dashboard · scripting API · FHIR R4 · $1,800/yr service |
+| Core — EEG only | $360–423 | $554–650 | $449 | **−23% to −45%** | 4-ch EEG · all connectivity · EMF shielding · processor stack · 8GB eMMC |
+| Home Lite | $642–705 | $896–984 | $599 | **−50% to −64%** | Core + PBM tiles (660+810nm) · 8-ch EEG · VNS+HRV clip |
+| Home Standard ★ (flagship) | $897–959 | $1,196–1,278 | $849 | **−41% to −51%** | All T1 modalities (see §3) |
+| Home Premium | $952–1,014 | $1,287–1,371 | $1,199 | **−7% to −14%** | All T1 + EC lens (+$89 value) · 2yr warranty · priority support |
+| Pro Entry | $1,463–1,525 | $2,398–2,500 | $4,999 | **+50% to +52%** | All T1 + 21-ch qEEG · 1170nm deep PBM · clinical tACS · HIPAA cloud · sLORETA |
+| Pro Full | $2,136–2,198 | $3,728–3,836 | $13,999 | **+73%** | All T2 + TMS hub · multi-patient dashboard · scripting API · FHIR R4 · $1,800/yr service |
+
+**Three things about this table that are not optional to know:**
+
+1. **GM% above is an output, not a target.** It was derived under the lock, which is what made it
+   evidence rather than an assumption. No figure was adjusted to preserve the old 36–81% band.
+2. **Every row is a floor.** Each excludes term **U** — the emitter-count delta (Home Standard goes
+   from 600 emitters to ~2,286) net of the retired hub-side LED drive stage. **U is uncosted in both
+   directions and is very likely large and positive:** the 660/808 nm emitters are *not selected*
+   (`OI-HEXTILE-02`), so the dominant BOM line has no unit price anywhere in the document set.
+   **OI-HUB-C08 therefore cannot be closed**, and the gap is wider than OI-HUB-C08 states — it
+   scopes only the *drive electronics*, not the emitters.
+3. **The dominant recoverable term is the InGaAs photodiode pair**, ~$10 of the $11.53/tile. That is
+   `OI-HEXTILE-06`, and it is the decision that determines whether T1 can close against locked
+   retail at all. `docs/np_cost_001.md` §6 runs its three options: **none of them, alone or
+   combined, restores a positive T1 margin.**
+
+### 2.1a Implied retail ladder (retail unlocked 2026-08-16 — implied, NOT set)
+
+Retail = COGS ÷ (1 − original GM target). **These are the prices the current costs imply, not prices
+that have been decided.** Every figure inherits the §2.1 floor status — term **U** is still excluded,
+so this is the *least* retail would have to move. Full derivation and consequences: `NP-COST-001` §8.
+
+| Config | **Break-even** | **At original GM target** | Multiple of price in force | Per-unit result at price in force |
+|--------|---|---|---|---|
+| Core — EEG only | $554–650 | **$955–1,121** (42%) | 2.13–2.50× | **−$105 to −$201** |
+| Home Lite | $896–984 | **$1,445–1,587** (38%) | 2.41–2.65× | **−$297 to −$385** |
+| Home Standard ★ | $1,196–1,278 | **$1,869–1,997** (36%) | 2.20–2.35× | **−$347 to −$429** |
+| Home Premium | $1,287–1,371 | **$2,475–2,637** (48%) | 2.06–2.20× | **−$88 to −$172** |
+| Pro Entry | $2,398–2,500 | $8,881–9,259 (73%) | 1.78–1.85× | *+$2,499 — profitable today* |
+| Pro Full | $3,728–3,836 | $19,621–20,189 (81%) | 1.40–1.44× | *+$10,163 — profitable today* |
+
+**Four things to weigh before setting any price:**
+
+1. **Break-even binds before margin does.** Home Standard cannot be sold below **~$1,196** at any
+   margin — already 1.4× its current $849.
+2. **The T1 ladder collides with the T2 ladder.** Home Premium at $2,475–2,637 against a Pro Entry
+   at $4,999 makes §1's two-tier structure hard to sustain — one tier with a regulatory footnote.
+   **`OI-COST-08`.**
+3. **Pro's rows are where the *target*, not the cost, should be questioned.** Both are profitable
+   today; holding 73%/81% is what demands $9K and $20K. This is not a mandate to raise T2 pricing.
+4. **Decide `OI-HEXTILE-06` first (`OI-COST-10`).** Silicon PD + a 20-tile build moves Home
+   Standard's target-margin retail **$1,997 → ~$1,383**. Pricing before that decision prices against
+   a cost it invalidates.
 
 **★ Home Standard box contents:** All T1 modules · hard clamshell case · braided aramid USB-C cable (spare in box) · **45W NeurOne branded GaN charger** · S1 opaque shade · interface covers (installed + spare set each type) · mesh cleaning brush · Boa replacement cable + hook tool · moisture-barrier electrode tip hydration caps · humidity indicator card · pre-impregnated cleaning cloth packets
 
