@@ -235,7 +235,7 @@ add_table(
          'Sized for five slots. Scaling the Rev B star to 80 sockets needs ~880 conductors '
          'through one blind-mate boss, 160 TIA channels and 160 ADC channels against ~32 '
          'available on the RT1062.',
-         'Hub PCB Rev C (NP-HW-HUB-001 Rev 4, DRAFT): distributed cluster-controller tier. '
+         'Hub PCB Rev C (NP-HW-HUB-001 Rev 5, DRAFT): distributed cluster-controller tier. '
          'Rev 2 (Hub PCB Rev B) is archived verbatim as Appendix A; its DG2788A topology and TIA-saturation '
          'analysis carry forward onto the cluster carriers — only the count and the control '
          'source change. Zero GAIN_SEL GPIO remain.'],
@@ -279,7 +279,7 @@ add_table(
          'np_spi_watchdog_tick and can never enable anything. Note what that guard is NOT: no hub '
          'can set a retired zone bit — no hub hardware exists, and the ZONE macros were deleted in '
          'the same change — so the exclusion is defence in depth against a future authoring error, '
-         'not compatibility with a deployed hub (NP-HW-HUB-001 Rev 4 §7.2). The reservation itself '
+         'not compatibility with a deployed hub (NP-HW-HUB-001 Rev 5 §7.2). The reservation itself '
          'binds on separate Class C grounds: enable-bit position ≡ current_ua[] slot ≡ '
          'charge-accumulator index, which the 40 µC/cm² limit rests on. PA4 double-assignment '
          'cleared.'],
@@ -349,7 +349,7 @@ add_table(
          'count overflow. Cluster map diagram at docs/diagrams/np_hextile_cluster_map.svg.'],
 
         ['Hub PCB Rev C',
-         'NP-HW-HUB-001 Rev 4 (DRAFT) — distributed cluster-controller tier replaces the '
+         'NP-HW-HUB-001 Rev 5 (DRAFT) — distributed cluster-controller tier replaces the '
          'five-slot star. The hub PCB no longer encodes the socket count at all, so REG-1 no '
          'longer blocks hub tooling.'],
 
@@ -557,8 +557,12 @@ add_table(
     [
         ['EEG impedance', 'Raw impedance', 'Derived trend slope'],
         ['Accelerometer', 'During active sessions',
-         'Impact events between sessions — and per NP-FW-EMMC-002 §G only drop_detected: bool '
-         'and maintenance_alert: bool. Raw series, g-force values, orientation vectors, '
+         'Impact events between sessions. Per NP-FW-EMMC-002 §G the steady-state set is only '
+         'drop_detected: bool and maintenance_alert: bool — but §G\'s thresholds were '
+         'unvalidated placeholders, and NP-FW-EMMC-002 Rev 2 §H (2026-08-12) now admits raw '
+         'impact data under a TIME-BOXED, OPT-IN characterisation programme consented by the '
+         'warranty owner and fed only into predictive-maintenance training, with fail-closed '
+         'expiry in firmware. Outside that window: raw series, g-force values, orientation vectors, '
          'timestamps and drop counts are all prohibited.'],
         ['Ambient light', 'Raw', 'Cumulative UV exposure index'],
         ['Auricular VNS impedance', 'Raw', 'Contact resistance trend'],
@@ -657,7 +661,29 @@ add_para(
     'element. Retroactive and prospective access are presented as separate consent decisions '
     'even when made simultaneously.')
 
-add_heading('3.3 A priori research consent — four onboarding screens', level=2)
+add_heading('3.3 A priori research consent — four layers across two screens', level=2)
+
+add_para(
+    'Layers are not screens (restructured 2026-08-16, CLAUDE.md Rev 36). L1–L4 remain the four '
+    'consent LAYERS — the units of the data model, of the withdrawal surfaces, and of every '
+    'citation elsewhere in the document set — but they are now presented across TWO screens. A '
+    'citation to "L3" means the blanket-consent layer wherever it is rendered; it has never '
+    'meant "the third screen". S1 (What you get back) carries L4 + L1: what do you want to hear '
+    'about, and how do we reach you. S2 (What you share) carries L2 + L3: which research areas, '
+    'and do you want to be asked about each study. L1 and L4 were always one question — L1 asks '
+    'may we contact you, L4 asks what about — and a contact method is the shared precondition '
+    'for all three delivery paths.', size=9)
+
+add_notice(
+    'Selecting all nine L2 categories is NOT equivalent to L3 blanket consent, and S2 therefore '
+    'carries TWO controls rather than one. They are orthogonal axes: L2 is SCOPE (which research '
+    'areas), L3 is POSTURE (ask-me-each-time versus pre-approved). L2-all-categories means '
+    '"ask me about everything"; L3 means "stop asking me". The position "everything, but ask '
+    'me" is real — arguably the most engaged position a user can hold — and is expressible only '
+    'while both axes survive. The two also have different withdrawal semantics in code: blanket '
+    'withdrawal tears down research analytics, category withdrawal does not.',
+    colour=NOTICE_BG,
+    bold_lead='TWO SCREENS, FOUR LAYERS, FOUR AXES. ')
 add_table(
     ['Layer', 'Question', 'If yes', 'If no'],
     [
@@ -1037,7 +1063,7 @@ add_bullets([
     'error re-introducing those positions — NOT compatibility with a deployed or legacy hub. No '
     'hub can set a retired zone bit: no hub hardware exists, and the NP_SAFETY_EN_PBM_ZONE_0..4 '
     'macros were deleted in the same change, surviving only in "Formerly …" comments '
-    '(NP-HW-HUB-001 Rev 4 §7.2, corrected 2026-08-12). The reservation of bits 1–4 is unaffected '
+    '(NP-HW-HUB-001 Rev 5 §7.2, corrected 2026-08-12). The reservation of bits 1–4 is unaffected '
     'and remains correct on independent Class C grounds: the bit position is '
     'deliberately NOT compacted, because enable-bit position ≡ current_ua[] slot ≡ '
     'charge-accumulator index is a three-way Class C identity that the 40 µC/cm² limit rests on, '
@@ -1046,14 +1072,14 @@ add_bullets([
 
 add_notice(
     'Whether the safety layer can cut ONE cluster or only the whole cranial lattice is open. '
-    'NP-DRV-SHELL-002 specifies per-cluster SAFE_EN_n (18 GPIO); NP-HW-HUB-001 Rev 4 §7.2 '
+    'NP-DRV-SHELL-002 Rev 2 had specified per-cluster SAFE_EN_n (18 GPIO); NP-HW-HUB-001 Rev 4 §7.2 '
     'specifies a single cranial bit (1 GPIO, all-or-nothing). Per-cluster policy bits would need '
     'the enable word widened to uint32_t (18 cluster + 9 modality = 27 > 16). Tracked as '
     'OI-HUB-C07 / OI-HEXTILE-13; proposed resolution at NP-HW-HEXTILE-001 §8.4.1 — split the '
     'enable by IEC 62304 class, with Class B per-cluster gates for availability and one Class C '
     'bit in series as the hard interlock.',
     colour=NOTICE_BG,
-    bold_lead='SAFETY GRANULARITY, OPEN. ')
+    bold_lead='SAFETY GRANULARITY — DECIDED 2026-08-16. ')
 
 add_para('Modality-specific interlocks:', bold=True)
 add_table(
@@ -1428,9 +1454,14 @@ add_table(
         ['HIGH (OPEN)', 'Cluster count 18 exceeds the provisioned interconnect (OI-HEXTILE-14)',
          '18 clusters exceed both the 16 provisioned connector positions and the 8 branches × ≤2 '
          'clusters I2C tree. Options at NP-HW-HEXTILE-001 §8.2.2; peer documents not yet revised.'],
-        ['HIGH (OPEN)', 'Safety-cut granularity contested (OI-HUB-C07 / OI-HEXTILE-13)',
-         'Per-cluster SAFE_EN_n (18 GPIO) versus a single cranial bit (1 GPIO, all-or-nothing). '
-         'Proposed resolution at NP-HW-HEXTILE-001 §8.4.1.'],
+        ['CLOSED 2026-08-16', 'Safety-cut granularity (OI-HUB-C07 / OI-HEXTILE-13)',
+         'DECIDED AGAINST per-cluster safety POLICY: the cranial PBM enable is ONE Class C bit, '
+         'with 18 per-cluster physical gates reclassified IEC 62304 Class B and SAFE_EN reduced '
+         'to a single broadcast Class C line. Closed on the absence of the stated falsifier — a '
+         'hazard requiring a single-cluster cut where a whole-lattice cut is itself unacceptable '
+         '— and NP-HW-HUB-001 §7.2.1 records why that absence is structural rather than merely '
+         'evidential. Safety-MCU I/O demand falls ~40 → ~23, unblocking package selection. No '
+         'runtime behaviour, wire format or enable-word change.'],
         ['HIGH (OPEN)', 'OI-CHARGE-04 — tDCS electrode-area assumption diverges',
          'The 40 µC/cm² charge-density limit is computed against a 25 cm² assumption in one place '
          'and 35 cm² in another, between the app pre-flight check and the safety MCU enforcer. '
@@ -1496,12 +1527,33 @@ add_table(
 
 add_heading('9.2 OI-LED-W1 — NIR wavelength decision (OPEN, raised 2026-07-28)', level=2)
 
+add_notice(
+    'The electrical premise this decision rested on was traced on 2026-08-16 and does not hold '
+    '(NP-HW-HEXTILE-001 Rev 4; pending-decisions §13.2e). Two findings. **(1) There is no '
+    'controlled document specifying a 1.6–2.2 V forward-voltage constraint.** That span was '
+    'welded from two different columns of one estimate table and from two DIFFERENT CHANNELS: '
+    '1.6 V is the NIR channel\'s lower bound, 2.2 V the 660 nm channel\'s upper bound. The 660 nm '
+    'figure taken alone is 2.0–2.2 V, and both owning documents label their values design targets '
+    'rather than datasheet values. The 660 nm primary\'s Vf has still never been read off a '
+    'datasheet — it is an estimate of an estimate. **(2) The load-bearing constraint was a rail, '
+    'and that rail is retired.** NP-PROC-FPC-001 §2.6.2\'s actual wording names driving red and '
+    'NIR strings on the same **15 V** VLED rail; VLED is now **24 V** (D-6, adopted programme-wide '
+    'as OI-HUB-C17b). Consequence: **a 3.0–3.6 V part is not categorically incompatible with a '
+    '24 V rail** — compliant strings exist at both ends of the bracket (8 × 2.80 V and 7 × 3.30 V '
+    'both land on residuals the tile spec already accepts). What remains is a DIVISIBILITY '
+    'question with an interior dead band at 3.00 < Vf < 3.20 V, not a driver-architecture '
+    'question. **The 150 mA Vf is still unknown for every candidate** — the datasheet tabulates '
+    'only at 1 A and 2 A — so whether the part lands in the dead band is one curve-read away. '
+    'The wavelength decision itself remains OPEN and still needs SAB, Regulatory Counsel and EE '
+    'Lead; what changed is that Option B\'s stated cost was overstated.',
+    colour=NOTICE_BG,
+    bold_lead='PREMISE CORRECTED 2026-08-16. ')
+
 add_para(
     'No shortlisted high-power NIR LED (≥350 mA class, thermal-pad ceramic SMD) sits inside the '
     '808–830 nm spec. The two electrically-workable candidates — Lumileds L1IZ-0850 (850 nm) and '
     'ams-OSRAM SFH 4718A (860 nm) — are 20 nm and 30 nm over the window. The one in-window '
-    'candidate, ams-OSRAM SFH 4703AS (820 nm), has a Vf of about 3.0–3.6 V against the '
-    '1.6–2.2 V the existing 660 nm string and driver architecture assumes. Pulse-current rating '
+    'candidate, ams-OSRAM SFH 4703AS (820 nm), has a Vf of about 3.0–3.6 V. Pulse-current rating '
     'is NOT the blocker — that was closed 2026-07-28 from manufacturer datasheets, with the '
     '660 nm primary (ams-OSRAM GH CSSRM5.24) showing 7.8× margin at the 180 mA operating ceiling. '
     'The blocker is wavelength versus electrical compatibility.')
@@ -1765,7 +1817,7 @@ add_table(
         ['NP-SOUP-CMSIS-001', 'Rev 1, DRAFT', 'First Class C IEC 62304 §7.1.2 anomaly evaluation'],
         ['NP-HEX-ZM-001', 'Rev 2, DESIGN STUDY', 'Hex-tile module architecture; CLUSTER-1/SYM-1/CONTIG-1'],
         ['NP-HW-HEXTILE-001', 'Rev 3, DESIGN STUDY', 'Hex-tile electrical/FPC spec; 18-cluster derivation'],
-        ['NP-HW-HUB-001', 'Rev 4, DRAFT', 'Cluster-controller tier (Hub PCB Rev B archived as Appendix A)'],
+        ['NP-HW-HUB-001', 'Rev 5, DRAFT', 'Cluster-controller tier (Hub PCB Rev B archived as Appendix A)'],
         ['NP-DRV-SHELL-002', 'Rev 2, DRAFT', 'Cluster-carrier shell socket interconnect. NP-DRV-SHELL-001 retired to docs/superseded/'],
         ['NP-HELMET-GEOM-001', '—', 'Scan-derived helmet geometry and socket coordinates'],
         ['NP-OPT-PSF-001', 'Rev 1, ACTIVE', 'PBM optical resolution floor; lateralization model'],
