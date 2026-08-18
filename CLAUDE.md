@@ -1,7 +1,9 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 36 (current)  
+**Revision:** 37 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
+
+> **Rev 37 (2026-08-16) — a priori research consent goes from four onboarding screens to two; no consent axis removed, no withdrawal path weakened.** `§6.2` now separates **layers from screens**: L1–L4 remain the four consent layers — the units of the data model, the withdrawal surfaces and every citation elsewhere — presented across two screens. **S1 "What you get back" (L4 + L1) comes first**, because L1 and L4 were always the same question (L1 asks *may we contact you*, L4 asks *what about*), and because leading with reciprocity is consistent with §6.2's own reasoning. **S2 "What you share" (L2 + L3) carries two controls, not one.** Selecting all nine categories is **not** blanket consent: L2 is *scope*, L3 is *posture*, and "everything, but ask me" is a real position that survives only while both axes do (§6.2.2). **Select-all deliberately does NOT auto-enable the blanket toggle** (§6.2.3) — ticking nine boxes expresses breadth of interest, not a wish to stop being consulted; the usability objection is answered with copy, not state. §6.2.4 states the three copy rules that keep an L4-first screen from becoming an inducement, reusing `NP-MOD-ID-001` §7.5's honest-exchange framing. **One latent defect fixed as a precondition of the merge:** `withdrawBlanketResearchConsent()` was correct and tested on both platforms, but **nothing on iOS called it from the UI** — turning blanket consent off in Research Preferences committed through `updateResearchConsent()` and skipped the analytics teardown, while Android routed it correctly. Merging L2+L3 onto one commit-at-the-end screen would have made that bypass the ordinary path. The teardown is now enforced at the store ingestion point on a **true→false transition** of blanket consent (§6.2.5), guarding the transition rather than the value so a category-only edit still cannot trigger it. Withdrawal granularity and effectiveness are unchanged.
 
 > **Rev 36 (2026-08-12) — §5.1's accelerometer boundary gains one bounded, self-closing exception; §5.2 gains the cohort that feeds it.** No locked decision was reversed: §G.3's prohibition stands unqualified for every device that has not opted in, which is the fleet by default. The problem it solves is that `drop_detected` and `maintenance_alert` are computed from two numbers (`15.0f` g; 3 drop-bearing gaps) guessed before any hardware existed, while §G.3 prohibits every field that could validate them — **the spec forecloses the evidence needed to make itself correct**, so NP-PRIV-001 HIGH-01's own Option C was a destination with no road to it. NP-FW-EMMC-002 Rev 2 §H opens a time-boxed, opt-in, **warranty-owner**-consented window collecting a coarsened per-gap impact histogram, purpose-bound to predictive-maintenance training, rows deleted at close. **The window is denominated in records, not calendar time** — this device has no battery or coin cell, so its RTC has no backup domain and wall time is re-supplied by the phone; a calendar expiry would be both losable and settable backwards. Consent rests on there being no identifiable subject (NP-MOD-ID-001 §7.5.1) and is *stronger* than that precedent: a duty map at least requires the device to be **worn**, and a drop does not. **Two limits recorded rather than papered over:** §G.3's ban on a cumulative drop count and on per-drop timing is **already defeated by aggregation** over `shdr_accel_records`' per-gap rows, independently of §H (OI-EMMC2-11, principal decision required); and §G.2's "rolling 7-**day** window" was never implementable for the same clock reason, so it is now counted in session gaps, which changes what `maintenance_alert` means (OI-EMMC2-10). See `docs/status/completed-decisions.md` (2026-08-12).
 
@@ -433,14 +435,96 @@ NeurOne has **two distinct consent subjects** that must never be conflated:
 
 **Expansion workflow:** Differential consent document → persistent user notification → user approves/denies/asks questions → retroactive access is a separate decision. Retroactive and prospective access presented as separate consent decisions even if made simultaneously.
 
-### 6.2 A priori research consent (4 onboarding screens)
+### 6.2 A priori research consent (4 layers, 2 onboarding screens)
+
+**Layers are not screens.** L1–L4 are the four consent layers — the units of the data model,
+of the withdrawal surfaces, and of every citation elsewhere in the document set. They are
+presented across **two** screens. A citation to "L3" means the blanket-consent layer, wherever
+it is rendered; it has never meant "the third screen."
+
+| Screen | Layers | Question the screen asks |
+|--------|--------|--------------------------|
+| **S1 — What you get back** | L4 + L1 | What do you want to hear about, and how do we reach you? |
+| **S2 — What you share** | L2 + L3 | Which research areas, and do you want to be asked about each study? |
 
 | Layer | Question | If yes | If no | Brand ambassador mechanism |
 |-------|----------|--------|-------|--------------------------|
-| L1 — Contact consent | Can we reach you about future research opportunities? | Provide contact method + frequency limit. POA holders upload POA (human review, 3 business days, jurisdiction-flagged, annual re-verification) | No contact. All features unchanged. | Being asked creates perceived agency → trust baseline |
-| L2 — Category consent | Which research areas? (9 categories: AD/dementia, Depression, PTSD, TBI, Sleep, Attention, Parkinson's, Healthy ageing, Visual health) | Per-project contact for selected categories only. Each project is a fresh decision. | Not contacted for that category. | Personal category choice deepens engagement |
-| L3 — Blanket consent | Pre-approve all NeurOne-reviewed research? | Data included in all studies. **Still receives per-study engagement notifications** (not consent requests — maintains engagement, can opt out per-study). anonymization: k≥10, no IDs, no sub-weekly timestamps. **Irreversibility notice displayed at this screen:** "Once your anonymized data has been included in a published study, it cannot be individually withdrawn from that dataset. However, because NeurOne anonymises your data fresh from your device for each study, withdrawing consent immediately and permanently stops any further data flowing to any future dataset — including data from sessions that occurred before your withdrawal." | Per-category and per-project process applies. | Blanket patients kept engaged — not taken for granted |
-| L4 — Results + community | Hear study results? Join suggestion portal? | Plain-language results notification per study (including null results) + paper link + "suggest next steps" link. Access to suggestion/voting/pledge portal. | No results contact, no portal. | Results notification is the highest-value brand moment |
+| L1 — Contact consent *(S1)* | Can we reach you about future research opportunities? | Provide contact method + frequency limit. POA holders upload POA (human review, 3 business days, jurisdiction-flagged, annual re-verification) | No contact. All features unchanged. | Being asked creates perceived agency → trust baseline |
+| L2 — Category consent *(S2)* | Which research areas? (9 categories: AD/dementia, Depression, PTSD, TBI, Sleep, Attention, Parkinson's, Healthy ageing, Visual health) | Per-project contact for selected categories only. Each project is a fresh decision. **A Select-all affordance sets all nine; it does NOT enable L3** — see the auto-enable decision below. | Not contacted for that category. | Personal category choice deepens engagement |
+| L3 — Blanket consent *(S2)* | Pre-approve all NeurOne-reviewed research? | Data included in all studies. **Still receives per-study engagement notifications** (not consent requests — maintains engagement, can opt out per-study). anonymization: k≥10, no IDs, no sub-weekly timestamps. **Irreversibility notice displayed whenever this layer's control is on:** "Once your anonymized data has been included in a published study, it cannot be individually withdrawn from that dataset. However, because NeurOne anonymises your data fresh from your device for each study, withdrawing consent immediately and permanently stops any further data flowing to any future dataset — including data from sessions that occurred before your withdrawal." | Per-category and per-project process applies. | Blanket patients kept engaged — not taken for granted |
+| L4 — Results + community *(S1)* | Hear study results? Join suggestion portal? | Plain-language results notification per study (including null results) + paper link + "suggest next steps" link. Access to suggestion/voting/pledge portal. | No results contact, no portal. | Results notification is the highest-value brand moment |
+
+#### 6.2.1 Why L1 and L4 share a screen
+
+L1 and L4 were always the same question. L1 asks *may we contact you*; L4 asks *what about*. A
+contact method is the shared precondition for all three delivery paths — per-study invitations
+(L1+L2), per-study engagement notifications (L3), and results notifications (L4). Asking for
+permission on one screen and topics on another was two screens for one decision. No consent
+axis is merged here; only a contact method and the topics it is used for.
+
+#### 6.2.2 Why L2 and L3 share a screen but not a control (locked)
+
+**Selecting all nine L2 categories is NOT equivalent to L3 blanket consent.** They are
+orthogonal axes:
+
+- **L2 is scope** — which research areas.
+- **L3 is posture** — ask-me-each-time versus pre-approved.
+
+L2-all-categories means *"ask me about everything."* L3 means *"stop asking me."* The position
+"everything, but ask me" is real — arguably the most engaged position a user can hold — and is
+expressible only while both axes survive.
+
+S2 therefore carries **two controls**: the nine category checkboxes with a Select-all
+affordance, and a separately labelled blanket toggle. One step; both axes intact; both
+withdrawal semantics distinct.
+
+**What a full collapse would have cost, had it been adopted:** the "everything, but ask me"
+position becomes unexpressible; L2's *each project is a fresh decision* property is destroyed
+for any user wanting broad scope; and the two withdrawal semantics fuse. Category withdrawal
+does not tear down research analytics and blanket withdrawal does (§6.0), so a single control
+means a single withdrawal — either every category withdrawal starts tearing down analytics, or
+blanket withdrawal stops. The latter is exactly the regression caught in review on 2026-06-16.
+
+#### 6.2.3 Select-all does NOT auto-enable the blanket toggle (locked)
+
+Ticking nine boxes expresses breadth of *interest*; the blanket toggle surrenders the *right to
+be consulted*. Inferring the second from the first attributes to the user a decision they did
+not make. Auto-enabling also fails silently in both directions and asymmetrically: a user
+auto-escalated to blanket stops receiving consent requests they wanted, with no event to
+notice, and if they later switch it off they get a research-analytics teardown they never asked
+for. Per the conservative-claim rule, the option that asserts least and preserves the ability to
+be asked wins.
+
+The usability objection — that only a privacy engineer perceives the distinction — is answered
+with **copy, not state**: enabling Select all surfaces an inline note ("You'll still be asked
+before each individual study. To stop being asked, turn on the setting below"), and the blanket
+toggle's label states what it changes in plain words rather than naming a tier.
+
+#### 6.2.4 Presenting L4 first without it becoming an inducement
+
+L4 offers results notification and the suggestion portal; both presuppose participation, so
+showing them first risks reading as *here is what you get, now consent*. The framing follows the
+precedent in `docs/np_mod_id_001.md` §7.5, where reciprocity is described as an honest exchange
+rather than a bolt-on incentive, and §7.5.2's non-coercion invariant. Three binding copy rules:
+
+1. **Conditional framing.** S1 says *"if your data ever contributes to a study."* The benefit is
+   contingent on a decision the user has not yet been asked to make; a conditional cannot induce
+   satisfaction of its own condition.
+2. **The exchange is symmetric and stated as such.** A study that uses your data and never tells
+   you what it found has taken something and returned nothing. Results notification is the other
+   half of one transaction, not a reward for completing the first half. **Null results are named
+   explicitly** — that is what separates a genuine exchange from marketing.
+3. **Non-coercion, stated on the screen.** Opting into results or the portal grants **no** data
+   access, and declining costs nothing. The reciprocity buys information, never participation.
+
+#### 6.2.5 Fewer steps to grant must not mean coarser withdrawal (locked)
+
+Withdrawal remains at study, category, and blanket granularity, with the §6.0 scoping rules
+unchanged. Because S2 commits both L2 and L3 together, the blanket→analytics teardown is
+enforced at the **store ingestion point** (`updateResearchConsent`) on a true→false *transition*
+of blanket consent, not only in the explicitly-named `withdrawBlanketResearchConsent()`.
+Guarding the transition rather than the value is what keeps a category-only edit from triggering
+teardown — the same regression inverted.
 
 **POA workflow:** POA holder uploads executed healthcare POA → human review 3 business days → jurisdiction flagging → scope limitation noted → annual re-verification. If patient regains capacity, all proxy consent decisions presented for ratification or revocation. Research contact goes to POA holder only.
 

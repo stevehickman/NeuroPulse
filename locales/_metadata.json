@@ -158,7 +158,25 @@
   "CONSENT_L2_BODY": {
     "legal_review_required": true
   },
-  "CONSENT_L3_BODY": {
+  "CONSENT_S1_BODY": {
+    "legal_review_required": true
+  },
+  "CONSENT_S1_NONCOERCION": {
+    "legal_review_required": true
+  },
+  "CONSENT_S2_BLANKET_BODY": {
+    "legal_review_required": true
+  },
+  "CONSENT_S2_BLANKET_CAPTION": {
+    "legal_review_required": true
+  },
+  "CONSENT_S2_BLANKET_TOGGLE": {
+    "legal_review_required": true
+  },
+  "CONSENT_S2_SELECT_ALL_NOTE": {
+    "legal_review_required": true
+  },
+  "DASHBOARD_STOP_PREAPPROVING_MESSAGE": {
     "legal_review_required": true
   },
   "OTA_SAFETY_MCU_WARNING": {

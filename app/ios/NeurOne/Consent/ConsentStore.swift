@@ -9,11 +9,16 @@ import Combine
 //   • Warranty owner — consent for SHDR fleet telemetry. Granted at warranty registration.
 //     The warranty owner may be a clinic or institution, not the end user wearing the device.
 //     SHDRUploader holds this consent; it is unrelated to any individual user.
-//   • User — consent for UHDR research data flows. Managed here. Scoped to:
-//       L1 contact consent → L2 category consent → L3 blanket consent.
+//   • User — consent for UHDR research data flows. Managed here. Four layers:
+//       L1 contact · L2 category · L3 blanket · L4 results + community.
+//     Layers are not screens — since CLAUDE.md Rev 37 the four layers are presented across
+//     two screens (S1 = L4 + L1, S2 = L2 + L3). The layer identities are what this store,
+//     the withdrawal surfaces and the document set all key on.
 //     Revoking research consent at ANY scope immediately stops data flows for that scope.
 //     Revoking blanket research consent (L3) also tears down app analytics (PostHog),
 //     because blanket withdrawal signals the user does not want any data collection.
+//     That coupling is enforced in BOTH the named withdrawal method and the UI commit path
+//     (`updateResearchConsent`), because S2 commits L2 and L3 together — see §6.2.5.
 
 @MainActor
 final class ConsentStore: ObservableObject {
@@ -50,9 +55,28 @@ final class ConsentStore: ObservableObject {
 
     // MARK: - Research consent
 
+    /// Commit a research-consent state produced by the consent UI.
+    ///
+    /// This is the single ingestion point for every UI-driven research-consent change, so the
+    /// blanket→analytics coupling is enforced here rather than only in the explicitly-named
+    /// `withdrawBlanketResearchConsent()`. Before CLAUDE.md Rev 37 nothing on iOS called that
+    /// method from the UI: turning blanket consent off in Research Preferences committed through
+    /// this method and silently skipped the teardown. Merging L2 and L3 onto one
+    /// commit-at-the-end screen (§6.2) made that bypass the ordinary path, so the guard moved
+    /// upstream to where the state actually enters the store.
+    ///
+    /// The guard keys on the **transition**, not the value. `blanketConsentGranted == false` is
+    /// true for a user who never granted it and for a user who just revoked it; only the second
+    /// is a withdrawal. Testing the value instead would tear down analytics on every
+    /// category-only edit — the 2026-06-16 regression inverted.
     func updateResearchConsent(_ state: ResearchConsentState) {
+        let wasBlanketGranted = researchConsent.blanketConsentGranted
         researchConsent = state
         save()
+
+        if wasBlanketGranted && !state.blanketConsentGranted {
+            revokeResearchAnalytics()
+        }
     }
 
     func withdrawBlanketResearchConsent() {
@@ -74,7 +98,11 @@ final class ConsentStore: ObservableObject {
     ///
     /// Called from: (1) dedicated analytics opt-out toggle in Settings;
     ///              (2) `withdrawBlanketResearchConsent()` — blanket research withdrawal
-    ///                   implies full data-collection opt-out.
+    ///                   implies full data-collection opt-out;
+    ///              (3) `updateResearchConsent(_:)` on a blanket true→false transition, which
+    ///                   is how the UI commit path reaches the same rule (§6.2.5).
+    /// Idempotent: clearing an already-cleared key is a no-op and `ResearchAnalyticsGate.reset()`
+    /// guards on `isConfigured`, so (2) and (3) overlapping is harmless.
     ///
     /// Does NOT affect `WarrantyAnalyticsGate` or SHDR fleet uploads.
     func revokeResearchAnalytics() {

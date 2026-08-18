@@ -6036,77 +6036,6 @@
         }
       }
     },
-    "CONSENT_L1_TITLE": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Contact"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Contact"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Contact"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Research Contact"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Contact"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Contact"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Contact"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Contact"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Contact"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Contact"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Contact"
-          }
-        }
-      }
-    },
     "CONSENT_L1_TOGGLE": {
       "extractionState": "manual",
       "localizations": {
@@ -6316,503 +6245,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Which research areas interest you?"
-          }
-        }
-      }
-    },
-    "CONSENT_L2_TITLE": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Areas"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Areas"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Areas"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Research Areas"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Areas"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Areas"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Areas"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Areas"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Areas"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Areas"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Research Areas"
-          }
-        }
-      }
-    },
-    "CONSENT_L3_BODY": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "If you say yes, your anonymised session data will be included in all NeurOne-reviewed research studies automatically. You will still receive per-study engagement notifications and can opt out of any individual study."
-          }
-        }
-      }
-    },
-    "CONSENT_L3_HEADING": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research?"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research?"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research?"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pre-approve all reviewed research?"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research?"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research?"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research?"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research?"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research?"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research?"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research?"
-          }
-        }
-      }
-    },
-    "CONSENT_L3_TITLE": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Data Consent"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Data Consent"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Data Consent"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Data Consent"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Data Consent"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Data Consent"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Data Consent"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Data Consent"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Data Consent"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Data Consent"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Data Consent"
-          }
-        }
-      }
-    },
-    "CONSENT_L3_TOGGLE": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Pre-approve all reviewed research"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Pre-approve all reviewed research"
-          }
-        }
-      }
-    },
-    "CONSENT_L4_HEADING": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Stay connected to the science"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Stay connected to the science"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Stay connected to the science"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Stay connected to the science"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Stay connected to the science"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Stay connected to the science"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Stay connected to the science"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Stay connected to the science"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Stay connected to the science"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Stay connected to the science"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Stay connected to the science"
-          }
-        }
-      }
-    },
-    "CONSENT_L4_OPTIONAL_NOTE": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Both options are entirely optional and can be changed at any time."
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Both options are entirely optional and can be changed at any time."
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Both options are entirely optional and can be changed at any time."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Both options are entirely optional and can be changed at any time."
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Both options are entirely optional and can be changed at any time."
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Both options are entirely optional and can be changed at any time."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Both options are entirely optional and can be changed at any time."
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Both options are entirely optional and can be changed at any time."
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Both options are entirely optional and can be changed at any time."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Both options are entirely optional and can be changed at any time."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Both options are entirely optional and can be changed at any time."
           }
         }
       }
@@ -7101,73 +6533,925 @@
         }
       }
     },
-    "CONSENT_L4_TITLE": {
+    "CONSENT_S1_BODY": {
       "extractionState": "manual",
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Stay Informed"
+            "value": "A study that uses your data and never tells you what it found has taken something and returned nothing. These two options are the other half of that exchange — not a reward for taking part. You have not been asked to share anything yet; that comes next."
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Stay Informed"
+            "value": "A study that uses your data and never tells you what it found has taken something and returned nothing. These two options are the other half of that exchange — not a reward for taking part. You have not been asked to share anything yet; that comes next."
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Stay Informed"
+            "value": "A study that uses your data and never tells you what it found has taken something and returned nothing. These two options are the other half of that exchange — not a reward for taking part. You have not been asked to share anything yet; that comes next."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Stay Informed"
+            "value": "A study that uses your data and never tells you what it found has taken something and returned nothing. These two options are the other half of that exchange — not a reward for taking part. You have not been asked to share anything yet; that comes next."
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Stay Informed"
+            "value": "A study that uses your data and never tells you what it found has taken something and returned nothing. These two options are the other half of that exchange — not a reward for taking part. You have not been asked to share anything yet; that comes next."
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Stay Informed"
+            "value": "A study that uses your data and never tells you what it found has taken something and returned nothing. These two options are the other half of that exchange — not a reward for taking part. You have not been asked to share anything yet; that comes next."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Stay Informed"
+            "value": "A study that uses your data and never tells you what it found has taken something and returned nothing. These two options are the other half of that exchange — not a reward for taking part. You have not been asked to share anything yet; that comes next."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Stay Informed"
+            "value": "A study that uses your data and never tells you what it found has taken something and returned nothing. These two options are the other half of that exchange — not a reward for taking part. You have not been asked to share anything yet; that comes next."
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Stay Informed"
+            "value": "A study that uses your data and never tells you what it found has taken something and returned nothing. These two options are the other half of that exchange — not a reward for taking part. You have not been asked to share anything yet; that comes next."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Stay Informed"
+            "value": "A study that uses your data and never tells you what it found has taken something and returned nothing. These two options are the other half of that exchange — not a reward for taking part. You have not been asked to share anything yet; that comes next."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Stay Informed"
+            "value": "A study that uses your data and never tells you what it found has taken something and returned nothing. These two options are the other half of that exchange — not a reward for taking part. You have not been asked to share anything yet; that comes next."
+          }
+        }
+      }
+    },
+    "CONSENT_S1_CONTACT_BODY": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "One contact method covers everything above, plus any study invitations you choose to receive on the next screen. Your participation is always voluntary."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "One contact method covers everything above, plus any study invitations you choose to receive on the next screen. Your participation is always voluntary."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "One contact method covers everything above, plus any study invitations you choose to receive on the next screen. Your participation is always voluntary."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "One contact method covers everything above, plus any study invitations you choose to receive on the next screen. Your participation is always voluntary."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "One contact method covers everything above, plus any study invitations you choose to receive on the next screen. Your participation is always voluntary."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "One contact method covers everything above, plus any study invitations you choose to receive on the next screen. Your participation is always voluntary."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "One contact method covers everything above, plus any study invitations you choose to receive on the next screen. Your participation is always voluntary."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "One contact method covers everything above, plus any study invitations you choose to receive on the next screen. Your participation is always voluntary."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "One contact method covers everything above, plus any study invitations you choose to receive on the next screen. Your participation is always voluntary."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "One contact method covers everything above, plus any study invitations you choose to receive on the next screen. Your participation is always voluntary."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "One contact method covers everything above, plus any study invitations you choose to receive on the next screen. Your participation is always voluntary."
+          }
+        }
+      }
+    },
+    "CONSENT_S1_CONTACT_HEADING": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "How would we reach you?"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "How would we reach you?"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "How would we reach you?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How would we reach you?"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "How would we reach you?"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "How would we reach you?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "How would we reach you?"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "How would we reach you?"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "How would we reach you?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "How would we reach you?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "How would we reach you?"
+          }
+        }
+      }
+    },
+    "CONSENT_S1_HEADING": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "If your data ever contributes to a study, here is what comes back to you."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "If your data ever contributes to a study, here is what comes back to you."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "If your data ever contributes to a study, here is what comes back to you."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "If your data ever contributes to a study, here is what comes back to you."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "If your data ever contributes to a study, here is what comes back to you."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "If your data ever contributes to a study, here is what comes back to you."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "If your data ever contributes to a study, here is what comes back to you."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "If your data ever contributes to a study, here is what comes back to you."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "If your data ever contributes to a study, here is what comes back to you."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "If your data ever contributes to a study, here is what comes back to you."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "If your data ever contributes to a study, here is what comes back to you."
+          }
+        }
+      }
+    },
+    "CONSENT_S1_NONCOERCION": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Turning these on grants no access to your data, and turning them off costs you nothing. Every device function works identically either way."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Turning these on grants no access to your data, and turning them off costs you nothing. Every device function works identically either way."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Turning these on grants no access to your data, and turning them off costs you nothing. Every device function works identically either way."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turning these on grants no access to your data, and turning them off costs you nothing. Every device function works identically either way."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Turning these on grants no access to your data, and turning them off costs you nothing. Every device function works identically either way."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Turning these on grants no access to your data, and turning them off costs you nothing. Every device function works identically either way."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Turning these on grants no access to your data, and turning them off costs you nothing. Every device function works identically either way."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Turning these on grants no access to your data, and turning them off costs you nothing. Every device function works identically either way."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Turning these on grants no access to your data, and turning them off costs you nothing. Every device function works identically either way."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Turning these on grants no access to your data, and turning them off costs you nothing. Every device function works identically either way."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Turning these on grants no access to your data, and turning them off costs you nothing. Every device function works identically either way."
+          }
+        }
+      }
+    },
+    "CONSENT_S1_TITLE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Get Back"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Get Back"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Get Back"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What You Get Back"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Get Back"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Get Back"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Get Back"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Get Back"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Get Back"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Get Back"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Get Back"
+          }
+        }
+      }
+    },
+    "CONSENT_S2_BLANKET_BODY": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "By default we ask you about every study separately, and you decide each time. You can hand that decision over instead."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "By default we ask you about every study separately, and you decide each time. You can hand that decision over instead."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "By default we ask you about every study separately, and you decide each time. You can hand that decision over instead."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "By default we ask you about every study separately, and you decide each time. You can hand that decision over instead."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "By default we ask you about every study separately, and you decide each time. You can hand that decision over instead."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "By default we ask you about every study separately, and you decide each time. You can hand that decision over instead."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "By default we ask you about every study separately, and you decide each time. You can hand that decision over instead."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "By default we ask you about every study separately, and you decide each time. You can hand that decision over instead."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "By default we ask you about every study separately, and you decide each time. You can hand that decision over instead."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "By default we ask you about every study separately, and you decide each time. You can hand that decision over instead."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "By default we ask you about every study separately, and you decide each time. You can hand that decision over instead."
+          }
+        }
+      }
+    },
+    "CONSENT_S2_BLANKET_CAPTION": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still get a notification about each study, but it will be news rather than a question. You can opt out of any individual study, and you can switch this back off at any time."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still get a notification about each study, but it will be news rather than a question. You can opt out of any individual study, and you can switch this back off at any time."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still get a notification about each study, but it will be news rather than a question. You can opt out of any individual study, and you can switch this back off at any time."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You will still get a notification about each study, but it will be news rather than a question. You can opt out of any individual study, and you can switch this back off at any time."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still get a notification about each study, but it will be news rather than a question. You can opt out of any individual study, and you can switch this back off at any time."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still get a notification about each study, but it will be news rather than a question. You can opt out of any individual study, and you can switch this back off at any time."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still get a notification about each study, but it will be news rather than a question. You can opt out of any individual study, and you can switch this back off at any time."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still get a notification about each study, but it will be news rather than a question. You can opt out of any individual study, and you can switch this back off at any time."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still get a notification about each study, but it will be news rather than a question. You can opt out of any individual study, and you can switch this back off at any time."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still get a notification about each study, but it will be news rather than a question. You can opt out of any individual study, and you can switch this back off at any time."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still get a notification about each study, but it will be news rather than a question. You can opt out of any individual study, and you can switch this back off at any time."
+          }
+        }
+      }
+    },
+    "CONSENT_S2_BLANKET_HEADING": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Do you want to be asked about each study?"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Do you want to be asked about each study?"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Do you want to be asked about each study?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do you want to be asked about each study?"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Do you want to be asked about each study?"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Do you want to be asked about each study?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Do you want to be asked about each study?"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Do you want to be asked about each study?"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Do you want to be asked about each study?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Do you want to be asked about each study?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Do you want to be asked about each study?"
+          }
+        }
+      }
+    },
+    "CONSENT_S2_BLANKET_TOGGLE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop asking me — include my anonymised data in every reviewed study"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop asking me — include my anonymised data in every reviewed study"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop asking me — include my anonymised data in every reviewed study"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop asking me — include my anonymised data in every reviewed study"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop asking me — include my anonymised data in every reviewed study"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop asking me — include my anonymised data in every reviewed study"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop asking me — include my anonymised data in every reviewed study"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop asking me — include my anonymised data in every reviewed study"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop asking me — include my anonymised data in every reviewed study"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop asking me — include my anonymised data in every reviewed study"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop asking me — include my anonymised data in every reviewed study"
+          }
+        }
+      }
+    },
+    "CONSENT_S2_SELECT_ALL_NOTE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still be asked before each individual study. To stop being asked, turn on the setting below."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still be asked before each individual study. To stop being asked, turn on the setting below."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still be asked before each individual study. To stop being asked, turn on the setting below."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You will still be asked before each individual study. To stop being asked, turn on the setting below."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still be asked before each individual study. To stop being asked, turn on the setting below."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still be asked before each individual study. To stop being asked, turn on the setting below."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still be asked before each individual study. To stop being asked, turn on the setting below."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still be asked before each individual study. To stop being asked, turn on the setting below."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still be asked before each individual study. To stop being asked, turn on the setting below."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still be asked before each individual study. To stop being asked, turn on the setting below."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will still be asked before each individual study. To stop being asked, turn on the setting below."
+          }
+        }
+      }
+    },
+    "CONSENT_S2_SELECT_ALL_TOGGLE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Select all nine areas"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Select all nine areas"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Select all nine areas"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select all nine areas"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Select all nine areas"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Select all nine areas"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Select all nine areas"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Select all nine areas"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Select all nine areas"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Select all nine areas"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Select all nine areas"
+          }
+        }
+      }
+    },
+    "CONSENT_S2_TITLE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Share"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Share"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Share"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What You Share"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Share"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Share"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Share"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Share"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Share"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Share"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What You Share"
           }
         }
       }
@@ -9870,6 +10154,77 @@
         }
       }
     },
+    "DASHBOARD_POSTURE_ASKED": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You are asked about each study"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You are asked about each study"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You are asked about each study"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You are asked about each study"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You are asked about each study"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You are asked about each study"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You are asked about each study"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You are asked about each study"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You are asked about each study"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You are asked about each study"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You are asked about each study"
+          }
+        }
+      }
+    },
     "DASHBOARD_RESEARCH_NO_CONTACT": {
       "extractionState": "manual",
       "localizations": {
@@ -10860,6 +11215,290 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Study Participation History"
+          }
+        }
+      }
+    },
+    "DASHBOARD_STOP_PREAPPROVING_BUTTON": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop pre-approving studies"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies"
+          }
+        }
+      }
+    },
+    "DASHBOARD_STOP_PREAPPROVING_CONFIRM": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop pre-approving"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving"
+          }
+        }
+      }
+    },
+    "DASHBOARD_STOP_PREAPPROVING_DIALOG_TITLE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies?"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies?"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stop pre-approving studies?"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies?"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies?"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies?"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies?"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Stop pre-approving studies?"
+          }
+        }
+      }
+    },
+    "DASHBOARD_STOP_PREAPPROVING_MESSAGE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "You will go back to being asked about each study separately. Your research analytics will also be switched off, because turning this off is a signal that you do not want data collection beyond basic device function. Your category choices are kept."
           }
         }
       }

@@ -117,6 +117,14 @@ enum ContactFrequency: String, CaseIterable, Codable {
 
 // MARK: - Research consent layers (CLAUDE.md §6.2)
 
+/// The four consent layers. Layers are not screens: since CLAUDE.md Rev 37 they are presented
+/// across two screens (S1 = L4 + L1, S2 = L2 + L3), but the layer identities are what this
+/// type, the withdrawal surfaces and the document set all key on.
+///
+/// L2 and L3 are orthogonal and must never be collapsed into one field. L2 is **scope** (which
+/// research areas); L3 is **posture** (ask-me-each-time versus pre-approved). "All nine
+/// categories, but ask me about each study" is a real and distinct position, and it is
+/// expressible only while both survive (§6.2.2).
 struct ResearchConsentState: Codable {
     // L1: Contact consent
     var contactConsentGranted: Bool = false
@@ -144,6 +152,25 @@ struct ResearchConsentState: Codable {
     var hasAnyResearchConsent: Bool {
         contactConsentGranted || blanketConsentGranted ||
         categoryConsents.values.contains(true)
+    }
+
+    /// True when every research category is selected. Drives the Select-all affordance's
+    /// checked state (§6.2.3). It says nothing about `blanketConsentGranted` — selecting all
+    /// nine categories is L2 scope, not L3 posture.
+    var allCategoriesSelected: Bool {
+        ResearchCategory.allCases.allSatisfy { categoryConsents[$0] == true }
+    }
+
+    /// Set or clear all nine categories at once.
+    ///
+    /// Deliberately does NOT touch `blanketConsentGranted` in either direction. Ticking nine
+    /// boxes expresses breadth of interest; the blanket toggle surrenders the right to be
+    /// consulted, and inferring the second from the first attributes to the user a decision
+    /// they did not make (§6.2.3). Coupling them here would also mean a later un-tick could
+    /// trigger the research-analytics teardown that only blanket withdrawal is supposed to
+    /// cause.
+    mutating func setAllCategories(_ granted: Bool) {
+        ResearchCategory.allCases.forEach { categoryConsents[$0] = granted }
     }
 }
 

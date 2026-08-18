@@ -12,6 +12,7 @@ struct ConsentDashboardView: View {
     @State private var selectedInvitation: StudyInvitation?
     @State private var grantPendingRevoke: ClinicianConsentGrant?
     @State private var participationPendingWithdraw: StudyParticipationRecord?
+    @State private var showBlanketWithdrawConfirmation = false
 
     var body: some View {
         NavigationStack {
@@ -90,6 +91,22 @@ struct ConsentDashboardView: View {
             } message: {
                 Text("DASHBOARD_WITHDRAW_DIALOG_MESSAGE")
             }
+            // Blanket (L3) withdrawal — the named path, matching Android's ConsentDashboardScreen.
+            // Routed through `withdrawBlanketResearchConsent()` rather than an edit-and-commit,
+            // so the analytics teardown is explicit at the call site as well as guarded at the
+            // store's ingestion point (CLAUDE.md §6.2.5).
+            .confirmationDialog(
+                "DASHBOARD_STOP_PREAPPROVING_DIALOG_TITLE",
+                isPresented: $showBlanketWithdrawConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("DASHBOARD_STOP_PREAPPROVING_CONFIRM", role: .destructive) {
+                    consentStore.withdrawBlanketResearchConsent()
+                }
+                Button("COMMON_CANCEL", role: .cancel) {}
+            } message: {
+                Text("DASHBOARD_STOP_PREAPPROVING_MESSAGE")
+            }
         }
     }
 
@@ -124,6 +141,19 @@ struct ConsentDashboardView: View {
     private var researchSection: some View {
         Section {
             researchConsentSummaryRow
+            // L3 posture is a separate row from the L2 category list below, because they are
+            // separate axes (§6.2.2): scope versus ask-me-each-time. Withdrawal of one must
+            // stay reachable without touching the other.
+            if consentStore.researchConsent.blanketConsentGranted {
+                Button("DASHBOARD_STOP_PREAPPROVING_BUTTON", role: .destructive) {
+                    showBlanketWithdrawConfirmation = true
+                }
+                .font(.subheadline)
+            } else {
+                Text("DASHBOARD_POSTURE_ASKED")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
             ForEach(ResearchCategory.allCases, id: \.self) { category in
                 let granted = consentStore.researchConsent.categoryConsents[category] ?? false
                 HStack {

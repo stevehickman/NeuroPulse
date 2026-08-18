@@ -160,4 +160,81 @@ final class ConsentStoreTests: XCTestCase {
         let reloaded = ConsentStore()
         XCTAssertTrue(reloaded.researchConsent.categoryConsents[.depression] == true)
     }
+
+    // MARK: - L2 and L3 are orthogonal axes (CLAUDE.md §6.2.2 / §6.2.3)
+    //
+    // These assert the *behaviour* the merged S2 screen must preserve, not the number of
+    // screens it takes to express it. A screen-count assertion would pass for a design that
+    // fused the axes; these do not.
+
+    func testSelectAllCategoriesDoesNotEnableBlanketConsent() {
+        var state = ResearchConsentState()
+        state.setAllCategories(true)
+        store.updateResearchConsent(state)
+
+        XCTAssertTrue(store.researchConsent.allCategoriesSelected)
+        XCTAssertFalse(store.researchConsent.blanketConsentGranted,
+                       "Selecting all nine categories expresses scope, not posture — it must "
+                       + "never imply blanket consent (§6.2.3).")
+    }
+
+    func testEverythingButAskMeIsRepresentable() {
+        // The position the merge must not destroy: all nine areas, still asked each time.
+        var state = ResearchConsentState()
+        state.setAllCategories(true)
+        state.blanketConsentGranted = false
+        store.updateResearchConsent(state)
+
+        XCTAssertTrue(store.researchConsent.allCategoriesSelected)
+        XCTAssertFalse(store.researchConsent.blanketConsentGranted)
+        XCTAssertTrue(store.researchConsent.hasAnyResearchConsent)
+    }
+
+    func testBlanketConsentWithoutAnyCategoryIsRepresentable() {
+        // The mirror position: pre-approved, no category preference expressed.
+        var state = ResearchConsentState()
+        state.blanketConsentGranted = true
+        store.updateResearchConsent(state)
+
+        XCTAssertFalse(store.researchConsent.allCategoriesSelected)
+        XCTAssertTrue(store.researchConsent.blanketConsentGranted)
+    }
+
+    func testSetAllCategoriesFalseClearsEveryCategory() {
+        var state = ResearchConsentState()
+        state.setAllCategories(true)
+        state.setAllCategories(false)
+        store.updateResearchConsent(state)
+
+        XCTAssertFalse(store.researchConsent.allCategoriesSelected)
+        XCTAssertFalse(store.researchConsent.categoryConsents.values.contains(true))
+    }
+
+    // MARK: - Onboarding presents two screens, four layers
+
+    func testOnboardingStepCountIsTwo() {
+        // Deliberately paired with the behavioural tests above. On its own a step count says
+        // nothing about whether any consent axis survived the merge — that is what the
+        // orthogonality tests are for. This one only pins the presentation change.
+        XCTAssertEqual(ConsentOnboardingView.ConsentScreen.stepCount, 2)
+    }
+
+    func testAllFourConsentLayersRemainIndependentlySettable() {
+        // Four layers, two screens. Each layer still has its own field and can be set without
+        // touching the others.
+        var state = ResearchConsentState()
+        state.contactConsentGranted = true            // L1
+        state.categoryConsents[.ptsd] = true          // L2
+        state.blanketConsentGranted = true            // L3
+        state.resultsOptIn = true                     // L4
+        state.suggestionPortalOptIn = false           // L4
+        store.updateResearchConsent(state)
+
+        let reloaded = ConsentStore()
+        XCTAssertTrue(reloaded.researchConsent.contactConsentGranted)
+        XCTAssertTrue(reloaded.researchConsent.categoryConsents[.ptsd] == true)
+        XCTAssertTrue(reloaded.researchConsent.blanketConsentGranted)
+        XCTAssertTrue(reloaded.researchConsent.resultsOptIn)
+        XCTAssertFalse(reloaded.researchConsent.suggestionPortalOptIn)
+    }
 }

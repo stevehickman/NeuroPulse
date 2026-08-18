@@ -2,19 +2,20 @@
 
 **Project:** NeurOne
 **Document:** NP-IRB-001
-**Revision:** 1
-**Date:** 2026-07-27
+**Revision:** 2
+**Date:** 2026-08-16
 **Status:** DRAFT
 **Effective Date:** N/A (effective on IRB/REB approval or exemption determination)
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Pending — requires PI co-signature and IRB/REB approval before ACTIVE status
-**References:** NP-PRIV-REM-001 Rev 1 STEP-20; NP-FW-ANON-001 Rev 1; NP-FW-EMMC-001 Rev 1 §15; CLAUDE.md §6.2 (a priori research consent), §5.3 (research data anonymization architecture); NP-PRIV-NOTICE-001 Rev 3 §5; NP-HFE-001 Rev 1 §7.2 (eject-lever accessibility study — the first study anticipated to run under this protocol's exemption/expedited pathway)
+**References:** NP-PRIV-REM-001 Rev 1 STEP-20; NP-FW-ANON-001 Rev 1; NP-FW-EMMC-001 Rev 1 §15; CLAUDE.md §6.2 (a priori research consent), §5.3 (research data anonymization architecture); NP-PRIV-NOTICE-001 Rev 4 §5; NP-HFE-001 Rev 1 §7.2 (eject-lever accessibility study — the first study anticipated to run under this protocol's exemption/expedited pathway)
 **Related Issues:** —
 **Gate:** Prerequisite for NP-HFE-001 §7.2 eject-lever study and for any research study descriptor sent to a device (NP-FW-ANON-001)
 **IEC 62304 Class:** N/A
 **Applicable Standard:** 45 CFR Part 46 (Common Rule); 21 CFR Part 50/56 (if FDA-regulated research); Tri-Council Policy Statement (Canada, if Unity Health REB path is used)
 **Next Review:** Annual re-approval per IRB/REB continuing-review requirement, or per protocol amendment
 **Supersedes:** None (first issue). Referenced as an open item (NP-PRIV-REM-001 STEP-20) prior to this document.
+**Revision history:** Rev 2 (2026-08-16) — §6 clarified that the four consent layers are presented on two screens (CLAUDE.md Rev 37 §6.2); no consent mechanism, scope or withdrawal right changed. Rev 1 (2026-07-27) — first issue.
 
 ---
 
@@ -82,6 +83,7 @@ Full technical detail lives in NP-FW-ANON-001 and CLAUDE.md §5.3; this section 
 ## 6. Consent Mechanism
 
 - **Type B (device data):** The a priori research consent flow (CLAUDE.md §6.2, four layers L1–L4) is the standing consent mechanism for any NeurOne user whose anonymized data may be included in an IRB-approved study. This protocol does not create a separate consent flow — it is the IRB-facing description of the consent flow that already exists in the app, per NP-PRIV-NOTICE-001 §5.
+  - **Layers are not screens.** The four layers are the units of consent and of withdrawal, and every citation in this protocol (including the L3 references below) resolves to a layer, not to a position in the flow. Since CLAUDE.md Rev 37 the four layers are *presented* on **two** screens — S1 carries L4 and L1, S2 carries L2 and L3 — with the reciprocity question shown first. **No consent axis was merged.** In particular L2 (which research areas — scope) and L3 (pre-approval versus per-study consent — posture) remain two independent controls on S2, and selecting all nine L2 categories does not set L3. A subject who wants breadth of interest while retaining a per-study decision can express exactly that, which is the property this protocol relies on when it describes Type B consent as a standing mechanism that still admits per-study refusal.
 - **Type A (in-person usability study, e.g. NP-HFE-001 §7.2):** A separate written informed-consent form is required — the app's a priori consent layers do not cover in-person observational studies with video/audio recording. This form is drafted at protocol-instance time using standard REB/IRB informed-consent templates and is not pre-specified here.
 - **Both types:** Subjects may withdraw at any time without penalty; withdrawal from a Type A study stops further observation/use of that subject's data prospectively (standard human-subjects consent withdrawal — no special anonymization consideration since Type A doesn't use the anonymization pipeline). Withdrawal from Type B (device-data) research consent follows the forward-effectiveness rule in CLAUDE.md §5.3: withdrawal permanently blocks future study descriptors from being processed, for any data period including sessions predating withdrawal; already-published extracts cannot be individually removed (irreversibility notice given at consent time, CLAUDE.md §6.2 L3).
 

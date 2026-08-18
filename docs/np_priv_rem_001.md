@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-REM-001  
-**Revision:** 3
-**Date:** 2026-08-12  
+**Revision:** 4
+**Date:** 2026-08-16  
 **Status:** ACTIVE  
 **Effective Date:** 2026-08-12  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
@@ -12,7 +12,9 @@
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —  
-**Supersedes:** NP-PRIV-REM-001 Rev 2  
+**Supersedes:** NP-PRIV-REM-001 Rev 3  
+**Change Summary (Rev 4, 2026-08-16):** STEP-36 Step 1 clarified only: the age gate remains the first screen of the *overall* onboarding consent chain (age gate → biometric/BIPA disclosure → research consent), which is unaffected by the research-consent flow going from four screens to two with the reciprocity screen first (CLAUDE.md Rev 37 §6.2). No remediation step was added, removed, re-scoped or re-sequenced. Rev 2 — Three new steps added (STEP-31, STEP-32, STEP-33) from NP-PRIV-001 Rev 2 delta findings: HIPAA Expert Determination certification pathway, adaptive stimulation right-to-explanation, and session_sequence coarsening. NP-APP-TELEMETRY-001 updated to Rev 2 (session_sequence → engagement_tier). NP-FW-EMMC-002 §G added. Capability matrix rows added for STEP-31 through STEP-33. Direct remediations section updated.  
+
 **Change Summary (Rev 3, 2026-08-12):** **STEP-10 rewritten.** It previously read *"Option C on-device processing / Status: OPEN — spec complete, implementation pending"*, which understated the problem: Option C was not a pending step but a destination with no road to it, because the on-device processing it names is defined by two thresholds that §G.3 forbids anyone from ever validating. Principal decision 2026-08-12 opens NP-FW-EMMC-002 §H — a time-boxed, opt-in, warranty-owner-consented characterisation window collecting a coarsened per-gap impact histogram, purpose-bound to predictive-maintenance training, expiring fail-closed in firmware on a record budget rather than a calendar (this device has no clock that survives a disconnect). `firmware/shdr/` authored, SHDR schema Rev E, CHAR-01 CI gate with a self-revoking exemption falsified in both directions. G1 (Month 6) target UNCHANGED. Four open items now gate closure: OI-EMMC2-09/10/11/12. **Rev 2 change summary retained below.**
 
 **Change Summary (Rev 2, 2026-06-03):** Three new steps added
@@ -793,6 +795,7 @@ The preferred IRB path is through a university collaborator who already has a fu
 
 **Step 1 — Age gate in app consent flow (Month 3):**
 - Add the minimum age declaration checkbox as the first screen of the consent flow, per NP-APP-ROADMAP-001 §9.2.
+  - *"The consent flow" here means the whole onboarding chain — age gate → biometric/BIPA disclosure → research consent — not the research-consent screens alone. CLAUDE.md Rev 37 §6.2 reordered the research-consent screens so that the reciprocity screen (L4 + L1) comes first among them; the age gate still precedes all of it. The two orderings are about different sequences and do not conflict. Verified against the onboarding chain in `app/ios/NeurOne/NeurOneApp.swift` (`presentNextOnboardingStep()`), which gates on `ageConfirmed` before anything else.*
 - Text: "I confirm I am 16 years of age or older." (Not pre-ticked. Required to proceed.)
 - Legal counsel confirms 16 is correct (OI-PA-01). Expected outcome: yes — covers COPPA (13), most EU GDPR member states (16), BIPA (adults-only for written release), UK Children's Code (18 for some data types, but NeurOne's use is therapeutic not commercial).
 - The age declaration is stored in UHDR as a consent record: `age_declaration_accepted: bool` + `age_declaration_date: week_ordinal` (no precise timestamp).
