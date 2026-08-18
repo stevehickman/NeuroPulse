@@ -155,8 +155,15 @@
  * its membership requires no hardware change, so the §4.5.1 discriminator
  * (np_module_map.h) forbids firmware holding it.  Cranial PBM as a whole IS a
  * hardware property.  One logical enable, fanned out to one gate transistor per
- * cluster on the LED drive rails (§7.4).  Full reasoning and the accepted
- * all-or-nothing consequence (OI-HUB-C07): safety_mcu/np_safety_protocol.h.
+ * cluster on the LED drive rails (§7.4).
+ *
+ * OI-HUB-C07 / OI-HEXTILE-13 CLOSED 2026-08-16 (NP-HW-HUB-001 Rev 4 §7.2.1):
+ * per-cluster POLICY bits are decided against, so this hub must never grow a
+ * per-cluster enable field to pack into enable_lo/enable_hi.  The 18 gates are
+ * IEC 62304 Class B and are commanded by THIS processor, not by the safety MCU
+ * and not by the cluster controller they sit on (HUB-REQ-C05, §7.2.2).
+ * Full reasoning and the accepted all-or-nothing safety consequence:
+ * safety_mcu/np_safety_protocol.h.
  */
 #define NP_SAFETY_EN_PBM_CRANIAL    (1U << 0)
 

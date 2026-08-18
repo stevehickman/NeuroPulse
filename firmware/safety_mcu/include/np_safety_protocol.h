@@ -65,12 +65,34 @@
  * LED drive rail (NP-HW-HEXTILE-001 D-8, 18 high-side switches) — but fanned out
  * from this ONE policy bit (§7.4).
  *
- * ACCEPTED CONSEQUENCE, stated for safety review (OI-HUB-C07): a safety-layer
- * cut is all-or-nothing across the cranial lattice.  A single socket cannot be
- * safety-cut without the whole lattice.  Whether independently-commanded
- * per-cluster POLICY bits are wanted is undecided (OI-HUB-C07 / OI-HEXTILE-13)
- * and would need this enable word widened to uint32_t — deliberately not done
- * here.
+ * ACCEPTED CONSEQUENCE, confirmed by safety review: a safety-layer cut is
+ * all-or-nothing across the cranial lattice.  A single socket cannot be
+ * safety-cut without the whole lattice.
+ *
+ * OI-HUB-C07 / OI-HEXTILE-13 CLOSED 2026-08-16 — per-cluster POLICY bits are
+ * DECIDED AGAINST (NP-HW-HUB-001 Rev 4 §7.2.1, NP-HW-HEXTILE-001 Rev 5 §8.4.1).
+ * This enable word is therefore FINAL as laid out below: it is NOT widened to
+ * uint32_t, and no per-cluster enable bits are added.  Two reasons, either
+ * sufficient:
+ *
+ *  - No hazard in the tree has an extent of one cluster.  Extents are physical
+ *    — a tile heats (RISK-26, per-tile NTC throttle, Class B), a modality
+ *    accumulates charge (its own bit here), a rail collapses (watchdog, all
+ *    bits) — while a cluster is a clamp-plate/FPC boundary.  A control at a
+ *    granularity matching no hazard's extent is not a safety control.
+ *  - 18 cluster bits would require this MCU to hold a socket->cluster map, which
+ *    is topological and moves with MECH-2 / REG-1.  Behind the Class C boundary
+ *    a re-clustering becomes a recertification, and a stale map can cut the
+ *    wrong cluster while leaving the faulted one energised.
+ *
+ * The 18 per-cluster gates still exist in hardware — they are IEC 62304 Class B
+ * availability gates, commanded by the hub (HUB-REQ-C05), in series with this
+ * bit.  R-11 holds: this MCU still physically owns the enable path, and no
+ * Class B fault can re-energise a lattice this bit has cut.
+ *
+ * Reopening requires one of: a physical process with a one-cluster extent; the
+ * cluster ceasing to be topological; or the Class B tier proving unable to
+ * deliver per-cluster availability.  See NP-HW-HEXTILE-001 §8.4.1.
  */
 #define NP_SAFETY_EN_PBM_CRANIAL    (1U << 0)
 
