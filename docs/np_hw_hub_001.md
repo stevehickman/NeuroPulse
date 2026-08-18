@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HUB-001
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-08-18
 **Status:** DRAFT
 **Effective Date:** —
@@ -16,6 +16,31 @@
 **Parent Document:** —
 
 ---
+
+> **Rev 6 (2026-08-18) — every remaining cluster-count-dependent figure re-sized from 12 (or from `ceil(n/8)` = 10) to 18. This closes OI-HEXTILE-14. No architectural decision changed.**
+>
+> Rev 4 closed OI-HUB-C07 and explicitly left *"the cluster-tail conductor count with **OI-HEXTILE-14**"*. This is that item.
+>
+> The count is **not** a division of the socket total. It is the size of the mirror-symmetric clamp partition fixed by **CLUSTER-1 + SYM-1 + CONTIG-1**, derived exhaustively at `NP-HW-HEXTILE-001` §8.2.1 as **18 at the v1 80-socket lattice — provably minimal** (six forced midline clusters + six lateral mirror pairs; sizes 3–6, zero pendant petals; verified by HT-DRC-21). This document had sized hardware off `ceil(n / 8)`, which uses board *capacity* as a divisor and under-counts by 8.
+>
+> | | Was | **Now** | Where |
+> |---|---|---|---|
+> | Cluster tail connectors | 12 populated / 16 positions | **18 populated / 20 positions** | §7.4 |
+> | Total interface pins | 144 (192 at 16) | **216** (240 at 20) | §7.4, §8.5 |
+> | Host I2C segmentation | 1 × 8-channel branch switch | **4 × PCA9548A on LPI2C1–4** (32 segments, 18 used) | §7.4 |
+> | DG2788A gain switches | 1 per cluster, "10 at n = 80" | **1 per cluster — 18** | §6.3 |
+> | Tier-1 controller ceiling | "up to 16 on one segment" | **retired — 18 exceeds it** | §5.2 |
+> | I2C mux silicon | `ceil(n/8)`, 10 at n = 80, 16 max | **one per cluster — 18**, + 4 hub-side | §5.2 |
+> | Cluster-tier BOM (already void) | 12 boards / $76.08 | **18 / $114.12** | §8.2 |
+> | Parting-plane conductors | ~100 (8.8× reduction) | **216** (~4.1× reduction) | §8.5 |
+>
+> **`SAFE_EN` is untouched by this revision** — Rev 4's single broadcast Class C line stands, and the 18 per-cluster Class B gates it names are the same 18 this revision counts everywhere else. The two revisions agree; they were answering different questions.
+>
+> **The tail stays at 12 conductors, and that is now a live question rather than a settled one.** `NP-HW-HEXTILE-001` §8.2.2 option 4 made the 12 → 11 reduction *conditional on OI-HUB-C07*, and C07 has now closed in the direction that unblocks it. It is **not** taken here: **HUB-REQ-C05** requires the Class B per-cluster gate to be commanded from a tier *above* the cluster controller it gates, so how that command reaches the gate — and therefore whether a per-cluster conductor is still needed — is a design question this revision has no basis to settle. Provisioning stays at the more forgiving number (12 conductors, 216 pins, 20 positions). **Routed as a residual on OI-HEXTILE-14's successor, not closed silently.**
+>
+> **Two things are provisioned rather than merely counted.** Connector positions are specified at **20**, not 18, because socket count ~80 is PROVISIONAL pending REG-1/ACT-1 and adding tail positions is the cheap axis — a conductor costs a pin on every tail, a position costs 12 pins once (§7.4). Everything else is stated **per cluster**, so a REG-1 re-cut changes one derived number rather than the contract.
+>
+> **What this revision does not do.** It does not reopen OI-HUB-C07 (closed at Rev 4), the five-network split, the cluster-carrier selection, the zero-dynamic-flex conclusion, or **OI-HUB-C17c**. It does not rewrite §5.2's tier-1 *topology*, which remains **OI-HUB-C15**'s. It creates no QMS or CAPA record — development-mode posture, no hardware and no bench data.
 
 > **Rev 4 (2026-08-16) — OI-HUB-C07 DECIDED: the cranial PBM safety enable is one Class C policy bit. Documentation only; no firmware change, no Class C behaviour change.**
 >
@@ -379,7 +404,9 @@ the lattice. Anatomical numbering is preserved.
 Rev B baked `5` into hub tooling: five DG2788A footprints, five `GAIN_SEL` nets, a PCA9546A sized
 4-of-5. Any change to the slot count meant a hub re-spin.
 
-In Rev 3 the hub PCB terminates a bus with up to 16 addressable peers. It contains no per-socket
+From Rev 3 the hub PCB terminates a bounded set of addressable cluster peers — **20 provisioned
+positions, 18 populated at the v1 lattice** (§7.4; the figure read "up to 16" before Rev 5, which
+was below the real count). It contains no per-socket
 footprint, no per-socket net, and no constant derived from `n_sockets`. The lattice lives entirely on
 the **inner bowl** — which is already the part that gets re-tooled when the lattice changes
 (`NP-HEX-ZM-001` §5.1: the inner bowl is the module carrier; the outer bowl and the hub are not).
@@ -688,19 +715,40 @@ hot-plug detected, fault latched) so the hub is not obliged to poll 16 peers at 
 
 ### 5.2 Tier 1 — the cluster bus, and Tier 2 — within a cluster
 
-**Tier 1** carries up to 16 cluster controllers on one segment, each with a **unique** I2C slave
-address strapped by resistors on the inner-bowl FPC (position-determined, so a controller board is a
-single part number and its identity comes from where it is fitted — the same "socket = position,
-module = type" split `NP-HEX-ZM-001` §4a uses for tiles). **No mux is required at this tier at all**:
-distinct addresses, one bus.
+**Tier 1** carries the cluster controllers, each with a **unique** I2C slave address strapped by
+resistors on the inner-bowl FPC (position-determined, so a controller board is a single part number
+and its identity comes from where it is fitted — the same "socket = position, module = type" split
+`NP-HEX-ZM-001` §4a uses for tiles).
+
+> **⚠ Rev 5 — the "up to 16 controllers on one segment" ceiling is retired, because there are 18.**
+> This is the same shortfall as OI-HEXTILE-14's C2, reached from the hub side. Rev 4's 16 was not a
+> margin figure: it was `ceil(NP_HEXMAP_MAX_SOCKETS / 8)` = `ceil(128/8)`, i.e. board *capacity*
+> used as a divisor. The cluster count is not a division of the socket total — it is the size of
+> the mirror-symmetric clamp partition, **18** at the v1 lattice (`NP-HW-HEXTILE-001` §8.2.1). A
+> ceiling of 16 therefore fails at the shipped lattice, not at some future one.
+>
+> **What was corrected here is the count. What the tier-1 *topology* becomes is OI-HUB-C15's, not
+> this revision's.** §7.4 now specifies D-7's tree — 4 × LPI2C, one PCA9548A each, **32 segments,
+> 18 used, 14 spare** — which `NP-DRV-SHELL-002` Rev 2 §3.4 already adopted. That is a different
+> shape from this section's single address-strapped bus, and **OI-HUB-C15 already carries the
+> instruction to "rewrite §5.2 to the two-level UID-addressed tree."** It is left there deliberately
+> rather than rewritten in passing: the count correction is forced arithmetic, the topology rewrite
+> is design work with a differential-transceiver consequence at §5.1 (one PCA9615 pair, or four)
+> that this revision has no basis to settle. **Neither reading is short of capacity at 18** — the
+> segmented tree has 14 spare segments, and a shared bus at 18 peers is ~180 pF against the 400 pF
+> ceiling and nowhere near 7-bit address exhaustion. The bind was the stated ceiling, not physics.
 
 **Tier 2** is where collision is actually resolved. Each cluster controller is the I2C **master** for
 its ≤8 sockets, isolating them with **one PCA9548A** (8-channel — exact fit). All eight modules may
 be 0x30; only one channel is enabled at a time.
 
-**Total I2C mux silicon: `ceil(n/8)` parts — 10 at n = 80, 16 maximum.** Against the ~27 of a
-hub-centric 3-deep tree, with one channel-select write per transaction instead of three, and mux
-state that is local and independently recoverable rather than global.
+**Total I2C mux silicon: one PCA9548A per cluster — 18 at the v1 lattice**, plus the 4 hub-side
+PCA9548A of D-7's segmentation (§7.4). *(Rev 4 and earlier read "`ceil(n/8)` parts — 10 at n = 80,
+16 maximum". The formula is wrong twice over: it divides by board capacity rather than counting the
+clamp partition, and its 16-part ceiling is below the 18 the shipped lattice actually needs.
+Corrected at Rev 5 — the rate is **per cluster**, and 18 is what it evaluates to now.)* Against the
+~27 of a hub-centric 3-deep tree, with one channel-select write per transaction instead of three,
+and mux state that is local and independently recoverable rather than global.
 
 Module transactions from the hub are **tunnelled**: the hub writes a relay request (target channel,
 register, payload) to the cluster controller, which selects the PCA9548A channel and executes it.
@@ -753,11 +801,20 @@ control source change.
 
 | | Rev 2 | Rev 3 |
 |---|---|---|
-| DG2788A count | 1 per slot (5) | 1 per **cluster** (10 at n = 80) |
+| DG2788A count | 1 per slot (5) | **1 per cluster** — **18** at the v1 lattice *(Rev 4 and earlier read "10 at n = 80"; corrected at Rev 5, see below)* |
 | Sections used | A = PD1 gain, B = PD2 gain | A = shared-TIA gain; **B reserved** (§6.5) |
 | Control source | `GAIN_SEL[0..4]`, RT1062 GPIO | Cluster-MCU GPIO — **no hub signal** |
 | Granularity | Latched per slot, on module-type detect | Set per channel, inside the scan loop |
 | Rf values | 47 kΩ / 22.1 kΩ, 1 % | **unchanged** — 47 kΩ / 22.1 kΩ, 0.1 % (§6.4) |
+
+> **The quantity is "one per cluster", and that is the durable form of it.** Rev 4 and earlier
+> parenthesised it as *"10 at n = 80"*, taking the count from `ceil(80/8)` — the board's *capacity*
+> used as a divisor. That is not how clusters are counted: the partition is fixed by CLUSTER-1 +
+> SYM-1 + CONTIG-1 and comes out at **18** (`NP-HW-HEXTILE-001` §8.2.1, provably minimal), with
+> realised sizes of 3–6 tiles rather than 8. **The per-cluster rate is the specification; 18 is
+> merely what it evaluates to at the current PROVISIONAL lattice**, and it moves with a REG-1
+> re-cut. Consequence for this section: **18 DG2788A, not 10** — 80 % more parts than Rev 4
+> implied. (§8's figures remain void for the separate reason stated in its banner.)
 
 DG2788A propagation is < 1 µs against a ~20 µs per-channel settling budget, so per-sample switching
 costs nothing. Gain for each channel is looked up from the module type the cluster controller learned
@@ -1099,19 +1156,27 @@ ids 0–127 unchanged — no wire change needed there.
 
 ---
 
-### 7.4 The Rev 3 interface contract — adopted from `NP-DRV-SHELL-002` §7.1
+### 7.4 The Hub PCB Rev C interface contract — adopted from `NP-DRV-SHELL-002` §7.1
 
 `NP-DRV-SHELL-002` §7 was written as the coordination surface for this task and is more specific
-than anything derived above. **Rev C adopts it**, at the v1 lattice (12 clusters of ≤8, per
-CLUSTER-1's 7-hex flower):
+than anything derived above. **Hub PCB Rev C adopts it**, at the v1 lattice — **18 clusters**, each
+of capacity 8, realised at 3–6 tiles under CLUSTER-1 + SYM-1 + CONTIG-1:
+
+> **⚠ Rev 5 (2026-08-16) — the counts in this table were re-sized off 12 to 18, closing
+> OI-HEXTILE-14.** Rev 4 and earlier carried *12 populated / 16 positions / 144 pins*, which came
+> from `ceil(80/8) = 10` rounded to CLUSTER-1's flower and from the retired `8 branches × ≤2 = 16`
+> I2C tree. **18 fits neither.** The count is not a divisor of the socket total — it is the size of
+> the mirror-symmetric clamp partition, derived exhaustively at `NP-HW-HEXTILE-001` §8.2.1 and
+> **provably minimal**. `NP-DRV-SHELL-002` Rev 2 §7.1 already adopted 18/20; this revision brings
+> this document into agreement rather than proposing anything new.
 
 | Item | Quantity | Note |
 |---|---|---|
-| Cluster tail connectors | **12** populated, **16** positions specified | 16 = 8 branches × 2 → lattice headroom with no re-layout |
-| Pins per connector | **12** | Pinout fixed by SHELL-002 §5.2 |
-| Total interface pins | **144** (192 if all 16 populated) | vs 100 on the retired 5-slot design |
-| Host I2C branch switch | 1 × 8-channel | Hub-level stage of the two-level tree |
-| Safety-MCU enable GPIO | **1** *(Rev 4 — was 12, 16 provisioned)* | **One broadcast Class C line**, Safety-MCU sourced, per §7.2.1. The 18 per-cluster gates survive as **Class B**, hub-commanded (HUB-REQ-C05). Reset polarity is **unresolved** — `RISK-SHELL-03` / OI-RISK4-01 |
+| Cluster tail connectors | **18** populated, **20** positions specified | `NP-HW-HEXTILE-001` §8.2.2 option 1. 20 rather than 18 absorbs a REG-1 lattice re-cut without a second PCB re-spin — see the note below |
+| Pins per connector | **12** | Pinout fixed by SHELL-002 §5.2. **The 12 → 11 reduction is now unblocked but NOT taken** — OI-HUB-C07 closed in the direction that permits it, but HUB-REQ-C05 leaves open how the Class B gate is commanded; see the Rev 6 banner |
+| Total interface pins | **216** (240 if all 20 populated) | vs 100 on the retired 5-slot design, and vs ~880 for a star |
+| Host I2C segmentation | **4 × PCA9548A on LPI2C1–4** | D-7's 32-segment tree (SHELL-002 §3.4). **18 of 32 used, 14 spare** |
+| Safety-MCU enable GPIO | **1** *(Rev 4 — was 12, 16 provisioned)* | **One broadcast Class C line**, Safety-MCU sourced, per §7.2.1. The **18** per-cluster gates survive as IEC 62304 Class B (count corrected from 12 at Rev 6) |
 | `SYNC` driver | 1 | Broadcast, phase-locked to the EEG sample frame |
 | `ALERT#` input | 1 per cluster, wire-OR | Or one aggregate with I2C interrogation |
 | PDN feed | 1 | Rated at the vault ceiling — **now a 24 V BOOST stage, see below** |
@@ -1159,9 +1224,23 @@ CLUSTER-1's 7-hex flower):
 
 **This supersedes §4.3's "the hub terminates a bus with up to 16 addressable peers" as the concrete
 form** — but not its *principle*, which SHELL-002 states identically: "nothing downstream of this
-section depends on 80 or on 12." 16 tail positions with 12 populated is exactly socket-count
+section depends on 80 or on 12." 20 tail positions with 18 populated is exactly socket-count
 independence expressed in connectors instead of bus addresses. **REG-1 still does not block hub
 tooling.**
+
+> **Why 20, and why the provision is stated in tails rather than conductors.** The two axes are not
+> symmetric. `NP-DRV-SHELL-002` §7.3 establishes that one extra *conductor* costs a hub pin on
+> **every** tail — 18–20 pins — because it is paid per cluster; two extra *tail positions* cost 24
+> pins **once**. So the cheap way to buy margin against a REG-1 re-cut is more tails, not wider
+> ones. 20 gives two spare positions on top of a count that is already provably minimal at the
+> current lattice, which is the difference between absorbing a re-cut and re-spinning the board.
+>
+> **What is count-dependent here, and what is not.** Per-cluster quantities — 12 conductors, one
+> high-side gate, one `SAFE_EN[n]`, one `ALERT#`, one PCA9548A channel — are stated per cluster and
+> do not move if the lattice moves. Only two figures are denominated in the cluster *count*: the
+> populated tail count (18) and the total pin budget (216). **Both are derived, and both are
+> bounded by the 20-position provision** — which is the property that makes this contract survive
+> REG-1 rather than merely satisfy it today.
 
 **Responses to SHELL-002 §7.3's four invited challenges:**
 
@@ -1198,6 +1277,8 @@ not widen; the enable word is unchanged. The 18 physical lines survive as IEC 62
 and the Class C line from the Safety MCU becomes a single broadcast enable in series with them
 (HUB-REQ-C05, §7.2.2).** `NP-DRV-SHELL-002` Rev 3 §7.1/§7.1a is revised to match in the same change
 set. **OI-HUB-C07 CLOSED.**
+
+> **Rev 6 count correction.** The arithmetic above is restated at the real cluster count: the sum that overflows the 16-bit enable word is **18 + 9 = 27**, and **20 + 9 = 29** at the provisioned position count — not the 25 this paragraph derived from 16. **The conclusion is unchanged and was never close**; the overflow is simply larger than stated, which strengthens rather than qualifies the collapse to one `NP_SAFETY_EN_PBM_CRANIAL` bit. Restated only because a superseded count should not survive inside a rationale that is still load-bearing.
 
 ### 7.5 The recommended synthesis, in detail (input to OI-HUB-C17)
 
@@ -1416,9 +1497,16 @@ never considering.
 
 **The hub interface (§7.4) is untouched by C17.** N3 never crossed the parting plane in either
 design — SHELL-002 §5.2: "N3 does not appear — it terminates on the carrier by design." The tail
-stays 12 conductors, the connector count stays 12/16, the pin budget stays 144/192. **C17 blocks
-socket tooling and the carrier schematic; it does not block the Hub PCB.** Rev 3 can be built against
-§7.4 while C17 is decided.
+stays 12 conductors, the connector count stays **18 populated / 20 provisioned**, the pin budget
+stays **216/240**. **C17 blocks socket tooling and the carrier schematic; it does not block the Hub
+PCB.** Hub PCB Rev C can be built against §7.4 while C17 is decided.
+
+> *Counts corrected at Rev 5 (were 12/16 and 144/192) — OI-HEXTILE-14. The claim itself is
+> unaffected: C17's open residual is **C17c**, HEXTILE **D-4** (TIA + ADC on-module), which is
+> gated on the module heat-sink design and changes what sits on the **carrier**, not how many
+> carriers there are or how they reach the hub. The cluster count comes from the clamp partition
+> (§8.2.1) and the tree from **D-7**, and neither is inside C17c. **This is why C2 of
+> OI-HEXTILE-14 could be closed without pre-empting C17.***
 
 ## 8. BOM
 
@@ -1433,6 +1521,17 @@ socket tooling and the carrier schematic; it does not block the Hub PCB.** Rev 3
 >
 > Note this does **not** disturb the cluster-shape decision: CLUSTER-1 (§4.4) rests on clamp-plate
 > mechanics, not on any number below.
+>
+> **Second reason every figure below is void, added at Rev 5 (OI-HEXTILE-14): the board *count* is
+> also wrong, not just the per-board cost.** §8.2 drives the tier total off
+> `ceil(n_sockets / sockets_per_cluster)` and lands on **10** boards ($63.40) at 8/cluster or **12**
+> ($76.08) at 7/cluster. The count is neither: it is the **18**-cluster mirror-symmetric clamp
+> partition (§7.4, `NP-HW-HEXTILE-001` §8.2.1), which at the same — already void — $6.34/board puts
+> the tier at **$114.12**. So the two errors compound in opposite directions and **must not be
+> netted against each other by eye**: the per-board bill is over-stated (driver and TIA moved
+> on-module) while the board count is under-stated by 50 %. `NP-HEX-ZM-001` §5.4a records the
+> $114.12 figure. **Recosting under OI-HUB-C15 must take the count from the partition, never from a
+> division of the socket total** — HUB-DRC-C02.
 
 ### 8.1 Per cluster controller (excludes LED drive stage — §1, out of scope)
 
@@ -1460,7 +1559,8 @@ of how many of its 8 channels are populated (§4.1), so the driver is board *cou
 | 30 | 4 | $25.36 | 5 | $31.70 |
 | 42 | 6 | $38.04 | 6 | $38.04 |
 | 64 | 8 | $50.72 | 10 | $63.40 |
-| **80 (v1 provisional)** | **10** | **$63.40** | **12** | **$76.08** |
+| **80 (v1 provisional)** | ~~**10**~~ | ~~**$63.40**~~ | ~~**12**~~ | ~~**$76.08**~~ |
+| **80 — actual partition (CLUSTER-1 + SYM-1 + CONTIG-1)** | — | — | **18** | **$114.12** |
 | 128 (ceiling) | 16 | $101.44 | 19 | $120.46 |
 
 The 3-hex triad is omitted: 27 boards / $171.18 at n = 80, and 43 boards at n = 128 exceeds the
@@ -1484,7 +1584,8 @@ matters — one IEC 62304 software-unit qualification lineage. Its 16-channel 12
 peripherals (slave to the hub, master to the PCA9548A, no software I2C needed), and timer complement
 are comfortable rather than marginal for this workload.
 
-A cheaper AVR-DB or ATtiny1627 would save roughly $0.70 × 10 = **$7 per unit at n = 80**. That is
+A cheaper AVR-DB or ATtiny1627 would save roughly $0.70 × **18** = **$12.60 per unit at n = 80**
+*(stated as $0.70 × 10 = $7 before Rev 5 — the count, not the rate, was wrong)*. That is
 rejected: $7 against a $405 Home Standard BOM does not buy a second toolchain, a second qualification
 package, and a second supplier relationship on a device pursuing 510(k). Part selection is
 nonetheless recorded as open (**OI-HUB-C03**) — if the cluster-controller firmware turns out to fit
@@ -1510,9 +1611,17 @@ against a post-hex module BOM that does not exist yet. **Flagged as OI-HUB-C08**
 | | Conductors at the parting plane |
 |---|---|
 | Rev 2 architecture scaled to 80 sockets | ~880 |
-| **Rev C** (≈10 per cluster: 4 differential I2C, ATTN#, PBM_CRANIAL_EN#, VCC, GND, 2 × LED rail) × 10 clusters | **~100** |
+| **Hub PCB Rev C**, 12-conductor tail × **18 clusters** (§7.4) | **216** (240 at all 20 positions) |
 
-An **8.8× reduction**, through the existing posterior blind-mate boss rather than a new one. LED power
+A **~4.1× reduction**, through the existing posterior blind-mate boss rather than a new one.
+
+> **Rev 5 correction (OI-HEXTILE-14).** This row previously read *"≈10 per cluster … × 10 clusters
+> = ~100"*, an **8.8×** reduction. Both terms were wrong and both moved the same way: the tail is
+> **12** conductors, not ≈10 (`NP-DRV-SHELL-002` §5.2, N1+N2+N4+N5), and there are **18** clusters,
+> not 10. The honest figure is **216**, and the headline reduction is **~4.1×**, not 8.8×.
+> **The conclusion is unchanged and was never close** — the finding of §2 is that a star at ~880
+> conductors is unbuildable through one boss, and 216 clears that by the same margin that mattered.
+> Restated because a 2× overstatement in the headline number is exactly what gets quoted onward. LED power
 distributes as a shared higher-voltage rail (e.g. 12 V) regulated locally per cluster rather than as
 per-socket drive — consistent with the ~45–50 W T1 peak in CLAUDE.md §4.5, and part of the deferred
 LED drive spec (§1, **OI-HUB-C01**).
@@ -1655,7 +1764,7 @@ binding constraint on how its calibration coefficients are re-indexed.
 | OI-HUB-C17 | **PARTIALLY DECIDED 2026-07-30 (principal) — see §7.5.0.** **C17a ADOPTED:** `NP-DRV-SHELL-002`'s cluster-carrier architecture for N1/N2/N4/N5. **C17b ADOPTED:** HEXTILE **D-6**, 24 V vault rail — resolves SHELL-002 **OI-SHELL2-01** against its 12 V estimate. **C17c OPEN:** HEXTILE **D-4** (TIA + ADC on-module) deferred **pending the module heat-sink / helmet-cooling design** (§7.5.0a) — not pending cost, which §7.5.0(a)/(b) showed to be ~neutral and dominated 30× by PD population (OI-HEXTILE-06). Thermal gate has two parts: continuous on-tile dissipation inside the 42 °C face / 62 °C junction envelope, and **ADC drift 25 → 62 °C against the ±15 % dose claim (FAI-SM-06)**, which a cooler carrier-mounted ADC never faces. Decide after the heat-sink path is fixed and jointly with OI-HEXTILE-06. Only artefact still waiting: socket contact count (18 vs 14–15). Hub PCB §7.4 is unaffected either way (§7.5.7). | Socket tooling + carrier schematic only — **not** Hub PCB |
 | OI-HUB-C18 | **Propagate the 24 V adoption (C17b) into `NP-DRV-SHELL-002`.** Its §5.4 power budget, ~2.9 A vault bus figure, N1 conductor sizing and cluster power-gate part class are all computed at 12 V; at 24 V the bus current halves to ~1.46 A and I²R quarters. Its **OI-SHELL2-01** closes. Also re-check the 2-contact `VLED+` budget, which §7.5.5 shows had zero derating at 12 V and ~2× at 24 V | `NP-DRV-SHELL-002` Rev 2 |
 | OI-HUB-C19 | **PLACEMENT DECIDED (provisional) 2026-07-30 (principal): Hub PCB** — magnetics outside the shielded envelope away from the fluxgates; ~1.8 W conversion loss on the fan-served side; and **~17 % less modulated current across the parting-plane boss** (~1.46 A at 24 V vs ~1.75 A at 15–20 V if sited at the PAN), which directly helps `NP-DRV-SHELL-002` §9.3 loop-area control. Revisit if the hub thermal budget or the EMI bench objects. **Residual:** size and select the boost (15–20 V → 24 V, ~35 W, ~1.46 A); confirm hub thermal headroom for ~1.8 W against the `NP-TOOL-HUB-001` F-04 fan/heatsink path; and verify **HUB-REQ-C04** — control-loop bandwidth ≫40 Hz so LED duty modulation stays in the current domain and never becomes 2–40 Hz rail-voltage ripple, which would be in-band at the entrainment frequencies and could masquerade as an EEG entrainment response | Rev 3 schematic; hub thermal budget; EMI bench (with EMF-1) |
-| OI-HUB-C15 | **Merge this document with BOTH `NP-HW-HEXTILE-001` Rev 1 and `NP-DRV-SHELL-002` Rev 1** per the three-way banner at the head of this file. Adopt SHELL-002 §7.1 as the interface contract (done, §7.4). §6's fate follows OI-HUB-C17: deleted if HEXTILE D-4 wins, relocated to the cluster carrier if SHELL-002 wins — it does not stay on the Hub PCB either way. Rewrite §5.2 to the two-level UID-addressed tree; drop the cluster-MCU LED-drive rationale in §3.2; recost §8. Retain §2, §4.2–4.5.2, §7.2–7.4, §9.5, §10 | Rev 3 baselining — §7.4 unblocked (§7.5.7); §6's fate blocked on OI-HUB-C17 |
+| OI-HUB-C15 | **Merge this document with BOTH `NP-HW-HEXTILE-001` Rev 1 and `NP-DRV-SHELL-002` Rev 1** per the three-way banner at the head of this file. Adopt SHELL-002 §7.1 as the interface contract (done, §7.4). §6's fate follows OI-HUB-C17: deleted if HEXTILE D-4 wins, relocated to the cluster carrier if SHELL-002 wins — it does not stay on the Hub PCB either way. Rewrite §5.2 to the two-level UID-addressed tree; drop the cluster-MCU LED-drive rationale in §3.2; recost §8. Retain §2, §4.2–4.5.2, §7.2–7.4, §9.5, §10. **Rev 5 update (OI-HEXTILE-14):** the *counts* throughout are now correct at 18 — §7.4 (18/20 connectors, 216/240 pins, 4 × PCA9548A), §6.3 (18 DG2788A), §5.2 (per-cluster mux rate, 16-peer ceiling retired), §8.2/§8.5 (18 boards, 216 conductors), HUB-DRC-C02. **Two residuals stay here and are unchanged in kind:** (i) the §5.2 tier-1 **topology** rewrite — the count correction did not choose between this section's address-strapped shared bus and D-7's 32-segment tree, and the choice has a §5.1 differential-transceiver consequence (one PCA9615 pair or four); (ii) the §8 **recost**, whose per-board bill is still void from D-3/D-4 and must now be multiplied by 18, not 10 | Rev 3 baselining — §7.4 unblocked (§7.5.7) **and now count-correct**; §6's fate blocked on OI-HUB-C17; §5.2 topology + §8 recost still open here |
 | OI-HUB-C16 | **CLOSED 2026-07-30 by `NP-DRV-SHELL-002` network N4** — a per-cluster low-leakage analog mux onto N shared guarded lanes, terminating at an **ADS1299 bank at the posterior aggregation node** (not the Hub PCB), sized by channel count (8 T1 / 21 T2) rather than socket count. That is the crosspoint this item proposed, and it is the surviving justification for the cluster tier. Residual — contact resistance and leakage on a µV path through a pogo contact plus a mux, and tES current rating through the same switch — sits with SHELL-002, not here | Closed |
 | ~~OI-HUB-C14~~ | **✅ CLOSED 2026-07-29 — firmware lobe path retired.** Removed `NP_GROUP_KIND_LOBE`, the `lobe`/`side` query fields, `np_pgroup_t`, `np_module_map_predefined()`, and `lobe_side_matches()`. **The open decision resolved: BOTH `np_socket_geom_t` and `np_physical_loc_t` lose `lobe`/`side`** — `np_physical_loc_t.lobe/side` had zero production readers (only three test assertions), and retaining an ungenerated anatomical store is the hazard itself, not just the query kind that read it. `x_mm`/`y_mm` retained for simulator selection. Anatomical labelling has no home in code at all — **ZONE-1** deleted the lobe derivation from `sync-socket-map.ts` and the `lobe` field from `socketMap.generated.ts`, and names this firmware removal as its firmware share; a socket is "frontal" only insofar as a human authored it into a zone named that way in `00-zones.npps`. Lobe-path resolver-property tests re-expressed over `NP_GROUP_KIND_SOCKET_SET`; inclusive-midline authoring rule relocated to `00-zones.npps`. 18/18 ctest green; map checks 145 → 147. Full rationale at §4.5.2 | — (closed) |
 | OI-HUB-C10 | `scripts/sync-socket-map.ts` to emit the `socket_id → (cluster_id, channel)` table alongside existing artifacts so it cannot drift from the lattice (§4.2) | Generated artifacts |
@@ -1675,7 +1784,7 @@ specified, now at §6 and §5 respectively.
 | Item | Description | Status |
 |------|-------------|--------|
 | HUB-DRC-C01 | Hub PCB contains **no** per-socket footprint, net, or `n_sockets`-derived constant (§4.3) | Open — Gerber review |
-| HUB-DRC-C02 | Cluster count formula `ceil(n/8)` valid across 30–128 sockets; 16 × 8 = 128 = `NP_HEXMAP_MAX_SOCKETS` | ✓ (§4.1) |
+| HUB-DRC-C02 | **Cluster count is taken from the clamp partition, never from `ceil(n / 8)`** — capacity 8 is a per-board bound, not a divisor. Count is 18 at the v1 lattice and must be **re-derived on any REG-1 re-cut**; provisioned connector positions (20) must remain ≥ the count | **✓ at Rev 5 (§7.4, §5.2)** — *this item previously asserted the `ceil(n/8)` formula valid across 30–128 sockets and that `16 × 8 = 128` bounded it. Both were wrong at the shipped lattice: the partition is 18, so the formula under-counts by 8 and its ceiling sits below the real count. Inverted into the rule that catches it (OI-HEXTILE-14)* |
 | HUB-DRC-C03 | Socket numbering remains anatomical; `socket_id → (cluster,channel)` is a generated table | Open — OI-HUB-C10 |
 | HUB-DRC-C04 | TIA saturation analysis still valid at Rf = 22 kΩ with InGaAs max current (1.58 V < 3.0 V swing) | ✓ (Appendix A §2, carried forward) |
 | HUB-DRC-C05 | Rf = 47 kΩ / 22.1 kΩ, 0.1 %, ≤ 25 ppm/°C; **per-slot PD1/PD2 matching requirement removed** | ✓ (§6.4) — shared TIA makes it common-mode |

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-HEX-ZM-001
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-08-04
 **Status:** DESIGN STUDY — Option A committed as baseline, Option B documented as future path. NOT a locked tooling baseline; gated by the curvature-scan go/no-go (§7).
 **Effective Date:** 2026-08-04
@@ -23,6 +23,7 @@
 
 | Rev | Date | Author | Change |
 |---|---|---|---|
+| **3** | **2026-08-18** | NeurOne Mechanical + Hardware Engineering | **`OI-HEXTILE-14` closed — §5.4a's MECH-2 comparison table given its disposition, and the one place that still quoted a pre-SYM-1 figure as live corrected.** Rev 2 annotated the MECH-2 table *"do not size hardware off this table"* but left the flower row reading 12 boards / $76.08; peers had already sized off it. **Decision: the table is KEPT, not corrected in place, and the design figure is added to it as a fourth row — 18 boards / $114.12 under CLUSTER-1 + SYM-1 + CONTIG-1.** Correcting the flower row would have destroyed the table's purpose (it compares cluster *units* under one fixed no-symmetry assumption, which is the reasoning behind CLUSTER-1); leaving the correction in prose alone had already demonstrably failed. The MECH-2 open item, which still quoted **$76.08** as a live BOM gradient against the triad, now reads **$114.12**. No mechanical, geometric or cluster-shape decision changed — CLUSTER-1, SYM-1 and CONTIG-1 are untouched, and per-board *cost* remains void under `NP-HW-HUB-001` §8 / OI-HUB-C15, so this fixes the count, not the rate. Peer closure: `NP-HW-HUB-001` **Rev 6**, `NP-DRV-SHELL-002` **Rev 4**, `NP-HW-HEXTILE-001` **Rev 6** (HT-DRC-20 ✓). |
 | 1 | 2026-07-15 | NeurOne Mechanical Engineering | Initial release. Option A (rigid median-curved 40 mm hexagon) committed as baseline, Option B (semi-flex) recorded as future path. Hex lattice geometry (§3), module-type taxonomy + SMART-1 (§4a), addressing and wire format (§4/§4b), two-layer shell + EMF seam (§5), cluster clamps (§5.4a), gates (§7). **CLUSTER-1 (7-hex flower as the cluster unit) was added to §5.4a on 2026-07-30 without a revision bump** — a bookkeeping lapse corrected at Rev 2, which registers this document into the DHF index for the first time. |
 | **2** | **2026-08-04** | NeurOne Mechanical + Hardware Engineering | **Front matter brought to `docs/FRONT_MATTER_TEMPLATES.md` (the title carried the revision, and Document/Revision/Effective Date/Author/Approved By/References/Gate/Class fields were absent); revision history added; document registered in NP-DHF-001 §5.2 and `docs/status/document-register.md` for the first time.** Content changes, all in §4a and §5.4a: **two new principal directions recorded — SYM-1** (cluster partition mirror-symmetric about the sagittal midline) and **CONTIG-1** (a cluster's petals must form a contiguous arc; no pendant petal), with their derivations and mechanical rationale. **CLUSTER-1 itself is unchanged.** The §5.4a "30 tiles ≈ 4 clusters / 4–10 cluster clamps" figures are annotated as **retired-30-socket-lattice values that do not rescale** — NP-HW-HEXTILE-001 Rev 1 had carried them to the 80-socket lattice and sized hardware off them; the count under the standing decisions is **18** (six forced midline clusters + six lateral mirror pairs, provably minimal). §4a's `ceil(n/8)` cluster-board cost model reconciled as a *capacity floor* rather than a board count, with board count = cluster count and the tier BOM restated at **$114.12** at n = 80; the §5.4a MECH-2 comparison table annotated as pre-SYM-1 and marked "do not size hardware off this table". Peer documents (NP-HW-HUB-001, NP-DRV-SHELL-002) deliberately **not** modified — their stale counts are routed to their own revisions via OI-HEXTILE-14. No firmware changed. |
 
@@ -1035,7 +1036,7 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
 
   **⚠ Peer documents are not yet updated** — NP-DRV-SHELL-002 §7.1 provisions 12
   tail connectors (16 positions, which 18 exceeds), NP-HW-HUB-001 §6.3 sizes
-  DG2788A at 10, and the MECH-2 table below prices 12. Tracked as
+  DG2788A at 10, and the MECH-2 table below priced 12. **Both corrected 2026-08-18 — `NP-HW-HUB-001` Rev 5 reads 18 DG2788A and the MECH-2 table now carries the 18-board design figure as its own row; OI-HEXTILE-14 is closed.** Was tracked as
   **OI-HEXTILE-14**.
 
   **Partial flowers at the boundary.** The socket lattice is set by §3.4 geometry;
@@ -1062,19 +1063,32 @@ Instead the modules are clamped in **clusters**, one actuator per cluster.
   count, hence cluster-tier BOM, is driven by cluster *count*, so **smaller mechanical
   clusters are now materially more expensive**:
 
-  | MECH-2 cluster | Boards at n=80 | Tier BOM | Boards at n=128 | Fits 32-controller bus? |
+  | MECH-2 cluster | Boards at n=80 *(no symmetry constraint)* | Tier BOM | Boards at n=128 | Fits 32-controller bus? |
   |---|---|---|---|---|
   | 3-hex triad | 27 | **$171.18** | 43 | **No** — exceeds the 5-bit address strap |
   | **7-hex flower ★ recommended** | **12** | **$76.08** | 19 | Yes |
   | 8-tile patch | 10 | $63.40 | 16 | Yes |
+  | **↳ 7-hex flower under CLUSTER-1 + SYM-1 + CONTIG-1 — THE DESIGN FIGURE** | **18** | **$114.12** | re-derive | **Yes** — 18 of 32 segments, 14 spare |
 
-  > **⚠ This table predates SYM-1 (2026-08-04) and its flower row is now the
-  > unconstrained lower bound, not the design figure.** Under CLUSTER-1 + SYM-1 the
-  > flower partition is **18 boards / $114.12** at n = 80 (see the SYM-1 block
-  > above). The row is retained because the *relative* comparison it makes between
-  > cluster units is unaffected — the triad is still the expensive option and the
-  > 8-tile patch still buys its saving with less regular geometry. **Do not size
-  > hardware off this table.** OI-HEXTILE-14.
+  > **⚠ Disposition, decided 2026-08-18 (OI-HEXTILE-14): the table is KEPT, with the
+  > design figure added to it as the last row — it is not corrected in place, and the
+  > annotation is not left to carry the correction on its own.**
+  >
+  > Correcting the flower row to 18 would destroy what the table is *for*. The three
+  > original rows compare **cluster units against each other** under one fixed
+  > assumption (no symmetry constraint), and that comparison is what MECH-2 needed:
+  > the triad is the expensive option, the 8-tile patch buys its saving with less
+  > regular geometry. Overwriting one row with a figure derived under a *different*
+  > assumption would make the column incomparable while still looking like a
+  > comparison — the failure mode worth avoiding here.
+  >
+  > But leaving the correction in prose alone had already failed once: this is exactly
+  > how `NP-HW-HUB-001` and `NP-DRV-SHELL-002` came to size hardware off 12 and 10.
+  > **So the design figure now sits in the table, in the same column, one row down.**
+  > **Still do not size hardware off the first three rows** — they are a pre-SYM-1
+  > comparison, retained as the reasoning behind CLUSTER-1, not a bill of materials.
+  > (Per-board cost is separately void — `NP-HW-HUB-001` §8's banner — so $114.12 is
+  > the right *count* at a rate that is still being recosted under OI-HUB-C15.)
 
   The triad is now the expensive option at 2.2× the flower. The 8-tile patch saves
   $12.68 at n=80 but is not a centred-hex super-cell, buying that saving with less
@@ -1197,7 +1211,7 @@ closed** — analogous to the existing goggle-lift Hall cutoff. Consequences:
 | MECH-1 | Four-corner clamp (AL/AR/PL/PR) + posterior-center connector boss + Hall interlock detail | Shell tooling |
 | ZONE-1 | **DECIDED 2026-07-30 (principal): lobes are not a system concept — nothing in code or docs may define, derive or hardcode one.** Zones live only in `protocols/predefined/00-zones.npps`, which is already self-contained (14 zones, explicit `sockets:` lists); a zone whose socket set corresponds to a lobe is an authoring fact, not a system type. Deletes the `Lobe` type + four anatomical constants from `scripts/sync-socket-map.ts` and its lobe-zone diff (redundant, and its "evidence the model is not a guess" claim is circular — the file is regenerated from those same constants); deletes `lobe` from `socketMap.generated.ts` and its 7 app consumers (`SocketPicker.tsx` groups by zone instead — user-defined zones then appear too); firmware side is **OI-HUB-C14**. Generator keeps **structural** zone-file validation (ids exist, `"All"` covers all, aggregates are unions, no dupes) and loses **content** derivation. See §3.3. **CODE SIDE DONE 2026-07-30** — generator, generated map and app consumers landed; `00-zones.npps` socket sets byte-identical (this deleted a redundant derivation, it re-authored no zone); structural checks verified to fail loudly against five deliberately corrupted zone files; app suite 238/238, `tsc --noEmit` clean, firmware host suite 18/18 unchanged. **Firmware share still OPEN under OI-HUB-C14.** | Source-of-truth hygiene; removes the model that produced the 2026-07-30 lattice-generation drift |
 | CLUSTER-1 | **DECIDED 2026-07-30 (principal): the 7-hex flower is the cluster unit wherever the lattice allows one; partial flowers at the boundary.** Rationale is mechanical and independent of electrical cost — the flower is the most compact possible 7-group, so an 8th tile lengthens the span 1.32× (122.2 → 161.8 mm), raising clamp-plate bending stress ×1.75 and plate-mode deflection ×3.07, more than doubling stored dome depth (25.1 → 55.0 mm), and subtending 136.8° of the R_m = 87 mm curvature sphere. See §5.4a. Residual for MECH-2: verify plate seating and one-handed input force at the 122 mm flower span | Cluster geometry — **settled**; MECH-2 verifies, does not re-choose |
-| MECH-2 | Module cluster-clamp design: **cluster size now fixed by CLUSTER-1 (7-hex flower / partial flower)** — MECH-2 verifies rather than selects it. Remaining: over-center lever-throw actuator (not a twist cam) + per-module spring plungers, curvature span at 122 mm, low one-handed input force. **New input 2026-07-29 (NP-HW-HUB-001 Rev 3 §4.4, §5.4a table above):** the electrical cluster-controller tier places one capacity-8 board per mechanical cluster, so cluster size now carries a BOM gradient — **3-hex triad $171.18 vs 7-hex flower $76.08 at n=80**, and the triad's 43 boards at n=128 exceed the 32-controller tier-1 address strap. **Flower recommended**; also raise cluster size to ≤8 only if the clamp plate tolerates it. Decision still MECH-2's (curvature, seating, HFE formative) | Inner-bowl tooling; serviceability; cluster-tier BOM |
+| MECH-2 | Module cluster-clamp design: **cluster size now fixed by CLUSTER-1 (7-hex flower / partial flower)** — MECH-2 verifies rather than selects it. Remaining: over-center lever-throw actuator (not a twist cam) + per-module spring plungers, curvature span at 122 mm, low one-handed input force. **New input 2026-07-29 (NP-HW-HUB-001 Rev 3 §4.4, §5.4a table above):** the electrical cluster-controller tier places one capacity-8 board per mechanical cluster, so cluster size now carries a BOM gradient — **3-hex triad $171.18 vs 7-hex flower $114.12 at n=80** (the flower figure is the CLUSTER-1 + SYM-1 + CONTIG-1 partition — 18 boards; *$76.08 / 12 boards was the pre-SYM-1 value and is not the design figure*, §5.4a), and the triad's 43 boards at n=128 exceed the 32-controller tier-1 address strap. **Flower recommended**; also raise cluster size to ≤8 only if the clamp plate tolerates it. Decision still MECH-2's (curvature, seating, HFE formative) | Inner-bowl tooling; serviceability; cluster-tier BOM |
 | DOC-1 | docs/reference/durability-maintenance.md + docs/status/pending-decisions.md integration once GATE-1/2 PASS | Baseline promotion |
 
 ## 8. Cross-references

@@ -211,7 +211,7 @@ add_table(
          'Position-unique modules meant a distinct SKU per helmet location, and the '
          'five-slot count was never derived from the tiling surface.',
          'One universal 40 mm hexagonal module SKU tiling an ~80-socket lattice '
-         '(NP-HEX-ZM-001 Rev 2). Zones are protocol-defined socket sets authored in '
+         '(NP-HEX-ZM-001 Rev 3). Zones are protocol-defined socket sets authored in '
          'protocols/predefined/00-zones.npps, not hardware slots. Total LED count now '
          'scales with how many T1-A tiles a build populates.'],
 
@@ -259,7 +259,7 @@ add_table(
          'Sized for five large discrete FPC tails. Hex tiles have no tail at all. Separately, '
          '≥15 mm EEG separation is unachievable in the hex architecture because electrodes now '
          'live inside T1-B tiles on the same L1 carrier as LED drive current.',
-         'NP-DRV-SHELL-002 Rev 2 (2026-07-29) cluster-carrier interconnect. Modules present an '
+         'NP-DRV-SHELL-002 Rev 3 (2026-07-29) cluster-carrier interconnect. Modules present an '
          '18-contact back-face pad array — the module interconnect has zero dynamic-flex paths. '
          'The <5 µVpp injected-artifact requirement that separation served is retained verbatim '
          '(DRC-18c → SH2-DRC-16) and met by four other mechanisms.'],
@@ -337,14 +337,14 @@ add_table(
     ['Area', 'What was added'],
     [
         ['Hex-tile module architecture',
-         'NP-HEX-ZM-001 Rev 2 (design study, Option A committed): one universal 40 mm '
+         'NP-HEX-ZM-001 Rev 3 (design study, Option A committed): one universal 40 mm '
          'flat-to-flat hexagonal module, median curvature R_m = 87 mm, tiling an ~80-socket '
          'lattice recovered from a direct 3D scan of the reference helmet interior. Three T1 '
          'tile types on one mold. Principal directions CLUSTER-1, SYM-1 and CONTIG-1 recorded. '
          'Companion ISA at docs/np_hex_zm_isa.md; firmware np_module_map delivered.'],
 
         ['Hex-tile electrical / FPC spec',
-         'NP-HW-HEXTILE-001 Rev 3 — the electrical and FPC counterpart for T1-A and T1-C; '
+         'NP-HW-HEXTILE-001 Rev 4 — the electrical and FPC counterpart for T1-A and T1-C; '
          '§8.2.1 carries the 18-cluster derivation and §8.2.2 the interconnect options for the '
          'count overflow. Cluster map diagram at docs/diagrams/np_hextile_cluster_map.svg.'],
 
@@ -354,7 +354,7 @@ add_table(
          'longer blocks hub tooling.'],
 
         ['Shell socket interconnect',
-         'NP-DRV-SHELL-002 Rev 2 (DRAFT) — new document number because the architecture is '
+         'NP-DRV-SHELL-002 Rev 3 (DRAFT) — new document number because the architecture is '
          'replaced, not revised. Five networks split by physics; 28-item DRC checklist; three '
          'EMI prohibitions locked.'],
 
@@ -811,7 +811,7 @@ add_bullets([
     'iOS/Android app = Class B · cluster controllers = Class B.',
 ])
 
-add_heading('5.2 Hex-tile socket lattice (NP-HEX-ZM-001 Rev 2)', level=2)
+add_heading('5.2 Hex-tile socket lattice (NP-HEX-ZM-001 Rev 3)', level=2)
 
 add_para(
     'One universal hexagonal module SKU tiles the helmet interior: one mold, one part number, '
@@ -920,16 +920,33 @@ add_para(
     'docs/diagrams/np_hextile_cluster_map.svg.', bold=True)
 
 add_notice(
-    'The 18-cluster count post-dates NP-DRV-SHELL-002 Rev 2 and NP-HW-HUB-001 Rev 3 (still '
-    'uncorrected at Rev 4, which was a documentation-only change), both of '
-    'which were written against ~12. Consequences not yet corrected in those documents '
-    '(OI-HEXTILE-14): cluster-tier BOM $76.08 → $114.12; analog front ends scale with 18, not '
-    '12; and 18 exceeds BOTH the 16 provisioned connector positions AND the 8 branches × ≤2 '
-    'clusters I2C tree. Interconnect options and a recommendation are recorded at '
-    'NP-HW-HEXTILE-001 §8.2.2. The five-network split, the cluster-carrier selection and the '
-    'zero-dynamic-flex conclusion are unaffected — only the counts and the enable ownership.',
+    'Every peer document now reads 18. NP-DRV-SHELL-002 Rev 2 (2026-08-11) adopted '
+    'NP-HW-HEXTILE-001 §8.2.2 options 1 + 3 — 18 cluster tails against 20 provisioned '
+    'connector positions, and D-7\'s 32-segment I2C tree replacing the 8 branches × ≤2 = 16 '
+    'tree that could not reach 18. NP-HW-HUB-001 Rev 5 (2026-08-16) brought the last peer into '
+    'agreement, re-sizing §7.4 (18/20 connectors, 216/240 pins, 4 × PCA9548A on LPI2C1–4), §6.3 '
+    '(18 DG2788A, not 10), §5.2 (mux rate stated per cluster; its 16-controller tier-1 ceiling '
+    'retired, which 18 exceeded), §8.2 and §8.5 (18 boards / $114.12; 216 parting-plane '
+    'conductors, so the reduction against a star is ~4.1× rather than the 8.8× claimed) and '
+    'HUB-DRC-C02. NP-HEX-ZM-001 §5.4a carries the 18-board design figure inside the MECH-2 '
+    'table. HT-DRC-20 passes.',
     colour=NOTICE_BG,
-    bold_lead='COUNT CONFLICT, OPEN. ')
+    bold_lead='COUNT CONFLICT, RESOLVED 2026-08-16 (OI-HEXTILE-14 closed). ')
+
+add_notice(
+    'Connector positions are provisioned at 20 rather than 18 because socket count ~80 is '
+    'PROVISIONAL pending REG-1/ACT-1, and the two axes are not symmetric: one extra conductor '
+    'costs a hub pin on every tail, while two extra tail positions cost 12 pins once. Every '
+    'other quantity is stated per cluster, so a lattice re-cut re-derives one number instead of '
+    'renegotiating the interface. Still undecided, and deliberately not pre-empted: OI-HUB-C07 / '
+    'OI-HEXTILE-13, whether per-cluster safety policy is wanted. If a single broadcast cranial '
+    'enable is accepted, SAFE_EN[n] leaves the 12-conductor tail, the tail drops to 11, and the '
+    'per-cluster star becomes a multi-drop trunk — at which point connector count stops being '
+    'sensitive to cluster count at all. Every peer is written to be correct either way. The '
+    'five-network split, the cluster-carrier selection and the zero-dynamic-flex conclusion were '
+    'never in question.',
+    colour=NOTICE_BG,
+    bold_lead='WHAT REMAINS OPEN. ')
 
 add_heading('5.4 Hub PCB Rev C — distributed cluster-controller tier', level=2)
 
@@ -976,7 +993,7 @@ add_para(
     'cluster board, roughly +$1.09 net on the hub PCB itself. Status: DRAFT — the socket count '
     'and every part number are explicitly open; none of the hub-side fan-out is implemented yet.')
 
-add_heading('5.5 Shell socket interconnect (NP-DRV-SHELL-002 Rev 2, DRAFT)', level=2)
+add_heading('5.5 Shell socket interconnect (NP-DRV-SHELL-002 Rev 3, DRAFT)', level=2)
 
 add_para(
     'The inherited assumption that was retired: "the Hub PCB is where module signals are '
@@ -1072,7 +1089,7 @@ add_bullets([
 
 add_notice(
     'Whether the safety layer can cut ONE cluster or only the whole cranial lattice is open. '
-    'NP-DRV-SHELL-002 Rev 2 had specified per-cluster SAFE_EN_n (18 GPIO); NP-HW-HUB-001 Rev 4 §7.2 '
+    'NP-DRV-SHELL-002 Rev 4 had specified per-cluster SAFE_EN_n (18 GPIO); NP-HW-HUB-001 Rev 6 §7.2 '
     'specifies a single cranial bit (1 GPIO, all-or-nothing). Per-cluster policy bits would need '
     'the enable word widened to uint32_t (18 cluster + 9 modality = 27 > 16). Tracked as '
     'OI-HUB-C07 / OI-HEXTILE-13; proposed resolution at NP-HW-HEXTILE-001 §8.4.1 — split the '
