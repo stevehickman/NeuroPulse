@@ -28,8 +28,35 @@
 **Neurode gap note (2026-07-13):** Two Neurode capabilities have no NeurOne equivalent today — **fNIRS hemodynamic brain monitoring** and **tRNS**. Both are low-cost to close: fNIRS reuses NeurOne's existing NIR optics (see `docs/np_feas_fnirs_001.md`); tRNS is a firmware preset on the T2 arbitrary-waveform driver. Neurode is otherwise a single-modality ADHD/focus device with no PBM, EEG, EMF shielding, or phone-free operation.
 
 **Key competitive claims:**
-- ⚠ **"50× more transcranial LEDs than Vielight at 17% of the price" — NEEDS RECOMPUTE.** Based on the retired fixed 600-LED/5-zone hardware count (see Total LED count row above); do not use until re-derived against the hex-tile architecture (NP-HEX-ZM-001).
-- ⚠ **"300 LEDs per wavelength — matching Neuronic's total LED count..." — NEEDS RECOMPUTE.** Same stale 300/wavelength basis.
+- ⚠ **"50× more transcranial LEDs than Vielight at 17% of the price" — STILL BLOCKED, but for a different reason now (2026-08-16, `NP-COST-001`).** The **price** half is sound and unaffected: retail is locked, and Home Standard's $849 against a ~$5K Vielight Neuro Pro 2 is 17%. The **LED-count** half is now *computable but assumption-dependent*: at `NP-COST-001` §2 A-1's 30-tile Home Standard (21 × T1-A + 9 × T1-B) and `NP-HW-HEXTILE-001` §4.2's per-tile emitter counts, the total is **~2,286 emitters — ~190× Vielight's ~12**, not 50×. **Do not publish that figure.** A-1 is an assumption, not a decision (**OI-COST-01**), and the socket count itself is PROVISIONAL pending REG-1/ACT-1. The claim unblocks when tile population is fixed, not before.
+- ⚠ **"300 LEDs per wavelength — matching Neuronic's total LED count..." — STILL BLOCKED, same basis.** On the same A-1 assumption it would be **~1,143 per wavelength** against Neuronic's 256–300. Same caveat: assumption-dependent, PROVISIONAL, do not publish.
+
+> **🛑 EVERY PRICE COMPARISON ON THIS PAGE IS NOW PROVISIONAL — retail pricing was UNLOCKED on
+> 2026-08-16** (principal direction; `NP-COST-001` Rev 2 §8, CLAUDE.md Rev 39). **Do not publish,
+> quote or brief any price comparison from this page until a new price is set.**
+>
+> **This note replaced an earlier one, and the reason matters.** The earlier version said these
+> comparisons were *"factually correct and safe to use"* **because retail was locked** — the lock
+> *was* the entire justification, and it is gone. That is exactly the kind of dependency that
+> survives quietly after its premise is withdrawn, so it is stated here rather than deleted.
+>
+> **Why it moves so far.** `NP-COST-001` found all four T1 configurations gross-margin negative
+> (Home Standard +36% → **−41% to −51%**). At the implied ladder, Home Standard needs
+> **$1,869–1,997** against today's $849, and cannot be sold below **~$1,196** at any margin at all.
+> Two comparisons on this page break at those numbers:
+>
+> | Claim | At $849 (in force) | At $1,869–1,997 (implied) |
+> |---|---|---|
+> | vs Vielight Neuro Pro 2 (~$5K) | 17% of the price | **~40% of the price** |
+> | vs Sens.ai (~$1.5–2K) | undercuts by ~2× | **direct price peer — lands inside their band** |
+>
+> **Sens.ai is the one to watch.** It moves from a differently-priced adjacent product to a head-on
+> competitor, and it already has EEG, PBM and closed-loop. The competitive frame on this page was
+> built when that was not true.
+>
+> **Nothing here is rewritten**, because the comparisons cannot be recomputed until a price exists —
+> and `OI-HEXTILE-06` must be decided before one is set (`OI-COST-10`), since silicon PD plus a
+> 20-tile build moves the implied Home Standard price to **~$1,383**. Tracked as **OI-COST-09**.
 - "Real-time J/cm² dose metering — the only device that shows you the exact dose your brain received"
 - "Only consumer brain device with palladium-fabric EMF shielding verified by continuous fleet monitoring"
 - "Autonomous closed-loop operation from any power bank — no phone required"
