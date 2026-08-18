@@ -110,6 +110,7 @@
 		2BB418EDE35A45EFA375D265 /* NPSocketMaskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FFA87C95FA54976A9E82012 /* NPSocketMaskTests.swift */; };
 		F7FD1ECED44EC2FCFD908129 /* EEGConsentGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BD5271749F3B374AE615562C /* EEGConsentGateTests.swift */; };
 		FA4ECAEF4B31258D42A3178D /* WarrantyAnalyticsGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 949828B8F89888798184F922 /* WarrantyAnalyticsGate.swift */; };
+		C4A17B2E90D3116E5F0C8241 /* CharacterisationEnrolmentGate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E3D57C142A6039CC71E4A5 /* CharacterisationEnrolmentGate.swift */; };
 		FADA964537EE7400E6D8A122 /* OTAModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3340437AFB2197A3E561674B /* OTAModels.swift */; };
 		FB6B7845D57B8EFCB88E7942 /* SetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6F8FFE51163EFF1C5B89B4FA /* SetupView.swift */; };
 		FBB5CCFD58572ED1D074460F /* AdaptationEvent.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7D95BEDF64CD2C6BC689C85 /* AdaptationEvent.swift */; };
@@ -190,6 +191,7 @@
 		8D166E18D65E55F876E0F345 /* NPProtocolLibrary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NPProtocolLibrary.swift; sourceTree = "<group>"; };
 		9357FC64FE586BD47723CFB4 /* NeurOneGATTManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NeurOneGATTManager.swift; sourceTree = "<group>"; };
 		949828B8F89888798184F922 /* WarrantyAnalyticsGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WarrantyAnalyticsGate.swift; sourceTree = "<group>"; };
+		B8E3D57C142A6039CC71E4A5 /* CharacterisationEnrolmentGate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CharacterisationEnrolmentGate.swift; sourceTree = "<group>"; };
 		9583A671EF2AC0372BD57A63 /* ResearchSuggestionStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResearchSuggestionStore.swift; sourceTree = "<group>"; };
 		95E5CB417A307A7F792D3A4E /* ConsumableTrackerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConsumableTrackerTests.swift; sourceTree = "<group>"; };
 		9875C957FEFDC636FD0D913F /* NeurOne.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = NeurOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -301,6 +303,7 @@
 			isa = PBXGroup;
 			children = (
 				89267FC19056535BBA2B4A7F /* AnalyticsBackend.swift */,
+				B8E3D57C142A6039CC71E4A5 /* CharacterisationEnrolmentGate.swift */,
 				D7D9344D545A23DFAA12BC93 /* EngagementTier.swift */,
 				061FB05A74D1AB085EA1F477 /* PostHogAnalyticsBackend.swift */,
 				37FF2673F6FA11AEF75F6D8E /* ResearchAnalyticsGate.swift */,
@@ -709,6 +712,7 @@
 				D8BB52481FACC35DDF8C0141 /* UHDRKeyManager.swift in Sources */,
 				04B38A7EB6ED06FB90B016AA /* Under16View.swift in Sources */,
 				FA4ECAEF4B31258D42A3178D /* WarrantyAnalyticsGate.swift in Sources */,
+				C4A17B2E90D3116E5F0C8241 /* CharacterisationEnrolmentGate.swift in Sources */,
 				07C1A0EC88810B382B0841BF /* ZoneModuleAnnouncer.swift in Sources */,
 				7561CEF0E0CCA791AE48535A /* ZoneModuleFrame.swift in Sources */,
 				D93523620E89F0E7B94618C6 /* ZoneModuleInfo.swift in Sources */,

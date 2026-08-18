@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-EMMC-002
-**Revision:** 1
-**Date:** 2026-06-02
+**Revision:** 2
+**Date:** 2026-08-12
 **Status:** ACTIVE
-**Effective Date:** 2026-06-02
+**Effective Date:** 2026-08-12
 **Author:** Steve Hickman (CEO, interim Quality authority)
 **Approved By:** Steve Hickman, CEO
-**References:** NP-PRIV-REM-001 STEP-01 through STEP-06, STEP-10; NP-PRIV-001 Rev 1 findings CRITICAL-01, HIGH-03, HIGH-04, MEDIUM-04, MEDIUM-05; NP-PRIV-001 Rev 2 finding MEDIUM-06 (§G added 2026-06-03)
+**References:** NP-PRIV-REM-001 STEP-01 through STEP-06, STEP-10; NP-PRIV-001 Rev 1 findings CRITICAL-01, HIGH-03, HIGH-04, MEDIUM-04, MEDIUM-05; NP-PRIV-001 Rev 2 finding HIGH-01 (§G, §H); NP-MOD-ID-001 Rev 1 §7, §7.5.1, §A.2–§A.5 (the precedent §H follows); CLAUDE.md §5.1, §5.2, §6.0; `firmware/shdr/`; `ci/shdr/shdr_fleet_schema.sql` Rev E
 **Related Issues:** —
 **Gate:** —
 **IEC 62304 Class:** SW-02 Class B (main processor)
@@ -407,7 +407,17 @@ The following are locked design decisions for Mode F (808-830nm bilateral retina
 
 ## §G — SHDR Accelerometer Data Reclassification
 
-*(Added 2026-06-03 — NP-PRIV-001 Rev 2 finding MEDIUM-06. Addresses NP-PRIV-REM-001 STEP-10. BLOCKING for SHDR fleet DB schema freeze.)*
+*(Added 2026-06-03 — NP-PRIV-001 Rev 2 finding HIGH-01. Addresses NP-PRIV-REM-001 STEP-10. BLOCKING for SHDR fleet DB schema freeze.)*
+
+> **Provenance discrepancy, noted not resolved.** The Rev 1 front matter
+> attributed §G to *"NP-PRIV-001 Rev 2 finding MEDIUM-06"* while §G.1 attributed
+> it to *"Rev 2 HIGH-01 (originally Rev 1 HIGH-01)"*. Both cannot be right, and
+> the severity of the originating finding is part of the case for how much
+> evidence the control owed. Rev 2 aligns the citation with **HIGH-01**, which is
+> the finding the §H decision was taken against and the one §G.1 has always
+> named. **Whether MEDIUM-06 is a separate finding that also touches §G has not
+> been established and is not decided here** — the Rev 2 PDF should be read
+> against both. **OI-EMMC2-14.**
 
 ### G.1 Rationale
 
@@ -425,10 +435,57 @@ typedef struct {
 ```
 
 Default thresholds (factory firmware, configurable via signed OTA):
-- `NP_ACCEL_DROP_THRESHOLD_G` = 15.0f (free-fall-equivalent impact)
-- `NP_ACCEL_MAINT_THRESHOLD` = 3 drops in any rolling 7-day window
+
+> ### ⚠ BOTH NUMBERS ARE UNVALIDATED PLACEHOLDERS
+>
+> **Neither is an engineering value.** Both were chosen in June 2026, before any
+> hardware existed, and neither has ever been compared against a device that
+> failed. They are not derived from a drop test, a failure correlation, or a
+> supplier rating. Do not cite them as qualified limits.
+>
+> This matters more than a normal caveat, because **the correctness of this whole
+> section is a claim about these two numbers.** Set the drop threshold too low and
+> `drop_detected` fires on ordinary handling, so the boolean stream becomes the
+> motor-control signal §G exists to suppress. Set it too high and the maintenance
+> function is dead. §G.3 then prohibits every field that could tell us which.
+>
+> "Configurable via signed OTA" was a promise to retune from evidence that this
+> section makes unobservable everywhere in the system. **§H is the bounded,
+> consented, self-closing programme that obtains that evidence**, and its §H.4
+> review gate is the only sanctioned path to replacing these values. Until it
+> reports, they stay as written and stay labelled.
+>
+> Recorded as **OI-EMMC2-09**.
+
+| Constant | Placeholder value | Stated derivation | Actual evidence |
+|---|---|---|---|
+| `NP_ACCEL_DROP_THRESHOLD_G` | `15.0f` | "free-fall-equivalent impact" | none |
+| `NP_ACCEL_MAINT_THRESHOLD` | `3` | — | none |
+| `NP_ACCEL_MAINT_WINDOW_GAPS` | `7` | — | none; **and the unit changed — see below** |
+
+**The rolling window is counted in session gaps, not days — a correction of
+record.** Rev 1 specified `NP_ACCEL_MAINT_THRESHOLD` as *"3 drops in any rolling
+**7-day** window"*. That is not implementable on this device, for the same reason
+§H.3's expiry cannot be a calendar: the headset has no battery, coin cell or
+`VBAT` rail (CLAUDE.md §4.5 — it is USB-C powered and Mode 3 runs off a power
+bank), so the i.MX RT1062 SNVS RTC has no backup domain and wall time is lost on
+every disconnect. `firmware/shdr/` therefore counts the window in **session
+gaps** (`NP_ACCEL_MAINT_WINDOW_GAPS = 7`). Seven gaps approximates seven days
+only for a once-daily user; for a clinic at twelve sessions a day it is about
+half a day. **This changes what `maintenance_alert` means**, so it is stated here
+rather than left in the source. §H.4 must resolve the unit along with the values.
+Recorded as **OI-EMMC2-10**.
 
 ### G.3 Prohibited SHDR fields
+
+> **This table is the standing rule, and it stands.** §H opens one bounded,
+> consented, self-closing exception to it, in one named table, for the duration
+> of a characterisation window that expires without anyone doing anything. Every
+> device that has not affirmatively opted in — which is the whole fleet by
+> default — is governed by this table unqualified. Read §H before concluding
+> that a coarsened impact histogram in `shdr_accel_characterisation` is a
+> violation of it, and read §H.7 before concluding that this table's
+> prohibitions are currently achieving what they claim.
 
 The following must **never** appear in any SHDR record or SHDR fleet DB schema column:
 
@@ -497,11 +554,348 @@ np_status_t np_accel_shdr_process_session_gap(void);
 
 The raw accelerometer buffer is allocated in SRAM only, processed in-place, and zeroed with `memset_explicit` before `np_accel_shdr_process_session_gap` returns. No intermediate values are written to any partition.
 
+**Authored 2026-08-12** at `firmware/shdr/` (`include/np_accel_shdr.h`, `src/np_accel_shdr.c`, `tests/np_accel_shdr_tests.c`, `CMakeLists.txt`), with both §G and §H modes present from the first line rather than §H retrofitted later — this was the cheapest moment to decide the shape, because no SHDR records exist anywhere in the programme and none of it has shipped.
+
+---
+
+## §H — SHDR Accelerometer Characterisation Programme
+
+*(Added 2026-08-12 — principal decision. Bounded exception to §G.3. Mirrors the
+fleet characterisation data programme of `NP-MOD-ID-001` §7. BLOCKING open item
+OI-EMMC2-12 must close before any device is offered enrolment.)*
+
+### H.1 Why this section exists — the bootstrapping defect
+
+§G.2's two thresholds are unvalidated guesses (see the banner there). §G.3
+prohibits every field that could validate them. §G.6 zeroes the raw buffer on
+device, so the data does not survive locally either. The result is a section
+whose correctness is a claim about two numbers, which forbids the observation of
+those two numbers everywhere in the system.
+
+`NP-PRIV-001` Rev 2 HIGH-01 named **Option C** — *"on-device processing only,
+emit the binary alert to SHDR, raw accelerometer series never leaves the
+device"* — as the strongest remedy. Option C is still the destination. It is
+also, as written, unreachable: "process on-device" presupposes knowing *what* to
+process, and that is exactly what is unknown. **The spec forecloses the evidence
+needed to make the spec correct.**
+
+`NP-MOD-ID-001` §7.1 hit the identical shape from the other end — `DOSE-01`
+blocks the exposure denominator needed to answer whether socket position drives
+module aging — and resolved it with a time-boxed relaxation rather than an
+assumption. §H is that resolution applied here.
+
+### H.2 Decision summary
+
+| ID | Decision | § |
+|---|---|---|
+| **CHAR-A1** | The exception is a **new section**, not a widening of §G | §H.2.1 |
+| **CHAR-A2** | The window is denominated in **records**, not calendar time — the device has no clock that survives a disconnect | §H.3 |
+| **CHAR-A3** | Impact severity is **coarsened on-device to a fixed-bin histogram**; no per-event value ever leaves | §H.2.2 |
+| **CHAR-A4** | The **review gate must produce four artefacts** before any extension; absent any of them the programme closes | §H.4 |
+| **CHAR-A5** | Extended rows are **deleted from the fleet DB at window close**; the fitted model survives, the evidence does not | §H.5 |
+| **CHAR-1** | §G.3 is relaxed for a time-boxed characterisation window only | §H.3 |
+| **CHAR-2** | Expiry is **fail-closed in firmware**, not a server-side flag | §H.3 |
+| **CHAR-3** | The extended set is **opt-in, cohort-scoped**; participants receive predictive maintenance first | §H.3.3 |
+| **CHAR-4** | Non-participation must **never** degrade a safety-critical function | §H.6 |
+
+#### H.2.1 Why a new section rather than an extension of §G (CHAR-A1)
+
+§G is the prohibition. §H is a bounded exception to it. Folding the exception
+into the prohibition would make the boundary between the two a matter of careful
+reading, in a section whose entire job is to be read as absolute.
+
+Keeping them apart buys three things:
+
+1. **§G stays quotable.** Anyone citing §G.3 is citing the standing rule, not a
+   rule with a clause somewhere else in the same section.
+2. **§H can be retired whole.** At window close the section is deleted, the
+   table is dropped and the firmware constant returns to `0`, in one change.
+   §G is untouched by that operation because nothing of §H was ever inside it.
+3. **The diff is honest.** A future reader asking "when did raw impact data
+   become admissible?" gets a section that came into existence on a date, with a
+   decision behind it — rather than a paragraph that appeared inside an existing
+   prohibition.
+
+#### H.2.2 Extended field set (CHAR-A3)
+
+Admitted to SHDR **for enrolled devices only**, **for the characterisation
+window only**, **once per between-session gap**, in the single registered table
+`shdr_accel_characterisation`:
+
+| Field | What it is |
+|---|---|
+| `impact_g_bin_1` … `impact_g_bin_8` | **Counts** of impact events falling in eight fixed, log-spaced peak-resultant-g bins |
+| `impact_event_count` | Σ of the bins — carried explicitly so bin saturation is detectable rather than silent |
+| `char_programme_id`, `char_consent_granted`, `char_consent_epoch`, `char_record_seq` | The four structural markers (§H.3.4) |
+| `gap_index` | Ordering, as everywhere else in SHDR — a counter, never a clock |
+
+Bin lower edges, in g: `2.0, 3.0, 4.5, 6.5, 9.5, 14.0, 21.0, 31.0`, the last
+open-ended. The 15.0 g placeholder falls inside bin 6 with bins 5 and 7 either
+side of it — a programme that could not resolve both directions from the number
+it exists to test would be pointless.
+
+**Still prohibited, exactly as in §G.3, in this table as everywhere else:** any
+raw series, any per-event g value, any orientation vector, any per-event
+timestamp, and any cumulative lifetime drop count.
+
+**Why a histogram and not the raw values (CHAR-A3).** The review gate needs the
+*distribution* of impact severity and its relationship to failure; it never needs
+any individual impact. A per-gap histogram carries the distribution and destroys
+the per-event trajectory that made the raw series health-inferrable in the first
+place. This follows `NP-MOD-ID-001` §6.3's principle — coarsen before upload,
+keep the exact value locally for the device's own reminder logic — and it is the
+conservative reading of the question the programme was authorised to answer.
+
+**The columns are named honestly.** `impact_*` is a pattern §G.3 prohibits and
+`ACCEL-01` rejects, and these columns keep it deliberately. An innocuous name
+would have let this data past the gate without anyone deciding to admit it.
+Carrying the banned prefix makes the exemption load-bearing and visible in every
+diff, and it makes the CI check that grants it (§H.3.4) the thing standing
+between this data and the schema.
+
+### H.3 The window, and how it closes (CHAR-1, CHAR-2, CHAR-A2)
+
+#### H.3.1 The window has no calendar, and that is not a simplification
+
+`NP-MOD-ID-001` §7.3 bounds its window at *"24 months from first fleet upload"*.
+**That is not implementable on this device.** No battery, no coin cell and no
+`VBAT` rail appears anywhere in the design set; the headset is USB-C powered and
+Mode 3 runs off a power bank (CLAUDE.md §4.5). The i.MX RT1062 SNVS RTC
+therefore has no backup domain: wall time is **lost on every disconnect** and
+re-supplied by the phone — `np_edf_write_header(..., time_t session_ts)` takes it
+as a parameter (§E.3). A device-side calendar expiry would be both losable and
+settable backwards, which is the opposite of fail-closed.
+
+The precedent's calendar bound was never really the mechanism. It was a proxy for
+**bounding exposure**. On hardware with no surviving clock, bounding exposure
+directly is both implementable and strictly stronger.
+
+#### H.3.2 So the window is denominated in the records it admits
+
+`NP_ACCEL_CHAR_RECORD_BUDGET = 512` is a per-device ceiling on extended records,
+compiled into the firmware. The counter that consumes it advances **only** when
+an extended record is emitted. Three properties follow, and they are the reason
+for the choice:
+
+1. **Monotone by construction.** Nothing but the collection itself can consume
+   the budget, and nothing can un-consume it. There is no state to trust and no
+   input to spoof.
+2. **No clock required.** It survives power loss and ignores whatever the phone
+   says the date is.
+3. **It *is* the statistic.** §H.4's review needs *M* records per device.
+   Exhausting the budget and answering the question are the same act.
+
+Calendar duration then falls out in proportion to usage:
+
+| Device | Sessions/day | 512 records ≈ |
+|---|---|---|
+| Clinic | 12 | ~43 days |
+| Home, heavy | 3 | ~5.7 months |
+| Home, typical | 1 | ~17 months |
+
+All three sit inside `NP-MOD-ID-001`'s 24-month intent, and the device producing
+evidence fastest stops soonest — which is the correct direction, because it is
+also the device that reaches statistical sufficiency first.
+
+#### H.3.3 Consent (CHAR-3)
+
+The consent subject is the **warranty owner** (CLAUDE.md §6.0), and the opt-in
+is **separate, affirmative, granular and revocable** — never folded into warranty
+registration. Bundling it would be consent for a purpose the registrant never
+contemplated (`NP-MOD-ID-001` §7.5).
+
+**Registrant consent is sufficient in every device configuration, because there
+is no identifiable subject.** `NP-MOD-ID-001` §7.5.1 states the operative
+distinction: *"the operative distinction is between describing a person and being
+attributable to one."* SHDR holds no user identifier; the warranty database —
+which SHDR cannot join — names the **registrant**, not the wearer; and nothing in
+either store records the relationship between them. A device bought by a parent
+for a child yields a record reachable, at most, to the parent's registration
+entry. There is no field, in any store, saying the child is the user. Consent is
+owed to an identifiable subject, and there is none.
+
+**And the argument is stronger here than in the case already decided.** The
+module duty-map programme accepted registrant consent for data that at least
+requires the device to be **worn** — a duty map is a record of a wearing session.
+**A drop does not require the device to be worn at all.** The headset can be
+dropped by a family member moving it off a table, by clinic staff cleaning it, by
+a courier, by anyone handling it. So on the "describes a person" limb — the limb
+that made the duty-map case arguable — impact data is *weaker*, not merely
+equal: an impact histogram is frequently not a record of the wearer's behaviour
+at all, and nothing in it marks which entries are. The precedent is being
+followed a fortiori, not merely cited.
+
+What survives is an **informational** interest rather than a legal one, exactly
+as in `NP-MOD-ID-001` §A.3: someone who is the sole handler of a device may
+reasonably want to know an impact profile leaves it, even one nobody can tie to
+them. That is served by telling them, not by requiring their consent. The
+enrolment copy must say so (OI-EMMC2-12).
+
+**Reciprocity is genuine, not an inducement.** A maintenance model cannot
+personalise for a device whose handling it cannot see, so participants get better
+predictions *because of* what they contributed. Enrolment does not survive a
+factory reset: reset marks a change of custody and a decision by a previous
+registrant must not keep authorising collection for a new one
+(`NP-MOD-ID-001` §A.4).
+
+#### H.3.4 Fail-closed expiry, enforced in three places (CHAR-2)
+
+**In firmware.** `NP_ACCEL_CHAR_WINDOW_ENABLED` is a build-time constant, not a
+server flag — a collection flag that must be actively switched off is a flag that
+stays on. `np_accel_char_window_open()` is the single decision point, and every
+one of these returns *no*:
+
+- the build gate is `0`;
+- the enrolment record is absent, or its CRC does not verify (**corrupt reads as
+  not-enrolled**, never as enrolled);
+- `enrolled` is false;
+- the record's `programme_id` is not the current one — consent to programme *N*
+  does not authorise *N+1*;
+- `consent_epoch` is zero;
+- `records_emitted` has reached the budget.
+
+The standard §G.2 record is produced identically in every one of those cases.
+
+**In the schema.** `shdr_accel_characterisation` carries four markers, and each
+is a `CHECK` rather than a convention: `char_programme_id` pinned to the current
+programme; `char_consent_granted` with a `CHECK` satisfiable **only by TRUE**, so
+an unconsented row is *unstorable* rather than merely unsent; `char_consent_epoch
+>= 1`; and `char_record_seq BETWEEN 1 AND 512`. The guarantee therefore does not
+depend on the uploader behaving.
+
+**In CI.** `ci/test_shdr_schema.py` `CHAR-01` enforces the biconditional between
+firmware and schema, reading the firmware constants by **parsing the header**
+(not by grepping prose, which the header discusses at length):
+
+| Firmware | Schema | Verdict |
+|---|---|---|
+| window `1` | table present, markers agree | PASS |
+| window `0` | table absent | PASS — the retired end-state |
+| window `0` | **table still present** | **FAIL** |
+| either | **any marker weak or absent** | **FAIL** |
+
+**The exemption is self-revoking.** `ACCEL-01`/`ACCEL-02` do not carry a static
+allowlist of the §H columns — `PERMITTED_ACCEL_COLUMNS` is deliberately
+unchanged. The exempt set is *computed from* `CHAR-01`'s verdict, so weakening
+any marker, closing the window, or renaming a firmware constant withdraws the
+permission **in the same run**, and the `impact_*` columns immediately become
+`ACCEL-01` violations again. There is no separate step to remember.
+
+Consequently the programme **cannot be half-retired**: closing the window means
+setting the constant to `0` *and* dropping the table in one change, or CI blocks.
+"The data must not outlive the programme that consented to it" is a mechanical
+property, not a promise.
+
+### H.4 The review gate, and what it must produce (CHAR-A4)
+
+At window close, fit impact exposure against subsequent device failure and
+determine where the thresholds actually belong.
+
+**The default outcome is that the programme ends.** An extension is the exception
+and requires all four of the following. Any one missing, and §H is retired with
+whatever the data supports:
+
+1. **A fitted threshold–failure relation** with an effect size and a confidence
+   interval — not a point estimate — for both `NP_ACCEL_DROP_THRESHOLD_G` and the
+   `NP_ACCEL_MAINT_THRESHOLD` / `NP_ACCEL_MAINT_WINDOW_GAPS` pair, **including a
+   decision on the window's unit** (OI-EMMC2-10).
+2. **A cohort-vs-fleet skew statement** per `NP-MOD-ID-001` §7.6. The cohort is
+   self-selected and plausibly differs from the fleet in exactly the variable
+   under study — people who opt into a handling study may handle differently.
+   Compare the cohort against the fleet on what SHDR holds for everyone (device
+   model, session count, config tier, clinic-vs-individual registration). As in
+   the precedent, a **negative** result generalises comfortably and a positive
+   one sized on a skewed cohort does not.
+3. **The specific question a further window would answer that this one did
+   not**, with the record budget that answers it. "More data would be nice" is
+   not that question.
+4. **A re-run of the enrolment copy against the field set actually collected.**
+   If they have diverged, consent was obtained for something other than what
+   happened, and the correct action is to close and re-enrol, not to extend.
+
+The outcome that retires §H and adopts evidence-based thresholds is the goal, not
+a disappointment.
+
+### H.5 Purpose binding, and what happens to the data (CHAR-A5)
+
+**Purpose.** Extended records may be used for **predictive-maintenance model
+training only** (CLAUDE.md §5.2, Phases 2–3) and for the §H.4 review. Not for
+product analytics, not for warranty adjudication, not for any per-device
+determination affecting an owner, and not for any research study — research has
+its own consent architecture (CLAUDE.md §5.3, §6.2) and this is not it.
+
+**At window close, the extended rows are DELETED from the fleet database.** The
+fitted model parameters and the aggregate histogram survive; the per-device
+evidence does not. This is the conservative option of the two available and it is
+chosen deliberately: **NeurOne keeps the answer, not the evidence.** Retention
+until close is required only because the model is fitted at close.
+
+**On withdrawal**, collection stops from the next session gap and that device's
+extended rows are deleted at the next sync.
+
+**What cannot be undone**, and the enrolment copy must say so plainly (as
+`NP-MOD-ID-001` §A.5 does): a contribution already absorbed into a trained model
+cannot be removed from it. Deleting the rows does not un-train the model. Stating
+that at enrolment rather than at the point someone tries to leave is the
+difference between a disclosure and an excuse.
+
+### H.6 Non-coercion (CHAR-4)
+
+Participation may buy **earlier and better** maintenance prediction. It must
+never buy **baseline safety**. Every safety-critical reminder and every interlock
+in CLAUDE.md §4.2 and §5.2 applies identically to non-participants; what they
+forgo is Phase 2/3 personalisation and early access, never protection.
+
+This is a property of the code, not a policy statement:
+`np_accel_shdr_evaluate()` computes the standard §G.2 record before and
+independently of any window decision, and `np_accel_shdr_tests.c` asserts a
+non-enrolled and an enrolled device produce bit-identical `drop_detected`,
+`maintenance_alert` and rolling state from the same input. A choice whose refusal
+degrades safety is not a free choice.
+
+### H.7 A limit of §G.3 that §H does not create and does not fix
+
+**This must be read alongside §G.3, because it changes what that prohibition is
+currently achieving.** `shdr_accel_records` is append-per-gap with a non-unique
+`warranty_token` and an index on it. Therefore, **today, before anything in §H**:
+
+- `SELECT count(*) FILTER (WHERE drop_detected) ... WHERE warranty_token = ?`
+  **is** the *"drop count as an integer"* that §G.3 prohibits by name;
+- the `gap_index` values where `drop_detected` is true give inter-drop spacing —
+  the quantity *"timestamp of individual drop events"* was prohibited to prevent.
+
+A column-level control cannot express a row-set-level hazard. §H does not
+introduce this and does not remove it. It is stated here because the honest
+description of §H is "a bounded widening of a prohibition that is already
+narrower in practice than it reads", not "the first breach of an intact rule".
+
+**Deliberately not fixed here.** The obvious remedy — collapse to one upserted
+row per device, as `consumable_counts` already does — would destroy the per-gap
+sequencing §H is built on. The two have to be decided together, and that is the
+principal's call. Recorded as **OI-EMMC2-11**.
+
+Related, and also for the principal rather than for this document: the same
+shape recurs across roughly thirty derived boolean flags fleet-wide, each a
+threshold frozen before any fleet existed, and CLAUDE.md §5.2's Phase 2
+"fleet-trained LSTM on HDR sensor trajectories" needs trajectories those flags do
+not carry. A general *derivation-parameter provenance* rule — every derived SHDR
+field must record its parameter's provenance, what would falsify it, and the
+sanctioned channel for obtaining that evidence — would address the class rather
+than this instance. **Recommended, not adopted:** it is materially wider than the
+decision authorising §H. **OI-EMMC2-13.**
+
 ---
 
 ## Change Control
 
-This delta document (NP-FW-EMMC-002 Rev 1) is under change control per NP-QMS-DC-001 Rev 1. It will be incorporated into NP-FW-EMMC-001 Rev 2. Until Rev 2 is released, NP-FW-EMMC-002 Rev 1 takes precedence over conflicting sections of NP-FW-EMMC-001 Rev 1.
+This delta document (NP-FW-EMMC-002 Rev 2) is under change control per NP-QMS-DC-001 Rev 1. It will be incorporated into NP-FW-EMMC-001 Rev 2. Until that is released, this document takes precedence over conflicting sections of NP-FW-EMMC-001 Rev 1.
+
+### Revision history
+
+| Rev | Date | Description |
+|---|---|---|
+| **2** | **2026-08-12** | **§H added — SHDR accelerometer characterisation programme.** Principal decision: raw impact data may be collected into SHDR under a time-boxed, opt-in, warranty-owner-consented programme fed only into predictive-maintenance model training, because §G's two thresholds are unvalidated guesses and §G.3 prohibits every field that could validate them — the spec forecloses the evidence needed to make itself correct. Follows `NP-MOD-ID-001` §7's four decisions (CHAR-1…CHAR-4) and adds five of its own (CHAR-A1…CHAR-A5). **The consent argument rests on there being no identifiable subject** (`NP-MOD-ID-001` §7.5.1) and is *stronger* here than in the precedent: a duty map at least requires the device to be worn; **a drop does not**, so an impact histogram is frequently not a record of the wearer's behaviour at all. **§G.2's thresholds are now labelled UNVALIDATED PLACEHOLDERS** wherever they appear (this document, `firmware/shdr/include/np_accel_shdr.h`, `ci/shdr/shdr_fleet_schema.sql`) — OI-EMMC2-09. **The rolling maintenance window is corrected from days to session gaps** (OI-EMMC2-10): "7-day" is not implementable on a device with no clock that survives a disconnect, which is the same fact that makes §H.3's expiry a record budget rather than a calendar. **§H.7 records that §G.3's prohibition is already defeated by aggregation** over `shdr_accel_records`' per-gap rows (OI-EMMC2-11) — stated so the description of §H is honest, deliberately not fixed. Implementation landed with the specification: `firmware/shdr/` (§G and §H modes from the first line), SHDR schema Rev E, `CHAR-01` CI gate whose exemption is *derived from* its own verdict and therefore self-revoking, falsified in both directions by `ci/test_shdr_char_gate_selftest.py`. Provenance discrepancy in the Rev 1 front matter noted, not resolved (OI-EMMC2-14). |
+| 1 | 2026-06-02 (§G: 2026-06-03) | Initial release. §A warranty token, §B factory reset, §C two-layer UHDR key, §D Scratch encryption, §E EDF+ header policy, §F Mode F. §G added 2026-06-03. |
 
 Open items created by this document:
 
@@ -515,3 +909,9 @@ Open items created by this document:
 | OI-EMMC2-06 | No-join CI test: confirm warranty_db × shdr_db join fails with authorisation error | STEP-01 completion |
 | OI-EMMC2-07 | SHDR schema CI test: confirm no prohibited accelerometer column types or names in fleet DB schema | STEP-10; BLOCKING for SHDR fleet DB schema freeze |
 | OI-EMMC2-08 | **Module UID re-linking channel — principal decision required.** Schema Rev 4 (2026-08-10) re-keys PBM and thermal fleet telemetry on `(socket_number, module_uid)`, storing the raw 8-byte module UID so a module's degradation history follows the part across sockets **and across devices** (clinic pools). Consequence: a persistent per-module hardware UID **defeats the factory-reset de-linking mechanism** that `devices.device_transferred` exists to provide — after a reset the device re-uploads the same ~80 module UIDs, and joining the old token's `module_inventory` to the new token's on `module_uid` re-links the two pseudonymous identities with ~80-way corroboration. It equally links a clinic's devices to each other and a resold device to its previous owner's token. **Neither CI gate can detect this**: both are name/type matchers, and OI-EMMC2-06 guards SHDR↔warranty joins while saying nothing about SHDR↔SHDR self-joins across tokens. Mitigations already applied in Rev 4: `module_life` is keyed `(warranty_token, module_uid)` so no row spans devices, and the linkage is device↔device never device↔person (warranty_token→person still requires the consented warranty_db). **Conservative alternative, costed and not taken:** store `module_ref = HMAC(device-local key, uid)` — stable within a device, incomparable across devices — which closes the channel entirely at the cost of the cross-device part history that motivated Rev 4. Drop-in column swap if the principal judges the channel unacceptable. Secondary, same class: `*_mate_cycles_observed` are cumulative physical-handling counters, structurally the same object as the `drop_count` this schema bans by name, and the placement-event rate distinguishes a clinic swapping modules between patients from a home user who never touches them. | **BLOCKING for SHDR fleet DB schema freeze** |
+| OI-EMMC2-09 | **§G.2's two thresholds are unvalidated placeholders.** `NP_ACCEL_DROP_THRESHOLD_G = 15.0f` and `NP_ACCEL_MAINT_THRESHOLD = 3` were chosen before any hardware existed and have never been compared against a device that failed. Labelled as placeholders in this document, `firmware/shdr/include/np_accel_shdr.h` and `ci/shdr/shdr_fleet_schema.sql`. Closed only by the §H.4 review gate | §H.4 review gate; production threshold values |
+| OI-EMMC2-10 | **The rolling maintenance window's unit changed from days to session gaps.** Rev 1 specified "3 drops in any rolling 7-day window"; that is not implementable, because the headset has no clock that survives a disconnect (§H.3.1). `firmware/shdr/` counts `NP_ACCEL_MAINT_WINDOW_GAPS = 7` gaps instead, which approximates 7 days only for a once-daily user and is about half a day for a clinic. **This changes what `maintenance_alert` means.** §H.4 must resolve the unit along with the values | §H.4 review gate |
+| OI-EMMC2-11 | **§G.3's prohibition is already defeated by aggregation, independently of §H.** `shdr_accel_records` is append-per-gap with a non-unique `warranty_token`, so `count(*) FILTER (WHERE drop_detected)` per token IS the prohibited "drop count as an integer", and the `gap_index` values where it is true ARE the prohibited inter-drop timing. A column-level control cannot express a row-set-level hazard. **Principal decision required**: the obvious remedy (collapse to one upserted row per device, as `consumable_counts` does) would destroy the per-gap sequencing §H is built on, so the two must be decided together. See §H.7 | SHDR fleet DB schema freeze; decide with §H.4 |
+| OI-EMMC2-12 | **Enrolment, withdrawal and programme-close copy for §H — BLOCKING before any device is offered enrolment.** Must state: what is collected (a coarsened impact histogram, per gap); what is not (no orientation, no per-event values, no clock, no record of who was handling it); that a drop does not require the device to be worn, so the profile is frequently not the wearer's; that already-trained models cannot be un-trained; that safety is unaffected either way; and that collection ends by itself. Follows `NP-MOD-ID-001` Appendix A. Requires legal review. **Also requires the `NP-PRIV-NOTICE-001` §2 claim to be scoped first** — consent text that contradicts the standing privacy notice is not informed consent (the same ordering `NP-MOD-ID-001` OI-MODID-08 sets) | **BLOCKING — before any enrolment is offered** |
+| OI-EMMC2-13 | **RECOMMENDED, NOT ADOPTED — a general derivation-parameter provenance rule.** The §G bootstrapping defect is one instance of a class: roughly thirty derived boolean flags fleet-wide, each computed from a threshold frozen before any fleet existed, none recording its parameter's provenance or what would falsify it. CLAUDE.md §5.2's Phase 2 "fleet-trained LSTM on HDR sensor trajectories" needs trajectories those flags do not carry. A standing rule — every derived SHDR field records provenance, falsifier, and the sanctioned evidence channel, or is marked explicitly unvalidatable and non-retunable — would address the class. Deliberately not adopted here: materially wider than the decision authorising §H | Principal decision |
+| OI-EMMC2-14 | **§G provenance discrepancy.** The Rev 1 front matter cited "NP-PRIV-001 Rev 2 finding MEDIUM-06" while §G.1 cited "Rev 2 HIGH-01 (originally Rev 1 HIGH-01)". Rev 2 aligns on HIGH-01, which is the finding the §H decision was taken against; whether MEDIUM-06 is a separate finding also touching §G is not established | Documentation consistency; not tooling-blocking |

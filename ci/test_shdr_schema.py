@@ -179,7 +179,83 @@ MODULE_UID_LEN_CHECK_RE = re.compile(
 )
 
 # These are the only accelerometer-derived column names permitted anywhere.
+#
+# DELIBERATELY NOT WIDENED BY THE Rev E CHARACTERISATION PROGRAMME.  Admitting
+# the §H extended fields by adding them here would have deleted the protection
+# for the whole schema in order to permit them in one table.  The exception is
+# implemented instead as a NARROW, CONDITIONAL, SELF-REVOKING exemption computed
+# by CHAR-01 below — see characterisation_exempt_columns().
 PERMITTED_ACCEL_COLUMNS: frozenset[str] = frozenset({"drop_detected", "maintenance_alert"})
+
+# ---------------------------------------------------------------------------
+# Rev E (2026-08-12) — CHAR-01, the characterisation-window exception
+# ---------------------------------------------------------------------------
+#
+# NP-FW-EMMC-002 §H admits a coarsened impact histogram to SHDR for the duration
+# of a time-boxed, consented characterisation programme, because §G's two
+# thresholds are unvalidated guesses and §G.3 bans every field that could
+# validate them.
+#
+# THE SHAPE OF THE EXCEPTION IS THE POINT.  Three properties, each chosen against
+# a specific failure mode:
+#
+#   1. It is ONE registered table.  Any OTHER table carrying a char_* marker is a
+#      failure, so the marker cannot be sprayed around to launder columns
+#      elsewhere.
+#   2. It is CONDITIONAL on four structural markers AND on the firmware build
+#      gate being open — and the gate reads the firmware constants by PARSING
+#      the header, so schema and firmware cannot drift.  A missing or
+#      unparseable header is a FAILURE, not a skip: guarding against the parse
+#      ERRORING is not the same as guarding against it being WRONG, and a
+#      renamed constant is the valid-but-wrong case.
+#   3. It is SELF-REVOKING.  characterisation_exempt_columns() returns the
+#      exempt set ONLY when check_characterisation_window() found nothing.
+#      Weaken any marker and the exemption lapses in the same run, so the
+#      impact_* columns immediately become ACCEL-01 violations again.  The
+#      permission is derived from the check, never declared beside it.
+
+FIRMWARE_ACCEL_HEADER = (
+    Path(__file__).parent.parent / "firmware" / "shdr" / "include" / "np_accel_shdr.h"
+)
+
+# The single registered characterisation table.  Not a pattern — a name.
+CHAR_TABLE = "shdr_accel_characterisation"
+
+# Marker columns, and the CHECK each must carry on its own DDL line.  Asserted
+# against the parsed column's raw_line, never by grepping the file: this schema's
+# comment blocks discuss every one of these constraints at length, and a file-wide
+# grep would be satisfied by the prose explaining why a constraint is required
+# while the constraint itself was absent.
+CHAR_MARKERS: list[tuple[str, str, str]] = [
+    ("char_programme_id",
+     r"CHECK\s*\(\s*char_programme_id\s*=\s*{programme_id}\s*\)",
+     "programme id pinned by CHECK — consent to programme N must not authorise N+1"),
+    ("char_consent_granted",
+     r"CHECK\s*\(\s*char_consent_granted\s*\)",
+     "consent CHECK satisfiable only by TRUE — a non-consented row must be "
+     "UNSTORABLE, not merely unsent"),
+    ("char_consent_epoch",
+     r"CHECK\s*\(\s*char_consent_epoch\s*>=\s*1\s*\)",
+     "consent epoch — a row must not outlive the grant that authorised it"),
+    ("char_record_seq",
+     r"CHECK\s*\(\s*char_record_seq\s+BETWEEN\s+1\s+AND\s+{budget}\s*\)",
+     "record sequence bounded to the firmware budget — this bound IS the window"),
+]
+
+# Extended columns admitted in the registered table while CHAR-01 passes.  Every
+# one of these deliberately matches a PROHIBITED_COLUMN_PATTERNS entry: naming
+# them honestly is what makes this exemption visible in a diff instead of
+# smuggling the data past under an innocuous name.
+CHAR_EXTENDED_COLUMNS: frozenset[str] = frozenset(
+    {f"impact_g_bin_{i}" for i in range(1, 9)} | {"impact_event_count"}
+)
+
+# Non-accel columns the registered table legitimately carries.
+CHAR_STRUCTURAL_COLUMNS: frozenset[str] = frozenset({
+    "id", "warranty_token", "gap_index", "ingest_month",
+    "char_programme_id", "char_consent_granted", "char_consent_epoch",
+    "char_record_seq",
+})
 
 # Tables containing 'accel' in their name must not have numeric data columns.
 NUMERIC_TYPE_PATTERN = re.compile(
@@ -297,9 +373,213 @@ class Failure:
     location: str  # "table.column:line_no" or "line:N"
 
 
-def check_prohibited_accel_columns(columns: list[ColumnDef]) -> list[Failure]:
+def parse_firmware_constants(
+    header: Path | None = None,
+) -> tuple[dict[str, int] | None, str | None]:
+    """
+    Parse the three §H build-time constants out of firmware/shdr/np_accel_shdr.h.
+
+    `header` defaults to None and resolves FIRMWARE_ACCEL_HEADER at CALL time,
+    not at definition time.  Writing it as `header: Path = FIRMWARE_ACCEL_HEADER`
+    binds the module global once, when the def is evaluated, so a test that
+    swaps FIRMWARE_ACCEL_HEADER to point at a synthetic header silently keeps
+    reading the real one — every falsification of the closed-window, renamed-
+    constant and schema/firmware-disagreement cases then passes for the wrong
+    reason.  That is exactly what happened on 2026-08-12: five of them failed
+    loudly on first run because they asserted a rejection that never came.
+
+    Returns (constants, None) or (None, reason).  A missing file, or any one
+    constant that does not parse, is a REASON — never a silently-empty dict.
+    That distinction is the whole point: 'the parse errored' and 'the parse
+    found nothing because someone renamed a constant' look identical from the
+    outside, and only the second is the case a fail-open guard misses.
+
+    The values are read from the #define, not from the surrounding prose.  The
+    header explains at length why the window is denominated in records, and a
+    grep for the number would be satisfied by that explanation.
+    """
+    header = header if header is not None else FIRMWARE_ACCEL_HEADER
+    if not header.exists():
+        return None, f"firmware header not found: {header}"
+
+    text = header.read_text(encoding="utf-8")
+    wanted = {
+        "window_enabled": r"^\s*#define\s+NP_ACCEL_CHAR_WINDOW_ENABLED\s+(\d+)\s*$",
+        "programme_id":   r"^\s*#define\s+NP_ACCEL_CHAR_PROGRAMME_ID\s+(\d+)u?\s*$",
+        "budget":         r"^\s*#define\s+NP_ACCEL_CHAR_RECORD_BUDGET\s+(\d+)u?\s*$",
+    }
+    out: dict[str, int] = {}
+    for key, pattern in wanted.items():
+        m = re.search(pattern, text, re.MULTILINE)
+        if not m:
+            return None, (
+                f"NP_ACCEL_CHAR_{key.upper()} not parseable from {header.name} — "
+                f"a renamed or reformatted constant must FAIL this gate, not skip it"
+            )
+        out[key] = int(m.group(1))
+    return out, None
+
+
+def check_characterisation_window(sql: str, columns: list[ColumnDef]) -> list[Failure]:
+    """
+    CHAR-01 — the characterisation-window exception (NP-FW-EMMC-002 §H).
+
+    Runs in three situations and answers each differently:
+
+      * No characterisation table, window closed  → PASS, nothing to permit.
+      * No characterisation table, window OPEN    → PASS.  The firmware may be
+        cut for the window before the schema lands; the reverse order is the
+        dangerous one and is caught below.
+      * Table present                             → every marker, the firmware
+        agreement, AND the window being open are all required.
+
+    The second-to-last of those is the falsification the brief asks for in
+    direction (b): a build whose window has closed while the schema still
+    carries the extended columns FAILS.  That is what stops the data outliving
+    the programme by inattention.
+    """
+    failures: list[Failure] = []
+
+    char_cols = [c for c in columns if c.table == CHAR_TABLE]
+
+    # The marker must not appear anywhere but the registered table.  Without
+    # this, the exemption's own signal could be pasted onto another table.
+    for col in columns:
+        if col.column.startswith("char_") and col.table != CHAR_TABLE:
+            failures.append(Failure(
+                check_id="CHAR-01",
+                description=(
+                    f"characterisation marker '{col.column}' appears in "
+                    f"'{col.table}' — the §H exception is scoped to the single "
+                    f"registered table '{CHAR_TABLE}' and nowhere else"
+                ),
+                location=f"{col.table}.{col.column}:{col.line_no}",
+            ))
+
+    if not char_cols:
+        return failures  # nothing to permit; §G stands unqualified
+
+    consts, reason = parse_firmware_constants()
+    if consts is None:
+        return failures + [Failure(
+            check_id="CHAR-01",
+            description=(
+                f"{CHAR_TABLE} exists but the firmware constants could not be "
+                f"read: {reason}. The schema may not carry §H columns that no "
+                f"firmware build agrees to produce"
+            ),
+            location=str(FIRMWARE_ACCEL_HEADER),
+        )]
+
+    # Direction (b): the window has closed but the columns are still here.
+    if consts["window_enabled"] == 0:
+        failures.append(Failure(
+            check_id="CHAR-01",
+            description=(
+                f"NP_ACCEL_CHAR_WINDOW_ENABLED is 0 — the characterisation "
+                f"window is CLOSED — but '{CHAR_TABLE}' is still in the schema. "
+                f"§H is retired whole when the window closes; the table goes "
+                f"with it. Data must not outlive the programme that consented to it"
+            ),
+            location=f"{CHAR_TABLE}",
+        ))
+
+    by_name = {c.column: c for c in char_cols}
+
+    for name, check_tpl, why in CHAR_MARKERS:
+        col = by_name.get(name)
+        if col is None:
+            failures.append(Failure(
+                check_id="CHAR-01",
+                description=(
+                    f"'{CHAR_TABLE}' is missing required marker '{name}' — {why}"
+                ),
+                location=CHAR_TABLE,
+            ))
+            continue
+        if "NOT NULL" not in col.raw_line.upper():
+            failures.append(Failure(
+                check_id="CHAR-01",
+                description=f"marker '{name}' is not NOT NULL — {why}",
+                location=f"{CHAR_TABLE}.{name}:{col.line_no}",
+            ))
+        pattern = check_tpl.format(
+            programme_id=consts["programme_id"], budget=consts["budget"]
+        )
+        if not re.search(pattern, col.raw_line, re.IGNORECASE):
+            failures.append(Failure(
+                check_id="CHAR-01",
+                description=(
+                    f"marker '{name}' lacks the required CHECK agreeing with the "
+                    f"firmware (programme_id={consts['programme_id']}, "
+                    f"budget={consts['budget']}) — {why}"
+                ),
+                location=f"{CHAR_TABLE}.{name}:{col.line_no}",
+            ))
+
+    # Positive assertion.  Without this the whole check passes on an EMPTY
+    # registered table: every marker loop iterates zero times over the extended
+    # set and reports nothing.  A gate that permits an exception must confirm
+    # the exception is actually carrying what it was granted for.
+    present_extended = {c.column for c in char_cols} & CHAR_EXTENDED_COLUMNS
+    if not present_extended:
+        failures.append(Failure(
+            check_id="CHAR-01",
+            description=(
+                f"'{CHAR_TABLE}' exists but carries none of the §H extended "
+                f"columns. Either it is vestigial and should be dropped, or the "
+                f"columns were renamed out from under this gate"
+            ),
+            location=CHAR_TABLE,
+        ))
+
+    # Nothing beyond the enumerated extended set and the structural columns may
+    # live in the exempted table — the exemption covers a list, not a location.
+    for col in char_cols:
+        if col.column in CHAR_EXTENDED_COLUMNS or col.column in CHAR_STRUCTURAL_COLUMNS:
+            continue
+        failures.append(Failure(
+            check_id="CHAR-01",
+            description=(
+                f"unenumerated column '{col.column}' in '{CHAR_TABLE}'. The §H "
+                f"exemption covers a fixed list of columns, not the table as a "
+                f"whole; add it to CHAR_EXTENDED_COLUMNS only with a §H revision"
+            ),
+            location=f"{CHAR_TABLE}.{col.column}:{col.line_no}",
+        ))
+
+    return failures
+
+
+def characterisation_exempt_columns(
+    sql: str, columns: list[ColumnDef]
+) -> set[tuple[str, str]]:
+    """
+    The (table, column) pairs ACCEL-01/ACCEL-02 skip — DERIVED, not declared.
+
+    Returns the empty set whenever CHAR-01 found anything at all.  That is what
+    makes the exception self-revoking: weaken a marker, close the window, or
+    rename a firmware constant, and this returns nothing in the same run, so the
+    impact_* columns are ACCEL-01 violations again with no separate step needed
+    to withdraw the permission.
+    """
+    if check_characterisation_window(sql, columns):
+        return set()
+    return {
+        (CHAR_TABLE, c.column)
+        for c in columns
+        if c.table == CHAR_TABLE and c.column in CHAR_EXTENDED_COLUMNS
+    }
+
+
+def check_prohibited_accel_columns(
+    columns: list[ColumnDef], exempt: set[tuple[str, str]] | None = None
+) -> list[Failure]:
+    exempt = exempt or set()
     failures: list[Failure] = []
     for col in columns:
+        if (col.table, col.column) in exempt:
+            continue
         for pattern, reason in PROHIBITED_COLUMN_PATTERNS:
             if re.search(pattern, col.column, re.IGNORECASE):
                 failures.append(Failure(
@@ -310,14 +590,25 @@ def check_prohibited_accel_columns(columns: list[ColumnDef]) -> list[Failure]:
     return failures
 
 
-def check_accel_table_numeric_types(columns: list[ColumnDef]) -> list[Failure]:
+def check_accel_table_numeric_types(
+    columns: list[ColumnDef], exempt: set[tuple[str, str]] | None = None
+) -> list[Failure]:
     """
     In any table whose name contains 'accel', numeric column types are
     prohibited (would enable encoding raw values even under renamed columns).
+
+    The §H characterisation table's name contains 'accel' and its histogram
+    columns are SMALLINT, so it needs this exemption as well as ACCEL-01's — and
+    it comes from the same derived set, so both lapse together.
     """
+    exempt = exempt or set()
     failures: list[Failure] = []
     for col in columns:
         if "accel" not in col.table:
+            continue
+        if (col.table, col.column) in exempt:
+            continue
+        if col.table == CHAR_TABLE and col.column in CHAR_STRUCTURAL_COLUMNS:
             continue
         if col.column in PERMITTED_ACCEL_COLUMNS:
             continue
@@ -652,10 +943,17 @@ def run_all_checks(sql: str, verbose: bool = False) -> CheckResult:
             if verbose:
                 print(f"  PASS  {name}")
 
+    # CHAR-01 runs FIRST because ACCEL-01/ACCEL-02 consume its verdict.  The
+    # exemption is the output of the check, not a constant beside it — so a
+    # CHAR-01 failure withdraws the permission in the same run.
+    exempt = characterisation_exempt_columns(sql, columns)
+
+    run("CHAR-01: §H characterisation window is bounded and consented",
+        check_characterisation_window, sql, columns)
     run("ACCEL-01: no prohibited accelerometer columns",
-        check_prohibited_accel_columns, columns)
+        check_prohibited_accel_columns, columns, exempt)
     run("ACCEL-02: no numeric types in accel tables",
-        check_accel_table_numeric_types, columns)
+        check_accel_table_numeric_types, columns, exempt)
     run("ACCEL-03: required boolean accel columns present",
         check_permitted_accel_columns_present, columns)
     run("PII-01:   no personal-data columns",

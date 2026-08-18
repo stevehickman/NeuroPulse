@@ -2,18 +2,20 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-REM-001  
-**Revision:** 2
-**Date:** 2026-06-03  
+**Revision:** 3
+**Date:** 2026-08-12  
 **Status:** ACTIVE  
-**Effective Date:** 2026-06-03  
+**Effective Date:** 2026-08-12  
 **Author:** Quality Lead (interim: Steve Hickman, CEO)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001 Rev 2, NP-FW-EMMC-002  
+**References:** NP-SEC-BR-001, NP-PROC-POA-001, NP-APP-TELEMETRY-001 Rev 2, NP-FW-EMMC-002 Rev 2 (§G, §H), NP-MOD-ID-001 Rev 1 §7  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —  
-**Supersedes:** NP-PRIV-REM-001 Rev 1  
-**Change Summary:** Three new steps added (STEP-31, STEP-32, STEP-33) from NP-PRIV-001 Rev 2 delta findings: HIPAA Expert Determination certification pathway, adaptive stimulation right-to-explanation, and session_sequence coarsening. NP-APP-TELEMETRY-001 updated to Rev 2 (session_sequence → engagement_tier). NP-FW-EMMC-002 §G added. Capability matrix rows added for STEP-31 through STEP-33. Direct remediations section updated.  
+**Supersedes:** NP-PRIV-REM-001 Rev 2  
+**Change Summary (Rev 3, 2026-08-12):** **STEP-10 rewritten.** It previously read *"Option C on-device processing / Status: OPEN — spec complete, implementation pending"*, which understated the problem: Option C was not a pending step but a destination with no road to it, because the on-device processing it names is defined by two thresholds that §G.3 forbids anyone from ever validating. Principal decision 2026-08-12 opens NP-FW-EMMC-002 §H — a time-boxed, opt-in, warranty-owner-consented characterisation window collecting a coarsened per-gap impact histogram, purpose-bound to predictive-maintenance training, expiring fail-closed in firmware on a record budget rather than a calendar (this device has no clock that survives a disconnect). `firmware/shdr/` authored, SHDR schema Rev E, CHAR-01 CI gate with a self-revoking exemption falsified in both directions. G1 (Month 6) target UNCHANGED. Four open items now gate closure: OI-EMMC2-09/10/11/12. **Rev 2 change summary retained below.**
+
+**Change Summary (Rev 2, 2026-06-03):** Three new steps added
 **Parent Analysis:** NP-PRIV-001 Rev 1 + Rev 2 delta (Privacy Analysis and Repair — 2026-06-02 / 2026-06-03)
 
 ---
@@ -189,11 +191,26 @@ These steps must be complete before any external engagement (beta users, warrant
 ---
 
 #### STEP-10 — SHDR impact-event data: Option C on-device processing
-**Document:** NP-FW-EMMC-002 Rev 1 §G (COMPLETE — authored 2026-06-03); firmware/shdr/np_accel_shdr.h/.c (to author)  
-**Finding:** HIGH-01 (SHDR impact-event data enables motor-health inference); NP-PRIV-001 Rev 2 MEDIUM-06 (§G spec now complete)  
-**Trigger:** Before any SHDR schema is frozen for the fleet database. §G spec is now complete — unblocks implementation.  
-**Target milestone:** G1 (Month 6)  
-**Status:** OPEN — spec complete, implementation pending  
+**Document:** NP-FW-EMMC-002 **Rev 2** §G (standing rule) + **§H (characterisation programme, added 2026-08-12)**; `firmware/shdr/` (**authored 2026-08-12**)  
+**Finding:** HIGH-01 (SHDR impact-event data enables motor-health inference)  
+**Trigger:** Before any SHDR schema is frozen for the fleet database.  
+**Target milestone:** G1 (Month 6) — **unchanged.** §H is the route to G1, not a deferral of it: the firmware module, SHDR schema Rev E, the `CHAR-01` CI gate and its falsification suite all landed 2026-08-12, well inside the milestone.  
+**Status:** **IMPLEMENTED, WINDOW OPEN — Option C is the destination and is now reachable.**
+
+**Why the status is not simply "closed."** Option C says *"on-device processing only, emit the binary alert to SHDR."* The processing it names is defined by two thresholds — `NP_ACCEL_DROP_THRESHOLD_G = 15.0f` and the maintenance rate — that were guessed before any hardware existed, and §G.3 prohibits every field that could validate them. **The remediation foreclosed the evidence needed to make the remediation correct.** Option C was therefore not a step that could be taken; it was a destination with no road to it.
+
+Principal decision 2026-08-12: build the road. `NP-FW-EMMC-002` §H opens a **time-boxed, opt-in, warranty-owner-consented** characterisation window during which an enrolled device additionally emits a **coarsened per-gap impact histogram** — counts per fixed bin, never a raw series, never a per-event g value, never an orientation vector, never a per-event timestamp — fed **only** into predictive-maintenance model training. The pattern is `NP-MOD-ID-001` §7's, and the consent argument rests on there being **no identifiable subject** (§7.5.1); it is *stronger* here than in that precedent, because a duty map at least requires the device to be **worn** and a drop does not.
+
+The window closes by itself. It is denominated in **records**, not calendar time — this device has no clock that survives a disconnect — and expiry is fail-closed in firmware, with CI enforcing that a closed window cannot leave its columns behind. At close, §H.4's review gate produces the validated thresholds, §H is retired whole, and **STEP-10 closes on Option C with numbers that mean something.**
+
+**What remains before this step can close:**
+
+| | |
+|---|---|
+| **OI-EMMC2-12** | Enrolment / withdrawal / programme-close copy + legal review — **BLOCKING before any device is offered enrolment** |
+| **OI-EMMC2-09** | The two placeholder thresholds — closed only by the §H.4 review gate |
+| **OI-EMMC2-10** | The rolling window's unit (days → session gaps) — resolved with the values at §H.4 |
+| **OI-EMMC2-11** | §G.3's prohibition is already defeated by aggregation over `shdr_accel_records` — **principal decision**, independent of §H |
 
 **Detailed implementation instructions:**
 

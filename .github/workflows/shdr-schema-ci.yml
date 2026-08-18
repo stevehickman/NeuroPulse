@@ -12,7 +12,12 @@ on:
       - 'ci/shdr/shdr_schema_constraint_tests.sql'
       - 'ci/test_shdr_schema.py'
       - 'ci/test_shdr_schema_selftest.py'
+      - 'ci/test_shdr_char_gate_selftest.py'
       - 'ci/run_shdr_constraint_tests.sh'
+      # CHAR-01 reads the firmware constants out of this header and requires the
+      # schema to agree with them, so a change to it can flip the gate's verdict
+      # without touching a single file above.
+      - 'firmware/shdr/include/np_accel_shdr.h'
       - '.github/workflows/shdr-schema-ci.yml'
   pull_request:
     paths:
@@ -20,7 +25,12 @@ on:
       - 'ci/shdr/shdr_schema_constraint_tests.sql'
       - 'ci/test_shdr_schema.py'
       - 'ci/test_shdr_schema_selftest.py'
+      - 'ci/test_shdr_char_gate_selftest.py'
       - 'ci/run_shdr_constraint_tests.sh'
+      # CHAR-01 reads the firmware constants out of this header and requires the
+      # schema to agree with them, so a change to it can flip the gate's verdict
+      # without touching a single file above.
+      - 'firmware/shdr/include/np_accel_shdr.h'
       - '.github/workflows/shdr-schema-ci.yml'
   workflow_dispatch:
 
@@ -72,13 +82,23 @@ jobs:
       - name: Self-test the accelerometer assertion (test-of-the-test)
         run: python3 ci/test_shdr_schema_selftest.py
 
+      # CHAR-01 GRANTS a permission rather than withholding one, which makes it
+      # the more dangerous of the two gates and the one needing more
+      # falsification. This suite constructs the broken worlds and confirms each
+      # is rejected: a schema that would admit a non-consented row, a closed
+      # window whose table is still present, a renamed firmware constant, and —
+      # the property the design turns on — that the ACCEL-01/ACCEL-02 exemption
+      # WITHDRAWS whenever CHAR-01 fails for any reason.
+      - name: Falsify the CHAR-01 characterisation-window exception
+        run: python3 ci/test_shdr_char_gate_selftest.py
+
       # The Python gate above is a static analyser over the DDL text. It cannot
       # tell whether the file is valid SQL, nor whether a CHECK actually fires:
       # a constraint with a typo'd predicate parses fine and passes every
       # name-and-type check while silently admitting the rows it was written to
       # block. The step below makes PostgreSQL itself the judge — it loads the
       # schema for real and then proves each constraint rejects what it exists
-      # to reject (28 reject-cases, 20 accept-cases so a uniformly hostile
+      # to reject (33 reject-cases, 23 accept-cases so a uniformly hostile
       # constraint cannot pass by refusing everything).
       - name: Execute schema + live constraint tests (real PostgreSQL)
         env:

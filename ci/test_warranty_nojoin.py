@@ -90,6 +90,11 @@ SHDR_FLEET_TABLE_NAMES: frozenset[str] = frozenset({
     "calibration_history",
     "eeg_impedance_trend",
     "shdr_accel_records",
+    # Rev E: the §H characterisation table. It needs guarding at least as much
+    # as any other — it is the one SHDR table carrying data §G.3 otherwise
+    # prohibits, so a join from it to the warranty registry would be the worst
+    # available version of the linkage OI-EMMC2-06 exists to prevent.
+    "shdr_accel_characterisation",
     "mode_f_telemetry",
     "fault_log",
     "storage_health",
