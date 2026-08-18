@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-HEXTILE-001
-**Revision:** 3
-**Date:** 2026-08-11
+**Revision:** 4
+**Date:** 2026-08-16
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a proposed engineering commitment, not a measured or locked figure. See §10 (Decisions) and §11 (Open Items).
 **Effective Date:** —
 **Author:** NeurOne Hardware Engineering
@@ -16,6 +16,29 @@
 **Parent Document:** NP-HEX-ZM-001
 
 ---
+
+> **Rev 4 (2026-08-16) — §8.1's forward-voltage budget stated as a rule (new §8.1.1). No decision changed; nothing in §4, §7 or §9 is affected.**
+>
+> Rev 3 gave the budget only as two worked instances — `11 × 2.10 V` and `14 × 1.60 V` — and those
+> instances were being cited elsewhere **as a forward-voltage constraint on the architecture**, which
+> they are not: §4.3's V_f figures are design targets (OI-HEXTILE-02), and the string bound is a
+> property of the **rail**, not of the emitters. `docs/status/pending-decisions.md` §13.2e traces where
+> that misreading landed — a "~1.6–2.2 V the existing 660 nm string/driver architecture assumes" claim
+> that was the sole stated electrical ground for excluding the only in-window NIR candidate under
+> **OI-LED-W1**. §8.1.1 states the rule generally so a candidate emitter can be tested against it, and
+> separates its two bounds, which are **different kinds of constraint**: `N · V_f ≤ 24 V − V_dropout`
+> is a hard functional ceiling; `N · V_f ≥ 22.4 V` is a thermal budget allocation.
+>
+> Two gaps the generalisation exposed, both raised rather than closed: the **≤7 % allocation is
+> asserted, not derived** (**OI-HEXTILE-18**, which also notes no minimum driver dropout is specified
+> anywhere), and **no tolerance is stated on the 24 V rail** (**OI-HEXTILE-19**), so every string
+> figure here is a nominal-point calculation. Also records that fixed-N string construction depends on
+> `NP-PROC-FPC-001` §2.1's ±0.10 V Vf bin — load-bearing beyond the RISK-08 current-hogging grounds
+> §2.1 currently gives for it. **No emitter was selected; OI-HEXTILE-02 and OI-LED-W1 remain open.**
+>
+> *Revision label note: the banner below is written "Rev C", the letter scheme in use when it was
+> issued. Per `NP-CONV-001` §4.1 that maps positionally to **Rev 3**; §1.1 keeps historical records as
+> written, so it is not renamed.*
 
 > **Rev C (2026-08-11) — socket interface re-cut to 19 positions (§7.1–7.2, §7.3, §8.1). Hardware interface change; no firmware change requested here.**
 >
@@ -506,6 +529,53 @@ The 5 V row is now excluded twice over: it exceeded comfortable derating at 4 co
 
 24 V also suits series-string construction: at 11 series 660 nm emitters (11 × 2.10 = 23.1 V) or 14 series 808 nm (14 × 1.60 = 22.4 V), the residual dropped across the FET and sense resistor is ≤1.6 V, so linear-loss overhead stays under 7 %. A 12 V rail would halve the string length and double the number of parallel strings and sense resistors on a tile that has no room for them.
 
+#### 8.1.1 The forward-voltage budget stated as a rule (Rev 4)
+
+The two worked strings above are instances, not the constraint. Stated generally, so that a candidate
+emitter can be tested against it without re-deriving it — and because the instances were being quoted
+elsewhere *as* a Vf constraint on the architecture, which they are not (see
+`docs/status/pending-decisions.md` §13.2e):
+
+> **N · V_f ≥ 22.4 V** — the residual is a *thermal budget allocation*. Violating it produces heat in
+> the linear stage, not a failure; the dissipation lands on the tile and is therefore a term in §9.3.
+>
+> **N · V_f ≤ 24 V − V_dropout(min)** — a *hard functional ceiling*. Below the stage's dropout the
+> constant-current control falls out of regulation and the string is uncontrolled.
+
+**The two bounds are different kinds of constraint and must not be quoted as one range.** Only the
+upper is functional.
+
+| V_f | Best N | N · V_f | Residual | Overhead | Meets the rule |
+|---|---|---|---|---|---|
+| 1.60 V (CH_B design target) | 14 | 22.40 V | 1.60 V | 6.7 % | ✓ at the ceiling |
+| 2.10 V (CH_A design target) | 11 | 23.10 V | 0.90 V | 3.8 % | ✓ |
+| 2.80 V | 8 | 22.40 V | 1.60 V | 6.7 % | ✓ |
+| 3.00 < V_f < 3.20 V | — | — | — | — | ✗ **no integer N** (dead band; widens with `V_dropout`) |
+| 3.30 V | 7 | 23.10 V | 0.90 V | 3.8 % | ✓ |
+
+**Consequence for emitter selection (OI-HEXTILE-02).** A ~3 V AlGaAs NIR emitter is **not**
+categorically incompatible with this rail — at 7–8 series it lands on residuals this section already
+accepts. What it costs is *per-tile*: 7–8 emitters per string against CH_B's specified 14 roughly
+doubles the parallel strings and sense resistors, which is the same objection raised against a 12 V
+rail one paragraph above, on the same tile that has no room for them. That is a rigidizer-layout and
+current-matching question, **not a rail or Hub PCB question.** There is also a dead band at
+**3.00 < V_f < 3.20 V** where no integer N satisfies both bounds — N = 7 falls under the 22.4 V floor,
+N = 8 exceeds the rail. It is ≥0.20 V wide and **widens as `V_dropout` grows** (OI-HEXTILE-18), since
+the N = 8 ceiling is `(24 − V_dropout)/8`, not 3.00 V.
+
+**Two caveats that bound every number in this section:**
+
+1. **Fixed-N construction depends on Vf binning, and that dependency has not been stated before.**
+   A commodity emitter's datasheet typ→max Vf spread is routinely ≥0.7 V per die; across 7–14 in
+   series that is several times the entire 1.6 V residual budget, and no fixed N survives it. What
+   makes fixed-N viable is `NP-PROC-FPC-001` §2.1's mandatory **±0.10 V within-order Vf bin**, which
+   that document currently justifies only on RISK-08 current-hogging grounds. **It is load-bearing for
+   string construction too.**
+2. **The 7 % figure is asserted here, not derived.** It is not traceable to a tile power or
+   temperature limit anywhere in this document or in `NP-HW-HUB-001` / `NP-DRV-SHELL-002`. Treat it as
+   a chosen allocation open to re-derivation from §9.3, not as a bound with a physical basis —
+   **OI-HEXTILE-18**.
+
 **Consequence:** emitter count per channel must be an integer multiple of string length, which the 45/45 and 30/30/30 allocations of §4.2 do not exactly satisfy for every candidate V_f. The allocation carries **±2 sites of slack**, to be closed when emitters are selected (OI-HEXTILE-02). Worked example at the assumed V_f: CH_A 44 = 4 strings × 11; CH_B 42 = 3 × 14. The lattice geometry is unaffected — unallocated sites are simply left unpopulated.
 
 ### 8.2 I2C fan-out — the architecture SMART-1 requires
@@ -766,6 +836,8 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **OI-HEXTILE-10** | Hub PCB **Rev C** must adopt this interface: 4× LPI2C + one-tier PCA9548A segmentation, **18** per-cluster 24 V high-side switches with safety-MCU enable (count per §8.2.1 — **was stated as 4–10; that figure was the retired 30-socket lattice's**), 3.3 V budget per §8.3. **Deletes** Rev 2's `GAIN_SEL[0..4]`, its five DG2788A switches, and its ZONE_ID-to-gain sequencing (§5 of that document). **Rev C must not be released against the old count** — 18 exceeds the 16 cluster-tail connectors NP-DRV-SHELL-002 §7.1 provisions (OI-HEXTILE-14) | Hub PCB Rev C; **coordinate before either is released** |
 | **OI-HEXTILE-13** | **Is per-cluster safety *policy* wanted at 18 clusters? (§8.4)** The same question NP-HW-HUB-001 §7.4 routes to **OI-HUB-C07**. **Not a conflict between peer documents** — an earlier draft called §7.2 and NP-DRV-SHELL-002 §6 incompatible and that is **withdrawn**; §7.4 reconciles them as *"12–16 physical enable lines fanned out from one policy bit"*, and per-cluster physical gates exist in both. The undecided part is whether independently-commanded **cluster bits** are wanted. Costs of saying yes, none of them decisive: (a) the STM32G071 **package is unspecified** anywhere in the tree and demand at 18 enables is ~40 I/O, excluding every ≤32-pin option; (b) 18 cluster + 9 modality = **27 bits against a 16-bit Class C enable word** — a cost rather than a ceiling, since no SHDR fault records exist so the word can be widened pre-production (§8.4.2); (c) `np_safety_config.h` double-assigns **PA4** to SPI1 NSS and `NP_EN_PBM_ZONE4_PIN` — **re-homed to the §7.2 dead-macro cleanup** (the zone-enable macros encode the retired 5-slot meaning of "zone"; zones are now overlapping authored socket sets in `00-zones.npps` and can never be enable domains), cross-referenced from NP-FMEA-001 FMEA-M08-04. **→ PROPOSED RESOLUTION at §8.4.1:** split the enable by IEC 62304 class — per-cluster gates retained but owned by **Class B** for availability, with a **single Class C** `NP_SAFETY_EN_PBM_CRANIAL` in series as the hard interlock. **The one sufficient argument:** per-cluster policy puts a *topological* socket→cluster map behind a Class C boundary, so a MECH-2 or REG-1 change becomes a recertification rather than a regenerated table, and a stale map can cut the wrong cluster. Preserves R-11 (Class C bit in series), keeps NP-DRV-SHELL-002's availability benefit, drops demand to ~23 I/O. **Falsifier stated:** a hazard where cutting only the faulted cluster is required *and* a whole-lattice cut is unacceptable | **Safety review (OI-HUB-C07) arbitrates; blocks D-8 closure.** Review should either produce the falsifying hazard or close the item. Package selection follows. **Sequence before first SHDR fault record** — §8.4.2 |
 | **OI-HEXTILE-14** | **✅ LARGELY RESOLVED 2026-08-11 by `NP-DRV-SHELL-002` Rev 2**, which adopted the §8.2.2 recommendation: **20 connector positions** (options 1 + 3) and D-7's 32-segment tree, replacing its 12/16 provisioning and its `8 branches × ≤2 = 16` tree — so both C1 and C2 close, and 18 clusters now fit. Option 4 (broadcast `SAFE_EN[n]`, 11-conductor tail, multi-drop trunk) is recorded there as **conditional on OI-HUB-C07**, not adopted. `NP-HW-HUB-001` §7.4 and §6.3 still carry 12/16 and "1 per cluster (10 at n = 80)" and remain to be corrected at its next revision; `NP-HEX-ZM-001` §5.4a's MECH-2 table still prices the flower at 12 boards / $76.08 against an actual 18 / $114.12. The §7.2 enable-word second-rationale amendment landed 2026-08-05. **Residual: NP-HW-HUB-001 and NP-HEX-ZM-001 editorial passes only.** Original analysis retained below. — **Stale cluster counts in peer documents.** SYM-1 makes the count 18; peers are sized off 12 or 10: NP-DRV-SHELL-002 §7.1 provisions **12 cluster-tail connectors, 16 positions** (18 does not fit, and its §3.4 `8 branches × ≤2 clusters = 16` tree cannot reach 18 without a third branch tier or 3-deep branches); NP-HW-HUB-001 §6.3 sizes DG2788A at "**1 per cluster (10 at n = 80)**"; NP-HEX-ZM-001 §5.4a's MECH-2 table prices the flower at **12 boards / $76.08**, actual is **18 / $114.12**. Each needs an editorial pass on its own revision — **not corrected by this revision**, which owns only NP-HW-HEXTILE-001. **Additionally: NP-HW-HUB-001 §7.2 justifies its "bits 1–4 reserved, not reused" rule *solely* by SHDR fault records, but a second, unstated rationale also holds — enable-bit position is identical to the charge-monitor channel index (`NP_SAFETY_MAX_CHANNELS`, `NP_SAFETY_CH_CLIN_STIM`, `current_ua[]`), which is Class C.** A reader combining §7.2 with the standing no-SHDR-records instruction would wrongly conclude that recycling bits 1–4 is safe. §7.2 must record the second rationale (§8.4.2). **→ PROPOSED RESOLUTION at §8.2.2:** two independent limits bind — **C1** the 16 provisioned connector positions, and **C2** the `8 branches × ≤2` I2C tree. **C2 does not exist under this document's D-7** (4 × LPI2C × PCA9548A = 32 segments, 18 used), so it resolves with OI-HUB-C17; **C1 does not self-resolve** and must be fixed before Rev 3 layout. Recommended: **adopt D-7's tree + provision 20 connector positions** (the cheap axis — adding tails costs far less than widening them, per SHELL-002 §7.3), and **if §8.4.1 is accepted, remove `SAFE_EN[n]` from the tail** — it is the only star component of the 12-conductor tail, so a single broadcast cranial enable permits a multi-drop trunk and makes connector count insensitive to a future REG-1 re-cut. Options 5–7 (decouple electrical/mechanical clusters, re-cut the lattice, pair clusters onto shared tails) assessed and not recommended | NP-DRV-SHELL-002, NP-HW-HUB-001 Rev 3, NP-HEX-ZM-001 revisions; **coordinate with OI-HEXTILE-10 and OI-HUB-C17 before either is released** |
+| **OI-HEXTILE-18** | **The ≤7 % linear-loss allocation in §8.1 is asserted, not derived — and no minimum driver dropout is specified anywhere.** §8.1/§8.1.1 bound the string at `N · V_f ≥ 22.4 V` on the strength of a 1.6 V residual and a "≤7 %" figure that is not traceable to any tile power or temperature limit in this document, `NP-HW-HUB-001`, or `NP-DRV-SHELL-002`. It is a chosen allocation. **Re-derive it from §9.3's tile thermal budget, or state plainly that it is a design choice** — as written it is the same species of unsourced-figure-read-as-a-rule that `docs/status/pending-decisions.md` §13.2e found in the "~1.6–2.2 V" claim, which was itself quoting §4.3. Separately, the *upper* bound needs `V_dropout(min)` for the constant-current stage, which no document states; without it §8.1.1's ceiling is written as `24 V` when the true ceiling is lower. **This is not an abstract gap — applying the ceiling as literally written selects an unbuildable string for the channel this document already specifies:** at CH_B's own 1.60 V design target, `N = 15` gives exactly `24.00 V`, satisfying `≥22.4 V` and `≤24 V` while leaving **zero** volts for the FET and sense resistor. §8.1 specifies 14, correctly — but only 14 *because a human applied a dropout the rule does not state.* Any mechanical check of this budget will pick 15 until `V_dropout(min)` is written down | **Emitter selection (OI-HEXTILE-02); string topology; sense-resistor values.** Not tooling-blocking — the socket interface is unaffected |
+| **OI-HEXTILE-19** | **No tolerance is stated on the 24 V rail, so every string-length figure in §8.1.1 is a nominal-point calculation rather than a corner analysis.** D-6 fixes `VLED` = 24 V and `NP-HW-HUB-001` §7.4 sizes the boost, but neither states a regulation tolerance. At a nominal ±5 % the low corner is 22.8 V against §8.1.1's 22.4 V floor — ~0.4 V of window **before** subtracting driver dropout (OI-HEXTILE-18), plausibly empty. Emitter V_f tempco compounds it: an NIR junction under a scalp interface runs hot, and V_f falls with temperature (SFH 4703AS TC_V = −2 mV/K), moving the string voltage down exactly when the rail corner is already low. **State a rail tolerance, then re-run §8.1.1 at the corners** | **String topology; HUB-REQ-C04 / OI-HUB-C19 boost specification.** Assess jointly with OI-HEXTILE-18 |
 | **OI-HEXTILE-15** | **§5.3 and §6 still read as though D-4 holds, and D-4 was not adopted.** `NP-DRV-SHELL-002` Rev 2 §3.3a resolved **OI-HUB-C17c against D-4** (principal, 2026-08-11): the switched-gain TIA, PD mux, NTC mux and ADC stay on the cluster controller. §7 is re-cut accordingly (Rev C), but **§5.3 ("The TIA question — and why it stops being a hub problem"), §6.2's U2 dual-TIA line, and §6.4's BOM still describe on-module conversion.** This revision deliberately did **not** rewrite them — the change reaches the driver topology, the per-tile BOM and OI-HEXTILE-06's PD-population options, and is larger than a socket-interface re-cut. **What is affected:** U2 (dual TIA, $0.32/tile ≈ $26 at 80 tiles) may be deleted from the module and its function returns to the controller; the 12-bit-ADC-with-PGA requirement on U1 (§5.3, §6.2) relaxes, since dose metering no longer depends on the on-module ADC — which may reopen the ATtiny402-vs-tinyAVR-2-series choice; §6.4's ~$11.53/tile figure moves. **What is NOT affected:** the InGaAs PD selection and co-location (D-2, §5.1–5.2), which are optical decisions independent of where the transimpedance stage sits, and therefore OI-HEXTILE-06's ~$10/tile PD-population question — still the dominant term, still orthogonal | **Module BOM; OI-HEXTILE-06; §6.2 part selection.** Not tooling-blocking — the socket interface (§7) is already correct |
 | ~~**OI-HEXTILE-16**~~ | **✅ CLOSED 2026-08-11 — one name per conductor adopted (§7.4).** Pin 18 is **`ELEC_SHLD`** (over `GUARD`, which collides with the *DRL-driven guard plane* on L1 that `NP-DRV-SHELL-002` §3.5/§4.1/REQ-EMI-02 specify — the pin is driven from that plane but is not it). Pin 12 is **`ALERT#`** (over `/ALERT`: a leading `/` is the hierarchical-path separator in EDA net naming, so `/ALERT` reads as a root-scope path and can be silently re-scoped on netlist import). Propagated through this document, `NP-DRV-SHELL-002` and `NP-HW-HUB-001`. Residual naming items split out to **OI-HEXTILE-17** | — (closed) |
 | ~~**OI-HEXTILE-17**~~ | **✅ CLOSED 2026-08-11 — both residuals settled on the same criterion that decided OI-HEXTILE-16 (§7.4).** **(a) `SEAT_N` → `SEAT#`.** The item was raised as "a third active-low convention", i.e. cosmetic. It is not: **`_N` already means *cardinality* in this codebase** — `firmware/hub_control/tests/np_module_map_tests.c` defines `PBM_TILE_N` / `EEG_TILE_N` as `sizeof(x)/sizeof(x[0])` — so `SEAT_N` reads as *"number of seats"*. That is a live ambiguity, not a style difference, and it settles the convention **toward `#`** rather than away from it: `ALERT#` is confirmed, not reversed, with SMBus precedent (`SMBALERT#`; the in-tree vendor header exposes `I2C_ISR_ALERT` for the same line). **Rule of record: active-low interface signals take `#` — never `_N`, never a leading `/`.** **(b) `ELEC_SIG` → `ELEC`.** Ownership: the interface is defined by this §7.2 and `NP-DRV-SHELL-002` §5.1.4, and `NP-HW-HUB-001` §7.4 explicitly *adopts* that contract, so two normative pin tables do not change to match one banner's prose. Accuracy: the pin is dual-rated to carry **tES stimulation current** (≤2 mA T1 / ≤4 mA T2), and `_SIG` biases the reader toward the recording role — the half that is *not* safety-relevant. **Doc→firmware mapping stated, since `#` is not a legal identifier character: `<SIGNAL>#` → `<SIGNAL>_L`, never `_N`.** Related but NOT closed by this: `NP-FMEA-001` **OI-FMEA-01** records that the firmware's ten active-LOW enable lines carry polarity only in comments; this decision adds no further unmarked names and gives that item a convention to converge on. **No firmware change requested** | — (closed) |

@@ -1752,5 +1752,3 @@ See `firmware/pbm_1064nm/` for implementation. FAI-SM-04 (three-channel bench ve
 | HUB-DRC-08 | Boot init function configures GAIN_SEL[0..4] LOW before zone detect task | ✓ (§A.5.3; np_pbm1064_hal_tia_gain_boot_init) |
 | HUB-DRC-09 | Feedback trace length ≤ 5 mm from DG2788A to TIA op-amp | Open — layout DRC (OI-HUB-02) |
 | HUB-DRC-10 | PCA9546A channel enable/disable firmware tested with 5-module simultaneous scenario | Open — FAI-SM-04 bench |
-</content>
-</invoke>
