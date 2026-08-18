@@ -2,13 +2,13 @@
 
 **Project:** NeurOne  
 **Document:** NP-PRIV-NOTICE-001  
-**Revision:** 3
-**Date:** 2026-07-10  
+**Revision:** 4
+**Date:** 2026-08-16  
 **Status:** ACTIVE  
-**Effective Date:** 2026-07-10  
+**Effective Date:** 2026-08-16  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved By:** Steve Hickman, CEO  
-**References:** NP-PRIV-001 Rev 2; NP-PRIV-REM-001 Rev 2; NP-FW-EMMC-001 Rev 1; NP-FW-EMMC-002 Rev 1  
+**References:** NP-PRIV-001 Rev 2; NP-PRIV-REM-001 Rev 2; NP-FW-EMMC-001 Rev 1; NP-FW-EMMC-002 Rev 1; CLAUDE.md Rev 37 §6.2  
 **Related Issues:** —  
 **Gate:** —  
 **IEC 62304 Class:** —  
@@ -120,6 +120,37 @@ If you opted into research participation during onboarding, a separately consent
 - You can view all studies your device has contributed to in the **Research** section of the app.
 - Withdrawing research consent immediately and permanently stops your device from contributing to any future study — including studies that would have used data from sessions before your withdrawal. Studies that have already published cannot individually remove your anonymised data (explained at the time of consent), but no new data will ever flow.
 
+### 5.1 What the research consent flow asks you
+
+The flow is two screens, and every part of it is optional. Skipping it entirely leaves every device function working identically.
+
+**Screen 1 — what you get back.** Whether you want to hear the results of studies your data contributes to (including studies that found nothing — null results), whether you want access to the research suggestion portal, and if so how we should reach you and how often.
+
+We show this first deliberately, and it is worth being plain about why. A study that uses your data and never tells you what it found has taken something and returned nothing. Being told the results is the other half of that exchange, not a reward for agreeing to it. **Turning these options on gives no one any access to your data, and turning them off costs you nothing** — you have not been asked to share anything at this point in the flow.
+
+**Screen 2 — what you share.** Two separate questions, because they are genuinely different questions:
+
+| Question | What it controls |
+|---|---|
+| **Which research areas interest you?** | *Scope.* Nine areas — dementia, depression, PTSD, brain injury, sleep, attention, Parkinson's, healthy ageing, visual health. You are contacted only about studies in the areas you pick. |
+| **Do you want to be asked about each study?** | *Posture.* By default we ask you separately about every study and you decide each time. You may instead pre-approve reviewed studies, in which case we tell you about each one rather than asking. |
+
+**Selecting all nine areas is not the same as pre-approving studies, and we do not treat it as such.** Ticking every area says you are interested in everything; it does not say you want us to stop asking. If you select all nine and leave the second setting alone, you will still be asked about each individual study — which is a position many people want and which the app lets you hold. The two settings are never linked automatically in either direction.
+
+If you turn on pre-approval, the irreversibility notice is shown alongside it, and remains visible whenever that setting is on.
+
+### 5.2 Withdrawing
+
+You can withdraw at three levels, at any time, from the **Research** section:
+
+| Level | Effect |
+|---|---|
+| **A single study** | Your device stops contributing to that study. Other studies and app analytics are unaffected. |
+| **A research area** | Your device stops contributing to studies in that area. Other areas and app analytics are unaffected. |
+| **Pre-approval (all reviewed research)** | Your device stops contributing to every study, and **app research analytics are switched off as well** — turning this off is a signal that you do not want data collection beyond basic device function. Your research-area choices are kept, so you go back to being asked about each study individually. |
+
+Withdrawal is unchanged by the shorter consent flow: making it quicker to say yes has not made it slower, coarser, or harder to say no.
+
 ---
 
 ## 6. Clinician access (T2 / Pro users)
@@ -190,6 +221,8 @@ Washington's My Health My Data Act (RCW 70.372) prohibits the sale of consumer h
 ## 12. Changes to this notice
 
 We will notify you in-app of any material change to this notice before it takes effect. The notice version and effective date are shown at the top of this document.
+
+*Rev 4 (2026-08-16): §5 expanded with §5.1 (what the research consent flow asks) and §5.2 (withdrawal levels), reflecting the move from four consent screens to two (CLAUDE.md Rev 37 §6.2). **No data processing changed and no consent option was removed.** The four consent layers are unchanged; they are now presented on two screens, with the reciprocity question (results and portal) shown first. §5.1 states in the notice's own voice the two things a user could otherwise get wrong: that opting into results grants no data access, and that selecting all nine research areas is not the same as pre-approving studies — the app never links those two settings automatically. §5.2 sets out the three withdrawal levels and states plainly that the shorter flow to consent has not made withdrawal any coarser. §7's withdraw-consent row is unchanged and remains accurate.*
 
 *Rev C (2026-07-10): Added §10 (biometric written release + retention/destruction policy) and §11 (no-sale), both stated unconditionally for all users. These universalize protections whose driving regulations are BIPA (IL) and MHMD (WA) respectively, per NeurOne's most-privacy-protecting-globally principle. No change to data processing — these sections make existing universal commitments explicit.*
 

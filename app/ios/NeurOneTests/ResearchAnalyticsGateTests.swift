@@ -177,6 +177,87 @@ final class ResearchAnalyticsGateTests: XCTestCase {
                        "backend.reset() must not be called on partial category withdrawal")
     }
 
+    // MARK: - Blanket coupling at the UI commit path (CLAUDE.md §6.2.5)
+    //
+    // The two tests above pin the coupling in the explicitly-named withdrawal method. These
+    // two pin it in `updateResearchConsent` — the path the consent UI actually uses. Before
+    // Rev 37 the named method was correct and tested on both platforms while nothing on iOS
+    // called it from the UI, so turning blanket consent off in Research Preferences committed
+    // through `updateResearchConsent` and silently skipped the teardown. Merging L2 and L3
+    // onto one commit-at-the-end screen makes that the ordinary path, so it needs its own
+    // probe. Both directions are pinned: the teardown must fire on a true→false transition,
+    // and must NOT fire on a category-only edit.
+
+    /// Clears the store's own persistence so a stale `np.consent.research` blob from another
+    /// test cannot decide the transition under test.
+    private func makeCleanStore() -> ConsentStore {
+        UserDefaults.standard.removeObject(forKey: "np.consent.research")
+        return ConsentStore()
+    }
+
+    func testCommitPathBlanketWithdrawalRevokesResearchAnalytics() {
+        UserDefaults.standard.set(true, forKey: consentKey)
+        ResearchAnalyticsGate.configure()
+
+        let store = makeCleanStore()
+        var state = ResearchConsentState()
+        state.blanketConsentGranted = true
+        store.updateResearchConsent(state)
+
+        XCTAssertEqual(spy.resetCallCount, 0,
+                       "Granting blanket consent must not tear anything down")
+
+        // The withdrawal the merged S2 screen actually produces: same struct, blanket off.
+        state.blanketConsentGranted = false
+        store.updateResearchConsent(state)
+
+        XCTAssertFalse(ResearchAnalyticsGate.isOpen,
+                       "Committing a blanket true→false transition must close the research analytics gate")
+        XCTAssertEqual(spy.resetCallCount, 1,
+                       "backend.reset() must be called when the commit path revokes blanket consent")
+    }
+
+    func testCommitPathCategoryOnlyEditDoesNotRevokeResearchAnalytics() {
+        UserDefaults.standard.set(true, forKey: consentKey)
+        ResearchAnalyticsGate.configure()
+
+        let store = makeCleanStore()
+        // No blanket consent at any point — only L2 scope changes. This is the inverse
+        // regression: guarding on the value rather than the transition would tear down here.
+        var state = ResearchConsentState()
+        state.setAllCategories(true)
+        store.updateResearchConsent(state)
+
+        state.setAllCategories(false)
+        store.updateResearchConsent(state)
+
+        state.categoryConsents[.depression] = true
+        store.updateResearchConsent(state)
+
+        XCTAssertTrue(ResearchAnalyticsGate.isOpen,
+                      "Category-only edits must leave the research analytics gate open")
+        XCTAssertEqual(spy.resetCallCount, 0,
+                       "backend.reset() must never be called for a category-only edit")
+    }
+
+    func testCommitPathBlanketStaysOnDoesNotRevokeResearchAnalytics() {
+        UserDefaults.standard.set(true, forKey: consentKey)
+        ResearchAnalyticsGate.configure()
+
+        let store = makeCleanStore()
+        var state = ResearchConsentState()
+        state.blanketConsentGranted = true
+        store.updateResearchConsent(state)
+
+        // Editing categories while blanket consent stays on is not a withdrawal.
+        state.categoryConsents[.sleep] = true
+        store.updateResearchConsent(state)
+
+        XCTAssertTrue(ResearchAnalyticsGate.isOpen)
+        XCTAssertEqual(spy.resetCallCount, 0,
+                       "A true→true blanket state is not a withdrawal")
+    }
+
     // MARK: - Prohibited key enforcement (ISC-97)
 
     func testTrackDropsEventWithProhibitedKeyEEG() {

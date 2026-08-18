@@ -20,11 +20,16 @@ import kotlinx.serialization.json.Json
  * TWO CONSENT SUBJECTS (CLAUDE.md §6.0 — never conflated):
  *  - Warranty owner — SHDR fleet telemetry consent, held by WarrantyAnalyticsGate
  *    / the SHDR uploader. May be a clinic, not the end user. Not managed here.
- *  - User — UHDR research data flow consent. Managed here, scoped
- *    L1 contact → L2 category → L3 blanket. Revoking research consent at ANY
- *    scope immediately stops data flows for that scope. Revoking blanket (L3)
- *    also tears down research analytics, because blanket withdrawal signals
- *    the user does not want any data collection beyond basic device function.
+ *  - User — UHDR research data flow consent. Managed here, four layers:
+ *    L1 contact · L2 category · L3 blanket · L4 results + community.
+ *    Layers are not screens — since CLAUDE.md Rev 37 the four layers are presented
+ *    across two screens (S1 = L4 + L1, S2 = L2 + L3). The layer identities are what
+ *    this store, the withdrawal surfaces and the document set key on.
+ *    Revoking research consent at ANY scope immediately stops data flows for that
+ *    scope. Revoking blanket (L3) also tears down research analytics, because blanket
+ *    withdrawal signals the user does not want any data collection beyond basic device
+ *    function. That coupling is enforced in BOTH the named withdrawal method and the UI
+ *    commit path ([updateResearchConsent]), because S2 commits L2 and L3 together.
  */
 class ConsentStore(
     private val store: KeyValueStore,
@@ -71,9 +76,29 @@ class ConsentStore(
 
     // ── Research consent ─────────────────────────────────────────────────
 
+    /**
+     * Commit a research-consent state produced by the consent UI.
+     *
+     * This is the single ingestion point for every UI-driven research-consent change, so the
+     * blanket→analytics coupling is enforced here and not only in the explicitly-named
+     * [withdrawBlanketResearchConsent]. Android already routed its dashboard toggle to that
+     * method, but iOS did not, and merging L2 and L3 onto one commit-at-the-end screen
+     * (CLAUDE.md §6.2) makes the commit path the ordinary way blanket consent is revoked on
+     * both platforms. The guard belongs where the state enters the store.
+     *
+     * The guard keys on the **transition**, not the value. `blanketConsentGranted == false`
+     * holds both for a user who never granted it and for one who just revoked it; only the
+     * second is a withdrawal. Testing the value would tear down analytics on every
+     * category-only edit — the 2026-06-16 regression inverted.
+     */
     fun updateResearchConsent(state: ResearchConsentState) {
+        val wasBlanketGranted = researchConsent.blanketConsentGranted
         researchConsent = state
         save()
+
+        if (wasBlanketGranted && !state.blanketConsentGranted) {
+            revokeResearchAnalytics()
+        }
     }
 
     /**

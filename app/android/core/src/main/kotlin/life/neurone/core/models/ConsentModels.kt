@@ -73,7 +73,18 @@ data class ClinicianConsentGrant(
 
 enum class ContactFrequency { WEEKLY, MONTHLY, QUARTERLY }
 
-// Research consent layers (CLAUDE.md §6.2)
+/**
+ * The four consent layers (CLAUDE.md §6.2).
+ *
+ * Layers are not screens: since Rev 37 they are presented across two screens
+ * (S1 = L4 + L1, S2 = L2 + L3), but the layer identities are what this type, the
+ * withdrawal surfaces and the document set all key on.
+ *
+ * L2 and L3 are orthogonal and must never be collapsed into one field. L2 is **scope**
+ * (which research areas); L3 is **posture** (ask-me-each-time versus pre-approved).
+ * "All nine categories, but ask me about each study" is a real and distinct position,
+ * expressible only while both survive (§6.2.2).
+ */
 @Serializable
 data class ResearchConsentState(
     // L1: Contact consent
@@ -96,6 +107,26 @@ data class ResearchConsentState(
     val hasAnyResearchConsent: Boolean
         get() = contactConsentGranted || blanketConsentGranted ||
             categoryConsents.values.any { it }
+
+    /**
+     * True when every research category is selected. Drives the Select-all affordance's
+     * checked state (§6.2.3). Says nothing about [blanketConsentGranted] — selecting all
+     * nine categories is L2 scope, not L3 posture.
+     */
+    val allCategoriesSelected: Boolean
+        get() = ResearchCategory.entries.all { categoryConsents[it] == true }
+
+    /**
+     * Set or clear all nine categories at once.
+     *
+     * Deliberately does NOT touch [blanketConsentGranted] in either direction. Ticking nine
+     * boxes expresses breadth of interest; the blanket toggle surrenders the right to be
+     * consulted, and inferring the second from the first attributes to the user a decision
+     * they did not make (§6.2.3). Coupling them here would also mean a later un-tick could
+     * trigger the research-analytics teardown that only blanket withdrawal should cause.
+     */
+    fun withAllCategories(granted: Boolean): ResearchConsentState =
+        copy(categoryConsents = ResearchCategory.entries.associateWith { granted })
 }
 
 enum class ResearchCategory(val displayName: String) {
