@@ -116,10 +116,33 @@ typedef struct {
     uint8_t  fault_reason;          /* np_cvns_fault_reason_t                   */
 } np_cvns_shdr_summary_t;
 
-/* ── Safety MCU fault log entry (SHDR) ───────────────────────────────────────── */
+/* ── Safety MCU fault log entry (SHDR) ─────────────────────────────────────────
+ * 8 bytes.  Device-condition only: WHICH fault fired, and the session ordinal it
+ * fired in.  Deliberately carries NO event timing.
+ *
+ * `cutoff_offset_ms` was removed 2026-08-12 (NP-FW-CVNS-001 Rev 3).  It recorded
+ * "ms after stim enable when cutoff occurred", which for the cardiac reason
+ * (NP_CVNS_FAULT_HR_CHANGE) is the latency from stimulation onset to the wearer's
+ * heart rate deviating past NP_CARDIAC_HR_DELTA_BPM — an autonomic response
+ * latency, i.e. a measurement of the person, not of the device.  NP-FW-CVNS-001
+ * §8.2 already classified that same quantity UHDR one row above routing this
+ * record to SHDR, and the UHDR session record above already carries it as
+ * `cutoff_time_offset_s`; the SHDR copy was a duplicate at FINER resolution
+ * (ms vs s), so it was strictly more revealing than the UHDR original.
+ *
+ * Removal is UNCONDITIONAL — the field is gone from the record shape for every
+ * `reason` value.  Zeroing it only for the cardiac reason would have recreated
+ * exactly the oracle retired from the fault latch on the same date: a redaction
+ * applied conditionally on a sensitive predicate leaks that predicate
+ * (CLAUDE.md §5.1).  Here it would leak doubly, since `reason` is in the record.
+ *
+ * Fault event timing is UHDR generally: the SHDR fleet schema's `fault_log` has
+ * no timing column, and np_log_shdr_fault() discards `session_ms` for every
+ * caller.  `reason` stays — the fault KIND is the deliberate, already-published
+ * SHDR channel (fault_log.fault_type, e.g. 'CVNS_HR_CUTOFF').
+ */
 typedef struct {
     uint32_t session_id;          /* session counter; no timestamps             */
-    uint32_t cutoff_offset_ms;    /* ms after stim enable when cutoff occurred  */
     uint8_t  reason;              /* np_cvns_fault_reason_t                     */
     uint8_t  reserved[3];
 } np_cvns_fault_log_entry_t;
