@@ -44,8 +44,24 @@ if(NP_BUILD_TESTS)
         tests/np_module_map_tests.c
         src/np_module_map.c
     )
-    target_include_directories(np_module_map_tests PRIVATE include)
+    target_include_directories(np_module_map_tests PRIVATE include ../pbm_1064nm/include)
     target_compile_options(np_module_map_tests PRIVATE -Wall -Wextra -std=c11)
+
+    # PBM calibration bridge: np_module_map's UID-keyed record -> the pbm_1064nm
+    # library's injected provider/resolver (OI-HUB-C06). Needs both include
+    # trees, which is exactly why the bridge lives here and not in either library.
+    add_executable(np_pbm_cal_bridge_tests
+        tests/np_pbm_cal_bridge_tests.c
+        src/np_pbm_cal_bridge.c
+        src/np_module_map.c
+        ../pbm_1064nm/src/np_pbm1064_session.c
+        ../pbm_1064nm/src/np_pbm1064_dose.c
+        ../pbm_1064nm/src/np_pbm1064_drive.c
+        ../pbm_1064nm/src/np_pbm1064_hal.c
+    )
+    target_include_directories(np_pbm_cal_bridge_tests PRIVATE include ../pbm_1064nm/include)
+    target_compile_options(np_pbm_cal_bridge_tests PRIVATE -Wall -Wextra -std=c11)
+    target_link_libraries(np_pbm_cal_bridge_tests m)
 
     # NP Hub Protocol v2 command-body grammar: the socket-mask target block that
     # replaced the five-bit zone slot mask. Ed25519 + Config HALs are stubbed in
@@ -130,6 +146,7 @@ set(HUB_SOURCES
     src/np_safety_spi.c
     src/np_cvns_reenable.c        # OI-CVNS-HUB-01: CVNS re-enable manager
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
+    src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm_1064nm seams
     src/np_hub_freertos_hooks.c   # FreeRTOS app hooks (stack overflow, malloc, assert)
 
     modules/np_mod_pbm.c

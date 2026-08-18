@@ -54,10 +54,14 @@ static np_mod_pbm_state_t s_state[NP_HUB_ZONE_SLOT_COUNT];
 
 /*
  * Per-zone, per-wavelength InGaAs PD dose-metering calibration.  Loaded once
- * (from the Config partition, or firmware defaults) via
- * np_pbm1064_dose_load_cal_stub(), which fills ONE wavelength row per call —
+ * via np_pbm1064_dose_load_cal(), which fills ONE wavelength row set per call —
  * hence the per-zone loop in np_mod_pbm_init().  np_pbm1064_dose_tick()
  * consumes the per-slot row s_cal[slot].
+ *
+ * This path always gets firmware defaults, because it passes a NULL UID: it is
+ * the RETIRED 5-zone-slot path and has no module-UID inventory (OI-HUB-C06).
+ * Calibration for the hex lattice is keyed to module UID and reaches
+ * firmware/pbm_1064nm through np_pbm_cal_bridge.c, not through here.
  *
  * Bounded by NP_HUB_ZONE_SLOT_COUNT — the same macro that guards every index
  * into this array — and deliberately NOT by NP_PBM1064_ZONE_COUNT.  Both are 5
@@ -117,15 +121,21 @@ np_hub_status_t np_mod_pbm_init(uint8_t slot)
     s_state[slot].ntc_peak_c = 0.0f;
 
     /* Load dose-metering calibration once (idempotent across all zone slots).
-     * The loader fills a single wavelength row per call and takes no socket or
-     * UID argument (see np_pbm1064_dose.h and OI-HUB-C06), so it is called once
+     * The loader fills one wavelength row set per call, so it is called once
      * per zone — the same per-row pattern as np_pbm1064_session.c's loop over
      * active sockets.  Handing it s_cal whole would populate row 0 only and
      * leave zones 1..N-1 holding zeroed calibration, which is a wrong J/cm² on
-     * a dose-metering path rather than a build error. */
+     * a dose-metering path rather than a build error.
+     *
+     * NULL UID deliberately: this is the RETIRED 5-zone-slot path (slots below
+     * NP_HUB_SLOT_FIRST_VALID, unreachable from a v2 protocol), which has no
+     * module-UID inventory to key on.  A NULL UID fails closed to firmware
+     * defaults — the same coefficients this path has always used — rather than
+     * inventing a socket-keyed lookup, which is precisely the defect
+     * OI-HUB-C06 exists to prevent (NP-HW-HUB-001 Rev 3 §9.5). */
     if (!s_cal_loaded) {
         for (uint8_t z = 0U; z < NP_HUB_ZONE_SLOT_COUNT; z++) {
-            np_pbm1064_dose_load_cal_stub(s_cal[z]);
+            (void)np_pbm1064_dose_load_cal(NULL, s_cal[z]);
         }
         s_cal_loaded = true;
     }

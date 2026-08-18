@@ -178,6 +178,26 @@
 #define NP_PBM1064_SOCKET_MASK_BYTES    16U     /* 128 bits; == hub_control NP_HUB_SOCKET_MASK_BYTES */
 
 /*
+ * ── Module UID length (OI-HUB-C06) ───────────────────────────────────────────
+ *
+ * Dose-metering calibration is keyed to the MODULE's UID, never to the socket
+ * it happens to occupy: K_PD1/K_PD2/K_ratio_nom characterise a particular
+ * module's LEDs and photodiodes, measured on that module at manufacture
+ * (NP-FW-PBM1064-001 §6.6). Under hex tiling tiles are universal and
+ * swappable, so a location-keyed table — 5 zones or 128 sockets, the size is
+ * not the point — applies the previous occupant's coefficients after any swap,
+ * and does so invisibly because cal_source would still read NP_CAL_FACTORY
+ * (NP-HW-HUB-001 Rev 3 §9.5).
+ *
+ * Kept equal in VALUE to hub_control's NP_HEXMAP_UID_LEN for exactly the same
+ * reason NP_PBM1064_SOCKET_MASK_BYTES is: hub_control links this library, not
+ * the reverse, so including np_module_map.h here would invert that edge. Host
+ * tests assert the numeric match from the hub_control side, where both headers
+ * are visible.
+ */
+#define NP_PBM1064_MODULE_UID_LEN       8U      /* == hub_control NP_HEXMAP_UID_LEN */
+
+/*
  * A session descriptor carries a small list of (socket_mask, preset) groups
  * rather than one mask + one preset, because v4's per-zone independence
  * (distinct current/freq/duty per zone — e.g. "Gamma+theta coupled" split-

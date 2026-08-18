@@ -21,6 +21,14 @@
 
 #include "../include/np_module_map.h"
 
+/* The mirror-constant pin in test_cal_length_matches_pbm_library(): this is the
+ * one translation unit that can see BOTH np_module_map.h and the pbm library's
+ * headers, so it is where NP_PBM1064_MODULE_UID_LEN == NP_HEXMAP_UID_LEN is
+ * asserted. The libraries themselves cannot include each other — hub_control
+ * links pbm_1064nm, not the reverse. */
+#include "np_pbm1064_config.h"
+#include "np_pbm1064_types.h"
+
 static int g_failures = 0;
 
 static void check(int cond, const char *name)
@@ -747,7 +755,7 @@ static void test_nvram_full_occupancy_roundtrip(void)
     size_t sz = np_module_map_serialized_size();
     check(sz == NP_HEXMAP_NVRAM_MAX_BYTES,
           "full-occupancy serialized size == NP_HEXMAP_NVRAM_MAX_BYTES");
-    check(sz == 17804u, "NP_HEXMAP_NVRAM_MAX_BYTES is 17804 bytes at 128 sockets");
+    check(sz == 22412u, "NP_HEXMAP_NVRAM_MAX_BYTES is 22412 bytes at 128 sockets (v3: +36B cal/record)");
 
     static uint8_t buf[NP_HEXMAP_NVRAM_MAX_BYTES];
     int wrote = np_module_map_serialize(buf, sizeof(buf));
@@ -770,7 +778,7 @@ static void test_nvram_full_occupancy_roundtrip(void)
     /* And through the HAL, at full occupancy. */
     g_nvram_written = false;
     check(np_module_map_persist() == NP_HUB_OK, "persist full-occupancy blob via HAL");
-    check(g_nvram_len == NP_HEXMAP_NVRAM_MAX_BYTES, "HAL received the full 17804-byte blob");
+    check(g_nvram_len == NP_HEXMAP_NVRAM_MAX_BYTES, "HAL received the full 22412-byte blob");
     full_geom_init();
     check(np_module_map_restore() == NP_HUB_OK, "restore full-occupancy blob via HAL");
     check(np_module_map_resolve(a, &loc) == NP_HUB_OK,
@@ -788,11 +796,12 @@ static void test_nvram_rejects_old_version(void)
     int wrote = np_module_map_serialize(buf, sizeof(buf));
     check(wrote > 0, "serialize for version test");
 
-    check(buf[4] == 0x02u && buf[5] == 0x00u, "serialized blob carries version 0x0002");
+    check(buf[4] == 0x03u && buf[5] == 0x00u, "serialized blob carries version 0x0003");
 
-    buf[4] = 0x01u;  buf[5] = 0x00u;            /* pretend it is the old v1 blob */
+    buf[4] = 0x02u;  buf[5] = 0x00u;            /* pretend it is the old v2 blob */
     check(np_module_map_load(buf, (size_t)wrote) == NP_HUB_ERR_BAD_VERSION,
-          "v1 blob rejected with BAD_VERSION (discard + re-poll, never migrate)");
+          "v2 blob rejected with BAD_VERSION (v3 records are 36B longer; "
+          "read as v3 a v2 blob hands each socket its neighbour's UID)");
 
     /* Rejection happens before any record is touched, so live state is intact —
      * load() is all-or-nothing, never a partial merge of a foreign layout. */
@@ -1000,6 +1009,219 @@ static void test_overlapping_zone_union_dedups(void)
           "re-resolving the same union still emits the midline socket once");
 }
 
+
+/* ── UID-keyed PBM calibration (OI-HUB-C06) ───────────────────────────────────
+ *
+ * The property under test is that calibration follows the MODULE, not the
+ * socket. Every one of these would still pass against a socket-keyed store
+ * EXCEPT test_cal_follows_module_across_sockets and
+ * test_cal_cleared_when_occupant_changes — those two are the ones that bite,
+ * and each was confirmed to fail against a deliberately socket-keyed
+ * find_by_uid before being trusted.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+static void fill_cal(float cal[NP_HEXMAP_CAL_FLOATS], float base)
+{
+    for (unsigned i = 0; i < NP_HEXMAP_CAL_FLOATS; i++) {
+        cal[i] = base + (float)i * 0.001f;
+    }
+}
+
+static void test_cal_set_get_by_uid(void)
+{
+    full_geom_init();
+    (void)plug_pbm(7, 0x11);
+
+    float in[NP_HEXMAP_CAL_FLOATS];
+    fill_cal(in, 0.120f);
+    np_module_uid_t u = uid_of(0x11);
+
+    check(np_module_map_set_cal(&u, in) == NP_HUB_OK, "cal: set by UID succeeds");
+
+    float out[NP_HEXMAP_CAL_FLOATS] = { 0 };
+    check(np_module_map_get_cal(&u, out) == NP_HUB_OK, "cal: get by UID succeeds");
+    int same = 1;
+    for (unsigned i = 0; i < NP_HEXMAP_CAL_FLOATS; i++) {
+        if (out[i] != in[i]) { same = 0; }
+    }
+    check(same, "cal: all 9 coefficients round-trip exactly");
+}
+
+static void test_cal_unknown_uid_fails_closed(void)
+{
+    full_geom_init();
+    (void)plug_pbm(7, 0x11);
+
+    float in[NP_HEXMAP_CAL_FLOATS];
+    fill_cal(in, 0.120f);
+    np_module_uid_t known = uid_of(0x11);
+    (void)np_module_map_set_cal(&known, in);
+
+    /* A module the helmet has never seen must NOT inherit the calibration of
+     * the module that is present. This is the defect OI-HUB-C06 exists for. */
+    np_module_uid_t stranger = uid_of(0x22);
+    float out[NP_HEXMAP_CAL_FLOATS];
+    for (unsigned i = 0; i < NP_HEXMAP_CAL_FLOATS; i++) { out[i] = -1.0f; }
+
+    check(np_module_map_get_cal(&stranger, out) == NP_HUB_ERR_NOT_PRESENT,
+          "cal: unknown UID returns NOT_PRESENT, never another module's data");
+    int untouched = 1;
+    for (unsigned i = 0; i < NP_HEXMAP_CAL_FLOATS; i++) {
+        if (out[i] != -1.0f) { untouched = 0; }
+    }
+    check(untouched, "cal: failed get writes nothing into the caller's buffer");
+
+    np_module_uid_t zero;
+    memset(&zero, 0, sizeof(zero));
+    check(np_module_map_get_cal(&zero, out) == NP_HUB_ERR_NOT_PRESENT,
+          "cal: zero UID (empty socket) never resolves to a record");
+    check(np_module_map_set_cal(&zero, in) == NP_HUB_ERR_INVALID_ARG,
+          "cal: cannot store against the zero UID");
+}
+
+static void test_cal_present_module_without_record(void)
+{
+    full_geom_init();
+    (void)plug_pbm(9, 0x33);
+    np_module_uid_t u = uid_of(0x33);
+    float out[NP_HEXMAP_CAL_FLOATS];
+    check(np_module_map_get_cal(&u, out) == NP_HUB_ERR_NOT_PRESENT,
+          "cal: a present module with no factory record reports NOT_PRESENT "
+          "(caller falls back to defaults + NP_CAL_DEFAULT)");
+}
+
+static void test_cal_rejects_implausible_values(void)
+{
+    full_geom_init();
+    (void)plug_pbm(3, 0x44);
+    np_module_uid_t u = uid_of(0x44);
+
+    float bad[NP_HEXMAP_CAL_FLOATS];
+    fill_cal(bad, 0.120f);
+
+    bad[4] = 0.0f;
+    check(np_module_map_set_cal(&u, bad) == NP_HUB_ERR_INVALID_ARG,
+          "cal: zero coefficient rejected (would collide with 'absent')");
+    bad[4] = -0.5f;
+    check(np_module_map_set_cal(&u, bad) == NP_HUB_ERR_INVALID_ARG,
+          "cal: negative coefficient rejected");
+
+    float out[NP_HEXMAP_CAL_FLOATS];
+    check(np_module_map_get_cal(&u, out) == NP_HUB_ERR_NOT_PRESENT,
+          "cal: a rejected set stores nothing at all");
+}
+
+static void test_cal_follows_module_across_sockets(void)
+{
+    /* THE test. Same physical module, different hole. A socket-keyed store
+     * fails here — it would answer for socket 12 and not for socket 60. */
+    full_geom_init();
+    (void)plug_pbm(12, 0x55);
+
+    float in[NP_HEXMAP_CAL_FLOATS];
+    fill_cal(in, 0.088f);
+    np_module_uid_t u = uid_of(0x55);
+    check(np_module_map_set_cal(&u, in) == NP_HUB_OK, "cal: stored at socket 12");
+
+    /* Unplug from 12, plug the same UID into 60. */
+    np_module_uid_t zero;
+    memset(&zero, 0, sizeof(zero));
+    bool changed = false;
+    (void)np_module_map_apply_poll(12, &zero, 0x00, inv_cb, NULL, &changed);
+    (void)plug_pbm(60, 0x55);
+
+    float out[NP_HEXMAP_CAL_FLOATS] = { 0 };
+    check(np_module_map_get_cal(&u, out) == NP_HUB_ERR_NOT_PRESENT,
+          "cal: record does not survive an unplug (hub cache is per-occupancy; "
+          "re-supplied at factory-cal read, never inferred from the socket)");
+
+    /* Re-store against the module at its new socket and confirm it is keyed to
+     * the UID, not to 60. */
+    check(np_module_map_set_cal(&u, in) == NP_HUB_OK, "cal: re-stored at socket 60");
+    check(np_module_map_get_cal(&u, out) == NP_HUB_OK,
+          "cal: same UID resolves at its new socket");
+    check(out[0] == in[0], "cal: coefficients are the module's, at either socket");
+}
+
+static void test_cal_cleared_when_occupant_changes(void)
+{
+    /* A different module in the same socket must NOT inherit the previous
+     * occupant's coefficients — the exact silent-wrong-calibration path. */
+    full_geom_init();
+    (void)plug_pbm(20, 0x66);
+
+    float in[NP_HEXMAP_CAL_FLOATS];
+    fill_cal(in, 0.105f);
+    np_module_uid_t old_mod = uid_of(0x66);
+    check(np_module_map_set_cal(&old_mod, in) == NP_HUB_OK, "cal: stored for old module");
+
+    (void)plug_pbm(20, 0x77);              /* swap: new UID, same socket */
+
+    np_module_uid_t new_mod = uid_of(0x77);
+    float out[NP_HEXMAP_CAL_FLOATS];
+    for (unsigned i = 0; i < NP_HEXMAP_CAL_FLOATS; i++) { out[i] = -1.0f; }
+    check(np_module_map_get_cal(&new_mod, out) == NP_HUB_ERR_NOT_PRESENT,
+          "cal: a swapped-in module does NOT inherit the previous occupant's "
+          "calibration (OI-HUB-C06 / NP-HW-HUB-001 Rev 3 §9.5)");
+    check(np_module_map_get_cal(&old_mod, out) == NP_HUB_ERR_NOT_PRESENT,
+          "cal: the departed module's record is gone with it");
+}
+
+static void test_cal_survives_nvram_roundtrip(void)
+{
+    full_geom_init();
+    (void)plug_pbm(5, 0x88);
+    float in[NP_HEXMAP_CAL_FLOATS];
+    fill_cal(in, 0.120f);
+    np_module_uid_t u = uid_of(0x88);
+    (void)np_module_map_set_cal(&u, in);
+
+    static uint8_t buf[NP_HEXMAP_NVRAM_MAX_BYTES];
+    int wrote = np_module_map_serialize(buf, sizeof(buf));
+    check(wrote > 0, "cal: serialize with calibration payload");
+
+    full_geom_init();                       /* wipe live state */
+    check(np_module_map_load(buf, (size_t)wrote) == NP_HUB_OK, "cal: load blob back");
+
+    float out[NP_HEXMAP_CAL_FLOATS] = { 0 };
+    check(np_module_map_get_cal(&u, out) == NP_HUB_OK,
+          "cal: record survives the NVRAM round-trip");
+    int same = 1;
+    for (unsigned i = 0; i < NP_HEXMAP_CAL_FLOATS; i++) {
+        if (out[i] != in[i]) { same = 0; }
+    }
+    check(same, "cal: every coefficient survives the float round-trip bit-exactly");
+}
+
+static void test_socket_uid_lookup(void)
+{
+    full_geom_init();
+    (void)plug_pbm(31, 0x99);
+
+    np_module_uid_t got;
+    check(np_module_map_socket_uid(31, &got) == NP_HUB_OK,
+          "socket_uid: occupied socket resolves");
+    np_module_uid_t want = uid_of(0x99);
+    check(np_module_uid_equal(&got, &want), "socket_uid: returns the occupant's UID");
+
+    check(np_module_map_socket_uid(32, &got) == NP_HUB_ERR_NOT_PRESENT,
+          "socket_uid: empty socket fails closed (session then uses defaults)");
+    check(np_module_map_socket_uid(NP_HEXMAP_MAX_SOCKETS, &got) == NP_HUB_ERR_INVALID_ARG,
+          "socket_uid: out-of-domain socket rejected");
+}
+
+static void test_cal_length_matches_pbm_library(void)
+{
+    /* NP_PBM1064_MODULE_UID_LEN mirrors NP_HEXMAP_UID_LEN by comment on both
+     * sides, because the link direction forbids a shared include. This is the
+     * one translation unit that sees both, so it is where the mirror is pinned. */
+    check(NP_PBM1064_MODULE_UID_LEN == NP_HEXMAP_UID_LEN,
+          "pbm NP_PBM1064_MODULE_UID_LEN == hub NP_HEXMAP_UID_LEN");
+    check(sizeof(np_pbm1064_module_uid_t) == sizeof(np_module_uid_t),
+          "pbm np_pbm1064_module_uid_t and hub np_module_uid_t are the same size");
+    check(NP_HEXMAP_CAL_FLOATS == (NP_PBM1064_WL_COUNT * 3u),
+          "cal payload is exactly WL_COUNT x {K_PD1, K_PD2, K_ratio_nom}");
+}
 int main(void)
 {
     test_addr_pack();
@@ -1035,6 +1257,17 @@ int main(void)
     /* Inclusive zone membership + the protocol dis-include override. */
     test_midline_included_in_both_hemispheres();
     test_overlapping_zone_union_dedups();
+
+    /* UID-keyed PBM dose-metering calibration (OI-HUB-C06). */
+    test_cal_set_get_by_uid();
+    test_cal_unknown_uid_fails_closed();
+    test_cal_present_module_without_record();
+    test_cal_rejects_implausible_values();
+    test_cal_follows_module_across_sockets();
+    test_cal_cleared_when_occupant_changes();
+    test_cal_survives_nvram_roundtrip();
+    test_socket_uid_lookup();
+    test_cal_length_matches_pbm_library();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

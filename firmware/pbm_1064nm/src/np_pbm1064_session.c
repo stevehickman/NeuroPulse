@@ -17,6 +17,17 @@
 #include "np_pbm1064_hal.h"
 #include <string.h>
 
+/* ── Socket → module UID resolver (OI-HUB-C06) ──────────────────────────────── */
+
+static np_pbm1064_socket_uid_fn s_uid_resolver     = NULL;
+static void                    *s_uid_resolver_ctx = NULL;
+
+void np_pbm1064_session_set_uid_resolver(np_pbm1064_socket_uid_fn fn, void *ctx)
+{
+    s_uid_resolver     = fn;
+    s_uid_resolver_ctx = ctx;
+}
+
 /* ── Socket mask bit helpers (128-bit, LSB-first, 0-based) ──────────────────── */
 
 static bool mask_test(const uint8_t mask[NP_PBM1064_SOCKET_MASK_BYTES], uint8_t socket_id)
@@ -177,25 +188,37 @@ static void disable_all_slots(np_pbm1064_session_ctx_t *ctx)
     }
 }
 
+void np_pbm1064_session_build_shdr_summary(const np_pbm1064_session_ctx_t *ctx,
+                                            np_pbm1064_fault_t              fault_reason,
+                                            np_pbm1064_shdr_summary_t      *out)
+{
+    if (ctx == NULL || out == NULL) { return; }
+
+    memset(out, 0, sizeof(*out));
+    out->active_socket_count = ctx->active_socket_count;
+    out->duration_s          = ctx->record.duration_s;
+    out->abort_reason        = (uint8_t)ctx->record.abort_reason;
+    out->fault_reason        = (uint8_t)fault_reason;
+    out->thermal_event_count = ctx->ch_c_throttled || ctx->ch_b_throttled ? 1U : 0U;
+
+    /* Mean PD1/PD2 ratio, I2C probe pass and calibration provenance, per active
+     * socket (device metrics — no user biology). cal_source is per socket, not
+     * per session: calibration is keyed to module UID (OI-HUB-C06), so a
+     * session can legitimately mix FACTORY and DEFAULT sockets, and this is the
+     * shape the fleet schema's per-(socket, module_uid, wavelength) row wants. */
+    for (uint8_t i = 0; i < ctx->active_socket_count; i++) {
+        out->sockets[i].socket_id      = ctx->active_socket_id[i];
+        out->sockets[i].pd_ratio       = ctx->dose[i].ratio_current;
+        out->sockets[i].i2c_probe_pass = ctx->drv[i].initialized ? 1U : 0U;
+        out->sockets[i].cal_source     = ctx->active_cal_source[i];
+    }
+}
+
 static void write_shdr_summary(const np_pbm1064_session_ctx_t *ctx,
                                 np_pbm1064_fault_t fault_reason)
 {
     np_pbm1064_shdr_summary_t shdr;
-    memset(&shdr, 0, sizeof(shdr));
-    shdr.active_socket_count = ctx->active_socket_count;
-    shdr.duration_s          = ctx->record.duration_s;
-    shdr.abort_reason        = (uint8_t)ctx->record.abort_reason;
-    shdr.fault_reason        = (uint8_t)fault_reason;
-    shdr.cal_source          = (uint8_t)NP_CAL_DEFAULT; /* all DEFAULT pending OI-HUB-C06 */
-    shdr.thermal_event_count = ctx->ch_c_throttled || ctx->ch_b_throttled ? 1U : 0U;
-
-    /* Mean PD1/PD2 ratio + I2C probe pass, per active socket (device metric —
-     * no user biology). */
-    for (uint8_t i = 0; i < ctx->active_socket_count; i++) {
-        shdr.sockets[i].socket_id      = ctx->active_socket_id[i];
-        shdr.sockets[i].pd_ratio       = ctx->dose[i].ratio_current;
-        shdr.sockets[i].i2c_probe_pass = ctx->drv[i].initialized ? 1U : 0U;
-    }
+    np_pbm1064_session_build_shdr_summary(ctx, fault_reason, &shdr);
     /* SHDR write — stub writes to log; real HAL writes to SHDR LittleFS file. */
     (void)shdr; /* suppress unused warning in stub; HAL call omitted: OI-PBM pending */
 }
@@ -259,17 +282,28 @@ np_pbm1064_status_t np_pbm1064_session_start(
     }
 
     /*
-     * Load calibration coefficients, one call per active socket. This is a
-     * stub returning firmware defaults regardless of socket (matching
-     * today's actual behaviour); real Config-partition sourcing MUST be
-     * keyed to module UID (via np_module_map) when it is wired up — see
-     * OI-HUB-C06 and the cal_source comment on np_pbm1064_shdr_summary_t.
-     * Re-keying this call by socket_id instead of UID would reintroduce the
-     * exact defect OI-HUB-C06 tracks (a module swap silently inherits the
-     * previous occupant's calibration).
+     * Resolve each active socket's occupant, then load that MODULE's
+     * calibration by UID (OI-HUB-C06). Never by socket_id: modules are
+     * swappable under hex tiling, so a location-keyed load applies the
+     * previous occupant's coefficients after a swap, invisibly, because
+     * cal_source would still read FACTORY (NP-HW-HUB-001 Rev 3 §9.5).
+     *
+     * An unresolvable socket yields the zero UID, which np_pbm1064_dose_load_cal()
+     * treats as "no coherent record" and answers with firmware defaults and
+     * NP_CAL_DEFAULT. With no resolver installed that is every socket — i.e.
+     * exactly the behaviour before this seam existed.
      */
     for (uint8_t i = 0; i < active_socket_count; i++) {
-        np_pbm1064_dose_load_cal_stub(ctx->cal[i]);
+        memset(&ctx->active_uid[i], 0, sizeof(ctx->active_uid[i]));
+        if (s_uid_resolver != NULL) {
+            np_pbm1064_module_uid_t uid;
+            memset(&uid, 0, sizeof(uid));
+            if (s_uid_resolver(ctx->active_socket_id[i], &uid, s_uid_resolver_ctx)) {
+                ctx->active_uid[i] = uid;
+            }
+        }
+        ctx->active_cal_source[i] =
+            (uint8_t)np_pbm1064_dose_load_cal(&ctx->active_uid[i], ctx->cal[i]);
     }
 
     /* Reset dose state for all active sockets. */

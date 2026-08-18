@@ -15,17 +15,68 @@
 extern "C" {
 #endif
 
+/* ═══════════════════════════════════════════════════════════════════════════
+ * UID-keyed calibration (OI-HUB-C06)
+ *
+ * Calibration coefficients characterise a physical MODULE — its LEDs and its
+ * InGaAs photodiodes, measured on that module at manufacture
+ * (NP-FW-PBM1064-001 §6.6). They are therefore keyed to the module's UID and
+ * never to the socket it occupies. Under hex tiling tiles are universal and
+ * swappable, so a location-keyed store applies the previous occupant's
+ * coefficients after any swap, and does so invisibly, because cal_source would
+ * still read NP_CAL_FACTORY (NP-HW-HUB-001 Rev 3 §9.5).
+ *
+ * The records themselves live on the hub, in np_module_map's UID-keyed NVRAM
+ * record, which already invalidates a socket's entry when its UID changes.
+ * This library cannot include np_module_map.h (hub_control links this library,
+ * not the reverse), so the lookup arrives as an injected provider.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
 /*
- * Load calibration coefficients (one per wavelength) for a single active
- * socket. Stub: always installs firmware defaults with valid = false (SHDR:
- * cal_source = NP_CAL_DEFAULT) — real Config-partition sourcing is pending
- * OI-HUB-C06 and, per NP-HW-HUB-001 Rev 3 §9.5, MUST be keyed to module UID
- * (via np_module_map), never to socket_id: modules are swappable, and a
- * socket-indexed store would silently apply the previous occupant's
- * calibration after a swap while cal_source still read FACTORY. Called once
- * per active socket at session start.
+ * Provider: look up factory calibration for `uid`.
+ *
+ * Returns true ONLY if a factory record exists for that exact UID and every
+ * wavelength row was written to cal_out. Returning false must leave cal_out
+ * untouched — np_pbm1064_dose_load_cal() overwrites it with defaults, and a
+ * provider that half-populated the array before failing would otherwise blend
+ * one module's coefficients with another's.
  */
-void np_pbm1064_dose_load_cal_stub(np_pbm1064_cal_t cal_out[NP_PBM1064_WL_COUNT]);
+typedef bool (*np_pbm1064_cal_provider_fn)(
+    const np_pbm1064_module_uid_t *uid,
+    np_pbm1064_cal_t               cal_out[NP_PBM1064_WL_COUNT],
+    void                          *ctx);
+
+/*
+ * Install (or, with fn == NULL, remove) the calibration provider. With no
+ * provider installed every lookup yields firmware defaults, which is exactly
+ * the behaviour before OI-HUB-C06 — so this change is inert on a build that
+ * has not wired the hub side up.
+ */
+void np_pbm1064_dose_set_cal_provider(np_pbm1064_cal_provider_fn fn, void *ctx);
+
+/*
+ * Load calibration coefficients (one per wavelength) for one active socket's
+ * module, keyed by that module's UID. Called once per active socket at
+ * session start.
+ *
+ * Fails closed to firmware defaults, returning NP_CAL_DEFAULT, when: uid is
+ * NULL; uid is all-zero (empty socket / unknown module); no provider is
+ * installed; or the provider reports no record. Returns NP_CAL_FACTORY only
+ * when the provider affirmatively supplied coefficients for that UID.
+ *
+ * The return value is what belongs in np_pbm1064_socket_shdr_t.cal_source for
+ * this socket — it reports what actually happened, per socket, rather than an
+ * optimistic session-wide constant.
+ */
+np_cal_source_t np_pbm1064_dose_load_cal(
+    const np_pbm1064_module_uid_t *uid,
+    np_pbm1064_cal_t               cal_out[NP_PBM1064_WL_COUNT]);
+
+/*
+ * True iff every byte of `uid` is zero (empty socket / unknown module).
+ * Mirrors np_module_uid_is_zero() on the hub side.
+ */
+bool np_pbm1064_module_uid_is_zero(const np_pbm1064_module_uid_t *uid);
 
 /*
  * Execute one 10 Hz dose tick for a single active socket.

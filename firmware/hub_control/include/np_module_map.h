@@ -184,8 +184,30 @@
  * blob occupies ~0.1% of it and sits alongside the UKMD record at offset 0x1000
  * (192 bytes), the warranty token, and the TRNG salt with no contention. */
 #define NP_HEXMAP_HDR_BYTES   8u    /* magic(4) + version(2) + n_sockets(2)          */
-#define NP_HEXMAP_REC_BYTES   (NP_HEXMAP_UID_LEN + 3u + NP_HEXMAP_MAX_ELEMENTS)
-                                    /* uid + present(1) + health(1) + count(1) + types[] */
+
+/* ── UID-keyed PBM dose-metering calibration (OI-HUB-C06) ─────────────────────
+ * 3 wavelengths (660/808/1064 nm) x 3 coefficients (K_PD1, K_PD2, K_ratio_nom)
+ * = 9 IEEE-754 floats = 36 bytes, stored in the socket record BUT KEYED BY UID:
+ * the lookup is by module UID and the record is cleared whenever a socket's UID
+ * changes, so the coefficients follow the module rather than the hole.
+ *
+ * This is the storage half of OI-HUB-C06. It exists here, hub-side, rather than
+ * on the module because T1-A dumb tiles cannot hold their own coefficients, so
+ * a hub-side UID-keyed cache is the only option that covers every tile type
+ * (NP-FW-PBM1064-001 Rev 3 supersession banner).
+ *
+ * ABSENCE IS ENCODED AS ALL-ZERO, no separate flag byte — the same idiom as
+ * "zero UID means empty socket" already used throughout this module. A genuine
+ * coefficient is irradiance per ADC count or a nominal PD1/PD2 ratio; zero is
+ * not a physically meaningful value for any of the nine, so it cannot collide
+ * with real data. np_module_map_set_cal() rejects a payload containing a
+ * non-positive or non-finite value, which keeps the encoding sound. */
+#define NP_HEXMAP_CAL_FLOATS  9u
+#define NP_HEXMAP_CAL_BYTES   (NP_HEXMAP_CAL_FLOATS * 4u)   /* 36 */
+
+#define NP_HEXMAP_REC_BYTES   (NP_HEXMAP_UID_LEN + 3u + NP_HEXMAP_MAX_ELEMENTS + \
+                               NP_HEXMAP_CAL_BYTES)
+                                    /* uid + present(1) + health(1) + count(1) + types[] + cal[36] */
 #define NP_HEXMAP_CRC_BYTES   4u
 #define NP_HEXMAP_NVRAM_MAX_BYTES                                                  \
     ((size_t)NP_HEXMAP_HDR_BYTES +                                                 \
@@ -300,6 +322,54 @@ typedef struct {
 
 bool np_module_uid_equal(const np_module_uid_t *a, const np_module_uid_t *b);
 bool np_module_uid_is_zero(const np_module_uid_t *a);   /* zero UID = empty socket */
+
+/* ── UID-keyed calibration accessors (OI-HUB-C06) ─────────────────────────────
+ *
+ * Both are keyed by module UID, NEVER by socket_id. That is the whole point:
+ * K_PD1/K_PD2/K_ratio_nom characterise a module's LEDs and photodiodes, measured
+ * on that module at manufacture (NP-FW-PBM1064-001 §6.6), and under hex tiling
+ * the same module can occupy any socket. A socket-keyed store would apply the
+ * previous occupant's coefficients after a swap while cal_source still read
+ * FACTORY (NP-HW-HUB-001 Rev 3 §9.5).
+ *
+ * Ordering is fixed: [wl][coeff] with wl = {660, 808, 1064} and coeff =
+ * {K_PD1, K_PD2, K_ratio_nom}, i.e. index 3*wl + coeff. This matches
+ * np_pbm1064_cal_t[NP_PBM1064_WL_COUNT] read in wavelength order.
+ *
+ * Stale entries need no explicit invalidation: np_module_map_apply_poll()
+ * clears a socket's whole record when its UID changes, calibration included.
+ */
+
+/*
+ * Store factory calibration for the module identified by `uid`.
+ *
+ * Returns NP_HUB_ERR_NOT_PRESENT if no present socket currently holds that UID
+ * — coefficients are only ever stored against a module the helmet can see, so
+ * the store cannot accumulate records for modules that are not here.
+ * Returns NP_HUB_ERR_INVALID_ARG for a NULL/zero UID or a payload containing a
+ * non-positive or non-finite value (which would collide with the all-zero
+ * "absent" encoding).
+ */
+np_hub_status_t np_module_map_set_cal(const np_module_uid_t *uid,
+                                      const float            cal[NP_HEXMAP_CAL_FLOATS]);
+
+/*
+ * Fetch factory calibration for the module identified by `uid`.
+ *
+ * Returns NP_HUB_ERR_NOT_PRESENT — writing nothing — if no present socket holds
+ * that UID, or if the socket that does has no stored calibration. Callers treat
+ * that as "use firmware defaults, report NP_CAL_DEFAULT"; it must never fall
+ * back to another module's coefficients.
+ */
+np_hub_status_t np_module_map_get_cal(const np_module_uid_t *uid,
+                                      float                  cal_out[NP_HEXMAP_CAL_FLOATS]);
+
+/*
+ * Look up the UID of the module currently occupying `socket_id`.
+ * Returns NP_HUB_ERR_NOT_PRESENT if the socket is empty or not inventoried.
+ * This is the hub-side backing for np_pbm1064_socket_uid_fn.
+ */
+np_hub_status_t np_module_map_socket_uid(uint16_t socket_id, np_module_uid_t *uid_out);
 
 /* ── Fixed helmet geometry (const table, one entry per socket) ──────────────── */
 

@@ -28,24 +28,67 @@ static const np_pbm1064_cal_t k_default_cal[NP_PBM1064_WL_COUNT] = {
     /* NP_WL_1064NM */ { .K_PD1 = 0.088f, .K_PD2 = 0.072f, .K_ratio_nom = 1.222f, .valid = false },
 };
 
-/* ── Calibration loading ─────────────────────────────────────────────────────── */
+/* ── Calibration loading (UID-keyed, OI-HUB-C06) ─────────────────────────────── */
 
-void np_pbm1064_dose_load_cal_stub(np_pbm1064_cal_t cal_out[NP_PBM1064_WL_COUNT])
+static np_pbm1064_cal_provider_fn s_cal_provider     = NULL;
+static void                      *s_cal_provider_ctx = NULL;
+
+void np_pbm1064_dose_set_cal_provider(np_pbm1064_cal_provider_fn fn, void *ctx)
 {
-    /*
-     * Attempt to read factory calibration from Config partition.
-     * Platform HAL for Config read is not yet implemented (OI-PBM-04, and the
-     * module-UID-keyed store itself is OI-HUB-C06); fall back to firmware
-     * defaults for every wavelength, for every socket that calls this.
-     * Deliberately takes no socket_id / UID parameter: keying this by
-     * socket_id would reintroduce the exact defect OI-HUB-C06 tracks (a
-     * module swap silently inheriting the previous occupant's calibration
-     * while cal_source still reads FACTORY). The caller (session start)
-     * calls this once per active socket.
-     */
+    s_cal_provider     = fn;
+    s_cal_provider_ctx = ctx;
+}
+
+bool np_pbm1064_module_uid_is_zero(const np_pbm1064_module_uid_t *uid)
+{
+    if (uid == NULL) { return true; }
+    for (uint8_t i = 0; i < NP_PBM1064_MODULE_UID_LEN; i++) {
+        if (uid->b[i] != 0U) { return false; }
+    }
+    return true;
+}
+
+static void load_defaults(np_pbm1064_cal_t cal_out[NP_PBM1064_WL_COUNT])
+{
     for (uint8_t w = 0; w < NP_PBM1064_WL_COUNT; w++) {
         cal_out[w] = k_default_cal[w]; /* valid = false → SHDR: DEFAULT */
     }
+}
+
+np_cal_source_t np_pbm1064_dose_load_cal(
+    const np_pbm1064_module_uid_t *uid,
+    np_pbm1064_cal_t               cal_out[NP_PBM1064_WL_COUNT])
+{
+    if (cal_out == NULL) { return NP_CAL_DEFAULT; }
+
+    /*
+     * Fail closed in every direction that is not an affirmative hit on THIS
+     * module's UID. A zero UID means the hub reported an empty socket or could
+     * not identify the occupant; there is no coherent record to fetch, and
+     * falling through to any other module's coefficients is the defect
+     * OI-HUB-C06 exists to prevent.
+     */
+    if (np_pbm1064_module_uid_is_zero(uid) || s_cal_provider == NULL) {
+        load_defaults(cal_out);
+        return NP_CAL_DEFAULT;
+    }
+
+    /*
+     * Scratch, not cal_out: a provider that wrote some wavelength rows and
+     * then failed would otherwise leave this socket holding a mix of one
+     * module's factory coefficients and another's defaults, reported as
+     * DEFAULT. Publishing only on success makes a partial write unobservable.
+     */
+    np_pbm1064_cal_t scratch[NP_PBM1064_WL_COUNT];
+    if (!s_cal_provider(uid, scratch, s_cal_provider_ctx)) {
+        load_defaults(cal_out);
+        return NP_CAL_DEFAULT;
+    }
+
+    for (uint8_t w = 0; w < NP_PBM1064_WL_COUNT; w++) {
+        cal_out[w] = scratch[w];
+    }
+    return NP_CAL_FACTORY;
 }
 
 /* ── Dose tick ───────────────────────────────────────────────────────────────── */

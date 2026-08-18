@@ -31,6 +31,14 @@ typedef struct {
     uint8_t         health;
     uint8_t         elem_count;     /* valid entries in elem_type[]              */
     uint8_t         elem_type[NP_HEXMAP_MAX_ELEMENTS];  /* np_elem_type_t values */
+    /*
+     * PBM dose-metering calibration for the module named by `uid` (OI-HUB-C06).
+     * All-zero means "no factory record" — see NP_HEXMAP_CAL_BYTES in the header
+     * for why absence needs no flag byte. Stored in the socket record but looked
+     * up by UID, and cleared by clear_record() whenever the occupant changes, so
+     * a swap can never leave the previous module's coefficients in place.
+     */
+    float           cal[NP_HEXMAP_CAL_FLOATS];
 } np_socket_record_t;
 
 /* ── Module state ─────────────────────────────────────────────────────────────── */
@@ -52,6 +60,10 @@ static struct {
  *   0x0001  Initial layout. NP_HEXMAP_MAX_SOCKETS == 64.
  *   0x0002  NP_HEXMAP_MAX_SOCKETS raised to 128 (all 80 helmet sockets
  *           addressable). Record layout itself is UNCHANGED.
+ *   0x0003  Per-record UID-keyed PBM calibration payload added (OI-HUB-C06):
+ *           REC_BYTES grows by NP_HEXMAP_CAL_BYTES (36), so the layout really
+ *           does change this time and a v2 blob is NOT byte-compatible. Blob
+ *           at n_sockets=128 goes 17,804 -> 22,412 bytes.
  *
  * There is deliberately NO migration path. np_module_map_load rejects any blob
  * whose version differs, restore() clears the inventory and propagates the
@@ -59,14 +71,18 @@ static struct {
  * exactly what it does on a first boot or a CRC failure. Rebuilding is cheap and
  * always correct; migrating a stale record layout is neither.
  *
- * The bump is DEFENSIVE, not a fix for a live hazard. REC_BYTES depends on
- * MAX_ELEMENTS (unchanged) and HDR_BYTES is unchanged, so a v1 and a v2 blob at
- * the same n_sockets are byte-identical — accepting a v1 blob would not actually
- * corrupt anything today. What the bump buys is that the blob version now tracks
- * the socket-DOMAIN sizing rather than only the record layout, so the next change
- * to the domain cannot be silently accepted by a helmet whose wired n_sockets
- * happens to be unchanged. The cost is one forced re-poll on the upgrade boot. */
-#define NP_HEXMAP_NVRAM_VERSION  0x0002u
+ * The 0x0002 bump was DEFENSIVE: a v1 and a v2 blob at the same n_sockets were
+ * byte-identical, so accepting a v1 blob would not have corrupted anything. What
+ * it bought was that the blob version tracks socket-DOMAIN sizing and not only
+ * record layout, so a later domain change cannot be silently accepted by a
+ * helmet whose wired n_sockets happens to be unchanged.
+ *
+ * The 0x0003 bump is NOT defensive. REC_BYTES genuinely grows by 36 bytes, so a
+ * v2 blob read as v3 would misalign every record after the first and hand each
+ * socket the neighbouring socket's UID — on a map that gates PBM and tES element
+ * addressing. Rejecting on version is what stops that; the cost, here as before,
+ * is one forced re-poll on the upgrade boot. */
+#define NP_HEXMAP_NVRAM_VERSION  0x0003u
 
 /* Serialized layout constants (NP_HEXMAP_HDR_BYTES / REC_BYTES / CRC_BYTES /
  * NVRAM_MAX_BYTES) are public in np_module_map.h so integrators can size the
@@ -132,6 +148,47 @@ static uint32_t get_u32(const uint8_t *p)
 {
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) |
            ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
+}
+
+/* ── float <-> little-endian bytes (OI-HUB-C06 calibration payload) ────────────
+ * Via memcpy into a uint32_t rather than a pointer cast, so the round-trip is
+ * defined behaviour and does not depend on the compiler's aliasing mood. Both
+ * ends of this wire are the same IEEE-754 little-endian representation the rest
+ * of the blob assumes. */
+
+static void put_f32(uint8_t *p, float v)
+{
+    uint32_t bits;
+    memcpy(&bits, &v, sizeof(bits));
+    put_u32(p, bits);
+}
+
+static float get_f32(const uint8_t *p)
+{
+    uint32_t bits = get_u32(p);
+    float    v;
+    memcpy(&v, &bits, sizeof(v));
+    return v;
+}
+
+/*
+ * A calibration coefficient must be strictly positive and finite: K_PD1/K_PD2
+ * are irradiance per ADC count and K_ratio_nom is a nominal PD1/PD2 ratio, none
+ * of which is meaningful at zero or below. Written without <math.h> so this
+ * translation unit keeps its "pure C, no libm" property: `v > 0.0f` is already
+ * false for NaN and for negatives, and the upper bound rejects +inf.
+ */
+static bool cal_value_plausible(float v)
+{
+    return (v > 0.0f) && (v < 1.0e30f);
+}
+
+static bool cal_payload_present(const float cal[NP_HEXMAP_CAL_FLOATS])
+{
+    for (unsigned i = 0; i < NP_HEXMAP_CAL_FLOATS; i++) {
+        if (cal[i] != 0.0f) { return true; }
+    }
+    return false;
 }
 
 /* ── CRC-32 (IEEE 802.3, reflected) — self-contained NVRAM integrity check ─────── */
@@ -459,6 +516,80 @@ np_hub_status_t np_module_map_check_placement(const np_placement_req_t *reqs,
     return (*fail_count == 0u) ? NP_HUB_OK : NP_HUB_ERR_NOT_PRESENT;
 }
 
+/* ── UID-keyed calibration accessors (OI-HUB-C06) ─────────────────────────────── */
+
+/*
+ * Find the present socket holding `uid`. Returns NULL if none does.
+ *
+ * Linear over n_sockets (<= 128) and called once per active socket at session
+ * start — a handful of scans per session, not per tick. Keeping the lookup keyed
+ * on UID rather than maintaining a socket->cal side table is the entire safety
+ * property: there is no way to ask this module "what is socket N's calibration",
+ * so no caller can accidentally get the previous occupant's.
+ */
+static np_socket_record_t *find_by_uid(const np_module_uid_t *uid)
+{
+    if (!s_map.initialized || np_module_uid_is_zero(uid)) {
+        return NULL;
+    }
+    for (uint16_t s = 0; s < s_map.n_sockets; s++) {
+        np_socket_record_t *r = &s_map.rec[s];
+        if (r->module_present && np_module_uid_equal(&r->uid, uid)) {
+            return r;
+        }
+    }
+    return NULL;
+}
+
+np_hub_status_t np_module_map_set_cal(const np_module_uid_t *uid,
+                                      const float            cal[NP_HEXMAP_CAL_FLOATS])
+{
+    if (uid == NULL || cal == NULL || np_module_uid_is_zero(uid)) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    for (unsigned c = 0; c < NP_HEXMAP_CAL_FLOATS; c++) {
+        if (!cal_value_plausible(cal[c])) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+    }
+    np_socket_record_t *r = find_by_uid(uid);
+    if (r == NULL) {
+        return NP_HUB_ERR_NOT_PRESENT;
+    }
+    memcpy(r->cal, cal, sizeof(r->cal));
+    return NP_HUB_OK;
+}
+
+np_hub_status_t np_module_map_get_cal(const np_module_uid_t *uid,
+                                      float                  cal_out[NP_HEXMAP_CAL_FLOATS])
+{
+    if (uid == NULL || cal_out == NULL) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    np_socket_record_t *r = find_by_uid(uid);
+    if (r == NULL || !cal_payload_present(r->cal)) {
+        /* Write nothing. A caller that ignored the status and used cal_out
+         * anyway would otherwise be handed whatever was on its stack; leaving
+         * the buffer alone keeps the failure loud rather than plausible. */
+        return NP_HUB_ERR_NOT_PRESENT;
+    }
+    memcpy(cal_out, r->cal, sizeof(r->cal));
+    return NP_HUB_OK;
+}
+
+np_hub_status_t np_module_map_socket_uid(uint16_t socket_id, np_module_uid_t *uid_out)
+{
+    if (uid_out == NULL || !s_map.initialized || socket_id >= s_map.n_sockets) {
+        return NP_HUB_ERR_INVALID_ARG;
+    }
+    const np_socket_record_t *r = &s_map.rec[socket_id];
+    if (!r->module_present || np_module_uid_is_zero(&r->uid)) {
+        return NP_HUB_ERR_NOT_PRESENT;
+    }
+    *uid_out = r->uid;
+    return NP_HUB_OK;
+}
+
 /* ── NVRAM persistence ────────────────────────────────────────────────────────── */
 
 size_t np_module_map_serialized_size(void)
@@ -493,6 +624,9 @@ int np_module_map_serialize(uint8_t *buf, size_t buf_len)
         buf[off++] = r->elem_count;
         memcpy(&buf[off], r->elem_type, NP_HEXMAP_MAX_ELEMENTS);
         off += NP_HEXMAP_MAX_ELEMENTS;
+        for (unsigned c = 0; c < NP_HEXMAP_CAL_FLOATS; c++) {
+            put_f32(&buf[off], r->cal[c]); off += 4;
+        }
     }
 
     uint32_t crc = crc32(buf, off);
@@ -542,6 +676,24 @@ np_hub_status_t np_module_map_load(const uint8_t *buf, size_t buf_len)
         r->elem_count = count;
         memcpy(r->elem_type, &buf[off], NP_HEXMAP_MAX_ELEMENTS);
         off += NP_HEXMAP_MAX_ELEMENTS;
+        for (unsigned c = 0; c < NP_HEXMAP_CAL_FLOATS; c++) {
+            float v = get_f32(&buf[off]); off += 4;
+            /* Any implausible coefficient discards the WHOLE payload for this
+             * record, not just that value: a partially-accepted set would mix
+             * one wavelength's factory coefficient with another's firmware
+             * default and still be reported as FACTORY. */
+            r->cal[c] = cal_value_plausible(v) ? v : 0.0f;
+        }
+        if (!cal_payload_present(r->cal)) {
+            memset(r->cal, 0, sizeof(r->cal));
+        } else {
+            for (unsigned c = 0; c < NP_HEXMAP_CAL_FLOATS; c++) {
+                if (r->cal[c] == 0.0f) {   /* one bad value seen above */
+                    memset(r->cal, 0, sizeof(r->cal));
+                    break;
+                }
+            }
+        }
         /* A record marked present with a zero UID is inconsistent — drop it. */
         if (r->module_present && np_module_uid_is_zero(&r->uid)) {
             clear_record(r);
