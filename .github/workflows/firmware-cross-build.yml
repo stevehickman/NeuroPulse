@@ -1,9 +1,9 @@
 name: Firmware Cross-Compile (ARM)
 
 # SW-02 Class B — i.MX RT1062 main processor firmware and the dual-bank OTA
-# bootloader, plus the 22 Class B host-test targets: the 19 absorbed from the
+# bootloader, plus the 23 Class B host-test targets: the 19 absorbed from the
 # retired firmware-host-tests.yml (NP-SW-CI-001 §5.0.1, OI-SWCI-09), one added
-# by NP-SW-CI-001 phase 1 and one by phase 2.
+# by NP-SW-CI-001 phase 1, one by phase 2, and one by OI-HUB-C06.
 #
 # Self-contained by construction: native host tests THEN the cross-compile, in
 # one file, because `needs:` only works within a single workflow.  Crossing
@@ -11,7 +11,7 @@ name: Firmware Cross-Compile (ARM)
 # branch, runs in base-repo context, and does not attach cleanly to a pull
 # request's check list — fragile in exactly the situation the gate exists for.
 #
-# ── Host-test targets owned by this workflow (22 of the repo's 29) ────────────
+# ── Host-test targets owned by this workflow (23 of the repo's 30) ────────────
 # Registered by the NP_BUILD_TESTS branch of firmware/CMakeLists.txt:
 #   firmware/bootloader      → np_bootloader_mem_tests (freestanding memcpy/
 #                              memset, NP-SW-CI-001 §4.2 — see the note below)
@@ -32,14 +32,17 @@ name: Firmware Cross-Compile (ARM)
 #                            → np_module_map_tests    (hex zone-module addressing/NVRAM map)
 #                            → np_protocol_tests      (hub protocol v2 socket-mask targets)
 #                            → np_mod_stim_tests      (BES/tACS + tDCS slot dispatch)
+#                            → np_pbm_cal_bridge_tests (OI-HUB-C06: np_module_map's
+#                              UID-keyed calibration reaching a pbm_1064nm session)
 #   firmware/zone_announce   → np_zone_announce_tests (module-status frame encoder)
 #                            → np_zone_notify_tests   (app-notify dispatch)
-#   firmware/pbm_1064nm      → np_pbm1064_session_desc_tests (NP-SES-1064-001 v5 wire format)
+#   firmware/pbm_1064nm      → np_pbm1064_session_desc_tests (NP-SES-1064-001 v5 wire format
+#                              + OI-HUB-C06 UID-keyed calibration load)
 #   firmware/cervical_vns    → np_cvns_fai_tests      (FAI CV01..CV06, cardiac interlock)
 #   firmware/sloreta_hdtdcs  → np_hd_fai_tests        (FAI HD02/HD05.., montage + sLORETA)
 #   firmware/vendor/freertos → np_freertos_smoke_tests (kernel + config, POSIX port)
 #
-# The other 7 (firmware/safety_mcu) belong to safety-mcu-ci.yml.  7 + 22 = 29,
+# The other 7 (firmware/safety_mcu) belong to safety-mcu-ci.yml.  7 + 23 = 30,
 # disjoint; build-all.yml re-checks that partition weekly.
 #
 # ── Partial host-test coverage, and why it is partial ─────────────────────────
@@ -137,13 +140,14 @@ env:
   # The count the selection must match.  It lives here and in the assertion step
   # below — and NOT in the `host-tests` job `name:`, which is what a required
   # status check matches on.  The job used to be called "CMake host tests (21
-  # Class B targets)"; that count has already moved three times (19 → 20 → 21)
+  # Class B targets)"; that count has already moved four times
+  # (19 → 20 → 21 → 22 → 23, the last by OI-HUB-C06's np_pbm_cal_bridge_tests)
   # as phases added targets, and a required context is an exact string match, so
   # the next phase that adds a target would have renamed the check and silently
   # stopped satisfying the requirement — a merge deadlock with no error message
   # anywhere.  The number belongs to the assertion, not to the check name.
   # NP-SW-CI-001 §6.7.
-  NP_CLASS_B_TEST_COUNT: '22'
+  NP_CLASS_B_TEST_COUNT: '23'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always
@@ -338,7 +342,7 @@ jobs:
       # Guard against selection drift before running anything: `ctest` exits 0
       # on a shrunken subset just as happily as on the whole suite, so a green
       # check is not evidence the targets ran.  Assert the count.
-      - name: Assert test selection covers all 21 Class B targets
+      - name: Assert test selection covers every Class B target
         run: |
           ctest --test-dir build/host-tests -N -E "$NP_SAFETY_TESTS" | tee selection.txt
           selected=$(sed -n 's/^Total Tests: //p' selection.txt)
