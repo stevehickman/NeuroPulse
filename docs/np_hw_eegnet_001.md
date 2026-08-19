@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-EEGNET-001
-**Revision:** 1
+**Revision:** 2
 **Date:** 2026-08-18
 **Status:** DRAFT
 **Effective Date:** —
@@ -25,6 +25,33 @@
 
 ---
 
+> ## ⚠ Rev 2 — the central premise of Rev 1 was WRONG. Read this before §1.
+>
+> **Rev 1 claimed the tangential 10-20 registration error reaches ~50 mm at Oz across 520–620 mm
+> heads, and that the hex-tile architecture therefore cannot be rescued by any parameter change.
+> Both halves are wrong.** The error is **~1.6 mm from size and ~3.4 mm from size plus shape**, and
+> the two named defects are both repairable inside the existing tile.
+>
+> | | Was (Rev 1) | Is (Rev 2) | Cause |
+> |---|---|---|---|
+> | Tangential error, size | ~50 mm at Oz | **~1.6 mm** | Rev 1 mapped shell→head by **arc length**. A conforming cap does that. **A standoff shell with radial pods maps by normal projection**, and for concentric similar surfaces normal projection preserves *angle* — and a 10-20 fraction is an angular invariant across geometrically similar heads. **Size very nearly cancels.** |
+> | Tangential error, shape | not separated | **~3.4 mm** (±10 % vault height, sagittal) | Shape does not cancel. It is now the larger of the two. |
+> | Dominant term | head size | **seating concentricity — ~0.9 mm of landing error per 1 mm of head displacement** | Never modelled in Rev 1, and never specified anywhere in the document set (`OI-EEGNET-14`). |
+> | Fp1/Fp2 and Oz | "unfixable inside the tiled architecture" | **Both fixable in-tile** | Rev 1 assumed the electrode must sit at tile centre. That is a convention (`NP-HW-HEXTILE-001` D-1 "site 0 reserved"), not a physical constraint. See §1.4. |
+> | `NP-HEX-ZM-001` §3.2's claim that the lattice "registers to anatomy by construction" | refuted by Rev 1 | **correct; Rev 1's refutation is withdrawn** | It follows from normal projection. |
+>
+> **Consequence for this document.** The net is **demoted from recommendation to fallback.** §1.4
+> specifies the cheaper option that Rev 1 missed, and it addresses **every** adverse consequence in
+> §7.2 as well as the §0 fork. §§2–6 remain valid as a net specification and are retained for the
+> case where §1.4 proves insufficient — principally **T2**, whose sLORETA / HD-tDCS tolerance is
+> tighter than T1 neurofeedback's and is not established here (`OI-EEGNET-15`).
+>
+> **What survives Rev 1 unchanged:** the radial shortfall (~−4 mm at the smallest head, §1.1) is real
+> and untouched by any of this; §5's modality matrix; §6's reframing of the antenna question onto
+> near-field coupling; and every consequence in §7 *conditional on the net being adopted*.
+
+---
+
 ## 0. The decision that has to come first — T1-B's electrode is dual-rated
 
 The T1-B tile's Ag/AgCl contact is typed `NP_ELEM_DUAL_ELECTRODE`. It **records EEG and delivers
@@ -44,7 +71,7 @@ confined to recording.
 
 ---
 
-## 1. The problem is not pod travel — and this matters, because travel is what everyone is trying to fix
+## 1. Where the registration error actually comes from (REWRITTEN AT REV 2)
 
 The request framed the failure as insufficient pod travel. That is **right about the conclusion and
 wrong about the mechanism**, and the correction is load-bearing rather than pedantic: it is the
@@ -61,51 +88,115 @@ head demands ~15.9 mm of inward travel and receives 12.
 > **Radial margin ≈ −4 mm, before any cephalic-index or local-curvature deviation is added.**
 > Marginal, and in principle fixable by more travel.
 
-**Tangential (the axis travel cannot address at all).** A 10-20 site sits at a fixed *fraction* of
-the wearer's own nasion→inion arc — the 10-20 system is defined that way, and `NP-HEX-ZM-001` §3.1
-says so explicitly, calling the arc *"the 10-20 system's own longitudinal ruler."* A socket sits at a
-fixed *position* on the helmet's arc. The 62 cm arc is **331 mm** (§3.1); under geometric similarity
-the 52 cm arc is 331 × 520/620 = **277.6 mm**. At arc fraction *f* the site and the socket diverge by
-*f* × 53.4 mm:
+**Tangential — and the mechanism is normal projection, not arc length.** The pod extends along the
+**shell's local inward normal** until it meets the scalp. That is the operation that decides where an
+electrode lands, and it is not the same operation as laying a tape measure along both surfaces.
 
-| 10-20 line | *f* | Divergence, nasion-datum | Divergence, Cz-datum |
-|---|---|---|---|
-| Fp | 0.10 | 5.3 mm | 21.4 mm |
-| F | 0.31 | 16.5 mm | 10.1 mm |
-| **C (Cz)** | 0.52 | **27.8 mm** | 1.1 mm |
-| P | 0.73 | 39.0 mm | 12.3 mm |
-| **O (Oz)** | 0.94 | **50.2 mm** | 23.5 mm |
+For two **concentric** surfaces of the same shape, the inward normal at shell angle θ meets the head
+at the same angle θ. A 10-20 site is defined as a fraction of the nasion→inion arc, and for
+geometrically similar heads that fraction is an **angular invariant** — it does not depend on size.
+So normal projection is registration-preserving and **size cancels**.
 
-Re-datuming to Cz — the obvious mitigation — halves the worst case to ~23.5 mm and does not come
-close to rescuing it.
+Modelled as concentric sagittal ellipses (shell semi-length 110.5 mm, vault 100 mm per
+`NP-HEX-ZM-001` §3.1), landing error along the head's own arc:
 
-### 1.2 Why travel cannot help
+| Case | Fp (f=0.10) | F (0.31) | C (0.52) | P (0.73) | O (0.94) |
+|---|---|---|---|---|---|
+| **Size only** — 520 mm head, similar shape | −1.1 | −1.5 | +0.2 | +1.6 | +0.7 |
+| **Shape only** — 620 mm head, vault 110 mm | −1.5 | −2.5 | +0.3 | +2.6 | +0.9 |
+| **Size + shape** — 520 mm head, +10 % vault | −2.3 | −3.1 | +0.4 | **+3.4** | +1.4 |
+| **Seating failure** — 520 mm head sunk 10 mm | **+8.3** | +3.5 | −0.4 | −4.4 | **−9.1** |
 
-**Pod travel is a radial degree of freedom.** A tangential error is displacement along the scalp
-surface. A radial actuator's contribution to a tangential error is exactly zero, at any travel
-value. A pod with infinite travel still presses an electrode firmly onto the wrong piece of cortex.
+Three results, and the ordering is the point:
 
-This is why the tolerance framing in `REG-1` — *"registers to 10-20 … within tolerance,"* with the
-±12 mm pod travel cited in its support (`NP-HEX-ZM-001` §7) — cannot be satisfied by tightening
-anything. The lattice is one rigid geometry; 10-20 is a one-parameter family of geometries indexed
-by head size. No single member of a rigid family matches a scaling family at more than one point.
+1. **Size contributes ~1.6 mm.** Not 50 mm. `NP-HEX-ZM-001` §3.2's claim that the lattice "registers
+   to anatomy by construction" is **correct**, and follows from exactly this.
+2. **Shape does not cancel** and is the larger intrinsic term at ~3.4 mm — because a taller or
+   flatter vault is not a scaled copy, so no angular invariance protects it.
+3. **Seating concentricity dominates everything: ~0.9 mm of landing error per 1 mm of head
+   displacement.** The 5-position forehead bridge, Boa dial and temporal wings exist to centre the
+   head, but **no document in the set states a concentricity requirement, and none measures one.**
+   The registration budget is therefore held by an unspecified property of the fit system
+   (**`OI-EEGNET-14`**).
 
-### 1.3 The document set already records the symptoms
+> **Model limits, stated.** This is a 2D sagittal, concentric, ellipse model. It brackets the truth
+> from the opposite side to Rev 1's arc-length model, and it is the better of the two because it
+> matches the actual kinematics — but the coronal plane (where cephalic index 0.70–0.85 acts) has not
+> been computed, and the concentricity assumption is the very thing `OI-EEGNET-14` says is unverified.
+> **Neither model should be quoted as the answer; the deciding measurement is seating concentricity.**
 
-Two entries read as tuning problems and are actually the premise showing through:
+### 1.2 What travel can and cannot do
 
-- **Fp1 and Fp2 cannot each have a socket.** The Fp row is 72 mm of arc wide and holds one 40 mm
-  tile, so socket 1 straddles the midline (`NP-HEX-ZM-001` §3.2). More generally, the row pitch is
-  **34.6 mm** and 10-20 lines are ~**33 mm** apart, so *"the lattice registers to alternate lines at
-  best."* **No pitch inside the 34–46 mm workable window resolves adjacent 10-20 lines.** This is a
-  defect the architecture generates and has no parameter to correct.
-- **Oz is ~18 mm anterior.** Socket 74 is the nearest midline occipital address, at 86.2 % of arc
-  against a true O line at ~94 % (§3.2 caveat). The photoparoxysmal halt depends on that site.
+Pod travel remains a **radial** degree of freedom and still contributes nothing to a tangential
+error. That part of Rev 1 stands. What changed is the size of the tangential error it was being
+asked to fix — and, more importantly, that **tangential compliance is available inside the tile**.
 
-**A conformable net repairs both by construction, because its electrode positions are fractions of
-its own geodesics rather than positions on a bowl.** That is the single unique benefit of this
-change, and §7 argues it is enough to justify the costs. It is not, on its own, obviously enough —
-that is a principal call.
+### 1.3 The two named defects, revisited
+
+- **Oz is ~18 mm anterior.** Socket 74 sits at 86.2 % of arc against a true O line at ~94 %
+  (`NP-HEX-ZM-001` §3.2). But the tile's **active-field circumradius is 20.21 mm**
+  (`NP-HW-HEXTILE-001` §4.1). **18 mm < 20.21 mm — true Oz lies inside socket 74's own active
+  field.** An electrode offset 18 mm posterior within that one tile lands on Oz exactly.
+- **Fp1 and Fp2 cannot each have a socket.** True — *if each tile's electrode must sit at tile
+  centre*. Fp1 and Fp2 are ~35–40 mm apart on an adult, which is inside a 40 mm tile's 46 mm vertex
+  span and well within two adjacent tiles' combined reach at ±18 mm offsets.
+
+Rev 1 asserted that "no pitch inside the 34–46 mm workable window resolves adjacent 10-20 lines."
+That is true of the **tile pitch** and false of the **electrode pitch**, and Rev 1 conflated them.
+
+### 1.4 The cheaper option — move the electrode inside the tile
+
+**The electrode sits at tile centre by convention, not by physics.** `NP-HW-HEXTILE-001` D-1 reserves
+site 0 of the 91-site emitter lattice on every tile type — PD1 aperture on T1-A/T1-C, "the electrode
+pod axis" on T1-B. §4.5 is explicit about what T1-B actually *is*:
+
+> *"T1-B needs no new FPC outline, no new lattice, and no new socket interface — **only a different
+> placement file**."*
+
+**An off-centre electrode is another placement file.** D-1's own reversibility column reads "Yes —
+FPC artwork only, pre-tooling."
+
+The available offset range is the active-field circumradius minus the pod radius, and the pod
+diameter is **`OI-HEXTILE-05` — unspecified anywhere in the document set**:
+
+| Rings masked | Pod ⌀ | In-tile offset range | Emitters/tile | Home Standard emitters | vs 2,286 |
+|---|---|---|---|---|---|
+| 0–1 | 11.4 mm | **±14.5 mm** | 84 | 2,646 | +15.7 % |
+| 0–2 | 19.0 mm | **±10.7 mm** | 72 | 2,538 | +11.0 % |
+| **0–3** (≈ the current "~half LED count") | 26.6 mm | **±6.9 mm** | 54 | 2,376 | +3.9 % |
+| 0–4 | 34.2 mm | ±3.1 mm | 30 | 2,160 | −5.5 % |
+
+**`OI-HEXTILE-05` is the tangential registration budget in disguise.** It is currently framed as
+"how many emitter rings does the pod displace" — a PBM-coverage question. It is also, and more
+importantly, the question of how far an electrode can be moved to meet anatomy. Nobody has been
+answering the second question because nobody noticed it was the same question (**`OI-EEGNET-16`**).
+
+**At the corrected error magnitude, the existing pod may already be sufficient.** ±6.9 mm covers the
+~3.4 mm intrinsic size+shape term with margin, and is exceeded only when seating concentricity fails
+by more than ~7 mm. That makes the leading candidate a **zero-tooling, zero-BOM change**: a
+per-site placement file, plus a concentricity specification on the fit system.
+
+**Two things it does not do.** A manufactured offset is **fixed**, so it cannot track per-user
+seating or per-user shape; the residual is whatever `OI-EEGNET-14` turns out to allow. And it does
+not touch the **radial** −4 mm shortfall at the smallest head, which is a separate problem with a
+separate fix (more travel, which on this axis genuinely does work).
+
+**If fixed offsets prove insufficient**, the next step is still not a net: it is a **tangentially
+adjustable pod carrier** — a one-time, app-guided eccentric or slider set at fitting and locked.
+That keeps the socket electrical interface, the discrete `SEAT#` presence detect, and every §7.2
+consequence intact. The net (§§2–6) is the option after that.
+
+### 1.5 Consequences addressed, relative to the net
+
+| §7.2 adverse consequence | In-tile offset (§1.4) |
+|---|---|
+| +18 % emitters into term **U** | **Avoided at ±6.9 mm (+3.9 %); tunable, and strictly better than the net at every setting** |
+| `SH2-DRC-16` artifact may regress | **Avoided** — electrodes stay on L1 behind the DRL guard plane; N4 unchanged |
+| `RISK-21` reverts; `EEG-ROUTE-CHANNEL` returns | **Avoided** — no cables, no tail, no connector |
+| Safety gates go discrete → continuous | **Avoided** — keyed socket, `SEAT#`, `check_placement()` all unchanged |
+| §0 dual-rated T1-B fork (`OI-EEGNET-01`) | **Dissolves** — T1-B keeps both roles |
+
+---
 
 ---
 
@@ -730,6 +821,10 @@ architecture no longer needs.
 | OI-EEGNET-11 | Net has no representation in the module-identity model (§7.2.5) | FW + App | — |
 | OI-EEGNET-12 | Residual risk that a T1-B consumer exists which no grep pattern in §7.4 caught | Systems | Before tooling |
 | OI-EEGNET-13 | Net risk register (`NP-RISK-005`?) and FAI do not exist. Per `NP-ART-001`, this would be a tenth artifact with no owning risk document | QA | Before tooling |
+| **OI-EEGNET-14** | **Seating concentricity is unspecified and unmeasured, and §1.1 shows it is the DOMINANT registration term (~0.9 mm landing error per 1 mm of head displacement).** The fit system (5-position bridge, Boa, temporal wings) has never been given a concentricity requirement. This is the single measurement that decides whether §1.4 suffices | **ME + Systems** | **Blocks the §1.4-vs-net choice** |
+| **OI-EEGNET-15** | Placement tolerance is treated as one number (±10 mm). It is plausibly **modality-dependent** — looser for T1 8-channel wellness neurofeedback, tighter for T2 sLORETA source localisation and HD-tDCS 4×1 targeting. If so, T1 takes §1.4 and only T2 needs a cap. Not established here | Clinical | T2 |
+| **OI-EEGNET-16** | **`OI-HEXTILE-05` (pod body diameter) is the tangential registration budget and is not being treated as one.** It is currently scoped as a PBM-coverage question only. Re-scope it before T1-B Rev 2 layout | Systems + ME | **T1-B layout** |
+| **OI-EEGNET-17** | §1.1's model is 2D sagittal only. The coronal plane, where cephalic index 0.70–0.85 acts, has not been computed | Systems | With OI-EEGNET-14 |
 
 ## 9. Cross-references
 
@@ -743,6 +838,9 @@ seam), §5.3 (fluxgate siting) · `NP-HELMET-GEOM-001` §0 (inner-shield abandon
 
 ---
 
-*Rev 1 is a DRAFT and must not be baselined. Its central number — the size count — is an output of
-`NET-1`, which cannot be run because no hardware exists. Its central decision — the §0 fork — is a
-principal call that has not been made. The document is written to be decidable, not to be adopted.*
+*Rev 2 corrects Rev 1's central premise (see the Rev 2 banner) and demotes the net from
+recommendation to fallback. The document remains a DRAFT and must not be baselined. **The next action
+is not a net decision — it is `OI-EEGNET-14`, the seating-concentricity measurement**, because that
+one number decides whether §1.4's zero-tooling in-tile offset is sufficient and therefore whether
+§§2–6 are needed at all for T1. `OI-EEGNET-15` decides the same question for T2 independently. The
+document is written to be decidable, not to be adopted.*
