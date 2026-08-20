@@ -37,6 +37,9 @@
 > | Why more socket contacts are hard | Read as a geometry limit | An **accessibility-force** limit, exactly linear in contact count, on a question `OI-SHELL2-03(b)` has not answered | §1.7.2. `REQ-SKT-01`'s two rows were *"Forced, not preferred"* — forced by row **length**. Three rows hold 30 contacts at the same 18 mm span, and an edge-following run holds ~48 |
 > | Emitter count under multiple pods | — | **More pods inflate emitters *less*, not more** — 4 pods +7.5 % vs 2 pods +13.0 % | §1.7.1. Each pod removes ~7 emitters, so the cost axis runs opposite to the intuition. This corrects a first draft of §1.7.1 that read the sign the wrong way |
 >
+> | Staggered seating heights | Dismissed as *"not a lever — total spring energy is unchanged"* | **Half right.** Naive load-spreading is not a lever and is *counterproductive* against an over-centre; **spatial force-spread cancellation is** — 5.7 N per 0.05 N of spread removed | §1.7.2. Energy was the wrong quantity; the peak of L(x)/MA(x) is the right one |
+> | Why electrode sites are scarce | Taken as given | **An undecided assumption whose stated basis is an emitter-power argument that does not reach an electrode** | §1.8. `OI-COST-01`: per-configuration tile population *"has never been decided"* |
+>
 > **Three things this revision is careful not to claim.** (i) It does **not** contest `REQ-SKT-01`, the
 > 19-contact count, or `SMART-1` — each is *raised* into §7.3 and routed to its owning document, in the
 > scope discipline `NP-HW-HEXTILE-001` Rev 2 set. (ii) §1.6's ~20 mm sampling target is a **literature
@@ -385,14 +388,47 @@ one-handed-achievable through the §5.4a over-centre actuator at Parkinson's H&Y
 has also just spent contacts in that currency deliberately — `VLED`/`PGND` went 4+4 → 3+3 explicitly
 *"at the cost of two extra contacts on an interface with a live RISK-22 one-handed-force constraint."*
 
-**Levers that buy force headroom without giving up contacts**, in the order they are likely to pay:
+**Two findings about the force question itself, before any lever.**
 
-| Lever | Mechanism | Cost |
+1. **34.2–57.0 N is contact force only.** `NP-HW-HEXTILE-001` §7.1 computes it as 0.3–0.5 N × 19 × 6
+   and nothing else. The clamp additionally compresses the **ejector springs** (`NP-HEX-ZM-001` §5.4a:
+   *"releasing it lifts the plate → modules pop on their own ejector springs"*), the **per-tile
+   perimeter gaskets** (30 co-moulded gaskets carrying IPX4), and any **plunger preload**. The true
+   plate load is higher by an unstated amount.
+2. **There is no input-force acceptance number.** §5.4a's ≤1 N is the *retired per-module eject-lever*
+   figure, explicitly restated for the cluster actuator as *"low input force via mechanical advantage
+   (the RISK-22 low-force intent restated as input force, not per-module extraction)"* — with no value.
+
+> Required MA = plate load ÷ input target, and **neither end of that ratio exists.** Closing both ends
+> precedes exploring any lever, and belongs to MECH-2 alongside `OI-SHELL2-03(b)`.
+
+**Levers that buy force headroom without giving up contacts:**
+
+| Lever | Mechanism | Assessment |
 |---|---|---|
-| §5.4a actuator mechanical advantage | The open question is about *input* force; MA is the free variable | Travel, lever length, package. Most likely source of the answer |
-| Smaller clamp plates | Load ∝ contacts/tile × tiles/plate. This is how 19 contacts came in *below* Rev 1's 18, once the 18-cluster partition capped plates at 6 | More clusters than 18, which is provably minimal at n=80 under CLUSTER-1/SYM-1/CONTIG-1 — so real cluster-controller BOM at $114.12/tier |
+| **§5.4a actuator mechanical advantage** | §5.4a already gives *"high mechanical advantage near close"* | **Primary.** But MA is high only *near close*, and peak hand force occurs **before** that — the figure that matters is MA at the peak of L(x)/MA(x), not MA at top-dead-centre where it diverges and hand force → 0. Available: link geometry; handle length (package-limited — `OI-SHELL2-11` inter-bowl space, 1.0 mm bezel); a compound two-stage toggle (parts ×18 clusters); and a **shaped profile on the push/pull lever**, which is *not* the twist cam §5.4a prohibits on accessibility grounds — a distinction that must be stated explicitly or the proposal reads as violating a requirement |
+| **Force-spread cancellation** ★ | Every contact must meet a minimum force for ≤50 mΩ and fretting resistance. Force varies across the plate, so the **mean** must be raised by the spread to hold the minimum at the worst location: plate load = N × (F_min + spread) | **Real, and the lever this document previously missed.** At 114 contacts, **every 0.05 N of spread removed takes 5.7 N off the plate — 10–17 % of the stated figure, at zero BOM.** The spread is not hypothetical: plate deflection is already a CLUSTER-1 metric (×3.07 for the rejected 8-tile patch), and CONTIG-1 rejects the pendant petal precisely because a compliant arm *"seats at lower force and defeats this section's 'individual, controlled force' property"* |
+| **Release force, not throw force** | Over-centre latches must be pushed back over centre | **Possibly the binding case.** `OI-HFE2-05` records that L2's confirm-and-correct loop *"assumes cheap re-opening of a cluster."* Ejector springs ease release and *add* to throw — **a trade that sets RISK-22's two halves against each other and is stated nowhere** |
+| Smaller clamp plates | Load ∝ contacts/tile × tiles/plate. This is how 19 contacts came in *below* Rev 1's 18, once the 18-cluster partition capped plates at 6 | Real but expensive: more clusters than 18, which is provably minimal at n=80 under CLUSTER-1/SYM-1/CONTIG-1 — so cluster-controller BOM at $114.12/tier |
 | Lower per-contact force | Direct | **Bad lever.** 0.3–0.5 N is already low; below it, fretting and contact resistance run into `SH2-DRC-09`'s resistance→heating bound and `OI-HEXTILE-11`'s unquantified µV-path contact noise |
-| Staggered seating heights | Changes the force *profile* | **Not a lever.** Total spring energy at full compression is unchanged |
+| ~~Staggered seating heights, in the naive sense~~ | Spread engagement over the stroke to lower the peak | **Not a lever, and for an over-centre it is counterproductive.** Mean-preserved stagger leaves the *endpoint* load identical, and the peak of a monotonic spring load is at the endpoint. Worse: §5.4a's MA is high *near close*, so moving load earlier in the stroke moves it into the **low**-MA region and *raises* peak hand force. The useful stagger is spatial, not temporal — see below |
+
+**Stagger axes, assessed.** The mechanism that works is force-spread cancellation above; the axes
+differ in what spread they can cancel and at what scale.
+
+| Axis | Scale | Assessment |
+|---|---|---|
+| Row-to-row within a tile | ~1.7 mm | **Not a force lever** — deflection over 1.7 mm is negligible. A real **sequencing** lever: `REQ-SKT-01` already places `SEAT#` last-seating, and explicit make/break ordering (AGND and shield first, power next, µV electrode last) guarantees reference before signal and protects the ADS1299 input |
+| Centre-to-edge within a tile | ≤18 mm | **Real, at the right scale for tile tilt** — cancels off-centre plunger loading and socket-floor non-parallelism. Magnitude depends on residual tilt after the plunger, which is unstated |
+| Tile-to-tile across a cluster | 3–6 tile span — where the largest spread lives | **Rejected as module pad height** — position-specific pads break `R-2`/`SMART-1`; a tile must work in any socket. The per-module plunger already exists for this. The live question is whether **plunger preload should be graded by position within the plate** |
+| **Spring-rate grading instead of height** ★ | any | **The strongest variant, and it is absent from the document set.** Springs are on the **socket** (D-5: spring pins on socket, flat pads on module), so grading pogo spring rate is entirely socket-side and leaves `R-2` untouched. Cost: multiple pogo part numbers, position-sensitive socket assembly, and interaction with the force-dependent ≤50 mΩ / ≥500-cycle spec |
+| Graded vs stepped | — | Neutral on peak force; a smoother curve is more controllable, which for tremor may matter more than peak, and the formative measures usability rather than force alone |
+| Progressive-rate contacts | — | Not stagger, but addresses the same thing: soft early travel, stiff at the end. Part cost across ~1,520 contacts |
+
+> **The two levers are complementary, not alternatives.** Spread cancellation makes the load profile
+> **lower and deterministic**; a shaped push/pull profile then **flattens hand force** against that
+> known curve. Neither works alone — MA cannot be shaped against an unknown load, and a lower load does
+> not help if MA is mismatched to its shape.
 
 #### 1.7.3 What a third row — or a non-straight one — changes, in both directions
 
@@ -444,10 +480,12 @@ objection to mixing, and this document should not make it.
 
 The two real costs are:
 
-1. **A fifth type sits at the edge of the stated reliable range.** §7.3 rests on *"bar count to 4 is well
-   inside the reliable range"*, and §2.3(a) puts tactile counting at *"reliable to about 4–5 and degrades
-   fast beyond that"*. Five is survivable only by re-encoding (bar length or orientation rather than pure
-   count), which spends headroom reserved for future types.
+1. **A fifth type sits at the edge of the stated reliable range — but this cost is contingent on the
+   L3 *encoding*, not on the type count.** §7.3 rests on *"bar count to 4 is well inside the reliable
+   range"*, and §2.3(a) puts tactile counting at *"reliable to about 4–5 and degrades fast beyond that"*.
+   That ceiling belongs to **counting**. A shape encoding is not counted, and `NP-HFE-002` Rev 2 §7.3
+   now carries one — a nested figure reaching 6 types with a two-stage decision of branching ≤3.
+   **Under that encoding this cost largely dissolves**, leaving cost 2 as the real one. `OI-HFE2-10`.
 2. **L1(d) stops being one rule — this is the larger cost.** §7.1(d) is a *single uniform* feature at
    ~9 instances, deliberately not identifying which site, whose entire value is collapsing the common
    build to *"place an EEG module wherever you feel the dimple, base modules everywhere else."* Two
@@ -472,6 +510,86 @@ load-bearing. Both cannot be pursued; whichever is adopted must say so explicitl
 
 > **Nothing in §1.6 or §1.7 is a cost saving, and no figure here may be entered into `NP-COST-001`.**
 > Same rule as §7.2.2 — that document owns the re-derivation and must do it as a whole.
+
+### 1.8 Why so few sockets are populated — and the tile type that is missing
+
+**The premise of §1.6 and §1.7 is that electrode sites are scarce. They are scarce by assumption, not
+by decision.** `NP-COST-001` §2 A-1 is unambiguous:
+
+> *"There is **no per-configuration tile population** in the document set. Searching every controlled
+> document for the configuration names returns two hits, both of which merely cite the $405 Home
+> Standard BOM in passing. Neither allocates tiles to a configuration. **This is the input the whole
+> model depends on, and it has never been decided."* — `OI-COST-01`
+
+Home Standard's 30 tiles is a figure a cost model adopted because it needed one, assembled from
+`NP-HEX-ZM-001` §4a (*"~8–9 × T1-B … + the balance in T1-A"*) and `NP-HW-HEXTILE-001` §6.4 option 1
+(*"a build populating 20–30 tiles retains full protocol flexibility"*).
+
+#### 1.8.1 The only argument on record against full population is about emitters
+
+`NP-HW-HEXTILE-001` §6.4 option 1:
+
+> *"**Do not populate all sockets.** §9 shows the power envelope permits only ~5–6 tiles to run
+> concurrently regardless; the lattice's value is placement freedom, not simultaneous activation."*
+
+That is a **power** argument and it is sound on its own terms — §9 gives T1 peak 45–50 W, ~6–8 W of
+non-PBM overhead, ~38–42 W available to emitters, and 25.0 W for one T1-A at full dual-channel drive,
+hence ~6 concurrent tiles at 25 % duty.
+
+> **An electrode draws microamps.** The concurrency ceiling — the *only* stated reason not to fill the
+> lattice — does not reach the recording half at all. An argument made about emitters has been
+> inherited by a decision about electrodes, and §1.6/§1.7 inherited it in turn.
+
+#### 1.8.2 The lattice is paid for in every configuration regardless
+
+`NP-COST-001` §2 A-2: the L1 carrier is laminated with **all ~80 sockets and all 18 cluster
+controllers in every configuration, including Core.** The socket spring-contact arrays ($32–64) and
+the cluster-controller tier ($114.12) are sunk whether 4 tiles are populated or 80. Configurations
+differ *only* in tiles.
+
+**So the marginal cost of filling an empty socket is exactly one tile** — and per-tile cost is
+dominated by things an electrode does not use: `NP-HW-HEXTILE-001` §6.4's **$11.53/tile of driver and
+metering, ~$10 of it two InGaAs photodiodes** (`OI-HEXTILE-06`), plus emitters, which are uncosted and
+unselected (term **U**, `OI-HEXTILE-02`).
+
+#### 1.8.3 T1-B is a PBM tile with a hole in it
+
+Every electrode site today drags a full PBM tile's cost behind it. T1-B is *"a masking derivation"*
+(§4.5) — ~44 emitters, an LED driver, an InGaAs pair, dose metering and an NTC throttle, all to host
+one Ag/AgCl pad. **There is no electrode-only tile type in the taxonomy.**
+
+Such a type — call it **T1-E** — would carry the pad, the spring pod, and a cents-level UID responder
+so `np_module_map` can inventory it. It preserves `NP-HEX-ZM-001` §4a's invariant *more* easily than
+T1-B does: one mould, one outline, one socket interface, *"only a different placement file"* — with
+nothing to mask, because there is nothing to remove.
+
+| Build | Tiles | Emitters | vs 2,286 | Electrode sites | Driver + metering on electrode tiles |
+|---|---|---|---|---|---|
+| **Today** — 21 T1-A + 9 T1-B | 30 | 2,286 | baseline | 9 | 9 × $11.53 = **$104** |
+| 21 T1-A + 9 T1-E | 30 | **1,890** | **−17.3 %** | 9 | ~$0 |
+| 21 T1-A + 20 T1-E | 41 | **1,890** | **−17.3 %** | **20** | ~$0 |
+
+> **This is the only option examined anywhere in §§1.6–1.8 that moves term U in the right direction.**
+> Every other variant inflates it — 2 electrodes/tile +13.0 %, 4/tile +7.5 %, the net +18.1 %, even
+> §1.4's in-tile offset +3.9 %. T1-E cuts it **17 %** while more than doubling electrode sites, and at
+> constant electrode count it strictly dominates T1-B on both cost terms.
+
+#### 1.8.4 Four costs, stated
+
+1. **PBM coverage at electrode sites falls to zero.** T1-B delivers ~44 emitters, about 49 % of a
+   T1-A; T1-E delivers none. Whether that is acceptable is an `NP-OPT-PSF-001` coverage question and is
+   **not answered here** — it is the substance of `OI-EEGNET-21` and the reason T1-E is a proposal
+   rather than a recommendation.
+2. **It is a fifth tile type**, which lands on `NP-HFE-002` §7.3's L3 marking at exactly the point
+   §2.3(a) puts tactile counting at *"reliable to about 4–5"*. It therefore depends on the L3 encoding
+   question raised at §1.7.4 and now carried by `OI-HFE2-10`.
+3. **It does not fix N.** Twenty electrode sites with N = 8 still records 8 (§1.7.5). T1-E makes
+   *sites* cheap, not *channels*, so §1.6's ceiling stands and becomes unambiguously the binding one.
+4. **Mass, assembly time and per-tile gasket seam length** all scale with population and none is
+   stated anywhere — the same gap `OI-COST-01` records for population itself.
+
+> **No figure in §1.8 may be entered into `NP-COST-001`.** Same rule as §7.2.2 and §1.7.5: that
+> document owns the re-derivation, and `OI-COST-01` must be decided there, not inferred here.
 
 ---
 
@@ -1055,6 +1173,8 @@ Per `NP-CONV-001` §7. Nothing below is reversed by this document; each is *rais
 | **Electrodes per tile** (`NP-HW-HEXTILE-001` §4.5, D-1) | One, at site 0, by convention | **Raised as an open variable — 1 vs 2, uniform vs mixed** | §1.7, `OI-EEGNET-19`. Not decided; §1.7.4 recommends uniform if it is pursued at all |
 | **`REQ-SKT-01`** — pad array is two staggered rows | Binding, not advisory | **Raised — row count and row straightness are both free; neither should be assumed away** | §1.7.2. The two-row constraint follows from row *length*, not from tile area, and a chord is the worst path across a hexagon. §1.7.3 gives an argument for re-shaping at *constant* contact count, and a new counter-cost (angular tolerance) |
 | **Socket contact count = 19** (`NP-DRV-SHELL-002` §5.1.4, D-5) | Closed by principal decision 2026-08-11; 2 reserved dropped | **Not reopened here — raised as a variable the MECH-2 / HFE force study should carry** | §1.7.2, `OI-EEGNET-20`. That study must run anyway to close `OI-SHELL2-03(b)`, and it is the only one that can price a contact |
+| Per-configuration tile population (`NP-COST-001` §2 A-1) | 30 tiles for Home Standard, 9 of them T1-B | **Raised — it is an adopted assumption, not a decision, and §1.8 shows its stated basis is an emitter-power argument that does not reach electrodes** | §1.8, `OI-EEGNET-21`. Routed to `OI-COST-01`, which owns it |
+| Tile taxonomy (`NP-HEX-ZM-001` §4a) | Three T1 types; every electrode site is a depopulated PBM tile | **Raised — an electrode-only T1-E is proposed, not adopted** | §1.8.3. Preserves the one-mould invariant; costs PBM coverage at electrode sites, which `NP-OPT-PSF-001` must price |
 | `NP-HFE-002` §7.1(d) standard-electrode-site marker | Deleted along with T1-B (§7.1.4), *"9 positions that matter"* → zero | **Direction is now contested** — §1.7 makes L1(d) *more* load-bearing | §1.7.4. Both directions cannot be pursued; whichever is adopted must say so |
 
 ### 7.4 Blast radius, measured
@@ -1106,7 +1226,8 @@ architecture no longer needs.
 | **OI-EEGNET-17** | §1.1's model is 2D sagittal only. The coronal plane, where cephalic index 0.70–0.85 acts, has not been computed | Systems | With OI-EEGNET-14 |
 | **OI-EEGNET-18** | **Spatial sampling density as an alternative to placement tolerance (§1.6).** Two halves: (a) establish the actual sampling requirement for this geometry and these measures — the ~20 mm figure is a literature estimate and is **not** a project number; (b) determine whether array pose can be recovered well enough to interpolate against anatomy, which is `OI-EEGNET-14` in a different currency. **Scope is recording only** — §1.6 limit 3 excludes tES and the Oz gate. Interacts with `OI-EEGNET-15`: if tolerance is modality-dependent, so is this | Systems + Clinical | With OI-EEGNET-14/15 |
 | **OI-EEGNET-19** | **Electrodes per tile — study 1, 2, 3 and 4, uniform or mixed (§1.7).** The range is **not** 1–2: §1.6's density argument is only satisfied at 4/tile, so a study capped at 2 cannot answer the question that motivates it. Four ⌀11.4 mm pods fit at 20.5 mm intra-tile spacing (§1.7.1). Decide with `OI-HEXTILE-05`, not after it — pod diameter sets the emitter budget, the pod separation *and* the achievable pod count. **Note the cost axis runs the counterintuitive way**: 4 pods inflate emitters +7.5 % against 2 pods' +13.0 %, because each pod removes ~7 emitters. Three cross-cuts the study must carry: (a) shield per electrode or one shared DRL-driven shield — worth 3 contacts at 4 electrodes; (b) whether every electrode is dual-rated or only a subset (§1.7.1 — decoupling holds the safety-MCU channel count flat); (c) uniform vs mixed, where §1.7.4 recommends uniform. **Blocked by OI-EEGNET-20**: every electrode past the first needs socket positions that do not exist | Systems + ME + HFE | **T1-B layout; with OI-HEXTILE-05 and the N of §1.7.5** |
-| **OI-EEGNET-20** | **Carry socket contact count as a variable in the MECH-2 / HFE force study, and evaluate a three-row array (§1.7.2–§1.7.3).** Force is exactly linear at 0.3–0.5 N per contact, and 34.2–57.0 N at 19 is **already the unanswered question** in `OI-SHELL2-03(b)`. Route to `NP-DRV-SHELL-002` §5.1.4 and `NP-HW-HEXTILE-001` D-5 — **not decided here**. **Row count and row straightness are both free variables** — an edge-following L, chevron or polyline offers ~48 positions on one run at 2.00 mm pitch and holds constant edge margin, where a chord does not (§1.7.2). Independent of any electrode decision, §1.7.3 gives a µV-siting argument for re-shaping the array at constant count (`OI-HEXTILE-11`), against a newly identified cost: a spread array roughly **halves the angular tolerance** the mechanical key must hold, which no document currently states. **Time-boxed:** `OI-SHELL2-09(i)` blocks socket tooling; after that cut the count is permanent at every socket by the union rule | ME + HFE + EE | **MECH-2; before socket tooling** |
+| **OI-EEGNET-20** | **Carry socket contact count as a variable in the MECH-2 / HFE force study, and evaluate a three-row array (§1.7.2–§1.7.3).** Force is exactly linear at 0.3–0.5 N per contact, and 34.2–57.0 N at 19 is **already the unanswered question** in `OI-SHELL2-03(b)`. Route to `NP-DRV-SHELL-002` §5.1.4 and `NP-HW-HEXTILE-001` D-5 — **not decided here**. **Row count and row straightness are both free variables** — an edge-following L, chevron or polyline offers ~48 positions on one run at 2.00 mm pitch and holds constant edge margin, where a chord does not (§1.7.2). Independent of any electrode decision, §1.7.3 gives a µV-siting argument for re-shaping the array at constant count (`OI-HEXTILE-11`), against a newly identified cost: a spread array roughly **halves the angular tolerance** the mechanical key must hold, which no document currently states. **Two prerequisites the study cannot skip (§1.7.2):** the stated 34.2–57.0 N is **contact force only** — ejector springs, 30 per-tile gaskets and plunger preload are excluded — and there is **no input-force acceptance number** for the cluster actuator, §5.4a's ≤1 N being the retired per-module eject-lever figure. Required MA = load ÷ target and neither end exists. **Force-spread cancellation is a real second lever** worth 5.7 N per 0.05 N of spread removed, best implemented as socket-side spring-rate grading (preserves `R-2`); naive load-spreading stagger is counterproductive against an over-centre. **Release force may bind before throw force** (`OI-HFE2-05`), and the ejector-spring trade between them is stated nowhere. **Time-boxed:** `OI-SHELL2-09(i)` blocks socket tooling; after that cut the count is permanent at every socket by the union rule | ME + HFE + EE | **MECH-2; before socket tooling** |
+| **OI-EEGNET-21** | **An electrode-only tile type (T1-E) does not exist, and the reason electrode sites are scarce does not survive inspection (§1.8).** Per-configuration tile population *"has never been decided"* (`OI-COST-01`); the only argument on record against full population is `NP-HW-HEXTILE-001` §6.4's concurrency ceiling, which is a **power** argument that does not reach an electrode. The lattice — all ~80 sockets, all 18 cluster controllers — is paid for in every configuration (`NP-COST-001` A-2), so the marginal cost of a populated socket is one tile, and tile cost is dominated by the $11.53 driver/metering (~$10 of it InGaAs) and by emitters, none of which an electrode uses. **T1-E is the only option in §§1.6–1.8 that moves term U the right way: −17.3 % emitters while doubling electrode sites, and it strictly dominates T1-B at constant electrode count.** Decide the PBM-coverage cost against `NP-OPT-PSF-001` — that is the question, and it is not answered here. Depends on `OI-HFE2-10` for the fifth-type marking; does **not** relieve the N ceiling of §1.7.5 | Principal + Product + Systems | **With OI-COST-01 and OI-HEXTILE-06** |
 
 ## 9. Cross-references
 
@@ -1119,7 +1240,9 @@ seam), §5.3 (fluxgate siting) · `NP-HELMET-GEOM-001` §0 (inner-shield abandon
 `NP-HFE-002` §2.3 (discriminability), §2.5 (type vs position), §3 (C-1…C-9), §7.1(d) (site marker),
 §7.3 (L3 type marking), §7.4 (orientation) · `NP-HW-HUB-001` §5 (N4 channel count), §7.2 (enable word) ·
 `NP-HW-HUB-001` §9.5 (calibration is module property) · `NP-THERM-BEZEL-001` (bezel, THERM-1) ·
-`NP-RISK-002` (RISK-21) · `NP-COST-001` §2 (term U), §6 (`OI-HEXTILE-06`) · `NP-OPT-PSF-001` ·
+`NP-RISK-002` (RISK-21) · `NP-COST-001` §2 A-1/A-2 (tile population, L1 carrier), §2 (term U), §5 (emitter formula), §6 (`OI-HEXTILE-06`) ·
+`NP-HW-HEXTILE-001` §6.4 (populate-all argument), §9 (concurrency ceiling) ·
+`NP-HEX-ZM-001` §5.4a (cluster clamp, plunger, ejector springs, actuator intent) · `NP-OPT-PSF-001` ·
 `NP-HFE-002` §5 · `NP-ENV-OPRANGE-001` §4 · `NP-CONV-001` Rev 6 · CLAUDE.md §3, §4.2, §4.3, §4.4, §5.1
 
 ---

@@ -2,13 +2,13 @@
 
 **Project:** NeurOne
 **Document:** NP-HFE-002
-**Revision:** 1
-**Date:** 2026-07-31
+**Revision:** 2
+**Date:** 2026-08-20
 **Status:** DRAFT
 **Effective Date:** 2026-07-31
-**Author:** Steve Hickman (CEO, interim Quality authority)
-**Approved By:** Steve Hickman, CEO
-**References:** NP-HFE-001 Rev 1 (CT-01); NP-HEX-ZM-001 Rev 1 §3.2/§3.4/§4a/§5.4a; NP-DT-001 Rev 2 (DI-USE-05); NP-RM-001 Rev 1 (RISK-15, RISK-22); NP-FW-ZA-001 Rev 1 (superseded — bone-conduction supersession note); NP-TOOL-ZM-SM-001 Rev 1 (superseded — F-05/F-06 braille + tactile dots); IEC 62366-1:2015+AMD1:2020; FDA HFE Guidance 2016; ISO 17049:2013; ISO 21542:2021 §75 (tactile wayfinding); WCAG 2.2 / Apple VoiceOver + Android TalkBack platform conventions
+**Author:** NeurOne Systems Engineering (Rev 2); Steve Hickman (CEO, interim Quality authority) (Rev 1)
+**Approved By:** — (Rev 2 pending review; Rev 1 approved by Steve Hickman, CEO, 2026-07-31)
+**References:** NP-HFE-001 Rev 1 (CT-01); NP-HEX-ZM-001 Rev 1 §3.2/§3.4/§4a/§5.4a; NP-DT-001 Rev 2 (DI-USE-05); NP-RM-001 Rev 1 (RISK-15, RISK-22); NP-FW-ZA-001 Rev 1 (superseded — bone-conduction supersession note); NP-TOOL-ZM-SM-001 Rev 1 (superseded — F-05/F-06 braille + tactile dots); IEC 62366-1:2015+AMD1:2020; FDA HFE Guidance 2016; ISO 17049:2013; ISO 21542:2021 §75 (tactile wayfinding); NP-HW-EEGNET-001 Rev 3 §1.7.4/§1.8 (fifth-type pressure on L3); WCAG 2.2 / Apple VoiceOver + Android TalkBack platform conventions
 **Related Issues:** —
 **Gate:** NP-COORD-001 G3 (VE-12), via NP-HFE-001 §7/§8
 **IEC 62304 Class:** SW-03 Class B (companion app guidance); SW-02 Class B (hub inventory reporting). No Class C content — no layer of this design is a safety interlock (see §10).
@@ -182,7 +182,7 @@ Ship a raised-line tactile diagram of the lattice with the standard map marked, 
 |---|---|---|---|---|
 | **L1 — Tactile landmark grid** | Makes a spoken position instruction *followable by touch* | 4 feature kinds | Shell (inner bowl web + rim) | New, §7.1 |
 | **L2 — App guided placement** | Carries protocol intent; issues, confirms and corrects each placement | unbounded | Companion app (SW-03) | New, §7.2 |
-| **L3 — Module-type tactile marking** | Tells the user *what is in their hand* | 3 (T1) / 4 (T2) | Module face (universal mould, type-specific insert) | New, §7.3 |
+| **L3 — Module-type tactile marking** | Tells the user *what is in their hand* | 3 (T1) / 4 (T2), **encoding heads to 6** | Module face (universal mould, type-specific insert) | New, §7.3; encoding revised at Rev 2 |
 | **L4 — Software placement gate** | Refuses to run a protocol against a mismatched map | — | `np_module_map_check_placement()` | **Delivered** (C-8) |
 | **L5 — While-worn audio readback** | Confirms configuration when the helmet is on the head | — | Bone conduction | Separate work item, constrained at §7.5 |
 | **F — Tactile placement card** | Phone-free fallback for shipped standard maps | standard maps only | In-box accessory | New, §7.6 |
@@ -270,16 +270,65 @@ The retired Layer 3 put a tactile marking on the module. That was right; it iden
 
 Marking is on the module's outward (shell-facing, non-emitting) face, reachable with the module in hand:
 
-| Type | Marking | Rationale |
-|---|---|---|
-| T1-A base PBM | 1 raised bar | Most common; simplest symbol |
-| T1-B EEG / dual electrode | 2 raised bars | Also carries the L1(d) dimple correspondence |
-| T1-C 1064 nm smart PBM | 3 raised bars | Highest-value part ($149–199/zone) |
-| T2-D 1170 nm laser | 4 raised bars | T2 only |
+**Encoding (Rev 2): a nested figure, not a bar count.** Rev 1 specified 1/2/3/4 raised bars in a row.
+That works at four types and stops there, because it is **counting**, and §2.3(a) puts tactile counting
+at *"reliable to about 4–5 and degrades fast beyond that."* Rev 2 keeps the raised bar as the *element*
+and changes what the elements build: each successive type adds one bar to a figure rather than one item
+to a tally.
 
-Bars, not dots: a bar is discriminable by a single sweeping touch rather than requiring a fingertip census, and bar count to 4 is well inside the reliable range. ISO 17049 braille may be co-moulded **in addition**, never instead — the design must not require braille literacy.
+| Elements | Figure | Type | What discriminates it from its predecessor |
+|---|---|---|---|
+| 1 | one side of a square — a single bar | **T1-A** base PBM | — (most common; simplest symbol) |
+| 2 | two sides — a corner | **T1-B** EEG / dual electrode | topology: a line versus an angle |
+| 3 | three sides — an open U | **T1-C** 1064 nm smart PBM | gross shape |
+| 4 | four sides — a closed square | **T2-D** 1170 nm laser | perimeter completeness |
+| 5 | square + one diagonal | *reserved* | interior content |
+| 6 | square + both diagonals — an X in a square | *reserved* | interior content |
 
-**Tooling note.** C-1 forbids type-differentiating *mechanical keying*, which is about mating geometry that blocks insertion. A marking on the non-mating outward face is not a key: it does not restrict which socket a module enters, and it must not be allowed to become one. Implement as a type-specific insert in the otherwise universal mould, on a face that touches nothing (OI-HFE2-06).
+**Why this is not merely a bigger alphabet.** A closed figure is recognised whole; it is not counted.
+The scheme therefore steps outside the constraint that bounds Rev 1 at four, rather than stretching it.
+It also turns a flat 1-of-N identification into a **two-stage decision of branching ≤3**: perimeter
+open-or-closed splits the set into {1,2,3} and {4,5,6}, after which the user either counts sides (≤3)
+or reads the interior (empty / one diagonal / X). That is *better* than Rev 1's flat 1-of-4, so the
+change is worth making **even if the type set never exceeds four**.
+
+**Two drawing rules, both load-bearing.**
+
+1. **The gap sits at a fixed, known position** — always the same side, aligned to the module's
+   mechanical orientation key. Without this, distinguishing 3 from 4 means tracing the whole perimeter
+   to prove a negative; with it, it is a point check at a location the hand already found. The open
+   figure's gap must be unmistakably wide, never a hairline break. **3-versus-4 is the weakest
+   discrimination in the set and this rule is what carries it** (`OI-HFE2-10`).
+2. **One side aligns to the mechanical key.** A 4-fold figure on a 6-fold hex body has no natural
+   alignment and could invite a user to rotate the module to "square it up", competing with §7.4's
+   mechanical orientation feature. Aligning one side to the key makes the figure *reinforce*
+   orientation instead. Free, and it is the same feature rule 1 needs.
+
+**What does not change.** The element is still a raised **bar**, discriminable by a single sweeping
+touch rather than a fingertip census. **ISO 17049 braille may be co-moulded in addition, never
+instead** — the design must not require braille literacy (§2.3(a)). Diagonal handedness carries no
+information: "\" and "/" are the same figure rotated and both read as 5, so an arbitrary hold cannot
+produce a misread.
+
+**Fallback.** Rev 1's 1/2/3/4 bar row is retained as the fallback if `OI-HFE2-10`'s formative shows the
+3-versus-4 discrimination does not hold. The fallback caps the taxonomy at four types, which is a
+constraint on the *product*, not only on this document — see `NP-HW-EEGNET-001` §1.8, where a fifth
+(electrode-only) tile type is under consideration.
+
+**Tooling note.** C-1 forbids type-differentiating *mechanical keying*, which is about mating geometry
+that blocks insertion. A marking on the non-mating outward face is not a key: it does not restrict which
+socket a module enters, and it must not be allowed to become one. Implement as a type-specific insert in
+the otherwise universal mould, on a face that touches nothing (OI-HFE2-06).
+
+**Two tooling consequences of the nested figure specifically.** (i) All six variants are **subsets of
+one master figure** (square + two diagonals), so the family is one insert geometry with selective
+element suppression rather than four unrelated patterns — cheaper, and extensible without new geometry.
+(ii) The figure needs a **compact 2D patch** where a bar row could hug an edge. That makes
+`OI-HFE2-06` more binding, not less, and it surfaces a tension this document has carried since Rev 1:
+§7.3 places the marking on the *"outward (shell-facing, non-emitting)"* face while the tooling note
+requires *"a face that touches nothing"* — and the shell-facing face is also where the 19-contact pad
+array mates to its socket. Which region of which face carries the marking, alongside the pad array and
+any co-moulded braille cell, must be resolved under `OI-HFE2-06` before the insert is cut.
 
 ### 7.4 Orientation
 
@@ -318,6 +367,8 @@ Testable requirements entering NP-HFE-001's formative and summative plans. All a
 | HFE-R-12 | The entire flow completes with no network connectivity | L2 | Airplane-mode test |
 | HFE-R-13 | A blind user completes a standard T1 build unaided, with all non-DONT-CARE placements correct at first protocol start | L1+L2+L3 | **Summative** |
 | HFE-R-14 | No protocol starts against a module map that `check_placement` rejects | L4 | Already host-tested (C-8); re-confirmed at integration under SW-1 |
+| HFE-R-16 | The three-sided (open) figure is distinguished from the four-sided (closed) figure by touch with ≥98 % accuracy, with the gap at its specified fixed position | L3 | **Formative — this is the weakest pair in the §7.3 encoding (`OI-HFE2-10`)** |
+| HFE-R-17 | Identification of any L3 figure completes in ≤10 s by touch alone, without the module being rotated to a preferred orientation | L3 | Formative, n≥5 blind/low-vision |
 | HFE-R-15 | Protocol required-maps do not use DONT-CARE at any socket where module type materially changes the delivered wavelength | authoring | Build check over `protocols/predefined/` — see §10.2 |
 
 ---
@@ -368,9 +419,11 @@ No layer of this design is an ISO 14971 §7.4 risk control. L4 (`check_placement
 | OI-HFE2-03 | **Primary empirical risk** — tactile counting on a concave dome, reaching into a bowl, is materially harder than on a flat page. Formative must test counting accuracy *on helmet-representative curvature*, not on a flat mock-up, or it will produce a falsely reassuring result | HFE-R-01/02/03 credibility | NP-HFE-001 §7 |
 | OI-HFE2-04 | Cheap version of Option C: does the socket connector give a low-current presence-and-UID contact at *partial* insertion, before cluster clamp force? If so, confirmation granularity improves from per-cluster to per-module at ~zero cost. Connector-design question for MECH-2 | L2 confirmation granularity | MECH-2 |
 | OI-HFE2-05 | L2's confirm-and-correct loop assumes cheap re-opening of a cluster. Depends on MECH-2 delivering the low-force, large-target, one-handed actuator RISK-22 intent requires | L2 viability | MECH-2 |
-| OI-HFE2-06 | L3 type marking must be implemented as a mould insert on a **non-mating** face and must not become a de-facto mechanical key (would violate C-1 / SMART-1) | Module tooling | Tooling |
+| OI-HFE2-06 | L3 type marking must be implemented as a mould insert on a **non-mating** face and must not become a de-facto mechanical key (would violate C-1 / SMART-1). **Extended at Rev 2:** §7.3's nested figure needs a compact **2D patch** where a bar row could hug an edge, which makes the unresolved face question acute — §7.3 says *"outward (shell-facing, non-emitting)"* while this item says *"a face that touches nothing"*, and the shell-facing face also carries the 19-contact pad array. Resolve which region of which face carries the figure, the pad array and any co-moulded braille cell **before the insert is cut** | Module tooling | Tooling |
 | OI-HFE2-07 | RISK-15 severity re-rating (§10.1) is a change order under NP-QMS-DC-001 §8.1; not made by this document | Risk file currency | Quality |
 | OI-HFE2-08 | Recruit blind and low-vision participants for formative testing. NP-HFE-001 §7.2 already has an unresolved recruitment channel (OI-HFE-02) for the Parkinson's/post-stroke study; this is a **second, different** population and needs its own channel | Formative start | NP-HFE-001 OI-HFE-01/02 |
+| **OI-HFE2-10** | **Validate the §7.3 nested-figure encoding, and specifically the 3-versus-4 (open U vs closed square) discrimination — the weakest pair in the set.** Rev 2 substitutes a *shape* claim for Rev 1's *counting* claim; that is very likely favourable, but it is an empirical claim of the same kind as §7.1's counting-depth result and gets the same treatment. Run inside `OI-HFE2-03`'s formative, against **HFE-R-16/17**. **Decision consequence:** if it fails, the bar-row fallback caps the taxonomy at four types, which constrains the product — `NP-HW-EEGNET-001` §1.8 has a fifth (electrode-only) tile type under consideration, and `OI-EEGNET-21` depends on this item | HFE + Module tooling | **OI-HFE2-03 formative; before insert tooling** |
+| **OI-HFE2-11** | **L1(d)'s premise is contested from two directions and cannot serve both.** §7.1(d) is *one uniform feature* at ~9 instances whose value is the single rule *"place an EEG module wherever you feel the dimple."* `NP-HW-EEGNET-001` §7.1.4 would delete it (T1-B removed, *"9 positions that matter"* → zero); its §1.7/§1.8 would make it more load-bearing (more electrode-bearing tiles, possibly of two kinds). Whichever direction is adopted must state its effect on §7.1(d) explicitly rather than leaving it pointing at a premise that no longer holds | Systems + HFE | **REG-1, with OI-HFE2-01** |
 | OI-HFE2-09 | Firmware `np_module_map.h` still carries `np_lobe_t` / `NP_LOBE_*` and a `lobe` field in `np_socket_geom_t`, after ZONE-1 deleted the lobe concept from the generator and web app. L2's instruction grammar must not consume it. Out of scope here; noted because it is a live inconsistency | — | Firmware |
 
 ---
@@ -379,4 +432,5 @@ No layer of this design is an ISO 14971 §7.4 risk control. L4 (`check_placement
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| **2** | **2026-08-20** | NeurOne Systems Engineering | **§7.3 L3 encoding replaced; no other layer changed and no decision in §6 reversed.** *Was:* 1/2/3/4 raised bars in a row — a **count**, which §2.3(a) bounds at *"about 4–5"*, so the scheme stopped at four types. *Is:* a **nested figure** in which each type adds one bar to a shape — one side, corner, open U, closed square, square + diagonal, X in square — reaching **6**. *Cause:* a closed figure is recognised whole rather than counted, so the encoding steps outside the constraint instead of stretching it; and it converts a flat 1-of-N identification into a **two-stage decision of branching ≤3**, which is better than Rev 1 *even at four types*. The raised bar remains the element and the braille-in-addition-never-instead rule is unchanged. **Two drawing rules are load-bearing, not stylistic:** the gap sits at a fixed position aligned to the mechanical key (without it, 3-versus-4 requires tracing the perimeter to prove a negative), and one side aligns to that key so the figure reinforces §7.4's orientation feature rather than competing with it. **Rev 1's bar row is retained as an explicit fallback**, and its cost is named: it caps the taxonomy at four types, which is a product constraint, not merely a documentation one. **New: HFE-R-16/17** (3-versus-4 discrimination ≥98 %; identification ≤10 s without re-orienting the module). **New: OI-HFE2-10** — validate the encoding inside `OI-HFE2-03`'s formative; **OI-HFE2-11** — L1(d)'s premise is contested in opposite directions by `NP-HW-EEGNET-001` §7.1.4 and its §1.7/§1.8. **OI-HFE2-06 extended** with the 2D-patch area demand and the unresolved *"shell-facing"* versus *"touches nothing"* face question, which the nested figure makes acute. Two tooling consequences recorded: all six variants are subsets of one master figure, so the family is one insert geometry with selective suppression. **Rev 2 is unapproved**; Rev 1's approval is retained in the front matter. |
 | 1 | 2026-07-31 | Steve Hickman (CEO, interim Quality authority) | Initial release. Replaces the RISK-15 Layer 3/4/5 accessible position-identification scheme, which did not survive the hex-tile redesign. Adopts a layered design: tactile landmark grid (L1), companion-app guided placement (L2, primary), module-type tactile marking (L3), existing `check_placement` gate (L4), while-worn bone conduction (L5, constrained only), tactile placement card (F, fallback). Rejects per-socket tactile symbols (geometry and discriminability) and per-socket touch-to-speak (cost). Records the RISK-15 severity reframe and the DONT-CARE/wavelength authoring gap (HFE-R-15). Closes the open gap flagged at NP-HFE-001 CT-01 and NP-DT-001 DI-USE-05. |
