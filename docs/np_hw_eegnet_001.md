@@ -34,7 +34,8 @@
 > |---|---|---|---|
 > | Electrode count per tile | Treated as given at **one**, with §1.4 varying only the electrode's *offset* inside the tile | An **open variable**, and the input §1.6's density argument needs | §1.4 established that electrode pitch ≠ tile pitch. Electrode *count* is the same class of assumption and was never examined |
 > | What the placement budget is *for* | A mechanical tolerance (±10 mm, §3.4) to be held by geometry | Possibly the wrong instrument for **recording** modalities — density plus pose measurement may substitute | §1.6. Absent from the entire document set; no interpolation or spatial-sampling argument exists anywhere in `docs/` or `firmware/` |
-> | Why more socket contacts are hard | Read as a geometry limit | An **accessibility-force** limit, exactly linear in contact count, on a question `OI-SHELL2-03(b)` has not answered | §1.7.2. `REQ-SKT-01`'s two rows were *"Forced, not preferred"* — forced by row **length**. Three rows hold 30 contacts at the same 18 mm span |
+> | Why more socket contacts are hard | Read as a geometry limit | An **accessibility-force** limit, exactly linear in contact count, on a question `OI-SHELL2-03(b)` has not answered | §1.7.2. `REQ-SKT-01`'s two rows were *"Forced, not preferred"* — forced by row **length**. Three rows hold 30 contacts at the same 18 mm span, and an edge-following run holds ~48 |
+> | Emitter count under multiple pods | — | **More pods inflate emitters *less*, not more** — 4 pods +7.5 % vs 2 pods +13.0 % | §1.7.1. Each pod removes ~7 emitters, so the cost axis runs opposite to the intuition. This corrects a first draft of §1.7.1 that read the sign the wrong way |
 >
 > **Three things this revision is careful not to claim.** (i) It does **not** contest `REQ-SKT-01`, the
 > 19-contact count, or `SMART-1` — each is *raised* into §7.3 and routed to its owning document, in the
@@ -246,6 +247,28 @@ electrode population divides the area per electrode and scales the spacing by 1/
 | 3 | 462 mm² | 23.1 mm |
 | 4 | 346 mm² | 20.0 mm |
 
+**The table describes the lattice's ceiling, not any shipped configuration — and this is the finding,
+not a footnote.** It assumes *every* tile carries the stated count. Home Standard populates 9 T1-B
+tiles of 30, and only **N** electrodes are simultaneously recordable, where N is 8 (T1) or 21 (T2),
+set by the ADS1299 bank (§1.7.5). Equivalent spacing over the 30-tile field:
+
+| Electrodes | Equivalent spacing | What this is |
+|---|---|---|
+| 9 | 73.0 mm | Home Standard today — 9 T1-B tiles, one electrode each |
+| 8 | 77.4 mm | T1's simultaneous channel count |
+| 21 | 47.8 mm | T2's simultaneous channel count |
+| **120** | **20.0 mm** | **4 per tile on all 30 tiles — what the ~20 mm row actually requires** |
+
+> **Sampling density and ADC channel count are the same constraint seen twice.** Reaching 20 mm needs
+> ~**15×** T1's channel count and ~**5.7×** T2's. No electrode-per-tile decision reaches the
+> reconstruction regime on its own; `OI-EEGNET-19` and the N in §1.7.5 must be decided together or
+> neither means anything.
+
+**One consequence for the study design.** Four electrodes on nine tiles is **not** a 20 mm field — it
+is dense patches at ~20.5 mm intra-tile spacing (§1.7.1) separated by the 40 mm tile pitch. Non-uniform
+sampling does not behave like uniform sampling at the mean density, and `OI-EEGNET-18` must treat the
+patch structure explicitly rather than quoting an average.
+
 **Four limits, stated rather than buried.**
 
 1. **The sampling target is not a project figure.** The commonly cited estimate for adequate scalp-field
@@ -288,10 +311,38 @@ at the ±14.5 mm offset that ring-0–1 masking allows (§1.4 table) sit **29.0 
 that line spacing, and closable by the half-module row parity offset. One tile row then reaches two
 10-20 rows, which attacks the recorded defect directly rather than by brute sampling.
 
-**Emitter count plausibly improves.** T1-B today masks rings 0–3 for one large pod, leaving ~44
-emitters (`NP-HW-HEXTILE-001` §4.5). Two small pods masking rings 0–1 each leave ~77. Two small holes
-beat one big hole. This is contingent on `OI-HEXTILE-05` and inherits `OI-EEGNET-16` — the pod diameter
-is still the registration budget in disguise, and now the emitter budget as well.
+**Four pods fit, and the intra-tile spacing lands on the target.** Four ⌀11.4 mm pods on a square at
+radius 14.51 mm inside the 20.21 mm active field sit **20.5 mm apart** (29.0 mm on the diagonal), well
+clear of collision. That intra-tile figure meets §1.6's ~20 mm target locally; what fails is the
+40 mm gap *between* tiles.
+
+**The emitter trade has opposite signs on two axes, and the cost axis is the one §1.4/§1.5 use.**
+More, smaller pods retain **more** emitters than one large pod — better PBM coverage at electrode
+sites — and *more emitters is more BOM*, which inflates term **U**. Against T1-B's current ~44
+emitters (one ⌀26.6 mm pod, rings 0–3, `NP-HW-HEXTILE-001` §4.5):
+
+| Pods per T1-B tile | Emitters/tile | Home Standard total | vs 2,286 |
+|---|---|---|---|
+| 1 large (⌀26.6, today) | ~44 | 2,286 | baseline |
+| 1 small (⌀11.4) | ~84 | 2,646 | +15.7 % |
+| 2 small | ~77 | 2,583 | +13.0 % |
+| 3 small | ~70 | 2,520 | +10.2 % |
+| **4 small** | **~63** | **2,457** | **+7.5 %** |
+| *(net — T1-B deleted, all T1-A)* | *90* | *2,700* | *+18.1 %* |
+
+> **More electrodes per tile is *cheaper* than fewer**, on the axis that binds. This is the opposite of
+> the intuition and it is the strongest single argument for carrying the study to 4: every added pod
+> removes ~7 emitters, so 4 pods (+7.5 %) costs less than 2 (+13.0 %) and under half the net (+18.1 %).
+> It remains worse than §1.4's in-tile offset (+3.9 %), which adds no pod at all.
+
+All of it is contingent on `OI-HEXTILE-05` and inherits `OI-EEGNET-16` — pod diameter is the
+registration budget, the emitter budget *and* the achievable pod count in one unspecified number.
+
+**Recording and stimulating sites can be decoupled above 1/tile.** At one electrode per tile the two
+roles are forced onto one dual-rated pad (§0). At 2–4 they need not be: a tile can carry several
+recording-only pads and one dual-rated pad. This matters twice — it holds the safety-MCU stimulation
+channel count flat while multiplying recording density (§1.7.5), and it is the clean answer to §1.6's
+third limit, since the density argument applies only to recording and tES keeps its physical placement.
 
 #### 1.7.2 The gate is the socket contact budget, and it is a force budget
 
@@ -306,15 +357,27 @@ row span**, and a 30-contact three-row array occupies roughly 62 mm² of a 1,385
 4.5 %. Twenty-one contacts in *two* rows spans 20 mm, i.e. sits exactly at the limit with no margin;
 the same 21 in three rows does not.
 
-**The obstacle is clamp force, and it is exactly linear in contact count.** `NP-HW-HEXTILE-001` §7.1
-gives 0.3–0.5 N per contact → 5.7–9.5 N per module → 34.2–57.0 N per 6-tile plate:
+**Nor do the rows have to be straight.** A run of contacts may follow the hex — an L, a chevron, or a
+polyline at constant offset from the edge. This is worth more than a third row: a chord is the *worst*
+path across a hexagon (it is what *"tapers into the corners exactly where the ±0.4 mm lateral tolerance
+is hardest to hold"*), whereas an edge-parallel polyline holds constant edge margin over its whole
+length, and a hexagonal ring at 16 mm radius offers ~96 mm of path — **~48 positions at 2.00 mm pitch
+on a single run.** Row *count* and row *straightness* are both free variables; only contact count is not.
 
-| Contacts per tile | Per module | **Per 6-tile clamp plate** |
-|---|---|---|
-| **19 (adopted)** | 5.7–9.5 N | **34.2–57.0 N** |
-| 21 | 6.3–10.5 N | 37.8–63.0 N |
-| 24 | 7.2–12.0 N | 43.2–72.0 N |
-| 30 | 9.0–15.0 N | **54.0–90.0 N** |
+**The obstacle is clamp force, and it is exactly linear in contact count.** `NP-HW-HEXTILE-001` §7.1
+gives 0.3–0.5 N per contact → 5.7–9.5 N per module → 34.2–57.0 N per 6-tile plate. Each electrode adds
+`ELEC`, and adds `ELEC_SHLD` only if the shield is per-electrode rather than one DRL-driven shield
+shared across the tile — a question this document does not answer, and worth 3 contacts at 4 electrodes:
+
+| Electrodes/tile | Contacts (shared shield) | Contacts (per-electrode shield) | **Plate load, shared** | **Plate load, per-electrode** |
+|---|---|---|---|---|
+| **1 (adopted)** | 19 | 19 | **34.2–57.0 N** | **34.2–57.0 N** |
+| 2 | 20 | 21 | 36.0–60.0 N | 37.8–63.0 N |
+| 3 | 21 | 23 | 37.8–63.0 N | 41.4–69.0 N |
+| **4** | **22** | **25** | **39.6–66.0 N** | **45.0–75.0 N** |
+
+Twenty-five contacts in three rows put the longest row at 9 pads = 16 mm, *inside* today's 18 mm span.
+Area never binds; force always does.
 
 **34.2–57.0 N is already the open question**, not a cleared bar: `OI-SHELL2-03(b)` asks whether it is
 one-handed-achievable through the §5.4a over-centre actuator at Parkinson's H&Y II–III, against
@@ -331,19 +394,31 @@ has also just spent contacts in that currency deliberately — `VLED`/`PGND` wen
 | Lower per-contact force | Direct | **Bad lever.** 0.3–0.5 N is already low; below it, fretting and contact resistance run into `SH2-DRC-09`'s resistance→heating bound and `OI-HEXTILE-11`'s unquantified µV-path contact noise |
 | Staggered seating heights | Changes the force *profile* | **Not a lever.** Total spring energy at full compression is unchanged |
 
-#### 1.7.3 Two properties a third row changes, one for better and one for worse
+#### 1.7.3 What a third row — or a non-straight one — changes, in both directions
 
-**Better — µV siting.** Today `ELEC`/`ELEC_SHLD` share a two-row array with 3 × `VLED` at 24 V
-(0.35 A/pin nominal, 0.52 A on loss of one contact). A third row provides a transverse axis on which to
-separate the µV recording pair from the power contacts. Given `OI-HEXTILE-11` — pogo contact noise in a
-µV chain is *not* covered by the ≤50 mΩ resistance spec — this is an argument for three rows **at
-constant contact count**, independent of any electrode-count decision.
+**Better — µV siting, and a non-straight array is much better than a third row.** Today
+`ELEC`/`ELEC_SHLD` share a two-row array with 3 × `VLED` at 24 V (0.35 A/pin nominal, 0.52 A on loss of
+one contact). A third row buys ~1.7 mm of separation; an edge-following array buys up to the tile's full
+width, letting the µV pins sit on one hex face and the power contacts on the opposite one. Given
+`OI-HEXTILE-11` — pogo contact noise in a µV chain is *not* covered by the ≤50 mΩ resistance spec —
+this is an argument for re-shaping the array **at constant contact count**, independent of any
+electrode-count decision.
 
-**Worse — the mis-key asymmetry stops being free.** `NP-HW-HEXTILE-001` §7.1 notes that the two-row
+**Worse — spreading the array tightens the *rotational* tolerance, and nothing has priced this.** The
+±0.4 mm lateral blind-mate budget is a displacement, and a tile rotation θ displaces a contact by R·θ at
+radius R from the array centroid. Today's ~18 × 1.7 mm array has R ≲ 9 mm, so 0.4 mm absorbs ~2.5° of
+rotation; an edge-following ring at R = 16 mm absorbs only ~1.4°. **Spreading the array roughly halves
+the angular tolerance the mechanical key must hold**, and no document in the set states what that key
+actually holds. This is the cost of the µV-siting benefit above, it is new, and it applies to any
+non-compact array whether or not the contact count changes.
+
+**Mixed — the mis-key asymmetry stops being free, but a shaped array can do better than a count.** `NP-HW-HEXTILE-001` §7.1 notes that the two-row
 layout *"makes this easier, not harder: a row-length difference (9 vs 10) is itself an asymmetry"*,
 carrying the fail-open geometry that stops a mis-keyed insertion making contact. A symmetric 10+10+10
 loses that; 9+10+11 keeps it, and uneven row spacing or an offset middle row provides a *second*
-asymmetry axis that two rows do not have. `HT-DRC-22` and `SH2-DRC-05a` would both need re-verification,
+asymmetry axis that two rows do not have. A deliberately **chiral** run — an L with unequal legs, or a
+chevron — carries the fail-open geometry far more robustly than any row-length difference, because it
+fails under rotation rather than under a miscount. `HT-DRC-22` and `SH2-DRC-05a` would both need re-verification,
 and so would the claim that the two-row layout is what keeps the ±0.4 mm lateral blind-mate tolerance
 holdable.
 
@@ -388,7 +463,8 @@ load-bearing. Both cannot be pursued; whichever is adopted must say so explicitl
 
 | Consequence | Owner | Note |
 |---|---|---|
-| ADC channel count is the true ceiling | `NP-HW-HUB-001` §5 | N4 muxes any socket's `ELEC` onto **N** channels — 8 (T1) / 21 (T2), set by the ADS1299 bank. More electrodes buy nothing without more N; 16-channel T1 is 2 × ADS1299 |
+| **ADC channel count is the true ceiling, and it is the same constraint as sampling density** | `NP-HW-HUB-001` §5 | N4 muxes any socket's `ELEC` onto **N** channels — 8 (T1) / 21 (T2), set by the ADS1299 bank. §1.6 shows the ~20 mm target needs ~120 electrodes: **~15× T1's N and ~5.7× T2's.** More electrodes buy nothing without more N, and N is the more expensive half. 16-channel T1 is 2 × ADS1299. `OI-EEGNET-19` is undecidable without a position on N |
+| Safety-MCU load depends on how many electrodes are **dual-rated**, not how many exist | `NP-HW-HUB-001` §7.2 | §1.7.1's decoupling lever: recording-only pads cost the safety MCU nothing. Four electrodes per tile with one dual-rated pad leaves the stimulation channel count unchanged |
 | Per-cluster electrode mux width doubles | `NP-DRV-SHELL-002` §3.5 | 6 tiles → up to 12 electrode inputs per cluster. Tail conductor count is set by shared-lane count, not by socket count, so the tail impact is modest — but it is not zero and is not derived here |
 | Safety-MCU frame growth | `NP-HW-HUB-001` §7.2 | Enable-bit position ≡ charge-monitor channel index, and the 38-byte extended heartbeat has **zero spare bytes**. Doubling *stimulating* electrodes moves `NP_SAFETY_RX_EXT_FRAME_LEN`, both checksum spans, the size assertion and eight `offsetof` assertions — a Class C wire-format change |
 | Socket array BOM | `NP-DRV-SHELL-002` §10.1 | $0.40–0.80 per **socket array** of 19 contacts, $32–64 per headset at 80 sockets. If price scales with contact count, 21 contacts is **+$3–7** and 30 contacts **+$19–37** per headset — against a configuration at −41 % to −51 % gross margin |
@@ -977,7 +1053,7 @@ Per `NP-CONV-001` §7. Nothing below is reversed by this document; each is *rais
 | `EEG-ROUTE-CHANNEL` | RETIRED from shell tooling | Returns in some form | §7.2.3 |
 | Single inner transparent shield (`NP-HELMET-GEOM-001` §0) | **ABANDONED**, on exactly one stated ground: *"electrodes must galvanically contact skin, which a continuous dielectric barrier physically blocks"* | **Reopened — NOT decided here** | That ground is removed when no electrode is in the lattice. Consequences for sealing (`SEAL-1`, 80 gaskets), cleaning and tooling are large and belong to a principal decision, not to this document |
 | **Electrodes per tile** (`NP-HW-HEXTILE-001` §4.5, D-1) | One, at site 0, by convention | **Raised as an open variable — 1 vs 2, uniform vs mixed** | §1.7, `OI-EEGNET-19`. Not decided; §1.7.4 recommends uniform if it is pursued at all |
-| **`REQ-SKT-01`** — pad array is two staggered rows | Binding, not advisory | **Raised — three rows should be evaluated, not assumed away** | §1.7.2. The two-row constraint follows from row *length*; it does not follow from tile area. §1.7.3 gives one argument for three rows at *constant* contact count |
+| **`REQ-SKT-01`** — pad array is two staggered rows | Binding, not advisory | **Raised — row count and row straightness are both free; neither should be assumed away** | §1.7.2. The two-row constraint follows from row *length*, not from tile area, and a chord is the worst path across a hexagon. §1.7.3 gives an argument for re-shaping at *constant* contact count, and a new counter-cost (angular tolerance) |
 | **Socket contact count = 19** (`NP-DRV-SHELL-002` §5.1.4, D-5) | Closed by principal decision 2026-08-11; 2 reserved dropped | **Not reopened here — raised as a variable the MECH-2 / HFE force study should carry** | §1.7.2, `OI-EEGNET-20`. That study must run anyway to close `OI-SHELL2-03(b)`, and it is the only one that can price a contact |
 | `NP-HFE-002` §7.1(d) standard-electrode-site marker | Deleted along with T1-B (§7.1.4), *"9 positions that matter"* → zero | **Direction is now contested** — §1.7 makes L1(d) *more* load-bearing | §1.7.4. Both directions cannot be pursued; whichever is adopted must say so |
 
@@ -1029,8 +1105,8 @@ architecture no longer needs.
 | **OI-EEGNET-16** | **`OI-HEXTILE-05` (pod body diameter) is the tangential registration budget and is not being treated as one.** It is currently scoped as a PBM-coverage question only. Re-scope it before T1-B Rev 2 layout | Systems + ME | **T1-B layout** |
 | **OI-EEGNET-17** | §1.1's model is 2D sagittal only. The coronal plane, where cephalic index 0.70–0.85 acts, has not been computed | Systems | With OI-EEGNET-14 |
 | **OI-EEGNET-18** | **Spatial sampling density as an alternative to placement tolerance (§1.6).** Two halves: (a) establish the actual sampling requirement for this geometry and these measures — the ~20 mm figure is a literature estimate and is **not** a project number; (b) determine whether array pose can be recovered well enough to interpolate against anatomy, which is `OI-EEGNET-14` in a different currency. **Scope is recording only** — §1.6 limit 3 excludes tES and the Oz gate. Interacts with `OI-EEGNET-15`: if tolerance is modality-dependent, so is this | Systems + Clinical | With OI-EEGNET-14/15 |
-| **OI-EEGNET-19** | **Electrodes per tile — 1 or 2, and uniform or mixed (§1.7).** Decide with `OI-HEXTILE-05`, not after it: pod diameter sets both the emitter budget and the achievable pod separation, and §1.7.1 suggests two small pods leave *more* emitters (~77) than one large pod (~44). If pursued, §1.7.4 recommends **uniform** — it holds the type set at 4 and preserves `NP-HFE-002` §7.1(d) as a single rule. **Blocked by OI-EEGNET-20**: two electrodes need a second `ELEC`/`ELEC_SHLD` pair, and there is no spare socket position | Systems + ME + HFE | **T1-B layout; with OI-HEXTILE-05** |
-| **OI-EEGNET-20** | **Carry socket contact count as a variable in the MECH-2 / HFE force study, and evaluate a three-row array (§1.7.2–§1.7.3).** Force is exactly linear at 0.3–0.5 N per contact, and 34.2–57.0 N at 19 is **already the unanswered question** in `OI-SHELL2-03(b)`. Route to `NP-DRV-SHELL-002` §5.1.4 and `NP-HW-HEXTILE-001` D-5 — **not decided here**. Independent of any electrode decision, §1.7.3 gives a µV-siting argument for three rows at constant count (`OI-HEXTILE-11`). **Time-boxed:** `OI-SHELL2-09(i)` blocks socket tooling; after that cut the count is permanent at every socket by the union rule | ME + HFE + EE | **MECH-2; before socket tooling** |
+| **OI-EEGNET-19** | **Electrodes per tile — study 1, 2, 3 and 4, uniform or mixed (§1.7).** The range is **not** 1–2: §1.6's density argument is only satisfied at 4/tile, so a study capped at 2 cannot answer the question that motivates it. Four ⌀11.4 mm pods fit at 20.5 mm intra-tile spacing (§1.7.1). Decide with `OI-HEXTILE-05`, not after it — pod diameter sets the emitter budget, the pod separation *and* the achievable pod count. **Note the cost axis runs the counterintuitive way**: 4 pods inflate emitters +7.5 % against 2 pods' +13.0 %, because each pod removes ~7 emitters. Three cross-cuts the study must carry: (a) shield per electrode or one shared DRL-driven shield — worth 3 contacts at 4 electrodes; (b) whether every electrode is dual-rated or only a subset (§1.7.1 — decoupling holds the safety-MCU channel count flat); (c) uniform vs mixed, where §1.7.4 recommends uniform. **Blocked by OI-EEGNET-20**: every electrode past the first needs socket positions that do not exist | Systems + ME + HFE | **T1-B layout; with OI-HEXTILE-05 and the N of §1.7.5** |
+| **OI-EEGNET-20** | **Carry socket contact count as a variable in the MECH-2 / HFE force study, and evaluate a three-row array (§1.7.2–§1.7.3).** Force is exactly linear at 0.3–0.5 N per contact, and 34.2–57.0 N at 19 is **already the unanswered question** in `OI-SHELL2-03(b)`. Route to `NP-DRV-SHELL-002` §5.1.4 and `NP-HW-HEXTILE-001` D-5 — **not decided here**. **Row count and row straightness are both free variables** — an edge-following L, chevron or polyline offers ~48 positions on one run at 2.00 mm pitch and holds constant edge margin, where a chord does not (§1.7.2). Independent of any electrode decision, §1.7.3 gives a µV-siting argument for re-shaping the array at constant count (`OI-HEXTILE-11`), against a newly identified cost: a spread array roughly **halves the angular tolerance** the mechanical key must hold, which no document currently states. **Time-boxed:** `OI-SHELL2-09(i)` blocks socket tooling; after that cut the count is permanent at every socket by the union rule | ME + HFE + EE | **MECH-2; before socket tooling** |
 
 ## 9. Cross-references
 
