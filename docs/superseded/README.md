@@ -106,6 +106,12 @@ tracked instead in `NP-ART-001` §5:
 - **`np_tool_shell_001.docx` (NP-TOOL-SHELL-001)** — its F-01 is "zone slot plug anchor posts
   (×5, colour-coded)", and both its parent documents are now in this directory. It is the only
   tooling specification the headset shell has.
+  **Read in full on 2026-08-18 and marked PARTIALLY SUPERSEDED in place (Rev 2).** The coupling
+  is not confined to F-01: **F-03**'s EEG cable channel also has no referent (`NP-DRV-SHELL-002`
+  §5.3 absorbs the EEG harness; §9.1 calls F-03's own opposite-surfaces rule unavailable), and
+  **F-02** collides with `NP-TOOL-HUB-001` F-02's safety-derived ≤20 mm tether limit
+  (**OI-ART-07**). **F-04 survives unchanged and the document is releasable for it.** It stays
+  here — out of `docs/superseded/` — for the reason given above.
 - **`np_coord_001.docx` (NP-COORD-001)** — titled *Zone Module FPC
   Engineering Coordination Checklist*; its G1/G2/G3 gate structure is scoped to an assembly that no
   longer exists, but those gates are cited as the release gates for documents that *are* current.
