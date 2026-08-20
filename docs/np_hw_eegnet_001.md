@@ -2,15 +2,15 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-EEGNET-001
-**Revision:** 2
-**Date:** 2026-08-18
+**Revision:** 3
+**Date:** 2026-08-20
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (new document)
-**References:** NP-HEX-ZM-001 §3.1/§3.2/§3.3/§4a/§5.3, NP-HELMET-GEOM-001 §0/§2/§3.1/§5, NP-DRV-SHELL-002 §3.5/§5.1/§9.1–§9.6/§10.1, NP-HW-HUB-001 §4.5/§7.4, NP-HW-HEXTILE-001 §1/§6.4/§7.2, NP-THERM-BEZEL-001, NP-RISK-002 (RISK-21), NP-RISK-004, NP-COST-001 §2/§6, NP-HFE-002 §5, NP-OPT-PSF-001, NP-ENV-OPRANGE-001 §4, NP-CONV-001 Rev 6, CLAUDE.md §3/§4.2/§4.3/§4.4/§5.1
+**References:** NP-HEX-ZM-001 §3.1/§3.2/§3.3/§4a/§5.3, NP-HELMET-GEOM-001 §0/§2/§3.1/§5, NP-DRV-SHELL-002 §3.5/§5.1.4–§5.1.6/§9.1–§9.6/§10.1, NP-HW-HUB-001 §4.5/§5/§7.2/§7.4, NP-HW-HEXTILE-001 §1/§4.5/§6.4/§7.1/§7.2/D-5, NP-THERM-BEZEL-001, NP-RISK-002 (RISK-21), NP-RISK-004, NP-COST-001 §2/§6, NP-HFE-002 §2.3/§2.5/§3/§5/§7.1/§7.3/§7.4, NP-OPT-PSF-001, NP-ENV-OPRANGE-001 §4, NP-CONV-001 Rev 6, CLAUDE.md §3/§4.2/§4.3/§4.4/§5.1
 **Related Issues:** —
-**Gate:** NET-1 (strain-tracking fidelity), NET-2 (placement-verification qualification); interacts with REG-1, THERM-1, SEAL-1
+**Gate:** NET-1 (strain-tracking fidelity), NET-2 (placement-verification qualification); interacts with REG-1, MECH-2, THERM-1, SEAL-1
 **IEC 62304 Class:** N/A — the net is hardware. It is a risk control with no software class; the firmware that reads its impedance matrix and gates tES/visual stimulation carries the class (Class C where it owns an enable line, per CLAUDE.md §4.2).
 **Supersedes:** None. Contests NP-HEX-ZM-001 §4a's T1-B tile type; see §0 and §7.
 **Parent Document:** NP-HEX-ZM-001
@@ -22,6 +22,31 @@
 > parameter change can fix. It also makes four things worse, one of them a safety-gate determinism
 > problem and one of them a BOM regression on the exact term `NP-COST-001` already calls the largest
 > uncosted risk. Both halves are in §7. **Nothing in this document should be quoted as a cost saving.**
+
+---
+
+> ## Rev 3 — three questions added ahead of the net. Nothing decided, nothing reversed.
+>
+> Rev 3 adds **§1.6** and **§1.7** and raises `OI-EEGNET-18/19/20`. It reverses no position in Rev 2
+> and decides nothing. It replaces **one framing**, per `NP-CONV-001` §7:
+>
+> | | Was (Rev 2) | Is (Rev 3) | Cause |
+> |---|---|---|---|
+> | Electrode count per tile | Treated as given at **one**, with §1.4 varying only the electrode's *offset* inside the tile | An **open variable**, and the input §1.6's density argument needs | §1.4 established that electrode pitch ≠ tile pitch. Electrode *count* is the same class of assumption and was never examined |
+> | What the placement budget is *for* | A mechanical tolerance (±10 mm, §3.4) to be held by geometry | Possibly the wrong instrument for **recording** modalities — density plus pose measurement may substitute | §1.6. Absent from the entire document set; no interpolation or spatial-sampling argument exists anywhere in `docs/` or `firmware/` |
+> | Why more socket contacts are hard | Read as a geometry limit | An **accessibility-force** limit, exactly linear in contact count, on a question `OI-SHELL2-03(b)` has not answered | §1.7.2. `REQ-SKT-01`'s two rows were *"Forced, not preferred"* — forced by row **length**. Three rows hold 30 contacts at the same 18 mm span |
+>
+> **Three things this revision is careful not to claim.** (i) It does **not** contest `REQ-SKT-01`, the
+> 19-contact count, or `SMART-1` — each is *raised* into §7.3 and routed to its owning document, in the
+> scope discipline `NP-HW-HEXTILE-001` Rev 2 set. (ii) §1.6's ~20 mm sampling target is a **literature
+> estimate, not a project figure**, and fixing it is half of `OI-EEGNET-18`. (iii) The mixed-type variant
+> in §1.7.4 is **priced, not dismissed** — `NP-HFE-002` §7.3's L3 tactile marking already distinguishes
+> module types, so "the types are indistinguishable" is not an available objection and is not made.
+>
+> **Sequencing is unchanged.** `OI-EEGNET-14` (seating concentricity) is still the next action. What
+> Rev 3 adds is that **`OI-EEGNET-20` is time-boxed by tooling** — `OI-SHELL2-09(i)` blocks socket
+> tooling on the pinout co-revision, and D-5 marks pin count *"load-bearing and now tooling-blocking."*
+> The contact count reopens once or not at all.
 
 ---
 
@@ -197,6 +222,180 @@ consequence intact. The net (§§2–6) is the option after that.
 | §0 dual-rated T1-B fork (`OI-EEGNET-01`) | **Dissolves** — T1-B keeps both roles |
 
 ---
+
+### 1.6 The other way to spend the budget — sample densely and interpolate
+
+**Raised at Rev 3. Not adopted, and not costed here.** §§1.1–1.5 treat placement as a mechanical
+tolerance problem: put the electrode where the anatomy is, to within ±10 mm (§3.4). There is a second
+framing that the whole document set omits, and it changes what the budget is *for*.
+
+Scalp potential is spatially band-limited — the skull is a volume-conduction low-pass filter. A field
+sampled above its spatial Nyquist rate can be reconstructed and evaluated at **any** coordinate,
+including a nominal 10-20 site no electrode physically occupies. Placement tolerance then stops being
+a mechanical requirement and becomes two software requirements: **sample densely enough**, and **know
+where the array actually sits**.
+
+**The arithmetic, at this lattice.** One electrode per 40 mm hex is one per 1,385 mm² of tile face,
+which is an equivalent hexagonal-packing spacing of 40 mm — the tile pitch, as it must be. Doubling
+electrode population divides the area per electrode and scales the spacing by 1/√2:
+
+| Electrodes per tile | Area per electrode | Equivalent spacing |
+|---|---|---|
+| 1 (today) | 1,385 mm² | 40.0 mm |
+| 2 | 693 mm² | 28.3 mm |
+| 3 | 462 mm² | 23.1 mm |
+| 4 | 346 mm² | 20.0 mm |
+
+**Four limits, stated rather than buried.**
+
+1. **The sampling target is not a project figure.** The commonly cited estimate for adequate scalp-field
+   sampling is on the order of 20 mm or finer. Nothing in this document set has established it for this
+   geometry, this electrode type or these measures, and it must not be quoted as though it had. Fixing
+   it is the first half of `OI-EEGNET-18`.
+2. **Reconstruction needs coordinates, and this device does not have them.** Interpolating a virtual
+   Fp1 requires knowing where the electrodes sit relative to *nasion and inion*, not relative to the
+   helmet. §4.2's first honest limit applies unchanged: the PD2 albedo scheme resolves net-to-helmet
+   pose, not net-to-head pose. A dense array does improve the *shape* of the problem — N independent
+   placement errors collapse to a single over-determined 6-DOF rigid-body unknown — but it does not
+   remove it, and the residual is `OI-EEGNET-14` either way.
+3. **It covers recording only.** A virtual sensor can be interpolated; a virtual **current source**
+   cannot. The T1-B contact is dual-rated (§0), so for CLAUDE.md §3 modalities 4 and 5, and for T2's
+   4×1 HD-tDCS rings, the metal must be where the current is meant to go. The Oz photoparoxysmal gate
+   is in the same class — it needs contact impedance at a physical site through a deterministic
+   presence primitive (§7.2.4, `OI-EEGNET-06`).
+4. **"Different calculations" is a validation burden, not a maths burden.** An interpolated virtual
+   channel compared against a normative database built from physically-placed electrodes is an
+   equivalence claim requiring evidence. Interpolation error is also worst at array edges — which here
+   means Fp and Oz, the two sites carrying the safety gate and the prefrontal montage.
+
+**Why it is recorded even though it is not adopted.** `OI-EEGNET-15` already suspects the ±10 mm
+tolerance is modality-dependent. This section says something stronger: for recording modalities the
+tolerance may be the wrong *instrument*, and density plus pose measurement may substitute for it. That
+is a different question from how tight a mechanical tolerance can be held, and it has never been asked.
+
+### 1.7 Electrodes per tile, and the socket contact budget that gates it
+
+§1.4 established that electrode pitch and tile pitch are different quantities, and that an electrode
+may be moved inside its tile. It then treats **one electrode per tile** as given. That is a convention
+too, and it is the input §1.6 needs.
+
+#### 1.7.1 What two electrodes per tile would buy
+
+Density is not the strongest argument — §1.6's table shows 2/tile reaches 28.3 mm, short of a ~20 mm
+target that would need 4/tile. The stronger argument is registration. `NP-HEX-ZM-001` §3.2 records the
+defect as *"the lattice registers to alternate lines at best"*, with 10-20 lines ~33 mm apart. Two pods
+at the ±14.5 mm offset that ring-0–1 masking allows (§1.4 table) sit **29.0 mm apart** — 4 mm short of
+that line spacing, and closable by the half-module row parity offset. One tile row then reaches two
+10-20 rows, which attacks the recorded defect directly rather than by brute sampling.
+
+**Emitter count plausibly improves.** T1-B today masks rings 0–3 for one large pod, leaving ~44
+emitters (`NP-HW-HEXTILE-001` §4.5). Two small pods masking rings 0–1 each leave ~77. Two small holes
+beat one big hole. This is contingent on `OI-HEXTILE-05` and inherits `OI-EEGNET-16` — the pod diameter
+is still the registration budget in disguise, and now the emitter budget as well.
+
+#### 1.7.2 The gate is the socket contact budget, and it is a force budget
+
+The socket interface carries exactly one electrode net: `ELEC` (pin 13) and `ELEC_SHLD` (pin 14). A
+second electrode needs a second pair, and the count is closed at 19 with the 2 reserved positions
+explicitly dropped (`NP-DRV-SHELL-002` §5.1.4).
+
+**The obstacle is not area.** `REQ-SKT-01`'s two staggered rows were *"Forced, not preferred"* — forced
+by **row length**, not by tile face area. A 19-position single row spans 36 mm; two rows put the longest
+row at 10 pads = 18 mm, inside the 20.0 mm budget. Three rows of 10 hold **30 contacts at the same 18 mm
+row span**, and a 30-contact three-row array occupies roughly 62 mm² of a 1,385 mm² tile face — about
+4.5 %. Twenty-one contacts in *two* rows spans 20 mm, i.e. sits exactly at the limit with no margin;
+the same 21 in three rows does not.
+
+**The obstacle is clamp force, and it is exactly linear in contact count.** `NP-HW-HEXTILE-001` §7.1
+gives 0.3–0.5 N per contact → 5.7–9.5 N per module → 34.2–57.0 N per 6-tile plate:
+
+| Contacts per tile | Per module | **Per 6-tile clamp plate** |
+|---|---|---|
+| **19 (adopted)** | 5.7–9.5 N | **34.2–57.0 N** |
+| 21 | 6.3–10.5 N | 37.8–63.0 N |
+| 24 | 7.2–12.0 N | 43.2–72.0 N |
+| 30 | 9.0–15.0 N | **54.0–90.0 N** |
+
+**34.2–57.0 N is already the open question**, not a cleared bar: `OI-SHELL2-03(b)` asks whether it is
+one-handed-achievable through the §5.4a over-centre actuator at Parkinson's H&Y II–III, against
+`RISK-22`. Every added contact pushes further into a question that has not been answered. The design
+has also just spent contacts in that currency deliberately — `VLED`/`PGND` went 4+4 → 3+3 explicitly
+*"at the cost of two extra contacts on an interface with a live RISK-22 one-handed-force constraint."*
+
+**Levers that buy force headroom without giving up contacts**, in the order they are likely to pay:
+
+| Lever | Mechanism | Cost |
+|---|---|---|
+| §5.4a actuator mechanical advantage | The open question is about *input* force; MA is the free variable | Travel, lever length, package. Most likely source of the answer |
+| Smaller clamp plates | Load ∝ contacts/tile × tiles/plate. This is how 19 contacts came in *below* Rev 1's 18, once the 18-cluster partition capped plates at 6 | More clusters than 18, which is provably minimal at n=80 under CLUSTER-1/SYM-1/CONTIG-1 — so real cluster-controller BOM at $114.12/tier |
+| Lower per-contact force | Direct | **Bad lever.** 0.3–0.5 N is already low; below it, fretting and contact resistance run into `SH2-DRC-09`'s resistance→heating bound and `OI-HEXTILE-11`'s unquantified µV-path contact noise |
+| Staggered seating heights | Changes the force *profile* | **Not a lever.** Total spring energy at full compression is unchanged |
+
+#### 1.7.3 Two properties a third row changes, one for better and one for worse
+
+**Better — µV siting.** Today `ELEC`/`ELEC_SHLD` share a two-row array with 3 × `VLED` at 24 V
+(0.35 A/pin nominal, 0.52 A on loss of one contact). A third row provides a transverse axis on which to
+separate the µV recording pair from the power contacts. Given `OI-HEXTILE-11` — pogo contact noise in a
+µV chain is *not* covered by the ≤50 mΩ resistance spec — this is an argument for three rows **at
+constant contact count**, independent of any electrode-count decision.
+
+**Worse — the mis-key asymmetry stops being free.** `NP-HW-HEXTILE-001` §7.1 notes that the two-row
+layout *"makes this easier, not harder: a row-length difference (9 vs 10) is itself an asymmetry"*,
+carrying the fail-open geometry that stops a mis-keyed insertion making contact. A symmetric 10+10+10
+loses that; 9+10+11 keeps it, and uneven row spacing or an offset middle row provides a *second*
+asymmetry axis that two rows do not have. `HT-DRC-22` and `SH2-DRC-05a` would both need re-verification,
+and so would the claim that the two-row layout is what keeps the ±0.4 mm lateral blind-mate tolerance
+holdable.
+
+Note this is the **fail-open backstop**, not the primary control. Orientation is enforced mechanically
+(`NP-HFE-002` §7.4, `HFE-R-05`: a wrongly-oriented module must *fail to seat*, not seat poorly). Both
+layers are deliberate and both must survive any row-count change.
+
+#### 1.7.4 Uniform or mixed — and the HFE cost of mixing, priced
+
+Two variants must not be conflated:
+
+| Variant | What it is | Verdict |
+|---|---|---|
+| **Uniform** ★ | Every T1-B carries two electrodes | **The one to evaluate.** Type set stays at 4; `R-2` intact — any T1-B in any socket; no user instruction |
+| **Mixed** | Distinct 1-electrode and 2-electrode types, placed per instruction | Viable, but pays two nameable HFE costs below. Not dismissed — priced |
+
+**Module-type identification already exists and is not the obstacle.** `NP-HFE-002` §7.3 specifies L3
+module-type tactile marking on the outward non-emitting face — 1/2/3/4 raised bars for
+T1-A/T1-B/T1-C/T2-D, with *"ISO 17049 braille … co-moulded in addition, never instead"*. `C-1` forbids
+type-differentiating **mechanical keying** (mating geometry that blocks insertion); a marking on a
+non-mating face is expressly not a key. So "the types are indistinguishable" is **not** an available
+objection to mixing, and this document should not make it.
+
+The two real costs are:
+
+1. **A fifth type sits at the edge of the stated reliable range.** §7.3 rests on *"bar count to 4 is well
+   inside the reliable range"*, and §2.3(a) puts tactile counting at *"reliable to about 4–5 and degrades
+   fast beyond that"*. Five is survivable only by re-encoding (bar length or orientation rather than pure
+   count), which spends headroom reserved for future types.
+2. **L1(d) stops being one rule — this is the larger cost.** §7.1(d) is a *single uniform* feature at
+   ~9 instances, deliberately not identifying which site, whose entire value is collapsing the common
+   build to *"place an EEG module wherever you feel the dimple, base modules everywhere else."* Two
+   electrode-bearing types break that rule and push work back onto §7.1(a)–(c) counting. **Uniform
+   preserves L1(d) exactly.**
+
+**Direction conflict worth recording.** §7.1.4 counts deleting T1-B as an accessibility gain — L1(d)
+deleted, *"9 positions that matter"* → zero. §1.7 pushes the opposite way and makes L1(d) more
+load-bearing. Both cannot be pursued; whichever is adopted must say so explicitly rather than leaving
+`NP-HFE-002` §7.1(d) pointing at a premise that no longer holds.
+
+#### 1.7.5 Consequences that must be priced by their owning documents, not here
+
+| Consequence | Owner | Note |
+|---|---|---|
+| ADC channel count is the true ceiling | `NP-HW-HUB-001` §5 | N4 muxes any socket's `ELEC` onto **N** channels — 8 (T1) / 21 (T2), set by the ADS1299 bank. More electrodes buy nothing without more N; 16-channel T1 is 2 × ADS1299 |
+| Per-cluster electrode mux width doubles | `NP-DRV-SHELL-002` §3.5 | 6 tiles → up to 12 electrode inputs per cluster. Tail conductor count is set by shared-lane count, not by socket count, so the tail impact is modest — but it is not zero and is not derived here |
+| Safety-MCU frame growth | `NP-HW-HUB-001` §7.2 | Enable-bit position ≡ charge-monitor channel index, and the 38-byte extended heartbeat has **zero spare bytes**. Doubling *stimulating* electrodes moves `NP_SAFETY_RX_EXT_FRAME_LEN`, both checksum spans, the size assertion and eight `offsetof` assertions — a Class C wire-format change |
+| Socket array BOM | `NP-DRV-SHELL-002` §10.1 | $0.40–0.80 per **socket array** of 19 contacts, $32–64 per headset at 80 sockets. If price scales with contact count, 21 contacts is **+$3–7** and 30 contacts **+$19–37** per headset — against a configuration at −41 % to −51 % gross margin |
+| Tile-face area is *not* a constraint | — | Recorded so it is not re-raised: a 30-contact three-row array is ~4.5 % of the tile face |
+
+> **Nothing in §1.6 or §1.7 is a cost saving, and no figure here may be entered into `NP-COST-001`.**
+> Same rule as §7.2.2 — that document owns the re-derivation and must do it as a whole.
 
 ---
 
@@ -777,6 +976,10 @@ Per `NP-CONV-001` §7. Nothing below is reversed by this document; each is *rais
 | `RISK-21` disposition | *"There are no EEG cables to route"* | **Reverts** | §7.2.3 |
 | `EEG-ROUTE-CHANNEL` | RETIRED from shell tooling | Returns in some form | §7.2.3 |
 | Single inner transparent shield (`NP-HELMET-GEOM-001` §0) | **ABANDONED**, on exactly one stated ground: *"electrodes must galvanically contact skin, which a continuous dielectric barrier physically blocks"* | **Reopened — NOT decided here** | That ground is removed when no electrode is in the lattice. Consequences for sealing (`SEAL-1`, 80 gaskets), cleaning and tooling are large and belong to a principal decision, not to this document |
+| **Electrodes per tile** (`NP-HW-HEXTILE-001` §4.5, D-1) | One, at site 0, by convention | **Raised as an open variable — 1 vs 2, uniform vs mixed** | §1.7, `OI-EEGNET-19`. Not decided; §1.7.4 recommends uniform if it is pursued at all |
+| **`REQ-SKT-01`** — pad array is two staggered rows | Binding, not advisory | **Raised — three rows should be evaluated, not assumed away** | §1.7.2. The two-row constraint follows from row *length*; it does not follow from tile area. §1.7.3 gives one argument for three rows at *constant* contact count |
+| **Socket contact count = 19** (`NP-DRV-SHELL-002` §5.1.4, D-5) | Closed by principal decision 2026-08-11; 2 reserved dropped | **Not reopened here — raised as a variable the MECH-2 / HFE force study should carry** | §1.7.2, `OI-EEGNET-20`. That study must run anyway to close `OI-SHELL2-03(b)`, and it is the only one that can price a contact |
+| `NP-HFE-002` §7.1(d) standard-electrode-site marker | Deleted along with T1-B (§7.1.4), *"9 positions that matter"* → zero | **Direction is now contested** — §1.7 makes L1(d) *more* load-bearing | §1.7.4. Both directions cannot be pursued; whichever is adopted must say so |
 
 ### 7.4 Blast radius, measured
 
@@ -825,6 +1028,9 @@ architecture no longer needs.
 | **OI-EEGNET-15** | Placement tolerance is treated as one number (±10 mm). It is plausibly **modality-dependent** — looser for T1 8-channel wellness neurofeedback, tighter for T2 sLORETA source localisation and HD-tDCS 4×1 targeting. If so, T1 takes §1.4 and only T2 needs a cap. Not established here | Clinical | T2 |
 | **OI-EEGNET-16** | **`OI-HEXTILE-05` (pod body diameter) is the tangential registration budget and is not being treated as one.** It is currently scoped as a PBM-coverage question only. Re-scope it before T1-B Rev 2 layout | Systems + ME | **T1-B layout** |
 | **OI-EEGNET-17** | §1.1's model is 2D sagittal only. The coronal plane, where cephalic index 0.70–0.85 acts, has not been computed | Systems | With OI-EEGNET-14 |
+| **OI-EEGNET-18** | **Spatial sampling density as an alternative to placement tolerance (§1.6).** Two halves: (a) establish the actual sampling requirement for this geometry and these measures — the ~20 mm figure is a literature estimate and is **not** a project number; (b) determine whether array pose can be recovered well enough to interpolate against anatomy, which is `OI-EEGNET-14` in a different currency. **Scope is recording only** — §1.6 limit 3 excludes tES and the Oz gate. Interacts with `OI-EEGNET-15`: if tolerance is modality-dependent, so is this | Systems + Clinical | With OI-EEGNET-14/15 |
+| **OI-EEGNET-19** | **Electrodes per tile — 1 or 2, and uniform or mixed (§1.7).** Decide with `OI-HEXTILE-05`, not after it: pod diameter sets both the emitter budget and the achievable pod separation, and §1.7.1 suggests two small pods leave *more* emitters (~77) than one large pod (~44). If pursued, §1.7.4 recommends **uniform** — it holds the type set at 4 and preserves `NP-HFE-002` §7.1(d) as a single rule. **Blocked by OI-EEGNET-20**: two electrodes need a second `ELEC`/`ELEC_SHLD` pair, and there is no spare socket position | Systems + ME + HFE | **T1-B layout; with OI-HEXTILE-05** |
+| **OI-EEGNET-20** | **Carry socket contact count as a variable in the MECH-2 / HFE force study, and evaluate a three-row array (§1.7.2–§1.7.3).** Force is exactly linear at 0.3–0.5 N per contact, and 34.2–57.0 N at 19 is **already the unanswered question** in `OI-SHELL2-03(b)`. Route to `NP-DRV-SHELL-002` §5.1.4 and `NP-HW-HEXTILE-001` D-5 — **not decided here**. Independent of any electrode decision, §1.7.3 gives a µV-siting argument for three rows at constant count (`OI-HEXTILE-11`). **Time-boxed:** `OI-SHELL2-09(i)` blocks socket tooling; after that cut the count is permanent at every socket by the union rule | ME + HFE + EE | **MECH-2; before socket tooling** |
 
 ## 9. Cross-references
 
@@ -832,11 +1038,19 @@ architecture no longer needs.
 seam), §5.3 (fluxgate siting) · `NP-HELMET-GEOM-001` §0 (inner-shield abandonment), §2 (radial stack),
 §5 (bezel, no inboard contact) · `NP-DRV-SHELL-002` §3.5 (N4, PAN), §5.1 (socket pins), §9.1–§9.6
 (EMI, `REQ-EMI-01..11`), §10.1 (BOM) · `NP-HW-HEXTILE-001` §1 (pinout union), §7.2 (SMART-1 option) ·
+`NP-DRV-SHELL-002` §5.1.4–§5.1.6 (contact count, force, plate load), §10.1 (socket BOM) ·
+`NP-HW-HEXTILE-001` §4.5 (T1-B masking), §7.1 (pad array, row asymmetry, contact force), D-1/D-5 ·
+`NP-HFE-002` §2.3 (discriminability), §2.5 (type vs position), §3 (C-1…C-9), §7.1(d) (site marker),
+§7.3 (L3 type marking), §7.4 (orientation) · `NP-HW-HUB-001` §5 (N4 channel count), §7.2 (enable word) ·
 `NP-HW-HUB-001` §9.5 (calibration is module property) · `NP-THERM-BEZEL-001` (bezel, THERM-1) ·
 `NP-RISK-002` (RISK-21) · `NP-COST-001` §2 (term U), §6 (`OI-HEXTILE-06`) · `NP-OPT-PSF-001` ·
 `NP-HFE-002` §5 · `NP-ENV-OPRANGE-001` §4 · `NP-CONV-001` Rev 6 · CLAUDE.md §3, §4.2, §4.3, §4.4, §5.1
 
 ---
+
+*Rev 3 adds §1.6, §1.7 and `OI-EEGNET-18/19/20`; it decides nothing and reverses nothing. The next
+action is unchanged — `OI-EEGNET-14`. The one item with a deadline is `OI-EEGNET-20`, because socket
+contact count stops being free at the socket-tooling cut.*
 
 *Rev 2 corrects Rev 1's central premise (see the Rev 2 banner) and demotes the net from
 recommendation to fallback. The document remains a DRAFT and must not be baselined. **The next action
