@@ -362,8 +362,11 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm11(void)
     np_pbm1064_dose_state_t dose;
     np_pbm1064_dose_reset(&dose);
 
+    /* NULL UID → firmware defaults, NP_CAL_DEFAULT (OI-HUB-C06). This FAI
+     * exercises the UHDR/SHDR routing boundary, not calibration provenance, so
+     * the default coefficients are the right input here. */
     np_pbm1064_cal_t cal[NP_PBM1064_WL_COUNT];
-    np_pbm1064_dose_load_cal_stub(cal);
+    (void)np_pbm1064_dose_load_cal(NULL, cal);
 
     np_pbm1064_status_t rc = np_pbm1064_dose_tick(0U, cal, &dose);
     /* Expect OK (stub returns counts below dose limit). */

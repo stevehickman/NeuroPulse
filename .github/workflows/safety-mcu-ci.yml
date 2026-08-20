@@ -82,7 +82,11 @@ env:
   # platform layer's own behavioural suite).  Had the count lived in the job
   # `name:`, this edit would have renamed a required status-check context and
   # silently un-gated the branch — the exact merge deadlock §6.7 predicted.
-  # build-all.yml's NP_SAFETY_TEST_COUNT and NP_TOTAL_TEST_COUNT (28) move with it.
+  # build-all.yml's NP_SAFETY_TEST_COUNT and NP_TOTAL_TEST_COUNT move with it.
+  # (That total has since gone 28 → 29 → 30 as Class B targets were added; this
+  # count did not move, because those targets are Class B.  Do not re-cite the
+  # total here — it is build-all.yml's to own, and a copy of it here is the
+  # one-value-several-places shape that produced OI-SWCI-37.)
   NP_SAFETY_TEST_COUNT: '7'
 
 jobs:
@@ -265,7 +269,7 @@ jobs:
       # Guard against selection drift before running anything: if the regex
       # stops matching the six targets — renamed target, deleted test, typo —
       # this fails loudly instead of reporting green over a shrunken suite.
-      - name: Assert test selection covers all 6 targets
+      - name: Assert test selection covers every safety-MCU target
         run: |
           ctest --test-dir build/host-tests -N -R "$NP_SAFETY_TESTS" | tee selection.txt
           selected=$(sed -n 's/^Total Tests: //p' selection.txt)

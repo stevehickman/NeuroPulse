@@ -83,12 +83,33 @@ typedef struct {
     bool           i2c_probed;
 } np_sm_slot_ctx_t;
 
-/* ── Per-zone, per-wavelength calibration coefficients ──────────────────────── */
+/* ── Module UID (component identifier — SHDR class) ─────────────────────────── */
+
+/*
+ * Mirrors hub_control's np_module_uid_t byte-for-byte without including
+ * np_module_map.h (link direction: hub_control links this library, not the
+ * reverse — see NP_PBM1064_MODULE_UID_LEN in np_pbm1064_config.h).
+ *
+ * An all-zero UID means "empty socket / unknown module", identically to
+ * np_module_uid_is_zero() on the hub side. It is never a valid calibration key.
+ */
+typedef struct {
+    uint8_t b[NP_PBM1064_MODULE_UID_LEN];
+} np_pbm1064_module_uid_t;
+
+typedef char _np_pbm1064_uid_len_check[
+    (sizeof(np_pbm1064_module_uid_t) == 8U) ? 1 : -1];
+
+/* ── Per-MODULE, per-wavelength calibration coefficients ────────────────────────
+ *
+ * Keyed by module UID, not by zone or socket (OI-HUB-C06). These describe the
+ * physical module and travel with it when it is moved to another socket.
+ * ─────────────────────────────────────────────────────────────────────────── */
 
 typedef struct {
     float K_PD1;          /* irradiance per ADC count from PD1                    */
     float K_PD2;          /* irradiance per ADC count from PD2                    */
-    float K_ratio_nom;    /* factory-nominal PD1/PD2 ratio for this zone+wl       */
+    float K_ratio_nom;    /* factory-nominal PD1/PD2 ratio for this module+wl     */
     bool  valid;          /* false → use firmware defaults (SHDR: cal_source=DEF) */
 } np_pbm1064_cal_t;
 
@@ -254,6 +275,18 @@ typedef struct {
     uint8_t socket_id;
     float   pd_ratio;          /* mean PD1/PD2 ratio for this socket, this session */
     uint8_t i2c_probe_pass;    /* 1 = probe ACKed at session preflight             */
+    /*
+     * np_cal_source_t for the module that occupied this socket during this
+     * session. Per-socket, not session-uniform (OI-HUB-C06): calibration is
+     * keyed to module UID, so two sockets in one session legitimately differ —
+     * a tile whose UID the hub has a factory record for reports FACTORY while
+     * the tile beside it reports DEFAULT. A single session-wide byte cannot
+     * express that, and cannot populate the fleet schema's per-row cal_source
+     * column (ci/shdr/shdr_fleet_schema.sql, pbm_module_telemetry), which is
+     * keyed (socket_number, module_uid, wavelength_nm) and already assumes
+     * "calibration travels WITH the module".
+     */
+    uint8_t cal_source;
 } np_pbm1064_socket_shdr_t;
 
 typedef struct {
@@ -262,14 +295,13 @@ typedef struct {
     uint8_t  abort_reason;
     uint8_t  fault_reason;           /* np_pbm1064_fault_t                        */
     /*
-     * np_cal_source_t, session-uniform: today's stub calibration loader
-     * (np_pbm1064_dose_load_cal_stub(), pending OI-HUB-C06 module-UID-keyed
-     * Config-partition storage) returns the same source for every socket in
-     * a session, so one flag suffices. Once OI-HUB-C06 lands and calibration
-     * genuinely varies per module, this becomes per-socket like the fields
-     * below — do not widen it to a socket-indexed table before that lands.
+     * cal_source moved into np_pbm1064_socket_shdr_t below when OI-HUB-C06's
+     * UID keying landed. It was a single session-uniform byte only while the
+     * loader ignored which module it was loading for; once calibration is
+     * keyed to module UID it genuinely varies socket-to-socket within one
+     * session, and a session-wide byte would have to report the optimistic
+     * value for all of them.
      */
-    uint8_t  cal_source;
     np_pbm1064_socket_shdr_t sockets[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS];
     uint8_t  ocp_event_count;
     uint8_t  thermal_event_count;

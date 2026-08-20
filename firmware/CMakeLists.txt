@@ -237,6 +237,14 @@ if(NP_BUILD_TESTS)
         COMMAND np_module_map_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # OI-HUB-C06: np_module_map's UID-keyed calibration record reaching a
+    # pbm_1064nm session through the bridge — including the two swap cases
+    # (module moves socket / socket changes module) that a socket-keyed store
+    # would get wrong.
+    add_test(NAME np_pbm_cal_bridge_tests
+        COMMAND np_pbm_cal_bridge_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_protocol_tests
         COMMAND np_protocol_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})

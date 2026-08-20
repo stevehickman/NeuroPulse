@@ -22,6 +22,7 @@
 #include "np_pbm1064_session.h"
 #include "np_pbm1064_t2_combined.h"
 #include "np_pbm1064_fai.h"
+#include "np_pbm1064_dose.h"
 
 static int g_failures = 0;
 
@@ -371,6 +372,251 @@ static void test_fai_regressions(void)
     check(np_pbm1064_fai_t2_04().passed, "FAI-T2-04 passes against the rewritten abort path");
 }
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+ * UID-keyed calibration (OI-HUB-C06)
+ *
+ * The property under test throughout: calibration follows the MODULE. A tile's
+ * K_PD1/K_PD2/K_ratio_nom are measured on that tile at manufacture, and under
+ * hex tiling the tile can occupy any socket — so a location-keyed load would
+ * apply the previous occupant's coefficients after a swap and still report
+ * NP_CAL_FACTORY (NP-HW-HUB-001 Rev 3 §9.5). Everything here is a host stub;
+ * the real provider is np_module_map's UID-keyed NVRAM record.
+ * ═══════════════════════════════════════════════════════════════════════════ */
+
+static np_pbm1064_module_uid_t uid_seed(uint8_t seed)
+{
+    np_pbm1064_module_uid_t u;
+    memset(&u, 0, sizeof(u));
+    u.b[0] = seed;
+    return u;
+}
+
+/* A provider holding exactly one known module. */
+static np_pbm1064_module_uid_t g_known_uid;
+static float                   g_known_k_pd1 = 0.777f;
+static int                     g_provider_calls;
+static int                     g_provider_partial_writes;
+
+static bool test_cal_provider(const np_pbm1064_module_uid_t *uid,
+                              np_pbm1064_cal_t cal_out[NP_PBM1064_WL_COUNT],
+                              void *ctx)
+{
+    (void)ctx;
+    g_provider_calls++;
+    if (memcmp(uid->b, g_known_uid.b, NP_PBM1064_MODULE_UID_LEN) != 0) {
+        /* Deliberately scribble before failing: np_pbm1064_dose_load_cal() must
+         * publish nothing on a miss, so a provider that half-writes cannot
+         * leave one module's coefficients blended into another's defaults. */
+        cal_out[0].K_PD1 = 9999.0f;
+        cal_out[0].valid = true;
+        g_provider_partial_writes++;
+        return false;
+    }
+    for (uint8_t w = 0; w < NP_PBM1064_WL_COUNT; w++) {
+        cal_out[w].K_PD1       = g_known_k_pd1;
+        cal_out[w].K_PD2       = 0.5f;
+        cal_out[w].K_ratio_nom = 1.5f;
+        cal_out[w].valid       = true;
+    }
+    return true;
+}
+
+static void reset_cal_env(void)
+{
+    np_pbm1064_dose_set_cal_provider(NULL, NULL);
+    np_pbm1064_session_set_uid_resolver(NULL, NULL);
+    g_provider_calls          = 0;
+    g_provider_partial_writes = 0;
+}
+
+static void test_cal_load_fails_closed(void)
+{
+    reset_cal_env();
+    np_pbm1064_cal_t cal[NP_PBM1064_WL_COUNT];
+
+    /* No provider installed — today's behaviour, and the behaviour on any build
+     * that has not wired the hub side up. */
+    memset(cal, 0, sizeof(cal));
+    check(np_pbm1064_dose_load_cal(NULL, cal) == NP_CAL_DEFAULT,
+          "load_cal: NULL uid with no provider → NP_CAL_DEFAULT");
+    check(cal[NP_WL_1064NM].K_PD1 == 0.088f && !cal[NP_WL_1064NM].valid,
+          "load_cal: defaults installed, valid=false");
+
+    np_pbm1064_module_uid_t some = uid_seed(0x42);
+    memset(cal, 0, sizeof(cal));
+    check(np_pbm1064_dose_load_cal(&some, cal) == NP_CAL_DEFAULT,
+          "load_cal: real uid but no provider → NP_CAL_DEFAULT");
+
+    /* Provider installed, but a zero UID must not even reach it: an empty or
+     * unidentified socket has no coherent record to fetch. */
+    g_known_uid = uid_seed(0x01);
+    np_pbm1064_dose_set_cal_provider(test_cal_provider, NULL);
+    g_provider_calls = 0;
+    np_pbm1064_module_uid_t zero;
+    memset(&zero, 0, sizeof(zero));
+    check(np_pbm1064_dose_load_cal(&zero, cal) == NP_CAL_DEFAULT,
+          "load_cal: zero uid → NP_CAL_DEFAULT");
+    check(g_provider_calls == 0, "load_cal: zero uid short-circuits before the provider");
+
+    check(np_pbm1064_module_uid_is_zero(&zero), "uid_is_zero: true for all-zero");
+    check(!np_pbm1064_module_uid_is_zero(&some), "uid_is_zero: false for a real uid");
+
+    reset_cal_env();
+}
+
+static void test_cal_load_provider_hit_and_miss(void)
+{
+    reset_cal_env();
+    g_known_uid = uid_seed(0xAB);
+    np_pbm1064_dose_set_cal_provider(test_cal_provider, NULL);
+
+    np_pbm1064_cal_t cal[NP_PBM1064_WL_COUNT];
+
+    /* Hit. */
+    memset(cal, 0, sizeof(cal));
+    np_pbm1064_module_uid_t known = uid_seed(0xAB);
+    check(np_pbm1064_dose_load_cal(&known, cal) == NP_CAL_FACTORY,
+          "load_cal: provider hit → NP_CAL_FACTORY");
+    check(cal[NP_WL_1064NM].K_PD1 == g_known_k_pd1 && cal[NP_WL_1064NM].valid,
+          "load_cal: provider's coefficients installed, valid=true");
+
+    /* Miss — and the provider scribbled before failing. */
+    memset(cal, 0, sizeof(cal));
+    np_pbm1064_module_uid_t stranger = uid_seed(0xCD);
+    check(np_pbm1064_dose_load_cal(&stranger, cal) == NP_CAL_DEFAULT,
+          "load_cal: provider miss → NP_CAL_DEFAULT, never the known module's data");
+    check(g_provider_partial_writes > 0, "load_cal: the miss path really did half-write");
+    check(cal[0].K_PD1 == 0.120f && !cal[0].valid,
+          "load_cal: a half-writing provider leaves NO trace — defaults only");
+    check(cal[NP_WL_1064NM].K_PD1 != g_known_k_pd1,
+          "load_cal: miss never yields the other module's K_PD1");
+
+    reset_cal_env();
+}
+
+/* ── Session integration ─────────────────────────────────────────────────────── */
+
+/* Resolver: socket 0 holds the known module; socket 1 holds an unknown one;
+ * every other socket is empty. */
+static bool test_uid_resolver(uint8_t socket_id, np_pbm1064_module_uid_t *uid_out, void *ctx)
+{
+    (void)ctx;
+    if (socket_id == 0U) { *uid_out = uid_seed(0xAB); return true; }
+    if (socket_id == 1U) { *uid_out = uid_seed(0xCD); return true; }
+    return false;
+}
+
+static void start_two_socket_session(np_pbm1064_session_ctx_t *ctx)
+{
+    np_pbm1064_session_desc_t desc;
+    memset(&desc, 0, sizeof(desc));
+    desc.hdr.version     = NP_SES1064_VERSION;
+    desc.hdr.group_count = 2U;
+    desc.hdr.duration_s  = 62U;
+    mask_set(desc.groups[0].mask, 0U);
+    desc.groups[0].preset = make_preset(180U, 40U, 0x10U);
+    mask_set(desc.groups[1].mask, 1U);
+    desc.groups[1].preset = make_preset(150U, 6U, 0x10U);
+
+    np_pbm1064_session_init(ctx, NULL, NULL, NULL, 0U);
+    check(np_pbm1064_session_start(ctx, &desc) == NP_PBM1064_OK,
+          "cal session: 2-socket session starts");
+}
+
+static void test_session_cal_source_default_without_resolver(void)
+{
+    /* No resolver installed → every socket resolves to the zero UID → defaults.
+     * This is the pre-OI-HUB-C06 behaviour, and it must be preserved exactly so
+     * the seam is inert until the hub wires it up. */
+    reset_cal_env();
+
+    np_pbm1064_session_ctx_t ctx;
+    start_two_socket_session(&ctx);
+
+    check(ctx.active_cal_source[0] == (uint8_t)NP_CAL_DEFAULT &&
+          ctx.active_cal_source[1] == (uint8_t)NP_CAL_DEFAULT,
+          "cal session: no resolver → every socket NP_CAL_DEFAULT");
+
+    np_pbm1064_shdr_summary_t shdr;
+    np_pbm1064_session_build_shdr_summary(&ctx, NP_PBM1064_FAULT_NONE, &shdr);
+    check(shdr.sockets[0].cal_source == (uint8_t)NP_CAL_DEFAULT &&
+          shdr.sockets[1].cal_source == (uint8_t)NP_CAL_DEFAULT,
+          "cal session: SHDR reports DEFAULT for both sockets");
+    (void)np_pbm1064_session_abort(&ctx, NP_PBM1064_FAULT_NONE);
+    reset_cal_env();
+}
+
+static void test_session_cal_source_varies_per_socket(void)
+{
+    /*
+     * THE test for the shape change. Socket 0 holds a module the hub has a
+     * factory record for; socket 1 holds one it does not. A single
+     * session-uniform cal_source byte cannot express that — it would have to
+     * report one value for both, and reporting FACTORY for socket 1 is exactly
+     * the invisible-wrong-calibration failure OI-HUB-C06 exists to prevent.
+     */
+    reset_cal_env();
+    g_known_uid = uid_seed(0xAB);
+    np_pbm1064_dose_set_cal_provider(test_cal_provider, NULL);
+    np_pbm1064_session_set_uid_resolver(test_uid_resolver, NULL);
+
+    np_pbm1064_session_ctx_t ctx;
+    start_two_socket_session(&ctx);
+
+    check(ctx.active_uid[0].b[0] == 0xABu, "cal session: socket 0's UID resolved");
+    check(ctx.active_uid[1].b[0] == 0xCDu, "cal session: socket 1's UID resolved");
+
+    check(ctx.active_cal_source[0] == (uint8_t)NP_CAL_FACTORY,
+          "cal session: socket 0 (known module) is FACTORY");
+    check(ctx.active_cal_source[1] == (uint8_t)NP_CAL_DEFAULT,
+          "cal session: socket 1 (unknown module) is DEFAULT");
+    check(ctx.active_cal_source[0] != ctx.active_cal_source[1],
+          "cal session: provenance genuinely DIFFERS between two sockets of one "
+          "session — unrepresentable in the old session-uniform byte");
+
+    check(ctx.cal[0][NP_WL_1064NM].K_PD1 == g_known_k_pd1,
+          "cal session: socket 0 got the factory coefficients");
+    check(ctx.cal[1][NP_WL_1064NM].K_PD1 == 0.088f,
+          "cal session: socket 1 got firmware defaults, not socket 0's coefficients");
+
+    np_pbm1064_shdr_summary_t shdr;
+    np_pbm1064_session_build_shdr_summary(&ctx, NP_PBM1064_FAULT_NONE, &shdr);
+    check(shdr.sockets[0].socket_id == 0U && shdr.sockets[1].socket_id == 1U,
+          "cal session: SHDR entries carry their own socket_id");
+    check(shdr.sockets[0].cal_source == (uint8_t)NP_CAL_FACTORY &&
+          shdr.sockets[1].cal_source == (uint8_t)NP_CAL_DEFAULT,
+          "cal session: SHDR carries per-socket calibration provenance, matching "
+          "the fleet schema's per-(socket, module_uid) cal_source column");
+
+    (void)np_pbm1064_session_abort(&ctx, NP_PBM1064_FAULT_NONE);
+    reset_cal_env();
+}
+
+static void test_session_cal_not_keyed_by_socket(void)
+{
+    /*
+     * Move the known module from socket 0 to socket 1 by swapping what the
+     * resolver reports, and confirm FACTORY moves WITH it. A socket-keyed load
+     * would keep reporting FACTORY for socket 0.
+     */
+    reset_cal_env();
+    g_known_uid = uid_seed(0xCD);          /* now socket 1 holds the known module */
+    np_pbm1064_dose_set_cal_provider(test_cal_provider, NULL);
+    np_pbm1064_session_set_uid_resolver(test_uid_resolver, NULL);
+
+    np_pbm1064_session_ctx_t ctx;
+    start_two_socket_session(&ctx);
+
+    check(ctx.active_cal_source[0] == (uint8_t)NP_CAL_DEFAULT,
+          "cal session (swapped): socket 0 is now DEFAULT");
+    check(ctx.active_cal_source[1] == (uint8_t)NP_CAL_FACTORY,
+          "cal session (swapped): FACTORY followed the MODULE to socket 1, "
+          "not the socket index");
+
+    (void)np_pbm1064_session_abort(&ctx, NP_PBM1064_FAULT_NONE);
+    reset_cal_env();
+}
 int main(void)
 {
     test_struct_sizes();
@@ -384,6 +630,13 @@ int main(void)
     test_session_start_rejects_over_capacity();
     test_t2_combined_wire_and_start();
     test_fai_regressions();
+
+    /* UID-keyed dose-metering calibration (OI-HUB-C06). */
+    test_cal_load_fails_closed();
+    test_cal_load_provider_hit_and_miss();
+    test_session_cal_source_default_without_resolver();
+    test_session_cal_source_varies_per_socket();
+    test_session_cal_not_keyed_by_socket();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

@@ -33,6 +33,16 @@ typedef struct {
     uint8_t              active_socket_id[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS];
     np_pbm1064_preset_t  active_preset[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS];
 
+    /*
+     * UID of the module occupying each active socket at session start, and the
+     * np_cal_source_t that resolving it produced. Per socket, not per session:
+     * calibration is keyed to module UID (OI-HUB-C06), so one session can
+     * legitimately contain both a FACTORY-calibrated tile and a DEFAULT one.
+     * Zeroed when no UID resolver is installed.
+     */
+    np_pbm1064_module_uid_t active_uid[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS];
+    uint8_t              active_cal_source[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS];
+
     np_pbm1064_drv_slot_t     drv[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS];
     np_pbm1064_dose_state_t   dose[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS];
     np_pbm1064_cal_t          cal[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS][NP_PBM1064_WL_COUNT];
@@ -64,6 +74,28 @@ typedef struct {
 
     uint32_t device_session_count;
 } np_pbm1064_session_ctx_t;
+
+/*
+ * Resolve the UID of the module currently occupying `socket_id`.
+ *
+ * Returns true and fills *uid_out only if the socket holds an identified
+ * module. Returns false for an empty, unknown or un-inventoried socket — the
+ * session then loads firmware defaults for that socket and records
+ * NP_CAL_DEFAULT, rather than guessing.
+ *
+ * On the hub this is backed by np_module_map's UID auto-inventory. It arrives
+ * as a callback because hub_control links this library and not the reverse.
+ */
+typedef bool (*np_pbm1064_socket_uid_fn)(uint8_t                  socket_id,
+                                         np_pbm1064_module_uid_t *uid_out,
+                                         void                    *ctx);
+
+/*
+ * Install (or, with fn == NULL, remove) the socket→UID resolver used at
+ * session start. With no resolver installed every socket resolves to the zero
+ * UID and therefore to firmware defaults — today's behaviour, unchanged.
+ */
+void np_pbm1064_session_set_uid_resolver(np_pbm1064_socket_uid_fn fn, void *ctx);
 
 /*
  * Initialize session context.  Must be called once before start.
@@ -113,6 +145,23 @@ np_pbm1064_status_t np_pbm1064_session_abort(np_pbm1064_session_ctx_t *ctx,
  */
 np_pbm1064_stage_t np_pbm1064_session_stage(
     const np_pbm1064_session_ctx_t *ctx);
+
+/*
+ * Build the SHDR session summary from a session context — the single
+ * fixed-shape marshaller for this record, in the same spirit as
+ * np_fault_latch_build_report(): one function decides what leaves the device,
+ * so per-socket calibration provenance cannot drift back into a session-wide
+ * optimistic constant in one of several independent write sites.
+ *
+ * Split out from the (stubbed) SHDR write path so the record's contents are
+ * observable to host tests. A summary assembled into a local and discarded is
+ * a property no behavioural test can assert on.
+ *
+ * No-op if ctx or out is NULL.
+ */
+void np_pbm1064_session_build_shdr_summary(const np_pbm1064_session_ctx_t *ctx,
+                                            np_pbm1064_fault_t              fault_reason,
+                                            np_pbm1064_shdr_summary_t      *out);
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * Session descriptor v5 wire encode/decode (NP-SES-1064-001 §1)
