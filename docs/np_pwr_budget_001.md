@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-PWR-BUDGET-001
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-08-21
 **Status:** DESIGN STUDY — not a tooling baseline. Every numeric value below is a derived engineering estimate with its assumption chain stated inline, not a measured or locked figure. See §7 (Decisions) and §8 (Open Items). **Does not modify CLAUDE.md §4.5** — that requires a principal decision (§7).
 **Effective Date:** —
@@ -14,6 +14,20 @@
 **IEC 62304 Class:** — (analysis document; no code)
 **Supersedes:** — (new document; first attempt to derive CLAUDE.md §4.5 from safety ceilings rather than treat it as a given input)
 **Parent Document:** CLAUDE.md §4.5
+
+---
+
+> **Rev 3 (2026-08-21) — a third TMS power-path option assessed (new §4.4), and a locked-section inconsistency raised. No figure in §3, §4.1–§4.3, §5 or §6 changes; CLAUDE.md §4.5 and §2.2 are both unmodified.**
+>
+> §4.3 framed the TMS power path as a binary — share the battery-buffered rail, or run mains-tethered and lose Mode 3 for T2 — and `OI-PWR-04` records it that way. **A third option was not assessed: keep USB-C for data, programming and all T1 power, and add a second power-only inlet for high-draw T2 sessions.** On §4.4's analysis it dominates both, for one reason: **it scopes the Mode 3 loss to the modality that forces it** rather than to the device.
+>
+> **The form matters more than the idea.** §4.4.1 recommends a **second USB-C PD sink**, not a barrel or proprietary DC inlet, and the decisive argument is not cost but **IEC 60601-1**: a PD sink stays SELV behind a certified charger, while a mains-derived inlet makes **NeurOne the isolation barrier** on a device with conductive applied parts, at the 510(k) tier, with `NP-DT-001` **VE-11** still Open. It also reuses the already-specified USB-C Layer 5 filter and preserves §2.2's *"any PD-compliant charger must work."* `NP-TOOL-HUB-001` **HUB-MDR-04** already specifies two hub port openings with tethered covers, so a third is the same feature again.
+>
+> **§4.4.2 raises a discrepancy in a locked section, and does not resolve it.** **CLAUDE.md §2.2 ships Pro Full with two 65 W chargers ($26 BOM) while §4.5's T2-peak row negotiates a single 100 W EPR contract.** 130 W is not 100 W, and §2.2's table is otherwise strictly keyed to *"peak draw of configuration."* Either the second brick is an undocumented spare, or a **dual-inlet architecture was assumed and never written down**, or it powers a **separate T2 accessory that has no port, enclosure or power spec anywhere** — which would be consistent with §4's central finding that TMS is absent from the electrical model. **`OI-PWR-11`, principal decision, and it should be resolved first: the answer decides whether §4.4 is a proposal or a specification.**
+>
+> **Two costs that are new engineering surface, not bookkeeping.** §4.4.3 records that a second inlet carrying up to 5 A of switched current is a materially worse EMF aggressor than a data port, inside the assembly at the occipital arch whose *measured* shielding is the product's primary technical claim — **this must be bench-verified, not argued** (`OI-PWR-12`); and that two live sources need OR-ing, inrush control and defined mid-session hot-plug behaviour, where **the safety MCU today has no concept of total available power at all** (`OI-PWR-13`).
+>
+> **§4.4.4 states plainly what it does not do: it does not raise T1 PBM concurrency.** §3.2's thermal estimate (4–8 tiles) and the power-derived ceiling (~6) are **coincident**, so relieving power moves the binding constraint to heat. That changes only if `OI-PWR-01`'s multi-tile CFD returns a materially higher thermal ceiling — at which point a second inlet becomes the cheapest way to use the headroom. **Sequence the CFD first.**
 
 ---
 
@@ -293,6 +307,113 @@ Independent of power: 0.1–0.5 T is well below the ~1.5–2.0 T that commercial
 
 TMS cannot be assigned a trustworthy power figure today. Per direction from design review, the next step is **quantifying the real requirement**, not picking an architecture yet: (1) resolve §4.2 — confirm the actual field strength needed for the targeted clinical protocols and whether 0.1–0.5 T is real or a placeholder; (2) get an actual coil inductance/geometry estimate so E ∝ B² scaling can be replaced with a real capacitor-bank calculation; (3) only then decide whether TMS shares the main battery-buffered rail (requiring a purpose-built high-energy capacitor bank and a PD contract likely well above the current 100 W EPR ceiling) or is powered externally/mains-tethered for T2 sessions (excluding TMS from Mode 3 autonomous operation). This is routed to principal decision, §7.
 
+### 4.4 A third power-path option §4.3 did not consider — a second inlet alongside USB-C
+
+§4.3 frames the TMS power path as a binary: **share the main battery-buffered rail**, or run
+**external/mains-tethered** and lose Mode 3 for T2. `OI-PWR-04` records it that way. A third option
+exists and was not assessed, and on the evidence below it dominates both.
+
+**The proposal: keep USB-C exactly as it is — data, programming, and all T1 power — and add a
+second, power-only inlet used for high-draw T2 sessions.**
+
+**The property that makes it better than either recorded option is scoping.** §4.3's tethered option
+excludes TMS from Mode 3 by excluding *the device* from Mode 3 whenever it is powered for T2. A
+second inlet excludes only the modality that forces the exclusion:
+
+| | Shared rail (§4.3) | Mains-tethered (§4.3) | **Second inlet** |
+|---|---|---|---|
+| T1 on a power bank (Mode 3) | Yes | Yes | **Yes — unchanged** |
+| T2 1170 nm / TMS headroom | Needs a purpose-built capacitor bank and a contract above 100 W EPR | Yes | **Yes** |
+| What loses Mode 3 | — | The device, whenever T2-powered | **Only the T2 session that needs it** |
+| New isolation ownership | No | **Yes**, if mains-derived | **No**, if the inlet is a PD sink — see below |
+
+CLAUDE.md §1 lists *"wired-first USB-C default (zero RF at scalp)"* and Mode 3 autonomy among the
+founding principles; this is the only one of the three options that leaves both intact for T1.
+
+#### 4.4.1 The form matters more than the idea: a second PD sink, not a DC inlet
+
+| | **Second USB-C, PD sink only** | Barrel / proprietary DC inlet |
+|---|---|---|
+| EMF Layer 5 filter | **Reuses the USB-C filter already specified** (CLAUDE.md §4.3, 30–50 dB) | New filter topology, new EMC qualification |
+| IEC 60601-1 isolation | **Stays SELV** — the certified charger is the barrier | **NeurOne becomes the isolation barrier** |
+| CLAUDE.md §2.2 EU stance | Preserved — *"any PD-compliant charger must work"* | Contradicts it directly |
+| Headroom | 2 × 100 W EPR = **200 W** | As specified |
+| Connector qualification | Already done | New |
+
+**The isolation row is the decisive one.** `NP-DT-001` **DI-REG-01** makes IEC 60601-1 binding and
+**VE-11** (accredited-lab standards testing, G3, Month 10–14) is still **Open**. Owning a mains
+isolation barrier on a device with conductive applied parts — tDCS, tACS, VNS electrodes on skin —
+is a materially larger regulatory surface than sinking SELV from a certified brick, and T2 is the
+510(k) tier where that surface is scrutinised. **Take the cheap path: two PD sinks.**
+
+**The mechanical precedent already exists.** `NP-TOOL-HUB-001` §3 F-02 and **HUB-MDR-04** specify
+**two** hub port openings — USB-C charge/data and a DFU/service port — each with a molded 1.0 mm
+boss, a tethered silicone cover and a compression-fit gasket. A third port opening is the same
+feature again, not a new one. Note **FAI-HTOOL-02** (BLOCKING) constrains tether reach so a cover
+cannot foul the F-04 fan intake; a third tether inherits that constraint rather than complicating it.
+
+#### 4.4.2 CLAUDE.md §2.2 may already assume this, and nobody wrote it down
+
+**§2.2 ships Pro Full with "65 W NeurOne GaN (branded) × 2", BOM $26** — two bricks at $13 each,
+against Pro Entry's single brick at $13. But **§4.5's T2-peak row negotiates a single 20 V/5 A
+(100 W EPR) contract.** Two 65 W supplies is 130 W, which a single-inlet device cannot draw and a
+100 W contract does not describe.
+
+Three readings, and the document set does not distinguish them:
+
+1. The second brick is an **undocumented spare** — plausible, but §2.2 prices spares nowhere else and
+   the charger table is otherwise strictly keyed to *"peak draw of configuration."*
+2. A **dual-inlet architecture was assumed** when §2.2 was written and never specified anywhere else.
+3. The second brick powers a **separate T2 accessory** (a TMS driver, a 1170 nm laser/TEC assembly)
+   that has no enclosure, no port and no power spec in any document — consistent with §4's central
+   finding that TMS is absent from the electrical model entirely.
+
+**Reading 2 or 3 would mean this section is documenting an existing intent rather than proposing a
+new one.** §2.2 is a **locked** section and this document does not modify it; the inconsistency is
+raised as **`OI-PWR-11`** for the principal to resolve. **It should be resolved before any design
+work starts** — the answer determines whether §4.4 is a proposal or a specification.
+
+#### 4.4.3 Four costs, none fatal, one of which must be measured rather than argued
+
+1. **EMF — bench, not analysis.** CLAUDE.md §4.3 Layer 5 is *"USB-C + accessory port filters
+   (30–50 dB)."* A second power inlet carrying up to 5 A of switched current is a materially worse
+   aggressor than a data port, and `NP-TOOL-HUB-001` §2 places the hub PCB at or immediately adjacent
+   to the **occipital arch** — inside the assembly whose *measured* shielding is the product's primary
+   technical claim (CLAUDE.md §1). **This cannot be closed on paper.** `OI-PWR-12`.
+2. **Source arbitration is new safety surface.** Two live sources need OR-ing, inrush control, and
+   defined behaviour when either is hot-plugged or removed **mid-session**. A brownout during active
+   stimulation is a safety event, not an inconvenience, and the safety MCU currently has no concept of
+   *total available power* at all. `OI-PWR-13`.
+3. **The governor gets harder — which argues for building it correctly, not for avoiding it.** **D-4**
+   specifies the check as watts against *the negotiated PD contract*; with two inlets it is the sum of
+   two contracts, recomputed on hot-plug. A tile-count governor could not express this under any
+   reading, which is D-4's point restated.
+4. **UX.** §2.2's *"power level: reduced… never blocks"* model extends naturally, but a user who
+   plugs one supply into either port and finds a T2 session derated needs to be told which port is
+   which, and why. Copy problem, not an architecture problem.
+
+#### 4.4.4 What it does not do
+
+**It does not raise T1 PBM concurrency.** §3.2's thermal estimate (4–8 tiles) and
+`NP-HW-HEXTILE-001` §9's power-derived ceiling (~6) are **coincident**, so relieving the power
+constraint moves the binding one to heat and gains nothing. §3.3 is the reason: the residual path
+terminates in a cavity that cannot be ventilated without breaching the EMF shield, and no inlet
+cools it.
+
+**The condition under which that changes is already open.** If `OI-PWR-01`'s verification-grade
+multi-tile CFD returns a thermal ceiling materially above the power-derived one, a second inlet
+becomes the cheapest way to use that headroom — cheaper than a battery, and it is the only listed
+option that adds watts without adding stored energy. **Sequence the CFD first; do not size a power
+architecture against a thermal number nobody has measured.**
+
+**Recommendation.** Resolve `OI-PWR-11` (what the second Pro Full charger is for). Do **not** build
+this for T1. **Do** carry it into `OI-PWR-04` as the lead option for the T2/TMS power path, subject
+to `OI-PWR-12`'s EMF bench result — noting that §4.1's estimate still puts TMS at 15–400 W average
+during a pulse train, so even 200 W across two inlets does not settle §4's underlying question. It
+widens the envelope; it does not substitute for `OI-PWR-02`/`OI-PWR-03`.
+
+---
+
 ## 5. 1170nm deep PBM — the modality T2-peak is actually sized for
 
 NP-THERM-CFD-001 §4 shows the current T2-peak figure (70–74 W) was derived as a thermal budget for the 1170nm laser zone specifically (worst-zone flux ~0.25–0.35 W/cm², annotated "1170 laser zone"). This modality has a real efficiency penalty the LED-based PBM tiles don't: wall-plug efficiency for laser diode + TEC is η_wp ≈ 0.15–0.25, versus 0.30–0.45 for the 660/808/1064nm LEDs — meaning 75–85% of drawn electrical power becomes heat that the TEC must then actively pump away, at additional power cost. This is a genuinely elastic (heat-removal-bound) modality like PBM tiles, but a more expensive one per watt of useful optical output, and its own dedicated thermal validation is still open (FAI-T2-05, "hardware bench — PENDING" per NP-SES-1064-001 §12). The existing T2-peak figure is a reasonable placeholder for this modality specifically; it simply isn't a number that has ever included TMS, per §4.
@@ -302,7 +423,7 @@ NP-THERM-CFD-001 §4 shows the current T2-peak figure (70–74 W) was derived as
 | Config | Current figure | This analysis |
 |---|---|---|
 | T1 standard / T1 peak | 17–20 W / 45–50 W | Plausible — §3's independent thermal estimate brackets the existing PBM-driven number (4–8 tiles vs. the assumed 6). Not confirmed to verification grade, but not obviously wrong either. **Rev 2 adds two bounds on either side of it:** the envelope is ~2 % of what a fully populated, fully driven lattice would need (§3.5), and it is sufficient for whole-vault illumination only at the very bottom of the efficacy band (§3.6). Neither changes the figure; both change what it should be read as — a *choice* between coverage and irradiance, not a headroom margin. |
-| T2 standard / T2 peak | 44–46 W / 70–74 W | **Not trustworthy as stated.** Built for 1170nm PBM only (§5); does not include TMS (§4), which by itself likely exceeds the entire current T2-peak envelope during an active pulse train at clinically-relevant field strength. |
+| T2 standard / T2 peak | 44–46 W / 70–74 W | **Not trustworthy as stated.** Built for 1170nm PBM only (§5); does not include TMS (§4), which by itself likely exceeds the entire current T2-peak envelope during an active pulse train at clinically-relevant field strength. **Rev 3:** §4.4's second-inlet option would widen the envelope to ~200 W across two PD sinks, which does **not** settle the question — §4.1 still puts TMS at 15–400 W average during a pulse train, so `OI-PWR-02`/`OI-PWR-03` remain the gating items. Note also that CLAUDE.md §2.2 already ships this tier **two** chargers against a single 100 W contract (`OI-PWR-11`). |
 
 **This document does not propose new locked numbers for §4.5.** T1's figures can likely stand pending the real multi-tile CFD (§3.2). T2's cannot be revised responsibly until §4's two open questions (real field-strength requirement, real coil energy) are answered — at which point the honest range is anywhere from "no change" (if TMS ends up externally powered) to "PD contract and onboard energy storage both need a substantial increase" (if TMS must share the wearable's rail).
 
@@ -316,7 +437,7 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **D-2** | PBM concurrency: keep the existing ~6-tile rule pending verification-grade multi-tile CFD, but add a montage-clustering caveat (§3.2) rather than treating "6 tiles anywhere" as equivalent | The lumped estimate suggests clustered montages carry more local risk than distributed ones, which the current flat rule doesn't capture | Yes |
 | **D-4** *(Rev 2)* | **The global concurrent-power governor must be denominated in watts against the negotiated PD contract, not in a tile count.** A fixed "~6 tiles" rule is wrong in both directions: it forbids the ~30 W whole-vault mode of §3.6 (80 tiles, well inside the envelope) and permits 6 tiles at full dual-channel drive (150 W, well outside it) | Tile count is a proxy for power that fails as soon as per-tile drive is variable — and per-tile drive is variable by design, since irradiance is the therapeutic parameter (§3.4). `OI-HEXTILE-09` is the owning item; `NP-DRV-SHELL-002` SH2-DRC-02b's pass condition is currently written as *"global governor present"* and should state the unit | Yes — a firmware/spec convention, not committed hardware |
 | **D-5** *(Rev 2)* | **State the efficacy floor alongside every ceiling this document derives.** §1's elastic/inelastic frame is retained unchanged and extended, not replaced | A ceiling-only method cannot distinguish an adequate budget from any budget; §3.4 is the omission being corrected, and it is the reason the T1 envelope reads as tight rather than generous | Yes — a documentation/process convention, like D-1 |
-| **D-3** | TMS power architecture: **not decided.** Quantify field-strength requirement and real coil energy (§4.3) before choosing shared-rail vs. externally-powered | Committing to an architecture before the energy number is real risks building the wrong capacitor bank or wrongly ruling out the shared-rail option | N/A — no decision made yet |
+| **D-3** *(scope widened Rev 3)* | TMS power architecture: **not decided.** Quantify field-strength requirement and real coil energy (§4.3) before choosing among the options. **Rev 3: the option set is three, not two** — shared rail, mains-tethered, or **a second PD-sink inlet alongside USB-C** (§4.4), which is the lead candidate because it is the only one that leaves Mode 3 intact for T1 | Committing to an architecture before the energy number is real risks building the wrong capacitor bank or wrongly ruling out an option. Rev 3 adds that the binary framing itself was the narrower error — a third option existed and was never assessed | N/A — no decision made yet |
 
 ## 8. Open items
 
@@ -325,14 +446,17 @@ Recorded so they can be challenged individually. None is locked; all are proposa
 | **OI-PWR-01** | Verification-grade multi-tile aggregate CFD (extends OI-R1-01 to N-tile, non-adiabatic case), including montage-clustering sensitivity | Confirms/revises the ~4–8 tile estimate in §3.2 before it can replace the power-derived ~6-tile figure as the authoritative PBM concurrency rule |
 | **OI-PWR-02** | TMS field-strength requirement: confirm whether 0.1–0.5 T (CLAUDE.md §3) is achievable-and-correct for the 120% RMT protocols the evidence base targets, or needs revision | Everything downstream of §4 — the energy estimate is only as good as the field target it's scaled to |
 | **OI-PWR-03** | Real TMS coil inductance/geometry and capacitor-bank design, replacing the E ∝ B² scaling estimate in §4.1 with an actual calculation | TMS power architecture decision (D-3) |
-| **OI-PWR-04** | TMS power-path decision: shared battery-buffered rail (needs purpose-built capacitor bank + likely >100 W EPR PD contract) vs. external/mains-tethered supply for T2 sessions | CLAUDE.md §4.5 T2 figures; Mode 3 autonomous-operation scope for T2 |
+| **OI-PWR-04** | TMS power-path decision. **The option set is three, not two (Rev 3, §4.4).** (a) Shared battery-buffered rail — needs a purpose-built capacitor bank and likely a >100 W EPR contract; (b) external/mains-tethered supply for T2 sessions — costs Mode 3 for the whole device whenever T2-powered; (c) **a second PD-sink inlet alongside USB-C** — keeps USB-C for data, programming and all T1 power, and **scopes the Mode 3 loss to the modality that forces it**. **(c) is the lead candidate**, subject to `OI-PWR-12`. Prefer a second **USB-C PD sink** over a barrel/proprietary inlet: it stays SELV behind a certified charger rather than making NeurOne the IEC 60601-1 isolation barrier on a device with conductive applied parts (`NP-DT-001` DI-REG-01; VE-11 Open) | CLAUDE.md §4.5 T2 figures; Mode 3 autonomous-operation scope for T2. **Sequence after `OI-PWR-11`**; gated by `OI-PWR-12`; arbitration is `OI-PWR-13` |
 | **OI-PWR-05** | 1170nm laser+TEC dedicated thermal/electrical validation (tracks existing FAI-T2-05, still pending bench) | Confirms whether the current T2-peak figure (built for this modality) is itself accurate, independent of the TMS question |
 | **OI-PWR-06** | Sourcing for §4.1's clinical TMS energy figures (currently general device knowledge, not a cited datasheet or paper) | Any number in §4 becoming a design input rather than an order-of-magnitude estimate |
 | **OI-PWR-07** | **Is a whole-vault low-irradiance mode a product feature?** §3.6 shows ~30 W buys simultaneous illumination of all 80 sockets at ~6 mW/cm², inside the existing envelope, and that the Grade A Alzheimer's protocol asks for exactly that *geometry*. It is **not** a therapeutic dose at that irradiance (7.2 J/cm² in 20 min, below the §3.4 threshold), so adopting it requires deciding what it is *for* — coverage, comfort, a low-intensity maintenance protocol — and saying so in the protocol library, never as a dose claim | Product + Clinical. Interacts with `OI-HEXTILE-06` (an argument for populating more sockets that the cost model cannot see) and `OI-HEXTILE-09` (the governor must permit the shape) |
 | **OI-PWR-08** | **The §3.2 lumped model was never exercised beyond N ≈ 8, and §3.5 extrapolates it to N = 80.** The ~100 °C figure is stated only to fix the sign and order; it is outside the model's validity and must not be quoted as a temperature. Fold the high-N case into `OI-PWR-01`'s verification-grade multi-tile CFD rather than treating it as an independent estimate | Any use of §3.5's thermal figure beyond "the 42 °C limit binds long before full population" |
 | **OI-PWR-09** | **The efficacy band in §3.4 is drawn from `docs/pbm_neuro_protocols.md`, which is a protocol digest, not a controlled document.** It has no serial, no revision, and no DHF entry, yet Rev 2 now makes it load-bearing for the *lower* bound of the power budget. Either register it or cite its underlying trials directly before any §3.4 figure becomes a design input | Design-control traceability for the floor; `NP-DHF-001` registration |
+| **OI-PWR-11** | **CLAUDE.md §2.2 ships Pro Full two 65 W chargers; §4.5 negotiates one 100 W EPR contract. 130 W is not 100 W.** §2.2's table is otherwise strictly keyed to *"peak draw of configuration"* and prices spares nowhere else. Three readings the document set does not distinguish (§4.4.2): undocumented spare; **a dual-inlet architecture assumed and never specified**; or a **separate T2 accessory with no port, enclosure or power spec in any document** — the last being consistent with §4's finding that TMS is absent from the electrical model entirely. **§2.2 is locked and this document does not modify it** | **Principal.** Resolve BEFORE any §4.4 design work — the answer decides whether §4.4 is a proposal or a specification. Feeds `OI-PWR-04` |
+| **OI-PWR-12** | **EMF qualification of a second power inlet — bench, not analysis.** CLAUDE.md §4.3 Layer 5 is *"USB-C + accessory port filters (30–50 dB)"*. An inlet carrying up to 5 A of switched current is a materially worse aggressor than a data port, and `NP-TOOL-HUB-001` §2 puts the hub PCB at or adjacent to the **occipital arch**, inside the assembly whose **measured** shielding is the product's primary technical claim (CLAUDE.md §1). **The claim is measured, so the qualification must be too** | EMI bench (with EMF-1). **Gates §4.4 regardless of how `OI-PWR-11` resolves** |
+| **OI-PWR-13** | **Dual-source arbitration, and the safety MCU's missing concept of available power.** Two live supplies need OR-ing, inrush control, and defined behaviour when either is hot-plugged or removed **mid-session** — a brownout during active stimulation is a safety event, not an inconvenience. **The safety MCU has no representation of total available power today**, so this is new IEC 62304 surface, not a wiring detail. Interacts with **D-4**: the governor's budget becomes the sum of two negotiated contracts, recomputed on hot-plug | Safety + EE. Follows `OI-PWR-11`; co-decide with `OI-HEXTILE-09` |
 | **OI-PWR-10** | **CLAUDE.md §4.5's T1 rows do not distinguish clustered from distributed montages, and Rev 1 §3.2's caveat is still unaddressed.** §3.6 sharpens the case: the same envelope supports 6 clustered tiles or 80 distributed ones with very different local thermal outcomes, so a single wattage row cannot describe both. Carried forward rather than closed | Follows `OI-PWR-01`; feeds D-2's montage-clustering caveat |
 
 ## 9. Cross-references
 
-CLAUDE.md §3 (modality stack), §4.5 (power — under interrogation here) · NP-HW-HEXTILE-001 §9 (power-derived concurrency ceiling this document reverses), §4.2/§4.3 (emitter allocation and irradiance — the inputs to §3.5), §6.4 (BOM; `OI-HEXTILE-06`, to which §3.5 and §3.6 are routed), §8.1 (VLED rail, the 25.0 W/tile figure), §8.3 (3.3 V logic budget) · NP-OPT-PSF-001 §3.3 (26.2 mm cortical resolution floor — why §3.7 says density buys irradiance, not precision) · `docs/pbm_neuro_protocols.md` (MASTER SUMMARY + dosimetry lesson 1 — the efficacy floor of §3.4) · `docs/reference/competitive-position.md` (the comparative form of §3.6/§3.7) · NP-THERM-CFD-R1-001 (single-tile thermal model, BN-boss export study) · NP-THERM-CFD-001 §4 (heat-source model, η_wp, T2-peak = 1170-zone derivation) · NP-HEX-ZM-001 §6 (aggregate thermal concern, raised but not resolved) · NP-ENV-OPRANGE-001 (ambient/duty firmware gate) · `docs/neuromod_neuro_protocols.md` (TMS clinical protocol parameters used in §4.1) · NP-DT-001 DI-PERF-12/13 (TMS and 1170nm design inputs, both still Open/Partial)
+CLAUDE.md §3 (modality stack), §4.5 (power — under interrogation here) · NP-HW-HEXTILE-001 §9 (power-derived concurrency ceiling this document reverses), §4.2/§4.3 (emitter allocation and irradiance — the inputs to §3.5), §6.4 (BOM; `OI-HEXTILE-06`, to which §3.5 and §3.6 are routed), §8.1 (VLED rail, the 25.0 W/tile figure), §8.3 (3.3 V logic budget) · NP-OPT-PSF-001 §3.3 (26.2 mm cortical resolution floor — why §3.7 says density buys irradiance, not precision) · `docs/pbm_neuro_protocols.md` (MASTER SUMMARY + dosimetry lesson 1 — the efficacy floor of §3.4) · `docs/reference/competitive-position.md` (the comparative form of §3.6/§3.7) · NP-TOOL-HUB-001 §2 (hub PCB at the occipital arch), §3 F-02 / HUB-MDR-04 (two hub port openings with tethered covers — the mechanical precedent for §4.4), FAI-HTOOL-02 (tether reach, BLOCKING) · NP-DT-001 DI-REG-01 (IEC 60601-1) and VE-11 (accredited-lab standards testing, Open) · CLAUDE.md §2.2 (charger policy — the `OI-PWR-11` discrepancy), §4.3 (Layer 5 port filters), §1 (wired-first USB-C and Mode 3, the principles §4.4 preserves) · NP-THERM-CFD-R1-001 (single-tile thermal model, BN-boss export study) · NP-THERM-CFD-001 §4 (heat-source model, η_wp, T2-peak = 1170-zone derivation) · NP-HEX-ZM-001 §6 (aggregate thermal concern, raised but not resolved) · NP-ENV-OPRANGE-001 (ambient/duty firmware gate) · `docs/neuromod_neuro_protocols.md` (TMS clinical protocol parameters used in §4.1) · NP-DT-001 DI-PERF-12/13 (TMS and 1170nm design inputs, both still Open/Partial)
