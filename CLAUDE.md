@@ -27,6 +27,7 @@ The core sections (§1–§6, §16) stay in this file — they are invariants th
 |-------|-----------|------|
 | **Product overview** | always available | §1 below |
 | **Configurations + pricing** | always available | §2 below |
+| **PBM protocol power audit** (which predefined protocols fit the envelope; why the "~6 tiles" rule is really 2–32; the zone-granularity defect; what cascading can and cannot rescue) | asking whether a protocol can actually run, authoring or editing any `.npps`, or touching zone definitions | `docs/np_ses_pwr_001.md` |
 | **Configuration cost model** (BOM/COGS/GM% derivation, the three unsourced assumptions, term U, why OI-HUB-C08 cannot close) | quoting or acting on ANY §2.1 cost figure; any BOM, margin or pricing question | `docs/np_cost_001.md` |
 | **Modality stack** | always available | §3 below |
 | **Hardware specifications** | always available | §4 below |
