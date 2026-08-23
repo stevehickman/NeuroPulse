@@ -238,7 +238,7 @@ data class NPHDTdcsParams(
     var intensityMilliamps: Double = 1.5,
 ) {
     enum class Montage(val rawValue: String) {
-        RING_4X1("4x1_ring"),
+        RING_4X1("ring_4x1"),
         BILATERAL_4X1("bilateral_4x1"),
         STANDARD_2EL("standard_2_electrode");
     }

@@ -128,8 +128,6 @@ const KEYWORDS = new Set([
   'true', 'false',
 ]);
 
-const EMPTY_KEY_SET: ReadonlySet<string> = new Set();
-
 // The `limits` keys that introduce a per-modality sub-block (`key { … }`)
 // rather than a scalar (`key: value`). Used to tell the two shapes apart.
 const MODALITY_LIMITS_KEYS = new Set([
@@ -461,17 +459,6 @@ class Parser {
       breathing_rate: 'resonance_breathing_rate',
       ramp: 'ramp_seconds',
       emdr_cadence: 'emdr_cadence_hz',
-      // Legacy spelling emitted by iOS builds up to 2026-08 (and by
-      // 09-retinal-health.npps, which this parser silently dropped as an
-      // unknown key). Canonical name is 'enable_mode_f' — NP-NPPS-REF-001 §4.8.
-      // Note 'mode_f' is also a VALUE of the 'mode' field; only keys are aliased.
-      mode_f: 'enable_mode_f',
-      // Legacy modality-field spellings emitted by iOS builds up to 2026-08
-      // (NP-NPPS-REF-001 Rev 5). Canonical names are the ones §12 documents.
-      sloreta: 'sloreta_enabled',
-      intensity_mt: 'intensity_percent_mt',
-      sync_audio: 'sync_to_audio',
-      sync_visual: 'sync_to_visual',
     };
     return aliases[key] ?? key;
   }
@@ -533,10 +520,8 @@ class Parser {
         continue;
       }
 
-      // A legacy/short alias never overwrites the canonical spelling if that
-      // was already given, so `intensity_percent_mt: 90` beats a later
-      // `intensity_mt: 70`. Matches NPProtocolScripting.swift's alias(), which
-      // returns the first key present with the canonical listed first.
+      // A short alias never overwrites the canonical spelling if that was
+      // already given, so `frequency_hz: 40` beats a later `frequency: 10`.
       if (!(canonical !== key && raw[canonical] !== undefined)) {
         raw[canonical] = val;
       }
@@ -755,7 +740,6 @@ class Parser {
 
   private parseLimitsSubBlock<T extends object>(
     fieldMap: Record<string, (raw: unknown) => Partial<T>>,
-    legacyKeys: ReadonlySet<string> = EMPTY_KEY_SET,
   ): T {
     this.skipNewlines();
     this.expect('LBRACE');
@@ -765,11 +749,7 @@ class Parser {
       const { key } = this.readKeyValue();
       const handler = fieldMap[key];
       if (handler) {
-        const val = handler(this.readAnyValue());
-        // A legacy alias never overwrites a canonical spelling already seen.
-        if (!(legacyKeys.has(key) && Object.keys(val).some(k => k in result))) {
-          Object.assign(result, val);
-        }
+        Object.assign(result, handler(this.readAnyValue()));
       } else {
         // Skip unknown fields gracefully
         this.readAnyValue();
@@ -837,11 +817,7 @@ class Parser {
       max_frequency: v => ({ maxBinauralBeatsHz: Number(v) }),
       max_binaural_beats: v => ({ maxBinauralBeatsHz: Number(v) }),
       max_isochronic_tones: v => ({ maxIsochronicTonesHz: Number(v) }),
-      // Legacy iOS spellings (NP-NPPS-REF-001 Rev 5)
-      max_volume: v => ({ maxVolumePercent: Number(v) }),
-      max_binaural_hz: v => ({ maxBinauralBeatsHz: Number(v) }),
-      max_isochronic_hz: v => ({ maxIsochronicTonesHz: Number(v) }),
-    }, new Set(['max_volume', 'max_binaural_hz', 'max_isochronic_hz']));
+    });
   }
 
   private parseVisualStimLimits(): VisualStimLimits {
@@ -856,14 +832,12 @@ class Parser {
   private parseTMSLimits(): TMSLimits {
     return this.parseLimitsSubBlock<TMSLimits>({
       max_intensity_pct_mt: v => ({ maxIntensityPercentMT: Number(v) }),
-      // Legacy iOS spelling (NP-NPPS-REF-001 Rev 5)
-      max_intensity_mt: v => ({ maxIntensityPercentMT: Number(v) }),
       max_pulses_per_session: v => ({ maxPulsesPerSession: Number(v) }),
       max_pulses_per_day: v => ({ maxPulsesPerDay: Number(v) }),
       max_sessions_per_week: v => ({ maxSessionsPerWeek: Number(v) }),
       allowed_protocols: v => ({ allowedProtocols: Array.isArray(v) ? (v as string[]) : [String(v)] }),
       allowed_targets: v => ({ allowedTargets: Array.isArray(v) ? (v as string[]) : [String(v)] }),
-    }, new Set(['max_intensity_mt']));
+    });
   }
 
   private parseDeepPBMLimits(): DeepPBMLimits {
@@ -898,10 +872,8 @@ class Parser {
   private parseVibrotactileLimits(): VibrotactileLimits {
     return this.parseLimitsSubBlock<VibrotactileLimits>({
       max_intensity: v => ({ maxIntensityG: Number(v) }),
-      // Legacy iOS spelling (NP-NPPS-REF-001 Rev 5)
-      max_intensity_g: v => ({ maxIntensityG: Number(v) }),
       max_session_duration: v => ({ maxSessionDurationSeconds: Number(v) }),
-    }, new Set(['max_intensity_g']));
+    });
   }
 
   private parseProtocol(): NPProtocolDefinition {

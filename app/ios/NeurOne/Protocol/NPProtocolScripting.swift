@@ -348,9 +348,9 @@ struct NPPSParser {
 
         case "audio_entrainment":
             var lim = NPAudioEntrainmentLimits()
-            if let v = Self.alias(fields, "max_intensity", "max_volume")?.asPercent { lim.maxVolumePercent = v }
-            if let v = Self.alias(fields, "max_binaural_beats", "max_binaural_hz")?.asHz { lim.maxBinauralBeatsHz = v }
-            if let v = Self.alias(fields, "max_isochronic_tones", "max_isochronic_hz")?.asHz { lim.maxIsochronicTonesHz = v }
+            if let v = fields["max_intensity"]?.asPercent        { lim.maxVolumePercent = v }
+            if let v = fields["max_binaural_beats"]?.asHz        { lim.maxBinauralBeatsHz = v }
+            if let v = fields["max_isochronic_tones"]?.asHz      { lim.maxIsochronicTonesHz = v }
             limitsSet.audioEntrainment = lim
 
         case "visual_stimulation":
@@ -371,7 +371,7 @@ struct NPPSParser {
 
         case "tms":
             var lim = NPTMSLimits()
-            if let v = Self.alias(fields, "max_intensity_pct_mt", "max_intensity_mt")?.asDouble { lim.maxIntensityPercentMT = Int(v) }
+            if let v = fields["max_intensity_pct_mt"]?.asDouble   { lim.maxIntensityPercentMT = Int(v) }
             if let v = fields["max_pulses_per_session"]?.asDouble { lim.maxPulsesPerSession = Int(v) }
             if let v = fields["max_pulses_per_day"]?.asDouble     { lim.maxPulsesPerDay = Int(v) }
             if let v = fields["max_sessions_per_week"]?.asDouble  { lim.maxSessionsPerWeek = Int(v) }
@@ -430,7 +430,7 @@ struct NPPSParser {
 
         case "vibrotactile_40hz":
             var lim = NPVibrotactileLimits()
-            if let v = Self.alias(fields, "max_intensity", "max_intensity_g")?.asDouble { lim.maxIntensityG = v }
+            if let v = fields["max_intensity"]?.asDouble          { lim.maxIntensityG = v }
             if let v = fields["max_session_duration"]?.asTime     { lim.maxSessionDurationSeconds = v }
             limitsSet.vibrotactile40hz = lim
 
@@ -876,17 +876,13 @@ struct NPPSParser {
                 }
             }
             if let v = fields["emdr_cadence"]?.asHz  { p.emdrCadenceHz = v }
-            // Canonical key is `enable_mode_f` (NP-NPPS-REF-001 §4.8); `mode_f` is the
-            // legacy spelling this parser emitted up to 2026-08 and is still accepted
-            // so files written by older builds keep working. Canonical wins if both
-            // appear. Distinct from the `mode: mode_f` VALUE parsed just above.
+            // Distinct from the `mode: mode_f` VALUE parsed just above.
             if let v = fields["enable_mode_f"]?.asBool { p.enableModeF = v }
-            else if let v = fields["mode_f"]?.asBool   { p.enableModeF = v }
             return .visualStimulation(p)
 
         case "qeeg_21ch":
             var p = NPqEEG21chParams()
-            if let v = Self.alias(fields, "sloreta_enabled", "sloreta")?.asBool { p.sloretaEnabled = v }
+            if let v = fields["sloreta_enabled"]?.asBool { p.sloretaEnabled = v }
             if let v = fields["reference"]?.asIdent {
                 switch v {
                 case "linked_ear": p.reference = .linkedEar
@@ -900,7 +896,7 @@ struct NPPSParser {
         case "tms":
             var p = NPTMSParams()
             if let v = fields["frequency"]?.asHz          { p.frequencyHz = v }
-            if let v = Self.alias(fields, "intensity_percent_mt", "intensity_mt")?.asDouble { p.intensityPercentMT = Int(v) }
+            if let v = fields["intensity_percent_mt"]?.asDouble { p.intensityPercentMT = Int(v) }
             if let v = fields["pulse_count"]?.asDouble    { p.pulseCount = Int(v) }
             if let v = fields["target"]?.asIdent {
                 if let t = NPTMSParams.TMSTarget(rawValue: v.uppercased()) { p.target = t }
@@ -926,7 +922,7 @@ struct NPPSParser {
             var p = NPClinicalTacsParams()
             if let v = fields["frequency"]?.asHz        { p.frequencyHz = v }
             if let v = fields["intensity"]?.asMilliamps { p.intensityMilliamps = v }
-            if let v = fields["channels"]?.asDouble     { p.channelCount = Int(v) }
+            if let v = fields["channel_count"]?.asDouble { p.channelCount = Int(v) }
             return .clinicalTacs(p)
 
         case "hd_tdcs":
@@ -934,7 +930,7 @@ struct NPPSParser {
             if let v = fields["intensity"]?.asMilliamps { p.intensityMilliamps = v }
             if let v = fields["montage"]?.asIdent {
                 switch v {
-                case "ring_4x1", "4x1_ring":      p.montage = .ring4x1
+                case "ring_4x1":                   p.montage = .ring4x1
                 case "bilateral_4x1":              p.montage = .bilateral4x1
                 case "standard_2_electrode":       p.montage = .standard2el
                 default: break
@@ -954,31 +950,13 @@ struct NPPSParser {
         case "vibrotactile_40hz":
             var p = NPVibrotactileParams()
             if let v = fields["intensity_g"]?.asDouble  { p.intensityG = v }
-            if let v = Self.alias(fields, "sync_to_audio", "sync_audio")?.asBool { p.syncToAudio = v }
-            if let v = Self.alias(fields, "sync_to_visual", "sync_visual")?.asBool { p.syncToVisual = v }
+            if let v = fields["sync_to_audio"]?.asBool     { p.syncToAudio = v }
+            if let v = fields["sync_to_visual"]?.asBool    { p.syncToVisual = v }
             return .vibrotactile40hz(p)
 
         default:
             throw NPPSError(message: "Unknown modality: \(name)", line: 0)
         }
-    }
-
-    // MARK: Legacy field-name aliases
-    //
-    // Up to 2026-08 this parser read (and its serializer wrote) nine field names
-    // that no other component in the toolchain recognised — see NP-NPPS-REF-001
-    // Rev 5. A file written by iOS therefore lost those fields when read by
-    // nppsParser.ts, and vice versa. The canonical spellings are now the ones in
-    // NP-NPPS-REF-001 §12; the legacy ones stay readable so files written by
-    // older builds keep working, and the serializer emits canonical only.
-    //
-    // Returns the first key present, so the canonical name wins when both appear.
-    private static func alias(_ fields: [String: NPPSFieldValue],
-                              _ keys: String...) -> NPPSFieldValue? {
-        for k in keys {
-            if let v = fields[k] { return v }
-        }
-        return nil
     }
 
     // MARK: Field value type
@@ -1458,7 +1436,7 @@ struct NPPSSerializer {
             return [
                 "frequency: \(formatHz(p.frequencyHz))",
                 "intensity: \(p.intensityMilliamps)mA",
-                "channels: \(p.channelCount)",
+                "channel_count: \(p.channelCount)",
                 "waveform: \(p.waveform.rawValue)"
             ]
 

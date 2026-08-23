@@ -227,9 +227,9 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             }
             "audio_entrainment" -> {
                 val lim = NPAudioEntrainmentLimits()
-                fields["max_volume"]?.asPercent?.let { lim.maxVolumePercent = it }
-                fields["max_binaural_hz"]?.asHz?.let { lim.maxBinauralBeatsHz = it }
-                fields["max_isochronic_hz"]?.asHz?.let { lim.maxIsochronicTonesHz = it }
+                fields["max_intensity"]?.asPercent?.let { lim.maxVolumePercent = it }
+                fields["max_binaural_beats"]?.asHz?.let { lim.maxBinauralBeatsHz = it }
+                fields["max_isochronic_tones"]?.asHz?.let { lim.maxIsochronicTonesHz = it }
                 limitsSet.audioEntrainment = lim
             }
             "visual_stimulation" -> {
@@ -242,7 +242,7 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             }
             "tms" -> {
                 val lim = NPTMSLimits()
-                fields["max_intensity_mt"]?.asDouble?.let { lim.maxIntensityPercentMT = it.toInt() }
+                fields["max_intensity_pct_mt"]?.asDouble?.let { lim.maxIntensityPercentMT = it.toInt() }
                 fields["max_pulses_per_session"]?.asDouble?.let { lim.maxPulsesPerSession = it.toInt() }
                 fields["max_pulses_per_day"]?.asDouble?.let { lim.maxPulsesPerDay = it.toInt() }
                 fields["max_sessions_per_week"]?.asDouble?.let { lim.maxSessionsPerWeek = it.toInt() }
@@ -277,7 +277,7 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             }
             "vibrotactile_40hz" -> {
                 val lim = NPVibrotactileLimits()
-                fields["max_intensity_g"]?.asDouble?.let { lim.maxIntensityG = it }
+                fields["max_intensity"]?.asDouble?.let { lim.maxIntensityG = it }
                 fields["max_session_duration"]?.asTime?.let { lim.maxSessionDurationSeconds = it }
                 limitsSet.vibrotactile40hz = lim
             }
@@ -665,13 +665,13 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                     }
                 }
                 fields["emdr_cadence"]?.asHz?.let { p.emdrCadenceHz = it }
-                fields["mode_f"]?.asBool?.let { p.enableModeF = it }
+                fields["enable_mode_f"]?.asBool?.let { p.enableModeF = it }
                 return NPModalityParams.VisualStimulation(p)
             }
 
             "qeeg_21ch" -> {
                 val p = NPqEEG21chParams()
-                fields["sloreta"]?.asBool?.let { p.sloretaEnabled = it }
+                fields["sloreta_enabled"]?.asBool?.let { p.sloretaEnabled = it }
                 fields["reference"]?.asIdent?.let { r ->
                     when (r) {
                         "linked_ear" -> p.reference = NPqEEG21chParams.Reference.LINKED_EAR
@@ -686,7 +686,7 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             "tms" -> {
                 val p = NPTMSParams()
                 fields["frequency"]?.asHz?.let { p.frequencyHz = it }
-                fields["intensity_mt"]?.asDouble?.let { p.intensityPercentMT = it.toInt() }
+                fields["intensity_percent_mt"]?.asDouble?.let { p.intensityPercentMT = it.toInt() }
                 fields["pulse_count"]?.asDouble?.let { p.pulseCount = it.toInt() }
                 fields["target"]?.asIdent?.let { t ->
                     NPTMSParams.TMSTarget.fromRawValue(t.uppercase())?.let { p.target = it }
@@ -714,7 +714,7 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                 val p = NPClinicalTacsParams()
                 fields["frequency"]?.asHz?.let { p.frequencyHz = it }
                 fields["intensity"]?.asMilliamps?.let { p.intensityMilliamps = it }
-                fields["channels"]?.asDouble?.let { p.channelCount = it.toInt() }
+                fields["channel_count"]?.asDouble?.let { p.channelCount = it.toInt() }
                 return NPModalityParams.ClinicalTacs(p)
             }
 
@@ -723,7 +723,7 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                 fields["intensity"]?.asMilliamps?.let { p.intensityMilliamps = it }
                 fields["montage"]?.asIdent?.let { m ->
                     when (m) {
-                        "ring_4x1", "4x1_ring" -> p.montage = NPHDTdcsParams.Montage.RING_4X1
+                        "ring_4x1" -> p.montage = NPHDTdcsParams.Montage.RING_4X1
                         "bilateral_4x1" -> p.montage = NPHDTdcsParams.Montage.BILATERAL_4X1
                         "standard_2_electrode" -> p.montage = NPHDTdcsParams.Montage.STANDARD_2EL
                         else -> { /* unknown ignored */ }
@@ -745,8 +745,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             "vibrotactile_40hz" -> {
                 val p = NPVibrotactileParams()
                 fields["intensity_g"]?.asDouble?.let { p.intensityG = it }
-                fields["sync_audio"]?.asBool?.let { p.syncToAudio = it }
-                fields["sync_visual"]?.asBool?.let { p.syncToVisual = it }
+                fields["sync_to_audio"]?.asBool?.let { p.syncToAudio = it }
+                fields["sync_to_visual"]?.asBool?.let { p.syncToVisual = it }
                 return NPModalityParams.Vibrotactile40hz(p)
             }
 

@@ -538,7 +538,7 @@ describe('round-trip', () => {
   });
 });
 
-describe('Mode F field name (enable_mode_f / legacy mode_f)', () => {
+describe('Mode F field name', () => {
   const modeFSource = (key: string) => `
 protocol "Retinal" {
     duration: 3m
@@ -561,34 +561,24 @@ protocol "Retinal" {
     expect((v.modalityParams.params as { enableModeF: boolean }).enableModeF).toBe(true);
   });
 
-  // Regression: iOS emitted `mode_f: true` while this parser only read
-  // `enable_mode_f`, so the flag was silently dropped as an unknown key —
-  // including in the shipped 09-retinal-health.npps.
-  it('accepts the legacy mode_f key as an alias', () => {
-    const v = visualOf(modeFSource('mode_f'));
-    expect((v.modalityParams.params as { enableModeF: boolean }).enableModeF).toBe(true);
-  });
-
-  it('does not confuse the mode_f VALUE with the mode_f KEY', () => {
+  it('does not confuse the mode_f VALUE with a field key', () => {
     const v = visualOf(modeFSource('enable_mode_f'));
     expect((v.modalityParams.params as { mode: string }).mode).toBe('mode_f');
   });
 
-  it('serializes the canonical key, and it round-trips from the legacy spelling', () => {
-    const [entry] = parseNPPS(modeFSource('mode_f'));
+  it('serializes the canonical key', () => {
+    const [entry] = parseNPPS(modeFSource('enable_mode_f'));
     const serialized = serializeProtocol(entry);
     expect(serialized).toContain('enable_mode_f: true');
     expect(serialized).not.toMatch(/^\s*mode_f:/m);
-    const v = visualOf(serialized);
-    expect((v.modalityParams.params as { enableModeF: boolean }).enableModeF).toBe(true);
   });
 });
 
-// Regression: nine field names iOS read AND wrote that no other component
-// recognised, so a file written by one platform silently lost them on the
-// other. Canonical spellings are NP-NPPS-REF-001 §12; the legacy iOS spellings
-// stay readable. See NP-NPPS-REF-001 Rev 5.
-describe('legacy iOS field-name aliases', () => {
+// These nine field names once differed between the web and iOS parsers, so a
+// file written on one platform silently lost them on the other. One canonical
+// spelling now, matching NP-NPPS-REF-001 §12; the retired spellings are gone
+// rather than kept as aliases, and fall under the ordinary unknown-key rule.
+describe('canonical field names shared by every runtime', () => {
   const modalityOf = (src: string, type: string) => {
     const [entry] = parseNPPS(src);
     return (entry as { kind: 'single'; protocol: NPProtocolDefinition })
@@ -597,28 +587,19 @@ describe('legacy iOS field-name aliases', () => {
 
   const proto = (body: string) => `protocol "T" {\n    duration: 5m\n${body}\n}\n`;
 
-  it.each([
-    ['sloreta_enabled', 'canonical'],
-    ['sloreta', 'legacy'],
-  ])('qeeg_21ch sloreta_enabled via %s (%s)', (key) => {
-    const m = modalityOf(proto(`    qeeg_21ch {\n        ${key}: true\n    }`), 'qeeg_21ch');
+  it('qeeg_21ch sloreta_enabled', () => {
+    const m = modalityOf(proto(`    qeeg_21ch {\n        sloreta_enabled: true\n    }`), 'qeeg_21ch');
     expect((m.modalityParams.params as { sloretaEnabled: boolean }).sloretaEnabled).toBe(true);
   });
 
-  it.each([
-    ['intensity_percent_mt', 'canonical'],
-    ['intensity_mt', 'legacy'],
-  ])('tms intensity_percent_mt via %s (%s)', (key) => {
-    const m = modalityOf(proto(`    tms {\n        tms_protocol: rTMS\n        ${key}: 90\n    }`), 'tms');
+  it('tms intensity_percent_mt', () => {
+    const m = modalityOf(proto(`    tms {\n        tms_protocol: rTMS\n        intensity_percent_mt: 90\n    }`), 'tms');
     expect((m.modalityParams.params as { intensityPercentMT: number }).intensityPercentMT).toBe(90);
   });
 
-  it.each([
-    ['sync_to_audio', 'sync_to_visual'],
-    ['sync_audio', 'sync_visual'],
-  ])('vibrotactile sync flags via %s / %s', (aKey, vKey) => {
+  it('vibrotactile sync_to_audio / sync_to_visual', () => {
     const m = modalityOf(
-      proto(`    vibrotactile_40hz {\n        intensity_g: 0.8\n        ${aKey}: true\n        ${vKey}: true\n    }`),
+      proto(`    vibrotactile_40hz {\n        intensity_g: 0.8\n        sync_to_audio: true\n        sync_to_visual: true\n    }`),
       'vibrotactile_40hz',
     );
     const p = m.modalityParams.params as { syncToAudio: boolean; syncToVisual: boolean };
@@ -626,12 +607,9 @@ describe('legacy iOS field-name aliases', () => {
     expect(p.syncToVisual).toBe(true);
   });
 
-  it.each([
-    ['max_intensity', 'max_binaural_beats', 'max_isochronic_tones'],
-    ['max_volume', 'max_binaural_hz', 'max_isochronic_hz'],
-  ])('audio limits via %s / %s / %s', (volKey, binKey, isoKey) => {
+  it('audio limits max_intensity / max_binaural_beats / max_isochronic_tones', () => {
     const lim = parseNPPSLimits(
-      `limits "L" {\n    level: global\n    audio_entrainment {\n        ${volKey}: 85\n        ${binKey}: 100\n        ${isoKey}: 90\n    }\n}\n`,
+      `limits "L" {\n    level: global\n    audio_entrainment {\n        max_intensity: 85\n        max_binaural_beats: 100\n        max_isochronic_tones: 90\n    }\n}\n`,
     );
     expect(lim!.audioEntrainment).toMatchObject({
       maxVolumePercent: 85,
@@ -640,45 +618,24 @@ describe('legacy iOS field-name aliases', () => {
     });
   });
 
-  it.each([
-    ['max_intensity_pct_mt', 'canonical'],
-    ['max_intensity_mt', 'legacy'],
-  ])('tms limits max_intensity_pct_mt via %s (%s)', (key) => {
-    const lim = parseNPPSLimits(`limits "L" {\n    level: global\n    tms {\n        ${key}: 120\n    }\n}\n`);
+  it('tms limits max_intensity_pct_mt', () => {
+    const lim = parseNPPSLimits(`limits "L" {\n    level: global\n    tms {\n        max_intensity_pct_mt: 120\n    }\n}\n`);
     expect(lim!.tms).toMatchObject({ maxIntensityPercentMT: 120 });
   });
 
-  it.each([
-    ['max_intensity', 'canonical'],
-    ['max_intensity_g', 'legacy'],
-  ])('vibrotactile limits max_intensity via %s (%s)', (key) => {
+  it('vibrotactile limits max_intensity', () => {
     const lim = parseNPPSLimits(
-      `limits "L" {\n    level: global\n    vibrotactile_40hz {\n        ${key}: 1.2\n    }\n}\n`,
+      `limits "L" {\n    level: global\n    vibrotactile_40hz {\n        max_intensity: 1.2\n    }\n}\n`,
     );
     expect(lim!.vibrotactile40hz).toMatchObject({ maxIntensityG: 1.2 });
   });
 
-  it('canonical wins when both spellings are present', () => {
-    const m = modalityOf(
-      proto(`    tms {\n        intensity_percent_mt: 90\n        intensity_mt: 70\n    }`),
-      'tms',
-    );
-    expect((m.modalityParams.params as { intensityPercentMT: number }).intensityPercentMT).toBe(90);
-  });
-
-  it('serializes canonical names only', () => {
-    const src = proto(
-      `    qeeg_21ch {\n        sloreta: true\n    }\n` +
-      `    vibrotactile_40hz {\n        intensity_g: 0.8\n        sync_audio: true\n        sync_visual: true\n    }`,
-    );
-    const [entry] = parseNPPS(src);
-    const out = serializeProtocol(entry);
-    expect(out).toContain('sloreta_enabled:');
-    expect(out).toContain('sync_to_audio:');
-    expect(out).toContain('sync_to_visual:');
-    expect(out).not.toMatch(/^\s*sloreta:/m);
-    expect(out).not.toMatch(/^\s*sync_audio:/m);
-    expect(out).not.toMatch(/^\s*sync_visual:/m);
+  it('hd_tdcs montage uses the spelling all three runtimes and §4.13 share', () => {
+    const m = modalityOf(proto(`    hd_tdcs {\n        montage: standard_2_electrode\n    }`), 'hd_tdcs');
+    expect((m.modalityParams.params as { montage: string }).montage).toBe('standard_2_electrode');
+    const out = serializeProtocol(parseNPPS(proto(`    hd_tdcs {\n        montage: ring_4x1\n    }`))[0]);
+    expect(out).toContain('montage: ring_4x1');
+    expect(out).not.toContain('4x1_ring');
   });
 });
 

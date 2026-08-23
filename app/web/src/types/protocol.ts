@@ -252,7 +252,12 @@ export interface ClinicalTacsParams {
 
 export interface HDTdcsParams {
   target: TMSParams['target'];
-  montage: 'ring_4x1' | 'bilateral_4x1' | 'standard_2el';
+  // Spelled as NP-NPPS-REF-001 §4.13 and NPProtocolDefinition.swift's Montage
+  // rawValue spell it. This union said 'standard_2el' up to 2026-08, which no
+  // other component used: a protocol authored from .npps carried
+  // 'standard_2_electrode' and was silently rejected by any limits list built
+  // in the web UI, which wrote 'standard_2el'.
+  montage: 'ring_4x1' | 'bilateral_4x1' | 'standard_2_electrode';
   intensityMilliamps: number;
 }
 

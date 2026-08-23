@@ -288,7 +288,7 @@ class NPPSSerializer {
             if (p.mode == NPVisualStimParams.VisualMode.EMDR) {
                 lines.add("emdr_cadence: ${formatHz(p.emdrCadenceHz)}")
             }
-            if (p.enableModeF) lines.add("mode_f: true")
+            if (p.enableModeF) lines.add("enable_mode_f: true")
             lines
         }
 
@@ -296,7 +296,7 @@ class NPPSSerializer {
             val p = params.params
             listOf(
                 "montage: ${p.montage.rawValue}",
-                "sloreta: ${p.sloretaEnabled}",
+                "sloreta_enabled: ${p.sloretaEnabled}",
                 "reference: ${p.reference.rawValue}",
             )
         }
@@ -306,7 +306,7 @@ class NPPSSerializer {
             listOf(
                 "protocol: ${p.tmsProtocol.rawValue}",
                 "frequency: ${formatHz(p.frequencyHz)}",
-                "intensity_mt: ${p.intensityPercentMT}%",
+                "intensity_percent_mt: ${p.intensityPercentMT}%",
                 "target: ${p.target.rawValue}",
                 "pulse_count: ${p.pulseCount}",
             )
@@ -326,7 +326,7 @@ class NPPSSerializer {
             listOf(
                 "frequency: ${formatHz(p.frequencyHz)}",
                 "intensity: ${formatDouble(p.intensityMilliamps)}mA",
-                "channels: ${p.channelCount}",
+                "channel_count: ${p.channelCount}",
                 "waveform: ${p.waveform.rawValue}",
             )
         }
@@ -354,8 +354,8 @@ class NPPSSerializer {
             listOf(
                 "frequency: ${formatHz(p.frequencyHz)}  # locked at 40Hz",
                 "intensity_g: ${formatDouble(p.intensityG)}G",
-                "sync_audio: ${p.syncToAudio}",
-                "sync_visual: ${p.syncToVisual}",
+                "sync_to_audio: ${p.syncToAudio}",
+                "sync_to_visual: ${p.syncToVisual}",
             )
         }
     }

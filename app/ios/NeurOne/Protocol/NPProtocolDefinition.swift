@@ -419,7 +419,7 @@ struct NPClinicalTacsParams: Codable, Equatable {
 struct NPHDTdcsParams: Codable, Equatable {
     enum Montage: String, Codable, CaseIterable, Equatable, Identifiable {
         var id: String { rawValue }
-        case ring4x1       = "4x1_ring"
+        case ring4x1       = "ring_4x1"
         case bilateral4x1  = "bilateral_4x1"
         case standard2el   = "standard_2_electrode"
 
