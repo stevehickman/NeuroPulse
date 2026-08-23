@@ -47,6 +47,7 @@
 		4F2867DBB86006256917CC65 /* EngagementTier.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7D9344D545A23DFAA12BC93 /* EngagementTier.swift */; };
 		5965DEF4A08C71B02398A964 /* SessionState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F5EF5775724E9F466BB0B51 /* SessionState.swift */; };
 		5E1F5ADF6804F46FB8F878E6 /* SupportingFiles in Resources */ = {isa = PBXBuildFile; fileRef = 7C6DFD5442C043888E708009 /* SupportingFiles */; };
+		A1C0DE5170C74D0E9B2F0002 /* predefined in Resources */ = {isa = PBXBuildFile; fileRef = A1C0DE5170C74D0E9B2F0001 /* predefined */; };
 		6300D5981D78D8E50B355B4C /* UHDRBackupScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1DF0D915565C5BC17D0A1770 /* UHDRBackupScheduler.swift */; };
 		64207716D966A25B982D5516 /* SessionHistoryStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4257A55FD7256C82902F183E /* SessionHistoryStore.swift */; };
 		67FE8AC53E85AD086D2A7E79 /* NPConditionDefinition.swift in Sources */ = {isa = PBXBuildFile; fileRef = A6F8EFE9C056DB359C333A45 /* NPConditionDefinition.swift */; };
@@ -183,6 +184,7 @@
 		6F8FFE51163EFF1C5B89B4FA /* SetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SetupView.swift; sourceTree = "<group>"; };
 		76D6557AD24572EF69FB3A21 /* ProtocolChunkerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProtocolChunkerTests.swift; sourceTree = "<group>"; };
 		7C6DFD5442C043888E708009 /* SupportingFiles */ = {isa = PBXFileReference; lastKnownFileType = folder; path = SupportingFiles; sourceTree = SOURCE_ROOT; };
+		A1C0DE5170C74D0E9B2F0001 /* predefined */ = {isa = PBXFileReference; lastKnownFileType = folder; name = predefined; path = ../../protocols/predefined; sourceTree = SOURCE_ROOT; };
 		8182AF021FAE44628BF86394 /* BLECentral.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BLECentral.swift; sourceTree = "<group>"; };
 		8715D53AC1BEA9CA3312F07F /* FirmwareUpdateService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FirmwareUpdateService.swift; sourceTree = "<group>"; };
 		885CB34BD3476108181CD490 /* SessionProtocolUploader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionProtocolUploader.swift; sourceTree = "<group>"; };
@@ -513,6 +515,7 @@
 				01BF39B553D1E3F7A87CBE47 /* NeurOneTests */,
 				D74E460632B1C1C17453FD22 /* Packages */,
 				7C6DFD5442C043888E708009 /* SupportingFiles */,
+				A1C0DE5170C74D0E9B2F0001 /* predefined */,
 				430D87AAE56EEDF187CDAEE2 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -628,6 +631,7 @@
 				34A03723E1F31C5165815EF6 /* Localizable.xcstrings in Resources */,
 				751F4FAFE18DD0DA64C26B4D /* PrivacyInfo.xcprivacy in Resources */,
 				5E1F5ADF6804F46FB8F878E6 /* SupportingFiles in Resources */,
+				A1C0DE5170C74D0E9B2F0002 /* predefined in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

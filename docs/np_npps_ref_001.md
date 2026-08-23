@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 8
+**Revision:** 9
 **Date:** 2026-08-23  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 9 (2026-08-23) — bundled protocols now come from `protocols/predefined/` at build time on every runtime; the hand-maintained duplicates are gone.** iOS and Android each carried the shipped library transcribed into source — `NPBundledProtocols.swift` (809 lines) and `NPBundledProtocols.kt` (744) — and both had drifted. **Android was shipping 19 of the library's 69 protocols and composites**, and 8 of those 19 were missing the `conditions` / `references` fields added in Rev 2. Both are replaced by loaders that read the real files: Android via a `bundlePredefinedProtocols` Gradle task that copies the directory onto `:core`'s resource path (JVM resources, not Android assets — `:core` is a pure-JVM module by design), iOS via a folder reference in the Xcode target's Resources build phase. Web already fetched them at runtime and is unchanged. The test assertions that pinned the count at 19 now derive it from `manifest.json`, so the bundle cannot silently diverge from the library again. §1.6 records the three mechanisms. **A gap this surfaced, recorded not closed:** neither mobile parser implements `zone` or `condition` top-level blocks, so both load the `protocols` and `composites` arrays only — `OI-NPPS-MOBILE-01`. Android `:core` verified green (156 tests); the iOS project change is unbuilt here — no Xcode in this environment.
+>
 > **Rev 8 (2026-08-23) — hd_tdcs montage aligned across all three runtimes; retired spellings removed rather than aliased; a third runtime brought into the audit.** **`app/android/` has a full parallel NPPS implementation** — lexer, parser, serializer, models, 4,486 lines — and it was outside every earlier revision's audit. Revs 4–5 said "both parsers"; that meant web and iOS. Android is a faithful port of the iOS parser **including all nine of Rev 5's divergent field names**, so it read only the retired spellings. **(i) hd_tdcs montage diverged on both values, in opposite directions:** `standard_2_electrode` (doc, iOS, Android) was `standard_2el` in the web type — so a protocol authored from `.npps` was silently rejected by any limits list built in the web UI, since `protocolValidator` string-matches montage against `allowed_montages`; and `ring_4x1` (doc, web) was **serialized** as `4x1_ring` by both iOS and Android, which since Rev 6 is not even lexable, being digit-leading. All three runtimes and §4.13 now use `ring_4x1` / `bilateral_4x1` / `standard_2_electrode`. **(ii) The retired spellings are gone, not aliased** — the only `.npps` files are the shipped predefined ones and they are all canonical, so Rev 4's `mode_f` alias and Rev 5's nine legacy readers are removed from every runtime, along with `4x1_ring` and the `legacyKeys` machinery in `parseLimitsSubBlock`. Android is moved onto the canonical names for all ten. **(iii) A tenth divergence found by the same sweep:** `clinical_tacs` read and wrote `channels` on iOS and Android against `channel_count` in the doc and the web parser; both now use `channel_count`. iOS and Android now read an identical set of 56 field names, verified mechanically. §4's alias table keeps only the ten documented short aliases; §12 drops the retired rows (189).
 >
 > **Rev 7 (2026-08-23) — `zones: named` round-trip fixed; a Rev 6 statement about the qEEG montage corrected.** (i) A `pbm_transcranial` block with no `zones` field inherited the default's **discriminant without its paired refs** — `{zones:'named'}` with no `zoneRefs`, the state §4.1's own type comment rules out — and the serializer then wrote it as the bare word `named`, which no parser accepts. So any protocol whose PBM block omitted `zones` produced a file the toolchain could not read back. Absent `zones` now inherits both halves of the default (`["All"]`, the whole-helmet zone), as every other field in that builder already did; and the serializer no longer writes the discriminant unguarded — `clinician_selected` is emitted as the keyword it is, a named target as its ref list, and an empty ref list raises a caller error instead of being written into an unreadable file. A sweep over **all 16 modality types** confirms `pbm_transcranial` was the only one affected, and that sweep is now a standing test. (ii) While proving that fix, §4.1's *Accepted `zones` forms* table was found to document **five selectors that no longer parse** — `all`, `front`, `rear`, `custom`, `custom_zones` and numeric `zones: [0,1,2]` are rejected outright, not accepted-and-ignored — and §12 had inherited that claim. Both now state the two real forms (a named-zone-reference array, or `clinician_selected`, which §12 was missing entirely), and the retired names are kept as rows saying they are retired. (iii) **Correction to Rev 6:** it recorded the fix for `montage: 10-20` as quoting it. Quoting makes it *lex*, but `10-20` was never a value any implementation mapped — both parsers use `standard_1020` — so §4.9 documented a montage that could not work however it was spelled. §4.9 and §12 now carry `standard_1020` / `custom`, and the unquoted form stays rejected. npps suite 113 → 132; §12 is 199 rows.
@@ -102,6 +104,23 @@ Every `.npps` file the app loads shares **one flat namespace**. There is exactly
 Because the whole tree loads before resolution, definition order and file boundaries do not matter — a protocol may reference a zone or condition defined in a file loaded later. Unresolved references are reported by the loader (`validateNamespaceReferences`) and, for the shipped library, are covered by an automated test. Duplicate zone/condition names across files are a last-write-wins collision and are surfaced as a warning.
 
 **Manifest.** The shipped library lists its files in `manifest.json` with four arrays: `zones`, `conditions`, `protocols`, `composites`. Definition files (`zones`, `conditions`) are loaded first so all references resolve.
+
+**How each runtime obtains the directory (Rev 9).** `protocols/predefined/` is the single source
+of truth and **no runtime transcribes it**. Each takes the real files at build or load time:
+
+| Runtime | Mechanism |
+|---------|-----------|
+| Web | Fetches `manifest.json` and each file from `/protocols/predefined/` at runtime. |
+| Android | The `bundlePredefinedProtocols` Gradle task copies the directory onto `:core`'s resource path; `NPBundledProtocols` reads it from the classloader. JVM resources rather than Android assets, because `:core` is deliberately a pure-JVM module (ISC-2…4). |
+| iOS | The directory is a folder reference in the Xcode target's Resources build phase; `NPBundledProtocols` reads it from `Bundle.main`. |
+
+Both mobile runtimes load the `protocols` and `composites` arrays only. **Neither parser
+implements `zone` or `condition` top-level blocks** — their `NPProtocolEntry` is
+single/composite/limits, and anything else raises an error — so the two definition files are
+excluded rather than fed to a parser that would reject them. That is a standing gap against Rev 2
+(`OI-NPPS-MOBILE-01`); only the web parser implements §8 and §9 today. The condition registry
+reaches Android separately through `NPBundledConditions`, generated from the same
+`00-conditions.npps` by `scripts/sync-conditions.ts`.
 
 ---
 

@@ -8,7 +8,7 @@ import kotlin.test.assertTrue
 
 /**
  * Port of iOS NPProtocolLibraryTests (ISC-39) plus availability + EEG-consent integration.
- * Verifies all 19 bundled NPPS templates parse, are read-only, and that availability honors
+ * Verifies every bundled NPPS template parses, is read-only, and that availability honors
  * device tier and the BIPA consent gate.
  */
 class NPProtocolLibraryTests {
@@ -20,9 +20,14 @@ class NPProtocolLibraryTests {
     }
 
     @Test
-    fun bundledProtocolCountIs19() {
-        assertEquals(19, library().bundledProtocols.size,
-            "All 19 predefined NPPS templates (15 single + 4 composite) must parse without error.")
+    fun bundledProtocolCountMatchesManifest() {
+        // Counted from protocols/predefined/manifest.json, not hardcoded. This
+        // object used to be a hand-maintained Kotlin transcription carrying 19
+        // of the library's protocols; it is now the whole library, copied onto
+        // the resource path by the bundlePredefinedProtocols Gradle task.
+        val expected = NPBundledProtocols.manifestFiles.size
+        assertEquals(expected, library().bundledProtocols.size,
+            "Every predefined NPPS template in manifest.json must parse without error.")
     }
 
     @Test
@@ -111,7 +116,8 @@ class NPProtocolLibraryTests {
         val lib = library()
         val gamma = lib.bundledProtocols.first { it.name == "Gamma Focus" }
         lib.delete(gamma.id)
-        assertEquals(19, lib.bundledProtocols.size, "Bundled protocols must be immutable.")
+        assertEquals(NPBundledProtocols.manifestFiles.size, lib.bundledProtocols.size,
+            "Bundled protocols must be immutable.")
     }
 
     @Test

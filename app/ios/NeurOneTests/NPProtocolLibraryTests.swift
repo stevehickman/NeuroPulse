@@ -3,8 +3,11 @@
 //  NeurOneTests
 //
 //  Satisfies:
-//    ISC-39  NPProtocolLibrary loads all 19 predefined NPPS protocol templates
-//            without parse errors; bundledProtocols.count == 19; all are read-only.
+//    ISC-39  NPProtocolLibrary loads every predefined NPPS protocol template
+//            without parse errors; all are read-only. The expected count comes
+//            from protocols/predefined/manifest.json, not a literal — the
+//            bundle is the shipped .npps library itself, copied in by the
+//            Resources build phase.
 //
 //  Subject under test: NPProtocolLibrary + NPBundledProtocols
 //  (app/ios/NeurOne/Protocol/NPProtocolLibrary.swift,
@@ -15,16 +18,22 @@ import XCTest
 
 final class NPProtocolLibraryTests: XCTestCase {
 
-    // MARK: - ISC-39 All 19 predefined templates load without errors
+    // MARK: - ISC-39 Every predefined template loads without errors
 
     @MainActor
-    func testBundledProtocolCountIs19() {
+    func testBundledProtocolCountMatchesManifest() {
         let library = NPProtocolLibrary()
+        let expected = NPBundledProtocols.manifestFiles.count
+        XCTAssertGreaterThan(
+            expected, 0,
+            "manifest.json listed no protocols — the protocols/predefined folder reference " +
+            "is missing from the Resources build phase."
+        )
         XCTAssertEqual(
-            library.bundledProtocols.count, 19,
-            "bundledProtocols must contain exactly 19 entries — 15 single-protocol " +
-            "and 4 composite templates (CLAUDE.md §3, NPBundledProtocols.allContents). " +
-            "A lower count indicates a parse failure in loadBundledProtocols()."
+            library.bundledProtocols.count, expected,
+            "bundledProtocols must contain one entry per protocol and composite in " +
+            "protocols/predefined/manifest.json. A lower count indicates a parse failure " +
+            "in loadBundledProtocols()."
         )
     }
 
@@ -129,12 +138,13 @@ final class NPProtocolLibraryTests: XCTestCase {
         }
     }
 
-    // MARK: - ISC-39 allContents source list has 19 entries
+    // MARK: - ISC-39 allContents matches the manifest
 
     func testBundledProtocolsSourceListCount() {
         XCTAssertEqual(
-            NPBundledProtocols.allContents.count, 19,
-            "NPBundledProtocols.allContents must list exactly 19 protocol strings."
+            NPBundledProtocols.allContents.count, NPBundledProtocols.manifestFiles.count,
+            "NPBundledProtocols.allContents must load every file manifest.json lists. " +
+            "A shortfall means a listed .npps file is missing from the app bundle."
         )
     }
 
