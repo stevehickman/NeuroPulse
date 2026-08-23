@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 6
+**Revision:** 7
 **Date:** 2026-08-23  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 7 (2026-08-23) — `zones: named` round-trip fixed; a Rev 6 statement about the qEEG montage corrected.** (i) A `pbm_transcranial` block with no `zones` field inherited the default's **discriminant without its paired refs** — `{zones:'named'}` with no `zoneRefs`, the state §4.1's own type comment rules out — and the serializer then wrote it as the bare word `named`, which no parser accepts. So any protocol whose PBM block omitted `zones` produced a file the toolchain could not read back. Absent `zones` now inherits both halves of the default (`["All"]`, the whole-helmet zone), as every other field in that builder already did; and the serializer no longer writes the discriminant unguarded — `clinician_selected` is emitted as the keyword it is, a named target as its ref list, and an empty ref list raises a caller error instead of being written into an unreadable file. A sweep over **all 16 modality types** confirms `pbm_transcranial` was the only one affected, and that sweep is now a standing test. (ii) While proving that fix, §4.1's *Accepted `zones` forms* table was found to document **five selectors that no longer parse** — `all`, `front`, `rear`, `custom`, `custom_zones` and numeric `zones: [0,1,2]` are rejected outright, not accepted-and-ignored — and §12 had inherited that claim. Both now state the two real forms (a named-zone-reference array, or `clinician_selected`, which §12 was missing entirely), and the retired names are kept as rows saying they are retired. (iii) **Correction to Rev 6:** it recorded the fix for `montage: 10-20` as quoting it. Quoting makes it *lex*, but `10-20` was never a value any implementation mapped — both parsers use `standard_1020` — so §4.9 documented a montage that could not work however it was spelled. §4.9 and §12 now carry `standard_1020` / `custom`, and the unquoted form stays rejected. npps suite 113 → 132; §12 is 199 rows.
+>
 > **Rev 6 (2026-08-23) — `montage: 10-20` fixed, and values are now JSON-shaped.** The fix for the montage bug and the JSON-compatibility cleanup are the same change. **A bare value may now only be a plain identifier `[A-Za-z_][A-Za-z0-9_]*`, a number (unit suffixes kept), or a boolean; anything else is a quoted string** — so every value maps onto a JSON scalar. Two lexer rules that existed solely to admit awkward bare values are removed: digit-leading compound identifiers (`660_808nm`, `1064nm`) and the hyphen tail of bare identifiers (`wind-down`). **This is what fixes `montage: 10-20`** — it matched *neither* rule, so §4.9's only documented montage value was a hard parse error in all three parsers; written `"10-20"` it parses everywhere. The shipped library is migrated (26 files, 29 values) along with the iOS bundled copies; **the old readers are dropped, not kept as a fallback**, and unquoted forms now fail with a message naming the fix instead of mis-lexing. Two iOS-only defects disappear with them: `1064nm` silently split into the number 1064 plus a stray identifier (the compound branch only fired when the next character was `_`), and `wind-down` never lexed at all because Swift's `readIdent` had no hyphen support. Serializers on both platforms now quote `wavelength`, and `serializeTag` no longer emits a digit-leading tag bare. **`#` comments and unit suffixes (`20m`, `40Hz`, `80%`) are deliberately kept** — the format is JSON-*shaped* in its values, not JSON. Three `error_*` fixtures plus eleven TS tests lock the rejections in; npps suite 101 → 113. §2 gains the value-shape table, §11 the grammar note, §4.1/§4.9/§12 the quoted spellings.
 >
 > **Rev 5 (2026-08-23) — the remaining nine cross-platform field-name divergences closed, plus a parser bug that hid five of them.** Rev 4 fixed `mode_f`; the same audit found nine more field names the iOS parser read **and wrote** that no other component recognised: `sloreta` (→ `sloreta_enabled`), `intensity_mt` (→ `intensity_percent_mt`), `sync_audio` / `sync_visual` (→ `sync_to_audio` / `sync_to_visual`), and in `limits` sub-blocks `max_volume` and `max_intensity_g` (→ `max_intensity`), `max_binaural_hz` (→ `max_binaural_beats`), `max_isochronic_hz` (→ `max_isochronic_tones`) and `max_intensity_mt` (→ `max_intensity_pct_mt`). A file written on one platform silently lost those fields on the other. **The canonical spelling is the one §12 documents**; both parsers now accept either, serialize canonical only, and let canonical win when both appear in one block. **A separate defect was blocking five of these and is fixed too:** `nppsParser.ts`'s `readKeyValue()` demanded a `:` after every key, but a per-modality limits sub-block is `pbm_transcranial { … }` with no colon — so **the whole of §7's documented syntax was a parse error on web** and every per-modality limits field map was unreachable dead code. Split out as `readLimitsKey()`, which distinguishes the two shapes and reports a mismatch explicitly. Fourteen regression tests added; the npps suite goes 87 → 101. §4's alias table, §4.9/§4.10/§4.15, §7 and §12 all record the legacy names (§12 is now 198 rows). **Not fixed, reported:** `montage: 10-20` (§4.9's only documented montage value) does not parse — the lexer reads `10` then chokes on `-20`.
@@ -128,13 +130,12 @@ identifier, a number, a boolean or a quoted string, each of which maps onto a JS
 | Plain identifier | `waveform: sinusoidal`, `target: DLPFC_L`, `tms_protocol: rTMS` |
 | Number, optionally with a unit suffix | `duration: 20m`, `frequency: 40Hz`, `intensity: 80%` |
 | Boolean | `closed_loop: true` |
-| **Starts with a digit and is not a plain number** | `wavelength: "660_808nm"`, `montage: "10-20"` |
+| **Starts with a digit and is not a plain number** | `wavelength: "660_808nm"`, `tags: ["1064nm"]` |
 | **Contains a hyphen** | `tags: ["wind-down", "all-modalities"]` |
 
 Two lexer rules that used to admit the last two rows unquoted were removed, and the shipped
-library was migrated. This is what finally gives `montage: 10-20` a spelling that parses: it
-matched *neither* rule, so §4.9's only documented montage value was a hard parse error in every
-parser. Unquoted, these now fail with a message naming the fix, rather than mis-lexing:
+library was migrated. Unquoted, these now fail with a message naming the fix, rather than
+mis-lexing:
 
 ```
 Unquoted value '660_808nm' — values that start with a digit and are not a plain
@@ -323,8 +324,7 @@ Photobiomodulation via scalp-facing LED zones.
 | `intensity` | `intensity_percent` | number | 0–100 |
 | `frequency` | `frequency_hz` | number | 0 (CW) or 0.5–100 |
 | `duty_cycle` | `duty_cycle_percent` | number | 1–25 (firmware max) |
-| `zones` | `zones` | string \| array | `all` `front` `rear` `custom`, a **named-zone-reference array**, or a legacy numeric-index array |
-| `custom_zones` | `custom_zones` | int array | legacy zone indices, e.g. `[0,1]` |
+| `zones` | `zones` | string array \| `clinician_selected` | A **named-zone-reference array** (§8), or the keyword `clinician_selected` |
 | `wavelength` | `wavelength` | string | `"660_808nm"` `"1064nm"` `"660_808_1064nm"` — **quoted** (§2) |
 
 **Zones are module sets (Rev B).** With the module redesign a zone is a **named set of modules** (§8), not a fixed hardware index. The preferred way to target zones is to reference zone definitions by name:
@@ -341,15 +341,19 @@ pbm_transcranial {
 
 Each string must match the `name` of a loaded `zone` block or one of the eight predefined lobe zones (§8). The eight predefined names are `Frontal Left/Right`, `Temporal Left/Right`, `Parietal Left/Right`, `Occipital Left/Right`.
 
-**Accepted `zones` forms:**
+**Accepted `zones` forms — there are exactly two:**
 
 | Form | Meaning |
 |------|---------|
-| `zones: all` | every module in the map |
-| `zones: front` / `zones: rear` | legacy fixed regions (retained) |
-| `zones: ["Frontal Left", …]` | **named zone references** (Rev B, preferred) |
-| `zones: [0, 1, 2]` | legacy numeric zone indices (equivalent to `zones: custom` + `custom_zones`) |
-| `zones: custom` + `custom_zones: [0,1]` | legacy explicit indices |
+| `zones: ["Frontal Left", …]` | **named zone references** (§8). Each name must resolve to a loaded `zone` block. |
+| `zones: clinician_selected` | The target is patient-specific and cannot be predefined — the operator picks the sockets before the protocol runs (NP-CFG-UI-001), as where the evidence targets a lesion rather than an anatomical landmark. |
+
+> **The five-slot selectors are retired and do NOT parse** — `all`, `front`, `rear`, `custom`,
+> the `custom_zones` index array, and numeric `zones: [0, 1, 2]` are all rejected, not accepted
+> and ignored. They were removed rather than kept as legacy forms because there were no existing
+> users, and a target the parser does not understand must stop the file rather than become a
+> second way to say where light lands. Omitting `zones` entirely defaults to `["All"]`, the
+> whole-helmet zone in `00-zones.npps`.
 
 `frequency: 0` (or `0Hz`) selects continuous-wave (CW) mode.
 
@@ -570,13 +574,13 @@ T2 only. 21-channel wet-gel cap with source localisation.
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
-| `montage` | `montage` | string | `"10-20"` — **quoted** (§2); unquoted `10-20` parses nowhere |
+| `montage` | `montage` | string | `standard_1020` `custom` |
 | `sloreta_enabled` | `sloreta_enabled` | bool | Enable sLORETA source imaging. Legacy alias: `sloreta` |
 | `reference` | `reference` | string | `linked_ear` `cz` `average` |
 
 ```
 qeeg_21ch {
-    montage: "10-20"
+    montage: standard_1020
     sloreta_enabled: true
     reference: linked_ear
 }
@@ -1200,7 +1204,7 @@ Reading the table:
   suffixes (`Hz`, `mA`, `mW_cm2`).
 - Sort order is case-insensitive, so `%` and digit-leading tokens come first and `iTBS` sorts
   with the `i`s.
-- **Quoted entries are written with their quotes** (`"10-20"`, `"660_808nm"`): those values must
+- **Quoted entries are written with their quotes** (`"660_808nm"`, `"1064nm"`): those values must
   be quoted in source (§2). Sorting ignores the quote mark.
 - **Legacy aliases are listed as their own rows**, marked *(legacy alias)*, and the canonical
   row names them. They are accepted on input by both parsers but never written: serializers
@@ -1216,12 +1220,11 @@ Reading the table:
 | Keyword | Kind | Where it appears | Meaning |
 |---------|------|------------------|---------|
 | `%` | Unit suffix | any number | Percentage (0–100). Cosmetic — the parser reads the bare number. |
-| `"10-20"` | Enum value (quoted) | `qeeg_21ch` → `montage` | The international 10-20 electrode montage — the only montage the 21-channel cap supports. **Must be quoted** (§2): it starts with a digit and contains a hyphen, so unquoted it parses in no parser. |
 | `"1064nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive the 1064 nm channel only (smart zone module, CH_C). **Must be quoted** (§2) — digit-leading. |
 | `"660_808_1064nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive all three PBM channels; requires 1064 nm smart zone modules. **Must be quoted** (§2) — digit-leading. |
 | `"660_808nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive the 660 nm and 808–830 nm channels (base module, CH_A + CH_B). **Must be quoted** (§2) — digit-leading. |
 | `ACC` | Enum value | `tms` / `hd_tdcs` → `target` | Anterior cingulate cortex. A **deep** target — never focally reachable by a 4×1 ring (NP-FW-HD-001 §2.3). |
-| `all` | Enum value | `pbm_transcranial` → `zones`; `eeg_neurofeedback` → `channels` | Every module in the map (`zones`), or every electrode in the array (`channels`). |
+| `all` | Enum value | `eeg_neurofeedback` → `channels` | Every electrode in the array. **Not** a `pbm_transcranial` zone selector — that form is retired and rejected (§4.1); the whole-helmet target is the named zone `"All"`. |
 | `allowed_bands` | Limits field | `limits` → `eeg_neurofeedback` | Array of the only EEG band names a protocol may select. |
 | `allowed_modes` | Limits field | `limits` → `visual_stimulation` | Array of the only visual stimulation modes a protocol may select. |
 | `allowed_montages` | Limits field | `limits` → `hd_tdcs` | Array of the only HD-tDCS montages a protocol may select. |
@@ -1249,6 +1252,7 @@ Reading the table:
 | `channel_count` | Modality field | `clinical_tacs` | Number of independent tACS channels used, 1–16. |
 | `channels` | Modality field | `eeg_neurofeedback` | Which electrode group the neurofeedback loop reads. |
 | `clinical_tacs` | Modality block | `protocol`, `limits` | T2 clinical tACS — up to 16 independent arbitrary-waveform channels, ≤4 mA (§4.12). |
+| `clinician_selected` | Enum value | `pbm_transcranial` → `zones` | The target is patient-specific and cannot be predefined: the operator picks the sockets before the protocol runs (NP-CFG-UI-001). One of the only two `zones` forms. |
 | `closed_loop` | Modality field (alias) | `eeg_neurofeedback` | Alias of `closed_loop_enabled` — run the EEG-adaptive control loop. |
 | `closed_loop_enabled` | Modality field (canonical) | `eeg_neurofeedback` | Canonical name behind `closed_loop`. |
 | `code` | Condition field | `condition` | Optional standard code for the condition (ICD-11 MMS / SNOMED / MeSH). |
@@ -1256,9 +1260,9 @@ Reading the table:
 | `condition` | Top-level block | file | Pairs a standard medical condition name with a link to an external definition (§9). Populates the namespace; referenced by a protocol's `conditions`. |
 | `conditions` | Metadata field | `protocol`, `composite` | String array of clinical conditions this protocol targets. Each entry MUST resolve to a loaded `condition` block name (§1.6). |
 | `conflict_resolution` | Metadata field | `composite` | How overlapping layers combine: `merge`, `sequential` or `override`. |
-| `custom` | Enum value | `pbm_transcranial` → `zones` | Legacy: take zone membership from the `custom_zones` index array instead. |
+| `custom` | Enum value | `qeeg_21ch` → `montage` | A non-standard electrode placement, recorded as-is. **Unrelated** to `pbm_transcranial`'s retired `custom` zone selector, which no longer parses (§4.1). |
 | `custom_channels` | Modality field | `eeg_neurofeedback` | String array of explicit 10-20 electrode labels, e.g. `["Cz", "Pz"]`. |
-| `custom_zones` | Modality field | `pbm_transcranial` | Legacy int array of zone indices, used with `zones: custom`. Superseded by named zone references (§8). |
+| `custom_zones` | Modality field (**retired**) | `pbm_transcranial` | Legacy int array of zone indices. **Does not parse** — superseded by named zone references (§8). Listed so the name resolves to an answer. |
 | `cz` | Enum value | `qeeg_21ch` → `reference` | Reference all channels to the Cz electrode. |
 | `delta` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Delta band (~0.5–4 Hz). |
 | `description` | Metadata field | `protocol`, `composite`, `limits`, `zone`, `condition` | Human-readable description or label. Never interpreted by the parser. |
@@ -1282,7 +1286,7 @@ Reading the table:
 | `false` | Boolean literal | any bool field | Boolean false. |
 | `frequency` | Modality field (alias) | most modalities | Alias of `frequency_hz`. On PBM modalities `0` (or `0Hz`) selects continuous-wave. |
 | `frequency_hz` | Modality field (canonical) | most modalities | Canonical name behind `frequency`. |
-| `front` | Enum value | `pbm_transcranial` → `zones`; `eeg_neurofeedback` → `channels` | Legacy fixed frontal region (`zones`) or the frontal electrode group (`channels`). |
+| `front` | Enum value | `eeg_neurofeedback` → `channels` | The frontal electrode group. **Not** a `pbm_transcranial` zone selector — retired and rejected (§4.1). |
 | `gamma` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Gamma band (~30–100 Hz). |
 | `gamma_theta` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Coupled gamma/theta training band. |
 | `global` | Enum value | `limits` → `level` | Fleet-wide default limits — the base of the global → helmet → individual hierarchy. |
@@ -1345,7 +1349,7 @@ Reading the table:
 | `min_frequency` | Limits field | `limits` → `bes_tacs`, `visual_stimulation` | Floor on `frequency`, in Hz. |
 | `mode` | Modality field | `visual_stimulation` | Visual delivery mode: `binocular`, `emdr` or `mode_f`. |
 | `mode_f` | Enum value **and** legacy field alias | `visual_stimulation` → `mode`; `limits` → `allowed_modes`; legacy key in `visual_stimulation` | **As a value:** invisible NIR retinal PBM during normal-looking wear, no visible flicker. **As a key:** the pre-2026-08 spelling of `enable_mode_f`, still accepted; serializers emit the canonical name. |
-| `montage` | Modality field | `qeeg_21ch`, `hd_tdcs` | Electrode montage. `10-20` on `qeeg_21ch`; `ring_4x1` / `bilateral_4x1` / `standard_2_electrode` on `hd_tdcs`. |
+| `montage` | Modality field | `qeeg_21ch`, `hd_tdcs` | Electrode montage. `standard_1020` / `custom` on `qeeg_21ch`; `ring_4x1` / `bilateral_4x1` / `standard_2_electrode` on `hd_tdcs`. |
 | `MPFC` | Enum value | `tms` / `hd_tdcs` → `target` | Medial prefrontal cortex. |
 | `mW_cm2` | Unit suffix | any number | Irradiance in mW/cm². Cosmetic — the parser reads the bare number. |
 | `noise` | Modality field (alias) | `audio_entrainment` | Alias of `noise_type` — background noise bed. Optional; `none` is equivalent to omitting it. |
@@ -1366,7 +1370,7 @@ Reading the table:
 | `ramp` | Modality field (alias) | `tdcs` | Alias of `ramp_seconds` — current ramp up/down time. Default 30 s; also hardware-enforced. |
 | `ramp_seconds` | Modality field (canonical) | `tdcs` | Canonical name behind `ramp`. |
 | `readonly` | Metadata field | `protocol`, `composite` | Bool. Prevents editing or deletion of the entry in the app. |
-| `rear` | Enum value | `pbm_transcranial` → `zones`; `eeg_neurofeedback` → `channels` | Legacy fixed posterior region (`zones`) or the posterior electrode group (`channels`). |
+| `rear` | Enum value | `eeg_neurofeedback` → `channels` | The posterior electrode group. **Not** a `pbm_transcranial` zone selector — retired and rejected (§4.1). |
 | `reference` | Modality field | `qeeg_21ch` | EEG reference scheme: `linked_ear`, `cz` or `average`. |
 | `references` | Metadata field | `protocol`, `composite` | Reference array — evidence and applicability links. Each entry is a bare URL/path string or a `[label, url]` pair (§2). |
 | `repeat` | Interval field | any modality block | Interval cycle count — an integer, or `until_end` to cycle for the whole session (§5). |
@@ -1382,6 +1386,7 @@ Reading the table:
 | `sockets` | Zone field | `zone` | **The defining field of a zone** — an int array of socket (major) addresses. 1-based, within the derived lattice range; non-contiguous sets are fine; duplicates collapse and the list is sorted on parse (§8). |
 | `square` | Enum value | `bes_tacs` / `clinical_tacs` → `waveform` | Square wave stimulation. |
 | `standalone` | Enum value | `vns_hrv` → `hrv_protocol` | Resonance breathing pacer only; coherence score displayed, no stimulation gating. |
+| `standard_1020` | Enum value | `qeeg_21ch` → `montage` | The international 10-20 electrode placement. The value both parsers accept; earlier revisions of §4.9 documented it as `10-20`, which no implementation ever mapped. |
 | `standard_2_electrode` | Enum value | `hd_tdcs` → `montage`; `limits` → `allowed_montages` | Conventional two-electrode montage — the T1-compatible fallback. |
 | `start` | Layer field | `layer` | Offset into the composite timeline at which the layer begins. A duration; default `0`. |
 | `sync_audio` | Modality field (legacy alias) | `vibrotactile_40hz` | Pre-2026-08 iOS spelling of `sync_to_audio`. |
@@ -1412,7 +1417,7 @@ Reading the table:
 | `waveform` | Modality field | `bes_tacs`, `clinical_tacs` | Stimulation waveform: `sinusoidal`, `square` or `triangular`. |
 | `wavelength` | Modality field | `pbm_transcranial` | Which PBM emitter channels to drive. |
 | `zone` | Top-level block | file | Defines a named set of modules by socket address (§8). Populates the namespace; referenced by name from `pbm_transcranial`'s `zones`. |
-| `zones` | Modality field | `pbm_transcranial` | Which modules to drive: a named-zone-reference string array (preferred), the keywords `all`/`front`/`rear`/`custom`, or a legacy numeric index array. |
+| `zones` | Modality field | `pbm_transcranial` | Which modules to drive. Exactly two forms: a named-zone-reference string array (§8), or the keyword `clinician_selected`. Omitted, it defaults to `["All"]`. The five-slot selectors are retired and rejected (§4.1). |
 
 ## 13. Predefined protocol coverage (source-doc map)
 

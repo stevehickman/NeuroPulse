@@ -1066,8 +1066,14 @@ class Parser {
         // understand must stop the file rather than become a second way to say
         // where light lands.
         const rawZones = raw['zones'];
+        // Absent `zones` inherits BOTH halves of the default, not just the
+        // discriminant. Taking d.zones alone produced {zones:'named'} with no
+        // zoneRefs — the state this type's own comment rules out ("'named'
+        // pairs with zoneRefs") — which the serializer then wrote out as the
+        // bare word `named`, a selector no parser accepts. Every other field
+        // here defaults from `d`; zones now does too, refs included.
         let zones: PBMTranscranialParams['zones'] = d.zones;
-        let zoneRefs: string[] | undefined;
+        let zoneRefs: string[] | undefined = d.zones === 'named' ? d.zoneRefs : undefined;
         if (Array.isArray(rawZones)) {
           const els = rawZones as unknown[];
           if (!els.every(e => typeof e === 'string')) {

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { parseNPPS, parseNPPSLimits, tokenize, NPPSParseError } from './nppsParser';
 import { serializeProtocol, serializeNPPS } from './nppsSerializer';
 import type { NPProtocolDefinition, NPCompositeProtocol } from '../types/protocol';
+import { MODALITY_META } from '../types/protocol';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -694,9 +695,12 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
       .protocol.modalities.find(m => m.modalityParams.type === type)!;
   };
 
-  it('parses the montage value that previously parsed nowhere', () => {
-    const m = modalityOf(proto(`    qeeg_21ch {\n        montage: "10-20"\n    }`), 'qeeg_21ch');
-    expect((m.modalityParams.params as { montage: string }).montage).toBe('10-20');
+  // §4.9 documented `10-20`, but no implementation ever mapped that value —
+  // both parsers use `standard_1020`. The doc was corrected rather than the
+  // lexer extended, so the unquoted form stays a parse error (asserted below).
+  it('parses the qEEG montage value both parsers actually use', () => {
+    const m = modalityOf(proto(`    qeeg_21ch {\n        montage: standard_1020\n    }`), 'qeeg_21ch');
+    expect((m.modalityParams.params as { montage: string }).montage).toBe('standard_1020');
   });
 
   it('parses quoted compound wavelengths', () => {
@@ -743,5 +747,49 @@ describe('quoted awkward values (JSON-leaning cleanup)', () => {
     expect(out).toContain('wavelength: "660_808nm"');
     const m = modalityOf(out, 'pbm_transcranial');
     expect((m.modalityParams.params as { wavelength: string }).wavelength).toBe('660_808nm');
+  });
+});
+
+// The zones discriminant leaked into surface syntax: a pbm_transcranial block
+// with no `zones` field inherited the default's 'named' tag without its paired
+// zoneRefs, and serialized to the bare word `named` — which no parser accepts.
+// Swept across every modality so the class stays closed, not just this case.
+describe('serialize → parse round-trip holds for every modality', () => {
+  const ids = Object.keys(MODALITY_META);
+
+  it('covers all modality types', () => {
+    expect(ids.length).toBeGreaterThanOrEqual(15);
+  });
+
+  it.each(ids)('%s survives serialize → parse with all fields defaulted', (id) => {
+    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    ${id} {\n    }\n}\n`);
+    const out = serializeProtocol(entry);
+    expect(() => parseNPPS(out)).not.toThrow();
+    // and is stable on a second cycle
+    expect(serializeProtocol(parseNPPS(out)[0])).toBe(out);
+  });
+
+  it('a defaulted pbm_transcranial names its zones instead of emitting the tag', () => {
+    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        intensity: 80%\n    }\n}\n`);
+    const out = serializeProtocol(entry);
+    expect(out).toContain('zones: ["All"]');
+    expect(out).not.toMatch(/^\s*zones:\s*named\s*$/m);
+  });
+
+  it('clinician_selected still serializes as the bare keyword it is', () => {
+    const [entry] = parseNPPS(
+      `protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        zones: clinician_selected\n    }\n}\n`,
+    );
+    const out = serializeProtocol(entry);
+    expect(out).toContain('zones: clinician_selected');
+    expect(() => parseNPPS(out)).not.toThrow();
+  });
+
+  it('an empty named ref list is reported as a caller bug, not written out', () => {
+    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        intensity: 80%\n    }\n}\n`);
+    const proto = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
+    const params = proto.modalities[0].modalityParams.params as { zoneRefs?: string[] };
+    delete params.zoneRefs;
+    expect(() => serializeProtocol(entry)).toThrow(/must list at least one zone/);
   });
 });

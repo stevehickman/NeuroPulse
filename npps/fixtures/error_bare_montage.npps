@@ -1,6 +1,7 @@
-# `montage: 10-20` matched no lexer rule and was a hard parse error in every
-# parser, even though §4.9 documented it as the only montage value. The value is
-# now written "10-20". Parsing this file MUST fail.
+# `10-20` matched no lexer rule and was a hard parse error in every parser, even
+# though §4.9 documented it as the montage value. It was never a value any
+# implementation mapped either — both parsers use `standard_1020` — so the doc
+# was corrected rather than the lexer extended. Parsing this file MUST fail.
 protocol "Bare Montage" {
     duration: 10m
 
