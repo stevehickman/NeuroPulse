@@ -736,6 +736,7 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         case id, name, description, author, version, tags
         case createdAt, modifiedAt, isPredefined, isReadOnly, modalities
         case timingType, timingValue
+        case conditions, references
     }
 
     func encode(to encoder: Encoder) throws {
@@ -751,6 +752,8 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         try c.encode(isPredefined, forKey: .isPredefined)
         try c.encode(isReadOnly, forKey: .isReadOnly)
         try c.encode(modalities, forKey: .modalities)
+        try c.encode(conditions, forKey: .conditions)
+        try c.encode(references, forKey: .references)
         switch timingMode {
         case .duration(let v):
             try c.encode("duration", forKey: .timingType)
@@ -774,6 +777,10 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         isPredefined = try c.decodeIfPresent(Bool.self, forKey: .isPredefined) ?? false
         isReadOnly   = try c.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
         modalities  = try c.decodeIfPresent([NPProtocolModality].self, forKey: .modalities) ?? []
+        // decodeIfPresent: entries persisted before these fields existed decode
+        // to empty rather than failing the whole protocol.
+        conditions  = try c.decodeIfPresent([String].self, forKey: .conditions) ?? []
+        references  = try c.decodeIfPresent([NPProtocolReference].self, forKey: .references) ?? []
         let timingType = try c.decodeIfPresent(String.self, forKey: .timingType) ?? "duration"
         let timingValue = try c.decodeIfPresent(Int.self, forKey: .timingValue) ?? 1200
         if timingType == "interval_count" {
@@ -794,7 +801,9 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
          isPredefined: Bool = false,
          isReadOnly: Bool = false,
          timingMode: TimingMode = .duration(20 * 60),
-         modalities: [NPProtocolModality] = []) {
+         modalities: [NPProtocolModality] = [],
+         conditions: [String] = [],
+         references: [NPProtocolReference] = []) {
         self.id = id
         self.name = name
         self.description = description
@@ -807,6 +816,8 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         self.isReadOnly = isReadOnly
         self.timingMode = timingMode
         self.modalities = modalities
+        self.conditions = conditions
+        self.references = references
     }
 }
 
@@ -1016,7 +1027,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p): return p.isEEGDependent
         case .composite:     return false
-        case .limits:        return false
+        case .limits, .zone, .condition: return false
         }
     }
 
@@ -1055,6 +1066,18 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
             l.createdAt = Date()
             l.modifiedAt = Date()
             return .limits(l)
+        case .zone(var z):
+            // A definition is keyed by name, so duplicating one means renaming
+            // it; there is no id to re-mint, and the copy is user-authored, so
+            // it loses the shipped marker.
+            z.name = newName
+            z.id = nil
+            z.isPredefined = false
+            return .zone(z)
+        case .condition(let c):
+            return .condition(NPConditionDefinition(
+                name: newName, id: nil, link: c.link, code: c.code, description: c.description
+            ))
         }
     }
 
@@ -1074,6 +1097,12 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .limits(let lim):
             try c.encode("limits", forKey: .type)
             try c.encode(lim, forKey: .value)
+        case .zone(let zone):
+            try c.encode("zone", forKey: .type)
+            try c.encode(zone, forKey: .value)
+        case .condition(let cond):
+            try c.encode("condition", forKey: .type)
+            try c.encode(cond, forKey: .value)
         }
     }
 
@@ -1087,6 +1116,10 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
             self = .composite(try c.decode(NPCompositeProtocol.self, forKey: .value))
         case "limits":
             self = .limits(try c.decode(NPLimitsSet.self, forKey: .value))
+        case "zone":
+            self = .zone(try c.decode(NPZoneDefinition.self, forKey: .value))
+        case "condition":
+            self = .condition(try c.decode(NPConditionDefinition.self, forKey: .value))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .type, in: c,
