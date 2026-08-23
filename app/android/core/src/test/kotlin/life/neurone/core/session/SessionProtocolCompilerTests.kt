@@ -1,6 +1,7 @@
 package life.neurone.core.session
 
 import life.neurone.core.protocol.NPModalityParams
+import life.neurone.core.protocol.NPPBMTarget
 import life.neurone.core.protocol.NPPBMTranscranialParams
 import life.neurone.core.protocol.NPProtocolDefinition
 import life.neurone.core.protocol.NPProtocolModality
@@ -29,7 +30,7 @@ class SessionProtocolCompilerTests {
             NPProtocolModality(
                 params = NPModalityParams.PbmTranscranial(
                     NPPBMTranscranialParams(
-                        zones = NPPBMTranscranialParams.ZoneSelection.FRONT,
+                        target = NPPBMTarget.Named(listOf("Frontal Left")),
                         intensityPercent = 80.0, frequencyHz = 40.0, dutyCyclePercent = 25,
                     ),
                 ),
@@ -44,7 +45,13 @@ class SessionProtocolCompilerTests {
         assertEquals(1200, proto.totalDurationSeconds)
         assertEquals(1, proto.modalities.size)
         val pbm = proto.modalities.first() as ModalityConfig.PbmTranscranial
-        assertContentEquals(listOf(0, 1, 2), pbm.zones) // FRONT resolves to zones 0–2
+        // Named zones resolve to real 1-based socket ids through SocketZones —
+        // the generated map iOS resolves against too. The retired FRONT selector
+        // used to yield the five-slot indices 0–2.
+        assertContentEquals(
+            listOf(1, 2, 4, 5, 6, 10, 11, 12, 13, 17, 18, 19, 20, 26, 27, 28, 29, 35, 36, 37),
+            pbm.zones,
+        )
         assertEquals(40.0, pbm.frequencyHz)
         assertEquals(1200, pbm.durationSeconds)
     }

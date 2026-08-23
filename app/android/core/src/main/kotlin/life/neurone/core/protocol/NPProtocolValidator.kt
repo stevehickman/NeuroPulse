@@ -183,7 +183,9 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
     ): NPValidationResult = when (entry) {
         is NPProtocolEntry.Single -> validate(entry.protocol)
         is NPProtocolEntry.Composite -> validateComposite(entry.composite, resolveSingle)
-        is NPProtocolEntry.Limits -> NPValidationResult()
+        is NPProtocolEntry.Limits,
+        is NPProtocolEntry.Zone,
+        is NPProtocolEntry.Condition -> NPValidationResult()
     }
 
     // MARK: Composite

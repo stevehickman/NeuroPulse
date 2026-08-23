@@ -10,23 +10,26 @@ import Foundation
 /// carried 19 of the library's protocols, and 8 of those were missing the
 /// `conditions` / `references` fields added in NP-NPPS-REF-001 Rev 2.
 ///
-/// **Definition files are excluded.** `manifest.json` also lists
-/// `00-zones.npps` and `00-conditions.npps`, but this parser has no `zone` or
-/// `condition` top-level block — `NPProtocolEntry` is single/composite/limits
-/// only. That is a standing gap against NP-NPPS-REF-001 Rev 2 (the Android
-/// parser has it too; only the web parser implements them), not something this
-/// loader should paper over, so it takes only the files the parser can read.
+/// **Definition files load first.** `manifest.json` lists `00-zones.npps` and
+/// `00-conditions.npps` before the protocols, and they are loaded in that order
+/// so a protocol's zone and condition references resolve regardless of file
+/// order (NP-NPPS-REF-001 §1.6). The parser gained `zone` and `condition`
+/// top-level blocks in Rev 10; before that it raised on them and this loader
+/// had to skip both files.
 enum NPBundledProtocols {
 
     /// Bundle subdirectory the folder reference lands in.
     static let resourceSubdirectory = "predefined"
 
     private struct Manifest: Decodable {
+        let zones: [String]?
+        let conditions: [String]?
         let protocols: [String]?
         let composites: [String]?
     }
 
-    /// Protocol and composite file names from `manifest.json`, in manifest order.
+    /// Every file `manifest.json` lists, definitions first: zones, conditions,
+    /// then protocols and composites.
     static let manifestFiles: [String] = {
         guard let url = Bundle.main.url(
             forResource: "manifest",
@@ -41,14 +44,48 @@ enum NPBundledProtocols {
         }
         do {
             let manifest = try JSONDecoder().decode(Manifest.self, from: Data(contentsOf: url))
-            return (manifest.protocols ?? []) + (manifest.composites ?? [])
+            return (manifest.zones ?? []) + (manifest.conditions ?? [])
+                + (manifest.protocols ?? []) + (manifest.composites ?? [])
         } catch {
             assertionFailure("predefined/manifest.json could not be decoded: \(error)")
             return []
         }
     }()
 
-    /// Raw NPPS text of every bundled protocol and composite file.
+    /// Protocol and composite file names only — what a protocol library lists.
+    static var protocolFiles: [String] {
+        let defs = Set(definitionFiles)
+        return manifestFiles.filter { !defs.contains($0) }
+    }
+
+    /// Zone and condition definition file names, in load order.
+    static let definitionFiles: [String] = {
+        guard let url = Bundle.main.url(
+            forResource: "manifest", withExtension: "json", subdirectory: resourceSubdirectory
+        ), let manifest = try? JSONDecoder().decode(Manifest.self, from: Data(contentsOf: url))
+        else { return [] }
+        return (manifest.zones ?? []) + (manifest.conditions ?? [])
+    }()
+
+    /// Everything parsed into one namespace, with zone and condition definitions
+    /// resolved. Cross-reference errors are reported by
+    /// `validateNamespaceReferences` rather than thrown, so one bad reference
+    /// does not cost the caller the whole library.
+    static let namespace: NPNamespace = {
+        let entries = allContents.flatMap { content -> [NPProtocolEntry] in
+            do {
+                var lexer = NPPSLexer(content)
+                var parser = NPPSParser(try lexer.tokenize())
+                return try parser.parse()
+            } catch {
+                assertionFailure("bundled .npps failed to parse: \(error)")
+                return []
+            }
+        }
+        return buildNamespace(entries).namespace
+    }()
+
+    /// Raw NPPS text of every bundled file, definitions first.
     static let allContents: [String] = {
         manifestFiles.compactMap { name in
             let stem = (name as NSString).deletingPathExtension

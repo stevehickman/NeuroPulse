@@ -2,6 +2,7 @@ package life.neurone.core.protocol
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
@@ -232,28 +233,66 @@ class NPPSRegressionTests {
         assertEquals(NPVNSHRVParams.HRVProtocol.TAVNS_SYNC, vns.params.hrvProtocol)
     }
 
-    /** Custom zones are 1-indexed in script and stored 0-indexed. */
+    /**
+     * Zones are NAMED sets of modules, not numeric slot indices. The 1-indexed
+     * numeric form and the five-slot selectors were retired in
+     * NP-NPPS-REF-001 Rev 2 and do not parse: a target this parser does not
+     * understand must stop the file rather than silently become "every module".
+     */
     @Test
-    fun testCustomZonesAreReindexed() {
+    fun testNamedZonesParseAndRoundTrip() {
         val script = """
-            protocol "Custom Zones" {
+            protocol "Named Zones" {
                 version: "1.0"
                 pbm_transcranial {
                     intensity: 75%
                     frequency: 40Hz
                     duty_cycle: 25%
-                    zones: [1, 3, 5]
+                    zones: ["Frontal Left", "Frontal Right"]
                 }
             }
         """.trimIndent()
 
         val p = pbmTranscranial(singleProtocol(script))
-        assertEquals(NPPBMTranscranialParams.ZoneSelection.CUSTOM, p.zones)
-        assertEquals(listOf(0, 2, 4), p.customZones, "script zones are 1-indexed, stored 0-indexed")
+        val target = p.target as NPPBMTarget.Named
+        assertEquals(listOf("Frontal Left", "Frontal Right"), target.zoneNames)
 
-        // Round-trip: serialize back to 1-indexed [1, 3, 5].
         val out = NPPSSerializer().serialize(NPProtocolEntry.Single(singleProtocol(script)))
-        assertTrue(out.contains("zones: [1, 3, 5]"), "serialized zones should be 1-indexed:\n$out")
+        assertTrue(
+            out.contains("""zones: ["Frontal Left", "Frontal Right"]"""),
+            "named zones should round-trip quoted:\n$out",
+        )
+    }
+
+    /** clinician_selected is the only non-list zone form. */
+    @Test
+    fun testClinicianSelectedZones() {
+        val script = """
+            protocol "Clinician Selected" {
+                version: "1.0"
+                pbm_transcranial { intensity: 75% zones: clinician_selected }
+            }
+        """.trimIndent()
+        assertEquals(NPPBMTarget.ClinicianSelected, pbmTranscranial(singleProtocol(script)).target)
+
+        val out = NPPSSerializer().serialize(NPProtocolEntry.Single(singleProtocol(script)))
+        assertTrue(out.contains("zones: clinician_selected"), "serialized:\n$out")
+    }
+
+    /** The retired numeric and five-slot forms are rejected, not reinterpreted. */
+    @Test
+    fun testRetiredZoneFormsAreRejected() {
+        for (form in listOf("[1, 3, 5]", "all", "front", "rear", "custom")) {
+            val script = """
+                protocol "Retired" {
+                    version: "1.0"
+                    pbm_transcranial { intensity: 75% zones: $form }
+                }
+            """.trimIndent()
+            assertFailsWith<NPPSError>("zones: $form must not parse") {
+                NPPSParser(NPPSLexer(script).tokenize()).parse()
+            }
+        }
     }
 
     /** A limits block round-trips through parse→serialize→parse. */

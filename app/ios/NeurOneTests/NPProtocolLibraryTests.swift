@@ -23,7 +23,10 @@ final class NPProtocolLibraryTests: XCTestCase {
     @MainActor
     func testBundledProtocolCountMatchesManifest() {
         let library = NPProtocolLibrary()
-        let expected = NPBundledProtocols.manifestFiles.count
+        // protocolFiles, not manifestFiles: the manifest also lists the zone and
+        // condition definition files, which load into the namespace but are not
+        // library items.
+        let expected = NPBundledProtocols.protocolFiles.count
         XCTAssertGreaterThan(
             expected, 0,
             "manifest.json listed no protocols — the protocols/predefined folder reference " +
@@ -143,8 +146,9 @@ final class NPProtocolLibraryTests: XCTestCase {
     func testBundledProtocolsSourceListCount() {
         XCTAssertEqual(
             NPBundledProtocols.allContents.count, NPBundledProtocols.manifestFiles.count,
-            "NPBundledProtocols.allContents must load every file manifest.json lists. " +
-            "A shortfall means a listed .npps file is missing from the app bundle."
+            "NPBundledProtocols.allContents must load every file manifest.json lists, " +
+            "definitions included. A shortfall means a listed .npps file is missing from " +
+            "the app bundle."
         )
     }
 
@@ -156,12 +160,15 @@ final class NPProtocolLibraryTests: XCTestCase {
                 trimmed.isEmpty,
                 "NPBundledProtocols.allContents[\(index)] must not be empty."
             )
-            let hasProtocolOrComposite =
-                trimmed.hasPrefix("protocol ") || trimmed.hasPrefix("composite ")
+            // Definition files are in here too: manifest.json lists 00-zones.npps
+            // and 00-conditions.npps first so references resolve regardless of
+            // file order (NP-NPPS-REF-001 §1.6).
+            let startsWithTopLevelBlock = ["protocol ", "composite ", "zone ", "condition "]
+                .contains { trimmed.hasPrefix($0) }
             XCTAssertTrue(
-                hasProtocolOrComposite,
-                "NPBundledProtocols.allContents[\(index)] must start with 'protocol' " +
-                "or 'composite' keyword. Got: '\(trimmed.prefix(30))…'"
+                startsWithTopLevelBlock,
+                "NPBundledProtocols.allContents[\(index)] must start with a top-level block " +
+                "keyword. Got: '\(trimmed.prefix(30))…'"
             )
         }
     }

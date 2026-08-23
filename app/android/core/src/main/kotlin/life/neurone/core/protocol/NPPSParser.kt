@@ -94,10 +94,15 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                     "protocol" -> entries.add(NPProtocolEntry.Single(parseProtocol()))
                     "composite" -> entries.add(NPProtocolEntry.Composite(parseComposite()))
                     "limits" -> entries.add(NPProtocolEntry.Limits(parseLimitsBlock()))
+                    "zone" -> entries.add(NPProtocolEntry.Zone(parseZoneBlock()))
+                    "condition" -> entries.add(NPProtocolEntry.Condition(parseConditionBlock()))
                     else -> throw NPPSError("Unexpected keyword: ${cur.value}", currentLine())
                 }
             } else {
-                throw NPPSError("Expected 'protocol', 'composite', or 'limits'", currentLine())
+                throw NPPSError(
+                    "Expected 'protocol', 'composite', 'limits', 'zone', or 'condition'",
+                    currentLine(),
+                )
             }
         }
         return entries
@@ -300,6 +305,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
         var author = "NeurOne"
         var version = "1.0"
         var tags: List<String> = emptyList()
+        var conditions: List<String> = emptyList()
+        var references: List<NPProtocolReference> = emptyList()
         var timingMode: NPTimingMode = NPTimingMode.Duration(20 * 60)
         val modalities = ArrayList<NPProtocolModality>()
         var isReadOnly = false
@@ -328,6 +335,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                         "author" -> author = parseString()
                         "version" -> version = parseString()
                         "tags" -> tags = parseTagList()
+                        "conditions" -> conditions = parseTagList()
+                        "references" -> references = parseReferenceList()
                         "duration" -> timingMode = NPTimingMode.Duration(parseTimeValue())
                         "interval_count" -> {
                             val t = currentToken()
@@ -361,6 +370,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             author = author,
             version = version,
             tags = tags,
+            conditions = conditions,
+            references = references,
             isPredefined = isReadOnly,
             isReadOnly = isReadOnly,
             timingMode = timingMode,
@@ -369,6 +380,152 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
     }
 
     // MARK: Composite --------------------------------------------------------
+
+    // MARK: Zone block (NP-NPPS-REF-001 §8) ---------------------------------
+
+    /**
+     * `zone "Name" { sockets: [1, 2, 3]  types: [led_660]  exclude_types: false }`
+     *
+     * `sockets` is the defining field and is treated as a SET: duplicates
+     * collapse and the result is sorted, so a bilateral protocol referencing
+     * both hemisphere zones of a lobe addresses their shared midline socket
+     * once rather than twice.
+     */
+    private fun parseZoneBlock(): NPZoneDefinition {
+        val ln = currentLine()
+        expectKeyword("zone")
+        val name = parseString()
+        expect(NPPSToken.LBrace)
+
+        var id: String? = null
+        var description: String? = null
+        var sockets: List<Int> = emptyList()
+        var types: List<NPElementType>? = null
+        var excludeTypes = false
+
+        while (currentToken() !is NPPSToken.RBrace && currentToken() !is NPPSToken.Eof) {
+            val cur = currentToken()
+            if (cur !is NPPSToken.Ident) throw NPPSError("Expected field name in zone block", currentLine())
+            val key = cur.value
+            advance()
+            if (currentToken() !is NPPSToken.Colon) {
+                throw NPPSError("Unexpected token after '$key' in zone block", currentLine())
+            }
+            advance()
+            when (key) {
+                "id" -> id = parseString()
+                "description" -> description = parseString()
+                "sockets" -> sockets = parseSocketList(name, currentLine())
+                "types" -> types = parseTagList()
+                "exclude_types" -> {
+                    val t = currentToken()
+                    if (t is NPPSToken.BoolTok) { excludeTypes = t.value; advance() } else skipValue()
+                }
+                else -> skipValue()
+            }
+        }
+        expect(NPPSToken.RBrace)
+        if (name.isEmpty()) throw NPPSError("Zone name cannot be empty", ln)
+
+        return NPZoneDefinition(
+            name = name,
+            sockets = sockets,
+            id = id,
+            description = description,
+            types = types,
+            excludeTypes = excludeTypes,
+            isPredefined = id != null,
+        )
+    }
+
+    /**
+     * A socket id is a plain whole number naming a socket on this helmet.
+     * Anything else — a fraction, a boolean, an out-of-range id — is reported
+     * with the offending value rather than silently coerced, because a wrong
+     * socket id means light lands somewhere the author did not choose.
+     */
+    private fun parseSocketList(zoneName: String, ln: Int): List<Int> {
+        val raw = parseFieldValue()
+        val items = (raw as? NPPSFieldValue.Arr)?.items
+            ?: throw NPPSError("zone \"$zoneName\": sockets must be a list, e.g. sockets: [1, 2, 3]", ln)
+        val invalid = ArrayList<String>()
+        val ids = LinkedHashSet<Int>()
+        for (item in items) {
+            val d = item.asDouble
+            when {
+                d == null -> invalid.add(describeValue(item))
+                d != Math.floor(d) || d.isInfinite() -> invalid.add(trimNumber(d))
+                !SocketZones.isValid(d.toInt()) -> invalid.add(trimNumber(d))
+                else -> ids.add(d.toInt())
+            }
+        }
+        if (invalid.isNotEmpty()) {
+            val isAre = if (invalid.size == 1) "is not a socket" else "are not sockets"
+            throw NPPSError(
+                "zone \"$zoneName\": ${invalid.joinToString(", ")} $isAre on this helmet — " +
+                    "ids are whole numbers ${SocketZones.rangeLabel} (${SocketZones.COUNT} sockets, " +
+                    "numbered from ${SocketZones.NUMBERING_BASE})",
+                ln,
+            )
+        }
+        return ids.sorted()
+    }
+
+    private fun describeValue(v: NPPSFieldValue): String = when (v) {
+        is NPPSFieldValue.Str -> "\"${v.value}\""
+        is NPPSFieldValue.Ident -> v.value
+        is NPPSFieldValue.BoolVal -> v.value.toString()
+        is NPPSFieldValue.Arr -> "a nested list"
+        is NPPSFieldValue.Num -> trimNumber(v.value)
+        is NPPSFieldValue.NumberWithUnit -> "${trimNumber(v.value)}${v.unit}"
+    }
+
+    private fun trimNumber(d: Double): String =
+        if (d == Math.floor(d) && !d.isInfinite()) d.toLong().toString() else d.toString()
+
+    // MARK: Condition block (NP-NPPS-REF-001 §9) ------------------------------
+
+    /** `condition "Name" { link: "https://…"  code: "6A70" }` — `link` is required. */
+    private fun parseConditionBlock(): NPConditionDefinition {
+        val ln = currentLine()
+        expectKeyword("condition")
+        val name = parseString()
+        expect(NPPSToken.LBrace)
+
+        var link: String? = null
+        var id: String? = null
+        var description: String? = null
+        var code: String? = null
+
+        while (currentToken() !is NPPSToken.RBrace && currentToken() !is NPPSToken.Eof) {
+            val cur = currentToken()
+            if (cur !is NPPSToken.Ident) {
+                throw NPPSError("Expected field name in condition block", currentLine())
+            }
+            val key = cur.value
+            advance()
+            if (currentToken() !is NPPSToken.Colon) {
+                throw NPPSError("Unexpected token after '$key' in condition block", currentLine())
+            }
+            advance()
+            when (key) {
+                "link" -> link = parseString()
+                "id" -> id = parseString()
+                "description" -> description = parseString()
+                "code" -> code = parseString()
+                else -> skipValue()
+            }
+        }
+        expect(NPPSToken.RBrace)
+        if (name.isEmpty()) throw NPPSError("Condition name cannot be empty", ln)
+        if (link.isNullOrEmpty()) {
+            throw NPPSError("condition \"$name\": 'link' is required", ln)
+        }
+
+        return NPConditionDefinition(
+            name = name, id = id, link = link, code = code, description = description,
+        )
+    }
 
     private fun parseComposite(): NPCompositeProtocol {
         val ln = currentLine()
@@ -381,6 +538,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
         var author = "NeurOne"
         var version = "1.0"
         var tags: List<String> = emptyList()
+        var conditions: List<String> = emptyList()
+        var references: List<NPProtocolReference> = emptyList()
         var conflictResolution = NPCompositeProtocol.ConflictResolution.MERGE
         val layers = ArrayList<NPCompositeLayer>()
         var isReadOnly = false
@@ -423,6 +582,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                         }
                     }
                     "tags" -> tags = parseTagList()
+                    "conditions" -> conditions = parseTagList()
+                    "references" -> references = parseReferenceList()
                     else -> skipValue()
                 }
             } else {
@@ -442,6 +603,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             author = author,
             version = version,
             tags = tags,
+            conditions = conditions,
+            references = references,
             isPredefined = isReadOnly,
             isReadOnly = isReadOnly,
             layers = layers,
@@ -530,20 +693,42 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
                 fields["intensity"]?.asPercent?.let { p.intensityPercent = it }
                 fields["frequency"]?.asHz?.let { p.frequencyHz = it }
                 fields["duty_cycle"]?.asPercent?.let { p.dutyCyclePercent = it.toInt() }
+                // Exactly two forms (NP-NPPS-REF-001 §4.1): a named-zone array, or
+                // the keyword clinician_selected. The retired five-slot selectors
+                // do NOT parse — a target this parser does not understand must stop
+                // the file rather than silently become "every module".
                 when (val v = fields["zones"]) {
-                    is NPPSFieldValue.Ident -> p.zones = when (v.value) {
-                        "all" -> NPPBMTranscranialParams.ZoneSelection.ALL
-                        "front" -> NPPBMTranscranialParams.ZoneSelection.FRONT
-                        "rear" -> NPPBMTranscranialParams.ZoneSelection.REAR
-                        else -> NPPBMTranscranialParams.ZoneSelection.ALL
-                    }
                     is NPPSFieldValue.Arr -> {
-                        p.zones = NPPBMTranscranialParams.ZoneSelection.CUSTOM
-                        p.customZones = v.items.mapNotNull { item ->
-                            (item as? NPPSFieldValue.Num)?.let { it.value.toInt() - 1 } // 1-indexed in script
+                        val names = v.items.mapNotNull { it.asIdent }
+                        if (names.size != v.items.size) {
+                            throw NPPSError(
+                                "pbm_transcranial: zones must be a list of quoted zone names, " +
+                                    "e.g. zones: [\"Frontal Left\", \"Frontal Right\"]",
+                                currentLine(),
+                            )
                         }
+                        if (names.isEmpty()) {
+                            throw NPPSError(
+                                "pbm_transcranial: zones: [] names no zone — a session cannot " +
+                                    "target nothing",
+                                currentLine(),
+                            )
+                        }
+                        p.target = NPPBMTarget.Named(names)
                     }
-                    else -> { /* absent */ }
+                    is NPPSFieldValue.Ident, is NPPSFieldValue.Str -> {
+                        val sel = v.asIdent
+                        if (sel != "clinician_selected") {
+                            throw NPPSError(
+                                "pbm_transcranial: unknown zone selector '$sel'. zones must be a " +
+                                    "list of quoted zone names (e.g. zones: [\"Frontal\"]) or " +
+                                    "clinician_selected",
+                                currentLine(),
+                            )
+                        }
+                        p.target = NPPBMTarget.ClinicianSelected
+                    }
+                    else -> { /* absent — keeps the default named target */ }
                 }
                 fields["wavelength"]?.asIdent?.let { w ->
                     p.wavelength = when (w) {
@@ -817,6 +1002,25 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
     }
 
     private fun parseIdentOrString(): String = parseString()
+
+    /**
+     * A `references` value: an array whose elements are each a bare URL/path
+     * string, or a `[label, url]` pair (NP-NPPS-REF-001 §2).
+     */
+    private fun parseReferenceList(): List<NPProtocolReference> {
+        val raw = parseFieldValue()
+        val items = (raw as? NPPSFieldValue.Arr)?.items ?: return emptyList()
+        return items.mapNotNull { item ->
+            when (item) {
+                is NPPSFieldValue.Arr -> {
+                    val label = item.items.getOrNull(0)?.asIdent
+                    val url = item.items.getOrNull(1)?.asIdent
+                    if (url == null) null else NPProtocolReference(url = url, label = label)
+                }
+                else -> item.asIdent?.let { NPProtocolReference(url = it) }
+            }
+        }
+    }
 
     private fun parseTagList(): List<String> {
         expect(NPPSToken.LBracket)

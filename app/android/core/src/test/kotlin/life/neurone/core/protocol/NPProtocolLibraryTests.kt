@@ -25,7 +25,11 @@ class NPProtocolLibraryTests {
         // object used to be a hand-maintained Kotlin transcription carrying 19
         // of the library's protocols; it is now the whole library, copied onto
         // the resource path by the bundlePredefinedProtocols Gradle task.
-        val expected = NPBundledProtocols.manifestFiles.size
+        //
+        // protocolFiles, not manifestFiles: the manifest also lists the zone and
+        // condition definition files, which load into the namespace but are not
+        // library items.
+        val expected = NPBundledProtocols.protocolFiles.size
         assertEquals(expected, library().bundledProtocols.size,
             "Every predefined NPPS template in manifest.json must parse without error.")
     }
@@ -116,7 +120,7 @@ class NPProtocolLibraryTests {
         val lib = library()
         val gamma = lib.bundledProtocols.first { it.name == "Gamma Focus" }
         lib.delete(gamma.id)
-        assertEquals(NPBundledProtocols.manifestFiles.size, lib.bundledProtocols.size,
+        assertEquals(NPBundledProtocols.protocolFiles.size, lib.bundledProtocols.size,
             "Bundled protocols must be immutable.")
     }
 

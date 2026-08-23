@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 9
+**Revision:** 10
 **Date:** 2026-08-23  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 10 (2026-08-23) — `zone` and `condition` blocks implemented on iOS and Android; `OI-NPPS-MOBILE-01` closed.** Rev 2 added §8 zones, §9 conditions and the §1.6 namespace, and only the web parser ever implemented them: both mobile parsers raised on either keyword, so the shipped definition files could not be loaded at all and Rev 9's bundling had to exclude them. Both now parse `zone` and `condition`, build the single namespace, and resolve a protocol's zone and condition references against it — verified on the shipped library, which yields **14 zones, 26 conditions, 69 runnable protocols and zero unresolved references**. **Four gaps closed along the way, all found by implementing this:** (i) neither mobile parser read a protocol's `conditions:` or `references:` — the fields Rev 2 added — so both models gain them, with a `[label, url]` reference type; (ii) **Android's PBM targeting was still the retired five-slot model** (`ZoneSelection {ALL, FRONT, REAR, CUSTOM}` + numeric `custom_zones`, resolving to slot indices 0–4), which could not express a named zone at all; it is replaced by the `NPPBMTarget` sum type iOS and web already use, and named zones now resolve to real socket ids through the generated `SocketZones` map, newly emitted for Kotlin by `scripts/sync-socket-map.ts`; (iii) `scripts/sync-conditions.ts` stopped emitting Swift and Kotlin — the registry had two representations only because the parsers could not read the file, and Windows, which has no NPPS parser, keeps its generated table; (iv) §8's socket range said `1..30` against a lattice of **80**. Android `:core` verified green (172 tests, up from 156, including a 14-case namespace suite); the iOS changes are unbuilt — no Xcode here.
+>
 > **Rev 9 (2026-08-23) — bundled protocols now come from `protocols/predefined/` at build time on every runtime; the hand-maintained duplicates are gone.** iOS and Android each carried the shipped library transcribed into source — `NPBundledProtocols.swift` (809 lines) and `NPBundledProtocols.kt` (744) — and both had drifted. **Android was shipping 19 of the library's 69 protocols and composites**, and 8 of those 19 were missing the `conditions` / `references` fields added in Rev 2. Both are replaced by loaders that read the real files: Android via a `bundlePredefinedProtocols` Gradle task that copies the directory onto `:core`'s resource path (JVM resources, not Android assets — `:core` is a pure-JVM module by design), iOS via a folder reference in the Xcode target's Resources build phase. Web already fetched them at runtime and is unchanged. The test assertions that pinned the count at 19 now derive it from `manifest.json`, so the bundle cannot silently diverge from the library again. §1.6 records the three mechanisms. **A gap this surfaced, recorded not closed:** neither mobile parser implements `zone` or `condition` top-level blocks, so both load the `protocols` and `composites` arrays only — `OI-NPPS-MOBILE-01`. Android `:core` verified green (156 tests); the iOS project change is unbuilt here — no Xcode in this environment.
 >
 > **Rev 8 (2026-08-23) — hd_tdcs montage aligned across all three runtimes; retired spellings removed rather than aliased; a third runtime brought into the audit.** **`app/android/` has a full parallel NPPS implementation** — lexer, parser, serializer, models, 4,486 lines — and it was outside every earlier revision's audit. Revs 4–5 said "both parsers"; that meant web and iOS. Android is a faithful port of the iOS parser **including all nine of Rev 5's divergent field names**, so it read only the retired spellings. **(i) hd_tdcs montage diverged on both values, in opposite directions:** `standard_2_electrode` (doc, iOS, Android) was `standard_2el` in the web type — so a protocol authored from `.npps` was silently rejected by any limits list built in the web UI, since `protocolValidator` string-matches montage against `allowed_montages`; and `ring_4x1` (doc, web) was **serialized** as `4x1_ring` by both iOS and Android, which since Rev 6 is not even lexable, being digit-leading. All three runtimes and §4.13 now use `ring_4x1` / `bilateral_4x1` / `standard_2_electrode`. **(ii) The retired spellings are gone, not aliased** — the only `.npps` files are the shipped predefined ones and they are all canonical, so Rev 4's `mode_f` alias and Rev 5's nine legacy readers are removed from every runtime, along with `4x1_ring` and the `legacyKeys` machinery in `parseLimitsSubBlock`. Android is moved onto the canonical names for all ten. **(iii) A tenth divergence found by the same sweep:** `clinical_tacs` read and wrote `channels` on iOS and Android against `channel_count` in the doc and the web parser; both now use `channel_count`. iOS and Android now read an identical set of 56 field names, verified mechanically. §4's alias table keeps only the ten documented short aliases; §12 drops the retired rows (189).
@@ -114,13 +116,12 @@ of truth and **no runtime transcribes it**. Each takes the real files at build o
 | Android | The `bundlePredefinedProtocols` Gradle task copies the directory onto `:core`'s resource path; `NPBundledProtocols` reads it from the classloader. JVM resources rather than Android assets, because `:core` is deliberately a pure-JVM module (ISC-2…4). |
 | iOS | The directory is a folder reference in the Xcode target's Resources build phase; `NPBundledProtocols` reads it from `Bundle.main`. |
 
-Both mobile runtimes load the `protocols` and `composites` arrays only. **Neither parser
-implements `zone` or `condition` top-level blocks** — their `NPProtocolEntry` is
-single/composite/limits, and anything else raises an error — so the two definition files are
-excluded rather than fed to a parser that would reject them. That is a standing gap against Rev 2
-(`OI-NPPS-MOBILE-01`); only the web parser implements §8 and §9 today. The condition registry
-reaches Android separately through `NPBundledConditions`, generated from the same
-`00-conditions.npps` by `scripts/sync-conditions.ts`.
+**All three runtimes load the whole manifest, definitions first.** iOS and Android implement
+`zone` and `condition` top-level blocks as of Rev 10 (closing `OI-NPPS-MOBILE-01`), so both read
+`00-zones.npps` and `00-conditions.npps` into the same namespace the web parser builds, and both
+validate a protocol's zone and condition references against it. The condition registry is no
+longer transcribed into Swift or Kotlin: `scripts/sync-conditions.ts` now emits only the Windows
+table, `app/windows` being the one runtime with no NPPS parser.
 
 ---
 
@@ -1032,7 +1033,7 @@ zone "Crown LEDs" {
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `sockets` | int array | **The zone's modules, by socket (major) address.** The defining field. 1-based, `1..30` on the current lattice; out-of-range, non-integer, hex, exponent and boolean values are all parse errors. Deduplicated and sorted on parse, and canonicalised again on serialize. |
+| `sockets` | int array | **The zone's modules, by socket (major) address.** The defining field. 1-based, `1..80` on the current lattice; out-of-range, non-integer, hex, exponent and boolean values are all parse errors. Deduplicated and sorted on parse, and canonicalised again on serialize. |
 | `id` | string | Optional stable UUID. Presence marks the zone predefined/read-only. |
 | `description` | string | Human-readable label. |
 | `types` | element-type array | Optional element-type filter within the listed sockets. |

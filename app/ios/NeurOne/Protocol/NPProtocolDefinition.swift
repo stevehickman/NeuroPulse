@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 // MARK: - Interval Config
@@ -660,6 +661,13 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
     var timingMode: TimingMode = .duration(20 * 60)
     var modalities: [NPProtocolModality] = []
 
+    /// Clinical conditions this protocol targets (§3). Each name must resolve
+    /// to a loaded `condition` block — see `validateNamespaceReferences`.
+    var conditions: [String] = []
+
+    /// Evidence and applicability links (§3).
+    var references: [NPProtocolReference] = []
+
     // MARK: Computed
 
     var requiredModalityTypes: Set<NPModalityType> {
@@ -820,14 +828,66 @@ struct NPCompositeProtocol: Codable, Identifiable, Equatable {
     var isReadOnly: Bool = false
     var layers: [NPCompositeLayer] = []
     var conflictResolution: ConflictResolution = .merge
+    var conditions: [String] = []
+    var references: [NPProtocolReference] = []
 }
 
 // MARK: - NPProtocolEntry
+
+// MARK: - Zone definition (named set of modules)
+
+/// A zone is a named SET OF MODULES, defined as an explicit list of socket
+/// (major) addresses. Listing sockets directly makes arbitrary, non-contiguous
+/// zones definable; an optional element-type filter restricts which elements
+/// within those modules the zone selects. See NP-NPPS-REF-001 §8.
+///
+/// `sockets` is a SET: duplicates collapse and the list is sorted at parse
+/// time, so unioning the two hemisphere zones of a lobe counts a shared midline
+/// socket once.
+struct NPZoneDefinition: Codable, Equatable {
+    var name: String
+    var sockets: [Int]
+    var id: String?
+    var description: String?
+    /// Element-type names mirror the firmware `np_elem_type_t`. Unknown names
+    /// are preserved rather than rejected: the element table is
+    /// hardware-revision data, so an unfamiliar type is forward compatibility.
+    var types: [String]?
+    var excludeTypes: Bool = false
+    /// Presence of an `id` marks the zone as shipped/read-only.
+    var isPredefined: Bool = false
+}
+
+// MARK: - Condition definition (name -> external reference)
+
+/// Pairs a standard condition name with a link to an external definition, so a
+/// protocol can reference conditions by standard term while the app can offer
+/// the user something to read. See NP-NPPS-REF-001 §9.
+struct NPConditionDefinition: Codable, Equatable {
+    var name: String
+    var link: String
+    var id: String?
+    var code: String?
+    var description: String?
+}
+
+/// A `references` entry: a bare URL/path, or a labelled link (§2).
+struct NPProtocolReference: Codable, Equatable {
+    var url: String
+    var label: String?
+
+    /// What a link should read as: the label when one was authored.
+    var displayText: String { label ?? url }
+}
 
 enum NPProtocolEntry: Identifiable, Equatable, Codable {
     case single(NPProtocolDefinition)
     case composite(NPCompositeProtocol)
     case limits(NPLimitsSet)
+    /// A `zone` block: a named set of modules (NP-NPPS-REF-001 §8).
+    case zone(NPZoneDefinition)
+    /// A `condition` block: name -> external definition link (§9).
+    case condition(NPConditionDefinition)
 
     // MARK: Identifiable
     var id: UUID {
@@ -835,6 +895,10 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .single(let p):    return p.id
         case .composite(let c): return c.id
         case .limits(let l):    return l.id
+        // Definitions are namespace entries keyed by name, never library items,
+        // so a stable synthetic id derived from the name is enough.
+        case .zone(let z):      return NPProtocolEntry.syntheticID("zone:\(z.name)")
+        case .condition(let c): return NPProtocolEntry.syntheticID("condition:\(c.name)")
         }
     }
 
@@ -843,6 +907,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .single(let p):    return p.name
         case .composite(let c): return c.name
         case .limits(let l):    return l.name
+        case .zone(let z):      return z.name
+        case .condition(let c): return c.name
         }
     }
 
@@ -851,6 +917,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .single(let p):    return p.description
         case .composite(let c): return c.description
         case .limits(let l):    return l.description
+        case .zone(let z):      return z.description ?? ""
+        case .condition(let c): return c.description ?? ""
         }
     }
 
@@ -858,7 +926,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p):    return p.tags
         case .composite(let c): return c.tags
-        case .limits:           return []
+        case .limits, .zone, .condition: return []
         }
     }
 
@@ -867,6 +935,9 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .single(let p):    return p.isPredefined
         case .composite(let c): return c.isPredefined
         case .limits:           return false
+        // A shipped definition carries an id; a user-authored one does not.
+        case .zone(let z):      return z.isPredefined
+        case .condition(let c): return c.id != nil
         }
     }
 
@@ -875,6 +946,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .single(let p):    return p.isReadOnly
         case .composite(let c): return c.isReadOnly
         case .limits:           return false
+        case .zone(let z):      return z.isPredefined
+        case .condition(let c): return c.id != nil
         }
     }
 
@@ -888,6 +961,27 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         return false
     }
 
+    /// True for `zone` and `condition` entries: namespace definitions that are
+    /// referenced by name and never appear in a protocol list.
+    var isDefinition: Bool {
+        switch self {
+        case .zone, .condition: return true
+        default:                return false
+        }
+    }
+
+    /// Deterministic id for a definition, so the same name always yields the
+    /// same value across launches. UUID v5-style: a namespaced SHA-256 prefix.
+    private static func syntheticID(_ key: String) -> UUID {
+        var bytes = Array(SHA256.hash(data: Data(key.utf8)).prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | 0x50   // version 5
+        bytes[8] = (bytes[8] & 0x3F) | 0x80   // RFC 4122 variant
+        return UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+        ))
+    }
+
     var requiredModalityTypes: Set<NPModalityType> {
         switch self {
         case .single(let p):
@@ -895,7 +989,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .composite:
             // Composite modality requirements are resolved at runtime against the library
             return Set()
-        case .limits:
+        case .limits, .zone, .condition:
+            // A definition is referenced by protocols, never run.
             return Set()
         }
     }

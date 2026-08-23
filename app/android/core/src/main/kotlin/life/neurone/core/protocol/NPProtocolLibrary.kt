@@ -44,6 +44,12 @@ val NPProtocolEntry.id: UUID
         is NPProtocolEntry.Single -> protocol.id
         is NPProtocolEntry.Composite -> composite.id
         is NPProtocolEntry.Limits -> limits.id
+        // Definitions are namespace entries, not library items: they are keyed
+        // by name and never appear in a protocol list, so a stable synthetic id
+        // is enough and must at least be distinct per name.
+        is NPProtocolEntry.Zone -> UUID.nameUUIDFromBytes("zone:${zone.name}".toByteArray())
+        is NPProtocolEntry.Condition ->
+            UUID.nameUUIDFromBytes("condition:${condition.name}".toByteArray())
     }
 
 val NPProtocolEntry.name: String
@@ -51,6 +57,8 @@ val NPProtocolEntry.name: String
         is NPProtocolEntry.Single -> protocol.name
         is NPProtocolEntry.Composite -> composite.name
         is NPProtocolEntry.Limits -> limits.name
+        is NPProtocolEntry.Zone -> zone.name
+        is NPProtocolEntry.Condition -> condition.name
     }
 
 val NPProtocolEntry.isReadOnly: Boolean
@@ -58,6 +66,9 @@ val NPProtocolEntry.isReadOnly: Boolean
         is NPProtocolEntry.Single -> protocol.isReadOnly
         is NPProtocolEntry.Composite -> composite.isReadOnly
         is NPProtocolEntry.Limits -> false
+        // A shipped definition carries an id; a user-authored one does not.
+        is NPProtocolEntry.Zone -> zone.isPredefined
+        is NPProtocolEntry.Condition -> condition.id != null
     }
 
 val NPProtocolEntry.isComposite: Boolean get() = this is NPProtocolEntry.Composite
@@ -151,7 +162,11 @@ class NPProtocolLibrary(
                 if (missing.isEmpty()) ProtocolAvailability.Available
                 else ProtocolAvailability.Unavailable(missing)
             }
-            is NPProtocolEntry.Limits -> ProtocolAvailability.Available
+            // A definition needs no hardware — it is referenced by protocols,
+            // never run.
+            is NPProtocolEntry.Limits,
+            is NPProtocolEntry.Zone,
+            is NPProtocolEntry.Condition -> ProtocolAvailability.Available
         }
     }
 
@@ -237,10 +252,14 @@ class NPProtocolLibrary(
 
     // MARK: Bundled loading
 
+    /**
+     * The shipped protocols and composites. Zone and condition definitions load
+     * into the same namespace (NP-NPPS-REF-001 §1.6) but are not library items:
+     * they are referenced by name, never run, so they are filtered out here
+     * rather than shown in a protocol list.
+     */
     private fun loadBundledProtocols(): List<NPProtocolEntry> =
-        NPBundledProtocols.allContents.flatMap { content ->
-            runCatching { NPPSParser(NPPSLexer(content).tokenize()).parse() }.getOrDefault(emptyList())
-        }
+        NPBundledProtocols.namespace.runnableEntries
 
     // MARK: Persistence (NPPS text via KeyValueStore)
 

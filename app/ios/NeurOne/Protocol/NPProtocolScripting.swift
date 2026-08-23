@@ -34,7 +34,7 @@ struct NPPSLexer {
     private var pos: Int = 0
     private var line: Int = 1
 
-    private static let keywords: Set<String> = ["protocol", "composite", "layer", "limits"]
+    private static let keywords: Set<String> = ["protocol", "composite", "layer", "limits", "zone", "condition"]
     private static let units: Set<String> = ["Hz", "mA", "G", "mW_cm2", "m", "s", "h", "%"]
 
     init(_ text: String) {
@@ -205,14 +205,152 @@ struct NPPSParser {
                     entries.append(.composite(try parseComposite()))
                 } else if kw == "limits" {
                     entries.append(.limits(try parseLimitsBlock()))
+                } else if kw == "zone" {
+                    entries.append(.zone(try parseZoneBlock()))
+                } else if kw == "condition" {
+                    entries.append(.condition(try parseConditionBlock()))
                 } else {
                     throw NPPSError(message: "Unexpected keyword: \(kw)", line: currentLine)
                 }
             } else {
-                throw NPPSError(message: "Expected 'protocol', 'composite', or 'limits'", line: currentLine)
+                throw NPPSError(
+                    message: "Expected 'protocol', 'composite', 'limits', 'zone', or 'condition'",
+                    line: currentLine
+                )
             }
         }
         return entries
+    }
+
+    // MARK: Zone block (NP-NPPS-REF-001 §8)
+
+    /// `zone "Name" { sockets: [1, 2, 3]  types: [led_660]  exclude_types: false }`
+    ///
+    /// `sockets` is the defining field and is treated as a SET: duplicates
+    /// collapse and the result is sorted, so a bilateral protocol referencing
+    /// both hemisphere zones of a lobe addresses their shared midline socket
+    /// once rather than twice.
+    mutating func parseZoneBlock() throws -> NPZoneDefinition {
+        let ln = currentLine
+        try expectKeyword("zone")
+        let name = try parseString()
+        try expect(.lbrace)
+
+        var zone = NPZoneDefinition(name: name, sockets: [])
+        while currentToken != .rbrace && currentToken != .eof {
+            guard case .ident(let key) = currentToken else {
+                throw NPPSError(message: "Expected field name in zone block", line: currentLine)
+            }
+            advance()
+            guard currentToken == .colon else {
+                throw NPPSError(message: "Unexpected token after '\(key)' in zone block", line: currentLine)
+            }
+            advance()
+            switch key {
+            case "id":
+                zone.id = try parseString()
+                zone.isPredefined = true
+            case "description":  zone.description = try parseString()
+            case "sockets":      zone.sockets = try parseSocketList(zoneName: name)
+            case "types":        zone.types = try parseTagList()
+            case "exclude_types":
+                if case .bool(let b) = currentToken { zone.excludeTypes = b; advance() } else { skipValue() }
+            default:             skipValue()
+            }
+        }
+        try expect(.rbrace)
+        if name.isEmpty { throw NPPSError(message: "Zone name cannot be empty", line: ln) }
+        return zone
+    }
+
+    /// A socket id is a plain whole number naming a socket on this helmet.
+    /// Anything else — a fraction, a boolean, an out-of-range id — is reported
+    /// with the offending value rather than silently coerced, because a wrong
+    /// socket id means light lands somewhere the author did not choose.
+    private mutating func parseSocketList(zoneName: String) throws -> [Int] {
+        let ln = currentLine
+        let raw = try parseFieldValue()
+        guard case .array(let items) = raw else {
+            throw NPPSError(
+                message: "zone \"\(zoneName)\": sockets must be a list, e.g. sockets: [1, 2, 3]",
+                line: ln
+            )
+        }
+        var invalid: [String] = []
+        var ids: Set<Int> = []
+        for item in items {
+            guard let d = item.asDouble, d == d.rounded(), d.isFinite else {
+                invalid.append(NPPSParser.describe(item))
+                continue
+            }
+            let id = Int(d)
+            if NPSocketID.isValid(id) { ids.insert(id) } else { invalid.append(String(id)) }
+        }
+        if !invalid.isEmpty {
+            let isAre = invalid.count == 1 ? "is not a socket" : "are not sockets"
+            throw NPPSError(
+                message: "zone \"\(zoneName)\": \(invalid.joined(separator: ", ")) \(isAre) on this "
+                    + "helmet — ids are whole numbers \(NPSocketID.rangeLabel) "
+                    + "(\(SocketZones.socketCount) sockets, numbered from \(NPSocketID.numberingBase))",
+                line: ln
+            )
+        }
+        return ids.sorted()
+    }
+
+    private static func describe(_ v: NPPSFieldValue) -> String {
+        switch v {
+        case .string(let s):            return "\"\(s)\""
+        case .ident(let s):             return s
+        case .bool(let b):              return String(b)
+        case .array:                    return "a nested list"
+        case .number(let n):            return n == n.rounded() ? String(Int(n)) : String(n)
+        case .numberWithUnit(let n, let u):
+            return (n == n.rounded() ? String(Int(n)) : String(n)) + u
+        }
+    }
+
+    // MARK: Condition block (NP-NPPS-REF-001 §9)
+
+    /// `condition "Name" { link: "https://…"  code: "6A70" }` — `link` is required.
+    mutating func parseConditionBlock() throws -> NPConditionDefinition {
+        let ln = currentLine
+        try expectKeyword("condition")
+        let name = try parseString()
+        try expect(.lbrace)
+
+        var link: String?
+        var id: String?
+        var code: String?
+        var description: String?
+
+        while currentToken != .rbrace && currentToken != .eof {
+            guard case .ident(let key) = currentToken else {
+                throw NPPSError(message: "Expected field name in condition block", line: currentLine)
+            }
+            advance()
+            guard currentToken == .colon else {
+                throw NPPSError(
+                    message: "Unexpected token after '\(key)' in condition block", line: currentLine
+                )
+            }
+            advance()
+            switch key {
+            case "link":        link = try parseString()
+            case "id":          id = try parseString()
+            case "code":        code = try parseString()
+            case "description": description = try parseString()
+            default:            skipValue()
+            }
+        }
+        try expect(.rbrace)
+        if name.isEmpty { throw NPPSError(message: "Condition name cannot be empty", line: ln) }
+        guard let resolvedLink = link, !resolvedLink.isEmpty else {
+            throw NPPSError(message: "condition \"\(name)\": 'link' is required", line: ln)
+        }
+        return NPConditionDefinition(
+            name: name, link: resolvedLink, id: id, code: code, description: description
+        )
     }
 
     // MARK: Limits block
@@ -452,6 +590,8 @@ struct NPPSParser {
         var author = "NeurOne"
         var version = "1.0"
         var tags: [String] = []
+        var conditions: [String] = []
+        var references: [NPProtocolReference] = []
         var timingMode: NPProtocolDefinition.TimingMode = .duration(20 * 60)
         var modalities: [NPProtocolModality] = []
         var isReadOnly = false
@@ -478,6 +618,10 @@ struct NPPSParser {
                     version = try parseString()
                 case "tags":
                     tags = try parseTagList()
+                case "conditions":
+                    conditions = try parseTagList()
+                case "references":
+                    references = try parseReferenceList()
                 case "duration":
                     let secs = try parseTimeValue()
                     timingMode = .duration(secs)
@@ -521,7 +665,9 @@ struct NPPSParser {
             isPredefined: isReadOnly,
             isReadOnly: isReadOnly,
             timingMode: timingMode,
-            modalities: modalities
+            modalities: modalities,
+            conditions: conditions,
+            references: references
         )
         proto.id = id
         return proto
@@ -540,6 +686,8 @@ struct NPPSParser {
         var author = "NeurOne"
         var version = "1.0"
         var tags: [String] = []
+        var conditions: [String] = []
+        var references: [NPProtocolReference] = []
         var conflictResolution: NPCompositeProtocol.ConflictResolution = .merge
         var layers: [NPCompositeLayer] = []
         var isReadOnly = false
@@ -573,6 +721,10 @@ struct NPPSParser {
                     version = try parseString()
                 case "tags":
                     tags = try parseTagList()
+                case "conditions":
+                    conditions = try parseTagList()
+                case "references":
+                    references = try parseReferenceList()
                 case "conflict_resolution":
                     let val = try parseIdentOrString()
                     switch val {
@@ -606,7 +758,9 @@ struct NPPSParser {
             isPredefined: isReadOnly,
             isReadOnly: isReadOnly,
             layers: layers,
-            conflictResolution: conflictResolution
+            conflictResolution: conflictResolution,
+            conditions: conditions,
+            references: references
         )
         comp.id = id
         return comp
@@ -1096,6 +1250,21 @@ struct NPPSParser {
         return try parseString()
     }
 
+    /// A `references` value: an array whose elements are each a bare URL/path
+    /// string, or a `[label, url]` pair (NP-NPPS-REF-001 §2).
+    mutating private func parseReferenceList() throws -> [NPProtocolReference] {
+        let raw = try parseFieldValue()
+        guard case .array(let items) = raw else { return [] }
+        return items.compactMap { item in
+            if case .array(let pair) = item {
+                guard pair.count >= 2, let url = pair[1].asIdent else { return nil }
+                return NPProtocolReference(url: url, label: pair[0].asIdent)
+            }
+            guard let url = item.asIdent else { return nil }
+            return NPProtocolReference(url: url)
+        }
+    }
+
     mutating private func parseTagList() throws -> [String] {
         try expect(.lbracket)
         var tags: [String] = []
@@ -1156,7 +1325,51 @@ struct NPPSSerializer {
             return serializeComposite(comp)
         case .limits(let lim):
             return serializeLimits(lim)
+        case .zone(let zone):
+            return serializeZone(zone)
+        case .condition(let cond):
+            return serializeCondition(cond)
         }
+    }
+
+    /// A bare URL, or a `[label, url]` pair when the entry was labelled.
+    private func serializeReference(_ r: NPProtocolReference) -> String {
+        guard let label = r.label else { return "\"\(escape(r.url))\"" }
+        return "[\"\(escape(label))\", \"\(escape(r.url))\"]"
+    }
+
+    /// Escape a value for a double-quoted NPPS string.
+    private func escape(_ value: String) -> String {
+        value.replacingOccurrences(of: "\\", with: "\\\\")
+             .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
+    // MARK: Zone / Condition (NP-NPPS-REF-001 §8, §9)
+
+    func serializeZone(_ z: NPZoneDefinition) -> String {
+        var lines: [String] = ["zone \"\(escape(z.name))\" {"]
+        if let id = z.id { lines.append("    id: \"\(escape(id))\"") }
+        if let d = z.description { lines.append("    description: \"\(escape(d))\"") }
+        // Canonical membership on the way out as well as in: sorted and deduped,
+        // so two equal zones serialize identically.
+        let sockets = Array(Set(z.sockets)).sorted().map(String.init).joined(separator: ", ")
+        lines.append("    sockets: [\(sockets)]")
+        if let types = z.types, !types.isEmpty {
+            lines.append("    types: [\(types.joined(separator: ", "))]")
+        }
+        if z.excludeTypes { lines.append("    exclude_types: true") }
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    func serializeCondition(_ c: NPConditionDefinition) -> String {
+        var lines: [String] = ["condition \"\(escape(c.name))\" {"]
+        if let id = c.id { lines.append("    id: \"\(escape(id))\"") }
+        lines.append("    link: \"\(escape(c.link))\"")
+        if let code = c.code { lines.append("    code: \"\(escape(code))\"") }
+        if let d = c.description { lines.append("    description: \"\(escape(d))\"") }
+        lines.append("}")
+        return lines.joined(separator: "\n")
     }
 
     func serializeLimits(_ limits: NPLimitsSet) -> String {
@@ -1291,6 +1504,14 @@ struct NPPSSerializer {
         }
         if !proto.tags.isEmpty {
             lines.append("    tags: [\(proto.tags.map { serializeTag($0) }.joined(separator: ", "))]")
+        }
+        if !proto.conditions.isEmpty {
+            let cs = proto.conditions.map { "\"\(escape($0))\"" }.joined(separator: ", ")
+            lines.append("    conditions: [\(cs)]")
+        }
+        if !proto.references.isEmpty {
+            let rs = proto.references.map { serializeReference($0) }.joined(separator: ", ")
+            lines.append("    references: [\(rs)]")
         }
         switch proto.timingMode {
         case .duration(let s):
@@ -1480,6 +1701,14 @@ struct NPPSSerializer {
         }
         if !comp.tags.isEmpty {
             lines.append("    tags: [\(comp.tags.map { serializeTag($0) }.joined(separator: ", "))]")
+        }
+        if !comp.conditions.isEmpty {
+            let cs = comp.conditions.map { "\"\(escape($0))\"" }.joined(separator: ", ")
+            lines.append("    conditions: [\(cs)]")
+        }
+        if !comp.references.isEmpty {
+            let rs = comp.references.map { serializeReference($0) }.joined(separator: ", ")
+            lines.append("    references: [\(rs)]")
         }
         lines.append("    conflict_resolution: \(comp.conflictResolution.rawValue)")
         lines.append("")

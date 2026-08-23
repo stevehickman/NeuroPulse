@@ -4,19 +4,17 @@
  *
  * Source of truth: protocols/predefined/00-conditions.npps
  * Targets:
- *   - Apple:   app/ios/NeurOne/Protocol/NPBundledConditions.swift
- *   - Android: app/android/core/src/main/kotlin/life/neurone/core/protocol/NPBundledConditions.kt
  *   - Windows: app/windows/NeurOne/Protocol/NPBundledConditions.cs
  *
- * Web reads the .npps file directly through its own NPPS parser, so it needs no
- * generated table.
+ * Web, iOS and Android all read the .npps file directly through their own NPPS
+ * parsers, so they need no generated table. The Swift and Kotlin outputs were
+ * dropped when those parsers gained `condition` block support in
+ * NP-NPPS-REF-001 Rev 10 (OI-NPPS-MOBILE-01): a generated transcription is a
+ * second representation of the registry, and the reason for tolerating it —
+ * "the parser cannot read the file" — no longer holds.
  *
- * Why generate rather than parse on each platform: the Swift, Kotlin, and C#
- * NPPS parsers have no `condition` block support, and adding it three times
- * would mean three hand-written parsers to keep in step with the grammar for
- * what is a flat name → link table. Generating keeps 00-conditions.npps the
- * single source of truth (mirroring the existing NPBundledProtocols pattern)
- * and gives each platform a typed, compile-checked table with no parser risk.
+ * Windows keeps its generated table because app/windows has no NPPS parser at
+ * all; it consumes the registry without being able to parse the format.
  *
  * Run after editing 00-conditions.npps:
  *   bun scripts/sync-conditions.ts
@@ -29,11 +27,6 @@ import { join } from "path";
 const ROOT = join(import.meta.dir, "..");
 const REGISTRY = join(ROOT, "protocols", "predefined", "00-conditions.npps");
 
-const SWIFT_OUT = join(ROOT, "app", "ios", "NeurOne", "Protocol", "NPBundledConditions.swift");
-const KOTLIN_OUT = join(
-  ROOT, "app", "android", "core", "src", "main", "kotlin", "life", "neurone", "core",
-  "protocol", "NPBundledConditions.kt",
-);
 const CSHARP_OUT = join(ROOT, "app", "windows", "NeurOne", "Protocol", "NPBundledConditions.cs");
 
 interface Condition {
@@ -96,63 +89,6 @@ function optLit(s: string | undefined, nilKeyword: string): string {
   return s === undefined ? nilKeyword : `"${lit(s)}"`;
 }
 
-function emitSwift(cs: Condition[]): string {
-  const rows = cs.map(c => `        NPConditionDefinition(
-            name: "${lit(c.name)}",
-            id: ${optLit(c.id, "nil")},
-            link: "${lit(c.link)}",
-            code: ${optLit(c.code, "nil")},
-            description: ${optLit(c.description, "nil")}
-        ),`).join("\n");
-
-  return `${BANNER("Apple (iOS + macOS)")}
-import Foundation
-
-/// The bundled condition registry — standard condition names paired with an
-/// external definition link. Protocols reference these by name through their
-/// \`conditions\` field. See NP-COND-LINK-001.
-enum NPBundledConditions {
-
-    static let all: [NPConditionDefinition] = [
-${rows}
-    ]
-
-    /// Name → definition, for resolving a protocol's \`conditions\` entries.
-    static let byName: [String: NPConditionDefinition] =
-        Dictionary(uniqueKeysWithValues: all.map { ($0.name, $0) })
-}
-`;
-}
-
-function emitKotlin(cs: Condition[]): string {
-  const rows = cs.map(c => `        NPConditionDefinition(
-            name = "${lit(c.name)}",
-            id = ${optLit(c.id, "null")},
-            link = "${lit(c.link)}",
-            code = ${optLit(c.code, "null")},
-            description = ${optLit(c.description, "null")},
-        ),`).join("\n");
-
-  return `${BANNER("Android")}
-package life.neurone.core.protocol
-
-/**
- * The bundled condition registry — standard condition names paired with an
- * external definition link. Protocols reference these by name through their
- * \`conditions\` field. See NP-COND-LINK-001.
- */
-object NPBundledConditions {
-
-    val all: List<NPConditionDefinition> = listOf(
-${rows}
-    )
-
-    /** Name → definition, for resolving a protocol's \`conditions\` entries. */
-    val byName: Map<String, NPConditionDefinition> = all.associateBy { it.name }
-}
-`;
-}
-
 function emitCSharp(cs: Condition[]): string {
   const rows = cs.map(c => `        new NPConditionDefinition(
             Name: "${lit(c.name)}",
@@ -205,8 +141,6 @@ if (duplicates.length > 0) {
 }
 
 const outputs: Array<[string, string]> = [
-  [SWIFT_OUT, emitSwift(conditions)],
-  [KOTLIN_OUT, emitKotlin(conditions)],
   [CSHARP_OUT, emitCSharp(conditions)],
 ];
 
@@ -237,5 +171,5 @@ if (checkOnly) {
   }
   console.log(`${conditions.length} conditions — all generated files up to date.`);
 } else {
-  console.log(`${conditions.length} conditions synced to 3 platform targets.`);
+  console.log(`${conditions.length} conditions synced to ${outputs.length} platform target(s).`);
 }

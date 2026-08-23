@@ -15,14 +15,12 @@ import kotlinx.serialization.json.jsonPrimitive
  * Kotlin string literals and had drifted: 8 of 17 were missing the
  * `conditions` / `references` fields added in NP-NPPS-REF-001 Rev 2.
  *
- * **Definition files are excluded.** `manifest.json` also lists `00-zones.npps`
- * and `00-conditions.npps`, but this parser has no `zone` or `condition`
- * top-level block — [NPProtocolEntry] is Single/Composite/Limits only, and
- * anything else raises "Unexpected keyword". That is a standing gap against
- * NP-NPPS-REF-001 Rev 2, not something this loader should paper over, so it
- * takes only the files the parser can actually read. The condition registry
- * reaches Android through [NPBundledConditions], generated from the same
- * `00-conditions.npps` by `scripts/sync-conditions.ts`.
+ * **Definition files load first.** `manifest.json` lists `00-zones.npps` and
+ * `00-conditions.npps` before the protocols, and they are loaded in that order
+ * so a protocol's zone and condition references resolve regardless of file
+ * order (NP-NPPS-REF-001 §1.6). The parser gained `zone` and `condition`
+ * top-level blocks in Rev 10; before that it raised on them and this loader had
+ * to skip both files.
  */
 object NPBundledProtocols {
 
@@ -30,7 +28,10 @@ object NPBundledProtocols {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** Protocol and composite file names from `manifest.json`, in manifest order. */
+    /**
+     * Every file `manifest.json` lists, definitions first: zones, conditions,
+     * then protocols and composites.
+     */
     val manifestFiles: List<String> by lazy {
         val raw = readResource("$BASE/manifest.json")
             ?: error(
@@ -40,10 +41,25 @@ object NPBundledProtocols {
         val obj = json.parseToJsonElement(raw).jsonObject
         fun arr(key: String): List<String> =
             obj[key]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
-        arr("protocols") + arr("composites")
+        arr("zones") + arr("conditions") + arr("protocols") + arr("composites")
     }
 
-    /** Raw NPPS text of every bundled protocol and composite file. */
+    /** Protocol and composite file names only — what a protocol library lists. */
+    val protocolFiles: List<String> by lazy {
+        val defs = definitionFiles.toSet()
+        manifestFiles.filterNot { it in defs }
+    }
+
+    /** Zone and condition definition file names, in load order. */
+    val definitionFiles: List<String> by lazy {
+        val raw = readResource("$BASE/manifest.json") ?: return@lazy emptyList()
+        val obj = json.parseToJsonElement(raw).jsonObject
+        fun arr(key: String): List<String> =
+            obj[key]?.jsonArray?.map { it.jsonPrimitive.content } ?: emptyList()
+        arr("zones") + arr("conditions")
+    }
+
+    /** Raw NPPS text of every bundled file, definitions first. */
     val allContents: List<String> by lazy {
         manifestFiles.map { name ->
             readResource("$BASE/$name")
@@ -52,6 +68,19 @@ object NPBundledProtocols {
                         "resource path."
                 )
         }
+    }
+
+    /**
+     * Everything parsed into one namespace, with zone and condition definitions
+     * resolved. Cross-reference errors are returned by
+     * [validateNamespaceReferences] rather than thrown, so one bad reference
+     * does not cost the caller the whole library.
+     */
+    val namespace: NPNamespace by lazy {
+        val entries = allContents.flatMap { content ->
+            runCatching { NPPSParser(NPPSLexer(content).tokenize()).parse() }.getOrDefault(emptyList())
+        }
+        buildNamespace(entries).namespace
     }
 
     internal fun readResource(path: String): String? =

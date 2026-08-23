@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import life.neurone.core.protocol.NPAudioEntrainmentParams
 import life.neurone.core.protocol.NPBESTacsParams
 import life.neurone.core.protocol.NPEEGNeurofeedbackParams
+import life.neurone.core.protocol.NPPBMTarget
 import life.neurone.core.protocol.NPModalityParams
 import life.neurone.core.protocol.NPModalityType
 import life.neurone.core.protocol.NPPBMIntranasalParams
@@ -46,6 +47,7 @@ import life.neurone.core.protocol.NPProtocolModality
 import life.neurone.core.protocol.NPTDCSParams
 import life.neurone.core.protocol.NPVNSHRVParams
 import life.neurone.core.protocol.NPVisualStimParams
+import life.neurone.core.protocol.SocketZones
 
 // Port of iOS ModalityEditorView — the deep per-modality parameter editor. Each enabled
 // modality is an expandable card with an enable toggle and typed controls; T1 modalities have
@@ -158,8 +160,27 @@ private fun PbmTranscranial(p: NPPBMTranscranialParams, on: (NPPBMTranscranialPa
     NumField("Intensity (%)", p.intensityPercent) { on(p.copy(intensityPercent = it)) }
     NumField("Frequency (Hz, 0 = CW)", p.frequencyHz) { on(p.copy(frequencyHz = it)) }
     IntField("Duty cycle (%)", p.dutyCyclePercent) { on(p.copy(dutyCyclePercent = it)) }
-    EnumDropdown("Zones", p.zones, NPPBMTranscranialParams.ZoneSelection.entries) { on(p.copy(zones = it)) }
+    // A zone is a named set of modules, not one of five fixed slots. The picker
+    // offers the authored zone names plus clinician_selected; multi-zone targets
+    // are authored in .npps until the multi-select picker lands (NP-CFG-UI-001).
+    ZoneDropdown(p.target) { on(p.copy(target = it)) }
     EnumDropdown("Wavelength", p.wavelength, NPPBMTranscranialParams.Wavelength.entries, { it.rawValue }) { on(p.copy(wavelength = it)) }
+}
+
+@Composable
+private fun ZoneDropdown(target: NPPBMTarget, on: (NPPBMTarget) -> Unit) {
+    val clinicianLabel = "Clinician-selected sockets"
+    val options = SocketZones.zoneNames + clinicianLabel
+    val current = when (target) {
+        is NPPBMTarget.Named -> target.zoneNames.firstOrNull() ?: SocketZones.zoneNames.first()
+        is NPPBMTarget.ClinicianSelected -> clinicianLabel
+    }
+    EnumDropdown("Zone", current, options) { picked ->
+        on(
+            if (picked == clinicianLabel) NPPBMTarget.ClinicianSelected
+            else NPPBMTarget.Named(listOf(picked)),
+        )
+    }
 }
 
 @Composable

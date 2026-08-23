@@ -264,18 +264,12 @@ final class NPProtocolLibrary: ObservableObject {
 
     // MARK: Bundled protocol loading
 
+    /// The shipped protocols and composites. Zone and condition definitions load
+    /// into the same namespace (NP-NPPS-REF-001 §1.6) but are not library items:
+    /// they are referenced by name, never run, so they are filtered out here
+    /// rather than shown in a protocol list.
     private func loadBundledProtocols() {
-        bundledProtocols = NPBundledProtocols.allContents.flatMap { content -> [NPProtocolEntry] in
-            do {
-                var lexer = NPPSLexer(content)
-                let tokens = try lexer.tokenize()
-                var parser = NPPSParser(tokens)
-                return try parser.parse()
-            } catch {
-                // Silently skip malformed bundled content; should never happen in production
-                return []
-            }
-        }
+        bundledProtocols = NPBundledProtocols.namespace.runnableEntries
     }
 
     // MARK: Persistence

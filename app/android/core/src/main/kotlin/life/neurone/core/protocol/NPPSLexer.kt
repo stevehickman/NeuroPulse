@@ -49,7 +49,8 @@ class NPPSLexer(text: String) {
     private var line: Int = 1
 
     companion object {
-        private val KEYWORDS: Set<String> = setOf("protocol", "composite", "layer", "limits")
+        private val KEYWORDS: Set<String> =
+            setOf("protocol", "composite", "layer", "limits", "zone", "condition")
         private val UNITS: Set<String> = setOf("Hz", "mA", "G", "mW_cm2", "m", "s", "h", "%")
     }
 

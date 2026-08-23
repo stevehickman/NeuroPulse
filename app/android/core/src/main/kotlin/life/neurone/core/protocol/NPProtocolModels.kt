@@ -68,14 +68,17 @@ data class NPIntervalConfig(
 // MARK: - Per-modality parameter structs -------------------------------------
 
 data class NPPBMTranscranialParams(
-    var zones: ZoneSelection = ZoneSelection.ALL,
-    var customZones: List<Int>? = null,
+    /**
+     * Defaults to the whole vault. A default that resolves is deliberate: the
+     * old default was the five-slot ALL, which silently became "every module"
+     * for any target the parser did not recognise.
+     */
+    var target: NPPBMTarget = NPPBMTarget.Named(listOf("All")),
     var wavelength: Wavelength = Wavelength.BASE_660_808NM,
     var intensityPercent: Double = 75.0,
     var frequencyHz: Double = 20.0,
     var dutyCyclePercent: Int = 25,
 ) {
-    enum class ZoneSelection { ALL, FRONT, REAR, CUSTOM }
 
     enum class Wavelength(val rawValue: String) {
         BASE_660_808NM("660_808nm"),
@@ -359,7 +362,20 @@ data class NPProtocolDefinition(
     var isReadOnly: Boolean = false,
     var timingMode: NPTimingMode = NPTimingMode.Duration(20 * 60),
     var modalities: List<NPProtocolModality> = emptyList(),
+    /**
+     * Clinical conditions this protocol targets (NP-NPPS-REF-001 §3). Each name
+     * must resolve to a loaded `condition` block — see [validateNamespaceReferences].
+     */
+    var conditions: List<String> = emptyList(),
+    /** Evidence and applicability links (§3): a bare URL, or a [label, url] pair. */
+    var references: List<NPProtocolReference> = emptyList(),
 )
+
+/** A `references` entry: a bare URL/path, or a labelled link. */
+data class NPProtocolReference(val url: String, val label: String? = null) {
+    /** What a link should read as: the label when one was authored. */
+    val displayText: String get() = label ?: url
+}
 
 // MARK: - Composite ----------------------------------------------------------
 
@@ -382,6 +398,8 @@ data class NPCompositeProtocol(
     var isReadOnly: Boolean = false,
     var layers: List<NPCompositeLayer> = emptyList(),
     var conflictResolution: ConflictResolution = ConflictResolution.MERGE,
+    var conditions: List<String> = emptyList(),
+    var references: List<NPProtocolReference> = emptyList(),
 ) {
     enum class ConflictResolution(val rawValue: String) {
         MERGE("merge"),
@@ -518,4 +536,97 @@ sealed class NPProtocolEntry {
     data class Single(val protocol: NPProtocolDefinition) : NPProtocolEntry()
     data class Composite(val composite: NPCompositeProtocol) : NPProtocolEntry()
     data class Limits(val limits: NPLimitsSet) : NPProtocolEntry()
+
+    /** A `zone` block: a named set of modules (NP-NPPS-REF-001 §8). */
+    data class Zone(val zone: NPZoneDefinition) : NPProtocolEntry()
+
+    /** A `condition` block: name -> external definition link (§9). */
+    data class Condition(val condition: NPConditionDefinition) : NPProtocolEntry()
 }
+
+// ─── PBM transcranial target ──────────────────────────────────────────────────
+
+/**
+ * Where a PBM transcranial command lands on the helmet lattice. Port of the iOS
+ * `NPPBMTarget` and the web `zones` + `zoneRefs` pair, expressed as a sum type
+ * because the payload differs per case and "selector plus an optional list"
+ * made invalid combinations representable.
+ *
+ * There are exactly two ways to name a target and no third. The five-slot
+ * selectors (`all` / `front` / `rear` / `custom` + numeric indices) are gone
+ * rather than retained-but-refused: there are no existing users, and a target
+ * the parser does not understand must stop the file rather than become a second
+ * way to say where light lands.
+ */
+sealed class NPPBMTarget {
+    /** Named zones from 00-zones.npps. Zones overlap at the midline by design. */
+    data class Named(val zoneNames: List<String>) : NPPBMTarget()
+
+    /** Patient-specific: the operator chooses sockets before the protocol runs. */
+    object ClinicianSelected : NPPBMTarget()
+
+    /**
+     * Resolve to 1-based socket ids, deduplicated and sorted. Two zones sharing
+     * a midline socket must dose it once.
+     *
+     * Throws rather than falling back to any default, because a silently
+     * substituted target is wrong-site stimulation.
+     */
+    fun resolveSockets(clinicianSockets: List<Int>? = null): List<Int> = when (this) {
+        is Named -> {
+            if (zoneNames.isEmpty()) throw NPPSError("zones: [] names no zone", 0)
+            val out = sortedSetOf<Int>()
+            for (name in zoneNames) {
+                val ids = SocketZones.sockets(name)
+                    ?: throw NPPSError("unknown zone '$name'", 0)
+                out.addAll(ids)
+            }
+            if (out.isEmpty()) throw NPPSError("zones: ${zoneNames.joinToString(", ")} is empty", 0)
+            out.toList()
+        }
+        is ClinicianSelected -> {
+            val chosen = clinicianSockets?.takeIf { it.isNotEmpty() }
+                ?: throw NPPSError("clinician_selected requires operator-chosen sockets", 0)
+            chosen.toSortedSet().toList()
+        }
+    }
+
+    /** Short human-readable form, for pickers and validation messages. */
+    val displayName: String
+        get() = when (this) {
+            is Named -> if (zoneNames.isEmpty()) "No zones" else zoneNames.joinToString(" + ")
+            is ClinicianSelected -> "Clinician-selected sockets"
+        }
+}
+
+// ─── Zone definition (named set of modules) ───────────────────────────────────
+
+/**
+ * Element-type names mirror the firmware `np_elem_type_t` (np_module_map.h).
+ * Unknown names are preserved verbatim rather than rejected: the element table
+ * is hardware-revision data, and a zone naming a type this build has not heard
+ * of is a forward-compatibility case, not a malformed file.
+ */
+typealias NPElementType = String
+
+/**
+ * A zone is a named SET OF MODULES, defined as an explicit list of socket
+ * (major) addresses — the first half of the firmware two-level
+ * (socket:element) scheme. Listing sockets directly makes arbitrary,
+ * non-contiguous zones definable. An optional element-type filter restricts
+ * which elements within those modules the zone selects.
+ *
+ * [sockets] is a SET: duplicates collapse and the list is sorted at parse time,
+ * so unioning the two hemisphere zones of a lobe counts a shared midline socket
+ * once. See NP-NPPS-REF-001 §8.
+ */
+data class NPZoneDefinition(
+    val name: String,
+    val sockets: List<Int>,
+    val id: String? = null,
+    val description: String? = null,
+    val types: List<NPElementType>? = null,
+    val excludeTypes: Boolean = false,
+    /** Presence of an `id` marks the zone as shipped/read-only. */
+    val isPredefined: Boolean = false,
+)

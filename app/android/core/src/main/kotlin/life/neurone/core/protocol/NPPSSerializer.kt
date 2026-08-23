@@ -24,6 +24,35 @@ class NPPSSerializer {
         is NPProtocolEntry.Single -> serializeProtocol(entry.protocol)
         is NPProtocolEntry.Composite -> serializeComposite(entry.composite)
         is NPProtocolEntry.Limits -> serializeLimits(entry.limits)
+        is NPProtocolEntry.Zone -> serializeZone(entry.zone)
+        is NPProtocolEntry.Condition -> serializeCondition(entry.condition)
+    }
+
+    // MARK: Zone / Condition (NP-NPPS-REF-001 §8, §9) -------------------------
+
+    private fun serializeZone(z: NPZoneDefinition): String {
+        val lines = ArrayList<String>()
+        lines.add("zone ${quote(z.name)} {")
+        z.id?.let { lines.add("    id: ${quote(it)}") }
+        z.description?.let { lines.add("    description: ${quote(it)}") }
+        // Canonical membership on the way out as well as in: sorted and deduped,
+        // so two equal zones serialize identically.
+        lines.add("    sockets: [${z.sockets.distinct().sorted().joinToString(", ")}]")
+        z.types?.takeIf { it.isNotEmpty() }?.let { lines.add("    types: [${it.joinToString(", ")}]") }
+        if (z.excludeTypes) lines.add("    exclude_types: true")
+        lines.add("}")
+        return lines.joinToString("\n")
+    }
+
+    private fun serializeCondition(c: NPConditionDefinition): String {
+        val lines = ArrayList<String>()
+        lines.add("condition ${quote(c.name)} {")
+        c.id?.let { lines.add("    id: ${quote(it)}") }
+        lines.add("    link: ${quote(c.link)}")
+        c.code?.let { lines.add("    code: ${quote(it)}") }
+        c.description?.let { lines.add("    description: ${quote(it)}") }
+        lines.add("}")
+        return lines.joinToString("\n")
     }
 
     // MARK: Limits -----------------------------------------------------------
@@ -157,6 +186,12 @@ class NPPSSerializer {
         if (proto.tags.isNotEmpty()) {
             lines.add("    tags: [${proto.tags.joinToString(", ") { serializeTag(it) }}]")
         }
+        if (proto.conditions.isNotEmpty()) {
+            lines.add("    conditions: [${proto.conditions.joinToString(", ") { quote(it) }}]")
+        }
+        if (proto.references.isNotEmpty()) {
+            lines.add("    references: [${proto.references.joinToString(", ") { serializeReference(it) }}]")
+        }
         when (val tm = proto.timingMode) {
             is NPTimingMode.Duration -> lines.add("    duration: ${formatTime(tm.seconds)}")
             is NPTimingMode.IntervalCount -> lines.add("    interval_count: ${tm.count}")
@@ -196,14 +231,10 @@ class NPPSSerializer {
             lines.add("intensity: ${p.intensityPercent.toInt()}%")
             lines.add("frequency: ${formatHz(p.frequencyHz)}")
             if (p.frequencyHz > 0) lines.add("duty_cycle: ${p.dutyCyclePercent}%")
-            when (p.zones) {
-                NPPBMTranscranialParams.ZoneSelection.ALL -> lines.add("zones: all")
-                NPPBMTranscranialParams.ZoneSelection.FRONT -> lines.add("zones: front")
-                NPPBMTranscranialParams.ZoneSelection.REAR -> lines.add("zones: rear")
-                NPPBMTranscranialParams.ZoneSelection.CUSTOM -> {
-                    val zs = (p.customZones ?: emptyList()).joinToString(", ") { "${it + 1}" }
-                    lines.add("zones: [$zs]")
-                }
+            when (val t = p.target) {
+                is NPPBMTarget.Named ->
+                    lines.add("zones: [${t.zoneNames.joinToString(", ") { quote(it) }}]")
+                is NPPBMTarget.ClinicianSelected -> lines.add("zones: clinician_selected")
             }
             lines.add("wavelength: ${p.wavelength.rawValue}")
             lines
@@ -373,6 +404,12 @@ class NPPSSerializer {
         if (comp.tags.isNotEmpty()) {
             lines.add("    tags: [${comp.tags.joinToString(", ") { serializeTag(it) }}]")
         }
+        if (comp.conditions.isNotEmpty()) {
+            lines.add("    conditions: [${comp.conditions.joinToString(", ") { quote(it) }}]")
+        }
+        if (comp.references.isNotEmpty()) {
+            lines.add("    references: [${comp.references.joinToString(", ") { serializeReference(it) }}]")
+        }
         lines.add("    conflict_resolution: ${comp.conflictResolution.rawValue}")
         lines.add("")
         for (layer in comp.layers) {
@@ -421,9 +458,22 @@ class NPPSSerializer {
      * original string without silently splitting on hyphens.
      */
     private fun serializeTag(tag: String): String {
-        val isBareIdent = tag.isNotEmpty() && tag.all { it.isLetter() || it.isDigit() || it == '_' }
-        return if (isBareIdent) tag else "\"${tag.replace("\"", "\\\"")}\""
+        // A bare identifier may not start with a digit: a tag like "1064nm" is
+        // all letters and digits but must still be quoted to re-parse, since
+        // NP-NPPS-REF-001 Rev 6 removed digit-leading bare values.
+        val isBareIdent = tag.isNotEmpty() &&
+            (tag.first().isLetter() || tag.first() == '_') &&
+            tag.all { it.isLetter() || it.isDigit() || it == '_' }
+        return if (isBareIdent) tag else quote(tag)
     }
+
+    /** A bare URL, or a `[label, url]` pair when the entry was labelled. */
+    private fun serializeReference(r: NPProtocolReference): String =
+        if (r.label == null) quote(r.url) else "[${quote(r.label)}, ${quote(r.url)}]"
+
+    /** A quoted NPPS string with embedded quotes and backslashes escaped. */
+    private fun quote(value: String): String =
+        "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
 
 // MARK: - Round-trip ---------------------------------------------------------
