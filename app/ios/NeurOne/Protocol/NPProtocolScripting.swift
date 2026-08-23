@@ -876,7 +876,12 @@ struct NPPSParser {
                 }
             }
             if let v = fields["emdr_cadence"]?.asHz  { p.emdrCadenceHz = v }
-            if let v = fields["mode_f"]?.asBool       { p.enableModeF = v }
+            // Canonical key is `enable_mode_f` (NP-NPPS-REF-001 §4.8); `mode_f` is the
+            // legacy spelling this parser emitted up to 2026-08 and is still accepted
+            // so files written by older builds keep working. Canonical wins if both
+            // appear. Distinct from the `mode: mode_f` VALUE parsed just above.
+            if let v = fields["enable_mode_f"]?.asBool { p.enableModeF = v }
+            else if let v = fields["mode_f"]?.asBool   { p.enableModeF = v }
             return .visualStimulation(p)
 
         case "qeeg_21ch":
@@ -1405,7 +1410,7 @@ struct NPPSSerializer {
             lines.append("frequency: \(formatHz(p.frequencyHz))")
             lines.append("mode: \(p.mode.rawValue)")
             if p.mode == .emdr { lines.append("emdr_cadence: \(formatHz(p.emdrCadenceHz))") }
-            if p.enableModeF { lines.append("mode_f: true") }
+            if p.enableModeF { lines.append("enable_mode_f: true") }
             return lines
 
         case .qeeg21ch(let p):

@@ -10,7 +10,7 @@ protocol "Retinal Health" {
     visual_stimulation {
         frequency: 0Hz  # CW
         mode: mode_f
-        mode_f: true
+        enable_mode_f: true
     }
 
 }

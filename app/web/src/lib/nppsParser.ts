@@ -91,24 +91,40 @@ interface Token {
   unit?: string; // 's' | 'm' | 'Hz' | '%' | 'mA' — preserved from source for duration/unit-aware fields
 }
 
+// Classifies an identifier as KEYWORD rather than IDENT at tokenize time.
+// This is presentation only: every consumption site below accepts KEYWORD and
+// IDENT interchangeably, so membership here changes no parse outcome — an
+// omission costs nothing and a stale entry breaks nothing. It is kept accurate
+// so error messages and any tooling reading the token stream stay truthful.
+// The authoritative keyword surface is NP-NPPS-REF-001 §12.
 const KEYWORDS = new Set([
-  'protocol', 'composite', 'limits', 'zone', 'condition',
-  'description', 'author', 'version',
-  'tags', 'duration', 'interval_count',
-  'conditions', 'references', 'link',
-  'side', 'sockets', 'addrs', 'types', 'exclude_types',
-  'enabled', 'repeat', 'layer',
+  // Top-level and nested block keywords
+  'protocol', 'composite', 'limits', 'zone', 'condition', 'layer',
+  // Modality block keywords (the 15 of NP-NPPS-GRAM-001 Rev 3)
+  'pbm_transcranial', 'pbm_intranasal', 'pbm_deep_1170nm', 'eeg_neurofeedback',
+  'bes_tacs', 'tdcs', 'vns_hrv', 'audio_entrainment', 'visual_stimulation',
+  'qeeg_21ch', 'tms', 'clinical_tacs', 'hd_tdcs', 'cervical_vns',
+  'vibrotactile_40hz',
+  // Metadata fields
+  'id', 'description', 'author', 'version', 'readonly', 'tags',
+  'duration', 'interval_count', 'conditions', 'references',
+  // Interval fields
+  'interval_on', 'interval_off', 'repeat', 'enabled',
+  // Layer fields
   'start', 'end', 'intensity_scale', 'conflict_resolution',
+  // Limits top-level fields
   'level', 'global', 'helmet', 'individual', 'helmet_id', 'individual_id',
-  'pbm_transcranial', 'pbm_intranasal', 'eeg_neurofeedback', 'bes_tacs',
-  'tdcs', 'vns_hrv', 'audio_entrainment', 'visual_stimulation', 'tms',
-  'pbm_deep_1170nm', 'clinical_tacs', 'hd_tdcs', 'cervical_vns', 'vibrotactile_40hz',
+  // Zone and condition fields
+  'sockets', 'types', 'exclude_types', 'link', 'code',
+  // Limits per-modality fields
   'max_intensity', 'max_frequency', 'min_frequency', 'max_duty_cycle',
   'max_session_dose', 'max_daily_dose', 'max_session_duration',
   'max_sessions_per_day', 'max_sessions_per_week',
   'max_intensity_pct_mt', 'max_pulses_per_session', 'max_pulses_per_day',
+  'max_binaural_beats', 'max_isochronic_tones',
   'allowed_modes', 'allowed_protocols', 'allowed_targets', 'allowed_montages',
   'allowed_bands', 'require_closed_loop', 'block_high_risk_range',
+  // Boolean literals
   'true', 'false',
 ]);
 
@@ -433,6 +449,11 @@ class Parser {
       breathing_rate: 'resonance_breathing_rate',
       ramp: 'ramp_seconds',
       emdr_cadence: 'emdr_cadence_hz',
+      // Legacy spelling emitted by iOS builds up to 2026-08 (and by
+      // 09-retinal-health.npps, which this parser silently dropped as an
+      // unknown key). Canonical name is 'enable_mode_f' — NP-NPPS-REF-001 §4.8.
+      // Note 'mode_f' is also a VALUE of the 'mode' field; only keys are aliased.
+      mode_f: 'enable_mode_f',
     };
     return aliases[key] ?? key;
   }

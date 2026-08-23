@@ -371,7 +371,7 @@ enum NPBundledProtocols {
         visual_stimulation {
             frequency: 0Hz
             mode: mode_f
-            mode_f: true
+            enable_mode_f: true
         }
 
     }

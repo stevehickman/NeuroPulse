@@ -536,3 +536,49 @@ describe('round-trip', () => {
     expect(composite.layers[1].durationSeconds).toBe(1200);
   });
 });
+
+describe('Mode F field name (enable_mode_f / legacy mode_f)', () => {
+  const modeFSource = (key: string) => `
+protocol "Retinal" {
+    duration: 3m
+    visual_stimulation {
+        frequency: 0Hz
+        mode: mode_f
+        ${key}: true
+    }
+}
+`;
+
+  const visualOf = (src: string) => {
+    const [entry] = parseNPPS(src);
+    return (entry as { kind: 'single'; protocol: NPProtocolDefinition })
+      .protocol.modalities.find(m => m.modalityParams.type === 'visual_stimulation')!;
+  };
+
+  it('parses the canonical enable_mode_f key', () => {
+    const v = visualOf(modeFSource('enable_mode_f'));
+    expect((v.modalityParams.params as { enableModeF: boolean }).enableModeF).toBe(true);
+  });
+
+  // Regression: iOS emitted `mode_f: true` while this parser only read
+  // `enable_mode_f`, so the flag was silently dropped as an unknown key —
+  // including in the shipped 09-retinal-health.npps.
+  it('accepts the legacy mode_f key as an alias', () => {
+    const v = visualOf(modeFSource('mode_f'));
+    expect((v.modalityParams.params as { enableModeF: boolean }).enableModeF).toBe(true);
+  });
+
+  it('does not confuse the mode_f VALUE with the mode_f KEY', () => {
+    const v = visualOf(modeFSource('enable_mode_f'));
+    expect((v.modalityParams.params as { mode: string }).mode).toBe('mode_f');
+  });
+
+  it('serializes the canonical key, and it round-trips from the legacy spelling', () => {
+    const [entry] = parseNPPS(modeFSource('mode_f'));
+    const serialized = serializeProtocol(entry);
+    expect(serialized).toContain('enable_mode_f: true');
+    expect(serialized).not.toMatch(/^\s*mode_f:/m);
+    const v = visualOf(serialized);
+    expect((v.modalityParams.params as { enableModeF: boolean }).enableModeF).toBe(true);
+  });
+});

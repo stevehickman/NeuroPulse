@@ -1,8 +1,8 @@
 # NPPS PEG Grammar
 
-**Document:** NP-NPPS-GRAM-001 Rev 1  
+**Document:** NP-NPPS-GRAM-001 Rev 3  
 **Status:** ACTIVE  
-**Date:** 2026-06-28
+**Date:** 2026-08-23
 
 ## Overview
 
@@ -35,7 +35,7 @@ The grammar covers the complete NPPS language:
 - **Protocol blocks** -- single session definitions with metadata fields and modality blocks
 - **Composite blocks** -- multi-layer session compositions with timing offsets
 - **Limits blocks** -- per-helmet, per-individual, or global safety limits
-- **17 modality types** -- `pbm_transcranial`, `pbm_intranasal`, `pbm_deep_1170nm`, `eeg_neurofeedback`, `bes_tacs`, `tdcs`, `vns_hrv`, `audio_entrainment`, `visual_stimulation`, `qeeg_21ch`, `tms`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `vibrotactile_40hz`, `hrv_biofeedback`, `pbm_1064nm`
+- **15 modality types** -- `pbm_transcranial`, `pbm_intranasal`, `pbm_deep_1170nm`, `eeg_neurofeedback`, `bes_tacs`, `tdcs`, `vns_hrv`, `audio_entrainment`, `visual_stimulation`, `qeeg_21ch`, `tms`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `vibrotactile_40hz` — the same 15 `nppsParser.ts`, `NPProtocolScripting.swift` and NP-NPPS-REF-001 §12 accept. (`hrv_biofeedback` and `pbm_1064nm` were removed at Rev 3: no other component recognised them, and both are already expressible — as `vns_hrv`'s `hrv_protocol` field and `pbm_transcranial` with `wavelength: 1064nm`.)
 - **Value types** -- strings, numbers (with optional unit suffix), booleans, arrays (including nested), compound identifiers (`660_808nm`), bare/hyphenated identifiers (`wind-down`)
 - **Comments** -- `#` to end-of-line (full-line and inline)
 - **Unit suffixes** -- `Hz`, `%`, `mA`, `s`, `m`, `mW_cm2`

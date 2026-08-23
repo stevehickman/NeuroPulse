@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-08-23  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 4 (2026-08-23) — three toolchain discrepancies found while compiling §12, now fixed.** (i) `npps.peggy` carried two modality types **no other component recognised** — `hrv_biofeedback` and `pbm_1064nm`; a file using either parsed under the PEG grammar and then yielded a null modality in every consumer. Removed (NP-NPPS-GRAM-001 Rev 3); both were already expressible as `vns_hrv`'s `hrv_protocol` and `pbm_transcranial` + `wavelength: 1064nm`. (ii) **`mode_f` vs `enable_mode_f` was a cross-platform divergence, not a typo:** iOS read *and wrote* the Mode F boolean as `mode_f:`, the web parser read only `enable_mode_f:`, and the shipped `09-retinal-health.npps` used the iOS spelling — so on web the flag was silently dropped as an unknown key and Mode F was enabled only by `mode: mode_f`. Canonical is now `enable_mode_f` (§4.8); **both** parsers accept either spelling and serialize the canonical one, and the shipped file is corrected. (iii) `nppsParser.ts`'s `KEYWORDS` set was stale — two vestigial zone-era entries (`side`, `addrs`) and eight missing real ones. Corrected; it is token classification only and no parse outcome changes. **§12 gains a row for `mode_f`'s second sense** and §4's alias table gains the pair. Four regression tests added (`npps.test.ts`), verified to fail without the fix.
+>
 > **Rev 3 (2026-08-23) — new §12 Keyword dictionary. No language change.** One alphabetical table documenting every keyword the language recognises — not just the metadata fields: the five top-level block keywords, `layer`, the fifteen modality block keywords, all field names (metadata, modality parameter, interval, layer, limits, zone, condition), every enumerated value (bands, waveforms, HRV and TMS protocols, visual modes, montages, references, targets, conflict-resolution and limits levels, `until_end`, the thirteen element types, the three `wavelength` values), the boolean literals and the unit suffixes. Placed immediately after the grammar summary so the grammar's production names and the dictionary's entries read together; the alias/canonical pairs from §4 appear as separate rows because both spellings are accepted in source. Nothing in §§1–11 was edited and no grammar, parser or predefined file was touched. The old §12 (*Predefined protocol coverage*) is renumbered **§13**.
 >
 > **Rev B (2026-07-17) — module-set zones, conditions, references, one namespace.** With the hexagonal module redesign (NP-HEX-ZM-001) a *zone* is no longer a fixed hardware index — it is a **named set of modules**, and nothing more. Several predefined sets happen to correspond to anatomical lobes, but that is a property of how their author chose the membership, not a concept any code models: the firmware lobe/hemisphere assignment, the eight-entry predefined-lobe-group table and the `NP_GROUP_KIND_LOBE` query were all retired outright (OI-HUB-C14 — see the header of `firmware/hub_control/include/np_module_map.h`). Rev 2 adds top-level `zone` blocks (**14** predefined zones in `00-zones.npps` + user-defined), top-level `condition` blocks (condition name → external definition link), protocol `conditions` and `references` fields, and the single-namespace / whole-directory loading model (§1.6). Legacy `zones: all|front|rear` and `zones: [0,1]` numeric forms still parse.
@@ -272,6 +274,7 @@ The following short names are accepted anywhere and map to the canonical name:
 | `breathing_rate` | `resonance_breathing_rate` |
 | `ramp` | `ramp_seconds` |
 | `emdr_cadence` | `emdr_cadence_hz` |
+| `mode_f` | `enable_mode_f` (legacy — see §4.8) |
 
 The `intensity` alias is context-dependent: it maps to `intensity_percent` for optical modalities (`pbm_transcranial`, `pbm_intranasal`, `visual_stimulation`), and `intensity_milliamps` for electrical modalities (`bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`). For `pbm_deep_1170nm` use `intensity_mw_cm2:` directly; for `vibrotactile_40hz` use `intensity_g:` directly.
 
@@ -490,7 +493,7 @@ audio_entrainment {
 | `frequency` | `frequency_hz` | number | 0–100 (0 = off / Mode F) |
 | `mode` | `mode` | string | `binocular` `emdr` `mode_f` |
 | `emdr_cadence` | `emdr_cadence_hz` | number | L/R alternation rate in Hz |
-| `enable_mode_f` | `enable_mode_f` | bool | Enable invisible NIR retinal PBM |
+| `enable_mode_f` | `enable_mode_f` | bool | Enable invisible NIR retinal PBM. Legacy alias: `mode_f` |
 
 ```
 visual_stimulation {
@@ -517,6 +520,13 @@ visual_stimulation {
     enable_mode_f: true
 }
 ```
+
+> **`mode_f` is both a value and a legacy key — don't confuse them.** `mode: mode_f` selects the
+> mode; `enable_mode_f: true` is the boolean that turns the NIR emission on. Up to 2026-08 the
+> iOS parser read and wrote the boolean as `mode_f:` while the web parser read only
+> `enable_mode_f:`, so a file written by one was silently degraded by the other — including the
+> shipped `09-retinal-health.npps`. Both parsers now accept **either** spelling and serialize the
+> canonical `enable_mode_f`; if both keys appear, the canonical one wins.
 
 ---
 
@@ -1219,7 +1229,7 @@ Reading the table:
 | `emdr` | Enum value | `visual_stimulation` → `mode`; `limits` → `allowed_modes` | Bilateral left/right alternation. |
 | `emdr_cadence` | Modality field (alias) | `visual_stimulation` | Alias of `emdr_cadence_hz` — left/right alternation rate in Hz. |
 | `emdr_cadence_hz` | Modality field (canonical) | `visual_stimulation` | Canonical name behind `emdr_cadence`. |
-| `enable_mode_f` | Modality field | `visual_stimulation` | Bool. Enable Mode F — invisible 808–830 nm retinal PBM with no visible flicker. |
+| `enable_mode_f` | Modality field (canonical) | `visual_stimulation` | Bool. Enable Mode F — invisible 808–830 nm retinal PBM with no visible flicker. Legacy alias `mode_f`. |
 | `end` | Layer field | `layer` | Alternative to `duration`; the layer's clip length is computed as `end - start`. |
 | `exclude_types` | Zone field | `zone` | Bool. `false` (default) includes only the listed `types`; `true` excludes them. |
 | `false` | Boolean literal | any bool field | Boolean false. |
@@ -1281,7 +1291,7 @@ Reading the table:
 | `merge` | Enum value | `composite` → `conflict_resolution` | Modalities from all active layers run simultaneously. |
 | `min_frequency` | Limits field | `limits` → `bes_tacs`, `visual_stimulation` | Floor on `frequency`, in Hz. |
 | `mode` | Modality field | `visual_stimulation` | Visual delivery mode: `binocular`, `emdr` or `mode_f`. |
-| `mode_f` | Enum value | `visual_stimulation` → `mode`; `limits` → `allowed_modes` | Invisible NIR retinal PBM during normal-looking wear — no visible flicker. |
+| `mode_f` | Enum value **and** legacy field alias | `visual_stimulation` → `mode`; `limits` → `allowed_modes`; legacy key in `visual_stimulation` | **As a value:** invisible NIR retinal PBM during normal-looking wear, no visible flicker. **As a key:** the pre-2026-08 spelling of `enable_mode_f`, still accepted; serializers emit the canonical name. |
 | `montage` | Modality field | `qeeg_21ch`, `hd_tdcs` | Electrode montage. `10-20` on `qeeg_21ch`; `ring_4x1` / `bilateral_4x1` / `standard_2_electrode` on `hd_tdcs`. |
 | `MPFC` | Enum value | `tms` / `hd_tdcs` → `target` | Medial prefrontal cortex. |
 | `mW_cm2` | Unit suffix | any number | Irradiance in mW/cm². Cosmetic — the parser reads the bare number. |

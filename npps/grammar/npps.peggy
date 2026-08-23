@@ -1,5 +1,5 @@
 // NPPS PEG Grammar — NeurOne Protocol Script
-// NP-NPPS-GRAM-001 Rev B
+// NP-NPPS-GRAM-001 Rev 3
 // Single source of truth for NPPS syntax.
 // Generate parser: bunx peggy npps.peggy --format es
 //
@@ -14,6 +14,17 @@
 // `conditions` / `references` fields. All loaded files share ONE namespace
 // (see NP-NPPS-REF-001 §1.6): a zone or condition defined in any file under the
 // protocol directory tree is referenceable by name from any other file.
+//
+// Rev 3 (2026-08-23): removed two modality types that no other component ever
+// recognised — `hrv_biofeedback` and `pbm_1064nm`. Neither appears in
+// NP-NPPS-REF-001's TYPE_ID list, in nppsParser.ts's blockNameToTypeId map, in
+// NPProtocolScripting.swift, or in any fixture or shipped .npps file, so a file
+// using them parsed here and then yielded a null modality in every consumer.
+// Both are already expressible: HRV biofeedback is `vns_hrv`'s `hrv_protocol`
+// field, and 1064 nm PBM is `pbm_transcranial` with `wavelength: 1064nm`.
+// ModalityType is now the same 15 types the rest of the toolchain accepts.
+// (The firmware directories firmware/hrv_biofeedback/ and firmware/pbm_1064nm/
+// are unrelated — they are implementation modules, not NPPS block keywords.)
 //
 // AST node types:
 //   File          = Entry[]
@@ -186,8 +197,6 @@ ModalityType "modality type"
   / "hd_tdcs"
   / "cervical_vns"
   / "vibrotactile_40hz"
-  / "hrv_biofeedback"
-  / "pbm_1064nm"
 
 // ─────────────────────────── Fields ──────────────────────────────
 
