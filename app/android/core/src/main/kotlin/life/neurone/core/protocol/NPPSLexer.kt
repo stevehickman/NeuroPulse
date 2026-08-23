@@ -110,8 +110,16 @@ class NPPSLexer(text: String) {
                 continue
             }
 
-            // Unknown character — skip (matches Swift).
-            pos += 1
+            // An unrecognised character is an ERROR. Skipping it silently turned
+            // `wind-down` into the two idents `wind` and `down` — the hyphen
+            // simply vanished — so a hyphenated tag was split rather than
+            // refused. NP-NPPS-REF-001 Rev 6 requires such a value to be quoted,
+            // and the web parser and the PEG grammar both reject the bare form.
+            throw NPPSError(
+                "Unexpected character '$ch' — a value containing it must be quoted, " +
+                    "e.g. \"wind-down\".",
+                tokenLine,
+            )
         }
         tokens.add(NPPSLexeme(NPPSToken.Eof, line))
         return tokens
@@ -166,6 +174,16 @@ class NPPSLexer(text: String) {
         // 1.5mA, 25%, 2m, 30s, 1h, 0.9G, 500mW_cm2).
         // Bug fix (3): the unit loop accepts digits (for the '2' in mW_cm2) in
         // addition to letters and '_'.
+        // '%' is a unit like any other and must be consumed here. The loop below
+        // accepts only letters, digits and '_', so '%' fell through to the
+        // lexer's unknown-character branch and was silently discarded — which is
+        // why `intensity: 80%` never produced a NumberWithUnit despite '%' being
+        // in UNITS.
+        if (pos < source.size && source[pos] == '%') {
+            pos += 1
+            return NPPSToken.NumberWithUnit(value, "%")
+        }
+
         val unitStart = pos
         val unitStr = StringBuilder()
         while (pos < source.size &&
@@ -179,20 +197,19 @@ class NPPSLexer(text: String) {
             return NPPSToken.NumberWithUnit(value, unit)
         }
 
-        // Backtrack: those chars might be an identifier.
-        pos = unitStart
-        // Bug fix (1): compound names that start with digits and continue with
-        // '_' (wavelength values like "660_808nm" or "660_808_1064nm").
-        if (pos < source.size && source[pos] == '_') {
-            val compound = StringBuilder(numStr)
-            while (pos < source.size &&
-                (source[pos].isLetter() || source[pos].isDigit() || source[pos] == '_')
-            ) {
-                compound.append(source[pos])
-                pos += 1
-            }
-            return NPPSToken.Ident(compound.toString())
+        // A digit-leading token that is not a number with a known unit is not a
+        // value. This used to lex "660_808nm" as an Ident; NP-NPPS-REF-001 Rev 6
+        // removed that rule on the web and Swift parsers and migrated the shipped
+        // library, but this one kept it, so Android alone still accepted a form
+        // the other two reject.
+        if (unit.isNotEmpty()) {
+            throw NPPSError(
+                "Unquoted value '$numStr$unit' — values that start with a digit and are not a " +
+                    "plain number must be quoted, e.g. \"$numStr$unit\".",
+                tokenLine,
+            )
         }
+        pos = unitStart
         return NPPSToken.Num(value)
     }
 

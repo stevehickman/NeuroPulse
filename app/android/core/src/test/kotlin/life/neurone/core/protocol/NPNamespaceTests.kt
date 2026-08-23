@@ -256,3 +256,69 @@ class NPVisualModeTests {
         assertEquals("retinalPBM", NPVisualStimParams.VisualMode.MODE_F.sessionWireName)
     }
 }
+
+/**
+ * A list element must be a bare identifier or a quoted string. Skipping anything
+ * else silently split `[sleep, wind-down, recovery]` into four tags; the web
+ * parser and the PEG grammar both reject the bare hyphenated form, so this one
+ * corrupted data where the others refused it.
+ */
+class NPPSListElementTests {
+
+    private fun parse(text: String) = NPPSParser(NPPSLexer(text).tokenize()).parse()
+
+    @Test
+    fun quotedHyphenatedTagsSurviveIntact() {
+        val e = parse("""protocol "P" { tags: [sleep, "wind-down", recovery] }""").single()
+            as NPProtocolEntry.Single
+        assertEquals(listOf("sleep", "wind-down", "recovery"), e.protocol.tags)
+    }
+
+    @Test
+    fun unquotedHyphenatedTagIsRejectedNotSplit() {
+        assertFailsWith<NPPSError> { parse("""protocol "P" { tags: [sleep, wind-down, recovery] }""") }
+    }
+
+    @Test
+    fun theWholeShippedLibraryStillParses() {
+        // The stricter rule must not reject anything actually shipped.
+        assertEquals(
+            NPBundledProtocols.protocolFiles.size,
+            NPBundledProtocols.namespace.runnableEntries.size,
+        )
+    }
+}
+
+/**
+ * A limits block must survive serialize -> parse. The serializer wrote the
+ * retired iOS-era field names (`max_volume`, `max_binaural_hz`,
+ * `max_isochronic_hz`, `max_intensity_mt`, `max_intensity_g`) that Rev 8
+ * removed from this parser, so every one of those values was silently lost on
+ * reload while the surrounding block still parsed.
+ */
+class NPLimitsRoundTripTests {
+
+    @Test
+    fun everyLimitsFieldSurvivesSerializeThenParse() {
+        val original = NPLimitsSet(
+            name = "T1",
+            level = NPLimitsSet.LimitLevel.GLOBAL,
+            audioEntrainment = NPAudioEntrainmentLimits(
+                maxVolumePercent = 85.0,
+                maxBinauralBeatsHz = 100.0,
+                maxIsochronicTonesHz = 90.0,
+            ),
+            tms = NPTMSLimits(maxIntensityPercentMT = 120),
+            vibrotactile40hz = NPVibrotactileLimits(maxIntensityG = 1.2),
+        )
+        val text = NPPSSerializer().serialize(NPProtocolEntry.Limits(original))
+        val back = (NPPSParser(NPPSLexer(text).tokenize()).parse().single()
+            as NPProtocolEntry.Limits).limits
+
+        assertEquals(85.0, back.audioEntrainment?.maxVolumePercent, "audio max_intensity:\n$text")
+        assertEquals(100.0, back.audioEntrainment?.maxBinauralBeatsHz, "max_binaural_beats:\n$text")
+        assertEquals(90.0, back.audioEntrainment?.maxIsochronicTonesHz, "max_isochronic_tones:\n$text")
+        assertEquals(120, back.tms?.maxIntensityPercentMT, "max_intensity_pct_mt:\n$text")
+        assertEquals(1.2, back.vibrotactile40hz?.maxIntensityG, "vibrotactile max_intensity:\n$text")
+    }
+}

@@ -114,9 +114,9 @@ class NPPSSerializer {
         }
         limits.audioEntrainment?.let { lim ->
             lines.add("    audio_entrainment {")
-            lim.maxVolumePercent?.let { lines.add("        max_volume: ${it.toInt()}%") }
-            lim.maxBinauralBeatsHz?.let { lines.add("        max_binaural_hz: ${formatHz(it)}") }
-            lim.maxIsochronicTonesHz?.let { lines.add("        max_isochronic_hz: ${formatHz(it)}") }
+            lim.maxVolumePercent?.let { lines.add("        max_intensity: ${it.toInt()}%") }
+            lim.maxBinauralBeatsHz?.let { lines.add("        max_binaural_beats: ${formatHz(it)}") }
+            lim.maxIsochronicTonesHz?.let { lines.add("        max_isochronic_tones: ${formatHz(it)}") }
             lines.add("    }")
         }
         limits.visualStimulation?.let { lim ->
@@ -129,7 +129,7 @@ class NPPSSerializer {
         }
         limits.tms?.let { lim ->
             lines.add("    tms {")
-            lim.maxIntensityPercentMT?.let { lines.add("        max_intensity_mt: $it") }
+            lim.maxIntensityPercentMT?.let { lines.add("        max_intensity_pct_mt: $it") }
             lim.maxPulsesPerSession?.let { lines.add("        max_pulses_per_session: $it") }
             lim.maxPulsesPerDay?.let { lines.add("        max_pulses_per_day: $it") }
             lim.maxSessionsPerWeek?.let { lines.add("        max_sessions_per_week: $it") }
@@ -164,7 +164,7 @@ class NPPSSerializer {
         }
         limits.vibrotactile40hz?.let { lim ->
             lines.add("    vibrotactile_40hz {")
-            lim.maxIntensityG?.let { lines.add("        max_intensity_g: ${formatDouble(it)}G") }
+            lim.maxIntensityG?.let { lines.add("        max_intensity: ${formatDouble(it)}G") }
             lim.maxSessionDurationSeconds?.let { lines.add("        max_session_duration: ${formatTime(it)}") }
             lines.add("    }")
         }
@@ -236,7 +236,11 @@ class NPPSSerializer {
                     lines.add("zones: [${t.zoneNames.joinToString(", ") { quote(it) }}]")
                 is NPPBMTarget.ClinicianSelected -> lines.add("zones: clinician_selected")
             }
-            lines.add("wavelength: ${p.wavelength.rawValue}")
+            // Quoted: a wavelength is digit-leading, so the bare form has not been
+            // a legal value since NP-NPPS-REF-001 Rev 6. Emitting it unquoted meant
+            // this serializer wrote NPPS text its own parser cannot read back, which
+            // is what broke saving and reloading a user protocol.
+            lines.add("wavelength: ${quote(p.wavelength.rawValue)}")
             lines
         }
 

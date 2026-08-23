@@ -471,6 +471,10 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
         return ids.sorted()
     }
 
+    /** A numeric list element as it was written: `40Hz`, not `40.0Hz`. */
+    private fun tagText(n: Double, unit: String): String =
+        (if (n == Math.floor(n) && !n.isInfinite()) n.toLong().toString() else n.toString()) + unit
+
     private fun describeValue(v: NPPSFieldValue): String = when (v) {
         is NPPSFieldValue.Str -> "\"${v.value}\""
         is NPPSFieldValue.Ident -> v.value
@@ -1022,6 +1026,15 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
         }
     }
 
+    /**
+     * A list of identifiers, numbers, or quoted strings — tags, `conditions`,
+     * and a zone's `types`.
+     *
+     * Anything else is an ERROR, not something to skip. Skipping silently
+     * dropped a `40Hz` tag from the list, and — together with the lexer
+     * discarding an unrecognised character — split `[sleep, wind-down]` into
+     * three tags. The web parser keeps the first and rejects the second.
+     */
     private fun parseTagList(): List<String> {
         expect(NPPSToken.LBracket)
         val tags = ArrayList<String>()
@@ -1029,7 +1042,16 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             when (val t = currentToken()) {
                 is NPPSToken.Ident -> { tags.add(t.value); advance() }
                 is NPPSToken.Str -> { tags.add(t.value); advance() }
-                else -> advance()
+                // A unit-suffixed number is a legitimate tag — `tags: [focus,
+                // gamma, 40Hz, …]` ships in 01-gamma-focus.npps, and the web
+                // parser keeps it. Skipping it dropped it from the list silently.
+                is NPPSToken.Num -> { tags.add(tagText(t.value, "")); advance() }
+                is NPPSToken.NumberWithUnit -> { tags.add(tagText(t.value, t.unit)); advance() }
+                else -> throw NPPSError(
+                    "Unexpected $t in a list — each element must be an identifier, a number, " +
+                        "or a quoted string.",
+                    currentLine(),
+                )
             }
             if (currentToken() is NPPSToken.Comma) advance()
         }

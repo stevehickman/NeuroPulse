@@ -94,8 +94,16 @@ struct NPPSLexer {
                 continue
             }
 
-            // Unknown character — skip
-            pos += 1
+            // An unrecognised character is an ERROR. Skipping it silently turned
+            // `wind-down` into the two idents `wind` and `down` — the hyphen
+            // simply vanished — so a hyphenated tag was split rather than
+            // refused. NP-NPPS-REF-001 Rev 6 requires such a value to be quoted,
+            // and the web parser and the PEG grammar both reject the bare form.
+            throw NPPSError(
+                message: "Unexpected character '\(source[pos])' — a value containing it must "
+                    + "be quoted, e.g. \"wind-down\".",
+                line: tokenLine
+            )
         }
         tokens.append((.eof, line))
         return tokens
@@ -146,6 +154,16 @@ struct NPPSLexer {
         guard let value = Double(numStr) else {
             throw NPPSError(message: "Invalid number: \(numStr)", line: tokenLine)
         }
+        // '%' is a unit like any other and must be consumed here. The loop below
+        // accepts only letters, digits and '_', so '%' fell through to the
+        // lexer's unknown-character branch and was silently discarded — which is
+        // why `intensity: 80%` never produced a .numberWithUnit despite '%'
+        // being a documented suffix.
+        if pos < source.count && source[pos] == "%" {
+            pos += 1
+            return .numberWithUnit(value, "%")
+        }
+
         // Check for unit suffix (no space between number and unit in: 20Hz, 1.5mA, 25%, 2m, 30s, 1h, 0.9G, 500mW_cm2)
         let unitStart = pos
         var unitStr = ""
@@ -296,6 +314,11 @@ struct NPPSParser {
             )
         }
         return ids.sorted()
+    }
+
+    /// A numeric list element as it was written: `40Hz`, not `40.0Hz`.
+    private static func tagText(_ n: Double, _ unit: String) -> String {
+        (n == n.rounded() ? String(Int(n)) : String(n)) + unit
     }
 
     private static func describe(_ v: NPPSFieldValue) -> String {
@@ -1266,6 +1289,13 @@ struct NPPSParser {
         }
     }
 
+    /// A list of identifiers, numbers, or quoted strings — tags, `conditions`,
+    /// and a zone's `types`.
+    ///
+    /// Anything else is an ERROR, not something to skip. Skipping silently
+    /// dropped a `40Hz` tag from the list, and — together with the lexer
+    /// discarding an unrecognised character — split `[sleep, wind-down]` into
+    /// three tags. The web parser keeps the first and rejects the second.
     mutating private func parseTagList() throws -> [String] {
         try expect(.lbracket)
         var tags: [String] = []
@@ -1273,7 +1303,21 @@ struct NPPSParser {
             switch currentToken {
             case .ident(let s):  tags.append(s); advance()
             case .string(let s): tags.append(s); advance()
-            default: advance()
+            // A unit-suffixed number is a legitimate tag — `tags: [focus, gamma,
+            // 40Hz, …]` ships in 01-gamma-focus.npps, and the web parser keeps
+            // it. Skipping it here dropped it from the list silently.
+            case .number(let n):
+                tags.append(NPPSParser.tagText(n, ""))
+                advance()
+            case .numberWithUnit(let n, let unit):
+                tags.append(NPPSParser.tagText(n, unit))
+                advance()
+            default:
+                throw NPPSError(
+                    message: "Unexpected \(currentToken) in a list — each element must be an "
+                        + "identifier, a number, or a quoted string.",
+                    line: currentLine
+                )
             }
             if currentToken == .comma { advance() }
         }
