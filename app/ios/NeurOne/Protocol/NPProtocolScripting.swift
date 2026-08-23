@@ -348,8 +348,9 @@ struct NPPSParser {
         guard let resolvedLink = link, !resolvedLink.isEmpty else {
             throw NPPSError(message: "condition \"\(name)\": 'link' is required", line: ln)
         }
+        // Argument order follows the declaration in NPConditionDefinition.swift.
         return NPConditionDefinition(
-            name: name, link: resolvedLink, id: id, code: code, description: description
+            name: name, id: id, link: resolvedLink, code: code, description: description
         )
     }
 

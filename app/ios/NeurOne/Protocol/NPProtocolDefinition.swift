@@ -880,18 +880,10 @@ struct NPZoneDefinition: Codable, Equatable {
     var isPredefined: Bool = false
 }
 
-// MARK: - Condition definition (name -> external reference)
-
-/// Pairs a standard condition name with a link to an external definition, so a
-/// protocol can reference conditions by standard term while the app can offer
-/// the user something to read. See NP-NPPS-REF-001 §9.
-struct NPConditionDefinition: Codable, Equatable {
-    var name: String
-    var link: String
-    var id: String?
-    var code: String?
-    var description: String?
-}
+// NOTE: `NPConditionDefinition` is NOT declared here. It already exists in
+// NPConditionDefinition.swift, alongside NPResolvedCondition and the link
+// policy that consumes it; a second declaration here made the name ambiguous
+// for every file that referenced it. The parser builds instances of that type.
 
 /// A `references` entry: a bare URL/path, or a labelled link (§2).
 struct NPProtocolReference: Codable, Equatable {
