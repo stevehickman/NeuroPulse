@@ -107,7 +107,7 @@ final class NPProtocolLibraryTests: XCTestCase {
             "Retinal Health",
             "PTSD EMDR Support",
             "HRV Coherence Training",
-            "HRV + taVNS Synchronized",
+            "HRV + taVNS Synchronised",
             "Focus Prime",
             "Gamma + Theta Coupled",
             "Full T1 Immersive",
@@ -128,7 +128,7 @@ final class NPProtocolLibraryTests: XCTestCase {
 
         let expectedCompositeNames = [
             "Full Multi-Modal RCT",
-            "Sleep Optimization Stack",
+            "Sleep Optimisation Stack",
             "Calm to Focus",
             "Sleep Wind-Down",
         ]
@@ -163,12 +163,20 @@ final class NPProtocolLibraryTests: XCTestCase {
             // Definition files are in here too: manifest.json lists 00-zones.npps
             // and 00-conditions.npps first so references resolve regardless of
             // file order (NP-NPPS-REF-001 §1.6).
-            let startsWithTopLevelBlock = ["protocol ", "composite ", "zone ", "condition "]
-                .contains { trimmed.hasPrefix($0) }
+            //
+            // A file may open with a comment header — most of the shipped ones do
+            // — so find the first line that is neither blank nor a comment before
+            // looking for the keyword.
+            let firstCode = trimmed
+                .split(separator: "\n", omittingEmptySubsequences: false)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .first { !$0.isEmpty && !$0.hasPrefix("#") } ?? ""
+            let startsWithTopLevelBlock = ["protocol ", "composite ", "zone ", "condition ", "limits "]
+                .contains { firstCode.hasPrefix($0) }
             XCTAssertTrue(
                 startsWithTopLevelBlock,
-                "NPBundledProtocols.allContents[\(index)] must start with a top-level block " +
-                "keyword. Got: '\(trimmed.prefix(30))…'"
+                "NPBundledProtocols.allContents[\(index)] must open with a top-level block " +
+                "keyword. Got: '\(firstCode.prefix(40))…'"
             )
         }
     }
@@ -209,88 +217,78 @@ final class NPProtocolLibraryTests: XCTestCase {
         )
     }
 
-    // MARK: - Lexer regression: compound digit-underscore idents (e.g. 660_808nm)
+    // MARK: - Values that must be quoted (NP-NPPS-REF-001 §2, Rev 6)
 
-    // Guards against the lexer splitting "660_808nm" into two tokens.
-    // Previously, "660_808nm" was split into .number(660) + .ident("_808nm") which
-    // caused the parser to see "_808nm" as a spurious field key and throw.
-    func testLexerCompoundDigitIdentRoundTrip() throws {
-        let input = """
+    // These three tests used to guard the OPPOSITE behaviour: that the lexer
+    // read `660_808nm` and `wind-down` as bare tokens. Rev 6 removed both rules
+    // so that every value is a plain identifier, a number, a boolean or a
+    // quoted string — each of which maps onto a JSON scalar — and migrated the
+    // shipped library. The guard is now that the quoted form works and the bare
+    // form is refused with a message naming the fix.
+
+    private func parseEntries(_ source: String) throws -> [NPProtocolEntry] {
+        var lexer = NPPSLexer(source)
+        var parser = NPPSParser(try lexer.tokenize())
+        return try parser.parse()
+    }
+
+    private func wavelengthProtocol(_ value: String) -> String {
+        """
         protocol "Wavelength Test" {
-            id: "AABB0001-0000-0000-0000-000000000000"
-            name: "Wavelength Test"
-            description: "Regression test"
-            author: "Test"
             version: "1.0"
-            readonly: false
             duration: 10m
             pbm_transcranial {
-                enabled: true
-                wavelength: 660_808nm
+                wavelength: \(value)
                 intensity: 200mW_cm2
             }
         }
         """
-        var lexer = NPPSLexer(input)
-        let tokens = try lexer.tokenize()
-        var parser = NPPSParser(tokens)
-        let entries = try parser.parse()
-        XCTAssertEqual(entries.count, 1,
-            "Protocol with 'wavelength: 660_808nm' must parse as exactly one entry — " +
-            "compound digit-underscore idents must not split mid-parse (lexer regression).")
     }
 
-    // Verifies 660_808_1064nm also lexes as a single compound ident.
-    func testLexerTriWavelengthCompoundIdent() throws {
-        let input = """
-        protocol "Tri Wavelength Test" {
-            id: "AABB0002-0000-0000-0000-000000000000"
-            name: "Tri Wavelength Test"
-            description: "Regression test"
-            author: "Test"
-            version: "1.0"
-            readonly: false
-            duration: 10m
-            pbm_transcranial {
-                enabled: true
-                wavelength: 660_808_1064nm
-                intensity: 200mW_cm2
+    func testQuotedCompoundWavelengthsParse() throws {
+        for wl in ["660_808nm", "1064nm", "660_808_1064nm"] {
+            let entries = try parseEntries(wavelengthProtocol("\"\(wl)\""))
+            XCTAssertEqual(entries.count, 1, "quoted wavelength \"\(wl)\" must parse")
+        }
+    }
+
+    func testUnquotedCompoundWavelengthIsRefused() {
+        for wl in ["660_808nm", "660_808_1064nm"] {
+            XCTAssertThrowsError(try parseEntries(wavelengthProtocol(wl)),
+                                 "unquoted \(wl) must not parse") { error in
+                XCTAssertTrue(
+                    "\(error)".contains("must be quoted"),
+                    "the error should name the fix, got: \(error)"
+                )
             }
         }
-        """
-        var lexer = NPPSLexer(input)
-        let tokens = try lexer.tokenize()
-        var parser = NPPSParser(tokens)
-        let entries = try parser.parse()
-        XCTAssertEqual(entries.count, 1,
-            "Protocol with 'wavelength: 660_808_1064nm' must parse as exactly one entry.")
     }
 
-    // MARK: - Lexer regression: hyphenated tags must not throw
-
-    // Guards against the lexer treating '-' after an ident as a negative-number
-    // prefix, which caused Double("-") → throw, silently dropping protocols with
-    // tags like "wind-down" or "all-modalities".
-    func testHyphenatedTagsDoNotThrow() throws {
+    func testUnquotedHyphenatedTagIsRefused() {
         let input = """
         protocol "Hyphen Tag Test" {
-            id: "AABB0003-0000-0000-0000-000000000000"
-            name: "Hyphen Tag Test"
-            description: "Regression test"
-            author: "Test"
             version: "1.0"
-            readonly: false
-            tags: [sleep, wind-down, all-modalities, recovery]
+            tags: [sleep, wind-down, recovery]
             duration: 10m
         }
         """
-        var lexer = NPPSLexer(input)
-        let tokens = try lexer.tokenize()
-        var parser = NPPSParser(tokens)
-        let entries = try parser.parse()
-        XCTAssertEqual(entries.count, 1,
-            "Protocol with hyphenated tags (e.g. 'wind-down') must parse without error — " +
-            "'-' after an ident must not be treated as a negative-number prefix (lexer regression).")
+        XCTAssertThrowsError(try parseEntries(input), "an unquoted hyphenated tag must not parse")
+    }
+
+    func testQuotedHyphenatedTagsParse() throws {
+        let input = """
+        protocol "Hyphen Tag Test" {
+            version: "1.0"
+            tags: [sleep, "wind-down", "all-modalities", recovery]
+            duration: 10m
+        }
+        """
+        let entries = try parseEntries(input)
+        XCTAssertEqual(entries.count, 1)
+        guard case .single(let proto)? = entries.first else {
+            return XCTFail("expected a single protocol")
+        }
+        XCTAssertEqual(proto.tags, ["sleep", "wind-down", "all-modalities", "recovery"])
     }
 
     // MARK: - Serializer round-trip: hyphenated tags must be quoted on emit
