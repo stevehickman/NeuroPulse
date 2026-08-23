@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseNPPS, tokenize, NPPSParseError } from './nppsParser';
+import { parseNPPS, parseNPPSLimits, tokenize, NPPSParseError } from './nppsParser';
 import { serializeProtocol, serializeNPPS } from './nppsSerializer';
 import type { NPProtocolDefinition, NPCompositeProtocol } from '../types/protocol';
 
@@ -580,5 +580,103 @@ protocol "Retinal" {
     expect(serialized).not.toMatch(/^\s*mode_f:/m);
     const v = visualOf(serialized);
     expect((v.modalityParams.params as { enableModeF: boolean }).enableModeF).toBe(true);
+  });
+});
+
+// Regression: nine field names iOS read AND wrote that no other component
+// recognised, so a file written by one platform silently lost them on the
+// other. Canonical spellings are NP-NPPS-REF-001 §12; the legacy iOS spellings
+// stay readable. See NP-NPPS-REF-001 Rev 5.
+describe('legacy iOS field-name aliases', () => {
+  const modalityOf = (src: string, type: string) => {
+    const [entry] = parseNPPS(src);
+    return (entry as { kind: 'single'; protocol: NPProtocolDefinition })
+      .protocol.modalities.find(m => m.modalityParams.type === type)!;
+  };
+
+  const proto = (body: string) => `protocol "T" {\n    duration: 5m\n${body}\n}\n`;
+
+  it.each([
+    ['sloreta_enabled', 'canonical'],
+    ['sloreta', 'legacy'],
+  ])('qeeg_21ch sloreta_enabled via %s (%s)', (key) => {
+    const m = modalityOf(proto(`    qeeg_21ch {\n        ${key}: true\n    }`), 'qeeg_21ch');
+    expect((m.modalityParams.params as { sloretaEnabled: boolean }).sloretaEnabled).toBe(true);
+  });
+
+  it.each([
+    ['intensity_percent_mt', 'canonical'],
+    ['intensity_mt', 'legacy'],
+  ])('tms intensity_percent_mt via %s (%s)', (key) => {
+    const m = modalityOf(proto(`    tms {\n        tms_protocol: rTMS\n        ${key}: 90\n    }`), 'tms');
+    expect((m.modalityParams.params as { intensityPercentMT: number }).intensityPercentMT).toBe(90);
+  });
+
+  it.each([
+    ['sync_to_audio', 'sync_to_visual'],
+    ['sync_audio', 'sync_visual'],
+  ])('vibrotactile sync flags via %s / %s', (aKey, vKey) => {
+    const m = modalityOf(
+      proto(`    vibrotactile_40hz {\n        intensity_g: 0.8\n        ${aKey}: true\n        ${vKey}: true\n    }`),
+      'vibrotactile_40hz',
+    );
+    const p = m.modalityParams.params as { syncToAudio: boolean; syncToVisual: boolean };
+    expect(p.syncToAudio).toBe(true);
+    expect(p.syncToVisual).toBe(true);
+  });
+
+  it.each([
+    ['max_intensity', 'max_binaural_beats', 'max_isochronic_tones'],
+    ['max_volume', 'max_binaural_hz', 'max_isochronic_hz'],
+  ])('audio limits via %s / %s / %s', (volKey, binKey, isoKey) => {
+    const lim = parseNPPSLimits(
+      `limits "L" {\n    level: global\n    audio_entrainment {\n        ${volKey}: 85\n        ${binKey}: 100\n        ${isoKey}: 90\n    }\n}\n`,
+    );
+    expect(lim!.audioEntrainment).toMatchObject({
+      maxVolumePercent: 85,
+      maxBinauralBeatsHz: 100,
+      maxIsochronicTonesHz: 90,
+    });
+  });
+
+  it.each([
+    ['max_intensity_pct_mt', 'canonical'],
+    ['max_intensity_mt', 'legacy'],
+  ])('tms limits max_intensity_pct_mt via %s (%s)', (key) => {
+    const lim = parseNPPSLimits(`limits "L" {\n    level: global\n    tms {\n        ${key}: 120\n    }\n}\n`);
+    expect(lim!.tms).toMatchObject({ maxIntensityPercentMT: 120 });
+  });
+
+  it.each([
+    ['max_intensity', 'canonical'],
+    ['max_intensity_g', 'legacy'],
+  ])('vibrotactile limits max_intensity via %s (%s)', (key) => {
+    const lim = parseNPPSLimits(
+      `limits "L" {\n    level: global\n    vibrotactile_40hz {\n        ${key}: 1.2\n    }\n}\n`,
+    );
+    expect(lim!.vibrotactile40hz).toMatchObject({ maxIntensityG: 1.2 });
+  });
+
+  it('canonical wins when both spellings are present', () => {
+    const m = modalityOf(
+      proto(`    tms {\n        intensity_percent_mt: 90\n        intensity_mt: 70\n    }`),
+      'tms',
+    );
+    expect((m.modalityParams.params as { intensityPercentMT: number }).intensityPercentMT).toBe(90);
+  });
+
+  it('serializes canonical names only', () => {
+    const src = proto(
+      `    qeeg_21ch {\n        sloreta: true\n    }\n` +
+      `    vibrotactile_40hz {\n        intensity_g: 0.8\n        sync_audio: true\n        sync_visual: true\n    }`,
+    );
+    const [entry] = parseNPPS(src);
+    const out = serializeProtocol(entry);
+    expect(out).toContain('sloreta_enabled:');
+    expect(out).toContain('sync_to_audio:');
+    expect(out).toContain('sync_to_visual:');
+    expect(out).not.toMatch(/^\s*sloreta:/m);
+    expect(out).not.toMatch(/^\s*sync_audio:/m);
+    expect(out).not.toMatch(/^\s*sync_visual:/m);
   });
 });

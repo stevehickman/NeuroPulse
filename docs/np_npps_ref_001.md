@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 4
+**Revision:** 5
 **Date:** 2026-08-23  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 5 (2026-08-23) — the remaining nine cross-platform field-name divergences closed, plus a parser bug that hid five of them.** Rev 4 fixed `mode_f`; the same audit found nine more field names the iOS parser read **and wrote** that no other component recognised: `sloreta` (→ `sloreta_enabled`), `intensity_mt` (→ `intensity_percent_mt`), `sync_audio` / `sync_visual` (→ `sync_to_audio` / `sync_to_visual`), and in `limits` sub-blocks `max_volume` and `max_intensity_g` (→ `max_intensity`), `max_binaural_hz` (→ `max_binaural_beats`), `max_isochronic_hz` (→ `max_isochronic_tones`) and `max_intensity_mt` (→ `max_intensity_pct_mt`). A file written on one platform silently lost those fields on the other. **The canonical spelling is the one §12 documents**; both parsers now accept either, serialize canonical only, and let canonical win when both appear in one block. **A separate defect was blocking five of these and is fixed too:** `nppsParser.ts`'s `readKeyValue()` demanded a `:` after every key, but a per-modality limits sub-block is `pbm_transcranial { … }` with no colon — so **the whole of §7's documented syntax was a parse error on web** and every per-modality limits field map was unreachable dead code. Split out as `readLimitsKey()`, which distinguishes the two shapes and reports a mismatch explicitly. Fourteen regression tests added; the npps suite goes 87 → 101. §4's alias table, §4.9/§4.10/§4.15, §7 and §12 all record the legacy names (§12 is now 198 rows). **Not fixed, reported:** `montage: 10-20` (§4.9's only documented montage value) does not parse — the lexer reads `10` then chokes on `-20`.
+>
 > **Rev 4 (2026-08-23) — three toolchain discrepancies found while compiling §12, now fixed.** (i) `npps.peggy` carried two modality types **no other component recognised** — `hrv_biofeedback` and `pbm_1064nm`; a file using either parsed under the PEG grammar and then yielded a null modality in every consumer. Removed (NP-NPPS-GRAM-001 Rev 3); both were already expressible as `vns_hrv`'s `hrv_protocol` and `pbm_transcranial` + `wavelength: 1064nm`. (ii) **`mode_f` vs `enable_mode_f` was a cross-platform divergence, not a typo:** iOS read *and wrote* the Mode F boolean as `mode_f:`, the web parser read only `enable_mode_f:`, and the shipped `09-retinal-health.npps` used the iOS spelling — so on web the flag was silently dropped as an unknown key and Mode F was enabled only by `mode: mode_f`. Canonical is now `enable_mode_f` (§4.8); **both** parsers accept either spelling and serialize the canonical one, and the shipped file is corrected. (iii) `nppsParser.ts`'s `KEYWORDS` set was stale — two vestigial zone-era entries (`side`, `addrs`) and eight missing real ones. Corrected; it is token classification only and no parse outcome changes. **§12 gains a row for `mode_f`'s second sense** and §4's alias table gains the pair. Four regression tests added (`npps.test.ts`), verified to fail without the fix.
 >
 > **Rev 3 (2026-08-23) — new §12 Keyword dictionary. No language change.** One alphabetical table documenting every keyword the language recognises — not just the metadata fields: the five top-level block keywords, `layer`, the fifteen modality block keywords, all field names (metadata, modality parameter, interval, layer, limits, zone, condition), every enumerated value (bands, waveforms, HRV and TMS protocols, visual modes, montages, references, targets, conflict-resolution and limits levels, `until_end`, the thirteen element types, the three `wavelength` values), the boolean literals and the unit suffixes. Placed immediately after the grammar summary so the grammar's production names and the dictionary's entries read together; the alias/canonical pairs from §4 appear as separate rows because both spellings are accepted in source. Nothing in §§1–11 was edited and no grammar, parser or predefined file was touched. The old §12 (*Predefined protocol coverage*) is renumbered **§13**.
@@ -275,8 +277,14 @@ The following short names are accepted anywhere and map to the canonical name:
 | `ramp` | `ramp_seconds` |
 | `emdr_cadence` | `emdr_cadence_hz` |
 | `mode_f` | `enable_mode_f` (legacy — see §4.8) |
+| `sloreta` | `sloreta_enabled` (legacy) |
+| `intensity_mt` | `intensity_percent_mt` (legacy) |
+| `sync_audio` | `sync_to_audio` (legacy) |
+| `sync_visual` | `sync_to_visual` (legacy) |
 
 The `intensity` alias is context-dependent: it maps to `intensity_percent` for optical modalities (`pbm_transcranial`, `pbm_intranasal`, `visual_stimulation`), and `intensity_milliamps` for electrical modalities (`bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`). For `pbm_deep_1170nm` use `intensity_mw_cm2:` directly; for `vibrotactile_40hz` use `intensity_g:` directly.
+
+**Legacy aliases.** The five marked *(legacy)* above, plus four in `limits` sub-blocks (`max_volume`, `max_binaural_hz`, `max_isochronic_hz` → §7 `audio_entrainment`; `max_intensity_mt` → §7 `tms`; `max_intensity_g` → §7 `vibrotactile_40hz`), are spellings the iOS parser read *and wrote* up to 2026-08 while no other component recognised them — so a file written on one platform silently lost those fields on the other. Both parsers now accept either spelling and **serialize the canonical name only**. If both appear in one block, the canonical one wins.
 
 ---
 
@@ -537,7 +545,7 @@ T2 only. 21-channel wet-gel cap with source localisation.
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
 | `montage` | `montage` | string | `10-20` |
-| `sloreta_enabled` | `sloreta_enabled` | bool | Enable sLORETA source imaging |
+| `sloreta_enabled` | `sloreta_enabled` | bool | Enable sLORETA source imaging. Legacy alias: `sloreta` |
 | `reference` | `reference` | string | `linked_ear` `cz` `average` |
 
 ```
@@ -559,7 +567,7 @@ T2 only. Focal figure-8 coil, rTMS and TBS.
 | `intensity` | `intensity_milliamps` | number | 0.1–0.5 T (expressed as % MT in app) |
 | `tms_protocol` | `tms_protocol` | string | `rTMS` `TBS` `iTBS` |
 | `frequency` | `frequency_hz` | number | 1–50 |
-| `intensity_percent_mt` | `intensity_percent_mt` | number | % motor threshold, 80–120 typical |
+| `intensity_percent_mt` | `intensity_percent_mt` | number | % motor threshold, 80–120 typical. Legacy alias: `intensity_mt` |
 | `target` | `target` | string | `DLPFC_L` `DLPFC_R` `VLPFC_L` `ACC` `MPFC` `M1_L` `M1_R` |
 | `pulse_count` | `pulse_count` | int | total pulses per session |
 
@@ -666,8 +674,8 @@ Provisional. Mastoid-placement LRA pad.
 | Field | Type | Values |
 |-------|------|--------|
 | `intensity_g` | number | G (acceleration), 0.6–1.2 |
-| `sync_to_audio` | bool | Sync start/stop to audio channel |
-| `sync_to_visual` | bool | Sync start/stop to visual channel |
+| `sync_to_audio` | bool | Sync start/stop to audio channel. Legacy alias: `sync_audio` |
+| `sync_to_visual` | bool | Sync start/stop to visual channel. Legacy alias: `sync_visual` |
 
 Note: use `intensity_g:` directly (not `intensity:`).
 
@@ -908,14 +916,14 @@ limits "T1 Home Defaults" {
 | | `max_frequency` | Hz |
 | | `max_session_duration` | seconds |
 | | `allowed_protocols` | array of protocol names |
-| `audio_entrainment` | `max_intensity` | % |
-| | `max_binaural_beats` | Hz |
-| | `max_isochronic_tones` | Hz |
+| `audio_entrainment` | `max_intensity` | % (legacy alias `max_volume`) |
+| | `max_binaural_beats` | Hz (legacy alias `max_binaural_hz`) |
+| | `max_isochronic_tones` | Hz (legacy alias `max_isochronic_hz`) |
 | `visual_stimulation` | `max_frequency` | Hz |
 | | `min_frequency` | Hz |
 | | `allowed_modes` | array of mode names |
 | | `block_high_risk_range` | bool (blocks 3–30 Hz photoparoxysmal zone) |
-| `tms` | `max_intensity_pct_mt` | % MT |
+| `tms` | `max_intensity_pct_mt` | % MT (legacy alias `max_intensity_mt`) |
 | | `max_pulses_per_session` | int |
 | | `max_pulses_per_day` | int |
 | | `max_sessions_per_week` | int |
@@ -930,7 +938,7 @@ limits "T1 Home Defaults" {
 | | `allowed_montages` | array of montage names |
 | `cervical_vns` | `max_intensity` | mA |
 | | `max_session_duration` | seconds |
-| `vibrotactile_40hz` | `max_intensity` | G |
+| `vibrotactile_40hz` | `max_intensity` | G (legacy alias `max_intensity_g`) |
 | | `max_session_duration` | seconds |
 
 ---
@@ -1158,6 +1166,9 @@ Reading the table:
   suffixes (`Hz`, `mA`, `mW_cm2`).
 - Sort order is case-insensitive, so `%` and digit-leading tokens come first and `iTBS` sorts
   with the `i`s.
+- **Legacy aliases are listed as their own rows**, marked *(legacy alias)*, and the canonical
+  row names them. They are accepted on input by both parsers but never written: serializers
+  emit the canonical spelling, and if both appear in one block the canonical one wins.
 - **`name` is deliberately absent.** A `protocol`, `composite`, `limits`, `zone`, `condition` or
   `layer` name is declared *inline in the block header*, never as a `name:` field — §2's
   `name: "Gamma Focus"` is a generic illustration of string syntax, and §6's "same as protocol
@@ -1251,9 +1262,10 @@ Reading the table:
 | `intensity` | Modality field (alias) | most modalities | **Context-dependent alias.** Maps to `intensity_percent` for optical modalities and `intensity_milliamps` for electrical ones (§4, Field aliases). Not available on `pbm_deep_1170nm` or `vibrotactile_40hz`. |
 | `intensity_g` | Modality field | `vibrotactile_40hz` | Drive amplitude in G (acceleration), 0.6–1.2. Use directly — `intensity` does not alias to it. |
 | `intensity_milliamps` | Modality field (canonical) | electrical modalities | Canonical name `intensity` resolves to for `bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`. |
+| `intensity_mt` | Modality field (legacy alias) | `tms` | Pre-2026-08 iOS spelling of `intensity_percent_mt`. Still accepted; serializers emit the canonical name. |
 | `intensity_mw_cm2` | Modality field | `pbm_deep_1170nm` | Irradiance in mW/cm², ≤1000. Use directly — `intensity` does not alias to it. |
 | `intensity_percent` | Modality field (canonical) | optical modalities | Canonical name `intensity` resolves to for `pbm_transcranial`, `pbm_intranasal`, `visual_stimulation`. |
-| `intensity_percent_mt` | Modality field | `tms` | Stimulator output as % of motor threshold, 80–120 typical. |
+| `intensity_percent_mt` | Modality field | `tms` | Stimulator output as % of motor threshold, 80–120 typical. Legacy alias `intensity_mt`. |
 | `intensity_scale` | Layer field | `layer` | Multiplier applied to every modality intensity in the referenced protocol, 0.0–2.0. Default `1.0`. |
 | `interval_count` | Metadata field | `protocol` | Alternative to `duration`: run for N modality intervals instead of a fixed wall time. |
 | `interval_off` | Interval field | any modality block | Rest period of the on/off cycle. A duration; `0` means continuous (§5). |
@@ -1275,19 +1287,24 @@ Reading the table:
 | `M1_L` | Enum value | `tms` / `hd_tdcs` → `target` | Left primary motor cortex. Surface-class target. |
 | `M1_R` | Enum value | `tms` / `hd_tdcs` → `target` | Right primary motor cortex. Surface-class target. |
 | `mA` | Unit suffix | any number | Current in milliamps. Cosmetic — the parser reads the bare number. |
-| `max_binaural_beats` | Limits field | `limits` → `audio_entrainment` | Ceiling on `binaural_hz`, in Hz. |
+| `max_binaural_beats` | Limits field | `limits` → `audio_entrainment` | Ceiling on `binaural_hz`, in Hz. Legacy alias `max_binaural_hz`. |
+| `max_binaural_hz` | Limits field (legacy alias) | `limits` → `audio_entrainment` | Pre-2026-08 iOS spelling of `max_binaural_beats`. |
 | `max_daily_dose` | Limits field | `limits` → `pbm_transcranial` | Ceiling on cumulative PBM dose per day, in J/cm². |
 | `max_duty_cycle` | Limits field | `limits` → `pbm_transcranial` | Ceiling on `duty_cycle`, in %. |
 | `max_frequency` | Limits field | `limits` → several modality sub-blocks | Ceiling on `frequency`, in Hz. |
-| `max_intensity` | Limits field | `limits` → most modality sub-blocks | Ceiling on that modality's intensity, in the modality's own unit (%, mA, mW/cm² or G). |
-| `max_intensity_pct_mt` | Limits field | `limits` → `tms` | Ceiling on `intensity_percent_mt`, in % MT. |
-| `max_isochronic_tones` | Limits field | `limits` → `audio_entrainment` | Ceiling on `isochronic_hz`, in Hz. |
+| `max_intensity` | Limits field | `limits` → most modality sub-blocks | Ceiling on that modality's intensity, in the modality's own unit (%, mA, mW/cm² or G). Legacy aliases `max_volume` (audio) and `max_intensity_g` (vibrotactile). |
+| `max_intensity_g` | Limits field (legacy alias) | `limits` → `vibrotactile_40hz` | Pre-2026-08 iOS spelling of that sub-block's `max_intensity`. |
+| `max_intensity_mt` | Limits field (legacy alias) | `limits` → `tms` | Pre-2026-08 iOS spelling of `max_intensity_pct_mt`. |
+| `max_intensity_pct_mt` | Limits field | `limits` → `tms` | Ceiling on `intensity_percent_mt`, in % MT. Legacy alias `max_intensity_mt`. |
+| `max_isochronic_hz` | Limits field (legacy alias) | `limits` → `audio_entrainment` | Pre-2026-08 iOS spelling of `max_isochronic_tones`. |
+| `max_isochronic_tones` | Limits field | `limits` → `audio_entrainment` | Ceiling on `isochronic_hz`, in Hz. Legacy alias `max_isochronic_hz`. |
 | `max_pulses_per_day` | Limits field | `limits` → `tms` | Ceiling on total TMS pulses per day. |
 | `max_pulses_per_session` | Limits field | `limits` → `tms` | Ceiling on `pulse_count` for one session. |
 | `max_session_dose` | Limits field | `limits` → `pbm_transcranial`, `pbm_intranasal` | Ceiling on PBM dose for one session, in J/cm². |
 | `max_session_duration` | Limits field | `limits` → most modality sub-blocks | Ceiling on session length for that modality, in seconds. |
 | `max_sessions_per_day` | Limits field | `limits` → `bes_tacs`, `tdcs` | Ceiling on session count per day. |
 | `max_sessions_per_week` | Limits field | `limits` → `tms` | Ceiling on session count per week. |
+| `max_volume` | Limits field (legacy alias) | `limits` → `audio_entrainment` | Pre-2026-08 iOS spelling of that sub-block's `max_intensity`. |
 | `merge` | Enum value | `composite` → `conflict_resolution` | Modalities from all active layers run simultaneously. |
 | `min_frequency` | Limits field | `limits` → `bes_tacs`, `visual_stimulation` | Floor on `frequency`, in Hz. |
 | `mode` | Modality field | `visual_stimulation` | Visual delivery mode: `binocular`, `emdr` or `mode_f`. |
@@ -1324,14 +1341,17 @@ Reading the table:
 | `s` | Unit suffix | any number | Seconds. Also the implicit unit of a bare number in a duration field. |
 | `sequential` | Enum value | `composite` → `conflict_resolution` | Layers run end-to-end; layer N starts when layer N-1 finishes. |
 | `sinusoidal` | Enum value | `bes_tacs` / `clinical_tacs` → `waveform` | Sine wave stimulation. |
-| `sloreta_enabled` | Modality field | `qeeg_21ch` | Bool. Compute the sLORETA cortical source map (also drives HD-tDCS targeting). |
+| `sloreta` | Modality field (legacy alias) | `qeeg_21ch` | Pre-2026-08 iOS spelling of `sloreta_enabled`. |
+| `sloreta_enabled` | Modality field | `qeeg_21ch` | Bool. Compute the sLORETA cortical source map (also drives HD-tDCS targeting). Legacy alias `sloreta`. |
 | `sockets` | Zone field | `zone` | **The defining field of a zone** — an int array of socket (major) addresses. 1-based, within the derived lattice range; non-contiguous sets are fine; duplicates collapse and the list is sorted on parse (§8). |
 | `square` | Enum value | `bes_tacs` / `clinical_tacs` → `waveform` | Square wave stimulation. |
 | `standalone` | Enum value | `vns_hrv` → `hrv_protocol` | Resonance breathing pacer only; coherence score displayed, no stimulation gating. |
 | `standard_2_electrode` | Enum value | `hd_tdcs` → `montage`; `limits` → `allowed_montages` | Conventional two-electrode montage — the T1-compatible fallback. |
 | `start` | Layer field | `layer` | Offset into the composite timeline at which the layer begins. A duration; default `0`. |
-| `sync_to_audio` | Modality field | `vibrotactile_40hz` | Bool. Start/stop the pad in lockstep with the audio channel. |
-| `sync_to_visual` | Modality field | `vibrotactile_40hz` | Bool. Start/stop the pad in lockstep with the visual channel. |
+| `sync_audio` | Modality field (legacy alias) | `vibrotactile_40hz` | Pre-2026-08 iOS spelling of `sync_to_audio`. |
+| `sync_to_audio` | Modality field | `vibrotactile_40hz` | Bool. Start/stop the pad in lockstep with the audio channel. Legacy alias `sync_audio`. |
+| `sync_to_visual` | Modality field | `vibrotactile_40hz` | Bool. Start/stop the pad in lockstep with the visual channel. Legacy alias `sync_visual`. |
+| `sync_visual` | Modality field (legacy alias) | `vibrotactile_40hz` | Pre-2026-08 iOS spelling of `sync_to_visual`. |
 | `tags` | Metadata field | `protocol`, `composite` | Freeform string array of category labels. Accepts unquoted identifiers. |
 | `target` | Modality field | `tms`, `hd_tdcs` | Anatomical target from the fixed device target set. Deep-class targets must never be presented as focal stimulation. |
 | `tavns_sync` | Enum value | `vns_hrv` → `hrv_protocol` | VNS pulses gated to the inspiration phase, detected from PPG R-R intervals. |
@@ -1357,8 +1377,6 @@ Reading the table:
 | `wavelength` | Modality field | `pbm_transcranial` | Which PBM emitter channels to drive. |
 | `zone` | Top-level block | file | Defines a named set of modules by socket address (§8). Populates the namespace; referenced by name from `pbm_transcranial`'s `zones`. |
 | `zones` | Modality field | `pbm_transcranial` | Which modules to drive: a named-zone-reference string array (preferred), the keywords `all`/`front`/`rear`/`custom`, or a legacy numeric index array. |
-
----
 
 ## 13. Predefined protocol coverage (source-doc map)
 

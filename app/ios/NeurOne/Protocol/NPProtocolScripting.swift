@@ -348,9 +348,9 @@ struct NPPSParser {
 
         case "audio_entrainment":
             var lim = NPAudioEntrainmentLimits()
-            if let v = fields["max_volume"]?.asPercent        { lim.maxVolumePercent = v }
-            if let v = fields["max_binaural_hz"]?.asHz        { lim.maxBinauralBeatsHz = v }
-            if let v = fields["max_isochronic_hz"]?.asHz      { lim.maxIsochronicTonesHz = v }
+            if let v = Self.alias(fields, "max_intensity", "max_volume")?.asPercent { lim.maxVolumePercent = v }
+            if let v = Self.alias(fields, "max_binaural_beats", "max_binaural_hz")?.asHz { lim.maxBinauralBeatsHz = v }
+            if let v = Self.alias(fields, "max_isochronic_tones", "max_isochronic_hz")?.asHz { lim.maxIsochronicTonesHz = v }
             limitsSet.audioEntrainment = lim
 
         case "visual_stimulation":
@@ -371,7 +371,7 @@ struct NPPSParser {
 
         case "tms":
             var lim = NPTMSLimits()
-            if let v = fields["max_intensity_mt"]?.asDouble       { lim.maxIntensityPercentMT = Int(v) }
+            if let v = Self.alias(fields, "max_intensity_pct_mt", "max_intensity_mt")?.asDouble { lim.maxIntensityPercentMT = Int(v) }
             if let v = fields["max_pulses_per_session"]?.asDouble { lim.maxPulsesPerSession = Int(v) }
             if let v = fields["max_pulses_per_day"]?.asDouble     { lim.maxPulsesPerDay = Int(v) }
             if let v = fields["max_sessions_per_week"]?.asDouble  { lim.maxSessionsPerWeek = Int(v) }
@@ -430,7 +430,7 @@ struct NPPSParser {
 
         case "vibrotactile_40hz":
             var lim = NPVibrotactileLimits()
-            if let v = fields["max_intensity_g"]?.asDouble        { lim.maxIntensityG = v }
+            if let v = Self.alias(fields, "max_intensity", "max_intensity_g")?.asDouble { lim.maxIntensityG = v }
             if let v = fields["max_session_duration"]?.asTime     { lim.maxSessionDurationSeconds = v }
             limitsSet.vibrotactile40hz = lim
 
@@ -886,7 +886,7 @@ struct NPPSParser {
 
         case "qeeg_21ch":
             var p = NPqEEG21chParams()
-            if let v = fields["sloreta"]?.asBool { p.sloretaEnabled = v }
+            if let v = Self.alias(fields, "sloreta_enabled", "sloreta")?.asBool { p.sloretaEnabled = v }
             if let v = fields["reference"]?.asIdent {
                 switch v {
                 case "linked_ear": p.reference = .linkedEar
@@ -900,7 +900,7 @@ struct NPPSParser {
         case "tms":
             var p = NPTMSParams()
             if let v = fields["frequency"]?.asHz          { p.frequencyHz = v }
-            if let v = fields["intensity_mt"]?.asDouble   { p.intensityPercentMT = Int(v) }
+            if let v = Self.alias(fields, "intensity_percent_mt", "intensity_mt")?.asDouble { p.intensityPercentMT = Int(v) }
             if let v = fields["pulse_count"]?.asDouble    { p.pulseCount = Int(v) }
             if let v = fields["target"]?.asIdent {
                 if let t = NPTMSParams.TMSTarget(rawValue: v.uppercased()) { p.target = t }
@@ -954,13 +954,31 @@ struct NPPSParser {
         case "vibrotactile_40hz":
             var p = NPVibrotactileParams()
             if let v = fields["intensity_g"]?.asDouble  { p.intensityG = v }
-            if let v = fields["sync_audio"]?.asBool     { p.syncToAudio = v }
-            if let v = fields["sync_visual"]?.asBool    { p.syncToVisual = v }
+            if let v = Self.alias(fields, "sync_to_audio", "sync_audio")?.asBool { p.syncToAudio = v }
+            if let v = Self.alias(fields, "sync_to_visual", "sync_visual")?.asBool { p.syncToVisual = v }
             return .vibrotactile40hz(p)
 
         default:
             throw NPPSError(message: "Unknown modality: \(name)", line: 0)
         }
+    }
+
+    // MARK: Legacy field-name aliases
+    //
+    // Up to 2026-08 this parser read (and its serializer wrote) nine field names
+    // that no other component in the toolchain recognised — see NP-NPPS-REF-001
+    // Rev 5. A file written by iOS therefore lost those fields when read by
+    // nppsParser.ts, and vice versa. The canonical spellings are now the ones in
+    // NP-NPPS-REF-001 §12; the legacy ones stay readable so files written by
+    // older builds keep working, and the serializer emits canonical only.
+    //
+    // Returns the first key present, so the canonical name wins when both appear.
+    private static func alias(_ fields: [String: NPPSFieldValue],
+                              _ keys: String...) -> NPPSFieldValue? {
+        for k in keys {
+            if let v = fields[k] { return v }
+        }
+        return nil
     }
 
     // MARK: Field value type
@@ -1220,9 +1238,9 @@ struct NPPSSerializer {
         }
         if let lim = limits.audioEntrainment {
             lines.append("    audio_entrainment {")
-            if let v = lim.maxVolumePercent       { lines.append("        max_volume: \(Int(v))%") }
-            if let v = lim.maxBinauralBeatsHz     { lines.append("        max_binaural_hz: \(formatHz(v))") }
-            if let v = lim.maxIsochronicTonesHz   { lines.append("        max_isochronic_hz: \(formatHz(v))") }
+            if let v = lim.maxVolumePercent       { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxBinauralBeatsHz     { lines.append("        max_binaural_beats: \(formatHz(v))") }
+            if let v = lim.maxIsochronicTonesHz   { lines.append("        max_isochronic_tones: \(formatHz(v))") }
             lines.append("    }")
         }
         if let lim = limits.visualStimulation {
@@ -1235,7 +1253,7 @@ struct NPPSSerializer {
         }
         if let lim = limits.tms {
             lines.append("    tms {")
-            if let v = lim.maxIntensityPercentMT  { lines.append("        max_intensity_mt: \(v)") }
+            if let v = lim.maxIntensityPercentMT  { lines.append("        max_intensity_pct_mt: \(v)") }
             if let v = lim.maxPulsesPerSession    { lines.append("        max_pulses_per_session: \(v)") }
             if let v = lim.maxPulsesPerDay        { lines.append("        max_pulses_per_day: \(v)") }
             if let v = lim.maxSessionsPerWeek     { lines.append("        max_sessions_per_week: \(v)") }
@@ -1270,7 +1288,7 @@ struct NPPSSerializer {
         }
         if let lim = limits.vibrotactile40hz {
             lines.append("    vibrotactile_40hz {")
-            if let v = lim.maxIntensityG               { lines.append("        max_intensity_g: \(v)G") }
+            if let v = lim.maxIntensityG               { lines.append("        max_intensity: \(v)G") }
             if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
             lines.append("    }")
         }
@@ -1416,7 +1434,7 @@ struct NPPSSerializer {
         case .qeeg21ch(let p):
             return [
                 "montage: \(p.montage.rawValue)",
-                "sloreta: \(p.sloretaEnabled)",
+                "sloreta_enabled: \(p.sloretaEnabled)",
                 "reference: \(p.reference.rawValue)"
             ]
 
@@ -1424,7 +1442,7 @@ struct NPPSSerializer {
             return [
                 "protocol: \(p.tmsProtocol.rawValue)",
                 "frequency: \(formatHz(p.frequencyHz))",
-                "intensity_mt: \(p.intensityPercentMT)%",
+                "intensity_percent_mt: \(p.intensityPercentMT)%",
                 "target: \(p.target.rawValue)",
                 "pulse_count: \(p.pulseCount)"
             ]
@@ -1462,8 +1480,8 @@ struct NPPSSerializer {
             return [
                 "frequency: \(formatHz(p.frequencyHz))  # locked at 40Hz",
                 "intensity_g: \(p.intensityG)G",
-                "sync_audio: \(p.syncToAudio)",
-                "sync_visual: \(p.syncToVisual)"
+                "sync_to_audio: \(p.syncToAudio)",
+                "sync_to_visual: \(p.syncToVisual)"
             ]
         }
     }
