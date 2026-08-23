@@ -14,6 +14,6 @@ protocol "PBM — Mild Cognitive Impairment" {
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Frontal Left", "Frontal Right"]
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 }

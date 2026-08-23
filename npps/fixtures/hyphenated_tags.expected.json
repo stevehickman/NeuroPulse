@@ -3,7 +3,7 @@
   "protocol": {
     "name": "Hyphenated Tags",
     "id": "00000000-0000-0000-0000-000000000004",
-    "description": "Tests hyphenated tag parsing",
+    "description": "Tests quoted hyphenated tag parsing",
     "author": "test",
     "version": "1.0",
     "tags": [

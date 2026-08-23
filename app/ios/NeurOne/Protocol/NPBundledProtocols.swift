@@ -26,7 +26,7 @@ enum NPBundledProtocols {
             frequency: 40Hz
             duty_cycle: 25%
             zones: ["Vault (excl. Occipital)"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         audio_entrainment {
@@ -72,7 +72,7 @@ enum NPBundledProtocols {
             frequency: 10Hz
             duty_cycle: 25%
             zones: ["All"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         eeg_neurofeedback {
@@ -116,7 +116,7 @@ enum NPBundledProtocols {
             frequency: 2Hz
             duty_cycle: 25%
             zones: ["Posterior"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         eeg_neurofeedback {
@@ -159,7 +159,7 @@ enum NPBundledProtocols {
             frequency: 6Hz
             duty_cycle: 25%
             zones: ["Frontal"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         eeg_neurofeedback {
@@ -210,7 +210,7 @@ enum NPBundledProtocols {
             frequency: 10Hz
             duty_cycle: 25%
             zones: ["Frontal"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         audio_entrainment {
@@ -247,7 +247,7 @@ enum NPBundledProtocols {
             frequency: 40Hz
             duty_cycle: 25%
             zones: ["Frontal"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         pbm_transcranial {
@@ -255,7 +255,7 @@ enum NPBundledProtocols {
             frequency: 6Hz
             duty_cycle: 25%
             zones: ["Posterior"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         eeg_neurofeedback {
@@ -292,7 +292,7 @@ enum NPBundledProtocols {
             intensity: 80%
             frequency: 0Hz
             zones: ["All"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         vns_hrv {
@@ -342,7 +342,7 @@ enum NPBundledProtocols {
             frequency: 20Hz
             duty_cycle: 25%
             zones: ["Frontal"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         audio_entrainment {
@@ -490,7 +490,7 @@ enum NPBundledProtocols {
             frequency: 20Hz
             duty_cycle: 25%
             zones: ["All"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         eeg_neurofeedback {
@@ -545,7 +545,7 @@ enum NPBundledProtocols {
             frequency: 40Hz
             duty_cycle: 25%
             zones: ["Frontal"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         pbm_transcranial {
@@ -553,7 +553,7 @@ enum NPBundledProtocols {
             frequency: 6Hz
             duty_cycle: 25%
             zones: ["Posterior"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         eeg_neurofeedback {
@@ -595,7 +595,7 @@ enum NPBundledProtocols {
         author: "NeurOne"
         version: "1.0"
         readonly: true
-        tags: [comprehensive, all-modalities, advanced, T1]
+        tags: [comprehensive, \"all-modalities\", advanced, T1]
         duration: 30m
 
         pbm_transcranial {
@@ -603,7 +603,7 @@ enum NPBundledProtocols {
             frequency: 40Hz
             duty_cycle: 25%
             zones: ["All"]
-            wavelength: 660_808nm
+            wavelength: \"660_808nm\"
         }
 
         pbm_intranasal {
@@ -709,7 +709,7 @@ enum NPBundledProtocols {
         author: "NeurOne"
         version: "1.0"
         readonly: true
-        tags: [sleep, evening, wind-down, delta, alpha, stack]
+        tags: [sleep, evening, \"wind-down\", delta, alpha, stack]
         conflict_resolution: sequential
 
         layer "Alpha Calm" {
@@ -766,7 +766,7 @@ enum NPBundledProtocols {
         author: "NeurOne"
         version: "1.0"
         readonly: true
-        tags: [sleep, wind-down, transition, evening]
+        tags: [sleep, \"wind-down\", transition, evening]
         conflict_resolution: sequential
 
         layer "Alpha Calm" {

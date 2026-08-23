@@ -53,9 +53,16 @@ describe('zone blocks', () => {
     // Bare Number() maps true->1, [5]->5, '0x10'->16, '1e1'->10, and the lexer
     // admits booleans, identifiers and nested arrays into a generic array — so
     // without strict coercion every one of these reached the socket list.
-    for (const src of ['[true, 4]', '[0x10]', '[1e1]', '[[5], 4]']) {
+    for (const src of ['[true, 4]', '[[5], 4]']) {
       expect(() => parseNPPSFile(`zone "Sneaky" { sockets: ${src} }`), src)
         .toThrow(/is not a socket on this helmet/);
+    }
+    // '0x10' and '1e1' are digit-leading tokens that are not plain numbers, so
+    // since Rev 6 the lexer rejects them outright rather than letting them
+    // reach socket validation. Still rejected — earlier, and by name.
+    for (const src of ['[0x10]', '[1e1]']) {
+      expect(() => parseNPPSFile(`zone "Sneaky" { sockets: ${src} }`), src)
+        .toThrow(/must be quoted/);
     }
   });
 
@@ -161,7 +168,7 @@ protocol "Depression DLPFC" {
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Left Frontal", "Right Frontal"]
-        wavelength: 660_808nm
+        wavelength: \"660_808nm\"
     }
 }
 `;
@@ -200,14 +207,14 @@ describe('protocol conditions, references, and zone refs', () => {
     // five-slot forms are gone from the grammar entirely.
     for (const selector of ['all', 'front', 'rear', 'custom']) {
       expect(() => parseNPPS(
-        `protocol "L" { id: "x" pbm_transcranial { zones: ${selector} wavelength: 660_808nm } }`
+        `protocol "L" { id: "x" pbm_transcranial { zones: ${selector} wavelength: \"660_808nm\" } }`
       )).toThrow(/unknown zone selector/);
     }
   });
 
   it('rejects a numeric zone list', () => {
     expect(() => parseNPPS(
-      'protocol "L" { id: "x" pbm_transcranial { zones: [1, 2] wavelength: 660_808nm } }'
+      'protocol "L" { id: "x" pbm_transcranial { zones: [1, 2] wavelength: \"660_808nm\" } }'
     )).toThrow(/quoted zone names/);
   });
 });

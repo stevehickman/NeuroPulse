@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-08-23  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,9 +15,11 @@
 
 ---
 
+> **Rev 6 (2026-08-23) — `montage: 10-20` fixed, and values are now JSON-shaped.** The fix for the montage bug and the JSON-compatibility cleanup are the same change. **A bare value may now only be a plain identifier `[A-Za-z_][A-Za-z0-9_]*`, a number (unit suffixes kept), or a boolean; anything else is a quoted string** — so every value maps onto a JSON scalar. Two lexer rules that existed solely to admit awkward bare values are removed: digit-leading compound identifiers (`660_808nm`, `1064nm`) and the hyphen tail of bare identifiers (`wind-down`). **This is what fixes `montage: 10-20`** — it matched *neither* rule, so §4.9's only documented montage value was a hard parse error in all three parsers; written `"10-20"` it parses everywhere. The shipped library is migrated (26 files, 29 values) along with the iOS bundled copies; **the old readers are dropped, not kept as a fallback**, and unquoted forms now fail with a message naming the fix instead of mis-lexing. Two iOS-only defects disappear with them: `1064nm` silently split into the number 1064 plus a stray identifier (the compound branch only fired when the next character was `_`), and `wind-down` never lexed at all because Swift's `readIdent` had no hyphen support. Serializers on both platforms now quote `wavelength`, and `serializeTag` no longer emits a digit-leading tag bare. **`#` comments and unit suffixes (`20m`, `40Hz`, `80%`) are deliberately kept** — the format is JSON-*shaped* in its values, not JSON. Three `error_*` fixtures plus eleven TS tests lock the rejections in; npps suite 101 → 113. §2 gains the value-shape table, §11 the grammar note, §4.1/§4.9/§12 the quoted spellings.
+>
 > **Rev 5 (2026-08-23) — the remaining nine cross-platform field-name divergences closed, plus a parser bug that hid five of them.** Rev 4 fixed `mode_f`; the same audit found nine more field names the iOS parser read **and wrote** that no other component recognised: `sloreta` (→ `sloreta_enabled`), `intensity_mt` (→ `intensity_percent_mt`), `sync_audio` / `sync_visual` (→ `sync_to_audio` / `sync_to_visual`), and in `limits` sub-blocks `max_volume` and `max_intensity_g` (→ `max_intensity`), `max_binaural_hz` (→ `max_binaural_beats`), `max_isochronic_hz` (→ `max_isochronic_tones`) and `max_intensity_mt` (→ `max_intensity_pct_mt`). A file written on one platform silently lost those fields on the other. **The canonical spelling is the one §12 documents**; both parsers now accept either, serialize canonical only, and let canonical win when both appear in one block. **A separate defect was blocking five of these and is fixed too:** `nppsParser.ts`'s `readKeyValue()` demanded a `:` after every key, but a per-modality limits sub-block is `pbm_transcranial { … }` with no colon — so **the whole of §7's documented syntax was a parse error on web** and every per-modality limits field map was unreachable dead code. Split out as `readLimitsKey()`, which distinguishes the two shapes and reports a mismatch explicitly. Fourteen regression tests added; the npps suite goes 87 → 101. §4's alias table, §4.9/§4.10/§4.15, §7 and §12 all record the legacy names (§12 is now 198 rows). **Not fixed, reported:** `montage: 10-20` (§4.9's only documented montage value) does not parse — the lexer reads `10` then chokes on `-20`.
 >
-> **Rev 4 (2026-08-23) — three toolchain discrepancies found while compiling §12, now fixed.** (i) `npps.peggy` carried two modality types **no other component recognised** — `hrv_biofeedback` and `pbm_1064nm`; a file using either parsed under the PEG grammar and then yielded a null modality in every consumer. Removed (NP-NPPS-GRAM-001 Rev 3); both were already expressible as `vns_hrv`'s `hrv_protocol` and `pbm_transcranial` + `wavelength: 1064nm`. (ii) **`mode_f` vs `enable_mode_f` was a cross-platform divergence, not a typo:** iOS read *and wrote* the Mode F boolean as `mode_f:`, the web parser read only `enable_mode_f:`, and the shipped `09-retinal-health.npps` used the iOS spelling — so on web the flag was silently dropped as an unknown key and Mode F was enabled only by `mode: mode_f`. Canonical is now `enable_mode_f` (§4.8); **both** parsers accept either spelling and serialize the canonical one, and the shipped file is corrected. (iii) `nppsParser.ts`'s `KEYWORDS` set was stale — two vestigial zone-era entries (`side`, `addrs`) and eight missing real ones. Corrected; it is token classification only and no parse outcome changes. **§12 gains a row for `mode_f`'s second sense** and §4's alias table gains the pair. Four regression tests added (`npps.test.ts`), verified to fail without the fix.
+> **Rev 4 (2026-08-23) — three toolchain discrepancies found while compiling §12, now fixed.** (i) `npps.peggy` carried two modality types **no other component recognised** — `hrv_biofeedback` and `pbm_1064nm`; a file using either parsed under the PEG grammar and then yielded a null modality in every consumer. Removed (NP-NPPS-GRAM-001 Rev 3); both were already expressible as `vns_hrv`'s `hrv_protocol` and `pbm_transcranial` + `wavelength: "1064nm"`. (ii) **`mode_f` vs `enable_mode_f` was a cross-platform divergence, not a typo:** iOS read *and wrote* the Mode F boolean as `mode_f:`, the web parser read only `enable_mode_f:`, and the shipped `09-retinal-health.npps` used the iOS spelling — so on web the flag was silently dropped as an unknown key and Mode F was enabled only by `mode: mode_f`. Canonical is now `enable_mode_f` (§4.8); **both** parsers accept either spelling and serialize the canonical one, and the shipped file is corrected. (iii) `nppsParser.ts`'s `KEYWORDS` set was stale — two vestigial zone-era entries (`side`, `addrs`) and eight missing real ones. Corrected; it is token classification only and no parse outcome changes. **§12 gains a row for `mode_f`'s second sense** and §4's alias table gains the pair. Four regression tests added (`npps.test.ts`), verified to fail without the fix.
 >
 > **Rev 3 (2026-08-23) — new §12 Keyword dictionary. No language change.** One alphabetical table documenting every keyword the language recognises — not just the metadata fields: the five top-level block keywords, `layer`, the fifteen modality block keywords, all field names (metadata, modality parameter, interval, layer, limits, zone, condition), every enumerated value (bands, waveforms, HRV and TMS protocols, visual modes, montages, references, targets, conflict-resolution and limits levels, `until_end`, the thirteen element types, the three `wavelength` values), the boolean literals and the unit suffixes. Placed immediately after the grammar summary so the grammar's production names and the dictionary's entries read together; the alias/canonical pairs from §4 appear as separate rows because both spellings are accepted in source. Nothing in §§1–11 was edited and no grammar, parser or predefined file was touched. The old §12 (*Predefined protocol coverage*) is renumbered **§13**.
 >
@@ -116,6 +118,30 @@ Unquoted identifiers are also accepted where a string is expected (useful for en
 zones: all        # same as zones: "all"
 waveform: sinusoidal
 ```
+
+**What may appear unquoted (Rev 6).** A bare identifier is `[A-Za-z_][A-Za-z0-9_]*` — the same
+shape a field key takes. **Everything else must be quoted.** Every value is therefore a plain
+identifier, a number, a boolean or a quoted string, each of which maps onto a JSON scalar:
+
+| Value | Written |
+|-------|---------|
+| Plain identifier | `waveform: sinusoidal`, `target: DLPFC_L`, `tms_protocol: rTMS` |
+| Number, optionally with a unit suffix | `duration: 20m`, `frequency: 40Hz`, `intensity: 80%` |
+| Boolean | `closed_loop: true` |
+| **Starts with a digit and is not a plain number** | `wavelength: "660_808nm"`, `montage: "10-20"` |
+| **Contains a hyphen** | `tags: ["wind-down", "all-modalities"]` |
+
+Two lexer rules that used to admit the last two rows unquoted were removed, and the shipped
+library was migrated. This is what finally gives `montage: 10-20` a spelling that parses: it
+matched *neither* rule, so §4.9's only documented montage value was a hard parse error in every
+parser. Unquoted, these now fail with a message naming the fix, rather than mis-lexing:
+
+```
+Unquoted value '660_808nm' — values that start with a digit and are not a plain
+number must be quoted, e.g. "660_808nm"
+```
+
+Unit suffixes and `#` comments are unaffected and remain part of the format.
 
 ### Numbers
 
@@ -235,7 +261,7 @@ protocol "Gamma Focus" {
         frequency: 40Hz
         duty_cycle: 25%
         zones: all
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 
     eeg_neurofeedback {
@@ -299,7 +325,7 @@ Photobiomodulation via scalp-facing LED zones.
 | `duty_cycle` | `duty_cycle_percent` | number | 1–25 (firmware max) |
 | `zones` | `zones` | string \| array | `all` `front` `rear` `custom`, a **named-zone-reference array**, or a legacy numeric-index array |
 | `custom_zones` | `custom_zones` | int array | legacy zone indices, e.g. `[0,1]` |
-| `wavelength` | `wavelength` | string | `660_808nm` `1064nm` `660_808_1064nm` |
+| `wavelength` | `wavelength` | string | `"660_808nm"` `"1064nm"` `"660_808_1064nm"` — **quoted** (§2) |
 
 **Zones are module sets (Rev B).** With the module redesign a zone is a **named set of modules** (§8), not a fixed hardware index. The preferred way to target zones is to reference zone definitions by name:
 
@@ -309,7 +335,7 @@ pbm_transcranial {
     frequency: 40Hz
     duty_cycle: 25%
     zones: ["Frontal Left", "Frontal Right"]   # named zone references (§8)
-    wavelength: 660_808nm
+    wavelength: "660_808nm"
 }
 ```
 
@@ -544,13 +570,13 @@ T2 only. 21-channel wet-gel cap with source localisation.
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
-| `montage` | `montage` | string | `10-20` |
+| `montage` | `montage` | string | `"10-20"` — **quoted** (§2); unquoted `10-20` parses nowhere |
 | `sloreta_enabled` | `sloreta_enabled` | bool | Enable sLORETA source imaging. Legacy alias: `sloreta` |
 | `reference` | `reference` | string | `linked_ear` `cz` `average` |
 
 ```
 qeeg_21ch {
-    montage: 10-20
+    montage: "10-20"
     sloreta_enabled: true
     reference: linked_ear
 }
@@ -1089,6 +1115,7 @@ TYPE_ID              := 'pbm_transcranial' | 'pbm_intranasal' | 'eeg_neurofeedba
                       | 'bes_tacs' | 'tdcs' | 'vns_hrv' | 'audio_entrainment'
                       | 'visual_stimulation' | 'qeeg_21ch' | 'tms' | 'pbm_deep_1170nm'
                       | 'clinical_tacs' | 'hd_tdcs' | 'cervical_vns' | 'vibrotactile_40hz'
+# 'wavelength' values are quoted strings: "660_808nm" | "1064nm" | "660_808_1064nm"
 # pbm_transcranial 'zones' value:
 #   ZONE_KEYWORD ('all'|'front'|'rear'|'custom') | STRING_ARRAY (named zone refs)
 #                                                | INT_ARRAY (legacy indices)
@@ -1125,6 +1152,7 @@ condition_field := 'link' ':' STRING        # required
 
 # ── Values ─────────────────────────────────────────────────────────────────
 value       := STRING | NUMBER | BOOL | array | IDENT
+IDENT       := [A-Za-z_][A-Za-z0-9_]*   # no hyphens, never digit-leading (§2)
 array       := '[' (value (',' value)*)? ']'
 STRING_ARRAY:= '[' (STRING (',' STRING)*)? ']'          # also accepts bare idents
 REF_ARRAY   := '[' (ref (',' ref)*)? ']'
@@ -1136,6 +1164,12 @@ LEVEL_ID    := 'global' | 'helmet' | 'individual'
 ```
 
 **Namespace & resolution (§1.6):** all loaded files share one namespace. `conditions` entries resolve to `condition` block names; `pbm_transcranial` named `zones` entries resolve to `zone` block names (predefined or user). The whole protocol directory tree loads before resolution.
+
+**Value shape (Rev 6):** the grammar's `CompoundIdent` rule (digit-leading, `660_808nm`) and the
+hyphen tail of its bare-identifier rule (`wind-down`) were removed. A bare identifier is
+`[A-Za-z_][A-Za-z0-9_]*`; anything else is a quoted string, so every value maps onto a JSON
+scalar. `npps/fixtures/error_bare_compound_ident.npps`, `error_bare_hyphenated_ident.npps` and
+`error_bare_montage.npps` assert the unquoted forms are rejected.
 
 **Forward compatibility:** unknown `meta_field` keys (and unknown fields in limits/zone/condition sub-blocks) are silently skipped. `limits` blocks accept an optional name string for existing files that omit it. Legacy `zones` forms (`all`/`front`/`rear`/`custom` + `custom_zones`, and numeric `zones: [0,1]`) continue to parse.
 
@@ -1166,6 +1200,8 @@ Reading the table:
   suffixes (`Hz`, `mA`, `mW_cm2`).
 - Sort order is case-insensitive, so `%` and digit-leading tokens come first and `iTBS` sorts
   with the `i`s.
+- **Quoted entries are written with their quotes** (`"10-20"`, `"660_808nm"`): those values must
+  be quoted in source (§2). Sorting ignores the quote mark.
 - **Legacy aliases are listed as their own rows**, marked *(legacy alias)*, and the canonical
   row names them. They are accepted on input by both parsers but never written: serializers
   emit the canonical spelling, and if both appear in one block the canonical one wins.
@@ -1180,10 +1216,10 @@ Reading the table:
 | Keyword | Kind | Where it appears | Meaning |
 |---------|------|------------------|---------|
 | `%` | Unit suffix | any number | Percentage (0–100). Cosmetic — the parser reads the bare number. |
-| `10-20` | Enum value | `qeeg_21ch` → `montage` | The international 10-20 electrode montage — the only montage the 21-channel cap supports. |
-| `1064nm` | Enum value | `pbm_transcranial` → `wavelength` | Drive the 1064 nm channel only (smart zone module, CH_C). |
-| `660_808_1064nm` | Enum value | `pbm_transcranial` → `wavelength` | Drive all three PBM channels; requires 1064 nm smart zone modules. |
-| `660_808nm` | Enum value | `pbm_transcranial` → `wavelength` | Drive the 660 nm and 808–830 nm channels (base module, CH_A + CH_B). |
+| `"10-20"` | Enum value (quoted) | `qeeg_21ch` → `montage` | The international 10-20 electrode montage — the only montage the 21-channel cap supports. **Must be quoted** (§2): it starts with a digit and contains a hyphen, so unquoted it parses in no parser. |
+| `"1064nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive the 1064 nm channel only (smart zone module, CH_C). **Must be quoted** (§2) — digit-leading. |
+| `"660_808_1064nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive all three PBM channels; requires 1064 nm smart zone modules. **Must be quoted** (§2) — digit-leading. |
+| `"660_808nm"` | Enum value (quoted) | `pbm_transcranial` → `wavelength` | Drive the 660 nm and 808–830 nm channels (base module, CH_A + CH_B). **Must be quoted** (§2) — digit-leading. |
 | `ACC` | Enum value | `tms` / `hd_tdcs` → `target` | Anterior cingulate cortex. A **deep** target — never focally reachable by a 4×1 ring (NP-FW-HD-001 §2.3). |
 | `all` | Enum value | `pbm_transcranial` → `zones`; `eeg_neurofeedback` → `channels` | Every module in the map (`zones`), or every electrode in the array (`channels`). |
 | `allowed_bands` | Limits field | `limits` → `eeg_neurofeedback` | Array of the only EEG band names a protocol may select. |

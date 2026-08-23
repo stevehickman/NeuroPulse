@@ -216,22 +216,21 @@ export function tokenize(text: string): Token[] {
         else if (text.slice(pos, pos + 2) === 'Hz') { unit = 'Hz'; pos += 2; }
         else if (text.slice(pos, pos + 2) === 'mA') { unit = 'mA'; pos += 2; }
       }
-      // If no unit suffix was consumed and the next char would start an identifier
-      // (e.g. 660_808nm, 1064nm), extend into a full IDENT token rather than NUMBER.
-      // Entry condition excludes bare '_' to avoid accepting malformed tokens like
-      // "660_" or "660__nm" as valid identifiers.
-      if (!unit && pos < text.length &&
-          ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') || text[pos] === '_')) {
-        let ident = numStr;
-        while (pos < text.length &&
-               ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') ||
-                (text[pos] >= '0' && text[pos] <= '9') || text[pos] === '_')) {
-          ident += text[pos++];
-        }
-        // Strip any trailing underscores — they are not valid in wavelength identifiers.
-        while (ident.endsWith('_')) ident = ident.slice(0, -1);
-        tokens.push({ type: 'IDENT', value: ident, line });
-        continue;
+      // A digit-leading token that is not a number with a unit suffix is not a
+      // value. Digit-leading compound identifiers (660_808nm, 1064nm) and
+      // digit-leading hyphenated ones (10-20) used to be lexed here as IDENT;
+      // both must now be quoted, which is what makes them ordinary JSON strings
+      // (NP-NPPS-REF-001 §2, Rev 6). Reject with a message that says so rather
+      // than emitting a NUMBER and failing further along with 'expected field
+      // name, got NUMBER (-20)'.
+      if (!unit && pos < text.length && /[a-zA-Z_-]/.test(text[pos])) {
+        let rest = numStr;
+        while (pos < text.length && /[a-zA-Z0-9_-]/.test(text[pos])) rest += text[pos++];
+        throw new NPPSParseError(
+          `Unquoted value '${rest}' — values that start with a digit and are not ` +
+          `a plain number must be quoted, e.g. "${rest}"`,
+          line,
+        );
       }
       const tok: Token = { type: 'NUMBER', value: parseFloat(numStr), line };
       if (unit) tok.unit = unit;
@@ -242,8 +241,11 @@ export function tokenize(text: string): Token[] {
     // Identifiers and keywords
     if ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') || text[pos] === '_') {
       let ident = '';
-      while (pos < text.length && ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') || (text[pos] >= '0' && text[pos] <= '9') || text[pos] === '_'
-          || (text[pos] === '-' && pos + 1 < text.length && ((text[pos + 1] >= 'a' && text[pos + 1] <= 'z') || (text[pos + 1] >= 'A' && text[pos + 1] <= 'Z'))))) {
+      // No hyphens: a bare identifier is [A-Za-z_][A-Za-z0-9_]*, the same shape
+      // an unquoted key may take. Hyphenated values (wind-down, all-modalities)
+      // must be quoted — see the digit-leading case above and §2 of the
+      // reference. This keeps every value a plain ident, number, bool or string.
+      while (pos < text.length && /[a-zA-Z0-9_]/.test(text[pos])) {
         ident += text[pos++];
       }
       if (ident === 'true') {

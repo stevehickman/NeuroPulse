@@ -155,20 +155,20 @@ struct NPPSLexer {
         }
         if !unitStr.isEmpty && Self.units.contains(unitStr) {
             return .numberWithUnit(value, unitStr)
+        } else if !unitStr.isEmpty {
+            // A digit-leading token that is not a number with a known unit is not
+            // a value. This used to lex "660_808nm" as an ident when the next
+            // char was '_' — which meant "1064nm" (no underscore) fell through
+            // and silently split into the number 1064 plus a stray ident, and
+            // hyphenated values like "wind-down" and "10-20" never lexed at all.
+            // All such values are now quoted, which makes them ordinary JSON
+            // strings (NP-NPPS-REF-001 §2, Rev 6).
+            throw NPPSError(
+                message: "Unquoted value '\(numStr)\(unitStr)' — values that start with a digit "
+                       + "and are not a plain number must be quoted, e.g. \"\(numStr)\(unitStr)\"",
+                line: tokenLine)
         } else {
-            // Backtrack: unit chars might be an identifier
             pos = unitStart
-            // Handle compound names that start with digits and continue with '_',
-            // e.g. wavelength values like "660_808nm" or "660_808_1064nm".
-            if pos < source.count && source[pos] == "_" {
-                var compound = numStr
-                while pos < source.count &&
-                      (source[pos].isLetter || source[pos].isNumber || source[pos] == "_") {
-                    compound.append(source[pos])
-                    pos += 1
-                }
-                return .ident(compound)
-            }
             return .number(value)
         }
     }
@@ -1363,7 +1363,7 @@ struct NPPSSerializer {
             case .clinicianSelected:
                 lines.append("zones: clinician_selected")
             }
-            lines.append("wavelength: \(p.wavelength.rawValue)")
+            lines.append("wavelength: \"\(p.wavelength.rawValue)\"")
             return lines
 
         case .pbmIntranasal(let p):
@@ -1540,7 +1540,11 @@ struct NPPSSerializer {
     // Quote it otherwise (e.g. "wind-down") so that a serialize→reparse round-trip
     // preserves the original string without silent splitting on hyphens.
     private func serializeTag(_ tag: String) -> String {
-        let isBareIdent = !tag.isEmpty && tag.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }
+        // A bare identifier may not start with a digit: a tag like "1064nm" is
+        // all letters and digits but must still be quoted to re-parse (Rev 6).
+        let isBareIdent = !tag.isEmpty
+            && (tag.first!.isLetter || tag.first! == "_")
+            && tag.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }
         return isBareIdent ? tag : "\"\(tag.replacingOccurrences(of: "\"", with: "\\\""))\""
     }
 }

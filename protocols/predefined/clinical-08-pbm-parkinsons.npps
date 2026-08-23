@@ -17,6 +17,6 @@ protocol "PBM — Parkinson's (transcranial)" {
         # whole vault. Whole-head irradiation would over-deliver well beyond
         # the evidence.
         zones: ["Motor / SMA"]
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 }

@@ -67,7 +67,7 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
       } else {
         lines.push(`zones: ${p.zones}`);
       }
-      lines.push(`wavelength: ${p.wavelength}`);
+      lines.push(`wavelength: ${str(p.wavelength)}`);
       return lines;
     }
     case 'pbm_intranasal': {

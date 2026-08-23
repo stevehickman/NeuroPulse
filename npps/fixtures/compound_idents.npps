@@ -1,6 +1,6 @@
 protocol "Compound Wavelengths" {
     id: "00000000-0000-0000-0000-000000000003"
-    description: "Tests compound wavelength identifiers"
+    description: "Tests quoted compound wavelength values"
     author: "test"
     version: "1.0"
     tags: []
@@ -11,6 +11,6 @@ protocol "Compound Wavelengths" {
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: 660_808_1064nm
+        wavelength: "660_808_1064nm"
     }
 }

@@ -26,6 +26,6 @@ protocol "PBM — Cognitive Enhancement 1064nm" {
         # entire evidence base is right-lateralized. Narrowed per PR #210's ruling
         # (dis-inclusion = author a narrower zone). See docs/np_opt_psf_001.md §4.
         zones: ["Frontal Right (excl. midline)"]
-        wavelength: 1064nm
+        wavelength: "1064nm"
     }
 }

@@ -1,0 +1,6 @@
+# Rev 4 removed the hyphen tail from bare identifiers: a hyphenated value must
+# be quoted ("wind-down"). Parsing this file MUST fail.
+protocol "Bare Hyphenated Tag" {
+    tags: [wind-down]
+    duration: 10m
+}

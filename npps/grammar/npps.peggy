@@ -1,5 +1,5 @@
 // NPPS PEG Grammar — NeurOne Protocol Script
-// NP-NPPS-GRAM-001 Rev 3
+// NP-NPPS-GRAM-001 Rev 4
 // Single source of truth for NPPS syntax.
 // Generate parser: bunx peggy npps.peggy --format es
 //
@@ -14,6 +14,14 @@
 // `conditions` / `references` fields. All loaded files share ONE namespace
 // (see NP-NPPS-REF-001 §1.6): a zone or condition defined in any file under the
 // protocol directory tree is referenceable by name from any other file.
+//
+// Rev 4 (2026-08-23): values are now JSON-shaped. A bare value may only be a
+// plain identifier [A-Za-z_][A-Za-z0-9_]*, a number (unit suffixes kept) or a
+// boolean; anything else is a quoted string. Removed CompoundIdent
+// (digit-leading: 660_808nm, 1064nm) and the hyphen tail of the bare-identifier
+// rule (wind-down). This is also what makes montage: "10-20" parse — unquoted it
+// matched neither rule and was a hard error. Shipped library migrated; the old
+// readers are dropped, not kept as a fallback. See NP-NPPS-REF-001 Rev 6 §2.
 //
 // Rev 3 (2026-08-23): removed two modality types that no other component ever
 // recognised — `hrv_biofeedback` and `pbm_1064nm`. Neither appears in
@@ -211,7 +219,6 @@ Value "value"
   / NumberWithUnit
   / StringLiteral
   / ArrayLiteral
-  / CompoundIdent
   / BareIdent
 
 BooleanLiteral
@@ -240,28 +247,19 @@ UnitSuffix "unit suffix"
   / "s"  !IdentContinue { return 's'; }
   / "m"  !IdentContinue { return 'm'; }
 
-// Compound identifier: starts with digits, continues with _ or letter.
-// Examples: 660_808nm, 660_808_1064nm, 40Hz_mode
-CompoundIdent
-  = head:Digits tail:CompoundIdentTail+
-    { return { ident: head + tail.join('') }; }
-
-CompoundIdentTail
-  = "_" chars:IdentChars { return '_' + chars; }
-  / chars:$([a-zA-Z] IdentChars?) { return chars; }
-
-IdentChars
-  = $([a-zA-Z0-9_]+)
-
-// Bare identifier — a plain word, possibly with hyphens (for tags like "wind-down").
+// Bare identifier — a plain word: [A-Za-z_][A-Za-z0-9_]*, the same shape a key
+// takes. Rev 4 removed the two rules that admitted awkward bare values, so that
+// every value is a plain ident, a number, a bool or a quoted string — each of
+// which maps onto a JSON scalar:
+//   - CompoundIdent, digit-leading (660_808nm, 1064nm, 660_808_1064nm)
+//   - the hyphen tail of HyphenatedIdent (wind-down, all-modalities)
+// Both must now be quoted. Quoting also gives `10-20` — the only montage value
+// NP-NPPS-REF-001 §4.9 documents — a spelling that parses at all: it matched
+// neither rule, so `montage: 10-20` was a hard parse error everywhere.
 BareIdent
-  = id:HyphenatedIdent { return { ident: id }; }
+  = id:IdentStart { return { ident: id }; }
 
-HyphenatedIdent "identifier"
-  = head:IdentStart tail:$(("-" IdentStart)*)
-    { return head + tail; }
-
-IdentStart
+IdentStart "identifier"
   = $([a-zA-Z_] [a-zA-Z0-9_]*)
 
 StringLiteral "string"

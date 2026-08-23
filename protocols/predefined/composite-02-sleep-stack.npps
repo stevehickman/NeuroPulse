@@ -4,7 +4,7 @@ composite "Sleep Optimisation Stack" {
     author: "NeurOne"
     version: "1.0"
     readonly: true
-    tags: [sleep, evening, wind-down, delta, alpha, stack]
+    tags: [sleep, evening, "wind-down", delta, alpha, stack]
     conflict_resolution: sequential
 
     layer "Alpha Calm" {

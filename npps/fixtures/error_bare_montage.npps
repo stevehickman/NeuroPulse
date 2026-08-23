@@ -1,0 +1,10 @@
+# `montage: 10-20` matched no lexer rule and was a hard parse error in every
+# parser, even though §4.9 documented it as the only montage value. The value is
+# now written "10-20". Parsing this file MUST fail.
+protocol "Bare Montage" {
+    duration: 10m
+
+    qeeg_21ch {
+        montage: 10-20
+    }
+}

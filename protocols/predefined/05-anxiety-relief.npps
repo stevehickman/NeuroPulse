@@ -21,7 +21,7 @@ protocol "Anxiety Relief" {
         frequency: 10Hz
         duty_cycle: 25%
         zones: ["Frontal"]
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 
     audio_entrainment {

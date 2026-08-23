@@ -20,7 +20,7 @@ protocol "Gamma Focus" {
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: 660_808nm
+        wavelength: \"660_808nm\"
     }
 
     audio_entrainment {
@@ -63,7 +63,7 @@ protocol "All T1 Modalities" {
         frequency: 20Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: 660_808nm
+        wavelength: \"660_808nm\"
     }
 
     pbm_intranasal {
@@ -392,7 +392,7 @@ describe('serializer', () => {
     expect(out).toContain('frequency: 40Hz');
     expect(out).toContain('duty_cycle: 25%');
     expect(out).toContain('zones: ["All"]');
-    expect(out).toContain('wavelength: 660_808nm');
+    expect(out).toContain('wavelength: \"660_808nm\"');
   });
 
   it('serializes interval fields inside modality block', () => {
@@ -678,5 +678,70 @@ describe('legacy iOS field-name aliases', () => {
     expect(out).not.toMatch(/^\s*sloreta:/m);
     expect(out).not.toMatch(/^\s*sync_audio:/m);
     expect(out).not.toMatch(/^\s*sync_visual:/m);
+  });
+});
+
+// Rev 6: every value is now a plain identifier, a number, a boolean or a quoted
+// string — each of which maps onto a JSON scalar. The two lexer rules that
+// admitted awkward bare values are gone, which is also what finally gives
+// `montage: 10-20` a spelling that parses.
+describe('quoted awkward values (JSON-leaning cleanup)', () => {
+  const proto = (body: string) => `protocol "T" {\n    duration: 5m\n${body}\n}\n`;
+
+  const modalityOf = (src: string, type: string) => {
+    const [entry] = parseNPPS(src);
+    return (entry as { kind: 'single'; protocol: NPProtocolDefinition })
+      .protocol.modalities.find(m => m.modalityParams.type === type)!;
+  };
+
+  it('parses the montage value that previously parsed nowhere', () => {
+    const m = modalityOf(proto(`    qeeg_21ch {\n        montage: "10-20"\n    }`), 'qeeg_21ch');
+    expect((m.modalityParams.params as { montage: string }).montage).toBe('10-20');
+  });
+
+  it('parses quoted compound wavelengths', () => {
+    for (const wl of ['660_808nm', '1064nm', '660_808_1064nm']) {
+      const m = modalityOf(proto(`    pbm_transcranial {\n        wavelength: "${wl}"\n    }`), 'pbm_transcranial');
+      expect((m.modalityParams.params as { wavelength: string }).wavelength).toBe(wl);
+    }
+  });
+
+  it('parses quoted hyphenated tags', () => {
+    const [entry] = parseNPPS(`protocol "T" {\n    tags: ["wind-down", "all-modalities", plain]\n    duration: 5m\n}\n`);
+    const p = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
+    expect(p.tags).toEqual(['wind-down', 'all-modalities', 'plain']);
+  });
+
+  it.each([
+    ['montage: 10-20', '    qeeg_21ch {\n        montage: 10-20\n    }'],
+    ['wavelength: 660_808nm', '    pbm_transcranial {\n        wavelength: 660_808nm\n    }'],
+    ['wavelength: 1064nm', '    pbm_transcranial {\n        wavelength: 1064nm\n    }'],
+  ])('rejects the unquoted form %s with a message naming the fix', (_label, body) => {
+    expect(() => parseNPPS(proto(body))).toThrow(NPPSParseError);
+    expect(() => parseNPPS(proto(body))).toThrow(/must be quoted/);
+  });
+
+  it('rejects an unquoted hyphenated tag', () => {
+    expect(() => parseNPPS(`protocol "T" {\n    tags: [wind-down]\n    duration: 5m\n}\n`)).toThrow(NPPSParseError);
+  });
+
+  it('still lexes numbers with unit suffixes, which are unaffected', () => {
+    const [entry] = parseNPPS(
+      proto(`    bes_tacs {\n        frequency: 40Hz\n        intensity: 0.8mA\n        interval_on: 30s\n    }`),
+    );
+    const p = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
+    expect(p.timingMode).toMatchObject({ type: 'duration', seconds: 300 });
+    const m = p.modalities.find(x => x.modalityParams.type === 'bes_tacs')!;
+    expect((m.modalityParams.params as { frequencyHz: number }).frequencyHz).toBe(40);
+    expect(m.interval.intervalOnSeconds).toBe(30);
+  });
+
+  it('serializes quoted forms so they round-trip', () => {
+    const src = proto(`    pbm_transcranial {\n        zones: ["Frontal Left"]\n        wavelength: "660_808nm"\n    }`);
+    const [entry] = parseNPPS(src);
+    const out = serializeProtocol(entry);
+    expect(out).toContain('wavelength: "660_808nm"');
+    const m = modalityOf(out, 'pbm_transcranial');
+    expect((m.modalityParams.params as { wavelength: string }).wavelength).toBe('660_808nm');
   });
 });

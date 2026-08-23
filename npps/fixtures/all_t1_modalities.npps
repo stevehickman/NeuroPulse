@@ -11,7 +11,7 @@ protocol "All T1 Modalities" {
         frequency: 20Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 
     pbm_intranasal {
