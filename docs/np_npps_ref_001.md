@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 2
-**Date:** 2026-07-17  
+**Revision:** 3
+**Date:** 2026-08-23  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 3 (2026-08-23) — new §12 Keyword dictionary. No language change.** One alphabetical table documenting every keyword the language recognises — not just the metadata fields: the five top-level block keywords, `layer`, the fifteen modality block keywords, all field names (metadata, modality parameter, interval, layer, limits, zone, condition), every enumerated value (bands, waveforms, HRV and TMS protocols, visual modes, montages, references, targets, conflict-resolution and limits levels, `until_end`, the thirteen element types, the three `wavelength` values), the boolean literals and the unit suffixes. Placed immediately after the grammar summary so the grammar's production names and the dictionary's entries read together; the alias/canonical pairs from §4 appear as separate rows because both spellings are accepted in source. Nothing in §§1–11 was edited and no grammar, parser or predefined file was touched. The old §12 (*Predefined protocol coverage*) is renumbered **§13**.
+>
 > **Rev B (2026-07-17) — module-set zones, conditions, references, one namespace.** With the hexagonal module redesign (NP-HEX-ZM-001) a *zone* is no longer a fixed hardware index — it is a **named set of modules**, and nothing more. Several predefined sets happen to correspond to anatomical lobes, but that is a property of how their author chose the membership, not a concept any code models: the firmware lobe/hemisphere assignment, the eight-entry predefined-lobe-group table and the `NP_GROUP_KIND_LOBE` query were all retired outright (OI-HUB-C14 — see the header of `firmware/hub_control/include/np_module_map.h`). Rev 2 adds top-level `zone` blocks (**14** predefined zones in `00-zones.npps` + user-defined), top-level `condition` blocks (condition name → external definition link), protocol `conditions` and `references` fields, and the single-namespace / whole-directory loading model (§1.6). Legacy `zones: all|front|rear` and `zones: [0,1]` numeric forms still parse.
 
 **NeurOne Protocol Script (NPPS)** is the text format used to define, share, and store NeurOne session protocols. Files use the `.npps` extension.
@@ -48,7 +50,8 @@
 9. [Condition block](#9-condition-block)
 10. [Multi-block files](#10-multi-block-files)
 11. [Grammar summary](#11-grammar-summary)
-12. [Predefined protocol coverage (source-doc map)](#12-predefined-protocol-coverage-source-doc-map)
+12. [Keyword dictionary](#12-keyword-dictionary)
+13. [Predefined protocol coverage (source-doc map)](#13-predefined-protocol-coverage-source-doc-map)
 
 ---
 
@@ -1118,9 +1121,236 @@ LEVEL_ID    := 'global' | 'helmet' | 'individual'
 
 **Forward compatibility:** unknown `meta_field` keys (and unknown fields in limits/zone/condition sub-blocks) are silently skipped. `limits` blocks accept an optional name string for existing files that omit it. Legacy `zones` forms (`all`/`front`/`rear`/`custom` + `custom_zones`, and numeric `zones: [0,1]`) continue to parse.
 
+
 ---
 
-## 12. Predefined protocol coverage (source-doc map)
+## 12. Keyword dictionary
+
+Every keyword the language recognises, in one alphabetical list — not just the metadata
+fields. This covers **block keywords** (`protocol`, `zone`, the fifteen modality types, …),
+**field names** (metadata, modality parameters, interval, layer, limits, zone and condition
+fields), **enumerated values** (`sinusoidal`, `mode_f`, `until_end`, `DLPFC_L`, the element
+types, …), the **boolean literals**, and the **unit suffixes**.
+
+Reading the table:
+
+- **Kind** says what role the keyword plays in the grammar (§11). *Modality field (alias)* and
+  *Modality field (canonical)* are listed as separate entries because both spellings are
+  accepted in source and the pair is what §4's alias table maps between.
+- **Where it appears** names the block or field the keyword is legal in. `A → B` means "field
+  `B` inside block `A`".
+- Some keywords are **overloaded** and carry one row covering both senses: `all`, `front` and
+  `rear` mean one thing under `pbm_transcranial`'s `zones` and another under
+  `eeg_neurofeedback`'s `channels`; `duration` is both a protocol metadata field and a layer
+  field; `description` and `id` appear in five and four block types respectively.
+- Keywords are **case-sensitive** (§1). Most are lowercase; the exceptions are the TMS protocol
+  values (`rTMS`, `TBS`, `iTBS`), the target names (`DLPFC_L`, `ACC`, `M1_R`, …) and the unit
+  suffixes (`Hz`, `mA`, `mW_cm2`).
+- Sort order is case-insensitive, so `%` and digit-leading tokens come first and `iTBS` sorts
+  with the `i`s.
+- **`name` is deliberately absent.** A `protocol`, `composite`, `limits`, `zone`, `condition` or
+  `layer` name is declared *inline in the block header*, never as a `name:` field — §2's
+  `name: "Gamma Focus"` is a generic illustration of string syntax, and §6's "same as protocol
+  metadata (`id`, `name`, …)" means the header name, not a field key.
+- Anything **not** in this table is not a keyword: names, descriptions, tags and electrode
+  labels are opaque strings the parser does not interpret, and unknown field keys are silently
+  skipped for forward compatibility (§11).
+
+| Keyword | Kind | Where it appears | Meaning |
+|---------|------|------------------|---------|
+| `%` | Unit suffix | any number | Percentage (0–100). Cosmetic — the parser reads the bare number. |
+| `10-20` | Enum value | `qeeg_21ch` → `montage` | The international 10-20 electrode montage — the only montage the 21-channel cap supports. |
+| `1064nm` | Enum value | `pbm_transcranial` → `wavelength` | Drive the 1064 nm channel only (smart zone module, CH_C). |
+| `660_808_1064nm` | Enum value | `pbm_transcranial` → `wavelength` | Drive all three PBM channels; requires 1064 nm smart zone modules. |
+| `660_808nm` | Enum value | `pbm_transcranial` → `wavelength` | Drive the 660 nm and 808–830 nm channels (base module, CH_A + CH_B). |
+| `ACC` | Enum value | `tms` / `hd_tdcs` → `target` | Anterior cingulate cortex. A **deep** target — never focally reachable by a 4×1 ring (NP-FW-HD-001 §2.3). |
+| `all` | Enum value | `pbm_transcranial` → `zones`; `eeg_neurofeedback` → `channels` | Every module in the map (`zones`), or every electrode in the array (`channels`). |
+| `allowed_bands` | Limits field | `limits` → `eeg_neurofeedback` | Array of the only EEG band names a protocol may select. |
+| `allowed_modes` | Limits field | `limits` → `visual_stimulation` | Array of the only visual stimulation modes a protocol may select. |
+| `allowed_montages` | Limits field | `limits` → `hd_tdcs` | Array of the only HD-tDCS montages a protocol may select. |
+| `allowed_protocols` | Limits field | `limits` → `vns_hrv`, `tms` | Array of the only `hrv_protocol` / `tms_protocol` values a protocol may select. |
+| `allowed_targets` | Limits field | `limits` → `tms` | Array of the only coil targets a protocol may select. |
+| `alpha` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Alpha band (~8–12 Hz). |
+| `alpha_theta` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Combined alpha/theta training band. |
+| `audio_entrainment` | Modality block | `protocol`, `limits` | Neural audio entrainment — over-ear planar magnetic drivers plus mastoid bone conduction (§4.7). |
+| `author` | Metadata field | `protocol`, `composite` | Creator name. Default `"NeurOne"`. |
+| `average` | Enum value | `qeeg_21ch` → `reference` | Common average reference across all 21 channels. |
+| `band` | Modality field | `eeg_neurofeedback` | EEG band the neurofeedback loop trains on. |
+| `bes_tacs` | Modality block | `protocol`, `limits` | Brainwave Entrainment Stimulation / transcranial alternating current stimulation, ≤1 mA on T1 (§4.4). |
+| `beta` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Beta band (~13–30 Hz). |
+| `bilateral_4x1` | Enum value | `hd_tdcs` → `montage` | Two 4×1 rings, one per hemisphere. |
+| `binaural_beats_hz` | Modality field (canonical) | `audio_entrainment` | Canonical name behind `binaural_hz`. |
+| `binaural_hz` | Modality field (alias) | `audio_entrainment` | Alias of `binaural_beats_hz` — binaural beat frequency in Hz. Optional. |
+| `binocular` | Enum value | `visual_stimulation` → `mode`; `limits` → `allowed_modes` | Both lenses driven in phase (standard photic driving). |
+| `block_high_risk_range` | Limits field | `limits` → `visual_stimulation` | Bool. `true` blocks the 3–30 Hz photoparoxysmal range outright. |
+| `bone_conduction_pacer` | Modality field | `audio_entrainment` | Bool. Deliver the HRV breathing-pacer cue through the bone conduction element. |
+| `breathing_rate` | Modality field (alias) | `vns_hrv` | Alias of `resonance_breathing_rate` — pacer rate in breaths/min, 4.0–7.0. |
+| `brown` | Enum value | `audio_entrainment` → `noise` | Brown (red) noise bed. |
+| `carrier_hz` | Modality field | `audio_entrainment` | Carrier tone frequency in Hz that the binaural beat is constructed on. |
+| `central` | Enum value | `eeg_neurofeedback` → `channels` | The central electrode group (C3/C4). |
+| `cervical_vns` | Modality block | `protocol`, `limits` | T2 accessory — cervical vagus trunk stimulation via neck gel electrodes (§4.14). |
+| `channel_count` | Modality field | `clinical_tacs` | Number of independent tACS channels used, 1–16. |
+| `channels` | Modality field | `eeg_neurofeedback` | Which electrode group the neurofeedback loop reads. |
+| `clinical_tacs` | Modality block | `protocol`, `limits` | T2 clinical tACS — up to 16 independent arbitrary-waveform channels, ≤4 mA (§4.12). |
+| `closed_loop` | Modality field (alias) | `eeg_neurofeedback` | Alias of `closed_loop_enabled` — run the EEG-adaptive control loop. |
+| `closed_loop_enabled` | Modality field (canonical) | `eeg_neurofeedback` | Canonical name behind `closed_loop`. |
+| `code` | Condition field | `condition` | Optional standard code for the condition (ICD-11 MMS / SNOMED / MeSH). |
+| `composite` | Top-level block | file | Layers several named protocols on one shared timeline (§6). Name declared inline in the header. |
+| `condition` | Top-level block | file | Pairs a standard medical condition name with a link to an external definition (§9). Populates the namespace; referenced by a protocol's `conditions`. |
+| `conditions` | Metadata field | `protocol`, `composite` | String array of clinical conditions this protocol targets. Each entry MUST resolve to a loaded `condition` block name (§1.6). |
+| `conflict_resolution` | Metadata field | `composite` | How overlapping layers combine: `merge`, `sequential` or `override`. |
+| `custom` | Enum value | `pbm_transcranial` → `zones` | Legacy: take zone membership from the `custom_zones` index array instead. |
+| `custom_channels` | Modality field | `eeg_neurofeedback` | String array of explicit 10-20 electrode labels, e.g. `["Cz", "Pz"]`. |
+| `custom_zones` | Modality field | `pbm_transcranial` | Legacy int array of zone indices, used with `zones: custom`. Superseded by named zone references (§8). |
+| `cz` | Enum value | `qeeg_21ch` → `reference` | Reference all channels to the Cz electrode. |
+| `delta` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Delta band (~0.5–4 Hz). |
+| `description` | Metadata field | `protocol`, `composite`, `limits`, `zone`, `condition` | Human-readable description or label. Never interpreted by the parser. |
+| `DLPFC_L` | Enum value | `tms` / `hd_tdcs` → `target` | Left dorsolateral prefrontal cortex. Surface-class target. |
+| `DLPFC_R` | Enum value | `tms` / `hd_tdcs` → `target` | Right dorsolateral prefrontal cortex. Surface-class target. |
+| `dual_electrode` | Element type | `zone` → `types` | Ag/AgCl contact dual-rated for both EEG recording and stimulation current. |
+| `duration` | Metadata / layer field | `protocol`, `composite`, `layer` | Fixed session length (protocol) or clip length (layer). A duration value — `m` suffix converts to seconds. Omit on a layer to run the referenced protocol to its natural end. |
+| `duty_cycle` | Modality field (alias) | `pbm_transcranial`, `pbm_intranasal`, `pbm_deep_1170nm` | Alias of `duty_cycle_percent` — pulsed duty cycle, 1–25 % (firmware max). |
+| `duty_cycle_percent` | Modality field (canonical) | PBM modalities | Canonical name behind `duty_cycle`. |
+| `eeg_adaptive` | Modality field | `audio_entrainment` | Bool. Adjust entrainment frequency in real time from live EEG. |
+| `eeg_biofeedback` | Enum value | `vns_hrv` → `hrv_protocol` | Dual HRV + EEG biofeedback; pacer rate adapts to alpha/theta. |
+| `eeg_electrode` | Element type | `zone` → `types` | Semi-dry hydrogel EEG electrode element. |
+| `eeg_neurofeedback` | Modality block | `protocol`, `limits` | Closed-loop neurofeedback via the EEG electrode array (§4.3). |
+| `electrode_pairs` | Modality field | `tdcs` | Array of `[anode, cathode]` 10-20 label pairs. ≤3 pairs. |
+| `emdr` | Enum value | `visual_stimulation` → `mode`; `limits` → `allowed_modes` | Bilateral left/right alternation. |
+| `emdr_cadence` | Modality field (alias) | `visual_stimulation` | Alias of `emdr_cadence_hz` — left/right alternation rate in Hz. |
+| `emdr_cadence_hz` | Modality field (canonical) | `visual_stimulation` | Canonical name behind `emdr_cadence`. |
+| `enable_mode_f` | Modality field | `visual_stimulation` | Bool. Enable Mode F — invisible 808–830 nm retinal PBM with no visible flicker. |
+| `end` | Layer field | `layer` | Alternative to `duration`; the layer's clip length is computed as `end - start`. |
+| `exclude_types` | Zone field | `zone` | Bool. `false` (default) includes only the listed `types`; `true` excludes them. |
+| `false` | Boolean literal | any bool field | Boolean false. |
+| `frequency` | Modality field (alias) | most modalities | Alias of `frequency_hz`. On PBM modalities `0` (or `0Hz`) selects continuous-wave. |
+| `frequency_hz` | Modality field (canonical) | most modalities | Canonical name behind `frequency`. |
+| `front` | Enum value | `pbm_transcranial` → `zones`; `eeg_neurofeedback` → `channels` | Legacy fixed frontal region (`zones`) or the frontal electrode group (`channels`). |
+| `gamma` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Gamma band (~30–100 Hz). |
+| `gamma_theta` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Coupled gamma/theta training band. |
+| `global` | Enum value | `limits` → `level` | Fleet-wide default limits — the base of the global → helmet → individual hierarchy. |
+| `hall` | Element type | `zone` → `types` | Hall-effect sensor element (goggle-lift detection). |
+| `hd_tdcs` | Modality block | `protocol`, `limits` | T2 sLORETA-guided high-definition tDCS, 4×1 ring montage (§4.13). |
+| `helmet` | Enum value | `limits` → `level` | Per-device limits; overrides `global` field by field. Requires `helmet_id`. |
+| `helmet_id` | Limits field | `limits` | Device serial the limits block applies to, when `level: helmet`. |
+| `hrv_protocol` | Modality field | `vns_hrv` | Which of the four HRV biofeedback modes to run. |
+| `Hz` | Unit suffix | any number | Frequency in hertz. Cosmetic — the parser reads the bare number. |
+| `id` | Metadata field | `protocol`, `composite`, `zone`, `condition` | Stable UUID. Its **presence marks the entry as predefined** (shipped, read-only). |
+| `individual` | Enum value | `limits` → `level` | Per-user limits; the most specific level, overrides `helmet`. Requires `individual_id`. |
+| `individual_id` | Limits field | `limits` | User ID the limits block applies to, when `level: individual`. |
+| `intensity` | Modality field (alias) | most modalities | **Context-dependent alias.** Maps to `intensity_percent` for optical modalities and `intensity_milliamps` for electrical ones (§4, Field aliases). Not available on `pbm_deep_1170nm` or `vibrotactile_40hz`. |
+| `intensity_g` | Modality field | `vibrotactile_40hz` | Drive amplitude in G (acceleration), 0.6–1.2. Use directly — `intensity` does not alias to it. |
+| `intensity_milliamps` | Modality field (canonical) | electrical modalities | Canonical name `intensity` resolves to for `bes_tacs`, `tdcs`, `vns_hrv`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `tms`. |
+| `intensity_mw_cm2` | Modality field | `pbm_deep_1170nm` | Irradiance in mW/cm², ≤1000. Use directly — `intensity` does not alias to it. |
+| `intensity_percent` | Modality field (canonical) | optical modalities | Canonical name `intensity` resolves to for `pbm_transcranial`, `pbm_intranasal`, `visual_stimulation`. |
+| `intensity_percent_mt` | Modality field | `tms` | Stimulator output as % of motor threshold, 80–120 typical. |
+| `intensity_scale` | Layer field | `layer` | Multiplier applied to every modality intensity in the referenced protocol, 0.0–2.0. Default `1.0`. |
+| `interval_count` | Metadata field | `protocol` | Alternative to `duration`: run for N modality intervals instead of a fixed wall time. |
+| `interval_off` | Interval field | any modality block | Rest period of the on/off cycle. A duration; `0` means continuous (§5). |
+| `interval_on` | Interval field | any modality block | Active period of the on/off cycle. A duration; `0` means continuous (§5). |
+| `ir_prox` | Element type | `zone` → `types` | 940 nm infrared proximity sensor element (eye-open detection). |
+| `isochronic_hz` | Modality field (alias) | `audio_entrainment` | Alias of `isochronic_tones_hz` — isochronic tone rate in Hz. Optional. |
+| `isochronic_tones_hz` | Modality field (canonical) | `audio_entrainment` | Canonical name behind `isochronic_hz`. |
+| `iTBS` | Enum value | `tms` → `tms_protocol`; `limits` → `allowed_protocols` | Intermittent theta-burst stimulation. |
+| `layer` | Nested block | `composite` | One protocol placed on the composite timeline (§6). The referenced protocol name is declared inline in the header. |
+| `led_1064` | Element type | `zone` → `types` | 1064 nm LED element (smart zone module CH_C). |
+| `led_1170` | Element type | `zone` → `types` | 1170 nm laser diode element (T2 deep PBM). |
+| `led_660` | Element type | `zone` → `types` | 660–670 nm LED element (CH_A). |
+| `led_808` | Element type | `zone` → `types` | 808–830 nm LED element (CH_B). |
+| `level` | Limits field | `limits` | Which tier of the limits hierarchy this block sits in: `global`, `helmet` or `individual`. |
+| `limits` | Top-level block | file | Per-modality safety constraints (§7). Extracted separately by `parseNPPSLimits()`; the name string is optional. |
+| `link` | Condition field | `condition` | **Required.** URL to an external definition of the condition, opened in an external browser. |
+| `linked_ear` | Enum value | `qeeg_21ch` → `reference` | Linked-ear (A1/A2) normative reference — the A1/A2 contacts sit on the VNS clips. |
+| `m` | Unit suffix | any number | Minutes. On duration fields the value is converted to seconds automatically (`20m` → 1200). |
+| `M1_L` | Enum value | `tms` / `hd_tdcs` → `target` | Left primary motor cortex. Surface-class target. |
+| `M1_R` | Enum value | `tms` / `hd_tdcs` → `target` | Right primary motor cortex. Surface-class target. |
+| `mA` | Unit suffix | any number | Current in milliamps. Cosmetic — the parser reads the bare number. |
+| `max_binaural_beats` | Limits field | `limits` → `audio_entrainment` | Ceiling on `binaural_hz`, in Hz. |
+| `max_daily_dose` | Limits field | `limits` → `pbm_transcranial` | Ceiling on cumulative PBM dose per day, in J/cm². |
+| `max_duty_cycle` | Limits field | `limits` → `pbm_transcranial` | Ceiling on `duty_cycle`, in %. |
+| `max_frequency` | Limits field | `limits` → several modality sub-blocks | Ceiling on `frequency`, in Hz. |
+| `max_intensity` | Limits field | `limits` → most modality sub-blocks | Ceiling on that modality's intensity, in the modality's own unit (%, mA, mW/cm² or G). |
+| `max_intensity_pct_mt` | Limits field | `limits` → `tms` | Ceiling on `intensity_percent_mt`, in % MT. |
+| `max_isochronic_tones` | Limits field | `limits` → `audio_entrainment` | Ceiling on `isochronic_hz`, in Hz. |
+| `max_pulses_per_day` | Limits field | `limits` → `tms` | Ceiling on total TMS pulses per day. |
+| `max_pulses_per_session` | Limits field | `limits` → `tms` | Ceiling on `pulse_count` for one session. |
+| `max_session_dose` | Limits field | `limits` → `pbm_transcranial`, `pbm_intranasal` | Ceiling on PBM dose for one session, in J/cm². |
+| `max_session_duration` | Limits field | `limits` → most modality sub-blocks | Ceiling on session length for that modality, in seconds. |
+| `max_sessions_per_day` | Limits field | `limits` → `bes_tacs`, `tdcs` | Ceiling on session count per day. |
+| `max_sessions_per_week` | Limits field | `limits` → `tms` | Ceiling on session count per week. |
+| `merge` | Enum value | `composite` → `conflict_resolution` | Modalities from all active layers run simultaneously. |
+| `min_frequency` | Limits field | `limits` → `bes_tacs`, `visual_stimulation` | Floor on `frequency`, in Hz. |
+| `mode` | Modality field | `visual_stimulation` | Visual delivery mode: `binocular`, `emdr` or `mode_f`. |
+| `mode_f` | Enum value | `visual_stimulation` → `mode`; `limits` → `allowed_modes` | Invisible NIR retinal PBM during normal-looking wear — no visible flicker. |
+| `montage` | Modality field | `qeeg_21ch`, `hd_tdcs` | Electrode montage. `10-20` on `qeeg_21ch`; `ring_4x1` / `bilateral_4x1` / `standard_2_electrode` on `hd_tdcs`. |
+| `MPFC` | Enum value | `tms` / `hd_tdcs` → `target` | Medial prefrontal cortex. |
+| `mW_cm2` | Unit suffix | any number | Irradiance in mW/cm². Cosmetic — the parser reads the bare number. |
+| `noise` | Modality field (alias) | `audio_entrainment` | Alias of `noise_type` — background noise bed. Optional; `none` is equivalent to omitting it. |
+| `noise_type` | Modality field (canonical) | `audio_entrainment` | Canonical name behind `noise`. |
+| `none` | Enum value | `audio_entrainment` → `noise` | No noise bed. Same effect as omitting the field. |
+| `ntc` | Element type | `zone` → `types` | NTC thermistor element (per-zone 42 °C thermal interlock). |
+| `override` | Enum value | `composite` → `conflict_resolution` | Later (higher-`start`) layers replace earlier ones for shared modality types. |
+| `pbm_combined` | Enum value | `vns_hrv` → `hrv_protocol` | HRV coherence training run concurrently with PBM (replicates the 2025 multi-modal RCT). |
+| `pbm_deep_1170nm` | Modality block | `protocol`, `limits` | T2 only — 1170 nm laser diodes for 35–40 mm subcortical depth (§4.11). |
+| `pbm_intranasal` | Modality block | `protocol`, `limits` | Bilateral intranasal Y-probe PBM (§4.2). |
+| `pbm_transcranial` | Modality block | `protocol`, `limits` | Scalp-facing transcranial PBM across the module lattice (§4.1). |
+| `pd_back` | Element type | `zone` → `types` | Scalp-facing photodiode (PD2) — measures backscattered tissue power. |
+| `pd_forward` | Element type | `zone` → `types` | Window-side photodiode (PD1) — measures forward emission for dose metering. |
+| `pink` | Enum value | `audio_entrainment` → `noise` | Pink noise bed. |
+| `protocol` | Top-level block | file | Defines a single session (§3). The protocol name is declared inline in the header. |
+| `pulse_count` | Modality field | `tms` | Total pulses delivered in the session. |
+| `qeeg_21ch` | Modality block | `protocol`, `limits` | T2 only — 21-channel wet-gel qEEG cap with source localisation (§4.9). |
+| `ramp` | Modality field (alias) | `tdcs` | Alias of `ramp_seconds` — current ramp up/down time. Default 30 s; also hardware-enforced. |
+| `ramp_seconds` | Modality field (canonical) | `tdcs` | Canonical name behind `ramp`. |
+| `readonly` | Metadata field | `protocol`, `composite` | Bool. Prevents editing or deletion of the entry in the app. |
+| `rear` | Enum value | `pbm_transcranial` → `zones`; `eeg_neurofeedback` → `channels` | Legacy fixed posterior region (`zones`) or the posterior electrode group (`channels`). |
+| `reference` | Modality field | `qeeg_21ch` | EEG reference scheme: `linked_ear`, `cz` or `average`. |
+| `references` | Metadata field | `protocol`, `composite` | Reference array — evidence and applicability links. Each entry is a bare URL/path string or a `[label, url]` pair (§2). |
+| `repeat` | Interval field | any modality block | Interval cycle count — an integer, or `until_end` to cycle for the whole session (§5). |
+| `require_closed_loop` | Limits field | `limits` → `eeg_neurofeedback` | Bool. `true` forces `closed_loop` on for any protocol under these limits. |
+| `resonance_breathing_rate` | Modality field (canonical) | `vns_hrv` | Canonical name behind `breathing_rate`. |
+| `ring_4x1` | Enum value | `hd_tdcs` → `montage`; `limits` → `allowed_montages` | Centre anode plus four return cathodes — the most focal montage (~1.5 cm FWHM at 10 mm depth). |
+| `rTMS` | Enum value | `tms` → `tms_protocol`; `limits` → `allowed_protocols` | Conventional repetitive TMS. |
+| `s` | Unit suffix | any number | Seconds. Also the implicit unit of a bare number in a duration field. |
+| `sequential` | Enum value | `composite` → `conflict_resolution` | Layers run end-to-end; layer N starts when layer N-1 finishes. |
+| `sinusoidal` | Enum value | `bes_tacs` / `clinical_tacs` → `waveform` | Sine wave stimulation. |
+| `sloreta_enabled` | Modality field | `qeeg_21ch` | Bool. Compute the sLORETA cortical source map (also drives HD-tDCS targeting). |
+| `sockets` | Zone field | `zone` | **The defining field of a zone** — an int array of socket (major) addresses. 1-based, within the derived lattice range; non-contiguous sets are fine; duplicates collapse and the list is sorted on parse (§8). |
+| `square` | Enum value | `bes_tacs` / `clinical_tacs` → `waveform` | Square wave stimulation. |
+| `standalone` | Enum value | `vns_hrv` → `hrv_protocol` | Resonance breathing pacer only; coherence score displayed, no stimulation gating. |
+| `standard_2_electrode` | Enum value | `hd_tdcs` → `montage`; `limits` → `allowed_montages` | Conventional two-electrode montage — the T1-compatible fallback. |
+| `start` | Layer field | `layer` | Offset into the composite timeline at which the layer begins. A duration; default `0`. |
+| `sync_to_audio` | Modality field | `vibrotactile_40hz` | Bool. Start/stop the pad in lockstep with the audio channel. |
+| `sync_to_visual` | Modality field | `vibrotactile_40hz` | Bool. Start/stop the pad in lockstep with the visual channel. |
+| `tags` | Metadata field | `protocol`, `composite` | Freeform string array of category labels. Accepts unquoted identifiers. |
+| `target` | Modality field | `tms`, `hd_tdcs` | Anatomical target from the fixed device target set. Deep-class targets must never be presented as focal stimulation. |
+| `tavns_sync` | Enum value | `vns_hrv` → `hrv_protocol` | VNS pulses gated to the inspiration phase, detected from PPG R-R intervals. |
+| `TBS` | Enum value | `tms` → `tms_protocol`; `limits` → `allowed_protocols` | Continuous theta-burst stimulation. |
+| `tdcs` | Modality block | `protocol`, `limits` | Cortical Priming Stimulation / transcranial direct current stimulation, 0.1–2.0 mA (§4.5). |
+| `tes_electrode` | Element type | `zone` → `types` | Transcranial electrical stimulation electrode element (tDCS / tACS). |
+| `theta` | Enum value | `eeg_neurofeedback` → `band`; `limits` → `allowed_bands` | Theta band (~4–8 Hz). |
+| `tms` | Modality block | `protocol`, `limits` | T2 only — focal figure-8 coil, rTMS and TBS (§4.10). |
+| `tms_protocol` | Modality field | `tms` | Pulse pattern: `rTMS`, `TBS` or `iTBS`. |
+| `triangular` | Enum value | `bes_tacs` / `clinical_tacs` → `waveform` | Triangular wave stimulation. |
+| `true` | Boolean literal | any bool field | Boolean true. |
+| `types` | Zone field | `zone` | Optional element-type array restricting the zone to certain element types within the listed sockets. Mirrors firmware `np_elem_type_t`. |
+| `until_end` | Enum value | any modality block → `repeat` | Cycle the interval for the remainder of the session. |
+| `version` | Metadata field | `protocol`, `composite` | Semantic version string. Increment when protocol content changes. Default `"1.0"`. |
+| `vibrotactile_40hz` | Modality block | `protocol`, `limits` | Provisional — mastoid-placement LRA vibrotactile pad (§4.15). |
+| `visual_stimulation` | Modality block | `protocol`, `limits` | 108 micro-LEDs per lens with EMDR and Mode F support (§4.8). |
+| `VLPFC_L` | Enum value | `tms` / `hd_tdcs` → `target` | Left ventrolateral prefrontal cortex. |
+| `vns_contact` | Element type | `zone` → `types` | Auricular VNS clip contact element. |
+| `vns_hrv` | Modality block | `protocol`, `limits` | Auricular vagus nerve stimulation with HRV biofeedback (§4.6). |
+| `volume` | Modality field (alias) | `audio_entrainment` | Alias of `volume_percent` — output level, 0–100. |
+| `volume_percent` | Modality field (canonical) | `audio_entrainment` | Canonical name behind `volume`. |
+| `waveform` | Modality field | `bes_tacs`, `clinical_tacs` | Stimulation waveform: `sinusoidal`, `square` or `triangular`. |
+| `wavelength` | Modality field | `pbm_transcranial` | Which PBM emitter channels to drive. |
+| `zone` | Top-level block | file | Defines a named set of modules by socket address (§8). Populates the namespace; referenced by name from `pbm_transcranial`'s `zones`. |
+| `zones` | Modality field | `pbm_transcranial` | Which modules to drive: a named-zone-reference string array (preferred), the keywords `all`/`front`/`rear`/`custom`, or a legacy numeric index array. |
+
+---
+
+## 13. Predefined protocol coverage (source-doc map)
 
 The predefined library includes a protocol for **every uniquely-identified, device-expressible** protocol in `docs/pbm_neuro_protocols.md` and `docs/neuromod_neuro_protocols.md`. "Device-expressible" means the protocol maps onto a NeurOne modality block (a scalp/transcranial, intranasal, auricular-taVNS, T2-cervical-tcVNS, T2-focal-TMS, tES, or tACS channel). Protocols the hardware cannot deliver are **excluded and listed below with the reason**, so coverage is auditable rather than silently partial.
 
