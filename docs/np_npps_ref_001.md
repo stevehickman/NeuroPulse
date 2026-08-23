@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 10
+**Revision:** 11
 **Date:** 2026-08-23  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 11 (2026-08-23) — `retinal_pbm` documented, and the two visual-mode vocabularies separated.** §4.8 listed three visual modes; there are **four**. `retinal_pbm` is implemented by all four runtimes *and* the firmware, which gives it its own mode value (`np_hub_types.h`, mode 2) — the omission was the doc's, not the code's. Documenting it surfaced a round-trip bug of the same class as `4x1_ring`: **the iOS and Android enums used one string for two different vocabularies.** Their `rawValue` was the camelCase session-wire name (`retinalPBM`, `modeF`), and the NPPS serializer writes `rawValue` — but the parsers only accept `retinal_pbm` and `mode_f`, so **both modes serialized to text neither parser could read back**, silently resetting to the default mode on a round-trip. `rawValue` is now the NPPS token on both platforms, with a separate `sessionWireName` for the descriptor, mirroring the mapping `app/windows`'s compiler already had. That also fixes a second divergence the split exposed: iOS was sending `"modeF"` into a field whose own documented vocabulary is `binocular` / `emdr` / `retinalPBM`, where Windows correctly sent `retinalPBM`; all three now agree. Web needed no change — it already keyed its wire map on the NPPS tokens. Android `:core` verified green (175 tests, up from 172), and the three new mode tests fail if the raw values are put back.
+>
 > **Rev 10 (2026-08-23) — `zone` and `condition` blocks implemented on iOS and Android; `OI-NPPS-MOBILE-01` closed.** Rev 2 added §8 zones, §9 conditions and the §1.6 namespace, and only the web parser ever implemented them: both mobile parsers raised on either keyword, so the shipped definition files could not be loaded at all and Rev 9's bundling had to exclude them. Both now parse `zone` and `condition`, build the single namespace, and resolve a protocol's zone and condition references against it — verified on the shipped library, which yields **14 zones, 26 conditions, 69 runnable protocols and zero unresolved references**. **Four gaps closed along the way, all found by implementing this:** (i) neither mobile parser read a protocol's `conditions:` or `references:` — the fields Rev 2 added — so both models gain them, with a `[label, url]` reference type; (ii) **Android's PBM targeting was still the retired five-slot model** (`ZoneSelection {ALL, FRONT, REAR, CUSTOM}` + numeric `custom_zones`, resolving to slot indices 0–4), which could not express a named zone at all; it is replaced by the `NPPBMTarget` sum type iOS and web already use, and named zones now resolve to real socket ids through the generated `SocketZones` map, newly emitted for Kotlin by `scripts/sync-socket-map.ts`; (iii) `scripts/sync-conditions.ts` stopped emitting Swift and Kotlin — the registry had two representations only because the parsers could not read the file, and Windows, which has no NPPS parser, keeps its generated table; (iv) §8's socket range said `1..30` against a lattice of **80**. Android `:core` verified green (172 tests, up from 156, including a 14-case namespace suite); the iOS changes are unbuilt — no Xcode here.
 >
 > **Rev 9 (2026-08-23) — bundled protocols now come from `protocols/predefined/` at build time on every runtime; the hand-maintained duplicates are gone.** iOS and Android each carried the shipped library transcribed into source — `NPBundledProtocols.swift` (809 lines) and `NPBundledProtocols.kt` (744) — and both had drifted. **Android was shipping 19 of the library's 69 protocols and composites**, and 8 of those 19 were missing the `conditions` / `references` fields added in Rev 2. Both are replaced by loaders that read the real files: Android via a `bundlePredefinedProtocols` Gradle task that copies the directory onto `:core`'s resource path (JVM resources, not Android assets — `:core` is a pure-JVM module by design), iOS via a folder reference in the Xcode target's Resources build phase. Web already fetched them at runtime and is unchanged. The test assertions that pinned the count at 19 now derive it from `manifest.json`, so the bundle cannot silently diverge from the library again. §1.6 records the three mechanisms. **A gap this surfaced, recorded not closed:** neither mobile parser implements `zone` or `condition` top-level blocks, so both load the `protocols` and `composites` arrays only — `OI-NPPS-MOBILE-01`. Android `:core` verified green (156 tests); the iOS project change is unbuilt here — no Xcode in this environment.
@@ -540,7 +542,7 @@ audio_entrainment {
 |-------|-----------|------|--------|
 | `intensity` | `intensity_percent` | number | 0–100 |
 | `frequency` | `frequency_hz` | number | 0–100 (0 = off / Mode F) |
-| `mode` | `mode` | string | `binocular` `emdr` `mode_f` |
+| `mode` | `mode` | string | `binocular` `emdr` `retinal_pbm` `mode_f` |
 | `emdr_cadence` | `emdr_cadence_hz` | number | L/R alternation rate in Hz |
 | `enable_mode_f` | `enable_mode_f` | bool | Enable invisible NIR retinal PBM |
 
@@ -569,6 +571,18 @@ visual_stimulation {
     enable_mode_f: true
 }
 ```
+
+> **`retinal_pbm` and `mode_f` are different sessions, not synonyms.** `retinal_pbm` is a
+> deliberate retinal photobiomodulation session — the NIR emitters driven at the retina as the
+> point of the session. `mode_f` is the passive version: the same emission during
+> normal-looking wear, with no visible flicker, so it can run while the user does something
+> else. Both are carried by every runtime and by the firmware, which gives `retinal_pbm` its own
+> mode value (`np_hub_types.h`, mode 2).
+>
+> In the **session descriptor** — a different vocabulary from NPPS — both map to `retinalPBM`,
+> Mode F riding the same path with the NIR flag set. That mapping is explicit on each platform
+> rather than being the enum's own name, because reusing one string for both vocabularies is
+> what made `mode: retinalPBM` get written into `.npps` files that could not then be parsed.
 ---
 
 ### 4.9 qEEG 21-Channel
@@ -871,7 +885,7 @@ limits "T1 Home Defaults" {
     visual_stimulation {
         max_frequency: 100
         min_frequency: 0.5
-        allowed_modes: [binocular, emdr, mode_f]
+        allowed_modes: [binocular, emdr, retinal_pbm, mode_f]
         block_high_risk_range: false
     }
 
@@ -1341,7 +1355,7 @@ Reading the table:
 | `merge` | Enum value | `composite` → `conflict_resolution` | Modalities from all active layers run simultaneously. |
 | `min_frequency` | Limits field | `limits` → `bes_tacs`, `visual_stimulation` | Floor on `frequency`, in Hz. |
 | `mode` | Modality field | `visual_stimulation` | Visual delivery mode: `binocular`, `emdr` or `mode_f`. |
-| `mode_f` | Enum value | `visual_stimulation` → `mode`; `limits` → `allowed_modes` | Invisible NIR retinal PBM during normal-looking wear — no visible flicker. Distinct from the `enable_mode_f` field that switches it on. |
+| `mode_f` | Enum value | `visual_stimulation` → `mode`; `limits` → `allowed_modes` | Invisible NIR retinal PBM during normal-looking wear — no visible flicker. Distinct from the `enable_mode_f` field that switches it on, and from `retinal_pbm`, which is the deliberate retinal session rather than the passive one. |
 | `montage` | Modality field | `qeeg_21ch`, `hd_tdcs` | Electrode montage. `standard_1020` / `custom` on `qeeg_21ch`; `ring_4x1` / `bilateral_4x1` / `standard_2_electrode` on `hd_tdcs`. |
 | `MPFC` | Enum value | `tms` / `hd_tdcs` → `target` | Medial prefrontal cortex. |
 | `mW_cm2` | Unit suffix | any number | Irradiance in mW/cm². Cosmetic — the parser reads the bare number. |
@@ -1369,6 +1383,7 @@ Reading the table:
 | `repeat` | Interval field | any modality block | Interval cycle count — an integer, or `until_end` to cycle for the whole session (§5). |
 | `require_closed_loop` | Limits field | `limits` → `eeg_neurofeedback` | Bool. `true` forces `closed_loop` on for any protocol under these limits. |
 | `resonance_breathing_rate` | Modality field (canonical) | `vns_hrv` | Canonical name behind `breathing_rate`. |
+| `retinal_pbm` | Enum value | `visual_stimulation` → `mode`; `limits` → `allowed_modes` | A deliberate retinal photobiomodulation session — the 808–830 nm emitters driven at the retina as the point of the session, rather than the passive background exposure `mode_f` provides during ordinary wear. Carried by all four runtimes and the firmware (`np_hub_types.h` mode 2); §4.8 omitted it until Rev 11. |
 | `ring_4x1` | Enum value | `hd_tdcs` → `montage`; `limits` → `allowed_montages` | Centre anode plus four return cathodes — the most focal montage (~1.5 cm FWHM at 10 mm depth). |
 | `rTMS` | Enum value | `tms` → `tms_protocol`; `limits` → `allowed_protocols` | Conventional repetitive TMS. |
 | `s` | Unit suffix | any number | Seconds. Also the implicit unit of a bare number in a duration field. |

@@ -111,7 +111,7 @@ data class NPSessionProtocol(
                     is NPModalityParams.VisualStimulation -> configs.add(
                         ModalityConfig.VisualStimulation(
                             frequencyHz = p.params.frequencyHz,
-                            mode = p.params.mode.rawValue,
+                            mode = p.params.mode.sessionWireName,
                             enableModeFInvisibleNIR = p.params.enableModeF,
                             emdrCadenceHz = p.params.emdrCadenceHz,
                         ),

@@ -291,12 +291,21 @@ struct NPAudioEntrainmentParams: Codable, Equatable {
 // MARK: Visual Stimulation
 
 struct NPVisualStimParams: Codable, Equatable {
+    /// The four visual delivery modes (NP-NPPS-REF-001 §4.8).
+    ///
+    /// `rawValue` is the **NPPS token**, which is what the parser reads and the
+    /// serializer writes. It used to be the Swift case name — `retinalPBM`,
+    /// `modeF` — while the parser only accepted `retinal_pbm` and `mode_f`, so
+    /// those two modes serialized to text this parser could not read back.
+    ///
+    /// The session descriptor uses a *different* vocabulary; see
+    /// ``sessionWireName``. Conflating the two is what caused the bug.
     enum VisualMode: String, Codable, CaseIterable, Equatable, Identifiable {
         var id: String { rawValue }
-        case binocular
-        case emdr
-        case retinalPBM
-        case modeF
+        case binocular  = "binocular"
+        case emdr       = "emdr"
+        case retinalPBM = "retinal_pbm"
+        case modeF      = "mode_f"
 
         var displayName: String {
             switch self {
@@ -304,6 +313,19 @@ struct NPVisualStimParams: Codable, Equatable {
             case .emdr:       return "EMDR L/R Alternation"
             case .retinalPBM: return "Retinal PBM"
             case .modeF:      return "Mode F (Invisible NIR)"
+            }
+        }
+
+        /// The mode name in the session descriptor, whose vocabulary is
+        /// `binocular` / `emdr` / `retinalPBM` (see `SessionProtocol.mode`) —
+        /// not the NPPS token. Mode F rides the retinalPBM path with the NIR
+        /// flag set, exactly as the Windows compiler already maps it, so it has
+        /// no separate name here; `modeF` was never a legal value in that field.
+        var sessionWireName: String {
+            switch self {
+            case .binocular:            return "binocular"
+            case .emdr:                 return "emdr"
+            case .retinalPBM, .modeF:   return "retinalPBM"
             }
         }
     }

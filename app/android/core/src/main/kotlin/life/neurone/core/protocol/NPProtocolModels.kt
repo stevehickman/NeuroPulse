@@ -168,11 +168,35 @@ data class NPVisualStimParams(
     var emdrCadenceHz: Double = 1.0,
     var enableModeF: Boolean = false,
 ) {
+    /**
+     * The four visual delivery modes (NP-NPPS-REF-001 §4.8).
+     *
+     * [rawValue] is the **NPPS token**, which is what the parser reads and the
+     * serializer writes. It used to be camelCase — `retinalPBM`, `modeF` —
+     * while the parser only accepted `retinal_pbm` and `mode_f`, so those two
+     * modes serialized to text this parser could not read back.
+     *
+     * The session descriptor uses a *different* vocabulary; see
+     * [sessionWireName]. Conflating the two is what caused the bug.
+     */
     enum class VisualMode(val rawValue: String) {
         BINOCULAR("binocular"),
         EMDR("emdr"),
-        RETINAL_PBM("retinalPBM"),
-        MODE_F("modeF");
+        RETINAL_PBM("retinal_pbm"),
+        MODE_F("mode_f");
+
+        /**
+         * The mode name in the session descriptor, whose vocabulary is
+         * `binocular` / `emdr` / `retinalPBM` — not the NPPS token. Mode F
+         * rides the retinalPBM path with the NIR flag set, exactly as the
+         * Windows compiler already maps it, so it has no separate name here.
+         */
+        val sessionWireName: String
+            get() = when (this) {
+                BINOCULAR -> "binocular"
+                EMDR -> "emdr"
+                RETINAL_PBM, MODE_F -> "retinalPBM"
+            }
     }
 }
 

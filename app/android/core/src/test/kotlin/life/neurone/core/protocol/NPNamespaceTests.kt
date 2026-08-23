@@ -196,3 +196,63 @@ class NPNamespaceTests {
         assertEquals(entries, again, "zone/condition blocks must survive serialize -> parse")
     }
 }
+
+/**
+ * Visual delivery modes. `retinal_pbm` is implemented by every runtime and the
+ * firmware (mode 2), but NP-NPPS-REF-001 §4.8 omitted it until Rev 11, and both
+ * mobile enums carried a camelCase rawValue the parser could not read back.
+ */
+class NPVisualModeTests {
+
+    private fun parse(text: String) = NPPSParser(NPPSLexer(text).tokenize()).parse()
+
+    private fun modeOf(token: String): NPVisualStimParams.VisualMode {
+        val e = parse("""protocol "P" { visual_stimulation { mode: $token } }""")
+            .single() as NPProtocolEntry.Single
+        return ((e.protocol.modalities.single().params) as NPModalityParams.VisualStimulation).params.mode
+    }
+
+    @Test
+    fun everyDocumentedModeParses() {
+        assertEquals(NPVisualStimParams.VisualMode.BINOCULAR, modeOf("binocular"))
+        assertEquals(NPVisualStimParams.VisualMode.EMDR, modeOf("emdr"))
+        assertEquals(NPVisualStimParams.VisualMode.RETINAL_PBM, modeOf("retinal_pbm"))
+        assertEquals(NPVisualStimParams.VisualMode.MODE_F, modeOf("mode_f"))
+    }
+
+    @Test
+    fun everyModeSurvivesSerializeThenParse() {
+        // The bug: RETINAL_PBM and MODE_F serialized as `retinalPBM` / `modeF`,
+        // which the parser does not accept, so a round-trip silently reset them
+        // to the default mode.
+        for (mode in NPVisualStimParams.VisualMode.entries) {
+            val proto = NPProtocolDefinition(
+                name = "P",
+                modalities = listOf(
+                    NPProtocolModality(
+                        params = NPModalityParams.VisualStimulation(NPVisualStimParams(mode = mode)),
+                    ),
+                ),
+            )
+            val text = NPPSSerializer().serialize(NPProtocolEntry.Single(proto))
+            assertTrue(
+                text.contains("mode: ${mode.rawValue}"),
+                "serialized mode should be the NPPS token:\n$text",
+            )
+            val back = (parse(text).single() as NPProtocolEntry.Single)
+                .protocol.modalities.single().params as NPModalityParams.VisualStimulation
+            assertEquals(mode, back.params.mode, "mode must survive a round-trip")
+        }
+    }
+
+    @Test
+    fun sessionWireNameIsSeparateFromTheNppsToken() {
+        // The session descriptor's vocabulary is binocular / emdr / retinalPBM.
+        // Mode F rides the retinalPBM path with the NIR flag, as the Windows
+        // compiler already mapped it; "modeF" was never legal in that field.
+        assertEquals("binocular", NPVisualStimParams.VisualMode.BINOCULAR.sessionWireName)
+        assertEquals("emdr", NPVisualStimParams.VisualMode.EMDR.sessionWireName)
+        assertEquals("retinalPBM", NPVisualStimParams.VisualMode.RETINAL_PBM.sessionWireName)
+        assertEquals("retinalPBM", NPVisualStimParams.VisualMode.MODE_F.sessionWireName)
+    }
+}
