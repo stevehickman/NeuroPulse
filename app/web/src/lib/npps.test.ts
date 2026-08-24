@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { parseNPPS, tokenize, NPPSParseError } from './nppsParser';
+import { parseNPPS, parseNPPSLimits, tokenize, NPPSParseError } from './nppsParser';
 import { serializeProtocol, serializeNPPS } from './nppsSerializer';
 import type { NPProtocolDefinition, NPCompositeProtocol } from '../types/protocol';
+import { MODALITY_META } from '../types/protocol';
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -20,7 +21,7 @@ protocol "Gamma Focus" {
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: 660_808nm
+        wavelength: \"660_808nm\"
     }
 
     audio_entrainment {
@@ -63,7 +64,7 @@ protocol "All T1 Modalities" {
         frequency: 20Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: 660_808nm
+        wavelength: \"660_808nm\"
     }
 
     pbm_intranasal {
@@ -392,7 +393,7 @@ describe('serializer', () => {
     expect(out).toContain('frequency: 40Hz');
     expect(out).toContain('duty_cycle: 25%');
     expect(out).toContain('zones: ["All"]');
-    expect(out).toContain('wavelength: 660_808nm');
+    expect(out).toContain('wavelength: \"660_808nm\"');
   });
 
   it('serializes interval fields inside modality block', () => {
@@ -534,5 +535,218 @@ describe('round-trip', () => {
     expect(composite.layers[0].durationSeconds).toBe(300);
     expect(composite.layers[1].startOffsetSeconds).toBe(300);
     expect(composite.layers[1].durationSeconds).toBe(1200);
+  });
+});
+
+describe('Mode F field name', () => {
+  const modeFSource = (key: string) => `
+protocol "Retinal" {
+    duration: 3m
+    visual_stimulation {
+        frequency: 0Hz
+        mode: mode_f
+        ${key}: true
+    }
+}
+`;
+
+  const visualOf = (src: string) => {
+    const [entry] = parseNPPS(src);
+    return (entry as { kind: 'single'; protocol: NPProtocolDefinition })
+      .protocol.modalities.find(m => m.modalityParams.type === 'visual_stimulation')!;
+  };
+
+  it('parses the canonical enable_mode_f key', () => {
+    const v = visualOf(modeFSource('enable_mode_f'));
+    expect((v.modalityParams.params as { enableModeF: boolean }).enableModeF).toBe(true);
+  });
+
+  it('does not confuse the mode_f VALUE with a field key', () => {
+    const v = visualOf(modeFSource('enable_mode_f'));
+    expect((v.modalityParams.params as { mode: string }).mode).toBe('mode_f');
+  });
+
+  it('serializes the canonical key', () => {
+    const [entry] = parseNPPS(modeFSource('enable_mode_f'));
+    const serialized = serializeProtocol(entry);
+    expect(serialized).toContain('enable_mode_f: true');
+    expect(serialized).not.toMatch(/^\s*mode_f:/m);
+  });
+});
+
+// These nine field names once differed between the web and iOS parsers, so a
+// file written on one platform silently lost them on the other. One canonical
+// spelling now, matching NP-NPPS-REF-001 §12; the retired spellings are gone
+// rather than kept as aliases, and fall under the ordinary unknown-key rule.
+describe('canonical field names shared by every runtime', () => {
+  const modalityOf = (src: string, type: string) => {
+    const [entry] = parseNPPS(src);
+    return (entry as { kind: 'single'; protocol: NPProtocolDefinition })
+      .protocol.modalities.find(m => m.modalityParams.type === type)!;
+  };
+
+  const proto = (body: string) => `protocol "T" {\n    duration: 5m\n${body}\n}\n`;
+
+  it('qeeg_21ch sloreta_enabled', () => {
+    const m = modalityOf(proto(`    qeeg_21ch {\n        sloreta_enabled: true\n    }`), 'qeeg_21ch');
+    expect((m.modalityParams.params as { sloretaEnabled: boolean }).sloretaEnabled).toBe(true);
+  });
+
+  it('tms intensity_percent_mt', () => {
+    const m = modalityOf(proto(`    tms {\n        tms_protocol: rTMS\n        intensity_percent_mt: 90\n    }`), 'tms');
+    expect((m.modalityParams.params as { intensityPercentMT: number }).intensityPercentMT).toBe(90);
+  });
+
+  it('vibrotactile sync_to_audio / sync_to_visual', () => {
+    const m = modalityOf(
+      proto(`    vibrotactile_40hz {\n        intensity_g: 0.8\n        sync_to_audio: true\n        sync_to_visual: true\n    }`),
+      'vibrotactile_40hz',
+    );
+    const p = m.modalityParams.params as { syncToAudio: boolean; syncToVisual: boolean };
+    expect(p.syncToAudio).toBe(true);
+    expect(p.syncToVisual).toBe(true);
+  });
+
+  it('audio limits max_intensity / max_binaural_beats / max_isochronic_tones', () => {
+    const lim = parseNPPSLimits(
+      `limits "L" {\n    level: global\n    audio_entrainment {\n        max_intensity: 85\n        max_binaural_beats: 100\n        max_isochronic_tones: 90\n    }\n}\n`,
+    );
+    expect(lim!.audioEntrainment).toMatchObject({
+      maxVolumePercent: 85,
+      maxBinauralBeatsHz: 100,
+      maxIsochronicTonesHz: 90,
+    });
+  });
+
+  it('tms limits max_intensity_pct_mt', () => {
+    const lim = parseNPPSLimits(`limits "L" {\n    level: global\n    tms {\n        max_intensity_pct_mt: 120\n    }\n}\n`);
+    expect(lim!.tms).toMatchObject({ maxIntensityPercentMT: 120 });
+  });
+
+  it('vibrotactile limits max_intensity', () => {
+    const lim = parseNPPSLimits(
+      `limits "L" {\n    level: global\n    vibrotactile_40hz {\n        max_intensity: 1.2\n    }\n}\n`,
+    );
+    expect(lim!.vibrotactile40hz).toMatchObject({ maxIntensityG: 1.2 });
+  });
+
+  it('hd_tdcs montage uses the spelling all three runtimes and §4.13 share', () => {
+    const m = modalityOf(proto(`    hd_tdcs {\n        montage: standard_2_electrode\n    }`), 'hd_tdcs');
+    expect((m.modalityParams.params as { montage: string }).montage).toBe('standard_2_electrode');
+    const out = serializeProtocol(parseNPPS(proto(`    hd_tdcs {\n        montage: ring_4x1\n    }`))[0]);
+    expect(out).toContain('montage: ring_4x1');
+    expect(out).not.toContain('4x1_ring');
+  });
+});
+
+// Rev 6: every value is now a plain identifier, a number, a boolean or a quoted
+// string — each of which maps onto a JSON scalar. The two lexer rules that
+// admitted awkward bare values are gone, which is also what finally gives
+// `montage: 10-20` a spelling that parses.
+describe('quoted awkward values (JSON-leaning cleanup)', () => {
+  const proto = (body: string) => `protocol "T" {\n    duration: 5m\n${body}\n}\n`;
+
+  const modalityOf = (src: string, type: string) => {
+    const [entry] = parseNPPS(src);
+    return (entry as { kind: 'single'; protocol: NPProtocolDefinition })
+      .protocol.modalities.find(m => m.modalityParams.type === type)!;
+  };
+
+  // §4.9 documented `10-20`, but no implementation ever mapped that value —
+  // both parsers use `standard_1020`. The doc was corrected rather than the
+  // lexer extended, so the unquoted form stays a parse error (asserted below).
+  it('parses the qEEG montage value both parsers actually use', () => {
+    const m = modalityOf(proto(`    qeeg_21ch {\n        montage: standard_1020\n    }`), 'qeeg_21ch');
+    expect((m.modalityParams.params as { montage: string }).montage).toBe('standard_1020');
+  });
+
+  it('parses quoted compound wavelengths', () => {
+    for (const wl of ['660_808nm', '1064nm', '660_808_1064nm']) {
+      const m = modalityOf(proto(`    pbm_transcranial {\n        wavelength: "${wl}"\n    }`), 'pbm_transcranial');
+      expect((m.modalityParams.params as { wavelength: string }).wavelength).toBe(wl);
+    }
+  });
+
+  it('parses quoted hyphenated tags', () => {
+    const [entry] = parseNPPS(`protocol "T" {\n    tags: ["wind-down", "all-modalities", plain]\n    duration: 5m\n}\n`);
+    const p = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
+    expect(p.tags).toEqual(['wind-down', 'all-modalities', 'plain']);
+  });
+
+  it.each([
+    ['montage: 10-20', '    qeeg_21ch {\n        montage: 10-20\n    }'],
+    ['wavelength: 660_808nm', '    pbm_transcranial {\n        wavelength: 660_808nm\n    }'],
+    ['wavelength: 1064nm', '    pbm_transcranial {\n        wavelength: 1064nm\n    }'],
+  ])('rejects the unquoted form %s with a message naming the fix', (_label, body) => {
+    expect(() => parseNPPS(proto(body))).toThrow(NPPSParseError);
+    expect(() => parseNPPS(proto(body))).toThrow(/must be quoted/);
+  });
+
+  it('rejects an unquoted hyphenated tag', () => {
+    expect(() => parseNPPS(`protocol "T" {\n    tags: [wind-down]\n    duration: 5m\n}\n`)).toThrow(NPPSParseError);
+  });
+
+  it('still lexes numbers with unit suffixes, which are unaffected', () => {
+    const [entry] = parseNPPS(
+      proto(`    bes_tacs {\n        frequency: 40Hz\n        intensity: 0.8mA\n        interval_on: 30s\n    }`),
+    );
+    const p = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
+    expect(p.timingMode).toMatchObject({ type: 'duration', seconds: 300 });
+    const m = p.modalities.find(x => x.modalityParams.type === 'bes_tacs')!;
+    expect((m.modalityParams.params as { frequencyHz: number }).frequencyHz).toBe(40);
+    expect(m.interval.intervalOnSeconds).toBe(30);
+  });
+
+  it('serializes quoted forms so they round-trip', () => {
+    const src = proto(`    pbm_transcranial {\n        zones: ["Frontal Left"]\n        wavelength: "660_808nm"\n    }`);
+    const [entry] = parseNPPS(src);
+    const out = serializeProtocol(entry);
+    expect(out).toContain('wavelength: "660_808nm"');
+    const m = modalityOf(out, 'pbm_transcranial');
+    expect((m.modalityParams.params as { wavelength: string }).wavelength).toBe('660_808nm');
+  });
+});
+
+// The zones discriminant leaked into surface syntax: a pbm_transcranial block
+// with no `zones` field inherited the default's 'named' tag without its paired
+// zoneRefs, and serialized to the bare word `named` — which no parser accepts.
+// Swept across every modality so the class stays closed, not just this case.
+describe('serialize → parse round-trip holds for every modality', () => {
+  const ids = Object.keys(MODALITY_META);
+
+  it('covers all modality types', () => {
+    expect(ids.length).toBeGreaterThanOrEqual(15);
+  });
+
+  it.each(ids)('%s survives serialize → parse with all fields defaulted', (id) => {
+    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    ${id} {\n    }\n}\n`);
+    const out = serializeProtocol(entry);
+    expect(() => parseNPPS(out)).not.toThrow();
+    // and is stable on a second cycle
+    expect(serializeProtocol(parseNPPS(out)[0])).toBe(out);
+  });
+
+  it('a defaulted pbm_transcranial names its zones instead of emitting the tag', () => {
+    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        intensity: 80%\n    }\n}\n`);
+    const out = serializeProtocol(entry);
+    expect(out).toContain('zones: ["All"]');
+    expect(out).not.toMatch(/^\s*zones:\s*named\s*$/m);
+  });
+
+  it('clinician_selected still serializes as the bare keyword it is', () => {
+    const [entry] = parseNPPS(
+      `protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        zones: clinician_selected\n    }\n}\n`,
+    );
+    const out = serializeProtocol(entry);
+    expect(out).toContain('zones: clinician_selected');
+    expect(() => parseNPPS(out)).not.toThrow();
+  });
+
+  it('an empty named ref list is reported as a caller bug, not written out', () => {
+    const [entry] = parseNPPS(`protocol "T" {\n    duration: 5m\n    pbm_transcranial {\n        intensity: 80%\n    }\n}\n`);
+    const proto = (entry as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
+    const params = proto.modalities[0].modalityParams.params as { zoneRefs?: string[] };
+    delete params.zoneRefs;
+    expect(() => serializeProtocol(entry)).toThrow(/must list at least one zone/);
   });
 });

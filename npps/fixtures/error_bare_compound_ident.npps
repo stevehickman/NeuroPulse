@@ -1,0 +1,10 @@
+# Rev 4 removed the digit-leading CompoundIdent rule: a value that starts with a
+# digit and is not a plain number must be quoted ("660_808nm"). Parsing this
+# file MUST fail. See NP-NPPS-REF-001 §2 and npps.peggy's BareIdent comment.
+protocol "Bare Compound Ident" {
+    duration: 10m
+
+    pbm_transcranial {
+        wavelength: 660_808nm
+    }
+}

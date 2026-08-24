@@ -1,8 +1,8 @@
 # NPPS PEG Grammar
 
-**Document:** NP-NPPS-GRAM-001 Rev 1  
+**Document:** NP-NPPS-GRAM-001 Rev 4  
 **Status:** ACTIVE  
-**Date:** 2026-06-28
+**Date:** 2026-08-23
 
 ## Overview
 
@@ -35,8 +35,8 @@ The grammar covers the complete NPPS language:
 - **Protocol blocks** -- single session definitions with metadata fields and modality blocks
 - **Composite blocks** -- multi-layer session compositions with timing offsets
 - **Limits blocks** -- per-helmet, per-individual, or global safety limits
-- **17 modality types** -- `pbm_transcranial`, `pbm_intranasal`, `pbm_deep_1170nm`, `eeg_neurofeedback`, `bes_tacs`, `tdcs`, `vns_hrv`, `audio_entrainment`, `visual_stimulation`, `qeeg_21ch`, `tms`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `vibrotactile_40hz`, `hrv_biofeedback`, `pbm_1064nm`
-- **Value types** -- strings, numbers (with optional unit suffix), booleans, arrays (including nested), compound identifiers (`660_808nm`), bare/hyphenated identifiers (`wind-down`)
+- **15 modality types** -- `pbm_transcranial`, `pbm_intranasal`, `pbm_deep_1170nm`, `eeg_neurofeedback`, `bes_tacs`, `tdcs`, `vns_hrv`, `audio_entrainment`, `visual_stimulation`, `qeeg_21ch`, `tms`, `clinical_tacs`, `hd_tdcs`, `cervical_vns`, `vibrotactile_40hz` — the same 15 `nppsParser.ts`, `NPProtocolScripting.swift` and NP-NPPS-REF-001 §12 accept. (`hrv_biofeedback` and `pbm_1064nm` were removed at Rev 3: no other component recognised them, and both are already expressible — as `vns_hrv`'s `hrv_protocol` field and `pbm_transcranial` with `wavelength: 1064nm`.)
+- **Value types** -- strings, numbers (with optional unit suffix), booleans, arrays (including nested), and bare identifiers `[A-Za-z_][A-Za-z0-9_]*`. Rev 4 removed `CompoundIdent` (digit-leading, `660_808nm`) and the hyphen tail of the bare-identifier rule (`wind-down`): such values are now quoted strings, so every value maps onto a JSON scalar. That is also what makes `montage: "10-20"` parse — unquoted it matched neither rule.
 - **Comments** -- `#` to end-of-line (full-line and inline)
 - **Unit suffixes** -- `Hz`, `%`, `mA`, `s`, `m`, `mW_cm2`
 
@@ -90,8 +90,8 @@ Value
 | Comments | `#` to end of line |
 | Strings | Double-quoted, escapes: `\"` `\\` `\n` `\t` |
 | Numbers | Optional `-`, digits, optional `.digits`, optional unit suffix |
-| Compound idents | Digits followed by `_` or letter continues as one token (`660_808nm`) |
-| Hyphenated idents | `wind-down` parses as a single identifier in value position |
+| Digit-leading values | Not a token: `"660_808nm"`, `"10-20"` must be quoted (Rev 4) |
+| Hyphenated values | Not a token: `"wind-down"` must be quoted (Rev 4) |
 | Booleans | `true` and `false` (not followed by `[a-zA-Z0-9_]`) |
 | Whitespace | Spaces, tabs, newlines are insignificant (newlines act as field separators) |
 | Keywords | `protocol`, `composite`, `limits`, `layer`, modality type names |

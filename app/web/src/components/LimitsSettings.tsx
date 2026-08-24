@@ -1315,7 +1315,7 @@ function VisualLimitsEditor({
             />
             <LimitWhitelistField
               label="Allowed Montages"
-              options={['ring_4x1', 'bilateral_4x1', 'standard_2el']}
+              options={['ring_4x1', 'bilateral_4x1', 'standard_2_electrode']}
               value={limits.hdTdcs.allowedMontages}
               onChange={v => patchModality('hdTdcs', { allowedMontages: v })}
               onClear={() => patchModality('hdTdcs', { allowedMontages: undefined })}

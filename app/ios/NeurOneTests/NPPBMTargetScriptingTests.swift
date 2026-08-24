@@ -26,7 +26,7 @@ final class NPPBMTargetScriptingTests: XCTestCase {
                 duty_cycle: 25%
                 \(zonesLine)
         \(extra)
-                wavelength: 660_808nm
+                wavelength: "660_808nm"
             }
         }
         """

@@ -3,7 +3,7 @@
   "protocol": {
     "name": "Compound Wavelengths",
     "id": "00000000-0000-0000-0000-000000000003",
-    "description": "Tests compound wavelength identifiers",
+    "description": "Tests quoted compound wavelength values",
     "author": "test",
     "version": "1.0",
     "tags": [],

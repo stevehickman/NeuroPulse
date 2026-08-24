@@ -14,7 +14,7 @@ protocol "PBM — Alzheimer's 40Hz" {
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Vault (excl. Occipital)"]
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 
     pbm_intranasal {

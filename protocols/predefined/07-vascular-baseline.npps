@@ -11,7 +11,7 @@ protocol "Vascular Baseline" {
         intensity: 80%
         frequency: 0Hz  # CW
         zones: ["All"]
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 
     vns_hrv {

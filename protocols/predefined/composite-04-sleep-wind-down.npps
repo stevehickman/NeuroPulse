@@ -4,7 +4,7 @@ composite "Sleep Wind-Down" {
     author: "NeurOne"
     version: "1.0"
     readonly: true
-    tags: [sleep, wind-down, transition, evening]
+    tags: [sleep, "wind-down", transition, evening]
     conflict_resolution: sequential
 
     layer "Alpha Calm" {

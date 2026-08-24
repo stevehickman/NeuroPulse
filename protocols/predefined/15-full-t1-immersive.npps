@@ -4,7 +4,7 @@ protocol "Full T1 Immersive" {
     author: "NeurOne"
     version: "1.0"
     readonly: true
-    tags: [comprehensive, all-modalities, advanced, T1]
+    tags: [comprehensive, "all-modalities", advanced, T1]
     duration: 30m
 
     pbm_transcranial {
@@ -12,7 +12,7 @@ protocol "Full T1 Immersive" {
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["All"]
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 
     pbm_intranasal {

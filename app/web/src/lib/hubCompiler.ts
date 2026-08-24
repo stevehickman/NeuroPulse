@@ -789,8 +789,9 @@ function encodeClinicalTacs(p: ClinicalTacsParams): EncodedParams {
 
 function encodeHDTdcs(p: HDTdcsParams): EncodedParams {
   // np_mod_hd_tdcs_params_t: 6 bytes (target, montage, current_ua×2, ramp_s×2)
+  // Wire values are fixed by np_mod_hd_tdcs_params_t and must not shift.
   const montageMap: Record<HDTdcsParams['montage'], number> = {
-    ring_4x1: 0, bilateral_4x1: 1, standard_2el: 2,
+    ring_4x1: 0, bilateral_4x1: 1, standard_2_electrode: 2,
   };
   const curUa = Math.min(Math.round(p.intensityMilliamps * 1000), 2000);
   const buf = new Uint8Array(6);

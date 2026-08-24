@@ -34,7 +34,7 @@ struct NPPSLexer {
     private var pos: Int = 0
     private var line: Int = 1
 
-    private static let keywords: Set<String> = ["protocol", "composite", "layer", "limits"]
+    private static let keywords: Set<String> = ["protocol", "composite", "layer", "limits", "zone", "condition"]
     private static let units: Set<String> = ["Hz", "mA", "G", "mW_cm2", "m", "s", "h", "%"]
 
     init(_ text: String) {
@@ -94,8 +94,16 @@ struct NPPSLexer {
                 continue
             }
 
-            // Unknown character — skip
-            pos += 1
+            // An unrecognised character is an ERROR. Skipping it silently turned
+            // `wind-down` into the two idents `wind` and `down` — the hyphen
+            // simply vanished — so a hyphenated tag was split rather than
+            // refused. NP-NPPS-REF-001 Rev 6 requires such a value to be quoted,
+            // and the web parser and the PEG grammar both reject the bare form.
+            throw NPPSError(
+                message: "Unexpected character '\(source[pos])' — a value containing it must "
+                    + "be quoted, e.g. \"wind-down\".",
+                line: tokenLine
+            )
         }
         tokens.append((.eof, line))
         return tokens
@@ -146,6 +154,16 @@ struct NPPSLexer {
         guard let value = Double(numStr) else {
             throw NPPSError(message: "Invalid number: \(numStr)", line: tokenLine)
         }
+        // '%' is a unit like any other and must be consumed here. The loop below
+        // accepts only letters, digits and '_', so '%' fell through to the
+        // lexer's unknown-character branch and was silently discarded — which is
+        // why `intensity: 80%` never produced a .numberWithUnit despite '%'
+        // being a documented suffix.
+        if pos < source.count && source[pos] == "%" {
+            pos += 1
+            return .numberWithUnit(value, "%")
+        }
+
         // Check for unit suffix (no space between number and unit in: 20Hz, 1.5mA, 25%, 2m, 30s, 1h, 0.9G, 500mW_cm2)
         let unitStart = pos
         var unitStr = ""
@@ -155,20 +173,20 @@ struct NPPSLexer {
         }
         if !unitStr.isEmpty && Self.units.contains(unitStr) {
             return .numberWithUnit(value, unitStr)
+        } else if !unitStr.isEmpty {
+            // A digit-leading token that is not a number with a known unit is not
+            // a value. This used to lex "660_808nm" as an ident when the next
+            // char was '_' — which meant "1064nm" (no underscore) fell through
+            // and silently split into the number 1064 plus a stray ident, and
+            // hyphenated values like "wind-down" and "10-20" never lexed at all.
+            // All such values are now quoted, which makes them ordinary JSON
+            // strings (NP-NPPS-REF-001 §2, Rev 6).
+            throw NPPSError(
+                message: "Unquoted value '\(numStr)\(unitStr)' — values that start with a digit "
+                       + "and are not a plain number must be quoted, e.g. \"\(numStr)\(unitStr)\"",
+                line: tokenLine)
         } else {
-            // Backtrack: unit chars might be an identifier
             pos = unitStart
-            // Handle compound names that start with digits and continue with '_',
-            // e.g. wavelength values like "660_808nm" or "660_808_1064nm".
-            if pos < source.count && source[pos] == "_" {
-                var compound = numStr
-                while pos < source.count &&
-                      (source[pos].isLetter || source[pos].isNumber || source[pos] == "_") {
-                    compound.append(source[pos])
-                    pos += 1
-                }
-                return .ident(compound)
-            }
             return .number(value)
         }
     }
@@ -205,14 +223,158 @@ struct NPPSParser {
                     entries.append(.composite(try parseComposite()))
                 } else if kw == "limits" {
                     entries.append(.limits(try parseLimitsBlock()))
+                } else if kw == "zone" {
+                    entries.append(.zone(try parseZoneBlock()))
+                } else if kw == "condition" {
+                    entries.append(.condition(try parseConditionBlock()))
                 } else {
                     throw NPPSError(message: "Unexpected keyword: \(kw)", line: currentLine)
                 }
             } else {
-                throw NPPSError(message: "Expected 'protocol', 'composite', or 'limits'", line: currentLine)
+                throw NPPSError(
+                    message: "Expected 'protocol', 'composite', 'limits', 'zone', or 'condition'",
+                    line: currentLine
+                )
             }
         }
         return entries
+    }
+
+    // MARK: Zone block (NP-NPPS-REF-001 §8)
+
+    /// `zone "Name" { sockets: [1, 2, 3]  types: [led_660]  exclude_types: false }`
+    ///
+    /// `sockets` is the defining field and is treated as a SET: duplicates
+    /// collapse and the result is sorted, so a bilateral protocol referencing
+    /// both hemisphere zones of a lobe addresses their shared midline socket
+    /// once rather than twice.
+    mutating func parseZoneBlock() throws -> NPZoneDefinition {
+        let ln = currentLine
+        try expectKeyword("zone")
+        let name = try parseString()
+        try expect(.lbrace)
+
+        var zone = NPZoneDefinition(name: name, sockets: [])
+        while currentToken != .rbrace && currentToken != .eof {
+            guard case .ident(let key) = currentToken else {
+                throw NPPSError(message: "Expected field name in zone block", line: currentLine)
+            }
+            advance()
+            guard currentToken == .colon else {
+                throw NPPSError(message: "Unexpected token after '\(key)' in zone block", line: currentLine)
+            }
+            advance()
+            switch key {
+            case "id":
+                zone.id = try parseString()
+                zone.isPredefined = true
+            case "description":  zone.description = try parseString()
+            case "sockets":      zone.sockets = try parseSocketList(zoneName: name)
+            case "types":        zone.types = try parseTagList()
+            case "exclude_types":
+                if case .bool(let b) = currentToken { zone.excludeTypes = b; advance() } else { skipValue() }
+            default:             skipValue()
+            }
+        }
+        try expect(.rbrace)
+        if name.isEmpty { throw NPPSError(message: "Zone name cannot be empty", line: ln) }
+        return zone
+    }
+
+    /// A socket id is a plain whole number naming a socket on this helmet.
+    /// Anything else — a fraction, a boolean, an out-of-range id — is reported
+    /// with the offending value rather than silently coerced, because a wrong
+    /// socket id means light lands somewhere the author did not choose.
+    private mutating func parseSocketList(zoneName: String) throws -> [Int] {
+        let ln = currentLine
+        let raw = try parseFieldValue()
+        guard case .array(let items) = raw else {
+            throw NPPSError(
+                message: "zone \"\(zoneName)\": sockets must be a list, e.g. sockets: [1, 2, 3]",
+                line: ln
+            )
+        }
+        var invalid: [String] = []
+        var ids: Set<Int> = []
+        for item in items {
+            guard let d = item.asDouble, d == d.rounded(), d.isFinite else {
+                invalid.append(NPPSParser.describe(item))
+                continue
+            }
+            let id = Int(d)
+            if NPSocketID.isValid(id) { ids.insert(id) } else { invalid.append(String(id)) }
+        }
+        if !invalid.isEmpty {
+            let isAre = invalid.count == 1 ? "is not a socket" : "are not sockets"
+            throw NPPSError(
+                message: "zone \"\(zoneName)\": \(invalid.joined(separator: ", ")) \(isAre) on this "
+                    + "helmet — ids are whole numbers \(NPSocketID.rangeLabel) "
+                    + "(\(SocketZones.socketCount) sockets, numbered from \(NPSocketID.numberingBase))",
+                line: ln
+            )
+        }
+        return ids.sorted()
+    }
+
+    /// A numeric list element as it was written: `40Hz`, not `40.0Hz`.
+    private static func tagText(_ n: Double, _ unit: String) -> String {
+        (n == n.rounded() ? String(Int(n)) : String(n)) + unit
+    }
+
+    private static func describe(_ v: NPPSFieldValue) -> String {
+        switch v {
+        case .string(let s):            return "\"\(s)\""
+        case .ident(let s):             return s
+        case .bool(let b):              return String(b)
+        case .array:                    return "a nested list"
+        case .number(let n):            return n == n.rounded() ? String(Int(n)) : String(n)
+        case .numberWithUnit(let n, let u):
+            return (n == n.rounded() ? String(Int(n)) : String(n)) + u
+        }
+    }
+
+    // MARK: Condition block (NP-NPPS-REF-001 §9)
+
+    /// `condition "Name" { link: "https://…"  code: "6A70" }` — `link` is required.
+    mutating func parseConditionBlock() throws -> NPConditionDefinition {
+        let ln = currentLine
+        try expectKeyword("condition")
+        let name = try parseString()
+        try expect(.lbrace)
+
+        var link: String?
+        var id: String?
+        var code: String?
+        var description: String?
+
+        while currentToken != .rbrace && currentToken != .eof {
+            guard case .ident(let key) = currentToken else {
+                throw NPPSError(message: "Expected field name in condition block", line: currentLine)
+            }
+            advance()
+            guard currentToken == .colon else {
+                throw NPPSError(
+                    message: "Unexpected token after '\(key)' in condition block", line: currentLine
+                )
+            }
+            advance()
+            switch key {
+            case "link":        link = try parseString()
+            case "id":          id = try parseString()
+            case "code":        code = try parseString()
+            case "description": description = try parseString()
+            default:            skipValue()
+            }
+        }
+        try expect(.rbrace)
+        if name.isEmpty { throw NPPSError(message: "Condition name cannot be empty", line: ln) }
+        guard let resolvedLink = link, !resolvedLink.isEmpty else {
+            throw NPPSError(message: "condition \"\(name)\": 'link' is required", line: ln)
+        }
+        // Argument order follows the declaration in NPConditionDefinition.swift.
+        return NPConditionDefinition(
+            name: name, id: id, link: resolvedLink, code: code, description: description
+        )
     }
 
     // MARK: Limits block
@@ -348,9 +510,9 @@ struct NPPSParser {
 
         case "audio_entrainment":
             var lim = NPAudioEntrainmentLimits()
-            if let v = fields["max_volume"]?.asPercent        { lim.maxVolumePercent = v }
-            if let v = fields["max_binaural_hz"]?.asHz        { lim.maxBinauralBeatsHz = v }
-            if let v = fields["max_isochronic_hz"]?.asHz      { lim.maxIsochronicTonesHz = v }
+            if let v = fields["max_intensity"]?.asPercent        { lim.maxVolumePercent = v }
+            if let v = fields["max_binaural_beats"]?.asHz        { lim.maxBinauralBeatsHz = v }
+            if let v = fields["max_isochronic_tones"]?.asHz      { lim.maxIsochronicTonesHz = v }
             limitsSet.audioEntrainment = lim
 
         case "visual_stimulation":
@@ -371,7 +533,7 @@ struct NPPSParser {
 
         case "tms":
             var lim = NPTMSLimits()
-            if let v = fields["max_intensity_mt"]?.asDouble       { lim.maxIntensityPercentMT = Int(v) }
+            if let v = fields["max_intensity_pct_mt"]?.asDouble   { lim.maxIntensityPercentMT = Int(v) }
             if let v = fields["max_pulses_per_session"]?.asDouble { lim.maxPulsesPerSession = Int(v) }
             if let v = fields["max_pulses_per_day"]?.asDouble     { lim.maxPulsesPerDay = Int(v) }
             if let v = fields["max_sessions_per_week"]?.asDouble  { lim.maxSessionsPerWeek = Int(v) }
@@ -430,7 +592,7 @@ struct NPPSParser {
 
         case "vibrotactile_40hz":
             var lim = NPVibrotactileLimits()
-            if let v = fields["max_intensity_g"]?.asDouble        { lim.maxIntensityG = v }
+            if let v = fields["max_intensity"]?.asDouble          { lim.maxIntensityG = v }
             if let v = fields["max_session_duration"]?.asTime     { lim.maxSessionDurationSeconds = v }
             limitsSet.vibrotactile40hz = lim
 
@@ -452,6 +614,8 @@ struct NPPSParser {
         var author = "NeurOne"
         var version = "1.0"
         var tags: [String] = []
+        var conditions: [String] = []
+        var references: [NPProtocolReference] = []
         var timingMode: NPProtocolDefinition.TimingMode = .duration(20 * 60)
         var modalities: [NPProtocolModality] = []
         var isReadOnly = false
@@ -478,6 +642,10 @@ struct NPPSParser {
                     version = try parseString()
                 case "tags":
                     tags = try parseTagList()
+                case "conditions":
+                    conditions = try parseTagList()
+                case "references":
+                    references = try parseReferenceList()
                 case "duration":
                     let secs = try parseTimeValue()
                     timingMode = .duration(secs)
@@ -521,7 +689,9 @@ struct NPPSParser {
             isPredefined: isReadOnly,
             isReadOnly: isReadOnly,
             timingMode: timingMode,
-            modalities: modalities
+            modalities: modalities,
+            conditions: conditions,
+            references: references
         )
         proto.id = id
         return proto
@@ -540,6 +710,8 @@ struct NPPSParser {
         var author = "NeurOne"
         var version = "1.0"
         var tags: [String] = []
+        var conditions: [String] = []
+        var references: [NPProtocolReference] = []
         var conflictResolution: NPCompositeProtocol.ConflictResolution = .merge
         var layers: [NPCompositeLayer] = []
         var isReadOnly = false
@@ -573,6 +745,10 @@ struct NPPSParser {
                     version = try parseString()
                 case "tags":
                     tags = try parseTagList()
+                case "conditions":
+                    conditions = try parseTagList()
+                case "references":
+                    references = try parseReferenceList()
                 case "conflict_resolution":
                     let val = try parseIdentOrString()
                     switch val {
@@ -606,7 +782,9 @@ struct NPPSParser {
             isPredefined: isReadOnly,
             isReadOnly: isReadOnly,
             layers: layers,
-            conflictResolution: conflictResolution
+            conflictResolution: conflictResolution,
+            conditions: conditions,
+            references: references
         )
         comp.id = id
         return comp
@@ -876,12 +1054,13 @@ struct NPPSParser {
                 }
             }
             if let v = fields["emdr_cadence"]?.asHz  { p.emdrCadenceHz = v }
-            if let v = fields["mode_f"]?.asBool       { p.enableModeF = v }
+            // Distinct from the `mode: mode_f` VALUE parsed just above.
+            if let v = fields["enable_mode_f"]?.asBool { p.enableModeF = v }
             return .visualStimulation(p)
 
         case "qeeg_21ch":
             var p = NPqEEG21chParams()
-            if let v = fields["sloreta"]?.asBool { p.sloretaEnabled = v }
+            if let v = fields["sloreta_enabled"]?.asBool { p.sloretaEnabled = v }
             if let v = fields["reference"]?.asIdent {
                 switch v {
                 case "linked_ear": p.reference = .linkedEar
@@ -895,7 +1074,7 @@ struct NPPSParser {
         case "tms":
             var p = NPTMSParams()
             if let v = fields["frequency"]?.asHz          { p.frequencyHz = v }
-            if let v = fields["intensity_mt"]?.asDouble   { p.intensityPercentMT = Int(v) }
+            if let v = fields["intensity_percent_mt"]?.asDouble { p.intensityPercentMT = Int(v) }
             if let v = fields["pulse_count"]?.asDouble    { p.pulseCount = Int(v) }
             if let v = fields["target"]?.asIdent {
                 if let t = NPTMSParams.TMSTarget(rawValue: v.uppercased()) { p.target = t }
@@ -921,7 +1100,7 @@ struct NPPSParser {
             var p = NPClinicalTacsParams()
             if let v = fields["frequency"]?.asHz        { p.frequencyHz = v }
             if let v = fields["intensity"]?.asMilliamps { p.intensityMilliamps = v }
-            if let v = fields["channels"]?.asDouble     { p.channelCount = Int(v) }
+            if let v = fields["channel_count"]?.asDouble { p.channelCount = Int(v) }
             return .clinicalTacs(p)
 
         case "hd_tdcs":
@@ -929,7 +1108,7 @@ struct NPPSParser {
             if let v = fields["intensity"]?.asMilliamps { p.intensityMilliamps = v }
             if let v = fields["montage"]?.asIdent {
                 switch v {
-                case "ring_4x1", "4x1_ring":      p.montage = .ring4x1
+                case "ring_4x1":                   p.montage = .ring4x1
                 case "bilateral_4x1":              p.montage = .bilateral4x1
                 case "standard_2_electrode":       p.montage = .standard2el
                 default: break
@@ -949,8 +1128,8 @@ struct NPPSParser {
         case "vibrotactile_40hz":
             var p = NPVibrotactileParams()
             if let v = fields["intensity_g"]?.asDouble  { p.intensityG = v }
-            if let v = fields["sync_audio"]?.asBool     { p.syncToAudio = v }
-            if let v = fields["sync_visual"]?.asBool    { p.syncToVisual = v }
+            if let v = fields["sync_to_audio"]?.asBool     { p.syncToAudio = v }
+            if let v = fields["sync_to_visual"]?.asBool    { p.syncToVisual = v }
             return .vibrotactile40hz(p)
 
         default:
@@ -1095,6 +1274,28 @@ struct NPPSParser {
         return try parseString()
     }
 
+    /// A `references` value: an array whose elements are each a bare URL/path
+    /// string, or a `[label, url]` pair (NP-NPPS-REF-001 §2).
+    mutating private func parseReferenceList() throws -> [NPProtocolReference] {
+        let raw = try parseFieldValue()
+        guard case .array(let items) = raw else { return [] }
+        return items.compactMap { item in
+            if case .array(let pair) = item {
+                guard pair.count >= 2, let url = pair[1].asIdent else { return nil }
+                return NPProtocolReference(url: url, label: pair[0].asIdent)
+            }
+            guard let url = item.asIdent else { return nil }
+            return NPProtocolReference(url: url)
+        }
+    }
+
+    /// A list of identifiers, numbers, or quoted strings — tags, `conditions`,
+    /// and a zone's `types`.
+    ///
+    /// Anything else is an ERROR, not something to skip. Skipping silently
+    /// dropped a `40Hz` tag from the list, and — together with the lexer
+    /// discarding an unrecognised character — split `[sleep, wind-down]` into
+    /// three tags. The web parser keeps the first and rejects the second.
     mutating private func parseTagList() throws -> [String] {
         try expect(.lbracket)
         var tags: [String] = []
@@ -1102,7 +1303,21 @@ struct NPPSParser {
             switch currentToken {
             case .ident(let s):  tags.append(s); advance()
             case .string(let s): tags.append(s); advance()
-            default: advance()
+            // A unit-suffixed number is a legitimate tag — `tags: [focus, gamma,
+            // 40Hz, …]` ships in 01-gamma-focus.npps, and the web parser keeps
+            // it. Skipping it here dropped it from the list silently.
+            case .number(let n):
+                tags.append(NPPSParser.tagText(n, ""))
+                advance()
+            case .numberWithUnit(let n, let unit):
+                tags.append(NPPSParser.tagText(n, unit))
+                advance()
+            default:
+                throw NPPSError(
+                    message: "Unexpected \(currentToken) in a list — each element must be an "
+                        + "identifier, a number, or a quoted string.",
+                    line: currentLine
+                )
             }
             if currentToken == .comma { advance() }
         }
@@ -1155,7 +1370,51 @@ struct NPPSSerializer {
             return serializeComposite(comp)
         case .limits(let lim):
             return serializeLimits(lim)
+        case .zone(let zone):
+            return serializeZone(zone)
+        case .condition(let cond):
+            return serializeCondition(cond)
         }
+    }
+
+    /// A bare URL, or a `[label, url]` pair when the entry was labelled.
+    private func serializeReference(_ r: NPProtocolReference) -> String {
+        guard let label = r.label else { return "\"\(escape(r.url))\"" }
+        return "[\"\(escape(label))\", \"\(escape(r.url))\"]"
+    }
+
+    /// Escape a value for a double-quoted NPPS string.
+    private func escape(_ value: String) -> String {
+        value.replacingOccurrences(of: "\\", with: "\\\\")
+             .replacingOccurrences(of: "\"", with: "\\\"")
+    }
+
+    // MARK: Zone / Condition (NP-NPPS-REF-001 §8, §9)
+
+    func serializeZone(_ z: NPZoneDefinition) -> String {
+        var lines: [String] = ["zone \"\(escape(z.name))\" {"]
+        if let id = z.id { lines.append("    id: \"\(escape(id))\"") }
+        if let d = z.description { lines.append("    description: \"\(escape(d))\"") }
+        // Canonical membership on the way out as well as in: sorted and deduped,
+        // so two equal zones serialize identically.
+        let sockets = Array(Set(z.sockets)).sorted().map(String.init).joined(separator: ", ")
+        lines.append("    sockets: [\(sockets)]")
+        if let types = z.types, !types.isEmpty {
+            lines.append("    types: [\(types.joined(separator: ", "))]")
+        }
+        if z.excludeTypes { lines.append("    exclude_types: true") }
+        lines.append("}")
+        return lines.joined(separator: "\n")
+    }
+
+    func serializeCondition(_ c: NPConditionDefinition) -> String {
+        var lines: [String] = ["condition \"\(escape(c.name))\" {"]
+        if let id = c.id { lines.append("    id: \"\(escape(id))\"") }
+        lines.append("    link: \"\(escape(c.link))\"")
+        if let code = c.code { lines.append("    code: \"\(escape(code))\"") }
+        if let d = c.description { lines.append("    description: \"\(escape(d))\"") }
+        lines.append("}")
+        return lines.joined(separator: "\n")
     }
 
     func serializeLimits(_ limits: NPLimitsSet) -> String {
@@ -1215,9 +1474,9 @@ struct NPPSSerializer {
         }
         if let lim = limits.audioEntrainment {
             lines.append("    audio_entrainment {")
-            if let v = lim.maxVolumePercent       { lines.append("        max_volume: \(Int(v))%") }
-            if let v = lim.maxBinauralBeatsHz     { lines.append("        max_binaural_hz: \(formatHz(v))") }
-            if let v = lim.maxIsochronicTonesHz   { lines.append("        max_isochronic_hz: \(formatHz(v))") }
+            if let v = lim.maxVolumePercent       { lines.append("        max_intensity: \(Int(v))%") }
+            if let v = lim.maxBinauralBeatsHz     { lines.append("        max_binaural_beats: \(formatHz(v))") }
+            if let v = lim.maxIsochronicTonesHz   { lines.append("        max_isochronic_tones: \(formatHz(v))") }
             lines.append("    }")
         }
         if let lim = limits.visualStimulation {
@@ -1230,7 +1489,7 @@ struct NPPSSerializer {
         }
         if let lim = limits.tms {
             lines.append("    tms {")
-            if let v = lim.maxIntensityPercentMT  { lines.append("        max_intensity_mt: \(v)") }
+            if let v = lim.maxIntensityPercentMT  { lines.append("        max_intensity_pct_mt: \(v)") }
             if let v = lim.maxPulsesPerSession    { lines.append("        max_pulses_per_session: \(v)") }
             if let v = lim.maxPulsesPerDay        { lines.append("        max_pulses_per_day: \(v)") }
             if let v = lim.maxSessionsPerWeek     { lines.append("        max_sessions_per_week: \(v)") }
@@ -1265,7 +1524,7 @@ struct NPPSSerializer {
         }
         if let lim = limits.vibrotactile40hz {
             lines.append("    vibrotactile_40hz {")
-            if let v = lim.maxIntensityG               { lines.append("        max_intensity_g: \(v)G") }
+            if let v = lim.maxIntensityG               { lines.append("        max_intensity: \(v)G") }
             if let v = lim.maxSessionDurationSeconds   { lines.append("        max_session_duration: \(formatTime(v))") }
             lines.append("    }")
         }
@@ -1290,6 +1549,14 @@ struct NPPSSerializer {
         }
         if !proto.tags.isEmpty {
             lines.append("    tags: [\(proto.tags.map { serializeTag($0) }.joined(separator: ", "))]")
+        }
+        if !proto.conditions.isEmpty {
+            let cs = proto.conditions.map { "\"\(escape($0))\"" }.joined(separator: ", ")
+            lines.append("    conditions: [\(cs)]")
+        }
+        if !proto.references.isEmpty {
+            let rs = proto.references.map { serializeReference($0) }.joined(separator: ", ")
+            lines.append("    references: [\(rs)]")
         }
         switch proto.timingMode {
         case .duration(let s):
@@ -1340,7 +1607,7 @@ struct NPPSSerializer {
             case .clinicianSelected:
                 lines.append("zones: clinician_selected")
             }
-            lines.append("wavelength: \(p.wavelength.rawValue)")
+            lines.append("wavelength: \"\(p.wavelength.rawValue)\"")
             return lines
 
         case .pbmIntranasal(let p):
@@ -1405,13 +1672,13 @@ struct NPPSSerializer {
             lines.append("frequency: \(formatHz(p.frequencyHz))")
             lines.append("mode: \(p.mode.rawValue)")
             if p.mode == .emdr { lines.append("emdr_cadence: \(formatHz(p.emdrCadenceHz))") }
-            if p.enableModeF { lines.append("mode_f: true") }
+            if p.enableModeF { lines.append("enable_mode_f: true") }
             return lines
 
         case .qeeg21ch(let p):
             return [
                 "montage: \(p.montage.rawValue)",
-                "sloreta: \(p.sloretaEnabled)",
+                "sloreta_enabled: \(p.sloretaEnabled)",
                 "reference: \(p.reference.rawValue)"
             ]
 
@@ -1419,7 +1686,7 @@ struct NPPSSerializer {
             return [
                 "protocol: \(p.tmsProtocol.rawValue)",
                 "frequency: \(formatHz(p.frequencyHz))",
-                "intensity_mt: \(p.intensityPercentMT)%",
+                "intensity_percent_mt: \(p.intensityPercentMT)%",
                 "target: \(p.target.rawValue)",
                 "pulse_count: \(p.pulseCount)"
             ]
@@ -1435,7 +1702,7 @@ struct NPPSSerializer {
             return [
                 "frequency: \(formatHz(p.frequencyHz))",
                 "intensity: \(p.intensityMilliamps)mA",
-                "channels: \(p.channelCount)",
+                "channel_count: \(p.channelCount)",
                 "waveform: \(p.waveform.rawValue)"
             ]
 
@@ -1457,8 +1724,8 @@ struct NPPSSerializer {
             return [
                 "frequency: \(formatHz(p.frequencyHz))  # locked at 40Hz",
                 "intensity_g: \(p.intensityG)G",
-                "sync_audio: \(p.syncToAudio)",
-                "sync_visual: \(p.syncToVisual)"
+                "sync_to_audio: \(p.syncToAudio)",
+                "sync_to_visual: \(p.syncToVisual)"
             ]
         }
     }
@@ -1479,6 +1746,14 @@ struct NPPSSerializer {
         }
         if !comp.tags.isEmpty {
             lines.append("    tags: [\(comp.tags.map { serializeTag($0) }.joined(separator: ", "))]")
+        }
+        if !comp.conditions.isEmpty {
+            let cs = comp.conditions.map { "\"\(escape($0))\"" }.joined(separator: ", ")
+            lines.append("    conditions: [\(cs)]")
+        }
+        if !comp.references.isEmpty {
+            let rs = comp.references.map { serializeReference($0) }.joined(separator: ", ")
+            lines.append("    references: [\(rs)]")
         }
         lines.append("    conflict_resolution: \(comp.conflictResolution.rawValue)")
         lines.append("")
@@ -1517,7 +1792,11 @@ struct NPPSSerializer {
     // Quote it otherwise (e.g. "wind-down") so that a serialize→reparse round-trip
     // preserves the original string without silent splitting on hyphens.
     private func serializeTag(_ tag: String) -> String {
-        let isBareIdent = !tag.isEmpty && tag.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }
+        // A bare identifier may not start with a digit: a tag like "1064nm" is
+        // all letters and digits but must still be quoted to re-parse (Rev 6).
+        let isBareIdent = !tag.isEmpty
+            && (tag.first!.isLetter || tag.first! == "_")
+            && tag.allSatisfy { $0.isLetter || $0.isNumber || $0 == "_" }
         return isBareIdent ? tag : "\"\(tag.replacingOccurrences(of: "\"", with: "\\\""))\""
     }
 }

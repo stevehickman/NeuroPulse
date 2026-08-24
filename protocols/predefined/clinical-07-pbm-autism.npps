@@ -14,6 +14,6 @@ protocol "PBM — Autism (pediatric, 40Hz)" {
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Temporal Left", "Temporal Right"]
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 }

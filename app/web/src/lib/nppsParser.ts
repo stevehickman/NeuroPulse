@@ -91,25 +91,49 @@ interface Token {
   unit?: string; // 's' | 'm' | 'Hz' | '%' | 'mA' — preserved from source for duration/unit-aware fields
 }
 
+// Classifies an identifier as KEYWORD rather than IDENT at tokenize time.
+// This is presentation only: every consumption site below accepts KEYWORD and
+// IDENT interchangeably, so membership here changes no parse outcome — an
+// omission costs nothing and a stale entry breaks nothing. It is kept accurate
+// so error messages and any tooling reading the token stream stay truthful.
+// The authoritative keyword surface is NP-NPPS-REF-001 §12.
 const KEYWORDS = new Set([
-  'protocol', 'composite', 'limits', 'zone', 'condition',
-  'description', 'author', 'version',
-  'tags', 'duration', 'interval_count',
-  'conditions', 'references', 'link',
-  'side', 'sockets', 'addrs', 'types', 'exclude_types',
-  'enabled', 'repeat', 'layer',
+  // Top-level and nested block keywords
+  'protocol', 'composite', 'limits', 'zone', 'condition', 'layer',
+  // Modality block keywords (the 15 of NP-NPPS-GRAM-001 Rev 3)
+  'pbm_transcranial', 'pbm_intranasal', 'pbm_deep_1170nm', 'eeg_neurofeedback',
+  'bes_tacs', 'tdcs', 'vns_hrv', 'audio_entrainment', 'visual_stimulation',
+  'qeeg_21ch', 'tms', 'clinical_tacs', 'hd_tdcs', 'cervical_vns',
+  'vibrotactile_40hz',
+  // Metadata fields
+  'id', 'description', 'author', 'version', 'readonly', 'tags',
+  'duration', 'interval_count', 'conditions', 'references',
+  // Interval fields
+  'interval_on', 'interval_off', 'repeat', 'enabled',
+  // Layer fields
   'start', 'end', 'intensity_scale', 'conflict_resolution',
+  // Limits top-level fields
   'level', 'global', 'helmet', 'individual', 'helmet_id', 'individual_id',
-  'pbm_transcranial', 'pbm_intranasal', 'eeg_neurofeedback', 'bes_tacs',
-  'tdcs', 'vns_hrv', 'audio_entrainment', 'visual_stimulation', 'tms',
-  'pbm_deep_1170nm', 'clinical_tacs', 'hd_tdcs', 'cervical_vns', 'vibrotactile_40hz',
+  // Zone and condition fields
+  'sockets', 'types', 'exclude_types', 'link', 'code',
+  // Limits per-modality fields
   'max_intensity', 'max_frequency', 'min_frequency', 'max_duty_cycle',
   'max_session_dose', 'max_daily_dose', 'max_session_duration',
   'max_sessions_per_day', 'max_sessions_per_week',
   'max_intensity_pct_mt', 'max_pulses_per_session', 'max_pulses_per_day',
+  'max_binaural_beats', 'max_isochronic_tones',
   'allowed_modes', 'allowed_protocols', 'allowed_targets', 'allowed_montages',
   'allowed_bands', 'require_closed_loop', 'block_high_risk_range',
+  // Boolean literals
   'true', 'false',
+]);
+
+// The `limits` keys that introduce a per-modality sub-block (`key { … }`)
+// rather than a scalar (`key: value`). Used to tell the two shapes apart.
+const MODALITY_LIMITS_KEYS = new Set([
+  'pbm_transcranial', 'pbm_intranasal', 'eeg_neurofeedback', 'bes_tacs', 'tdcs',
+  'vns_hrv', 'audio_entrainment', 'visual_stimulation', 'tms', 'pbm_deep_1170nm',
+  'clinical_tacs', 'hd_tdcs', 'cervical_vns', 'vibrotactile_40hz',
 ]);
 
 export function tokenize(text: string): Token[] {
@@ -190,22 +214,21 @@ export function tokenize(text: string): Token[] {
         else if (text.slice(pos, pos + 2) === 'Hz') { unit = 'Hz'; pos += 2; }
         else if (text.slice(pos, pos + 2) === 'mA') { unit = 'mA'; pos += 2; }
       }
-      // If no unit suffix was consumed and the next char would start an identifier
-      // (e.g. 660_808nm, 1064nm), extend into a full IDENT token rather than NUMBER.
-      // Entry condition excludes bare '_' to avoid accepting malformed tokens like
-      // "660_" or "660__nm" as valid identifiers.
-      if (!unit && pos < text.length &&
-          ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') || text[pos] === '_')) {
-        let ident = numStr;
-        while (pos < text.length &&
-               ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') ||
-                (text[pos] >= '0' && text[pos] <= '9') || text[pos] === '_')) {
-          ident += text[pos++];
-        }
-        // Strip any trailing underscores — they are not valid in wavelength identifiers.
-        while (ident.endsWith('_')) ident = ident.slice(0, -1);
-        tokens.push({ type: 'IDENT', value: ident, line });
-        continue;
+      // A digit-leading token that is not a number with a unit suffix is not a
+      // value. Digit-leading compound identifiers (660_808nm, 1064nm) and
+      // digit-leading hyphenated ones (10-20) used to be lexed here as IDENT;
+      // both must now be quoted, which is what makes them ordinary JSON strings
+      // (NP-NPPS-REF-001 §2, Rev 6). Reject with a message that says so rather
+      // than emitting a NUMBER and failing further along with 'expected field
+      // name, got NUMBER (-20)'.
+      if (!unit && pos < text.length && /[a-zA-Z_-]/.test(text[pos])) {
+        let rest = numStr;
+        while (pos < text.length && /[a-zA-Z0-9_-]/.test(text[pos])) rest += text[pos++];
+        throw new NPPSParseError(
+          `Unquoted value '${rest}' — values that start with a digit and are not ` +
+          `a plain number must be quoted, e.g. "${rest}"`,
+          line,
+        );
       }
       const tok: Token = { type: 'NUMBER', value: parseFloat(numStr), line };
       if (unit) tok.unit = unit;
@@ -216,8 +239,11 @@ export function tokenize(text: string): Token[] {
     // Identifiers and keywords
     if ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') || text[pos] === '_') {
       let ident = '';
-      while (pos < text.length && ((text[pos] >= 'a' && text[pos] <= 'z') || (text[pos] >= 'A' && text[pos] <= 'Z') || (text[pos] >= '0' && text[pos] <= '9') || text[pos] === '_'
-          || (text[pos] === '-' && pos + 1 < text.length && ((text[pos + 1] >= 'a' && text[pos + 1] <= 'z') || (text[pos + 1] >= 'A' && text[pos + 1] <= 'Z'))))) {
+      // No hyphens: a bare identifier is [A-Za-z_][A-Za-z0-9_]*, the same shape
+      // an unquoted key may take. Hyphenated values (wind-down, all-modalities)
+      // must be quoted — see the digit-leading case above and §2 of the
+      // reference. This keeps every value a plain ident, number, bool or string.
+      while (pos < text.length && /[a-zA-Z0-9_]/.test(text[pos])) {
         ident += text[pos++];
       }
       if (ident === 'true') {
@@ -494,7 +520,11 @@ class Parser {
         continue;
       }
 
-      raw[canonical] = val;
+      // A short alias never overwrites the canonical spelling if that was
+      // already given, so `frequency_hz: 40` beats a later `frequency: 10`.
+      if (!(canonical !== key && raw[canonical] !== undefined)) {
+        raw[canonical] = val;
+      }
       this.skipNewlines();
     }
 
@@ -543,6 +573,28 @@ class Parser {
     this.skipNewlines();
     this.expect('COLON');
     return { key, valueLine };
+  }
+
+  // Reads a key inside a `limits` block. Two shapes are legal there and only
+  // one has a colon: top-level scalar fields are `level: global`, while
+  // per-modality sub-blocks are `pbm_transcranial { … }` with none.
+  // readKeyValue() demands a colon unconditionally, so using it here made every
+  // limits block containing a sub-block — i.e. the whole of NP-NPPS-REF-001 §7
+  // — a parse error, and left the per-modality field maps below unreachable.
+  // The brace is left unconsumed for parseLimitsSubBlock().
+  private readLimitsKey(): { key: string; isBlock: boolean; valueLine: number } {
+    this.skipNewlines();
+    const t = this.current;
+    if (t.type !== 'KEYWORD' && t.type !== 'IDENT') {
+      throw new NPPSParseError(`Expected key, got ${t.type} (${String(t.value)})`, t.line);
+    }
+    const key = t.value as string;
+    const valueLine = t.line;
+    this.advance();
+    this.skipNewlines();
+    if (this.ct() === 'LBRACE') return { key, isBlock: true, valueLine };
+    this.expect('COLON');
+    return { key, isBlock: false, valueLine };
   }
 
   parse(): NPProtocolEntry[] {
@@ -618,7 +670,15 @@ class Parser {
     let vibrotactile40hz: VibrotactileLimits | undefined;
 
     while (!this.tryBrace()) {
-      const { key } = this.readKeyValue();
+      const { key, isBlock } = this.readLimitsKey();
+      if (isBlock !== MODALITY_LIMITS_KEYS.has(key)) {
+        throw new NPPSParseError(
+          isBlock
+            ? `'${key}' is a scalar limits field, not a sub-block`
+            : `'${key}' is a per-modality limits sub-block and takes no ':'`,
+          startLine,
+        );
+      }
       switch (key) {
         case 'level': {
           const v = this.readString();
@@ -679,7 +739,7 @@ class Parser {
   // ─── Limits sub-block parsers ─────────────────────────────────────────────
 
   private parseLimitsSubBlock<T extends object>(
-    fieldMap: Record<string, (raw: unknown) => Partial<T>>
+    fieldMap: Record<string, (raw: unknown) => Partial<T>>,
   ): T {
     this.skipNewlines();
     this.expect('LBRACE');
@@ -689,8 +749,7 @@ class Parser {
       const { key } = this.readKeyValue();
       const handler = fieldMap[key];
       if (handler) {
-        const val = handler(this.readAnyValue());
-        Object.assign(result, val);
+        Object.assign(result, handler(this.readAnyValue()));
       } else {
         // Skip unknown fields gracefully
         this.readAnyValue();
@@ -979,8 +1038,14 @@ class Parser {
         // understand must stop the file rather than become a second way to say
         // where light lands.
         const rawZones = raw['zones'];
+        // Absent `zones` inherits BOTH halves of the default, not just the
+        // discriminant. Taking d.zones alone produced {zones:'named'} with no
+        // zoneRefs — the state this type's own comment rules out ("'named'
+        // pairs with zoneRefs") — which the serializer then wrote out as the
+        // bare word `named`, a selector no parser accepts. Every other field
+        // here defaults from `d`; zones now does too, refs included.
         let zones: PBMTranscranialParams['zones'] = d.zones;
-        let zoneRefs: string[] | undefined;
+        let zoneRefs: string[] | undefined = d.zones === 'named' ? d.zoneRefs : undefined;
         if (Array.isArray(rawZones)) {
           const els = rawZones as unknown[];
           if (!els.every(e => typeof e === 'string')) {

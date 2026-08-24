@@ -14,7 +14,7 @@ protocol "Memory Boost" {
         frequency: 6Hz
         duty_cycle: 25%
         zones: ["Frontal"]
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 
     eeg_neurofeedback {

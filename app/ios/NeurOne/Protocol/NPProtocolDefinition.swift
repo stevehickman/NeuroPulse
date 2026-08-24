@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 // MARK: - Interval Config
@@ -290,12 +291,21 @@ struct NPAudioEntrainmentParams: Codable, Equatable {
 // MARK: Visual Stimulation
 
 struct NPVisualStimParams: Codable, Equatable {
+    /// The four visual delivery modes (NP-NPPS-REF-001 §4.8).
+    ///
+    /// `rawValue` is the **NPPS token**, which is what the parser reads and the
+    /// serializer writes. It used to be the Swift case name — `retinalPBM`,
+    /// `modeF` — while the parser only accepted `retinal_pbm` and `mode_f`, so
+    /// those two modes serialized to text this parser could not read back.
+    ///
+    /// The session descriptor uses a *different* vocabulary; see
+    /// ``sessionWireName``. Conflating the two is what caused the bug.
     enum VisualMode: String, Codable, CaseIterable, Equatable, Identifiable {
         var id: String { rawValue }
-        case binocular
-        case emdr
-        case retinalPBM
-        case modeF
+        case binocular  = "binocular"
+        case emdr       = "emdr"
+        case retinalPBM = "retinal_pbm"
+        case modeF      = "mode_f"
 
         var displayName: String {
             switch self {
@@ -303,6 +313,19 @@ struct NPVisualStimParams: Codable, Equatable {
             case .emdr:       return "EMDR L/R Alternation"
             case .retinalPBM: return "Retinal PBM"
             case .modeF:      return "Mode F (Invisible NIR)"
+            }
+        }
+
+        /// The mode name in the session descriptor, whose vocabulary is
+        /// `binocular` / `emdr` / `retinalPBM` (see `SessionProtocol.mode`) —
+        /// not the NPPS token. Mode F rides the retinalPBM path with the NIR
+        /// flag set, exactly as the Windows compiler already maps it, so it has
+        /// no separate name here; `modeF` was never a legal value in that field.
+        var sessionWireName: String {
+            switch self {
+            case .binocular:            return "binocular"
+            case .emdr:                 return "emdr"
+            case .retinalPBM, .modeF:   return "retinalPBM"
             }
         }
     }
@@ -419,7 +442,7 @@ struct NPClinicalTacsParams: Codable, Equatable {
 struct NPHDTdcsParams: Codable, Equatable {
     enum Montage: String, Codable, CaseIterable, Equatable, Identifiable {
         var id: String { rawValue }
-        case ring4x1       = "4x1_ring"
+        case ring4x1       = "ring_4x1"
         case bilateral4x1  = "bilateral_4x1"
         case standard2el   = "standard_2_electrode"
 
@@ -660,6 +683,13 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
     var timingMode: TimingMode = .duration(20 * 60)
     var modalities: [NPProtocolModality] = []
 
+    /// Clinical conditions this protocol targets (§3). Each name must resolve
+    /// to a loaded `condition` block — see `validateNamespaceReferences`.
+    var conditions: [String] = []
+
+    /// Evidence and applicability links (§3).
+    var references: [NPProtocolReference] = []
+
     // MARK: Computed
 
     var requiredModalityTypes: Set<NPModalityType> {
@@ -706,6 +736,7 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         case id, name, description, author, version, tags
         case createdAt, modifiedAt, isPredefined, isReadOnly, modalities
         case timingType, timingValue
+        case conditions, references
     }
 
     func encode(to encoder: Encoder) throws {
@@ -721,6 +752,8 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         try c.encode(isPredefined, forKey: .isPredefined)
         try c.encode(isReadOnly, forKey: .isReadOnly)
         try c.encode(modalities, forKey: .modalities)
+        try c.encode(conditions, forKey: .conditions)
+        try c.encode(references, forKey: .references)
         switch timingMode {
         case .duration(let v):
             try c.encode("duration", forKey: .timingType)
@@ -744,6 +777,10 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         isPredefined = try c.decodeIfPresent(Bool.self, forKey: .isPredefined) ?? false
         isReadOnly   = try c.decodeIfPresent(Bool.self, forKey: .isReadOnly) ?? false
         modalities  = try c.decodeIfPresent([NPProtocolModality].self, forKey: .modalities) ?? []
+        // decodeIfPresent: entries persisted before these fields existed decode
+        // to empty rather than failing the whole protocol.
+        conditions  = try c.decodeIfPresent([String].self, forKey: .conditions) ?? []
+        references  = try c.decodeIfPresent([NPProtocolReference].self, forKey: .references) ?? []
         let timingType = try c.decodeIfPresent(String.self, forKey: .timingType) ?? "duration"
         let timingValue = try c.decodeIfPresent(Int.self, forKey: .timingValue) ?? 1200
         if timingType == "interval_count" {
@@ -764,7 +801,9 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
          isPredefined: Bool = false,
          isReadOnly: Bool = false,
          timingMode: TimingMode = .duration(20 * 60),
-         modalities: [NPProtocolModality] = []) {
+         modalities: [NPProtocolModality] = [],
+         conditions: [String] = [],
+         references: [NPProtocolReference] = []) {
         self.id = id
         self.name = name
         self.description = description
@@ -777,6 +816,8 @@ struct NPProtocolDefinition: Codable, Identifiable, Equatable {
         self.isReadOnly = isReadOnly
         self.timingMode = timingMode
         self.modalities = modalities
+        self.conditions = conditions
+        self.references = references
     }
 }
 
@@ -820,14 +861,58 @@ struct NPCompositeProtocol: Codable, Identifiable, Equatable {
     var isReadOnly: Bool = false
     var layers: [NPCompositeLayer] = []
     var conflictResolution: ConflictResolution = .merge
+    var conditions: [String] = []
+    var references: [NPProtocolReference] = []
 }
 
 // MARK: - NPProtocolEntry
+
+// MARK: - Zone definition (named set of modules)
+
+/// A zone is a named SET OF MODULES, defined as an explicit list of socket
+/// (major) addresses. Listing sockets directly makes arbitrary, non-contiguous
+/// zones definable; an optional element-type filter restricts which elements
+/// within those modules the zone selects. See NP-NPPS-REF-001 §8.
+///
+/// `sockets` is a SET: duplicates collapse and the list is sorted at parse
+/// time, so unioning the two hemisphere zones of a lobe counts a shared midline
+/// socket once.
+struct NPZoneDefinition: Codable, Equatable {
+    var name: String
+    var sockets: [Int]
+    var id: String?
+    var description: String?
+    /// Element-type names mirror the firmware `np_elem_type_t`. Unknown names
+    /// are preserved rather than rejected: the element table is
+    /// hardware-revision data, so an unfamiliar type is forward compatibility.
+    var types: [String]?
+    var excludeTypes: Bool = false
+    /// Presence of an `id` marks the zone as shipped/read-only.
+    var isPredefined: Bool = false
+}
+
+// NOTE: `NPConditionDefinition` is NOT declared here. It already exists in
+// NPConditionDefinition.swift, alongside NPResolvedCondition and the link
+// policy that consumes it; a second declaration here made the name ambiguous
+// for every file that referenced it. The parser builds instances of that type.
+
+/// A `references` entry: a bare URL/path, or a labelled link (§2).
+struct NPProtocolReference: Codable, Equatable {
+    var url: String
+    var label: String?
+
+    /// What a link should read as: the label when one was authored.
+    var displayText: String { label ?? url }
+}
 
 enum NPProtocolEntry: Identifiable, Equatable, Codable {
     case single(NPProtocolDefinition)
     case composite(NPCompositeProtocol)
     case limits(NPLimitsSet)
+    /// A `zone` block: a named set of modules (NP-NPPS-REF-001 §8).
+    case zone(NPZoneDefinition)
+    /// A `condition` block: name -> external definition link (§9).
+    case condition(NPConditionDefinition)
 
     // MARK: Identifiable
     var id: UUID {
@@ -835,6 +920,10 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .single(let p):    return p.id
         case .composite(let c): return c.id
         case .limits(let l):    return l.id
+        // Definitions are namespace entries keyed by name, never library items,
+        // so a stable synthetic id derived from the name is enough.
+        case .zone(let z):      return NPProtocolEntry.syntheticID("zone:\(z.name)")
+        case .condition(let c): return NPProtocolEntry.syntheticID("condition:\(c.name)")
         }
     }
 
@@ -843,6 +932,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .single(let p):    return p.name
         case .composite(let c): return c.name
         case .limits(let l):    return l.name
+        case .zone(let z):      return z.name
+        case .condition(let c): return c.name
         }
     }
 
@@ -851,6 +942,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .single(let p):    return p.description
         case .composite(let c): return c.description
         case .limits(let l):    return l.description
+        case .zone(let z):      return z.description ?? ""
+        case .condition(let c): return c.description ?? ""
         }
     }
 
@@ -858,7 +951,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p):    return p.tags
         case .composite(let c): return c.tags
-        case .limits:           return []
+        case .limits, .zone, .condition: return []
         }
     }
 
@@ -867,6 +960,9 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .single(let p):    return p.isPredefined
         case .composite(let c): return c.isPredefined
         case .limits:           return false
+        // A shipped definition carries an id; a user-authored one does not.
+        case .zone(let z):      return z.isPredefined
+        case .condition(let c): return c.id != nil
         }
     }
 
@@ -875,6 +971,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .single(let p):    return p.isReadOnly
         case .composite(let c): return c.isReadOnly
         case .limits:           return false
+        case .zone(let z):      return z.isPredefined
+        case .condition(let c): return c.id != nil
         }
     }
 
@@ -888,6 +986,27 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         return false
     }
 
+    /// True for `zone` and `condition` entries: namespace definitions that are
+    /// referenced by name and never appear in a protocol list.
+    var isDefinition: Bool {
+        switch self {
+        case .zone, .condition: return true
+        default:                return false
+        }
+    }
+
+    /// Deterministic id for a definition, so the same name always yields the
+    /// same value across launches. UUID v5-style: a namespaced SHA-256 prefix.
+    private static func syntheticID(_ key: String) -> UUID {
+        var bytes = Array(SHA256.hash(data: Data(key.utf8)).prefix(16))
+        bytes[6] = (bytes[6] & 0x0F) | 0x50   // version 5
+        bytes[8] = (bytes[8] & 0x3F) | 0x80   // RFC 4122 variant
+        return UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]
+        ))
+    }
+
     var requiredModalityTypes: Set<NPModalityType> {
         switch self {
         case .single(let p):
@@ -895,7 +1014,8 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .composite:
             // Composite modality requirements are resolved at runtime against the library
             return Set()
-        case .limits:
+        case .limits, .zone, .condition:
+            // A definition is referenced by protocols, never run.
             return Set()
         }
     }
@@ -907,7 +1027,7 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         switch self {
         case .single(let p): return p.isEEGDependent
         case .composite:     return false
-        case .limits:        return false
+        case .limits, .zone, .condition: return false
         }
     }
 
@@ -946,6 +1066,18 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
             l.createdAt = Date()
             l.modifiedAt = Date()
             return .limits(l)
+        case .zone(var z):
+            // A definition is keyed by name, so duplicating one means renaming
+            // it; there is no id to re-mint, and the copy is user-authored, so
+            // it loses the shipped marker.
+            z.name = newName
+            z.id = nil
+            z.isPredefined = false
+            return .zone(z)
+        case .condition(let c):
+            return .condition(NPConditionDefinition(
+                name: newName, id: nil, link: c.link, code: c.code, description: c.description
+            ))
         }
     }
 
@@ -965,6 +1097,12 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
         case .limits(let lim):
             try c.encode("limits", forKey: .type)
             try c.encode(lim, forKey: .value)
+        case .zone(let zone):
+            try c.encode("zone", forKey: .type)
+            try c.encode(zone, forKey: .value)
+        case .condition(let cond):
+            try c.encode("condition", forKey: .type)
+            try c.encode(cond, forKey: .value)
         }
     }
 
@@ -978,6 +1116,10 @@ enum NPProtocolEntry: Identifiable, Equatable, Codable {
             self = .composite(try c.decode(NPCompositeProtocol.self, forKey: .value))
         case "limits":
             self = .limits(try c.decode(NPLimitsSet.self, forKey: .value))
+        case "zone":
+            self = .zone(try c.decode(NPZoneDefinition.self, forKey: .value))
+        case "condition":
+            self = .condition(try c.decode(NPConditionDefinition.self, forKey: .value))
         default:
             throw DecodingError.dataCorruptedError(
                 forKey: .type, in: c,

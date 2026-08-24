@@ -2,6 +2,7 @@ package life.neurone.core.protocol
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import kotlin.test.fail
@@ -39,78 +40,77 @@ class NPPSRegressionTests {
 
     // MARK: - Mirrors of the four iOS tests -----------------------------------
 
-    /** testLexerCompoundDigitIdentRoundTrip — 660_808nm + mW_cm2 in a pbm block. */
+    /**
+     * Wavelengths are quoted values (NP-NPPS-REF-001 §2, Rev 6).
+     *
+     * These two tests used to assert the OPPOSITE: that the lexer read
+     * `660_808nm` as a single bare Ident. Rev 6 removed that rule on the web and
+     * Swift parsers and migrated the shipped library, but this lexer kept it, so
+     * Android alone still accepted a form the other two reject. The guard is now
+     * that the quoted form works and the bare form is refused.
+     */
     @Test
-    fun testLexerCompoundDigitIdentRoundTrip() {
-        val script = """
-            protocol "Compound Idents" {
-                version: "1.0"
-                pbm_transcranial {
-                    intensity: 75%
-                    frequency: 40Hz
-                    duty_cycle: 25%
-                    wavelength: 660_808nm
+    fun testQuotedWavelengthsParse() {
+        for ((literal, expected) in listOf(
+            "660_808nm" to NPPBMTranscranialParams.Wavelength.BASE_660_808NM,
+            "1064nm" to NPPBMTranscranialParams.Wavelength.SMART_1064NM,
+            "660_808_1064nm" to NPPBMTranscranialParams.Wavelength.TRI_660_808_1064,
+        )) {
+            val script = """
+                protocol "Wavelengths" {
+                    version: "1.0"
+                    pbm_transcranial {
+                        intensity: 75%
+                        wavelength: "$literal"
+                    }
                 }
+            """.trimIndent()
+            assertEquals(expected, pbmTranscranial(singleProtocol(script)).wavelength,
+                "quoted $literal should resolve")
+        }
+    }
+
+    @Test
+    fun testUnquotedWavelengthIsRefused() {
+        for (literal in listOf("660_808nm", "660_808_1064nm")) {
+            val script = """
+                protocol "Wavelengths" {
+                    version: "1.0"
+                    pbm_transcranial { intensity: 75% wavelength: $literal }
+                }
+            """.trimIndent()
+            val e = assertFailsWith<NPPSError>("unquoted $literal must not parse") {
+                NPPSParser(NPPSLexer(script).tokenize()).parse()
             }
-        """.trimIndent()
+            assertTrue(
+                e.message.orEmpty().contains("must be quoted"),
+                "the error should name the fix, got: ${e.message}",
+            )
+        }
+    }
 
-        // Bug fix (1): 660_808nm must lex as a single ident, not number + field.
-        // Bug fix (3): mW_cm2 must lex as a recognized unit on a number.
-        val proto = singleProtocol(script)
-        val p = pbmTranscranial(proto)
-        assertEquals(
-            NPPBMTranscranialParams.Wavelength.BASE_660_808NM,
-            p.wavelength,
-            "660_808nm should resolve to the base wavelength",
-        )
-
-        // Verify the unit token exists in the lexer output for a mW_cm2 value.
-        val tokens = lex("300mW_cm2")
-        val unitTok = tokens.map { it.token }.firstOrNull { it is NPPSToken.NumberWithUnit }
+    /** A number with a unit suffix still lexes as one token, including '%'. */
+    @Test
+    fun testUnitSuffixesLex() {
+        val unitTok = lex("300mW_cm2").map { it.token }.firstOrNull { it is NPPSToken.NumberWithUnit }
         assertNotNull(unitTok, "300mW_cm2 should produce a NumberWithUnit token")
         unitTok as NPPSToken.NumberWithUnit
         assertEquals(300.0, unitTok.value)
         assertEquals("mW_cm2", unitTok.unit)
 
-        // 660_808nm on its own lexes as a single Ident.
-        val identTokens = lex("660_808nm")
-        val ident = identTokens.map { it.token }.firstOrNull { it is NPPSToken.Ident }
-        assertNotNull(ident, "660_808nm should produce a single Ident token")
-        assertEquals("660_808nm", (ident as NPPSToken.Ident).value)
+        // '%' was never consumed as a unit: the unit scanner takes only letters,
+        // digits and '_', so the '%' fell through to the unknown-character
+        // branch and was silently dropped.
+        val pct = lex("80%").map { it.token }.firstOrNull { it is NPPSToken.NumberWithUnit }
+        assertNotNull(pct, "80% should produce a NumberWithUnit token")
+        pct as NPPSToken.NumberWithUnit
+        assertEquals(80.0, pct.value)
+        assertEquals("%", pct.unit)
     }
 
-    /** testLexerTriWavelengthCompoundIdent — 660_808_1064nm. */
+    /** Quoted hyphenated tags parse; the bare form is refused (Rev 6). */
     @Test
-    fun testLexerTriWavelengthCompoundIdent() {
-        val script = """
-            protocol "Tri Wavelength" {
-                version: "1.0"
-                pbm_transcranial {
-                    intensity: 80%
-                    frequency: 40Hz
-                    duty_cycle: 25%
-                    wavelength: 660_808_1064nm
-                }
-            }
-        """.trimIndent()
-
-        val proto = singleProtocol(script)
-        val p = pbmTranscranial(proto)
-        assertEquals(
-            NPPBMTranscranialParams.Wavelength.TRI_660_808_1064,
-            p.wavelength,
-            "660_808_1064nm should resolve to the tri wavelength",
-        )
-
-        val ident = lex("660_808_1064nm").map { it.token }
-            .firstOrNull { it is NPPSToken.Ident }
-        assertNotNull(ident, "660_808_1064nm should produce a single Ident token")
-        assertEquals("660_808_1064nm", (ident as NPPSToken.Ident).value)
-    }
-
-    /** testHyphenatedTagsDoNotThrow — wind-down, all-modalities parse cleanly. */
-    @Test
-    fun testHyphenatedTagsDoNotThrow() {
+    fun testHyphenatedTagsQuotedParseBareRefused() {
         val script = """
             protocol "Hyphen Tags" {
                 version: "1.0"
@@ -129,12 +129,15 @@ class NPPSRegressionTests {
         assertTrue(proto.tags.contains("wind-down"))
         assertTrue(proto.tags.contains("all-modalities"))
 
-        // Also confirm the bare (unquoted) form does not throw during lexing —
-        // the hyphen is skipped as an unknown char rather than a bad number.
-        val bareTokens = lex("wind-down all-modalities")
+        // The bare form is REFUSED, not skipped. The lexer used to discard the
+        // hyphen silently, so `wind-down` became the two idents `wind` and
+        // `down` — a tag split in half rather than an error. Rev 6 requires the
+        // quoted form, and the web parser and PEG grammar both reject the bare
+        // one.
+        val e = assertFailsWith<NPPSError> { lex("wind-down all-modalities") }
         assertTrue(
-            bareTokens.any { it.token is NPPSToken.Ident },
-            "bare hyphenated text should lex without throwing",
+            e.message.orEmpty().contains("must be quoted"),
+            "the error should name the fix, got: ${e.message}",
         )
     }
 
@@ -232,28 +235,66 @@ class NPPSRegressionTests {
         assertEquals(NPVNSHRVParams.HRVProtocol.TAVNS_SYNC, vns.params.hrvProtocol)
     }
 
-    /** Custom zones are 1-indexed in script and stored 0-indexed. */
+    /**
+     * Zones are NAMED sets of modules, not numeric slot indices. The 1-indexed
+     * numeric form and the five-slot selectors were retired in
+     * NP-NPPS-REF-001 Rev 2 and do not parse: a target this parser does not
+     * understand must stop the file rather than silently become "every module".
+     */
     @Test
-    fun testCustomZonesAreReindexed() {
+    fun testNamedZonesParseAndRoundTrip() {
         val script = """
-            protocol "Custom Zones" {
+            protocol "Named Zones" {
                 version: "1.0"
                 pbm_transcranial {
                     intensity: 75%
                     frequency: 40Hz
                     duty_cycle: 25%
-                    zones: [1, 3, 5]
+                    zones: ["Frontal Left", "Frontal Right"]
                 }
             }
         """.trimIndent()
 
         val p = pbmTranscranial(singleProtocol(script))
-        assertEquals(NPPBMTranscranialParams.ZoneSelection.CUSTOM, p.zones)
-        assertEquals(listOf(0, 2, 4), p.customZones, "script zones are 1-indexed, stored 0-indexed")
+        val target = p.target as NPPBMTarget.Named
+        assertEquals(listOf("Frontal Left", "Frontal Right"), target.zoneNames)
 
-        // Round-trip: serialize back to 1-indexed [1, 3, 5].
         val out = NPPSSerializer().serialize(NPProtocolEntry.Single(singleProtocol(script)))
-        assertTrue(out.contains("zones: [1, 3, 5]"), "serialized zones should be 1-indexed:\n$out")
+        assertTrue(
+            out.contains("""zones: ["Frontal Left", "Frontal Right"]"""),
+            "named zones should round-trip quoted:\n$out",
+        )
+    }
+
+    /** clinician_selected is the only non-list zone form. */
+    @Test
+    fun testClinicianSelectedZones() {
+        val script = """
+            protocol "Clinician Selected" {
+                version: "1.0"
+                pbm_transcranial { intensity: 75% zones: clinician_selected }
+            }
+        """.trimIndent()
+        assertEquals(NPPBMTarget.ClinicianSelected, pbmTranscranial(singleProtocol(script)).target)
+
+        val out = NPPSSerializer().serialize(NPProtocolEntry.Single(singleProtocol(script)))
+        assertTrue(out.contains("zones: clinician_selected"), "serialized:\n$out")
+    }
+
+    /** The retired numeric and five-slot forms are rejected, not reinterpreted. */
+    @Test
+    fun testRetiredZoneFormsAreRejected() {
+        for (form in listOf("[1, 3, 5]", "all", "front", "rear", "custom")) {
+            val script = """
+                protocol "Retired" {
+                    version: "1.0"
+                    pbm_transcranial { intensity: 75% zones: $form }
+                }
+            """.trimIndent()
+            assertFailsWith<NPPSError>("zones: $form must not parse") {
+                NPPSParser(NPPSLexer(script).tokenize()).parse()
+            }
+        }
     }
 
     /** A limits block round-trips through parse→serialize→parse. */

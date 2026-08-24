@@ -62,12 +62,23 @@ function serializeModalityFields(mp: NPModalityParams): string[] {
         `frequency: ${formatHz(p.frequencyHz)}`,
         `duty_cycle: ${p.dutyCyclePercent}%`,
       ];
-      if (p.zones === 'named' && p.zoneRefs) {
+      // `named` and `clinician_selected` are the internal discriminant, and only
+      // one of them is also surface syntax. Writing p.zones unguarded emitted
+      // the bare word `named` whenever zoneRefs was missing, producing a file
+      // this parser rejects. A missing ref list is now a caller bug, reported
+      // as one, rather than silently serialized into something unreadable.
+      if (p.zones === 'clinician_selected') {
+        lines.push('zones: clinician_selected');
+      } else if (p.zoneRefs && p.zoneRefs.length > 0) {
         lines.push(`zones: ${strArr(p.zoneRefs)}`);
       } else {
-        lines.push(`zones: ${p.zones}`);
+        throw new Error(
+          "pbm_transcranial: zones is 'named' but zoneRefs is empty — a named " +
+          'target must list at least one zone. This is an invalid params object, ' +
+          'not a serialization choice.',
+        );
       }
-      lines.push(`wavelength: ${p.wavelength}`);
+      lines.push(`wavelength: ${str(p.wavelength)}`);
       return lines;
     }
     case 'pbm_intranasal': {

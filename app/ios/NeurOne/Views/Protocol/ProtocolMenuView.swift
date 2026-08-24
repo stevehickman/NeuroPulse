@@ -408,7 +408,7 @@ struct ProtocolMenuView: View {
         case .composite(var comp):
             comp.isReadOnly.toggle()
             library.save(.composite(comp))
-        case .limits:
+        case .limits, .zone, .condition:
             break
         }
     }
@@ -562,7 +562,7 @@ struct ProtocolRowView: View {
             let m = totalSec / 60
             if m < 60 { return "\(m)m" }
             return "\(m / 60)h \(m % 60)m"
-        case .limits:
+        case .limits, .zone, .condition:
             return nil
         }
     }

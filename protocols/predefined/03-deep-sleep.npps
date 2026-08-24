@@ -14,7 +14,7 @@ protocol "Deep Sleep" {
         frequency: 2Hz
         duty_cycle: 25%
         zones: ["Posterior"]
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 
     eeg_neurofeedback {

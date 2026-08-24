@@ -57,7 +57,9 @@ object ProtocolConsentGate {
         is NPProtocolEntry.Composite -> entry.composite.layers.any { layer ->
             resolveSingle(layer.protocolName)?.isEEGDependent ?: false
         }
-        is NPProtocolEntry.Limits -> false
+        is NPProtocolEntry.Limits,
+        is NPProtocolEntry.Zone,
+        is NPProtocolEntry.Condition -> false
     }
 
     /**

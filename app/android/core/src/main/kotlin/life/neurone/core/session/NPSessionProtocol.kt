@@ -111,7 +111,7 @@ data class NPSessionProtocol(
                     is NPModalityParams.VisualStimulation -> configs.add(
                         ModalityConfig.VisualStimulation(
                             frequencyHz = p.params.frequencyHz,
-                            mode = p.params.mode.rawValue,
+                            mode = p.params.mode.sessionWireName,
                             enableModeFInvisibleNIR = p.params.enableModeF,
                             emdrCadenceHz = p.params.emdrCadenceHz,
                         ),
@@ -212,14 +212,20 @@ sealed class ModalityConfig {
 
 // MARK: - resolved zone/channel helpers (port of NPProtocolDefinition computed props)
 
+/**
+ * The 1-based socket ids this modality drives.
+ *
+ * These used to be five hardware slot indices (0..4) from the retired
+ * zone-module design. A zone is now a named set of sockets, so the ids are real
+ * socket (major) addresses resolved through [SocketZones] — the same generated
+ * map iOS resolves against.
+ *
+ * A clinician-selected target has no answer without the operator's choice, so
+ * it resolves to nothing here; callers that can run a session must go through
+ * [NPPBMTarget.resolveSockets] with the chosen sockets and handle its error.
+ */
 val NPPBMTranscranialParams.resolvedZones: List<Int>
-    get() = if (zones == NPPBMTranscranialParams.ZoneSelection.CUSTOM && customZones != null) customZones!!
-    else when (zones) {
-        NPPBMTranscranialParams.ZoneSelection.ALL -> listOf(0, 1, 2, 3, 4)
-        NPPBMTranscranialParams.ZoneSelection.FRONT -> listOf(0, 1, 2)
-        NPPBMTranscranialParams.ZoneSelection.REAR -> listOf(2, 3, 4)
-        NPPBMTranscranialParams.ZoneSelection.CUSTOM -> emptyList()
-    }
+    get() = runCatching { target.resolveSockets() }.getOrDefault(emptyList())
 
 val NPEEGNeurofeedbackParams.resolvedChannels: List<String>
     get() = if (channels == NPEEGNeurofeedbackParams.ChannelSelection.CUSTOM && customChannels != null) customChannels!!

@@ -183,8 +183,10 @@ struct NPProtocolValidator {
             return validate(p)
         case .composite(let c):
             return validateComposite(c, library: library)
-        case .limits:
-            return NPValidationResult() // limits entries don't validate as protocols
+        case .limits, .zone, .condition:
+            // Not protocols: limits are constraints, zones and conditions are
+            // namespace definitions referenced by name and never run.
+            return NPValidationResult()
         }
     }
 

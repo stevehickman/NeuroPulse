@@ -543,7 +543,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
             options={[
               { value: 'ring_4x1', label: '4×1 Ring (focal)' },
               { value: 'bilateral_4x1', label: 'Bilateral 4×1' },
-              { value: 'standard_2el', label: 'Standard 2-electrode' },
+              { value: 'standard_2_electrode', label: 'Standard 2-electrode' },
             ]}
           />
           <SliderField label="Intensity" value={p.intensityMilliamps} min={0.1} max={2.0} step={0.1} unit=" mA" onChange={v => update<typeof params>({ ...p, intensityMilliamps: v })} />

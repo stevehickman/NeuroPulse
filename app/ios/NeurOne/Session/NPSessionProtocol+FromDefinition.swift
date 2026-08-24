@@ -78,7 +78,7 @@ extension NPSessionProtocol {
             case .visualStimulation(let p):
                 modalities.append(.visualStimulation(VisualStimConfig(
                     frequencyHz: p.frequencyHz,
-                    mode: p.mode.rawValue,
+                    mode: p.mode.sessionWireName,
                     enableModeFInvisibleNIR: p.enableModeF,
                     emdrCadenceHz: p.emdrCadenceHz
                 )))

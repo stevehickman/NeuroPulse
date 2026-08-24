@@ -24,6 +24,35 @@ class NPPSSerializer {
         is NPProtocolEntry.Single -> serializeProtocol(entry.protocol)
         is NPProtocolEntry.Composite -> serializeComposite(entry.composite)
         is NPProtocolEntry.Limits -> serializeLimits(entry.limits)
+        is NPProtocolEntry.Zone -> serializeZone(entry.zone)
+        is NPProtocolEntry.Condition -> serializeCondition(entry.condition)
+    }
+
+    // MARK: Zone / Condition (NP-NPPS-REF-001 §8, §9) -------------------------
+
+    private fun serializeZone(z: NPZoneDefinition): String {
+        val lines = ArrayList<String>()
+        lines.add("zone ${quote(z.name)} {")
+        z.id?.let { lines.add("    id: ${quote(it)}") }
+        z.description?.let { lines.add("    description: ${quote(it)}") }
+        // Canonical membership on the way out as well as in: sorted and deduped,
+        // so two equal zones serialize identically.
+        lines.add("    sockets: [${z.sockets.distinct().sorted().joinToString(", ")}]")
+        z.types?.takeIf { it.isNotEmpty() }?.let { lines.add("    types: [${it.joinToString(", ")}]") }
+        if (z.excludeTypes) lines.add("    exclude_types: true")
+        lines.add("}")
+        return lines.joinToString("\n")
+    }
+
+    private fun serializeCondition(c: NPConditionDefinition): String {
+        val lines = ArrayList<String>()
+        lines.add("condition ${quote(c.name)} {")
+        c.id?.let { lines.add("    id: ${quote(it)}") }
+        lines.add("    link: ${quote(c.link)}")
+        c.code?.let { lines.add("    code: ${quote(it)}") }
+        c.description?.let { lines.add("    description: ${quote(it)}") }
+        lines.add("}")
+        return lines.joinToString("\n")
     }
 
     // MARK: Limits -----------------------------------------------------------
@@ -85,9 +114,9 @@ class NPPSSerializer {
         }
         limits.audioEntrainment?.let { lim ->
             lines.add("    audio_entrainment {")
-            lim.maxVolumePercent?.let { lines.add("        max_volume: ${it.toInt()}%") }
-            lim.maxBinauralBeatsHz?.let { lines.add("        max_binaural_hz: ${formatHz(it)}") }
-            lim.maxIsochronicTonesHz?.let { lines.add("        max_isochronic_hz: ${formatHz(it)}") }
+            lim.maxVolumePercent?.let { lines.add("        max_intensity: ${it.toInt()}%") }
+            lim.maxBinauralBeatsHz?.let { lines.add("        max_binaural_beats: ${formatHz(it)}") }
+            lim.maxIsochronicTonesHz?.let { lines.add("        max_isochronic_tones: ${formatHz(it)}") }
             lines.add("    }")
         }
         limits.visualStimulation?.let { lim ->
@@ -100,7 +129,7 @@ class NPPSSerializer {
         }
         limits.tms?.let { lim ->
             lines.add("    tms {")
-            lim.maxIntensityPercentMT?.let { lines.add("        max_intensity_mt: $it") }
+            lim.maxIntensityPercentMT?.let { lines.add("        max_intensity_pct_mt: $it") }
             lim.maxPulsesPerSession?.let { lines.add("        max_pulses_per_session: $it") }
             lim.maxPulsesPerDay?.let { lines.add("        max_pulses_per_day: $it") }
             lim.maxSessionsPerWeek?.let { lines.add("        max_sessions_per_week: $it") }
@@ -135,7 +164,7 @@ class NPPSSerializer {
         }
         limits.vibrotactile40hz?.let { lim ->
             lines.add("    vibrotactile_40hz {")
-            lim.maxIntensityG?.let { lines.add("        max_intensity_g: ${formatDouble(it)}G") }
+            lim.maxIntensityG?.let { lines.add("        max_intensity: ${formatDouble(it)}G") }
             lim.maxSessionDurationSeconds?.let { lines.add("        max_session_duration: ${formatTime(it)}") }
             lines.add("    }")
         }
@@ -156,6 +185,12 @@ class NPPSSerializer {
         if (proto.isReadOnly) lines.add("    readonly: true")
         if (proto.tags.isNotEmpty()) {
             lines.add("    tags: [${proto.tags.joinToString(", ") { serializeTag(it) }}]")
+        }
+        if (proto.conditions.isNotEmpty()) {
+            lines.add("    conditions: [${proto.conditions.joinToString(", ") { quote(it) }}]")
+        }
+        if (proto.references.isNotEmpty()) {
+            lines.add("    references: [${proto.references.joinToString(", ") { serializeReference(it) }}]")
         }
         when (val tm = proto.timingMode) {
             is NPTimingMode.Duration -> lines.add("    duration: ${formatTime(tm.seconds)}")
@@ -196,16 +231,16 @@ class NPPSSerializer {
             lines.add("intensity: ${p.intensityPercent.toInt()}%")
             lines.add("frequency: ${formatHz(p.frequencyHz)}")
             if (p.frequencyHz > 0) lines.add("duty_cycle: ${p.dutyCyclePercent}%")
-            when (p.zones) {
-                NPPBMTranscranialParams.ZoneSelection.ALL -> lines.add("zones: all")
-                NPPBMTranscranialParams.ZoneSelection.FRONT -> lines.add("zones: front")
-                NPPBMTranscranialParams.ZoneSelection.REAR -> lines.add("zones: rear")
-                NPPBMTranscranialParams.ZoneSelection.CUSTOM -> {
-                    val zs = (p.customZones ?: emptyList()).joinToString(", ") { "${it + 1}" }
-                    lines.add("zones: [$zs]")
-                }
+            when (val t = p.target) {
+                is NPPBMTarget.Named ->
+                    lines.add("zones: [${t.zoneNames.joinToString(", ") { quote(it) }}]")
+                is NPPBMTarget.ClinicianSelected -> lines.add("zones: clinician_selected")
             }
-            lines.add("wavelength: ${p.wavelength.rawValue}")
+            // Quoted: a wavelength is digit-leading, so the bare form has not been
+            // a legal value since NP-NPPS-REF-001 Rev 6. Emitting it unquoted meant
+            // this serializer wrote NPPS text its own parser cannot read back, which
+            // is what broke saving and reloading a user protocol.
+            lines.add("wavelength: ${quote(p.wavelength.rawValue)}")
             lines
         }
 
@@ -288,7 +323,7 @@ class NPPSSerializer {
             if (p.mode == NPVisualStimParams.VisualMode.EMDR) {
                 lines.add("emdr_cadence: ${formatHz(p.emdrCadenceHz)}")
             }
-            if (p.enableModeF) lines.add("mode_f: true")
+            if (p.enableModeF) lines.add("enable_mode_f: true")
             lines
         }
 
@@ -296,7 +331,7 @@ class NPPSSerializer {
             val p = params.params
             listOf(
                 "montage: ${p.montage.rawValue}",
-                "sloreta: ${p.sloretaEnabled}",
+                "sloreta_enabled: ${p.sloretaEnabled}",
                 "reference: ${p.reference.rawValue}",
             )
         }
@@ -306,7 +341,7 @@ class NPPSSerializer {
             listOf(
                 "protocol: ${p.tmsProtocol.rawValue}",
                 "frequency: ${formatHz(p.frequencyHz)}",
-                "intensity_mt: ${p.intensityPercentMT}%",
+                "intensity_percent_mt: ${p.intensityPercentMT}%",
                 "target: ${p.target.rawValue}",
                 "pulse_count: ${p.pulseCount}",
             )
@@ -326,7 +361,7 @@ class NPPSSerializer {
             listOf(
                 "frequency: ${formatHz(p.frequencyHz)}",
                 "intensity: ${formatDouble(p.intensityMilliamps)}mA",
-                "channels: ${p.channelCount}",
+                "channel_count: ${p.channelCount}",
                 "waveform: ${p.waveform.rawValue}",
             )
         }
@@ -354,8 +389,8 @@ class NPPSSerializer {
             listOf(
                 "frequency: ${formatHz(p.frequencyHz)}  # locked at 40Hz",
                 "intensity_g: ${formatDouble(p.intensityG)}G",
-                "sync_audio: ${p.syncToAudio}",
-                "sync_visual: ${p.syncToVisual}",
+                "sync_to_audio: ${p.syncToAudio}",
+                "sync_to_visual: ${p.syncToVisual}",
             )
         }
     }
@@ -372,6 +407,12 @@ class NPPSSerializer {
         if (comp.isReadOnly) lines.add("    readonly: true")
         if (comp.tags.isNotEmpty()) {
             lines.add("    tags: [${comp.tags.joinToString(", ") { serializeTag(it) }}]")
+        }
+        if (comp.conditions.isNotEmpty()) {
+            lines.add("    conditions: [${comp.conditions.joinToString(", ") { quote(it) }}]")
+        }
+        if (comp.references.isNotEmpty()) {
+            lines.add("    references: [${comp.references.joinToString(", ") { serializeReference(it) }}]")
         }
         lines.add("    conflict_resolution: ${comp.conflictResolution.rawValue}")
         lines.add("")
@@ -421,9 +462,22 @@ class NPPSSerializer {
      * original string without silently splitting on hyphens.
      */
     private fun serializeTag(tag: String): String {
-        val isBareIdent = tag.isNotEmpty() && tag.all { it.isLetter() || it.isDigit() || it == '_' }
-        return if (isBareIdent) tag else "\"${tag.replace("\"", "\\\"")}\""
+        // A bare identifier may not start with a digit: a tag like "1064nm" is
+        // all letters and digits but must still be quoted to re-parse, since
+        // NP-NPPS-REF-001 Rev 6 removed digit-leading bare values.
+        val isBareIdent = tag.isNotEmpty() &&
+            (tag.first().isLetter() || tag.first() == '_') &&
+            tag.all { it.isLetter() || it.isDigit() || it == '_' }
+        return if (isBareIdent) tag else quote(tag)
     }
+
+    /** A bare URL, or a `[label, url]` pair when the entry was labelled. */
+    private fun serializeReference(r: NPProtocolReference): String =
+        if (r.label == null) quote(r.url) else "[${quote(r.label)}, ${quote(r.url)}]"
+
+    /** A quoted NPPS string with embedded quotes and backslashes escaped. */
+    private fun quote(value: String): String =
+        "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 }
 
 // MARK: - Round-trip ---------------------------------------------------------

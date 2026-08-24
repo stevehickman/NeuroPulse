@@ -19,7 +19,7 @@ protocol "PBM — Stroke (chronic rehab)" {
         # this protocol can run. Whole-head irradiation is NOT the evidence
         # target and would silently substitute the wrong dose distribution.
         zones: clinician_selected
-        wavelength: 660_808nm
+        wavelength: "660_808nm"
     }
 
     pbm_intranasal {
