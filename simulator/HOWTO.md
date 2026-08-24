@@ -1,8 +1,8 @@
 # NeurOne Helmet Simulator — User Manual
 
 **Document:** NP-SIM-001-HOWTO  
-**Version:** 2.5  
-**Date:** 2026-07-29  
+**Version:** 2.6  
+**Date:** 2026-08-24  
 **Applies to:** NP-SIM-001 v0.3.0+
 
 ---
@@ -62,15 +62,16 @@ All external libraries are fetched automatically from CDN the first time you ope
 | **Inter** (font) | Variable | `fonts.googleapis.com` | UI text |
 | **JetBrains Mono** (font) | Variable | `fonts.googleapis.com` | Metrics and timer readouts |
 
-All other code (helmet geometry, session engine, protocol definitions, UI) is plain JavaScript ES modules shipped with the repository. No framework, no transpiler, no bundler.
+All other code (helmet geometry, session engine, UI) is plain JavaScript ES modules shipped with the repository. No framework, no transpiler.
+
+**Protocol definitions are not code and are not shipped with the simulator.** They are read from `protocols/predefined/*.npps` each time the simulator loads, parsed in the browser by the same parser the web app uses (`simulator/js/vendor/npps-runtime.js`, bundled from `simulator/src/npps-runtime.ts`). That bundle contains code only — no zones, no conditions, no protocols — which is what lets an edit to a `.npps` file show up the next time you reload.
 
 ### What you need on your machine
 
 | You want to… | What you need |
 |-------------|---------------|
-| Just open and use the simulator | A supported web browser (see §15). That's it. |
-| Serve it over HTTP (e.g. for iframe embedding, or when the WebSocket API launches in Issue #77) | Python 3 **or** Node.js **or** any static file server. Both Python and Node are pre-installed on most developer machines. |
-| Edit the simulator source | Any text editor. No compiler or transpiler needed. |
+| Open and use the simulator | A supported web browser (see §15) **and** a static file server — Python 3, Node.js, or anything equivalent. A `file://` URL will not work; see §3. |
+| Edit the simulator source | Any text editor for `simulator/js/*.js`. Changing `simulator/src/npps-runtime.ts` or the web parser needs `bun scripts/build-simulator-runtime.ts`. |
 | Run it in automated tests | Any headless Chromium setup (e.g. Puppeteer, Playwright). No special simulator configuration. |
 
 ### Starting a local HTTP server — quick reference
@@ -84,38 +85,58 @@ python3 -m http.server 8080
 
 **Node.js** (uses the `serve` package via npx — downloads it once automatically):
 ```bash
-npx serve simulator --listen 8080
-# Then open: http://localhost:8080
+cd /path/to/NeurOne
+npx serve . --listen 8080
+# Then open: http://localhost:8080/simulator/
 ```
 
-**VS Code Live Server extension:** Right-click `simulator/index.html` → Open with Live Server. No terminal needed.
+> Serve the repository **root**, not `simulator/`. The simulator fetches the
+> protocol library from `../protocols/predefined/`, which is outside its own
+> directory.
+
+**VS Code Live Server extension:** Right-click `simulator/index.html` → Open with Live Server, with the workspace opened at the repository root.
 
 ### First-load internet requirement
 
-The simulator needs an internet connection **only on the very first load** to fetch Three.js and the fonts from CDN. Once the browser caches them, the simulator runs fully offline. If you need guaranteed offline operation from the first load (e.g. an air-gapped environment), download the Three.js files from the CDN and update the importmap in `simulator/index.html` to use local paths.
+The protocol library is read from your own file server, never the network. The simulator needs an internet connection **only on the very first load** to fetch Three.js and the fonts from CDN. Once the browser caches them, the simulator runs fully offline. If you need guaranteed offline operation from the first load (e.g. an air-gapped environment), download the Three.js files from the CDN and update the importmap in `simulator/index.html` to use local paths.
 
 ---
 
 ## 3. Starting the Simulator
 
-### Option A — Open directly in a browser (simplest)
+> **The simulator must be served over HTTP.** Opening `index.html` from a
+> `file://` URL no longer works, and this is deliberate. The simulator reads the
+> protocol library from `protocols/predefined/` **when it loads**, rather than
+> from a copy baked in when the repository was last built
+> (NP-NPPS-REF-001 §1.6). Browsers block `fetch()` at a `file://` origin, so
+> run one of the servers in §2. The trade is worth naming: the double-click
+> workflow is gone, and in exchange editing a `.npps` file now changes what the
+> simulator shows. Under the old arrangement it did not — the committed copy was
+> read instead, silently, and there was no way to tell why your change was not
+> showing up anywhere.
 
-1. Navigate to the `simulator/` directory in the repository.
-2. Double-click `index.html`, or drag it onto an open browser window.
-3. The simulator loads immediately.
+### Option A — Serve the repository root (recommended)
+
+The simulator needs `protocols/predefined/` as well as `simulator/`, so serve
+the repository root rather than the `simulator/` directory:
+
+```bash
+cd /path/to/NeurOne
+python3 -m http.server 8080
+# Then open: http://localhost:8080/simulator/
+```
 
 > **Recommended browsers:** Chrome 112+, Edge 112+, Safari 17+, Firefox 115+.
 > Chrome and Edge give the best WebGL performance.
 
-### Option B — Serve over HTTP
+If the protocol library cannot be reached, the simulator says so on a red panel
+instead of starting with an empty or stale library.
 
-Any static file server works (see §2 for quick-reference commands). Required when the WebSocket device API (Issue #77) is active, and recommended for iframe embedding.
+### Option B — Embed in a web page
 
-Then open the URL shown by the server in your browser.
-
-### Option C — Embed in a web page
-
-Copy the entire `simulator/` directory to your web server. Point an `<iframe>` at `index.html`:
+Copy **both** `simulator/` and `protocols/predefined/` to your web server,
+keeping them siblings — the simulator fetches `../protocols/predefined/`
+relative to `index.html`. Point an `<iframe>` at `index.html`:
 
 ```html
 <iframe src="simulator/index.html"

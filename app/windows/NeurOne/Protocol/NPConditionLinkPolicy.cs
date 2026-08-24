@@ -10,7 +10,7 @@ namespace NeurOne.Protocol;
 /// grammar and the iOS/Android <c>NPConditionDefinition</c>.
 /// </summary>
 /// <remarks>
-/// Instances come from <see cref="NPBundledConditions"/>, generated from
+/// Instances come from <see cref="NPConditionRegistry"/>, read at run time from
 /// <c>protocols/predefined/00-conditions.npps</c> by <c>scripts/sync-conditions.ts</c>.
 /// </remarks>
 /// <param name="Name">Registry key. Protocols reference a condition by this name.</param>
@@ -267,7 +267,7 @@ public static class NPConditionLinkPolicy
     public static IReadOnlyList<NPResolvedCondition> Resolve(IEnumerable<string> names) =>
         names.Select(name =>
         {
-            if (!NPBundledConditions.ByName.TryGetValue(name, out var definition))
+            if (!NPConditionRegistry.ByName.TryGetValue(name, out var definition))
             {
                 return new NPResolvedCondition(name, null, NPLinkVerdict.Blocked(NPLinkReason.NotAbsolute));
             }

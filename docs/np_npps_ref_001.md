@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 13
+**Revision:** 14
 **Date:** 2026-08-24  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -14,6 +14,12 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 14 (2026-08-24) — no runtime may ship a build-time cache of protocol content; three were doing it.** Principal direction, and stricter than Rev 13's origin rule, which it supersedes where the two meet: Rev 13 allowed any representation *derived from* `.npps`, and that permission does not extend to one built **before the app ships**. The build cannot bind the future — nothing stops a `.npps` file changing afterwards, and when one does the cache is read **in place of the edit**. The failure is silent and self-consistent: no error, no mismatch, nothing to notice, and an author left looking at the file they just edited with no way to tell why their change is not showing up anywhere. For a zone it is also a wrong-site targeting path. The new rule is §1.6 *No build-time cache of protocol content*, binding on every runtime; **bundling the `.npps` files themselves is the intended mechanism and is not caching them**, and a generated artefact may still carry hardware facts (`SocketLattice.generated.*`, `socketMap.generated.ts`), which do not come from `.npps` and change only on a re-tool.
+>
+> **Windows was reading a generated C# transcription of the condition registry.** `NPBundledConditions.cs` was emitted from `00-conditions.npps` by `scripts/sync-conditions.ts`, tolerated because `app/windows` has no NPPS parser. It does not need one: the whole condition grammar is a quoted name plus quoted string fields, so the targeted reader that ran at build time now runs at load time as `NPConditionRegistry`, and the csproj copies `protocols/predefined/` beside the assembly. `sync-conditions.ts` is retired — Rev 10 had already dropped its Swift and Kotlin outputs, and Windows was its last target — along with its CI step. Duplicate condition names bind to neither definition here too, matching §1.6.
+>
+> **The simulator was the clearest case, and had already failed exactly as predicted.** `simulator/js/protocols.generated.js` and the `ZONES` export of `sockets.generated.js` were the parsed library baked into JS. The committed copy still carried the `side` field ZONE-1 removed on 2026-07-30, so for a month the simulator showed a lattice the repository had stopped describing, and anyone editing a `.npps` file had no way to see their change. It now fetches `manifest.json` and the files at load time and parses them with `simulator/js/vendor/npps-runtime.js` — a bundle of the **real** web parser plus the display transform, built by `scripts/build-simulator-runtime.ts`, which **refuses to emit a bundle containing any definition id from the shipped library**, so the ban is enforced by the build rather than only written down. `generate-simulator-data.ts` is reduced to the socket lattice. **Accepted cost, on principal direction:** `fetch()` is blocked at a `file://` origin, so the documented double-click workflow is gone and the simulator must be served over HTTP with `protocols/predefined/` alongside it; `NP-SIM-001-HOWTO` goes to v2.6. **Verified in a real browser** (Chromium, repo root over HTTP): 65 protocols, 14 zones, `Frontal Left` resolving to the file's own socket list, 4 composites skipped, zero duplicate or unresolved references — and the ES live bindings confirmed going 0 → 14 zones and 0 → 65 protocols for a consumer that imported before the load. The transform moved out of the generator, so it is now covered by the web suite against the shipped files (`simulator-runtime.test.ts`, 5 tests). Web suite 290 pass. **Not verified here:** the simulator's full boot — Three.js comes from a CDN this environment blocks — and Windows, which has no `dotnet` available.
 
 > **Rev 13 (2026-08-24) — a zone's only ORIGIN is a `zone` block in a `.npps` file; duplicate definitions are now an error, not last-write-wins.** Three corrections and one implementation change, all of them about where a zone comes from.
 >
@@ -134,6 +140,35 @@ whichever the traversal happened to reach last*. For a zone that is a silent cha
 sockets get dosed. Refusing to bind the name makes the outcome the same everywhere and impossible
 to consume by accident, which is the only order-independent answer available.
 
+**No build-time cache of protocol content (Rev 14, binding on every runtime).** A runtime reads
+`.npps` files **when it runs**. Nothing may parse the library at build time and ship the parsed
+result — no generated table of zones, conditions, protocols or composites, in any language, on any
+platform, however faithfully it is regenerated.
+
+This is stricter than §8's origin rule and it supersedes that rule's allowance where the two meet.
+§8 permits a derived representation whose origin is `.npps`; **the permission does not extend to
+one built before the app ships**, because *derived from* and *current with* are different
+properties and only the second is what a reader needs.
+
+The reason is that the build cannot bind the future. Nothing stops a `.npps` file changing after
+the build — the shipped library is edited, a zone is retuned, a user adjusts a predefined
+definition — and when it does, a build-time cache is read **in place of the edit**. The failure is
+worse than being wrong: it is *silent and self-consistent*. There is no error, no mismatch and
+nothing to notice; the author sees the file they edited plainly on disk and the app confidently
+behaving as though it says something else, with no way to tell why their change is not showing up
+anywhere. That is a support call with no available answer, and for a zone it is also a wrong-site
+targeting path.
+
+**Bundling the files is not caching them.** Copying `protocols/predefined/` into the app package
+is the intended mechanism and is what the table above describes — the artefact shipped is the
+`.npps` file itself, and reading it is reading the file. What is prohibited is shipping something
+*derived from* the file in place of it.
+
+**A generated artefact may still hold hardware facts.** `SocketLattice.generated.{swift,kt}` and
+`socketMap.generated.ts` carry socket count, numbering and lattice geometry. Those are not protocol
+content: they do not come from `.npps` and change only on an inner-bowl re-tool, which is a rebuild
+in any case.
+
 **Manifest.** The shipped library lists its files in `manifest.json` with four arrays: `zones`, `conditions`, `protocols`, `composites`. Definition files (`zones`, `conditions`) are loaded first so all references resolve.
 
 **How each runtime obtains the directory (Rev 9).** `protocols/predefined/` is the single source
@@ -144,13 +179,16 @@ of truth and **no runtime transcribes it**. Each takes the real files at build o
 | Web | Fetches `manifest.json` and each file from `/protocols/predefined/` at runtime. |
 | Android | The `bundlePredefinedProtocols` Gradle task copies the directory onto `:core`'s resource path; `NPBundledProtocols` reads it from the classloader. JVM resources rather than Android assets, because `:core` is deliberately a pure-JVM module (ISC-2…4). |
 | iOS | The directory is a folder reference in the Xcode target's Resources build phase; `NPBundledProtocols` reads it from `Bundle.main`. |
+| Windows | The csproj copies the directory beside the assembly (`CopyToOutputDirectory`); `NPConditionRegistry` reads `00-conditions.npps` from `AppContext.BaseDirectory` with a targeted `condition`-block reader. Windows has no full NPPS parser. |
+| Simulator | Fetches `manifest.json` and each file from `../protocols/predefined/` at load time and parses them with a browser bundle of the web parser. Requires HTTP — `fetch()` is blocked at a `file://` origin, so the former double-click workflow is gone (NP-SIM-001-HOWTO §3). |
 
-**All three runtimes load the whole manifest, definitions first.** iOS and Android implement
+**Every runtime loads the whole manifest, definitions first.** iOS and Android implement
 `zone` and `condition` top-level blocks as of Rev 10 (closing `OI-NPPS-MOBILE-01`), so both read
 `00-zones.npps` and `00-conditions.npps` into the same namespace the web parser builds, and both
-validate a protocol's zone and condition references against it. The condition registry is no
-longer transcribed into Swift or Kotlin: `scripts/sync-conditions.ts` now emits only the Windows
-table, `app/windows` being the one runtime with no NPPS parser.
+validate a protocol's zone and condition references against it. Windows has no NPPS parser and
+reads `00-conditions.npps` with a targeted `condition`-block reader (`NPConditionRegistry`); the
+condition grammar is a quoted name plus quoted string fields, so that covers it. **No runtime
+holds a generated transcription of any of it** — see *No build-time cache* below.
 
 ---
 
@@ -1033,11 +1071,15 @@ Listing sockets directly is what makes zones flexible: any set of sockets can be
 > fallback to somewhere else.
 >
 > **Indirection is fine; a second origin is not.** A zone may reach a consumer through a derived
-> representation — a generated table, a cache, an inverted socket→zones index — provided that
-> representation is *derived from* `.npps` and regenerated from it. What is prohibited is a
-> definition whose origin is anything else. The test is not "did this come straight from the file"
-> but "if the `.npps` file changes, does this change with it, and can it say anything the file does
-> not?"
+> representation — an inverted socket→zones index, a lookup built while the app runs — provided
+> that representation is *derived from* `.npps`. What is prohibited is a definition whose origin is
+> anything else.
+>
+> **But the derivation must happen at run time.** §1.6's *No build-time cache of protocol content*
+> is stricter than this paragraph and wins where they meet: a representation built **before the
+> app ships** is banned even though its origin is `.npps`, because it is then read in place of any
+> later edit to the file — silently, with nothing to notice. Derive from the file as often as you
+> like; never from a copy of what the file said at build time.
 
 ```
 zone "Frontal Left" {

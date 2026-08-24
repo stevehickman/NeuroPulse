@@ -11,6 +11,25 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!--
+      The shipped NPPS library, copied beside the assembly so it is READ AT RUN
+      TIME (NP-NPPS-REF-001 §1.6). The files themselves are bundled; nothing is
+      parsed into C# at build time. A build-time cache cannot be correct here —
+      nothing stops a .npps file changing after the build, and when one does the
+      cache would be read in place of the edit, so the change never appears and
+      there is nothing to notice. This is the Windows counterpart of Android's
+      bundlePredefinedProtocols Gradle task and the iOS Resources folder
+      reference.
+    -->
+    <Content Include="../../../protocols/predefined/**/*.npps"
+             LinkBase="protocols/predefined"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="../../../protocols/predefined/manifest.json"
+             LinkBase="protocols/predefined"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Ed25519 signing — wraps libsodium, matches CryptoKit Curve25519.Signing on iOS -->
     <PackageReference Include="NSec.Cryptography" Version="24.10.0" />
     <!-- DPAPI key protection (Windows-only, user-scope) -->

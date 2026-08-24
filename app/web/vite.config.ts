@@ -13,9 +13,8 @@ const URL_PREFIX = '/protocols/';
  * Serves the canonical `protocols/` tree at `/protocols/*` — NP-NPPS-REF-001.
  *
  * `protocols/` is the single source of truth for .npps definitions; it is also
- * read directly by the platform generators (scripts/sync-conditions.ts,
- * scripts/sync-socket-map.ts) and by the test suites. The web app previously
- * kept a byte-identical copy under `public/protocols/`, which meant every
+ * read directly by scripts/sync-socket-map.ts and by the test suites. The web
+ * app previously kept a byte-identical copy under `public/protocols/`, which meant every
  * protocol edit had to be made twice and silently rotted when it wasn't.
  *
  * Instead of copying into the repo:

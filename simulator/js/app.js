@@ -11,7 +11,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { HelmetModel }  from './helmet.js';
 import { SessionEngine } from './session.js';
 import { UIManager }    from './ui.js';
-import { PROTOCOLS }    from './protocols.generated.js';
+import { PROTOCOLS, loadLibrary } from './vendor/npps-runtime.js';
 import { DeviceAPI }    from './api.js';
 import { SIM_VERSION }  from './version.js';
 
@@ -327,6 +327,31 @@ class NeurOneSimulator {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-window.addEventListener('DOMContentLoaded', () => {
+// The protocol library is fetched and parsed HERE, at run time, from
+// protocols/predefined/ — never baked into a generated module
+// (NP-NPPS-REF-001 §1.6). Everything downstream reads PROTOCOLS and ZONES
+// through ES live bindings, so nothing may be constructed until this resolves.
+//
+// This is why the simulator must be served over HTTP: fetch() is blocked at a
+// file:// origin. See HOWTO §3.
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    await loadLibrary();
+  } catch (err) {
+    console.error('[NP-SIM] could not load protocols/predefined/', err);
+    const banner = document.createElement('div');
+    banner.style.cssText =
+      'position:fixed;inset:0;display:flex;align-items:center;justify-content:center;' +
+      'padding:2rem;background:#1a1014;color:#ffd9d9;font:14px/1.6 system-ui;' +
+      'text-align:center;z-index:9999';
+    banner.innerHTML =
+      '<div><strong>Could not load the protocol library.</strong><br><br>' +
+      'The simulator reads <code>protocols/predefined/</code> over HTTP and cannot ' +
+      'run from a <code>file://</code> URL.<br>Serve the repository root and open ' +
+      '<code>/simulator/</code> — see HOWTO §3.<br><br>' +
+      `<small>${String(err)}</small></div>`;
+    document.body.appendChild(banner);
+    return;
+  }
   window.__sim = new NeurOneSimulator(); // debug handle — inspect from devtools/console
 });
