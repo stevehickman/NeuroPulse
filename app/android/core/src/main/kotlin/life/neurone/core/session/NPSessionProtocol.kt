@@ -217,8 +217,8 @@ sealed class ModalityConfig {
  *
  * These used to be five hardware slot indices (0..4) from the retired
  * zone-module design. A zone is now a named set of sockets, so the ids are real
- * socket (major) addresses resolved through [SocketZones] — the same generated
- * map iOS resolves against.
+ * socket (major) addresses resolved through [NPZoneRegistry], which reads the
+ * loaded `.npps` files — the same source iOS resolves against.
  *
  * A clinician-selected target has no answer without the operator's choice, so
  * it resolves to nothing here; callers that can run a session must go through

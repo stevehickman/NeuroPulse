@@ -17,31 +17,61 @@ struct NPNamespace: Equatable {
     }
 }
 
-/// A namespace plus the collisions found while building it.
+/// A namespace plus the duplicate-definition errors found while building it.
 struct NPNamespaceBuild {
     var namespace: NPNamespace
-    var warnings: [String] = []
+    var errors: [String] = []
 }
 
-/// Fold parsed entries from any number of files into one namespace. A later
-/// file redefining a zone or condition name replaces the earlier definition
-/// (last-write-wins) and the collision is reported as a warning rather than an
-/// error, matching the web loader.
+/// Fold parsed entries from any number of files into one namespace. A zone or
+/// condition name is defined exactly once across the whole tree
+/// (NP-NPPS-REF-001 §1.6).
+///
+/// A name defined by two files is an ERROR, not a last-write-wins warning. The
+/// tree is read recursively and nothing guarantees a stable traversal order
+/// across platforms, file systems or bundle layouts, so "later" is not a
+/// property this function has: last-write-wins bound the name to whichever
+/// definition the traversal happened to reach last, which for a zone silently
+/// changes which sockets a protocol doses.
+///
+/// So a collision leaves the name UNBOUND — neither definition wins — and is
+/// reported in `errors`. Anything referencing it then fails
+/// `validateNamespaceReferences` exactly as if the name had never been defined.
+/// Matches the web and Android loaders.
 func buildNamespace(_ entries: [NPProtocolEntry]) -> NPNamespaceBuild {
     var zones: [String: NPZoneDefinition] = [:]
     var conditions: [String: NPConditionDefinition] = [:]
-    var warnings: [String] = []
+    var errors: [String] = []
+    // Names seen at least twice: kept out of the namespace, so a third
+    // definition cannot re-bind a name already known to collide.
+    var collidedZones: Set<String> = []
+    var collidedConditions: Set<String> = []
 
     for entry in entries {
         switch entry {
         case .zone(let z):
+            if collidedZones.contains(z.name) { continue }
             if zones[z.name] != nil {
-                warnings.append("Duplicate zone name '\(z.name)' — later definition wins")
+                errors.append(
+                    "Duplicate zone name '\(z.name)' — defined in more than one file; zone names "
+                    + "must be unique across the protocol directory. The name is left undefined."
+                )
+                zones.removeValue(forKey: z.name)
+                collidedZones.insert(z.name)
+                continue
             }
             zones[z.name] = z
         case .condition(let c):
+            if collidedConditions.contains(c.name) { continue }
             if conditions[c.name] != nil {
-                warnings.append("Duplicate condition name '\(c.name)' — later definition wins")
+                errors.append(
+                    "Duplicate condition name '\(c.name)' — defined in more than one file; "
+                    + "condition names must be unique across the protocol directory. "
+                    + "The name is left undefined."
+                )
+                conditions.removeValue(forKey: c.name)
+                collidedConditions.insert(c.name)
+                continue
             }
             conditions[c.name] = c
         default:
@@ -50,7 +80,7 @@ func buildNamespace(_ entries: [NPProtocolEntry]) -> NPNamespaceBuild {
     }
     return NPNamespaceBuild(
         namespace: NPNamespace(entries: entries, zones: zones, conditions: conditions),
-        warnings: warnings
+        errors: errors
     )
 }
 

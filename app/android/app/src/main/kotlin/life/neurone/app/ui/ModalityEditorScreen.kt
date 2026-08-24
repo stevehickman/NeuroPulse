@@ -47,7 +47,7 @@ import life.neurone.core.protocol.NPProtocolModality
 import life.neurone.core.protocol.NPTDCSParams
 import life.neurone.core.protocol.NPVNSHRVParams
 import life.neurone.core.protocol.NPVisualStimParams
-import life.neurone.core.protocol.SocketZones
+import life.neurone.core.protocol.NPZoneRegistry
 
 // Port of iOS ModalityEditorView — the deep per-modality parameter editor. Each enabled
 // modality is an expandable card with an enable toggle and typed controls; T1 modalities have
@@ -170,9 +170,9 @@ private fun PbmTranscranial(p: NPPBMTranscranialParams, on: (NPPBMTranscranialPa
 @Composable
 private fun ZoneDropdown(target: NPPBMTarget, on: (NPPBMTarget) -> Unit) {
     val clinicianLabel = "Clinician-selected sockets"
-    val options = SocketZones.zoneNames + clinicianLabel
+    val options = NPZoneRegistry.zoneNames + clinicianLabel
     val current = when (target) {
-        is NPPBMTarget.Named -> target.zoneNames.firstOrNull() ?: SocketZones.zoneNames.first()
+        is NPPBMTarget.Named -> target.zoneNames.firstOrNull() ?: NPZoneRegistry.zoneNames.first()
         is NPPBMTarget.ClinicianSelected -> clinicianLabel
     }
     EnumDropdown("Zone", current, options) { picked ->

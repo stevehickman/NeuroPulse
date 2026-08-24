@@ -74,6 +74,33 @@ final class NPProtocolLibrary: ObservableObject {
     init() {
         loadBundledProtocols()
         loadFromDisk()
+        publishZoneNamespace()
+    }
+
+    /// Duplicate zone/condition names between the shipped library and the
+    /// user's own scripts. Empty in the normal case; a non-empty list means
+    /// those names are undefined and any protocol referencing one will not
+    /// resolve.
+    private(set) var zoneNamespaceErrors: [String] = []
+
+    /// Fold the user's own entries into the namespace zones resolve against.
+    ///
+    /// A user may define a `zone` block in their own script (NP-NPPS-REF-001 §8
+    /// *User-defined zones*), and it has to resolve exactly as a shipped zone
+    /// does. It reaches `NPZoneRegistry` the same way a shipped one does: parsed
+    /// out of NPPS text, never authored anywhere else.
+    ///
+    /// A user zone colliding with a shipped name is a duplicate definition, so
+    /// §1.6 applies unchanged — the name binds to neither and the collision is
+    /// an error. That is deliberate: silently letting either one win would make
+    /// which sockets get dosed depend on load order.
+    private func publishZoneNamespace() {
+        // `bundledProtocols` is deliberately runnable entries only, so the zone
+        // and condition blocks are not in it. Take the bundled namespace's full
+        // entry list instead — the definitions are exactly what is needed here.
+        let build = buildNamespace(NPBundledProtocols.namespace.entries + userProtocols)
+        NPZoneRegistry.use(build.namespace)
+        zoneNamespaceErrors = build.errors
     }
 
     // MARK: Computed all-protocols list
@@ -218,6 +245,7 @@ final class NPProtocolLibrary: ObservableObject {
             userProtocols.append(entry)
         }
         saveToDisk()
+        publishZoneNamespace()
     }
 
     func delete(_ id: UUID) {
@@ -225,6 +253,7 @@ final class NPProtocolLibrary: ObservableObject {
         if bundledProtocols.contains(where: { $0.id == id }) { return }
         userProtocols.removeAll { $0.id == id }
         saveToDisk()
+        publishZoneNamespace()
     }
 
     // MARK: Script export / import

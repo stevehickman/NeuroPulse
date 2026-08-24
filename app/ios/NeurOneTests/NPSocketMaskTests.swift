@@ -19,7 +19,7 @@ final class NPSocketMaskTests: XCTestCase {
 
     func testAllZoneCoversEveryFittedSocket() throws {
         let mask = try NPPBMTarget.named(["All"]).resolve()
-        XCTAssertEqual(mask.socketCount, SocketZones.socketCount)
+        XCTAssertEqual(mask.socketCount, SocketLattice.socketCount)
     }
 
     func testDisjointZonesUnionToTheSumOfTheirSockets() throws {
@@ -38,8 +38,8 @@ final class NPSocketMaskTests: XCTestCase {
         // "Frontal Left" and "Frontal Right" by design. A list would carry it
         // twice and drive the same module twice: double J/cm² on one patch of
         // scalp. A bit cannot be set twice.
-        XCTAssertTrue(SocketZones.zones(for: 2).contains("Frontal Left"))
-        XCTAssertTrue(SocketZones.zones(for: 2).contains("Frontal Right"))
+        XCTAssertTrue(NPZoneRegistry.zones(forSocket: 2).contains("Frontal Left"))
+        XCTAssertTrue(NPZoneRegistry.zones(forSocket: 2).contains("Frontal Right"))
 
         let left  = try NPPBMTarget.named(["Frontal Left"]).resolve()
         let right = try NPPBMTarget.named(["Frontal Right"]).resolve()
@@ -108,8 +108,8 @@ final class NPSocketMaskTests: XCTestCase {
         // constant — a drift between the two would put every mask one tile off.
         XCTAssertEqual(NPSocketID.numberingBase, 1)
         XCTAssertEqual(NPSocketID.minimum, 1)
-        XCTAssertEqual(NPSocketID.maximum, SocketZones.socketCount)
-        XCTAssertEqual(NPSocketID.rangeLabel, "1–\(SocketZones.socketCount)")
+        XCTAssertEqual(NPSocketID.maximum, SocketLattice.socketCount)
+        XCTAssertEqual(NPSocketID.rangeLabel, "1–\(SocketLattice.socketCount)")
     }
 
     func testSocketZeroDoesNotExist() {
@@ -120,19 +120,19 @@ final class NPSocketMaskTests: XCTestCase {
     }
 
     func testEveryAuthoredZoneUsesOneBasedSocketNumbers() {
-        // The generated table is the app's view of 00-zones.npps. If a 0-based
-        // list ever reached it, every zone would resolve one tile off — silently,
-        // because the ids would still all be in range.
-        for name in SocketZones.zoneNames {
-            for socket in SocketZones.sockets(forZone: name) ?? [] {
-                XCTAssertGreaterThanOrEqual(Int(socket), NPSocketID.minimum,
+        // Zones are read straight from the .npps files. If a 0-based list ever
+        // reached one, every zone would resolve one tile off — silently, because
+        // the ids would still all be in range.
+        for name in NPZoneRegistry.zoneNames {
+            for socket in NPZoneRegistry.sockets(forZone: name) ?? [] {
+                XCTAssertGreaterThanOrEqual(socket, NPSocketID.minimum,
                                             "zone \(name) names socket \(socket)")
-                XCTAssertLessThanOrEqual(Int(socket), NPSocketID.maximum,
+                XCTAssertLessThanOrEqual(socket, NPSocketID.maximum,
                                          "zone \(name) names socket \(socket)")
             }
         }
-        XCTAssertEqual(SocketZones.bySocket.keys.min(), 1)
-        XCTAssertEqual(Int(SocketZones.bySocket.keys.max() ?? 0), SocketZones.socketCount)
+        XCTAssertEqual(SocketLattice.minSocketID, 1)
+        XCTAssertEqual(SocketLattice.maxSocketID, SocketLattice.socketCount)
     }
 
     func testTheLowestAndHighestSocketsBothAddress() throws {
@@ -141,7 +141,7 @@ final class NPSocketMaskTests: XCTestCase {
         let lowest = try NPSocketMask(sockets: [NPSocketID.minimum], source: "test")
         XCTAssertEqual(lowest.socketIDs, [1])
         let highest = try NPSocketMask(sockets: [NPSocketID.maximum], source: "test")
-        XCTAssertEqual(highest.socketIDs, [SocketZones.socketCount])
+        XCTAssertEqual(highest.socketIDs, [SocketLattice.socketCount])
         XCTAssertEqual(highest.bytes.count, NPSocketMask.byteCount)
     }
 
@@ -168,7 +168,7 @@ final class NPSocketMaskTests: XCTestCase {
     }
 
     func testSocketIdsOffThisLatticeAreRejected() {
-        for bad in [0, -1, SocketZones.socketCount + 1, 128] {
+        for bad in [0, -1, SocketLattice.socketCount + 1, 128] {
             XCTAssertThrowsError(
                 try NPSocketMask(sockets: [bad], source: "test"),
                 "socket \(bad) must not be addressable"
@@ -195,24 +195,33 @@ final class NPSocketMaskTests: XCTestCase {
         XCTAssertThrowsError(try JSONDecoder().decode(NPSocketMask.self, from: notHex))
     }
 
-    // MARK: - Generated zone table
+    // MARK: - Zones, as read from the .npps files
 
-    func testZoneTableAgreesWithItselfInBothDirections() {
-        for name in SocketZones.zoneNames {
-            let sockets = SocketZones.sockets(forZone: name)
-            XCTAssertNotNil(sockets, "\(name) is listed in zoneNames but absent from byZone")
+    func testEveryNamedZoneResolvesInBothDirections() {
+        for name in NPZoneRegistry.zoneNames {
+            let sockets = NPZoneRegistry.sockets(forZone: name)
+            XCTAssertNotNil(sockets, "\(name) is listed in zoneNames but resolves to nothing")
             XCTAssertFalse(sockets!.isEmpty, "\(name) is empty")
             for socket in sockets! {
-                XCTAssertTrue(SocketZones.zones(for: socket).contains(name),
-                              "socket \(socket) is in byZone[\(name)] but not in bySocket[\(socket)]")
+                XCTAssertTrue(NPZoneRegistry.zones(forSocket: socket).contains(name),
+                              "socket \(socket) is in zone \(name) but the inverse lookup disagrees")
             }
         }
     }
 
-    func testZoneTableListsNoSocketTwice() {
-        for name in SocketZones.zoneNames {
-            let sockets = SocketZones.sockets(forZone: name) ?? []
+    func testNoZoneListsASocketTwice() {
+        for name in NPZoneRegistry.zoneNames {
+            let sockets = NPZoneRegistry.sockets(forZone: name) ?? []
             XCTAssertEqual(sockets.count, Set(sockets).count, "\(name) lists a socket twice")
         }
+    }
+
+    /// Zone content comes from the loaded `.npps` files and from nowhere else
+    /// (NP-NPPS-REF-001 §8). The generated artefact carries the lattice only, so
+    /// there is no second table that could disagree with the file.
+    func testZonesComeFromTheLoadedNPPSFiles() {
+        let fromFiles = Set(NPBundledProtocols.namespace.zones.keys)
+        XCTAssertEqual(Set(NPZoneRegistry.zoneNames), fromFiles)
+        XCTAssertFalse(fromFiles.isEmpty, "the bundled .npps library defines no zones")
     }
 }

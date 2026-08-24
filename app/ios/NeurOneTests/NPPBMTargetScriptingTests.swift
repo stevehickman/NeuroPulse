@@ -65,7 +65,7 @@ final class NPPBMTargetScriptingTests: XCTestCase {
         let target = try parseTarget(zonesLine: #"zones: ["Frontal Right (excl. midline)"]"#)
         let mask = try target.resolve()
         XCTAssertEqual(mask.socketIDs, [3, 6, 9, 10, 14, 15, 18, 19])
-        XCTAssertLessThan(mask.socketCount, SocketZones.socketCount,
+        XCTAssertLessThan(mask.socketCount, SocketLattice.socketCount,
                           "a lateralized target must not light the whole vault")
     }
 

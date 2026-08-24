@@ -24,11 +24,13 @@ import Foundation
 //                 own copy of the lattice, which matters because that lattice is
 //                 PROVISIONAL and has been re-cut twice already (30 → 78 → 80).
 //
-//   SocketZones — which zones name each socket. Authored in 00-zones.npps and
-//                 generated into SocketZones.generated.swift. This is the app's
-//                 to own: zones are protocol data, user-extensible, overlapping,
-//                 and meaningless to the helmet. Zones are what replaced lobe and
-//                 side — neither is a property of the hardware.
+//   NPZoneRegistry — which zones name each socket, read from the loaded .npps
+//                 files. A `zone` block in a .npps file is the ONLY source of a
+//                 zone (NP-NPPS-REF-001 §8); nothing is generated or derived.
+//                 This is the app's to own: zones are protocol data,
+//                 user-extensible, overlapping, and meaningless to the helmet.
+//                 Zones are what replaced lobe and side — neither is a property
+//                 of the hardware.
 //
 //   ZoneModuleStatus / Configuration — what actually changes. Socket id, module
 //                 type, flags. Three bytes on the wire per change.
@@ -90,9 +92,9 @@ struct SocketPosition: Equatable {
 ///
 /// There is deliberately no lobe and no side here. Neither is a property of the
 /// hardware and nothing in the system derives one (ZONE-1). A socket's
-/// anatomical meaning is its ZONE MEMBERSHIP — authored by a human in
-/// `protocols/predefined/00-zones.npps`, resolved app-side via
-/// `SocketZones.generated.swift`, and unknown to the helmet.
+/// anatomical meaning is its ZONE MEMBERSHIP — authored by a human in a `.npps`
+/// file, resolved app-side via `NPZoneRegistry` reading those files, and unknown
+/// to the helmet.
 struct SocketDescriptor: Identifiable, Equatable {
 
     /// 1-based socket id, matching NPPS zone `sockets:` lists,
@@ -113,18 +115,18 @@ struct SocketDescriptor: Identifiable, Equatable {
     /// Most specific zone naming this socket, e.g. "Frontal Left" — the smallest
     /// authored zone containing it. nil when no zone lists it, which is possible:
     /// the helmet is authoritative for which sockets exist, the zone file is not.
-    var zoneName: String? { SocketZones.primaryZone(for: socketID) }
+    var zoneName: String? { NPZoneRegistry.primaryZone(forSocket: Int(socketID)) }
 
     /// Every zone naming this socket, smallest first. Sockets belong to several.
-    var zoneNames: [String] { SocketZones.zones(for: socketID) }
+    var zoneNames: [String] { NPZoneRegistry.zones(forSocket: Int(socketID)) }
 }
 
 /// The helmet's permanent socket geometry, as read at link time.
 ///
 /// Deliberately never persisted across links — a firmware update can re-cut the
 /// lattice, and a cached copy would then place sockets wrongly with no way to
-/// notice. Zone NAMES are the opposite: authored, versioned with the app, and
-/// held in `SocketZones.generated.swift`.
+/// notice. Zone NAMES are the opposite: authored in `.npps` files and read from
+/// them by `NPZoneRegistry`.
 struct SocketMap: Equatable {
 
     private(set) var descriptors: [UInt8: SocketDescriptor]
@@ -155,12 +157,12 @@ struct SocketMap: Equatable {
     /// Label for a socket: "Socket 12 — Frontal Left", or just "Socket 12" when
     /// no authored zone names it.
     ///
-    /// The zone comes from the app's generated table, not from the helmet: zones
+    /// The zone comes from the loaded .npps files, not from the helmet: zones
     /// are authored protocol data, users may define their own, and a socket
     /// belongs to several at once. The helmet supplies position; the app supplies
     /// meaning.
     func label(for socketID: UInt8) -> String {
-        guard let zone = SocketZones.primaryZone(for: socketID) else {
+        guard let zone = NPZoneRegistry.primaryZone(forSocket: Int(socketID)) else {
             return String(format: String(localized: "ZONE_SOCKET_LABEL"), Int(socketID))
         }
         return String(format: String(localized: "ZONE_SOCKET_POSITION_LABEL"),
@@ -177,7 +179,7 @@ struct SocketMap: Equatable {
     /// no authored zone names the socket — at which point the number is the only
     /// handle there is, and silence would be worse.
     func spokenConfirmation(for status: ZoneModuleStatus) -> String {
-        let place = SocketZones.primaryZone(for: status.socketID)
+        let place = NPZoneRegistry.primaryZone(forSocket: Int(status.socketID))
             ?? String(format: String(localized: "ZONE_SOCKET_LABEL"), Int(status.socketID))
         if let type = status.moduleType.displayName {
             return String(format: String(localized: "ZONE_ANNOUNCE_WITH_TYPE"), place, type)

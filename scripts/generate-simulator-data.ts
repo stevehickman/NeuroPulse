@@ -274,9 +274,14 @@ function generateZonesAndProtocols() {
     parsed: parseNPPSFile(readFileSync(join(PROTOCOLS_DIR, f), 'utf8')),
   }));
 
-  const { namespace, warnings } = buildNamespace(parsedFiles.map(p => p.parsed));
-  if (warnings.length) {
-    console.warn('  Namespace warnings:', warnings);
+  // readdirSync order is not guaranteed, which is precisely why a duplicate
+  // zone/condition name is an error rather than last-write-wins: the "winner"
+  // would depend on the file system (NP-NPPS-REF-001 §1.6). A generator must
+  // not emit data built from an unbound name, so this is fatal here.
+  const { namespace, errors } = buildNamespace(parsedFiles.map(p => p.parsed));
+  if (errors.length) {
+    console.error('  Duplicate definitions:', errors);
+    throw new Error(`${errors.length} duplicate zone/condition name(s) in ${PROTOCOLS_DIR}`);
   }
 
   const zones: NPZoneDefinition[] = [...namespace.zones.values()];

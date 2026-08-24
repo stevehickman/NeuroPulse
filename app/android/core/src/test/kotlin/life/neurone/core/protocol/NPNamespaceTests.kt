@@ -4,6 +4,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -64,7 +65,7 @@ class NPNamespaceTests {
 
     @Test
     fun zoneRejectsIdsThatNameNoSocket() {
-        for (bad in listOf("[0]", "[${SocketZones.MAX + 1}]", "[1.5]", "[true]", "[\"x\"]")) {
+        for (bad in listOf("[0]", "[${SocketLattice.MAX + 1}]", "[1.5]", "[true]", "[\"x\"]")) {
             val e = assertFailsWith<NPPSError>("sockets: $bad must not parse") {
                 parse("""zone "Z" { sockets: $bad }""")
             }
@@ -144,8 +145,15 @@ class NPNamespaceTests {
         assertTrue(errors.any { it.contains("Missing Zone") })
     }
 
+    /**
+     * A duplicate name is an ERROR and binds to NEITHER definition. Directory
+     * traversal order is not guaranteed, so last-write-wins made the winning
+     * definition a property of the file system — for a zone, a silent change of
+     * which sockets get dosed. Leaving the name unbound is the only outcome
+     * that is the same whatever the read order.
+     */
     @Test
-    fun duplicateNamesWarnAndLastWins() {
+    fun duplicateZoneNameIsAnErrorAndLeavesTheNameUndefined() {
         val build = buildNamespace(
             parse(
                 """
@@ -154,8 +162,48 @@ class NPNamespaceTests {
                 """.trimIndent()
             )
         )
-        assertEquals(listOf(2), build.namespace.zones["Z"]?.sockets)
-        assertTrue(build.warnings.any { it.contains("Duplicate zone name 'Z'") })
+        assertNull(build.namespace.zones["Z"], "a collided name must bind to neither definition")
+        assertTrue(build.errors.any { it.contains("Duplicate zone name 'Z'") })
+    }
+
+    @Test
+    fun duplicateNameGivesTheSameAnswerInEitherReadOrder() {
+        val first = parse("zone \"Z\" { sockets: [1] }")
+        val second = parse("zone \"Z\" { sockets: [2] }")
+        val forward = buildNamespace(first + second)
+        val reverse = buildNamespace(second + first)
+        assertNull(forward.namespace.zones["Z"])
+        assertNull(reverse.namespace.zones["Z"])
+        assertEquals(forward.errors, reverse.errors)
+    }
+
+    @Test
+    fun duplicateConditionNameIsAnErrorAndLeavesTheNameUndefined() {
+        val build = buildNamespace(
+            parse(
+                """
+                condition "C" { link: "https://x/1" }
+                condition "C" { link: "https://x/2" }
+                """.trimIndent()
+            )
+        )
+        assertNull(build.namespace.conditions["C"])
+        assertTrue(build.errors.any { it.contains("Duplicate condition name 'C'") })
+    }
+
+    @Test
+    fun aThirdDefinitionCannotReBindACollidedName() {
+        val build = buildNamespace(
+            parse(
+                """
+                zone "Z" { sockets: [1] }
+                zone "Z" { sockets: [2] }
+                zone "Z" { sockets: [3] }
+                """.trimIndent()
+            )
+        )
+        assertNull(build.namespace.zones["Z"])
+        assertEquals(1, build.errors.size)
     }
 
     // MARK: protocol conditions / references

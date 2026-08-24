@@ -229,9 +229,9 @@ describe('single namespace and reference validation', () => {
       condition "Major Depressive Disorder" { link: "https://x/mdd" }
     `);
     const protoFile = parseNPPSFile(PROTO_WITH_REFS);
-    const { namespace, warnings } = buildNamespace([defsFile, protoFile]);
+    const { namespace, errors } = buildNamespace([defsFile, protoFile]);
 
-    expect(warnings).toEqual([]);
+    expect(errors).toEqual([]);
     expect(namespace.zones.has('Left Frontal')).toBe(true);
     expect(namespace.conditions.has('Major Depressive Disorder')).toBe(true);
     expect(validateNamespaceReferences(namespace)).toEqual([]);
@@ -246,11 +246,53 @@ describe('single namespace and reference validation', () => {
     expect(errors.some(e => e.includes("undefined zone 'Left Frontal'"))).toBe(true);
   });
 
-  it('warns on duplicate zone names (last wins)', () => {
+  // A duplicate name is an ERROR and binds to NEITHER definition. Directory
+  // traversal order is not guaranteed, so last-write-wins made the winning
+  // definition a property of the file system — for a zone, a silent change of
+  // which sockets get dosed. Leaving the name unbound is the only outcome that
+  // is the same whatever the read order.
+  it('errors on a duplicate zone name and leaves it undefined', () => {
     const a = parseNPPSFile('zone "Z" { sockets: [1, 2] }');
     const b = parseNPPSFile('zone "Z" { sockets: [3, 4] }');
-    const { namespace, warnings } = buildNamespace([a, b]);
-    expect(warnings.some(w => w.includes("Duplicate zone name 'Z'"))).toBe(true);
-    expect(namespace.zones.get('Z')?.sockets).toEqual([3, 4]);
+    const { namespace, errors } = buildNamespace([a, b]);
+    expect(errors.some(e => e.includes("Duplicate zone name 'Z'"))).toBe(true);
+    expect(namespace.zones.has('Z')).toBe(false);
+  });
+
+  it('gives the same answer whichever order the colliding files are read in', () => {
+    const a = parseNPPSFile('zone "Z" { sockets: [1, 2] }');
+    const b = parseNPPSFile('zone "Z" { sockets: [3, 4] }');
+    const forward = buildNamespace([a, b]);
+    const reverse = buildNamespace([b, a]);
+    expect(forward.namespace.zones.has('Z')).toBe(false);
+    expect(reverse.namespace.zones.has('Z')).toBe(false);
+    expect(forward.errors).toEqual(reverse.errors);
+  });
+
+  it('errors on a duplicate condition name and leaves it undefined', () => {
+    const a = parseNPPSFile('condition "C" { link: "https://x/1" }');
+    const b = parseNPPSFile('condition "C" { link: "https://x/2" }');
+    const { namespace, errors } = buildNamespace([a, b]);
+    expect(errors.some(e => e.includes("Duplicate condition name 'C'"))).toBe(true);
+    expect(namespace.conditions.has('C')).toBe(false);
+  });
+
+  it('a protocol referencing a collided zone fails reference resolution', () => {
+    const a = parseNPPSFile('zone "Left Frontal" { sockets: [1, 2] }');
+    const b = parseNPPSFile('zone "Left Frontal" { sockets: [3, 4] }');
+    const defs = parseNPPSFile('condition "Major Depressive Disorder" { link: "https://x/mdd" }');
+    const protoFile = parseNPPSFile(PROTO_WITH_REFS);
+    const { namespace } = buildNamespace([a, b, defs, protoFile]);
+    const refErrors = validateNamespaceReferences(namespace);
+    expect(refErrors.some(e => e.includes("undefined zone 'Left Frontal'"))).toBe(true);
+  });
+
+  it('a third definition cannot re-bind a name already known to collide', () => {
+    const a = parseNPPSFile('zone "Z" { sockets: [1] }');
+    const b = parseNPPSFile('zone "Z" { sockets: [2] }');
+    const c = parseNPPSFile('zone "Z" { sockets: [3] }');
+    const { namespace, errors } = buildNamespace([a, b, c]);
+    expect(namespace.zones.has('Z')).toBe(false);
+    expect(errors.length).toBe(1);
   });
 });

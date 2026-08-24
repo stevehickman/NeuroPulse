@@ -309,7 +309,7 @@ struct NPPSParser {
             throw NPPSError(
                 message: "zone \"\(zoneName)\": \(invalid.joined(separator: ", ")) \(isAre) on this "
                     + "helmet — ids are whole numbers \(NPSocketID.rangeLabel) "
-                    + "(\(SocketZones.socketCount) sockets, numbered from \(NPSocketID.numberingBase))",
+                    + "(\(SocketLattice.socketCount) sockets, numbered from \(NPSocketID.numberingBase))",
                 line: ln
             )
         }

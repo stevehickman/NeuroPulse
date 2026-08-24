@@ -62,10 +62,13 @@ extension NPPBMTarget {
             // socket must dose it once, and a bit set twice is still one bit.
             var sockets: [Int] = []
             for name in names {
-                guard let zoneSockets = SocketZones.sockets(forZone: name) else {
+                // From the loaded .npps namespace — the only source of a zone
+                // (NP-NPPS-REF-001 §8). A user-defined zone resolves here on
+                // exactly the same footing as a shipped one.
+                guard let zoneSockets = NPZoneRegistry.sockets(forZone: name) else {
                     throw NPSocketTargetError.unknownZone(name: name)
                 }
-                sockets.append(contentsOf: zoneSockets.map(Int.init))
+                sockets.append(contentsOf: zoneSockets)
             }
             let mask = try NPSocketMask(
                 sockets: sockets,

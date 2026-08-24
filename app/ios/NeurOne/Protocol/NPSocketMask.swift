@@ -31,7 +31,7 @@ enum NPSocketIDProblem: Equatable {
     case notFitted
 }
 
-/// Socket id domain, derived from the generated zone table rather than hardcoded.
+/// Socket id domain, derived from the generated lattice rather than hardcoded.
 ///
 /// NUMBER-1 (docs/np_hex_zm_001.md §3.3): a socket NUMBER is 1-based everywhere in
 /// this project, and socket 0 does not exist. Every id this app holds, displays,
@@ -46,14 +46,14 @@ enum NPSocketID {
     static let numberingBase = 1
 
     static var minimum: Int { numberingBase }
-    static var maximum: Int { SocketZones.socketCount }
+    static var maximum: Int { SocketLattice.socketCount }
 
     /// The inclusive id range (e.g. `1–80`), for error messages and UI hints.
     static var rangeLabel: String { "\(minimum)–\(maximum)" }
 
     static func problem(_ id: Int) -> NPSocketIDProblem? {
         if id < minimum || id > maximum { return .outOfRange }
-        if SocketZones.bySocket[UInt8(id)] == nil { return .notFitted }
+        if !SocketLattice.isValid(id) { return .notFitted }
         return nil
     }
 
