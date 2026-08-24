@@ -5,6 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
+// sources-sha256: 5f6f83152da6fd01d873fa007dd1dbc965fe2b7c45be68510f83071a4409d2de
 // app/web/src/types/protocol.ts
 function defaultParams(type) {
   const defaults = {
