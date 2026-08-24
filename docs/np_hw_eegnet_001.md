@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-EEGNET-001
-**Revision:** 3
-**Date:** 2026-08-20
+**Revision:** 6
+**Date:** 2026-08-22
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (new document)
-**References:** NP-HEX-ZM-001 §3.1/§3.2/§3.3/§4a/§5.3, NP-HELMET-GEOM-001 §0/§2/§3.1/§5, NP-DRV-SHELL-002 §3.5/§5.1.4–§5.1.6/§9.1–§9.6/§10.1, NP-HW-HUB-001 §4.5/§5/§7.2/§7.4, NP-HW-HEXTILE-001 §1/§4.5/§6.4/§7.1/§7.2/D-5, NP-THERM-BEZEL-001, NP-RISK-002 (RISK-21), NP-RISK-004, NP-COST-001 §2/§6, NP-HFE-002 §2.3/§2.5/§3/§5/§7.1/§7.3/§7.4, NP-OPT-PSF-001, NP-ENV-OPRANGE-001 §4, NP-CONV-001 Rev 6, CLAUDE.md §3/§4.2/§4.3/§4.4/§5.1
-**Related Issues:** PR #283 (Rev 3 — §1.6/§1.7/§1.8, OI-EEGNET-18…21)
+**References:** NP-HEX-ZM-001 §3.1/§3.2/§3.3/§4a/§5.3, NP-HELMET-GEOM-001 §0/§2/§3.1/§5, NP-DRV-SHELL-002 §3.5/§5.1.4–§5.1.6/§9.1–§9.6/§10.1, NP-HW-HUB-001 §4.5/§5/§7.2/§7.4, NP-HW-HEXTILE-001 §1/§4.5/§6.4/§7.1/§7.2/D-5, NP-THERM-BEZEL-001, NP-RISK-002 (RISK-21), NP-RISK-004, NP-COST-001 §2/§6, NP-PWR-BUDGET-001 §3.4–§3.7, NP-SES-PWR-001 §8, NP-FEAS-FNIRS-001, NP-HFE-002 §2.3/§2.5/§3/§5/§7.1/§7.3/§7.4, NP-OPT-PSF-001, NP-ENV-OPRANGE-001 §4, NP-CONV-001 Rev 6, CLAUDE.md §3/§4.2/§4.3/§4.4/§5.1
+**Related Issues:** PR #283 (Rev 3); Rev 4 reconciles against PR #284; Rev 5 adds §1.10; Rev 6 closes OI-EEGNET-25 with a computed result that corrects §1.10.4 and §1.10.5
 **Gate:** NET-1 (strain-tracking fidelity), NET-2 (placement-verification qualification); interacts with REG-1, MECH-2, THERM-1, SEAL-1
 **IEC 62304 Class:** N/A — the net is hardware. It is a risk control with no software class; the firmware that reads its impedance matrix and gates tES/visual stimulation carries the class (Class C where it owns an enable line, per CLAUDE.md §4.2).
 **Supersedes:** None. Contests NP-HEX-ZM-001 §4a's T1-B tile type; see §0 and §7.
@@ -25,6 +25,59 @@
 
 ---
 
+> ## Rev 6 — `OI-EEGNET-25` computed. It corrects two Rev 5 claims and weakens the case for discrete pod selection.
+>
+> `scripts/pod-pattern-coverage.ts` computes the **lattice covering radius** — for every point on the
+> lattice-covered scalp, the distance to the nearest pod position available *anywhere* on the lattice,
+> assuming the electrode tile may be placed at whichever socket suits best. That is montage-independent,
+> so unlike a montage-specific fit **it does not wait on REG-1**.
+>
+> | | Was (Rev 5) | Is (Rev 6) | Cause |
+> |---|---|---|---|
+> | §1.10.4's quantisation figures | The residual | **A lower bound on it.** The formula counts angular error at ring radius r only, ignoring radial mismatch and assuming a target is served by its own tile alone. Measured: ring4 11.1 → **12.7 mm**, ring5 9.0 → **12.5**, ring6 7.5 → **11.6**, ring8 5.7 → **10.4** | §1.10.5 |
+> | §1.10.5: centre-plus-ring is *"strictly better than a regular pentagon at the same count"* | Asserted | **Wrong.** At N=4 centre-plus-ring is far *worse* (17.3 vs 12.7 mm); at N=5 it ties (12.6 vs 12.5); it wins only from N≈6, decisively at N=8 | Computed, not argued |
+> | Whether pattern optimisation rescues five pods | Open — *"could make five behave like six or better"* | **It does not.** No pattern at any count meets ±10 mm worst-case except **centre+ring7 (8 pods, 9.4 mm)**, which keeps 34/90 emitters — and that is covering error *alone*, before shape, seating or landmark terms | §1.10.5 |
+>
+> **The consequence is against discrete selection generally**, not just against five: a scheme that picks
+> the nearest of N fixed positions cannot meet the placement budget at any pod count that leaves useful
+> emitters. §1.4's continuous per-site offset has **no** quantisation term — which returns the argument
+> to §1.10.1, where §1.4 was already shown to imply position-keyed parts.
+>
+> **The model validates against two known figures:** a single centre pod (today's T1-B) gives a covering
+> radius of **20.0 mm**, exactly half the 40 mm socket pitch, consistent with §1.3's 18 mm Oz defect.
+>
+> ---
+>
+> ## Rev 5 — variable pod population, and a correction §1.4 has owed since Rev 2.
+>
+> | | Was | Is (Rev 5) | Cause |
+> |---|---|---|---|
+> | §1.4's *"per-site placement file"* | *"a zero-tooling, zero-BOM change"*; §1.5 says the §0 fork *"dissolves"* | **It already means one part per electrode site.** §1.3's own examples need *different* offsets at different sockets (Oz ~18 mm posterior; Fp1/Fp2 ±18 mm in adjacent tiles), so `R-2` was broken by §1.4 and Rev 3 did not say so | §1.10.1. The variable-pod proposal inherits position-dependence rather than introducing it |
+> | Pod count per tile | One number, to be chosen (§1.7) | **Possibly a per-socket variable** — either manufactured variants or one universal tile with pods selected on-tile | §1.10.2 |
+> | §1.7.2's rejection of an on-tile mux | Applied generally | **Does not transfer to static selection.** The rejection was about time-sharing destroying simultaneity; selection here is set once at fit | §1.10.3 |
+>
+> **Nothing decided.** §1.10 raises `OI-EEGNET-23…26`. The pod-pattern optimisation (`OI-EEGNET-25`) is
+> the deciding input and does not exist yet; every quantisation figure in §1.10.4 assumes a single ring,
+> which §1.10.5 argues is the wrong pattern to assume.
+>
+> ---
+>
+> ## Rev 4 — reconciled against `NP-PWR-BUDGET-001` Rev 3 / `NP-SES-PWR-001` Rev 1. One citation was stale; two arguments got stronger.
+>
+> Rev 3 was written before PR #284 landed. Reconciling, per `NP-CONV-001` §7:
+>
+> | | Was (Rev 3) | Is (Rev 4) | Cause |
+> |---|---|---|---|
+> | The concurrency ceiling §1.8.1 quotes | *"~6 concurrent tiles at 25 % duty"*, taken as the settled figure | **~6 is an artefact of one operating point no authored protocol uses.** Real per-tile draw is 1.3–20.0 W, so concurrency spans **2–32 tiles** | `NP-SES-PWR-001` §2, measured against `protocols/predefined/` rather than argued |
+> | §1.8's argument that the ceiling does not reach electrodes | Our inference from the ceiling being a power figure | **Now stated directly in the source**: `NP-PWR-BUDGET-001` §3.5 *"records that populated != driven"*, and §9.3's new fourth consequence retires *"placement options, not capability"* | The argument is corroborated, not disturbed |
+> | `OI-EEGNET-21`'s open question (T1-E's PBM cost) | *"an NP-OPT-PSF-001 coverage question, not answered here"* | **Specified**: §3.7 shows coverage is the *only* quantity that scales with tile count, so T1-E costs coverage area and nothing else — total optical output is envelope-capped at ~13–14 W regardless | `NP-PWR-BUDGET-001` §3.7 |
+> | `OI-EEGNET-20`'s reopening of the contact count | Requested on force grounds alone | **Independently forced.** `OI-HEXTILE-20` finds §8.1's 25.0 W/tile peak may be illegal against R-5; at 18.6 W the per-pin current that set `VLED` at 3 contacts changes. Same tooling-blocking decision, two callers | `NP-HW-HEXTILE-001` Rev 7 |
+>
+> **New at Rev 4:** §1.9 answers what else a four-pod tile can hold, and raises `OI-EEGNET-22`.
+> §1.6 gains a guard against a misreading PR #284 makes newly available (see the note at §1.6).
+>
+> ---
+>
 > ## Rev 3 — three questions added ahead of the net. Nothing decided, nothing reversed.
 >
 > Rev 3 adds **§1.6** and **§1.7** and raises `OI-EEGNET-18/19/20`. It reverses no position in Rev 2
@@ -271,6 +324,16 @@ set by the ADS1299 bank (§1.7.5). Equivalent spacing over the 30-tile field:
 is dense patches at ~20.5 mm intra-tile spacing (§1.7.1) separated by the 40 mm tile pitch. Non-uniform
 sampling does not behave like uniform sampling at the mean density, and `OI-EEGNET-18` must treat the
 patch structure explicitly rather than quoting an average.
+
+> **Guard against one misreading, added at Rev 4.** `NP-PWR-BUDGET-001` §3.7 concludes *"do not state
+> the emitter count as a capability claim"*, citing `NP-OPT-PSF-001` §3.3's **26.2 mm cortical
+> resolution floor** and *"there is little spatial selectivity left to buy below module granularity."*
+> **That is an optical result and it does not transfer to this section.** It bounds where *photons*
+> land after scattering through skull and cortex; §1.6 is about spatial sampling of a *potential
+> field* by volume conduction. The two have different physics and different length scales — 10-20 lines
+> sit ~33 mm apart, and the sampling question is whether the scalp field is reconstructable, not
+> whether a beam can be aimed. Quoting §3.7 against §1.6 would retire this question for a reason that
+> does not apply to it.
 
 **Four limits, stated rather than buried.**
 
@@ -532,6 +595,16 @@ Home Standard's 30 tiles is a figure a cost model adopted because it needed one,
 > *"**Do not populate all sockets.** §9 shows the power envelope permits only ~5–6 tiles to run
 > concurrently regardless; the lattice's value is placement freedom, not simultaneous activation."*
 
+**⚠ The "~6 tiles" figure is superseded, and the correction strengthens this section.**
+`NP-SES-PWR-001` §2, auditing `protocols/predefined/` rather than arguing from one operating point,
+finds ~6 is *"an artefact of one operating point that no authored protocol uses"* — real per-tile draw
+spans **1.3–20.0 W**, so concurrency spans **2–32 tiles**, and a tile-count governor is wrong in both
+directions (it forbids 80 tiles at 30 W and permits 6 at 150 W). `NP-PWR-BUDGET-001` §3.5 now
+**states directly what §1.8 had to infer** — *"records that populated != driven"* — and
+`NP-HW-HEXTILE-001` §9.3's fourth consequence retires *"placement options, not capability"*, since all
+80 tiles can be lit at ~1.5 % drive for ~30 W. The original figure is retained below because it is what
+§6.4's argument was built on.
+
 That is a **power** argument and it is sound on its own terms — §9 gives T1 peak 45–50 W, ~6–8 W of
 non-PBM overhead, ~38–42 W available to emitters, and 25.0 W for one T1-A at full dual-channel drive,
 hence ~6 concurrent tiles at 25 % duty.
@@ -576,10 +649,16 @@ nothing to mask, because there is nothing to remove.
 
 #### 1.8.4 Four costs, stated
 
-1. **PBM coverage at electrode sites falls to zero.** T1-B delivers ~44 emitters, about 49 % of a
-   T1-A; T1-E delivers none. Whether that is acceptable is an `NP-OPT-PSF-001` coverage question and is
-   **not answered here** — it is the substance of `OI-EEGNET-21` and the reason T1-E is a proposal
-   rather than a recommendation.
+1. **PBM coverage at electrode sites falls to zero — and Rev 4 can now say exactly what that costs.**
+   T1-B delivers ~44 emitters, about 49 % of a T1-A; T1-E delivers none. `NP-PWR-BUDGET-001` §3.7
+   supplies the frame Rev 3 lacked: **coverage is the only one of the three quantities that scales with
+   tile count.** Local irradiance is set by the tile and total optical output is capped by the PD
+   envelope at ~13–14 W optical *whatever the population*. So T1-E costs **illuminable area at those
+   sites and nothing else** — it cannot reduce deliverable dose, because dose was never population-bound.
+   The trade is therefore specifically against §3.6's whole-vault **coverage** mode (all 80 tiles,
+   ~1.5 % drive, ~30 W), not against focal protocols, where irradiance is the whole ballgame and an
+   unlit electrode site is not in the montage anyway. Still `OI-EEGNET-21`, and still a proposal —
+   but the question is now quantitative rather than open-ended.
 2. **It is a fifth tile type**, which lands on `NP-HFE-002` §7.3's L3 marking at exactly the point
    §2.3(a) puts tactile counting at *"reliable to about 4–5"*. It therefore depends on the L3 encoding
    question raised at §1.7.4 and now carried by `OI-HFE2-10`.
@@ -590,6 +669,285 @@ nothing to mask, because there is nothing to remove.
 
 > **No figure in §1.8 may be entered into `NP-COST-001`.** Same rule as §7.2.2 and §1.7.5: that
 > document owns the re-derivation, and `OI-COST-01` must be decided there, not inferred here.
+
+### 1.9 What else a four-pod tile can carry (NEW AT REV 4)
+
+§1.7 asks how many electrodes a tile should hold. This section asks the complement: **at four pods,
+what is left, and what should occupy it?** It is answered against the two constraints that decide it —
+what the protocol library actually demands (`NP-SES-PWR-001`) and what the power envelope affords
+(`NP-PWR-BUDGET-001` Rev 3) — both of which post-date Rev 3.
+
+#### 1.9.1 What remains, measured
+
+| | Value | Basis |
+|---|---|---|
+| Emitter sites remaining | **62 of 90** (~69 % of a T1-A) | 91-site lattice − site 0 reserved − 4 × 7-site pod neighbourhoods (`NP-HW-HEXTILE-001` D-1, §4.5) |
+| Pod footprint | 408 mm² of a 1,385 mm² tile face | 4 × ⌀11.4 mm, contingent on `OI-HEXTILE-05` |
+| Free socket contacts | **zero** | 19 positions, closed, *"2 reserved dropped"* (`NP-DRV-SHELL-002` §5.1.4) |
+| Free power | effectively **all of it** | An electrode draws µA; a photodiode is passive |
+
+**The binding constraint is not area, and not power. It is the socket contact budget** — the same wall
+§1.7.2 hits, and for the same reason: anything that produces a signal has to leave the tile.
+
+#### 1.9.2 What the protocol library asks for — and it is not more emitters
+
+`NP-SES-PWR-001`'s largest finding is *"not a power finding"*: protocols **target lobe-scale zones
+where their own cited evidence specifies electrode-scale sites** — the depression protocol irradiates
+37 sockets in service of a *bilateral DLPFC (F3/F4)* indication, and *"no DLPFC, F3/F4 or single-site
+zone exists."* The remedy is a data edit gated on **REG-1** (`OI-SESPWR-01`), and it takes the
+depression protocol from 740 W to ~50 W.
+
+**Two consequences for this section.** First, the library's unmet need is *finer targeting*, which a
+four-pod tile does **not** supply — `NP-OPT-PSF-001` §3.2 gives one 40 mm tile a 40.0 mm FWHM at
+cortex, so the tile is already approximately the optical resolution unit and *"targeting below one tile
+buys nothing."* Second, `OI-SESPWR-01` and `OI-EEGNET-14` are **the same REG-1 dependency reached from
+opposite directions** — PBM zone authorship and EEG electrode registration both wait on socket-to-10-20
+registration. Neither document says so.
+
+#### 1.9.3 Candidates, assessed
+
+| Candidate | Power | Verdict |
+|---|---|---|
+| **More emitters** | envelope-capped | **No.** §3.7: adding emitters buys *irradiance*, not precision, and total optical output is ~13–14 W *"whatever the tile population."* The 28 sites the pods take cannot be bought back by populating others |
+| **1064 nm (T1-C function) on the same tile** | — | **No, and this is now settled.** `OI-HEXTILE-21`: CH_C reaches 28 mW/cm² against its own Grade A protocol's 0.25 W/cm² — **9× short**, and a hypothetical 90-site 1064-only tile still falls 3× short. *"An η_wp ≈ 4.8 % emitter wall, not a power or layout shortfall."* Fewer sites on a shared tile makes it worse |
+| **A second NTC / thermal sensing** | negligible | **No need.** The per-tile NTC and the 62 °C junction throttle already own local thermal, and `NP-HW-HEXTILE-001` §9.3 established the risk is local, not aggregate |
+| **Long-separation fNIRS detector** ★ | passive | **The one candidate the geometry favours — see §1.9.4** |
+| **Nothing — leave the sites unpopulated** | — | **A serious answer, not a null one.** Every T1 configuration is gross-margin negative and term **U** is the dominant uncosted risk (`NP-COST-001` §2). Depopulating is the only option here that helps it |
+
+#### 1.9.4 The four-pod geometry lands an fNIRS source–detector pair in its window, for free
+
+`NP-FEAS-FNIRS-001` finds the modality plausible on existing optics and names the blocker as
+**geometry**: fNIRS needs a source–detector separation of **2.5–3.5 cm**, and *"PD1/PD2 are co-located
+with the LED array to measure near-field backscatter (mm depth) — exactly the wrong geometry."* Its
+proposed bench step is to drive one tile and read a **neighbouring** tile's scalp-facing PD.
+
+Put the §1.7.1 pod arithmetic against that window:
+
+| Separation available | Distance | In the 25–35 mm window? |
+|---|---|---|
+| Adjacent pods, four-pod tile | 20.5 mm | No — too short |
+| **Diagonal pods, four-pod tile** | **29.0 mm** | **Yes** |
+| Nearest neighbouring tile (lattice pitch) | 40.0 mm | No — too long |
+
+> **The four-pod layout is the first geometry in the design that places a source and a detector at an
+> fNIRS-appropriate separation *within a single tile*.** The cross-tile separation the feasibility study
+> proposes overshoots the window; the intra-tile diagonal sits in it. Nothing was designed for this —
+> it falls out of a pod placement chosen for 10-20 registration.
+
+**Three reasons this is a candidate and not a recommendation.**
+
+1. **D-2 conflicts.** PD1/PD2 co-location is required *"for the PD1/PD2 fouling-vs-ageing ratio to be
+   valid"* (`NP-HW-HEXTILE-001` D-2). An fNIRS detector at a pod position is therefore a **third** PD,
+   not a relocated one.
+2. **A third PD needs conductors that do not exist.** Back to §1.9.1's binding constraint and to
+   `OI-EEGNET-20` / `OI-HEXTILE-20`. This is the third distinct consumer of the same closed contact
+   budget, after the second electrode and its shield.
+3. **The wavelength objection is untouched by geometry.** `NP-FEAS-FNIRS-001` Risk A is that
+   808–830 nm *"sits on/near the isosbestic point — the worst place"* for oxy/deoxy separation. A
+   better separation distance does not fix a chromophore problem, and nothing here claims it does.
+
+**One convergence worth recording rather than claiming.** `NP-PWR-BUDGET-001` §3.6's whole-vault mode —
+all 80 tiles at ~1.5 % drive, ~30 W — is explicitly *coverage, not dose*, delivering 7.2 J/cm² against
+a ≥10 J/cm² threshold. That is a limitation for PBM. For **monitoring**, sub-therapeutic whole-vault
+illumination is not a limitation but the desired condition. Whether the two uses can share one mode is
+`OI-EEGNET-22`, and `OI-PWR-07` already asks whether the mode is a product feature at all.
+
+#### 1.9.5 The answer, stated plainly
+
+**Space is not the scarce resource on a four-pod tile; socket contacts are.** 62 emitter sites and
+~977 mm² remain, and the power envelope is indifferent to everything proposed here because electrodes
+and photodiodes are microamp-and-passive. Of the five candidates, three are ruled out by the physics
+already documented, one — depopulation — is the only one that helps the margin problem, and one —
+fNIRS — has a geometry the four-pod layout supplies for free and a **wiring** problem it does not.
+
+> **Every additional signal-producing element on a tile is a claim on the same 19 closed contacts.**
+> The second electrode (§1.7.2), its shield, and an fNIRS detector are three claimants on a budget that
+> `OI-HEXTILE-20` has independently reopened and `OI-SHELL2-09(i)` will close at socket tooling. They
+> should be counted **once, together**, not discovered one at a time.
+
+### 1.10 Variable pod population — manufactured variants vs one selectable tile (NEW AT REV 5)
+
+§1.7 asks how many pods a tile should carry, on the assumption the answer is one number. It need not
+be: pod count and pod position could vary by socket. This section works that through, and it opens by
+correcting something §1.4 has asserted since Rev 2.
+
+#### 1.10.1 The correction §1.4 owes — per-site placement files already mean position-keyed parts
+
+§1.4 presents the in-tile offset as *"a zero-tooling, zero-BOM change: a per-site placement file"*, and
+§1.5 concludes the §0 dual-rated fork *"dissolves"*. **Both under-state what a per-site placement file
+is.** §1.3's own worked examples require **different** offsets at different sockets — Oz displaced
+~18 mm posterior inside socket 74, Fp1 and Fp2 displaced ±18 mm in two adjacent tiles. A placement file
+that differs by site means **T1-B is not one part; it is one part per electrode site.**
+
+> **`R-2` — "any type in any socket" — was already broken by §1.4, and Rev 3 did not say so.** The
+> variable-pod proposal in this section does not introduce position-dependence into the design. It
+> inherits it, makes it explicit, and adds a count axis. That is a change in degree, not in kind, and
+> §1.7.4's costing of the "mixed" variant was written as though the alternative were position-free.
+
+#### 1.10.2 Two ways to get variable pod placement, and they are not close
+
+| | **A — manufactured variants** | **B — one universal tile, pods selected** |
+|---|---|---|
+| Parts | one per (count, position) combination | **one** |
+| Tile types in the taxonomy | **7–8** (T1-B1…B4 + A/C/D/E) | **4–5** — unchanged from today |
+| `NP-HFE-002` §7.3 encoding | **exceeds** the nested figure's 6 | fits with headroom |
+| `R-2` (any type in any socket) | broken, per-position | **intact** |
+| User placement instruction | required, per socket | **none** |
+| Registration | continuous within ±14.5 mm | **discrete** — best of N (§1.10.4) |
+| Socket contacts | pays only for pods present | **1–2 regardless of N**, but only under §1.10.3 |
+
+**B is the better structure on every axis except registration precision**, and the type-count column is
+the decisive one: A pushes the taxonomy past the encoding `NP-HFE-002` Rev 2 just adopted, while B
+leaves it where it is.
+
+#### 1.10.3 Why the on-tile selector objection does not carry here
+
+§1.7.2 rejected an on-tile mux, and that rejection was about a different mechanism. It read: a mux
+gives *N sites time-shared on one channel*, destroying simultaneity for coherence, phase and sLORETA.
+
+**Selection here is static per build** — set at fit, held for the session. No switching in the µV band,
+no simultaneity loss, and `D-3` already fits a driver MCU to every tile, so an I2C-addressable latch
+exists. The earlier objection does not transfer.
+
+What does transfer, and must be characterised rather than assumed: **switch Ron and leakage sit in the
+µV path in the worst EMI location on the tile** (`SH2-DRC-16`). Note the test already exists one level
+up — `SH2-DRC-27` is *"electrode mux leakage and Ron mismatch impact on EEG CMRR"* for the per-cluster
+mux — so this is a re-run at a new location, not a new characterisation.
+
+**Wiring every pod out instead is the worst option** and should be recorded as rejected: it pays the
+maximum contact cost at every electrode site whether or not the pods are used, against a 19-position
+budget with *"2 reserved dropped"*.
+
+#### 1.10.4 Pod count is set by angular quantisation, and four is too few
+
+Selecting the nearest of N pods on a ring of radius r = 14.51 mm quantises position; worst case is a
+target landing between two pods, at 2·r·sin(π/2N). Decomposed against §3.4's ±10 mm and §1.1's 3.4 mm
+size-plus-shape term:
+
+| N | Quantisation | Left for all else | After shape | ≈ seating tolerance | Emitters | Scalp load ×9 tiles |
+|---|---|---|---|---|---|---|
+| 4 | **11.1 mm** | 0.0 mm | 0.0 mm | **0.0 mm** | 62/90 | 2.9–4.3 kg |
+| **5** | **9.0 mm** | 4.4 mm | 2.8 mm | **3.1 mm** | 55/90 | 3.6–5.4 kg |
+| **6** | 7.5 mm | 6.6 mm | 5.7 mm | **6.3 mm** | 48/90 | 4.3–6.5 kg |
+| 8 | 5.7 mm | 8.2 mm | 7.5 mm | **8.3 mm** | 34/90 | 5.8–8.6 kg |
+
+> **⚠ Corrected at Rev 6 — every figure in this table is a LOWER BOUND, not the residual.** The formula
+> counts angular error at ring radius r and nothing else: it assumes the target sits *at* radius r
+> (ignoring radial mismatch) and that a target is served only by its own tile's pods. §1.10.5 computes
+> the honest quantity and it is worse throughout — ring4 **12.7 mm**, ring5 **12.5**, ring6 **11.6**,
+> ring8 **10.4**. The table is retained because the *shape* of the argument — quantisation rises sharply
+> as N falls — survives, and because it is what Rev 5 reasoned from.
+
+**Four evenly-spaced pods blows the budget on quantisation alone**, before seating, shape or landmark
+error. **Five clears it at 9.0 mm but spends 90 % of the budget doing so**, leaving ~3.1 mm of seating
+tolerance against §1.1's own worked example of a 10 mm sunk head producing 9.1 mm at Oz.
+
+> **Five is the count that makes the structure contingent on a measurement nobody has taken.** Six has
+> margin whichever way `OI-EEGNET-14` resolves; five does not. That is an argument for sequencing, not
+> against five — five cannot be *chosen* before concentricity is measured, and six can.
+
+Two structural properties of odd N were checked and are not objections. A regular pentagon has no
+antipodal pair, but its longest chord is **27.6 mm**, still inside `NP-FEAS-FNIRS-001`'s 25–35 mm
+window, so §1.9.4 survives at five (the hexagon's antipodal pair is 29.0 mm). And because tiles mount
+in one fixed orientation, left/right pod positions are *translated*, not mirrored — bilateral symmetry
+for F3/F4, C3/C4, P3/P4 is obtained at either parity by fixing the pattern's phase so a mirror axis
+runs sagittally.
+
+#### 1.10.5 Centre-plus-ring — and the optimisation that actually decides this
+
+**Every figure in §1.10.4 assumes one ring, and that is the wrong pattern to assume.** `D-1` already
+reserves **site 0 at the tile centre**, described on T1-B as *"the electrode pod axis"* — the current
+design's single pod is a centre pod. The natural five is therefore **centre + four on a ring**, which
+reuses the reserved site and changes the problem qualitatively: a target near the tile centre is served
+*exactly*, and quantisation applies only to off-centre targets. It is a 2D covering problem, not a 1D
+angular one, and it is strictly better than a regular pentagon at the same count.
+
+**Computed at Rev 6 — and it does not do what this section expected.** `scripts/pod-pattern-coverage.ts`
+evaluates the **lattice covering radius**: for every point on the lattice-covered scalp, the distance to
+the nearest pod position available anywhere on the lattice, assuming the electrode tile may go at
+whichever socket suits best. This is montage-independent, so **it does not wait on REG-1** — which a
+fit against actual 10-20 coordinates would. Ring radius is optimised per pattern.
+
+| Pattern | Pods | Best r | **Worst case** | p95 | Emitters | Meets ±10 mm? |
+|---|---|---|---|---|---|---|
+| *centre only (today)* | *1* | — | *20.0 mm* | *19.0* | *83/90* | *no* |
+| ring4 | 4 | 12.5 mm | 12.7 mm | 10.3 | 62/90 | no |
+| centre+ring3 | 4 | 10.0 mm | **17.3 mm** | 13.2 | 62/90 | no |
+| ring5 | 5 | 12.0 mm | 12.5 mm | 9.7 | 55/90 | no |
+| centre+ring4 | 5 | 14.0 mm | 12.6 mm | 10.7 | 55/90 | no |
+| ring6 | 6 | 11.5 mm | 11.6 mm | 9.4 | 48/90 | no |
+| centre+ring5 | 6 | 14.5 mm | 11.9 mm | 8.9 | 48/90 | no |
+| ring8 | 8 | 10.0 mm | 10.4 mm | 9.6 | 34/90 | no |
+| **centre+ring7** | **8** | 14.5 mm | **9.4 mm** | 7.4 | **34/90** | **yes** |
+
+**Three results, and two of them contradict what this section assumed.**
+
+1. **Centre-plus-ring is not strictly better.** At N = 4 it is far *worse* than a plain ring
+   (17.3 vs 12.7 mm) — the centre pod is redundant against neighbouring tiles while the ring it thins
+   is what covers the gaps between them. It ties at N = 5 and wins only from N ≈ 6, decisively at N = 8.
+   **The Rev 5 claim that it is "strictly better at the same count" is withdrawn.**
+2. **Pattern optimisation does not rescue five pods.** Five is 12.5–12.6 mm however the pods are
+   arranged, against a ±10 mm budget — worse than the 9.0 mm §1.10.4 predicted, not better.
+3. **Only 8 pods meet ±10 mm worst-case, and only in the centre+ring form**, at 34/90 emitters —
+   *and that is covering error alone*, before §1.1's shape term, seating concentricity or landmark
+   error are added. On an RSS basis nothing in the table survives the full budget.
+
+> **The finding is against discrete selection generally, not against five.** Picking the nearest of N
+> fixed positions carries an irreducible quantisation term, and it does not fall below the budget at any
+> pod count that leaves a useful emitter population. **§1.4's continuous per-site offset has no such
+> term** — which returns the question to §1.10.1, where §1.4 was already shown to imply position-keyed
+> parts. The real trade is *quantisation error* against *part-count*, and Rev 6 prices the first side.
+
+**Two honest limits.** The geometry is the **interim ellipsoid**, which its own generator calls *"a
+description, not a fact"* and marks PROVISIONAL pending REG-1/ACT-1, so absolute residuals inherit that
+status — though the *ranking* of patterns is far more robust than the absolute numbers. And the covering
+radius answers *"any target anywhere"*; a **montage-specific** fit against nine known sites would do
+better, and the p95 column (7.4–10.3 mm) indicates how much better. That fit needs REG-1 and is
+**`OI-EEGNET-27`**.
+
+#### 1.10.6 What universality does not make cheaper
+
+Two costs are *worse* under option B than under manufactured variants, and both are paid at every
+electrode site:
+
+- **Emitter loss becomes uniform.** A 1-pod variant keeps 84 emitters; a universal N-pod tile keeps
+  90 − 7N at every electrode socket regardless of how many pods that socket uses. Term **U** again.
+- **Scalp contact load multiplies.** Each pod contacts at 80–120 g (CLAUDE.md §4.4) whether selected or
+  not — **4.3–6.5 kg across nine electrode tiles at N = 6**, against 0.7–1.1 kg today. This is a
+  fit-system and comfort question that has not been asked of anyone. Retracting unused pods would fix
+  it and would reintroduce a mechanical variant, defeating the point.
+
+> **At N ≥ 6 a universal electrode tile retains ≤53 % of its emitters, and the PBM value at those sites
+> becomes marginal.** That is `OI-EEGNET-21`'s premise reached from the opposite direction: if this
+> option is adopted at six or more, the question stops being *how much PBM do we keep at electrode
+> sites* and becomes *why keep any*. **`OI-EEGNET-21` and `OI-EEGNET-23` should be decided together.**
+
+#### 1.10.7 Identification, the placement gate, and the build map
+
+**Pod count needs no marking — it is directly palpable.** The pods are physical objects on the
+scalp-facing face, and counting to four is inside `NP-HFE-002` §2.3(a)'s reliable range. It is
+*self-demonstrating* rather than coded, so nothing is learned and nothing is added to L3, whose nested
+figure keeps encoding **family**. This is what keeps option A's 7–8 types from being an encoding
+problem — and it does **not** rescue option A, because pod *position* is not palpable: two 2-pod tiles
+with different offsets are indistinguishable by touch and by eye. Under option B the question does not
+arise, since there is one part.
+
+**The placement gate cannot express any of this today.** `np_module_map_check_placement()` filters on
+`type_mask` — *"at least one element whose type is in `type_mask`"* — which is an **element-type**
+predicate. A 1-pod and a 4-pod tile both satisfy *"dual electrode at this socket"*, so the gate would
+**pass a wrong build silently**, including at socket 74 where the photoparoxysmal halt depends on it.
+The fix is a count/geometry field in the requirement, not new entries in the element enum, which would
+pollute a type system to carry a quantity. This is the same weakness §7.2.4 identifies for the net,
+reached from a different direction. **`OI-EEGNET-26`**, routed to `NP-HEX-ZM-001` §4a as the owner of
+the identity model.
+
+**A required *build* map is a third kind of data and has no home.** `hardware/np_socket_map.json` is
+geometry and says so — *"There is deliberately no lobe and no side here. A socket's anatomical meaning
+is its ZONE MEMBERSHIP… not a property of the hardware."* `00-zones.npps` is zone membership. Neither
+is *"which module belongs in which socket for this build"*. The simulator can render it — the
+generator already runs the real parser against the real sources — but it has nothing to render yet, and
+the app's live inventory is still the retired 5-slot array (`OI-HFE2-02`). **The rendering and the app
+pipeline want the same socket-indexed structure and should be cut once. `OI-EEGNET-24`.**
 
 ---
 
@@ -1220,14 +1578,20 @@ architecture no longer needs.
 | OI-EEGNET-11 | Net has no representation in the module-identity model (§7.2.5) | FW + App | — |
 | OI-EEGNET-12 | Residual risk that a T1-B consumer exists which no grep pattern in §7.4 caught | Systems | Before tooling |
 | OI-EEGNET-13 | Net risk register (`NP-RISK-005`?) and FAI do not exist. Per `NP-ART-001`, this would be a tenth artifact with no owning risk document | QA | Before tooling |
-| **OI-EEGNET-14** | **Seating concentricity is unspecified and unmeasured, and §1.1 shows it is the DOMINANT registration term (~0.9 mm landing error per 1 mm of head displacement).** The fit system (5-position bridge, Boa, temporal wings) has never been given a concentricity requirement. This is the single measurement that decides whether §1.4 suffices | **ME + Systems** | **Blocks the §1.4-vs-net choice** |
+| **OI-EEGNET-14** | **Seating concentricity is unspecified and unmeasured, and §1.1 shows it is the DOMINANT registration term (~0.9 mm landing error per 1 mm of head displacement).** The fit system (5-position bridge, Boa, temporal wings) has never been given a concentricity requirement. This is the single measurement that decides whether §1.4 suffices. **Rev 4 — it is not only an EEG dependency:** `OI-SESPWR-01` needs the same socket-to-10-20 registration before evidence-faithful PBM zones (a DLPFC zone of 2 sockets per hemisphere) can be authored at all, and it is worth ~690 W on the depression protocol alone. Two consumers, one measurement; neither document names the other | **ME + Systems** | **Blocks the §1.4-vs-net choice** |
 | **OI-EEGNET-15** | Placement tolerance is treated as one number (±10 mm). It is plausibly **modality-dependent** — looser for T1 8-channel wellness neurofeedback, tighter for T2 sLORETA source localisation and HD-tDCS 4×1 targeting. If so, T1 takes §1.4 and only T2 needs a cap. Not established here | Clinical | T2 |
 | **OI-EEGNET-16** | **`OI-HEXTILE-05` (pod body diameter) is the tangential registration budget and is not being treated as one.** It is currently scoped as a PBM-coverage question only. Re-scope it before T1-B Rev 2 layout | Systems + ME | **T1-B layout** |
 | **OI-EEGNET-17** | §1.1's model is 2D sagittal only. The coronal plane, where cephalic index 0.70–0.85 acts, has not been computed | Systems | With OI-EEGNET-14 |
 | **OI-EEGNET-18** | **Spatial sampling density as an alternative to placement tolerance (§1.6).** Two halves: (a) establish the actual sampling requirement for this geometry and these measures — the ~20 mm figure is a literature estimate and is **not** a project number; (b) determine whether array pose can be recovered well enough to interpolate against anatomy, which is `OI-EEGNET-14` in a different currency. **Scope is recording only** — §1.6 limit 3 excludes tES and the Oz gate. Interacts with `OI-EEGNET-15`: if tolerance is modality-dependent, so is this | Systems + Clinical | With OI-EEGNET-14/15 |
 | **OI-EEGNET-19** | **Electrodes per tile — study 1, 2, 3 and 4, uniform or mixed (§1.7).** The range is **not** 1–2: §1.6's density argument is only satisfied at 4/tile, so a study capped at 2 cannot answer the question that motivates it. Four ⌀11.4 mm pods fit at 20.5 mm intra-tile spacing (§1.7.1). Decide with `OI-HEXTILE-05`, not after it — pod diameter sets the emitter budget, the pod separation *and* the achievable pod count. **Note the cost axis runs the counterintuitive way**: 4 pods inflate emitters +7.5 % against 2 pods' +13.0 %, because each pod removes ~7 emitters. Three cross-cuts the study must carry: (a) shield per electrode or one shared DRL-driven shield — worth 3 contacts at 4 electrodes; (b) whether every electrode is dual-rated or only a subset (§1.7.1 — decoupling holds the safety-MCU channel count flat); (c) uniform vs mixed, where §1.7.4 recommends uniform. **Blocked by OI-EEGNET-20**: every electrode past the first needs socket positions that do not exist | Systems + ME + HFE | **T1-B layout; with OI-HEXTILE-05 and the N of §1.7.5** |
-| **OI-EEGNET-20** | **Carry socket contact count as a variable in the MECH-2 / HFE force study, and evaluate a three-row array (§1.7.2–§1.7.3).** Force is exactly linear at 0.3–0.5 N per contact, and 34.2–57.0 N at 19 is **already the unanswered question** in `OI-SHELL2-03(b)`. Route to `NP-DRV-SHELL-002` §5.1.4 and `NP-HW-HEXTILE-001` D-5 — **not decided here**. **Row count and row straightness are both free variables** — an edge-following L, chevron or polyline offers ~48 positions on one run at 2.00 mm pitch and holds constant edge margin, where a chord does not (§1.7.2). Independent of any electrode decision, §1.7.3 gives a µV-siting argument for re-shaping the array at constant count (`OI-HEXTILE-11`), against a newly identified cost: a spread array roughly **halves the angular tolerance** the mechanical key must hold, which no document currently states. **Two prerequisites the study cannot skip (§1.7.2):** the stated 34.2–57.0 N is **contact force only** — ejector springs, 30 per-tile gaskets and plunger preload are excluded — and there is **no input-force acceptance number** for the cluster actuator, §5.4a's ≤1 N being the retired per-module eject-lever figure. Required MA = load ÷ target and neither end exists. **Force-spread cancellation is a real second lever** worth 5.7 N per 0.05 N of spread removed, best implemented as socket-side spring-rate grading (preserves `R-2`); naive load-spreading stagger is counterproductive against an over-centre. **Release force may bind before throw force** (`OI-HFE2-05`), and the ejector-spring trade between them is stated nowhere. **Time-boxed:** `OI-SHELL2-09(i)` blocks socket tooling; after that cut the count is permanent at every socket by the union rule | ME + HFE + EE | **MECH-2; before socket tooling** |
-| **OI-EEGNET-21** | **An electrode-only tile type (T1-E) does not exist, and the reason electrode sites are scarce does not survive inspection (§1.8).** Per-configuration tile population *"has never been decided"* (`OI-COST-01`); the only argument on record against full population is `NP-HW-HEXTILE-001` §6.4's concurrency ceiling, which is a **power** argument that does not reach an electrode. The lattice — all ~80 sockets, all 18 cluster controllers — is paid for in every configuration (`NP-COST-001` A-2), so the marginal cost of a populated socket is one tile, and tile cost is dominated by the $11.53 driver/metering (~$10 of it InGaAs) and by emitters, none of which an electrode uses. **T1-E is the only option in §§1.6–1.8 that moves term U the right way: −17.3 % emitters while doubling electrode sites, and it strictly dominates T1-B at constant electrode count.** Decide the PBM-coverage cost against `NP-OPT-PSF-001` — that is the question, and it is not answered here. Depends on `OI-HFE2-10` for the fifth-type marking; does **not** relieve the N ceiling of §1.7.5. **Note the sequencing this creates, because it is unusual and should be deliberate rather than inherited:** an HFE formative on tactile discrimination sits *upstream* of a tile-taxonomy decision. If `OI-HFE2-10` falls back to the bar row, the taxonomy caps at four types and T1-E needs either a re-encoding or a type it can displace. The dependency runs the right way — marking is cheap to change before the mould insert is cut, taxonomy is not — but nothing else in the document set has this shape | Principal + Product + Systems | **With OI-COST-01 and OI-HEXTILE-06** |
+| **OI-EEGNET-20** | **Carry socket contact count as a variable in the MECH-2 / HFE force study, and evaluate a three-row array (§1.7.2–§1.7.3).** Force is exactly linear at 0.3–0.5 N per contact, and 34.2–57.0 N at 19 is **already the unanswered question** in `OI-SHELL2-03(b)`. Route to `NP-DRV-SHELL-002` §5.1.4 and `NP-HW-HEXTILE-001` D-5 — **not decided here**. **Row count and row straightness are both free variables** — an edge-following L, chevron or polyline offers ~48 positions on one run at 2.00 mm pitch and holds constant edge margin, where a chord does not (§1.7.2). Independent of any electrode decision, §1.7.3 gives a µV-siting argument for re-shaping the array at constant count (`OI-HEXTILE-11`), against a newly identified cost: a spread array roughly **halves the angular tolerance** the mechanical key must hold, which no document currently states. **Two prerequisites the study cannot skip (§1.7.2):** the stated 34.2–57.0 N is **contact force only** — ejector springs, 30 per-tile gaskets and plunger preload are excluded — and there is **no input-force acceptance number** for the cluster actuator, §5.4a's ≤1 N being the retired per-module eject-lever figure. Required MA = load ÷ target and neither end exists. **Force-spread cancellation is a real second lever** worth 5.7 N per 0.05 N of spread removed, best implemented as socket-side spring-rate grading (preserves `R-2`); naive load-spreading stagger is counterproductive against an over-centre. **Release force may bind before throw force** (`OI-HFE2-05`), and the ejector-spring trade between them is stated nowhere. **Rev 4 — the count is now reopened from a second direction, and the two must resolve together.** `OI-HEXTILE-20` finds §8.1's 25.0 W/tile peak may be illegal (806 mW/cm² against R-5's 600), and reading (b) puts the true peak at **18.6 W**, changing the rail current and *"the per-pin contact current that set `VLED` at 3 contacts"* — D-5, the same tooling-blocking count. **It does not free a contact:** at 18.6 W over 2 `VLED` pins the degraded case is 1.29× against the ≥2× rule, so 3+3 stands. What it does show is that at the *current* 25.0 W basis 3 pins give only 1.92× — the rule 3+3 exists to satisfy is met only under reading (b). The count must be re-derived either way, and §1.9.5 adds a third claimant on it. **Time-boxed:** `OI-SHELL2-09(i)` blocks socket tooling; after that cut the count is permanent at every socket by the union rule | ME + HFE + EE | **MECH-2; before socket tooling** |
+| **OI-EEGNET-22** | **A four-pod tile places an fNIRS source–detector pair at 29.0 mm — inside `NP-FEAS-FNIRS-001`'s 2.5–3.5 cm window — where the cross-tile separation that study proposes (40.0 mm) overshoots it (§1.9.4).** The geometry is free; the wiring is not. Three gates, none opened here: **D-2** requires PD1/PD2 co-location for the fouling-vs-ageing ratio, so an fNIRS detector is a *third* PD, not a relocated one; a third PD is a third claimant on the closed 19-contact budget alongside the second electrode and its shield (`OI-EEGNET-20`); and `NP-FEAS-FNIRS-001` Risk A — 808–830 nm sitting on the isosbestic point — is a **chromophore** problem that no separation distance fixes. Also asks whether `NP-PWR-BUDGET-001` §3.6's sub-therapeutic whole-vault mode, a limitation for PBM, is the desired condition for monitoring (`OI-PWR-07`) | Systems + EE + Clinical | With `OI-EEGNET-19`/`-20`; `NP-FEAS-FNIRS-001` go/no-go |
+| **OI-EEGNET-23** | **Manufactured pod-count variants, or one universal tile with pods selected on-tile? (§1.10.2)** Option A pushes the taxonomy to **7–8 types**, past the 6 `NP-HFE-002` Rev 2's nested figure reaches, and breaks `R-2` per position. Option B holds the taxonomy at today's 4–5, keeps `R-2`, needs no placement instruction, and costs 1–2 contacts regardless of pod count — **conditional on a static on-tile selector** (§1.10.3), whose Ron/leakage in the µV path is a re-run of `SH2-DRC-27` one level down. **Decide with `OI-EEGNET-21`:** at N ≥ 6 a universal tile keeps ≤53 % of its emitters and the PBM case at electrode sites becomes marginal, which is T1-E's premise from the other side | **Principal + Systems** | **T1-B layout; with `OI-EEGNET-19`/`-21`** |
+| **OI-EEGNET-24** | **A required *build* map — "which module belongs in which socket" — is a third kind of data with no home, and the simulator has nothing to render (§1.10.7).** `hardware/np_socket_map.json` is geometry and says so explicitly; `00-zones.npps` is zone membership; neither is a build map. The simulator generator already runs the real parser against real sources, so rendering is cheap once the artifact exists. **Cut it once with `OI-HFE2-02`** — the app's live inventory is still the retired 5-slot `zoneModules: [UInt8] = [0,0,0,0,0]`, and both want the same socket-indexed structure | Systems + App | With `OI-HFE2-02` |
+| ~~**OI-EEGNET-25**~~ | **✅ CLOSED at Rev 6 — computed, `scripts/pod-pattern-coverage.ts`; result at §1.10.5.** Reformulated as the montage-independent **lattice covering radius**, which needs no 10-20 coordinates and so did not wait on REG-1. **Answer: the optimisation does not rescue five pods, and centre-plus-ring is not strictly better at low N.** Only centre+ring7 (8 pods, 34/90 emitters) meets ±10 mm worst-case at 9.4 mm, and that is covering error alone. The finding is against discrete selection generally. Model validated: a single centre pod gives 20.0 mm, exactly half the 40 mm pitch. *Original text:* **Optimise the pod pattern against the real target set — this is the deciding input, and it does not exist.** Every figure in §1.10.4 assumes N pods evenly spaced on one ring at r = 14.51 mm; `D-1` already reserves the tile centre, so **centre-plus-ring** is the natural pattern and turns a 1D angular problem into a 2D covering one. Minimise worst-case residual over the actual 10-20 targets across all 80 socket positions (neither uniform nor centred) using `hardware/np_socket_map.json`. **It could make five behave like six or better**, at five's emitter and scalp-load cost | Systems | **CLOSED — Rev 6** |
+| **OI-EEGNET-27** | **Montage-specific pod-pattern fit, once REG-1 lands.** §1.10.5's covering radius answers *"any target anywhere"* and is therefore a bound, not a design target. A fit against the **nine actual T1 sites** (Fp1/2, F3/4, C3/4, P3/4, Oz) would do materially better — the p95 column (7.4–10.3 mm vs 9.4–17.3 mm worst case) indicates roughly how much. It needs 10-20 coordinates on the shell, which is `REG-1`, and it shares that dependency with `OI-EEGNET-14` and `OI-SESPWR-01`. **Do not use it to reopen a pod count settled on the covering radius** — a montage-specific pattern is fragile to any montage change, and `NP-HEX-ZM-001` §4a's research mission is arbitrary montage design | Systems + Clinical | **REG-1** |
+| **OI-EEGNET-26** | **`np_module_map_check_placement()` cannot express a pod-count requirement, and would pass a wrong build silently (§1.10.7).** `type_mask` is an *element-type* predicate — a 1-pod and a 4-pod tile both satisfy *"dual electrode at this socket"*, **including at socket 74, where the photoparoxysmal halt depends on the gate.** The fix is a count/geometry field in the requirement, not new element-enum entries, which would make a type system carry a quantity. Same weakness §7.2.4 finds for the net, different cause. Routed to `NP-HEX-ZM-001` §4a as owner of the identity model | FW + Systems | **Safety-adjacent; with `OI-EEGNET-23`** |
+| **OI-EEGNET-21** | **An electrode-only tile type (T1-E) does not exist, and the reason electrode sites are scarce does not survive inspection (§1.8).** Per-configuration tile population *"has never been decided"* (`OI-COST-01`); the only argument on record against full population is `NP-HW-HEXTILE-001` §6.4's concurrency ceiling, which is a **power** argument that does not reach an electrode. The lattice — all ~80 sockets, all 18 cluster controllers — is paid for in every configuration (`NP-COST-001` A-2), so the marginal cost of a populated socket is one tile, and tile cost is dominated by the $11.53 driver/metering (~$10 of it InGaAs) and by emitters, none of which an electrode uses. **T1-E is the only option in §§1.6–1.8 that moves term U the right way: −17.3 % emitters while doubling electrode sites, and it strictly dominates T1-B at constant electrode count.** **Rev 4 sharpens the open question rather than closing it:** per `NP-PWR-BUDGET-001` §3.7, coverage is the only quantity that scales with tile count, so T1-E costs **illuminable area at those sites and nothing else** — it cannot reduce deliverable dose, which is envelope-bound at ~13–14 W optical regardless of population. The trade is against §3.6's whole-vault coverage mode specifically. Decide it against `NP-OPT-PSF-001` and `OI-PWR-07`. Depends on `OI-HFE2-10` for the fifth-type marking; does **not** relieve the N ceiling of §1.7.5. **Note the sequencing this creates, because it is unusual and should be deliberate rather than inherited:** an HFE formative on tactile discrimination sits *upstream* of a tile-taxonomy decision. If `OI-HFE2-10` falls back to the bar row, the taxonomy caps at four types and T1-E needs either a re-encoding or a type it can displace. The dependency runs the right way — marking is cheap to change before the mould insert is cut, taxonomy is not — but nothing else in the document set has this shape | Principal + Product + Systems | **With OI-COST-01 and OI-HEXTILE-06** |
 
 ## 9. Cross-references
 
@@ -1241,11 +1605,25 @@ seam), §5.3 (fluxgate siting) · `NP-HELMET-GEOM-001` §0 (inner-shield abandon
 §7.3 (L3 type marking), §7.4 (orientation) · `NP-HW-HUB-001` §5 (N4 channel count), §7.2 (enable word) ·
 `NP-HW-HUB-001` §9.5 (calibration is module property) · `NP-THERM-BEZEL-001` (bezel, THERM-1) ·
 `NP-RISK-002` (RISK-21) · `NP-COST-001` §2 A-1/A-2 (tile population, L1 carrier), §2 (term U), §5 (emitter formula), §6 (`OI-HEXTILE-06`) ·
-`NP-HW-HEXTILE-001` §6.4 (populate-all argument), §9 (concurrency ceiling) ·
+`NP-HW-HEXTILE-001` §6.4 (populate-all argument), §9 (concurrency ceiling), §9.3 (fourth consequence), D-2 (PD co-location), `OI-HEXTILE-20`/`-21` ·
+`NP-PWR-BUDGET-001` §3.4 (efficacy floor), §3.5 (populated ≠ driven), §3.6 (whole-vault coverage mode), §3.7 (irradiance vs output vs coverage) ·
+`NP-SES-PWR-001` §2 (measured concurrency 2–32), §8 (`OI-SESPWR-01` lobe-scale vs electrode-scale) ·
+`NP-FEAS-FNIRS-001` (S-D separation window, Risk A isosbestic) ·
+`NP-HFE-002` §2.3(a) (counting range), §7.3 Rev 2 (nested-figure encoding, 6 types) ·
+`firmware/hub_control/include/np_module_map.h` (`type_mask`) · `hardware/np_socket_map.json` ·
+`scripts/generate-simulator-data.ts` ·
 `NP-HEX-ZM-001` §5.4a (cluster clamp, plunger, ejector springs, actuator intent) · `NP-OPT-PSF-001` ·
 `NP-HFE-002` §5 · `NP-ENV-OPRANGE-001` §4 · `NP-CONV-001` Rev 6 · CLAUDE.md §3, §4.2, §4.3, §4.4, §5.1
 
 ---
+
+*Rev 5 adds §1.10 and corrects §1.4/§1.5: a per-site placement file already meant one part per
+electrode site, so `R-2` was broken before this section proposed anything. The pod-count question now
+waits on `OI-EEGNET-25` (pattern optimisation) and, as always, on `OI-EEGNET-14`.*
+
+*Rev 4 reconciles Rev 3 against PR #284, adds §1.9 and `OI-EEGNET-22`, and corrects one stale citation
+(the "~6 tiles" concurrency figure). Two Rev 3 arguments are corroborated rather than disturbed. The
+next action is still `OI-EEGNET-14` — which Rev 4 shows has a second consumer in `OI-SESPWR-01`.*
 
 *Rev 3 adds §1.6, §1.7 and `OI-EEGNET-18/19/20`; it decides nothing and reverses nothing. The next
 action is unchanged — `OI-EEGNET-14`. The one item with a deadline is `OI-EEGNET-20`, because socket
