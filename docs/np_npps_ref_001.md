@@ -206,7 +206,7 @@ description: "40Hz entrainment with \"GENUS\" protocol."
 Unquoted identifiers are also accepted where a string is expected (useful for enum values):
 
 ```
-zones: all        # same as zones: "all"
+channels: all     # same as channels: "all"
 waveform: sinusoidal
 ```
 
@@ -350,7 +350,7 @@ protocol "Gamma Focus" {
         intensity: 80%
         frequency: 40Hz
         duty_cycle: 25%
-        zones: all
+        zones: ["All"]
         wavelength: "660_808nm"
     }
 

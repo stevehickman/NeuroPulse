@@ -92,8 +92,8 @@ const val NEW_PROTOCOL_TEMPLATE: String = """protocol "New Protocol" {
         intensity: 75%
         frequency: 10Hz
         duty_cycle: 25%
-        zones: all
-        wavelength: 660_808nm
+        zones: ["All"]
+        wavelength: "660_808nm"
     }
 }
 """
