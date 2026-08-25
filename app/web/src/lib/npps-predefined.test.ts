@@ -78,12 +78,14 @@ describe('predefined NPPS library', () => {
     }
   });
 
-  it('includes the expected clinical protocol coverage (51 clinical presets)', () => {
+  it('includes the expected clinical protocol coverage (53 clinical presets)', () => {
     const clinical = manifest.protocols.filter(f => f.startsWith('clinical-'));
-    // 50 → 51: clinical-05 (anxiety) split into one protocol per source trial,
-    // Maiello 2019 and Wang 2023, whose irradiances differ by 10×. See those
-    // files' own notes.
-    expect(clinical.length).toBe(51);
+    // 50 → 53: three sections whose evidence is two trials an order of
+    // magnitude apart are now one protocol per trial rather than one per
+    // section — anxiety §5 (Maiello 2019 / Wang 2023), depression §4
+    // (Cassano 2018 / Schiffer 2009) and Alzheimer's §1 (Woźniak-Mitał 2026 /
+    // Chun 2026). See those files' own notes.
+    expect(clinical.length).toBe(53);
   });
 
   it('every clinical protocol carries at least one condition and one reference', () => {

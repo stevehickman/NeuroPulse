@@ -1,0 +1,37 @@
+protocol "PBM — Depression (Schiffer 2009, high-irradiance)" {
+    id: "30000052-0000-0000-0000-000000000000"
+    description: "Bilateral DLPFC 810nm PBM for major depressive disorder at the irradiance of Schiffer 2009 (crossover): 250 mW/cm², 60 J/cm², remission 6/10 at 2 weeks. Grade B. This is the HIGH-IRRADIANCE arm of the §4 evidence, seven times Cassano 2018; see that protocol for the other end. MODE AND DURATION ARE ADAPTED, NOT REPRODUCED — the trial ran CW for 4 min, which R-4 does not permit at this irradiance; see the notes on the modality block."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["pbm", "clinical", "depression", "dlpfc", "pulsed", "schiffer2009"]
+    conditions: ["Major Depressive Disorder"]
+    references: [["Schiffer 2009 — crossover, 810nm, 250 mW/cm², 60 J/cm², 4 min, remission 6/10 at 2 wk. THIS protocol\'s source trial (irradiance and dose reproduced; mode and duration adapted, see block notes).", "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"], ["PBM protocol database §4 — Depression (Grade B), section-level bands 0.03–0.25 W/cm², dose target ≥60 J/cm²/site", "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"]]
+    duration: 16m
+
+    pbm_transcranial {
+        # MODE IS FORCED BY R-4, NOT CHOSEN, AND THIS IS THE ONE PLACE THIS
+        # PROTOCOL DEPARTS FROM ITS TRIAL. Schiffer ran CW at 250 mW/cm² for
+        # 4 min: 250 × 240 s = 60.0 J/cm², exactly the stated dose. But
+        # 250 mW/cm² exceeds R-4\'s 200 mW/cm² CW ceiling, so that operating
+        # point is not available. Pulsed at 25% duty keeps the peak inside
+        # R-4\'s 400 mW/cm² and preserves the DOSE by extending the exposure:
+        #   250 × 25% = 62.5 mW/cm² average × 960 s = 60.0 J/cm².
+        # Irradiance and dose are the trial\'s; the 4 → 16 min exposure is not.
+        # Whether a 16-minute pulsed exposure is therapeutically equivalent to
+        # a 4-minute CW one at the same dose is NOT established by this source.
+        frequency: 10Hz
+        duty_cycle: 25%
+        intensity: 62%
+        # PROVISIONAL, NOT THE AUTHORED VALUE: 250 ÷ 403 against the only
+        # stated anchor (NP-HW-HEXTILE-001 §4.3.1), which NP-SES-PWR-001 §2.3
+        # flags as an "if". Becomes `irradiance_mw_cm2: 250`.
+        zones: ["Frontal Left", "Frontal Right"]
+        wavelength: "660_808nm"
+        # NIR-only fidelity gap, common to every 660/808 protocol: the trial
+        # used a single NIR wavelength. The T1-A base tile drives CH_A (660nm)
+        # and CH_B (808nm) from one current register with no channel mask, and
+        # the `wavelength` enum has no 808-only value, so 660nm is delivered
+        # alongside whether or not the evidence used it.
+    }
+}

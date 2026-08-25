@@ -1,4 +1,4 @@
-protocol "PBM — Mild Cognitive Impairment" {
+protocol "PBM — Mild Cognitive Impairment (Papi 2022)" {
     id: "30000002-0000-0000-0000-000000000000"
     description: "Prefrontal 810nm pulsed 40Hz transcranial PBM for mild cognitive impairment. Grade A. 3–5x/week, 6–12 weeks."
     author: "NeurOne"
@@ -6,11 +6,27 @@ protocol "PBM — Mild Cognitive Impairment" {
     readonly: true
     tags: ["pbm", "40Hz", "clinical", "cognition"]
     conditions: ["Mild Cognitive Impairment"]
-    references: [["PBM protocol database §2 (Grade A)", "docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a"]]
-    duration: 20m
+    references: [["Papi 2022 — sham-controlled, 850nm, 400 mW, 0.285 W/cm², 10 min, 5 sessions, MMSE 18→27. THIS protocol's source trial: the ONLY §2 trial that states an irradiance.", "docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a"], ["PBM protocol database §2 — MCI (Grade A), section-level bands 0.02–0.3 W/cm², 7–60 J/cm², 6–20 min", "docs/pbm_neuro_protocols.md#2-mild-cognitive-impairment-mci--grade-a"]]
+    duration: 10m
 
     pbm_transcranial {
-        intensity: 30%
+        # NOT SPLIT BY TRIAL, because §2 names five studies and only ONE states
+        # an irradiance: Papi 2022 (0.285 W/cm²). Rashidi-Ranjbar 2026 gives a
+        # wavelength, mode and duration but no irradiance; de Oliveira 2024
+        # gives outcomes only; Lee 2025 and Chan 2021 "corroborate" with no
+        # parameters. A protocol per trial would mean inventing four sets of
+        # numbers, so this protocol is retargeted onto the one trial that
+        # carries them.
+        #
+        # TARGET IRRADIANCE: 285 mW/cm² peak (Papi 2022). PROVISIONAL, NOT THE
+        # AUTHORED VALUE: 285 ÷ 403 against the only stated anchor
+        # (NP-HW-HEXTILE-001 §4.3.1). Becomes `irradiance_mw_cm2: 285`.
+        #
+        # DURATION CORRECTED 20m → 10m, and this fixes a real overshoot. Papi
+        # ran 10 min. At Papi's irradiance the retired 20-minute authoring
+        # would have delivered 285 × 25% × 1200 s = 85.5 J/cm², ABOVE §2's own
+        # 7–60 J/cm² ceiling. At 10 min it is 42.8 J/cm², inside the band.
+        intensity: 70.7%
         frequency: 40Hz
         duty_cycle: 25%
         zones: ["Frontal Left", "Frontal Right"]

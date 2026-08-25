@@ -269,7 +269,8 @@ describe('generated socket map', () => {
 
   it('the whole-head PBM protocols target Vault (excl. Occipital), not All', () => {
     for (const file of [
-      'clinical-01-pbm-alzheimers.npps',
+      'clinical-01-pbm-alzheimers-wozniak.npps',
+      'clinical-01-pbm-alzheimers-chun.npps',
       '01-gamma-focus.npps',
       'clinical-06-pbm-tbi.npps',
     ]) {
