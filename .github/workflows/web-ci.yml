@@ -32,7 +32,7 @@ jobs:
       relevant: ${{ steps.scope.outputs.relevant }}
     env:
       # ── THE WEB RELEVANCE LIST ────────────────────────────────────────────
-      # Same 13 entries the retired `paths:` blocks carried, plus the matcher
+      # Same entries the retired `paths:` blocks carried, plus the matcher
       # itself. Blank lines and `#` comments are stripped by
       # ci-changed-scope.sh, so the reasoning lives next to the entries.
       NP_SCOPE_PATHS: |
@@ -40,7 +40,8 @@ jobs:
         locales/**
         npps/fixtures/**
         protocols/predefined/**
-        scripts/sync-conditions.ts
+        scripts/build-simulator-runtime.ts
+        simulator/src/**
         scripts/sync-locales.ts
         scripts/sync-socket-map.ts
         scripts/test-lateralization-audit.sh
@@ -180,12 +181,14 @@ jobs:
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
-      # The Swift/Kotlin/C# condition tables are generated from
-      # protocols/predefined/00-conditions.npps. Fail the build if the registry
-      # changed without re-running the generator (NP-COND-LINK-001 §5).
-      - name: Condition tables in sync with the NPPS registry
+      # The simulator parses .npps at run time; this bundle is the parser it
+      # uses, and it must not fall behind the source it is built from. The
+      # script also refuses to emit a bundle containing any protocol content —
+      # NP-NPPS-REF-001 §1.6 bans a build-time cache of the library, and this is
+      # where that ban is mechanically enforced rather than merely documented.
+      - name: Simulator NPPS runtime bundle is fresh (and content-free)
         working-directory: .
-        run: bun scripts/sync-conditions.ts --check
+        run: bun scripts/build-simulator-runtime.ts --check
 
       # Two checks in one run: the generated socket map must still match the row
       # structure + 00-zones.npps, AND no protocol may name a bare single-hemisphere

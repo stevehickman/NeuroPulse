@@ -4,12 +4,16 @@
  */
 
 import { WL, MODALITY_COLORS } from './colors.js';
-import { PROTOCOLS } from './protocols.generated.js';
-import { ZONES } from './sockets.generated.js';
+import { PROTOCOLS, ZONES } from './vendor/npps-runtime.js';
 
-// Real named zones (protocols/predefined/00-zones.npps), not the retired
-// 5-slot ZM-01..05 model — see docs/np_hex_zm_001.md.
-const ZONE_NAMES = ZONES.map(z => z.name);
+// Real named zones, read from protocols/predefined/*.npps when the simulator
+// loads — not the retired 5-slot ZM-01..05 model (docs/np_hex_zm_001.md), and
+// not a build-time copy (NP-NPPS-REF-001 §1.6).
+//
+// A function, not a `const`: ZONES is an ES live binding that loadLibrary()
+// fills, so reading it at module top level would capture the empty array the
+// module was initialised with.
+const zoneNames = () => ZONES.map(z => z.name);
 
 const WL_CHOICES_T1 = ['660nm', '808nm', '1064nm'];
 const WL_CHOICES_T2 = ['660nm', '808nm', '1064nm', '1170nm'];
@@ -32,7 +36,7 @@ export class UIManager {
   constructor(callbacks) {
     this.cb = callbacks;
     this._zoneState = {};
-    ZONE_NAMES.forEach(name => {
+    zoneNames().forEach(name => {
       this._zoneState[name] = { installed: false, wavelengths: [], frequency: 10 };
     });
 
@@ -71,7 +75,7 @@ export class UIManager {
     const container = document.getElementById('zone-config');
     if (!container) return;
 
-    ZONE_NAMES.forEach(name => {
+    zoneNames().forEach(name => {
       const id = this._slug(name);
       const card = document.createElement('div');
       card.className = 'zone-card';
@@ -305,7 +309,7 @@ export class UIManager {
     const pbm = p.modalities.pbm;
     if (!pbm) return;
 
-    ZONE_NAMES.forEach(name => {
+    zoneNames().forEach(name => {
       const id = this._slug(name);
       const inst = pbm.zones?.includes(name) ?? false;
       const chk  = document.getElementById(`zone-chk-${id}`);

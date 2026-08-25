@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 12
-**Date:** 2026-08-23  
+**Revision:** 14
+**Date:** 2026-08-24  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -14,6 +14,24 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 14 (2026-08-24) — no runtime may ship a build-time cache of protocol content; three were doing it.** Principal direction, and stricter than Rev 13's origin rule, which it supersedes where the two meet: Rev 13 allowed any representation *derived from* `.npps`, and that permission does not extend to one built **before the app ships**. The build cannot bind the future — nothing stops a `.npps` file changing afterwards, and when one does the cache is read **in place of the edit**. The failure is silent and self-consistent: no error, no mismatch, nothing to notice, and an author left looking at the file they just edited with no way to tell why their change is not showing up anywhere. For a zone it is also a wrong-site targeting path. The new rule is §1.6 *No build-time cache of protocol content*, binding on every runtime; **bundling the `.npps` files themselves is the intended mechanism and is not caching them**, and a generated artefact may still carry hardware facts (`SocketLattice.generated.*`, `socketMap.generated.ts`), which do not come from `.npps` and change only on a re-tool.
+>
+> **Windows was reading a generated C# transcription of the condition registry.** `NPBundledConditions.cs` was emitted from `00-conditions.npps` by `scripts/sync-conditions.ts`, tolerated because `app/windows` has no NPPS parser. It does not need one: the whole condition grammar is a quoted name plus quoted string fields, so the targeted reader that ran at build time now runs at load time as `NPConditionRegistry`, and the csproj copies `protocols/predefined/` beside the assembly. `sync-conditions.ts` is retired — Rev 10 had already dropped its Swift and Kotlin outputs, and Windows was its last target — along with its CI step. Duplicate condition names bind to neither definition here too, matching §1.6.
+>
+> **The simulator was the clearest case, and had already failed exactly as predicted.** `simulator/js/protocols.generated.js` and the `ZONES` export of `sockets.generated.js` were the parsed library baked into JS. The committed copy still carried the `side` field ZONE-1 removed on 2026-07-30, so for a month the simulator showed a lattice the repository had stopped describing, and anyone editing a `.npps` file had no way to see their change. It now fetches `manifest.json` and the files at load time and parses them with `simulator/js/vendor/npps-runtime.js` — a bundle of the **real** web parser plus the display transform, built by `scripts/build-simulator-runtime.ts`, which **refuses to emit a bundle containing any definition id from the shipped library**, so the ban is enforced by the build rather than only written down. `generate-simulator-data.ts` is reduced to the socket lattice. **Accepted cost, on principal direction:** `fetch()` is blocked at a `file://` origin, so the documented double-click workflow is gone and the simulator must be served over HTTP with `protocols/predefined/` alongside it; `NP-SIM-001-HOWTO` goes to v2.6. **Verified in a real browser** (Chromium, repo root over HTTP): 65 protocols, 14 zones, `Frontal Left` resolving to the file's own socket list, 4 composites skipped, zero duplicate or unresolved references — and the ES live bindings confirmed going 0 → 14 zones and 0 → 65 protocols for a consumer that imported before the load. The transform moved out of the generator, so it is now covered by the web suite against the shipped files (`simulator-runtime.test.ts`, 5 tests). Web suite 290 pass. **Not verified here:** the simulator's full boot — Three.js comes from a CDN this environment blocks — and Windows, which has no `dotnet` available.
+
+> **Rev 13 (2026-08-24) — a zone's only ORIGIN is a `zone` block in a `.npps` file; duplicate definitions are now an error, not last-write-wins.** Three corrections and one implementation change, all of them about where a zone comes from.
+>
+> **(i) The document named sources of zone definitions that do not exist.** §1.6 and §4.1 both resolved a named `zones` entry against "a loaded `zone` block **or a predefined lobe zone**", as though the eight lobe zones were a second, built-in source. They are not: all fourteen shipped zones are ordinary `zone` blocks in `00-zones.npps`, and the firmware lobe/hemisphere assignment, the eight-entry predefined-lobe-group table and `NP_GROUP_KIND_LOBE` were retired outright at the module redesign (OI-HUB-C14). §8's *Predefined zones* is now *Shipped zones* and says what those zones actually are. **Indirection is explicitly allowed** — a generated table or cache is fine *provided it is derived from `.npps` and regenerates with it*; what is prohibited is a definition whose origin is anything else.
+>
+> **(ii) §8 described a derivation that was deleted a month ago.** It said the eight lobe zones' membership was "derived from skull geography, not authored" and that `scripts/sync-socket-map.ts` "regenerates all eight and fails the build if the shipped file disagrees". That derivation was removed by ZONE-1 (2026-07-30) as circular — on disagreement the *file* was re-cut from the same four guessed arc constants, so it validated no anatomy — and the script's own header has said so since. **The socket lists are human-authored, like every other zone's.** What the script still does is structural validation against the lattice it owns: it can reject a zone, never author one.
+>
+> **(iii) §11's grammar summary still documented the retired five-slot `zones` selectors** (`ZONE_KEYWORD 'all'|'front'|'rear'|'custom'`, `INT_ARRAY (legacy indices)`) and its forward-compatibility note still claimed they "continue to parse". Rev 7 established that all of them are rejected outright and §4.1/§12 were corrected then; §11 was not. It is now, and this belongs to the same defect: `front` and `rear` named zones no `.npps` file defines, and a numeric index bypassed zone definitions altogether.
+>
+> **Duplicate zone/condition names are an error and bind to NEITHER definition (§1.6).** Last-write-wins was unsound because "later" is not a property the loader has: the protocol tree is read recursively and nothing guarantees a stable traversal order across platforms, file systems, bundle layouts or manifest edits, so the winning definition was whichever the traversal reached last — for a zone, a silent change of *which sockets get dosed*. Leaving the name unbound is the only outcome that is identical whatever the read order, and it cannot be consumed by accident: a protocol referencing the name now fails reference resolution exactly as if it had never been defined. Implemented on all three parsers; `scripts/generate-simulator-data.ts`, which reads the directory with `readdirSync`, now fails outright.
+>
+> **The two mobile runtimes were resolving zone names from a build-time copy, and so could not see a user's own zones.** `SocketZones.generated.{swift,kt}` held `00-zones.npps` inverted into Swift and Kotlin source, and iOS and Android answered every zone question from it. That did not breach the origin rule — it was generated from the file and regenerated with it — but generation happens at **build** time, so the table could only ever contain the **shipped** zones: a `zone` block a user writes in their own file (§8 *User-defined zones*) was absent from it and did not resolve on either platform at all. Both now read the loaded namespace through a new `NPZoneRegistry`, as web already did, and `NPProtocolLibrary` folds the user's own entries in on every mutation, so a user zone and a shipped zone resolve on one path — including the §1.6 collision rule between them. The generated artefact is reduced to the physical lattice and renamed `SocketLattice.generated.{swift,kt}`; socket count and numbering stay generated because they are hardware, not zones. **Verified:** web suite green (285 pass, 4 new namespace tests; the one failure is a pre-existing unrelated `react` resolution error in `SocketPicker.test.ts`), `sync-socket-map.ts --check`, `check-doc-filenames` and `sync-conditions --check` all clean. **Android and iOS are unbuilt here** — `dl.google.com` is blocked by this environment's network policy so the Android Gradle Plugin cannot resolve, and there is no Xcode.
 
 > **Rev 12 (2026-08-23) — six lexer and serializer defects on the mobile runtimes, all found by running the iOS suite for the first time.** The Rev 10/11 work compiled on iOS only at the fourth attempt; once it ran, one failing test unpicked a chain. **(i) `%` was never lexed as a unit on either mobile platform** — both unit scanners accept letters, digits and `_`, so the `%` in `intensity: 80%` fell through to the unknown-character branch and was discarded; neither ever produced a `NumberWithUnit` for it despite `%` being a documented suffix (§2). **(ii) Both lexers silently discarded any unrecognised character**, so `wind-down` became the two identifiers `wind` and `down` — a tag split in half rather than refused, where web and the PEG grammar both reject it. Now an error. **(iii) Both tag-list parsers silently skipped a token they did not recognise**, which dropped the `40Hz` in `01-gamma-focus.npps`'s `tags: [focus, gamma, 40Hz, cognitive, multimodal]`: the mobile apps showed four tags where web shows five. A number is now a valid list element, and anything else is an error. **(iv) Android never lost the Rev 6 compound-identifier rule** — that removal reached the web and Swift lexers and the shipped library, but not Kotlin, so Android alone still accepted bare `660_808nm`. **(v) The Kotlin serializer wrote `wavelength` unquoted**, i.e. NPPS text its own parser cannot read back, which is what broke saving and reloading a user protocol. **(vi) The Kotlin limits serializer still emitted five retired field names** (`max_volume`, `max_binaural_hz`, `max_isochronic_hz`, `max_intensity_mt`, `max_intensity_g`) that Rev 8 removed from its parser, so every one of those values was lost on reload while the block around them still parsed. Android `:core` 175 → 180 tests; the new list-element, unit-suffix and limits-round-trip tests each fail if the fix is reverted.
 >
@@ -105,9 +123,51 @@ Every `.npps` file the app loads shares **one flat namespace**. There is exactly
 **Name resolution.** References resolve by exact name string:
 
 - A protocol's `conditions` entries must each match the `name` of a loaded `condition` block.
-- A `pbm_transcranial` block's named `zones` entries must each match the `name` of a loaded `zone` block (or a predefined lobe zone).
+- A `pbm_transcranial` block's named `zones` entries must each match the `name` of a `zone` block in a loaded `.npps` file. **A `zone` block is the only thing a zone reference can resolve to** — a zone has no other origin (§8), and there is nothing to fall back on.
 
-Because the whole tree loads before resolution, definition order and file boundaries do not matter — a protocol may reference a zone or condition defined in a file loaded later. Unresolved references are reported by the loader (`validateNamespaceReferences`) and, for the shipped library, are covered by an automated test. Duplicate zone/condition names across files are a last-write-wins collision and are surfaced as a warning.
+Because the whole tree loads before resolution, definition order and file boundaries do not matter — a protocol may reference a zone or condition defined in a file loaded later. Unresolved references are reported by the loader (`validateNamespaceReferences`) and, for the shipped library, are covered by an automated test.
+
+**Duplicate zone or condition names are an error (Rev 13).** A name is defined once across the
+whole tree. If two loaded files define the same zone name — or the same condition name — that is a
+collision, reported as an **error**, and **the colliding name is left undefined in the namespace**:
+neither definition wins. Any protocol referencing it then fails reference resolution, exactly as if
+the name had never been defined.
+
+This replaces the last-write-wins rule, which was unsound. "Later" is not a property the loader
+has: the tree is read recursively and nothing guarantees a stable order across platforms, file
+systems, bundle layouts or manifest edits, so last-write-wins meant *the winning definition was
+whichever the traversal happened to reach last*. For a zone that is a silent change of which
+sockets get dosed. Refusing to bind the name makes the outcome the same everywhere and impossible
+to consume by accident, which is the only order-independent answer available.
+
+**No build-time cache of protocol content (Rev 14, binding on every runtime).** A runtime reads
+`.npps` files **when it runs**. Nothing may parse the library at build time and ship the parsed
+result — no generated table of zones, conditions, protocols or composites, in any language, on any
+platform, however faithfully it is regenerated.
+
+This is stricter than §8's origin rule and it supersedes that rule's allowance where the two meet.
+§8 permits a derived representation whose origin is `.npps`; **the permission does not extend to
+one built before the app ships**, because *derived from* and *current with* are different
+properties and only the second is what a reader needs.
+
+The reason is that the build cannot bind the future. Nothing stops a `.npps` file changing after
+the build — the shipped library is edited, a zone is retuned, a user adjusts a predefined
+definition — and when it does, a build-time cache is read **in place of the edit**. The failure is
+worse than being wrong: it is *silent and self-consistent*. There is no error, no mismatch and
+nothing to notice; the author sees the file they edited plainly on disk and the app confidently
+behaving as though it says something else, with no way to tell why their change is not showing up
+anywhere. That is a support call with no available answer, and for a zone it is also a wrong-site
+targeting path.
+
+**Bundling the files is not caching them.** Copying `protocols/predefined/` into the app package
+is the intended mechanism and is what the table above describes — the artefact shipped is the
+`.npps` file itself, and reading it is reading the file. What is prohibited is shipping something
+*derived from* the file in place of it.
+
+**A generated artefact may still hold hardware facts.** `SocketLattice.generated.{swift,kt}` and
+`socketMap.generated.ts` carry socket count, numbering and lattice geometry. Those are not protocol
+content: they do not come from `.npps` and change only on an inner-bowl re-tool, which is a rebuild
+in any case.
 
 **Manifest.** The shipped library lists its files in `manifest.json` with four arrays: `zones`, `conditions`, `protocols`, `composites`. Definition files (`zones`, `conditions`) are loaded first so all references resolve.
 
@@ -119,13 +179,16 @@ of truth and **no runtime transcribes it**. Each takes the real files at build o
 | Web | Fetches `manifest.json` and each file from `/protocols/predefined/` at runtime. |
 | Android | The `bundlePredefinedProtocols` Gradle task copies the directory onto `:core`'s resource path; `NPBundledProtocols` reads it from the classloader. JVM resources rather than Android assets, because `:core` is deliberately a pure-JVM module (ISC-2…4). |
 | iOS | The directory is a folder reference in the Xcode target's Resources build phase; `NPBundledProtocols` reads it from `Bundle.main`. |
+| Windows | The csproj copies the directory beside the assembly (`CopyToOutputDirectory`); `NPConditionRegistry` reads `00-conditions.npps` from `AppContext.BaseDirectory` with a targeted `condition`-block reader. Windows has no full NPPS parser. |
+| Simulator | Fetches `manifest.json` and each file from `../protocols/predefined/` at load time and parses them with a browser bundle of the web parser. Requires HTTP — `fetch()` is blocked at a `file://` origin, so the former double-click workflow is gone (NP-SIM-001-HOWTO §3). |
 
-**All three runtimes load the whole manifest, definitions first.** iOS and Android implement
+**Every runtime loads the whole manifest, definitions first.** iOS and Android implement
 `zone` and `condition` top-level blocks as of Rev 10 (closing `OI-NPPS-MOBILE-01`), so both read
 `00-zones.npps` and `00-conditions.npps` into the same namespace the web parser builds, and both
-validate a protocol's zone and condition references against it. The condition registry is no
-longer transcribed into Swift or Kotlin: `scripts/sync-conditions.ts` now emits only the Windows
-table, `app/windows` being the one runtime with no NPPS parser.
+validate a protocol's zone and condition references against it. Windows has no NPPS parser and
+reads `00-conditions.npps` with a targeted `condition`-block reader (`NPConditionRegistry`); the
+condition grammar is a quoted name plus quoted string fields, so that covers it. **No runtime
+holds a generated transcription of any of it** — see *No build-time cache* below.
 
 ---
 
@@ -357,13 +420,13 @@ pbm_transcranial {
 }
 ```
 
-Each string must match the `name` of a loaded `zone` block or one of the eight predefined lobe zones (§8). The eight predefined names are `Frontal Left/Right`, `Temporal Left/Right`, `Parietal Left/Right`, `Occipital Left/Right`.
+Each string must match the `name` of a `zone` block in a loaded `.npps` file (§8) — the only place a zone is ever defined. The shipped library defines fourteen of them in `00-zones.npps`, among them `Frontal Left/Right`, `Temporal Left/Right`, `Parietal Left/Right` and `Occipital Left/Right`; a zone a user writes in their own file is referenced in exactly the same way and is not a lesser kind of zone.
 
 **Accepted `zones` forms — there are exactly two:**
 
 | Form | Meaning |
 |------|---------|
-| `zones: ["Frontal Left", …]` | **named zone references** (§8). Each name must resolve to a loaded `zone` block. |
+| `zones: ["Frontal Left", …]` | **named zone references** (§8). Each name must resolve to a `zone` block in a loaded `.npps` file — the only source of a zone definition. |
 | `zones: clinician_selected` | The target is patient-specific and cannot be predefined — the operator picks the sockets before the protocol runs (NP-CFG-UI-001), as where the evidence targets a lesion rather than an anatomical landmark. |
 
 > **The five-slot selectors are retired and do NOT parse** — `all`, `front`, `rear`, `custom`,
@@ -998,6 +1061,26 @@ A **zone** is a named set of modules, **defined as an explicit list of socket (m
 
 Listing sockets directly is what makes zones flexible: any set of sockets can be a zone, **including non-contiguous ones** (e.g. a scattered montage, or left + right frontal minus the midline). Zones are referenced by name from modality blocks (e.g. `pbm_transcranial`'s `zones` field, §4.1) and are defined once in one namespace, cross-referenceable from any file (§1.6).
 
+> **A `zone` block in a `.npps` file is the only ORIGIN of a zone.** Every zone the toolchain knows
+> about — shipped or user-written — exists because some `.npps` file contains a `zone` block
+> defining it. There is no firmware zone table, no hardware-derived zone set and no built-in lobe
+> group: the firmware lobe/hemisphere assignment, the eight-entry predefined-lobe-group table and
+> `NP_GROUP_KIND_LOBE` were retired outright with the module redesign (OI-HUB-C14). Nothing may
+> author zone content anywhere else — not from skull geometry, not from a hand-written table, not
+> from the hardware. A name that no `.npps` file defines is an unresolved reference (§1.6), never a
+> fallback to somewhere else.
+>
+> **Indirection is fine; a second origin is not.** A zone may reach a consumer through a derived
+> representation — an inverted socket→zones index, a lookup built while the app runs — provided
+> that representation is *derived from* `.npps`. What is prohibited is a definition whose origin is
+> anything else.
+>
+> **But the derivation must happen at run time.** §1.6's *No build-time cache of protocol content*
+> is stricter than this paragraph and wins where they meet: a representation built **before the
+> app ships** is banned even though its origin is `.npps`, because it is then read in place of any
+> later edit to the file — silently, with nothing to notice. Derive from the file as often as you
+> like; never from a copy of what the file said at build time.
+
 ```
 zone "Frontal Left" {
     id: "40000001-0000-0000-0000-000000000000"
@@ -1012,9 +1095,15 @@ zone "Frontal Left" {
 >
 > **A zone is a SET.** Repeated ids in a `sockets:` list are collapsed at parse time and the list is returned sorted, so every consumer receives canonical membership. Unions of zones dedup for the same reason: midline sockets are members of BOTH hemisphere zones of their lobe, so a bilateral protocol referencing `Frontal Left` + `Frontal Right` addresses the shared midline socket once, not twice. Use `unionSockets` / `unionZoneSockets` (`app/web/src/lib/socketSet.ts`) rather than concatenating.
 
-### Predefined zones
+### Shipped zones
 
-Eight predefined lobe zones ship in `00-zones.npps` (read-only), one per lobe × hemisphere — `Frontal Left/Right`, `Temporal Left/Right`, `Parietal Left/Right`, `Occipital Left/Right`. Membership is **derived from skull geography**, not authored: rows are positioned as a fraction of the nasion→inion arc (the 10-20 coordinate), the central sulcus at the C line (50%) divides frontal from parietal, the parieto-occipital sulcus at the PO line (80%) divides parietal from occipital, and temporal is the lateral band below the Sylvian fissure. `scripts/sync-socket-map.ts` regenerates all eight and fails the build if the shipped file disagrees. **Center-column (midline) sockets belong to both the Left and Right zone of their lobe** (sockets 1, 3, 11, 16, 21, 30), so a lobe's two hemispheric zones together cover the whole lobe and a bilateral protocol referencing both gets full coverage. Protocols reference these zones by name.
+`00-zones.npps` ships with the app and defines **fourteen** zones. They are ordinary `zone` blocks in an ordinary `.npps` file — read-only (each carries an `id`, §8 *Zone block fields*), but not a different kind of zone and **not a different source of zone definitions**. The file is the definition; the loader reads it exactly as it reads a user's file.
+
+Eight of the fourteen are one per lobe × hemisphere — `Frontal Left/Right`, `Temporal Left/Right`, `Parietal Left/Right`, `Occipital Left/Right`. **Their socket lists are authored by a human in the file, like every other zone's.** An earlier revision derived lobe membership a second time in `scripts/sync-socket-map.ts` from four guessed arc constants and diffed the result against the file; that check was circular — on disagreement the file was re-cut from the same constants — so it validated no anatomy, and it was deleted (ZONE-1). Real anatomical validation is gate `REG-1` against the shell CAD, a physical activity rather than an arithmetic one.
+
+What `scripts/sync-socket-map.ts` still does is **structural** validation against the socket lattice it owns: every socket a zone names exists, no zone lists a socket twice, no zone is empty, no declared zone is silently unparsed, and each aggregate zone is exactly the union of its named parts. That is a check on the file's contents — it can reject a zone, never author one.
+
+**Center-column (midline) sockets belong to both the Left and Right zone of their lobe** (sockets 1, 3, 11, 16, 21, 30), so a lobe's two hemispheric zones together cover the whole lobe and a bilateral protocol referencing both gets full coverage. Protocols reference these zones by name, exactly as they reference a user-defined one.
 
 ### User-defined zones
 
@@ -1050,7 +1139,7 @@ zone "Crown LEDs" {
 | Field | Type | Notes |
 |-------|------|-------|
 | `sockets` | int array | **The zone's modules, by socket (major) address.** The defining field. 1-based, `1..80` on the current lattice; out-of-range, non-integer, hex, exponent and boolean values are all parse errors. Deduplicated and sorted on parse, and canonicalised again on serialize. |
-| `id` | string | Optional stable UUID. Presence marks the zone predefined/read-only. |
+| `id` | string | Optional stable UUID. Presence marks the zone as shipped and read-only. It does not make the zone a different kind of thing — it is still a `zone` block in a `.npps` file. |
 | `description` | string | Human-readable label. |
 | `types` | element-type array | Optional element-type filter within the listed sockets. |
 | `exclude_types` | bool | Invert the type filter. |
@@ -1139,9 +1228,9 @@ TYPE_ID              := 'pbm_transcranial' | 'pbm_intranasal' | 'eeg_neurofeedba
                       | 'visual_stimulation' | 'qeeg_21ch' | 'tms' | 'pbm_deep_1170nm'
                       | 'clinical_tacs' | 'hd_tdcs' | 'cervical_vns' | 'vibrotactile_40hz'
 # 'wavelength' values are quoted strings: "660_808nm" | "1064nm" | "660_808_1064nm"
-# pbm_transcranial 'zones' value:
-#   ZONE_KEYWORD ('all'|'front'|'rear'|'custom') | STRING_ARRAY (named zone refs)
-#                                                | INT_ARRAY (legacy indices)
+# pbm_transcranial 'zones' value — exactly two forms (§4.1):
+#   STRING_ARRAY (named zone refs, each resolving to a `zone` block)
+#   | 'clinician_selected'
 
 # ── Composite ──────────────────────────────────────────────────────────────
 composite   := 'composite' STRING '{' composite_field* '}'
@@ -1186,7 +1275,7 @@ BOOL        := 'true' | 'false'
 LEVEL_ID    := 'global' | 'helmet' | 'individual'
 ```
 
-**Namespace & resolution (§1.6):** all loaded files share one namespace. `conditions` entries resolve to `condition` block names; `pbm_transcranial` named `zones` entries resolve to `zone` block names (predefined or user). The whole protocol directory tree loads before resolution.
+**Namespace & resolution (§1.6):** all loaded files share one namespace. `conditions` entries resolve to `condition` block names; `pbm_transcranial` named `zones` entries resolve to `zone` block names — shipped or user-written, both being `zone` blocks in loaded `.npps` files, and there is no other source. The whole protocol directory tree loads before resolution. A zone or condition name defined in more than one file is an error and is left unbound (§1.6).
 
 **Value shape (Rev 6):** the grammar's `CompoundIdent` rule (digit-leading, `660_808nm`) and the
 hyphen tail of its bare-identifier rule (`wind-down`) were removed. A bare identifier is
@@ -1194,7 +1283,7 @@ hyphen tail of its bare-identifier rule (`wind-down`) were removed. A bare ident
 scalar. `npps/fixtures/error_bare_compound_ident.npps`, `error_bare_hyphenated_ident.npps` and
 `error_bare_montage.npps` assert the unquoted forms are rejected.
 
-**Forward compatibility:** unknown `meta_field` keys (and unknown fields in limits/zone/condition sub-blocks) are silently skipped. `limits` blocks accept an optional name string for existing files that omit it. Legacy `zones` forms (`all`/`front`/`rear`/`custom` + `custom_zones`, and numeric `zones: [0,1]`) continue to parse.
+**Forward compatibility:** unknown `meta_field` keys (and unknown fields in limits/zone/condition sub-blocks) are silently skipped. `limits` blocks accept an optional name string for existing files that omit it. The retired five-slot `zones` forms (`all`/`front`/`rear`/`custom` + `custom_zones`, and numeric `zones: [0,1]`) **do not parse** — they are rejected outright (§4.1), not accepted and ignored. They named zones no `.npps` file defines, or bypassed zone definitions altogether, which is why they went rather than being kept as a compatibility path.
 
 
 ---
@@ -1423,7 +1512,7 @@ Reading the table:
 | `volume_percent` | Modality field (canonical) | `audio_entrainment` | Canonical name behind `volume`. |
 | `waveform` | Modality field | `bes_tacs`, `clinical_tacs` | Stimulation waveform: `sinusoidal`, `square` or `triangular`. |
 | `wavelength` | Modality field | `pbm_transcranial` | Which PBM emitter channels to drive. |
-| `zone` | Top-level block | file | Defines a named set of modules by socket address (§8). Populates the namespace; referenced by name from `pbm_transcranial`'s `zones`. |
+| `zone` | Top-level block | file | Defines a named set of modules by socket address (§8). **The only way a zone is defined** — nothing outside a `.npps` file supplies one. Populates the namespace; referenced by name from `pbm_transcranial`'s `zones`. A name defined twice across the tree is an error and binds to neither definition (§1.6). |
 | `zones` | Modality field | `pbm_transcranial` | Which modules to drive. Exactly two forms: a named-zone-reference string array (§8), or the keyword `clinician_selected`. Omitted, it defaults to `["All"]`. The five-slot selectors are retired and rejected (§4.1). |
 
 ## 13. Predefined protocol coverage (source-doc map)

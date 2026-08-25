@@ -33,7 +33,7 @@ const wss = new WebSocketServer({ port: PORT });
 const clients = new Set();
 
 console.log(`[NP-SIM] WebSocket server listening on ws://localhost:${PORT}`);
-console.log(`[NP-SIM] Open simulator/index.html — badge should turn green.`);
+console.log(`[NP-SIM] Serve the repo root and open /simulator/ — badge should turn green.`);
 
 wss.on('connection', (ws, req) => {
   ws.role    = 'controller';  // default; overridden by CLIENT_HELLO

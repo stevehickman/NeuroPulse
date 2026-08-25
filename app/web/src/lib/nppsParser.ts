@@ -1485,29 +1485,64 @@ export function parseNPPSFile(text: string): {
 
 /**
  * Build one namespace from several parsed NPPS files. Zones and conditions are
- * keyed by name; a later file redefining a name replaces the earlier definition
- * (last-write-wins) and the collision is recorded in `warnings`.
+ * keyed by name and a name is defined exactly once across the whole tree
+ * (NP-NPPS-REF-001 §1.6).
+ *
+ * A name defined by two files is an ERROR, not a last-write-wins warning. The
+ * tree is read recursively and nothing guarantees a stable traversal order
+ * across platforms, file systems or bundle layouts, so "later" is not a
+ * property this function has: last-write-wins bound the name to whichever
+ * definition the traversal happened to reach last, which for a zone silently
+ * changes which sockets a protocol doses.
+ *
+ * So a collision leaves the name UNBOUND — neither definition wins — and the
+ * collision is reported in `errors`. Any protocol referencing it then fails
+ * `validateNamespaceReferences` exactly as if the name had never been defined.
+ * That is the only outcome that is the same on every runtime whatever the read
+ * order, and it cannot be consumed by accident.
  */
 export function buildNamespace(
   files: Array<{ entries: NPProtocolEntry[]; zones: NPZoneDefinition[]; conditions: NPConditionDefinition[] }>
-): { namespace: NPNamespace; warnings: string[] } {
+): { namespace: NPNamespace; errors: string[] } {
   const entries: NPProtocolEntry[] = [];
   const zones = new Map<string, NPZoneDefinition>();
   const conditions = new Map<string, NPConditionDefinition>();
-  const warnings: string[] = [];
+  const errors: string[] = [];
+  // Names seen at least twice: removed from the namespace and kept out of it,
+  // so a third definition cannot re-bind a name already known to collide.
+  const collidedZones = new Set<string>();
+  const collidedConditions = new Set<string>();
 
   for (const f of files) {
     entries.push(...f.entries);
     for (const z of f.zones) {
-      if (zones.has(z.name)) warnings.push(`Duplicate zone name '${z.name}' — later definition wins`);
+      if (collidedZones.has(z.name)) continue;
+      if (zones.has(z.name)) {
+        errors.push(
+          `Duplicate zone name '${z.name}' — defined in more than one file; zone names must be ` +
+          `unique across the protocol directory. The name is left undefined.`
+        );
+        zones.delete(z.name);
+        collidedZones.add(z.name);
+        continue;
+      }
       zones.set(z.name, z);
     }
     for (const c of f.conditions) {
-      if (conditions.has(c.name)) warnings.push(`Duplicate condition name '${c.name}' — later definition wins`);
+      if (collidedConditions.has(c.name)) continue;
+      if (conditions.has(c.name)) {
+        errors.push(
+          `Duplicate condition name '${c.name}' — defined in more than one file; condition names ` +
+          `must be unique across the protocol directory. The name is left undefined.`
+        );
+        conditions.delete(c.name);
+        collidedConditions.add(c.name);
+        continue;
+      }
       conditions.set(c.name, c);
     }
   }
-  return { namespace: { entries, zones, conditions }, warnings };
+  return { namespace: { entries, zones, conditions }, errors };
 }
 
 /**

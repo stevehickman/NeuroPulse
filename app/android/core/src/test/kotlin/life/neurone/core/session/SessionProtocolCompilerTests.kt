@@ -45,7 +45,7 @@ class SessionProtocolCompilerTests {
         assertEquals(1200, proto.totalDurationSeconds)
         assertEquals(1, proto.modalities.size)
         val pbm = proto.modalities.first() as ModalityConfig.PbmTranscranial
-        // Named zones resolve to real 1-based socket ids through SocketZones —
+        // Named zones resolve to real 1-based socket ids through NPZoneRegistry,
         // the generated map iOS resolves against too. The retired FRONT selector
         // used to yield the five-slot indices 0–2.
         assertContentEquals(

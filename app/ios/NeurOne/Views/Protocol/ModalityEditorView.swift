@@ -221,7 +221,7 @@ struct PBMTranscranialParamsView: View {
     }
 
     private var zoneChoices: [ZoneChoice] {
-        var choices: [ZoneChoice] = SocketZones.zoneNames.map { .zone($0) }
+        var choices: [ZoneChoice] = NPZoneRegistry.zoneNames.map { .zone($0) }
         choices.append(.clinicianSelected)
         if case .asAuthored = currentChoice { choices.append(currentChoice) }
         return choices

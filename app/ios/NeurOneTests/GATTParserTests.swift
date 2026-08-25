@@ -253,7 +253,7 @@ final class GATTParserTests: XCTestCase {
         let status = ZoneModuleStatus(socketID: 1, moduleType: .eeg,
                                       isPresent: true, hasFault: false)
 
-        XCTAssertEqual(SocketZones.primaryZone(for: 1), "Frontal Left")
+        XCTAssertEqual(NPZoneRegistry.primaryZone(forSocket: 1), "Frontal Left")
         XCTAssertTrue(map.label(for: 1).contains("1"))
         XCTAssertTrue(map.label(for: 1).localizedCaseInsensitiveContains("frontal"))
         XCTAssertTrue(map.spokenConfirmation(for: status)
@@ -263,9 +263,9 @@ final class GATTParserTests: XCTestCase {
     func testMostSpecificZoneWins() {
         // Socket 26 is in "Motor / SMA" (7 sockets) and "Frontal Left" (20).
         // The smaller zone is the more useful description.
-        XCTAssertEqual(SocketZones.primaryZone(for: 26), "Motor / SMA")
-        XCTAssertTrue(SocketZones.zones(for: 26).contains("Frontal Left"))
-        XCTAssertTrue(SocketZones.zones(for: 26).contains("All"),
+        XCTAssertEqual(NPZoneRegistry.primaryZone(forSocket: 26), "Motor / SMA")
+        XCTAssertTrue(NPZoneRegistry.zones(forSocket: 26).contains("Frontal Left"))
+        XCTAssertTrue(NPZoneRegistry.zones(forSocket: 26).contains("All"),
                       "every socket is in All, but All is never the primary")
     }
 
@@ -277,7 +277,7 @@ final class GATTParserTests: XCTestCase {
                              position: SocketPosition(forwardMm: 0, rightMm: 0, downMm: 0),
                              isWiredInShell: true)
         ])
-        XCTAssertNil(SocketZones.primaryZone(for: 120))
+        XCTAssertNil(NPZoneRegistry.primaryZone(forSocket: 120))
         XCTAssertTrue(map.label(for: 120).contains("120"))
     }
 

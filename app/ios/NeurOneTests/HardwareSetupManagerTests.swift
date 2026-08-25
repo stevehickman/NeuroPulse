@@ -554,7 +554,7 @@ final class HardwareSetupManagerTests: XCTestCase {
                                       isPresent: true, hasFault: false)
         let said = map.spokenConfirmation(for: status)
 
-        if SocketZones.primaryZone(for: 12) != nil {
+        if NPZoneRegistry.primaryZone(forSocket: 12) != nil {
             XCTAssertFalse(said.contains("12"),
                            "a zoned socket must not lead with its raw id: \(said)")
         }

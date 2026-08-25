@@ -18,43 +18,74 @@ data class NPNamespace(
         get() = entries.filter { it is NPProtocolEntry.Single || it is NPProtocolEntry.Composite }
 }
 
-/** A namespace plus the collisions found while building it. */
+/** A namespace plus the duplicate-definition errors found while building it. */
 data class NPNamespaceBuild(
     val namespace: NPNamespace,
-    val warnings: List<String> = emptyList(),
+    val errors: List<String> = emptyList(),
 )
 
 /**
- * Fold parsed entries from any number of files into one namespace. A later file
- * redefining a zone or condition name replaces the earlier definition
- * (last-write-wins) and the collision is reported as a warning rather than an
- * error, matching the web loader.
+ * Fold parsed entries from any number of files into one namespace. A zone or
+ * condition name is defined exactly once across the whole tree
+ * (NP-NPPS-REF-001 §1.6).
+ *
+ * A name defined by two files is an ERROR, not a last-write-wins warning. The
+ * tree is read recursively and nothing guarantees a stable traversal order
+ * across platforms, file systems or bundle layouts, so "later" is not a property
+ * this function has: last-write-wins bound the name to whichever definition the
+ * traversal happened to reach last, which for a zone silently changes which
+ * sockets a protocol doses.
+ *
+ * So a collision leaves the name UNBOUND — neither definition wins — and is
+ * reported in [NPNamespaceBuild.errors]. Anything referencing it then fails
+ * [validateNamespaceReferences] exactly as if the name had never been defined.
+ * Matches the web and iOS loaders.
  */
 fun buildNamespace(entries: List<NPProtocolEntry>): NPNamespaceBuild {
     val zones = LinkedHashMap<String, NPZoneDefinition>()
     val conditions = LinkedHashMap<String, NPConditionDefinition>()
-    val warnings = ArrayList<String>()
+    val errors = ArrayList<String>()
+    // Names seen at least twice: kept out of the namespace, so a third
+    // definition cannot re-bind a name already known to collide.
+    val collidedZones = HashSet<String>()
+    val collidedConditions = HashSet<String>()
 
     for (e in entries) {
         when (e) {
             is NPProtocolEntry.Zone -> {
-                if (zones.containsKey(e.zone.name)) {
-                    warnings.add("Duplicate zone name '${e.zone.name}' — later definition wins")
+                val name = e.zone.name
+                if (name in collidedZones) continue
+                if (zones.containsKey(name)) {
+                    errors.add(
+                        "Duplicate zone name '$name' — defined in more than one file; zone names " +
+                            "must be unique across the protocol directory. " +
+                            "The name is left undefined."
+                    )
+                    zones.remove(name)
+                    collidedZones.add(name)
+                    continue
                 }
-                zones[e.zone.name] = e.zone
+                zones[name] = e.zone
             }
             is NPProtocolEntry.Condition -> {
-                if (conditions.containsKey(e.condition.name)) {
-                    warnings.add(
-                        "Duplicate condition name '${e.condition.name}' — later definition wins"
+                val name = e.condition.name
+                if (name in collidedConditions) continue
+                if (conditions.containsKey(name)) {
+                    errors.add(
+                        "Duplicate condition name '$name' — defined in more than one file; " +
+                            "condition names must be unique across the protocol directory. " +
+                            "The name is left undefined."
                     )
+                    conditions.remove(name)
+                    collidedConditions.add(name)
+                    continue
                 }
-                conditions[e.condition.name] = e.condition
+                conditions[name] = e.condition
             }
             else -> Unit
         }
     }
-    return NPNamespaceBuild(NPNamespace(entries, zones, conditions), warnings)
+    return NPNamespaceBuild(NPNamespace(entries, zones, conditions), errors)
 }
 
 /**

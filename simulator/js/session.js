@@ -5,7 +5,7 @@
  * correct so the UI displays realistic-looking numbers.
  */
 
-import { PROTOCOLS } from './protocols.generated.js';
+import { PROTOCOLS } from './vendor/npps-runtime.js';
 
 export class SessionEngine {
   constructor() {

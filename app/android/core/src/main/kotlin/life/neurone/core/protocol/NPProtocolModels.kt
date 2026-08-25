@@ -601,7 +601,10 @@ sealed class NPPBMTarget {
             if (zoneNames.isEmpty()) throw NPPSError("zones: [] names no zone", 0)
             val out = sortedSetOf<Int>()
             for (name in zoneNames) {
-                val ids = SocketZones.sockets(name)
+                // From the loaded .npps namespace — the only source of a zone
+                // (NP-NPPS-REF-001 §8). A user-defined zone resolves here on
+                // exactly the same footing as a shipped one.
+                val ids = NPZoneRegistry.sockets(name)
                     ?: throw NPPSError("unknown zone '$name'", 0)
                 out.addAll(ids)
             }

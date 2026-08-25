@@ -41,10 +41,12 @@ describe('predefined NPPS library', () => {
   });
 
   const parsed = allFiles.map(f => parseNPPSFile(fs.readFileSync(path.join(DIR, f), 'utf8')));
-  const { namespace, warnings } = buildNamespace(parsed);
+  const { namespace, errors: namespaceErrors } = buildNamespace(parsed);
 
   it('has no duplicate zone/condition name collisions', () => {
-    expect(warnings).toEqual([]);
+    // A collision is an error, not a warning, and leaves the name unbound —
+    // so the shipped library having one would also break reference resolution.
+    expect(namespaceErrors).toEqual([]);
   });
 
   /**

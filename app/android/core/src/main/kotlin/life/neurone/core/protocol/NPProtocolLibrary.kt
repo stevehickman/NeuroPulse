@@ -125,8 +125,23 @@ class NPProtocolLibrary(
 
     private val validationCache: MutableMap<UUID, NPValidationResult> = mutableMapOf()
 
+    /**
+     * Duplicate zone/condition names between the shipped library and the user's
+     * own scripts. Empty in the normal case; a non-empty list means those names
+     * are undefined and any protocol referencing one will not resolve.
+     *
+     * Declared BEFORE `init`: Kotlin runs property initializers and init blocks
+     * in declaration order, so below the init block `= emptyList()` would run
+     * after [publishZoneNamespace] and wipe what it had just stored.
+     */
+    var zoneNamespaceErrors: List<String> = emptyList()
+        private set
+
     init {
         loadFromStore()
+        // Unconditional: loadFromStore() returns early when nothing is stored,
+        // and the registry must be pointed at a namespace either way.
+        publishZoneNamespace()
     }
 
     // MARK: Availability
@@ -226,12 +241,14 @@ class NPProtocolLibrary(
         val idx = _userProtocols.indexOfFirst { it.id == entry.id }
         if (idx >= 0) _userProtocols[idx] = entry else _userProtocols.add(entry)
         saveToStore()
+        publishZoneNamespace()
     }
 
     fun delete(id: UUID) {
         if (bundledProtocols.any { it.id == id }) return
         _userProtocols.removeAll { it.id == id }
         saveToStore()
+        publishZoneNamespace()
     }
 
     // MARK: Script export / import
@@ -270,6 +287,29 @@ class NPProtocolLibrary(
         _userProtocols.clear()
         _userProtocols.addAll(parsed)
     }
+
+    /**
+     * Fold the user's own entries into the namespace zones resolve against.
+     *
+     * A user may define a `zone` block in their own script (NP-NPPS-REF-001 §8
+     * *User-defined zones*), and it has to resolve exactly as a shipped zone
+     * does. It reaches [NPZoneRegistry] the same way a shipped one does: parsed
+     * out of NPPS text, never authored anywhere else.
+     *
+     * A user zone colliding with a shipped name is a duplicate definition, so
+     * §1.6 applies unchanged — the name binds to neither and the collision is an
+     * error. That is deliberate: silently letting either one win would make
+     * which sockets get dosed depend on load order.
+     */
+    private fun publishZoneNamespace() {
+        // `bundledProtocols` is deliberately runnable entries only, so the zone
+        // and condition blocks are not in it. Take the bundled namespace's full
+        // entry list instead — the definitions are exactly what is needed here.
+        val build = buildNamespace(NPBundledProtocols.namespace.entries + _userProtocols)
+        NPZoneRegistry.use(build.namespace)
+        zoneNamespaceErrors = build.errors
+    }
+
 
     private fun saveToStore() {
         val serializer = NPPSSerializer()

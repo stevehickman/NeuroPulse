@@ -42,10 +42,13 @@ export async function loadPredefinedProtocols(): Promise<NPProtocolEntry[]> {
       })
     );
 
-    const { namespace, warnings } = buildNamespace(parsed);
+    const { namespace, errors } = buildNamespace(parsed);
     const refErrors = validateNamespaceReferences(namespace);
-    if (warnings.length > 0) console.warn('[NPPS] namespace warnings:', warnings);
-    if (refErrors.length > 0) console.warn('[NPPS] unresolved references:', refErrors);
+    // Duplicate zone/condition names are errors, not warnings: the colliding
+    // name is left unbound, so anything referencing it also shows up in
+    // refErrors below (NP-NPPS-REF-001 §1.6).
+    if (errors.length > 0) console.error('[NPPS] duplicate definitions:', errors);
+    if (refErrors.length > 0) console.error('[NPPS] unresolved references:', refErrors);
 
     _cachedNamespace = namespace;
     _cached = namespace.entries;

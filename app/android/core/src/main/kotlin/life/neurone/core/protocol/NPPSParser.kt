@@ -455,7 +455,7 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             when {
                 d == null -> invalid.add(describeValue(item))
                 d != Math.floor(d) || d.isInfinite() -> invalid.add(trimNumber(d))
-                !SocketZones.isValid(d.toInt()) -> invalid.add(trimNumber(d))
+                !SocketLattice.isValid(d.toInt()) -> invalid.add(trimNumber(d))
                 else -> ids.add(d.toInt())
             }
         }
@@ -463,8 +463,8 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             val isAre = if (invalid.size == 1) "is not a socket" else "are not sockets"
             throw NPPSError(
                 "zone \"$zoneName\": ${invalid.joinToString(", ")} $isAre on this helmet — " +
-                    "ids are whole numbers ${SocketZones.rangeLabel} (${SocketZones.COUNT} sockets, " +
-                    "numbered from ${SocketZones.NUMBERING_BASE})",
+                    "ids are whole numbers ${SocketLattice.rangeLabel} (${SocketLattice.COUNT} sockets, " +
+                    "numbered from ${SocketLattice.NUMBERING_BASE})",
                 ln,
             )
         }
