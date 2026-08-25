@@ -53,11 +53,14 @@ protocol "PBM — Anxiety (Maiello 2019, low-irradiance CW)" {
         # stated in the source, so the bilateral option is taken and named
         # here rather than silently chosen.
         wavelength: "660_808nm"
-        # FIDELITY GAP, common to every NIR-only protocol in the library:
-        # the trial used 830nm alone. NeurOne's T1-A base tile drives CH_A
-        # (660nm) and CH_B (808nm) from one current register with no channel
-        # mask, and the NPPS `wavelength` enum has no 808-only value, so
-        # 660nm is delivered alongside whether or not the evidence used it.
-        # This is a language and hardware limitation, not a protocol choice.
+        # NIR-only fidelity gap: the trial used a single NIR wavelength, and
+        # this protocol delivers 660nm alongside it whether or not the evidence
+        # did. The constraint is in the LANGUAGE AND COMPILER, not the wire:
+        # np_mod_pbm_base_params_t already carries cur_a (660nm) and cur_b
+        # (808nm) as separate current registers, but NPPS has one `intensity`
+        # field per PBM block with no per-channel form, so hubCompiler.ts
+        # writes the same register value into both. The `wavelength` enum also
+        # has no 808-only value. Whether the tile's driver supports independent
+        # per-channel current is a separate, open question (OI-HEXTILE-07).
     }
 }

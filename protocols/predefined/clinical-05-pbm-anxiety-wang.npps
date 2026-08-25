@@ -43,8 +43,14 @@ protocol "PBM — Anxiety (Wang 2023, high-irradiance pulsed)" {
         # Wang 2023 treated the "forehead" — bilateral prefrontal, which these
         # two zones are.
         wavelength: "660_808nm"
-        # Same NIR-only fidelity gap as the Maiello protocol: the trial used
-        # 820nm alone; the T1-A tile drives 660nm and 808nm from one register
-        # and the `wavelength` enum has no 808-only value.
+        # NIR-only fidelity gap: the trial used a single NIR wavelength, and
+        # this protocol delivers 660nm alongside it whether or not the evidence
+        # did. The constraint is in the LANGUAGE AND COMPILER, not the wire:
+        # np_mod_pbm_base_params_t already carries cur_a (660nm) and cur_b
+        # (808nm) as separate current registers, but NPPS has one `intensity`
+        # field per PBM block with no per-channel form, so hubCompiler.ts
+        # writes the same register value into both. The `wavelength` enum also
+        # has no 808-only value. Whether the tile's driver supports independent
+        # per-channel current is a separate, open question (OI-HEXTILE-07).
     }
 }
