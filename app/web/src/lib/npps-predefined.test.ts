@@ -78,9 +78,12 @@ describe('predefined NPPS library', () => {
     }
   });
 
-  it('includes the expected clinical protocol coverage (50 clinical presets)', () => {
+  it('includes the expected clinical protocol coverage (51 clinical presets)', () => {
     const clinical = manifest.protocols.filter(f => f.startsWith('clinical-'));
-    expect(clinical.length).toBe(50);
+    // 50 → 51: clinical-05 (anxiety) split into one protocol per source trial,
+    // Maiello 2019 and Wang 2023, whose irradiances differ by 10×. See those
+    // files' own notes.
+    expect(clinical.length).toBe(51);
   });
 
   it('every clinical protocol carries at least one condition and one reference', () => {
