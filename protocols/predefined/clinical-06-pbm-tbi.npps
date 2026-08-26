@@ -1,4 +1,4 @@
-protocol "PBM — TBI (chronic) + Intranasal" {
+protocol "PBM — TBI (chronic) + Intranasal (Naeser 2011/2014)" {
     id: "30000006-0000-0000-0000-000000000000"
     description: "Multi-site scalp 810nm PBM plus bilateral intranasal for chronic traumatic brain injury / post-concussion syndrome. Grade B. 3x/week, 6+ weeks. Chronic > acute."
     author: "NeurOne"
@@ -6,20 +6,46 @@ protocol "PBM — TBI (chronic) + Intranasal" {
     readonly: true
     tags: ["pbm", "clinical", "tbi"]
     conditions: ["Traumatic Brain Injury", "Post-Concussion Syndrome"]
-    references: [["PBM protocol database §6 (Grade B)", "docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b"]]
-    duration: 18m
+    references: [["Naeser 2011/2014 — case series / single-arm, 633+870nm CW, 22 mW/cm², 13 J/cm², transcranial + bilateral intranasal, 3×/wk, executive-function gains. THIS protocol's source trial: the §6 trial whose 633+870nm pairing matches the T1-A tile's own two channels.", "docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b"], ["PBM protocol database §6 — TBI chronic / post-concussion (Grade B), section-level bands 0.02–0.25 W/cm², 10–120 J/cm², 10–20 min", "docs/pbm_neuro_protocols.md#6-traumatic-brain-injury-chronic--post-concussion-syndrome--grade-b"]]
+    duration: 10m
 
     pbm_transcranial {
-        intensity: 50%
-        frequency: 10Hz
+        # NOT SPLIT BY TRIAL, and the reason is worth recording. §6 names two
+        # trials with a stated irradiance: Naeser 2011/2014 (22 mW/cm²) and
+        # Rindner 2022 (1064nm, 0.25 W/cm², 120 J/cm², 20 min). A Rindner
+        # protocol was considered and NOT created: CH_C delivers 28 mW/cm²
+        # against its 250, a 9× emitter wall that more watts and more sites
+        # cannot close (OI-HEXTILE-21), so the file would be born permanently
+        # unrunnable — a second one, next to clinical-03, at the same wall.
+        # Longo 2020, Hipskind 2018 and Chao 2020 state no irradiance.
+        #
+        # Naeser is also the better hardware match: 633+870nm is close to the
+        # T1-A tile's own 660+808nm pair, so this is one of the few protocols
+        # where driving both channels is what the evidence did.
+        #
+        # MODE IS THE TRIAL'S: Naeser is CW, and 22 mW/cm² is far inside R-4's
+        # 200 mW/cm² CW ceiling. DURATION IS DERIVED: 13 J/cm² ÷ 22 mW/cm²
+        # = 591 s, so 10 min reproduces the stated dose (13.2 J/cm²).
+        #
+        # TARGET IRRADIANCE: 22 mW/cm² CW. PROVISIONAL, NOT THE AUTHORED
+        # VALUE: 22 ÷ 403 (NP-HW-HEXTILE-001 §4.3.1). Becomes
+        # `irradiance_mw_cm2: 22`.
+        intensity: 5.5%
+        frequency: 0Hz
         duty_cycle: 25%
         zones: ["Vault (excl. Occipital)"]
         wavelength: "660_808nm"
     }
 
     pbm_intranasal {
+        # Naeser's protocol is transcranial + bilateral intranasal, so this
+        # block is part of the trial, not an addition. Its 60% is NOT
+        # evidence-sourced and cannot be: no intranasal irradiance appears in
+        # §6, and the intranasal Y-probe (A12) has no owning specification
+        # document at all, so there is no device capability figure to check a
+        # value against either (NP-ART-001 §3.2, OI-ART-04).
         intensity: 60%
-        frequency: 10Hz
+        frequency: 0Hz
         duty_cycle: 25%
     }
 }

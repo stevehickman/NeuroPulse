@@ -1,0 +1,56 @@
+protocol "PBM — Anxiety (Wang 2023, high-irradiance pulsed)" {
+    id: "30000051-0000-0000-0000-000000000000"
+    description: "Bilateral prefrontal 820nm PBM for generalized anxiety, at the parameters of Wang 2023 (double-blind sham-controlled RCT, n=36): 0.31 W/cm² to the forehead, HAMA reduced vs sham (p=0.021), sustained at 8 weeks. Grade B. This is the HIGH-IRRADIANCE arm of the §5 evidence, ten times Maiello 2019's irradiance; see that protocol for the other end. Duration is DERIVED, not sourced — see the notes on the modality block."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["pbm", "clinical", "anxiety", "pulsed", "wang2023"]
+    conditions: ["Generalized Anxiety Disorder"]
+    references: [["Wang 2023 — double-blind RCT, n=36, 820nm, 0.31 W/cm², forehead, HAMA reduced vs sham (p=0.021), sustained 8 wk. THIS protocol's source trial.", "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"], ["PBM protocol database §5 — Anxiety / GAD (Grade B), section-level parameter bands (0.03–0.31 W/cm², 10–36 J/cm², 10–20 min)", "docs/pbm_neuro_protocols.md#5-anxiety--gad--grade-b"]]
+    duration: 7m
+
+    pbm_transcranial {
+        # MODE IS FORCED BY R-4, NOT CHOSEN. §5 lists "CW or 10 Hz". Wang's
+        # 310 mW/cm² exceeds R-4's 200 mW/cm² CW ceiling, so CW is not a legal
+        # operating point for this trial's irradiance. 10 Hz pulsed at ≤25%
+        # duty sits under R-4's 400 mW/cm² peak ceiling.
+        frequency: 10Hz
+        duty_cycle: 25%
+        # TARGET IRRADIANCE: 310 mW/cm² peak (Wang 2023).
+        #
+        # 77% is PROVISIONAL AND NOT THE AUTHORED VALUE — 310 ÷ 403 against
+        # the only stated anchor (NP-HW-HEXTILE-001 §4.3.1), which
+        # NP-SES-PWR-001 §2.3 flags as unestablished. Becomes
+        # `irradiance_mw_cm2: 310` when the language changes.
+        intensity: 77%
+        # DURATION IS DERIVED AND IS THE WEAKEST PART OF THIS PROTOCOL.
+        # Wang 2023's exposure time is NOT stated in the source. It cannot be
+        # taken from §5's 10–20 min band either, because at this irradiance
+        # that band contradicts the section's own 10–36 J/cm² dose band:
+        #   310 mW/cm² × 25% duty = 77.5 mW/cm² average
+        #   20 min → 93 J/cm²  — 2.6× ABOVE §5's dose ceiling
+        #    7 min → 32.5 J/cm² — inside the band
+        # 7 minutes is therefore the longest exposure that satisfies both of
+        # §5's own stated bands at this trial's irradiance. It is a derivation
+        # from the section, not a figure Wang reports, and it should be
+        # replaced if the primary paper gives an exposure time.
+        #
+        # NOTE what this exposes: the retired single clinical-05 protocol ran
+        # 20 min. Had its 60% ever meant Wang's irradiance, it would have
+        # delivered 93 J/cm² — 2.6× over. Splitting the two trials is what
+        # made that visible.
+        zones: ["Frontal Left", "Frontal Right"]
+        # Wang 2023 treated the "forehead" — bilateral prefrontal, which these
+        # two zones are.
+        wavelength: "660_808nm"
+        # NIR-only fidelity gap: the trial used a single NIR wavelength, and
+        # this protocol delivers 660nm alongside it whether or not the evidence
+        # did. The constraint is in the LANGUAGE AND COMPILER, not the wire:
+        # np_mod_pbm_base_params_t already carries cur_a (660nm) and cur_b
+        # (808nm) as separate current registers, but NPPS has one `intensity`
+        # field per PBM block with no per-channel form, so hubCompiler.ts
+        # writes the same register value into both. The `wavelength` enum also
+        # has no 808-only value. Whether the tile's driver supports independent
+        # per-channel current is a separate, open question (OI-HEXTILE-07).
+    }
+}

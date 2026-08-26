@@ -1,0 +1,34 @@
+protocol "PBM — Alzheimer's 40Hz (Woźniak-Mitał 2026)" {
+    id: "30000001-0000-0000-0000-000000000000"
+    description: "Whole-head 810nm pulsed 40Hz transcranial PBM plus bilateral intranasal 660nm for Alzheimer's / dementia (gamma-entrainment rationale). Grade A. 3–7x/week, 8–12+ weeks."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["pbm", "gamma", "40Hz", "clinical", "alzheimers"]
+    conditions: ["Alzheimer's Disease", "Dementia"]
+    references: [["Woźniak-Mitał 2026 — double-blind, n=33, 850nm PW 40Hz, 150 mW total, 20 min, 50 sessions/10 wk, MMSE 21.9→27.2, ADAS-Cog 34.8→18.2 (p<0.0001). THIS protocol's source trial. NOTE: the trial states TOTAL POWER, not irradiance — see the block notes.", "https://doi.org/10.1016/j.pmip.2026"], ["PBM protocol database §1 — Alzheimer's / dementia (Grade A), section-level bands 0.1–0.3 W/cm², 20–75 J/cm²", "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"]]
+    duration: 20m
+
+    pbm_transcranial {
+        # ⚠ IRRADIANCE NOT DERIVABLE FROM THIS TRIAL. Woźniak-Mitał 2026 states
+        # 150 mW TOTAL POWER and no emitting area, so no mW/cm² follows from it
+        # — power ÷ scalp area is the wrong denominator (irradiance is per unit
+        # of ILLUMINATED APERTURE, not per unit of head). The 30% below is
+        # therefore inherited from the pre-split file and is NOT evidence-
+        # sourced. §1's own band is 0.1–0.3 W/cm²; the companion Chun 2026
+        # protocol sits at the top of it with a stated figure.
+        # Resolve either from the primary paper's aperture, or by adopting the
+        # section band. Tracked with the other unjustified values.
+        intensity: 30%
+        frequency: 40Hz
+        duty_cycle: 25%
+        zones: ["Vault (excl. Occipital)"]
+        wavelength: "660_808nm"
+    }
+
+    pbm_intranasal {
+        intensity: 60%
+        frequency: 40Hz
+        duty_cycle: 25%
+    }
+}

@@ -1,0 +1,41 @@
+protocol "PBM — Depression (Cassano 2018, low-irradiance CW)" {
+    id: "30000004-0000-0000-0000-000000000000"
+    description: "Bilateral DLPFC 823nm PBM for major depressive disorder at the parameters of Cassano 2018 (double-blind RCT, n=21): 36 mW/cm² continuous wave, up to 65 J/cm², 20–30 min, 16 sessions over 8 weeks; HAM-D effect size 0.9–1.5. Grade B. This is the LOW-IRRADIANCE arm of the §4 evidence — the section's 0.03–0.25 W/cm² band is two trials seven-fold apart, and this is the 0.03 end. See the Schiffer 2009 protocol for the other."
+    author: "NeurOne"
+    version: "1.0"
+    readonly: true
+    tags: ["pbm", "clinical", "depression", "dlpfc", "cw", "cassano2018"]
+    conditions: ["Major Depressive Disorder"]
+    references: [["Cassano 2018 — double-blind RCT, n=21, 823nm CW, 36 mW/cm², up to 65 J/cm², 20–30 min, 16 sessions/8 wk, HAM-D ES 0.9–1.5. THIS protocol\'s source trial.", "https://doi.org/10.1089/photob.2018"], ["PBM protocol database §4 — Depression (Grade B), section-level bands 0.03–0.25 W/cm², dose target ≥60 J/cm²/site", "docs/pbm_neuro_protocols.md#4-depression-major-depressive-disorder--grade-b"]]
+    duration: 30m
+
+    pbm_transcranial {
+        # TARGET IRRADIANCE: 36 mW/cm² CW (Cassano 2018). Well inside R-4's
+        # 200 mW/cm² CW ceiling.
+        frequency: 0Hz
+        duty_cycle: 25%
+        # duty_cycle written explicitly so scripts/check-pbm-power.ts sees the
+        # OI-SESPWR-03 CW+duty ambiguity — omitting it does not remove the
+        # ambiguity (the parser defaults to 25 either way), only hides it.
+        intensity: 8.9%
+        # PROVISIONAL, NOT THE AUTHORED VALUE: 36 ÷ 403 against the only
+        # stated anchor (NP-HW-HEXTILE-001 §4.3.1), which NP-SES-PWR-001 §2.3
+        # flags as an "if". Becomes `irradiance_mw_cm2: 36`.
+        # DURATION IS DERIVED. The trial gives 20–30 min and "up to 65 J/cm²".
+        # 36 mW/cm² × 1800 s = 64.8 J/cm², so 30 min is the end of the range
+        # that reaches the stated dose AND clears §4\'s "≥60 J/cm² per site, do
+        # not under-dose" target. At 20 min it would deliver 43 J/cm², under it.
+        zones: ["Frontal Left", "Frontal Right"]
+        # §4: "Sites: F3 and F4 (bilateral DLPFC)".
+        wavelength: "660_808nm"
+        # NIR-only fidelity gap: the trial used a single NIR wavelength, and
+        # this protocol delivers 660nm alongside it whether or not the evidence
+        # did. The constraint is in the LANGUAGE AND COMPILER, not the wire:
+        # np_mod_pbm_base_params_t already carries cur_a (660nm) and cur_b
+        # (808nm) as separate current registers, but NPPS has one `intensity`
+        # field per PBM block with no per-channel form, so hubCompiler.ts
+        # writes the same register value into both. The `wavelength` enum also
+        # has no 808-only value. Whether the tile's driver supports independent
+        # per-channel current is a separate, open question (OI-HEXTILE-07).
+    }
+}
