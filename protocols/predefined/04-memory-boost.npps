@@ -1,20 +1,59 @@
 protocol "Memory Boost" {
     id: "10000004-0000-0000-0000-000000000000"
-    description: "Theta (6Hz) hippocampal entrainment for memory consolidation and learning. Combines PBM, theta-band EEG neurofeedback, binaural audio, and HRV biofeedback."
+    description: "Memory and working-memory support. The PBM channel follows its own cited evidence (Yao 2022 / Gonzalez-Lima lineage: 1064nm right prefrontal, 8 min) rather than the theta rhythm; theta (6Hz) entrainment lives in the audio, EEG neurofeedback and HRV channels, where entrainment evidence exists. NOT EVIDENCE-GRADE for the PBM channel: see the notes on that block — duty, dose, area and irradiance all fall short of the cited literature, and requires a 1064nm-capable (T1-C) module."
     author: "NeurOne"
-    version: "1.0"
+    version: "1.1"
     readonly: true
-    tags: [memory, theta, learning, consolidation]
+    tags: [memory, theta, learning, consolidation, "1064nm"]
     conditions: ["Mild Cognitive Impairment"]
-    references: [["PBM cognitive enhancement (Grade A)", "docs/pbm_neuro_protocols.md#3-cognitive-enhancement--healthy-adults--cognitive-aging--grade-a"]]
+    references: [["PBM cognitive enhancement (Grade A)", "docs/pbm_neuro_protocols.md#3-cognitive-enhancement--healthy-adults--cognitive-aging--grade-a"], ["Yao 2022 (Sci Adv) — 1064nm right PFC, CW, 250 mW/cm², 8 min, visual working memory", "docs/np_bib_1064_001.md"], ["1064nm evidence bibliography (NP-BIB-1064-001 Entry 12.1)", "docs/np_bib_1064_001.md"]]
     duration: 30m
 
     pbm_transcranial {
-        intensity: 70%
-        frequency: 6Hz
+        # WAVELENGTH AND MODE FOLLOW THE CITED EVIDENCE (corrected 2026-08-25).
+        # This block previously ran 660_808nm at 6Hz over the whole "Frontal"
+        # zone while citing pbm_neuro_protocols.md #3, which is a 1064nm CW
+        # right-prefrontal protocol. Every parameter disagreed with the
+        # citation, and 6Hz PBM has no source anywhere in the evidence base at
+        # any wavelength. The PBM channel now follows Yao 2022
+        # (NP-BIB-1064-001 Entry 12.1): 1064nm, CW, right PFC, 8 min.
+        # Theta entrainment is unchanged and lives in the audio, EEG and HRV
+        # channels below, where entrainment evidence does exist.
+        intensity: 100%
+        frequency: 0Hz
         duty_cycle: 25%
-        zones: ["Frontal"]
-        wavelength: "660_808nm"
+        # duty_cycle: 25% is the firmware-enforced ceiling for the 1064nm
+        # channel (np_pbm1064_drive_set_duty(), NP-FW-PBM1064-001 Section 5).
+        # True CW is therefore NOT achievable, and Yao 2022 used CW; that paper
+        # states explicitly that pulsed 1064nm working-memory effects have not
+        # been confirmed in a registered trial. frequency: 0Hz selects the
+        # closest available mode, not literature CW output.
+        interval_on: 8m
+        interval_off: 22m
+        repeat: 1
+        # 8 minutes matches the literature exposure. The remaining 22 minutes of
+        # the session run the audio / EEG / HRV channels only.
+        zones: ["Frontal Right (excl. midline)"]
+        # Yao 2022 stimulated a SINGLE right prefrontal site (F4). This zone is
+        # 8 modules (~111 cm2) and is the narrowest right-lateralized zone that
+        # exists pending gate REG-1 (10-20 socket registration). Spatial
+        # generalisation beyond right F4 is not established by the source.
+        wavelength: "1064nm"
+        # REQUIRES A 1064nm-CAPABLE (T1-C / SMART) MODULE. On a base T1-A build
+        # this protocol's PBM channel is not available. This is a change in the
+        # protocol's hardware requirement, not only its parameters.
+        #
+        # THREE SHORTFALLS AGAINST THE CITED LITERATURE, none closed here:
+        #  (1) IRRADIANCE - Yao 2022 is 250 mW/cm2. NP-HW-HEXTILE-001 Section
+        #      4.3.2 gives CH_C 28 mW/cm2 at 30 sites: 9x short, an emitter
+        #      efficiency wall that more watts and more sites cannot close
+        #      (OI-HEXTILE-21).
+        #  (2) DOSE - firmware caps this channel at 36 J/cm2/session (OI-SES-01)
+        #      against the literature's 60 J/cm2/site.
+        #  (3) AREA - ~111 cm2 against a single ~13.6 cm2 evidence site.
+        # Same disposition as clinical-03-pbm-cognitive-1064: state the gap,
+        # withhold any evidence-grade or gold-standard claim. See
+        # docs/status/pending-decisions.md Section 13.2c.
     }
 
     eeg_neurofeedback {
