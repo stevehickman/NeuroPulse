@@ -233,7 +233,7 @@ lattice, asserts the row construction never exceeds the area bound, and emits
 >
 > **Why the bitmap bit is not renumbered to match.** 16 bytes is 128 bits. Mapping sockets
 > `1..128` onto bits `1..128` needs a bit 128 — a 17th byte — so a 1-based bitmap would
-> either grow the mask (breaking `NP_PBM1064_SOCKET_MASK_BYTES == NP_HUB_SOCKET_MASK_BYTES`
+> either grow the mask (breaking `NP_PBM_SOCKET_MASK_BYTES == NP_HUB_SOCKET_MASK_BYTES`
 > and its alignment) or cap the lattice at 127 sockets. A bit position is an offset, not a
 > number the system quotes; renumbering it would buy nothing and cost a coordinated
 > firmware + web + iOS + simulator wire-format release.

@@ -21,14 +21,14 @@
  * MCU combined enable pulse (NP-FW-PBM1064-001 §8.3).
  */
 
-#ifndef NP_PBM1064_T2_COMBINED_H
-#define NP_PBM1064_T2_COMBINED_H
+#ifndef NP_PBM_T2_COMBINED_H
+#define NP_PBM_T2_COMBINED_H
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include "np_pbm1064_types.h"
-#include "np_pbm1064_session.h"
+#include "np_pbm_types.h"
+#include "np_pbm_session.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -40,7 +40,7 @@ typedef struct {
     np_t2_stage_t             stage;
 
     /* Inner 1064nm session */
-    np_pbm1064_session_ctx_t  pbm1064;
+    np_pbm_session_ctx_t  pbm1064;
 
     /* T2 1170nm laser state */
     bool     t2_1170_active;
@@ -69,42 +69,42 @@ typedef struct {
     uint32_t last_tick_ms;
 
     /* Callbacks */
-    np_pbm1064_session_end_cb_t session_end_cb;
-    np_pbm1064_fault_cb_t       fault_cb;
-} np_pbm1064_t2_ctx_t;
+    np_pbm_session_end_cb_t session_end_cb;
+    np_pbm_fault_cb_t       fault_cb;
+} np_pbm_t2_ctx_t;
 
 /* ── API ─────────────────────────────────────────────────────────────────────── */
 
 /*
  * Initialize T2 combined session context.  Must be called before any start.
  */
-void np_pbm1064_t2_init(np_pbm1064_t2_ctx_t         *ctx,
-                          np_pbm1064_session_end_cb_t  end_cb,
-                          np_pbm1064_fault_cb_t        fault_cb,
+void np_pbm_t2_init(np_pbm_t2_ctx_t         *ctx,
+                          np_pbm_session_end_cb_t  end_cb,
+                          np_pbm_fault_cb_t        fault_cb,
                           uint32_t                     device_session_count);
 
 /*
  * Start a T2 combined session from a combined session descriptor.
  * Both 1064nm and 1170nm subsystems ramp in parallel.
- * Returns NP_PBM1064_ERR_SESSION_ACTIVE if already running.
+ * Returns NP_PBM_ERR_SESSION_ACTIVE if already running.
  */
-np_pbm1064_status_t np_pbm1064_t2_start_combined(
-    np_pbm1064_t2_ctx_t           *ctx,
+np_pbm_status_t np_pbm_t2_start_combined(
+    np_pbm_t2_ctx_t           *ctx,
     const np_t2_combined_desc_t   *desc);
 
 /*
  * Legacy start (1064nm descriptor only; 1170nm duty defaults to 100%).
  * Kept for backwards-compatibility with FAI-SM-10.
  */
-np_pbm1064_status_t np_pbm1064_t2_start(
-    np_pbm1064_t2_ctx_t               *ctx,
-    const np_pbm1064_session_desc_t   *desc_1064);
+np_pbm_status_t np_pbm_t2_start(
+    np_pbm_t2_ctx_t               *ctx,
+    const np_pbm_session_desc_t   *desc_1064);
 
 /*
- * T2 combined session tick — call at NP_PBM1064_DOSE_TICK_MS (100 ms) intervals.
+ * T2 combined session tick — call at NP_PBM_DOSE_TICK_MS (100 ms) intervals.
  * Evaluates TEC temperature, throttle cascade, and delegates dose ticks.
  */
-np_pbm1064_status_t np_pbm1064_t2_tick(np_pbm1064_t2_ctx_t *ctx,
+np_pbm_status_t np_pbm_t2_tick(np_pbm_t2_ctx_t *ctx,
                                           uint32_t now_ms);
 
 /*
@@ -119,61 +119,61 @@ np_pbm1064_status_t np_pbm1064_t2_tick(np_pbm1064_t2_ctx_t *ctx,
  *
  * Once all four steps applied, function is a no-op until session reset.
  */
-void np_pbm1064_t2_apply_thermal_throttle(np_pbm1064_t2_ctx_t *ctx,
+void np_pbm_t2_apply_thermal_throttle(np_pbm_t2_ctx_t *ctx,
                                              float throttle_fraction);
 
 /*
  * Abort the combined T2 session immediately.
  * Disables all 1064nm channels and the 1170nm laser.
  */
-np_pbm1064_status_t np_pbm1064_t2_abort(np_pbm1064_t2_ctx_t *ctx,
-                                           np_pbm1064_fault_t   reason);
+np_pbm_status_t np_pbm_t2_abort(np_pbm_t2_ctx_t *ctx,
+                                           np_pbm_fault_t   reason);
 
 /*
  * Query T2 combined session stage.
  */
-np_t2_stage_t np_pbm1064_t2_stage(const np_pbm1064_t2_ctx_t *ctx);
+np_t2_stage_t np_pbm_t2_stage(const np_pbm_t2_ctx_t *ctx);
 
 /*
  * Get a pointer to the completed UHDR combined session record.
  * Valid only after stage == NP_T2_STAGE_COMPLETE or NP_T2_STAGE_FAULT.
  */
-const np_t2_combined_uhdr_record_t *np_pbm1064_t2_get_combined_record(
-    const np_pbm1064_t2_ctx_t *ctx);
+const np_t2_combined_uhdr_record_t *np_pbm_t2_get_combined_record(
+    const np_pbm_t2_ctx_t *ctx);
 
 /* ═══════════════════════════════════════════════════════════════════════════
  * T2 combined descriptor wire encode/decode — mirrors
- * np_pbm1064_session_desc_wire_len() / _signed_len() / _serialize() / _parse()
- * in np_pbm1064_session.h. The signature covers exactly the transmitted
+ * np_pbm_session_desc_wire_len() / _signed_len() / _serialize() / _parse()
+ * in np_pbm_session.h. The signature covers exactly the transmitted
  * bytes (fixed 4B header + pbm1064_hdr (8B) + pbm1064_group_count groups +
- * fixed 4B laser1170), never the full NP_PBM1064_SESSION_MAX_PRESET_GROUPS
+ * fixed 4B laser1170), never the full NP_PBM_SESSION_MAX_PRESET_GROUPS
  * capacity.
  * ═══════════════════════════════════════════════════════════════════════════ */
 
 /* Byte length of the full wire encoding for the given pbm1064 group count. */
-size_t np_pbm1064_t2_combined_desc_wire_len(uint8_t pbm1064_group_count);
+size_t np_pbm_t2_combined_desc_wire_len(uint8_t pbm1064_group_count);
 
 /* Byte length of the SIGNED span only (wire length minus the 64-byte signature). */
-size_t np_pbm1064_t2_combined_desc_signed_len(uint8_t pbm1064_group_count);
+size_t np_pbm_t2_combined_desc_signed_len(uint8_t pbm1064_group_count);
 
 /*
  * Serialize desc->pbm1064_hdr.group_count groups (not the full array
  * capacity) into `out`. Returns bytes written, or 0 on invalid group_count
  * or insufficient out_cap.
  */
-size_t np_pbm1064_t2_combined_desc_serialize(const np_t2_combined_desc_t *desc,
+size_t np_pbm_t2_combined_desc_serialize(const np_t2_combined_desc_t *desc,
                                               uint8_t *out, size_t out_cap);
 
 /*
  * Parse `in_len` wire bytes into `desc_out`. Does NOT verify the Ed25519
- * signature — see np_pbm1064_session_desc_parse()'s doc comment; the same
+ * signature — see np_pbm_session_desc_parse()'s doc comment; the same
  * stub status (OI-PBM-SIG) applies here.
  */
-np_pbm1064_status_t np_pbm1064_t2_combined_desc_parse(const uint8_t *in, size_t in_len,
+np_pbm_status_t np_pbm_t2_combined_desc_parse(const uint8_t *in, size_t in_len,
                                                         np_t2_combined_desc_t *desc_out);
 
 #ifdef __cplusplus
 }
 #endif
 
-#endif /* NP_PBM1064_T2_COMBINED_H */
+#endif /* NP_PBM_T2_COMBINED_H */

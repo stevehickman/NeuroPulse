@@ -1631,7 +1631,7 @@ add_notice(
     'and one 40 mm hex module is 13.86 cm² — the same size to within 2%. clinical-03 as now '
     'shipped covers 8 modules, or 111 cm², which is 8.2× the evidence footprint. Narrowing the '
     'zone fixed lateralization; it did not fix this. Separately, the 1064 nm channel is '
-    'firmware-capped at 25% duty (np_pbm1064_drive_set_duty(), and the npps schema itself only '
+    'firmware-capped at 25% duty (np_pbm_drive_set_duty(), and the npps schema itself only '
     'accepts duty_cycle 1–25), giving about 0.10 W/cm² average against the literature\'s '
     '0.25 W/cm² CW — 2.5× below — and capped at 36 J/cm² per session against the literature\'s '
     '60 J/cm² per site. Offered the choice between relabeling honestly and raising the firmware '

@@ -118,9 +118,9 @@ struct NPSocketMask: Equatable, Hashable, Codable {
 
     /// == firmware `NP_HUB_SOCKET_MASK_BYTES`
     /// (firmware/hub_control/include/np_hub_config.h), and == the 1064nm module's
-    /// `NP_PBM1064_SOCKET_MASK_BYTES`. Kept equal in VALUE without a shared
+    /// `NP_PBM_SOCKET_MASK_BYTES`. Kept equal in VALUE without a shared
     /// definition, cross-referenced by comment on every side, the way
-    /// np_pbm1064_config.h documents the same pairing; the tests assert the
+    /// np_pbm_config.h documents the same pairing; the tests assert the
     /// numeric match against a byte-level fixture.
     static let byteCount = 16
 
