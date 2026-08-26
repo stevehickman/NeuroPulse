@@ -23,7 +23,7 @@ Traced end to end:
 
 | Step | What it says |
 |---|---|
-| `NP-HW-HEXTILE-001` §5 **R-5** | *"Three-channel aggregate ceiling 600 mW/cm²"*, source `NP-FW-PBM1064-001` Rev 2 (OI-PBM-05) |
+| `NP-HW-HEXTILE-001` §2 **R-5** | *"Three-channel aggregate ceiling 600 mW/cm²"*, source `NP-FW-PBM1064-001` Rev 2 (OI-PBM-05) |
 | `NP-FW-PBM1064-001` §6.4 | `PBM_AGGREGATE_IRRADIANCE_LIMIT_MW_CM2 = 600` — *"pending confirmation from RISK-03 regulatory opinion"* |
 | `firmware/pbm_1064nm/include/np_pbm1064_config.h:115` | `#define NP_PBM1064_AGGREGATE_IRRADIANCE_MW_CM2 600.0f` — *"pending RISK-03 regulatory opinion"* |
 | `NP-REG-PBM1064-001` §4 | The instruction brief **to** counsel. **Asks** about 600; does not answer it |
