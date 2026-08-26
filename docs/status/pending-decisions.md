@@ -9,10 +9,57 @@
 | Issue | Action | Cost/Timeline |
 |-------|--------|---------------|
 | **Zero published clinical trials** — 35-trial gap vs Vielight | Commission SBIR Phase I at company formation. First contacts: Rashidi-Ranjbar → Jog → Naeser | 2–3 years to published data |
-| **400 mW/cm² regulatory opinion not obtained (RISK-03)** — cannot appear in ANY public material until cleared | Commission outside regulatory counsel (PBM/digital health specialist). Also assess Vielight comparison claim under FTC implied claim doctrine | $8,000–15,000 · 3–5 weeks |
+| **PBM irradiance regulatory opinion not obtained (RISK-03)** — open since 2026-05-06, owner CEO. **Scope is wider than "400 mW/cm²" and now blocks tooling, not only marketing** — see §13.1a | Commission outside regulatory counsel (PBM/digital health specialist), **one engagement** (GitHub Issue #5) carrying the full scope: 400 mW/cm² peak pulsed 660/808 nm (original, Issue #5); 1064 nm irradiance; **three-channel aggregate ceiling 600 mW/cm² (R-5)**; T2 combined 1064+1170 nm session; depth-tier penetration claim (Issue #56). Brief = `NP-REG-PBM1064-001` Rev 1 §8, 12 questions. `NP-REG-PBM1064-001` §2 says explicitly: **do not open a parallel engagement — extend the existing instruction.** Also assess the Vielight comparison claim under FTC implied-claim doctrine | $8,000–15,000 · 3–5 weeks |
 | **"NeurOne" is an uncleared placeholder** — trademark not searched | Trademark search and clearance: US, EU, Canada, Australia. Required before ANY external conversation. | $15,000–25,000 |
 | **CFRP shell slot rim Ra ≤ 1.6 µm unconfirmed (RISK-20)** — BLOCKING for tooling release | Obtain written confirmation from CFRP shell tooling supplier (letter + Ra measurement data from representative coupon). Supplier qualification item SUP-M-07 in NP-PROC-SUP-001. If Ra > 1.6 µm unavoidable: escalate to ME + EE; gasket or shell geometry must be revised. | $0 — supplier engagement required |
 | **PDMS CAT-C supplier not selected (RISK-04)** — BLOCKING for production start | Select PDMS bonding supplier per NP-PROC-SUP-001 CAT-C criteria. Supplier must confirm IEC 60068-2-14 thermal cycling qualification capability. 200-cycle qualification (FAI-TC02) must pass before any production FPCs are built. | Supplier lead time 8 weeks from selection |
+
+### 13.1a RISK-03 now gates a tooling decision, not just marketing copy (raised 2026-08-25)
+
+**Both PBM irradiance ceilings are NeurOne-chosen firmware governors. Neither is a
+regulatory limit, and both wait on the same opinion nobody has commissioned.**
+
+Traced end to end:
+
+| Step | What it says |
+|---|---|
+| `NP-HW-HEXTILE-001` §5 **R-5** | *"Three-channel aggregate ceiling 600 mW/cm²"*, source `NP-FW-PBM1064-001` Rev 2 (OI-PBM-05) |
+| `NP-FW-PBM1064-001` §6.4 | `PBM_AGGREGATE_IRRADIANCE_LIMIT_MW_CM2 = 600` — *"pending confirmation from RISK-03 regulatory opinion"* |
+| `firmware/pbm_1064nm/include/np_pbm1064_config.h:115` | `#define NP_PBM1064_AGGREGATE_IRRADIANCE_MW_CM2 600.0f` — *"pending RISK-03 regulatory opinion"* |
+| `NP-REG-PBM1064-001` §4 | The instruction brief **to** counsel. **Asks** about 600; does not answer it |
+| `NP-RM-001` RISK-03 | *"not yet obtained"* |
+
+**The chain terminates in a request that was never sent.** No IEC 62471 derivation, no FDA
+position, no ICNIRP limit appears anywhere in it. `NP-REG-PBM1064-001` §4.1 states R-5's
+own character plainly: *"It is not a marketed peak claim; it is a safety governor"* — a
+throttle trigger cascading CH_C → CH_B → CH_A. Numerically, full simultaneous three-channel
+operation is 1,200 mW/cm² peak (3 × 400) and **600 is exactly half**, with no derivation
+recorded. R-4's 400/200 mW/cm² is in the same position.
+
+**The value is open in both directions.** `NP-REG-PBM1064-001` Q4 asks counsel whether 600
+should stay, **rise to 1,200** to permit maximum simultaneous operation, or **fall** to
+secure IEC 62471 Exempt Group classification.
+
+**Why the widened scope matters.** RISK-03 was already Critical, but as a *marketing-claims*
+gate — *"cannot appear in ANY public material until cleared."* It is no longer only that,
+and the new consumer is a harder deadline than a claim review. **`OI-HEXTILE-20` makes R-5 decide the socket contact
+count**: whether two T1-A channels at 403 mW/cm² each (806) breach R-5 sets the per-tile
+peak at 25.0 W or ~18.6 W, which sets the rail current, which sets the per-pin derating,
+which set `VLED` at **3 contacts** — and D-5 calls that pin count *"load-bearing and now
+tooling-blocking."* **Socket tooling would therefore be cut against a placeholder.**
+
+Two further consumers, so the engagement is not sized off the contact count alone:
+
+- **`OI-SESPWR-02`** — `07-vascular-baseline` at 80 % CW implies ~322 mW/cm² against R-4's
+  200 mW/cm² CW ceiling, with no mode-dependent clamp found. If R-4 moves, so does the
+  finding.
+- **Absolute-irradiance protocol authoring** — once `intensity` is expressed in
+  `irradiance_mw_cm2` rather than as a percentage, R-4 and R-5 become values protocols are
+  written against and checked against directly, so their provisional status stops being
+  invisible.
+
+**Action:** extend the existing Issue #5 engagement — do not open a second one — and treat
+it as gating socket tooling release, not only public claims.
 
 ## 13.2 Moderate
 
