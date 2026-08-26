@@ -30,11 +30,11 @@ typedef struct np_hd_session np_hd_session_t;
  * voxel_mni: flash-resident MNI lookup table.
  * config: session parameters from signed app protocol.
  * display_cb: called at each stage transition and during stimulation tick.
- * end_cb: called once at session end or abort.
+ * end_cb: called once at session end or stop.
  *
  * Returns NULL only if end_cb is NULL or weight_matrix is NULL.
  */
-np_hd_session_t *np_hd_session_create(const float               *weight_matrix,
+np_hd_session_t *np_hd_session_init(const float               *weight_matrix,
                                         const np_hd_mni_t         *voxel_mni,
                                         const np_hd_session_config_t *config,
                                         np_hd_display_cb_t         display_cb,
@@ -132,7 +132,7 @@ void np_hd_session_tick(np_hd_session_t *sess, uint32_t now_ms);
  * Abort session at any stage.  Immediately stops stimulation.
  * end_cb is called with abort_reason.
  */
-void np_hd_session_abort(np_hd_session_t *sess,
+void np_hd_session_stop(np_hd_session_t *sess,
                            np_hd_status_t   reason,
                            uint32_t         now_ms);
 

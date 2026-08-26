@@ -99,7 +99,7 @@ static uint32_t platform_now_ms(void)
 
 /* ── Lifecycle ───────────────────────────────────────────────────────────────── */
 
-np_hd_session_t *np_hd_session_create(const float               *weight_matrix,
+np_hd_session_t *np_hd_session_init(const float               *weight_matrix,
                                         const np_hd_mni_t         *voxel_mni,
                                         const np_hd_session_config_t *config,
                                         np_hd_display_cb_t         display_cb,
@@ -192,14 +192,14 @@ np_hd_status_t np_hd_session_compute_sloreta(np_hd_session_t *sess, uint32_t now
                                                   s_source_power,
                                                   NP_HD_SLORETA_N_VOXELS);
     if (ret != NP_HD_OK) {
-        np_hd_session_abort(sess, ret, now_ms);
+        np_hd_session_stop(sess, ret, now_ms);
         return ret;
     }
 
     ret = np_sloreta_find_peak(&sess->sloreta, s_source_power,
                                 NP_HD_SLORETA_N_VOXELS, &sess->sloreta_result);
     if (ret != NP_HD_OK) {
-        np_hd_session_abort(sess, ret, now_ms);
+        np_hd_session_stop(sess, ret, now_ms);
         return ret;
     }
 
@@ -248,7 +248,7 @@ np_hd_status_t np_hd_session_select_montage(np_hd_session_t *sess, uint32_t now_
     } else {
         np_hd_status_t ret = np_hd_clinical_target_mni(sess->config.target, &target);
         if (ret != NP_HD_OK) {
-            np_hd_session_abort(sess, ret, now_ms);
+            np_hd_session_stop(sess, ret, now_ms);
             return ret;
         }
     }
@@ -257,7 +257,7 @@ np_hd_status_t np_hd_session_select_montage(np_hd_session_t *sess, uint32_t now_
                                                    sess->config.montage_type,
                                                    &sess->montage);
     if (ret != NP_HD_OK) {
-        np_hd_session_abort(sess, ret, now_ms);
+        np_hd_session_stop(sess, ret, now_ms);
         return ret;
     }
 
@@ -419,21 +419,21 @@ void np_hd_session_tick(np_hd_session_t *sess, uint32_t now_ms)
             sess->allocated = false;
 
         } else if (sp == NP_HD_STIM_FAULT) {
-            np_hd_session_abort(sess, NP_HD_ERR_SAFETY_REJECTED, now_ms);
+            np_hd_session_stop(sess, NP_HD_ERR_SAFETY_REJECTED, now_ms);
         }
 
         /* Safety timeout: abort if stimulation stalls for > 5 s. */
         if (sp == NP_HD_STIM_RAMP_UP && elapsed < ramp_ms &&
             !sess->stim.safety_mcu_granted &&
             elapsed > 5000U) {
-            np_hd_session_abort(sess, NP_HD_ERR_SAFETY_REJECTED, now_ms);
+            np_hd_session_stop(sess, NP_HD_ERR_SAFETY_REJECTED, now_ms);
         }
     }
 }
 
 /* ── Abort ───────────────────────────────────────────────────────────────────── */
 
-void np_hd_session_abort(np_hd_session_t *sess,
+void np_hd_session_stop(np_hd_session_t *sess,
                            np_hd_status_t   reason,
                            uint32_t         now_ms)
 {

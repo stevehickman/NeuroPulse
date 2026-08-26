@@ -137,7 +137,7 @@ void np_pbm_session_update_eeg_freq(np_pbm_session_ctx_t *ctx,
 /*
  * Abort a running session immediately.  Disables all channels.
  */
-np_pbm_status_t np_pbm_session_abort(np_pbm_session_ctx_t *ctx,
+np_pbm_status_t np_pbm_session_stop(np_pbm_session_ctx_t *ctx,
                                                np_pbm_fault_t reason);
 
 /*

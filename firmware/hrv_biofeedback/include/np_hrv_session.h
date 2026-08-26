@@ -61,7 +61,7 @@ typedef void (*np_hrv_session_end_cb_t)(const np_hrv_session_record_t *record,
  * `end_cb`      — called when the session ends (must not be NULL).
  * `now_ms`      — current system time.
  */
-np_hrv_session_t *np_hrv_session_create(const np_hrv_session_config_t *config,
+np_hrv_session_t *np_hrv_session_init(const np_hrv_session_config_t *config,
                                           np_hrv_display_cb_t            display_cb,
                                           np_hrv_session_end_cb_t        end_cb,
                                           uint32_t                        now_ms);
