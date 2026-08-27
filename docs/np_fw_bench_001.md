@@ -220,7 +220,7 @@ is wrong.
 |---|---|---|---|
 | present | present | run | — |
 | **absent** | present | **refuse / stop** | Fail-closed. The union of absences wins; a corroborator cannot overrule the gate |
-| present | **absent** | **run**, and raise a device-health signal | PD2-low with contact-good is the **fouling** signature the PD1/PD2 ratio already exists to discriminate (`np_pbm1064_dose_evaluate_ratio()`, `firmware/pbm_1064nm/src/np_pbm1064_dose.c:157`; `NP_PBM1064_FOULING_RATIO_THRESH`). Treating a fouled window as an absent head would mis-attribute a maintenance condition to the user |
+| present | **absent** | **run**, and raise a device-health signal | PD2-low with contact-good is the **fouling** signature the PD1/PD2 ratio already exists to discriminate (`np_pbm_dose_evaluate_ratio()`, `firmware/pbm/src/np_pbm_dose.c:157`; `NP_PBM1064_FOULING_RATIO_THRESH`). Treating a fouled window as an absent head would mis-attribute a maintenance condition to the user |
 | absent | absent | refuse / stop | — |
 
 **Therefore PD2 is never a veto — D-3.** It corroborates, and where it dissents it feeds the existing
@@ -476,7 +476,7 @@ a protocol.
 
 The genuine device-maintenance activity that *does* approach the gate is a **self-test that drives
 emitters** — for example exercising the PD1/PD2 fouling-versus-aging discriminator
-(`np_pbm1064_dose_evaluate_ratio()`). Whether such a self-test is a "protocol" for gating purposes,
+(`np_pbm_dose_evaluate_ratio()`). Whether such a self-test is a "protocol" for gating purposes,
 and therefore whether it needs bench mode or an exemption of its own, is undecided:
 **`OI-BENCH-09`**.
 
