@@ -24,14 +24,14 @@
 // readers are dropped, not kept as a fallback. See NP-NPPS-REF-001 Rev 6 §2.
 //
 // Rev 3 (2026-08-23): removed two modality types that no other component ever
-// recognised — `hrv_biofeedback` and `pbm_1064nm`. Neither appears in
+// recognised — `hrv_biofeedback` and `pbm`. Neither appears in
 // NP-NPPS-REF-001's TYPE_ID list, in nppsParser.ts's blockNameToTypeId map, in
 // NPProtocolScripting.swift, or in any fixture or shipped .npps file, so a file
 // using them parsed here and then yielded a null modality in every consumer.
 // Both are already expressible: HRV biofeedback is `vns_hrv`'s `hrv_protocol`
 // field, and 1064 nm PBM is `pbm_transcranial` with `wavelength: 1064nm`.
 // ModalityType is now the same 15 types the rest of the toolchain accepts.
-// (The firmware directories firmware/hrv_biofeedback/ and firmware/pbm_1064nm/
+// (The firmware directories firmware/hrv_biofeedback/ and firmware/pbm/
 // are unrelated — they are implementation modules, not NPPS block keywords.)
 //
 // AST node types:

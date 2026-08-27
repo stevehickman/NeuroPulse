@@ -3,41 +3,41 @@
  * Document: NP-FW-PBM1064-001 Rev 1 §4
  */
 
-#ifndef NP_PBM1064_TYPES_H
-#define NP_PBM1064_TYPES_H
+#ifndef NP_PBM_TYPES_H
+#define NP_PBM_TYPES_H
 
 #include <stdint.h>
 #include <stdbool.h>
 #include <stddef.h>
-#include "np_pbm1064_config.h"
+#include "np_pbm_config.h"
 
 /* ── Status codes ───────────────────────────────────────────────────────────── */
 
 typedef enum {
-    NP_PBM1064_OK                   =  0,
-    NP_PBM1064_ERR_INVALID_ARG      = -1,
-    NP_PBM1064_ERR_NOT_SMART        = -2,  /* ADC reading is base module range     */
-    NP_PBM1064_ERR_DEBOUNCE_FAIL    = -3,  /* < 2/3 ADC reads agreed              */
-    NP_PBM1064_ERR_I2C_PROBE_FAIL   = -4,  /* no ACK from driver IC at 0x30       */
-    NP_PBM1064_ERR_I2C_WRITE        = -5,
-    NP_PBM1064_ERR_I2C_READ         = -6,
-    NP_PBM1064_ERR_DRIVER_FAULT     = -7,  /* STATUS.FAULT set on driver IC       */
-    NP_PBM1064_ERR_THERMAL          = -8,
-    NP_PBM1064_ERR_OCP              = -9,  /* over-current protection triggered   */
-    NP_PBM1064_ERR_DOSE_LIMIT       = -10, /* per-wavelength dose limit reached   */
-    NP_PBM1064_ERR_IRRADIANCE_LIMIT = -11, /* aggregate irradiance ceiling        */
-    NP_PBM1064_ERR_SESSION_ACTIVE   = -12,
-    NP_PBM1064_ERR_NO_SESSION       = -13,
-    NP_PBM1064_ERR_SIG_INVALID      = -14, /* Ed25519 session descriptor failed   */
-    NP_PBM1064_ERR_ADC_TIMEOUT      = -15,
-    NP_PBM1064_ERR_SAFETY_REJECTED  = -16, /* safety MCU denied enable            */
-} np_pbm1064_status_t;
+    NP_PBM_OK                   =  0,
+    NP_PBM_ERR_INVALID_ARG      = -1,
+    NP_PBM_ERR_NOT_SMART        = -2,  /* ADC reading is base module range     */
+    NP_PBM_ERR_DEBOUNCE_FAIL    = -3,  /* < 2/3 ADC reads agreed              */
+    NP_PBM_ERR_I2C_PROBE_FAIL   = -4,  /* no ACK from driver IC at 0x30       */
+    NP_PBM_ERR_I2C_WRITE        = -5,
+    NP_PBM_ERR_I2C_READ         = -6,
+    NP_PBM_ERR_DRIVER_FAULT     = -7,  /* STATUS.FAULT set on driver IC       */
+    NP_PBM_ERR_THERMAL          = -8,
+    NP_PBM_ERR_OCP              = -9,  /* over-current protection triggered   */
+    NP_PBM_ERR_DOSE_LIMIT       = -10, /* per-wavelength dose limit reached   */
+    NP_PBM_ERR_IRRADIANCE_LIMIT = -11, /* aggregate irradiance ceiling        */
+    NP_PBM_ERR_SESSION_ACTIVE   = -12,
+    NP_PBM_ERR_NO_SESSION       = -13,
+    NP_PBM_ERR_SIG_INVALID      = -14, /* Ed25519 session descriptor failed   */
+    NP_PBM_ERR_ADC_TIMEOUT      = -15,
+    NP_PBM_ERR_SAFETY_REJECTED  = -16, /* safety MCU denied enable            */
+} np_pbm_status_t;
 
 /* ── Slot type (result of ZONE_ID ADC classification) ───────────────────────── */
 
 typedef enum {
-    NP_SLOT_ABSENT      = 0,   /* ADC ≥ NP_PBM1064_ADC_NO_MODULE_MIN            */
-    NP_SLOT_SMART       = 1,   /* ADC < NP_PBM1064_ADC_SMART_MAX; I2C driver IC  */
+    NP_SLOT_ABSENT      = 0,   /* ADC ≥ NP_PBM_ADC_NO_MODULE_MIN            */
+    NP_SLOT_SMART       = 1,   /* ADC < NP_PBM_ADC_SMART_MAX; I2C driver IC  */
     NP_SLOT_BASE_MODULE = 2,   /* ADC in base ladder range; standard 2-LED zone  */
 } np_slot_type_t;
 
@@ -74,7 +74,7 @@ typedef struct {
     np_sm_state_t  state;
     np_slot_type_t slot_type;        /* confirmed type after debounce              */
     np_tia_gain_t  tia_gain;         /* current DG2788A gain setting for this slot */
-    uint16_t       adc_reads[NP_PBM1064_DEBOUNCE_READS];
+    uint16_t       adc_reads[NP_PBM_DEBOUNCE_READS];
     uint8_t        read_count;
     uint32_t       next_read_ms;
     uint32_t       settle_until_ms;
@@ -88,17 +88,17 @@ typedef struct {
 /*
  * Mirrors hub_control's np_module_uid_t byte-for-byte without including
  * np_module_map.h (link direction: hub_control links this library, not the
- * reverse — see NP_PBM1064_MODULE_UID_LEN in np_pbm1064_config.h).
+ * reverse — see NP_PBM_MODULE_UID_LEN in np_pbm_config.h).
  *
  * An all-zero UID means "empty socket / unknown module", identically to
  * np_module_uid_is_zero() on the hub side. It is never a valid calibration key.
  */
 typedef struct {
-    uint8_t b[NP_PBM1064_MODULE_UID_LEN];
-} np_pbm1064_module_uid_t;
+    uint8_t b[NP_PBM_MODULE_UID_LEN];
+} np_pbm_module_uid_t;
 
-typedef char _np_pbm1064_uid_len_check[
-    (sizeof(np_pbm1064_module_uid_t) == 8U) ? 1 : -1];
+typedef char _np_pbm_uid_len_check[
+    (sizeof(np_pbm_module_uid_t) == 8U) ? 1 : -1];
 
 /* ── Per-MODULE, per-wavelength calibration coefficients ────────────────────────
  *
@@ -111,7 +111,7 @@ typedef struct {
     float K_PD2;          /* irradiance per ADC count from PD2                    */
     float K_ratio_nom;    /* factory-nominal PD1/PD2 ratio for this module+wl     */
     bool  valid;          /* false → use firmware defaults (SHDR: cal_source=DEF) */
-} np_pbm1064_cal_t;
+} np_pbm_cal_t;
 
 /* ── Calibration source flag (SHDR) ─────────────────────────────────────────── */
 
@@ -123,13 +123,13 @@ typedef enum {
 /* ── Per-zone dose state ─────────────────────────────────────────────────────── */
 
 typedef struct {
-    float dose_J_cm2[NP_PBM1064_WL_COUNT];        /* cumulative dose per wl       */
-    float irradiance_mW_cm2[NP_PBM1064_WL_COUNT]; /* current irradiance per wl    */
-    float pd1_counts[NP_PBM1064_WL_COUNT];         /* last ADC reading, PD1        */
-    float pd2_counts[NP_PBM1064_WL_COUNT];         /* last ADC reading, PD2        */
+    float dose_J_cm2[NP_PBM_WL_COUNT];        /* cumulative dose per wl       */
+    float irradiance_mW_cm2[NP_PBM_WL_COUNT]; /* current irradiance per wl    */
+    float pd1_counts[NP_PBM_WL_COUNT];         /* last ADC reading, PD1        */
+    float pd2_counts[NP_PBM_WL_COUNT];         /* last ADC reading, PD2        */
     float ratio_current;    /* PD1/PD2 for most recent dose tick                  */
-    bool  dose_limit_hit[NP_PBM1064_WL_COUNT]; /* channel disabled on limit        */
-} np_pbm1064_dose_state_t;
+    bool  dose_limit_hit[NP_PBM_WL_COUNT]; /* channel disabled on limit        */
+} np_pbm_dose_state_t;
 
 /* ── Per-zone preset (from session descriptor) ───────────────────────────────── */
 
@@ -138,13 +138,13 @@ typedef struct {
     uint8_t cur_b;          /* CUR_B register value (808nm)                       */
     uint8_t cur_c;          /* CUR_C register value (1064nm)                      */
     uint8_t freq_hz;        /* initial frequency (2/6/10/20/40/0)                 */
-    uint8_t duty;           /* duty value (≤ NP_PBM1064_DUTY_MAX_REG)            */
+    uint8_t duty;           /* duty value (≤ NP_PBM_DUTY_MAX_REG)            */
     uint8_t channel_mask;   /* which channels to enable (CH_A/B/C bits)           */
-} np_pbm1064_preset_t;
+} np_pbm_preset_t;
 
 /* ── Session descriptor v5 (from signed app protocol) ─────────────────────────
  *
- * Supersedes v4's 8-bit smart_module_mask + fixed zone[NP_PBM1064_ZONE_COUNT]
+ * Supersedes v4's 8-bit smart_module_mask + fixed zone[NP_PBM_ZONE_COUNT]
  * array, neither of which can name more than 5-8 of the ~30-128 sockets
  * NP-HEX-ZM-001's hex lattice actually has. Per NP-HW-HUB-001 Rev 3 §10, the
  * replacement reuses NP Hub Protocol v2's socket-bitmap representation (a
@@ -164,12 +164,12 @@ typedef struct {
  * to NP_PROTO_TARGET_SOCKET_MASK (np_hub_types.h).
  */
 typedef struct {
-    uint8_t              mask[NP_PBM1064_SOCKET_MASK_BYTES];
-    np_pbm1064_preset_t  preset;
-} np_pbm1064_preset_group_t;
+    uint8_t              mask[NP_PBM_SOCKET_MASK_BYTES];
+    np_pbm_preset_t  preset;
+} np_pbm_preset_group_t;
 
-typedef char _np_pbm1064_group_size_check[
-    (sizeof(np_pbm1064_preset_group_t) == NP_PBM1064_SOCKET_MASK_BYTES + 6U) ? 1 : -1];
+typedef char _np_pbm_group_size_check[
+    (sizeof(np_pbm_preset_group_t) == NP_PBM_SOCKET_MASK_BYTES + 6U) ? 1 : -1];
 
 /* Fixed-size wire header — 8 bytes, unchanged from v4's header size.
  * group_count replaces smart_module_mask: a plain count instead of an 8-bit
@@ -177,48 +177,48 @@ typedef char _np_pbm1064_group_size_check[
 typedef struct {
     uint8_t  version;              /* NP_SES1064_VERSION                         */
     uint8_t  eeg_adaptive_mode;    /* 0=uniform, 1=gradient (OI-SES-02)          */
-    uint8_t  group_count;          /* 0..NP_PBM1064_SESSION_MAX_PRESET_GROUPS entries follow on the wire */
+    uint8_t  group_count;          /* 0..NP_PBM_SESSION_MAX_PRESET_GROUPS entries follow on the wire */
     uint8_t  reserved0;
     uint16_t duration_s;
     uint16_t reserved1;
-} np_pbm1064_session_desc_hdr_t;
+} np_pbm_session_desc_hdr_t;
 
-typedef char _np_pbm1064_hdr_size_check[
-    (sizeof(np_pbm1064_session_desc_hdr_t) == 8U) ? 1 : -1];
+typedef char _np_pbm_hdr_size_check[
+    (sizeof(np_pbm_session_desc_hdr_t) == 8U) ? 1 : -1];
 
 /*
  * In-RAM parsed session descriptor. `groups` is a fixed capacity
- * (NP_PBM1064_SESSION_MAX_PRESET_GROUPS) so firmware can hold a parsed
+ * (NP_PBM_SESSION_MAX_PRESET_GROUPS) so firmware can hold a parsed
  * descriptor without dynamic allocation — it is NOT the wire format. Only
- * the first hdr.group_count entries are meaningful; np_pbm1064_session_desc_parse()
+ * the first hdr.group_count entries are meaningful; np_pbm_session_desc_parse()
  * zeroes the rest, and callers must never read past group_count.
  *
  * The WIRE format (what is transmitted and what the Ed25519 signature
  * covers) is variable-length: hdr (8B) + hdr.group_count * sizeof(group),
  * then the 64-byte signature — NOT hdr + MAX_PRESET_GROUPS * sizeof(group).
- * See np_pbm1064_session_desc_wire_len() / _signed_len() / _serialize() /
- * _parse() in np_pbm1064_session.h. Signing the unused group capacity would
+ * See np_pbm_session_desc_wire_len() / _signed_len() / _serialize() /
+ * _parse() in np_pbm_session.h. Signing the unused group capacity would
  * let bytes from one descriptor's padding be spliced into another's signed
  * range — the wire encoding must track group_count exactly, not sizeof(this
  * struct).
  */
 typedef struct {
-    np_pbm1064_session_desc_hdr_t hdr;
-    np_pbm1064_preset_group_t     groups[NP_PBM1064_SESSION_MAX_PRESET_GROUPS];
-    uint8_t  signature[64];        /* Ed25519; see np_pbm1064_session_desc_signed_len() */
-} np_pbm1064_session_desc_t;
+    np_pbm_session_desc_hdr_t hdr;
+    np_pbm_preset_group_t     groups[NP_PBM_SESSION_MAX_PRESET_GROUPS];
+    uint8_t  signature[64];        /* Ed25519; see np_pbm_session_desc_signed_len() */
+} np_pbm_session_desc_t;
 
 /* ── Session stage ───────────────────────────────────────────────────────────── */
 
 typedef enum {
-    NP_PBM1064_STAGE_IDLE        = 0,
-    NP_PBM1064_STAGE_PREFLIGHT   = 1,
-    NP_PBM1064_STAGE_RAMP_UP     = 2,
-    NP_PBM1064_STAGE_ACTIVE      = 3,
-    NP_PBM1064_STAGE_RAMP_DOWN   = 4,
-    NP_PBM1064_STAGE_COMPLETE    = 5,
-    NP_PBM1064_STAGE_FAULT       = 6,
-} np_pbm1064_stage_t;
+    NP_PBM_STAGE_IDLE        = 0,
+    NP_PBM_STAGE_PREFLIGHT   = 1,
+    NP_PBM_STAGE_RAMP_UP     = 2,
+    NP_PBM_STAGE_ACTIVE      = 3,
+    NP_PBM_STAGE_RAMP_DOWN   = 4,
+    NP_PBM_STAGE_COMPLETE    = 5,
+    NP_PBM_STAGE_FAULT       = 6,
+} np_pbm_stage_t;
 
 /* ── EEG-adaptive band (maps dominant freq to PWM code) ─────────────────────── */
 
@@ -233,40 +233,40 @@ typedef enum {
 /* ── Fault reason codes (SHDR safe) ─────────────────────────────────────────── */
 
 typedef enum {
-    NP_PBM1064_FAULT_NONE        = 0,
-    NP_PBM1064_FAULT_THERMAL     = 1,
-    NP_PBM1064_FAULT_OCP_A       = 2,
-    NP_PBM1064_FAULT_OCP_B       = 3,
-    NP_PBM1064_FAULT_OCP_C       = 4,
-    NP_PBM1064_FAULT_I2C_LOST    = 5,
-    NP_PBM1064_FAULT_SAFETY_MCU  = 6,
-    NP_PBM1064_FAULT_DOSE_LIMIT  = 7,
-} np_pbm1064_fault_t;
+    NP_PBM_FAULT_NONE        = 0,
+    NP_PBM_FAULT_THERMAL     = 1,
+    NP_PBM_FAULT_OCP_A       = 2,
+    NP_PBM_FAULT_OCP_B       = 3,
+    NP_PBM_FAULT_OCP_C       = 4,
+    NP_PBM_FAULT_I2C_LOST    = 5,
+    NP_PBM_FAULT_SAFETY_MCU  = 6,
+    NP_PBM_FAULT_DOSE_LIMIT  = 7,
+} np_pbm_fault_t;
 
 /* ── UHDR session record ─────────────────────────────────────────────────────── */
 
 /*
  * Per-socket dose record. Array position i corresponds to the i-th entry of
- * the session's expanded active-socket list (np_pbm1064_session_desc_expand()),
+ * the session's expanded active-socket list (np_pbm_session_desc_expand()),
  * NOT array-index == socket_id — a session may address any subset of the
  * 128-socket domain, not just the lowest-numbered ones, so socket_id is
  * carried explicitly per entry.
  */
 typedef struct {
     uint8_t socket_id;
-    float   dose_J_cm2[NP_PBM1064_WL_COUNT];
-} np_pbm1064_socket_dose_record_t;
+    float   dose_J_cm2[NP_PBM_WL_COUNT];
+} np_pbm_socket_dose_record_t;
 
 typedef struct {
     uint32_t session_start_unix;
     uint32_t duration_s;
     uint8_t  active_socket_count;    /* populated entries in `sockets`            */
     uint8_t  eeg_adaptive_mode;
-    uint8_t  abort_reason;           /* 0=normal; else np_pbm1064_status_t        */
+    uint8_t  abort_reason;           /* 0=normal; else np_pbm_status_t        */
     uint8_t  reserved;
-    np_pbm1064_socket_dose_record_t sockets[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS];
+    np_pbm_socket_dose_record_t sockets[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
     uint16_t eeg_adapt_event_count;  /* number of freq code changes during session */
-} np_pbm1064_session_record_t;
+} np_pbm_session_record_t;
 
 /* ── SHDR session summary (no user biology) ──────────────────────────────────── */
 
@@ -287,25 +287,25 @@ typedef struct {
      * "calibration travels WITH the module".
      */
     uint8_t cal_source;
-} np_pbm1064_socket_shdr_t;
+} np_pbm_socket_shdr_t;
 
 typedef struct {
     uint8_t  active_socket_count;    /* populated entries in `sockets`            */
     uint32_t duration_s;
     uint8_t  abort_reason;
-    uint8_t  fault_reason;           /* np_pbm1064_fault_t                        */
+    uint8_t  fault_reason;           /* np_pbm_fault_t                        */
     /*
-     * cal_source moved into np_pbm1064_socket_shdr_t below when OI-HUB-C06's
+     * cal_source moved into np_pbm_socket_shdr_t below when OI-HUB-C06's
      * UID keying landed. It was a single session-uniform byte only while the
      * loader ignored which module it was loading for; once calibration is
      * keyed to module UID it genuinely varies socket-to-socket within one
      * session, and a session-wide byte would have to report the optimistic
      * value for all of them.
      */
-    np_pbm1064_socket_shdr_t sockets[NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS];
+    np_pbm_socket_shdr_t sockets[NP_PBM_SESSION_MAX_ACTIVE_SOCKETS];
     uint8_t  ocp_event_count;
     uint8_t  thermal_event_count;
-} np_pbm1064_shdr_summary_t;
+} np_pbm_shdr_summary_t;
 
 /* ── SHDR fault log entry ─────────────────────────────────────────────────────── */
 
@@ -313,21 +313,21 @@ typedef struct {
     uint32_t device_session_count;   /* unsigned; no timestamp                    */
     uint8_t  socket_id;
     uint8_t  channel;                /* 0=A, 1=B, 2=C, 0xFF=all                  */
-    uint8_t  fault_reason;           /* np_pbm1064_fault_t                        */
+    uint8_t  fault_reason;           /* np_pbm_fault_t                        */
     uint8_t  status_reg_value;       /* STATUS register at time of fault          */
-} np_pbm1064_shdr_fault_entry_t;
+} np_pbm_shdr_fault_entry_t;
 
 /* ── Display state (app receives live session updates) ───────────────────────── */
 
 typedef struct {
-    np_pbm1064_stage_t stage;
+    np_pbm_stage_t stage;
     float              stim_progress_pct;   /* 0–100                              */
     float              dose_J_cm2_total;    /* sum across all zones and wl        */
     float              irradiance_mW_cm2;   /* current aggregate                  */
     float              ntc_temp_c;          /* warmest zone NTC                   */
-    np_pbm1064_fault_t fault_reason;
+    np_pbm_fault_t fault_reason;
     uint8_t            ch_enable_mask;      /* current CH_ENABLE state            */
-} np_pbm1064_display_state_t;
+} np_pbm_display_state_t;
 
 /* ── T2 combined session status ──────────────────────────────────────────────── */
 
@@ -343,17 +343,17 @@ typedef enum {
 
 /* ── Callbacks ───────────────────────────────────────────────────────────────── */
 
-typedef void (*np_pbm1064_session_end_cb_t)(
-    const np_pbm1064_session_record_t *record,
-    np_pbm1064_status_t                result);
+typedef void (*np_pbm_session_end_cb_t)(
+    const np_pbm_session_record_t *record,
+    np_pbm_status_t                result);
 
-typedef void (*np_pbm1064_fault_cb_t)(
-    uint8_t slot, np_pbm1064_fault_t reason);
+typedef void (*np_pbm_fault_cb_t)(
+    uint8_t slot, np_pbm_fault_t reason);
 
-typedef void (*np_pbm1064_display_cb_t)(
-    const np_pbm1064_display_state_t *state);
+typedef void (*np_pbm_display_cb_t)(
+    const np_pbm_display_state_t *state);
 
-typedef void (*np_pbm1064_remove_cb_t)(uint8_t slot);
+typedef void (*np_pbm_remove_cb_t)(uint8_t slot);
 
 /* ── FAI test result ─────────────────────────────────────────────────────────── */
 
@@ -362,7 +362,7 @@ typedef struct {
     const char *description;
     bool        passed;
     const char *details;
-} np_pbm1064_fai_result_t;
+} np_pbm_fai_result_t;
 
 /* ═══════════════════════════════════════════════════════════════════════════════
  * T2 combined session types — NP-SES-1064-001 §6
@@ -381,34 +381,34 @@ typedef struct {
 /*
  * Signed by the app Ed25519 key.  Hub firmware verifies the signature before
  * any laser enable.  Carries the 1064nm sub-descriptor's header + preset
- * groups (NOT a nested np_pbm1064_session_desc_t) plus 1170nm laser params
+ * groups (NOT a nested np_pbm_session_desc_t) plus 1170nm laser params
  * and optional sLORETA coordination flags.
  *
- * The 1064nm fields are inlined rather than embedding np_pbm1064_session_desc_t
+ * The 1064nm fields are inlined rather than embedding np_pbm_session_desc_t
  * by value so there is exactly ONE signature field in this struct: v4 embedded
  * the sub-descriptor (including ITS OWN unused signature[64] field) by value,
  * which read as if the inner descriptor could be independently verified when
- * only the outer signature ever was. np_pbm1064_t2_start_combined() builds a
- * standalone np_pbm1064_session_desc_t from pbm1064_hdr + pbm1064_groups to
- * hand to np_pbm1064_session_start().
+ * only the outer signature ever was. np_pbm_t2_start_combined() builds a
+ * standalone np_pbm_session_desc_t from pbm1064_hdr + pbm1064_groups to
+ * hand to np_pbm_session_start().
  */
 typedef struct {
     uint8_t  version;              /* NP_T2_COMBINED_VERSION (0x01)                */
     uint8_t  t2_combined_enable;   /* 1 = activate 1170nm laser                    */
     uint8_t  sloreta_enable;       /* 1 = read sLORETA MNI target at session start  */
     uint8_t  reserved;
-    np_pbm1064_session_desc_hdr_t pbm1064_hdr;
-    np_pbm1064_preset_group_t     pbm1064_groups[NP_PBM1064_SESSION_MAX_PRESET_GROUPS];
+    np_pbm_session_desc_hdr_t pbm1064_hdr;
+    np_pbm_preset_group_t     pbm1064_groups[NP_PBM_SESSION_MAX_PRESET_GROUPS];
     np_t2_1170_preset_t           laser1170;
     uint8_t  signature[64];        /* Ed25519 over all preceding fields, up to
                                      * pbm1064_hdr.group_count groups — see
-                                     * np_pbm1064_t2_combined_desc_signed_len() */
+                                     * np_pbm_t2_combined_desc_signed_len() */
 } np_t2_combined_desc_t;
 
 /* ── T2 combined UHDR session record ─────────────────────────────────────────── */
 
 typedef struct {
-    np_pbm1064_session_record_t pbm1064_record; /* 1064nm per-zone, per-wl dose     */
+    np_pbm_session_record_t pbm1064_record; /* 1064nm per-zone, per-wl dose     */
 
     /* 1170nm deep laser metrics */
     float    dose_1170_J_cm2;           /* total subcortical dose this session       */
@@ -421,24 +421,24 @@ typedef struct {
     int16_t  sloreta_mni_y;            /* MNI Y coordinate (mm)                     */
     int16_t  sloreta_mni_z;            /* MNI Z coordinate (mm)                     */
     uint8_t  sloreta_valid;            /* 1 = coordinates were read from sLORETA     */
-    uint8_t  abort_reason;             /* 0 = normal; else np_pbm1064_fault_t       */
+    uint8_t  abort_reason;             /* 0 = normal; else np_pbm_fault_t       */
     uint32_t duration_s;               /* actual session duration                   */
 } np_t2_combined_uhdr_record_t;
 
 /* ── T2 combined SHDR session summary (no user biology) ─────────────────────── */
 
 typedef struct {
-    np_pbm1064_shdr_summary_t pbm1064_shdr; /* 1064nm device health metrics        */
+    np_pbm_shdr_summary_t pbm1064_shdr; /* 1064nm device health metrics        */
 
     /* 1170nm device health metrics (device condition — no user biology) */
     uint8_t  tec_throttle_events;       /* count of TEC temp threshold crossings    */
     uint8_t  laser_fault_flag;          /* 1 = 1170nm module reported a fault       */
     uint8_t  sloreta_session_flag;      /* 1 = sLORETA target was read at start      */
-    uint8_t  abort_reason;              /* np_pbm1064_fault_t; 0 = normal           */
+    uint8_t  abort_reason;              /* np_pbm_fault_t; 0 = normal           */
     uint32_t duration_s;
 } np_t2_combined_shdr_summary_t;
 
 /* ── T2 combined stage (mirrors np_t2_stage_t; aliased for clarity) ──────────── */
 /* np_t2_stage_t defined above is reused for the combined session. */
 
-#endif /* NP_PBM1064_TYPES_H */
+#endif /* NP_PBM_TYPES_H */

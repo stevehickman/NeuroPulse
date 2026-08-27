@@ -11,33 +11,33 @@
  *   Blocking for full G2/G3 gate closure (NP-COORD-001).
  */
 
-#include "np_pbm1064_fai.h"
-#include "np_pbm1064_detect.h"
-#include "np_pbm1064_drive.h"
-#include "np_pbm1064_dose.h"
-#include "np_pbm1064_session.h"
-#include "np_pbm1064_t2_combined.h"
-#include "np_pbm1064_hal.h"
+#include "np_pbm_fai.h"
+#include "np_pbm_detect.h"
+#include "np_pbm_drive.h"
+#include "np_pbm_dose.h"
+#include "np_pbm_session.h"
+#include "np_pbm_t2_combined.h"
+#include "np_pbm_hal.h"
 #include <string.h>
 #include <stdbool.h>
 
 /* ── Result constructors ─────────────────────────────────────────────────────── */
 
-static np_pbm1064_fai_result_t fai_pass(const char *id, const char *desc,
+static np_pbm_fai_result_t fai_pass(const char *id, const char *desc,
                                           const char *detail)
 {
-    return (np_pbm1064_fai_result_t){ id, desc, true, detail };
+    return (np_pbm_fai_result_t){ id, desc, true, detail };
 }
 
-static np_pbm1064_fai_result_t fai_fail(const char *id, const char *desc,
+static np_pbm_fai_result_t fai_fail(const char *id, const char *desc,
                                           const char *detail)
 {
-    return (np_pbm1064_fai_result_t){ id, desc, false, detail };
+    return (np_pbm_fai_result_t){ id, desc, false, detail };
 }
 
-static np_pbm1064_fai_result_t fai_pending(const char *id, const char *desc)
+static np_pbm_fai_result_t fai_pending(const char *id, const char *desc)
 {
-    return (np_pbm1064_fai_result_t){
+    return (np_pbm_fai_result_t){
         id, desc, false,
         "PENDING: hardware bench required (calibrated 1064nm optical bench + physical module)"
     };
@@ -45,7 +45,7 @@ static np_pbm1064_fai_result_t fai_pending(const char *id, const char *desc)
 
 /* ── FAI-SM-01: Smart module ADC detection, all 5 slots ─────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_sm01(void)
+np_pbm_fai_result_t np_pbm_fai_sm01(void)
 {
     /* Smart module nominal (3.3 kΩ): 1016 counts → SMART. */
     static const struct { uint16_t adc; np_slot_type_t expected; } cases[] = {
@@ -65,7 +65,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm01(void)
     };
 
     for (size_t i = 0; i < sizeof(cases) / sizeof(cases[0]); i++) {
-        np_slot_type_t got = np_pbm1064_classify_adc(cases[i].adc);
+        np_slot_type_t got = np_pbm_classify_adc(cases[i].adc);
         if (got != cases[i].expected) {
             return fai_fail("FAI-SM-01",
                 "Smart module ADC detection, all 5 slots",
@@ -80,20 +80,20 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm01(void)
 
 /* ── FAI-SM-02: I2C probe ACK, 50-cycle insertion test ──────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_sm02(void)
+np_pbm_fai_result_t np_pbm_fai_sm02(void)
 {
     /* HAL stub returns ACK for slot 0 at address 0x30 only. */
     uint32_t ack_count = 0;
     uint32_t nak_count = 0;
 
     for (uint32_t cycle = 0; cycle < 50U; cycle++) {
-        bool ack = np_pbm1064_hal_i2c_probe(0U, NP_PBM1064_I2C_ADDR,
-                                              NP_PBM1064_I2C_PROBE_TIMEOUT_MS);
+        bool ack = np_pbm_hal_i2c_probe(0U, NP_PBM_I2C_ADDR,
+                                              NP_PBM_I2C_PROBE_TIMEOUT_MS);
         if (ack) { ack_count++; } else { nak_count++; }
 
         /* Verify that a non-smart slot (slot 1) does NOT probe ACK. */
-        bool no_ack = np_pbm1064_hal_i2c_probe(1U, NP_PBM1064_I2C_ADDR,
-                                                  NP_PBM1064_I2C_PROBE_TIMEOUT_MS);
+        bool no_ack = np_pbm_hal_i2c_probe(1U, NP_PBM_I2C_ADDR,
+                                                  NP_PBM_I2C_PROBE_TIMEOUT_MS);
         if (no_ack) { nak_count++; } /* base module slot must NAK */
     }
 
@@ -115,7 +115,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm02(void)
 
 /* ── FAI-SM-03: Base module backwards compatibility, all 5 variants ─────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_sm03(void)
+np_pbm_fai_result_t np_pbm_fai_sm03(void)
 {
     /*
      * Verify that base module ADC values (ZM-01 through ZM-05) are never
@@ -131,15 +131,15 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm03(void)
     };
 
     for (size_t i = 0; i < 5U; i++) {
-        np_slot_type_t t = np_pbm1064_classify_adc(base_mods[i].adc);
+        np_slot_type_t t = np_pbm_classify_adc(base_mods[i].adc);
         if (t != NP_SLOT_BASE_MODULE) {
             return fai_fail("FAI-SM-03",
                 "Base module backwards compatibility, all 5 variants",
                 "Base module ADC value misclassified (not NP_SLOT_BASE_MODULE)");
         }
         /* Verify no I2C probe would occur: stub returns NAK for these slots. */
-        bool ack = np_pbm1064_hal_i2c_probe((uint8_t)(i + 1U),
-                                              NP_PBM1064_I2C_ADDR, 5U);
+        bool ack = np_pbm_hal_i2c_probe((uint8_t)(i + 1U),
+                                              NP_PBM_I2C_ADDR, 5U);
         if (ack) {
             return fai_fail("FAI-SM-03",
                 "Base module backwards compatibility, all 5 variants",
@@ -155,7 +155,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm03(void)
 
 /* ── FAI-SM-04: Hardware bench — PENDING ────────────────────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_sm04(void)
+np_pbm_fai_result_t np_pbm_fai_sm04(void)
 {
     return fai_pending("FAI-SM-04",
         "Three-channel simultaneous operation ±10% irradiance "
@@ -164,11 +164,11 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm04(void)
 
 /* ── FAI-SM-05: Duty cycle ceiling clamped at 25% ───────────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_sm05(void)
+np_pbm_fai_result_t np_pbm_fai_sm05(void)
 {
-    np_pbm1064_drv_slot_t drv;
+    np_pbm_drv_slot_t drv;
     memset(&drv, 0, sizeof(drv));
-    drv.ch_enable = NP_PBM1064_CH_ALL_EN;
+    drv.ch_enable = NP_PBM_CH_ALL_EN;
 
     /* Test values: all above and at the 25% ceiling. */
     static const uint8_t test_duties[] = {
@@ -184,12 +184,12 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm05(void)
     };
 
     for (size_t i = 0; i < sizeof(test_duties); i++) {
-        np_pbm1064_status_t rc = np_pbm1064_drive_set_duty(
-            0U, &drv, NP_PBM1064_CH_ALL_EN, test_duties[i]);
-        if (rc != NP_PBM1064_OK) {
+        np_pbm_status_t rc = np_pbm_drive_set_duty(
+            0U, &drv, NP_PBM_CH_ALL_EN, test_duties[i]);
+        if (rc != NP_PBM_OK) {
             return fai_fail("FAI-SM-05",
                 "Duty cycle ceiling clamped at 25%",
-                "np_pbm1064_drive_set_duty returned error");
+                "np_pbm_drive_set_duty returned error");
         }
         /* Check actual duty written to register shadow (via HAL stub). */
         if (drv.duty[0] != expected[i] ||
@@ -204,26 +204,26 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm05(void)
     return fai_pass("FAI-SM-05",
         "Duty cycle ceiling clamped at 25%",
         "All 6 duty test vectors correctly clamped to ≤ 0x32; "
-        "np_pbm1064_drive_set_duty enforces ceiling unconditionally");
+        "np_pbm_drive_set_duty enforces ceiling unconditionally");
 }
 
 /* ── FAI-SM-06/07/08: Hardware bench — PENDING ───────────────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_sm06(void)
+np_pbm_fai_result_t np_pbm_fai_sm06(void)
 {
     return fai_pending("FAI-SM-06",
         "InGaAs dose metering ≤ ±15% error at 100 mW/cm² reference "
         "(requires calibrated 1064nm optical bench + OI-PBM-04 factory cal)");
 }
 
-np_pbm1064_fai_result_t np_pbm1064_fai_sm07(void)
+np_pbm_fai_result_t np_pbm_fai_sm07(void)
 {
     return fai_pending("FAI-SM-07",
         "Fouling detection via PD1/PD2 ratio "
         "(PD1 attenuated ≥20% by PDMS fouling; PD2 stable)");
 }
 
-np_pbm1064_fai_result_t np_pbm1064_fai_sm08(void)
+np_pbm_fai_result_t np_pbm_fai_sm08(void)
 {
     return fai_pending("FAI-SM-08",
         "Aging detection via PD1/PD2 ratio "
@@ -232,14 +232,14 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm08(void)
 
 /* ── FAI-SM-09: Aggregate thermal throttle cascade ───────────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_sm09(void)
+np_pbm_fai_result_t np_pbm_fai_sm09(void)
 {
     /*
      * Verify throttle cascade priority: 1170nm (T2 API) → CH_C → CH_B → CH_A.
-     * Use np_pbm1064_t2_apply_thermal_throttle and check state flags.
+     * Use np_pbm_t2_apply_thermal_throttle and check state flags.
      */
-    np_pbm1064_t2_ctx_t ctx;
-    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
+    np_pbm_t2_ctx_t ctx;
+    np_pbm_t2_init(&ctx, NULL, NULL, 0U);
     ctx.stage                  = NP_T2_STAGE_ACTIVE;
     ctx.t2_1170_active         = true;
     ctx.t2_1170_duty_pct       = 100U;
@@ -247,17 +247,17 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm09(void)
     /* Set up one active socket with all channels enabled at max duty. */
     ctx.pbm1064.active_socket_count = 1U;
     ctx.pbm1064.active_socket_id[0] = 0U;
-    ctx.pbm1064.drv[0].ch_enable = NP_PBM1064_CH_ALL_EN;
-    ctx.pbm1064.drv[0].duty[0]   = NP_PBM1064_DUTY_MAX_REG;
-    ctx.pbm1064.drv[0].duty[1]   = NP_PBM1064_DUTY_MAX_REG;
-    ctx.pbm1064.drv[0].duty[2]   = NP_PBM1064_DUTY_MAX_REG;
+    ctx.pbm1064.drv[0].ch_enable = NP_PBM_CH_ALL_EN;
+    ctx.pbm1064.drv[0].duty[0]   = NP_PBM_DUTY_MAX_REG;
+    ctx.pbm1064.drv[0].duty[1]   = NP_PBM_DUTY_MAX_REG;
+    ctx.pbm1064.drv[0].duty[2]   = NP_PBM_DUTY_MAX_REG;
     /* Simulate 650 mW/cm² aggregate (above 600 limit). */
     ctx.pbm1064.dose[0].irradiance_mW_cm2[0] = 200.0f;
     ctx.pbm1064.dose[0].irradiance_mW_cm2[1] = 200.0f;
     ctx.pbm1064.dose[0].irradiance_mW_cm2[2] = 250.0f;
 
     /* Step 1: Apply 10% throttle — should hit 1170nm first. */
-    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.10f);
+    np_pbm_t2_apply_thermal_throttle(&ctx, 0.10f);
     if (!ctx.throttle_1170_applied) {
         return fai_fail("FAI-SM-09",
             "Aggregate thermal throttle cascade",
@@ -270,7 +270,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm09(void)
     }
 
     /* Step 2: Apply further throttle — now 1170nm already applied, should hit CH_C. */
-    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.30f);
+    np_pbm_t2_apply_thermal_throttle(&ctx, 0.30f);
     if (!ctx.throttle_ch_c_applied) {
         return fai_fail("FAI-SM-09",
             "Aggregate thermal throttle cascade",
@@ -285,7 +285,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm09(void)
 
 /* ── FAI-SM-10: T2 combined session state machine ───────────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_sm10(void)
+np_pbm_fai_result_t np_pbm_fai_sm10(void)
 {
     /*
      * Verify T2 combined session state machine stage transitions using stub API.
@@ -293,43 +293,43 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm10(void)
      * Uses a minimal session descriptor with group_count = 0 (no active
      * sockets) so inner session_start bypasses hardware preflight.
      */
-    np_pbm1064_t2_ctx_t ctx;
-    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
+    np_pbm_t2_ctx_t ctx;
+    np_pbm_t2_init(&ctx, NULL, NULL, 0U);
 
-    if (np_pbm1064_t2_stage(&ctx) != NP_T2_STAGE_IDLE) {
+    if (np_pbm_t2_stage(&ctx) != NP_T2_STAGE_IDLE) {
         return fai_fail("FAI-SM-10",
             "T2 combined session state machine",
             "Initial stage is not NP_T2_STAGE_IDLE");
     }
 
     /* Build a minimal valid session descriptor with no preset groups. */
-    np_pbm1064_session_desc_t desc;
+    np_pbm_session_desc_t desc;
     memset(&desc, 0, sizeof(desc));
     desc.hdr.version      = NP_SES1064_VERSION;
     desc.hdr.group_count  = 0U;  /* no active sockets → preflight is trivial */
     desc.hdr.duration_s   = 62U; /* 62 s = 30 ramp up + 2 active + 30 ramp dn */
 
-    np_pbm1064_status_t rc = np_pbm1064_t2_start(&ctx, &desc);
-    if (rc != NP_PBM1064_OK) {
+    np_pbm_status_t rc = np_pbm_t2_start(&ctx, &desc);
+    if (rc != NP_PBM_OK) {
         return fai_fail("FAI-SM-10",
             "T2 combined session state machine",
-            "np_pbm1064_t2_start returned error with empty slot mask");
+            "np_pbm_t2_start returned error with empty slot mask");
     }
 
-    if (np_pbm1064_t2_stage(&ctx) != NP_T2_STAGE_RAMP_UP) {
+    if (np_pbm_t2_stage(&ctx) != NP_T2_STAGE_RAMP_UP) {
         return fai_fail("FAI-SM-10",
             "T2 combined session state machine",
             "Stage is not NP_T2_STAGE_RAMP_UP after start");
     }
 
     /* Abort test: verify abort transitions to FAULT. */
-    rc = np_pbm1064_t2_abort(&ctx, NP_PBM1064_FAULT_THERMAL);
-    if (rc != NP_PBM1064_OK) {
+    rc = np_pbm_t2_abort(&ctx, NP_PBM_FAULT_THERMAL);
+    if (rc != NP_PBM_OK) {
         return fai_fail("FAI-SM-10",
             "T2 combined session state machine",
-            "np_pbm1064_t2_abort returned error");
+            "np_pbm_t2_abort returned error");
     }
-    if (np_pbm1064_t2_stage(&ctx) != NP_T2_STAGE_FAULT) {
+    if (np_pbm_t2_stage(&ctx) != NP_T2_STAGE_FAULT) {
         return fai_fail("FAI-SM-10",
             "T2 combined session state machine",
             "Stage is not NP_T2_STAGE_FAULT after abort");
@@ -345,12 +345,12 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm10(void)
 
 /* ── FAI-SM-11: UHDR/SHDR data routing boundary test ────────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_sm11(void)
+np_pbm_fai_result_t np_pbm_fai_sm11(void)
 {
     /*
      * Verify that:
-     * (a) Raw PD1/PD2 counts are stored in np_pbm1064_dose_state_t (UHDR path).
-     * (b) Only the ratio (not raw counts) is passed to np_pbm1064_hal_shdr_log_fault.
+     * (a) Raw PD1/PD2 counts are stored in np_pbm_dose_state_t (UHDR path).
+     * (b) Only the ratio (not raw counts) is passed to np_pbm_hal_shdr_log_fault.
      * (c) The SHDR session summary contains no per-sample PD counts.
      * (d) The UHDR session record contains per-zone, per-wavelength dose.
      *
@@ -359,21 +359,21 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm11(void)
      */
 
     /* (a) Run a dose tick and verify PD counts are captured in dose_state. */
-    np_pbm1064_dose_state_t dose;
-    np_pbm1064_dose_reset(&dose);
+    np_pbm_dose_state_t dose;
+    np_pbm_dose_reset(&dose);
 
     /* NULL UID → firmware defaults, NP_CAL_DEFAULT (OI-HUB-C06). This FAI
      * exercises the UHDR/SHDR routing boundary, not calibration provenance, so
      * the default coefficients are the right input here. */
-    np_pbm1064_cal_t cal[NP_PBM1064_WL_COUNT];
-    (void)np_pbm1064_dose_load_cal(NULL, cal);
+    np_pbm_cal_t cal[NP_PBM_WL_COUNT];
+    (void)np_pbm_dose_load_cal(NULL, cal);
 
-    np_pbm1064_status_t rc = np_pbm1064_dose_tick(0U, cal, &dose);
+    np_pbm_status_t rc = np_pbm_dose_tick(0U, cal, &dose);
     /* Expect OK (stub returns counts below dose limit). */
-    if (rc != NP_PBM1064_OK && rc != NP_PBM1064_ERR_DOSE_LIMIT) {
+    if (rc != NP_PBM_OK && rc != NP_PBM_ERR_DOSE_LIMIT) {
         return fai_fail("FAI-SM-11",
             "UHDR/SHDR data routing boundary test",
-            "np_pbm1064_dose_tick returned unexpected error");
+            "np_pbm_dose_tick returned unexpected error");
     }
 
     /* Verify PD1 counts captured (stub returns 1136 for slot 0, PD1). */
@@ -399,25 +399,25 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm11(void)
 
     /* (c) Confirm SHDR summary struct contains no raw PD count fields. */
     /*
-     * Static assert: np_pbm1064_shdr_summary_t must not contain pd1_counts
+     * Static assert: np_pbm_shdr_summary_t must not contain pd1_counts
      * or pd2_counts fields.  This is enforced by the type definition in
-     * np_pbm1064_types.h (reviewed manually; no raw per-sample PD fields exist).
+     * np_pbm_types.h (reviewed manually; no raw per-sample PD fields exist).
      * Runtime check: the struct size must not exceed what its declared
      * per-socket entries account for — a formula, not a hardcoded literal,
      * because the socket-indexed v5 struct legitimately grew (5 → up to
-     * NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS entries) without adding any new
+     * NP_PBM_SESSION_MAX_ACTIVE_SOCKETS entries) without adding any new
      * per-sample or user-biology field; only a size beyond that budget would
      * indicate an accidentally-included large field.
      */
-    if (sizeof(np_pbm1064_shdr_summary_t) >
-        (size_t)NP_PBM1064_SESSION_MAX_ACTIVE_SOCKETS * sizeof(np_pbm1064_socket_shdr_t) + 32U) {
+    if (sizeof(np_pbm_shdr_summary_t) >
+        (size_t)NP_PBM_SESSION_MAX_ACTIVE_SOCKETS * sizeof(np_pbm_socket_shdr_t) + 32U) {
         return fai_fail("FAI-SM-11",
             "UHDR/SHDR data routing boundary test",
-            "np_pbm1064_shdr_summary_t unexpectedly large — may contain UHDR data");
+            "np_pbm_shdr_summary_t unexpectedly large — may contain UHDR data");
     }
 
     /* (d) Verify UHDR session record has dose fields per socket per wavelength. */
-    np_pbm1064_session_record_t rec;
+    np_pbm_session_record_t rec;
     memset(&rec, 0, sizeof(rec));
     rec.sockets[0].socket_id = 0U;
     rec.sockets[0].dose_J_cm2[NP_WL_1064NM] = 1.5f; /* simulated accumulated dose */
@@ -432,34 +432,34 @@ np_pbm1064_fai_result_t np_pbm1064_fai_sm11(void)
         "UHDR/SHDR data routing boundary test",
         "PD1/PD2 raw counts captured in dose_state (UHDR); "
         "ratio_current (not raw counts) in SHDR fault log; "
-        "np_pbm1064_shdr_summary_t contains no per-sample PD count fields, "
+        "np_pbm_shdr_summary_t contains no per-sample PD count fields, "
         "sized to the per-socket entry budget; "
         "UHDR session record contains per-socket per-wavelength dose (J/cm²).");
 }
 
 /* ── FAI-T2-01: Combined session descriptor validation ───────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_t2_01(void)
+np_pbm_fai_result_t np_pbm_fai_t2_01(void)
 {
     /*
-     * Verify that np_pbm1064_t2_start_combined() rejects:
+     * Verify that np_pbm_t2_start_combined() rejects:
      *   (a) NULL descriptor
      *   (b) Wrong version number
      *   (c) Correct descriptor is accepted (version = NP_T2_COMBINED_VERSION)
      *
-     * Also verify that the legacy np_pbm1064_t2_start() path still initialises
+     * Also verify that the legacy np_pbm_t2_start() path still initialises
      * the combined context correctly (backwards-compatibility).
      */
 
-    np_pbm1064_t2_ctx_t ctx;
-    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
+    np_pbm_t2_ctx_t ctx;
+    np_pbm_t2_init(&ctx, NULL, NULL, 0U);
 
     /* (a) NULL descriptor → ERR_SIG_INVALID. */
-    np_pbm1064_status_t rc = np_pbm1064_t2_start_combined(&ctx, NULL);
-    if (rc != NP_PBM1064_ERR_SIG_INVALID) {
+    np_pbm_status_t rc = np_pbm_t2_start_combined(&ctx, NULL);
+    if (rc != NP_PBM_ERR_SIG_INVALID) {
         return fai_fail("FAI-T2-01",
             "Combined session descriptor validation",
-            "NULL descriptor did not return NP_PBM1064_ERR_SIG_INVALID");
+            "NULL descriptor did not return NP_PBM_ERR_SIG_INVALID");
     }
 
     /* (b) Wrong version → ERR_SIG_INVALID. */
@@ -467,11 +467,11 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_01(void)
     memset(&bad_desc, 0, sizeof(bad_desc));
     bad_desc.version = 0xFFU;
 
-    rc = np_pbm1064_t2_start_combined(&ctx, &bad_desc);
-    if (rc != NP_PBM1064_ERR_SIG_INVALID) {
+    rc = np_pbm_t2_start_combined(&ctx, &bad_desc);
+    if (rc != NP_PBM_ERR_SIG_INVALID) {
         return fai_fail("FAI-T2-01",
             "Combined session descriptor validation",
-            "Bad version did not return NP_PBM1064_ERR_SIG_INVALID");
+            "Bad version did not return NP_PBM_ERR_SIG_INVALID");
     }
 
     /* (c) Valid combined descriptor accepted. */
@@ -485,20 +485,20 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_01(void)
     desc.pbm1064_hdr.duration_s  = 62U;
     desc.laser1170.duty_pct  = 80U;
 
-    rc = np_pbm1064_t2_start_combined(&ctx, &desc);
-    if (rc != NP_PBM1064_OK) {
+    rc = np_pbm_t2_start_combined(&ctx, &desc);
+    if (rc != NP_PBM_OK) {
         return fai_fail("FAI-T2-01",
             "Combined session descriptor validation",
             "Valid combined descriptor returned error on start_combined");
     }
-    if (np_pbm1064_t2_stage(&ctx) != NP_T2_STAGE_RAMP_UP) {
+    if (np_pbm_t2_stage(&ctx) != NP_T2_STAGE_RAMP_UP) {
         return fai_fail("FAI-T2-01",
             "Combined session descriptor validation",
             "Stage is not NP_T2_STAGE_RAMP_UP after successful start");
     }
 
     /* Verify sLORETA target was read and logged to combined record. */
-    const np_t2_combined_uhdr_record_t *rec = np_pbm1064_t2_get_combined_record(&ctx);
+    const np_t2_combined_uhdr_record_t *rec = np_pbm_t2_get_combined_record(&ctx);
     if (!rec->sloreta_valid) {
         return fai_fail("FAI-T2-01",
             "Combined session descriptor validation",
@@ -513,7 +513,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_01(void)
     }
 
     /* Abort to clean up. */
-    np_pbm1064_t2_abort(&ctx, NP_PBM1064_FAULT_NONE);
+    np_pbm_t2_abort(&ctx, NP_PBM_FAULT_NONE);
 
     return fai_pass("FAI-T2-01",
         "Combined session descriptor validation",
@@ -524,7 +524,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_01(void)
 
 /* ── FAI-T2-02: Full 4-step thermal throttle cascade ────────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_t2_02(void)
+np_pbm_fai_result_t np_pbm_fai_t2_02(void)
 {
     /*
      * Verify the complete 4-step cascade:
@@ -535,8 +535,8 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_02(void)
      *
      * Each call to apply_thermal_throttle advances one step.
      */
-    np_pbm1064_t2_ctx_t ctx;
-    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
+    np_pbm_t2_ctx_t ctx;
+    np_pbm_t2_init(&ctx, NULL, NULL, 0U);
 
     /* Set up active state with all channels enabled. */
     ctx.stage                   = NP_T2_STAGE_ACTIVE;
@@ -546,13 +546,13 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_02(void)
 
     ctx.pbm1064.active_socket_count = 1U;
     ctx.pbm1064.active_socket_id[0] = 0U;
-    ctx.pbm1064.drv[0].ch_enable = NP_PBM1064_CH_ALL_EN;
-    ctx.pbm1064.drv[0].duty[0]   = NP_PBM1064_DUTY_MAX_REG; /* CH_A */
-    ctx.pbm1064.drv[0].duty[1]   = NP_PBM1064_DUTY_MAX_REG; /* CH_B */
-    ctx.pbm1064.drv[0].duty[2]   = NP_PBM1064_DUTY_MAX_REG; /* CH_C */
+    ctx.pbm1064.drv[0].ch_enable = NP_PBM_CH_ALL_EN;
+    ctx.pbm1064.drv[0].duty[0]   = NP_PBM_DUTY_MAX_REG; /* CH_A */
+    ctx.pbm1064.drv[0].duty[1]   = NP_PBM_DUTY_MAX_REG; /* CH_B */
+    ctx.pbm1064.drv[0].duty[2]   = NP_PBM_DUTY_MAX_REG; /* CH_C */
 
     /* Step 1 — throttle 1170nm. */
-    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.25f);
+    np_pbm_t2_apply_thermal_throttle(&ctx, 0.25f);
     if (!ctx.throttle_1170_applied) {
         return fai_fail("FAI-T2-02",
             "Full 4-step thermal throttle cascade",
@@ -571,7 +571,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_02(void)
     }
 
     /* Step 2 — throttle CH_C. */
-    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.25f);
+    np_pbm_t2_apply_thermal_throttle(&ctx, 0.25f);
     if (!ctx.throttle_ch_c_applied) {
         return fai_fail("FAI-T2-02",
             "Full 4-step thermal throttle cascade",
@@ -584,7 +584,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_02(void)
     }
 
     /* Step 3 — throttle CH_B. */
-    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.25f);
+    np_pbm_t2_apply_thermal_throttle(&ctx, 0.25f);
     if (!ctx.throttle_ch_b_applied) {
         return fai_fail("FAI-T2-02",
             "Full 4-step thermal throttle cascade",
@@ -597,7 +597,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_02(void)
     }
 
     /* Step 4 — throttle CH_A (last resort). */
-    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.25f);
+    np_pbm_t2_apply_thermal_throttle(&ctx, 0.25f);
     if (!ctx.throttle_ch_a_applied) {
         return fai_fail("FAI-T2-02",
             "Full 4-step thermal throttle cascade",
@@ -606,7 +606,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_02(void)
 
     /* Extra call — no-op (all steps exhausted). */
     uint8_t duty_ch_a_before = ctx.pbm1064.drv[0].duty[0];
-    np_pbm1064_t2_apply_thermal_throttle(&ctx, 0.50f);
+    np_pbm_t2_apply_thermal_throttle(&ctx, 0.50f);
     if (ctx.pbm1064.drv[0].duty[0] != duty_ch_a_before) {
         return fai_fail("FAI-T2-02",
             "Full 4-step thermal throttle cascade",
@@ -622,7 +622,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_02(void)
 
 /* ── FAI-T2-03: Combined UHDR record completeness ───────────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
+np_pbm_fai_result_t np_pbm_fai_t2_03(void)
 {
     /*
      * Verify that the combined UHDR record:
@@ -633,8 +633,8 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
      *   (e) abort_reason field present and initialized to 0 on clean record
      */
 
-    np_pbm1064_t2_ctx_t ctx;
-    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
+    np_pbm_t2_ctx_t ctx;
+    np_pbm_t2_init(&ctx, NULL, NULL, 0U);
 
     /* (a) Verify struct has per-socket dose fields via pbm1064_record. */
     ctx.combined_record.pbm1064_record.sockets[0].socket_id = 0U;
@@ -648,16 +648,16 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
     /* (b) Verify 1170nm dose field exists and is set by HAL stub. */
     ctx.combined_record.dose_1170_J_cm2 = 0.0f;
     float dose_out = 0.0f;
-    np_pbm1064_hal_t2_1170_enable(true);  /* enable stub so dose accumulates */
-    np_pbm1064_hal_t2_1170_set_duty(100U);
-    np_pbm1064_hal_t2_1170_get_dose(&dose_out);
+    np_pbm_hal_t2_1170_enable(true);  /* enable stub so dose accumulates */
+    np_pbm_hal_t2_1170_set_duty(100U);
+    np_pbm_hal_t2_1170_get_dose(&dose_out);
     if (dose_out <= 0.0f) {
         return fai_fail("FAI-T2-03",
             "Combined UHDR record completeness",
             "(b) 1170nm dose HAL stub did not return non-zero dose after enable+duty");
     }
     ctx.combined_record.dose_1170_J_cm2 = dose_out;
-    np_pbm1064_hal_t2_1170_enable(false); /* reset stub */
+    np_pbm_hal_t2_1170_enable(false); /* reset stub */
 
     /* (c) Verify sLORETA fields exist and match stub values after start. */
     np_t2_combined_desc_t desc;
@@ -668,18 +668,18 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
     desc.pbm1064_hdr.duration_s = 62U;
     desc.laser1170.duty_pct     = 50U;
 
-    np_pbm1064_t2_start_combined(&ctx, &desc);
-    const np_t2_combined_uhdr_record_t *rec = np_pbm1064_t2_get_combined_record(&ctx);
+    np_pbm_t2_start_combined(&ctx, &desc);
+    const np_t2_combined_uhdr_record_t *rec = np_pbm_t2_get_combined_record(&ctx);
 
     if (rec->sloreta_mni_x != NP_T2_SLORETA_STUB_MNI_X ||
         rec->sloreta_mni_y != NP_T2_SLORETA_STUB_MNI_Y ||
         rec->sloreta_mni_z != NP_T2_SLORETA_STUB_MNI_Z) {
-        np_pbm1064_t2_abort(&ctx, NP_PBM1064_FAULT_NONE);
+        np_pbm_t2_abort(&ctx, NP_PBM_FAULT_NONE);
         return fai_fail("FAI-T2-03",
             "Combined UHDR record completeness",
             "(c) sLORETA MNI fields not populated in UHDR record");
     }
-    np_pbm1064_t2_abort(&ctx, NP_PBM1064_FAULT_NONE);
+    np_pbm_t2_abort(&ctx, NP_PBM_FAULT_NONE);
 
     /*
      * (d) SHDR summary struct — must not contain raw user biology. As with
@@ -688,7 +688,7 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
      * hardcoded literal — the v5 struct legitimately grew with the
      * addressing domain, not with any new per-sample field.
      */
-    if (sizeof(np_t2_combined_shdr_summary_t) > sizeof(np_pbm1064_shdr_summary_t) + 32U) {
+    if (sizeof(np_t2_combined_shdr_summary_t) > sizeof(np_pbm_shdr_summary_t) + 32U) {
         return fai_fail("FAI-T2-03",
             "Combined UHDR record completeness",
             "(d) np_t2_combined_shdr_summary_t exceeds expected maximum size "
@@ -696,8 +696,8 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
     }
 
     /* (e) abort_reason initialized to 0 on fresh record. */
-    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
-    rec = np_pbm1064_t2_get_combined_record(&ctx);
+    np_pbm_t2_init(&ctx, NULL, NULL, 0U);
+    rec = np_pbm_t2_get_combined_record(&ctx);
     if (rec->abort_reason != 0U) {
         return fai_fail("FAI-T2-03",
             "Combined UHDR record completeness",
@@ -715,17 +715,17 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_03(void)
 
 /* ── FAI-T2-04: 1170nm abort path ───────────────────────────────────────────── */
 
-np_pbm1064_fai_result_t np_pbm1064_fai_t2_04(void)
+np_pbm_fai_result_t np_pbm_fai_t2_04(void)
 {
     /*
-     * Verify that np_pbm1064_t2_abort() disables:
+     * Verify that np_pbm_t2_abort() disables:
      *   (a) The 1170nm laser (t2_1170_active set to false)
      *   (b) The inner 1064nm session (inner stage set to FAULT)
      *   (c) Combined stage set to NP_T2_STAGE_FAULT
      *   (d) Abort reason recorded in combined UHDR record
      */
-    np_pbm1064_t2_ctx_t ctx;
-    np_pbm1064_t2_init(&ctx, NULL, NULL, 0U);
+    np_pbm_t2_ctx_t ctx;
+    np_pbm_t2_init(&ctx, NULL, NULL, 0U);
 
     np_t2_combined_desc_t desc;
     memset(&desc, 0, sizeof(desc));
@@ -735,11 +735,11 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_04(void)
     desc.pbm1064_hdr.duration_s  = 62U;
     desc.laser1170.duty_pct      = 100U;
 
-    np_pbm1064_status_t rc = np_pbm1064_t2_start_combined(&ctx, &desc);
-    if (rc != NP_PBM1064_OK) {
+    np_pbm_status_t rc = np_pbm_t2_start_combined(&ctx, &desc);
+    if (rc != NP_PBM_OK) {
         return fai_fail("FAI-T2-04",
             "1170nm abort path",
-            "np_pbm1064_t2_start_combined failed — cannot test abort path");
+            "np_pbm_t2_start_combined failed — cannot test abort path");
     }
 
     /* Verify session is running. */
@@ -750,11 +750,11 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_04(void)
     }
 
     /* Abort with thermal fault. */
-    rc = np_pbm1064_t2_abort(&ctx, NP_PBM1064_FAULT_THERMAL);
-    if (rc != NP_PBM1064_OK) {
+    rc = np_pbm_t2_abort(&ctx, NP_PBM_FAULT_THERMAL);
+    if (rc != NP_PBM_OK) {
         return fai_fail("FAI-T2-04",
             "1170nm abort path",
-            "np_pbm1064_t2_abort returned error");
+            "np_pbm_t2_abort returned error");
     }
 
     /* (a) 1170nm laser disabled. */
@@ -765,22 +765,22 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_04(void)
     }
 
     /* (b) Inner 1064nm session in FAULT. */
-    if (np_pbm1064_session_stage(&ctx.pbm1064) != NP_PBM1064_STAGE_FAULT) {
+    if (np_pbm_session_stage(&ctx.pbm1064) != NP_PBM_STAGE_FAULT) {
         return fai_fail("FAI-T2-04",
             "1170nm abort path",
             "(b) Inner 1064nm session not in FAULT stage after abort");
     }
 
     /* (c) Combined stage is FAULT. */
-    if (np_pbm1064_t2_stage(&ctx) != NP_T2_STAGE_FAULT) {
+    if (np_pbm_t2_stage(&ctx) != NP_T2_STAGE_FAULT) {
         return fai_fail("FAI-T2-04",
             "1170nm abort path",
             "(c) Combined stage not NP_T2_STAGE_FAULT after abort");
     }
 
     /* (d) Abort reason recorded in combined UHDR record. */
-    const np_t2_combined_uhdr_record_t *rec = np_pbm1064_t2_get_combined_record(&ctx);
-    if (rec->abort_reason != (uint8_t)NP_PBM1064_FAULT_THERMAL) {
+    const np_t2_combined_uhdr_record_t *rec = np_pbm_t2_get_combined_record(&ctx);
+    if (rec->abort_reason != (uint8_t)NP_PBM_FAULT_THERMAL) {
         return fai_fail("FAI-T2-04",
             "1170nm abort path",
             "(d) Abort reason not recorded in combined UHDR record");
@@ -789,32 +789,32 @@ np_pbm1064_fai_result_t np_pbm1064_fai_t2_04(void)
     return fai_pass("FAI-T2-04",
         "1170nm abort path",
         "(a) t2_1170_active cleared on abort. "
-        "(b) Inner 1064nm session transitions to NP_PBM1064_STAGE_FAULT. "
+        "(b) Inner 1064nm session transitions to NP_PBM_STAGE_FAULT. "
         "(c) Combined stage set to NP_T2_STAGE_FAULT. "
-        "(d) NP_PBM1064_FAULT_THERMAL recorded in combined UHDR abort_reason field.");
+        "(d) NP_PBM_FAULT_THERMAL recorded in combined UHDR abort_reason field.");
 }
 
 /* ── Run all ─────────────────────────────────────────────────────────────────── */
 
-void np_pbm1064_fai_run_all(void)
+void np_pbm_fai_run_all(void)
 {
-    np_pbm1064_fai_result_t results[] = {
-        np_pbm1064_fai_sm01(),
-        np_pbm1064_fai_sm02(),
-        np_pbm1064_fai_sm03(),
-        np_pbm1064_fai_sm04(),
-        np_pbm1064_fai_sm05(),
-        np_pbm1064_fai_sm06(),
-        np_pbm1064_fai_sm07(),
-        np_pbm1064_fai_sm08(),
-        np_pbm1064_fai_sm09(),
-        np_pbm1064_fai_sm10(),
-        np_pbm1064_fai_sm11(),
+    np_pbm_fai_result_t results[] = {
+        np_pbm_fai_sm01(),
+        np_pbm_fai_sm02(),
+        np_pbm_fai_sm03(),
+        np_pbm_fai_sm04(),
+        np_pbm_fai_sm05(),
+        np_pbm_fai_sm06(),
+        np_pbm_fai_sm07(),
+        np_pbm_fai_sm08(),
+        np_pbm_fai_sm09(),
+        np_pbm_fai_sm10(),
+        np_pbm_fai_sm11(),
         /* T2 combined session FAI (NP-SES-1064-001 §6) */
-        np_pbm1064_fai_t2_01(),
-        np_pbm1064_fai_t2_02(),
-        np_pbm1064_fai_t2_03(),
-        np_pbm1064_fai_t2_04(),
+        np_pbm_fai_t2_01(),
+        np_pbm_fai_t2_02(),
+        np_pbm_fai_t2_03(),
+        np_pbm_fai_t2_04(),
     };
 
     uint32_t pass_count    = 0;
@@ -822,7 +822,7 @@ void np_pbm1064_fai_run_all(void)
     uint32_t pending_count = 0;
 
     for (size_t i = 0; i < sizeof(results) / sizeof(results[0]); i++) {
-        const np_pbm1064_fai_result_t *r = &results[i];
+        const np_pbm_fai_result_t *r = &results[i];
         if (r->details && r->details[0] == 'P' &&
             r->details[1] == 'E' && r->details[2] == 'N') {
             pending_count++;

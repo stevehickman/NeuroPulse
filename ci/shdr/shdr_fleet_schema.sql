@@ -95,7 +95,7 @@
 --   coefficients (K_PD1 / K_PD2 / K_ratio_nom) to be keyed to module UID via
 --   np_module_map "because modules are swappable", and NP-SES-1064-001 Rev 2
 --   (2026-08-02) already retired the fixed zone[5] arrays on the firmware side
---   in favour of per-socket entries (np_pbm1064_shdr_summary_t). Rev D is the
+--   in favour of per-socket entries (np_pbm_shdr_summary_t). Rev D is the
 --   fleet-DB completion of a move the firmware has already made.
 --
 --   NEW PRIVACY INVARIANT (DOSE-01, CI-enforced). Socket resolution rises 5 → 80.

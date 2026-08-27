@@ -149,7 +149,7 @@ The NeurOne design and development programme is structured in six phases. Phases
 - FPC zone module specification (NP-HW-FPC-001 Rev 5)
 - Hub PCB Rev B specification (NP-HW-HUB-001 Rev 2)
 - All firmware module specifications (NP-FW-EMMC-001, NP-FW-PBM1064-001, NP-FW-HD-001, NP-FW-CVNS-001, NP-FW-HRV-001, NP-FW-HUB-001, NP-FW-ZA-001)
-- Firmware source code: bootloader, zone_announce, hrv_biofeedback, sloreta_hdtdcs, cervical_vns, pbm_1064nm, hub_control
+- Firmware source code: bootloader, zone_announce, hrv_biofeedback, sloreta_hdtdcs, cervical_vns, pbm, hub_control
 - QMS establishment (NP-QMS-001, NP-DHF-001, NP-QMS-DC-001, NP-RM-001, NP-SW-001, NP-QMS-CAPA-001)
 - Cervical VNS 510(k) pre-submission argument (NP-REG-CVNS-001)
 - eMMC partition architecture and dual-bank OTA bootloader firmware
@@ -360,7 +360,7 @@ Design outputs are the translated result of design inputs — specifications, dr
 | Product specification | CLAUDE.md Rev 11; Design Brief R5 (NP-DB-005) |
 | Mechanical design | NP-TOOL-ZM-001, NP-TOOL-ZM-SM-001, NP-TOOL-SHELL-001, NP-TOOL-LENS-001; supplier CAD (pending) |
 | Electronic design | NP-HW-FPC-001 Rev 5; NP-HW-HUB-001 Rev 2; PCB layouts (pending) |
-| Firmware | firmware/bootloader/, firmware/zone_announce/, firmware/hrv_biofeedback/, firmware/sloreta_hdtdcs/, firmware/cervical_vns/, firmware/pbm_1064nm/, firmware/hub_control/ |
+| Firmware | firmware/bootloader/, firmware/zone_announce/, firmware/hrv_biofeedback/, firmware/sloreta_hdtdcs/, firmware/cervical_vns/, firmware/pbm/, firmware/hub_control/ |
 | Software specifications | NP-FW-EMMC-001, NP-FW-PBM1064-001, NP-FW-HD-001, NP-FW-CVNS-001, NP-FW-HRV-001, NP-FW-HUB-001, NP-FW-ZA-001 |
 | iOS/Android app | NP-APP-ROADMAP-001; app source (pending) |
 | Procurement specifications | NP-PROC-FPC-001, NP-PROC-FPC-1064-001, NP-PROC-SUP-001 |

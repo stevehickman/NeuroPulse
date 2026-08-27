@@ -6,9 +6,9 @@
  * (+1064nm, ATtiny402 I2C slave).  Module type is determined by the registry
  * entry; the same four function pointers serve both variants.
  *
- * Delegates detection to np_pbm1064_detect.c (existing firmware/pbm_1064nm/).
- * Delegates I2C driving for smart modules to np_pbm1064_drive.c.
- * Delegates dose metering to np_pbm1064_dose.c.
+ * Delegates detection to np_pbm_detect.c (existing firmware/pbm/).
+ * Delegates I2C driving for smart modules to np_pbm_drive.c.
+ * Delegates dose metering to np_pbm_dose.c.
  *
  * HAL stubs:
  *   OI-PBM-HAL-01: np_mod_pbm_hal_pwm_set(slot, cur_a, cur_b, freq, duty)
@@ -24,12 +24,12 @@
 #include <string.h>
 
 /* Pull in existing PBM detection and drive infrastructure. */
-#include "np_pbm1064_detect.h"
-#include "np_pbm1064_drive.h"
-#include "np_pbm1064_dose.h"
-#include "np_pbm1064_hal.h"
-#include "np_pbm1064_types.h"
-#include "np_pbm1064_config.h"
+#include "np_pbm_detect.h"
+#include "np_pbm_drive.h"
+#include "np_pbm_dose.h"
+#include "np_pbm_hal.h"
+#include "np_pbm_types.h"
+#include "np_pbm_config.h"
 
 /* ── HAL stubs ────────────────────────────────────────────────────────────────── */
 
@@ -46,38 +46,38 @@ typedef struct {
     bool                    active;
     float                   ntc_peak_c;
     uint16_t                throttle_count;
-    np_pbm1064_drv_slot_t   drv;          /* smart-module I2C driver state */
-    np_pbm1064_dose_state_t dose;
+    np_pbm_drv_slot_t   drv;          /* smart-module I2C driver state */
+    np_pbm_dose_state_t dose;
 } np_mod_pbm_state_t;
 
 static np_mod_pbm_state_t s_state[NP_HUB_ZONE_SLOT_COUNT];
 
 /*
  * Per-zone, per-wavelength InGaAs PD dose-metering calibration.  Loaded once
- * via np_pbm1064_dose_load_cal(), which fills ONE wavelength row set per call —
- * hence the per-zone loop in np_mod_pbm_init().  np_pbm1064_dose_tick()
+ * via np_pbm_dose_load_cal(), which fills ONE wavelength row set per call —
+ * hence the per-zone loop in np_mod_pbm_init().  np_pbm_dose_tick()
  * consumes the per-slot row s_cal[slot].
  *
  * This path always gets firmware defaults, because it passes a NULL UID: it is
  * the RETIRED 5-zone-slot path and has no module-UID inventory (OI-HUB-C06).
  * Calibration for the hex lattice is keyed to module UID and reaches
- * firmware/pbm_1064nm through np_pbm_cal_bridge.c, not through here.
+ * firmware/pbm through np_pbm_cal_bridge.c, not through here.
  *
  * Bounded by NP_HUB_ZONE_SLOT_COUNT — the same macro that guards every index
- * into this array — and deliberately NOT by NP_PBM1064_ZONE_COUNT.  Both are 5
- * today, but np_pbm1064_config.h states that NP_PBM1064_ZONE_COUNT bounds the
+ * into this array — and deliberately NOT by NP_PBM_ZONE_COUNT.  Both are 5
+ * today, but np_pbm_config.h states that NP_PBM_ZONE_COUNT bounds the
  * retired ZONE_ID resistor-ladder detection state machine ONLY, and that it
  * must not size a calibration array.  Sizing by the bound that indexes it
  * means the two are not required to stay equal.
  */
-static np_pbm1064_cal_t s_cal[NP_HUB_ZONE_SLOT_COUNT][NP_PBM1064_WL_COUNT];
+static np_pbm_cal_t s_cal[NP_HUB_ZONE_SLOT_COUNT][NP_PBM_WL_COUNT];
 static bool             s_cal_loaded = false;
 
 /* ── Duty ceiling enforcement ────────────────────────────────────────────────── */
 
 static uint8_t clamp_duty(uint8_t duty)
 {
-    return (duty > NP_PBM1064_DUTY_MAX_REG) ? NP_PBM1064_DUTY_MAX_REG : duty;
+    return (duty > NP_PBM_DUTY_MAX_REG) ? NP_PBM_DUTY_MAX_REG : duty;
 }
 
 /* ── Detect ──────────────────────────────────────────────────────────────────── */
@@ -90,13 +90,13 @@ np_hub_status_t np_mod_pbm_detect(uint8_t slot, np_hub_mod_type_t *type_out)
 
     /* Read the ZONE_ID ADC and classify.  The full insertion/removal state
      * machine (3×100ms debounce per RISK-18, TIA gain switch and I2C probe per
-     * OI-PBM-HW-01) is driven by np_pbm1064_detect_tick() in the detection task;
+     * OI-PBM-HW-01) is driven by np_pbm_detect_tick() in the detection task;
      * here we only need the current slot type for the registry's presence check. */
     uint16_t counts = 0;
-    if (!np_pbm1064_hal_adc_read_zone_id(slot, &counts)) {
+    if (!np_pbm_hal_adc_read_zone_id(slot, &counts)) {
         return NP_HUB_ERR_NOT_PRESENT;
     }
-    np_slot_type_t slot_type = np_pbm1064_classify_adc(counts);
+    np_slot_type_t slot_type = np_pbm_classify_adc(counts);
 
     switch (slot_type) {
     case NP_SLOT_SMART:
@@ -122,7 +122,7 @@ np_hub_status_t np_mod_pbm_init(uint8_t slot)
 
     /* Load dose-metering calibration once (idempotent across all zone slots).
      * The loader fills one wavelength row set per call, so it is called once
-     * per zone — the same per-row pattern as np_pbm1064_session.c's loop over
+     * per zone — the same per-row pattern as np_pbm_session.c's loop over
      * active sockets.  Handing it s_cal whole would populate row 0 only and
      * leave zones 1..N-1 holding zeroed calibration, which is a wrong J/cm² on
      * a dose-metering path rather than a build error.
@@ -135,7 +135,7 @@ np_hub_status_t np_mod_pbm_init(uint8_t slot)
      * OI-HUB-C06 exists to prevent (NP-HW-HUB-001 Rev 3 §9.5). */
     if (!s_cal_loaded) {
         for (uint8_t z = 0U; z < NP_HUB_ZONE_SLOT_COUNT; z++) {
-            (void)np_pbm1064_dose_load_cal(NULL, s_cal[z]);
+            (void)np_pbm_dose_load_cal(NULL, s_cal[z]);
         }
         s_cal_loaded = true;
     }
@@ -156,7 +156,7 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
     /* Stop command: params==NULL or len==0 */
     if (params == NULL || len == 0U) {
         if (s_state[slot].type == NP_MOD_PBM_SMART) {
-            (void)np_pbm1064_drive_disable_all(slot, &s_state[slot].drv);
+            (void)np_pbm_drive_disable_all(slot, &s_state[slot].drv);
         } else {
             (void)np_mod_pbm_hal_pwm_set(slot, 0U, 0U, 0U, 0U);
         }
@@ -172,7 +172,7 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
 
     /* NTC over-temperature check before enabling */
     float ntc = np_mod_pbm_hal_ntc_read(slot);
-    if (ntc >= (float)NP_PBM1064_THERMAL_CUTOFF_C) {
+    if (ntc >= (float)NP_PBM_THERMAL_CUTOFF_C) {
         np_log_shdr_fault(slot, NP_MOD_PBM_BASE, 0x01U /* thermal */, 0U);
         return NP_HUB_ERR_GENERIC;
     }
@@ -184,12 +184,12 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
             (const np_mod_pbm_smart_params_t *)params;
 
         uint8_t duty = clamp_duty(p->duty);
-        np_pbm1064_drv_slot_t *drv = &s_state[slot].drv;
+        np_pbm_drv_slot_t *drv = &s_state[slot].drv;
 
         /* Bring up the driver IC (CONFIG → CUR → FREQ → DUTY=0 → CH_ENABLE →
          * STATUS check).  freq_hz is left 0 here; the exact PWM frequency code
          * from the session descriptor is applied below via drive_set_freq(). */
-        np_pbm1064_preset_t preset = {
+        np_pbm_preset_t preset = {
             .cur_a        = p->cur_a,
             .cur_b        = p->cur_b,
             .cur_c        = p->cur_c,
@@ -197,18 +197,18 @@ np_hub_status_t np_mod_pbm_control(uint8_t slot, const void *params, uint16_t le
             .duty         = duty,
             .channel_mask = p->ch_mask,
         };
-        np_pbm1064_status_t rc = np_pbm1064_drive_startup(slot, drv, &preset);
-        if (rc != NP_PBM1064_OK) {
+        np_pbm_status_t rc = np_pbm_drive_startup(slot, drv, &preset);
+        if (rc != NP_PBM_OK) {
             return NP_HUB_ERR_MOD_FAULT;
         }
 
         /* Apply the requested PWM frequency code and duty on the enabled channels. */
-        rc = np_pbm1064_drive_set_freq(slot, drv, p->ch_mask, p->freq_code);
-        if (rc != NP_PBM1064_OK) {
+        rc = np_pbm_drive_set_freq(slot, drv, p->ch_mask, p->freq_code);
+        if (rc != NP_PBM_OK) {
             return NP_HUB_ERR_MOD_FAULT;
         }
-        rc = np_pbm1064_drive_set_duty(slot, drv, p->ch_mask, duty);
-        if (rc != NP_PBM1064_OK) {
+        rc = np_pbm_drive_set_duty(slot, drv, p->ch_mask, duty);
+        if (rc != NP_PBM_OK) {
             return NP_HUB_ERR_MOD_FAULT;
         }
 
@@ -254,7 +254,7 @@ np_hub_status_t np_mod_pbm_telemetry(uint8_t slot, np_telem_record_t *out)
     p->ntc_peak_c[slot] = s_state[slot].ntc_peak_c;
 
     /* NTC thermal throttle check */
-    if (ntc >= (float)NP_PBM1064_THERMAL_FAULT_C && s_state[slot].active) {
+    if (ntc >= (float)NP_PBM_THERMAL_FAULT_C && s_state[slot].active) {
         s_state[slot].throttle_count++;
         (void)np_mod_pbm_control(slot, NULL, 0U); /* graceful stop */
         p->fault_mask |= (1U << slot);
@@ -264,10 +264,10 @@ np_hub_status_t np_mod_pbm_telemetry(uint8_t slot, np_telem_record_t *out)
 
     /* Read PD1/PD2 for dose metering (smart modules only) */
     if (s_state[slot].type == NP_MOD_PBM_SMART) {
-        for (uint8_t wl = 0U; wl < NP_PBM1064_WL_COUNT; wl++) {
+        for (uint8_t wl = 0U; wl < NP_PBM_WL_COUNT; wl++) {
             uint16_t pd1 = np_mod_pbm_hal_pd_read(slot, wl);
             /* PD2 on pin 19 — read via separate channel */
-            uint16_t pd2 = np_mod_pbm_hal_pd_read(slot, wl + NP_PBM1064_WL_COUNT);
+            uint16_t pd2 = np_mod_pbm_hal_pd_read(slot, wl + NP_PBM_WL_COUNT);
             if (pd1 > 0U) {
                 p->pd_ratio[slot] = (pd2 > 0U) ? ((float)pd1 / (float)pd2) : 0.0f;
             }
@@ -275,7 +275,7 @@ np_hub_status_t np_mod_pbm_telemetry(uint8_t slot, np_telem_record_t *out)
 
         /* Dose update via existing dose module (reads PD1/PD2 internally and
          * accumulates J/cm² per wavelength using the per-zone calibration row). */
-        (void)np_pbm1064_dose_tick(slot, s_cal[slot], &s_state[slot].dose);
+        (void)np_pbm_dose_tick(slot, s_cal[slot], &s_state[slot].dose);
         for (uint8_t z = 0U; z < NP_HUB_ZONE_SLOT_COUNT; z++) {
             p->dose_J_cm2[z] = s_state[slot].dose.dose_J_cm2[0]; /* summary */
         }

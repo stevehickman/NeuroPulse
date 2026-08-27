@@ -3,7 +3,7 @@
  *
  * End-to-end: a module is inventoried into np_module_map, its factory
  * coefficients are stored against its UID, and a PBM session started through
- * firmware/pbm_1064nm picks them up — for that module, at whatever socket it
+ * firmware/pbm picks them up — for that module, at whatever socket it
  * happens to be in, and for no other module.
  *
  * The two properties that make this worth testing rather than asserting are
@@ -22,8 +22,8 @@
 
 #include "np_module_map.h"
 #include "np_pbm_cal_bridge.h"
-#include "np_pbm1064_session.h"
-#include "np_pbm1064_dose.h"
+#include "np_pbm_session.h"
+#include "np_pbm_dose.h"
 
 static int g_failures = 0;
 
@@ -121,15 +121,15 @@ static void store_cal(uint8_t seed, float base)
 
 /* ── PBM session fixtures ────────────────────────────────────────────────────── */
 
-static void mask_set(uint8_t mask[NP_PBM1064_SOCKET_MASK_BYTES], uint8_t socket_id)
+static void mask_set(uint8_t mask[NP_PBM_SOCKET_MASK_BYTES], uint8_t socket_id)
 {
     mask[socket_id / 8U] |= (uint8_t)(1U << (socket_id % 8U));
 }
 
 /* Start a session over the two given sockets and leave the ctx populated. */
-static void start_session(np_pbm1064_session_ctx_t *ctx, uint8_t s0, uint8_t s1)
+static void start_session(np_pbm_session_ctx_t *ctx, uint8_t s0, uint8_t s1)
 {
-    np_pbm1064_session_desc_t desc;
+    np_pbm_session_desc_t desc;
     memset(&desc, 0, sizeof(desc));
     desc.hdr.version     = NP_SES1064_VERSION;
     desc.hdr.group_count = 1U;
@@ -141,14 +141,14 @@ static void start_session(np_pbm1064_session_ctx_t *ctx, uint8_t s0, uint8_t s1)
     desc.groups[0].preset.cur_c        = 150U;
     desc.groups[0].preset.freq_hz      = 40U;
     desc.groups[0].preset.duty         = 0x10U;
-    desc.groups[0].preset.channel_mask = NP_PBM1064_CH_ALL_EN;
+    desc.groups[0].preset.channel_mask = NP_PBM_CH_ALL_EN;
 
-    np_pbm1064_session_init(ctx, NULL, NULL, NULL, 0U);
-    (void)np_pbm1064_session_start(ctx, &desc);
+    np_pbm_session_init(ctx, NULL, NULL, NULL, 0U);
+    (void)np_pbm_session_start(ctx, &desc);
 }
 
 /* Index of a socket in the session's expanded active list, or -1. */
-static int slot_of(const np_pbm1064_session_ctx_t *ctx, uint8_t socket_id)
+static int slot_of(const np_pbm_session_ctx_t *ctx, uint8_t socket_id)
 {
     for (uint8_t i = 0; i < ctx->active_socket_count; i++) {
         if (ctx->active_socket_id[i] == socket_id) { return (int)i; }
@@ -165,13 +165,13 @@ static void test_bridge_not_installed_is_defaults_only(void)
     store_cal(0x11, 0.500f);
     np_hub_pbm_cal_bridge_remove();
 
-    np_pbm1064_session_ctx_t ctx;
+    np_pbm_session_ctx_t ctx;
     start_session(&ctx, 0U, 1U);
 
     check(ctx.active_cal_source[0] == (uint8_t)NP_CAL_DEFAULT,
           "bridge absent: DEFAULT even though the map holds a record "
           "(an un-bridged build is degraded, never wrong)");
-    (void)np_pbm1064_session_abort(&ctx, NP_PBM1064_FAULT_NONE);
+    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
 }
 
 static void test_bridge_delivers_factory_cal_for_the_right_module(void)
@@ -182,7 +182,7 @@ static void test_bridge_delivers_factory_cal_for_the_right_module(void)
     store_cal(0x11, 0.500f);
     np_hub_pbm_cal_bridge_install();
 
-    np_pbm1064_session_ctx_t ctx;
+    np_pbm_session_ctx_t ctx;
     start_session(&ctx, 0U, 1U);
 
     int i0 = slot_of(&ctx, 0U), i1 = slot_of(&ctx, 1U);
@@ -200,7 +200,7 @@ static void test_bridge_delivers_factory_cal_for_the_right_module(void)
           "bridge: the record-less module gets firmware defaults, not its "
           "neighbour's coefficients");
 
-    (void)np_pbm1064_session_abort(&ctx, NP_PBM1064_FAULT_NONE);
+    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
     np_hub_pbm_cal_bridge_remove();
 }
 
@@ -218,7 +218,7 @@ static void test_bridge_calibration_follows_the_module(void)
     plug(40, 0x11);
     store_cal(0x11, 0.500f);
 
-    np_pbm1064_session_ctx_t ctx;
+    np_pbm_session_ctx_t ctx;
     start_session(&ctx, 0U, 40U);
 
     int i0 = slot_of(&ctx, 0U), i40 = slot_of(&ctx, 40U);
@@ -230,7 +230,7 @@ static void test_bridge_calibration_follows_the_module(void)
     check(ctx.cal[i40][NP_WL_660NM].K_PD1 == 0.500f,
           "bridge: the module's own coefficients at its new socket");
 
-    (void)np_pbm1064_session_abort(&ctx, NP_PBM1064_FAULT_NONE);
+    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
     np_hub_pbm_cal_bridge_remove();
 }
 
@@ -245,7 +245,7 @@ static void test_bridge_swap_does_not_inherit(void)
 
     plug(7, 0x99);   /* swap in a different module at the same socket */
 
-    np_pbm1064_session_ctx_t ctx;
+    np_pbm_session_ctx_t ctx;
     start_session(&ctx, 7U, 8U);
 
     int i7 = slot_of(&ctx, 7U);
@@ -255,7 +255,7 @@ static void test_bridge_swap_does_not_inherit(void)
     check(ctx.cal[i7][NP_WL_660NM].K_PD1 == 0.120f,
           "bridge: it gets firmware defaults, not 0.500f");
 
-    (void)np_pbm1064_session_abort(&ctx, NP_PBM1064_FAULT_NONE);
+    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
     np_hub_pbm_cal_bridge_remove();
 }
 
