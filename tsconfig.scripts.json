@@ -1,0 +1,30 @@
+{
+  // Type-checks the repo-root tooling in scripts/ — the generators, the
+  // analysis scripts, and the guards that gate other workflows.
+  //
+  // app/web/tsconfig.json cannot do this job: web-ci runs tsc with
+  // `working-directory: app/web` and that config is `"include": ["src"]`, so
+  // scripts/ was never type-checked by anything. The scripts named in web-ci's
+  // relevance list are covered only in the sense that they are *executed* as
+  // steps; the ones that are not executed (check-doc-filenames, check-pbm-power,
+  // pod-pattern-coverage, extract-helmet-surface, generate-simulator-data,
+  // pbm-optical-psf) had no build or check of any kind.
+  //
+  // `noEmit` — these run under `bun`, which strips types itself. Nothing here
+  // is compiled to JS; tsc is used purely as a checker.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "types": ["bun"],
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["scripts/**/*.ts"]
+}

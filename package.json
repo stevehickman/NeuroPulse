@@ -1,5 +1,9 @@
 {
   "dependencies": {
     "rhino3dm": "^8.32.1"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.0",
+    "typescript": "^6"
   }
 }

@@ -127,3 +127,10 @@ for (const [centre, m] of [[false,4],[true,3],[false,5],[true,4],[false,6],[true
   const em = 91 - 1 - 7 * N;
   console.log(` ${lab} ${String(N).padStart(4)}  ${best.r.toFixed(1).padStart(6)}mm  ${best.worst.toFixed(1).padStart(6)}mm ${best.p95.toFixed(1).padStart(6)}   ${String(em).padStart(2)}/90      ${best.worst <= 10 ? "YES" : "no"}`);
 }
+
+// This file uses top-level `await` (the Bun.file read above). Under bun that
+// works either way, but tsc only permits it in a module, and a file with no
+// imports or exports is a script. Nothing here is meant to be imported — the
+// empty export exists solely to make the module status explicit so
+// tsconfig.scripts.json can type-check it. TS1375.
+export {};

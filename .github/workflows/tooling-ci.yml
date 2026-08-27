@@ -1,0 +1,286 @@
+name: Tooling CI (scripts, simulator, python)
+
+# The three code surfaces NP-SW-CI-001 left uncovered.
+#
+# Phases 1-7 closed the firmware side completely: safety-mcu-ci.yml (Class C),
+# firmware-cross-build.yml (Class B + ARM cross-compile), build-all.yml (the
+# unscoped weekly backstop). Running the repo's own matcher over the relevance
+# lists of every workflow afterwards leaves 65 tracked code files that no build
+# or test job touches at all:
+#
+#   editscripts/*.py            46   one-off document patch/scan scripts
+#   simulator/js/**/*.js         9   browser ES modules
+#   simulator/server/index.js    1   Node CommonJS WebSocket server
+#   scripts/*.ts                 6   generators, analysis, and two GUARDS
+#   scripts/*.py                 2   document generators
+#   generate_privacy_report.py   1
+#
+# The sharp end is `scripts/`. web-ci.yml runs with `working-directory: app/web`
+# and that tsconfig is `"include": ["src"]`, so scripts/ has never been
+# type-checked by anything. The scripts that appear in web-ci's relevance list
+# are covered only in the sense that they are EXECUTED as steps; the six that
+# are not executed had no build, no check, no type-check. Two of those six are
+# themselves guards — check-doc-filenames.ts enforces NP-CONV-001 §4.0 across
+# the whole document set, and nothing ran it.
+#
+# ── What each job proves, stated narrowly ─────────────────────────────────────
+# These are cheap gates, and cheap gates earn trust only by being honest about
+# their reach:
+#
+#   scripts    tsc --noEmit over scripts/**/*.ts, plus check-doc-filenames.ts
+#              run as a real gate. Type correctness and one document-naming
+#              invariant. NOT behaviour: nothing here executes the generators.
+#   simulator  Each file parses, in the module system it is actually loaded in.
+#              Nothing more. No lint, no types, no runtime.
+#   python     Each file compiles to bytecode. Syntax only.
+#
+# Syntax and type gates are not a substitute for tests. They are the difference
+# between "this file has never been checked by any automation" and "this file at
+# least parses and type-checks", on 65 files that were in the first category.
+#
+# ── Scoping ───────────────────────────────────────────────────────────────────
+# No `paths:` filter, for the NP-SW-CI-001 §6.7 reason: a workflow suppressed by
+# `paths:` never reports, and a required check that never reports renders as
+# "Expected — waiting for status" and blocks the PR forever. The relevance lists
+# live in the `changes` job and the jobs gate on `if:`, so an out-of-scope job
+# reports `skipped`, which satisfies a required check.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+# Least privilege. Required for actions/checkout, which hard-fails without it
+# once the repository is private. Matches every other workflow in the repo.
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: Relevance
+    runs-on: ubuntu-latest
+    outputs:
+      scripts: ${{ steps.scope.outputs.scripts }}
+      simulator: ${{ steps.scope.outputs.simulator }}
+      python: ${{ steps.scope.outputs.python }}
+    env:
+      # Three independent surfaces, three lists. A simulator-only change should
+      # not run the Python gate, and vice versa. Blank lines and `#` comments
+      # are stripped by ci-changed-scope.sh, so reasoning lives beside entries.
+      NP_SCOPE_SCRIPTS: |
+        scripts/**
+        tsconfig.scripts.json
+        package.json
+        bun.lock
+        .github/workflows/tooling-ci.yml
+      NP_SCOPE_SIMULATOR: |
+        simulator/**
+        # The checker itself lives under scripts/**, which is already listed,
+        # but naming it here keeps the dependency legible rather than incidental.
+        scripts/check-js-syntax.sh
+        .github/workflows/tooling-ci.yml
+      NP_SCOPE_PYTHON: |
+        editscripts/**
+        generate_privacy_report.py
+        # scripts/ carries create_np_db_005.py and create_tool_shell_001.py.
+        # The matcher supports `prefix/**` and exact paths only — no `*.py`
+        # glob — so the directory is listed and the job compiles what it finds.
+        scripts/**
+        .github/workflows/tooling-ci.yml
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Full history: the matcher diffs against the merge base, which a
+          # shallow clone does not contain.
+          fetch-depth: 0
+
+      # The matcher decides whether anything runs at all, so a broken matcher
+      # would skip every job while every check went green. Its assertions run
+      # before it is trusted, on every invocation.
+      - name: Matcher self-test
+        run: scripts/ci-changed-scope.sh --self-test
+
+      - name: Write the relevance lists
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$NP_SCOPE_SCRIPTS"   > scope.scripts.paths
+          printf '%s\n' "$NP_SCOPE_SIMULATOR" > scope.simulator.paths
+          printf '%s\n' "$NP_SCOPE_PYTHON"    > scope.python.paths
+
+      # A well-formed pattern that matches nothing is a typo, not a scope
+      # decision: `simluator/**` would silently take the whole surface out of
+      # scope and every job would skip while every check went green.
+      - name: Every relevance pattern still resolves in the tree
+        run: |
+          set -euo pipefail
+          for f in scope.scripts.paths scope.simulator.paths scope.python.paths; do
+            echo "--- $f"
+            scripts/ci-changed-scope.sh --check-tree "$f"
+          done
+
+      - name: Scope assertions
+        run: |
+          set -euo pipefail
+          assert() { # <list> <expected> <path>
+            printf '%s\n' "$3" > .scope-probe
+            got=$(scripts/ci-changed-scope.sh --relevant "$1" .scope-probe)
+            if [ "$got" != "$2" ]; then
+              echo "::error::Tooling scope assertion failed on $1: '$3' expected relevant=$2, got $got"
+              exit 1
+            fi
+            echo "ok: $1 · $3 → $got"
+          }
+          assert scope.scripts.paths   true  scripts/pbm-optical-psf.ts
+          assert scope.scripts.paths   true  tsconfig.scripts.json
+          assert scope.scripts.paths   false simulator/js/ui.js
+          assert scope.simulator.paths true  simulator/server/index.js
+          assert scope.simulator.paths true  simulator/js/ui.js
+          assert scope.simulator.paths false app/web/src/main.ts
+          assert scope.python.paths    true  editscripts/fix_risk_table.py
+          assert scope.python.paths    true  generate_privacy_report.py
+          assert scope.python.paths    false app/web/src/main.ts
+
+      - name: Changed files
+        id: diff
+        env:
+          NP_BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          NP_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          NP_DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          set -euo pipefail
+          # Fail-safe direction is RUN. Anything that leaves the scope of the
+          # change genuinely unknown is treated as in scope rather than skipped.
+          base=""
+          if [ -n "${NP_BASE:-}" ] && [ "${NP_BASE}" != "0000000000000000000000000000000000000000" ] \
+             && git cat-file -e "${NP_BASE}^{commit}" 2>/dev/null; then
+            base="${NP_BASE}"
+          elif [ "${{ github.event_name }}" = "push" ] \
+               && git cat-file -e "origin/${NP_DEFAULT_BRANCH}^{commit}" 2>/dev/null; then
+            # A branch's FIRST push carries an all-zero `before`; scoping against
+            # the default branch is both correct and cheaper than running
+            # everything on every new branch.
+            echo "::notice::no usable event base — scoping against origin/${NP_DEFAULT_BRANCH}"
+            base="origin/${NP_DEFAULT_BRANCH}"
+          fi
+          # workflow_dispatch deliberately gets NO fallback: on the default
+          # branch it would diff main against itself and skip every job, turning
+          # the manual "run it now" button into a no-op.
+          if [ -z "${base}" ] || ! git cat-file -e "${NP_HEAD}^{commit}" 2>/dev/null; then
+            echo "::notice::no usable base revision (event=${{ github.event_name }}, base='${NP_BASE:-}') — treating as in scope"
+            echo "unknown_base=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if ! merge_base=$(git merge-base "${base}" "${NP_HEAD}"); then
+            echo "::notice::no merge base between ${base} and ${NP_HEAD} — treating as in scope"
+            echo "unknown_base=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git diff --name-only "${merge_base}" "${NP_HEAD}" > changed.txt
+          echo "unknown_base=false" >> "$GITHUB_OUTPUT"
+          echo "--- changed files (base ${merge_base}) ---"
+          cat changed.txt
+
+      - name: Relevance
+        id: scope
+        run: |
+          set -euo pipefail
+          emit() { # <output-name> <patterns-file>
+            if [ "${{ steps.diff.outputs.unknown_base }}" = "true" ]; then
+              relevant=true
+            else
+              relevant=$(scripts/ci-changed-scope.sh --relevant "$2" changed.txt)
+            fi
+            echo "$1=${relevant}" | tee -a "$GITHUB_OUTPUT"
+          }
+          emit scripts   scope.scripts.paths
+          emit simulator scope.simulator.paths
+          emit python    scope.python.paths
+
+  scripts-check:
+    name: scripts/ type-check + document-naming guard
+    runs-on: ubuntu-latest
+    needs: changes
+    # Skip ONLY on a definite negative — see firmware-cross-build.yml for the
+    # full reasoning on `!= 'false'` and `!cancelled()`.
+    if: ${{ !cancelled() && needs.changes.outputs.scripts != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      # tsconfig.scripts.json exists because app/web/tsconfig.json structurally
+      # cannot cover this: web-ci runs tsc from app/web and that config is
+      # `"include": ["src"]`.
+      - name: TypeScript type-check (scripts/)
+        run: bun x tsc -p tsconfig.scripts.json
+
+      # A real guard that nothing was running. It verifies NP-CONV-001 §4.0 over
+      # the whole document set: every serialed document's filename matches its
+      # serial, and every serial-shaped filename belongs to a serialed document.
+      - name: Document filenames match their serials (NP-CONV-001 §4.0)
+        run: bun scripts/check-doc-filenames.ts
+
+      # NOT run here: `check-pbm-power.ts --strict`. Its own header records why —
+      # 18 of 20 authored protocols are over budget today, so the gate would fail
+      # from its first commit and be disabled. It turns on with the OI-SESPWR-01..03
+      # remediation (OI-SESPWR-05). The script is still type-checked above, which
+      # is the part that was missing.
+
+  simulator-syntax:
+    name: simulator/ parses (ESM + CJS)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.simulator != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # The checker's own assertions run before it is trusted, for the same
+      # reason the matcher's do. This one is not theoretical: the obvious form of
+      # this gate, `node --check <file>`, exits 0 on a simulator/js file with a
+      # hard syntax error appended, because Node parses a path argument as
+      # CommonJS. The self-test proves both modes REJECT bad input, so the gate
+      # cannot silently become a no-op.
+      - name: Checker self-test
+        run: scripts/check-js-syntax.sh --self-test
+
+      - name: Parse every tracked simulator JavaScript file
+        run: scripts/check-js-syntax.sh
+
+  python-syntax:
+    name: python compiles (editscripts, scripts, root)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.python != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # Syntax only, and deliberately so. editscripts/ is 46 one-off document
+      # patch and scan scripts that have already been run; whether they should be
+      # archived rather than kept is a separate decision (see the PR body). Until
+      # that is decided they are tracked code, and tracked code that no
+      # automation has ever parsed is the gap this closes.
+      #
+      # -q keeps the log to errors. __pycache__/ is already in .gitignore, so the
+      # byte-compilation leaves no tree residue.
+      - name: Byte-compile every tracked Python file
+        run: |
+          set -euo pipefail
+          python -m compileall -q \
+            editscripts \
+            scripts \
+            generate_privacy_report.py
