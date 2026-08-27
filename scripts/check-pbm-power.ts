@@ -38,7 +38,7 @@ const DIR = "protocols/predefined";
  *  T1-A 45+45 = 25.0 W; T1-C 30/30/30 = 22.95 W; 1064-only on T1-C = 6.3 W.
  *  NOTE these inherit OI-HEXTILE-02 (no emitter is selected) and OI-HEXTILE-20
  *  (whether R-5's 600 mW/cm² aggregate ceiling makes 25.0 W unreachable). */
-const TILE_W: Record<string, number> = {
+export const TILE_W: Record<string, number> = {
   "660_808nm": 25.0,
   "1064nm": 6.3,
   "660_808_1064nm": 22.95,
@@ -46,9 +46,9 @@ const TILE_W: Record<string, number> = {
 
 /** Watts available to emitters: the R-10 T1 peak envelope (45–50 W) less the
  *  ~6–8 W non-PBM overhead of NP-HW-HEXTILE-001 §9.1. */
-const AVAILABLE_W = 40.0;
+export const AVAILABLE_W = 40.0;
 
-type Row = {
+export type Row = {
   file: string; name: string; sockets: number | null; wavelength: string;
   intensity: number; cw: boolean; duty: number | null; perTileW: number;
   requiredW: number | null; maxConcurrent: number; groups: number | null;
@@ -76,7 +76,7 @@ function loadZones(): Map<string, number[]> {
   return zones;
 }
 
-function analyse(): Row[] {
+export function analyse(): Row[] {
   const zones = loadZones();
   const all = zones.get("All") ?? [];
   const rows: Row[] = [];
@@ -147,6 +147,7 @@ function analyse(): Row[] {
 const fmtDur = (s: number | null): string =>
   s === null ? "—" : s < 5400 ? `${Math.round(s / 60)}m` : `${(s / 3600).toFixed(1)}h`;
 
+if (import.meta.main) {
 const rows = analyse();
 const over = rows.filter((r) => r.requiredW !== null && r.requiredW > AVAILABLE_W);
 
@@ -191,4 +192,5 @@ console.log(
 if (process.argv.includes("--strict") && over.length) {
   console.error(`\nFAIL: ${over.length} protocol(s) exceed the PBM power envelope.`);
   process.exit(1);
+}
 }
