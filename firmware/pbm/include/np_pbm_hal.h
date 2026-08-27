@@ -2,23 +2,23 @@
  * NeurOne 1064nm Smart Zone Module — Platform HAL Stubs
  * Document: NP-FW-PBM1064-001 Rev 1 §3
  *
- * These functions are implemented as stubs in np_pbm1064_hal.c and must be
+ * These functions are implemented as stubs in np_pbm_hal.c and must be
  * replaced by the platform team with real peripheral driver implementations:
  *
- *   OI-PBM-01: np_pbm1064_hal_adc_read_pd  — LPADC1 for PD1/PD2 per zone
- *   OI-PBM-02: np_pbm1064_hal_i2c_write / _read — LPI2C3 slot-addressed
- *   OI-PBM-03: np_pbm1064_hal_safety_mcu_enable — SPI to STM32G071
+ *   OI-PBM-01: np_pbm_hal_adc_read_pd  — LPADC1 for PD1/PD2 per zone
+ *   OI-PBM-02: np_pbm_hal_i2c_write / _read — LPI2C3 slot-addressed
+ *   OI-PBM-03: np_pbm_hal_safety_mcu_enable — SPI to STM32G071
  *
- * Stub implementations return NP_PBM1064_OK and leave output parameters at
+ * Stub implementations return NP_PBM_OK and leave output parameters at
  * deterministic test values so that software-passable FAI tests can run.
  */
 
-#ifndef NP_PBM1064_HAL_H
-#define NP_PBM1064_HAL_H
+#ifndef NP_PBM_HAL_H
+#define NP_PBM_HAL_H
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "np_pbm1064_types.h"
+#include "np_pbm_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -30,7 +30,7 @@ extern "C" {
  * auto-inventory (np_module_map), per NP-FW-PBM1064-001's supersession note.
  * Retained only to keep the host-test build linking.
  */
-bool np_pbm1064_hal_adc_read_zone_id(uint8_t slot, uint16_t *counts_out);
+bool np_pbm_hal_adc_read_zone_id(uint8_t slot, uint16_t *counts_out);
 
 /*
  * Read PD1 or PD2 photodiode ADC for slot.
@@ -40,14 +40,14 @@ bool np_pbm1064_hal_adc_read_zone_id(uint8_t slot, uint16_t *counts_out);
  * Returns true on success.  OI-PBM-01.
  *
  * NP-HW-HUB-001 Rev 3 (2026-07-29) RESHAPES rather than retires this call.
- * It survives as a thin accessor (so np_pbm1064_dose.c needs no restructuring)
+ * It survives as a thin accessor (so np_pbm_dose.c needs no restructuring)
  * but `slot` becomes a uint16_t socket_id (0..127) and the value is served from
  * a CACHED cluster frame, not a direct LPADC conversion: at 80 sockets the
  * 10 Hz dose tick must pull 10 per-cluster frames via
  * np_hub_cluster_read_frame(), not issue 160 individual bus reads.
  * See NP-HW-HUB-001 Rev 3 §9.2–9.3.
  */
-bool np_pbm1064_hal_adc_read_pd(uint8_t slot, uint8_t pd_ch,
+bool np_pbm_hal_adc_read_pd(uint8_t slot, uint8_t pd_ch,
                                  uint16_t *counts_out);
 
 /*
@@ -59,23 +59,23 @@ bool np_pbm1064_hal_adc_read_pd(uint8_t slot, uint8_t pd_ch,
  * TUNNELLED — the hub asks a cluster controller to relay them. Retained only
  * to keep the host-test build linking. See NP-HW-HUB-001 Rev 3 §5.2, §9.1.
  */
-np_pbm1064_status_t np_pbm1064_hal_i2c_mux_enable(uint8_t slot, bool enable);
+np_pbm_status_t np_pbm_hal_i2c_mux_enable(uint8_t slot, bool enable);
 
 /*
  * Write len bytes to driver IC register reg_addr at 7-bit address
- * NP_PBM1064_I2C_ADDR on slot's LPI2C3 instance.
- * Returns NP_PBM1064_OK or NP_PBM1064_ERR_I2C_WRITE.  OI-PBM-02.
+ * NP_PBM_I2C_ADDR on slot's LPI2C3 instance.
+ * Returns NP_PBM_OK or NP_PBM_ERR_I2C_WRITE.  OI-PBM-02.
  */
-np_pbm1064_status_t np_pbm1064_hal_i2c_write(uint8_t  slot,
+np_pbm_status_t np_pbm_hal_i2c_write(uint8_t  slot,
                                                uint8_t  reg_addr,
                                                const uint8_t *data,
                                                uint8_t  len);
 
 /*
  * Read len bytes from driver IC register reg_addr.
- * Returns NP_PBM1064_OK or NP_PBM1064_ERR_I2C_READ.  OI-PBM-02.
+ * Returns NP_PBM_OK or NP_PBM_ERR_I2C_READ.  OI-PBM-02.
  */
-np_pbm1064_status_t np_pbm1064_hal_i2c_read(uint8_t  slot,
+np_pbm_status_t np_pbm_hal_i2c_read(uint8_t  slot,
                                               uint8_t  reg_addr,
                                               uint8_t *data,
                                               uint8_t  len);
@@ -84,41 +84,41 @@ np_pbm1064_status_t np_pbm1064_hal_i2c_read(uint8_t  slot,
  * Probe I2C: send address 0x30 and check for ACK within timeout_ms.
  * Returns true if ACK received.  OI-PBM-02.
  */
-bool np_pbm1064_hal_i2c_probe(uint8_t slot, uint8_t i2c_addr,
+bool np_pbm_hal_i2c_probe(uint8_t slot, uint8_t i2c_addr,
                                 uint32_t timeout_ms);
 
 /*
  * Assert or deassert the safety MCU GPIO enable line for smart module slot.
  * safety MCU owns all stimulation GPIO — main processor requests enable via SPI.
- * Returns NP_PBM1064_OK or NP_PBM1064_ERR_SAFETY_REJECTED.  OI-PBM-03.
+ * Returns NP_PBM_OK or NP_PBM_ERR_SAFETY_REJECTED.  OI-PBM-03.
  */
-np_pbm1064_status_t np_pbm1064_hal_safety_mcu_enable(uint8_t slot,
+np_pbm_status_t np_pbm_hal_safety_mcu_enable(uint8_t slot,
                                                        bool    enable);
 
 /*
  * Read NTC temperature (°C) for the specified zone slot.
- * Returns NP_PBM1064_OK on success; temp_c_out unchanged on error.
+ * Returns NP_PBM_OK on success; temp_c_out unchanged on error.
  */
-np_pbm1064_status_t np_pbm1064_hal_ntc_read(uint8_t slot, float *temp_c_out);
+np_pbm_status_t np_pbm_hal_ntc_read(uint8_t slot, float *temp_c_out);
 
 /*
  * Return system monotonic time in milliseconds (wraps at UINT32_MAX).
  * Maps to FreeRTOS xTaskGetTickCount() × portTICK_PERIOD_MS.
  */
-uint32_t np_pbm1064_hal_now_ms(void);
+uint32_t np_pbm_hal_now_ms(void);
 
 /*
- * Write np_pbm1064_shdr_fault_entry_t to SHDR partition.
+ * Write np_pbm_shdr_fault_entry_t to SHDR partition.
  * Caller provides pointer to populated entry; function appends to SHDR log.
  * No-op in stub implementation.
  */
-void np_pbm1064_hal_shdr_log_fault(const np_pbm1064_shdr_fault_entry_t *entry);
+void np_pbm_hal_shdr_log_fault(const np_pbm_shdr_fault_entry_t *entry);
 
 /*
  * Invoke bone conduction zone announcement (delegate to NP-FW-ZA-001).
  * slot_index: 0–4; used to compute zone ID for the announcer.
  */
-void np_pbm1064_hal_zone_announce(uint8_t slot_index);
+void np_pbm_hal_zone_announce(uint8_t slot_index);
 
 /*
  * ⚠ RETIRED by NP-HW-HUB-001 Rev 3 (2026-07-29) — DO NOT IMPLEMENT ON TARGET.
@@ -138,15 +138,15 @@ void np_pbm1064_hal_zone_announce(uint8_t slot_index);
  * Replacement surface: firmware/cluster_ctrl/ (new IEC 62304 Class B unit) and
  * np_hub_cluster_read_frame() on the hub side. See NP-HW-HUB-001 Rev 3 §6, §9.1.
  */
-np_pbm1064_status_t np_pbm1064_hal_tia_gain_set(uint8_t slot, np_tia_gain_t gain);
-void np_pbm1064_hal_tia_gain_boot_init(void);
+np_pbm_status_t np_pbm_hal_tia_gain_set(uint8_t slot, np_tia_gain_t gain);
+void np_pbm_hal_tia_gain_boot_init(void);
 
 /*
  * T2 subsystem throttle request (OI-PBM-07; stub pending Issue #54).
  * pct: throttle percentage 0–100 (100 = full output, 0 = off).
- * Kept for backwards compatibility; prefer np_pbm1064_hal_t2_1170_set_duty().
+ * Kept for backwards compatibility; prefer np_pbm_hal_t2_1170_set_duty().
  */
-void np_pbm1064_hal_t2_throttle_request(uint8_t pct);
+void np_pbm_hal_t2_throttle_request(uint8_t pct);
 
 /*
  * ── T2 1170nm laser HAL (NP-SES-1064-001 §6) ──────────────────────────
@@ -165,7 +165,7 @@ void np_pbm1064_hal_t2_throttle_request(uint8_t pct);
  * the safety MCU owns the laser enable GPIO and verifies impedance before enable.
  * OI-PBM-07.
  */
-np_pbm1064_status_t np_pbm1064_hal_t2_1170_enable(bool enable);
+np_pbm_status_t np_pbm_hal_t2_1170_enable(bool enable);
 
 /*
  * Set 1170nm laser drive power (0–100%).
@@ -173,23 +173,23 @@ np_pbm1064_status_t np_pbm1064_hal_t2_1170_enable(bool enable);
  * Applied over the 30 s ramp in firmware; this function writes the raw setpoint.
  * OI-PBM-07.
  */
-np_pbm1064_status_t np_pbm1064_hal_t2_1170_set_duty(uint8_t duty_pct);
+np_pbm_status_t np_pbm_hal_t2_1170_set_duty(uint8_t duty_pct);
 
 /*
  * Read accumulated dose from the T2 laser module's integrated monitor PD.
  * dose_J_cm2_out: cumulative dose since last reset (session-scoped).
- * Returns NP_PBM1064_OK; dose_J_cm2_out unchanged on error.
+ * Returns NP_PBM_OK; dose_J_cm2_out unchanged on error.
  * OI-PBM-08.
  */
-np_pbm1064_status_t np_pbm1064_hal_t2_1170_get_dose(float *dose_J_cm2_out);
+np_pbm_status_t np_pbm_hal_t2_1170_get_dose(float *dose_J_cm2_out);
 
 /*
  * Read TEC coolant temperature from the T2 laser module.
  * tec_temp_c_out: TEC temperature in °C.
- * Returns NP_PBM1064_OK; tec_temp_c_out unchanged on error.
+ * Returns NP_PBM_OK; tec_temp_c_out unchanged on error.
  * OI-PBM-08.
  */
-np_pbm1064_status_t np_pbm1064_hal_t2_1170_get_temp(float *tec_temp_c_out);
+np_pbm_status_t np_pbm_hal_t2_1170_get_temp(float *tec_temp_c_out);
 
 /*
  * Read the sLORETA-computed MNI target coordinate for the current session.
@@ -198,7 +198,7 @@ np_pbm1064_status_t np_pbm1064_hal_t2_1170_get_temp(float *tec_temp_c_out);
  * so that software-passable FAI tests can exercise the logging path.
  * OI-SES-T2-01.
  */
-np_pbm1064_status_t np_pbm1064_hal_t2_sloreta_get_target(int16_t *mni_x_out,
+np_pbm_status_t np_pbm_hal_t2_sloreta_get_target(int16_t *mni_x_out,
                                                            int16_t *mni_y_out,
                                                            int16_t *mni_z_out,
                                                            bool    *valid_out);
@@ -207,4 +207,4 @@ np_pbm1064_status_t np_pbm1064_hal_t2_sloreta_get_target(int16_t *mni_x_out,
 }
 #endif
 
-#endif /* NP_PBM1064_HAL_H */
+#endif /* NP_PBM_HAL_H */

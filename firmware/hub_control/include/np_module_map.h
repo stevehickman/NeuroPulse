@@ -334,7 +334,7 @@ bool np_module_uid_is_zero(const np_module_uid_t *a);   /* zero UID = empty sock
  *
  * Ordering is fixed: [wl][coeff] with wl = {660, 808, 1064} and coeff =
  * {K_PD1, K_PD2, K_ratio_nom}, i.e. index 3*wl + coeff. This matches
- * np_pbm1064_cal_t[NP_PBM1064_WL_COUNT] read in wavelength order.
+ * np_pbm_cal_t[NP_PBM_WL_COUNT] read in wavelength order.
  *
  * Stale entries need no explicit invalidation: np_module_map_apply_poll()
  * clears a socket's whole record when its UID changes, calibration included.
@@ -367,7 +367,7 @@ np_hub_status_t np_module_map_get_cal(const np_module_uid_t *uid,
 /*
  * Look up the UID of the module currently occupying `socket_id`.
  * Returns NP_HUB_ERR_NOT_PRESENT if the socket is empty or not inventoried.
- * This is the hub-side backing for np_pbm1064_socket_uid_fn.
+ * This is the hub-side backing for np_pbm_socket_uid_fn.
  */
 np_hub_status_t np_module_map_socket_uid(uint16_t socket_id, np_module_uid_t *uid_out);
 

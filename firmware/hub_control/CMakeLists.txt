@@ -3,7 +3,7 @@
 # Document: NP-FW-HUB-001 Rev 1
 #
 # Produces a static library (np_hub_control) linked into the main application
-# image (alongside FreeRTOS, np_bootloader, np_pbm_1064nm, np_hrv_biofeedback,
+# image (alongside FreeRTOS, np_bootloader, np_pbm, np_hrv_biofeedback,
 # np_zone_announce, np_sloreta_hdtdcs, np_cervical_vns, and the platform HAL).
 #
 # Prerequisites:
@@ -11,7 +11,7 @@
 #   - CMake ≥ 3.20
 #   - Parent project must provide:
 #       NP_PLATFORM_INCLUDE_DIRS  — MCUX SDK + FreeRTOS headers
-#       np_pbm_1064nm             — PBM detection and drive libraries
+#       np_pbm             — PBM detection and drive libraries
 #       np_hrv_biofeedback        — HRV biofeedback session library
 #       np_zone_announce          — Zone module bone-conduction announcement
 #       np_cervical_vns           — Cervical VNS safety interlock library
@@ -44,22 +44,22 @@ if(NP_BUILD_TESTS)
         tests/np_module_map_tests.c
         src/np_module_map.c
     )
-    target_include_directories(np_module_map_tests PRIVATE include ../pbm_1064nm/include)
+    target_include_directories(np_module_map_tests PRIVATE include ../pbm/include)
     target_compile_options(np_module_map_tests PRIVATE -Wall -Wextra -std=c11)
 
-    # PBM calibration bridge: np_module_map's UID-keyed record -> the pbm_1064nm
+    # PBM calibration bridge: np_module_map's UID-keyed record -> the pbm
     # library's injected provider/resolver (OI-HUB-C06). Needs both include
     # trees, which is exactly why the bridge lives here and not in either library.
     add_executable(np_pbm_cal_bridge_tests
         tests/np_pbm_cal_bridge_tests.c
         src/np_pbm_cal_bridge.c
         src/np_module_map.c
-        ../pbm_1064nm/src/np_pbm1064_session.c
-        ../pbm_1064nm/src/np_pbm1064_dose.c
-        ../pbm_1064nm/src/np_pbm1064_drive.c
-        ../pbm_1064nm/src/np_pbm1064_hal.c
+        ../pbm/src/np_pbm_session.c
+        ../pbm/src/np_pbm_dose.c
+        ../pbm/src/np_pbm_drive.c
+        ../pbm/src/np_pbm_hal.c
     )
-    target_include_directories(np_pbm_cal_bridge_tests PRIVATE include ../pbm_1064nm/include)
+    target_include_directories(np_pbm_cal_bridge_tests PRIVATE include ../pbm/include)
     target_compile_options(np_pbm_cal_bridge_tests PRIVATE -Wall -Wextra -std=c11)
     target_link_libraries(np_pbm_cal_bridge_tests m)
 
@@ -146,7 +146,7 @@ set(HUB_SOURCES
     src/np_safety_spi.c
     src/np_cvns_reenable.c        # OI-CVNS-HUB-01: CVNS re-enable manager
     src/np_module_map.c           # Hex zone-module addressing + NVRAM map (redesign study)
-    src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm_1064nm seams
+    src/np_pbm_cal_bridge.c       # OI-HUB-C06: UID-keyed calibration -> pbm seams
     src/np_hub_freertos_hooks.c   # FreeRTOS app hooks (stack overflow, malloc, assert)
 
     modules/np_mod_pbm.c
@@ -201,7 +201,7 @@ target_compile_options(np_hub_control PRIVATE
 target_link_libraries(np_hub_control
     PUBLIC
         np_freertos
-        np_pbm_1064nm
+        np_pbm
         np_hrv_biofeedback
         np_zone_announce
         np_cervical_vns

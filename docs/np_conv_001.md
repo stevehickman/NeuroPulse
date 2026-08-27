@@ -65,7 +65,7 @@ evidence, not taste.
 | `_N` | **cardinality** — "number of" | `PBM_TILE_N`, `EEG_TILE_N` in `firmware/hub_control/tests/np_module_map_tests.c` are `sizeof(x)/sizeof(x[0])` | **Forbidden for polarity.** `SEAT_N` read as "number of seats" |
 | `_L` | **Left** (anatomical / bilateral) | `CVNS_ENABLE_L` / `CVNS_ENABLE_R` in `NP-FW-CVNS-001` §5.1 are the left and right electrode drivers | **Forbidden for polarity** |
 | `_R` | **Right** | as above | **Forbidden for polarity** |
-| `_B` | **channel B** | `CH_B`, `LED_B`, `CUR_B`, `DUTY_B`, `NP_BANK_B`, `NP_PBM1064_REG_*_B` | **Forbidden for polarity** ("bar" is a common convention elsewhere; it is not available here) |
+| `_B` | **channel B** | `CH_B`, `LED_B`, `CUR_B`, `DUTY_B`, `NP_BANK_B`, `NP_PBM_REG_*_B` | **Forbidden for polarity** ("bar" is a common convention elsewhere; it is not available here) |
 | `_LOW` | **a low threshold or a low setting** | `NP_ADAPT_TRIGGER_EEG_ALPHA_LOW`, `NP_TIA_GAIN_LOW` | **Forbidden for polarity** |
 | leading `/` | **hierarchical path separator** in EDA net naming (KiCad, Altium) | a net named `/ALERT` reads as a root-scope path and can be silently re-scoped or duplicated on netlist import | **Forbidden** |
 

@@ -3,12 +3,12 @@
  * Document: NP-FW-PBM1064-001 Rev 1 §5
  */
 
-#ifndef NP_PBM1064_DRIVE_H
-#define NP_PBM1064_DRIVE_H
+#ifndef NP_PBM_DRIVE_H
+#define NP_PBM_DRIVE_H
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "np_pbm1064_types.h"
+#include "np_pbm_types.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -22,65 +22,65 @@ typedef struct {
     uint8_t ch_enable;       /* last written CH_ENABLE register                   */
     uint8_t status;          /* last STATUS read                                  */
     bool    initialized;     /* true after successful startup sequence             */
-} np_pbm1064_drv_slot_t;
+} np_pbm_drv_slot_t;
 
 /*
  * Execute the driver IC startup sequence per NP-FW-PBM1064-001 §5.3.
  * Writes CONFIG → CUR → FREQ → DUTY → CH_ENABLE, then reads STATUS.
- * On STATUS.FAULT=1 returns NP_PBM1064_ERR_DRIVER_FAULT and does NOT
- * call np_pbm1064_hal_safety_mcu_enable().
+ * On STATUS.FAULT=1 returns NP_PBM_ERR_DRIVER_FAULT and does NOT
+ * call np_pbm_hal_safety_mcu_enable().
  */
-np_pbm1064_status_t np_pbm1064_drive_startup(uint8_t slot,
-                                               np_pbm1064_drv_slot_t *drv,
-                                               const np_pbm1064_preset_t *preset);
+np_pbm_status_t np_pbm_drive_startup(uint8_t slot,
+                                               np_pbm_drv_slot_t *drv,
+                                               const np_pbm_preset_t *preset);
 
 /*
- * Set duty on one or all channels.  Clamps to NP_PBM1064_DUTY_MAX_REG.
- * ch_mask: bitmask (NP_PBM1064_CH_A_EN etc.); 0xFF = all enabled channels.
+ * Set duty on one or all channels.  Clamps to NP_PBM_DUTY_MAX_REG.
+ * ch_mask: bitmask (NP_PBM_CH_A_EN etc.); 0xFF = all enabled channels.
  */
-np_pbm1064_status_t np_pbm1064_drive_set_duty(uint8_t slot,
-                                                np_pbm1064_drv_slot_t *drv,
+np_pbm_status_t np_pbm_drive_set_duty(uint8_t slot,
+                                                np_pbm_drv_slot_t *drv,
                                                 uint8_t ch_mask,
                                                 uint8_t duty);
 
 /*
  * Set PWM frequency code on all enabled channels.
  */
-np_pbm1064_status_t np_pbm1064_drive_set_freq(uint8_t slot,
-                                                np_pbm1064_drv_slot_t *drv,
+np_pbm_status_t np_pbm_drive_set_freq(uint8_t slot,
+                                                np_pbm_drv_slot_t *drv,
                                                 uint8_t ch_mask,
                                                 uint8_t freq_code);
 
 /*
  * Enable or disable individual channels.
  */
-np_pbm1064_status_t np_pbm1064_drive_set_ch_enable(uint8_t slot,
-                                                      np_pbm1064_drv_slot_t *drv,
+np_pbm_status_t np_pbm_drive_set_ch_enable(uint8_t slot,
+                                                      np_pbm_drv_slot_t *drv,
                                                       uint8_t ch_enable_mask);
 
 /*
  * Periodic 5 s status poll.  Reads STATUS, THERMAL, and FAULT_LATCH.
  * On fault: disables affected channels and logs to SHDR.
- * Returns NP_PBM1064_OK if no fault; NP_PBM1064_ERR_DRIVER_FAULT or
- * NP_PBM1064_ERR_THERMAL or NP_PBM1064_ERR_OCP on fault conditions.
+ * Returns NP_PBM_OK if no fault; NP_PBM_ERR_DRIVER_FAULT or
+ * NP_PBM_ERR_THERMAL or NP_PBM_ERR_OCP on fault conditions.
  */
-np_pbm1064_status_t np_pbm1064_drive_poll_status(uint8_t slot,
-                                                    np_pbm1064_drv_slot_t *drv,
+np_pbm_status_t np_pbm_drive_poll_status(uint8_t slot,
+                                                    np_pbm_drv_slot_t *drv,
                                                     uint32_t device_session_count);
 
 /*
  * Immediately disable all channels (emergency stop).
  * Does not clear FAULT_LATCH — preserves diagnostic info.
  */
-np_pbm1064_status_t np_pbm1064_drive_disable_all(uint8_t slot,
-                                                    np_pbm1064_drv_slot_t *drv);
+np_pbm_status_t np_pbm_drive_disable_all(uint8_t slot,
+                                                    np_pbm_drv_slot_t *drv);
 
 /*
  * Map EEG dominant frequency (Hz) to nearest driver PWM frequency code.
- * Applies NP_PBM1064_EEG_HYSTERESIS_TICKS hysteresis via tick_count_in_band.
+ * Applies NP_PBM_EEG_HYSTERESIS_TICKS hysteresis via tick_count_in_band.
  * Returns 0xFF if hysteresis period not yet elapsed (no change needed).
  */
-uint8_t np_pbm1064_drive_map_eeg_freq(float    dominant_freq_hz,
+uint8_t np_pbm_drive_map_eeg_freq(float    dominant_freq_hz,
                                         uint8_t  current_freq_code,
                                         uint8_t *tick_count_in_band);
 
@@ -88,4 +88,4 @@ uint8_t np_pbm1064_drive_map_eeg_freq(float    dominant_freq_hz,
 }
 #endif
 
-#endif /* NP_PBM1064_DRIVE_H */
+#endif /* NP_PBM_DRIVE_H */

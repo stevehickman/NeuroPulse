@@ -152,7 +152,7 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 | SW02-M01 | OTA bootloader | `firmware/bootloader/` | Dual-bank OTA; Ed25519 firmware verification; DFU recovery |
 | SW02-M02 | eMMC storage management | (spec: NP-FW-EMMC-001) | UHDR/SHDR partition management; AES-256-XTS; LittleFS |
 | SW02-M03 | EEG signal processing | (planned) | ADS1299 driver; impedance; session data to UHDR |
-| SW02-M04 | PBM session orchestrator | `firmware/pbm_1064nm/` | 1064nm smart module; zone management; dose metering |
+| SW02-M04 | PBM session orchestrator | `firmware/pbm/` | 1064nm smart module; zone management; dose metering |
 | SW02-M05 | HRV biofeedback | `firmware/hrv_biofeedback/` | PPG peak detection; coherence; taVNS sync; EEG-HRV biofeedback |
 | SW02-M06 | Zone module detect and announce | `firmware/zone_announce/` | ZONE_ID detection; bone conduction audio. **⚠ SUPERSEDED 2026-07-28** — ZONE_ID detection retired by `np_module_map` (SW02-M09); this module needs porting to trigger from module-map events (see `docs/superseded/np_fw_za_001.md`) |
 | SW02-M07 | sLORETA HD-tDCS (T2) | `firmware/sloreta_hdtdcs/` | Weight matrix; electrode mapping; current distribution |
@@ -167,7 +167,7 @@ Each module listed constitutes a **software unit** requiring individual unit ver
 
 #### 5.2.1 ZONE_ID Detection Debounce Requirement (RISK-18)
 
-Firmware requirement, binding on both SW02-M04 (PBM session orchestrator, smart module ZONE_ID variant) and SW02-M06 (zone module detect and announce, base module ZONE_ID): a module insertion or removal is confirmed only after **3 consecutive ADC reads at 100ms intervals** with a **≥2/3 majority** agreeing on the same slot state (present/absent/smart-module-detected). A single noisy or transitional ADC read must never toggle a slot's state. This is the firmware-requirements-level statement of RISK-18 (zone module miskeying / false insertion detection); the full algorithm and state machine are specified in `firmware/zone_announce/` (`docs/superseded/np_fw_za_001.md` §6.2) and, for the 1064nm smart-module ZONE_ID variant, in `firmware/pbm_1064nm/` (`docs/np_fw_pbm1064_001.md` §4). Both implementations satisfy this same 3-read/2-of-3 requirement; this subsection exists so the requirement is traceable from the software development plan itself, not only from the two module-level specs that implement it.
+Firmware requirement, binding on both SW02-M04 (PBM session orchestrator, smart module ZONE_ID variant) and SW02-M06 (zone module detect and announce, base module ZONE_ID): a module insertion or removal is confirmed only after **3 consecutive ADC reads at 100ms intervals** with a **≥2/3 majority** agreeing on the same slot state (present/absent/smart-module-detected). A single noisy or transitional ADC read must never toggle a slot's state. This is the firmware-requirements-level statement of RISK-18 (zone module miskeying / false insertion detection); the full algorithm and state machine are specified in `firmware/zone_announce/` (`docs/superseded/np_fw_za_001.md` §6.2) and, for the 1064nm smart-module ZONE_ID variant, in `firmware/pbm/` (`docs/np_fw_pbm1064_001.md` §4). Both implementations satisfy this same 3-read/2-of-3 requirement; this subsection exists so the requirement is traceable from the software development plan itself, not only from the two module-level specs that implement it.
 
 ### 5.3 SW-03 — iOS/Android application (Class B)
 

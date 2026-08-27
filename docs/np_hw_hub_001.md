@@ -1634,10 +1634,10 @@ LED drive spec (§1, **OI-HUB-C01**).
 
 | Symbol | Disposition |
 |---|---|
-| `np_pbm1064_hal_tia_gain_set(slot, gain)` | **Retired from the hub HAL.** Gain is no longer a hub concern (§6.1). Equivalent logic moves into cluster-controller firmware. |
-| `np_pbm1064_hal_tia_gain_boot_init()` | **Retired.** Replaced by a cluster-controller power-on self-test result reported over the bus; the hub asserts nothing. |
-| `np_pbm1064_hal_i2c_mux_enable(slot, bool)` | **Retired.** Each cluster controller owns its own PCA9548A. |
-| `np_pbm1064_hal_adc_read_zone_id(slot, …)`, `NP_PBM1064_ADC_SMART_MAX/_BASE_MIN/_NO_MODULE_MIN`, `np_slot_type_t`, `np_pbm1064_detect.c` §4 detection state machine | **Retired.** ZONE_ID resistor-ladder detection is replaced by UID-based auto-inventory (`np_module_map`), per `NP-FW-PBM1064-001`'s own supersession note. |
+| `np_pbm_hal_tia_gain_set(slot, gain)` | **Retired from the hub HAL.** Gain is no longer a hub concern (§6.1). Equivalent logic moves into cluster-controller firmware. |
+| `np_pbm_hal_tia_gain_boot_init()` | **Retired.** Replaced by a cluster-controller power-on self-test result reported over the bus; the hub asserts nothing. |
+| `np_pbm_hal_i2c_mux_enable(slot, bool)` | **Retired.** Each cluster controller owns its own PCA9548A. |
+| `np_pbm_hal_adc_read_zone_id(slot, …)`, `NP_PBM_ADC_SMART_MAX/_BASE_MIN/_NO_MODULE_MIN`, `np_slot_type_t`, `np_pbm_detect.c` §4 detection state machine | **Retired.** ZONE_ID resistor-ladder detection is replaced by UID-based auto-inventory (`np_module_map`), per `NP-FW-PBM1064-001`'s own supersession note. |
 | `np_sm_slot_ctx_t.tia_gain` | **Retired** as hub state. Gain actually used is reported per-frame by the cluster controller for SHDR (§9.5). |
 | `NP_SAFETY_EN_PBM_ZONE_0..4` | **DONE 2026-08-05.** Replaced by `NP_SAFETY_EN_PBM_CRANIAL`; bits 1–4 reserved, `NP_SAFETY_EN_ALL_MASK` narrowed `0x3FFF` → `0x3FE1` (§7.2). Landed in `np_safety_protocol.h`, `np_hub_config.h`, `np_safety_config.h` (`NP_EN_PBM_CRANIAL_*` on PA0, freeing the PA4 SPI1-NSS clash), `np_gpio_mgr.c`, `np_thermal_interlock.c`, `np_session_runner.c`, `np_mod_pbm.c`. |
 
@@ -1649,10 +1649,10 @@ table.
 
 | Function | Change |
 |---|---|
-| `np_pbm1064_hal_i2c_write/_read(socket_id, reg, …)` | Same signature shape; implemented as a **tunnelled** relay through the socket's cluster controller (§5.2). |
-| `np_pbm1064_hal_i2c_probe(socket_id, addr, timeout)` | As above. |
-| `np_pbm1064_hal_ntc_read(socket_id, …)` | Served from the cached cluster frame, not a direct ADC read. |
-| `np_pbm1064_hal_safety_mcu_enable(…)` | Argument becomes the cranial-PBM enable, not a slot (§7.2). |
+| `np_pbm_hal_i2c_write/_read(socket_id, reg, …)` | Same signature shape; implemented as a **tunnelled** relay through the socket's cluster controller (§5.2). |
+| `np_pbm_hal_i2c_probe(socket_id, addr, timeout)` | As above. |
+| `np_pbm_hal_ntc_read(socket_id, …)` | Served from the cached cluster frame, not a direct ADC read. |
+| `np_pbm_hal_safety_mcu_enable(…)` | Argument becomes the cranial-PBM enable, not a slot (§7.2). |
 
 ### 9.3 New — frame-oriented acquisition
 
@@ -1665,8 +1665,8 @@ np_hub_status_t np_hub_cluster_read_frame(uint8_t cluster_id,
 ```
 
 At n = 80 that is **10 frames per 100 ms tick** rather than 160 reads.
-`np_pbm1064_hal_adc_read_pd(socket_id, pd_ch, counts)` is retained as a thin accessor over the cached
-frame so `np_pbm1064_dose.c` needs no restructuring.
+`np_pbm_hal_adc_read_pd(socket_id, pd_ch, counts)` is retained as a thin accessor over the cached
+frame so `np_pbm_dose.c` needs no restructuring.
 
 The frame also carries, per socket: module-present, UID-changed flag, fault latch, and **the TIA gain
 actually used for each sample** (§9.5).
@@ -1982,7 +1982,7 @@ The sequence between ZONE_ID ADC detection and TIA gain switch assertion is **sa
       [minimum 10 µs setup; DG2788A switch propagation delay < 1 µs]
    b. Enable I2C mux for the slot (PCA9546A channel enable, or GPIO mux for slot 4).
    c. Probe I2C address 0x30 within 5 ms timeout.
-4. On I2C probe success: proceed to session enable sequence (np_pbm1064_session_start).
+4. On I2C probe success: proceed to session enable sequence (np_pbm_session_start).
 ```
 
 **Rationale for ordering gain switch before I2C mux:** The ATtiny402 on the module powers up when VCC_3V3 (pin 12) is available. VCC_3V3 on the hub PCB is always live when the hub is powered; the InGaAs PD is therefore powered as soon as the module is physically connected. Although PBM LEDs are not enabled until after I2C session start, ambient light can produce non-trivial PD current. The TIA gain must be at Rf = 22 kΩ before any valid PD ADC readings are taken.
@@ -2007,10 +2007,10 @@ The i.MX RT1062 GPIO2 bank defaults to input (tri-state) on reset. The boot sequ
 **Required boot sequence addition (main processor firmware):**
 ```c
 /* Configure GAIN_SEL[0..4] as output LOW before zone detect task starts */
-np_pbm1064_hal_tia_gain_boot_init();   /* drives GPIO_B0_04..08 LOW */
+np_pbm_hal_tia_gain_boot_init();   /* drives GPIO_B0_04..08 LOW */
 ```
 
-This function must execute before `np_pbm1064_detect_init()` is called. See `np_pbm1064_hal.h` (OI-PBM-HW-01).
+This function must execute before `np_pbm_detect_init()` is called. See `np_pbm_hal.h` (OI-PBM-HW-01).
 
 ## A.6 3.3 V Supply Current Budget (OI-PBM-HW-03) *(Rev B §6 — RETIRED; successor OI-HUB-C11)*
 
@@ -2065,13 +2065,13 @@ No significant contribution to 3.3 V budget from gain switch ICs.
 
 The firmware changes required by this hardware revision are specified in NP-FW-PBM1064-001 Rev 1 (amended by Issue #62):
 
-1. **New HAL function:** `np_pbm1064_hal_tia_gain_set(slot, gain)` — asserts or deasserts `GAIN_SEL[n]` GPIO. Stub provided; platform team implements with actual GPIO_B0 register writes.
-2. **New HAL function:** `np_pbm1064_hal_tia_gain_boot_init()` — configures all 5 GAIN_SEL pins as output LOW at boot. Called before zone detection task.
-3. **Detection sequence change:** `np_pbm1064_detect.c` calls `np_pbm1064_hal_tia_gain_set(slot, NP_TIA_GAIN_LOW)` after smart module debounce confirms ZONE_ID < 1100, and **before** `np_pbm1064_hal_i2c_mux_enable(slot, true)`.
-4. **Removal sequence change:** `np_pbm1064_detect.c` calls `np_pbm1064_hal_tia_gain_set(slot, NP_TIA_GAIN_HIGH)` after I2C mux disable on smart module removal.
+1. **New HAL function:** `np_pbm_hal_tia_gain_set(slot, gain)` — asserts or deasserts `GAIN_SEL[n]` GPIO. Stub provided; platform team implements with actual GPIO_B0 register writes.
+2. **New HAL function:** `np_pbm_hal_tia_gain_boot_init()` — configures all 5 GAIN_SEL pins as output LOW at boot. Called before zone detection task.
+3. **Detection sequence change:** `np_pbm_detect.c` calls `np_pbm_hal_tia_gain_set(slot, NP_TIA_GAIN_LOW)` after smart module debounce confirms ZONE_ID < 1100, and **before** `np_pbm_hal_i2c_mux_enable(slot, true)`.
+4. **Removal sequence change:** `np_pbm_detect.c` calls `np_pbm_hal_tia_gain_set(slot, NP_TIA_GAIN_HIGH)` after I2C mux disable on smart module removal.
 5. **Per-slot gain state:** `np_sm_slot_ctx_t` tracks current TIA gain setting for SHDR logging and diagnostic purposes.
 
-See `firmware/pbm_1064nm/` for implementation. FAI-SM-04 (three-channel bench verification) and FAI-SM-06 (InGaAs dose metering accuracy) require hardware Rev 2 PCB with DG2788A populated to pass.
+See `firmware/pbm/` for implementation. FAI-SM-04 (three-channel bench verification) and FAI-SM-06 (InGaAs dose metering accuracy) require hardware Rev 2 PCB with DG2788A populated to pass.
 
 ## A.10 Open Items *(Rev B §10 — ALL CLOSED AS MOOT, Rev 3 §11)*
 
@@ -2095,7 +2095,7 @@ See `firmware/pbm_1064nm/` for implementation. FAI-SM-04 (three-channel bench ve
 | HUB-DRC-04 | DG2788A RON ≤ 2.5 Ω impact on TIA offset quantified | ✓ (§A.3.5) — 2.5 Ω << Rf; negligible |
 | HUB-DRC-05 | PCA9546A I2C address non-conflicting with other hub I2C peripherals | Open — hub I2C address map audit |
 | HUB-DRC-06 | 3.3 V supply budget (5× smart modules = 250 mA) verified | Open — OI-HUB-01 |
-| HUB-DRC-07 | Gain switch assert before I2C mux enable sequencing confirmed in firmware | ✓ (§A.5.1; firmware/pbm_1064nm/src/np_pbm1064_detect.c Rev 2) |
-| HUB-DRC-08 | Boot init function configures GAIN_SEL[0..4] LOW before zone detect task | ✓ (§A.5.3; np_pbm1064_hal_tia_gain_boot_init) |
+| HUB-DRC-07 | Gain switch assert before I2C mux enable sequencing confirmed in firmware | ✓ (§A.5.1; firmware/pbm/src/np_pbm_detect.c Rev 2) |
+| HUB-DRC-08 | Boot init function configures GAIN_SEL[0..4] LOW before zone detect task | ✓ (§A.5.3; np_pbm_hal_tia_gain_boot_init) |
 | HUB-DRC-09 | Feedback trace length ≤ 5 mm from DG2788A to TIA op-amp | Open — layout DRC (OI-HUB-02) |
 | HUB-DRC-10 | PCA9546A channel enable/disable firmware tested with 5-module simultaneous scenario | Open — FAI-SM-04 bench |
