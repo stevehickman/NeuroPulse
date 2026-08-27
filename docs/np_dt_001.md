@@ -233,7 +233,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DO-SW-03 | Source | firmware/zone_announce/ — Zone detection + bone-conduction audio (np_zone_detect, np_zone_audio, np_zone_announce; LPADC1, SAI3 I2S, eDMA ping-pong) | — | Active | T1+T2 |
 | DO-SW-04 | Source | firmware/sloreta_hdtdcs/ — sLORETA source imaging + HD-tDCS electrode selection and current distribution | — | Active | T2 |
 | DO-SW-05 | Source | firmware/cervical_vns/ — Cervical VNS stimulation + cardiac interlock (np_cvns_interlock Pan-Tompkins, np_cvns_stim biphasic, np_cvns_session UHDR/SHDR) | — | Active | T2 |
-| DO-SW-06 | Source | firmware/pbm_1064nm/ — 1064 nm PBM session orchestrator (smart module detect, LPI2C3 driver, duty-cycle ceiling, dose accumulator, T2 combined np_pbm1064_t2_combined) | — | Active | T1+T2 |
+| DO-SW-06 | Source | firmware/pbm/ — 1064 nm PBM session orchestrator (smart module detect, LPI2C3 driver, duty-cycle ceiling, dose accumulator, T2 combined np_pbm_t2_combined) | — | Active | T1+T2 |
 | DO-SW-07 | Source | firmware/hub_control/ — FreeRTOS hub application (SW02-M09..M12: np_hub_module_registry, np_hub_session_runner, np_hub_session_log, np_hub_safety_spi) | — | Active | T1+T2 |
 | DO-SW-08 | Source | firmware/anon/ — Research anonymisation module (on-device k-anonymity, DP Laplace, Scratch staging, study descriptor validation, eMMC SANITIZE) | — | Active | T1+T2 |
 | DO-SW-09 | Source | app/ios/ — iOS application (BLE GATT, session display Modes 1/2/4, UHDR data, SHDR upload, clinical consent, privacy compliance, consumable tracker, OTA, Watch bridge, AdaptiveAdjustmentsCard) | — | Active | T1+T2 |

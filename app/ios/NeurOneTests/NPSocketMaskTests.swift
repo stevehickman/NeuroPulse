@@ -80,7 +80,7 @@ final class NPSocketMaskTests: XCTestCase {
 
     func testMaskIsSizedToTheFirmwareConstant() throws {
         // == NP_HUB_SOCKET_MASK_BYTES (firmware/hub_control/include/np_hub_config.h)
-        // and == NP_PBM1064_SOCKET_MASK_BYTES. 128 bits, not 80: the wire format
+        // and == NP_PBM_SOCKET_MASK_BYTES. 128 bits, not 80: the wire format
         // covers the whole 7-bit socket domain, not what this shell wires.
         XCTAssertEqual(NPSocketMask.byteCount, 16)
         let mask = try NPPBMTarget.named(["All"]).resolve()

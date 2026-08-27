@@ -23,7 +23,7 @@ protocol "Memory Boost" {
         frequency: 0Hz
         duty_cycle: 25%
         # duty_cycle: 25% is the firmware-enforced ceiling for the 1064nm
-        # channel (np_pbm1064_drive_set_duty(), NP-FW-PBM1064-001 Section 5).
+        # channel (np_pbm_drive_set_duty(), NP-FW-PBM1064-001 Section 5).
         # True CW is therefore NOT achievable, and Yao 2022 used CW; that paper
         # states explicitly that pulsed 1064nm working-memory effects have not
         # been confirmed in a registered trial. frequency: 0Hz selects the

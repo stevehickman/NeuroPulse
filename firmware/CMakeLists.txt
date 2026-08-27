@@ -32,7 +32,7 @@
 #   firmware/bootloader/      — dual-bank OTA bootloader, Ed25519, DFU
 #   firmware/hub_control/     — FreeRTOS hub control (module registry, session
 #                                 runner, session log, safety SPI heartbeat)
-#   firmware/pbm_1064nm/      — 1064nm smart zone module detection + drive
+#   firmware/pbm/      — 1064nm smart zone module detection + drive
 #   firmware/hrv_biofeedback/ — HRV+taVNS biofeedback protocol library
 #   firmware/zone_announce/   — zone-module insertion FSM → companion-app notify
 #                                 (module-status GATT characteristic).  The Rev 1
@@ -80,7 +80,7 @@
 #                             → np_mod_stim_tests         (BES/tACS + tDCS slot dispatch)
 #   firmware/zone_announce/   → np_zone_announce_tests    (module-status frame encoder)
 #                             → np_zone_notify_tests      (app-notify dispatch)
-#   firmware/pbm_1064nm/      → np_pbm1064_session_desc_tests (NP-SES-1064-001 v5 wire format)
+#   firmware/pbm/      → np_pbm_session_desc_tests (NP-SES-1064-001 v5 wire format)
 #   firmware/cervical_vns/    → np_cvns_fai_tests         (FAI CV01..CV06, cardiac interlock)
 #   firmware/sloreta_hdtdcs/  → np_hd_fai_tests           (FAI montage + sLORETA algorithm)
 #   firmware/vendor/freertos/ → np_freertos_smoke_tests   (kernel + config, POSIX port)
@@ -161,7 +161,7 @@ if(NP_BUILD_TESTS)
                                   # OI-CHARGE-01:   charge monitor tests
     add_subdirectory(hub_control) # OI-CVNS-HUB-01: CVNS re-enable manager tests
     add_subdirectory(zone_announce) # module-status frame encoder (app notify path)
-    add_subdirectory(pbm_1064nm)  # NP-SES-1064-001 v5: session descriptor wire format
+    add_subdirectory(pbm)  # NP-SES-1064-001 v5: session descriptor wire format
     add_subdirectory(cervical_vns)   # NP-FAI-CVNS-001: cardiac interlock FAI suite
     add_subdirectory(sloreta_hdtdcs) # NP-FW-HD-001: montage + sLORETA FAI suite
     add_subdirectory(vendor/freertos) # NP-SW-001 §9.4: FreeRTOS kernel smoke test
@@ -238,7 +238,7 @@ if(NP_BUILD_TESTS)
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     # OI-HUB-C06: np_module_map's UID-keyed calibration record reaching a
-    # pbm_1064nm session through the bridge — including the two swap cases
+    # pbm session through the bridge — including the two swap cases
     # (module moves socket / socket changes module) that a socket-keyed store
     # would get wrong.
     add_test(NAME np_pbm_cal_bridge_tests
@@ -273,8 +273,8 @@ if(NP_BUILD_TESTS)
         COMMAND np_zone_announce_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-    add_test(NAME np_pbm1064_session_desc_tests
-        COMMAND np_pbm1064_session_desc_tests
+    add_test(NAME np_pbm_session_desc_tests
+        COMMAND np_pbm_session_desc_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_cvns_fai_tests
@@ -315,7 +315,7 @@ endif()
 add_subdirectory(ota)
 add_subdirectory(zone_announce)
 add_subdirectory(hrv_biofeedback)
-add_subdirectory(pbm_1064nm)
+add_subdirectory(pbm)
 add_subdirectory(cervical_vns)
 add_subdirectory(sloreta_hdtdcs)
 add_subdirectory(anon)

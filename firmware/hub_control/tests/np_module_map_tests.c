@@ -23,11 +23,11 @@
 
 /* The mirror-constant pin in test_cal_length_matches_pbm_library(): this is the
  * one translation unit that can see BOTH np_module_map.h and the pbm library's
- * headers, so it is where NP_PBM1064_MODULE_UID_LEN == NP_HEXMAP_UID_LEN is
+ * headers, so it is where NP_PBM_MODULE_UID_LEN == NP_HEXMAP_UID_LEN is
  * asserted. The libraries themselves cannot include each other — hub_control
- * links pbm_1064nm, not the reverse. */
-#include "np_pbm1064_config.h"
-#include "np_pbm1064_types.h"
+ * links pbm, not the reverse. */
+#include "np_pbm_config.h"
+#include "np_pbm_types.h"
 
 static int g_failures = 0;
 
@@ -1212,14 +1212,14 @@ static void test_socket_uid_lookup(void)
 
 static void test_cal_length_matches_pbm_library(void)
 {
-    /* NP_PBM1064_MODULE_UID_LEN mirrors NP_HEXMAP_UID_LEN by comment on both
+    /* NP_PBM_MODULE_UID_LEN mirrors NP_HEXMAP_UID_LEN by comment on both
      * sides, because the link direction forbids a shared include. This is the
      * one translation unit that sees both, so it is where the mirror is pinned. */
-    check(NP_PBM1064_MODULE_UID_LEN == NP_HEXMAP_UID_LEN,
-          "pbm NP_PBM1064_MODULE_UID_LEN == hub NP_HEXMAP_UID_LEN");
-    check(sizeof(np_pbm1064_module_uid_t) == sizeof(np_module_uid_t),
-          "pbm np_pbm1064_module_uid_t and hub np_module_uid_t are the same size");
-    check(NP_HEXMAP_CAL_FLOATS == (NP_PBM1064_WL_COUNT * 3u),
+    check(NP_PBM_MODULE_UID_LEN == NP_HEXMAP_UID_LEN,
+          "pbm NP_PBM_MODULE_UID_LEN == hub NP_HEXMAP_UID_LEN");
+    check(sizeof(np_pbm_module_uid_t) == sizeof(np_module_uid_t),
+          "pbm np_pbm_module_uid_t and hub np_module_uid_t are the same size");
+    check(NP_HEXMAP_CAL_FLOATS == (NP_PBM_WL_COUNT * 3u),
           "cal payload is exactly WL_COUNT x {K_PD1, K_PD2, K_ratio_nom}");
 }
 int main(void)

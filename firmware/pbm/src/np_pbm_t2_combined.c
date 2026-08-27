@@ -13,33 +13,33 @@
  * SHDR: device health metrics only (no user biology).
  */
 
-#include "np_pbm1064_t2_combined.h"
-#include "np_pbm1064_hal.h"
-#include "np_pbm1064_drive.h"
-#include "np_pbm1064_dose.h"
+#include "np_pbm_t2_combined.h"
+#include "np_pbm_hal.h"
+#include "np_pbm_drive.h"
+#include "np_pbm_dose.h"
 #include <string.h>
 
 /* ── Internal helpers ───────────────────────────────────────────────────────── */
 
-static void laser_1170_shutdown(np_pbm1064_t2_ctx_t *ctx)
+static void laser_1170_shutdown(np_pbm_t2_ctx_t *ctx)
 {
-    np_pbm1064_hal_t2_1170_set_duty(0U);
-    np_pbm1064_hal_t2_1170_enable(false);
-    np_pbm1064_hal_t2_throttle_request(0U);
+    np_pbm_hal_t2_1170_set_duty(0U);
+    np_pbm_hal_t2_1170_enable(false);
+    np_pbm_hal_t2_throttle_request(0U);
     ctx->t2_1170_active     = false;
     ctx->t2_1170_duty_pct   = 0U;
 }
 
-static void read_final_1170_dose(np_pbm1064_t2_ctx_t *ctx)
+static void read_final_1170_dose(np_pbm_t2_ctx_t *ctx)
 {
     float dose = 0.0f;
-    if (np_pbm1064_hal_t2_1170_get_dose(&dose) == NP_PBM1064_OK) {
+    if (np_pbm_hal_t2_1170_get_dose(&dose) == NP_PBM_OK) {
         ctx->combined_record.dose_1170_J_cm2 = dose;
     }
 }
 
-static void write_combined_shdr(const np_pbm1064_t2_ctx_t *ctx,
-                                 np_pbm1064_fault_t fault_reason,
+static void write_combined_shdr(const np_pbm_t2_ctx_t *ctx,
+                                 np_pbm_fault_t fault_reason,
                                  uint32_t duration_s)
 {
     np_t2_combined_shdr_summary_t shdr;
@@ -64,7 +64,7 @@ static void write_combined_shdr(const np_pbm1064_t2_ctx_t *ctx,
     shdr.tec_throttle_events = (uint8_t)(ctx->combined_record.throttle_events_1170
                                           > 255U ? 255U :
                                           ctx->combined_record.throttle_events_1170);
-    shdr.laser_fault_flag    = (fault_reason != NP_PBM1064_FAULT_NONE) ? 1U : 0U;
+    shdr.laser_fault_flag    = (fault_reason != NP_PBM_FAULT_NONE) ? 1U : 0U;
     shdr.sloreta_session_flag = ctx->sloreta_valid ? 1U : 0U;
     shdr.abort_reason         = (uint8_t)fault_reason;
     shdr.duration_s           = duration_s;
@@ -75,9 +75,9 @@ static void write_combined_shdr(const np_pbm1064_t2_ctx_t *ctx,
 
 /* ── Public API ─────────────────────────────────────────────────────────────── */
 
-void np_pbm1064_t2_init(np_pbm1064_t2_ctx_t         *ctx,
-                          np_pbm1064_session_end_cb_t  end_cb,
-                          np_pbm1064_fault_cb_t        fault_cb,
+void np_pbm_t2_init(np_pbm_t2_ctx_t         *ctx,
+                          np_pbm_session_end_cb_t  end_cb,
+                          np_pbm_fault_cb_t        fault_cb,
                           uint32_t                     device_session_count)
 {
     memset(ctx, 0, sizeof(*ctx));
@@ -87,24 +87,24 @@ void np_pbm1064_t2_init(np_pbm1064_t2_ctx_t         *ctx,
     ctx->t2_1170_tec_temp_c  = 0.0f;
     ctx->stage               = NP_T2_STAGE_IDLE;
 
-    np_pbm1064_session_init(&ctx->pbm1064,
+    np_pbm_session_init(&ctx->pbm1064,
                               end_cb, fault_cb,
                               NULL,
                               device_session_count);
 }
 
-np_pbm1064_status_t np_pbm1064_t2_start_combined(
-    np_pbm1064_t2_ctx_t           *ctx,
+np_pbm_status_t np_pbm_t2_start_combined(
+    np_pbm_t2_ctx_t           *ctx,
     const np_t2_combined_desc_t   *desc)
 {
     if (ctx->stage != NP_T2_STAGE_IDLE) {
-        return NP_PBM1064_ERR_SESSION_ACTIVE;
+        return NP_PBM_ERR_SESSION_ACTIVE;
     }
     if (!desc || desc->version != NP_T2_COMBINED_VERSION) {
-        return NP_PBM1064_ERR_SIG_INVALID;
+        return NP_PBM_ERR_SIG_INVALID;
     }
-    if (desc->pbm1064_hdr.group_count > NP_PBM1064_SESSION_MAX_PRESET_GROUPS) {
-        return NP_PBM1064_ERR_INVALID_ARG;
+    if (desc->pbm1064_hdr.group_count > NP_PBM_SESSION_MAX_PRESET_GROUPS) {
+        return NP_PBM_ERR_INVALID_ARG;
     }
 
     ctx->stage = NP_T2_STAGE_PREFLIGHT;
@@ -122,7 +122,7 @@ np_pbm1064_status_t np_pbm1064_t2_start_combined(
     ctx->sloreta_valid = false;
     if (desc->sloreta_enable) {
         bool valid = false;
-        np_pbm1064_hal_t2_sloreta_get_target(&ctx->sloreta_mni_x,
+        np_pbm_hal_t2_sloreta_get_target(&ctx->sloreta_mni_x,
                                                &ctx->sloreta_mni_y,
                                                &ctx->sloreta_mni_z,
                                                &valid);
@@ -136,58 +136,58 @@ np_pbm1064_status_t np_pbm1064_t2_start_combined(
     ctx->combined_record.sloreta_valid  = ctx->sloreta_valid ? 1U : 0U;
 
     /*
-     * Build a standalone np_pbm1064_session_desc_t from the inlined
+     * Build a standalone np_pbm_session_desc_t from the inlined
      * pbm1064_hdr + pbm1064_groups (np_t2_combined_desc_t carries no nested
-     * signature — see the struct comment in np_pbm1064_types.h). The
+     * signature — see the struct comment in np_pbm_types.h). The
      * signature field is left zeroed: only the OUTER combined descriptor's
      * signature is ever verified for a T2 session.
      */
-    np_pbm1064_session_desc_t pbm1064_desc;
+    np_pbm_session_desc_t pbm1064_desc;
     memset(&pbm1064_desc, 0, sizeof(pbm1064_desc));
     pbm1064_desc.hdr = desc->pbm1064_hdr;
     memcpy(pbm1064_desc.groups, desc->pbm1064_groups,
-           (size_t)desc->pbm1064_hdr.group_count * sizeof(np_pbm1064_preset_group_t));
+           (size_t)desc->pbm1064_hdr.group_count * sizeof(np_pbm_preset_group_t));
 
     /* Start 1064nm inner session (preflight + ramp). */
-    np_pbm1064_status_t rc = np_pbm1064_session_start(&ctx->pbm1064,
+    np_pbm_status_t rc = np_pbm_session_start(&ctx->pbm1064,
                                                          &pbm1064_desc);
-    if (rc != NP_PBM1064_OK) {
+    if (rc != NP_PBM_OK) {
         ctx->stage = NP_T2_STAGE_FAULT;
         return rc;
     }
 
     /* Enable and ramp 1170nm laser in parallel if requested. */
     if (desc->t2_combined_enable) {
-        rc = np_pbm1064_hal_t2_1170_enable(true);
-        if (rc != NP_PBM1064_OK) {
-            np_pbm1064_session_abort(&ctx->pbm1064, NP_PBM1064_FAULT_SAFETY_MCU);
+        rc = np_pbm_hal_t2_1170_enable(true);
+        if (rc != NP_PBM_OK) {
+            np_pbm_session_abort(&ctx->pbm1064, NP_PBM_FAULT_SAFETY_MCU);
             ctx->stage = NP_T2_STAGE_FAULT;
             return rc;
         }
         ctx->t2_1170_target_duty_pct = desc->laser1170.duty_pct > 100U ?
                                         100U : desc->laser1170.duty_pct;
         /* Ramp starts at 0%; session_tick drives the ramp. */
-        np_pbm1064_hal_t2_1170_set_duty(0U);
+        np_pbm_hal_t2_1170_set_duty(0U);
         ctx->t2_1170_active   = true;
         ctx->t2_1170_duty_pct = 0U;
 
         /* Legacy throttle request API — signal full-power intent to T2 module. */
-        np_pbm1064_hal_t2_throttle_request(ctx->t2_1170_target_duty_pct);
+        np_pbm_hal_t2_throttle_request(ctx->t2_1170_target_duty_pct);
     }
 
-    ctx->session_start_ms    = np_pbm1064_hal_now_ms();
+    ctx->session_start_ms    = np_pbm_hal_now_ms();
     ctx->t2_1170_tec_poll_ms = ctx->session_start_ms;
     ctx->stage = NP_T2_STAGE_RAMP_UP;
 
-    return NP_PBM1064_OK;
+    return NP_PBM_OK;
 }
 
-np_pbm1064_status_t np_pbm1064_t2_start(
-    np_pbm1064_t2_ctx_t               *ctx,
-    const np_pbm1064_session_desc_t   *desc_1064)
+np_pbm_status_t np_pbm_t2_start(
+    np_pbm_t2_ctx_t               *ctx,
+    const np_pbm_session_desc_t   *desc_1064)
 {
     if (ctx->stage != NP_T2_STAGE_IDLE) {
-        return NP_PBM1064_ERR_SESSION_ACTIVE;
+        return NP_PBM_ERR_SESSION_ACTIVE;
     }
 
     ctx->stage = NP_T2_STAGE_PREFLIGHT;
@@ -200,32 +200,32 @@ np_pbm1064_status_t np_pbm1064_t2_start(
     memset(&ctx->combined_record, 0, sizeof(ctx->combined_record));
     ctx->sloreta_valid = false;
 
-    np_pbm1064_status_t rc = np_pbm1064_session_start(&ctx->pbm1064, desc_1064);
-    if (rc != NP_PBM1064_OK) {
+    np_pbm_status_t rc = np_pbm_session_start(&ctx->pbm1064, desc_1064);
+    if (rc != NP_PBM_OK) {
         ctx->stage = NP_T2_STAGE_FAULT;
         return rc;
     }
 
     /* Legacy start: activate 1170nm at 100% target. */
-    np_pbm1064_hal_t2_throttle_request(100U);
+    np_pbm_hal_t2_throttle_request(100U);
     ctx->t2_1170_active          = true;
     ctx->t2_1170_duty_pct        = 0U;
     ctx->t2_1170_target_duty_pct = 100U;
 
-    ctx->session_start_ms    = np_pbm1064_hal_now_ms();
+    ctx->session_start_ms    = np_pbm_hal_now_ms();
     ctx->t2_1170_tec_poll_ms = ctx->session_start_ms;
     ctx->stage = NP_T2_STAGE_RAMP_UP;
 
-    return NP_PBM1064_OK;
+    return NP_PBM_OK;
 }
 
-np_pbm1064_status_t np_pbm1064_t2_tick(np_pbm1064_t2_ctx_t *ctx,
+np_pbm_status_t np_pbm_t2_tick(np_pbm_t2_ctx_t *ctx,
                                           uint32_t now_ms)
 {
     if (ctx->stage == NP_T2_STAGE_IDLE    ||
         ctx->stage == NP_T2_STAGE_COMPLETE ||
         ctx->stage == NP_T2_STAGE_FAULT) {
-        return NP_PBM1064_ERR_NO_SESSION;
+        return NP_PBM_ERR_NO_SESSION;
     }
 
     /* ── 1170nm ramp tracking (parallel with 1064nm ramp) ─────────────────── */
@@ -242,12 +242,12 @@ np_pbm1064_status_t np_pbm1064_t2_tick(np_pbm1064_t2_ctx_t *ctx,
                 (float)ctx->t2_1170_target_duty_pct *
                 ((float)elapsed_ms / (float)ramp_ms));
             if (ramp_duty != ctx->t2_1170_duty_pct) {
-                np_pbm1064_hal_t2_1170_set_duty(ramp_duty);
+                np_pbm_hal_t2_1170_set_duty(ramp_duty);
                 ctx->t2_1170_duty_pct = ramp_duty;
             }
         } else if (ctx->t2_1170_duty_pct != ctx->t2_1170_target_duty_pct) {
             /* Ramp complete — set full target duty. */
-            np_pbm1064_hal_t2_1170_set_duty(ctx->t2_1170_target_duty_pct);
+            np_pbm_hal_t2_1170_set_duty(ctx->t2_1170_target_duty_pct);
             ctx->t2_1170_duty_pct = ctx->t2_1170_target_duty_pct;
         }
     }
@@ -255,11 +255,11 @@ np_pbm1064_status_t np_pbm1064_t2_tick(np_pbm1064_t2_ctx_t *ctx,
     /* ── 1170nm ramp-down when inner session enters RAMP_DOWN ─────────────── */
     if (ctx->t2_1170_active &&
         ctx->stage == NP_T2_STAGE_RAMP_DOWN) {
-        np_pbm1064_stage_t inner = np_pbm1064_session_stage(&ctx->pbm1064);
-        if (inner == NP_PBM1064_STAGE_RAMP_DOWN) {
+        np_pbm_stage_t inner = np_pbm_session_stage(&ctx->pbm1064);
+        if (inner == NP_PBM_STAGE_RAMP_DOWN) {
             /* Mirror ramp-down: reduce 1170nm duty symmetrically. */
             uint8_t rd = (uint8_t)((float)ctx->t2_1170_duty_pct * 0.9f);
-            np_pbm1064_hal_t2_1170_set_duty(rd);
+            np_pbm_hal_t2_1170_set_duty(rd);
             ctx->t2_1170_duty_pct = rd;
         }
     }
@@ -271,46 +271,46 @@ np_pbm1064_status_t np_pbm1064_t2_tick(np_pbm1064_t2_ctx_t *ctx,
         ctx->t2_1170_tec_poll_ms = now_ms;
 
         float tec_temp = 0.0f;
-        if (np_pbm1064_hal_t2_1170_get_temp(&tec_temp) == NP_PBM1064_OK) {
+        if (np_pbm_hal_t2_1170_get_temp(&tec_temp) == NP_PBM_OK) {
             ctx->t2_1170_tec_temp_c = tec_temp;
 
             if (tec_temp >= (float)NP_T2_1170_TEC_CUTOFF_C) {
                 /* TEC over-temperature: abort combined session. */
-                np_pbm1064_t2_abort(ctx, NP_PBM1064_FAULT_THERMAL);
-                return NP_PBM1064_ERR_THERMAL;
+                np_pbm_t2_abort(ctx, NP_PBM_FAULT_THERMAL);
+                return NP_PBM_ERR_THERMAL;
             } else if (tec_temp >= (float)NP_T2_1170_TEC_FAULT_C) {
                 /* TEC approaching limit: throttle 1170nm first (priority step 1). */
-                np_pbm1064_t2_apply_thermal_throttle(ctx, 0.25f);
+                np_pbm_t2_apply_thermal_throttle(ctx, 0.25f);
                 ctx->combined_record.throttle_events_1170++;
             }
         }
     }
 
     /* ── Delegate dose and ramp to inner 1064nm session ───────────────────── */
-    np_pbm1064_status_t rc = np_pbm1064_session_tick(&ctx->pbm1064, now_ms);
+    np_pbm_status_t rc = np_pbm_session_tick(&ctx->pbm1064, now_ms);
 
-    if (rc == NP_PBM1064_ERR_THERMAL) {
-        np_pbm1064_t2_abort(ctx, NP_PBM1064_FAULT_THERMAL);
+    if (rc == NP_PBM_ERR_THERMAL) {
+        np_pbm_t2_abort(ctx, NP_PBM_FAULT_THERMAL);
         return rc;
     }
 
     /* ── Track inner session stage → update T2 combined stage ─────────────── */
-    np_pbm1064_stage_t inner = np_pbm1064_session_stage(&ctx->pbm1064);
+    np_pbm_stage_t inner = np_pbm_session_stage(&ctx->pbm1064);
 
     switch (inner) {
-    case NP_PBM1064_STAGE_RAMP_UP:
+    case NP_PBM_STAGE_RAMP_UP:
         ctx->stage = NP_T2_STAGE_RAMP_UP;
         break;
 
-    case NP_PBM1064_STAGE_ACTIVE:
+    case NP_PBM_STAGE_ACTIVE:
         ctx->stage = NP_T2_STAGE_ACTIVE;
         break;
 
-    case NP_PBM1064_STAGE_RAMP_DOWN:
+    case NP_PBM_STAGE_RAMP_DOWN:
         ctx->stage = NP_T2_STAGE_RAMP_DOWN;
         break;
 
-    case NP_PBM1064_STAGE_COMPLETE: {
+    case NP_PBM_STAGE_COMPLETE: {
         /* Inner 1064nm session complete: shut down 1170nm and write records. */
         read_final_1170_dose(ctx);
         laser_1170_shutdown(ctx);
@@ -321,18 +321,18 @@ np_pbm1064_status_t np_pbm1064_t2_tick(np_pbm1064_t2_ctx_t *ctx,
         ctx->combined_record.duration_s       = ctx->pbm1064.desc.hdr.duration_s;
 
         uint32_t duration_s = ctx->pbm1064.desc.hdr.duration_s;
-        write_combined_shdr(ctx, NP_PBM1064_FAULT_NONE, duration_s);
+        write_combined_shdr(ctx, NP_PBM_FAULT_NONE, duration_s);
 
         ctx->stage = NP_T2_STAGE_COMPLETE;
         break;
     }
 
-    case NP_PBM1064_STAGE_FAULT:
+    case NP_PBM_STAGE_FAULT:
         read_final_1170_dose(ctx);
         laser_1170_shutdown(ctx);
         ctx->combined_record.abort_reason = ctx->pbm1064.record.abort_reason;
         write_combined_shdr(ctx,
-            (np_pbm1064_fault_t)ctx->pbm1064.record.abort_reason, 0U);
+            (np_pbm_fault_t)ctx->pbm1064.record.abort_reason, 0U);
         ctx->stage = NP_T2_STAGE_FAULT;
         break;
 
@@ -340,10 +340,10 @@ np_pbm1064_status_t np_pbm1064_t2_tick(np_pbm1064_t2_ctx_t *ctx,
         break;
     }
 
-    return NP_PBM1064_OK;
+    return NP_PBM_OK;
 }
 
-void np_pbm1064_t2_apply_thermal_throttle(np_pbm1064_t2_ctx_t *ctx,
+void np_pbm_t2_apply_thermal_throttle(np_pbm_t2_ctx_t *ctx,
                                              float throttle_fraction)
 {
     if (throttle_fraction <= 0.0f || throttle_fraction > 1.0f) { return; }
@@ -357,9 +357,9 @@ void np_pbm1064_t2_apply_thermal_throttle(np_pbm1064_t2_ctx_t *ctx,
         if (ctx->t2_1170_active) {
             float new_pct = (float)ctx->t2_1170_duty_pct * (1.0f - throttle_fraction);
             uint8_t duty = (uint8_t)(new_pct < 0.0f ? 0.0f : new_pct);
-            np_pbm1064_hal_t2_1170_set_duty(duty);
+            np_pbm_hal_t2_1170_set_duty(duty);
             ctx->t2_1170_duty_pct = duty;
-            np_pbm1064_hal_t2_throttle_request(duty);
+            np_pbm_hal_t2_throttle_request(duty);
         }
         ctx->throttle_1170_applied = true;
         return;
@@ -370,11 +370,11 @@ void np_pbm1064_t2_apply_thermal_throttle(np_pbm1064_t2_ctx_t *ctx,
      */
     if (!ctx->throttle_ch_c_applied) {
         for (uint8_t i = 0; i < ctx->pbm1064.active_socket_count; i++) {
-            if (!(ctx->pbm1064.drv[i].ch_enable & NP_PBM1064_CH_C_EN)) { continue; }
+            if (!(ctx->pbm1064.drv[i].ch_enable & NP_PBM_CH_C_EN)) { continue; }
             uint8_t duty = ctx->pbm1064.drv[i].duty[2];
             uint8_t new_duty = (uint8_t)((float)duty * (1.0f - throttle_fraction));
-            np_pbm1064_drive_set_duty(ctx->pbm1064.active_socket_id[i], &ctx->pbm1064.drv[i],
-                                       NP_PBM1064_CH_C_EN, new_duty);
+            np_pbm_drive_set_duty(ctx->pbm1064.active_socket_id[i], &ctx->pbm1064.drv[i],
+                                       NP_PBM_CH_C_EN, new_duty);
             ctx->combined_record.throttle_events_ch_c++;
         }
         ctx->throttle_ch_c_applied = true;
@@ -386,11 +386,11 @@ void np_pbm1064_t2_apply_thermal_throttle(np_pbm1064_t2_ctx_t *ctx,
      */
     if (!ctx->throttle_ch_b_applied) {
         for (uint8_t i = 0; i < ctx->pbm1064.active_socket_count; i++) {
-            if (!(ctx->pbm1064.drv[i].ch_enable & NP_PBM1064_CH_B_EN)) { continue; }
+            if (!(ctx->pbm1064.drv[i].ch_enable & NP_PBM_CH_B_EN)) { continue; }
             uint8_t duty = ctx->pbm1064.drv[i].duty[1];
             uint8_t new_duty = (uint8_t)((float)duty * (1.0f - throttle_fraction));
-            np_pbm1064_drive_set_duty(ctx->pbm1064.active_socket_id[i], &ctx->pbm1064.drv[i],
-                                       NP_PBM1064_CH_B_EN, new_duty);
+            np_pbm_drive_set_duty(ctx->pbm1064.active_socket_id[i], &ctx->pbm1064.drv[i],
+                                       NP_PBM_CH_B_EN, new_duty);
         }
         ctx->throttle_ch_b_applied = true;
         return;
@@ -401,26 +401,26 @@ void np_pbm1064_t2_apply_thermal_throttle(np_pbm1064_t2_ctx_t *ctx,
      */
     if (!ctx->throttle_ch_a_applied) {
         for (uint8_t i = 0; i < ctx->pbm1064.active_socket_count; i++) {
-            if (!(ctx->pbm1064.drv[i].ch_enable & NP_PBM1064_CH_A_EN)) { continue; }
+            if (!(ctx->pbm1064.drv[i].ch_enable & NP_PBM_CH_A_EN)) { continue; }
             uint8_t duty = ctx->pbm1064.drv[i].duty[0];
             uint8_t new_duty = (uint8_t)((float)duty * (1.0f - throttle_fraction));
-            np_pbm1064_drive_set_duty(ctx->pbm1064.active_socket_id[i], &ctx->pbm1064.drv[i],
-                                       NP_PBM1064_CH_A_EN, new_duty);
+            np_pbm_drive_set_duty(ctx->pbm1064.active_socket_id[i], &ctx->pbm1064.drv[i],
+                                       NP_PBM_CH_A_EN, new_duty);
         }
         ctx->throttle_ch_a_applied = true;
     }
     /* All steps exhausted — no further throttle action available. */
 }
 
-np_pbm1064_status_t np_pbm1064_t2_abort(np_pbm1064_t2_ctx_t *ctx,
-                                           np_pbm1064_fault_t   reason)
+np_pbm_status_t np_pbm_t2_abort(np_pbm_t2_ctx_t *ctx,
+                                           np_pbm_fault_t   reason)
 {
     if (ctx->stage == NP_T2_STAGE_IDLE) {
-        return NP_PBM1064_ERR_NO_SESSION;
+        return NP_PBM_ERR_NO_SESSION;
     }
 
     /* Abort inner 1064nm session (disables all smart module channels). */
-    np_pbm1064_session_abort(&ctx->pbm1064, reason);
+    np_pbm_session_abort(&ctx->pbm1064, reason);
 
     /* Disable 1170nm laser immediately. */
     read_final_1170_dose(ctx);
@@ -435,16 +435,16 @@ np_pbm1064_status_t np_pbm1064_t2_abort(np_pbm1064_t2_ctx_t *ctx,
         ctx->fault_cb(0xFFU, reason);
     }
 
-    return NP_PBM1064_OK;
+    return NP_PBM_OK;
 }
 
-np_t2_stage_t np_pbm1064_t2_stage(const np_pbm1064_t2_ctx_t *ctx)
+np_t2_stage_t np_pbm_t2_stage(const np_pbm_t2_ctx_t *ctx)
 {
     return ctx->stage;
 }
 
-const np_t2_combined_uhdr_record_t *np_pbm1064_t2_get_combined_record(
-    const np_pbm1064_t2_ctx_t *ctx)
+const np_t2_combined_uhdr_record_t *np_pbm_t2_get_combined_record(
+    const np_pbm_t2_ctx_t *ctx)
 {
     return &ctx->combined_record;
 }
@@ -453,34 +453,34 @@ const np_t2_combined_uhdr_record_t *np_pbm1064_t2_get_combined_record(
  * Layout: [version+t2_combined_enable+sloreta_enable+reserved: 4B]
  *         [pbm1064_hdr: 8B] [pbm1064_groups: group_count * 22B]
  *         [laser1170: 4B] [signature: 64B]
- * Mirrors np_pbm1064_session_desc_{wire_len,signed_len,serialize,parse} in
- * np_pbm1064_session.c — see that file's comments for the rationale. */
+ * Mirrors np_pbm_session_desc_{wire_len,signed_len,serialize,parse} in
+ * np_pbm_session.c — see that file's comments for the rationale. */
 
 #define NP_T2_COMBINED_FIXED_HDR_BYTES  4U  /* version + enable + sloreta_enable + reserved */
 
-size_t np_pbm1064_t2_combined_desc_wire_len(uint8_t pbm1064_group_count)
+size_t np_pbm_t2_combined_desc_wire_len(uint8_t pbm1064_group_count)
 {
-    if (pbm1064_group_count > NP_PBM1064_SESSION_MAX_PRESET_GROUPS) { return 0U; }
+    if (pbm1064_group_count > NP_PBM_SESSION_MAX_PRESET_GROUPS) { return 0U; }
     return NP_T2_COMBINED_FIXED_HDR_BYTES +
-           sizeof(np_pbm1064_session_desc_hdr_t) +
-           (size_t)pbm1064_group_count * sizeof(np_pbm1064_preset_group_t) +
+           sizeof(np_pbm_session_desc_hdr_t) +
+           (size_t)pbm1064_group_count * sizeof(np_pbm_preset_group_t) +
            sizeof(np_t2_1170_preset_t) +
            64U;
 }
 
-size_t np_pbm1064_t2_combined_desc_signed_len(uint8_t pbm1064_group_count)
+size_t np_pbm_t2_combined_desc_signed_len(uint8_t pbm1064_group_count)
 {
-    size_t wire_len = np_pbm1064_t2_combined_desc_wire_len(pbm1064_group_count);
+    size_t wire_len = np_pbm_t2_combined_desc_wire_len(pbm1064_group_count);
     return (wire_len == 0U) ? 0U : (wire_len - 64U);
 }
 
-size_t np_pbm1064_t2_combined_desc_serialize(const np_t2_combined_desc_t *desc,
+size_t np_pbm_t2_combined_desc_serialize(const np_t2_combined_desc_t *desc,
                                               uint8_t *out, size_t out_cap)
 {
     if (!desc || !out) { return 0U; }
 
     uint8_t group_count = desc->pbm1064_hdr.group_count;
-    size_t  wire_len     = np_pbm1064_t2_combined_desc_wire_len(group_count);
+    size_t  wire_len     = np_pbm_t2_combined_desc_wire_len(group_count);
     if (wire_len == 0U || out_cap < wire_len) { return 0U; }
 
     size_t off = 0U;
@@ -493,8 +493,8 @@ size_t np_pbm1064_t2_combined_desc_serialize(const np_t2_combined_desc_t *desc,
     off += sizeof(desc->pbm1064_hdr);
 
     memcpy(out + off, desc->pbm1064_groups,
-           (size_t)group_count * sizeof(np_pbm1064_preset_group_t));
-    off += (size_t)group_count * sizeof(np_pbm1064_preset_group_t);
+           (size_t)group_count * sizeof(np_pbm_preset_group_t));
+    off += (size_t)group_count * sizeof(np_pbm_preset_group_t);
 
     memcpy(out + off, &desc->laser1170, sizeof(desc->laser1170));
     off += sizeof(desc->laser1170);
@@ -505,12 +505,12 @@ size_t np_pbm1064_t2_combined_desc_serialize(const np_t2_combined_desc_t *desc,
     return off;
 }
 
-np_pbm1064_status_t np_pbm1064_t2_combined_desc_parse(const uint8_t *in, size_t in_len,
+np_pbm_status_t np_pbm_t2_combined_desc_parse(const uint8_t *in, size_t in_len,
                                                         np_t2_combined_desc_t *desc_out)
 {
     if (!in || !desc_out ||
-        in_len < NP_T2_COMBINED_FIXED_HDR_BYTES + sizeof(np_pbm1064_session_desc_hdr_t)) {
-        return NP_PBM1064_ERR_INVALID_ARG;
+        in_len < NP_T2_COMBINED_FIXED_HDR_BYTES + sizeof(np_pbm_session_desc_hdr_t)) {
+        return NP_PBM_ERR_INVALID_ARG;
     }
 
     memset(desc_out, 0, sizeof(*desc_out));
@@ -525,25 +525,25 @@ np_pbm1064_status_t np_pbm1064_t2_combined_desc_parse(const uint8_t *in, size_t 
     off += sizeof(desc_out->pbm1064_hdr);
 
     uint8_t group_count = desc_out->pbm1064_hdr.group_count;
-    if (group_count > NP_PBM1064_SESSION_MAX_PRESET_GROUPS) {
-        return NP_PBM1064_ERR_INVALID_ARG;
+    if (group_count > NP_PBM_SESSION_MAX_PRESET_GROUPS) {
+        return NP_PBM_ERR_INVALID_ARG;
     }
 
-    size_t expected_len = np_pbm1064_t2_combined_desc_wire_len(group_count);
+    size_t expected_len = np_pbm_t2_combined_desc_wire_len(group_count);
     if (in_len != expected_len) {
         /* Reject rather than truncate/zero-extend — see
-         * np_pbm1064_session_desc_parse()'s identical rationale. */
-        return NP_PBM1064_ERR_INVALID_ARG;
+         * np_pbm_session_desc_parse()'s identical rationale. */
+        return NP_PBM_ERR_INVALID_ARG;
     }
 
     memcpy(desc_out->pbm1064_groups, in + off,
-           (size_t)group_count * sizeof(np_pbm1064_preset_group_t));
-    off += (size_t)group_count * sizeof(np_pbm1064_preset_group_t);
+           (size_t)group_count * sizeof(np_pbm_preset_group_t));
+    off += (size_t)group_count * sizeof(np_pbm_preset_group_t);
 
     memcpy(&desc_out->laser1170, in + off, sizeof(desc_out->laser1170));
     off += sizeof(desc_out->laser1170);
 
     memcpy(desc_out->signature, in + off, sizeof(desc_out->signature));
 
-    return NP_PBM1064_OK;
+    return NP_PBM_OK;
 }

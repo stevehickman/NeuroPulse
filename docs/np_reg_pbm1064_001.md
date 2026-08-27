@@ -86,7 +86,7 @@ When a 1064nm smart zone module is inserted, the hub firmware monitors aggregate
 P_aggregate = P_CH_A (660nm) + P_CH_B (808nm) + P_CH_C (1064nm)
 ```
 
-The firmware ceiling is: `PBM_AGGREGATE_IRRADIANCE_LIMIT_MW_CM2 = 600` (Config partition, `np_pbm1064_dose.c` §6.4). This value is the trigger for the proportional throttle cascade (CH_C first → CH_B → CH_A). It is not a marketed peak claim; it is a safety governor.
+The firmware ceiling is: `PBM_AGGREGATE_IRRADIANCE_LIMIT_MW_CM2 = 600` (Config partition, `np_pbm_dose.c` §6.4). This value is the trigger for the proportional throttle cascade (CH_C first → CH_B → CH_A). It is not a marketed peak claim; it is a safety governor.
 
 **Example maximum simultaneous values (Gamma Clarity preset, all channels at 25% duty):**
 

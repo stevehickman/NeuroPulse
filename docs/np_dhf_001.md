@@ -281,7 +281,7 @@ Under IEC 62304 and 21 CFR §820.30, software source code and associated build a
 | Zone module bone conduction announcement | Class B | NP-FW-ZA-001 Rev 1 | [firmware/zone_announce/](../firmware/zone_announce/) |
 | sLORETA-guided HD-tDCS | Class B (T2) | NP-FW-HD-001 Rev 1 | [firmware/sloreta_hdtdcs/](../firmware/sloreta_hdtdcs/) |
 | Cervical VNS safety interlock | **Class C** | NP-FW-CVNS-001 Rev 1 | [firmware/cervical_vns/](../firmware/cervical_vns/) |
-| 1064nm smart zone module PBM | Class B | NP-FW-PBM1064-001 Rev 1 | [firmware/pbm_1064nm/](../firmware/pbm_1064nm/) |
+| 1064nm smart zone module PBM | Class B | NP-FW-PBM1064-001 Rev 1 | [firmware/pbm/](../firmware/pbm/) |
 | Two-layer UHDR key scheme (UKMD + WKMD; Argon2id + hardware binding) | Class B | NP-FW-EMMC-002 Rev 1 §C | [firmware/uhdr_key/](../firmware/uhdr_key/) |
 | SHDR accelerometer processing — §G standing rule (two derived booleans) + §H characterisation window (coarsened impact histogram, record-denominated fail-closed expiry) | Class B | NP-FW-EMMC-002 Rev 2 §G, §H | [firmware/shdr/](../firmware/shdr/) |
 | Device factory reset (SANITIZE + SHDR wipe + warranty-token clear) | Class B | NP-FW-EMMC-002 Rev 1 §B | [firmware/factory_reset/](../firmware/factory_reset/) |
