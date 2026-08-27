@@ -171,7 +171,7 @@ static void test_bridge_not_installed_is_defaults_only(void)
     check(ctx.active_cal_source[0] == (uint8_t)NP_CAL_DEFAULT,
           "bridge absent: DEFAULT even though the map holds a record "
           "(an un-bridged build is degraded, never wrong)");
-    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
+    (void)np_pbm_session_stop(&ctx, NP_PBM_FAULT_NONE);
 }
 
 static void test_bridge_delivers_factory_cal_for_the_right_module(void)
@@ -200,7 +200,7 @@ static void test_bridge_delivers_factory_cal_for_the_right_module(void)
           "bridge: the record-less module gets firmware defaults, not its "
           "neighbour's coefficients");
 
-    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
+    (void)np_pbm_session_stop(&ctx, NP_PBM_FAULT_NONE);
     np_hub_pbm_cal_bridge_remove();
 }
 
@@ -230,7 +230,7 @@ static void test_bridge_calibration_follows_the_module(void)
     check(ctx.cal[i40][NP_WL_660NM].K_PD1 == 0.500f,
           "bridge: the module's own coefficients at its new socket");
 
-    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
+    (void)np_pbm_session_stop(&ctx, NP_PBM_FAULT_NONE);
     np_hub_pbm_cal_bridge_remove();
 }
 
@@ -255,7 +255,7 @@ static void test_bridge_swap_does_not_inherit(void)
     check(ctx.cal[i7][NP_WL_660NM].K_PD1 == 0.120f,
           "bridge: it gets firmware defaults, not 0.500f");
 
-    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
+    (void)np_pbm_session_stop(&ctx, NP_PBM_FAULT_NONE);
     np_hub_pbm_cal_bridge_remove();
 }
 

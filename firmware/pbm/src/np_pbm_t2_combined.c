@@ -160,7 +160,7 @@ np_pbm_status_t np_pbm_t2_start_combined(
     if (desc->t2_combined_enable) {
         rc = np_pbm_hal_t2_1170_enable(true);
         if (rc != NP_PBM_OK) {
-            np_pbm_session_abort(&ctx->pbm1064, NP_PBM_FAULT_SAFETY_MCU);
+            np_pbm_session_stop(&ctx->pbm1064, NP_PBM_FAULT_SAFETY_MCU);
             ctx->stage = NP_T2_STAGE_FAULT;
             return rc;
         }
@@ -420,7 +420,7 @@ np_pbm_status_t np_pbm_t2_abort(np_pbm_t2_ctx_t *ctx,
     }
 
     /* Abort inner 1064nm session (disables all smart module channels). */
-    np_pbm_session_abort(&ctx->pbm1064, reason);
+    np_pbm_session_stop(&ctx->pbm1064, reason);
 
     /* Disable 1170nm laser immediately. */
     read_final_1170_dose(ctx);

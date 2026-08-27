@@ -75,7 +75,7 @@ static np_mod_vns_state_t s_state;
 /* ── HRV biofeedback session lifecycle ────────────────────────────────────────── */
 
 /*
- * Session-end callback (np_hrv_session_create requires it non-NULL).  The HRV
+ * Session-end callback (np_hrv_session_init requires it non-NULL).  The HRV
  * library builds the finalized UHDR record and passes it here; the storage
  * commit path lives outside this driver, so there is nothing to do but
  * acknowledge.  The context is released by vns_hrv_session_stop() immediately
@@ -104,7 +104,7 @@ static void vns_hrv_session_start(uint8_t proto)
     /* pacer_rate_bpm left 0.0 → HRV lib uses personalized/default resonance.   */
 
     /* create() copies cfg by value; the HRV module owns its own FreeRTOS task. */
-    s_state.hrv_sess = np_hrv_session_create(&cfg, NULL,
+    s_state.hrv_sess = np_hrv_session_init(&cfg, NULL,
                                              vns_hrv_session_end_cb, now);
     if (s_state.hrv_sess != NULL) {
         (void)np_hrv_session_start(s_state.hrv_sess, now);

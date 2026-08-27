@@ -77,7 +77,7 @@ static void pacer_phase_change(np_pacer_phase_t phase, uint32_t duration_ms)
 
 /* ── Session lifecycle ───────────────────────────────────────────────────────── */
 
-np_hrv_session_t *np_hrv_session_create(const np_hrv_session_config_t *config,
+np_hrv_session_t *np_hrv_session_init(const np_hrv_session_config_t *config,
                                           np_hrv_display_cb_t            display_cb,
                                           np_hrv_session_end_cb_t        end_cb,
                                           uint32_t                        now_ms)

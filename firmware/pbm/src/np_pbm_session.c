@@ -393,7 +393,7 @@ np_pbm_status_t np_pbm_session_tick(np_pbm_session_ctx_t *ctx,
 
             if (temp_c >= (float)NP_PBM_THERMAL_CUTOFF_C) {
                 /* Immediate all-off → FAULT. */
-                np_pbm_session_abort(ctx, NP_PBM_FAULT_THERMAL);
+                np_pbm_session_stop(ctx, NP_PBM_FAULT_THERMAL);
                 return NP_PBM_ERR_THERMAL;
             } else if (temp_c >= (float)NP_PBM_THERMAL_FAULT_C) {
                 /* Throttle CH_C first, then CH_B. */
@@ -420,7 +420,7 @@ np_pbm_status_t np_pbm_session_tick(np_pbm_session_ctx_t *ctx,
             np_pbm_status_t rc = np_pbm_drive_poll_status(
                 ctx->active_socket_id[i], &ctx->drv[i], ctx->device_session_count);
             if (rc == NP_PBM_ERR_THERMAL) {
-                np_pbm_session_abort(ctx, NP_PBM_FAULT_THERMAL);
+                np_pbm_session_stop(ctx, NP_PBM_FAULT_THERMAL);
                 return rc;
             }
         }
@@ -509,7 +509,7 @@ void np_pbm_session_update_eeg_freq(np_pbm_session_ctx_t *ctx,
     }
 }
 
-np_pbm_status_t np_pbm_session_abort(np_pbm_session_ctx_t *ctx,
+np_pbm_status_t np_pbm_session_stop(np_pbm_session_ctx_t *ctx,
                                                np_pbm_fault_t reason)
 {
     if (ctx->stage == NP_PBM_STAGE_IDLE) {

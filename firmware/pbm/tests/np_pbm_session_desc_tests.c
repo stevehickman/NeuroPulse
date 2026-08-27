@@ -543,7 +543,7 @@ static void test_session_cal_source_default_without_resolver(void)
     check(shdr.sockets[0].cal_source == (uint8_t)NP_CAL_DEFAULT &&
           shdr.sockets[1].cal_source == (uint8_t)NP_CAL_DEFAULT,
           "cal session: SHDR reports DEFAULT for both sockets");
-    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
+    (void)np_pbm_session_stop(&ctx, NP_PBM_FAULT_NONE);
     reset_cal_env();
 }
 
@@ -589,7 +589,7 @@ static void test_session_cal_source_varies_per_socket(void)
           "cal session: SHDR carries per-socket calibration provenance, matching "
           "the fleet schema's per-(socket, module_uid) cal_source column");
 
-    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
+    (void)np_pbm_session_stop(&ctx, NP_PBM_FAULT_NONE);
     reset_cal_env();
 }
 
@@ -614,7 +614,7 @@ static void test_session_cal_not_keyed_by_socket(void)
           "cal session (swapped): FACTORY followed the MODULE to socket 1, "
           "not the socket index");
 
-    (void)np_pbm_session_abort(&ctx, NP_PBM_FAULT_NONE);
+    (void)np_pbm_session_stop(&ctx, NP_PBM_FAULT_NONE);
     reset_cal_env();
 }
 int main(void)
