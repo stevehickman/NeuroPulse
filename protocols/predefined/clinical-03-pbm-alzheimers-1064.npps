@@ -1,0 +1,65 @@
+protocol "PBM — Alzheimer's 1064nm (deep-cortical channel)" {
+    id: "30000003-0000-0000-0000-000000000000"
+    description: "Whole-vault 1064nm PBM for Alzheimer's / dementia, targeting §1's 1060–1080nm band (Qi/Nizamutdinov 2021: 1060–1080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8). RE-AUTHORED 2026-08-26 from the §3 cognitive-enhancement target, which was 8.9× beyond this channel's reach; §1's band is the nearer target OI-HEXTILE-21 identifies. STILL NOT EVIDENCE-GRADE and still not reachable — the shortfall narrows, it does not close. See the notes on the modality block for the exact figures."
+    author: "NeurOne"
+    version: "2.0"
+    readonly: true
+    tags: ["pbm", "1064nm", "clinical", "alzheimers"]
+    conditions: ["Alzheimer's Disease", "Dementia"]
+    references: [["Qi / Nizamutdinov 2021 — double-blind, n=60, 1060–1080nm, 6 min twice daily, 108 sessions/56 d, MMSE +4.8. THIS protocol's source trial: the only §1 trial in the 1060–1080nm band. NOTE: it states no irradiance, so the target below comes from §1's section-level band, not from the trial.", "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"], ["PBM protocol database §1 — Alzheimer's / dementia (Grade A), section bands 0.1–0.3 W/cm², 20–75 J/cm², CW acceptable at 1060nm", "docs/pbm_neuro_protocols.md#1-alzheimers-disease--dementia--grade-a"], ["OI-HEXTILE-21 — the 1064nm irradiance wall and the proposal to claim against the AD band rather than the cognitive one", "docs/np_hw_hextile_001.md"], ["Lateralization decision + optical model (retained from Rev 1.1 — no longer load-bearing now the target is whole-vault)", "docs/np_opt_psf_001.md"]]
+    duration: 6m
+
+    pbm_transcranial {
+        # RE-AUTHORED AGAINST §1 (ALZHEIMER'S), NOT §3 (COGNITIVE ENHANCEMENT).
+        # Principal direction 2026-08-26, adopting OI-HEXTILE-21's third option:
+        # "claim 1064 nm against the Alzheimer's protocol (1060–1080 nm,
+        # 0.1–0.3 W/cm²) rather than the cognitive one."
+        #
+        # WHAT CHANGED, AND WHAT DID NOT. The commanded parameters are almost
+        # unchanged — intensity is still 100%, which on this channel means "all
+        # the drive CH_C has". What changed is the TARGET, the CONDITION and the
+        # ZONE. This is a claim-and-targeting change, not a power change.
+        #
+        # THE SHORTFALL NARROWS BUT DOES NOT CLOSE. NP-HW-HEXTILE-001 §4.3.2
+        # gives CH_C 28 mW/cm² peak at 30 sites, and the 1064 duty is
+        # firmware-capped at 25% (np_pbm_drive_set_duty), so 7.0 mW/cm² average:
+        #
+        #                          irradiance      dose delivered   dose target
+        #   §3 cognitive (old)     8.9× short      3.4 J/cm²        60  (18×)
+        #   §1 Alzheimer's (new)   3.6× short      2.5 J/cm²        20  (7.9×)
+        #
+        # Better on both axes, and the target is one the architecture could
+        # plausibly reach with a better emitter — which §3's could not, at any
+        # tile population (OI-HEXTILE-21: η_wp ≈ 4.8% is an emitter wall, not a
+        # power or layout shortfall). It is still NOT reachable today.
+        #
+        # ONE FIGURE WORTH KNOWING: at 7.0 mW/cm² average it would take 48 min
+        # to reach §1's 20 J/cm² dose floor. If true CW were available — §1 says
+        # "CW is acceptable at 1060 nm" — it would take 11.9 min, inside the
+        # firmware's 36 J/cm²/session cap (OI-SES-01). So the duty cap, not the
+        # session length, is what puts §1's dose band out of reach.
+        intensity: 100%
+        frequency: 0Hz
+        duty_cycle: 25%
+        # frequency: 0Hz requests CW, which §1 permits at 1060nm. The 25% duty
+        # cap means it is not delivered. Written explicitly so
+        # scripts/check-pbm-power.ts sees the OI-SESPWR-03 CW+duty ambiguity.
+        zones: ["Vault (excl. Occipital)"]
+        # §1's site is "whole-head (bilateral frontal, temporal, parietal +
+        # midline)", so the right-lateralized zone this protocol used under the
+        # §3 target no longer applies. The PR #210 midline-lateralization
+        # reasoning is retained in the references for history but is not
+        # load-bearing here: a whole-vault target has no lateralization claim to
+        # protect. Matches clinical-01's zone.
+        wavelength: "1064nm"
+        # Requires a 1064nm-capable (T1-C / smart) module. On a base T1-A build
+        # this protocol's PBM channel is unavailable.
+        #
+        # ⚠ Note OI-PBMCH-04: `wavelength` never reaches the wire on iOS or
+        # Windows (NPSessionProtocol+FromDefinition.swift, SessionProtocolCompiler.cs
+        # both drop the field), so on those two runtimes this compiles to the same
+        # config as a 660_808nm protocol. That is a pre-existing cross-platform
+        # defect, not one this re-authoring introduces, but it bears on any claim
+        # made about what this protocol delivers.
+    }
+}
