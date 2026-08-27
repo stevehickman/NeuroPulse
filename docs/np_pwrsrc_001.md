@@ -345,3 +345,424 @@ treating it as general would be the mirror of the error it corrects:
 > already assumed. **§6's source set therefore provides a T2 mains path as an accessory with a stated
 > envelope, and explicitly does not size it against TMS.** Sizing hardware against a modality with no
 > electrical specification is what `NP-PWR-BUDGET-001` §4 exists to prevent.
+
+---
+
+## 5. The deliberate-heat proposition (scope addition, principal direction 2026-08-27)
+
+**Direction, in substance:** heat-shock proteins may help heal neurological problems (Frontiers in
+Physiology 2019, DOI `10.3389/fphys.2019.01556`); reconsider the 42 °C limit; treat heat as a *sauna
+for the head* alongside the other modalities; establish the upper limit before burns, and the upper
+limit before hardware malfunction.
+
+This lands here rather than in a thermal document because it attacks §4 at its root. If the thermal
+ceiling moves, the power ceiling becomes binding again and the wall plug stops being premature.
+**§5.4 runs exactly that sensitivity. The finding survives.**
+
+### 5.1 The citation — recorded, not characterised
+
+**DOI `10.3389/fphys.2019.01556` is a principal-supplied citation whose content could not be
+verified from this environment.** `www.frontiersin.org` and `doi.org` both return
+`CONNECT tunnel failed, 403` through the egress proxy; one attempt was made against each.
+
+> **No finding, method, temperature, exposure duration, species, tissue or evidence grade from that
+> paper is characterised anywhere in this document.** Everything in §5 is derived from the
+> repository's own thermal model, from the definition of the CEM43 metric, or from the standards this
+> programme has already made binding. Where a claim would need the paper, it is marked as needing it
+> and routed to `OI-PWRSRC-02`.
+
+### 5.2 The mechanism question comes before every engineering question
+
+The proposition is *local heating at the scalp surface*. The literature the citation belongs to
+concerns systemic heat therapy — sauna, immersion, whole-body hyperthermia — which raises **core body
+temperature**, with heat-shock response following cellular temperature elevation *in the target
+tissue*. NeurOne's actuators sit outside the skull, on tissue that is not the target.
+
+The chain that must hold is:
+
+> scalp surface at T → conduction through scalp, skull, CSF → **neural tissue** elevated enough, for
+> long enough, to induce a heat-shock response
+
+**The repository already contains the model that evaluates the second arrow, and it is the model the
+entire safety case rests on.** `NP-THERM-CFD-R1-001` §2 and §3:
+
+- The inward path from the tile face to the **perfused scalp core** is `R_face→core ≈ 0.105 m²K/W`,
+  against a core pinned at **37 °C** by a Pennes perfusion term.
+- Fan-off, that inward path is **3.7× less resistive** than the outward path, so *"~83 % of junction
+  heat dumps into the patient"* — and §5.3 of that document records what becomes of it:
+  *"~240 W/m² leaks straight to scalp, **removed by perfusion**, but leaving the tissue hot."*
+
+**Perfusion is not a detail of the model; it is the model's dominant term, and it is a sink, not a
+conductor.** Heat entering at the scalp is carried away by scalp blood flow into a 37 °C systemic
+pool. To raise brain temperature the blood itself must be warmer — which is what *systemic* heating
+does, and what a head-worn surface heater acting on a few hundred cm² of skin, over a body it cannot
+warm, does not.
+
+#### 5.2.1 The two claims are mutually exclusive, and that is the whole argument
+
+This is the form the finding should be read in, because it needs no external literature:
+
+| If… | Then… |
+|---|---|
+| The perfusion model is **right** | The perfused scalp shorts delivered heat to a 37 °C core. Brain temperature does not move measurably. **The proposition fails on physiology, before any power budget.** |
+| The perfusion model is **wrong** | Heat does reach deep tissue. But `DI-SAFE-13`, `SR-FAN-03`'s 4.5 mW/cm² fan-off ceiling, `NP-ENV-OPRANGE-001`'s whole ambient/duty envelope and `NP-THERM-CFD-R1-001`'s rejection of Path A are **all** computed from that same model. **That is a first-order safety finding, not a feature opportunity.** |
+
+> **There is no third branch in which the model is right for safety and wrong for efficacy.** Any
+> proposal to heat the brain from the scalp is simultaneously a claim that the device's thermal safety
+> analysis is unconservative in the same direction. Whoever argues for the modality inherits the
+> obligation to re-open `DI-SAFE-13`.
+
+#### 5.2.2 This is the sLORETA precedent, exactly
+
+CLAUDE.md §3 (T2 additions, HD-tDCS) establishes the house rule: *"Localization ≠ reachability…
+sLORETA resolves deep sources, but a 4×1 ring is focal only for cortical-surface targets… ACC sits
+47.1 mm from its nearest scalp electrode and is not focally reachable from any electrode position…
+deep targets must never be presented as focal stimulation."*
+
+**A heat-shock target in neural tissue is real. That does not make it reachable by a scalp-surface
+heater.** The programme already refuses to present the two as the same thing for electric fields, and
+`NP-FW-HD-001` §2.3 enforces the refusal in a data field
+(`NP_HD_TARGET_DEPTH_SURFACE`/`_DEEP`). The same discipline applies here; §17 D-8 records it.
+
+> **`OI-PWRSRC-01` — BLOCKING for the entire proposition.** Does scalp-surface heating raise neural
+> tissue temperature measurably at any surface temperature below the injury threshold? **Do not assume
+> the answer in either direction.** What would settle it: (a) a Pennes-perfusion model extended
+> through skull, CSF and brain with a *deliberate* surface source rather than a leaked one — a direct
+> extension of `OI-PWR-01`'s CFD scope; (b) the citation's actual mechanism and route of heating,
+> which requires reading it (`OI-PWRSRC-02`); (c) the selective-brain-cooling literature, in which
+> surface head cooling has repeatedly been found insufficient to change brain temperature — **offered
+> here as general physiological engineering knowledge, not from a project source, and requiring a real
+> citation before it is relied on**, on the same footing `NP-PWR-BUDGET-001` §4.1 puts its TMS energy
+> figures and `OI-PWR-06` tracks. **Clinical + Thermal. No engineering work on this modality should
+> start before it resolves.**
+
+### 5.3 Question 1 — the upper limit before burns: there isn't one
+
+**Thermal injury is a dose, not a threshold**, and the honest answer to *"what temperature is safe"*
+is that the question is malformed. The standard metric is **CEM43** — cumulative equivalent minutes at
+43 °C (Sapareto & Dewey):
+
+> CEM43 = t · R^(43 − T),  R = 0.25 for T < 43 °C,  R = 0.5 for T ≥ 43 °C
+
+The formula is a definition and is used here as one. **The injury *thresholds* expressed in CEM43 are
+literature values, and none is asserted in this document** — `OI-PWRSRC-03`.
+
+#### 5.3.1 The isoeffect curve, which is arithmetic and is the deliverable
+
+Thermal dose delivered by one 20-minute session:
+
+| Face temperature | CEM43 for a 20-min session | vs. today's 42 °C session |
+|---:|---:|---:|
+| 40 °C | 0.31 | 0.06× |
+| 41 °C | 1.25 | 0.25× |
+| **42 °C** (today's limit) | **5** | **1×** |
+| 43 °C | 20 | 4× |
+| 44 °C | 40 | 8× |
+| 45 °C | 80 | **16×** |
+| 47 °C | 320 | 64× |
+| 50 °C | 2,560 | **512×** |
+
+Read the other way — **how long a session may run to deliver the same dose as today's 42 °C limit for
+20 minutes:**
+
+| Face temperature | Iso-dose session length |
+|---:|---:|
+| 42 °C | 20 min |
+| 43 °C | 5 min |
+| 44 °C | 2.5 min |
+| **45 °C** | **75 seconds** |
+| 46 °C | 38 seconds |
+| 47 °C | 19 seconds |
+| 50 °C | **2.3 seconds** |
+
+> **This is the number that decides the proposition, and it is not a power number.** *"Raise the limit
+> to 45 °C"* sounds like a 3 °C engineering concession. In thermal dose it is a **16× increase**, and
+> holding today's dose at 45 °C means a **75-second** session. The efficacy band the programme already
+> accepts (`NP-PWR-BUDGET-001` §3.4: 6–30 min) is not compatible with it.
+
+#### 5.3.2 Four things the curve above does not capture
+
+1. **Brain hyperthermia is a different and more serious hazard than skin burn, and nobody here has
+   assessed it.** Neural tissue is injured at temperatures well below skin-burn thresholds. §5.2 says
+   the brain probably cannot be reached; **if §5.2 resolves the other way, this becomes the governing
+   hazard, not the scalp.** `OI-PWRSRC-04`.
+2. **These are daily protocols.** CEM43 was developed for single hyperthermia treatments.
+   `clinical-01`-class Alzheimer's dosing is **108 sessions over 56 days**. Twenty minutes a day at
+   today's 42 °C limit is 5 CEM43 per session and **540 CEM43 cumulative** if nothing repairs — and
+   the repair/thermotolerance term is not in the metric, not in this repository, and not something
+   this study will invent. **Applying CEM43 to a daily-repeated, months-long course is outside its
+   validated domain.** `OI-PWRSRC-05`.
+3. **The therapeutic mechanism and the injury mechanism are the same mechanism.** Heat-shock proteins
+   are induced by proteotoxic stress — they are the cell's response to protein denaturation, which is
+   what CEM43 measures the accumulation of. There is no wall between "HSP induction" and "thermal
+   injury"; there is one Arrhenius dose axis, and any therapeutic window is a ratio of repair to
+   damage, not a temperature. **A device that deliberately induces HSPs is deliberately operating on
+   the injury curve.** Stated as a mechanism observation requiring clinical review, not as a finding:
+   `OI-PWRSRC-06`.
+4. **Population variability, and a hazard specific to this form factor.** Impaired sensation (diabetic
+   neuropathy, post-stroke, medication), age, scalp condition and hair density all move the response,
+   and none is screened. **The device is worn on a head, retained by a Boa dial, by a user who may
+   have impaired cognition** — three of the nine L2 research categories are AD/dementia, TBI and
+   Parkinson's. *"The user will notice and take it off"* is not available as a mitigation here.
+   `OI-PWRSRC-07`.
+
+### 5.4 Does a raised limit make the power ceiling binding again? No — here is the sensitivity
+
+This is the question the scope addition exists to force, so it is answered numerically. Re-run §4.1
+with the applied-part limit as a free variable. Margin = T_limit − 30.7 °C (the single-tile face
+temperature at nominal 25 °C ambient); ceiling = margin ÷ R.
+
+| Applied-part limit | Margin | **Aggregate emitter ceiling** | Coverage at that ceiling | Δ vs today |
+|---:|---:|---:|---:|---:|
+| **42 °C** (today) | 11.3 °C | **28 – 49 W** | 2 / 23 | — |
+| 43 °C | 12.3 °C | 30 – 54 W | 2 / 23 | **+0** |
+| 45 °C | 14.3 °C | 35 – 62 W | 2 / 23 | **+0** |
+| 47 °C | 16.3 °C | 40 – 71 W | 2 / 23 | +0 |
+| **50 °C** | 19.3 °C | **47 – 84 W** | **4 / 23** | **+2** |
+| 60 °C (indefensible) | 29.3 °C | 71 – 127 W | 4 / 23 | +2 |
+
+> **Raising the scalp-contact limit by 8 °C — a 512× increase in per-session thermal dose (§5.3.1) —
+> buys two protocols out of twenty-three.** To reach the 232 W of a single PD 240 W EPR contract, the
+> limit would have to go to the 84–126 °C band derived in §4.2.
+>
+> **`NP-PWR-BUDGET-001` §4.4.4's conclusion therefore survives its strongest available attack, and the
+> wall-plug path stays premature under every reading of the principal's direction.** The two ceilings
+> are not in a delicate balance that a physiological argument can tip. At the top of the library they
+> are three orders of magnitude apart.
+
+### 5.5 The sauna's actual power budget — smaller than what already ships
+
+If heat is the product rather than the waste, the quantity to size is not source watts but **watts
+delivered inward**, and `NP-THERM-CFD-R1-001` §3 has already derived that network: the binding
+constraint is inward flux against a 37 °C perfused core through `R_face→core ≈ 0.105 m²K/W`.
+
+> q_inward,max = (T_face − 37 °C) ÷ 0.105  [W/m²],  over ~0.1 m² of vault
+
+| Face temperature | q_inward | **Total heat delivered into the head** |
+|---:|---:|---:|
+| **42 °C** | 47.6 W/m² | **4.8 W** |
+| 43 °C | 57.1 W/m² | 5.7 W |
+| 45 °C | 76.2 W/m² | 7.6 W |
+| 47 °C | 95.2 W/m² | 9.5 W |
+| 50 °C | 123.8 W/m² | **12.4 W** |
+
+*(Cross-check: §3 of `NP-THERM-CFD-R1-001` states `q_inward ≤ 47.4 W/m²` at the 42 °C limit. The first
+row reproduces it to rounding, which is the intended validation of this arithmetic.)*
+
+> **The entire deliberate-heat proposition, at any surface temperature anyone could defend, needs
+> between 4.8 W and 12.4 W.** The 45 W brick in every Home Standard box supplies that with 30 W to
+> spare. **The scope addition does not create demand for a wall plug. It creates demand for about ten
+> watts, and the device already has them.**
+
+**Does §3.3's "export efficiency, not supply size" lever invert, as the direction anticipated?**
+Partly — and the part that inverts is not the useful part. If heat is wanted, the BN boss exporting
+90 % of it is working against you, so **yes**, the export path becomes the thing to change rather than
+the thing to improve. But the ceiling on what can be *delivered inward* is set by the face-temperature
+limit and by perfusion, not by how much heat is available to deliver. Turning the export off does not
+raise the 4.8 W; it only wastes less on the way there. **`NP-PWR-BUDGET-001` §3.3's conclusion — that
+supply size is not the lever — holds in both regimes**, which is a stronger result than it had.
+
+**And it breaks the thing it would improve.** Defeating the BN-boss export means the junction runs hot
+again — which `NP-THERM-CFD-R1-001` §5 adopted the export specifically to prevent — while the sealed
+cavity becomes the only place the heat can go, and §4.1 says that cavity is already at its limit.
+
+### 5.6 Question 2 — the regulatory answer, which is harder than the physiological one
+
+**42 °C is not a NeurOne preference.** `NP-DT-001` **DI-SAFE-08** records it as *"IEC 60601-1 scalp
+surface ≤42 °C compliance required"*, **DI-REG-01** makes IEC 60601-1 binding, and **VE-11**
+(accredited-lab standards testing) is **Open**. Physiology may permit more; the standard still says
+42, and exceeding it is a **compliance decision, not an engineering one**.
+
+**The structural point, which is the one that matters.** IEC 60601-1 treats an applied part that
+merely gets warm and an applied part **intended to supply heat** as different things, with different
+requirements — the latter carrying its own justification, labelling and clinical-evidence obligations.
+The principal's direction does not ask to tolerate more incidental heat. It asks to make heat a
+**modality**. That is a **reclassification of the applied part**, not a limit adjustment.
+
+> **The exact clause, the exact permitted temperatures and the exact justification format are not
+> asserted here.** They belong to accredited-lab and regulatory-counsel scope, and this programme has
+> a live precedent of exactly this shape: `RISK-03`, where two firmware irradiance governors (R-4's
+> 400/200 mW/cm² and R-5's 600 mW/cm²) have waited since 2026-05-06 on an opinion nobody has
+> commissioned. **`OI-PWRSRC-08` — add the applied-part heating question to the existing `RISK-03`
+> instruction rather than opening a parallel engagement**, which is what `NP-REG-PBM1064-001` §2
+> explicitly directs. Same counsel, same device, same standard.
+
+Three routes exist; each has a cost, none is free and none is quick:
+
+| Route | What it requires | Cost |
+|---|---|---|
+| Justified deviation from the applied-part limit | ISO 14971 benefit-risk with **clinical benefit evidence** — which §5.2 says may not exist for this route of heating | Blocked behind `OI-PWRSRC-01` |
+| Reclassify as an applied part intended to supply heat | New clause path, new type testing at VE-11, labelling, user-warning architecture | Reopens VE-11 scope; schedule impact |
+| Leave 42 °C alone; treat HSP as out of scope | Nothing | **$0** |
+
+#### 5.6.1 The landmine: this very likely moves T1 out of the wellness exemption
+
+`docs/reference/regulatory-strategy.md` puts T1 on the **FDA-exempt general-wellness** pathway, in the
+same category as Muse, Sens.ai and Apollo Neuro. CLAUDE.md §1 makes that one of the two tiers the
+whole product structure rests on. The general-wellness policy has **two** gates, and this direction
+strains both:
+
+1. **The claim must be a general-wellness claim, not a disease claim.** The direction's own stated
+   rationale is *"heat shock proteins can help heal neurological problems."* Healing a neurological
+   condition is a disease claim. The existing T1 modalities survive on wellness framing precisely
+   because their consumer names avoid it — *"Brainwave Entrainment Stimulation"* for tACS, *"Cortical
+   Priming Stimulation"* for tDCS (CLAUDE.md §3, which states the regulatory-naming purpose outright).
+   **There is no comparable renaming available for "deliberately heating the head to induce a
+   stress-protein response."**
+2. **The product must be low risk.** A device that deliberately drives an applied part **past a safety
+   limit set by the binding standard**, on a population that includes dementia, TBI and Parkinson's
+   users, is a poor candidate for a low-risk determination — and §5.3.2's fourth point removes the
+   usual mitigation.
+
+> **`OI-PWRSRC-09` — BLOCKING, and a bigger commercial fact than any wattage in this study.**
+> **Adopting deliberate scalp heating as a T1 modality plausibly moves T1 from a 12–18-month
+> FDA-exempt wellness launch to a 510(k) pathway.** CLAUDE.md §1's two-tier structure — one chassis,
+> two markets, two timelines — is the thing at stake, and it is already under strain from `OI-COST-08`
+> (the T1 and T2 price ladders colliding). **This must be answered by regulatory counsel before any
+> engineering, and it must not be buried under the thermal analysis.**
+
+### 5.7 Question 3 — the hardware ceiling, verified rather than assumed
+
+Each figure below was checked in-tree; the brief's list was accurate except where noted.
+
+| Element | Ceiling / status | Verified at |
+|---|---|---|
+| LED junction throttle / cutoff | **62 °C throttle, 65 °C cutoff** | `NP-DT-001` DI-SAFE-08 — confirmed verbatim |
+| Junction throttle as a face-temperature control | **Rejected.** At T_j = 62 °C the face reaches **60.2 °C** and scalp 52.2 °C — 14–21 °C over the limit | `NP-THERM-CFD-R1-001` §2, Path A NO-GO |
+| Face ≤42 °C under single-fault loss of forced convection | `DI-SAFE-13`, via scalp-facing NTC at PD2 (Path B1) + `SR-FAN-03` derate to **~4.5 mW/cm² at 43.3 °C ambient**. Status **Open**; risk row **RISK-26** open | `NP-DT-001` §5; `NP-THERM-CFD-R1-001` §3 |
+| Base thermal design | BN-boss conductive export, **shielded interior un-ventilated** — ventilating it breaches the EMF shield | `NP-THERM-CFD-R1-001` §5 |
+| Emitter drive window | 120–180 mA for **L70 80,000–100,000 h** (R-6) | `NP-HW-HEXTILE-001` §2 R-6 |
+| Ambient envelope | PBM full ≤ +35 °C, derate +35→+43, **block > +43** — because *"even minimum useful dose cannot hold scalp ≤42 °C"* | `NP-ENV-OPRANGE-001` |
+
+**Two corrections to the brief's list, and one item it did not contain.**
+
+- **`NP-THERM-CFD-R1-001`'s Path-A rejection does *not* become moot if 42 °C moves.** The brief
+  suggests noting what changes if 42 °C is not the constraint. Less than it looks: Path A was rejected
+  because the junction throttle **regulates the wrong node** — fan-off, ~83 % of junction heat goes
+  *inward*, so the junction is not a proxy for the face at **any** face limit. A higher limit changes
+  the number Path B1's NTC compares against; it does not make the junction a valid proxy.
+  **`DI-SAFE-13` and the Path B1 architecture stand unchanged under any limit.**
+- **The L70 claim has no junction-temperature qualifier anywhere.** R-6 states 80,000–100,000 h against
+  a *drive-current* window only. LED lifetime is a strong function of junction temperature, and every
+  published L70 figure is quoted at a stated T_j or T_case. **CLAUDE.md §3's L70 claim is therefore
+  unqualified in the one variable that dominates it** — which matters most in exactly the regime this
+  direction proposes. `OI-PWRSRC-10`. (A pre-existing gap, not one the direction creates, but a
+  deliberate-heat mode is where it would first become a warranty problem.)
+- **The device has no battery, and that is a genuine advantage worth stating.** CLAUDE.md §4 has no
+  battery row; `NP-FW-EMMC-002` Rev 2 §H records *"this device has no battery or coin cell"* as the
+  reason its characterisation window is denominated in records rather than calendar time. **Thermal
+  runaway of a lithium cell — the dominant thermal hazard class for head- and body-worn electronics —
+  is structurally absent.** Any raised thermal setpoint is bounded by component and tissue limits only,
+  with no stored-energy failure mode behind it.
+
+**Elements with no stated thermal ceiling anywhere in the document set.** Each needs its own number
+before any setpoint moves; none is invented here.
+
+| Element | Why it binds |
+|---|---|
+| PDMS optical window; **PDMS–PI bond via 75 nm SiO₂ interlayer** (174–860 N/m peel) | The 200-cycle IEC 60068-2-14 thermal-cycling qualification is **BLOCKING** and unrun. A raised operating temperature changes the cycling profile the qualification must run against — **it invalidates the test plan, not merely the margin** |
+| AgNW lens coating; 3–5 µm hard coat | Adhesion and sheet-resistance drift with temperature |
+| Tile MCU (tinyAVR 2-series, `U1`) and its 128 B EEPROM | EEPROM **retention** is strongly temperature-dependent, and `NP-FW-NVRAM-001` Map 4 puts the dose-calibration record there |
+| Hub 8 GB eMMC | Industrial parts are rated to 85 °C ambient and retention derates with temperature. Holds both UHDR and SHDR partitions |
+| 22 F supercapacitor | Electrolytic lifetime roughly halves per 10 °C. CLAUDE.md §4 already logs its NTC for aging estimation — that model is calibrated for the current envelope |
+| Mu-metal liner + PETG laminate encapsulation; silicone RTV at cutouts | PETG's glass transition is low. **This is a shielding element, so its degradation attacks the product's primary measured claim** |
+| Palladium-coated polyester inner liner | The permanence claim in CLAUDE.md §4 is made for *"device lifetime"* at the current envelope |
+
+`OI-PWRSRC-11`, and it is the reason §5.9 recommends a separate study: **seven component ceilings, none
+of which exists, is not a section — it is a work package.**
+
+### 5.8 Efficiency moves against you, and the actuator is probably wrong
+
+LED radiant output droops as junction temperature rises, so a hotter device delivers **less optical
+dose per watt**. In a deliberate-heat mode the two outputs of the same actuator are in direct
+opposition: driving harder for heat reduces therapeutic optical output, while `OI-HEXTILE-21` already
+records that the 1064 nm channel is **9× below** the irradiance its own Grade A protocol specifies, at
+η_wp ≈ 4.8 %.
+
+> **So the question the brief raises is the right one, and the answer looks clear: the PBM emitters
+> are the wrong heater.**
+>
+> - A resistive element converts ~100 % of input to heat. A 660/808 nm LED array converts 55–70 % to
+>   heat (η_wp 0.30–0.45) and spends the rest on light nobody asked for in this mode.
+> - The heat requirement is **4.8–12.4 W** (§5.5). Distributed polyimide film heating elements at that
+>   power are a **$3–6 BOM class**, against the **$11.53/tile driver-plus-metering line — $346/headset
+>   at 30 tiles** (`NP-COST-001` §4) that a PBM tile carries.
+> - A separate heater **decouples the two modalities**, so heat and dose become independently
+>   commandable instead of two readings of one current setting — the same argument
+>   `NP-FEAS-PBMCH-001` makes for separating 660 nm from 808 nm.
+> - It also **relocates the actuator**. A resistive element needs no optical window, no dose metering,
+>   no photodiode pair and no 6 mm emitter pitch, so it can sit where heat should be delivered rather
+>   than where light must be.
+>
+> **`OI-PWRSRC-12` — if the modality survives `OI-PWRSRC-01` and `OI-PWRSRC-09`, evaluate a
+> purpose-built resistive heating element before assuming the PBM emitters do both jobs.** Nobody has
+> asked this, and it carries a large BOM and architecture consequence in both directions.
+
+### 5.9 Recommendation on scope: this needs its own study, and here is why rather than padding
+
+The direction instructed that if the analysis grows past what a section can carry honestly, that
+should be said. **It has.** What §5 can carry — and does — is the part that gates everything else.
+
+**Settled here:** the mechanism objection in its mutually-exclusive-claims form (§5.2); the sensitivity
+showing a raised limit does not rescue the power case (§5.4); the sauna's actual budget of 4.8–12.4 W
+(§5.5); the CEM43 isoeffect arithmetic (§5.3.1); the regulatory reclassification and the wellness
+landmine (§5.6); the verified hardware ceilings that do exist (§5.7); and the actuator question (§5.8).
+
+**Not settled here, and not honestly settleable in a section:** seven component thermal ceilings that
+do not exist (`OI-PWRSRC-11`); brain-hyperthermia hazard analysis (`OI-PWRSRC-04`); cumulative thermal
+dose over a 108-session course with a repair term (`OI-PWRSRC-05`); re-derivation of `NP-ENV-001` and
+`NP-ENV-OPRANGE-001`, whose entire operating envelope is expressed as headroom to 42 °C; and the
+re-argued interlock architecture.
+
+> **Recommended: a separate thermal-modality study, `NP-THERM-HSP-001`, gated on `OI-PWRSRC-01`
+> (mechanism) and `OI-PWRSRC-09` (wellness) resolving *first*.** Both are cheap relative to the study,
+> and either can end the proposition. **Commissioning seven component-ceiling investigations before
+> asking whether the heat reaches the brain, and whether the modality is sellable without a 510(k),
+> would be work in the wrong order.** §5 is deliberately the part that can be done before that money is
+> spent.
+
+### 5.10 If it is adopted anyway: what the interlock must become
+
+Recorded so a decision to proceed does not have to rediscover it. A deliberately-heating device needs
+its thermal interlock **re-argued, not relaxed**:
+
+1. **The limit stays hardware-enforced and fail-closed.** CLAUDE.md §4 lists the 42 °C limit as a
+   modality interlock with hardware enforcement (*"NTC per zone → hardware current throttle"*). Any
+   raised setpoint is still a setpoint the safety MCU owns, still compared in hardware, still
+   defaulting to the lower value on any fault, sensor faults included. **A therapeutic setpoint must
+   never be writable by the application processor to a value above the safety table's own maximum** —
+   the `NP-FW-POE-001` MCU-table-authoritative `min()` pattern, which exists for exactly this reason
+   and must be reused rather than reinvented.
+2. **Two setpoints, not one raised setpoint.** A *therapeutic* ceiling for an active heat session and
+   an *incidental* ceiling for every other modality. Collapsing them silently raises the limit for PBM,
+   tACS and VNS sessions that never asked for it.
+3. **Defined behaviour when the user cannot remove the device.** §5.3.2's fourth point. The exit
+   condition cannot be user action.
+4. **It interacts with the head-presence gate.** `NP-FW-BENCH-001` (Rev 1, on `main`) gates stimulation
+   on head presence with a designed bench/service bypass. A heat modality makes that gate
+   safety-relevant in a new way: heating an unattended helmet on a bench is a fire question rather than
+   a burn question, and the bypass exists precisely to allow bench operation. **The bypass must not
+   extend to a therapeutic heat setpoint.** `OI-PWRSRC-13`.
+5. **What becomes Class C:** the therapeutic-setpoint comparison, the two-setpoint selection, and the
+   bypass exclusion in (4). All three sit inside the existing safety-MCU partition and extend
+   `SW01-M04` rather than creating a new module. **The therapeutic decision to heat is Class B; the
+   ceiling that bounds it is Class C.** The same split §15 argues for source arbitration.
+
+### 5.11 UHDR/SHDR for thermal data
+
+Applying CLAUDE.md §5's own test — *does this tell us something about the person?*
+
+| Datum | Class | Reasoning |
+|---|---|---|
+| NTC temperature profiles (existing) | **SHDR** | Already classified. Device condition |
+| **Per-session thermal exposure record** (measured face temperature, duration, cumulative CEM43) | **UHDR** | A *physiological measurement of the wearer's scalp*, taken during a session and tied to session duration — the same footing as raw EEG impedance and IR eye state, both of which §5's boundary list puts in UHDR during sessions |
+| Cumulative CEM43 per user | **UHDR** | A cumulative injury-risk dose is a health record about a person; its whole purpose is to bound that person's exposure |
+| Count of thermal-limit trips (unsigned integer, no timestamps) | **SHDR** | Matches the existing *"device session count → SHDR; session timestamps → UHDR"* boundary exactly |
+| Thermal **interlock** trip → safety interlock log | **SHDR** | The locked *"safety interlock log → SHDR"* rule |
+
+> **And the 2026-08-12 rule binds here.** A redaction applied conditionally on a sensitive predicate
+> leaks that predicate. If a thermal interlock record suppressed its timing only for
+> *therapeutic-heat* sessions, the redaction pattern would identify a therapeutic-heat session — and
+> therefore that the wearer is on a heat protocol, which is a condition proxy. **The marshaller must be
+> fixed-shape**, on the `np_fault_latch_build_report()` precedent: one record layout, no field whose
+> presence or value depends on the session type. `OI-PWRSRC-14`.
