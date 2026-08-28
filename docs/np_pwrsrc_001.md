@@ -73,30 +73,47 @@ changes a structural conclusion.
 | | Figures |
 |---|---|
 | **As supplied** | `13 22 40 68 82 98 124 133 143 150 162 163 173 178 185 200 330 355 375 375 400 \| 1600 1775` |
-| **As `bun scripts/check-power-source-coverage.ts` reports on `main`** | `13 22 68 82 98 124 133 143 150 162 163 173 178 185 200 200 330 355 375 375 400 1600` |
+| **As reported on `main` at `d817364`, this study's base** | `13 22 68 82 98 124 133 143 150 162 163 173 178 185 200 200 330 355 375 375 400 1600` |
+| **As reported on `main` at `6eda053`, after PR #296 merged** | `13 22 68 82 98 124 133 143 150 162 163 173 178 185 200 330 355 375 375 400 1600 1775` |
 
 Three differences:
 
 1. **There is no protocol at 40 W.** The supplied list carries one; the library does not.
 2. **There are two protocols at 200 W, not one** — `Memory Boost` and `PBM — Cognitive Enhancement
    1064nm`, both 8 sockets at 25.0 W/tile.
-3. **The maximum is 1,600 W, not 1,775 W.** `Vascular Baseline`, 80 sockets × 20.0 W/tile.
+3. **The maximum is 1,775 W** — `PBM — Alzheimer's 1064nm (deep-cortical)`, 71 sockets ×
+   25.0 W/tile. Second is `Vascular Baseline` at 1,600 W, 80 sockets × 20.0 W/tile.
 
-**Where 1,775 W comes from, since the number is not invented.** 1,775 = 71 × 25.0 W — the
-`Vault (excl. Occipital)` zone at full two-channel drive. No protocol on `main` has that shape.
-`clinical-03-pbm-alzheimers-1064.npps` on the **unmerged** branch `claude/clinical-03-alzheimers-band`
-targets that zone, and on iOS and Windows its `wavelength: "1064nm"` field never reaches the wire
-(`OI-PBMCH-04`), so on those two runtimes it compiles to a `660_808nm` tile: **71 × 25.0 = 1,775 W.**
-On `main`, and on the web runtime anywhere, it does not exist.
+> **CORRECTION, 2026-08-28 — this study's own premise correction did not survive its run, and the
+> error is instructive.** As first written, this section reported the maximum as **1,600 W** and
+> explained 1,775 W away as *"a cross-platform compiler defect masquerading as a power
+> requirement"* whose protocol was *"not on `main`"*. Both limbs are wrong at HEAD:
+>
+> 1. **It is on `main`.** `clinical-03-pbm-alzheimers-1064.npps` merged as **PR #296** (`f8806dd`)
+>    while this study was running. The claim was true of the study's base commit (`d817364`) and
+>    was falsified by a merge, not by an error of reading.
+> 2. **The number is not a compiler artifact.** `OI-PBMCH-04` is real, but it concerns `wavelength`
+>    failing to reach the wire on **iOS and Windows**. The 25.0 W/tile figure comes from the **web**
+>    path, which does carry `wavelength` — and that path reported **25.0 W/tile for the other 1064 nm
+>    protocol on `main` before #296 merged** (`PBM — Cognitive Enhancement 1064nm`, 8 × 25.0 =
+>    200 W). 25.0 W/tile is simply the 1064 nm per-tile rate. The whole difference between 200 W and
+>    1,775 W is **zone size** — 8 sockets versus 71 — which was a deliberate authoring decision the
+>    principal explicitly declined to narrow, on the grounds that the figure is a requirement to be
+>    measured, not a defect to be hidden.
+>
+> **The lesson is the inverse of the one this programme keeps learning.** The standing rule is that
+> *"does not exist"* is not a checkable claim, only *"not on `main`"* is. This section obeyed that
+> rule and was still wrong, because **a claim about `main` has a shelf life when work is in flight**.
+> A statement about `main` needs its commit named, and needs re-checking before the document lands.
+> Recorded as **`OI-PWRSRC-24`**.
 
-> **Stated in the form this programme requires.** *1,775 W is not on `main`.* It is not claimed here
-> that it exists nowhere — `git branch -a` shows concurrent work, and asserting a negative across
-> unmerged branches is not a checkable claim. The figure to design against today is **1,600 W**.
+**What this changes, and what it does not.** The principal's framing — *the top figure is a
+requirement, not a defect* — stands, and stands more strongly than the original text allowed: there
+is no bug to discount, and 1,775 W is a real demand a real protocol expresses.
 
-**This does not weaken the brief's framing; it sharpens it.** The principal's point — *the top figure
-is a requirement, not a defect* — stands at 1,600 W exactly as it stood at 1,775 W. What changes is
-that the 1,775 W reading is a **cross-platform compiler defect masquerading as a power requirement**,
-and sizing a supply against it would have been sizing against a bug.
+**§4's conclusion is untouched.** The sealed-cavity ceiling is 27.6–49.1 W. Whether the library's
+maximum is 1,600 W or 1,775 W is immaterial to it — both are **33–64×** the ceiling, and the
+recommendation against a mains path does not turn on which.
 
 ### 2.2 The coverage table
 
@@ -164,12 +181,12 @@ saying so in the row, per the precedent Rev 39 set.
 ### 3.1 The distribution is a cliff, not a slope
 
 ```
-13  22  68  82  98  124  133  143  150  162  163  173  178  185  200  200  330  355  375  375  400        1600
+13  22  68  82  98  124  133  143  150  162  163  173  178  185  200  330  355  375  375  400   1600  1775
                                                                                                     └── 4.0× ──┘
 ```
 
 **The largest single step in the library is 400 W → 1,600 W, a factor of four, and nothing asks for
-anything in between.** That is the single most useful fact for a sizing decision, because it means the
+anything in between** (1,600 → 1,775 W is a further 11 %, not a rung). That is the single most useful fact for a sizing decision, because it means the
 choice is not a continuum. There are exactly four rungs worth considering:
 
 | Rung | To emitters | Coverage | What it is |
@@ -178,7 +195,7 @@ choice is not a continuum. There are exactly four rungs worth considering:
 | ~92–132 W | 92–132 | 4–6/23 | PD 100 W / PD 140 W EPR |
 | **~232 W** | 232 | **16/23** | **PD 240 W EPR — one connector, one contract, Mode 3 intact** |
 | ~470–500 W | 472–492 | 21/23 | dual EPR **or** a 500 W mains station — indistinguishable |
-| ~1,650 W+ | 1,792 | 22/23 | mains only, for one protocol |
+| ~1,800 W+ | 1,792 | 22/23 | mains only, for the top two protocols |
 
 Everything between 240 W and 472 W buys nothing. Everything between 500 W and 1,600 W buys nothing.
 **A source ladder with rungs anywhere else is a ladder of dead rungs**, and §13 records that §2's
@@ -1258,7 +1275,7 @@ exists*, applied to a table row); and **provenance on the T2 rows**, since 70–
 
 §2's rule is *"charger scaled to peak draw of configuration."* The direction's rule is *source scaled
 to the protocols the purchaser wants.* A **Core** buyer runs no PBM, so nothing above 15 W changes
-anything for them; a **Home Standard** buyer has a library spanning **13 W to 1,600 W — a 123× range
+anything for them; a **Home Standard** buyer has a library spanning **13 W to 1,775 W — a 137× range
 inside one configuration.**
 
 > **Configuration is a weak predictor of protocol demand, so a configuration-keyed table cannot express
