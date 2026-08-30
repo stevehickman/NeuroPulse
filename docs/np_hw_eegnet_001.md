@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-EEGNET-001
-**Revision:** 6
-**Date:** 2026-08-22
+**Revision:** 7
+**Date:** 2026-08-24
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (new document)
 **References:** NP-HEX-ZM-001 §3.1/§3.2/§3.3/§4a/§5.3, NP-HELMET-GEOM-001 §0/§2/§3.1/§5, NP-DRV-SHELL-002 §3.5/§5.1.4–§5.1.6/§9.1–§9.6/§10.1, NP-HW-HUB-001 §4.5/§5/§7.2/§7.4, NP-HW-HEXTILE-001 §1/§4.5/§6.4/§7.1/§7.2/D-5, NP-THERM-BEZEL-001, NP-RISK-002 (RISK-21), NP-RISK-004, NP-COST-001 §2/§6, NP-PWR-BUDGET-001 §3.4–§3.7, NP-SES-PWR-001 §8, NP-FEAS-FNIRS-001, NP-HFE-002 §2.3/§2.5/§3/§5/§7.1/§7.3/§7.4, NP-OPT-PSF-001, NP-ENV-OPRANGE-001 §4, NP-CONV-001 Rev 6, CLAUDE.md §3/§4.2/§4.3/§4.4/§5.1
-**Related Issues:** PR #283 (Rev 3); Rev 4 reconciles against PR #284; Rev 5 adds §1.10; Rev 6 closes OI-EEGNET-25 with a computed result that corrects §1.10.4 and §1.10.5
+**Related Issues:** PR #283 (Rev 3); Rev 4 reconciles against PR #284; Rev 6 closes OI-EEGNET-25; Rev 7 scopes that result to T1 and adds the montage-density term it omits
 **Gate:** NET-1 (strain-tracking fidelity), NET-2 (placement-verification qualification); interacts with REG-1, MECH-2, THERM-1, SEAL-1
 **IEC 62304 Class:** N/A — the net is hardware. It is a risk control with no software class; the firmware that reads its impedance matrix and gates tES/visual stimulation carries the class (Class C where it owns an enable line, per CLAUDE.md §4.2).
 **Supersedes:** None. Contests NP-HEX-ZM-001 §4a's T1-B tile type; see §0 and §7.
@@ -25,6 +25,28 @@
 
 ---
 
+> ## Rev 7 — Rev 6's result is a **T1, per-target** result. Scoped, and the term it omits partly reverses it for T2.
+>
+> Rev 6 evaluated the lattice covering radius against every point on the scalp and concluded *"the
+> finding is against discrete pod selection generally."* Asked whether the analysis covered T2 as well as
+> T1, three things came out — the first two narrow the claim, the third cuts against it.
+>
+> | | Was (Rev 6) | Is (Rev 7) | Cause |
+> |---|---|---|---|
+> | The *"meets ±10 mm"* column | Unqualified | **A T1 answer.** `OI-EEGNET-15` already holds that tolerance is modality-dependent — *"tighter for T2 sLORETA source localisation and HD-tDCS 4×1 targeting."* On a tighter T2 budget **every row fails, including centre+ring7** | §1.10.5 |
+> | The covering radius | Read as a whole-montage guarantee | **A per-target bound.** It assumes each target may claim whichever socket suits it best. A montage's sites **compete** for sockets, and one socket carries one tile | §1.10.6 |
+> | *"Against discrete pod selection generally"* | Stated generally | **Sound for a sparse montage, overstated for a dense one.** Resolving contention is exactly what multi-pod tiles do, and Rev 6's single-target framing gave them no credit for it | §1.10.6 |
+>
+> **Measured, and it is stark at the current design:** with today's single centre pod, **~100 % of scalp
+> points are reachable from exactly one socket** at ±10 mm. There is no assignment slack at all, so any
+> two montage sites contending for a socket means one of them cannot be placed. Multi-pod raises it —
+> centre+ring7 reaches 1.33 sockets per point, 69 % singly-served.
+>
+> **Not withdrawn:** the covering-radius numbers, the two Rev 5 corrections, and the model validation
+> (a single centre pod gives 20.0 mm, half the 40 mm pitch). Rev 7 bounds what they answer.
+>
+> ---
+>
 > ## Rev 6 — `OI-EEGNET-25` computed. It corrects two Rev 5 claims and weakens the case for discrete pod selection.
 >
 > `scripts/pod-pattern-coverage.ts` computes the **lattice covering radius** — for every point on the
@@ -868,7 +890,7 @@ the nearest pod position available anywhere on the lattice, assuming the electro
 whichever socket suits best. This is montage-independent, so **it does not wait on REG-1** — which a
 fit against actual 10-20 coordinates would. Ring radius is optimised per pattern.
 
-| Pattern | Pods | Best r | **Worst case** | p95 | Emitters | Meets ±10 mm? |
+| Pattern | Pods | Best r | **Worst case** | p95 | Emitters | Meets ±10 mm? **(T1 only — see §1.10.6)** |
 |---|---|---|---|---|---|---|
 | *centre only (today)* | *1* | — | *20.0 mm* | *19.0* | *83/90* | *no* |
 | ring4 | 4 | 12.5 mm | 12.7 mm | 10.3 | 62/90 | no |
@@ -892,6 +914,9 @@ fit against actual 10-20 coordinates would. Ring radius is optimised per pattern
    *and that is covering error alone*, before §1.1's shape term, seating concentricity or landmark
    error are added. On an RSS basis nothing in the table survives the full budget.
 
+> **⚠ Scoped at Rev 7.** The ±10 mm column is a **T1** answer, and the whole table is a **per-target**
+> bound. §1.10.6 supplies both qualifications and one term that runs the other way for T2.
+
 > **The finding is against discrete selection generally, not against five.** Picking the nearest of N
 > fixed positions carries an irreducible quantisation term, and it does not fall below the budget at any
 > pod count that leaves a useful emitter population. **§1.4's continuous per-site offset has no such
@@ -905,7 +930,61 @@ radius answers *"any target anywhere"*; a **montage-specific** fit against nine 
 better, and the p95 column (7.4–10.3 mm) indicates how much better. That fit needs REG-1 and is
 **`OI-EEGNET-27`**.
 
-#### 1.10.6 What universality does not make cheaper
+#### 1.10.6 Two scope limits on §1.10.5, and the term that runs the other way (NEW AT REV 7)
+
+§1.10.5 evaluated coverage against **every point on the lattice-covered scalp** and used no montage at
+all. That was deliberate — montage-independence is what let it run without REG-1 — and it means the
+bound holds for T1's nine sites, T2's twenty-one, and any montage authored later. But two things it
+does not say were read into it, and a third was not modelled.
+
+**(a) The ±10 mm column is a T1 answer.** `OI-EEGNET-15` already records that placement tolerance is
+*"plausibly modality-dependent — looser for T1 8-channel wellness neurofeedback, tighter for T2 sLORETA
+source localisation and HD-tDCS 4×1 targeting."* §1.10.5 evaluated against a single ±10 mm figure, which
+is §3.4's design tolerance. **On any tighter T2 budget every row of that table fails, centre+ring7
+included** — its 9.4 mm has 0.6 mm of margin against a number that was never claimed to be T2's.
+
+**(b) The covering radius is a per-target bound, not a whole-montage guarantee.** It asks: for this
+point, is there *some* socket whose tile can reach it. A montage asks a harder question — can **all**
+sites be served **at once**, when each socket carries one tile. That is a matching problem, not a
+covering one. T2's 21 sites sit ~33 mm apart on a 40 mm lattice, so neighbouring 10-20 sites frequently
+fall nearest the **same** socket.
+
+**(c) Contention is exactly what multi-pod tiles resolve — and §1.10.5's framing cannot see it.** A
+1-pod tile serves one of two contending sites; a multi-pod tile serves both from one socket. What is
+computable without 10-20 coordinates is the **assignment slack**: how many *distinct* sockets can serve
+a given scalp point (`scripts/pod-pattern-coverage.ts`, second table):
+
+| Pattern | Mean sockets per point (±10 mm) | Served by **one** socket only | at ±15 mm |
+|---|---|---|---|
+| **centre only (today)** | **1.00** | **~100 %** | 98.0 % |
+| ring5 | 1.17 | 83.9 % | 48.8 % |
+| centre+ring5 | 1.26 | 75.4 % | 35.3 % |
+| centre+ring7 | 1.33 | 68.7 % | 30.2 % |
+
+> **Today's single centre pod has no assignment slack whatever.** Essentially every scalp point is
+> reachable from exactly one socket, so any two montage sites contending for that socket means one of
+> them **cannot be placed at all** — not placed imprecisely, not placed. That is `§1.3`'s Fp1/Fp2 defect
+> stated as a general property rather than as one anomaly: *"Fp1 and Fp2 cannot each have their own
+> socket."*
+
+**Consequence for Rev 6's conclusion.** *"The finding is against discrete pod selection generally"* is
+**sound for a sparse montage and overstated for a dense one.** Multi-pod loses on covering radius and
+wins on contention, and the second effect grows with montage density — so the balance is least
+favourable at T1's nine sites and most favourable at T2's twenty-one. Rev 6 measured only the axis where
+multi-pod loses.
+
+**What is out of scope of the analysis, as the design currently stands.** A1/A2 sit on the VNS clip's
+contact pads over the existing 6-pin cable (CLAUDE.md §3 modality 6), not on the lattice, so they were
+never candidates in either computation. **That is a property of the present design, not a necessity** —
+whether the lattice should extend to cover the A1/A2 positions is a live question and is not settled
+here.
+
+**What is still not computed.** The whole-montage assignment problem — can all N sites be served
+simultaneously, and at what worst-case residual — is a matching problem over (site → socket → pod) and
+**does** need 10-20 coordinates. **`OI-EEGNET-28`**, paired with `OI-EEGNET-27`; both wait on REG-1, and
+both would be answered by the same fixture.
+
+#### 1.10.7 What universality does not make cheaper
 
 Two costs are *worse* under option B than under manufactured variants, and both are paid at every
 electrode site:
@@ -922,7 +1001,7 @@ electrode site:
 > option is adopted at six or more, the question stops being *how much PBM do we keep at electrode
 > sites* and becomes *why keep any*. **`OI-EEGNET-21` and `OI-EEGNET-23` should be decided together.**
 
-#### 1.10.7 Identification, the placement gate, and the build map
+#### 1.10.8 Identification, the placement gate, and the build map
 
 **Pod count needs no marking — it is directly palpable.** The pods are physical objects on the
 scalp-facing face, and counting to four is inside `NP-HFE-002` §2.3(a)'s reliable range. It is
@@ -1590,6 +1669,7 @@ architecture no longer needs.
 | **OI-EEGNET-24** | **A required *build* map — "which module belongs in which socket" — is a third kind of data with no home, and the simulator has nothing to render (§1.10.7).** `hardware/np_socket_map.json` is geometry and says so explicitly; `00-zones.npps` is zone membership; neither is a build map. The simulator generator already runs the real parser against real sources, so rendering is cheap once the artifact exists. **Cut it once with `OI-HFE2-02`** — the app's live inventory is still the retired 5-slot `zoneModules: [UInt8] = [0,0,0,0,0]`, and both want the same socket-indexed structure | Systems + App | With `OI-HFE2-02` |
 | ~~**OI-EEGNET-25**~~ | **✅ CLOSED at Rev 6 — computed, `scripts/pod-pattern-coverage.ts`; result at §1.10.5.** Reformulated as the montage-independent **lattice covering radius**, which needs no 10-20 coordinates and so did not wait on REG-1. **Answer: the optimisation does not rescue five pods, and centre-plus-ring is not strictly better at low N.** Only centre+ring7 (8 pods, 34/90 emitters) meets ±10 mm worst-case at 9.4 mm, and that is covering error alone. The finding is against discrete selection generally. Model validated: a single centre pod gives 20.0 mm, exactly half the 40 mm pitch. *Original text:* **Optimise the pod pattern against the real target set — this is the deciding input, and it does not exist.** Every figure in §1.10.4 assumes N pods evenly spaced on one ring at r = 14.51 mm; `D-1` already reserves the tile centre, so **centre-plus-ring** is the natural pattern and turns a 1D angular problem into a 2D covering one. Minimise worst-case residual over the actual 10-20 targets across all 80 socket positions (neither uniform nor centred) using `hardware/np_socket_map.json`. **It could make five behave like six or better**, at five's emitter and scalp-load cost | Systems | **CLOSED — Rev 6** |
 | **OI-EEGNET-27** | **Montage-specific pod-pattern fit, once REG-1 lands.** §1.10.5's covering radius answers *"any target anywhere"* and is therefore a bound, not a design target. A fit against the **nine actual T1 sites** (Fp1/2, F3/4, C3/4, P3/4, Oz) would do materially better — the p95 column (7.4–10.3 mm vs 9.4–17.3 mm worst case) indicates roughly how much. It needs 10-20 coordinates on the shell, which is `REG-1`, and it shares that dependency with `OI-EEGNET-14` and `OI-SESPWR-01`. **Do not use it to reopen a pod count settled on the covering radius** — a montage-specific pattern is fragile to any montage change, and `NP-HEX-ZM-001` §4a's research mission is arbitrary montage design | Systems + Clinical | **REG-1** |
+| **OI-EEGNET-28** | **The whole-montage assignment problem is not computed, and it is where multi-pod tiles earn their keep (§1.10.6).** §1.10.5's covering radius is a *per-target* bound — for this point, does *some* socket reach it. A montage asks whether **all** sites can be served **simultaneously**, when each socket carries one tile: a matching problem over (site → socket → pod), not a covering one. It matters because assignment slack at today's single centre pod is **~1.00 socket per point**, i.e. none — any two sites contending for a socket means one cannot be placed at all, which is §1.3's Fp1/Fp2 defect generalised. Multi-pod raises slack (centre+ring7 → 1.33), so **the multi-pod case is strongest exactly where Rev 6 measured nothing**: dense montages, i.e. T2's 21 sites. Needs 10-20 coordinates, so it waits on **REG-1** and pairs with `OI-EEGNET-27` — one fixture answers both | Systems + Clinical | **REG-1; with `OI-EEGNET-27`** |
 | **OI-EEGNET-26** | **`np_module_map_check_placement()` cannot express a pod-count requirement, and would pass a wrong build silently (§1.10.7).** `type_mask` is an *element-type* predicate — a 1-pod and a 4-pod tile both satisfy *"dual electrode at this socket"*, **including at socket 74, where the photoparoxysmal halt depends on the gate.** The fix is a count/geometry field in the requirement, not new element-enum entries, which would make a type system carry a quantity. Same weakness §7.2.4 finds for the net, different cause. Routed to `NP-HEX-ZM-001` §4a as owner of the identity model | FW + Systems | **Safety-adjacent; with `OI-EEGNET-23`** |
 | **OI-EEGNET-21** | **An electrode-only tile type (T1-E) does not exist, and the reason electrode sites are scarce does not survive inspection (§1.8).** Per-configuration tile population *"has never been decided"* (`OI-COST-01`); the only argument on record against full population is `NP-HW-HEXTILE-001` §6.4's concurrency ceiling, which is a **power** argument that does not reach an electrode. The lattice — all ~80 sockets, all 18 cluster controllers — is paid for in every configuration (`NP-COST-001` A-2), so the marginal cost of a populated socket is one tile, and tile cost is dominated by the $11.53 driver/metering (~$10 of it InGaAs) and by emitters, none of which an electrode uses. **T1-E is the only option in §§1.6–1.8 that moves term U the right way: −17.3 % emitters while doubling electrode sites, and it strictly dominates T1-B at constant electrode count.** **Rev 4 sharpens the open question rather than closing it:** per `NP-PWR-BUDGET-001` §3.7, coverage is the only quantity that scales with tile count, so T1-E costs **illuminable area at those sites and nothing else** — it cannot reduce deliverable dose, which is envelope-bound at ~13–14 W optical regardless of population. The trade is against §3.6's whole-vault coverage mode specifically. Decide it against `NP-OPT-PSF-001` and `OI-PWR-07`. Depends on `OI-HFE2-10` for the fifth-type marking; does **not** relieve the N ceiling of §1.7.5. **Note the sequencing this creates, because it is unusual and should be deliberate rather than inherited:** an HFE formative on tactile discrimination sits *upstream* of a tile-taxonomy decision. If `OI-HFE2-10` falls back to the bar row, the taxonomy caps at four types and T1-E needs either a re-encoding or a type it can displace. The dependency runs the right way — marking is cheap to change before the mould insert is cut, taxonomy is not — but nothing else in the document set has this shape | Principal + Product + Systems | **With OI-COST-01 and OI-HEXTILE-06** |
 
@@ -1611,11 +1691,15 @@ seam), §5.3 (fluxgate siting) · `NP-HELMET-GEOM-001` §0 (inner-shield abandon
 `NP-FEAS-FNIRS-001` (S-D separation window, Risk A isosbestic) ·
 `NP-HFE-002` §2.3(a) (counting range), §7.3 Rev 2 (nested-figure encoding, 6 types) ·
 `firmware/hub_control/include/np_module_map.h` (`type_mask`) · `hardware/np_socket_map.json` ·
-`scripts/generate-simulator-data.ts` ·
+`scripts/generate-simulator-data.ts` · `scripts/pod-pattern-coverage.ts` (covering radius + assignment slack) ·
 `NP-HEX-ZM-001` §5.4a (cluster clamp, plunger, ejector springs, actuator intent) · `NP-OPT-PSF-001` ·
 `NP-HFE-002` §5 · `NP-ENV-OPRANGE-001` §4 · `NP-CONV-001` Rev 6 · CLAUDE.md §3, §4.2, §4.3, §4.4, §5.1
 
 ---
+
+*Rev 7 scopes Rev 6's result: its ±10 mm column is a T1 answer per `OI-EEGNET-15`, and its covering
+radius is a per-target bound that omits socket contention — the one axis on which multi-pod tiles win,
+and the one that grows with montage density. Nothing in Rev 6 is withdrawn; its reach is bounded.*
 
 *Rev 5 adds §1.10 and corrects §1.4/§1.5: a per-site placement file already meant one part per
 electrode site, so `R-2` was broken before this section proposed anything. The pod-count question now
