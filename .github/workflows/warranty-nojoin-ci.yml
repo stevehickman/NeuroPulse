@@ -30,6 +30,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      # Runs BEFORE the gate, for the reason scripts/check-js-syntax.sh and
+      # scripts/ci-changed-scope.sh do the same: every check in this gate is
+      # negative, and a negative gate's green tick is worth nothing until it has
+      # been shown to go red. Proves all 9 checks fail on a mutated input,
+      # including the 2026-06-06 vacuous-pass defect (#118) reproduced against
+      # the real schema.
+      - name: Gate self-test (prove the checks can fail)
+        run: python3 ci/test_warranty_nojoin.py --self-test
       - name: Run OI-EMMC2-06 no-join CI test
         run: python3 ci/test_warranty_nojoin.py --verbose
       - name: Upload test output on failure
