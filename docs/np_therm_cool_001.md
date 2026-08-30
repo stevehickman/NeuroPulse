@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 1
+**Revision:** 2
 **Date:** 2026-08-30
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
@@ -17,7 +17,19 @@
 
 ---
 
-> **⚠ READ FIRST — four answers, before the analysis that produced them.**
+> **Rev 2 (2026-08-30) — `OI-R1-03` is answerable from architecture alone, and the answer is
+> "outer shell only." No figure in this study changes.** Rev 1 §6.4 presented *"does the fan ventilate
+> the inter-bowl gap or only cool the outer shell?"* as a live empirical question gating the §5
+> baseline. It is not: the inter-bowl gap is **inside** the Faraday envelope and the fan is **outside**
+> it, so the ventilating branch has no physical path that does not breach the shield (§6.4). Every
+> figure here was already computed on the correct branch — the model uses R_out = 0.41 regardless of
+> fan state, per `NP-PWR-BUDGET-001` §3.2 — so §4, §5 and §7 are unaffected. Two consequences are new:
+> `NP-THERM-CFD-R1-001` §4's *"up to ~6 °C"* fan-loss branch describes a configuration that does not
+> exist and should collapse to the 0.6 °C branch (§6.4), and the inner bowl's moulded vent paths
+> currently discharge into a stagnant dead end (§6.1). New `OI-THCOOL-10` routes the closure to the
+> owning document rather than asserting it here.
+>
+> **⚠ READ FIRST — five answers, before the analysis that produced them.**
 >
 > **1. Cooling the cavity does almost nothing for scalp safety, and that is not a reason to drop it.**
 > Once the adopted BN-boss via is fitted, only **7.9 %** of tile heat reaches the scalp and only **2.1 %**
@@ -45,6 +57,11 @@
 > 6 GHz band `NP-HEX-ZM-001` §5.3a bounds, giving ~96 dB at L/D = 3 (§6.2). And lowering max ambient is
 > a genuine, zero-BOM lever — **but §7 finds `NP-ENV-OPRANGE-001`'s provisional bounds have already
 > taken most of it**, which is a validation of those bounds, not a new opportunity.
+>
+> **5. The fan does not, and cannot, ventilate the inter-bowl gap — so `OI-R1-03` needs no CFD and no
+> bench.** The gap is inside the EMF envelope and the fan is outside it; the only two routes across
+> (through the outer bowl, or through the rim labyrinth) each breach a stated shielding requirement.
+> The open item reads as a measurement question but is settled by geometry (§6.4).
 >
 > **What this study does not do.** It does not resurrect Path A (§7.3 — lowering ambient does not, and
 > cannot, because the fault case pins the junction at 62 °C independently of ambient). It sets no
@@ -224,6 +241,15 @@ objection to *circulation*:
 | Condensation risk (`NP-ENV-001` §2.2) | **Reduced** — fixed absolute humidity, no moist make-up air |
 | IP-seal and ingress qualification (`NP-FAI-001`) | **No** — the seal is unbroken |
 
+**The inner bowl is already moulded for the half of this mechanism that does not work.**
+`NP-HELMET-GEOM-001` §3.2 specifies, for the L1 inner bowl, *"boron-nitride-filled thermally-conductive
+polymer bosses at module heat pickups **+ molded vent paths** for the peak-power configs"* — channels
+whose function is to deliver module heat **into** the inter-bowl gap. That gap is stagnant at
+0.23 m²K/W, the largest single term in the outward path (§2), and §6.4 establishes that nothing
+ventilates it. **The vent paths therefore discharge into a dead end.** Getting heat into the gap is
+solved and moulded; moving it across the gap is not addressed anywhere. Sealed recirculation is the
+missing half of a mechanism the tooling already anticipates.
+
 Note this is **not** `NP-PWR-BUDGET-001` §3.3's second lever. That lever proposes a better *conductive*
 path to the shell via the existing metallic layers. This is convective, it attacks a different term, and
 the two compose. §3.3's three-item list has no fourth entry for stirring the gas; it should. `OI-THCOOL-01`.
@@ -279,11 +305,47 @@ elastomers reach k ≈ 1–3 W/m·K against ~0.04 for open-cell carbon foam. If 
 
 ### 6.4 Forced external convection on the outer shell
 
-The remaining 0.10 m²K/W. This is what the existing fan may or may not already be doing, and **nobody
-knows which** — `OI-R1-03` is open and asks exactly this: *does the fan ventilate the inter-bowl gap or
-only cool the outer shell?* It is worth up to ~5.4 °C of face rise on fan loss (R1 §4: 0.6 °C shell-only
-vs ~6 °C if it ventilates the gap). **This is the cheapest open question in the entire thermal file and
-it gates the baseline every option in §5 is measured against.** Answer it before committing anything here.
+The remaining 0.10 m²K/W, on the outer shell's **external** face — which the hub fan can reach, and
+which is the only thermal service it can perform for the helmet.
+
+**`OI-R1-03` is not an empirical question.** It asks *"does the fan ventilate the inter-bowl gap or only
+cool the outer shell?"*, which reads as a measurement to be taken. It is settled by geometry:
+
+- The inter-bowl gap is **inside** the Faraday envelope — `NP-HEX-ZM-001` §5.1: the outer bowl is the
+  complete EMF envelope and the inner bowl nests inside it. The fan is **outside** that envelope, in the
+  hub at the occipital arch (`NP-TOOL-HUB-001` §3, F-04).
+- Air can cross that boundary only two ways, and **both breach a stated requirement**. Through the outer
+  bowl contradicts `NP-HELMET-GEOM-001` §3.3's *"unbroken 5-layer stack on its inner face"* and its
+  *"mu-metal continuity depends on staying one bowl"*. Through the rim defeats `NP-HEX-ZM-001` §5.3a's
+  labyrinth lip, whose purpose is that there be *"no line-of-sight aperture from outside to the
+  modules"* with any residual slot ≤ 2.5 mm — making that slot continuous is the slot antenna the fold
+  exists to prevent.
+
+So the ventilating branch is not a possible description of the current design; it would be a design
+change. **The answer is "outer shell only."** `NP-PWR-BUDGET-001` §3.2 already asserts it in passing —
+*"the cavity itself is never actively ventilated regardless of fan state — the fan cools the external
+heatsink at the via terminus, not the cavity air"* — but never connects that back to `OI-R1-03`, which
+is why the item still reads as open.
+
+**Two consequences.**
+
+1. **`NP-THERM-CFD-R1-001` §4's uncertainty band collapses.** It gives fan-loss face rise as *"~0.6 °C
+   if the fan cools only the outer shell, up to ~6 °C if the fan ventilates the inter-bowl gap"*. The
+   second branch describes a configuration that does not exist, so τ_face and t₄₂ should be taken on
+   the 0.6 °C branch. This **tightens** the transient result and strengthens R1's own conclusion that
+   response speed is not the binding constraint; `SR-FAN-04` is undisturbed.
+2. **Nothing in this study moves.** §4, §5 and §7 use R_out = 0.41 — the fan-off outward path — as the
+   cavity's rejection resistance throughout, on §3.2's justification above. Every figure was already
+   computed on the correct branch.
+
+**The `NP-HELMET-GEOM-001` "vents" are not a counterexample.** Its vent references trace back to
+§3.2's **L1 inner bowl** — moulded channels inboard of the shield that carry module heat into the
+inter-bowl gap; the §7 traceability row cites §3.2 explicitly, and the §8 THERM-1 gate's *"fan + vents
++ BN bosses"* names the same features. **No reference anywhere specifies an opening through the outer
+bowl, and §3.3 forbids one.** See §6.1 for what this implies.
+
+**This item is not closed here.** `OI-R1-03` belongs to `NP-THERM-CFD-R1-001`; the disposition above is
+routed to its owner as `OI-THCOOL-10` rather than marked closed by a document that does not own it.
 
 ### 6.5 Two options assessed and not recommended
 
@@ -416,6 +478,7 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | **OI-THCOOL-07** | Confirm the sealed loop's condensation behaviour across the `NP-ENV-001` §2.2 warm-up transient — fixed absolute humidity should help, but the cold-optics case is untested | Thermal | No |
 | **OI-THCOOL-08** | Re-run §5 against `OI-PWR-01`'s multi-tile CFD; the ratios need a valid model at N > 8 before any number is quoted | Thermal | **Gates §5 numbers** |
 | **OI-THCOOL-09** | Assess whether tubes at the posterior boss disturb `NP-DRV-SHELL-002` §9.3's loop-area control or the §4.3 segregated-return requirement | EE | No |
+| **OI-THCOOL-10** | **Close `OI-R1-03` on the architectural grounds in §6.4** (answer: outer shell only) and collapse `NP-THERM-CFD-R1-001` §4's *"up to ~6 °C"* fan-loss branch to the 0.6 °C branch, re-stating τ_face / t₄₂ accordingly. Owned by `NP-THERM-CFD-R1-001`, not by this document — raised, not actioned | Thermal | No |
 
 ---
 
