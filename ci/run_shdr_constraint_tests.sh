@@ -38,6 +38,7 @@ TESTS="$REPO_ROOT/ci/shdr/shdr_schema_constraint_tests.sql"
 #
 # CI-Kind: gate
 # CI-Self-Test: ci/shdr/shdr_schema_constraint_tests.sql
+# CI-Scan-Probe: external — needs a live PostgreSQL server
 # CI-Scans: every integrity constraint in the SHDR schema, against a live PostgreSQL
 export LC_ALL=C LANG=C
 

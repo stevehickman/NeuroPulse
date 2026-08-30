@@ -122,5 +122,7 @@ done <<EOF
 $files
 EOF
 
-printf 'check-js-syntax: %s file(s) parsed, %s failed\n' "$count" "$failed"
+# `scanned: <int>` leads the line by contract — scripts/check-gate-coverage.ts
+# probes for it, so a PASS always names the population it covered.
+printf 'scanned: %s file(s) parsed, %s failed\n' "$count" "$failed"
 [ "$failed" -eq 0 ]

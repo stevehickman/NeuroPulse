@@ -142,7 +142,7 @@ for (const d of ["docs", "docs/superseded"]) {
     }
   }
 }
-console.log(`checked ${checked} files · ${serialed} carry a serial`);
+console.log(`scanned: ${checked} files · ${serialed} carry a serial`);
 console.log(`A (name == serial):        ${violA.length ? "FAIL" : "PASS"}`);
 violA.forEach((v) => console.log("   " + v));
 console.log(`B (only serials look like serials): ${violB.length ? "FAIL" : "PASS"}`);

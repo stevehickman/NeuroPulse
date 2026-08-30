@@ -43,10 +43,11 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-gate-coverage.ts --self-test
+ * CI-Scan-Probe: external — probing this file would re-enter the prober
  * CI-Scans: every check/test script in scripts/ and ci/
  */
 import { readFileSync, readdirSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
-import { join, relative } from "path";
+import { join } from "path";
 import { tmpdir } from "os";
 
 const KINDS = ["gate", "report", "self-test"] as const;
@@ -58,6 +59,7 @@ type Decl = {
   selfTest: string | null;
   covers: string | null;
   scans: string | null;
+  probe: string | null;
 };
 
 /** Read the CI-* declaration out of a file's header, whatever its comment syntax. */
@@ -84,7 +86,43 @@ function declare(root: string, rel: string): Decl {
     selfTest: field("CI-Self-Test"),
     covers: field("CI-Covers"),
     scans: field("CI-Scans"),
+    probe: field("CI-Scan-Probe"),
   };
+}
+
+/** How to invoke a gate for the population probe, if it can be invoked at all. */
+function probeCommand(d: Decl): string[] | null {
+  if (d.probe?.startsWith("external")) return null;
+  if (d.probe) return d.probe.split(/\s+/);
+  if (d.file.endsWith(".ts")) return ["bun", d.file];
+  if (d.file.endsWith(".py")) return ["python3", d.file];
+  return [d.file];
+}
+
+/**
+ * Run a gate and read back the population it says it scanned.
+ *
+ * This is what separates a checked count from a promise. CI-Scans is prose — it
+ * can say anything. The gate's own `scanned: <int>` line is the number it
+ * actually computed, and a gate reporting `scanned: 0` while exiting 0 is
+ * precisely the #118 shape: TOKEN-01 passed over an empty column list for every
+ * merge until someone went looking.
+ */
+function probePopulation(
+  root: string,
+  d: Decl,
+): { ok: true; n: number } | { ok: false; why: string } {
+  const cmd = probeCommand(d);
+  if (!cmd) return { ok: false, why: "external" };
+  const r = Bun.spawnSync(cmd, { cwd: root, stdout: "pipe", stderr: "pipe" });
+  const out =
+    new TextDecoder().decode(r.stdout) + new TextDecoder().decode(r.stderr);
+  if (r.exitCode !== 0) {
+    return { ok: false, why: `exited ${r.exitCode} on a clean tree` };
+  }
+  const m = /^scanned:\s*(\d+)\b/m.exec(out);
+  if (!m) return { ok: false, why: "printed no `scanned: <int>` line" };
+  return { ok: true, n: Number(m[1]) };
 }
 
 function candidates(root: string): string[] {
@@ -140,7 +178,7 @@ function workflowCommands(root: string): string[] {
   return out;
 }
 
-function audit(root: string): { violations: string[]; decls: Decl[] } {
+function audit(root: string, probe = false): { violations: string[]; decls: Decl[] } {
   const decls = candidates(root).map((rel) => declare(root, rel));
   const commands = workflowCommands(root);
   const byFile = new Map(decls.map((d) => [d.file, d]));
@@ -181,6 +219,26 @@ function audit(root: string): { violations: string[]; decls: Decl[] } {
       }
       if (!d.scans) {
         v.push(`${d.file}: CI-Kind gate but no CI-Scans — its PASS names no population`);
+      }
+      // CI-Scans is prose. This is the checked half: run the gate and read the
+      // number it actually computed.
+      if (probe) {
+        const r = probePopulation(root, d);
+        if (!r.ok && r.why === "external") {
+          if (!/^external\s+—\s+\S/.test(d.probe ?? "")) {
+            v.push(
+              `${d.file}: CI-Scan-Probe is external but gives no reason — ` +
+                `write "external — <why it cannot run here>"`,
+            );
+          }
+        } else if (!r.ok) {
+          v.push(`${d.file}: population probe failed — ${r.why}`);
+        } else if (r.n < 1) {
+          v.push(
+            `${d.file}: reports \`scanned: ${r.n}\` yet exits 0 — ` +
+              `a gate that passes over an empty population is the #118 shape`,
+          );
+        }
       }
     }
 
@@ -294,6 +352,69 @@ if (process.argv.includes("--self-test")) {
     }),
     null,
   );
+  // ── The population probe ───────────────────────────────────────────────────
+  // These fixtures are executable, because the probe's whole point is that it
+  // runs the gate rather than reading a claim about it.
+  const probeGate = (body: string, extra = "") =>
+    `#!/bin/sh\n# CI-Kind: gate\n# CI-Self-Test: sh scripts/check-x.sh --self-test\n` +
+    `# CI-Scan-Probe: sh scripts/check-x.sh\n# CI-Scans: things\n${extra}${body}\n`;
+  const probeWf = WF(["sh scripts/check-x.sh --self-test", "sh scripts/check-x.sh"]);
+
+  const expectProbe = (label: string, root: string, needle: string | null) => {
+    const { violations } = audit(root, true);
+    if (needle === null) {
+      if (violations.length) failures.push(`${label} — expected clean, got: ${violations[0]}`);
+    } else if (!violations.some((x) => x.includes(needle))) {
+      failures.push(`${label} — no violation matching ${JSON.stringify(needle)}`);
+    }
+  };
+
+  expectProbe(
+    "a gate reporting a real population passes the probe",
+    build({
+      "scripts/check-x.sh": probeGate('echo "scanned: 42 things"'),
+      ".github/workflows/w.yml": probeWf,
+    }),
+    null,
+  );
+  expectProbe(
+    "a gate that prints no scanned line is caught",
+    build({
+      "scripts/check-x.sh": probeGate('echo "all good"'),
+      ".github/workflows/w.yml": probeWf,
+    }),
+    "printed no `scanned: <int>` line",
+  );
+  // The #118 shape itself: exits 0, having examined nothing.
+  expectProbe(
+    "a gate passing over an empty population is caught",
+    build({
+      "scripts/check-x.sh": probeGate('echo "scanned: 0 things"'),
+      ".github/workflows/w.yml": probeWf,
+    }),
+    "is the #118 shape",
+  );
+  expectProbe(
+    "an unexplained external probe is caught",
+    build({
+      "scripts/check-x.sh":
+        "#!/bin/sh\n# CI-Kind: gate\n# CI-Self-Test: sh scripts/check-x.sh --self-test\n" +
+        "# CI-Scan-Probe: external\n# CI-Scans: things\n",
+      ".github/workflows/w.yml": probeWf,
+    }),
+    "gives no reason",
+  );
+  expectProbe(
+    "an explained external probe is accepted",
+    build({
+      "scripts/check-x.sh":
+        "#!/bin/sh\n# CI-Kind: gate\n# CI-Self-Test: sh scripts/check-x.sh --self-test\n" +
+        "# CI-Scan-Probe: external — needs a live database\n# CI-Scans: things\n",
+      ".github/workflows/w.yml": probeWf,
+    }),
+    null,
+  );
+
   // Vacuity: no candidates means every rule holds trivially.
   const empty = audit(build({ ".github/workflows/w.yml": WF([]) }));
   if (empty.decls.length !== 0) failures.push("empty tree — expected 0 candidates");
@@ -305,13 +426,14 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  8 case(s): every rule proven to fire; comment-only mention proven not to");
+  console.log("  13 case(s): every rule proven to fire, incl. the population probe;");
+  console.log("  comment-only mention and explained-external proven NOT to fire");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }
 
 const ROOT = join(import.meta.dir, "..");
-const { violations, decls } = audit(ROOT);
+const { violations, decls } = audit(ROOT, true);
 
 // A meta-gate that finds nothing to check is the failure it exists to prevent.
 if (decls.length === 0) {
@@ -322,7 +444,7 @@ if (decls.length === 0) {
 }
 
 const counts = KINDS.map((k) => `${decls.filter((d) => d.kind === k).length} ${k}`).join(" · ");
-console.log(`checked ${decls.length} check script(s) in ${relative(ROOT, join(ROOT, "scripts"))}/ and ci/ — ${counts}`);
+console.log(`scanned: ${decls.length} check script(s) in scripts/ and ci/ — ${counts}`);
 
 if (violations.length) {
   console.error(`\n${violations.length} gate-coverage violation(s):\n`);

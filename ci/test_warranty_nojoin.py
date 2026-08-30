@@ -525,10 +525,13 @@ def _scanned_line(result: CheckResult) -> str:
     s = result.scanned
     if not s:
         return "scanned: (not recorded)"
+    total = s["shdr_columns"] + s["warranty_columns"]
     return (
-        "scanned: SHDR {shdr_columns} column(s) across {shdr_tables} table(s), "
-        "{shdr_token_columns} warranty_token · WARRANTY {warranty_columns} column(s) "
-        "across {warranty_tables} table(s), {warranty_token_columns} warranty_token"
+        f"scanned: {total} column(s) — "
+        "SHDR {shdr_columns} across {shdr_tables} table(s) "
+        "({shdr_token_columns} warranty_token) · "
+        "WARRANTY {warranty_columns} across {warranty_tables} table(s) "
+        "({warranty_token_columns} warranty_token)"
     ).format(**s)
 
 

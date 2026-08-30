@@ -202,11 +202,15 @@ type Hit = { file: string; line: number; text: string; section?: number };
 const unresolved: Hit[] = [];
 const spaced: Hit[] = [];
 
+let filesScanned = 0;
+let citationsSeen = 0;
 for (const file of walk(ROOT)) {
   const rel = relative(ROOT, file);
   const lines = readFileSync(file, "utf8").split("\n");
+  filesScanned++;
   lines.forEach((line, i) => {
     for (const m of line.matchAll(CITATION)) {
+      citationsSeen++;
       const section = Number(m[1]);
       if (!valid.has(section)) {
         unresolved.push({ file: rel, line: i + 1, text: m[0], section });
@@ -218,14 +222,23 @@ for (const file of walk(ROOT)) {
   });
 }
 
+// The population line, printed on both paths. `scanned: <int>` leading the line
+// is the contract scripts/check-gate-coverage.ts probes for.
+const scannedLine =
+  `scanned: ${filesScanned} file(s), ${citationsSeen} CLAUDE.md citation(s), ` +
+  `${valid.size} valid section(s)`;
+
 if (unresolved.length === 0 && spaced.length === 0) {
   const list = [...valid].sort((a, b) => a - b).join(", ");
+  console.log(scannedLine);
   console.log(
     `All CLAUDE.md section citations resolve (sections present: ${list}), ` +
       `and all section markings use the canonical ${SECTION}N form.`,
   );
   process.exit(0);
 }
+
+console.log(scannedLine);
 
 if (unresolved.length > 0) {
   console.error(`${unresolved.length} unresolvable CLAUDE.md section citation(s):\n`);

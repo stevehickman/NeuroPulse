@@ -188,15 +188,28 @@ Concretely:
 - **Retrofit first to the gates that have never been falsified**, since #118 shows the
   failure is silent and indefinite.
 
-### 2.2 Every negative gate asserts it scanned something **[gate]** — PARTIAL
+### 2.2 Every negative gate asserts it scanned something **[gate]** — IMPLEMENTED
 
-> **Status 2026-08-30.** Done for `ci/test_warranty_nojoin.py`, which had none of it: `VACUITY-01`
-> / `VACUITY-02` fail when the parser sees no columns, no tables, or no `warranty_token`, and a
-> `scanned:` line prints on both the PASS and FAIL paths. Reintroducing the real #118 bug into its
-> parser now takes it from PASS to FAIL (`227 → 88` columns, `23 → 0` tokens) where before it
-> stayed green. `check-doc-filenames.ts`, `check-section-refs.ts` and `check-js-syntax.sh` already
-> reported theirs. **Still outstanding:** `ci/test_shdr_schema.py`'s own scan-count line, and the
-> `CI-Scans` declarations are prose, not yet a checked count.
+> **Status 2026-08-30: enforced, and the count is checked rather than claimed.**
+>
+> Every gate emits a machine-readable `scanned: <int> …` line on both its PASS and FAIL paths, and
+> `check-gate-coverage.ts` **runs each gate and reads that number back**. A gate that prints no
+> such line, or that reports `scanned: 0` while exiting 0 — the #118 shape exactly — fails the
+> meta-gate. A gate that genuinely cannot run in the checking environment declares
+> `CI-Scan-Probe: external — <reason>`; the reason is mandatory, and three do (a live PostgreSQL,
+> CI-generated relevance lists, and the prober itself, which would otherwise re-enter).
+>
+> That is what separates this from a documentation field: `CI-Scans` is prose and can say
+> anything, but the probed integer is what the gate actually computed.
+>
+> Two in-gate vacuity guards were added where the checks iterate a parsed population:
+> `ci/test_warranty_nojoin.py` (`VACUITY-01`/`VACUITY-02` — no columns, no tables, or no
+> `warranty_token` visible) and `ci/test_shdr_schema.py` (`VACUITY-01`, now 15 checks). The
+> warranty one is falsified against the real defect: reintroducing #118's parser bug takes the gate
+> from PASS to FAIL (`227 → 88` columns, `23 → 0` tokens) where it previously stayed green.
+>
+> Current populations: 110 documents · 740 files and 645 citations · 13 check scripts · 10
+> simulator files · 248 and 227 schema columns.
 
 A gate that passes when nothing prohibited is present must additionally assert that its
 parser saw the expected population — a **nonzero, named count**. `check-section-refs.ts`
