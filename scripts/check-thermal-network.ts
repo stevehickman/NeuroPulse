@@ -52,6 +52,13 @@ const R_OUT_REMAINDER = R_FOAM + R_SHELL + R_EXT_NATURAL;
 
 /** Two films in series across a stirred gap: R = 2/h. */
 const stirredGap = (h: number) => 2 / h;
+/**
+ * Compliant thermally-conductive gap pad bridging the 6 mm inter-bowl gap.
+ * k = 3 W/m.K is mid-range for a ceramic-filled silicone pad; such pads are
+ * electrically insulating and non-magnetic, which the fluxgate/Helmholtz split
+ * across this gap requires. R = L/k, plus a contact allowance both faces.
+ */
+const GAP_PAD = 0.006 / 3.0 + 0.0002;
 /** Forced external convection film. */
 const forcedExternal = (h: number) => 1 / h;
 
@@ -112,6 +119,25 @@ const options: Option[] = [
     id: "RFE", name: "Recirculation + absorber + forced external",
     rGap: stirredGap(30), rFoam: 0.02, rExt: forcedExternal(30), rVia: R_VIA_EFF,
     breachesShield: false, note: "Full stack, shield untouched",
+  },
+  // D-2 test (principal, 2026-08-30): the pneumatic loop is in scope only if its
+  // benefit is real AND not obtainable otherwise. These rows are the "otherwise".
+  // A compliant thermally-conductive, electrically-insulating gap pad shorts the
+  // same stagnant-air term the loop stirs — no blower, no tubes, no aperture.
+  {
+    id: "G", name: "Conductive gap bridge (pad), no loop",
+    rGap: GAP_PAD, rFoam: R_FOAM, rExt: R_EXT_NATURAL, rVia: R_VIA_EFF,
+    breachesShield: false, note: "Static, no moving parts",
+  },
+  {
+    id: "GF", name: "Gap bridge + thermally-specified absorber",
+    rGap: GAP_PAD, rFoam: 0.02, rExt: R_EXT_NATURAL, rVia: R_VIA_EFF,
+    breachesShield: false, note: "Two materials changes, no subsystem",
+  },
+  {
+    id: "GFE", name: "Gap bridge + absorber + forced external",
+    rGap: GAP_PAD, rFoam: 0.02, rExt: forcedExternal(30), rVia: R_VIA_EFF,
+    breachesShield: false, note: "Full static stack — the D-2 comparator",
   },
 ];
 
@@ -414,3 +440,33 @@ for (const [title, items] of boms) {
 console.log("  Optional RH sensor (SHT4x / HDC3020 / BME280 class)  $  2-5");
 console.log("  Vapour compression, for contrast                     $105-240 — wrong technology at 10-30 W");
 console.log("\n  Both are ACCESSORIES, not base BOM: Home Standard is already $897-959 at -41% to -51% GM.\n");
+
+// ---------------------------------------------------------------------------
+// §15  D-2 test — is the pneumatic loop's benefit obtainable by other means?
+// ---------------------------------------------------------------------------
+
+console.log("§15 D-2 test — pneumatic loop vs a static conductive gap bridge");
+console.log("  D-2 (principal): the loop is in scope only if its benefit is real AND not");
+console.log("  obtainable otherwise. Both attack the SAME term — the 0.23 stagnant inter-bowl gap.\n");
+console.log("  ID    R_out   tiles   vs base   moving parts   aperture   option");
+for (const id of ["V", "R", "RFE", "G", "GF", "GFE"]) {
+  const o = options.find((x) => x.id === id)!;
+  const r = solve(o);
+  const n = tileCeiling(r.rOut);
+  const loop = id === "R" || id === "RFE";
+  console.log(
+    `  ${id.padEnd(5)} ${r.rOut.toFixed(3).padStart(5)}   ${n.toFixed(1).padStart(5)}   ` +
+    `${(n / tileCeiling(solve(options[0]).rOut)).toFixed(2)}x`.padStart(7) +
+    `   ${(loop ? "blower+tubes" : "none").padEnd(13)}  ${"none".padEnd(9)}  ${o.name}`,
+  );
+}
+const rfe = tileCeiling(solve(options.find((o) => o.id === "RFE")!).rOut);
+const gfe = tileCeiling(solve(options.find((o) => o.id === "GFE")!).rOut);
+console.log(`\n  A gap pad is R = ${GAP_PAD.toFixed(4)} m^2K/W against ${(2 / 30).toFixed(3)} for a stirred gap`);
+console.log(`  and 0.230 stagnant — conduction through a solid beats convection across a gap.`);
+console.log(`  GFE reaches ${gfe.toFixed(1)} tiles vs RFE's ${rfe.toFixed(1)} — ${(gfe / rfe).toFixed(1)}x BETTER with no loop at all.`);
+console.log(`\n  CONCLUSION for D-2: the loop's benefit is NOT unique to it. A static pad attacks`);
+console.log(`  the same term harder, with no blower, no tubes, no acoustic path beside the audio`);
+console.log(`  modality, and no penetration — so OI-THCOOL-06's ELF measurement is not needed.`);
+console.log(`  Subject to OI-THCOOL-15: real two-face contact across a curved 5-7 mm gap with`);
+console.log(`  tolerance stack, and compression set over repeated bowl separations.`);

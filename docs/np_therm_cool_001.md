@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 3
+**Revision:** 4
 **Date:** 2026-08-30
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
@@ -17,6 +17,25 @@
 
 ---
 
+> **Rev 4 (2026-08-30) — D-2 and D-3 both DECIDED by the principal; D-2's criterion retires the
+> pneumatic loop.** D-2: *a sealed pneumatic loop is in scope only if it provides a real benefit, and
+> one not obtainable by other means.* Applying that test (new §6.9) finds the benefit **is** obtainable
+> otherwise, and better: the loop and a **static conductive gap bridge** attack the same 0.23 m²K/W
+> stagnant-gap term, and a compliant ceramic-filled gap pad reaches 0.0022 against the stirred gap's
+> 0.067. The full static stack reaches **40.6 tiles against the loop stack's 19.7 — 2.1× better with no
+> blower, no tubes and no penetration.** So **§6.2's pneumatic loop is not in scope**, and
+> **`OI-THCOOL-06` (the ELF bench measurement) is no longer needed** unless the loop is revived. New
+> `OI-THCOOL-15` carries the mechanical question the pad now depends on.
+>
+> **Rev 4 (2026-08-30) — D-3 DECIDED by the principal. Both accessories are on the roadmap; the ice
+> pack is LOW priority and the chiller HIGHER, ranked on value delivered; and the honest-claim
+> constraint is now binding, not advisory.** The ice pack is to be marketed **only for what it does** —
+> it extends the ambient envelope and does **not** shorten sessions on a 45 W brick (§6.7.1). The
+> session-time claim belongs to the base-station chiller alone. That ranking follows directly from
+> §6.7.1: the chiller arrives with the watts that actually move `maxConcurrent`, and the ice pack does
+> not. **A general TODO is raised** for a complete ordered priority set across *all* accessories, not
+> just these two — `docs/status/pending-decisions.md` §13.2. No figure changes; §8's D-3 is closed.
+>
 > **Rev 3 (2026-08-30) — two optional, power-source-keyed cooling accessories added (§6.7), and the
 > session-planner requirement they create (§6.8). One Rev 1/2 claim is corrected.** Principal direction:
 > an **ice/PCM pack at the hip** for USB-C operation and a **TEC chiller in a mains base station**,
@@ -541,6 +560,51 @@ stored in a 40 °C room arrives already melted.
 
 ---
 
+### 6.9 D-2 applied — the pneumatic loop is not in scope
+
+**D-2 (principal, 2026-08-30): a sealed pneumatic loop is in scope only if it provides a real benefit,
+and a benefit not obtainable by other means.** That is a sharper test than "is it shield-safe," and the
+loop fails its second limb.
+
+**Both the loop and a static conductive bridge attack the same term.** §2's decomposition makes the
+stagnant inter-bowl gap 0.23 m²K/W — 56 % of the outward path. §6.1 stirs it convectively. But a
+compliant **thermally-conductive, electrically-insulating gap pad** spanning the same 6 mm shorts it
+conductively, and conduction through a solid beats convection across a gap by two orders of magnitude:
+
+| Route | R across the gap |
+|---|---:|
+| Stagnant air (today) | 0.230 |
+| Stirred air (§6.1 loop) | 0.067 |
+| **Ceramic-filled gap pad, k ≈ 3 W/m·K** | **0.0022** |
+
+Carried through the network (`bun scripts/check-thermal-network.ts` §15):
+
+| ID | Option | R_out | Tiles | vs base | Moving parts |
+|---|---|---:|---:|---:|---|
+| RFE | Recirculation + absorber + forced external | 0.125 | 19.7 | 3.28× | blower + tubes |
+| **GFE** | **Gap bridge + absorber + forced external** | **0.061** | **40.6** | **6.77×** | **none** |
+
+> **The static stack is 2.1× better than the loop stack, with no blower, no tubes, no acoustic path
+> beside the audio modality, and no penetration of any kind.** The loop's benefit is therefore not
+> unique to it, and D-2's criterion is not met. **§6.2's pneumatic loop is out of scope**, and with it
+> `OI-THCOOL-06` — the ELF magnetic bench measurement was BLOCKING only on the loop's penetration,
+> which no longer exists. Both are retained in this document as the record of why, not as live work.
+
+**Two constraints the pad inherits, and they are mechanical rather than electromagnetic.** It must be
+**electrically insulating and non-magnetic** — the fluxgates sit on the inner bowl and the Helmholtz
+coils on the outer, so a conductive or ferrous bridge between them would perturb the cancellation the
+pad is not otherwise touching. Ceramic-filled silicone satisfies both. And it must achieve **real
+two-face contact across a curved 5–7 mm gap** with the tolerance stack, through hardware already in
+that gap (the cluster clamps), and survive **compression set** over repeated bowl separations for
+module replacement. That is `OI-THCOOL-15`, and it is now the gating question for the largest single
+term in the outward path.
+
+**This also strengthens `NP-PWR-BUDGET-001` §3.3's second lever** rather than competing with it. That
+lever proposes a better conductive path to the outer shell *via the existing metallic layers*; this is
+a conductive path *across the gap that precedes them*. They are in series and compose.
+
+---
+
 ## 7. The ambient lever — real, zero-BOM, and largely already taken
 
 **43.3 °C is a choice, not physics**, and R1 §5.3's wall ("ambient 43.3 °C already exceeds the 42 °C
@@ -583,7 +647,7 @@ changes the character of the fan-fault derate.
 | 0 | **Close `OI-R1-03`** — pin the existing fan's airflow path | ~0 | Gates every baseline below | ME + Thermal |
 | 1 | **Thermally specify the EMI absorber** (§6.3) | Materials substitution | 0.075 → ~0.02 | ME + EMC |
 | 2 | **Attack the via interface, not the via** (§3) | TIM + mounting | ~90 % of via-path R | ME |
-| 3 | **Sealed recirculation, remote blower, tubes at the existing posterior boss** (§6.1–6.2) | New subsystem | 0.23 → ~0.067 | ME + Thermal + EE |
+| 3 | **Conductive gap bridge across the inter-bowl gap** (§6.9) — supersedes the pneumatic loop, which D-2 puts out of scope | Gap pad + assembly force | **0.23 → ~0.002** | ME |
 | 4 | **Forced external convection** (§6.4) | Depends on step 0 | 0.10 → ~0.033 | ME |
 | 5 | **Optional accessories** (§6.7): hip ice pack, TEC base-station chiller | $52–107 / $33–71, accessory not base BOM | Envelope; concurrency only with mains watts | ME + FW |
 | — | *On-head TEC, scalp-gap ventilation, vapour compression* | — | **Not recommended** (§6.5, §6.7, §9) | — |
@@ -597,13 +661,22 @@ about step 3.**
 - **D-1 — Does the T1-A block threshold move from +43 °C toward the ~+38 °C the physics implies (§7.2)?**
   A commercial availability call, not a thermal one. Thermal input: +43 is ~5 °C beyond what the design
   supports at full dose, and the derate ramp is already carrying that gap.
-- **D-2 — Is a sealed pneumatic loop in scope at all?** It is the largest single term (§5), it is
-  shield-safe in principle, and it is a new subsystem on a product with no committed hardware. **It must
-  not be adopted before `OI-THCOOL-06`** (the ELF magnetic bench measurement) returns.
-- **D-3 — Are the §6.7 accessories in the roadmap, and is the ice pack sold on the honest claim?** It
-  buys **ambient envelope, not shorter sessions**, on a 45 W brick (§6.7.1). Selling it as a
-  time-saver would be selling a source that changes nothing — precisely the prohibition
-  `NP-PWRSRC-001` §12 sets out. The time claim belongs to the base station alone.
+- **D-2 — ✅ DECIDED 2026-08-30 (principal): in scope only for a real benefit not obtainable by other
+  means — and §6.9 finds it is obtainable otherwise, better.** A static conductive gap bridge attacks
+  the same 0.23 m²K/W term and reaches **40.6 tiles against the loop's 19.7**, with no moving parts and
+  no penetration. **The pneumatic loop is out of scope; `OI-THCOOL-06` is closed with it.** The
+  criterion did the work here — "is it shield-safe" would have kept the loop alive, and "is the benefit
+  unique to it" killed it. Replacement gating question: `OI-THCOOL-15`.
+- **D-3 — ✅ DECIDED 2026-08-30 (principal).** Both accessories go on the roadmap. **Priority follows
+  value delivered: the TEC base-station chiller is the higher priority; the hip ice pack is low.**
+  §6.7.1 is why — the chiller brings the watts that actually move `maxConcurrent`, and the ice pack
+  does not. **All marketing claims must be honest, so the ice pack is to be marketed only for what it
+  does:** it extends the ambient envelope and does **not** shorten sessions on a 45 W brick. The
+  session-time claim belongs to the base station alone. This is a binding constraint on copy, not an
+  observation, and it is the same prohibition `NP-PWRSRC-001` §12 states — do not sell a source that
+  changes nothing. Recorded in `docs/reference/accessories-roadmap.md`; a complete ordered priority
+  set across **all** accessories is raised as a general TODO in
+  `docs/status/pending-decisions.md` §13.2.
 
 ---
 
@@ -640,7 +713,9 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | **OI-THCOOL-03** | Replace assumed convection coefficients (h = 30 stirred, 30 forced external, 10 natural) with CFD or bench values | Thermal | No |
 | **OI-THCOOL-04** | Thermally specify the Layer 4 EMI absorber — 18 % of the outward path, currently specified in dB only | ME + EMC | No |
 | **OI-THCOOL-05** | Characterise the via *interface* (contact + spreading + sink), which §3 shows is ~90 % of that path's resistance | ME | No |
-| **OI-THCOOL-06** | **Bench-measure ELF magnetic leakage through a mu-metal chimney collar at the posterior boss with tube penetrations.** Waveguide-below-cutoff does not apply below ~100 Hz | EMC (EMF-1) | **BLOCKING on §6.2** |
+| **OI-THCOOL-15** | **Can a compliant gap pad achieve real two-face contact across the curved 5–7 mm inter-bowl gap** — tolerance stack, the cluster-clamp hardware already in that gap, and compression set over repeated bowl separations? Must be electrically insulating and non-magnetic (fluxgates inner, Helmholtz outer). **Now the gating question for the largest term in the outward path** | ME | **Gates §6.9** |
+| ~~OI-THCOOL-06~~ | **✅ CLOSED 2026-08-30 by D-2** — this was BLOCKING only on the pneumatic loop's penetration of the posterior boss, and §6.9 puts that loop out of scope. Retained struck-through rather than deleted, per `NP-CONV-001` §4's append-only open-item rule; reopen only if the loop is revived | — (closed) | — |
+| ~~OI-THCOOL-06 (original text)~~ | **Bench-measure ELF magnetic leakage through a mu-metal chimney collar at the posterior boss with tube penetrations.** Waveguide-below-cutoff does not apply below ~100 Hz | EMC (EMF-1) | **BLOCKING on §6.2** |
 | **OI-THCOOL-07** | Confirm the sealed loop's condensation behaviour across the `NP-ENV-001` §2.2 warm-up transient — fixed absolute humidity should help, but the cold-optics case is untested | Thermal | No |
 | **OI-THCOOL-08** | Re-run §5 against `OI-PWR-01`'s multi-tile CFD; the ratios need a valid model at N > 8 before any number is quoted | Thermal | **Gates §5 numbers** |
 | **OI-THCOOL-09** | Assess whether tubes at the posterior boss disturb `NP-DRV-SHELL-002` §9.3's loop-area control or the §4.3 segregated-return requirement | EE | No |
@@ -664,4 +739,4 @@ raises one term of), §12 (the prohibition D-3 invokes), §5.5 (the CEM43 exposu
 `NP-ENV-001` §5 (no live RH sensor — §6.7.3) · `NP-REQ-FANHEALTH-001` `SR-FAN-06` (the fail-safe rule
 §6.8 inherits) · CLAUDE.md §1 (Mode 3 autonomy), §3 (RISK-14 dual-PD), §4.2/§4.3/§4.5 ·
 `scripts/check-pbm-power.ts` (where `maxConcurrent` becomes session length) ·
-`scripts/check-thermal-network.ts` §9–§14
+`scripts/check-thermal-network.ts` §9–§15
