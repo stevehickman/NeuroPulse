@@ -51,6 +51,10 @@ np_mode_for() {
 }
 
 # Parse stdin in the given mode. Returns node's exit status.
+#
+# CI-Kind: gate
+# CI-Self-Test: scripts/check-js-syntax.sh --self-test
+# CI-Scans: every tracked simulator/**/*.js, in the module system it is loaded in
 np_parse() { node "--input-type=$1" --check; }
 
 np_self_test() {

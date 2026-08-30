@@ -161,7 +161,13 @@ files created during rebase". **#212** needed a post-merge breakage fix.
 Ordered by expected value. Items marked **[gate]** are mechanizable and should be CI jobs;
 items marked **[rule]** belong in `CLAUDE.md` or `NP-CONV-001` because no gate can catch them.
 
-### 2.1 Every gate ships with a proof that it fails **[gate]**
+### 2.1 Every gate ships with a proof that it fails **[gate]** — IMPLEMENTED
+
+> **Status 2026-08-30: enforced by `scripts/check-gate-coverage.ts`.** Every check script in
+> `scripts/` and `ci/` now declares `CI-Kind: gate | report | self-test`; every gate declares a
+> `CI-Self-Test` that a workflow runs before the gate, and a `CI-Scans` naming its population.
+> 13 scripts — 8 gates, 3 reports, 2 self-tests. The rule below is the reasoning; the script is
+> the enforcement.
 
 Class 1 is the highest-value target because a broken guard is worse than no guard — it
 converts an unknown risk into a false assurance, and #118 held that false assurance across
@@ -182,7 +188,15 @@ Concretely:
 - **Retrofit first to the gates that have never been falsified**, since #118 shows the
   failure is silent and indefinite.
 
-### 2.2 Every negative gate asserts it scanned something **[gate]**
+### 2.2 Every negative gate asserts it scanned something **[gate]** — PARTIAL
+
+> **Status 2026-08-30.** Done for `ci/test_warranty_nojoin.py`, which had none of it: `VACUITY-01`
+> / `VACUITY-02` fail when the parser sees no columns, no tables, or no `warranty_token`, and a
+> `scanned:` line prints on both the PASS and FAIL paths. Reintroducing the real #118 bug into its
+> parser now takes it from PASS to FAIL (`227 → 88` columns, `23 → 0` tokens) where before it
+> stayed green. `check-doc-filenames.ts`, `check-section-refs.ts` and `check-js-syntax.sh` already
+> reported theirs. **Still outstanding:** `ci/test_shdr_schema.py`'s own scan-count line, and the
+> `CI-Scans` declarations are prose, not yet a checked count.
 
 A gate that passes when nothing prohibited is present must additionally assert that its
 parser saw the expected population — a **nonzero, named count**. `check-section-refs.ts`

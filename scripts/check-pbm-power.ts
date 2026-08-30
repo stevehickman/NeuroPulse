@@ -26,6 +26,8 @@
  * --strict is NOT wired into CI yet, deliberately: 18 of 20 protocols are over
  * budget as authored, so a gate would fail from the first commit and be disabled.
  * It is turned on once the OI-SESPWR-01..03 remediation lands (OI-SESPWR-05).
+ *
+ * CI-Kind: report
  */
 import { readFileSync, readdirSync } from "fs";
 import { join } from "path";

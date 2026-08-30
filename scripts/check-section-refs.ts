@@ -31,12 +31,23 @@
  *   bun scripts/check-section-refs.ts
  *
  * Exits non-zero listing file:line for each violation of either rule.
+ *
+ * CI-Kind: gate
+ * CI-Self-Test: bun scripts/check-section-refs.ts --self-test
+ * CI-Scans: CLAUDE.md section citations in every tracked file of 11 source extensions
  */
 
-import { readFileSync, readdirSync, statSync } from "fs";
-import { join, relative } from "path";
+import { readFileSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from "fs";
+import { join, relative, resolve } from "path";
+import { tmpdir } from "os";
 
-const ROOT = join(import.meta.dir, "..");
+// `--root <dir>` retargets the whole check at another tree. It exists for
+// --self-test below, which must drive the real entry point against fixtures
+// rather than a re-implementation of it.
+const rootFlag = process.argv.indexOf("--root");
+const ROOT = rootFlag >= 0 && process.argv[rootFlag + 1]
+  ? resolve(process.argv[rootFlag + 1]!)
+  : join(import.meta.dir, "..");
 const CLAUDE_MD = join(ROOT, "CLAUDE.md");
 const SECTION = "§";
 
@@ -74,6 +85,104 @@ function* walk(dir: string): Generator<string> {
     if (st.isDirectory()) yield* walk(full);
     else if (EXTENSIONS.some((e) => entry.endsWith(e))) yield full;
   }
+}
+
+// ── Self-test ────────────────────────────────────────────────────────────────
+// Both rules here are negative: they pass when nothing bad is found. #249
+// falsified this checker on three injected regressions before wiring it in, by
+// hand, and kept none of it. This is that falsification made durable, plus the
+// vacuity case #249 did not cover.
+//
+// Every fixture citation is BUILT, never written as a literal — a real dangling
+// reference sitting in this source file would be found by the very check it
+// tests, on the repository's own tree.
+if (process.argv.includes("--self-test")) {
+  const box = mkdtempSync(join(tmpdir(), "np-sectionrefs-"));
+  const cite = (n: number) => `CLAUDE.md ${SECTION}${n}`;
+  const spacedMark = `${SECTION} 3`;
+
+  const build = (claudeMd: string, files: Record<string, string>): string => {
+    const root = mkdtempSync(join(box, "t-"));
+    mkdirSync(join(root, "docs"), { recursive: true });
+    writeFileSync(join(root, "CLAUDE.md"), claudeMd);
+    for (const [rel, body] of Object.entries(files)) writeFileSync(join(root, rel), body);
+    return root;
+  };
+
+  const HEADINGS = "## 1. ONE\n\ntext\n\n## 2. TWO\n\ntext\n";
+
+  const run = (root: string): { code: number; out: string } => {
+    const r = Bun.spawnSync([process.execPath, import.meta.path, "--root", root], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    return {
+      code: r.exitCode,
+      out: new TextDecoder().decode(r.stdout) + new TextDecoder().decode(r.stderr),
+    };
+  };
+
+  const failures: string[] = [];
+  const expect = (label: string, root: string, want: number, needle: string) => {
+    const { code, out } = run(root);
+    if (code !== want) failures.push(`${label} — expected exit ${want}, got ${code}`);
+    else if (!out.includes(needle)) {
+      failures.push(`${label} — exit ${want} but output lacked ${JSON.stringify(needle)}`);
+    }
+  };
+
+  // A citation of a section that exists resolves, and the canonical form passes.
+  expect(
+    "resolvable citation accepted",
+    build(HEADINGS, { "docs/ok.md": `See ${cite(2)} for detail.\n` }),
+    0,
+    "All CLAUDE.md section citations resolve",
+  );
+
+  // Rule 1 — a citation of a section CLAUDE.md does not have.
+  expect(
+    "rule 1 rejects a dangling citation",
+    build(HEADINGS, { "docs/bad.md": `See ${cite(9)} for detail.\n` }),
+    1,
+    "unresolvable CLAUDE.md section citation",
+  );
+
+  // Rule 1 must reach non-Markdown sources too. #249's original grep enumerated
+  // extensions by hand and missed every Kotlin file, undercounting by five.
+  expect(
+    "rule 1 reaches .kt as well as .md",
+    build(HEADINGS, { "docs/x.kt": `// ${cite(9)}\n` }),
+    1,
+    "unresolvable CLAUDE.md section citation",
+  );
+
+  // Rule 2 — the spaced form, which is invisible to a section-sign-plus-digit grep.
+  expect(
+    "rule 2 rejects the spaced marking",
+    build(HEADINGS, { "docs/spaced.md": `See ${spacedMark} above.\n` }),
+    1,
+    "written with a space",
+  );
+
+  // Vacuity — if no numbered heading parses, every citation is "unresolvable"
+  // and the run is meaningless. It must refuse rather than fail informatively.
+  expect(
+    "refuses to run when no sections parse",
+    build("# Title only, no numbered headings\n", { "docs/ok.md": `${cite(1)}\n` }),
+    2,
+    "refusing to pass vacuously",
+  );
+
+  rmSync(box, { recursive: true, force: true });
+  console.log("check-section-refs self-test");
+  if (failures.length) {
+    console.error(`\nSELF-TEST FAIL — ${failures.length} assertion(s):`);
+    for (const f of failures) console.error("  " + f);
+    process.exit(1);
+  }
+  console.log("  5 case(s): both rules proven to reject, .kt reach proven, vacuity refused");
+  console.log("SELF-TEST PASS — the checker has teeth.");
+  process.exit(0);
 }
 
 // Rule 1 still tolerates the spaced form on purpose: a dangling reference must be

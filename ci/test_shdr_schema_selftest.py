@@ -26,6 +26,9 @@ functions; it does not touch the schema.
 Runnable two ways:
   python3 ci/test_shdr_schema_selftest.py     # plain runner, exits 0/1
   pytest ci/test_shdr_schema_selftest.py      # pytest discovery (test_*)
+
+CI-Kind: self-test
+CI-Covers: ci/test_shdr_schema.py
 """
 
 from __future__ import annotations

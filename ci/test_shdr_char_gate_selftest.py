@@ -37,6 +37,9 @@ production tree never enters.
 Runnable two ways:
   python3 ci/test_shdr_char_gate_selftest.py
   pytest ci/test_shdr_char_gate_selftest.py
+
+CI-Kind: self-test
+CI-Covers: ci/test_shdr_schema.py
 """
 
 from __future__ import annotations

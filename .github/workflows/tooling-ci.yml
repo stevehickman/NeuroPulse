@@ -225,8 +225,23 @@ jobs:
       # A real guard that nothing was running. It verifies NP-CONV-001 §4.0 over
       # the whole document set: every serialed document's filename matches its
       # serial, and every serial-shaped filename belongs to a serialed document.
+      # Before the guard, the guard's falsification. NP-CONV-001 §4.0.1a said
+      # this check "was falsified in both directions" — done by hand, kept
+      # nowhere. Now it is an artifact that re-runs.
+      - name: Guard self-test (prove rules A and B can fail)
+        run: bun scripts/check-doc-filenames.ts --self-test
+
       - name: Document filenames match their serials (NP-CONV-001 §4.0)
         run: bun scripts/check-doc-filenames.ts
+
+      # Enforces the rule the two steps above are an instance of: every gate in
+      # scripts/ and ci/ declares what it is, and every gate has a falsification
+      # that CI actually runs.
+      - name: Gate-coverage self-test
+        run: bun scripts/check-gate-coverage.ts --self-test
+
+      - name: Every gate declares its kind and is proven to fail
+        run: bun scripts/check-gate-coverage.ts
 
       # NOT run here: `check-pbm-power.ts --strict`. Its own header records why —
       # 18 of 20 authored protocols are over budget today, so the gate would fail

@@ -42,6 +42,8 @@
  *
  *   bun scripts/check-thermal-dose.ts
  *   bun scripts/check-thermal-dose.ts --ambient 35
+ *
+ * CI-Kind: report
  */
 import { analyse, type Row } from "./check-pbm-power";
 

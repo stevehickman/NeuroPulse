@@ -28,6 +28,10 @@ Usage:
   python3 ci/test_shdr_schema.py                  # exits 0 on PASS, 1 on FAIL
   python3 ci/test_shdr_schema.py --verbose        # show all checks
   python3 ci/test_shdr_schema.py --schema PATH    # override schema file path
+
+CI-Kind: gate
+CI-Self-Test: python3 ci/test_shdr_schema_selftest.py
+CI-Scans: column definitions in the SHDR fleet schema
 """
 
 from __future__ import annotations

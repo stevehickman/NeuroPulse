@@ -35,6 +35,10 @@ TESTS="$REPO_ROOT/ci/shdr/shdr_schema_constraint_tests.sql"
 # initdb/postgres abort with "postmaster became multithreaded during startup"
 # under some macOS locales; C is safe and the schema uses no locale-sensitive
 # collation.
+#
+# CI-Kind: gate
+# CI-Self-Test: ci/shdr/shdr_schema_constraint_tests.sql
+# CI-Scans: every integrity constraint in the SHDR schema, against a live PostgreSQL
 export LC_ALL=C LANG=C
 
 for f in "$SCHEMA" "$TESTS"; do
