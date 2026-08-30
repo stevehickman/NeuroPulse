@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 2
+**Revision:** 3
 **Date:** 2026-08-30
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
@@ -17,6 +17,18 @@
 
 ---
 
+> **Rev 3 (2026-08-30) — two optional, power-source-keyed cooling accessories added (§6.7), and the
+> session-planner requirement they create (§6.8). One Rev 1/2 claim is corrected.** Principal direction:
+> an **ice/PCM pack at the hip** for USB-C operation and a **TEC chiller in a mains base station**,
+> both *optional purchases*, aimed at users who want shorter treatment times. Analysis of that proposal
+> produced the correction: **the chiller belongs on the via's hub heatsink, not on the recirculated
+> cavity air** — with the via fitted, the cavity path carries ~2 % of tile heat and the via ~90 % (§4).
+> And **cooling raises only the `thermal` term of `NP-PWRSRC-001` §11's `min(electrical, thermal, dose)`
+> governor**: on the 45 W brick electrical binds first at 6.4 tiles, so the ice pack buys **ambient
+> envelope but no session-length reduction**; only the mains base station buys both, because it brings
+> the watts as well (§6.7). §6.5's thermoelectric rejection is narrowed to *on-head* TEC, and §6.6's
+> head-borne PCM sizing is superseded by hip-mounted ice at 334 kJ/kg. New `OI-THCOOL-11…14`.
+>
 > **Rev 2 (2026-08-30) — `OI-R1-03` is answerable from architecture alone, and the answer is
 > "outer shell only." No figure in this study changes.** Rev 1 §6.4 presented *"does the fan ventilate
 > the inter-bowl gap or only cool the outer shell?"* as a live empirical question gating the §5
@@ -29,7 +41,7 @@
 > currently discharge into a stagnant dead end (§6.1). New `OI-THCOOL-10` routes the closure to the
 > owning document rather than asserting it here.
 >
-> **⚠ READ FIRST — five answers, before the analysis that produced them.**
+> **⚠ READ FIRST — six answers, before the analysis that produced them.**
 >
 > **1. Cooling the cavity does almost nothing for scalp safety, and that is not a reason to drop it.**
 > Once the adopted BN-boss via is fitted, only **7.9 %** of tile heat reaches the scalp and only **2.1 %**
@@ -62,6 +74,13 @@
 > bench.** The gap is inside the EMF envelope and the fan is outside it; the only two routes across
 > (through the outer bowl, or through the rim labyrinth) each breach a stated shielding requirement.
 > The open item reads as a measurement question but is settled by geometry (§6.4).
+>
+> **6. Cooling accessories buy concurrency only when watts come with them.** Cooling raises the
+> `thermal` term of `min(electrical, thermal, dose)` and nothing else. On the 45 W brick, electrical
+> binds first at **6.4 tiles** and a cooled thermal term changes the answer not at all — so the hip ice
+> pack buys **ambient envelope, not shorter sessions**. The mains base station buys both, because it
+> raises electrical *and* carries the chiller. Session length is `duration × ceil(sockets /
+> maxConcurrent)`, so cooling enters the planner at exactly one variable (§6.7, §6.8).
 >
 > **What this study does not do.** It does not resurrect Path A (§7.3 — lowering ambient does not, and
 > cannot, because the fault case pins the junction at 62 °C independently of ambient). It sets no
@@ -347,6 +366,140 @@ bowl, and §3.3 forbids one.** See §6.1 for what this implies.
 **This item is not closed here.** `OI-R1-03` belongs to `NP-THERM-CFD-R1-001`; the disposition above is
 routed to its owner as `OI-THCOOL-10` rather than marked closed by a document that does not own it.
 
+### 6.7 Remote-sink accessories — optional, keyed to the power source
+
+**Principal direction (2026-08-30): two optional accessories, never required purchases**, for users who
+want shorter treatment times — clinics above all. Both put the sink *off the head* and both are
+`OI-THCOOL-06`-free, because neither crosses the EMF envelope: the BN-boss via already terminates in a
+hub heatsink that is outside it.
+
+**The correction that came out of analysing them: chill the via, not the air.** With the via fitted the
+cavity path carries ~2 % of tile heat and the via ~90 % (§4). Chilling recirculated cavity air is
+chilling the wrong stream.
+
+| | Hip ice/PCM pack | TEC base-station chiller |
+|---|---|---|
+| Power source | USB-C, incl. power bank | mains |
+| Electrical draw | **~1–2 W** (pump only) | 56 W at 6 tiles · 188 W at 20 |
+| Heat rejected to room | none — latent storage | 90 W at 6 tiles |
+| **Mode 3 autonomy** | **preserved** | not possible |
+| Ice / capacity | 182 g per 30 min at 6 tiles | continuous |
+| BOM (estimate) | **$52–107** | **$33–71** |
+
+The TEC is cheaper in BOM and far worse in the currency that is actually scarce. `NP-PWRSRC-001` §4.1
+finds the supply oversubscribed 4.7–8.4× already; 56 W at six tiles is not available from a brick.
+Latent storage decouples cooling from the power budget entirely, which is why the ice pack is the only
+sub-ambient option that preserves CLAUDE.md §1's *"runs from any USB-C PD power bank."* Vapour
+compression was costed for contrast at $105–240 and is the wrong technology at a 10–30 W duty.
+
+**Use liquid, not air, to the hip.** The same 34 W moves through a 4 mm line at 0.13 m/s, or a 20 mm
+duct at 7.8 m/s. Pump hydraulic power is under a milliwatt.
+
+#### 6.7.1 What each one actually buys — and it is not the same thing
+
+Cooling raises the **`thermal`** term of `NP-PWRSRC-001` §11's governor and nothing else:
+
+```
+maxConcurrent = min(electrical, thermal, dose)
+```
+
+| Source | Electrical tiles | Thermal tiles | min | **min, cooled** |
+|---|---:|---:|---:|---:|
+| **45 W brick** (Home Standard) | 6.4 | 4.4–7.9 | 6.4 | **6.4 — unchanged** |
+| 65 W brick | 9.6 | 4.4–7.9 | 7.9 | 9.6 |
+| 100 W EPR | 15.2 | 4.4–7.9 | 7.9 | 15.2 |
+| **Mains base station** | 37.6 | 4.4–7.9 | 7.9 | **25.8** |
+
+> **On the 45 W brick — the configuration the ice pack targets — a cooled thermal term changes nothing,
+> because electrical binds first.** The gain is bought by **watts first and cooling second**. So the
+> hip ice pack buys the **ambient envelope** (running in a hot room instead of derating or blocking
+> above +43 °C, which needs no extra watts) and **no session-length reduction**. Only the mains base
+> station buys both — because it brings the watts *and* carries the chiller.
+
+This is `NP-PWR-BUDGET-001` §4.4.4's warning run in reverse: relieving power moved the constraint to
+heat; relieving heat moves it straight back to power.
+
+#### 6.7.2 The clinic argument is dose, not time
+
+Cascade length scales as `1/maxConcurrent`. Taking 6.4 → 25.8 tiles is a **4.0× reduction**, which on
+`NP-PWRSRC-001` §5.5's worst case (Vascular Baseline, 40 groups, 20.0 h, **292 CEM43**) is roughly 10
+groups, ~5.0 h and **~73 CEM43** at an unchanged plateau — and CEM43 uses R = 0.25 below 43 °C, so each
+1 °C the chiller removes cuts it a further **4×**.
+
+That matters more than the time saved. §5.5's finding is that **cascading is what creates the only real
+thermal-injury exposure in the document set**, and cascading exists solely as the sanctioned workaround
+for insufficient concurrency. The accessory's best argument is that it retires a hazard. Directional —
+`NP-PWRSRC-001` owns the dose model and `scripts/check-thermal-dose.ts` must be re-run at the raised
+concurrency (`OI-THCOOL-13`).
+
+#### 6.7.3 The binding constraint is fogging, not cooling
+
+| Air | Dew point |
+|---|---:|
+| Room, 25 °C / 60 % | 16.7 °C |
+| Room, 30 °C / 70 % | 23.9 °C |
+| **Scalp gap, ~33 °C / 90 %** | **31.1 °C** |
+| Scalp gap, ~35 °C / 95 % | 34.1 °C |
+
+**The scalp gap governs, not the room** — a head makes it warm and near-saturated. Let the module face
+fall below ~31 °C and condensation forms on the scalp-facing PDMS window and the PD2 aperture, the
+surfaces the J/cm² dose-metering claim depends on. The usable band is therefore **~32 °C to 42 °C** and
+a thermostatic tempering valve is mandatory, not optional.
+
+`NP-ENV-001` §5 provides **no live RH sensor** from which to compute that clamp. An RH part is cheap
+($2–5, SHT4x / HDC3020 / BME280 class) but three things argue against adding one: it would sample the
+room rather than the scalp gap, the assembly is silicone-rich and siloxane outgassing is a known
+polymer-RH-sensor contaminant, and it reverses a decided position. **The existing dual-PD loop may
+already be the fog detector**: CLAUDE.md §3's RISK-14 Option B puts PD2 on the scalp-facing surface and
+uses the PD1/PD2 ratio to separate fouling from ageing, and condensation is a fast fouling step,
+separable from slow ageing by rate. Closing the clamp on sensors already specified beats an open-loop
+dew-point calculation from air sampled elsewhere. `OI-THCOOL-11`. If an RH sensor is wanted anyway, put
+it **in the accessory**, so the fleet and `NP-ENV-001` §5 are untouched.
+
+**Condensation behaves oppositely on the two sides.** The sealed cavity loop self-desiccates — 13–20 mg
+of water, once, handled permanently by a desiccant pad. The **external** chilled lines see unlimited
+room air and sweat continuously, so they need closed-cell insulation, and a wet line against the body
+is a comfort problem.
+
+### 6.8 The session planner must know the cooling state — and detect it, not be told
+
+Session length is `duration × ceil(sockets / maxConcurrent)` (`scripts/check-pbm-power.ts`), so
+**cooling enters the planner at exactly one variable**. The plumbing is trivial; knowing the state
+reliably is not.
+
+**Three facts are needed, and only one is new:**
+
+| Fact | Source | Status |
+|---|---|---|
+| Electrical contract | PD negotiation, already logged to SHDR | **exists** |
+| Cooling present | accessory-port UID, per the `np_module_map` auto-inventory precedent | new, easy |
+| **Cooling effective and not exhausted** | coolant-return thermistor + pump-current check | **new, and the one that matters** |
+
+**Presence is not sufficiency, and this is the real problem.** An ice pack attached but melted reads
+"present"; a chiller plugged in but saturated reads "present." Latent storage is a **depleting budget** —
+182 g covers ~30 min at six tiles while a cascade can run for hours, so **the planner would be
+committing to a plan longer than the accessory's capacity.** Better detection does not fix that; it
+needs capacity-aware planning, with a re-plan point or a defined fallback to the uncooled cascade when
+the budget runs out (`OI-THCOOL-12`).
+
+The right signal is **coolant return temperature**: it measures the effect rather than the claim, it is
+the same signal for both accessories, and it degrades gracefully — as the pack melts, return temperature
+rises and the planner can derate before anything becomes unsafe.
+
+**Two rules, both inherited rather than invented:**
+
+1. **Fail-safe, verbatim from `SR-FAN-06`** — *absent, stale, or invalid → treated as "cooling NOT
+   confirmed" → uncooled thermal term.* That pattern is already reviewed for exactly this shape of
+   input; do not write a second one.
+2. **A manual declaration may never raise a ceiling.** Manual entry is error-prone, and here it is
+   error-prone in the fail-*dangerous* direction: asserting "chiller attached" when it is not yields a
+   plan the thermal path cannot sustain. Manual may lower a ceiling; only measurement may raise one.
+
+**Safety is already covered; planning is not.** Path B1's scalp-facing NTC plus `SR-FAN-03` catch pack
+exhaustion as a face-temperature rise, so **no new Class C requirement falls out of this.** What is new
+is Class B planning correctness — a session that runs longer than promised, or re-cascades mid-run.
+Keeping that line explicit is what keeps an availability feature out of Class C scope.
+
 ### 6.5 Two options assessed and not recommended
 
 **Liquid cooling.** Rejects to ambient like air, so it clears no wall air does not. It has one real
@@ -359,6 +512,11 @@ coolant over conductive applied parts. Against it: leak risk with `NP-DT-001` **
 constraint, on a supply `NP-PWRSRC-001` §4.1 finds oversubscribed by 4.7–8.4×, with DC loops beside the
 fluxgates. `NP-ENV-OPRANGE-001` already records that the T2-D TEC cannot hold setpoint above +35 °C
 ambient — the approach is weakest at exactly the ambient that matters.
+
+> **Rev 3 narrows this rejection to its stated subject.** Every objection above is about siting a TEC
+> **on the head**: the head's power budget, the head's thermal path, the fluxgates. None of them
+> survives moving the device into a mains base station, where `NP-PWRSRC-001` §8 already says mains
+> hardware belongs. §6.7 carries the base-station case; the *on-head* rejection stands.
 
 ### 6.6 Stored coolth (PCM) — the only sub-ambient option, held in reserve
 
@@ -373,10 +531,13 @@ temperature. It is passive, silent, zero-EMF, needs no aperture, and sessions ar
 
 A real pack is 2–3× this with matrix, shell and sensible heat — so **~0.2–0.5 kg**, feasible but not
 trivial head-borne mass. Two limits: it is a **capacity, not a rate**, so it saturates; and a 30 °C PCM
-stored in a 40 °C room arrives already melted. That second limit points at the only version worth
-building — **re-freeze it in the charging dock**, putting the heat pump where power, noise and EMF are
-free and carrying stored coolth onto the head. Recorded, not recommended: §7 finds the ambient envelope
-is a cheaper answer to the same problem.
+stored in a 40 °C room arrives already melted.
+
+> **Rev 3 supersedes the sizing above, on two counts.** The mass objection dissolves once the pack is
+> **worn at the hip rather than on the head** — the loop reaches it through the hub, which is already
+> outside the shield. And **ice at 334 kJ/kg beats paraffin's 200 by 1.67×**, so the store should be
+> ice, not PCM: 182 g covers the 6-tile via load for 30 min. The "capacity, not a rate" limit is real
+> and becomes §6.8's planning problem. See §6.7.
 
 ---
 
@@ -424,7 +585,8 @@ changes the character of the fan-fault derate.
 | 2 | **Attack the via interface, not the via** (§3) | TIM + mounting | ~90 % of via-path R | ME |
 | 3 | **Sealed recirculation, remote blower, tubes at the existing posterior boss** (§6.1–6.2) | New subsystem | 0.23 → ~0.067 | ME + Thermal + EE |
 | 4 | **Forced external convection** (§6.4) | Depends on step 0 | 0.10 → ~0.033 | ME |
-| — | *Liquid, on-head TEC, scalp-gap ventilation* | — | **Not recommended** (§6.5, §9) | — |
+| 5 | **Optional accessories** (§6.7): hip ice pack, TEC base-station chiller | $52–107 / $33–71, accessory not base BOM | Envelope; concurrency only with mains watts | ME + FW |
+| — | *On-head TEC, scalp-gap ventilation, vapour compression* | — | **Not recommended** (§6.5, §6.7, §9) | — |
 
 Steps 1 and 2 are incremental work on an adopted architecture with no EMF, regulatory or architectural
 consequence, and together are worth roughly half of §5's total. **Do them regardless of what is decided
@@ -438,6 +600,10 @@ about step 3.**
 - **D-2 — Is a sealed pneumatic loop in scope at all?** It is the largest single term (§5), it is
   shield-safe in principle, and it is a new subsystem on a product with no committed hardware. **It must
   not be adopted before `OI-THCOOL-06`** (the ELF magnetic bench measurement) returns.
+- **D-3 — Are the §6.7 accessories in the roadmap, and is the ice pack sold on the honest claim?** It
+  buys **ambient envelope, not shorter sessions**, on a 45 W brick (§6.7.1). Selling it as a
+  time-saver would be selling a source that changes nothing — precisely the prohibition
+  `NP-PWRSRC-001` §12 sets out. The time claim belongs to the base station alone.
 
 ---
 
@@ -478,6 +644,10 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | **OI-THCOOL-07** | Confirm the sealed loop's condensation behaviour across the `NP-ENV-001` §2.2 warm-up transient — fixed absolute humidity should help, but the cold-optics case is untested | Thermal | No |
 | **OI-THCOOL-08** | Re-run §5 against `OI-PWR-01`'s multi-tile CFD; the ratios need a valid model at N > 8 before any number is quoted | Thermal | **Gates §5 numbers** |
 | **OI-THCOOL-09** | Assess whether tubes at the posterior boss disturb `NP-DRV-SHELL-002` §9.3's loop-area control or the §4.3 segregated-return requirement | EE | No |
+| **OI-THCOOL-11** | **Test whether the existing PD1/PD2 fouling discriminator detects condensation onset** fast enough to serve as the anti-fog clamp, before adding an RH sensor that would sample the wrong air and reverse `NP-ENV-001` §5 | Optical + FW | Gates §6.7.3 |
+| **OI-THCOOL-12** | **Capacity-aware planning for a depleting sink.** A latent store is a budget, not a state; specify the re-plan point or the fallback to the uncooled cascade when it is exhausted | FW + Systems | Gates §6.8 |
+| **OI-THCOOL-13** | Re-run `scripts/check-thermal-dose.ts` at the raised concurrency to confirm §6.7.2's CEM43 reduction; the model is owned by `NP-PWRSRC-001` | Thermal | No |
+| **OI-THCOOL-14** | Confirm the accessory-port UID scheme and the coolant-return thermistor channel against the hub's existing I2C fan-out and `SR-FAN-06`'s fail-safe shape | EE + FW | No |
 | **OI-THCOOL-10** | **Close `OI-R1-03` on the architectural grounds in §6.4** (answer: outer shell only) and collapse `NP-THERM-CFD-R1-001` §4's *"up to ~6 °C"* fan-loss branch to the 0.6 °C branch, re-stating τ_face / t₄₂ accordingly. Owned by `NP-THERM-CFD-R1-001`, not by this document — raised, not actioned | Thermal | No |
 
 ---
@@ -489,4 +659,9 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 §3.2/§3.3 (aggregate ceiling, the three levers this adds a fourth to) · `NP-PWRSRC-001` §4.1/§7.0 (the
 cavity wall, 2/23 coverage) · `NP-HEX-ZM-001` §5.1–5.3 (two-bowl shell, the one existing aperture) ·
 `NP-DRV-SHELL-002` §4.3 (share the aperture) · `NP-ENV-OPRANGE-001` (the ambient bounds §7 validates) ·
-`NP-DT-001` DI-SAFE-13 · CLAUDE.md §4.2/§4.3/§4.5 · `scripts/check-thermal-network.ts`
+`NP-DT-001` DI-SAFE-13 · `NP-PWRSRC-001` §11 (the `min(electrical, thermal, dose)` governor §6.7.1
+raises one term of), §12 (the prohibition D-3 invokes), §5.5 (the CEM43 exposure §6.7.2 attacks) ·
+`NP-ENV-001` §5 (no live RH sensor — §6.7.3) · `NP-REQ-FANHEALTH-001` `SR-FAN-06` (the fail-safe rule
+§6.8 inherits) · CLAUDE.md §1 (Mode 3 autonomy), §3 (RISK-14 dual-PD), §4.2/§4.3/§4.5 ·
+`scripts/check-pbm-power.ts` (where `maxConcurrent` becomes session length) ·
+`scripts/check-thermal-network.ts` §9–§14

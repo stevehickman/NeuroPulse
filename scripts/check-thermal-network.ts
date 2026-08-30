@@ -282,3 +282,135 @@ for (const [w, m] of [[10, 20], [20, 20], [20, 30], [40, 20]] as const) {
 }
 console.log(`\n  Sized on latent heat only; a real pack is 2-3x this with matrix, shell and`);
 console.log(`  sensible heat. Bounded and small — but it is a capacity, not a rate.`);
+
+// ---------------------------------------------------------------------------
+// §9  Remote-sink accessories — where the heat is, and what removing it costs
+// ---------------------------------------------------------------------------
+// Rev 3. Two optional, power-source-keyed accessories. The chiller belongs on the
+// via's hub heatsink, NOT the recirculated cavity air: with the via fitted the
+// cavity path carries ~2 % of tile heat and the via ~90 % (§4).
+
+/** Duty-averaged per-tile draw, NP-PWR-BUDGET-001 §3.2 (R-4 pulsed, 25 % duty). */
+const P_TILE_DUTY = 6.25;
+const L_ICE = 334_000;   // J/kg latent heat of fusion — ice
+const L_PARAFFIN = 200_000;
+const TEC_COP = 0.6;     // typical at dT ~25 K
+
+const viaLoad = (n: number) => n * P_TILE_DUTY * VIA_EXPORT_FRACTION;
+const cavityLoad = (n: number) => n * P_TILE_DUTY * (1 - VIA_EXPORT_FRACTION);
+const iceGrams = (watts: number, minutes: number) => (watts * minutes * 60) / L_ICE * 1000;
+
+// ---------------------------------------------------------------------------
+// §10  The governor bind — min(electrical, thermal, dose), NP-PWRSRC-001 §11
+// ---------------------------------------------------------------------------
+// Cooling raises ONLY the thermal term. If electrical binds first, cooling buys
+// no concurrency and therefore no session-length reduction.
+
+/** Emitter watts available after overhead, per source. NP-PWRSRC-001 §4.1. */
+const SOURCES: Array<[string, number]> = [
+  ["45 W brick (Home Standard)", 40],
+  ["65 W brick", 60],
+  ["100 W EPR", 95],
+  ["mains base station", 235],
+];
+/** Sealed-cavity aggregate thermal ceiling, NP-PWRSRC-001 §4.1. */
+const THERMAL_UNCOOLED: [number, number] = [27.6, 49.1];
+const COOLING_GAIN = 3.28; // §5 row RFE
+
+const tilesFrom = (watts: number) => watts / P_TILE_DUTY;
+
+// ---------------------------------------------------------------------------
+// Report — Rev 3 additions
+// ---------------------------------------------------------------------------
+
+console.log("§9  Remote-sink accessories — the load, and what removes it");
+console.log("  tiles   total W   via path   cavity     ice @30min(via)   TEC W_elec(via)");
+for (const n of [6, 10, 20, 30]) {
+  const v = viaLoad(n);
+  console.log(
+    `  ${String(n).padStart(5)}   ${(n * P_TILE_DUTY).toFixed(1).padStart(7)}   ` +
+    `${v.toFixed(1).padStart(8)}   ${cavityLoad(n).toFixed(1).padStart(6)}   ` +
+    `${(iceGrams(v, 30)).toFixed(0).padStart(13)} g   ${(v / TEC_COP).toFixed(0).padStart(12)} W`,
+  );
+}
+console.log(`\n  Ice (334 kJ/kg) beats paraffin (${L_PARAFFIN / 1000} kJ/kg) by ${(L_ICE / L_PARAFFIN).toFixed(2)}x — use ice.`);
+console.log(`  A TEC removing the 6-tile via load draws ${(viaLoad(6) / TEC_COP).toFixed(0)} W and rejects ${(viaLoad(6) * (1 + 1 / TEC_COP)).toFixed(0)} W:`);
+console.log(`  mains only. The ice pack draws ~1-2 W (pump), so it alone preserves Mode 3.\n`);
+
+console.log("§10 The governor bind — cooling raises ONLY the thermal term");
+console.log("  Concurrency = min(electrical, thermal). Cooling moves thermal; the source moves electrical.");
+console.log("\n  source                        elec tiles   thermal tiles      min      cooled min");
+for (const [name, w] of SOURCES) {
+  const e = tilesFrom(w);
+  const tLo = tilesFrom(THERMAL_UNCOOLED[0]), tHi = tilesFrom(THERMAL_UNCOOLED[1]);
+  const cLo = tLo * COOLING_GAIN, cHi = tHi * COOLING_GAIN;
+  console.log(
+    `  ${name.padEnd(28)} ${e.toFixed(1).padStart(10)}   ${(tLo.toFixed(1) + "-" + tHi.toFixed(1)).padStart(13)}   ` +
+    `${Math.min(e, tHi).toFixed(1).padStart(6)}   ${Math.min(e, cHi).toFixed(1).padStart(10)}`,
+  );
+}
+console.log("\n  THE FINDING: on the 45 W brick — Home Standard, the config the ice pack targets —");
+console.log("  the cooled min is UNCHANGED at 6.4 tiles, because electrical binds first.");
+console.log("  Higher-wattage sources do gain (65 W: 7.9 -> 9.6; 100 W EPR: 7.9 -> 15.2), so the");
+console.log("  gain is bought by WATTS first and cooling second; cooling alone buys nothing at 45 W.");
+console.log("  So: ice pack on a 45 W brick -> ambient envelope only, no session-length gain.");
+console.log("      TEC chiller in a mains base station -> both, because the station brings watts too.\n");
+
+console.log("§11 Cascade length and thermal dose — what concurrency is worth");
+const bindBase = Math.min(tilesFrom(40), tilesFrom(THERMAL_UNCOOLED[1]));
+const bindStation = Math.min(tilesFrom(235), tilesFrom(THERMAL_UNCOOLED[1] * COOLING_GAIN));
+const ratio = bindStation / bindBase;
+console.log(`  Cascade time scales as 1/concurrency (groups = ceil(sockets / maxConcurrent)).`);
+console.log(`  ${bindBase.toFixed(1)} tiles -> ${bindStation.toFixed(1)} tiles is a ${ratio.toFixed(1)}x reduction.`);
+console.log(`  Applied to NP-PWRSRC-001 §5.5's worst case (Vascular Baseline, 40 groups, 20.0 h, 292 CEM43):`);
+console.log(`    groups ~${Math.ceil(40 / ratio)}, ~${(20 / ratio).toFixed(1)} h, CEM43 ~${(292 / ratio).toFixed(0)} at an unchanged plateau.`);
+console.log(`  CEM43 uses R = 0.25 below 43 C, so each 1 C the chiller removes cuts it a further 4x.`);
+console.log(`  Directional: NP-PWRSRC-001 owns the dose model (scripts/check-thermal-dose.ts).\n`);
+
+console.log("§12 The anti-fog clamp — what actually limits the cold end");
+const dewpt = (T: number, rh: number) => {
+  const a = Math.log(rh) + (17.27 * T) / (237.7 + T);
+  return (237.7 * a) / (17.27 - a);
+};
+for (const [label, T, rh] of [["room 25 C / 60 %", 25, 0.60], ["room 30 C / 70 %", 30, 0.70],
+                              ["scalp gap ~33 C / 90 %", 33, 0.90], ["scalp gap ~35 C / 95 %", 35, 0.95]] as const) {
+  console.log(`  ${label.padEnd(24)} dew point ${dewpt(T, rh).toFixed(1).padStart(5)} C`);
+}
+console.log("  The scalp gap governs, not the room: a head makes it warm and near-saturated.");
+console.log("  Face must stay ABOVE ~31 C or condensation forms on the scalp-facing PDMS window");
+console.log("  and the PD2 aperture — the surfaces the J/cm^2 dose claim depends on.");
+console.log("  Usable band is therefore ~32 C (anti-fog) to 42 C (IEC 60601-1). Narrow, and it needs");
+console.log("  a tempering valve. NP-ENV-001 §5 provides no live RH sensor to compute the clamp from.\n");
+
+console.log("§13 Sealed-loop condensation is bounded and one-time");
+const loopVolM3 = 0.006 * VAULT_AREA + 0.0003;
+const satGm3 = (T: number) => (216.7 * (6.112 * Math.exp((17.67 * T) / (T + 243.5)))) / (T + 273.15);
+for (const [T, rh] of [[25, 0.60], [30, 0.70]] as const) {
+  console.log(`  ${(loopVolM3 * 1000).toFixed(2)} L sealed at ${T} C / ${(rh * 100).toFixed(0)} % RH -> ${(satGm3(T) * rh * loopVolM3 * 1000).toFixed(0)} mg water, once`);
+}
+console.log("  A desiccant pad handles this permanently. The EXTERNAL chilled lines are the opposite");
+console.log("  case — unlimited room air, continuous sweating — so they need insulation.\n");
+
+console.log("§14 Accessory BOM (ESTIMATE — no chiller costing exists anywhere in the document set)");
+const boms: Array<[string, Array<[string, number, number]>]> = [
+  ["Hip ice/PCM loop (USB-C, Mode 3 preserved)", [
+    ["2x PCM/ice pack, 500 g, HDPE shell", 8, 16], ["insulated hip pouch + belt clip", 6, 12],
+    ["insulated silicone tubing, ~2 m", 5, 11], ["dry-break quick-disconnect pair", 7, 15],
+    ["micropump, 5 V brushless, ~1-2 W", 9, 18], ["coolant, fill port, expansion volume", 3, 6],
+    ["cold-plate on existing hub heatsink", 5, 10], ["thermostatic tempering valve", 6, 14],
+    ["coolant thermistors + control", 3, 5]]],
+  ["TEC base-station chiller (mains)", [
+    ["TEC module 40x40, 30-60 W Qmax", 8, 20], ["hot-side heatsink + fan", 6, 12],
+    ["cold-side exchanger", 5, 10], ["TEC driver, H-bridge + current ctl", 4, 8],
+    ["thermistors + control", 2, 3], ["desiccant pad + condensate wick", 3, 8],
+    ["duct / manifold / seals", 5, 10]]],
+];
+for (const [title, items] of boms) {
+  let lo = 0, hi = 0;
+  console.log(`  ${title}`);
+  for (const [k, a, b] of items) { console.log(`    ${k.padEnd(40)} $${String(a).padStart(3)}-${b}`); lo += a; hi += b; }
+  console.log(`    ${"TOTAL".padEnd(40)} $${String(lo).padStart(3)}-${hi}`);
+}
+console.log("  Optional RH sensor (SHT4x / HDC3020 / BME280 class)  $  2-5");
+console.log("  Vapour compression, for contrast                     $105-240 — wrong technology at 10-30 W");
+console.log("\n  Both are ACCESSORIES, not base BOM: Home Standard is already $897-959 at -41% to -51% GM.\n");
