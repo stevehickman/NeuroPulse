@@ -1,6 +1,6 @@
-name: Tooling CI (scripts, simulator, python)
+name: Tooling CI (scripts, simulator, python, consent, redaction)
 
-# The three code surfaces NP-SW-CI-001 left uncovered.
+# The code surfaces NP-SW-CI-001 left uncovered.
 #
 # Phases 1-7 closed the firmware side completely: safety-mcu-ci.yml (Class C),
 # firmware-cross-build.yml (Class B + ARM cross-compile), build-all.yml (the
@@ -33,6 +33,10 @@ name: Tooling CI (scripts, simulator, python)
 #   simulator  Each file parses, in the module system it is actually loaded in.
 #              Nothing more. No lint, no types, no runtime.
 #   python     Each file compiles to bytecode. Syntax only.
+#   consent    Every ConsentStore method on both platforms has the caller its
+#              declaration claims. Reachability only — it says nothing about
+#              whether the consent logic is correct, which the unit tests cover
+#              and which is precisely what did NOT catch the Rev 37 defect.
 #
 # Syntax and type gates are not a substitute for tests. They are the difference
 # between "this file has never been checked by any automation" and "this file at
@@ -63,8 +67,10 @@ jobs:
       scripts: ${{ steps.scope.outputs.scripts }}
       simulator: ${{ steps.scope.outputs.simulator }}
       python: ${{ steps.scope.outputs.python }}
+      consent: ${{ steps.scope.outputs.consent }}
+      redaction: ${{ steps.scope.outputs.redaction }}
     env:
-      # Three independent surfaces, three lists. A simulator-only change should
+      # Five independent surfaces, five lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
       # are stripped by ci-changed-scope.sh, so reasoning lives beside entries.
       NP_SCOPE_SCRIPTS: |
@@ -87,6 +93,21 @@ jobs:
         # glob — so the directory is listed and the job compiles what it finds.
         scripts/**
         .github/workflows/tooling-ci.yml
+      # The consent surface is app code, not tooling, so it needs its own list:
+      # scope.scripts.paths cannot see app/**, and the regression this guards
+      # against is the DELETION of a caller in a view file. A guard that cannot
+      # see the edit that breaks it is not a guard.
+      NP_SCOPE_CONSENT: |
+        app/ios/**
+        app/android/**
+        scripts/check-consent-reachability.ts
+        .github/workflows/tooling-ci.yml
+      # Firmware, for the same reason: the edit that breaks this guard is a new
+      # conditional inside a .c reporting path, or a new status bit in a header.
+      NP_SCOPE_REDACTION: |
+        firmware/**
+        scripts/check-redaction-shape.ts
+        .github/workflows/tooling-ci.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -107,6 +128,8 @@ jobs:
           printf '%s\n' "$NP_SCOPE_SCRIPTS"   > scope.scripts.paths
           printf '%s\n' "$NP_SCOPE_SIMULATOR" > scope.simulator.paths
           printf '%s\n' "$NP_SCOPE_PYTHON"    > scope.python.paths
+          printf '%s\n' "$NP_SCOPE_CONSENT"   > scope.consent.paths
+          printf '%s\n' "$NP_SCOPE_REDACTION" > scope.redaction.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -114,7 +137,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.simulator.paths scope.python.paths; do
+          for f in scope.scripts.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -140,6 +163,12 @@ jobs:
           assert scope.python.paths    true  editscripts/fix_risk_table.py
           assert scope.python.paths    true  generate_privacy_report.py
           assert scope.python.paths    false app/web/src/main.ts
+          assert scope.consent.paths   true  app/ios/NeurOne/Consent/ConsentStore.swift
+          assert scope.consent.paths   true  app/ios/NeurOne/Views/ConsentDashboardView.swift
+          assert scope.consent.paths   false simulator/js/ui.js
+          assert scope.redaction.paths true  firmware/safety_mcu/src/np_fault_latch.c
+          assert scope.redaction.paths true  firmware/hub_control/include/np_hub_config.h
+          assert scope.redaction.paths false app/web/src/main.ts
 
       - name: Changed files
         id: diff
@@ -196,6 +225,8 @@ jobs:
           emit scripts   scope.scripts.paths
           emit simulator scope.simulator.paths
           emit python    scope.python.paths
+          emit consent   scope.consent.paths
+          emit redaction scope.redaction.paths
 
   scripts-check:
     name: scripts/ type-check + document-naming guard
@@ -225,8 +256,23 @@ jobs:
       # A real guard that nothing was running. It verifies NP-CONV-001 §4.0 over
       # the whole document set: every serialed document's filename matches its
       # serial, and every serial-shaped filename belongs to a serialed document.
+      # Before the guard, the guard's falsification. NP-CONV-001 §4.0.1a said
+      # this check "was falsified in both directions" — done by hand, kept
+      # nowhere. Now it is an artifact that re-runs.
+      - name: Guard self-test (prove rules A and B can fail)
+        run: bun scripts/check-doc-filenames.ts --self-test
+
       - name: Document filenames match their serials (NP-CONV-001 §4.0)
         run: bun scripts/check-doc-filenames.ts
+
+      # Enforces the rule the two steps above are an instance of: every gate in
+      # scripts/ and ci/ declares what it is, and every gate has a falsification
+      # that CI actually runs.
+      - name: Gate-coverage self-test
+        run: bun scripts/check-gate-coverage.ts --self-test
+
+      - name: Every gate declares its kind and is proven to fail
+        run: bun scripts/check-gate-coverage.ts
 
       # NOT run here: `check-pbm-power.ts --strict`. Its own header records why —
       # 18 of 20 authored protocols are over budget today, so the gate would fail
@@ -284,3 +330,51 @@ jobs:
             editscripts \
             scripts \
             generate_privacy_report.py
+
+  consent-reachability:
+    name: consent methods are reachable (CLAUDE.md Rev 37)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.consent != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # This job needs no dependencies — the checker reads source text and
+      # spawns nothing — so there is deliberately no `bun install` step.
+
+      - name: Guard self-test (prove the reachability rules can fail)
+        run: bun scripts/check-consent-reachability.ts --self-test
+
+      # The defect it exists to catch is invisible everywhere else: a consent
+      # method can be correct, tested on both platforms, and called by nothing.
+      # Tests prove a method works; only a caller proves it runs.
+      - name: Every consent method's declared reachability holds
+        run: bun scripts/check-consent-reachability.ts
+
+  redaction-shape:
+    name: reporting paths cannot leak a sensitive predicate (§5.1)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.redaction != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Guard self-test (prove the rule and the extractor can fail)
+        run: bun scripts/check-redaction-shape.ts --self-test
+
+      # #272 verified this by hand, once — "0 CARDIAC references survive
+      # comment-stripping in the reporting path" — and kept none of it.
+      - name: No reporting path varies its shape with a sensitive predicate
+        run: bun scripts/check-redaction-shape.ts

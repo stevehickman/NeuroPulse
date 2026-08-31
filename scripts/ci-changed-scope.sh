@@ -54,6 +54,11 @@
 #
 # Pattern files may contain blank lines and `#` comments, so the relevance list
 # can carry its reasoning inline next to the entries it explains.
+#
+# CI-Kind: gate
+# CI-Self-Test: scripts/ci-changed-scope.sh --self-test
+# CI-Scan-Probe: external — the matcher runs against relevance lists a CI job generates
+# CI-Scans: workflow relevance lists against the changed-file set
 
 set -euo pipefail
 

@@ -24,6 +24,16 @@
  * Sanity check built in: a single centre pod (today's T1-B) must give a covering radius of
  * ~half the 40 mm socket pitch, and must be consistent with §1.3's 18 mm Oz defect.
  *
+ * SECOND ANALYSIS (added for NP-HW-EEGNET-001 Rev 7) — ASSIGNMENT SLACK. The covering
+ * radius above assumes each target may claim whichever socket suits it best. A dense
+ * montage breaks that: T2's 21 sites sit ~33 mm apart on a 40 mm lattice, so neighbouring
+ * 10-20 sites frequently fall nearest the SAME socket, and one socket carries one tile.
+ * The covering radius is therefore a PER-TARGET bound, not a whole-montage guarantee.
+ * What is computable without 10-20 coordinates is the slack: how many DISTINCT sockets
+ * can serve a given scalp point within a tolerance. At one socket per point there is no
+ * slack and any contention is unresolvable; more pods per tile raise it, which is an
+ * advantage of multi-pod tiles the covering radius cannot see.
+ *
  * Run: bun scripts/pod-pattern-coverage.ts
  */
 type V = [number, number, number];
@@ -126,6 +136,58 @@ for (const [centre, m] of [[false,4],[true,3],[false,5],[true,4],[false,6],[true
   const lab = (centre ? `c+ring${m}` : `ring${m}`).padEnd(11);
   const em = 91 - 1 - 7 * N;
   console.log(` ${lab} ${String(N).padStart(4)}  ${best.r.toFixed(1).padStart(6)}mm  ${best.worst.toFixed(1).padStart(6)}mm ${best.p95.toFixed(1).padStart(6)}   ${String(em).padStart(2)}/90      ${best.worst <= 10 ? "YES" : "no"}`);
+}
+
+/** Pod positions grouped BY SOCKET, so distinct serving sockets can be counted. */
+function podsBySocket(centre: boolean, m: number, r: number): V[][] {
+  const out: V[][] = [];
+  for (let i = 0; i < n; i++) {
+    const [u, v] = F[i];
+    const ps: V[] = centre ? [P[i]] : [];
+    for (let j = 0; j < m; j++) {
+      const a = (2 * Math.PI * j) / m;
+      ps.push(add(P[i], add(mul(u, r * Math.cos(a)), mul(v, r * Math.sin(a)))));
+    }
+    out.push(ps);
+  }
+  return out;
+}
+
+/** For each sampled point, how many distinct sockets have a pod within `tol`. */
+function slack(byS: V[][], T: V[], tol: number) {
+  let served = 0, only1 = 0, total = 0;
+  for (const t of T) {
+    let k = 0;
+    for (const ps of byS) {
+      let best = Infinity;
+      for (const q of ps) {
+        const dx = t[0]-q[0], dy = t[1]-q[1], dz = t[2]-q[2];
+        const s2 = dx*dx + dy*dy + dz*dz;
+        if (s2 < best) best = s2;
+      }
+      if (Math.sqrt(best) <= tol) k++;
+    }
+    if (k > 0) { served++; total += k; if (k === 1) only1++; }
+  }
+  return { mean: total / Math.max(served, 1), only1Pct: (100 * only1) / Math.max(served, 1) };
+}
+
+console.log("\nASSIGNMENT SLACK — how many DISTINCT sockets can serve a given scalp point?");
+console.log("The covering radius assumes free choice of socket per target; a dense montage");
+console.log("(T2: 21 sites, ~33 mm apart, on a 40 mm lattice) makes sites compete for sockets.\n");
+console.log(" pattern        r      tol    mean sockets   served by ONE socket only");
+console.log("---------------------------------------------------------------------------");
+for (const [lab, centre, m, r] of [
+  ["centre-only", true, 0, 0.0],
+  ["ring5", false, 5, 12.0],
+  ["centre+ring5", true, 5, 14.5],
+  ["centre+ring7", true, 7, 14.5],
+] as [string, boolean, number, number][]) {
+  const byS = podsBySocket(centre, m, r);
+  for (const tol of [10, 15]) {
+    const s = slack(byS, T, tol);
+    console.log(` ${lab.padEnd(13)} ${r.toFixed(1).padStart(4)} ${String(tol).padStart(5)}mm  ${s.mean.toFixed(2).padStart(9)}      ${s.only1Pct.toFixed(1).padStart(8)}%`);
+  }
 }
 
 // This file uses top-level `await` (the Bun.file read above). Under bun that

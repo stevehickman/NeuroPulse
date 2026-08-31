@@ -228,6 +228,13 @@ jobs:
       # can live. The cost is that this web job also runs on docs- and
       # firmware-only commits. Accepted on purpose — a guard that cannot see the
       # edit that breaks it is not a guard.
+      # #249 falsified this checker on three injected regressions before wiring
+      # it in, by hand, and kept none of it. This is that falsification made
+      # durable, and it runs before the check it covers.
+      - name: Section-ref guard self-test
+        working-directory: .
+        run: bun scripts/check-section-refs.ts --self-test
+
       - name: Section refs resolve and use the canonical form
         working-directory: .
         run: bun scripts/check-section-refs.ts

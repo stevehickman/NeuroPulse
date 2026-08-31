@@ -51,6 +51,10 @@ np_mode_for() {
 }
 
 # Parse stdin in the given mode. Returns node's exit status.
+#
+# CI-Kind: gate
+# CI-Self-Test: scripts/check-js-syntax.sh --self-test
+# CI-Scans: every tracked simulator/**/*.js, in the module system it is loaded in
 np_parse() { node "--input-type=$1" --check; }
 
 np_self_test() {
@@ -118,5 +122,7 @@ done <<EOF
 $files
 EOF
 
-printf 'check-js-syntax: %s file(s) parsed, %s failed\n' "$count" "$failed"
+# `scanned: <int>` leads the line by contract — scripts/check-gate-coverage.ts
+# probes for it, so a PASS always names the population it covered.
+printf 'scanned: %s file(s) parsed, %s failed\n' "$count" "$failed"
 [ "$failed" -eq 0 ]
