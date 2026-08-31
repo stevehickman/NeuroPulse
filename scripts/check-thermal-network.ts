@@ -9,6 +9,13 @@
  *
  * Units: area-normalised thermal resistance R" in m^2*K/W throughout ("R" below).
  * Convention follows NP-THERM-CFD-C2-001 §7 (single periodic hex cell, adiabatic walls).
+ *
+ * This prints a model; it asserts nothing and gates nothing, so no workflow runs
+ * it — the same shape as its sibling check-thermal-dose.ts. Its outputs are
+ * checked by being quoted into NP-THERM-COOL-001, where each figure is traceable
+ * to the section that produced it.
+ *
+ * CI-Kind: report
  */
 
 // ---------------------------------------------------------------------------
