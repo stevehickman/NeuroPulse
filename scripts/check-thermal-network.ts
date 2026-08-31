@@ -470,3 +470,43 @@ console.log(`  the same term harder, with no blower, no tubes, no acoustic path 
 console.log(`  modality, and no penetration — so OI-THCOOL-06's ELF measurement is not needed.`);
 console.log(`  Subject to OI-THCOOL-15: real two-face contact across a curved 5-7 mm gap with`);
 console.log(`  tolerance stack, and compression set over repeated bowl separations.`);
+
+// ---------------------------------------------------------------------------
+// §16  Gap-pad coverage sensitivity (§6.9.1)
+// ---------------------------------------------------------------------------
+// §6.9's GAP_PAD assumes a FULL-AREA pad. The cluster clamps, fluxgates and the
+// bowl-separation requirement force a DISCRETE pattern instead. Pads at area
+// fraction phi sit in PARALLEL with stagnant air over the remaining (1 - phi).
+
+/** Effective gap resistance for pads covering area fraction phi. */
+const gapAtCoverage = (phi: number) =>
+  1 / (phi / GAP_PAD + (1 - phi) / R_GAP_STAGNANT);
+
+/** Circular pad of diameter d on a 40 mm hex tile -> coverage fraction. */
+const coverageFromPadDia = (dMm: number) =>
+  (Math.PI * (dMm / 2) ** 2) / (TILE_AREA * 1e6);
+
+console.log("§16 Gap-pad coverage sensitivity — §6.9's figures assume FULL AREA");
+console.log("  Pads at fraction phi are in parallel with stagnant air over (1 - phi).\n");
+console.log("  pad dia   phi     R_gap    R_out*   tiles   vs base   note");
+for (const d of [10, 12, 16, 20, 25, 30]) {
+  const phi = coverageFromPadDia(d);
+  const rGap = gapAtCoverage(phi);
+  // full static stack (GFE) with this gap term
+  const rOut = rGap + 0.02 + R_SHELL + forcedExternal(30);
+  const n = tileCeiling(rOut);
+  const note = d <= 12 ? "fits beside clamps easily" : d >= 30 ? "likely clashes" : "";
+  console.log(
+    `  ${String(d).padStart(4)} mm  ${(phi * 100).toFixed(1).padStart(4)}%  ` +
+    `${rGap.toFixed(4)}   ${rOut.toFixed(3)}   ${n.toFixed(1).padStart(5)}   ` +
+    `${(n / tileCeiling(solve(options[0]).rOut)).toFixed(2)}x`.padStart(7) + `   ${note}`,
+  );
+}
+const full = tileCeiling(solve(options.find((o) => o.id === "GFE")!).rOut);
+const phi20 = coverageFromPadDia(20);
+const real = tileCeiling(gapAtCoverage(phi20) + 0.02 + R_SHELL + forcedExternal(30));
+console.log(`\n  Full-area (§6.9 as written): ${full.toFixed(1)} tiles.`);
+console.log(`  A realistic 20 mm pad per tile (${(phi20 * 100).toFixed(0)}% coverage): ${real.toFixed(1)} tiles.`);
+console.log(`  So §6.9's headline is optimistic by ${(full / real).toFixed(1)}x — but even the`);
+console.log(`  low-coverage rows beat the stirred gap (${(2 / 30).toFixed(3)}), so D-2's conclusion holds.`);
+console.log(`  Coverage, not pad conductivity, is the design variable. OI-THCOOL-15.`);

@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 5
+**Revision:** 6
 **Date:** 2026-08-30
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
@@ -17,6 +17,26 @@
 
 ---
 
+> **Rev 6 (2026-08-31) — two changes. (a) T1 PBM block moves +38 °C → +35 °C to match T2, which
+> collapses the T1-A derate band to zero width. (b) New §6.9.1 specifies the gap-pad geometry and
+> corrects §6.9's full-area assumption.**
+>
+> **(a) Block alignment (principal).** T2-D already blocked at +35; T1 now blocks there too, so a
+> customer upgrading T1 → T2 meets the same usage limit rather than a tighter one. **The consequence is
+> that T1-A's derate band vanishes** — full dose held to ≤ +35 and blocking above it leaves no
+> reduced-duty region. That is a simplification, not a loss: §7.2 records that the derate band was
+> exactly where sub-threshold "completed" sessions could occur, and **`OI-OPR-01`'s T1-A derate curve
+> becomes moot because there is no curve left to specify.** One new item: a hard cliff at a single
+> temperature needs **hysteresis** so an ambient NTC sitting on +35 cannot chatter (`OI-THCOOL-16`).
+>
+> **(b) §6.9.1 — pad geometry, and a correction.** §6.9's 0.0022 m²K/W assumed a **full-area** pad. The
+> cluster clamps, fluxgates and the bowl-separation requirement force a **discrete, boss-co-located**
+> pattern instead. Modelled properly (§16 of the script), a realistic 20 mm pad per tile gives 22.7 %
+> coverage, R_gap 0.0022 → **0.0094**, and the tile ceiling **40.6 → 36.3 — only 1.1× optimistic, not
+> the ~5× a first estimate suggested**, because once the gap term is small the other terms dominate
+> R_out. **D-2's conclusion is unaffected**: every coverage row from 10 mm up still beats the stirred
+> gap's 0.067. Coverage, not pad conductivity, is the design variable.
+>
 > **Rev 5 (2026-08-30) — D-1 DECIDED: the T1-A PBM block threshold moves +43 °C → +38 °C, and with it
 > all three principal decisions are closed.** Band becomes full dose ≤ +35, derate +35 → +38, block
 > > +38, applied to `NP-ENV-OPRANGE-001` §2/§4/§5 where those rows are now **decided, not `†`
@@ -601,6 +621,48 @@ Carried through the network (`bun scripts/check-thermal-network.ts` §15):
 > `OI-THCOOL-06` — the ELF magnetic bench measurement was BLOCKING only on the loop's penetration,
 > which no longer exists. Both are retained in this document as the record of why, not as live work.
 
+#### 6.9.1 Pad geometry — discrete and boss-co-located, not a sheet
+
+**The obvious shape is wrong.** A continuous sheet across the vault is what the §6.9 arithmetic
+assumes, and three fixed features forbid it: `NP-HEX-ZM-001` §5.4a puts **cluster-clamp actuators** in
+that gap (one per cluster, on the inner bowl's outer face, **18 clusters** under SYM-1/CONTIG-1);
+§5.3c puts the **fluxgate magnetometers** there; and §5.1 requires the bowls to **separate for module
+replacement**, so anything spanning the gap is re-compressed at every service event.
+
+**So the shape follows the heat, not the area.** Heat arrives at discrete points — `NP-HELMET-GEOM-001`
+§3.2's *"boron-nitride-filled thermally-conductive polymer bosses at module heat pickups"*. The pad
+pattern should be **one pad per tile, co-located with that tile's BN boss**, sized to the boss
+footprint. Discrete pads route around the clamps and fluxgates instead of fighting them, and the
+network sees their parallel sum.
+
+**Coverage is the design variable, and §6.9's number assumed the wrong one.** Pads at area fraction φ
+sit in parallel with stagnant air over the remaining (1 − φ). From `bun scripts/check-thermal-network.ts`
+§16, on a 40 mm hex tile:
+
+| Pad Ø | Coverage φ | R_gap | R_out (full static stack) | Tiles | vs base |
+|---:|---:|---:|---:|---:|---:|
+| 10 mm | 5.7 % | 0.0335 | 0.092 | 26.8 | 4.47× |
+| 12 mm | 8.2 % | 0.0243 | 0.083 | 29.7 | 4.96× |
+| 16 mm | 14.5 % | 0.0144 | 0.073 | 33.8 | 5.64× |
+| **20 mm** | **22.7 %** | **0.0094** | **0.068** | **36.3** | **6.05×** |
+| 25 mm | 35.4 % | 0.0061 | 0.064 | 38.1 | 6.36× |
+| *(full area, §6.9 as written)* | *100 %* | *0.0022* | *0.061* | *40.6* | *6.77×* |
+
+> **§6.9's headline is optimistic by ~1.1×, not by the large factor a first estimate suggested.** R_gap
+> alone degrades 4.3× going from full area to a 20 mm pad — but by then the gap has stopped being the
+> dominant term, so R_out moves only 0.061 → 0.068 and the ceiling only 40.6 → 36.3. **D-2's conclusion
+> is untouched**: every row above, down to a 10 mm pad, still beats the stirred gap's 0.067.
+
+**One mechanical problem this exposes, and it is not small.** The pad must compress against something
+rigid. On the outer bowl's inner face the first thing it meets is the **carbon-loaded absorber foam**
+(§2's 0.075 m²K/W term), which is itself compressible — so a pad pressed against foam compresses the
+*foam*, not the pad, and never reaches its rated conductivity. Two ways out, both needing review:
+locally omit the absorber where pads land, creating a rigid path to the CFRP; or make the pad and the
+absorber one part. **Local omission is plausible but not free** — the absorber suppresses cavity
+resonance rather than providing primary shielding (the mu-metal and Pd-polyester do that), so windows
+in it are an EMC question, not a shielding-claim question. **This couples `OI-THCOOL-15` to
+`OI-THCOOL-04`** — the absorber's thermal specification and the pad's land are the same decision.
+
 **Two constraints the pad inherits, and they are mechanical rather than electromagnetic.** It must be
 **electrically insulating and non-magnetic** — the fluxgates sit on the inner bowl and the Helmholtz
 coils on the outer, so a conductive or ferrous bridge between them would perturb the cancellation the
@@ -634,8 +696,20 @@ face ≤ 42 °C in the healthy state, with the via fitted:
 the R1 data independently implies. **The envelope has already absorbed most of the ambient lever**, which
 is why lowering it further buys less than it first appears — and is a good outcome for those bounds.
 
-**7.2 — ✅ RESOLVED 2026-08-30 (principal): the block threshold moves +43 °C → +38 °C.** The band is now
-full dose ≤ +35, derate +35 → +38, block > +38 (`NP-ENV-OPRANGE-001` §2, footnote ‖).
+**7.2 — ✅ RESOLVED (principal): the block threshold is +35 °C.** It moved +43 → +38 on 2026-08-30 and
++38 → +35 on 2026-08-31. The band is now **full dose ≤ +35, block > +35, with no derate region**
+(`NP-ENV-OPRANGE-001` §2, footnote ‖).
+
+**The second move was about tier consistency, not thermal margin.** T2-D already blocked at +35 (its
+TEC cannot hold laser setpoint above it), so a customer upgrading T1 → T2 would have met a *tighter*
+usage limit on the more expensive tier. Aligning the two block thresholds removes that.
+
+**Its consequence is that T1-A's derate band disappears**, since full dose was already held to ≤ +35.
+That is a simplification rather than a loss — the paragraph below records that the derate band was
+precisely where a "completed" sub-threshold session could occur — and **`OI-OPR-01`'s T1-A derate curve
+becomes moot, because there is no curve left to specify.** T2-D keeps its own +30 → +35 derate band, so
+the two envelope *shapes* still differ; only the block was asked to align. A hard block at a single
+temperature needs hysteresis against NTC chatter — `OI-THCOOL-16`.
 
 The decisive argument was **use case, not thermal**: there is no non-emergency reason to run the device
 in a room above +35 °C, so an envelope reaching +43 bought availability nobody wants — and paid for it
@@ -680,15 +754,16 @@ about step 3.**
 
 **Two decisions for the principal:**
 
-- **D-1 — ✅ DECIDED 2026-08-30 (principal): the T1-A block threshold moves +43 °C → +38 °C.** The band
-  becomes full dose ≤ +35, derate +35 → +38, block > +38. The decisive argument was **use case, not
-  thermal**: there is no non-emergency reason to run the device in a room above +35 °C, so an envelope
-  reaching +43 bought availability nobody wants. It also aligns the block with the physics — §7 puts
-  T1-std's full-dose ceiling at 37.9 °C, so +43 sat ~5 °C beyond it — and it retires the band in which
-  derated duty approached the `NP-PWR-BUDGET-001` §3.4 efficacy floor, where the device could complete
-  a session the user believed was a treatment while delivering a sub-threshold dose. Applied to
-  `NP-ENV-OPRANGE-001` §2/§4/§5; those rows are now decided rather than `†` provisional. The *derate
-  curve within* 35 → 38 remains `OI-OPR-01`.
+- **D-1 — ✅ DECIDED (principal), in two steps: the T1-A block threshold is +35 °C.** It moved +43 → +38
+  on 2026-08-30, then **+38 → +35 on 2026-08-31 to match T2**. The band is now full dose ≤ +35, block
+  > +35, **no derate region**. The first move's decisive argument was **use case, not thermal** — there
+  is no non-emergency reason to run the device in a room above +35 °C, so an envelope reaching +43
+  bought availability nobody wants; it also aligned the block with §7's 37.9 °C full-dose ceiling and
+  retired the band where derated duty approached the `NP-PWR-BUDGET-001` §3.4 efficacy floor. The
+  second move was **tier consistency**: T2-D already blocked at +35, so a T1 → T2 upgrader would
+  otherwise have met a tighter limit on the more expensive tier. Applied to `NP-ENV-OPRANGE-001`
+  §2/§4/§5; those rows are decided rather than `†` provisional. **`OI-OPR-01`'s T1-A derate curve is
+  moot** — the band it described has zero width. New `OI-THCOOL-16` covers hysteresis on the cliff.
 - **D-2 — ✅ DECIDED 2026-08-30 (principal): in scope only for a real benefit not obtainable by other
   means — and §6.9 finds it is obtainable otherwise, better.** A static conductive gap bridge attacks
   the same 0.23 m²K/W term and reaches **40.6 tiles against the loop's 19.7**, with no moving parts and
@@ -741,7 +816,8 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | **OI-THCOOL-03** | Replace assumed convection coefficients (h = 30 stirred, 30 forced external, 10 natural) with CFD or bench values | Thermal | No |
 | **OI-THCOOL-04** | Thermally specify the Layer 4 EMI absorber — 18 % of the outward path, currently specified in dB only | ME + EMC | No |
 | **OI-THCOOL-05** | Characterise the via *interface* (contact + spreading + sink), which §3 shows is ~90 % of that path's resistance | ME | No |
-| **OI-THCOOL-15** | **Can a compliant gap pad achieve real two-face contact across the curved 5–7 mm inter-bowl gap** — tolerance stack, the cluster-clamp hardware already in that gap, and compression set over repeated bowl separations? Must be electrically insulating and non-magnetic (fluxgates inner, Helmholtz outer). **Now the gating question for the largest term in the outward path** | ME | **Gates §6.9** |
+| **OI-THCOOL-15** | **Gap-pad geometry and contact (§6.9.1).** Fix the pad diameter and coverage fraction against the cluster-clamp and fluxgate keep-outs; establish real two-face contact across the curved 5–7 mm gap under the tolerance stack; and resolve **what the pad compresses against** — the absorber foam is itself compressible, so a pad pressed against it never reaches rated conductivity. Must be electrically insulating and non-magnetic (fluxgates inner, Helmholtz outer), and survive compression set over repeated bowl separations. **Coupled to `OI-THCOOL-04`** — the absorber's thermal spec and the pad's land are one decision. **The gating question for the largest term in the outward path** | ME (+EMC) | **Gates §6.9** |
+| **OI-THCOOL-16** | **Hysteresis on the +35 °C PBM ambient cliff.** With the derate band collapsed (Rev 6), the T1-A envelope is a hard block at a single temperature, so an ambient NTC sitting on +35 could chatter start/stop. Specify the hysteresis band and its interaction with `NP-FW-POE-001`'s gate | FW | No |
 | ~~OI-THCOOL-06~~ | **✅ CLOSED 2026-08-30 by D-2** — this was BLOCKING only on the pneumatic loop's penetration of the posterior boss, and §6.9 puts that loop out of scope. Retained struck-through rather than deleted, per `NP-CONV-001` §4's append-only open-item rule; reopen only if the loop is revived | — (closed) | — |
 | ~~OI-THCOOL-06 (original text)~~ | **Bench-measure ELF magnetic leakage through a mu-metal chimney collar at the posterior boss with tube penetrations.** Waveguide-below-cutoff does not apply below ~100 Hz | EMC (EMF-1) | **BLOCKING on §6.2** |
 | **OI-THCOOL-07** | Confirm the sealed loop's condensation behaviour across the `NP-ENV-001` §2.2 warm-up transient — fixed absolute humidity should help, but the cold-optics case is untested | Thermal | No |
@@ -767,4 +843,4 @@ raises one term of), §12 (the prohibition D-3 invokes), §5.5 (the CEM43 exposu
 `NP-ENV-001` §5 (no live RH sensor — §6.7.3) · `NP-REQ-FANHEALTH-001` `SR-FAN-06` (the fail-safe rule
 §6.8 inherits) · CLAUDE.md §1 (Mode 3 autonomy), §3 (RISK-14 dual-PD), §4.2/§4.3/§4.5 ·
 `scripts/check-pbm-power.ts` (where `maxConcurrent` becomes session length) ·
-`scripts/check-thermal-network.ts` §9–§15
+`scripts/check-thermal-network.ts` §9–§16
