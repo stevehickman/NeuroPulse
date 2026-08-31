@@ -1,4 +1,4 @@
-name: Tooling CI (scripts, simulator, python, consent)
+name: Tooling CI (scripts, simulator, python, consent, redaction)
 
 # The code surfaces NP-SW-CI-001 left uncovered.
 #
@@ -68,8 +68,9 @@ jobs:
       simulator: ${{ steps.scope.outputs.simulator }}
       python: ${{ steps.scope.outputs.python }}
       consent: ${{ steps.scope.outputs.consent }}
+      redaction: ${{ steps.scope.outputs.redaction }}
     env:
-      # Four independent surfaces, four lists. A simulator-only change should
+      # Five independent surfaces, five lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
       # are stripped by ci-changed-scope.sh, so reasoning lives beside entries.
       NP_SCOPE_SCRIPTS: |
@@ -101,6 +102,12 @@ jobs:
         app/android/**
         scripts/check-consent-reachability.ts
         .github/workflows/tooling-ci.yml
+      # Firmware, for the same reason: the edit that breaks this guard is a new
+      # conditional inside a .c reporting path, or a new status bit in a header.
+      NP_SCOPE_REDACTION: |
+        firmware/**
+        scripts/check-redaction-shape.ts
+        .github/workflows/tooling-ci.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -122,6 +129,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_SIMULATOR" > scope.simulator.paths
           printf '%s\n' "$NP_SCOPE_PYTHON"    > scope.python.paths
           printf '%s\n' "$NP_SCOPE_CONSENT"   > scope.consent.paths
+          printf '%s\n' "$NP_SCOPE_REDACTION" > scope.redaction.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -129,7 +137,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.simulator.paths scope.python.paths scope.consent.paths; do
+          for f in scope.scripts.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -158,6 +166,9 @@ jobs:
           assert scope.consent.paths   true  app/ios/NeurOne/Consent/ConsentStore.swift
           assert scope.consent.paths   true  app/ios/NeurOne/Views/ConsentDashboardView.swift
           assert scope.consent.paths   false simulator/js/ui.js
+          assert scope.redaction.paths true  firmware/safety_mcu/src/np_fault_latch.c
+          assert scope.redaction.paths true  firmware/hub_control/include/np_hub_config.h
+          assert scope.redaction.paths false app/web/src/main.ts
 
       - name: Changed files
         id: diff
@@ -215,6 +226,7 @@ jobs:
           emit simulator scope.simulator.paths
           emit python    scope.python.paths
           emit consent   scope.consent.paths
+          emit redaction scope.redaction.paths
 
   scripts-check:
     name: scripts/ type-check + document-naming guard
@@ -344,3 +356,25 @@ jobs:
       # Tests prove a method works; only a caller proves it runs.
       - name: Every consent method's declared reachability holds
         run: bun scripts/check-consent-reachability.ts
+
+  redaction-shape:
+    name: reporting paths cannot leak a sensitive predicate (§5.1)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.redaction != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Guard self-test (prove the rule and the extractor can fail)
+        run: bun scripts/check-redaction-shape.ts --self-test
+
+      # #272 verified this by hand, once — "0 CARDIAC references survive
+      # comment-stripping in the reporting path" — and kept none of it.
+      - name: No reporting path varies its shape with a sensitive predicate
+        run: bun scripts/check-redaction-shape.ts

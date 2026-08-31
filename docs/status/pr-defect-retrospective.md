@@ -326,7 +326,33 @@ Class 7 cost ~19 commits and produced no durable knowledge. The rule:
   in the PR body and name the proxy used.** Both of those PRs did exactly this, and that is
   the standard: an unverifiable claim is labelled, not quietly asserted.
 
-### 2.10 Two review questions that no tool will ever ask **[rule]**
+### 2.10 Two review questions that no tool will ever ask **[rule]** — BOTH MECHANIZED
+
+> **Status 2026-08-30.** The heading is now wrong in a useful way: both questions turned out to
+> have a checkable structural core, and both are enforced.
+>
+> **Question 2 → `scripts/check-consent-reachability.ts`.** The two `ConsentStore` surfaces must be
+> identical (11 methods each), and every method carries a declared reachability that holds —
+> `ui`, `internal`, `superseded-by`, or `pending`. Deleting the iOS caller of
+> `withdrawBlanketResearchConsent` reproduces the Rev 37 defect and the gate names it. Waivers are
+> per-platform, must name an open item, are printed on every run, and become violations once a
+> caller exists, so they cannot outlive the gap. It raised **OI-CONSENT-01/02/03** on first use —
+> Android has no consent dashboard, so five methods are unreachable there.
+>
+> **Question 1 → `scripts/check-redaction-shape.ts`.** Every `NP_SAFETY_STATUS_*` bit is classified
+> sensitive or device-condition (an unclassified bit is a violation, so adding one forces §5.1's
+> defining test to be applied), and no declared SHDR reporting path may reference a sensitive
+> predicate at all, comments and string literals stripped. Reintroducing #272's conditional
+> redaction into `np_fault_latch_build_report()` turns it red.
+>
+> **The reach is narrower than the rule.** The redaction gate reads function bodies, not the call
+> graph, so a reporting path that delegated to a branching helper would pass. That holds today only
+> because #272 made the declared paths flat marshallers by design. Branching on a sensitive
+> predicate in a *control* path remains required — the cardiac interlock must act on it — so only
+> reporting paths are listed. Neither gate replaces the review question; each removes the cases a
+> reviewer should never have had to catch by eye.
+
+### The original rule
 
 Class 4 is the class that matters most for this product and the least automatable. Two
 questions, each earned from a specific defect, belong on every privacy- or safety-touching
