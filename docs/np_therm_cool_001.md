@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 4
+**Revision:** 5
 **Date:** 2026-08-30
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
@@ -10,13 +10,24 @@
 **Approved By:** — (pending design review)
 **References:** NP-THERM-CFD-R1-001 Rev 1 (§2 the resistance network, §3 the inward-flux ceiling, §5 BN-boss export study, §5.3 findings, OI-R1-01…05); NP-THERM-CFD-001 (BC spec, case matrix); NP-THERM-CFD-C2-001 (§2 stack-up, §7 the 1D network); NP-THERM-BEZEL-001 (THERM-1 coupling, the 0.6–1.0 mm scalp gap); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-PWR-BUDGET-001 Rev 3 (§3.2 aggregate estimate, §3.3 the three levers, OI-PWR-01/08); NP-PWRSRC-001 Rev 1 (§4.1 the cavity wall, §7.0 coverage 2/23); NP-HEX-ZM-001 (§5.1–5.3 two-bowl shell, §5.3a rim slot, §5.3c posterior boss, §5.3d mu-metal continuity); NP-DRV-SHELL-002 Rev 2 (§4.3 one aperture, segregated returns); NP-ENV-001 (§1 two envelopes, §2 survival, §5 humidity survival-only); NP-ENV-OPRANGE-001 (§2 per-modality ambient bounds); NP-DT-001 Rev 2 (DI-SAFE-13); NP-HELMET-GEOM-001 (§2 radial stack, §8 THERM-1a gate); CLAUDE.md §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power); IEC 60601-1 (42 °C applied part); `scripts/check-thermal-network.ts`
 **Related Issues:** —
-**Gate:** No gate. Routes two items to principal decision (D-1, D-2) and raises `OI-THCOOL-01…09`.
+**Gate:** No gate. D-1, D-2 and D-3 are all **decided** (2026-08-30, principal); raises `OI-THCOOL-01…15`.
 **IEC 62304 Class:** — (analysis document; no code changed). No SR-FAN requirement is altered.
 **Supersedes:** None — new document.
 **Parent Document:** NP-THERM-CFD-R1-001
 
 ---
 
+> **Rev 5 (2026-08-30) — D-1 DECIDED: the T1-A PBM block threshold moves +43 °C → +38 °C, and with it
+> all three principal decisions are closed.** Band becomes full dose ≤ +35, derate +35 → +38, block
+> > +38, applied to `NP-ENV-OPRANGE-001` §2/§4/§5 where those rows are now **decided, not `†`
+> provisional**. The decisive argument was **use case, not thermal** — there is no non-emergency reason
+> to run the device in a room above +35 °C, so an envelope reaching +43 bought availability nobody
+> wants, and paid for it with a derate band the design was never validated across (§7 puts T1-std's
+> full-dose ceiling at 37.9 °C). A supporting benefit, recorded but not load-bearing: the old band's
+> top approached `NP-PWR-BUDGET-001` §3.4's efficacy floor, where the device could report a finished
+> session while delivering a sub-threshold dose — **a null session is indistinguishable from a real one
+> to the person wearing it.** The derate *curve* within 35 → 38 remains `OI-OPR-01`.
+>
 > **Rev 4 (2026-08-30) — D-2 and D-3 both DECIDED by the principal; D-2's criterion retires the
 > pneumatic loop.** D-2: *a sealed pneumatic loop is in scope only if it provides a real benefit, and
 > one not obtainable by other means.* Applying that test (new §6.9) finds the benefit **is** obtainable
@@ -623,11 +634,22 @@ face ≤ 42 °C in the healthy state, with the via fitted:
 the R1 data independently implies. **The envelope has already absorbed most of the ambient lever**, which
 is why lowering it further buys less than it first appears — and is a good outcome for those bounds.
 
-**7.2 — What remains is the derate band, and it is a product decision.** The band from full-dose to block
-(+35 → +43 for T1-A) is the region where the device runs at reduced duty. Narrowing it — say, blocking at
-+38 rather than +43 — would align the *block* threshold with the physics rather than sitting 5 °C beyond
-it. The cost is availability in hot conditions for a home wellness product, which is a commercial call
-about returns and support load, not a thermal one. **D-1, principal.**
+**7.2 — ✅ RESOLVED 2026-08-30 (principal): the block threshold moves +43 °C → +38 °C.** The band is now
+full dose ≤ +35, derate +35 → +38, block > +38 (`NP-ENV-OPRANGE-001` §2, footnote ‖).
+
+The decisive argument was **use case, not thermal**: there is no non-emergency reason to run the device
+in a room above +35 °C, so an envelope reaching +43 bought availability nobody wants — and paid for it
+with a derate band the design was never validated across, since §7's fit puts T1-std's full-dose ceiling
+at **37.9 °C**. Aligning the block with that number costs nothing anyone wanted.
+
+**A third benefit that was not the reason but is worth recording.** `NP-PWR-BUDGET-001` §3.4 supplies an
+efficacy **floor** — 0.02–0.3 W/cm², 10–120 J/cm², with *"under-dosing, not mechanism failure, explains
+most nulls."* Near the top of the old 35→43 band the derated duty approached that floor, so the device
+could run to completion and report a finished session while delivering a sub-threshold dose. **A null
+session is indistinguishable from a real one to the person wearing it**, which makes that failure mode
+worse than a refusal. The narrower 35→38 band stays clear of it. The exact crossover was not computed —
+it needs the derate curve, itself provisional under `OI-OPR-01` — so this is a supporting argument, not
+a load-bearing one.
 
 **7.3 — Lowering ambient does NOT resurrect Path A, and cannot.** The C2 fault case pins the junction at
 its 62 °C throttle setpoint and solves for the face; the face lands at 60.2 °C because it is 1.6 mm from
@@ -658,9 +680,15 @@ about step 3.**
 
 **Two decisions for the principal:**
 
-- **D-1 — Does the T1-A block threshold move from +43 °C toward the ~+38 °C the physics implies (§7.2)?**
-  A commercial availability call, not a thermal one. Thermal input: +43 is ~5 °C beyond what the design
-  supports at full dose, and the derate ramp is already carrying that gap.
+- **D-1 — ✅ DECIDED 2026-08-30 (principal): the T1-A block threshold moves +43 °C → +38 °C.** The band
+  becomes full dose ≤ +35, derate +35 → +38, block > +38. The decisive argument was **use case, not
+  thermal**: there is no non-emergency reason to run the device in a room above +35 °C, so an envelope
+  reaching +43 bought availability nobody wants. It also aligns the block with the physics — §7 puts
+  T1-std's full-dose ceiling at 37.9 °C, so +43 sat ~5 °C beyond it — and it retires the band in which
+  derated duty approached the `NP-PWR-BUDGET-001` §3.4 efficacy floor, where the device could complete
+  a session the user believed was a treatment while delivering a sub-threshold dose. Applied to
+  `NP-ENV-OPRANGE-001` §2/§4/§5; those rows are now decided rather than `†` provisional. The *derate
+  curve within* 35 → 38 remains `OI-OPR-01`.
 - **D-2 — ✅ DECIDED 2026-08-30 (principal): in scope only for a real benefit not obtainable by other
   means — and §6.9 finds it is obtainable otherwise, better.** A static conductive gap bridge attacks
   the same 0.23 m²K/W term and reaches **40.6 tiles against the loop's 19.7**, with no moving parts and

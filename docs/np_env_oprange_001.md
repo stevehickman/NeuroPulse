@@ -28,7 +28,7 @@ cases C3/C4 → thermal high bounds); NP-REQ-FANHEALTH-001 (SR-FAN Class C gate)
 
 | Modality | Low bound (°C) | High bound (°C) | Limiting mechanism | Class | Enforce | Sensed by |
 |----------|---------------|-----------------|--------------------|-------|---------|-----------|
-| **PBM 660/808 (T1-A)** | −10 §(condensation/warm-up) | full ≤ **+35†** · derate +35→**+43†** · block > +43† | scalp headroom to 42 °C shrinks with ambient | **Safety** | **HARD** | ambient NTC + THERM-1a envelope |
+| **PBM 660/808 (T1-A)** | −10 §(condensation/warm-up) | full ≤ **+35†** · derate +35→**+38** · block > **+38** ‖ | scalp headroom to 42 °C shrinks with ambient | **Safety** | **HARD** | ambient NTC + THERM-1a envelope |
 | **PBM 1064 smart (T1-C)** | **0 ‡**(ATtiny402/FET grade) | same as T1-A † | above + on-module driver IC range | Safety+comp | **HARD** | ambient NTC; module detection (`np_module_map`) |
 | **PBM 1170 laser+TEC (T2-D)** | −10 § | full ≤ **+30†** · derate +30→**+35†** · block > +35† | **tightest** — TEC can't hold laser setpoint at high ambient; higher power → less scalp headroom | Safety+eff | **HARD** | ambient NTC; TEC setpoint error |
 | **EEG hydrogel (ADS1299)** | +5 §(gel conductivity) | +40 §(gel dry-out) | hydrogel state, not electronics (ADS −40/+85‡) | Efficacy | **SOFT** | **electrode impedance** (existing) |
@@ -42,6 +42,18 @@ cases C3/C4 → thermal high bounds); NP-REQ-FANHEALTH-001 (SR-FAN Class C gate)
 \* tES safety is delivered by the charge-density/impedance interlocks (CLAUDE.md §4.2), not an ambient gate,
 so its ambient envelope is wide and soft.
 
+**‖ PBM block threshold = +38 °C — DECIDED 2026-08-30 (principal), was +43†.** Two reasons, and the
+first is the operative one. **(i) Use case.** There is no non-emergency reason to run this device in a
+room above +35 °C, so an envelope reaching +43 buys availability nobody wants. **(ii) It matches the
+physics, where +43 did not.** `NP-THERM-COOL-001` §7 fits `NP-THERM-CFD-R1-001` §5.1's two published
+ambients and finds T1-std holds the scalp-facing face ≤ 42 °C at full dose only to **37.9 °C**; the old
+block sat ~5 °C beyond that, leaving the derate ramp to carry a band it was never validated across.
+**(iii) A supporting benefit:** at the top of the old 35→43 band the derated duty approached the
+`NP-PWR-BUDGET-001` §3.4 efficacy floor (0.02–0.3 W/cm², 10–120 J/cm²), so the device could complete a
+session the user believed was a treatment while delivering a sub-threshold dose. The narrower 35→38
+band stays clear of that. **This threshold is decided, not provisional — the `‖` rows do not carry the
+`†` "pending THERM-1a" caveat.** The *derate curve within* 35→38 is still `OI-OPR-01`.
+
 ## 3. Shared-electronics base envelope (inherited by every protocol)
 
 Set by the hub electronics, **⊂** which every modality operates: STM32G071 −40/+85‡, i.MX RT1062
@@ -53,11 +65,11 @@ self-heating + fan set the practical top). Any protocol's envelope is the base �
 
 | Module | Operating envelope (provisional) | Set by |
 |--------|----------------------------------|--------|
-| **T1-A** base PBM | −10 → +43† (derate from +35†) | PBM thermal |
-| **T1-B** EEG/electrode + reduced PBM + tES | +5 → +43† (derate from +35†) | PBM thermal (high, HARD) ∩ gel +5 low (SOFT) |
-| **T1-C** 1064 smart PBM | **0‡** → +43† | PBM thermal ∩ **on-module driver IC low bound** (construction) |
+| **T1-A** base PBM | −10 → **+38 ‖** (derate from +35†) | PBM thermal |
+| **T1-B** EEG/electrode + reduced PBM + tES | +5 → **+38 ‖** (derate from +35†) | PBM thermal (high, HARD) ∩ gel +5 low (SOFT) |
+| **T1-C** 1064 smart PBM | **0‡** → **+38 ‖** | PBM thermal ∩ **on-module driver IC low bound** (construction) |
 | **T2-D** 1170 laser | −10 → **+35†** | TEC + laser (tightest high bound) |
-| Intranasal PBM probe | −10 → +43† | PBM thermal (lower power; likely wider) |
+| Intranasal PBM probe | −10 → **+38 ‖** | PBM thermal (lower power; likely wider) |
 | VNS/HRV clip | 0 → +45 | PPG perfusion |
 | Audio / goggles | −10 → +45–50 | non-limiting / MPE |
 
@@ -68,10 +80,10 @@ on-module ATtiny/FETs, not by PBM; T2-D's high bound by its TEC, not by "PBM" ge
 
 | Protocol | Modules | Operating envelope | Binding limit |
 |----------|---------|--------------------|---------------|
-| Gamma clarity (40 Hz PBM) | T1-A | −10 → +43† (derate +35†) | PBM scalp thermal (HARD) |
+| Gamma clarity (40 Hz PBM) | T1-A | −10 → **+38 ‖** (derate +35†) | PBM scalp thermal (HARD) |
 | **EEG neurofeedback only** | T1-B (EEG, no PBM active) | **+5 → +45** | gel (SOFT) — *runs in a hot room a PBM protocol won't* |
 | tDCS priming | T1-B (tES) | −10 → +45 | interlocks (not ambient) |
-| Deep-PBM cognition (1064) | T1-A + T1-C | 0‡ → +43† | 1064 module low bound + PBM thermal |
+| Deep-PBM cognition (1064) | T1-A + T1-C | 0‡ → **+38 ‖** | 1064 module low bound + PBM thermal |
 | **Full multi-modal** (PBM+1170+EEG+tES+audio) | T1-A/B/C + T2-D | **+5 → +35†** | **1170 TEC (high) + gel (low)** — tightest of all |
 
 This is the user's principle made concrete: **the protocol's envelope is set by its most-limiting
