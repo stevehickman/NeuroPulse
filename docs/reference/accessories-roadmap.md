@@ -18,6 +18,54 @@ Purpose-built accessory delivering precisely characterized 40Hz somatosensory st
 - **Marketing note:** Apple Watch sync app is available as a free companion — but the mastoid pad delivers results the Watch cannot. Key differences: mastoid placement couples directly to skull (vs wrist-to-brain soft tissue attenuation); 40Hz ± 0.5Hz locked precision (vs uncharacterised Taptic Engine output); hub-powered (vs Watch battery drain from 20 min continuous haptics). Message: "Use the Watch app as an extra layer — for the full experience, the pad is what delivers it." See marketing-notes.md for full draft copy.
 - **Status:** PROVISIONAL — await HOPE Phase 3 (Cognito Therapeutics, n=670, mid-2026). If positive: release mastoid pad within 6 months. Hardware anchor boss in temporal wing tooling at first cut (zero incremental tooling cost).
 
+## Thermal Remote-Sink Accessories (provisional) — TEC base-station chiller · hip ice pack
+
+Two optional accessories that move the thermal sink off the head, from `NP-THERM-COOL-001` §6.7.
+**Optional purchases, never required**; the device is complete and safe without either. Both attach to
+the hub heatsink that the BN-boss conductive via already terminates in, which sits **outside** the EMF
+envelope — so neither crosses the shield and neither is gated on `OI-THCOOL-06`.
+
+**Priority (principal decision, 2026-08-30, D-3): the chiller ranks ABOVE the ice pack, on value
+delivered.** The reason is `NP-THERM-COOL-001` §6.7.1: cooling raises only the `thermal` term of
+`min(electrical, thermal, dose)`, and on a 45 W brick the **electrical** term binds first at 6.4 tiles.
+The chiller arrives with a mains base station, so it raises both terms; the ice pack raises only one.
+
+| | **TEC base-station chiller** (higher priority) | **Hip ice/PCM pack** (low priority) |
+|---|---|---|
+| Power source | mains, in a separate base station | USB-C, including a power bank |
+| Draw | 56 W at 6 tiles · 188 W at 20 | ~1–2 W (pump only) |
+| Mode 3 autonomy | not possible | **preserved** |
+| **What it buys** | **ambient envelope + concurrency** (shorter cascades) | **ambient envelope only** |
+| Capacity | continuous | 182 g ice per 30 min at 6 tiles; a depleting budget |
+| BOM (estimate) | $33–71 | $52–107 |
+
+- **Siting:** mains hardware goes in a **separate attached base station**, never in the head-worn
+  assembly or the occipital-arch hub — `NP-PWRSRC-001` §8. The ice pack is worn at the hip; liquid, not
+  air, carries the heat to it (a 4 mm line at 0.13 m/s does the work of a 20 mm duct at 7.8 m/s).
+- **The clinic argument is dose, not time.** Raising concurrency shortens cascades, and cascading is
+  what creates the only real thermal-injury exposure in the document set (`NP-PWRSRC-001` §5.5, 292
+  CEM43 on Vascular Baseline). See `NP-THERM-COOL-001` §6.7.2.
+- **Binding constraint — anti-fog, not cooling.** The scalp gap's dew point is ~31 °C, so the module
+  face must stay in a ~32–42 °C band and a thermostatic tempering valve is mandatory. `NP-ENV-001` §5
+  provides no live RH sensor; `OI-THCOOL-11` tests whether the existing dual-PD fouling discriminator
+  already detects condensation onset.
+- **The session planner must detect cooling state, not be told it** (`NP-THERM-COOL-001` §6.8).
+  Fail-safe per `SR-FAN-06`; a manual declaration may lower a ceiling, never raise one.
+
+> ### ⚠ Marketing constraint (binding, principal decision 2026-08-30)
+>
+> **All marketing claims must be honest, so the ice pack is to be marketed only for what it does.** It
+> extends the **ambient envelope** — the device runs in a hot room instead of derating or blocking
+> above +43 °C. It does **not** shorten sessions on a 45 W brick, because electrical binds before
+> thermal there. **The session-time claim belongs to the base-station chiller alone.**
+>
+> Marketing the ice pack as a time-saver would be selling a source that changes nothing, which is the
+> prohibition `NP-PWRSRC-001` §12 sets out. This applies to copy, packaging, the store page and the
+> in-app upsell alike.
+
+- **Status:** PROVISIONAL. On the roadmap, priority as above. `D-2` (whether the sealed pneumatic loop
+  is in scope at all) is separate and unresolved, and `OI-THCOOL-06` is BLOCKING on that path only.
+
 ## Apple Watch Sync App (provisional)
 
 Companion watchOS app extending NeurOne session experience to Apple Watch. Three sync channels. Does **not** replace purpose-built NeurOne hardware for any therapeutic function — supplements it.
