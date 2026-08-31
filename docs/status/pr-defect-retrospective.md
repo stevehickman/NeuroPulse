@@ -1,22 +1,52 @@
 # PR defect retrospective — errors made, caught, and corrected
 
 **Status:** Process record. Not a controlled document — no serial, no revision letter.
-**Scope reviewed:** 240 pull requests (#1–#301, with gaps), 199 merged via merge commit, 736 commits on `main`.
-**Date:** 2026-08-30
+**Scope reviewed:** 240 pull requests (#1–#301, with gaps) `[census]`, 199 merged via merge commit
+`[census]`, 736 commits on `main` as of `7bf6464^` `[census, pinned]`.
+**Date:** 2026-08-30 · provenance pass 2026-08-31
 
 ---
 
 ## 0. Method, and what this record can and cannot see
+
+### 0.1 How to read the provenance tags
+
+§2.4 argues that a number which constrains a decision must carry its evidence class, because
+#273 eliminated a hardware candidate on a range whose disclaimer had been lost in transit. That
+rule applies to this document's own prose, and it was not applied when the document was written
+— which is how the review-thread claim corrected below got in.
+
+Load-bearing claims now carry one of four tags. Unmarked prose is argument, not evidence.
+
+| Tag | Means |
+|---|---|
+| `[census]` | Every item was enumerated. The number is exact, and the command that produced it is reproducible from the tree. |
+| `[sample n]` | n items were checked and are named. Says nothing about the ones that were not. |
+| `[PR body]` | The PR's own description says so. Not independently verified against the diff. |
+| `[code]` | Verified by reading or running the code as it stands today. |
+
+A count tagged `[census]` is pinned to a revision where it would otherwise drift: "736 commits"
+was exact when written and is 743 now, because this document's own branch added seven.
+
+### 0.2 Sources
 
 Three sources were used, in decreasing order of reliability:
 
 1. **Follow-up PRs that correct already-merged work.** The strongest evidence: an error
    that reached `main` and had to be undone by a later PR. These are unambiguous.
 2. **Fix-up commits inside a PR branch.** An error caught between opening and merging.
-   **86 of 199 merged PRs (43%) needed more than one commit.**
+   **86 of 199 merged PRs (43%) needed more than one commit** `[census]` — counted over
+   merge commits matching `Merge pull request #`. Counting *all* 212 merges instead gives
+   99 of 212; that figure includes plain branch merges and is the wrong denominator.
 3. **PR bodies that name the defect explicitly.** Sixteen commits apply enumerated
-   review findings; the bodies of #112, #113, #124, #126, #144, #147, #149, #173, #174
-   list roughly **100 individually numbered findings** between them.
+   review findings `[census]`. Nine PR bodies — #112 (6), #113 (12), #124 (14), #126 (19),
+   #144 (8), #147 (10), #149 (7), #173 (6), #174 (4) — enumerate **86 individually numbered
+   findings** between them `[PR body, sample 9]`.
+
+   > **Correction (2026-08-31).** This read "roughly 100" and was not arithmetic — the nine
+   > PRs it names sum to 86. The figure is now the sum, with the per-PR counts shown so it can
+   > be checked. It counts only these nine bodies, so it is a floor for the corpus, not an
+   > estimate of it.
 
 **What this record cannot see.** Inline review threads are close to absent: `get_review_comments`
 returned empty for **all 10 PRs sampled** (#3, #126, #127, #159, #174, #204, #205, #249, #250,
@@ -46,6 +76,13 @@ them.
 
 Ten classes, ordered by how much damage the class did rather than how often it occurred.
 
+**Provenance for this whole section:** every row is `[PR body]` unless tagged otherwise — the
+defect is described as its own PR described it, not re-derived from the diff. Four are stronger
+because they were re-verified against the tree while writing the prevention measures in §2, and
+are tagged `[code]` in place: #118's duplicated parser, the §6.0 teardown invariant behind #277,
+#272's fixed-shape marshaller, and #299's uncovered `scripts/`. The rest inherit the candour of
+the bodies, which §0 already notes is not independent audit.
+
 ### Class 1 — Gates and tests that passed without testing anything
 
 The most serious class, because every instance is a **guard that reported green while
@@ -53,10 +90,10 @@ guarding nothing**. Five reached `main`.
 
 | # | What happened | Caught by |
 |---|---|---|
-| **#118** | `skip_re` in `ci/test_shdr_schema.py` had an unanchored alternation branch and the call site used `.search()`. Every column line containing `REFERENCES`/`UNIQUE`/`PRIMARY KEY` as an *inline* modifier was silently dropped before `col_re` saw it. All 15 `warranty_token` columns in the fleet schema are declared that way, so `check_warranty_token_type()` iterated an empty list. **TOKEN-01 passed vacuously regardless of what type the column was declared as.** | later PR |
+| **#118** `[code]` | `skip_re` in `ci/test_shdr_schema.py` had an unanchored alternation branch and the call site used `.search()`. Every column line containing `REFERENCES`/`UNIQUE`/`PRIMARY KEY` as an *inline* modifier was silently dropped before `col_re` saw it. All 15 `warranty_token` columns in the fleet schema are declared that way, so `check_warranty_token_type()` iterated an empty list. **TOKEN-01 passed vacuously regardless of what type the column was declared as.** | later PR |
 | **#174 (1)** | The regression test for the charge-density latch rebuilt a `fresh_state()` after calling reset — "which is exactly why it never caught this." The test was structurally incapable of observing the bug it existed to catch. | code review |
 | **#201** | The OI-EMMC2-07 no-raw-accelerometer gate is a *negative* gate: it passes when nothing prohibited is present. It had never been proven to fail on bad input, and had no guard against the parser silently ceasing to see `shdr_accel_records` at all. Both silent-failure modes would let health-inferrable motion data into the fleet DB with CI green. | later PR |
-| **#299** | `web-ci.yml` runs `tsc` with `working-directory: app/web`, whose tsconfig is `"include": ["src"]`. **`scripts/` had never been type-checked by anything.** Two of the 66 uncovered files were themselves guards — `check-doc-filenames.ts` enforces NP-CONV-001 §4.0 across the whole document set and nothing ran it. | later PR |
+| **#299** `[code]` | `web-ci.yml` runs `tsc` with `working-directory: app/web`, whose tsconfig is `"include": ["src"]`. **`scripts/` had never been type-checked by anything.** Two of the 66 uncovered files were themselves guards — `check-doc-filenames.ts` enforces NP-CONV-001 §4.0 across the whole document set and nothing ran it. | later PR |
 | **#238** | The HD01 test stimulus was a DC constant, which carries no variance — the covariance path under test could not be exercised by its own input. | in-PR |
 | **#289** | `NEW_PROTOCOL_TEMPLATE`, whose doc comment calls it "a minimal valid NPPS template", had two hard parse errors. It survived Rev 12 because **the template has no test coverage** — it is referenced only as `initialText`, so nothing parses it. Every Android user tapping "new protocol" since Rev 12 got a template that fails against the app's own parser. | later PR |
 
@@ -99,8 +136,8 @@ on analysis.
 
 | # | What happened |
 |---|---|
-| **#272** | `tick_ms` was suppressed to `0` **only** for `NP_SAFETY_STATUS_CARDIAC`, while `count` was reported unconditionally by an independent accessor. The observable pair `count > 0 && tick_ms == 0` was a **one-bit cardiac oracle, readable with certainty and requiring no correlation work** — *strictly worse than not redacting at all*, because a raw `tick_ms` is a relative SysTick value meaningless without a session record SHDR structurally does not hold, whereas the redaction pattern is self-interpreting. Two further findings: the suppression **never protected the predicate** (the hub already publishes `CVNS_HR_CUTOFF` to SHDR deliberately), and fault timing was **already** UHDR unconditionally. The stated rationale was void the day it was written. |
-| **#277** | `withdrawBlanketResearchConsent()` was correct and tested **on both platforms** — and **nothing on iOS called it from the UI.** Turning blanket consent off in Research Preferences committed through `updateResearchConsent()` and skipped the analytics teardown; Android routed it correctly. A tested method with no caller. |
+| **#272** `[code]` | `tick_ms` was suppressed to `0` **only** for `NP_SAFETY_STATUS_CARDIAC`, while `count` was reported unconditionally by an independent accessor. The observable pair `count > 0 && tick_ms == 0` was a **one-bit cardiac oracle, readable with certainty and requiring no correlation work** — *strictly worse than not redacting at all*, because a raw `tick_ms` is a relative SysTick value meaningless without a session record SHDR structurally does not hold, whereas the redaction pattern is self-interpreting. Two further findings: the suppression **never protected the predicate** (the hub already publishes `CVNS_HR_CUTOFF` to SHDR deliberately), and fault timing was **already** UHDR unconditionally. The stated rationale was void the day it was written. |
+| **#277** `[code]` | `withdrawBlanketResearchConsent()` was correct and tested **on both platforms** — and **nothing on iOS called it from the UI.** Turning blanket consent off in Research Preferences committed through `updateResearchConsent()` and skipped the analytics teardown; Android routed it correctly. A tested method with no caller. |
 | **#174 (3)** | `UHDRKeyManager.saltFromKeychain()` ignored the `SecItemAdd` result. A failed persist still returned the ephemeral salt; the next launch generated a different salt → different Argon2id key → **all prior EEG/HRV records permanently undecryptable.** |
 | **#174 (1,2)** | Two safety-MCU latches that never cleared: a per-session charge cutoff left `CHARGE` set in persistent state forever, and thermal cutoffs were edge-triggered with no cooling recovery. Both disabled *all* stimulation until power-cycle. Both fail safe, both broke stated re-arm behaviour. |
 | **#174 (4)** | `hubCompiler.compileProtocol()` silently dropped commands past `PROTO_CMD_MAX` — entire later modalities vanished from a *signed* session. The overflow `throw` was dead code. |
@@ -135,10 +172,17 @@ rewrote the committed iOS String Catalog with **459 insertions and 2,305 deletio
 **#127 needed 15 commits; 13 of them were consecutive guesses at the iOS simulator
 destination** (`macos-15` → `generic/platform` → `iPhone 16 / 18.0` → `iPhone 15 / 17.5` →
 `OS=latest` → drop `OS=latest` → `OS=26.2` → …). **#159 needed 13 commits, 12 of them fixes**,
-six on the same problem. **#128** added four more. Across the three PRs, roughly **19 commits
-are pure push-and-see against CI** — no local reproduction, no hypothesis, each push a
-several-minute round trip. Nothing was learned that a single `xcodebuild -showdestinations`
-or a runner-image README would not have given.
+six on the same problem. **#128** added seven, four of them CI config. Across the three PRs,
+**24 of 35 commits match a CI-configuration pattern** — 14 · 6 · 4 `[census, pattern-matched]`,
+grepping subjects for `simulator|xcodebuild|destination|OS=|runner|macos-1|downloadPlatform|Xcode`.
+No local reproduction, no hypothesis, each push a several-minute round trip. Nothing was learned
+that a single `xcodebuild -showdestinations` or a runner-image README would not have given.
+
+> **Correction (2026-08-31).** This said "roughly 19 commits", which was a hand count, not a
+> measurement. The pattern-matched figure is 24. The matcher is deliberately generous — it will
+> catch a legitimate CI commit alongside the guesses — so 24 bounds the behaviour from above and
+> "how many were *pure* guesswork" stays a judgement, which is why it is no longer asserted as a
+> number.
 
 ### Class 8 — Build-time caches drifting from the source of truth
 

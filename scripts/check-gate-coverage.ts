@@ -46,7 +46,7 @@
  * CI-Scan-Probe: external — probing this file would re-enter the prober
  * CI-Scans: every check/test script in scripts/ and ci/
  */
-import { readFileSync, readdirSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
+import { readFileSync, readdirSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 
@@ -60,6 +60,7 @@ type Decl = {
   covers: string | null;
   scans: string | null;
   probe: string | null;
+  readsTree: string | null;
 };
 
 /** Read the CI-* declaration out of a file's header, whatever its comment syntax. */
@@ -87,7 +88,70 @@ function declare(root: string, rel: string): Decl {
     covers: field("CI-Covers"),
     scans: field("CI-Scans"),
     probe: field("CI-Scan-Probe"),
+    readsTree: field("CI-Self-Test-Reads-Tree"),
   };
+}
+
+/**
+ * A self-test must be hermetic unless it says why it is not.
+ *
+ * The bug this catches was made in this repository on 2026-08-30, in
+ * check-section-refs.ts: its `--self-test` block was placed AFTER the top-level
+ * `const valid = validSections()`, so before the fixtures ran it read the
+ * production CLAUDE.md. It passed anyway — the production file was fine — and
+ * was found only because a mutation crashed instead of failing cleanly.
+ *
+ * A self-test that reaches into the tree it is meant to be independent of cannot
+ * run before that tree is valid, and reports on production state rather than on
+ * its fixtures. Either way its green tick means less than it appears to.
+ *
+ * The test is to COPY THE SCRIPT OUT of the repository and run it there. Running
+ * it from a foreign working directory is not the same test and would not have
+ * caught this: the paths involved were `import.meta.dir`-relative, which cwd
+ * does not affect. Measured, not assumed — both variants were tried.
+ *
+ * Hermetic is the default because it is the common case (7 of 10 self-tests
+ * here). The exceptions are real: the SHDR and warranty self-tests run their
+ * mutations against the PRODUCTION schema on purpose, which is where their value
+ * is — test_warranty_nojoin.py's central case reports that #118's predicate
+ * drops 139 of 227 real columns. Those declare CI-Self-Test-Reads-Tree and say
+ * why, so the exception is a statement rather than a silence.
+ */
+function selfTestIsHermetic(
+  root: string,
+  d: Decl,
+): { ok: true } | { ok: false; why: string } {
+  const cmd = d.selfTest!.split(/\s+/);
+  const scriptIdx = cmd.findIndex((t) => /\.(ts|sh|py)$/.test(t));
+  if (scriptIdx === -1) return { ok: false, why: "self-test command names no script file" };
+  const scriptRel = cmd[scriptIdx]!;
+
+  const box = mkdtempSync(join(tmpdir(), "np-hermetic-"));
+  try {
+    const base = scriptRel.split("/").pop()!;
+    writeFileSync(join(box, base), readFileSync(join(root, scriptRel)));
+    const rewritten = [...cmd];
+    // When the script IS argv[0] (the shell gates run themselves, rather than
+    // being handed to `bun` or `python3`), a bare basename is looked up on PATH
+    // and fails with ENOENT. It needs an explicit relative path, and the
+    // executable bit the copy did not inherit.
+    if (scriptIdx === 0) {
+      chmodSync(join(box, base), 0o755);
+      rewritten[0] = `./${base}`;
+    } else {
+      rewritten[scriptIdx] = base;
+    }
+    const r = Bun.spawnSync(rewritten, { cwd: box, stdout: "pipe", stderr: "pipe" });
+    if (r.exitCode !== 0) {
+      const out = (
+        new TextDecoder().decode(r.stdout) + new TextDecoder().decode(r.stderr)
+      ).trim().split("\n").slice(-1)[0] ?? "";
+      return { ok: false, why: `exited ${r.exitCode} outside the repo — ${out}` };
+    }
+    return { ok: true };
+  } finally {
+    rmSync(box, { recursive: true, force: true });
+  }
 }
 
 /** How to invoke a gate for the population probe, if it can be invoked at all. */
@@ -178,11 +242,12 @@ function workflowCommands(root: string): string[] {
   return out;
 }
 
-function audit(root: string, probe = false): { violations: string[]; decls: Decl[] } {
+function audit(root: string, probe = false): { violations: string[]; decls: Decl[]; waivers: string[] } {
   const decls = candidates(root).map((rel) => declare(root, rel));
   const commands = workflowCommands(root);
   const byFile = new Map(decls.map((d) => [d.file, d]));
   const v: string[] = [];
+  const waivers: string[] = [];
 
   for (const d of decls) {
     if (!d.kind) {
@@ -206,6 +271,29 @@ function audit(root: string, probe = false): { violations: string[]; decls: Decl
             `a falsification nothing executes is the state §4.0.1a already failed in`,
         );
       }
+      // Hermeticity — only meaningful when the self-test is a command we can
+      // re-run; the fixture-path form has no script to copy.
+      if (probe && d.selfTest && !(d.selfTest.includes("/") && !d.selfTest.includes(" "))) {
+        if (d.readsTree) {
+          if (d.readsTree.trim().length < 10) {
+            v.push(
+              `${d.file}: CI-Self-Test-Reads-Tree must say WHY the self-test needs the ` +
+                `production tree, got "${d.readsTree}"`,
+            );
+          } else {
+            waivers.push(`${d.file} — self-test reads the tree: ${d.readsTree}`);
+          }
+        } else {
+          const h = selfTestIsHermetic(root, d);
+          if (!h.ok) {
+            v.push(
+              `${d.file}: self-test is not hermetic — ${h.why}. Either make it build its own ` +
+                `fixtures, or declare CI-Self-Test-Reads-Tree with the reason it cannot`,
+            );
+          }
+        }
+      }
+
       // The gate must be invoked on its own, not merely as part of its
       // self-test command. Matching the bare filename against every command
       // string lets `check-x.sh --self-test` satisfy "the gate runs", which is
@@ -249,6 +337,16 @@ function audit(root: string, probe = false): { violations: string[]; decls: Decl
       );
     }
 
+    // The exception is read only where CI-Self-Test is, i.e. on a gate. Sitting
+    // anywhere else it looks load-bearing and does nothing — which is how it was
+    // first written here, on the two self-test files instead of their gate.
+    if (d.kind !== "gate" && d.readsTree) {
+      v.push(
+        `${d.file}: CI-Self-Test-Reads-Tree on a ${d.kind} has no effect — ` +
+          `it belongs on the gate whose CI-Self-Test this is`,
+      );
+    }
+
     if (d.kind === "self-test") {
       if (!d.covers) {
         v.push(`${d.file}: CI-Kind self-test but no CI-Covers naming the gate it falsifies`);
@@ -257,7 +355,7 @@ function audit(root: string, probe = false): { violations: string[]; decls: Decl
       }
     }
   }
-  return { violations: v, decls };
+  return { violations: v, decls, waivers };
 }
 
 // ── Self-test ────────────────────────────────────────────────────────────────
@@ -415,6 +513,70 @@ if (process.argv.includes("--self-test")) {
     null,
   );
 
+  // ── Hermeticity ────────────────────────────────────────────────────────────
+  // The fixture gate's self-test succeeds only beside a marker file that exists
+  // in the repo but not in the copy-out directory — which is exactly how a
+  // self-test that reaches into the production tree behaves.
+  const hermeticGate = (extraDecl: string) =>
+    `#!/bin/sh\n# CI-Kind: gate\n# CI-Self-Test: sh scripts/check-x.sh --self-test\n` +
+    `# CI-Scan-Probe: external — not probed in this fixture\n# CI-Scans: things\n${extraDecl}` +
+    `case "$1" in --self-test) test -f ./marker || exit 3; exit 0;; esac\necho "scanned: 1 thing"\n`;
+  const hermeticWf = WF(["sh scripts/check-x.sh --self-test", "sh scripts/check-x.sh"]);
+
+  expectProbe(
+    "a self-test that needs the tree, undeclared, is caught",
+    build({
+      "scripts/check-x.sh": hermeticGate(""),
+      marker: "present in the repo, absent in the copy-out\n",
+      ".github/workflows/w.yml": hermeticWf,
+    }),
+    "self-test is not hermetic",
+  );
+  expectProbe(
+    "the same self-test passes once the reason is declared",
+    build({
+      "scripts/check-x.sh": hermeticGate(
+        "# CI-Self-Test-Reads-Tree: it asserts against the real marker, which is the point\n",
+      ),
+      marker: "present\n",
+      ".github/workflows/w.yml": hermeticWf,
+    }),
+    null,
+  );
+  expectProbe(
+    "a reads-tree declaration with no real reason is caught",
+    build({
+      "scripts/check-x.sh": hermeticGate("# CI-Self-Test-Reads-Tree: because\n"),
+      marker: "present\n",
+      ".github/workflows/w.yml": hermeticWf,
+    }),
+    "must say WHY",
+  );
+  // A genuinely hermetic self-test needs no declaration and must not be asked for one.
+  expectProbe(
+    "a hermetic self-test passes with no declaration",
+    build({
+      "scripts/check-x.sh":
+        `#!/bin/sh\n# CI-Kind: gate\n# CI-Self-Test: sh scripts/check-x.sh --self-test\n` +
+        `# CI-Scan-Probe: external — not probed in this fixture\n# CI-Scans: things\n` +
+        `case "$1" in --self-test) exit 0;; esac\necho "scanned: 1 thing"\n`,
+      ".github/workflows/w.yml": hermeticWf,
+    }),
+    null,
+  );
+  // The declaration is read only on a gate; anywhere else it is decorative.
+  expect(
+    "a reads-tree declaration on a self-test file is caught",
+    build({
+      "ci/test_a_selftest.py":
+        "# CI-Kind: self-test\n# CI-Covers: scripts/check-x.sh\n" +
+        "# CI-Self-Test-Reads-Tree: this does nothing here\n",
+      "scripts/check-x.sh": goodGate,
+      ".github/workflows/w.yml": WF(["scripts/check-x.sh --self-test", "scripts/check-x.sh"]),
+    }),
+    "has no effect",
+  );
+
   // Vacuity: no candidates means every rule holds trivially.
   const empty = audit(build({ ".github/workflows/w.yml": WF([]) }));
   if (empty.decls.length !== 0) failures.push("empty tree — expected 0 candidates");
@@ -426,14 +588,15 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  13 case(s): every rule proven to fire, incl. the population probe;");
+  console.log("  18 case(s): every rule proven to fire, incl. the population probe and");
+  console.log("  the hermeticity copy-out;");
   console.log("  comment-only mention and explained-external proven NOT to fire");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }
 
 const ROOT = join(import.meta.dir, "..");
-const { violations, decls } = audit(ROOT, true);
+const { violations, decls, waivers } = audit(ROOT, true);
 
 // A meta-gate that finds nothing to check is the failure it exists to prevent.
 if (decls.length === 0) {
@@ -445,6 +608,10 @@ if (decls.length === 0) {
 
 const counts = KINDS.map((k) => `${decls.filter((d) => d.kind === k).length} ${k}`).join(" · ");
 console.log(`scanned: ${decls.length} check script(s) in scripts/ and ci/ — ${counts}`);
+if (waivers.length) {
+  console.log(`\n${waivers.length} declared exception(s) — stated, not silent:`);
+  for (const w of waivers) console.log("  " + w);
+}
 
 if (violations.length) {
   console.error(`\n${violations.length} gate-coverage violation(s):\n`);
