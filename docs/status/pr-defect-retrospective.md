@@ -18,12 +18,21 @@ Three sources were used, in decreasing order of reliability:
    review findings; the bodies of #112, #113, #124, #126, #144, #147, #149, #173, #174
    list roughly **100 individually numbered findings** between them.
 
-**What this record cannot see:** GitHub carries **zero inline review threads** across all
-240 PRs (`get_review_comments` returns empty for every PR sampled). Every review in this
-project happened either in conversation or as a self-review pass, and left a trace only
-where a commit or a PR body recorded it. So the counts below are a **floor**. Errors
-corrected silently inside a single squashed commit are invisible here, and there is no way
-to bound how many those were.
+**What this record cannot see.** Inline review threads are close to absent: `get_review_comments`
+returned empty for **all 10 PRs sampled** (#3, #126, #127, #159, #174, #204, #205, #249, #250,
+#272). Review in this project happened overwhelmingly in conversation or as a self-review pass,
+leaving a trace only where a commit or PR body recorded it. So the counts below are a **floor**,
+and errors corrected silently inside a single squashed commit are invisible here.
+
+> **Correction (2026-08-31).** An earlier revision of this paragraph claimed *zero* inline review
+> threads across *all 240* PRs. That was generalised from two samples, using `get_review_comments`,
+> which returns threads and not reviews — so it answered a narrower question than the one asked of
+> it. **It is false.** `get_reviews` on #204 returns a review from `github-advanced-security[bot]`,
+> and commit `345b188` — *"Potential fix for pull request finding 'CodeQL / Workflow does not
+> contain permissions'"* — exists only because that bot raised a finding. So automated review did
+> occur, did find something, and was acted on. The claim is now stated as what was measured, with
+> the sample named. This is §2.4's rule turned on this document's own prose, and the error it
+> corrects is a Class 2 instance committed by the file that catalogues Class 2.
 
 One further limit worth stating plainly: this is a self-assessment of my own output, drawn
 from records I also wrote. The PR bodies are unusually candid — several volunteer their own
