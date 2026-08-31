@@ -2,7 +2,7 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 6
+**Revision:** 7
 **Date:** 2026-08-30
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
@@ -17,6 +17,21 @@
 
 ---
 
+> **Rev 7 (2026-08-31) — one shared thermal envelope for the whole product line: full dose ≤ +30 °C,
+> derate +30 → +35, block > +35, on every helmet module and the intranasal probe.** Principal
+> direction — *"consistency makes products easier to understand."* T2-D's numbers were adopted
+> wholesale, since it was already the tightest and a shared envelope must be the intersection of what
+> every module can do. **One sentence now describes the thermal envelope of the entire product line,
+> at any tier, in any configuration.**
+>
+> **Two consequences, stated rather than left to be discovered. (i) T1's full-dose ceiling tightens
+> +35 → +30** — a real capability reduction, deliberately more conservative than the physics requires
+> (§7 puts T1-std's full-dose ceiling at 37.9 °C), bought on purpose in exchange for one envelope
+> instead of four. **(ii) `OI-OPR-01` is live again.** Rev 6 recorded the T1-A derate curve as *moot*
+> because the band had zero width; the band is 5 °C wide again, so that curve must be specified after
+> all — but **once, for every helmet module, rather than per module.** `OI-THCOOL-16` still applies to
+> the block edge at +35.
+>
 > **Rev 6 (2026-08-31) — two changes. (a) T1 PBM block moves +38 °C → +35 °C to match T2, which
 > collapses the T1-A derate band to zero width. (b) New §6.9.1 specifies the gap-pad geometry and
 > corrects §6.9's full-area assumption.**
@@ -696,20 +711,29 @@ face ≤ 42 °C in the healthy state, with the via fitted:
 the R1 data independently implies. **The envelope has already absorbed most of the ambient lever**, which
 is why lowering it further buys less than it first appears — and is a good outcome for those bounds.
 
-**7.2 — ✅ RESOLVED (principal): the block threshold is +35 °C.** It moved +43 → +38 on 2026-08-30 and
-+38 → +35 on 2026-08-31. The band is now **full dose ≤ +35, block > +35, with no derate region**
-(`NP-ENV-OPRANGE-001` §2, footnote ‖).
+**7.2 — ✅ RESOLVED (principal): one shared band — full dose ≤ +30 °C, derate +30 → +35, block > +35.**
+It arrived in three steps: block +43 → +38 (2026-08-30, physics and use case), +38 → +35 (2026-08-31,
+alignment with T2's block), then the whole band shared across every helmet module and the intranasal
+probe (2026-08-31, consistency). `NP-ENV-OPRANGE-001` §2, footnote ‖.
 
-**The second move was about tier consistency, not thermal margin.** T2-D already blocked at +35 (its
-TEC cannot hold laser setpoint above it), so a customer upgrading T1 → T2 would have met a *tighter*
-usage limit on the more expensive tier. Aligning the two block thresholds removes that.
+**The final step was a product decision, not a thermal one** — *"consistency makes products easier to
+understand."* T2-D's numbers were adopted wholesale because it was already the tightest, and a shared
+envelope must be the **intersection** of what every module can do, never the union. The result is that
+one sentence describes the thermal envelope of the whole line at any tier.
 
-**Its consequence is that T1-A's derate band disappears**, since full dose was already held to ≤ +35.
-That is a simplification rather than a loss — the paragraph below records that the derate band was
-precisely where a "completed" sub-threshold session could occur — and **`OI-OPR-01`'s T1-A derate curve
-becomes moot, because there is no curve left to specify.** T2-D keeps its own +30 → +35 derate band, so
-the two envelope *shapes* still differ; only the block was asked to align. A hard block at a single
-temperature needs hysteresis against NTC chatter — `OI-THCOOL-16`.
+**Two consequences worth stating plainly.**
+
+1. **T1's full-dose ceiling tightens +35 → +30, and that is a real capability reduction.** Full dose in
+   a 32 °C room was previously allowed and now derates. It is **deliberately more conservative than the
+   physics requires** — §7's fit puts T1-std's full-dose ceiling at 37.9 °C, nearly 8 °C above the new
+   bound — and is paid on purpose in exchange for a single envelope.
+2. **`OI-OPR-01` is live again, and this reverses what Rev 6 recorded.** Rev 6 called the T1-A derate
+   curve *moot* because the band had zero width. The band is 5 °C wide again, so the curve must be
+   specified after all. The work is nonetheless **smaller** than before: one curve now serves every
+   helmet module rather than one per module.
+
+`OI-THCOOL-16` still applies — the block edge at +35 is a discrete transition and needs hysteresis
+against NTC chatter.
 
 The decisive argument was **use case, not thermal**: there is no non-emergency reason to run the device
 in a room above +35 °C, so an envelope reaching +43 bought availability nobody wants — and paid for it
@@ -754,16 +778,20 @@ about step 3.**
 
 **Two decisions for the principal:**
 
-- **D-1 — ✅ DECIDED (principal), in two steps: the T1-A block threshold is +35 °C.** It moved +43 → +38
-  on 2026-08-30, then **+38 → +35 on 2026-08-31 to match T2**. The band is now full dose ≤ +35, block
-  > +35, **no derate region**. The first move's decisive argument was **use case, not thermal** — there
-  is no non-emergency reason to run the device in a room above +35 °C, so an envelope reaching +43
-  bought availability nobody wants; it also aligned the block with §7's 37.9 °C full-dose ceiling and
-  retired the band where derated duty approached the `NP-PWR-BUDGET-001` §3.4 efficacy floor. The
-  second move was **tier consistency**: T2-D already blocked at +35, so a T1 → T2 upgrader would
-  otherwise have met a tighter limit on the more expensive tier. Applied to `NP-ENV-OPRANGE-001`
-  §2/§4/§5; those rows are decided rather than `†` provisional. **`OI-OPR-01`'s T1-A derate curve is
-  moot** — the band it described has zero width. New `OI-THCOOL-16` covers hysteresis on the cliff.
+- **D-1 — ✅ DECIDED (principal), in three steps, ending in one shared band: full dose ≤ +30 °C, derate
+  +30 → +35, block > +35, on every helmet module and the intranasal probe.** (i) Block +43 → +38
+  (2026-08-30) on **use case, not thermal** — there is no non-emergency reason to run the device in a
+  room above +35 °C, so an envelope reaching +43 bought availability nobody wants; it also aligned the
+  block with §7's 37.9 °C full-dose ceiling and retired the band where derated duty approached the
+  `NP-PWR-BUDGET-001` §3.4 efficacy floor. (ii) Block +38 → +35 (2026-08-31) on **tier consistency** —
+  T2-D already blocked at +35, so a T1 → T2 upgrader would otherwise meet a tighter limit on the more
+  expensive tier. (iii) The **whole band** shared (2026-08-31) on **product consistency**, adopting
+  T2-D's numbers wholesale because a shared envelope must be the intersection of what every module can
+  do. Applied to `NP-ENV-OPRANGE-001` §2/§4/§5; those rows are decided rather than `†` provisional.
+  **Two consequences:** T1's full-dose ceiling tightens +35 → +30, a real and deliberate capability
+  reduction; and **`OI-OPR-01` is live again** — Rev 6 had recorded the derate curve as moot on a
+  zero-width band, and the band is 5 °C wide once more, though one curve now serves every module.
+  `OI-THCOOL-16` covers hysteresis on the +35 block edge.
 - **D-2 — ✅ DECIDED 2026-08-30 (principal): in scope only for a real benefit not obtainable by other
   means — and §6.9 finds it is obtainable otherwise, better.** A static conductive gap bridge attacks
   the same 0.23 m²K/W term and reaches **40.6 tiles against the loop's 19.7**, with no moving parts and
