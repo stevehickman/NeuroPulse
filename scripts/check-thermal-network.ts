@@ -517,3 +517,59 @@ console.log(`  A realistic 20 mm pad per tile (${(phi20 * 100).toFixed(0)}% cove
 console.log(`  So §6.9's headline is optimistic by ${(full / real).toFixed(1)}x — but even the`);
 console.log(`  low-coverage rows beat the stirred gap (${(2 / 30).toFixed(3)}), so D-2's conclusion holds.`);
 console.log(`  Coverage, not pad conductivity, is the design variable. OI-THCOOL-15.`);
+
+// ---------------------------------------------------------------------------
+// §17  Derate semantics and the efficacy-floor clamp (§7.4)
+// ---------------------------------------------------------------------------
+// NP-ENV-OPRANGE-001 §1 specifies "linear duty derate T_f -> T_max". Duty
+// scales; nothing says the session extends to compensate. Under that reading a
+// fixed-length session delivers proportionally less dose, and near T_max it
+// falls below NP-PWR-BUDGET-001 §3.4's efficacy floor — a session that runs to
+// completion and cannot work. This is the failure mode D-1 was built to remove.
+
+/** Efficacy floor, NP-PWR-BUDGET-001 §3.4. */
+const EFFICACY_FLOOR_J = 10;
+/** The shared band, NP-ENV-OPRANGE-001 §2 footnote ‖. */
+const T_FULL = 30, T_BLOCK = 35;
+
+/** Linear duty derate as specified today: 1.0 at T_full, 0.0 at T_block. */
+function dutyLinear(ambC: number): number {
+  if (ambC <= T_FULL) return 1;
+  if (ambC >= T_BLOCK) return 0;
+  return (T_BLOCK - ambC) / (T_BLOCK - T_FULL);
+}
+
+/** Ambient at which a protocol's derated dose reaches the efficacy floor. */
+const clampAmbient = (fullDoseJ: number) =>
+  T_BLOCK - (EFFICACY_FLOOR_J / fullDoseJ) * (T_BLOCK - T_FULL);
+
+console.log("§17 Derate semantics — dose delivered in a FIXED-LENGTH session");
+console.log("  As specified today: duty scales linearly 30 -> 35 C; nothing extends the session.\n");
+console.log("  ambient   duty    dose(60 J/cm2 protocol)   verdict");
+for (const amb of [30, 31, 32, 33, 34, 34.5]) {
+  const d = dutyLinear(amb), j = 60 * d;
+  const verdict = j < EFFICACY_FLOOR_J ? "*** SUB-THRESHOLD — null session ***"
+    : d === 1 ? "full dose" : "under-dosed vs the pre-Rev-7 envelope";
+  console.log(`  ${amb.toFixed(1).padStart(6)}C  ${(d * 100).toFixed(0).padStart(4)}%   ${j.toFixed(1).padStart(20)}   ${verdict}`);
+}
+
+console.log("\n  Ambient at which the derated dose hits the 10 J/cm^2 floor:");
+for (const full of [40, 60, 90, 120]) {
+  console.log(`    ${String(full).padStart(3)} J/cm^2 protocol -> ${clampAmbient(full).toFixed(1)} C  (duty ${(EFFICACY_FLOOR_J / full * 100).toFixed(0)}%)`);
+}
+console.log("  Above those points the device would complete a session that cannot work.");
+
+console.log("\n  If instead the session EXTENDS to hold dose constant:");
+for (const amb of [31, 32, 33, 34]) {
+  const d = dutyLinear(amb);
+  console.log(`    ${amb} C: duty ${(d * 100).toFixed(0).padStart(3)}% -> a 20 min session becomes ${(20 / d).toFixed(0).padStart(3)} min`);
+}
+console.log("  Dose is preserved, but time-at-ceiling is what drives CEM43 (NP-PWRSRC-001 §5.5),");
+console.log("  so this trades an efficacy problem for a thermal-dose one. Neither reading is free.");
+
+console.log("\n  PROPOSED CLAMP: derate to the efficacy floor, then BLOCK — never below it.");
+console.log("  Effective block moves off the flat 35 C onto a per-protocol value:");
+for (const full of [40, 60, 90, 120]) {
+  console.log(`    ${String(full).padStart(3)} J/cm^2 -> blocks at ${clampAmbient(full).toFixed(1)} C instead of 35.0 C`);
+}
+console.log("  Same principle as D-1 one level down: do not run a session that cannot work.");
