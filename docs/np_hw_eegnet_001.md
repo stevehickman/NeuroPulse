@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-HW-EEGNET-001
-**Revision:** 7
-**Date:** 2026-08-24
+**Revision:** 8
+**Date:** 2026-08-31
 **Status:** DRAFT
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (new document)
 **References:** NP-HEX-ZM-001 §3.1/§3.2/§3.3/§4a/§5.3, NP-HELMET-GEOM-001 §0/§2/§3.1/§5, NP-DRV-SHELL-002 §3.5/§5.1.4–§5.1.6/§9.1–§9.6/§10.1, NP-HW-HUB-001 §4.5/§5/§7.2/§7.4, NP-HW-HEXTILE-001 §1/§4.5/§6.4/§7.1/§7.2/D-5, NP-THERM-BEZEL-001, NP-RISK-002 (RISK-21), NP-RISK-004, NP-COST-001 §2/§6, NP-PWR-BUDGET-001 §3.4–§3.7, NP-SES-PWR-001 §8, NP-FEAS-FNIRS-001, NP-HFE-002 §2.3/§2.5/§3/§5/§7.1/§7.3/§7.4, NP-OPT-PSF-001, NP-ENV-OPRANGE-001 §4, NP-CONV-001 Rev 6, CLAUDE.md §3/§4.2/§4.3/§4.4/§5.1
-**Related Issues:** PR #283 (Rev 3); Rev 4 reconciles against PR #284; Rev 6 closes OI-EEGNET-25; Rev 7 scopes that result to T1 and adds the montage-density term it omits
+**Related Issues:** PR #283 (Rev 3); Rev 4 reconciles against PR #284; Rev 7 scopes the Rev 6 result; Rev 8 records the VNS-clip precedent on OI-EEGNET-20 and re-traces ±10 mm per the PR defect retrospective §2.4
 **Gate:** NET-1 (strain-tracking fidelity), NET-2 (placement-verification qualification); interacts with REG-1, MECH-2, THERM-1, SEAL-1
 **IEC 62304 Class:** N/A — the net is hardware. It is a risk control with no software class; the firmware that reads its impedance matrix and gates tES/visual stimulation carries the class (Class C where it owns an enable line, per CLAUDE.md §4.2).
 **Supersedes:** None. Contests NP-HEX-ZM-001 §4a's T1-B tile type; see §0 and §7.
@@ -25,6 +25,27 @@
 
 ---
 
+> ## Rev 8 — the design already has a precedent for "one location, two functions", and it is not dual-rating.
+>
+> Two additions, no figure changed and nothing withdrawn.
+>
+> **1. The VNS clip is the precedent `OI-EEGNET-20` was missing.** §0's fork exists because the T1-B pad
+> is *dual-rated* — one contact carrying both µV recording and tES current. The auricular clip faces the
+> same problem at the same location and solves it the other way: **A1/A2 EEG references ride 2 spare
+> conductors in the existing 6-pin cable** (CLAUDE.md §3 modality 6), so VNS stimulation and EEG
+> reference are **co-located but not dual-rated**. One location, two functions, one conductor each.
+> **The clip could do that because it had spare conductors. The socket has none** — `NP-DRV-SHELL-002`
+> §5.1.4 dropped its last two reserved positions. That is the whole of `OI-EEGNET-20` in one sentence.
+>
+> **2. ±10 mm re-traced to source**, per `docs/status/pr-defect-retrospective.md` §2.4's rule that *"before a candidate is
+> eliminated on a numeric ground, that number is re-traced to source"* — Class 2 being where #273
+> eliminated a design candidate on a constraint that did not exist. §1.10.5 eliminated pod patterns on
+> ±10 mm, so the trace is owed. **It holds, with a caveat now stated inline:** §3.4 derives it from the
+> ~33 mm 10-20 line spacing and labels it *"a design tolerance, not a clinical claim"*. It is a
+> **`[design-target]`**, not a measurement, and §1.10.5's pass/fail column now says so.
+>
+> ---
+>
 > ## Rev 7 — Rev 6's result is a **T1, per-target** result. Scoped, and the term it omits partly reverses it for T2.
 >
 > Rev 6 evaluated the lattice covering radius against every point on the scalp and concluded *"the
@@ -168,6 +189,12 @@ not one change. It is three mutually exclusive ones, and they have very differen
 | **(a)** Net carries EEG only; T1-B survives as a tES tile | Two electrode systems on one head | **Delivers almost none of the benefit.** The socket keeps pins 13/14/15, network N4 stays, `REG-1` stays (tES placement is a 10-20 problem too), the spring pod stays, `OI-HEXTILE-05` stays. Pure additive cost. |
 | **(b)** Net carries EEG **and** tES ★ | One electrode system, off-lattice | **The only variant with leverage.** Everything in §7.1 follows from this and only this. Also the only variant that re-homes two safety interlocks onto a soft part (§7.2.4). |
 | **(c)** Net carries EEG; tES deleted from T1 | Product change | CLAUDE.md §3 modalities 4 and 5 are locked. Out of scope for an engineering document. |
+
+> **A precedent worth reading before choosing (Rev 8).** The same "one location, two functions" problem
+> is already solved elsewhere in the product, and not by dual-rating: the auricular clip carries VNS
+> stimulation *and* the A1/A2 EEG reference, on separate conductors in one cable (CLAUDE.md §3 modality
+> 6). Dual-rating here is not a considered preference over that approach — it is what the socket's
+> conductor budget leaves. See `OI-EEGNET-20`.
 
 **This document specifies option (b).** Every claim below is conditional on it. If the principal
 selects (a), most of §7.1 evaporates and the net becomes a cost line with a registration benefit
@@ -913,6 +940,14 @@ fit against actual 10-20 coordinates would. Ring radius is optimised per pattern
 3. **Only 8 pods meet ±10 mm worst-case, and only in the centre+ring form**, at 34/90 emitters —
    *and that is covering error alone*, before §1.1's shape term, seating concentricity or landmark
    error are added. On an RSS basis nothing in the table survives the full budget.
+
+> **⚠ Provenance, added at Rev 8 (`docs/status/pr-defect-retrospective.md` §2.4).** The ±10 mm these patterns are eliminated
+> against is a **`[design-target]`**, not a measurement: §3.4 derives it from the ~33 mm 10-20 line
+> spacing (`NP-HEX-ZM-001` §3.2) and states it is *"a design tolerance, not a clinical claim."* The
+> covering-radius figures themselves are **`[measured]`** — computed by `scripts/pod-pattern-coverage.ts`
+> — but over geometry that is **`[estimate]`**, the interim ellipsoid `hardware/np_socket_map.json`
+> calls *"a description, not a fact."* **No pattern here is eliminated by a datasheet or a measured
+> anatomical bound.**
 
 > **⚠ Scoped at Rev 7.** The ±10 mm column is a **T1** answer, and the whole table is a **per-target**
 > bound. §1.10.6 supplies both qualifications and one term that runs the other way for T2.
@@ -1663,7 +1698,7 @@ architecture no longer needs.
 | **OI-EEGNET-17** | §1.1's model is 2D sagittal only. The coronal plane, where cephalic index 0.70–0.85 acts, has not been computed | Systems | With OI-EEGNET-14 |
 | **OI-EEGNET-18** | **Spatial sampling density as an alternative to placement tolerance (§1.6).** Two halves: (a) establish the actual sampling requirement for this geometry and these measures — the ~20 mm figure is a literature estimate and is **not** a project number; (b) determine whether array pose can be recovered well enough to interpolate against anatomy, which is `OI-EEGNET-14` in a different currency. **Scope is recording only** — §1.6 limit 3 excludes tES and the Oz gate. Interacts with `OI-EEGNET-15`: if tolerance is modality-dependent, so is this | Systems + Clinical | With OI-EEGNET-14/15 |
 | **OI-EEGNET-19** | **Electrodes per tile — study 1, 2, 3 and 4, uniform or mixed (§1.7).** The range is **not** 1–2: §1.6's density argument is only satisfied at 4/tile, so a study capped at 2 cannot answer the question that motivates it. Four ⌀11.4 mm pods fit at 20.5 mm intra-tile spacing (§1.7.1). Decide with `OI-HEXTILE-05`, not after it — pod diameter sets the emitter budget, the pod separation *and* the achievable pod count. **Note the cost axis runs the counterintuitive way**: 4 pods inflate emitters +7.5 % against 2 pods' +13.0 %, because each pod removes ~7 emitters. Three cross-cuts the study must carry: (a) shield per electrode or one shared DRL-driven shield — worth 3 contacts at 4 electrodes; (b) whether every electrode is dual-rated or only a subset (§1.7.1 — decoupling holds the safety-MCU channel count flat); (c) uniform vs mixed, where §1.7.4 recommends uniform. **Blocked by OI-EEGNET-20**: every electrode past the first needs socket positions that do not exist | Systems + ME + HFE | **T1-B layout; with OI-HEXTILE-05 and the N of §1.7.5** |
-| **OI-EEGNET-20** | **Carry socket contact count as a variable in the MECH-2 / HFE force study, and evaluate a three-row array (§1.7.2–§1.7.3).** Force is exactly linear at 0.3–0.5 N per contact, and 34.2–57.0 N at 19 is **already the unanswered question** in `OI-SHELL2-03(b)`. Route to `NP-DRV-SHELL-002` §5.1.4 and `NP-HW-HEXTILE-001` D-5 — **not decided here**. **Row count and row straightness are both free variables** — an edge-following L, chevron or polyline offers ~48 positions on one run at 2.00 mm pitch and holds constant edge margin, where a chord does not (§1.7.2). Independent of any electrode decision, §1.7.3 gives a µV-siting argument for re-shaping the array at constant count (`OI-HEXTILE-11`), against a newly identified cost: a spread array roughly **halves the angular tolerance** the mechanical key must hold, which no document currently states. **Two prerequisites the study cannot skip (§1.7.2):** the stated 34.2–57.0 N is **contact force only** — ejector springs, 30 per-tile gaskets and plunger preload are excluded — and there is **no input-force acceptance number** for the cluster actuator, §5.4a's ≤1 N being the retired per-module eject-lever figure. Required MA = load ÷ target and neither end exists. **Force-spread cancellation is a real second lever** worth 5.7 N per 0.05 N of spread removed, best implemented as socket-side spring-rate grading (preserves `R-2`); naive load-spreading stagger is counterproductive against an over-centre. **Release force may bind before throw force** (`OI-HFE2-05`), and the ejector-spring trade between them is stated nowhere. **Rev 4 — the count is now reopened from a second direction, and the two must resolve together.** `OI-HEXTILE-20` finds §8.1's 25.0 W/tile peak may be illegal (806 mW/cm² against R-5's 600), and reading (b) puts the true peak at **18.6 W**, changing the rail current and *"the per-pin contact current that set `VLED` at 3 contacts"* — D-5, the same tooling-blocking count. **It does not free a contact:** at 18.6 W over 2 `VLED` pins the degraded case is 1.29× against the ≥2× rule, so 3+3 stands. What it does show is that at the *current* 25.0 W basis 3 pins give only 1.92× — the rule 3+3 exists to satisfy is met only under reading (b). The count must be re-derived either way, and §1.9.5 adds a third claimant on it. **Time-boxed:** `OI-SHELL2-09(i)` blocks socket tooling; after that cut the count is permanent at every socket by the union rule | ME + HFE + EE | **MECH-2; before socket tooling** |
+| **OI-EEGNET-20** | **Carry socket contact count as a variable in the MECH-2 / HFE force study, and evaluate a three-row array (§1.7.2–§1.7.3).** Force is exactly linear at 0.3–0.5 N per contact, and 34.2–57.0 N at 19 is **already the unanswered question** in `OI-SHELL2-03(b)`. Route to `NP-DRV-SHELL-002` §5.1.4 and `NP-HW-HEXTILE-001` D-5 — **not decided here**. **Row count and row straightness are both free variables** — an edge-following L, chevron or polyline offers ~48 positions on one run at 2.00 mm pitch and holds constant edge margin, where a chord does not (§1.7.2). Independent of any electrode decision, §1.7.3 gives a µV-siting argument for re-shaping the array at constant count (`OI-HEXTILE-11`), against a newly identified cost: a spread array roughly **halves the angular tolerance** the mechanical key must hold, which no document currently states. **Two prerequisites the study cannot skip (§1.7.2):** the stated 34.2–57.0 N is **contact force only** — ejector springs, 30 per-tile gaskets and plunger preload are excluded — and there is **no input-force acceptance number** for the cluster actuator, §5.4a's ≤1 N being the retired per-module eject-lever figure. Required MA = load ÷ target and neither end exists. **Force-spread cancellation is a real second lever** worth 5.7 N per 0.05 N of spread removed, best implemented as socket-side spring-rate grading (preserves `R-2`); naive load-spreading stagger is counterproductive against an over-centre. **Release force may bind before throw force** (`OI-HFE2-05`), and the ejector-spring trade between them is stated nowhere. **Rev 4 — the count is now reopened from a second direction, and the two must resolve together.** `OI-HEXTILE-20` finds §8.1's 25.0 W/tile peak may be illegal (806 mW/cm² against R-5's 600), and reading (b) puts the true peak at **18.6 W**, changing the rail current and *"the per-pin contact current that set `VLED` at 3 contacts"* — D-5, the same tooling-blocking count. **It does not free a contact:** at 18.6 W over 2 `VLED` pins the degraded case is 1.29× against the ≥2× rule, so 3+3 stands. What it does show is that at the *current* 25.0 W basis 3 pins give only 1.92× — the rule 3+3 exists to satisfy is met only under reading (b). The count must be re-derived either way, and §1.9.5 adds a third claimant on it. **Rev 8 — the design already solved this problem once, the other way, and the contrast is the argument.** The auricular clip carries **both** VNS stimulation and the A1/A2 EEG reference at one location, and it does *not* dual-rate a pad: the references ride **2 spare conductors in the existing 6-pin cable** (CLAUDE.md §3 modality 6, +$15 BOM **`[design-target]`**). Co-located, one conductor per function, so none of §0's dual-rated fork arises there. **The clip could do that because it had spares; the socket has none** — §5.1.4 closed at 19 with *"2 reserved dropped"*. So the socket's dual-rating in §0 is not a considered choice over the clip's approach, it is what remains when the conductors run out, and every claimant in §1.10.7 (second electrode, its shield, an fNIRS detector) is competing for conductors the clip simply had. **Whether the socket should be given spares is the question this item exists to put.** **Time-boxed:** `OI-SHELL2-09(i)` blocks socket tooling; after that cut the count is permanent at every socket by the union rule | ME + HFE + EE | **MECH-2; before socket tooling** |
 | **OI-EEGNET-22** | **A four-pod tile places an fNIRS source–detector pair at 29.0 mm — inside `NP-FEAS-FNIRS-001`'s 2.5–3.5 cm window — where the cross-tile separation that study proposes (40.0 mm) overshoots it (§1.9.4).** The geometry is free; the wiring is not. Three gates, none opened here: **D-2** requires PD1/PD2 co-location for the fouling-vs-ageing ratio, so an fNIRS detector is a *third* PD, not a relocated one; a third PD is a third claimant on the closed 19-contact budget alongside the second electrode and its shield (`OI-EEGNET-20`); and `NP-FEAS-FNIRS-001` Risk A — 808–830 nm sitting on the isosbestic point — is a **chromophore** problem that no separation distance fixes. Also asks whether `NP-PWR-BUDGET-001` §3.6's sub-therapeutic whole-vault mode, a limitation for PBM, is the desired condition for monitoring (`OI-PWR-07`) | Systems + EE + Clinical | With `OI-EEGNET-19`/`-20`; `NP-FEAS-FNIRS-001` go/no-go |
 | **OI-EEGNET-23** | **Manufactured pod-count variants, or one universal tile with pods selected on-tile? (§1.10.2)** Option A pushes the taxonomy to **7–8 types**, past the 6 `NP-HFE-002` Rev 2's nested figure reaches, and breaks `R-2` per position. Option B holds the taxonomy at today's 4–5, keeps `R-2`, needs no placement instruction, and costs 1–2 contacts regardless of pod count — **conditional on a static on-tile selector** (§1.10.3), whose Ron/leakage in the µV path is a re-run of `SH2-DRC-27` one level down. **Decide with `OI-EEGNET-21`:** at N ≥ 6 a universal tile keeps ≤53 % of its emitters and the PBM case at electrode sites becomes marginal, which is T1-E's premise from the other side | **Principal + Systems** | **T1-B layout; with `OI-EEGNET-19`/`-21`** |
 | **OI-EEGNET-24** | **A required *build* map — "which module belongs in which socket" — is a third kind of data with no home, and the simulator has nothing to render (§1.10.7).** `hardware/np_socket_map.json` is geometry and says so explicitly; `00-zones.npps` is zone membership; neither is a build map. The simulator generator already runs the real parser against real sources, so rendering is cheap once the artifact exists. **Cut it once with `OI-HFE2-02`** — the app's live inventory is still the retired 5-slot `zoneModules: [UInt8] = [0,0,0,0,0]`, and both want the same socket-indexed structure | Systems + App | With `OI-HFE2-02` |
@@ -1692,6 +1727,7 @@ seam), §5.3 (fluxgate siting) · `NP-HELMET-GEOM-001` §0 (inner-shield abandon
 `NP-HFE-002` §2.3(a) (counting range), §7.3 Rev 2 (nested-figure encoding, 6 types) ·
 `firmware/hub_control/include/np_module_map.h` (`type_mask`) · `hardware/np_socket_map.json` ·
 `scripts/generate-simulator-data.ts` · `scripts/pod-pattern-coverage.ts` (covering radius + assignment slack) ·
+`docs/status/pr-defect-retrospective.md` §2.4 (evidence-class tags; re-trace before eliminating on a number) — a process record, **not** a controlled document: no serial ·
 `NP-HEX-ZM-001` §5.4a (cluster clamp, plunger, ejector springs, actuator intent) · `NP-OPT-PSF-001` ·
 `NP-HFE-002` §5 · `NP-ENV-OPRANGE-001` §4 · `NP-CONV-001` Rev 6 · CLAUDE.md §3, §4.2, §4.3, §4.4, §5.1
 
