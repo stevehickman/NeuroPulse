@@ -28,6 +28,11 @@ Usage:
   python3 ci/test_shdr_schema.py                  # exits 0 on PASS, 1 on FAIL
   python3 ci/test_shdr_schema.py --verbose        # show all checks
   python3 ci/test_shdr_schema.py --schema PATH    # override schema file path
+
+CI-Kind: gate
+CI-Self-Test-Reads-Tree: ci/test_shdr_schema_selftest.py imports this module and drives its checks against the PRODUCTION schema — its vacuity guard asserts the real accel table is being seen, which is the half of the claim a fixture cannot make
+CI-Self-Test: python3 ci/test_shdr_schema_selftest.py
+CI-Scans: column definitions in the SHDR fleet schema
 """
 
 from __future__ import annotations
@@ -926,6 +931,35 @@ def check_warranty_token_type(columns: list[ColumnDef]) -> list[Failure]:
 class CheckResult:
     passed: list[str] = field(default_factory=list)
     failures: list[Failure] = field(default_factory=list)
+    # What the parser actually saw. Printed on both the PASS and FAIL paths so a
+    # result can never be read without the population it was computed over.
+    scanned: dict[str, int] = field(default_factory=dict)
+
+
+def check_parse_not_vacuous(columns: list[ColumnDef]) -> list[Failure]:
+    """
+    VACUITY-01 — the parser must actually be seeing the schema.
+
+    Most checks here are negative: they pass when nothing prohibited is found,
+    iterating the parsed column list to do it. An empty list satisfies all of
+    them. That is precisely how TOKEN-01 in this file passed vacuously until
+    #118 — skip_re had one unanchored alternation branch and the call site used
+    re.search(), so every column with an inline REFERENCES modifier was dropped.
+
+    ci/test_shdr_schema_selftest.py already asserts the accel population is
+    non-empty. This puts the same guard in the gate itself, so it holds on every
+    run rather than only where the self-test happens to look.
+    """
+    if columns:
+        return []
+    return [Failure(
+        check_id="VACUITY-01",
+        description=(
+            "parse_columns() returned 0 columns — every column-iterating check "
+            "in this gate is passing over nothing"
+        ),
+        location="shdr_fleet_schema.sql:parse_columns",
+    )]
 
 
 def run_all_checks(sql: str, verbose: bool = False) -> CheckResult:
@@ -976,8 +1010,24 @@ def run_all_checks(sql: str, verbose: bool = False) -> CheckResult:
         check_module_uid_columns, columns)
     run("LIFE-01:  module_life partitioned by device + monotonic",
         check_module_life_partition, sql)
+    run("VACUITY-01: parser sees the schema",
+        check_parse_not_vacuous, columns)
 
+    result.scanned = {
+        "columns": len(columns),
+        "tables": len({c.table for c in columns}),
+    }
     return result
+
+
+def _scanned_line(result: CheckResult) -> str:
+    """The machine-readable population line. `scanned: <int>` leading the line is
+    the contract scripts/check-gate-coverage.ts probes for — a PASS that names no
+    population is the shape #118 shipped in."""
+    s = result.scanned
+    if not s:
+        return "scanned: 0 columns (not recorded)"
+    return f"scanned: {s['columns']} column(s) across {s['tables']} table(s)"
 
 
 def main() -> int:
@@ -1008,7 +1058,8 @@ def main() -> int:
         print()
 
     if result.failures:
-        print(f"RESULT: FAIL — {len(result.failures)} violation(s) found\n")
+        print(f"RESULT: FAIL — {len(result.failures)} violation(s) found")
+        print(_scanned_line(result) + "\n")
         for f in result.failures:
             print(f"  [{f.check_id}] {f.description}")
             print(f"         at {f.location}")
@@ -1019,6 +1070,7 @@ def main() -> int:
 
     checks_run = len(result.passed)
     print(f"RESULT: PASS — {checks_run} check(s) passed, 0 violations")
+    print(_scanned_line(result))
     print()
     print("SHDR fleet DB schema freeze gate is CLEARED.")
     print("OI-EMMC2-07: PASS — this result must be recorded in NP-COORD-001.")

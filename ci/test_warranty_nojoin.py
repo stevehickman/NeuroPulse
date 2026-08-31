@@ -27,7 +27,13 @@ foreign key.
 Usage:
   python3 ci/test_warranty_nojoin.py                  # exits 0 on PASS, 1 on FAIL
   python3 ci/test_warranty_nojoin.py --verbose        # show all checks
+  python3 ci/test_warranty_nojoin.py --self-test      # prove the gate can fail
   python3 ci/test_warranty_nojoin.py --shdr-schema PATH --warranty-schema PATH
+
+CI-Kind: gate
+CI-Self-Test-Reads-Tree: its central case runs #118's predicate against the PRODUCTION schema — the finding that 139 of 227 real columns drop, and 0 warranty_token survive, is the evidence, and a fixture would only restate the assumption
+CI-Self-Test: python3 ci/test_warranty_nojoin.py --self-test
+CI-Scans: column definitions in the SHDR fleet and warranty registration schemas
 """
 
 from __future__ import annotations
@@ -355,6 +361,9 @@ def check_schema_isolation(shdr_sql: str, warranty_sql: str) -> list[Failure]:
 class CheckResult:
     passed: list[str] = field(default_factory=list)
     failures: list[Failure] = field(default_factory=list)
+    # What the parser actually saw. Printed on every run, pass or fail, so a
+    # PASS line can never be read without the population it was computed over.
+    scanned: dict[str, int] = field(default_factory=dict)
 
 
 def check_shdr_table_set_current(shdr_sql: str) -> list[Failure]:
@@ -404,6 +413,69 @@ def check_shdr_table_set_current(shdr_sql: str) -> list[Failure]:
     return failures
 
 
+def check_parse_not_vacuous(
+    columns: list[ColumnDef], label: str, check_id: str
+) -> list[Failure]:
+    """
+    VACUITY-01 / VACUITY-02 — the parser must actually be seeing this schema.
+
+    Four of the checks above are *negative*: they pass when nothing prohibited
+    is found. NOJOIN-SHDR-02 and both TOKEN-* checks iterate the parsed column
+    list, so if `parse_columns()` ever returns an empty or truncated list they
+    report PASS having examined nothing.
+
+    That is not hypothetical. In the sibling gate `ci/test_shdr_schema.py`,
+    `skip_re` had one unanchored alternation branch and the call site used
+    `re.search()`, so every column line carrying an inline `REFERENCES` /
+    `UNIQUE` / `PRIMARY KEY` modifier was dropped before `col_re` saw it. Every
+    `warranty_token` column in the SHDR schema is declared exactly that way, so
+    the token-type assertion iterated an empty list and passed vacuously
+    regardless of what type the column was declared as (fixed 2026-06-06).
+
+    The same parser is duplicated in this file. It is correctly anchored today;
+    nothing here would notice if it regressed. This check is that notice.
+
+    The floors are deliberately structural rather than exact counts — a pinned
+    "227 columns" would fail on every legitimate schema edit and be raised
+    reflexively until it meant nothing. What must never happen is *zero*, or a
+    warranty_token that the parser cannot see at all.
+    """
+    failures: list[Failure] = []
+    tables = {c.table for c in columns}
+    token_columns = [c for c in columns if c.column.lower() == "warranty_token"]
+
+    if not columns:
+        failures.append(Failure(
+            check_id=check_id,
+            description=(
+                f"parse_columns() returned 0 columns for the {label} schema — "
+                f"every column-iterating check below it is passing vacuously"
+            ),
+            location=f"{label}:parse_columns",
+        ))
+        return failures
+
+    if not tables:
+        failures.append(Failure(
+            check_id=check_id,
+            description=f"no CREATE TABLE blocks parsed from the {label} schema",
+            location=f"{label}:parse_columns",
+        ))
+
+    if not token_columns:
+        failures.append(Failure(
+            check_id=check_id,
+            description=(
+                f"parser sees no warranty_token column in the {label} schema, so "
+                f"the TOKEN-* type assertion has nothing to check — this is the "
+                f"exact shape of the 2026-06-06 vacuous-pass defect"
+            ),
+            location=f"{label}:warranty_token",
+        ))
+
+    return failures
+
+
 def run_all_checks(shdr_sql: str, warranty_sql: str, verbose: bool = False) -> CheckResult:
     result = CheckResult()
     shdr_columns = parse_columns(shdr_sql)
@@ -434,12 +506,176 @@ def run_all_checks(shdr_sql: str, warranty_sql: str, verbose: bool = False) -> C
         check_schema_isolation, shdr_sql, warranty_sql)
     run("TABLESET-01:        SHDR table list matches the schema",
         check_shdr_table_set_current, shdr_sql)
+    run("VACUITY-01:         parser sees the SHDR schema",
+        check_parse_not_vacuous, shdr_columns, "shdr", "VACUITY-01")
+    run("VACUITY-02:         parser sees the warranty schema",
+        check_parse_not_vacuous, warranty_columns, "warranty", "VACUITY-02")
 
+    result.scanned = {
+        "shdr_columns": len(shdr_columns),
+        "shdr_tables": len({c.table for c in shdr_columns}),
+        "shdr_token_columns": sum(1 for c in shdr_columns if c.column.lower() == "warranty_token"),
+        "warranty_columns": len(warranty_columns),
+        "warranty_tables": len({c.table for c in warranty_columns}),
+        "warranty_token_columns": sum(1 for c in warranty_columns if c.column.lower() == "warranty_token"),
+    }
     return result
+
+
+def _scanned_line(result: CheckResult) -> str:
+    s = result.scanned
+    if not s:
+        return "scanned: (not recorded)"
+    total = s["shdr_columns"] + s["warranty_columns"]
+    return (
+        f"scanned: {total} column(s) — "
+        "SHDR {shdr_columns} across {shdr_tables} table(s) "
+        "({shdr_token_columns} warranty_token) · "
+        "WARRANTY {warranty_columns} across {warranty_tables} table(s) "
+        "({warranty_token_columns} warranty_token)"
+    ).format(**s)
+
+
+# ---------------------------------------------------------------------------
+# Self-test — prove the gate can fail
+# ---------------------------------------------------------------------------
+#
+# Every check in this file is negative: it passes when nothing prohibited is
+# found. A negative gate is only worth its green tick if it has been shown to
+# go red on a bad input, so CI runs this before trusting the gate itself —
+# the same order scripts/check-js-syntax.sh and scripts/ci-changed-scope.sh use.
+
+# The #118 defect, reproduced verbatim: one alternation branch anchored, the
+# rest floating, evaluated with .search() instead of .match(). Any column line
+# carrying an inline REFERENCES/UNIQUE/PRIMARY KEY modifier matched mid-line and
+# was dropped.
+_REGRESSED_SKIP_RE = re.compile(
+    r"^\s*(--)|(CONSTRAINT|PRIMARY\s+KEY|FOREIGN\s+KEY|UNIQUE|CHECK|REFERENCES|ALTER|CREATE\s+INDEX|\);?\s*$)",
+    re.IGNORECASE,
+)
+
+
+def _columns_as_the_118_bug_would_have_seen(columns: list[ColumnDef]) -> list[ColumnDef]:
+    """Filter a real parse through the #118 predicate, using each column's own
+    raw source line. Not a simulation of the bug — the bug's exact rule, applied
+    to the exact lines it would have been applied to."""
+    return [c for c in columns if not _REGRESSED_SKIP_RE.search(c.raw_line)]
+
+
+def _self_test() -> int:
+    shdr = SHDR_SCHEMA_DEFAULT.read_text(encoding="utf-8")
+    warranty = WARRANTY_SCHEMA_DEFAULT.read_text(encoding="utf-8")
+    shdr_cols = parse_columns(shdr)
+    warranty_cols = parse_columns(warranty)
+    failures: list[str] = []
+
+    def expect_fires(label: str, found: list[Failure]) -> None:
+        if not found:
+            failures.append(f"{label} — mutated input accepted; the check cannot fail")
+
+    def expect_clean(label: str, found: list[Failure]) -> None:
+        if found:
+            details = "; ".join(f.description for f in found[:2])
+            failures.append(f"{label} — production input rejected: {details}")
+
+    # 1. Each check goes red on a mutation of the real schema.
+    expect_fires(
+        "NOJOIN-SHDR-01",
+        check_shdr_no_warranty_tables(shdr + "\nCREATE TABLE warranty_registrations (id INT);\n"),
+    )
+    expect_fires(
+        "NOJOIN-SHDR-02",
+        check_shdr_no_pii_columns(
+            parse_columns("CREATE TABLE devices (\n  owner_email  TEXT NOT NULL,\n);\n")
+        ),
+    )
+    expect_fires(
+        "NOJOIN-WARRANTY-01",
+        check_warranty_no_shdr_tables(warranty + "\nSELECT * FROM fault_log;\n"),
+    )
+    expect_fires(
+        "TOKEN-SHDR-01",
+        check_warranty_token_type(
+            parse_columns("CREATE TABLE devices (\n  warranty_token  TEXT NOT NULL,\n);\n"),
+            "TOKEN-SHDR-01",
+        ),
+    )
+    expect_fires(
+        "TOKEN-WARRANTY-01",
+        check_warranty_token_type(
+            parse_columns("CREATE TABLE registrants (\n  warranty_token  VARCHAR(64) NOT NULL,\n);\n"),
+            "TOKEN-WARRANTY-01",
+        ),
+    )
+    expect_fires(
+        "SCHEMA-ISOLATION-01",
+        check_schema_isolation(
+            shdr + "\nCREATE TABLE x (\n  t BYTEA NOT NULL REFERENCES warranty_registrations(id),\n);\n",
+            warranty,
+        ),
+    )
+    expect_fires(
+        "TABLESET-01",
+        check_shdr_table_set_current(shdr + "\nCREATE TABLE shdr_unguarded_new_table (id INT);\n"),
+    )
+
+    # 2. The vacuity guards fire on the two shapes that produce a silent PASS.
+    expect_fires("VACUITY-01 (empty parse)", check_parse_not_vacuous([], "shdr", "VACUITY-01"))
+    expect_fires(
+        "VACUITY-02 (no warranty_token)",
+        check_parse_not_vacuous(
+            parse_columns("CREATE TABLE registrants (\n  city  TEXT NOT NULL,\n);\n"),
+            "warranty",
+            "VACUITY-02",
+        ),
+    )
+
+    # 3. The historical regression. Under the #118 predicate the token columns
+    #    vanish from the real schema, TOKEN-SHDR-01 still reports clean — and
+    #    VACUITY-01 is what notices. This is the whole point of the guard.
+    regressed = _columns_as_the_118_bug_would_have_seen(shdr_cols)
+    tokens_left = sum(1 for c in regressed if c.column.lower() == "warranty_token")
+    if tokens_left:
+        failures.append(
+            f"#118 reproduction is not reproducing — {tokens_left} warranty_token "
+            f"column(s) survived the regressed predicate, so the scenario below proves nothing"
+        )
+    if check_warranty_token_type(regressed, "TOKEN-SHDR-01"):
+        failures.append(
+            "#118 reproduction — TOKEN-SHDR-01 went red on the regressed parse. "
+            "Expected it to pass vacuously; the scenario no longer models the defect"
+        )
+    expect_fires(
+        "VACUITY-01 catches the #118 regression",
+        check_parse_not_vacuous(regressed, "shdr", "VACUITY-01"),
+    )
+
+    # 4. And none of it fires on the production schemas — a gate that fails on
+    #    good input is as useless as one that passes on bad.
+    expect_clean("production SHDR", check_parse_not_vacuous(shdr_cols, "shdr", "VACUITY-01"))
+    expect_clean(
+        "production warranty",
+        check_parse_not_vacuous(warranty_cols, "warranty", "VACUITY-02"),
+    )
+
+    print("Warranty no-join gate self-test")
+    print(f"  parsed SHDR {len(shdr_cols)} column(s), warranty {len(warranty_cols)} column(s)")
+    print(f"  #118 predicate drops {len(shdr_cols) - len(regressed)} SHDR column(s), "
+          f"leaving {tokens_left} warranty_token")
+    if failures:
+        print(f"\nSELF-TEST FAIL — {len(failures)} assertion(s):")
+        for f in failures:
+            print(f"  {f}")
+        return 1
+    print("  9 check(s) proven to fail on bad input; 2 proven clean on good input")
+    print("SELF-TEST PASS — the gate has teeth.")
+    return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Warranty token no-join CI gate (OI-EMMC2-06)")
+    parser.add_argument("--self-test", action="store_true",
+                        help="Prove every check fails on a mutated input, then exit")
     parser.add_argument("--shdr-schema", type=Path, default=SHDR_SCHEMA_DEFAULT,
                         help="Path to SHDR fleet DB schema SQL file")
     parser.add_argument("--warranty-schema", type=Path, default=WARRANTY_SCHEMA_DEFAULT,
@@ -447,6 +683,9 @@ def main() -> int:
     parser.add_argument("--verbose", "-v", action="store_true",
                         help="Show all check results including PASS")
     args = parser.parse_args()
+
+    if args.self_test:
+        return _self_test()
 
     if not args.shdr_schema.exists():
         print(f"ERROR: SHDR schema file not found: {args.shdr_schema}")
@@ -473,7 +712,8 @@ def main() -> int:
         print()
 
     if result.failures:
-        print(f"RESULT: FAIL — {len(result.failures)} violation(s) found\n")
+        print(f"RESULT: FAIL — {len(result.failures)} violation(s) found")
+        print(_scanned_line(result) + "\n")
         for f in result.failures:
             print(f"  [{f.check_id}] {f.description}")
             print(f"         at {f.location}")
@@ -484,6 +724,7 @@ def main() -> int:
 
     checks_run = len(result.passed)
     print(f"RESULT: PASS — {checks_run} check(s) passed, 0 violations")
+    print(_scanned_line(result))
     print()
     print("Warranty token no-join gate is CLEARED.")
     print("OI-EMMC2-06: PASS — this result must be recorded in NP-COORD-001.")

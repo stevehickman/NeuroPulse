@@ -24,6 +24,8 @@
  *    against a figure whose uncertainty is visible on the same line.
  *
  *   bun scripts/check-power-source-coverage.ts
+ *
+ * CI-Kind: report
  */
 import { analyse, type Row } from "./check-pbm-power";
 
