@@ -1,4 +1,4 @@
-name: Tooling CI (scripts, simulator, python, consent, redaction)
+name: Tooling CI (scripts, doc naming, simulator, python, consent, redaction)
 
 # The code surfaces NP-SW-CI-001 left uncovered.
 #
@@ -27,9 +27,13 @@ name: Tooling CI (scripts, simulator, python, consent, redaction)
 # These are cheap gates, and cheap gates earn trust only by being honest about
 # their reach:
 #
-#   scripts    tsc --noEmit over scripts/**/*.ts, plus check-doc-filenames.ts
-#              run as a real gate. Type correctness and one document-naming
-#              invariant. NOT behaviour: nothing here executes the generators.
+#   scripts    tsc --noEmit over scripts/**/*.ts, plus check-gate-coverage.ts
+#              run as a real gate. Type correctness, and the meta-rule that every
+#              gate declares its kind and has a falsification CI runs.
+#              NOT behaviour: nothing here executes the generators.
+#   doc-naming check-doc-filenames.ts run as a real gate: NP-CONV-001 §4.0 over
+#              the whole document set, both directions. Its own job with its own
+#              relevance list — see Scoping.
 #   simulator  Each file parses, in the module system it is actually loaded in.
 #              Nothing more. No lint, no types, no runtime.
 #   python     Each file compiles to bytecode. Syntax only.
@@ -48,6 +52,21 @@ name: Tooling CI (scripts, simulator, python, consent, redaction)
 # "Expected — waiting for status" and blocks the PR forever. The relevance lists
 # live in the `changes` job and the jobs gate on `if:`, so an out-of-scope job
 # reports `skipped`, which satisfies a required check.
+#
+# The document-naming guard has its OWN job and its OWN list, and that list
+# carries `docs/**` — a second NP-SW-CI-001 §5.0 accepted exception, alongside
+# web-ci.yml's section-ref guard, for the identical reason: a guard that cannot
+# see the edit that breaks it is not a guard. check-doc-filenames.ts scans every
+# .md/.docx/.pdf in docs/ and docs/superseded/, so the only change that can
+# violate either half of §4.0 is a document added, renamed or moved — and no list
+# in this workflow could see one. Measured on PR #306, a docs-only PR adding five
+# files under docs/reference/: the guard's job skipped.
+#
+# It is a separate job rather than an entry on NP_SCOPE_SCRIPTS because the two
+# surfaces genuinely differ. `tsc -p tsconfig.scripts.json` is broken by edits to
+# scripts/**, and by nothing under docs/; the naming guard is broken by edits to
+# docs/**, and by nothing else in scripts/ but its own source. Merging the lists
+# would drag a type-check over every docs commit to buy nothing.
 
 on:
   push:
@@ -65,12 +84,13 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       scripts: ${{ steps.scope.outputs.scripts }}
+      docnaming: ${{ steps.scope.outputs.docnaming }}
       simulator: ${{ steps.scope.outputs.simulator }}
       python: ${{ steps.scope.outputs.python }}
       consent: ${{ steps.scope.outputs.consent }}
       redaction: ${{ steps.scope.outputs.redaction }}
     env:
-      # Five independent surfaces, five lists. A simulator-only change should
+      # Six independent surfaces, six lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
       # are stripped by ci-changed-scope.sh, so reasoning lives beside entries.
       NP_SCOPE_SCRIPTS: |
@@ -78,6 +98,16 @@ jobs:
         tsconfig.scripts.json
         package.json
         bun.lock
+        .github/workflows/tooling-ci.yml
+      # The document-naming guard, on its own list. `docs/**` is the whole point:
+      # the edit that breaks NP-CONV-001 §4.0 is a document added, renamed or
+      # moved, and no other list in this file can see one. The matcher's
+      # `prefix/**` shape makes `docs/**` cover `docs/superseded/**` too, which
+      # is the second directory the guard scans — asserted below rather than
+      # assumed. Deliberate NP-SW-CI-001 §5.0 exception; see the header.
+      NP_SCOPE_DOCNAMING: |
+        docs/**
+        scripts/check-doc-filenames.ts
         .github/workflows/tooling-ci.yml
       NP_SCOPE_SIMULATOR: |
         simulator/**
@@ -126,6 +156,7 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s\n' "$NP_SCOPE_SCRIPTS"   > scope.scripts.paths
+          printf '%s\n' "$NP_SCOPE_DOCNAMING" > scope.docnaming.paths
           printf '%s\n' "$NP_SCOPE_SIMULATOR" > scope.simulator.paths
           printf '%s\n' "$NP_SCOPE_PYTHON"    > scope.python.paths
           printf '%s\n' "$NP_SCOPE_CONSENT"   > scope.consent.paths
@@ -137,7 +168,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths; do
+          for f in scope.scripts.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -157,6 +188,16 @@ jobs:
           assert scope.scripts.paths   true  scripts/pbm-optical-psf.ts
           assert scope.scripts.paths   true  tsconfig.scripts.json
           assert scope.scripts.paths   false simulator/js/ui.js
+          # The §5.0 exception, asserted. The first case is the whole reason this
+          # list exists — a docs-only PR MUST run the naming guard, which is what
+          # PR #306 did not. The second proves `docs/**` reaches the guard's
+          # SECOND scan directory: the matcher's prefix shape covers a nested
+          # path, and if that ever stopped holding, half the population would
+          # leave scope while the job still reported green.
+          assert scope.docnaming.paths true  docs/reference/competitive-position.md
+          assert scope.docnaming.paths true  docs/superseded/np_risk_001.docx
+          assert scope.docnaming.paths true  scripts/check-doc-filenames.ts
+          assert scope.docnaming.paths false app/web/src/main.ts
           assert scope.simulator.paths true  simulator/server/index.js
           assert scope.simulator.paths true  simulator/js/ui.js
           assert scope.simulator.paths false app/web/src/main.ts
@@ -223,13 +264,14 @@ jobs:
             echo "$1=${relevant}" | tee -a "$GITHUB_OUTPUT"
           }
           emit scripts   scope.scripts.paths
+          emit docnaming scope.docnaming.paths
           emit simulator scope.simulator.paths
           emit python    scope.python.paths
           emit consent   scope.consent.paths
           emit redaction scope.redaction.paths
 
   scripts-check:
-    name: scripts/ type-check + document-naming guard
+    name: scripts/ type-check + gate-coverage guard
     runs-on: ubuntu-latest
     needs: changes
     # Skip ONLY on a definite negative — see firmware-cross-build.yml for the
@@ -253,21 +295,10 @@ jobs:
       - name: TypeScript type-check (scripts/)
         run: bun x tsc -p tsconfig.scripts.json
 
-      # A real guard that nothing was running. It verifies NP-CONV-001 §4.0 over
-      # the whole document set: every serialed document's filename matches its
-      # serial, and every serial-shaped filename belongs to a serialed document.
-      # Before the guard, the guard's falsification. NP-CONV-001 §4.0.1a said
-      # this check "was falsified in both directions" — done by hand, kept
-      # nowhere. Now it is an artifact that re-runs.
-      - name: Guard self-test (prove rules A and B can fail)
-        run: bun scripts/check-doc-filenames.ts --self-test
-
-      - name: Document filenames match their serials (NP-CONV-001 §4.0)
-        run: bun scripts/check-doc-filenames.ts
-
-      # Enforces the rule the two steps above are an instance of: every gate in
+      # The meta-rule the doc-naming job below is an instance of: every gate in
       # scripts/ and ci/ declares what it is, and every gate has a falsification
-      # that CI actually runs.
+      # that CI actually runs. It stays on the scripts list because what breaks
+      # it is a new or edited check script, or a workflow that stops running one.
       - name: Gate-coverage self-test
         run: bun scripts/check-gate-coverage.ts --self-test
 
@@ -279,6 +310,38 @@ jobs:
       # from its first commit and be disabled. It turns on with the OI-SESPWR-01..03
       # remediation (OI-SESPWR-05). The script is still type-checked above, which
       # is the part that was missing.
+
+  doc-naming:
+    name: document filenames match their serials (NP-CONV-001 §4.0)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.docnaming != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: the checker imports node builtins only and spawns
+      # nothing but itself. Same reasoning as consent-reachability below.
+
+      # A real guard that nothing was running, and then a guard that ran only
+      # when scripts/ changed — which is never, on the one kind of PR that can
+      # break it. It verifies NP-CONV-001 §4.0 over the whole document set:
+      # every serialed document's filename matches its serial (A), and every
+      # serial-shaped filename belongs to a serialed document (B).
+      #
+      # Before the guard, the guard's falsification. NP-CONV-001 §4.0.1a said
+      # this check "was falsified in both directions" — done by hand, kept
+      # nowhere. Now it is an artifact that re-runs.
+      - name: Guard self-test (prove rules A and B can fail)
+        run: bun scripts/check-doc-filenames.ts --self-test
+
+      - name: Document filenames match their serials (NP-CONV-001 §4.0)
+        run: bun scripts/check-doc-filenames.ts
 
   simulator-syntax:
     name: simulator/ parses (ESM + CJS)
