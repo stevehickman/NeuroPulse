@@ -27,10 +27,12 @@ name: Tooling CI (scripts, doc naming, simulator, python, consent, redaction)
 # These are cheap gates, and cheap gates earn trust only by being honest about
 # their reach:
 #
-#   scripts    tsc --noEmit over scripts/**/*.ts, plus check-gate-coverage.ts
-#              run as a real gate. Type correctness, and the meta-rule that every
-#              gate declares its kind and has a falsification CI runs.
-#              NOT behaviour: nothing here executes the generators.
+#   scripts    tsc --noEmit over scripts/**/*.ts. Type correctness and nothing
+#              else. NOT behaviour: nothing here executes the generators.
+#   gate-cov   check-gate-coverage.ts: every gate in scripts/ and ci/ declares
+#              its kind, names the population it scans, and has a falsification
+#              that a workflow actually runs. A meta-gate over CI itself, so its
+#              list is scripts/ + ci/ + EVERY workflow — see Scoping.
 #   doc-naming check-doc-filenames.ts run as a real gate: NP-CONV-001 §4.0 over
 #              the whole document set, both directions. Its own job with its own
 #              relevance list — see Scoping.
@@ -67,6 +69,21 @@ name: Tooling CI (scripts, doc naming, simulator, python, consent, redaction)
 # scripts/**, and by nothing under docs/; the naming guard is broken by edits to
 # docs/**, and by nothing else in scripts/ but its own source. Merging the lists
 # would drag a type-check over every docs commit to buy nothing.
+#
+# The gate-coverage meta-gate is scoped the same way, and it is NOT a §5.0
+# exception — `ci/**` and `.github/workflows/**` are precisely what it reads, so
+# listing them is build-only-what-changed, not a departure from it. It shipped on
+# NP_SCOPE_SCRIPTS, which sees neither: a new `ci/test_*.py` with no CI-Kind, or
+# a workflow edit that drops the step running a gate, is exactly what this gate
+# exists to catch and exactly what it could not see. Same defect shape as the
+# doc-naming one above, one surface over.
+#
+# `docs/**` is deliberately NOT on the gate-coverage list, though its population
+# probe does run check-doc-filenames.ts against the real tree and would fail if
+# the document set were bad. That failure is a consequence, not a detection: any
+# change that makes a gate G red is in scope for G's OWN job, which reports it in
+# G's own words. Adding docs/** here would fail two jobs for one violation, one
+# of them with the wrong message.
 
 on:
   push:
@@ -84,13 +101,14 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       scripts: ${{ steps.scope.outputs.scripts }}
+      gatecov: ${{ steps.scope.outputs.gatecov }}
       docnaming: ${{ steps.scope.outputs.docnaming }}
       simulator: ${{ steps.scope.outputs.simulator }}
       python: ${{ steps.scope.outputs.python }}
       consent: ${{ steps.scope.outputs.consent }}
       redaction: ${{ steps.scope.outputs.redaction }}
     env:
-      # Six independent surfaces, six lists. A simulator-only change should
+      # Seven independent surfaces, seven lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
       # are stripped by ci-changed-scope.sh, so reasoning lives beside entries.
       NP_SCOPE_SCRIPTS: |
@@ -99,6 +117,16 @@ jobs:
         package.json
         bun.lock
         .github/workflows/tooling-ci.yml
+      # The gate-coverage meta-gate reads three surfaces and must be triggerable
+      # from all three. `ci/**` carries four of the ten gates; every workflow is
+      # read to answer "does anything actually RUN this gate, and its self-test?"
+      # — so a workflow that quietly drops a step is the edit most worth catching,
+      # and NP_SCOPE_SCRIPTS could see none of it. `.github/workflows/**` also
+      # subsumes this file, so it is not listed twice.
+      NP_SCOPE_GATECOV: |
+        scripts/**
+        ci/**
+        .github/workflows/**
       # The document-naming guard, on its own list. `docs/**` is the whole point:
       # the edit that breaks NP-CONV-001 §4.0 is a document added, renamed or
       # moved, and no other list in this file can see one. The matcher's
@@ -156,6 +184,7 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s\n' "$NP_SCOPE_SCRIPTS"   > scope.scripts.paths
+          printf '%s\n' "$NP_SCOPE_GATECOV"   > scope.gatecov.paths
           printf '%s\n' "$NP_SCOPE_DOCNAMING" > scope.docnaming.paths
           printf '%s\n' "$NP_SCOPE_SIMULATOR" > scope.simulator.paths
           printf '%s\n' "$NP_SCOPE_PYTHON"    > scope.python.paths
@@ -168,7 +197,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -188,6 +217,17 @@ jobs:
           assert scope.scripts.paths   true  scripts/pbm-optical-psf.ts
           assert scope.scripts.paths   true  tsconfig.scripts.json
           assert scope.scripts.paths   false simulator/js/ui.js
+          # The two surfaces NP_SCOPE_SCRIPTS could not see, and which are the
+          # whole reason this list exists. The workflow case is the sharp one: a
+          # gate stops being run by an edit to the workflow that ran it, and
+          # before this list only tooling-ci.yml itself was in scope.
+          assert scope.gatecov.paths   true  ci/test_shdr_schema.py
+          assert scope.gatecov.paths   true  .github/workflows/web-ci.yml
+          assert scope.gatecov.paths   true  scripts/check-gate-coverage.ts
+          # docs/** is deliberately absent — see the header. A document that
+          # breaks check-doc-filenames.ts also fails doc-naming, which IS in
+          # scope for it and says so in that gate's own words.
+          assert scope.gatecov.paths   false docs/np_dhf_001.md
           # The §5.0 exception, asserted. The first case is the whole reason this
           # list exists — a docs-only PR MUST run the naming guard, which is what
           # PR #306 did not. The second proves `docs/**` reaches the guard's
@@ -264,6 +304,7 @@ jobs:
             echo "$1=${relevant}" | tee -a "$GITHUB_OUTPUT"
           }
           emit scripts   scope.scripts.paths
+          emit gatecov   scope.gatecov.paths
           emit docnaming scope.docnaming.paths
           emit simulator scope.simulator.paths
           emit python    scope.python.paths
@@ -271,7 +312,7 @@ jobs:
           emit redaction scope.redaction.paths
 
   scripts-check:
-    name: scripts/ type-check + gate-coverage guard
+    name: scripts/ type-check
     runs-on: ubuntu-latest
     needs: changes
     # Skip ONLY on a definite negative — see firmware-cross-build.yml for the
@@ -295,22 +336,42 @@ jobs:
       - name: TypeScript type-check (scripts/)
         run: bun x tsc -p tsconfig.scripts.json
 
-      # The meta-rule the doc-naming job below is an instance of: every gate in
-      # scripts/ and ci/ declares what it is, and every gate has a falsification
-      # that CI actually runs. It stays on the scripts list because what breaks
-      # it is a new or edited check script, or a workflow that stops running one.
-      - name: Gate-coverage self-test
-        run: bun scripts/check-gate-coverage.ts --self-test
-
-      - name: Every gate declares its kind and is proven to fail
-        run: bun scripts/check-gate-coverage.ts
-
       # NOT run here: `check-pbm-power.ts --strict`. Its own header records why —
       # 18 of 20 authored protocols are over budget today, so the gate would fail
       # from its first commit and be disabled. It turns on with the OI-SESPWR-01..03
       # remediation (OI-SESPWR-05). The script is still type-checked above, which
       # is the part that was missing.
 
+  gate-coverage:
+    name: every gate declares its kind and is proven to fail
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.gatecov != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`. The meta-gate imports node builtins only, and its
+      # population probe RUNS each gate — measured: every probed gate is clean
+      # against an empty node_modules, so the install bought nothing here. If a
+      # gate ever grows a dependency the probe fails loudly ("exited N on a clean
+      # tree"), which is the direction a missing install should fail in.
+
+      # The meta-gate binds itself, so its falsification runs before it does.
+      - name: Gate-coverage self-test
+        run: bun scripts/check-gate-coverage.ts --self-test
+
+      # Split out of scripts-check on 2026-09-01. It had ridden NP_SCOPE_SCRIPTS
+      # since #299, which is `scripts/**` + this workflow — so a new ci/test_*.py
+      # with no CI-Kind, or ANY other workflow dropping the step that runs a
+      # gate, was invisible to the one gate whose job is to notice exactly that.
+      - name: Every gate declares its kind and is proven to fail
+        run: bun scripts/check-gate-coverage.ts
   doc-naming:
     name: document filenames match their serials (NP-CONV-001 §4.0)
     runs-on: ubuntu-latest
