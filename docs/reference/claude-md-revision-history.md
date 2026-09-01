@@ -24,6 +24,14 @@ the 663 inbound `CLAUDE.md §N` citations in firmware, app code and the DHF stil
 regression `scripts/check-section-refs.ts` exists to prevent. Content was relocated verbatim, not
 edited.
 
+The three `docs/status/` logs gained a "How to read this file" block with grep recipes, and
+`completed-decisions.md` was **reordered chronologically** by each entry's own date (2026-05-09 →
+2026-08-31), with the 30 entries carrying no date of their own collected in a labelled block ahead
+of the timeline in their previous relative order. That reordering is a one-time exception to the
+file's append-only rule, taken by principal direction: no entry's text changed and none was added or
+removed — the entry set was asserted identical before and after, and the previous order is in git
+history.
+
 ## Earlier revisions
 
 > **Rev 39 (2026-08-16) — RETAIL PRICING UNLOCKED by principal direction. No price is set by this revision.** Taken against Rev 38's finding that all four T1 configurations are gross-margin negative. Unlocking the constraint turns the arithmetic around — GM% becomes the input, retail the output — and yields a **ladder, not a number**, published as new **§2.1a**: break-even Home Standard **$1,196–1,278**, target margin **$1,869–1,997** (a 2.20–2.35× increase on $849); Core $955–1,121; Home Lite $1,445–1,587; Home Premium $2,475–2,637. **The six configurations keep the prices currently in force** — choosing new ones is a separate commercial decision, and §2.1a records four things to weigh first. **Break-even binds before margin does**: Home Standard cannot be sold below ~$1,196 at any margin, already 1.4× its current price. **Three consequences the lock was concealing.** (i) The T1 and T2 ladders **collide** — Home Premium at $2,475–2,637 against a Pro Entry at $4,999 makes §1's two-tier structure one tier with a regulatory footnote (**OI-COST-08**). (ii) **Pro is where the *target*, not the cost, is the thing to question** — both Pro rows are profitable today (+$2,499, +$10,163/unit) and only holding 73%/81% demands $9K and $20K; this is **not** a mandate to raise T2 pricing. (iii) **Every competitive price claim is live again** — `docs/reference/competitive-position.md`'s comparisons were safe *because retail was locked*, and that justification is gone; at $1,997 Home Standard is ~40% of a ~$5K Vielight, not 17%, and becomes a direct Sens.ai price peer (**OI-COST-09**). **Binding sequence: `OI-HEXTILE-06` must be decided BEFORE any price is set** (**OI-COST-10**) — silicon PD plus a 20-tile build moves Home Standard's target-margin retail $1,997 → ~$1,383, so pricing first prices against a cost that decision invalidates. All §2.1a figures inherit §2.1's floor status: term **U** is still excluded, so this is the *least* retail would have to move. §2.2 charger policy remains unaffected — it is keyed to peak draw, not price. See `docs/np_cost_001.md` Rev 2 §8.
