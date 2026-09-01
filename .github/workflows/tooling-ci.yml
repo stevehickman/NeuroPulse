@@ -55,28 +55,29 @@ name: Tooling CI (scripts, doc naming, simulator, python, consent, redaction)
 # live in the `changes` job and the jobs gate on `if:`, so an out-of-scope job
 # reports `skipped`, which satisfies a required check.
 #
-# The document-naming guard has its OWN job and its OWN list, and that list
-# carries `docs/**` — a second NP-SW-CI-001 §5.0 accepted exception, alongside
-# web-ci.yml's section-ref guard, for the identical reason: a guard that cannot
-# see the edit that breaks it is not a guard. check-doc-filenames.ts scans every
-# .md/.docx/.pdf in docs/ and docs/superseded/, so the only change that can
-# violate either half of §4.0 is a document added, renamed or moved — and no list
-# in this workflow could see one. Measured on PR #306, a docs-only PR adding five
-# files under docs/reference/: the guard's job skipped.
 #
-# It is a separate job rather than an entry on NP_SCOPE_SCRIPTS because the two
-# surfaces genuinely differ. `tsc -p tsconfig.scripts.json` is broken by edits to
-# scripts/**, and by nothing under docs/; the naming guard is broken by edits to
-# docs/**, and by nothing else in scripts/ but its own source. Merging the lists
-# would drag a type-check over every docs commit to buy nothing.
+# ── One rule behind all three guard jobs ──────────────────────────────────────
+# A gate's relevance list must cover the population its CI-Scans declares. Three
+# gates here violated that, each found by hand:
 #
-# The gate-coverage meta-gate is scoped the same way, and it is NOT a §5.0
-# exception — `ci/**` and `.github/workflows/**` are precisely what it reads, so
-# listing them is build-only-what-changed, not a departure from it. It shipped on
-# NP_SCOPE_SCRIPTS, which sees neither: a new `ci/test_*.py` with no CI-Kind, or
-# a workflow edit that drops the step running a gate, is exactly what this gate
-# exists to catch and exactly what it could not see. Same defect shape as the
-# doc-naming one above, one surface over.
+#   check-doc-filenames  scans docs/ + docs/superseded/   saw scripts/** only
+#   check-gate-coverage  scans scripts/, ci/, workflows/  saw scripts/** + this file
+#   check-section-refs   scans the tracked tree           saw web-ci.yml's list
+#
+# Each now has its own job and a list that matches what it reads. NONE of them is
+# a §5.0 exception, and the earlier framing of doc-naming as "a second accepted
+# exception alongside web-ci" was wrong: docs/** IS that gate's population, so
+# listing it is build-only-what-changed. The exception only ever existed because
+# a repo-wide guard was bolted onto a BUILD job whose surface was something else
+# — which is what put CLAUDE.md, docs/**, app/android/** and firmware/** on the
+# WEB build's list. Splitting the guards out removed the exception rather than
+# adding one, and web-ci.yml's list has narrowed back to the web surface.
+#
+# section-refs is the limiting case and has NO relevance gate at all: it walks
+# from the repository root, so its population is the tree and any enumerated
+# list would be narrower than what it scans. Running it unconditionally is the
+# honest form; writing `**` and matching it every time would be the same thing
+# dressed as scoping.
 #
 # `docs/**` is deliberately NOT on the gate-coverage list, though its population
 # probe does run check-doc-filenames.ts against the real tree and would fail if
@@ -132,7 +133,7 @@ jobs:
       # moved, and no other list in this file can see one. The matcher's
       # `prefix/**` shape makes `docs/**` cover `docs/superseded/**` too, which
       # is the second directory the guard scans — asserted below rather than
-      # assumed. Deliberate NP-SW-CI-001 §5.0 exception; see the header.
+      # assumed. NOT a §5.0 exception — docs/ IS this gate's population; see header.
       NP_SCOPE_DOCNAMING: |
         docs/**
         scripts/check-doc-filenames.ts
@@ -228,12 +229,12 @@ jobs:
           # breaks check-doc-filenames.ts also fails doc-naming, which IS in
           # scope for it and says so in that gate's own words.
           assert scope.gatecov.paths   false docs/np_dhf_001.md
-          # The §5.0 exception, asserted. The first case is the whole reason this
-          # list exists — a docs-only PR MUST run the naming guard, which is what
-          # PR #306 did not. The second proves `docs/**` reaches the guard's
-          # SECOND scan directory: the matcher's prefix shape covers a nested
-          # path, and if that ever stopped holding, half the population would
-          # leave scope while the job still reported green.
+          # Asserted because docs/ is this gate's declared population. The first
+          # case is the whole reason this list exists — a docs-only PR MUST run the
+          # naming guard, which is what PR #306 did not. The second proves docs/**
+          # reaches the guard's SECOND scan directory: the matcher's prefix shape
+          # covers a nested path, and if that stopped holding half the population
+          # would leave scope while the job still reported green.
           assert scope.docnaming.paths true  docs/reference/competitive-position.md
           assert scope.docnaming.paths true  docs/superseded/np_risk_001.docx
           assert scope.docnaming.paths true  scripts/check-doc-filenames.ts
@@ -403,6 +404,59 @@ jobs:
 
       - name: Document filenames match their serials (NP-CONV-001 §4.0)
         run: bun scripts/check-doc-filenames.ts
+
+  section-refs:
+    name: CLAUDE.md section citations resolve (repo-wide)
+    runs-on: ubuntu-latest
+    # NO `needs: changes`, and NO relevance gate — the only job here without one,
+    # and the reason is the rule the other two guards were just fixed against.
+    #
+    # check-section-refs.ts walks from the repository ROOT, skipping only build
+    # and vendor directories, and reads every `.md .c .h .ts .tsx .swift .js
+    # .npps .kt .cs .yml` it finds. Its declared population IS the tracked tree.
+    # Any enumerated list is therefore narrower than what it scans, which is
+    # precisely the defect fixed above in two other places — and it had already
+    # happened here: on web-ci.yml's list, 34 tracked files carrying a literal
+    # `CLAUDE.md §N` citation were out of scope, almost all under app/ios/ and
+    # app/NeurOneShared/, so an iOS-only PR did not run this guard (OI-SWCI-38).
+    #
+    # Writing `**` as a relevance list and matching it every time would be the
+    # same thing dressed as scoping. Running unconditionally is the honest form,
+    # and §5.0 is satisfied on its own terms: the change surface for a repo-wide
+    # guard is the repo.
+    #
+    # It is affordable because it is now a job of its own. It previously rode the
+    # `web-ci` job, which is why CLAUDE.md, docs/**, app/android/** and
+    # firmware/** sat on the WEB build's relevance list — every docs, firmware or
+    # Android commit ran `bun install`, tsc, vitest and a vite build to reach two
+    # script steps. Splitting it out costs a checkout and a bun; it SAVES a full
+    # web build and test run on every one of those commits.
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # No `bun install`: the checker walks the tree with node builtins.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # #249 falsified this checker on three injected regressions before wiring
+      # it in, by hand, and kept none of it. This is that falsification made
+      # durable, and it runs before the check it covers.
+      - name: Section-ref guard self-test
+        run: bun scripts/check-section-refs.ts --self-test
+
+      # CLAUDE.md Rev 33 relocated sections 7-15 into docs/status/ and
+      # docs/reference/ and left every inbound pointer intact — 100 citations in
+      # firmware headers, the DHF, Android sources and design specs stopped
+      # resolving and nothing noticed for a revision. Those citations are the
+      # regulatory record. The check re-derives valid section numbers from
+      # CLAUDE.md's own headings, so the next reorganization fails here instead
+      # of rotting silently. It also enforces the no-space §N form, which is what
+      # let the first audit of this miscount 94 instead of 100.
+      - name: Section refs resolve and use the canonical form
+        run: bun scripts/check-section-refs.ts
 
   simulator-syntax:
     name: simulator/ parses (ESM + CJS)

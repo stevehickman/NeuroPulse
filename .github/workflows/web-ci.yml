@@ -45,19 +45,15 @@ jobs:
         scripts/sync-locales.ts
         scripts/sync-socket-map.ts
         scripts/test-lateralization-audit.sh
-        # Section-ref guard: it must fire on the edits it guards. The guard scans
-        # the whole repo, so this list must cover everywhere a CLAUDE.md citation
-        # can live — not just app/web/. A reorganization touches CLAUDE.md and
-        # docs/ and nothing under app/web/; and five of the 100 dangling refs it
-        # caught were in app/android Kotlin sources, which no earlier grep even
-        # scanned. NP-SW-CI-001 §5.0 records this as a deliberate, accepted
-        # exception to the build-only-what-changed principle: a guard that cannot
-        # see the edit that breaks it is not a guard.
-        CLAUDE.md
-        docs/**
-        app/android/**
-        firmware/**
-        scripts/check-section-refs.ts
+        # sync-locales.ts --check reads the committed iOS String Catalog as well
+        # as locales/*.json, and the catalogue is a SECOND source of truth that
+        # has already drifted once — 26 keys existed only there, 18 referenced by
+        # iOS source, and regenerating would have reverted the NP-HFE-002
+        # rewording. An edit to it must therefore run that check; it was not in
+        # scope for anything until 2026-09-01. Named exactly rather than as
+        # app/ios/**, because the file is the dependency and --check-tree will
+        # fail here if it ever moves.
+        app/ios/NeurOne/Localizable.xcstrings
         scripts/ci-changed-scope.sh
     steps:
       - name: Checkout
@@ -71,9 +67,12 @@ jobs:
       - name: Write the relevance list
         run: printf '%s\n' "$NP_SCOPE_PATHS" > scope.paths
 
-      # Assert THIS list. The first case is the §5.0 accepted exception: a
-      # docs-only change MUST still run this workflow, because the section-ref
-      # guard is what a docs reorganization breaks.
+      # Assert THIS list. The first two cases are the 2026-09-01 narrowing: a
+      # docs-only or CLAUDE.md-only change must NO LONGER run the web build,
+      # because the guard that justified it moved to its own job. They were
+      # `true` before that date, and flipping them was the point of the change,
+      # not a regression — the section-ref guard now runs on those commits from
+      # tooling-ci.yml, unconditionally.
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `firmware/bootlaoder/**` would silently take the module out
       # of scope and every firmware job would skip while every check went green.
@@ -92,9 +91,12 @@ jobs:
             fi
             echo "ok: $2 → $got"
           }
-          assert true  docs/np_sw_ci_001.md
-          assert true  CLAUDE.md
+          assert false docs/np_sw_ci_001.md
+          assert false CLAUDE.md
           assert true  app/web/src/main.ts
+          # The .xcstrings is an input to sync-locales.ts --check and must reach
+          # it; a sibling Swift file is not and must not.
+          assert true  app/ios/NeurOne/Localizable.xcstrings
           assert false app/ios/NeurOne/ContentView.swift
 
       - name: Changed files
@@ -212,32 +214,6 @@ jobs:
       - name: Locale catalogues in sync with canonical locales/*.json
         working-directory: .
         run: bun scripts/sync-locales.ts --check
-
-      # CLAUDE.md Rev 33 relocated sections 7-15 into docs/status/ and
-      # docs/reference/ and left every inbound pointer intact — 100 citations in
-      # firmware headers, the DHF, Android sources and design specs stopped
-      # resolving and nothing noticed for a revision. Those citations are the
-      # regulatory record. The check re-derives valid section numbers from
-      # CLAUDE.md's own headings, so the next reorganization fails here instead of
-      # rotting silently. It also enforces the no-space §N form, which is what let
-      # the first audit of this miscount 94 instead of 100.
-      #
-      # The `paths:` filter above is deliberately wider than the rest of this
-      # workflow needs (CLAUDE.md, docs/**, app/android/**, firmware/**): the guard
-      # scans the whole repo, so it has to be triggerable from anywhere a citation
-      # can live. The cost is that this web job also runs on docs- and
-      # firmware-only commits. Accepted on purpose — a guard that cannot see the
-      # edit that breaks it is not a guard.
-      # #249 falsified this checker on three injected regressions before wiring
-      # it in, by hand, and kept none of it. This is that falsification made
-      # durable, and it runs before the check it covers.
-      - name: Section-ref guard self-test
-        working-directory: .
-        run: bun scripts/check-section-refs.ts --self-test
-
-      - name: Section refs resolve and use the canonical form
-        working-directory: .
-        run: bun scripts/check-section-refs.ts
 
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .
