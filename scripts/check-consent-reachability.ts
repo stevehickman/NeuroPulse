@@ -41,6 +41,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-consent-reachability.ts --self-test
  * CI-Scans: every public ConsentStore method on iOS and Android, and its callers
+ * CI-Scan-Paths: app/ios/** app/android/**
  */
 import { readFileSync, readdirSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";

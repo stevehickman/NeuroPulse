@@ -45,6 +45,7 @@
  * CI-Self-Test: bun scripts/check-gate-coverage.ts --self-test
  * CI-Scan-Probe: external — probing this file would re-enter the prober
  * CI-Scans: every check/test script in scripts/ and ci/
+ * CI-Scan-Paths: scripts/** ci/** .github/workflows/**
  */
 import { readFileSync, readdirSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from "fs";
 import { join } from "path";

@@ -33,6 +33,7 @@ CI-Kind: gate
 CI-Self-Test-Reads-Tree: ci/test_shdr_schema_selftest.py imports this module and drives its checks against the PRODUCTION schema — its vacuity guard asserts the real accel table is being seen, which is the half of the claim a fixture cannot make
 CI-Self-Test: python3 ci/test_shdr_schema_selftest.py
 CI-Scans: column definitions in the SHDR fleet schema
+CI-Scan-Paths: ci/shdr/shdr_fleet_schema.sql firmware/shdr/include/np_accel_shdr.h
 """
 
 from __future__ import annotations

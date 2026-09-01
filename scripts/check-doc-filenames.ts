@@ -16,6 +16,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-doc-filenames.ts --self-test
  * CI-Scans: every .md/.docx/.pdf in docs/ and docs/superseded/
+ * CI-Scan-Paths: docs/**
  */
 import { readdirSync, readFileSync, statSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from "fs";
 import { join, basename, extname } from "path";

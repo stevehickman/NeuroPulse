@@ -59,6 +59,7 @@
 # CI-Self-Test: scripts/ci-changed-scope.sh --self-test
 # CI-Scan-Probe: external — the matcher runs against relevance lists a CI job generates
 # CI-Scans: workflow relevance lists against the changed-file set
+# CI-Scan-Paths: .github/workflows/**
 
 set -euo pipefail
 

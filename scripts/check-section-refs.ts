@@ -35,6 +35,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-section-refs.ts --self-test
  * CI-Scans: CLAUDE.md section citations in every tracked file of 11 source extensions
+ * CI-Scan-Paths: <tree>
  */
 
 import { readFileSync, readdirSync, statSync, mkdirSync, mkdtempSync, writeFileSync, rmSync } from "fs";

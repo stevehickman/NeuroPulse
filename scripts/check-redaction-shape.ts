@@ -48,6 +48,7 @@
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-redaction-shape.ts --self-test
  * CI-Scans: declared SHDR reporting paths, against the classified status bits
+ * CI-Scan-Paths: firmware/**
  */
 import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import { join } from "path";

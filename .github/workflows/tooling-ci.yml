@@ -103,6 +103,7 @@ jobs:
     outputs:
       scripts: ${{ steps.scope.outputs.scripts }}
       gatecov: ${{ steps.scope.outputs.gatecov }}
+      ciscope: ${{ steps.scope.outputs.ciscope }}
       docnaming: ${{ steps.scope.outputs.docnaming }}
       simulator: ${{ steps.scope.outputs.simulator }}
       python: ${{ steps.scope.outputs.python }}
@@ -128,6 +129,20 @@ jobs:
         scripts/**
         ci/**
         .github/workflows/**
+      # The scope-drift guard reads FOUR surfaces and must be triggerable from
+      # all four: every workflow (the relevance lists themselves), firmware/
+      # (the CMake build graph those lists are compared against), and scripts/ +
+      # ci/ (the CI-Scan-Paths declarations of every gate). This is the widest
+      # list in the file and it is still build-only-what-changed — those four
+      # ARE its population, and a list narrower than what a guard reads is the
+      # exact defect this guard exists to find. It is affordable because the job
+      # is a checkout, a bun and two file walks: no install, no compiler, no
+      # cmake. Note it does NOT read docs/ — it never opens a document.
+      NP_SCOPE_CISCOPE: |
+        .github/workflows/**
+        firmware/**
+        scripts/**
+        ci/**
       # The document-naming guard, on its own list. `docs/**` is the whole point:
       # the edit that breaks NP-CONV-001 §4.0 is a document added, renamed or
       # moved, and no other list in this file can see one. The matcher's
@@ -186,6 +201,7 @@ jobs:
           set -euo pipefail
           printf '%s\n' "$NP_SCOPE_SCRIPTS"   > scope.scripts.paths
           printf '%s\n' "$NP_SCOPE_GATECOV"   > scope.gatecov.paths
+          printf '%s\n' "$NP_SCOPE_CISCOPE"   > scope.ciscope.paths
           printf '%s\n' "$NP_SCOPE_DOCNAMING" > scope.docnaming.paths
           printf '%s\n' "$NP_SCOPE_SIMULATOR" > scope.simulator.paths
           printf '%s\n' "$NP_SCOPE_PYTHON"    > scope.python.paths
@@ -198,7 +214,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -229,6 +245,16 @@ jobs:
           # breaks check-doc-filenames.ts also fails doc-naming, which IS in
           # scope for it and says so in that gate's own words.
           assert scope.gatecov.paths   false docs/np_dhf_001.md
+          # The scope-drift guard. The firmware case is the one OI-SWCI-08 was
+          # raised for — a module added to the CMake build graph must re-run the
+          # guard that compares that graph to the relevance lists, and no other
+          # list in this file can see a firmware edit. docs/ is absent for the
+          # same reason it is absent above: this guard never opens a document.
+          assert scope.ciscope.paths   true  firmware/CMakeLists.txt
+          assert scope.ciscope.paths   true  firmware/hub_control/CMakeLists.txt
+          assert scope.ciscope.paths   true  .github/workflows/safety-mcu-ci.yml
+          assert scope.ciscope.paths   true  ci/test_shdr_schema.py
+          assert scope.ciscope.paths   false docs/np_dhf_001.md
           # Asserted because docs/ is this gate's declared population. The first
           # case is the whole reason this list exists — a docs-only PR MUST run the
           # naming guard, which is what PR #306 did not. The second proves docs/**
@@ -306,6 +332,7 @@ jobs:
           }
           emit scripts   scope.scripts.paths
           emit gatecov   scope.gatecov.paths
+          emit ciscope   scope.ciscope.paths
           emit docnaming scope.docnaming.paths
           emit simulator scope.simulator.paths
           emit python    scope.python.paths
@@ -373,6 +400,39 @@ jobs:
       # gate, was invisible to the one gate whose job is to notice exactly that.
       - name: Every gate declares its kind and is proven to fail
         run: bun scripts/check-gate-coverage.ts
+
+  ci-scope:
+    name: relevance lists cover what they gate (OI-SWCI-08)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.ciscope != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: node builtins only, and it spawns nothing. It does not
+      # configure cmake either — it READS the CMakeLists files, which is why this
+      # job needs no toolchain and costs seconds rather than minutes.
+
+      # The guard binds itself: it is a gate in scripts/, so its own CI-Scan-Paths
+      # must be covered by NP_SCOPE_CISCOPE above, and its falsification runs
+      # before it does.
+      - name: Scope-drift guard self-test
+        run: bun scripts/check-ci-scope.ts --self-test
+
+      # OI-SWCI-08. Five instances of enumerated-path drift are on the record and
+      # every one was found by a human diffing a declaration against a relevance
+      # list by hand — the audit-dependence, not any single miss, is the defect.
+      # This compares the CMake build graph against the lists that gate it, and
+      # each gate's CI-Scan-Paths against the list that decides whether it runs.
+      - name: Relevance lists cover the build graph and every gate's population
+        run: bun scripts/check-ci-scope.ts
+
   doc-naming:
     name: document filenames match their serials (NP-CONV-001 §4.0)
     runs-on: ubuntu-latest
