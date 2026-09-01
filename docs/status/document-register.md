@@ -4,6 +4,21 @@
 >
 > **Note on overlap:** this register substantially overlaps the formal DHF index (`docs/np_dhf_001.md`). Content was relocated faithfully, not deduped — a dedup pass (making the DHF the single index and reducing this to a pointer) is flagged as a follow-up. Referenced from CLAUDE.md → Document Map.
 
+## How to read this file
+
+**~193 KB in ~110 lines — one table, one row per document, some rows several KB wide. Never read it
+whole.** Rows are roughly chronological; the newest documents are at the end.
+
+Recipes:
+
+- Locate a document by serial: `grep -n 'NP-COST-001' docs/status/document-register.md`.
+- Locate by filename: `grep -n 'np_cost_001' docs/status/document-register.md`.
+- What is still DRAFT: `grep -n 'DRAFT' docs/status/document-register.md`.
+- Newest entries: `tail -15 docs/status/document-register.md`.
+
+This register overlaps the formal DHF index (`docs/np_dhf_001.md`), which is the source of truth for
+design records; for *whether an artifact has an owning document at all*, read `docs/np_art_001.md`.
+
 | Document | Location | Contents |
 |----------|----------|---------|
 | Design Brief Revision 1 | `docs/superseded/np_db_001.docx` | SUPERSEDED by R5 — Initial complete design specification |

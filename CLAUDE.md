@@ -1,48 +1,56 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 39 (current)  
+**Revision:** 40 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
-> **Rev 39 (2026-08-16) — RETAIL PRICING UNLOCKED by principal direction. No price is set by this revision.** Taken against Rev 38's finding that all four T1 configurations are gross-margin negative. Unlocking the constraint turns the arithmetic around — GM% becomes the input, retail the output — and yields a **ladder, not a number**, published as new **§2.1a**: break-even Home Standard **$1,196–1,278**, target margin **$1,869–1,997** (a 2.20–2.35× increase on $849); Core $955–1,121; Home Lite $1,445–1,587; Home Premium $2,475–2,637. **The six configurations keep the prices currently in force** — choosing new ones is a separate commercial decision, and §2.1a records four things to weigh first. **Break-even binds before margin does**: Home Standard cannot be sold below ~$1,196 at any margin, already 1.4× its current price. **Three consequences the lock was concealing.** (i) The T1 and T2 ladders **collide** — Home Premium at $2,475–2,637 against a Pro Entry at $4,999 makes §1's two-tier structure one tier with a regulatory footnote (**OI-COST-08**). (ii) **Pro is where the *target*, not the cost, is the thing to question** — both Pro rows are profitable today (+$2,499, +$10,163/unit) and only holding 73%/81% demands $9K and $20K; this is **not** a mandate to raise T2 pricing. (iii) **Every competitive price claim is live again** — `docs/reference/competitive-position.md`'s comparisons were safe *because retail was locked*, and that justification is gone; at $1,997 Home Standard is ~40% of a ~$5K Vielight, not 17%, and becomes a direct Sens.ai price peer (**OI-COST-09**). **Binding sequence: `OI-HEXTILE-06` must be decided BEFORE any price is set** (**OI-COST-10**) — silicon PD plus a 20-tile build moves Home Standard's target-margin retail $1,997 → ~$1,383, so pricing first prices against a cost that decision invalidates. All §2.1a figures inherit §2.1's floor status: term **U** is still excluded, so this is the *least* retail would have to move. §2.2 charger policy remains unaffected — it is keyed to peak draw, not price. See `docs/np_cost_001.md` Rev 2 §8.
+> **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
+> bear on most conversations and names the file holding the rest. Read a subsidiary file when the
+> task needs it — do not assume a figure or a spec detail is here.
 >
-> **Rev 38 (2026-08-16) — §2.1 BOM / COGS / GM% re-derived against the hex-tile architecture. Retail unchanged and still locked. All four T1 configurations are now gross-margin negative.** The old columns (Core $168–169 / 42% … Pro Full $1,506 / 81%) were built on the retired five-zone-module design; they are superseded by `NP-COST-001`, and the stopgap caveat in `NP-DB-005` §4 is replaced with real figures. **Home Standard goes $405 → $897–959 BOM, +36% GM → −41% to −51%.** Pro is unaffected (+50% / +73%) because its retail is 3–6× its cost. The dominant term is not the cluster tier the brief was scoped around — it is **`NP-HW-HEXTILE-001` §6.4's $11.53/tile driver + metering, of which ~$10 is two InGaAs photodiodes**; at 30 tiles that is $346 against a $405 BOM, and **none of `OI-HEXTILE-06`'s three options, alone or combined, restores a positive T1 margin** (NP-COST-001 §6). Two corrections of record: (i) the brief's three deltas are **not additive** — `NP-DRV-SHELL-002` **Rev 2** §10.1's $175–225 already contains the $114.12 controller tier *and* the $32–64 socket arrays, and supersedes Rev 1's $125–216; (ii) `NP-HW-HUB-001` §8's blanket "every figure is VOID" banner is **stale**, because `OI-HUB-C17c` resolved against D-4 and the TIA/mux/ADC lines survive (OI-COST-06). **`OI-HUB-C08` is NOT closed and cannot be**: `OI-HEXTILE-02` has selected no 660/808 nm emitter, so *the dominant BOM line has no unit price on either side of the subtraction* — every figure is therefore a **floor** excluding term **U**, and OI-HUB-C08 is additionally under-scoped because it never covered the emitter-count delta (600 → up to 2,814 emitters). **Three inputs this model needs do not exist anywhere in the document set** and are recorded as assumptions, not decisions: per-configuration tile population (OI-COST-01), whether every configuration carries the full 18-cluster L1 (OI-COST-04), and — because no single BOM→COGS rule is recoverable from the six published pairs — a per-configuration COGS multiplier (OI-COST-05). §2.2 charger policy **confirmed unaffected** (peak draw unchanged; concurrency held at ~5–6 tiles by `NP-HW-HEXTILE-001` §9). Socket count ~80 remains **PROVISIONAL** pending REG-1/ACT-1 and every derived figure inherits that.
+> **Revision history (Rev 33–40, what changed and why): `docs/reference/claude-md-revision-history.md`.**
+> Rev 40 (2026-09-01) relocated detail out of this file; no design decision changed. Read the
+> history file before assuming *why* something is the way it is.
 >
-> **Rev 37 (2026-08-16) — a priori research consent goes from four onboarding screens to two; no consent axis removed, no withdrawal path weakened.** `§6.2` now separates **layers from screens**: L1–L4 remain the four consent layers — the units of the data model, the withdrawal surfaces and every citation elsewhere — presented across two screens. **S1 "What you get back" (L4 + L1) comes first**, because L1 and L4 were always the same question (L1 asks *may we contact you*, L4 asks *what about*), and because leading with reciprocity is consistent with §6.2's own reasoning. **S2 "What you share" (L2 + L3) carries two controls, not one.** Selecting all nine categories is **not** blanket consent: L2 is *scope*, L3 is *posture*, and "everything, but ask me" is a real position that survives only while both axes do (§6.2.2). **Select-all deliberately does NOT auto-enable the blanket toggle** (§6.2.3) — ticking nine boxes expresses breadth of interest, not a wish to stop being consulted; the usability objection is answered with copy, not state. §6.2.4 states the three copy rules that keep an L4-first screen from becoming an inducement, reusing `NP-MOD-ID-001` §7.5's honest-exchange framing. **One latent defect fixed as a precondition of the merge:** `withdrawBlanketResearchConsent()` was correct and tested on both platforms, but **nothing on iOS called it from the UI** — turning blanket consent off in Research Preferences committed through `updateResearchConsent()` and skipped the analytics teardown, while Android routed it correctly. Merging L2+L3 onto one commit-at-the-end screen would have made that bypass the ordinary path. The teardown is now enforced at the store ingestion point on a **true→false transition** of blanket consent (§6.2.5), guarding the transition rather than the value so a category-only edit still cannot trigger it. Withdrawal granularity and effectiveness are unchanged.
-
-> **Rev 36 (2026-08-12) — §5.1's accelerometer boundary gains one bounded, self-closing exception; §5.2 gains the cohort that feeds it.** No locked decision was reversed: §G.3's prohibition stands unqualified for every device that has not opted in, which is the fleet by default. The problem it solves is that `drop_detected` and `maintenance_alert` are computed from two numbers (`15.0f` g; 3 drop-bearing gaps) guessed before any hardware existed, while §G.3 prohibits every field that could validate them — **the spec forecloses the evidence needed to make itself correct**, so NP-PRIV-001 HIGH-01's own Option C was a destination with no road to it. NP-FW-EMMC-002 Rev 2 §H opens a time-boxed, opt-in, **warranty-owner**-consented window collecting a coarsened per-gap impact histogram, purpose-bound to predictive-maintenance training, rows deleted at close. **The window is denominated in records, not calendar time** — this device has no battery or coin cell, so its RTC has no backup domain and wall time is re-supplied by the phone; a calendar expiry would be both losable and settable backwards. Consent rests on there being no identifiable subject (NP-MOD-ID-001 §7.5.1) and is *stronger* than that precedent: a duty map at least requires the device to be **worn**, and a drop does not. **Two limits recorded rather than papered over:** §G.3's ban on a cumulative drop count and on per-drop timing is **already defeated by aggregation** over `shdr_accel_records`' per-gap rows, independently of §H (OI-EMMC2-11, principal decision required); and §G.2's "rolling 7-**day** window" was never implementable for the same clock reason, so it is now counted in session gaps, which changes what `maintenance_alert` means (OI-EMMC2-10). See `docs/status/completed-decisions.md` (2026-08-12).
-
-> **Rev 35 (2026-08-12) — one locked §5.1 boundary resolution reversed: the fault-latch `tick_ms` conditional suppression was itself a leak.** The 2026-07-14 gate reported fault-latch `count` unconditionally but zeroed `tick_ms` only for `NP_SAFETY_STATUS_CARDIAC`, so the observable pair `count > 0 && tick_ms == 0` identified a cardiac fault **with certainty and with no correlation work** — a one-bit oracle *strictly worse* than no redaction, because a bare relative SysTick value is meaningless without a session record SHDR does not hold, whereas the redaction pattern is self-interpreting. **New general rule, now binding across the design: a redaction applied conditionally on a sensitive predicate leaks that predicate** — it must be unconditional, or the predicate must not be inferable from the pattern of redaction (the "no such user" vs "wrong password" failure shape). Two findings made during the fix: the suppression **never protected the cardiac predicate at all** (the hub already publishes it as `fault_log.fault_type = 'CVNS_HR_CUTOFF'` by the locked "safety interlock log → SHDR" rule), and **fault event timing was already classified UHDR unconditionally** (`fault_log` has no timing column; `np_log_shdr_fault()` discards `session_ms` for every caller). Resolution: `tick_ms` is not SHDR-reportable at all; `status`/`slot`/`count` go through one fixed-shape marshaller `np_fault_latch_build_report()`, replacing the two independent accessors whose independence *was* the oracle. IEC 62304 Class C reporting-path change only — no safety function altered. NP-FW-EMMC-001 → Rev 2. See `docs/status/completed-decisions.md` (2026-08-12).
-
-> **Rev 34 (2026-08-11) — zone-module-era documents retired; document conventions changed. No design decision changed.** Four documents that specified, inspected, risk-assessed or tooled the retired 5-zone-slot module were moved to `docs/superseded/` and replaced per artifact: `NP-FAI-ZM-001` → `NP-FAI-001` + `NP-ART-001` + `NP-FAI-HUB-001`; **`NP-RISK-001` — which was the ISO 14971 baseline risk file, not merely a stale spec** → `NP-RISK-002` (disposition of all 26 RISK IDs — 5 retired, 20 carried, 1 closed-confirmed) + `NP-RISK-003` + `NP-RISK-004`; `NP-DRV-SHELL-001` → `NP-DRV-SHELL-002` (already) + `NP-REV-SHELL-001` (the review *record*, which had no successor); `NP-TOOL-ZM-001` → `NP-TOOL-HEXTILE-001`. **Every retired and superseded document now lives in `docs/superseded/`**, indexed with its successor. **Three conventions changed (`NP-CONV-001` Rev 3 §4):** the **filename of a controlled document is its serial and nothing else** (§4.0), and the rule is *exclusive* — nothing that is not a serialed document may look like one — enforced by `bun scripts/check-doc-filenames.ts`; 25 files were renamed to their serial (`neurone_shell_fpc_routing_review.docx` → `np_drv_shell_001.docx`, and 24 more). Vendored files are the sole exception (§4.0.3). Also: document revisions are now **positive integers**, not letters (the alphabet had run out at `Rev AA`), with a published positional mapping so historical citations still resolve — PCB, database-schema and vendor revisions deliberately keep letters; and **no active filename carries revision information** (`neurone_design_brief_r5.docx` → `np_db_005.docx`). **Read `docs/np_art_001.md` before asking whether an artifact has a spec** — it records that nine of fifteen manufactured artifacts have no owning document, four of them shipping T1 modalities.
-
-> **Rev 33 (2026-07-15) — structural reorganization.** This core file now holds only the always-relevant invariants (product, config, modalities, hardware, data architecture, consent). The large archival/reference sections were moved to subsidiary files under `docs/` and are listed in the Document Map below — read them on demand only when a conversation needs them. This keeps the context loaded every session small. **No design decisions changed; content was relocated, not edited.** When a locked decision changes, update the relevant subsidiary file (and note it in `docs/status/completed-decisions.md`).
+> **Three live constraints that decide whether an answer is safe to give:**
+> 1. **Every T1 configuration is gross-margin negative and every cost figure is a floor** (§2.1).
+>    Retail is unlocked; no new price is set, and none may be set before `OI-HEXTILE-06`
+>    (`OI-COST-10`).
+> 2. **UHDR is never accessible to NeurOne** (§5). When in doubt about a new field → UHDR.
+> 3. **The safety MCU owns every stimulation enable line** (§4.2). No app-side path may bypass it.
 
 ---
 
 ## 📂 DOCUMENT MAP — where everything lives
 
-The core sections (§1–§6, §16) stay in this file — they are invariants that matter in most conversations. Everything else is a plain path (not an `@import`), so it loads only when I `Read` it for a task that needs it.
+**In this file (invariants):** §1 product · §2 configurations + pricing · §3 modality roster ·
+§4 hardware · §5 UHDR/SHDR architecture · §6 consent · §16 naming. Everything below is a plain path
+(not an `@import`), so it loads only when I `Read` it.
+
+**Detail relocated out of the core sections — read these when working in that section:**
+
+| Section | What moved | File |
+|---------|-----------|------|
+| Header | CLAUDE.md revision history, Rev 33–40 | `docs/reference/claude-md-revision-history.md` |
+| §2.1a · §2.2 · §2.3 · §6.1 | Implied retail ladder · charger tables + intent signals · consumables · clinician subscription tiers | `docs/reference/commercial-model.md` |
+| §3 | Full T1 + T2 modality specifications | `docs/reference/modality-stack.md` |
+| §5.1 · §5.2 · §5.3 | Per-field boundary resolutions · predictive maintenance · anonymization pipeline | `docs/reference/data-architecture-detail.md` |
+| §6.2 · §6.3 | Layer table, screen rationale, POA workflow · research portal | `docs/reference/consent-engine.md` |
+
+**Subject-matter documents:**
 
 | Topic | Read when… | File |
 |-------|-----------|------|
-| **Product overview** | always available | §1 below |
-| **Configurations + pricing** | always available | §2 below |
-| **PBM protocol power audit** (which predefined protocols fit the envelope; why the "~6 tiles" rule is really 2–32; the zone-granularity defect; what cascading can and cannot rescue) | asking whether a protocol can actually run, authoring or editing any `.npps`, or touching zone definitions | `docs/np_ses_pwr_001.md` |
 | **Configuration cost model** (BOM/COGS/GM% derivation, the three unsourced assumptions, term U, why OI-HUB-C08 cannot close) | quoting or acting on ANY §2.1 cost figure; any BOM, margin or pricing question | `docs/np_cost_001.md` |
-| **Modality stack** | always available | §3 below |
-| **Hardware specifications** | always available | §4 below |
-| **Data architecture (UHDR/SHDR)** | always available | §5 below |
-| **Clinical consent engine** | always available | §6 below |
-| **Naming conventions (UHDR/SHDR)** | always available | §16 below |
+| **PBM protocol power audit** (which predefined protocols fit the envelope; why the "~6 tiles" rule is really 2–32; the zone-granularity defect; what cascading can and cannot rescue) | asking whether a protocol can actually run, authoring or editing any `.npps`, or touching zone definitions | `docs/np_ses_pwr_001.md` |
 | **Naming + notation conventions** (signal names, `§N`, document IDs, identifier families) | authoring or revising ANY doc, naming a signal, or reviewing an interface | `docs/np_conv_001.md` |
+| **EEG electrode net** (why pod travel cannot fix 10-20 registration; net sizing model; modality interference; wiring) | ANY question about EEG electrode placement, fit across head sizes, the T1-B tile type, or `REG-1`'s scope | `docs/np_hw_eegnet_001.md` |
+| PBM optical resolution floor (what boundary the hardware can actually produce) | zone sizing, lateralized protocols, any "targets region X" claim | `docs/np_opt_psf_001.md` |
 | Optional accessories + companion SW (mastoid pad, Watch app) | working on accessories / app roadmap | `docs/reference/accessories-roadmap.md` |
 | Durability + maintenance design changes | tooling / BOM / mechanical work | `docs/reference/durability-maintenance.md` |
 | Service network (partner tiers, covers) | service / warranty / logistics work | `docs/reference/service-network.md` |
 | Competitive position + claims | marketing / positioning / claims work | `docs/reference/competitive-position.md` |
 | Regulatory strategy (T1 wellness / T2 510k) | regulatory / QMS / standards work | `docs/reference/regulatory-strategy.md` |
 | Clinical researchers + evidence bibliography | clinical trials / evidence / researcher outreach | `docs/reference/clinical.md` |
-| PBM optical resolution floor (what boundary the hardware can actually produce) | zone sizing, lateralized protocols, any "targets region X" claim | `docs/np_opt_psf_001.md` |
-| **EEG electrode net** (why pod travel cannot fix 10-20 registration; net sizing model; modality interference; wiring) | ANY question about EEG electrode placement, fit across head sizes, the T1-B tile type, or `REG-1`'s scope | `docs/np_hw_eegnet_001.md` |
 | Marketing notes / draft copy | marketing copy work | `docs/reference/marketing-notes.md` |
 | **Open items / pending decisions** (was §13.1–13.4) | checking what's blocking / unresolved | `docs/status/pending-decisions.md` |
 | **Completed + locked decisions log** (was §13.5) | checking whether/how something was decided | `docs/status/completed-decisions.md` |
@@ -56,7 +64,10 @@ The core sections (§1–§6, §16) stay in this file — they are invariants th
 | Shell interconnect design review record (gates shell tooling first cut) | shell tooling release | `docs/np_rev_shell_001.md` |
 | **Retired documents** — index with successors named | tracing why something changed | `docs/superseded/README.md` |
 
-> Note: `docs/status/completed-decisions.md` and `docs/status/document-register.md` overlap heavily with the formal DHF index (`docs/np_dhf_001.md`) and git history. They were relocated faithfully; a dedup pass against the DHF is a flagged follow-up (see the header notes in those files).
+> The three `docs/status/` files are large logs, not narratives — each opens with a "How to read
+> this file" block giving the grep recipes to reach one entry without reading the whole file. They
+> also overlap heavily with the DHF index (`docs/np_dhf_001.md`) and git history; a dedup pass
+> against the DHF is a flagged follow-up.
 
 ---
 
@@ -84,17 +95,18 @@ Two-tier platform sharing a single chassis, processor stack, app, and USB-C conn
 
 ### 2.1 Integrated system configurations
 
-> **⚠ RETAIL IS UNLOCKED (principal, 2026-08-16). BOM / COGS / GM% are re-derived against the
-> hex-tile architecture and are FLOORS, not estimates.** The pre-hex figures (Core $168–169 /
-> $258–260 / 42% … Pro Full $1,506 / $2,628 / 81%) were built on the retired five-zone-module design
-> and are superseded. **Every T1 configuration is gross-margin negative at the prices below.** Read
-> `docs/np_cost_001.md` before quoting, citing or acting on any number here — it carries the
-> derivation, the three assumptions that are not sourced anywhere in the document set, and the
-> uncosted term **U** that every row excludes.
+> **⚠ BOM / COGS / GM% below are FLOORS, not estimates**, re-derived against the hex-tile
+> architecture; the pre-hex figures (Core $168–169 / 42% … Pro Full $1,506 / 81%) are superseded.
+> **Every T1 configuration is gross-margin negative at the prices in force.** Retail prices are the
+> prices currently in force, **not a decision** — unlocking the constraint set no price, and
+> **`OI-HEXTILE-06` must be decided before any price is set** (`OI-COST-10`).
 >
-> **Retail prices in the table are the prices currently in force, not a decision.** Unlocking the
-> constraint does not set a price — see §2.1a for the ladder it implies, and note **`OI-HEXTILE-06`
-> must be decided before any price is set** (`OI-COST-10`).
+> **Read `docs/np_cost_001.md` before quoting, citing or acting on any number here.** Three things
+> it carries that the table cannot: GM% is an *output* derived under the lock, not a target; every
+> row excludes the uncosted term **U** (the emitter-count delta — the 660/808 nm emitters are not
+> selected per `OI-HEXTILE-02`, so **OI-HUB-C08 cannot be closed**); and the dominant recoverable
+> term is the ~$10 InGaAs photodiode pair of the $11.53/tile driver + metering — that is
+> `OI-HEXTILE-06`, and none of its three options, alone or combined, restores a positive T1 margin.
 
 | Config | BOM (floor) | COGS (floor) | Retail (in force, 🔓 unlocked) | GM% (floor) | Modalities included |
 |--------|-----|------|--------|-----|---------------------|
@@ -105,214 +117,66 @@ Two-tier platform sharing a single chassis, processor stack, app, and USB-C conn
 | Pro Entry | $1,463–1,525 | $2,398–2,500 | $4,999 | **+50% to +52%** | All T1 + 21-ch qEEG · 1170nm deep PBM · clinical tACS · HIPAA cloud · sLORETA |
 | Pro Full | $2,136–2,198 | $3,728–3,836 | $13,999 | **+73%** | All T2 + TMS hub · multi-patient dashboard · scripting API · FHIR R4 · $1,800/yr service |
 
-**Three things about this table that are not optional to know:**
-
-1. **GM% above is an output, not a target.** It was derived under the lock, which is what made it
-   evidence rather than an assumption. No figure was adjusted to preserve the old 36–81% band.
-2. **Every row is a floor.** Each excludes term **U** — the emitter-count delta (Home Standard goes
-   from 600 emitters to ~2,286) net of the retired hub-side LED drive stage. **U is uncosted in both
-   directions and is very likely large and positive:** the 660/808 nm emitters are *not selected*
-   (`OI-HEXTILE-02`), so the dominant BOM line has no unit price anywhere in the document set.
-   **OI-HUB-C08 therefore cannot be closed**, and the gap is wider than OI-HUB-C08 states — it
-   scopes only the *drive electronics*, not the emitters.
-3. **The dominant recoverable term is the InGaAs photodiode pair**, ~$10 of the $11.53/tile. That is
-   `OI-HEXTILE-06`, and it is the decision that determines whether T1 can close against locked
-   retail at all. `docs/np_cost_001.md` §6 runs its three options: **none of them, alone or
-   combined, restores a positive T1 margin.**
-
-### 2.1a Implied retail ladder (retail unlocked 2026-08-16 — implied, NOT set)
-
-Retail = COGS ÷ (1 − original GM target). **These are the prices the current costs imply, not prices
-that have been decided.** Every figure inherits the §2.1 floor status — term **U** is still excluded,
-so this is the *least* retail would have to move. Full derivation and consequences: `NP-COST-001` §8.
-
-| Config | **Break-even** | **At original GM target** | Multiple of price in force | Per-unit result at price in force |
-|--------|---|---|---|---|
-| Core — EEG only | $554–650 | **$955–1,121** (42%) | 2.13–2.50× | **−$105 to −$201** |
-| Home Lite | $896–984 | **$1,445–1,587** (38%) | 2.41–2.65× | **−$297 to −$385** |
-| Home Standard ★ | $1,196–1,278 | **$1,869–1,997** (36%) | 2.20–2.35× | **−$347 to −$429** |
-| Home Premium | $1,287–1,371 | **$2,475–2,637** (48%) | 2.06–2.20× | **−$88 to −$172** |
-| Pro Entry | $2,398–2,500 | $8,881–9,259 (73%) | 1.78–1.85× | *+$2,499 — profitable today* |
-| Pro Full | $3,728–3,836 | $19,621–20,189 (81%) | 1.40–1.44× | *+$10,163 — profitable today* |
-
-**Four things to weigh before setting any price:**
-
-1. **Break-even binds before margin does.** Home Standard cannot be sold below **~$1,196** at any
-   margin — already 1.4× its current $849.
-2. **The T1 ladder collides with the T2 ladder.** Home Premium at $2,475–2,637 against a Pro Entry
-   at $4,999 makes §1's two-tier structure hard to sustain — one tier with a regulatory footnote.
-   **`OI-COST-08`.**
-3. **Pro's rows are where the *target*, not the cost, should be questioned.** Both are profitable
-   today; holding 73%/81% is what demands $9K and $20K. This is not a mandate to raise T2 pricing.
-4. **Decide `OI-HEXTILE-06` first (`OI-COST-10`).** Silicon PD + a 20-tile build moves Home
-   Standard's target-margin retail **$1,997 → ~$1,383**. Pricing before that decision prices against
-   a cost it invalidates.
-
 **★ Home Standard box contents:** All T1 modules · hard clamshell case · braided aramid USB-C cable (spare in box) · **45W NeurOne branded GaN charger** · S1 opaque shade · interface covers (installed + spare set each type) · mesh cleaning brush · Boa replacement cable + hook tool · moisture-barrier electrode tip hydration caps · humidity indicator card · pre-impregnated cleaning cloth packets
 
-### 2.2 Charger policy (locked)
+### 2.1a Implied retail ladder (implied, NOT set) → `docs/reference/commercial-model.md`
 
-Charger scaled to peak draw of configuration. Auto-included at every upgrade by serial number tracking. Upfront 65W upgrade option ($19 at-cost) offered at checkout as intent signal.
+Retail = COGS ÷ (1 − original GM target), inheriting §2.1's floor status. **Break-even binds before
+margin does:** Home Standard cannot be sold below **~$1,196** at any margin — already 1.4× its $849
+price in force; at the original 36% target it is $1,869–1,997. Both Pro rows are profitable today
+(+$2,499, +$10,163/unit), so Pro is where the *target*, not the cost, is the thing to question. Two
+consequences the lock was concealing: the T1 and T2 ladders **collide** (`OI-COST-08`), and every
+competitive price claim is live again (`OI-COST-09`). Full ladder, per-configuration figures and the
+four things to weigh first: `docs/reference/commercial-model.md` §2.1a; derivation: `NP-COST-001` §8.
 
-| Config | Charger included | BOM |
-|--------|-----------------|-----|
-| Core | 15W USB-C (unbranded) | $3–4 |
-| Home Lite | 30W GaN (unbranded) | $5–6 |
-| Home Standard ★ | 45W NeurOne GaN (branded) | $10 |
-| Home Premium | 45W NeurOne GaN (branded) | $10 |
-| Pro Entry | 65W NeurOne GaN (branded) | $13 |
-| Pro Full | 65W NeurOne GaN (branded) × 2 | $26 |
+### 2.2 Charger policy (locked) → `docs/reference/commercial-model.md`
 
-**Charger upgrade intent signals:**
-- Core buyer selects 30W upfront → PBM intent → 14-day follow-up
-- Core buyer selects 45W upfront → Full T1 intent → 7-day completion bundle offer
-- Any buyer selects 65W upfront → T2 intent → human clinical sales call within 48 hours
+Charger scaled to **peak draw** of the configuration (15W Core → 65W ×2 Pro Full), auto-included at
+every upgrade by serial-number tracking; a $19 at-cost 65W upgrade at checkout doubles as an intent
+signal. **Keyed to peak draw, not price — unaffected by the retail unlock.** **EU:** chargers are
+branded recommendations, never proprietary requirements; any PD-compliant charger must work and the
+app informs ("power level: reduced"), never blocks. Per-config tables and the intent-signal
+follow-ups: `docs/reference/commercial-model.md` §2.2.
 
-**EU note:** Chargers are branded recommendations, not proprietary requirements. Any PD-compliant charger must work. App displays "power level: reduced" informatively, never blocks.
+### 2.3 Consumables + recurring revenue → `docs/reference/commercial-model.md`
 
-### 2.3 Consumables + recurring revenue
-
-| Item | Price | Interval | GM% | Notes |
-|------|-------|----------|-----|-------|
-| Intranasal sleeves (30-pack) | $19/pack or $19/mo sub | Single use | 68–79% | Only authenticated consumable. COGS $4–6. Primary MRR driver. |
-| Electrode hydrogel tips (8-pack) | $12–16 or $9.99/mo sub | 30–60 sessions | 60–72% | App impedance trend prompts. Bayonet snap, zero training. |
-| VNS clip pads (2-pack) | $8/pack | 20–40 sessions | 65% | Electrochemical degradation from VNS current. |
-| Audio cup foam (set) | $24/set | 6–12 months | 58% | Calendar reminder. |
-| Audio cup mesh frame (pair) | $9.99/pair | Annual | 62% | App driver impedance flags fouling. Snap-in, user-replaceable. |
-| Interface protection covers (complete kit) | $22.99 or $19.99/yr bundle | Annual / as lost | 70% | All tethered — loss prevention by design. |
-| S3 prescription Rx insert | $49–139 | 12–24 months | Variable | Optician partner network. Zero marginal marketing cost per renewal. |
-| T2 service contract | $1,800/yr | Annual | ~75% | Same-day loaner, priority support, annual calibration. |
+Intranasal hygiene sleeves ($19/pack or $19/mo, 68–79% GM) are the **only authenticated consumable**
+and the primary MRR driver; electrode hydrogel tips, VNS clip pads, audio foam/mesh, interface covers,
+S3 Rx inserts and the $1,800/yr T2 service contract follow. All consumable prompts are
+measurement-triggered (§5.2), never calendar-triggered. Full price/interval/GM table:
+`docs/reference/commercial-model.md` §2.3.
 
 ---
 
-## 3. MODALITY STACK (all locked)
+## 3. MODALITY STACK (all locked) → `docs/reference/modality-stack.md`
 
-> Optional/provisional accessories (40Hz mastoid vibrotactile pad, Apple Watch sync app) live in `docs/reference/accessories-roadmap.md`.
+**T1 — 8 modalities:** ① PBM transcranial (660–670 + 808–830 nm, hex-tile lattice, dual-PD dose
+metering, 1064 nm smart-module upgrade) · ② PBM intranasal (bilateral Y-probe, authenticated sleeve)
+· ③ EEG neurofeedback (8-ch semi-dry, 500 Hz, ADS1299) · ④ BES / tACS *(consumer name: Brainwave
+Entrainment Stimulation)* · ⑤ tDCS *(consumer name: Cortical Priming Stimulation)* · ⑥ VNS + HRV +
+HRV biofeedback (auricular clip, PPG, 4 protocols) · ⑦ neural audio entrainment (planar magnetic +
+bone conduction, EEG-adaptive) · ⑧ visual stimulation (108 micro-LEDs/lens, 6 zones/eye, Mode F NIR
+retinal walk, snap-on shade system, EC lens option).
 
-### T1 — 8 modalities
+**T2 adds:** 21-ch qEEG wet gel · focal figure-8 TMS (0.1–0.5 T) · 1170 nm deep PBM (35–40 mm) ·
+clinical tACS (≤4 mA, 21-ch) · sLORETA-guided HD-tDCS (4×1 ring) · cervical VNS accessory · HIPAA
+cloud + FHIR R4 + LSL + scripting API · anonymized session tag.
 
-**1. PBM Transcranial**
-- 660–670nm + 808–830nm LEDs (base module)
-- **1064nm snap-in smart zone module upgrade (accessory):** Path B smart module architecture — on-module Microchip ATtiny402 I2C slave + 3× Infineon IRLML6344 N-FETs drives 660nm (CH_A), 808nm (CH_B), and 1064nm (CH_C) independently from existing 20-pin FPC connector. 550 LEDs per module (200+200+150). InGaAs PDs (Hamamatsu G12180-010A) for dose metering. Base modules unchanged. BOM delta +$23–28, retail $149–199/zone. **Hub-side addressing is NOT what earlier revisions of this bullet claimed — three mechanisms are retired, not current design:** (a) ZONE_ID 3.3kΩ resistor detection, (b) a dedicated LPI2C3 bus enabled per slot, and (c) the Hub PCB Rev B per-slot Vishay DG2788A TIA gain switch (OI-PBM-HW-01). Modules are discovered by UID-based auto-inventory (`np_module_map`), and reached through NP-HW-HUB-001 Rev 3's cluster-controller fan-out — one differential cluster bus with transactions tunnelled through a cluster controller's PCA9548A, no per-socket I2C peripheral. SMART-1 requires every socket to be I2C/TIA-capable, which reopened the hub TIA-gain design as a Rev 3 item. None of the hub-side fan-out is implemented yet (OI-HUB-C01..C19). See NP-FW-PBM1064-001 Rev 3 (supersession banner), NP-HW-HUB-001 Rev 3 §5, NP-HW-FPC-001 Rev 5.
-- **T2 combined 1064nm + 1170nm session:** 1064nm smart zone modules (cortical depth) + existing 1170nm laser system (subcortical depth) coordinated by session orchestrator. Three-tier penetration stack: 660nm surface → 1064nm cortical → 1170nm deep. Thermal throttle priority: 1170nm throttled first, then 1064nm CH_C, then CH_B. See NP-FW-PBM1064-001 §8 and NP-SES-1064-001 §6.
-- Tiled across the hex-socket lattice (NP-HEX-ZM-001) — zones are protocol-defined sets of sockets (`00-zones.npps`), not a fixed hardware slot count. Total LED count scales with how many T1-A (base PBM) tiles are populated in a given build/config.
-- 6mm inter-LED pitch → ±15–25% irradiance variation (near-uniform field)
-- 120–180mA per LED → L70 80,000–100,000 hours
-- **400 mW/cm² peak pulsed** (≤25% duty cycle, firmware-enforced) / 200 mW/cm² CW max
-- **Dual photodiode dose-metering (RISK-14 Option B):** PD1 behind PDMS window (measures forward emission) + PD2 on scalp-facing surface (measures backscattered tissue power). PD1/PD2 ratio separates PDMS fouling from LED aging in firmware. Pin 19 (PD2_CATHODE). BOM +$0.75–1.50/headset. T1 and T2 use identical zone module mold.
-- Plasma-activated anti-fouling PDMS optical windows. **PDMS–PI bond uses 75 nm SiO₂ interlayer (RF magnetron sputter) + O₂ plasma activation — achieves 174–860 N/m peel force.** 200-cycle IEC 60068-2-14 thermal cycling qualification required before production (BLOCKING).
-- Real-time J/cm² dose metering — primary differentiator over Vielight
-- 7 frequency presets: Gamma clarity (40Hz), Alpha calm (10Hz), Theta memory (6Hz), Sleep deep (2Hz), Gamma+theta coupled (40+6Hz split-zone), Focus prime (20Hz), Vascular baseline (CW)
+**Hard limits that constrain any protocol or firmware work** (full context in the modality file, and
+enforcement in §4.2):
 
-**2. PBM Intranasal**
-- Bilateral Y-probe · 660nm + 808–830nm per probe
-- 15/20/25mm silicone over-molded depth stop rings (wear-resistant)
-- Photodiode contact/dose sensing + reference LED at probe base
-- Optical code + pogo pin resistive sleeve authentication (no NFC, no EMF)
-- Hub dock storage (in hub tooling from day one — prevents Y-junction fracture)
-- Hygiene sleeve consumable: 30-pack $19/pack or $19/mo subscription
-- Silicone over-mold at Y-junction for impact protection
+| Modality | Ceiling |
+|----------|---------|
+| PBM scalp | **400 mW/cm² peak pulsed** (≤25% duty, firmware-enforced) · 200 mW/cm² CW · 42 °C limit (IEC 60601) |
+| PBM deep (T2) | ≤1,000 mW/cm² (1170 nm, TEC-stabilised) |
+| BES / tACS | 0.5–40 Hz · ≤1 mA T1 / ≤4 mA T2 · charge-balanced biphasic |
+| tDCS | 0.1–2 mA DC · **40 µC/cm²** hardware limit · 30 s ramp · ≤3 electrode pairs |
+| VNS (auricular) | 1–25 Hz · ≤2 mA · biphasic charge-balanced |
+| Visual | IEC 62471 MPE at 50% of exempt-group threshold · photoparoxysmal halt <200 ms |
 
-**3. EEG Neurofeedback**
-- 8-ch semi-dry hydrogel · Fp1/2, F3/4, C3/4, P3/4
-- 500Hz · 24-bit ADC (ADS1299)
-- **ADS1299 internal reference self-calibration at every session start** (eliminates gain/offset drift)
-- Spring-decoupled electrode pods: 80–120g contact force, ±12mm travel, independent of dial tension
-- Replaceable hydrogel tips: snap-off bayonet, 30–60 sessions, $12–16/8-pack
-- Moisture-barrier silicone hydration caps (WVTR <0.5 g/m²/day) — extend storage life to 24+ months
-
-**4. BES / tACS (consumer name: Brainwave Entrainment Stimulation)**
-- 0.5–40Hz · ≤1mA · charge-balanced biphasic
-- Per-electrode impedance monitoring
-- Adaptive EMF notch firmware prevents Helmholtz cancellation of therapeutic signal
-- Regulatory naming avoids FDA medical device classification trigger
-
-**5. tDCS (consumer name: Cortical Priming Stimulation)**
-- 0.1–2mA DC · 40µC/cm² hardware limit (safety MCU enforced, app cannot override)
-- 30s ramp up/down (hardware-enforced)
-- ≤3 electrode pairs
-
-**6. VNS + HRV + HRV Biofeedback**
-- Auricular clip · auricular branch CN X
-- 1–25Hz · ≤2mA · biphasic charge-balanced
-- PPG HRV (808–830nm) in same clip
-- **A1/A2 EEG references on clip contact pads** (2 spare conductors in existing 6-pin cable, +$15 BOM)
-- PDMS hydrogel pads: 20–40 sessions, $8/2-pack
-- Force contact confirmation
-- **HRV Biofeedback Protocol (software only, no additional hardware):**
-  - Resonance frequency breathing pacer: default 6 breaths/min (0.1 Hz); personalized to user's peak HRV frequency during first-session sweep (4–7 breaths/min range)
-  - Breathing cue delivery: visual ring expanding/contracting in app + optional bone conduction audio cue (uses existing audio hardware)
-  - Real-time coherence score: LF peak power / (LF + HF total power), displayed 0–10 color-coded
-  - RMSSD displayed per session; session trend graph over 30 sessions
-  - **Four protocols:**
-    - Standalone coherence training (5–20 min, breathing pacer + coherence display)
-    - HRV + taVNS synchronized: stimulation pulses timed to inspiration phase (PPG R-R interval detects respiratory cycle); optimises noradrenergic modulation window
-    - HRV + EEG dual biofeedback: coherence score + EEG band power displayed simultaneously; closed-loop EEG-adaptive frequency adjusts to both signals
-    - HRV + PBM: PBM running during HRV coherence training (replicates 2025 multi-modal RCT protocol: PBM + qEEG NF + HRV biofeedback)
-  - UHDR: HRV time series, coherence scores, session logs
-  - SHDR: coherence trend slope (no user biology)
-  - Evidence: meta-analysis 24 RCTs (d=0.83 anxiety reduction, d=0.65 depression); 2025 multi-modal RCT (PBM + qEEG NF + HRV combined, nationally conducted RCT)
-
-**7. Neural Audio Entrainment**
-- Over-ear planar magnetic 40mm + bone conduction at mastoid
-- Binaural beats + isochronic tones + pink/brown noise
-- EEG-adaptive frequency (closed-loop)
-- **User-replaceable snap-in mesh frame** (silver-coated nylon, 40dB RF, $9.99/pair annual)
-- Aluminium bayonet mount (replaces plastic — wear-resistant)
-- Driver impedance monitors mesh fouling (detects both acoustic degradation AND RF shielding loss simultaneously)
-- Mesh cleaning brush in box
-- Silicone isolator for bone conduction piezoelectric element
-
-**8. Visual Stimulation**
-- 108 micro-LEDs per lens (660nm + 808–830nm) · 6 zones per eye
-- Inner PDMS diffuser film (plasma-activated anti-fouling)
-- **AgNW (silver nanowire) outer conductive coating** — replaces ITO (ITO has 0.5% strain-to-failure; AgNW tolerates 5–10% flex)
-- IR proximity sensors (940nm) — eye-open detection
-- Hall sensor: goggle lift = instant LED cutoff
-- IEC 62471 hardware MPE limit (50% of exempt group threshold)
-- Photoparoxysmal EEG detection at Oz → goggle halt <200ms
-- **Mode F (invisible NIR retinal walk):** 808–830nm daily retinal PBM during normal-looking wear
-- EMDR L/R alternation · photic driving 0.5–100Hz
-
-**Snap-on shade system:**
-- S1 opaque (<0.5% VLT, included in box, instant cutoff for immersive sessions)
-- S2 polarising (~12% VLT, $24, standard lens only)
-- S3 prescription clip ($49 carrier + $49–139 Rx insert, compatible with both standard and EC lenses, 12–24 month renewal)
-- 6× N42 neodymium magnets in lens rim (N42 not N52 — better impact tolerance, −$0.80 BOM)
-- Sliding rail lens mount (user self-install, eliminates alignment jig requirement, +$1.20 BOM)
-
-**EC lens (premium, +$89 upgrade / $129 standalone):**
-- Bistable electrochromic 5–75% VLT · 2s transition · ~15mW hold
-- Clears to 75% on power restore (safety failsafe)
-- 3–5µm hard coat over EC film (scratch protection, standard in automotive EC mirrors)
-- EC driver monitors transition time as contact resistance proxy (detects rim contact corrosion)
-
-### T2 additions
-
-- **21-ch qEEG wet gel:** Full 10-20 + FC3/FC4 (M1 TMS targeting) + Oz (photoparoxysmal detection) + A1/A2 (linked-ear normative reference, on VNS clips)
-- **TMS focal figure-8 coil:** 0.1–0.5T · rTMS + TBS · non-conductive CFRP window at coil site · TMS-gated EMF cancellation (safety MCU gates Helmholtz off 5ms pre-pulse, 50ms post-pulse hold)
-- **1170nm deep PBM:** Laser diodes · 35–40mm subcortical depth · TEC stabilisation · ≤1,000 mW/cm²
-- **Clinical tACS:** ≤4mA · 21-ch arbitrary waveform (one channel per cap electrode)
-- **sLORETA-guided HD-tDCS:**
-  - 4×1 ring montage: center anode + 4 return cathodes positioned by sLORETA source map — provides ~3–5× spatial focality vs standard 2-electrode tDCS
-  - Electrode: Ag/AgCl sintered 3.5mm diameter, dual-rated for EEG recording AND stimulation current (simultaneous or sequential); part of T2 qEEG wet-gel cap
-  - Current sourcing: 21-ch tACS driver (already in T2) provides independently controlled channels — one per cap electrode, no sharing — no additional stimulation hardware
-  - Workflow: (1) T2 21-ch qEEG resting-state session → (2) sLORETA computes cortical source map (real-time or post-session) → (3) app identifies target region (e.g., DLPFC hypoactivity, anterior cingulate hyperactivation) → (4) firmware maps MNI target to nearest 10-20 electrode positions → (5) configures 4×1 current distribution automatically → (6) delivers personalized tDCS session
-  - **Localization ≠ reachability:** sLORETA resolves deep sources, but a 4×1 ring is focal only for cortical-surface targets (~1.5 cm FWHM at 10 mm depth). ACC sits 47.1 mm from its nearest scalp electrode and is not focally reachable from any electrode position; a 4×1 there is indirect network modulation. Targets carry a `NP_HD_TARGET_DEPTH_SURFACE`/`_DEEP` class and deep targets must never be presented as focal stimulation. See NP-FW-HD-001 §2.3.
-  - Montage options: 4×1 ring (most focal, ~1.5cm FWHM), bilateral 4×1 (dual hemisphere), standard 2-electrode (T1-compatible fallback)
-  - Safety: 40µC/cm² charge density limit enforced by safety MCU; ≤2mA per electrode; focal electrode density ≤6 A/m² (within Bikson lab safety limits for 3.5mm electrode geometry)
-  - Clinical evidence: Jog/UCLA 2025 (n=71, personalized MRI-guided HD-tDCS, significant depression improvement + gray matter changes); BRIGhTMIND 2024 (n=255, connectivity-guided iTBS shows personalized targeting outperforms fixed F3)
-  - BOM delta: Ag/AgCl dual-rated electrodes in T2 cap specification; no additional driver hardware; +$0 software
-- **Cervical VNS (tcVNS) — T2 accessory:**
-  - Neck-worn accessory stimulating cervical vagus trunk (higher activation than auricular branch CN X)
-  - Gel electrodes applied to skin overlying carotid sheath; bilateral or unilateral
-  - Indication: cluster headache + migraine (FDA-cleared precedent: electroCore gammaCore K163334, K173323); extending to depression, PTSD, post-stroke rehabilitation
-  - Safety MCU ownership: current path near carotid → safety MCU reads impedance + cardiac rhythm monitor before enable; automatic cutoff if HR changes >15 BPM within 5s of stimulation
-  - Regulatory: 510(k) predicate = electroCore gammaCore (K163334 cluster headache, K173323 migraine); separate 510(k) required for T2 product launch; T1 uses auricular-only (no carotid proximity)
-  - Connects via existing hub accessory port; separate cable + electrode assembly; gel pad consumable (5-pack)
-  - BOM delta: +$35–55 for cervical tcVNS accessory module
-- **HIPAA cloud + EHR:** FHIR R4 · multi-patient dashboard · sLORETA source imaging (also drives HD-tDCS targeting) · LSL streaming · scripting API
-- **anonymized session tag:** Random session identifier for clinical multi-patient environments — clinic holds patient-to-tag mapping, NeurOne cannot cross-reference
+**Do not answer a modality question from this roster alone** — wavelengths, counts, materials,
+consumables, evidence and per-modality open items are in `docs/reference/modality-stack.md`.
+Whether a given protocol fits the power envelope is `docs/np_ses_pwr_001.md`.
 
 ---
 
@@ -410,55 +274,43 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 - Storage: on-device eMMC SHDR partition, separate encryption from UHDR
 - Upload: to NeurOne fleet database on USB-C connect (warranty owner consent required at device registration; unrelated to user research consent)
 
-**Boundary case resolution rule:** When in doubt → UHDR. Reclassification requires positive demonstration of no user biology content.
+**Two general rules that decide most new fields:**
 
-Specific boundary resolutions:
-- Raw EEG impedance → UHDR; derived trend slope → SHDR
-- Accelerometer during active sessions → UHDR; impact events between sessions → SHDR **as two derived booleans only** (`drop_detected`, `maintenance_alert` — NP-FW-EMMC-002 §G.2). **Both booleans are computed from unvalidated placeholder thresholds** (`15.0f` g; 3 drop-bearing gaps in 7), so what a row means is not yet established — OI-EMMC2-09. **One bounded exception, NP-FW-EMMC-002 §H:** an *enrolled* device additionally emits a coarsened per-gap impact histogram (counts per fixed g-bin — never a raw series, per-event value, orientation vector or per-event timestamp) into `shdr_accel_characterisation`, for the duration of a time-boxed characterisation window, consented separately by the **warranty owner**, purpose-bound to predictive-maintenance model training only, deleted from the fleet DB at window close. The window is denominated in **records, not calendar time** — this device has no clock that survives a disconnect — and expires fail-closed in firmware. Non-enrolled devices, which is the fleet by default, are governed by §G.3 unqualified. **Caveat, OI-EMMC2-11:** §G.3's ban on a cumulative drop count and on per-drop timing is already defeated by aggregation over `shdr_accel_records`' per-gap rows, independently of §H
-- Raw ambient light → UHDR; cumulative UV exposure index → SHDR
-- Raw VNS impedance → UHDR; contact resistance trend → SHDR
-- Cervical VNS per-electrode impedance reported by the safety MCU to the hub for cross-validation (OI-CVNS-HUB-11) → UHDR (raw tissue impedance), transferred device-internally only, NEVER written to SHDR; the hub-vs-MCU divergence FLAG (`NP_CVNS_SHDR_EV_IMP_CROSSVAL`, no kΩ values, suppressed timestamp) → SHDR
-- IR eye state during sessions → UHDR; safety interlock log → SHDR
-- Device session count (unsigned integer) → SHDR; session timestamps → UHDR
-- Research anonymization pipeline `failed_step` (which stage aborted, esp. `NP_ANON_STEP_VALIDATE`) → UHDR/app-side only (drives user retry prompt). A per-device count of validate failures weakly signals the wearer is a re-identification outlier (small anonymity set) — health-adjacent under WA MHMD / GDPR Art. 9. If a device-health signal is needed in SHDR, log only a coarse `anonymization_failed: bool` without the stage. See `firmware/anon/include/np_anon_pipeline.h` (`np_anon_step_t`).
-- Fault-latch `count` (distinct-fault-transition tally) → SHDR; fault-latch `status` + `slot` → SHDR (already in the 8-byte reply frame); fault-latch `tick_ms` (event time) → **NOT SHDR-reportable at all** — fault event timing is UHDR, matching `fault_log`'s own statement in `ci/shdr/shdr_fleet_schema.sql` ("Precise fault event timing, where it exists at all, is UHDR under the user's key") and the hub logger `np_log_shdr_fault()`, which discards its `session_ms` argument for every caller. Enforced via the single fixed-shape marshaller `np_fault_latch_build_report()` → `np_fault_latch_report_t {status, slot, count}`. **The reported record must never contain a field whose value or presence depends on the latched status word** (2026-08-12): `tick_ms` was previously zeroed only for `NP_SAFETY_STATUS_CARDIAC`, which made `count > 0 && tick_ms == 0` a self-interpreting one-bit cardiac oracle — *worse* than no redaction, because a bare relative SysTick value needs a session record SHDR does not hold, whereas the redaction pattern needed nothing. A redaction conditioned on a sensitive predicate leaks that predicate. Note the cardiac predicate is in any case published to SHDR deliberately and separately, as `fault_log.fault_type = 'CVNS_HR_CUTOFF'` (`NP_CVNS_SHDR_EV_CUTOFF` 0xC1), per the locked "safety interlock log → SHDR" rule above.
+1. **When in doubt → UHDR.** Reclassification requires positive demonstration of no user biology
+   content.
+2. **A redaction applied conditionally on a sensitive predicate leaks that predicate** (2026-08-12).
+   It must be unconditional, or the predicate must not be inferable from the *pattern* of redaction
+   — the "no such user" vs "wrong password" failure shape. This is why fault-latch `tick_ms` is not
+   SHDR-reportable at all and why `status`/`slot`/`count` go through the single fixed-shape
+   marshaller `np_fault_latch_build_report()`: zeroing `tick_ms` only for
+   `NP_SAFETY_STATUS_CARDIAC` made `count > 0 && tick_ms == 0` a self-interpreting one-bit cardiac
+   oracle. `scripts/check-redaction-shape.ts` enforces this shape.
 
-### 5.2 Predictive maintenance system (SHDR-based)
+**Per-field boundary resolutions (EEG impedance, accelerometer, VNS impedance, cervical-VNS
+cross-validation, anonymization `failed_step`, fault latch, …) are in
+`docs/reference/data-architecture-detail.md` §5.1** — that list, not this section, is authoritative
+per field, and a field not on it is decided by the defining tests above and then added there.
 
-Three phases:
-- **Phase 1** (0–1,000 devices, Year 1): Population-average survival analysis on time-to-failure data
-- **Phase 2** (1,000–10,000 devices, Year 2): Fleet-trained LSTM on HDR sensor trajectories
-- **Phase 3** (10,000+ devices, Year 3+): Bayesian personalization — continuously revised RUL predictions
+### 5.2 Predictive maintenance system (SHDR-based) → `docs/reference/data-architecture-detail.md`
 
-All models version-stamped by hardware revision. New revision falls back to Phase 1 until fleet data accumulates. Models deployed back to devices via OTA — competitive moat grows automatically with fleet size.
+Three phases: population-average survival analysis (0–1,000 devices) → fleet-trained LSTM
+(1,000–10,000) → Bayesian personalization (10,000+); all models version-stamped by hardware revision,
+deployed back by OTA. **Reminder engine:** safety-critical reminders cannot be dismissed and block
+session start; performance-critical snooze ×3; comfort/longevity snooze ×5; every reminder is
+measurement-triggered and carries the data that triggered it. The §H characterisation cohort, its
+non-coercion invariant (CHAR-4), the selection-bias limit and the known gap in the Phase 2 premise
+are in `docs/reference/data-architecture-detail.md` §5.2.
 
-**Characterisation cohort (NP-FW-EMMC-002 §H).** Phases 2–3 are the *only* sanctioned consumer of the §H extended impact set. Devices whose warranty owner has opted in contribute a coarsened per-gap impact histogram for the duration of the characterisation window, and receive Phase 2/3 personalisation first — genuine reciprocity rather than an inducement, since a model cannot personalise for a device whose handling it cannot see. Three constraints bind this:
+### 5.3 Research data anonymization architecture (locked) → `docs/reference/data-architecture-detail.md`
 
-- **Non-coercion (CHAR-4).** Participation buys *earlier and better maintenance prediction*, never baseline safety. Every §4.2 interlock and every safety-critical reminder fires identically for non-participants; this is asserted in `firmware/shdr/tests/np_accel_shdr_tests.c`, not merely stated.
-- **Selection bias.** The cohort is self-selected and plausibly differs from the fleet in the variable under study — people who opt into a handling study may handle differently. Per `NP-MOD-ID-001` §7.6, a *negative* result generalises comfortably and a positive one sized on a skewed cohort does not.
-- **A known gap in the Phase 2 premise.** Phase 2 is specified as a *"fleet-trained LSTM on HDR sensor trajectories"*, but roughly thirty SHDR fields are boolean flags derived from thresholds frozen before any fleet existed — flag streams, not trajectories. §H obtains real trajectories for one of those thirty. The general remedy is recorded as **OI-EMMC2-13** and is not adopted.
-
-**Reminder engine rules:**
-- Safety-critical: cannot be dismissed — blocks session start
-- Performance-critical: snooze max 3×
-- Comfort/longevity: snooze max 5×
-- All reminders measurement-triggered, not calendar-triggered
-- Every reminder includes measured data that triggered it + one-tap order link
-
-### 5.3 Research data anonymization architecture (locked)
-
-All anonymization of UHDR data for research purposes must occur **on-device**, within the NeurOne app, before any data leaves the device. NeurOne cannot access raw UHDR at any point — including for research purposes — because the biometric-derived AES-256 key is never held by NeurOne infrastructure.
-
-**Data flow per approved study:**
-1. NeurOne server sends device a signed study descriptor (study ID, approved UHDR element list, anonymization parameters: k≥10, suppression rules, date-rounding ≥1-week interval). Descriptor is cryptographically signed.
-2. App reads encrypted UHDR partition in-app, applies on-device anonymization transformations: k-anonymity grouping, date/time rounding, direct identifier removal, quasi-identifier suppression per study descriptor.
-3. Only the pre-anonymized, signed extract is transmitted to NeurOne research infrastructure. Raw UHDR never leaves the device.
-4. NeurOne servers store extract keyed to study ID and device ID only. No persistent per-user anonymized data store. No linkage table exists that could re-identify users.
-5. Researchers access aggregated study datasets with no device ID fields.
-
-**Consent withdrawal effect:** Because each study extract is generated on-device on-demand, withdrawing consent permanently blocks the device from processing future study descriptors. No further extracts are generated or transmitted — **for any data period, including sessions predating withdrawal**. Already-published extracts cannot be individually removed from datasets (irreversibility notice given at consent time); no new data flows ever.
-
-**Audit trail (SHDR):** Study ID, study descriptor hash, extract transmission timestamp, and extract byte count are logged in SHDR. User can inspect all studies their device has contributed to via the app. This log is never shared with researchers.
+**All anonymization happens on-device, in the app, before anything leaves the device** — NeurOne
+cannot access raw UHDR even for research, because the biometric-derived AES-256 key is never held by
+NeurOne infrastructure. Studies arrive as cryptographically signed descriptors (k≥10, date rounding
+≥1 week, suppression rules); only the anonymized extract is transmitted; no linkage table exists.
+**Withdrawal permanently blocks future extracts for every data period, including sessions predating
+withdrawal**; already-published extracts cannot be individually removed (irreversibility notice given
+at consent time). Study ID, descriptor hash, transmission timestamp and byte count are logged in SHDR
+and never shared with researchers. Full data flow: `docs/reference/data-architecture-detail.md` §5.3.
 
 ---
 
@@ -484,18 +336,14 @@ NeurOne has **two distinct consent subjects** that must never be conflated:
 - Withdraw from specific category → stops data flows for that category; app analytics unaffected.
 - Withdraw blanket research consent (L3) → stops ALL research data flows AND tears down research analytics (`ConsentStore.withdrawBlanketResearchConsent()` calls `revokeResearchAnalytics()`), because blanket withdrawal signals the user does not want any data collection beyond basic device function.
 
-### 6.1 Use case subscription tiers
+### 6.1 Use case subscription tiers → `docs/reference/commercial-model.md`
 
-| Tier | Price | Use cases | UHDR elements | Target clinician |
-|------|-------|-----------|---------------|-----------------|
-| Monitor | $49/mo/patient | Adherence monitoring, protocol compliance | Session timestamps, duration, protocol parameters | Primary care, wellness, coordinators |
-| Assess | $149/mo/patient | All Monitor + EEG review, neurofeedback, efficacy | Adds EEG waveforms, neurofeedback scores, dose logs | Neurologists, psychiatrists |
-| Full Clinical | $299/mo/patient | All Assess + HRV, closed-loop events, outcomes | Adds HRV, PPG, adaptation events, outcome logs | TMS clinics, neuromodulation programmes |
-| Research | $599/mo/study | IRB-defined custom (NeurOne review required) | IRB-approved minimum, k≥10 anonymization, no IDs | Academic trials, observational studies |
-
-**Key principle:** Clinicians select **use cases** (not data elements). System determines minimum necessary UHDR elements. Users receive plain-language decision support document listing what clinician CAN learn, CANNOT learn, and privacy implications per element.
-
-**Expansion workflow:** Differential consent document → persistent user notification → user approves/denies/asks questions → retroactive access is a separate decision. Retroactive and prospective access presented as separate consent decisions even if made simultaneously.
+Four clinician tiers — Monitor $49 · Assess $149 · Full Clinical $299 /mo/patient · Research
+$599/mo/study. **Key principle: clinicians select *use cases*, never data elements**; the system
+derives the minimum necessary UHDR elements, and users get a plain-language document stating what the
+clinician CAN and CANNOT learn per element. Expansion of access is a differential consent decision,
+and **retroactive and prospective access are always presented as separate decisions** even when made
+at the same time. Tier table and element lists: `docs/reference/commercial-model.md` §6.1.
 
 ### 6.2 A priori research consent (4 layers, 2 onboarding screens)
 
@@ -509,117 +357,56 @@ it is rendered; it has never meant "the third screen."
 | **S1 — What you get back** | L4 + L1 | What do you want to hear about, and how do we reach you? |
 | **S2 — What you share** | L2 + L3 | Which research areas, and do you want to be asked about each study? |
 
-| Layer | Question | If yes | If no | Brand ambassador mechanism |
-|-------|----------|--------|-------|--------------------------|
-| L1 — Contact consent *(S1)* | Can we reach you about future research opportunities? | Provide contact method + frequency limit. POA holders upload POA (human review, 3 business days, jurisdiction-flagged, annual re-verification) | No contact. All features unchanged. | Being asked creates perceived agency → trust baseline |
-| L2 — Category consent *(S2)* | Which research areas? (9 categories: AD/dementia, Depression, PTSD, TBI, Sleep, Attention, Parkinson's, Healthy ageing, Visual health) | Per-project contact for selected categories only. Each project is a fresh decision. **A Select-all affordance sets all nine; it does NOT enable L3** — see the auto-enable decision below. | Not contacted for that category. | Personal category choice deepens engagement |
-| L3 — Blanket consent *(S2)* | Pre-approve all NeurOne-reviewed research? | Data included in all studies. **Still receives per-study engagement notifications** (not consent requests — maintains engagement, can opt out per-study). anonymization: k≥10, no IDs, no sub-weekly timestamps. **Irreversibility notice displayed whenever this layer's control is on:** "Once your anonymized data has been included in a published study, it cannot be individually withdrawn from that dataset. However, because NeurOne anonymises your data fresh from your device for each study, withdrawing consent immediately and permanently stops any further data flowing to any future dataset — including data from sessions that occurred before your withdrawal." | Per-category and per-project process applies. | Blanket patients kept engaged — not taken for granted |
-| L4 — Results + community *(S1)* | Hear study results? Join suggestion portal? | Plain-language results notification per study (including null results) + paper link + "suggest next steps" link. Access to suggestion/voting/pledge portal. | No results contact, no portal. | Results notification is the highest-value brand moment |
+| Layer | In one line | If no |
+|-------|-------------|-------|
+| **L1 — Contact** *(S1)* | May we reach you about future research? (contact method + frequency limit; POA holders upload a POA, human review 3 business days) | No contact; all features unchanged |
+| **L2 — Category** *(S2)* | Which of the 9 research areas? Each project is still a fresh decision | Not contacted for that category |
+| **L3 — Blanket** *(S2)* | Pre-approve all NeurOne-reviewed research (k≥10, no IDs, no sub-weekly timestamps); still receives per-study *engagement* notifications, not consent requests | Per-category and per-project process applies |
+| **L4 — Results + community** *(S1)* | Plain-language results per study **including null results**, paper link, suggestion/voting/pledge portal | No results contact, no portal |
 
-#### 6.2.1 Why L1 and L4 share a screen
+**Binding invariants (rationale, the full layer table, POA workflow and portal are in
+`docs/reference/consent-engine.md`):**
 
-L1 and L4 were always the same question. L1 asks *may we contact you*; L4 asks *what about*. A
-contact method is the shared precondition for all three delivery paths — per-study invitations
-(L1+L2), per-study engagement notifications (L3), and results notifications (L4). Asking for
-permission on one screen and topics on another was two screens for one decision. No consent
-axis is merged here; only a contact method and the topics it is used for.
+- **L2 is scope; L3 is posture.** Selecting all nine L2 categories is *not* blanket consent —
+  "everything, but ask me" is a real position and survives only while both axes do (§6.2.2).
+- **Select-all does NOT auto-enable the blanket toggle** (§6.2.3). The usability objection is
+  answered with copy, not state.
+- **L4-first must not become an inducement** (§6.2.4): conditional framing ("if your data ever
+  contributes to a study"), a symmetric exchange that names **null results** explicitly, and
+  non-coercion stated on the screen — reciprocity buys information, never participation.
+- **Fewer steps to grant must not mean coarser withdrawal** (§6.2.5). Withdrawal stays at study,
+  category and blanket granularity, and the blanket→analytics teardown is enforced at the store
+  ingestion point (`updateResearchConsent`) on a **true→false transition** — guarding the transition,
+  not the value, so a category-only edit cannot trigger it. `scripts/check-consent-reachability.ts`
+  guards the Rev 37 defect this was written against (correct, tested, unreachable from the iOS UI).
+- **L3 carries an irreversibility notice whenever its control is on**, and per-project consent
+  repeats it for vulnerable populations (45 CFR 46) — full copy in `docs/reference/consent-engine.md`.
 
-#### 6.2.2 Why L2 and L3 share a screen but not a control (locked)
+### 6.3 Research suggestion portal (three functions) → `docs/reference/consent-engine.md`
 
-**Selecting all nine L2 categories is NOT equivalent to L3 blanket consent.** They are
-orthogonal axes:
-
-- **L2 is scope** — which research areas.
-- **L3 is posture** — ask-me-each-time versus pre-approved.
-
-L2-all-categories means *"ask me about everything."* L3 means *"stop asking me."* The position
-"everything, but ask me" is real — arguably the most engaged position a user can hold — and is
-expressible only while both axes survive.
-
-S2 therefore carries **two controls**: the nine category checkboxes with a Select-all
-affordance, and a separately labelled blanket toggle. One step; both axes intact; both
-withdrawal semantics distinct.
-
-**What a full collapse would have cost, had it been adopted:** the "everything, but ask me"
-position becomes unexpressible; L2's *each project is a fresh decision* property is destroyed
-for any user wanting broad scope; and the two withdrawal semantics fuse. Category withdrawal
-does not tear down research analytics and blanket withdrawal does (§6.0), so a single control
-means a single withdrawal — either every category withdrawal starts tearing down analytics, or
-blanket withdrawal stops. The latter is exactly the regression caught in review on 2026-06-16.
-
-#### 6.2.3 Select-all does NOT auto-enable the blanket toggle (locked)
-
-Ticking nine boxes expresses breadth of *interest*; the blanket toggle surrenders the *right to
-be consulted*. Inferring the second from the first attributes to the user a decision they did
-not make. Auto-enabling also fails silently in both directions and asymmetrically: a user
-auto-escalated to blanket stops receiving consent requests they wanted, with no event to
-notice, and if they later switch it off they get a research-analytics teardown they never asked
-for. Per the conservative-claim rule, the option that asserts least and preserves the ability to
-be asked wins.
-
-The usability objection — that only a privacy engineer perceives the distinction — is answered
-with **copy, not state**: enabling Select all surfaces an inline note ("You'll still be asked
-before each individual study. To stop being asked, turn on the setting below"), and the blanket
-toggle's label states what it changes in plain words rather than naming a tier.
-
-#### 6.2.4 Presenting L4 first without it becoming an inducement
-
-L4 offers results notification and the suggestion portal; both presuppose participation, so
-showing them first risks reading as *here is what you get, now consent*. The framing follows the
-precedent in `docs/np_mod_id_001.md` §7.5, where reciprocity is described as an honest exchange
-rather than a bolt-on incentive, and §7.5.2's non-coercion invariant. Three binding copy rules:
-
-1. **Conditional framing.** S1 says *"if your data ever contributes to a study."* The benefit is
-   contingent on a decision the user has not yet been asked to make; a conditional cannot induce
-   satisfaction of its own condition.
-2. **The exchange is symmetric and stated as such.** A study that uses your data and never tells
-   you what it found has taken something and returned nothing. Results notification is the other
-   half of one transaction, not a reward for completing the first half. **Null results are named
-   explicitly** — that is what separates a genuine exchange from marketing.
-3. **Non-coercion, stated on the screen.** Opting into results or the portal grants **no** data
-   access, and declining costs nothing. The reciprocity buys information, never participation.
-
-#### 6.2.5 Fewer steps to grant must not mean coarser withdrawal (locked)
-
-Withdrawal remains at study, category, and blanket granularity, with the §6.0 scoping rules
-unchanged. Because S2 commits both L2 and L3 together, the blanket→analytics teardown is
-enforced at the **store ingestion point** (`updateResearchConsent`) on a true→false *transition*
-of blanket consent, not only in the explicitly-named `withdrawBlanketResearchConsent()`.
-Guarding the transition rather than the value is what keeps a category-only edit from triggering
-teardown — the same regression inverted.
-
-**POA workflow:** POA holder uploads executed healthcare POA → human review 3 business days → jurisdiction flagging → scope limitation noted → annual re-verification. If patient regains capacity, all proxy consent decisions presented for ratification or revocation. Research contact goes to POA holder only.
-
-**Vulnerable population disclosure:** At per-project consent time, explicitly state: "Once your anonymized data is included in a study, individual withdrawal is not possible from that dataset — this is a fundamental property of k-anonymized aggregate data and is required by Common Rule (45 CFR 46). However, because NeurOne anonymises your data fresh from your device for each new study, withdrawing consent immediately and permanently prevents any further data from flowing to any future dataset — including data from sessions that occurred before your withdrawal. Your historical sessions remain on your device under your sole control."
-
-### 6.3 Research suggestion portal (three functions)
-
-1. **Patient research agenda:** Patients submit study ideas in plain language, community votes ("interested"), comments, expresses participation intent. Top suggestions visible to researcher community.
-
-2. **Pre-identified subject pool:** "Would participate" intent flag creates pre-screened, device-familiar, motivated cohort. Researcher portal shows willing participant count, geographic distribution, anonymized device usage profiles per suggestion. Solves researchers' hardest problem (recruitment = 40–60% of trial cost) before grant is written.
-
-3. **Crowdfunding catalyst:** Pledges ($10–$100+) are intent, not charges. When researcher confirms pilot feasibility, formal campaign activates. Escrow held until target met; refunded if not. Released to institution research account. NeurOne contribution matching for strategic studies. Pilot data (even n=20–30) supports NIH SBIR/R21 application. Funders receive results notification + paper acknowledgement as "NeurOne Patient Research Fund contributors."
-
-**Per-project contact workflow:**
-1. NeurOne reviews study (use case library, minimum necessary data, IRB verification)
-2. Eligible patient list generated by device ID + contact prefs only (no UHDR)
-3. personalized invitation from NeurOne (not researcher) — personal tone, specific about study, explicit about what researchers CAN and CANNOT see
-4. Patient decision: Yes / No / Ask a question (secure message to NeurOne liaison, 2 business day response). Invitation includes irreversibility notice: data already included in published studies cannot be individually removed; consent withdrawal blocks all future data flows from any time period.
-5. Results notification closes loop for all who opted in (including null results). Users who later withdrew consent still receive results for studies they previously participated in — notification only, no new data.
-6. Consent withdrawal effect: device immediately stops processing study descriptors; no further extracts generated or transmitted, for any data period including historical sessions.
+Patient research agenda (plain-language study ideas, community voting) · pre-identified subject pool
+("would participate" intent flags — recruitment is 40–60% of trial cost) · crowdfunding catalyst
+(pledges are intent, not charges; escrow released only on confirmed feasibility). The per-project
+contact workflow — NeurOne reviews the study, generates the eligible list from device ID and contact
+prefs only (**no UHDR**), invites in NeurOne's own voice, and closes the loop with results including
+null results — is in `docs/reference/consent-engine.md` §6.3.
 
 ---
 
 ## 16. NAMING CONVENTION CHANGES
 
-**Retired term:** "Health Data Record (HDR)" — ambiguous, replaced throughout all documents
-
-**Replacement:**
-- `UHDR` = User Health Data Record (user's property, never accessed by NeurOne)
-- `SHDR` = System Health Data Record (NeurOne property, device-linked only, never user-linked)
-
-Both terms appear in full on first use in each document, abbreviated thereafter.
+**Retired term:** "Health Data Record (HDR)" — ambiguous, replaced throughout all documents.
+**Replacement:** `UHDR` = User Health Data Record (user's property, never accessed by NeurOne) ·
+`SHDR` = System Health Data Record (NeurOne property, device-linked only, never user-linked). Both
+appear in full on first use in each document, abbreviated thereafter. Signal names, document IDs,
+`§N` citation form and the other identifier families are `docs/np_conv_001.md` (NP-CONV-001).
 
 ---
 
-*This CLAUDE.md is the authoritative core of the NeurOne design program. The always-relevant invariants live here; archival/reference material lives in the subsidiary files listed in the Document Map (§ near top). All decisions marked "locked" have been through full design review; "pending" decisions require resolution before first tooling cut (see `docs/status/pending-decisions.md`). When a locked decision changes, update the relevant file and log it in `docs/status/completed-decisions.md`.*
+*This CLAUDE.md is the always-loaded core of the NeurOne design program: the invariants, and a map to
+everything else. Detail lives in the subsidiary files listed in the Document Map — a section here
+that names a file is a pointer, not a summary you may quote figures from. When a locked decision
+changes, update the owning file, log it in `docs/status/completed-decisions.md`, and add an entry to
+`docs/reference/claude-md-revision-history.md`. Keep every top-level section (§1–§6, §16) and every
+subsection number in place even when its content moves —* `bun scripts/check-section-refs.ts` *guards
+663 inbound citations that resolve against them.*

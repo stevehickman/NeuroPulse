@@ -4,6 +4,27 @@
 >
 > **Note on overlap:** much of the completed detail here and in `completed-decisions.md` also appears in the DHF index (`docs/np_dhf_001.md`) and git history. Content was relocated faithfully, not deduped — a dedup pass against the DHF is flagged as a follow-up (deleting authoritative memory should be a reviewed, per-item decision).
 
+## How to read this file
+
+**~136 KB. Do not read it whole to answer one question.** Five sections, in this order:
+
+| Section | Holds |
+|---------|-------|
+| `## 13.1 Critical` | Action required immediately |
+| `## 13.2 Moderate` | The bulk of the open items, one table row each |
+| `## 13.2b tFUS / LIFU` | Modality watch |
+| `## 13.3 Structural` | Accepted and managed — not blocking |
+| `## 13.4 Pending decisions` | **Must resolve before tooling is cut** |
+
+Recipes that answer most questions without loading the file:
+
+- One open item by ID: `grep -n 'OI-HEXTILE-06' docs/status/pending-decisions.md`
+  (open-item IDs are `OI-<AREA>-<n>`; risk IDs are `RISK-nn`; GitHub issues appear as `#nnn`).
+- What blocks tooling: `sed -n '/^## 13.4/,$p' docs/status/pending-decisions.md`.
+- One section: `sed -n '/^## 13.2 /,/^## 13.2b/p' docs/status/pending-decisions.md`.
+
+Rows are long single lines — read by line range, not by eye.
+
 ## 13.1 Critical — action required immediately
 
 | Issue | Action | Cost/Timeline |
