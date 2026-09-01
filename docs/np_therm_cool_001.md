@@ -10,7 +10,7 @@
 **Approved By:** — (pending design review)
 **References:** NP-THERM-CFD-R1-001 Rev 1 (§2 the resistance network, §3 the inward-flux ceiling, §5 BN-boss export study, §5.3 findings, OI-R1-01…05); NP-THERM-CFD-001 (BC spec, case matrix); NP-THERM-CFD-C2-001 (§2 stack-up, §7 the 1D network); NP-THERM-BEZEL-001 (THERM-1 coupling, the 0.6–1.0 mm scalp gap); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-PWR-BUDGET-001 Rev 3 (§3.2 aggregate estimate, §3.3 the three levers, OI-PWR-01/08); NP-PWRSRC-001 Rev 1 (§4.1 the cavity wall, §7.0 coverage 2/23); NP-HEX-ZM-001 (§5.1–5.3 two-bowl shell, §5.3a rim slot, §5.3c posterior boss, §5.3d mu-metal continuity); NP-DRV-SHELL-002 Rev 2 (§4.3 one aperture, segregated returns); NP-ENV-001 (§1 two envelopes, §2 survival, §5 humidity survival-only); NP-ENV-OPRANGE-001 (§2 per-modality ambient bounds); NP-DT-001 Rev 2 (DI-SAFE-13); NP-HELMET-GEOM-001 (§2 radial stack, §8 THERM-1a gate); CLAUDE.md §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power); IEC 60601-1 (42 °C applied part); `scripts/check-thermal-network.ts`
 **Related Issues:** —
-**Gate:** No gate. D-1, D-2 and D-3 are all **decided** (2026-08-30, principal); raises `OI-THCOOL-01…15`.
+**Gate:** No gate. D-1, D-2 and D-3 are all **decided** (2026-08-30/31, principal); raises `OI-THCOOL-01…17`.
 **IEC 62304 Class:** — (analysis document; no code changed). No SR-FAN requirement is altered.
 **Supersedes:** None — new document.
 **Parent Document:** NP-THERM-CFD-R1-001
@@ -318,7 +318,7 @@ the study's central result and it is worth stating in the form the design conver
 
 ---
 
-## 6. The four architectural options
+## 6. The architectural options
 
 ### 6.1 Sealed recirculation — stir the cavity, exchange nothing
 
@@ -443,6 +443,47 @@ bowl, and §3.3 forbids one.** See §6.1 for what this implies.
 
 **This item is not closed here.** `OI-R1-03` belongs to `NP-THERM-CFD-R1-001`; the disposition above is
 routed to its owner as `OI-THCOOL-10` rather than marked closed by a document that does not own it.
+
+### 6.5 Two options assessed and not recommended
+
+**Liquid cooling.** Rejects to ambient like air, so it clears no wall air does not. It has one real
+structural advantage — it crosses the envelope as a *dielectric tube*, no conductor, routable through the
+same below-cutoff collar — but that advantage is equally available to air (§6.2), which does not put
+coolant over conductive applied parts. Against it: leak risk with `NP-DT-001` **VE-11** open at the
+510(k) tier, pump complexity, and no thermal capability the copper via is not already delivering at 90 %.
+
+**On-head thermoelectric.** Goes sub-ambient, but pumps 2–4× the heat into the path that is already the
+constraint, on a supply `NP-PWRSRC-001` §4.1 finds oversubscribed by 4.7–8.4×, with DC loops beside the
+fluxgates. `NP-ENV-OPRANGE-001` already records that the T2-D TEC cannot hold setpoint above +35 °C
+ambient — the approach is weakest at exactly the ambient that matters.
+
+> **Rev 3 narrows this rejection to its stated subject.** Every objection above is about siting a TEC
+> **on the head**: the head's power budget, the head's thermal path, the fluxgates. None of them
+> survives moving the device into a mains base station, where `NP-PWRSRC-001` §8 already says mains
+> hardware belongs. §6.7 carries the base-station case; the *on-head* rejection stands.
+
+### 6.6 Stored coolth (PCM) — the only sub-ambient option, held in reserve
+
+A phase-change pack melting at ~28–32 °C in the export path absorbs heat at constant **sub-ambient**
+temperature. It is passive, silent, zero-EMF, needs no aperture, and sessions are bounded at 6–30 min:
+
+| Load | Duration | Latent mass |
+|---:|---:|---:|
+| 10 W | 20 min | 60 g |
+| 20 W | 20 min | 120 g |
+| 20 W | 30 min | 180 g |
+
+A real pack is 2–3× this with matrix, shell and sensible heat — so **~0.2–0.5 kg**, feasible but not
+trivial head-borne mass. Two limits: it is a **capacity, not a rate**, so it saturates; and a 30 °C PCM
+stored in a 40 °C room arrives already melted.
+
+> **Rev 3 supersedes the sizing above, on two counts.** The mass objection dissolves once the pack is
+> **worn at the hip rather than on the head** — the loop reaches it through the hub, which is already
+> outside the shield. And **ice at 334 kJ/kg beats paraffin's 200 by 1.67×**, so the store should be
+> ice, not PCM: 182 g covers the 6-tile via load for 30 min. The "capacity, not a rate" limit is real
+> and becomes §6.8's planning problem. See §6.7.
+
+---
 
 ### 6.7 Remote-sink accessories — optional, keyed to the power source
 
@@ -577,47 +618,6 @@ rises and the planner can derate before anything becomes unsafe.
 exhaustion as a face-temperature rise, so **no new Class C requirement falls out of this.** What is new
 is Class B planning correctness — a session that runs longer than promised, or re-cascades mid-run.
 Keeping that line explicit is what keeps an availability feature out of Class C scope.
-
-### 6.5 Two options assessed and not recommended
-
-**Liquid cooling.** Rejects to ambient like air, so it clears no wall air does not. It has one real
-structural advantage — it crosses the envelope as a *dielectric tube*, no conductor, routable through the
-same below-cutoff collar — but that advantage is equally available to air (§6.2), which does not put
-coolant over conductive applied parts. Against it: leak risk with `NP-DT-001` **VE-11** open at the
-510(k) tier, pump complexity, and no thermal capability the copper via is not already delivering at 90 %.
-
-**On-head thermoelectric.** Goes sub-ambient, but pumps 2–4× the heat into the path that is already the
-constraint, on a supply `NP-PWRSRC-001` §4.1 finds oversubscribed by 4.7–8.4×, with DC loops beside the
-fluxgates. `NP-ENV-OPRANGE-001` already records that the T2-D TEC cannot hold setpoint above +35 °C
-ambient — the approach is weakest at exactly the ambient that matters.
-
-> **Rev 3 narrows this rejection to its stated subject.** Every objection above is about siting a TEC
-> **on the head**: the head's power budget, the head's thermal path, the fluxgates. None of them
-> survives moving the device into a mains base station, where `NP-PWRSRC-001` §8 already says mains
-> hardware belongs. §6.7 carries the base-station case; the *on-head* rejection stands.
-
-### 6.6 Stored coolth (PCM) — the only sub-ambient option, held in reserve
-
-A phase-change pack melting at ~28–32 °C in the export path absorbs heat at constant **sub-ambient**
-temperature. It is passive, silent, zero-EMF, needs no aperture, and sessions are bounded at 6–30 min:
-
-| Load | Duration | Latent mass |
-|---:|---:|---:|
-| 10 W | 20 min | 60 g |
-| 20 W | 20 min | 120 g |
-| 20 W | 30 min | 180 g |
-
-A real pack is 2–3× this with matrix, shell and sensible heat — so **~0.2–0.5 kg**, feasible but not
-trivial head-borne mass. Two limits: it is a **capacity, not a rate**, so it saturates; and a 30 °C PCM
-stored in a 40 °C room arrives already melted.
-
-> **Rev 3 supersedes the sizing above, on two counts.** The mass objection dissolves once the pack is
-> **worn at the hip rather than on the head** — the loop reaches it through the hub, which is already
-> outside the shield. And **ice at 334 kJ/kg beats paraffin's 200 by 1.67×**, so the store should be
-> ice, not PCM: 182 g covers the 6-tile via load for 30 min. The "capacity, not a rate" limit is real
-> and becomes §6.8's planning problem. See §6.7.
-
----
 
 ### 6.9 D-2 applied — the pneumatic loop is not in scope
 
@@ -762,6 +762,15 @@ worse than a refusal. The narrower 35→38 band stays clear of it. The exact cro
 it needs the derate curve, itself provisional under `OI-OPR-01` — so this is a supporting argument, not
 a load-bearing one.
 
+**7.3 — Lowering ambient does NOT resurrect Path A, and cannot.** The C2 fault case pins the junction at
+its 62 °C throttle setpoint and solves for the face; the face lands at 60.2 °C because it is 1.6 mm from
+a 62 °C plane, **almost independently of ambient**. Ambient is not the variable in that case. `SR-FAN-01`,
+`SR-FAN-03` and Path B1 stand unchanged. Similarly, R1 §3's fan-off safe-duty ceiling improves only from
+~4.5 to ~9.0 mW/cm² between 43.3 °C and 25 °C — **halt-or-trickle at both ends.** No ambient choice
+changes the character of the fan-fault derate.
+
+---
+
 **7.4 — The derate semantics are unspecified, and the default reading reopens what D-1 closed.**
 
 `NP-ENV-OPRANGE-001` §1 says *"linear **duty** derate T_f → T_max."* Duty scales. **Nothing in the
@@ -809,15 +818,6 @@ complication: `NP-FW-POE-001`'s gate would need the protocol's dose as an input.
 **One thing this does not change.** The band applies to PBM only. `NP-ENV-OPRANGE-001` §5's intersection
 rule leaves EEG-only at +5 → +45 and tDCS at −10 → +45, so a user in a 33 °C room keeps full-capability
 EEG and tES. Only PBM protocols derate, which bounds the blast radius considerably.
-
-**7.3 — Lowering ambient does NOT resurrect Path A, and cannot.** The C2 fault case pins the junction at
-its 62 °C throttle setpoint and solves for the face; the face lands at 60.2 °C because it is 1.6 mm from
-a 62 °C plane, **almost independently of ambient**. Ambient is not the variable in that case. `SR-FAN-01`,
-`SR-FAN-03` and Path B1 stand unchanged. Similarly, R1 §3's fan-off safe-duty ceiling improves only from
-~4.5 to ~9.0 mW/cm² between 43.3 °C and 25 °C — **halt-or-trickle at both ends.** No ambient choice
-changes the character of the fan-fault derate.
-
----
 
 ## 8. Recommendation
 
