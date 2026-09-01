@@ -57,6 +57,19 @@ if(CMAKE_CROSSCOMPILING)
 
 add_executable(np_bootloader ${BOOTLOADER_SOURCES})
 
+# OI-SWCI-35, closed 2026-09-01.  CMake gives a cross-compiled executable no
+# suffix, so this target produced a file named `np_bootloader` while the block
+# comment at the top of this file, NP-SW-CI-001 and the workflow all called it
+# `np_bootloader.elf`.  firmware-cross-build.yml's "Report image size" step is
+# `find build/cross -name '*.elf' | xargs -r arm-none-eabi-size`, and a glob
+# matching nothing piped to `xargs -r` exits 0 — so that step has reported on
+# zero files, and passed, since it was written.  Phase 7 found and fixed the
+# same defect on the Class C leg (np_safety_mcu) and raised this one rather than
+# fixing it out of scope.  Phase 8 works on this leg, so it is fixed here, on
+# both sides: the suffix below AND an explicit file-count assertion in the
+# workflow, because either alone is a single point of silent failure.
+set_target_properties(np_bootloader PROPERTIES SUFFIX ".elf")
+
 target_include_directories(np_bootloader PRIVATE include)
 
 # ── Compiler flags ─────────────────────────────────────────────────────────

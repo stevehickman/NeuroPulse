@@ -50,7 +50,7 @@ env:
   NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform)_tests$'
   NP_TOTAL_TEST_COUNT: '30'
   NP_SAFETY_TEST_COUNT: '7'
-  NP_CLASS_B_TEST_COUNT: '23'
+  NP_CLASS_B_TEST_COUNT: '24'
 
 jobs:
   host-tests-all:
@@ -205,9 +205,13 @@ jobs:
     # (§4.6) and this was the last masked leg in the repository.  As with the
     # other two cross legs here, this file is schedule + workflow_dispatch only
     # and is not a PR check, so "the run goes red" is the whole of the effect;
-    # surfacing that is still OI-SWCI-10.  Covers compilation of every SW-02
-    # translation unit, not the linking of an SW-02 image — there is no such
-    # executable target in-tree (§4.7, OI-SWCI-21).
+    # surfacing that is still OI-SWCI-10.  As of phase 8 this covers the LINK of
+    # np_application.elf as well as the compilation of every SW-02 translation
+    # unit — OI-SWCI-21 is closed (§4.8).  The artifact assertions live on the
+    # PR-facing leg in firmware-cross-build.yml; this backstop's job is to prove
+    # the unscoped build still succeeds, which for the application target now
+    # includes its linker-script ASSERTs and the platform seam census, both of
+    # which run inside the build itself.
     steps:
       - uses: actions/checkout@v4
       - name: Install ARM GNU toolchain

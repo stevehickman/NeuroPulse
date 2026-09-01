@@ -2,18 +2,22 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 10
+**Revision:** 11
 **Date:** 2026-09-01  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
 **Approved By:** — (DRAFT, not approved)  
-**References:** NP-SW-001 Rev 3 (Software Development Plan), NP-SOUP-CMSIS-001 Rev 1 (Class C CMSIS anomaly evaluation, §7.1.2), NP-FW-EMMC-001 Rev 1 (bootloader boot sequence), NP-FW-CVNS-001 Rev 1 (safety MCU interlock), `.github/workflows/firmware-host-tests.yml` (retired 2026-08-08, Phase 0 — see §6.1)  
+**References:** NP-SW-001 Rev 3 (Software Development Plan, incl. §9.4 MCUX SDK SOUP entry), NP-SOUP-CMSIS-001 Rev 1 (Class C CMSIS anomaly evaluation, §7.1.2), NP-FW-EMMC-001 Rev 1 (bootloader boot sequence), NP-FW-CVNS-001 Rev 1 (safety MCU interlock), `.github/workflows/firmware-host-tests.yml` (retired 2026-08-08, Phase 0 — see §6.1)  
 **Related Issues:** PR #250 (workflow least-privilege pass — where this gap was found)  
 **Gate:** —  
 **IEC 62304 Class:** SW-01 Class C (safety MCU), SW-02 Class B (main processor)  
 **Supersedes:** None  
-**Change Summary:** Rev 10 (2026-09-01) — **§5.0's accepted-exception record now enumerates TWO exceptions; `check-doc-filenames.ts` moves to its own `tooling-ci.yml` job with `docs/**` in its relevance list.** The document-naming guard enforces NP-CONV-001 §4.0 in both directions over every `.md`/`.docx`/`.pdf` in `docs/` and `docs/superseded/`, but ran only in the `scripts` job, whose list is `scripts/**`, `tsconfig.scripts.json`, `package.json`, `bun.lock`. **The only change that can violate either half of the rule — a document added, renamed or moved — matched none of those**, so the guard was skipped on precisely the PRs it exists to gate. Measured on [#306](https://github.com/stevehickman/NeuroPulse/pull/306), a docs-only PR adding five files under `docs/reference/`: the job skipped. The fix is a **separate `doc-naming` job**, not a wider `NP_SCOPE_SCRIPTS` — the two surfaces do not overlap, and merging the lists would run `tsc` over every documentation commit for no coverage. `scripts-check` is renamed `scripts/ type-check + gate-coverage guard` to stop describing work it no longer does; it is not in the repository ruleset's required-check list (firmware contexts only), so the rename hangs nothing. Falsified by construction rather than asserted: a `docs/np_bogus_001.md` carrying no `**Document:**` field is in scope for the new job (`--relevant` → `true`) and fails rule B (`exit=1`, *"has a serial-shaped name but no serial of record"*); removed, the gate returns `scanned: 111 files · 106 carry a serial`, A and B PASS. Scope assertions in the `changes` job pin all four cases, including `docs/superseded/**`, which `docs/**` reaches only via the matcher's `prefix/**` semantics. **One stale field corrected in passing:** the `Revision:` header read `8` while this summary's newest entry was Rev 9; it now reads 10, and the intervening history is unaltered. **The same defect, one surface over, fixed in the same change.** `check-gate-coverage.ts` reads `scripts/`, `ci/` **and every workflow** — it answers "does anything actually run this gate, and its self-test?" — but it too rode `NP_SCOPE_SCRIPTS`, which sees `scripts/**` and `tooling-ci.yml` and neither of the other two. A new `ci/test_*.py` with no `CI-Kind`, or any *other* workflow dropping the step that runs a gate, was invisible to the one gate whose entire job is to notice that. It moves to a `gate-coverage` job on `scripts/**` + `ci/**` + `.github/workflows/**`. This is **not** a §5.0 exception — those are precisely the files it reads, so listing them is build-only-what-changed. Both blind spots falsified by construction: `ci/test_bogus.py` with no declaration is out of scope on the old list, in scope on the new, and fails *"no CI-Kind declared"*; deleting web-ci.yml's `check-section-refs.ts` step is likewise out of scope on the old list, in scope on the new, and fails *"CI-Kind gate but no workflow runs it"*. `docs/**` is deliberately **absent** from the gate-coverage list even though its population probe runs `check-doc-filenames.ts` against the real tree: any change that makes a gate red is in scope for that gate's own job, which reports it in its own words, so adding `docs/**` would fail two jobs for one violation, one of them with the wrong message. No `bun install` in either new job — measured, both are clean against an empty `node_modules`. **And the third instance, which closes the class for now: `check-section-refs.ts` moves to its own always-run job and OI-SWCI-38 is CLOSED.** That gate walks from the repository root over 11 source extensions, but the `web-ci.yml` list deciding whether it ran covered `CLAUDE.md`, `docs/**`, `app/android/**`, `firmware/**` and the web surface — **34 tracked files carrying a literal `CLAUDE.md §N` citation fell outside it**, almost all `app/ios/**` and `app/NeurOneShared/`. It now runs in `tooling-ci.yml` with **no relevance gate at all**, which is the only honest list for a gate whose population is the tree; writing `**` and matching it every time would be the same thing dressed as scoping. Falsified by construction: a citation of a nonexistent section (`§12`) appended to `app/ios/NeurOne/Consent/ConsentStore.swift` was out of scope on the old list and is now reported as `ConsentStore.swift:185` · `§12`, exit 1. **Three consequences worth stating plainly.** (i) **§5.0's accepted-exception list is now empty**, and the earlier framing in this very entry — doc-naming as "a second accepted exception" — was wrong: `docs/**` IS that gate's population, and an exception only ever appeared when a repo-wide guard was bolted onto a build job whose surface was something else. (ii) **CI got cheaper, not dearer**: a docs-only, firmware-only or Android-only commit no longer runs `bun install`, `tsc`, the full Vitest suite and a Vite build inside `app/web` to reach two script steps, and `web-ci.yml`'s list has narrowed back to the web surface — its `assert true docs/np_sw_ci_001.md` and `assert true CLAUDE.md` now read `false`, which is the change rather than a regression. (iii) **A fourth instance surfaced while narrowing that list and is fixed here too**: `sync-locales.ts --check` compares the committed iOS String Catalog byte-for-byte against `locales/*.json`, and `app/ios/NeurOne/Localizable.xcstrings` was on **no** relevance list anywhere — a file §6.3 already records as a second source of truth that has drifted once, costing 26 keys. A one-character edit to a `"value"` makes `--check` report `STALE … 1 generated file(s) out of date`; the exact path is now listed, named precisely so `--check-tree` fails if it moves. **OI-SWCI-08 stays open**: four instances of one class, every one found by a human diffing `CI-Scans` against a relevance list by hand.
+**Change Summary:** Rev 11 (2026-09-01) — **phase 8 complete; OI-SWCI-20 and OI-SWCI-21 CLOSED; the SW-02 Class B image links and the CI leg gates the link. OI-SWCI-35 closed in passing.** (1) **The MCUX SDK is vendored** — `firmware/vendor/mcux_sdk/`, MCUX SDK 2.16.0 tag `MCUX_2.16.000`, six files and a licence: the MIMXRT1062 device header, its feature macros, the CPU-macro dispatch header, `system_MIMXRT1062.{h,c}` and the GCC startup. Byte-exact, per-file SHA-256, with the "intentionally NOT vendored" list the FreeRTOS/CMSIS precedents require. **Class B, so §9.3 obligation 5 does not attach** — and that is a reachability claim, stated with the check that makes it observable rather than left as an assumption. `core_cm7.h` and `cachel1_armv7.h` went into the existing `firmware/vendor/cmsis_core/`, not into a second copy: one component, two SW items, and that record was revised to say so. **The SDK's linker scripts are deliberately NOT vendored** — every one of them links for execution in place from FlexSPI NOR at `0x60000000`, and NeurOne stages its application into OCRAM from eMMC, so an SDK script here would be a trap rather than a starting point. (2) **New §4.8 — `np_application` links.** 96 targets, 15 static libraries, **two** ELFs, 0 warnings, **0 unresolved symbols**; `.bin` 48,208 B of the bootloader's 440 KiB reservation (10.7%); `__isr_vector` at `0x20210000` exactly. §4.7's central claim is now retired: "zero unresolved symbols" on the main-firmware leg was **true and vacuous for SW-02**, and it is neither any more. (3) **The link found two defects that no compile could have found, both of them years-old-shaped.** `np_crypto` and `np_ota_state` were compiling as **ARMv4T, ARM ISA, soft-float** — not Cortex-M7, not even Thumb-only — because both deliberately set no CPU flags (they are shared with the Cortex-M0+ build) and `cmake/arm-none-eabi.cmake`, unlike its sibling `stm32g071.cmake`, set no `CMAKE_C_FLAGS_INIT` to supply them. Nothing observed it because no image linked them. And `firmware/hub_control/CMakeLists.txt` had named a consumer, `np_application`, that did not exist — while `firmware/CMakeLists.txt` called `np_hub_control` "the top-level application target". Both statements were in the tree, they contradicted each other, and neither was checked. (4) **The platform layer is 93 traps, not 93 drivers, and the number is asserted.** §4.4's argument against writing drivers to turn a leg green holds harder on SW-02 than it did on SW-01 — the hub fan-out is unimplemented (OI-HUB-C01..C19), the emitters are unselected (OI-HEXTILE-02). But a stub that returns a *plausible* value is the same trade with the failure hidden: `np_mod_visual_hal_hall_lifted()` returning "not lifted" converts a missing driver into a defeated interlock. So every seam halts, and the halt is the **designed** safe state — it stops the SPI heartbeat, and the safety MCU cuts every stimulation line within 1.5 s. `firmware/cmake/np_platform_census.cmake` asserts the count against `NP_SW02_PLATFORM_SYMBOL_COUNT` in the build itself, so the distance to a runnable image is a figure in the build output rather than something a reader has to reconstruct. (5) **Two measured findings recorded rather than papered over.** SW-02's static footprint is **162,436 B**, and the MCUX SDK declares **128 KiB** of DTCM — `.bss` does not fit and is placed in the application's own staging reservation, which costs the tightly-coupled path and is **OI-SWCI-42**. And **nothing in this repository configures the FlexRAM partition** that decides how much ITCM/DTCM/OCRAM exist; the bootloader script and the SDK do not even agree about OCRAM's size (512 KiB against 768 KiB) — **OI-SWCI-39**. (6) **CI now gates the artifact, not just the build.** The main-firmware leg asserts an exact ELF count (never a glob piped to `xargs -r`), the loadable image against the staging reservation, zero undefined symbols, no `tests/` object in the map, the presence of the trap layer, and the seam census. Every one was run locally first — which is how the `nm | grep -q` step in it was caught **failing on an image that did contain the symbol**, because `grep -q` exits early, `nm` takes SIGPIPE and `pipefail` promotes the 141. (7) **OI-SWCI-35 closed**: `np_bootloader` now sets `SUFFIX ".elf"`, and its `Report image size` step counts files instead of globbing — the step had been reporting on zero files, and passing, since it was written. New open items: **OI-SWCI-39** (FlexRAM partition), **OI-SWCI-40** (62 of the 93 seams are still declared by an `extern` in a `.c`), **OI-SWCI-41** (no board clock configuration — `SystemInit()` does not bring the PLLs to the 600 MHz `FreeRTOSConfig.h` assumes), **OI-SWCI-42** (DTCM/OCRAM partitioning of `.bss`).
+
+> **This revision was authored as Rev 10 and renumbered to 11 on merge, and its four new open items were renumbered 38–41 → 39–42.** PR #308 landed on `main` while this branch was open and took both — the `Revision:` field (correcting it 8 → 10, which this branch had also spotted) and **OI-SWCI-38**, which it raised and closed for the `check-section-refs.ts` relevance gap. Neither number is shared. Recorded rather than quietly resolved because the repository has been here before: NP-DHF-001 §9 documents PRs #272 and #273 both issuing a Rev 29, because #273 branched first and merged third without re-checking. The same shape, caught at the rebase this time. Any citation of "NP-SW-CI-001 Rev 10" written before 2026-09-01 18:00 UTC that concerns phase 8 means this revision; a citation of OI-SWCI-38 that concerns the FlexRAM partition means OI-SWCI-39.
+
+Rev 10 (2026-09-01) — **§5.0's accepted-exception record now enumerates TWO exceptions; `check-doc-filenames.ts` moves to its own `tooling-ci.yml` job with `docs/**` in its relevance list.** The document-naming guard enforces NP-CONV-001 §4.0 in both directions over every `.md`/`.docx`/`.pdf` in `docs/` and `docs/superseded/`, but ran only in the `scripts` job, whose list is `scripts/**`, `tsconfig.scripts.json`, `package.json`, `bun.lock`. **The only change that can violate either half of the rule — a document added, renamed or moved — matched none of those**, so the guard was skipped on precisely the PRs it exists to gate. Measured on [#306](https://github.com/stevehickman/NeuroPulse/pull/306), a docs-only PR adding five files under `docs/reference/`: the job skipped. The fix is a **separate `doc-naming` job**, not a wider `NP_SCOPE_SCRIPTS` — the two surfaces do not overlap, and merging the lists would run `tsc` over every documentation commit for no coverage. `scripts-check` is renamed `scripts/ type-check + gate-coverage guard` to stop describing work it no longer does; it is not in the repository ruleset's required-check list (firmware contexts only), so the rename hangs nothing. Falsified by construction rather than asserted: a `docs/np_bogus_001.md` carrying no `**Document:**` field is in scope for the new job (`--relevant` → `true`) and fails rule B (`exit=1`, *"has a serial-shaped name but no serial of record"*); removed, the gate returns `scanned: 111 files · 106 carry a serial`, A and B PASS. Scope assertions in the `changes` job pin all four cases, including `docs/superseded/**`, which `docs/**` reaches only via the matcher's `prefix/**` semantics. **One stale field corrected in passing:** the `Revision:` header read `8` while this summary's newest entry was Rev 9; it now reads 10, and the intervening history is unaltered. **The same defect, one surface over, fixed in the same change.** `check-gate-coverage.ts` reads `scripts/`, `ci/` **and every workflow** — it answers "does anything actually run this gate, and its self-test?" — but it too rode `NP_SCOPE_SCRIPTS`, which sees `scripts/**` and `tooling-ci.yml` and neither of the other two. A new `ci/test_*.py` with no `CI-Kind`, or any *other* workflow dropping the step that runs a gate, was invisible to the one gate whose entire job is to notice that. It moves to a `gate-coverage` job on `scripts/**` + `ci/**` + `.github/workflows/**`. This is **not** a §5.0 exception — those are precisely the files it reads, so listing them is build-only-what-changed. Both blind spots falsified by construction: `ci/test_bogus.py` with no declaration is out of scope on the old list, in scope on the new, and fails *"no CI-Kind declared"*; deleting web-ci.yml's `check-section-refs.ts` step is likewise out of scope on the old list, in scope on the new, and fails *"CI-Kind gate but no workflow runs it"*. `docs/**` is deliberately **absent** from the gate-coverage list even though its population probe runs `check-doc-filenames.ts` against the real tree: any change that makes a gate red is in scope for that gate's own job, which reports it in its own words, so adding `docs/**` would fail two jobs for one violation, one of them with the wrong message. No `bun install` in either new job — measured, both are clean against an empty `node_modules`. **And the third instance, which closes the class for now: `check-section-refs.ts` moves to its own always-run job and OI-SWCI-38 is CLOSED.** That gate walks from the repository root over 11 source extensions, but the `web-ci.yml` list deciding whether it ran covered `CLAUDE.md`, `docs/**`, `app/android/**`, `firmware/**` and the web surface — **34 tracked files carrying a literal `CLAUDE.md §N` citation fell outside it**, almost all `app/ios/**` and `app/NeurOneShared/`. It now runs in `tooling-ci.yml` with **no relevance gate at all**, which is the only honest list for a gate whose population is the tree; writing `**` and matching it every time would be the same thing dressed as scoping. Falsified by construction: a citation of a nonexistent section (`§12`) appended to `app/ios/NeurOne/Consent/ConsentStore.swift` was out of scope on the old list and is now reported as `ConsentStore.swift:185` · `§12`, exit 1. **Three consequences worth stating plainly.** (i) **§5.0's accepted-exception list is now empty**, and the earlier framing in this very entry — doc-naming as "a second accepted exception" — was wrong: `docs/**` IS that gate's population, and an exception only ever appeared when a repo-wide guard was bolted onto a build job whose surface was something else. (ii) **CI got cheaper, not dearer**: a docs-only, firmware-only or Android-only commit no longer runs `bun install`, `tsc`, the full Vitest suite and a Vite build inside `app/web` to reach two script steps, and `web-ci.yml`'s list has narrowed back to the web surface — its `assert true docs/np_sw_ci_001.md` and `assert true CLAUDE.md` now read `false`, which is the change rather than a regression. (iii) **A fourth instance surfaced while narrowing that list and is fixed here too**: `sync-locales.ts --check` compares the committed iOS String Catalog byte-for-byte against `locales/*.json`, and `app/ios/NeurOne/Localizable.xcstrings` was on **no** relevance list anywhere — a file §6.3 already records as a second source of truth that has drifted once, costing 26 keys. A one-character edit to a `"value"` makes `--check` report `STALE … 1 generated file(s) out of date`; the exact path is now listed, named precisely so `--check-tree` fails if it moves. **OI-SWCI-08 stays open**: four instances of one class, every one found by a human diffing `CI-Scans` against a relevance list by hand.
 
 Rev 9 (2026-08-11) — **phase 7 complete; Defect E CLOSED; OI-SWCI-17 and OI-SWCI-19 closed; the SW-01 Class C image links and the CI leg gates the link.** (1) New **§4.4.2**. `firmware/safety_mcu/platform/` implements all 25 `np_hal_*` symbols in eight translation units — clock/timebase, GPIO, ADC, SPI slave, TIM2 + R-peak capture, impedance, OTP, and shared pin primitives — against vendored CMSIS device headers with zero `HAL_*` and zero `LL_*` calls (OI-SWCI-06 upheld). **Measured on `arm-none-eabi-gcc 14.2.1`: `rc=1` with 24 undefined symbols → `rc=0` producing `np_safety_mcu.elf`, 54,140 B, `ELF 32-bit LSB executable, ARM, EABI5`; 35,960 B flash (27.4 % of 128 KB); 824 B static SRAM (2.2 % of 36 KB − 64 B); 0 undefined `np_hal_*`.** `.bin` (35,960 B) and `.hex` (101,208 B) are produced by the existing POST_BUILD command, which had never run. (2) **Two toolchains, two sizes, both correct — stated so the numbers do not read as a contradiction.** The table above is `arm-none-eabi-gcc 14.2.1` (the dev host). CI pins `13.2.Rel1` (§5.3) and produces **31,088 B flash (23.7 %)** with identical `bss` (824 B) and an identical 0-undefined census — confirmed in the phase-7 run's `Report image size` step. The delta is code generation between GCC major versions, not a difference in what was built; anyone diffing the PR body against a CI log should expect it. The budget gate is set against the part, not against either measurement.
 
@@ -24,11 +28,11 @@ Rev 9 (2026-08-11) — **phase 7 complete; Defect E CLOSED; OI-SWCI-17 and OI-SW
 
 > **⚠ DRAFT — not a baselined verification plan.** The three workflows in §5/§5.5 landed in phase 0 (§6.1), the bootloader's C-runtime defect closed in phase 1 (§6.2), its OCRAM over-subscription closed in phase 2 (§6.3), the bootloader leg was promoted out of `continue-on-error` in phase 3 (§6.4), the safety MCU's missing device headers closed in phase 4 (§6.5), the main-firmware defect closed and its leg was promoted in phase 5 (§6.6), the required-check ruleset was applied in phase 6 (§6.7), and **the SW-01 platform layer landed in phase 7 (§4.4.2), making the Class C image link for the first time.**
 >
-> §4 records **six** independent blocking defects: **A, B, C, D, E and F are all closed as of phase 7.** The bootloader configures and links cleanly (`rc=0`, OCRAM 100.00%). The safety MCU **compiles** for STM32G071 — now 18 Class C translation units, 0 errors, 0 warnings — and **links**: `np_safety_mcu.elf` is a real artifact (54,140 B; 35,960 B flash = 27.4 %; 824 B SRAM = 2.2 %; **0** undefined `np_hal_*`, down from 24), and the CI leg gates the link with an asserted size report (§4.4.2). Closing Defect E exposed a **second** link blocker behind it — the `.fault_latch` section could not link at all — which is the §4.7 lesson in miniature: a defect that nothing can observe is not thereby absent. **Read the closure narrowly.** It means the image links and its unit tests pass. It does **not** mean the platform layer is validated: no hardware exists, nothing has been measured on silicon, and the NTC pin map and the whole impedance analog front end are declared placeholders (OI-SWCI-27..34). The main-firmware super-project builds clean as of phase 5 — `rc=0`, 0 errors, 0 warnings, 0 unresolved symbols — but **SW-02 still has no executable target, so its link remains unverified and unverifiable** (§4.7, OI-SWCI-21, phase 8); that row did not move with SW-01's.
+> §4 records **six** independent blocking defects: **A, B, C, D, E and F are all closed as of phase 7**, and §4.8 adds two more that no compile-only check could have found — `np_crypto` and `np_ota_state` targeting **ARMv4T soft-float** rather than Cortex-M7, and a `np_application` consumer that two CMakeLists described contradictorily and neither of which existed. Both were found by the first SW-02 link, at phase 8, and both are closed. The bootloader configures and links cleanly (`rc=0`, OCRAM 100.00%). The safety MCU **compiles** for STM32G071 — now 18 Class C translation units, 0 errors, 0 warnings — and **links**: `np_safety_mcu.elf` is a real artifact (54,140 B; 35,960 B flash = 27.4 %; 824 B SRAM = 2.2 %; **0** undefined `np_hal_*`, down from 24), and the CI leg gates the link with an asserted size report (§4.4.2). Closing Defect E exposed a **second** link blocker behind it — the `.fault_latch` section could not link at all — which is the §4.7 lesson in miniature: a defect that nothing can observe is not thereby absent. **Read the closure narrowly.** It means the image links and its unit tests pass. It does **not** mean the platform layer is validated: no hardware exists, nothing has been measured on silicon, and the NTC pin map and the whole impedance analog front end are declared placeholders (OI-SWCI-27..34). The main-firmware super-project builds clean as of phase 5 — `rc=0`, 0 errors, 0 warnings, 0 unresolved symbols — but **SW-02 still has no executable target, so its link remains unverified and unverifiable** (§4.7, OI-SWCI-21, phase 8); that row did not move with SW-01's.
 >
 > **As of phase 5 no cross-compile leg carries `continue-on-error`.** All four are gating; the main-firmware leg was the last promoted.
 >
-> **Read each check for exactly what it claims.** The safety-MCU check says every Class C source compiles for the target — not that a linkable image exists. **The main-firmware check says every SW-02 translation unit compiles for the i.MX RT1062 — also not that an image exists**, and for a different reason: there is no SW-02 application executable target in this repository at all (§4.7, OI-SWCI-21). The bootloader check is the only one of the three that covers a real link. **No cross-compile leg is a required check.** A failing leg makes its workflow run conclude `failure`; none prevents a merge, because no branch protection exists (OI-SWCI-04, phase 6).
+> **Read each check for exactly what it claims — and as of phase 8 all three claim a link.** The safety-MCU check gates the Class C link (`np_safety_mcu.elf`, phase 7, §4.4.2). The bootloader check has gated its link since phase 3. **The main-firmware check now gates the SW-02 link** — `np_application.elf`, 0 unresolved symbols out of a starting 102 (phase 8, §4.8, closing OI-SWCI-21) — where for five phases it could only say that every SW-02 translation unit *compiled*. That earlier wording was correct and is kept in §4.7 as the record of what the check meant at the time; what it concealed is now measured. **What none of the three claims is that any image RUNS.** `np_application`'s platform layer is 93 traps rather than 93 drivers (§4.8.4); the image halts on its first platform call, deliberately, into the state the safety MCU already watches for. Branch protection has existed since phase 6 (§6.7.8, OI-SWCI-04): seven contexts are required on PRs targeting `main`, though a direct push still bypasses them (OI-SWCI-22).
 
 ## 1. Purpose and scope
 
@@ -367,6 +371,240 @@ Two things follow, and both are done rather than noted:
 
 Raised as **OI-SWCI-21**. Creating an `np_application` target is not CI work — it needs the platform layer and the MCUX SDK integration (OI-SWCI-20) that a real device bring-up entails, which is exactly the argument §4.4 makes for not writing Class C drivers to turn a leg green.
 
+
+> **CLOSED at phase 8 (2026-09-01). `np_application` exists and links; see §4.8.** Everything above
+> stays as written, because it is the record of what the check meant for five phases, and the
+> wording of §6's phase-5 row, §8's SW-02 row and both promoted legs' comments was correct for that
+> period. Two things in it are now false and are worth naming rather than leaving for a reader to
+> infer: the cross-build links **two** executables, not one; and "zero unresolved symbols" on the
+> main-firmware leg is a claim about SW-02, measured at **0 out of a starting 102**.
+>
+> The paragraph that has aged best is the argument for *why* this was not CI work — "it needs the
+> platform layer and the MCUX SDK integration (OI-SWCI-20) that a real device bring-up entails,
+> which is exactly the argument §4.4 makes for not writing Class C drivers to turn a leg green."
+> Phase 8 vendored the SDK and did **not** write the drivers. What it wrote instead is a layer that
+> halts, and §4.8.4 is the argument for why that is a different thing from a driver rather than a
+> cheaper one.
+
+### 4.8 The SW-02 application target — `np_application` links (2026-09-01, phase 8, closes OI-SWCI-20 and OI-SWCI-21)
+
+**Measured, on `arm-none-eabi-gcc 13.2.1`:**
+
+| Property | Before phase 8 | After |
+|---|---|---|
+| Executables linked by the cross-build | 1 (`np_bootloader`) | **2** (`np_bootloader.elf`, `np_application.elf`) |
+| Static libraries archived | 13 | 15 (`np_platform` and `np_accel_shdr` added since §4.7 was written) |
+| SW-02 unresolved symbols | **unmeasurable** — no link ran | **0**, from 102 at the first link attempt |
+| `np_application.elf` | never existed | **126,224 B**, `ELF 32-bit LSB executable, ARM, EABI5, statically linked` |
+| `.bin` / `.hex` | never existed | **48,208 B** / 135,639 B |
+| Loadable image vs the bootloader's reservation | — | **48,208 B of 450,560 (10.7 %)** |
+| `STAGING` region incl. `.bss` | — | 202,164 B of 450,560 (44.9 %) |
+| `DTCM` | — | 8,496 B of 131,072 (6.5 %) |
+| `__isr_vector` | — | **`0x20210000`** = `ORIGIN(OCRAM) + _app_load_offset`, exactly |
+| Build warnings | 0 | **0** |
+| Class B host-test targets | 23 | **24** (repo total 30 → 31) |
+
+The 102 unresolved symbols at the first link attempt were 10 compiler-runtime and libm
+(`__aeabi_*`, `memcpy`/`memset`/`memcmp`, `sinf`/`cosf`/`sqrtf`) and **92 first-party platform
+seams** — the OI-PBM-HAL-01..03, OI-ZA, OI-HRV, OI-PBM, OI-CVNS and OI-ANON-AES families §4.7 named
+as the ones that "can never be diagnosed by" the old leg. They are diagnosed now, and §4.8.4 is what
+was done with them.
+
+#### 4.8.1 The link found two defects that no amount of compiling could have found
+
+**`np_crypto` and `np_ota_state` were not being built for this processor.** Measured with
+`readelf -A` on 2026-09-01: `Tag_CPU_arch: v4T`, `Tag_ARM_ISA_use: Yes`, soft float. Not Cortex-M7,
+not Thumb-only, not the hard-float ABI every other SW-02 object uses. The first link that included
+them failed with `np_application.elf uses VFP register arguments, libnp_crypto.a(...) does not`.
+
+The cause is a mechanism that works on one side of the repository and was never implemented on the
+other. Both libraries deliberately set no CPU flags — they are shared between the Cortex-M7 and
+Cortex-M0+ builds, and `firmware/crypto/CMakeLists.txt` says so in as many words: *"No CPU flags are
+set here. The consuming project's CMakeLists sets CPU flags."* On the SW-01 side that is true,
+because `cmake/stm32g071.cmake` supplies them through `CMAKE_C_FLAGS_INIT`. On the SW-02 side
+`cmake/arm-none-eabi.cmake` had no such block, and CMake does not propagate a consumer's
+`target_compile_options` into a library's own compilation, so there was nothing to supply them at
+all. Fixed by adding the counterpart block, with the measurement in the comment.
+
+**Why nothing had noticed.** The bootloader carries its own `np_signature.c` rather than depending
+on `np_crypto` — deliberately, because `-nostdlib -nodefaultlibs` makes Monocypher unavailable — so
+the only ARM image in the tree never linked either library. This is §4.7's own lesson with different
+nouns, and it is the third time this document records it: *a defect that cannot be observed is not
+thereby absent* (§4.4.2). Defect E hid the `.fault_latch` script defect; the absence of an SW-02
+link hid this one.
+
+**The second defect was a contradiction sitting in plain text.** `firmware/hub_control/CMakeLists.txt`
+documents its intended consumer as `target_link_libraries(np_application PRIVATE np_hub_control)`
+and says at line 199 that *"the MCUX SDK HAL is still provided by the parent application target"* —
+while `firmware/CMakeLists.txt` called `np_hub_control` *"the top-level application target"*. Both
+lines were in the repository, they said opposite things, and nothing compared them. `np_application`
+now exists and the second comment is corrected.
+
+#### 4.8.2 What was vendored, and the one thing that was refused
+
+`firmware/vendor/mcux_sdk/` carries six files and a licence from tag `MCUX_2.16.000`: `MIMXRT1062.h`,
+`MIMXRT1062_features.h`, `fsl_device_registers.h`, `system_MIMXRT1062.{h,c}` and
+`gcc/startup_MIMXRT1062.S`. Byte-exactness was verified by two independent downloads and a recursive
+byte comparison, with per-file SHA-256 recorded so the claim survives without network access — the
+Class C standard from §9.3, applied here even though this component is Class B.
+
+`core_cm7.h` and `cachel1_armv7.h` went into the **existing** `firmware/vendor/cmsis_core/` rather
+than a second copy under the MCUX directory. The alternative was four byte-identical duplicates of
+`cmsis_version.h`, `cmsis_compiler.h`, `cmsis_gcc.h` and `mpu_armv7.h`; two copies of one SOUP
+component is worse than one component serving two SW items, because it doubles the surface to
+justify and makes a future tag bump something that can be applied to one copy and not the other. The
+core headers are disjoint (`core_cm0plus.h` reaches SW-01 only, `core_cm7.h` SW-02 only) and the two
+builds are separate CMake projects with separate toolchain files, so neither can reach the other's by
+accident. `cachel1_armv7.h`'s necessity was established by deletion, not by reading the `#if`, per
+the `mpu_armv7.h` precedent.
+
+**No peripheral drivers.** SW-02 makes zero `fsl_*` calls — verified by word-boundary grep, which
+returns nothing outside comments — because the layer that would call them has not been written.
+Vendoring drivers for a caller that does not exist means guessing the subset, and every guessed file
+is SOUP surface to justify.
+
+**No linker script, and this is the refusal worth recording.** Every MCUX linker script for this part
+places `.text` at `0x60002400` for execution in place from FlexSPI NOR flash. NeurOne has no FlexSPI
+application image: the bootloader reads the application out of an eMMC bank into OCRAM staging and
+jumps through the vector table it finds there. A vendored script that puts the image at
+`0x60000000` is not a starting point to adapt — it is a plausible-looking file that would place the
+image somewhere the bootloader never looks. `firmware/application/linker/app_imxrt1062.ld` is
+NeurOne-authored instead.
+
+#### 4.8.3 The duplication the application linker script cannot avoid, and what was done about it
+
+`app_imxrt1062.ld` restates two numbers that `bootloader_imxrt1062.ld` owns — where staging begins
+and how large it is. A GNU ld script cannot include another one, so the duplication is not
+avoidable. **Defect C (§4.3) was this exact shape**, one number owned by a linker script and by C,
+and the C copy omitted the 8 KiB stack. The lesson recorded there was not "never duplicate", which
+is not always on offer; it was *if you must duplicate, make something fail*.
+
+`np_app_link_agreement_tests` (the 24th Class B target) comment-strips both scripts, re-derives the
+bootloader's staging size from the three terms it actually declares, and asserts the application's
+constants against it. It also asserts two things a numeric comparison alone would miss: that the
+`STAGING` region line is written **in terms of** those constants rather than in literals, and that
+the bootloader's `_app_staging_size` is still **derived** rather than having been "simplified" back
+to `440K`. Comment-stripping is not fastidiousness — both scripts *explain* the arithmetic in prose,
+so a bare text probe matches the explanation rather than the assignment.
+
+**Verified by mutation, not by inspection:**
+
+| Mutation | Outcome |
+|---|---|
+| App `NP_APP_IMAGE_LENGTH` `440K` → `448K` (the Defect C value) | **fails** — "this is the Defect C shape" |
+| App `NP_APP_LOAD_OFFSET` `64K` → `32K` | **fails** — staging begins elsewhere |
+| Bootloader `_stack_size` `8K` → `16K` (app now stale) | **fails** — derived size no longer matches |
+| Bootloader `_app_staging_size` replaced by the literal `440K` | **fails** — derivation gone |
+| App `STAGING` region given literals instead of the constants | **fails, twice** — the constants were decoration |
+| App `NP_OCRAM_ORIGIN` `0x20200000` → `0x20000000` | **fails** — the two disagree about OCRAM |
+
+The fifth is the one worth keeping. Without it, every numeric assertion could pass while the region
+line itself carried a literal, and the whole suite would be checking constants that placed nothing —
+a control case that passes for the wrong reason, which is the vacuous-metric family §4.7 and §4.4.2
+both record.
+
+#### 4.8.4 The platform layer traps; it does not stub
+
+93 symbols, 93 definitions, every one of them a call to `np_platform_unimplemented()`, which masks
+interrupts and spins.
+
+**Why not drivers.** §4.4's argument holds harder here than it did on SW-01. The hub
+cluster-controller fan-out these seams would drive is unimplemented and carries nineteen open items
+(OI-HUB-C01..C19); the hex-tile emitters the PBM seams would modulate are not selected
+(OI-HEXTILE-02); the EEG net the impedance seams would read is not sized (REG-1). A driver written
+today would encode guesses about all three and would look, in the diff, exactly like one that had
+been designed.
+
+**Why not a plausible return value either.** This is the part that is not a restatement of §4.4. A
+stub that answers `0`, or "not present", or "impedance OK" is the same trade as a fabricated driver
+with the failure hidden instead of avoided, and several of these seams gate stimulation:
+`np_mod_visual_hal_hall_lifted()` returning "not lifted", `np_mod_vns_hal_impedance_check()`
+returning a passing value, or `np_proto_hal_get_proto_pubkey()` returning a zero key each converts a
+missing driver into a **defeated interlock**. At the call site, a plausible stub is indistinguishable
+from a driver that is wrong.
+
+**Why halting is the right failure, and not merely a loud one.** It is the state the system is
+already designed to enter. A halted main processor stops `task_safety_heartbeat`'s 200 ms SPI
+heartbeat; the safety MCU's 1.5 s watchdog then cuts every stimulation enable line in under 50 ms
+(CLAUDE.md §4.2, NP-FW-HUB-001 §2). That path is independently implemented, independently classified
+Class C, and independently tested. Masking interrupts *first* is what makes it work — with them
+enabled, SysTick keeps running and the scheduler keeps switching, so the heartbeat task would carry
+on reporting a healthy main processor.
+
+**The count is asserted, in the build.** `firmware/cmake/np_platform_census.cmake` counts the global
+text symbols in `np_platform_stub.c.o` and fails unless the number equals
+`NP_SW02_PLATFORM_SYMBOL_COUNT` in `np_sw02_platform_hal.h`. It is an equality, not a ceiling: a trap
+disappearing means either a real driver landed (progress, which should be recorded) or a symbol left
+the contract (a regression). Both are events. Mutating the constant `93 → 92` fails the build;
+deleting one trap definition fails it **twice**, once at the census and once at the link.
+
+Distance to a runnable image is therefore a figure the build prints — `SW-02 platform census: 93
+seams trapped, 0 driven` — rather than something a reader has to reconstruct from the tree.
+
+`-Wno-unused-parameter` is deliberately **absent** from this layer, and every stub casts its
+parameters to `void` by hand. §4.4.2 retired that suppression from the SW-01 platform layer on the
+reasoning that a silently ignored argument in a stimulation seam is the diagnostic that matters
+most. A layer made entirely of stubs is where the suppression is most tempting and least affordable.
+
+**The contract is single-sourced — for 31 of the 93.** `np_sw02_platform_hal.h` is the SW-02
+counterpart of `np_safety_hal.h` (§4.4.1, OI-SWCI-18) and declares the 63 seams that had no header;
+the other 30 are already single-sourced by the module header that owns them, and are deliberately
+not restated. The stub file includes all nine headers, so the compiler — not the file — is what
+compares declaration against definition. **What this does not yet cover:** the 62 of those 63 that
+are *also* declared by an `extern` line inside the `.c` that calls them. Those local declarations are
+now redundant, but until they are deleted the compiler is comparing this header against the
+definition and not against the caller. That is **OI-SWCI-40**, and it is §4.4.1's finding on the
+SW-02 side.
+
+#### 4.8.5 Two things this phase measured and did not fix
+
+**SW-02's static footprint does not fit the DTCM the SDK declares.** `.data` + `.bss` is
+**162,436 B**; `m_data` in every MCUX linker script for this part is **128 KiB**. `.bss` in DTCM
+overflows the region by 31,368 B and does not link. The four largest contributors are `ucHeap`
+(65,536 — `configTOTAL_HEAP_SIZE`), HRV's `s_session_pool` (51,804), and `np_module_map`'s `s_map`
+and `s_nvram_scratch` (22,536 + 22,412).
+
+`.bss` is therefore placed in the application's **own** staging reservation, which needs no
+assumption that is not already in the bootloader's map: the application owns all 440 KiB once it is
+running, the loadable image is 48 KiB of it, and `.bss` is `NOLOAD` so it costs region space and no
+image bytes. The cost is real and is recorded rather than hidden — OCRAM is not tightly coupled, so
+every access goes through the bus and the L1 D-cache instead of DTCM's single-cycle path. Which
+buffers deserve DTCM is a partitioning decision that wants measurements behind it: **OI-SWCI-42**.
+The alternatives were worse: enlarging DTCM means configuring a FlexRAM partition nothing configures
+(below), and shrinking `configTOTAL_HEAP_SIZE` is a product change made to fit a bring-up image.
+
+**Nothing in this repository configures the FlexRAM partition.** The i.MX RT1062's ITCM/DTCM/OCRAM
+split is set by fuses and `IOMUXC_GPR`, and no code in the tree touches it. The two declarations
+in-tree do not agree: `bootloader_imxrt1062.ld` states OCRAM is 512 KiB at `0x20200000`, and the
+MCUX linker script for the same part states 768 KiB at the same address. The bootloader's figure is
+the conservative one, so nothing is currently wrong — but both scripts are asserting a memory map
+that no code establishes. **OI-SWCI-39.**
+
+**And one thing that is not a measurement but is the same species.** There is no board-level clock
+configuration in the boot path. `BOARD_BootClockRUN()` lives in the SDK's board files, which are not
+vendored because no NeurOne board exists to configure for. `SystemInit()` disables the watchdogs,
+enables the I-cache and sets `SystemCoreClock` to the SDK's `DEFAULT_SYSTEM_CLOCK`; it does **not**
+bring the PLLs up to the 600 MHz `FreeRTOSConfig.h` assumes for `configCPU_CLOCK_HZ`. Every FreeRTOS
+tick and timeout in the image is therefore derived from a clock nothing has established.
+**OI-SWCI-41.**
+
+#### 4.8.6 A defect in this phase's own CI step, caught by running it
+
+Every assertion added to `firmware-cross-build.yml` was run locally before being committed, which is
+the discipline `safety-mcu-ci.yml` records for the same reason. It paid immediately. The step that
+asserts the trap layer is present in the image was written as:
+
+```bash
+arm-none-eabi-nm "$elf" | grep -q ' T np_platform_unimplemented$'
+```
+
+Under `set -o pipefail` **this fails on an image that contains the symbol**: `grep -q` exits on the
+first match, `nm` dies of SIGPIPE, and `pipefail` promotes that 141 to the pipeline's status. A step
+that reports a failure for a symbol that is present is worse than no step at all — it is the
+inverse of the `xargs -r` family, passing-while-proving-nothing turned into failing-while-proving-nothing.
+Fixed by writing the symbol table to a file first.
+
+
 ## 5. Specified workflows
 
 **Two** scoped workflow files, not one, plus the unscoped `build-all.yml` backstop in §5.5 — three files in total. The Class C safety MCU gets its own workflow rather than a matrix leg — decision 2026-08-08, closing OI-SWCI-03.
@@ -698,7 +936,7 @@ A permanently red required check trains reviewers to ignore it, which is worse t
 | ~~5~~ | cross-build | ~~Populate `NP_PLATFORM_INCLUDE_DIRS` with the MCUX SDK path — currently an empty stub in `firmware/CMakeLists.txt`~~ **COMPLETE 2026-08-09 — the MCUX premise was wrong; the work was Defect D (§4.6). MCUX decoupled to OI-SWCI-20** | ~~Main firmware leg builds; drop its `continue-on-error`~~ **Met as written — 1 error → 0, `rc=1` → `rc=0`, and the leg is promoted to gating; see §6.6** |
 | ~~6~~ | both | ~~Add all three checks to branch protection~~ **COMPLETE 2026-08-10.** Made the checks *requirable* — workflow-level `paths:` filters converted to job-level `if:` so every check reports on every PR, and the moving counts removed from two check contexts — then Steve added the `required_status_checks` rule to the `Safety` ruleset with seven contexts (§6.7.8) | ~~Cross-compile regressions become unmergeable~~ **Met — and the load-bearing assumption was verified rather than assumed.** A docs-only PR carries five of the seven required contexts at `conclusion: skipped`, GitHub marks all seven `isRequired: true`, and the PR reads `CLEAN`/`MERGEABLE`, not `BLOCKED`. See §6.7.5 |
 | 7 | safety-mcu | Implement the SW-01 platform layer (Defect E, §4.4, OI-SWCI-17) and re-point the CI leg from `np_safety_mcu_objs` to the full build. **COMPLETE (2026-08-11) — see §4.4.2.** `firmware/safety_mcu/platform/` supplies all 25 `np_hal_*` symbols in eight TUs; the image links; the leg builds both the compile target and the link target, reports image size against an asserted file count, and fails on flash > 80 %, static SRAM > 50 %, any `tests/*.c.obj` in the link map, or any undefined `np_hal_*`. Closing Defect E exposed a second link blocker behind it (the `.fault_latch` placement) and a third in the restored size step itself (the `.elf` suffix), both fixed. A seventh Class C host-test target (`np_hal_platform_tests`) covers the behavioural contract the header could not enforce, verified by mutation. | **Met:** `np_safety_mcu.elf` links (54,140 B; 35,960 B flash = 27.4 %; 824 B SRAM = 2.2 %; 0 undefined `np_hal_*`, was 24); 28/28 host tests pass; the size step fails on a zero-file match. **Not claimed:** bench validation — no hardware exists (OI-SWCI-27..34) |
-| 8 | cross-build | Create the SW-02 application target (§4.7, OI-SWCI-21), which needs the SW-02 platform layer and the MCUX SDK integration (OI-SWCI-20), and point the main-firmware leg at it | Main firmware **links**; an SW-02 image exists |
+| ~~8~~ | cross-build | ~~Create the SW-02 application target (§4.7, OI-SWCI-21), which needs the SW-02 platform layer and the MCUX SDK integration (OI-SWCI-20), and point the main-firmware leg at it~~ **COMPLETE 2026-09-01 — see §4.8 and §6.8.** OI-SWCI-20 and OI-SWCI-21 closed; OI-SWCI-35 closed in passing | ~~Main firmware **links**; an SW-02 image exists~~ **Met — `np_application.elf`, 0 unresolved symbols out of a starting 102, loadable image 48,208 B of the 440 KiB reservation; the leg asserts the artifact, not only the build** |
 
 **The phase-5 exit criterion was NOT corrected, and that is worth stating explicitly because every phase before it needed one.** "Main firmware leg builds; drop its `continue-on-error`" is met verbatim. What was wrong in phase 5's row was its *premise*, not its criterion: "Populate `NP_PLATFORM_INCLUDE_DIRS` with the MCUX SDK path" asserted that the SDK was what stood between this leg and green. Measured with `-k 0` on `143b023`, the whole super-project produced **one** error — Defect D — and **zero** missing-header errors, because the platform layer is stubbed rather than called into. No MCUX header is needed to build what is in this repository today.
 
@@ -1459,6 +1697,53 @@ The fallback is then to require only the checks that never skip: `Class B scope`
 
 It did not touch any `permissions:` block, or change `NP_CLASS_B_TEST_COUNT` (21) or `NP_SAFETY_TEST_COUNT` (6), or alter `build-all.yml`. It did not add a third-party action. It did not change what any workflow builds — only when the jobs are allowed to skip. It did not touch Defect E, the SW-01 platform layer (OI-SWCI-17, phase 7), the MCUX SDK (OI-SWCI-20) or the missing SW-02 application target (OI-SWCI-21, phase 8). And it did not convert the five remaining `paths:`-filtered workflows, which stay non-requirable by omission rather than by decision.
 
+
+### 6.8 Phase 8 as implemented (2026-09-01) — COMPLETE
+
+**Exit criterion met as written**, which is worth saying because phases 2, 3, 4 and 5 all needed
+theirs corrected. "Main firmware **links**; an SW-02 image exists" was achievable exactly as stated,
+and §4.7 — written at phase 5, when the criterion was set — is why: it had already established what
+was missing and what it would take, so nothing about the target came as a surprise. The criterion
+that survives contact is the one written after the measurement.
+
+**What landed.** The vendored MCUX SDK device layer (§4.8.2), `firmware/platform/` (§4.8.4),
+`firmware/application/` with a NeurOne-authored linker script (§4.8.3), the 24th Class B host test,
+five artifact assertions on the main-firmware leg, and the `CMAKE_C_FLAGS_INIT` block that the SW-02
+toolchain file had been missing since it was written (§4.8.1).
+
+**Gate promotion, and its demonstration.** The main-firmware leg has been blocking since phase 5, so
+nothing needed promoting — what changed is what it gates. Before: every SW-02 translation unit
+compiles. After: they compile **and** link into an image with nothing unresolved, and the image is
+checked as an artifact. The demonstration that this is not a no-op is §4.8.1: the first link failed,
+on two libraries that had compiled cleanly for five phases while targeting the wrong instruction
+set. A leg that could not have caught that has been replaced by one that did.
+
+**What phase 8 did NOT do.**
+
+- **It did not write drivers.** 93 platform seams trap. §4.8.4 is the argument, and the census makes
+  the number a build output rather than a claim.
+- **It did not make a runnable image.** `np_application` halts inside `np_hub_control_app_main()`, at
+  `np_hal_get_device_session_count()`, a few hundred instructions in. The image says so about itself
+  in a `.np_build_note` string, because build logs get separated from artifacts and the one question
+  worth asking about a recovered `.bin` — real image or bring-up artifact — is not answerable from
+  its size.
+- **It did not touch the safety MCU.** `firmware/safety_mcu/` is a separate CMake project with a
+  separate toolchain file; the Class C build was re-run to confirm (`np_safety_mcu.elf`, 31,360 B
+  text, unchanged).
+- **It did not resolve the memory map.** `.bss` is placed where it fits, on the smallest assumption
+  available, and both the FlexRAM question (OI-SWCI-39) and the DTCM partitioning question
+  (OI-SWCI-42) are raised rather than answered.
+- **It did not delete the 62 redundant `extern` declarations** that OI-SWCI-40 records, which is the
+  difference between the contract being single-sourced against the *definition* and against the
+  *caller*.
+
+**One thing it did that was not planned.** OI-SWCI-35 — `np_bootloader` setting no `.elf` suffix, so
+the leg's `Report image size` step had globbed zero files and exited 0 since it was written — was
+raised at phase 7 and deliberately left. Phase 8 rewrote that exact step, so fixing it here was
+narrower than working around it. Fixed on both sides, as phase 7 did on the Class C leg: `SUFFIX
+".elf"` on the target *and* a file-count assertion in the workflow, because either alone is a single
+point of silent failure.
+
 ## 7. Open items
 
 | ID | Item | Owner | Blocking |
@@ -1481,8 +1766,8 @@ It did not touch any `permissions:` block, or change `NP_CLASS_B_TEST_COUNT` (21
 | OI-SWCI-08 | Build a guard that fails CI when a module in the CMake build graph is missing from the corresponding workflow's `paths:` list, making enumerated-path drift self-detecting rather than audit-dependent. `scripts/check-section-refs.ts` is the in-repo precedent for this shape of guard | Firmware | — |
 | ~~OI-SWCI-09~~ | ~~Sequence the absorption and retirement of `firmware-host-tests.yml`~~ **CLOSED 2026-08-08 — absorbed and retired in Phase 0.** 25 targets partitioned 6 + 19, union verified identical to the original list, per-workflow count assertions plus a weekly partition guard added so the split is self-detecting. See §6.1 | Firmware | ~~Phase 0~~ |
 | ~~OI-SWCI-12~~ | ~~**Defect D (new).** `firmware/hub_control/modules/np_mod_pbm.c:112` calls `np_pbm_dose_load_cal`, which is not declared~~ **CLOSED 2026-08-09 — fixed as a per-zone loop, not as a rename.** `np_mod_pbm.c` now calls `np_pbm_dose_load_cal_stub()` once per zone with one wavelength row per call, copying the pattern at `np_pbm_session.c:271-273`. The suggested rename is recorded as rejected in §4.6: the shapes differ, `-Werror` rejects it as an incompatible pointer type, and behind a cast it would populate row 0 only and leave the remaining zones with zeroed dose calibration — a wrong J/cm² rather than a build error. `s_cal`'s bound moved to `NP_HUB_ZONE_SLOT_COUNT` in the same change, per the explicit prohibition at `np_pbm_config.h:147-154`. Measured: 1 error → **0**, `rc=1` → **`rc=0`**, 86 of 86 targets. See §4.6 and §6.6 | Firmware | ~~Phase 5~~ |
-| OI-SWCI-20 | **Raised 2026-08-09 during phase 5, decoupled from it.** `NP_PLATFORM_INCLUDE_DIRS` in `firmware/CMakeLists.txt` is an empty MCUX stub, and the `# ← append MCUX SDK path` marker at line 132 stands. Rev 1–F carried this as phase 5's stated action, which was wrong on measurement: the cross-build has **zero** missing-header errors because the platform layer is stubbed rather than called into, and Defect D was the only error in the tree. Integrating the MCUX SDK for MIMXRT1062 is real device-bring-up work with §9.3 SOUP obligations attached (vendored subset, `VERSION` record, NP-SW-001 entry, document-register entry) — it is not build-gating and no phase is blocked on it. Naturally worked together with OI-SWCI-21, which needs it | Firmware / Quality | Phase 8 |
-| OI-SWCI-21 | **Raised 2026-08-09 during phase 5 (§4.7).** There is **no SW-02 application executable target** in the repository. The cross-build archives 13 static libraries and links exactly one ELF, `np_bootloader`, which the bootloader leg has gated since phase 3. `np_hub_control` is `add_library(… STATIC …)` and its CMakeLists names a consumer, `np_application`, that does not exist; line 182 says the same thing from the other side ("the MCUX SDK HAL is still provided by the parent application target"). **Consequence: "zero unresolved symbols" on the main-firmware leg is true and vacuous for SW-02** — no SW-02 link runs, so the first-party HAL stubs (OI-PBM-HAL-01..03, and the OI-ZA / OI-HRV / OI-PBM / OI-CVNS / OI-ANON-AES families) can never be diagnosed by it. This is the same hazard Defect E (OI-SWCI-17) records for SW-01; it is invisible here only because SW-01 has an executable target and SW-02 does not. Not a CI item to fix — an application target needs the platform layer and OI-SWCI-20 — but until it exists, no check in this plan can verify that SW-02 links. §6's phase-5 row, §8's SW-02 row and both promoted legs' comments are worded as *compiles* accordingly. **Bound to phase 8** so the gap has a place to close rather than sitting behind a green check indefinitely — an open item with no phase is where this kind of finding institutionalises. Distinct from phase 7, which is SW-01 | Firmware | Phase 8 |
+| ~~OI-SWCI-20~~ | **CLOSED 2026-09-01 (phase 8, §4.8.2) — the MCUX SDK is vendored.** `firmware/vendor/mcux_sdk/`, MCUX SDK 2.16.0 tag `MCUX_2.16.000`: six files and a licence, byte-exact, per-file SHA-256, with the "intentionally NOT vendored" list §9.3 obligation 2 requires. `NP_PLATFORM_INCLUDE_DIRS` now carries the device path and the `# ← append MCUX SDK path` marker is gone. **Class B, so §9.3 obligation 5 (the §7.1.2 anomaly evaluation) does not attach** — and that is a reachability claim, recorded in the `VERSION` file with the check that makes it observable rather than left as an assumption. `core_cm7.h` went into the existing `firmware/vendor/cmsis_core/` rather than a second copy of a shared component. The SDK's linker scripts were deliberately NOT taken: every one links for XIP from FlexSPI NOR at `0x60000000`, and NeurOne stages into OCRAM from eMMC. ~~Firmware / Quality~~ | Firmware / Quality | ~~Phase 8~~ **Done** |
+| ~~OI-SWCI-21~~ | **CLOSED 2026-09-01 (phase 8, §4.8) — `np_application` exists and links.** 0 unresolved symbols out of a starting 102; `np_application.elf` 126,224 B; `.bin` 48,208 B of the bootloader's 440 KiB reservation; `__isr_vector` at `0x20210000` exactly. The 92 first-party seams this item said "can never be diagnosed" were diagnosed on the first link and are now trapped, not stubbed (§4.8.4). The item's own prediction held: creating the target was not CI work, and the two defects it surfaced (§4.8.1) were invisible to every compile-only check that preceded it. ~~Firmware~~ | Firmware | ~~Phase 8~~ **Done** |
 | OI-SWCI-14 | Strengthen the host-test absorption guards beyond counts: a checked-in ctest name manifest (catches rename/substitution, which 25 = 6 + 19 cannot) and a per-target case-count or gcov floor in `build-all.yml` (catches intra-target erosion). Also widen `firmware/cmake/**` back to a directory glob if a third toolchain file is ever added. See §6.1.1 | Firmware | — |
 | OI-SWCI-13 | Sweep the five documents still citing the retired `firmware-host-tests.yml` (`np_sw_001.md`, `np_dhf_001.md`, `status/pending-decisions.md`, `status/document-register.md`, `status/completed-decisions.md`). The section-ref guard does not validate workflow filenames, so nothing fails on them | Quality | — |
 | OI-SWCI-15 | **Raised 2026-08-09 during phase 1 review; a firmware finding, not a CI one.** `load_and_jump()` verifies the image in its eMMC bank, then copies it to OCRAM, then jumps — so the signature check covers the *source*, not the copy that actually executes. A bit flip, a truncated copy, or a wrong length yields corrupt code at an entry point the boot record says was verified. Standard practice is to re-hash (or at minimum CRC) the staged image after the copy and before the jump. While in that path, confirm D-cache clean / I-cache invalidate happens after staging — the classic omission in exactly this sequence. Out of scope for phase 1 (which only supplies the C runtime); it touches the same function as the phase-2 OCRAM fix, so the two are naturally worked together | Firmware / Safety SW | — |
@@ -1497,17 +1782,21 @@ It did not touch any `permissions:` block, or change `NP_CLASS_B_TEST_COUNT` (21
 | OI-SWCI-32 | **Raised 2026-08-11 during phase 7.** SPI mode 0 (CPOL=0, CPHA=0) is **assumed**. Nothing in this repository records the hub's SPI clock polarity or phase — `np_safety_config.h` names the instance and the pins and stops there, and the hub-side driver is across the SPI boundary. A mismatch is not silently dangerous (every byte corrupts, so every frame fails magic and checksum, no enable is granted, and the watchdog cuts after 1.5 s) but it is an assumption. Cross-check against the i.MX RT1062 ECSPI configuration | Firmware | — |
 | OI-SWCI-33 | **Raised 2026-08-11 during phase 7.** `np_hal_spi.c` counts frame overruns and bad-length transfers but has nowhere to report them — the 8-byte TX frame has no spare field. They are the only signal that would distinguish "the hub is silent" from "the hub is talking and every frame is the wrong length", which are identical from the watchdog's point of view. Exposed through `np_hal_spi_stats()` for the host tests. Consider a diagnostic frame, or a spare byte in the 38-byte reply window | Firmware | — |
 | OI-SWCI-34 | **Raised 2026-08-11 during phase 7 — the weakest part of the platform layer, and the weakness is in the hardware record, not the code.** `np_safety_config.h` specifies the impedance *measurement* (1 kHz, 50 ms, reject above 10 kΩ) and specifies **nothing** about the analog front end that performs it: no excitation source, no sense amplifier, no reference resistor, no pins. Every other driver in `platform/` was written against a peripheral the config header names. `np_hal_impedance.c` is written against an explicitly declared provisional front end (TIM3 excitation, one ADC1 input per channel, `NP_IMP_SENSE_R_OHM` reference leg), all marked in `np_safety_config.h` rather than buried in the driver. **The ohms it returns are uncalibrated and no bench measurement stands behind them.** The fail-safe direction — every error path returns a value above `NP_IMPEDANCE_MAX_OHM`, refusing the enable — holds regardless of calibration, which is why implementing it was preferable to leaving four symbols undefined. Needs the analog design | Firmware / Safety HW | G1 |
-| OI-SWCI-35 | **Raised 2026-08-11 during phase 7 — a live defect on the Class B leg, found while restoring the Class C one.** CMake gives a cross-compiled executable no suffix, and no target in this repository sets one. `firmware/bootloader/CMakeLists.txt` documents that it produces `np_bootloader.elf`; it produces `np_bootloader`. `firmware-cross-build.yml`'s `Report image size` step globs for `*.elf` and pipes to `xargs -r`, and a glob matching nothing piped that way **exits 0** — so that step has been reporting on zero files since it was written, passing while proving nothing. Phase 7 fixed it for `np_safety_mcu` on both sides (a `SUFFIX ".elf"` target property *and* a file-count assertion in the workflow, because either alone is a single point of silent failure) and deliberately did not widen scope into the Class B workflow. Same shape as OI-SWCI-21 and the §4.4.2 `.fault_latch` finding: a check whose subject does not exist | Quality / Firmware | — |
+| ~~OI-SWCI-35~~ | **CLOSED 2026-09-01 (phase 8, §6.8).** Fixed on both sides, as phase 7 did on the Class C leg: `SUFFIX ".elf"` on `np_bootloader` **and** a file-count assertion in the workflow, because either alone is a single point of silent failure. Phase 8 rewrote that exact step, so fixing it here was narrower than working around it. ~~Quality / Firmware~~ | Quality | ~~—~~ **Done** |
 | OI-SWCI-36 | **Raised 2026-08-11 during phase 7.** The `cross-build` job in `safety-mcu-ci.yml` is still named `Cross-compile (STM32G071, Cortex-M0+, Class C)`, which now **underclaims** — the leg links the image and reports its size. It was not renamed because that string is a required-status-check context (§6.7.8, OI-SWCI-26): a required context is an exact string match whose mismatch produces no error anywhere, so a rename un-gates the branch silently and every PR waits forever. Underclaiming in a job name is a documentation cost; un-gating the check that guards every stimulation enable GPIO is a safety cost. Rename the job and update the `Safety` ruleset in one coordinated operation — the manifest guard proposed in OI-SWCI-26 is what would make this routine | Quality | — |
 | OI-SWCI-37 | **Raised 2026-08-11 during phase 7, by CI catching a real miss in this very change.** `NP_SAFETY_TESTS` — the regex that defines the Class C / Class B host-test partition — exists as a hand-copied string in **three** workflow files (`safety-mcu-ci.yml`, `firmware-cross-build.yml`, `build-all.yml`), and nothing verifies they agree. Phase 7 added `hal_platform` to two of the three and missed `firmware-cross-build.yml`, so the new Class C target was not excluded there and the Class B leg selected 22 against an expected 21. **The partition guard worked** (`ctest selection drift — expected 21 Class B targets, matched 22`) and is the reason this was a red check rather than a silently mis-partitioned suite. But it fires on the *symptom*, one CI round-trip after the edit, and only because the counts happen to be asserted — a change that moved a target between halves without changing either count would pass all three guards. This is the one-value-several-places shape §4.3 calls Defect C, in the CI configuration rather than in the firmware. Hoist the regex to a single source (a composite action, a shared env file, or a checked-in manifest), or add a guard that diffs the three copies directly. Closely related to OI-SWCI-08 and OI-SWCI-26, and naturally worked with them | Quality | — |
 | OI-SWCI-38 | **Raised AND CLOSED 2026-09-01 — the third instance of one defect class, see §5.0.** `check-section-refs.ts` declares `CI-Scans: CLAUDE.md section citations in every tracked file of 11 source extensions` and walks from the repository root, but the `web-ci.yml` relevance list that decided whether it ran enumerated `CLAUDE.md`, `docs/**`, `app/android/**`, `firmware/**` and the web surface. **Measured: 34 tracked files carrying a literal `CLAUDE.md §N` citation fell outside it**, almost all `app/ios/**` and `app/NeurOneShared/`; `app/android/**` was on the list only because #249's audit happened to find five dangling Kotlin citations, and iOS was never added. **Resolution:** the guard moved to its own `section-refs` job in `tooling-ci.yml` with **no relevance gate**, because its population is the tracked tree and every enumerable list is narrower than what it scans. Falsified by construction — a citation of a nonexistent section (`§12`) appended to `app/ios/NeurOne/Consent/ConsentStore.swift` was `false` against the old web-ci list and is now reported as `ConsentStore.swift:185` · `§12`, exit 1. Splitting it out also **removed** the last §5.0 exception and made docs/firmware/Android commits cheaper: they no longer run `bun install`, tsc, Vitest and a Vite build to reach two script steps. The general remedy that would have caught all four instances mechanically is **OI-SWCI-08**, still open | Quality | Closed 2026-09-01 |
+| OI-SWCI-39 | **Raised 2026-09-01 during phase 8 (§4.8.5).** **Nothing in this repository configures the i.MX RT1062 FlexRAM partition.** The ITCM/DTCM/OCRAM split is set by fuses and `IOMUXC_GPR`, and no code touches either. Two linker scripts nonetheless assert a memory map that depends on it, and they do not agree: `bootloader_imxrt1062.ld` states OCRAM is **512 KiB** at `0x20200000`, while the MCUX linker script for the same part states **768 KiB** at the same address. Nothing is currently wrong — the bootloader's figure is the conservative one and the application's regions are derived from it — but "currently right by being conservative" is not the same as established, and it is the assumption that OI-SWCI-42's answer would have to move. Needs a decision on the partition and code that sets it, before any bench bring-up. | Firmware | Device bring-up |
+| OI-SWCI-40 | **Raised 2026-09-01 during phase 8 (§4.8.4).** `np_sw02_platform_hal.h` single-sources 63 platform seams and the module headers single-source the other 30, so the definitions in `firmware/platform/` are compiler-checked. **62 of those 63 are still ALSO declared by an `extern` line inside the `.c` that calls them**, so the compiler compares the header against the definition and not against the caller. Identical in shape to OI-SWCI-18 on the SW-01 side, and closed the same way: include the header from those twelve files and delete the local `extern`s, after which `grep -c 'extern .*_hal_' firmware/hub_control/**/*.c` should total zero, as it does for `firmware/safety_mcu/src/*.c`. Deliberately not done in phase 8 — it touches twelve translation units and their host-test doubles, and folding it into the phase that created the target would have made a large diff larger. | Firmware | — |
+| OI-SWCI-41 | **Raised 2026-09-01 during phase 8 (§4.8.5).** **There is no board-level clock configuration in the SW-02 boot path.** `BOARD_BootClockRUN()` lives in the MCUX SDK's board files, which are not vendored because no NeurOne board exists to configure for. The vendored `SystemInit()` disables the watchdogs, enables the I-cache and sets `SystemCoreClock` to the SDK's `DEFAULT_SYSTEM_CLOCK`; it does **not** bring the PLLs up to the 600 MHz `FreeRTOSConfig.h` declares as `configCPU_CLOCK_HZ`. Every FreeRTOS tick, timeout and the 200 ms safety heartbeat interval is therefore derived from a clock nothing establishes. Not build-gating and not fixable without a board: recorded so the gap is not rediscovered on a bench. | Firmware | Device bring-up |
+| OI-SWCI-42 | **Raised 2026-09-01 during phase 8 (§4.8.5).** **SW-02's static footprint (162,436 B) exceeds the DTCM the MCUX SDK declares for this part (128 KiB), so `.bss` is placed in the application's own OCRAM staging reservation.** That placement is correct and needs no assumption beyond the bootloader's existing map, but it is not free: OCRAM is not tightly coupled, so every access to `ucHeap` (65,536 B), HRV's `s_session_pool` (51,804 B) and `np_module_map`'s `s_map`/`s_nvram_scratch` (22,536 + 22,412 B) goes through the bus and the L1 D-cache rather than DTCM's single-cycle path. Which buffers deserve DTCM is a partitioning decision that wants measurements behind it, and it interacts with OI-SWCI-39 — enlarging DTCM is a FlexRAM decision, not a linker-script one. | Firmware | — |
 
 ## 8. Traceability
 
 | Requirement | Source | Verified by |
 |-------------|--------|-------------|
-| SW-02 Class B firmware **compiles** for i.MX RT1062 | NP-SW-001 Rev 3 | `firmware-cross-build.yml` — `main-firmware` job, **gating since phase 5 (§6.6)**. Covers every SW-02 translation unit under `-Wall -Wextra -Werror`; 86 of 86 targets, 0 errors, 0 warnings. Read this row as written: it is a compile guarantee, **not** an assertion that an SW-02 image exists |
-| SW-02 Class B firmware **links** into an image | NP-SW-001 Rev 3 | **Still not verified, and still not verifiable — there is no SW-02 application executable target (§4.7, OI-SWCI-21). Phase 7 did NOT change this row and it must not be read as having moved with the SW-01 one above.** The cross-build archives 13 static libraries and links one ELF, `np_bootloader`, covered by its own row below. Distinct from the SW-01 case: SW-01 has a target and fails to link (Defect E); SW-02 has no target, so nothing links and nothing can be unresolved |
+| SW-02 Class B firmware **compiles** for i.MX RT1062 | NP-SW-001 Rev 3 | `firmware-cross-build.yml` — `main-firmware` job, **gating since phase 5 (§6.6)**. Covers every SW-02 translation unit under `-Wall -Wextra -Werror`; 86 of 86 targets, 0 errors, 0 warnings. Read this row as written: it is a compile guarantee, **not** an assertion that an SW-02 image exists **As of phase 8 this row is no longer the strongest claim this leg makes** — see the links row below; it is kept because compilation under `-Wall -Wextra -Werror` is a separate requirement from linking and is still separately verified. |
+| SW-02 Class B firmware **links** into an image | NP-SW-001 Rev 3 | **VERIFIED — phase 8 (§4.8), OI-SWCI-21 closed.** `firmware-cross-build.yml` — `main-firmware` job: `Build` links `np_application.elf`, then `Report image sizes` asserts an exact ELF count, `Assert the SW-02 image fits its budgets` checks the loadable `.bin` against the bootloader's 440 KiB reservation, and `Assert the SW-02 image is whole and free of test doubles` asserts **0 undefined symbols**, no `tests/` object in the link map, and that the platform trap layer is actually in the image. Measured 2026-09-01: 0 unresolved from a starting 102; `.bin` 48,208 B (10.7 %). **Read for exactly what it claims — the image links, it does not run** (§4.8.4). |
 | SW-01 Class C firmware **compiles** for STM32G071 | NP-SW-001 Rev 3 | `safety-mcu-ci.yml` — `cross-build` job, step `Compile (all Class C translation units)`, target `np_safety_mcu_objs`, **gating since phase 4 (§6.5)**. Covers all 18 Class C translation units under `-Wall -Wextra -Werror` — the 10 application modules plus the 8 platform TUs added at phase 7. Read this row as written: it is a compile guarantee, and the link is the row below |
 | SW-01 Class C firmware **links** into an image | NP-SW-001 Rev 3 | **VERIFIED — phase 7 (§4.4.2), OI-SWCI-17 closed.** `safety-mcu-ci.yml` — `cross-build` job, step `Link (np_safety_mcu image)`, **gating**. Evidence is the artifact, not the exit status: `Report image size` asserts exactly one `np_safety_mcu.elf` exists and is >4 KB, then reports `arm-none-eabi-size`; `Assert image fits its budgets` fails on flash >80 % or static SRAM >50 %; `Assert no test double reached the image` fails if any `tests/*.c.obj` appears in the link map (np_safety_hal.h rule 2) or if any `np_hal_*` symbol is still undefined. Measured 2026-08-11: 54,140 B ELF, 35,960 B flash (27.4 %), 824 B SRAM (2.2 %), **0** undefined. Region overflow and stack exhaustion fail the link itself, via the `MEMORY` block and the `ASSERT` in `startup/stm32g071_flash.ld` |
 | SW-01 platform-layer **behaviour** (enable polarity, fail-safe directions) | §4.4.2 | `safety-mcu-ci.yml` — `host-tests` job, `np_hal_platform_tests`. Compiles the real `platform/*.c` sources against a plain-C register file and asserts on the register writes. **Verified by mutation**: inverted polarity → 3 failures; deleted `BSRR` preset → 2; dropped OTP erased-state translation → 1; permissive SPI classifier → 6. This row exists because the link proves the symbols exist and proves nothing about what they do |
@@ -1515,15 +1804,20 @@ It did not touch any `permissions:` block, or change `NP_CLASS_B_TEST_COUNT` (21
 | Class C SOUP anomaly lists evaluated for hazard contribution | IEC 62304 §7.1.2; §9.4 | **NP-SOUP-CMSIS-001 Rev 1** — method, per-item assessment, and stated residuals; bound to the pinned tags and voided by moving either |
 | `GPIOA`/`GPIOB` resolve to the correct STM32G071 addresses | §4.1, phase 4 | `objdump` on `np_gpio_mgr.c.obj` — `0x50000000`/`0x50000400` (§6.5). A compile alone proves resolution, not correctness |
 | Bootloader fits its OCRAM allocation | `bootloader_imxrt1062.ld` ASSERT | `firmware-cross-build.yml` — bootloader leg, **gating since phase 3 (§6.4)**. The `ASSERT` fails the link, the link failure fails the job, and the job now fails the run |
-| Host-native logic verified (Class B, 21 targets) | NP-SW-001 Rev 3 | `firmware-cross-build.yml` — `host-tests` job |
+| Host-native logic verified (Class B, 24 targets) | NP-SW-001 Rev 3 | `firmware-cross-build.yml` — `host-tests` job. 24th target `np_app_link_agreement_tests` added at phase 8 (§4.8.3), verified by six mutations. |
 | Host-native logic verified (Class C, 7 targets) | NP-SW-001 Rev 3 | `safety-mcu-ci.yml` — `host-tests` job. Seventh target `np_hal_platform_tests` added at phase 7 (§4.4.2) |
-| Host-test partition remains complete (7 + 21 = 28) | OI-SWCI-09 | `build-all.yml` — `host-tests-all` partition guard, weekly. Moved 6 + 21 = 27 → **7 + 21 = 28** at phase 7 (`np_hal_platform_tests`). The count lives in `NP_SAFETY_TEST_COUNT` / `NP_TOTAL_TEST_COUNT`, not in any required check `name:`, which is exactly why adding a seventh Class C target was a one-line change and not a silent branch un-gating (§6.7) |
+| Host-test partition remains complete (7 + 24 = 31) | OI-SWCI-09 | `build-all.yml` — `host-tests-all` partition guard, weekly, asserted against a live `ctest` enumeration rather than a comment. Moved 7 + 21 = 28 → 7 + 22 = 29 → 7 + 23 = 30 → **7 + 24 = 31** at phase 8 (`np_app_link_agreement_tests`, §4.8.3). |
 | A cross-compile or host-test regression cannot be merged to `main` | §6, phase 6 | `Safety` ruleset (`16412379`) — `required_status_checks` over seven contexts, **applied 2026-08-10** (§6.7.8). Read this row with its limit: it binds the **pull-request** path only. A direct push to `main` still bypasses every check, because `Safety` carries no `pull_request` rule — OI-SWCI-22 |
 | An out-of-scope PR is not blocked by checks it never needed to run | §5.0, phase 6 | Job-level `if:` on every gated job, so out-of-scope jobs report `skipped` rather than not reporting. Measured: a docs-only PR carries five required contexts at `SKIPPED` and reads `CLEAN` (§6.7.5) |
 | The relevance list that decides what to skip is itself checked | §6.7.2 | `changes` job — `ci-changed-scope.sh --self-test` (matcher semantics), `--check-tree` (every pattern resolves to something tracked), and per-workflow scope assertions. All three gate, because `Class B scope` and `Class C scope` are required contexts |
 | Bootloader supplies its own freestanding `memcpy`/`memset` | §4.2, phase 1 | `np_bootloader_mem_tests`; `objdump` body check in §4.2 |
 | Application staging area is sized by the linker, not by C | §4.3, phase 2 | `np_bootloader_app_image_tests` (parses the linker script); `nm`/`objdump` checks in §6.3 |
 | OCRAM is tiled exactly by bootloader + staging + stack | §4.3, phase 2 | `bootloader_imxrt1062.ld` `ASSERT`s (`_app_staging_start`, `_app_staging_end`) — link-time |
+| The application image is linked for the address the bootloader stages it at | §4.8.3 | `app_imxrt1062.ld` `ASSERT(__isr_vector_start == NP_APP_IMAGE_ORIGIN)` at link time, plus `nm` on the artifact: `__isr_vector` = `0x20210000` = `ORIGIN(OCRAM) + _app_load_offset`. |
+| The two linker scripts agree about the staging reservation | §4.8.3 | `np_app_link_agreement_tests` — parses both scripts, re-derives the bootloader's size from its three declared terms, and asserts the region line is written in terms of the checked constants. Falsified by six mutations, including the one that makes the constants decoration. |
+| Every SW-02 platform seam is accounted for, and none is a driver | §4.8.4 | `firmware/cmake/np_platform_census.cmake` in the build (equality against `NP_SW02_PLATFORM_SYMBOL_COUNT`), re-run independently by `firmware-cross-build.yml`. Falsified in both directions: mutating the constant fails; deleting one trap fails twice, at the census and at the link. |
+| Vendored MCUX SDK is byte-exact from its named upstream tag | §9.3 obligation 2 | `firmware/vendor/mcux_sdk/VERSION` — per-file SHA-256, two independent downloads compared with `diff -r`. The five CMSIS files vendored at phase 4 were re-fetched and re-compared at the same time: all still identical, so the tag has not moved under the record. |
+| Every SW-02 library is built for Cortex-M7, hard float | §4.8.1 | The link itself: `--whole-archive` puts every SW-02 translation unit in the image, and ld rejects a float-ABI mismatch. This is what caught `np_crypto` and `np_ota_state` compiling as ARMv4T soft-float; `readelf -A` is the direct check. |
 
 ## 9. Vendoring decision (closes OI-SWCI-01)
 
@@ -1541,6 +1835,36 @@ A build that reaches the network is not reproducible, and a medical-device build
 | Monocypher 4.0.2 | `firmware/crypto/vendor/monocypher/` | `VERSION` (IEC 62304 §8.1.2 header, per-file provenance) | Class B + Class C |
 | **ARM CMSIS-Core(M) 5.6.0** (CMSIS_5 `5.9.0`) | `firmware/vendor/cmsis_core/` | `VERSION` + `README-NEURONE.md`; NP-SW-001 §9.4; **anomaly review NP-SOUP-CMSIS-001 §3** | **SW-01 Class C** |
 | **ST CMSIS-Device STM32G0 `v1.4.5`** | `firmware/vendor/cmsis_device_g0/` | `VERSION` + `README-NEURONE.md`; NP-SW-001 §9.4; **anomaly review NP-SOUP-CMSIS-001 §4** | **SW-01 Class C** |
+| **NXP MCUX SDK 2.16.0** — MIMXRT1062 device layer | `firmware/vendor/mcux_sdk/` | `VERSION` + `README-NEURONE.md`; NP-SW-001 §9.4; **no anomaly review — Class B, see below** | SW-02 Class B |
+
+The MCUX row was added by phase 8 (2026-09-01, closing OI-SWCI-20) and is the first component
+vendored for SW-02 since FreeRTOS. Three things about it are worth reading off the table rather than
+discovering later.
+
+**It carries no §7.1.2 anomaly evaluation, and that is the class rather than an omission.**
+Obligation 5 below attaches the recorded evaluation to Class C SOUP; this component is compiled into
+`np_application` and into nothing else. That is a *reachability* claim, so it is stated with the
+check that makes it observable — `firmware/safety_mcu/` is a separate CMake project whose toolchain
+file and include paths never mention MIMXRT1062 — and with the standing obligation that if the claim
+ever stops holding, the evaluation must exist before that change lands.
+
+**The CMSIS-Core row above now serves two SW items.** `MIMXRT1062.h` includes `core_cm7.h`, so the
+Cortex-M7 core header and `cachel1_armv7.h` went into the existing `firmware/vendor/cmsis_core/`
+rather than into a second copy under the MCUX directory. The alternative was four byte-identical
+duplicates of the core-agnostic headers, and two copies of one component is worse than one component
+serving two SW items: it doubles the surface to justify and makes a tag bump something that can be
+applied to one copy and not the other. `core_cm0plus.h` reaches SW-01 only and `core_cm7.h` SW-02
+only, so the Class C and Class B subsets stay disjoint at the file level. That record was revised at
+the same time to say all of this; the anomaly review NP-SOUP-CMSIS-001 Rev 1 did **not** change
+scope, because neither added file is on SW-01's include path.
+
+**One thing was deliberately refused, and it is the entry a later reader is most likely to
+second-guess: none of the SDK's linker scripts were taken.** Every MCUX script for this part links
+`.text` at `0x60002400` for execution in place from FlexSPI NOR flash. NeurOne has no FlexSPI
+application image — the bootloader reads the application out of an eMMC bank into OCRAM staging and
+jumps through the vector table it finds there. A vendored script that places the image at
+`0x60000000` is not a starting point to adapt; it is a plausible-looking file that would put the
+image somewhere the bootloader never looks. See §4.8.2 and §4.8.3.
 
 The bottom two rows were added by phase 4 (2026-08-09) and are the first components vendored under this decision. They follow the FreeRTOS template — byte-exact subset of a named tag, plus an explicit "intentionally NOT vendored" list — and add two things the Class C bar required that neither precedent carries: **per-file SHA-256**, so "byte-exact" is checkable offline rather than asserted, and a **separate versioned anomaly-review record** (§9.4 obligation 5 below).
 

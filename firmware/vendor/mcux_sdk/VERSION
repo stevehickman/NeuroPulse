@@ -1,0 +1,109 @@
+# NXP MCUXpresso SDK (MIMXRT1062 device layer) SOUP Record — IEC 62304 §8.1.2
+
+Component:   MCUXpresso SDK — MIMXRT1062 device layer (CMSIS device header,
+             system/clock initialisation, GCC startup)
+Version:     MCUX SDK 2.16.0
+Source:      https://github.com/nxp-mcuxpresso/mcux-sdk/tree/MCUX_2.16.000
+Tag:         MCUX_2.16.000
+License:     BSD-3-Clause  (SPDX-License-Identifier in every vendored file;
+                            full text in COPYING-BSD-3, copied from the same tag)
+SW item:     SW-02 (i.MX RT1062 main processor)
+IEC 62304:   Class B
+Vendored:    2026-09-01
+SOUP record: NP-SW-001 §9.4
+Vendoring decision: NP-SW-CI-001 §9 (vendor in-tree, never fetch at build time),
+             obligations §9.3.  Closes OI-SWCI-20.
+
+Class note — why there is no §7.1.2 anomaly evaluation here.  NP-SW-CI-001 §9.3
+obligation 5 attaches the recorded anomaly-list evaluation to Class C components
+only, and names NP-SOUP-CMSIS-001 as its first instance.  This component is
+reachable from SW-02 (Class B) alone: it is compiled into np_application and
+into nothing else, and firmware/safety_mcu/ is a separate CMake project with a
+separate toolchain file that never adds this directory to an include path.  The
+absence of an evaluation is therefore a consequence of the class, not an omission
+— if a future change makes any file here reachable from SW-01, obligation 5
+applies and this record is incomplete until the evaluation exists.
+
+Files vendored (byte-exact from tag MCUX_2.16.000):
+  devices/MIMXRT1062/MIMXRT1062.h            — CMSIS device peripheral access layer
+  devices/MIMXRT1062/MIMXRT1062_features.h   — per-peripheral feature macros
+  devices/MIMXRT1062/fsl_device_registers.h  — CPU-macro dispatch to the two above
+  devices/MIMXRT1062/system_MIMXRT1062.h     — SystemInit/SystemCoreClock decls
+  devices/MIMXRT1062/system_MIMXRT1062.c     — SystemInit, SystemCoreClockUpdate
+  devices/MIMXRT1062/gcc/startup_MIMXRT1062.S — vector table + Reset_Handler
+  COPYING-BSD-3                              — BSD-3-Clause, from the repository
+                                               root of the same tag
+
+Byte-exactness was verified by two independent downloads of the same raw URLs
+and a recursive byte comparison (`diff -r`) of the two trees — identical.
+SHA-256, recorded so the claim stays checkable without network access:
+  1ee70ed9eb7f3a75ed89943dd799314e8330538f54c6990ea7d9cae96fd263aa  devices/MIMXRT1062/MIMXRT1062.h
+  88eee5514afdd1b365e0ad3ad09bd760ec225e60ac103af7628e6d834f9278b0  devices/MIMXRT1062/MIMXRT1062_features.h
+  61e03e9521b4dac59bb03410d608cd73aee5d50958a0a1d3ff69540a08811989  devices/MIMXRT1062/fsl_device_registers.h
+  3271a36c5d0e29b6540e9ee3f81c9159f234d2de28173d7f5f314ae42ebb282b  devices/MIMXRT1062/system_MIMXRT1062.h
+  631b8f79610486e331de149ab9b5be563061634371ea73577a7a6147c1b1ca40  devices/MIMXRT1062/system_MIMXRT1062.c
+  5458f63ac59fea7385217dff7f8366d603dd549179641defc7fdd63a70a6aad8  devices/MIMXRT1062/gcc/startup_MIMXRT1062.S
+  38e5f362f6141e65856fbfd9f3e0a1b75c897e58f08050186c6af0f6b23f6a3f  COPYING-BSD-3
+
+Why each file is here — none is aspirational:
+  MIMXRT1062.h            included by fsl_device_registers.h line 26 under any of
+                          the CPU_MIMXRT1062* macros.  np_application defines
+                          CPU_MIMXRT1062DVL6A; no other branch is taken.
+  MIMXRT1062_features.h   included by fsl_device_registers.h line 28, in the same
+                          branch.  Verified by deletion: removing it fails the
+                          compile.
+  fsl_device_registers.h  included by system_MIMXRT1062.c line 67.  It is the only
+                          thing that turns a CPU macro into a device header, so
+                          the pair above cannot be used without it.
+  system_MIMXRT1062.h     included by MIMXRT1062.h line 281; also declares
+                          SystemInit(), which startup_MIMXRT1062.S calls.
+  system_MIMXRT1062.c     defines SystemInit() (watchdog disable, cache enable,
+                          SystemCoreClock).  Reset_Handler branches to it before
+                          .data is copied, so there is no NeurOne-authored
+                          substitute that would not be an invented clock
+                          sequence for silicon nobody has run yet.
+  gcc/startup_MIMXRT1062.S  the vector table the bootloader jumps through:
+                          word 0 is the initial SP and word 1 the reset handler
+                          (firmware/bootloader/src/np_main.c load_and_jump()).
+                          Assembled with -D__STARTUP_CLEAR_BSS and -D__START=main
+                          — see firmware/application/CMakeLists.txt for why.
+  COPYING-BSD-3           the licence the files above are distributed under.
+
+CMSIS-Core(M) is NOT duplicated here.  MIMXRT1062.h line 280 includes core_cm7.h,
+which is vendored once at firmware/vendor/cmsis_core/ alongside the Cortex-M0+
+header SW-01 uses.  One copy of a shared component, two SW items — see that
+directory's VERSION record, which was revised on 2026-09-01 to say so.
+
+Intentionally NOT vendored — named explicitly so a later reader does not read the
+omissions as oversight:
+  drivers/**              fsl_clock.c, fsl_iomuxc, fsl_lpi2c, fsl_lpspi, fsl_pwm,
+                          fsl_adc, fsl_usdhc and the rest of the peripheral driver
+                          set.  SW-02 makes zero fsl_* calls: verified by
+                          word-boundary grep over firmware/ excluding vendor/,
+                          which returns nothing outside comments.  The SW-02
+                          platform layer that WOULD call them does not exist —
+                          it is 92 unresolved symbols standing in for it
+                          (NP-SW-CI-001 §4.8).  Vendoring drivers now would be
+                          vendoring for a caller that has not been written, and
+                          the subset could only be guessed.  Whichever drivers
+                          that layer needs get vendored when it is written, under
+                          the same obligations.
+  boards/**, components/**, middleware/**, utilities/**, CMSIS_driver/**
+                          board bring-up, USB/lwIP/FatFs stacks, debug console.
+                          None is referenced by this repository.
+  devices/MIMXRT1062/gcc/MIMXRT1062xxxxx_flexspi_nor.ld and every other SDK
+  linker script          NOT vendored, and this is a decision rather than an
+                          omission.  Every SDK script for this part links the
+                          image for execution in place from FlexSPI NOR flash at
+                          0x60000000.  NeurOne has no FlexSPI application image:
+                          the bootloader reads the application out of an eMMC
+                          bank into the OCRAM staging area and jumps to it
+                          (np_main.c load_and_jump()).  A vendored linker script
+                          that puts .text at 0x60000000 is not a starting point
+                          for that, it is a trap.  NeurOne authors its own —
+                          firmware/application/linker/app_imxrt1062.ld, whose
+                          agreement with the bootloader's reservation is
+                          enforced by np_app_link_agreement_tests rather than
+                          asserted in a comment.
+  devices/MIMXRT1062/drivers, /template, /project_template, .yml/.xml metadata
+                          SDK packaging and tooling.

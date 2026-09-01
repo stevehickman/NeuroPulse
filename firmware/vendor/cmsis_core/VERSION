@@ -6,29 +6,60 @@ Source:      https://github.com/ARM-software/CMSIS_5/tree/5.9.0
 Tag:         5.9.0
 License:     Apache-2.0  (SPDX-License-Identifier in every vendored header;
                           full text in LICENSE.txt, copied from the same tag)
-SW item:     SW-01 (STM32G071 safety MCU)
-IEC 62304:   Class C
-Vendored:    2026-08-09
+SW item:     SW-01 (STM32G071 safety MCU, Cortex-M0+)  — Class C
+             SW-02 (i.MX RT1062 main processor, Cortex-M7) — Class B  [added 2026-09-01]
+IEC 62304:   Class C for the SW-01 subset; Class B for the SW-02 subset.  The two
+             subsets are disjoint at the core header and share the four
+             core-agnostic files below.  See "One component, two SW items".
+Vendored:    2026-08-09 (SW-01 subset); 2026-09-01 (SW-02 subset, OI-SWCI-20)
 Anomaly review (§7.1.2):  docs/np_soup_cmsis_001.md  — REQUIRED READING; this is
              the first SOUP component vendored specifically for Class C software.
+             It evaluates the SW-01 subset.  Its scope did NOT change on
+             2026-09-01: the two files added then are unreachable from SW-01 —
+             see the standing obligation at the end of this record.
+
+One component, two SW items (2026-09-01).  MIMXRT1062.h line 280 includes
+core_cm7.h, so vendoring the MCUX SDK device layer (firmware/vendor/mcux_sdk/,
+OI-SWCI-20) needed CMSIS-Core(M) for Cortex-M7 as well as for Cortex-M0+.  The
+alternative was a second copy of cmsis_version.h, cmsis_compiler.h, cmsis_gcc.h
+and mpu_armv7.h inside the MCUX directory.  Two byte-identical copies of one SOUP
+component is worse than one copy serving two SW items: it doubles the surface to
+justify, and it makes a future tag bump a change that can be applied to one copy
+and not the other.  The core headers themselves are disjoint — core_cm0plus.h is
+included only by stm32g071xx.h (SW-01) and core_cm7.h only by MIMXRT1062.h
+(SW-02) — and the two builds are separate CMake projects with separate toolchain
+files, so neither can reach the other's core header by accident.
 
 Files vendored (byte-exact from CMSIS/Core/Include/ at tag 5.9.0):
-  Include/core_cm0plus.h     — Cortex-M0+ core peripheral access layer (V5.0.9)
-  Include/cmsis_version.h    — CMSIS-Core(M) version macros (5.6.0)
-  Include/cmsis_compiler.h   — compiler-family dispatch header
-  Include/cmsis_gcc.h        — GCC intrinsics/attributes (the only branch we take)
-  Include/mpu_armv7.h        — ARMv7-M MPU helpers
-  LICENSE.txt                — Apache-2.0, from the repository root of the tag
+  SW-01 only (Class C):
+    Include/core_cm0plus.h   — Cortex-M0+ core peripheral access layer (V5.0.9)
+  SW-02 only (Class B), added 2026-09-01:
+    Include/core_cm7.h       — Cortex-M7 core peripheral access layer (V5.1.6)
+    Include/cachel1_armv7.h  — L1 cache maintenance helpers
+  Shared by both:
+    Include/cmsis_version.h  — CMSIS-Core(M) version macros (5.6.0)
+    Include/cmsis_compiler.h — compiler-family dispatch header
+    Include/cmsis_gcc.h      — GCC intrinsics/attributes (the only branch we take)
+    Include/mpu_armv7.h      — ARMv7-M MPU helpers
+    LICENSE.txt              — Apache-2.0, from the repository root of the tag
 
-Byte-exactness was verified by an independent second download of the same five
-raw URLs and a byte comparison (`cmp`) against the vendored copies — all
-identical.  SHA-256, recorded so the claim stays checkable without network access:
+Byte-exactness was verified by an independent second download of the same raw
+URLs and a byte comparison against the vendored copies — all identical (`cmp`
+per file for the five vendored 2026-08-09; `diff -r` over two full trees for the
+two added 2026-09-01).  SHA-256, recorded so the claim stays checkable without network access:
   a09fa9c6b8b21d1920bce15b98aa56182b027e9278cca0b154812bac2aea3cfa  core_cm0plus.h
   184c19fd3ee73632edf35a0b4d49cd48be75fbf49e6ccb19d9db05fa83bea4b3  cmsis_version.h
   b51963d271c1571ca3463654c76aa7ea50c4eac5d0a2710df10414ac64d9e0f8  cmsis_compiler.h
   43bfd1fe69fbbc2ca70aaf7d43cc3e20f16e0c7f66e1bdef9b51af6dc14b2617  cmsis_gcc.h
   29206b52ee02290ed6f5a5415ebd4187de802cf176d9b3cb844390d8e5571372  mpu_armv7.h
   b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1  LICENSE.txt
+  e974d0a91752487d0154457cd422c37667328e9ddb7ba4fa2fed479a63577f63  core_cm7.h
+  2e336a64f60a9c0eaf5a08e2c4845d94da86c3fd84d219d0d0c9f530e63bc9c3  cachel1_armv7.h
+
+The five files vendored on 2026-08-09 were re-fetched from the same five raw URLs
+on 2026-09-01 while the two new files were taken, and compared byte-for-byte
+against the copies in this directory: all five still identical.  The tag has not
+moved under the record.
 
 Why each file is here — none is aspirational:
   core_cm0plus.h    included unconditionally by stm32g071xx.h line 115.  There is
@@ -41,6 +72,18 @@ Why each file is here — none is aspirational:
                     file fails the compile with "mpu_armv7.h: No such file".
                     NeurOne calls no MPU function; the file is a transitive
                     requirement of the device header, not a feature choice.
+                    core_cm7.h includes it for the same reason on the SW-02 side.
+  core_cm7.h        included unconditionally by MIMXRT1062.h line 280.  There is
+                    no way to use the MCUX device header without it.
+  cachel1_armv7.h   included by core_cm7.h line 2234 because the RT1062 has L1
+                    caches (__DCACHE_PRESENT / __ICACHE_PRESENT).  Verified by
+                    deletion: removing it fails the compile of
+                    system_MIMXRT1062.c with "cachel1_armv7.h: No such file".
+                    SystemInit() line 128 calls SCB_EnableICache() from this
+                    header under #if __ICACHE_PRESENT, so unlike mpu_armv7.h it
+                    is not merely a transitive include — it is called.  (The
+                    D-cache half is NOT enabled by SystemInit; nothing in-tree
+                    calls SCB_EnableDCache.)
 
 Intentionally NOT vendored:
   Everything else in CMSIS_5.  Named explicitly so a later reader does not read
@@ -53,8 +96,10 @@ Intentionally NOT vendored:
     CMSIS/DAP/**          debug probe firmware — host-side tooling
     CMSIS/Driver/**       peripheral driver API — SW-01 is register-level
     CMSIS/Pack/**, Utilities/**, SVD/**  packaging and tooling
-    Core/Include/core_cm{0,3,4,7,23,33,35P,55,85}.h and core_ca*.h,
-    core_armv8*.h         other cores; SW-01 is Cortex-M0+ only
+    Core/Include/core_cm{0,3,4,23,33,35P,55,85}.h and core_ca*.h,
+    core_armv8*.h         other cores.  SW-01 is Cortex-M0+ and SW-02 is
+                          Cortex-M7; core_cm7.h moved OUT of this list on
+                          2026-09-01 and into the vendored set above.
     Core/Include/mpu_armv8.h  ARMv8-M MPU; STM32G071 is ARMv7-M
     Core/Include/cmsis_armcc.h, cmsis_armclang*.h, cmsis_iccarm.h,
     cmsis_ccs.h, cmsis_csm.h, tz_context.h
@@ -65,9 +110,24 @@ Intentionally NOT vendored:
                           unreachable and are deliberately absent rather than
                           carried as unreviewed Class C SOUP surface.
 
-This narrowness is the point, not tidiness.  Every vendored file is Class C SOUP
-that has to be justified and anomaly-reviewed (NP-SW-CI-001 §9.4).  Five headers
-of register and intrinsic definitions is a materially smaller review burden than
-the DSP/NN/RTOS/Driver bodies of logic, and — see the anomaly review — it is also
-what makes the §7.1.2 finding as clean as it is: essentially the whole published
-anomaly surface of CMSIS_5 lies in components that are not here.
+This narrowness is the point, not tidiness.  Every vendored file that SW-01 can
+reach is Class C SOUP that has to be justified and anomaly-reviewed (NP-SW-CI-001
+§9.4) — five of the seven headers here.  Register and intrinsic definitions are a
+materially smaller review burden than the DSP/NN/RTOS/Driver bodies of logic, and
+— see the anomaly review — it is also what makes the §7.1.2 finding as clean as it
+is: essentially the whole published anomaly surface of CMSIS_5 lies in components
+that are not here.  Adding the Cortex-M7 pair on 2026-09-01 did not widen that
+burden, because neither file is on SW-01's include path; it did widen the set of
+files a tag bump would have to be re-justified against, which is why the two
+subsets are named separately above rather than merged into one list.
+
+Standing obligation on the SW-02 subset (2026-09-01).  core_cm7.h and
+cachel1_armv7.h carry NO §7.1.2 anomaly evaluation, because §9.3 obligation 5
+attaches that to Class C SOUP and these two are compiled only into SW-02 (Class
+B).  That is a claim about reachability, and it is checkable rather than asserted:
+firmware/safety_mcu/ is a separate CMake project whose toolchain file and include
+paths never mention MIMXRT1062, and core_cm0plus.h — the only CMSIS core header
+SW-01 includes — does not include either file.  If a change ever makes either
+file reachable from SW-01, obligation 5 applies to it and NP-SOUP-CMSIS-001 must
+be revised before that change lands.  Moving the pinned tag re-triggers the
+evaluation for the Class C subset regardless.

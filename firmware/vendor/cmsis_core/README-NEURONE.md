@@ -1,10 +1,25 @@
 # Vendored ARM CMSIS-Core(M) — NeurOne integration notes
 
 ARM **CMSIS-Core(M) 5.6.0**, from the **CMSIS_5 `5.9.0`** tag — the processor
-core access layer for the **SW-01 safety MCU** (STMicroelectronics STM32G071,
-Cortex-M0+ @ 64 MHz). **IEC 62304 Class C SOUP.** The formal records are
-`VERSION`, NP-SW-001 §9.4, and the §7.1.2 anomaly evaluation in
-`docs/np_soup_cmsis_001.md`.
+core access layer for **both** NeurOne processors:
+
+- **SW-01 safety MCU** (STMicroelectronics STM32G071, Cortex-M0+ @ 64 MHz) —
+  `core_cm0plus.h`. **IEC 62304 Class C SOUP.** Formal records: `VERSION`,
+  NP-SW-001 §9.4, and the §7.1.2 anomaly evaluation in
+  `docs/np_soup_cmsis_001.md`.
+- **SW-02 main processor** (NXP i.MX RT1062, Cortex-M7 @ 600 MHz) —
+  `core_cm7.h` + `cachel1_armv7.h`, added 2026-09-01 with the MCUX SDK device
+  layer (`firmware/vendor/mcux_sdk/`, OI-SWCI-20). **IEC 62304 Class B.** No
+  §7.1.2 anomaly evaluation, because that obligation is Class C's — see the
+  standing obligation in `VERSION`, which states the reachability claim that
+  keeps it Class B and what must happen if that claim ever stops holding.
+
+The two core headers are disjoint and the two builds are separate CMake projects,
+so this is one vendored component serving two SW items rather than two components
+sharing a directory. The four core-agnostic files (`cmsis_version.h`,
+`cmsis_compiler.h`, `cmsis_gcc.h`, `mpu_armv7.h`) are shared, which is the reason
+the SW-02 pair was added here instead of being duplicated under
+`firmware/vendor/mcux_sdk/`.
 
 ## Why this component is here at all
 
@@ -54,7 +69,9 @@ vendor/cmsis_core/
 ├── LICENSE.txt               Apache-2.0 (upstream, same tag)
 ├── README-NEURONE.md         this file
 └── Include/
-    ├── core_cm0plus.h        Cortex-M0+ core peripheral access layer (V5.0.9)
+    ├── core_cm0plus.h        SW-01: Cortex-M0+ core peripheral access layer (V5.0.9)
+    ├── core_cm7.h            SW-02: Cortex-M7 core peripheral access layer (V5.1.6)
+    ├── cachel1_armv7.h       SW-02: included by core_cm7.h:2234 (L1 caches present)
     ├── cmsis_version.h       included by core_cm0plus.h:63
     ├── cmsis_compiler.h      included by core_cm0plus.h:115
     ├── cmsis_gcc.h           selected by cmsis_compiler.h:54 for __GNUC__
@@ -63,9 +80,10 @@ vendor/cmsis_core/
 
 There is **no CMakeLists.txt here** and that is deliberate — unlike
 `vendor/freertos`, this component compiles nothing. It contributes headers only.
-The include path is added by `firmware/safety_mcu/CMakeLists.txt` as a `SYSTEM`
-directory so that `-Wall -Wextra -Werror` stays fully in force on first-party code
-while the vendored headers' diagnostics are suppressed. That is the header-only
+The include path is added by `firmware/safety_mcu/CMakeLists.txt` (SW-01) and by
+`firmware/application/CMakeLists.txt` (SW-02) as a `SYSTEM` directory so that
+`-Wall -Wextra -Werror` stays fully in force on first-party code while the
+vendored headers' diagnostics are suppressed. That is the header-only
 analogue of the `-w` the Monocypher precedent applies to SOUP *sources*; no
 warning is disabled repository-wide.
 
@@ -93,9 +111,24 @@ cmake --build build/safety --target np_safety_mcu_objs
 `mpu_armv7.h`'s necessity was established by deletion rather than by reading the
 `#if`: removing it fails the compile with `mpu_armv7.h: No such file`. NeurOne
 calls no MPU function, so it would otherwise look like an unjustified file.
+`cachel1_armv7.h` was established the same way, against the SW-02 build:
+
+```bash
+cmake -B build/cross -G Ninja firmware \
+      -DCMAKE_TOOLCHAIN_FILE="$PWD/firmware/cmake/arm-none-eabi.cmake" \
+      -DCMAKE_BUILD_TYPE=Release
+cmake --build build/cross --target np_application
+```
 
 ## Standing obligation
 
 Changing the pinned tag **requires re-running the §7.1.2 anomaly evaluation** and
-revising `docs/np_soup_cmsis_001.md`. This is Class C SOUP; the evaluation is
-attached to a version, not to the component.
+revising `docs/np_soup_cmsis_001.md`. The evaluation is attached to a version, not
+to a component, and the Class C subset is what triggers it — a tag bump moves
+`core_cm0plus.h` and the four shared files, so it triggers regardless of anything
+on the SW-02 side.
+
+The reverse direction is the one worth writing down: if `core_cm7.h` or
+`cachel1_armv7.h` ever becomes reachable from `firmware/safety_mcu/`, they stop
+being Class B and the evaluation must cover them **before** that change lands.
+`VERSION` states the check that makes this observable rather than remembered.

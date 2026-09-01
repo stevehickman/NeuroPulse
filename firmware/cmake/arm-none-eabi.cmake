@@ -1,5 +1,6 @@
 # ARM GNU Toolchain file for NeurOne embedded firmware
-# Targets: NXP i.MX RT1062 (Cortex-M7) and STM32G071 (Cortex-M0+)
+# Target: NXP i.MX RT1062 (Cortex-M7) — the SW-02 Class B build.
+# The STM32G071 (Cortex-M0+) SW-01 Class C build uses cmake/stm32g071.cmake.
 
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_PROCESSOR arm)
@@ -76,6 +77,54 @@ if(_np_arm_gcc_version VERSION_LESS NP_ARM_GCC_MIN_VERSION)
             "-DNP_ALLOW_OLD_ARM_TOOLCHAIN=ON if you accept the risk.")
     endif()
 endif()
+
+# ── i.MX RT1062 CPU flags ─────────────────────────────────────────────────────
+# Cortex-M7 with the hardware double-precision FPU, Thumb-2, hard float ABI.
+#
+# Added 2026-09-01 (NP-SW-CI-001 §4.8, phase 8).  This block is the counterpart
+# of the STM32G071_CPU_FLAGS block in cmake/stm32g071.cmake and it was missing,
+# which was a real defect rather than an inconsistency of style.
+#
+# Every per-target CMakeLists in this project sets these same flags itself, so
+# the omission was invisible — EXCEPT for the two libraries that deliberately
+# set no CPU flags of their own because they are shared between the Cortex-M7
+# and Cortex-M0+ builds: np_crypto (whose header says in as many words "the
+# consuming project's CMakeLists sets CPU flags") and np_ota_state.  On the
+# SW-01 side that works, because stm32g071.cmake supplies them through
+# CMAKE_C_FLAGS_INIT.  On the SW-02 side there was nothing to supply them, so
+# both libraries compiled for the compiler's bare default: measured 2026-09-01,
+# `readelf -A` on np_crypto.c.obj reported Tag_CPU_arch **v4T**, ARM ISA, soft
+# float — not Cortex-M7, not even Thumb-only.
+#
+# Nothing observed it for the same reason nothing observed Defect E or §4.7:
+# no image linked them.  The bootloader carries its own np_signature.c and does
+# not link np_crypto, and there was no SW-02 application target at all.  The
+# first link that included both (np_application, phase 8) failed immediately
+# with `uses VFP register arguments, libnp_crypto.a(...) does not`.
+#
+# Duplication with the per-target flags is harmless — they are identical
+# strings — and is not tidied away here: doing so would touch every module's
+# CMakeLists for no behavioural gain, and a target that states its own ABI is
+# the safer thing to read.
+set(IMXRT1062_CPU_FLAGS
+    "-mcpu=cortex-m7"
+    "-mthumb"
+    "-mfpu=fpv5-d16"
+    "-mfloat-abi=hard"
+)
+
+string(JOIN " " _NP_IMXRT_CPU_FLAGS_STR ${IMXRT1062_CPU_FLAGS})
+
+set(CMAKE_C_FLAGS_INIT   "${_NP_IMXRT_CPU_FLAGS_STR}")
+set(CMAKE_ASM_FLAGS_INIT "${_NP_IMXRT_CPU_FLAGS_STR} -x assembler-with-cpp")
+
+# CMAKE_EXE_LINKER_FLAGS_INIT is deliberately NOT set here, unlike on the SW-01
+# side.  Both executable targets in this project already pass the CPU flags on
+# their own link lines, and the bootloader links -nostdlib -nostartfiles
+# -nodefaultlibs while np_application links newlib; there is no single specs
+# choice that suits both.  Adding one here would also re-create Defect F
+# (NP-SW-CI-001 §4.5) — the duplicate -specs= on a link line — from the other
+# direction.
 
 # Prevent CMake from testing the compiler for a host executable
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
