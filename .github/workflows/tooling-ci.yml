@@ -33,6 +33,12 @@ name: Tooling CI (scripts, doc naming, simulator, python, consent, redaction)
 #              its kind, names the population it scans, and has a falsification
 #              that a workflow actually runs. A meta-gate over CI itself, so its
 #              list is scripts/ + ci/ + EVERY workflow — see Scoping.
+#   ci-scope   check-ci-scope.ts: the relevance lists themselves. Every module
+#              in a CMake build graph is in scope for a job that builds it, and
+#              every gate's CI-Scan-Paths is covered by the list of a job that
+#              runs it (NP-SW-CI-001 §5.0.2, OI-SWCI-08). gate-cov asks whether
+#              a gate is DECLARED and falsified; this asks whether the change
+#              that breaks it would actually reach it.
 #   doc-naming check-doc-filenames.ts run as a real gate: NP-CONV-001 §4.0 over
 #              the whole document set, both directions. Its own job with its own
 #              relevance list — see Scoping.
@@ -56,13 +62,19 @@ name: Tooling CI (scripts, doc naming, simulator, python, consent, redaction)
 # reports `skipped`, which satisfies a required check.
 #
 #
-# ── One rule behind all three guard jobs ──────────────────────────────────────
+# ── One rule behind all four guard jobs ───────────────────────────────────────
 # A gate's relevance list must cover the population its CI-Scans declares. Three
 # gates here violated that, each found by hand:
 #
 #   check-doc-filenames  scans docs/ + docs/superseded/   saw scripts/** only
 #   check-gate-coverage  scans scripts/, ci/, workflows/  saw scripts/** + this file
 #   check-section-refs   scans the tracked tree           saw web-ci.yml's list
+#
+# "found by hand" was the actual defect, and ci-scope is the answer to it: since
+# 2026-09-01 each gate also declares CI-Scan-Paths — the same population in the
+# matcher's two shapes, so a claim and a list are finally comparable — and the
+# rule below is enforced rather than reasoned about. Re-introducing any of the
+# three rows above now fails CI.
 #
 # Each now has its own job and a list that matches what it reads. NONE of them is
 # a §5.0 exception, and the earlier framing of doc-naming as "a second accepted
@@ -77,7 +89,9 @@ name: Tooling CI (scripts, doc naming, simulator, python, consent, redaction)
 # from the repository root, so its population is the tree and any enumerated
 # list would be narrower than what it scans. Running it unconditionally is the
 # honest form; writing `**` and matching it every time would be the same thing
-# dressed as scoping.
+# dressed as scoping. That argument is now checked, not just written down: its
+# CI-Scan-Paths is the literal token `<tree>`, which only a job with no
+# relevance gate can satisfy, so giving this job an `if:` fails ci-scope.
 #
 # `docs/**` is deliberately NOT on the gate-coverage list, though its population
 # probe does run check-doc-filenames.ts against the real tree and would fail if
