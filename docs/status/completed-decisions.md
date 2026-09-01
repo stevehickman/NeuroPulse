@@ -6,6 +6,25 @@
 >
 > **Note on overlap:** many entries here also appear in the formal DHF index (`docs/np_dhf_001.md`) and in git history. Content was relocated faithfully, not deduped — a dedup pass against the DHF is flagged as a follow-up (deleting authoritative memory should be a reviewed, per-item decision). Referenced from CLAUDE.md → Document Map.
 
+## How to read this file
+
+**~226 KB in ~200 lines — individual entries run to 14 KB on one line. Never read it whole.**
+It is an append-only log, one `- ` bullet per entry: broadly oldest-first, with the most recent
+appends at the end — but **not strictly chronological**, so trust the date inside an entry, not its
+position. Later entries correct earlier ones rather than editing them, so **a later entry wins** —
+always grep for one before quoting an entry as current.
+
+Recipes:
+
+- Was X decided, and how: `grep -n 'X' docs/status/completed-decisions.md` then
+  `sed -n '<line>p' docs/status/completed-decisions.md | fold -w 120`.
+- Everything from one date: `grep -n '(2026-08-12)' docs/status/completed-decisions.md`.
+- What was later overturned: `grep -n 'SUPERSEDED\|REVERSED\|corrects' docs/status/completed-decisions.md`.
+- The newest decisions: `tail -20 docs/status/completed-decisions.md`.
+
+For the narrative of what each CLAUDE.md revision changed, read
+`docs/reference/claude-md-revision-history.md` instead — it is far smaller and usually the answer.
+
 - Two-tier product strategy with shared platform
 - ~~600-LED FPC zone modules from launch (no Rev 1/Rev B)~~ **⚠ SUPERSEDED 2026-07-28** — the fixed 5-zone/600-LED hardware model is retired; see `docs/np_hex_zm_001.md` (hex-tile lattice) and this file's SMART-1 entry below.
 - 400 mW/cm² peak pulsed via firmware (Path A, $0 BOM) — pending regulatory opinion
