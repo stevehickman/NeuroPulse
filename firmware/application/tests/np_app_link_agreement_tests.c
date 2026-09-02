@@ -1,6 +1,7 @@
 /*
  * NeurOne SW-02 — Linker Script Agreement Host Tests
- * Document: NP-SW-CI-001 §4.8 (phase 8, closes OI-SWCI-21)
+ * Document: NP-SW-CI-001 §4.8 (phase 8, closes OI-SWCI-21),
+ *           NP-SW-CI-001 §4.10 (phase 9, closes OI-SWCI-39)
  *
  * ── What this suite is for ───────────────────────────────────────────────────
  *
@@ -14,6 +15,12 @@
  *
  *   firmware/application/linker/app_imxrt1062.ld
  *       NP_OCRAM_ORIGIN, NP_APP_LOAD_OFFSET, NP_APP_IMAGE_LENGTH
+ *
+ * Since §4.10 there is a SECOND fact with the same shape and a third copy: the
+ * FlexRAM partition.  bootloader_imxrt1062.ld declares NP_FLEXRAM_*_BANKS,
+ * np_config.h declares the same counts for the code that writes IOMUXC_GPR17,
+ * and app_imxrt1062.ld declares NP_FLEXRAM_DTCM_SIZE, which is what the
+ * application's DTCM region is linked against.  This suite reads all three.
  *
  * A GNU ld script cannot include another one, so the second file has no way to
  * derive its numbers from the first.  The duplication is unavoidable; what is
@@ -35,6 +42,12 @@
  * be linked for an address the bootloader never stages it at and would fault on
  * its first absolute reference.  None of those is visible in either file alone.
  *
+ * The partition disagreement is worse in one specific way, which is why it is
+ * checked here rather than left to the link: a DTCM region LARGER than the
+ * banks np_flexram_apply_partition() actually assigns links cleanly on both
+ * sides and produces an image that faults on its first access to memory that
+ * does not exist.  Neither linker can see the C constant that decides it.
+ *
  * ── What it does NOT prove ──────────────────────────────────────────────────
  *
  * That the linked np_application.elf actually lands where the script says.  A
@@ -54,6 +67,15 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
+/* The bootloader's hardware configuration — the SAME header
+ * np_flexram_apply_partition() writes IOMUXC_GPR17/16/14 from.  Included, not
+ * text-parsed: for the FlexRAM partition the third copy of the fact is C rather
+ * than a linker script, and the compiler is a better reader of C than this
+ * file's parser is.  It contributes only #defines here; nothing in it is
+ * dereferenced, so the absolute peripheral addresses it names stay inert on a
+ * host.  NP-SW-CI-001 §4.10. */
+#include "np_config.h"
 
 #ifndef NP_BOOTLOADER_LD_PATH
 #error "NP_BOOTLOADER_LD_PATH must be defined by the build"
@@ -398,10 +420,152 @@ static void test_bootloader_staging_size_is_still_derived(void)
            "Defect C received");
 }
 
+/* ── FlexRAM partition (NP-SW-CI-001 §4.10, closes OI-SWCI-39) ─────────────────
+ *
+ * Three declarations of one decision, and none of the three can see the others:
+ *
+ *   bootloader_imxrt1062.ld   NP_FLEXRAM_{BANK_SIZE,BANK_COUNT,*_BANKS}
+ *   np_config.h               the same, and what np_flexram_apply_partition()
+ *                             actually writes to IOMUXC_GPR17/GPR14/GPR16
+ *   app_imxrt1062.ld          NP_FLEXRAM_DTCM_SIZE — the DTCM region the
+ *                             application's .data and MSP stack are linked into
+ */
+
+/* The header's counts are what the DEVICE gets.  Anything the two linker
+ * scripts assert is checked against this, never against each other only —
+ * otherwise the scripts could agree with one another and disagree with the
+ * silicon, which is the state OI-SWCI-39 was raised about. */
+static void test_partition_is_self_consistent_in_the_header(void)
+{
+    ASSERT((uint64_t)NP_FLEXRAM_ITCM_BANKS + NP_FLEXRAM_DTCM_BANKS +
+               NP_FLEXRAM_OCRAM_BANKS == (uint64_t)NP_FLEXRAM_BANK_COUNT,
+           "np_config.h's FlexRAM bank counts do not sum to "
+           "NP_FLEXRAM_BANK_COUNT — part of the array would be unassigned");
+
+    ASSERT(NP_FLEXRAM_DTCM_BANKS > 0U,
+           "np_config.h assigns no DTCM banks — the application's .data and "
+           "MSP stack would have nowhere to live, and its Reset_Handler "
+           "touches both before its first C statement");
+
+    ASSERT((uint64_t)NP_DTCM_SIZE ==
+               (uint64_t)NP_FLEXRAM_DTCM_BANKS * NP_FLEXRAM_BANK_SIZE,
+           "NP_DTCM_SIZE is not NP_FLEXRAM_DTCM_BANKS banks — the derived "
+           "size has been overridden with a literal");
+
+    ASSERT((uint64_t)NP_ITCM_SIZE ==
+               (uint64_t)NP_FLEXRAM_ITCM_BANKS * NP_FLEXRAM_BANK_SIZE,
+           "NP_ITCM_SIZE is not NP_FLEXRAM_ITCM_BANKS banks");
+}
+
+/*
+ * The bootloader script's OCRAM region is the DEDICATED OCRAM2 array, and this
+ * is the test that keeps that true.  OCRAM2 ends exactly where the FlexRAM
+ * OCRAM aperture begins, so as long as the partition assigns FlexRAM zero OCRAM
+ * banks, the region below is the whole of OCRAM and its LENGTH is exact.
+ * Assign one bank and it silently stops being — the aperture goes live, the
+ * "512 KiB" becomes a description of a prefix, and nothing else in the build
+ * would notice.
+ */
+static void test_bootloader_ocram_is_the_dedicated_ocram2(void)
+{
+    uint64_t boot_origin = 0U;
+    uint64_t boot_len    = 0U;
+
+    if (region_value(&g_boot, "OCRAM", "ORIGIN", &boot_origin) != 0) return;
+    if (region_value(&g_boot, "OCRAM", "LENGTH", &boot_len) != 0) return;
+
+    ASSERT(boot_origin == (uint64_t)NP_OCRAM_BASE,
+           "the bootloader script and np_config.h disagree about NP_OCRAM_BASE");
+    ASSERT(boot_len == (uint64_t)NP_OCRAM_SIZE,
+           "the bootloader script and np_config.h disagree about NP_OCRAM_SIZE");
+
+    ASSERT((uint64_t)NP_OCRAM_BASE + NP_OCRAM_SIZE ==
+               (uint64_t)NP_FLEXRAM_OCRAM_BASE,
+           "OCRAM2 does not end where the FlexRAM OCRAM aperture begins — the "
+           "adjacency the 'OCRAM2 is the only OCRAM' claim rests on is gone");
+
+    ASSERT(NP_FLEXRAM_OCRAM_BANKS == 0U,
+           "FlexRAM is assigning OCRAM banks again — the aperture at "
+           "NP_FLEXRAM_OCRAM_BASE is live and the bootloader script's OCRAM "
+           "region no longer describes the whole of OCRAM");
+}
+
+/* Both linker scripts must state the partition the header states. */
+static void test_bootloader_script_partition_agrees_with_the_header(void)
+{
+    struct { const char *name; uint64_t expected; } fields[] = {
+        { "NP_FLEXRAM_BANK_SIZE",   (uint64_t)NP_FLEXRAM_BANK_SIZE   },
+        { "NP_FLEXRAM_BANK_COUNT",  (uint64_t)NP_FLEXRAM_BANK_COUNT  },
+        { "NP_FLEXRAM_ITCM_BANKS",  (uint64_t)NP_FLEXRAM_ITCM_BANKS  },
+        { "NP_FLEXRAM_DTCM_BANKS",  (uint64_t)NP_FLEXRAM_DTCM_BANKS  },
+        { "NP_FLEXRAM_OCRAM_BANKS", (uint64_t)NP_FLEXRAM_OCRAM_BANKS },
+    };
+
+    for (size_t i = 0U; i < sizeof(fields) / sizeof(fields[0]); i++) {
+        uint64_t got = 0U;
+        if (ld_value(&g_boot, fields[i].name, &got) != 0) continue;
+        ASSERT(got == fields[i].expected,
+               "the bootloader linker script and np_config.h disagree about a "
+               "FlexRAM bank field");
+        if (got != fields[i].expected) {
+            printf("       %s: script %lu, np_config.h %lu\n",
+                   fields[i].name, (unsigned long)got,
+                   (unsigned long)fields[i].expected);
+        }
+    }
+}
+
+static void test_app_dtcm_matches_the_established_partition(void)
+{
+    uint64_t app_dtcm   = 0U;
+    uint64_t dtcm_origin = 0U;
+
+    if (ld_value(&g_app, "NP_FLEXRAM_DTCM_SIZE", &app_dtcm) != 0) return;
+
+    ASSERT(app_dtcm == (uint64_t)NP_DTCM_SIZE,
+           "the application is linked for a DTCM the partition does not "
+           "establish — a region larger than the banks assigned links cleanly "
+           "and faults on first access to memory that does not exist");
+    if (app_dtcm != (uint64_t)NP_DTCM_SIZE) {
+        printf("       app NP_FLEXRAM_DTCM_SIZE = %lu, "
+               "%u banks x %u B = %lu\n",
+               (unsigned long)app_dtcm, (unsigned)NP_FLEXRAM_DTCM_BANKS,
+               (unsigned)NP_FLEXRAM_BANK_SIZE, (unsigned long)NP_DTCM_SIZE);
+    }
+
+    if (region_value(&g_app, "DTCM", "ORIGIN", &dtcm_origin) != 0) return;
+    ASSERT(dtcm_origin == (uint64_t)NP_DTCM_BASE,
+           "the application's DTCM region does not start at NP_DTCM_BASE");
+
+    /* The MSP stack is pinned to the top of DTCM and must fit inside it. */
+    uint64_t stack = 0U;
+    if (ld_value(&g_app, "NP_APP_STACK_SIZE", &stack) != 0) return;
+    ASSERT(stack < app_dtcm,
+           "the application MSP stack does not fit inside DTCM");
+}
+
+/*
+ * As for STAGING: the region line itself must be written in terms of the
+ * checked constant.  Without this, every numeric assertion above can pass while
+ * the MEMORY block carries a literal, and NP_FLEXRAM_DTCM_SIZE becomes
+ * decoration that nothing links against.
+ */
+static void test_app_dtcm_region_uses_the_constant(void)
+{
+    const char *length = region_attr(&g_app, "DTCM", "LENGTH");
+
+    ASSERT(length != NULL, "app script has no DTCM region with a LENGTH");
+    if (length == NULL) return;
+
+    ASSERT(strncmp(length, "NP_FLEXRAM_DTCM_SIZE", 20) == 0,
+           "DTCM LENGTH is not NP_FLEXRAM_DTCM_SIZE — the checked constant is "
+           "not what bounds the region");
+}
+
 int main(void)
 {
     printf("NeurOne SW-02 linker-script agreement tests "
-           "(NP-SW-CI-001 §4.8)\n");
+           "(NP-SW-CI-001 §4.8, §4.10)\n");
 
     if (ld_load(&g_boot, NP_BOOTLOADER_LD_PATH) != 0 ||
         ld_load(&g_app,  NP_APPLICATION_LD_PATH) != 0) {
@@ -415,8 +579,15 @@ int main(void)
     test_image_length_equals_derived_staging_size();
     test_bootloader_staging_size_is_still_derived();
 
+    /* §4.10 — the FlexRAM partition, across all three declarations. */
+    test_partition_is_self_consistent_in_the_header();
+    test_bootloader_ocram_is_the_dedicated_ocram2();
+    test_bootloader_script_partition_agrees_with_the_header();
+    test_app_dtcm_matches_the_established_partition();
+    test_app_dtcm_region_uses_the_constant();
+
     if (g_fail_count == 0) {
-        printf("PASS — both linker scripts agree about the staging area\n");
+        printf("PASS — both linker scripts and np_config.h agree about the staging area and the FlexRAM partition\n");
     } else {
         printf("\n%d failure(s)\n", g_fail_count);
     }

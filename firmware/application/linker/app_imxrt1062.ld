@@ -27,7 +27,7 @@
  *   4. reads word 0 as the initial SP and word 1 as the entry → which the SDK
  *      startup's __isr_vector already provides (__StackTop, Reset_Handler).
  *
- * ── The two numbers below are duplicated, and the duplication is enforced ────
+ * ── The three numbers below are duplicated, and the duplication is enforced ──
  *
  * NP_APP_IMAGE_ORIGIN and NP_APP_IMAGE_LENGTH restate values owned by
  * firmware/bootloader/linker/bootloader_imxrt1062.ld:
@@ -45,6 +45,14 @@
  * that copied an application over the stack it was running on.  The lesson
  * taken there was not "never duplicate", which is not always available; it was
  * "if you must duplicate, make something fail".
+ *
+ * NP_FLEXRAM_DTCM_SIZE below is the third, added by §4.10: it restates a bank
+ * count owned by the same bootloader script AND by np_config.h, which is what
+ * np_flexram_apply_partition() actually writes to IOMUXC_GPR17.  The test reads
+ * all three.  The failure it prevents is worse than the staging one, because it
+ * is not detectable at link time on either side: a DTCM region larger than the
+ * partition establishes links cleanly and faults on first access to memory that
+ * does not exist.
  */
 
 NP_OCRAM_ORIGIN       = 0x20200000;
@@ -59,15 +67,23 @@ NP_APP_IMAGE_LENGTH   = 440K;                                   /* 512K - 64K - 
  * their own stacks from the heap_4 pool in .bss. */
 NP_APP_STACK_SIZE     = 8K;
 
+/* Data Tightly Coupled Memory, as ESTABLISHED by the bootloader rather than as
+ * inherited from a default.  NP-SW-CI-001 §4.10 (closes OI-SWCI-39).
+ *
+ * This was 128 KiB, taken from the MCUX SDK's m_data — a figure that described
+ * the DEFAULT eFuse partition, which nothing in this repository had chosen or
+ * written down.  It is now 16 FlexRAM banks × 32 KiB, the partition
+ * src/np_flexram.c puts in force at B-0, before this image is ever jumped to.
+ *
+ * Third statement of one fact (bootloader_imxrt1062.ld's NP_FLEXRAM_*_BANKS,
+ * np_config.h's, and this).  np_app_link_agreement_tests reads all three and
+ * fails on disagreement — the same treatment, for the same reason, as
+ * NP_APP_IMAGE_LENGTH above. */
+NP_FLEXRAM_DTCM_SIZE  = 512K;
+
 MEMORY
 {
-    /* Data Tightly Coupled Memory.  Length is the MCUX SDK's own declaration
-     * for this part (m_data in MIMXRT1062xxxxx_flexspi_nor.ld, 0x20000000
-     * LENGTH 0x00020000) rather than a NeurOne estimate.  See OI-SWCI-39:
-     * nothing in this repository configures the FlexRAM partition that decides
-     * how much DTCM actually exists, and the bootloader script's OCRAM figure
-     * and the SDK's do not agree. */
-    DTCM    (rwx) : ORIGIN = 0x20000000,         LENGTH = 128K
+    DTCM    (rwx) : ORIGIN = 0x20000000,         LENGTH = NP_FLEXRAM_DTCM_SIZE
 
     /* The bootloader's application staging reservation, as an image region. */
     /* rwx, not rx: .bss lives here too — see the .bss section below for the  */
@@ -162,18 +178,36 @@ SECTIONS
     /* bootloader's map: the application owns the whole 440 KiB reservation    */
     /* once it is running — the bootloader has jumped and is dead — and the    */
     /* loadable image is only ~48 KiB of it.  .bss is NOLOAD, so it costs      */
-    /* region space and no image bytes.  Every other option needs a decision   */
-    /* nobody has made: enlarging DTCM means configuring the FlexRAM partition */
-    /* that NOTHING in this repository configures (OI-SWCI-39); shrinking      */
-    /* configTOTAL_HEAP_SIZE or the pools is a product change made to fit a    */
-    /* bring-up image, which is backwards.                                     */
+    /* region space and no image bytes.                                        */
     /*                                                                         */
-    /* What it costs is real and is recorded rather than hidden: .bss in OCRAM */
+    /* ── Why it STAYS here now that DTCM is 512 KiB (NP-SW-CI-001 §4.10) ───── */
+    /*                                                                         */
+    /* The paragraph above used to end "enlarging DTCM means configuring the   */
+    /* FlexRAM partition that NOTHING in this repository configures            */
+    /* (OI-SWCI-39)".  That blocker is gone: the partition is established, DTCM */
+    /* is 524,288 B, and 162,436 B of .data + .bss would fit it three times     */
+    /* over.  The placement is nonetheless UNCHANGED, deliberately, and the     */
+    /* reason is bring-up risk rather than arithmetic.                          */
+    /*                                                                         */
+    /* DTCM exists only if three register writes to silicon nobody has yet run  */
+    /* do what the reference manual says.  With .bss here, a partition that     */
+    /* does not take effect costs .data and the MSP stack — and fails loudly    */
+    /* and immediately, inside Reset_Handler, before FreeRTOS starts.  With     */
+    /* .bss there, the same failure would also take ucHeap, every task stack    */
+    /* cut from it, and every static buffer in the image, and would present as  */
+    /* arbitrary corruption at an arbitrary later moment.  Staking the whole    */
+    /* data image on an untested register write, on the first board, to recover */
+    /* single-cycle access to buffers nobody has profiled, is the wrong trade   */
+    /* in that order.                                                          */
+    /*                                                                         */
+    /* What it costs is real and is recorded rather than hidden: .bss in OCRAM2 */
     /* is not tightly coupled, so every access goes through the bus and the    */
-    /* L1 D-cache instead of DTCM's single-cycle path.  Which buffers deserve  */
-    /* DTCM is a partitioning decision for the platform layer to make with     */
-    /* measurements behind it — OI-SWCI-42.  DTCM is left holding .data and    */
-    /* the stack, which is why it now reads as nearly empty.                   */
+    /* L1 D-cache instead of DTCM's single-cycle path.  Which buffers move —   */
+    /* and it is now "which", not "which few", since rationing is no longer    */
+    /* forced — remains OI-SWCI-42, and what gates it is now one bench         */
+    /* confirmation that the partition took effect, not a decision nobody has  */
+    /* made.  DTCM is left holding .data and the stack, which is why it reads  */
+    /* as nearly empty.                                                        */
     .bss (NOLOAD) : ALIGN(32) {
         __bss_start__ = .;
         *(.bss)
@@ -190,12 +224,14 @@ SECTIONS
     /* stack would sit a few hundred bytes above it and the first overflow     */
     /* would land in initialised data — silent corruption of whichever         */
     /* variable happened to be there.  Pinned to the top of DTCM, the same     */
-    /* overflow descends through ~119 KiB of unallocated DTCM before it can    */
+    /* overflow descends through ~503 KiB of unallocated DTCM before it can    */
     /* reach anything, which is the difference between a fault that is         */
-    /* debuggable and one that is not.                                         */
+    /* debuggable and one that is not.  (~119 KiB before §4.10 established the  */
+    /* partition and DTCM grew from the SDK's default-fuse 128 KiB; the band   */
+    /* is a consequence of the region size, not a target, so it moves with it.)*/
     /*                                                                         */
     /* This is the MSP: main() and every interrupt handler.  FreeRTOS task     */
-    /* stacks come out of ucHeap, which is in .bss and therefore in OCRAM.     */
+    /* stacks come out of ucHeap, which is in .bss and therefore in OCRAM2.    */
     /* configCHECK_FOR_STACK_OVERFLOW = 2 covers those and does NOT cover this */
     /* one, which is why the placement above is the protection it gets.        */
     .stack (ORIGIN(DTCM) + LENGTH(DTCM) - NP_APP_STACK_SIZE) (NOLOAD) : {

@@ -2,10 +2,15 @@
  * NeurOne Bootloader — Main Boot Flow
  * Document: NP-FW-EMMC-001 Rev 1 §8, §11
  *
- * Boot sequence (B-1 through B-9 from spec):
+ * Boot sequence (B-0 added by NP-SW-CI-001 §4.10; B-1 through B-9 from spec):
+ *
+ *  B-0  Bootloader_Reset establishes the FlexRAM partition (ITCM 0 / DTCM
+ *       512 KiB / FlexRAM OCRAM 0) before anything else runs, so the DTCM the
+ *       application is linked for exists by the time it is jumped to.
+ *       NP-SW-CI-001 §4.10.
  *
  *  B-1  Power-on reset → ROM loads bootloader from eMMC boot partition 1
- *       (or BP2 if BP1 fails) into OCRAM at 0x20200000.  Bootloader_Reset
+ *       (or BP2 if BP1 fails) into OCRAM2 at 0x20200000.  Bootloader_Reset
  *       handler is called.
  *
  *  B-2  Read SNVS_LPGPR0 to determine selected boot bank and OTA pending status.
@@ -30,7 +35,8 @@
  *
  * Safety constraints:
  *  - No heap allocation. All buffers are static or stack-allocated.
- *  - Stack is placed in OCRAM above the bootloader image.
+ *  - Stack is placed in OCRAM2 above the bootloader image — OCRAM2 is the
+ *    dedicated 512 KiB array, not FlexRAM, so B-0 cannot move it.
  *  - The Scratch partition is zeroed on every boot to prevent stale data.
  *  - The bootloader never trusts data from the firmware banks without
  *    Ed25519 + SHA-256 verification.
@@ -40,6 +46,7 @@
 #include "np_config.h"
 #include "np_types.h"
 #include "np_app_image.h"
+#include "np_flexram.h"
 #include "np_emmc.h"
 #include "np_boot_selector.h"
 #include "np_signature.h"
@@ -266,6 +273,25 @@ static np_status_t load_and_jump(np_bank_t bank)
 __attribute__((noreturn))
 void Bootloader_Reset(void)
 {
+    /* B-0: Establish the FlexRAM partition ───────────────────────────────── */
+    /* FIRST, so that "no code runs before the memory map is established" is a
+     * property anyone can check by looking at the top of this function rather
+     * than an argument about every statement that precedes the call.  The
+     * application is linked for a 512 KiB DTCM (app_imxrt1062.ld) and its
+     * Reset_Handler sets MSP from a DTCM address before its first C statement,
+     * so the split has to be in force well before load_and_jump().
+     *
+     * Nothing of the bootloader's is in a bank this reassigns:
+     * bootloader_imxrt1062.ld declares exactly one memory region, and it is
+     * OCRAM2, which is not FlexRAM.  See np_flexram.h.
+     *
+     * Ahead of the watchdog disable below, deliberately.  Three register
+     * writes cannot outrun a watchdog that the ROM has just been running
+     * itself, and if they somehow hang, a live watchdog resets the device
+     * instead of leaving it dark — the better of the two failures.
+     * NP-SW-CI-001 §4.10, closes OI-SWCI-39. */
+    np_flexram_apply_partition();
+
     /* B-1: Basic hardware setup ─────────────────────────────────────────── */
     /* Disable watchdog timer (WDOG1, WDOG2) inherited from ROM if running.  */
     /* WDOG1_WCR = 0x400B8000 — disable by setting WDE=0 before any long ops */

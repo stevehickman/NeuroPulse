@@ -13,12 +13,19 @@
 
 cmake_minimum_required(VERSION 3.20)
 
-# ── Host test: the two linker scripts must agree ──────────────────────────────
+# ── Host test: the two linker scripts and np_config.h must agree ─────────────
 # Runs in the NP_BUILD_TESTS build, before the cross-compile guard, because it
-# needs no ARM toolchain — it reads two text files.
+# needs no ARM toolchain — it reads two text files and includes one header.
 if(NP_BUILD_TESTS)
     add_executable(np_app_link_agreement_tests
         tests/np_app_link_agreement_tests.c)
+    # The bootloader's include/ — for np_config.h, which since NP-SW-CI-001
+    # §4.10 is the THIRD declaration of the FlexRAM partition and the one the
+    # device is actually configured from.  Included rather than text-parsed:
+    # the other two copies are linker scripts and need the parser below, this
+    # one is C and the compiler reads it better than the parser would.
+    target_include_directories(np_app_link_agreement_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../bootloader/include)
     target_compile_options(np_app_link_agreement_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g)
     target_compile_definitions(np_app_link_agreement_tests PRIVATE
