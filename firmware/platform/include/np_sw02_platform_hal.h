@@ -171,6 +171,22 @@ extern bool np_mod_visual_hal_mpe_check(void);
 extern bool            np_cvns_hal_accessory_present(void);         /* OI-CVNS-HUB-04 */
 extern uint32_t        np_mod_cvns_hal_now_ms(void);                /* OI-CVNS-HUB-05 */
 extern uint32_t        np_mod_cvns_hal_now_unix(void);              /* OI-CVNS-HUB-06 */
+/* OI-CVNS-HUB-09: hub-side per-electrode CVNS impedance measurement.
+ * Asynchronous (start once, poll each tick), mirroring the re-enable manager's
+ * gate-3 HAL (np_cvns_hal_impedance_start/_poll) — but returns the actual
+ * per-electrode kΩ rather than a pass/fail bit, so the advisory impedance step
+ * can record genuine values into the library's UHDR/SHDR impedance fields.
+ *
+ * np_cvns_hal_impedance_measure_start — begin a fresh measurement.  Returns
+ *   NP_HUB_OK if the measurement was started, else the flow falls back to the
+ *   nominal placeholder (liveness preserved even without a measurement path).
+ * np_cvns_hal_impedance_measure_poll — returns true when complete, filling
+ *   kohm_out[NP_CVNS_ELECTRODE_COUNT] ([0]=left, [1]=right).  While it returns
+ *   false the measurement is still in flight and kohm_out is left untouched.
+ *
+ * This prose moved here from np_mod_cvns.c when OI-SWCI-40 deleted that file's
+ * local `extern`s: a contract stated beside one caller is a contract the other
+ * callers and the definition never see. */
 extern np_hub_status_t np_cvns_hal_impedance_measure_start(void);   /* OI-CVNS-HUB-09 */
 extern bool            np_cvns_hal_impedance_measure_poll(float kohm_out[]); /* OI-CVNS-HUB-09 */
 

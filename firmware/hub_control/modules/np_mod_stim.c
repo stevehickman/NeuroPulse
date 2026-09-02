@@ -28,21 +28,12 @@
 #include "np_safety_spi.h"
 #include <string.h>
 
+#include "np_sw02_platform_hal.h"
+
 /* Safety caps (firmware layer; safety MCU has an independent hardware cap). */
 #define STIM_MAX_AMP_BES_UA   1000U  /* 1mA */
 #define STIM_MAX_AMP_TDCS_UA  2000U  /* 2mA */
 #define STIM_MIN_RAMP_S       30U
-
-extern np_hub_status_t np_mod_stim_hal_dac_set(uint8_t pair, uint8_t waveform,
-                                                 uint16_t freq_mhz, uint16_t amp_ua);
-extern np_hub_status_t np_mod_stim_hal_dac_stop(uint8_t pair);
-extern np_hub_status_t np_mod_stim_hal_dc_set(uint8_t pair, uint16_t current_ua,
-                                                uint8_t polarity);
-extern np_hub_status_t np_mod_stim_hal_dc_ramp(uint8_t pair, uint16_t target_ua,
-                                                 uint8_t polarity, uint16_t ramp_s);
-extern float    np_mod_stim_hal_read_impedance(uint8_t pair);
-extern float    np_mod_stim_hal_read_current(uint8_t pair);
-extern uint16_t np_mod_stim_hal_read_charge(uint8_t pair);
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 

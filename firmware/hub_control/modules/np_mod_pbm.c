@@ -31,13 +31,7 @@
 #include "np_pbm_types.h"
 #include "np_pbm_config.h"
 
-/* ── HAL stubs ────────────────────────────────────────────────────────────────── */
-
-extern np_hub_status_t np_mod_pbm_hal_pwm_set(uint8_t slot,
-                                                uint8_t cur_a, uint8_t cur_b,
-                                                uint8_t freq_code, uint8_t duty);
-extern float    np_mod_pbm_hal_ntc_read(uint8_t slot);
-extern uint16_t np_mod_pbm_hal_pd_read(uint8_t slot, uint8_t wl_idx);
+#include "np_sw02_platform_hal.h"
 
 /* ── Per-slot state ──────────────────────────────────────────────────────────── */
 

@@ -27,6 +27,8 @@
 #include "np_session_log.h"
 #include <string.h>
 
+#include "np_sw02_platform_hal.h"
+
 /* ADS1299 register addresses */
 #define ADS_ID       0x00U
 #define ADS_CONFIG1  0x01U
@@ -48,16 +50,6 @@
 #define ADS_CHNSET_GAIN24   0x60U
 /* CHnSET: shorted (used for calibration epoch) */
 #define ADS_CHNSET_SHORT    0x01U
-
-/* HAL stubs */
-extern void     np_mod_eeg_hal_spi_write_reg(uint8_t reg, uint8_t val);
-extern uint8_t  np_mod_eeg_hal_spi_read_reg(uint8_t reg);
-extern void     np_mod_eeg_hal_start_continuous(void);
-extern void     np_mod_eeg_hal_stop_continuous(void);
-extern float    np_mod_eeg_hal_read_impedance(uint8_t ch);
-extern float    np_mod_eeg_hal_get_band_power(uint8_t band);
-extern uint8_t  np_mod_eeg_hal_get_dominant_band(void);
-extern void     np_mod_eeg_hal_self_calibrate(void);
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 

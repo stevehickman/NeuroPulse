@@ -21,15 +21,9 @@
 #include "np_session_log.h"
 #include <string.h>
 
-#define INS_DUTY_MAX 0x32U  /* 25%, same ceiling as zone modules */
+#include "np_sw02_platform_hal.h"
 
-extern bool np_mod_ins_hal_auth_check(void);
-extern bool np_mod_ins_hal_pd_contact(void);
-extern np_hub_status_t np_mod_ins_hal_pwm_set(uint8_t side,
-                                                uint8_t cur_660, uint8_t cur_808,
-                                                uint8_t freq_code, uint8_t duty);
-extern void np_mod_ins_hal_pwm_stop(uint8_t side);
-extern uint16_t np_mod_ins_hal_pd_read(uint8_t side, uint8_t wl);
+#define INS_DUTY_MAX 0x32U  /* 25%, same ceiling as zone modules */
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 

@@ -30,6 +30,18 @@ option(NP_BUILD_TESTS "Build host-native unit tests (no ARM toolchain needed)" O
 
 set(NP_BOOTLOADER_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../bootloader/include)
 
+# np_sw02_platform_hal.h — the single declaration point for the SW-02 platform
+# seams this library calls (NP-SW-CI-001 §4.8.4, OI-SWCI-40).  Headers only: the
+# np_platform library itself is cross-compile-only and is deliberately NOT linked
+# into any host test, because its definitions are traps that halt the process.
+# Declaring the seams is what makes drift a compile error; defining them here
+# would kill every suite at its first HAL call.  ../shdr/include comes with it —
+# np_sw02_platform_hal.h includes np_accel_shdr.h for np_accel_status_t.
+set(NP_SW02_PLATFORM_HAL_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/../platform/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/../shdr/include
+)
+
 if(NP_BUILD_TESTS)
     add_executable(np_cvns_reenable_tests
         tests/np_cvns_reenable_tests.c
@@ -70,7 +82,10 @@ if(NP_BUILD_TESTS)
         tests/np_protocol_tests.c
         src/np_protocol.c
     )
-    target_include_directories(np_protocol_tests PRIVATE include)
+    target_include_directories(np_protocol_tests PRIVATE
+        include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+    )
     target_compile_options(np_protocol_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
@@ -80,7 +95,10 @@ if(NP_BUILD_TESTS)
         tests/np_mod_stim_tests.c
         modules/np_mod_stim.c
     )
-    target_include_directories(np_mod_stim_tests PRIVATE include)
+    target_include_directories(np_mod_stim_tests PRIVATE
+        include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+    )
     target_compile_options(np_mod_stim_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
 
@@ -118,6 +136,7 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_mod_cvns_tests PRIVATE
         include
         ${NP_CVNS_DIR}/include
+        ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
     )
     target_compile_options(np_mod_cvns_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)
@@ -165,6 +184,7 @@ add_library(np_hub_control STATIC ${HUB_SOURCES})
 target_include_directories(np_hub_control
     PUBLIC  include
     PRIVATE ${NP_PLATFORM_INCLUDE_DIRS}
+            ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}  # np_sw02_platform_hal.h (OI-SWCI-40)
             ${NP_BOOTLOADER_INCLUDE_DIR}   # np_config.h: partition sizes (np_log_backend.c)
 )
 

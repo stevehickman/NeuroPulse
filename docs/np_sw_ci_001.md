@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 12
+**Revision:** 13
 **Date:** 2026-09-01  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -13,7 +13,7 @@
 **Gate:** —  
 **IEC 62304 Class:** SW-01 Class C (safety MCU), SW-02 Class B (main processor)  
 **Supersedes:** None  
-**Change Summary:** Rev 12 (2026-09-01) — **OI-SWCI-08 is CLOSED: `scripts/check-ci-scope.ts` makes relevance-list drift self-detecting, and §5.0.2 is the new record.** Rev 10 closed the fourth instance of one defect class and ended by admitting the real problem — *"four instances of one class, every one found by a human diffing `CI-Scans` against a relevance list by hand."* Audit-dependence, not any single miss, was the defect. The guard checks **both** correspondences §5.0 rests on. **Axis A:** the `add_subdirectory()` closure of every CMakeLists a PR-triggered job configures — computed for that job's actual `-D` flags, so `NP_BUILD_TESTS` and the cross-compile branch stay distinct module sets, `return()` included — must be in scope for at least one PR-triggered job that builds it. **Axis B:** each gate's declared population must be covered by the relevance list of a PR-triggered job that runs it. Axis B needed a new declaration and that is the substance of the change: `CI-Scans:` is prose, it can say anything, and being unfalsifiable is exactly how it stayed wrong in three files at once — so all eleven gates now also carry **`CI-Scan-Paths:`**, the same population in the two shapes `ci-changed-scope.sh` understands. **`<tree>`** is the limiting case and is checked rather than waived: satisfiable only by a job with **no** relevance gate, which turns §5.0's argument for `section-refs` from a paragraph into a property. **Falsified by construction against the real tree, five mutations, one per shape of miss actually made here** — `add_subdirectory(hextile)` with no list entry (the case OI-SWCI-08 was raised for) → `A: firmware/hextile/** … in scope for NO PR-triggered job`, exit 1; `firmware/hrv_biofeedback/**` deleted from the Class B list → same; `docs/**` removed from `NP_SCOPE_DOCNAMING` (the #306 shape) → `B: scripts/check-doc-filenames.ts declares it scans docs/**, but every PR-triggered job that runs it … is gated by a relevance list that does not cover it`; a relevance gate added to `section-refs` (the OI-SWCI-38 shape) → the same message for `<tree>`; `app/ios/**` removed from `NP_SCOPE_CONSENT` → the same for half a population. Restored: `scanned: 26 PR-triggered job(s) in 10 workflow(s) · 5 cmake configure(s) · 21 build-graph target(s) · 11 gate(s)`, PASS, with the full module-and-population-to-job attribution printed. **Three limits stated rather than buried.** (i) Axis A is a **union** rule — a module must be gated by *some* job that builds it, not by every one: both firmware host-test jobs configure the whole super-project and partition by `ctest`, and §5.0 decided *on purpose* that a `safety_mcu`-only change must not rebuild the bootloader, so a per-job rule would report that decision as a defect and get the guard switched off. (ii) Only PR-triggered workflows count on either side — letting `build-all.yml` satisfy a coverage claim would mean "checked" where the truth is "checked within seven days". (iii) List **minimality** is not checked: over-broad scoping costs runner minutes, under-broad scoping costs coverage silently, and only the second is a correctness question. **One false positive found and fixed while building it, which would have hollowed the guard out:** `tooling-ci.yml`'s `changes` job names gates as test *data* (`assert scope.docnaming.paths true scripts/check-doc-filenames.ts`), a substring match read that as an invocation, and because `changes` is ungated every coverage question about that gate then answered "covered" for free. Invocation is now anchored and a self-test case pins it. **What it still does not check:** it reads `add_subdirectory()`, not `#include`, so `build-all.yml` remains the backstop for undeclared dependency edges (§5.5); and it does not read `EXCLUDE_FROM_ALL`, so the §6.6.1-adjacent gap one layer in stays open. OI-SWCI-26 and OI-SWCI-37 are explicitly **not** closed by this and now say so — the required-check context strings and the three hand-copied `NP_SAFETY_TESTS` regexes are still compared by nothing, though the workflow parser they need now exists. New `ci-scope` job in `tooling-ci.yml`, list = `.github/workflows/** firmware/** scripts/** ci/**` — the four surfaces it reads and nothing else; no `bun install`, no toolchain, no `cmake`.
+**Change Summary:** Rev 13 (2026-09-02) — **OI-SWCI-40 is CLOSED: the SW-02 platform contract is now single-sourced against the CALLER, not just the definition, and `scripts/check-platform-seam-decls.ts` keeps it that way for both SW items.** §4.8.4 left `np_sw02_platform_hal.h` compared against `firmware/platform/`'s traps but not against the eleven `.c` files that call them, each of which carried its own `extern`. New **§4.9**: 59 declarations deleted across 11 translation units, replaced by an include of the header that already declared the symbol; three host-test files that *define* doubles include it too, so drift is a compile error in **both** directions — the half §4.4.1 records as why a header beat a shared test-double TU. **The item's count was wrong and the correction is a measurement:** the parsed census finds **56 distinct seams across 59 declaration sites in 11 files**, not 62 across twelve; 7 of the 63 have no caller in `hub_control` at all. Phase 8's figures are left standing with a pointer, as §4's measured-results table is. **A census over all 56 found zero pre-existing disagreements** — nothing had drifted yet, the same result §4.4.1 got on SW-01, and the same reason to do it before a driver exists. **What it would have cost is measured, not argued:** on the pre-change tree, declaring `np_mod_eeg_hal_read_impedance()` as returning `int` where the definition returns `float` built rc=0 **and linked rc=0**, in an image CI gates on zero unresolved symbols — C has no mangling and the declarations were in different translation units, so nothing was in a position to object. **The image is byte-for-byte what phase 8 measured** (0 unresolved, `.bin` 48,208 B, `__isr_vector` at `0x20210000`, census 93/0, 0 warnings) and host suites are 31/31 — the expected result, and the point of reporting it, since this change moves declarations and nothing else. All 11 changed TUs were cross-compiled, not just the 3 the host suites reach. **Demonstrated by holding a mutation constant across the change:** a test double whose parameter type disagrees built rc=0, 0 warnings and passed 1/1 before, and is `error: conflicting types` after; the caller-side `float`→`int` drift compiled *and linked* before. **Two controls are recorded because they do NOT discriminate** — a dropped argument and a pointer-for-scalar were caught before too, a local `extern` being still a prototype — and **M5 is a negative result stated as one**: a widened return type is caught at the definition site and in none of the three calling modules, `-Wconversion` being off, exactly the limit §4.4.1 recorded. **Two things surfaced by the deletion rather than sought:** `np_led_state_t` was still defined in `np_hub_control_main.c` after §4.8.4 moved it to the header, because nothing compared them; and OI-CVNS-HUB-09's start/poll contract prose sat beside one of three callers, so it moved to the declaration. The new gate covers **both** contracts — 63 SW-02 seams and the 25 SW-01 seams whose zero has been asserted only in prose since 2026-08-10 — 88 seams over 39 TUs, with the names **parsed from the headers at run time and never listed in the checker**, because a restated list is the one-value-two-places shape of Defects C and D inside a checker written to forbid it. Eight self-test cases, both directions, including the two vacuity cases; exit 1 on the pre-change tree with all 59 named, 0 after. New `seam-decls` job in `tooling-ci.yml` on its own relevance list. **A larger family was found and deliberately left:** 84 symbols declared by an `extern` that **no header declares at all** — the `np_mod_*_{init,detect,control,shutdown,telemetry}` registry entry points of 17 drivers, plus `np_ed25519_verify`, which does have one. There is no declaration to compare against, so nothing a build could assert; it is a design question about how the registry publishes modules. **OI-SWCI-43.** Rev 12 (2026-09-01) — **OI-SWCI-08 is CLOSED: `scripts/check-ci-scope.ts` makes relevance-list drift self-detecting, and §5.0.2 is the new record.** Rev 10 closed the fourth instance of one defect class and ended by admitting the real problem — *"four instances of one class, every one found by a human diffing `CI-Scans` against a relevance list by hand."* Audit-dependence, not any single miss, was the defect. The guard checks **both** correspondences §5.0 rests on. **Axis A:** the `add_subdirectory()` closure of every CMakeLists a PR-triggered job configures — computed for that job's actual `-D` flags, so `NP_BUILD_TESTS` and the cross-compile branch stay distinct module sets, `return()` included — must be in scope for at least one PR-triggered job that builds it. **Axis B:** each gate's declared population must be covered by the relevance list of a PR-triggered job that runs it. Axis B needed a new declaration and that is the substance of the change: `CI-Scans:` is prose, it can say anything, and being unfalsifiable is exactly how it stayed wrong in three files at once — so all eleven gates now also carry **`CI-Scan-Paths:`**, the same population in the two shapes `ci-changed-scope.sh` understands. **`<tree>`** is the limiting case and is checked rather than waived: satisfiable only by a job with **no** relevance gate, which turns §5.0's argument for `section-refs` from a paragraph into a property. **Falsified by construction against the real tree, five mutations, one per shape of miss actually made here** — `add_subdirectory(hextile)` with no list entry (the case OI-SWCI-08 was raised for) → `A: firmware/hextile/** … in scope for NO PR-triggered job`, exit 1; `firmware/hrv_biofeedback/**` deleted from the Class B list → same; `docs/**` removed from `NP_SCOPE_DOCNAMING` (the #306 shape) → `B: scripts/check-doc-filenames.ts declares it scans docs/**, but every PR-triggered job that runs it … is gated by a relevance list that does not cover it`; a relevance gate added to `section-refs` (the OI-SWCI-38 shape) → the same message for `<tree>`; `app/ios/**` removed from `NP_SCOPE_CONSENT` → the same for half a population. Restored: `scanned: 26 PR-triggered job(s) in 10 workflow(s) · 5 cmake configure(s) · 21 build-graph target(s) · 11 gate(s)`, PASS, with the full module-and-population-to-job attribution printed. **Three limits stated rather than buried.** (i) Axis A is a **union** rule — a module must be gated by *some* job that builds it, not by every one: both firmware host-test jobs configure the whole super-project and partition by `ctest`, and §5.0 decided *on purpose* that a `safety_mcu`-only change must not rebuild the bootloader, so a per-job rule would report that decision as a defect and get the guard switched off. (ii) Only PR-triggered workflows count on either side — letting `build-all.yml` satisfy a coverage claim would mean "checked" where the truth is "checked within seven days". (iii) List **minimality** is not checked: over-broad scoping costs runner minutes, under-broad scoping costs coverage silently, and only the second is a correctness question. **One false positive found and fixed while building it, which would have hollowed the guard out:** `tooling-ci.yml`'s `changes` job names gates as test *data* (`assert scope.docnaming.paths true scripts/check-doc-filenames.ts`), a substring match read that as an invocation, and because `changes` is ungated every coverage question about that gate then answered "covered" for free. Invocation is now anchored and a self-test case pins it. **What it still does not check:** it reads `add_subdirectory()`, not `#include`, so `build-all.yml` remains the backstop for undeclared dependency edges (§5.5); and it does not read `EXCLUDE_FROM_ALL`, so the §6.6.1-adjacent gap one layer in stays open. OI-SWCI-26 and OI-SWCI-37 are explicitly **not** closed by this and now say so — the required-check context strings and the three hand-copied `NP_SAFETY_TESTS` regexes are still compared by nothing, though the workflow parser they need now exists. New `ci-scope` job in `tooling-ci.yml`, list = `.github/workflows/** firmware/** scripts/** ci/**` — the four surfaces it reads and nothing else; no `bun install`, no toolchain, no `cmake`.
 
 > **This revision was authored as Rev 11 and renumbered to 12 on rebase.** PR #307 (phase 8) landed on `main` while this branch was open and took Rev 11 — itself a renumbering, from the Rev 10 it was authored as. Nothing in either revision changed; only the numbers did. Phase 8's two new modules, `firmware/application/` and `firmware/platform/`, are the first real exercise of the guard below on a build graph it did not grow up with, and the figures in §5.0.2 are re-measured against the rebased tree rather than carried over.
 
@@ -554,11 +554,12 @@ most. A layer made entirely of stubs is where the suppression is most tempting a
 counterpart of `np_safety_hal.h` (§4.4.1, OI-SWCI-18) and declares the 63 seams that had no header;
 the other 30 are already single-sourced by the module header that owns them, and are deliberately
 not restated. The stub file includes all nine headers, so the compiler — not the file — is what
-compares declaration against definition. **What this does not yet cover:** the 62 of those 63 that
-are *also* declared by an `extern` line inside the `.c` that calls them. Those local declarations are
-now redundant, but until they are deleted the compiler is comparing this header against the
-definition and not against the caller. That is **OI-SWCI-40**, and it is §4.4.1's finding on the
-SW-02 side.
+compares declaration against definition. **What this did not yet cover, at phase 8:** the seams that
+were *also* declared by an `extern` line inside the `.c` that calls them. Those local declarations
+were redundant, but until they were deleted the compiler was comparing this header against the
+definition and not against the caller — §4.4.1's finding on the SW-02 side, raised as
+**OI-SWCI-40**. **Closed 2026-09-02; see §4.9**, which also corrects the count: 56 seams across 59
+declaration sites in 11 translation units, not the 62 across twelve this phase estimated.
 
 #### 4.8.5 Two things this phase measured and did not fix
 
@@ -607,6 +608,123 @@ first match, `nm` dies of SIGPIPE, and `pipefail` promotes that 141 to the pipel
 that reports a failure for a symbol that is present is worse than no step at all — it is the
 inverse of the `xargs -r` family, passing-while-proving-nothing turned into failing-while-proving-nothing.
 Fixed by writing the symbol table to a file first.
+
+
+### 4.9 The contract is single-sourced against the caller too (2026-09-02, closes OI-SWCI-40)
+
+§4.8.4 left the SW-02 contract single-sourced against the **definition** and not against the
+**caller**: `firmware/platform/src/np_platform_stub.c` includes the headers, so a trap that
+disagrees with `np_sw02_platform_hal.h` is a compile error, but every calling `.c` still carried its
+own `extern` line and was therefore compared against nothing. This closes that, by the same
+mechanism §4.4.1 used on SW-01 and for the same reason.
+
+**The count in OI-SWCI-40 was wrong, and the correction is a measurement.** The item said 62 of the
+63 seams; the parsed census finds **56 distinct seams across 59 declaration sites in 11 translation
+units**, and 7 of the 63 had no local `extern` at all (the `np_config_*`, `np_imu_*` and
+`np_shdr_write_accel_*` families, none of which has a caller in `firmware/hub_control`). Phase 8's
+"62" and its "twelve translation units" are left standing in §4.8's record as written, with this
+paragraph as the correction — the same treatment §4's measured-results table gets.
+
+**A census over all 56 found zero pre-existing disagreements.** Every local declaration matched the
+header verbatim, parameter names included, across all three symbols declared in more than one file
+(`np_mod_cvns_hal_now_ms` in three). Nothing had drifted *yet* — which is the same result §4.4.1
+recorded on SW-01, and it is worth stating in the same words: this is the value of doing it before a
+driver exists, not evidence that it did not matter.
+
+**What it would have cost, measured rather than argued.** On the pre-change tree, changing
+`np_mod_eeg.c`'s local declaration of `np_mod_eeg_hal_read_impedance()` from `float` to `int` — the
+definition returns `float` — built **rc=0** and **linked rc=0**, 0 warnings, in an image CI gates on
+zero unresolved symbols. C has no mangling and the two declarations were in different translation
+units, so nothing in the toolchain was in a position to object. That is not a style defect; it is a
+silently misread impedance in a seam whose consumers gate contact confirmation.
+
+#### 4.9.1 What changed
+
+Fifty-nine `extern` declarations deleted from 11 files, each replaced by an include of the header
+that already declared the symbol. Three host-test files that **define** doubles for these seams now
+include it too, so drift is a compile error in both directions — the caller's and the definition's —
+which is the half §4.4.1 records as the reason a header beat a shared test-double translation unit.
+
+Two things came with it that are not deletions:
+
+- **`np_led_state_t` was defined twice.** §4.8.4 moved the enum into the header because the type is
+  part of `np_hal_status_led_set()`'s ABI, but the copy in `np_hub_control_main.c` outlived the move,
+  because nothing compared them. Deleting the local `extern`s is what surfaced it.
+- **The OI-CVNS-HUB-09 contract prose moved to the header.** The asynchronous start/poll semantics of
+  the CVNS impedance seams — start once, poll each tick, `kohm_out` untouched while in flight — were
+  stated beside one of three callers. A contract stated beside one caller is a contract the other
+  callers and the definition never see, so it moved to the declaration.
+
+`firmware/hub_control/CMakeLists.txt` gains the header's directory (and `../shdr/include`, which
+`np_accel_shdr.h` comes from) on the cross library and on the three host-test targets that compile an
+affected file. The `np_platform` **library** is deliberately still not linked into any host test, and
+the CMake comment says why: its definitions are traps that halt the process, so linking it would
+replace each suite's own doubles and kill every one at its first HAL call. Declaring the seams is the
+part that buys the compile-time check; defining them is the part that would break the tests.
+
+#### 4.9.2 Verified
+
+The image is **byte-for-byte what phase 8 measured**: 0 unresolved symbols, `.bin` 48,208 B,
+`__isr_vector` at `0x20210000`, census `93 seams trapped, 0 driven`, 0 warnings under
+`-Wall -Wextra -Werror`. That is the expected result and is the point of reporting it — this change
+moves declarations and nothing else, so any movement in those figures would have meant it had done
+something it did not intend. Host suites **31/31**, unchanged.
+
+All 11 changed translation units were compiled, not just the 3 the host suites reach: the other 8
+exist only in the cross build, and checking this by host tests alone would have verified a quarter of
+the change.
+
+**Demonstrated by mutation, holding the mutation constant across the change** — §4.4.1's method:
+
+| # | Mutation | Before | After |
+|---|----------|--------|-------|
+| M1 | A test double's parameter type disagrees with the production contract (`uint16_t` → `uint32_t`) | **rc=0, 0 warnings, 1/1 passed** | `error: conflicting types` |
+| M4 | A caller's declaration disagrees with the definition (`float` → `int` return) | **rc=0, and it LINKED** | `error: conflicting types` |
+| M2 | A caller drops an argument | error | error |
+| M3 | A caller passes a pointer where a scalar is declared | error | error |
+| M5 | A header return type widens (`uint32_t` → `uint64_t`) | — | error **at the definition site only** |
+
+M2 and M3 are controls and are recorded **because they do not discriminate**: a local `extern` is
+still a prototype, so arity and pointer/scalar errors were caught before this change too. M1 and M4
+are the ones that moved, and M4 is the one that matters — it compiled *and linked* before.
+
+**M5 is a negative result and is stated as one.** Widening a return type in the header is caught in
+`np_platform_stub.c`, where the definition is, and in **none of the three calling modules** — the
+implicit conversion at each assignment is legal C and `-Wconversion` is off. This is exactly the
+limit §4.4.1 recorded on SW-01: the guarantee is caught where the driver will be written, which is
+where it matters most, but the header is not a substitute for `-Wconversion`.
+
+#### 4.9.3 The gate — `scripts/check-platform-seam-decls.ts`
+
+The property was expensive to establish and is one careless `extern` from being lost for that
+symbol, in a file nobody re-reads. `grep` totalling zero is a claim in a document; this makes it a
+check. It covers **both** contracts — the 63 SW-02 seams and the 25 SW-01 seams §4.4.1 established,
+whose zero has been asserted only in prose since 2026-08-10 — for 88 seams over 39 translation units.
+
+The seam names are **parsed from the headers at run time and never listed in the checker**. A
+restated list would be the one-value-two-places shape of Defects C and D, inside a checker written to
+enforce single-sourcing, and it would fail the wrong way: going quiet as seams were added.
+
+Falsified in both directions, and the falsification is kept and re-run rather than done once by hand:
+eight self-test cases covering a re-added `extern` on each side, a drifted multi-line one, a
+commented-out one that must **not** be reported, an `extern` for a symbol no header declares (out of
+scope — see below), and both vacuity cases, a missing header and an empty source tree, which must
+fail rather than pass on finding nothing. Against the real tree it exits 1 on the pre-change tree
+(59 violations, every one named with its file and line) and 0 after.
+
+#### 4.9.4 What this deliberately does not cover
+
+Scanning for local `extern`s turned up a second and larger family: **84 symbols declared by an
+`extern` inside a `.c` that no header declares at all** — the `np_mod_*_{init,detect,control,
+shutdown,telemetry}` registration entry points of 17 module drivers, plus `np_ed25519_verify`, which
+*does* have a header (`np_crypto.h`) and is one line from the same fix. These are the module-registry
+idiom, and several files say so in as many words: *"module drivers expose no per-module header"*.
+
+They are **not** in scope here and the gate does not report them, for a reason worth stating: there
+is no declaration to compare against, so there is nothing a build could assert beyond "a header ought
+to exist" — which is a design decision about how the registry publishes its modules, not a build
+property. Folding it in would also have made a 59-line deletion into a new-header-per-module change
+across 17 drivers. Raised as **OI-SWCI-43**.
 
 
 ## 5. Specified workflows
@@ -1790,9 +1908,11 @@ set. A leg that could not have caught that has been replaced by one that did.
 - **It did not resolve the memory map.** `.bss` is placed where it fits, on the smallest assumption
   available, and both the FlexRAM question (OI-SWCI-39) and the DTCM partitioning question
   (OI-SWCI-42) are raised rather than answered.
-- **It did not delete the 62 redundant `extern` declarations** that OI-SWCI-40 records, which is the
+- **It did not delete the redundant `extern` declarations** that OI-SWCI-40 records, which is the
   difference between the contract being single-sourced against the *definition* and against the
-  *caller*.
+  *caller*. (The "62" this list carried is superseded by the parsed census in §4.9: 56 seams, 59
+  declaration sites, 11 translation units. Left as written, per the treatment §4's measured-results
+  table gets.)
 
 **One thing it did that was not planned.** OI-SWCI-35 — `np_bootloader` setting no `.elf` suffix, so
 the leg's `Report image size` step had globbed zero files and exited 0 since it was written — was
@@ -1844,9 +1964,10 @@ point of silent failure.
 | OI-SWCI-37 | **Raised 2026-08-11 during phase 7, by CI catching a real miss in this very change.** `NP_SAFETY_TESTS` — the regex that defines the Class C / Class B host-test partition — exists as a hand-copied string in **three** workflow files (`safety-mcu-ci.yml`, `firmware-cross-build.yml`, `build-all.yml`), and nothing verifies they agree. Phase 7 added `hal_platform` to two of the three and missed `firmware-cross-build.yml`, so the new Class C target was not excluded there and the Class B leg selected 22 against an expected 21. **The partition guard worked** (`ctest selection drift — expected 21 Class B targets, matched 22`) and is the reason this was a red check rather than a silently mis-partitioned suite. But it fires on the *symptom*, one CI round-trip after the edit, and only because the counts happen to be asserted — a change that moved a target between halves without changing either count would pass all three guards. This is the one-value-several-places shape §4.3 calls Defect C, in the CI configuration rather than in the firmware. Hoist the regex to a single source (a composite action, a shared env file, or a checked-in manifest), or add a guard that diffs the three copies directly. Closely related to OI-SWCI-08 and OI-SWCI-26, and naturally worked with them. **OI-SWCI-08 closed 2026-09-01** without touching this: `check-ci-scope.ts` reads each workflow's `cmake` invocations and relevance lists, not its `ctest` selection regex, so the three copies of `NP_SAFETY_TESTS` are still compared by nothing | Quality | — |
 | OI-SWCI-38 | **Raised AND CLOSED 2026-09-01 — the third instance of one defect class, see §5.0.** `check-section-refs.ts` declares `CI-Scans: CLAUDE.md section citations in every tracked file of 11 source extensions` and walks from the repository root, but the `web-ci.yml` relevance list that decided whether it ran enumerated `CLAUDE.md`, `docs/**`, `app/android/**`, `firmware/**` and the web surface. **Measured: 34 tracked files carrying a literal `CLAUDE.md §N` citation fell outside it**, almost all `app/ios/**` and `app/NeurOneShared/`; `app/android/**` was on the list only because #249's audit happened to find five dangling Kotlin citations, and iOS was never added. **Resolution:** the guard moved to its own `section-refs` job in `tooling-ci.yml` with **no relevance gate**, because its population is the tracked tree and every enumerable list is narrower than what it scans. Falsified by construction — a citation of a nonexistent section (`§12`) appended to `app/ios/NeurOne/Consent/ConsentStore.swift` was `false` against the old web-ci list and is now reported as `ConsentStore.swift:185` · `§12`, exit 1. Splitting it out also **removed** the last §5.0 exception and made docs/firmware/Android commits cheaper: they no longer run `bun install`, tsc, Vitest and a Vite build to reach two script steps. The general remedy that would have caught all four instances mechanically is **OI-SWCI-08**, closed the same day (§5.0.2): this case is now the `<tree>` row of that guard's axis B, and re-introducing a relevance gate on `section-refs` fails CI | Quality | Closed 2026-09-01 |
 | OI-SWCI-39 | **Raised 2026-09-01 during phase 8 (§4.8.5).** **Nothing in this repository configures the i.MX RT1062 FlexRAM partition.** The ITCM/DTCM/OCRAM split is set by fuses and `IOMUXC_GPR`, and no code touches either. Two linker scripts nonetheless assert a memory map that depends on it, and they do not agree: `bootloader_imxrt1062.ld` states OCRAM is **512 KiB** at `0x20200000`, while the MCUX linker script for the same part states **768 KiB** at the same address. Nothing is currently wrong — the bootloader's figure is the conservative one and the application's regions are derived from it — but "currently right by being conservative" is not the same as established, and it is the assumption that OI-SWCI-42's answer would have to move. Needs a decision on the partition and code that sets it, before any bench bring-up. | Firmware | Device bring-up |
-| OI-SWCI-40 | **Raised 2026-09-01 during phase 8 (§4.8.4).** `np_sw02_platform_hal.h` single-sources 63 platform seams and the module headers single-source the other 30, so the definitions in `firmware/platform/` are compiler-checked. **62 of those 63 are still ALSO declared by an `extern` line inside the `.c` that calls them**, so the compiler compares the header against the definition and not against the caller. Identical in shape to OI-SWCI-18 on the SW-01 side, and closed the same way: include the header from those twelve files and delete the local `extern`s, after which `grep -c 'extern .*_hal_' firmware/hub_control/**/*.c` should total zero, as it does for `firmware/safety_mcu/src/*.c`. Deliberately not done in phase 8 — it touches twelve translation units and their host-test doubles, and folding it into the phase that created the target would have made a large diff larger. | Firmware | — |
+| ~~OI-SWCI-40~~ | **CLOSED 2026-09-02 (§4.9).** ~~`np_sw02_platform_hal.h` single-sources 63 platform seams and the module headers single-source the other 30, so the definitions in `firmware/platform/` are compiler-checked. 62 of those 63 are still ALSO declared by an `extern` line inside the `.c` that calls them, so the compiler compares the header against the definition and not against the caller.~~ **Closed as the item specified — include the header, delete the local `extern`s — with the count corrected by measurement: 56 distinct seams across 59 declaration sites in 11 translation units, not 62 across twelve. Seven of the 63 have no caller in `hub_control` at all.** `grep -c 'extern .*_hal_' firmware/hub_control/**/*.c` now totals zero, as it does for `firmware/safety_mcu/src/*.c`. A parsed census over all 56 found **zero pre-existing disagreements** — nothing had drifted yet, which is the same result §4.4.1 got on SW-01 and the same argument for doing it before a driver exists. **What it would have cost was measured:** on the pre-change tree a caller declaring `np_mod_eeg_hal_read_impedance()` as returning `int`, where the definition returns `float`, compiled rc=0 **and linked rc=0** — the image CI gates on zero unresolved symbols would have carried it. Demonstrated by holding a mutation constant across the change (a drifted test double: rc=0, 0 warnings, 1/1 passed before; `error: conflicting types` after). Image byte-identical to phase 8's figures; host suites 31/31. **Scope limits recorded rather than buried:** the guarantee is ABI, not behaviour; a widened return type is caught at the definition site and in none of the three calling modules, `-Wconversion` being off (§4.4.1's negative result, reproduced); and the 84 headerless registry `extern`s found alongside are **not** covered, as OI-SWCI-43. Held by `scripts/check-platform-seam-decls.ts`, which guards the SW-01 contract too — that one had been asserted only in prose since 2026-08-10. | Firmware | Closed |
 | OI-SWCI-41 | **Raised 2026-09-01 during phase 8 (§4.8.5).** **There is no board-level clock configuration in the SW-02 boot path.** `BOARD_BootClockRUN()` lives in the MCUX SDK's board files, which are not vendored because no NeurOne board exists to configure for. The vendored `SystemInit()` disables the watchdogs, enables the I-cache and sets `SystemCoreClock` to the SDK's `DEFAULT_SYSTEM_CLOCK`; it does **not** bring the PLLs up to the 600 MHz `FreeRTOSConfig.h` declares as `configCPU_CLOCK_HZ`. Every FreeRTOS tick, timeout and the 200 ms safety heartbeat interval is therefore derived from a clock nothing establishes. Not build-gating and not fixable without a board: recorded so the gap is not rediscovered on a bench. | Firmware | Device bring-up |
 | OI-SWCI-42 | **Raised 2026-09-01 during phase 8 (§4.8.5).** **SW-02's static footprint (162,436 B) exceeds the DTCM the MCUX SDK declares for this part (128 KiB), so `.bss` is placed in the application's own OCRAM staging reservation.** That placement is correct and needs no assumption beyond the bootloader's existing map, but it is not free: OCRAM is not tightly coupled, so every access to `ucHeap` (65,536 B), HRV's `s_session_pool` (51,804 B) and `np_module_map`'s `s_map`/`s_nvram_scratch` (22,536 + 22,412 B) goes through the bus and the L1 D-cache rather than DTCM's single-cycle path. Which buffers deserve DTCM is a partitioning decision that wants measurements behind it, and it interacts with OI-SWCI-39 — enlarging DTCM is a FlexRAM decision, not a linker-script one. | Firmware | — |
+| OI-SWCI-43 | **Raised 2026-09-02 while closing OI-SWCI-40 (§4.9.4).** **84 symbols are declared by an `extern` inside a `.c` that NO header declares at all** — the `np_mod_*_{init,detect,control,shutdown,telemetry}` registration entry points of 17 module drivers, plus `np_ed25519_verify`, which does have a header (`np_crypto.h`) and is one line from the same fix the 56 seams just got. This is the module-registry idiom and several files state it in as many words (*"module drivers expose no per-module header"*), so it is a deliberate design position and not an oversight — but it is the OI-SWCI-18/40 hazard with the mitigation *absent* rather than merely unused: there is no second declaration to disagree with, so a registry entry point whose definition drifts from every caller's guess compiles and links exactly as the closed items' worst case did. Deliberately out of scope for the §4.9 gate, which reports only seams a header already declares: with nothing to compare against, the only assertion available is "a header ought to exist", which is a design decision about how the registry publishes its modules rather than a build property. Closing it means either a per-module header for 17 drivers or one registry header declaring the vtable entry points, and that choice interacts with the hub cluster-controller fan-out (OI-HUB-C01..C19) still being unimplemented. | Firmware | — |
 
 ## 8. Traceability
 

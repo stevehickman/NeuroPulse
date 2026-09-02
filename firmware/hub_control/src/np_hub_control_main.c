@@ -47,14 +47,16 @@
 #include "event_groups.h"
 #include <string.h>
 
-/* ── HAL stubs ────────────────────────────────────────────────────────────────── */
+#include "np_sw02_platform_hal.h"
 
 /* np_hal_proto_queue_receive (OI-HUB-MAIN-01) is implemented by np_transport.c
  * and declared in np_transport.h — the BLE GATT / USB-C CDC transport feeds it
  * via np_transport_feed(). */
-typedef enum { NP_LED_IDLE = 0, NP_LED_SESSION, NP_LED_FAULT } np_led_state_t;
-extern void np_hal_status_led_set(np_led_state_t state);
-extern uint32_t np_hal_get_device_session_count(void);
+
+/* np_led_state_t and the two np_hal_* seams below it moved to
+ * np_sw02_platform_hal.h on 2026-09-01 (NP-SW-CI-001 §4.8.4).  The local copy
+ * of the enum outlived that move because nothing compared the two; deleting it
+ * is part of closing OI-SWCI-40. */
 
 /* Cervical VNS module bridge (OI-CVNS-HUB-08): the safety-heartbeat task hands
  * the fresh granted mask + MCU status to np_mod_cvns so its next tick advances
@@ -73,7 +75,6 @@ extern void np_mod_cvns_set_mcu_impedance(const float kohm[], bool valid);
  * np_hub_ppg_isr_sample() (below), which forwards to the module's Pan-Tompkins
  * feed.  Declared extern here (registry idiom — module drivers expose no header). */
 extern void     np_mod_cvns_push_ppg(uint32_t sample, uint32_t timestamp_ms);
-extern uint32_t np_mod_cvns_hal_now_ms(void);
 
 /* ── Globals ──────────────────────────────────────────────────────────────────── */
 

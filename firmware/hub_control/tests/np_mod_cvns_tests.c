@@ -35,6 +35,12 @@
 #include "np_cvns_interlock.h"
 #include "np_cvns_stim.h"
 
+/* The doubles below define symbols declared in np_sw02_platform_hal.h.
+ * Including it is what makes drift from the production contract a compile
+ * error on the DEFINITION side as well as the caller side (OI-SWCI-40,
+ * following OI-SWCI-18 on the SW-01 side). */
+#include "np_sw02_platform_hal.h"
+
 /* ── Driver public surface (extern; no per-module header, registry idiom) ────── */
 
 extern np_hub_status_t np_mod_cvns_detect(uint8_t slot, np_hub_mod_type_t *type_out);
