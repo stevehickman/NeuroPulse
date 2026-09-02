@@ -15,10 +15,7 @@
 #include "np_protocol.h"
 #include <string.h>
 
-/* ── HAL stubs ────────────────────────────────────────────────────────────────── */
-
-extern np_hub_status_t np_proto_hal_get_device_serial(uint8_t *buf, size_t len);
-extern np_hub_status_t np_proto_hal_get_proto_pubkey(uint8_t *pub_key_out); /* 32 bytes */
+#include "np_sw02_platform_hal.h"
 
 /* Ed25519 verify — same API as bootloader np_signature.c */
 extern int np_ed25519_verify(const uint8_t *msg, size_t msg_len,

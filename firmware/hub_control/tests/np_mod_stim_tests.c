@@ -23,6 +23,12 @@
 
 #include "../include/np_hub_types.h"
 
+/* The doubles below define symbols declared in np_sw02_platform_hal.h.
+ * Including it is what makes drift from the production contract a compile
+ * error on the DEFINITION side as well as the caller side (OI-SWCI-40,
+ * following OI-SWCI-18 on the SW-01 side). */
+#include "np_sw02_platform_hal.h"
+
 static int g_failures = 0;
 
 static void check(int cond, const char *name)

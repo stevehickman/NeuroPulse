@@ -27,6 +27,8 @@
 #include <string.h>
 #include <limits.h>
 
+#include "np_sw02_platform_hal.h"
+
 /*
  * Cervical VNS scheduler wiring (OI-CVNS-HUB-07).  The module driver exposes no
  * per-module header (registry idiom); these are its public entry points
@@ -38,8 +40,6 @@
  */
 extern bool     np_mod_cvns_active(void);
 extern void     np_mod_cvns_tick(uint32_t now_ms, uint32_t now_s);
-extern uint32_t np_mod_cvns_hal_now_ms(void);
-extern uint32_t np_mod_cvns_hal_now_unix(void);
 
 /* ── Internal state ───────────────────────────────────────────────────────────── */
 

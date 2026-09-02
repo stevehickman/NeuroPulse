@@ -28,13 +28,7 @@
 #include "np_session_runner.h"
 #include <string.h>
 
-extern np_hub_status_t np_mod_visual_hal_led_set(uint16_t zone_mask, uint8_t wl_sel,
-                                                   uint8_t freq_hz, uint8_t duty_pct);
-extern void np_mod_visual_hal_led_stop(void);
-extern bool np_mod_visual_hal_ir_eye_open(void);
-extern bool np_mod_visual_hal_hall_lifted(void);
-extern void np_mod_visual_hal_emdr_set(uint8_t rate_mhz);
-extern bool np_mod_visual_hal_mpe_check(void);
+#include "np_sw02_platform_hal.h"
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 

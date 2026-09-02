@@ -26,6 +26,8 @@
 #include "np_module_registry.h"
 #include <string.h>
 
+#include "np_sw02_platform_hal.h"
+
 /* EEG band → suggested binaural beat frequency mapping (mHz). */
 static const uint16_t k_band_beat_mhz[5] = {
     2000U,   /* delta: 2Hz */
@@ -34,16 +36,6 @@ static const uint16_t k_band_beat_mhz[5] = {
     20000U,  /* beta: 20Hz */
     40000U,  /* gamma: 40Hz */
 };
-
-extern np_hub_status_t np_mod_audio_hal_codec_init(void);
-extern void np_mod_audio_hal_set_binaural(uint16_t carrier_hz,
-                                           uint16_t beat_mhz, uint8_t vol_pct);
-extern void np_mod_audio_hal_set_isochronic(uint16_t freq_hz, uint8_t vol_pct);
-extern void np_mod_audio_hal_set_noise(uint8_t type, uint8_t vol_pct);
-extern void np_mod_audio_hal_stop_planar(void);
-extern void np_mod_audio_hal_bone_set(uint16_t freq_hz, uint8_t vol_pct);
-extern void np_mod_audio_hal_bone_stop(void);
-extern float np_mod_audio_hal_mesh_impedance(void);
 
 /* ── State ───────────────────────────────────────────────────────────────────── */
 

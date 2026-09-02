@@ -34,17 +34,7 @@
 #include "np_hrv_session.h"
 #include "np_hrv_types.h"
 
-extern float np_mod_vns_hal_impedance_check(void);
-extern np_hub_status_t np_mod_vns_hal_stim_set(uint8_t side, uint16_t freq_mhz,
-                                                  uint16_t amp_ua, uint8_t pw_us);
-extern np_hub_status_t np_mod_vns_hal_stim_stop(uint8_t side);
-extern void np_mod_vns_hal_ppg_start(void);
-extern void np_mod_vns_hal_ppg_stop(void);
-extern void np_mod_vns_hal_eeg_ref_route(bool enable);
-extern float np_mod_vns_hal_get_rmssd(void);
-extern float np_mod_vns_hal_get_coherence(void);
-extern float np_mod_vns_hal_get_hr_bpm(void);
-extern uint32_t np_mod_vns_hal_now_ms(void);            /* OI-VNS-10 */
+#include "np_sw02_platform_hal.h"
 
 /* Safety: contact impedance threshold for VNS enable (ohm). */
 #define VNS_CONTACT_MIN_OHM   500.0f   /* below this → poor contact */

@@ -123,8 +123,9 @@ jobs:
       python: ${{ steps.scope.outputs.python }}
       consent: ${{ steps.scope.outputs.consent }}
       redaction: ${{ steps.scope.outputs.redaction }}
+      seamdecls: ${{ steps.scope.outputs.seamdecls }}
     env:
-      # Seven independent surfaces, seven lists. A simulator-only change should
+      # Eight independent surfaces, eight lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
       # are stripped by ci-changed-scope.sh, so reasoning lives beside entries.
       NP_SCOPE_SCRIPTS: |
@@ -196,6 +197,17 @@ jobs:
         firmware/**
         scripts/check-redaction-shape.ts
         .github/workflows/tooling-ci.yml
+      # The platform-seam declaration gate (OI-SWCI-40, and OI-SWCI-18 before
+      # it). The edit that breaks it is an `extern` line added to a .c under
+      # either firmware tree, or a seam added to / removed from either header —
+      # so all three directories are listed rather than `firmware/**`, which
+      # would put the gate in scope for edits it cannot see the consequence of.
+      NP_SCOPE_SEAMDECLS: |
+        firmware/hub_control/**
+        firmware/safety_mcu/**
+        firmware/platform/**
+        scripts/check-platform-seam-decls.ts
+        .github/workflows/tooling-ci.yml
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -221,6 +233,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_PYTHON"    > scope.python.paths
           printf '%s\n' "$NP_SCOPE_CONSENT"   > scope.consent.paths
           printf '%s\n' "$NP_SCOPE_REDACTION" > scope.redaction.paths
+          printf '%s\n' "$NP_SCOPE_SEAMDECLS"  > scope.seamdecls.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -228,7 +241,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -291,6 +304,14 @@ jobs:
           assert scope.redaction.paths true  firmware/safety_mcu/src/np_fault_latch.c
           assert scope.redaction.paths true  firmware/hub_control/include/np_hub_config.h
           assert scope.redaction.paths false app/web/src/main.ts
+          # The seam-declaration gate. The first case is the edit it exists to
+          # catch — an `extern` re-added to a caller; the second is a seam
+          # leaving or joining a contract header. app/ is out of scope because
+          # no seam is declared there.
+          assert scope.seamdecls.paths true  firmware/hub_control/modules/np_mod_eeg.c
+          assert scope.seamdecls.paths true  firmware/platform/include/np_sw02_platform_hal.h
+          assert scope.seamdecls.paths true  firmware/safety_mcu/include/np_safety_hal.h
+          assert scope.seamdecls.paths false app/web/src/main.ts
 
       - name: Changed files
         id: diff
@@ -352,6 +373,7 @@ jobs:
           emit python    scope.python.paths
           emit consent   scope.consent.paths
           emit redaction scope.redaction.paths
+          emit seamdecls scope.seamdecls.paths
 
   scripts-check:
     name: scripts/ type-check
@@ -630,3 +652,33 @@ jobs:
       # comment-stripping in the reporting path" — and kept none of it.
       - name: No reporting path varies its shape with a sensitive predicate
         run: bun scripts/check-redaction-shape.ts
+
+  seam-decls:
+    name: every platform seam is declared in exactly one place (OI-SWCI-40)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.seamdecls != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: node builtins only, like the three guards above.
+
+      # The property this gate holds was measured, not assumed. On the tree
+      # before OI-SWCI-40 closed, declaring np_mod_eeg_hal_read_impedance() as
+      # returning `int` where the definition returns `float` compiled rc=0 AND
+      # LINKED rc=0 — C has no mangling, and the two declarations were in
+      # different translation units, so nothing compared them. Deleting the 59
+      # local `extern`s is what makes the compiler compare caller against
+      # definition; a single `extern` added back silently un-does it for that
+      # symbol, in a file nobody re-reads.
+      - name: Guard self-test (prove it can fail, in both trees and both directions)
+        run: bun scripts/check-platform-seam-decls.ts --self-test
+
+      - name: No caller re-declares a seam its header already declares
+        run: bun scripts/check-platform-seam-decls.ts
