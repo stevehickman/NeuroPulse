@@ -8,7 +8,7 @@ first-principles estimate in this spec.
 **Parent:** NP-ENV-001 (§3 framework, the intersection rule, humidity = survival-only).
 **Sources:** CLAUDE.md §3 (modalities), §4.1/§4.2 (electronics, interlocks); NP-THERM-CFD-001 (THERM-1a
 cases C3/C4 → thermal high bounds); NP-REQ-FANHEALTH-001 (SR-FAN Class C gate); NP-ENV-001 §4 (hybrid gating).
-**Date:** 2026-07-21
+**Date:** 2026-09-02 (`OI-THCOOL-16` closed — §2 footnote ‖ records the hysteresis; was 2026-07-21)
 
 ---
 
@@ -78,8 +78,16 @@ line, at any tier, in any configuration.
    less work than before, not more.
 
 **These bounds are decided, not provisional — the `‖` rows do not carry the `†` "pending THERM-1a"
-caveat.** `OI-THCOOL-16` still applies: the block edge at +35 remains a discrete transition and needs
-**hysteresis** so an ambient NTC resting on it cannot chatter.
+caveat.**
+
+**`OI-THCOOL-16` is closed (2026-09-02): both hard edges carry a 1.0 °C hysteresis band, so the +35 block
+re-arms at +34.** The band is *not* a hold-off — while it is latched, admission simply tests
+`ambient ≤ T_block_eff − 1.0` instead of `ambient < T_block_eff`, which is strictly more restrictive at
+every ambient and therefore composes with `NP-FW-POE-001` §5's `min()` unchanged. **A mid-session
+crossing terminates the session rather than pausing it**, which leaves no automatic re-entry path at all.
+The anchor is the *effective* block, not the constant +35, so the rule survives whatever `OI-THCOOL-17`
+decides about the per-protocol efficacy clamp. Sizing: `NP-THERM-COOL-001` §7.5; normative encoding:
+`NP-FW-POE-001` §6.1. **No bound in this table moves** — the latch can only ever restrict.
 
 ## 3. Shared-electronics base envelope (inherited by every protocol)
 
@@ -134,9 +142,12 @@ included modality** — an EEG-only session is usable across a far wider ambient
 | OI-OPR-02 | ATtiny402/FET grade decision (commercial vs industrial) → fixes T1-C low bound | EE |
 | OI-OPR-03 | TEC ΔT-capacity spec → fixes T2-D high bound; confirm laser setpoint-error sensing feeds the gate | EE + Thermal |
 | OI-OPR-04 | Confirm gel operating band + that impedance monitoring is the enforcement (no ambient gel gate) | Consumables + FW |
-| OI-OPR-05 | **Designed → NP-FW-POE-001** (POE block in the signed descriptor; MCU-table-authoritative min() enforcement so it can't widen safety). Residual: OI-POE-01…05 there | FW |
+| OI-OPR-05 | **Designed → NP-FW-POE-001** (POE block in the signed descriptor; MCU-table-authoritative min() enforcement so it can't widen safety). Residual: OI-POE-01…06 there | FW |
+| OI-OPR-06 | **Ambient sense source → `OI-ENV-05`, and it now has a second dependant.** `NP-FW-POE-001` §6.1's `t_dwell` (60 s with a dedicated ambient NTC; ≥ 5τ_hub with the hub NTC as proxy) cannot be given a number until the source is fixed; the shipped MCU config carries five cranial sense domains plus the hub NTC and no ambient channel. Not blocking — the proxy error is fail-safe (self-heating reads high → more restrictive) | Thermal + FW |
 
 ## 8. Cross-references
 
 NP-ENV-001 (framework, gating, humidity) · NP-THERM-CFD-001 (THERM-1a C3/C4) · NP-REQ-FANHEALTH-001
-(fan-fault ceiling overrides ambient) · CLAUDE.md §3/§4.1/§4.2.
+(fan-fault ceiling overrides ambient) · NP-THERM-COOL-001 §7 (the ambient lever these bounds absorb),
+§7.5 (hysteresis on the hard edges) · NP-FW-POE-001 §5/§6.1 (enforcement, and the hysteresis latch) ·
+CLAUDE.md §3/§4.1/§4.2.
