@@ -34,6 +34,7 @@ CI-Kind: gate
 CI-Self-Test-Reads-Tree: its central case runs #118's predicate against the PRODUCTION schema — the finding that 139 of 227 real columns drop, and 0 warranty_token survive, is the evidence, and a fixture would only restate the assumption
 CI-Self-Test: python3 ci/test_warranty_nojoin.py --self-test
 CI-Scans: column definitions in the SHDR fleet and warranty registration schemas
+CI-Scan-Paths: ci/shdr/shdr_fleet_schema.sql ci/warranty/warranty_registration_schema.sql
 """
 
 from __future__ import annotations

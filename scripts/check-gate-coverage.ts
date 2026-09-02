@@ -30,6 +30,17 @@
  *   CI-Kind: report     prints a model; must NOT be run by a workflow
  *   CI-Kind: self-test  falsifies a gate; must declare the CI-Covers gate
  *
+ * ── The question this does NOT answer ────────────────────────────────────────
+ *
+ * Whether a gate is declared, falsified and run — yes. Whether the change that
+ * breaks it can actually REACH it — no. A gate can satisfy every rule below and
+ * still sit behind a relevance list that its own population never matches, which
+ * is what happened to three gates here at once (NP-SW-CI-001 §5.0). That
+ * comparison belongs to scripts/check-ci-scope.ts, which reads the machine-
+ * readable population declaration this file's siblings all carry and compares it
+ * to the list of every job that runs the gate. Two gates, one boundary: this one
+ * owns the declaration's existence, that one owns its reachability.
+ *
  * ── Scope, and what is deliberately outside it ───────────────────────────────
  *
  * Files whose name declares them a check or a test: scripts/check-*,
@@ -45,6 +56,7 @@
  * CI-Self-Test: bun scripts/check-gate-coverage.ts --self-test
  * CI-Scan-Probe: external — probing this file would re-enter the prober
  * CI-Scans: every check/test script in scripts/ and ci/
+ * CI-Scan-Paths: scripts/** ci/** .github/workflows/**
  */
 import { readFileSync, readdirSync, mkdtempSync, mkdirSync, writeFileSync, rmSync, chmodSync } from "fs";
 import { join } from "path";

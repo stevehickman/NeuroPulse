@@ -40,6 +40,7 @@ TESTS="$REPO_ROOT/ci/shdr/shdr_schema_constraint_tests.sql"
 # CI-Self-Test: ci/shdr/shdr_schema_constraint_tests.sql
 # CI-Scan-Probe: external — needs a live PostgreSQL server
 # CI-Scans: every integrity constraint in the SHDR schema, against a live PostgreSQL
+# CI-Scan-Paths: ci/shdr/shdr_fleet_schema.sql ci/shdr/shdr_schema_constraint_tests.sql
 export LC_ALL=C LANG=C
 
 for f in "$SCHEMA" "$TESTS"; do
