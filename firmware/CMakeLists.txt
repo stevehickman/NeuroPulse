@@ -325,6 +325,13 @@ if(NP_BUILD_TESTS)
         COMMAND np_bootloader_app_image_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # NP-SW-CI-001 phase 9, OI-SWCI-39.  The FlexRAM bank-config and TCM window
+    # encodings — the half of np_flexram.c that can be wrong without silicon.
+    # Moves the Class B count 24 → 25 and the repo total 31 → 32.
+    add_test(NAME np_bootloader_flexram_tests
+        COMMAND np_bootloader_flexram_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     # NP-SW-CI-001 phase 8, OI-SWCI-21.  The application linker script restates
     # two numbers the bootloader linker script owns; a linker script cannot
     # include another, so this test is what makes the duplication safe.  Moves

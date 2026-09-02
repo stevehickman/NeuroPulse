@@ -11,6 +11,22 @@
  *
  * i.MX RT1062 OCRAM: 0x20200000 – 0x2027FFFF (512 KiB)
  *
+ * ── Which OCRAM, and why the size is now exact ───────────────────────────────
+ * NP-SW-CI-001 §4.10 (OI-SWCI-39).  This is OCRAM2, the DEDICATED 512 KiB array.
+ * It is NOT part of FlexRAM, so no ITCM/DTCM/OCRAM partition can move it or
+ * take bytes out of it — which is what makes it safe for a bootloader running
+ * from here to set that partition (src/np_flexram.c, called first in
+ * Bootloader_Reset).
+ *
+ * The MCUX SDK's linker script for this part states 768 KiB (0x000C0000) at
+ * this same base, and that was read as a disagreement with the 512 KiB below
+ * when OI-SWCI-39 was raised.  It is not one: the SDK figure is the
+ * DEFAULT-FUSE composite of OCRAM2 (512 KiB, here) plus the 256 KiB of FlexRAM
+ * that the default partition maps immediately above it at 0x20280000.  The two
+ * numbers never described the same memory.  NeurOne's partition gives FlexRAM
+ * zero OCRAM banks, so OCRAM2 is the only OCRAM and this LENGTH is exact rather
+ * than conservative.
+ *
  * eMMC boot partition structure (ROM reads from here):
  *   Offset 0x000: IVT  (32 bytes)
  *   Offset 0x020: Boot data (16 bytes)
@@ -19,9 +35,37 @@
  */
 
 MEMORY {
-    /* OCRAM — 512 KiB: bootloader (low) + app staging (mid) + stack (high) */
+    /* OCRAM2 — 512 KiB: bootloader (low) + app staging (mid) + stack (high).
+     * Exactly ONE region is declared, and that is load-bearing rather than
+     * incidental: it is what makes "nothing of the bootloader's lives in a
+     * FlexRAM bank" a property of this script instead of a promise in a
+     * comment, and therefore what makes np_flexram_apply_partition() safe to
+     * call from code that is running.  Adding a second region here without
+     * revisiting src/np_flexram.c would break that argument silently. */
     OCRAM (rwx) : ORIGIN = 0x20200000, LENGTH = 512K
 }
+
+/* ── FlexRAM partition — NP-SW-CI-001 §4.10, closes OI-SWCI-39 ─────────────────
+ *
+ * FlexRAM is a SEPARATE 512 KiB array from the OCRAM2 region above: 16 banks of
+ * 32 KiB, each assignable to ITCM, DTCM or the FlexRAM OCRAM aperture at
+ * 0x20280000.  Nothing in this repository configured it until phase 9; these
+ * symbols are the declaration, and src/np_flexram.c is the code that puts it in
+ * force at B-0 of the boot sequence.
+ *
+ * They are restated in np_config.h (which the code writes to the registers from)
+ * and NP_FLEXRAM_DTCM_SIZE in app_imxrt1062.ld (which the application is linked
+ * against).  A linker script can neither include another one nor read a C
+ * header, so — exactly as for the staging reservation in §4.3 — the duplication
+ * is unavoidable and the answer is to make disagreement fail a test:
+ * np_bootloader_flexram_tests and np_app_link_agreement_tests read this file,
+ * the application's and np_config.h, and assert all three agree.
+ */
+NP_FLEXRAM_BANK_SIZE   = 32K;
+NP_FLEXRAM_BANK_COUNT  = 16;
+NP_FLEXRAM_ITCM_BANKS  = 0;
+NP_FLEXRAM_DTCM_BANKS  = 16;
+NP_FLEXRAM_OCRAM_BANKS = 0;
 
 /* Stack at top of OCRAM */
 _stack_top  = ORIGIN(OCRAM) + LENGTH(OCRAM);
@@ -151,6 +195,29 @@ SECTIONS {
     /* running into the stack the bootloader is executing on.               */
     ASSERT(_app_staging_end == _stack_base,
            "ERROR: .app_staging does not end at _stack_base — OCRAM over- or under-subscribed")
+
+    /* ── FlexRAM partition checks (NP-SW-CI-001 §4.10) ─────────────────────── */
+
+    /* Every bank is assigned.  A partition that leaves banks out is not        */
+    /* invalid silicon-wise, but it is a decision to shrink the device's RAM,   */
+    /* and it must not be reachable by editing one number and no other.         */
+    ASSERT(NP_FLEXRAM_ITCM_BANKS + NP_FLEXRAM_DTCM_BANKS +
+           NP_FLEXRAM_OCRAM_BANKS == NP_FLEXRAM_BANK_COUNT,
+           "ERROR: FlexRAM banks do not sum to NP_FLEXRAM_BANK_COUNT — some of the array would be unassigned")
+
+    /* This script's OCRAM region is OCRAM2 only.  If a FlexRAM OCRAM bank is   */
+    /* ever assigned, the aperture at 0x20280000 becomes live and the map this  */
+    /* script describes stops being the whole of OCRAM — at which point the     */
+    /* region above, np_config.h and np_app_image.c all need revisiting         */
+    /* together, which is what this ASSERT forces.                              */
+    ASSERT(NP_FLEXRAM_OCRAM_BANKS == 0,
+           "ERROR: FlexRAM OCRAM banks are no longer zero — the OCRAM region above describes OCRAM2 alone")
+
+    /* The application links .data and its MSP stack into DTCM and its          */
+    /* Reset_Handler touches both before its first C statement.  A partition    */
+    /* with no DTCM produces an image that faults before main().                */
+    ASSERT(NP_FLEXRAM_DTCM_BANKS > 0,
+           "ERROR: FlexRAM DTCM banks is zero — the application's .data and MSP stack have nowhere to live")
 
     /* ── Discard C++ exception tables (not used) ─────────────────────────── */
     /DISCARD/ : {

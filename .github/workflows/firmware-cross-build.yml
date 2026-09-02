@@ -1,9 +1,11 @@
 name: Firmware Cross-Compile (ARM)
 
 # SW-02 Class B — i.MX RT1062 main processor firmware and the dual-bank OTA
-# bootloader, plus the 23 Class B host-test targets: the 19 absorbed from the
+# bootloader, plus the 25 Class B host-test targets: the 19 absorbed from the
 # retired firmware-host-tests.yml (NP-SW-CI-001 §5.0.1, OI-SWCI-09), one added
-# by NP-SW-CI-001 phase 1, one by phase 2, and one by OI-HUB-C06.
+# by NP-SW-CI-001 phase 1, one by phase 2, one by OI-HUB-C06, one by phase 8
+# (np_app_link_agreement_tests) and one by phase 9
+# (np_bootloader_flexram_tests).
 #
 # Self-contained by construction: native host tests THEN the cross-compile, in
 # one file, because `needs:` only works within a single workflow.  Crossing
@@ -11,12 +13,14 @@ name: Firmware Cross-Compile (ARM)
 # branch, runs in base-repo context, and does not attach cleanly to a pull
 # request's check list — fragile in exactly the situation the gate exists for.
 #
-# ── Host-test targets owned by this workflow (23 of the repo's 30) ────────────
+# ── Host-test targets owned by this workflow (25 of the repo's 32) ────────────
 # Registered by the NP_BUILD_TESTS branch of firmware/CMakeLists.txt:
 #   firmware/bootloader      → np_bootloader_mem_tests (freestanding memcpy/
 #                              memset, NP-SW-CI-001 §4.2 — see the note below)
 #                            → np_bootloader_app_image_tests (OCRAM staging
 #                              limit + linker-script agreement, §4.3)
+#                            → np_bootloader_flexram_tests (FlexRAM bank-config
+#                              and TCM window encodings, §4.10)
 #   firmware/crypto          → np_crypto_tests   (SHA-256/512, CRC-32, Ed25519)
 #   firmware/anon            → np_anon_tests     (Scratch encryption)
 #   firmware/edf             → np_edf_tests      (EDF+ privacy header)
@@ -42,15 +46,25 @@ name: Firmware Cross-Compile (ARM)
 #   firmware/sloreta_hdtdcs  → np_hd_fai_tests        (FAI HD02/HD05.., montage + sLORETA)
 #   firmware/vendor/freertos → np_freertos_smoke_tests (kernel + config, POSIX port)
 #
-# The other 7 (firmware/safety_mcu) belong to safety-mcu-ci.yml.  7 + 23 = 30,
-# disjoint; build-all.yml re-checks that partition weekly.
+# The other 7 (firmware/safety_mcu) belong to safety-mcu-ci.yml.  7 + 25 = 32,
+# disjoint; build-all.yml re-checks that partition weekly.  (This line read
+# "7 + 23 = 30" until phase 9.  It was stale from phase 8, which added a target
+# and updated NP_CLASS_B_TEST_COUNT here but not build-all.yml's
+# NP_TOTAL_TEST_COUNT — so the weekly backstop's partition assertion had been
+# failing on the real total of 31 ever since.  OI-SWCI-37's shape, found by
+# counting rather than by CI, because nothing surfaces a red build-all:
+# OI-SWCI-10.)
 #
 # ── Partial host-test coverage, and why it is partial ─────────────────────────
-# firmware/bootloader has TWO host test targets: np_bootloader_mem_tests (phase 1,
-# covering src/np_mem.c — the freestanding memcpy/memset the bootloader must
-# supply for itself under -nostdlib) and np_bootloader_app_image_tests (phase 2,
-# covering src/np_app_image.c — the OCRAM staging ceiling, checked against the
-# reservation parsed out of the linker script itself).  The remaining
+# firmware/bootloader has THREE host test targets: np_bootloader_mem_tests
+# (phase 1, covering src/np_mem.c — the freestanding memcpy/memset the
+# bootloader must supply for itself under -nostdlib), np_bootloader_app_image_tests
+# (phase 2, covering src/np_app_image.c — the OCRAM staging ceiling, checked
+# against the reservation parsed out of the linker script itself) and
+# np_bootloader_flexram_tests (phase 9, covering the pure half of
+# src/np_flexram.c — the GPR17 bank-config packing and the GPR14 TCM window
+# codes; the register stores themselves are compiled out on a host, for the
+# same reason np_app_image.c's linker-symbol readers are).  The remaining
 # bootloader sources stay cross-compile-only on
 # purpose: they are device firmware (eMMC transport, USB DFU, vector-table
 # handoff) with no host-executable surface, so a host job could not run them
@@ -140,15 +154,15 @@ env:
   # The count the selection must match.  It lives here and in the assertion step
   # below — and NOT in the `host-tests` job `name:`, which is what a required
   # status check matches on.  The job used to be called "CMake host tests (21
-  # Class B targets)"; that count has already moved four times
-  # (19 → 20 → 21 → 22 → 23 → 24, the last by phase 8's
-  #  np_app_link_agreement_tests)
+  # Class B targets)"; that count has already moved five times
+  # (19 → 20 → 21 → 22 → 23 → 24 → 25, the last two by phase 8's
+  #  np_app_link_agreement_tests and phase 9's np_bootloader_flexram_tests)
   # as phases added targets, and a required context is an exact string match, so
   # the next phase that adds a target would have renamed the check and silently
   # stopped satisfying the requirement — a merge deadlock with no error message
   # anywhere.  The number belongs to the assertion, not to the check name.
   # NP-SW-CI-001 §6.7.
-  NP_CLASS_B_TEST_COUNT: '24'
+  NP_CLASS_B_TEST_COUNT: '25'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always
@@ -476,6 +490,45 @@ jobs:
           echo "elf file size: ${bytes} bytes"
           [ "${bytes}" -gt 4096 ] || { echo "::error::np_bootloader.elf is ${bytes} bytes — implausibly small for the bootloader image."; exit 1; }
 
+      # NP-SW-CI-001 §4.10 (OI-SWCI-39).  The bootloader is the only code that
+      # runs before the application's Reset_Handler touches DTCM, so it is the
+      # only place the FlexRAM partition can be established — and it is
+      # established by ONE call, from ONE function, which --gc-sections is
+      # entitled to drop the moment anything stops referencing it.  The image
+      # would still link, still be under 48 KiB, and still boot; the
+      # application would then be linked for 512 KiB of DTCM the fuses had
+      # never been asked for.  Nothing else in this leg would notice, which is
+      # what makes it worth a step.
+      #
+      # Written to a file before grepping, for the reason the SW-02 leg's
+      # equivalent step records at length: `nm "$elf" | grep -q` under
+      # `set -o pipefail` fails on an image that DOES contain the symbol,
+      # because grep -q exits early and nm takes SIGPIPE.
+      - name: Assert the bootloader establishes the FlexRAM partition
+        if: success()
+        run: |
+          set -euo pipefail
+          # Located the same way the step above locates it, rather than by a
+          # hardcoded path: this job configures firmware/bootloader as the
+          # source directory, so the ELF is at the root of build/cross and not
+          # under a bootloader/ subdirectory the way the SW-02 leg's is.
+          elf=$(find build/cross -name 'np_bootloader.elf' -type f | head -1)
+          [ -n "$elf" ] || { echo "::error::np_bootloader.elf missing."; exit 1; }
+          arm-none-eabi-nm "$elf" > /tmp/np-bl-syms.txt
+          grep -qE '^[0-9a-f]+ [Tt] np_flexram_apply_partition$' /tmp/np-bl-syms.txt || {
+            echo "::error::np_flexram_apply_partition is not in the bootloader image — the FlexRAM partition would be left at whatever the eFuses say (OI-SWCI-39)."
+            exit 1; }
+          echo "ok: np_flexram_apply_partition is in the bootloader image"
+          # The three bank fields the linker script declares must be in the
+          # symbol table too, so the ASSERTs that check them actually ran on
+          # this artifact rather than on a script edited out of the build.
+          for sym in NP_FLEXRAM_ITCM_BANKS NP_FLEXRAM_DTCM_BANKS NP_FLEXRAM_OCRAM_BANKS; do
+            grep -qE "^[0-9a-f]+ A ${sym}\$" /tmp/np-bl-syms.txt || {
+              echo "::error::${sym} is not defined in the bootloader image — the linker script's partition ASSERTs did not run."
+              exit 1; }
+          done
+          echo "ok: the linker script's FlexRAM partition symbols are present"
+
       - name: Upload map and logs on failure
         if: failure()
         uses: actions/upload-artifact@v4
@@ -625,6 +678,53 @@ jobs:
           used=$(( 0x$bss_end - 0x$origin ))
           echo "STAGING region ${used}/${staging_max} B"
           [ "$used" -le $(( staging_max * 75 / 100 )) ] || { echo "::error::STAGING use ${used} B exceeds 75% of ${staging_max} B — .bss is crowding the reservation."; exit 1; }
+
+      # NP-SW-CI-001 §4.10 (OI-SWCI-39).  The application's MSP stack is pinned
+      # to the top of DTCM and its .data runs there, so the image encodes an
+      # assumption about how big DTCM is — an assumption the BOOTLOADER
+      # satisfies, in a different image, from a different linker script.  The
+      # application's own link cannot check it: a DTCM region larger than the
+      # banks np_flexram_apply_partition() assigns links cleanly and faults at
+      # the first access to memory that does not exist.
+      #
+      # np_app_link_agreement_tests already checks the three declarations
+      # against each other, on the sources.  This checks the ARTIFACT, which is
+      # the one thing a source-level test cannot: that the ELF actually built
+      # from them puts __StackTop at DTCM base + the partition's DTCM size.
+      # The expected value is recomputed here from the bank counts in
+      # np_config.h rather than restated, so this step cannot become a fourth
+      # copy of the number it is checking.
+      - name: Assert the SW-02 image matches the established DTCM partition
+        if: success()
+        run: |
+          set -euo pipefail
+          elf=build/cross/application/np_application.elf
+          [ -f "$elf" ] || { echo "::error::np_application.elf missing."; exit 1; }
+          hdr=firmware/bootloader/include/np_config.h
+          # Read the macro bodies and let shell arithmetic evaluate them, so
+          # "(32U * 1024U)" needs no second transcription here.  Trailing
+          # comments are cut; the U/UL suffixes are dropped because $(( ))
+          # does not accept them.
+          val() {
+            sed -n "s|^#define[[:space:]]\{1,\}$1[[:space:]]\{1,\}||p" "$hdr" \
+              | head -1 | sed 's|/\*.*||' | tr -d 'UL' | tr -d '\r'
+          }
+          banks=$(val NP_FLEXRAM_DTCM_BANKS)
+          bank_size=$(val NP_FLEXRAM_BANK_SIZE)
+          base=$(val NP_DTCM_BASE)
+          for v in banks bank_size base; do
+            eval "x=\$$v"
+            [ -n "$x" ] || { echo "::error::could not read $v from ${hdr}."; exit 1; }
+          done
+          want=$(( base + banks * bank_size ))
+          arm-none-eabi-nm "$elf" > /tmp/np-app-dtcm-syms.txt
+          got=$(awk '$3=="__StackTop"{print $1}' /tmp/np-app-dtcm-syms.txt)
+          [ -n "$got" ] || { echo "::error::__StackTop is not in the image."; exit 1; }
+          printf 'DTCM %s banks; __StackTop = 0x%s, expected 0x%08X\n' "$banks" "$got" "$want"
+          [ "$(( 0x$got ))" -eq "$want" ] || {
+            echo "::error::__StackTop is not at the top of the DTCM the partition establishes — the application is linked for a DTCM the bootloader does not create."
+            exit 1; }
+          echo "ok: the image's DTCM matches the established FlexRAM partition"
 
       # The link proves the symbols resolve; these prove WHAT they resolved to.
       # Direct counterpart of the Class C leg's step of the same name.

@@ -14,10 +14,108 @@
 
 /* ── i.MX RT1062 SRAM layout ──────────────────────────────────────────────── */
 /* Bootloader executes from OCRAM loaded by ROM.                               */
-#define NP_OCRAM_BASE           0x20200000UL    /* On-chip RAM base            */
-#define NP_OCRAM_SIZE           (512U * 1024U)  /* 512 KiB                     */
-#define NP_SCRATCH_SRAM_BASE    0x20270000UL    /* 64 KiB scratch within OCRAM */
-#define NP_SCRATCH_SRAM_SIZE    (64U * 1024U)
+/*                                                                             */
+/* This is OCRAM2 — the DEDICATED 512 KiB block at 0x20200000.  It is not part */
+/* of FlexRAM, so its base and size do not depend on the ITCM/DTCM/OCRAM       */
+/* partition below, and reconfiguring that partition cannot move it or take    */
+/* bytes out of it.  That is what makes it safe for the bootloader, which runs */
+/* entirely from here, to establish the partition at all (NP-SW-CI-001 §4.10).  */
+#define NP_OCRAM_BASE           0x20200000UL    /* OCRAM2 base (dedicated)     */
+#define NP_OCRAM_SIZE           (512U * 1024U)  /* 512 KiB, partition-independent */
+#define NP_SCRATCH_SRAM_BASE    0x20270000UL    /* ⚠ UNUSED — see OI-SWCI-44   */
+#define NP_SCRATCH_SRAM_SIZE    (64U * 1024U)   /* ⚠ overlaps .app_staging     */
+
+/* ── i.MX RT1062 FlexRAM partition (NP-SW-CI-001 §4.10, closes OI-SWCI-39) ─── */
+/*                                                                             */
+/* FlexRAM is a SEPARATE 512 KiB array from OCRAM2 above: 16 banks of 32 KiB   */
+/* (FSL_FEATURE_FLEXRAM_INTERNAL_RAM_TOTAL_BANK_NUMBERS = 16,                  */
+/* FSL_FEATURE_FLEXRAM_INTERNAL_RAM_BANK_SIZE = 32768, both in the vendored    */
+/* firmware/vendor/mcux_sdk/devices/MIMXRT1062/MIMXRT1062_features.h).  Each   */
+/* bank is assignable to ITCM, DTCM or the FlexRAM OCRAM aperture, by eFuse at */
+/* reset or by IOMUXC_GPR17 afterwards.                                        */
+/*                                                                             */
+/* THE PARTITION IS DERIVED, NOT PREFERRED.  Only three consumers can exist,   */
+/* and two of them have nothing to consume:                                    */
+/*                                                                             */
+/*   ITCM  (0x00000000)  no section in either linker script.  The bootloader   */
+/*                       executes from OCRAM2 where the ROM put it, and the    */
+/*                       application executes in place from the OCRAM2 staging */
+/*                       area the bootloader copies it into — neither image    */
+/*                       has any .text in ITCM, and putting one there would be */
+/*                       a change to load_and_jump(), not to this constant.    */
+/*   DTCM  (0x20000000)  the application's .data and its MSP stack.  The only  */
+/*                       claimant.                                             */
+/*   OCRAM (0x20280000)  the FlexRAM OCRAM aperture, which begins exactly      */
+/*                       where OCRAM2 ends.  No section in either linker       */
+/*                       script addresses it, and nothing needs it to: the     */
+/*                       440 KiB OCRAM2 staging reservation is ~10% used by    */
+/*                       the loadable image, so a future DMA or buffer pool    */
+/*                       has room without taking a bank from DTCM.             */
+/*                                                                             */
+/* So every bank goes to the one region anything in this repository links      */
+/* into.  The alternative — leaving banks unassigned — would shrink the        */
+/* device's usable RAM to fit today's bring-up image, which is the reasoning   */
+/* §4.8.5 rejected when it declined to shrink configTOTAL_HEAP_SIZE.           */
+/*                                                                             */
+/* Two consequences worth stating, because they are what closed OI-SWCI-39:    */
+/*   - With zero FlexRAM OCRAM banks, OCRAM2 is the ONLY OCRAM, so             */
+/*     NP_OCRAM_SIZE above is exact rather than merely conservative, and the   */
+/*     MCUX linker script's 768 KiB (0x000C0000 at the same base) is revealed  */
+/*     as the DEFAULT-FUSE composite — 512 KiB OCRAM2 + 256 KiB of FlexRAM —   */
+/*     not a contradiction of it.  The two figures never described the same    */
+/*     memory.                                                                 */
+/*   - 0x20280000 and above is unmapped under this partition.  Nothing         */
+/*     addresses it; the bootloader's initial SP is 0x20280000 exactly, and a  */
+/*     full-descending stack decrements before its first store, so no access   */
+/*     is ever made AT that address.                                           */
+#define NP_FLEXRAM_BANK_SIZE    (32U * 1024U)
+#define NP_FLEXRAM_BANK_COUNT   16U
+#define NP_FLEXRAM_ITCM_BANKS   0U
+#define NP_FLEXRAM_DTCM_BANKS   16U
+#define NP_FLEXRAM_OCRAM_BANKS  0U
+
+#define NP_ITCM_BASE            0x00000000UL
+#define NP_ITCM_SIZE            (NP_FLEXRAM_ITCM_BANKS * NP_FLEXRAM_BANK_SIZE)
+#define NP_DTCM_BASE            0x20000000UL
+#define NP_DTCM_SIZE            (NP_FLEXRAM_DTCM_BANKS * NP_FLEXRAM_BANK_SIZE)
+
+/* Base of the FlexRAM OCRAM aperture — immediately above OCRAM2.  Declared so */
+/* the adjacency (NP_OCRAM_BASE + NP_OCRAM_SIZE == this) is a checked fact and */
+/* not a coincidence two constants happen to have; see                         */
+/* np_bootloader_flexram_tests.                                                */
+#define NP_FLEXRAM_OCRAM_BASE   0x20280000UL
+
+/* ── IOMUXC_GPR — the registers that establish the partition ─────────────── */
+/*                                                                             */
+/* Addresses rather than the SDK's IOMUXC_GPR_Type, because the bootloader is  */
+/* a standalone CMake project that includes no vendored headers at all — the   */
+/* same reason WDOG1_WCR and SNVS are raw addresses here and in np_main.c.     */
+/* Offsets verified against the register layout typedef in the vendored        */
+/* MIMXRT1062.h (GPR14 @ 0x38, GPR16 @ 0x40, GPR17 @ 0x44).                    */
+/*                                                                             */
+/* ⚠ The three FIELD definitions below are NOT in the vendored MCUX 2.16.0     */
+/* header, and that is a fact about the header rather than about the silicon.  */
+/* MIMXRT1062.h defines exactly two GPR16 fields (FLEXRAM_BANK_CFG_SEL at bit  */
+/* 2, CM7_INIT_VTOR at 31:7) and no CM7_CFG*TCMSZ in GPR14 at all — bits 0, 1  */
+/* of GPR16 and 23:16 of GPR14 are simply absent from it.  The values here     */
+/* come from IMXRT1060RM and are corroborated by shipping RT1062 firmware      */
+/* (Teensy 4.x startup writes GPR16 = 0x00200007 — bits 0,1,2 — and            */
+/* GPR14 = 0x00AA0000, i.e. code 0xA in both 19:16 and 23:20 for 512 KiB       */
+/* windows).  If a future SDK bump starts defining them, the duplicate must be */
+/* deleted here rather than left to diverge silently: OI-SWCI-40's shape.      */
+#define NP_IOMUXC_GPR_BASE      0x400AC000UL
+#define NP_IOMUXC_GPR14         (*(volatile uint32_t *)(NP_IOMUXC_GPR_BASE + 0x38U))
+#define NP_IOMUXC_GPR16         (*(volatile uint32_t *)(NP_IOMUXC_GPR_BASE + 0x40U))
+#define NP_IOMUXC_GPR17         (*(volatile uint32_t *)(NP_IOMUXC_GPR_BASE + 0x44U))
+
+#define NP_GPR16_INIT_ITCM_EN         (1UL << 0U)
+#define NP_GPR16_INIT_DTCM_EN         (1UL << 1U)
+#define NP_GPR16_FLEXRAM_BANK_CFG_SEL (1UL << 2U)
+
+#define NP_GPR14_CFGITCMSZ_SHIFT      16U
+#define NP_GPR14_CFGITCMSZ_MASK       (0xFUL << NP_GPR14_CFGITCMSZ_SHIFT)
+#define NP_GPR14_CFGDTCMSZ_SHIFT      20U
+#define NP_GPR14_CFGDTCMSZ_MASK       (0xFUL << NP_GPR14_CFGDTCMSZ_SHIFT)
 
 /* ── SNVS Low Power General Purpose Register 0 ───────────────────────────── */
 /* Survives warm resets; holds boot bank flag and attempt counter.             */

@@ -48,9 +48,18 @@ permissions:
 
 env:
   NP_SAFETY_TESTS: '^np_(safety_spi_proto|charge_monitor|thermal_interlock|impedance_report|fault_latch_privacy|cardiac_interlock|hal_platform)_tests$'
-  NP_TOTAL_TEST_COUNT: '30'
+  # ⚠ NP_TOTAL_TEST_COUNT read '30' from phase 8 until phase 9, while the repo
+  # actually had 31 targets (7 + 24).  Phase 8 added np_app_link_agreement_tests
+  # and updated firmware-cross-build.yml's NP_CLASS_B_TEST_COUNT and
+  # firmware/CMakeLists.txt's comment, but not this line — so the partition
+  # assertion below had been failing on BOTH the total and the sum ever since,
+  # weekly, unseen.  That is OI-SWCI-37's "one value in three files" biting a
+  # second time, and it stayed invisible because a red build-all is surfaced
+  # nowhere: OI-SWCI-10.  Phase 9 adds np_bootloader_flexram_tests, so the
+  # correct figures are 7 + 25 = 32.
+  NP_TOTAL_TEST_COUNT: '32'
   NP_SAFETY_TEST_COUNT: '7'
-  NP_CLASS_B_TEST_COUNT: '24'
+  NP_CLASS_B_TEST_COUNT: '25'
 
 jobs:
   host-tests-all:

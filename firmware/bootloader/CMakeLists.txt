@@ -51,6 +51,7 @@ set(BOOTLOADER_SOURCES
     src/np_dfu.c
     src/np_mem.c        # freestanding memcpy/memset (NP-SW-CI-001 §4.2)
     src/np_app_image.c  # OCRAM staging limits from the linker (NP-SW-CI-001 §4.3)
+    src/np_flexram.c    # FlexRAM ITCM/DTCM/OCRAM partition (NP-SW-CI-001 §4.10)
 )
 
 if(CMAKE_CROSSCOMPILING)
@@ -208,6 +209,25 @@ if(NP_BUILD_TESTS)
     # limit it checks the predicate against is the one that actually ships.  The
     # path is passed in rather than discovered at runtime, because ctest runs the
     # binary from the build tree.
+    # ── FlexRAM partition encoding (NP-SW-CI-001 §4.10, OI-SWCI-39) ─────────
+    # NP_FLEXRAM_HOST_TEST drops np_flexram_apply_partition(), which is three
+    # stores to absolute peripheral addresses and means nothing on a host.  As
+    # with np_app_image.c above, it is deliberately NOT replaced with a host
+    # stand-in: a fake register file would let this suite pass while the real
+    # register layout was wrong, which is the one thing it exists to catch.
+    # What IS host-checkable — the GPR17 bank-config packing and the GPR14
+    # window size codes — is pure arithmetic and is where a silent error would
+    # actually live.
+    add_executable(np_bootloader_flexram_tests
+        tests/np_bootloader_flexram_tests.c
+        src/np_flexram.c
+    )
+    target_include_directories(np_bootloader_flexram_tests PRIVATE include)
+    target_compile_options(np_bootloader_flexram_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g)
+    target_compile_definitions(np_bootloader_flexram_tests PRIVATE
+        NP_FLEXRAM_HOST_TEST)
+
     add_executable(np_bootloader_app_image_tests
         tests/np_bootloader_app_image_tests.c
         src/np_app_image.c
