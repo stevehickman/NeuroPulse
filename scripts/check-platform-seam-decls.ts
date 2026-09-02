@@ -35,8 +35,8 @@
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-platform-seam-decls.ts --self-test
- * CI-Scans: every .c under firmware/hub_control and firmware/safety_mcu/src, for local extern declarations of symbols their platform header already declares
- * CI-Scan-Paths: firmware/hub_control/** firmware/safety_mcu/** firmware/platform/**
+ * CI-Scans: every .c under firmware/hub_control, firmware/application and firmware/safety_mcu/src, for local extern declarations of symbols their platform header already declares
+ * CI-Scan-Paths: firmware/hub_control/** firmware/application/** firmware/safety_mcu/** firmware/platform/**
  */
 import { readdirSync, readFileSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "fs";
 import { join, dirname } from "path";
@@ -56,6 +56,18 @@ const CONTRACTS = [
     item: "OI-SWCI-18",
     header: "firmware/safety_mcu/include/np_safety_hal.h",
     tree: "firmware/safety_mcu/src",
+  },
+  {
+    // Added 2026-09-02 with the clock seam (NP-SW-CI-001 §4.11, OI-SWCI-41).
+    // firmware/application became the first tree outside hub_control to CALL a
+    // platform seam: np_app_main.c calls np_platform_clock_init().  It includes
+    // the header rather than declaring the symbol, so this entry passes on the
+    // day it is added — which is the point.  Without it the property this gate
+    // exists to hold would simply not cover the newest caller, and an `extern`
+    // re-added there would reopen OI-SWCI-40 in a file nothing scans.
+    item: "OI-SWCI-40",
+    header: "firmware/platform/include/np_sw02_platform_hal.h",
+    tree: "firmware/application",
   },
 ];
 
@@ -123,7 +135,12 @@ function cFilesUnder(dir: string): string[] {
 
 function run(root: string): number {
   const violations: string[] = [];
-  let seamTotal = 0;
+  // Distinct seams, not seams-per-contract: one header can appear in more than
+  // one contract (np_sw02_platform_hal.h governs both firmware/hub_control and
+  // firmware/application), and summing sizes would report 153 for 89 seams —
+  // a population probe that overstates the population is the failure it exists
+  // to prevent.  Keyed by header so two contracts sharing one cannot inflate it.
+  const seamsSeen = new Set<string>();
   let fileTotal = 0;
 
   for (const c of CONTRACTS) {
@@ -145,7 +162,7 @@ function run(root: string): number {
       violations.push(`${c.header}: parsed zero seams`);
       continue;
     }
-    seamTotal += seams.size;
+    for (const n of seams) seamsSeen.add(`${c.header}::${n}`);
 
     const files = cFilesUnder(join(root, c.tree));
     if (files.length === 0) {
@@ -175,6 +192,7 @@ function run(root: string): number {
   // looked at, so a gate that has quietly stopped seeing anything reports zero
   // instead of passing. Translation units, not seams — the seam count can be
   // healthy while the file walk finds nothing.
+  const seamTotal = seamsSeen.size;
   console.log(`scanned: ${fileTotal} translation units against ${seamTotal} single-sourced seams`);
   console.log(
     `single-sourced seam declarations: ${violations.length ? "FAIL" : "PASS"} ` +
@@ -207,6 +225,16 @@ if (process.argv.includes("--self-test")) {
       '#include "np_sw02_platform_hal.h"\nfloat f(void) { return np_mod_eeg_hal_read_impedance(0); }\n');
     write(`${CONTRACTS[1].tree}/np_gpio_mgr.c`,
       '#include "np_safety_hal.h"\nvoid g(void) { np_hal_gpio_write_pin(0, 0, 1); }\n');
+    // Every remaining contract tree needs at least one translation unit, because
+    // this gate deliberately FAILS a tree it walked zero files in (see the
+    // zero-files case below).  Written from the contract list rather than named
+    // one by one, so adding a contract cannot silently leave its tree empty and
+    // turn the whole self-test red — which is exactly what adding
+    // firmware/application did on 2026-09-02 before this loop existed.
+    for (const c of CONTRACTS.slice(2)) {
+      write(`${c.tree}/np_seamdecls_selftest.c`,
+        '#include "np_sw02_platform_hal.h"\nfloat f2(void) { return np_mod_eeg_hal_read_impedance(0); }\n');
+    }
   };
 
   let failures = 0;

@@ -48,16 +48,49 @@ extern "C" {
 #endif
 
 /*
- * Total number of symbols the SW-02 platform layer owes: the 63 declared in
+ * Total number of symbols the SW-02 platform layer owes: the 64 declared in
  * this file plus the 30 declared in the eight module headers named above.
  *
- * This is not decoration.  firmware/platform/ defines all 93 as traps rather
+ * This is not decoration.  firmware/platform/ defines all 94 as traps rather
  * than drivers, and the cross-build asserts that the number of definitions it
  * emits equals this constant (NP-SW-CI-001 §4.8).  The count can only change by
  * editing this line, which is the point: a platform symbol appearing or
  * disappearing is a design event, not a build detail.
+ *
+ * 93 → 94 on 2026-09-02 (NP-SW-CI-001 §4.11, OI-SWCI-41): np_platform_clock_init()
+ * was added.  The board clock configuration was always a missing driver; it was
+ * the only one the census did not count, because it is called by the startup
+ * path rather than by a module.  An uncounted gap in the layer whose purpose is
+ * to count the gaps is the census measuring around its own blind spot.
  */
-#define NP_SW02_PLATFORM_SYMBOL_COUNT   93
+#define NP_SW02_PLATFORM_SYMBOL_COUNT   94
+
+/* ── Core clock (OI-SWCI-41) ──────────────────────────────────────────────────
+ *
+ * The first platform call the image makes, and the only seam here that the
+ * startup path calls rather than a module.
+ *
+ * The i.MX RT1062 comes out of the boot ROM on whatever clock the ROM left
+ * running, and nothing in this repository moves it.  `SystemInit()` (vendored,
+ * system_MIMXRT1062.c) disables the watchdogs, enables the I-cache and ASSIGNS
+ * `SystemCoreClock = DEFAULT_SYSTEM_CLOCK`; assigning a variable is not
+ * configuring a PLL.  The function that does configure them,
+ * BOARD_BootClockRUN(), lives in the SDK's board files, which are not vendored
+ * because no NeurOne board exists to configure for.
+ *
+ * That gap is not cosmetic.  configSYSTICK_CLOCK_HZ is configCPU_CLOCK_HZ in
+ * the ARM_CM7 port, so the SysTick reload — and with it every tick, every
+ * timeout, and the NP_SAFETY_HEARTBEAT_MS interval that keeps the safety MCU's
+ * 1.5 s watchdog from firing — is computed from a number no code establishes.
+ * If the real core clock is not configCPU_CLOCK_HZ, every one of those
+ * intervals is wrong by the ratio between them, silently and everywhere.
+ *
+ * Returns the core clock in Hz that it established.  The caller checks that
+ * figure against configCPU_CLOCK_HZ and against what the CCM registers
+ * actually report (np_app_main.c); a driver here that brings the part up to
+ * some other frequency must not be able to pass quietly.
+ */
+extern uint32_t np_platform_clock_init(void);
 
 /* ── Status LED (OI-HUB-MAIN-02) ─────────────────────────────────────────────
  *

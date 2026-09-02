@@ -16,9 +16,12 @@
  *
  * It is not runnable firmware, and the image says so about itself: see the
  * .np_build_note string below.  Its platform layer is firmware/platform/, which
- * is 93 traps rather than 93 drivers, so the first platform call halts the
- * processor.  For this image that happens inside np_hub_control_app_main(), at
- * np_hal_get_device_session_count(), a few hundred instructions in.
+ * is 94 traps rather than 94 drivers, so the first platform call halts the
+ * processor.  For this image that happens in main() below, at
+ * np_platform_clock_init(), before np_hub_control_app_main() is entered at all.
+ * Until 2026-09-02 the first trap reached was np_hal_get_device_session_count()
+ * a few hundred instructions further in; the clock seam is ahead of it because
+ * the boot contract genuinely breaks there first.
  *
  * That is the intended behaviour, not a limitation being tolerated.  A halted
  * main processor stops the 200 ms SPI heartbeat, and the safety MCU's 1.5 s
@@ -37,21 +40,55 @@
  *        → zero .bss    (__STARTUP_CLEAR_BSS)
  *        → branch to __START, which the build defines as main()
  *   main()  → this file
+ *        → np_platform_clock_init()   (firmware/platform — TRAPS TODAY)
+ *        → SystemCoreClockUpdate() and the core-clock check below
  *        → np_hub_control_app_main()  (firmware/hub_control)
  *        → creates five FreeRTOS tasks, vTaskStartScheduler(), never returns
  *
- * There is no board-level clock configuration step in that sequence, and its
- * absence is deliberate rather than overlooked: BOARD_BootClockRUN() lives in
- * the MCUX SDK's board files, which are not vendored because no NeurOne board
- * exists to configure for.  SystemInit() sets SystemCoreClock to the SDK's
- * DEFAULT_SYSTEM_CLOCK and disables the watchdogs; it does not bring the PLLs
- * up to the 600 MHz FreeRTOSConfig.h assumes.  Recorded as OI-SWCI-41.
+ * ── The core clock, and why this file checks it (OI-SWCI-41) ────────────────
+ *
+ * There is still no board-level clock configuration in that sequence, and the
+ * reason has not changed: BOARD_BootClockRUN() lives in the MCUX SDK's board
+ * files, which are not vendored because no NeurOne board exists to configure
+ * for.  SystemInit() disables the watchdogs, enables the I-cache and ASSIGNS
+ * SystemCoreClock = DEFAULT_SYSTEM_CLOCK (528 MHz); assigning a variable is
+ * not configuring a PLL, and 528 MHz is not the 600 MHz FreeRTOSConfig.h
+ * declares as configCPU_CLOCK_HZ.
+ *
+ * What has changed is that the gap is no longer only prose.  Two things were
+ * wrong with leaving it as prose:
+ *
+ *   1. It was the one missing driver the platform census did not count, because
+ *      the startup path calls it rather than a module.  np_platform_clock_init()
+ *      is now the 94th seam, so the distance to a runnable image includes it.
+ *
+ *   2. Nothing would have caught a clock that was configured WRONG.  The
+ *      ARM_CM7 port defines configSYSTICK_CLOCK_HZ as configCPU_CLOCK_HZ, so
+ *      the SysTick reload is (configCPU_CLOCK_HZ / configTICK_RATE_HZ) - 1 and
+ *      every FreeRTOS interval in the system is measured in that unit —
+ *      including the NP_SAFETY_HEARTBEAT_MS beat the safety MCU's 1.5 s
+ *      watchdog is waiting on.  A core clock that is not configCPU_CLOCK_HZ
+ *      does not fail; it silently rescales every timeout in the image by the
+ *      ratio between them.  At the SDK's own default that ratio is 600/528, so
+ *      a nominal 200 ms heartbeat would actually be sent every 227 ms and
+ *      nothing anywhere would say so.
+ *
+ * So the clock is verified rather than assumed, and it is verified against the
+ * silicon rather than against the driver's own claim: SystemCoreClockUpdate()
+ * reads the CCM and CCM_ANALOG dividers and computes the core frequency the
+ * part is actually running at.  That check needs no board file, which is why it
+ * could be written today.  What still needs a board is the configuration step
+ * it checks — that half of OI-SWCI-41 stays open.
  */
 
 #include <stdint.h>
 
+#include "FreeRTOSConfig.h"     /* configCPU_CLOCK_HZ — the assumed core clock */
+#include "system_MIMXRT1062.h"  /* SystemCoreClock, SystemCoreClockUpdate()    */
+
 #include "np_hub_types.h"       /* np_hub_control_app_main() */
 #include "np_platform_trap.h"
+#include "np_sw02_platform_hal.h" /* np_platform_clock_init() — declared once  */
 
 /*
  * A statement about what this binary is, carried inside the binary.
@@ -74,6 +111,41 @@ static const char np_build_note[] =
 
 int main(void)
 {
+    /*
+     * Bring the core clock to configCPU_CLOCK_HZ, then prove it got there.
+     *
+     * This traps today — firmware/platform/ has no driver for it — so nothing
+     * below runs yet.  The check is written now regardless, because the moment
+     * a board arrives the driver lands underneath a call site that already
+     * verifies it, rather than being trusted by a boot path that never looked.
+     */
+    uint32_t established_hz = np_platform_clock_init();
+
+    /*
+     * Ask the silicon, not the driver.  SystemCoreClockUpdate() walks the CCM
+     * and CCM_ANALOG dividers and recomputes SystemCoreClock from the registers
+     * as they actually stand; it is not a second copy of the driver's opinion.
+     *
+     * Checking both figures is deliberate.  established_hz catches a driver
+     * that configured one frequency and reported another; SystemCoreClock
+     * catches a driver that reported honestly and did not achieve it.  They are
+     * different failures and neither implies the other.
+     */
+    SystemCoreClockUpdate();
+
+    if (established_hz != configCPU_CLOCK_HZ || SystemCoreClock != configCPU_CLOCK_HZ) {
+        /*
+         * Halt rather than continue on a clock that is not the one every
+         * FreeRTOS interval is computed against.  Continuing would not fail —
+         * that is the danger.  It would run, with every tick, timeout and the
+         * safety heartbeat rescaled by the ratio between the two clocks, and
+         * with no symptom that points at the clock.  Halting instead stops the
+         * SPI heartbeat and lets the safety MCU cut every stimulation enable
+         * line inside 1.5 s (CLAUDE.md §4.2), which is the designed failure.
+         */
+        np_platform_unimplemented("main:core-clock-mismatch");
+    }
+
     np_hub_control_app_main();
 
     /*

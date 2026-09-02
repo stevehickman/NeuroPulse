@@ -30,8 +30,9 @@
  *
  * It is not a fallback, a mock, or a bring-up convenience to be left in.  An
  * image linked against firmware/platform/ halts on the first platform call it
- * makes, which for np_application is np_hal_get_device_session_count() a few
- * instructions into np_hub_control_app_main().  That is deliberate: the image
+ * makes, which for np_application is np_platform_clock_init() in main(), before
+ * np_hub_control_app_main() is entered (OI-SWCI-41; until 2026-09-02 it was
+ * np_hal_get_device_session_count(), a few hundred instructions further in).  That is deliberate: the image
  * exists so that SW-02 can be *linked* and its platform gap *counted*
  * (NP-SW-CI-001 §4.8), not so that it can be run.
  */

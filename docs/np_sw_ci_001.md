@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 14
+**Revision:** 15
 **Date:** 2026-09-02  
 **Status:** DRAFT  
 **Effective Date:** —  
@@ -13,7 +13,21 @@
 **Gate:** —  
 **IEC 62304 Class:** SW-01 Class C (safety MCU), SW-02 Class B (main processor)  
 **Supersedes:** None  
-**Change Summary:** Rev 14 (2026-09-02) — **phase 9; OI-SWCI-39 CLOSED: the i.MX RT1062 FlexRAM partition is a NeurOne decision, established in code, and checked in three places against the two linker scripts that depend on it.** New **§4.10**. (1) **The finding was not the one the item recorded.** OI-SWCI-39 said the bootloader script's 512 KiB OCRAM and the MCUX script's 768 KiB "do not agree". They never described the same memory: `0x20200000` is the **dedicated OCRAM2 array**, 512 KiB, not part of FlexRAM; the FlexRAM OCRAM aperture begins where it ends, at `0x20280000`; and the SDK's 768 KiB is the composite of the two under the **default eFuse** split (512 + 256). So there was no contradiction to resolve — the real defect is the one the item named second and buried: **both scripts asserted a partition nothing had chosen.** (2) **The partition is derived, not preferred: ITCM 0 banks · DTCM 16 banks (512 KiB) · FlexRAM OCRAM 0 banks.** Only three regions can consume banks and two of them have no section in either linker script — the bootloader executes from OCRAM2 where the ROM put it and the application executes in place from the OCRAM2 staging area, so neither has any `.text` in ITCM, and nothing addresses `0x20280000`. DTCM is the only claimant, so it takes all sixteen. Leaving banks unassigned would shrink the device's RAM to fit today's bring-up image, which is the reasoning §4.8.5 rejected when it declined to shrink `configTOTAL_HEAP_SIZE`. (3) **A consequence that closes the item's own complaint:** with zero FlexRAM OCRAM banks, OCRAM2 is the only OCRAM, so the bootloader script's 512 KiB stops being "conservative and therefore currently right" and becomes exact by construction. (4) **`firmware/bootloader/src/np_flexram.c`, called first in `Bootloader_Reset()`** — before the watchdog disable, so "no code runs before the memory map is established" is checkable by looking at the top of the function rather than arguable about every statement. It is safe to reassign banks from running code for a reason that is a *property of the linker script* rather than a promise: `bootloader_imxrt1062.ld` declares exactly one memory region and it is OCRAM2, so no section of the bootloader's can be in a bank the call reassigns. (5) **The module is split the way `np_app_image.c` is.** Two pure functions compute the GPR17 bank-config word and the GPR14 window codes and are checked by a new host suite against hand-worked oracles; the three register stores are compiled out on a host rather than replaced by a fake register file, because a fake would let the suite pass while the real layout was wrong. **The three GPR fields it writes are not in the vendored MCUX 2.16.0 header at all** — `MIMXRT1062.h` defines two GPR16 fields and no `CM7_CFG*TCMSZ` — so they are transcribed from IMXRT1060RM, corroborated against shipping RT1062 firmware, and the transcription is itself asserted. (6) **One fact, four declarations, and disagreement now fails a test rather than a device** — `np_config.h`, both linker scripts, and the linked artifact. `np_app_link_agreement_tests` gained five cases (it now includes `np_config.h` rather than parsing it); the bootloader link gained three `ASSERT`s; and the CI legs assert on the ARTIFACTS that `np_flexram_apply_partition` survived `--gc-sections` and that `__StackTop` sits at the top of the DTCM the partition establishes. Every one was mutation-tested before commit. (7) **`.bss` did NOT move into the new DTCM, and that is the deliberate half.** §4.8.5's stated blocker is gone and 162,436 B would now fit 524,288 B three times over — but DTCM exists only if three untested register writes do what the RM says, and with `.bss` there a partition that failed to take effect would take `ucHeap`, every task stack and every static buffer with it. **OI-SWCI-42 is re-scoped, not closed:** what gates it is now one bench confirmation, not a decision nobody has made. (8) **Two findings raised in passing.** `build-all.yml`'s `NP_TOTAL_TEST_COUNT` read 30 against a real total of 31 — phase 8 updated two of the three copies — so the weekly backstop's partition assertion had been failing, unseen, since 2026-09-01: OI-SWCI-37's shape, invisible for OI-SWCI-10's reason. Fixed here (7 + 25 = 32). And `np_config.h`'s `NP_SCRATCH_SRAM_BASE`/`_SIZE` describe a 64 KiB OCRAM window that overlaps `.app_staging` and the bootloader stack; they are referenced by nothing and are recorded as **OI-SWCI-44** rather than deleted in a phase about a different map.
+**Change Summary:** Rev 15 (2026-09-02) — **OI-SWCI-41 is PARTIALLY CLOSED: the SW-02 core clock is verified against the CCM before the scheduler starts, and §4.11 is the new record.** §4.8.5 recorded the missing board clock configuration as prose and left it there. That was wrong on two counts. (1) It was **the one missing driver the §4.8.4 census did not count** — uncounted only because the startup path calls it rather than a module, which is the gap-counting layer measuring around its own blind spot. `np_platform_clock_init()` is now the 94th seam and the **first platform call the image makes**, ahead of `np_hal_get_device_session_count()`. (2) More seriously, **nothing would have caught a clock that was configured wrong rather than not at all.** `configSYSTICK_CLOCK_HZ` is `configCPU_CLOCK_HZ` in the ARM_CM7 port, so every FreeRTOS interval in the image is denominated in that one number; a core clock that is not 600 MHz does not fault, it rescales all of them uniformly — and at the SDK's own `DEFAULT_SYSTEM_CLOCK` (528 MHz, a figure already in the tree and already disagreeing) the 200 ms safety heartbeat becomes **227 ms, still well inside the 1.5 s watchdog**, so the one independent Class C safeguard that watches that interval does not fire. A failure the existing safeguards cannot see needs its own check. `main()` now calls the seam, then the vendored `SystemCoreClockUpdate()` — which recomputes the frequency from the CCM and CCM_ANALOG dividers as they actually stand — and halts into the safety-MCU cutoff path unless both agree with `configCPU_CLOCK_HZ`. **This needed no board**, which is why it could be written now; what still needs one is the configuration step it checks, and that half of OI-SWCI-41 stays open. New Class B host test `np_app_clock_agreement_tests` (Class B count 24 → 25) pins both constants, computes the mis-timing table, and probes the boot path. **Its first version was a defect of exactly the kind this document collects:** a plain `strstr()` over `np_app_main.c` that passed against a boot path with the check deleted, because the file *explains* the check at length and every token was sitting in the prose — `np_bootloader_app_image_tests`' finding a second time, fixed the same way (strip comments and string literals first) and found only by mutating the file it reads. Measured against this change's parent commit — §4.9's — built with the same compiler (§4.11.3; §4.8's published figures came from CI's pinned toolchain, and a cross-toolchain delta would have charged ~500 B of code generation to this change): census 93 → 94, `.text` 48,443 → 49,092 B, `.bin` 48,752 → 49,404 B, `.bss` unchanged, 0 unresolved symbols, 0 warnings, `__isr_vector` still `0x20210000`. **Found in passing:** `build-all.yml`'s `NP_TOTAL_TEST_COUNT` had been 30 against a real 31 since phase 8 — the three authoritative counts contradicted each other, undetected only because that guard runs on Mondays and phase 8 landed on a Tuesday (§4.11.5). Corrected to 32 / 7 / 25. **On the rebase onto §4.9 (§4.11.6):** `np_app_main.c` is the first caller of a platform seam outside `hub_control`, so §4.9's `check-platform-seam-decls.ts` gained `firmware/application` as a third contract — without it the property that gate exists to hold would not have covered the newest caller. Two corrections came with it: the self-test wrote fixture files by contract *index*, so a third contract got an empty tree and the gate correctly failed it; and the summary line summed seams per contract, reporting **153 for 89** once two contracts shared one header — a population probe overstating its own population. `check-ci-scope.ts` then caught the matching relevance list, which is the first time that guard has caught a drift introduced by a change other than the one that created it.
+
+> **This revision was authored as Rev 13 / §4.9, renumbered to Rev 14 / §4.10, and renumbered again to
+> Rev 15 / §4.11.** Two PRs landed on `main` while this branch was open and took the numbers in turn:
+> #310 (OI-SWCI-40) took Rev 13 and `### 4.9`, then phase 9 (#311, OI-SWCI-39) took Rev 14 and
+> `### 4.10`. Nothing in any of the three changes moved; only the numbers did. **A citation of
+> "§4.11" concerning the core clock, `np_platform_clock_init()` or OI-SWCI-41 means this section**;
+> §4.10 is the FlexRAM partition and §4.9 the seam declarations. Phase 9's note below already records
+> the pattern and its cost — this is the fourth instance, and the second on a section number. The
+> three changes are independent and meet only in bookkeeping: §4.9 compares the platform contract
+> against its callers, §4.10 establishes the memory map, and this one adds a seam to the contract and
+> verifies the clock. All three hold on the merged tree, and the figures in §4.11.3 were re-measured
+> against it.
+
+Rev 14 (2026-09-02) — **phase 9; OI-SWCI-39 CLOSED: the i.MX RT1062 FlexRAM partition is a NeurOne decision, established in code, and checked in three places against the two linker scripts that depend on it.** New **§4.10**. (1) **The finding was not the one the item recorded.** OI-SWCI-39 said the bootloader script's 512 KiB OCRAM and the MCUX script's 768 KiB "do not agree". They never described the same memory: `0x20200000` is the **dedicated OCRAM2 array**, 512 KiB, not part of FlexRAM; the FlexRAM OCRAM aperture begins where it ends, at `0x20280000`; and the SDK's 768 KiB is the composite of the two under the **default eFuse** split (512 + 256). So there was no contradiction to resolve — the real defect is the one the item named second and buried: **both scripts asserted a partition nothing had chosen.** (2) **The partition is derived, not preferred: ITCM 0 banks · DTCM 16 banks (512 KiB) · FlexRAM OCRAM 0 banks.** Only three regions can consume banks and two of them have no section in either linker script — the bootloader executes from OCRAM2 where the ROM put it and the application executes in place from the OCRAM2 staging area, so neither has any `.text` in ITCM, and nothing addresses `0x20280000`. DTCM is the only claimant, so it takes all sixteen. Leaving banks unassigned would shrink the device's RAM to fit today's bring-up image, which is the reasoning §4.8.5 rejected when it declined to shrink `configTOTAL_HEAP_SIZE`. (3) **A consequence that closes the item's own complaint:** with zero FlexRAM OCRAM banks, OCRAM2 is the only OCRAM, so the bootloader script's 512 KiB stops being "conservative and therefore currently right" and becomes exact by construction. (4) **`firmware/bootloader/src/np_flexram.c`, called first in `Bootloader_Reset()`** — before the watchdog disable, so "no code runs before the memory map is established" is checkable by looking at the top of the function rather than arguable about every statement. It is safe to reassign banks from running code for a reason that is a *property of the linker script* rather than a promise: `bootloader_imxrt1062.ld` declares exactly one memory region and it is OCRAM2, so no section of the bootloader's can be in a bank the call reassigns. (5) **The module is split the way `np_app_image.c` is.** Two pure functions compute the GPR17 bank-config word and the GPR14 window codes and are checked by a new host suite against hand-worked oracles; the three register stores are compiled out on a host rather than replaced by a fake register file, because a fake would let the suite pass while the real layout was wrong. **The three GPR fields it writes are not in the vendored MCUX 2.16.0 header at all** — `MIMXRT1062.h` defines two GPR16 fields and no `CM7_CFG*TCMSZ` — so they are transcribed from IMXRT1060RM, corroborated against shipping RT1062 firmware, and the transcription is itself asserted. (6) **One fact, four declarations, and disagreement now fails a test rather than a device** — `np_config.h`, both linker scripts, and the linked artifact. `np_app_link_agreement_tests` gained five cases (it now includes `np_config.h` rather than parsing it); the bootloader link gained three `ASSERT`s; and the CI legs assert on the ARTIFACTS that `np_flexram_apply_partition` survived `--gc-sections` and that `__StackTop` sits at the top of the DTCM the partition establishes. Every one was mutation-tested before commit. (7) **`.bss` did NOT move into the new DTCM, and that is the deliberate half.** §4.8.5's stated blocker is gone and 162,436 B would now fit 524,288 B three times over — but DTCM exists only if three untested register writes do what the RM says, and with `.bss` there a partition that failed to take effect would take `ucHeap`, every task stack and every static buffer with it. **OI-SWCI-42 is re-scoped, not closed:** what gates it is now one bench confirmation, not a decision nobody has made. (8) **Two findings raised in passing.** `build-all.yml`'s `NP_TOTAL_TEST_COUNT` read 30 against a real total of 31 — phase 8 updated two of the three copies — so the weekly backstop's partition assertion had been failing, unseen, since 2026-09-01: OI-SWCI-37's shape, invisible for OI-SWCI-10's reason. Fixed here (7 + 25 = 32). And `np_config.h`'s `NP_SCRATCH_SRAM_BASE`/`_SIZE` describe a 64 KiB OCRAM window that overlaps `.app_staging` and the bootloader stack; they are referenced by nothing and are recorded as **OI-SWCI-44** rather than deleted in a phase about a different map.
 
 > **This revision was authored as Rev 13 with its new section numbered §4.9, and was renumbered to
 > **Rev 14 / §4.10** on rebase.** PR #310 landed on `main` while this branch was open and took both —
@@ -52,7 +66,7 @@ Rev 9 (2026-08-11) — **phase 7 complete; Defect E CLOSED; OI-SWCI-17 and OI-SW
 >
 > **As of phase 5 no cross-compile leg carries `continue-on-error`.** All four are gating; the main-firmware leg was the last promoted.
 >
-> **Read each check for exactly what it claims — and as of phase 8 all three claim a link.** The safety-MCU check gates the Class C link (`np_safety_mcu.elf`, phase 7, §4.4.2). The bootloader check has gated its link since phase 3. **The main-firmware check now gates the SW-02 link** — `np_application.elf`, 0 unresolved symbols out of a starting 102 (phase 8, §4.8, closing OI-SWCI-21) — where for five phases it could only say that every SW-02 translation unit *compiled*. That earlier wording was correct and is kept in §4.7 as the record of what the check meant at the time; what it concealed is now measured. **What none of the three claims is that any image RUNS.** `np_application`'s platform layer is 93 traps rather than 93 drivers (§4.8.4); the image halts on its first platform call, deliberately, into the state the safety MCU already watches for. Branch protection has existed since phase 6 (§6.7.8, OI-SWCI-04): seven contexts are required on PRs targeting `main`, though a direct push still bypasses them (OI-SWCI-22).
+> **Read each check for exactly what it claims — and as of phase 8 all three claim a link.** The safety-MCU check gates the Class C link (`np_safety_mcu.elf`, phase 7, §4.4.2). The bootloader check has gated its link since phase 3. **The main-firmware check now gates the SW-02 link** — `np_application.elf`, 0 unresolved symbols out of a starting 102 (phase 8, §4.8, closing OI-SWCI-21) — where for five phases it could only say that every SW-02 translation unit *compiled*. That earlier wording was correct and is kept in §4.7 as the record of what the check meant at the time; what it concealed is now measured. **What none of the three claims is that any image RUNS.** `np_application`'s platform layer is 94 traps rather than 94 drivers (§4.8.4, §4.10); the image halts on its first platform call, deliberately, into the state the safety MCU already watches for. Branch protection has existed since phase 6 (§6.7.8, OI-SWCI-04): seven contexts are required on PRs targeting `main`, though a direct push still bypasses them (OI-SWCI-22).
 
 ## 1. Purpose and scope
 
@@ -525,7 +539,7 @@ both record.
 
 #### 4.8.4 The platform layer traps; it does not stub
 
-93 symbols, 93 definitions, every one of them a call to `np_platform_unimplemented()`, which masks
+94 symbols, 94 definitions, every one of them a call to `np_platform_unimplemented()`, which masks
 interrupts and spins.
 
 **Why not drivers.** §4.4's argument holds harder here than it did on SW-01. The hub
@@ -566,7 +580,7 @@ parameters to `void` by hand. §4.4.2 retired that suppression from the SW-01 pl
 reasoning that a silently ignored argument in a stimulation seam is the diagnostic that matters
 most. A layer made entirely of stubs is where the suppression is most tempting and least affordable.
 
-**The contract is single-sourced — for 31 of the 93.** `np_sw02_platform_hal.h` is the SW-02
+**The contract is single-sourced — for 32 of the 94.** `np_sw02_platform_hal.h` is the SW-02
 counterpart of `np_safety_hal.h` (§4.4.1, OI-SWCI-18) and declares the 63 seams that had no header;
 the other 30 are already single-sourced by the module header that owns them, and are deliberately
 not restated. The stub file includes all nine headers, so the compiler — not the file — is what
@@ -617,6 +631,12 @@ enables the I-cache and sets `SystemCoreClock` to the SDK's `DEFAULT_SYSTEM_CLOC
 bring the PLLs up to the 600 MHz `FreeRTOSConfig.h` assumes for `configCPU_CLOCK_HZ`. Every FreeRTOS
 tick and timeout in the image is therefore derived from a clock nothing has established.
 **OI-SWCI-41.**
+
+> **Superseded in part by §4.10 (2026-09-02).** Leaving this as prose was wrong on two counts: it was
+> the one missing driver the §4.8.4 census did not count, and nothing would have caught a clock that
+> was configured *wrong* rather than not at all. The boot path now configures the clock through a
+> counted seam and verifies it against the CCM before starting the scheduler. The half that needs a
+> board — the configuration step itself — is still open.
 
 #### 4.8.6 A defect in this phase's own CI step, caught by running it
 
@@ -932,6 +952,218 @@ because the fix for the class is a guard, not a third correction.
 part of the pre-Defect-C map. Flagged in place and recorded as **OI-SWCI-44** rather than deleted in
 a phase whose subject is a different memory map — but they are exactly the shape of declaration this
 phase exists to be suspicious of.
+
+### 4.11 The core clock: verified rather than assumed (OI-SWCI-41, partially closed)
+
+§4.8.5 recorded the missing board clock configuration as "not a measurement but is the same
+species", and left it there. Two things were wrong with leaving it there, and both are the failure
+modes this document keeps naming rather than anything new.
+
+**It was the one missing driver the census did not count.** §4.8.4's argument is that the distance
+to a runnable image should be a figure the build prints. The board clock configuration is a missing
+driver exactly like the other 93 — it was uncounted only because the *startup path* calls it rather
+than a module, so it had no seam in `np_sw02_platform_hal.h` to be counted in. A gap that the
+gap-counting layer does not count is the census measuring around its own blind spot.
+
+**And nothing would have caught a clock that was configured *wrong*.** This is the more serious
+half. The ARM_CM7 port defines `configSYSTICK_CLOCK_HZ` as `configCPU_CLOCK_HZ`, so the SysTick
+reload is `(configCPU_CLOCK_HZ / configTICK_RATE_HZ) - 1` and **every** FreeRTOS interval in the
+image is denominated in that one number: every `vTaskDelay`, every timeout, and the
+`NP_SAFETY_HEARTBEAT_MS` beat the safety MCU's watchdog is waiting on. A core clock that is not
+`configCPU_CLOCK_HZ` does not fault, hang or assert. It rescales all of them, uniformly, by the ratio
+between the two clocks — and because the rescaling is uniform, nothing inside the system has a
+correct interval left to compare itself against.
+
+Two files in the tree already state that clock, and they disagree:
+
+| File | States | What it actually does |
+|------|--------|-----------------------|
+| `firmware/hub_control/include/FreeRTOSConfig.h` | `configCPU_CLOCK_HZ` = 600 MHz | Denominates every interval in the image |
+| `firmware/vendor/mcux_sdk/.../system_MIMXRT1062.h` | `DEFAULT_SYSTEM_CLOCK` = 528 MHz | What `SystemInit()` **assigns** to `SystemCoreClock` |
+
+Neither establishes anything. Assigning a variable is not configuring a PLL.
+
+#### 4.11.1 What the disagreement costs, as a number rather than a worry
+
+`np_app_clock_agreement_tests` computes it, and the figures are in the test output rather than in
+this paragraph only:
+
+| Quantity | Specified | At the SDK's own default clock | Error |
+|----------|-----------|-------------------------------|-------|
+| SysTick reload | 599,999 counts | (unchanged — it is linked in) | — |
+| Tick period | 1,000,000 ns | 1,136,363 ns | +136,363 ppm (13.6%) |
+| Safety heartbeat | 200 ms | 227.3 ms | +13.6% |
+
+**The last row is the argument for the whole section.** 227 ms is still far inside the safety MCU's
+1.5 s watchdog, so a 13.6% error on the one interval the system's independent Class C safeguard
+watches **does not trip that safeguard**. The image would run indefinitely, with every interval in
+it wrong and every existing check of those intervals satisfied. A failure the existing safeguards
+cannot see is a failure that needs its own check — which is why the check below is in `main()` and
+not left to the watchdog.
+
+#### 4.11.2 What was added
+
+**A 94th seam.** `np_platform_clock_init()` is declared in `np_sw02_platform_hal.h`, trapped in
+`np_platform_stub.c` like the other 93, and `NP_SW02_PLATFORM_SYMBOL_COUNT` moves 93 → 94. It
+returns the core frequency it established. It is now **the first platform call the image makes**, so
+it is the trap `np_application` actually reaches — ahead of
+`np_hal_get_device_session_count()`, which held that position from phase 8 until this change. That
+is not cosmetic ordering: the boot contract genuinely breaks at the clock first.
+
+**A check against the silicon, not against the driver.** `main()` calls the seam, then calls the
+vendored `SystemCoreClockUpdate()` — which walks the CCM and CCM_ANALOG dividers and recomputes
+`SystemCoreClock` from the registers as they actually stand — and halts unless *both* the returned
+figure and the recomputed one equal `configCPU_CLOCK_HZ`. Both are checked because they are
+different failures: the returned value catches a driver that configured one frequency and reported
+another; `SystemCoreClock` catches a driver that reported honestly and did not achieve it. Neither
+implies the other.
+
+The halt is `np_platform_unimplemented()`, so a clock mismatch lands in the same designed safe state
+as every other unhandled condition on this processor: the SPI heartbeat stops and the safety MCU
+cuts every stimulation enable line within 1.5 s (CLAUDE.md §4.2).
+
+**This check needed no board, which is why it could be written now.** `SystemCoreClockUpdate()` is
+already vendored and reads real registers. What still needs a board is the *configuration* step it
+checks.
+
+**A host test.** `np_app_clock_agreement_tests` (Class B, ctest + `firmware-cross-build.yml`) is the
+same species as `np_app_link_agreement_tests`: two files own one fact and no build step compares
+them. It **includes** `FreeRTOSConfig.h` rather than text-parsing it — `configCPU_CLOCK_HZ` is
+defined twice in that file, once per branch, so parsing it would mean taking the preprocessor's
+decision out of the preprocessor's hands — pins both constants, computes the table in §4.11.1, and
+probes the boot path for the check itself.
+
+#### 4.11.3 Measured
+
+**Read the baseline carefully.** §4.8's published figures (`.text` 47,899 / `.bin` 48,208) were
+produced by CI's pinned `arm-none-eabi-gcc`; the measurements below were taken with
+`arm-none-eabi-gcc 13.2.1`, which builds this change's parent — §4.10's commit, phase 9 — at
+`.text` 48,443 / `.bin` 48,752. Quoting a delta across two toolchains would attribute 500-odd bytes
+of code generation to this change. The "before" column is therefore the parent commit built with the
+same compiler as the "after" column, re-measured after each rebase — not the number §4.8 published.
+(§4.9 and §4.10 build byte-identically to each other on this compiler, so the rebase from one to the
+other moved nothing in this table; it was re-measured rather than assumed.)
+
+| | Parent commit, §4.10 (same toolchain) | Now | Δ |
+|---|---|---|---|
+| Platform seams (census assertion) | 93 | **94** | +1 |
+| `.text` (berkeley) | 48,443 B | 49,092 B | +649 |
+| `.data` | 304 B | 308 B | +4 |
+| `.bss` | 162,132 B | 162,132 B | 0 — this change neither moves nor resizes it; §4.10 re-scoped OI-SWCI-42 |
+| `.bin` | 48,752 B | **49,404 B** (11.0% of the 440 KiB reservation) | +652 |
+| Unresolved symbols | 0 | **0** | — |
+| Warnings | 0 | **0** | — |
+| `__isr_vector` | `0x20210000` | `0x20210000` | — |
+
+(§4.9 reports its own image as byte-for-byte identical to phase 8's, measured on CI's toolchain. On
+`arm-none-eabi-gcc 13.2.1` it is 8 bytes larger than §4.8's commit — which is why the baseline above
+was re-taken against the actual parent rather than reused. Neither figure contradicts the other;
+they are different compilers, which is the whole reason this note exists. §4.10 then changed the
+memory map without changing this image at all: same `.text`, `.data`, `.bss` and `.bin` as §4.9 on
+this compiler.)
+
+The growth is the point rather than a cost to apologise for, and it is almost entirely one decision:
+reading the clock from the CCM rather than trusting a constant. The new symbols are
+`SystemCoreClockUpdate()` (328 B) and `__udivmoddi4` (700 B — the 64-bit division helper its
+fractional-PLL arithmetic pulls in), plus `np_platform_clock_init()` (12 B) and 44 B on `main()`.
+Both of the first two were previously discarded by `--gc-sections` because nothing referenced them.
+The section grew by less than those sizes sum to, which is linker layout; the section figures in the
+table are the measured ones and the ones to quote. `.data`'s +4 is `SystemCoreClock` itself, now
+kept for the same reason.
+
+The boot order is verifiable in the artifact, not only in the source:
+
+```
+20211144 <main>:
+  bl  np_platform_clock_init
+  bl  SystemCoreClockUpdate
+  cmp r4, r3            @ r3 = 0x23c34600 = 600,000,000
+  ...
+  bl  np_platform_unimplemented   @ on mismatch
+  bl  np_hub_control_app_main     @ otherwise
+```
+
+#### 4.11.4 A defect in this change's own test, caught by mutating it
+
+The boot-path probe in §4.11.2 was first written as a plain `strstr()` over `np_app_main.c`. It
+passed against a boot path with the check **deleted**, because `np_app_main.c` explains the check at
+length in its header comment and every token the probe searched for was sitting in the prose.
+
+This is `np_bootloader_app_image_tests`' finding a second time — a text probe matching the comment
+that *describes* a thing rather than the code that *does* it — and it took the same fix: strip what
+the compiler would strip before looking. String literals are stripped too; this file's own build
+note is a long string sitting in the middle of the code, and a string is as good a hiding place for
+a token as a comment. The probe now also asserts ordering (the clock call precedes the handover to
+`np_hub_control_app_main()`), which the raw-text version could not have expressed.
+
+It was caught by deleting the call and re-running, which is the only reason it is a paragraph here
+rather than a check that never worked. Three mutations were run and all three now fail as intended:
+deleting the `SystemCoreClockUpdate()` call, moving the check after the handover, and changing
+`configCPU_CLOCK_HZ` (7 assertions).
+
+#### 4.11.5 The stale count: found twice, and §4.10 got there first
+
+This change hit the same defect §4.10 did — `build-all.yml`'s `NP_TOTAL_TEST_COUNT` read 30 against a
+real 31 from phase 8 onward, so its three authoritative values contradicted each other and its own
+sum assertion could not hold. Two branches were open at once and both found it independently. **Phase
+9's is the record**; it landed first, and it establishes the part this section had wrong.
+
+The difference is worth keeping rather than quietly dropping. This branch reasoned that the guard
+"was correct and simply had not fired yet", because `build-all.yml` runs on Mondays and phase 8
+landed on a Tuesday. §4.10 establishes the sharper fact: the assertion had been **failing**, and a
+red `build-all` is surfaced nowhere — **OI-SWCI-10**. A weekly check with a week of latency is a real
+check; a weekly check whose failure nobody sees is not a check at all, and only the second
+description explains why a contradiction sat in three files without consequence. The lesson §5.5
+draws for the backstop is unchanged; the reason it needed stating is stronger than this branch had it.
+
+What remains here is arithmetic, not a finding: `np_app_clock_agreement_tests` is one more Class B
+target on top of phase 9's `np_bootloader_flexram_tests`, so the figures become **33 / 7 / 26**.
+They were re-derived by enumerating `ctest` on the merged tree and running the partition guard's own
+commands locally — not by adding one to a line, which is the habit that produced the defect.
+
+#### 4.11.6 The rebases onto §4.9 and §4.10, and the two gates that caught the seam
+
+§4.9 landed on `main` while this change was open. The two are independent — §4.9 compares the
+contract against its **callers**, this section adds a seam **to** the contract — but they meet in
+`np_sw02_platform_hal.h`, and the merge is worth recording because §4.9's own machinery immediately
+found two things this change had left undone.
+
+**`check-platform-seam-decls.ts` needed a third contract, and the reason is this change's fault.**
+That gate holds "no `.c` under this tree may declare a seam its header already declares", and its
+trees were `firmware/hub_control` and `firmware/safety_mcu/src`. `np_app_main.c` is the **first
+caller of a platform seam outside `hub_control`** — nothing called one from `firmware/application`
+before `np_platform_clock_init()` existed. So the property §4.9 exists to hold would simply not have
+covered the newest caller: an `extern` re-added there would reopen OI-SWCI-40 in a file nothing
+scans. `firmware/application` is now a third contract entry. It passes on the day it is added, which
+is the point — the gate is not there to find today's defect.
+
+Two follow-on corrections came with it, both from running the thing rather than reading it:
+
+- The self-test wrote fixture files for `CONTRACTS[0]` and `CONTRACTS[1]` by index, so a third
+  contract got an empty tree — and the gate correctly **fails** a tree it walked zero files in.
+  Adding a contract turned the whole self-test red. The fixture now writes a translation unit for
+  every contract beyond the two it names, so the next contract cannot repeat it.
+- The summary line summed `seams.size` per contract, and two contracts now share
+  `np_sw02_platform_hal.h` — so it reported **153 seams for 89**. A population probe that overstates
+  its population is the failure that probe exists to prevent (§4.0.1a). It counts distinct
+  `(header, seam)` pairs now.
+
+**`check-ci-scope.ts` caught the relevance list, exactly as §5.0.2 says it should.** Declaring the
+new scan path without widening `NP_SCOPE_SEAMDECLS` left the gate out of scope for changes under
+`firmware/application` — "skipped on precisely the changes it exists to catch", in the guard's own
+words. It failed the local run before anything was pushed. The list and its self-assertion in
+`tooling-ci.yml` both name `firmware/application` now. This is the first time that guard has caught a
+drift introduced by a change other than the one that created it, which is what it was written for.
+
+#### 4.11.7 What is still open
+
+**The configuration step itself.** There is still no `BOARD_BootClockRUN()`, because there is still
+no NeurOne board to configure for, and writing one now would encode guesses about the external
+crystal, the PLL loop filter and the power-domain sequencing — §4.4's argument, unchanged.
+OI-SWCI-41 therefore stays **open**, but its shape has changed: it was "nothing establishes the
+clock and nothing would notice"; it is now "nothing establishes the clock, the image halts rather
+than running on an unestablished one, and the check that will validate the driver is already in
+place and already exercised by the mutation above." The remaining work is a driver, not a decision.
 
 
 ## 5. Specified workflows
@@ -2103,10 +2335,11 @@ set. A leg that could not have caught that has been replaced by one that did.
 
 **What phase 8 did NOT do.**
 
-- **It did not write drivers.** 93 platform seams trap. §4.8.4 is the argument, and the census makes
+- **It did not write drivers.** 94 platform seams trap (93 at phase 8; §4.10 added the clock seam).
+  §4.8.4 is the argument, and the census makes
   the number a build output rather than a claim.
 - **It did not make a runnable image.** `np_application` halts inside `np_hub_control_app_main()`, at
-  `np_hal_get_device_session_count()`, a few hundred instructions in. The image says so about itself
+  `np_hal_get_device_session_count()`, a few hundred instructions in (as of §4.10 the first trap reached is `np_platform_clock_init()`, earlier still). The image says so about itself
   in a `.np_build_note` string, because build logs get separated from artifacts and the one question
   worth asking about a recovered `.bin` — real image or bring-up artifact — is not answerable from
   its size.
@@ -2235,7 +2468,7 @@ a third manual correction. §4.10.7.
 | OI-SWCI-38 | **Raised AND CLOSED 2026-09-01 — the third instance of one defect class, see §5.0.** `check-section-refs.ts` declares `CI-Scans: CLAUDE.md section citations in every tracked file of 11 source extensions` and walks from the repository root, but the `web-ci.yml` relevance list that decided whether it ran enumerated `CLAUDE.md`, `docs/**`, `app/android/**`, `firmware/**` and the web surface. **Measured: 34 tracked files carrying a literal `CLAUDE.md §N` citation fell outside it**, almost all `app/ios/**` and `app/NeurOneShared/`; `app/android/**` was on the list only because #249's audit happened to find five dangling Kotlin citations, and iOS was never added. **Resolution:** the guard moved to its own `section-refs` job in `tooling-ci.yml` with **no relevance gate**, because its population is the tracked tree and every enumerable list is narrower than what it scans. Falsified by construction — a citation of a nonexistent section (`§12`) appended to `app/ios/NeurOne/Consent/ConsentStore.swift` was `false` against the old web-ci list and is now reported as `ConsentStore.swift:185` · `§12`, exit 1. Splitting it out also **removed** the last §5.0 exception and made docs/firmware/Android commits cheaper: they no longer run `bun install`, tsc, Vitest and a Vite build to reach two script steps. The general remedy that would have caught all four instances mechanically is **OI-SWCI-08**, closed the same day (§5.0.2): this case is now the `<tree>` row of that guard's axis B, and re-introducing a relevance gate on `section-refs` fails CI | Quality | Closed 2026-09-01 |
 | ~~OI-SWCI-39~~ | **Raised 2026-09-01 during phase 8 (§4.8.5); CLOSED 2026-09-02 (phase 9, §4.10) — and the item as written was half wrong, which is the part worth keeping.** It said the two in-tree declarations "do not agree": `bootloader_imxrt1062.ld` states OCRAM is **512 KiB** at `0x20200000`, the MCUX script states **768 KiB** at the same address. They never described the same memory. `0x20200000` is the **dedicated OCRAM2 array** — 512 KiB, not part of FlexRAM, unaffected by any partition — and the FlexRAM OCRAM aperture starts where it ends, at `0x20280000`; the SDK's 768 KiB is the composite of both under the **default eFuse** split (512 + 256). No contradiction, and "conservative" was true for the wrong reason. **What was genuinely wrong is the clause after it: both scripts asserted a partition that no code chose**, and that is what is fixed. The partition is now a NeurOne decision — **ITCM 0 banks · DTCM 16 banks (512 KiB) · FlexRAM OCRAM 0 banks**, derived from the fact that DTCM is the only region either linker script places a section in — established by `firmware/bootloader/src/np_flexram.c` at B-0 of the boot sequence, and checked in four places: a new host suite (`np_bootloader_flexram_tests`, the 25th Class B target) against hand-worked GPR17/GPR14 oracles, five new cases in `np_app_link_agreement_tests` binding `np_config.h` to both linker scripts, three link-time `ASSERT`s, and two CI steps on the artifacts themselves. With zero FlexRAM OCRAM banks the bootloader's 512 KiB is now exact by construction rather than conservative — which is the specific thing this item asked for | Firmware | ~~Device bring-up~~ |
 | ~~OI-SWCI-40~~ | **CLOSED 2026-09-02 (§4.9).** ~~`np_sw02_platform_hal.h` single-sources 63 platform seams and the module headers single-source the other 30, so the definitions in `firmware/platform/` are compiler-checked. 62 of those 63 are still ALSO declared by an `extern` line inside the `.c` that calls them, so the compiler compares the header against the definition and not against the caller.~~ **Closed as the item specified — include the header, delete the local `extern`s — with the count corrected by measurement: 56 distinct seams across 59 declaration sites in 11 translation units, not 62 across twelve. Seven of the 63 have no caller in `hub_control` at all.** `grep -c 'extern .*_hal_' firmware/hub_control/**/*.c` now totals zero, as it does for `firmware/safety_mcu/src/*.c`. A parsed census over all 56 found **zero pre-existing disagreements** — nothing had drifted yet, which is the same result §4.4.1 got on SW-01 and the same argument for doing it before a driver exists. **What it would have cost was measured:** on the pre-change tree a caller declaring `np_mod_eeg_hal_read_impedance()` as returning `int`, where the definition returns `float`, compiled rc=0 **and linked rc=0** — the image CI gates on zero unresolved symbols would have carried it. Demonstrated by holding a mutation constant across the change (a drifted test double: rc=0, 0 warnings, 1/1 passed before; `error: conflicting types` after). Image byte-identical to phase 8's figures; host suites 31/31. **Scope limits recorded rather than buried:** the guarantee is ABI, not behaviour; a widened return type is caught at the definition site and in none of the three calling modules, `-Wconversion` being off (§4.4.1's negative result, reproduced); and the 84 headerless registry `extern`s found alongside are **not** covered, as OI-SWCI-43. Held by `scripts/check-platform-seam-decls.ts`, which guards the SW-01 contract too — that one had been asserted only in prose since 2026-08-10. | Firmware | Closed |
-| OI-SWCI-41 | **Raised 2026-09-01 during phase 8 (§4.8.5).** **There is no board-level clock configuration in the SW-02 boot path.** `BOARD_BootClockRUN()` lives in the MCUX SDK's board files, which are not vendored because no NeurOne board exists to configure for. The vendored `SystemInit()` disables the watchdogs, enables the I-cache and sets `SystemCoreClock` to the SDK's `DEFAULT_SYSTEM_CLOCK`; it does **not** bring the PLLs up to the 600 MHz `FreeRTOSConfig.h` declares as `configCPU_CLOCK_HZ`. Every FreeRTOS tick, timeout and the 200 ms safety heartbeat interval is therefore derived from a clock nothing establishes. Not build-gating and not fixable without a board: recorded so the gap is not rediscovered on a bench. | Firmware | Device bring-up |
+| OI-SWCI-41 | **Raised 2026-09-01 during phase 8 (§4.8.5); PARTIALLY CLOSED 2026-09-02 (§4.11) — the verification exists, the configuration step does not.** **There is still no board-level clock configuration in the SW-02 boot path.** `BOARD_BootClockRUN()` lives in the MCUX SDK's board files, which are not vendored because no NeurOne board exists to configure for, and writing one now would encode guesses about the crystal, the PLL loop filter and power-domain sequencing (§4.4). **What changed:** the missing driver is now a counted seam — `np_platform_clock_init()`, the 94th, and the first platform call the image makes — and `main()` verifies the result against the CCM (`SystemCoreClockUpdate()`) and against `configCPU_CLOCK_HZ` before the scheduler starts, halting into the safety-MCU cutoff path on any mismatch. This closes the half that was actually dangerous: a clock configured *wrongly* rescales every FreeRTOS interval uniformly — a 200 ms safety heartbeat becomes 227 ms at the SDK's own default clock — and stays inside the 1.5 s watchdog, so the interlock that would otherwise catch it does not fire. `np_app_clock_agreement_tests` asserts those figures and that the boot path still contains the check. **What remains:** a driver, not a decision. Needs a board. | Firmware | Device bring-up |
 | OI-SWCI-42 | **Raised 2026-09-01 during phase 8 (§4.8.5); RE-SCOPED 2026-09-02 (phase 9, §4.10.6) — the blocker is gone, the placement is not.** As raised: SW-02's static footprint (162,436 B) exceeded the DTCM the MCUX SDK declares for this part (128 KiB), so `.bss` was placed in the application's own OCRAM2 staging reservation, costing the tightly-coupled path for `ucHeap` (65,536 B), HRV's `s_session_pool` (51,804 B) and `np_module_map`'s `s_map`/`s_nvram_scratch` (22,536 + 22,412 B). It recorded that enlarging DTCM "is a FlexRAM decision, not a linker-script one" and waited on OI-SWCI-39. **OI-SWCI-39 is closed and DTCM is 524,288 B, so 162,436 B now fits three times over** — the original question, *which* buffers deserve DTCM, was a rationing question and there is nothing left to ration. `.bss` nonetheless stays in the staging reservation, deliberately: DTCM exists only if three register writes to silicon nobody has run behave as IMXRT1060RM says, and with `.bss` there a partition that failed to take effect would take the heap, every task stack and every static buffer with it, presenting as arbitrary corruption rather than as an immediate fault in `Reset_Handler`. **What now gates this item is one bench confirmation that the partition took effect, not a decision nobody has made.** After that it is a one-line change of the `.bss` output region | Firmware | — |
 | OI-SWCI-43 | **Raised 2026-09-02 while closing OI-SWCI-40 (§4.9.4).** **84 symbols are declared by an `extern` inside a `.c` that NO header declares at all** — the `np_mod_*_{init,detect,control,shutdown,telemetry}` registration entry points of 17 module drivers, plus `np_ed25519_verify`, which does have a header (`np_crypto.h`) and is one line from the same fix the 56 seams just got. This is the module-registry idiom and several files state it in as many words (*"module drivers expose no per-module header"*), so it is a deliberate design position and not an oversight — but it is the OI-SWCI-18/40 hazard with the mitigation *absent* rather than merely unused: there is no second declaration to disagree with, so a registry entry point whose definition drifts from every caller's guess compiles and links exactly as the closed items' worst case did. Deliberately out of scope for the §4.9 gate, which reports only seams a header already declares: with nothing to compare against, the only assertion available is "a header ought to exist", which is a design decision about how the registry publishes its modules rather than a build property. Closing it means either a per-module header for 17 drivers or one registry header declaring the vtable entry points, and that choice interacts with the hub cluster-controller fan-out (OI-HUB-C01..C19) still being unimplemented. | Firmware | — |
 | OI-SWCI-44 | **Raised 2026-09-02 during phase 9 (§4.10.7); authored as OI-SWCI-43 and renumbered on rebase, as this revision itself was (see the header note).** PR #310 took 43 for the undeclared-`extern` family above. The two are unrelated. `np_config.h` declares `NP_SCRATCH_SRAM_BASE` = `0x20270000` and `NP_SCRATCH_SRAM_SIZE` = 64 KiB — a window that lies **inside** `.app_staging` (`0x20210000`–`0x2027DFFF`) and overlaps the bootloader's 8 KiB stack at the top of OCRAM2. Nothing references either; they are residue of the pre-Defect-C map (§4.3), where OCRAM was believed to have room the derivation later showed it does not. Harmless while unused and a trap the moment someone uses them — a scratch buffer placed there would be overwritten by the next application image the bootloader stages, after signature verification passed, which is Defect C's failure mode with a different cause. Flagged in place rather than deleted: phase 9's subject was a different memory map, and removing constants is a reviewed decision, not a side effect. The fix is deletion unless someone can name the consumer | Firmware | — |
