@@ -565,4 +565,16 @@ typedef struct __attribute__((packed)) {
  * which is included transitively via np_hub_config.h above.
  * Single source of truth — no duplicate definition in this file. */
 
+/* ── SW-02 application entry point ────────────────────────────────────────────
+ * Defined by src/np_hub_control_main.c; called by main() in
+ * firmware/application/src/np_app_main.c after the SDK startup has run
+ * SystemInit(), copied .data and zeroed .bss.  Declared here rather than by an
+ * `extern` in the caller so the definition and the call are compared by the
+ * compiler — NP-SW-CI-001 §4.8.  Does not return: it ends in
+ * vTaskStartScheduler().  Not marked noreturn, because the function's own last
+ * statement is an explicit `for(;;)` that documents the same thing and a
+ * noreturn attribute here would be a promise about FreeRTOS rather than about
+ * this code. */
+void np_hub_control_app_main(void);
+
 #endif /* NP_HUB_TYPES_H */

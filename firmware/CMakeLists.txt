@@ -56,6 +56,22 @@
 # SW-01 (Class C) — Safety MCU firmware:
 #   firmware/safety_mcu/      — STM32G071 bare-metal, separate build
 #
+# SW-02 (Class B) — the platform layer and the image that links it
+# (NP-SW-CI-001 §4.8, phase 8, closes OI-SWCI-21):
+#   firmware/vendor/mcux_sdk/ — vendored MCUX SDK 2.16.0 MIMXRT1062 device
+#                                 layer SOUP (NP-SW-001 §9.4, OI-SWCI-20):
+#                                 device header, SystemInit, GCC startup.
+#   firmware/platform/        — the SW-02 platform layer.  93 symbols, every
+#                                 one a TRAP rather than a driver: it halts,
+#                                 which stops the SPI heartbeat, which makes
+#                                 the safety MCU cut all stimulation.  Its
+#                                 purpose is to make the driver gap countable,
+#                                 not to stand in for drivers.
+#   firmware/application/     — np_application.elf, the SW-02 image the
+#                                 bootloader stages into OCRAM.  IT LINKS; IT
+#                                 DOES NOT RUN, and says so in a string inside
+#                                 the binary.
+#
 # ── Host-test modules ─────────────────────────────────────────────────────────
 # Modules with NP_BUILD_TESTS host targets:
 #   firmware/crypto/          → np_crypto_tests (SHA-256/512, CRC-32, Ed25519)
@@ -96,16 +112,19 @@
 # workflow that owns its host tests, or edits to it run no CI.  Ownership is
 # split by IEC 62304 class (NP-SW-CI-001 §5.0.1 — the workflows are
 # self-contained because `needs:` only works within one workflow):
-#   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (6 targets, Class C)
-#   everything else above → .github/workflows/firmware-cross-build.yml (22 targets, Class B)
-# 7 + 22 = 29.  .github/workflows/build-all.yml re-checks that partition weekly
+#   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (7 targets, Class C)
+#   everything else above → .github/workflows/firmware-cross-build.yml (24 targets, Class B)
+# 7 + 24 = 31.  .github/workflows/build-all.yml re-checks that partition weekly
 # and fails if a target ever belongs to neither list.
-# (This line read "6 + 21 = 27" until 2026-08-12 and was already stale by two:
-#  NP-SW-CI-001 phase 3 moved Class C 6 → 7 and the total 27 → 28 — see the note
-#  at the np_hal_platform_tests registration below — without updating it here.
-#  np_accel_shdr_tests then took Class B 21 → 22 and the total 28 → 29.  The
-#  authoritative values are the NP_*_TEST_COUNT env vars in build-all.yml, which
-#  are asserted against a live ctest enumeration; this comment is not.)
+# (This line has been wrong more often than right, which is the argument against
+#  keeping a count in a comment at all.  It read "6 + 21 = 27" until 2026-08-12
+#  and was stale by two even then; the 2026-08-12 correction to "7 + 22 = 29"
+#  was itself already stale, because np_pbm_cal_bridge_tests had taken Class B
+#  to 23.  Phase 8's np_app_link_agreement_tests takes it to 24.  The
+#  AUTHORITATIVE values are the NP_*_TEST_COUNT env vars in build-all.yml and
+#  firmware-cross-build.yml, which are asserted against a live ctest
+#  enumeration.  This comment is not, and a reader who needs the number should
+#  go there.)
 # (firmware-host-tests.yml was absorbed into the two above and retired —
 #  NP-SW-CI-001 §5.0.1, OI-SWCI-09.)
 
@@ -129,20 +148,31 @@ if(NOT NP_BUILD_TESTS AND NOT CMAKE_CROSSCOMPILING)
 endif()
 
 # ── Platform include paths (MCUX SDK + FreeRTOS) ──────────────────────────────
-# FreeRTOS is vendored in-tree (firmware/vendor/freertos, SOUP: NP-SW-001 §9.4)
-# and its headers are wired in below. The MCUX SDK path is still an empty stub —
-# a real device integration populates it from the installed SDK.
+# Both SDKs are vendored in-tree under the NP-SW-CI-001 §9 decision:
+#   vendor/freertos/   FreeRTOS-Kernel V11.3.0   (SOUP: NP-SW-001 §9.4)
+#   vendor/mcux_sdk/   MCUX SDK 2.16.0, MIMXRT1062 device layer
+#                                                (SOUP: NP-SW-001 §9.4, OI-SWCI-20)
+#   vendor/cmsis_core/ CMSIS-Core(M) 5.6.0 — core_cm7.h for SW-02
+#
+# Until 2026-09-01 the MCUX entry was an empty stub with a "← append MCUX SDK
+# path" marker, and the reason it survived so long is worth keeping: the
+# cross-build had ZERO missing-header errors without it, because SW-02 was
+# stubbed rather than calling into a platform layer at all. A missing include
+# path is invisible while nothing includes anything from it.
+#
 # The per-module CMakeLists files consume NP_PLATFORM_INCLUDE_DIRS as a list.
 # Normal (directory-scope) set, not CACHE: a CACHE set() is ignored when the
 # cache already holds a value, which would silently pin a stale include list on
 # reconfigure. This runs before the add_subdirectory() calls, so subdirectories
-# inherit it. Append the MCUX SDK path here when integrating the full SDK.
+# inherit it.
 if(CMAKE_CROSSCOMPILING)
     set(NP_PLATFORM_INCLUDE_DIRS
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/freertos/kernel/include
         ${CMAKE_CURRENT_SOURCE_DIR}/vendor/freertos/portable/GCC/ARM_CM7/r0p1
         ${CMAKE_CURRENT_SOURCE_DIR}/hub_control/include   # FreeRTOSConfig.h
-        # ← append MCUX SDK path (e.g. $ENV{MCUX_SDK}/devices/MIMXRT1062/...)
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/mcux_sdk/devices/MIMXRT1062
+        ${CMAKE_CURRENT_SOURCE_DIR}/vendor/cmsis_core/Include
+        ${CMAKE_CURRENT_SOURCE_DIR}/platform/include      # np_sw02_platform_hal.h
     )
 endif()
 
@@ -165,6 +195,8 @@ if(NP_BUILD_TESTS)
     add_subdirectory(cervical_vns)   # NP-FAI-CVNS-001: cardiac interlock FAI suite
     add_subdirectory(sloreta_hdtdcs) # NP-FW-HD-001: montage + sLORETA FAI suite
     add_subdirectory(vendor/freertos) # NP-SW-001 §9.4: FreeRTOS kernel smoke test
+    add_subdirectory(application) # NP-SW-CI-001 §4.8: the two linker scripts
+                                  # must agree about the staging reservation.
     add_subdirectory(bootloader)  # NP-SW-CI-001 §4.2: freestanding memcpy/memset.
                                   # ONLY the np_mem.c primitives have a host
                                   # test — the rest of the bootloader is device
@@ -293,6 +325,14 @@ if(NP_BUILD_TESTS)
         COMMAND np_bootloader_app_image_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+    # NP-SW-CI-001 phase 8, OI-SWCI-21.  The application linker script restates
+    # two numbers the bootloader linker script owns; a linker script cannot
+    # include another, so this test is what makes the duplication safe.  Moves
+    # the Class B count 23 → 24 and the repo total 30 → 31.
+    add_test(NAME np_app_link_agreement_tests
+        COMMAND np_app_link_agreement_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
     add_test(NAME np_freertos_smoke_tests
         COMMAND np_freertos_smoke_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
@@ -324,5 +364,15 @@ add_subdirectory(factory_reset)
 add_subdirectory(uhdr_key)
 add_subdirectory(shdr)
 
-# hub_control links all other libraries and is the top-level application target.
 add_subdirectory(hub_control)
+
+# ── The SW-02 platform layer and the image that links it ─────────────────────
+# NP-SW-CI-001 §4.8 (phase 8, closes OI-SWCI-21).  Order matters: np_platform
+# must be configured before np_application, which links it.
+#
+# hub_control is a STATIC library and is NOT the top-level target — this comment
+# used to say it was, and the file it points at said the opposite in its own
+# header ("the MCUX SDK HAL is still provided by the parent application
+# target").  np_application is that parent, and it did not exist until now.
+add_subdirectory(platform)
+add_subdirectory(application)

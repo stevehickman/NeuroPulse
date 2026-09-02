@@ -141,13 +141,14 @@ env:
   # below — and NOT in the `host-tests` job `name:`, which is what a required
   # status check matches on.  The job used to be called "CMake host tests (21
   # Class B targets)"; that count has already moved four times
-  # (19 → 20 → 21 → 22 → 23, the last by OI-HUB-C06's np_pbm_cal_bridge_tests)
+  # (19 → 20 → 21 → 22 → 23 → 24, the last by phase 8's
+  #  np_app_link_agreement_tests)
   # as phases added targets, and a required context is an exact string match, so
   # the next phase that adds a target would have renamed the check and silently
   # stopped satisfying the requirement — a merge deadlock with no error message
   # anywhere.  The number belongs to the assertion, not to the check name.
   # NP-SW-CI-001 §6.7.
-  NP_CLASS_B_TEST_COUNT: '23'
+  NP_CLASS_B_TEST_COUNT: '24'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always
@@ -188,6 +189,8 @@ jobs:
         firmware/uhdr_key/**
         firmware/shdr/**
         firmware/common/**
+        firmware/platform/**
+        firmware/application/**
         firmware/CMakeLists.txt
         firmware/cmake/arm-none-eabi.cmake
         .github/workflows/firmware-cross-build.yml
@@ -446,9 +449,32 @@ jobs:
       - name: Build
         run: cmake --build build/cross
 
+      # OI-SWCI-35, CLOSED at phase 8.  This step used to be
+      # `find build/cross -name '*.elf' | xargs -r arm-none-eabi-size`, and
+      # `find` matching nothing piped to `xargs -r` EXITS 0 — so it passed while
+      # reporting on zero files, every run since it was written, because CMake
+      # gave the cross-compiled executable no suffix and the file was named
+      # `np_bootloader`, not `np_bootloader.elf`.  Phase 7 found this shape on
+      # the Class C leg and raised it here rather than fixing it out of scope.
+      # Fixed on both sides, as there: SUFFIX ".elf" on the target in
+      # firmware/bootloader/CMakeLists.txt, AND the count assertion below.
+      # Either alone is a single point of silent failure.
       - name: Report image size
         if: success()
-        run: find build/cross -name '*.elf' | xargs -r arm-none-eabi-size
+        run: |
+          set -euo pipefail
+          find build/cross -name 'np_bootloader.elf' -type f > /tmp/np-elves.txt
+          n=$(wc -l < /tmp/np-elves.txt | tr -d ' ')
+          echo "matched ${n} image(s):"; cat /tmp/np-elves.txt
+          if [ "${n}" -ne 1 ]; then
+            echo "::error::expected exactly 1 np_bootloader.elf, found ${n} — the link did not produce the documented artifact."
+            exit 1
+          fi
+          elf=$(cat /tmp/np-elves.txt)
+          arm-none-eabi-size "$elf"
+          bytes=$(wc -c < "$elf" | tr -d ' ')
+          echo "elf file size: ${bytes} bytes"
+          [ "${bytes}" -gt 4096 ] || { echo "::error::np_bootloader.elf is ${bytes} bytes — implausibly small for the bootloader image."; exit 1; }
 
       - name: Upload map and logs on failure
         if: failure()
@@ -489,12 +515,14 @@ jobs:
     # red rather than be masked.  This is the last leg to be promoted: no
     # `continue-on-error` remains anywhere in .github/workflows/.
     #
-    # Read this leg for exactly what it claims: every SW-02 translation unit
-    # COMPILES for the i.MX RT1062 under -Wall -Wextra -Werror.  It is not an
-    # assertion that an SW-02 application image links, because no such
-    # executable target exists in-tree — every SW-02 module archives to a
-    # static library and the only ELF this build links is np_bootloader, which
-    # the bootloader leg above has gated since phase 3.  See §4.7/OI-SWCI-21.
+    # PROMOTED AT PHASE 8 — this leg now gates a LINK, not only a compile.
+    # OI-SWCI-21 is closed: firmware/application/ builds np_application.elf, so
+    # "zero unresolved symbols" on this leg is a claim about SW-02 rather than a
+    # claim about np_bootloader with SW-02 standing next to it.  Read it for
+    # what it now claims: every SW-02 translation unit compiles under
+    # -Wall -Wextra -Werror AND the whole set links into one image with nothing
+    # unresolved.  It is still NOT a claim that the image runs — its platform
+    # layer is 93 traps (§4.8), and the image says so about itself.
     #
     # As at phases 3 and 4: the run reporting failure is not the same as the
     # merge being blocked.  No required-check policy exists yet — OI-SWCI-04,
@@ -517,30 +545,134 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release \
                 firmware
 
-      # EXPECTED TO PASS as of phase 5 — Defect D (§4.6) closed.  The super-
-      # project builds clean on the pinned toolchain: 86 targets, 0 errors,
-      # 0 warnings, 0 unresolved symbols.
+      # EXPECTED TO PASS as of phase 8.  Measured 2026-09-01 on
+      # arm-none-eabi-gcc 13.2.1: 96 targets, 0 errors, 0 warnings,
+      # 15 static libraries, 2 executables, 0 unresolved symbols.
       #
-      # NP_PLATFORM_INCLUDE_DIRS is still an empty MCUX stub in
-      # firmware/CMakeLists.txt and that is NOT what this leg is waiting on.
-      # Measured at phase 5: zero missing-header errors in the whole cross
-      # build, because the platform layer is stubbed rather than called into.
-      # The SDK is real device-bring-up work, not build-gating work —
-      # OI-SWCI-20.
+      # NP_PLATFORM_INCLUDE_DIRS is no longer an empty MCUX stub — OI-SWCI-20
+      # closed at phase 8 and firmware/vendor/mcux_sdk/ carries the vendored
+      # MIMXRT1062 device layer.  What phase 5 measured about it stays true and
+      # is worth keeping: the include path being empty caused ZERO
+      # missing-header errors, because nothing included anything from it.  A
+      # missing dependency is invisible while nothing depends on it, which is
+      # the same sentence as §4.7 with different nouns.
       #
-      # What a green result here means: every SW-02 translation unit compiled.
-      # 13 static libraries are archived; exactly one executable is linked, and
-      # it is np_bootloader, gated separately by the bootloader leg since
-      # phase 3.  There is no np_application target (§4.7, OI-SWCI-21).
+      # What a green result here means NOW: every SW-02 translation unit
+      # compiled, and they LINK — np_application.elf, 0 unresolved symbols.
+      # It does not mean the image runs (§4.8).
+      #
+      # The build also runs two assertions of its own, so they cannot be
+      # skipped by anyone building locally: the SW-02 platform seam census
+      # (firmware/cmake/np_platform_census.cmake) and the linker script's own
+      # ASSERTs on image placement and size.  The steps below re-check the
+      # second family on the artifact, because a linker ASSERT proves the link
+      # and not the file that survived it.
       #
       # Not piped through `tail`/`grep`: `cmd | tail` reports tail's exit
       # status, which masked a failure during the §3 measurements.
       - name: Build
         run: cmake --build build/cross
 
-      - name: Report image size
+      # Same shape, and the same reasoning, as the bootloader leg above and the
+      # Class C leg in safety-mcu-ci.yml: an explicit count, never a glob piped
+      # to `xargs -r`.  Two images are expected here — np_bootloader.elf is
+      # built by this super-project too, and is gated separately by the
+      # bootloader job; np_application.elf is this leg's own artifact.
+      - name: Report image sizes
         if: success()
-        run: find build/cross -name '*.elf' | xargs -r arm-none-eabi-size
+        run: |
+          set -euo pipefail
+          find build/cross -name '*.elf' -type f | sort > /tmp/np-elves.txt
+          n=$(wc -l < /tmp/np-elves.txt | tr -d ' ')
+          echo "matched ${n} image(s):"; cat /tmp/np-elves.txt
+          if [ "${n}" -ne 2 ]; then
+            echo "::error::expected exactly 2 ELFs (np_bootloader.elf, np_application.elf), found ${n}."
+            exit 1
+          fi
+          while read -r elf; do arm-none-eabi-size "$elf"; done < /tmp/np-elves.txt
+          app=build/cross/application/np_application.elf
+          [ -f "$app" ] || { echo "::error::np_application.elf missing — phase 8's artifact did not link."; exit 1; }
+          bytes=$(wc -c < "$app" | tr -d ' ')
+          echo "np_application.elf file size: ${bytes} bytes"
+          [ "${bytes}" -gt 4096 ] || { echo "::error::np_application.elf is ${bytes} bytes — implausibly small for the SW-02 image."; exit 1; }
+
+      # The linker script ASSERTs that the loadable image fits the bootloader's
+      # 440 KiB reservation, and a region overflow is a hard link error, so both
+      # already fail the build.  What neither catches is silent GROWTH toward
+      # those walls: an image at 95% of the reservation still links, and the
+      # first anyone hears of it is a failed build after the next feature.
+      # Budgets are deliberately generous against the 2026-09-01 measurement
+      # (loadable 48,208 B = 10.7%; STAGING total incl. .bss 202,164 B = 44.9%)
+      # so this is a tripwire, not a straitjacket.
+      #
+      # The loadable figure is taken from the .bin, not from `size`: the .bin is
+      # byte-for-byte what the bootloader copies, so it is the number
+      # np_app_image_size_check() will actually be given.
+      - name: Assert the SW-02 image fits its budgets
+        if: success()
+        run: |
+          set -euo pipefail
+          bin=build/cross/np_application.bin
+          [ -f "$bin" ] || { echo "::error::np_application.bin missing."; exit 1; }
+          staging_max=$(( 440 * 1024 ))
+          loadable=$(wc -c < "$bin" | tr -d ' ')
+          echo "loadable image ${loadable}/${staging_max} B"
+          [ "$loadable" -le $(( staging_max * 50 / 100 )) ] || { echo "::error::loadable image ${loadable} B exceeds 50% of the ${staging_max} B staging reservation."; exit 1; }
+          # STAGING also holds .bss (see the linker script's .bss comment), so
+          # the region total is what actually runs out, not the image.
+          bss_end=$(arm-none-eabi-nm build/cross/application/np_application.elf | awk '$3=="__bss_end__"{print $1}')
+          origin=$(arm-none-eabi-nm build/cross/application/np_application.elf | awk '$3=="__isr_vector_start"{print $1}')
+          used=$(( 0x$bss_end - 0x$origin ))
+          echo "STAGING region ${used}/${staging_max} B"
+          [ "$used" -le $(( staging_max * 75 / 100 )) ] || { echo "::error::STAGING use ${used} B exceeds 75% of ${staging_max} B — .bss is crowding the reservation."; exit 1; }
+
+      # The link proves the symbols resolve; these prove WHAT they resolved to.
+      # Direct counterpart of the Class C leg's step of the same name.
+      - name: Assert the SW-02 image is whole and free of test doubles
+        if: success()
+        run: |
+          set -euo pipefail
+          elf=build/cross/application/np_application.elf
+          map=build/cross/np_application.map
+          undef=$(arm-none-eabi-nm -u "$elf" | wc -l | tr -d ' ')
+          echo "undefined symbols in np_application.elf: ${undef}"
+          [ "${undef}" -eq 0 ] || { echo "::error::${undef} symbols are still undefined in the SW-02 image."; arm-none-eabi-nm -u "$elf" | head -40; exit 1; }
+          if grep -qE '(^|/)tests/[A-Za-z0-9_]+\.c\.obj' "$map"; then
+            echo "::error::a file from tests/ is linked into the SW-02 image — a test double is the shortest path to a green, useless link."
+            grep -nE '(^|/)tests/[A-Za-z0-9_]+\.c\.obj' "$map" | head
+            exit 1
+          fi
+          echo "ok: no tests/ object in the image"
+          # The image must actually contain the trap layer.  If it did not, the
+          # platform seams resolved to something else, and this leg would be
+          # reporting on an image nobody in this repository wrote.
+          #
+          # Written to a file first, deliberately.  `nm "$elf" | grep -q PATTERN`
+          # under `set -o pipefail` FAILS EVEN WHEN THE PATTERN MATCHES: grep -q
+          # exits on the first hit, nm dies of SIGPIPE, and pipefail promotes
+          # that 141 to the pipeline's status.  Measured locally on 2026-09-01,
+          # against an image that did contain the symbol.  A step that reports a
+          # failure for a symbol that is present is worse than no step.
+          arm-none-eabi-nm "$elf" > /tmp/np-app-syms.txt
+          grep -qE '^[0-9a-f]+ T np_platform_unimplemented$' /tmp/np-app-syms.txt || {
+            echo "::error::np_platform_unimplemented is not in the image — the platform seams resolved somewhere unexpected."; exit 1; }
+          echo "ok: the platform trap layer is in the image"
+
+      # Independent re-run of the seam census the build already performs, so a
+      # green leg states the number rather than assuming the POST_BUILD step ran
+      # (it does not re-run when nothing was rebuilt).  NP-SW-CI-001 §4.8.
+      - name: Assert the SW-02 platform seam census
+        if: success()
+        run: |
+          set -euo pipefail
+          expected=$(sed -n 's/^#define[[:space:]]*NP_SW02_PLATFORM_SYMBOL_COUNT[[:space:]]*\([0-9]*\).*/\1/p' \
+                     firmware/platform/include/np_sw02_platform_hal.h)
+          [ -n "$expected" ] || { echo "::error::NP_SW02_PLATFORM_SYMBOL_COUNT not found in the header."; exit 1; }
+          obj=$(find build/cross -name 'np_platform_stub.c.obj' -type f | head -1)
+          [ -n "$obj" ] || { echo "::error::np_platform_stub.c.obj not found — the census has nothing to count."; exit 1; }
+          count=$(arm-none-eabi-nm --defined-only --extern-only "$obj" | grep -cE ' [Tt] ')
+          echo "SW-02 platform seams: ${count} trapped, 0 driven (expected ${expected})"
+          [ "${count}" -eq "${expected}" ] || { echo "::error::census is ${count}, header says ${expected}."; exit 1; }
 
       - name: Upload map and logs on failure
         if: failure()
