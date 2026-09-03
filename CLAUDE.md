@@ -401,6 +401,40 @@ null results — is in `docs/reference/consent-engine.md` §6.3.
 appear in full on first use in each document, abbreviated thereafter. Signal names, document IDs,
 `§N` citation form and the other identifier families are `docs/np_conv_001.md` (NP-CONV-001).
 
+## 17. LOCALIZED STRINGS — CODE GENERATION RULE (locked 2026-09-03)
+
+**Whenever non-firmware code is generated or edited, user-facing text goes into the locale files
+and the code carries only a key.** Never write a string a person will read into a source file.
+
+| Surface | How text is written | How text is read |
+|---------|--------------------|------------------|
+| Canonical | `locales/<bcp47>.json` — flat `KEY` → string, sorted, all 11 locales carry the same key set | — |
+| Web | — | `t('KEY')`, `tPlural('BASE', n)` from `app/web/src/lib/i18n.ts` |
+| Apple | — | `Text("KEY")`, `String(localized: "KEY")`; with values, `String(format: String(localized: "KEY"), …)` |
+
+- **Add a key to `locales/*.json` — all eleven** — then reference it. `bun scripts/sync-locales.ts`
+  regenerates the String Catalog and the web copies; canonical is the only place a string is edited.
+- **Placeholders are `{0}`, `{1}`** in canonical. `sync-locales` rewrites them to `%1$@` for Apple,
+  so **a numeric argument must be converted at the call site** (`String(count)`) — `%@` takes an
+  object. Plural keys take `_ONE` / `_OTHER` (`_ZERO` is optional and falls back to `_OTHER`).
+- **Module-level tables hold KEYS, not text** (`MODALITY_META.displayNameKey`, `ELEMENT_TYPE_LABEL`,
+  `PRESETS.labelKey`). A constant initialised at import time captures English before `initI18n()`
+  resolves; resolve with `t()` at the point of render.
+- **Not translated, and deliberately literal:** unit symbols and numbers (`Hz`, `mA`, `42%`,
+  `1064nm`), product/tier designations and part numbers (`T1`, `ZM-PBM-DUAL`), enum and identifier
+  values, single glyphs used as icons, and `.npps` parser / hub-compiler diagnostics — those name
+  grammar keywords that are English by definition and read as compiler output.
+- **An unused key is deleted from every locale file**, `_metadata.json` included. A key referenced
+  by nothing is untranslated weight that translators are still asked to pay for.
+- **Firmware is exempt because it renders no text at all.** It carries no locale key and includes no
+  locale file; the device speaks in tones (`np_zone_audio.c`), LEDs and numeric status, and the app
+  does the wording. A locale reference under `firmware/` means that boundary moved — a decision, not
+  a detail.
+
+`bun scripts/check-locale-strings.ts` enforces all of the above and fails CI on a violation; its
+`PENDING_PATHS` names the code the rule has not yet reached (Android, Windows, the iOS
+`Protocol/` and `Models/` display tables) so the gate's reach stays legible.
+
 ---
 
 *This CLAUDE.md is the always-loaded core of the NeurOne design program: the invariants, and a map to
