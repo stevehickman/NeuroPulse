@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { t, tPlural } from '../lib/i18n';
 
 interface ScriptEditorProps {
   value: string;
@@ -46,23 +47,23 @@ export function ScriptEditor({ value, onChange, error, onFormat }: ScriptEditorP
     <div className="script-editor">
       <div className="script-toolbar">
         <button className="btn btn-secondary btn-sm" onClick={onFormat}>
-          Format
+          {t('SCRIPT_FORMAT')}
         </button>
         <button className="btn btn-ghost btn-sm" onClick={handleCopy}>
-          Copy
+          {t('SCRIPT_COPY')}
         </button>
         {error && (
           <span style={{ fontSize: 12, color: 'var(--error)', marginLeft: 4 }}>
-            ⚠ Parse error
+            {t('SCRIPT_PARSE_ERROR')}
           </span>
         )}
         {!error && value.trim() && (
           <span style={{ fontSize: 12, color: 'var(--success)', marginLeft: 4 }}>
-            ✓ Valid NPPS
+            {t('SCRIPT_VALID_NPPS')}
           </span>
         )}
         <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>
-          {lineCount} {lineCount === 1 ? 'line' : 'lines'}
+          {tPlural('SCRIPT_LINE_COUNT', lineCount)}
         </span>
       </div>
 
@@ -85,7 +86,7 @@ export function ScriptEditor({ value, onChange, error, onFormat }: ScriptEditorP
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
-          placeholder="# NPPS Protocol Script&#10;protocol {&#10;    name: &quot;My Protocol&quot;&#10;    ...&#10;}"
+          placeholder={t('SCRIPT_PLACEHOLDER')}
         />
       </div>
 

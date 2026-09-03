@@ -43,6 +43,7 @@ import { NP_SOCKETS, type NPSocketGeometry } from '../lib/socketMap.generated';
 import { NP_SOCKET_COUNT } from '../lib/socketSet';
 import type { NPHelmetInventory, NPElementType } from '../lib/helmetInventory';
 import type { NPZoneDefinition } from '../types/protocol';
+import { t } from '../lib/i18n';
 
 interface SocketPickerProps {
   selected: ReadonlySet<number>;
@@ -198,31 +199,29 @@ export function SocketPicker({
             {name}
           </span>
         ))}
-        <span className="socket-picker-legend-note">
-          S-NN = socket (major address) · tile colour = smallest zone containing it
-        </span>
+        <span className="socket-picker-legend-note">{t('WEB_SOCKET_LEGEND_NOTE')}</span>
       </div>
 
       <div className="socket-picker-scroll">
         <svg viewBox={`0 0 ${width} ${height}`} width={width} role="img" className="socket-picker-svg">
-          <title>Unrolled helmet interior — {NP_SOCKET_COUNT} sockets by zone</title>
+          <title>{t('WEB_SOCKET_MAP_TITLE', { 0: NP_SOCKET_COUNT })}</title>
 
           {/* Unrolled-map framing, as in the Module redesign widget. */}
-          <text x={midX} y={20} textAnchor="middle" className="map-axis">FRONT</text>
-          <text x={midX} y={height - 10} textAnchor="middle" className="map-axis">BACK (occiput)</text>
+          <text x={midX} y={20} textAnchor="middle" className="map-axis">{t('WEB_MAP_FRONT')}</text>
+          <text x={midX} y={height - 10} textAnchor="middle" className="map-axis">{t('WEB_MAP_BACK')}</text>
           <line
             x1={midX} y1={30} x2={midX} y2={height - 26}
             className="map-midline" strokeDasharray="5 5"
           />
-          <text x={PAD - 34} y={height / 2} textAnchor="middle" className="map-side">L</text>
-          <text x={width - PAD + 34} y={height / 2} textAnchor="middle" className="map-side">R</text>
+          <text x={PAD - 34} y={height / 2} textAnchor="middle" className="map-side">{t('WEB_MAP_LEFT')}</text>
+          <text x={width - PAD + 34} y={height / 2} textAnchor="middle" className="map-side">{t('WEB_MAP_RIGHT')}</text>
 
           {/* Ear/audio zones are excluded from tiling — the widget marked these
               with dashed arcs; the socket map simply has no sockets there. */}
-          <text x={PAD - 34} y={height / 2 + 22} textAnchor="middle" className="map-excluded">ear /</text>
-          <text x={PAD - 34} y={height / 2 + 34} textAnchor="middle" className="map-excluded">audio</text>
-          <text x={width - PAD + 34} y={height / 2 + 22} textAnchor="middle" className="map-excluded">ear /</text>
-          <text x={width - PAD + 34} y={height / 2 + 34} textAnchor="middle" className="map-excluded">audio</text>
+          <text x={PAD - 34} y={height / 2 + 22} textAnchor="middle" className="map-excluded">{t('WEB_MAP_EXCLUDED_EAR')}</text>
+          <text x={PAD - 34} y={height / 2 + 34} textAnchor="middle" className="map-excluded">{t('WEB_MAP_EXCLUDED_AUDIO')}</text>
+          <text x={width - PAD + 34} y={height / 2 + 22} textAnchor="middle" className="map-excluded">{t('WEB_MAP_EXCLUDED_EAR')}</text>
+          <text x={width - PAD + 34} y={height / 2 + 34} textAnchor="middle" className="map-excluded">{t('WEB_MAP_EXCLUDED_AUDIO')}</text>
 
           {cells.map(({ socket, cx, cy }) => {
             const isSelected = selected.has(socket.id);
@@ -250,10 +249,14 @@ export function SocketPicker({
                 }}
               >
                 <title>
-                  {`Socket ${socket.id}\n` +
-                    `Zones: ${memberOf.length > 0 ? memberOf.join(', ') : 'none'}\n` +
-                    (fitted?.present ? `Fitted: ${fitted.partNumber}` : 'Empty') +
-                    (status === 'incompatible' ? '\nDoes not supply the required elements' : '')}
+                  {t('WEB_SOCKET_LABEL', { 0: socket.id }) + '\n' +
+                    t('WEB_SOCKET_ZONES', {
+                      0: memberOf.length > 0 ? memberOf.join(', ') : t('WEB_SOCKET_ZONES_NONE'),
+                    }) + '\n' +
+                    (fitted?.present
+                      ? t('WEB_SOCKET_FITTED', { 0: fitted.partNumber })
+                      : t('WEB_SOCKET_EMPTY')) +
+                    (status === 'incompatible' ? '\n' + t('WEB_SOCKET_INCOMPATIBLE') : '')}
                 </title>
                 <polygon
                   points={hexPoints(cx, cy, HEX_R - 2)}
@@ -283,16 +286,7 @@ export function SocketPicker({
         </svg>
       </div>
 
-      <div className="socket-picker-caption">
-        Unrolled interior map from the Module redesign study — front at top, occiput at bottom,
-        dashed midline. Each tile is coloured by the smallest zone that contains it, from the
-        zones loaded out of the .npps protocol tree, so user-defined and research zones appear
-        here alongside the shipped ones; hover a tile for its full zone membership. Dashed
-        outlines are midline sockets, which the zone file lists in both the left- and right-side
-        zone they belong to. Amber dot = fitted module cannot supply the selected modality.
-        Tile <em>positions</em> are provisional pending shell CAD; socket identity is from the
-        generated lattice and zone membership is from the zone file.
-      </div>
+      <div className="socket-picker-caption">{t('WEB_SOCKET_PICKER_CAPTION')}</div>
     </div>
   );
 }
