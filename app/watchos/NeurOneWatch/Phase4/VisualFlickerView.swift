@@ -124,7 +124,7 @@ struct VisualFlickerView: View {
                 .font(.system(size: 10))
                 .foregroundColor(.white.opacity(0.7))
                 .multilineTextAlignment(.center)
-            Button("I understand — enable") {
+            Button("WATCH_I_UNDERSTAND_ENABLE") {
                 userAcknowledgedWarning = true
                 if session.status == .running { startFlicker() }
             }

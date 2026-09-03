@@ -41,7 +41,7 @@ struct SessionStatusView: View {
                 }
                 .padding(.horizontal, 8)
             }
-            .navigationTitle("NeurOne")
+            .navigationTitle("UI_APP_TITLE")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -52,12 +52,12 @@ struct SessionStatusView: View {
             }
         }
         .sheet(isPresented: $showPresetPicker) { presetPickerView }
-        .alert("Impedance Check", isPresented: $showImpedanceAlert) {
+        .alert("WATCH_IMPEDANCE_CHECK", isPresented: $showImpedanceAlert) {
             Button("OK", role: .cancel) {}
         } message: {
             impedanceAlertMessage
         }
-        .alert("Consumable Low", isPresented: $showConsumableAlert) {
+        .alert("WATCH_CONSUMABLE_LOW", isPresented: $showConsumableAlert) {
             Button("OK", role: .cancel) {}
         } message: {
             consumableAlertMessage
@@ -184,7 +184,7 @@ struct SessionStatusView: View {
                 }
             }
         }
-        .navigationTitle("Presets")
+        .navigationTitle("WATCH_PRESETS")
     }
 
     // MARK: - Alert messages

@@ -35,7 +35,7 @@ struct LimitsSettingsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("Level", selection: $selectedTab) {
+                Picker("LIMITS_LEVEL", selection: $selectedTab) {
                     ForEach(LimitTab.allCases, id: \.self) {
                         Text($0.rawValue).tag($0)
                     }
@@ -49,7 +49,7 @@ struct LimitsSettingsView: View {
                 case .individual: individualTab
                 }
             }
-            .navigationTitle("Dosage Limits")
+            .navigationTitle("UI_LIMITS_TITLE")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -68,16 +68,16 @@ struct LimitsSettingsView: View {
                 }
                 .environmentObject(limitsStore)
             }
-            .alert("Script Error", isPresented: $showScriptError) {
+            .alert("LIMITS_SCRIPT_ERROR", isPresented: $showScriptError) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(scriptError ?? "Unknown error")
             }
             // Add Helmet
-            .alert("Add Helmet", isPresented: $showAddHelmet) {
-                TextField("Serial number (e.g. NP-001)", text: $newHelmetSerial)
+            .alert("LIMITS_ADD_HELMET", isPresented: $showAddHelmet) {
+                TextField("LIMITS_SERIAL_NUMBER_E_G_NP_001", text: $newHelmetSerial)
                     .autocorrectionDisabled()
-                Button("Add") {
+                Button("UI_ADD") {
                     guard !newHelmetSerial.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                     let serial = newHelmetSerial.trimmingCharacters(in: .whitespaces)
                     var lim = NPLimitsSet(name: "Helmet \(serial)", level: .helmet)
@@ -85,22 +85,22 @@ struct LimitsSettingsView: View {
                     limitsStore.saveHelmetLimits(lim, forHelmet: serial)
                     newHelmetSerial = ""
                 }
-                Button("Cancel", role: .cancel) { newHelmetSerial = "" }
+                Button("COMMON_CANCEL", role: .cancel) { newHelmetSerial = "" }
             } message: {
-                Text("Enter the helmet serial number to configure per-helmet limits.")
+                Text("LIMITS_ENTER_THE_HELMET_SERIAL_NUMBER_TO_CONFIGURE")
             }
             // Add Profile
-            .alert("Add Profile", isPresented: $showAddProfile) {
-                TextField("Profile name", text: $newProfileName)
-                Button("Add") {
+            .alert("LIMITS_ADD_PROFILE", isPresented: $showAddProfile) {
+                TextField("LIMITS_PROFILE_NAME", text: $newProfileName)
+                Button("UI_ADD") {
                     guard !newProfileName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                     let profile = NPIndividualProfile(name: newProfileName.trimmingCharacters(in: .whitespaces))
                     limitsStore.saveProfile(profile)
                     newProfileName = ""
                 }
-                Button("Cancel", role: .cancel) { newProfileName = "" }
+                Button("COMMON_CANCEL", role: .cancel) { newProfileName = "" }
             } message: {
-                Text("Enter a name for this individual profile.")
+                Text("LIMITS_ENTER_A_NAME_FOR_THIS_INDIVIDUAL_PROFILE")
             }
         }
     }
@@ -109,19 +109,19 @@ struct LimitsSettingsView: View {
 
     private var globalTab: some View {
         List {
-            Section("Global Limits") {
+            Section("LIMITS_GLOBAL_LIMITS") {
                 if let gl = limitsStore.globalLimits {
                     limitsSummaryRow(gl)
-                    Button("Edit Global Limits") {
+                    Button("UI_EDIT_GLOBAL_LIMITS") {
                         editingLimits = gl
                         onSaveLimits = { limitsStore.saveGlobalLimits($0); revalidate() }
                         showEditor = true
                     }
                 } else {
-                    Text("No global limits configured — all hardware maximums apply.")
+                    Text("LIMITS_NO_GLOBAL_LIMITS_CONFIGURED_ALL_HARDWARE_MAX")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    Button("Configure Global Limits") {
+                    Button("LIMITS_CONFIGURE_GLOBAL_LIMITS") {
                         editingLimits = NPLimitsSet(name: "Global", level: .global)
                         onSaveLimits = { limitsStore.saveGlobalLimits($0); revalidate() }
                         showEditor = true
@@ -129,14 +129,14 @@ struct LimitsSettingsView: View {
                 }
             }
 
-            Section("Script") {
-                Button("Import from Script") {
+            Section("UI_TAB_SCRIPT") {
+                Button("LIMITS_IMPORT_FROM_SCRIPT") {
                     scriptText = ""
                     pendingScriptLevelSave = { limitsStore.saveGlobalLimits($0); revalidate() }
                     showScriptImport = true
                 }
                 if limitsStore.globalLimits != nil {
-                    Button("Export as Script") {
+                    Button("LIMITS_EXPORT_AS_SCRIPT") {
                         if let gl = limitsStore.globalLimits {
                             scriptText = limitsStore.exportLimitsAsNPPS(gl)
                         }
@@ -158,18 +158,18 @@ struct LimitsSettingsView: View {
                 Button {
                     showAddHelmet = true
                 } label: {
-                    Label("Add Helmet Serial", systemImage: "plus")
+                    Label("LIMITS_ADD_HELMET_SERIAL", systemImage: "plus")
                 }
             }
 
             if limitsStore.helmetLimits.isEmpty {
                 Section {
-                    Text("No helmet-specific limits configured.")
+                    Text("LIMITS_NO_HELMET_SPECIFIC_LIMITS_CONFIGURED")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
             } else {
-                Section("Configured Helmets") {
+                Section("LIMITS_CONFIGURED_HELMETS") {
                     ForEach(Array(limitsStore.helmetLimits.keys).sorted(), id: \.self) { serial in
                         let lim = limitsStore.helmetLimits[serial]!
                         let isConnected = serial == limitsStore.activeHelmetSerial
@@ -180,7 +180,7 @@ struct LimitsSettingsView: View {
                                         Text(serial)
                                             .font(.headline)
                                         if isConnected {
-                                            Text("Connected")
+                                            Text("LIMITS_CONNECTED")
                                                 .font(.caption2)
                                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                                 .background(Color.green.opacity(0.15))
@@ -193,7 +193,7 @@ struct LimitsSettingsView: View {
                                         .foregroundColor(.secondary)
                                 }
                                 Spacer()
-                                Button("Edit") {
+                                Button("UI_EDIT") {
                                     editingLimits = lim
                                     onSaveLimits = { limitsStore.saveHelmetLimits($0, forHelmet: serial); revalidate() }
                                     showEditor = true
@@ -207,7 +207,7 @@ struct LimitsSettingsView: View {
                                 limitsStore.helmetLimits.removeValue(forKey: serial)
                                 revalidate()
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label("UI_DELETE", systemImage: "trash")
                             }
                         }
                     }
@@ -227,26 +227,26 @@ struct LimitsSettingsView: View {
                 Button {
                     showAddProfile = true
                 } label: {
-                    Label("Add Profile", systemImage: "plus")
+                    Label("LIMITS_ADD_PROFILE", systemImage: "plus")
                 }
             }
 
             if limitsStore.profiles.isEmpty {
                 Section {
-                    Text("No individual profiles configured.")
+                    Text("LIMITS_NO_INDIVIDUAL_PROFILES_CONFIGURED")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
             } else {
                 if let active = limitsStore.activeProfile {
-                    Section("Active Profile") {
+                    Section("LIMITS_ACTIVE_PROFILE") {
                         profileRow(active, isActive: true)
                     }
                 }
 
                 let inactive = limitsStore.profiles.filter { $0.id != limitsStore.activeProfileId }
                 if !inactive.isEmpty {
-                    Section("Profiles") {
+                    Section("LIMITS_PROFILES") {
                         ForEach(inactive) { profile in
                             profileRow(profile, isActive: false)
                         }
@@ -268,7 +268,7 @@ struct LimitsSettingsView: View {
                         Text(profile.name)
                             .font(.headline)
                         if isActive {
-                            Text("Active")
+                            Text("LIMITS_ACTIVE")
                                 .font(.caption2)
                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                 .background(Color.accentColor.opacity(0.15))
@@ -295,7 +295,7 @@ struct LimitsSettingsView: View {
                     .font(.caption)
                     .foregroundColor(isActive ? .secondary : .accentColor)
 
-                    Button("Edit Limits") {
+                    Button("UI_EDIT_LIMITS") {
                         editingLimits = limitsStore.individualLimits[profile.id]
                             ?? NPLimitsSet(name: profile.name, level: .individual)
                         onSaveLimits = { limitsStore.saveIndividualLimits($0, forProfile: profile.id); revalidate() }
@@ -313,7 +313,7 @@ struct LimitsSettingsView: View {
                 limitsStore.deleteProfile(profile.id)
                 revalidate()
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label("UI_DELETE", systemImage: "trash")
             }
         }
     }
@@ -377,7 +377,7 @@ struct LimitsEditorView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("Mode", selection: $viewMode) {
+                Picker("VALIDATE_PARAM_MODE", selection: $viewMode) {
                     ForEach(EditorMode.allCases, id: \.self) {
                         Text($0.rawValue).tag($0)
                     }
@@ -391,14 +391,14 @@ struct LimitsEditorView: View {
                     scriptEditor
                 }
             }
-            .navigationTitle("Edit Limits")
+            .navigationTitle("UI_EDIT_LIMITS")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(String(localized: "COMMON_CANCEL")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button("LIMITS_SAVE") {
                         onSave(workingLimits)
                         dismiss()
                     }
@@ -421,9 +421,9 @@ struct LimitsEditorView: View {
 
     private var visualEditor: some View {
         Form {
-            Section("Name") {
-                TextField("Limits name", text: $workingLimits.name)
-                TextField("Description (optional)", text: $workingLimits.description)
+            Section("CLINICIAN_GRANT_NAME_PLACEHOLDER") {
+                TextField("UI_LIMITS_NAME_PLACEHOLDER", text: $workingLimits.name)
+                TextField("UI_LIMITS_DESC_PLACEHOLDER", text: $workingLimits.description)
             }
 
             pbmTranscranialSection
@@ -810,7 +810,7 @@ struct LimitsEditorView: View {
                     get: { workingLimits.cervicalVns?.maxSessionDurationSeconds },
                     set: { workingLimits.cervicalVns?.maxSessionDurationSeconds = $0 }
                 ))
-                Text("Cardiac interlock is always enforced by the safety MCU — not configurable.")
+                Text("LIMITS_CARDIAC_INTERLOCK_IS_ALWAYS_ENFORCED_BY_THE")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -873,11 +873,11 @@ struct OptionalDoubleField: View {
             Text(label)
             Spacer()
             if value == nil {
-                Button("Set limit") { value = (range.lowerBound + range.upperBound) / 2; syncText() }
+                Button("LIMITS_SET_LIMIT") { value = (range.lowerBound + range.upperBound) / 2; syncText() }
                     .font(.caption)
                     .foregroundColor(.accentColor)
             } else {
-                TextField("No limit", text: $text)
+                TextField("LIMITS_NO_LIMIT", text: $text)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
@@ -924,11 +924,11 @@ struct OptionalIntField: View {
             Text(label)
             Spacer()
             if value == nil {
-                Button("Set limit") { value = (range.lowerBound + range.upperBound) / 2; syncText() }
+                Button("LIMITS_SET_LIMIT") { value = (range.lowerBound + range.upperBound) / 2; syncText() }
                     .font(.caption)
                     .foregroundColor(.accentColor)
             } else {
-                TextField("No limit", text: $text)
+                TextField("LIMITS_NO_LIMIT", text: $text)
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 70)
@@ -974,11 +974,11 @@ struct OptionalDurationField: View {
             Text(label)
             Spacer()
             if value == nil {
-                Button("Set limit") { value = 1200; syncText() }
+                Button("LIMITS_SET_LIMIT") { value = 1200; syncText() }
                     .font(.caption)
                     .foregroundColor(.accentColor)
             } else {
-                TextField("No limit", text: $text)
+                TextField("LIMITS_NO_LIMIT", text: $text)
                     .keyboardType(.default)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 90)
@@ -1034,7 +1034,7 @@ struct OptionalBoolField: View {
                 }
                 .buttonStyle(.plain)
             } else {
-                Button("Set limit") { value = true }
+                Button("LIMITS_SET_LIMIT") { value = true }
                     .font(.caption)
                     .foregroundColor(.accentColor)
             }
@@ -1051,13 +1051,13 @@ struct AllowedBandsField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Allowed EEG Bands")
+                Text("LIMITS_ALLOWED_EEG_BANDS")
                 Spacer()
                 if value == nil {
-                    Button("Restrict") { value = allBands.map { $0.rawValue } }
+                    Button("LIMITS_RESTRICT") { value = allBands.map { $0.rawValue } }
                         .font(.caption).foregroundColor(.accentColor)
                 } else {
-                    Button("Allow All") { value = nil }
+                    Button("LIMITS_ALLOW_ALL") { value = nil }
                         .font(.caption).foregroundColor(.secondary)
                 }
             }
@@ -1084,13 +1084,13 @@ struct AllowedVNSProtocolsField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Allowed HRV Protocols")
+                Text("UI_LIM_ALLOWED_HRV")
                 Spacer()
                 if value == nil {
-                    Button("Restrict") { value = allProtos.map { $0.rawValue } }
+                    Button("LIMITS_RESTRICT") { value = allProtos.map { $0.rawValue } }
                         .font(.caption).foregroundColor(.accentColor)
                 } else {
-                    Button("Allow All") { value = nil }
+                    Button("LIMITS_ALLOW_ALL") { value = nil }
                         .font(.caption).foregroundColor(.secondary)
                 }
             }
@@ -1117,13 +1117,13 @@ struct AllowedVisualModesField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Allowed Visual Modes")
+                Text("LIMITS_ALLOWED_VISUAL_MODES")
                 Spacer()
                 if value == nil {
-                    Button("Restrict") { value = allModes.map { $0.rawValue } }
+                    Button("LIMITS_RESTRICT") { value = allModes.map { $0.rawValue } }
                         .font(.caption).foregroundColor(.accentColor)
                 } else {
-                    Button("Allow All") { value = nil }
+                    Button("LIMITS_ALLOW_ALL") { value = nil }
                         .font(.caption).foregroundColor(.secondary)
                 }
             }
@@ -1150,13 +1150,13 @@ struct AllowedHDTdcsMontagesField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Allowed Montages")
+                Text("UI_LIM_ALLOWED_MONTAGES")
                 Spacer()
                 if value == nil {
-                    Button("Restrict") { value = allMontages.map { $0.rawValue } }
+                    Button("LIMITS_RESTRICT") { value = allMontages.map { $0.rawValue } }
                         .font(.caption).foregroundColor(.accentColor)
                 } else {
-                    Button("Allow All") { value = nil }
+                    Button("LIMITS_ALLOW_ALL") { value = nil }
                         .font(.caption).foregroundColor(.secondary)
                 }
             }
@@ -1202,7 +1202,7 @@ struct ScriptImportView: View {
                 if parsedLimits != nil {
                     HStack {
                         Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
-                        Text("Limits parsed successfully").font(.caption).foregroundColor(.green)
+                        Text("LIMITS_LIMITS_PARSED_SUCCESSFULLY").font(.caption).foregroundColor(.green)
                     }
                     .padding(.horizontal).padding(.vertical, 6)
                     .background(Color.green.opacity(0.1))
@@ -1221,14 +1221,14 @@ struct ScriptImportView: View {
                         }
                     }
             }
-            .navigationTitle("Import Limits Script")
+            .navigationTitle("LIMITS_IMPORT_LIMITS_SCRIPT")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(String(localized: "COMMON_CANCEL")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Import") {
+                    Button("LIMITS_IMPORT") {
                         if let l = parsedLimits { onImport(l) }
                         dismiss()
                     }

@@ -47,7 +47,7 @@ struct ProtocolComposerView: View {
             .sheet(isPresented: $showScript) {
                 scriptPreviewSheet
             }
-            .alert("Cannot Save", isPresented: $showSaveError) {
+            .alert("PROTOCOL_COMPOSER_CANNOT_SAVE", isPresented: $showSaveError) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(saveError ?? "Please fill in required fields.")
@@ -63,17 +63,17 @@ struct ProtocolComposerView: View {
             Button(String(localized: "COMMON_CANCEL")) { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-            Button("Save") { attemptSave() }
+            Button("PROTOCOL_COMPOSER_SAVE") { attemptSave() }
         }
     }
 
     // MARK: - Identity section
 
     private var identitySection: some View {
-        Section("Identity") {
-            TextField("Composition Name", text: $draft.name)
+        Section("UI_SECTION_IDENTITY") {
+            TextField("PROTOCOL_COMPOSER_COMPOSITION_NAME", text: $draft.name)
                 .autocorrectionDisabled()
-            TextField("Description", text: $draft.description, axis: .vertical)
+            TextField("UI_FIELD_DESCRIPTION", text: $draft.description, axis: .vertical)
                 .lineLimit(2...4)
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "PROTOCOL_TAGS")).font(.caption).foregroundColor(.secondary)
@@ -88,8 +88,8 @@ struct ProtocolComposerView: View {
                 }
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Conflict Resolution").font(.caption).foregroundColor(.secondary)
-                Picker("Conflict Resolution", selection: $draft.conflictResolution) {
+                Text("PROTOCOL_CONFLICT_RESOLUTION").font(.caption).foregroundColor(.secondary)
+                Picker("PROTOCOL_CONFLICT_RESOLUTION", selection: $draft.conflictResolution) {
                     ForEach(NPCompositeProtocol.ConflictResolution.allCases) { cr in
                         Text(cr.displayName).tag(cr)
                     }
@@ -102,9 +102,9 @@ struct ProtocolComposerView: View {
     // MARK: - Timeline visualization section
 
     private var timelineSection: some View {
-        Section("Timeline") {
+        Section("PROTOCOL_COMPOSER_TIMELINE") {
             if draft.layers.isEmpty {
-                Text("Add layers to see timeline.")
+                Text("PROTOCOL_ADD_LAYERS_HINT")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
@@ -126,7 +126,7 @@ struct ProtocolComposerView: View {
     private var layersSection: some View {
         Section {
             if draft.layers.isEmpty {
-                Text("No layers added yet.")
+                Text("PROTOCOL_NO_LAYERS")
                     .foregroundColor(.secondary)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 8)
@@ -154,11 +154,11 @@ struct ProtocolComposerView: View {
             Button {
                 showLayerPicker = true
             } label: {
-                Label("Add Layer", systemImage: "plus.circle.fill")
+                Label("UI_ADD_LAYER_TITLE", systemImage: "plus.circle.fill")
             }
         } header: {
             HStack {
-                Text("Layers")
+                Text("PROTOCOL_LAYERS")
                 Spacer()
                 EditButton().font(.caption)
             }
@@ -172,7 +172,7 @@ struct ProtocolComposerView: View {
             Button {
                 showScript = true
             } label: {
-                Label("View Script", systemImage: "doc.text")
+                Label("PROTOCOL_COMPOSER_VIEW_SCRIPT", systemImage: "doc.text")
             }
         }
     }
@@ -187,7 +187,7 @@ struct ProtocolComposerView: View {
                     onFormat: {}
                 )
             }
-            .navigationTitle("Composition Script")
+            .navigationTitle("PROTOCOL_COMPOSER_COMPOSITION_SCRIPT")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -327,7 +327,7 @@ struct LayerEditorRow: View {
                             if let dur = layer.durationSeconds {
                                 Text("Duration: \(formatTime(dur))")
                             } else {
-                                Text("Duration: full")
+                                Text("PROTOCOL_DURATION_FULL")
                             }
                             if abs(layer.intensityScale - 1.0) > 0.001 {
                                 Text("\(Int(layer.intensityScale * 100))%")
@@ -359,14 +359,14 @@ struct LayerEditorRow: View {
                         in: 0...240
                     ) {
                         HStack {
-                            Text("Start Offset").font(.caption).foregroundColor(.secondary)
+                            Text("PROTOCOL_START_OFFSET").font(.caption).foregroundColor(.secondary)
                             Spacer()
                             Text(formatTime(layer.startOffsetSeconds)).font(.caption)
                         }
                     }
 
                     // Duration
-                    Toggle("Custom Duration", isOn: Binding(
+                    Toggle("PROTOCOL_COMPOSER_CUSTOM_DURATION", isOn: Binding(
                         get: { layer.durationSeconds != nil },
                         set: { on in layer.durationSeconds = on ? 20 * 60 : nil }
                     ))
@@ -391,7 +391,7 @@ struct LayerEditorRow: View {
                     // Intensity scale
                     VStack(alignment: .leading, spacing: 2) {
                         HStack {
-                            Text("Intensity Scale").font(.caption).foregroundColor(.secondary)
+                            Text("PROTOCOL_INTENSITY_SCALE").font(.caption).foregroundColor(.secondary)
                             Spacer()
                             Text("\(Int(layer.intensityScale * 100))%").font(.caption.monospacedDigit())
                         }
@@ -425,7 +425,7 @@ struct LayerPickerSheet: View {
             List {
                 let singles = library.allProtocols.filter { !$0.isComposite }
                 if singles.isEmpty {
-                    Text("No single protocols available. Create a protocol first.")
+                    Text("PROTOCOL_NO_SINGLES")
                         .foregroundColor(.secondary)
                         .font(.subheadline)
                 } else {
@@ -445,7 +445,7 @@ struct LayerPickerSheet: View {
                     }
                 }
             }
-            .navigationTitle("Select Protocol")
+            .navigationTitle("PROTOCOL_COMPOSER_SELECT_PROTOCOL")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

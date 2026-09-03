@@ -18,7 +18,7 @@ struct ProtocolScriptEditorView: View {
             // Toolbar
             HStack {
                 Button(action: onFormat) {
-                    Label("Format", systemImage: "text.alignleft")
+                    Label("SCRIPT_FORMAT", systemImage: "text.alignleft")
                         .font(.caption)
                 }
                 .buttonStyle(.bordered)
@@ -34,7 +34,7 @@ struct ProtocolScriptEditorView: View {
                 Button {
                     UIPasteboard.general.string = localText
                 } label: {
-                    Label("Copy", systemImage: "doc.on.doc")
+                    Label("SCRIPT_COPY", systemImage: "doc.on.doc")
                         .font(.caption)
                 }
                 .buttonStyle(.bordered)

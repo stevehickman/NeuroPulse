@@ -53,7 +53,7 @@ struct MainTabView: View {
     private var setupTab: some View {
         SetupView()
             .tabItem {
-                Label("Setup", systemImage: "gearshape")
+                Label("TAB_SETUP", systemImage: "gearshape")
             }
             .badge(setup.isFirstSetupComplete ? 0 : 1)
             .tag(1)
@@ -80,7 +80,7 @@ struct MainTabView: View {
     private var firmwareTab: some View {
         OTAView()
             .tabItem {
-                Label("Firmware", systemImage: "arrow.down.circle")
+                Label("TAB_FIRMWARE", systemImage: "arrow.down.circle")
             }
             .tag(4)
     }

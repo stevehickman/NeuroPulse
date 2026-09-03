@@ -129,8 +129,8 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
               {f === 'all'
                 ? t('WEB_FILTER_ALL')
                 : f === 'predefined'
-                  ? t('WEB_FILTER_PREDEFINED')
-                  : t('WEB_FILTER_MINE')}
+                  ? t('UI_FILTER_PREDEFINED')
+                  : t('UI_FILTER_MINE')}
             </button>
           ))}
         </div>
@@ -159,7 +159,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
             title={t('WEB_LIMITS_TOOLTIP')}
             style={{ fontSize: 13 }}
           >
-            {t('WEB_LIMITS')}
+            {t('UI_LIMITS')}
           </button>
           <button className="btn btn-secondary" onClick={onOpenComposer}>
             {t('WEB_COMPOSE')}
@@ -192,7 +192,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
 
         {showPredefined && (
           <div className="protocol-section">
-            <div className="protocol-section-header">{t('WEB_FILTER_PREDEFINED')}</div>
+            <div className="protocol-section-header">{t('UI_FILTER_PREDEFINED')}</div>
             <div className="protocol-cards">
               {predefined.map(entry => (
                 <ProtocolCard
@@ -212,7 +212,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
 
         {showUser && (
           <div className="protocol-section">
-            <div className="protocol-section-header">{t('WEB_FILTER_MINE')}</div>
+            <div className="protocol-section-header">{t('UI_FILTER_MINE')}</div>
             <div className="protocol-cards">
               {userOwned.map(entry => (
                 <ProtocolCard
@@ -370,14 +370,14 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
         )}
 
         <button className="btn btn-secondary btn-sm" onClick={onEdit}>
-          {canEdit ? t('WEB_EDIT') : t('WEB_VIEW')}
+          {canEdit ? t('UI_EDIT') : t('WEB_VIEW')}
         </button>
         <button className="btn btn-ghost btn-sm" onClick={onDuplicate} title={t('WEB_DUPLICATE_TOOLTIP')}>
           {t('WEB_COPY')}
         </button>
         {onDelete && canEdit && (
           <button className="btn btn-danger btn-sm" onClick={onDelete}>
-            {t('WEB_DELETE')}
+            {t('UI_DELETE')}
           </button>
         )}
       </div>
@@ -500,7 +500,7 @@ function ConfirmDialog({ message, onConfirm, onCancel }: {
         </div>
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onCancel}>{t('COMMON_CANCEL')}</button>
-          <button className="btn btn-danger" onClick={onConfirm}>{t('WEB_DELETE')}</button>
+          <button className="btn btn-danger" onClick={onConfirm}>{t('UI_DELETE')}</button>
         </div>
       </div>
     </div>

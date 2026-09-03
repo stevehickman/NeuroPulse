@@ -29,11 +29,11 @@ struct OTAView: View {
                 rollbackNotice
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Firmware")
+            .navigationTitle("OTA_FIRMWARE")
             .onAppear { ota.checkForUpdates() }
-            .alert("Update Safety MCU?", isPresented: $showSafetyMCUConfirmation) {
-                Button("Cancel", role: .cancel) {}
-                Button("Update Safety MCU", role: .destructive) {
+            .alert("OTA_UPDATE_SAFETY_MCU", isPresented: $showSafetyMCUConfirmation) {
+                Button("COMMON_CANCEL", role: .cancel) {}
+                Button("OTA_UPDATE_SAFETY_MCU_2", role: .destructive) {
                     if let fw = ota.availableUpdate {
                         Task { try? await ota.beginSafetyMCUUpdate(image: fw) }
                     }
@@ -47,7 +47,7 @@ struct OTAView: View {
     // MARK: - Sections
 
     private var hubStatusSection: some View {
-        Section("Hub Status") {
+        Section("OTA_HUB_STATUS") {
             HStack {
                 Image(systemName: gatt.connectionState == .connected ? "wifi" : "wifi.slash")
                     .foregroundColor(gatt.connectionState == .connected ? .green : .secondary)
@@ -60,7 +60,7 @@ struct OTAView: View {
 
     // ISC-108: show current hub firmware version alongside available version.
     private var versionSection: some View {
-        Section("Version") {
+        Section("PROTOCOL_VERSION") {
             LabeledContent("Installed") {
                 Text(gatt.hubFirmwareVersion ?? (gatt.connectionState == .connected ? "Reading…" : "—"))
                     .foregroundColor(.secondary)
@@ -74,7 +74,7 @@ struct OTAView: View {
     }
 
     private var upToDateSection: some View {
-        Section("Updates") {
+        Section("OTA_UPDATES") {
             HStack {
                 Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
                 Text(String(localized: "OTA_UP_TO_DATE")).font(.subheadline)
@@ -121,21 +121,21 @@ struct OTAView: View {
             }
 
             if fw.isSafetyMCUFirmware {
-                Button("Update Safety MCU Firmware") {
+                Button("OTA_UPDATE_SAFETY_MCU_FIRMWARE") {
                     showSafetyMCUConfirmation = true
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.red)
                 .disabled(!isReadyForUpdate)
             } else {
-                Button("Install Update") {
+                Button("OTA_INSTALL_UPDATE") {
                     Task { try? await ota.beginUpdate(image: fw) }
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!isReadyForUpdate)
             }
         } header: {
-            Label("Update Available", systemImage: "arrow.down.circle.fill")
+            Label("OTA_UPDATE_AVAILABLE", systemImage: "arrow.down.circle.fill")
                 .foregroundColor(.accentColor)
         }
     }
@@ -143,7 +143,7 @@ struct OTAView: View {
     // ISC-110: bytes/total bytes progress bar.
     // ISC-112: "Update complete — hub will restart" message.
     private func progressSection(_ session: OTASession) -> some View {
-        Section("Update Progress") {
+        Section("OTA_UPDATE_PROGRESS") {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Text(ota.phase.description).font(.subheadline.bold())
@@ -164,10 +164,10 @@ struct OTAView: View {
 
                 // ISC-112: applying / complete messaging.
                 if ota.phase == .applying {
-                    Label("Hub is restarting — do not disconnect.", systemImage: "exclamationmark.triangle.fill")
+                    Label("OTA_HUB_IS_RESTARTING_DO_NOT_DISCONNECT", systemImage: "exclamationmark.triangle.fill")
                         .font(.caption).foregroundColor(.orange)
                 } else if ota.phase == .complete {
-                    Label("Update complete — hub restarted successfully.", systemImage: "checkmark.circle.fill")
+                    Label("OTA_UPDATE_COMPLETE_HUB_RESTARTED_SUCCESSFULLY", systemImage: "checkmark.circle.fill")
                         .font(.caption).foregroundColor(.green)
                 } else if ota.phase == .verifying || ota.phase == .verified {
                     Text(String(localized: "OTA_VERIFYING"))
@@ -175,7 +175,7 @@ struct OTAView: View {
                 }
 
                 if ota.phase.isBusy && ota.phase != .applying {
-                    Button("Abort", role: .destructive) { ota.abort() }
+                    Button("OTA_ABORT", role: .destructive) { ota.abort() }
                         .buttonStyle(.bordered).controlSize(.small)
                 }
             }
@@ -183,8 +183,8 @@ struct OTAView: View {
     }
 
     private var rollbackNotice: some View {
-        Section("Safety") {
-            Text("If the hub fails to boot after an update, it automatically rolls back"
+        Section("OTA_SAFETY") {
+            Text("OTA_IF_THE_HUB_FAILS_TO_BOOT_AFTER_AN_UPDATE_IT"
                 + " to the previous firmware version after 3 failed boot attempts."
                 + " You can also force USB-C DFU recovery by holding the hub reset"
                 + " button during USB-C connection.")
