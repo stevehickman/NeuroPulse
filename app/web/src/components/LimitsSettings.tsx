@@ -180,7 +180,7 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
         onClick={e => e.stopPropagation()}
       >
         <div className="modal-header">
-          <span className="modal-title">{t('WEB_LIMITS_TITLE')}</span>
+          <span className="modal-title">{t('UI_LIMITS_TITLE')}</span>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
@@ -304,7 +304,7 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
                   {t('COMMON_CANCEL')}
                 </button>
                 <button className="btn btn-danger" onClick={confirmDelete.onConfirm}>
-                  {t('WEB_DELETE')}
+                  {t('UI_DELETE')}
                 </button>
               </div>
             </div>
@@ -337,7 +337,7 @@ function GlobalTab({
           {t('WEB_GLOBAL_LIMITS_DESC')}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={onEdit}>{t('WEB_EDIT_GLOBAL_LIMITS')}</button>
+          <button className="btn btn-primary" onClick={onEdit}>{t('UI_EDIT_GLOBAL_LIMITS')}</button>
           <button className="btn btn-secondary" onClick={onImport}>{t('WEB_IMPORT_NPPS')}</button>
           {g && (
             <>
@@ -438,7 +438,7 @@ function HelmetTab({
             }}
             autoFocus
           />
-          <button className="btn btn-primary btn-sm" onClick={onAddHelmet}>{t('WEB_ADD')}</button>
+          <button className="btn btn-primary btn-sm" onClick={onAddHelmet}>{t('UI_ADD')}</button>
           <button className="btn btn-secondary btn-sm" onClick={onCancelNew}>{t('COMMON_CANCEL')}</button>
         </div>
       )}
@@ -485,7 +485,7 @@ function HelmetTab({
               >
                 {activeHelmet === serial ? t('WEB_DEACTIVATE') : t('WEB_SET_ACTIVE')}
               </button>
-              <button className="btn btn-secondary btn-sm" onClick={() => onEdit(serial)}>{t('WEB_EDIT')}</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => onEdit(serial)}>{t('UI_EDIT')}</button>
               <button className="btn btn-danger btn-sm" onClick={() => onDelete(serial)}>{t('WEB_REMOVE')}</button>
             </div>
           </div>
@@ -639,10 +639,10 @@ function IndividualTab({
                   {isActive ? t('WEB_DEACTIVATE') : t('WEB_SET_ACTIVE')}
                 </button>
                 <button className="btn btn-secondary btn-sm" onClick={() => onEditLimits(profile.id)}>
-                  {hasLimits ? t('WEB_EDIT_LIMITS') : t('WEB_ADD_LIMITS')}
+                  {hasLimits ? t('UI_EDIT_LIMITS') : t('WEB_ADD_LIMITS')}
                 </button>
                 <button className="btn btn-danger btn-sm" onClick={() => onDelete(profile.id, profile.name)}>
-                  {t('WEB_DELETE')}
+                  {t('UI_DELETE')}
                 </button>
               </div>
             </div>
@@ -794,14 +794,14 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
           type="text"
           value={limits.name}
           onChange={e => patch({ name: e.target.value })}
-          placeholder={t('WEB_LIMITS_NAME_PLACEHOLDER')}
+          placeholder={t('UI_LIMITS_NAME_PLACEHOLDER')}
           style={{ ...inputStyle, flex: 1 }}
         />
         <input
           type="text"
           value={limits.description}
           onChange={e => patch({ description: e.target.value })}
-          placeholder={t('WEB_LIMITS_DESC_PLACEHOLDER')}
+          placeholder={t('UI_LIMITS_DESC_PLACEHOLDER')}
           style={{ ...inputStyle, flex: 2 }}
         />
       </div>
@@ -1140,7 +1140,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('vnsHrv', { maxFrequencyHz: undefined })}
             />
             <LimitWhitelistField
-              label={t('WEB_LIM_ALLOWED_HRV')}
+              label={t('UI_LIM_ALLOWED_HRV')}
               options={['standalone', 'tavns_sync', 'eeg_biofeedback', 'combined_pbm']}
               value={limits.vnsHrv.allowedProtocols}
               onChange={v => patchModality('vnsHrv', { allowedProtocols: v })}
@@ -1325,7 +1325,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('hdTdcs', { maxIntensityMilliamps: undefined })}
             />
             <LimitWhitelistField
-              label={t('WEB_LIM_ALLOWED_MONTAGES')}
+              label={t('UI_LIM_ALLOWED_MONTAGES')}
               options={['ring_4x1', 'bilateral_4x1', 'standard_2_electrode']}
               value={limits.hdTdcs.allowedMontages}
               onChange={v => patchModality('hdTdcs', { allowedMontages: v })}

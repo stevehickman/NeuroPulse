@@ -145,7 +145,7 @@ export default function App() {
     <LimitsContext.Provider value={{ resolvedLimits, limitsVersion }}>
     <ProtocolContext.Provider value={{ version, refresh }}>
       <div className="app-header">
-        <span className="app-header-logo">{t('WEB_APP_TITLE')}</span>
+        <span className="app-header-logo">{t('UI_APP_TITLE')}</span>
         <span className="app-header-subtitle">{t('WEB_NAV_LIBRARY')}</span>
         <div className="app-header-device">
           <DeviceTierControl

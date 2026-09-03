@@ -94,7 +94,7 @@ export function ConditionLinkDialog({ condition, onClose }: ConditionLinkDialogP
 
           {verdict.allowed ? (
             <>
-              <p className="condition-leaving">{t('WEB_CONDITION_LEAVING_NOTICE')}</p>
+              <p className="condition-leaving">{t('UI_CONDITION_LEAVING_NOTICE')}</p>
               <div className="condition-destination">
                 <span className="condition-destination-label">
                   {t('WEB_CONDITION_DESTINATION_LABEL')}
@@ -116,7 +116,7 @@ export function ConditionLinkDialog({ condition, onClose }: ConditionLinkDialogP
           </button>
           {verdict.allowed && (
             <button type="button" className="btn-primary" onClick={confirm}>
-              {t('WEB_CONDITION_OPEN_IN_BROWSER')}
+              {t('UI_CONDITION_OPEN_IN_BROWSER')}
             </button>
           )}
         </div>

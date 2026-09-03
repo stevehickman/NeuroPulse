@@ -80,7 +80,7 @@ export function IntervalControls({ interval, onChange }: IntervalControlsProps) 
               />
             </div>
             <div className="param-field">
-              <label className="param-label">{t('WEB_MOD_REPEAT')}</label>
+              <label className="param-label">{t('UI_MOD_REPEAT')}</label>
               <input
                 type="number"
                 className="form-input param-input"
@@ -389,7 +389,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
               { value: 'combined_pbm', label: t('WEB_HRV_COMBINED_PBM') },
             ]}
           />
-          <SliderField label={t('WEB_MOD_BREATHING_RATE')} value={p.resonanceBreathingRate} min={4} max={7} step={0.5} unit=" BPM" onChange={v => update<typeof params>({ ...p, resonanceBreathingRate: v })} />
+          <SliderField label={t('UI_MOD_BREATHING_RATE')} value={p.resonanceBreathingRate} min={4} max={7} step={0.5} unit=" BPM" onChange={v => update<typeof params>({ ...p, resonanceBreathingRate: v })} />
         </div>
       );
     }
@@ -407,7 +407,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
                 style={{ flex: 1 }}
                 min={0.5} max={100} step={0.5}
                 value={p.binauralBeatsHz ?? ''}
-                placeholder={t('WEB_NONE')}
+                placeholder={t('UI_NONE')}
                 onChange={e => update<typeof params>({ ...p, binauralBeatsHz: e.target.value ? Number(e.target.value) : undefined })}
               />
             </div>
@@ -419,13 +419,13 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
               className="form-input"
               min={0.5} max={100} step={0.5}
               value={p.isochronicTonesHz ?? ''}
-              placeholder={t('WEB_NONE')}
+              placeholder={t('UI_NONE')}
               onChange={e => update<typeof params>({ ...p, isochronicTonesHz: e.target.value ? Number(e.target.value) : undefined })}
             />
           </div>
           <SelectField label={t('WEB_MOD_NOISE_TYPE')} value={p.noiseType ?? ''} onChange={v => update<typeof params>({ ...p, noiseType: v ? v as AudioEntrainmentParams['noiseType'] : undefined })}
             options={[
-              { value: '', label: t('WEB_NONE') },
+              { value: '', label: t('UI_NONE') },
               { value: 'pink', label: t('WEB_NOISE_PINK') },
               { value: 'brown', label: t('WEB_NOISE_BROWN') },
             ]}
@@ -466,7 +466,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
           <SelectField label={t('WEB_MOD_MONTAGE')} value={p.montage} onChange={v => update<typeof params>({ ...p, montage: v as QEEG21chParams['montage'] })}
             options={[{ value: 'standard_1020', label: t('WEB_MONTAGE_1020') }, { value: 'custom', label: t('WEB_CUSTOM') }]}
           />
-          <SelectField label={t('WEB_MOD_REFERENCE')} value={p.reference} onChange={v => update<typeof params>({ ...p, reference: v as QEEG21chParams['reference'] })}
+          <SelectField label={t('UI_MOD_REFERENCE')} value={p.reference} onChange={v => update<typeof params>({ ...p, reference: v as QEEG21chParams['reference'] })}
             options={[
               { value: 'linked_ear', label: t('WEB_REF_LINKED_EAR') },
               { value: 'cz', label: t('WEB_REF_CZ') },
@@ -498,7 +498,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
           />
           <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} min={1} max={50} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
           <NumberField label={t('WEB_MOD_INTENSITY')} value={p.intensityPercentMT} min={80} max={130} unit="% MT" onChange={v => update<typeof params>({ ...p, intensityPercentMT: v })} />
-          <NumberField label={t('WEB_MOD_PULSE_COUNT')} value={p.pulseCount} min={100} max={6000} step={100} onChange={v => update<typeof params>({ ...p, pulseCount: v })} />
+          <NumberField label={t('UI_MOD_PULSE_COUNT')} value={p.pulseCount} min={100} max={6000} step={100} onChange={v => update<typeof params>({ ...p, pulseCount: v })} />
         </div>
       );
     }
@@ -692,7 +692,7 @@ export function ModalityPicker({ onSelect, onClose }: ModalityPickerProps) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">{t('WEB_MOD_ADD_TITLE')}</span>
+          <span className="modal-title">{t('UI_MOD_ADD_TITLE')}</span>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
@@ -729,7 +729,7 @@ export function ModalityPicker({ onSelect, onClose }: ModalityPickerProps) {
             disabled={!selected}
             onClick={() => { if (selected) { onSelect(selected); onClose(); } }}
           >
-            {t('WEB_MOD_ADD_TITLE')}
+            {t('UI_MOD_ADD_TITLE')}
           </button>
         </div>
       </div>

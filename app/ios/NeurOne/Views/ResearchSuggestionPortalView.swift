@@ -28,7 +28,7 @@ struct ResearchSuggestionPortalView: View {
                     Button {
                         showSubmitSheet = true
                     } label: {
-                        Label("Submit Idea", systemImage: "plus")
+                        Label("PORTAL_SUBMIT_IDEA", systemImage: "plus")
                     }
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -60,7 +60,7 @@ struct ResearchSuggestionPortalView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("Submit an idea") { showSubmitSheet = true }
+            Button("PORTAL_SUBMIT_AN_IDEA") { showSubmitSheet = true }
                 .buttonStyle(.borderedProminent)
         }
         .padding(40)
@@ -113,13 +113,13 @@ struct SuggestionRow: View {
             case .open:
                 EmptyView()
             case .active:
-                Label("Campaign live", systemImage: "dollarsign.circle.fill")
+                Label("PORTAL_CAMPAIGN_LIVE", systemImage: "dollarsign.circle.fill")
                     .font(.caption2).foregroundColor(.green)
             case .funded:
-                Label("Funded", systemImage: "checkmark.seal.fill")
+                Label("PORTAL_FUNDED", systemImage: "checkmark.seal.fill")
                     .font(.caption2).foregroundColor(.green)
             case .closed:
-                Label("Closed", systemImage: "xmark.circle")
+                Label("PORTAL_CLOSED", systemImage: "xmark.circle")
                     .font(.caption2).foregroundColor(.secondary)
             }
         }
@@ -182,11 +182,11 @@ struct SuggestionDetailView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Study Idea")
+            .navigationTitle("PORTAL_STUDY_IDEA")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button("COMMON_CLOSE") { dismiss() }
                 }
             }
         }
@@ -271,14 +271,14 @@ struct SuggestionDetailView: View {
     private var pledgeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(String(localized: "PORTAL_SUPPORT_HEADING")).font(.headline)
-            Text("Pledges are intent only — your card is not charged until a researcher"
+            Text("PORTAL_PLEDGES_ARE_INTENT_ONLY_YOUR_CARD_IS_NOT_CHA"
                 + " confirms feasibility and a formal campaign activates."
                 + " If the target is not met, you are never charged.")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Picker("Pledge amount", selection: $selectedPledgeTier) {
+            Picker("PORTAL_PLEDGE_AMOUNT", selection: $selectedPledgeTier) {
                 ForEach(PledgeTier.allCases, id: \.self) { tier in
                     Text(tier.label).tag(tier)
                 }
@@ -299,7 +299,7 @@ struct SuggestionDetailView: View {
                 .tint(.orange)
                 .frame(maxWidth: .infinity)
 
-                Text("Funders receive a plain-language results summary and are acknowledged"
+                Text("PORTAL_FUNDERS_RECEIVE_A_PLAIN_LANGUAGE_RESULTS_SUM"
                     + " in the published paper as 'NeurOne Patient Research Fund contributors.'")
                     .font(.caption2)
                     .foregroundColor(.secondary)
@@ -320,8 +320,8 @@ struct SubmitSuggestionSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Study idea") {
-                    TextField("Title (one clear sentence)", text: $draft.title)
+                Section("PORTAL_STUDY_IDEA_2") {
+                    TextField("PORTAL_TITLE_ONE_CLEAR_SENTENCE", text: $draft.title)
                         .fixedSize(horizontal: false, vertical: true)
                     TextEditor(text: $draft.body)
                         .frame(minHeight: 100)
@@ -338,7 +338,7 @@ struct SubmitSuggestionSheet: View {
                         )
                 }
 
-                Section("Research areas") {
+                Section("PORTAL_RESEARCH_AREAS") {
                     ForEach(ResearchCategory.allCases, id: \.self) { category in
                         Toggle(category.rawValue, isOn: Binding(
                             get: { draft.categories.contains(category) },
@@ -348,8 +348,8 @@ struct SubmitSuggestionSheet: View {
                 }
 
                 Section {
-                    Toggle("I would participate in this study if it ran", isOn: $draft.hasParticipationIntent)
-                    Text("Saying yes signals to researchers that there's a motivated"
+                    Toggle("PORTAL_I_WOULD_PARTICIPATE_IN_THIS_STUDY_IF_IT_RAN", isOn: $draft.hasParticipationIntent)
+                    Text("PORTAL_SAYING_YES_SIGNALS_TO_RESEARCHERS_THAT_THERE"
                         + " cohort ready to enrol — the hardest problem in trial recruitment.")
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -359,7 +359,7 @@ struct SubmitSuggestionSheet: View {
                 }
 
                 Section {
-                    Picker("Pledge amount", selection: Binding(
+                    Picker("PORTAL_PLEDGE_AMOUNT", selection: Binding(
                         get: { PledgeTier(rawValue: draft.pledgeAmount) ?? .none },
                         set: { draft.pledgeAmount = $0.rawValue }
                     )) {
@@ -378,7 +378,7 @@ struct SubmitSuggestionSheet: View {
                     Text(String(localized: "PORTAL_SUPPORT_OPTIONAL"))
                 }
             }
-            .navigationTitle("Submit Research Idea")
+            .navigationTitle("PORTAL_SUBMIT_RESEARCH_IDEA")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -388,7 +388,7 @@ struct SubmitSuggestionSheet: View {
                     if isSubmitting {
                         ProgressView()
                     } else {
-                        Button("Submit") {
+                        Button("PORTAL_SUBMIT") {
                             Task {
                                 isSubmitting = true
                                 try? await store.submit(draft)

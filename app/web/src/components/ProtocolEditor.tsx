@@ -192,14 +192,14 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
             ? t('WEB_EDITING_PROTOCOL', {
                 0: existing.kind === 'single' ? existing.protocol.name : '',
               })
-            : t('WEB_NEW_PROTOCOL')}
+            : t('UI_NEW_PROTOCOL')}
         </div>
         <div className="editor-tabs">
           <button className={`editor-tab${tab === 'visual' ? ' active' : ''}`} onClick={() => handleTabChange('visual')}>
             {t('WEB_TAB_VISUAL')}
           </button>
           <button className={`editor-tab${tab === 'script' ? ' active' : ''}`} onClick={() => handleTabChange('script')}>
-            {t('WEB_TAB_SCRIPT')}
+            {t('UI_TAB_SCRIPT')}
           </button>
         </div>
       </div>
@@ -208,7 +208,7 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
         <div className="editor-body">
           {/* Metadata */}
           <div className="form-section">
-            <div className="form-section-title">{t('WEB_SECTION_IDENTITY')}</div>
+            <div className="form-section-title">{t('UI_SECTION_IDENTITY')}</div>
             <div className="form-row">
               <div className="form-field full">
                 <label className="form-label">{t('WEB_FIELD_NAME_REQUIRED')}</label>
@@ -220,7 +220,7 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
                 />
               </div>
               <div className="form-field full">
-                <label className="form-label">{t('WEB_FIELD_DESCRIPTION')}</label>
+                <label className="form-label">{t('UI_FIELD_DESCRIPTION')}</label>
                 <textarea
                   className="form-textarea"
                   value={protocol.description}
@@ -259,7 +259,7 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
                     }
                   }}
                   onBlur={() => { if (tagInput) handleAddTag(tagInput); }}
-                  placeholder={t('WEB_PLACEHOLDER_ADD_TAG')}
+                  placeholder={t('UI_PLACEHOLDER_ADD_TAG')}
                 />
               </div>
             </div>

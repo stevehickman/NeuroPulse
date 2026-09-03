@@ -149,14 +149,14 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
         <div className="composer-body">
           {/* Identity */}
           <div className="form-section">
-            <div className="form-section-title">{t('WEB_SECTION_IDENTITY')}</div>
+            <div className="form-section-title">{t('UI_SECTION_IDENTITY')}</div>
             <div className="form-row">
               <div className="form-field full">
                 <label className="form-label">{t('WEB_FIELD_NAME_REQUIRED')}</label>
                 <input className="form-input" value={composite.name} onChange={e => updateComposite({ name: e.target.value })} placeholder={t('WEB_PLACEHOLDER_COMPOSITE_NAME')} />
               </div>
               <div className="form-field full">
-                <label className="form-label">{t('WEB_FIELD_DESCRIPTION')}</label>
+                <label className="form-label">{t('UI_FIELD_DESCRIPTION')}</label>
                 <textarea className="form-textarea" value={composite.description} onChange={e => updateComposite({ description: e.target.value })} placeholder={t('WEB_PLACEHOLDER_COMPOSITE_DESCRIPTION')} />
               </div>
             </div>
@@ -196,7 +196,7 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
                     if (e.key === 'Backspace' && !tagInput && composite.tags.length > 0) handleRemoveTag(composite.tags[composite.tags.length - 1]);
                   }}
                   onBlur={() => { if (tagInput) handleAddTag(tagInput); }}
-                  placeholder={t('WEB_PLACEHOLDER_ADD_TAG')}
+                  placeholder={t('UI_PLACEHOLDER_ADD_TAG')}
                 />
               </div>
             </div>
@@ -445,7 +445,7 @@ function ProtocolPickerModal({ protocols, onSelect, onClose }: ProtocolPickerMod
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">{t('WEB_ADD_LAYER_TITLE')}</span>
+          <span className="modal-title">{t('UI_ADD_LAYER_TITLE')}</span>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
@@ -472,7 +472,7 @@ function ProtocolPickerModal({ protocols, onSelect, onClose }: ProtocolPickerMod
           )}
           {user.length > 0 && (
             <div>
-              <div className="picker-group-title">{t('WEB_FILTER_MINE')}</div>
+              <div className="picker-group-title">{t('UI_FILTER_MINE')}</div>
               {user.map(entry => {
                 if (entry.kind !== 'single') return null;
                 const id = entry.protocol.id;
@@ -500,7 +500,7 @@ function ProtocolPickerModal({ protocols, onSelect, onClose }: ProtocolPickerMod
         <div className="modal-footer">
           <button className="btn btn-secondary" onClick={onClose}>{t('COMMON_CANCEL')}</button>
           <button className="btn btn-primary" disabled={!selected} onClick={handleAdd}>
-            {t('WEB_ADD_LAYER_TITLE')}
+            {t('UI_ADD_LAYER_TITLE')}
           </button>
         </div>
       </div>
