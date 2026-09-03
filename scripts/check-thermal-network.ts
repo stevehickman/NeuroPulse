@@ -518,61 +518,128 @@ console.log(`  So §6.9's headline is optimistic by ${(full / real).toFixed(1)}x
 console.log(`  low-coverage rows beat the stirred gap (${(2 / 30).toFixed(3)}), so D-2's conclusion holds.`);
 console.log(`  Coverage, not pad conductivity, is the design variable. OI-THCOOL-15.`);
 
+
 // ---------------------------------------------------------------------------
-// §17  Derate semantics and the efficacy-floor clamp (§7.4)
+// §17  Derate semantics and the efficacy-floor clamp (§7.4) — DECIDED, D-4
 // ---------------------------------------------------------------------------
 // NP-ENV-OPRANGE-001 §1 specifies "linear duty derate T_f -> T_max". Duty
-// scales; nothing says the session extends to compensate. Under that reading a
-// fixed-length session delivers proportionally less dose, and near T_max it
-// falls below NP-PWR-BUDGET-001 §3.4's efficacy floor — a session that runs to
-// completion and cannot work. This is the failure mode D-1 was built to remove.
+// scales; nothing said whether the session extends to compensate, and the two
+// readings are not interchangeable. D-4 (2026-09-02) settles it:
+//
+//   SESSION LENGTH IS FIXED. Duty scales, so delivered dose scales with it —
+//   and the ramp is CLAMPED at NP-PWR-BUDGET-001 §3.4's efficacy floor, below
+//   which the session is REFUSED rather than derated further.
+//
+// §17.1-§17.4 below produce the figures that decided it. The load-bearing one
+// is §17.2: the dose-preserving reading buys efficacy with time-at-ceiling,
+// and time-at-ceiling is the whole of NP-PWRSRC-001 §5.5's finding.
 
-/** Efficacy floor, NP-PWR-BUDGET-001 §3.4. */
+/** Efficacy floor, NP-PWR-BUDGET-001 §3.4 (10-120 J/cm^2 band, lower edge). */
 const EFFICACY_FLOOR_J = 10;
 /** The shared band, NP-ENV-OPRANGE-001 §2 footnote ‖. */
 const T_FULL = 30, T_BLOCK = 35;
 
-/** Linear duty derate as specified today: 1.0 at T_full, 0.0 at T_block. */
+/** CEM43 per minute at a face temperature. Model owned by
+ *  check-thermal-dose.ts (NP-PWRSRC-001 §5); duplicated rather than imported
+ *  because that script prints its full audit at module scope. */
+const cem43Rate = (tC: number) => (tC >= 43 ? 0.5 ** (43 - tC) : 0.25 ** (43 - tC));
+/** CLAUDE.md §4.2 / IEC 60601-1 applied-part limit, and the temperature the
+ *  derate band exists to hold the face AT — so it is the right rate to use
+ *  inside the band, not a pessimistic overlay. */
+const FACE_LIMIT_C = 42.0;
+/** NP-PWRSRC-001 §5.5's reference lines. */
+const CEM43_REVIEW_LINE = 2.0, CEM43_CONCERN_LINE = 40.0;
+
+/** Linear duty derate as specified: 1.0 at T_full, 0.0 at T_block. */
 function dutyLinear(ambC: number): number {
   if (ambC <= T_FULL) return 1;
   if (ambC >= T_BLOCK) return 0;
   return (T_BLOCK - ambC) / (T_BLOCK - T_FULL);
 }
 
-/** Ambient at which a protocol's derated dose reaches the efficacy floor. */
+/** Duty at which a protocol's derated dose reaches the efficacy floor. */
+const dutyFloor = (fullDoseJ: number) => EFFICACY_FLOOR_J / fullDoseJ;
+/** Ambient at which that duty is reached — the protocol's effective block. */
 const clampAmbient = (fullDoseJ: number) =>
-  T_BLOCK - (EFFICACY_FLOOR_J / fullDoseJ) * (T_BLOCK - T_FULL);
+  T_BLOCK - dutyFloor(fullDoseJ) * (T_BLOCK - T_FULL);
 
-console.log("§17 Derate semantics — dose delivered in a FIXED-LENGTH session");
-console.log("  As specified today: duty scales linearly 30 -> 35 C; nothing extends the session.\n");
-console.log("  ambient   duty    dose(60 J/cm2 protocol)   verdict");
+/** Representative protocols, all inside NP-PWR-BUDGET-001 §3.4's published
+ *  band (10-120 J/cm^2, 6-30 min). Length is declared by the protocol, not
+ *  derived from dose — which is exactly the property D-4 preserves. */
+const PROTOCOLS: { doseJ: number; min: number }[] = [
+  { doseJ: 40, min: 13.3 }, { doseJ: 60, min: 20 },
+  { doseJ: 90, min: 25 }, { doseJ: 120, min: 30 },
+];
+/** The 60 J/cm^2 / 20 min row is the worked example used throughout §7.4. */
+const REF = PROTOCOLS[1];
+
+console.log("\n§17 Derate semantics — DECIDED (D-4): fixed length + efficacy-floor clamp\n");
+
+console.log("  17.1  The reading as written — fixed length, so dose scales with duty");
+console.log(`        (${REF.doseJ} J/cm^2 protocol, ${REF.min} min)\n`);
+console.log("  ambient   duty     dose   verdict");
 for (const amb of [30, 31, 32, 33, 34, 34.5]) {
-  const d = dutyLinear(amb), j = 60 * d;
-  const verdict = j < EFFICACY_FLOOR_J ? "*** SUB-THRESHOLD — null session ***"
-    : d === 1 ? "full dose" : "under-dosed vs the pre-Rev-7 envelope";
-  console.log(`  ${amb.toFixed(1).padStart(6)}C  ${(d * 100).toFixed(0).padStart(4)}%   ${j.toFixed(1).padStart(20)}   ${verdict}`);
+  const d = dutyLinear(amb), j = REF.doseJ * d;
+  const verdict = j < EFFICACY_FLOOR_J ? "*** SUB-THRESHOLD — a null session ***"
+    : d === 1 ? "full dose" : "under-dosed, but inside the 10-120 J/cm^2 band";
+  console.log(`  ${amb.toFixed(1).padStart(6)}C  ${(d * 100).toFixed(0).padStart(4)}%  ${j.toFixed(1).padStart(6)}   ${verdict}`);
 }
+console.log(`\n  Most of the band lands INSIDE the therapeutic window, so under-dosing there`);
+console.log(`  is a weaker session, not a null one. Only the top sliver is pathological:`);
+console.log(`  the ${REF.doseJ} J/cm^2 protocol crosses the floor at ${clampAmbient(REF.doseJ).toFixed(1)} C, leaving ${(T_BLOCK - clampAmbient(REF.doseJ)).toFixed(1)} C of`);
+console.log(`  band in which the device runs to completion and cannot work.\n`);
 
-console.log("\n  Ambient at which the derated dose hits the 10 J/cm^2 floor:");
-for (const full of [40, 60, 90, 120]) {
-  console.log(`    ${String(full).padStart(3)} J/cm^2 protocol -> ${clampAmbient(full).toFixed(1)} C  (duty ${(EFFICACY_FLOOR_J / full * 100).toFixed(0)}%)`);
+console.log("  17.2  The dose-preserving reading — extend the session — and its price");
+console.log(`        CEM43 upper bound at the ${FACE_LIMIT_C} C interlock (${cem43Rate(FACE_LIMIT_C).toFixed(2)} CEM43/min).`);
+console.log(`        The derate band is DEFINED as the region where the face is held at`);
+console.log(`        that limit, so this is the design condition, not a worst case.\n`);
+console.log("  ambient   duty   session   CEM43   vs NP-PWRSRC-001 §5.5 lines");
+for (const amb of [30, 31, 32, 33, 34, 34.5]) {
+  const d = dutyLinear(amb), mins = REF.min / d, cem = mins * cem43Rate(FACE_LIMIT_C);
+  const flag = cem >= CEM43_CONCERN_LINE ? "*** past the 40 concern line, ONE session ***"
+    : cem >= CEM43_REVIEW_LINE ? "above the 2.0 review line" : "";
+  console.log(`  ${amb.toFixed(1).padStart(6)}C  ${(d * 100).toFixed(0).padStart(4)}%  ${mins.toFixed(0).padStart(6)}m  ${cem.toFixed(1).padStart(6)}   ${flag}`);
 }
-console.log("  Above those points the device would complete a session that cannot work.");
+const cemFixed = REF.min * cem43Rate(FACE_LIMIT_C);
+const cemExt34 = (REF.min / dutyLinear(34)) * cem43Rate(FACE_LIMIT_C);
+console.log(`\n  Fixed length holds this at ${cemFixed.toFixed(1)} CEM43 at every ambient in the band.`);
+console.log(`  Extension multiplies it by 1/duty — ${(cemExt34 / cemFixed).toFixed(0)}x at 34 C — and at 34.5 C a routine`);
+console.log(`  ${REF.min}-minute protocol passes the 40 CEM43 line in a SINGLE session. That is the`);
+console.log(`  §5.5 mechanism exactly: the interlock caps temperature and says nothing about`);
+console.log(`  how long the face may stay there. THIS is why fixed length wins.\n`);
 
-console.log("\n  If instead the session EXTENDS to hold dose constant:");
-for (const amb of [31, 32, 33, 34]) {
-  const d = dutyLinear(amb);
-  console.log(`    ${amb} C: duty ${(d * 100).toFixed(0).padStart(3)}% -> a 20 min session becomes ${(20 / d).toFixed(0).padStart(3)} min`);
+console.log("  17.3  The decided clamp — derate to the duty floor, then REFUSE");
+console.log("        The duty curve is unchanged and still shared by every module;");
+console.log("        only where a protocol stops walking down it is per-protocol.\n");
+console.log("  dose   length   duty floor   blocks at   (was)   CEM43 at own length");
+for (const p of PROTOCOLS) {
+  const cem = p.min * cem43Rate(FACE_LIMIT_C);
+  console.log(
+    `  ${String(p.doseJ).padStart(3)} J  ${p.min.toFixed(1).padStart(6)}m  ` +
+    `${(dutyFloor(p.doseJ) * 100).toFixed(0).padStart(9)}%  ` +
+    `${clampAmbient(p.doseJ).toFixed(1).padStart(9)}C  ${T_BLOCK.toFixed(1)}C  ${cem.toFixed(1).padStart(15)}`,
+  );
 }
-console.log("  Dose is preserved, but time-at-ceiling is what drives CEM43 (NP-PWRSRC-001 §5.5),");
-console.log("  so this trades an efficacy problem for a thermal-dose one. Neither reading is free.");
+const worstClamp = Math.max(...PROTOCOLS.map((p) => p.min * cem43Rate(FACE_LIMIT_C)));
+const lost = T_BLOCK - Math.min(...PROTOCOLS.map((p) => clampAmbient(p.doseJ)));
+console.log(`\n  Cost: at most ${lost.toFixed(1)} C off the top of an envelope §7.2 already records as`);
+console.log(`  ~8 C more conservative than the physics requires. Worst CEM43 under the`);
+console.log(`  clamp is ${worstClamp.toFixed(1)} against the extension reading's ${cemExt34.toFixed(1)} at 34 C.\n`);
 
-console.log("\n  PROPOSED CLAMP: derate to the efficacy floor, then BLOCK — never below it.");
-console.log("  Effective block moves off the flat 35 C onto a per-protocol value:");
-for (const full of [40, 60, 90, 120]) {
-  console.log(`    ${String(full).padStart(3)} J/cm^2 -> blocks at ${clampAmbient(full).toFixed(1)} C instead of 35.0 C`);
-}
-console.log("  Same principle as D-1 one level down: do not run a session that cannot work.");
+console.log("  17.4  The inversion the clamp creates, stated because it will be misread");
+const lo = PROTOCOLS[0], hi = PROTOCOLS[PROTOCOLS.length - 1];
+console.log(`        A ${hi.doseJ} J/cm^2 protocol survives to ${clampAmbient(hi.doseJ).toFixed(1)} C; a ${lo.doseJ} J/cm^2 one blocks at ${clampAmbient(lo.doseJ).toFixed(1)} C.`);
+console.log("        The HEAVIER protocol runs in the HOTTER room. That is correct — the");
+console.log("        floor is on delivered dose and the derate is multiplicative — but it");
+console.log("        inverts the intuition, and it means the app's advice at a refusal is");
+console.log(`        \"a higher-dose protocol may still run\", never \"try a shorter one\".`);
+console.log(`        It is not free: the heavier protocol earns its extra ${(clampAmbient(hi.doseJ) - clampAmbient(lo.doseJ)).toFixed(1)} C by spending`);
+console.log(`        ${(hi.min / lo.min).toFixed(1)}x the time at the ceiling (${(hi.min * cem43Rate(FACE_LIMIT_C)).toFixed(1)} vs ${(lo.min * cem43Rate(FACE_LIMIT_C)).toFixed(1)} CEM43). The clamp therefore`);
+console.log("        inherits §17.2's objection in BOUNDED form: the time it spends is the");
+console.log("        protocol's own declared length, which check-thermal-dose.ts already");
+console.log("        audits, not a new ambient-dependent length nothing has assessed.");
+console.log("        OI-THCOOL-18 (HFE), OI-THCOOL-19 (dose input), OI-THCOOL-20 (T2).");
+
 
 // ---------------------------------------------------------------------------
 // §18  Hysteresis on the ambient hard edges (§7.5, OI-THCOOL-16)
@@ -635,11 +702,11 @@ console.log("\n  (d) Re-arm points, anchored on the EFFECTIVE block — not on a
 const HYST_C = 1.0;
 console.log(`    flat block (today, §7.2):        block ${T_BLOCK.toFixed(1)} C`
   + `  -> re-arm ${(T_BLOCK - HYST_C).toFixed(1)} C`);
-console.log("    per-protocol block (if OI-THCOOL-17's efficacy clamp is adopted):");
+console.log("    per-protocol block (OI-THCOOL-17 closed; the efficacy clamp IS adopted):");
 for (const full of [40, 60, 120]) {
   const a = clampAmbient(full);
   console.log(`      ${String(full).padStart(3)} J/cm^2 protocol:      block ${a.toFixed(1)} C`
     + `  -> re-arm ${(a - HYST_C).toFixed(1)} C`);
 }
-console.log("    The rule is written against the anchor, so it holds whichever way 17 lands");
-console.log("    — which is why 16 does not have to wait for 17.");
+console.log("    The rule was written against the anchor, so it held when 17 landed — which is");
+console.log("    why 16 did not have to wait for 17, and needed no revision when it closed.");
