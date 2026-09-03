@@ -61,12 +61,15 @@ struct OTAView: View {
     // ISC-108: show current hub firmware version alongside available version.
     private var versionSection: some View {
         Section("PROTOCOL_VERSION") {
-            LabeledContent("Installed") {
-                Text(gatt.hubFirmwareVersion ?? (gatt.connectionState == .connected ? "Reading…" : "—"))
+            LabeledContent("OTA_VERSION_INSTALLED") {
+                Text(gatt.hubFirmwareVersion
+                    ?? (gatt.connectionState == .connected
+                        ? String(localized: "OTA_VERSION_READING")
+                        : "—"))
                     .foregroundColor(.secondary)
             }
             if let available = ota.availableUpdate {
-                LabeledContent("Available") {
+                LabeledContent("OTA_VERSION_AVAILABLE") {
                     Text(available.version).foregroundColor(.accentColor)
                 }
             }

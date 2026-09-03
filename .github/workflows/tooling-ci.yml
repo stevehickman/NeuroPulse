@@ -124,6 +124,7 @@ jobs:
       consent: ${{ steps.scope.outputs.consent }}
       redaction: ${{ steps.scope.outputs.redaction }}
       seamdecls: ${{ steps.scope.outputs.seamdecls }}
+      localestrings: ${{ steps.scope.outputs.localestrings }}
     env:
       # Eight independent surfaces, eight lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
@@ -197,6 +198,17 @@ jobs:
         firmware/**
         scripts/check-redaction-shape.ts
         .github/workflows/tooling-ci.yml
+      # The locale-string gate (CLAUDE.md §17). Three different edits break it,
+      # so all three trees are listed: a literal added to a covered app file,
+      # a key added to or removed from locales/, and a locale reference
+      # appearing under firmware/ (which the gate forbids outright).
+      NP_SCOPE_LOCALESTRINGS: |
+        app/**
+        locales/**
+        firmware/**
+        scripts/check-locale-strings.ts
+        scripts/sync-locales.ts
+        .github/workflows/tooling-ci.yml
       # The platform-seam declaration gate (OI-SWCI-40, and OI-SWCI-18 before
       # it). The edit that breaks it is an `extern` line added to a .c under
       # any scanned firmware tree, or a seam added to / removed from either
@@ -240,6 +252,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_CONSENT"   > scope.consent.paths
           printf '%s\n' "$NP_SCOPE_REDACTION" > scope.redaction.paths
           printf '%s\n' "$NP_SCOPE_SEAMDECLS"  > scope.seamdecls.paths
+          printf '%s\n' "$NP_SCOPE_LOCALESTRINGS" > scope.localestrings.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -247,7 +260,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -381,6 +394,7 @@ jobs:
           emit consent   scope.consent.paths
           emit redaction scope.redaction.paths
           emit seamdecls scope.seamdecls.paths
+          emit localestrings scope.localestrings.paths
 
   scripts-check:
     name: scripts/ type-check
@@ -659,6 +673,39 @@ jobs:
       # comment-stripping in the reporting path" — and kept none of it.
       - name: No reporting path varies its shape with a sensitive predicate
         run: bun scripts/check-redaction-shape.ts
+
+  locale-strings:
+    name: user-facing text lives in locales, not in code (CLAUDE.md §17)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.localestrings != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # The checker reads source text and shells out only to `git ls-files`,
+      # so there is deliberately no `bun install` step.
+
+      - name: Guard self-test (prove the prose rule can fail)
+        run: bun scripts/check-locale-strings.ts --self-test
+
+      # The defect this catches passes every other check in the tree: the code
+      # compiles, the tests pass, and the screen renders correctly in English
+      # for everyone. Ten web components and 222 iOS call sites sat that way
+      # beside a complete, unused i18n layer until this gate was written.
+      - name: No embedded user-facing strings, no orphan or missing keys
+        run: bun scripts/check-locale-strings.ts
+
+      # Canonical is the only place a string is edited; the String Catalog and
+      # the web locale copies are generated. A hand-edit to either drifts
+      # silently, which is what --check refuses.
+      - name: Generated locale artifacts match canonical
+        run: bun scripts/sync-locales.ts --check
 
   seam-decls:
     name: every platform seam is declared in exactly one place (OI-SWCI-40)
