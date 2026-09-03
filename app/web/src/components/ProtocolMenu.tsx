@@ -19,6 +19,7 @@ import { LimitsSettings } from './LimitsSettings';
 import { ConditionChips } from './ConditionLinkDialog';
 import { getPredefinedNamespace } from '../lib/predefinedProtocols';
 import type { NPConditionDefinition } from '../types/protocol';
+import { t, tPlural } from '../lib/i18n';
 
 // Stable identity so ConditionChips doesn't see a new Map every render.
 const NO_CONDITIONS: ReadonlyMap<string, NPConditionDefinition> = new Map();
@@ -83,14 +84,14 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
 
   function handleDuplicate(entry: NPProtocolEntry) {
     const baseName = entryName(entry);
-    const newName = `${baseName} (copy)`;
+    const newName = t('WEB_PROTOCOL_COPY_SUFFIX', { 0: baseName });
     const dup = protocolLibrary.duplicateProtocol(entry, newName);
     protocolLibrary.saveUserProtocol(dup);
   }
 
   function handleDelete(entry: NPProtocolEntry) {
     setConfirm({
-      message: `Delete "${entryName(entry)}"? This cannot be undone.`,
+      message: t('WEB_CONFIRM_DELETE_PROTOCOL', { 0: entryName(entry) }),
       onConfirm: () => {
         protocolLibrary.deleteUserProtocol(entryId(entry));
         setConfirm(null);
@@ -111,7 +112,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
           <input
             className="search-input"
             type="text"
-            placeholder="Search protocols..."
+            placeholder={t('WEB_SEARCH_PROTOCOLS')}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -124,7 +125,11 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
               className={`filter-tab${filter === f ? ' active' : ''}`}
               onClick={() => setFilter(f)}
             >
-              {f === 'all' ? 'All' : f === 'predefined' ? 'Predefined' : 'My Protocols'}
+              {f === 'all'
+                ? t('WEB_FILTER_ALL')
+                : f === 'predefined'
+                  ? t('WEB_FILTER_PREDEFINED')
+                  : t('WEB_FILTER_MINE')}
             </button>
           ))}
         </div>
@@ -141,7 +146,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
                 fontWeight: 700,
                 cursor: 'pointer',
               }}
-              title={`Active individual profile: ${activeProfile.name}`}
+              title={t('WEB_ACTIVE_PROFILE_TOOLTIP', { 0: activeProfile.name })}
               onClick={() => setShowLimits(true)}
             >
               {activeProfile.name}
@@ -150,16 +155,16 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
           <button
             className="btn btn-secondary"
             onClick={() => setShowLimits(true)}
-            title="Configure dosage limits"
+            title={t('WEB_LIMITS_TOOLTIP')}
             style={{ fontSize: 13 }}
           >
-            Limits
+            {t('WEB_LIMITS')}
           </button>
           <button className="btn btn-secondary" onClick={onOpenComposer}>
-            🎛️ Compose
+            {t('WEB_COMPOSE')}
           </button>
           <button className="btn btn-primary" onClick={onNewProtocol}>
-            + New Protocol
+            {t('WEB_NEW_PROTOCOL_BUTTON')}
           </button>
         </div>
       </div>
@@ -168,23 +173,25 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
         {isLoadingPredefined && filter !== 'mine' && (
           <div className="empty-state" style={{ opacity: 0.6 }}>
             <div className="empty-state-icon">⏳</div>
-            <div className="empty-state-title">Loading protocols…</div>
+            <div className="empty-state-title">{t('WEB_LOADING_PROTOCOLS')}</div>
           </div>
         )}
 
         {showEmpty && (
           <div className="empty-state">
             <div className="empty-state-icon">📋</div>
-            <div className="empty-state-title">No protocols found</div>
+            <div className="empty-state-title">{t('WEB_NO_PROTOCOLS_FOUND')}</div>
             <div className="empty-state-text">
-              {search ? `No protocols match "${search}". Try a different search term.` : 'Create your first protocol using the button above.'}
+              {search
+                ? t('WEB_NO_PROTOCOLS_MATCH', { 0: search })
+                : t('WEB_NO_PROTOCOLS_CREATE_FIRST')}
             </div>
           </div>
         )}
 
         {showPredefined && (
           <div className="protocol-section">
-            <div className="protocol-section-header">Predefined</div>
+            <div className="protocol-section-header">{t('WEB_FILTER_PREDEFINED')}</div>
             <div className="protocol-cards">
               {predefined.map(entry => (
                 <ProtocolCard
@@ -204,7 +211,7 @@ export function ProtocolMenu({ onEdit, onNewProtocol, onOpenComposer }: Protocol
 
         {showUser && (
           <div className="protocol-section">
-            <div className="protocol-section-header">My Protocols</div>
+            <div className="protocol-section-header">{t('WEB_FILTER_MINE')}</div>
             <div className="protocol-cards">
               {userOwned.map(entry => (
                 <ProtocolCard
@@ -273,17 +280,19 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
 
   const deviceTier = protocolLibrary.deviceTier;
   const availLabel = deviceTier === 'none'
-    ? 'No device'
+    ? t('WEB_AVAIL_NO_DEVICE')
     : availability.available
-      ? 'Available'
-      : 'Unavailable';
+      ? t('WEB_AVAIL_AVAILABLE')
+      : t('WEB_AVAIL_UNAVAILABLE');
 
   const availClass = deviceTier === 'none'
     ? 'no-device'
     : availability.available ? 'available' : 'unavailable';
 
   const missingTooltip = availability.missingModalities && availability.missingModalities.length > 0
-    ? `Missing: ${availability.missingModalities.map(m => MODALITY_META[m]?.displayName ?? m).join(', ')}`
+    ? t('WEB_AVAIL_MISSING', {
+        0: availability.missingModalities.map(m => MODALITY_META[m]?.displayName ?? m).join(', '),
+      })
     : availability.reason ?? '';
 
   // Validation border color
@@ -306,7 +315,7 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
             {name}
             {isReadOnly && (
               <span
-                title="Read-only — duplicate to create your own editable copy"
+                title={t('WEB_READ_ONLY_TOOLTIP')}
                 style={{ opacity: 0.55, fontSize: '0.8em', marginLeft: 6, verticalAlign: 'middle' }}
               >
                 🔒
@@ -315,7 +324,7 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
           </div>
           {isComposite && (
             <span className="composite-badge">
-              ⊞ {entry.composite.layers.length} layers
+              {t('WEB_COMPOSITE_LAYERS_BADGE', { 0: entry.composite.layers.length })}
             </span>
           )}
         </div>
@@ -360,14 +369,14 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
         )}
 
         <button className="btn btn-secondary btn-sm" onClick={onEdit}>
-          {canEdit ? 'Edit' : 'View'}
+          {canEdit ? t('WEB_EDIT') : t('WEB_VIEW')}
         </button>
-        <button className="btn btn-ghost btn-sm" onClick={onDuplicate} title="Duplicate as editable copy">
-          Copy
+        <button className="btn btn-ghost btn-sm" onClick={onDuplicate} title={t('WEB_DUPLICATE_TOOLTIP')}>
+          {t('WEB_COPY')}
         </button>
         {onDelete && canEdit && (
           <button className="btn btn-danger btn-sm" onClick={onDelete}>
-            Delete
+            {t('WEB_DELETE')}
           </button>
         )}
       </div>
@@ -382,8 +391,8 @@ function ValidationBadge({ validation }: { validation: NPValidationResult }) {
   const hasErrors = validation.errors.length > 0;
   const count = hasErrors ? validation.errors.length : validation.warnings.length;
   const label = hasErrors
-    ? `${count} error${count !== 1 ? 's' : ''}`
-    : `${count} warning${count !== 1 ? 's' : ''}`;
+    ? tPlural('WEB_VALIDATION_ERROR_COUNT', count)
+    : tPlural('WEB_VALIDATION_WARNING_COUNT', count);
 
   const badgeColor = hasErrors
     ? 'var(--error, #ef4444)'
@@ -410,7 +419,7 @@ function ValidationBadge({ validation }: { validation: NPValidationResult }) {
           whiteSpace: 'nowrap',
         }}
       >
-        ⚠ {label}
+        {t('WEB_VALIDATION_BADGE', { 0: label })}
       </button>
       {open && (
         <div
@@ -432,18 +441,22 @@ function ValidationBadge({ validation }: { validation: NPValidationResult }) {
           }}
         >
           <div style={{ fontWeight: 700, fontSize: 12, marginBottom: 8, color: badgeColor }}>
-            {hasErrors ? 'Validation Errors' : 'Validation Warnings'}
+            {hasErrors ? t('WEB_VALIDATION_ERRORS_TITLE') : t('WEB_VALIDATION_WARNINGS_TITLE')}
           </div>
           {allIssues.map(issue => (
             <div key={issue.id} style={{ marginBottom: 8, borderBottom: '1px solid var(--border)', paddingBottom: 6 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: badgeColor }}>
-                {issue.modality ? `[${issue.modality}] ` : ''}{issue.parameterDisplayName}
+                {issue.modality ? t('WEB_VALIDATION_ISSUE_MODALITY', { 0: issue.modality }) : ''}
+                {issue.parameterDisplayName}
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
                 {issue.message}
               </div>
               <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
-                Actual: {issue.actualValueDescription} — Limit: {issue.limitValueDescription}
+                {t('WEB_VALIDATION_ACTUAL_LIMIT', {
+                  0: issue.actualValueDescription,
+                  1: issue.limitValueDescription,
+                })}
               </div>
             </div>
           ))}
@@ -459,7 +472,7 @@ function ValidationBadge({ validation }: { validation: NPValidationResult }) {
               padding: 0,
             }}
           >
-            Dismiss
+            {t('WEB_DISMISS')}
           </button>
         </div>
       )}
@@ -478,15 +491,15 @@ function ConfirmDialog({ message, onConfirm, onCancel }: {
     <div className="modal-overlay" onClick={onCancel}>
       <div className="modal confirm-dialog" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">Confirm</span>
+          <span className="modal-title">{t('WEB_CONFIRM_TITLE')}</span>
           <button className="modal-close" onClick={onCancel}>×</button>
         </div>
         <div className="modal-body">
           {message}
         </div>
         <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-danger" onClick={onConfirm}>Delete</button>
+          <button className="btn btn-secondary" onClick={onCancel}>{t('COMMON_CANCEL')}</button>
+          <button className="btn btn-danger" onClick={onConfirm}>{t('WEB_DELETE')}</button>
         </div>
       </div>
     </div>

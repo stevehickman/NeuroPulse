@@ -10,6 +10,7 @@ import { parseNPPS, NPPSParseError } from '../lib/nppsParser';
 import { serializeNPPS } from '../lib/nppsSerializer';
 import { ModalityEditorBlock, ModalityPicker } from './ModalityEditor';
 import { ScriptEditor } from './ScriptEditor';
+import { t } from '../lib/i18n';
 
 interface ProtocolEditorProps {
   existing?: NPProtocolEntry;
@@ -48,7 +49,7 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
         // Editing predefined: create a copy
         const now = new Date().toISOString();
         return { ...p, id: crypto.randomUUID(), isPredefined: false, createdAt: now, modifiedAt: now,
-          name: p.name + ' (copy)',
+          name: t('WEB_PROTOCOL_COPY_SUFFIX', { 0: p.name }),
           modalities: p.modalities.map(m => ({ ...m, id: crypto.randomUUID() })) };
       }
       return { ...p };
@@ -169,7 +170,7 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
 
   function handleSave() {
     if (!protocol.name.trim()) {
-      setSaveError('Protocol name is required.');
+      setSaveError(t('WEB_ERROR_NAME_REQUIRED'));
       return;
     }
     setSaveError('');
@@ -185,16 +186,20 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
   return (
     <div className="protocol-editor">
       <div className="editor-header">
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>← Back</button>
+        <button className="btn btn-ghost btn-sm" onClick={onCancel}>{t('WEB_BACK')}</button>
         <div className="editor-title">
-          {existing && !isNew ? `Editing: ${existing.kind === 'single' ? existing.protocol.name : ''}` : 'New Protocol'}
+          {existing && !isNew
+            ? t('WEB_EDITING_PROTOCOL', {
+                0: existing.kind === 'single' ? existing.protocol.name : '',
+              })
+            : t('WEB_NEW_PROTOCOL')}
         </div>
         <div className="editor-tabs">
           <button className={`editor-tab${tab === 'visual' ? ' active' : ''}`} onClick={() => handleTabChange('visual')}>
-            Visual
+            {t('WEB_TAB_VISUAL')}
           </button>
           <button className={`editor-tab${tab === 'script' ? ' active' : ''}`} onClick={() => handleTabChange('script')}>
-            Script
+            {t('WEB_TAB_SCRIPT')}
           </button>
         </div>
       </div>
@@ -203,39 +208,39 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
         <div className="editor-body">
           {/* Metadata */}
           <div className="form-section">
-            <div className="form-section-title">Identity</div>
+            <div className="form-section-title">{t('WEB_SECTION_IDENTITY')}</div>
             <div className="form-row">
               <div className="form-field full">
-                <label className="form-label">Name *</label>
+                <label className="form-label">{t('WEB_FIELD_NAME_REQUIRED')}</label>
                 <input
                   className="form-input"
                   value={protocol.name}
                   onChange={e => updateProtocol({ name: e.target.value })}
-                  placeholder="Protocol name"
+                  placeholder={t('WEB_PLACEHOLDER_PROTOCOL_NAME')}
                 />
               </div>
               <div className="form-field full">
-                <label className="form-label">Description</label>
+                <label className="form-label">{t('WEB_FIELD_DESCRIPTION')}</label>
                 <textarea
                   className="form-textarea"
                   value={protocol.description}
                   onChange={e => updateProtocol({ description: e.target.value })}
-                  placeholder="What is this protocol for?"
+                  placeholder={t('WEB_PLACEHOLDER_DESCRIPTION')}
                 />
               </div>
             </div>
             <div className="form-row">
               <div className="form-field">
-                <label className="form-label">Author</label>
+                <label className="form-label">{t('PROTOCOL_AUTHOR')}</label>
                 <input className="form-input" value={protocol.author} onChange={e => updateProtocol({ author: e.target.value })} />
               </div>
               <div className="form-field">
-                <label className="form-label">Version</label>
+                <label className="form-label">{t('PROTOCOL_VERSION')}</label>
                 <input className="form-input" value={protocol.version} onChange={e => updateProtocol({ version: e.target.value })} style={{ maxWidth: 100 }} />
               </div>
             </div>
             <div className="form-field full">
-              <label className="form-label">Tags</label>
+              <label className="form-label">{t('PROTOCOL_TAGS')}</label>
               <div className="tags-editor">
                 {protocol.tags.map(tag => (
                   <span key={tag} className="tag-pill">
@@ -254,7 +259,7 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
                     }
                   }}
                   onBlur={() => { if (tagInput) handleAddTag(tagInput); }}
-                  placeholder="Add tag…"
+                  placeholder={t('WEB_PLACEHOLDER_ADD_TAG')}
                 />
               </div>
             </div>
@@ -262,10 +267,10 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
 
           {/* Timing */}
           <div className="form-section">
-            <div className="form-section-title">Session Timing</div>
+            <div className="form-section-title">{t('WEB_SECTION_SESSION_TIMING')}</div>
             <div className="form-row">
               <div className="form-field">
-                <label className="form-label">Mode</label>
+                <label className="form-label">{t('WEB_FIELD_MODE')}</label>
                 <div className="radio-group">
                   <label className="radio-label">
                     <input
@@ -275,7 +280,7 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
                       checked={timingType === 'duration'}
                       onChange={() => updateProtocol({ timingMode: { type: 'duration', seconds: timingValue } })}
                     />
-                    <span>Duration (seconds)</span>
+                    <span>{t('WEB_PROTOCOL_DURATION')}</span>
                   </label>
                   <label className="radio-label">
                     <input
@@ -285,13 +290,15 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
                       checked={timingType === 'interval_count'}
                       onChange={() => updateProtocol({ timingMode: { type: 'interval_count', count: timingValue } })}
                     />
-                    <span>Interval count</span>
+                    <span>{t('WEB_PROTOCOL_INTERVAL_COUNT')}</span>
                   </label>
                 </div>
               </div>
               <div className="form-field" style={{ maxWidth: 180 }}>
                 <label className="form-label">
-                  {timingType === 'duration' ? 'Duration (sec)' : 'Repeat count'}
+                  {timingType === 'duration'
+                    ? t('WEB_FIELD_DURATION_SEC')
+                    : t('WEB_FIELD_REPEAT_COUNT')}
                 </label>
                 <input
                   type="number"
@@ -309,7 +316,10 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
                 />
                 {timingType === 'duration' && (
                   <span className="form-hint">
-                    = {Math.floor(timingValue / 60)}m {timingValue % 60}s
+                    {t('WEB_DURATION_HINT', {
+                      0: Math.floor(timingValue / 60),
+                      1: timingValue % 60,
+                    })}
                   </span>
                 )}
               </div>
@@ -319,13 +329,13 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
           {/* Modalities */}
           <div className="form-section">
             <div className="form-section-title" style={{ marginBottom: 10 }}>
-              Modalities ({protocol.modalities.length})
+              {t('WEB_SECTION_MODALITIES_COUNT', { 0: protocol.modalities.length })}
             </div>
             <div className="modality-list">
               {protocol.modalities.length === 0 && (
                 <div className="empty-state" style={{ padding: '30px 0' }}>
                   <div className="empty-state-icon">🧠</div>
-                  <div className="empty-state-text">No modalities added yet. Click "Add Modality" to begin.</div>
+                  <div className="empty-state-text">{t('WEB_NO_MODALITIES_HINT')}</div>
                 </div>
               )}
               {protocol.modalities.map((m, i) => (
@@ -338,7 +348,7 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
               ))}
             </div>
             <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => setShowPicker(true)}>
-              + Add Modality
+              {t('WEB_ADD_MODALITY')}
             </button>
           </div>
         </div>
@@ -353,9 +363,9 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
 
       <div className="editor-footer">
         {saveError && <span style={{ color: 'var(--error)', fontSize: 13, flex: 1 }}>{saveError}</span>}
-        <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-secondary" onClick={onCancel}>{t('COMMON_CANCEL')}</button>
         <button className="btn btn-primary" onClick={handleSave}>
-          {isNew ? 'Create Protocol' : 'Save Changes'}
+          {isNew ? t('WEB_CREATE_PROTOCOL') : t('WEB_SAVE_CHANGES')}
         </button>
       </div>
 

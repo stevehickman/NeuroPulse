@@ -16,6 +16,7 @@
 // The scan below is the same five steps in all four languages.
 
 import type { NPConditionDefinition } from '../types/protocol';
+import { t } from './i18n';
 
 export type NPLinkReason =
   | 'ok'
@@ -156,17 +157,17 @@ export function linkBlockedMessage(reason: NPLinkReason): string {
     case 'ok':
       return '';
     case 'not_absolute':
-      return 'This condition has no full web address.';
+      return t('WEB_CONDITION_BLOCKED_NOT_ABSOLUTE');
     case 'scheme_not_https':
-      return 'Only secure https links can be opened.';
+      return t('WEB_CONDITION_BLOCKED_NOT_HTTPS');
     case 'embedded_credentials':
-      return 'This link hides its real destination.';
+      return t('WEB_CONDITION_BLOCKED_CREDENTIALS');
     case 'missing_host':
-      return 'This link has no destination site.';
+      return t('WEB_CONDITION_BLOCKED_MISSING_HOST');
     case 'local_or_private_host':
-      return 'This link points to a private address.';
+      return t('WEB_CONDITION_BLOCKED_PRIVATE_HOST');
     case 'malformed':
-      return 'This link is malformed.';
+      return t('WEB_CONDITION_BLOCKED_MALFORMED');
   }
 }
 

@@ -14,6 +14,7 @@ import {
   type NPResolvedCondition,
 } from '../lib/conditionLink';
 import type { NPConditionDefinition } from '../types/protocol';
+import { t } from '../lib/i18n';
 
 interface ConditionChipsProps {
   conditions: readonly string[] | undefined;
@@ -37,7 +38,7 @@ export function ConditionChips({ conditions, registry }: ConditionChipsProps) {
             onClick={() => setSelected(c)}
             title={
               c.verdict.allowed
-                ? `Open definition on ${c.verdict.host}`
+                ? t('WEB_CONDITION_OPEN_ON_HOST', { 0: c.verdict.host ?? '' })
                 : linkBlockedMessage(c.verdict.reason)
             }
           >
@@ -81,7 +82,9 @@ export function ConditionLinkDialog({ condition, onClose }: ConditionLinkDialogP
       >
         <div className="modal-header">
           <span id="condition-dialog-title" className="modal-title">{name}</span>
-          {definition?.code && <span className="tag-chip">ICD-11 {definition.code}</span>}
+          {definition?.code && (
+            <span className="tag-chip">{t('WEB_CONDITION_ICD11_CODE', { 0: definition.code })}</span>
+          )}
         </div>
 
         <div className="condition-modal-body">
@@ -91,30 +94,29 @@ export function ConditionLinkDialog({ condition, onClose }: ConditionLinkDialogP
 
           {verdict.allowed ? (
             <>
-              <p className="condition-leaving">
-                This opens an external site in your browser. NeurOne does not
-                record which conditions you look up.
-              </p>
+              <p className="condition-leaving">{t('WEB_CONDITION_LEAVING_NOTICE')}</p>
               <div className="condition-destination">
-                <span className="condition-destination-label">Destination</span>
+                <span className="condition-destination-label">
+                  {t('WEB_CONDITION_DESTINATION_LABEL')}
+                </span>
                 <span className="condition-destination-host">{verdict.host}</span>
               </div>
             </>
           ) : (
             <p className="condition-blocked">
               {linkBlockedMessage(verdict.reason)}
-              {!definition && ' This condition is not in the registry.'}
+              {!definition && t('WEB_CONDITION_NOT_IN_REGISTRY')}
             </p>
           )}
         </div>
 
         <div className="condition-modal-actions">
           <button type="button" className="btn-secondary" onClick={onClose}>
-            {verdict.allowed ? 'Cancel' : 'Close'}
+            {verdict.allowed ? t('COMMON_CANCEL') : t('COMMON_CLOSE')}
           </button>
           {verdict.allowed && (
             <button type="button" className="btn-primary" onClick={confirm}>
-              Open in browser
+              {t('WEB_CONDITION_OPEN_IN_BROWSER')}
             </button>
           )}
         </div>
