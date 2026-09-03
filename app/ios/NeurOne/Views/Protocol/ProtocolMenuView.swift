@@ -229,7 +229,7 @@ struct ProtocolMenuView: View {
                         Image(systemName: "person.circle.fill")
                             .foregroundColor(.accentColor)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Profile: \(profile.name)")
+                            Text(String(format: String(localized: "PROTOCOL_MENU_PROFILE"), profile.name))
                                 .font(.subheadline.weight(.medium))
                             Text(limitsStore.resolutionChainDescription)
                                 .font(.caption)
@@ -682,7 +682,7 @@ struct ProtocolRowView: View {
                     .clipShape(Capsule())
             }
             if extra > 0 {
-                Text("+\(extra) more")
+                Text(String(format: String(localized: "PROTOCOL_MENU_MORE"), String(extra)))
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -714,7 +714,7 @@ struct ValidationDetailSheet: View {
                 }
 
                 if !result.errors.isEmpty {
-                    Section("Errors (\(result.errors.count))") {
+                    Section(String(format: String(localized: "PROTOCOL_MENU_ERRORS_COUNT"), String(result.errors.count))) {
                         ForEach(result.errors) { issue in
                             ValidationIssueRow(issue: issue)
                         }
@@ -722,7 +722,7 @@ struct ValidationDetailSheet: View {
                 }
 
                 if !result.warnings.isEmpty {
-                    Section("Warnings (\(result.warnings.count))") {
+                    Section(String(format: String(localized: "PROTOCOL_MENU_WARNINGS_COUNT"), String(result.warnings.count))) {
                         ForEach(result.warnings) { issue in
                             ValidationIssueRow(issue: issue)
                         }
@@ -736,7 +736,7 @@ struct ValidationDetailSheet: View {
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Validation: \(entry.name)")
+            .navigationTitle(String(format: String(localized: "PROTOCOL_MENU_VALIDATION_TITLE"), entry.name))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -771,13 +771,13 @@ struct ValidationIssueRow: View {
             Text(issue.message)
                 .font(.subheadline)
             HStack(spacing: 4) {
-                Text("Value: \(issue.actualValueDescription)")
+                Text(String(format: String(localized: "PROTOCOL_MENU_ISSUE_VALUE"), issue.actualValueDescription))
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Text("·")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("Limit: \(issue.limitValueDescription)")
+                Text(String(format: String(localized: "PROTOCOL_MENU_ISSUE_LIMIT"), issue.limitValueDescription))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

@@ -83,7 +83,7 @@ export function ConditionLinkDialog({ condition, onClose }: ConditionLinkDialogP
         <div className="modal-header">
           <span id="condition-dialog-title" className="modal-title">{name}</span>
           {definition?.code && (
-            <span className="tag-chip">{t('WEB_CONDITION_ICD11_CODE', { 0: definition.code })}</span>
+            <span className="tag-chip">{t('UI_CONDITION_ICD11_CODE', { 0: definition.code })}</span>
           )}
         </div>
 

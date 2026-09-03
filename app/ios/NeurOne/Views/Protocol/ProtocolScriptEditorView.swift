@@ -27,7 +27,7 @@ struct ProtocolScriptEditorView: View {
 
                 Spacer()
 
-                Text("\(lineCount) line\(lineCount == 1 ? "" : "s")")
+                Text(String.localizedStringWithFormat(String(localized: "SCRIPT_LINE_COUNT"), lineCount))
                     .font(.caption2)
                     .foregroundColor(.secondary)
 

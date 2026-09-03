@@ -154,7 +154,8 @@ struct SuggestionRow: View {
 
             // Function 3 — pledge indicator
             if let pledge = suggestion.pledgeAmount {
-                Label("$\(pledge) pledged", systemImage: "dollarsign.circle")
+                Label(String(format: String(localized: "PORTAL_PLEDGED_AMOUNT"), String(pledge)),
+                      systemImage: "dollarsign.circle")
                     .font(.caption2).foregroundColor(.orange)
             }
         }
@@ -200,7 +201,8 @@ struct SuggestionDetailView: View {
                 .font(.caption).foregroundColor(.secondary)
             Text(suggestion.body).font(.body)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Suggested \(suggestion.submittedAt.formatted(.dateTime.month().day().year()))")
+            Text(String(format: String(localized: "PORTAL_SUGGESTED_DATE"),
+                       suggestion.submittedAt.formatted(.dateTime.month().day().year())))
                 .font(.caption2).foregroundColor(.secondary)
         }
     }
@@ -291,7 +293,7 @@ struct SuggestionDetailView: View {
             }
 
             if selectedPledgeTier != .none {
-                Button("Pledge \(selectedPledgeTier.label)") {
+                Button(String(format: String(localized: "PORTAL_PLEDGE_BUTTON"), selectedPledgeTier.label)) {
                     store.pledge(amount: selectedPledgeTier.rawValue, on: suggestion.id)
                     suggestion.pledgeAmount = selectedPledgeTier.rawValue
                 }
