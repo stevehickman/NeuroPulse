@@ -562,10 +562,109 @@ static void test_app_dtcm_region_uses_the_constant(void)
            "not what bounds the region");
 }
 
+/* ── §4.11 (OI-SWCI-42): the DTCM guarantee ──────────────────────────────────
+ *
+ * NP_DTCM_GUARANTEED_SIZE is not a fourth statement of the partition, so it is
+ * not checked for equality against a bank count.  It is the DTCM that exists
+ * with NO register write — the default eFuse split, which is also the figure
+ * the MCUX SDK's linker scripts declare as m_data.  Two things have to hold for
+ * it to mean anything:
+ *
+ *   1. it must not exceed the DTCM the partition establishes.  A "guarantee"
+ *      larger than the real region would admit data into memory that does not
+ *      exist under EITHER partition, which is worse than having no guarantee;
+ *   2. it must be the SDK's 128 KiB.  If someone raises it to buy headroom,
+ *      the constant stops describing the default partition and silently starts
+ *      describing a preference — and the assert in the linker script, which
+ *      reads correct either way, would then be enforcing nothing.
+ */
+static void test_dtcm_guarantee_is_the_default_efuse_dtcm(void)
+{
+    uint64_t guaranteed = 0U;
+    uint64_t established = 0U;
+
+    if (ld_value(&g_app, "NP_DTCM_GUARANTEED_SIZE", &guaranteed) != 0) return;
+
+    ASSERT(guaranteed == 128U * 1024U,
+           "NP_DTCM_GUARANTEED_SIZE is not 128 KiB — it is supposed to be the "
+           "DTCM the DEFAULT eFuse partition provides (the MCUX SDK's m_data), "
+           "not a headroom figure someone chose");
+    if (guaranteed != 128U * 1024U) {
+        printf("       NP_DTCM_GUARANTEED_SIZE = %lu, expected %u\n",
+               (unsigned long)guaranteed, 128U * 1024U);
+    }
+
+    if (ld_value(&g_app, "NP_FLEXRAM_DTCM_SIZE", &established) != 0) return;
+    ASSERT(guaranteed <= established,
+           "NP_DTCM_GUARANTEED_SIZE exceeds the DTCM the partition establishes "
+           "— data inside the 'guarantee' would then be outside the region");
+}
+
+/*
+ * The guarantee is only load-bearing if the link enforces it.  The bound is
+ * written as an ASSERT in the linker script rather than as a MEMORY region, so
+ * nothing but this test notices if it is deleted — a region overflow would not
+ * be reported, because .dtcm_bss growing past 128 KiB is still inside the
+ * established 512 KiB DTCM and links perfectly cleanly.
+ *
+ * That is exactly the failure this case exists for: the mistake would not be
+ * visible on the bench either, because it would work on any board where the
+ * partition took effect and fail only on one where it did not.
+ */
+static void test_dtcm_guarantee_is_enforced_by_an_assert(void)
+{
+    ASSERT(strstr(g_app.text, "__dtcm_bss_end__ <= ORIGIN(DTCM) + NP_DTCM_GUARANTEED_SIZE") != NULL,
+           "the application script does not ASSERT .dtcm_bss inside "
+           "NP_DTCM_GUARANTEED_SIZE — the constant would be decoration, and a "
+           "buffer moved past 128 KiB would link cleanly and exist only if the "
+           "partition took effect");
+}
+
+/*
+ * .dtcm_bss is bss-class storage the vendored SDK startup does NOT zero: it
+ * clears exactly __bss_start__..__bss_end__, and firmware/vendor/mcux_sdk/ is
+ * byte-exact so it cannot be taught otherwise.  np_app_dtcm_bss_clear() is what
+ * zeroes it, and it reads these two symbols.
+ *
+ * Checking the symbols exist is the half a host test can do — the link itself
+ * catches a rename (ld reports the undefined symbol from the ASSERT expression,
+ * verified by mutation 2026-09-03).  What this adds is the REASON, so a future
+ * reader deleting the section does not have to rediscover that the startup
+ * only zeroes one span.
+ */
+static void test_dtcm_bss_has_bounds_for_the_clear_function(void)
+{
+    ASSERT(strstr(g_app.text, "__dtcm_bss_start__ = .") != NULL,
+           "app script defines no __dtcm_bss_start__ — np_app_dtcm_bss_clear() "
+           "could not zero the region, and the vendored startup does not");
+    ASSERT(strstr(g_app.text, "__dtcm_bss_end__ = .") != NULL,
+           "app script defines no __dtcm_bss_end__");
+}
+
+/*
+ * §4.11.2 — .lpsdr4 must have an output section AND be asserted empty.
+ *
+ * The section is what stops it being an orphan; the assert is what stops the
+ * section from becoming a quiet home for it.  Measured 2026-09-03: with
+ * --gc-sections disabled, ld's orphan placement put .lpsdr4 at VMA 0x20000554,
+ * inside DTCM, with an LMA nothing copies from.  Both halves are needed, so
+ * both are checked.
+ */
+static void test_lpsdr4_is_homed_and_asserted_empty(void)
+{
+    ASSERT(strstr(g_app.text, ".lpsdr4") != NULL,
+           "app script declares no .lpsdr4 output section — the section would "
+           "be an orphan and ld would place it silently, inside DTCM");
+    ASSERT(strstr(g_app.text, "SIZEOF(.lpsdr4) == 0") != NULL,
+           "app script does not ASSERT .lpsdr4 empty — no external SDRAM is "
+           "established, so anything landing there is in memory the image does "
+           "not have");
+}
+
 int main(void)
 {
     printf("NeurOne SW-02 linker-script agreement tests "
-           "(NP-SW-CI-001 §4.8, §4.10)\n");
+           "(NP-SW-CI-001 §4.8, §4.10, §4.11)\n");
 
     if (ld_load(&g_boot, NP_BOOTLOADER_LD_PATH) != 0 ||
         ld_load(&g_app,  NP_APPLICATION_LD_PATH) != 0) {
@@ -586,8 +685,14 @@ int main(void)
     test_app_dtcm_matches_the_established_partition();
     test_app_dtcm_region_uses_the_constant();
 
+    /* §4.11 — DTCM residency: the guarantee, its enforcement, and .lpsdr4. */
+    test_dtcm_guarantee_is_the_default_efuse_dtcm();
+    test_dtcm_guarantee_is_enforced_by_an_assert();
+    test_dtcm_bss_has_bounds_for_the_clear_function();
+    test_lpsdr4_is_homed_and_asserted_empty();
+
     if (g_fail_count == 0) {
-        printf("PASS — both linker scripts and np_config.h agree about the staging area and the FlexRAM partition\n");
+        printf("PASS — both linker scripts and np_config.h agree about the staging area, the FlexRAM partition and DTCM residency\n");
     } else {
         printf("\n%d failure(s)\n", g_fail_count);
     }

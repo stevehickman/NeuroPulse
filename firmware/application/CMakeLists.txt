@@ -58,6 +58,11 @@ set(NP_MCUX_DEVICE_DEFINE CPU_MIMXRT1062DVL6A)
 
 add_executable(np_application
     src/np_app_main.c
+    # DTCM-resident data (NP-SW-CI-001 §4.10, closes OI-SWCI-42): defines
+    # ucHeap in .dtcm_bss under configAPPLICATION_ALLOCATED_HEAP, and zeroes
+    # that region — the vendored startup zeroes only one bss span and is
+    # byte-exact, so a second region is first-party work by construction.
+    src/np_app_dtcm.c
     ${NP_MCUX_DEVICE_DIR}/system_MIMXRT1062.c
     ${NP_MCUX_DEVICE_DIR}/gcc/startup_MIMXRT1062.S
 )

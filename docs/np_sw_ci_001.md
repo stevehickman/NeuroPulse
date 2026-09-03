@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 14
-**Date:** 2026-09-02  
+**Revision:** 15
+**Date:** 2026-09-03  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -13,6 +13,8 @@
 **Gate:** —  
 **IEC 62304 Class:** SW-01 Class C (safety MCU), SW-02 Class B (main processor)  
 **Supersedes:** None  
+**Change Summary:** Rev 15 (2026-09-03) — **phase 10; OI-SWCI-42 CLOSED: `ucHeap` is in DTCM, and three figures the item rested on were wrong.** New **§4.11**. (1) **Re-measuring the record before acting on it found three defects in it.** The "162,436 B static footprint" carried verbatim through §4.8.5, §4.10.6 and the item is `.data` + `.bss` + the **8 KiB MSP stack** — Berkeley-format `arm-none-eabi-size` folds allocated `NOLOAD` sections into its `bss` column, and the stack is already placed separately by the linker script, so it was counted twice; the real figure is **154,244 B**. Two of the four named largest `.bss` contributors, `np_module_map`'s `s_map` and `s_nvram_scratch` (44,948 B), are **in no image** — `--gc-sections` drops them, at phase 8 and now, verified by building `100a410`; the census was taken over objects rather than the artifact. And the cost it records names an **L1 D-cache that is never enabled** — `SystemInit()` enables the I-cache only, so OCRAM2 access is *uncached* and the recorded cost was an understatement. `firmware/vendor/cmsis_core/VERSION` already said so in as many words: §4.8's "two statements in the tree, contradicting each other, compared by nothing", for the fourth time. The conclusion phase 8 drew survives — `.bss` in a 128 KiB DTCM overflows by a measured 31,384 B — but its arithmetic attributed that to the wrong sections. (2) **The choice was never all-or-nothing.** DTCM held 304 bytes of application data; 130,768 B of the 131,072 that exist under the DEFAULT eFuse partition were unallocated while 153,940 B of `.bss` sat in OCRAM2. **`ucHeap` (65,536 B) moves to a new `.dtcm_bss`**, leaving `.bss` at 88,404 B (−42.6 %). It is the one buffer whose placement can be argued without a profiler on an image that cannot be profiled: every FreeRTOS task stack is cut from it, which is a property of the calling convention, not a hypothesis about a workload. (3) **It needs nothing from OI-SWCI-39, and that is what answers §4.10.6 rather than overriding it.** 65,840 B of `.data` + `ucHeap` fit the 128 KiB the default partition provides with 65,232 B spare, asserted as `NP_DTCM_GUARANTEED_SIZE`; and §4.10.6's corruption-vs-fault objection does not reach it, because the MSP stack pinned at `0x20080000` already faults in `Reset_Handler` under a failed partition, upstream of every DTCM resident. The other 88,404 B stays in OCRAM2 for §4.10.6's reason. (4) **The startup zeroes exactly one span**, and the vendored file is byte-exact — so `.dtcm_bss` is zeroed by `np_app_dtcm_bss_clear()` as the first statement of `main()`, which is checkably the earliest C code in the image. Heap ownership moves via `configAPPLICATION_ALLOCATED_HEAP`, the mechanism heap_4's own comment says exists for this, so `firmware/vendor/freertos/` stays byte-exact too. (5) **`.lpsdr4` named a region that does not exist.** `np_hd_session.c` said the name "names a region in the ARM linker script"; none declared it, no SDRAM region or `0x80000000` address exists in the tree, and nothing configures the SEMC. Measured with `--gc-sections` off, `ld` orphan-placed it at VMA `0x20000554` — **inside DTCM** — with an LMA nothing copies from and no zeroing. The link now refuses (`ASSERT(SIZEOF(.lpsdr4) == 0)`) instead of mis-placing: **OI-SWCI-46**. (6) **One regression only the artifact can catch.** Reverting `configAPPLICATION_ALLOCATED_HEAP` to `0` fails nothing — heap_4 quietly supplies its own `ucHeap` in `.bss`, the link is green, every `ASSERT` passes and the host suite passes 32/32 — so the new CI step asserts against the **image** that `ucHeap` is inside `.dtcm_bss` and that `.dtcm_bss` is exactly 65,536 B, and prints the DTCM/OCRAM2 split. Every check here was mutation-tested. New open items: **OI-SWCI-45** (the D-cache is never enabled), **OI-SWCI-46** (no external SDRAM is established).
+
 **Change Summary:** Rev 14 (2026-09-02) — **phase 9; OI-SWCI-39 CLOSED: the i.MX RT1062 FlexRAM partition is a NeurOne decision, established in code, and checked in three places against the two linker scripts that depend on it.** New **§4.10**. (1) **The finding was not the one the item recorded.** OI-SWCI-39 said the bootloader script's 512 KiB OCRAM and the MCUX script's 768 KiB "do not agree". They never described the same memory: `0x20200000` is the **dedicated OCRAM2 array**, 512 KiB, not part of FlexRAM; the FlexRAM OCRAM aperture begins where it ends, at `0x20280000`; and the SDK's 768 KiB is the composite of the two under the **default eFuse** split (512 + 256). So there was no contradiction to resolve — the real defect is the one the item named second and buried: **both scripts asserted a partition nothing had chosen.** (2) **The partition is derived, not preferred: ITCM 0 banks · DTCM 16 banks (512 KiB) · FlexRAM OCRAM 0 banks.** Only three regions can consume banks and two of them have no section in either linker script — the bootloader executes from OCRAM2 where the ROM put it and the application executes in place from the OCRAM2 staging area, so neither has any `.text` in ITCM, and nothing addresses `0x20280000`. DTCM is the only claimant, so it takes all sixteen. Leaving banks unassigned would shrink the device's RAM to fit today's bring-up image, which is the reasoning §4.8.5 rejected when it declined to shrink `configTOTAL_HEAP_SIZE`. (3) **A consequence that closes the item's own complaint:** with zero FlexRAM OCRAM banks, OCRAM2 is the only OCRAM, so the bootloader script's 512 KiB stops being "conservative and therefore currently right" and becomes exact by construction. (4) **`firmware/bootloader/src/np_flexram.c`, called first in `Bootloader_Reset()`** — before the watchdog disable, so "no code runs before the memory map is established" is checkable by looking at the top of the function rather than arguable about every statement. It is safe to reassign banks from running code for a reason that is a *property of the linker script* rather than a promise: `bootloader_imxrt1062.ld` declares exactly one memory region and it is OCRAM2, so no section of the bootloader's can be in a bank the call reassigns. (5) **The module is split the way `np_app_image.c` is.** Two pure functions compute the GPR17 bank-config word and the GPR14 window codes and are checked by a new host suite against hand-worked oracles; the three register stores are compiled out on a host rather than replaced by a fake register file, because a fake would let the suite pass while the real layout was wrong. **The three GPR fields it writes are not in the vendored MCUX 2.16.0 header at all** — `MIMXRT1062.h` defines two GPR16 fields and no `CM7_CFG*TCMSZ` — so they are transcribed from IMXRT1060RM, corroborated against shipping RT1062 firmware, and the transcription is itself asserted. (6) **One fact, four declarations, and disagreement now fails a test rather than a device** — `np_config.h`, both linker scripts, and the linked artifact. `np_app_link_agreement_tests` gained five cases (it now includes `np_config.h` rather than parsing it); the bootloader link gained three `ASSERT`s; and the CI legs assert on the ARTIFACTS that `np_flexram_apply_partition` survived `--gc-sections` and that `__StackTop` sits at the top of the DTCM the partition establishes. Every one was mutation-tested before commit. (7) **`.bss` did NOT move into the new DTCM, and that is the deliberate half.** §4.8.5's stated blocker is gone and 162,436 B would now fit 524,288 B three times over — but DTCM exists only if three untested register writes do what the RM says, and with `.bss` there a partition that failed to take effect would take `ucHeap`, every task stack and every static buffer with it. **OI-SWCI-42 is re-scoped, not closed:** what gates it is now one bench confirmation, not a decision nobody has made. (8) **Two findings raised in passing.** `build-all.yml`'s `NP_TOTAL_TEST_COUNT` read 30 against a real total of 31 — phase 8 updated two of the three copies — so the weekly backstop's partition assertion had been failing, unseen, since 2026-09-01: OI-SWCI-37's shape, invisible for OI-SWCI-10's reason. Fixed here (7 + 25 = 32). And `np_config.h`'s `NP_SCRATCH_SRAM_BASE`/`_SIZE` describe a 64 KiB OCRAM window that overlaps `.app_staging` and the bootloader stack; they are referenced by nothing and are recorded as **OI-SWCI-44** rather than deleted in a phase about a different map.
 
 > **This revision was authored as Rev 13 with its new section numbered §4.9, and was renumbered to
@@ -599,6 +601,8 @@ running, the loadable image is 48 KiB of it, and `.bss` is `NOLOAD` so it costs 
 image bytes. The cost is real and is recorded rather than hidden — OCRAM is not tightly coupled, so
 every access goes through the bus and the L1 D-cache instead of DTCM's single-cycle path. Which
 buffers deserve DTCM is a partitioning decision that wants measurements behind it: **OI-SWCI-42**.
+
+> **Corrected at phase 10 — see §4.11.1.** Three of the figures in this subsection do not survive re-measurement. The **162,436 B** is `.data` + `.bss` + the 8 KiB MSP stack, because it was taken from Berkeley-format `arm-none-eabi-size`, which folds allocated `NOLOAD` sections into its `bss` column; `.data` + `.bss` is **154,244 B**. **`s_map` and `s_nvram_scratch` are in no image** — `--gc-sections` drops them, here and at phase 8 — so 44,948 B of the four-largest list is sections that never shipped. And the **L1 D-cache is never enabled**, so the cost is uncached bus access rather than cached (**OI-SWCI-45**). The conclusion stands: `.bss` in a 128 KiB DTCM overflows by a measured 31,384 B, and the stack is genuinely a DTCM resident. What was wrong was the attribution, not the verdict.
 The alternatives were worse: enlarging DTCM means configuring a FlexRAM partition nothing configures
 (below), and shrinking `configTOTAL_HEAP_SIZE` is a product change made to fit a bring-up image.
 
@@ -894,7 +898,8 @@ printed.
 **`.bss` did not move into the new DTCM.** §4.8.5 put it in the staging reservation because it did
 not fit the SDK's 128 KiB and said, in the linker script, that the alternative "means configuring the
 FlexRAM partition that NOTHING in this repository configures (OI-SWCI-39)". That blocker is gone:
-162,436 B of `.data` + `.bss` fits 524,288 B three times over, and OI-SWCI-42's framing — *which*
+162,436 B of `.data` + `.bss` fits 524,288 B three times over (the figure is phase 8's and is corrected
+to 154,244 B in §4.11.1), and OI-SWCI-42's framing — *which*
 buffers deserve DTCM — was a rationing question that no longer has anything to ration.
 
 It stays in OCRAM2 anyway, and the reason is bring-up risk rather than arithmetic. DTCM exists only
@@ -906,6 +911,8 @@ arbitrary corruption at an arbitrary later moment. Staking the whole data image 
 register write, on the first board, to recover single-cycle access to buffers nobody has profiled, is
 the wrong trade in that order. **OI-SWCI-42 is re-scoped rather than closed**: what gates it is now
 one bench confirmation that the partition took effect, not a decision nobody has made.
+
+> **Phase 10 (§4.11) closed OI-SWCI-42 without disturbing this argument, and it is worth saying which half moved.** The reasoning above is about the DTCM the partition *establishes*, and for the 88,404 B that remains in OCRAM2 it still holds. What it did not separate out is the 128 KiB that exists under the **default eFuse partition** whether or not those register writes take effect — the window `.data` was already living in. `ucHeap` moved into that window, so the failure mode described here cannot reach it; and the deterministic early fault this subsection wanted is supplied by the MSP stack pinned at `0x20080000`, which is upstream of every DTCM resident. The figures quoted above are also corrected in §4.11.1.
 
 **It did not configure the clocks.** OI-SWCI-41 is untouched and is a different kind of item: the
 FlexRAM partition depends only on the SoC and on this firmware's own memory needs, which is why it
@@ -933,6 +940,236 @@ part of the pre-Defect-C map. Flagged in place and recorded as **OI-SWCI-44** ra
 a phase whose subject is a different memory map — but they are exactly the shape of declaration this
 phase exists to be suspicious of.
 
+
+### 4.11 DTCM residency — the question was never all-or-nothing (2026-09-03, phase 10, closes OI-SWCI-42)
+
+§4.10.6 declined to move `.bss` into the DTCM phase 9 had just established, and the caution was
+right. What it did not notice is that `.bss` and DTCM were being treated as two objects with one
+switch between them. They are not. **DTCM held 304 bytes of application data and nothing else** —
+`.data`, plus a `.stack` pinned at the far end of the region — while 153,940 B of `.bss` sat in
+OCRAM2. Of the 131,072 B that exist at `0x20000000` under the **default eFuse partition**, before
+any register is written, **130,768 were unallocated.**
+
+This phase moves one buffer, `ucHeap`, into that window. The rest of `.bss` stays exactly where
+§4.10.6 put it, for exactly the reason §4.10.6 gave.
+
+#### 4.11.1 Three things the phase-8 record measured wrongly, and one it got right
+
+The record that OI-SWCI-42 rests on has been carried verbatim through §4.8.5, §4.10.6 and the open
+item itself. Re-measuring it before acting on it — `arm-none-eabi-gcc 13.2.1`, the CI toolchain,
+against both `100a410` (phase 8) and `3ae38db` (phase 9 tip) — found that three of its four claims
+do not survive contact with the linked artifact.
+
+**The 162,436 B "static footprint" includes the MSP stack.** `.data` is 304 B and `.bss` is
+153,940 B; the sum is **154,244 B**. The extra 8,192 B is `.stack`, and it is there because the
+figure was taken from Berkeley-format `arm-none-eabi-size`, which folds every allocated `NOLOAD`
+section into its `bss` column — it reports `bss 162,132`, which is `.bss` plus `.stack`. The stack is
+not static data and it is already accounted for separately by the linker script's own `.stack`
+section, so the phase-8 figure counts it twice.
+
+*The conclusion it supported is nonetheless correct*, and for a reason worth stating rather than
+glossing: the stack does genuinely live in DTCM, so the DTCM requirement really is
+`.data + .bss + .stack`. Linked with `.bss` in a 128 KiB DTCM, `ld` reports the region overflowed by
+**31,384 B** (162,456 B required, measured by relaxing the pinned `.stack` so `ld` computes a total
+rather than reporting `overflowed by 0 bytes`, which is what an absolutely-placed section makes it
+print). Phase 8's "does not fit" is right; its arithmetic attributed the overflow to the wrong
+sections.
+
+**Two of the four named largest contributors are in no image.** `np_module_map`'s `s_map` (22,536 B)
+and `s_nvram_scratch` (22,412 B) are named in §4.8.5, in the linker script, in §4.10.6 and in the
+open item. Neither is in `np_application.elf`, at phase 8 or now: `--gc-sections` drops both, because
+`np_module_map` is unreachable from the entry point. `--whole-archive` forces the objects into the
+link so their symbols must resolve, and `--gc-sections` then drops what the entry point cannot reach
+— the census was taken over the objects rather than over the artifact, and 44,948 B of it is
+sections that never shipped. (sLORETA's own `s_session_pool`, 9,304 B, goes the same way.)
+
+The actual `.bss` census of the linked image, largest first:
+
+| Symbol | Bytes | Share of `.bss` | Where it comes from |
+|--------|------:|----------------:|---------------------|
+| `ucHeap` | 65,536 | 42.6 % | `configTOTAL_HEAP_SIZE`, heap_4 |
+| `s_session_pool` | 51,804 | 33.7 % | HRV biofeedback |
+| `s_ctx` | 6,320 | 4.1 % | — |
+| `s_blob` | 6,144 | 4.0 % | — |
+| `g_proto_buf` | 6,144 | 4.0 % | protocol receive buffer |
+| everything else | 17,992 | 11.7 % | 100+ symbols, none over 4,096 B |
+
+**The recorded cost names a cache that is switched off.** OI-SWCI-42 says `.bss` in OCRAM2 goes
+"through the bus and the L1 D-cache rather than DTCM's single-cycle path". There is no L1 D-cache in
+this image. `SystemInit()` enables the I-cache only, under `#if __ICACHE_PRESENT`, and nothing in the
+tree calls `SCB_EnableDCache()`. So every access is an **uncached** bus access, which makes the
+recorded cost an understatement rather than an approximation.
+
+This one is the §4.8 shape for the fourth time: **`firmware/vendor/cmsis_core/VERSION` already says
+so**, in as many words — *"(The D-cache half is NOT enabled by SystemInit; nothing in-tree calls
+`SCB_EnableDCache`.)"* Two statements in the tree, contradicting each other, compared by nothing.
+Whether to enable the D-cache is a real decision with real costs (MPU attributes, and cache
+maintenance around every DMA buffer), and it is raised as **OI-SWCI-45** rather than answered here.
+
+#### 4.11.2 `.lpsdr4` — a section name that named nothing
+
+Found while auditing what else the image places by attribute. `np_hd_session.c` puts
+`s_source_power` (9,788 B) in a section called `.lpsdr4`, and its comment stated that the name
+*"names a region in the ARM linker script"*.
+
+No linker script in this repository declares `.lpsdr4`, or any SDRAM region, or any address at
+`0x80000000`. Nothing configures the SEMC controller that would make external SDRAM answer at all.
+The statement had never been true.
+
+It was invisible for the same reason the `s_map` census error was: `--gc-sections` drops the array,
+because `np_hd_session` is unreachable. Measured with garbage collection disabled and
+`--orphan-handling=warn`, `ld` reports `orphan section '.lpsdr4' ... being placed in section
+'.lpsdr4'` and puts it at **VMA `0x20000554` — inside DTCM**, immediately after `.data`, with a load
+address inside the staging image. Nothing would ever have initialised it: `Reset_Handler` copies only
+`__etext..__data_end__`, and `__STARTUP_CLEAR_BSS` zeroes only `__bss_start__..__bss_end__`. A buffer
+annotated *"put me in the 32 MB external SDRAM"* would have become 9,788 B of DTCM holding whatever
+the previous image left there, on the first commit that made sLORETA reachable.
+
+The fix is not to invent an SDRAM region — there is no evidence for one, and `np_hd_config.h`
+specifies a further ~205 KB weight matrix for the same memory. It is to make the link refuse:
+`app_imxrt1062.ld` now declares a `.lpsdr4` output section, which is what stops it being an orphan,
+and asserts `SIZEOF(.lpsdr4) == 0`, which is what stops the section becoming a quiet home for the
+problem. Deliberately no `KEEP()`: keeping it would defeat the `--gc-sections` that makes it empty
+and fire the assert on a buffer nothing uses. Empty today, so the link is unaffected; non-empty and
+the link fails naming the decision that has to come first. Establishing SDRAM is **OI-SWCI-46**.
+
+#### 4.11.3 Why `ucHeap`, and why only `ucHeap`
+
+**Because it is the one buffer whose placement can be argued without a profiler, and this image
+cannot be profiled.** `np_application` traps a few hundred instructions into `main()` (§4.8), so
+there is no run to measure. For most of `.bss` that is the end of the argument: which buffers are hot
+is a question about a workload, and guessing it is the same trade §4.4 rejects elsewhere in this
+document.
+
+`ucHeap` is different in kind. `configAPPLICATION_ALLOCATED_HEAP` aside, every FreeRTOS task stack
+and every dynamic allocation on this processor is cut from it by heap_4, so its memory class is the
+memory class of nearly every call frame and local variable the device will execute. That is a
+property of the calling convention, not a hypothesis about the workload — the one claim in this area
+that does not need the bench to license it.
+
+**Because it needs nothing from the partition.** This is the part that answers §4.10.6 rather than
+overriding it. 128 KiB of DTCM at `0x20000000` is the **default eFuse partition** — the figure the
+MCUX SDK's own linker scripts carry as `m_data`, and the figure every build in this repository was
+linked against before phase 9 existed. `ucHeap` is 65,536 B and `.data` is 304 B, so the two together
+occupy 65,840 B of that window and leave **65,232 B**. `np_flexram_apply_partition()` could work,
+silently do nothing, or never be called, and this placement is correct in all three cases.
+
+The linker script states that as `NP_DTCM_GUARANTEED_SIZE = 128K` and asserts
+`__dtcm_bss_end__ <= ORIGIN(DTCM) + NP_DTCM_GUARANTEED_SIZE`, so the constant is a bound rather than
+a comment. It is deliberately **not** a fourth statement of the partition (§4.10.5) — it is not the
+partition — so `np_app_link_agreement_tests` checks it differently: that it equals the SDK's 128 KiB,
+and that it does not exceed the DTCM the partition establishes.
+
+**And because §4.10.6's failure mode is already covered upstream.** §4.10.6's argument against `.bss`
+in DTCM was that a partition which failed to take effect would present as *arbitrary corruption*
+rather than an immediate fault. That is true of a 512 KiB-dependent placement and remains the reason
+the other 88,404 B stays in OCRAM2. It does not apply here, and the reason is a detail of §4.10.6's
+own design: the MSP stack is pinned to the top of the **established** 512 KiB, at `0x20080000`. Under
+the default partition that address does not exist, so the first `bl` in `Reset_Handler` faults —
+before `.data` is copied, before `.bss` is zeroed, before any buffer is read. **The deterministic
+early failure is provided by the stack placement, and it is upstream of every other DTCM resident.**
+A `ucHeap` inside the guaranteed window adds no exposure to a failure that has already happened.
+
+#### 4.11.4 What it cost to do it properly: the startup zeroes exactly one region
+
+`ucHeap` cannot simply be annotated into DTCM, and the obstacle is worth recording because it is the
+kind that turns into a field defect.
+
+The vendored SDK startup clears exactly one span — `__bss_start__` to `__bss_end__`, under
+`__STARTUP_CLEAR_BSS`. A second bss-class output section in a different region is **not zeroed by
+anything**, and `firmware/vendor/mcux_sdk/` is byte-exact under §9, so the startup cannot be taught
+about it. A statics-holding section that nothing zeroes does not fail loudly; on a warm reset it
+holds plausible-looking data from the previous image.
+
+So the section comes with its own clear:
+
+- `firmware/application/src/np_app_dtcm.c` defines `ucHeap` in `.dtcm_bss` and
+  `np_app_dtcm_bss_clear()`, which zeroes `__dtcm_bss_start__..__dtcm_bss_end__`.
+- `main()` calls it as its **first statement**. That is early enough, and checkably so rather than
+  arguably: `__START` is defined to `main` in the application CMakeLists, so `__libc_init_array`
+  never runs and the linker script's `.init_array` comes out empty. No C code can precede it.
+- The bounds are linker symbols the C file reads, so renaming either breaks the **link** — verified
+  by mutation: `ld` reports `undefined symbol '__dtcm_bss_start__' referenced in expression`.
+
+Ownership of the array moves to the application via `configAPPLICATION_ALLOCATED_HEAP`, which is the
+supported FreeRTOS mechanism for exactly this — heap_4's own comment says the switch exists so the
+heap "can be placed in a special segment or address" — so `firmware/vendor/freertos/` stays
+byte-exact too. The **host** smoke test keeps the kernel-allocated heap: there is no DTCM on a host
+and no linker script placing anything, so an application-allocated array there would be the same
+bytes in the same place with an extra file to keep in step. Size and behaviour are identical either
+way; only the declaring translation unit differs.
+
+#### 4.11.5 Measured
+
+`arm-none-eabi-gcc 13.2.1`, `-DCMAKE_BUILD_TYPE=Release`, `--gc-sections`, 97 targets, 0 warnings,
+0 unresolved symbols.
+
+| | Before (§4.10 tip) | After | |
+|---|---:|---:|---|
+| `.data` (DTCM) | 304 B | 304 B | |
+| `.dtcm_bss` (DTCM) | — | **65,536 B** | `ucHeap`, `0x20000130..0x20010130` |
+| `.bss` (OCRAM2 staging) | 153,940 B | **88,404 B** | −42.6 % |
+| `.stack` (DTCM, pinned) | 8,192 B | 8,192 B | at `0x2007E000` |
+| loadable `.bin` | 48,208 B | **48,240 B** | +32 B; 10.7 % of the 440 KiB reservation |
+| DTCM used within the 128 KiB guarantee | 304 B | **65,840 B** | 65,232 B still free |
+
+The loadable image grows by 32 bytes — the clear function — because `.dtcm_bss` is `NOLOAD` and
+costs image bytes for the same reason `.bss` does: none.
+
+**Files changed.**
+
+| File | Change |
+|---|---|
+| `firmware/application/src/np_app_dtcm.c` · `include/np_app_dtcm.h` | **New.** Defines `ucHeap` in `.dtcm_bss`; `np_app_dtcm_bss_clear()` zeroes the region the vendored startup does not |
+| `firmware/application/src/np_app_main.c` | `np_app_dtcm_bss_clear()` as the first statement of `main()` |
+| `firmware/hub_control/include/FreeRTOSConfig.h` | `configAPPLICATION_ALLOCATED_HEAP` 1 on the device, 0 on the POSIX host — heap ownership moves to the application so its placement is a NeurOne decision |
+| `firmware/application/linker/app_imxrt1062.ld` | `NP_DTCM_GUARANTEED_SIZE`; the `.dtcm_bss` and `.lpsdr4` output sections; four `ASSERT`s; the `.bss` and `.stack` rationale brought up to date |
+| `firmware/application/CMakeLists.txt` | `src/np_app_dtcm.c` added to `np_application` |
+| `firmware/sloreta_hdtdcs/src/np_hd_session.c` | The `.lpsdr4` comment corrected — it claimed a linker-script region that has never existed |
+| `firmware/application/tests/np_app_link_agreement_tests.c` | Four cases: the guarantee is the default-eFuse DTCM, it is enforced by an `ASSERT`, `.dtcm_bss` has bounds for the clear function, `.lpsdr4` is homed and asserted empty |
+| `.github/workflows/firmware-cross-build.yml` | New step `Assert the SW-02 DTCM residency census` — the only check that catches a reverted heap-ownership switch |
+
+No new test executable, so `NP_TOTAL_TEST_COUNT` stays at 32; the four new cases live inside
+`np_app_link_agreement_tests`.
+
+#### 4.11.6 What fails if this is undone
+
+Every check here was mutation-tested before commit, and the two kinds are worth separating.
+
+**Three the link catches.** Shrinking `NP_DTCM_GUARANTEED_SIZE` below the residents fires the
+guarantee assert; a `KEEP()` on `.lpsdr4` that defeats `--gc-sections` fires the empty assert;
+renaming either `.dtcm_bss` bound fails the link at the assert expression.
+
+**One only CI catches, and it is the one that matters.** Reverting
+`configAPPLICATION_ALLOCATED_HEAP` to `0` for the device build **does not fail anything**: heap_4
+quietly supplies its own `static ucHeap` in `.bss`, the link stays green, every `ASSERT` in the
+linker script still passes, and the host suite still passes 32/32. Only the artifact says what
+happened — measured, on that mutation: `.dtcm_bss` 0 B, `.bss` back to 153,940 B, `ucHeap` at
+`0x202315C8` in OCRAM2. Every task stack on the device would be back through the uncached bus with
+nothing in the tree saying so.
+
+So the census is asserted against the **image**, not the sources: `Assert the SW-02 DTCM residency
+census` checks that `ucHeap` lies inside `[__dtcm_bss_start__, __dtcm_bss_end__)` and that
+`.dtcm_bss` is **exactly** 65,536 B — an equality rather than a ceiling, on §4.8's reasoning for the
+seam census: it holding more means a buffer was moved into DTCM, which is a decision that belongs in
+§4.11.4 and not one CI should absorb silently. The step prints the split, so the distance from "all
+of `.bss` in OCRAM2" is a figure in the build output rather than something a reader reconstructs from
+a map file. It also refuses Berkeley-format `size` explicitly, in a comment naming §4.11.1 — that
+format is how the 162,436 B error was made, and it is the obvious tool to reach for here.
+
+#### 4.11.7 What this phase deliberately did NOT do
+
+**It did not move the other 88,404 B.** `s_session_pool` (51,804 B) and the ~150 smaller symbols
+would fit the guaranteed window with room to spare, and there is no evidence about which of them is
+worth a single-cycle path. §4.10.6's bench confirmation is still what unlocks that, and OI-SWCI-42
+closes having answered the question it asked — *which* buffers deserve DTCM — for the one buffer the
+answer was available for.
+
+**It did not enable the D-cache** (OI-SWCI-45) **and did not establish SDRAM** (OI-SWCI-46). Both are
+decisions with hardware consequences, raised with the measurement that found them.
+
+**It did not touch `configTOTAL_HEAP_SIZE`.** §4.8.5 rejected shrinking it to fit a bring-up image
+and that reasoning is untouched: the heap moved, it did not shrink.
 
 ## 5. Specified workflows
 
@@ -2115,7 +2352,7 @@ set. A leg that could not have caught that has been replaced by one that did.
   text, unchanged).
 - **It did not resolve the memory map.** `.bss` is placed where it fits, on the smallest assumption
   available, and both the FlexRAM question (OI-SWCI-39) and the DTCM partitioning question
-  (OI-SWCI-42) are raised rather than answered. *(OI-SWCI-39 closed at phase 9, §4.10; OI-SWCI-42
+  (OI-SWCI-42) are raised rather than answered. *(OI-SWCI-39 closed at phase 9, §4.10; OI-SWCI-42 closed at phase 10, §4.11; earlier note: OI-SWCI-42
   re-scoped there, and `.bss` deliberately did not move.)*
 - **It did not delete the redundant `extern` declarations** that OI-SWCI-40 records, which is the
   difference between the contract being single-sourced against the *definition* and against the
@@ -2173,7 +2410,9 @@ records, which is why both write the symbol table to a file first.
 
 **What phase 9 did NOT do.**
 
-- **It did not move `.bss` into DTCM.** §4.10.6 is the argument; OI-SWCI-42 is re-scoped, not closed.
+- **It did not move `.bss` into DTCM.** §4.10.6 is the argument; OI-SWCI-42 was re-scoped, not closed.
+  *(Phase 10 then closed it by moving `ucHeap` alone, into the DTCM the default eFuse partition already
+  guarantees — §4.11. The other 88,404 B stays here, for the reason this bullet gives.)*
 - **It did not configure the clocks** (OI-SWCI-41). The partition was decidable today because it
   depends only on the SoC and on this firmware's own memory needs; `BOARD_BootClockRUN()` depends on
   a board that does not exist.
@@ -2236,9 +2475,11 @@ a third manual correction. §4.10.7.
 | ~~OI-SWCI-39~~ | **Raised 2026-09-01 during phase 8 (§4.8.5); CLOSED 2026-09-02 (phase 9, §4.10) — and the item as written was half wrong, which is the part worth keeping.** It said the two in-tree declarations "do not agree": `bootloader_imxrt1062.ld` states OCRAM is **512 KiB** at `0x20200000`, the MCUX script states **768 KiB** at the same address. They never described the same memory. `0x20200000` is the **dedicated OCRAM2 array** — 512 KiB, not part of FlexRAM, unaffected by any partition — and the FlexRAM OCRAM aperture starts where it ends, at `0x20280000`; the SDK's 768 KiB is the composite of both under the **default eFuse** split (512 + 256). No contradiction, and "conservative" was true for the wrong reason. **What was genuinely wrong is the clause after it: both scripts asserted a partition that no code chose**, and that is what is fixed. The partition is now a NeurOne decision — **ITCM 0 banks · DTCM 16 banks (512 KiB) · FlexRAM OCRAM 0 banks**, derived from the fact that DTCM is the only region either linker script places a section in — established by `firmware/bootloader/src/np_flexram.c` at B-0 of the boot sequence, and checked in four places: a new host suite (`np_bootloader_flexram_tests`, the 25th Class B target) against hand-worked GPR17/GPR14 oracles, five new cases in `np_app_link_agreement_tests` binding `np_config.h` to both linker scripts, three link-time `ASSERT`s, and two CI steps on the artifacts themselves. With zero FlexRAM OCRAM banks the bootloader's 512 KiB is now exact by construction rather than conservative — which is the specific thing this item asked for | Firmware | ~~Device bring-up~~ |
 | ~~OI-SWCI-40~~ | **CLOSED 2026-09-02 (§4.9).** ~~`np_sw02_platform_hal.h` single-sources 63 platform seams and the module headers single-source the other 30, so the definitions in `firmware/platform/` are compiler-checked. 62 of those 63 are still ALSO declared by an `extern` line inside the `.c` that calls them, so the compiler compares the header against the definition and not against the caller.~~ **Closed as the item specified — include the header, delete the local `extern`s — with the count corrected by measurement: 56 distinct seams across 59 declaration sites in 11 translation units, not 62 across twelve. Seven of the 63 have no caller in `hub_control` at all.** `grep -c 'extern .*_hal_' firmware/hub_control/**/*.c` now totals zero, as it does for `firmware/safety_mcu/src/*.c`. A parsed census over all 56 found **zero pre-existing disagreements** — nothing had drifted yet, which is the same result §4.4.1 got on SW-01 and the same argument for doing it before a driver exists. **What it would have cost was measured:** on the pre-change tree a caller declaring `np_mod_eeg_hal_read_impedance()` as returning `int`, where the definition returns `float`, compiled rc=0 **and linked rc=0** — the image CI gates on zero unresolved symbols would have carried it. Demonstrated by holding a mutation constant across the change (a drifted test double: rc=0, 0 warnings, 1/1 passed before; `error: conflicting types` after). Image byte-identical to phase 8's figures; host suites 31/31. **Scope limits recorded rather than buried:** the guarantee is ABI, not behaviour; a widened return type is caught at the definition site and in none of the three calling modules, `-Wconversion` being off (§4.4.1's negative result, reproduced); and the 84 headerless registry `extern`s found alongside are **not** covered, as OI-SWCI-43. Held by `scripts/check-platform-seam-decls.ts`, which guards the SW-01 contract too — that one had been asserted only in prose since 2026-08-10. | Firmware | Closed |
 | OI-SWCI-41 | **Raised 2026-09-01 during phase 8 (§4.8.5).** **There is no board-level clock configuration in the SW-02 boot path.** `BOARD_BootClockRUN()` lives in the MCUX SDK's board files, which are not vendored because no NeurOne board exists to configure for. The vendored `SystemInit()` disables the watchdogs, enables the I-cache and sets `SystemCoreClock` to the SDK's `DEFAULT_SYSTEM_CLOCK`; it does **not** bring the PLLs up to the 600 MHz `FreeRTOSConfig.h` declares as `configCPU_CLOCK_HZ`. Every FreeRTOS tick, timeout and the 200 ms safety heartbeat interval is therefore derived from a clock nothing establishes. Not build-gating and not fixable without a board: recorded so the gap is not rediscovered on a bench. | Firmware | Device bring-up |
-| OI-SWCI-42 | **Raised 2026-09-01 during phase 8 (§4.8.5); RE-SCOPED 2026-09-02 (phase 9, §4.10.6) — the blocker is gone, the placement is not.** As raised: SW-02's static footprint (162,436 B) exceeded the DTCM the MCUX SDK declares for this part (128 KiB), so `.bss` was placed in the application's own OCRAM2 staging reservation, costing the tightly-coupled path for `ucHeap` (65,536 B), HRV's `s_session_pool` (51,804 B) and `np_module_map`'s `s_map`/`s_nvram_scratch` (22,536 + 22,412 B). It recorded that enlarging DTCM "is a FlexRAM decision, not a linker-script one" and waited on OI-SWCI-39. **OI-SWCI-39 is closed and DTCM is 524,288 B, so 162,436 B now fits three times over** — the original question, *which* buffers deserve DTCM, was a rationing question and there is nothing left to ration. `.bss` nonetheless stays in the staging reservation, deliberately: DTCM exists only if three register writes to silicon nobody has run behave as IMXRT1060RM says, and with `.bss` there a partition that failed to take effect would take the heap, every task stack and every static buffer with it, presenting as arbitrary corruption rather than as an immediate fault in `Reset_Handler`. **What now gates this item is one bench confirmation that the partition took effect, not a decision nobody has made.** After that it is a one-line change of the `.bss` output region | Firmware | — |
+| OI-SWCI-42 | **Raised 2026-09-01 during phase 8 (§4.8.5); re-scoped 2026-09-02 (phase 9, §4.10.6); CLOSED 2026-09-03 (phase 10, §4.11).** As raised, the item asked *which buffers deserve DTCM*, on a record that re-measurement did not support (§4.11.1): the "162,436 B static footprint" was `.data` + `.bss` + the 8 KiB MSP stack, double-counting a section the linker script already places — the real figure is **154,244 B**; and two of its four named largest contributors, `np_module_map`'s `s_map` and `s_nvram_scratch` (44,948 B together), are dropped by `--gc-sections` and were in no image at phase 8 or since. Its stated cost also named an L1 D-cache that `SystemInit()` never enables, which `firmware/vendor/cmsis_core/VERSION` already said in as many words. **The question is answered for the one buffer it could be answered for.** `ucHeap` (65,536 B) is in `.dtcm_bss` in DTCM: every FreeRTOS task stack is cut from it, which makes its memory class a property of the calling convention rather than a hypothesis about a workload, and it fits the 128 KiB the **default eFuse partition** provides — so it needs nothing from OI-SWCI-39's register writes, and §4.10.6's corruption-vs-fault objection does not reach it (the stack pinned at `0x20080000` already faults first). `NP_DTCM_GUARANTEED_SIZE` and its link assert keep it there. The other 88,404 B of `.bss` stays in OCRAM2 for §4.10.6's reason, and moving any of it is now one attribute per buffer once the bench confirms the partition | Firmware | Closed |
 | OI-SWCI-43 | **Raised 2026-09-02 while closing OI-SWCI-40 (§4.9.4).** **84 symbols are declared by an `extern` inside a `.c` that NO header declares at all** — the `np_mod_*_{init,detect,control,shutdown,telemetry}` registration entry points of 17 module drivers, plus `np_ed25519_verify`, which does have a header (`np_crypto.h`) and is one line from the same fix the 56 seams just got. This is the module-registry idiom and several files state it in as many words (*"module drivers expose no per-module header"*), so it is a deliberate design position and not an oversight — but it is the OI-SWCI-18/40 hazard with the mitigation *absent* rather than merely unused: there is no second declaration to disagree with, so a registry entry point whose definition drifts from every caller's guess compiles and links exactly as the closed items' worst case did. Deliberately out of scope for the §4.9 gate, which reports only seams a header already declares: with nothing to compare against, the only assertion available is "a header ought to exist", which is a design decision about how the registry publishes its modules rather than a build property. Closing it means either a per-module header for 17 drivers or one registry header declaring the vtable entry points, and that choice interacts with the hub cluster-controller fan-out (OI-HUB-C01..C19) still being unimplemented. | Firmware | — |
 | OI-SWCI-44 | **Raised 2026-09-02 during phase 9 (§4.10.7); authored as OI-SWCI-43 and renumbered on rebase, as this revision itself was (see the header note).** PR #310 took 43 for the undeclared-`extern` family above. The two are unrelated. `np_config.h` declares `NP_SCRATCH_SRAM_BASE` = `0x20270000` and `NP_SCRATCH_SRAM_SIZE` = 64 KiB — a window that lies **inside** `.app_staging` (`0x20210000`–`0x2027DFFF`) and overlaps the bootloader's 8 KiB stack at the top of OCRAM2. Nothing references either; they are residue of the pre-Defect-C map (§4.3), where OCRAM was believed to have room the derivation later showed it does not. Harmless while unused and a trap the moment someone uses them — a scratch buffer placed there would be overwritten by the next application image the bootloader stages, after signature verification passed, which is Defect C's failure mode with a different cause. Flagged in place rather than deleted: phase 9's subject was a different memory map, and removing constants is a reviewed decision, not a side effect. The fix is deletion unless someone can name the consumer | Firmware | — |
+| OI-SWCI-45 | **Raised 2026-09-03 during phase 10 (§4.11.1).** **The L1 D-cache is never enabled, and the record assumed it was.** `SystemInit()` enables the I-cache only, under `#if __ICACHE_PRESENT`; nothing in the tree calls `SCB_EnableDCache()`. OI-SWCI-42 described `.bss` in OCRAM2 as going "through the bus and the L1 D-cache", so the cost it recorded was an understatement — the 88,404 B still in OCRAM2 is reached by **uncached** bus access. `firmware/vendor/cmsis_core/VERSION` already recorded the fact, so this is two statements in the tree contradicting each other with nothing comparing them (§4.8's shape, fourth occurrence). Enabling it is not free and is therefore a decision, not a fix: it needs MPU region attributes, and cache maintenance around every DMA buffer the hub fan-out will eventually introduce. Interacts with CLAUDE.md §4.1's "~1.1% CPU at full load" figure, which no measurement in this repository supports either way | Firmware | Device bring-up |
+| OI-SWCI-46 | **Raised 2026-09-03 during phase 10 (§4.11.2).** **No external LPSDR4 SDRAM is established, and code already places data in it.** `np_hd_session.c` puts `s_source_power` (9,788 B) in a `.lpsdr4` section and claimed the name "names a region in the ARM linker script"; no linker script declared it, no SDRAM region or `0x80000000` address exists anywhere in the tree, and nothing configures the SEMC controller. Measured with `--gc-sections` off: `ld` orphan-placed it at VMA `0x20000554`, **inside DTCM**, with an LMA nothing copies from and no zeroing — it was invisible only because the array is unreachable today. The link now refuses rather than mis-placing (`ASSERT(SIZEOF(.lpsdr4) == 0)`), so this is a hard gate before sLORETA becomes reachable. `np_hd_config.h` specifies a further ~205 KB weight matrix for the same memory, so the decision is SEMC configuration plus a region, not a one-line placement | Firmware | Device bring-up |
 
 ## 8. Traceability
 

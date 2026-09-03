@@ -50,6 +50,7 @@
 
 #include <stdint.h>
 
+#include "np_app_dtcm.h"        /* np_app_dtcm_bss_clear() */
 #include "np_hub_types.h"       /* np_hub_control_app_main() */
 #include "np_platform_trap.h"
 
@@ -74,6 +75,21 @@ static const char np_build_note[] =
 
 int main(void)
 {
+    /*
+     * FIRST, before anything else — NP-SW-CI-001 §4.10 (closes OI-SWCI-42).
+     *
+     * .dtcm_bss holds ucHeap and is bss-class storage the vendored startup does
+     * NOT zero: startup_MIMXRT1062.S clears exactly one span, __bss_start__ to
+     * __bss_end__, and firmware/vendor/mcux_sdk/ is byte-exact under the §9
+     * in-tree rule, so it cannot be taught about a second region.
+     *
+     * This is the earliest C code in the image and that is checkable rather
+     * than asserted: __START is defined to main in the application CMakeLists,
+     * so __libc_init_array never runs, and the linker script's .init_array
+     * comes out empty.  Nothing can run before this line.
+     */
+    np_app_dtcm_bss_clear();
+
     np_hub_control_app_main();
 
     /*

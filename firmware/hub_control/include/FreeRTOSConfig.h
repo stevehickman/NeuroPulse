@@ -54,7 +54,29 @@
 /* ── Memory allocation ─────────────────────────────────────────────────────── */
 #define configSUPPORT_STATIC_ALLOCATION             0
 #define configSUPPORT_DYNAMIC_ALLOCATION            1
+
+/* Who owns the ucHeap array — NP-SW-CI-001 §4.10 (OI-SWCI-42).
+ *
+ * On the DEVICE build the application owns it, so that its PLACEMENT is a
+ * NeurOne decision rather than heap_4's.  ucHeap is 65,536 B and every FreeRTOS
+ * task stack is cut from it, so where it sits decides the memory class of
+ * essentially every local variable in the system; §4.10 puts it in DTCM.
+ * heap_4.c's own comment names this as the reason the switch exists ("probably
+ * so it can be placed in a special segment or address"), so this is the
+ * supported mechanism and not a patch — firmware/vendor/freertos/ stays
+ * byte-exact.  The definition is firmware/application/src/np_app_dtcm.c.
+ *
+ * On the POSIX HOST build (np_freertos_smoke_tests) the kernel keeps ownership.
+ * There is no DTCM on a host and no linker script placing anything, so an
+ * application-allocated array would be the same bytes in the same place with an
+ * extra file to keep in step.  The heap's SIZE and behaviour are identical
+ * either way; only who declares the array differs. */
+#ifdef NP_FREERTOS_POSIX_HOST
 #define configAPPLICATION_ALLOCATED_HEAP            0
+#else
+#define configAPPLICATION_ALLOCATED_HEAP            1
+#endif
+
 #define configTOTAL_HEAP_SIZE                       ( ( size_t ) ( 64 * 1024 ) )
 #define configSTACK_DEPTH_TYPE                      uint32_t
 #define configMESSAGE_BUFFER_LENGTH_TYPE            size_t

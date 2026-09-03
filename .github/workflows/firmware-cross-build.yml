@@ -726,6 +726,69 @@ jobs:
             exit 1; }
           echo "ok: the image's DTCM matches the established FlexRAM partition"
 
+      # NP-SW-CI-001 §4.11 (closes OI-SWCI-42).  The linker script's ASSERTs
+      # already fail the LINK if .dtcm_bss leaves the guaranteed window, so this
+      # step is not a second copy of that bound — it asserts the two things
+      # about the ARTIFACT that the script cannot see:
+      #
+      #   1. ucHeap actually landed in DTCM.  The script asserts where the
+      #      SECTION is; only the image says whether the heap is in it.  If
+      #      configAPPLICATION_ALLOCATED_HEAP were reverted to 0, heap_4 would
+      #      quietly supply its own ucHeap in .bss, the link would stay green,
+      #      every ASSERT would still pass, and every task stack would be back
+      #      in OCRAM2 with nothing saying so.  That is the regression this
+      #      exists for, and it is invisible everywhere else.
+      #   2. the DTCM/OCRAM2 split is PRINTED.  §4.8's platform census is the
+      #      precedent: the distance from "all of .bss in OCRAM2" should be a
+      #      figure in the build output, not something a reader reconstructs
+      #      from a map file.
+      - name: Assert the SW-02 DTCM residency census
+        if: success()
+        run: |
+          set -euo pipefail
+          elf=build/cross/application/np_application.elf
+          [ -f "$elf" ] || { echo "::error::np_application.elf missing."; exit 1; }
+
+          # Section sizes from `size -A`, which lists .dtcm_bss and .bss
+          # separately.  Berkeley-format `size` must NOT be used here: it folds
+          # every NOLOAD allocated section into "bss", which is how the 162,436 B
+          # figure in the phase-8 record came to include the 8 KiB MSP stack
+          # (§4.11.1).
+          secsize() {
+            arm-none-eabi-size -A "$elf" | awk -v s="$1" '$1==s{print $2; found=1} END{if(!found) print 0}'
+          }
+          dtcm_bss=$(secsize .dtcm_bss)
+          bss=$(secsize .bss)
+          data=$(secsize .data)
+
+          # ucHeap must be inside [__dtcm_bss_start__, __dtcm_bss_end__).
+          arm-none-eabi-nm "$elf" > /tmp/np-app-dtcm-res.txt
+          sym() { awk -v n="$1" '$3==n{print $1}' /tmp/np-app-dtcm-res.txt; }
+          heap=$(sym ucHeap)
+          lo=$(sym __dtcm_bss_start__)
+          hi=$(sym __dtcm_bss_end__)
+          for v in heap lo hi; do
+            eval "x=\$$v"
+            [ -n "$x" ] || { echo "::error::symbol for '$v' is not in the image — .dtcm_bss or ucHeap is missing (NP-SW-CI-001 section 4.11)."; exit 1; }
+          done
+
+          printf 'SW-02 DTCM residency: .data %s B + .dtcm_bss %s B in DTCM; .bss %s B in OCRAM2\n' \
+                 "$data" "$dtcm_bss" "$bss"
+          printf '  ucHeap at 0x%s, .dtcm_bss 0x%s..0x%s\n' "$heap" "$lo" "$hi"
+
+          [ "$(( 0x$heap ))" -ge "$(( 0x$lo ))" ] && [ "$(( 0x$heap ))" -lt "$(( 0x$hi ))" ] || {
+            echo "::error::ucHeap is not in .dtcm_bss — the FreeRTOS heap, and so every task stack cut from it, is not in DTCM. Check configAPPLICATION_ALLOCATED_HEAP is 1 for the device build (NP-SW-CI-001 section 4.11)."
+            exit 1; }
+
+          # .dtcm_bss must be non-empty for the above to mean anything, and an
+          # equality rather than a floor: it holding MORE than the heap means a
+          # buffer moved into DTCM, which is a decision that should be recorded
+          # (§4.11.4), not something CI absorbs silently.
+          [ "$dtcm_bss" -eq 65536 ] || {
+            echo "::error::.dtcm_bss is ${dtcm_bss} B, expected 65536 (ucHeap alone). If a buffer was deliberately moved into DTCM, record it in NP-SW-CI-001 section 4.11.4 and update this number."
+            exit 1; }
+          echo "ok: ucHeap is in DTCM; the rest of .bss is in OCRAM2, as recorded"
+
       # The link proves the symbols resolve; these prove WHAT they resolved to.
       # Direct counterpart of the Class C leg's step of the same name.
       - name: Assert the SW-02 image is whole and free of test doubles

@@ -17,12 +17,32 @@
 /* 2447 voxels × float32 = 9.6 KB — placed in LPSDR4 (32 MB available).        */
 /* For linker purposes, allocated as a file-scope array in LPSDR4 section.      */
 /*                                                                             */
-/* NP_HD_LPSDR4 is the placement attribute for the device build only.  ".lpsdr4"
- * names a region in the ARM linker script; host object formats have no such
- * region, and Mach-O rejects a section name without a "segment,section" pair
- * outright.  Host test builds (NPTEST_HOST) therefore place the array normally
- * — placement is a link-time concern with no bearing on the logic under test,
- * so the cross-compiled device build is unaffected.                           */
+/* NP_HD_LPSDR4 is the placement attribute for the device build only.  Host
+ * object formats have no such section, and Mach-O rejects a section name
+ * without a "segment,section" pair outright.  Host test builds (NPTEST_HOST)
+ * therefore place the array normally — placement is a link-time concern with no
+ * bearing on the logic under test.
+ *
+ * ── WHAT ".lpsdr4" ACTUALLY GETS YOU TODAY: NOTHING.  NP-SW-CI-001 §4.11.2 ──
+ *
+ * This comment used to say that ".lpsdr4" "names a region in the ARM linker
+ * script".  It did not, in any linker script in this repository, and there is
+ * no external SDRAM to name: nothing configures the SEMC controller, and no
+ * region or address at 0x80000000 is declared anywhere.
+ *
+ * That went unnoticed because --gc-sections drops this array — np_hd_session is
+ * unreachable from np_application's entry point.  Measured with gc disabled
+ * (2026-09-03, arm-none-eabi-gcc 13.2.1), ld's orphan placement put .lpsdr4 at
+ * VMA 0x20000554: inside DTCM, right after .data, with a load address inside
+ * the staging image that nothing ever copies from.  Reset_Handler copies only
+ * __etext..__data_end__ and __STARTUP_CLEAR_BSS zeroes only
+ * __bss_start__..__bss_end__, so the array would have held stale RAM.
+ *
+ * app_imxrt1062.ld now declares a .lpsdr4 output section that must be EMPTY.
+ * So this attribute is currently a marker of intent, and the moment the array
+ * becomes reachable the LINK FAILS with a message naming the decision that has
+ * to come first — rather than the array silently becoming 9,788 B of DTCM.
+ * When SDRAM is established, that assert is the one line to change.           */
 #ifdef NPTEST_HOST
 #define NP_HD_LPSDR4
 #else

@@ -81,6 +81,35 @@ NP_APP_STACK_SIZE     = 8K;
  * NP_APP_IMAGE_LENGTH above. */
 NP_FLEXRAM_DTCM_SIZE  = 512K;
 
+/* ── The DTCM that exists WITHOUT any register write ─────────────────────────
+ *
+ * NP-SW-CI-001 §4.11 (closes OI-SWCI-42).
+ *
+ * NP_FLEXRAM_DTCM_SIZE above is the DTCM the bootloader ESTABLISHES, and it is
+ * established by three stores to IOMUXC_GPR that no NeurOne board has yet run.
+ * §4.10.6 declined to move `.bss` into it for exactly that reason, and that
+ * caution was right.
+ *
+ * This constant is the OTHER figure, and the distinction is what makes §4.11
+ * safe: 128 KiB at 0x20000000 is the DEFAULT eFuse partition — the value the
+ * MCUX SDK's own linker scripts declare as m_data, and the value that was in
+ * force for every build before phase 9 existed.  It requires no code to run and
+ * no register to be written.
+ *
+ * So DTCM residency splits in two.  Anything inside the first 128 KiB is
+ * correct whether np_flexram_apply_partition() worked, silently did nothing, or
+ * was never called; anything beyond it is staked on the partition and must wait
+ * for the bench.  `.data`, `.dtcm_bss` and the MSP stack are all inside the
+ * guarantee, and the ASSERT at the foot of this file is what keeps them there —
+ * so a future addition that would quietly cross the line fails the link with a
+ * message naming this paragraph instead of failing on a bench.
+ *
+ * NOT a fourth statement of the partition (it is not the partition), so
+ * np_app_link_agreement_tests checks it differently: it asserts this is <= the
+ * established DTCM and equal to the SDK's m_data, rather than equal to a bank
+ * count. */
+NP_DTCM_GUARANTEED_SIZE = 128K;
+
 MEMORY
 {
     DTCM    (rwx) : ORIGIN = 0x20000000,         LENGTH = NP_FLEXRAM_DTCM_SIZE
@@ -162,6 +191,67 @@ SECTIONS
     /* address ld actually chose, so this cannot drift from the AT> above.     */
     __etext = LOADADDR(.data);
 
+    /* ── DTCM-resident zero-initialised data ──────────────────────────────── */
+    /*                                                                         */
+    /* NP-SW-CI-001 §4.11 (closes OI-SWCI-42).  Holds ucHeap — the heap_4 pool */
+    /* every FreeRTOS task stack is cut from — and nothing else today.         */
+    /*                                                                         */
+    /* NOLOAD, so it costs region space and no image bytes, exactly as .bss    */
+    /* does.  It is a SEPARATE output section from .bss rather than a slice of */
+    /* it because the two are in different memory regions and ld's            */
+    /* __bss_start__/__bss_end__ pair has to stay contiguous: the vendored SDK */
+    /* startup zeroes that one span and only that one span.                    */
+    /*                                                                         */
+    /* WHICH MEANS THIS REGION IS NOT ZEROED BY THE STARTUP.  It is zeroed by  */
+    /* np_app_dtcm_bss_clear(), the first statement of main().  The bounds     */
+    /* below are the symbols that function reads; renaming them without        */
+    /* changing src/np_app_dtcm.c breaks the LINK rather than the device,      */
+    /* which is the property worth having.                                     */
+    /*                                                                         */
+    /* Why ucHeap and not the rest of .bss: the argument is in np_app_dtcm.c   */
+    /* and §4.11.  In short — it is the one buffer whose placement can be      */
+    /* argued without a profiler, because every task stack in the system comes */
+    /* out of it, and that is a property of the calling convention rather than */
+    /* an assumption about the workload.  The rest of .bss genuinely does need */
+    /* the bench, and stays where §4.10.6 put it.                              */
+    .dtcm_bss (NOLOAD) : ALIGN(8) {
+        __dtcm_bss_start__ = .;
+        *(.dtcm_bss)
+        *(.dtcm_bss.*)
+        . = ALIGN(4);
+        __dtcm_bss_end__ = .;
+    } > DTCM
+
+    /* ── .lpsdr4: declared by code, homed by nothing until now ────────────── */
+    /*                                                                         */
+    /* NP-SW-CI-001 §4.11.2.  np_hd_session.c places s_source_power (9,788 B)  */
+    /* in a section called ".lpsdr4" and its comment said the name "names a    */
+    /* region in the ARM linker script".  It did not.  No linker script in     */
+    /* this repository declared .lpsdr4, or any SDRAM region, or any address   */
+    /* at 0x80000000 — and nothing configures the SEMC controller that would   */
+    /* make external SDRAM answer at all.                                      */
+    /*                                                                         */
+    /* It was invisible because --gc-sections drops it: np_hd_session is       */
+    /* unreachable from the entry point today.  Measured with --no-gc-sections */
+    /* (2026-09-03, arm-none-eabi-gcc 13.2.1), ld's orphan placement put       */
+    /* .lpsdr4 at VMA 0x20000554 — inside DTCM, immediately after .data — with */
+    /* an LMA inside the staging image.  Nothing would ever have copied it:    */
+    /* Reset_Handler copies only __etext..__data_end__, and __STARTUP_CLEAR_BSS */
+    /* zeroes only __bss_start__..__bss_end__.  A buffer annotated "put me in  */
+    /* the 32 MB external SDRAM" would have silently become 9,788 B of DTCM    */
+    /* holding whatever was there before, the moment sLORETA became reachable. */
+    /*                                                                         */
+    /* Giving it an output section is what stops it being an orphan; the       */
+    /* ASSERT below is what stops the section being a place for the problem to */
+    /* hide.  Empty today and the link is unaffected.  Non-empty and the link  */
+    /* FAILS, naming the decision that has to be made first.  Deliberately no  */
+    /* KEEP(): keeping it would defeat the --gc-sections that makes it empty,  */
+    /* and fire the assert on a buffer nothing uses.                           */
+    .lpsdr4 (NOLOAD) : {
+        *(.lpsdr4)
+        *(.lpsdr4.*)
+    } > DTCM
+
     /* ── Zero-initialised data, incl. the FreeRTOS heap_4 pool ─────────────── */
     /*                                                                         */
     /* In STAGING, not DTCM, and that is a MEASURED placement rather than a    */
@@ -231,9 +321,20 @@ SECTIONS
     /* is a consequence of the region size, not a target, so it moves with it.)*/
     /*                                                                         */
     /* This is the MSP: main() and every interrupt handler.  FreeRTOS task     */
-    /* stacks come out of ucHeap, which is in .bss and therefore in OCRAM2.    */
+    /* stacks come out of ucHeap, which §4.11 moved into .dtcm_bss — so task   */
+    /* stacks are in DTCM now and this one still is.                           */
     /* configCHECK_FOR_STACK_OVERFLOW = 2 covers those and does NOT cover this */
     /* one, which is why the placement above is the protection it gets.        */
+    /*                                                                         */
+    /* NOTE this section is pinned OUTSIDE NP_DTCM_GUARANTEED_SIZE — at the    */
+    /* top of the ESTABLISHED 512 KiB, not the default-fuse 128 KiB.  §4.10.6  */
+    /* chose that deliberately and §4.11.3 keeps it, because it is what makes  */
+    /* a failed partition a deterministic fault instead of a subtle one: the   */
+    /* first `bl` in Reset_Handler pushes to an address that does not exist    */
+    /* under the default partition, so the image dies at reset, before .data   */
+    /* is copied and before any buffer is read.  That check is upstream of     */
+    /* every other DTCM resident, which is why .dtcm_bss below it can be       */
+    /* inside the guarantee without the guarantee having to carry the stack.   */
     .stack (ORIGIN(DTCM) + LENGTH(DTCM) - NP_APP_STACK_SIZE) (NOLOAD) : {
         __StackLimit = .;
         . += NP_APP_STACK_SIZE;
@@ -276,4 +377,45 @@ SECTIONS
            "ERROR: the MSP stack is not at the top of DTCM")
     ASSERT(__data_end__ <= __StackLimit,
            "ERROR: .data has grown into the MSP stack — DTCM is over-subscribed")
+
+    /* ── §4.11 (OI-SWCI-42): the DTCM data residents stay inside the DTCM ──── */
+    /* that exists without any register write.                                 */
+    /*                                                                         */
+    /* .data and .dtcm_bss grow upward from ORIGIN(DTCM) and grow with the     */
+    /* codebase; the MSP stack is one pinned 8 KiB object at the top with one  */
+    /* owner.  Bounding the growable residents by the DEFAULT-eFuse 128 KiB    */
+    /* keeps the partition's role down to "where the stack sits", so falling   */
+    /* back to the default partition would be a one-line change of the stack   */
+    /* address rather than a re-plan of the data layout.  Without this, the    */
+    /* only bound on .dtcm_bss is the established 512 KiB, and a buffer moved  */
+    /* into DTCM at, say, 200 KiB would be staked on the partition with        */
+    /* nothing saying so.                                                      */
+    ASSERT(__dtcm_bss_end__ <= ORIGIN(DTCM) + NP_DTCM_GUARANTEED_SIZE,
+           "ERROR: .data + .dtcm_bss exceed the 128 KiB DTCM guaranteed by the DEFAULT eFuse partition — this data would exist only if np_flexram_apply_partition() took effect (NP-SW-CI-001 section 4.11)")
+
+    /* .dtcm_bss must not collide with the pinned stack.  Implied by the       */
+    /* guarantee assert while the stack is at 512 KiB, and NOT implied if the  */
+    /* stack is ever moved down to the top of the guarantee — so it is stated  */
+    /* rather than inferred.                                                   */
+    ASSERT(__dtcm_bss_end__ <= __StackLimit,
+           "ERROR: .dtcm_bss has grown into the MSP stack")
+
+    /* .dtcm_bss is NOT zeroed by the vendored startup, which clears only      */
+    /* __bss_start__..__bss_end__.  np_app_dtcm_bss_clear() reads these two    */
+    /* symbols; if the section were ever emptied to nothing the function would */
+    /* still be correct (start == end, no iterations), so the check that       */
+    /* matters is ordering, not emptiness.                                     */
+    ASSERT(__dtcm_bss_start__ <= __dtcm_bss_end__,
+           "ERROR: .dtcm_bss bounds are inverted — np_app_dtcm_bss_clear() would not zero the region")
+
+    /* ── §4.11.2: .lpsdr4 has a section so it cannot orphan, and must be ───── */
+    /* empty because no external SDRAM is established.                         */
+    /*                                                                         */
+    /* Nothing configures the SEMC controller, no linker script declares an    */
+    /* SDRAM region, and no address at 0x80000000 is mapped.  Until one of     */
+    /* those changes, code that asks for .lpsdr4 is asking for memory this     */
+    /* image does not have, and the honest answer is to refuse to link rather  */
+    /* than to place it somewhere plausible.                                   */
+    ASSERT(SIZEOF(.lpsdr4) == 0,
+           "ERROR: something was placed in .lpsdr4, but no external LPSDR4 SDRAM is established — nothing configures the SEMC controller and no linker script declares an SDRAM region. Give the data a real home (DTCM, .bss) or establish SDRAM first (NP-SW-CI-001 section 4.11.2)")
 }
