@@ -10,6 +10,7 @@ import {
   LimitSource,
 } from '../types/limits';
 import { NPHardwareLimits } from './hardwareLimits';
+import { t } from './i18n';
 
 // ─── Result builder ────────────────────────────────────────────────────────────
 
@@ -22,6 +23,14 @@ function makeResult(issues: NPValidationIssue[]): NPValidationResult {
     warnings: issues.filter(i => i.severity === 'warning'),
   };
 }
+
+/** Locale key per limit source, for the "(global)" suffix on a limit value. */
+const LIMIT_SOURCE_KEY: Record<LimitSource, string> = {
+  hardware: 'VALIDATE_SOURCE_HARDWARE',
+  global: 'VALIDATE_SOURCE_GLOBAL',
+  helmet: 'VALIDATE_SOURCE_HELMET',
+  individual: 'VALIDATE_SOURCE_INDIVIDUAL',
+};
 
 function issue(
   severity: 'error' | 'warning',
@@ -40,7 +49,10 @@ function issue(
     parameterKey,
     parameterDisplayName,
     actualValueDescription,
-    limitValueDescription: `${limitValueDescription} (${limitSource})`,
+    limitValueDescription: t('VALIDATE_LIMIT_WITH_SOURCE', {
+      0: limitValueDescription,
+      1: t(LIMIT_SOURCE_KEY[limitSource]),
+    }),
     limitSource,
     message,
   };
@@ -62,38 +74,38 @@ function validateModality(
       // Hardware limits
       if (p.params.dutyCyclePercent > hw.pbmDutyCycleMaxPercent) {
         issues.push(issue(
-          'error', 'pbm_transcranial', 'dutyCyclePercent', 'Duty Cycle',
+          'error', 'pbm_transcranial', 'dutyCyclePercent', t('VALIDATE_PARAM_DUTY_CYCLE'),
           `${p.params.dutyCyclePercent}%`, `${hw.pbmDutyCycleMaxPercent}%`, 'hardware',
-          `PBM duty cycle ${p.params.dutyCyclePercent}% exceeds firmware maximum of ${hw.pbmDutyCycleMaxPercent}%.`
+          t('VALIDATE_MSG_PBM_TRANSCRANIAL_DUTYCYCLEPERCENT', { 0: p.params.dutyCyclePercent, 1: hw.pbmDutyCycleMaxPercent })
         ));
       }
       if (p.params.frequencyHz < 0) {
         issues.push(issue(
-          'error', 'pbm_transcranial', 'frequencyHz', 'Frequency',
+          'error', 'pbm_transcranial', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
           `${p.params.frequencyHz} Hz`, '≥0 Hz', 'hardware',
-          'PBM frequency cannot be negative.'
+          t('VALIDATE_MSG_PBM_TRANSCRANIAL_FREQUENCYHZ')
         ));
       }
       // Dosage limits
       if (l?.maxIntensityPercent != null && p.params.intensityPercent > l.maxIntensityPercent) {
         issues.push(issue(
-          'error', 'pbm_transcranial', 'intensityPercent', 'Intensity',
+          'error', 'pbm_transcranial', 'intensityPercent', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityPercent}%`, `${l.maxIntensityPercent}%`, 'global',
-          `PBM intensity ${p.params.intensityPercent}% exceeds limit of ${l.maxIntensityPercent}%.`
+          t('VALIDATE_MSG_PBM_TRANSCRANIAL_INTENSITYPERCENT', { 0: p.params.intensityPercent, 1: l.maxIntensityPercent })
         ));
       }
       if (l?.maxFrequencyHz != null && p.params.frequencyHz > l.maxFrequencyHz) {
         issues.push(issue(
-          'error', 'pbm_transcranial', 'frequencyHz', 'Frequency',
+          'error', 'pbm_transcranial', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
           `${p.params.frequencyHz} Hz`, `${l.maxFrequencyHz} Hz`, 'global',
-          `PBM frequency ${p.params.frequencyHz} Hz exceeds limit of ${l.maxFrequencyHz} Hz.`
+          t('VALIDATE_MSG_PBM_TRANSCRANIAL_FREQUENCYHZ_2', { 0: p.params.frequencyHz, 1: l.maxFrequencyHz })
         ));
       }
       if (l?.maxDutyCyclePercent != null && p.params.dutyCyclePercent > l.maxDutyCyclePercent) {
         issues.push(issue(
-          'error', 'pbm_transcranial', 'dutyCyclePercent', 'Duty Cycle',
+          'error', 'pbm_transcranial', 'dutyCyclePercent', t('VALIDATE_PARAM_DUTY_CYCLE'),
           `${p.params.dutyCyclePercent}%`, `${l.maxDutyCyclePercent}%`, 'global',
-          `PBM duty cycle ${p.params.dutyCyclePercent}% exceeds configured limit of ${l.maxDutyCyclePercent}%.`
+          t('VALIDATE_MSG_PBM_TRANSCRANIAL_DUTYCYCLEPERCENT_2', { 0: p.params.dutyCyclePercent, 1: l.maxDutyCyclePercent })
         ));
       }
       break;
@@ -104,17 +116,17 @@ function validateModality(
       // Hardware
       if (p.params.dutyCyclePercent > hw.pbmDutyCycleMaxPercent) {
         issues.push(issue(
-          'error', 'pbm_intranasal', 'dutyCyclePercent', 'Duty Cycle',
+          'error', 'pbm_intranasal', 'dutyCyclePercent', t('VALIDATE_PARAM_DUTY_CYCLE'),
           `${p.params.dutyCyclePercent}%`, `${hw.pbmDutyCycleMaxPercent}%`, 'hardware',
-          `Intranasal PBM duty cycle ${p.params.dutyCyclePercent}% exceeds firmware maximum of ${hw.pbmDutyCycleMaxPercent}%.`
+          t('VALIDATE_MSG_PBM_INTRANASAL_DUTYCYCLEPERCENT', { 0: p.params.dutyCyclePercent, 1: hw.pbmDutyCycleMaxPercent })
         ));
       }
       // Dosage
       if (l?.maxIntensityPercent != null && p.params.intensityPercent > l.maxIntensityPercent) {
         issues.push(issue(
-          'error', 'pbm_intranasal', 'intensityPercent', 'Intensity',
+          'error', 'pbm_intranasal', 'intensityPercent', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityPercent}%`, `${l.maxIntensityPercent}%`, 'global',
-          `Intranasal PBM intensity ${p.params.intensityPercent}% exceeds limit of ${l.maxIntensityPercent}%.`
+          t('VALIDATE_MSG_PBM_INTRANASAL_INTENSITYPERCENT', { 0: p.params.intensityPercent, 1: l.maxIntensityPercent })
         ));
       }
       break;
@@ -124,16 +136,16 @@ function validateModality(
       const l = lim.eegNeurofeedback;
       if (l?.requireClosedLoop && !p.params.closedLoopEnabled) {
         issues.push(issue(
-          'error', 'eeg_neurofeedback', 'closedLoopEnabled', 'Closed Loop',
+          'error', 'eeg_neurofeedback', 'closedLoopEnabled', t('VALIDATE_PARAM_CLOSED_LOOP'),
           'Disabled', 'Required', 'global',
-          'Closed-loop EEG adaptation is required by the active limits configuration.'
+          t('VALIDATE_MSG_EEG_NEUROFEEDBACK_CLOSEDLOOPENABLED')
         ));
       }
       if (l?.allowedBands != null && !l.allowedBands.includes(p.params.band)) {
         issues.push(issue(
-          'error', 'eeg_neurofeedback', 'band', 'Band',
+          'error', 'eeg_neurofeedback', 'band', t('VALIDATE_PARAM_BAND'),
           p.params.band, l.allowedBands.join('/'), 'global',
-          `EEG band '${p.params.band}' is not in the allowed list: ${l.allowedBands.join(', ')}.`
+          t('VALIDATE_MSG_EEG_NEUROFEEDBACK_BAND', { 0: p.params.band, 1: l.allowedBands.join(', ') })
         ));
       }
       break;
@@ -144,38 +156,38 @@ function validateModality(
       // Hardware
       if (p.params.intensityMilliamps > hw.besTacsMaxMilliamps) {
         issues.push(issue(
-          'error', 'bes_tacs', 'intensityMilliamps', 'Intensity',
+          'error', 'bes_tacs', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${hw.besTacsMaxMilliamps} mA`, 'hardware',
-          `BES intensity ${p.params.intensityMilliamps} mA exceeds hardware maximum of ${hw.besTacsMaxMilliamps} mA.`
+          t('VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS', { 0: p.params.intensityMilliamps, 1: hw.besTacsMaxMilliamps })
         ));
       }
       if (p.params.frequencyHz < hw.besTacsMinHz || p.params.frequencyHz > hw.besTacsMaxHz) {
         issues.push(issue(
-          'error', 'bes_tacs', 'frequencyHz', 'Frequency',
+          'error', 'bes_tacs', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
           `${p.params.frequencyHz} Hz`, `${hw.besTacsMinHz}–${hw.besTacsMaxHz} Hz`, 'hardware',
-          `BES frequency ${p.params.frequencyHz} Hz is outside hardware range ${hw.besTacsMinHz}–${hw.besTacsMaxHz} Hz.`
+          t('VALIDATE_MSG_BES_TACS_FREQUENCYHZ', { 0: p.params.frequencyHz, 1: hw.besTacsMinHz, 2: hw.besTacsMaxHz })
         ));
       }
       // Dosage
       if (l?.maxIntensityMilliamps != null && p.params.intensityMilliamps > l.maxIntensityMilliamps) {
         issues.push(issue(
-          'error', 'bes_tacs', 'intensityMilliamps', 'Intensity',
+          'error', 'bes_tacs', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${l.maxIntensityMilliamps} mA`, 'global',
-          `BES intensity ${p.params.intensityMilliamps} mA exceeds limit of ${l.maxIntensityMilliamps} mA.`
+          t('VALIDATE_MSG_BES_TACS_INTENSITYMILLIAMPS_2', { 0: p.params.intensityMilliamps, 1: l.maxIntensityMilliamps })
         ));
       }
       if (l?.maxFrequencyHz != null && p.params.frequencyHz > l.maxFrequencyHz) {
         issues.push(issue(
-          'error', 'bes_tacs', 'frequencyHz', 'Frequency',
+          'error', 'bes_tacs', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
           `${p.params.frequencyHz} Hz`, `${l.maxFrequencyHz} Hz`, 'global',
-          `BES frequency ${p.params.frequencyHz} Hz exceeds limit of ${l.maxFrequencyHz} Hz.`
+          t('VALIDATE_MSG_BES_TACS_FREQUENCYHZ_2', { 0: p.params.frequencyHz, 1: l.maxFrequencyHz })
         ));
       }
       if (l?.minFrequencyHz != null && p.params.frequencyHz < l.minFrequencyHz) {
         issues.push(issue(
-          'error', 'bes_tacs', 'frequencyHz', 'Frequency',
+          'error', 'bes_tacs', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
           `${p.params.frequencyHz} Hz`, `≥${l.minFrequencyHz} Hz`, 'global',
-          `BES frequency ${p.params.frequencyHz} Hz is below limit of ${l.minFrequencyHz} Hz.`
+          t('VALIDATE_MSG_BES_TACS_FREQUENCYHZ_3', { 0: p.params.frequencyHz, 1: l.minFrequencyHz })
         ));
       }
       break;
@@ -186,31 +198,31 @@ function validateModality(
       // Hardware
       if (p.params.intensityMilliamps < hw.tdcsMinMilliamps || p.params.intensityMilliamps > hw.tdcsMaxMilliamps) {
         issues.push(issue(
-          'error', 'tdcs', 'intensityMilliamps', 'Intensity',
+          'error', 'tdcs', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${hw.tdcsMinMilliamps}–${hw.tdcsMaxMilliamps} mA`, 'hardware',
-          `tDCS intensity ${p.params.intensityMilliamps} mA is outside hardware range ${hw.tdcsMinMilliamps}–${hw.tdcsMaxMilliamps} mA.`
+          t('VALIDATE_MSG_TDCS_INTENSITYMILLIAMPS', { 0: p.params.intensityMilliamps, 1: hw.tdcsMinMilliamps, 2: hw.tdcsMaxMilliamps })
         ));
       }
       if (p.params.electrodePairs.length > hw.tdcsMaxElectrodePairs) {
         issues.push(issue(
-          'error', 'tdcs', 'electrodePairs', 'Electrode Pairs',
+          'error', 'tdcs', 'electrodePairs', t('VALIDATE_PARAM_ELECTRODE_PAIRS'),
           `${p.params.electrodePairs.length}`, `≤${hw.tdcsMaxElectrodePairs}`, 'hardware',
-          `tDCS has ${p.params.electrodePairs.length} electrode pairs; hardware maximum is ${hw.tdcsMaxElectrodePairs}.`
+          t('VALIDATE_MSG_TDCS_ELECTRODEPAIRS', { 0: p.params.electrodePairs.length, 1: hw.tdcsMaxElectrodePairs })
         ));
       }
       if (p.params.rampSeconds < hw.tdcsRampSeconds) {
         issues.push(issue(
-          'error', 'tdcs', 'rampSeconds', 'Ramp Time',
+          'error', 'tdcs', 'rampSeconds', t('VALIDATE_PARAM_RAMP_TIME'),
           `${p.params.rampSeconds}s`, `${hw.tdcsRampSeconds}s`, 'hardware',
-          `tDCS ramp ${p.params.rampSeconds}s is below the hardware-enforced minimum of ${hw.tdcsRampSeconds}s.`
+          t('VALIDATE_MSG_TDCS_RAMPSECONDS', { 0: p.params.rampSeconds, 1: hw.tdcsRampSeconds })
         ));
       }
       // Dosage
       if (l?.maxIntensityMilliamps != null && p.params.intensityMilliamps > l.maxIntensityMilliamps) {
         issues.push(issue(
-          'error', 'tdcs', 'intensityMilliamps', 'Intensity',
+          'error', 'tdcs', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${l.maxIntensityMilliamps} mA`, 'global',
-          `tDCS intensity ${p.params.intensityMilliamps} mA exceeds limit of ${l.maxIntensityMilliamps} mA.`
+          t('VALIDATE_MSG_TDCS_INTENSITYMILLIAMPS_2', { 0: p.params.intensityMilliamps, 1: l.maxIntensityMilliamps })
         ));
       }
       break;
@@ -221,38 +233,38 @@ function validateModality(
       // Hardware
       if (p.params.intensityMilliamps > hw.vnsMaxMilliamps) {
         issues.push(issue(
-          'error', 'vns_hrv', 'intensityMilliamps', 'Intensity',
+          'error', 'vns_hrv', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${hw.vnsMaxMilliamps} mA`, 'hardware',
-          `VNS intensity ${p.params.intensityMilliamps} mA exceeds hardware maximum of ${hw.vnsMaxMilliamps} mA.`
+          t('VALIDATE_MSG_VNS_HRV_INTENSITYMILLIAMPS', { 0: p.params.intensityMilliamps, 1: hw.vnsMaxMilliamps })
         ));
       }
       if (p.params.frequencyHz < hw.vnsMinHz || p.params.frequencyHz > hw.vnsMaxHz) {
         issues.push(issue(
-          'error', 'vns_hrv', 'frequencyHz', 'Frequency',
+          'error', 'vns_hrv', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
           `${p.params.frequencyHz} Hz`, `${hw.vnsMinHz}–${hw.vnsMaxHz} Hz`, 'hardware',
-          `VNS frequency ${p.params.frequencyHz} Hz is outside hardware range ${hw.vnsMinHz}–${hw.vnsMaxHz} Hz.`
+          t('VALIDATE_MSG_VNS_HRV_FREQUENCYHZ', { 0: p.params.frequencyHz, 1: hw.vnsMinHz, 2: hw.vnsMaxHz })
         ));
       }
       // Dosage
       if (l?.maxIntensityMilliamps != null && p.params.intensityMilliamps > l.maxIntensityMilliamps) {
         issues.push(issue(
-          'error', 'vns_hrv', 'intensityMilliamps', 'Intensity',
+          'error', 'vns_hrv', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${l.maxIntensityMilliamps} mA`, 'global',
-          `VNS intensity ${p.params.intensityMilliamps} mA exceeds limit of ${l.maxIntensityMilliamps} mA.`
+          t('VALIDATE_MSG_VNS_HRV_INTENSITYMILLIAMPS_2', { 0: p.params.intensityMilliamps, 1: l.maxIntensityMilliamps })
         ));
       }
       if (l?.maxFrequencyHz != null && p.params.frequencyHz > l.maxFrequencyHz) {
         issues.push(issue(
-          'error', 'vns_hrv', 'frequencyHz', 'Frequency',
+          'error', 'vns_hrv', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
           `${p.params.frequencyHz} Hz`, `${l.maxFrequencyHz} Hz`, 'global',
-          `VNS frequency ${p.params.frequencyHz} Hz exceeds limit of ${l.maxFrequencyHz} Hz.`
+          t('VALIDATE_MSG_VNS_HRV_FREQUENCYHZ_2', { 0: p.params.frequencyHz, 1: l.maxFrequencyHz })
         ));
       }
       if (l?.allowedProtocols != null && !l.allowedProtocols.includes(p.params.hrvProtocol)) {
         issues.push(issue(
-          'error', 'vns_hrv', 'hrvProtocol', 'HRV Protocol',
+          'error', 'vns_hrv', 'hrvProtocol', t('VALIDATE_PARAM_HRV_PROTOCOL'),
           p.params.hrvProtocol, l.allowedProtocols.join('/'), 'global',
-          `HRV protocol '${p.params.hrvProtocol}' is not in the allowed list: ${l.allowedProtocols.join(', ')}.`
+          t('VALIDATE_MSG_VNS_HRV_HRVPROTOCOL', { 0: p.params.hrvProtocol, 1: l.allowedProtocols.join(', ') })
         ));
       }
       break;
@@ -262,9 +274,9 @@ function validateModality(
       const l = lim.audioEntrainment;
       if (l?.maxVolumePercent != null && p.params.volumePercent > l.maxVolumePercent) {
         issues.push(issue(
-          'error', 'audio_entrainment', 'volumePercent', 'Volume',
+          'error', 'audio_entrainment', 'volumePercent', t('VALIDATE_PARAM_VOLUME'),
           `${p.params.volumePercent}%`, `${l.maxVolumePercent}%`, 'global',
-          `Audio volume ${p.params.volumePercent}% exceeds limit of ${l.maxVolumePercent}%.`
+          t('VALIDATE_MSG_AUDIO_ENTRAINMENT_VOLUMEPERCENT', { 0: p.params.volumePercent, 1: l.maxVolumePercent })
         ));
       }
       if (
@@ -273,9 +285,9 @@ function validateModality(
         p.params.binauralBeatsHz > l.maxBinauralBeatsHz
       ) {
         issues.push(issue(
-          'error', 'audio_entrainment', 'binauralBeatsHz', 'Binaural Beat',
+          'error', 'audio_entrainment', 'binauralBeatsHz', t('VALIDATE_PARAM_BINAURAL_BEAT'),
           `${p.params.binauralBeatsHz} Hz`, `${l.maxBinauralBeatsHz} Hz`, 'global',
-          `Binaural beat ${p.params.binauralBeatsHz} Hz exceeds limit of ${l.maxBinauralBeatsHz} Hz.`
+          t('VALIDATE_MSG_AUDIO_ENTRAINMENT_BINAURALBEATSHZ', { 0: p.params.binauralBeatsHz, 1: l.maxBinauralBeatsHz })
         ));
       }
       if (
@@ -284,9 +296,9 @@ function validateModality(
         p.params.isochronicTonesHz > l.maxIsochronicTonesHz
       ) {
         issues.push(issue(
-          'error', 'audio_entrainment', 'isochronicTonesHz', 'Isochronic Tone',
+          'error', 'audio_entrainment', 'isochronicTonesHz', t('VALIDATE_PARAM_ISOCHRONIC_TONE'),
           `${p.params.isochronicTonesHz} Hz`, `${l.maxIsochronicTonesHz} Hz`, 'global',
-          `Isochronic tone ${p.params.isochronicTonesHz} Hz exceeds limit of ${l.maxIsochronicTonesHz} Hz.`
+          t('VALIDATE_MSG_AUDIO_ENTRAINMENT_ISOCHRONICTONESHZ', { 0: p.params.isochronicTonesHz, 1: l.maxIsochronicTonesHz })
         ));
       }
       break;
@@ -297,9 +309,9 @@ function validateModality(
       // Hardware ceiling
       if (p.params.frequencyHz > hw.visualMaxHz) {
         issues.push(issue(
-          'error', 'visual_stimulation', 'frequencyHz', 'Frequency',
+          'error', 'visual_stimulation', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
           `${p.params.frequencyHz} Hz`, `${hw.visualMaxHz} Hz`, 'hardware',
-          `Visual frequency ${p.params.frequencyHz} Hz exceeds hardware IEC 62471 MPE ceiling of ${hw.visualMaxHz} Hz.`
+          t('VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ', { 0: p.params.frequencyHz, 1: hw.visualMaxHz })
         ));
       }
       // Photoparoxysmal risk zone (3–30 Hz)
@@ -310,42 +322,42 @@ function validateModality(
         const blockHighRisk = l?.blockHighRiskRange ?? false;
         if (blockHighRisk) {
           issues.push(issue(
-            'error', 'visual_stimulation', 'frequencyHz', 'Frequency',
+            'error', 'visual_stimulation', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
             `${p.params.frequencyHz} Hz`,
-            `Outside ${hw.visualHighRiskMinHz}–${hw.visualHighRiskMaxHz} Hz`,
+            t('VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ_2_ARG1', { 0: hw.visualHighRiskMinHz, 1: hw.visualHighRiskMaxHz }),
             'global',
-            `Visual frequency ${p.params.frequencyHz} Hz is in the photoparoxysmal high-risk zone (${hw.visualHighRiskMinHz}–${hw.visualHighRiskMaxHz} Hz). Blocked by configured limit. Clinician unlock required per device firmware.`
+            t('VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ_2', { 0: p.params.frequencyHz, 1: hw.visualHighRiskMinHz, 2: hw.visualHighRiskMaxHz })
           ));
         } else {
           issues.push(issue(
-            'warning', 'visual_stimulation', 'frequencyHz', 'Frequency',
+            'warning', 'visual_stimulation', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
             `${p.params.frequencyHz} Hz`,
-            `Outside ${hw.visualHighRiskMinHz}–${hw.visualHighRiskMaxHz} Hz`,
+            t('VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ_3_ARG1', { 0: hw.visualHighRiskMinHz, 1: hw.visualHighRiskMaxHz }),
             'hardware',
-            `Visual frequency ${p.params.frequencyHz} Hz is in the photoparoxysmal high-risk zone (${hw.visualHighRiskMinHz}–${hw.visualHighRiskMaxHz} Hz). Device firmware requires clinician unlock.`
+            t('VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ_3', { 0: p.params.frequencyHz, 1: hw.visualHighRiskMinHz, 2: hw.visualHighRiskMaxHz })
           ));
         }
       }
       // Dosage limits
       if (l?.maxFrequencyHz != null && p.params.frequencyHz > l.maxFrequencyHz) {
         issues.push(issue(
-          'error', 'visual_stimulation', 'frequencyHz', 'Frequency',
+          'error', 'visual_stimulation', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
           `${p.params.frequencyHz} Hz`, `${l.maxFrequencyHz} Hz`, 'global',
-          `Visual frequency ${p.params.frequencyHz} Hz exceeds limit of ${l.maxFrequencyHz} Hz.`
+          t('VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ_4', { 0: p.params.frequencyHz, 1: l.maxFrequencyHz })
         ));
       }
       if (l?.minFrequencyHz != null && p.params.frequencyHz < l.minFrequencyHz) {
         issues.push(issue(
-          'error', 'visual_stimulation', 'frequencyHz', 'Frequency',
+          'error', 'visual_stimulation', 'frequencyHz', t('VALIDATE_PARAM_FREQUENCY'),
           `${p.params.frequencyHz} Hz`, `≥${l.minFrequencyHz} Hz`, 'global',
-          `Visual frequency ${p.params.frequencyHz} Hz is below limit of ${l.minFrequencyHz} Hz.`
+          t('VALIDATE_MSG_VISUAL_STIMULATION_FREQUENCYHZ_5', { 0: p.params.frequencyHz, 1: l.minFrequencyHz })
         ));
       }
       if (l?.allowedModes != null && !l.allowedModes.includes(p.params.mode)) {
         issues.push(issue(
-          'error', 'visual_stimulation', 'mode', 'Mode',
+          'error', 'visual_stimulation', 'mode', t('VALIDATE_PARAM_MODE'),
           p.params.mode, l.allowedModes.join('/'), 'global',
-          `Visual mode '${p.params.mode}' is not in the allowed list: ${l.allowedModes.join(', ')}.`
+          t('VALIDATE_MSG_VISUAL_STIMULATION_MODE', { 0: p.params.mode, 1: l.allowedModes.join(', ') })
         ));
       }
       break;
@@ -361,30 +373,30 @@ function validateModality(
       const l = lim.tms;
       if (l?.maxIntensityPercentMT != null && p.params.intensityPercentMT > l.maxIntensityPercentMT) {
         issues.push(issue(
-          'error', 'tms', 'intensityPercentMT', 'Intensity',
+          'error', 'tms', 'intensityPercentMT', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityPercentMT}% MT`, `${l.maxIntensityPercentMT}% MT`, 'global',
-          `TMS intensity ${p.params.intensityPercentMT}% MT exceeds limit of ${l.maxIntensityPercentMT}% MT.`
+          t('VALIDATE_MSG_TMS_INTENSITYPERCENTMT', { 0: p.params.intensityPercentMT, 1: l.maxIntensityPercentMT })
         ));
       }
       if (l?.maxPulsesPerSession != null && p.params.pulseCount > l.maxPulsesPerSession) {
         issues.push(issue(
-          'error', 'tms', 'pulseCount', 'Pulses',
+          'error', 'tms', 'pulseCount', t('VALIDATE_PARAM_PULSES'),
           `${p.params.pulseCount}`, `${l.maxPulsesPerSession}`, 'global',
-          `TMS pulse count ${p.params.pulseCount} exceeds limit of ${l.maxPulsesPerSession} per session.`
+          t('VALIDATE_MSG_TMS_PULSECOUNT', { 0: p.params.pulseCount, 1: l.maxPulsesPerSession })
         ));
       }
       if (l?.allowedProtocols != null && !l.allowedProtocols.includes(p.params.tmsProtocol)) {
         issues.push(issue(
-          'error', 'tms', 'tmsProtocol', 'Protocol',
+          'error', 'tms', 'tmsProtocol', t('VALIDATE_PARAM_PROTOCOL'),
           p.params.tmsProtocol, l.allowedProtocols.join('/'), 'global',
-          `TMS protocol '${p.params.tmsProtocol}' is not in the allowed list: ${l.allowedProtocols.join(', ')}.`
+          t('VALIDATE_MSG_TMS_TMSPROTOCOL', { 0: p.params.tmsProtocol, 1: l.allowedProtocols.join(', ') })
         ));
       }
       if (l?.allowedTargets != null && !l.allowedTargets.includes(p.params.target)) {
         issues.push(issue(
-          'error', 'tms', 'target', 'Target',
+          'error', 'tms', 'target', t('VALIDATE_PARAM_TARGET'),
           p.params.target, l.allowedTargets.join('/'), 'global',
-          `TMS target '${p.params.target}' is not in the allowed list: ${l.allowedTargets.join(', ')}.`
+          t('VALIDATE_MSG_TMS_TARGET', { 0: p.params.target, 1: l.allowedTargets.join(', ') })
         ));
       }
       break;
@@ -394,16 +406,16 @@ function validateModality(
       const l = lim.pbmDeep1170nm;
       if (l?.maxIntensityMWcm2 != null && p.params.intensityMWcm2 > l.maxIntensityMWcm2) {
         issues.push(issue(
-          'error', 'pbm_deep_1170nm', 'intensityMWcm2', 'Intensity',
+          'error', 'pbm_deep_1170nm', 'intensityMWcm2', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMWcm2} mW/cm²`, `${l.maxIntensityMWcm2} mW/cm²`, 'global',
-          `Deep PBM intensity ${p.params.intensityMWcm2} mW/cm² exceeds limit of ${l.maxIntensityMWcm2} mW/cm².`
+          t('VALIDATE_MSG_PBM_DEEP_1170NM_INTENSITYMWCM2', { 0: p.params.intensityMWcm2, 1: l.maxIntensityMWcm2 })
         ));
       }
       if (p.params.dutyCyclePercent > hw.pbmDutyCycleMaxPercent) {
         issues.push(issue(
-          'error', 'pbm_deep_1170nm', 'dutyCyclePercent', 'Duty Cycle',
+          'error', 'pbm_deep_1170nm', 'dutyCyclePercent', t('VALIDATE_PARAM_DUTY_CYCLE'),
           `${p.params.dutyCyclePercent}%`, `${hw.pbmDutyCycleMaxPercent}%`, 'hardware',
-          `Deep PBM duty cycle ${p.params.dutyCyclePercent}% exceeds firmware maximum of ${hw.pbmDutyCycleMaxPercent}%.`
+          t('VALIDATE_MSG_PBM_DEEP_1170NM_DUTYCYCLEPERCENT', { 0: p.params.dutyCyclePercent, 1: hw.pbmDutyCycleMaxPercent })
         ));
       }
       break;
@@ -414,17 +426,17 @@ function validateModality(
       // Hardware
       if (p.params.intensityMilliamps > hw.clinicalTacsMaxMilliamps) {
         issues.push(issue(
-          'error', 'clinical_tacs', 'intensityMilliamps', 'Intensity',
+          'error', 'clinical_tacs', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${hw.clinicalTacsMaxMilliamps} mA`, 'hardware',
-          `Clinical tACS intensity ${p.params.intensityMilliamps} mA exceeds hardware maximum of ${hw.clinicalTacsMaxMilliamps} mA.`
+          t('VALIDATE_MSG_CLINICAL_TACS_INTENSITYMILLIAMPS', { 0: p.params.intensityMilliamps, 1: hw.clinicalTacsMaxMilliamps })
         ));
       }
       // Dosage
       if (l?.maxIntensityMilliamps != null && p.params.intensityMilliamps > l.maxIntensityMilliamps) {
         issues.push(issue(
-          'error', 'clinical_tacs', 'intensityMilliamps', 'Intensity',
+          'error', 'clinical_tacs', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${l.maxIntensityMilliamps} mA`, 'global',
-          `Clinical tACS intensity ${p.params.intensityMilliamps} mA exceeds limit of ${l.maxIntensityMilliamps} mA.`
+          t('VALIDATE_MSG_CLINICAL_TACS_INTENSITYMILLIAMPS_2', { 0: p.params.intensityMilliamps, 1: l.maxIntensityMilliamps })
         ));
       }
       break;
@@ -435,24 +447,24 @@ function validateModality(
       // Hardware
       if (p.params.intensityMilliamps > hw.hdTdcsMaxMilliampsPerElectrode) {
         issues.push(issue(
-          'error', 'hd_tdcs', 'intensityMilliamps', 'Intensity',
+          'error', 'hd_tdcs', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${hw.hdTdcsMaxMilliampsPerElectrode} mA`, 'hardware',
-          `HD-tDCS intensity ${p.params.intensityMilliamps} mA/electrode exceeds Bikson lab safety limit of ${hw.hdTdcsMaxMilliampsPerElectrode} mA.`
+          t('VALIDATE_MSG_HD_TDCS_INTENSITYMILLIAMPS', { 0: p.params.intensityMilliamps, 1: hw.hdTdcsMaxMilliampsPerElectrode })
         ));
       }
       // Dosage
       if (l?.maxIntensityMilliamps != null && p.params.intensityMilliamps > l.maxIntensityMilliamps) {
         issues.push(issue(
-          'error', 'hd_tdcs', 'intensityMilliamps', 'Intensity',
+          'error', 'hd_tdcs', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${l.maxIntensityMilliamps} mA`, 'global',
-          `HD-tDCS intensity ${p.params.intensityMilliamps} mA exceeds limit of ${l.maxIntensityMilliamps} mA.`
+          t('VALIDATE_MSG_HD_TDCS_INTENSITYMILLIAMPS_2', { 0: p.params.intensityMilliamps, 1: l.maxIntensityMilliamps })
         ));
       }
       if (l?.allowedMontages != null && !l.allowedMontages.includes(p.params.montage)) {
         issues.push(issue(
-          'error', 'hd_tdcs', 'montage', 'Montage',
+          'error', 'hd_tdcs', 'montage', t('VALIDATE_PARAM_MONTAGE'),
           p.params.montage, l.allowedMontages.join('/'), 'global',
-          `HD-tDCS montage '${p.params.montage}' is not in the allowed list: ${l.allowedMontages.join(', ')}.`
+          t('VALIDATE_MSG_HD_TDCS_MONTAGE', { 0: p.params.montage, 1: l.allowedMontages.join(', ') })
         ));
       }
       break;
@@ -463,24 +475,24 @@ function validateModality(
       // Hardware — cardiac interlock always active at firmware level
       if (p.params.intensityMilliamps > hw.cervicalVnsMaxMilliamps) {
         issues.push(issue(
-          'error', 'cervical_vns', 'intensityMilliamps', 'Intensity',
+          'error', 'cervical_vns', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${hw.cervicalVnsMaxMilliamps} mA`, 'hardware',
-          `Cervical VNS intensity ${p.params.intensityMilliamps} mA exceeds hardware maximum. Cardiac interlock is always active regardless.`
+          t('VALIDATE_MSG_CERVICAL_VNS_INTENSITYMILLIAMPS', { 0: p.params.intensityMilliamps })
         ));
       }
       // Dosage
       if (l?.maxIntensityMilliamps != null && p.params.intensityMilliamps > l.maxIntensityMilliamps) {
         issues.push(issue(
-          'error', 'cervical_vns', 'intensityMilliamps', 'Intensity',
+          'error', 'cervical_vns', 'intensityMilliamps', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityMilliamps} mA`, `${l.maxIntensityMilliamps} mA`, 'global',
-          `Cervical VNS intensity ${p.params.intensityMilliamps} mA exceeds limit of ${l.maxIntensityMilliamps} mA.`
+          t('VALIDATE_MSG_CERVICAL_VNS_INTENSITYMILLIAMPS_2', { 0: p.params.intensityMilliamps, 1: l.maxIntensityMilliamps })
         ));
       }
       if (l?.maxSessionDurationSeconds != null) {
         issues.push(issue(
-          'warning', 'cervical_vns', 'sessionDuration', 'Session Duration',
+          'warning', 'cervical_vns', 'sessionDuration', t('VALIDATE_PARAM_SESSION_DURATION'),
           'Configured', `Max ${l.maxSessionDurationSeconds}s`, 'global',
-          `Cervical VNS session duration limit is ${l.maxSessionDurationSeconds}s. Verify session timing matches this limit.`
+          t('VALIDATE_MSG_CERVICAL_VNS_SESSIONDURATION', { 0: l.maxSessionDurationSeconds })
         ));
       }
       break;
@@ -491,18 +503,18 @@ function validateModality(
       // Hardware
       if (p.params.intensityG > hw.vibrotactileMaxG || p.params.intensityG < hw.vibrotactileMinG) {
         issues.push(issue(
-          'error', 'vibrotactile_40hz', 'intensityG', 'Intensity',
+          'error', 'vibrotactile_40hz', 'intensityG', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityG} G`,
           `${hw.vibrotactileMinG}–${hw.vibrotactileMaxG} G`, 'hardware',
-          `Vibrotactile intensity ${p.params.intensityG} G is outside hardware range ${hw.vibrotactileMinG}–${hw.vibrotactileMaxG} G.`
+          t('VALIDATE_MSG_VIBROTACTILE_40HZ_INTENSITYG', { 0: p.params.intensityG, 1: hw.vibrotactileMinG, 2: hw.vibrotactileMaxG })
         ));
       }
       // Dosage
       if (l?.maxIntensityG != null && p.params.intensityG > l.maxIntensityG) {
         issues.push(issue(
-          'error', 'vibrotactile_40hz', 'intensityG', 'Intensity',
+          'error', 'vibrotactile_40hz', 'intensityG', t('VALIDATE_PARAM_INTENSITY'),
           `${p.params.intensityG} G`, `${l.maxIntensityG} G`, 'global',
-          `Vibrotactile intensity ${p.params.intensityG} G exceeds limit of ${l.maxIntensityG} G.`
+          t('VALIDATE_MSG_VIBROTACTILE_40HZ_INTENSITYG_2', { 0: p.params.intensityG, 1: l.maxIntensityG })
         ));
       }
       break;
@@ -529,9 +541,9 @@ export function validateProtocol(
   // Protocol-level checks
   if (enabled.length === 0) {
     issues.push(issue(
-      'error', undefined, 'modalities', 'Modalities',
+      'error', undefined, 'modalities', t('VALIDATE_PARAM_MODALITIES'),
       '0', '≥1', 'hardware',
-      'Protocol has no enabled modalities.'
+      t('VALIDATE_MSG_GENERAL_MODALITIES')
     ));
   }
 
@@ -539,16 +551,16 @@ export function validateProtocol(
     const dur = definition.timingMode.seconds;
     if (dur < 60) {
       issues.push(issue(
-        'warning', undefined, 'duration', 'Duration',
+        'warning', undefined, 'duration', t('VALIDATE_PARAM_DURATION'),
         `${dur}s`, '60s', 'hardware',
-        'Session is very short (< 1 minute). Verify this is intentional.'
+        t('VALIDATE_MSG_GENERAL_DURATION')
       ));
     }
     if (dur > 7200) {
       issues.push(issue(
-        'warning', undefined, 'duration', 'Duration',
+        'warning', undefined, 'duration', t('VALIDATE_PARAM_DURATION'),
         `${Math.floor(dur / 60)}m`, '120m', 'hardware',
-        'Session is very long (> 2 hours). Verify this is intentional.'
+        t('VALIDATE_MSG_GENERAL_DURATION_2')
       ));
     }
   }
@@ -558,9 +570,9 @@ export function validateProtocol(
   const hasTDCS = enabled.some(m => m.modalityParams.type === 'tdcs');
   if (hasBES && hasTDCS) {
     issues.push(issue(
-      'warning', undefined, 'cross_modality', 'Cross-modality',
+      'warning', undefined, 'cross_modality', t('VALIDATE_PARAM_CROSS_MODALITY'),
       'BES + tDCS', 'Separate electrode paths', 'hardware',
-      'BES and tDCS are active simultaneously — ensure electrode paths are non-overlapping.'
+      t('VALIDATE_MSG_GENERAL_CROSS_MODALITY')
     ));
   }
 
@@ -569,9 +581,9 @@ export function validateProtocol(
   const hasClinicalTacs = enabled.some(m => m.modalityParams.type === 'clinical_tacs');
   if (hasTMS && (hasBES || hasTDCS || hasClinicalTacs)) {
     issues.push(issue(
-      'warning', undefined, 'cross_modality_tms', 'Cross-modality',
+      'warning', undefined, 'cross_modality_tms', t('VALIDATE_PARAM_CROSS_MODALITY'),
       'TMS + electrical stim', 'Sequential recommended', 'hardware',
-      'TMS combined with electrical stimulation (BES/tDCS/clinical tACS) requires careful electrode placement verification.'
+      t('VALIDATE_MSG_GENERAL_CROSS_MODALITY_TMS')
     ));
   }
 
@@ -599,9 +611,9 @@ export function validateEntry(
 
     if (entry.composite.layers.length === 0) {
       issues.push(issue(
-        'error', undefined, 'layers', 'Layers',
+        'error', undefined, 'layers', t('VALIDATE_PARAM_LAYERS'),
         '0', '≥1', 'hardware',
-        'Composite protocol has no layers.'
+        t('VALIDATE_MSG_GENERAL_LAYERS')
       ));
     }
 
@@ -611,24 +623,24 @@ export function validateEntry(
       );
       if (!ref && allProtocols) {
         issues.push(issue(
-          'error', undefined, 'layer_ref', 'Layer Reference',
+          'error', undefined, 'layer_ref', t('VALIDATE_PARAM_LAYER_REFERENCE'),
           layer.protocolName, 'Known protocol', 'hardware',
-          `Layer references unknown protocol '${layer.protocolName}'.`
+          t('VALIDATE_MSG_GENERAL_LAYER_REF', { 0: layer.protocolName })
         ));
       } else if (ref && ref.kind === 'single') {
         const sub = validateProtocol(ref.protocol, resolvedLimits);
         issues.push(...sub.issues.map(i => ({
           ...i,
           id: crypto.randomUUID(),
-          message: `[${layer.protocolName}] ${i.message}`,
+          message: t('VALIDATE_LAYER_PREFIX', { 0: layer.protocolName, 1: i.message }),
         })));
       }
 
       if (layer.intensityScale < 0 || layer.intensityScale > 1) {
         issues.push(issue(
-          'error', undefined, 'layer_intensity_scale', 'Layer Intensity Scale',
+          'error', undefined, 'layer_intensity_scale', t('VALIDATE_PARAM_LAYER_INTENSITY_SCALE'),
           `${layer.intensityScale}`, '0–1', 'hardware',
-          `Layer '${layer.protocolName}' has intensity scale ${layer.intensityScale} outside valid range 0–1.`
+          t('VALIDATE_MSG_GENERAL_LAYER_INTENSITY_SCALE', { 0: layer.protocolName, 1: layer.intensityScale })
         ));
       }
     }

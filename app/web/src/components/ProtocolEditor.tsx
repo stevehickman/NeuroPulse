@@ -157,9 +157,9 @@ export function ProtocolEditor({ existing, onSave, onCancel }: ProtocolEditorPro
   }
 
   function handleAddTag(tag: string) {
-    const t = tag.trim().toLowerCase().replace(/\s+/g, '-');
-    if (t && !protocol.tags.includes(t)) {
-      updateProtocol({ tags: [...protocol.tags, t] });
+    const normalized = tag.trim().toLowerCase().replace(/\s+/g, '-');
+    if (normalized && !protocol.tags.includes(normalized)) {
+      updateProtocol({ tags: [...protocol.tags, normalized] });
     }
     setTagInput('');
   }
