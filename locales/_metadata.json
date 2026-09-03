@@ -14,55 +14,13 @@
   "AGE_GATE_UNDER_16": {
     "legal_review_required": true
   },
-  "AGE_GATE_UNDER_16_INFO": {
-    "legal_review_required": true
-  },
   "AGE_GATE_WHY_BODY": {
     "legal_review_required": true
   },
   "AGE_GATE_WHY_TITLE": {
     "legal_review_required": true
   },
-  "BIPA_AGREE_BUTTON": {
-    "legal_review_required": true
-  },
-  "BIPA_BRAIN_ACCEPT": {
-    "legal_review_required": true
-  },
-  "BIPA_BRAIN_BULLET_1": {
-    "legal_review_required": true
-  },
-  "BIPA_BRAIN_BULLET_2": {
-    "legal_review_required": true
-  },
-  "BIPA_BRAIN_BULLET_3": {
-    "legal_review_required": true
-  },
-  "BIPA_BRAIN_BULLET_4": {
-    "legal_review_required": true
-  },
-  "BIPA_BRAIN_BULLET_5": {
-    "legal_review_required": true
-  },
-  "BIPA_BRAIN_DECLINE": {
-    "legal_review_required": true
-  },
-  "BIPA_BRAIN_INTRO": {
-    "legal_review_required": true
-  },
-  "BIPA_BRAIN_QUESTION": {
-    "legal_review_required": true
-  },
-  "BIPA_BRAIN_TITLE": {
-    "legal_review_required": true
-  },
   "BIPA_CONTINUE_BUTTON": {
-    "legal_review_required": true
-  },
-  "BIPA_DISCLOSURE": {
-    "legal_review_required": true
-  },
-  "BIPA_DISCLOSURE_TITLE": {
     "legal_review_required": true
   },
   "BIPA_STEP1_BODY_1": {
@@ -152,9 +110,6 @@
   "CONSENT_IRREVERSIBILITY_NOTICE": {
     "legal_review_required": true
   },
-  "CONSENT_L1_BODY": {
-    "legal_review_required": true
-  },
   "CONSENT_L2_BODY": {
     "legal_review_required": true
   },
@@ -222,9 +177,6 @@
     "legal_review_required": true
   },
   "SETUP_SAFETY_CONTRAIN_6": {
-    "legal_review_required": true
-  },
-  "SETUP_SAFETY_TITLE": {
     "legal_review_required": true
   },
   "SETUP_TITLE_SAFETY": {

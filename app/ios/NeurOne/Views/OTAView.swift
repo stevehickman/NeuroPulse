@@ -148,7 +148,7 @@ struct OTAView: View {
                 HStack {
                     Text(ota.phase.description).font(.subheadline.bold())
                     Spacer()
-                    Text("\(ota.progressPercent)%")
+                    Text(String(format: String(localized: "OTA_PROGRESS_PERCENT"), String(ota.progressPercent)))
                         .font(.subheadline.monospacedDigit()).foregroundColor(.secondary)
                 }
 
@@ -158,7 +158,9 @@ struct OTAView: View {
 
                 // Byte-level progress during transfer (ISC-110).
                 if ota.phase == .transferring && session.totalBytes > 0 {
-                    Text("\(OTASession.formattedBytes(session.sentBytes)) / \(OTASession.formattedBytes(session.totalBytes))")
+                    Text(String(format: String(localized: "OTA_PROGRESS_BYTES"),
+                     OTASession.formattedBytes(session.sentBytes),
+                     OTASession.formattedBytes(session.totalBytes)))
                         .font(.caption.monospacedDigit()).foregroundColor(.secondary)
                 }
 
@@ -184,10 +186,7 @@ struct OTAView: View {
 
     private var rollbackNotice: some View {
         Section("OTA_SAFETY") {
-            Text("OTA_IF_THE_HUB_FAILS_TO_BOOT_AFTER_AN_UPDATE_IT"
-                + " to the previous firmware version after 3 failed boot attempts."
-                + " You can also force USB-C DFU recovery by holding the hub reset"
-                + " button during USB-C connection.")
+            Text("OTA_ROLLBACK_NOTE")
                 .font(.caption).foregroundColor(.secondary)
         }
     }

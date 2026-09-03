@@ -249,7 +249,7 @@ function DeviceTierControl({
         className={`tier-badge ${tier}`}
         title={tier === 'none' ? 'No device' : tier === 't1' ? 'Home tier' : 'Pro tier'}
       >
-        {tier === 'none' ? 'OFFLINE' : tier === 't1' ? 'T1' : 'T2'}
+        {tier === 'none' ? t('WEB_OFFLINE') : tier === 't1' ? 'T1' : 'T2'}
       </span>
       {tier !== 'none' && (
         <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-secondary)', cursor: 'pointer' }}>

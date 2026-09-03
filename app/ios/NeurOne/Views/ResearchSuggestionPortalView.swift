@@ -273,9 +273,7 @@ struct SuggestionDetailView: View {
     private var pledgeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(String(localized: "PORTAL_SUPPORT_HEADING")).font(.headline)
-            Text("PORTAL_PLEDGES_ARE_INTENT_ONLY_YOUR_CARD_IS_NOT_CHA"
-                + " confirms feasibility and a formal campaign activates."
-                + " If the target is not met, you are never charged.")
+            Text("PORTAL_PLEDGE_DISCLAIMER")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
@@ -301,8 +299,7 @@ struct SuggestionDetailView: View {
                 .tint(.orange)
                 .frame(maxWidth: .infinity)
 
-                Text("PORTAL_FUNDERS_RECEIVE_A_PLAIN_LANGUAGE_RESULTS_SUM"
-                    + " in the published paper as 'NeurOne Patient Research Fund contributors.'")
+                Text("PORTAL_FUNDER_NOTE")
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -351,8 +348,7 @@ struct SubmitSuggestionSheet: View {
 
                 Section {
                     Toggle("PORTAL_I_WOULD_PARTICIPATE_IN_THIS_STUDY_IF_IT_RAN", isOn: $draft.hasParticipationIntent)
-                    Text("PORTAL_SAYING_YES_SIGNALS_TO_RESEARCHERS_THAT_THERE"
-                        + " cohort ready to enrol — the hardest problem in trial recruitment.")
+                    Text("PORTAL_INTENT_EXPLANATION")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
