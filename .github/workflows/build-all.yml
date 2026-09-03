@@ -57,9 +57,13 @@ env:
   # second time, and it stayed invisible because a red build-all is surfaced
   # nowhere: OI-SWCI-10.  Phase 9 adds np_bootloader_flexram_tests, so the
   # correct figures are 7 + 25 = 32.
-  NP_TOTAL_TEST_COUNT: '32'
+  # Phase 9's correction stands as written; np_app_clock_agreement_tests
+  # (NP-SW-CI-001 §4.11, OI-SWCI-41) adds one more Class B target on top of it,
+  # so the figures are 7 + 26 = 33.  Re-derived by enumerating ctest on the
+  # merged tree, not by adding one to the line above.
+  NP_TOTAL_TEST_COUNT: '33'
   NP_SAFETY_TEST_COUNT: '7'
-  NP_CLASS_B_TEST_COUNT: '25'
+  NP_CLASS_B_TEST_COUNT: '26'
 
 jobs:
   host-tests-all:

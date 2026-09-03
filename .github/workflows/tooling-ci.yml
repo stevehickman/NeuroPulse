@@ -199,11 +199,17 @@ jobs:
         .github/workflows/tooling-ci.yml
       # The platform-seam declaration gate (OI-SWCI-40, and OI-SWCI-18 before
       # it). The edit that breaks it is an `extern` line added to a .c under
-      # either firmware tree, or a seam added to / removed from either header —
-      # so all three directories are listed rather than `firmware/**`, which
-      # would put the gate in scope for edits it cannot see the consequence of.
+      # any scanned firmware tree, or a seam added to / removed from either
+      # header — so the directories are listed individually rather than
+      # `firmware/**`, which would put the gate in scope for edits it cannot see
+      # the consequence of. firmware/application joined the list on 2026-09-02
+      # with the clock seam (NP-SW-CI-001 §4.11): np_app_main.c is the first
+      # caller of a platform seam outside hub_control, so the gate now scans it,
+      # and a scan population the relevance list does not cover is the drift
+      # check-ci-scope.ts exists to catch (§5.0.2 — it caught exactly this).
       NP_SCOPE_SEAMDECLS: |
         firmware/hub_control/**
+        firmware/application/**
         firmware/safety_mcu/**
         firmware/platform/**
         scripts/check-platform-seam-decls.ts
@@ -309,6 +315,7 @@ jobs:
           # leaving or joining a contract header. app/ is out of scope because
           # no seam is declared there.
           assert scope.seamdecls.paths true  firmware/hub_control/modules/np_mod_eeg.c
+          assert scope.seamdecls.paths true  firmware/application/src/np_app_main.c
           assert scope.seamdecls.paths true  firmware/platform/include/np_sw02_platform_hal.h
           assert scope.seamdecls.paths true  firmware/safety_mcu/include/np_safety_hal.h
           assert scope.seamdecls.paths false app/web/src/main.ts

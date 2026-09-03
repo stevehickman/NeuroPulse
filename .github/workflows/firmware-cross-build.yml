@@ -154,15 +154,16 @@ env:
   # The count the selection must match.  It lives here and in the assertion step
   # below — and NOT in the `host-tests` job `name:`, which is what a required
   # status check matches on.  The job used to be called "CMake host tests (21
-  # Class B targets)"; that count has already moved five times
-  # (19 → 20 → 21 → 22 → 23 → 24 → 25, the last two by phase 8's
-  #  np_app_link_agreement_tests and phase 9's np_bootloader_flexram_tests)
+  # Class B targets)"; that count has already moved six times
+  # (19 → 20 → 21 → 22 → 23 → 24 → 25 → 26, the last three by phase 8's
+  #  np_app_link_agreement_tests, phase 9's np_bootloader_flexram_tests and
+  #  np_app_clock_agreement_tests, NP-SW-CI-001 §4.11)
   # as phases added targets, and a required context is an exact string match, so
   # the next phase that adds a target would have renamed the check and silently
   # stopped satisfying the requirement — a merge deadlock with no error message
   # anywhere.  The number belongs to the assertion, not to the check name.
   # NP-SW-CI-001 §6.7.
-  NP_CLASS_B_TEST_COUNT: '25'
+  NP_CLASS_B_TEST_COUNT: '26'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always
@@ -575,7 +576,7 @@ jobs:
     # what it now claims: every SW-02 translation unit compiles under
     # -Wall -Wextra -Werror AND the whole set links into one image with nothing
     # unresolved.  It is still NOT a claim that the image runs — its platform
-    # layer is 93 traps (§4.8), and the image says so about itself.
+    # layer is 94 traps (§4.8, §4.11), and the image says so about itself.
     #
     # As at phases 3 and 4: the run reporting failure is not the same as the
     # merge being blocked.  No required-check policy exists yet — OI-SWCI-04,

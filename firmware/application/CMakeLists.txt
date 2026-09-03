@@ -31,6 +31,22 @@ if(NP_BUILD_TESTS)
     target_compile_definitions(np_app_link_agreement_tests PRIVATE
         NP_BOOTLOADER_LD_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../bootloader/linker/bootloader_imxrt1062.ld"
         NP_APPLICATION_LD_PATH="${CMAKE_CURRENT_SOURCE_DIR}/linker/app_imxrt1062.ld")
+
+    # ── Host test: the core clock the image assumes vs the one it is given ────
+    # NP-SW-CI-001 §4.11, OI-SWCI-41.  Includes FreeRTOSConfig.h and the vendored
+    # system_MIMXRT1062.h so the PREPROCESSOR resolves configCPU_CLOCK_HZ's two
+    # branches, rather than a text probe guessing which one the target build
+    # takes.  Needs no ARM toolchain: it is arithmetic over three headers plus a
+    # text probe of the boot path.
+    add_executable(np_app_clock_agreement_tests
+        tests/np_app_clock_agreement_tests.c)
+    target_compile_options(np_app_clock_agreement_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g)
+    target_include_directories(np_app_clock_agreement_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/../hub_control/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/mcux_sdk/devices/MIMXRT1062)
+    target_compile_definitions(np_app_clock_agreement_tests PRIVATE
+        NP_APP_MAIN_C_PATH="${CMAKE_CURRENT_SOURCE_DIR}/src/np_app_main.c")
     return()
 endif()
 
@@ -74,6 +90,11 @@ target_include_directories(np_application PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/../hub_control/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../common/include
     ${CMAKE_CURRENT_SOURCE_DIR}/../platform/include
+    # np_sw02_platform_hal.h declares np_platform_clock_init() (OI-SWCI-41) and
+    # includes np_accel_shdr.h for the seams that carry SHDR record types.  The
+    # alternative was an `extern` line for the clock seam in np_app_main.c,
+    # which is precisely the single-declaration defect OI-SWCI-40 records.
+    ${CMAKE_CURRENT_SOURCE_DIR}/../shdr/include
 )
 
 # SYSTEM so -Wall -Wextra -Werror stays in force on first-party code while the

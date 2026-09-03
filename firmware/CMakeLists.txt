@@ -113,14 +113,19 @@
 # split by IEC 62304 class (NP-SW-CI-001 §5.0.1 — the workflows are
 # self-contained because `needs:` only works within one workflow):
 #   firmware/safety_mcu/  → .github/workflows/safety-mcu-ci.yml        (7 targets, Class C)
-#   everything else above → .github/workflows/firmware-cross-build.yml (24 targets, Class B)
-# 7 + 24 = 31.  .github/workflows/build-all.yml re-checks that partition weekly
+#   everything else above → .github/workflows/firmware-cross-build.yml (26 targets, Class B)
+# 7 + 26 = 33.  .github/workflows/build-all.yml re-checks that partition weekly
 # and fails if a target ever belongs to neither list.
 # (This line has been wrong more often than right, which is the argument against
 #  keeping a count in a comment at all.  It read "6 + 21 = 27" until 2026-08-12
 #  and was stale by two even then; the 2026-08-12 correction to "7 + 22 = 29"
 #  was itself already stale, because np_pbm_cal_bridge_tests had taken Class B
-#  to 23.  Phase 8's np_app_link_agreement_tests takes it to 24.  The
+#  to 23.  Phase 8's np_app_link_agreement_tests took it to 24, phase 9's
+#  np_bootloader_flexram_tests to 25, and np_app_clock_agreement_tests
+#  (NP-SW-CI-001 §4.11) to 26.  Phase 8 also moved the count in two workflows and
+#  left build-all.yml's NP_TOTAL_TEST_COUNT at 30 against a real 31 — phase 9
+#  found and corrected that, and recorded why it stayed invisible (OI-SWCI-10: a
+#  red build-all is surfaced nowhere).  The
 #  AUTHORITATIVE values are the NP_*_TEST_COUNT env vars in build-all.yml and
 #  firmware-cross-build.yml, which are asserted against a live ctest
 #  enumeration.  This comment is not, and a reader who needs the number should
@@ -338,6 +343,15 @@ if(NP_BUILD_TESTS)
     # the Class B count 23 → 24 and the repo total 30 → 31.
     add_test(NAME np_app_link_agreement_tests
         COMMAND np_app_link_agreement_tests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+    # NP-SW-CI-001 §4.11, OI-SWCI-41.  FreeRTOSConfig.h and the vendored SDK
+    # header each state a core clock, they disagree, and no code establishes
+    # either — so this asserts what the disagreement does to every FreeRTOS
+    # interval, including the safety heartbeat, and that the boot path still
+    # checks the clock instead of assuming it.
+    add_test(NAME np_app_clock_agreement_tests
+        COMMAND np_app_clock_agreement_tests
         WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
     add_test(NAME np_freertos_smoke_tests

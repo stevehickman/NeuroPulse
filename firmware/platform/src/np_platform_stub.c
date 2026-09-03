@@ -64,6 +64,26 @@
 #include "np_zone_announce.h"    /* np_za_platform_*       (4) */
 
 /* ────────────────────────────────────────────────────────────────────────────
+ * Core clock (OI-SWCI-41)
+ *
+ * The first platform call the image makes, so this is the trap np_application
+ * actually reaches — before np_hal_get_device_session_count(), which was the
+ * first one until 2026-09-02.
+ *
+ * Trapping here is worth more than trapping anywhere else in this file.  Every
+ * other seam is a peripheral the image cannot drive; this one is the clock that
+ * every FreeRTOS interval is measured in, including the 200 ms heartbeat the
+ * safety MCU's watchdog is waiting on.  A plausible return value here —
+ * `return 600000000U;` — would be a lie the whole timing system is then built
+ * on, and it would look, in a diff, exactly like a driver that had run.
+ * ──────────────────────────────────────────────────────────────────────────*/
+
+uint32_t np_platform_clock_init(void)
+{
+    NP_PLATFORM_TRAP();
+}
+
+/* ────────────────────────────────────────────────────────────────────────────
  * Hub control — status LED and session count (OI-HUB-MAIN-02, -03)
  * ──────────────────────────────────────────────────────────────────────────*/
 
