@@ -40,6 +40,8 @@
  *        → zero .bss    (__STARTUP_CLEAR_BSS)
  *        → branch to __START, which the build defines as main()
  *   main()  → this file
+ *        → np_app_dtcm_bss_clear()    (zeroes .dtcm_bss — the startup clears
+ *                                      only one bss span; §4.12)
  *        → np_platform_clock_init()   (firmware/platform — TRAPS TODAY)
  *        → SystemCoreClockUpdate() and the core-clock check below
  *        → np_hub_control_app_main()  (firmware/hub_control)
@@ -86,6 +88,7 @@
 #include "FreeRTOSConfig.h"     /* configCPU_CLOCK_HZ — the assumed core clock */
 #include "system_MIMXRT1062.h"  /* SystemCoreClock, SystemCoreClockUpdate()    */
 
+#include "np_app_dtcm.h"        /* np_app_dtcm_bss_clear() */
 #include "np_hub_types.h"       /* np_hub_control_app_main() */
 #include "np_platform_trap.h"
 #include "np_sw02_platform_hal.h" /* np_platform_clock_init() — declared once  */
@@ -111,6 +114,31 @@ static const char np_build_note[] =
 
 int main(void)
 {
+    /*
+     * FIRST, before anything else — NP-SW-CI-001 §4.12 (closes OI-SWCI-42).
+     *
+     * .dtcm_bss holds ucHeap and is bss-class storage the vendored startup does
+     * NOT zero: startup_MIMXRT1062.S clears exactly one span, __bss_start__ to
+     * __bss_end__, and firmware/vendor/mcux_sdk/ is byte-exact under the §9
+     * in-tree rule, so it cannot be taught about a second region.
+     *
+     * This is the earliest C code in the image and that is checkable rather
+     * than asserted: __START is defined to main in the application CMakeLists,
+     * so __libc_init_array never runs, and the linker script's .init_array
+     * comes out empty.  Nothing can run before this line.
+     *
+     * AHEAD OF THE CLOCK STEP BELOW, and the order is a decision rather than an
+     * accident of two changes landing together.  This call is not application
+     * logic; it is the tail of the startup's memory initialisation, finishing
+     * the job __STARTUP_CLEAR_BSS could only do for one region.  Every later
+     * line — the clock driver included, once one exists — is entitled to assume
+     * statics read as zero, and a driver that touched anything in .dtcm_bss
+     * before it was cleared would be reading the previous image's RAM.  Nothing
+     * here depends on the clock: it is a store loop over a known address range,
+     * correct at whatever frequency the part happens to be running.
+     */
+    np_app_dtcm_bss_clear();
+
     /*
      * Bring the core clock to configCPU_CLOCK_HZ, then prove it got there.
      *
