@@ -1,3 +1,5 @@
+import { t } from '../lib/i18n';
+
 // ─── Modality type IDs ────────────────────────────────────────────────────────
 
 export type NPModalityTypeId =
@@ -19,137 +21,154 @@ export type NPModalityTypeId =
 
 // ─── Modality metadata ────────────────────────────────────────────────────────
 
+/**
+ * Display text is held as locale KEYS, not as strings: this table is a
+ * module-level constant, so any English captured here would be frozen at import
+ * time, before initI18n() has loaded the user's locale. Call t() on the *Key
+ * fields at the point of render. `icon` is an emoji glyph and `tier` a fixed
+ * product designation (T1/T2), so neither is translated.
+ */
 export interface NPModalityMeta {
   id: NPModalityTypeId;
-  displayName: string;
-  consumerName: string;
+  displayNameKey: string;
+  consumerNameKey: string;
   tier: 'T1' | 'T2' | 'Accessory';
   icon: string;
-  shortDescription: string;
+  shortDescriptionKey: string;
 }
 
 export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   pbm_transcranial: {
     id: 'pbm_transcranial',
-    displayName: 'PBM Transcranial',
-    consumerName: 'Photobiomodulation',
+    displayNameKey: 'MODALITY_PBM_TRANSCRANIAL_NAME',
+    consumerNameKey: 'MODALITY_PBM_TRANSCRANIAL_CONSUMER',
     tier: 'T1',
     icon: '💡',
-    shortDescription: '660+808nm LEDs across 5 scalp zones',
+    shortDescriptionKey: 'MODALITY_PBM_TRANSCRANIAL_DESC',
   },
   pbm_intranasal: {
     id: 'pbm_intranasal',
-    displayName: 'PBM Intranasal',
-    consumerName: 'Intranasal Light',
+    displayNameKey: 'MODALITY_PBM_INTRANASAL_NAME',
+    consumerNameKey: 'MODALITY_PBM_INTRANASAL_CONSUMER',
     tier: 'T1',
     icon: '👃',
-    shortDescription: 'Bilateral 660+808nm nasal probe',
+    shortDescriptionKey: 'MODALITY_PBM_INTRANASAL_DESC',
   },
   eeg_neurofeedback: {
     id: 'eeg_neurofeedback',
-    displayName: 'EEG Neurofeedback',
-    consumerName: 'Brainwave Monitoring',
+    displayNameKey: 'MODALITY_EEG_NEUROFEEDBACK_NAME',
+    consumerNameKey: 'MODALITY_EEG_NEUROFEEDBACK_CONSUMER',
     tier: 'T1',
     icon: '🧠',
-    shortDescription: '8-ch semi-dry EEG with closed-loop adaptation',
+    shortDescriptionKey: 'MODALITY_EEG_NEUROFEEDBACK_DESC',
   },
   bes_tacs: {
     id: 'bes_tacs',
-    displayName: 'BES / tACS',
-    consumerName: 'Brainwave Entrainment Stimulation',
+    displayNameKey: 'MODALITY_BES_TACS_NAME',
+    consumerNameKey: 'MODALITY_BES_TACS_CONSUMER',
     tier: 'T1',
     icon: '⚡',
-    shortDescription: '0.5–40Hz charge-balanced stimulation ≤1mA',
+    shortDescriptionKey: 'MODALITY_BES_TACS_DESC',
   },
   tdcs: {
     id: 'tdcs',
-    displayName: 'tDCS',
-    consumerName: 'Cortical Priming Stimulation',
+    displayNameKey: 'MODALITY_TDCS_NAME',
+    consumerNameKey: 'MODALITY_TDCS_CONSUMER',
     tier: 'T1',
     icon: '🔋',
-    shortDescription: 'DC stimulation 0.1–2mA',
+    shortDescriptionKey: 'MODALITY_TDCS_DESC',
   },
   vns_hrv: {
     id: 'vns_hrv',
-    displayName: 'VNS + HRV',
-    consumerName: 'Vagal Stimulation & Heart Coherence',
+    displayNameKey: 'MODALITY_VNS_HRV_NAME',
+    consumerNameKey: 'MODALITY_VNS_HRV_CONSUMER',
     tier: 'T1',
     icon: '❤️',
-    shortDescription: 'Auricular VNS + PPG HRV biofeedback',
+    shortDescriptionKey: 'MODALITY_VNS_HRV_DESC',
   },
   audio_entrainment: {
     id: 'audio_entrainment',
-    displayName: 'Neural Audio',
-    consumerName: 'Neural Audio Entrainment',
+    displayNameKey: 'MODALITY_AUDIO_ENTRAINMENT_NAME',
+    consumerNameKey: 'MODALITY_AUDIO_ENTRAINMENT_CONSUMER',
     tier: 'T1',
     icon: '🎵',
-    shortDescription: 'Binaural beats + bone conduction',
+    shortDescriptionKey: 'MODALITY_AUDIO_ENTRAINMENT_DESC',
   },
   visual_stimulation: {
     id: 'visual_stimulation',
-    displayName: 'Visual Stimulation',
-    consumerName: 'Visual Entrainment',
+    displayNameKey: 'MODALITY_VISUAL_STIMULATION_NAME',
+    consumerNameKey: 'MODALITY_VISUAL_STIMULATION_CONSUMER',
     tier: 'T1',
     icon: '👁️',
-    shortDescription: '108 micro-LEDs/lens, 0.5–100Hz',
+    shortDescriptionKey: 'MODALITY_VISUAL_STIMULATION_DESC',
   },
   qeeg_21ch: {
     id: 'qeeg_21ch',
-    displayName: 'qEEG 21-channel',
-    consumerName: 'Clinical EEG',
+    displayNameKey: 'MODALITY_QEEG_21CH_NAME',
+    consumerNameKey: 'MODALITY_QEEG_21CH_CONSUMER',
     tier: 'T2',
     icon: '🔬',
-    shortDescription: '21-ch 10-20 wet gel + sLORETA',
+    shortDescriptionKey: 'MODALITY_QEEG_21CH_DESC',
   },
   tms: {
     id: 'tms',
-    displayName: 'TMS',
-    consumerName: 'Transcranial Magnetic Stimulation',
+    displayNameKey: 'MODALITY_TMS_NAME',
+    consumerNameKey: 'MODALITY_TMS_CONSUMER',
     tier: 'T2',
     icon: '🧲',
-    shortDescription: 'Focal figure-8 coil rTMS/TBS',
+    shortDescriptionKey: 'MODALITY_TMS_DESC',
   },
   pbm_deep_1170nm: {
     id: 'pbm_deep_1170nm',
-    displayName: 'Deep PBM 1170nm',
-    consumerName: 'Deep Photobiomodulation',
+    displayNameKey: 'MODALITY_PBM_DEEP_1170NM_NAME',
+    consumerNameKey: 'MODALITY_PBM_DEEP_1170NM_CONSUMER',
     tier: 'T2',
     icon: '🔴',
-    shortDescription: 'Laser diodes, 35–40mm subcortical depth',
+    shortDescriptionKey: 'MODALITY_PBM_DEEP_1170NM_DESC',
   },
   clinical_tacs: {
     id: 'clinical_tacs',
-    displayName: 'Clinical tACS',
-    consumerName: 'Clinical Entrainment',
+    displayNameKey: 'MODALITY_CLINICAL_TACS_NAME',
+    consumerNameKey: 'MODALITY_CLINICAL_TACS_CONSUMER',
     tier: 'T2',
     icon: '⚡⚡',
-    shortDescription: '16-ch arbitrary waveform ≤4mA',
+    shortDescriptionKey: 'MODALITY_CLINICAL_TACS_DESC',
   },
   hd_tdcs: {
     id: 'hd_tdcs',
-    displayName: 'HD-tDCS',
-    consumerName: 'Precision Cortical Targeting',
+    displayNameKey: 'MODALITY_HD_TDCS_NAME',
+    consumerNameKey: 'MODALITY_HD_TDCS_CONSUMER',
     tier: 'T2',
     icon: '🎯',
-    shortDescription: 'sLORETA-guided 4×1 ring montage',
+    shortDescriptionKey: 'MODALITY_HD_TDCS_DESC',
   },
   cervical_vns: {
     id: 'cervical_vns',
-    displayName: 'Cervical VNS',
-    consumerName: 'Cervical Vagal Stimulation',
+    displayNameKey: 'MODALITY_CERVICAL_VNS_NAME',
+    consumerNameKey: 'MODALITY_CERVICAL_VNS_CONSUMER',
     tier: 'T2',
     icon: '🫀',
-    shortDescription: 'Neck-worn tcVNS with cardiac interlock',
+    shortDescriptionKey: 'MODALITY_CERVICAL_VNS_DESC',
   },
   vibrotactile_40hz: {
     id: 'vibrotactile_40hz',
-    displayName: '40Hz Vibrotactile',
-    consumerName: '40Hz Vibrotactile',
+    displayNameKey: 'MODALITY_VIBROTACTILE_40HZ_NAME',
+    consumerNameKey: 'MODALITY_VIBROTACTILE_40HZ_CONSUMER',
     tier: 'Accessory',
     icon: '📳',
-    shortDescription: 'Mastoid LRA, 40Hz ± 0.5Hz (provisional)',
+    shortDescriptionKey: 'MODALITY_VIBROTACTILE_40HZ_DESC',
   },
 };
+
+/**
+ * Localized display name for a modality, falling back to the raw type id when
+ * the id is not in the table (a protocol file can name a modality this build
+ * does not know). The fallback is an identifier, not prose, so it is not keyed.
+ */
+export function modalityName(id: NPModalityTypeId): string {
+  const meta = MODALITY_META[id];
+  return meta ? t(meta.displayNameKey) : id;
+}
 
 // ─── Modality parameter types ──────────────────────────────────────────────────
 

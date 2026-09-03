@@ -29,6 +29,7 @@ import {
   type NPModuleType,
 } from './helmetInventory';
 import { toSocketSet, unionSockets, unionZoneSockets } from './socketSet';
+import { t, tPlural } from './i18n';
 
 // ─── Modality requirements ─────────────────────────────────────────────────────
 
@@ -101,7 +102,7 @@ export function coverageFraction(c: NPZoneCoverage): number {
 
 /** `7/11 sockets` — the string the zone dropdown shows beside a partial zone. */
 export function coverageLabel(c: NPZoneCoverage): string {
-  return `${c.satisfied.length}/${c.total} sockets`;
+  return t('WEB_COVERAGE_SOCKETS', { 0: c.satisfied.length, 1: c.total });
 }
 
 /**
@@ -268,7 +269,7 @@ function targetZones(
     return { zones: [...namespace.values()], unresolved: [] };
   }
 
-  return { zones: [], unresolved: [`'${selection}' is not an NPPS zone reference`] };
+  return { zones: [], unresolved: [t('WEB_ZONE_NOT_A_REFERENCE', { 0: selection })] };
 }
 
 function shortfallFor(
@@ -432,23 +433,25 @@ function coverageForSockets(
 
 function targetingSummary(modalities: NPModalityTypeId[]): string {
   const names = modalities.join(', ');
-  return `Target must be selected for this patient (${names}) — this protocol treats an individual site, so no preset zone applies`;
+  return t('WEB_ELIG_TARGETING_REQUIRED', { 0: names });
 }
 
 function summarize(blocking: NPModalityShortfall[]): string {
   const first = blocking[0];
 
   if (first.unresolvedZones.length > 0) {
-    return `References a zone that is not defined: ${first.unresolvedZones[0]}`;
+    return t('WEB_ELIG_ZONE_UNDEFINED', { 0: first.unresolvedZones[0] });
   }
 
   const socketCount = unionSockets(
     ...blocking.map(s => s.sockets.map(x => x.socketId)),
   ).length;
   const zoneList = first.unsupportedZones.slice(0, 2).join(', ');
-  const more = first.unsupportedZones.length > 2 ? ` +${first.unsupportedZones.length - 2} more` : '';
+  const more = first.unsupportedZones.length > 2
+    ? t('WEB_ELIG_MORE_ZONES', { 0: first.unsupportedZones.length - 2 })
+    : '';
 
-  return `No compatible module in ${zoneList}${more} — ${socketCount} socket${socketCount === 1 ? '' : 's'} need re-fitting`;
+  return tPlural('WEB_ELIG_NO_MODULE', socketCount, { 0: zoneList, 1: more, 2: socketCount });
 }
 
 /** Convenience wrapper for a library entry of either kind. */
@@ -460,7 +463,7 @@ export function evaluateEntry(
   if (!inventory) {
     return {
       eligible: false, degraded: false, requiresTargeting: [], clinicianTargeted: [],
-      shortfalls: [], summary: 'No helmet connected',
+      shortfalls: [], summary: t('WEB_PRESET_NONE'),
     };
   }
   if (entry.kind === 'single') {
@@ -480,11 +483,15 @@ export function evaluateEntry(
 /** Human-readable "Socket 34: fitted ZM-EEG, needs 660nm LED + 808nm LED — fit ZM-PBM-DUAL". */
 export function describeShortfall(s: NPSocketShortfall): string {
   const needs = s.missingElements
-    .map(group => group.map(e => ELEMENT_TYPE_LABEL[e] ?? e).join(' or '))
-    .join(' + ');
-  const fitted = s.fitted ? `fitted ${s.fitted}` : 'empty';
-  const fix = s.candidateModules.length > 0 ? ` — fit ${s.candidateModules.join(' or ')}` : '';
-  return `Socket ${s.socketId}: ${fitted}, needs ${needs}${fix}`;
+    .map(group => group.map(e => (ELEMENT_TYPE_LABEL[e] ? t(ELEMENT_TYPE_LABEL[e]) : e)).join(t('WEB_JOIN_OR')))
+    .join(t('WEB_JOIN_AND'));
+  const fitted = s.fitted
+    ? t('WEB_SHORTFALL_FITTED', { 0: s.fitted })
+    : t('WEB_SHORTFALL_EMPTY');
+  const fix = s.candidateModules.length > 0
+    ? t('WEB_SHORTFALL_FIX', { 0: s.candidateModules.join(t('WEB_JOIN_OR')) })
+    : '';
+  return t('WEB_SHORTFALL_LINE', { 0: s.socketId, 1: fitted, 2: needs, 3: fix });
 }
 
 export { modulesProviding };
