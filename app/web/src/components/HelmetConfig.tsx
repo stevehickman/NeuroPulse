@@ -35,21 +35,25 @@ import { serializeZone } from '../lib/nppsSerializer';
 import { ConditionChips } from './ConditionLinkDialog';
 import { SocketPicker } from './SocketPicker';
 import {
-  MODALITY_META,
+  modalityName,
   entryName,
   type NPProtocolEntry,
   type NPZoneDefinition,
   type NPModalityTypeId,
   type NPConditionDefinition,
 } from '../types/protocol';
+import { t, tPlural } from '../lib/i18n';
 
-const PRESETS: Array<{ id: NPInventoryPreset; label: string }> = [
-  { id: 'full-t1', label: 'T1 — fully fitted' },
-  { id: 'full-t2', label: 'T2 — fully fitted' },
-  { id: 'pbm-only', label: 'PBM modules only' },
-  { id: 'eeg-only', label: 'EEG modules only' },
-  { id: 'partial-anterior', label: 'Anterior rows only' },
-  { id: 'none', label: 'No helmet connected' },
+// Labels are resolved at render time, not at module load: `t` reads the
+// translations that initI18n() has loaded, and a module-level constant would
+// capture the pre-init English before that resolves.
+const PRESETS: Array<{ id: NPInventoryPreset; labelKey: string }> = [
+  { id: 'full-t1', labelKey: 'WEB_PRESET_FULL_T1' },
+  { id: 'full-t2', labelKey: 'WEB_PRESET_FULL_T2' },
+  { id: 'pbm-only', labelKey: 'WEB_PRESET_PBM_ONLY' },
+  { id: 'eeg-only', labelKey: 'WEB_PRESET_EEG_ONLY' },
+  { id: 'partial-anterior', labelKey: 'WEB_PRESET_PARTIAL_ANTERIOR' },
+  { id: 'none', labelKey: 'WEB_PRESET_NONE' },
 ];
 
 const NO_CONDITIONS: ReadonlyMap<string, NPConditionDefinition> = new Map();
@@ -103,7 +107,7 @@ export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
           : {
               eligible: !!inventory, degraded: false,
               requiresTargeting: [], clinicianTargeted: [],
-              shortfalls: [], summary: inventory ? '' : 'No helmet connected',
+              shortfalls: [], summary: inventory ? '' : t('WEB_PRESET_NONE'),
             };
 
       return { entry, conditions, eligibility };
@@ -120,13 +124,13 @@ export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
 
       <section className="config-pane">
         <header className="config-pane-header">
-          <h2>Protocols</h2>
+          <h2>{t('WEB_PANE_PROTOCOLS')}</h2>
           <select
             className="condition-filter"
             value={conditionFilter}
             onChange={e => setConditionFilter(e.target.value)}
           >
-            <option value="">All conditions</option>
+            <option value="">{t('WEB_ALL_CONDITIONS')}</option>
             {referencedConditions.map(c => (
               <option key={c} value={c}>{c}</option>
             ))}
@@ -134,7 +138,7 @@ export function HelmetConfig({ entries }: { entries: NPProtocolEntry[] }) {
         </header>
 
         {visible.length === 0 && (
-          <p className="config-empty">No protocols treat {conditionFilter}.</p>
+          <p className="config-empty">{t('WEB_NO_PROTOCOLS_TREAT', { 0: conditionFilter })}</p>
         )}
 
         <div className="protocol-rows">
@@ -194,18 +198,15 @@ function InventoryPane({
   return (
     <section className="config-pane">
       <header className="config-pane-header">
-        <h2>Helmet</h2>
+        <h2>{t('WEB_PANE_HELMET')}</h2>
         <select value={preset} onChange={e => onPreset(e.target.value as NPInventoryPreset)}>
-          {PRESETS.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
+          {PRESETS.map(p => <option key={p.id} value={p.id}>{t(p.labelKey)}</option>)}
         </select>
       </header>
 
       <p className="config-note">
-        {fitted} of {NP_SOCKETS.length} sockets fitted.{' '}
-        <span className="config-provisional">
-          Inventory is simulated — firmware does not yet expose a per-socket
-          characteristic.
-        </span>
+        {t('WEB_SOCKETS_FITTED', { 0: fitted, 1: NP_SOCKETS.length })}{' '}
+        <span className="config-provisional">{t('WEB_INVENTORY_SIMULATED')}</span>
       </p>
     </section>
   );
@@ -241,10 +242,18 @@ function ProtocolRow({
     >
       <button type="button" className="protocol-row-main" onClick={onSelect} aria-expanded={expanded}>
         <span className="protocol-row-name">{entryName(entry)}</span>
-        {needsTargeting && <span className="protocol-row-badge targeting">Needs targeting</span>}
-        {disabled && !needsTargeting && <span className="protocol-row-badge blocked">Unavailable</span>}
-        {eligibility.degraded && <span className="protocol-row-badge partial">Partial coverage</span>}
-        {!disabled && !eligibility.degraded && <span className="protocol-row-badge ok">Ready</span>}
+        {needsTargeting && (
+          <span className="protocol-row-badge targeting">{t('WEB_BADGE_NEEDS_TARGETING')}</span>
+        )}
+        {disabled && !needsTargeting && (
+          <span className="protocol-row-badge blocked">{t('WEB_BADGE_UNAVAILABLE')}</span>
+        )}
+        {eligibility.degraded && (
+          <span className="protocol-row-badge partial">{t('WEB_BADGE_PARTIAL_COVERAGE')}</span>
+        )}
+        {!disabled && !eligibility.degraded && (
+          <span className="protocol-row-badge ok">{t('WEB_BADGE_READY')}</span>
+        )}
       </button>
 
       {/* Patient-specific target: the operator must choose the sockets, and the
@@ -254,7 +263,7 @@ function ProtocolRow({
           <p className="targeting-note">
             {needsTargeting
               ? eligibility.summary
-              : `Patient-specific target — ${targetedSockets.length} socket${targetedSockets.length === 1 ? '' : 's'} selected for this session.`}
+              : tPlural('WEB_TARGETING_CHOSEN', targetedSockets.length)}
           </p>
           {expanded ? (
             <>
@@ -268,12 +277,13 @@ function ProtocolRow({
                 }
               />
               <p className="config-note">
-                {targetedSockets.length} socket{targetedSockets.length === 1 ? '' : 's'} selected
-                {targetedSockets.length > 0 && ` — ${unionSockets(targetedSockets).join(', ')}`}
+                {tPlural('WEB_SOCKETS_SELECTED', targetedSockets.length)}
+                {targetedSockets.length > 0 &&
+                  t('WEB_SOCKETS_SELECTED_LIST', { 0: unionSockets(targetedSockets).join(', ') })}
               </p>
             </>
           ) : (
-            <p className="config-note">Open this protocol to select the target sockets.</p>
+            <p className="config-note">{t('WEB_OPEN_TO_SELECT_TARGETS')}</p>
           )}
         </div>
       )}
@@ -292,19 +302,19 @@ function ProtocolRow({
           {eligibility.shortfalls.map(s => (
             <div key={s.modality} className="shortfall-modality">
               <div className="shortfall-modality-name">
-                {MODALITY_META[s.modality]?.displayName ?? s.modality}
+                {modalityName(s.modality)}
               </div>
 
               {s.unresolvedZones.map(z => (
                 <p key={z} className="shortfall-line unresolved">
-                  Zone “{z}” is not defined in any .npps file.
+                  {t('WEB_ZONE_UNDEFINED', { 0: z })}
                 </p>
               ))}
 
               {s.coverage.map(c => (
                 <p key={c.zoneName} className="shortfall-line">
                   {c.zoneName}: <strong>{coverageLabel(c)}</strong>
-                  {c.satisfied.length === 0 && ' — no compatible module fitted'}
+                  {c.satisfied.length === 0 && t('WEB_COVERAGE_NO_MODULE')}
                 </p>
               ))}
 
@@ -314,7 +324,9 @@ function ProtocolRow({
                 </p>
               ))}
               {s.sockets.length > 12 && (
-                <p className="shortfall-line muted">+{s.sockets.length - 12} more sockets</p>
+                <p className="shortfall-line muted">
+                  {t('WEB_MORE_SOCKETS', { 0: s.sockets.length - 12 })}
+                </p>
               )}
             </div>
           ))}
@@ -344,29 +356,29 @@ function ZonePane({
   return (
     <section className="config-pane">
       <header className="config-pane-header">
-        <h2>Zones</h2>
+        <h2>{t('WEB_PANE_ZONES')}</h2>
         <select value={modality} onChange={e => setModality(e.target.value as NPModalityTypeId)}>
           {socketBased.map(m => (
-            <option key={m} value={m}>{MODALITY_META[m]?.displayName ?? m}</option>
+            <option key={m} value={m}>{modalityName(m)}</option>
           ))}
         </select>
       </header>
 
       <label className="config-label" htmlFor="zone-select">
-        Zones supporting {MODALITY_META[modality]?.displayName ?? modality}
+        {t('WEB_ZONES_SUPPORTING', { 0: modalityName(modality) })}
       </label>
       <select id="zone-select" className="zone-select" size={6}>
-        {offered.length === 0 && <option disabled>No zone has this modality fitted</option>}
+        {offered.length === 0 && <option disabled>{t('WEB_NO_ZONE_FITTED')}</option>}
         {offered.map(c => (
           <option key={c.zoneName} value={c.zoneName}>
             {c.zoneName} — {coverageLabel(c)}
-            {coverageFraction(c) < 1 ? ' ⚠ partial' : ''}
+            {coverageFraction(c) < 1 ? t('WEB_COVERAGE_PARTIAL_SUFFIX') : ''}
           </option>
         ))}
       </select>
 
       <button type="button" className="btn-secondary" onClick={() => setEditing(v => !v)}>
-        {editing ? 'Cancel' : '+ Define new zone'}
+        {editing ? t('COMMON_CANCEL') : t('WEB_DEFINE_NEW_ZONE')}
       </button>
 
       {editing && (
@@ -432,30 +444,34 @@ function ZoneEditor({
   const canSave = name.trim().length > 0 && sockets.length > 0 && !nameTaken;
 
   const draft: NPZoneDefinition | null = canSave
-    ? { name: name.trim(), sockets, description: 'User-defined zone.' }
+    ? { name: name.trim(), sockets, description: t('WEB_USER_DEFINED_ZONE_DESC') }
     : null;
 
   return (
     <div className="zone-editor">
-      <label className="config-label" htmlFor="zone-name">Zone name</label>
+      <label className="config-label" htmlFor="zone-name">{t('WEB_ZONE_NAME_LABEL')}</label>
       <input
         id="zone-name"
         value={name}
         onChange={e => setName(e.target.value)}
-        placeholder="e.g. Left DLPFC"
+        placeholder={t('WEB_ZONE_NAME_PLACEHOLDER')}
       />
-      {nameTaken && <p className="zone-editor-error">A zone named “{name.trim()}” already exists.</p>}
+      {nameTaken && (
+        <p className="zone-editor-error">{t('WEB_ZONE_NAME_TAKEN', { 0: name.trim() })}</p>
+      )}
 
-      <label className="config-label" htmlFor="zone-sockets">Socket addresses</label>
+      <label className="config-label" htmlFor="zone-sockets">
+        {t('WEB_SOCKET_ADDRESSES_LABEL')}
+      </label>
       <input
         id="zone-sockets"
         value={typed}
         onChange={e => applyTyped(e.target.value)}
-        placeholder="e.g. 1, 2, 4, 5"
+        placeholder={t('WEB_SOCKET_ADDRESSES_PLACEHOLDER')}
       />
       {invalidTyped.length > 0 && (
         <p className="zone-editor-error">
-          Not valid sockets on this helmet ({socketRangeLabel()}): {invalidTyped.join(', ')}
+          {t('WEB_INVALID_SOCKETS', { 0: socketRangeLabel(), 1: invalidTyped.join(', ') })}
         </p>
       )}
 
@@ -467,24 +483,24 @@ function ZoneEditor({
         requiredElements={MODALITY_REQUIREMENTS[modality].requires}
       />
 
-      <p className="config-note">{sockets.length} socket{sockets.length === 1 ? '' : 's'} selected</p>
+      <p className="config-note">{tPlural('WEB_SOCKETS_SELECTED', sockets.length)}</p>
 
       {draft && (
         <>
-          <label className="config-label">NPPS definition — add to a .npps file to use it</label>
+          <label className="config-label">{t('WEB_NPPS_DEFINITION_LABEL')}</label>
           <pre className="zone-editor-output">{serializeZone(draft)}</pre>
         </>
       )}
 
       <div className="zone-editor-actions">
-        <button type="button" className="btn-secondary" onClick={onDone}>Close</button>
+        <button type="button" className="btn-secondary" onClick={onDone}>{t('COMMON_CLOSE')}</button>
         <button
           type="button"
           className="btn-primary"
           disabled={!canSave}
           onClick={() => draft && navigator.clipboard?.writeText(serializeZone(draft))}
         >
-          Copy NPPS
+          {t('WEB_COPY_NPPS')}
         </button>
       </div>
     </div>

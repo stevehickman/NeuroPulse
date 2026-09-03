@@ -48,6 +48,13 @@ export function t(key: string, params?: Record<string, string | number>): string
   return value;
 }
 
+/**
+ * `_ZERO` is an optional extra category, not a CLDR plural category for
+ * English — most keys only define `_ONE` and `_OTHER`. Selecting `_ZERO` and
+ * stopping there would render the literal key ("..._ZERO") on screen for every
+ * count of 0, so an absent category falls back to `_OTHER` before t() gets a
+ * chance to echo the key back.
+ */
 export function tPlural(
   baseKey: string,
   count: number,
@@ -55,7 +62,8 @@ export function tPlural(
 ): string {
   const suffix = count === 0 ? "_ZERO" : count === 1 ? "_ONE" : "_OTHER";
   const key = `${baseKey}${suffix}`;
-  return t(key, { "0": count, ...params });
+  const resolved = key in currentTranslations ? key : `${baseKey}_OTHER`;
+  return t(resolved, { "0": count, ...params });
 }
 
 export function useTranslation() {

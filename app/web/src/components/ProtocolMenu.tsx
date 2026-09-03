@@ -3,6 +3,7 @@ import {
   NPProtocolEntry,
   NPModalityTypeId,
   MODALITY_META,
+  modalityName,
   entryId,
   entryName,
   entryDescription,
@@ -273,7 +274,7 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
       if (!seen.has(m.modalityParams.type)) {
         seen.add(m.modalityParams.type);
         const meta = MODALITY_META[m.modalityParams.type];
-        if (meta) modalityIcons.push({ icon: meta.icon, label: meta.displayName });
+        if (meta) modalityIcons.push({ icon: meta.icon, label: t(meta.displayNameKey) });
       }
     }
   }
@@ -291,7 +292,7 @@ function ProtocolCard({ entry, availability, validation, onEdit, onDuplicate, on
 
   const missingTooltip = availability.missingModalities && availability.missingModalities.length > 0
     ? t('WEB_AVAIL_MISSING', {
-        0: availability.missingModalities.map(m => MODALITY_META[m]?.displayName ?? m).join(', '),
+        0: availability.missingModalities.map(m => modalityName(m)).join(', '),
       })
     : availability.reason ?? '';
 
