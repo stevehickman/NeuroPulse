@@ -1,4 +1,5 @@
 import { findLocale, type LocaleInfo } from "../locales/supportedLocales";
+import enTranslations from "../locales/en.json";
 
 type Translations = Record<string, string>;
 
@@ -25,8 +26,19 @@ async function loadTranslations(bcp47: string): Promise<Translations> {
   }
 }
 
+/**
+ * English is bundled and used as the standing fallback rather than starting
+ * from {}. Two things broke without it: every t() call made before the async
+ * initI18n() resolves rendered the raw key ("WEB_SAVE_CHANGES") for a frame,
+ * and any module that formats text outside a React render — protocolValidator,
+ * protocolEligibility — returned raw keys in contexts that never call
+ * initI18n() at all, unit tests among them. It also means a locale that is
+ * missing a key falls back to readable English instead of the key itself.
+ */
+const FALLBACK: Translations = enTranslations as Translations;
+
 let currentLocale: LocaleInfo = detectLocale();
-let currentTranslations: Translations = {};
+let currentTranslations: Translations = FALLBACK;
 let initPromise: Promise<void> | null = null;
 
 export function initI18n(): Promise<void> {
@@ -39,7 +51,7 @@ export function initI18n(): Promise<void> {
 }
 
 export function t(key: string, params?: Record<string, string | number>): string {
-  let value = currentTranslations[key] ?? key;
+  let value = currentTranslations[key] ?? FALLBACK[key] ?? key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       value = value.replace(`{${k}}`, String(v));
@@ -62,7 +74,8 @@ export function tPlural(
 ): string {
   const suffix = count === 0 ? "_ZERO" : count === 1 ? "_ONE" : "_OTHER";
   const key = `${baseKey}${suffix}`;
-  const resolved = key in currentTranslations ? key : `${baseKey}_OTHER`;
+  const resolved =
+    key in currentTranslations || key in FALLBACK ? key : `${baseKey}_OTHER`;
   return t(resolved, { "0": count, ...params });
 }
 

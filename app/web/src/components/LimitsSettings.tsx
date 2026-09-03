@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { t } from '../lib/i18n';
 import {
   NPLimitsSet,
   NPIndividualProfile,
@@ -179,7 +180,7 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
         onClick={e => e.stopPropagation()}
       >
         <div className="modal-header">
-          <span className="modal-title">Dosage Limits</span>
+          <span className="modal-title">{t('WEB_LIMITS_TITLE')}</span>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
 
@@ -191,29 +192,33 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
           fontSize: 12,
           color: 'var(--text-secondary)',
         }}>
-          <span style={{ color: 'var(--text-muted)' }}>Active: </span>
+          <span style={{ color: 'var(--text-muted)' }}>{t('WEB_LIMITS_ACTIVE_PREFIX')}</span>
           <span style={{ color: 'var(--accent)' }}>{chain}</span>
         </div>
 
         {/* Tab bar */}
         <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-secondary)' }}>
-          {(['global', 'helmet', 'individual'] as SettingsTab[]).map(t => (
+          {(['global', 'helmet', 'individual'] as SettingsTab[]).map(id => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
+              key={id}
+              onClick={() => setTab(id)}
               style={{
                 padding: '10px 20px',
                 background: 'none',
                 border: 'none',
-                borderBottom: tab === t ? '2px solid var(--accent)' : '2px solid transparent',
-                color: tab === t ? 'var(--accent)' : 'var(--text-secondary)',
+                borderBottom: tab === id ? '2px solid var(--accent)' : '2px solid transparent',
+                color: tab === id ? 'var(--accent)' : 'var(--text-secondary)',
                 cursor: 'pointer',
                 fontSize: 13,
-                fontWeight: tab === t ? 600 : 400,
+                fontWeight: tab === id ? 600 : 400,
                 textTransform: 'capitalize',
               }}
             >
-              {t === 'global' ? 'Global' : t === 'helmet' ? 'Helmet' : 'Individual'}
+              {id === 'global'
+                ? t('WEB_TAB_GLOBAL')
+                : id === 'helmet'
+                  ? t('WEB_TAB_HELMET')
+                  : t('WEB_TAB_INDIVIDUAL')}
             </button>
           ))}
         </div>
@@ -235,7 +240,7 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
                     const imported = limitsStore.importLimitsFromNPPS(text);
                     limitsStore.saveGlobalLimits(imported);
                   } catch (e) {
-                    alert(`Import failed: ${(e as Error).message}`);
+                    alert(t('WEB_IMPORT_FAILED', { 0: (e as Error).message }));
                   }
                 };
                 input.click();
@@ -290,13 +295,17 @@ export function LimitsSettings({ onClose }: LimitsSettingsProps) {
           <div className="modal-overlay" onClick={() => setConfirmDelete(null)}>
             <div className="modal confirm-dialog" onClick={e => e.stopPropagation()}>
               <div className="modal-header">
-                <span className="modal-title">Confirm</span>
+                <span className="modal-title">{t('WEB_CONFIRM_TITLE')}</span>
                 <button className="modal-close" onClick={() => setConfirmDelete(null)}>×</button>
               </div>
               <div className="modal-body">{confirmDelete.message}</div>
               <div className="modal-footer">
-                <button className="btn btn-secondary" onClick={() => setConfirmDelete(null)}>Cancel</button>
-                <button className="btn btn-danger" onClick={confirmDelete.onConfirm}>Delete</button>
+                <button className="btn btn-secondary" onClick={() => setConfirmDelete(null)}>
+                  {t('COMMON_CANCEL')}
+                </button>
+                <button className="btn btn-danger" onClick={confirmDelete.onConfirm}>
+                  {t('WEB_DELETE')}
+                </button>
               </div>
             </div>
           </div>
@@ -325,15 +334,15 @@ function GlobalTab({
     <div>
       <div style={{ marginBottom: 16 }}>
         <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
-          Global limits apply to all sessions on all devices unless overridden by helmet or individual limits.
+          {t('WEB_GLOBAL_LIMITS_DESC')}
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button className="btn btn-primary" onClick={onEdit}>Edit Global Limits</button>
-          <button className="btn btn-secondary" onClick={onImport}>Import .npps</button>
+          <button className="btn btn-primary" onClick={onEdit}>{t('WEB_EDIT_GLOBAL_LIMITS')}</button>
+          <button className="btn btn-secondary" onClick={onImport}>{t('WEB_IMPORT_NPPS')}</button>
           {g && (
             <>
-              <button className="btn btn-secondary" onClick={onExport}>Export .npps</button>
-              <button className="btn btn-danger" onClick={onClear}>Clear</button>
+              <button className="btn btn-secondary" onClick={onExport}>{t('WEB_EXPORT_NPPS')}</button>
+              <button className="btn btn-danger" onClick={onClear}>{t('WEB_CLEAR')}</button>
             </>
           )}
         </div>
@@ -347,7 +356,7 @@ function GlobalTab({
           border: '1px dashed var(--border)',
           borderRadius: 8,
         }}>
-          No global limits configured — hardware limits only apply.
+          {t('WEB_NO_GLOBAL_LIMITS')}
         </div>
       ) : (
         <div>
@@ -394,10 +403,10 @@ function HelmetTab({
   return (
     <div>
       <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
-        Helmet limits are tied to a specific device serial number. They override global limits for that device.
+        {t('WEB_HELMET_LIMITS_DESC')}
       </div>
       <button className="btn btn-primary" style={{ marginBottom: 16 }} onClick={onShowNew}>
-        + Add Helmet
+        {t('WEB_ADD_HELMET')}
       </button>
 
       {showNewHelmet && (
@@ -413,7 +422,7 @@ function HelmetTab({
         }}>
           <input
             type="text"
-            placeholder="Helmet serial number (e.g. NP-001)"
+            placeholder={t('WEB_HELMET_SERIAL_PLACEHOLDER')}
             value={newHelmetSerial}
             onChange={e => onSerialChange(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') onAddHelmet(); if (e.key === 'Escape') onCancelNew(); }}
@@ -429,8 +438,8 @@ function HelmetTab({
             }}
             autoFocus
           />
-          <button className="btn btn-primary btn-sm" onClick={onAddHelmet}>Add</button>
-          <button className="btn btn-secondary btn-sm" onClick={onCancelNew}>Cancel</button>
+          <button className="btn btn-primary btn-sm" onClick={onAddHelmet}>{t('WEB_ADD')}</button>
+          <button className="btn btn-secondary btn-sm" onClick={onCancelNew}>{t('COMMON_CANCEL')}</button>
         </div>
       )}
 
@@ -442,7 +451,7 @@ function HelmetTab({
           border: '1px dashed var(--border)',
           borderRadius: 8,
         }}>
-          No helmet limits configured.
+          {t('WEB_NO_HELMET_LIMITS')}
         </div>
       )}
 
@@ -467,17 +476,17 @@ function HelmetTab({
                 color: '#000',
                 borderRadius: 10,
                 fontWeight: 700,
-              }}>ACTIVE</span>
+              }}>{t('WEB_ACTIVE')}</span>
             )}
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
               <button
                 className="btn btn-secondary btn-sm"
                 onClick={() => onSetActive(serial)}
               >
-                {activeHelmet === serial ? 'Deactivate' : 'Set Active'}
+                {activeHelmet === serial ? t('WEB_DEACTIVATE') : t('WEB_SET_ACTIVE')}
               </button>
-              <button className="btn btn-secondary btn-sm" onClick={() => onEdit(serial)}>Edit</button>
-              <button className="btn btn-danger btn-sm" onClick={() => onDelete(serial)}>Remove</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => onEdit(serial)}>{t('WEB_EDIT')}</button>
+              <button className="btn btn-danger btn-sm" onClick={() => onDelete(serial)}>{t('WEB_REMOVE')}</button>
             </div>
           </div>
           <LimitsSummary limits={limits} />
@@ -534,10 +543,10 @@ function IndividualTab({
   return (
     <div>
       <div style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>
-        Individual profiles override global and helmet limits for a specific person. Only one profile is active at a time.
+        {t('WEB_INDIVIDUAL_LIMITS_DESC')}
       </div>
       <button className="btn btn-primary" style={{ marginBottom: 16 }} onClick={onShowNew}>
-        + New Profile
+        {t('WEB_NEW_PROFILE_BUTTON')}
       </button>
 
       {showNewProfile && (
@@ -548,11 +557,11 @@ function IndividualTab({
           borderRadius: 6,
           marginBottom: 16,
         }}>
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10 }}>New Profile</div>
+          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 10 }}>{t('WEB_NEW_PROFILE_TITLE')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <input
               type="text"
-              placeholder="Name *"
+              placeholder={t('WEB_PROFILE_NAME_PLACEHOLDER')}
               value={profileName}
               onChange={e => onNameChange(e.target.value)}
               style={inputStyle}
@@ -560,13 +569,13 @@ function IndividualTab({
             />
             <input
               type="date"
-              placeholder="Date of birth (optional)"
+              placeholder={t('WEB_PROFILE_DOB_PLACEHOLDER')}
               value={profileDob}
               onChange={e => onDobChange(e.target.value)}
               style={inputStyle}
             />
             <textarea
-              placeholder="Notes (optional)"
+              placeholder={t('WEB_PROFILE_NOTES_PLACEHOLDER')}
               value={profileNotes}
               onChange={e => onNotesChange(e.target.value)}
               rows={2}
@@ -574,9 +583,9 @@ function IndividualTab({
             />
             <div style={{ display: 'flex', gap: 8 }}>
               <button className="btn btn-primary btn-sm" onClick={onSaveProfile} disabled={!profileName.trim()}>
-                Create Profile
+                {t('WEB_CREATE_PROFILE')}
               </button>
-              <button className="btn btn-secondary btn-sm" onClick={onCancelNew}>Cancel</button>
+              <button className="btn btn-secondary btn-sm" onClick={onCancelNew}>{t('COMMON_CANCEL')}</button>
             </div>
           </div>
         </div>
@@ -590,7 +599,7 @@ function IndividualTab({
           border: '1px dashed var(--border)',
           borderRadius: 8,
         }}>
-          No individual profiles created.
+          {t('WEB_NO_PROFILES')}
         </div>
       )}
 
@@ -618,22 +627,22 @@ function IndividualTab({
                   color: '#000',
                   borderRadius: 10,
                   fontWeight: 700,
-                }}>ACTIVE</span>
+                }}>{t('WEB_ACTIVE')}</span>
               )}
               {profile.dateOfBirth && (
                 <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                  DOB: {profile.dateOfBirth}
+                  {t('WEB_DOB_LABEL', { 0: profile.dateOfBirth })}
                 </span>
               )}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
                 <button className="btn btn-secondary btn-sm" onClick={() => onSetActive(profile.id)}>
-                  {isActive ? 'Deactivate' : 'Set Active'}
+                  {isActive ? t('WEB_DEACTIVATE') : t('WEB_SET_ACTIVE')}
                 </button>
                 <button className="btn btn-secondary btn-sm" onClick={() => onEditLimits(profile.id)}>
-                  {hasLimits ? 'Edit Limits' : 'Add Limits'}
+                  {hasLimits ? t('WEB_EDIT_LIMITS') : t('WEB_ADD_LIMITS')}
                 </button>
                 <button className="btn btn-danger btn-sm" onClick={() => onDelete(profile.id, profile.name)}>
-                  Delete
+                  {t('WEB_DELETE')}
                 </button>
               </div>
             </div>
@@ -659,59 +668,59 @@ function LimitsSummary({ limits }: { limits: NPLimitsSet; compact?: boolean }) {
 
   if (limits.pbmTranscranial) {
     const l = limits.pbmTranscranial;
-    if (l.maxIntensityPercent != null) chips.push(`PBM ≤${l.maxIntensityPercent}%`);
-    if (l.maxFrequencyHz != null) chips.push(`PBM ≤${l.maxFrequencyHz}Hz`);
-    if (l.maxDutyCyclePercent != null) chips.push(`PBM duty ≤${l.maxDutyCyclePercent}%`);
+    if (l.maxIntensityPercent != null) chips.push(t('WEB_CHIP_PBM_INTENSITY', { 0: l.maxIntensityPercent }));
+    if (l.maxFrequencyHz != null) chips.push(t('WEB_CHIP_PBM_FREQUENCY', { 0: l.maxFrequencyHz }));
+    if (l.maxDutyCyclePercent != null) chips.push(t('WEB_CHIP_PBM_DUTY', { 0: l.maxDutyCyclePercent }));
   }
   if (limits.besTacs) {
     const l = limits.besTacs;
-    if (l.maxIntensityMilliamps != null) chips.push(`BES ≤${l.maxIntensityMilliamps}mA`);
-    if (l.maxFrequencyHz != null) chips.push(`BES ≤${l.maxFrequencyHz}Hz`);
+    if (l.maxIntensityMilliamps != null) chips.push(t('WEB_CHIP_BES_INTENSITY', { 0: l.maxIntensityMilliamps }));
+    if (l.maxFrequencyHz != null) chips.push(t('WEB_CHIP_BES_FREQUENCY', { 0: l.maxFrequencyHz }));
   }
   if (limits.tdcs) {
     const l = limits.tdcs;
-    if (l.maxIntensityMilliamps != null) chips.push(`tDCS ≤${l.maxIntensityMilliamps}mA`);
+    if (l.maxIntensityMilliamps != null) chips.push(t('WEB_CHIP_TDCS_INTENSITY', { 0: l.maxIntensityMilliamps }));
   }
   if (limits.vnsHrv) {
     const l = limits.vnsHrv;
-    if (l.maxIntensityMilliamps != null) chips.push(`VNS ≤${l.maxIntensityMilliamps}mA`);
+    if (l.maxIntensityMilliamps != null) chips.push(t('WEB_CHIP_VNS_INTENSITY', { 0: l.maxIntensityMilliamps }));
   }
   if (limits.visualStimulation) {
     const l = limits.visualStimulation;
-    if (l.maxFrequencyHz != null) chips.push(`Visual ≤${l.maxFrequencyHz}Hz`);
-    if (l.blockHighRiskRange) chips.push('Block 3–30Hz');
+    if (l.maxFrequencyHz != null) chips.push(t('WEB_CHIP_VISUAL_FREQUENCY', { 0: l.maxFrequencyHz }));
+    if (l.blockHighRiskRange) chips.push(t('WEB_CHIP_BLOCK_HIGH_RISK'));
   }
   if (limits.tms) {
     const l = limits.tms;
-    if (l.maxIntensityPercentMT != null) chips.push(`TMS ≤${l.maxIntensityPercentMT}%MT`);
-    if (l.maxPulsesPerSession != null) chips.push(`TMS ≤${l.maxPulsesPerSession}p/sess`);
+    if (l.maxIntensityPercentMT != null) chips.push(t('WEB_CHIP_TMS_INTENSITY', { 0: l.maxIntensityPercentMT }));
+    if (l.maxPulsesPerSession != null) chips.push(t('WEB_CHIP_TMS_PULSES', { 0: l.maxPulsesPerSession }));
   }
   if (limits.audioEntrainment) {
     const l = limits.audioEntrainment;
-    if (l.maxVolumePercent != null) chips.push(`Audio ≤${l.maxVolumePercent}%`);
+    if (l.maxVolumePercent != null) chips.push(t('WEB_CHIP_AUDIO_VOLUME', { 0: l.maxVolumePercent }));
   }
   if (limits.clinicalTacs) {
     const l = limits.clinicalTacs;
-    if (l.maxIntensityMilliamps != null) chips.push(`cTACS ≤${l.maxIntensityMilliamps}mA`);
+    if (l.maxIntensityMilliamps != null) chips.push(t('WEB_CHIP_CTACS_INTENSITY', { 0: l.maxIntensityMilliamps }));
   }
   if (limits.hdTdcs) {
     const l = limits.hdTdcs;
-    if (l.maxIntensityMilliamps != null) chips.push(`HD-tDCS ≤${l.maxIntensityMilliamps}mA`);
+    if (l.maxIntensityMilliamps != null) chips.push(t('WEB_CHIP_HDTDCS_INTENSITY', { 0: l.maxIntensityMilliamps }));
   }
   if (limits.cervicalVns) {
     const l = limits.cervicalVns;
-    if (l.maxIntensityMilliamps != null) chips.push(`cVNS ≤${l.maxIntensityMilliamps}mA`);
+    if (l.maxIntensityMilliamps != null) chips.push(t('WEB_CHIP_CVNS_INTENSITY', { 0: l.maxIntensityMilliamps }));
   }
   if (limits.eegNeurofeedback) {
     const l = limits.eegNeurofeedback;
-    if (l.requireClosedLoop) chips.push('EEG: closed-loop required');
-    if (l.allowedBands?.length) chips.push(`Bands: ${l.allowedBands.join(', ')}`);
+    if (l.requireClosedLoop) chips.push(t('WEB_CHIP_EEG_CLOSED_LOOP'));
+    if (l.allowedBands?.length) chips.push(t('WEB_CHIP_EEG_BANDS', { 0: l.allowedBands.join(', ') }));
   }
 
   if (chips.length === 0) {
     return (
       <div style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-        No modality limits configured.
+        {t('WEB_NO_MODALITY_LIMITS')}
       </div>
     );
   }
@@ -766,7 +775,7 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
         setLimits({ ...parsed, id: limits.id, createdAt: limits.createdAt });
         setScriptError(null);
       } else {
-        setScriptError('No limits block found in script.');
+        setScriptError(t('WEB_NO_LIMITS_BLOCK'));
       }
     } catch (e) {
       setScriptError((e as Error).message);
@@ -785,14 +794,14 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
           type="text"
           value={limits.name}
           onChange={e => patch({ name: e.target.value })}
-          placeholder="Limits name"
+          placeholder={t('WEB_LIMITS_NAME_PLACEHOLDER')}
           style={{ ...inputStyle, flex: 1 }}
         />
         <input
           type="text"
           value={limits.description}
           onChange={e => patch({ description: e.target.value })}
-          placeholder="Description (optional)"
+          placeholder={t('WEB_LIMITS_DESC_PLACEHOLDER')}
           style={{ ...inputStyle, flex: 2 }}
         />
       </div>
@@ -803,13 +812,13 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
           style={subTabStyle(editorTab === 'visual')}
           onClick={() => setEditorTab('visual')}
         >
-          Visual Editor
+          {t('WEB_VISUAL_EDITOR')}
         </button>
         <button
           style={subTabStyle(editorTab === 'script')}
           onClick={handleSwitchToScript}
         >
-          Script (NPPS)
+          {t('WEB_SCRIPT_NPPS')}
         </button>
       </div>
 
@@ -854,9 +863,11 @@ function LimitsEditor({ initial, onSave, onCancel, onExport }: LimitsEditorProps
         gap: 8,
         justifyContent: 'flex-end',
       }}>
-        <button className="btn btn-secondary btn-sm" onClick={() => onExport(limits)}>Export .npps</button>
-        <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-        <button className="btn btn-primary" onClick={() => onSave(limits)}>Save Limits</button>
+        <button className="btn btn-secondary btn-sm" onClick={() => onExport(limits)}>
+          {t('WEB_EXPORT_NPPS')}
+        </button>
+        <button className="btn btn-secondary" onClick={onCancel}>{t('COMMON_CANCEL')}</button>
+        <button className="btn btn-primary" onClick={() => onSave(limits)}>{t('WEB_SAVE_LIMITS')}</button>
       </div>
     </>
   );
@@ -904,14 +915,14 @@ function VisualLimitsEditor({
 
       {/* PBM Transcranial */}
       <ModalitySection
-        title="PBM Transcranial"
+        title={t('WEB_LIM_SECTION_PBM_TRANSCRANIAL')}
         enabled={limits.pbmTranscranial != null}
         onToggle={() => toggleModality('pbmTranscranial', {})}
       >
         {limits.pbmTranscranial && (
           <>
             <LimitField
-              label="Max Intensity"
+              label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.pbmTranscranial.maxIntensityPercent}
               unit="%"
               min={0} max={100} step={5}
@@ -920,7 +931,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('pbmTranscranial', { maxIntensityPercent: undefined })}
             />
             <LimitField
-              label="Max Frequency"
+              label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.pbmTranscranial.maxFrequencyHz}
               unit="Hz"
               min={0} max={100} step={1}
@@ -929,7 +940,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('pbmTranscranial', { maxFrequencyHz: undefined })}
             />
             <LimitField
-              label="Max Duty Cycle"
+              label={t('WEB_LIM_MAX_DUTY_CYCLE')}
               value={limits.pbmTranscranial.maxDutyCyclePercent}
               unit="%"
               min={0} max={hw.pbmDutyCycleMaxPercent} step={1}
@@ -938,7 +949,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('pbmTranscranial', { maxDutyCyclePercent: undefined })}
             />
             <LimitField
-              label="Max Session Dose"
+              label={t('WEB_LIM_MAX_SESSION_DOSE')}
               value={limits.pbmTranscranial.maxSessionDoseJCm2}
               unit="J/cm²"
               min={0} max={200} step={5}
@@ -946,7 +957,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('pbmTranscranial', { maxSessionDoseJCm2: undefined })}
             />
             <LimitField
-              label="Max Daily Dose"
+              label={t('WEB_LIM_MAX_DAILY_DOSE')}
               value={limits.pbmTranscranial.maxDailyDoseJCm2}
               unit="J/cm²"
               min={0} max={500} step={10}
@@ -959,14 +970,14 @@ function VisualLimitsEditor({
 
       {/* PBM Intranasal */}
       <ModalitySection
-        title="PBM Intranasal"
+        title={t('WEB_LIM_SECTION_PBM_INTRANASAL')}
         enabled={limits.pbmIntranasal != null}
         onToggle={() => toggleModality('pbmIntranasal', {})}
       >
         {limits.pbmIntranasal && (
           <>
             <LimitField
-              label="Max Intensity"
+              label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.pbmIntranasal.maxIntensityPercent}
               unit="%"
               min={0} max={100} step={5}
@@ -974,7 +985,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('pbmIntranasal', { maxIntensityPercent: undefined })}
             />
             <LimitField
-              label="Max Session Duration"
+              label={t('WEB_LIM_MAX_SESSION_DURATION')}
               value={limits.pbmIntranasal.maxSessionDurationSeconds}
               unit="sec"
               min={60} max={3600} step={60}
@@ -987,20 +998,20 @@ function VisualLimitsEditor({
 
       {/* EEG Neurofeedback */}
       <ModalitySection
-        title="EEG Neurofeedback"
+        title={t('WEB_LIM_SECTION_EEG')}
         enabled={limits.eegNeurofeedback != null}
         onToggle={() => toggleModality('eegNeurofeedback', {})}
       >
         {limits.eegNeurofeedback && (
           <>
             <LimitBoolField
-              label="Require Closed Loop"
+              label={t('WEB_LIM_REQUIRE_CLOSED_LOOP')}
               value={limits.eegNeurofeedback.requireClosedLoop ?? false}
               hint="Protocol must have closed-loop EEG adaptation enabled"
               onChange={v => patchModality('eegNeurofeedback', { requireClosedLoop: v })}
             />
             <LimitWhitelistField
-              label="Allowed Bands"
+              label={t('WEB_LIM_ALLOWED_BANDS')}
               options={['delta', 'theta', 'alpha', 'beta', 'gamma', 'alpha_theta', 'gamma_theta']}
               value={limits.eegNeurofeedback.allowedBands}
               onChange={v => patchModality('eegNeurofeedback', { allowedBands: v })}
@@ -1012,14 +1023,14 @@ function VisualLimitsEditor({
 
       {/* BES / tACS */}
       <ModalitySection
-        title="BES / tACS"
+        title={t('WEB_LIM_SECTION_BES_TACS')}
         enabled={limits.besTacs != null}
         onToggle={() => toggleModality('besTacs', {})}
       >
         {limits.besTacs && (
           <>
             <LimitField
-              label="Max Intensity"
+              label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.besTacs.maxIntensityMilliamps}
               unit="mA"
               min={0} max={hw.besTacsMaxMilliamps} step={0.1}
@@ -1028,7 +1039,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('besTacs', { maxIntensityMilliamps: undefined })}
             />
             <LimitField
-              label="Min Frequency"
+              label={t('WEB_LIM_MIN_FREQUENCY')}
               value={limits.besTacs.minFrequencyHz}
               unit="Hz"
               min={hw.besTacsMinHz} max={hw.besTacsMaxHz} step={0.5}
@@ -1037,7 +1048,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('besTacs', { minFrequencyHz: undefined })}
             />
             <LimitField
-              label="Max Frequency"
+              label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.besTacs.maxFrequencyHz}
               unit="Hz"
               min={hw.besTacsMinHz} max={hw.besTacsMaxHz} step={0.5}
@@ -1046,7 +1057,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('besTacs', { maxFrequencyHz: undefined })}
             />
             <LimitField
-              label="Max Session Duration"
+              label={t('WEB_LIM_MAX_SESSION_DURATION')}
               value={limits.besTacs.maxSessionDurationSeconds}
               unit="sec"
               min={60} max={7200} step={60}
@@ -1054,7 +1065,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('besTacs', { maxSessionDurationSeconds: undefined })}
             />
             <LimitField
-              label="Max Sessions/Day"
+              label={t('WEB_LIM_MAX_SESSIONS_DAY')}
               value={limits.besTacs.maxSessionsPerDay}
               unit=""
               min={1} max={10} step={1}
@@ -1067,14 +1078,14 @@ function VisualLimitsEditor({
 
       {/* tDCS */}
       <ModalitySection
-        title="tDCS"
+        title={t('WEB_LIM_SECTION_TDCS')}
         enabled={limits.tdcs != null}
         onToggle={() => toggleModality('tdcs', {})}
       >
         {limits.tdcs && (
           <>
             <LimitField
-              label="Max Intensity"
+              label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.tdcs.maxIntensityMilliamps}
               unit="mA"
               min={hw.tdcsMinMilliamps} max={hw.tdcsMaxMilliamps} step={0.1}
@@ -1083,7 +1094,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('tdcs', { maxIntensityMilliamps: undefined })}
             />
             <LimitField
-              label="Max Session Duration"
+              label={t('WEB_LIM_MAX_SESSION_DURATION')}
               value={limits.tdcs.maxSessionDurationSeconds}
               unit="sec"
               min={60} max={3600} step={60}
@@ -1091,7 +1102,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('tdcs', { maxSessionDurationSeconds: undefined })}
             />
             <LimitField
-              label="Max Sessions/Day"
+              label={t('WEB_LIM_MAX_SESSIONS_DAY')}
               value={limits.tdcs.maxSessionsPerDay}
               unit=""
               min={1} max={5} step={1}
@@ -1104,14 +1115,14 @@ function VisualLimitsEditor({
 
       {/* VNS + HRV */}
       <ModalitySection
-        title="VNS + HRV"
+        title={t('WEB_LIM_SECTION_VNS_HRV')}
         enabled={limits.vnsHrv != null}
         onToggle={() => toggleModality('vnsHrv', {})}
       >
         {limits.vnsHrv && (
           <>
             <LimitField
-              label="Max Intensity"
+              label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.vnsHrv.maxIntensityMilliamps}
               unit="mA"
               min={0} max={hw.vnsMaxMilliamps} step={0.1}
@@ -1120,7 +1131,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('vnsHrv', { maxIntensityMilliamps: undefined })}
             />
             <LimitField
-              label="Max Frequency"
+              label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.vnsHrv.maxFrequencyHz}
               unit="Hz"
               min={hw.vnsMinHz} max={hw.vnsMaxHz} step={1}
@@ -1129,7 +1140,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('vnsHrv', { maxFrequencyHz: undefined })}
             />
             <LimitWhitelistField
-              label="Allowed HRV Protocols"
+              label={t('WEB_LIM_ALLOWED_HRV')}
               options={['standalone', 'tavns_sync', 'eeg_biofeedback', 'combined_pbm']}
               value={limits.vnsHrv.allowedProtocols}
               onChange={v => patchModality('vnsHrv', { allowedProtocols: v })}
@@ -1141,14 +1152,14 @@ function VisualLimitsEditor({
 
       {/* Audio Entrainment */}
       <ModalitySection
-        title="Neural Audio"
+        title={t('WEB_LIM_SECTION_AUDIO')}
         enabled={limits.audioEntrainment != null}
         onToggle={() => toggleModality('audioEntrainment', {})}
       >
         {limits.audioEntrainment && (
           <>
             <LimitField
-              label="Max Volume"
+              label={t('WEB_LIM_MAX_VOLUME')}
               value={limits.audioEntrainment.maxVolumePercent}
               unit="%"
               min={0} max={100} step={5}
@@ -1156,7 +1167,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('audioEntrainment', { maxVolumePercent: undefined })}
             />
             <LimitField
-              label="Max Binaural Beat"
+              label={t('WEB_LIM_MAX_BINAURAL')}
               value={limits.audioEntrainment.maxBinauralBeatsHz}
               unit="Hz"
               min={0.5} max={100} step={0.5}
@@ -1164,7 +1175,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('audioEntrainment', { maxBinauralBeatsHz: undefined })}
             />
             <LimitField
-              label="Max Isochronic Tone"
+              label={t('WEB_LIM_MAX_ISOCHRONIC')}
               value={limits.audioEntrainment.maxIsochronicTonesHz}
               unit="Hz"
               min={0.5} max={100} step={0.5}
@@ -1177,14 +1188,14 @@ function VisualLimitsEditor({
 
       {/* Visual Stimulation */}
       <ModalitySection
-        title="Visual Stimulation"
+        title={t('WEB_LIM_SECTION_VISUAL')}
         enabled={limits.visualStimulation != null}
         onToggle={() => toggleModality('visualStimulation', {})}
       >
         {limits.visualStimulation && (
           <>
             <LimitField
-              label="Min Frequency"
+              label={t('WEB_LIM_MIN_FREQUENCY')}
               value={limits.visualStimulation.minFrequencyHz}
               unit="Hz"
               min={0} max={100} step={0.5}
@@ -1192,7 +1203,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('visualStimulation', { minFrequencyHz: undefined })}
             />
             <LimitField
-              label="Max Frequency"
+              label={t('WEB_LIM_MAX_FREQUENCY')}
               value={limits.visualStimulation.maxFrequencyHz}
               unit="Hz"
               min={0} max={hw.visualMaxHz} step={0.5}
@@ -1201,13 +1212,13 @@ function VisualLimitsEditor({
               onClear={() => patchModality('visualStimulation', { maxFrequencyHz: undefined })}
             />
             <LimitBoolField
-              label="Block High-Risk Range (3–30 Hz)"
+              label={t('WEB_LIM_BLOCK_HIGH_RISK')}
               value={limits.visualStimulation.blockHighRiskRange ?? false}
               hint="Treat 3–30 Hz as an error instead of a warning (photoparoxysmal zone)"
               onChange={v => patchModality('visualStimulation', { blockHighRiskRange: v })}
             />
             <LimitWhitelistField
-              label="Allowed Modes"
+              label={t('WEB_LIM_ALLOWED_MODES')}
               options={['binocular', 'emdr', 'retinal_pbm', 'mode_f']}
               value={limits.visualStimulation.allowedModes}
               onChange={v => patchModality('visualStimulation', { allowedModes: v })}
@@ -1219,14 +1230,14 @@ function VisualLimitsEditor({
 
       {/* TMS */}
       <ModalitySection
-        title="TMS (T2)"
+        title={t('WEB_LIM_SECTION_TMS')}
         enabled={limits.tms != null}
         onToggle={() => toggleModality('tms', {})}
       >
         {limits.tms && (
           <>
             <LimitField
-              label="Max Intensity"
+              label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.tms.maxIntensityPercentMT}
               unit="% MT"
               min={80} max={200} step={5}
@@ -1234,7 +1245,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('tms', { maxIntensityPercentMT: undefined })}
             />
             <LimitField
-              label="Max Pulses/Session"
+              label={t('WEB_LIM_MAX_PULSES_SESSION')}
               value={limits.tms.maxPulsesPerSession}
               unit="pulses"
               min={100} max={10000} step={100}
@@ -1242,7 +1253,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('tms', { maxPulsesPerSession: undefined })}
             />
             <LimitField
-              label="Max Pulses/Day"
+              label={t('WEB_LIM_MAX_PULSES_DAY')}
               value={limits.tms.maxPulsesPerDay}
               unit="pulses"
               min={100} max={30000} step={100}
@@ -1250,7 +1261,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('tms', { maxPulsesPerDay: undefined })}
             />
             <LimitField
-              label="Max Sessions/Week"
+              label={t('WEB_LIM_MAX_SESSIONS_WEEK')}
               value={limits.tms.maxSessionsPerWeek}
               unit=""
               min={1} max={7} step={1}
@@ -1258,14 +1269,14 @@ function VisualLimitsEditor({
               onClear={() => patchModality('tms', { maxSessionsPerWeek: undefined })}
             />
             <LimitWhitelistField
-              label="Allowed Protocols"
+              label={t('WEB_LIM_ALLOWED_PROTOCOLS')}
               options={['rTMS', 'TBS', 'iTBS']}
               value={limits.tms.allowedProtocols}
               onChange={v => patchModality('tms', { allowedProtocols: v })}
               onClear={() => patchModality('tms', { allowedProtocols: undefined })}
             />
             <LimitWhitelistField
-              label="Allowed Targets"
+              label={t('WEB_LIM_ALLOWED_TARGETS')}
               options={['DLPFC_L', 'DLPFC_R', 'VLPFC_L', 'ACC', 'MPFC', 'M1_L', 'M1_R']}
               value={limits.tms.allowedTargets}
               onChange={v => patchModality('tms', { allowedTargets: v })}
@@ -1277,14 +1288,14 @@ function VisualLimitsEditor({
 
       {/* Clinical tACS */}
       <ModalitySection
-        title="Clinical tACS (T2)"
+        title={t('WEB_LIM_SECTION_CLINICAL_TACS')}
         enabled={limits.clinicalTacs != null}
         onToggle={() => toggleModality('clinicalTacs', {})}
       >
         {limits.clinicalTacs && (
           <>
             <LimitField
-              label="Max Intensity"
+              label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.clinicalTacs.maxIntensityMilliamps}
               unit="mA"
               min={0} max={hw.clinicalTacsMaxMilliamps} step={0.5}
@@ -1298,14 +1309,14 @@ function VisualLimitsEditor({
 
       {/* HD-tDCS */}
       <ModalitySection
-        title="HD-tDCS (T2)"
+        title={t('WEB_LIM_SECTION_HD_TDCS')}
         enabled={limits.hdTdcs != null}
         onToggle={() => toggleModality('hdTdcs', {})}
       >
         {limits.hdTdcs && (
           <>
             <LimitField
-              label="Max Intensity/Electrode"
+              label={t('WEB_LIM_MAX_INTENSITY_ELECTRODE')}
               value={limits.hdTdcs.maxIntensityMilliamps}
               unit="mA"
               min={0} max={hw.hdTdcsMaxMilliampsPerElectrode} step={0.1}
@@ -1314,7 +1325,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('hdTdcs', { maxIntensityMilliamps: undefined })}
             />
             <LimitWhitelistField
-              label="Allowed Montages"
+              label={t('WEB_LIM_ALLOWED_MONTAGES')}
               options={['ring_4x1', 'bilateral_4x1', 'standard_2_electrode']}
               value={limits.hdTdcs.allowedMontages}
               onChange={v => patchModality('hdTdcs', { allowedMontages: v })}
@@ -1326,14 +1337,14 @@ function VisualLimitsEditor({
 
       {/* Cervical VNS */}
       <ModalitySection
-        title="Cervical VNS (T2)"
+        title={t('WEB_LIM_SECTION_CERVICAL_VNS')}
         enabled={limits.cervicalVns != null}
         onToggle={() => toggleModality('cervicalVns', {})}
       >
         {limits.cervicalVns && (
           <>
             <LimitField
-              label="Max Intensity"
+              label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.cervicalVns.maxIntensityMilliamps}
               unit="mA"
               min={0} max={hw.cervicalVnsMaxMilliamps} step={0.1}
@@ -1342,7 +1353,7 @@ function VisualLimitsEditor({
               onClear={() => patchModality('cervicalVns', { maxIntensityMilliamps: undefined })}
             />
             <LimitField
-              label="Max Session Duration"
+              label={t('WEB_LIM_MAX_SESSION_DURATION')}
               value={limits.cervicalVns.maxSessionDurationSeconds}
               unit="sec"
               min={60} max={1800} step={60}
@@ -1355,14 +1366,14 @@ function VisualLimitsEditor({
 
       {/* 40Hz Vibrotactile */}
       <ModalitySection
-        title="40Hz Vibrotactile (Accessory)"
+        title={t('WEB_LIM_SECTION_VIBROTACTILE')}
         enabled={limits.vibrotactile40hz != null}
         onToggle={() => toggleModality('vibrotactile40hz', {})}
       >
         {limits.vibrotactile40hz && (
           <>
             <LimitField
-              label="Max Intensity"
+              label={t('WEB_LIM_MAX_INTENSITY')}
               value={limits.vibrotactile40hz.maxIntensityG}
               unit="G"
               min={hw.vibrotactileMinG} max={hw.vibrotactileMaxG} step={0.05}
@@ -1582,7 +1593,9 @@ function LimitWhitelistField({
         />
         <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label}</span>
         {!isSet && (
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>No restriction</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+            {t('WEB_NO_RESTRICTION')}
+          </span>
         )}
       </div>
       {isSet && (

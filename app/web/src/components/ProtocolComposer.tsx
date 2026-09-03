@@ -8,6 +8,7 @@ import {
 import { protocolLibrary } from '../lib/protocolLibrary';
 import { serializeNPPS } from '../lib/nppsSerializer';
 import { ScriptEditor } from './ScriptEditor';
+import { t, tPlural } from '../lib/i18n';
 
 interface ProtocolComposerProps {
   existing?: NPCompositeProtocol;
@@ -98,20 +99,20 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
   }
 
   function handleAddTag(tag: string) {
-    const t = tag.trim().toLowerCase().replace(/\s+/g, '-');
-    if (t && !composite.tags.includes(t)) {
-      updateComposite({ tags: [...composite.tags, t] });
+    const normalized = tag.trim().toLowerCase().replace(/\s+/g, '-');
+    if (normalized && !composite.tags.includes(normalized)) {
+      updateComposite({ tags: [...composite.tags, normalized] });
     }
     setTagInput('');
   }
 
   function handleRemoveTag(tag: string) {
-    updateComposite({ tags: composite.tags.filter(t => t !== tag) });
+    updateComposite({ tags: composite.tags.filter(name => name !== tag) });
   }
 
   function handleSave() {
-    if (!composite.name.trim()) { setSaveError('Composite name is required.'); return; }
-    if (composite.layers.length === 0) { setSaveError('Add at least one layer.'); return; }
+    if (!composite.name.trim()) { setSaveError(t('WEB_ERROR_COMPOSITE_NAME_REQUIRED')); return; }
+    if (composite.layers.length === 0) { setSaveError(t('WEB_ERROR_NEED_ONE_LAYER')); return; }
     setSaveError('');
     onSave({ ...composite, modifiedAt: new Date().toISOString() });
   }
@@ -132,13 +133,15 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
   return (
     <div className="composer">
       <div className="editor-header">
-        <button className="btn btn-ghost btn-sm" onClick={onCancel}>← Back</button>
+        <button className="btn btn-ghost btn-sm" onClick={onCancel}>{t('WEB_BACK')}</button>
         <div className="editor-title">
-          {existing && !existing.isPredefined ? `Editing: ${existing.name}` : 'Composite Protocol'}
+          {existing && !existing.isPredefined
+            ? t('WEB_EDITING_PROTOCOL', { 0: existing.name })
+            : t('WEB_COMPOSITE_PROTOCOL')}
         </div>
         <div className="composer-tabs">
-          <button className={`composer-tab${tab === 'visual' ? ' active' : ''}`} onClick={() => setTab('visual')}>Visual</button>
-          <button className={`composer-tab${tab === 'script' ? ' active' : ''}`} onClick={() => setTab('script')}>Script Preview</button>
+          <button className={`composer-tab${tab === 'visual' ? ' active' : ''}`} onClick={() => setTab('visual')}>{t('WEB_TAB_VISUAL')}</button>
+          <button className={`composer-tab${tab === 'script' ? ' active' : ''}`} onClick={() => setTab('script')}>{t('WEB_TAB_SCRIPT_PREVIEW')}</button>
         </div>
       </div>
 
@@ -146,37 +149,37 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
         <div className="composer-body">
           {/* Identity */}
           <div className="form-section">
-            <div className="form-section-title">Identity</div>
+            <div className="form-section-title">{t('WEB_SECTION_IDENTITY')}</div>
             <div className="form-row">
               <div className="form-field full">
-                <label className="form-label">Name *</label>
-                <input className="form-input" value={composite.name} onChange={e => updateComposite({ name: e.target.value })} placeholder="Composite name" />
+                <label className="form-label">{t('WEB_FIELD_NAME_REQUIRED')}</label>
+                <input className="form-input" value={composite.name} onChange={e => updateComposite({ name: e.target.value })} placeholder={t('WEB_PLACEHOLDER_COMPOSITE_NAME')} />
               </div>
               <div className="form-field full">
-                <label className="form-label">Description</label>
-                <textarea className="form-textarea" value={composite.description} onChange={e => updateComposite({ description: e.target.value })} placeholder="What is this composite for?" />
+                <label className="form-label">{t('WEB_FIELD_DESCRIPTION')}</label>
+                <textarea className="form-textarea" value={composite.description} onChange={e => updateComposite({ description: e.target.value })} placeholder={t('WEB_PLACEHOLDER_COMPOSITE_DESCRIPTION')} />
               </div>
             </div>
             <div className="form-row">
               <div className="form-field">
-                <label className="form-label">Author</label>
+                <label className="form-label">{t('PROTOCOL_AUTHOR')}</label>
                 <input className="form-input" value={composite.author} onChange={e => updateComposite({ author: e.target.value })} />
               </div>
               <div className="form-field">
-                <label className="form-label">Version</label>
+                <label className="form-label">{t('PROTOCOL_VERSION')}</label>
                 <input className="form-input" value={composite.version} onChange={e => updateComposite({ version: e.target.value })} style={{ maxWidth: 100 }} />
               </div>
               <div className="form-field">
-                <label className="form-label">Conflict Resolution</label>
+                <label className="form-label">{t('PROTOCOL_CONFLICT_RESOLUTION')}</label>
                 <select className="form-select" value={composite.conflictResolution} onChange={e => updateComposite({ conflictResolution: e.target.value as NPCompositeProtocol['conflictResolution'] })}>
-                  <option value="merge">Merge (simultaneous)</option>
-                  <option value="sequential">Sequential</option>
-                  <option value="override">Override</option>
+                  <option value="merge">{t('WEB_PROTOCOL_COMPOSER_MERGE')}</option>
+                  <option value="sequential">{t('WEB_PROTOCOL_COMPOSER_SEQUENTIAL')}</option>
+                  <option value="override">{t('WEB_PROTOCOL_COMPOSER_OVERRIDE')}</option>
                 </select>
               </div>
             </div>
             <div className="form-field full">
-              <label className="form-label">Tags</label>
+              <label className="form-label">{t('PROTOCOL_TAGS')}</label>
               <div className="tags-editor">
                 {composite.tags.map(tag => (
                   <span key={tag} className="tag-pill">
@@ -193,7 +196,7 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
                     if (e.key === 'Backspace' && !tagInput && composite.tags.length > 0) handleRemoveTag(composite.tags[composite.tags.length - 1]);
                   }}
                   onBlur={() => { if (tagInput) handleAddTag(tagInput); }}
-                  placeholder="Add tag…"
+                  placeholder={t('WEB_PLACEHOLDER_ADD_TAG')}
                 />
               </div>
             </div>
@@ -202,12 +205,15 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
           {/* Timeline visualization */}
           <div className="timeline-container">
             <div className="timeline-header-bar">
-              Timeline — {composite.layers.length} layer{composite.layers.length !== 1 ? 's' : ''} · Total: {Math.round(maxTime / 60)}m
+              {tPlural('WEB_TIMELINE_HEADER', composite.layers.length, {
+                0: composite.layers.length,
+                1: Math.round(maxTime / 60),
+              })}
             </div>
             <div className="timeline-svg-wrap">
               {composite.layers.length === 0 ? (
                 <div className="empty-state" style={{ padding: '24px' }}>
-                  <div className="empty-state-text">Add layers to see the timeline.</div>
+                  <div className="empty-state-text">{t('PROTOCOL_ADD_LAYERS_HINT')}</div>
                 </div>
               ) : (
                 <TimelineSVG layers={composite.layers} maxTime={maxTime} />
@@ -217,11 +223,13 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
 
           {/* Layers */}
           <div className="form-section">
-            <div className="form-section-title">Layers ({composite.layers.length})</div>
+            <div className="form-section-title">
+              {t('WEB_SECTION_LAYERS_COUNT', { 0: composite.layers.length })}
+            </div>
             <div className="layer-list">
               {composite.layers.length === 0 && (
                 <div className="empty-state" style={{ padding: '20px 0' }}>
-                  <div className="empty-state-text">No layers added. Click "Add Layer" to start composing.</div>
+                  <div className="empty-state-text">{t('WEB_NO_LAYERS_HINT')}</div>
                 </div>
               )}
               {composite.layers.map((layer, i) => (
@@ -230,7 +238,7 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
                   <span className="layer-name">{layer.protocolName}</span>
                   <div className="layer-fields">
                     <div>
-                      <div className="layer-field-label">Start (sec)</div>
+                      <div className="layer-field-label">{t('WEB_LAYER_START_SEC')}</div>
                       <input
                         className="layer-field-input"
                         type="number"
@@ -240,18 +248,18 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
                       />
                     </div>
                     <div>
-                      <div className="layer-field-label">Duration (sec)</div>
+                      <div className="layer-field-label">{t('WEB_LAYER_DURATION_SEC')}</div>
                       <input
                         className="layer-field-input"
                         type="number"
                         min={60}
                         value={layer.durationSeconds ?? ''}
-                        placeholder="Full"
+                        placeholder={t('WEB_LAYER_DURATION_FULL')}
                         onChange={e => updateLayer(layer.id, { durationSeconds: e.target.value ? Number(e.target.value) : undefined })}
                       />
                     </div>
                     <div>
-                      <div className="layer-field-label">Intensity</div>
+                      <div className="layer-field-label">{t('WEB_LAYER_INTENSITY')}</div>
                       <input
                         className="layer-field-input"
                         type="number"
@@ -263,12 +271,12 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
                       />
                     </div>
                   </div>
-                  <button className="btn btn-danger btn-sm" onClick={() => deleteLayer(layer.id)}>Remove</button>
+                  <button className="btn btn-danger btn-sm" onClick={() => deleteLayer(layer.id)}>{t('WEB_REMOVE')}</button>
                 </div>
               ))}
             </div>
             <button className="btn btn-secondary" style={{ marginTop: 10 }} onClick={() => setShowProtocolPicker(true)}>
-              + Add Layer
+              {t('WEB_ADD_LAYER')}
             </button>
           </div>
         </div>
@@ -283,9 +291,9 @@ export function ProtocolComposer({ existing, onSave, onCancel }: ProtocolCompose
 
       <div className="editor-footer">
         {saveError && <span style={{ color: 'var(--error)', fontSize: 13, flex: 1 }}>{saveError}</span>}
-        <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+        <button className="btn btn-secondary" onClick={onCancel}>{t('COMMON_CANCEL')}</button>
         <button className="btn btn-primary" onClick={handleSave}>
-          {existing && !existing.isPredefined ? 'Save Changes' : 'Create Composite'}
+          {existing && !existing.isPredefined ? t('WEB_SAVE_CHANGES') : t('WEB_CREATE_COMPOSITE')}
         </button>
       </div>
 
@@ -324,7 +332,7 @@ function TimelineSVG({ layers, maxTime }: TimelineSVGProps) {
   // Time axis ticks: ~ every 2 minutes
   const tickInterval = maxTime <= 600 ? 60 : maxTime <= 1800 ? 120 : maxTime <= 3600 ? 300 : 600;
   const ticks: number[] = [];
-  for (let t = 0; t <= maxTime; t += tickInterval) ticks.push(t);
+  for (let sec = 0; sec <= maxTime; sec += tickInterval) ticks.push(sec);
 
   return (
     <svg
@@ -338,13 +346,15 @@ function TimelineSVG({ layers, maxTime }: TimelineSVGProps) {
       {/* Axis */}
       <line x1={LABEL_WIDTH} y1={AXIS_HEIGHT - 4} x2={WIDTH - PADDING} y2={AXIS_HEIGHT - 4} stroke="var(--border)" strokeWidth={1} />
 
-      {ticks.map(t => {
-        const x = xFor(t);
+      {ticks.map(tick => {
+        const x = xFor(tick);
         return (
-          <g key={t}>
+          <g key={tick}>
             <line x1={x} y1={AXIS_HEIGHT - 8} x2={x} y2={totalHeight} stroke="var(--border)" strokeWidth={0.5} strokeDasharray="3 3" />
             <text x={x} y={AXIS_HEIGHT - 10} fill="var(--text-muted)" fontSize={10} textAnchor="middle">
-              {t >= 60 ? `${Math.round(t / 60)}m` : `${t}s`}
+              {tick >= 60
+                ? t('WEB_TIME_MINUTES', { 0: Math.round(tick / 60) })
+                : t('WEB_TIME_SECONDS', { 0: tick })}
             </text>
           </g>
         );
@@ -370,7 +380,12 @@ function TimelineSVG({ layers, maxTime }: TimelineSVGProps) {
               textAnchor="end"
               fontWeight="500"
             >
-              {i + 1}. {layer.protocolName.length > 14 ? layer.protocolName.slice(0, 13) + '…' : layer.protocolName}
+              {t('WEB_TIMELINE_ROW_LABEL', {
+                0: i + 1,
+                1: layer.protocolName.length > 14
+                  ? layer.protocolName.slice(0, 13) + '…'
+                  : layer.protocolName,
+              })}
             </text>
 
             {/* Bar */}
@@ -394,8 +409,10 @@ function TimelineSVG({ layers, maxTime }: TimelineSVGProps) {
                 fontWeight="600"
                 textAnchor="middle"
               >
-                {Math.round((dur / 60))}m
-                {layer.intensityScale !== 1.0 ? ` ×${layer.intensityScale}` : ''}
+                {t('WEB_TIME_MINUTES', { 0: Math.round(dur / 60) })}
+                {layer.intensityScale !== 1.0
+                  ? t('WEB_TIMELINE_BAR_SCALE', { 0: layer.intensityScale })
+                  : ''}
               </text>
             )}
           </g>
@@ -428,13 +445,13 @@ function ProtocolPickerModal({ protocols, onSelect, onClose }: ProtocolPickerMod
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
-          <span className="modal-title">Add Layer</span>
+          <span className="modal-title">{t('WEB_ADD_LAYER_TITLE')}</span>
           <button className="modal-close" onClick={onClose}>×</button>
         </div>
         <div className="modal-body">
           {predefined.length > 0 && (
             <div>
-              <div className="picker-group-title">Predefined Protocols</div>
+              <div className="picker-group-title">{t('WEB_PICKER_PREDEFINED')}</div>
               {predefined.map(entry => {
                 if (entry.kind !== 'single') return null;
                 const id = entry.protocol.id;
@@ -455,7 +472,7 @@ function ProtocolPickerModal({ protocols, onSelect, onClose }: ProtocolPickerMod
           )}
           {user.length > 0 && (
             <div>
-              <div className="picker-group-title">My Protocols</div>
+              <div className="picker-group-title">{t('WEB_FILTER_MINE')}</div>
               {user.map(entry => {
                 if (entry.kind !== 'single') return null;
                 const id = entry.protocol.id;
@@ -476,14 +493,14 @@ function ProtocolPickerModal({ protocols, onSelect, onClose }: ProtocolPickerMod
           )}
           {protocols.length === 0 && (
             <div className="empty-state" style={{ padding: 20 }}>
-              <div className="empty-state-text">No protocols available to add as layers.</div>
+              <div className="empty-state-text">{t('WEB_NO_PROTOCOLS_FOR_LAYERS')}</div>
             </div>
           )}
         </div>
         <div className="modal-footer">
-          <button className="btn btn-secondary" onClick={onClose}>Cancel</button>
+          <button className="btn btn-secondary" onClick={onClose}>{t('COMMON_CANCEL')}</button>
           <button className="btn btn-primary" disabled={!selected} onClick={handleAdd}>
-            Add Layer
+            {t('WEB_ADD_LAYER_TITLE')}
           </button>
         </div>
       </div>

@@ -407,7 +407,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
                 style={{ flex: 1 }}
                 min={0.5} max={100} step={0.5}
                 value={p.binauralBeatsHz ?? ''}
-                placeholder="None"
+                placeholder={t('WEB_NONE')}
                 onChange={e => update<typeof params>({ ...p, binauralBeatsHz: e.target.value ? Number(e.target.value) : undefined })}
               />
             </div>
@@ -419,7 +419,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
               className="form-input"
               min={0.5} max={100} step={0.5}
               value={p.isochronicTonesHz ?? ''}
-              placeholder="None"
+              placeholder={t('WEB_NONE')}
               onChange={e => update<typeof params>({ ...p, isochronicTonesHz: e.target.value ? Number(e.target.value) : undefined })}
             />
           </div>
