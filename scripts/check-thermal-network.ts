@@ -573,3 +573,73 @@ for (const full of [40, 60, 90, 120]) {
   console.log(`    ${String(full).padStart(3)} J/cm^2 -> blocks at ${clampAmbient(full).toFixed(1)} C instead of 35.0 C`);
 }
 console.log("  Same principle as D-1 one level down: do not run a session that cannot work.");
+
+// ---------------------------------------------------------------------------
+// §18  Hysteresis on the ambient hard edges (§7.5, OI-THCOOL-16)
+// ---------------------------------------------------------------------------
+// The block edge is a discrete transition: below it a session is admitted,
+// above it denied. Any discrete transition driven by a noisy, drifting input
+// chatters unless the re-entry threshold is separated from the exit threshold.
+// This section sizes that separation from three independent bounds, and shows
+// what it costs in availability.
+
+/** Junction-interlock precedent, firmware/safety_mcu/include/np_safety_config.h. */
+const JUNCTION_CUTOFF_C = 62, JUNCTION_REARM_C = 55;
+
+/**
+ * ADC counts per degree from the shipped NTC table
+ * (firmware/safety_mcu/src/np_thermal_interlock.c, k_ntc_adc, 10k B=3950,
+ * 10k divider, 12-bit). Quoted, not re-derived: three entries spanning the band.
+ */
+const NTC_ADC_AT = { 30: 2140, 34: 1846, 35: 1776, 36: 1708 } as const;
+
+/** Room thermostats carry their own differential; ambient oscillates by it. */
+const THERMOSTAT_DIFFERENTIAL_C = [0.5, 1.0] as const;
+
+/** Room recovery rates after a hot spell (still-air building envelope). */
+const DRIFT_RATES_C_PER_H = [1, 2, 3] as const;
+
+console.log("\n§18 Hysteresis on the ambient hard edges (OI-THCOOL-16)");
+
+const countsPerDeg = NTC_ADC_AT[34] - NTC_ADC_AT[35];
+console.log("\n  (a) What the sense chain can represent");
+console.log(`    ADC slope at the block edge: ${countsPerDeg} counts/K`
+  + `  -> 1 LSB = ${(1 / countsPerDeg).toFixed(3)} K`);
+console.log(`    So the ANALOG chain resolves ~${(3 / countsPerDeg).toFixed(2)} K at 3 LSB of noise`
+  + " — it is not the limit.");
+console.log("    The limit is adc_to_celsius(), which returns whole degrees (uint8_t).");
+console.log("    MINIMUM REPRESENTABLE HYSTERESIS TODAY = 1.0 K. Anything finer needs the");
+console.log("    ambient path specified at 0.1 K, which POE's i16 dC encoding already assumes.");
+
+console.log("\n  (b) What the environment demands");
+for (const d of THERMOSTAT_DIFFERENTIAL_C) {
+  console.log(`    thermostat differential ${d.toFixed(1)} K -> ambient itself cycles by ~${d.toFixed(1)} K;`
+    + ` a band < ${d.toFixed(1)} K sits inside the room's own oscillation`);
+}
+console.log("    A hysteresis band suppresses cycling only when it exceeds the input's");
+console.log("    peak-to-peak excursion, so 1.0 K is the floor the room sets too.");
+
+console.log("\n  (c) What availability can pay — wait to re-arm after a block");
+console.log("    band    " + DRIFT_RATES_C_PER_H.map(r => `${r} K/h`.padStart(9)).join(""));
+for (const band of [0.5, 1.0, 2.0, JUNCTION_CUTOFF_C - JUNCTION_REARM_C]) {
+  const row = DRIFT_RATES_C_PER_H.map(r => `${(band / r * 60).toFixed(0)} min`.padStart(9)).join("");
+  const tag = band === JUNCTION_CUTOFF_C - JUNCTION_REARM_C
+    ? "   <- the junction interlock's band, unusable for an admission gate" : "";
+  console.log(`    ${band.toFixed(1)} K ${row}${tag}`);
+}
+
+console.log("\n  => 1.0 K is simultaneously the representation floor, the environment floor,");
+console.log("     and near the availability ceiling. Three independent bounds, one number.");
+
+console.log("\n  (d) Re-arm points, anchored on the EFFECTIVE block — not on a constant");
+const HYST_C = 1.0;
+console.log(`    flat block (today, §7.2):        block ${T_BLOCK.toFixed(1)} C`
+  + `  -> re-arm ${(T_BLOCK - HYST_C).toFixed(1)} C`);
+console.log("    per-protocol block (if OI-THCOOL-17's efficacy clamp is adopted):");
+for (const full of [40, 60, 120]) {
+  const a = clampAmbient(full);
+  console.log(`      ${String(full).padStart(3)} J/cm^2 protocol:      block ${a.toFixed(1)} C`
+    + `  -> re-arm ${(a - HYST_C).toFixed(1)} C`);
+}
+console.log("    The rule is written against the anchor, so it holds whichever way 17 lands");
+console.log("    — which is why 16 does not have to wait for 17.");

@@ -2,21 +2,34 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 8
-**Date:** 2026-08-30
+**Revision:** 9
+**Date:** 2026-09-02
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (pending design review)
-**References:** NP-THERM-CFD-R1-001 Rev 1 (§2 the resistance network, §3 the inward-flux ceiling, §5 BN-boss export study, §5.3 findings, OI-R1-01…05); NP-THERM-CFD-001 (BC spec, case matrix); NP-THERM-CFD-C2-001 (§2 stack-up, §7 the 1D network); NP-THERM-BEZEL-001 (THERM-1 coupling, the 0.6–1.0 mm scalp gap); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-PWR-BUDGET-001 Rev 3 (§3.2 aggregate estimate, §3.3 the three levers, OI-PWR-01/08); NP-PWRSRC-001 Rev 1 (§4.1 the cavity wall, §7.0 coverage 2/23); NP-HEX-ZM-001 (§5.1–5.3 two-bowl shell, §5.3a rim slot, §5.3c posterior boss, §5.3d mu-metal continuity); NP-DRV-SHELL-002 Rev 2 (§4.3 one aperture, segregated returns); NP-ENV-001 (§1 two envelopes, §2 survival, §5 humidity survival-only); NP-ENV-OPRANGE-001 (§2 per-modality ambient bounds); NP-DT-001 Rev 2 (DI-SAFE-13); NP-HELMET-GEOM-001 (§2 radial stack, §8 THERM-1a gate); CLAUDE.md §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power); IEC 60601-1 (42 °C applied part); `scripts/check-thermal-network.ts`
+**References:** NP-THERM-CFD-R1-001 Rev 1 (§2 the resistance network, §3 the inward-flux ceiling, §5 BN-boss export study, §5.3 findings, OI-R1-01…05); NP-THERM-CFD-001 (BC spec, case matrix); NP-THERM-CFD-C2-001 (§2 stack-up, §7 the 1D network); NP-THERM-BEZEL-001 (THERM-1 coupling, the 0.6–1.0 mm scalp gap); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-PWR-BUDGET-001 Rev 3 (§3.2 aggregate estimate, §3.3 the three levers, OI-PWR-01/08); NP-PWRSRC-001 Rev 1 (§4.1 the cavity wall, §7.0 coverage 2/23); NP-HEX-ZM-001 (§5.1–5.3 two-bowl shell, §5.3a rim slot, §5.3c posterior boss, §5.3d mu-metal continuity); NP-DRV-SHELL-002 Rev 2 (§4.3 one aperture, segregated returns); NP-ENV-001 (§1 two envelopes, §2 survival, §5 humidity survival-only); NP-ENV-OPRANGE-001 (§2 per-modality ambient bounds); NP-DT-001 Rev 2 (DI-SAFE-13); NP-HELMET-GEOM-001 (§2 radial stack, §8 THERM-1a gate); CLAUDE.md §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power); IEC 60601-1 (42 °C applied part); `scripts/check-thermal-network.ts` (§18, the hysteresis sizing); `firmware/safety_mcu/src/np_thermal_interlock.c` + `np_safety_config.h` (the 62/55 °C junction re-arm precedent §7.5.1 declines to copy)
 **Related Issues:** —
-**Gate:** No gate. D-1, D-2 and D-3 are all **decided** (2026-08-30/31, principal); raises `OI-THCOOL-01…17`.
+**Gate:** No gate. D-1, D-2 and D-3 are all **decided** (2026-08-30/31, principal); raises `OI-THCOOL-01…17`, of which `OI-THCOOL-06` and `OI-THCOOL-16` are closed.
 **IEC 62304 Class:** — (analysis document; no code changed). No SR-FAN requirement is altered.
 **Supersedes:** None — new document.
 **Parent Document:** NP-THERM-CFD-R1-001
 
 ---
 
+> **Rev 9 (2026-09-02) — `OI-THCOOL-16` CLOSED. New §7.5 specifies the hysteresis on the ambient hard
+> edges: Δ = 1.0 °C, anchored on the *effective* block rather than on 35.0, and applied as a raised
+> admission bar rather than a hold-off.** Three independent bounds land on the same number — the shipped
+> sense path can only express whole degrees, a room's own thermostat differential is 0.5–1.0 °C so
+> anything finer sits inside the room's oscillation, and the band is charged to the user as a 20–60 min
+> wait. **The junction interlock's 7 °C band is explicitly not the precedent**: that is a reactive fault
+> where over-cutting is free, this is an admission gate where the band is a lock-out. Two structural
+> results: a mid-session crossing **terminates** the session rather than pausing it, which removes every
+> automatic re-entry path and makes chatter impossible by construction; and because the rule is written
+> against `T_block_eff`, **it holds whichever way `OI-THCOOL-17` lands, so 16 closes without waiting for
+> 17.** Normative encoding in `NP-FW-POE-001` §6.1 (new). **No envelope number changes**; the block stays
+> at +35 and the latch can only ever be more restrictive.
+>
 > **Rev 8 (2026-08-31) — the shared band's derate semantics are unspecified, and under the reading
 > actually written it reopens the failure mode D-1 was built to close. New §7.4 states the question and
 > proposes an efficacy-floor clamp.** `NP-ENV-OPRANGE-001` §1 specifies *"linear duty derate"* — duty
@@ -745,8 +758,8 @@ one sentence describes the thermal envelope of the whole line at any tier.
    specified after all. The work is nonetheless **smaller** than before: one curve now serves every
    helmet module rather than one per module.
 
-`OI-THCOOL-16` still applies — the block edge at +35 is a discrete transition and needs hysteresis
-against NTC chatter.
+`OI-THCOOL-16` is **closed by §7.5**: the block edge at +35 is a discrete transition, and it carries a
+1.0 °C band with re-arm at 34.0 °C.
 
 The decisive argument was **use case, not thermal**: there is no non-emergency reason to run the device
 in a room above +35 °C, so an envelope reaching +43 bought availability nobody wants — and paid for it
@@ -819,6 +832,118 @@ complication: `NP-FW-POE-001`'s gate would need the protocol's dose as an input.
 rule leaves EEG-only at +5 → +45 and tDCS at −10 → +45, so a user in a 33 °C room keeps full-capability
 EEG and tES. Only PBM protocols derate, which bounds the blast radius considerably.
 
+---
+
+**7.5 — ✅ RESOLVED (`OI-THCOOL-16`): hysteresis on the ambient hard edges — 1.0 °C, anchored on the
+effective block, applied as a raised admission bar rather than a hold-off.**
+
+The block edge is a **discrete** transition: below it a session is admitted, above it denied. Every
+discrete transition driven by a noisy, drifting input chatters unless re-entry is separated from exit.
+The derate ramp needs no such treatment — it is continuous, and ±0.2 °C of ambient noise moves duty by
+±4 %, which nobody can perceive. **Only the hard edges need a band: the +35 °C block, the cold block at
+the low bound, and — if `OI-THCOOL-17`'s efficacy clamp is adopted — the floor-clamp edge that replaces
+the flat 35.**
+
+**7.5.1 — The band is 1.0 °C, and three independent bounds land on it.**
+`bun scripts/check-thermal-network.ts` §18:
+
+| Bound | What it says | Number |
+|---|---|---:|
+| **Representation** | `adc_to_celsius()` returns whole degrees (`uint8_t`), so 1 °C is the smallest band the shipped sense path can express. The *analog* chain is not the limit — 70 ADC counts/K at the edge is 0.014 K/LSB, ~0.04 K at 3 LSB of noise | **≥ 1.0 °C** |
+| **Environment** | A hysteresis band suppresses cycling only when it exceeds the input's peak-to-peak excursion, and a room's own thermostat differential is 0.5–1.0 °C. A band inside that sits inside the room's oscillation and does nothing | **≥ 1.0 °C** |
+| **Availability** | The band is a wait. At 1–3 °C/h of room recovery, 1.0 °C costs **20–60 min** before a denied session can be retried; 2.0 °C costs 40–120 min | **≤ ~1.0 °C** |
+
+**The floors and the ceiling meet at one number, which is the whole argument for it.** It is also why
+the junction interlock's **7 °C** band (`NP_NTC_CUTOFF_DEG_C` 62 / `NP_NTC_REARM_DEG_C` 55) is not the
+precedent to copy, despite being the obvious one in the tree. That latch is a **reactive fault** where
+over-cutting is free — a cranial domain that stays cut for an extra minute costs nothing. This is a
+**predictive admission gate**, where the band is charged directly to the user as a wait: 7 °C here is
+2.5–7 hours, which is not a hysteresis band but a lock-out.
+
+**The 20–60 minute wait is a real cost and is accepted, not waved away.** It is paid only by a user
+whose room is within 1 °C of a block that already sits ~2.9 °C below §7's fitted 37.9 °C full-dose
+ceiling — and the alternative is a device that starts, refuses, and starts again on the same room.
+
+**7.5.2 — The mechanism: the latch raises the bar, it does not hold the device off.**
+
+The naïve form — "once blocked, deny everything until ambient falls" — is both over-restrictive and
+wrong per-protocol, because under `OI-THCOOL-17` the block is not one temperature. A **higher**-dose
+protocol tolerates a **higher** ambient (its derated dose reaches the 10 J/cm² floor later: 34.6 °C at
+120 J/cm² against 33.8 at 40), so a blanket hold-off would deny a session that is genuinely admissible.
+
+The form specified instead:
+
+> **While the latch is set, admission tests `ambient ≤ T_block_eff − Δ` instead of `ambient < T_block_eff`,
+> where `T_block_eff` is that protocol's own effective block anchor and Δ = 1.0 °C.** The latch is set
+> whenever an admission is denied on ambient, or a mid-session re-read crosses the anchor. It is cleared
+> by any evaluation that passes the margined test continuously for `t_dwell` (§7.5.4).
+
+Three properties follow, and each is the reason for the shape:
+
+1. **It is strictly more restrictive than the unlatched test, at every ambient and every protocol.** So
+   it composes with the `min()` of `NP-FW-POE-001` §5 without touching that rule's proof — a term that
+   can only move the bar down in temperature cannot widen safety.
+2. **It is per-protocol without any latch bookkeeping.** No stored anchor, no map of which envelope
+   latched: one boolean and one dwell timer, evaluated against whatever anchor the current request
+   computes.
+3. **It is anchored on `T_block_eff`, not on 35.0.** `T_block_eff = min(TABLE_block, POE_block)` today
+   and per-protocol if `OI-THCOOL-17` adopts the efficacy clamp. **The rule therefore holds whichever
+   way 17 lands, which is why 16 closes now rather than waiting on it.** Re-arm points either way:
+
+| Anchor | Block | Re-arm |
+|---|---:|---:|
+| Flat block, as specified today (§7.2) | 35.0 °C | **34.0 °C** |
+| 40 J/cm² protocol, under `OI-THCOOL-17`'s clamp | 33.8 °C | **32.8 °C** |
+| 60 J/cm² protocol | 34.2 °C | **33.2 °C** |
+| 120 J/cm² protocol | 34.6 °C | **33.6 °C** |
+
+**7.5.3 — A mid-session crossing terminates the session; it never pauses it.**
+
+The coarse periodic ambient re-read (`NP-FW-POE-001` §6) can cross the anchor mid-session. It must end
+the session, not suspend it, for three reasons that all point the same way. **(i)** A resumed session is
+a split, partially-dosed session, and its completion report would claim a dose it did not deliver —
+the D-1 failure mode again, one level down. **(ii)** Suspend/resume cycles *add* time-at-ceiling, and
+time-at-ceiling is what drives CEM43 (`NP-PWRSRC-001` §5.5), so the "gentler" option is the thermally
+worse one. **(iii)** A resume path is an automatic re-entry loop — precisely the loop this item exists
+to remove, sited at the worst possible place. **With no automatic re-entry anywhere, chatter is
+impossible by construction, and Δ only governs the next *user-initiated* start.** The session record
+reports the dose actually delivered, honestly, as a terminated session.
+
+**7.5.4 — The dwell time is not free-standing; it inherits `OI-ENV-05`.**
+
+Clearing the latch also requires the margined test to hold continuously for a dwell `t_dwell`. Its value
+depends on a decision not yet made — **which sensor is "ambient".** `NP-FW-POE-001` §6 leaves it as "NTC
+read at session start before self-heating, **and/or** a dedicated ambient NTC", and the shipped MCU
+config has no ambient channel at all (five cranial sense domains plus the hub NTC).
+
+- **Dedicated ambient NTC, outside the thermal path:** `t_dwell` = **60 s**, enough to reject transient
+  air movement, negligible against a 20–60 min wait.
+- **Hub NTC as ambient proxy:** `t_dwell` must exceed the device's own self-heat decay, which is minutes,
+  not seconds — **≥ 5τ_hub**, and τ_hub is unmeasured.
+
+**Either way the error is fail-safe**: a self-heat-contaminated proxy reads *high*, making the gate more
+restrictive after a session, never less. So the dwell can be specified as a rule now and given its number
+when `OI-ENV-05` closes; nothing downstream is blocked on it.
+
+**7.5.5 — Three things this deliberately does not do.**
+
+- **It does not persist across a power cycle.** The latch is RAM state; unplugging clears it. That is a
+  dodge, and it is an acceptable one, because **the dodge cannot cross the safety bound** — it buys
+  re-entry only in the band between `T_block_eff − Δ` and `T_block_eff`, where the plain admission test
+  already passes. Persisting it would mean NVRAM writes (`NP-FW-NVRAM-001`) for a usability latch with
+  no safety content.
+- **It adds no SHDR field.** The existing `NP_POE_OUT_OF_RANGE` denial reason covers it; distinguishing
+  "denied on the margined test" from "denied on the plain test" is diagnostic only, and a new field would
+  need a `docs/reference/data-architecture-detail.md` §5.1 boundary resolution to earn its place.
+- **It changes no descriptor format.** Δ and `t_dwell` live in the Class C versioned envelope table
+  alongside the bounds they modify, not in the POE block — which avoids a trap worth naming: **a margin
+  parameter composes by `max()`, not `min()`.** If Δ were ever descriptor-supplied and folded into
+  `NP-FW-POE-001` §5's `min()`, a stale or hostile descriptor supplying Δ = 0 would erase the hysteresis
+  while appearing to obey the rule that the descriptor can only restrict. The direction of "restrictive"
+  inverts for a parameter that is itself a margin. `NP-FW-POE-001` §6.1 records this.
+
+Normative encoding, enforcement flow, failure modes and verification: **`NP-FW-POE-001` §6.1**.
+
 ## 8. Recommendation
 
 **Sequenced, cheapest-first. Nothing here is a safety change; §4.1 governs.**
@@ -852,7 +977,7 @@ about step 3.**
   **Two consequences:** T1's full-dose ceiling tightens +35 → +30, a real and deliberate capability
   reduction; and **`OI-OPR-01` is live again** — Rev 6 had recorded the derate curve as moot on a
   zero-width band, and the band is 5 °C wide once more, though one curve now serves every module.
-  `OI-THCOOL-16` covers hysteresis on the +35 block edge.
+  Hysteresis on the +35 block edge is specified in §7.5 (`OI-THCOOL-16`, closed).
 - **D-2 — ✅ DECIDED 2026-08-30 (principal): in scope only for a real benefit not obtainable by other
   means — and §6.9 finds it is obtainable otherwise, better.** A static conductive gap bridge attacks
   the same 0.23 m²K/W term and reaches **40.6 tiles against the loop's 19.7**, with no moving parts and
@@ -907,7 +1032,8 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | **OI-THCOOL-05** | Characterise the via *interface* (contact + spreading + sink), which §3 shows is ~90 % of that path's resistance | ME | No |
 | **OI-THCOOL-15** | **Gap-pad geometry and contact (§6.9.1).** Fix the pad diameter and coverage fraction against the cluster-clamp and fluxgate keep-outs; establish real two-face contact across the curved 5–7 mm gap under the tolerance stack; and resolve **what the pad compresses against** — the absorber foam is itself compressible, so a pad pressed against it never reaches rated conductivity. Must be electrically insulating and non-magnetic (fluxgates inner, Helmholtz outer), and survive compression set over repeated bowl separations. **Coupled to `OI-THCOOL-04`** — the absorber's thermal spec and the pad's land are one decision. **The gating question for the largest term in the outward path** | ME (+EMC) | **Gates §6.9** |
 | **OI-THCOOL-17** | **Choose the derate semantics, and clamp the ramp at the efficacy floor (§7.4).** As written, *"linear duty derate"* means a fixed-length session under-doses, going sub-threshold above ~34.2 °C for a 60 J/cm² protocol — reopening the completed-but-ineffective session D-1 closed. Extending the session instead preserves dose but multiplies time-at-ceiling, which drives CEM43. **Decide which, and clamp duty at the floor so no session is ever sub-threshold.** Makes the block per-protocol, so `NP-FW-POE-001`'s gate needs protocol dose as an input. **`OI-OPR-01` inherits this: the curve must carry a floor, not run to zero** | FW + Thermal | **Gates `OI-OPR-01`** |
-| **OI-THCOOL-16** | **Hysteresis on the +35 °C PBM ambient cliff.** With the derate band collapsed (Rev 6), the T1-A envelope is a hard block at a single temperature, so an ambient NTC sitting on +35 could chatter start/stop. Specify the hysteresis band and its interaction with `NP-FW-POE-001`'s gate | FW | No |
+| ~~OI-THCOOL-16~~ | **✅ CLOSED 2026-09-02 by §7.5.** Band **Δ = 1.0 °C** on every ambient hard edge, anchored on `T_block_eff = min(TABLE_block, POE_block)` rather than on the constant 35.0, and applied as a **raised admission bar** (`ambient ≤ T_block_eff − Δ` while latched) rather than a hold-off — strictly more restrictive at every ambient, so it composes with `NP-FW-POE-001` §5's `min()` untouched. A mid-session crossing **terminates** the session rather than pausing it, which removes the last automatic re-entry path. Normative in `NP-FW-POE-001` §6.1. Retained struck-through per `NP-CONV-001` §4. **Residual, not blocking:** `t_dwell` inherits `OI-ENV-05` (60 s with a dedicated ambient NTC, ≥ 5τ_hub with the hub NTC as proxy — fail-safe either way), and a sub-1 °C band would need the ambient path specified at 0.1 °C resolution → `OI-POE-06` | FW (closed) | — |
+| ~~OI-THCOOL-16 (original text)~~ | **Hysteresis on the +35 °C PBM ambient cliff.** With the derate band collapsed (Rev 6), the T1-A envelope is a hard block at a single temperature, so an ambient NTC sitting on +35 could chatter start/stop. Specify the hysteresis band and its interaction with `NP-FW-POE-001`'s gate | FW | No |
 | ~~OI-THCOOL-06~~ | **✅ CLOSED 2026-08-30 by D-2** — this was BLOCKING only on the pneumatic loop's penetration of the posterior boss, and §6.9 puts that loop out of scope. Retained struck-through rather than deleted, per `NP-CONV-001` §4's append-only open-item rule; reopen only if the loop is revived | — (closed) | — |
 | ~~OI-THCOOL-06 (original text)~~ | **Bench-measure ELF magnetic leakage through a mu-metal chimney collar at the posterior boss with tube penetrations.** Waveguide-below-cutoff does not apply below ~100 Hz | EMC (EMF-1) | **BLOCKING on §6.2** |
 | **OI-THCOOL-07** | Confirm the sealed loop's condensation behaviour across the `NP-ENV-001` §2.2 warm-up transient — fixed absolute humidity should help, but the cold-optics case is untested | Thermal | No |
@@ -933,4 +1059,5 @@ raises one term of), §12 (the prohibition D-3 invokes), §5.5 (the CEM43 exposu
 `NP-ENV-001` §5 (no live RH sensor — §6.7.3) · `NP-REQ-FANHEALTH-001` `SR-FAN-06` (the fail-safe rule
 §6.8 inherits) · CLAUDE.md §1 (Mode 3 autonomy), §3 (RISK-14 dual-PD), §4.2/§4.3/§4.5 ·
 `scripts/check-pbm-power.ts` (where `maxConcurrent` becomes session length) ·
-`scripts/check-thermal-network.ts` §9–§17
+`scripts/check-thermal-network.ts` §9–§18 · `NP-FW-POE-001` §6.1 (the hysteresis §7.5 specifies) ·
+`firmware/safety_mcu/src/np_thermal_interlock.c` (the 62/55 °C junction re-arm precedent)
