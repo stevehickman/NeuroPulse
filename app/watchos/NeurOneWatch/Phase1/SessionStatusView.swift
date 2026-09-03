@@ -192,14 +192,15 @@ struct SessionStatusView: View {
     @ViewBuilder
     private var impedanceAlertMessage: some View {
         if let passed = mgr.latestImpedancePassCount {
-            Text("\(passed)/8 electrodes passed. Check headset fit if any failed.")
+            Text(String(format: String(localized: "WATCH_IMPEDANCE_RESULT"), String(passed)))
         }
     }
 
     @ViewBuilder
     private var consumableAlertMessage: some View {
         if let idx = mgr.latestConsumableLowIndex {
-            Text("\(ConsumableName.name(for: idx)) is running low. Order via NeurOne app.")
+            Text(String(format: String(localized: "WATCH_CONSUMABLE_LOW_BODY"),
+                 ConsumableName.name(for: idx)))
         }
     }
 

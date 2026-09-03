@@ -323,9 +323,11 @@ struct LayerEditorRow: View {
                             .font(.subheadline.weight(.medium))
                             .foregroundColor(.primary)
                         HStack(spacing: 8) {
-                            Text("Start: \(formatTime(layer.startOffsetSeconds))")
+                            Text(String(format: String(localized: "PROTOCOL_COMPOSER_LAYER_START"),
+                                        formatTime(layer.startOffsetSeconds)))
                             if let dur = layer.durationSeconds {
-                                Text("Duration: \(formatTime(dur))")
+                                Text(String(format: String(localized: "PROTOCOL_COMPOSER_LAYER_DURATION"),
+                                            formatTime(dur)))
                             } else {
                                 Text("PROTOCOL_DURATION_FULL")
                             }

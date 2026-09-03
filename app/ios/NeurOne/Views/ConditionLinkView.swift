@@ -118,7 +118,7 @@ struct ConditionLinkConfirmation: View {
                 .font(.headline)
             Spacer()
             if let code = condition.definition?.code {
-                Text("ICD-11 \(code)")
+                Text(String(format: String(localized: "UI_CONDITION_ICD11_CODE"), code))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

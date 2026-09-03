@@ -25987,6 +25987,77 @@
         }
       }
     },
+    "PORTAL_PLEDGED_AMOUNT": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "$%0\\$@ pledged"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "$%0\\$@ pledged"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "$%0\\$@ pledged"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "$%0\\$@ pledged"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "$%0\\$@ pledged"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "$%0\\$@ pledged"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "$%0\\$@ pledged"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "$%0\\$@ pledged"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "$%0\\$@ pledged"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "$%0\\$@ pledged"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "$%0\\$@ pledged"
+          }
+        }
+      }
+    },
     "PORTAL_PLEDGES_ARE_INTENT_ONLY_YOUR_CARD_IS_NOT_CHA": {
       "extractionState": "manual",
       "localizations": {
@@ -26125,6 +26196,77 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Pledge amount"
+          }
+        }
+      }
+    },
+    "PORTAL_PLEDGE_BUTTON": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pledge %0\\$@"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pledge %0\\$@"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pledge %0\\$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pledge %0\\$@"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pledge %0\\$@"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pledge %0\\$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pledge %0\\$@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pledge %0\\$@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pledge %0\\$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pledge %0\\$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Pledge %0\\$@"
           }
         }
       }
@@ -27616,6 +27758,148 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Custom Duration"
+          }
+        }
+      }
+    },
+    "PROTOCOL_COMPOSER_LAYER_DURATION": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Duration: %0\\$@"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Duration: %0\\$@"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Duration: %0\\$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Duration: %0\\$@"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Duration: %0\\$@"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Duration: %0\\$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Duration: %0\\$@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Duration: %0\\$@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Duration: %0\\$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Duration: %0\\$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Duration: %0\\$@"
+          }
+        }
+      }
+    },
+    "PROTOCOL_COMPOSER_LAYER_START": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Start: %0\\$@"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Start: %0\\$@"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Start: %0\\$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start: %0\\$@"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Start: %0\\$@"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Start: %0\\$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Start: %0\\$@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Start: %0\\$@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Start: %0\\$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Start: %0\\$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Start: %0\\$@"
           }
         }
       }
@@ -29182,6 +29466,77 @@
         }
       }
     },
+    "PROTOCOL_MENU_ERRORS_COUNT": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Errors (%0\\$@)"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Errors (%0\\$@)"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Errors (%0\\$@)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Errors (%0\\$@)"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Errors (%0\\$@)"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Errors (%0\\$@)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Errors (%0\\$@)"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Errors (%0\\$@)"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Errors (%0\\$@)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Errors (%0\\$@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Errors (%0\\$@)"
+          }
+        }
+      }
+    },
     "PROTOCOL_MENU_FILTER": {
       "extractionState": "manual",
       "localizations": {
@@ -29249,6 +29604,148 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Filter"
+          }
+        }
+      }
+    },
+    "PROTOCOL_MENU_ISSUE_LIMIT": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limit: %0\\$@"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limit: %0\\$@"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limit: %0\\$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Limit: %0\\$@"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limit: %0\\$@"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limit: %0\\$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limit: %0\\$@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limit: %0\\$@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limit: %0\\$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limit: %0\\$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Limit: %0\\$@"
+          }
+        }
+      }
+    },
+    "PROTOCOL_MENU_ISSUE_VALUE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Value: %0\\$@"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Value: %0\\$@"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Value: %0\\$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Value: %0\\$@"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Value: %0\\$@"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Value: %0\\$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Value: %0\\$@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Value: %0\\$@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Value: %0\\$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Value: %0\\$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Value: %0\\$@"
           }
         }
       }
@@ -29395,6 +29892,77 @@
         }
       }
     },
+    "PROTOCOL_MENU_MORE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "+%0\\$@ more"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "+%0\\$@ more"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "+%0\\$@ more"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "+%0\\$@ more"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "+%0\\$@ more"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "+%0\\$@ more"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "+%0\\$@ more"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "+%0\\$@ more"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "+%0\\$@ more"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "+%0\\$@ more"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "+%0\\$@ more"
+          }
+        }
+      }
+    },
     "PROTOCOL_MENU_NO_ISSUES_FOUND": {
       "extractionState": "manual",
       "localizations": {
@@ -29533,6 +30101,77 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "No Protocols Found"
+          }
+        }
+      }
+    },
+    "PROTOCOL_MENU_PROFILE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Profile: %0\\$@"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Profile: %0\\$@"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Profile: %0\\$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Profile: %0\\$@"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Profile: %0\\$@"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Profile: %0\\$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Profile: %0\\$@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Profile: %0\\$@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Profile: %0\\$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Profile: %0\\$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Profile: %0\\$@"
           }
         }
       }
@@ -29817,6 +30456,148 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Unlock Protocol"
+          }
+        }
+      }
+    },
+    "PROTOCOL_MENU_VALIDATION_TITLE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Validation: %0\\$@"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Validation: %0\\$@"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Validation: %0\\$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Validation: %0\\$@"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Validation: %0\\$@"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Validation: %0\\$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Validation: %0\\$@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Validation: %0\\$@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Validation: %0\\$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Validation: %0\\$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Validation: %0\\$@"
+          }
+        }
+      }
+    },
+    "PROTOCOL_MENU_WARNINGS_COUNT": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Warnings (%0\\$@)"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Warnings (%0\\$@)"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Warnings (%0\\$@)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warnings (%0\\$@)"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Warnings (%0\\$@)"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Warnings (%0\\$@)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Warnings (%0\\$@)"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Warnings (%0\\$@)"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Warnings (%0\\$@)"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Warnings (%0\\$@)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Warnings (%0\\$@)"
           }
         }
       }
@@ -41881,6 +42662,77 @@
         }
       }
     },
+    "UI_CONDITION_ICD11_CODE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ICD-11 %0\\$@"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ICD-11 %0\\$@"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ICD-11 %0\\$@"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ICD-11 %0\\$@"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ICD-11 %0\\$@"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ICD-11 %0\\$@"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ICD-11 %0\\$@"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ICD-11 %0\\$@"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ICD-11 %0\\$@"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ICD-11 %0\\$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "ICD-11 %0\\$@"
+          }
+        }
+      }
+    },
     "UI_CONDITION_LEAVING_NOTICE": {
       "extractionState": "manual",
       "localizations": {
@@ -50259,6 +51111,77 @@
         }
       }
     },
+    "WATCH_CONSUMABLE_LOW_BODY": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@ is running low. Order via NeurOne app."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@ is running low. Order via NeurOne app."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@ is running low. Order via NeurOne app."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%0\\$@ is running low. Order via NeurOne app."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@ is running low. Order via NeurOne app."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@ is running low. Order via NeurOne app."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@ is running low. Order via NeurOne app."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@ is running low. Order via NeurOne app."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@ is running low. Order via NeurOne app."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@ is running low. Order via NeurOne app."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@ is running low. Order via NeurOne app."
+          }
+        }
+      }
+    },
     "WATCH_ELAPSED": {
       "extractionState": "manual",
       "localizations": {
@@ -50681,6 +51604,77 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Impedance Check"
+          }
+        }
+      }
+    },
+    "WATCH_IMPEDANCE_RESULT": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@/8 electrodes passed. Check headset fit if any failed."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@/8 electrodes passed. Check headset fit if any failed."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@/8 electrodes passed. Check headset fit if any failed."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%0\\$@/8 electrodes passed. Check headset fit if any failed."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@/8 electrodes passed. Check headset fit if any failed."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@/8 electrodes passed. Check headset fit if any failed."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@/8 electrodes passed. Check headset fit if any failed."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@/8 electrodes passed. Check headset fit if any failed."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@/8 electrodes passed. Check headset fit if any failed."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@/8 electrodes passed. Check headset fit if any failed."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "%0\\$@/8 electrodes passed. Check headset fit if any failed."
           }
         }
       }
@@ -55012,77 +56006,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Destination"
-          }
-        }
-      }
-    },
-    "WEB_CONDITION_ICD11_CODE": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ICD-11 %0\\$@"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ICD-11 %0\\$@"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ICD-11 %0\\$@"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ICD-11 %0\\$@"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ICD-11 %0\\$@"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ICD-11 %0\\$@"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ICD-11 %0\\$@"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ICD-11 %0\\$@"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ICD-11 %0\\$@"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ICD-11 %0\\$@"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "ICD-11 %0\\$@"
           }
         }
       }
