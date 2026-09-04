@@ -22,6 +22,26 @@ cases C3/C4 → thermal high bounds); NP-REQ-FANHEALTH-001 (SR-FAN Class C gate)
 - **Thermal modalities are a derate ramp, not one number:** full-dose ≤ T_f; linear duty derate T_f→T_max;
   blocked > T_max (where even minimum useful dose cannot hold scalp ≤ 42 °C). All operating assumes the
   **fan running** — a fan fault drops to the SR-FAN natural-convection ceiling regardless of ambient.
+- **What the duty derate does to DOSE — decided, and it was not decided before (`NP-THERM-COOL-001`
+  D-4, 2026-09-02).** *"Linear duty derate"* left this open for two revisions and the two readings are
+  not interchangeable. **The session length is FIXED. Duty scales, so delivered dose scales with it,
+  and the session does NOT extend to compensate.** The alternative — extend to hold dose — puts a
+  20-minute 60 J/cm² protocol at **50 CEM43 in a single session at 34.5 °C**, past `NP-PWRSRC-001`
+  §5.5's 40 concern line, because this band is by definition where the face is held at the 42 °C
+  interlock and extension multiplies time there by 1/duty. Fixed length holds it at 5.0 anywhere in
+  the band.
+- **The ramp is CLAMPED at the efficacy floor and refuses below it — it never runs to zero duty.**
+  `NP-PWR-BUDGET-001` §3.4 puts the therapeutic window at **10–120 J/cm²**. A session is refused once
+  the derated dose would fall under **10 J/cm²**, rather than being derated further — *do not run a
+  session that cannot work; refuse it*, because a null session is indistinguishable from a real one to
+  the person wearing it. **The floor binds on delivered dose, so the effective block is per-protocol**,
+  landing at **33.8 / 34.2 / 34.6 °C for a 40 / 60 / 120 J/cm² protocol** rather than at a flat +35.
+  Two things this does *not* change: the duty **curve** is unchanged and still shared by every module
+  (only where a protocol stops walking down it is per-protocol), and the **+35 °C block stays exactly
+  where it is** — the clamp only ever refuses earlier. Enforcement: the floor is an **Efficacy**-class
+  bound, so it is a **non-dismissible Class B refusal** in SW-02/SW-03 and is *not* in the Class C gate
+  (`NP-FW-POE-001` §3/§4); "efficacy-class" does not make it dismissible, for the reason above.
+  Full derivation: `NP-THERM-COOL-001` §7.4, `bun scripts/check-thermal-network.ts` §17.
 - All operating bounds are **⊂ the −20/+60 °C survival envelope** (NP-ENV-001 §2).
 
 ## 2. Per-modality operating ranges (provisional)
@@ -77,6 +97,14 @@ line, at any tier, in any configuration.
    be specified after all**, and now for every helmet module at once rather than per module — which is
    less work than before, not more.
 
+**What the band does to dose, and where it stops (2026-09-02, `NP-THERM-COOL-001` D-4).** The `‖`
+rows fix the band's *endpoints*; §1 now fixes its *semantics*. **Session length is fixed and dose
+scales with duty**, and the ramp is **clamped at `NP-PWR-BUDGET-001` §3.4's 10 J/cm² efficacy floor**,
+below which the session is refused rather than derated further. So a protocol's real upper bound is
+the lower of +35 °C and its own floor crossing — **33.8 / 34.2 / 34.6 °C at 40 / 60 / 120 J/cm²**,
+at most 1.3 °C inside the block. **The `‖` numbers in §2, §4 and §5 are unchanged and remain the
+envelope**; the clamp sits beneath them and is an Efficacy-class Class B refusal, never a widening.
+
 **These bounds are decided, not provisional — the `‖` rows do not carry the `†` "pending THERM-1a"
 caveat.**
 
@@ -85,8 +113,10 @@ re-arms at +34.** The band is *not* a hold-off — while it is latched, admissio
 `ambient ≤ T_block_eff − 1.0` instead of `ambient < T_block_eff`, which is strictly more restrictive at
 every ambient and therefore composes with `NP-FW-POE-001` §5's `min()` unchanged. **A mid-session
 crossing terminates the session rather than pausing it**, which leaves no automatic re-entry path at all.
-The anchor is the *effective* block, not the constant +35, so the rule survives whatever `OI-THCOOL-17`
-decides about the per-protocol efficacy clamp. Sizing: `NP-THERM-COOL-001` §7.5; normative encoding:
+The anchor is the *effective* block, not the constant +35, so the rule survived `OI-THCOOL-17`: that item
+closed on 2026-09-03 and made the effective block per-protocol (33.8 / 34.2 / 34.6 °C at 40 / 60 /
+120 J/cm², §1), and §6.1 needed no revision — the efficacy-floor edge simply inherits the 1.0 °C band and
+the terminate-never-pause rule. Sizing: `NP-THERM-COOL-001` §7.5; normative encoding:
 `NP-FW-POE-001` §6.1. **No bound in this table moves** — the latch can only ever restrict.
 
 ## 3. Shared-electronics base envelope (inherited by every protocol)
@@ -108,6 +138,11 @@ self-heating + fan set the practical top). Any protocol's envelope is the base �
 | VNS/HRV clip | 0 → +45 | PPG perfusion |
 | Audio / goggles | −10 → +45–50 | non-limiting / MPE |
 
+**The `‖` bound is the envelope; a protocol's effective ceiling can be up to 1.3 °C lower.** Every row
+above still blocks at +35 and derates from +30 — that is a *module* property. The efficacy-floor clamp
+(§1) is a *protocol* property and composes on top of it, so a light protocol on a T1-A module refuses
+at 33.8 °C while a heavy one on the same module reaches 34.6 °C. Nothing in this table changes.
+
 **Construction matters independently of modality (the design point):** T1-C's low bound is set by its
 on-module ATtiny/FETs, not by PBM; T2-D's high bound by its TEC, not by "PBM" generically.
 
@@ -120,6 +155,10 @@ on-module ATtiny/FETs, not by PBM; T2-D's high bound by its TEC, not by "PBM" ge
 | tDCS priming | T1-B (tES) | −10 → +45 | interlocks (not ambient) |
 | Deep-PBM cognition (1064) | T1-A + T1-C | 0‡ → **+35 ‖** (derate +30) | 1064 module low bound + PBM thermal |
 | **Full multi-modal** (PBM+1170+EEG+tES+audio) | T1-A/B/C + T2-D | **+5 → +35 ‖** (derate +30) | gel (low); **high bound is now the shared band, not the 1170 TEC** |
+
+**These envelopes are module intersections, and the efficacy-floor clamp applies after them.** The
+`‖` high bound is what the *modules* permit; §1's clamp then trims it by the activated PBM protocol's
+own dose. The EEG-only and tDCS rows are untouched — they carry no PBM dose, so no floor applies.
 
 This is the user's principle made concrete: **the protocol's envelope is set by its most-limiting
 included modality** — an EEG-only session is usable across a far wider ambient band than a 1170 nm laser session.
@@ -138,12 +177,13 @@ included modality** — an EEG-only session is usable across a far wider ambient
 
 | ID | Description | Owner |
 |----|-------------|-------|
-| OI-OPR-01 | Replace † bounds with THERM-1a C3/C4 outputs (full-dose ceiling + derate curve per config) | Thermal |
+| OI-OPR-01 | Replace † bounds with THERM-1a C3/C4 outputs (full-dose ceiling + derate curve per config). **Scoped by `NP-THERM-COOL-001` D-4 (2026-09-02): the curve must terminate at the efficacy-floor duty, not run to zero.** Rev 7 already reduced this to *one* curve for every helmet module; D-4 does not re-expand it — the curve stays shared and gains a **termination rule** whose input is the protocol's dose, so the deliverable is one curve plus a rule, not a family of curves | Thermal |
 | OI-OPR-02 | ATtiny402/FET grade decision (commercial vs industrial) → fixes T1-C low bound | EE |
 | OI-OPR-03 | TEC ΔT-capacity spec → fixes T2-D high bound; confirm laser setpoint-error sensing feeds the gate | EE + Thermal |
 | OI-OPR-04 | Confirm gel operating band + that impedance monitoring is the enforcement (no ambient gel gate) | Consumables + FW |
 | OI-OPR-05 | **Designed → NP-FW-POE-001** (POE block in the signed descriptor; MCU-table-authoritative min() enforcement so it can't widen safety). Residual: OI-POE-01…06 there | FW |
 | OI-OPR-06 | **Ambient sense source → `OI-ENV-05`, and it now has a second dependant.** `NP-FW-POE-001` §6.1's `t_dwell` (60 s with a dedicated ambient NTC; ≥ 5τ_hub with the hub NTC as proxy) cannot be given a number until the source is fixed; the shipped MCU config carries five cranial sense domains plus the hub NTC and no ambient channel. Not blocking — the proxy error is fail-safe (self-heating reads high → more restrictive) | Thermal + FW |
+| OI-OPR-07 | **The efficacy floor is inherited, not owned, and it is a single hard-coded number.** 10 J/cm² comes from `NP-PWR-BUDGET-001` §3.4's *10–120 J/cm²* literature band, whose own text gives the minimum threshold as **≥10–60 J/cm², delivered repeatedly** — a range, and one that may well be wavelength- and indication-dependent (660 vs 808 vs 1064 vs 1170 nm; the 1064 nm channel is already recorded there as 9× under its own protocol's specification). Taking the bottom of the range makes the clamp permissive: a session between 10 and 60 J/cm² is admitted and may still be sub-threshold for its indication. **Fix the floor's provenance and whether it is one number or a per-modality table**, and state which document owns it — the clamp is only as good as this input | Thermal + Clinical |
 
 ## 8. Cross-references
 

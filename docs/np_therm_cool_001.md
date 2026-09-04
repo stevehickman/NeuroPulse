@@ -2,21 +2,62 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 9
-**Date:** 2026-09-02
+**Revision:** 10
+**Date:** 2026-09-03
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (pending design review)
-**References:** NP-THERM-CFD-R1-001 Rev 1 (§2 the resistance network, §3 the inward-flux ceiling, §5 BN-boss export study, §5.3 findings, OI-R1-01…05); NP-THERM-CFD-001 (BC spec, case matrix); NP-THERM-CFD-C2-001 (§2 stack-up, §7 the 1D network); NP-THERM-BEZEL-001 (THERM-1 coupling, the 0.6–1.0 mm scalp gap); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-PWR-BUDGET-001 Rev 3 (§3.2 aggregate estimate, §3.3 the three levers, OI-PWR-01/08); NP-PWRSRC-001 Rev 1 (§4.1 the cavity wall, §7.0 coverage 2/23); NP-HEX-ZM-001 (§5.1–5.3 two-bowl shell, §5.3a rim slot, §5.3c posterior boss, §5.3d mu-metal continuity); NP-DRV-SHELL-002 Rev 2 (§4.3 one aperture, segregated returns); NP-ENV-001 (§1 two envelopes, §2 survival, §5 humidity survival-only); NP-ENV-OPRANGE-001 (§2 per-modality ambient bounds); NP-DT-001 Rev 2 (DI-SAFE-13); NP-HELMET-GEOM-001 (§2 radial stack, §8 THERM-1a gate); CLAUDE.md §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power); IEC 60601-1 (42 °C applied part); `scripts/check-thermal-network.ts` (§18, the hysteresis sizing); `firmware/safety_mcu/src/np_thermal_interlock.c` + `np_safety_config.h` (the 62/55 °C junction re-arm precedent §7.5.1 declines to copy)
+**References:** NP-THERM-CFD-R1-001 Rev 1 (§2 the resistance network, §3 the inward-flux ceiling, §5 BN-boss export study, §5.3 findings, OI-R1-01…05); NP-THERM-CFD-001 (BC spec, case matrix); NP-THERM-CFD-C2-001 (§2 stack-up, §7 the 1D network); NP-THERM-BEZEL-001 (THERM-1 coupling, the 0.6–1.0 mm scalp gap); NP-REQ-FANHEALTH-001 (SR-FAN-01…06, Path B1); NP-PWR-BUDGET-001 Rev 3 (§3.2 aggregate estimate, §3.3 the three levers, OI-PWR-01/08); NP-PWRSRC-001 Rev 1 (§4.1 the cavity wall, §7.0 coverage 2/23); NP-HEX-ZM-001 (§5.1–5.3 two-bowl shell, §5.3a rim slot, §5.3c posterior boss, §5.3d mu-metal continuity); NP-DRV-SHELL-002 Rev 2 (§4.3 one aperture, segregated returns); NP-ENV-001 (§1 two envelopes, §2 survival, §5 humidity survival-only); NP-ENV-OPRANGE-001 (§1 the derate definition, §2 per-modality ambient bounds); NP-FW-POE-001 (§3 the POE block, §5 the min() rule, §6.1 the hard-edge hysteresis — the consumers of §7.4); NP-PWR-BUDGET-001 Rev 3 §3.4 (the efficacy floor); NP-PWRSRC-001 Rev 1 §5.5 (CEM43 and time-at-ceiling); NP-DT-001 Rev 2 (DI-SAFE-13); NP-HELMET-GEOM-001 (§2 radial stack, §8 THERM-1a gate); CLAUDE.md §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power); IEC 60601-1 (42 °C applied part); `scripts/check-thermal-network.ts` (§17 the derate semantics, §18 the hysteresis sizing); `firmware/safety_mcu/src/np_thermal_interlock.c` + `np_safety_config.h` (the 62/55 °C junction re-arm precedent §7.5.1 declines to copy)
 **Related Issues:** —
-**Gate:** No gate. D-1, D-2 and D-3 are all **decided** (2026-08-30/31, principal); raises `OI-THCOOL-01…17`, of which `OI-THCOOL-06` and `OI-THCOOL-16` are closed.
+**Gate:** No gate. D-1, D-2, D-3 and D-4 are all **decided** (2026-08-30/31 and 2026-09-02/03); raises `OI-THCOOL-01…20`, of which `OI-THCOOL-06`, `OI-THCOOL-16` and `OI-THCOOL-17` are closed.
 **IEC 62304 Class:** — (analysis document; no code changed). No SR-FAN requirement is altered.
 **Supersedes:** None — new document.
 **Parent Document:** NP-THERM-CFD-R1-001
 
 ---
 
+> **Rev 10 (2026-09-03) — D-4 decides the derate semantics Rev 8 raised: the session length is
+> FIXED, dose scales with duty, and the ramp is clamped at the efficacy floor and refuses below it.
+> `OI-THCOOL-17` closes; §7.4 is rewritten from a proposal into a decision.** Rev 8 stated two
+> readings of *"linear duty derate"* and said neither was free. It is settled the way Rev 8 proposed,
+> but on a reason Rev 8 did not have: **the dose-preserving reading is not merely expensive, it
+> breaches the one thermal-injury line the document set draws.** `scripts/check-thermal-network.ts`
+> §17.2 puts a 20-minute 60 J/cm² protocol, extended to hold dose, at **25 CEM43 at 34 °C and 50 at
+> 34.5 °C — past `NP-PWRSRC-001` §5.5's 40 CEM43 concern line in a single session** — because the
+> derate band is by construction the region where the face is held at the 42 °C interlock, and
+> extension multiplies time there by 1/duty. Fixed length holds it at **5.0 CEM43 anywhere in the
+> band.** That is decisive rather than a trade, and it is §5.5's own finding one level down: the
+> interlock caps temperature and says nothing about how long the face may stay there.
+>
+> **The clamp.** Derate down the shared curve to the duty at which the protocol reaches
+> `NP-PWR-BUDGET-001` §3.4's 10 J/cm² floor, then **refuse** — never derate below it. Effective block
+> becomes per-protocol (33.8 / 34.2 / 34.6 °C at 40 / 60 / 120 J/cm²), costing **at most 1.3 °C** off
+> an envelope §7.2 already records as ~8 °C more conservative than the physics requires.
+>
+> **Three things Rev 8 did not see, each recorded rather than left to be discovered.**
+> **(i) Rev 7's "one curve for every module" survives intact** — the duty curve is unchanged and
+> still shared; only *where a protocol stops walking down it* is per-protocol, so `OI-OPR-01`
+> specifies one curve plus a termination rule, not a family of curves.
+> **(ii) The floor clamp must NOT enter the Class C gate**, which is where `OI-THCOOL-17` assumed
+> protocol dose was needed. Running a sub-threshold session is ineffective, not hazardous, so by
+> `NP-ENV-001` §4's own class rule it is not a safety bound; siting it in SW-01 would put an efficacy
+> computation inside the certified boundary and re-open it every time the floor is revised. It is a
+> **non-dismissible Class B refusal** in SW-02/SW-03, and `NP-FW-POE-001` §1's load-bearing property
+> is untouched. **(iii) The clamp inverts dose ordering** — a 120 J/cm² protocol runs in a *hotter*
+> room than a 40 J/cm² one — which is correct but reads backwards, and makes the only honest advice
+> at a refusal *"a higher-dose protocol may still run."* `OI-THCOOL-18`.
+>
+> **`OI-THCOOL-16` needs no reopening, and Rev 9 is why.** §7.5 anchored its rule on
+> `T_block_eff = min(TABLE_block, POE_block)` rather than on the constant +35 *precisely so it would
+> hold whichever way this item landed* — so the efficacy-floor edge inherits the 1.0 °C band and the
+> terminate-never-pause rule for free, and §7.5's conditional *"if `OI-THCOOL-17`'s efficacy clamp is
+> adopted"* is now simply the case. It also **answers a question this decision would otherwise have
+> raised**: what happens when ambient crosses the floor edge mid-session. It terminates. New
+> `OI-THCOOL-18` (HFE), `OI-THCOOL-19` (the dose input and its integrity), `OI-THCOOL-20` (T2 research
+> protocols that are sub-threshold by design). **No number in §2–§6 changes; the band's endpoints are
+> untouched.**
+>
 > **Rev 9 (2026-09-02) — `OI-THCOOL-16` CLOSED. New §7.5 specifies the hysteresis on the ambient hard
 > edges: Δ = 1.0 °C, anchored on the *effective* block rather than on 35.0, and applied as a raised
 > admission bar rather than a hold-off.** Three independent bounds land on the same number — the shipped
@@ -784,53 +825,121 @@ changes the character of the fan-fault derate.
 
 ---
 
-**7.4 — The derate semantics are unspecified, and the default reading reopens what D-1 closed.**
+**7.4 — ✅ DECIDED (D-4, 2026-09-02): the session length is fixed, dose scales with duty, and the
+ramp is clamped at the efficacy floor and refuses below it. `OI-THCOOL-17` closes.**
 
-`NP-ENV-OPRANGE-001` §1 says *"linear **duty** derate T_f → T_max."* Duty scales. **Nothing in the
-document set says the session extends to compensate**, so on the text as written a fixed-length session
-in the derate band delivers proportionally less dose. `bun scripts/check-thermal-network.ts` §17, for a
-typical 60 J/cm² protocol:
+`NP-ENV-OPRANGE-001` §1 said *"linear **duty** derate T_f → T_max"* and stopped there. Duty scales;
+**nothing said whether the session extends to compensate**, and the two readings are not
+interchangeable. Rev 8 put both on the table and concluded neither was free. They are not equally
+unfree, and §17 of `bun scripts/check-thermal-network.ts` produces every figure below.
 
-| Ambient | Duty | Dose | |
+**7.4.1 — The reading as written, and how much of it is actually pathological.**
+
+| Ambient | Duty | Dose (60 J/cm² protocol) | |
 |---:|---:|---:|---|
 | ≤ 30 °C | 100 % | 60 J/cm² | full dose |
-| 32 °C | 60 % | 36 | under-dosed against the pre-Rev-7 envelope |
-| 34 °C | 20 % | 12 | just above the floor |
+| 32 °C | 60 % | 36 | under-dosed — **but inside the 10–120 J/cm² band** |
+| 34 °C | 20 % | 12 | still inside it, barely |
 | **34.2 °C** | 17 % | **10** | **reaches `NP-PWR-BUDGET-001` §3.4's efficacy floor** |
 | 34.5 °C | 10 % | 6 | **sub-threshold — a session that cannot work** |
 
-> **This is the failure mode the D-1 chain existed to remove, quietly restored.** §7.2 records that the
-> old +35 → +43 band was retired partly because its top was where a *"completed"* sub-threshold session
-> could occur, and Rev 6's zero-width band eliminated the zone entirely. Rev 7's shared band brings back
-> a **~0.8 °C sliver** of it. **A null session is indistinguishable from a real one to the person
-> wearing it**, which is what makes it worse than a refusal.
+Rev 8 read this as the D-1 failure mode restored wholesale. **It is narrower than that, and the
+correction matters because it sizes the fix.** §3.4's therapeutic window is 10–120 J/cm², so a
+derated 36 J/cm² session is a *weaker* treatment, not a null one — most of the 5 °C band lands
+inside the window. Only the top **~0.8 °C** does not, and that sliver is where the device runs to
+completion and cannot work. **A null session is indistinguishable from a real one to the person
+wearing it**, which is what makes it worse than a refusal. The crossover moves with the protocol's
+dose — 33.8 °C at 40 J/cm², 34.6 °C at 120 — so it is **per-protocol, not one temperature.**
 
-The crossover moves with the protocol's full dose — 33.8 °C at 40 J/cm², 34.6 °C at 120 — so it is
-**per-protocol, not a single temperature.**
+**7.4.2 — The dose-preserving reading is not a trade. It breaches the one thermal-injury line the
+document set draws, and that is what decided D-4.**
 
-**The alternative reading is not free either.** If the session instead *extends* to hold dose constant,
-efficacy is preserved but a 20-minute session becomes 33 min at 32 °C and **100 min at 34 °C** — and
-time-at-ceiling is exactly what drives CEM43 (`NP-PWRSRC-001` §5.5, where cascading generates the only
-real thermal-injury exposure in the document set). That trades an efficacy problem for a thermal-dose
-one. **Both readings have a cost, which is why the semantics must be chosen rather than inherited.**
+Rev 8 costed extension in minutes: a 20-minute session becomes 100 min at 34 °C. The right unit is
+CEM43. **The derate band is by construction the region where the face is held at the 42 °C
+interlock** — that is what the derate is *for* — so `NP-PWRSRC-001` §5.5's accumulation rate of
+**0.25 CEM43/min at the limit** is the design condition inside the band, not a pessimistic overlay:
 
-**Proposed shape: clamp the derate at the efficacy floor and block there, rather than ramping to zero.**
+| Ambient | Duty | Extended session | **CEM43, one session** |
+|---:|---:|---:|---:|
+| 30 °C | 100 % | 20 min | 5.0 |
+| 32 °C | 60 % | 33 min | 8.3 |
+| 34 °C | 20 % | 100 min | **25.0** |
+| 34.5 °C | 10 % | 200 min | **50.0 — past the 40 CEM43 concern line** |
 
-| Protocol full dose | Blocks at | (instead of a flat 35.0 °C) |
-|---:|---:|---|
-| 40 J/cm² | 33.8 °C | duty floor 25 % |
-| 60 J/cm² | 34.2 °C | duty floor 17 % |
-| 120 J/cm² | 34.6 °C | duty floor 8 % |
+> **A routine 20-minute protocol, run in a 34.5 °C room under the dose-preserving reading, exceeds
+> `NP-PWRSRC-001` §5.5's 40 CEM43 line in a single session.** Fixed length holds it at **5.0 CEM43
+> at every ambient in the band**, because duty, not duration, is what moves. §5.5 already stated the
+> mechanism in general terms — *"the interlock caps temperature and says nothing about how long the
+> face may stay there"* — and found it in cascading; extension is the same defect reached from the
+> other direction, and it arrives without anyone choosing it, as the default reading of one word.
 
-This is **D-1's own principle one level down — do not run a session that cannot work; refuse it** — and
-it costs at most 1.2 °C of an envelope that §7.2 already notes is ~8 °C more conservative than the
-physics requires. It makes the block per-protocol rather than a single constant, which is the one real
-complication: `NP-FW-POE-001`'s gate would need the protocol's dose as an input. **`OI-THCOOL-17`**, and
-`OI-OPR-01` inherits the constraint — the curve it specifies must carry a floor, not run to zero.
+**This is why D-4 is not a balance of costs.** Under-dosing inside the therapeutic window is a
+weaker session; extension past the concern line is a thermal-dose exposure. The first is fixable
+with a clamp; the second is not fixable at all without an arbitrary length cap — and at that cap
+extension is back to under-dosing, so it **relocates the failure mode rather than removing it.**
 
-**One thing this does not change.** The band applies to PBM only. `NP-ENV-OPRANGE-001` §5's intersection
-rule leaves EEG-only at +5 → +45 and tDCS at −10 → +45, so a user in a 33 °C room keeps full-capability
-EEG and tES. Only PBM protocols derate, which bounds the blast radius considerably.
+**7.4.3 — The clamp: derate to the efficacy floor, then refuse.**
+
+| Protocol full dose | Length | Duty floor | **Blocks at** | (was) | CEM43 at its own length |
+|---:|---:|---:|---:|---:|---:|
+| 40 J/cm² | 13.3 min | 25 % | **33.8 °C** | 35.0 °C | 3.3 |
+| 60 J/cm² | 20 min | 17 % | **34.2 °C** | 35.0 °C | 5.0 |
+| 90 J/cm² | 25 min | 11 % | **34.4 °C** | 35.0 °C | 6.3 |
+| 120 J/cm² | 30 min | 8 % | **34.6 °C** | 35.0 °C | 7.5 |
+
+This is **D-1's own principle one level down — do not run a session that cannot work; refuse it** —
+and it costs **at most 1.3 °C** off the top of an envelope §7.2 already records as ~8 °C more
+conservative than the physics requires.
+
+**Rev 7's "one curve for every module" is not disturbed.** The duty curve is unchanged and still
+shared by T1-A, T1-B, T1-C, T2-D and the intranasal probe. What is per-protocol is only **where a
+protocol stops walking down it**, since the floor binds on *delivered dose* and the derate is
+multiplicative. `OI-OPR-01` therefore specifies **one curve plus a termination rule**, not a family
+of curves — strictly less work than Rev 7 left it with.
+
+**7.4.4 — The clamp is a Class B refusal, and `OI-THCOOL-17`'s own premise about where the dose
+input lands is corrected here.**
+
+`OI-THCOOL-17` said the per-protocol block *"makes `NP-FW-POE-001`'s gate need protocol dose as an
+input."* **The descriptor needs it; the Class C gate must not have it.**
+
+- **Running a sub-threshold PBM session is ineffective, not hazardous.** By `NP-ENV-001` §4's own
+  class rule that makes the floor an **Efficacy**-class bound, and Efficacy-class bounds are not
+  enforced in SW-01. Siting it there would put an efficacy computation inside the certified Class C
+  boundary and re-open that boundary every time `NP-PWR-BUDGET-001` §3.4's floor is revised — for a
+  quantity that cannot injure anyone.
+- **`NP-FW-POE-001` §1's load-bearing property survives untouched.** The MCU's authoritative table
+  still terminates at 0 % above +35 °C; the floor clamp only ever refuses *earlier*. A descriptor
+  that overstates its dose therefore degrades **its own efficacy guarantee and nothing else** — it
+  cannot widen any thermal bound, because +35 is not its to move.
+- **Efficacy-class does not mean dismissible here.** `NP-ENV-001` §4 pairs SOFT with a dismissible
+  warning, and that default is wrong for this one bound for D-1's exact reason: the user cannot tell
+  a null session from a real one, so "run it anyway" is a choice made without the information that
+  would inform it. It is a **non-dismissible Class B refusal** in SW-02 (session runner) and SW-03
+  (app). SW-02 runs on the main processor, so **Mode 3 autonomy is covered without the app present.**
+
+The encoding — `dose_full_dJ`, a derived `duty_floor_pct`, and a distinct refusal reason — is
+specified in `NP-FW-POE-001` §3. Residual: `OI-THCOOL-19`.
+
+**7.4.5 — One consequence that reads backwards, stated because it will be misread.**
+
+A **120 J/cm² protocol survives to 34.6 °C; a 40 J/cm² protocol blocks at 33.8 °C.** The heavier
+protocol runs in the hotter room. That is arithmetically correct — the floor is on delivered dose,
+and 8 % of 120 still clears 10 J/cm² where 25 % of 40 only just does — but it inverts the
+intuition, and it means the only honest advice at a refusal is *"a higher-dose protocol may still
+run,"* never *"try a shorter one."* That is an odd sentence to put in front of a user and it is not
+an HFE detail: `OI-THCOOL-18`.
+
+**It is also not free, and the clamp inherits §7.4.2's objection in bounded form.** The heavier
+protocol buys its extra 0.8 °C by spending 2.3× the time at the ceiling (7.5 against 3.3 CEM43).
+**The difference from the extension reading is the bound, and it is the whole distinction:** the
+time spent is the protocol's *own declared length*, fixed at authoring time and already audited
+across the protocol library by `scripts/check-thermal-dose.ts`, not a new ambient-dependent length
+that nothing in the document set has assessed.
+
+**One thing this does not change.** The band applies to PBM only. `NP-ENV-OPRANGE-001` §5's
+intersection rule leaves EEG-only at +5 → +45 and tDCS at −10 → +45, so a user in a 33 °C room keeps
+full-capability EEG and tES. Only PBM protocols derate, which bounds the blast radius considerably.
 
 ---
 
@@ -962,7 +1071,7 @@ Steps 1 and 2 are incremental work on an adopted architecture with no EMF, regul
 consequence, and together are worth roughly half of §5's total. **Do them regardless of what is decided
 about step 3.**
 
-**Two decisions for the principal:**
+**Four decisions, all closed:**
 
 - **D-1 — ✅ DECIDED (principal), in three steps, ending in one shared band: full dose ≤ +30 °C, derate
   +30 → +35, block > +35, on every helmet module and the intranasal probe.** (i) Block +43 → +38
@@ -994,6 +1103,25 @@ about step 3.**
   changes nothing. Recorded in `docs/reference/accessories-roadmap.md`; a complete ordered priority
   set across **all** accessories is raised as a general TODO in
   `docs/status/pending-decisions.md` §13.2.
+- **D-4 — ✅ DECIDED 2026-09-02: fixed session length, dose scales with duty, and the ramp is
+  clamped at the efficacy floor (§7.4).** Rev 8 raised the question and called both readings costly;
+  they are not equally costly. **The dose-preserving reading puts a routine 20-minute 60 J/cm²
+  protocol past `NP-PWRSRC-001` §5.5's 40 CEM43 concern line in a single session at 34.5 °C** — 50
+  against the 5.0 that fixed length holds anywhere in the band — because the derate band is by
+  construction where the face sits at the 42 °C interlock, and extension multiplies time there by
+  1/duty. That is §5.5's own finding arriving by default, as the reading of one unqualified word.
+  **The clamp:** derate down the shared curve to the duty at which the protocol reaches
+  `NP-PWR-BUDGET-001` §3.4's 10 J/cm² floor, then refuse — 33.8 / 34.2 / 34.6 °C at 40 / 60 /
+  120 J/cm², costing at most 1.3 °C. **Three consequences recorded rather than discovered:**
+  (i) Rev 7's one-curve-for-every-module result is **intact** — the curve is shared, only the
+  termination point is per-protocol, so `OI-OPR-01` gains a rule, not a family of curves;
+  (ii) the floor is an **Efficacy**-class bound and is enforced as a **non-dismissible Class B
+  refusal in SW-02/SW-03, never in the Class C gate** — which corrects `OI-THCOOL-17`'s own premise
+  about where protocol dose belongs, and leaves `NP-FW-POE-001` §1's load-bearing property untouched;
+  (iii) the clamp **inverts dose ordering** — the heavier protocol runs in the hotter room —
+  correct but backwards-reading, and it costs 2.3× the time at ceiling, bounded by the protocol's own
+  declared length rather than an ambient-dependent one (`OI-THCOOL-18`). Applied to
+  `NP-ENV-OPRANGE-001` §1/§2/§7 and `NP-FW-POE-001` §1/§3/§4/§5/§9.
 
 ---
 
@@ -1031,9 +1159,12 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | **OI-THCOOL-04** | Thermally specify the Layer 4 EMI absorber — 18 % of the outward path, currently specified in dB only | ME + EMC | No |
 | **OI-THCOOL-05** | Characterise the via *interface* (contact + spreading + sink), which §3 shows is ~90 % of that path's resistance | ME | No |
 | **OI-THCOOL-15** | **Gap-pad geometry and contact (§6.9.1).** Fix the pad diameter and coverage fraction against the cluster-clamp and fluxgate keep-outs; establish real two-face contact across the curved 5–7 mm gap under the tolerance stack; and resolve **what the pad compresses against** — the absorber foam is itself compressible, so a pad pressed against it never reaches rated conductivity. Must be electrically insulating and non-magnetic (fluxgates inner, Helmholtz outer), and survive compression set over repeated bowl separations. **Coupled to `OI-THCOOL-04`** — the absorber's thermal spec and the pad's land are one decision. **The gating question for the largest term in the outward path** | ME (+EMC) | **Gates §6.9** |
-| **OI-THCOOL-17** | **Choose the derate semantics, and clamp the ramp at the efficacy floor (§7.4).** As written, *"linear duty derate"* means a fixed-length session under-doses, going sub-threshold above ~34.2 °C for a 60 J/cm² protocol — reopening the completed-but-ineffective session D-1 closed. Extending the session instead preserves dose but multiplies time-at-ceiling, which drives CEM43. **Decide which, and clamp duty at the floor so no session is ever sub-threshold.** Makes the block per-protocol, so `NP-FW-POE-001`'s gate needs protocol dose as an input. **`OI-OPR-01` inherits this: the curve must carry a floor, not run to zero** | FW + Thermal | **Gates `OI-OPR-01`** |
+| ~~OI-THCOOL-17~~ | **✅ CLOSED 2026-09-02 by D-4 (§7.4) — fixed session length, dose scales with duty, and the ramp is clamped at `NP-PWR-BUDGET-001` §3.4's 10 J/cm² floor and refuses below it.** The dose-preserving alternative was not merely costly: it puts a 20-minute 60 J/cm² protocol at **50 CEM43 at 34.5 °C, past `NP-PWRSRC-001` §5.5's 40 concern line in one session**, against 5.0 for fixed length anywhere in the band. Effective block becomes per-protocol (33.8 / 34.2 / 34.6 °C at 40 / 60 / 120 J/cm²), at most 1.3 °C. **This item's own premise is corrected in closing it:** the descriptor gains protocol dose, but the **Class C gate must not** — a sub-threshold session is ineffective, not hazardous, so it is an Efficacy-class bound enforced as a non-dismissible **Class B** refusal in SW-02/SW-03 (`NP-FW-POE-001` §3/§4). `OI-OPR-01` inherits a **termination rule on one shared curve**, not a family of curves. **Costs `OI-THCOOL-16` nothing**: §7.5 anchored its band on `T_block_eff`, not on the constant +35, so the floor edge inherits the 1.0 °C hysteresis and the terminate-never-pause rule already, and §7.5's *"if the clamp is adopted"* conditional is now simply the case. Residuals: `OI-THCOOL-18`, `-19`, `-20` | — (closed) | — |
 | ~~OI-THCOOL-16~~ | **✅ CLOSED 2026-09-02 by §7.5.** Band **Δ = 1.0 °C** on every ambient hard edge, anchored on `T_block_eff = min(TABLE_block, POE_block)` rather than on the constant 35.0, and applied as a **raised admission bar** (`ambient ≤ T_block_eff − Δ` while latched) rather than a hold-off — strictly more restrictive at every ambient, so it composes with `NP-FW-POE-001` §5's `min()` untouched. A mid-session crossing **terminates** the session rather than pausing it, which removes the last automatic re-entry path. Normative in `NP-FW-POE-001` §6.1. Retained struck-through per `NP-CONV-001` §4. **Residual, not blocking:** `t_dwell` inherits `OI-ENV-05` (60 s with a dedicated ambient NTC, ≥ 5τ_hub with the hub NTC as proxy — fail-safe either way), and a sub-1 °C band would need the ambient path specified at 0.1 °C resolution → `OI-POE-06` | FW (closed) | — |
 | ~~OI-THCOOL-16 (original text)~~ | **Hysteresis on the +35 °C PBM ambient cliff.** With the derate band collapsed (Rev 6), the T1-A envelope is a hard block at a single temperature, so an ambient NTC sitting on +35 could chatter start/stop. Specify the hysteresis band and its interaction with `NP-FW-POE-001`'s gate | FW | No |
+| **OI-THCOOL-18** | **The dose-ordering inversion is a human-factors problem, not a copy problem (§7.4.5).** Because the floor binds on delivered dose and the derate is multiplicative, a **120 J/cm² protocol runs in a hotter room than a 40 J/cm² one** — heavier survives longer. The only honest advice at a refusal is therefore *"a higher-dose protocol may still run"*, which reads as an instruction to take more treatment because the room is hot. Establish whether that can be said safely at all, or whether the refusal should name the room rather than the protocol; owned with `NP-HFE-001`/`NP-HFE-002`. **Do not resolve it by hiding the inversion** — a user who discovers it unaided will read it as a fault | HFE + App | No |
+| **OI-THCOOL-19** | **Protocol dose becomes a signed descriptor input, and nothing yet checks it against what the protocol actually commands.** `NP-FW-POE-001` §3 gains `dose_full_dJ`; the floor clamp is computed from it. Overstating it cannot widen any thermal bound (§7.4.4) — the Class C table still blocks at +35 — but it silently defeats the efficacy guarantee this decision exists to provide, which is the very failure mode D-4 closes, re-entering through the descriptor instead of the ambient. Specify the consistency check between `dose_full_dJ` and the commanded irradiance × duty × length, where it runs (app sign-time, SW-02 admission, or both), and what an inconsistency does | FW + App | No |
+| **OI-THCOOL-20** | **A sub-threshold session is sometimes the point — T2 research needs a way to say so.** The clamp refuses any session below 10 J/cm², but sham and dose-ranging arms are deliberately sub-threshold, and `NP-IRB-001`/the T2 scripting API can legitimately request one. Decide whether a signed research descriptor may declare intent and bypass the **efficacy** floor (never the +35 thermal block), and how that is surfaced to the wearer without unblinding the arm. **Not a T1 question** — the T1 refusal is absolute | FW + Clinical | No |
 | ~~OI-THCOOL-06~~ | **✅ CLOSED 2026-08-30 by D-2** — this was BLOCKING only on the pneumatic loop's penetration of the posterior boss, and §6.9 puts that loop out of scope. Retained struck-through rather than deleted, per `NP-CONV-001` §4's append-only open-item rule; reopen only if the loop is revived | — (closed) | — |
 | ~~OI-THCOOL-06 (original text)~~ | **Bench-measure ELF magnetic leakage through a mu-metal chimney collar at the posterior boss with tube penetrations.** Waveguide-below-cutoff does not apply below ~100 Hz | EMC (EMF-1) | **BLOCKING on §6.2** |
 | **OI-THCOOL-07** | Confirm the sealed loop's condensation behaviour across the `NP-ENV-001` §2.2 warm-up transient — fixed absolute humidity should help, but the cold-optics case is untested | Thermal | No |
@@ -1053,11 +1184,17 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 (BCs, stack-up) · `NP-REQ-FANHEALTH-001` (SR-FAN — **unchanged by this study**) · `NP-PWR-BUDGET-001`
 §3.2/§3.3 (aggregate ceiling, the three levers this adds a fourth to) · `NP-PWRSRC-001` §4.1/§7.0 (the
 cavity wall, 2/23 coverage) · `NP-HEX-ZM-001` §5.1–5.3 (two-bowl shell, the one existing aperture) ·
-`NP-DRV-SHELL-002` §4.3 (share the aperture) · `NP-ENV-OPRANGE-001` (the ambient bounds §7 validates) ·
+`NP-DRV-SHELL-002` §4.3 (share the aperture) · `NP-ENV-OPRANGE-001` (the ambient bounds §7 validates; §1's derate definition, which §7.4 completes) ·
+`NP-FW-POE-001` §1/§3/§4/§5 (the descriptor block that carries §7.4's dose input, and the min() rule
+that keeps the efficacy floor out of the Class C gate) · `NP-PWR-BUDGET-001` §3.4 (the efficacy floor
+§7.4 clamps at) · `NP-PWRSRC-001` §5.5 (the CEM43 accounting that decided D-4) · `NP-HFE-001` /
+`NP-HFE-002` (`OI-THCOOL-18`) · `NP-IRB-001` (`OI-THCOOL-20`) ·
 `NP-DT-001` DI-SAFE-13 · `NP-PWRSRC-001` §11 (the `min(electrical, thermal, dose)` governor §6.7.1
 raises one term of), §12 (the prohibition D-3 invokes), §5.5 (the CEM43 exposure §6.7.2 attacks) ·
 `NP-ENV-001` §5 (no live RH sensor — §6.7.3) · `NP-REQ-FANHEALTH-001` `SR-FAN-06` (the fail-safe rule
 §6.8 inherits) · CLAUDE.md §1 (Mode 3 autonomy), §3 (RISK-14 dual-PD), §4.2/§4.3/§4.5 ·
 `scripts/check-pbm-power.ts` (where `maxConcurrent` becomes session length) ·
-`scripts/check-thermal-network.ts` §9–§18 · `NP-FW-POE-001` §6.1 (the hysteresis §7.5 specifies) ·
+`scripts/check-thermal-network.ts` §9–§18 (§17 produces every §7.4 figure, §18 every §7.5 one) ·
+`scripts/check-thermal-dose.ts` (the CEM43 model §7.4.2 uses, and the per-protocol audit §7.4.5 relies on) ·
+`NP-FW-POE-001` §6.1 (the hysteresis §7.5 specifies, whose anchor §7.4 makes per-protocol) ·
 `firmware/safety_mcu/src/np_thermal_interlock.c` (the 62/55 °C junction re-arm precedent)
