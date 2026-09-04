@@ -38,81 +38,71 @@ enum NPModalityType: String, CaseIterable, Codable, Identifiable {
     var id: String { rawValue }
 
     // MARK: Display name
+    //
+    // These three properties are a SEPARATE key family from the web table's
+    // MODALITY_<id>_NAME / _CONSUMER / _DESC: 35 of the 45 strings differ in
+    // wording between the two surfaces today (see the PR body). The keys hold
+    // this app's current text verbatim so nothing on screen changes; collapsing
+    // the two families is a copy decision, not a refactor.
     var displayName: String {
         switch self {
-        case .pbmTranscranial:   return "Transcranial PBM"
-        case .pbmIntranasal:     return "Intranasal PBM"
-        case .eegNeurofeedback:  return "EEG Neurofeedback"
-        case .besTacs:           return "Brainwave Entrainment Stimulation"
-        case .tdcs:              return "Cortical Priming Stimulation"
-        case .vnsHRV:            return "VNS + HRV Biofeedback"
-        case .audioEntrainment:  return "Neural Audio Entrainment"
-        case .visualStimulation: return "Visual Stimulation"
-        case .qeeg21ch:          return "21-Channel qEEG"
-        case .tms:               return "TMS"
-        case .pbmDeep1170nm:     return "Deep PBM (1170nm)"
-        case .clinicalTacs:      return "Clinical tACS"
-        case .hdTdcs:            return "sLORETA-Guided HD-tDCS"
-        case .cervicalVns:       return "Cervical VNS"
-        case .vibrotactile40hz:  return "40Hz Vibrotactile"
+        case .pbmTranscranial: return String(localized: "MODALITY_PBM_TRANSCRANIAL_DETAIL_NAME")
+        case .pbmIntranasal: return String(localized: "MODALITY_PBM_INTRANASAL_DETAIL_NAME")
+        case .eegNeurofeedback: return String(localized: "MODALITY_EEG_NEUROFEEDBACK_DETAIL_NAME")
+        case .besTacs: return String(localized: "MODALITY_BES_TACS_DETAIL_NAME")
+        case .tdcs: return String(localized: "MODALITY_TDCS_DETAIL_NAME")
+        case .vnsHRV: return String(localized: "MODALITY_VNS_HRV_DETAIL_NAME")
+        case .audioEntrainment: return String(localized: "MODALITY_AUDIO_ENTRAINMENT_DETAIL_NAME")
+        case .visualStimulation: return String(localized: "MODALITY_VISUAL_STIMULATION_DETAIL_NAME")
+        case .qeeg21ch: return String(localized: "MODALITY_QEEG_21CH_DETAIL_NAME")
+        case .tms: return String(localized: "MODALITY_TMS_DETAIL_NAME")
+        case .pbmDeep1170nm: return String(localized: "MODALITY_PBM_DEEP_1170NM_DETAIL_NAME")
+        case .clinicalTacs: return String(localized: "MODALITY_CLINICAL_TACS_DETAIL_NAME")
+        case .hdTdcs: return String(localized: "MODALITY_HD_TDCS_DETAIL_NAME")
+        case .cervicalVns: return String(localized: "MODALITY_CERVICAL_VNS_DETAIL_NAME")
+        case .vibrotactile40hz: return String(localized: "MODALITY_VIBROTACTILE_40HZ_DETAIL_NAME")
         }
     }
 
     // MARK: Consumer-facing regulatory-safe name
     var consumerName: String {
         switch self {
-        case .pbmTranscranial:   return "Transcranial Photobiomodulation"
-        case .pbmIntranasal:     return "Intranasal Photobiomodulation"
-        case .eegNeurofeedback:  return "EEG Neurofeedback"
-        case .besTacs:           return "Brainwave Entrainment Stimulation"
-        case .tdcs:              return "Cortical Priming Stimulation"
-        case .vnsHRV:            return "VNS + HRV Biofeedback"
-        case .audioEntrainment:  return "Neural Audio Entrainment"
-        case .visualStimulation: return "Visual Stimulation"
-        case .qeeg21ch:          return "Clinical EEG (21-Channel)"
-        case .tms:               return "Transcranial Magnetic Stimulation"
-        case .pbmDeep1170nm:     return "Deep Photobiomodulation (1170nm)"
-        case .clinicalTacs:      return "Clinical Alternating Stimulation"
-        case .hdTdcs:            return "Precision-Targeted Cortical Priming"
-        case .cervicalVns:       return "Cervical Vagus Nerve Stimulation"
-        case .vibrotactile40hz:  return "40Hz Vibrotactile Entrainment"
+        case .pbmTranscranial: return String(localized: "MODALITY_PBM_TRANSCRANIAL_DETAIL_CONSUMER")
+        case .pbmIntranasal: return String(localized: "MODALITY_PBM_INTRANASAL_DETAIL_CONSUMER")
+        case .eegNeurofeedback: return String(localized: "MODALITY_EEG_NEUROFEEDBACK_DETAIL_CONSUMER")
+        case .besTacs: return String(localized: "MODALITY_BES_TACS_DETAIL_CONSUMER")
+        case .tdcs: return String(localized: "MODALITY_TDCS_DETAIL_CONSUMER")
+        case .vnsHRV: return String(localized: "MODALITY_VNS_HRV_DETAIL_CONSUMER")
+        case .audioEntrainment: return String(localized: "MODALITY_AUDIO_ENTRAINMENT_DETAIL_CONSUMER")
+        case .visualStimulation: return String(localized: "MODALITY_VISUAL_STIMULATION_DETAIL_CONSUMER")
+        case .qeeg21ch: return String(localized: "MODALITY_QEEG_21CH_DETAIL_CONSUMER")
+        case .tms: return String(localized: "MODALITY_TMS_DETAIL_CONSUMER")
+        case .pbmDeep1170nm: return String(localized: "MODALITY_PBM_DEEP_1170NM_DETAIL_CONSUMER")
+        case .clinicalTacs: return String(localized: "MODALITY_CLINICAL_TACS_DETAIL_CONSUMER")
+        case .hdTdcs: return String(localized: "MODALITY_HD_TDCS_DETAIL_CONSUMER")
+        case .cervicalVns: return String(localized: "MODALITY_CERVICAL_VNS_DETAIL_CONSUMER")
+        case .vibrotactile40hz: return String(localized: "MODALITY_VIBROTACTILE_40HZ_DETAIL_CONSUMER")
         }
     }
 
     // MARK: Short description
     var shortDescription: String {
         switch self {
-        case .pbmTranscranial:
-            return "660nm + 810nm LED arrays tiled across the socket lattice; zone-targeted;"
-                + " pulsed or CW; real-time J/cm² dose metering."
-        case .pbmIntranasal:
-            return "Bilateral Y-probe; 660nm + 810nm; depth-stop rings; authenticated hygiene sleeves."
-        case .eegNeurofeedback:
-            return "8-channel 24-bit semi-dry EEG; closed-loop frequency adaptation; 500 Hz sample rate."
-        case .besTacs:
-            return "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
-        case .tdcs:
-            return "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
-        case .vnsHRV:
-            return "Auricular clip CN X; PPG HRV; resonance breathing pacer; four evidence-based protocols."
-        case .audioEntrainment:
-            return "Binaural beats + isochronic tones; over-ear planar + bone conduction; EEG-adaptive."
-        case .visualStimulation:
-            return "108 micro-LEDs/lens; binocular, EMDR, retinal PBM (Mode F); 0.5–100Hz."
-        case .qeeg21ch:
-            return "Full 10-20 + FC3/FC4 + Oz + A1/A2; wet gel; sLORETA source imaging."
-        case .tms:
-            return "Focal figure-8 coil; 0.1–0.5T; rTMS + TBS; TMS-gated EMF cancellation."
-        case .pbmDeep1170nm:
-            return "Laser diodes; 35–40mm subcortical depth; TEC stabilized; ≤1,000mW/cm²."
-        case .clinicalTacs:
-            return "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
-        case .hdTdcs:
-            return "4×1 ring montage; sLORETA-guided targeting; ~3–5× focality vs standard tDCS."
-        case .cervicalVns:
-            return "Neck-worn tcVNS; carotid sheath; cardiac rhythm interlock via safety MCU."
-        case .vibrotactile40hz:
-            return "Mastoid LRA pad; 40Hz ± 0.5Hz locked; 0.6–1.2G; hub-powered."
+        case .pbmTranscranial: return String(localized: "MODALITY_PBM_TRANSCRANIAL_DETAIL_SUMMARY")
+        case .pbmIntranasal: return String(localized: "MODALITY_PBM_INTRANASAL_DETAIL_SUMMARY")
+        case .eegNeurofeedback: return String(localized: "MODALITY_EEG_NEUROFEEDBACK_DETAIL_SUMMARY")
+        case .besTacs: return String(localized: "MODALITY_BES_TACS_DETAIL_SUMMARY")
+        case .tdcs: return String(localized: "MODALITY_TDCS_DETAIL_SUMMARY")
+        case .vnsHRV: return String(localized: "MODALITY_VNS_HRV_DETAIL_SUMMARY")
+        case .audioEntrainment: return String(localized: "MODALITY_AUDIO_ENTRAINMENT_DETAIL_SUMMARY")
+        case .visualStimulation: return String(localized: "MODALITY_VISUAL_STIMULATION_DETAIL_SUMMARY")
+        case .qeeg21ch: return String(localized: "MODALITY_QEEG_21CH_DETAIL_SUMMARY")
+        case .tms: return String(localized: "MODALITY_TMS_DETAIL_SUMMARY")
+        case .pbmDeep1170nm: return String(localized: "MODALITY_PBM_DEEP_1170NM_DETAIL_SUMMARY")
+        case .clinicalTacs: return String(localized: "MODALITY_CLINICAL_TACS_DETAIL_SUMMARY")
+        case .hdTdcs: return String(localized: "MODALITY_HD_TDCS_DETAIL_SUMMARY")
+        case .cervicalVns: return String(localized: "MODALITY_CERVICAL_VNS_DETAIL_SUMMARY")
+        case .vibrotactile40hz: return String(localized: "MODALITY_VIBROTACTILE_40HZ_DETAIL_SUMMARY")
         }
     }
 

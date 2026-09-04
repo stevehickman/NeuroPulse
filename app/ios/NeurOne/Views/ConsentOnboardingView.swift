@@ -236,7 +236,7 @@ struct ConsentOnboardingView: View {
                 }
 
                 ForEach(ResearchCategory.allCases, id: \.self) { category in
-                    Toggle(category.rawValue, isOn: Binding(
+                    Toggle(category.displayName, isOn: Binding(
                         get: { draft.categoryConsents[category] ?? false },
                         set: { draft.categoryConsents[category] = $0 }
                     ))

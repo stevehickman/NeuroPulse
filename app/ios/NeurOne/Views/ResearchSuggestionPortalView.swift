@@ -91,7 +91,7 @@ struct SuggestionRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(suggestion.title).font(.subheadline.bold())
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(suggestion.categories.map(\.rawValue).joined(separator: " · "))
+                    Text(suggestion.categories.map(\.displayName).joined(separator: " · "))
                         .font(.caption).foregroundColor(.secondary)
                 }
                 Spacer()
@@ -197,7 +197,7 @@ struct SuggestionDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(suggestion.title).font(.title2.bold())
                 .fixedSize(horizontal: false, vertical: true)
-            Text(suggestion.categories.map(\.rawValue).joined(separator: " · "))
+            Text(suggestion.categories.map(\.displayName).joined(separator: " · "))
                 .font(.caption).foregroundColor(.secondary)
             Text(suggestion.body).font(.body)
                 .fixedSize(horizontal: false, vertical: true)
@@ -339,7 +339,7 @@ struct SubmitSuggestionSheet: View {
 
                 Section("PORTAL_RESEARCH_AREAS") {
                     ForEach(ResearchCategory.allCases, id: \.self) { category in
-                        Toggle(category.rawValue, isOn: Binding(
+                        Toggle(category.displayName, isOn: Binding(
                             get: { draft.categories.contains(category) },
                             set: { if $0 { draft.categories.insert(category) } else { draft.categories.remove(category) } }
                         ))

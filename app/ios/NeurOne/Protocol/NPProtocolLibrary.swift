@@ -21,9 +21,9 @@ enum ProtocolAvailability: Equatable {
         case .available:
             return nil
         case .unavailable(let missing):
-            if missing.isEmpty { return "No device connected." }
+            if missing.isEmpty { return String(localized: "PROTOCOL_AVAIL_NO_DEVICE") }
             let names = missing.map { $0.displayName }.joined(separator: ", ")
-            return "Requires: \(names)"
+            return String(format: String(localized: "PROTOCOL_AVAIL_REQUIRES"), names)
         case .eegConsentRequired:
             // Localized ISC-90 message — shared with SessionView's EEG-unavailable card.
             return String(localized: "SESSION_EEG_UNAVAILABLE_BODY")

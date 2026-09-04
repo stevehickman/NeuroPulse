@@ -27,45 +27,46 @@ enum AdaptTrigger: UInt8, CaseIterable {
     case userPause          = 0x0F
     case sessionEndRamp     = 0x10
 
-    // Approved plain-language descriptions — extend only with Privacy Lead sign-off (OI-PA-04).
+    // Approved plain-language descriptions — extend only with Privacy Lead
+    // sign-off (OI-PA-04). The approved English now lives in locales/en.json
+    // under ADAPT_EVENT_*; sign-off applies to the value there, and a new case
+    // needs a key in all eleven locale files before it will render.
     var plainLanguageDescription: String {
         switch self {
         case .eegAlphaLow:
-            return "Brainwave activity in the calm-focus range dipped — stimulation frequency was increased to support focus."
+            return String(localized: "ADAPT_EVENT_EEGALPHALOW")
         case .eegAlphaHigh:
-            return "Brainwave activity in the calm-focus range was elevated — stimulation frequency was reduced to avoid over-stimulation."
+            return String(localized: "ADAPT_EVENT_EEGALPHAHIGH")
         case .eegThetaLow:
-            return "Brainwave activity in the memory-processing range dipped — stimulation was adjusted to support memory encoding."
+            return String(localized: "ADAPT_EVENT_EEGTHETALOW")
         case .eegThetaHigh:
-            return "Brainwave activity in the memory-processing range was elevated — stimulation was reduced."
+            return String(localized: "ADAPT_EVENT_EEGTHETAHIGH")
         case .eegGammaLow:
-            return "High-frequency brainwave activity (linked to focus and attention) dipped — stimulation frequency was stepped up."
+            return String(localized: "ADAPT_EVENT_EEGGAMMALOW")
         case .eegGammaHigh:
-            return "High-frequency brainwave activity was elevated — stimulation frequency was stepped down to prevent fatigue."
+            return String(localized: "ADAPT_EVENT_EEGGAMMAHIGH")
         case .eegBetaLow:
-            return "Alertness-linked brainwave activity dipped — stimulation was adjusted to maintain engagement."
+            return String(localized: "ADAPT_EVENT_EEGBETALOW")
         case .eegBetaHigh:
-            return "Alertness-linked brainwave activity was elevated — stimulation was reduced to encourage relaxation."
+            return String(localized: "ADAPT_EVENT_EEGBETAHIGH")
         case .hrvCoherenceLow:
-            return "Heart rhythm coherence fell below your personal target —"
-                + " the breathing pacer rate was adjusted to help restore coherence."
+            return String(localized: "ADAPT_EVENT_HRVCOHERENCELOW")
         case .hrvCoherenceHigh:
-            return "Heart rhythm coherence was above target — the breathing pacer rate was"
-                + " eased to maintain the effect without over-correction."
+            return String(localized: "ADAPT_EVENT_HRVCOHERENCEHIGH")
         case .hrvRmssdLow:
-            return "Heart rate variability fell below your baseline — stimulation intensity was reduced to lower physiological load."
+            return String(localized: "ADAPT_EVENT_HRVRMSSDLOW")
         case .impedanceChange:
-            return "Electrode contact quality changed during the session — stimulation was adjusted to account for the change."
+            return String(localized: "ADAPT_EVENT_IMPEDANCECHANGE")
         case .doseLimitApproach:
-            return "The session was approaching its cumulative light-energy limit — output was reduced to stay within the safe dose."
+            return String(localized: "ADAPT_EVENT_DOSELIMITAPPROACH")
         case .thermalThrottle:
-            return "A device component reached its temperature limit — output was reduced temporarily to allow cooling."
+            return String(localized: "ADAPT_EVENT_THERMALTHROTTLE")
         case .phaseTransition:
-            return "The session moved to a new phase — stimulation parameters were updated for the new phase."
+            return String(localized: "ADAPT_EVENT_PHASETRANSITION")
         case .userPause:
-            return "The session was paused — all stimulation was reduced to standby levels."
+            return String(localized: "ADAPT_EVENT_USERPAUSE")
         case .sessionEndRamp:
-            return "The session was completing — all stimulation was gradually reduced to zero."
+            return String(localized: "ADAPT_EVENT_SESSIONENDRAMP")
         }
     }
 }

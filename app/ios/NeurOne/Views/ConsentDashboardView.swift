@@ -157,7 +157,7 @@ struct ConsentDashboardView: View {
             ForEach(ResearchCategory.allCases, id: \.self) { category in
                 let granted = consentStore.researchConsent.categoryConsents[category] ?? false
                 HStack {
-                    Text(category.rawValue).font(.subheadline)
+                    Text(category.displayName).font(.subheadline)
                     Spacer()
                     Image(systemName: granted ? "checkmark.circle.fill" : "circle")
                         .foregroundColor(granted ? .green : .secondary)
@@ -266,7 +266,7 @@ struct ClinicianGrantRow: View {
             }
             // Granted elements (ISC-75)
             Text(String(format: String(localized: "DASHBOARD_ACCESS_FORMAT"),
-                        grant.approvedElements.map(\.rawValue).sorted().joined(separator: ", ")))
+                        grant.approvedElements.map(\.displayName).sorted().joined(separator: ", ")))
                 .font(.caption2)
                 .foregroundColor(.secondary)
                 .lineLimit(nil)

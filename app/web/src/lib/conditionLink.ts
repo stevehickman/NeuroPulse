@@ -157,17 +157,17 @@ export function linkBlockedMessage(reason: NPLinkReason): string {
     case 'ok':
       return '';
     case 'not_absolute':
-      return t('WEB_CONDITION_BLOCKED_NOT_ABSOLUTE');
+      return t('UI_CONDITION_BLOCKED_NOT_ABSOLUTE');
     case 'scheme_not_https':
-      return t('WEB_CONDITION_BLOCKED_NOT_HTTPS');
+      return t('UI_CONDITION_BLOCKED_NOT_HTTPS');
     case 'embedded_credentials':
-      return t('WEB_CONDITION_BLOCKED_CREDENTIALS');
+      return t('UI_CONDITION_BLOCKED_CREDENTIALS');
     case 'missing_host':
-      return t('WEB_CONDITION_BLOCKED_MISSING_HOST');
+      return t('UI_CONDITION_BLOCKED_MISSING_HOST');
     case 'local_or_private_host':
-      return t('WEB_CONDITION_BLOCKED_PRIVATE_HOST');
+      return t('UI_CONDITION_BLOCKED_PRIVATE_HOST');
     case 'malformed':
-      return t('WEB_CONDITION_BLOCKED_MALFORMED');
+      return t('UI_CONDITION_BLOCKED_MALFORMED');
   }
 }
 

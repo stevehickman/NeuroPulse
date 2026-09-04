@@ -61,7 +61,7 @@ enum PledgeTier: Int, CaseIterable {
 
     var label: String {
         switch self {
-        case .none:   return "No pledge"
+        case .none:   return String(localized: "PORTAL_PLEDGE_NONE")
         case .small:  return "$10"
         case .medium: return "$25"
         case .large:  return "$50"

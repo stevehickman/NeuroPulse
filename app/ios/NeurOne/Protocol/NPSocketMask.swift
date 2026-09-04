@@ -84,24 +84,22 @@ enum NPSocketTargetError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .unknownZone(let name):
-            return "PBM transcranial references zone \"\(name)\", which is not a zone this app build "
-                + "knows. Zone names are authored in protocols/predefined/00-zones.npps."
+            return String(format: String(localized: "SOCKET_ERR_UNKNOWN_ZONE"), name)
 
         case .clinicianSelectionMissing:
-            return "PBM transcranial target is 'clinician_selected': the operator must choose the "
-                + "sockets before this protocol can run."
+            return String(localized: "SOCKET_ERR_CLINICIAN_MISSING")
 
         case .emptyTarget(let target):
             // Not a no-op. A session that reports a delivered dose while lighting
             // nothing is worse than one that refuses to start.
-            return "PBM transcranial target (\(target)) resolves to no sockets — a session would report "
-                + "a delivered dose while lighting nothing. Resolve it to at least one socket."
+            return String(format: String(localized: "SOCKET_ERR_EMPTY_TARGET"), target)
 
         case .invalidSocket(let id, let problem, let source):
             let why = problem == .outOfRange
-                ? "valid ids are \(NPSocketID.rangeLabel)"
-                : "this lattice has no socket there"
-            return "Socket \(id) named by \(source) is not a socket on this helmet (\(why))."
+                ? String(format: String(localized: "SOCKET_ERR_WHY_OUT_OF_RANGE"), NPSocketID.rangeLabel)
+                : String(localized: "SOCKET_ERR_WHY_NO_SOCKET")
+            return String(format: String(localized: "SOCKET_ERR_INVALID_SOCKET"),
+                          String(id), source, why)
         }
     }
 }

@@ -16,12 +16,12 @@ enum NPLinkReason: String, Codable, Equatable {
     var blockedMessage: String {
         switch self {
         case .ok:                  return ""
-        case .notAbsolute:         return "This condition has no full web address."
-        case .schemeNotHTTPS:      return "Only secure https links can be opened."
-        case .embeddedCredentials: return "This link hides its real destination."
-        case .missingHost:         return "This link has no destination site."
-        case .localOrPrivateHost:  return "This link points to a private address."
-        case .malformed:           return "This link is malformed."
+        case .notAbsolute:         return String(localized: "UI_CONDITION_BLOCKED_NOT_ABSOLUTE")
+        case .schemeNotHTTPS:      return String(localized: "UI_CONDITION_BLOCKED_NOT_HTTPS")
+        case .embeddedCredentials: return String(localized: "UI_CONDITION_BLOCKED_CREDENTIALS")
+        case .missingHost:         return String(localized: "UI_CONDITION_BLOCKED_MISSING_HOST")
+        case .localOrPrivateHost:  return String(localized: "UI_CONDITION_BLOCKED_PRIVATE_HOST")
+        case .malformed:           return String(localized: "UI_CONDITION_BLOCKED_MALFORMED")
         }
     }
 }

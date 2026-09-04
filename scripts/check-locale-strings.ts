@@ -76,6 +76,8 @@ const COVERED_PATHS = [
   "app/ios/NeurOne/Onboarding/",
   "app/ios/NeurOne/Setup/",
   "app/ios/NeurOne/Localization/",
+  "app/ios/NeurOne/Protocol/",
+  "app/ios/NeurOne/Models/",
   "app/watchos/",
 ];
 
@@ -86,8 +88,6 @@ const COVERED_PATHS = [
 const PENDING_PATHS: Array<[string, string]> = [
   ["app/android/", "renders from res/values/strings.xml, which sync-locales.ts does not generate yet (its generateAndroidXml extension point is still a comment)"],
   ["app/windows/", "protocol/session logic only today; no localized UI layer exists to point at a key"],
-  ["app/ios/NeurOne/Protocol/", "NPProtocolValidator and NPModalityType hold the same display text the web side keys; migrating them is the iOS half of that change"],
-  ["app/ios/NeurOne/Models/", "same as Protocol/ — display metadata tables"],
   ["simulator/", "developer harness, not shipped UI"],
 ];
 
@@ -101,6 +101,9 @@ const PENDING_PATHS: Array<[string, string]> = [
  *   - Exhaustiveness/invariant throws are programmer errors that never render.
  */
 const DIAGNOSTIC_FILES = [
+  "app/ios/NeurOne/Protocol/NPProtocolScripting.swift",
+  "app/ios/NeurOne/Protocol/NPNamespace.swift",
+  "app/ios/NeurOne/Protocol/NPBundledProtocols.swift",
   "app/web/src/lib/nppsParser.ts",
   "app/web/src/lib/nppsSerializer.ts",
   "app/web/src/lib/hubCompiler.ts",
@@ -291,6 +294,10 @@ function checkEmbedded(files: string[]): Violation[] {
 /** (3) Key usage is bidirectional: none missing, none orphaned. */
 function checkKeyUsage(files: string[], keys: Set<string>): string[] {
   const errs: string[] = [];
+  // This file is excluded for the same reason as Markdown: its own comments
+  // spell out the lookup forms (`t('KEY')`, `tPlural('BASE', n)`) as examples,
+  // and a checker must not read its own documentation as a call site.
+  //
   // Markdown is excluded: CLAUDE.md §17 documents the API with example calls
   // (`t('KEY')`, `tPlural('BASE', n)`), and reading prose as code would demand
   // canonical define KEY and BASE. Docs describe the lookup; they never perform
@@ -308,7 +315,8 @@ function checkKeyUsage(files: string[], keys: Set<string>): string[] {
       !f.endsWith("Localizable.xcstrings") &&
       !/\.(test|spec)\.[tj]sx?$/.test(f) &&
       !f.includes("Tests/") &&
-      !f.includes("/test/"),
+      !f.includes("/test/") &&
+      f !== "scripts/check-locale-strings.ts",
   );
   let blob = "";
   for (const f of sources) {
