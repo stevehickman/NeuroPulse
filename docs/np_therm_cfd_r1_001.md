@@ -6,6 +6,13 @@ THERM-1a but does **not** close it: the verification-grade 2D-axisymmetric CFD (
 step 2 — mesh-independence < 0.2 °C, contact conductances, curved geometry) and the THERM-1b
 scalp-phantom bench remain OPEN. Numbers are directional; multi-°C margins are robust to the modelling.
 **Parent:** NP-THERM-CFD-001 (BC spec, case matrix) · NP-THERM-CFD-C2-001 (C2 run card).
+**Extended by:** NP-THERM-CFD-N1-001 Rev 1 (N-tile, non-adiabatic, on the real 80-socket lattice —
+`OI-PWR-01`). **Two things it establishes about this document, and both change how it should be read:**
+(i) the single periodic cell with adiabatic side walls is the **N = ∞** boundary condition, not the
+N = 1 one, so §5.1 already reports the fully-active limit and §2's *"2D spreading does not rescue the
+face"* is correct **for the periodic case only** and must not be read as a general statement about the
+architecture; (ii) §5.1's flux labels reproduce §5.1's own temperatures at 0.649 × their stated value
+(`OI-R1-06` below).
 **Feeds:** NP-REQ-FANHEALTH-001 (SR-FAN-03/04 path selection + constants) · NP-FMEA-GEOM-001
 (FMEA-G07-01) · NP-ENV-OPRANGE-001 (PBM high-temp bound) · a candidate base-thermal design input.
 **Method:** 1D radial resistance network (per NP-THERM-CFD-C2-001 §7) + cell-centred finite-volume
@@ -139,6 +146,7 @@ k 400), **perfect sink** (via end pinned at ambient — the best any fan-cooled 
 | OI-R1-02 | THERM-1b scalp-phantom fan-stall bench — correlate before any result is verification-grade | Thermal + ME |
 | OI-R1-03 | Pin the fan-airflow path (does the fan ventilate the inter-bowl gap or only cool the outer shell?) — swings C4 and C6; the conductive-export architecture makes it moot for the junction but it must be documented | ME + Thermal |
 | OI-R1-04 | Replace literature property placeholders (PBT / BN / foam / CFRP k; PDMS measured) and the fan-nominal convection coefficient with datasheet/measured values | Thermal + EE |
+| **OI-R1-06** | **The §5.1 flux labels do not reproduce §5.1's own temperatures.** `NP-THERM-CFD-N1-001` §2.3 rebuilds this document's resistance network and recovers all four published temperatures to ≤ 0.45 K and all three export fractions to ≤ 0.8 pp from a single calibration point — but the heat flux that produces them is a constant **0.649 × (range 0.646–0.676)** of the flux the §5.1 table names. That ratio is `1 − 0.339`, sitting inside `NP-THERM-CFD-001` §4's η_wp band of 0.30–0.45, so the natural reading is that **η_wp was applied a second time to a §4 figure that is already `q_heat = P_elec(1 − η_wp)`**. **It is non-conservative and it is load-bearing:** driven at the labelled flux, the T1-std 25 °C row gives face 32.8 °C rather than 30.7 °C, cutting the margin from **11.3 K to 9.2 K** — and 11.3 K is the exact figure `NP-PWR-BUDGET-001` §3.2 divides to bracket 4–8 tiles. Raised, not corrected: a downstream study may not silently rewrite this document's inputs. Tracked as `OI-N1-01` | Thermal |
 | OI-R1-05 | Register outcomes under change control. **DONE 2026-07-22 (DHF Rev 22):** Path B1 + SR-FAN-03/04 constants → NP-REQ-FANHEALTH-001 §4a; FMEA-G07-01 closure path → NP-FMEA-GEOM-001 (feeder); THERM-1a gate → NP-HELMET-GEOM-001 §8; BN-boss export adopted → completed-decisions.md. **Remaining:** NP-RISK-001 `.docx` RISK-2x line (register Rev 2→C, owner-signed); BN-boss export → NP-DT-001 design input; accept SR-FAN-01…06 into NP-SW-001. | Quality |
 
 ## 8. Assumptions / limits

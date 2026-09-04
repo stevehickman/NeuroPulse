@@ -301,6 +301,15 @@ R_out over the vault. Holding the allowed rise fixed, the tolerable tile count s
 > 19.7 in that last row is produced by a model that is not valid there. Read it as *"the same order as
 > a threefold improvement,"* never as twenty tiles. `OI-PWR-01`'s multi-tile CFD is the only thing that
 > can turn this into a number.
+>
+> **⚠ Superseded 2026-09-03 — `NP-THERM-CFD-N1-001` §8 re-ran this table on the coupled 80-tile
+> network.** The ratios shrink by roughly 2.4×: **BASE 1.00× · X 1.17× · R 1.10× · RF 1.17× ·
+> RFE 1.36×**, with the static gap-bridge stack **GFE at ≥1.90×**, the strongest row. The cause is
+> structural — this table attributes the entire ceiling to the cavity leg, which carries ~10 % of the
+> heat, so improving it cannot triple the ceiling. **The paragraph below is unaffected and remains the
+> result of this section: RFE still beats X (1.36× against 1.17×), so the shield-safe answer is still
+> the best available one.** The absolute counts now inherit `OI-N1-02` (the external heatsink is
+> unspecified and sets the ceiling), and **GFE displacing RFE is a live input to D-2.**
 
 **Why this matters more than it looks.** `NP-PWRSRC-001` §7.0 finds **2 of 23 protocols thermally
 achievable under every candidate power source**, and §4.1 identifies the sealed cavity — not the supply
@@ -911,7 +920,7 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 | ~~OI-THCOOL-06~~ | **✅ CLOSED 2026-08-30 by D-2** — this was BLOCKING only on the pneumatic loop's penetration of the posterior boss, and §6.9 puts that loop out of scope. Retained struck-through rather than deleted, per `NP-CONV-001` §4's append-only open-item rule; reopen only if the loop is revived | — (closed) | — |
 | ~~OI-THCOOL-06 (original text)~~ | **Bench-measure ELF magnetic leakage through a mu-metal chimney collar at the posterior boss with tube penetrations.** Waveguide-below-cutoff does not apply below ~100 Hz | EMC (EMF-1) | **BLOCKING on §6.2** |
 | **OI-THCOOL-07** | Confirm the sealed loop's condensation behaviour across the `NP-ENV-001` §2.2 warm-up transient — fixed absolute humidity should help, but the cold-optics case is untested | Thermal | No |
-| **OI-THCOOL-08** | Re-run §5 against `OI-PWR-01`'s multi-tile CFD; the ratios need a valid model at N > 8 before any number is quoted | Thermal | **Gates §5 numbers** |
+| **OI-THCOOL-08** | Re-run §5 against `OI-PWR-01`'s multi-tile CFD; the ratios need a valid model at N > 8 before any number is quoted. **DONE 2026-09-03 — `NP-THERM-CFD-N1-001` §8.** The ratios shrink by ~2.4× (RFE **3.28× → 1.36×**; X 2.05× → 1.17×; R 1.66× → 1.10×) because §5 routes the whole concurrency question through a cavity leg that carries ~10 % of the heat. **§5's central ordering survives and its recommendation is unchanged** — the shield-safe stack still beats the shield-breaching one — and the static gap bridge **GFE is now the strongest row**, clearing the whole lattice at the library floor with no blower, tubes or aperture, which leaves the pneumatic loop with no case on this model. §5's absolute counts are superseded; the new ones inherit `OI-N1-02` | Thermal | **Answered.** §5 numbers superseded by `NP-THERM-CFD-N1-001` §8 |
 | **OI-THCOOL-09** | Assess whether tubes at the posterior boss disturb `NP-DRV-SHELL-002` §9.3's loop-area control or the §4.3 segregated-return requirement | EE | No |
 | **OI-THCOOL-11** | **Test whether the existing PD1/PD2 fouling discriminator detects condensation onset** fast enough to serve as the anti-fog clamp, before adding an RH sensor that would sample the wrong air and reverse `NP-ENV-001` §5 | Optical + FW | Gates §6.7.3 |
 | **OI-THCOOL-12** | **Capacity-aware planning for a depleting sink.** A latent store is a budget, not a state; specify the re-plan point or the fallback to the uncooled cascade when it is exhausted | FW + Systems | Gates §6.8 |
