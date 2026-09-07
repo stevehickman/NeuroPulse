@@ -85,6 +85,11 @@ if(NP_BUILD_TESTS)
     target_include_directories(np_protocol_tests PRIVATE
         include
         ${NP_SW02_PLATFORM_HAL_INCLUDE_DIRS}
+        # OI-TACS-01: np_hd_config.h owns NP_HD_DRIVER_CHANNELS, the driver-side
+        # view of the count np_hub_types.h encodes as a wire mask.  This target
+        # is the only host test that sees both headers, so it is where the two
+        # are asserted equal.
+        ${CMAKE_CURRENT_SOURCE_DIR}/../sloreta_hdtdcs/include
     )
     target_compile_options(np_protocol_tests PRIVATE
         -std=c11 -Wall -Wextra -O0 -g -DNPTEST_HOST)

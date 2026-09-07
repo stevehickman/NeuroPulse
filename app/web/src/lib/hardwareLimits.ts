@@ -38,6 +38,11 @@ export const NPHardwareLimits = {
 
   // Clinical tACS (T2 only)
   clinicalTacsMaxMilliamps: 4.0,
+  // One driver channel per T2 cap electrode (NP-FW-HD-001 §6.4,
+  // NP_HD_DRIVER_CHANNELS). OI-TACS-01: the hub wire mask carried only 16 bits
+  // until 2026-09-07, so every encoder clamped here; np_mod_clin_tacs_params_t
+  // now has a third mask byte and 21 is deliverable, not just authorable.
+  clinicalTacsMaxChannels: 21,
 
   // HD-tDCS (T2 only, sLORETA-guided 4×1 ring montage)
   hdTdcsMaxMilliampsPerElectrode: 2.0,

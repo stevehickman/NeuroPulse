@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 14
-**Date:** 2026-08-24  
+**Revision:** 15
+**Date:** 2026-09-07  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -14,6 +14,10 @@
 **IEC 62304 Class:** —
 
 ---
+
+> **Rev 15 (2026-09-07) — `clinical_tacs.channel_count` is 1–21, and it is now enforced rather than clamped (OI-TACS-01 closed).** The driver has carried one channel per T2 cap electrode since 2026-08-05 (`NP_HD_DRIVER_CHANNELS` = 21, superseding "16-ch arbitrary waveform"), but the hub wire format did not follow it: `np_mod_clin_tacs_params_t` held `channel_mask_lo` and `channel_mask_hi` and stopped, so channels 16–20 could not be enabled over the wire. §4.12's `1–16` was therefore the *encoder's* limit, not the hardware's. The struct now carries a third byte, `channel_mask_ext` (channels 16–20 in bits 0–4; bits 5–7 reserved and written clear), taking it from 7 to 8 bytes, and `encodeClinicalTacs()` emits all three.
+>
+> **The second half is the part an author will notice.** Nothing in any runtime validated `channel_count`, so a `.npps` file authoring more channels than the wire could carry was **silently reduced at compile time** — the same shape of failure Rev 14 legislated against for build-time caches: no error, no mismatch, and a clinician left believing a montage ran that never did. All three validators now range-check `channel_count` against `1–21` and report an out-of-range value as a hardware error. The encoder still clamps, but only as a backstop behind that check; it is no longer where the limit lives. §12's two `clinical_tacs` rows and the §4.12 table are corrected from 16 to 21 with them.
 
 > **Rev 14 (2026-08-24) — no runtime may ship a build-time cache of protocol content; three were doing it.** Principal direction, and stricter than Rev 13's origin rule, which it supersedes where the two meet: Rev 13 allowed any representation *derived from* `.npps`, and that permission does not extend to one built **before the app ships**. The build cannot bind the future — nothing stops a `.npps` file changing afterwards, and when one does the cache is read **in place of the edit**. The failure is silent and self-consistent: no error, no mismatch, nothing to notice, and an author left looking at the file they just edited with no way to tell why their change is not showing up anywhere. For a zone it is also a wrong-site targeting path. The new rule is §1.6 *No build-time cache of protocol content*, binding on every runtime; **bundling the `.npps` files themselves is the intended mechanism and is not caching them**, and a generated artefact may still carry hardware facts (`SocketLattice.generated.*`, `socketMap.generated.ts`), which do not come from `.npps` and change only on a re-tool.
 >
@@ -729,6 +733,10 @@ T2 only. Up to 21 independent channels, arbitrary waveform — one per T2 cap el
 | `channel_count` | `channel_count` | int | 1–21 |
 | `waveform` | `waveform` | string | `sinusoidal` `square` `triangular` |
 
+`channel_count` is validated, not clamped: a value outside 1–21 is a hardware-source error in
+every runtime. It read 1–16 until Rev 15 — not because the driver was 16-channel but because the
+hub wire mask was, and the encoder quietly reduced anything larger (OI-TACS-01).
+
 ```
 clinical_tacs {
     frequency: 40Hz
@@ -1355,7 +1363,7 @@ Reading the table:
 | `carrier_hz` | Modality field | `audio_entrainment` | Carrier tone frequency in Hz that the binaural beat is constructed on. |
 | `central` | Enum value | `eeg_neurofeedback` → `channels` | The central electrode group (C3/C4). |
 | `cervical_vns` | Modality block | `protocol`, `limits` | T2 accessory — cervical vagus trunk stimulation via neck gel electrodes (§4.14). |
-| `channel_count` | Modality field | `clinical_tacs` | Number of independent tACS channels used, 1–21 — one per T2 cap electrode. Counts above 16 are clamped by the hub encoder until the wire mask is widened (OI-TACS-01). |
+| `channel_count` | Modality field | `clinical_tacs` | Number of independent tACS channels used, 1–21 — one per T2 cap electrode. Validated in every runtime; out of range is an error, not a clamp (§4.12). |
 | `channels` | Modality field | `eeg_neurofeedback` | Which electrode group the neurofeedback loop reads. |
 | `clinical_tacs` | Modality block | `protocol`, `limits` | T2 clinical tACS — up to 21 independent arbitrary-waveform channels, ≤4 mA (§4.12). |
 | `clinician_selected` | Enum value | `pbm_transcranial` → `zones` | The target is patient-specific and cannot be predefined: the operator picks the sockets before the protocol runs (NP-CFG-UI-001). One of the only two `zones` forms. |

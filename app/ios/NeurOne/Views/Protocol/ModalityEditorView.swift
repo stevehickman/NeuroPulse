@@ -792,9 +792,10 @@ struct ClinicalTacsParamsView: View {
                 range: 0...4,
                 format: { String(format: "%.2f mA", $0) }
             )
-            // Upper bound is the 16-channel hub wire mask, not the 21-channel
-            // driver (NP_HD_DRIVER_CHANNELS) — see OI-TACS-01.
-            Stepper(value: $params.channelCount, in: 2...16, step: 2) {
+            // OI-TACS-01: the ceiling is the driver's channel count, one per T2 cap
+            // electrode, and it is odd — so the step is 1. It read `2...16, step: 2`
+            // while the hub wire mask was 16 bits wide, which could not express 21.
+            Stepper(value: $params.channelCount, in: 2...NPHardwareLimits.clinicalTacsMaxChannels, step: 1) {
                 HStack {
                     Text(String(localized: "MODALITY_CHANNELS")).font(.caption).foregroundColor(.secondary)
                     Spacer()

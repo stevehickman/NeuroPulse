@@ -531,6 +531,14 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
             "intensityMilliamps", "Intensity", "${p.intensityMilliamps} mA",
             "${NPHardwareLimits.CLINICAL_TACS_MAX_MILLIAMPS} mA", NPLimitSource.HARDWARE,
             "Clinical tACS intensity ${p.intensityMilliamps} mA exceeds firmware-enforced maximum of ${NPHardwareLimits.CLINICAL_TACS_MAX_MILLIAMPS} mA.")
+        // OI-TACS-01: until 2026-09-07 nothing checked the channel count and the hub
+        // encoder silently clamped an over-range one to the 16-bit wire mask. The mask
+        // now spans the driver's full 21 channels, and out-of-range is reported.
+        if (p.channelCount < 1 || p.channelCount > NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS) r.addError(m,
+            "channelCount", "Channel Count", "${p.channelCount}",
+            "1–${NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS}", NPLimitSource.HARDWARE,
+            "Clinical tACS channel count ${p.channelCount} is outside the driver's " +
+                "1–${NPHardwareLimits.CLINICAL_TACS_MAX_CHANNELS} channels (one per T2 cap electrode).")
         lim?.maxIntensityMilliamps?.let { maxI ->
             if (p.intensityMilliamps > maxI) r.addError(m, "intensityMilliamps", "Intensity",
                 "${p.intensityMilliamps} mA", "$maxI mA", dosageSource,

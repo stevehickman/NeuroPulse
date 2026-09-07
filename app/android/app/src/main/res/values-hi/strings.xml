@@ -897,6 +897,7 @@
     <string name="validate_msg_cervical_vns_intensitymilliamps">Cervical VNS intensity %1$s mA exceeds hardware maximum. Cardiac interlock is always active regardless.</string>
     <string name="validate_msg_cervical_vns_intensitymilliamps_2">Cervical VNS intensity %1$s mA exceeds limit of %2$s mA.</string>
     <string name="validate_msg_cervical_vns_sessionduration">Cervical VNS session duration limit is %1$ss. Verify session timing matches this limit.</string>
+    <string name="validate_msg_clinical_tacs_channelcount">Clinical tACS channel count %1$s is outside the driver\'s 1–%2$s channels (one per T2 cap electrode).</string>
     <string name="validate_msg_clinical_tacs_intensitymilliamps">Clinical tACS intensity %1$s mA exceeds hardware maximum of %2$s mA.</string>
     <string name="validate_msg_clinical_tacs_intensitymilliamps_2">Clinical tACS intensity %1$s mA exceeds limit of %2$s mA.</string>
     <string name="validate_msg_eeg_neurofeedback_band">EEG band \'%1$s\' is not in the allowed list: %2$s.</string>
@@ -1014,6 +1015,7 @@
     <string name="validate_param_binaural_beat">Binaural Beat</string>
     <string name="validate_param_binaural_beats">Binaural Beats</string>
     <string name="validate_param_cardiac_interlock">Cardiac Interlock</string>
+    <string name="validate_param_channel_count">Channel Count</string>
     <string name="validate_param_charge_density">Charge Density</string>
     <string name="validate_param_closed_loop">Closed Loop</string>
     <string name="validate_param_cross_modality">Cross-modality</string>

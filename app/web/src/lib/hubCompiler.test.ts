@@ -12,6 +12,7 @@ import path from 'node:path';
 import { parseNPPSFile } from './nppsParser';
 import { compileProtocol } from './hubCompiler';
 import { NP_SOCKETS } from './socketMap.generated';
+import { NPHardwareLimits } from './hardwareLimits';
 import { defaultParams, MODALITY_META } from '../types/protocol';
 import type {
   NPProtocolDefinition,
@@ -374,7 +375,7 @@ describe('parameter block sizes match the firmware structs', () => {
     qeeg_21ch:          { size: 8,  slot: 11,   params: { montage: 'standard_1020', reference: 'linked_ear', sloretaEnabled: true } },
     tms:                { size: 10, slot: 12,   params: { tmsProtocol: 'rTMS', target: 'DLPFC_L', frequencyHz: 10, intensityPercentMT: 110, pulseCount: 3000 } },
     pbm_deep_1170nm:    { size: 5,  slot: 13,   params: { intensityMWcm2: 500, frequencyHz: 40, dutyCyclePercent: 25 } },
-    clinical_tacs:      { size: 7,  slot: 14,   params: { frequencyHz: 10, intensityMilliamps: 2, waveform: 'sinusoidal', channelCount: 16 } },
+    clinical_tacs:      { size: 8,  slot: 14,   params: { frequencyHz: 10, intensityMilliamps: 2, waveform: 'sinusoidal', channelCount: 21 } },
     hd_tdcs:            { size: 6,  slot: 15,   params: { target: 'DLPFC_L', montage: 'ring_4x1', intensityMilliamps: 2 } },
     cervical_vns:       { size: 10, slot: 10,   params: { frequencyHz: 25, intensityMilliamps: 1.5 } },
     vibrotactile_40hz:  { size: 4,  slot: 16,   params: { intensityG: 0.9, syncToAudio: true, syncToVisual: false } },
@@ -398,6 +399,56 @@ describe('parameter block sizes match the firmware structs', () => {
   it('covers every modality type', () => {
     // A new modality must appear above, not slip through untested.
     expect(Object.keys(EXPECTED).sort()).toEqual(Object.keys(MODALITY_META).sort());
+  });
+});
+
+// OI-TACS-01. The driver has had one channel per T2 cap electrode since
+// 2026-08-05 (NP_HD_DRIVER_CHANNELS = 21), but np_mod_clin_tacs_params_t stopped
+// at channel_mask_hi, so this encoder clamped every protocol to 16 and the five
+// highest electrodes were unreachable. channel_mask_ext carries them. These
+// assertions pin the byte layout the firmware will decode.
+describe('clinical tACS channel mask (OI-TACS-01)', () => {
+  function tacsParams(channelCount: number) {
+    const proto = pbmProtocol({});
+    proto.modalities[0].modalityParams = {
+      type: 'clinical_tacs',
+      params: { frequencyHz: 10, intensityMilliamps: 2, waveform: 'sinusoidal', channelCount },
+    } as NPProtocolDefinition['modalities'][number]['modalityParams'];
+    return readBlob(compileProtocol(proto, { zones }).blob).cmds[0].params;
+  }
+
+  it('spans all 21 driver channels across three mask bytes', () => {
+    const params = tacsParams(NPHardwareLimits.clinicalTacsMaxChannels);
+    expect(params).toHaveLength(8);
+    // channel_mask_lo / _hi / _ext at offsets 4, 5, 6.
+    expect(params[4]).toBe(0xFF);
+    expect(params[5]).toBe(0xFF);
+    expect(params[6]).toBe(0x1F);   // channels 16–20, bits 0–4
+    expect(params[7]).toBe(0);      // waveform moved from offset 6 to 7
+  });
+
+  it('leaves the reserved top three bits of channel_mask_ext clear', () => {
+    for (let n = 1; n <= NPHardwareLimits.clinicalTacsMaxChannels; n++) {
+      expect(tacsParams(n)[6] & 0xE0).toBe(0);
+    }
+  });
+
+  it('enables exactly the first N channels', () => {
+    for (const n of [1, 8, 15, 16, 17, 21]) {
+      const params = tacsParams(n);
+      const mask = params[4] | (params[5] << 8) | (params[6] << 16);
+      expect(mask).toBe(2 ** n - 1);
+    }
+  });
+
+  it('still writes a well-formed struct for an over-range count', () => {
+    // protocolValidator rejects this before compile; the encoder must not emit a
+    // malformed block if it is reached anyway.
+    const params = tacsParams(40);
+    expect(params).toHaveLength(8);
+    expect(params[6] & 0xE0).toBe(0);
+    const mask = params[4] | (params[5] << 8) | (params[6] << 16);
+    expect(mask).toBe(2 ** NPHardwareLimits.clinicalTacsMaxChannels - 1);
   });
 });
 
