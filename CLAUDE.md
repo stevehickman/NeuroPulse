@@ -425,13 +425,15 @@ and the code carries only a key.** Never write a string a person will read into 
 - **Module-level tables hold KEYS, not text** (`MODALITY_META.displayNameKey`, `ELEMENT_TYPE_LABEL`,
   `PRESETS.labelKey`). A constant initialised at import time captures English before `initI18n()`
   resolves; resolve with `t()` at the point of render.
-- **One modality name, derived from the `.npps` token.** Each modality type has exactly one
-  user-facing string, `MODALITY_<ID>_NAME`, and it is the modality's `.npps` grammar token with
+- **One name and one description per modality type — `MODALITY_<ID>_NAME` and
+  `MODALITY_<ID>_DESC`, and no others.** The name is the modality's `.npps` grammar token with
   underscores replaced by spaces and each word capitalised (`pbm_transcranial` → `PBM Transcranial`;
-  acronyms and unit symbols keep their conventional casing). Web, iOS and Android all render that
-  one key — there is no separate consumer-facing name — and, like a product designation, it carries
-  the same value in all eleven locales. **The `.npps` parser and hub compiler are unaffected**: they
-  keep the lowercase snake_case token, which stays the canonical identifier.
+  acronyms and unit symbols keep their conventional casing). Web, iOS and Android all render those
+  two keys — there is no separate consumer-facing name and no per-platform description — and, like a
+  product designation, the name carries the same value in all eleven locales. The two regulatory
+  consumer names §3 locks are carried by the **descriptions** of `bes_tacs` and `tdcs`, which open
+  with them verbatim — the derivation has no exceptions. **The `.npps` parser and hub compiler are
+  unaffected**: they keep the lowercase snake_case token, which stays the canonical identifier.
 - **Not translated, and deliberately literal:** unit symbols and numbers (`Hz`, `mA`, `42%`,
   `1064nm`), product/tier designations and part numbers (`T1`, `ZM-PBM-DUAL`), enum and identifier
   values, single glyphs used as icons, and `.npps` parser / hub-compiler diagnostics — those name

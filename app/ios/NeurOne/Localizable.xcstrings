@@ -28975,77 +28975,6 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Binaural beats + bone conduction"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Binaural beats + bone conduction"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Binaural beats + bone conduction"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Binaural beats + bone conduction"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Binaural beats + bone conduction"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Binaural beats + bone conduction"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Binaural beats + bone conduction"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Binaural beats + bone conduction"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Binaural beats + bone conduction"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Binaural beats + bone conduction"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Binaural beats + bone conduction"
-          }
-        }
-      }
-    },
-    "MODALITY_AUDIO_ENTRAINMENT_DETAIL_SUMMARY": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
             "value": "Binaural beats + isochronic tones; over-ear planar + bone conduction; EEG-adaptive."
           }
         },
@@ -29259,138 +29188,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
+            "value": "Brainwave Entrainment Stimulation; 0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
+            "value": "Brainwave Entrainment Stimulation; 0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
+            "value": "Brainwave Entrainment Stimulation; 0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
+            "value": "Brainwave Entrainment Stimulation; 0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
+            "value": "Brainwave Entrainment Stimulation; 0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
+            "value": "Brainwave Entrainment Stimulation; 0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
+            "value": "Brainwave Entrainment Stimulation; 0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
+            "value": "Brainwave Entrainment Stimulation; 0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
+            "value": "Brainwave Entrainment Stimulation; 0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
+            "value": "Brainwave Entrainment Stimulation; 0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
-          }
-        }
-      }
-    },
-    "MODALITY_BES_TACS_DETAIL_SUMMARY": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
+            "value": "Brainwave Entrainment Stimulation; 0.5–40Hz charge-balanced biphasic; ≤1mA; per-electrode impedance monitoring."
           }
         }
       }
@@ -29685,77 +29543,6 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        }
-      }
-    },
-    "MODALITY_CERVICAL_VNS_DETAIL_SUMMARY": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
             "value": "Neck-worn tcVNS; carotid sheath; cardiac rhythm interlock via safety MCU."
           }
         },
@@ -29964,77 +29751,6 @@
       }
     },
     "MODALITY_CLINICAL_TACS_DESC": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        }
-      }
-    },
-    "MODALITY_CLINICAL_TACS_DETAIL_SUMMARY": {
       "extractionState": "manual",
       "localizations": {
         "ar": {
@@ -30537,77 +30253,6 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        }
-      }
-    },
-    "MODALITY_EEG_NEUROFEEDBACK_DETAIL_SUMMARY": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
             "value": "8-channel 24-bit semi-dry EEG; closed-loop frequency adaptation; 500 Hz sample rate."
           }
         },
@@ -31029,77 +30674,6 @@
       }
     },
     "MODALITY_HD_TDCS_DESC": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-guided 4×1 ring montage"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-guided 4×1 ring montage"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-guided 4×1 ring montage"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "sLORETA-guided 4×1 ring montage"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-guided 4×1 ring montage"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-guided 4×1 ring montage"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-guided 4×1 ring montage"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-guided 4×1 ring montage"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-guided 4×1 ring montage"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-guided 4×1 ring montage"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-guided 4×1 ring montage"
-          }
-        }
-      }
-    },
-    "MODALITY_HD_TDCS_DETAIL_SUMMARY": {
       "extractionState": "manual",
       "localizations": {
         "ar": {
@@ -31531,77 +31105,6 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        }
-      }
-    },
-    "MODALITY_PBM_DEEP_1170NM_DETAIL_SUMMARY": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
             "value": "Laser diodes; 35–40mm subcortical depth; TEC stabilized; ≤1,000mW/cm²."
           }
         },
@@ -31744,77 +31247,6 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Bilateral 660+808nm nasal probe"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Bilateral 660+808nm nasal probe"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Bilateral 660+808nm nasal probe"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Bilateral 660+808nm nasal probe"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Bilateral 660+808nm nasal probe"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Bilateral 660+808nm nasal probe"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Bilateral 660+808nm nasal probe"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Bilateral 660+808nm nasal probe"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Bilateral 660+808nm nasal probe"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Bilateral 660+808nm nasal probe"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Bilateral 660+808nm nasal probe"
-          }
-        }
-      }
-    },
-    "MODALITY_PBM_INTRANASAL_DETAIL_SUMMARY": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
             "value": "Bilateral Y-probe; 660nm + 810nm; depth-stop rings; authenticated hygiene sleeves."
           }
         },
@@ -31952,77 +31384,6 @@
       }
     },
     "MODALITY_PBM_TRANSCRANIAL_DESC": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        }
-      }
-    },
-    "MODALITY_PBM_TRANSCRANIAL_DETAIL_SUMMARY": {
       "extractionState": "manual",
       "localizations": {
         "ar": {
@@ -32307,77 +31668,6 @@
       }
     },
     "MODALITY_QEEG_21CH_DESC": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        }
-      }
-    },
-    "MODALITY_QEEG_21CH_DETAIL_SUMMARY": {
       "extractionState": "manual",
       "localizations": {
         "ar": {
@@ -33022,138 +32312,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "DC stimulation 0.1–2mA"
+            "value": "Cortical Priming Stimulation; 0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "DC stimulation 0.1–2mA"
+            "value": "Cortical Priming Stimulation; 0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "DC stimulation 0.1–2mA"
+            "value": "Cortical Priming Stimulation; 0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "DC stimulation 0.1–2mA"
+            "value": "Cortical Priming Stimulation; 0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "DC stimulation 0.1–2mA"
+            "value": "Cortical Priming Stimulation; 0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "DC stimulation 0.1–2mA"
+            "value": "Cortical Priming Stimulation; 0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "DC stimulation 0.1–2mA"
+            "value": "Cortical Priming Stimulation; 0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "DC stimulation 0.1–2mA"
+            "value": "Cortical Priming Stimulation; 0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "DC stimulation 0.1–2mA"
+            "value": "Cortical Priming Stimulation; 0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "DC stimulation 0.1–2mA"
+            "value": "Cortical Priming Stimulation; 0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "DC stimulation 0.1–2mA"
-          }
-        }
-      }
-    },
-    "MODALITY_TDCS_DETAIL_SUMMARY": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
+            "value": "Cortical Priming Stimulation; 0.1–2mA DC; 30s hardware-enforced ramp; 40µC/cm² safety MCU limit."
           }
         }
       }
@@ -33230,77 +32449,6 @@
       }
     },
     "MODALITY_TMS_DESC": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        }
-      }
-    },
-    "MODALITY_TMS_DETAIL_SUMMARY": {
       "extractionState": "manual",
       "localizations": {
         "ar": {
@@ -33519,77 +32667,6 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        }
-      }
-    },
-    "MODALITY_VIBROTACTILE_40HZ_DETAIL_SUMMARY": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
             "value": "Mastoid LRA pad; 40Hz ± 0.5Hz locked; 0.6–1.2G; hub-powered."
           }
         },
@@ -33732,77 +32809,6 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        }
-      }
-    },
-    "MODALITY_VISUAL_STIMULATION_DETAIL_SUMMARY": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
             "value": "108 micro-LEDs/lens; binocular, EMDR, retinal PBM (Mode F); 0.5–100Hz."
           }
         },
@@ -33940,77 +32946,6 @@
       }
     },
     "MODALITY_VNS_HRV_DESC": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        }
-      }
-    },
-    "MODALITY_VNS_HRV_DETAIL_SUMMARY": {
       "extractionState": "manual",
       "localizations": {
         "ar": {
