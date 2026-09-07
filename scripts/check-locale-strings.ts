@@ -427,6 +427,12 @@ function checkInterpolationSyntax(canonical: Record<string, string>): string[] {
     if (/\$\{[^0-9]/.test(v)) {
       errs.push(`${k}: carries \${…} interpolation — use {0} and pass the value as an argument`);
     }
+    // A lone backslash is the signature of a literal that was split mid-escape:
+    // `delete \"\\(name)\"` keyed only as far as the escaped quote leaves the
+    // value ending in `\`, and the remainder stranded as code at the call site.
+    if (v.includes("\\")) {
+      errs.push(`${k}: contains a backslash — a keyed value is plain text, so this is a literal truncated mid-escape`);
+    }
   }
   return errs;
 }

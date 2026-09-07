@@ -42110,67 +42110,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Are you sure you want to delete \\"
+            "value": "Are you sure you want to delete \"%1$@\"? This cannot be undone."
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Are you sure you want to delete \\"
+            "value": "Are you sure you want to delete \"%1$@\"? This cannot be undone."
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Are you sure you want to delete \\"
+            "value": "Are you sure you want to delete \"%1$@\"? This cannot be undone."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Are you sure you want to delete \\"
+            "value": "Are you sure you want to delete \"%1$@\"? This cannot be undone."
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Are you sure you want to delete \\"
+            "value": "Are you sure you want to delete \"%1$@\"? This cannot be undone."
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Are you sure you want to delete \\"
+            "value": "Are you sure you want to delete \"%1$@\"? This cannot be undone."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Are you sure you want to delete \\"
+            "value": "Are you sure you want to delete \"%1$@\"? This cannot be undone."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Are you sure you want to delete \\"
+            "value": "Are you sure you want to delete \"%1$@\"? This cannot be undone."
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Are you sure you want to delete \\"
+            "value": "Are you sure you want to delete \"%1$@\"? This cannot be undone."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Are you sure you want to delete \\"
+            "value": "Are you sure you want to delete \"%1$@\"? This cannot be undone."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Are you sure you want to delete \\"
+            "value": "Are you sure you want to delete \"%1$@\"? This cannot be undone."
           }
         }
       }

@@ -598,7 +598,7 @@
     <string name="protocol_interval_count">Interval Count</string>
     <string name="protocol_layers">Layers</string>
     <string name="protocol_menu_accessory">Accessory</string>
-    <string name="protocol_menu_are_you_sure_you_want_to_delete">Are you sure you want to delete \</string>
+    <string name="protocol_menu_are_you_sure_you_want_to_delete">Are you sure you want to delete \"%1$s\"? This cannot be undone.</string>
     <string name="protocol_menu_compose">Compose</string>
     <string name="protocol_menu_composite">Composite</string>
     <string name="protocol_menu_delete_protocol">Delete Protocol?</string>

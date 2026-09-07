@@ -98,7 +98,10 @@ struct ProtocolMenuView: View {
                 Button("COMMON_CANCEL", role: .cancel) { confirmDelete = nil }
             } message: {
                 if let entry = confirmDelete {
-                    Text("PROTOCOL_MENU_ARE_YOU_SURE_YOU_WANT_TO_DELETE"\(entry.name)\"? This cannot be undone.")
+                    Text(String(
+                        format: String(localized: "PROTOCOL_MENU_ARE_YOU_SURE_YOU_WANT_TO_DELETE"),
+                        entry.name
+                    ))
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {

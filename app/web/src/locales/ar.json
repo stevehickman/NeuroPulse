@@ -592,7 +592,7 @@
   "PROTOCOL_INTERVAL_COUNT": "Interval Count",
   "PROTOCOL_LAYERS": "Layers",
   "PROTOCOL_MENU_ACCESSORY": "Accessory",
-  "PROTOCOL_MENU_ARE_YOU_SURE_YOU_WANT_TO_DELETE": "Are you sure you want to delete \\",
+  "PROTOCOL_MENU_ARE_YOU_SURE_YOU_WANT_TO_DELETE": "Are you sure you want to delete \"{0}\"? This cannot be undone.",
   "PROTOCOL_MENU_COMPOSE": "Compose",
   "PROTOCOL_MENU_COMPOSITE": "Composite",
   "PROTOCOL_MENU_DELETE_PROTOCOL": "Delete Protocol?",
