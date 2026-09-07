@@ -29756,67 +29756,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
+            "value": "≤4mA; 21-channel arbitrary waveform; clinical-grade precision."
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
+            "value": "≤4mA; 21-channel arbitrary waveform; clinical-grade precision."
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
+            "value": "≤4mA; 21-channel arbitrary waveform; clinical-grade precision."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
+            "value": "≤4mA; 21-channel arbitrary waveform; clinical-grade precision."
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
+            "value": "≤4mA; 21-channel arbitrary waveform; clinical-grade precision."
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
+            "value": "≤4mA; 21-channel arbitrary waveform; clinical-grade precision."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
+            "value": "≤4mA; 21-channel arbitrary waveform; clinical-grade precision."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
+            "value": "≤4mA; 21-channel arbitrary waveform; clinical-grade precision."
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
+            "value": "≤4mA; 21-channel arbitrary waveform; clinical-grade precision."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
+            "value": "≤4mA; 21-channel arbitrary waveform; clinical-grade precision."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "≤4mA; 16-channel arbitrary waveform; clinical-grade precision."
+            "value": "≤4mA; 21-channel arbitrary waveform; clinical-grade precision."
           }
         }
       }

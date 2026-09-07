@@ -742,6 +742,8 @@ struct ClinicalTacsParamsView: View {
         VStack(alignment: .leading, spacing: 12) {
             SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 0.5...40, format: { String(format: "%.1f Hz", $0) })
             SliderRow(label: "Intensity (mA)", value: $params.intensityMilliamps, range: 0...4, format: { String(format: "%.2f mA", $0) })
+            // Upper bound is the 16-channel hub wire mask, not the 21-channel
+            // driver (NP_HD_DRIVER_CHANNELS) — see OI-TACS-01.
             Stepper(value: $params.channelCount, in: 2...16, step: 2) {
                 HStack {
                     Text(String(localized: "MODALITY_CHANNELS")).font(.caption).foregroundColor(.secondary)

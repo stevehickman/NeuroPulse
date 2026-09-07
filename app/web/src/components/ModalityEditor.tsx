@@ -520,6 +520,7 @@ export function ParamControls({ params, onChange }: ParamControlsProps) {
         <div className="param-grid">
           <FrequencyField label={t('MODALITY_FREQUENCY')} value={p.frequencyHz} min={0.5} max={100} onChange={v => update<typeof params>({ ...p, frequencyHz: v })} />
           <SliderField label={t('WEB_MOD_INTENSITY')} value={p.intensityMilliamps} min={0.1} max={4.0} step={0.1} unit=" mA" onChange={v => update<typeof params>({ ...p, intensityMilliamps: v })} />
+          {/* max is the 16-channel hub wire mask, not the 21-channel driver — OI-TACS-01 */}
           <NumberField label={t('WEB_MOD_CHANNEL_COUNT')} value={p.channelCount} min={2} max={16} onChange={v => update<typeof params>({ ...p, channelCount: v })} />
           <SelectField label={t('MODALITY_WAVEFORM')} value={p.waveform} onChange={v => update<typeof params>({ ...p, waveform: v as ClinicalTacsParams['waveform'] })}
             options={[

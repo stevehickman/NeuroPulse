@@ -117,7 +117,7 @@ bench.
 - [ ] ISC-51: T1-B carries a dual-rated Ag/AgCl electrode that both records EEG AND delivers BES/tACS/tDCS — so no separate stim-electrode tile type exists.
 - [ ] ISC-52: T1-B retains base 660/808 PBM (reduced LED count for pod clearance) so PBM coverage is continuous at electrode sites (no PBM dead spot under electrodes).
 - [ ] ISC-53: T1-C (1064 smart) carries 660/808/1064 nm + on-module driver + InGaAs PD1/PD2 + NTC and no EEG; a combined EEG+1064 tile is a deferred grow-to-4 option, built only if 1064 zones and EEG sites overlap.
-- [ ] ISC-54: T2 adds exactly one tile type (T2-D 1170 nm laser + TEC); qEEG-21 / HD-tDCS 4×1 / 16-ch clinical tACS reuse T1-B at higher density; TMS coil and cervical VNS are non-tile applicators.
+- [ ] ISC-54: T2 adds exactly one tile type (T2-D 1170 nm laser + TEC); qEEG-21 / HD-tDCS 4×1 / 21-ch clinical tACS reuse T1-B at higher density; TMS coil and cervical VNS are non-tile applicators.
 - [ ] ISC-55: Anti: no cranial T1 modality requires a tile type outside {T1-A, T1-B, T1-C}; no scalp T2 modality except 1170 nm requires a type beyond the T1 set.
 - [ ] ISC-56: T1-B is allocated ONLY at required electrode positions (~8 for the T1 EEG montage Fp1/2·F3/4·C3/4·P3/4, plus any tES montage sites); the majority of sockets are electrode-free T1-A. A representative build is ~8× T1-B + balance T1-A (+ T1-C at 1–5 depth zones).
 - [ ] ISC-57: Anti: no build places an EEG electrode at every socket — EEG-in-every-module (electrode at every location) is rejected as over-provisioning (cost + lost LED area).

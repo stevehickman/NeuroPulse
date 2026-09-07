@@ -75,7 +75,7 @@ Source localization algorithm for EEG (inverse problem solution via Laplacian we
 
 ### [tACS](#tacs)
 **tACS** — [Transcranial Alternating Current Stimulation](https://en.wikipedia.org/wiki/Transcranial_alternating_current_stimulation)  
-Sinusoidal brain stimulation (0–40Hz). NeurOne T1: ≤1mA per electrode. T2: 16-channel arbitrary waveform, ≤4mA. Charge-balanced biphasic, per-electrode impedance monitoring. See CLAUDE.md §3 (modality 4).
+Sinusoidal brain stimulation (0–40Hz). NeurOne T1: ≤1mA per electrode. T2: 21-channel arbitrary waveform, ≤4mA. Charge-balanced biphasic, per-electrode impedance monitoring. See CLAUDE.md §3 (modality 4).
 
 ### [TBS](#tbs)
 **TBS** — Theta Burst Stimulation  

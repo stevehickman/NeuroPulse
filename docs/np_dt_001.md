@@ -117,7 +117,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-PERF-05 | Performance | Real-time J/cm² dose metering per zone per wavelength; dual-PD (PD1 forward + PD2 scalp backscatter); PD1/PD2 ratio separates fouling from LED aging | CLAUDE.md §3 modality 1, RISK-14 | High | T1+T2 |
 | DI-PERF-06 | Performance | 1064 nm smart module (T1-C, NP-HEX-ZM-001 §4a): on-module ATtiny402 I2C driver + 3× IRLML6344 N-FETs, Hamamatsu G12180-010A InGaAs PD dose-metering. **⚠ Superseded 2026-07-28:** 550-LED count and ZONE_ID detection were sized for the retired 66×78mm/5-slot module; driver/PD component selection remains relevant, element count and detection mechanism do not. | CLAUDE.md §3 modality 1; NP-HEX-ZM-001 §4a | High | T1+T2 |
 | DI-PERF-07 | Performance | BES/tACS T1: 0.5–40 Hz, ≤1 mA, charge-balanced biphasic; adaptive EMF notch prevents Helmholtz cancellation of stimulus | CLAUDE.md §3 modality 4 | High | T1 |
-| DI-PERF-08 | Performance | Clinical tACS T2: ≤4 mA, 16-channel arbitrary waveform; per-electrode independent current control | CLAUDE.md §3 T2 | High | T2 |
+| DI-PERF-08 | Performance | Clinical tACS T2: ≤4 mA, 21-channel arbitrary waveform (one channel per cap electrode); per-electrode independent current control | CLAUDE.md §3 T2 | High | T2 |
 | DI-PERF-09 | Performance | tDCS: 0.1–2 mA DC, ≤3 electrode pairs, per-electrode impedance monitoring | CLAUDE.md §3 modality 5 | High | T1+T2 |
 | DI-PERF-10 | Performance | Auricular VNS: 1–25 Hz, ≤2 mA biphasic charge-balanced; PPG HRV 808–830 nm in same clip; A1/A2 EEG reference contacts on clip pads | CLAUDE.md §3 modality 6 | High | T1+T2 |
 | DI-PERF-11 | Performance | Cervical VNS (tcVNS) T2: gel electrodes at carotid sheath; ≤2 mA; bilateral or unilateral; 10 s ramp-up, 5 s ramp-down | CLAUDE.md §3 T2 | High | T2 |
@@ -268,7 +268,7 @@ Verification evidence is a test record, FAI result, software analysis pass, or r
 | DI-PERF-05 | Real-time J/cm² metering dual-PD | DO-HW-01, DO-FW-07, DO-SW-06 | FPC dual-PD RISK-14; 1064 nm fw dose accumulator; source | VE-01, VE-07 | Partial |
 | DI-PERF-06 | 1064 nm smart module ATtiny402 | DO-HW-01, DO-HW-02, DO-HW-05, DO-FW-07, DO-SW-06 | FPC Rev 5; Hub PCB Rev B TIA switch; mould variant; fw spec | VE-07 | Partial |
 | DI-PERF-07 | BES/tACS ≤1 mA 0.5–40 Hz (T1) | DO-FW-08, DO-SW-07, DO-RISK-02 | Hub control session runner; risk plan | VE-05 | Partial |
-| DI-PERF-08 | Clinical tACS ≤4 mA 16-ch (T2) | DO-FW-08, DO-SW-07, DO-RISK-02 | Hub control; risk plan | VE-05 | Partial |
+| DI-PERF-08 | Clinical tACS ≤4 mA 21-ch (T2) | DO-FW-08, DO-SW-07, DO-RISK-02 | Hub control; risk plan | VE-05 | Partial |
 | DI-PERF-09 | tDCS 0.1–2 mA ≤3 pairs | DO-FW-08, DO-SW-07, DO-RISK-01 | Hub control; risk register | VE-05 | Partial |
 | DI-PERF-10 | Auricular VNS + PPG HRV A1/A2 ref | DO-FW-03, DO-SW-02 | HRV fw spec np_hrv_tavns_sync; source | VE-04 | Traced |
 | DI-PERF-11 | Cervical VNS (T2) ≤2 mA ramp | DO-FW-06, DO-SW-05, DO-REG-02 | CVNS fw; source; 510(k) Q-Sub | VE-03 | Partial |

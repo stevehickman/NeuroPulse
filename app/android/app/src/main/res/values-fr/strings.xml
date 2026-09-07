@@ -424,7 +424,7 @@
     <string name="modality_cervical_vns_desc">Neck-worn tcVNS; carotid sheath; cardiac rhythm interlock via safety MCU.</string>
     <string name="modality_cervical_vns_name">Cervical VNS</string>
     <string name="modality_channels">Channels</string>
-    <string name="modality_clinical_tacs_desc">≤4mA; 16-channel arbitrary waveform; clinical-grade precision.</string>
+    <string name="modality_clinical_tacs_desc">≤4mA; 21-channel arbitrary waveform; clinical-grade precision.</string>
     <string name="modality_clinical_tacs_name">Clinical TACS</string>
     <string name="modality_closed_loop_eeg_adaptation">Closed-Loop EEG Adaptation</string>
     <string name="modality_count">Count</string>

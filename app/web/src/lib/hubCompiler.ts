@@ -774,9 +774,14 @@ function encodeClinicalTacs(p: ClinicalTacsParams): EncodedParams {
   const freqMhz = Math.min(Math.round(p.frequencyHz * 1000), 0xFFFF);
   const ampUa   = Math.min(Math.round(p.intensityMilliamps * 1000), 4000);
   const wf      = p.waveform === 'sinusoidal' ? 0 : p.waveform === 'square' ? 1 : 2;
-  // Activate first channelCount channels
-  const n       = Math.min(p.channelCount, 16);
-  const fullMask = n === 16 ? 0xFFFF : (1 << n) - 1;
+  // Activate first channelCount channels.  The T2 driver has 21 channels, one
+  // per cap electrode (NP_HD_DRIVER_CHANNELS, NP-FW-HD-001 §6.4), but
+  // np_mod_clin_tacs_params_t carries only two 8-bit masks, so channels 16–20
+  // cannot be addressed over the wire yet — see OI-TACS-01.  Widening this is a
+  // firmware wire-format change, not an app-side clamp to raise.
+  const CLIN_TACS_WIRE_CHANNELS = 16;
+  const n       = Math.min(p.channelCount, CLIN_TACS_WIRE_CHANNELS);
+  const fullMask = n === CLIN_TACS_WIRE_CHANNELS ? 0xFFFF : (1 << n) - 1;
   const buf = new Uint8Array(7);
   const dv  = new DataView(buf.buffer);
   dv.setUint16(0, freqMhz, true);

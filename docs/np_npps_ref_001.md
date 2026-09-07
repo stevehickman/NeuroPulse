@@ -719,13 +719,14 @@ pbm_deep_1170nm {
 
 ### 4.12 Clinical tACS
 
-T2 only. Up to 16 independent channels, arbitrary waveform.
+T2 only. Up to 21 independent channels, arbitrary waveform — one per T2 cap electrode
+(NP-FW-HD-001 §6.4, `NP_HD_DRIVER_CHANNELS`).
 
 | Field | Canonical | Type | Values |
 |-------|-----------|------|--------|
 | `intensity` | `intensity_milliamps` | number | ≤4 |
 | `frequency` | `frequency_hz` | number | 0.5–100 |
-| `channel_count` | `channel_count` | int | 1–16 |
+| `channel_count` | `channel_count` | int | 1–21 |
 | `waveform` | `waveform` | string | `sinusoidal` `square` `triangular` |
 
 ```
@@ -1354,9 +1355,9 @@ Reading the table:
 | `carrier_hz` | Modality field | `audio_entrainment` | Carrier tone frequency in Hz that the binaural beat is constructed on. |
 | `central` | Enum value | `eeg_neurofeedback` → `channels` | The central electrode group (C3/C4). |
 | `cervical_vns` | Modality block | `protocol`, `limits` | T2 accessory — cervical vagus trunk stimulation via neck gel electrodes (§4.14). |
-| `channel_count` | Modality field | `clinical_tacs` | Number of independent tACS channels used, 1–16. |
+| `channel_count` | Modality field | `clinical_tacs` | Number of independent tACS channels used, 1–21 — one per T2 cap electrode. Counts above 16 are clamped by the hub encoder until the wire mask is widened (OI-TACS-01). |
 | `channels` | Modality field | `eeg_neurofeedback` | Which electrode group the neurofeedback loop reads. |
-| `clinical_tacs` | Modality block | `protocol`, `limits` | T2 clinical tACS — up to 16 independent arbitrary-waveform channels, ≤4 mA (§4.12). |
+| `clinical_tacs` | Modality block | `protocol`, `limits` | T2 clinical tACS — up to 21 independent arbitrary-waveform channels, ≤4 mA (§4.12). |
 | `clinician_selected` | Enum value | `pbm_transcranial` → `zones` | The target is patient-specific and cannot be predefined: the operator picks the sockets before the protocol runs (NP-CFG-UI-001). One of the only two `zones` forms. |
 | `closed_loop` | Modality field (alias) | `eeg_neurofeedback` | Alias of `closed_loop_enabled` — run the EEG-adaptive control loop. |
 | `closed_loop_enabled` | Modality field (canonical) | `eeg_neurofeedback` | Canonical name behind `closed_loop`. |
