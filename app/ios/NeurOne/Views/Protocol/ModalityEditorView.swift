@@ -341,8 +341,18 @@ struct PBMIntranasalParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: String(localized: "VALIDATE_PARAM_INTENSITY"), value: $params.intensityPercent, range: 0...100, format: { "\(Int($0))%" })
-            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 0...40, format: { "\(Int($0))Hz" })
+            SliderRow(
+                label: String(localized: "VALIDATE_PARAM_INTENSITY"),
+                value: $params.intensityPercent,
+                range: 0...100,
+                format: { "\(Int($0))%" }
+            )
+            SliderRow(
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 0...40,
+                format: { "\(Int($0))Hz" }
+            )
             if params.frequencyHz > 0 {
                 Stepper(value: $params.dutyCyclePercent, in: 5...25, step: 5) {
                     HStack {
@@ -489,8 +499,18 @@ struct VNSHRVParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 1...25, format: { "\(Int($0)) Hz" })
-            SliderRow(label: String(localized: "AND_MODALITY_INTENSITY_MA"), value: $params.intensityMilliamps, range: 0...2, format: { String(format: "%.2f mA", $0) })
+            SliderRow(
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 1...25,
+                format: { "\(Int($0)) Hz" }
+            )
+            SliderRow(
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
+                value: $params.intensityMilliamps,
+                range: 0...2,
+                format: { String(format: "%.2f mA", $0) }
+            )
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("VALIDATE_PARAM_HRV_PROTOCOL").font(.caption).foregroundColor(.secondary)
@@ -582,7 +602,12 @@ struct AudioEntrainmentParamsView: View {
                 .pickerStyle(.segmented)
             }
 
-            SliderRow(label: String(localized: "VALIDATE_PARAM_VOLUME"), value: $params.volumePercent, range: 0...100, format: { "\(Int($0))%" })
+            SliderRow(
+                label: String(localized: "VALIDATE_PARAM_VOLUME"),
+                value: $params.volumePercent,
+                range: 0...100,
+                format: { "\(Int($0))%" }
+            )
             Toggle("MODALITY_EEG_ADAPTIVE_FREQUENCY", isOn: $params.eegAdaptive).font(.caption)
             Toggle("MODALITY_BONE_CONDUCTION_BREATHING_PACER", isOn: $params.boneConductionPacer).font(.caption)
         }
@@ -681,7 +706,12 @@ struct TMSParamsView: View {
                 }
                 .pickerStyle(.menu)
             }
-            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 1...20, format: { "\(Int($0)) Hz" })
+            SliderRow(
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 1...20,
+                format: { "\(Int($0)) Hz" }
+            )
             SliderRow(
                 label: String(localized: "VALIDATE_PARAM_INTENSITY_MT"),
                 value: Binding(
@@ -718,8 +748,18 @@ struct DeepPBMParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: String(localized: "MODEDIT_INTENSITY_MW_CM"), value: $params.intensityMWcm2, range: 100...1000, format: { "\(Int($0)) mW/cm²" })
-            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 0...40, format: { "\(Int($0)) Hz" })
+            SliderRow(
+                label: String(localized: "MODEDIT_INTENSITY_MW_CM"),
+                value: $params.intensityMWcm2,
+                range: 100...1000,
+                format: { "\(Int($0)) mW/cm²" }
+            )
+            SliderRow(
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 0...40,
+                format: { "\(Int($0)) Hz" }
+            )
             if params.frequencyHz > 0 {
                 Stepper(value: $params.dutyCyclePercent, in: 5...25, step: 5) {
                     HStack {
@@ -740,8 +780,18 @@ struct ClinicalTacsParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 0.5...40, format: { String(format: "%.1f Hz", $0) })
-            SliderRow(label: String(localized: "AND_MODALITY_INTENSITY_MA"), value: $params.intensityMilliamps, range: 0...4, format: { String(format: "%.2f mA", $0) })
+            SliderRow(
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 0.5...40,
+                format: { String(format: "%.1f Hz", $0) }
+            )
+            SliderRow(
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
+                value: $params.intensityMilliamps,
+                range: 0...4,
+                format: { String(format: "%.2f mA", $0) }
+            )
             // Upper bound is the 16-channel hub wire mask, not the 21-channel
             // driver (NP_HD_DRIVER_CHANNELS) — see OI-TACS-01.
             Stepper(value: $params.channelCount, in: 2...16, step: 2) {
@@ -797,8 +847,18 @@ struct CervicalVnsParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 1...25, format: { "\(Int($0)) Hz" })
-            SliderRow(label: String(localized: "AND_MODALITY_INTENSITY_MA"), value: $params.intensityMilliamps, range: 0...2, format: { String(format: "%.2f mA", $0) })
+            SliderRow(
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 1...25,
+                format: { "\(Int($0)) Hz" }
+            )
+            SliderRow(
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
+                value: $params.intensityMilliamps,
+                range: 0...2,
+                format: { String(format: "%.2f mA", $0) }
+            )
             Label("MODALITY_CARDIAC_RHYTHM_INTERLOCK_IS_ALWAYS_ACTIVE_EN", systemImage: "heart.fill")
                 .font(.caption2)
                 .foregroundColor(.secondary)
@@ -820,7 +880,12 @@ struct VibrotactileParamsView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            SliderRow(label: String(localized: "MODEDIT_INTENSITY_G"), value: $params.intensityG, range: 0.6...1.2, format: { String(format: "%.2f G", $0) })
+            SliderRow(
+                label: String(localized: "MODEDIT_INTENSITY_G"),
+                value: $params.intensityG,
+                range: 0.6...1.2,
+                format: { String(format: "%.2f G", $0) }
+            )
             Toggle("MODALITY_SYNC_TO_AUDIO_SESSION", isOn: $params.syncToAudio).font(.caption)
             Toggle("MODALITY_SYNC_TO_VISUAL_SESSION", isOn: $params.syncToVisual).font(.caption)
             Label("MODALITY_PROVISIONAL_PENDING_HOPE_PHASE_3_RESULTS_MID", systemImage: "clock.badge.questionmark")

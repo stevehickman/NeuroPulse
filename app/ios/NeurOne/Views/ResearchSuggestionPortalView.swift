@@ -210,7 +210,11 @@ struct SuggestionDetailView: View {
     private var statsSection: some View {
         HStack(spacing: 24) {
             stat(icon: "hand.thumbsup.fill", value: "\(suggestion.voteCount)", label: String(localized: "PORTAL_VOTES"))
-            stat(icon: "person.fill.checkmark", value: "\(suggestion.participationIntentCount)", label: String(localized: "PORTAL_INTERESTED"))
+            stat(
+                icon: "person.fill.checkmark",
+                value: "\(suggestion.participationIntentCount)",
+                label: String(localized: "PORTAL_INTERESTED")
+            )
             stat(icon: "dollarsign.circle.fill", value: "$\(suggestion.pledgedAmount)", label: String(localized: "PORTAL_PLEDGED"))
         }
         .frame(maxWidth: .infinity)
