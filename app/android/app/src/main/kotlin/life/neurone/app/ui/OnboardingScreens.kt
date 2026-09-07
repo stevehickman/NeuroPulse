@@ -46,11 +46,11 @@ fun AgeGateScreen(onConfirmed: () -> Unit) {
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("Welcome to NeurOne", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.setup_title_welcome), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
         Text(
-            "NeurOne is designed for users 16 years of age or older. " +
-                "Please confirm your age to continue.",
+            stringResource(R.string.age_neurone_is_designed_for_users_16_years_of_ag) +
+                stringResource(R.string.age_please_confirm_your_age_to_continue),
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(Modifier.height(24.dp))
@@ -60,10 +60,10 @@ fun AgeGateScreen(onConfirmed: () -> Unit) {
         }
         Spacer(Modifier.height(24.dp))
         Button(onClick = onConfirmed, enabled = checked) {
-            Text("Continue")
+            Text(stringResource(R.string.setup_continue_button))
         }
         Spacer(Modifier.height(8.dp))
-        TextButton(onClick = { showUnder16 = true }) { Text("I am under 16") }
+        TextButton(onClick = { showUnder16 = true }) { Text(stringResource(R.string.age_gate_under_16)) }
     }
 }
 
@@ -78,16 +78,16 @@ fun Under16Screen(onBack: () -> Unit) {
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("Thanks for your interest", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.age_thanks_for_your_interest), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
         Text(
-            "NeurOne is intended for users 16 years of age or older. We're not able to set " +
-                "up a device for younger users at this time. If you entered this by mistake, go " +
-                "back and confirm your age.",
+            stringResource(R.string.age_neurone_is_intended_for_users_16_years_of_ag) +
+                stringResource(R.string.age_up_a_device_for_younger_users_at_this_time_i) +
+                stringResource(R.string.age_back_and_confirm_your_age),
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(Modifier.height(24.dp))
-        TextButton(onClick = onBack) { Text("Back") }
+        TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
     }
 }
 
@@ -105,27 +105,27 @@ fun BipaConsentScreen(onAccepted: () -> Unit) {
         modifier = Modifier.fillMaxSize().padding(24.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Center,
     ) {
-        Text("Your brainwave data", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.age_your_brainwave_data), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
         Text(
-            "NeurOne records EEG (brainwave) signals during sessions. EEG patterns are " +
-                "biometric information. Your recordings are encrypted on your device with a key " +
-                "only you hold — NeurOne cannot read them, ever.\n\n" +
-                "Retention: your recordings stay on your device until you delete them. " +
-                "NeurOne's biometric data retention and destruction policy is available at " +
-                "neurone.life/biometric-policy.\n\n" +
-                "By continuing you provide written release for NeurOne to process EEG data " +
-                "on your device for session delivery and neurofeedback.",
+            stringResource(R.string.age_neurone_records_eeg_brainwave_signals_during) +
+                stringResource(R.string.age_biometric_information_your_recordings_are_en) +
+                stringResource(R.string.age_only_you_hold_neurone_cannot_read_them_ever) +
+                stringResource(R.string.age_retention_your_recordings_stay_on_your_devic) +
+                stringResource(R.string.age_neurone_s_biometric_data_retention_and_destr) +
+                stringResource(R.string.age_neurone_life_biometric_policy) +
+                stringResource(R.string.age_by_continuing_you_provide_written_release_fo) +
+                stringResource(R.string.age_on_your_device_for_session_delivery_and_neur),
             style = MaterialTheme.typography.bodyLarge,
         )
         Spacer(Modifier.height(24.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = checked, onCheckedChange = { checked = it })
-            Text("I have read and agree to the biometric data release.")
+            Text(stringResource(R.string.age_i_have_read_and_agree_to_the_biometric_data))
         }
         Spacer(Modifier.height(24.dp))
         Button(onClick = onAccepted, enabled = checked) {
-            Text("Agree and continue")
+            Text(stringResource(R.string.age_agree_and_continue))
         }
         Spacer(Modifier.height(16.dp))
         Text(

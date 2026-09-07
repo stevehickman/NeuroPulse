@@ -48,6 +48,8 @@ import life.neurone.core.protocol.NPTDCSParams
 import life.neurone.core.protocol.NPVNSHRVParams
 import life.neurone.core.protocol.NPVisualStimParams
 import life.neurone.core.protocol.NPZoneRegistry
+import androidx.compose.ui.res.stringResource
+import life.neurone.app.R
 
 // Port of iOS ModalityEditorView — the deep per-modality parameter editor. Each enabled
 // modality is an expandable card with an enable toggle and typed controls; T1 modalities have
@@ -75,12 +77,12 @@ fun ModalityEditorScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onCancel) { Text("Cancel") }
-            Text("Edit modalities", style = MaterialTheme.typography.titleMedium)
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
+            Text(stringResource(R.string.and_modality_edit_modalities), style = MaterialTheme.typography.titleMedium)
             Button(onClick = {
                 library.save(NPProtocolEntry.Single(existing.copy(modalities = modalities)))
                 onSaved()
-            }) { Text("Save") }
+            }) { Text(stringResource(R.string.protocol_composer_save)) }
         }
 
         Spacer(Modifier.height(12.dp))
@@ -124,8 +126,8 @@ private fun ModalityCard(
                     modifier = Modifier.padding(start = 8.dp).clickable { onToggleExpand() },
                 )
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = onToggleExpand) { Text(if (isExpanded) "Hide" else "Edit") }
-                TextButton(onClick = onRemove) { Text("Remove") }
+                TextButton(onClick = onToggleExpand) { Text(if (isExpanded) stringResource(R.string.and_modality_hide) else stringResource(R.string.ui_edit)) }
+                TextButton(onClick = onRemove) { Text(stringResource(R.string.web_remove)) }
             }
             if (isExpanded) {
                 Spacer(Modifier.height(8.dp))
@@ -147,7 +149,7 @@ private fun ParamControls(modality: NPProtocolModality, onParams: (NPModalityPar
         is NPModalityParams.AudioEntrainment -> Audio(p.params) { onParams(NPModalityParams.AudioEntrainment(it)) }
         is NPModalityParams.VisualStimulation -> Visual(p.params) { onParams(NPModalityParams.VisualStimulation(it)) }
         else -> Text(
-            "Edit this modality's parameters in the script editor.",
+            stringResource(R.string.and_modality_edit_this_modality_s_parameters_in_the_scrip),
             style = MaterialTheme.typography.bodySmall,
         )
     }
@@ -157,25 +159,25 @@ private fun ParamControls(modality: NPProtocolModality, onParams: (NPModalityPar
 
 @Composable
 private fun PbmTranscranial(p: NPPBMTranscranialParams, on: (NPPBMTranscranialParams) -> Unit) {
-    NumField("Intensity (%)", p.intensityPercent) { on(p.copy(intensityPercent = it)) }
-    NumField("Frequency (Hz, 0 = CW)", p.frequencyHz) { on(p.copy(frequencyHz = it)) }
-    IntField("Duty cycle (%)", p.dutyCyclePercent) { on(p.copy(dutyCyclePercent = it)) }
+    NumField(stringResource(R.string.and_modality_intensity), p.intensityPercent) { on(p.copy(intensityPercent = it)) }
+    NumField(stringResource(R.string.and_modality_frequency_hz_0_cw), p.frequencyHz) { on(p.copy(frequencyHz = it)) }
+    IntField(stringResource(R.string.and_modality_duty_cycle), p.dutyCyclePercent) { on(p.copy(dutyCyclePercent = it)) }
     // A zone is a named set of modules, not one of five fixed slots. The picker
     // offers the authored zone names plus clinician_selected; multi-zone targets
     // are authored in .npps until the multi-select picker lands (NP-CFG-UI-001).
     ZoneDropdown(p.target) { on(p.copy(target = it)) }
-    EnumDropdown("Wavelength", p.wavelength, NPPBMTranscranialParams.Wavelength.entries, { it.rawValue }) { on(p.copy(wavelength = it)) }
+    EnumDropdown(stringResource(R.string.modality_wavelength), p.wavelength, NPPBMTranscranialParams.Wavelength.entries, { it.rawValue }) { on(p.copy(wavelength = it)) }
 }
 
 @Composable
 private fun ZoneDropdown(target: NPPBMTarget, on: (NPPBMTarget) -> Unit) {
-    val clinicianLabel = "Clinician-selected sockets"
+    val clinicianLabel = stringResource(R.string.pbm_target_clinician_selected)
     val options = NPZoneRegistry.zoneNames + clinicianLabel
     val current = when (target) {
         is NPPBMTarget.Named -> target.zoneNames.firstOrNull() ?: NPZoneRegistry.zoneNames.first()
         is NPPBMTarget.ClinicianSelected -> clinicianLabel
     }
-    EnumDropdown("Zone", current, options) { picked ->
+    EnumDropdown(stringResource(R.string.and_modality_zone), current, options) { picked ->
         on(
             if (picked == clinicianLabel) NPPBMTarget.ClinicianSelected
             else NPPBMTarget.Named(listOf(picked)),
@@ -185,55 +187,55 @@ private fun ZoneDropdown(target: NPPBMTarget, on: (NPPBMTarget) -> Unit) {
 
 @Composable
 private fun PbmIntranasal(p: NPPBMIntranasalParams, on: (NPPBMIntranasalParams) -> Unit) {
-    NumField("Intensity (%)", p.intensityPercent) { on(p.copy(intensityPercent = it)) }
-    NumField("Frequency (Hz)", p.frequencyHz) { on(p.copy(frequencyHz = it)) }
-    IntField("Duty cycle (%)", p.dutyCyclePercent) { on(p.copy(dutyCyclePercent = it)) }
+    NumField(stringResource(R.string.and_modality_intensity), p.intensityPercent) { on(p.copy(intensityPercent = it)) }
+    NumField(stringResource(R.string.and_modality_frequency_hz), p.frequencyHz) { on(p.copy(frequencyHz = it)) }
+    IntField(stringResource(R.string.and_modality_duty_cycle), p.dutyCyclePercent) { on(p.copy(dutyCyclePercent = it)) }
 }
 
 @Composable
 private fun Eeg(p: NPEEGNeurofeedbackParams, on: (NPEEGNeurofeedbackParams) -> Unit) {
-    EnumDropdown("Band", p.band, NPEEGNeurofeedbackParams.EEGBand.entries, { it.rawValue }) { on(p.copy(band = it)) }
-    EnumDropdown("Channels", p.channels, NPEEGNeurofeedbackParams.ChannelSelection.entries) { on(p.copy(channels = it)) }
-    ToggleRow("Closed-loop", p.closedLoopEnabled) { on(p.copy(closedLoopEnabled = it)) }
+    EnumDropdown(stringResource(R.string.modality_band), p.band, NPEEGNeurofeedbackParams.EEGBand.entries, { it.rawValue }) { on(p.copy(band = it)) }
+    EnumDropdown(stringResource(R.string.modality_channels), p.channels, NPEEGNeurofeedbackParams.ChannelSelection.entries) { on(p.copy(channels = it)) }
+    ToggleRow(stringResource(R.string.and_modality_closed_loop), p.closedLoopEnabled) { on(p.copy(closedLoopEnabled = it)) }
 }
 
 @Composable
 private fun Bes(p: NPBESTacsParams, on: (NPBESTacsParams) -> Unit) {
-    NumField("Frequency (Hz)", p.frequencyHz) { on(p.copy(frequencyHz = it)) }
-    NumField("Intensity (mA)", p.intensityMilliamps) { on(p.copy(intensityMilliamps = it)) }
-    EnumDropdown("Waveform", p.waveform, NPBESTacsParams.Waveform.entries, { it.rawValue }) { on(p.copy(waveform = it)) }
+    NumField(stringResource(R.string.and_modality_frequency_hz), p.frequencyHz) { on(p.copy(frequencyHz = it)) }
+    NumField(stringResource(R.string.and_modality_intensity_ma), p.intensityMilliamps) { on(p.copy(intensityMilliamps = it)) }
+    EnumDropdown(stringResource(R.string.modality_waveform), p.waveform, NPBESTacsParams.Waveform.entries, { it.rawValue }) { on(p.copy(waveform = it)) }
 }
 
 @Composable
 private fun Tdcs(p: NPTDCSParams, on: (NPTDCSParams) -> Unit) {
-    NumField("Intensity (mA)", p.intensityMilliamps) { on(p.copy(intensityMilliamps = it)) }
-    Text("Ramp: ${p.rampSeconds}s (hardware-enforced)", style = MaterialTheme.typography.bodySmall)
-    Text("Electrode pairs: ${p.electrodePairs.joinToString("; ") { it.joinToString("–") }}", style = MaterialTheme.typography.bodySmall)
+    NumField(stringResource(R.string.and_modality_intensity_ma), p.intensityMilliamps) { on(p.copy(intensityMilliamps = it)) }
+    Text(stringResource(R.string.and_modality_ramp_0_s_hardware_enforced, p.rampSeconds), style = MaterialTheme.typography.bodySmall)
+    Text(stringResource(R.string.and_modality_electrode_pairs_0, p.electrodePairs.joinToString("; ") { it.joinToString("–") }), style = MaterialTheme.typography.bodySmall)
 }
 
 @Composable
 private fun Vns(p: NPVNSHRVParams, on: (NPVNSHRVParams) -> Unit) {
-    NumField("Frequency (Hz)", p.frequencyHz) { on(p.copy(frequencyHz = it)) }
-    NumField("Intensity (mA)", p.intensityMilliamps) { on(p.copy(intensityMilliamps = it)) }
-    EnumDropdown("HRV protocol", p.hrvProtocol, NPVNSHRVParams.HRVProtocol.entries, { it.rawValue }) { on(p.copy(hrvProtocol = it)) }
-    NumField("Breathing rate (breaths/min)", p.resonanceBreathingRate) { on(p.copy(resonanceBreathingRate = it)) }
+    NumField(stringResource(R.string.and_modality_frequency_hz), p.frequencyHz) { on(p.copy(frequencyHz = it)) }
+    NumField(stringResource(R.string.and_modality_intensity_ma), p.intensityMilliamps) { on(p.copy(intensityMilliamps = it)) }
+    EnumDropdown(stringResource(R.string.and_modality_hrv_protocol), p.hrvProtocol, NPVNSHRVParams.HRVProtocol.entries, { it.rawValue }) { on(p.copy(hrvProtocol = it)) }
+    NumField(stringResource(R.string.and_modality_breathing_rate_breaths_min), p.resonanceBreathingRate) { on(p.copy(resonanceBreathingRate = it)) }
 }
 
 @Composable
 private fun Audio(p: NPAudioEntrainmentParams, on: (NPAudioEntrainmentParams) -> Unit) {
-    NumField("Binaural beat (Hz)", p.binauralBeatsHz ?: 0.0) { on(p.copy(binauralBeatsHz = it.takeIf { v -> v > 0 })) }
-    NumField("Isochronic tone (Hz)", p.isochronicTonesHz ?: 0.0) { on(p.copy(isochronicTonesHz = it.takeIf { v -> v > 0 })) }
-    NumField("Volume (%)", p.volumePercent) { on(p.copy(volumePercent = it)) }
-    ToggleRow("EEG-adaptive", p.eegAdaptive) { on(p.copy(eegAdaptive = it)) }
-    ToggleRow("Bone-conduction pacer", p.boneConductionPacer) { on(p.copy(boneConductionPacer = it)) }
+    NumField(stringResource(R.string.and_modality_binaural_beat_hz), p.binauralBeatsHz ?: 0.0) { on(p.copy(binauralBeatsHz = it.takeIf { v -> v > 0 })) }
+    NumField(stringResource(R.string.and_modality_isochronic_tone_hz), p.isochronicTonesHz ?: 0.0) { on(p.copy(isochronicTonesHz = it.takeIf { v -> v > 0 })) }
+    NumField(stringResource(R.string.and_modality_volume), p.volumePercent) { on(p.copy(volumePercent = it)) }
+    ToggleRow(stringResource(R.string.and_modality_eeg_adaptive), p.eegAdaptive) { on(p.copy(eegAdaptive = it)) }
+    ToggleRow(stringResource(R.string.and_modality_bone_conduction_pacer), p.boneConductionPacer) { on(p.copy(boneConductionPacer = it)) }
 }
 
 @Composable
 private fun Visual(p: NPVisualStimParams, on: (NPVisualStimParams) -> Unit) {
-    NumField("Frequency (Hz)", p.frequencyHz) { on(p.copy(frequencyHz = it)) }
-    EnumDropdown("Mode", p.mode, NPVisualStimParams.VisualMode.entries, { it.rawValue }) { on(p.copy(mode = it)) }
-    NumField("EMDR cadence (Hz)", p.emdrCadenceHz) { on(p.copy(emdrCadenceHz = it)) }
-    ToggleRow("Mode F (invisible NIR)", p.enableModeF) { on(p.copy(enableModeF = it)) }
+    NumField(stringResource(R.string.and_modality_frequency_hz), p.frequencyHz) { on(p.copy(frequencyHz = it)) }
+    EnumDropdown(stringResource(R.string.validate_param_mode), p.mode, NPVisualStimParams.VisualMode.entries, { it.rawValue }) { on(p.copy(mode = it)) }
+    NumField(stringResource(R.string.and_modality_emdr_cadence_hz), p.emdrCadenceHz) { on(p.copy(emdrCadenceHz = it)) }
+    ToggleRow(stringResource(R.string.and_modality_mode_f_invisible_nir), p.enableModeF) { on(p.copy(enableModeF = it)) }
 }
 
 // ── Add-modality picker ─────────────────────────────────────────────────────
@@ -263,7 +265,7 @@ private fun defaultModality(type: NPModalityType): NPProtocolModality? {
 private fun AddModalityButton(onAdd: (NPModalityType) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) { Text("+ Add modality") }
+        OutlinedButton(onClick = { open = true }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.and_modality_add_modality)) }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             for (type in T1_TYPES) {
                 DropdownMenuItem(text = { Text(modalityLabel(type)) }, onClick = { onAdd(type); open = false })

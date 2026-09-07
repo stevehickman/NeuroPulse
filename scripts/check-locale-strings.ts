@@ -79,6 +79,7 @@ const COVERED_PATHS = [
   "app/ios/NeurOne/Protocol/",
   "app/ios/NeurOne/Models/",
   "app/watchos/",
+  "app/android/app/src/main/kotlin/life/neurone/app/ui/",
 ];
 
 /**
@@ -86,7 +87,8 @@ const COVERED_PATHS = [
  * legible: each entry is work, not an exemption on principle.
  */
 const PENDING_PATHS: Array<[string, string]> = [
-  ["app/android/", "renders from res/values/strings.xml, which sync-locales.ts does not generate yet (its generateAndroidXml extension point is still a comment)"],
+  ["app/android/core/", "a pure-JVM module by design (no Android plugin, ISC-2..4), so it cannot reference R.string at all; its display text needs a key-to-resource indirection first"],
+  ["app/android/app/ (outside ui/)", "BLE, upload and signing code — diagnostics and protocol constants, not rendered text"],
   ["app/windows/", "protocol/session logic only today; no localized UI layer exists to point at a key"],
   ["simulator/", "developer harness, not shipped UI"],
 ];
@@ -128,8 +130,9 @@ const KEY_RE = /^[A-Z][A-Z0-9_]*$/;
  */
 function isProse(raw: string): boolean {
   const outside = raw
-    .replace(/\$\{[^}]*\}/g, " ")   // TS/JS interpolation
-    .replace(/\\\([^)]*\)/g, " ");  // Swift interpolation
+    .replace(/\$\{[^}]*\}/g, " ")        // TS/JS and Kotlin ${...}
+    .replace(/\$[A-Za-z_]\w*/g, " ")      // Kotlin's bare $identifier form
+    .replace(/\\\([^)]*\)/g, " ");       // Swift interpolation
   const words = outside.match(/[A-Za-z]{2,}/g);
   if (!words) return false;
   // Unit symbols and designations that survive the word test on their own.
@@ -151,6 +154,13 @@ function isProse(raw: string): boolean {
  */
 const JSX_TEXT = /(?<![=!<>-])>([^<>{}]*?)</g;
 const JSX_ATTR = /\b(title|placeholder|aria-label|alt|label)=(?:"([^"]*)"|'([^']*)')/g;
+
+/**
+ * Render sites in Compose. `stringResource(...)` is itself @Composable, so the
+ * literal at one of these is always inside a composable and always replaceable.
+ */
+const KOTLIN_RENDER =
+  /\b(Text|Button|OutlinedButton|TextButton|Label|TextField|OutlinedTextField|Badge|Tab|AlertDialog|Snackbar)\(\s*"([^"]{2,})"/g;
 
 /** Render sites in SwiftUI. */
 const SWIFT_RENDER =
@@ -189,6 +199,14 @@ function lineOf(body: string, index: number): number {
 function scanSource(file: string, rawBody: string): Violation[] {
   const out: Violation[] = [];
   const body = stripComments(rawBody);
+
+  if (file.endsWith(".kt")) {
+    for (const m of body.matchAll(KOTLIN_RENDER)) {
+      const text = m[2]!;
+      if (accept(text)) out.push({ file, line: lineOf(body, m.index!), text, why: `${m[1]}(...)` });
+    }
+    return out;
+  }
 
   if (file.endsWith(".swift")) {
     for (const m of body.matchAll(SWIFT_RENDER)) {
@@ -249,7 +267,7 @@ function isCovered(f: string): boolean {
   if (DIAGNOSTIC_FILES.includes(f)) return false;
   if (f.includes("/locales/") || f.startsWith("locales/")) return false;
   if (/\.(test|spec)\.[tj]sx?$/.test(f) || f.includes("Tests/")) return false;
-  if (!/\.(ts|tsx|swift)$/.test(f)) return false;
+  if (!/\.(ts|tsx|swift|kt)$/.test(f)) return false;
   return COVERED_PATHS.some((p) => f.startsWith(p));
 }
 
@@ -436,8 +454,23 @@ function selfTest(): void {
       bad++;
     }
   }
+  const kotlinCases: Array<[string, boolean]> = [
+    ['            Text("Save Changes")', true],
+    ['            Text(stringResource(R.string.web_save_changes))', false],
+    ['            OutlinedButton(onClick = {}) { Text("Add Helmet") }', true],
+    // Kotlin's bare $identifier form: the only prose here is the variable name.
+    ['            Text("+ $protocolName")', false],
+    ['            Text("${count}%")', false],
+  ];
+  for (const [src, shouldFlag] of kotlinCases) {
+    const flagged = scanSource("x.kt", src).length > 0;
+    if (flagged !== shouldFlag) {
+      console.error(`self-test FAILED: ${JSON.stringify(src)} -> flagged=${flagged}, expected ${shouldFlag}`);
+      bad++;
+    }
+  }
   if (bad > 0) { console.error(`\n${bad} self-test case(s) failed.`); process.exit(1); }
-  console.log(`check-locale-strings self-test: ${cases.length + swiftCases.length} cases, all correct.`);
+  console.log(`check-locale-strings self-test: ${cases.length + swiftCases.length + kotlinCases.length} cases, all correct.`);
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────

@@ -411,12 +411,17 @@ and the code carries only a key.** Never write a string a person will read into 
 | Canonical | `locales/<bcp47>.json` — flat `KEY` → string, sorted, all 11 locales carry the same key set | — |
 | Web | — | `t('KEY')`, `tPlural('BASE', n)` from `app/web/src/lib/i18n.ts` |
 | Apple | — | `Text("KEY")`, `String(localized: "KEY")`; with values, `String(format: String(localized: "KEY"), …)` |
+| Android | — | `stringResource(R.string.key)` (lowercased key), `pluralStringResource(R.plurals.base, n, n)` |
 
 - **Add a key to `locales/*.json` — all eleven** — then reference it. `bun scripts/sync-locales.ts`
-  regenerates the String Catalog and the web copies; canonical is the only place a string is edited.
-- **Placeholders are `{0}`, `{1}`** in canonical. `sync-locales` rewrites them to `%1$@` for Apple,
-  so **a numeric argument must be converted at the call site** (`String(count)`) — `%@` takes an
-  object. Plural keys take `_ONE` / `_OTHER` (`_ZERO` is optional and falls back to `_OTHER`).
+  regenerates the String Catalog, the web copies and `res/values*/strings.xml`; canonical is the only
+  place a string is edited. **Never hand-edit a generated `strings.xml`.**
+- **Placeholders are `{0}`, `{1}`** in canonical → `%1$@` for Apple, `%1$s` for Android. On Apple
+  **a numeric argument must be converted at the call site** (`String(count)`), because `%@` takes an
+  object; Android's `%s` accepts any type. Plural keys take `_ONE` / `_OTHER` (`_ZERO` is optional
+  and falls back to `_OTHER`), and **`{0}` must be the count** — all three generators map `{0}` to
+  the plural argument. A trailing `_ONE` is reserved for plurals: `sync-locales` rejects a family
+  with no sibling category rather than emitting a one-item plural nothing can resolve.
 - **Module-level tables hold KEYS, not text** (`MODALITY_META.displayNameKey`, `ELEMENT_TYPE_LABEL`,
   `PRESETS.labelKey`). A constant initialised at import time captures English before `initI18n()`
   resolves; resolve with `t()` at the point of render.
@@ -432,8 +437,9 @@ and the code carries only a key.** Never write a string a person will read into 
   a detail.
 
 `bun scripts/check-locale-strings.ts` enforces all of the above and fails CI on a violation; its
-`PENDING_PATHS` names the code the rule has not yet reached (Android, Windows, the iOS
-`Protocol/` and `Models/` display tables) so the gate's reach stays legible.
+`PENDING_PATHS` names the code the rule has not yet reached — the pure-JVM `:core` Android module
+(no Android plugin by design, so it cannot name `R.string`), Windows, and the simulator — so the
+gate's reach stays legible.
 
 ---
 

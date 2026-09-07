@@ -174,11 +174,11 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
                         app.protocolUploader.upload(entry.protocol)
                     else ->
                         life.neurone.app.session.ProtocolUploader.Result.Failure(
-                            "Composite protocol upload is not yet supported.",
+                            stringResource(R.string.and_ui_composite_protocol_upload_is_not_yet_support),
                         )
                 }
                 val message = when (result) {
-                    is life.neurone.app.session.ProtocolUploader.Result.Success -> "Protocol sent to hub"
+                    is life.neurone.app.session.ProtocolUploader.Result.Success -> stringResource(R.string.protocol_menu_protocol_sent_to_hub)
                     is life.neurone.app.session.ProtocolUploader.Result.Failure -> result.message
                 }
                 android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()

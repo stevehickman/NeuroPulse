@@ -33,6 +33,8 @@ import life.neurone.core.protocol.NPCompositeProtocol
 import life.neurone.core.protocol.NPProtocolEntry
 import life.neurone.core.protocol.NPProtocolLibrary
 import life.neurone.core.protocol.name
+import androidx.compose.ui.res.stringResource
+import life.neurone.app.R
 
 // Port of iOS ProtocolComposerView. Builds a composite protocol from ordered layers, each
 // referencing an existing single protocol with a start offset. Saved via library.save().
@@ -45,7 +47,7 @@ fun ProtocolComposerScreen(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var name by remember { mutableStateOf("New Composite") }
+    var name by remember { mutableStateOf(stringResource(R.string.protocol_composer_new_composite)) }
     var layers by remember { mutableStateOf(listOf<NPCompositeLayer>()) }
 
     val singles = remember {
@@ -54,7 +56,7 @@ fun ProtocolComposerScreen(
 
     fun save() {
         val composite = NPCompositeProtocol(
-            name = name.ifBlank { "Untitled Composite" },
+            name = name.ifBlank { stringResource(R.string.protocol_composer_untitled_composite) },
             layers = layers,
         )
         library.save(NPProtocolEntry.Composite(composite))
@@ -67,18 +69,18 @@ fun ProtocolComposerScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onCancel) { Text("Cancel") }
-            Text("Compose protocol", style = MaterialTheme.typography.titleMedium)
-            Button(onClick = { save() }, enabled = layers.isNotEmpty()) { Text("Save") }
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
+            Text(stringResource(R.string.protocol_composer_compose_protocol), style = MaterialTheme.typography.titleMedium)
+            Button(onClick = { save() }, enabled = layers.isNotEmpty()) { Text(stringResource(R.string.protocol_composer_save)) }
         }
 
         Spacer(Modifier.height(12.dp))
-        OutlinedTextField(name, { name = it }, label = { Text("Name") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(name, { name = it }, label = { Text(stringResource(R.string.clinician_grant_name_placeholder)) }, modifier = Modifier.fillMaxWidth())
 
         Spacer(Modifier.height(16.dp))
-        Text("Layers", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.protocol_layers), style = MaterialTheme.typography.titleSmall)
         if (layers.isEmpty()) {
-            Text("Add protocols below to build the sequence.", style = MaterialTheme.typography.bodySmall)
+            Text(stringResource(R.string.protocol_composer_add_protocols_below_to_build_the_sequence), style = MaterialTheme.typography.bodySmall)
         }
         layers.forEachIndexed { index, layer ->
             Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
@@ -90,11 +92,11 @@ fun ProtocolComposerScreen(
                     ) {
                         Text(layer.protocolName, style = MaterialTheme.typography.bodyMedium)
                         TextButton(onClick = { layers = layers.filterIndexed { i, _ -> i != index } }) {
-                            Text("Remove")
+                            Text(stringResource(R.string.web_remove))
                         }
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Start (min):", style = MaterialTheme.typography.bodySmall)
+                        Text(stringResource(R.string.protocol_composer_start_min), style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.width(8.dp))
                         OutlinedTextField(
                             value = (layer.startOffsetSeconds / 60).toString(),
@@ -113,7 +115,7 @@ fun ProtocolComposerScreen(
         }
 
         Spacer(Modifier.height(16.dp))
-        Text("Add a layer", style = MaterialTheme.typography.titleSmall)
+        Text(stringResource(R.string.protocol_composer_add_a_layer), style = MaterialTheme.typography.titleSmall)
         for (protocolName in singles) {
             OutlinedButton(
                 onClick = { layers = layers + NPCompositeLayer(protocolName = protocolName) },

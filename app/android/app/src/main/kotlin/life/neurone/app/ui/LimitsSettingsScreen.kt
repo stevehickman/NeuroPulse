@@ -34,6 +34,8 @@ import life.neurone.core.protocol.NPPBMTranscranialLimits
 import life.neurone.core.protocol.NPTDCSLimits
 import life.neurone.core.protocol.NPVNSHRVLimits
 import life.neurone.core.protocol.NPVisualStimLimits
+import androidx.compose.ui.res.stringResource
+import life.neurone.app.R
 
 // Port of iOS LimitsSettingsView (global tier). Edits the safety-relevant global dosage caps —
 // they layer under the firmware hardware ceilings (NPHardwareLimits, which can never be
@@ -57,9 +59,9 @@ fun LimitsSettingsScreen(
 
     fun save() {
         // Preserve any fields this simplified editor doesn't expose; overwrite the ones it does.
-        val base = existing ?: NPLimitsSet(name = "Global")
+        val base = existing ?: NPLimitsSet(name = stringResource(R.string.limits_chain_global))
         val updated = base.copy(
-            name = "Global",
+            name = stringResource(R.string.limits_chain_global),
             pbmTranscranial = (base.pbmTranscranial ?: NPPBMTranscranialLimits()).copy(
                 maxIntensityPercent = pbmIntensity.toDoubleOrNull(),
                 maxSessionDoseJCm2 = pbmDose.toDoubleOrNull(),
@@ -79,33 +81,33 @@ fun LimitsSettingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onDone) { Text("Cancel") }
-            Text("Dosage limits", style = MaterialTheme.typography.titleMedium)
-            Button(onClick = { save() }) { Text("Save") }
+            TextButton(onClick = onDone) { Text(stringResource(R.string.common_cancel)) }
+            Text(stringResource(R.string.limits_dosage_limits), style = MaterialTheme.typography.titleMedium)
+            Button(onClick = { save() }) { Text(stringResource(R.string.protocol_composer_save)) }
         }
         Spacer(Modifier.height(8.dp))
         Text(
-            "Global caps layer under the firmware hardware limits, which can never be exceeded. " +
-                "Leave a field blank for no configured cap.",
+            stringResource(R.string.limits_global_caps_layer_under_the_firmware_hardwar) +
+                stringResource(R.string.limits_leave_a_field_blank_for_no_configured_cap),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(12.dp))
 
-        NumberField("PBM max intensity (%)", pbmIntensity) { pbmIntensity = it }
-        NumberField("PBM max session dose (J/cm²)", pbmDose) { pbmDose = it }
-        NumberField("BES/tACS max current (mA)", besMa) { besMa = it }
-        NumberField("tDCS max current (mA)", tdcsMa) { tdcsMa = it }
-        NumberField("VNS max current (mA)", vnsMa) { vnsMa = it }
+        NumberField(stringResource(R.string.limits_pbm_max_intensity), pbmIntensity) { pbmIntensity = it }
+        NumberField(stringResource(R.string.limits_pbm_max_session_dose_j_cm), pbmDose) { pbmDose = it }
+        NumberField(stringResource(R.string.limits_bes_tacs_max_current_ma), besMa) { besMa = it }
+        NumberField(stringResource(R.string.limits_tdcs_max_current_ma), tdcsMa) { tdcsMa = it }
+        NumberField(stringResource(R.string.limits_vns_max_current_ma), vnsMa) { vnsMa = it }
 
         Spacer(Modifier.height(8.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Block 3–30 Hz photoparoxysmal range", Modifier.weight(1f))
+            Text(stringResource(R.string.limits_block_3_30_hz_photoparoxysmal_range), Modifier.weight(1f))
             Switch(checked = blockHighRisk, onCheckedChange = { blockHighRisk = it })
         }
 
         Spacer(Modifier.height(16.dp))
         OutlinedButton(onClick = { store.clearGlobalLimits(); onDone() }, modifier = Modifier.fillMaxWidth()) {
-            Text("Clear all global limits")
+            Text(stringResource(R.string.limits_clear_all_global_limits))
         }
     }
 }

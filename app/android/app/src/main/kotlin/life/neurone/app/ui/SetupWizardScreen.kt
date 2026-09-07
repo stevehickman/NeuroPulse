@@ -30,6 +30,8 @@ import life.neurone.app.ble.ConnectionState
 import life.neurone.core.ble.CalibrationOpcode
 import life.neurone.core.setup.SetupFlow
 import life.neurone.core.setup.SetupStep
+import androidx.compose.ui.res.stringResource
+import life.neurone.app.R
 
 // Port of iOS SetupView / HardwareSetupManager wizard. Drives the tested core SetupFlow
 // state machine (BLE → fit → pods → zone modules → impedance → ADS1299 cal → hydration →
@@ -63,7 +65,7 @@ fun SetupWizardScreen(
             .padding(24.dp),
     ) {
         Text(
-            "Device setup — step ${step.index + 1} of ${SetupStep.COMPLETE.index + 1}",
+            stringResource(R.string.setup_device_setup_step_0_of_1, step.index + 1, SetupStep.COMPLETE.index + 1),
             style = MaterialTheme.typography.labelMedium,
         )
         Spacer(Modifier.height(8.dp))
@@ -86,7 +88,7 @@ fun SetupWizardScreen(
                         if (it) flow.acknowledgeSafety()
                     },
                 )
-                Text("I have read the contraindications and it is safe for me to use NeurOne.")
+                Text(stringResource(R.string.setup_i_have_read_the_contraindications_and_it_is))
             }
         }
 
@@ -98,7 +100,7 @@ fun SetupWizardScreen(
                     safetyChecked = false
                     error = null
                     step = flow.currentStep
-                }) { Text("Back") }
+                }) { Text(stringResource(R.string.consent_back_button)) }
             }
             Spacer(Modifier.weight(1f))
             Button(onClick = {
@@ -108,14 +110,14 @@ fun SetupWizardScreen(
 
                     step.requiresHardwareConfirmation -> {
                         if (connectionState != ConnectionState.CONNECTED) {
-                            error = "Connect to your hub first."
+                            error = stringResource(R.string.setup_connect_to_your_hub_first)
                         } else when (step) {
                             SetupStep.IMPEDANCE_CHECK -> {
                                 app.gattManager.sendCalibration(CalibrationOpcode.IMPEDANCE_CHECK)
                                 val r = flow.evaluateImpedance(session.impedancePassFlags)
                                 if (r.passed) advance()
-                                else error = "Only ${r.passCount} of 8 electrodes made good contact. " +
-                                    "Adjust the fit and try again."
+                                else error = stringResource(R.string.setup_only_0_of_8_electrodes_made_good_contact, r.passCount) +
+                                    stringResource(R.string.setup_adjust_the_fit_and_try_again)
                             }
                             SetupStep.ADS1299_CALIBRATION -> {
                                 app.gattManager.sendCalibration(CalibrationOpcode.ADS1299_SELF_CAL)
@@ -128,7 +130,7 @@ fun SetupWizardScreen(
                     step == SetupStep.SAFETY_ACKNOWLEDGEMENT -> {
                         when (flow.advance()) {
                             is SetupFlow.AdvanceResult.BlockedBySafety ->
-                                error = "Please confirm the safety acknowledgement to continue."
+                                error = stringResource(R.string.setup_please_confirm_the_safety_acknowledgement_to)
                             else -> {
                                 safetyChecked = false
                                 step = flow.currentStep

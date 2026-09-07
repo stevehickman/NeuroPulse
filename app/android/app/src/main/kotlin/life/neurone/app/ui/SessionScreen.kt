@@ -62,7 +62,7 @@ fun SessionScreen(
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
     ) {
-        Text("Session", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.session_title), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(12.dp))
 
         ConnectionBanner(connectionState)
@@ -81,10 +81,10 @@ fun SessionScreen(
                     onClick = { showStopConfirm = true },
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFD32F2F)),
-                ) { Text("End Session") }
+                ) { Text(stringResource(R.string.session_end_button)) }
             } else {
                 Button(onClick = onChooseProtocol, modifier = Modifier.fillMaxWidth()) {
-                    Text("Choose Protocol")
+                    Text(stringResource(R.string.session_choose_protocol_button))
                 }
             }
         } else {
@@ -96,14 +96,14 @@ fun SessionScreen(
                 onClick = onConnect,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !connecting,
-            ) { Text(if (connecting) "Connecting…" else "Connect to Hub") }
+            ) { Text(if (connecting) stringResource(R.string.session_conn_connecting) else stringResource(R.string.session_connect_to_hub)) }
             Spacer(Modifier.height(8.dp))
             // Browsing protocols is allowed while disconnected — each row shows its own
             // availability ("No device connected." / "Requires: …" / EEG-consent message).
             OutlinedButton(
                 onClick = onChooseProtocol,
                 modifier = Modifier.fillMaxWidth(),
-            ) { Text("Browse Protocols") }
+            ) { Text(stringResource(R.string.session_browse_protocols)) }
         }
 
         Spacer(Modifier.height(24.dp))
@@ -116,16 +116,16 @@ fun SessionScreen(
     if (showStopConfirm) {
         AlertDialog(
             onDismissRequest = { showStopConfirm = false },
-            title = { Text("End this session?") },
-            text = { Text("Stimulation will ramp down and stop.") },
+            title = { Text(stringResource(R.string.session_stop_confirm_title)) },
+            text = { Text(stringResource(R.string.session_stimulation_will_ramp_down_and_stop)) },
             confirmButton = {
                 TextButton(onClick = {
                     showStopConfirm = false
                     onStop()
-                }) { Text("End Session") }
+                }) { Text(stringResource(R.string.session_end_button)) }
             },
             dismissButton = {
-                TextButton(onClick = { showStopConfirm = false }) { Text("Cancel") }
+                TextButton(onClick = { showStopConfirm = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -134,10 +134,10 @@ fun SessionScreen(
 @Composable
 private fun ConnectionBanner(state: ConnectionState) {
     val (label, color) = when (state) {
-        ConnectionState.CONNECTED -> "Connected to hub" to Color(0xFF2E7D32)
-        ConnectionState.CONNECTING -> "Connecting…" to Color(0xFFF9A825)
-        ConnectionState.SCANNING -> "Searching for hub…" to Color(0xFFF9A825)
-        ConnectionState.DISCONNECTED -> "Not connected" to Color(0xFF757575)
+        ConnectionState.CONNECTED -> stringResource(R.string.session_connected_to_hub) to Color(0xFF2E7D32)
+        ConnectionState.CONNECTING -> stringResource(R.string.session_conn_connecting) to Color(0xFFF9A825)
+        ConnectionState.SCANNING -> stringResource(R.string.session_conn_searching) to Color(0xFFF9A825)
+        ConnectionState.DISCONNECTED -> stringResource(R.string.session_not_connected) to Color(0xFF757575)
     }
     Row(
         modifier = Modifier
@@ -161,14 +161,14 @@ private fun ConnectionBanner(state: ConnectionState) {
 @Composable
 private fun SessionStatusCard(status: SessionStatus) {
     val label = when (status) {
-        SessionStatus.IDLE -> "Idle — ready to start"
-        SessionStatus.RUNNING -> "Session running"
-        SessionStatus.PAUSED -> "Paused"
-        SessionStatus.COMPLETED -> "Session complete"
+        SessionStatus.IDLE -> stringResource(R.string.session_idle_ready_to_start)
+        SessionStatus.RUNNING -> stringResource(R.string.session_session_running)
+        SessionStatus.PAUSED -> stringResource(R.string.session_status_paused)
+        SessionStatus.COMPLETED -> stringResource(R.string.session_session_complete)
     }
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            Text("Status", style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.session_status), style = MaterialTheme.typography.labelMedium)
             Text(label, style = MaterialTheme.typography.titleMedium)
         }
     }
@@ -182,12 +182,12 @@ private fun LiveMetricsGrid(session: SessionState) {
 
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
-            Text("Live metrics", style = MaterialTheme.typography.labelMedium)
+            Text(stringResource(R.string.session_live_metrics), style = MaterialTheme.typography.labelMedium)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Metric("Coherence", coherence?.let { "%.1f".format(it) } ?: "—", coherenceColor(coherence))
-                Metric("RMSSD", rmssd?.let { "$it ms" } ?: "—", MaterialTheme.colorScheme.onSurface)
-                Metric("Impedance", "$impedancePass/8", MaterialTheme.colorScheme.onSurface)
+                Metric(stringResource(R.string.session_metric_coherence), coherence?.let { "%.1f".format(it) } ?: "—", coherenceColor(coherence))
+                Metric(stringResource(R.string.session_metric_rmssd), rmssd?.let { "$it ms" } ?: "—", MaterialTheme.colorScheme.onSurface)
+                Metric(stringResource(R.string.session_impedance), "$impedancePass/8", MaterialTheme.colorScheme.onSurface)
             }
         }
     }
@@ -203,7 +203,7 @@ private fun Metric(label: String, value: String, valueColor: Color) {
 
 @Composable
 private fun BreathingPacer(phase: PacerPhase, elapsedPercent: Int) {
-    val label = if (phase == PacerPhase.INHALE) "Breathe in" else "Breathe out"
+    val label = if (phase == PacerPhase.INHALE) stringResource(R.string.session_breathe_in) else stringResource(R.string.session_breathe_out)
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(label, style = MaterialTheme.typography.titleMedium)

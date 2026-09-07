@@ -38,6 +38,9 @@ import life.neurone.core.protocol.ProtocolAvailability
 import life.neurone.core.protocol.id
 import life.neurone.core.protocol.isComposite
 import life.neurone.core.protocol.name
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
+import life.neurone.app.R
 
 // Port of iOS ProtocolMenuView (app/ios/NeurOne/Views/Protocol/ProtocolMenuView.swift).
 // Lists bundled + user protocols with availability (device tier + BIPA EEG-consent gate,
@@ -117,11 +120,11 @@ fun ProtocolMenuScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    TextButton(onClick = onBack) { Text("Back") }
-                    Text("Protocols", style = MaterialTheme.typography.titleLarge)
+                    TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
+                    Text(stringResource(R.string.tab_protocols), style = MaterialTheme.typography.titleLarge)
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { editor = ProtocolEditor.Compose }) { Text("Compose") }
-                    TextButton(onClick = { editor = ProtocolEditor.New }) { Text("New") }
+                    TextButton(onClick = { editor = ProtocolEditor.Compose }) { Text(stringResource(R.string.protocol_menu_compose)) }
+                    TextButton(onClick = { editor = ProtocolEditor.New }) { Text(stringResource(R.string.protocol_menu_new)) }
                 }
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
@@ -199,9 +202,15 @@ private fun ProtocolRow(
             if (errorCount > 0 || warningCount > 0 || entry.isComposite) {
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (entry.isComposite) Badge("Composite", Color(0xFF5E35B1))
-                    if (errorCount > 0) Badge("$errorCount error${plural(errorCount)}", Color(0xFFD32F2F))
-                    if (warningCount > 0) Badge("$warningCount warning${plural(warningCount)}", Color(0xFFF9A825))
+                    if (entry.isComposite) Badge(stringResource(R.string.protocol_menu_composite), Color(0xFF5E35B1))
+                    if (errorCount > 0) Badge(
+                        pluralStringResource(R.plurals.web_validation_error_count, errorCount, errorCount),
+                        Color(0xFFD32F2F),
+                    )
+                    if (warningCount > 0) Badge(
+                        pluralStringResource(R.plurals.web_validation_warning_count, warningCount, warningCount),
+                        Color(0xFFF9A825),
+                    )
                 }
             }
 
@@ -209,8 +218,8 @@ private fun ProtocolRow(
             if (onEdit != null || onDelete != null) {
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    onEdit?.let { TextButton(onClick = it) { Text("Edit") } }
-                    onDelete?.let { TextButton(onClick = it) { Text("Delete", color = Color(0xFFD32F2F)) } }
+                    onEdit?.let { TextButton(onClick = it) { Text(stringResource(R.string.ui_edit)) } }
+                    onDelete?.let { TextButton(onClick = it) { Text(stringResource(R.string.ui_delete), color = Color(0xFFD32F2F)) } }
                 }
             }
         }
@@ -230,7 +239,6 @@ private fun Badge(text: String, color: Color) {
     )
 }
 
-private fun plural(n: Int): String = if (n == 1) "" else "s"
 
 /** UI-side mapping of ProtocolAvailability → display reason (parity with iOS unavailableReason). */
 private fun unavailableReason(availability: ProtocolAvailability, eegUnavailableMessage: String): String? =
