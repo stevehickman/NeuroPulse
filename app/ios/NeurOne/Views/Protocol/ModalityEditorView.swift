@@ -24,9 +24,6 @@ struct ModalityEditorRow: View {
                         Text(modality.modalityType.displayName)
                             .font(.subheadline.weight(.medium))
                             .foregroundColor(modality.enabled ? .primary : .secondary)
-                        Text(modality.modalityType.consumerName)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
                     }
 
                     Spacer()

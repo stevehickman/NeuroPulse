@@ -39,49 +39,27 @@ enum NPModalityType: String, CaseIterable, Codable, Identifiable {
 
     // MARK: Display name
     //
-    // These three properties are a SEPARATE key family from the web table's
-    // MODALITY_<id>_NAME / _CONSUMER / _DESC: 35 of the 45 strings differ in
-    // wording between the two surfaces today (see the PR body). The keys hold
-    // this app's current text verbatim so nothing on screen changes; collapsing
-    // the two families is a copy decision, not a refactor.
+    // One name per modality, shared with the web table and the Android UI:
+    // MODALITY_<id>_NAME holds the .npps grammar token for this modality with
+    // underscores replaced by spaces and each word capitalised. There is no
+    // separate consumer-facing name — the .npps token IS the on-screen wording.
     var displayName: String {
         switch self {
-        case .pbmTranscranial: return String(localized: "MODALITY_PBM_TRANSCRANIAL_DETAIL_NAME")
-        case .pbmIntranasal: return String(localized: "MODALITY_PBM_INTRANASAL_DETAIL_NAME")
-        case .eegNeurofeedback: return String(localized: "MODALITY_EEG_NEUROFEEDBACK_DETAIL_NAME")
-        case .besTacs: return String(localized: "MODALITY_BES_TACS_DETAIL_NAME")
-        case .tdcs: return String(localized: "MODALITY_TDCS_DETAIL_NAME")
-        case .vnsHRV: return String(localized: "MODALITY_VNS_HRV_DETAIL_NAME")
-        case .audioEntrainment: return String(localized: "MODALITY_AUDIO_ENTRAINMENT_DETAIL_NAME")
-        case .visualStimulation: return String(localized: "MODALITY_VISUAL_STIMULATION_DETAIL_NAME")
-        case .qeeg21ch: return String(localized: "MODALITY_QEEG_21CH_DETAIL_NAME")
-        case .tms: return String(localized: "MODALITY_TMS_DETAIL_NAME")
-        case .pbmDeep1170nm: return String(localized: "MODALITY_PBM_DEEP_1170NM_DETAIL_NAME")
-        case .clinicalTacs: return String(localized: "MODALITY_CLINICAL_TACS_DETAIL_NAME")
-        case .hdTdcs: return String(localized: "MODALITY_HD_TDCS_DETAIL_NAME")
-        case .cervicalVns: return String(localized: "MODALITY_CERVICAL_VNS_DETAIL_NAME")
-        case .vibrotactile40hz: return String(localized: "MODALITY_VIBROTACTILE_40HZ_DETAIL_NAME")
-        }
-    }
-
-    // MARK: Consumer-facing regulatory-safe name
-    var consumerName: String {
-        switch self {
-        case .pbmTranscranial: return String(localized: "MODALITY_PBM_TRANSCRANIAL_DETAIL_CONSUMER")
-        case .pbmIntranasal: return String(localized: "MODALITY_PBM_INTRANASAL_DETAIL_CONSUMER")
-        case .eegNeurofeedback: return String(localized: "MODALITY_EEG_NEUROFEEDBACK_DETAIL_CONSUMER")
-        case .besTacs: return String(localized: "MODALITY_BES_TACS_DETAIL_CONSUMER")
-        case .tdcs: return String(localized: "MODALITY_TDCS_DETAIL_CONSUMER")
-        case .vnsHRV: return String(localized: "MODALITY_VNS_HRV_DETAIL_CONSUMER")
-        case .audioEntrainment: return String(localized: "MODALITY_AUDIO_ENTRAINMENT_DETAIL_CONSUMER")
-        case .visualStimulation: return String(localized: "MODALITY_VISUAL_STIMULATION_DETAIL_CONSUMER")
-        case .qeeg21ch: return String(localized: "MODALITY_QEEG_21CH_DETAIL_CONSUMER")
-        case .tms: return String(localized: "MODALITY_TMS_DETAIL_CONSUMER")
-        case .pbmDeep1170nm: return String(localized: "MODALITY_PBM_DEEP_1170NM_DETAIL_CONSUMER")
-        case .clinicalTacs: return String(localized: "MODALITY_CLINICAL_TACS_DETAIL_CONSUMER")
-        case .hdTdcs: return String(localized: "MODALITY_HD_TDCS_DETAIL_CONSUMER")
-        case .cervicalVns: return String(localized: "MODALITY_CERVICAL_VNS_DETAIL_CONSUMER")
-        case .vibrotactile40hz: return String(localized: "MODALITY_VIBROTACTILE_40HZ_DETAIL_CONSUMER")
+        case .pbmTranscranial: return String(localized: "MODALITY_PBM_TRANSCRANIAL_NAME")
+        case .pbmIntranasal: return String(localized: "MODALITY_PBM_INTRANASAL_NAME")
+        case .eegNeurofeedback: return String(localized: "MODALITY_EEG_NEUROFEEDBACK_NAME")
+        case .besTacs: return String(localized: "MODALITY_BES_TACS_NAME")
+        case .tdcs: return String(localized: "MODALITY_TDCS_NAME")
+        case .vnsHRV: return String(localized: "MODALITY_VNS_HRV_NAME")
+        case .audioEntrainment: return String(localized: "MODALITY_AUDIO_ENTRAINMENT_NAME")
+        case .visualStimulation: return String(localized: "MODALITY_VISUAL_STIMULATION_NAME")
+        case .qeeg21ch: return String(localized: "MODALITY_QEEG_21CH_NAME")
+        case .tms: return String(localized: "MODALITY_TMS_NAME")
+        case .pbmDeep1170nm: return String(localized: "MODALITY_PBM_DEEP_1170NM_NAME")
+        case .clinicalTacs: return String(localized: "MODALITY_CLINICAL_TACS_NAME")
+        case .hdTdcs: return String(localized: "MODALITY_HD_TDCS_NAME")
+        case .cervicalVns: return String(localized: "MODALITY_CERVICAL_VNS_NAME")
+        case .vibrotactile40hz: return String(localized: "MODALITY_VIBROTACTILE_40HZ_NAME")
         }
     }
 

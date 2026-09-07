@@ -28969,77 +28969,6 @@
         }
       }
     },
-    "MODALITY_AUDIO_ENTRAINMENT_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        }
-      }
-    },
     "MODALITY_AUDIO_ENTRAINMENT_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -29107,148 +29036,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Binaural beats + bone conduction"
-          }
-        }
-      }
-    },
-    "MODALITY_AUDIO_ENTRAINMENT_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        }
-      }
-    },
-    "MODALITY_AUDIO_ENTRAINMENT_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Neural Audio Entrainment"
           }
         }
       }
@@ -29330,67 +29117,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Neural Audio"
+            "value": "Audio Entrainment"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Neural Audio"
+            "value": "Audio Entrainment"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Neural Audio"
+            "value": "Audio Entrainment"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Neural Audio"
+            "value": "Audio Entrainment"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Neural Audio"
+            "value": "Audio Entrainment"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Neural Audio"
+            "value": "Audio Entrainment"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Neural Audio"
+            "value": "Audio Entrainment"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Neural Audio"
+            "value": "Audio Entrainment"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Neural Audio"
+            "value": "Audio Entrainment"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Neural Audio"
+            "value": "Audio Entrainment"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Neural Audio"
+            "value": "Audio Entrainment"
           }
         }
       }
@@ -29466,77 +29253,6 @@
         }
       }
     },
-    "MODALITY_BES_TACS_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        }
-      }
-    },
     "MODALITY_BES_TACS_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -29604,148 +29320,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "0.5–40Hz charge-balanced stimulation ≤1mA"
-          }
-        }
-      }
-    },
-    "MODALITY_BES_TACS_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        }
-      }
-    },
-    "MODALITY_BES_TACS_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Entrainment Stimulation"
           }
         }
       }
@@ -29827,67 +29401,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "BES / tACS"
+            "value": "BES TACS"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "BES / tACS"
+            "value": "BES TACS"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "BES / tACS"
+            "value": "BES TACS"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "BES / tACS"
+            "value": "BES TACS"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "BES / tACS"
+            "value": "BES TACS"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "BES / tACS"
+            "value": "BES TACS"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "BES / tACS"
+            "value": "BES TACS"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "BES / tACS"
+            "value": "BES TACS"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "BES / tACS"
+            "value": "BES TACS"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "BES / tACS"
+            "value": "BES TACS"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "BES / tACS"
+            "value": "BES TACS"
           }
         }
       }
@@ -30105,77 +29679,6 @@
         }
       }
     },
-    "MODALITY_CERVICAL_VNS_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagal Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagal Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagal Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cervical Vagal Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagal Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagal Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagal Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagal Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagal Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagal Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagal Stimulation"
-          }
-        }
-      }
-    },
     "MODALITY_CERVICAL_VNS_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -30243,148 +29746,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Neck-worn tcVNS with cardiac interlock"
-          }
-        }
-      }
-    },
-    "MODALITY_CERVICAL_VNS_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagus Nerve Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagus Nerve Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagus Nerve Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cervical Vagus Nerve Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagus Nerve Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagus Nerve Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagus Nerve Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagus Nerve Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagus Nerve Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagus Nerve Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical Vagus Nerve Stimulation"
-          }
-        }
-      }
-    },
-    "MODALITY_CERVICAL_VNS_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical VNS"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical VNS"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical VNS"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cervical VNS"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical VNS"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical VNS"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical VNS"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical VNS"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical VNS"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical VNS"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cervical VNS"
           }
         }
       }
@@ -30602,77 +29963,6 @@
         }
       }
     },
-    "MODALITY_CLINICAL_TACS_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Entrainment"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Entrainment"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Entrainment"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clinical Entrainment"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Entrainment"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Entrainment"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Entrainment"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Entrainment"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Entrainment"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Entrainment"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Entrainment"
-          }
-        }
-      }
-    },
     "MODALITY_CLINICAL_TACS_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -30740,148 +30030,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "16-ch arbitrary waveform ≤4mA"
-          }
-        }
-      }
-    },
-    "MODALITY_CLINICAL_TACS_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Alternating Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Alternating Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Alternating Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clinical Alternating Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Alternating Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Alternating Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Alternating Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Alternating Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Alternating Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Alternating Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical Alternating Stimulation"
-          }
-        }
-      }
-    },
-    "MODALITY_CLINICAL_TACS_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical tACS"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical tACS"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical tACS"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clinical tACS"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical tACS"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical tACS"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical tACS"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical tACS"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical tACS"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical tACS"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical tACS"
           }
         }
       }
@@ -30963,67 +30111,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Clinical tACS"
+            "value": "Clinical TACS"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Clinical tACS"
+            "value": "Clinical TACS"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Clinical tACS"
+            "value": "Clinical TACS"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Clinical tACS"
+            "value": "Clinical TACS"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Clinical tACS"
+            "value": "Clinical TACS"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Clinical tACS"
+            "value": "Clinical TACS"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Clinical tACS"
+            "value": "Clinical TACS"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Clinical tACS"
+            "value": "Clinical TACS"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Clinical tACS"
+            "value": "Clinical TACS"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Clinical tACS"
+            "value": "Clinical TACS"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Clinical tACS"
+            "value": "Clinical TACS"
           }
         }
       }
@@ -31383,77 +30531,6 @@
         }
       }
     },
-    "MODALITY_EEG_NEUROFEEDBACK_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Monitoring"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Monitoring"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Monitoring"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Brainwave Monitoring"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Monitoring"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Monitoring"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Monitoring"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Monitoring"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Monitoring"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Monitoring"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Brainwave Monitoring"
-          }
-        }
-      }
-    },
     "MODALITY_EEG_NEUROFEEDBACK_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -31521,148 +30598,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "8-ch semi-dry EEG with closed-loop adaptation"
-          }
-        }
-      }
-    },
-    "MODALITY_EEG_NEUROFEEDBACK_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        }
-      }
-    },
-    "MODALITY_EEG_NEUROFEEDBACK_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "EEG Neurofeedback"
           }
         }
       }
@@ -32093,77 +31028,6 @@
         }
       }
     },
-    "MODALITY_HD_TDCS_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision Cortical Targeting"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision Cortical Targeting"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision Cortical Targeting"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Precision Cortical Targeting"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision Cortical Targeting"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision Cortical Targeting"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision Cortical Targeting"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision Cortical Targeting"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision Cortical Targeting"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision Cortical Targeting"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision Cortical Targeting"
-          }
-        }
-      }
-    },
     "MODALITY_HD_TDCS_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -32231,148 +31095,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "sLORETA-guided 4×1 ring montage"
-          }
-        }
-      }
-    },
-    "MODALITY_HD_TDCS_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision-Targeted Cortical Priming"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision-Targeted Cortical Priming"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision-Targeted Cortical Priming"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Precision-Targeted Cortical Priming"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision-Targeted Cortical Priming"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision-Targeted Cortical Priming"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision-Targeted Cortical Priming"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision-Targeted Cortical Priming"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision-Targeted Cortical Priming"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision-Targeted Cortical Priming"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Precision-Targeted Cortical Priming"
-          }
-        }
-      }
-    },
-    "MODALITY_HD_TDCS_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-Guided HD-tDCS"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-Guided HD-tDCS"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-Guided HD-tDCS"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "sLORETA-Guided HD-tDCS"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-Guided HD-tDCS"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-Guided HD-tDCS"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-Guided HD-tDCS"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-Guided HD-tDCS"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-Guided HD-tDCS"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-Guided HD-tDCS"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "sLORETA-Guided HD-tDCS"
           }
         }
       }
@@ -32454,67 +31176,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "HD-tDCS"
+            "value": "HD TDCS"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "HD-tDCS"
+            "value": "HD TDCS"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "HD-tDCS"
+            "value": "HD TDCS"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "HD-tDCS"
+            "value": "HD TDCS"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "HD-tDCS"
+            "value": "HD TDCS"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "HD-tDCS"
+            "value": "HD TDCS"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "HD-tDCS"
+            "value": "HD TDCS"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "HD-tDCS"
+            "value": "HD TDCS"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "HD-tDCS"
+            "value": "HD TDCS"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "HD-tDCS"
+            "value": "HD TDCS"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "HD-tDCS"
+            "value": "HD TDCS"
           }
         }
       }
@@ -32803,77 +31525,6 @@
         }
       }
     },
-    "MODALITY_PBM_DEEP_1170NM_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deep Photobiomodulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation"
-          }
-        }
-      }
-    },
     "MODALITY_PBM_DEEP_1170NM_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -32941,148 +31592,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Laser diodes, 35–40mm subcortical depth"
-          }
-        }
-      }
-    },
-    "MODALITY_PBM_DEEP_1170NM_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation (1170nm)"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation (1170nm)"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation (1170nm)"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deep Photobiomodulation (1170nm)"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation (1170nm)"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation (1170nm)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation (1170nm)"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation (1170nm)"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation (1170nm)"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation (1170nm)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep Photobiomodulation (1170nm)"
-          }
-        }
-      }
-    },
-    "MODALITY_PBM_DEEP_1170NM_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep PBM (1170nm)"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep PBM (1170nm)"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep PBM (1170nm)"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Deep PBM (1170nm)"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep PBM (1170nm)"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep PBM (1170nm)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep PBM (1170nm)"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep PBM (1170nm)"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep PBM (1170nm)"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep PBM (1170nm)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Deep PBM (1170nm)"
           }
         }
       }
@@ -33164,138 +31673,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Deep PBM 1170nm"
+            "value": "PBM Deep 1170nm"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Deep PBM 1170nm"
+            "value": "PBM Deep 1170nm"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Deep PBM 1170nm"
+            "value": "PBM Deep 1170nm"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Deep PBM 1170nm"
+            "value": "PBM Deep 1170nm"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Deep PBM 1170nm"
+            "value": "PBM Deep 1170nm"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Deep PBM 1170nm"
+            "value": "PBM Deep 1170nm"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Deep PBM 1170nm"
+            "value": "PBM Deep 1170nm"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Deep PBM 1170nm"
+            "value": "PBM Deep 1170nm"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Deep PBM 1170nm"
+            "value": "PBM Deep 1170nm"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Deep PBM 1170nm"
+            "value": "PBM Deep 1170nm"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Deep PBM 1170nm"
-          }
-        }
-      }
-    },
-    "MODALITY_PBM_INTRANASAL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Light"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Light"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Light"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Intranasal Light"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Light"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Light"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Light"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Light"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Light"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Light"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Light"
+            "value": "PBM Deep 1170nm"
           }
         }
       }
@@ -33367,148 +31805,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Bilateral 660+808nm nasal probe"
-          }
-        }
-      }
-    },
-    "MODALITY_PBM_INTRANASAL_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Photobiomodulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Photobiomodulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Photobiomodulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Intranasal Photobiomodulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Photobiomodulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Photobiomodulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Photobiomodulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Photobiomodulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Photobiomodulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Photobiomodulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal Photobiomodulation"
-          }
-        }
-      }
-    },
-    "MODALITY_PBM_INTRANASAL_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal PBM"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal PBM"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal PBM"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Intranasal PBM"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal PBM"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal PBM"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal PBM"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal PBM"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal PBM"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal PBM"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Intranasal PBM"
           }
         }
       }
@@ -33655,77 +31951,6 @@
         }
       }
     },
-    "MODALITY_PBM_TRANSCRANIAL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Photobiomodulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Photobiomodulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Photobiomodulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Photobiomodulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Photobiomodulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Photobiomodulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Photobiomodulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Photobiomodulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Photobiomodulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Photobiomodulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Photobiomodulation"
-          }
-        }
-      }
-    },
     "MODALITY_PBM_TRANSCRANIAL_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -33793,148 +32018,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "660+808nm LEDs across 5 scalp zones"
-          }
-        }
-      }
-    },
-    "MODALITY_PBM_TRANSCRANIAL_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Photobiomodulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Photobiomodulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Photobiomodulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Transcranial Photobiomodulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Photobiomodulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Photobiomodulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Photobiomodulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Photobiomodulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Photobiomodulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Photobiomodulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Photobiomodulation"
-          }
-        }
-      }
-    },
-    "MODALITY_PBM_TRANSCRANIAL_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial PBM"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial PBM"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial PBM"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Transcranial PBM"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial PBM"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial PBM"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial PBM"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial PBM"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial PBM"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial PBM"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial PBM"
           }
         }
       }
@@ -34223,77 +32306,6 @@
         }
       }
     },
-    "MODALITY_QEEG_21CH_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clinical EEG"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG"
-          }
-        }
-      }
-    },
     "MODALITY_QEEG_21CH_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -34361,148 +32373,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "21-ch 10-20 wet gel + sLORETA"
-          }
-        }
-      }
-    },
-    "MODALITY_QEEG_21CH_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG (21-Channel)"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG (21-Channel)"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG (21-Channel)"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Clinical EEG (21-Channel)"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG (21-Channel)"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG (21-Channel)"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG (21-Channel)"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG (21-Channel)"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG (21-Channel)"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG (21-Channel)"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Clinical EEG (21-Channel)"
-          }
-        }
-      }
-    },
-    "MODALITY_QEEG_21CH_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-Channel qEEG"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-Channel qEEG"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-Channel qEEG"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "21-Channel qEEG"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-Channel qEEG"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-Channel qEEG"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-Channel qEEG"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-Channel qEEG"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-Channel qEEG"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-Channel qEEG"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "21-Channel qEEG"
           }
         }
       }
@@ -34584,67 +32454,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "qEEG 21-channel"
+            "value": "QEEG 21ch"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "qEEG 21-channel"
+            "value": "QEEG 21ch"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "qEEG 21-channel"
+            "value": "QEEG 21ch"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "qEEG 21-channel"
+            "value": "QEEG 21ch"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "qEEG 21-channel"
+            "value": "QEEG 21ch"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "qEEG 21-channel"
+            "value": "QEEG 21ch"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "qEEG 21-channel"
+            "value": "QEEG 21ch"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "qEEG 21-channel"
+            "value": "QEEG 21ch"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "qEEG 21-channel"
+            "value": "QEEG 21ch"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "qEEG 21-channel"
+            "value": "QEEG 21ch"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "qEEG 21-channel"
+            "value": "QEEG 21ch"
           }
         }
       }
@@ -35146,77 +33016,6 @@
         }
       }
     },
-    "MODALITY_TDCS_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        }
-      }
-    },
     "MODALITY_TDCS_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -35284,148 +33083,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "DC stimulation 0.1–2mA"
-          }
-        }
-      }
-    },
-    "MODALITY_TDCS_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        }
-      }
-    },
-    "MODALITY_TDCS_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Cortical Priming Stimulation"
           }
         }
       }
@@ -35507,138 +33164,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "tDCS"
+            "value": "TDCS"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "tDCS"
+            "value": "TDCS"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "tDCS"
+            "value": "TDCS"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "tDCS"
+            "value": "TDCS"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "tDCS"
+            "value": "TDCS"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "tDCS"
+            "value": "TDCS"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "tDCS"
+            "value": "TDCS"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "tDCS"
+            "value": "TDCS"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "tDCS"
+            "value": "TDCS"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "tDCS"
+            "value": "TDCS"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "tDCS"
-          }
-        }
-      }
-    },
-    "MODALITY_TMS_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
+            "value": "TDCS"
           }
         }
       }
@@ -35710,148 +33296,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Focal figure-8 coil rTMS/TBS"
-          }
-        }
-      }
-    },
-    "MODALITY_TMS_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Transcranial Magnetic Stimulation"
-          }
-        }
-      }
-    },
-    "MODALITY_TMS_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "TMS"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "TMS"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "TMS"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "TMS"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "TMS"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "TMS"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "TMS"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "TMS"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "TMS"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "TMS"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "TMS"
           }
         }
       }
@@ -36069,77 +33513,6 @@
         }
       }
     },
-    "MODALITY_VIBROTACTILE_40HZ_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        }
-      }
-    },
     "MODALITY_VIBROTACTILE_40HZ_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -36207,148 +33580,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Mastoid LRA, 40Hz ± 0.5Hz (provisional)"
-          }
-        }
-      }
-    },
-    "MODALITY_VIBROTACTILE_40HZ_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile Entrainment"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile Entrainment"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile Entrainment"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "40Hz Vibrotactile Entrainment"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile Entrainment"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile Entrainment"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile Entrainment"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile Entrainment"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile Entrainment"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile Entrainment"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile Entrainment"
-          }
-        }
-      }
-    },
-    "MODALITY_VIBROTACTILE_40HZ_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "40Hz Vibrotactile"
           }
         }
       }
@@ -36430,138 +33661,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "40Hz Vibrotactile"
+            "value": "Vibrotactile 40Hz"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "40Hz Vibrotactile"
+            "value": "Vibrotactile 40Hz"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "40Hz Vibrotactile"
+            "value": "Vibrotactile 40Hz"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "40Hz Vibrotactile"
+            "value": "Vibrotactile 40Hz"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "40Hz Vibrotactile"
+            "value": "Vibrotactile 40Hz"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "40Hz Vibrotactile"
+            "value": "Vibrotactile 40Hz"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "40Hz Vibrotactile"
+            "value": "Vibrotactile 40Hz"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "40Hz Vibrotactile"
+            "value": "Vibrotactile 40Hz"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "40Hz Vibrotactile"
+            "value": "Vibrotactile 40Hz"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "40Hz Vibrotactile"
+            "value": "Vibrotactile 40Hz"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "40Hz Vibrotactile"
-          }
-        }
-      }
-    },
-    "MODALITY_VISUAL_STIMULATION_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Entrainment"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Entrainment"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Entrainment"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Visual Entrainment"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Entrainment"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Entrainment"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Entrainment"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Entrainment"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Entrainment"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Entrainment"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Entrainment"
+            "value": "Vibrotactile 40Hz"
           }
         }
       }
@@ -36633,148 +33793,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "108 micro-LEDs/lens, 0.5–100Hz"
-          }
-        }
-      }
-    },
-    "MODALITY_VISUAL_STIMULATION_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Visual Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        }
-      }
-    },
-    "MODALITY_VISUAL_STIMULATION_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Visual Stimulation"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Visual Stimulation"
           }
         }
       }
@@ -36921,77 +33939,6 @@
         }
       }
     },
-    "MODALITY_VNS_HRV_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Vagal Stimulation & Heart Coherence"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Vagal Stimulation & Heart Coherence"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Vagal Stimulation & Heart Coherence"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vagal Stimulation & Heart Coherence"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Vagal Stimulation & Heart Coherence"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Vagal Stimulation & Heart Coherence"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Vagal Stimulation & Heart Coherence"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Vagal Stimulation & Heart Coherence"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Vagal Stimulation & Heart Coherence"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Vagal Stimulation & Heart Coherence"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Vagal Stimulation & Heart Coherence"
-          }
-        }
-      }
-    },
     "MODALITY_VNS_HRV_DESC": {
       "extractionState": "manual",
       "localizations": {
@@ -37059,148 +34006,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Auricular VNS + PPG HRV biofeedback"
-          }
-        }
-      }
-    },
-    "MODALITY_VNS_HRV_DETAIL_CONSUMER": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        }
-      }
-    },
-    "MODALITY_VNS_HRV_DETAIL_NAME": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "VNS + HRV Biofeedback"
           }
         }
       }
@@ -37282,67 +34087,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "VNS + HRV"
+            "value": "VNS HRV"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "VNS + HRV"
+            "value": "VNS HRV"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "VNS + HRV"
+            "value": "VNS HRV"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "VNS + HRV"
+            "value": "VNS HRV"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "VNS + HRV"
+            "value": "VNS HRV"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "VNS + HRV"
+            "value": "VNS HRV"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "VNS + HRV"
+            "value": "VNS HRV"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "VNS + HRV"
+            "value": "VNS HRV"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "VNS + HRV"
+            "value": "VNS HRV"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "VNS + HRV"
+            "value": "VNS HRV"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "VNS + HRV"
+            "value": "VNS HRV"
           }
         }
       }

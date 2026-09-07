@@ -338,20 +338,23 @@ private fun <T> EnumDropdown(
 
 private fun fmt(v: Double): String = if (v == v.toLong().toDouble()) v.toLong().toString() else v.toString()
 
-private fun modalityLabel(type: NPModalityType): String = when (type) {
-    NPModalityType.PBM_TRANSCRANIAL -> "Transcranial PBM"
-    NPModalityType.PBM_INTRANASAL -> "Intranasal PBM"
-    NPModalityType.EEG_NEUROFEEDBACK -> "EEG Neurofeedback"
-    NPModalityType.BES_TACS -> "Brainwave Entrainment"
-    NPModalityType.TDCS -> "Cortical Priming"
-    NPModalityType.VNS_HRV -> "VNS + HRV"
-    NPModalityType.AUDIO_ENTRAINMENT -> "Neural Audio"
-    NPModalityType.VISUAL_STIMULATION -> "Visual Stimulation"
-    NPModalityType.QEEG_21CH -> "21-Channel qEEG"
-    NPModalityType.TMS -> "TMS"
-    NPModalityType.PBM_DEEP_1170NM -> "Deep PBM (1170nm)"
-    NPModalityType.CLINICAL_TACS -> "Clinical tACS"
-    NPModalityType.HD_TDCS -> "HD-tDCS"
-    NPModalityType.CERVICAL_VNS -> "Cervical VNS"
-    NPModalityType.VIBROTACTILE_40HZ -> "40Hz Vibrotactile"
-}
+@Composable
+private fun modalityLabel(type: NPModalityType): String = stringResource(
+    when (type) {
+        NPModalityType.PBM_TRANSCRANIAL -> R.string.modality_pbm_transcranial_name
+        NPModalityType.PBM_INTRANASAL -> R.string.modality_pbm_intranasal_name
+        NPModalityType.EEG_NEUROFEEDBACK -> R.string.modality_eeg_neurofeedback_name
+        NPModalityType.BES_TACS -> R.string.modality_bes_tacs_name
+        NPModalityType.TDCS -> R.string.modality_tdcs_name
+        NPModalityType.VNS_HRV -> R.string.modality_vns_hrv_name
+        NPModalityType.AUDIO_ENTRAINMENT -> R.string.modality_audio_entrainment_name
+        NPModalityType.VISUAL_STIMULATION -> R.string.modality_visual_stimulation_name
+        NPModalityType.QEEG_21CH -> R.string.modality_qeeg_21ch_name
+        NPModalityType.TMS -> R.string.modality_tms_name
+        NPModalityType.PBM_DEEP_1170NM -> R.string.modality_pbm_deep_1170nm_name
+        NPModalityType.CLINICAL_TACS -> R.string.modality_clinical_tacs_name
+        NPModalityType.HD_TDCS -> R.string.modality_hd_tdcs_name
+        NPModalityType.CERVICAL_VNS -> R.string.modality_cervical_vns_name
+        NPModalityType.VIBROTACTILE_40HZ -> R.string.modality_vibrotactile_40hz_name
+    },
+)

@@ -617,7 +617,6 @@ export function ModalityEditorBlock({ modality, onChange, onDelete }: ModalityEd
         <span className="modality-icon-display">{meta.icon}</span>
         <div>
           <div className="modality-name">{t(meta.displayNameKey)}</div>
-          <div className="modality-consumer-name">{t(meta.consumerNameKey)}</div>
         </div>
         <div className="modality-block-actions">
           {(isT2 || isAccessory) && (

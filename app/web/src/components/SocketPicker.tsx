@@ -254,7 +254,7 @@ export function SocketPicker({
                       0: memberOf.length > 0 ? memberOf.join(', ') : t('WEB_SOCKET_ZONES_NONE'),
                     }) + '\n' +
                     (fitted?.present
-                      ? t('WEB_SOCKET_FITTED', { 0: fitted.partNumber })
+                      ? t('WEB_SOCKET_FITTED', { 0: fitted.partNumber ?? '' })
                       : t('WEB_SOCKET_EMPTY')) +
                     (status === 'incompatible' ? '\n' + t('WEB_SOCKET_INCOMPATIBLE') : '')}
                 </title>

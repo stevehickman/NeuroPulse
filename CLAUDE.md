@@ -425,6 +425,13 @@ and the code carries only a key.** Never write a string a person will read into 
 - **Module-level tables hold KEYS, not text** (`MODALITY_META.displayNameKey`, `ELEMENT_TYPE_LABEL`,
   `PRESETS.labelKey`). A constant initialised at import time captures English before `initI18n()`
   resolves; resolve with `t()` at the point of render.
+- **One modality name, derived from the `.npps` token.** Each modality type has exactly one
+  user-facing string, `MODALITY_<ID>_NAME`, and it is the modality's `.npps` grammar token with
+  underscores replaced by spaces and each word capitalised (`pbm_transcranial` → `PBM Transcranial`;
+  acronyms and unit symbols keep their conventional casing). Web, iOS and Android all render that
+  one key — there is no separate consumer-facing name — and, like a product designation, it carries
+  the same value in all eleven locales. **The `.npps` parser and hub compiler are unaffected**: they
+  keep the lowercase snake_case token, which stays the canonical identifier.
 - **Not translated, and deliberately literal:** unit symbols and numbers (`Hz`, `mA`, `42%`,
   `1064nm`), product/tier designations and part numbers (`T1`, `ZM-PBM-DUAL`), enum and identifier
   values, single glyphs used as icons, and `.npps` parser / hub-compiler diagnostics — those name

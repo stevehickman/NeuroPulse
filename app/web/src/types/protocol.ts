@@ -31,7 +31,6 @@ export type NPModalityTypeId =
 export interface NPModalityMeta {
   id: NPModalityTypeId;
   displayNameKey: string;
-  consumerNameKey: string;
   tier: 'T1' | 'T2' | 'Accessory';
   icon: string;
   shortDescriptionKey: string;
@@ -41,7 +40,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   pbm_transcranial: {
     id: 'pbm_transcranial',
     displayNameKey: 'MODALITY_PBM_TRANSCRANIAL_NAME',
-    consumerNameKey: 'MODALITY_PBM_TRANSCRANIAL_CONSUMER',
     tier: 'T1',
     icon: '💡',
     shortDescriptionKey: 'MODALITY_PBM_TRANSCRANIAL_DESC',
@@ -49,7 +47,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   pbm_intranasal: {
     id: 'pbm_intranasal',
     displayNameKey: 'MODALITY_PBM_INTRANASAL_NAME',
-    consumerNameKey: 'MODALITY_PBM_INTRANASAL_CONSUMER',
     tier: 'T1',
     icon: '👃',
     shortDescriptionKey: 'MODALITY_PBM_INTRANASAL_DESC',
@@ -57,7 +54,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   eeg_neurofeedback: {
     id: 'eeg_neurofeedback',
     displayNameKey: 'MODALITY_EEG_NEUROFEEDBACK_NAME',
-    consumerNameKey: 'MODALITY_EEG_NEUROFEEDBACK_CONSUMER',
     tier: 'T1',
     icon: '🧠',
     shortDescriptionKey: 'MODALITY_EEG_NEUROFEEDBACK_DESC',
@@ -65,7 +61,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   bes_tacs: {
     id: 'bes_tacs',
     displayNameKey: 'MODALITY_BES_TACS_NAME',
-    consumerNameKey: 'MODALITY_BES_TACS_CONSUMER',
     tier: 'T1',
     icon: '⚡',
     shortDescriptionKey: 'MODALITY_BES_TACS_DESC',
@@ -73,7 +68,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   tdcs: {
     id: 'tdcs',
     displayNameKey: 'MODALITY_TDCS_NAME',
-    consumerNameKey: 'MODALITY_TDCS_CONSUMER',
     tier: 'T1',
     icon: '🔋',
     shortDescriptionKey: 'MODALITY_TDCS_DESC',
@@ -81,7 +75,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   vns_hrv: {
     id: 'vns_hrv',
     displayNameKey: 'MODALITY_VNS_HRV_NAME',
-    consumerNameKey: 'MODALITY_VNS_HRV_CONSUMER',
     tier: 'T1',
     icon: '❤️',
     shortDescriptionKey: 'MODALITY_VNS_HRV_DESC',
@@ -89,7 +82,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   audio_entrainment: {
     id: 'audio_entrainment',
     displayNameKey: 'MODALITY_AUDIO_ENTRAINMENT_NAME',
-    consumerNameKey: 'MODALITY_AUDIO_ENTRAINMENT_CONSUMER',
     tier: 'T1',
     icon: '🎵',
     shortDescriptionKey: 'MODALITY_AUDIO_ENTRAINMENT_DESC',
@@ -97,7 +89,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   visual_stimulation: {
     id: 'visual_stimulation',
     displayNameKey: 'MODALITY_VISUAL_STIMULATION_NAME',
-    consumerNameKey: 'MODALITY_VISUAL_STIMULATION_CONSUMER',
     tier: 'T1',
     icon: '👁️',
     shortDescriptionKey: 'MODALITY_VISUAL_STIMULATION_DESC',
@@ -105,7 +96,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   qeeg_21ch: {
     id: 'qeeg_21ch',
     displayNameKey: 'MODALITY_QEEG_21CH_NAME',
-    consumerNameKey: 'MODALITY_QEEG_21CH_CONSUMER',
     tier: 'T2',
     icon: '🔬',
     shortDescriptionKey: 'MODALITY_QEEG_21CH_DESC',
@@ -113,7 +103,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   tms: {
     id: 'tms',
     displayNameKey: 'MODALITY_TMS_NAME',
-    consumerNameKey: 'MODALITY_TMS_CONSUMER',
     tier: 'T2',
     icon: '🧲',
     shortDescriptionKey: 'MODALITY_TMS_DESC',
@@ -121,7 +110,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   pbm_deep_1170nm: {
     id: 'pbm_deep_1170nm',
     displayNameKey: 'MODALITY_PBM_DEEP_1170NM_NAME',
-    consumerNameKey: 'MODALITY_PBM_DEEP_1170NM_CONSUMER',
     tier: 'T2',
     icon: '🔴',
     shortDescriptionKey: 'MODALITY_PBM_DEEP_1170NM_DESC',
@@ -129,7 +117,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   clinical_tacs: {
     id: 'clinical_tacs',
     displayNameKey: 'MODALITY_CLINICAL_TACS_NAME',
-    consumerNameKey: 'MODALITY_CLINICAL_TACS_CONSUMER',
     tier: 'T2',
     icon: '⚡⚡',
     shortDescriptionKey: 'MODALITY_CLINICAL_TACS_DESC',
@@ -137,7 +124,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   hd_tdcs: {
     id: 'hd_tdcs',
     displayNameKey: 'MODALITY_HD_TDCS_NAME',
-    consumerNameKey: 'MODALITY_HD_TDCS_CONSUMER',
     tier: 'T2',
     icon: '🎯',
     shortDescriptionKey: 'MODALITY_HD_TDCS_DESC',
@@ -145,7 +131,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   cervical_vns: {
     id: 'cervical_vns',
     displayNameKey: 'MODALITY_CERVICAL_VNS_NAME',
-    consumerNameKey: 'MODALITY_CERVICAL_VNS_CONSUMER',
     tier: 'T2',
     icon: '🫀',
     shortDescriptionKey: 'MODALITY_CERVICAL_VNS_DESC',
@@ -153,7 +138,6 @@ export const MODALITY_META: Record<NPModalityTypeId, NPModalityMeta> = {
   vibrotactile_40hz: {
     id: 'vibrotactile_40hz',
     displayNameKey: 'MODALITY_VIBROTACTILE_40HZ_NAME',
-    consumerNameKey: 'MODALITY_VIBROTACTILE_40HZ_CONSUMER',
     tier: 'Accessory',
     icon: '📳',
     shortDescriptionKey: 'MODALITY_VIBROTACTILE_40HZ_DESC',
