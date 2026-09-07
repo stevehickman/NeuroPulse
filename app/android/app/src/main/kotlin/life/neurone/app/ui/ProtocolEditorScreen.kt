@@ -59,9 +59,11 @@ fun ProtocolEditorScreen(
         )
     }
 
+    val untitledName = stringResource(R.string.protocol_editor_untitled)
+
     fun save() {
         val updated = existing.copy(
-            name = name.ifBlank { stringResource(R.string.protocol_editor_untitled) },
+            name = name.ifBlank { untitledName },
             description = description,
             tags = tags.split(",").map { it.trim() }.filter { it.isNotEmpty() },
             timingMode = NPTimingMode.Duration((minutes.toIntOrNull() ?: 20).coerceAtLeast(1) * 60),

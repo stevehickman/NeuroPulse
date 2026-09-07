@@ -264,7 +264,6 @@
     <string name="consumable_sessions_used_format">Sessions used: %d of %d</string>
     <string name="consumable_snooze">Snooze</string>
     <string name="consumable_snooze_format">Snooze (%d remaining)</string>
-    <string name="consumable_unused_expression">UNUSED_EXPRESSION</string>
     <string name="consumable_vns_name">VNS Clip Pads</string>
     <string name="consumable_vns_price">$8 / 2-pack</string>
     <string name="dashboard_access_format">Access: %@</string>

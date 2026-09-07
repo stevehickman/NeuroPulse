@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import life.neurone.core.protocol.NPPSError
 import life.neurone.core.protocol.NPProtocolLibrary
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import life.neurone.app.R
 
@@ -44,15 +45,17 @@ fun ProtocolScriptEditorScreen(
     var text by remember { mutableStateOf(initialText) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    val context = LocalContext.current
+
     fun save() {
         try {
             val entry = library.importScript(text)
             library.save(entry)
             onSaved()
         } catch (e: NPPSError) {
-            error = stringResource(R.string.script_line_0_1, e.line, e.messageText)
+            error = context.getString(R.string.script_line_0_1, e.line, e.messageText)
         } catch (e: Exception) {
-            error = e.message ?: stringResource(R.string.script_could_not_parse_the_protocol_script)
+            error = e.message ?: context.getString(R.string.script_could_not_parse_the_protocol_script)
         }
     }
 

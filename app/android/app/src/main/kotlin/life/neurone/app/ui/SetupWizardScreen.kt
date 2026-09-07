@@ -30,6 +30,7 @@ import life.neurone.app.ble.ConnectionState
 import life.neurone.core.ble.CalibrationOpcode
 import life.neurone.core.setup.SetupFlow
 import life.neurone.core.setup.SetupStep
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import life.neurone.app.R
 
@@ -50,6 +51,8 @@ fun SetupWizardScreen(
     var error by remember { mutableStateOf<String?>(null) }
     val connectionState by app.gattManager.connectionState.collectAsState()
     val session by app.gattManager.session.collectAsState()
+
+    val context = LocalContext.current
 
     fun advance() {
         flow.advance()
@@ -110,14 +113,16 @@ fun SetupWizardScreen(
 
                     step.requiresHardwareConfirmation -> {
                         if (connectionState != ConnectionState.CONNECTED) {
-                            error = stringResource(R.string.setup_connect_to_your_hub_first)
+                            error = context.getString(R.string.setup_connect_to_your_hub_first)
                         } else when (step) {
                             SetupStep.IMPEDANCE_CHECK -> {
                                 app.gattManager.sendCalibration(CalibrationOpcode.IMPEDANCE_CHECK)
                                 val r = flow.evaluateImpedance(session.impedancePassFlags)
                                 if (r.passed) advance()
-                                else error = stringResource(R.string.setup_only_0_of_8_electrodes_made_good_contact, r.passCount) +
-                                    stringResource(R.string.setup_adjust_the_fit_and_try_again)
+                                else error = context.getString(
+                                    R.string.setup_only_0_of_8_electrodes_made_good_contact,
+                                    r.passCount,
+                                ) + context.getString(R.string.setup_adjust_the_fit_and_try_again)
                             }
                             SetupStep.ADS1299_CALIBRATION -> {
                                 app.gattManager.sendCalibration(CalibrationOpcode.ADS1299_SELF_CAL)
@@ -130,7 +135,7 @@ fun SetupWizardScreen(
                     step == SetupStep.SAFETY_ACKNOWLEDGEMENT -> {
                         when (flow.advance()) {
                             is SetupFlow.AdvanceResult.BlockedBySafety ->
-                                error = stringResource(R.string.setup_please_confirm_the_safety_acknowledgement_to)
+                                error = context.getString(R.string.setup_please_confirm_the_safety_acknowledgement_to)
                             else -> {
                                 safetyChecked = false
                                 step = flow.currentStep

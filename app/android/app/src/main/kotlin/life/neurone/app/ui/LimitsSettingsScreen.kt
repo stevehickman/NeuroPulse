@@ -57,11 +57,13 @@ fun LimitsSettingsScreen(
     var vnsMa by remember { mutableStateOf(existing?.vnsHrv?.maxIntensityMilliamps.toField()) }
     var blockHighRisk by remember { mutableStateOf(existing?.visualStimulation?.blockHighRiskRange ?: false) }
 
+    val globalName = stringResource(R.string.limits_chain_global)
+
     fun save() {
         // Preserve any fields this simplified editor doesn't expose; overwrite the ones it does.
-        val base = existing ?: NPLimitsSet(name = stringResource(R.string.limits_chain_global))
+        val base = existing ?: NPLimitsSet(name = globalName)
         val updated = base.copy(
-            name = stringResource(R.string.limits_chain_global),
+            name = globalName,
             pbmTranscranial = (base.pbmTranscranial ?: NPPBMTranscranialLimits()).copy(
                 maxIntensityPercent = pbmIntensity.toDoubleOrNull(),
                 maxSessionDoseJCm2 = pbmDose.toDoubleOrNull(),

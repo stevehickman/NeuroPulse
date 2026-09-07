@@ -47,7 +47,9 @@ fun ProtocolComposerScreen(
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var name by remember { mutableStateOf(stringResource(R.string.protocol_composer_new_composite)) }
+    val defaultName = stringResource(R.string.protocol_composer_new_composite)
+    val untitledName = stringResource(R.string.protocol_composer_untitled_composite)
+    var name by remember { mutableStateOf(defaultName) }
     var layers by remember { mutableStateOf(listOf<NPCompositeLayer>()) }
 
     val singles = remember {
@@ -56,7 +58,7 @@ fun ProtocolComposerScreen(
 
     fun save() {
         val composite = NPCompositeProtocol(
-            name = name.ifBlank { stringResource(R.string.protocol_composer_untitled_composite) },
+            name = name.ifBlank { untitledName },
             layers = layers,
         )
         library.save(NPProtocolEntry.Composite(composite))

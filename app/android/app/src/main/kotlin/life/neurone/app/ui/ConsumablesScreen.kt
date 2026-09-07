@@ -55,8 +55,8 @@ fun ConsumablesScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
     var refresh by remember { mutableIntStateOf(0) }
     val tracker = app.consumableTracker
     // Touch `session` + `refresh` so this recomposes on either signal.
-    @Suppress(stringResource(R.string.consumable_unused_expression)) session
-    @Suppress(stringResource(R.string.consumable_unused_expression)) refresh
+    @Suppress("UNUSED_EXPRESSION") session
+    @Suppress("UNUSED_EXPRESSION") refresh
     val states = tracker.states
 
     Column(modifier.fillMaxSize().padding(16.dp)) {
