@@ -56,7 +56,7 @@ fun AgeGateScreen(onConfirmed: () -> Unit) {
         Spacer(Modifier.height(24.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = checked, onCheckedChange = { checked = it })
-            Text(stringResource(R.string.age_gate_confirmation))
+            Text(stringResource(R.string.age_gate_declaration))
         }
         Spacer(Modifier.height(24.dp))
         Button(onClick = onConfirmed, enabled = checked) {

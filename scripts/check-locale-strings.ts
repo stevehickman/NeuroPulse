@@ -326,9 +326,23 @@ function checkKeyUsage(files: string[], keys: Set<string>): string[] {
   // A plural member is used when its BASE is referenced: tPlural('X', n) picks
   // X_ONE / X_OTHER at runtime, so neither member ever appears literally.
   const PLURAL = /_(ZERO|ONE|TWO|FEW|MANY|OTHER)$/;
+
+  // Android never names the canonical key: sync-locales lowercases it into a
+  // resource name, and Kotlin says R.string.tab_history / @string/tab_history.
+  // Collect those so a key used only by Android does not read as an orphan.
+  const androidRefs = new Set<string>();
+  for (const m of blob.matchAll(/(?:R\.string\.|R\.plurals\.|@string\/|@plurals\/)([a-z0-9_]+)/g)) {
+    androidRefs.add(m[1]!);
+  }
+  const usedByAndroid = (k: string) => androidRefs.has(k.toLowerCase());
+
   const orphans = [...keys].filter((k) => {
     if (blob.includes(k)) return false;
-    if (PLURAL.test(k) && blob.includes(k.replace(PLURAL, ""))) return false;
+    if (usedByAndroid(k)) return false;
+    if (PLURAL.test(k)) {
+      const base = k.replace(PLURAL, "");
+      if (blob.includes(base) || usedByAndroid(base)) return false;
+    }
     return true;
   });
   for (const k of orphans.sort()) {
@@ -345,6 +359,15 @@ function checkKeyUsage(files: string[], keys: Set<string>): string[] {
   ];
   const referenced = new Set<string>();
   for (const re of LOOKUPS) for (const m of blob.matchAll(re)) referenced.add(m[1]);
+  const lowerKeys = new Set([...keys].map((k) => k.toLowerCase()));
+  const pluralBases = new Set(
+    [...keys].filter((k) => PLURAL.test(k)).map((k) => k.replace(PLURAL, "").toLowerCase()),
+  );
+  for (const name of [...androidRefs].sort()) {
+    if (lowerKeys.has(name) || pluralBases.has(name)) continue;
+    errs.push(`Android references @string/${name}, which no canonical key generates`);
+  }
+
   for (const k of [...referenced].sort()) {
     if (keys.has(k)) continue;
     if (PLURAL.test(k) ? keys.has(k.replace(PLURAL, "")) : false) continue;

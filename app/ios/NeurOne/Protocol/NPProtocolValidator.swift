@@ -100,7 +100,7 @@ struct NPProtocolValidator {
                 parameterDisplayName: String(localized: "VALIDATE_PARAM_MODALITIES"),
                 actualValueDescription: "0",
                 limitValueDescription: NPValidationResult.limitLabel(
-                    String(localized: "VALIDATE_LIMIT_AT_LEAST_ONE"), .hardware),
+                    String(localized: "VALIDATE_LIMIT_AT_LEAST_1"), .hardware),
                 limitSource: .hardware,
                 message: String(localized: "VALIDATE_MSG_GENERAL_MODALITIES")
             ))
@@ -210,7 +210,7 @@ struct NPProtocolValidator {
                 parameterDisplayName: String(localized: "VALIDATE_PARAM_LAYERS"),
                 actualValueDescription: "0",
                 limitValueDescription: NPValidationResult.limitLabel(
-                    String(localized: "VALIDATE_LIMIT_AT_LEAST_ONE"), .hardware),
+                    String(localized: "VALIDATE_LIMIT_AT_LEAST_1"), .hardware),
                 limitSource: .hardware,
                 message: String(localized: "VALIDATE_MSG_GENERAL_LAYERS")
             ))

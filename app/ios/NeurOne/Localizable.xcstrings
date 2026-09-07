@@ -4616,6 +4616,77 @@
         }
       }
     },
+    "BLE_ENABLE_BLUETOOTH": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Enable Bluetooth to connect to your hub"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Enable Bluetooth to connect to your hub"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Enable Bluetooth to connect to your hub"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enable Bluetooth to connect to your hub"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Enable Bluetooth to connect to your hub"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Enable Bluetooth to connect to your hub"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Enable Bluetooth to connect to your hub"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Enable Bluetooth to connect to your hub"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Enable Bluetooth to connect to your hub"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Enable Bluetooth to connect to your hub"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Enable Bluetooth to connect to your hub"
+          }
+        }
+      }
+    },
     "CLINICIAN_GRANT_BUTTON": {
       "extractionState": "manual",
       "localizations": {
@@ -48484,6 +48555,77 @@
         }
       }
     },
+    "TAB_CONSUMABLES": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Consumables"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Consumables"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Consumables"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Consumables"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Consumables"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Consumables"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Consumables"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Consumables"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Consumables"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Consumables"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Consumables"
+          }
+        }
+      }
+    },
     "TAB_FIRMWARE": {
       "extractionState": "manual",
       "localizations": {
@@ -48555,6 +48697,77 @@
         }
       }
     },
+    "TAB_HISTORY": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "History"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "History"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "History"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "History"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "History"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "History"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "History"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "History"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "History"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "History"
+          }
+        }
+      }
+    },
     "TAB_PROTOCOLS": {
       "extractionState": "manual",
       "localizations": {
@@ -48622,6 +48835,77 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Protocols"
+          }
+        }
+      }
+    },
+    "TAB_SETTINGS": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Settings"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Settings"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Settings"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Settings"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Settings"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Settings"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Settings"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Settings"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Settings"
           }
         }
       }
@@ -52247,139 +52531,73 @@
         }
       }
     },
-    "VALIDATE_LIMIT_AT_LEAST": {
+    "VALIDATE_LIMIT_AT_LEAST_1": {
       "extractionState": "manual",
       "localizations": {
         "ar": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "needs_review",
-                  "value": "≥1"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "≥1"
           }
         },
         "bn": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "needs_review",
-                  "value": "≥1"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "≥1"
           }
         },
         "ca": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "needs_review",
-                  "value": "≥1"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "≥1"
           }
         },
         "en": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "translated",
-                  "value": "≥1"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "translated",
+            "value": "≥1"
           }
         },
         "en-GB": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "needs_review",
-                  "value": "≥1"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "≥1"
           }
         },
         "es-419": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "needs_review",
-                  "value": "≥1"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "≥1"
           }
         },
         "fr": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "needs_review",
-                  "value": "≥1"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "≥1"
           }
         },
         "hi": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "needs_review",
-                  "value": "≥1"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "≥1"
           }
         },
         "id": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "needs_review",
-                  "value": "≥1"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "≥1"
           }
         },
         "ru": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "needs_review",
-                  "value": "≥1"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "≥1"
           }
         },
         "zh-Hans": {
-          "variations": {
-            "plural": {
-              "one": {
-                "stringUnit": {
-                  "state": "needs_review",
-                  "value": "≥1"
-                }
-              }
-            }
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "≥1"
           }
         }
       }
@@ -71563,13 +71781,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ socket needs re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld socket needs re-fitting"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ sockets need re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld sockets need re-fitting"
                 }
               }
             }
@@ -71581,13 +71799,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ socket needs re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld socket needs re-fitting"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ sockets need re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld sockets need re-fitting"
                 }
               }
             }
@@ -71599,13 +71817,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ socket needs re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld socket needs re-fitting"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ sockets need re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld sockets need re-fitting"
                 }
               }
             }
@@ -71617,13 +71835,13 @@
               "one": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ socket needs re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld socket needs re-fitting"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "translated",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ sockets need re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld sockets need re-fitting"
                 }
               }
             }
@@ -71635,13 +71853,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ socket needs re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld socket needs re-fitting"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ sockets need re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld sockets need re-fitting"
                 }
               }
             }
@@ -71653,13 +71871,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ socket needs re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld socket needs re-fitting"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ sockets need re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld sockets need re-fitting"
                 }
               }
             }
@@ -71671,13 +71889,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ socket needs re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld socket needs re-fitting"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ sockets need re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld sockets need re-fitting"
                 }
               }
             }
@@ -71689,13 +71907,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ socket needs re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld socket needs re-fitting"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ sockets need re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld sockets need re-fitting"
                 }
               }
             }
@@ -71707,13 +71925,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ socket needs re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld socket needs re-fitting"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ sockets need re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld sockets need re-fitting"
                 }
               }
             }
@@ -71725,13 +71943,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ socket needs re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld socket needs re-fitting"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ sockets need re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld sockets need re-fitting"
                 }
               }
             }
@@ -71743,13 +71961,13 @@
               "one": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ socket needs re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld socket needs re-fitting"
                 }
               },
               "other": {
                 "stringUnit": {
                   "state": "needs_review",
-                  "value": "No compatible module in %lld%1\\$@ — %2\\$@ sockets need re-fitting"
+                  "value": "No compatible module in %1\\$@%2\\$@ — %lld sockets need re-fitting"
                 }
               }
             }

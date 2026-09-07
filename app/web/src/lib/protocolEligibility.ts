@@ -451,7 +451,9 @@ function summarize(blocking: NPModalityShortfall[]): string {
     ? t('WEB_ELIG_MORE_ZONES', { 0: first.unsupportedZones.length - 2 })
     : '';
 
-  return tPlural('WEB_ELIG_NO_MODULE', socketCount, { 0: zoneList, 1: more, 2: socketCount });
+  // tPlural supplies {0} = the count; the generators map {0} to the plural
+  // argument (%lld on Apple, %d on Android), so the count must be {0} here.
+  return tPlural('WEB_ELIG_NO_MODULE', socketCount, { 1: zoneList, 2: more });
 }
 
 /** Convenience wrapper for a library entry of either kind. */

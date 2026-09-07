@@ -5,7 +5,8 @@
  * Source of truth: locales/*.json (flat key-value per BCP 47 locale)
  * Targets:
  *   - Apple: app/ios/NeurOne/Localizable.xcstrings (String Catalog)
- *   - Web:   app/web/src/locales/*.json (copy)
+ *   - Web:     app/web/src/locales/*.json (copy)
+ *   - Android: app/android/app/src/main/res/values-<qualifier>/strings.xml
  *
  * Pass --check to fail without writing when a generated file is stale (CI).
  *
@@ -52,6 +53,7 @@ import { join, basename } from "path";
 const LOCALES_DIR = join(import.meta.dir, "..", "locales");
 const XCSTRINGS_OUT = join(import.meta.dir, "..", "app", "ios", "NeurOne", "Localizable.xcstrings");
 const WEB_LOCALES_OUT = join(import.meta.dir, "..", "app", "web", "src", "locales");
+const ANDROID_RES_OUT = join(import.meta.dir, "..", "app", "android", "app", "src", "main", "res");
 
 const SOURCE_LANGUAGE = "en";
 
@@ -97,6 +99,29 @@ function validateLocales(locales: Map<string, LocaleData>): void {
     console.error(`Missing required locale files: ${missing.join(", ")}`);
     process.exit(1);
   }
+
+  // A key ending _ONE/_OTHER/... is read as a plural MEMBER by all three
+  // generators, so a name that merely looks like one silently becomes a
+  // one-item <plurals>/variation that no caller can resolve. Caught in review
+  // as VALIDATE_LIMIT_AT_LEAST_ONE — a limit label reading "at least one",
+  // not a plural — after it had already shipped into the String Catalog.
+  const pluralFamilies = new Map<string, string[]>();
+  for (const k of Object.keys(locales.get("en")!)) {
+    if (!isPluralSuffix(k)) continue;
+    const base = k.replace(/_(?:ZERO|ONE|TWO|FEW|MANY|OTHER)$/, "");
+    pluralFamilies.set(base, [...(pluralFamilies.get(base) ?? []), k]);
+  }
+  let malformed = 0;
+  for (const [base, members] of pluralFamilies) {
+    if (members.length >= 2) continue;
+    console.error(
+      `${members[0]}: reads as a plural member of "${base}", but no sibling ` +
+        `category exists. Rename it (a trailing _ONE is reserved for plurals) ` +
+        `or add the missing _OTHER.`,
+    );
+    malformed++;
+  }
+  if (malformed > 0) process.exit(1);
 
   const enKeys = Object.keys(locales.get("en")!);
   for (const [locale, data] of locales) {
@@ -220,14 +245,117 @@ function webOutputs(locales: Map<string, LocaleData>): Array<[string, string]> {
   ]);
 }
 
-// --- Future: Android XML generator (extension point) ---
-// function generateAndroidXml(locales: Map<string, LocaleData>, outputDir: string): void {
-//   for (const [locale, data] of locales) {
-//     const androidLocale = locale.replace("-", "-r");
-//     const dir = locale === "en" ? "values" : `values-${androidLocale}`;
-//     // ... generate <resources><string name="key">value</string></resources>
-//   }
-// }
+// --- Android string resources ---
+
+/**
+ * Android resource name for a canonical key.
+ *
+ * Lowercasing is injective here because every canonical key matches
+ * /^[A-Z][A-Z0-9_]*$/ — two keys cannot differ only by case — and the result
+ * matches Android's required /^[a-zA-Z][a-zA-Z0-9_]*$/ for a resource name.
+ * So `WEB_SAVE_CHANGES` is always and only `R.string.web_save_changes`, with no
+ * mapping table to keep in sync.
+ */
+function androidName(key: string): string {
+  return key.toLowerCase();
+}
+
+/**
+ * Resource directory qualifier per locale.
+ *
+ * A single-subtag locale takes the conventional short form (`values-fr`) that
+ * translators and Android tooling expect. Anything carrying a region or script
+ * takes the BCP 47 form (`values-b+es+419`, `values-b+zh+Hans`), which is the
+ * only spelling that expresses them unambiguously — `values-es-r419` is not a
+ * legal region and `zh-Hans` has no `-r` spelling at all. minSdk is 29, well
+ * past the API 24 that introduced `b+`.
+ */
+function androidValuesDir(locale: string): string {
+  if (locale === SOURCE_LANGUAGE) return "values";
+  const parts = locale.split("-");
+  return parts.length === 1 ? `values-${locale}` : `values-b+${parts.join("+")}`;
+}
+
+/**
+ * Escape a string for an Android <string> body.
+ *
+ * Android's rules are not XML's. Beyond the XML entities, an apostrophe or a
+ * double quote in an unquoted resource is a parse error, and a leading @ or ?
+ * would be read as a resource reference — all four are backslash-escaped. This
+ * matters more here than it looks: canonical is full of copy like "your card is
+ * not charged" and "Alzheimer's / Dementia".
+ */
+function androidEscape(value: string): string {
+  let out = value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/'/g, "\\'")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, "\\n");
+  if (/^[@?]/.test(out)) out = "\\" + out;
+  return out;
+}
+
+/** `{0}` → `%1$s`. Positional, so a translation may reorder its arguments. */
+function canonicalToAndroid(value: string): string {
+  return androidEscape(value).replace(/\{(\d+)\}/g, (_m, n) => `%${Number(n) + 1}$s`);
+}
+
+/** Plural items count, so the first argument is `%d` rather than `%1$s`. */
+function canonicalToAndroidPlural(value: string): string {
+  return androidEscape(value)
+    .replace(/\{0\}/, "%d")
+    .replace(/\{(\d+)\}/g, (_m, n) => `%${Number(n) + 1}$s`);
+}
+
+/**
+ * One strings.xml per locale. Plural key families collapse into <plurals>,
+ * which is what makes Android pick the right form — a flat string per suffix
+ * would leave the choosing to the caller, which is the bug _ZERO/_OTHER exists
+ * to avoid.
+ */
+function generateAndroidXml(locales: Map<string, LocaleData>): Array<[string, string]> {
+  const en = locales.get(SOURCE_LANGUAGE)!;
+  const outputs: Array<[string, string]> = [];
+
+  for (const [locale, data] of locales) {
+    const lines: string[] = [
+      '<?xml version="1.0" encoding="utf-8"?>',
+      "<!--",
+      "  GENERATED by scripts/sync-locales.ts from locales/*.json — do not edit.",
+      "  Add or change a string in locales/<bcp47>.json and re-run the script.",
+      "  CLAUDE.md §17 states the rule; scripts/check-locale-strings.ts enforces it.",
+      "-->",
+      "<resources>",
+    ];
+
+    const pluralBases = new Set<string>();
+    for (const key of Object.keys(en).sort()) {
+      if (isPluralSuffix(key)) {
+        pluralBases.add(key.replace(/_(?:ZERO|ONE|TWO|FEW|MANY|OTHER)$/, ""));
+        continue;
+      }
+      if (data[key] === undefined) continue;
+      lines.push(`    <string name="${androidName(key)}">${canonicalToAndroid(data[key])}</string>`);
+    }
+
+    for (const base of [...pluralBases].sort()) {
+      const items: string[] = [];
+      for (const suffix of ["zero", "one", "two", "few", "many", "other"]) {
+        const k = `${base}_${suffix.toUpperCase()}`;
+        if (data[k] === undefined) continue;
+        items.push(`        <item quantity="${suffix}">${canonicalToAndroidPlural(data[k])}</item>`);
+      }
+      if (items.length === 0) continue;
+      lines.push(`    <plurals name="${androidName(base)}">`, ...items, "    </plurals>");
+    }
+
+    lines.push("</resources>", "");
+    outputs.push([join(ANDROID_RES_OUT, androidValuesDir(locale), "strings.xml"), lines.join("\n")]);
+  }
+  return outputs;
+}
 
 // --- Main ---
 
@@ -242,10 +370,13 @@ function main(): void {
   const outputs: Array<[string, string]> = [
     [XCSTRINGS_OUT, JSON.stringify(generateXCStrings(locales), null, 2) + "\n"],
     ...webOutputs(locales),
+    ...generateAndroidXml(locales),
   ];
 
-  if (!checkOnly && !existsSync(WEB_LOCALES_OUT)) {
-    mkdirSync(WEB_LOCALES_OUT, { recursive: true });
+  if (!checkOnly) {
+    for (const dir of [WEB_LOCALES_OUT, ...[...locales.keys()].map((l) => join(ANDROID_RES_OUT, androidValuesDir(l)))]) {
+      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    }
   }
 
   let stale = 0;

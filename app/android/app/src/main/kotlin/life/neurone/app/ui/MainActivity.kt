@@ -92,10 +92,10 @@ private data class Tab(val labelRes: Int, val icon: androidx.compose.ui.graphics
 private fun MainScaffold(app: NeurOneApplication) {
     var selected by remember { mutableIntStateOf(0) }
     val tabs = listOf(
-        Tab(R.string.tab_session, Icons.Filled.PlayArrow),
+        Tab(R.string.session_title, Icons.Filled.PlayArrow),
         Tab(R.string.tab_history, Icons.Filled.DateRange),
         Tab(R.string.tab_consumables, Icons.Filled.ShoppingCart),
-        Tab(R.string.tab_consent, Icons.Filled.Lock),
+        Tab(R.string.setup_privacy_card_title, Icons.Filled.Lock),
         Tab(R.string.tab_settings, Icons.Filled.Settings),
     )
 

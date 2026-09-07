@@ -88,7 +88,7 @@ fun SessionScreen(
                 }
             }
         } else {
-            Text(stringResource(R.string.bluetooth_off_message))
+            Text(stringResource(R.string.ble_enable_bluetooth))
             Spacer(Modifier.height(12.dp))
             val connecting = connectionState == ConnectionState.SCANNING ||
                 connectionState == ConnectionState.CONNECTING
