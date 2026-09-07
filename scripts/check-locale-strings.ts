@@ -166,6 +166,16 @@ const KOTLIN_RENDER =
 const SWIFT_RENDER =
   /\b(Text|Button|Label|TextField|SecureField|Toggle|Picker|Section|NavigationLink|Link|LabeledContent|navigationTitle|navigationBarTitle|alert|confirmationDialog|accessibilityLabel|accessibilityHint|help)\(\s*"([^"]{2,})"/g;
 
+/**
+ * Prose reaching a view through a NAMED ARGUMENT rather than a SwiftUI view's
+ * first positional one. The project's own field wrappers take `label:`,
+ * `title:`, `message:`, `detail:` — SWIFT_RENDER never sees those, which is how
+ * 102 English strings in LimitsSettingsView, ModalityEditorView, Under16View
+ * and the portal passed the gate. `systemName:`/`icon:`/`param:`/`key:` are
+ * excluded on purpose: SF Symbol names and field identifiers, not text.
+ */
+const SWIFT_NAMED_ARG = /\b(label|title|message|detail|placeholder|prompt|caption|footer|header)\s*:\s*"([^"]{2,})"/g;
+
 interface Violation { file: string; line: number; text: string; why: string; }
 
 /** Remove // and /* *\/ comments so commented-out markup is not scanned. */
@@ -212,6 +222,10 @@ function scanSource(file: string, rawBody: string): Violation[] {
     for (const m of body.matchAll(SWIFT_RENDER)) {
       const text = m[2]!;
       if (accept(text)) out.push({ file, line: lineOf(body, m.index!), text, why: `${m[1]}(...)` });
+    }
+    for (const m of body.matchAll(SWIFT_NAMED_ARG)) {
+      const text = m[2]!;
+      if (accept(text)) out.push({ file, line: lineOf(body, m.index!), text, why: `${m[1]}:` });
     }
     return out;
   }
@@ -473,6 +487,10 @@ function selfTest(): void {
     ['            Button("Add Helmet") {}', true],
     ['            Text("\\(count)%")', false],           // value + unit
     ['            Text("T2")', false],
+    ['            OptionalDoubleField(label: "Max Intensity", unit: "%", value: b)', true],
+    ['            OptionalDoubleField(label: String(localized: "LIMITS_MAX_INTENSITY"), unit: "%", value: b)', false],
+    ['            Image(systemName: "waveform.path.ecg")', false],   // SF Symbol, not text
+    ['            InfoRow(title: "HRV Biofeedback", detail: "Coherence training.")', true],
   ];
   for (const [src, shouldFlag] of swiftCases) {
     const flagged = scanSource("x.swift", src).length > 0;

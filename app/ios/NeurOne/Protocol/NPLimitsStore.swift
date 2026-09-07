@@ -130,7 +130,7 @@ final class NPLimitsStore: ObservableObject {
             if case .limits(let l) = entry { return l }
             return nil
         }).first else {
-            throw NPPSError(message: "No limits block found in script", line: 0)
+            throw NPPSError(message: String(localized: "LIMITS_NO_LIMITS_BLOCK_FOUND_IN_SCRIPT"), line: 0)
         }
         return limitsEntry
     }

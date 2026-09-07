@@ -362,6 +362,7 @@
     <string name="invitation_participate_button">Participate</string>
     <string name="invitation_study_id_format">Study ID: %@</string>
     <string name="invitation_title">Study Invitation</string>
+    <string name="library_no_protocol_found_in_script">No protocol found in script</string>
     <string name="limits_active">Active</string>
     <string name="limits_active_profile">Active Profile</string>
     <string name="limits_add_helmet">Add Helmet</string>
@@ -372,6 +373,7 @@
     <string name="limits_allow_all">Allow All</string>
     <string name="limits_bes_tacs_max_current_ma">BES/tACS max current (mA)</string>
     <string name="limits_block_3_30_hz_photoparoxysmal_range">Block 3–30 Hz photoparoxysmal range</string>
+    <string name="limits_block_3_30_hz_risk_range">Block 3–30 Hz Risk Range</string>
     <string name="limits_cardiac_interlock_is_always_enforced_by_the">Cardiac interlock is always enforced by the safety MCU — not configurable.</string>
     <string name="limits_chain_active">Active limits: %1$s</string>
     <string name="limits_chain_global">Global</string>
@@ -394,10 +396,14 @@
     <string name="limits_leave_a_field_blank_for_no_configured_cap">Leave a field blank for no configured cap.</string>
     <string name="limits_level">Level</string>
     <string name="limits_limits_parsed_successfully">Limits parsed successfully</string>
+    <string name="limits_max_binaural_beats">Max Binaural Beats</string>
+    <string name="limits_max_intensity_mt">Max Intensity (%MT)</string>
+    <string name="limits_max_isochronic_tones">Max Isochronic Tones</string>
     <string name="limits_no_global_limits_configured_all_hardware_max">No global limits configured — all hardware maximums apply.</string>
     <string name="limits_no_helmet_specific_limits_configured">No helmet-specific limits configured.</string>
     <string name="limits_no_individual_profiles_configured">No individual profiles configured.</string>
     <string name="limits_no_limit">No limit</string>
+    <string name="limits_no_limits_block_found_in_script">No limits block found in script</string>
     <string name="limits_pbm_max_intensity">PBM max intensity (%)</string>
     <string name="limits_pbm_max_session_dose_j_cm">PBM max session dose (J/cm²)</string>
     <string name="limits_profiles">Profiles</string>
@@ -473,6 +479,14 @@
     <string name="modality_waveform">Waveform</string>
     <string name="modality_wavelength">Wavelength</string>
     <string name="modality_zones">Zones</string>
+    <string name="modedit_accessories_provisional">Accessories (Provisional)</string>
+    <string name="modedit_binaural_hz">Binaural Hz</string>
+    <string name="modedit_emdr_cadence_hz">EMDR Cadence (Hz)</string>
+    <string name="modedit_intensity_g">Intensity (G)</string>
+    <string name="modedit_intensity_mw_cm">Intensity (mW/cm²)</string>
+    <string name="modedit_isochronic_hz">Isochronic Hz</string>
+    <string name="modedit_t1_modalities">T1 Modalities</string>
+    <string name="modedit_t2_modalities_requires_t2_hardware">T2 Modalities (Requires T2 hardware)</string>
     <string name="ota_abort">Abort</string>
     <string name="ota_error_code_0">Error code %1$s</string>
     <string name="ota_fingerprint_label">Security fingerprint (Ed25519):</string>
@@ -534,6 +548,7 @@
     <string name="portal_i_would_take_part_in_this_study">I would take part in this study</string>
     <string name="portal_new_idea">New idea</string>
     <string name="portal_participation_intent">Participation intent</string>
+    <string name="portal_pledged">Pledged</string>
     <string name="portal_pledged_0">Pledged $%1$s</string>
     <string name="portal_pledged_amount">$%1$s pledged</string>
     <string name="portal_pledge_amount">Pledge amount</string>
@@ -557,6 +572,7 @@
     <string name="portal_title_one_clear_sentence">Title (one clear sentence)</string>
     <string name="portal_vote">Vote </string>
     <string name="portal_voted">Voted </string>
+    <string name="portal_votes">Votes</string>
     <string name="portal_what_should_we_study">What should we study?</string>
     <string name="portal_your_input">Your input</string>
     <string name="portal_you_0"> (you: $%1$s)</string>
@@ -616,6 +632,7 @@
     <string name="protocol_menu_profile">Profile: %1$s</string>
     <string name="protocol_menu_protocol_sent_to_hub">Protocol sent to hub</string>
     <string name="protocol_menu_protocol_unavailable">Protocol Unavailable</string>
+    <string name="protocol_menu_search_by_name_or_tag">Search by name or tag</string>
     <string name="protocol_menu_select_protocol">Select Protocol</string>
     <string name="protocol_menu_unlock_protocol">Unlock Protocol</string>
     <string name="protocol_menu_validation_title">Validation: %1$s</string>
@@ -848,6 +865,15 @@
     <string name="ui_placeholder_add_tag">Add tag…</string>
     <string name="ui_section_identity">Identity</string>
     <string name="ui_tab_script">Script</string>
+    <string name="under16_binaural_beats_isochronic_tones_and_noise">Binaural beats, isochronic tones, and noise.</string>
+    <string name="under16_brainwave_recording_and_training">Brainwave recording and training.</string>
+    <string name="under16_closed_loop_adaptive_stimulation">Closed-Loop Adaptive Stimulation</string>
+    <string name="under16_heart_rate_variability_coherence_training">Heart-rate-variability coherence training.</string>
+    <string name="under16_hrv_biofeedback">HRV Biofeedback</string>
+    <string name="under16_light_based_transcranial_and_intranasal_sess">Light-based transcranial and intranasal sessions.</string>
+    <string name="under16_photic_and_emdr_style_light_sessions">Photic and EMDR-style light sessions.</string>
+    <string name="under16_photobiomodulation_pbm">Photobiomodulation (PBM)</string>
+    <string name="under16_sessions_that_adapt_in_real_time_to_your_bra">Sessions that adapt in real time to your brain activity.</string>
     <string name="validate_actual_always_on">always on</string>
     <string name="validate_actual_bes_tdcs_active">BES + tDCS active</string>
     <string name="validate_layer_prefix">[%1$s] %2$s</string>

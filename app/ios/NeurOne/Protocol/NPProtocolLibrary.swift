@@ -268,7 +268,7 @@ final class NPProtocolLibrary: ObservableObject {
         var parser = NPPSParser(tokens)
         let entries = try parser.parse()
         guard let first = entries.first else {
-            throw NPPSError(message: "No protocol found in script", line: 0)
+            throw NPPSError(message: String(localized: "LIBRARY_NO_PROTOCOL_FOUND_IN_SCRIPT"), line: 0)
         }
         return first
     }

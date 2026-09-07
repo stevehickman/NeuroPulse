@@ -113,7 +113,7 @@ struct ModalityEditorRow: View {
                 set: { modality.params = .visualStimulation($0) }
             ))
         case .qeeg21ch(let p):
-            T2ParamsView(label: "21-Channel qEEG") {
+            T2ParamsView(label: NPModalityType.qeeg21ch.displayName) {
                 qEEG21chParamsView(params: Binding(
                     get: { p },
                     set: { modality.params = .qeeg21ch($0) }
@@ -127,28 +127,28 @@ struct ModalityEditorRow: View {
                 ))
             }
         case .pbmDeep1170nm(let p):
-            T2ParamsView(label: "Deep PBM 1170nm") {
+            T2ParamsView(label: String(localized: "ZONE_MODULE_TYPE_PBM_1170")) {
                 DeepPBMParamsView(params: Binding(
                     get: { p },
                     set: { modality.params = .pbmDeep1170nm($0) }
                 ))
             }
         case .clinicalTacs(let p):
-            T2ParamsView(label: "Clinical tACS") {
+            T2ParamsView(label: NPModalityType.clinicalTacs.displayName) {
                 ClinicalTacsParamsView(params: Binding(
                     get: { p },
                     set: { modality.params = .clinicalTacs($0) }
                 ))
             }
         case .hdTdcs(let p):
-            T2ParamsView(label: "HD-tDCS") {
+            T2ParamsView(label: NPModalityType.hdTdcs.displayName) {
                 HDTdcsParamsView(params: Binding(
                     get: { p },
                     set: { modality.params = .hdTdcs($0) }
                 ))
             }
         case .cervicalVns(let p):
-            T2ParamsView(label: "Cervical VNS") {
+            T2ParamsView(label: String(localized: "MODALITY_CERVICAL_VNS_NAME")) {
                 CervicalVnsParamsView(params: Binding(
                     get: { p },
                     set: { modality.params = .cervicalVns($0) }
@@ -285,7 +285,7 @@ struct PBMTranscranialParamsView: View {
 
             // Intensity
             SliderRow(
-                label: "Intensity",
+                label: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 value: $params.intensityPercent,
                 range: 0...100,
                 format: { "\(Int($0))%" }
@@ -341,8 +341,8 @@ struct PBMIntranasalParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: "Intensity", value: $params.intensityPercent, range: 0...100, format: { "\(Int($0))%" })
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 0...40, format: { "\(Int($0))Hz" })
+            SliderRow(label: String(localized: "VALIDATE_PARAM_INTENSITY"), value: $params.intensityPercent, range: 0...100, format: { "\(Int($0))%" })
+            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 0...40, format: { "\(Int($0))Hz" })
             if params.frequencyHz > 0 {
                 Stepper(value: $params.dutyCyclePercent, in: 5...25, step: 5) {
                     HStack {
@@ -400,13 +400,13 @@ struct BESTacsParamsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SliderRow(
-                label: "Frequency (Hz)",
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
                 value: $params.frequencyHz,
                 range: 0.5...40,
                 format: { String(format: "%.1f Hz", $0) }
             )
             SliderRow(
-                label: "Intensity (mA)",
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
                 range: 0...1,
                 format: { String(format: "%.2f mA", $0) }
@@ -433,7 +433,7 @@ struct TDCSParamsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SliderRow(
-                label: "Intensity (mA)",
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
                 range: 0.1...2.0,
                 format: { String(format: "%.2f mA", $0) }
@@ -489,8 +489,8 @@ struct VNSHRVParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 1...25, format: { "\(Int($0)) Hz" })
-            SliderRow(label: "Intensity (mA)", value: $params.intensityMilliamps, range: 0...2, format: { String(format: "%.2f mA", $0) })
+            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 1...25, format: { "\(Int($0)) Hz" })
+            SliderRow(label: String(localized: "AND_MODALITY_INTENSITY_MA"), value: $params.intensityMilliamps, range: 0...2, format: { String(format: "%.2f mA", $0) })
 
             VStack(alignment: .leading, spacing: 4) {
                 Text("VALIDATE_PARAM_HRV_PROTOCOL").font(.caption).foregroundColor(.secondary)
@@ -533,7 +533,7 @@ struct AudioEntrainmentParamsView: View {
                 .font(.caption)
                 if params.binauralBeatsHz != nil {
                     SliderRow(
-                        label: "Binaural Hz",
+                        label: String(localized: "MODEDIT_BINAURAL_HZ"),
                         value: Binding(
                             get: { params.binauralBeatsHz ?? 20 },
                             set: { params.binauralBeatsHz = $0 }
@@ -553,7 +553,7 @@ struct AudioEntrainmentParamsView: View {
                 .font(.caption)
                 if params.isochronicTonesHz != nil {
                     SliderRow(
-                        label: "Isochronic Hz",
+                        label: String(localized: "MODEDIT_ISOCHRONIC_HZ"),
                         value: Binding(
                             get: { params.isochronicTonesHz ?? 40 },
                             set: { params.isochronicTonesHz = $0 }
@@ -582,7 +582,7 @@ struct AudioEntrainmentParamsView: View {
                 .pickerStyle(.segmented)
             }
 
-            SliderRow(label: "Volume", value: $params.volumePercent, range: 0...100, format: { "\(Int($0))%" })
+            SliderRow(label: String(localized: "VALIDATE_PARAM_VOLUME"), value: $params.volumePercent, range: 0...100, format: { "\(Int($0))%" })
             Toggle("MODALITY_EEG_ADAPTIVE_FREQUENCY", isOn: $params.eegAdaptive).font(.caption)
             Toggle("MODALITY_BONE_CONDUCTION_BREATHING_PACER", isOn: $params.boneConductionPacer).font(.caption)
         }
@@ -597,7 +597,7 @@ struct VisualStimParamsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SliderRow(
-                label: "Frequency (Hz)",
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
                 value: $params.frequencyHz,
                 range: 0.5...100,
                 format: { String(format: "%.1f Hz", $0) }
@@ -615,7 +615,7 @@ struct VisualStimParamsView: View {
 
             if params.mode == .emdr {
                 SliderRow(
-                    label: "EMDR Cadence (Hz)",
+                    label: String(localized: "MODEDIT_EMDR_CADENCE_HZ"),
                     value: $params.emdrCadenceHz,
                     range: 0.5...4,
                     format: { String(format: "%.1f Hz", $0) }
@@ -681,9 +681,9 @@ struct TMSParamsView: View {
                 }
                 .pickerStyle(.menu)
             }
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 1...20, format: { "\(Int($0)) Hz" })
+            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 1...20, format: { "\(Int($0)) Hz" })
             SliderRow(
-                label: "Intensity (%MT)",
+                label: String(localized: "VALIDATE_PARAM_INTENSITY_MT"),
                 value: Binding(
                     get: { Double(params.intensityPercentMT) },
                     set: { params.intensityPercentMT = Int($0) }
@@ -718,8 +718,8 @@ struct DeepPBMParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: "Intensity (mW/cm²)", value: $params.intensityMWcm2, range: 100...1000, format: { "\(Int($0)) mW/cm²" })
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 0...40, format: { "\(Int($0)) Hz" })
+            SliderRow(label: String(localized: "MODEDIT_INTENSITY_MW_CM"), value: $params.intensityMWcm2, range: 100...1000, format: { "\(Int($0)) mW/cm²" })
+            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 0...40, format: { "\(Int($0)) Hz" })
             if params.frequencyHz > 0 {
                 Stepper(value: $params.dutyCyclePercent, in: 5...25, step: 5) {
                     HStack {
@@ -740,8 +740,8 @@ struct ClinicalTacsParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 0.5...40, format: { String(format: "%.1f Hz", $0) })
-            SliderRow(label: "Intensity (mA)", value: $params.intensityMilliamps, range: 0...4, format: { String(format: "%.2f mA", $0) })
+            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 0.5...40, format: { String(format: "%.1f Hz", $0) })
+            SliderRow(label: String(localized: "AND_MODALITY_INTENSITY_MA"), value: $params.intensityMilliamps, range: 0...4, format: { String(format: "%.2f mA", $0) })
             // Upper bound is the 16-channel hub wire mask, not the 21-channel
             // driver (NP_HD_DRIVER_CHANNELS) — see OI-TACS-01.
             Stepper(value: $params.channelCount, in: 2...16, step: 2) {
@@ -781,7 +781,7 @@ struct HDTdcsParamsView: View {
                 .pickerStyle(.menu)
             }
             SliderRow(
-                label: "Intensity (mA)",
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
                 range: 0.5...2.0,
                 format: { String(format: "%.2f mA", $0) }
@@ -797,8 +797,8 @@ struct CervicalVnsParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 1...25, format: { "\(Int($0)) Hz" })
-            SliderRow(label: "Intensity (mA)", value: $params.intensityMilliamps, range: 0...2, format: { String(format: "%.2f mA", $0) })
+            SliderRow(label: String(localized: "AND_MODALITY_FREQUENCY_HZ"), value: $params.frequencyHz, range: 1...25, format: { "\(Int($0)) Hz" })
+            SliderRow(label: String(localized: "AND_MODALITY_INTENSITY_MA"), value: $params.intensityMilliamps, range: 0...2, format: { String(format: "%.2f mA", $0) })
             Label("MODALITY_CARDIAC_RHYTHM_INTERLOCK_IS_ALWAYS_ACTIVE_EN", systemImage: "heart.fill")
                 .font(.caption2)
                 .foregroundColor(.secondary)
@@ -820,7 +820,7 @@ struct VibrotactileParamsView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            SliderRow(label: "Intensity (G)", value: $params.intensityG, range: 0.6...1.2, format: { String(format: "%.2f G", $0) })
+            SliderRow(label: String(localized: "MODEDIT_INTENSITY_G"), value: $params.intensityG, range: 0.6...1.2, format: { String(format: "%.2f G", $0) })
             Toggle("MODALITY_SYNC_TO_AUDIO_SESSION", isOn: $params.syncToAudio).font(.caption)
             Toggle("MODALITY_SYNC_TO_VISUAL_SESSION", isOn: $params.syncToVisual).font(.caption)
             Label("MODALITY_PROVISIONAL_PENDING_HOPE_PHASE_3_RESULTS_MID", systemImage: "clock.badge.questionmark")
@@ -953,9 +953,9 @@ struct ModalityPickerSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                modalitySection(title: "T1 Modalities", tier: .t1)
-                modalitySection(title: "T2 Modalities (Requires T2 hardware)", tier: .t2)
-                modalitySection(title: "Accessories (Provisional)", tier: .accessory)
+                modalitySection(title: String(localized: "MODEDIT_T1_MODALITIES"), tier: .t1)
+                modalitySection(title: String(localized: "MODEDIT_T2_MODALITIES_REQUIRES_T2_HARDWARE"), tier: .t2)
+                modalitySection(title: String(localized: "MODEDIT_ACCESSORIES_PROVISIONAL"), tier: .accessory)
             }
             .navigationTitle("UI_MOD_ADD_TITLE")
             .navigationBarTitleDisplayMode(.inline)

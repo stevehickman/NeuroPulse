@@ -53,7 +53,7 @@ struct ProtocolMenuView: View {
             }
             .navigationTitle(String(localized: "TAB_PROTOCOLS"))
             .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $searchText, prompt: "Search by name or tag")
+            .searchable(text: $searchText, prompt: String(localized: "PROTOCOL_MENU_SEARCH_BY_NAME_OR_TAG"))
             .toolbar { toolbarContent }
             .onAppear { library.updateEEGConsent(bipaAccepted) }
             .onChange(of: bipaAccepted) { _, newValue in
