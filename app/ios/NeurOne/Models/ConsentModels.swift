@@ -69,17 +69,17 @@ enum UHDRElement: String, CaseIterable, Codable {
     /// into stored consent records, so it cannot double as the thing on screen.
     var displayName: String {
         switch self {
-            case .eegWaveforms: return String(localized: "CONSENT_ELEMENT_EEGWAVEFORMS")
-            case .hrvTimeSeries: return String(localized: "CONSENT_ELEMENT_HRVTIMESERIES")
-            case .ppgOpticalSignal: return String(localized: "CONSENT_ELEMENT_PPGOPTICALSIGNAL")
-            case .neurofeedbackScores: return String(localized: "CONSENT_ELEMENT_NEUROFEEDBACKSCORES")
-            case .sessionTimestamps: return String(localized: "CONSENT_ELEMENT_SESSIONTIMESTAMPS")
-            case .sessionDuration: return String(localized: "CONSENT_ELEMENT_SESSIONDURATION")
-            case .protocolParameters: return String(localized: "CONSENT_ELEMENT_PROTOCOLPARAMETERS")
-            case .closedLoopEvents: return String(localized: "CONSENT_ELEMENT_CLOSEDLOOPEVENTS")
-            case .pbmDoseLogs: return String(localized: "CONSENT_ELEMENT_PBMDOSELOGS")
-            case .outcomeLogs: return String(localized: "CONSENT_ELEMENT_OUTCOMELOGS")
-            case .eyeStateLogs: return String(localized: "CONSENT_ELEMENT_EYESTATELOGS")
+        case .eegWaveforms: return String(localized: "CONSENT_ELEMENT_EEGWAVEFORMS")
+        case .hrvTimeSeries: return String(localized: "CONSENT_ELEMENT_HRVTIMESERIES")
+        case .ppgOpticalSignal: return String(localized: "CONSENT_ELEMENT_PPGOPTICALSIGNAL")
+        case .neurofeedbackScores: return String(localized: "CONSENT_ELEMENT_NEUROFEEDBACKSCORES")
+        case .sessionTimestamps: return String(localized: "CONSENT_ELEMENT_SESSIONTIMESTAMPS")
+        case .sessionDuration: return String(localized: "CONSENT_ELEMENT_SESSIONDURATION")
+        case .protocolParameters: return String(localized: "CONSENT_ELEMENT_PROTOCOLPARAMETERS")
+        case .closedLoopEvents: return String(localized: "CONSENT_ELEMENT_CLOSEDLOOPEVENTS")
+        case .pbmDoseLogs: return String(localized: "CONSENT_ELEMENT_PBMDOSELOGS")
+        case .outcomeLogs: return String(localized: "CONSENT_ELEMENT_OUTCOMELOGS")
+        case .eyeStateLogs: return String(localized: "CONSENT_ELEMENT_EYESTATELOGS")
         }
     }
 
@@ -136,9 +136,9 @@ enum ContactFrequency: String, CaseIterable, Codable {
     /// into stored consent records, so it cannot double as the thing on screen.
     var displayName: String {
         switch self {
-            case .weekly: return String(localized: "CONSENT_FREQ_WEEKLY")
-            case .monthly: return String(localized: "CONSENT_FREQ_MONTHLY")
-            case .quarterly: return String(localized: "CONSENT_FREQ_QUARTERLY")
+        case .weekly: return String(localized: "CONSENT_FREQ_WEEKLY")
+        case .monthly: return String(localized: "CONSENT_FREQ_MONTHLY")
+        case .quarterly: return String(localized: "CONSENT_FREQ_QUARTERLY")
         }
     }
 }
@@ -217,15 +217,15 @@ enum ResearchCategory: String, CaseIterable, Codable {
     /// into stored consent records, so it cannot double as the thing on screen.
     var displayName: String {
         switch self {
-            case .alzheimersAndDementia: return String(localized: "CONSENT_CATEGORY_ALZHEIMERSANDDEMENTIA")
-            case .depression: return String(localized: "CONSENT_CATEGORY_DEPRESSION")
-            case .ptsd: return String(localized: "CONSENT_CATEGORY_PTSD")
-            case .tbi: return String(localized: "CONSENT_CATEGORY_TBI")
-            case .sleep: return String(localized: "CONSENT_CATEGORY_SLEEP")
-            case .attention: return String(localized: "CONSENT_CATEGORY_ATTENTION")
-            case .parkinsons: return String(localized: "CONSENT_CATEGORY_PARKINSONS")
-            case .healthyAgeing: return String(localized: "CONSENT_CATEGORY_HEALTHYAGEING")
-            case .visualHealth: return String(localized: "CONSENT_CATEGORY_VISUALHEALTH")
+        case .alzheimersAndDementia: return String(localized: "CONSENT_CATEGORY_ALZHEIMERSANDDEMENTIA")
+        case .depression: return String(localized: "CONSENT_CATEGORY_DEPRESSION")
+        case .ptsd: return String(localized: "CONSENT_CATEGORY_PTSD")
+        case .tbi: return String(localized: "CONSENT_CATEGORY_TBI")
+        case .sleep: return String(localized: "CONSENT_CATEGORY_SLEEP")
+        case .attention: return String(localized: "CONSENT_CATEGORY_ATTENTION")
+        case .parkinsons: return String(localized: "CONSENT_CATEGORY_PARKINSONS")
+        case .healthyAgeing: return String(localized: "CONSENT_CATEGORY_HEALTHYAGEING")
+        case .visualHealth: return String(localized: "CONSENT_CATEGORY_VISUALHEALTH")
         }
     }
 }

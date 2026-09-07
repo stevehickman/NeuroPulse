@@ -410,6 +410,27 @@ function checkLocaleParity(keys: Set<string>): string[] {
   return errs;
 }
 
+/**
+ * A canonical value must never carry a platform's own interpolation syntax.
+ * `String(localized: "K")` and `stringResource(R.string.k)` are lookups, not
+ * string literals — a `\\(expr)` or `${expr}` that survives into the value is
+ * rendered to the user verbatim, and the argument it names is silently dropped
+ * at the call site. Placeholders are `{0}`, `{1}` (§17); `${0}` is a literal
+ * dollar sign in front of one, which is fine.
+ */
+function checkInterpolationSyntax(canonical: Record<string, string>): string[] {
+  const errs: string[] = [];
+  for (const [k, v] of Object.entries(canonical)) {
+    if (v.includes("\\(")) {
+      errs.push(`${k}: carries Swift interpolation \\(…) — use {0} and String(format:) at the call site`);
+    }
+    if (/\$\{[^0-9]/.test(v)) {
+      errs.push(`${k}: carries \${…} interpolation — use {0} and pass the value as an argument`);
+    }
+  }
+  return errs;
+}
+
 // ─── Self-test ────────────────────────────────────────────────────────────────
 
 /**
@@ -486,8 +507,15 @@ function main(): void {
   const embedded = checkEmbedded(files);
   const usage = checkKeyUsage(files, keys);
   const parity = checkLocaleParity(keys);
+  const interp = checkInterpolationSyntax(canonical);
 
   let failed = 0;
+
+  if (interp.length) {
+    console.error("\nRAW INTERPOLATION in a canonical value (CLAUDE.md §17):");
+    for (const e of interp) console.error(`  ${e}`);
+    failed += interp.length;
+  }
 
   if (fw.length) {
     console.error("\nFIRMWARE must not reference locale data (CLAUDE.md §17):");

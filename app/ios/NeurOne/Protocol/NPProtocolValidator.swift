@@ -299,7 +299,10 @@ struct NPProtocolValidator {
                         modality: m, param: "target", displayName: String(localized: "VALIDATE_PARAM_TARGET_ZONES"),
                         actual: p.target.displayName,
                         limit: String(localized: "VALIDATE_LIMIT_ONE_SOCKET"), source: .hardware,
-                        message: String(localized: "VALIDATE_MSG_GENERAL_TARGET_2")
+                        message: String(
+                            format: String(localized: "VALIDATE_MSG_GENERAL_TARGET_2"),
+                            String(describing: p.target.displayName)
+                        )
                     )
                 }
             } catch {
@@ -319,7 +322,11 @@ struct NPProtocolValidator {
                 actual: "\(p.dutyCyclePercent)%",
                 limit: "\(NPHardwareLimits.pbmDutyCycleMaxPercent)%",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT_4")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT_4"),
+                    String(describing: p.dutyCyclePercent),
+                    String(describing: NPHardwareLimits.pbmDutyCycleMaxPercent)
+                )
             )
         }
 
@@ -339,7 +346,11 @@ struct NPProtocolValidator {
                 actual: "\(Int(p.intensityPercent))%",
                 limit: "\(Int(maxI))%",
                 source: srcs?.maxIntensityPercent ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENT_2")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENT_2"),
+                    String(describing: Int(p.intensityPercent)),
+                    String(describing: Int(maxI))
+                )
             )
         }
 
@@ -350,7 +361,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(maxF))",
                 source: srcs?.maxFrequencyHz ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_13")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_13"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(maxF))
+                )
             )
         }
 
@@ -361,7 +376,11 @@ struct NPProtocolValidator {
                 actual: "\(p.dutyCyclePercent)%",
                 limit: "\(maxDC)%",
                 source: srcs?.maxDutyCyclePercent ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT_3")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT_3"),
+                    String(describing: p.dutyCyclePercent),
+                    String(describing: maxDC)
+                )
             )
         }
 
@@ -403,7 +422,11 @@ struct NPProtocolValidator {
                 actual: "\(p.dutyCyclePercent)%",
                 limit: "\(NPHardwareLimits.pbmDutyCycleMaxPercent)%",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT_2")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT_2"),
+                    String(describing: p.dutyCyclePercent),
+                    String(describing: NPHardwareLimits.pbmDutyCycleMaxPercent)
+                )
             )
         }
 
@@ -414,7 +437,11 @@ struct NPProtocolValidator {
                 actual: "\(Int(p.intensityPercent))%",
                 limit: "\(Int(maxI))%",
                 source: srcs?.maxIntensityPercent ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENT")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENT"),
+                    String(describing: Int(p.intensityPercent)),
+                    String(describing: Int(maxI))
+                )
             )
         }
 
@@ -427,7 +454,11 @@ struct NPProtocolValidator {
                     actual: formatSeconds(d),
                     limit: formatSeconds(maxDur),
                     source: srcs?.maxSessionDurationSeconds ?? .global_,
-                    message: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_8")
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_8"),
+                        String(describing: formatSeconds(d)),
+                        String(describing: formatSeconds(maxDur))
+                    )
                 )
             }
         }
@@ -450,7 +481,11 @@ struct NPProtocolValidator {
                     actual: p.band.displayName,
                     limit: allowedBands.joined(separator: ", "),
                     source: srcs?.allowedBands ?? .global_,
-                    message: String(localized: "VALIDATE_MSG_GENERAL_BAND"), "))."
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_BAND"),
+                        String(describing: p.band.displayName),
+                        String(describing: allowedBands.joined(separator: ", "))
+                    )
                 )
             }
         }
@@ -483,7 +518,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.besTacsMaxMilliamps) mA",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_13")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_13"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.besTacsMaxMilliamps)
+                )
             )
         }
 
@@ -494,7 +533,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≥\(formatHz(NPHardwareLimits.besTacsMinHz))",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_12")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_12"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.besTacsMinHz))
+                )
             )
         }
         if p.frequencyHz > NPHardwareLimits.besTacsMaxHz {
@@ -503,7 +546,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≤\(formatHz(NPHardwareLimits.besTacsMaxHz))",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_11")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_11"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.besTacsMaxHz))
+                )
             )
         }
 
@@ -514,7 +561,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_12")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_12"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
@@ -525,7 +576,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(maxF))",
                 source: srcs?.maxFrequencyHz ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_10")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_10"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(maxF))
+                )
             )
         }
 
@@ -536,7 +591,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≥\(formatHz(minF))",
                 source: srcs?.minFrequencyHz ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_9")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_9"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(minF))
+                )
             )
         }
 
@@ -548,7 +607,11 @@ struct NPProtocolValidator {
                     actual: formatSeconds(interval.intervalOnSeconds),
                     limit: formatSeconds(maxDur),
                     source: srcs?.maxSessionDurationSeconds ?? .global_,
-                    message: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_7")
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_7"),
+                        String(describing: formatSeconds(interval.intervalOnSeconds)),
+                        String(describing: formatSeconds(maxDur))
+                    )
                 )
             }
         }
@@ -570,7 +633,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "≥\(NPHardwareLimits.tdcsMinMilliamps) mA",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_11")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_11"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.tdcsMinMilliamps)
+                )
             )
         }
         if p.intensityMilliamps > NPHardwareLimits.tdcsMaxMilliamps {
@@ -579,7 +646,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.tdcsMaxMilliamps) mA",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_10")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_10"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.tdcsMaxMilliamps)
+                )
             )
         }
 
@@ -590,7 +661,11 @@ struct NPProtocolValidator {
                 actual: "\(p.electrodePairs.count)",
                 limit: "\(NPHardwareLimits.tdcsMaxElectrodePairs)",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_ELECTRODEPAIRS")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_ELECTRODEPAIRS"),
+                    String(describing: p.electrodePairs.count),
+                    String(describing: NPHardwareLimits.tdcsMaxElectrodePairs)
+                )
             )
         }
 
@@ -601,7 +676,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_9")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_9"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
@@ -612,7 +691,11 @@ struct NPProtocolValidator {
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_6")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_6"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
     }
@@ -633,7 +716,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.vnsMaxMilliamps) mA",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_8")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_8"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.vnsMaxMilliamps)
+                )
             )
         }
 
@@ -644,7 +731,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≥\(formatHz(NPHardwareLimits.vnsMinHz))",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_8")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_8"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.vnsMinHz))
+                )
             )
         }
         if p.frequencyHz > NPHardwareLimits.vnsMaxHz {
@@ -653,7 +744,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≤\(formatHz(NPHardwareLimits.vnsMaxHz))",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_7")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_7"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.vnsMaxHz))
+                )
             )
         }
 
@@ -664,7 +759,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_7")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_7"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
@@ -675,7 +774,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(maxF))",
                 source: srcs?.maxFrequencyHz ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_6")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_6"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(maxF))
+                )
             )
         }
 
@@ -686,7 +789,11 @@ struct NPProtocolValidator {
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_5")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_5"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
 
@@ -699,7 +806,10 @@ struct NPProtocolValidator {
                     actual: p.hrvProtocol.displayName,
                     limit: allowed.joined(separator: ", "),
                     source: srcs?.allowedProtocols ?? .global_,
-                    message: String(localized: "VALIDATE_MSG_GENERAL_HRVPROTOCOL")
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_HRVPROTOCOL"),
+                        String(describing: p.hrvProtocol.displayName)
+                    )
                 )
             }
         }
@@ -720,7 +830,11 @@ struct NPProtocolValidator {
                 actual: "\(Int(p.volumePercent))%",
                 limit: "\(Int(maxVol))%",
                 source: srcs?.maxVolumePercent ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_VOLUMEPERCENT")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_VOLUMEPERCENT"),
+                    String(describing: Int(p.volumePercent)),
+                    String(describing: Int(maxVol))
+                )
             )
         }
 
@@ -731,7 +845,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(bb))",
                 limit: "\(formatHz(maxBB))",
                 source: srcs?.maxBinauralBeatsHz ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_BINAURALBEATSHZ")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_BINAURALBEATSHZ"),
+                    String(describing: formatHz(bb)),
+                    String(describing: formatHz(maxBB))
+                )
             )
         }
 
@@ -742,7 +860,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(it))",
                 limit: "\(formatHz(maxIT))",
                 source: srcs?.maxIsochronicTonesHz ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_ISOCHRONICTONESHZ")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_ISOCHRONICTONESHZ"),
+                    String(describing: formatHz(it)),
+                    String(describing: formatHz(maxIT))
+                )
             )
         }
     }
@@ -763,7 +885,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(NPHardwareLimits.visualMaxHz))",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_5")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_5"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.visualMaxHz))
+                )
             )
         }
 
@@ -801,7 +927,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(maxF))",
                 source: srcs?.maxFrequencyHz ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_4")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_4"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(maxF))
+                )
             )
         }
 
@@ -812,7 +942,11 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≥\(formatHz(minF))",
                 source: srcs?.minFrequencyHz ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_3")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_3"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(minF))
+                )
             )
         }
 
@@ -825,7 +959,10 @@ struct NPProtocolValidator {
                     actual: p.mode.displayName,
                     limit: allowedModes.joined(separator: ", "),
                     source: srcs?.allowedModes ?? .global_,
-                    message: String(localized: "VALIDATE_MSG_GENERAL_MODE")
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_MODE"),
+                        String(describing: p.mode.displayName)
+                    )
                 )
             }
         }
@@ -846,7 +983,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityPercentMT)% MT",
                 limit: "\(maxMT)% MT",
                 source: srcs?.maxIntensityPercentMT ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENTMT_2")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENTMT_2"),
+                    String(describing: p.intensityPercentMT),
+                    String(describing: maxMT)
+                )
             )
         }
 
@@ -857,7 +998,11 @@ struct NPProtocolValidator {
                 actual: "\(p.pulseCount) pulses",
                 limit: "\(maxPulses) pulses",
                 source: srcs?.maxPulsesPerSession ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_PULSECOUNT")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_PULSECOUNT"),
+                    String(describing: p.pulseCount),
+                    String(describing: maxPulses)
+                )
             )
         }
 
@@ -870,7 +1015,10 @@ struct NPProtocolValidator {
                     actual: p.tmsProtocol.displayName,
                     limit: allowedProtos.joined(separator: ", "),
                     source: srcs?.allowedProtocols ?? .global_,
-                    message: String(localized: "VALIDATE_MSG_GENERAL_TMSPROTOCOL")
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_TMSPROTOCOL"),
+                        String(describing: p.tmsProtocol.displayName)
+                    )
                 )
             }
         }
@@ -884,7 +1032,10 @@ struct NPProtocolValidator {
                     actual: p.target.displayName,
                     limit: allowedTargets.joined(separator: ", "),
                     source: srcs?.allowedTargets ?? .global_,
-                    message: String(localized: "VALIDATE_MSG_GENERAL_TARGET")
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_TARGET"),
+                        String(describing: p.target.displayName)
+                    )
                 )
             }
         }
@@ -896,7 +1047,10 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityPercentMT)% MT",
                 limit: "≤120% MT",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENTMT")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENTMT"),
+                    String(describing: p.intensityPercentMT)
+                )
             )
         }
     }
@@ -917,7 +1071,11 @@ struct NPProtocolValidator {
                 actual: "\(Int(p.intensityMWcm2)) mW/cm²",
                 limit: "\(Int(NPHardwareLimits.deepPBMMaxMWcm2)) mW/cm²",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMWCM2_2")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMWCM2_2"),
+                    String(describing: Int(p.intensityMWcm2)),
+                    String(describing: Int(NPHardwareLimits.deepPBMMaxMWcm2))
+                )
             )
         }
 
@@ -928,7 +1086,11 @@ struct NPProtocolValidator {
                 actual: "\(p.dutyCyclePercent)%",
                 limit: "\(NPHardwareLimits.pbmDutyCycleMaxPercent)%",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT"),
+                    String(describing: p.dutyCyclePercent),
+                    String(describing: NPHardwareLimits.pbmDutyCycleMaxPercent)
+                )
             )
         }
 
@@ -939,7 +1101,11 @@ struct NPProtocolValidator {
                 actual: "\(Int(p.intensityMWcm2)) mW/cm²",
                 limit: "\(Int(maxI)) mW/cm²",
                 source: srcs?.maxIntensityMWcm2 ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMWCM2")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMWCM2"),
+                    String(describing: Int(p.intensityMWcm2)),
+                    String(describing: Int(maxI))
+                )
             )
         }
 
@@ -950,7 +1116,11 @@ struct NPProtocolValidator {
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_4")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_4"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
     }
@@ -971,7 +1141,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.clinicalTacsMaxMilliamps) mA",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_6")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_6"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.clinicalTacsMaxMilliamps)
+                )
             )
         }
 
@@ -982,7 +1156,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_5")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_5"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
@@ -993,7 +1171,11 @@ struct NPProtocolValidator {
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_3")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_3"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
     }
@@ -1014,7 +1196,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.hdTdcsMaxMilliampsPerElectrode) mA",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_4")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_4"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.hdTdcsMaxMilliampsPerElectrode)
+                )
             )
         }
 
@@ -1025,7 +1211,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_3")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_3"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
@@ -1036,7 +1226,11 @@ struct NPProtocolValidator {
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_2")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_2"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
 
@@ -1049,7 +1243,10 @@ struct NPProtocolValidator {
                     actual: p.montage.displayName,
                     limit: allowedMontages.joined(separator: ", "),
                     source: srcs?.allowedMontages ?? .global_,
-                    message: String(localized: "VALIDATE_MSG_GENERAL_MONTAGE")
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_MONTAGE"),
+                        String(describing: p.montage.displayName)
+                    )
                 )
             }
         }
@@ -1071,7 +1268,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.cervicalVnsMaxMilliamps) mA",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_2")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_2"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.cervicalVnsMaxMilliamps)
+                )
             )
         }
 
@@ -1082,7 +1283,12 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(NPHardwareLimits.vnsMinHz))–\(formatHz(NPHardwareLimits.vnsMaxHz))",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_2")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_2"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.vnsMinHz)),
+                    String(describing: formatHz(NPHardwareLimits.vnsMaxHz))
+                )
             )
         }
 
@@ -1093,7 +1299,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
@@ -1104,7 +1314,11 @@ struct NPProtocolValidator {
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
 
@@ -1132,7 +1346,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityG) G",
                 limit: "≥\(NPHardwareLimits.vibrotactileMinG) G",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYG_3")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYG_3"),
+                    String(describing: p.intensityG),
+                    String(describing: NPHardwareLimits.vibrotactileMinG)
+                )
             )
         }
         if p.intensityG > NPHardwareLimits.vibrotactileMaxG {
@@ -1141,7 +1359,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityG) G",
                 limit: "\(NPHardwareLimits.vibrotactileMaxG) G",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYG_2")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYG_2"),
+                    String(describing: p.intensityG),
+                    String(describing: NPHardwareLimits.vibrotactileMaxG)
+                )
             )
         }
 
@@ -1152,7 +1374,10 @@ struct NPProtocolValidator {
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(Int(NPHardwareLimits.vibrotactileFrequencyHz)) Hz ±\(NPHardwareLimits.vibrotactileFreqToleranceHz) Hz",
                 source: .hardware,
-                message: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ"),
+                    String(describing: formatHz(p.frequencyHz))
+                )
             )
         }
 
@@ -1163,7 +1388,11 @@ struct NPProtocolValidator {
                 actual: "\(p.intensityG) G",
                 limit: "\(maxG) G",
                 source: srcs?.maxIntensityG ?? .global_,
-                message: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYG")
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYG"),
+                    String(describing: p.intensityG),
+                    String(describing: maxG)
+                )
             )
         }
     }

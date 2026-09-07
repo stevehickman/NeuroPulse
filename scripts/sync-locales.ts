@@ -228,12 +228,28 @@ function generateXCStrings(locales: Map<string, LocaleData>): XCStringsFile {
   return { sourceLanguage: SOURCE_LANGUAGE, strings, version: "1.0" };
 }
 
+/**
+ * A value with no placeholder is read with String(localized:) and never goes
+ * through String(format:), so a literal `%` in it must stay a literal `%`. One
+ * WITH a placeholder is a format string, so every literal `%` has to be escaped
+ * — `{0}%` for a percentage is the common case, and an unescaped trailing `%`
+ * makes the whole conversion undefined.
+ */
+const hasPlaceholder = (value: string): boolean => /\{\d+\}/.test(value);
+const escapePercent = (value: string): string => value.replace(/%/g, "%%");
+
+/** `{0}` → `%1$@`. Apple positional specifiers are 1-based, not 0-based. */
 function canonicalToApple(value: string): string {
-  return value.replace(/\{(\d+)\}/g, "%$1\\$@");
+  if (!hasPlaceholder(value)) return value;
+  return escapePercent(value).replace(/\{(\d+)\}/g, (_m, n) => `%${Number(n) + 1}$@`);
 }
 
+/** As above, but `{0}` is the count, so it takes the numeric specifier. */
 function canonicalToApplePlural(value: string): string {
-  return value.replace(/\{0\}/, "%lld").replace(/\{(\d+)\}/g, "%$1\\$@");
+  if (!hasPlaceholder(value)) return value;
+  return escapePercent(value)
+    .replace(/\{0\}/, "%1$lld")
+    .replace(/\{(\d+)\}/g, (_m, n) => `%${Number(n) + 1}$@`);
 }
 
 // --- Web locale copy ---
@@ -299,12 +315,16 @@ function androidEscape(value: string): string {
 
 /** `{0}` → `%1$s`. Positional, so a translation may reorder its arguments. */
 function canonicalToAndroid(value: string): string {
-  return androidEscape(value).replace(/\{(\d+)\}/g, (_m, n) => `%${Number(n) + 1}$s`);
+  const out = androidEscape(value);
+  if (!hasPlaceholder(value)) return out;
+  return escapePercent(out).replace(/\{(\d+)\}/g, (_m, n) => `%${Number(n) + 1}$s`);
 }
 
 /** Plural items count, so the first argument is `%d` rather than `%1$s`. */
 function canonicalToAndroidPlural(value: string): string {
-  return androidEscape(value)
+  const out = androidEscape(value);
+  if (!hasPlaceholder(value)) return out;
+  return escapePercent(out)
     .replace(/\{0\}/, "%d")
     .replace(/\{(\d+)\}/g, (_m, n) => `%${Number(n) + 1}$s`);
 }
