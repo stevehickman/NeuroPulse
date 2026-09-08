@@ -42,11 +42,16 @@ final class NPLimitsStore: ObservableObject {
     /// Active resolution chain description for UI display.
     var resolutionChainDescription: String {
         var parts: [String] = []
-        if let profile = activeProfile { parts.append("Individual (\(profile.name))") }
-        if let serial = activeHelmetSerial, helmetLimits[serial] != nil { parts.append("Helmet (\(serial))") }
-        if globalLimits != nil { parts.append("Global") }
-        if parts.isEmpty { return "No limits configured" }
-        return "Active limits: " + parts.joined(separator: " + ")
+        if let profile = activeProfile {
+            parts.append(String(format: String(localized: "LIMITS_CHAIN_INDIVIDUAL"), profile.name))
+        }
+        if let serial = activeHelmetSerial, helmetLimits[serial] != nil {
+            parts.append(String(format: String(localized: "LIMITS_CHAIN_HELMET"), serial))
+        }
+        if globalLimits != nil { parts.append(String(localized: "LIMITS_CHAIN_GLOBAL")) }
+        if parts.isEmpty { return String(localized: "LIMITS_CHAIN_NONE") }
+        return String(format: String(localized: "LIMITS_CHAIN_ACTIVE"),
+                      parts.joined(separator: " + "))
     }
 
     // MARK: Factory
@@ -125,7 +130,7 @@ final class NPLimitsStore: ObservableObject {
             if case .limits(let l) = entry { return l }
             return nil
         }).first else {
-            throw NPPSError(message: "No limits block found in script", line: 0)
+            throw NPPSError(message: String(localized: "LIMITS_NO_LIMITS_BLOCK_FOUND_IN_SCRIPT"), line: 0)
         }
         return limitsEntry
     }

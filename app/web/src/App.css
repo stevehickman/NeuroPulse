@@ -677,7 +677,6 @@ body {
 
 .modality-icon-display { font-size: 18px; flex-shrink: 0; }
 .modality-name { font-size: 14px; font-weight: 600; flex: 1; }
-.modality-consumer-name { font-size: 12px; color: var(--text-muted); }
 
 .modality-block-actions { display: flex; gap: 4px; margin-left: auto; }
 .modality-expand-btn {

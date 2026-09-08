@@ -33,26 +33,26 @@ struct Under16View: View {
 
     private let unavailable: [FeatureLine] = [
         FeatureLine(symbol: "brain.head.profile",
-                    title: "EEG Neurofeedback",
-                    detail: "Brainwave recording and training."),
+                    title: String(localized: "MODALITY_EEG_NEUROFEEDBACK_NAME"),
+                    detail: String(localized: "UNDER16_BRAINWAVE_RECORDING_AND_TRAINING")),
         FeatureLine(symbol: "heart.text.square",
-                    title: "HRV Biofeedback",
-                    detail: "Heart-rate-variability coherence training."),
+                    title: String(localized: "UNDER16_HRV_BIOFEEDBACK"),
+                    detail: String(localized: "UNDER16_HEART_RATE_VARIABILITY_COHERENCE_TRAINING")),
         FeatureLine(symbol: "arrow.triangle.2.circlepath",
-                    title: "Closed-Loop Adaptive Stimulation",
-                    detail: "Sessions that adapt in real time to your brain activity.")
+                    title: String(localized: "UNDER16_CLOSED_LOOP_ADAPTIVE_STIMULATION"),
+                    detail: String(localized: "UNDER16_SESSIONS_THAT_ADAPT_IN_REAL_TIME_TO_YOUR_BRA"))
     ]
 
     private let available: [FeatureLine] = [
         FeatureLine(symbol: "light.max",
-                    title: "Photobiomodulation (PBM)",
-                    detail: "Light-based transcranial and intranasal sessions."),
+                    title: String(localized: "UNDER16_PHOTOBIOMODULATION_PBM"),
+                    detail: String(localized: "UNDER16_LIGHT_BASED_TRANSCRANIAL_AND_INTRANASAL_SESS")),
         FeatureLine(symbol: "waveform",
-                    title: "Audio Entrainment",
-                    detail: "Binaural beats, isochronic tones, and noise."),
+                    title: String(localized: "MODALITY_AUDIO_ENTRAINMENT_NAME"),
+                    detail: String(localized: "UNDER16_BINAURAL_BEATS_ISOCHRONIC_TONES_AND_NOISE")),
         FeatureLine(symbol: "eye",
-                    title: "Visual Stimulation",
-                    detail: "Photic and EMDR-style light sessions.")
+                    title: String(localized: "MODALITY_VISUAL_STIMULATION_NAME"),
+                    detail: String(localized: "UNDER16_PHOTIC_AND_EMDR_STYLE_LIGHT_SESSIONS"))
     ]
 
     var body: some View {

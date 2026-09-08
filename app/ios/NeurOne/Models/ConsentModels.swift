@@ -65,30 +65,48 @@ enum UHDRElement: String, CaseIterable, Codable {
         }
     }
 
+    /// Display text. `rawValue` stays the persisted Codable value: it is written
+    /// into stored consent records, so it cannot double as the thing on screen.
+    var displayName: String {
+        switch self {
+        case .eegWaveforms: return String(localized: "CONSENT_ELEMENT_EEGWAVEFORMS")
+        case .hrvTimeSeries: return String(localized: "CONSENT_ELEMENT_HRVTIMESERIES")
+        case .ppgOpticalSignal: return String(localized: "CONSENT_ELEMENT_PPGOPTICALSIGNAL")
+        case .neurofeedbackScores: return String(localized: "CONSENT_ELEMENT_NEUROFEEDBACKSCORES")
+        case .sessionTimestamps: return String(localized: "CONSENT_ELEMENT_SESSIONTIMESTAMPS")
+        case .sessionDuration: return String(localized: "CONSENT_ELEMENT_SESSIONDURATION")
+        case .protocolParameters: return String(localized: "CONSENT_ELEMENT_PROTOCOLPARAMETERS")
+        case .closedLoopEvents: return String(localized: "CONSENT_ELEMENT_CLOSEDLOOPEVENTS")
+        case .pbmDoseLogs: return String(localized: "CONSENT_ELEMENT_PBMDOSELOGS")
+        case .outcomeLogs: return String(localized: "CONSENT_ELEMENT_OUTCOMELOGS")
+        case .eyeStateLogs: return String(localized: "CONSENT_ELEMENT_EYESTATELOGS")
+        }
+    }
+
     var plainLanguageDescription: String {
         switch self {
         case .eegWaveforms:
-            return "Raw brainwave recordings from all electrodes during your sessions."
+            return String(localized: "CONSENT_ELEMENT_DESC_EEGWAVEFORMS")
         case .hrvTimeSeries:
-            return "Beat-by-beat heart rate variability measurements."
+            return String(localized: "CONSENT_ELEMENT_DESC_HRVTIMESERIES")
         case .ppgOpticalSignal:
-            return "Pulse oximetry optical signal from the VNS clip."
+            return String(localized: "CONSENT_ELEMENT_DESC_PPGOPTICALSIGNAL")
         case .neurofeedbackScores:
-            return "Your neurofeedback performance scores across sessions."
+            return String(localized: "CONSENT_ELEMENT_DESC_NEUROFEEDBACKSCORES")
         case .sessionTimestamps:
-            return "When you started and finished each session."
+            return String(localized: "CONSENT_ELEMENT_DESC_SESSIONTIMESTAMPS")
         case .sessionDuration:
-            return "How long each session lasted."
+            return String(localized: "CONSENT_ELEMENT_DESC_SESSIONDURATION")
         case .protocolParameters:
-            return "Which stimulation protocols you used and at what settings."
+            return String(localized: "CONSENT_ELEMENT_DESC_PROTOCOLPARAMETERS")
         case .closedLoopEvents:
-            return "Moments when your device automatically adjusted stimulation in response to your brainwaves."
+            return String(localized: "CONSENT_ELEMENT_DESC_CLOSEDLOOPEVENTS")
         case .pbmDoseLogs:
-            return "Light therapy dose delivered per zone in each session."
+            return String(localized: "CONSENT_ELEMENT_DESC_PBMDOSELOGS")
         case .outcomeLogs:
-            return "Symptoms or outcomes you chose to log manually."
+            return String(localized: "CONSENT_ELEMENT_DESC_OUTCOMELOGS")
         case .eyeStateLogs:
-            return "Whether your eyes were open or closed during visual stimulation sessions."
+            return String(localized: "CONSENT_ELEMENT_DESC_EYESTATELOGS")
         }
     }
 }
@@ -113,6 +131,16 @@ enum ContactFrequency: String, CaseIterable, Codable {
     case weekly    = "Weekly"
     case monthly   = "Monthly"
     case quarterly = "Quarterly"
+
+    /// Display text. `rawValue` stays the persisted Codable value: it is written
+    /// into stored consent records, so it cannot double as the thing on screen.
+    var displayName: String {
+        switch self {
+        case .weekly: return String(localized: "CONSENT_FREQ_WEEKLY")
+        case .monthly: return String(localized: "CONSENT_FREQ_MONTHLY")
+        case .quarterly: return String(localized: "CONSENT_FREQ_QUARTERLY")
+        }
+    }
 }
 
 // MARK: - Research consent layers (CLAUDE.md §6.2)
@@ -184,6 +212,22 @@ enum ResearchCategory: String, CaseIterable, Codable {
     case parkinsons            = "Parkinson's Disease"
     case healthyAgeing         = "Healthy Ageing"
     case visualHealth          = "Visual Health"
+
+    /// Display text. `rawValue` stays the persisted Codable value: it is written
+    /// into stored consent records, so it cannot double as the thing on screen.
+    var displayName: String {
+        switch self {
+        case .alzheimersAndDementia: return String(localized: "CONSENT_CATEGORY_ALZHEIMERSANDDEMENTIA")
+        case .depression: return String(localized: "CONSENT_CATEGORY_DEPRESSION")
+        case .ptsd: return String(localized: "CONSENT_CATEGORY_PTSD")
+        case .tbi: return String(localized: "CONSENT_CATEGORY_TBI")
+        case .sleep: return String(localized: "CONSENT_CATEGORY_SLEEP")
+        case .attention: return String(localized: "CONSENT_CATEGORY_ATTENTION")
+        case .parkinsons: return String(localized: "CONSENT_CATEGORY_PARKINSONS")
+        case .healthyAgeing: return String(localized: "CONSENT_CATEGORY_HEALTHYAGEING")
+        case .visualHealth: return String(localized: "CONSENT_CATEGORY_VISUALHEALTH")
+        }
+    }
 }
 
 // MARK: - Study participation record (audit trail — stored in SHDR, not UHDR)

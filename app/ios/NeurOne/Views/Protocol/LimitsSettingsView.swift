@@ -35,7 +35,7 @@ struct LimitsSettingsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("Level", selection: $selectedTab) {
+                Picker("LIMITS_LEVEL", selection: $selectedTab) {
                     ForEach(LimitTab.allCases, id: \.self) {
                         Text($0.rawValue).tag($0)
                     }
@@ -49,7 +49,7 @@ struct LimitsSettingsView: View {
                 case .individual: individualTab
                 }
             }
-            .navigationTitle("Dosage Limits")
+            .navigationTitle("UI_LIMITS_TITLE")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -68,16 +68,16 @@ struct LimitsSettingsView: View {
                 }
                 .environmentObject(limitsStore)
             }
-            .alert("Script Error", isPresented: $showScriptError) {
+            .alert("LIMITS_SCRIPT_ERROR", isPresented: $showScriptError) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(scriptError ?? "Unknown error")
             }
             // Add Helmet
-            .alert("Add Helmet", isPresented: $showAddHelmet) {
-                TextField("Serial number (e.g. NP-001)", text: $newHelmetSerial)
+            .alert("LIMITS_ADD_HELMET", isPresented: $showAddHelmet) {
+                TextField("LIMITS_SERIAL_NUMBER_E_G_NP_001", text: $newHelmetSerial)
                     .autocorrectionDisabled()
-                Button("Add") {
+                Button("UI_ADD") {
                     guard !newHelmetSerial.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                     let serial = newHelmetSerial.trimmingCharacters(in: .whitespaces)
                     var lim = NPLimitsSet(name: "Helmet \(serial)", level: .helmet)
@@ -85,22 +85,22 @@ struct LimitsSettingsView: View {
                     limitsStore.saveHelmetLimits(lim, forHelmet: serial)
                     newHelmetSerial = ""
                 }
-                Button("Cancel", role: .cancel) { newHelmetSerial = "" }
+                Button("COMMON_CANCEL", role: .cancel) { newHelmetSerial = "" }
             } message: {
-                Text("Enter the helmet serial number to configure per-helmet limits.")
+                Text("LIMITS_ENTER_THE_HELMET_SERIAL_NUMBER_TO_CONFIGURE")
             }
             // Add Profile
-            .alert("Add Profile", isPresented: $showAddProfile) {
-                TextField("Profile name", text: $newProfileName)
-                Button("Add") {
+            .alert("LIMITS_ADD_PROFILE", isPresented: $showAddProfile) {
+                TextField("LIMITS_PROFILE_NAME", text: $newProfileName)
+                Button("UI_ADD") {
                     guard !newProfileName.trimmingCharacters(in: .whitespaces).isEmpty else { return }
                     let profile = NPIndividualProfile(name: newProfileName.trimmingCharacters(in: .whitespaces))
                     limitsStore.saveProfile(profile)
                     newProfileName = ""
                 }
-                Button("Cancel", role: .cancel) { newProfileName = "" }
+                Button("COMMON_CANCEL", role: .cancel) { newProfileName = "" }
             } message: {
-                Text("Enter a name for this individual profile.")
+                Text("LIMITS_ENTER_A_NAME_FOR_THIS_INDIVIDUAL_PROFILE")
             }
         }
     }
@@ -109,19 +109,19 @@ struct LimitsSettingsView: View {
 
     private var globalTab: some View {
         List {
-            Section("Global Limits") {
+            Section("LIMITS_GLOBAL_LIMITS") {
                 if let gl = limitsStore.globalLimits {
                     limitsSummaryRow(gl)
-                    Button("Edit Global Limits") {
+                    Button("UI_EDIT_GLOBAL_LIMITS") {
                         editingLimits = gl
                         onSaveLimits = { limitsStore.saveGlobalLimits($0); revalidate() }
                         showEditor = true
                     }
                 } else {
-                    Text("No global limits configured — all hardware maximums apply.")
+                    Text("LIMITS_NO_GLOBAL_LIMITS_CONFIGURED_ALL_HARDWARE_MAX")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
-                    Button("Configure Global Limits") {
+                    Button("LIMITS_CONFIGURE_GLOBAL_LIMITS") {
                         editingLimits = NPLimitsSet(name: "Global", level: .global)
                         onSaveLimits = { limitsStore.saveGlobalLimits($0); revalidate() }
                         showEditor = true
@@ -129,14 +129,14 @@ struct LimitsSettingsView: View {
                 }
             }
 
-            Section("Script") {
-                Button("Import from Script") {
+            Section("UI_TAB_SCRIPT") {
+                Button("LIMITS_IMPORT_FROM_SCRIPT") {
                     scriptText = ""
                     pendingScriptLevelSave = { limitsStore.saveGlobalLimits($0); revalidate() }
                     showScriptImport = true
                 }
                 if limitsStore.globalLimits != nil {
-                    Button("Export as Script") {
+                    Button("LIMITS_EXPORT_AS_SCRIPT") {
                         if let gl = limitsStore.globalLimits {
                             scriptText = limitsStore.exportLimitsAsNPPS(gl)
                         }
@@ -158,18 +158,18 @@ struct LimitsSettingsView: View {
                 Button {
                     showAddHelmet = true
                 } label: {
-                    Label("Add Helmet Serial", systemImage: "plus")
+                    Label("LIMITS_ADD_HELMET_SERIAL", systemImage: "plus")
                 }
             }
 
             if limitsStore.helmetLimits.isEmpty {
                 Section {
-                    Text("No helmet-specific limits configured.")
+                    Text("LIMITS_NO_HELMET_SPECIFIC_LIMITS_CONFIGURED")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
             } else {
-                Section("Configured Helmets") {
+                Section("LIMITS_CONFIGURED_HELMETS") {
                     ForEach(Array(limitsStore.helmetLimits.keys).sorted(), id: \.self) { serial in
                         let lim = limitsStore.helmetLimits[serial]!
                         let isConnected = serial == limitsStore.activeHelmetSerial
@@ -180,7 +180,7 @@ struct LimitsSettingsView: View {
                                         Text(serial)
                                             .font(.headline)
                                         if isConnected {
-                                            Text("Connected")
+                                            Text("LIMITS_CONNECTED")
                                                 .font(.caption2)
                                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                                 .background(Color.green.opacity(0.15))
@@ -193,7 +193,7 @@ struct LimitsSettingsView: View {
                                         .foregroundColor(.secondary)
                                 }
                                 Spacer()
-                                Button("Edit") {
+                                Button("UI_EDIT") {
                                     editingLimits = lim
                                     onSaveLimits = { limitsStore.saveHelmetLimits($0, forHelmet: serial); revalidate() }
                                     showEditor = true
@@ -207,7 +207,7 @@ struct LimitsSettingsView: View {
                                 limitsStore.helmetLimits.removeValue(forKey: serial)
                                 revalidate()
                             } label: {
-                                Label("Delete", systemImage: "trash")
+                                Label("UI_DELETE", systemImage: "trash")
                             }
                         }
                     }
@@ -227,26 +227,26 @@ struct LimitsSettingsView: View {
                 Button {
                     showAddProfile = true
                 } label: {
-                    Label("Add Profile", systemImage: "plus")
+                    Label("LIMITS_ADD_PROFILE", systemImage: "plus")
                 }
             }
 
             if limitsStore.profiles.isEmpty {
                 Section {
-                    Text("No individual profiles configured.")
+                    Text("LIMITS_NO_INDIVIDUAL_PROFILES_CONFIGURED")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
             } else {
                 if let active = limitsStore.activeProfile {
-                    Section("Active Profile") {
+                    Section("LIMITS_ACTIVE_PROFILE") {
                         profileRow(active, isActive: true)
                     }
                 }
 
                 let inactive = limitsStore.profiles.filter { $0.id != limitsStore.activeProfileId }
                 if !inactive.isEmpty {
-                    Section("Profiles") {
+                    Section("LIMITS_PROFILES") {
                         ForEach(inactive) { profile in
                             profileRow(profile, isActive: false)
                         }
@@ -268,7 +268,7 @@ struct LimitsSettingsView: View {
                         Text(profile.name)
                             .font(.headline)
                         if isActive {
-                            Text("Active")
+                            Text("LIMITS_ACTIVE")
                                 .font(.caption2)
                                 .padding(.horizontal, 6).padding(.vertical, 2)
                                 .background(Color.accentColor.opacity(0.15))
@@ -295,7 +295,7 @@ struct LimitsSettingsView: View {
                     .font(.caption)
                     .foregroundColor(isActive ? .secondary : .accentColor)
 
-                    Button("Edit Limits") {
+                    Button("UI_EDIT_LIMITS") {
                         editingLimits = limitsStore.individualLimits[profile.id]
                             ?? NPLimitsSet(name: profile.name, level: .individual)
                         onSaveLimits = { limitsStore.saveIndividualLimits($0, forProfile: profile.id); revalidate() }
@@ -313,7 +313,7 @@ struct LimitsSettingsView: View {
                 limitsStore.deleteProfile(profile.id)
                 revalidate()
             } label: {
-                Label("Delete", systemImage: "trash")
+                Label("UI_DELETE", systemImage: "trash")
             }
         }
     }
@@ -377,7 +377,7 @@ struct LimitsEditorView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("Mode", selection: $viewMode) {
+                Picker("VALIDATE_PARAM_MODE", selection: $viewMode) {
                     ForEach(EditorMode.allCases, id: \.self) {
                         Text($0.rawValue).tag($0)
                     }
@@ -391,14 +391,14 @@ struct LimitsEditorView: View {
                     scriptEditor
                 }
             }
-            .navigationTitle("Edit Limits")
+            .navigationTitle("UI_EDIT_LIMITS")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(String(localized: "COMMON_CANCEL")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button("LIMITS_SAVE") {
                         onSave(workingLimits)
                         dismiss()
                     }
@@ -421,9 +421,9 @@ struct LimitsEditorView: View {
 
     private var visualEditor: some View {
         Form {
-            Section("Name") {
-                TextField("Limits name", text: $workingLimits.name)
-                TextField("Description (optional)", text: $workingLimits.description)
+            Section("CLINICIAN_GRANT_NAME_PLACEHOLDER") {
+                TextField("UI_LIMITS_NAME_PLACEHOLDER", text: $workingLimits.name)
+                TextField("UI_LIMITS_DESC_PLACEHOLDER", text: $workingLimits.description)
             }
 
             pbmTranscranialSection
@@ -479,30 +479,30 @@ struct LimitsEditorView: View {
 
     private var pbmTranscranialSection: some View {
         ModalityLimitsSection(
-            title: "Transcranial PBM",
+            title: NPModalityType.pbmTranscranial.displayName,
             isEnabled: Binding(
                 get: { workingLimits.pbmTranscranial != nil },
                 set: { if $0 { workingLimits.pbmTranscranial = NPPBMTranscranialLimits() } else { workingLimits.pbmTranscranial = nil } }
             )
         ) {
             if workingLimits.pbmTranscranial != nil {
-                OptionalDoubleField(label: "Max Intensity", unit: "%", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "%", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxIntensityPercent },
                     set: { workingLimits.pbmTranscranial?.maxIntensityPercent = $0 }
                 ), range: 0...100)
-                OptionalDoubleField(label: "Max Frequency", unit: "Hz", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxFrequencyHz },
                     set: { workingLimits.pbmTranscranial?.maxFrequencyHz = $0 }
                 ), range: 0...100)
-                OptionalIntField(label: "Max Duty Cycle", unit: "%", value: Binding(
+                OptionalIntField(label: String(localized: "WEB_LIM_MAX_DUTY_CYCLE"), unit: "%", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxDutyCyclePercent },
                     set: { workingLimits.pbmTranscranial?.maxDutyCyclePercent = $0 }
                 ), range: 0...25)
-                OptionalDoubleField(label: "Max Session Dose", unit: "J/cm²", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_SESSION_DOSE"), unit: "J/cm²", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxSessionDoseJCm2 },
                     set: { workingLimits.pbmTranscranial?.maxSessionDoseJCm2 = $0 }
                 ), range: 0...1000)
-                OptionalDoubleField(label: "Max Daily Dose", unit: "J/cm²", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_DAILY_DOSE"), unit: "J/cm²", value: Binding(
                     get: { workingLimits.pbmTranscranial?.maxDailyDoseJCm2 },
                     set: { workingLimits.pbmTranscranial?.maxDailyDoseJCm2 = $0 }
                 ), range: 0...5000)
@@ -512,22 +512,22 @@ struct LimitsEditorView: View {
 
     private var pbmIntranasalSection: some View {
         ModalityLimitsSection(
-            title: "Intranasal PBM",
+            title: NPModalityType.pbmIntranasal.displayName,
             isEnabled: Binding(
                 get: { workingLimits.pbmIntranasal != nil },
                 set: { if $0 { workingLimits.pbmIntranasal = NPPBMIntranasalLimits() } else { workingLimits.pbmIntranasal = nil } }
             )
         ) {
             if workingLimits.pbmIntranasal != nil {
-                OptionalDoubleField(label: "Max Intensity", unit: "%", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "%", value: Binding(
                     get: { workingLimits.pbmIntranasal?.maxIntensityPercent },
                     set: { workingLimits.pbmIntranasal?.maxIntensityPercent = $0 }
                 ), range: 0...100)
-                OptionalDoubleField(label: "Max Session Dose", unit: "J/cm²", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_SESSION_DOSE"), unit: "J/cm²", value: Binding(
                     get: { workingLimits.pbmIntranasal?.maxSessionDoseJCm2 },
                     set: { workingLimits.pbmIntranasal?.maxSessionDoseJCm2 = $0 }
                 ), range: 0...500)
-                OptionalDurationField(label: "Max Session Duration", value: Binding(
+                OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.pbmIntranasal?.maxSessionDurationSeconds },
                     set: { workingLimits.pbmIntranasal?.maxSessionDurationSeconds = $0 }
                 ))
@@ -537,14 +537,14 @@ struct LimitsEditorView: View {
 
     private var eegSection: some View {
         ModalityLimitsSection(
-            title: "EEG Neurofeedback",
+            title: String(localized: "MODALITY_EEG_NEUROFEEDBACK_NAME"),
             isEnabled: Binding(
                 get: { workingLimits.eegNeurofeedback != nil },
                 set: { if $0 { workingLimits.eegNeurofeedback = NPEEGNeurofeedbackLimits() } else { workingLimits.eegNeurofeedback = nil } }
             )
         ) {
             if workingLimits.eegNeurofeedback != nil {
-                OptionalBoolField(label: "Require Closed Loop", value: Binding(
+                OptionalBoolField(label: String(localized: "WEB_LIM_REQUIRE_CLOSED_LOOP"), value: Binding(
                     get: { workingLimits.eegNeurofeedback?.requireClosedLoop },
                     set: { workingLimits.eegNeurofeedback?.requireClosedLoop = $0 }
                 ))
@@ -558,30 +558,30 @@ struct LimitsEditorView: View {
 
     private var besTacsSection: some View {
         ModalityLimitsSection(
-            title: "Brainwave Entrainment (BES/tACS)",
+            title: NPModalityType.besTacs.displayName,
             isEnabled: Binding(
                 get: { workingLimits.besTacs != nil },
                 set: { if $0 { workingLimits.besTacs = NPBESTacsLimits() } else { workingLimits.besTacs = nil } }
             )
         ) {
             if workingLimits.besTacs != nil {
-                OptionalDoubleField(label: "Max Intensity", unit: "mA", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mA", value: Binding(
                     get: { workingLimits.besTacs?.maxIntensityMilliamps },
                     set: { workingLimits.besTacs?.maxIntensityMilliamps = $0 }
                 ), range: 0...1.0)
-                OptionalDoubleField(label: "Max Frequency", unit: "Hz", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.besTacs?.maxFrequencyHz },
                     set: { workingLimits.besTacs?.maxFrequencyHz = $0 }
                 ), range: 0.5...40)
-                OptionalDoubleField(label: "Min Frequency", unit: "Hz", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MIN_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.besTacs?.minFrequencyHz },
                     set: { workingLimits.besTacs?.minFrequencyHz = $0 }
                 ), range: 0.5...40)
-                OptionalDurationField(label: "Max Session Duration", value: Binding(
+                OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.besTacs?.maxSessionDurationSeconds },
                     set: { workingLimits.besTacs?.maxSessionDurationSeconds = $0 }
                 ))
-                OptionalIntField(label: "Max Sessions/Day", unit: "", value: Binding(
+                OptionalIntField(label: String(localized: "WEB_LIM_MAX_SESSIONS_DAY"), unit: "", value: Binding(
                     get: { workingLimits.besTacs?.maxSessionsPerDay },
                     set: { workingLimits.besTacs?.maxSessionsPerDay = $0 }
                 ), range: 1...10)
@@ -591,22 +591,22 @@ struct LimitsEditorView: View {
 
     private var tdcsSection: some View {
         ModalityLimitsSection(
-            title: "Cortical Priming (tDCS)",
+            title: NPModalityType.tdcs.displayName,
             isEnabled: Binding(
                 get: { workingLimits.tdcs != nil },
                 set: { if $0 { workingLimits.tdcs = NPTDCSLimits() } else { workingLimits.tdcs = nil } }
             )
         ) {
             if workingLimits.tdcs != nil {
-                OptionalDoubleField(label: "Max Intensity", unit: "mA", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mA", value: Binding(
                     get: { workingLimits.tdcs?.maxIntensityMilliamps },
                     set: { workingLimits.tdcs?.maxIntensityMilliamps = $0 }
                 ), range: 0.1...2.0)
-                OptionalDurationField(label: "Max Session Duration", value: Binding(
+                OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.tdcs?.maxSessionDurationSeconds },
                     set: { workingLimits.tdcs?.maxSessionDurationSeconds = $0 }
                 ))
-                OptionalIntField(label: "Max Sessions/Day", unit: "", value: Binding(
+                OptionalIntField(label: String(localized: "WEB_LIM_MAX_SESSIONS_DAY"), unit: "", value: Binding(
                     get: { workingLimits.tdcs?.maxSessionsPerDay },
                     set: { workingLimits.tdcs?.maxSessionsPerDay = $0 }
                 ), range: 1...5)
@@ -616,22 +616,22 @@ struct LimitsEditorView: View {
 
     private var vnsHrvSection: some View {
         ModalityLimitsSection(
-            title: "VNS + HRV Biofeedback",
+            title: NPModalityType.vnsHRV.displayName,
             isEnabled: Binding(
                 get: { workingLimits.vnsHrv != nil },
                 set: { if $0 { workingLimits.vnsHrv = NPVNSHRVLimits() } else { workingLimits.vnsHrv = nil } }
             )
         ) {
             if workingLimits.vnsHrv != nil {
-                OptionalDoubleField(label: "Max Intensity", unit: "mA", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mA", value: Binding(
                     get: { workingLimits.vnsHrv?.maxIntensityMilliamps },
                     set: { workingLimits.vnsHrv?.maxIntensityMilliamps = $0 }
                 ), range: 0...2.0)
-                OptionalDoubleField(label: "Max Frequency", unit: "Hz", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.vnsHrv?.maxFrequencyHz },
                     set: { workingLimits.vnsHrv?.maxFrequencyHz = $0 }
                 ), range: 1...25)
-                OptionalDurationField(label: "Max Session Duration", value: Binding(
+                OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.vnsHrv?.maxSessionDurationSeconds },
                     set: { workingLimits.vnsHrv?.maxSessionDurationSeconds = $0 }
                 ))
@@ -645,22 +645,22 @@ struct LimitsEditorView: View {
 
     private var audioSection: some View {
         ModalityLimitsSection(
-            title: "Neural Audio Entrainment",
+            title: NPModalityType.audioEntrainment.displayName,
             isEnabled: Binding(
                 get: { workingLimits.audioEntrainment != nil },
                 set: { if $0 { workingLimits.audioEntrainment = NPAudioEntrainmentLimits() } else { workingLimits.audioEntrainment = nil } }
             )
         ) {
             if workingLimits.audioEntrainment != nil {
-                OptionalDoubleField(label: "Max Volume", unit: "%", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_VOLUME"), unit: "%", value: Binding(
                     get: { workingLimits.audioEntrainment?.maxVolumePercent },
                     set: { workingLimits.audioEntrainment?.maxVolumePercent = $0 }
                 ), range: 0...100)
-                OptionalDoubleField(label: "Max Binaural Beats", unit: "Hz", value: Binding(
+                OptionalDoubleField(label: String(localized: "LIMITS_MAX_BINAURAL_BEATS"), unit: "Hz", value: Binding(
                     get: { workingLimits.audioEntrainment?.maxBinauralBeatsHz },
                     set: { workingLimits.audioEntrainment?.maxBinauralBeatsHz = $0 }
                 ), range: 0...100)
-                OptionalDoubleField(label: "Max Isochronic Tones", unit: "Hz", value: Binding(
+                OptionalDoubleField(label: String(localized: "LIMITS_MAX_ISOCHRONIC_TONES"), unit: "Hz", value: Binding(
                     get: { workingLimits.audioEntrainment?.maxIsochronicTonesHz },
                     set: { workingLimits.audioEntrainment?.maxIsochronicTonesHz = $0 }
                 ), range: 0...100)
@@ -670,22 +670,22 @@ struct LimitsEditorView: View {
 
     private var visualSection: some View {
         ModalityLimitsSection(
-            title: "Visual Stimulation",
+            title: String(localized: "MODALITY_VISUAL_STIMULATION_NAME"),
             isEnabled: Binding(
                 get: { workingLimits.visualStimulation != nil },
                 set: { if $0 { workingLimits.visualStimulation = NPVisualStimLimits() } else { workingLimits.visualStimulation = nil } }
             )
         ) {
             if workingLimits.visualStimulation != nil {
-                OptionalDoubleField(label: "Max Frequency", unit: "Hz", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.visualStimulation?.maxFrequencyHz },
                     set: { workingLimits.visualStimulation?.maxFrequencyHz = $0 }
                 ), range: 0...100)
-                OptionalDoubleField(label: "Min Frequency", unit: "Hz", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MIN_FREQUENCY"), unit: "Hz", value: Binding(
                     get: { workingLimits.visualStimulation?.minFrequencyHz },
                     set: { workingLimits.visualStimulation?.minFrequencyHz = $0 }
                 ), range: 0...100)
-                OptionalBoolField(label: "Block 3–30 Hz Risk Range", value: Binding(
+                OptionalBoolField(label: String(localized: "LIMITS_BLOCK_3_30_HZ_RISK_RANGE"), value: Binding(
                     get: { workingLimits.visualStimulation?.blockHighRiskRange },
                     set: { workingLimits.visualStimulation?.blockHighRiskRange = $0 }
                 ))
@@ -699,26 +699,26 @@ struct LimitsEditorView: View {
 
     private var tmsSection: some View {
         ModalityLimitsSection(
-            title: "TMS (T2)",
+            title: String(localized: "WEB_LIM_SECTION_TMS"),
             isEnabled: Binding(
                 get: { workingLimits.tms != nil },
                 set: { if $0 { workingLimits.tms = NPTMSLimits() } else { workingLimits.tms = nil } }
             )
         ) {
             if workingLimits.tms != nil {
-                OptionalIntField(label: "Max Intensity (%MT)", unit: "%MT", value: Binding(
+                OptionalIntField(label: String(localized: "LIMITS_MAX_INTENSITY_MT"), unit: "%MT", value: Binding(
                     get: { workingLimits.tms?.maxIntensityPercentMT },
                     set: { workingLimits.tms?.maxIntensityPercentMT = $0 }
                 ), range: 0...150)
-                OptionalIntField(label: "Max Pulses/Session", unit: "", value: Binding(
+                OptionalIntField(label: String(localized: "WEB_LIM_MAX_PULSES_SESSION"), unit: "", value: Binding(
                     get: { workingLimits.tms?.maxPulsesPerSession },
                     set: { workingLimits.tms?.maxPulsesPerSession = $0 }
                 ), range: 0...5000)
-                OptionalIntField(label: "Max Pulses/Day", unit: "", value: Binding(
+                OptionalIntField(label: String(localized: "WEB_LIM_MAX_PULSES_DAY"), unit: "", value: Binding(
                     get: { workingLimits.tms?.maxPulsesPerDay },
                     set: { workingLimits.tms?.maxPulsesPerDay = $0 }
                 ), range: 0...10000)
-                OptionalIntField(label: "Max Sessions/Week", unit: "", value: Binding(
+                OptionalIntField(label: String(localized: "WEB_LIM_MAX_SESSIONS_WEEK"), unit: "", value: Binding(
                     get: { workingLimits.tms?.maxSessionsPerWeek },
                     set: { workingLimits.tms?.maxSessionsPerWeek = $0 }
                 ), range: 0...7)
@@ -728,18 +728,18 @@ struct LimitsEditorView: View {
 
     private var deepPBMSection: some View {
         ModalityLimitsSection(
-            title: "Deep PBM 1170nm (T2)",
+            title: NPModalityType.pbmDeep1170nm.displayName,
             isEnabled: Binding(
                 get: { workingLimits.pbmDeep1170nm != nil },
                 set: { if $0 { workingLimits.pbmDeep1170nm = NPDeepPBMLimits() } else { workingLimits.pbmDeep1170nm = nil } }
             )
         ) {
             if workingLimits.pbmDeep1170nm != nil {
-                OptionalDoubleField(label: "Max Intensity", unit: "mW/cm²", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mW/cm²", value: Binding(
                     get: { workingLimits.pbmDeep1170nm?.maxIntensityMWcm2 },
                     set: { workingLimits.pbmDeep1170nm?.maxIntensityMWcm2 = $0 }
                 ), range: 0...1000)
-                OptionalDurationField(label: "Max Session Duration", value: Binding(
+                OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.pbmDeep1170nm?.maxSessionDurationSeconds },
                     set: { workingLimits.pbmDeep1170nm?.maxSessionDurationSeconds = $0 }
                 ))
@@ -749,18 +749,18 @@ struct LimitsEditorView: View {
 
     private var clinicalTacsSection: some View {
         ModalityLimitsSection(
-            title: "Clinical tACS (T2)",
+            title: String(localized: "WEB_LIM_SECTION_CLINICAL_TACS"),
             isEnabled: Binding(
                 get: { workingLimits.clinicalTacs != nil },
                 set: { if $0 { workingLimits.clinicalTacs = NPClinicalTacsLimits() } else { workingLimits.clinicalTacs = nil } }
             )
         ) {
             if workingLimits.clinicalTacs != nil {
-                OptionalDoubleField(label: "Max Intensity", unit: "mA", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mA", value: Binding(
                     get: { workingLimits.clinicalTacs?.maxIntensityMilliamps },
                     set: { workingLimits.clinicalTacs?.maxIntensityMilliamps = $0 }
                 ), range: 0...4.0)
-                OptionalDurationField(label: "Max Session Duration", value: Binding(
+                OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.clinicalTacs?.maxSessionDurationSeconds },
                     set: { workingLimits.clinicalTacs?.maxSessionDurationSeconds = $0 }
                 ))
@@ -770,18 +770,18 @@ struct LimitsEditorView: View {
 
     private var hdTdcsSection: some View {
         ModalityLimitsSection(
-            title: "HD-tDCS (T2)",
+            title: String(localized: "WEB_LIM_SECTION_HD_TDCS"),
             isEnabled: Binding(
                 get: { workingLimits.hdTdcs != nil },
                 set: { if $0 { workingLimits.hdTdcs = NPHDTdcsLimits() } else { workingLimits.hdTdcs = nil } }
             )
         ) {
             if workingLimits.hdTdcs != nil {
-                OptionalDoubleField(label: "Max Intensity/Electrode", unit: "mA", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY_ELECTRODE"), unit: "mA", value: Binding(
                     get: { workingLimits.hdTdcs?.maxIntensityMilliamps },
                     set: { workingLimits.hdTdcs?.maxIntensityMilliamps = $0 }
                 ), range: 0...2.0)
-                OptionalDurationField(label: "Max Session Duration", value: Binding(
+                OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.hdTdcs?.maxSessionDurationSeconds },
                     set: { workingLimits.hdTdcs?.maxSessionDurationSeconds = $0 }
                 ))
@@ -795,22 +795,22 @@ struct LimitsEditorView: View {
 
     private var cervicalVnsSection: some View {
         ModalityLimitsSection(
-            title: "Cervical VNS (T2)",
+            title: String(localized: "WEB_LIM_SECTION_CERVICAL_VNS"),
             isEnabled: Binding(
                 get: { workingLimits.cervicalVns != nil },
                 set: { if $0 { workingLimits.cervicalVns = NPCervicalVnsLimits() } else { workingLimits.cervicalVns = nil } }
             )
         ) {
             if workingLimits.cervicalVns != nil {
-                OptionalDoubleField(label: "Max Intensity", unit: "mA", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "mA", value: Binding(
                     get: { workingLimits.cervicalVns?.maxIntensityMilliamps },
                     set: { workingLimits.cervicalVns?.maxIntensityMilliamps = $0 }
                 ), range: 0...2.0)
-                OptionalDurationField(label: "Max Session Duration", value: Binding(
+                OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.cervicalVns?.maxSessionDurationSeconds },
                     set: { workingLimits.cervicalVns?.maxSessionDurationSeconds = $0 }
                 ))
-                Text("Cardiac interlock is always enforced by the safety MCU — not configurable.")
+                Text("LIMITS_CARDIAC_INTERLOCK_IS_ALWAYS_ENFORCED_BY_THE")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -819,18 +819,18 @@ struct LimitsEditorView: View {
 
     private var vibrotactileSection: some View {
         ModalityLimitsSection(
-            title: "40Hz Vibrotactile (Accessory)",
+            title: String(localized: "WEB_LIM_SECTION_VIBROTACTILE"),
             isEnabled: Binding(
                 get: { workingLimits.vibrotactile40hz != nil },
                 set: { if $0 { workingLimits.vibrotactile40hz = NPVibrotactileLimits() } else { workingLimits.vibrotactile40hz = nil } }
             )
         ) {
             if workingLimits.vibrotactile40hz != nil {
-                OptionalDoubleField(label: "Max Intensity", unit: "G", value: Binding(
+                OptionalDoubleField(label: String(localized: "WEB_LIM_MAX_INTENSITY"), unit: "G", value: Binding(
                     get: { workingLimits.vibrotactile40hz?.maxIntensityG },
                     set: { workingLimits.vibrotactile40hz?.maxIntensityG = $0 }
                 ), range: 0.6...1.2)
-                OptionalDurationField(label: "Max Session Duration", value: Binding(
+                OptionalDurationField(label: String(localized: "WEB_LIM_MAX_SESSION_DURATION"), value: Binding(
                     get: { workingLimits.vibrotactile40hz?.maxSessionDurationSeconds },
                     set: { workingLimits.vibrotactile40hz?.maxSessionDurationSeconds = $0 }
                 ))
@@ -873,11 +873,11 @@ struct OptionalDoubleField: View {
             Text(label)
             Spacer()
             if value == nil {
-                Button("Set limit") { value = (range.lowerBound + range.upperBound) / 2; syncText() }
+                Button("LIMITS_SET_LIMIT") { value = (range.lowerBound + range.upperBound) / 2; syncText() }
                     .font(.caption)
                     .foregroundColor(.accentColor)
             } else {
-                TextField("No limit", text: $text)
+                TextField("LIMITS_NO_LIMIT", text: $text)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
@@ -924,11 +924,11 @@ struct OptionalIntField: View {
             Text(label)
             Spacer()
             if value == nil {
-                Button("Set limit") { value = (range.lowerBound + range.upperBound) / 2; syncText() }
+                Button("LIMITS_SET_LIMIT") { value = (range.lowerBound + range.upperBound) / 2; syncText() }
                     .font(.caption)
                     .foregroundColor(.accentColor)
             } else {
-                TextField("No limit", text: $text)
+                TextField("LIMITS_NO_LIMIT", text: $text)
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 70)
@@ -974,11 +974,11 @@ struct OptionalDurationField: View {
             Text(label)
             Spacer()
             if value == nil {
-                Button("Set limit") { value = 1200; syncText() }
+                Button("LIMITS_SET_LIMIT") { value = 1200; syncText() }
                     .font(.caption)
                     .foregroundColor(.accentColor)
             } else {
-                TextField("No limit", text: $text)
+                TextField("LIMITS_NO_LIMIT", text: $text)
                     .keyboardType(.default)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 90)
@@ -1034,7 +1034,7 @@ struct OptionalBoolField: View {
                 }
                 .buttonStyle(.plain)
             } else {
-                Button("Set limit") { value = true }
+                Button("LIMITS_SET_LIMIT") { value = true }
                     .font(.caption)
                     .foregroundColor(.accentColor)
             }
@@ -1051,13 +1051,13 @@ struct AllowedBandsField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Allowed EEG Bands")
+                Text("LIMITS_ALLOWED_EEG_BANDS")
                 Spacer()
                 if value == nil {
-                    Button("Restrict") { value = allBands.map { $0.rawValue } }
+                    Button("LIMITS_RESTRICT") { value = allBands.map { $0.rawValue } }
                         .font(.caption).foregroundColor(.accentColor)
                 } else {
-                    Button("Allow All") { value = nil }
+                    Button("LIMITS_ALLOW_ALL") { value = nil }
                         .font(.caption).foregroundColor(.secondary)
                 }
             }
@@ -1084,13 +1084,13 @@ struct AllowedVNSProtocolsField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Allowed HRV Protocols")
+                Text("UI_LIM_ALLOWED_HRV")
                 Spacer()
                 if value == nil {
-                    Button("Restrict") { value = allProtos.map { $0.rawValue } }
+                    Button("LIMITS_RESTRICT") { value = allProtos.map { $0.rawValue } }
                         .font(.caption).foregroundColor(.accentColor)
                 } else {
-                    Button("Allow All") { value = nil }
+                    Button("LIMITS_ALLOW_ALL") { value = nil }
                         .font(.caption).foregroundColor(.secondary)
                 }
             }
@@ -1117,13 +1117,13 @@ struct AllowedVisualModesField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Allowed Visual Modes")
+                Text("LIMITS_ALLOWED_VISUAL_MODES")
                 Spacer()
                 if value == nil {
-                    Button("Restrict") { value = allModes.map { $0.rawValue } }
+                    Button("LIMITS_RESTRICT") { value = allModes.map { $0.rawValue } }
                         .font(.caption).foregroundColor(.accentColor)
                 } else {
-                    Button("Allow All") { value = nil }
+                    Button("LIMITS_ALLOW_ALL") { value = nil }
                         .font(.caption).foregroundColor(.secondary)
                 }
             }
@@ -1150,13 +1150,13 @@ struct AllowedHDTdcsMontagesField: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Text("Allowed Montages")
+                Text("UI_LIM_ALLOWED_MONTAGES")
                 Spacer()
                 if value == nil {
-                    Button("Restrict") { value = allMontages.map { $0.rawValue } }
+                    Button("LIMITS_RESTRICT") { value = allMontages.map { $0.rawValue } }
                         .font(.caption).foregroundColor(.accentColor)
                 } else {
-                    Button("Allow All") { value = nil }
+                    Button("LIMITS_ALLOW_ALL") { value = nil }
                         .font(.caption).foregroundColor(.secondary)
                 }
             }
@@ -1202,7 +1202,7 @@ struct ScriptImportView: View {
                 if parsedLimits != nil {
                     HStack {
                         Image(systemName: "checkmark.circle.fill").foregroundColor(.green)
-                        Text("Limits parsed successfully").font(.caption).foregroundColor(.green)
+                        Text("LIMITS_LIMITS_PARSED_SUCCESSFULLY").font(.caption).foregroundColor(.green)
                     }
                     .padding(.horizontal).padding(.vertical, 6)
                     .background(Color.green.opacity(0.1))
@@ -1221,14 +1221,14 @@ struct ScriptImportView: View {
                         }
                     }
             }
-            .navigationTitle("Import Limits Script")
+            .navigationTitle("LIMITS_IMPORT_LIMITS_SCRIPT")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(String(localized: "COMMON_CANCEL")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Import") {
+                    Button("LIMITS_IMPORT") {
                         if let l = parsedLimits { onImport(l) }
                         dismiss()
                     }

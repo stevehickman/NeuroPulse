@@ -168,7 +168,7 @@ struct ConsentOnboardingView: View {
                             .textContentType(.emailAddress)
                             .keyboardType(.emailAddress)
                             .textFieldStyle(.roundedBorder)
-                        Picker("Contact frequency", selection: $draft.contactFrequency) {
+                        Picker("CONSENT_CONTACT_FREQUENCY", selection: $draft.contactFrequency) {
                             ForEach(ContactFrequency.allCases, id: \.self) { freq in
                                 Text(freq.rawValue).tag(freq)
                             }
@@ -236,7 +236,7 @@ struct ConsentOnboardingView: View {
                 }
 
                 ForEach(ResearchCategory.allCases, id: \.self) { category in
-                    Toggle(category.rawValue, isOn: Binding(
+                    Toggle(category.displayName, isOn: Binding(
                         get: { draft.categoryConsents[category] ?? false },
                         set: { draft.categoryConsents[category] = $0 }
                     ))

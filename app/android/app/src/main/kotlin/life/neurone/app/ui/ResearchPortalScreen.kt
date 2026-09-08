@@ -32,6 +32,8 @@ import life.neurone.core.models.ResearchCategory
 import life.neurone.core.research.PledgeTier
 import life.neurone.core.research.ResearchSuggestionDraft
 import life.neurone.core.research.ResearchSuggestionStore
+import androidx.compose.ui.res.stringResource
+import life.neurone.app.R
 
 // Port of iOS ResearchSuggestionPortalView (CLAUDE.md §6.3): community research ideas with
 // vote (function 1), participation intent (function 2), and pledge (function 3, intent only —
@@ -63,16 +65,16 @@ fun ResearchPortalScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("Back") }
-            Text("Research ideas", style = MaterialTheme.typography.titleLarge)
-            TextButton(onClick = { composing = true }) { Text("New") }
+            TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
+            Text(stringResource(R.string.portal_research_ideas), style = MaterialTheme.typography.titleLarge)
+            TextButton(onClick = { composing = true }) { Text(stringResource(R.string.protocol_menu_new)) }
         }
         Spacer(Modifier.height(8.dp))
 
         if (suggestions.isEmpty()) {
             Text(
-                "Suggest a study you'd like to see, vote on others' ideas, and register interest " +
-                    "in taking part. Pledges are intent only — you're never charged here.",
+                stringResource(R.string.portal_suggest_a_study_you_d_like_to_see_vote_on_ot) +
+                    stringResource(R.string.portal_in_taking_part_pledges_are_intent_only_you_r),
                 style = MaterialTheme.typography.bodyMedium,
             )
             return@Column
@@ -91,15 +93,15 @@ fun ResearchPortalScreen(
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                             OutlinedButton(onClick = { store.toggleVote(s.id); version++ }) {
-                                Text((if (s.didVote) "Voted " else "Vote ") + s.voteCount)
+                                Text((if (s.didVote) stringResource(R.string.portal_voted) else stringResource(R.string.portal_vote)) + s.voteCount)
                             }
                             OutlinedButton(onClick = { store.toggleParticipationIntent(s.id); version++ }) {
-                                Text(if (s.hasParticipationIntent) "Interested" else "I'd join")
+                                Text(if (s.hasParticipationIntent) stringResource(R.string.portal_interested) else stringResource(R.string.portal_i_d_join))
                             }
                         }
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            "Pledged \$${s.pledgedAmount}" + (s.pledgeAmount?.let { " (you: \$$it)" } ?: ""),
+                            stringResource(R.string.portal_pledged_0, s.pledgedAmount) + (s.pledgeAmount?.let { stringResource(R.string.portal_you_0, it) } ?: ""),
                             style = MaterialTheme.typography.labelSmall,
                         )
                         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -135,16 +137,16 @@ private fun NewSuggestion(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onCancel) { Text("Cancel") }
-            Text("New idea", style = MaterialTheme.typography.titleMedium)
-            Button(onClick = { onSubmit(draft) }, enabled = draft.isValid) { Text("Submit") }
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
+            Text(stringResource(R.string.portal_new_idea), style = MaterialTheme.typography.titleMedium)
+            Button(onClick = { onSubmit(draft) }, enabled = draft.isValid) { Text(stringResource(R.string.portal_submit)) }
         }
         Spacer(Modifier.height(12.dp))
-        OutlinedTextField(title, { title = it }, label = { Text("Title") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(title, { title = it }, label = { Text(stringResource(R.string.portal_title)) }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(body, { body = it }, label = { Text("What should we study?") }, modifier = Modifier.fillMaxWidth())
+        OutlinedTextField(body, { body = it }, label = { Text(stringResource(R.string.portal_what_should_we_study)) }, modifier = Modifier.fillMaxWidth())
         Spacer(Modifier.height(12.dp))
-        Text("Research areas", style = MaterialTheme.typography.labelMedium)
+        Text(stringResource(R.string.portal_research_areas), style = MaterialTheme.typography.labelMedium)
         for (c in ResearchCategory.entries) {
             val checked = c in categories
             Row(
@@ -164,7 +166,7 @@ private fun NewSuggestion(
         Spacer(Modifier.height(8.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(checked = intent, onCheckedChange = { intent = it })
-            Text("I would take part in this study")
+            Text(stringResource(R.string.portal_i_would_take_part_in_this_study))
         }
     }
 }

@@ -28,7 +28,7 @@ struct ResearchSuggestionPortalView: View {
                     Button {
                         showSubmitSheet = true
                     } label: {
-                        Label("Submit Idea", systemImage: "plus")
+                        Label("PORTAL_SUBMIT_IDEA", systemImage: "plus")
                     }
                 }
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -60,7 +60,7 @@ struct ResearchSuggestionPortalView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
-            Button("Submit an idea") { showSubmitSheet = true }
+            Button("PORTAL_SUBMIT_AN_IDEA") { showSubmitSheet = true }
                 .buttonStyle(.borderedProminent)
         }
         .padding(40)
@@ -91,7 +91,7 @@ struct SuggestionRow: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(suggestion.title).font(.subheadline.bold())
                         .fixedSize(horizontal: false, vertical: true)
-                    Text(suggestion.categories.map(\.rawValue).joined(separator: " · "))
+                    Text(suggestion.categories.map(\.displayName).joined(separator: " · "))
                         .font(.caption).foregroundColor(.secondary)
                 }
                 Spacer()
@@ -113,13 +113,13 @@ struct SuggestionRow: View {
             case .open:
                 EmptyView()
             case .active:
-                Label("Campaign live", systemImage: "dollarsign.circle.fill")
+                Label("PORTAL_CAMPAIGN_LIVE", systemImage: "dollarsign.circle.fill")
                     .font(.caption2).foregroundColor(.green)
             case .funded:
-                Label("Funded", systemImage: "checkmark.seal.fill")
+                Label("PORTAL_FUNDED", systemImage: "checkmark.seal.fill")
                     .font(.caption2).foregroundColor(.green)
             case .closed:
-                Label("Closed", systemImage: "xmark.circle")
+                Label("PORTAL_CLOSED", systemImage: "xmark.circle")
                     .font(.caption2).foregroundColor(.secondary)
             }
         }
@@ -154,7 +154,8 @@ struct SuggestionRow: View {
 
             // Function 3 — pledge indicator
             if let pledge = suggestion.pledgeAmount {
-                Label("$\(pledge) pledged", systemImage: "dollarsign.circle")
+                Label(String(format: String(localized: "PORTAL_PLEDGED_AMOUNT"), String(pledge)),
+                      systemImage: "dollarsign.circle")
                     .font(.caption2).foregroundColor(.orange)
             }
         }
@@ -182,11 +183,11 @@ struct SuggestionDetailView: View {
                 }
                 .padding()
             }
-            .navigationTitle("Study Idea")
+            .navigationTitle("PORTAL_STUDY_IDEA")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }
+                    Button("COMMON_CLOSE") { dismiss() }
                 }
             }
         }
@@ -196,20 +197,25 @@ struct SuggestionDetailView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(suggestion.title).font(.title2.bold())
                 .fixedSize(horizontal: false, vertical: true)
-            Text(suggestion.categories.map(\.rawValue).joined(separator: " · "))
+            Text(suggestion.categories.map(\.displayName).joined(separator: " · "))
                 .font(.caption).foregroundColor(.secondary)
             Text(suggestion.body).font(.body)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("Suggested \(suggestion.submittedAt.formatted(.dateTime.month().day().year()))")
+            Text(String(format: String(localized: "PORTAL_SUGGESTED_DATE"),
+                       suggestion.submittedAt.formatted(.dateTime.month().day().year())))
                 .font(.caption2).foregroundColor(.secondary)
         }
     }
 
     private var statsSection: some View {
         HStack(spacing: 24) {
-            stat(icon: "hand.thumbsup.fill", value: "\(suggestion.voteCount)", label: "Votes")
-            stat(icon: "person.fill.checkmark", value: "\(suggestion.participationIntentCount)", label: "Interested")
-            stat(icon: "dollarsign.circle.fill", value: "$\(suggestion.pledgedAmount)", label: "Pledged")
+            stat(icon: "hand.thumbsup.fill", value: "\(suggestion.voteCount)", label: String(localized: "PORTAL_VOTES"))
+            stat(
+                icon: "person.fill.checkmark",
+                value: "\(suggestion.participationIntentCount)",
+                label: String(localized: "PORTAL_INTERESTED")
+            )
+            stat(icon: "dollarsign.circle.fill", value: "$\(suggestion.pledgedAmount)", label: String(localized: "PORTAL_PLEDGED"))
         }
         .frame(maxWidth: .infinity)
     }
@@ -271,14 +277,12 @@ struct SuggestionDetailView: View {
     private var pledgeSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text(String(localized: "PORTAL_SUPPORT_HEADING")).font(.headline)
-            Text("Pledges are intent only — your card is not charged until a researcher"
-                + " confirms feasibility and a formal campaign activates."
-                + " If the target is not met, you are never charged.")
+            Text("PORTAL_PLEDGE_DISCLAIMER")
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
 
-            Picker("Pledge amount", selection: $selectedPledgeTier) {
+            Picker("PORTAL_PLEDGE_AMOUNT", selection: $selectedPledgeTier) {
                 ForEach(PledgeTier.allCases, id: \.self) { tier in
                     Text(tier.label).tag(tier)
                 }
@@ -291,7 +295,7 @@ struct SuggestionDetailView: View {
             }
 
             if selectedPledgeTier != .none {
-                Button("Pledge \(selectedPledgeTier.label)") {
+                Button(String(format: String(localized: "PORTAL_PLEDGE_BUTTON"), selectedPledgeTier.label)) {
                     store.pledge(amount: selectedPledgeTier.rawValue, on: suggestion.id)
                     suggestion.pledgeAmount = selectedPledgeTier.rawValue
                 }
@@ -299,8 +303,7 @@ struct SuggestionDetailView: View {
                 .tint(.orange)
                 .frame(maxWidth: .infinity)
 
-                Text("Funders receive a plain-language results summary and are acknowledged"
-                    + " in the published paper as 'NeurOne Patient Research Fund contributors.'")
+                Text("PORTAL_FUNDER_NOTE")
                     .font(.caption2)
                     .foregroundColor(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -320,8 +323,8 @@ struct SubmitSuggestionSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Study idea") {
-                    TextField("Title (one clear sentence)", text: $draft.title)
+                Section("PORTAL_STUDY_IDEA_2") {
+                    TextField("PORTAL_TITLE_ONE_CLEAR_SENTENCE", text: $draft.title)
                         .fixedSize(horizontal: false, vertical: true)
                     TextEditor(text: $draft.body)
                         .frame(minHeight: 100)
@@ -338,9 +341,9 @@ struct SubmitSuggestionSheet: View {
                         )
                 }
 
-                Section("Research areas") {
+                Section("PORTAL_RESEARCH_AREAS") {
                     ForEach(ResearchCategory.allCases, id: \.self) { category in
-                        Toggle(category.rawValue, isOn: Binding(
+                        Toggle(category.displayName, isOn: Binding(
                             get: { draft.categories.contains(category) },
                             set: { if $0 { draft.categories.insert(category) } else { draft.categories.remove(category) } }
                         ))
@@ -348,9 +351,8 @@ struct SubmitSuggestionSheet: View {
                 }
 
                 Section {
-                    Toggle("I would participate in this study if it ran", isOn: $draft.hasParticipationIntent)
-                    Text("Saying yes signals to researchers that there's a motivated"
-                        + " cohort ready to enrol — the hardest problem in trial recruitment.")
+                    Toggle("PORTAL_I_WOULD_PARTICIPATE_IN_THIS_STUDY_IF_IT_RAN", isOn: $draft.hasParticipationIntent)
+                    Text("PORTAL_INTENT_EXPLANATION")
                         .font(.caption)
                         .foregroundColor(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -359,7 +361,7 @@ struct SubmitSuggestionSheet: View {
                 }
 
                 Section {
-                    Picker("Pledge amount", selection: Binding(
+                    Picker("PORTAL_PLEDGE_AMOUNT", selection: Binding(
                         get: { PledgeTier(rawValue: draft.pledgeAmount) ?? .none },
                         set: { draft.pledgeAmount = $0.rawValue }
                     )) {
@@ -378,7 +380,7 @@ struct SubmitSuggestionSheet: View {
                     Text(String(localized: "PORTAL_SUPPORT_OPTIONAL"))
                 }
             }
-            .navigationTitle("Submit Research Idea")
+            .navigationTitle("PORTAL_SUBMIT_RESEARCH_IDEA")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -388,7 +390,7 @@ struct SubmitSuggestionSheet: View {
                     if isSubmitting {
                         ProgressView()
                     } else {
-                        Button("Submit") {
+                        Button("PORTAL_SUBMIT") {
                             Task {
                                 isSubmitting = true
                                 try? await store.submit(draft)

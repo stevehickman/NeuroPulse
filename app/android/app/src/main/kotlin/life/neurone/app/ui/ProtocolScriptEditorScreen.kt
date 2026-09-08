@@ -26,6 +26,9 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import life.neurone.core.protocol.NPPSError
 import life.neurone.core.protocol.NPProtocolLibrary
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import life.neurone.app.R
 
 // Port of iOS ProtocolScriptEditorView. Full-power NPPS text editor: authors compile through
 // the same parser/serializer the whole app uses. On Save the script is parsed to an
@@ -42,15 +45,17 @@ fun ProtocolScriptEditorScreen(
     var text by remember { mutableStateOf(initialText) }
     var error by remember { mutableStateOf<String?>(null) }
 
+    val context = LocalContext.current
+
     fun save() {
         try {
             val entry = library.importScript(text)
             library.save(entry)
             onSaved()
         } catch (e: NPPSError) {
-            error = "Line ${e.line}: ${e.messageText}"
+            error = context.getString(R.string.script_line_0_1, e.line, e.messageText)
         } catch (e: Exception) {
-            error = e.message ?: "Could not parse the protocol script."
+            error = e.message ?: context.getString(R.string.script_could_not_parse_the_protocol_script)
         }
     }
 
@@ -60,9 +65,9 @@ fun ProtocolScriptEditorScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onCancel) { Text("Cancel") }
-            Text("Protocol script", style = MaterialTheme.typography.titleMedium)
-            Button(onClick = { save() }) { Text("Save") }
+            TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) }
+            Text(stringResource(R.string.script_protocol_script), style = MaterialTheme.typography.titleMedium)
+            Button(onClick = { save() }) { Text(stringResource(R.string.protocol_composer_save)) }
         }
 
         error?.let {
@@ -76,7 +81,7 @@ fun ProtocolScriptEditorScreen(
             onValueChange = { text = it; error = null },
             modifier = Modifier.fillMaxWidth().weight(1f),
             textStyle = TextStyle(fontFamily = FontFamily.Monospace),
-            label = { Text("NPPS") },
+            label = { Text(stringResource(R.string.script_npps)) },
         )
     }
 }

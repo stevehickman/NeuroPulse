@@ -41,7 +41,7 @@
 
     <application
         android:name=".NeurOneApplication"
-        android:label="@string/app_name"
+        android:label="@string/ui_app_title"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"

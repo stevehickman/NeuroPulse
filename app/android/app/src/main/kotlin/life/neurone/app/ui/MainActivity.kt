@@ -92,10 +92,10 @@ private data class Tab(val labelRes: Int, val icon: androidx.compose.ui.graphics
 private fun MainScaffold(app: NeurOneApplication) {
     var selected by remember { mutableIntStateOf(0) }
     val tabs = listOf(
-        Tab(R.string.tab_session, Icons.Filled.PlayArrow),
+        Tab(R.string.session_title, Icons.Filled.PlayArrow),
         Tab(R.string.tab_history, Icons.Filled.DateRange),
         Tab(R.string.tab_consumables, Icons.Filled.ShoppingCart),
-        Tab(R.string.tab_consent, Icons.Filled.Lock),
+        Tab(R.string.setup_privacy_card_title, Icons.Filled.Lock),
         Tab(R.string.tab_settings, Icons.Filled.Settings),
     )
 
@@ -174,11 +174,12 @@ private fun SessionTab(app: NeurOneApplication, modifier: Modifier) {
                         app.protocolUploader.upload(entry.protocol)
                     else ->
                         life.neurone.app.session.ProtocolUploader.Result.Failure(
-                            "Composite protocol upload is not yet supported.",
+                            context.getString(R.string.and_ui_composite_protocol_upload_is_not_yet_support),
                         )
                 }
                 val message = when (result) {
-                    is life.neurone.app.session.ProtocolUploader.Result.Success -> "Protocol sent to hub"
+                    is life.neurone.app.session.ProtocolUploader.Result.Success ->
+                        context.getString(R.string.protocol_menu_protocol_sent_to_hub)
                     is life.neurone.app.session.ProtocolUploader.Result.Failure -> result.message
                 }
                 android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()

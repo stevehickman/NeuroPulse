@@ -22,14 +22,14 @@ enum OTAPhase: UInt8, CustomStringConvertible {
 
     var description: String {
         switch self {
-        case .idle:         return "Ready"
-        case .preparing:    return "Preparing update…"
-        case .transferring: return "Transferring firmware…"
-        case .verifying:    return "Verifying signature…"
-        case .verified:     return "Signature verified"
-        case .applying:     return "Applying update — do not disconnect"
-        case .complete:     return "Update complete"
-        case .failed:       return "Update failed"
+        case .idle: return String(localized: "OTA_PHASE_IDLE")
+        case .preparing: return String(localized: "OTA_PHASE_PREPARING")
+        case .transferring: return String(localized: "OTA_PHASE_TRANSFERRING")
+        case .verifying: return String(localized: "OTA_PHASE_VERIFYING")
+        case .verified: return String(localized: "OTA_PHASE_VERIFIED")
+        case .applying: return String(localized: "OTA_PHASE_APPLYING")
+        case .complete: return String(localized: "OTA_PHASE_COMPLETE")
+        case .failed: return String(localized: "OTA_PHASE_FAILED")
         }
     }
 

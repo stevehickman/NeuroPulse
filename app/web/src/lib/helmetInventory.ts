@@ -65,20 +65,24 @@ export const ELEMENT_TYPE_ORDINAL: Record<NPElementType, number> = {
   dual_electrode: 13,
 };
 
+/**
+ * Locale KEY per element type, resolved with t() at render time — see the note
+ * on NPModalityMeta for why a module-level table cannot hold resolved English.
+ */
 export const ELEMENT_TYPE_LABEL: Record<NPElementType, string> = {
-  led_660: '660nm LED',
-  led_808: '808nm LED',
-  led_1064: '1064nm LED',
-  led_1170: '1170nm laser',
-  eeg_electrode: 'EEG electrode',
-  tes_electrode: 'tES electrode',
-  vns_contact: 'VNS contact',
-  ntc: 'thermistor',
-  pd_forward: 'forward photodiode',
-  pd_back: 'scalp photodiode',
-  ir_prox: 'IR proximity sensor',
-  hall: 'Hall sensor',
-  dual_electrode: 'dual EEG/tES electrode',
+  led_660: 'ELEMENT_LED_660',
+  led_808: 'ELEMENT_LED_808',
+  led_1064: 'ELEMENT_LED_1064',
+  led_1170: 'ELEMENT_LED_1170',
+  eeg_electrode: 'ELEMENT_EEG_ELECTRODE',
+  tes_electrode: 'ELEMENT_TES_ELECTRODE',
+  vns_contact: 'ELEMENT_VNS_CONTACT',
+  ntc: 'ELEMENT_NTC',
+  pd_forward: 'ELEMENT_PD_FORWARD',
+  pd_back: 'ELEMENT_PD_BACK',
+  ir_prox: 'ELEMENT_IR_PROX',
+  hall: 'ELEMENT_HALL',
+  dual_electrode: 'ELEMENT_DUAL_ELECTRODE',
 };
 
 // ─── Module types ──────────────────────────────────────────────────────────────

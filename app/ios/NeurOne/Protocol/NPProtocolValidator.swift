@@ -23,6 +23,13 @@ struct NPValidationResult {
     var errors: [NPValidationIssue] { issues.filter { $0.severity == .error } }
     var warnings: [NPValidationIssue] { issues.filter { $0.severity == .warning } }
 
+    /// "1.0 mA (Hardware Limit)" — the limit value and where it came from.
+    /// Composed through a key so a locale can reorder or re-punctuate the pair.
+    static func limitLabel(_ limit: String, _ source: NPLimitSource) -> String {
+        String(format: String(localized: "VALIDATE_LIMIT_WITH_SOURCE_APPLE"),
+               limit, String(describing: source))
+    }
+
     mutating func addError(
         modality: NPModalityType? = nil,
         param: String,
@@ -38,7 +45,7 @@ struct NPValidationResult {
             parameterKey: param,
             parameterDisplayName: displayName,
             actualValueDescription: actual,
-            limitValueDescription: "\(limit) (\(source))",
+            limitValueDescription: NPValidationResult.limitLabel(limit, source),
             limitSource: source,
             message: message
         ))
@@ -59,7 +66,7 @@ struct NPValidationResult {
             parameterKey: param,
             parameterDisplayName: displayName,
             actualValueDescription: actual,
-            limitValueDescription: "\(limit) (\(source))",
+            limitValueDescription: NPValidationResult.limitLabel(limit, source),
             limitSource: source,
             message: message
         ))
@@ -90,11 +97,12 @@ struct NPProtocolValidator {
                 severity: .error,
                 modality: nil,
                 parameterKey: "modalities",
-                parameterDisplayName: "Modalities",
+                parameterDisplayName: String(localized: "VALIDATE_PARAM_MODALITIES"),
                 actualValueDescription: "0",
-                limitValueDescription: "≥1 (Hardware Limit)",
+                limitValueDescription: NPValidationResult.limitLabel(
+                    String(localized: "VALIDATE_LIMIT_AT_LEAST_1"), .hardware),
                 limitSource: .hardware,
-                message: "Protocol has no enabled modalities."
+                message: String(localized: "VALIDATE_MSG_GENERAL_MODALITIES")
             ))
         }
 
@@ -104,22 +112,22 @@ struct NPProtocolValidator {
             // Hard error: zero or negative duration is nonsensical (ISC-47).
             if dur <= 0 {
                 result.addError(
-                    param: "duration", displayName: "Duration",
+                    param: "duration", displayName: String(localized: "VALIDATE_PARAM_DURATION"),
                     actual: "\(dur)s", limit: "> 0s", source: .hardware,
-                    message: "Session duration must be greater than zero."
+                    message: String(localized: "VALIDATE_MSG_GENERAL_DURATION_3")
                 )
             } else if dur < 60 {
                 result.addWarning(
-                    param: "duration", displayName: "Duration",
+                    param: "duration", displayName: String(localized: "VALIDATE_PARAM_DURATION"),
                     actual: "\(dur)s", limit: "60s", source: .hardware,
-                    message: "Session is very short (< 1 minute). Verify this is intentional."
+                    message: String(localized: "VALIDATE_MSG_GENERAL_DURATION")
                 )
             }
             if dur > 7200 {
                 result.addWarning(
-                    param: "duration", displayName: "Duration",
+                    param: "duration", displayName: String(localized: "VALIDATE_PARAM_DURATION"),
                     actual: "\(dur / 60)m", limit: "120m", source: .hardware,
-                    message: "Session is very long (> 2 hours). Verify this is intentional."
+                    message: String(localized: "VALIDATE_MSG_GENERAL_DURATION_2")
                 )
             }
         }
@@ -142,14 +150,12 @@ struct NPProtocolValidator {
                     if chargeDensity > NPHardwareLimits.tdcsMaxChargeDensityUCcm2 {
                         result.addError(
                             modality: .tdcs,
-                            param: "chargeDensityUCcm2", displayName: "Charge Density",
+                            param: "chargeDensityUCcm2", displayName: String(localized: "VALIDATE_PARAM_CHARGE_DENSITY"),
                             actual: String(format: "%.1f µC/cm²", chargeDensity),
                             limit: "\(Int(NPHardwareLimits.tdcsMaxChargeDensityUCcm2)) µC/cm²",
                             source: .hardware,
-                            message: String(format:
-                                "Estimated tDCS charge density %.1f µC/cm² exceeds the " +
-                                "40 µC/cm² safety ceiling. Reduce current or session duration.",
-                                chargeDensity)
+                            message: String(format: String(localized: "VALIDATE_MSG_TDCS_CHARGEDENSITY"),
+                                            String(format: "%.1f", chargeDensity))
                         )
                     }
                 }
@@ -167,9 +173,10 @@ struct NPProtocolValidator {
         }
         if hasBES && hasTDCS {
             result.addWarning(
-                param: "cross_modality", displayName: "Cross-modality",
-                actual: "BES + tDCS active", limit: "Separate electrode paths", source: .hardware,
-                message: "BES and tDCS active simultaneously — ensure electrode paths are non-overlapping to prevent current interaction."
+                param: "cross_modality", displayName: String(localized: "VALIDATE_PARAM_CROSS_MODALITY"),
+                actual: String(localized: "VALIDATE_ACTUAL_BES_TDCS_ACTIVE"),
+                limit: String(localized: "VALIDATE_LIMIT_SEPARATE_PATHS"), source: .hardware,
+                message: String(localized: "VALIDATE_MSG_GENERAL_CROSS_MODALITY_2")
             )
         }
 
@@ -200,11 +207,12 @@ struct NPProtocolValidator {
                 severity: .error,
                 modality: nil,
                 parameterKey: "layers",
-                parameterDisplayName: "Layers",
+                parameterDisplayName: String(localized: "VALIDATE_PARAM_LAYERS"),
                 actualValueDescription: "0",
-                limitValueDescription: "≥1 (Hardware Limit)",
+                limitValueDescription: NPValidationResult.limitLabel(
+                    String(localized: "VALIDATE_LIMIT_AT_LEAST_1"), .hardware),
                 limitSource: .hardware,
-                message: "Composite protocol has no layers."
+                message: String(localized: "VALIDATE_MSG_GENERAL_LAYERS")
             ))
         }
         for layer in c.layers {
@@ -213,7 +221,8 @@ struct NPProtocolValidator {
                 let sub = validate(def)
                 let prefixed = sub.issues.map { issue -> NPValidationIssue in
                     var i = issue
-                    i.message = "[\(layer.protocolName)] \(i.message)"
+                    i.message = String(format: String(localized: "VALIDATE_LAYER_PREFIX_APPLE"),
+                                       layer.protocolName, i.message)
                     return i
                 }
                 result.issues.append(contentsOf: prefixed)
@@ -222,11 +231,13 @@ struct NPProtocolValidator {
                     severity: .error,
                     modality: nil,
                     parameterKey: "layer_ref",
-                    parameterDisplayName: "Layer",
+                    parameterDisplayName: String(localized: "VALIDATE_PARAM_LAYER"),
                     actualValueDescription: layer.protocolName,
-                    limitValueDescription: "Known protocol (Hardware Limit)",
+                    limitValueDescription: NPValidationResult.limitLabel(
+                        String(localized: "VALIDATE_LIMIT_KNOWN_PROTOCOL"), .hardware),
                     limitSource: .hardware,
-                    message: "Layer references unknown protocol '\(layer.protocolName)'."
+                    message: String(format: String(localized: "VALIDATE_MSG_GENERAL_LAYER_REF"),
+                                    layer.protocolName)
                 ))
             }
         }
@@ -285,17 +296,20 @@ struct NPProtocolValidator {
                 let mask = try p.resolveSocketMask()
                 if mask.isEmpty {
                     result.addError(
-                        modality: m, param: "target", displayName: "Target Zones",
-                        actual: p.target.displayName, limit: "≥1 socket", source: .hardware,
-                        message: "PBM transcranial target \(p.target.displayName) resolves to no sockets"
-                            + " — a session would report a delivered dose while lighting nothing."
+                        modality: m, param: "target", displayName: String(localized: "VALIDATE_PARAM_TARGET_ZONES"),
+                        actual: p.target.displayName,
+                        limit: String(localized: "VALIDATE_LIMIT_ONE_SOCKET"), source: .hardware,
+                        message: String(
+                            format: String(localized: "VALIDATE_MSG_GENERAL_TARGET_2"),
+                            String(describing: p.target.displayName)
+                        )
                     )
                 }
             } catch {
                 result.addError(
-                    modality: m, param: "target", displayName: "Target Zones",
+                    modality: m, param: "target", displayName: String(localized: "VALIDATE_PARAM_TARGET_ZONES"),
                     actual: p.target.displayName,
-                    limit: "a named zone in 00-zones.npps", source: .hardware,
+                    limit: String(localized: "VALIDATE_LIMIT_NAMED_ZONE"), source: .hardware,
                     message: error.localizedDescription
                 )
             }
@@ -304,54 +318,69 @@ struct NPProtocolValidator {
         // Hardware: duty cycle ≤ 25%
         if p.dutyCyclePercent > NPHardwareLimits.pbmDutyCycleMaxPercent {
             result.addError(
-                modality: m, param: "dutyCyclePercent", displayName: "Duty Cycle",
+                modality: m, param: "dutyCyclePercent", displayName: String(localized: "VALIDATE_PARAM_DUTY_CYCLE"),
                 actual: "\(p.dutyCyclePercent)%",
                 limit: "\(NPHardwareLimits.pbmDutyCycleMaxPercent)%",
                 source: .hardware,
-                message: "PBM duty cycle \(p.dutyCyclePercent)% exceeds firmware-enforced"
-                    + " maximum of \(NPHardwareLimits.pbmDutyCycleMaxPercent)%."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT_4"),
+                    String(describing: p.dutyCyclePercent),
+                    String(describing: NPHardwareLimits.pbmDutyCycleMaxPercent)
+                )
             )
         }
 
         // Hardware: frequency cannot be negative
         if p.frequencyHz < 0 {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(p.frequencyHz) Hz", limit: "≥0 Hz", source: .hardware,
-                message: "PBM frequency cannot be negative."
+                message: String(localized: "VALIDATE_MSG_PBM_TRANSCRANIAL_FREQUENCYHZ")
             )
         }
 
         // Dosage: max intensity
         if let maxI = lim?.maxIntensityPercent, p.intensityPercent > maxI {
             result.addError(
-                modality: m, param: "intensityPercent", displayName: "Intensity",
+                modality: m, param: "intensityPercent", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(Int(p.intensityPercent))%",
                 limit: "\(Int(maxI))%",
                 source: srcs?.maxIntensityPercent ?? .global_,
-                message: "PBM transcranial intensity \(Int(p.intensityPercent))% exceeds limit of \(Int(maxI))%."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENT_2"),
+                    String(describing: Int(p.intensityPercent)),
+                    String(describing: Int(maxI))
+                )
             )
         }
 
         // Dosage: max frequency
         if let maxF = lim?.maxFrequencyHz, p.frequencyHz > maxF {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(maxF))",
                 source: srcs?.maxFrequencyHz ?? .global_,
-                message: "PBM frequency \(formatHz(p.frequencyHz)) exceeds limit of \(formatHz(maxF))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_13"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(maxF))
+                )
             )
         }
 
         // Dosage: max duty cycle (configured limit, tighter than hardware 25%)
         if let maxDC = lim?.maxDutyCyclePercent, p.dutyCyclePercent > maxDC {
             result.addError(
-                modality: m, param: "dutyCyclePercent", displayName: "Duty Cycle",
+                modality: m, param: "dutyCyclePercent", displayName: String(localized: "VALIDATE_PARAM_DUTY_CYCLE"),
                 actual: "\(p.dutyCyclePercent)%",
                 limit: "\(maxDC)%",
                 source: srcs?.maxDutyCyclePercent ?? .global_,
-                message: "PBM duty cycle \(p.dutyCyclePercent)% exceeds configured limit of \(maxDC)%."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT_3"),
+                    String(describing: p.dutyCyclePercent),
+                    String(describing: maxDC)
+                )
             )
         }
 
@@ -365,13 +394,13 @@ struct NPProtocolValidator {
             let estimatedDose = peakMWcm2 * (p.intensityPercent / 100.0) * Double(dur) / 1000.0
             if estimatedDose > maxDose {
                 result.addError(
-                    modality: m, param: "sessionDoseJCm2", displayName: "Session Dose",
+                    modality: m, param: "sessionDoseJCm2", displayName: String(localized: "VALIDATE_PARAM_SESSION_DOSE"),
                     actual: String(format: "%.1f J/cm²", estimatedDose),
                     limit: String(format: "%.1f J/cm²", maxDose),
                     source: srcs?.maxSessionDoseJCm2 ?? .global_,
-                    message: String(format:
-                        "Estimated PBM session dose %.1f J/cm² exceeds the configured limit of %.1f J/cm².",
-                        estimatedDose, maxDose)
+                    message: String(format: String(localized: "VALIDATE_MSG_PBM_SESSION_DOSE"),
+                                    String(format: "%.1f", estimatedDose),
+                                    String(format: "%.1f", maxDose))
                 )
             }
         }
@@ -389,23 +418,30 @@ struct NPProtocolValidator {
         // Hardware: duty cycle ≤ 25%
         if p.dutyCyclePercent > NPHardwareLimits.pbmDutyCycleMaxPercent {
             result.addError(
-                modality: m, param: "dutyCyclePercent", displayName: "Duty Cycle",
+                modality: m, param: "dutyCyclePercent", displayName: String(localized: "VALIDATE_PARAM_DUTY_CYCLE"),
                 actual: "\(p.dutyCyclePercent)%",
                 limit: "\(NPHardwareLimits.pbmDutyCycleMaxPercent)%",
                 source: .hardware,
-                message: "Intranasal PBM duty cycle \(p.dutyCyclePercent)% exceeds firmware-enforced"
-                    + " maximum of \(NPHardwareLimits.pbmDutyCycleMaxPercent)%."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT_2"),
+                    String(describing: p.dutyCyclePercent),
+                    String(describing: NPHardwareLimits.pbmDutyCycleMaxPercent)
+                )
             )
         }
 
         // Dosage: max intensity
         if let maxI = lim?.maxIntensityPercent, p.intensityPercent > maxI {
             result.addError(
-                modality: m, param: "intensityPercent", displayName: "Intensity",
+                modality: m, param: "intensityPercent", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(Int(p.intensityPercent))%",
                 limit: "\(Int(maxI))%",
                 source: srcs?.maxIntensityPercent ?? .global_,
-                message: "Intranasal PBM intensity \(Int(p.intensityPercent))% exceeds limit of \(Int(maxI))%."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENT"),
+                    String(describing: Int(p.intensityPercent)),
+                    String(describing: Int(maxI))
+                )
             )
         }
 
@@ -414,11 +450,15 @@ struct NPProtocolValidator {
             let dur = interval.isContinuous ? nil : interval.intervalOnSeconds
             if let d = dur, d > maxDur {
                 result.addError(
-                    modality: m, param: "sessionDuration", displayName: "Session Duration",
+                    modality: m, param: "sessionDuration", displayName: String(localized: "VALIDATE_PARAM_SESSION_DURATION"),
                     actual: formatSeconds(d),
                     limit: formatSeconds(maxDur),
                     source: srcs?.maxSessionDurationSeconds ?? .global_,
-                    message: "Intranasal PBM session duration \(formatSeconds(d)) exceeds limit of \(formatSeconds(maxDur))."
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_8"),
+                        String(describing: formatSeconds(d)),
+                        String(describing: formatSeconds(maxDur))
+                    )
                 )
             }
         }
@@ -437,11 +477,15 @@ struct NPProtocolValidator {
             let bandRaw = p.band.rawValue
             if !allowedBands.contains(bandRaw) {
                 result.addError(
-                    modality: m, param: "band", displayName: "EEG Band",
+                    modality: m, param: "band", displayName: String(localized: "VALIDATE_PARAM_EEG_BAND"),
                     actual: p.band.displayName,
                     limit: allowedBands.joined(separator: ", "),
                     source: srcs?.allowedBands ?? .global_,
-                    message: "EEG band '\(p.band.displayName)' is not in the allowed list: \(allowedBands.joined(separator: ", "))."
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_BAND"),
+                        String(describing: p.band.displayName),
+                        String(describing: allowedBands.joined(separator: ", "))
+                    )
                 )
             }
         }
@@ -449,11 +493,11 @@ struct NPProtocolValidator {
         // Dosage: require closed loop
         if let requireCL = lim?.requireClosedLoop, requireCL, !p.closedLoopEnabled {
             result.addError(
-                modality: m, param: "closedLoopEnabled", displayName: "Closed Loop",
+                modality: m, param: "closedLoopEnabled", displayName: String(localized: "VALIDATE_PARAM_CLOSED_LOOP"),
                 actual: "disabled",
                 limit: "required",
                 source: srcs?.requireClosedLoop ?? .global_,
-                message: "EEG neurofeedback requires closed-loop mode to be enabled per current limits."
+                message: String(localized: "VALIDATE_MSG_GENERAL_CLOSEDLOOPENABLED")
             )
         }
     }
@@ -470,66 +514,88 @@ struct NPProtocolValidator {
         // Hardware: intensity ≤ 1.0 mA
         if p.intensityMilliamps > NPHardwareLimits.besTacsMaxMilliamps {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.besTacsMaxMilliamps) mA",
                 source: .hardware,
-                message: "BES/tACS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced"
-                    + " maximum of \(NPHardwareLimits.besTacsMaxMilliamps) mA."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_13"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.besTacsMaxMilliamps)
+                )
             )
         }
 
         // Hardware: frequency 0.5–40 Hz
         if p.frequencyHz < NPHardwareLimits.besTacsMinHz {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≥\(formatHz(NPHardwareLimits.besTacsMinHz))",
                 source: .hardware,
-                message: "BES/tACS frequency \(formatHz(p.frequencyHz)) is below minimum of \(formatHz(NPHardwareLimits.besTacsMinHz))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_12"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.besTacsMinHz))
+                )
             )
         }
         if p.frequencyHz > NPHardwareLimits.besTacsMaxHz {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≤\(formatHz(NPHardwareLimits.besTacsMaxHz))",
                 source: .hardware,
-                message: "BES/tACS frequency \(formatHz(p.frequencyHz)) exceeds firmware-enforced"
-                    + " maximum of \(formatHz(NPHardwareLimits.besTacsMaxHz))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_11"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.besTacsMaxHz))
+                )
             )
         }
 
         // Dosage: max intensity
         if let maxI = lim?.maxIntensityMilliamps, p.intensityMilliamps > maxI {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: "BES/tACS intensity \(p.intensityMilliamps) mA exceeds limit of \(maxI) mA."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_12"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
         // Dosage: max frequency
         if let maxF = lim?.maxFrequencyHz, p.frequencyHz > maxF {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(maxF))",
                 source: srcs?.maxFrequencyHz ?? .global_,
-                message: "BES/tACS frequency \(formatHz(p.frequencyHz)) exceeds limit of \(formatHz(maxF))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_10"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(maxF))
+                )
             )
         }
 
         // Dosage: min frequency
         if let minF = lim?.minFrequencyHz, p.frequencyHz < minF {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≥\(formatHz(minF))",
                 source: srcs?.minFrequencyHz ?? .global_,
-                message: "BES/tACS frequency \(formatHz(p.frequencyHz)) is below limit of \(formatHz(minF))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_9"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(minF))
+                )
             )
         }
 
@@ -537,12 +603,15 @@ struct NPProtocolValidator {
         if let maxDur = lim?.maxSessionDurationSeconds, !interval.isContinuous {
             if interval.intervalOnSeconds > maxDur {
                 result.addError(
-                    modality: m, param: "sessionDuration", displayName: "Session Duration",
+                    modality: m, param: "sessionDuration", displayName: String(localized: "VALIDATE_PARAM_SESSION_DURATION"),
                     actual: formatSeconds(interval.intervalOnSeconds),
                     limit: formatSeconds(maxDur),
                     source: srcs?.maxSessionDurationSeconds ?? .global_,
-                    message: "BES/tACS interval duration"
-                        + " \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_7"),
+                        String(describing: formatSeconds(interval.intervalOnSeconds)),
+                        String(describing: formatSeconds(maxDur))
+                    )
                 )
             }
         }
@@ -560,55 +629,73 @@ struct NPProtocolValidator {
         // Hardware: intensity 0.1–2.0 mA
         if p.intensityMilliamps < NPHardwareLimits.tdcsMinMilliamps {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "≥\(NPHardwareLimits.tdcsMinMilliamps) mA",
                 source: .hardware,
-                message: "tDCS intensity \(p.intensityMilliamps) mA is below the minimum of \(NPHardwareLimits.tdcsMinMilliamps) mA."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_11"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.tdcsMinMilliamps)
+                )
             )
         }
         if p.intensityMilliamps > NPHardwareLimits.tdcsMaxMilliamps {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.tdcsMaxMilliamps) mA",
                 source: .hardware,
-                message: "tDCS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced"
-                    + " maximum of \(NPHardwareLimits.tdcsMaxMilliamps) mA."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_10"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.tdcsMaxMilliamps)
+                )
             )
         }
 
         // Hardware: electrode pairs ≤ 3
         if p.electrodePairs.count > NPHardwareLimits.tdcsMaxElectrodePairs {
             result.addError(
-                modality: m, param: "electrodePairs", displayName: "Electrode Pairs",
+                modality: m, param: "electrodePairs", displayName: String(localized: "VALIDATE_PARAM_ELECTRODE_PAIRS"),
                 actual: "\(p.electrodePairs.count)",
                 limit: "\(NPHardwareLimits.tdcsMaxElectrodePairs)",
                 source: .hardware,
-                message: "tDCS has \(p.electrodePairs.count) electrode pairs,"
-                    + " exceeding the maximum of \(NPHardwareLimits.tdcsMaxElectrodePairs)."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_ELECTRODEPAIRS"),
+                    String(describing: p.electrodePairs.count),
+                    String(describing: NPHardwareLimits.tdcsMaxElectrodePairs)
+                )
             )
         }
 
         // Dosage: max intensity
         if let maxI = lim?.maxIntensityMilliamps, p.intensityMilliamps > maxI {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: "tDCS intensity \(p.intensityMilliamps) mA exceeds limit of \(maxI) mA."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_9"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
         // Dosage: session duration
         if let maxDur = lim?.maxSessionDurationSeconds, !interval.isContinuous, interval.intervalOnSeconds > maxDur {
             result.addError(
-                modality: m, param: "sessionDuration", displayName: "Session Duration",
+                modality: m, param: "sessionDuration", displayName: String(localized: "VALIDATE_PARAM_SESSION_DURATION"),
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: "tDCS session duration \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_6"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
     }
@@ -625,66 +712,88 @@ struct NPProtocolValidator {
         // Hardware: intensity ≤ 2.0 mA
         if p.intensityMilliamps > NPHardwareLimits.vnsMaxMilliamps {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.vnsMaxMilliamps) mA",
                 source: .hardware,
-                message: "VNS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced"
-                    + " maximum of \(NPHardwareLimits.vnsMaxMilliamps) mA."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_8"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.vnsMaxMilliamps)
+                )
             )
         }
 
         // Hardware: frequency 1–25 Hz
         if p.frequencyHz < NPHardwareLimits.vnsMinHz {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≥\(formatHz(NPHardwareLimits.vnsMinHz))",
                 source: .hardware,
-                message: "VNS frequency \(formatHz(p.frequencyHz)) is below minimum of \(formatHz(NPHardwareLimits.vnsMinHz))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_8"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.vnsMinHz))
+                )
             )
         }
         if p.frequencyHz > NPHardwareLimits.vnsMaxHz {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≤\(formatHz(NPHardwareLimits.vnsMaxHz))",
                 source: .hardware,
-                message: "VNS frequency \(formatHz(p.frequencyHz)) exceeds firmware-enforced"
-                    + " maximum of \(formatHz(NPHardwareLimits.vnsMaxHz))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_7"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.vnsMaxHz))
+                )
             )
         }
 
         // Dosage: max intensity
         if let maxI = lim?.maxIntensityMilliamps, p.intensityMilliamps > maxI {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: "VNS intensity \(p.intensityMilliamps) mA exceeds limit of \(maxI) mA."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_7"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
         // Dosage: max frequency
         if let maxF = lim?.maxFrequencyHz, p.frequencyHz > maxF {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(maxF))",
                 source: srcs?.maxFrequencyHz ?? .global_,
-                message: "VNS frequency \(formatHz(p.frequencyHz)) exceeds limit of \(formatHz(maxF))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_6"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(maxF))
+                )
             )
         }
 
         // Dosage: session duration
         if let maxDur = lim?.maxSessionDurationSeconds, !interval.isContinuous, interval.intervalOnSeconds > maxDur {
             result.addError(
-                modality: m, param: "sessionDuration", displayName: "Session Duration",
+                modality: m, param: "sessionDuration", displayName: String(localized: "VALIDATE_PARAM_SESSION_DURATION"),
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: "VNS session duration \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_5"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
 
@@ -693,11 +802,14 @@ struct NPProtocolValidator {
             let protoRaw = p.hrvProtocol.rawValue
             if !allowed.contains(protoRaw) {
                 result.addError(
-                    modality: m, param: "hrvProtocol", displayName: "HRV Protocol",
+                    modality: m, param: "hrvProtocol", displayName: String(localized: "VALIDATE_PARAM_HRV_PROTOCOL"),
                     actual: p.hrvProtocol.displayName,
                     limit: allowed.joined(separator: ", "),
                     source: srcs?.allowedProtocols ?? .global_,
-                    message: "HRV protocol '\(p.hrvProtocol.displayName)' is not in the allowed list."
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_HRVPROTOCOL"),
+                        String(describing: p.hrvProtocol.displayName)
+                    )
                 )
             }
         }
@@ -714,33 +826,45 @@ struct NPProtocolValidator {
         // Dosage: max volume
         if let maxVol = lim?.maxVolumePercent, p.volumePercent > maxVol {
             result.addError(
-                modality: m, param: "volumePercent", displayName: "Volume",
+                modality: m, param: "volumePercent", displayName: String(localized: "VALIDATE_PARAM_VOLUME"),
                 actual: "\(Int(p.volumePercent))%",
                 limit: "\(Int(maxVol))%",
                 source: srcs?.maxVolumePercent ?? .global_,
-                message: "Audio volume \(Int(p.volumePercent))% exceeds limit of \(Int(maxVol))%."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_VOLUMEPERCENT"),
+                    String(describing: Int(p.volumePercent)),
+                    String(describing: Int(maxVol))
+                )
             )
         }
 
         // Dosage: max binaural beats Hz
         if let maxBB = lim?.maxBinauralBeatsHz, let bb = p.binauralBeatsHz, bb > maxBB {
             result.addError(
-                modality: m, param: "binauralBeatsHz", displayName: "Binaural Beats",
+                modality: m, param: "binauralBeatsHz", displayName: String(localized: "VALIDATE_PARAM_BINAURAL_BEATS"),
                 actual: "\(formatHz(bb))",
                 limit: "\(formatHz(maxBB))",
                 source: srcs?.maxBinauralBeatsHz ?? .global_,
-                message: "Binaural beats \(formatHz(bb)) exceeds limit of \(formatHz(maxBB))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_BINAURALBEATSHZ"),
+                    String(describing: formatHz(bb)),
+                    String(describing: formatHz(maxBB))
+                )
             )
         }
 
         // Dosage: max isochronic tones Hz
         if let maxIT = lim?.maxIsochronicTonesHz, let it = p.isochronicTonesHz, it > maxIT {
             result.addError(
-                modality: m, param: "isochronicTonesHz", displayName: "Isochronic Tones",
+                modality: m, param: "isochronicTonesHz", displayName: String(localized: "VALIDATE_PARAM_ISOCHRONIC_TONES"),
                 actual: "\(formatHz(it))",
                 limit: "\(formatHz(maxIT))",
                 source: srcs?.maxIsochronicTonesHz ?? .global_,
-                message: "Isochronic tones \(formatHz(it)) exceeds limit of \(formatHz(maxIT))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_ISOCHRONICTONESHZ"),
+                    String(describing: formatHz(it)),
+                    String(describing: formatHz(maxIT))
+                )
             )
         }
     }
@@ -757,12 +881,15 @@ struct NPProtocolValidator {
         // Hardware: frequency ≤ 100 Hz
         if p.frequencyHz > NPHardwareLimits.visualMaxHz {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(NPHardwareLimits.visualMaxHz))",
                 source: .hardware,
-                message: "Visual stimulation frequency \(formatHz(p.frequencyHz)) exceeds firmware-enforced"
-                    + " maximum of \(formatHz(NPHardwareLimits.visualMaxHz))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_5"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.visualMaxHz))
+                )
             )
         }
 
@@ -770,14 +897,13 @@ struct NPProtocolValidator {
         // Default: warning. If blockHighRiskRange is true in limits: error.
         if p.frequencyHz >= NPHardwareLimits.visualHighRiskMinHz && p.frequencyHz <= NPHardwareLimits.visualHighRiskMaxHz {
             let blockRange = lim?.blockHighRiskRange ?? false
-            let msg = "Visual stimulation at \(formatHz(p.frequencyHz)) is in the"
-                + " photoparoxysmal risk zone"
-                + " (\(Int(NPHardwareLimits.visualHighRiskMinHz))"
-                + "–\(Int(NPHardwareLimits.visualHighRiskMaxHz)) Hz)."
-                + " Clinician unlock required for this range per device safety policy."
+            let msg = String(format: String(localized: "VALIDATE_MSG_VISUAL_HIGH_RISK"),
+                             formatHz(p.frequencyHz),
+                             String(Int(NPHardwareLimits.visualHighRiskMinHz)),
+                             String(Int(NPHardwareLimits.visualHighRiskMaxHz)))
             if blockRange {
                 result.addError(
-                    modality: m, param: "frequencyHz", displayName: "Frequency",
+                    modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                     actual: "\(formatHz(p.frequencyHz))",
                     limit: "Outside \(Int(NPHardwareLimits.visualHighRiskMinHz))–\(Int(NPHardwareLimits.visualHighRiskMaxHz)) Hz",
                     source: srcs?.blockHighRiskRange ?? .global_,
@@ -785,7 +911,7 @@ struct NPProtocolValidator {
                 )
             } else {
                 result.addWarning(
-                    modality: m, param: "frequencyHz", displayName: "Frequency",
+                    modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                     actual: "\(formatHz(p.frequencyHz))",
                     limit: "Outside \(Int(NPHardwareLimits.visualHighRiskMinHz))–\(Int(NPHardwareLimits.visualHighRiskMaxHz)) Hz",
                     source: .hardware,
@@ -797,22 +923,30 @@ struct NPProtocolValidator {
         // Dosage: max frequency
         if let maxF = lim?.maxFrequencyHz, p.frequencyHz > maxF {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(maxF))",
                 source: srcs?.maxFrequencyHz ?? .global_,
-                message: "Visual stimulation frequency \(formatHz(p.frequencyHz)) exceeds limit of \(formatHz(maxF))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_4"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(maxF))
+                )
             )
         }
 
         // Dosage: min frequency
         if let minF = lim?.minFrequencyHz, p.frequencyHz < minF {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "≥\(formatHz(minF))",
                 source: srcs?.minFrequencyHz ?? .global_,
-                message: "Visual stimulation frequency \(formatHz(p.frequencyHz)) is below limit of \(formatHz(minF))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_3"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(minF))
+                )
             )
         }
 
@@ -821,11 +955,14 @@ struct NPProtocolValidator {
             let modeRaw = p.mode.rawValue
             if !allowedModes.contains(modeRaw) {
                 result.addError(
-                    modality: m, param: "mode", displayName: "Visual Mode",
+                    modality: m, param: "mode", displayName: String(localized: "VALIDATE_PARAM_VISUAL_MODE"),
                     actual: p.mode.displayName,
                     limit: allowedModes.joined(separator: ", "),
                     source: srcs?.allowedModes ?? .global_,
-                    message: "Visual mode '\(p.mode.displayName)' is not in the allowed list."
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_MODE"),
+                        String(describing: p.mode.displayName)
+                    )
                 )
             }
         }
@@ -842,22 +979,30 @@ struct NPProtocolValidator {
         // Dosage: max intensity % MT
         if let maxMT = lim?.maxIntensityPercentMT, p.intensityPercentMT > maxMT {
             result.addError(
-                modality: m, param: "intensityPercentMT", displayName: "Intensity (%MT)",
+                modality: m, param: "intensityPercentMT", displayName: String(localized: "VALIDATE_PARAM_INTENSITY_MT"),
                 actual: "\(p.intensityPercentMT)% MT",
                 limit: "\(maxMT)% MT",
                 source: srcs?.maxIntensityPercentMT ?? .global_,
-                message: "TMS intensity \(p.intensityPercentMT)% MT exceeds limit of \(maxMT)% MT."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENTMT_2"),
+                    String(describing: p.intensityPercentMT),
+                    String(describing: maxMT)
+                )
             )
         }
 
         // Dosage: max pulses per session
         if let maxPulses = lim?.maxPulsesPerSession, p.pulseCount > maxPulses {
             result.addError(
-                modality: m, param: "pulseCount", displayName: "Pulse Count",
+                modality: m, param: "pulseCount", displayName: String(localized: "VALIDATE_PARAM_PULSE_COUNT"),
                 actual: "\(p.pulseCount) pulses",
                 limit: "\(maxPulses) pulses",
                 source: srcs?.maxPulsesPerSession ?? .global_,
-                message: "TMS pulse count \(p.pulseCount) exceeds session limit of \(maxPulses) pulses."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_PULSECOUNT"),
+                    String(describing: p.pulseCount),
+                    String(describing: maxPulses)
+                )
             )
         }
 
@@ -866,11 +1011,14 @@ struct NPProtocolValidator {
             let protoRaw = p.tmsProtocol.rawValue
             if !allowedProtos.contains(protoRaw) {
                 result.addError(
-                    modality: m, param: "tmsProtocol", displayName: "TMS Protocol",
+                    modality: m, param: "tmsProtocol", displayName: String(localized: "VALIDATE_PARAM_TMS_PROTOCOL"),
                     actual: p.tmsProtocol.displayName,
                     limit: allowedProtos.joined(separator: ", "),
                     source: srcs?.allowedProtocols ?? .global_,
-                    message: "TMS protocol '\(p.tmsProtocol.displayName)' is not in the allowed list."
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_TMSPROTOCOL"),
+                        String(describing: p.tmsProtocol.displayName)
+                    )
                 )
             }
         }
@@ -880,11 +1028,14 @@ struct NPProtocolValidator {
             let targetRaw = p.target.rawValue
             if !allowedTargets.contains(targetRaw) {
                 result.addError(
-                    modality: m, param: "target", displayName: "TMS Target",
+                    modality: m, param: "target", displayName: String(localized: "VALIDATE_PARAM_TMS_TARGET"),
                     actual: p.target.displayName,
                     limit: allowedTargets.joined(separator: ", "),
                     source: srcs?.allowedTargets ?? .global_,
-                    message: "TMS target '\(p.target.displayName)' is not in the allowed list."
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_TARGET"),
+                        String(describing: p.target.displayName)
+                    )
                 )
             }
         }
@@ -892,11 +1043,14 @@ struct NPProtocolValidator {
         // Warn: TMS at >120% MT is aggressive
         if p.intensityPercentMT > 120 {
             result.addWarning(
-                modality: m, param: "intensityPercentMT", displayName: "Intensity (%MT)",
+                modality: m, param: "intensityPercentMT", displayName: String(localized: "VALIDATE_PARAM_INTENSITY_MT"),
                 actual: "\(p.intensityPercentMT)% MT",
                 limit: "≤120% MT",
                 source: .hardware,
-                message: "TMS intensity \(p.intensityPercentMT)% MT is high (>120% MT). Verify this is prescribed."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYPERCENTMT"),
+                    String(describing: p.intensityPercentMT)
+                )
             )
         }
     }
@@ -913,46 +1067,60 @@ struct NPProtocolValidator {
         // Hardware: ≤ 1000 mW/cm²
         if p.intensityMWcm2 > NPHardwareLimits.deepPBMMaxMWcm2 {
             result.addError(
-                modality: m, param: "intensityMWcm2", displayName: "Intensity",
+                modality: m, param: "intensityMWcm2", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(Int(p.intensityMWcm2)) mW/cm²",
                 limit: "\(Int(NPHardwareLimits.deepPBMMaxMWcm2)) mW/cm²",
                 source: .hardware,
-                message: "Deep PBM 1170nm intensity \(Int(p.intensityMWcm2)) mW/cm²"
-                    + " exceeds maximum of \(Int(NPHardwareLimits.deepPBMMaxMWcm2)) mW/cm²."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMWCM2_2"),
+                    String(describing: Int(p.intensityMWcm2)),
+                    String(describing: Int(NPHardwareLimits.deepPBMMaxMWcm2))
+                )
             )
         }
 
         // Hardware: duty cycle ≤ 25%
         if p.dutyCyclePercent > NPHardwareLimits.pbmDutyCycleMaxPercent {
             result.addError(
-                modality: m, param: "dutyCyclePercent", displayName: "Duty Cycle",
+                modality: m, param: "dutyCyclePercent", displayName: String(localized: "VALIDATE_PARAM_DUTY_CYCLE"),
                 actual: "\(p.dutyCyclePercent)%",
                 limit: "\(NPHardwareLimits.pbmDutyCycleMaxPercent)%",
                 source: .hardware,
-                message: "Deep PBM duty cycle \(p.dutyCyclePercent)% exceeds firmware-enforced"
-                    + " maximum of \(NPHardwareLimits.pbmDutyCycleMaxPercent)%."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_DUTYCYCLEPERCENT"),
+                    String(describing: p.dutyCyclePercent),
+                    String(describing: NPHardwareLimits.pbmDutyCycleMaxPercent)
+                )
             )
         }
 
         // Dosage: max intensity
         if let maxI = lim?.maxIntensityMWcm2, p.intensityMWcm2 > maxI {
             result.addError(
-                modality: m, param: "intensityMWcm2", displayName: "Intensity",
+                modality: m, param: "intensityMWcm2", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(Int(p.intensityMWcm2)) mW/cm²",
                 limit: "\(Int(maxI)) mW/cm²",
                 source: srcs?.maxIntensityMWcm2 ?? .global_,
-                message: "Deep PBM 1170nm intensity \(Int(p.intensityMWcm2)) mW/cm² exceeds limit of \(Int(maxI)) mW/cm²."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMWCM2"),
+                    String(describing: Int(p.intensityMWcm2)),
+                    String(describing: Int(maxI))
+                )
             )
         }
 
         // Dosage: session duration
         if let maxDur = lim?.maxSessionDurationSeconds, !interval.isContinuous, interval.intervalOnSeconds > maxDur {
             result.addError(
-                modality: m, param: "sessionDuration", displayName: "Session Duration",
+                modality: m, param: "sessionDuration", displayName: String(localized: "VALIDATE_PARAM_SESSION_DURATION"),
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: "Deep PBM session duration \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_4"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
     }
@@ -969,35 +1137,45 @@ struct NPProtocolValidator {
         // Hardware: ≤ 4.0 mA
         if p.intensityMilliamps > NPHardwareLimits.clinicalTacsMaxMilliamps {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.clinicalTacsMaxMilliamps) mA",
                 source: .hardware,
-                message: "Clinical tACS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced"
-                    + " maximum of \(NPHardwareLimits.clinicalTacsMaxMilliamps) mA."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_6"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.clinicalTacsMaxMilliamps)
+                )
             )
         }
 
         // Dosage: max intensity
         if let maxI = lim?.maxIntensityMilliamps, p.intensityMilliamps > maxI {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: "Clinical tACS intensity \(p.intensityMilliamps) mA exceeds limit of \(maxI) mA."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_5"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
         // Dosage: session duration
         if let maxDur = lim?.maxSessionDurationSeconds, !interval.isContinuous, interval.intervalOnSeconds > maxDur {
             result.addError(
-                modality: m, param: "sessionDuration", displayName: "Session Duration",
+                modality: m, param: "sessionDuration", displayName: String(localized: "VALIDATE_PARAM_SESSION_DURATION"),
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: "Clinical tACS session duration"
-                        + " \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_3"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
     }
@@ -1014,35 +1192,45 @@ struct NPProtocolValidator {
         // Hardware: ≤ 2.0 mA per electrode
         if p.intensityMilliamps > NPHardwareLimits.hdTdcsMaxMilliampsPerElectrode {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.hdTdcsMaxMilliampsPerElectrode) mA",
                 source: .hardware,
-                message: "HD-tDCS intensity \(p.intensityMilliamps) mA/electrode exceeds"
-                    + " Bikson lab safety limit of \(NPHardwareLimits.hdTdcsMaxMilliampsPerElectrode)"
-                    + " mA/electrode for 3.5mm Ag/AgCl electrodes."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_4"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.hdTdcsMaxMilliampsPerElectrode)
+                )
             )
         }
 
         // Dosage: max intensity
         if let maxI = lim?.maxIntensityMilliamps, p.intensityMilliamps > maxI {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: "HD-tDCS intensity \(p.intensityMilliamps) mA exceeds limit of \(maxI) mA."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_3"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
         // Dosage: session duration
         if let maxDur = lim?.maxSessionDurationSeconds, !interval.isContinuous, interval.intervalOnSeconds > maxDur {
             result.addError(
-                modality: m, param: "sessionDuration", displayName: "Session Duration",
+                modality: m, param: "sessionDuration", displayName: String(localized: "VALIDATE_PARAM_SESSION_DURATION"),
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: "HD-tDCS session duration \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION_2"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
 
@@ -1051,11 +1239,14 @@ struct NPProtocolValidator {
             let montageRaw = p.montage.rawValue
             if !allowedMontages.contains(montageRaw) {
                 result.addError(
-                    modality: m, param: "montage", displayName: "Montage",
+                    modality: m, param: "montage", displayName: String(localized: "VALIDATE_PARAM_MONTAGE"),
                     actual: p.montage.displayName,
                     limit: allowedMontages.joined(separator: ", "),
                     source: srcs?.allowedMontages ?? .global_,
-                    message: "HD-tDCS montage '\(p.montage.displayName)' is not in the allowed list."
+                    message: String(
+                        format: String(localized: "VALIDATE_MSG_GENERAL_MONTAGE"),
+                        String(describing: p.montage.displayName)
+                    )
                 )
             }
         }
@@ -1073,57 +1264,70 @@ struct NPProtocolValidator {
         // Hardware: ≤ 2.0 mA (much more conservative than electroCore predicate ≤24 mA)
         if p.intensityMilliamps > NPHardwareLimits.cervicalVnsMaxMilliamps {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(NPHardwareLimits.cervicalVnsMaxMilliamps) mA",
                 source: .hardware,
-                message: "Cervical VNS intensity \(p.intensityMilliamps) mA exceeds firmware-enforced"
-                    + " maximum of \(NPHardwareLimits.cervicalVnsMaxMilliamps) mA."
-                    + " Cardiac interlock is always enforced by safety MCU regardless."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS_2"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: NPHardwareLimits.cervicalVnsMaxMilliamps)
+                )
             )
         }
 
         // Hardware: frequency in VNS range 1–25 Hz
         if p.frequencyHz < NPHardwareLimits.vnsMinHz || p.frequencyHz > NPHardwareLimits.vnsMaxHz {
             result.addError(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(formatHz(NPHardwareLimits.vnsMinHz))–\(formatHz(NPHardwareLimits.vnsMaxHz))",
                 source: .hardware,
-                message: "Cervical VNS frequency \(formatHz(p.frequencyHz)) is outside the valid"
-                    + " range of \(formatHz(NPHardwareLimits.vnsMinHz))–\(formatHz(NPHardwareLimits.vnsMaxHz))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ_2"),
+                    String(describing: formatHz(p.frequencyHz)),
+                    String(describing: formatHz(NPHardwareLimits.vnsMinHz)),
+                    String(describing: formatHz(NPHardwareLimits.vnsMaxHz))
+                )
             )
         }
 
         // Dosage: max intensity
         if let maxI = lim?.maxIntensityMilliamps, p.intensityMilliamps > maxI {
             result.addError(
-                modality: m, param: "intensityMilliamps", displayName: "Intensity",
+                modality: m, param: "intensityMilliamps", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityMilliamps) mA",
                 limit: "\(maxI) mA",
                 source: srcs?.maxIntensityMilliamps ?? .global_,
-                message: "Cervical VNS intensity \(p.intensityMilliamps) mA exceeds limit of \(maxI) mA."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYMILLIAMPS"),
+                    String(describing: p.intensityMilliamps),
+                    String(describing: maxI)
+                )
             )
         }
 
         // Dosage: session duration
         if let maxDur = lim?.maxSessionDurationSeconds, !interval.isContinuous, interval.intervalOnSeconds > maxDur {
             result.addError(
-                modality: m, param: "sessionDuration", displayName: "Session Duration",
+                modality: m, param: "sessionDuration", displayName: String(localized: "VALIDATE_PARAM_SESSION_DURATION"),
                 actual: formatSeconds(interval.intervalOnSeconds),
                 limit: formatSeconds(maxDur),
                 source: srcs?.maxSessionDurationSeconds ?? .global_,
-                message: "Cervical VNS session duration"
-                        + " \(formatSeconds(interval.intervalOnSeconds)) exceeds limit of \(formatSeconds(maxDur))."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_SESSIONDURATION"),
+                    String(describing: formatSeconds(interval.intervalOnSeconds)),
+                    String(describing: formatSeconds(maxDur))
+                )
             )
         }
 
         // Always note cardiac interlock is MCU-enforced
         result.addWarning(
-            modality: m, param: "cardiacInterlock", displayName: "Cardiac Interlock",
-            actual: "always on", limit: "non-overridable", source: .hardware,
-            message: "Cervical VNS cardiac rhythm interlock is always enforced by the safety MCU."
-                + " HR change >15 BPM within 5s will automatically stop stimulation."
+            modality: m, param: "cardiacInterlock", displayName: String(localized: "VALIDATE_PARAM_CARDIAC_INTERLOCK"),
+            actual: String(localized: "VALIDATE_ACTUAL_ALWAYS_ON"),
+            limit: String(localized: "VALIDATE_LIMIT_NON_OVERRIDABLE"), source: .hardware,
+            message: String(localized: "VALIDATE_MSG_GENERAL_CARDIACINTERLOCK")
         )
     }
 
@@ -1138,45 +1342,57 @@ struct NPProtocolValidator {
         // Hardware: intensity 0.6–1.2G
         if p.intensityG < NPHardwareLimits.vibrotactileMinG {
             result.addError(
-                modality: m, param: "intensityG", displayName: "Intensity",
+                modality: m, param: "intensityG", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityG) G",
                 limit: "≥\(NPHardwareLimits.vibrotactileMinG) G",
                 source: .hardware,
-                message: "Vibrotactile intensity \(p.intensityG) G is below the minimum of"
-                    + " \(NPHardwareLimits.vibrotactileMinG) G for effective entrainment."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYG_3"),
+                    String(describing: p.intensityG),
+                    String(describing: NPHardwareLimits.vibrotactileMinG)
+                )
             )
         }
         if p.intensityG > NPHardwareLimits.vibrotactileMaxG {
             result.addError(
-                modality: m, param: "intensityG", displayName: "Intensity",
+                modality: m, param: "intensityG", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityG) G",
                 limit: "\(NPHardwareLimits.vibrotactileMaxG) G",
                 source: .hardware,
-                message: "Vibrotactile intensity \(p.intensityG) G exceeds DRV2605L"
-                    + " driver maximum of \(NPHardwareLimits.vibrotactileMaxG) G."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYG_2"),
+                    String(describing: p.intensityG),
+                    String(describing: NPHardwareLimits.vibrotactileMaxG)
+                )
             )
         }
 
         // Hardware: frequency should be 40 Hz (locked)
         if abs(p.frequencyHz - NPHardwareLimits.vibrotactileFrequencyHz) > NPHardwareLimits.vibrotactileFreqToleranceHz {
             result.addWarning(
-                modality: m, param: "frequencyHz", displayName: "Frequency",
+                modality: m, param: "frequencyHz", displayName: String(localized: "VALIDATE_PARAM_FREQUENCY"),
                 actual: "\(formatHz(p.frequencyHz))",
                 limit: "\(Int(NPHardwareLimits.vibrotactileFrequencyHz)) Hz ±\(NPHardwareLimits.vibrotactileFreqToleranceHz) Hz",
                 source: .hardware,
-                message: "Vibrotactile frequency \(formatHz(p.frequencyHz)) deviates from the"
-                    + " firmware-locked 40 Hz ± 0.5 Hz target. Firmware will lock to 40 Hz regardless."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_FREQUENCYHZ"),
+                    String(describing: formatHz(p.frequencyHz))
+                )
             )
         }
 
         // Dosage: max intensity
         if let maxG = lim?.maxIntensityG, p.intensityG > maxG {
             result.addError(
-                modality: m, param: "intensityG", displayName: "Intensity",
+                modality: m, param: "intensityG", displayName: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 actual: "\(p.intensityG) G",
                 limit: "\(maxG) G",
                 source: srcs?.maxIntensityG ?? .global_,
-                message: "Vibrotactile intensity \(p.intensityG) G exceeds limit of \(maxG) G."
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_GENERAL_INTENSITYG"),
+                    String(describing: p.intensityG),
+                    String(describing: maxG)
+                )
             )
         }
     }

@@ -83,7 +83,8 @@ extension NPPBMTarget {
             guard let chosen = clinicianSockets, !chosen.isEmpty else {
                 throw NPSocketTargetError.clinicianSelectionMissing
             }
-            return try NPSocketMask(sockets: chosen, source: "the operator's selection")
+            return try NPSocketMask(sockets: chosen,
+                                    source: String(localized: "PBM_TARGET_OPERATOR_SELECTION"))
         }
     }
 
@@ -91,9 +92,9 @@ extension NPPBMTarget {
     var displayName: String {
         switch self {
         case .named(let names):
-            return names.isEmpty ? "No zones" : names.joined(separator: " + ")
+            return names.isEmpty ? String(localized: "PBM_TARGET_NO_ZONES") : names.joined(separator: " + ")
         case .clinicianSelected:
-            return "Clinician-selected sockets"
+            return String(localized: "PBM_TARGET_CLINICIAN_SELECTED")
         }
     }
 }
@@ -108,9 +109,9 @@ struct NPPBMTranscranialParams: Codable, Equatable {
 
         var displayName: String {
             switch self {
-            case .base660_808nm:   return "660 + 808nm (base)"
-            case .smart1064nm:     return "1064nm (Smart Module)"
-            case .tri660_808_1064: return "660 + 808 + 1064nm (Smart Module)"
+            case .base660_808nm: return String(localized: "PBM_WAVELENGTH_BASE660_808NM")
+            case .smart1064nm: return String(localized: "PBM_WAVELENGTH_SMART1064NM")
+            case .tri660_808_1064: return String(localized: "PBM_WAVELENGTH_TRI660_808_1064")
             }
         }
 
@@ -157,10 +158,10 @@ struct NPEEGNeurofeedbackParams: Codable, Equatable {
 
         var displayName: String {
             switch self {
-            case .all:     return "All 8 Channels"
-            case .front:   return "Frontal (Fp1, Fp2, F3, F4)"
-            case .central: return "Central (C3, C4, P3, P4)"
-            case .custom:  return "Custom"
+            case .all: return String(localized: "EEG_CHANNELS_ALL")
+            case .front: return String(localized: "EEG_CHANNELS_FRONT")
+            case .central: return String(localized: "EEG_CHANNELS_CENTRAL")
+            case .custom: return String(localized: "EEG_CHANNELS_CUSTOM")
             }
         }
 
@@ -186,13 +187,13 @@ struct NPEEGNeurofeedbackParams: Codable, Equatable {
 
         var displayName: String {
             switch self {
-            case .delta:      return "Delta (Sleep)"
-            case .theta:      return "Theta (Memory)"
-            case .alpha:      return "Alpha (Calm)"
-            case .beta:       return "Beta (Focus)"
-            case .gamma:      return "Gamma (Clarity)"
-            case .alphaTheta: return "Alpha-Theta"
-            case .gammaTheta: return "Gamma-Theta (Coupled)"
+            case .delta: return String(localized: "EEG_BAND_DELTA")
+            case .theta: return String(localized: "EEG_BAND_THETA")
+            case .alpha: return String(localized: "EEG_BAND_ALPHA")
+            case .beta: return String(localized: "EEG_BAND_BETA")
+            case .gamma: return String(localized: "EEG_BAND_GAMMA")
+            case .alphaTheta: return String(localized: "EEG_BAND_ALPHATHETA")
+            case .gammaTheta: return String(localized: "EEG_BAND_GAMMATHETA")
             }
         }
 
@@ -229,7 +230,15 @@ struct NPBESTacsParams: Codable, Equatable {
         case square
         case triangular
 
-        var displayName: String { rawValue.capitalized }
+        // Was `rawValue.capitalized`, which derives English from an identifier
+        // and cannot be translated. Each case now names a key.
+        var displayName: String {
+            switch self {
+            case .sinusoidal: return String(localized: "BES_WAVEFORM_SINUSOIDAL")
+            case .square:     return String(localized: "BES_WAVEFORM_SQUARE")
+            case .triangular: return String(localized: "BES_WAVEFORM_TRIANGULAR")
+            }
+        }
     }
 
     var frequencyHz: Double = 20         // 0.5–40 Hz
@@ -257,10 +266,10 @@ struct NPVNSHRVParams: Codable, Equatable {
 
         var displayName: String {
             switch self {
-            case .standalone:      return "Standalone Coherence Training"
-            case .tavnsSync:       return "HRV + taVNS Synchronized"
-            case .eegBiofeedback:  return "HRV + EEG Dual Biofeedback"
-            case .combinedPBM:     return "HRV + PBM Combined"
+            case .standalone: return String(localized: "HRV_PROTOCOL_STANDALONE")
+            case .tavnsSync: return String(localized: "HRV_PROTOCOL_TAVNSSYNC")
+            case .eegBiofeedback: return String(localized: "HRV_PROTOCOL_EEGBIOFEEDBACK")
+            case .combinedPBM: return String(localized: "HRV_PROTOCOL_COMBINEDPBM")
             }
         }
     }
@@ -279,7 +288,14 @@ struct NPAudioEntrainmentParams: Codable, Equatable {
         case pink
         case brown
 
-        var displayName: String { rawValue.capitalized + " Noise" }
+        // Was `rawValue.capitalized + " Noise"`: an identifier plus an English
+        // suffix, which no locale can reorder. Each case now names a key.
+        var displayName: String {
+            switch self {
+            case .pink:  return String(localized: "AUDIO_NOISE_PINK")
+            case .brown: return String(localized: "AUDIO_NOISE_BROWN")
+            }
+        }
     }
 
     var binauralBeatsHz: Double? = 20
@@ -312,10 +328,10 @@ struct NPVisualStimParams: Codable, Equatable {
 
         var displayName: String {
             switch self {
-            case .binocular:  return "Binocular Flicker"
-            case .emdr:       return "EMDR L/R Alternation"
-            case .retinalPBM: return "Retinal PBM"
-            case .modeF:      return "Mode F (Invisible NIR)"
+            case .binocular: return String(localized: "VISUAL_MODE_BINOCULAR")
+            case .emdr: return String(localized: "VISUAL_MODE_EMDR")
+            case .retinalPBM: return String(localized: "VISUAL_MODE_RETINALPBM")
+            case .modeF: return String(localized: "VISUAL_MODE_MODEF")
             }
         }
 
@@ -349,8 +365,8 @@ struct NPqEEG21chParams: Codable, Equatable {
 
         var displayName: String {
             switch self {
-            case .standard1020: return "Standard 10-20 + FC3/FC4/Oz/A1/A2"
-            case .custom:       return "Custom Montage"
+            case .standard1020: return String(localized: "QEEG_MONTAGE_STANDARD1020")
+            case .custom: return String(localized: "QEEG_MONTAGE_CUSTOM")
             }
         }
     }
@@ -363,9 +379,9 @@ struct NPqEEG21chParams: Codable, Equatable {
 
         var displayName: String {
             switch self {
-            case .linkedEar: return "Linked Ear (A1+A2)"
-            case .cz:        return "Cz Reference"
-            case .average:   return "Average Reference"
+            case .linkedEar: return String(localized: "QEEG_REFERENCE_LINKEDEAR")
+            case .cz: return String(localized: "QEEG_REFERENCE_CZ")
+            case .average: return String(localized: "QEEG_REFERENCE_AVERAGE")
             }
         }
     }
@@ -386,9 +402,9 @@ struct NPTMSParams: Codable, Equatable {
 
         var displayName: String {
             switch self {
-            case .rTMS: return "rTMS (Repetitive)"
-            case .TBS:  return "TBS (Theta Burst)"
-            case .iTBS: return "iTBS (Intermittent TBS)"
+            case .rTMS: return String(localized: "TMS_PROTOCOL_RTMS")
+            case .TBS: return String(localized: "TMS_PROTOCOL_TBS")
+            case .iTBS: return String(localized: "TMS_PROTOCOL_ITBS")
             }
         }
     }
@@ -405,13 +421,13 @@ struct NPTMSParams: Codable, Equatable {
 
         var displayName: String {
             switch self {
-            case .dlpfc_l: return "Left DLPFC"
-            case .dlpfc_r: return "Right DLPFC"
-            case .vlpfc_l: return "Left VLPFC"
-            case .acc:     return "Anterior Cingulate (ACC)"
-            case .mpfc:    return "Medial PFC"
-            case .m1_l:    return "Left Motor Cortex (M1)"
-            case .m1_r:    return "Right Motor Cortex (M1)"
+            case .dlpfc_l: return String(localized: "TMS_TARGET_DLPFC_L")
+            case .dlpfc_r: return String(localized: "TMS_TARGET_DLPFC_R")
+            case .vlpfc_l: return String(localized: "TMS_TARGET_VLPFC_L")
+            case .acc: return String(localized: "TMS_TARGET_ACC")
+            case .mpfc: return String(localized: "TMS_TARGET_MPFC")
+            case .m1_l: return String(localized: "TMS_TARGET_M1_L")
+            case .m1_r: return String(localized: "TMS_TARGET_M1_R")
             }
         }
     }
@@ -451,9 +467,9 @@ struct NPHDTdcsParams: Codable, Equatable {
 
         var displayName: String {
             switch self {
-            case .ring4x1:      return "4×1 Ring (Most Focal)"
-            case .bilateral4x1: return "Bilateral 4×1"
-            case .standard2el:  return "Standard 2-Electrode"
+            case .ring4x1: return String(localized: "HDTDCS_MONTAGE_RING4X1")
+            case .bilateral4x1: return String(localized: "HDTDCS_MONTAGE_BILATERAL4X1")
+            case .standard2el: return String(localized: "HDTDCS_MONTAGE_STANDARD2EL")
             }
         }
     }
@@ -845,9 +861,9 @@ struct NPCompositeProtocol: Codable, Identifiable, Equatable {
 
         var displayName: String {
             switch self {
-            case .merge:      return "Merge (overlap simultaneous)"
-            case .sequential: return "Sequential (no overlap)"
-            case .override:   return "Override (later layer wins)"
+            case .merge: return String(localized: "COMPOSITE_CONFLICT_MERGE")
+            case .sequential: return String(localized: "COMPOSITE_CONFLICT_SEQUENTIAL")
+            case .override: return String(localized: "COMPOSITE_CONFLICT_OVERRIDE")
             }
         }
     }

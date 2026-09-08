@@ -24,9 +24,6 @@ struct ModalityEditorRow: View {
                         Text(modality.modalityType.displayName)
                             .font(.subheadline.weight(.medium))
                             .foregroundColor(modality.enabled ? .primary : .secondary)
-                        Text(modality.modalityType.consumerName)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
                     }
 
                     Spacer()
@@ -116,7 +113,7 @@ struct ModalityEditorRow: View {
                 set: { modality.params = .visualStimulation($0) }
             ))
         case .qeeg21ch(let p):
-            T2ParamsView(label: "21-Channel qEEG") {
+            T2ParamsView(label: NPModalityType.qeeg21ch.displayName) {
                 qEEG21chParamsView(params: Binding(
                     get: { p },
                     set: { modality.params = .qeeg21ch($0) }
@@ -130,28 +127,28 @@ struct ModalityEditorRow: View {
                 ))
             }
         case .pbmDeep1170nm(let p):
-            T2ParamsView(label: "Deep PBM 1170nm") {
+            T2ParamsView(label: String(localized: "ZONE_MODULE_TYPE_PBM_1170")) {
                 DeepPBMParamsView(params: Binding(
                     get: { p },
                     set: { modality.params = .pbmDeep1170nm($0) }
                 ))
             }
         case .clinicalTacs(let p):
-            T2ParamsView(label: "Clinical tACS") {
+            T2ParamsView(label: NPModalityType.clinicalTacs.displayName) {
                 ClinicalTacsParamsView(params: Binding(
                     get: { p },
                     set: { modality.params = .clinicalTacs($0) }
                 ))
             }
         case .hdTdcs(let p):
-            T2ParamsView(label: "HD-tDCS") {
+            T2ParamsView(label: NPModalityType.hdTdcs.displayName) {
                 HDTdcsParamsView(params: Binding(
                     get: { p },
                     set: { modality.params = .hdTdcs($0) }
                 ))
             }
         case .cervicalVns(let p):
-            T2ParamsView(label: "Cervical VNS") {
+            T2ParamsView(label: String(localized: "MODALITY_CERVICAL_VNS_NAME")) {
                 CervicalVnsParamsView(params: Binding(
                     get: { p },
                     set: { modality.params = .cervicalVns($0) }
@@ -174,7 +171,7 @@ struct T2ParamsView<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("Requires T2 Hardware", systemImage: "exclamationmark.triangle")
+            Label("MODALITY_REQUIRES_T2_HARDWARE", systemImage: "exclamationmark.triangle")
                 .font(.caption)
                 .foregroundColor(.orange)
             content
@@ -259,7 +256,7 @@ struct PBMTranscranialParamsView: View {
             // Zone selection
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "MODALITY_ZONES")).font(.caption).foregroundColor(.secondary)
-                Picker("Zones", selection: zoneChoice) {
+                Picker("MODALITY_ZONES", selection: zoneChoice) {
                     ForEach(zoneChoices, id: \.self) { choice in
                         Text(choice.displayName).tag(choice)
                     }
@@ -273,14 +270,14 @@ struct PBMTranscranialParamsView: View {
             // Wavelength
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "MODALITY_WAVELENGTH")).font(.caption).foregroundColor(.secondary)
-                Picker("Wavelength", selection: $params.wavelength) {
+                Picker("MODALITY_WAVELENGTH", selection: $params.wavelength) {
                     ForEach(NPPBMTranscranialParams.Wavelength.allCases) { wl in
                         Text(wl.displayName + (wl.requiresSmartModule ? " ★" : "")).tag(wl)
                     }
                 }
                 .pickerStyle(.menu)
                 if params.wavelength.requiresSmartModule {
-                    Text("★ Smart Module required")
+                    Text("MODALITY_SMART_MODULE_REQUIRED")
                         .font(.caption2)
                         .foregroundColor(.orange)
                 }
@@ -288,7 +285,7 @@ struct PBMTranscranialParamsView: View {
 
             // Intensity
             SliderRow(
-                label: "Intensity",
+                label: String(localized: "VALIDATE_PARAM_INTENSITY"),
                 value: $params.intensityPercent,
                 range: 0...100,
                 format: { "\(Int($0))%" }
@@ -344,8 +341,18 @@ struct PBMIntranasalParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: "Intensity", value: $params.intensityPercent, range: 0...100, format: { "\(Int($0))%" })
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 0...40, format: { "\(Int($0))Hz" })
+            SliderRow(
+                label: String(localized: "VALIDATE_PARAM_INTENSITY"),
+                value: $params.intensityPercent,
+                range: 0...100,
+                format: { "\(Int($0))%" }
+            )
+            SliderRow(
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 0...40,
+                format: { "\(Int($0))Hz" }
+            )
             if params.frequencyHz > 0 {
                 Stepper(value: $params.dutyCyclePercent, in: 5...25, step: 5) {
                     HStack {
@@ -368,7 +375,7 @@ struct EEGNeurofeedbackParamsView: View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "MODALITY_BAND")).font(.caption).foregroundColor(.secondary)
-                Picker("Band", selection: $params.band) {
+                Picker("MODALITY_BAND", selection: $params.band) {
                     ForEach(NPEEGNeurofeedbackParams.EEGBand.allCases) { band in
                         Text(band.displayName).tag(band)
                     }
@@ -381,7 +388,7 @@ struct EEGNeurofeedbackParamsView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "MODALITY_CHANNELS")).font(.caption).foregroundColor(.secondary)
-                Picker("Channels", selection: $params.channels) {
+                Picker("MODALITY_CHANNELS", selection: $params.channels) {
                     ForEach(NPEEGNeurofeedbackParams.ChannelSelection.allCases) { ch in
                         Text(ch.displayName).tag(ch)
                     }
@@ -389,7 +396,7 @@ struct EEGNeurofeedbackParamsView: View {
                 .pickerStyle(.menu)
             }
 
-            Toggle("Closed-Loop EEG Adaptation", isOn: $params.closedLoopEnabled)
+            Toggle("MODALITY_CLOSED_LOOP_EEG_ADAPTATION", isOn: $params.closedLoopEnabled)
                 .font(.caption)
         }
     }
@@ -403,20 +410,20 @@ struct BESTacsParamsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SliderRow(
-                label: "Frequency (Hz)",
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
                 value: $params.frequencyHz,
                 range: 0.5...40,
                 format: { String(format: "%.1f Hz", $0) }
             )
             SliderRow(
-                label: "Intensity (mA)",
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
                 range: 0...1,
                 format: { String(format: "%.2f mA", $0) }
             )
             VStack(alignment: .leading, spacing: 4) {
                 Text(String(localized: "MODALITY_WAVEFORM")).font(.caption).foregroundColor(.secondary)
-                Picker("Waveform", selection: $params.waveform) {
+                Picker("MODALITY_WAVEFORM", selection: $params.waveform) {
                     ForEach(NPBESTacsParams.Waveform.allCases) { wf in
                         Text(wf.displayName).tag(wf)
                     }
@@ -436,20 +443,20 @@ struct TDCSParamsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SliderRow(
-                label: "Intensity (mA)",
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
                 range: 0.1...2.0,
                 format: { String(format: "%.2f mA", $0) }
             )
             HStack {
-                Text("Ramp (30s)").font(.caption).foregroundColor(.secondary)
+                Text("MODALITY_RAMP_30S").font(.caption).foregroundColor(.secondary)
                 Spacer()
-                Text("Hardware-enforced")
+                Text("MODALITY_HARDWARE_ENFORCED")
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Electrode Pairs (e.g. Fp1,P3)").font(.caption).foregroundColor(.secondary)
+                Text("MODALITY_ELECTRODE_PAIRS_E_G_FP1_P3").font(.caption).foregroundColor(.secondary)
                 ForEach(Array(params.electrodePairs.enumerated()), id: \.offset) { idx, pair in
                     HStack {
                         Text(pair.joined(separator: " → "))
@@ -465,11 +472,11 @@ struct TDCSParamsView: View {
                     }
                 }
                 HStack {
-                    TextField("Anode,Cathode", text: $pairsText)
+                    TextField("MODALITY_ANODE_CATHODE", text: $pairsText)
                         .font(.caption)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
-                    Button("Add") {
+                    Button("UI_ADD") {
                         let parts = pairsText.split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
                         if parts.count >= 2 {
                             params.electrodePairs.append(parts)
@@ -492,12 +499,22 @@ struct VNSHRVParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 1...25, format: { "\(Int($0)) Hz" })
-            SliderRow(label: "Intensity (mA)", value: $params.intensityMilliamps, range: 0...2, format: { String(format: "%.2f mA", $0) })
+            SliderRow(
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 1...25,
+                format: { "\(Int($0)) Hz" }
+            )
+            SliderRow(
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
+                value: $params.intensityMilliamps,
+                range: 0...2,
+                format: { String(format: "%.2f mA", $0) }
+            )
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("HRV Protocol").font(.caption).foregroundColor(.secondary)
-                Picker("HRV Protocol", selection: $params.hrvProtocol) {
+                Text("VALIDATE_PARAM_HRV_PROTOCOL").font(.caption).foregroundColor(.secondary)
+                Picker("VALIDATE_PARAM_HRV_PROTOCOL", selection: $params.hrvProtocol) {
                     ForEach(NPVNSHRVParams.HRVProtocol.allCases) { p in
                         Text(p.displayName).tag(p)
                     }
@@ -507,7 +524,7 @@ struct VNSHRVParamsView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
-                    Text("Breathing Rate").font(.caption).foregroundColor(.secondary)
+                    Text("UI_MOD_BREATHING_RATE").font(.caption).foregroundColor(.secondary)
                     Spacer()
                     Text(String(format: "%.1f breaths/min", params.resonanceBreathingRate))
                         .font(.caption)
@@ -529,14 +546,14 @@ struct AudioEntrainmentParamsView: View {
         VStack(alignment: .leading, spacing: 12) {
             // Binaural beats
             VStack(alignment: .leading, spacing: 4) {
-                Toggle("Binaural Beats", isOn: Binding(
+                Toggle("MODALITY_BINAURAL_BEATS", isOn: Binding(
                     get: { params.binauralBeatsHz != nil },
                     set: { params.binauralBeatsHz = $0 ? 20 : nil }
                 ))
                 .font(.caption)
                 if params.binauralBeatsHz != nil {
                     SliderRow(
-                        label: "Binaural Hz",
+                        label: String(localized: "MODEDIT_BINAURAL_HZ"),
                         value: Binding(
                             get: { params.binauralBeatsHz ?? 20 },
                             set: { params.binauralBeatsHz = $0 }
@@ -549,14 +566,14 @@ struct AudioEntrainmentParamsView: View {
 
             // Isochronic tones
             VStack(alignment: .leading, spacing: 4) {
-                Toggle("Isochronic Tones", isOn: Binding(
+                Toggle("MODALITY_ISOCHRONIC_TONES", isOn: Binding(
                     get: { params.isochronicTonesHz != nil },
                     set: { params.isochronicTonesHz = $0 ? 40 : nil }
                 ))
                 .font(.caption)
                 if params.isochronicTonesHz != nil {
                     SliderRow(
-                        label: "Isochronic Hz",
+                        label: String(localized: "MODEDIT_ISOCHRONIC_HZ"),
                         value: Binding(
                             get: { params.isochronicTonesHz ?? 40 },
                             set: { params.isochronicTonesHz = $0 }
@@ -569,15 +586,15 @@ struct AudioEntrainmentParamsView: View {
 
             // Noise
             VStack(alignment: .leading, spacing: 4) {
-                Text("Noise").font(.caption).foregroundColor(.secondary)
-                Picker("Noise", selection: Binding(
+                Text("MODALITY_NOISE").font(.caption).foregroundColor(.secondary)
+                Picker("MODALITY_NOISE", selection: Binding(
                     get: { params.noiseType?.rawValue ?? "none" },
                     set: { val in
                         if val == "none" { params.noiseType = nil }
                         else { params.noiseType = NPAudioEntrainmentParams.NoiseType(rawValue: val) }
                     }
                 )) {
-                    Text("None").tag("none")
+                    Text("UI_NONE").tag("none")
                     ForEach(NPAudioEntrainmentParams.NoiseType.allCases) { nt in
                         Text(nt.displayName).tag(nt.rawValue)
                     }
@@ -585,9 +602,14 @@ struct AudioEntrainmentParamsView: View {
                 .pickerStyle(.segmented)
             }
 
-            SliderRow(label: "Volume", value: $params.volumePercent, range: 0...100, format: { "\(Int($0))%" })
-            Toggle("EEG-Adaptive Frequency", isOn: $params.eegAdaptive).font(.caption)
-            Toggle("Bone Conduction Breathing Pacer", isOn: $params.boneConductionPacer).font(.caption)
+            SliderRow(
+                label: String(localized: "VALIDATE_PARAM_VOLUME"),
+                value: $params.volumePercent,
+                range: 0...100,
+                format: { "\(Int($0))%" }
+            )
+            Toggle("MODALITY_EEG_ADAPTIVE_FREQUENCY", isOn: $params.eegAdaptive).font(.caption)
+            Toggle("MODALITY_BONE_CONDUCTION_BREATHING_PACER", isOn: $params.boneConductionPacer).font(.caption)
         }
     }
 }
@@ -600,15 +622,15 @@ struct VisualStimParamsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SliderRow(
-                label: "Frequency (Hz)",
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
                 value: $params.frequencyHz,
                 range: 0.5...100,
                 format: { String(format: "%.1f Hz", $0) }
             )
 
             VStack(alignment: .leading, spacing: 4) {
-                Text("Mode").font(.caption).foregroundColor(.secondary)
-                Picker("Mode", selection: $params.mode) {
+                Text("VALIDATE_PARAM_MODE").font(.caption).foregroundColor(.secondary)
+                Picker("VALIDATE_PARAM_MODE", selection: $params.mode) {
                     ForEach(NPVisualStimParams.VisualMode.allCases) { m in
                         Text(m.displayName).tag(m)
                     }
@@ -618,7 +640,7 @@ struct VisualStimParamsView: View {
 
             if params.mode == .emdr {
                 SliderRow(
-                    label: "EMDR Cadence (Hz)",
+                    label: String(localized: "MODEDIT_EMDR_CADENCE_HZ"),
                     value: $params.emdrCadenceHz,
                     range: 0.5...4,
                     format: { String(format: "%.1f Hz", $0) }
@@ -626,10 +648,10 @@ struct VisualStimParamsView: View {
             }
 
             if params.mode == .retinalPBM || params.mode == .modeF {
-                Toggle("Enable Mode F (Invisible NIR)", isOn: $params.enableModeF)
+                Toggle("MODALITY_ENABLE_MODE_F_INVISIBLE_NIR", isOn: $params.enableModeF)
                     .font(.caption)
                 if params.enableModeF {
-                    Text("808–830nm retinal PBM during normal-looking wear. Regulatory opinion required before clinical claims.")
+                    Text("MODALITY_808_830NM_RETINAL_PBM_DURING_NORMAL_LOOKING")
                         .font(.caption2)
                         .foregroundColor(.orange)
                 }
@@ -646,18 +668,18 @@ struct qEEG21chParamsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Montage").font(.caption).foregroundColor(.secondary)
-                Picker("Montage", selection: $params.montage) {
+                Text("VALIDATE_PARAM_MONTAGE").font(.caption).foregroundColor(.secondary)
+                Picker("VALIDATE_PARAM_MONTAGE", selection: $params.montage) {
                     ForEach(NPqEEG21chParams.Montage.allCases) { m in
                         Text(m.displayName).tag(m)
                     }
                 }
                 .pickerStyle(.menu)
             }
-            Toggle("sLORETA Source Imaging", isOn: $params.sloretaEnabled).font(.caption)
+            Toggle("MODALITY_SLORETA_SOURCE_IMAGING", isOn: $params.sloretaEnabled).font(.caption)
             VStack(alignment: .leading, spacing: 4) {
-                Text("Reference").font(.caption).foregroundColor(.secondary)
-                Picker("Reference", selection: $params.reference) {
+                Text("UI_MOD_REFERENCE").font(.caption).foregroundColor(.secondary)
+                Picker("UI_MOD_REFERENCE", selection: $params.reference) {
                     ForEach(NPqEEG21chParams.Reference.allCases) { r in
                         Text(r.displayName).tag(r)
                     }
@@ -676,17 +698,22 @@ struct TMSParamsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Protocol").font(.caption).foregroundColor(.secondary)
-                Picker("Protocol", selection: $params.tmsProtocol) {
+                Text("VALIDATE_PARAM_PROTOCOL").font(.caption).foregroundColor(.secondary)
+                Picker("VALIDATE_PARAM_PROTOCOL", selection: $params.tmsProtocol) {
                     ForEach(NPTMSParams.TMSProtocol.allCases) { p in
                         Text(p.displayName).tag(p)
                     }
                 }
                 .pickerStyle(.menu)
             }
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 1...20, format: { "\(Int($0)) Hz" })
             SliderRow(
-                label: "Intensity (%MT)",
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 1...20,
+                format: { "\(Int($0)) Hz" }
+            )
+            SliderRow(
+                label: String(localized: "VALIDATE_PARAM_INTENSITY_MT"),
                 value: Binding(
                     get: { Double(params.intensityPercentMT) },
                     set: { params.intensityPercentMT = Int($0) }
@@ -695,8 +722,8 @@ struct TMSParamsView: View {
                 format: { "\(Int($0))%MT" }
             )
             VStack(alignment: .leading, spacing: 4) {
-                Text("Target").font(.caption).foregroundColor(.secondary)
-                Picker("Target", selection: $params.target) {
+                Text("VALIDATE_PARAM_TARGET").font(.caption).foregroundColor(.secondary)
+                Picker("VALIDATE_PARAM_TARGET", selection: $params.target) {
                     ForEach(NPTMSParams.TMSTarget.allCases) { t in
                         Text(t.displayName).tag(t)
                     }
@@ -705,7 +732,7 @@ struct TMSParamsView: View {
             }
             Stepper(value: $params.pulseCount, in: 100...3000, step: 100) {
                 HStack {
-                    Text("Pulse Count").font(.caption).foregroundColor(.secondary)
+                    Text("UI_MOD_PULSE_COUNT").font(.caption).foregroundColor(.secondary)
                     Spacer()
                     Text("\(params.pulseCount)").font(.caption)
                 }
@@ -721,8 +748,18 @@ struct DeepPBMParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: "Intensity (mW/cm²)", value: $params.intensityMWcm2, range: 100...1000, format: { "\(Int($0)) mW/cm²" })
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 0...40, format: { "\(Int($0)) Hz" })
+            SliderRow(
+                label: String(localized: "MODEDIT_INTENSITY_MW_CM"),
+                value: $params.intensityMWcm2,
+                range: 100...1000,
+                format: { "\(Int($0)) mW/cm²" }
+            )
+            SliderRow(
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 0...40,
+                format: { "\(Int($0)) Hz" }
+            )
             if params.frequencyHz > 0 {
                 Stepper(value: $params.dutyCyclePercent, in: 5...25, step: 5) {
                     HStack {
@@ -743,8 +780,20 @@ struct ClinicalTacsParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 0.5...40, format: { String(format: "%.1f Hz", $0) })
-            SliderRow(label: "Intensity (mA)", value: $params.intensityMilliamps, range: 0...4, format: { String(format: "%.2f mA", $0) })
+            SliderRow(
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 0.5...40,
+                format: { String(format: "%.1f Hz", $0) }
+            )
+            SliderRow(
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
+                value: $params.intensityMilliamps,
+                range: 0...4,
+                format: { String(format: "%.2f mA", $0) }
+            )
+            // Upper bound is the 16-channel hub wire mask, not the 21-channel
+            // driver (NP_HD_DRIVER_CHANNELS) — see OI-TACS-01.
             Stepper(value: $params.channelCount, in: 2...16, step: 2) {
                 HStack {
                     Text(String(localized: "MODALITY_CHANNELS")).font(.caption).foregroundColor(.secondary)
@@ -764,8 +813,8 @@ struct HDTdcsParamsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Target").font(.caption).foregroundColor(.secondary)
-                Picker("Target", selection: $params.target) {
+                Text("VALIDATE_PARAM_TARGET").font(.caption).foregroundColor(.secondary)
+                Picker("VALIDATE_PARAM_TARGET", selection: $params.target) {
                     ForEach(NPTMSParams.TMSTarget.allCases) { t in
                         Text(t.displayName).tag(t)
                     }
@@ -773,8 +822,8 @@ struct HDTdcsParamsView: View {
                 .pickerStyle(.menu)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Montage").font(.caption).foregroundColor(.secondary)
-                Picker("Montage", selection: $params.montage) {
+                Text("VALIDATE_PARAM_MONTAGE").font(.caption).foregroundColor(.secondary)
+                Picker("VALIDATE_PARAM_MONTAGE", selection: $params.montage) {
                     ForEach(NPHDTdcsParams.Montage.allCases) { m in
                         Text(m.displayName).tag(m)
                     }
@@ -782,7 +831,7 @@ struct HDTdcsParamsView: View {
                 .pickerStyle(.menu)
             }
             SliderRow(
-                label: "Intensity (mA)",
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
                 value: $params.intensityMilliamps,
                 range: 0.5...2.0,
                 format: { String(format: "%.2f mA", $0) }
@@ -798,9 +847,19 @@ struct CervicalVnsParamsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            SliderRow(label: "Frequency (Hz)", value: $params.frequencyHz, range: 1...25, format: { "\(Int($0)) Hz" })
-            SliderRow(label: "Intensity (mA)", value: $params.intensityMilliamps, range: 0...2, format: { String(format: "%.2f mA", $0) })
-            Label("Cardiac rhythm interlock is always active — enforced by safety MCU.", systemImage: "heart.fill")
+            SliderRow(
+                label: String(localized: "AND_MODALITY_FREQUENCY_HZ"),
+                value: $params.frequencyHz,
+                range: 1...25,
+                format: { "\(Int($0)) Hz" }
+            )
+            SliderRow(
+                label: String(localized: "AND_MODALITY_INTENSITY_MA"),
+                value: $params.intensityMilliamps,
+                range: 0...2,
+                format: { String(format: "%.2f mA", $0) }
+            )
+            Label("MODALITY_CARDIAC_RHYTHM_INTERLOCK_IS_ALWAYS_ACTIVE_EN", systemImage: "heart.fill")
                 .font(.caption2)
                 .foregroundColor(.secondary)
         }
@@ -817,14 +876,19 @@ struct VibrotactileParamsView: View {
             HStack {
                 Text(String(localized: "MODALITY_FREQUENCY")).font(.caption).foregroundColor(.secondary)
                 Spacer()
-                Text("40Hz (locked)")
+                Text("MODALITY_40HZ_LOCKED")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            SliderRow(label: "Intensity (G)", value: $params.intensityG, range: 0.6...1.2, format: { String(format: "%.2f G", $0) })
-            Toggle("Sync to Audio Session", isOn: $params.syncToAudio).font(.caption)
-            Toggle("Sync to Visual Session", isOn: $params.syncToVisual).font(.caption)
-            Label("Provisional — pending HOPE Phase 3 results (mid-2026).", systemImage: "clock.badge.questionmark")
+            SliderRow(
+                label: String(localized: "MODEDIT_INTENSITY_G"),
+                value: $params.intensityG,
+                range: 0.6...1.2,
+                format: { String(format: "%.2f G", $0) }
+            )
+            Toggle("MODALITY_SYNC_TO_AUDIO_SESSION", isOn: $params.syncToAudio).font(.caption)
+            Toggle("MODALITY_SYNC_TO_VISUAL_SESSION", isOn: $params.syncToVisual).font(.caption)
+            Label("MODALITY_PROVISIONAL_PENDING_HOPE_PHASE_3_RESULTS_MID", systemImage: "clock.badge.questionmark")
                 .font(.caption2)
                 .foregroundColor(.orange)
         }
@@ -838,7 +902,7 @@ struct IntervalConfigView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Toggle("Run in Intervals", isOn: Binding(
+            Toggle("MODALITY_RUN_IN_INTERVALS", isOn: Binding(
                 get: { !interval.isContinuous },
                 set: { on in
                     if on {
@@ -859,7 +923,7 @@ struct IntervalConfigView: View {
                     in: 1...120
                 ) {
                     HStack {
-                        Text("On-time").font(.caption).foregroundColor(.secondary)
+                        Text("MODALITY_ON_TIME").font(.caption).foregroundColor(.secondary)
                         Spacer()
                         Text(formatTime(interval.intervalOnSeconds)).font(.caption)
                     }
@@ -873,23 +937,23 @@ struct IntervalConfigView: View {
                     in: 0...120
                 ) {
                     HStack {
-                        Text("Off-time").font(.caption).foregroundColor(.secondary)
+                        Text("MODALITY_OFF_TIME").font(.caption).foregroundColor(.secondary)
                         Spacer()
                         Text(formatTime(interval.intervalOffSeconds)).font(.caption)
                     }
                 }
 
                 HStack {
-                    Text("Repeat").font(.caption).foregroundColor(.secondary)
+                    Text("UI_MOD_REPEAT").font(.caption).foregroundColor(.secondary)
                     Spacer()
-                    Picker("Repeat", selection: Binding(
+                    Picker("UI_MOD_REPEAT", selection: Binding(
                         get: { interval.repeatCount == nil ? "until_end" : "custom" },
                         set: { val in
                             interval.repeatCount = val == "until_end" ? nil : 5
                         }
                     )) {
-                        Text("Until End").tag("until_end")
-                        Text("Custom Count").tag("custom")
+                        Text("MODALITY_UNTIL_END").tag("until_end")
+                        Text("MODALITY_CUSTOM_COUNT").tag("custom")
                     }
                     .pickerStyle(.menu)
                     .font(.caption)
@@ -904,7 +968,7 @@ struct IntervalConfigView: View {
                         in: 1...1000
                     ) {
                         HStack {
-                            Text("Count").font(.caption).foregroundColor(.secondary)
+                            Text("MODALITY_COUNT").font(.caption).foregroundColor(.secondary)
                             Spacer()
                             Text("\(interval.repeatCount ?? 1)×").font(.caption)
                         }
@@ -954,11 +1018,11 @@ struct ModalityPickerSheet: View {
     var body: some View {
         NavigationStack {
             List {
-                modalitySection(title: "T1 Modalities", tier: .t1)
-                modalitySection(title: "T2 Modalities (Requires T2 hardware)", tier: .t2)
-                modalitySection(title: "Accessories (Provisional)", tier: .accessory)
+                modalitySection(title: String(localized: "MODEDIT_T1_MODALITIES"), tier: .t1)
+                modalitySection(title: String(localized: "MODEDIT_T2_MODALITIES_REQUIRES_T2_HARDWARE"), tier: .t2)
+                modalitySection(title: String(localized: "MODEDIT_ACCESSORIES_PROVISIONAL"), tier: .accessory)
             }
-            .navigationTitle("Add Modality")
+            .navigationTitle("UI_MOD_ADD_TITLE")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

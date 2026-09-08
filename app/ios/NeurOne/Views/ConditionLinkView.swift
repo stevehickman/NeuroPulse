@@ -93,7 +93,7 @@ struct ConditionLinkConfirmation: View {
             }
 
             if verdict.allowed {
-                Text("This opens an external site in your browser. NeurOne does not record which conditions you look up.")
+                Text("UI_CONDITION_LEAVING_NOTICE")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
@@ -118,7 +118,7 @@ struct ConditionLinkConfirmation: View {
                 .font(.headline)
             Spacer()
             if let code = condition.definition?.code {
-                Text("ICD-11 \(code)")
+                Text(String(format: String(localized: "UI_CONDITION_ICD11_CODE"), code))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -157,7 +157,7 @@ struct ConditionLinkConfirmation: View {
                 .keyboardShortcut(.cancelAction)
 
             if verdict.allowed {
-                Button("Open in browser") {
+                Button("UI_CONDITION_OPEN_IN_BROWSER") {
                     // `url` is non-nil exactly when the verdict is allowed, and it
                     // has already passed NPConditionLinkPolicy — this is the only
                     // place a condition link reaches the OS.

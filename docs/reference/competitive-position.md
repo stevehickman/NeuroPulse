@@ -14,7 +14,7 @@
 | EEG channels | 8 semi-dry 24-bit | 21 wet gel 24-bit | None | None | 3 dry midline | None (fNIRS instead) |
 | Closed-loop | Yes — autonomous EEG-adaptive | Yes — all modalities | No | No | EEG→PBM only | Yes — fNIRS-informed intensity |
 | BES/tACS | Yes | Yes clinical | No | No | No | No |
-| tRNS (random noise) | No | Possible via 16-ch arbitrary-waveform driver (not a named preset) | No | No | No | **Yes — primary modality (0.55–1.55mA, PFC)** |
+| tRNS (random noise) | No | Possible via 21-ch arbitrary-waveform driver (not a named preset) | No | No | No | **Yes — primary modality (0.55–1.55mA, PFC)** |
 | tDCS | Yes | Yes + HD-tDCS | No | No | No | No |
 | TMS | No | Yes focal | No | No | No | No |
 | VNS + HRV | Auricular electrical + PPG | + cervical option | Optical VNS (separate) | No | HRV only | No |

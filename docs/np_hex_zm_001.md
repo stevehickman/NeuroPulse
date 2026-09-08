@@ -615,7 +615,7 @@ a configuration choice, no new type.)
 | ID | Type | Elements | Reuses / notes |
 |----|------|----------|----------------|
 | **T2-D** | 1170 nm deep-PBM laser | 1170 nm laser diode + TEC + laser driver | new type (laser ≠ LED) |
-| — | qEEG-21 / HD-tDCS 4×1 / 16-ch clinical tACS | dual-rated Ag/AgCl electrodes | **reuse T1-B** at higher density; wet-gel vs semi-dry is a consumable, not a type |
+| — | qEEG-21 / HD-tDCS 4×1 / 21-ch clinical tACS | dual-rated Ag/AgCl electrodes | **reuse T1-B** at higher density; wet-gel vs semi-dry is a consumable, not a type |
 | — | TMS focal coil; cervical VNS | — | **non-tile** special applicators (too large / off-scalp) |
 
 **Net: T1 = 3 tile types (grow-to-4); T2 = +1 (T2-D).** Cost-optimal working set

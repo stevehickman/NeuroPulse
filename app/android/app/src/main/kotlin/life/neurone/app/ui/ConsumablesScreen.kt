@@ -33,6 +33,8 @@ import life.neurone.app.NeurOneApplication
 import life.neurone.core.consumable.ConsumableKind
 import life.neurone.core.consumable.ConsumableState
 import life.neurone.core.consumable.ReminderPriority
+import androidx.compose.ui.res.stringResource
+import life.neurone.app.R
 
 // Port of iOS ConsumableView. Lists all four consumables with sessions-remaining, a low/
 // blocking badge, an order link, and snooze/replaced actions. Fed by the core
@@ -58,10 +60,10 @@ fun ConsumablesScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
     val states = tracker.states
 
     Column(modifier.fillMaxSize().padding(16.dp)) {
-        Text("Consumables", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.tab_consumables), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(4.dp))
         Text(
-            "Reminders are measurement-triggered from your hub's usage counters.",
+            stringResource(R.string.consumable_reminders_are_measurement_triggered_from_you),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(12.dp))
@@ -107,12 +109,12 @@ private fun ConsumableCard(
                 Text(state.kind.displayName(), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Medium)
                 if (state.isLow) {
                     val blocking = state.kind.reminderPriority == ReminderPriority.SAFETY_BLOCKING
-                    Badge(if (blocking) "Replace now" else "Low", if (blocking) Color(0xFFD32F2F) else Color(0xFFF9A825))
+                    Badge(if (blocking) stringResource(R.string.consumable_replace_now) else stringResource(R.string.consumable_low), if (blocking) Color(0xFFD32F2F) else Color(0xFFF9A825))
                 }
             }
             Spacer(Modifier.height(6.dp))
             Text(
-                "${state.sessionsRemaining} of ${state.kind.sessionLimit} sessions remaining",
+                stringResource(R.string.consumable_0_of_1_sessions_remaining, state.sessionsRemaining, state.kind.sessionLimit),
                 style = MaterialTheme.typography.bodySmall,
             )
             Spacer(Modifier.height(6.dp))
@@ -122,9 +124,9 @@ private fun ConsumableCard(
             )
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(onClick = { uriHandler.openUri(state.kind.orderUrl) }) { Text("Order") }
-                TextButton(onClick = onReplaced) { Text("Mark replaced") }
-                if (state.canSnooze) TextButton(onClick = onSnooze) { Text("Snooze") }
+                TextButton(onClick = { uriHandler.openUri(state.kind.orderUrl) }) { Text(stringResource(R.string.consumable_order)) }
+                TextButton(onClick = onReplaced) { Text(stringResource(R.string.consumable_mark_replaced_2)) }
+                if (state.canSnooze) TextButton(onClick = onSnooze) { Text(stringResource(R.string.consumable_snooze)) }
             }
         }
     }

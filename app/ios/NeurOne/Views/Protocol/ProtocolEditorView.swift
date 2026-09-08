@@ -37,7 +37,7 @@ struct ProtocolEditorView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("View Mode", selection: $viewMode) {
+                Picker("PROTOCOL_EDITOR_VIEW_MODE", selection: $viewMode) {
                     ForEach(EditorViewMode.allCases, id: \.self) {
                         Text($0.rawValue).tag($0)
                     }
@@ -69,7 +69,7 @@ struct ProtocolEditorView: View {
                     expandedModality = modality.id
                 }
             }
-            .alert("Cannot Save", isPresented: $showSaveError) {
+            .alert("PROTOCOL_EDITOR_CANNOT_SAVE", isPresented: $showSaveError) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(saveError ?? "Please fill in required fields.")
@@ -95,7 +95,7 @@ struct ProtocolEditorView: View {
             Button(String(localized: "COMMON_CANCEL")) { dismiss() }
         }
         ToolbarItem(placement: .confirmationAction) {
-            Button("Save") { attemptSave() }
+            Button("PROTOCOL_EDITOR_SAVE") { attemptSave() }
         }
     }
 
@@ -112,18 +112,18 @@ struct ProtocolEditorView: View {
     // MARK: Identity section
 
     private var identitySection: some View {
-        Section("Identity") {
-            TextField("Protocol Name", text: $draft.name)
+        Section("UI_SECTION_IDENTITY") {
+            TextField("PROTOCOL_EDITOR_PROTOCOL_NAME", text: $draft.name)
                 .autocorrectionDisabled()
 
-            TextField("Description", text: $draft.description, axis: .vertical)
+            TextField("UI_FIELD_DESCRIPTION", text: $draft.description, axis: .vertical)
                 .lineLimit(2...4)
 
             HStack {
                 Text(String(localized: "PROTOCOL_AUTHOR"))
                     .foregroundColor(.secondary)
                 Spacer()
-                TextField("NeurOne", text: $draft.author)
+                TextField("UI_APP_TITLE", text: $draft.author)
                     .multilineTextAlignment(.trailing)
             }
 
@@ -158,8 +158,8 @@ struct ProtocolEditorView: View {
     // MARK: Timing section
 
     private var timingSection: some View {
-        Section("Timing") {
-            Picker("Mode", selection: timingModeBinding) {
+        Section("PROTOCOL_EDITOR_TIMING") {
+            Picker("VALIDATE_PARAM_MODE", selection: timingModeBinding) {
                 Text(String(localized: "PROTOCOL_DURATION")).tag("duration")
                 Text(String(localized: "PROTOCOL_INTERVAL_COUNT")).tag("interval_count")
             }
@@ -253,7 +253,7 @@ struct ProtocolEditorView: View {
             Button {
                 showAddModality = true
             } label: {
-                Label("Add Modality", systemImage: "plus.circle.fill")
+                Label("UI_MOD_ADD_TITLE", systemImage: "plus.circle.fill")
             }
         } header: {
             HStack {
@@ -433,7 +433,7 @@ struct TagInputView: View {
 
     var body: some View {
         HStack {
-            TextField("Add tag…", text: $text)
+            TextField("UI_PLACEHOLDER_ADD_TAG", text: $text)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .onSubmit {
@@ -441,7 +441,7 @@ struct TagInputView: View {
                     text = ""
                 }
             if !text.isEmpty {
-                Button("Add") {
+                Button("UI_ADD") {
                     onAdd(text)
                     text = ""
                 }

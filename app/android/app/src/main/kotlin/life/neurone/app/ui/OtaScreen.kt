@@ -19,6 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import life.neurone.core.models.OtaPhase
 import life.neurone.core.models.OtaStatusPacket
+import androidx.compose.ui.res.stringResource
+import life.neurone.app.R
 
 // Port of iOS OTAView — firmware version + over-the-air update status. Pure renderer of the
 // hub's FIRMWARE_VERSION + OTA_STATUS notifications. The actual download+flash flow (host-side
@@ -36,15 +38,15 @@ fun OtaScreen(
             Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("Back") }
-            Text("Firmware", style = MaterialTheme.typography.titleLarge)
+            TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
+            Text(stringResource(R.string.ota_firmware), style = MaterialTheme.typography.titleLarge)
         }
 
         Column(Modifier.padding(24.dp)) {
             Card(Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Hub firmware version", style = MaterialTheme.typography.labelMedium)
-                    Text(firmwareVersion ?: "Unknown — connect to your hub", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.ota_hub_firmware_version), style = MaterialTheme.typography.labelMedium)
+                    Text(firmwareVersion ?: stringResource(R.string.ota_unknown_connect_to_your_hub), style = MaterialTheme.typography.titleMedium)
                 }
             }
 
@@ -53,7 +55,7 @@ fun OtaScreen(
             if (status != null) {
                 Card(Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
-                        Text("Update status", style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.ota_update_status), style = MaterialTheme.typography.labelMedium)
                         Text(phaseLabel(status.phase), style = MaterialTheme.typography.titleMedium)
                         if (status.phase?.isBusy == true) {
                             Spacer(Modifier.height(8.dp))
@@ -65,14 +67,14 @@ fun OtaScreen(
                         }
                         if (status.isError) {
                             Spacer(Modifier.height(8.dp))
-                            Text("Error code ${status.errorCode}", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.ota_error_code_0, status.errorCode), style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }
             } else {
                 Text(
-                    "Firmware updates install automatically over USB-C or Bluetooth when a new " +
-                        "version is available. No action is needed.",
+                    stringResource(R.string.ota_firmware_updates_install_automatically_over) +
+                        stringResource(R.string.ota_version_is_available_no_action_is_needed),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }

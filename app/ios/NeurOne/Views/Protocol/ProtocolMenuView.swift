@@ -53,7 +53,7 @@ struct ProtocolMenuView: View {
             }
             .navigationTitle(String(localized: "TAB_PROTOCOLS"))
             .navigationBarTitleDisplayMode(.large)
-            .searchable(text: $searchText, prompt: "Search by name or tag")
+            .searchable(text: $searchText, prompt: String(localized: "PROTOCOL_MENU_SEARCH_BY_NAME_OR_TAG"))
             .toolbar { toolbarContent }
             .onAppear { library.updateEEGConsent(bipaAccepted) }
             .onChange(of: bipaAccepted) { _, newValue in
@@ -76,7 +76,7 @@ struct ProtocolMenuView: View {
             .sheet(item: $validationDetailEntry) { entry in
                 ValidationDetailSheet(entry: entry, limitsStore: limitsStore, library: library)
             }
-            .alert("Protocol Unavailable", isPresented: Binding(
+            .alert("PROTOCOL_MENU_PROTOCOL_UNAVAILABLE", isPresented: Binding(
                 get: { unavailableAlert != nil },
                 set: { if !$0 { unavailableAlert = nil } }
             )) {
@@ -87,18 +87,21 @@ struct ProtocolMenuView: View {
                     Text(avail.unavailableReason ?? "This protocol requires hardware not currently available.")
                 }
             }
-            .alert("Delete Protocol?", isPresented: Binding(
+            .alert("PROTOCOL_MENU_DELETE_PROTOCOL", isPresented: Binding(
                 get: { confirmDelete != nil },
                 set: { if !$0 { confirmDelete = nil } }
             )) {
-                Button("Delete", role: .destructive) {
+                Button("UI_DELETE", role: .destructive) {
                     if let entry = confirmDelete { library.delete(entry.id) }
                     confirmDelete = nil
                 }
-                Button("Cancel", role: .cancel) { confirmDelete = nil }
+                Button("COMMON_CANCEL", role: .cancel) { confirmDelete = nil }
             } message: {
                 if let entry = confirmDelete {
-                    Text("Are you sure you want to delete \"\(entry.name)\"? This cannot be undone.")
+                    Text(String(
+                        format: String(localized: "PROTOCOL_MENU_ARE_YOU_SURE_YOU_WANT_TO_DELETE"),
+                        entry.name
+                    ))
                 }
             }
             .safeAreaInset(edge: .top, spacing: 0) {
@@ -138,7 +141,7 @@ struct ProtocolMenuView: View {
                     HStack(spacing: 8) {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.white)
-                        Text("Protocol sent to hub")
+                        Text("PROTOCOL_MENU_PROTOCOL_SENT_TO_HUB")
                             .font(.subheadline.weight(.medium))
                             .foregroundColor(.white)
                     }
@@ -166,7 +169,7 @@ struct ProtocolMenuView: View {
             Button {
                 showLimitsSettings = true
             } label: {
-                Label("Limits", systemImage: "slider.horizontal.3")
+                Label("UI_LIMITS", systemImage: "slider.horizontal.3")
             }
         }
         ToolbarItem(placement: .primaryAction) {
@@ -175,12 +178,12 @@ struct ProtocolMenuView: View {
                     editingEntry = nil
                     showEditor = true
                 } label: {
-                    Label("New Protocol", systemImage: "plus.rectangle")
+                    Label("UI_NEW_PROTOCOL", systemImage: "plus.rectangle")
                 }
                 Button {
                     showComposer = true
                 } label: {
-                    Label("Compose", systemImage: "square.stack.3d.up")
+                    Label("PROTOCOL_MENU_COMPOSE", systemImage: "square.stack.3d.up")
                 }
             } label: {
                 Image(systemName: "plus")
@@ -229,7 +232,7 @@ struct ProtocolMenuView: View {
                         Image(systemName: "person.circle.fill")
                             .foregroundColor(.accentColor)
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("Profile: \(profile.name)")
+                            Text(String(format: String(localized: "PROTOCOL_MENU_PROFILE"), profile.name))
                                 .font(.subheadline.weight(.medium))
                             Text(limitsStore.resolutionChainDescription)
                                 .font(.caption)
@@ -248,7 +251,7 @@ struct ProtocolMenuView: View {
                 }
             }
 
-            Picker("Filter", selection: $filter) {
+            Picker("PROTOCOL_MENU_FILTER", selection: $filter) {
                 ForEach(LibraryFilter.allCases, id: \.self) {
                     Text($0.rawValue).tag($0)
                 }
@@ -258,7 +261,7 @@ struct ProtocolMenuView: View {
             .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
 
             if !predefinedFiltered.isEmpty && (filter == .all || filter == .predefined) {
-                Section("Predefined") {
+                Section("UI_FILTER_PREDEFINED") {
                     ForEach(predefinedFiltered) { entry in
                         protocolRow(entry)
                             .swipeActions(edge: .trailing) {
@@ -270,7 +273,7 @@ struct ProtocolMenuView: View {
             }
 
             if !userFiltered.isEmpty && (filter == .all || filter == .mine) {
-                Section("My Protocols") {
+                Section("UI_FILTER_MINE") {
                     ForEach(userFiltered) { entry in
                         protocolRow(entry)
                             .swipeActions(edge: .trailing) {
@@ -322,7 +325,7 @@ struct ProtocolMenuView: View {
         Button(role: .destructive) {
             confirmDelete = entry
         } label: {
-            Label("Delete", systemImage: "trash")
+            Label("UI_DELETE", systemImage: "trash")
         }
         .tint(.red)
     }
@@ -336,7 +339,7 @@ struct ProtocolMenuView: View {
                 showEditor = true
             }
         } label: {
-            Label("Edit", systemImage: "pencil")
+            Label("UI_EDIT", systemImage: "pencil")
         }
         .tint(.blue)
     }
@@ -346,7 +349,7 @@ struct ProtocolMenuView: View {
             let dup = entry.duplicated(newName: "Copy of \(entry.name)")
             library.save(dup)
         } label: {
-            Label("Duplicate", systemImage: "plus.square.on.square")
+            Label("PROTOCOL_MENU_DUPLICATE", systemImage: "plus.square.on.square")
         }
         .tint(.orange)
     }
@@ -356,7 +359,7 @@ struct ProtocolMenuView: View {
         Button {
             handleSelect(entry)
         } label: {
-            Label("Select Protocol", systemImage: "checkmark.circle")
+            Label("PROTOCOL_MENU_SELECT_PROTOCOL", systemImage: "checkmark.circle")
         }
         .disabled(!library.availability(for: entry).isAvailable)
 
@@ -366,7 +369,7 @@ struct ProtocolMenuView: View {
             let dup = entry.duplicated(newName: "Copy of \(entry.name)")
             library.save(dup)
         } label: {
-            Label("Duplicate", systemImage: "plus.square.on.square")
+            Label("PROTOCOL_MENU_DUPLICATE", systemImage: "plus.square.on.square")
         }
 
         if !entry.isPredefined {
@@ -375,7 +378,7 @@ struct ProtocolMenuView: View {
                     editingEntry = entry
                     if entry.isComposite { showComposer = true } else { showEditor = true }
                 } label: {
-                    Label("Edit", systemImage: "pencil")
+                    Label("UI_EDIT", systemImage: "pencil")
                 }
             }
 
@@ -384,9 +387,9 @@ struct ProtocolMenuView: View {
                 toggleReadOnly(entry)
             } label: {
                 if entry.isReadOnly {
-                    Label("Unlock Protocol", systemImage: "lock.open")
+                    Label("PROTOCOL_MENU_UNLOCK_PROTOCOL", systemImage: "lock.open")
                 } else {
-                    Label("Lock Protocol", systemImage: "lock")
+                    Label("PROTOCOL_MENU_LOCK_PROTOCOL", systemImage: "lock")
                 }
             }
 
@@ -394,7 +397,7 @@ struct ProtocolMenuView: View {
                 Button(role: .destructive) {
                     confirmDelete = entry
                 } label: {
-                    Label("Delete", systemImage: "trash")
+                    Label("UI_DELETE", systemImage: "trash")
                 }
             }
         }
@@ -417,7 +420,7 @@ struct ProtocolMenuView: View {
 
     private var emptyState: some View {
         VStack(spacing: 16) {
-            Picker("Filter", selection: $filter) {
+            Picker("PROTOCOL_MENU_FILTER", selection: $filter) {
                 ForEach(LibraryFilter.allCases, id: \.self) {
                     Text($0.rawValue).tag($0)
                 }
@@ -429,7 +432,7 @@ struct ProtocolMenuView: View {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 48))
                 .foregroundColor(.secondary)
-            Text("No Protocols Found")
+            Text("PROTOCOL_MENU_NO_PROTOCOLS_FOUND")
                 .font(.headline)
             Text(filter == .mine ? "Create your first protocol using the + button above." : "Try a different search term.")
                 .font(.subheadline)
@@ -617,7 +620,7 @@ struct ProtocolRowView: View {
         }
 
         if entry.isComposite {
-            Label("Composite", systemImage: "square.stack.3d.up.fill")
+            Label("PROTOCOL_MENU_COMPOSITE", systemImage: "square.stack.3d.up.fill")
                 .font(.caption2)
                 .padding(.horizontal, 6).padding(.vertical, 2)
                 .background(Color.purple.opacity(0.15))
@@ -634,7 +637,7 @@ struct ProtocolRowView: View {
                 .foregroundColor(.blue)
                 .clipShape(Capsule())
         } else if tier == .accessory {
-            Text("Accessory")
+            Text("PROTOCOL_MENU_ACCESSORY")
                 .font(.caption2)
                 .padding(.horizontal, 6).padding(.vertical, 2)
                 .background(Color.orange.opacity(0.15))
@@ -682,7 +685,7 @@ struct ProtocolRowView: View {
                     .clipShape(Capsule())
             }
             if extra > 0 {
-                Text("+\(extra) more")
+                Text(String(format: String(localized: "PROTOCOL_MENU_MORE"), String(extra)))
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
@@ -708,13 +711,13 @@ struct ValidationDetailSheet: View {
             List {
                 if result.isValid && !result.hasWarnings {
                     Section {
-                        Label("No issues found", systemImage: "checkmark.circle.fill")
+                        Label("PROTOCOL_MENU_NO_ISSUES_FOUND", systemImage: "checkmark.circle.fill")
                             .foregroundColor(.green)
                     }
                 }
 
                 if !result.errors.isEmpty {
-                    Section("Errors (\(result.errors.count))") {
+                    Section(String(format: String(localized: "PROTOCOL_MENU_ERRORS_COUNT"), String(result.errors.count))) {
                         ForEach(result.errors) { issue in
                             ValidationIssueRow(issue: issue)
                         }
@@ -722,21 +725,21 @@ struct ValidationDetailSheet: View {
                 }
 
                 if !result.warnings.isEmpty {
-                    Section("Warnings (\(result.warnings.count))") {
+                    Section(String(format: String(localized: "PROTOCOL_MENU_WARNINGS_COUNT"), String(result.warnings.count))) {
                         ForEach(result.warnings) { issue in
                             ValidationIssueRow(issue: issue)
                         }
                     }
                 }
 
-                Section("Limit Resolution") {
+                Section("PROTOCOL_MENU_LIMIT_RESOLUTION") {
                     Text(limitsStore.resolutionChainDescription)
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Validation: \(entry.name)")
+            .navigationTitle(String(format: String(localized: "PROTOCOL_MENU_VALIDATION_TITLE"), entry.name))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -771,13 +774,13 @@ struct ValidationIssueRow: View {
             Text(issue.message)
                 .font(.subheadline)
             HStack(spacing: 4) {
-                Text("Value: \(issue.actualValueDescription)")
+                Text(String(format: String(localized: "PROTOCOL_MENU_ISSUE_VALUE"), issue.actualValueDescription))
                     .font(.caption)
                     .foregroundColor(.secondary)
                 Text("·")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("Limit: \(issue.limitValueDescription)")
+                Text(String(format: String(localized: "PROTOCOL_MENU_ISSUE_LIMIT"), issue.limitValueDescription))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }

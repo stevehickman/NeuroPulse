@@ -18,7 +18,7 @@ struct ProtocolScriptEditorView: View {
             // Toolbar
             HStack {
                 Button(action: onFormat) {
-                    Label("Format", systemImage: "text.alignleft")
+                    Label("SCRIPT_FORMAT", systemImage: "text.alignleft")
                         .font(.caption)
                 }
                 .buttonStyle(.bordered)
@@ -27,14 +27,14 @@ struct ProtocolScriptEditorView: View {
 
                 Spacer()
 
-                Text("\(lineCount) line\(lineCount == 1 ? "" : "s")")
+                Text(String.localizedStringWithFormat(String(localized: "SCRIPT_LINE_COUNT"), lineCount))
                     .font(.caption2)
                     .foregroundColor(.secondary)
 
                 Button {
                     UIPasteboard.general.string = localText
                 } label: {
-                    Label("Copy", systemImage: "doc.on.doc")
+                    Label("SCRIPT_COPY", systemImage: "doc.on.doc")
                         .font(.caption)
                 }
                 .buttonStyle(.bordered)

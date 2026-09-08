@@ -57,9 +57,9 @@ fun ConsentDashboardScreen(app: NeurOneApplication, modifier: Modifier = Modifie
     }
 
     Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
-        Text("Privacy & Research", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.and_ui_privacy_research), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(16.dp))
-        Text("Blanket research consent")
+        Text(stringResource(R.string.and_ui_blanket_research_consent))
         Switch(
             checked = blanket,
             onCheckedChange = { on ->
@@ -77,17 +77,17 @@ fun ConsentDashboardScreen(app: NeurOneApplication, modifier: Modifier = Modifie
         )
         Spacer(Modifier.height(16.dp))
         Text(
-            "Once your anonymized data has been included in a published study, it cannot be " +
-                "individually withdrawn from that dataset. Withdrawing consent immediately and " +
-                "permanently stops any further data flowing to any future dataset — including " +
-                "data from sessions that occurred before your withdrawal.",
+            stringResource(R.string.consent_once_your_anonymized_data_has_been_included) +
+                stringResource(R.string.and_ui_individually_withdrawn_from_that_dataset_wit) +
+                stringResource(R.string.and_ui_permanently_stops_any_further_data_flowing_t) +
+                stringResource(R.string.consent_data_from_sessions_that_occurred_before_your),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(24.dp))
-        Text("Research ideas", style = MaterialTheme.typography.titleMedium)
-        Text("Suggest studies, vote, and register interest in taking part.", style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.portal_research_ideas), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.and_ui_suggest_studies_vote_and_register_interest_i), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = { showPortal = true }) { Text("Open research portal") }
+        OutlinedButton(onClick = { showPortal = true }) { Text(stringResource(R.string.and_ui_open_research_portal)) }
     }
 }
 
@@ -164,56 +164,56 @@ private fun SettingsContent(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
-        Text("Settings", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.tab_settings), style = MaterialTheme.typography.headlineMedium)
         Spacer(Modifier.height(20.dp))
 
         // Biometric (EEG) consent
-        Text("Brainwave (EEG) data consent", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.and_ui_brainwave_eeg_data_consent), style = MaterialTheme.typography.titleMedium)
         Text(
-            if (eegGranted) "Granted — EEG neurofeedback is available."
-            else "Not granted — EEG neurofeedback and closed-loop protocols are disabled.",
+            if (eegGranted) stringResource(R.string.and_ui_granted_eeg_neurofeedback_is_available)
+            else stringResource(R.string.and_ui_not_granted_eeg_neurofeedback_and_closed_loo),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (!eegGranted) {
-                Button(onClick = onManageEeg) { Text("Review consent") }
+                Button(onClick = onManageEeg) { Text(stringResource(R.string.and_ui_review_consent)) }
             } else {
-                OutlinedButton(onClick = onRevokeEeg) { Text("Revoke") }
+                OutlinedButton(onClick = onRevokeEeg) { Text(stringResource(R.string.dashboard_revoke_button)) }
             }
         }
 
         Spacer(Modifier.height(24.dp))
 
         // Research participation
-        Text("Research participation", style = MaterialTheme.typography.titleMedium)
-        Text("Manage the research areas and studies you take part in.", style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.consent_research_participation), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.and_ui_manage_the_research_areas_and_studies_you_ta), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onManageResearch) { Text("Manage") }
+        OutlinedButton(onClick = onManageResearch) { Text(stringResource(R.string.and_ui_manage)) }
 
         Spacer(Modifier.height(24.dp))
 
         // Firmware / OTA
-        Text("Firmware", style = MaterialTheme.typography.titleMedium)
-        Text("View your hub's firmware version and update status.", style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.ota_firmware), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.and_ui_view_your_hub_s_firmware_version_and_update), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onManageFirmware) { Text("Firmware & updates") }
+        OutlinedButton(onClick = onManageFirmware) { Text(stringResource(R.string.and_ui_firmware_updates)) }
 
         Spacer(Modifier.height(24.dp))
 
         // Device setup wizard
-        Text("Device setup", style = MaterialTheme.typography.titleMedium)
-        Text("Re-run the guided hardware setup for your headset.", style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.and_ui_device_setup), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.and_ui_re_run_the_guided_hardware_setup_for_your_he), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onDeviceSetup) { Text("Set up device") }
+        OutlinedButton(onClick = onDeviceSetup) { Text(stringResource(R.string.and_ui_set_up_device)) }
 
         Spacer(Modifier.height(24.dp))
 
         // Dosage limits
-        Text("Dosage limits", style = MaterialTheme.typography.titleMedium)
-        Text("Set global caps on stimulation dose and intensity.", style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.limits_dosage_limits), style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.and_ui_set_global_caps_on_stimulation_dose_and_inte), style = MaterialTheme.typography.bodySmall)
         Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = onManageLimits) { Text("Edit dosage limits") }
+        OutlinedButton(onClick = onManageLimits) { Text(stringResource(R.string.and_ui_edit_dosage_limits)) }
 
         Spacer(Modifier.height(24.dp))
 
@@ -222,7 +222,7 @@ private fun SettingsContent(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Text("Research analytics", Modifier.weight(1f))
+            Text(stringResource(R.string.and_ui_research_analytics), Modifier.weight(1f))
             Switch(
                 checked = app.researchAnalyticsGate.isOpen,
                 onCheckedChange = { on ->
@@ -240,6 +240,6 @@ private fun SettingsContent(
         }
 
         Spacer(Modifier.height(24.dp))
-        Text("NeurOne Home 0.1.0", style = MaterialTheme.typography.bodySmall)
+        Text(stringResource(R.string.and_ui_neurone_home_0_1_0), style = MaterialTheme.typography.bodySmall)
     }
 }

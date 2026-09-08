@@ -35,6 +35,8 @@ import life.neurone.core.consent.ConsentStore
 import life.neurone.core.models.ContactFrequency
 import life.neurone.core.models.ResearchCategory
 import life.neurone.core.models.ResearchConsentState
+import androidx.compose.ui.res.stringResource
+import life.neurone.app.R
 
 // Port of iOS ConsentOnboardingView — the a priori research-consent flow (CLAUDE.md §6.2).
 //
@@ -71,9 +73,9 @@ fun ConsentOnboardingScreen(
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
     ) {
-        Text("Research participation", style = MaterialTheme.typography.headlineMedium)
+        Text(stringResource(R.string.consent_research_participation), style = MaterialTheme.typography.headlineMedium)
         Text(
-            "Step ${step + 1} of $SCREEN_COUNT — entirely optional",
+            stringResource(R.string.consent_step_0_of_1_entirely_optional, step + 1, SCREEN_COUNT),
             style = MaterialTheme.typography.bodySmall,
         )
         Spacer(Modifier.height(16.dp))
@@ -89,10 +91,10 @@ fun ConsentOnboardingScreen(
                 // Skip the rest — persist whatever has been chosen so far (may be none).
                 store.updateResearchConsent(state)
                 onComplete()
-            }) { Text("Skip") }
+            }) { Text(stringResource(R.string.consent_skip_button)) }
             Spacer(Modifier.weight(1f))
             if (step > 0) {
-                OutlinedButton(onClick = { step-- }) { Text("Back") }
+                OutlinedButton(onClick = { step-- }) { Text(stringResource(R.string.consent_back_button)) }
             }
             Button(onClick = {
                 if (step < SCREEN_COUNT - 1) {
@@ -101,7 +103,7 @@ fun ConsentOnboardingScreen(
                     store.updateResearchConsent(state)
                     onComplete()
                 }
-            }) { Text(if (step < SCREEN_COUNT - 1) "Continue" else "Finish") }
+            }) { Text(if (step < SCREEN_COUNT - 1) stringResource(R.string.setup_continue_button) else stringResource(R.string.consent_finish)) }
         }
     }
 }
@@ -120,37 +122,37 @@ private fun ScreenWhatYouGetBack(
     onChange: (ResearchConsentState) -> Unit,
 ) {
     Text(
-        "If your data ever contributes to a study, here is what comes back to you.",
+        stringResource(R.string.consent_s1_heading),
         fontWeight = FontWeight.Medium,
     )
     Spacer(Modifier.height(8.dp))
     Text(
-        "A study that uses your data and never tells you what it found has taken something " +
-            "and returned nothing. These two options are the other half of that exchange — " +
-            "not a reward for taking part. You have not been asked to share anything yet; " +
-            "that comes next.",
+        stringResource(R.string.consent_a_study_that_uses_your_data_and_never_tells) +
+            stringResource(R.string.consent_and_returned_nothing_these_two_options_are_t) +
+            stringResource(R.string.consent_not_a_reward_for_taking_part_you_have_not_be) +
+            stringResource(R.string.consent_that_comes_next),
         style = MaterialTheme.typography.bodySmall,
     )
     Spacer(Modifier.height(12.dp))
-    SwitchRow("Receive study results when they're published", state.resultsOptIn) {
+    SwitchRow(stringResource(R.string.consent_l4_results_toggle), state.resultsOptIn) {
         onChange(state.copy(resultsOptIn = it))
     }
     Text(
-        "Plain-language summaries, including null results. Never marketing.",
+        stringResource(R.string.consent_l4_results_caption),
         style = MaterialTheme.typography.bodySmall,
     )
     Spacer(Modifier.height(8.dp))
-    SwitchRow("Join the research suggestion portal", state.suggestionPortalOptIn) {
+    SwitchRow(stringResource(R.string.consent_l4_portal_toggle), state.suggestionPortalOptIn) {
         onChange(state.copy(suggestionPortalOptIn = it))
     }
     Text(
-        "Submit study ideas, vote on priorities, express interest in participating.",
+        stringResource(R.string.consent_submit_study_ideas_vote_on_priorities_expres),
         style = MaterialTheme.typography.bodySmall,
     )
     Spacer(Modifier.height(12.dp))
     Text(
-        "Turning these on grants no access to your data, and turning them off costs you " +
-            "nothing. Every device function works identically either way.",
+        stringResource(R.string.consent_turning_these_on_grants_no_access_to_your_da) +
+            stringResource(R.string.consent_nothing_every_device_function_works_identica),
         style = MaterialTheme.typography.bodySmall,
     )
 
@@ -158,20 +160,20 @@ private fun ScreenWhatYouGetBack(
     Divider()
     Spacer(Modifier.height(20.dp))
 
-    Text("How would we reach you?", fontWeight = FontWeight.Medium)
+    Text(stringResource(R.string.consent_s1_contact_heading), fontWeight = FontWeight.Medium)
     Spacer(Modifier.height(8.dp))
     Text(
-        "One contact method covers everything above, plus any study invitations you choose " +
-            "to receive on the next screen. Your participation is always voluntary.",
+        stringResource(R.string.consent_one_contact_method_covers_everything_above_p) +
+            stringResource(R.string.consent_to_receive_on_the_next_screen_your_participa),
         style = MaterialTheme.typography.bodySmall,
     )
     Spacer(Modifier.height(8.dp))
-    SwitchRow("Yes, you can contact me", state.contactConsentGranted) {
+    SwitchRow(stringResource(R.string.consent_l1_toggle), state.contactConsentGranted) {
         onChange(state.copy(contactConsentGranted = it))
     }
     if (state.contactConsentGranted) {
         Spacer(Modifier.height(12.dp))
-        Text("How often, at most?", style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.consent_how_often_at_most), style = MaterialTheme.typography.bodyMedium)
         ContactFrequency.entries.forEach { freq ->
             Row(verticalAlignment = Alignment.CenterVertically) {
                 RadioButton(
@@ -195,20 +197,20 @@ private fun ScreenWhatYouShare(
     onChange: (ResearchConsentState) -> Unit,
 ) {
     // ── L2: scope ────────────────────────────────────────────────────────
-    Text("Which research areas interest you?", fontWeight = FontWeight.Medium)
-    Text("Each study is still a separate decision.", style = MaterialTheme.typography.bodySmall)
+    Text(stringResource(R.string.consent_l2_heading), fontWeight = FontWeight.Medium)
+    Text(stringResource(R.string.consent_each_study_is_still_a_separate_decision), style = MaterialTheme.typography.bodySmall)
     Spacer(Modifier.height(8.dp))
 
     // Select-all sets all nine categories and deliberately does NOT enable the blanket
     // toggle below (§6.2.3). The usability gap that leaves is closed with the note, not by
     // coupling the state.
-    SwitchRow("Select all nine areas", state.allCategoriesSelected) { on ->
+    SwitchRow(stringResource(R.string.consent_s2_select_all_toggle), state.allCategoriesSelected) { on ->
         onChange(state.withAllCategories(on))
     }
     if (state.allCategoriesSelected && !state.blanketConsentGranted) {
         Text(
-            "You will still be asked before each individual study. To stop being asked, " +
-                "turn on the setting below.",
+            stringResource(R.string.consent_you_will_still_be_asked_before_each_individu) +
+                stringResource(R.string.consent_turn_on_the_setting_below),
             style = MaterialTheme.typography.bodySmall,
         )
     }
@@ -236,24 +238,24 @@ private fun ScreenWhatYouShare(
     Spacer(Modifier.height(20.dp))
 
     // ── L3: posture ──────────────────────────────────────────────────────
-    Text("Do you want to be asked about each study?", fontWeight = FontWeight.Medium)
+    Text(stringResource(R.string.consent_s2_blanket_heading), fontWeight = FontWeight.Medium)
     Spacer(Modifier.height(8.dp))
     Text(
-        "By default we ask you about every study separately, and you decide each time. You " +
-            "can hand that decision over instead.",
+        stringResource(R.string.consent_by_default_we_ask_you_about_every_study_sepa) +
+            stringResource(R.string.consent_can_hand_that_decision_over_instead),
         style = MaterialTheme.typography.bodySmall,
     )
     Spacer(Modifier.height(8.dp))
     SwitchRow(
-        "Stop asking me — include my anonymised data in every reviewed study",
+        stringResource(R.string.consent_s2_blanket_toggle),
         state.blanketConsentGranted,
     ) {
         onChange(state.copy(blanketConsentGranted = it))
     }
     Text(
-        "You will still get a notification about each study, but it will be news rather than " +
-            "a question. You can opt out of any individual study, and you can switch this " +
-            "back off at any time.",
+        stringResource(R.string.consent_you_will_still_get_a_notification_about_each) +
+            stringResource(R.string.consent_a_question_you_can_opt_out_of_any_individual) +
+            stringResource(R.string.consent_back_off_at_any_time),
         style = MaterialTheme.typography.bodySmall,
     )
 
@@ -261,13 +263,13 @@ private fun ScreenWhatYouShare(
     // renders it (CLAUDE.md §6.2, L3 row).
     if (state.blanketConsentGranted) {
         Spacer(Modifier.height(12.dp))
-        Text("Important — please read", fontWeight = FontWeight.Medium)
+        Text(stringResource(R.string.consent_important_label), fontWeight = FontWeight.Medium)
         Text(
-            "Once your anonymized data has been included in a published study, it cannot be " +
-                "individually withdrawn from that dataset. However, because NeurOne anonymises " +
-                "your data fresh from your device for each study, withdrawing consent immediately " +
-                "and permanently stops any further data flowing to any future dataset — including " +
-                "data from sessions that occurred before your withdrawal.",
+            stringResource(R.string.consent_once_your_anonymized_data_has_been_included) +
+                stringResource(R.string.consent_individually_withdrawn_from_that_dataset_how) +
+                stringResource(R.string.consent_your_data_fresh_from_your_device_for_each_st) +
+                stringResource(R.string.consent_and_permanently_stops_any_further_data_flowi) +
+                stringResource(R.string.consent_data_from_sessions_that_occurred_before_your),
             style = MaterialTheme.typography.bodySmall,
         )
     }

@@ -162,10 +162,10 @@ enum NPLimitSource: CustomStringConvertible, Equatable {
 
     var description: String {
         switch self {
-        case .hardware:   return "Hardware Limit"
-        case .global_:    return "Global Limit"
-        case .helmet:     return "Helmet Limit"
-        case .individual: return "Individual Limit"
+        case .hardware:   return String(localized: "VALIDATE_SOURCE_HARDWARE_LABEL")
+        case .global_:    return String(localized: "VALIDATE_SOURCE_GLOBAL_LABEL")
+        case .helmet:     return String(localized: "VALIDATE_SOURCE_HELMET_LABEL")
+        case .individual: return String(localized: "VALIDATE_SOURCE_INDIVIDUAL_LABEL")
         }
     }
 }
