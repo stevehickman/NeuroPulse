@@ -52,6 +52,11 @@ enum NPHardwareLimits {
 
     // MARK: Clinical tACS (T2)
     static let clinicalTacsMaxMilliamps: Double = 4.0
+    // One driver channel per T2 cap electrode (NP-FW-HD-001 §6.4,
+    // NP_HD_DRIVER_CHANNELS). OI-TACS-01: the hub wire mask carried only 16 bits
+    // until 2026-09-07, so a protocol authoring more was silently clamped at
+    // compile time; np_mod_clin_tacs_params_t now has a third mask byte.
+    static let clinicalTacsMaxChannels: Int = 21
 
     // MARK: HD-tDCS (T2) — Bikson lab safety limits for 3.5mm Ag/AgCl dual-rated electrode
     static let hdTdcsMaxMilliampsPerElectrode: Double = 2.0

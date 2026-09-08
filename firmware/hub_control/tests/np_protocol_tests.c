@@ -14,6 +14,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -24,6 +25,12 @@
  * error on the DEFINITION side as well as the caller side (OI-SWCI-40,
  * following OI-SWCI-18 on the SW-01 side). */
 #include "np_sw02_platform_hal.h"
+
+/* OI-TACS-01: the tACS channel count is spelled in two trees — np_hub_types.h
+ * owns the hub wire mask, np_hd_config.h owns the driver the sLORETA/HD-tDCS
+ * module talks to.  This suite is the one host target that includes both, so it
+ * is where the two are held equal. */
+#include "np_hd_config.h"
 
 static int g_failures = 0;
 
@@ -684,6 +691,52 @@ static void test_rejects_stop_deadline_overflow(void)
           "accept: a stop deadline of exactly UINT32_MAX is fine");
 }
 
+/* ── Clinical tACS wire contract (OI-TACS-01) ─────────────────────────────────── */
+
+static void test_clin_tacs_channel_mask_spans_the_driver(void)
+{
+    /* The struct is a wire format: the app encoders lay these bytes out by hand
+     * and the T2 module driver will read them back.  Both halves of the contract
+     * are asserted here — the width the driver has (21 channels) and the width
+     * the wire can carry (three mask bytes, 8 bytes packed). */
+    check(NP_CLIN_TACS_CHANNELS == NP_HD_DRIVER_CHANNELS,
+          "clin_tacs: the hub wire mask covers exactly the driver's channels");
+
+    check(sizeof(np_mod_clin_tacs_params_t) == 8U,
+          "clin_tacs: params struct is 8 bytes packed (was 7 before OI-TACS-01)");
+
+    /* Field offsets: an encoder writes these positions numerically, so a struct
+     * edit that shifts one is a silent misinterpretation, not a build error. */
+    check(offsetof(np_mod_clin_tacs_params_t, freq_mhz)         == 0U &&
+          offsetof(np_mod_clin_tacs_params_t, amplitude_ua)     == 2U &&
+          offsetof(np_mod_clin_tacs_params_t, channel_mask_lo)  == 4U &&
+          offsetof(np_mod_clin_tacs_params_t, channel_mask_hi)  == 5U &&
+          offsetof(np_mod_clin_tacs_params_t, channel_mask_ext) == 6U &&
+          offsetof(np_mod_clin_tacs_params_t, waveform)         == 7U,
+          "clin_tacs: field offsets match the encoders' byte positions");
+
+    /* channel_mask_ext carries channels 16–20 in bits 0–4; bits 5–7 are reserved
+     * and an encoder must leave them clear, so a future field can claim them.
+     * Raising NP_CLIN_TACS_CHANNELS past 24 would silently drop the top channels
+     * off the end of that byte — this is the assertion that would catch it. */
+    check(NP_CLIN_TACS_MASK_EXT_BITS <= 8U,
+          "clin_tacs: the channels above 15 still fit in one channel_mask_ext byte");
+
+    /* All 21 channels are representable across the three mask bytes. */
+    {
+        np_mod_clin_tacs_params_t p;
+        uint32_t mask = (1UL << NP_CLIN_TACS_CHANNELS) - 1UL;   /* 0x1FFFFF */
+        memset(&p, 0, sizeof(p));
+        p.channel_mask_lo  = (uint8_t)(mask & 0xFFUL);
+        p.channel_mask_hi  = (uint8_t)((mask >> 8) & 0xFFUL);
+        p.channel_mask_ext = (uint8_t)((mask >> 16) & 0xFFUL);
+
+        check(p.channel_mask_lo == 0xFFU && p.channel_mask_hi == 0xFFU &&
+              p.channel_mask_ext == 0x1FU,
+              "clin_tacs: an all-channels-on mask round-trips as FF FF 1F");
+    }
+}
+
 /* ── Runner ───────────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -713,6 +766,8 @@ int main(void)
     test_rejects_truncated_target();
     test_rejects_trailing_body_bytes();
     test_rejects_stop_deadline_overflow();
+
+    test_clin_tacs_channel_mask_spans_the_driver();
 
     if (g_failures == 0) {
         printf("\nALL TESTS PASSED\n");

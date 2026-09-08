@@ -339,13 +339,33 @@ typedef struct __attribute__((packed)) {
 
 /* ── T2: 21-ch clinical tACS (NP_MOD_CLIN_TACS) ────────────────────────────── */
 
+/* OI-TACS-01 (closed 2026-09-07): the mask is 21 bits, not 16.  The driver has
+ * carried one channel per cap electrode since 2026-08-05 (NP_HD_DRIVER_CHANNELS
+ * = 21, firmware/sloreta_hdtdcs/include/np_hd_config.h), but this struct stopped
+ * at channel_mask_hi, so channels 16–20 could not be enabled over the hub wire
+ * and every encoder clamped to 16 to match.  channel_mask_ext carries them.
+ *
+ * The mask width is a wire contract, so the count is spelled here rather than
+ * derived: NP_HD_DRIVER_CHANNELS is the sLORETA/HD-tDCS module's view of the
+ * shared driver and lives in a tree the hub does not include.  The two are
+ * asserted equal in firmware/hub_control/tests/np_protocol_tests.c, which sees
+ * both headers, so a change to either without the other fails the host tests.
+ *
+ * This is NOT the safety MCU's NP_SAFETY_MAX_CHANNELS (14).  That count is one
+ * entry per NP_SAFETY_EN_* enable line — the whole clinical-stim driver is a
+ * single safety channel (NP_SAFETY_CH_CLIN_STIM) — and is unrelated to how many
+ * electrodes that driver energises. */
+#define NP_CLIN_TACS_CHANNELS       21U
+#define NP_CLIN_TACS_MASK_EXT_BITS  (NP_CLIN_TACS_CHANNELS - 16U)  /* 5 */
+
 typedef struct __attribute__((packed)) {
     uint16_t freq_mhz;          /* mHz; adaptive EMF notch enforced by safety MCU */
     uint16_t amplitude_ua;      /* peak µA per channel; firmware cap ≤ 4000 */
     uint8_t  channel_mask_lo;   /* channels 0–7 enable bitmask */
     uint8_t  channel_mask_hi;   /* channels 8–15 enable bitmask */
+    uint8_t  channel_mask_ext;  /* channels 16–20 in bits 0–4; bits 5–7 reserved, must be 0 */
     uint8_t  waveform;          /* 0=sinusoidal, 1=biphasic square, 2=triangular */
-} np_mod_clin_tacs_params_t;
+} np_mod_clin_tacs_params_t;    /* 8 bytes packed */
 
 /* ── T2: sLORETA-guided 4×1 HD-tDCS (NP_MOD_HD_TDCS) ──────────────────────── */
 

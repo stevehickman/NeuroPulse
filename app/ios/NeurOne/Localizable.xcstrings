@@ -63536,6 +63536,77 @@
         }
       }
     },
+    "VALIDATE_MSG_CLINICAL_TACS_CHANNELCOUNT": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clinical tACS channel count %1$@ is outside the driver's 1–%2$@ channels (one per T2 cap electrode)."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clinical tACS channel count %1$@ is outside the driver's 1–%2$@ channels (one per T2 cap electrode)."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clinical tACS channel count %1$@ is outside the driver's 1–%2$@ channels (one per T2 cap electrode)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clinical tACS channel count %1$@ is outside the driver's 1–%2$@ channels (one per T2 cap electrode)."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clinical tACS channel count %1$@ is outside the driver's 1–%2$@ channels (one per T2 cap electrode)."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clinical tACS channel count %1$@ is outside the driver's 1–%2$@ channels (one per T2 cap electrode)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clinical tACS channel count %1$@ is outside the driver's 1–%2$@ channels (one per T2 cap electrode)."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clinical tACS channel count %1$@ is outside the driver's 1–%2$@ channels (one per T2 cap electrode)."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clinical tACS channel count %1$@ is outside the driver's 1–%2$@ channels (one per T2 cap electrode)."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clinical tACS channel count %1$@ is outside the driver's 1–%2$@ channels (one per T2 cap electrode)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Clinical tACS channel count %1$@ is outside the driver's 1–%2$@ channels (one per T2 cap electrode)."
+          }
+        }
+      }
+    },
     "VALIDATE_MSG_CLINICAL_TACS_INTENSITYMILLIAMPS": {
       "extractionState": "manual",
       "localizations": {
@@ -71839,6 +71910,77 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Cardiac Interlock"
+          }
+        }
+      }
+    },
+    "VALIDATE_PARAM_CHANNEL_COUNT": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Channel Count"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Channel Count"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Channel Count"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Channel Count"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Channel Count"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Channel Count"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Channel Count"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Channel Count"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Channel Count"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Channel Count"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "Channel Count"
           }
         }
       }

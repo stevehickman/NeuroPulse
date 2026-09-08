@@ -431,6 +431,20 @@ function validateModality(
           t('VALIDATE_MSG_CLINICAL_TACS_INTENSITYMILLIAMPS', { 0: p.params.intensityMilliamps, 1: hw.clinicalTacsMaxMilliamps })
         ));
       }
+      // Hardware: channel count — OI-TACS-01.
+      // Until 2026-09-07 nothing checked this and hubCompiler silently clamped an
+      // over-range count to the wire mask width. The mask now spans the driver's
+      // full 21 channels, and an out-of-range count is an error rather than a
+      // quiet reduction: a clinician who authored 24 gets told, not obeyed in part.
+      if (p.params.channelCount > hw.clinicalTacsMaxChannels ||
+          p.params.channelCount < 1) {
+        issues.push(issue(
+          'error', 'clinical_tacs', 'channelCount', t('VALIDATE_PARAM_CHANNEL_COUNT'),
+          `${p.params.channelCount}`, `1–${hw.clinicalTacsMaxChannels}`, 'hardware',
+          t('VALIDATE_MSG_CLINICAL_TACS_CHANNELCOUNT',
+            { 0: p.params.channelCount, 1: hw.clinicalTacsMaxChannels })
+        ));
+      }
       // Dosage
       if (l?.maxIntensityMilliamps != null && p.params.intensityMilliamps > l.maxIntensityMilliamps) {
         issues.push(issue(

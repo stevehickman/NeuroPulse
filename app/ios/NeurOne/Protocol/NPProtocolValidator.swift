@@ -1149,6 +1149,25 @@ struct NPProtocolValidator {
             )
         }
 
+        // Hardware: channel count, 1...21 — OI-TACS-01.
+        // Until 2026-09-07 nothing checked this and the hub encoder silently clamped
+        // an over-range count to the 16-bit wire mask. The mask now spans the
+        // driver's full 21 channels, and an out-of-range count is reported rather
+        // than quietly reduced.
+        if p.channelCount < 1 || p.channelCount > NPHardwareLimits.clinicalTacsMaxChannels {
+            result.addError(
+                modality: m, param: "channelCount", displayName: String(localized: "VALIDATE_PARAM_CHANNEL_COUNT"),
+                actual: "\(p.channelCount)",
+                limit: "1–\(NPHardwareLimits.clinicalTacsMaxChannels)",
+                source: .hardware,
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_CLINICAL_TACS_CHANNELCOUNT"),
+                    String(describing: p.channelCount),
+                    String(describing: NPHardwareLimits.clinicalTacsMaxChannels)
+                )
+            )
+        }
+
         // Dosage: max intensity
         if let maxI = lim?.maxIntensityMilliamps, p.intensityMilliamps > maxI {
             result.addError(

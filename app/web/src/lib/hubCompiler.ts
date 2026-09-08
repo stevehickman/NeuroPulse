@@ -70,6 +70,7 @@ import {
   NPZoneDefinition,
 } from '../types/protocol';
 import { isValidSocketId, NP_SOCKET_COUNT } from './socketMap.generated';
+import { NPHardwareLimits } from './hardwareLimits';
 
 // ─── Wire format constants (mirrors np_hub_config.h) ─────────────────────────
 
@@ -769,26 +770,33 @@ function encodePBM1170nm(p: DeepPBM1170Params): EncodedParams {
 }
 
 function encodeClinicalTacs(p: ClinicalTacsParams): EncodedParams {
-  // np_mod_clin_tacs_params_t: 7 bytes
-  // freq_mhz×2, amplitude_ua×2, channel_mask_lo, channel_mask_hi, waveform
+  // np_mod_clin_tacs_params_t: 8 bytes
+  // freq_mhz×2, amplitude_ua×2, channel_mask_lo, channel_mask_hi,
+  // channel_mask_ext, waveform
+  //
+  // OI-TACS-01: channel_mask_ext (channels 16–20, bits 0–4) was added
+  // 2026-09-07. Before it the struct stopped at channel_mask_hi and this
+  // encoder clamped to 16 — a protocol authoring the driver's full 21 channels
+  // was silently reduced at compile time. The clamp below is now a backstop
+  // behind protocolValidator's `channelCount` check, not the limit itself.
   const freqMhz = Math.min(Math.round(p.frequencyHz * 1000), 0xFFFF);
   const ampUa   = Math.min(Math.round(p.intensityMilliamps * 1000), 4000);
   const wf      = p.waveform === 'sinusoidal' ? 0 : p.waveform === 'square' ? 1 : 2;
-  // Activate first channelCount channels.  The T2 driver has 21 channels, one
-  // per cap electrode (NP_HD_DRIVER_CHANNELS, NP-FW-HD-001 §6.4), but
-  // np_mod_clin_tacs_params_t carries only two 8-bit masks, so channels 16–20
-  // cannot be addressed over the wire yet — see OI-TACS-01.  Widening this is a
-  // firmware wire-format change, not an app-side clamp to raise.
-  const CLIN_TACS_WIRE_CHANNELS = 16;
-  const n       = Math.min(p.channelCount, CLIN_TACS_WIRE_CHANNELS);
-  const fullMask = n === CLIN_TACS_WIRE_CHANNELS ? 0xFFFF : (1 << n) - 1;
-  const buf = new Uint8Array(7);
+  // Activate the first channelCount channels. The T2 driver has 21, one per cap
+  // electrode (NP_HD_DRIVER_CHANNELS, NP-FW-HD-001 §6.4), and since OI-TACS-01
+  // the wire can address all of them.
+  const n        = Math.min(Math.max(Math.round(p.channelCount), 0),
+                            NPHardwareLimits.clinicalTacsMaxChannels);
+  const fullMask = n === 0 ? 0 : (2 ** n) - 1;   // 21 → 0x1FFFFF
+  const buf = new Uint8Array(8);
   const dv  = new DataView(buf.buffer);
   dv.setUint16(0, freqMhz, true);
   dv.setUint16(2, ampUa, true);
   dv.setUint8(4, fullMask & 0xFF);
-  dv.setUint8(5, (fullMask >> 8) & 0xFF);
-  dv.setUint8(6, wf);
+  dv.setUint8(5, (fullMask >>> 8) & 0xFF);
+  // Bits 5–7 of channel_mask_ext are reserved and must stay clear.
+  dv.setUint8(6, (fullMask >>> 16) & 0x1F);
+  dv.setUint8(7, wf);
   return { modType: NP_MOD_CLIN_TACS, target: slotTarget(SLOT_CLIN_TACS), params: buf };
 }
 
