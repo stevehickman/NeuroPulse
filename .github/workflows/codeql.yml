@@ -118,6 +118,18 @@ jobs:
         yes | sdkmanager --licenses >/dev/null || true
         sdkmanager "platforms;android-36" "build-tools;35.0.0" "platform-tools"
 
+    # Both compiled legs generate their locale files from locales/*.json at
+    # build time by shelling out to bun (CLAUDE.md §17), and both fail without
+    # it: :app:assembleDebug runs the syncLocales Gradle task, and the Swift
+    # autobuilder runs the NeurOne target's first build phase, which is what
+    # produces the git-ignored Localizable.xcstrings the Resources phase copies.
+    # Mirrors the same step in android-ci.yml and ios-ci.yml.
+    - name: Set up Bun
+      if: matrix.language == 'java-kotlin' || matrix.language == 'swift'
+      uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: latest
+
     - name: Set up Gradle 8.11.1
       if: matrix.language == 'java-kotlin'
       uses: gradle/actions/setup-gradle@v4

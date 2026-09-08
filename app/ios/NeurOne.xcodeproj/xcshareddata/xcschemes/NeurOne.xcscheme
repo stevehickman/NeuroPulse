@@ -6,6 +6,24 @@
       parallelizeBuildables = "YES"
       buildImplicitDependencies = "YES"
       runPostActionsOnFailure = "NO">
+      <PreActions>
+         <ExecutionAction
+            ActionType = "Xcode.IDEStandardExecutionActionsCore.ExecutionActionType.ShellScriptAction">
+            <ActionContent
+               title = "Generate localized strings"
+               scriptText = "# Generates the git-ignored Localizable.xcstrings from locales/*.json&#10;# (CLAUDE.md §17) BEFORE Xcode computes the build plan. The target's own&#10;# run-script phase cannot do this: a file that does not exist when the plan&#10;# is computed is never compiled into the bundle, however early the phase&#10;# that creates it runs, and the app then renders raw keys.&#10;set -eu&#10;export PATH=&quot;$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH&quot;&#10;if ! command -v bun &gt;/dev/null 2&gt;&amp;1; then&#10;  echo &quot;error: bun not found. Run 'bun scripts/sync-locales.ts' from the repository root.&quot;&#10;  exit 1&#10;fi&#10;cd &quot;${SRCROOT}/../..&quot;&#10;bun scripts/sync-locales.ts&#10;">
+               <EnvironmentBuildable>
+                  <BuildableReference
+                     BuildableIdentifier = "primary"
+                     BlueprintIdentifier = "919DD729CE75F166C8BC88B3"
+                     BuildableName = "NeurOne.app"
+                     BlueprintName = "NeurOne"
+                     ReferencedContainer = "container:NeurOne.xcodeproj">
+                  </BuildableReference>
+               </EnvironmentBuildable>
+            </ActionContent>
+         </ExecutionAction>
+      </PreActions>
       <BuildActionEntries>
          <BuildActionEntry
             buildForTesting = "YES"

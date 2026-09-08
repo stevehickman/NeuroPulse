@@ -2,13 +2,32 @@
 /**
  * sync-locales.ts — Canonical JSON → platform-native locale file generator.
  *
- * Source of truth: locales/*.json (flat key-value per BCP 47 locale)
- * Targets:
- *   - Apple: app/ios/NeurOne/Localizable.xcstrings (String Catalog)
- *   - Web:     app/web/src/locales/*.json (copy)
- *   - Android: app/android/app/src/main/res/values-<qualifier>/strings.xml
+ * Source of truth: locales/*.json (flat key-value per BCP 47 locale) — the ONLY
+ * copy of any user-facing string that is committed to the repository.
+ * Build outputs (all three are generated at build time and git-ignored):
+ *   - Apple:   app/ios/NeurOne/Localizable.xcstrings (String Catalog)
+ *   - Web:     app/web/src/generated/locales/*.json (copy)
+ *   - Android: <buildDir>/generated/res/locales/values-<qualifier>/strings.xml
  *
- * Pass --check to fail without writing when a generated file is stale (CI).
+ * Pass --verify-untracked to assert that no output is committed (CI).
+ *
+ * ── Why the outputs are not committed ───────────────────────────────────────
+ *
+ * A generated file under version control is a second source of truth whether or
+ * not anyone means it to be, and this tree has already paid for that: 26 keys
+ * once existed only in the committed String Catalog, 18 of them referenced by
+ * iOS source, and the NP-HFE-002 rewording of two setup strings was applied to
+ * the catalogue alone — regenerating would have reverted live copy to
+ * describing retired hardware. A `--check` job caught staleness after the fact;
+ * it could not stop the edit from being made in the wrong file, because the
+ * wrong file was sitting right there in the working tree, tracked and editable.
+ *
+ * So the outputs left the repository. Each app build regenerates its own from
+ * canonical (Vite plugin, Gradle task, Xcode run-script phase), which makes the
+ * hand-edit unrepresentable rather than merely detectable: there is nothing to
+ * hand-edit that survives the next build, and nothing to review that is not
+ * canonical. What CI now guards is the invariant itself — that no output path
+ * is tracked — which is what --verify-untracked does.
  *
  * ── Translation state is DERIVED, not stored ────────────────────────────────
  *
@@ -48,12 +67,44 @@
  */
 
 import { readFileSync, writeFileSync, readdirSync, mkdirSync, existsSync } from "fs";
-import { join, basename } from "path";
+import { execFileSync } from "child_process";
+import { join, basename, resolve } from "path";
 
-const LOCALES_DIR = join(import.meta.dir, "..", "locales");
-const XCSTRINGS_OUT = join(import.meta.dir, "..", "app", "ios", "NeurOne", "Localizable.xcstrings");
-const WEB_LOCALES_OUT = join(import.meta.dir, "..", "app", "web", "src", "locales");
-const ANDROID_RES_OUT = join(import.meta.dir, "..", "app", "android", "app", "src", "main", "res");
+const ROOT = join(import.meta.dir, "..");
+const LOCALES_DIR = join(ROOT, "locales");
+
+/**
+ * The iOS catalogue is written into the source tree because the .xcodeproj
+ * carries a file reference to that exact path; Xcode resolves it at project
+ * load, before any build phase has run. It is git-ignored, and the run-script
+ * phase regenerates it ahead of the Resources phase that consumes it.
+ */
+const XCSTRINGS_OUT = join(ROOT, "app", "ios", "NeurOne", "Localizable.xcstrings");
+
+/**
+ * The web copies go to a directory that is entirely generated — not alongside
+ * the hand-written supportedLocales.ts in src/locales/. Vite and tsc both
+ * resolve these as ordinary module imports, so they have to sit inside the
+ * project root; putting them in their own `generated/` tree lets .gitignore
+ * name one directory instead of a glob inside a source folder, and makes the
+ * import site say where the file came from.
+ */
+const WEB_LOCALES_OUT = join(ROOT, "app", "web", "src", "generated", "locales");
+
+/**
+ * Android needs no source-tree output at all: a generated res directory is a
+ * first-class Gradle concept, so the strings land under the module build
+ * directory and are added as a res srcDir. --android-res=<dir> lets Gradle pass
+ * its own layout.buildDirectory rather than trusting this default to match.
+ */
+const ANDROID_RES_DEFAULT = join(
+  ROOT, "app", "android", "app", "build", "generated", "res", "locales",
+);
+
+function androidResOut(): string {
+  const flag = process.argv.find((a) => a.startsWith("--android-res="));
+  return flag ? resolve(flag.slice("--android-res=".length)) : ANDROID_RES_DEFAULT;
+}
 
 const SOURCE_LANGUAGE = "en";
 
@@ -335,7 +386,10 @@ function canonicalToAndroidPlural(value: string): string {
  * would leave the choosing to the caller, which is the bug _ZERO/_OTHER exists
  * to avoid.
  */
-function generateAndroidXml(locales: Map<string, LocaleData>): Array<[string, string]> {
+function generateAndroidXml(
+  locales: Map<string, LocaleData>,
+  resOut: string,
+): Array<[string, string]> {
   const en = locales.get(SOURCE_LANGUAGE)!;
   const outputs: Array<[string, string]> = [];
 
@@ -372,16 +426,78 @@ function generateAndroidXml(locales: Map<string, LocaleData>): Array<[string, st
     }
 
     lines.push("</resources>", "");
-    outputs.push([join(ANDROID_RES_OUT, androidValuesDir(locale), "strings.xml"), lines.join("\n")]);
+    outputs.push([join(resOut, androidValuesDir(locale), "strings.xml"), lines.join("\n")]);
   }
   return outputs;
 }
 
 // --- Main ---
 
-function main(): void {
-  const checkOnly = process.argv.includes("--check");
+/**
+ * Paths that must never be tracked, as git pathspecs.
+ *
+ * The two legacy locations are listed even though nothing writes to them any
+ * more. They are exactly where a re-committed artifact would do damage without
+ * announcing itself: Gradle merges app/src/main/res unconditionally, so a
+ * stale strings.xml under a values-* qualifier there would silently win over
+ * the generated tree, and a re-appearing app/web/src/locales/*.json would
+ * resolve for any import that still names the old path. Guarding the path is
+ * cheaper than diagnosing either.
+ */
+const GENERATED_PATHSPECS = [
+  "app/ios/NeurOne/Localizable.xcstrings",
+  "app/web/src/generated/",
+  "app/android/app/build/",
+  // Legacy output locations — retired 2026-09-08, still forbidden.
+  "app/web/src/locales/*.json",
+  "app/android/app/src/main/res/values/strings.xml",
+  "app/android/app/src/main/res/values-*/strings.xml",
+];
 
+/**
+ * Fail if any generated locale artifact is tracked.
+ *
+ * This is the whole of what CI can check now, and it is the check that matters:
+ * staleness was only ever a symptom of the outputs being committed. `git
+ * ls-files` lists tracked paths, so an ignored-but-present working copy — the
+ * normal state after a build — is correctly silent, and only `git add` of an
+ * output trips it.
+ */
+function verifyUntracked(): void {
+  const tracked = execFileSync("git", ["ls-files", "--", ...GENERATED_PATHSPECS], {
+    cwd: ROOT,
+    encoding: "utf-8",
+  })
+    .split("\n")
+    .filter(Boolean);
+
+  if (tracked.length > 0) {
+    console.error(
+      "Generated locale artifacts are committed. locales/*.json is the only\n" +
+        "copy of a user-facing string that belongs in the repository; these are\n" +
+        "build outputs (CLAUDE.md §17):\n",
+    );
+    for (const f of tracked) console.error(`  ${f}`);
+    console.error(
+      "\nRemove them from the index and let the build regenerate them:\n" +
+        `  git rm --cached ${tracked.length > 4 ? "<the paths above>" : tracked.join(" ")}`,
+    );
+    process.exit(1);
+  }
+
+  console.log(
+    `verify-untracked: no generated locale artifact is committed ` +
+      `(${GENERATED_PATHSPECS.length} pathspecs checked).`,
+  );
+}
+
+function main(): void {
+  if (process.argv.includes("--verify-untracked")) {
+    verifyUntracked();
+    return;
+  }
+
+  const resOut = androidResOut();
   const locales = loadLocales();
   validateLocales(locales);
 
@@ -390,16 +506,20 @@ function main(): void {
   const outputs: Array<[string, string]> = [
     [XCSTRINGS_OUT, JSON.stringify(generateXCStrings(locales), null, 2) + "\n"],
     ...webOutputs(locales),
-    ...generateAndroidXml(locales),
+    ...generateAndroidXml(locales, resOut),
   ];
 
-  if (!checkOnly) {
-    for (const dir of [WEB_LOCALES_OUT, ...[...locales.keys()].map((l) => join(ANDROID_RES_OUT, androidValuesDir(l)))]) {
-      if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    }
+  for (const dir of [
+    WEB_LOCALES_OUT,
+    ...[...locales.keys()].map((l) => join(resOut, androidValuesDir(l))),
+  ]) {
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
   }
 
-  let stale = 0;
+  // Written unconditionally-if-changed rather than always: a build that
+  // rewrites byte-identical content still bumps mtime, which is enough to make
+  // Gradle and Xcode redo every downstream resource step on a no-op build.
+  let written = 0;
   for (const [path, content] of outputs) {
     let existing: string | null = null;
     try {
@@ -407,28 +527,15 @@ function main(): void {
     } catch {
       existing = null;
     }
-
     if (existing === content) continue;
-
-    if (checkOnly) {
-      console.error(`STALE: ${path}`);
-      stale++;
-    } else {
-      writeFileSync(path, content, "utf-8");
-      console.log(`wrote ${path}`);
-    }
+    writeFileSync(path, content, "utf-8");
+    written++;
   }
 
-  if (checkOnly) {
-    if (stale > 0) {
-      console.error(`\n${stale} generated file(s) out of date — run: bun scripts/sync-locales.ts`);
-      process.exit(1);
-    }
-    console.log(`${locales.size} locales, ${keyCount} keys — all generated files up to date.`);
-    return;
-  }
-
-  console.log(`sync-locales: ${locales.size} locales, ${keyCount} keys — done.`);
+  console.log(
+    `sync-locales: ${locales.size} locales, ${keyCount} keys — ` +
+      `${written} of ${outputs.length} output file(s) rewritten.`,
+  );
 }
 
 main();

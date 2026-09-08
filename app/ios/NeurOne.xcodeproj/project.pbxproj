@@ -541,6 +541,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 6896651A04FA259E0C697CA7 /* Build configuration list for PBXNativeTarget "NeurOne" */;
 			buildPhases = (
+				B7E4A91C63D08F52A1104C77 /* Generate localized strings */,
 				392F47B01B3C7C570F5B69AF /* Sources */,
 				460B9020E877F27015AA591C /* Resources */,
 				AEB3554FA5B3AC191159C955 /* Frameworks */,
@@ -642,6 +643,24 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		B7E4A91C63D08F52A1104C77 /* Generate localized strings */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Generate localized strings";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -eu\n\n# Localizable.xcstrings is GENERATED from locales/*.json (CLAUDE.md §17) and is\n# not committed. Regenerate it here, ahead of the Resources phase that copies it.\n\n# Xcode build phases do not inherit a login shell PATH, so bun is looked for\n# where the installers put it before falling back to whatever PATH holds.\nexport PATH=\"$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH\"\n\nif ! command -v bun >/dev/null 2>&1; then\n  echo \"error: bun not found. Localizable.xcstrings is generated from locales/*.json;\"\n  echo \"note: install bun (https://bun.sh), or run \\\"bun scripts/sync-locales.ts\\\" from the repository root.\"\n  exit 1\nfi\n\ncd \"${SRCROOT}/../..\"\nbun scripts/sync-locales.ts\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		392F47B01B3C7C570F5B69AF /* Sources */ = {

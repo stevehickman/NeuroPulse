@@ -5,7 +5,7 @@
 // protocols: those are fetched from protocols/predefined/ when the simulator
 // loads, per NP-NPPS-REF-001 §1.6 (No build-time cache of protocol content).
 // Regenerate with: bun scripts/build-simulator-runtime.ts
-// sources-sha256: 03fd039ec1b402d7c0d1f12ab716e4e4bb9c8c53d60c6e7a0c0700a8d308461f
+// sources-sha256: 23e6219abb0a73a3f713eb5c83803f3ae760316bce6c8d19627f2d521f3abda5
 var __create = Object.create;
 var __getProtoOf = Object.getPrototypeOf;
 var __defProp = Object.defineProperty;

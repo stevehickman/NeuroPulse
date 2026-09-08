@@ -18,10 +18,18 @@ on:
   push:
     paths:
       - 'app/android/**'
+      # res/values*/strings.xml is generated from canonical at build time and is
+      # not committed (CLAUDE.md §17), so a string edit no longer touches
+      # app/android/** — without these two entries a canonical change that
+      # breaks the Android resource merge would not run this workflow at all.
+      - 'locales/**'
+      - 'scripts/sync-locales.ts'
       - '.github/workflows/android-ci.yml'
   pull_request:
     paths:
       - 'app/android/**'
+      - 'locales/**'
+      - 'scripts/sync-locales.ts'
       - '.github/workflows/android-ci.yml'
   workflow_dispatch:
 
@@ -60,6 +68,13 @@ jobs:
         run: |
           yes | sdkmanager --licenses >/dev/null || true
           sdkmanager "platforms;android-36" "build-tools;35.0.0" "platform-tools"
+
+      # The :app build generates res/values*/strings.xml from locales/*.json via
+      # the syncLocales Gradle task, which shells out to bun.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Set up Gradle 8.11.1
         uses: gradle/actions/setup-gradle@v4

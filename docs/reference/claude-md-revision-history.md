@@ -13,27 +13,66 @@
 
 ## Current revision
 
-**Rev 40 (2026-09-01) — core/subsidiary split extended; no design decision changed.** The
-always-loaded core was reduced from ~69 KB to the invariants that bear on most conversations. The
-revision history (this file), the commercial model (§2.1a ladder, §2.2 charger tables, §2.3
-consumables, §6.1 clinician tiers), the full modality specifications (§3 T1/T2 detail), the §5.1
-boundary-resolution list, §5.2/§5.3 detail, and the §6.2 rationale plus §6.3 portal moved to
-`docs/reference/`. **Every top-level section (§1–§6, §16) and every subsection number is retained
-in CLAUDE.md as a stub carrying its invariant and naming the file that now holds the detail**, so
-the 663 inbound `CLAUDE.md §N` citations in firmware, app code and the DHF still resolve — the
-regression `scripts/check-section-refs.ts` exists to prevent. Content was relocated verbatim, not
-edited.
+**Rev 41 (2026-09-08) — §17: the generated locale files leave the repository; `locales/*.json` becomes
+the only committed copy of any user-facing string.** Rev 40's §17 already named canonical as the
+place a string is edited, and `sync-locales.ts --check` failed CI when a generated file drifted from
+it. That was a staleness check, not a single-source rule: the String Catalog, the eleven web copies
+and the eleven `values*/strings.xml` were all still tracked, so the same 1,420 strings were committed
+four times over, and every one of those files was sitting in the working tree, editable, looking
+exactly like source. **The failure mode this closes is not hypothetical — it is the one §17 was
+written after.** 26 keys once existed only in the committed `.xcstrings`, 18 of them referenced by
+iOS source, and the NP-HFE-002 rewording of two setup strings was applied to the catalogue alone;
+regenerating would have reverted live copy to instructing users to listen for a bone-conduction tone
+the firmware no longer emits. A `--check` job reports that after it has happened. It cannot stop the
+edit being made in the wrong file.
 
-The three `docs/status/` logs gained a "How to read this file" block with grep recipes, and
-`completed-decisions.md` was **reordered chronologically** by each entry's own date (2026-05-09 →
-2026-08-31), with the 30 entries carrying no date of their own collected in a labelled block ahead
-of the timeline in their previous relative order. That reordering is a one-time exception to the
-file's append-only rule, taken by principal direction: no entry's text changed and none was added or
-removed — the entry set was asserted identical before and after, and the previous order is in git
-history.
+**What changed.** The three generated trees are git-ignored and regenerated at build time by each
+app's own build: a `canonicalLocales` Vite plugin (web, alongside the `canonicalProtocols` plugin
+that made the same argument for `protocols/`), the `syncLocales` Gradle task (Android), and the
+NeurOne target's first build phase (iOS). Android's output moved out of the source tree entirely,
+into `<buildDir>/generated/res/locales` registered as a res `srcDir`; web's moved from
+`app/web/src/locales/` — where it sat beside the hand-written `supportedLocales.ts` — to
+`app/web/src/generated/locales/`, so one ignored directory replaces a glob inside a source folder.
+The iOS catalogue keeps its path, because the `.xcodeproj` carries a file reference Xcode resolves
+at project load. **Generator output is byte-identical to what was committed**; only the location and
+the tracking changed.
+
+**Consequences worth knowing.** (i) `sync-locales.ts --check` is retired and replaced by
+`--verify-untracked`, which asserts no generated artifact is tracked — including the two retired
+output locations, where a re-committed file would silently win over the generated tree rather than
+announce itself. Staleness was only ever a symptom of the outputs being committed; with them gone
+the invariant to guard is the absence itself. (ii) **The Android and iOS builds now require `bun` on
+`PATH`**, which was previously true only of the web build; `android-ci`, `ios-ci` and both compiled
+CodeQL legs install it. (iii) **A canonical locale edit no longer touches `app/ios/**` or
+`app/android/**`**, so those workflows' path filters gained `locales/**` and `scripts/sync-locales.ts`
+— without that, a canonical change that breaks the String Catalog or the Android resource merge
+would not have run the workflow that catches it. (iv) The web locale tests now read canonical rather
+than the generated copy: every assertion they make is a property of the source of truth, and against
+the generated tree they would have restated what the generator guarantees by construction while
+passing just as happily on a stale copy. No key, no string value and no rule from Rev 40's §17
+changed.
 
 ## Earlier revisions
 
+> **Rev 40 (2026-09-01) — core/subsidiary split extended; no design decision changed.** The
+> always-loaded core was reduced from ~69 KB to the invariants that bear on most conversations. The
+> revision history (this file), the commercial model (§2.1a ladder, §2.2 charger tables, §2.3
+> consumables, §6.1 clinician tiers), the full modality specifications (§3 T1/T2 detail), the §5.1
+> boundary-resolution list, §5.2/§5.3 detail, and the §6.2 rationale plus §6.3 portal moved to
+> `docs/reference/`. **Every top-level section (§1–§6, §16) and every subsection number is retained
+> in CLAUDE.md as a stub carrying its invariant and naming the file that now holds the detail**, so
+> the 663 inbound `CLAUDE.md §N` citations in firmware, app code and the DHF still resolve — the
+> regression `scripts/check-section-refs.ts` exists to prevent. Content was relocated verbatim, not
+> edited.
+>
+> The three `docs/status/` logs gained a "How to read this file" block with grep recipes, and
+> `completed-decisions.md` was **reordered chronologically** by each entry's own date (2026-05-09 →
+> 2026-08-31), with the 30 entries carrying no date of their own collected in a labelled block ahead
+> of the timeline in their previous relative order. That reordering is a one-time exception to the
+> file's append-only rule, taken by principal direction: no entry's text changed and none was added or
+> removed — the entry set was asserted identical before and after, and the previous order is in git
+> history.
+>
 > **Rev 39 (2026-08-16) — RETAIL PRICING UNLOCKED by principal direction. No price is set by this revision.** Taken against Rev 38's finding that all four T1 configurations are gross-margin negative. Unlocking the constraint turns the arithmetic around — GM% becomes the input, retail the output — and yields a **ladder, not a number**, published as new **§2.1a**: break-even Home Standard **$1,196–1,278**, target margin **$1,869–1,997** (a 2.20–2.35× increase on $849); Core $955–1,121; Home Lite $1,445–1,587; Home Premium $2,475–2,637. **The six configurations keep the prices currently in force** — choosing new ones is a separate commercial decision, and §2.1a records four things to weigh first. **Break-even binds before margin does**: Home Standard cannot be sold below ~$1,196 at any margin, already 1.4× its current price. **Three consequences the lock was concealing.** (i) The T1 and T2 ladders **collide** — Home Premium at $2,475–2,637 against a Pro Entry at $4,999 makes §1's two-tier structure one tier with a regulatory footnote (**OI-COST-08**). (ii) **Pro is where the *target*, not the cost, is the thing to question** — both Pro rows are profitable today (+$2,499, +$10,163/unit) and only holding 73%/81% demands $9K and $20K; this is **not** a mandate to raise T2 pricing. (iii) **Every competitive price claim is live again** — `docs/reference/competitive-position.md`'s comparisons were safe *because retail was locked*, and that justification is gone; at $1,997 Home Standard is ~40% of a ~$5K Vielight, not 17%, and becomes a direct Sens.ai price peer (**OI-COST-09**). **Binding sequence: `OI-HEXTILE-06` must be decided BEFORE any price is set** (**OI-COST-10**) — silicon PD plus a 20-tile build moves Home Standard's target-margin retail $1,997 → ~$1,383, so pricing first prices against a cost that decision invalidates. All §2.1a figures inherit §2.1's floor status: term **U** is still excluded, so this is the *least* retail would have to move. §2.2 charger policy remains unaffected — it is keyed to peak draw, not price. See `docs/np_cost_001.md` Rev 2 §8.
 >
 > **Rev 38 (2026-08-16) — §2.1 BOM / COGS / GM% re-derived against the hex-tile architecture. Retail unchanged and still locked. All four T1 configurations are now gross-margin negative.** The old columns (Core $168–169 / 42% … Pro Full $1,506 / 81%) were built on the retired five-zone-module design; they are superseded by `NP-COST-001`, and the stopgap caveat in `NP-DB-005` §4 is replaced with real figures. **Home Standard goes $405 → $897–959 BOM, +36% GM → −41% to −51%.** Pro is unaffected (+50% / +73%) because its retail is 3–6× its cost. The dominant term is not the cluster tier the brief was scoped around — it is **`NP-HW-HEXTILE-001` §6.4's $11.53/tile driver + metering, of which ~$10 is two InGaAs photodiodes**; at 30 tiles that is $346 against a $405 BOM, and **none of `OI-HEXTILE-06`'s three options, alone or combined, restores a positive T1 margin** (NP-COST-001 §6). Two corrections of record: (i) the brief's three deltas are **not additive** — `NP-DRV-SHELL-002` **Rev 2** §10.1's $175–225 already contains the $114.12 controller tier *and* the $32–64 socket arrays, and supersedes Rev 1's $125–216; (ii) `NP-HW-HUB-001` §8's blanket "every figure is VOID" banner is **stale**, because `OI-HUB-C17c` resolved against D-4 and the TIA/mux/ADC lines survive (OI-COST-06). **`OI-HUB-C08` is NOT closed and cannot be**: `OI-HEXTILE-02` has selected no 660/808 nm emitter, so *the dominant BOM line has no unit price on either side of the subtraction* — every figure is therefore a **floor** excluding term **U**, and OI-HUB-C08 is additionally under-scoped because it never covered the emitter-count delta (600 → up to 2,814 emitters). **Three inputs this model needs do not exist anywhere in the document set** and are recorded as assumptions, not decisions: per-configuration tile population (OI-COST-01), whether every configuration carries the full 18-cluster L1 (OI-COST-04), and — because no single BOM→COGS rule is recoverable from the six published pairs — a per-configuration COGS multiplier (OI-COST-05). §2.2 charger policy **confirmed unaffected** (peak draw unchanged; concurrency held at ~5–6 tiles by `NP-HW-HEXTILE-001` §9). Socket count ~80 remains **PROVISIONAL** pending REG-1/ACT-1 and every derived figure inherits that.

@@ -67,7 +67,17 @@ function sourceGraph(entry: string): string[] {
       const candidates = [base, `${base}.ts`, `${base}.tsx`, join(base, 'index.ts')];
       const resolved = candidates.find(c => existsSync(c) && !c.endsWith('/'));
       if (!resolved) {
-        throw new Error(`cannot resolve '${spec}' from ${file} — the fingerprint would be incomplete`);
+        // The locale JSONs this graph reaches through i18n.ts are build output,
+        // not committed files (CLAUDE.md §17), so on a fresh checkout they are
+        // simply absent. That is a build-order problem with a one-line fix, not
+        // a broken import, and saying so beats making the next person infer it
+        // from "the fingerprint would be incomplete".
+        const hint = spec.includes('generated/locales/')
+          ? `\n  ${spec} is generated from locales/*.json — run: bun scripts/sync-locales.ts`
+          : '';
+        throw new Error(
+          `cannot resolve '${spec}' from ${file} — the fingerprint would be incomplete${hint}`,
+        );
       }
       if (!seen.has(resolved)) queue.push(resolved);
     }

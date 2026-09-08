@@ -1,5 +1,5 @@
 import { findLocale, type LocaleInfo } from "../locales/supportedLocales";
-import enTranslations from "../locales/en.json";
+import enTranslations from "../generated/locales/en.json";
 
 type Translations = Record<string, string>;
 
@@ -16,7 +16,7 @@ function detectLocale(): LocaleInfo {
 async function loadTranslations(bcp47: string): Promise<Translations> {
   if (cache.has(bcp47)) return cache.get(bcp47)!;
   try {
-    const mod = await import(`../locales/${bcp47}.json`);
+    const mod = await import(`../generated/locales/${bcp47}.json`);
     const translations: Translations = mod.default ?? mod;
     cache.set(bcp47, translations);
     return translations;
