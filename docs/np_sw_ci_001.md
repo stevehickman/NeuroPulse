@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 17
-**Date:** 2026-09-03  
+**Revision:** 18
+**Date:** 2026-09-08  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -13,7 +13,16 @@
 **Gate:** —  
 **IEC 62304 Class:** SW-01 Class C (safety MCU), SW-02 Class B (main processor)  
 **Supersedes:** None  
-**Change Summary:** Rev 17 (2026-09-08) — **the iOS String Catalog is no longer committed, so §5.0.2's fourth-instance scope entry is removed and `sync-locales.ts --check` is retired for `--verify-untracked`** (CLAUDE.md §17 Rev 41); `ios-ci`, `android-ci` and both compiled CodeQL legs gain a bun setup step, and the two `paths:`-filtered workflows gain `locales/**`. Prior: Rev 16 (2026-09-03) — **phase 10; OI-SWCI-42 CLOSED: `ucHeap` is in DTCM, and three figures the item rested on were wrong.** New **§4.12**. (1) **Re-measuring the record before acting on it found three defects in it.** The "162,436 B static footprint" carried verbatim through §4.8.5, §4.10.6 and the item is `.data` + `.bss` + the **8 KiB MSP stack** — Berkeley-format `arm-none-eabi-size` folds allocated `NOLOAD` sections into its `bss` column, and the stack is already placed separately by the linker script, so it was counted twice; the real figure is **154,244 B**. Two of the four named largest `.bss` contributors, `np_module_map`'s `s_map` and `s_nvram_scratch` (44,948 B), are **in no image** — `--gc-sections` drops them, at phase 8 and now, verified by building `100a410`; the census was taken over objects rather than the artifact. And the cost it records names an **L1 D-cache that is never enabled** — `SystemInit()` enables the I-cache only, so OCRAM2 access is *uncached* and the recorded cost was an understatement. `firmware/vendor/cmsis_core/VERSION` already said so in as many words: §4.8's "two statements in the tree, contradicting each other, compared by nothing", for the fourth time. The conclusion phase 8 drew survives — `.bss` in a 128 KiB DTCM overflows by a measured 31,384 B — but its arithmetic attributed that to the wrong sections. (2) **The choice was never all-or-nothing.** DTCM held 308 bytes of application data; 130,764 B of the 131,072 that exist under the DEFAULT eFuse partition were unallocated while 153,940 B of `.bss` sat in OCRAM2. **`ucHeap` (65,536 B) moves to a new `.dtcm_bss`**, leaving `.bss` at 88,404 B (−42.6 %). It is the one buffer whose placement can be argued without a profiler on an image that cannot be profiled: every FreeRTOS task stack is cut from it, which is a property of the calling convention, not a hypothesis about a workload. (3) **It needs nothing from OI-SWCI-39, and that is what answers §4.10.6 rather than overriding it.** 65,848 B of `.data` + `ucHeap` fit the 128 KiB the default partition provides with 65,224 B spare, asserted as `NP_DTCM_GUARANTEED_SIZE`; and §4.10.6's corruption-vs-fault objection does not reach it, because the MSP stack pinned at `0x20080000` already faults in `Reset_Handler` under a failed partition, upstream of every DTCM resident. The other 88,404 B stays in OCRAM2 for §4.10.6's reason. (4) **The startup zeroes exactly one span**, and the vendored file is byte-exact — so `.dtcm_bss` is zeroed by `np_app_dtcm_bss_clear()` as the first statement of `main()`, which is checkably the earliest C code in the image. Heap ownership moves via `configAPPLICATION_ALLOCATED_HEAP`, the mechanism heap_4's own comment says exists for this, so `firmware/vendor/freertos/` stays byte-exact too. (5) **`.lpsdr4` named a region that does not exist.** `np_hd_session.c` said the name "names a region in the ARM linker script"; none declared it, no SDRAM region or `0x80000000` address exists in the tree, and nothing configures the SEMC. Measured with `--gc-sections` off, `ld` orphan-placed it at VMA `0x20000554` — **inside DTCM** — with an LMA nothing copies from and no zeroing. The link now refuses (`ASSERT(SIZEOF(.lpsdr4) == 0)`) instead of mis-placing: **OI-SWCI-46**. (6) **One regression only the artifact can catch.** Reverting `configAPPLICATION_ALLOCATED_HEAP` to `0` fails nothing — heap_4 quietly supplies its own `ucHeap` in `.bss`, the link is green, every `ASSERT` passes and the host suite passes 33/33 — so the new CI step asserts against the **image** that `ucHeap` is inside `.dtcm_bss` and that `.dtcm_bss` is exactly 65,536 B, and prints the DTCM/OCRAM2 split. Every check here was mutation-tested. (7) **A measurement artifact caught before it was published.** The first before/after table had `.text` *shrinking by 496 B* for a change that only adds a function. `configASSERT` embeds `__FILE__`, the baseline had been built in a scratchpad worktree whose path is 39 characters longer than the repository's, and eight files' merged `.rodata` literals carried the difference — the build directory was being measured, not the change. §4.12.1's Berkeley-`size` error in a second costume, and it yields a rule: **an image comparison is valid only between builds made at the same absolute path** (§4.12.5). New open items: **OI-SWCI-45** (the D-cache is never enabled), **OI-SWCI-46** (no external SDRAM is established).
+**Change Summary:** Rev 18 (2026-09-08) — **OI-SWCI-46 CLOSED: there is no external SDRAM, and the demand that named it is deleted rather than the supply built.** New **§4.13**. (1) **Establishing SDRAM was not available and would not have been firmware's call.** No SDRAM appears in any BOM (`NP-COST-001` has no memory line), and there is no schematic, pinout or timing set — SEMC initialisation needs a specific part's row/column/bank counts, CAS latency, `tRP`/`tRAS`/`tRFC`/`tRC`/`tXSR`/`tWR` and refresh interval, so writing it now would be inventing register values for silicon nobody has run, the trade `firmware/vendor/mcux_sdk/VERSION` already refuses on the clock sequence. Selecting the part is a hardware decision with BOM, layout, EMF and §4.5 power consequences. (2) **The name does not match anything this processor can talk to.** Checked against the vendored device layer: `MIMXRT1062.h` declares exactly one external-memory controller, SEMC, and no DDR/LPDDR controller peripheral at all; SEMC's SDRAM interface is single-data-rate over an 8- or 16-bit port (`SEMC_SDRAMCR0_PS`). So "LPSDR4" in CLAUDE.md §4.1 is either low-power SDR SDRAM or a memory this part cannot interface — raised as **OI-SWCI-47**, not resolved here, because §4 is locked and this is a hardware-specification question. (3) **The whole demand fits on-chip several times over, and that is what decides it.** `s_source_power` (9,788 B) plus the weight matrix `np_hd_config.h` sizes (205,548 B) is 215,336 B, against a measured 312,716 B free in the staging region and ~439 KB of unallocated established DTCM. A 32 MB part would have carried 0.64 % of itself. `s_source_power` becomes an ordinary static in `.bss` — **not** DTCM, because §4.12.3's rule stands and only `ucHeap` can be argued without a profiler. (4) **A correctness fix came free.** The orphaned `.lpsdr4` fell outside both spans the startup touches, so the array would have held stale DTCM; in `.bss` it is inside the one span `__STARTUP_CLEAR_BSS` clears — verified on the artifact, `s_source_power` at `0x20263f7c`. (5) **The gate gets the timing it could not have before.** §4.12.2 deliberately omitted `KEEP()`, correctly, but the cost was that the ASSERT could only fire once a `.lpsdr4` buffer became *reachable* — the exact condition that hid the original defect. With the section empty at source, `KEEP()` is free: measured on the normal build with an unreachable 64-byte `.lpsdr4` object, §4.12.2's script **links green** and §4.13's **fails the link**. `np_app_link_agreement_tests` gained a check on the `KEEP()` itself, mutation-tested. (6) **Three more comments described a placement the compiler was never asked for** — `g_proto_buf`, the parsed session descriptor and the parsed command all said "LPSDR4 RAM" while being ordinary statics in `.bss`; §4.12.1's own census had measured `g_proto_buf` there at 6,144 B in the same document that repeated the claim. The cheap variety of §4.8's shape: free to be wrong because nothing acted on them. (7) **The image does not change** — `s_source_power` is unreachable and was gc-dropped before and after, every section byte-identical — which is precisely why the gate, not the artifact, is the deliverable. Host suite 33/33. New open item: **OI-SWCI-47** (CLAUDE.md §4.1's 32 MB "LPSDR4": no part, no BOM line, and a name that may denote a controller this processor does not have). Prior: Rev 17 (2026-09-08) — **the iOS String Catalog is no longer committed, so §5.0.2's fourth-instance scope entry is removed and `sync-locales.ts --check` is retired for `--verify-untracked`** (CLAUDE.md §17 Rev 41); `ios-ci`, `android-ci` and both compiled CodeQL legs gain a bun setup step, and the two `paths:`-filtered workflows gain `locales/**`. Prior: Rev 16 (2026-09-03) — **phase 10; OI-SWCI-42 CLOSED: `ucHeap` is in DTCM, and three figures the item rested on were wrong.** New **§4.12**. (1) **Re-measuring the record before acting on it found three defects in it.** The "162,436 B static footprint" carried verbatim through §4.8.5, §4.10.6 and the item is `.data` + `.bss` + the **8 KiB MSP stack** — Berkeley-format `arm-none-eabi-size` folds allocated `NOLOAD` sections into its `bss` column, and the stack is already placed separately by the linker script, so it was counted twice; the real figure is **154,244 B**. Two of the four named largest `.bss` contributors, `np_module_map`'s `s_map` and `s_nvram_scratch` (44,948 B), are **in no image** — `--gc-sections` drops them, at phase 8 and now, verified by building `100a410`; the census was taken over objects rather than the artifact. And the cost it records names an **L1 D-cache that is never enabled** — `SystemInit()` enables the I-cache only, so OCRAM2 access is *uncached* and the recorded cost was an understatement. `firmware/vendor/cmsis_core/VERSION` already said so in as many words: §4.8's "two statements in the tree, contradicting each other, compared by nothing", for the fourth time. The conclusion phase 8 drew survives — `.bss` in a 128 KiB DTCM overflows by a measured 31,384 B — but its arithmetic attributed that to the wrong sections. (2) **The choice was never all-or-nothing.** DTCM held 308 bytes of application data; 130,764 B of the 131,072 that exist under the DEFAULT eFuse partition were unallocated while 153,940 B of `.bss` sat in OCRAM2. **`ucHeap` (65,536 B) moves to a new `.dtcm_bss`**, leaving `.bss` at 88,404 B (−42.6 %). It is the one buffer whose placement can be argued without a profiler on an image that cannot be profiled: every FreeRTOS task stack is cut from it, which is a property of the calling convention, not a hypothesis about a workload. (3) **It needs nothing from OI-SWCI-39, and that is what answers §4.10.6 rather than overriding it.** 65,848 B of `.data` + `ucHeap` fit the 128 KiB the default partition provides with 65,224 B spare, asserted as `NP_DTCM_GUARANTEED_SIZE`; and §4.10.6's corruption-vs-fault objection does not reach it, because the MSP stack pinned at `0x20080000` already faults in `Reset_Handler` under a failed partition, upstream of every DTCM resident. The other 88,404 B stays in OCRAM2 for §4.10.6's reason. (4) **The startup zeroes exactly one span**, and the vendored file is byte-exact — so `.dtcm_bss` is zeroed by `np_app_dtcm_bss_clear()` as the first statement of `main()`, which is checkably the earliest C code in the image. Heap ownership moves via `configAPPLICATION_ALLOCATED_HEAP`, the mechanism heap_4's own comment says exists for this, so `firmware/vendor/freertos/` stays byte-exact too. (5) **`.lpsdr4` named a region that does not exist.** `np_hd_session.c` said the name "names a region in the ARM linker script"; none declared it, no SDRAM region or `0x80000000` address exists in the tree, and nothing configures the SEMC. Measured with `--gc-sections` off, `ld` orphan-placed it at VMA `0x20000554` — **inside DTCM** — with an LMA nothing copies from and no zeroing. The link now refuses (`ASSERT(SIZEOF(.lpsdr4) == 0)`) instead of mis-placing: **OI-SWCI-46**. (6) **One regression only the artifact can catch.** Reverting `configAPPLICATION_ALLOCATED_HEAP` to `0` fails nothing — heap_4 quietly supplies its own `ucHeap` in `.bss`, the link is green, every `ASSERT` passes and the host suite passes 33/33 — so the new CI step asserts against the **image** that `ucHeap` is inside `.dtcm_bss` and that `.dtcm_bss` is exactly 65,536 B, and prints the DTCM/OCRAM2 split. Every check here was mutation-tested. (7) **A measurement artifact caught before it was published.** The first before/after table had `.text` *shrinking by 496 B* for a change that only adds a function. `configASSERT` embeds `__FILE__`, the baseline had been built in a scratchpad worktree whose path is 39 characters longer than the repository's, and eight files' merged `.rodata` literals carried the difference — the build directory was being measured, not the change. §4.12.1's Berkeley-`size` error in a second costume, and it yields a rule: **an image comparison is valid only between builds made at the same absolute path** (§4.12.5). New open items: **OI-SWCI-45** (the D-cache is never enabled), **OI-SWCI-46** (no external SDRAM is established).
+
+> **This revision was authored as Rev 17 and renumbered to Rev 18 on rebase — the SIXTH instance,
+> and the second running.** PR #319 (the locale-file change) landed on `main` while this branch was
+> open and took **Rev 17**. Only the revision number collided this time: `main`'s highest section is
+> still `### 4.12`, so **§4.13 is this branch's and needs no renumbering** — unlike #312 below, which
+> took a section number too. A citation of "Rev 17" concerning the iOS String Catalog or
+> `sync-locales.ts` means #319's revision; external SDRAM and OI-SWCI-46 are **Rev 18 / §4.13**. The
+> mechanism is the one the note below records and is unchanged: a branch numbers its revision when
+> authored, and nothing compares it against `main` until the rebase.
 
 > **This revision was authored as Rev 15 / §4.11 and renumbered to Rev 16 / §4.12 on rebase.**
 > PR #312 (OI-SWCI-41, the SW-02 core clock) landed on `main` while this branch was open and took
@@ -1434,10 +1443,174 @@ closes having answered the question it asked — *which* buffers deserve DTCM �
 answer was available for.
 
 **It did not enable the D-cache** (OI-SWCI-45) **and did not establish SDRAM** (OI-SWCI-46). Both are
-decisions with hardware consequences, raised with the measurement that found them.
+decisions with hardware consequences, raised with the measurement that found them. *(OI-SWCI-46 was
+closed at §4.13 — not by establishing SDRAM, but by measuring that nothing needs it.)*
 
 **It did not touch `configTOTAL_HEAP_SIZE`.** §4.8.5 rejected shrinking it to fit a bring-up image
 and that reasoning is untouched: the heap moved, it did not shrink.
+
+### 4.13 External SDRAM — closing OI-SWCI-46 by deleting the demand (2026-09-08, closes OI-SWCI-46)
+
+§4.12.2 found that `np_hd_session.c` placed `s_source_power` (9,788 B) in a section called
+`.lpsdr4`, that no linker script declared such a region, that no address at `0x80000000` existed
+anywhere in the tree, and that nothing configured the SEMC controller that would make an external
+part answer at all. It made the link refuse rather than mis-place, and raised **establishing SDRAM**
+as OI-SWCI-46, scoping it as *"SEMC configuration plus a region, not a one-line placement"*.
+
+**The item is closed the other way round: the demand is deleted, not the supply built.** Three
+measured facts decide it, in this order.
+
+#### 4.13.1 There is no part, so a SEMC sequence would be invented register values
+
+No SDRAM appears in any BOM in this repository — `NP-COST-001` has no memory line at all — and there
+is no schematic, no pinout and no timing set. SEMC SDRAM initialisation is not generic code: row and
+column bit counts, bank count, CAS latency, `tRP`/`tRAS`/`tRFC`/`tRC`/`tXSR`/`tWR` and the refresh
+interval all come from a specific part's datasheet, and the pad configuration comes from a specific
+board. Writing that now would be inventing register values for silicon nobody has run — the trade
+`firmware/vendor/mcux_sdk/VERSION` already refuses on the clock sequence, and §4.4's rejected trade
+in different clothes.
+
+Selecting the part is not firmware work either. A 16-bit SDRAM bus is ~40 routed signals switching at
+up to 166 MHz inside a chassis whose whole competitive claim is measured EMF shielding (CLAUDE.md
+§4.3) next to a µV-level EEG front end, and it carries BOM, package, layout and refresh-power
+consequences that reach §4.5's power table. That is a hardware decision with an owner, and firmware
+choosing it by writing a driver would be the tail wagging the dog.
+
+#### 4.13.2 The name does not match anything this processor can talk to
+
+Checked against the vendored device layer rather than from memory. `MIMXRT1062.h` declares exactly
+one external-memory controller, **SEMC** (`SEMC_BASE = 0x402F0000`); there is no MMDC or any other
+DRAM controller peripheral in the header. SEMC's SDRAM interface is single-data-rate over an 8- or
+16-bit parallel port — `SEMC_SDRAMCR0_PS` is *"0b0..8bit / 0b1..16bit"* — with `COL`, `CL` and
+burst-length fields of an SDR SDRAM controller. Grepping the whole header for a DDR/LPDDR
+memory-controller peripheral returns nothing: every `DDR` hit is an `ADDR` field or a FlexSPI/CSI
+double-data-rate mode bit.
+
+So "LPSDR4", the name CLAUDE.md §4.1 and `docs/ABBREVIATIONS.md` both carry for 32 MB of external
+memory, is at best an unusual spelling of low-power SDR SDRAM (buildable) and at worst LPDDR4, which
+this processor has no controller for at any price. **That contradiction is not resolved here** — it
+is a hardware-specification question, not a CI one, and §4 of CLAUDE.md is locked. It is raised as
+**OI-SWCI-47**.
+
+#### 4.13.3 The whole demand fits on-chip several times over, and that is what actually decides it
+
+The two buffers that named external memory are this array and the weight matrix
+`NP_HD_WEIGHT_MATRIX_BYTES` describes:
+
+| Buffer | Bytes | Allocated today? |
+|--------|-------|------------------|
+| `s_source_power` (2447 × float32) | 9,788 | yes, in `np_hd_session.c` |
+| sLORETA weight matrix W (2447 × 21 × float32) | 205,548 | no — `np_hd_config.h` sizes it; §8 loads it from the Config partition at session start |
+| **Total** | **215,336** | |
+
+Measured against the phase-10 image, built at the repository path per §4.12.5
+(2026-09-08, `arm-none-eabi-gcc 13.2.1`, `-O3 -ffunction-sections -fdata-sections --gc-sections`):
+
+| Region | Allocated | Free | Note |
+|--------|-----------|------|------|
+| STAGING (OCRAM2, 440 KiB) | 137,844 B | **312,716 B** | loadable image 49,436 B + `.bss` 88,404 B |
+| DTCM, established 512 KiB (§4.10) | 73,732 B | **~439 KB** below the pinned MSP stack | `.data` 308 + `.dtcm_bss` 65,536 + stack 8,192 |
+| DTCM, default-eFuse guarantee (128 KiB) | 65,844 B | 65,224 B | §4.12's `NP_DTCM_GUARANTEED_SIZE` window |
+
+215,336 B against 312,716 B of free staging alone. **A 32 MB external part would have been carrying
+0.64 % of itself** — the external memory is not load-bearing for sLORETA, and never was. What the
+`.lpsdr4` attribute bought was not capacity; it was a link that could not succeed.
+
+**DTCM was not chosen, deliberately.** §4.12.3's rule stands: `ucHeap` earns DTCM without a profiler
+because every FreeRTOS task stack is cut from it, which is a property of the calling convention.
+Which *other* buffers are hot is a question about a workload, this image still cannot be profiled,
+and sLORETA has no better claim than the rest of `.bss`. `s_source_power` is now an ordinary static
+and goes where the rest of `.bss` goes.
+
+#### 4.13.4 A correctness fix that came free with the placement
+
+The old arrangement was not merely unbacked, it was *uninitialised*. `Reset_Handler` copies
+`__etext..__data_end__` and `__STARTUP_CLEAR_BSS` zeroes `__bss_start__..__bss_end__`; an orphaned
+`.lpsdr4` at VMA `0x20000554` fell in neither span, so the array would have held whatever the
+previous image left in DTCM. In `.bss` it is inside the one span the vendored startup does clear.
+Verified on the artifact: linked with `--no-gc-sections` so the module is present,
+`s_source_power` resolves to `0x20263f7c` — inside STAGING, between `__bss_start__` and
+`__bss_end__`.
+
+#### 4.13.5 The gate gets the timing it could not have before
+
+§4.12.2 gave `.lpsdr4` an output section and `ASSERT(SIZEOF(.lpsdr4) == 0)`, and **deliberately no
+`KEEP()`** — correctly, because `s_source_power` still carried the attribute and keeping the section
+would have fired the assert on a buffer nothing used.
+
+The cost of that was the gate's *timing*. `--gc-sections` dropped the array, so the ASSERT could only
+fire once a `.lpsdr4` buffer became **reachable** — which is exactly the condition under which the
+original defect stayed invisible for as long as it did. Now that nothing in the tree places anything
+in `.lpsdr4`, `KEEP()` is free, and it turns the gate around: a new `.lpsdr4` buffer fails the link
+the moment it **exists**.
+
+Both halves measured, on the normal `--gc-sections` build, with an unreachable 64-byte `.lpsdr4`
+object linked in:
+
+| Linker script | Result |
+|---------------|--------|
+| §4.12.2's, without `KEEP()` | **links green** — `.lpsdr4` dropped, gate silent |
+| §4.13's, with `KEEP()` | **link fails** on the ASSERT, naming the decision |
+
+`np_app_link_agreement_tests` gained a third `.lpsdr4` check, on the `KEEP()` itself, because losing
+it would restore the old timing without failing anything. Mutation-tested: with `KEEP(*(.lpsdr4))`
+reverted to `*(.lpsdr4)` the target exits 1 and names the reason; restored, it exits 0.
+
+#### 4.13.6 Three comments described a placement the compiler was never asked for
+
+Found while sweeping for other claims on this memory. `np_hub_control_main.c` said `g_proto_buf` was
+"in LPSDR4 RAM (32 MB)"; `np_session_runner.h` said the parsed session descriptor was "in LPSDR4
+RAM"; `np_hub_types.h` said the same of the parsed command, and that a sLORETA target map was
+"written to LPSDR4". None of the four carried any section attribute — they are ordinary statics and
+have always been in `.bss`. §4.12.1's own `.bss` census measured `g_proto_buf` there, at 6,144 B, in
+the same document that repeated the LPSDR4 claim.
+
+This is §4.8's shape again — two statements in the tree contradicting each other, compared by
+nothing — and worth recording as the *cheap* variety: unlike `.lpsdr4`, these comments could never
+have moved a byte, because nothing acted on them. They were free to be wrong, which is why they
+stayed wrong. All are corrected to say `.bss`.
+
+#### 4.13.7 Measured
+
+The change is **invisible in today's image**, and that is the honest headline: `s_source_power` is
+unreachable and `--gc-sections` dropped it before and drops it now. Every section is byte-identical
+to the phase-10 baseline, built at the same absolute path per §4.12.5.
+
+| Section | Before | After |
+|---------|--------|-------|
+| `.text` | 47,843 | 47,843 |
+| `.data` | 308 | 308 |
+| `.dtcm_bss` | 65,536 | 65,536 |
+| `.bss` | 88,404 | 88,404 |
+
+Which is exactly why §4.13.5's gate matters: an image that does not change is an image that proves
+nothing about a buffer it never contained. The measurements that do move are on the artifact linked
+with `--no-gc-sections`, where the module is present:
+
+| Figure | Before | After |
+|--------|--------|-------|
+| `.lpsdr4` | 9,788 B at VMA `0x20010558` (in DTCM, unzeroed) | **section empty, not emitted** |
+| `.bss` | 188,572 B | 198,356 B |
+| `s_source_power` | in `.lpsdr4` | `0x20263f7c`, in `.bss`, inside the startup's cleared span |
+| STAGING used, every object kept | 346,428 B / 76.89 % | 356,212 B / **79.06 %** |
+
+Host suite 33/33. Cross-build green, 0 unresolved symbols.
+
+#### 4.13.8 What this deliberately did NOT do
+
+**It did not allocate the weight matrix.** Nothing allocates it today; `np_hd_config.h` only sizes
+it. §4.13.3 records where it goes when the Config-partition loader exists — `.bss`, unless a bench
+measurement earns it DTCM under §4.12.3 — and the numbers say it fits. Allocating 205 KB now, for a
+loader that does not exist, in an image that traps a few hundred instructions into `main()`, would be
+weight with no reader.
+
+**It did not touch CLAUDE.md §4.1 or `docs/ABBREVIATIONS.md`.** Both state 32 MB of external LPSDR4
+as a hardware fact. Firmware not needing it is not the same claim as the hardware not having it, and
+§4 is locked; the contradiction §4.13.2 found is **OI-SWCI-47**, not an edit made here.
+
+**It did not extend the gate to SW-01.** The safety MCU is a separate CMake project with its own
+linker script, on a Cortex-M0+ with no external memory concept and no `.lpsdr4` anywhere. A tripwire
+there would guard a risk that does not exist.
 
 ## 5. Specified workflows
 
@@ -2752,7 +2925,8 @@ a third manual correction. §4.10.7.
 | OI-SWCI-43 | **Raised 2026-09-02 while closing OI-SWCI-40 (§4.9.4).** **84 symbols are declared by an `extern` inside a `.c` that NO header declares at all** — the `np_mod_*_{init,detect,control,shutdown,telemetry}` registration entry points of 17 module drivers, plus `np_ed25519_verify`, which does have a header (`np_crypto.h`) and is one line from the same fix the 56 seams just got. This is the module-registry idiom and several files state it in as many words (*"module drivers expose no per-module header"*), so it is a deliberate design position and not an oversight — but it is the OI-SWCI-18/40 hazard with the mitigation *absent* rather than merely unused: there is no second declaration to disagree with, so a registry entry point whose definition drifts from every caller's guess compiles and links exactly as the closed items' worst case did. Deliberately out of scope for the §4.9 gate, which reports only seams a header already declares: with nothing to compare against, the only assertion available is "a header ought to exist", which is a design decision about how the registry publishes its modules rather than a build property. Closing it means either a per-module header for 17 drivers or one registry header declaring the vtable entry points, and that choice interacts with the hub cluster-controller fan-out (OI-HUB-C01..C19) still being unimplemented. | Firmware | — |
 | OI-SWCI-44 | **Raised 2026-09-02 during phase 9 (§4.10.7); authored as OI-SWCI-43 and renumbered on rebase, as this revision itself was (see the header note).** PR #310 took 43 for the undeclared-`extern` family above. The two are unrelated. `np_config.h` declares `NP_SCRATCH_SRAM_BASE` = `0x20270000` and `NP_SCRATCH_SRAM_SIZE` = 64 KiB — a window that lies **inside** `.app_staging` (`0x20210000`–`0x2027DFFF`) and overlaps the bootloader's 8 KiB stack at the top of OCRAM2. Nothing references either; they are residue of the pre-Defect-C map (§4.3), where OCRAM was believed to have room the derivation later showed it does not. Harmless while unused and a trap the moment someone uses them — a scratch buffer placed there would be overwritten by the next application image the bootloader stages, after signature verification passed, which is Defect C's failure mode with a different cause. Flagged in place rather than deleted: phase 9's subject was a different memory map, and removing constants is a reviewed decision, not a side effect. The fix is deletion unless someone can name the consumer | Firmware | — |
 | OI-SWCI-45 | **Raised 2026-09-03 during phase 10 (§4.12.1).** **The L1 D-cache is never enabled, and the record assumed it was.** `SystemInit()` enables the I-cache only, under `#if __ICACHE_PRESENT`; nothing in the tree calls `SCB_EnableDCache()`. OI-SWCI-42 described `.bss` in OCRAM2 as going "through the bus and the L1 D-cache", so the cost it recorded was an understatement — the 88,404 B still in OCRAM2 is reached by **uncached** bus access. `firmware/vendor/cmsis_core/VERSION` already recorded the fact, so this is two statements in the tree contradicting each other with nothing comparing them (§4.8's shape, fourth occurrence). Enabling it is not free and is therefore a decision, not a fix: it needs MPU region attributes, and cache maintenance around every DMA buffer the hub fan-out will eventually introduce. Interacts with CLAUDE.md §4.1's "~1.1% CPU at full load" figure, which no measurement in this repository supports either way | Firmware | Device bring-up |
-| OI-SWCI-46 | **Raised 2026-09-03 during phase 10 (§4.12.2).** **No external LPSDR4 SDRAM is established, and code already places data in it.** `np_hd_session.c` puts `s_source_power` (9,788 B) in a `.lpsdr4` section and claimed the name "names a region in the ARM linker script"; no linker script declared it, no SDRAM region or `0x80000000` address exists anywhere in the tree, and nothing configures the SEMC controller. Measured with `--gc-sections` off: `ld` orphan-placed it at VMA `0x20000554`, **inside DTCM**, with an LMA nothing copies from and no zeroing — it was invisible only because the array is unreachable today. The link now refuses rather than mis-placing (`ASSERT(SIZEOF(.lpsdr4) == 0)`), so this is a hard gate before sLORETA becomes reachable. `np_hd_config.h` specifies a further ~205 KB weight matrix for the same memory, so the decision is SEMC configuration plus a region, not a one-line placement | Firmware | Device bring-up |
+| ~~OI-SWCI-46~~ | **Raised 2026-09-03 during phase 10 (§4.12.2); CLOSED 2026-09-08 (§4.13) — by deleting the demand, not building the supply.** ~~No external LPSDR4 SDRAM is established, and code already places data in it.~~ The item scoped the answer as "SEMC configuration plus a region"; it is neither, and three measurements say so. **There is no part** — no BOM line in `NP-COST-001`, no schematic, no pinout, no timing set — so a SEMC sequence would be invented register values for silicon nobody has run, and selecting the part is a hardware decision with BOM, layout, EMF and §4.5 power consequences rather than a firmware one. **The name may not denote anything this processor can talk to**: `MIMXRT1062.h` declares one external-memory controller, SEMC, whose SDRAM interface is single-data-rate over an 8- or 16-bit port (`SEMC_SDRAMCR0_PS`), and no DDR/LPDDR controller peripheral at all — split out as OI-SWCI-47 rather than resolved here, because CLAUDE.md §4 is locked. **And the whole demand fits on-chip several times over**: `s_source_power` (9,788 B) + the weight matrix `np_hd_config.h` sizes (205,548 B) = 215,336 B, against a measured 312,716 B free in the staging region and ~439 KB of unallocated established DTCM — a 32 MB part would have carried 0.64 % of itself. `s_source_power` is an ordinary static in `.bss` now (not DTCM — §4.12.3's rule stands), which also puts it inside the one span the vendored startup zeroes, where the orphaned `.lpsdr4` never was. The `.lpsdr4` ASSERT stays as a permanent tripwire and gains the `KEEP()` §4.12.2 could not afford: measured, §4.12.2's script links an unreachable `.lpsdr4` buffer green and §4.13's fails the link | Firmware | ~~Device bring-up~~ |
+| OI-SWCI-47 | **Raised 2026-09-08 during §4.13.2.** **CLAUDE.md §4.1 and `docs/ABBREVIATIONS.md` both state 32 MB of external "LPSDR4" as a hardware fact, and three things in the record disagree with it.** No SDRAM appears in any BOM — `NP-COST-001` has no memory line at all — so the part is unpriced as well as unselected. The vendored device layer declares exactly one external-memory controller, **SEMC** (`SEMC_BASE = 0x402F0000`), with an SDR SDRAM interface over an 8- or 16-bit port (`SEMC_SDRAMCR0_PS`: *0b0..8bit / 0b1..16bit*) and no MMDC or other DRAM controller peripheral anywhere in the header — so if "LPSDR4" means LPDDR4, this processor has no controller for it at any price; if it means low-power SDR SDRAM, the name is non-standard and the spelling is what caused `.lpsdr4` to look like a region someone had declared. And §4.13.3 measured SW-02's entire stated demand for it at 215,336 B, which fits on-chip with 312,716 B of staging free — so nothing in the firmware needs the part to exist. **The decision is whether §4.1 keeps a 32 MB external memory at all**, and if it does, which part and under what name; a 16-bit bus is ~40 signals at up to 166 MHz beside a µV EEG front end inside the §4.3 shielding claim, with BOM, layout and refresh-power consequences reaching §4.5. Not resolved in firmware: §4 is locked, and firmware not needing the memory is not the same claim as the hardware not having it | Hardware / Systems engineering | CLAUDE.md §4.1 accuracy; any SW-02 use of external memory |
 
 ## 8. Traceability
 

@@ -27,7 +27,7 @@
 /* ── Runner context (static allocation, single global instance) ──────────────── */
 
 typedef struct {
-    np_session_desc_t  desc;               /* parsed session (in LPSDR4 RAM) */
+    np_session_desc_t  desc;               /* parsed session (.bss — §4.13) */
     np_session_state_t state;
     TickType_t         start_tick;         /* xTaskGetTickCount() at session start */
     uint32_t           elapsed_ms;         /* running session time */

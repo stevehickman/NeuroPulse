@@ -20,7 +20,15 @@
 /* Weight matrix precomputed from BEM forward model on MNI152 standard head.    */
 #define NP_HD_SLORETA_N_VOXELS      2447U   /* cortical mesh, 7 mm MNI grid      */
 #define NP_HD_SLORETA_N_CH          NP_HD_EEG_CHANNELS
-/* Weight matrix footprint in LPSDR4: 2447 × 21 × float32 ≈ 205 KB             */
+/* Weight matrix footprint: 2447 x 21 x float32 = 205,548 B, ON-CHIP.           */
+/* This said "in LPSDR4" until NP-SW-CI-001 §4.13 (closes OI-SWCI-46).  There   */
+/* is no external SDRAM on this device — nothing configures the SEMC, no part   */
+/* is selected — and this matrix plus np_hd_session.c's 9,788 B source-power    */
+/* array is the whole demand that named it: 215,336 B against 312,716 B of      */
+/* measured free staging region and ~439 KB of unallocated established DTCM.    */
+/* Nothing allocates the matrix yet (§8 loads it from the Config partition at   */
+/* session start); when something does, it is an ordinary static in .bss unless */
+/* a bench measurement earns it DTCM, per §4.12.3.                              */
 #define NP_HD_WEIGHT_MATRIX_BYTES   ((uint32_t)(NP_HD_SLORETA_N_VOXELS) *  \
                                      (uint32_t)(NP_HD_SLORETA_N_CH) *      \
                                      (uint32_t)sizeof(float))

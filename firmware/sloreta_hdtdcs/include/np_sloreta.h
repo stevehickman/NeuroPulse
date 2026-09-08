@@ -3,9 +3,11 @@
  * Document: NP-FW-HD-001 Rev 1 §5
  *
  * Scalar sLORETA: weight matrix W (N_voxels × 21) precomputed offline from
- * BEM forward model on MNI152 head.  Loaded from Config partition at session
- * start into LPSDR4 (32 MB).  On-device runtime: covariance accumulation +
- * matrix–vector multiply gives source power per voxel.
+ * BEM forward model on MNI152 head.  Loaded from the Config partition at
+ * session start into ON-CHIP RAM — 205,548 B, which is why it does not need the
+ * external SDRAM this comment used to name and the device does not have
+ * (NP-SW-CI-001 §4.13, closes OI-SWCI-46).  On-device runtime: covariance
+ * accumulation + matrix–vector multiply gives source power per voxel.
  */
 
 #ifndef NP_SLORETA_H
@@ -50,7 +52,7 @@ typedef struct np_sloreta_ctx {
 /*
  * Initialize the sLORETA context.
  *
- * weight_matrix: pointer to the precomputed W matrix in LPSDR4.
+ * weight_matrix: pointer to the precomputed W matrix (on-chip, §4.13).
  *   Layout: W[voxel * NP_HD_EEG_CHANNELS + channel], row-major, float32.
  *   Must remain valid for the lifetime of ctx.
  * voxel_mni: pointer to MNI coordinate lookup table (one entry per voxel).
@@ -105,7 +107,7 @@ np_hd_status_t np_sloreta_push_epoch(np_sloreta_ctx_t *ctx,
  *   and C is the 21×21 sample covariance matrix.
  *
  * source_power_out: caller-supplied buffer, length n_voxels floats.
- *   Caller must allocate in LPSDR4 (2447 floats ≈ 9.6 KB).
+ *   Caller allocates on-chip: 2447 floats = 9,788 B (§4.13).
  */
 np_hd_status_t np_sloreta_compute_map(np_sloreta_ctx_t *ctx,
                                        float            *source_power_out,

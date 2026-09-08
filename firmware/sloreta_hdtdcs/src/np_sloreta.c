@@ -40,7 +40,7 @@
 
 /* ── Internal context ────────────────────────────────────────────────────────── */
 /* struct np_sloreta_ctx is defined transparently in np_sloreta.h so the session  */
-/* pool can embed it by value.  The embedder owns the storage (LPSDR4/SRAM).       */
+/* pool can embed it by value.  The embedder owns the storage (on-chip, §4.13).    */
 
 /* ── Spectral scratch and tables (module-static) ─────────────────────────────── */
 /*

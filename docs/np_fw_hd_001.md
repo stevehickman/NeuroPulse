@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-FW-HD-001
-**Revision:** 2
-**Date:** 2026-08-05
+**Revision:** 4
+**Date:** 2026-09-08
 **Status:** BASELINED
 **Effective Date:** 2026-05-11
 **Author:** Steve Hickman (CEO, interim Quality authority)
@@ -13,6 +13,7 @@
 **Gate:** NP-COORD-001 G3-07
 **IEC 62304 Class:** SW-02 Class B (main processor)
 **Supersedes:** —
+**Change Summary:** Rev 4 (2026-09-08) — **the sLORETA buffers are on-chip; there is no external SDRAM.** NP-SW-CI-001 §4.13 closed OI-SWCI-46 by measuring that this document's entire ≈215 KB "LPSDR4" budget fits on-chip (312,716 B free in the staging region alone, plus ~439 KB of unallocated established DTCM) and that no SDRAM part exists in any BOM. §11's LPSDR4 rows become `.bss` rows and §3.2/§5.1 stop naming LPSDR4. No algorithm, constant or safety limit changed. **Numbered 4, not 3:** the header read `Revision: 2` while §15 already carried a Rev 3 row (the FAI-HD01-F coverage fix, added by #270, which bumped the history and not the header). §15 is the record that was right; the header was one behind and is corrected here rather than absorbed.
 **Parent Document:** NP-SW-001
 
 ---
@@ -77,7 +78,7 @@ Targets are therefore classified `NP_HD_TARGET_DEPTH_SURFACE` or `NP_HD_TARGET_D
 | Constant | Value | Description |
 |----------|-------|-------------|
 | `NP_HD_SLORETA_N_VOXELS` | 2447 | Cortical mesh voxels, 7 mm MNI grid |
-| `NP_HD_WEIGHT_MATRIX_BYTES` | ≈205 KB | Precomputed W in LPSDR4 |
+| `NP_HD_WEIGHT_MATRIX_BYTES` | 205,548 B | Precomputed W, on-chip `.bss` (NP-SW-CI-001 §4.13) |
 | `NP_HD_SLORETA_FFT_SIZE` | 1024 | Welch window (2.048 s at 500 Hz) |
 | `NP_HD_SLORETA_EPOCHS` | 64 | Epochs for covariance accumulation |
 
@@ -165,7 +166,11 @@ Where:
 - `W_norm` = diagonal normalization matrix ensuring zero localization bias
 
 Dominant dipole orientation per voxel pre-selected; result is a scalar W row per voxel.  
-Stored in Config partition as 205 KB binary blob; loaded into LPSDR4 at session start.
+Stored in Config partition as a 205,548 B binary blob; loaded into on-chip RAM at session start.
+This said "LPSDR4" until Rev 4: there is no external SDRAM on this device and the matrix does not
+need one (NP-SW-CI-001 §4.13, closes OI-SWCI-46). Nothing allocates it yet — the loader does not
+exist — and when it does it is an ordinary static in `.bss` unless a bench measurement earns it DTCM
+under NP-SW-CI-001 §4.12.3.
 
 **On-device runtime:**
 
@@ -473,8 +478,8 @@ Target: ≥ 20 dB SNR in alpha band (8–13 Hz) during 1 mA anode stimulation. V
 
 | Item | Size | Location |
 |------|------|----------|
-| Weight matrix W | 205 KB | LPSDR4 (loaded from Config partition) |
-| Source power array | 9.6 KB | LPSDR4 (`.lpsdr4` section) |
+| Weight matrix W | 205,548 B | `.bss` when allocated — loader not written yet |
+| Source power array | 9,788 B | `.bss` (`np_hd_session.c`, `s_source_power`) |
 | `np_sloreta_ctx_t` — broadband covariance 21×21 | 1.8 KB | SRAM (inside session pool) |
 | `np_sloreta_ctx_t` — per-band covariances 4×21×21 | 7.1 KB | SRAM (inside session pool) |
 | `np_sloreta_ctx_t` — pointers, counters, channel means | ≈110 B | SRAM (inside session pool) |
@@ -483,11 +488,15 @@ Target: ≥ 20 dB SNR in alpha band (8–13 Hz) during 1 mA anode stimulation. V
 | `np_hd_session_t` (static pool, includes the sLORETA ctx above) | ≈9.5 KB | SRAM |
 | Spectral module statics — Hann 4 KB + twiddles 4 KB + FFT workspace 8 KB + retained spectra 10 KB | ≈26 KB | SRAM (`np_sloreta.c` file-scope) |
 | **Total SRAM** | **≈36 KB** | of 1 MB on-chip |
-| **Total LPSDR4** | **≈215 KB** | of 32 MB |
+| **Total, the two large buffers** | **215,336 B** | `.bss`, in the 440 KiB OCRAM2 staging region |
 
 The Rev 1 figure of "≤48 B" for `np_sloreta_ctx_t` counted only the pointers and counters and omitted the 21×21 covariance matrix the struct has always contained; the ≈1.5 KB session-pool line inherited the same omission. Both are corrected above alongside the Rev 2 additions.
 
-The spectral statics are shared across contexts and hold no per-session state — they are live only between entry and return of `np_sloreta_push_epoch()`, which is what makes that function non-reentrant (§5.4). Both totals sit far inside budget; SRAM is the binding resource and is at ≈3.5 % of the 1 MB on-chip pool.
+The spectral statics are shared across contexts and hold no per-session state — they are live only between entry and return of `np_sloreta_push_epoch()`, which is what makes that function non-reentrant (§5.4).
+
+**Rev 4: the two large buffers are on-chip, and the budget they were measured against is real.** Rev 3's last two rows said LPSDR4, "of 32 MB". There is no external SDRAM on this device — nothing configures the SEMC controller, no linker script declares a region, and no SDRAM part appears in any BOM — and `s_source_power` carried a `.lpsdr4` section attribute that ld would have orphan-placed inside DTCM, unzeroed, the moment this module became reachable (NP-SW-CI-001 §4.12.2). OI-SWCI-46 closed by measuring that the memory was never needed: 215,336 B against **312,716 B free in the OCRAM2 staging region** on the phase-10 image, plus ~439 KB of unallocated established DTCM. A 32 MB part would have carried 0.64 % of itself.
+
+So the binding resource is the 440 KiB staging region rather than "1 MB on-chip", and the two buffers are 47.8 % of it. That is comfortable but no longer negligible: with every object in the tree kept, the region measures 79.06 % used, so the weight matrix is the largest single object SW-02 will contain and its allocation is the point at which the region's headroom stops being an afterthought. A region overflow fails the link (`ld` errors rather than truncating), so the budget is enforced rather than tracked here.
 
 ---
 
@@ -667,3 +676,4 @@ All sub-criteria (HD02-A through HD02-K) pass in `fai_hd02_electrode_mapping()` 
 | 1 | 2026-05-11 | Initial release — Issue #23, G3-07 software baselined |
 | 2 | 2026-08-05 | §5.3 band power reimplemented as a real spectral measurement. Rev 1 computed one broadband quadratic form and scaled it by four compile-time bin-count constants, so the four band values were always in fixed proportion and every EEG input produced the same decomposition; no FFT existed in the module. Rev 2 accumulates a per-band cross-spectral covariance from a Hann-windowed 1024-point FFT per channel per epoch and evaluates `W_v^T C_b W_v` per band. Adds §5.3.1 stating units, band-edge softness, frequency span, and validity semantics, and a superseded-implementation notice for any Rev 1 band figure. `np_sloreta_band_power()` loses its unused `source_power` argument (§5.4); `np_hd_band_power_t` gains `valid`. §5.2 clarifies that the broadband covariance is deliberately unwindowed and that Hann applies to the spectral path only. §11 memory budget corrected — the Rev 1 `np_sloreta_ctx_t` figure omitted the covariance matrix — and extended with the per-band matrices and spectral statics. §12.1 adds FAI-HD01-E (single-band dominance, cross-stimulus ratio inversion, Parseval reconciliation) and documents the existing HD01-D criteria. No safety limit, montage, stimulation, or data-routing behaviour changed. |
 | 3 | 2026-08-05 | §12.1 adds FAI-HD01-F — `np_sloreta_find_peak()`'s argmax update body had zero test executions, because every existing case drove voxel 0 and the peak is seeded from `P[0]`. Mutation testing confirms five of seven defective `find_peak()` variants survived the pre-existing suite with zero failures. §5.1/§5.2 now specify peak tie-breaking (lowest voxel index on an exact tie), which was previously unspecified; HD01-F4 pins it. **Test and documentation only — no firmware source changed.** |
+| 4 | 2026-09-08 | **The sLORETA buffers are on-chip; there is no external SDRAM.** NP-SW-CI-001 §4.13 closed OI-SWCI-46 by measuring that this document's entire ≈215 KB "LPSDR4" budget (weight matrix 205,548 B + source-power array 9,788 B = 215,336 B) fits on-chip — 312,716 B free in the 440 KiB OCRAM2 staging region alone, plus ~439 KB of unallocated established DTCM — and that no SDRAM part exists in any BOM, no linker script declares a region, and nothing configures the SEMC controller. `s_source_power` loses its `.lpsdr4` section attribute and becomes an ordinary static in `.bss`, which also puts it inside the one span the vendored startup zeroes; as an orphaned `.lpsdr4` it would have been placed inside DTCM with nothing copying to or clearing it. §3.2, §5.1 and §11 stop naming LPSDR4, and §11 records the OCRAM2 staging region as the binding resource rather than "1 MB on-chip". Header revision corrected 2→4: #270 added a Rev 3 history row without bumping the header. No algorithm, constant, interface or safety limit changed |

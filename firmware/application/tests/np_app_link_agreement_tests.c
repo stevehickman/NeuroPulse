@@ -642,29 +642,44 @@ static void test_dtcm_bss_has_bounds_for_the_clear_function(void)
 }
 
 /*
- * §4.12.2 — .lpsdr4 must have an output section AND be asserted empty.
+ * §4.12.2 / §4.13 — .lpsdr4 must have an output section, be KEPT, and be
+ * asserted empty.
  *
  * The section is what stops it being an orphan; the assert is what stops the
  * section from becoming a quiet home for it.  Measured 2026-09-03: with
  * --gc-sections disabled, ld's orphan placement put .lpsdr4 at VMA 0x20000554,
- * inside DTCM, with an LMA nothing copies from.  Both halves are needed, so
- * both are checked.
+ * inside DTCM, with an LMA nothing copies from.
+ *
+ * The KEEP() is the §4.13 half and it is not decoration.  §4.12.2 deliberately
+ * left it out, correctly, because s_source_power still carried the attribute
+ * and keeping the section would have fired the assert on a buffer nothing used.
+ * The cost was the gate's TIMING: --gc-sections dropped the array, so the
+ * ASSERT could only fire once the data became reachable — which is precisely
+ * the condition under which the original defect stayed invisible.  §4.13 moved
+ * s_source_power into .bss, so nothing places anything in .lpsdr4, so KEEP() is
+ * free and the gate now fires when a buffer is ADDED rather than when one is
+ * first USED.  Losing the KEEP() would silently restore the old timing without
+ * failing anything, which is what this check is for.
  */
-static void test_lpsdr4_is_homed_and_asserted_empty(void)
+static void test_lpsdr4_is_homed_kept_and_asserted_empty(void)
 {
     ASSERT(strstr(g_app.text, ".lpsdr4") != NULL,
            "app script declares no .lpsdr4 output section — the section would "
            "be an orphan and ld would place it silently, inside DTCM");
+    ASSERT(strstr(g_app.text, "KEEP(*(.lpsdr4))") != NULL,
+           "app script does not KEEP .lpsdr4 — without it --gc-sections drops "
+           "an unreachable .lpsdr4 buffer and the ASSERT below cannot fire "
+           "until the buffer is used, which is how the original defect hid");
     ASSERT(strstr(g_app.text, "SIZEOF(.lpsdr4) == 0") != NULL,
-           "app script does not ASSERT .lpsdr4 empty — no external SDRAM is "
-           "established, so anything landing there is in memory the image does "
-           "not have");
+           "app script does not ASSERT .lpsdr4 empty — this device has no "
+           "external SDRAM, so anything landing there is in memory the image "
+           "does not have");
 }
 
 int main(void)
 {
     printf("NeurOne SW-02 linker-script agreement tests "
-           "(NP-SW-CI-001 §4.8, §4.10, §4.12)\n");
+           "(NP-SW-CI-001 §4.8, §4.10, §4.12, §4.13)\n");
 
     if (ld_load(&g_boot, NP_BOOTLOADER_LD_PATH) != 0 ||
         ld_load(&g_app,  NP_APPLICATION_LD_PATH) != 0) {
@@ -689,7 +704,7 @@ int main(void)
     test_dtcm_guarantee_is_the_default_efuse_dtcm();
     test_dtcm_guarantee_is_enforced_by_an_assert();
     test_dtcm_bss_has_bounds_for_the_clear_function();
-    test_lpsdr4_is_homed_and_asserted_empty();
+    test_lpsdr4_is_homed_kept_and_asserted_empty();
 
     if (g_fail_count == 0) {
         printf("PASS — both linker scripts and np_config.h agree about the staging area, the FlexRAM partition and DTCM residency\n");
