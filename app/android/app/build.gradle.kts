@@ -8,6 +8,44 @@ plugins {
     kotlin("plugin.compose") version "2.0.21"
 }
 
+// ── Localized strings (CLAUDE.md §17) ─────────────────────────────────────────
+//
+// res/values*/strings.xml is generated from locales/*.json, the one committed
+// copy of every user-facing string, and is NOT checked in. It lands in the
+// module build directory and is added as a res srcDir, so the Android source
+// tree never holds a generated file at all — there is nothing to hand-edit and
+// nothing to leave stale across a branch switch.
+//
+// The generator is a Bun script shared with the web and iOS builds; bun must be
+// on PATH (the repository is bun-only — see the root .gitignore note on the
+// absent npm lockfile). CI installs it via oven-sh/setup-bun.
+val repoRoot: java.io.File = rootProject.projectDir.parentFile.parentFile
+val generatedLocaleRes: Provider<Directory> = layout.buildDirectory.dir("generated/res/locales")
+
+val syncLocales by tasks.registering(Exec::class) {
+    group = "localization"
+    description = "Generate res/values*/strings.xml from canonical locales/*.json"
+
+    // Declared so Gradle can skip the task when nothing it reads has changed;
+    // without these it re-runs on every build and invalidates resource merging
+    // each time.
+    inputs.dir(File(repoRoot, "locales")).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.file(File(repoRoot, "scripts/sync-locales.ts"))
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+    outputs.dir(generatedLocaleRes)
+
+    workingDir = repoRoot
+    commandLine(
+        "bun",
+        "scripts/sync-locales.ts",
+        "--android-res=${generatedLocaleRes.get().asFile.absolutePath}",
+    )
+}
+
+// preBuild is an ancestor of every variant task, resource merging included, so
+// this single edge covers debug, release and the unit-test variants alike.
+tasks.named("preBuild") { dependsOn(syncLocales) }
+
 android {
     namespace = "life.neurone.app"
     // compileSdk tracks the newest installed SDK platform on the build machine (36).
@@ -32,6 +70,8 @@ android {
             )
         }
     }
+
+    sourceSets["main"].res.srcDir(generatedLocaleRes)
 
     buildFeatures { compose = true }
 
