@@ -163,7 +163,7 @@ env:
   # stopped satisfying the requirement — a merge deadlock with no error message
   # anywhere.  The number belongs to the assertion, not to the check name.
   # NP-SW-CI-001 §6.7.
-  NP_CLASS_B_TEST_COUNT: '26'
+  NP_CLASS_B_TEST_COUNT: '27'
 
 jobs:
   # The relevance list that used to live in `on: … paths:`.  This job always
@@ -789,6 +789,61 @@ jobs:
             echo "::error::.dtcm_bss is ${dtcm_bss} B, expected 65536 (ucHeap alone). If a buffer was deliberately moved into DTCM, record it in NP-SW-CI-001 section 4.12.4 and update this number."
             exit 1; }
           echo "ok: ucHeap is in DTCM; the rest of .bss is in OCRAM2, as recorded"
+
+      # NP-SW-CI-001 §4.14 (closes OI-SWCI-45).  The L1 cache state, asserted
+      # against the IMAGE rather than against the sources, because that is the
+      # only place a D-cache enable arriving from ANYWHERE shows up — a newly
+      # vendored board file, a library, an inline asm, not just the one SDK file
+      # np_app_cache_agreement_tests probes.  Measured on that exact mutation
+      # (SCB_EnableDCache() added to np_app_cache.c, 2026-09-08): the host suite
+      # passes 34/34 and this step fails.  §4.12.6's division of labour, on the
+      # next fact along.
+      #
+      # It is a TRIPWIRE, not a proof, and the positive controls are what keep it
+      # honest: the two patterns below must MATCH, so a codegen or objdump change
+      # that stops the census seeing anything fails the step instead of reporting
+      # a clean image it can no longer read.
+      #
+      #   SCB base 0xE000ED00; CCR at +0x14; ICIALLU at +0x250.
+      #   D-cache maintenance registers occupy +0x25C..+0x274 (DCIMVAC, DCISW,
+      #   DCCMVAU, DCCMVAC, DCCSW, DCCIMVAC, DCCISW).  No sequence that enables
+      #   or maintains the D-cache can avoid them — SCB_EnableDCache() invalidates
+      #   by set/way through DCISW (+0x260) before it sets CCR.DC.
+      - name: Assert the SW-02 L1 cache state
+        if: success()
+        run: |
+          set -euo pipefail
+          elf=build/cross/application/np_application.elf
+          [ -f "$elf" ] || { echo "::error::np_application.elf missing."; exit 1; }
+
+          arm-none-eabi-objdump -d "$elf" > /tmp/np-app-cache.dis
+
+          icache_inv=$(grep -cE 'str(\.w)?[[:space:]]+r[0-9]+, \[r[0-9]+, #[0-9]+\][[:space:]]*@ 0x250' /tmp/np-app-cache.dis || true)
+          icache_en=$(grep -cE 'orr(\.w)?[^;]*#131072' /tmp/np-app-cache.dis || true)
+          dcache_ops=$(grep -cE 'str(\.w)?[[:space:]]+r[0-9]+, \[r[0-9]+, #[0-9]+\][[:space:]]*@ 0x(25c|260|264|268|26c|270|274)' /tmp/np-app-cache.dis || true)
+
+          declared=$(sed -n 's/^#define[[:space:]]*NP_SW02_DCACHE_ENABLED[[:space:]]*\([0-9]*\).*/\1/p' \
+                     firmware/application/include/np_app_cache.h)
+          [ -n "$declared" ] || { echo "::error::NP_SW02_DCACHE_ENABLED not found in np_app_cache.h."; exit 1; }
+
+          printf 'SW-02 L1 cache census: ICIALLU stores %s, CCR I-bit sets %s, D-cache maintenance ops %s (np_app_cache.h declares D-cache=%s)\n' \
+                 "$icache_inv" "$icache_en" "$dcache_ops" "$declared"
+
+          # Positive controls first: if these are zero the census is blind, and a
+          # blind census reporting "no D-cache operations" is worse than none.
+          [ "$icache_inv" -ge 1 ] && [ "$icache_en" -ge 1 ] || {
+            echo "::error::the cache census cannot see SystemInit's I-cache enable (ICIALLU=${icache_inv}, CCR-IC=${icache_en}). The patterns are matched against arm-none-eabi-objdump output for the pinned toolchain; if codegen or objdump changed, re-derive them rather than deleting this step (NP-SW-CI-001 section 4.14.5)."
+            exit 1; }
+
+          [ "$declared" -eq 0 ] || {
+            echo "::error::np_app_cache.h now declares the D-cache ENABLED. That is a design change, not a constant: it needs MPU region attributes, cache maintenance on every DMA buffer, the OI-SWCI-15 handover, and a measurement (NP-SW-CI-001 section 4.14.3). Update this step with it."
+            exit 1; }
+
+          [ "$dcache_ops" -eq 0 ] || {
+            echo "::error::the image performs ${dcache_ops} L1 D-cache maintenance operation(s), but NP_SW02_DCACHE_ENABLED is 0 and nothing in this repository configures the MPU. Every buffer in .bss is write-back write-allocate under the default system address map, and there is no maintenance around any DMA buffer (NP-SW-CI-001 section 4.14)."
+            grep -nE 'str(\.w)?[[:space:]]+r[0-9]+, \[r[0-9]+, #[0-9]+\][[:space:]]*@ 0x(25c|260|264|268|26c|270|274)' /tmp/np-app-cache.dis | head
+            exit 1; }
+          echo "ok: I-cache enabled by SystemInit, D-cache untouched — as declared"
 
       # The link proves the symbols resolve; these prove WHAT they resolved to.
       # Direct counterpart of the Class C leg's step of the same name.

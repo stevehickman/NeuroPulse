@@ -40,6 +40,9 @@
  *        → zero .bss    (__STARTUP_CLEAR_BSS)
  *        → branch to __START, which the build defines as main()
  *   main()  → this file
+ *        → np_app_cache_assert_state() (SCB->CCR is the state this image was
+ *                                      built for — I-cache on, D-cache off;
+ *                                      §4.14)
  *        → np_app_dtcm_bss_clear()    (zeroes .dtcm_bss — the startup clears
  *                                      only one bss span; §4.12)
  *        → np_platform_clock_init()   (firmware/platform — TRAPS TODAY)
@@ -52,7 +55,8 @@
  * There is still no board-level clock configuration in that sequence, and the
  * reason has not changed: BOARD_BootClockRUN() lives in the MCUX SDK's board
  * files, which are not vendored because no NeurOne board exists to configure
- * for.  SystemInit() disables the watchdogs, enables the I-cache and ASSIGNS
+ * for.  SystemInit() disables the watchdogs, enables the I-cache — the
+ * I-cache ONLY, whatever its own comment says (§4.14.1) — and ASSIGNS
  * SystemCoreClock = DEFAULT_SYSTEM_CLOCK (528 MHz); assigning a variable is
  * not configuring a PLL, and 528 MHz is not the 600 MHz FreeRTOSConfig.h
  * declares as configCPU_CLOCK_HZ.
@@ -88,6 +92,7 @@
 #include "FreeRTOSConfig.h"     /* configCPU_CLOCK_HZ — the assumed core clock */
 #include "system_MIMXRT1062.h"  /* SystemCoreClock, SystemCoreClockUpdate()    */
 
+#include "np_app_cache.h"       /* np_app_cache_assert_state() */
 #include "np_app_dtcm.h"        /* np_app_dtcm_bss_clear() */
 #include "np_hub_types.h"       /* np_hub_control_app_main() */
 #include "np_platform_trap.h"
@@ -115,17 +120,42 @@ static const char np_build_note[] =
 int main(void)
 {
     /*
-     * FIRST, before anything else — NP-SW-CI-001 §4.12 (closes OI-SWCI-42).
+     * FIRST, before anything else — NP-SW-CI-001 §4.14 (closes OI-SWCI-45).
+     *
+     * SCB->CCR against the two constants in np_app_cache.h: I-cache on,
+     * D-cache off.  It is ahead of the .dtcm_bss clear below because it is a
+     * statement about the MEMORY SYSTEM, and the clear is the first bulk write
+     * this image makes under it.  Neither call depends on the other — the
+     * clear stores to DTCM, which never goes through L1 whatever CCR says, and
+     * this check reads one register and two compile-time constants — so the
+     * order is not correctness but consequence: if the machine is not the one
+     * this image was built for, the right next instruction is a halt, not
+     * 64 KiB of stores.
+     *
+     * Nothing here configures a cache, and §4.14.3 is why: everything that ran
+     * before main() — the ROM, the bootloader's PIO staging copy of this very
+     * image, Reset_Handler — already ran under whatever state is in force, so
+     * an image that "fixed" CCR would be repairing the successor of a fault it
+     * had already suffered.
+     */
+    np_app_cache_assert_state();
+
+    /*
+     * THEN the second region the startup does not zero — NP-SW-CI-001 §4.12
+     * (closes OI-SWCI-42).
      *
      * .dtcm_bss holds ucHeap and is bss-class storage the vendored startup does
-     * NOT zero: startup_MIMXRT1062.S clears exactly one span, __bss_start__ to
-     * __bss_end__, and firmware/vendor/mcux_sdk/ is byte-exact under the §9
-     * in-tree rule, so it cannot be taught about a second region.
+     * NOT zero: startup_MIMXRT1062.S clears exactly one span for THIS image,
+     * __bss_start__ to __bss_end__.  (It carries a second bss-class
+     * initialiser, __STARTUP_INITIALIZE_NONCACHEDATA, which this build does not
+     * define and which is not this region's job — it initialises the SDK's
+     * NonCacheable section, the D-cache-era home for DMA buffers, and copies an
+     * init image .dtcm_bss has none of.  §4.14.4.)
      *
-     * This is the earliest C code in the image and that is checkable rather
-     * than asserted: __START is defined to main in the application CMakeLists,
-     * so __libc_init_array never runs, and the linker script's .init_array
-     * comes out empty.  Nothing can run before this line.
+     * These two calls are the earliest C code in the image and that is
+     * checkable rather than asserted: __START is defined to main in the
+     * application CMakeLists, so __libc_init_array never runs, and the linker
+     * script's .init_array comes out empty.  Nothing can run before them.
      *
      * AHEAD OF THE CLOCK STEP BELOW, and the order is a decision rather than an
      * accident of two changes landing together.  This call is not application

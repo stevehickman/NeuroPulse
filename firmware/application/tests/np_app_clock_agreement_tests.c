@@ -57,6 +57,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "np_test_strip_code.h"   /* strip_to_code() — shared with §4.14 */
+
 /*
  * FreeRTOSConfig.h is included rather than text-parsed, deliberately.
  * configCPU_CLOCK_HZ is defined TWICE in that file — once for the POSIX host
@@ -256,48 +258,10 @@ static void test_mistimed_safety_heartbeat(void)
  * document asserting it now fails a test rather than passing in silence.
  */
 
-/* Emit only what the compiler would see as code: no comments, no string or
- * character literal bodies.  Bytes are replaced with spaces rather than removed
- * so nothing on either side of a comment is joined into one token. */
-static void strip_to_code(const char *in, size_t n, char *out)
-{
-    enum { CODE, BLOCK, LINE, STR, CHR } st = CODE;
-    size_t o = 0U;
-
-    for (size_t i = 0U; i < n; i++) {
-        char c = in[i];
-        char d = (i + 1U < n) ? in[i + 1U] : '\0';
-
-        switch (st) {
-        case CODE:
-            if (c == '/' && d == '*') { st = BLOCK; out[o++] = ' '; out[o++] = ' '; i++; continue; }
-            if (c == '/' && d == '/') { st = LINE;  out[o++] = ' '; out[o++] = ' '; i++; continue; }
-            if (c == '"')  { st = STR; out[o++] = ' '; continue; }
-            if (c == '\'') { st = CHR; out[o++] = ' '; continue; }
-            out[o++] = c;
-            continue;
-
-        case BLOCK:
-            if (c == '*' && d == '/') { st = CODE; out[o++] = ' '; out[o++] = ' '; i++; continue; }
-            out[o++] = (c == '\n') ? '\n' : ' ';
-            continue;
-
-        case LINE:
-            if (c == '\n') { st = CODE; out[o++] = '\n'; continue; }
-            out[o++] = ' ';
-            continue;
-
-        case STR:
-        case CHR:
-            /* A backslash escapes the next byte, including the closing quote. */
-            if (c == '\\' && i + 1U < n) { out[o++] = ' '; out[o++] = ' '; i++; continue; }
-            if ((st == STR && c == '"') || (st == CHR && c == '\'')) { st = CODE; }
-            out[o++] = (c == '\n') ? '\n' : ' ';
-            continue;
-        }
-    }
-    out[o] = '\0';
-}
+/* strip_to_code() lives in np_test_strip_code.h — extracted at §4.14 when a
+ * second suite in this directory needed the same probe, rather than copied.
+ * Its limits, and the mutation that proved the raw-text version useless, are
+ * recorded there. */
 
 static void test_boot_path_verifies_the_clock(void)
 {

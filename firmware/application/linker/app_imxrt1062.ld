@@ -294,13 +294,22 @@ SECTIONS
     /* in that order.                                                          */
     /*                                                                         */
     /* What it costs is real and is recorded rather than hidden: .bss in OCRAM2 */
-    /* is not tightly coupled, so every access goes through the bus and the    */
-    /* L1 D-cache instead of DTCM's single-cycle path.  Which buffers move —   */
-    /* and it is now "which", not "which few", since rationing is no longer    */
-    /* forced — remains OI-SWCI-42, and what gates it is now one bench         */
-    /* confirmation that the partition took effect, not a decision nobody has  */
-    /* made.  DTCM is left holding .data and the stack, which is why it reads  */
-    /* as nearly empty.                                                        */
+    /* is not tightly coupled, so every access goes over the bus instead of    */
+    /* DTCM's single-cycle path — and UNCACHED, which this comment got wrong   */
+    /* until §4.14 (OI-SWCI-45).  It said "through the bus and the L1 D-cache",*/
+    /* the fifth statement in this tree of a D-cache that SystemInit() has     */
+    /* never enabled: it enables the I-cache only, so instruction fetch from   */
+    /* this region is cached and every DATA access to it is not.  The cost     */
+    /* recorded here was therefore an understatement, not an approximation.    */
+    /* The D-cache stays off by decision (§4.14.3), so this is the standing    */
+    /* cost of the placement rather than a transient one.                      */
+    /*                                                                         */
+    /* Which buffers move — and it is now "which", not "which few", since      */
+    /* rationing is no longer forced — was OI-SWCI-42, closed at §4.12 for     */
+    /* ucHeap; the rest is gated on one bench confirmation that the partition  */
+    /* took effect.  DTCM holds .data, .dtcm_bss and the stack, and TCM does   */
+    /* not go through L1 at all, so no cache decision can change what those    */
+    /* three cost.                                                             */
     .bss (NOLOAD) : ALIGN(32) {
         __bss_start__ = .;
         *(.bss)

@@ -2,8 +2,8 @@
 
 **Project:** NeurOne  
 **Document:** NP-SW-CI-001  
-**Revision:** 18
-**Date:** 2026-09-08  
+**Revision:** 19
+**Date:** 2026-09-09  
 **Status:** DRAFT  
 **Effective Date:** —  
 **Author:** Steve Hickman (CEO, interim Quality authority)  
@@ -13,7 +13,22 @@
 **Gate:** —  
 **IEC 62304 Class:** SW-01 Class C (safety MCU), SW-02 Class B (main processor)  
 **Supersedes:** None  
-**Change Summary:** Rev 18 (2026-09-08) — **OI-SWCI-46 CLOSED: there is no external SDRAM, and the demand that named it is deleted rather than the supply built.** New **§4.13**. (1) **Establishing SDRAM was not available and would not have been firmware's call.** No SDRAM appears in any BOM (`NP-COST-001` has no memory line), and there is no schematic, pinout or timing set — SEMC initialisation needs a specific part's row/column/bank counts, CAS latency, `tRP`/`tRAS`/`tRFC`/`tRC`/`tXSR`/`tWR` and refresh interval, so writing it now would be inventing register values for silicon nobody has run, the trade `firmware/vendor/mcux_sdk/VERSION` already refuses on the clock sequence. Selecting the part is a hardware decision with BOM, layout, EMF and §4.5 power consequences. (2) **The name does not match anything this processor can talk to.** Checked against the vendored device layer: `MIMXRT1062.h` declares exactly one external-memory controller, SEMC, and no DDR/LPDDR controller peripheral at all; SEMC's SDRAM interface is single-data-rate over an 8- or 16-bit port (`SEMC_SDRAMCR0_PS`). So "LPSDR4" in CLAUDE.md §4.1 is either low-power SDR SDRAM or a memory this part cannot interface — raised as **OI-SWCI-47**, not resolved here, because §4 is locked and this is a hardware-specification question. (3) **The whole demand fits on-chip several times over, and that is what decides it.** `s_source_power` (9,788 B) plus the weight matrix `np_hd_config.h` sizes (205,548 B) is 215,336 B, against a measured 312,716 B free in the staging region and ~439 KB of unallocated established DTCM. A 32 MB part would have carried 0.64 % of itself. `s_source_power` becomes an ordinary static in `.bss` — **not** DTCM, because §4.12.3's rule stands and only `ucHeap` can be argued without a profiler. (4) **A correctness fix came free.** The orphaned `.lpsdr4` fell outside both spans the startup touches, so the array would have held stale DTCM; in `.bss` it is inside the one span `__STARTUP_CLEAR_BSS` clears — verified on the artifact, `s_source_power` at `0x20263f7c`. (5) **The gate gets the timing it could not have before.** §4.12.2 deliberately omitted `KEEP()`, correctly, but the cost was that the ASSERT could only fire once a `.lpsdr4` buffer became *reachable* — the exact condition that hid the original defect. With the section empty at source, `KEEP()` is free: measured on the normal build with an unreachable 64-byte `.lpsdr4` object, §4.12.2's script **links green** and §4.13's **fails the link**. `np_app_link_agreement_tests` gained a check on the `KEEP()` itself, mutation-tested. (6) **Three more comments described a placement the compiler was never asked for** — `g_proto_buf`, the parsed session descriptor and the parsed command all said "LPSDR4 RAM" while being ordinary statics in `.bss`; §4.12.1's own census had measured `g_proto_buf` there at 6,144 B in the same document that repeated the claim. The cheap variety of §4.8's shape: free to be wrong because nothing acted on them. (7) **The image does not change** — `s_source_power` is unreachable and was gc-dropped before and after, every section byte-identical — which is precisely why the gate, not the artifact, is the deliverable. Host suite 33/33. New open item: **OI-SWCI-47** (CLAUDE.md §4.1's 32 MB "LPSDR4": no part, no BOM line, and a name that may denote a controller this processor does not have). Prior: Rev 17 (2026-09-08) — **the iOS String Catalog is no longer committed, so §5.0.2's fourth-instance scope entry is removed and `sync-locales.ts --check` is retired for `--verify-untracked`** (CLAUDE.md §17 Rev 41); `ios-ci`, `android-ci` and both compiled CodeQL legs gain a bun setup step, and the two `paths:`-filtered workflows gain `locales/**`. Prior: Rev 16 (2026-09-03) — **phase 10; OI-SWCI-42 CLOSED: `ucHeap` is in DTCM, and three figures the item rested on were wrong.** New **§4.12**. (1) **Re-measuring the record before acting on it found three defects in it.** The "162,436 B static footprint" carried verbatim through §4.8.5, §4.10.6 and the item is `.data` + `.bss` + the **8 KiB MSP stack** — Berkeley-format `arm-none-eabi-size` folds allocated `NOLOAD` sections into its `bss` column, and the stack is already placed separately by the linker script, so it was counted twice; the real figure is **154,244 B**. Two of the four named largest `.bss` contributors, `np_module_map`'s `s_map` and `s_nvram_scratch` (44,948 B), are **in no image** — `--gc-sections` drops them, at phase 8 and now, verified by building `100a410`; the census was taken over objects rather than the artifact. And the cost it records names an **L1 D-cache that is never enabled** — `SystemInit()` enables the I-cache only, so OCRAM2 access is *uncached* and the recorded cost was an understatement. `firmware/vendor/cmsis_core/VERSION` already said so in as many words: §4.8's "two statements in the tree, contradicting each other, compared by nothing", for the fourth time. The conclusion phase 8 drew survives — `.bss` in a 128 KiB DTCM overflows by a measured 31,384 B — but its arithmetic attributed that to the wrong sections. (2) **The choice was never all-or-nothing.** DTCM held 308 bytes of application data; 130,764 B of the 131,072 that exist under the DEFAULT eFuse partition were unallocated while 153,940 B of `.bss` sat in OCRAM2. **`ucHeap` (65,536 B) moves to a new `.dtcm_bss`**, leaving `.bss` at 88,404 B (−42.6 %). It is the one buffer whose placement can be argued without a profiler on an image that cannot be profiled: every FreeRTOS task stack is cut from it, which is a property of the calling convention, not a hypothesis about a workload. (3) **It needs nothing from OI-SWCI-39, and that is what answers §4.10.6 rather than overriding it.** 65,848 B of `.data` + `ucHeap` fit the 128 KiB the default partition provides with 65,224 B spare, asserted as `NP_DTCM_GUARANTEED_SIZE`; and §4.10.6's corruption-vs-fault objection does not reach it, because the MSP stack pinned at `0x20080000` already faults in `Reset_Handler` under a failed partition, upstream of every DTCM resident. The other 88,404 B stays in OCRAM2 for §4.10.6's reason. (4) **The startup zeroes exactly one span**, and the vendored file is byte-exact — so `.dtcm_bss` is zeroed by `np_app_dtcm_bss_clear()` as the first statement of `main()`, which is checkably the earliest C code in the image. Heap ownership moves via `configAPPLICATION_ALLOCATED_HEAP`, the mechanism heap_4's own comment says exists for this, so `firmware/vendor/freertos/` stays byte-exact too. (5) **`.lpsdr4` named a region that does not exist.** `np_hd_session.c` said the name "names a region in the ARM linker script"; none declared it, no SDRAM region or `0x80000000` address exists in the tree, and nothing configures the SEMC. Measured with `--gc-sections` off, `ld` orphan-placed it at VMA `0x20000554` — **inside DTCM** — with an LMA nothing copies from and no zeroing. The link now refuses (`ASSERT(SIZEOF(.lpsdr4) == 0)`) instead of mis-placing: **OI-SWCI-46**. (6) **One regression only the artifact can catch.** Reverting `configAPPLICATION_ALLOCATED_HEAP` to `0` fails nothing — heap_4 quietly supplies its own `ucHeap` in `.bss`, the link is green, every `ASSERT` passes and the host suite passes 33/33 — so the new CI step asserts against the **image** that `ucHeap` is inside `.dtcm_bss` and that `.dtcm_bss` is exactly 65,536 B, and prints the DTCM/OCRAM2 split. Every check here was mutation-tested. (7) **A measurement artifact caught before it was published.** The first before/after table had `.text` *shrinking by 496 B* for a change that only adds a function. `configASSERT` embeds `__FILE__`, the baseline had been built in a scratchpad worktree whose path is 39 characters longer than the repository's, and eight files' merged `.rodata` literals carried the difference — the build directory was being measured, not the change. §4.12.1's Berkeley-`size` error in a second costume, and it yields a rule: **an image comparison is valid only between builds made at the same absolute path** (§4.12.5). New open items: **OI-SWCI-45** (the D-cache is never enabled), **OI-SWCI-46** (no external SDRAM is established).
+**Change Summary:** Rev 19 (2026-09-09) — **phase 11; OI-SWCI-45 CLOSED: the L1 D-cache stays OFF, and the cache state is now stated once, checked at boot, and asserted against the image.** New **§4.14**. (1) **The wrong claim was inherited, and there were five of it.** `system_MIMXRT1062.c` line 125 reads *"Enable instruction and data caches"* above code that enables one, with no `__DCACHE_PRESENT` branch in the file — the likely origin of §4.8.5, §4.10.6, OI-SWCI-42 and `app_imxrt1062.ld`'s `.bss` rationale, which was still uncorrected when the item was raised and is corrected here. Verified on the artifact: `SystemInit` touches `SCB->CCR` (`orr #0x20000`, the **IC** bit) and `ICIALLU`, and **no D-cache maintenance register in `+0x25C..+0x274` is written anywhere in the image**. The divergence lives in byte-exact SOUP, so the fix is a comparator, not another correction. (2) **The decision is OFF, with its four preconditions named.** MPU region attributes (nothing configures the MPU, so the ARMv7-M default map makes all of OCRAM2 **write-back write-allocate**); cache maintenance around every DMA buffer (there is none, because there is no DMA — 94 traps, and the bootloader's eMMC driver is PIO); the staging handover, which is **already OI-SWCI-15**, open since 2026-08-09 asking for exactly this clean/invalidate and never once named alongside OI-SWCI-45 — 24 rows apart in the same table; and a board. (3) **The value shrank the day before the item was raised.** TCM does not go through L1, so §4.12's move put `ucHeap` — every task stack — outside this decision entirely. What is left is 105,820 B of OCRAM2 data (`.bss` 88,404 + `.rodata` 17,416), **58.6 % of the `.bss` half being one unprofiled buffer**, against 20,480 B of already-identifiable DMA-facing buffers that would inherit write-back write-allocate. (4) **The state is now checkable.** `np_app_cache.h` states it once; `np_app_cache_assert_state()` reads `SCB->CCR` as the first statement of `main()` and halts into the safety-MCU cutoff on either mismatch — a check, not a configuration step, because the ROM, the bootloader's staging copy and `Reset_Handler` all ran before it. 28 bytes of code. (5) **A second record defect.** §4.12.4's "the startup cannot be taught about a second bss-class region" is wrong: `__STARTUP_INITIALIZE_NONCACHEDATA` is a switch the same file already tests for. It is still not `.dtcm_bss`'s mechanism — it initialises the `NonCacheable` section and copies an init image `.dtcm_bss` has none of — and it names the migration path the D-cache decision would take. (6) **One regression only CI catches.** Adding `SCB_EnableDCache()` to the image passes the host suite **34/34**; the new image census fails it, having measured 1 `DCISW` write. The census carries two positive controls so a codegen change blinds it loudly rather than reporting a clean image it can no longer read. New Class B host test `np_app_cache_agreement_tests` (Class B 26 → 27, total 33 → 34, re-derived by enumerating `ctest`). New open item: **OI-SWCI-47** (CLAUDE.md §4.1's "~1.1% CPU at full load", which no measurement supports and `NP-FEAS-FNIRS-001` already leans on).
+
+> **This revision was authored as Rev 17 / §4.13 and renumbered to Rev 19 / §4.14 across two
+> rebases — the SEVENTH instance, the third running, and the fourth to collide on a section number
+> as well as a revision.** PR #319 (the locale-file change) took Rev 17 while this branch was open;
+> PR #322 (external SDRAM, OI-SWCI-46) then took **Rev 18 *and* `### 4.13`** — the sibling item
+> phase 10 raised alongside this one, landing three days later from a branch opened at the same
+> commit. Nothing in either change moved; only the numbers did. **A citation of "§4.13" concerning
+> external SDRAM, `.lpsdr4` or OI-SWCI-46 means #322's section, which is where it still is; the L1
+> cache decision and OI-SWCI-45 are §4.14.** The two changes are independent and touch one file in
+> common — `app_imxrt1062.ld`, #322 in the `.lpsdr4` and `.bss` placement, §4.14 in the one sentence
+> of the `.bss` rationale that described a D-cache — and both hold on the merged tree. The mechanism
+> is unchanged from every note below: a branch numbers its revision and its section when authored,
+> and nothing compares either against `main` until the rebase.
+
+Rev 18 (2026-09-08) — **OI-SWCI-46 CLOSED: there is no external SDRAM, and the demand that named it is deleted rather than the supply built.** New **§4.13**. (1) **Establishing SDRAM was not available and would not have been firmware's call.** No SDRAM appears in any BOM (`NP-COST-001` has no memory line), and there is no schematic, pinout or timing set — SEMC initialisation needs a specific part's row/column/bank counts, CAS latency, `tRP`/`tRAS`/`tRFC`/`tRC`/`tXSR`/`tWR` and refresh interval, so writing it now would be inventing register values for silicon nobody has run, the trade `firmware/vendor/mcux_sdk/VERSION` already refuses on the clock sequence. Selecting the part is a hardware decision with BOM, layout, EMF and §4.5 power consequences. (2) **The name does not match anything this processor can talk to.** Checked against the vendored device layer: `MIMXRT1062.h` declares exactly one external-memory controller, SEMC, and no DDR/LPDDR controller peripheral at all; SEMC's SDRAM interface is single-data-rate over an 8- or 16-bit port (`SEMC_SDRAMCR0_PS`). So "LPSDR4" in CLAUDE.md §4.1 is either low-power SDR SDRAM or a memory this part cannot interface — raised as **OI-SWCI-47**, not resolved here, because §4 is locked and this is a hardware-specification question. (3) **The whole demand fits on-chip several times over, and that is what decides it.** `s_source_power` (9,788 B) plus the weight matrix `np_hd_config.h` sizes (205,548 B) is 215,336 B, against a measured 312,716 B free in the staging region and ~439 KB of unallocated established DTCM. A 32 MB part would have carried 0.64 % of itself. `s_source_power` becomes an ordinary static in `.bss` — **not** DTCM, because §4.12.3's rule stands and only `ucHeap` can be argued without a profiler. (4) **A correctness fix came free.** The orphaned `.lpsdr4` fell outside both spans the startup touches, so the array would have held stale DTCM; in `.bss` it is inside the one span `__STARTUP_CLEAR_BSS` clears — verified on the artifact, `s_source_power` at `0x20263f7c`. (5) **The gate gets the timing it could not have before.** §4.12.2 deliberately omitted `KEEP()`, correctly, but the cost was that the ASSERT could only fire once a `.lpsdr4` buffer became *reachable* — the exact condition that hid the original defect. With the section empty at source, `KEEP()` is free: measured on the normal build with an unreachable 64-byte `.lpsdr4` object, §4.12.2's script **links green** and §4.13's **fails the link**. `np_app_link_agreement_tests` gained a check on the `KEEP()` itself, mutation-tested. (6) **Three more comments described a placement the compiler was never asked for** — `g_proto_buf`, the parsed session descriptor and the parsed command all said "LPSDR4 RAM" while being ordinary statics in `.bss`; §4.12.1's own census had measured `g_proto_buf` there at 6,144 B in the same document that repeated the claim. The cheap variety of §4.8's shape: free to be wrong because nothing acted on them. (7) **The image does not change** — `s_source_power` is unreachable and was gc-dropped before and after, every section byte-identical — which is precisely why the gate, not the artifact, is the deliverable. Host suite 33/33. New open item: **OI-SWCI-47** (CLAUDE.md §4.1's 32 MB "LPSDR4": no part, no BOM line, and a name that may denote a controller this processor does not have). Prior: Rev 17 (2026-09-08) — **the iOS String Catalog is no longer committed, so §5.0.2's fourth-instance scope entry is removed and `sync-locales.ts --check` is retired for `--verify-untracked`** (CLAUDE.md §17 Rev 41); `ios-ci`, `android-ci` and both compiled CodeQL legs gain a bun setup step, and the two `paths:`-filtered workflows gain `locales/**`. Prior: Rev 16 (2026-09-03) — **phase 10; OI-SWCI-42 CLOSED: `ucHeap` is in DTCM, and three figures the item rested on were wrong.** New **§4.12**. (1) **Re-measuring the record before acting on it found three defects in it.** The "162,436 B static footprint" carried verbatim through §4.8.5, §4.10.6 and the item is `.data` + `.bss` + the **8 KiB MSP stack** — Berkeley-format `arm-none-eabi-size` folds allocated `NOLOAD` sections into its `bss` column, and the stack is already placed separately by the linker script, so it was counted twice; the real figure is **154,244 B**. Two of the four named largest `.bss` contributors, `np_module_map`'s `s_map` and `s_nvram_scratch` (44,948 B), are **in no image** — `--gc-sections` drops them, at phase 8 and now, verified by building `100a410`; the census was taken over objects rather than the artifact. And the cost it records names an **L1 D-cache that is never enabled** — `SystemInit()` enables the I-cache only, so OCRAM2 access is *uncached* and the recorded cost was an understatement. `firmware/vendor/cmsis_core/VERSION` already said so in as many words: §4.8's "two statements in the tree, contradicting each other, compared by nothing", for the fourth time. The conclusion phase 8 drew survives — `.bss` in a 128 KiB DTCM overflows by a measured 31,384 B — but its arithmetic attributed that to the wrong sections. (2) **The choice was never all-or-nothing.** DTCM held 308 bytes of application data; 130,764 B of the 131,072 that exist under the DEFAULT eFuse partition were unallocated while 153,940 B of `.bss` sat in OCRAM2. **`ucHeap` (65,536 B) moves to a new `.dtcm_bss`**, leaving `.bss` at 88,404 B (−42.6 %). It is the one buffer whose placement can be argued without a profiler on an image that cannot be profiled: every FreeRTOS task stack is cut from it, which is a property of the calling convention, not a hypothesis about a workload. (3) **It needs nothing from OI-SWCI-39, and that is what answers §4.10.6 rather than overriding it.** 65,848 B of `.data` + `ucHeap` fit the 128 KiB the default partition provides with 65,224 B spare, asserted as `NP_DTCM_GUARANTEED_SIZE`; and §4.10.6's corruption-vs-fault objection does not reach it, because the MSP stack pinned at `0x20080000` already faults in `Reset_Handler` under a failed partition, upstream of every DTCM resident. The other 88,404 B stays in OCRAM2 for §4.10.6's reason. (4) **The startup zeroes exactly one span**, and the vendored file is byte-exact — so `.dtcm_bss` is zeroed by `np_app_dtcm_bss_clear()` as the first statement of `main()`, which is checkably the earliest C code in the image. Heap ownership moves via `configAPPLICATION_ALLOCATED_HEAP`, the mechanism heap_4's own comment says exists for this, so `firmware/vendor/freertos/` stays byte-exact too. (5) **`.lpsdr4` named a region that does not exist.** `np_hd_session.c` said the name "names a region in the ARM linker script"; none declared it, no SDRAM region or `0x80000000` address exists in the tree, and nothing configures the SEMC. Measured with `--gc-sections` off, `ld` orphan-placed it at VMA `0x20000554` — **inside DTCM** — with an LMA nothing copies from and no zeroing. The link now refuses (`ASSERT(SIZEOF(.lpsdr4) == 0)`) instead of mis-placing: **OI-SWCI-46**. (6) **One regression only the artifact can catch.** Reverting `configAPPLICATION_ALLOCATED_HEAP` to `0` fails nothing — heap_4 quietly supplies its own `ucHeap` in `.bss`, the link is green, every `ASSERT` passes and the host suite passes 33/33 — so the new CI step asserts against the **image** that `ucHeap` is inside `.dtcm_bss` and that `.dtcm_bss` is exactly 65,536 B, and prints the DTCM/OCRAM2 split. Every check here was mutation-tested. (7) **A measurement artifact caught before it was published.** The first before/after table had `.text` *shrinking by 496 B* for a change that only adds a function. `configASSERT` embeds `__FILE__`, the baseline had been built in a scratchpad worktree whose path is 39 characters longer than the repository's, and eight files' merged `.rodata` literals carried the difference — the build directory was being measured, not the change. §4.12.1's Berkeley-`size` error in a second costume, and it yields a rule: **an image comparison is valid only between builds made at the same absolute path** (§4.12.5). New open items: **OI-SWCI-45** (the D-cache is never enabled), **OI-SWCI-46** (no external SDRAM is established).
 
 > **This revision was authored as Rev 17 and renumbered to Rev 18 on rebase — the SIXTH instance,
 > and the second running.** PR #319 (the locale-file change) landed on `main` while this branch was
@@ -1263,6 +1278,10 @@ so**, in as many words — *"(The D-cache half is NOT enabled by SystemInit; not
 `SCB_EnableDCache`.)"* Two statements in the tree, contradicting each other, compared by nothing.
 Whether to enable the D-cache is a real decision with real costs (MPU attributes, and cache
 maintenance around every DMA buffer), and it is raised as **OI-SWCI-45** rather than answered here.
+**Answered at §4.14 (phase 11): it stays off, and the state is now stated once and checked against
+`SCB->CCR` at boot.** §4.14.1 also finds a fifth statement of the wrong fact this subsection missed
+— `app_imxrt1062.ld`'s own `.bss` rationale — and the vendored comment that is most likely where all
+five came from.
 
 #### 4.12.2 `.lpsdr4` — a section name that named nothing
 
@@ -1338,6 +1357,13 @@ The vendored SDK startup clears exactly one span — `__bss_start__` to `__bss_e
 anything**, and `firmware/vendor/mcux_sdk/` is byte-exact under §9, so the startup cannot be taught
 about it. A statics-holding section that nothing zeroes does not fail loudly; on a warm reset it
 holds plausible-looking data from the previous image.
+
+> **Corrected at phase 11 — see §4.14.4.** "The startup cannot be taught about it" is wrong: the
+> same file carries a second bss-class initialiser under `__STARTUP_INITIALIZE_NONCACHEDATA`, tested
+> for by the same `#ifdef` idiom this build already exploits twice without patching anything. The
+> conclusion below stands, for a different reason — that switch initialises the SDK's `NonCacheable`
+> section, the D-cache-era home for DMA buffers, and copies an init image `.dtcm_bss` has none of —
+> and it names the mechanism the D-cache decision would use when it is eventually made.
 
 So the section comes with its own clear:
 
@@ -1443,8 +1469,10 @@ closes having answered the question it asked — *which* buffers deserve DTCM �
 answer was available for.
 
 **It did not enable the D-cache** (OI-SWCI-45) **and did not establish SDRAM** (OI-SWCI-46). Both are
-decisions with hardware consequences, raised with the measurement that found them. *(OI-SWCI-46 was
-closed at §4.13 — not by establishing SDRAM, but by measuring that nothing needs it.)*
+decisions with hardware consequences, raised with the measurement that found them. *(Both
+are now closed: OI-SWCI-46 at §4.13 — not by establishing SDRAM, but by measuring that nothing
+needs it — and OI-SWCI-45 at §4.14, where the answer is still "not enabled", but decided,
+stated in one place and checked, rather than left as the state nothing had chosen.)*
 
 **It did not touch `configTOTAL_HEAP_SIZE`.** §4.8.5 rejected shrinking it to fit a bring-up image
 and that reasoning is untouched: the heap moved, it did not shrink.
@@ -1611,6 +1639,266 @@ as a hardware fact. Firmware not needing it is not the same claim as the hardwar
 **It did not extend the gate to SW-01.** The safety MCU is a separate CMake project with its own
 linker script, on a Cortex-M0+ with no external memory concept and no `.lpsdr4` anywhere. A tripwire
 there would guard a risk that does not exist.
+
+### 4.14 The L1 D-cache: decided off, and the state made checkable (2026-09-08, phase 11, closes OI-SWCI-45)
+
+OI-SWCI-45 was raised at §4.12.1 for a documentation defect — four places in this tree described
+`.bss` in OCRAM2 as reached "through the bus and the L1 D-cache", and `SystemInit()` has never
+enabled a D-cache. The item asked the design question that sits under the defect: *should it be
+enabled?*
+
+**It stays off.** What this phase adds is not that state, which was already in force by omission;
+it is that the state is now **stated in one place, checked against the silicon at boot, and
+asserted against the linked image in CI** — because the reason the same error could be written four
+times is that nothing in the tree held the cache state as a fact a check could read.
+
+#### 4.14.1 The claim was inherited, not invented, and there were five of it
+
+Re-measuring the record before acting on it found the origin, and it is not a NeurOne sentence.
+`firmware/vendor/mcux_sdk/devices/MIMXRT1062/system_MIMXRT1062.c` line 125 reads:
+
+```c
+/* Enable instruction and data caches */
+#if defined(__ICACHE_PRESENT) && __ICACHE_PRESENT
+    if (SCB_CCR_IC_Msk != (SCB_CCR_IC_Msk & SCB->CCR)) {
+        SCB_EnableICache();
+    }
+#endif
+```
+
+The comment says two caches. The code enables one, and there is no `__DCACHE_PRESENT` branch
+anywhere in the file — verified by grep over the vendored tree and, more usefully, over the
+artifact: the disassembly of `SystemInit` in `np_application.elf` touches exactly two cache
+registers, `SCB->CCR` at `+0x14` (`orr` with `#0x20000`, the IC bit, never `#0x10000`) and
+`ICIALLU` at `+0x250`. No D-cache maintenance register in `+0x25C..+0x274` is written anywhere in
+the image.
+
+So the count in the open item is one short. There were **five** statements of the wrong fact, not
+four — §4.8.5, §4.10.6, OI-SWCI-42 itself, `app_imxrt1062.ld`'s `.bss` rationale (still uncorrected
+when the item was raised; corrected here), and the vendored comment that is most likely where all
+four came from. Against them, one statement in the tree had it right the whole time:
+`firmware/vendor/cmsis_core/VERSION` — *"(The D-cache half is NOT enabled by SystemInit; nothing
+in-tree calls `SCB_EnableDCache`.)"*
+
+That the divergence lives in **byte-exact SOUP** decides the shape of the fix. §9 forbids patching
+the vendored file — and correcting the NeurOne prose is what phase 10 already did, which is exactly
+why it is not enough on its own: that pass fixed §4.8.5 and §4.10.6 and walked past the statement in
+the shipping linker script. The remaining move is the one this phase makes: put the fact somewhere a
+test can read it, and make every other statement of it something a test compares.
+
+#### 4.14.2 What the D-cache would be caching, measured
+
+The question "is the D-cache worth enabling" has a smaller answer than it did a week ago, and
+§4.12 is why. The i.MX RT1062's TCM interface does not go through L1 at all, so **every byte in
+DTCM is outside this decision entirely** — including, since §4.12, `ucHeap`.
+
+| Where | Bytes | What is there | Cache decision reaches it? |
+|---|---:|---|---|
+| DTCM | 74,036 | `.data` 308 · `.dtcm_bss` 65,536 (`ucHeap`) · `.stack` 8,192 | **No** — TCM bypasses L1 |
+| OCRAM2, data side | 105,820 | `.bss` 88,404 · `.rodata` 17,416 (198 input sections) | Yes — uncached today |
+| OCRAM2, instruction side | 47,947 | `.text` | Already cached — the I-cache **is** on |
+
+So the instruction side is settled and always was; the decision is about 105,820 B of data. And
+**58.6 % of the `.bss` half is one buffer** — HRV biofeedback's `s_session_pool`, 51,804 B — whose
+access pattern nobody has measured, on an image that traps a few hundred instructions into `main()`
+and therefore cannot be profiled (§4.12.3). Every argument §4.12.3 gave for not moving the rest of
+`.bss` into DTCM without a bench applies here unchanged.
+
+The other half of the measurement is what enabling it would put at risk, and it is not
+hypothetical either. Under the **ARMv7-M default system address map** — which is what is in force,
+because no MPU region is configured anywhere in this repository — the whole of
+`0x20000000..0x3FFFFFFF` is Normal, non-shareable, **write-back write-allocate**. OCRAM2 is inside
+it. The buffers that will meet DMA first are already identifiable in the linked image, already in
+that region, and would all inherit that attribute:
+
+| Symbol | Bytes | Owner | Why it is a DMA target |
+|---|---:|---|---|
+| `s_blob` | 6,144 | `np_transport.c` | transport reassembly buffer |
+| `g_proto_buf` | 6,144 | `np_hub_control_main.c` | protocol receive buffer |
+| `s_uhdr_buf` | 4,096 | `np_session_log.c` | eMMC log staging (uSDHC ADMA) |
+| `s_shdr_buf` | 4,096 | `np_session_log.c` | eMMC log staging (uSDHC ADMA) |
+
+20,480 B, write-back write-allocate, with **no cache maintenance anywhere in the tree** — there is
+none because there is no DMA yet: `firmware/platform/` is 94 traps, and the bootloader's own eMMC
+driver is PIO (`np_emmc.c` reads the uSDHC FIFO word by word; it sets no `ADMA_SYS_ADDR`).
+
+#### 4.14.3 The decision, and the four things "on" has to arrive with
+
+**`NP_SW02_DCACHE_ENABLED` is 0.** Not "not yet done" — decided, with the conditions for revisiting
+named, because an unmade decision is what produced the four wrong statements.
+
+Enabling it is four pieces of work, and doing fewer than four produces the failure class that does
+not announce itself:
+
+1. **MPU region attributes.** Nothing in this tree calls an `ARM_MPU_*` function; `mpu_armv7.h` is
+   vendored only because `core_cm7.h` includes it (`firmware/vendor/cmsis_core/VERSION` says so).
+   Until regions exist, "enable the D-cache" means "make every buffer in `.bss` write-back
+   write-allocate", which is the attribute above.
+2. **Cache maintenance around every DMA buffer** — clean before an outbound transfer, invalidate
+   after an inbound one, on buffers that must also be cache-line aligned and padded. None of that
+   discipline exists, and it cannot be written against drivers that do not exist either.
+3. **A handover contract, which is already an open item.** The bootloader stages this image into
+   OCRAM2 with CPU stores and branches to it. With a D-cache on and no clean before the branch,
+   those stores sit in dirty lines and the instruction fetch reads stale memory. **That is
+   OI-SWCI-15**, open since 2026-08-09, which asks in as many words to *"confirm D-cache clean /
+   I-cache invalidate happens after staging — the classic omission in exactly this sequence."*
+4. **A board.** There is no measurement of what the cache buys, and none is possible: the image
+   halts at the first platform seam.
+
+Two alternatives were considered and rejected. **Enabling it for `.rodata` only** is not available
+without (1) — attributes are per region, and there is no MPU. **Enabling it and accepting the DMA
+risk until drivers land** inverts the order of the argument: the drivers are what create the
+buffers whose attributes decide whether enabling was safe, so "enable now, fix later" schedules the
+maintenance work for after the code it protects already exists. §4.4 rejects the same trade in
+different clothes.
+
+What would make this worth revisiting is not new reasoning, it is a bench: a board, a profile
+showing OCRAM2 data access on the critical path, and the MPU configuration that any answer needs
+first. Recorded as the successor question inside OI-SWCI-45's closure rather than as a new item,
+because it is the same question with the missing input supplied.
+
+#### 4.14.4 Two things the record had wrong, found while writing this
+
+**The vendored startup CAN be taught about a second bss-class region.** §4.12.4 says it "cannot be
+taught about a second region: `firmware/vendor/mcux_sdk/` is byte-exact under the §9 in-tree rule,
+and patching it is precisely what that rule forbids." The conclusion is right and the reason is
+wrong: `startup_MIMXRT1062.S` carries a second bss-class initialiser under
+`__STARTUP_INITIALIZE_NONCACHEDATA`, tested for with the same `#ifdef` idiom the build already
+exploits **twice** without patching anything (`__STARTUP_CLEAR_BSS`, `__START=main`). So a switch
+did exist. It is nonetheless not `.dtcm_bss`'s mechanism, for reasons about meaning rather than
+availability: it initialises the SDK's `NonCacheable` section — the place DMA buffers go **once the
+D-cache is on** — and it first *copies* an initialised span (`__noncachedata_start__` to
+`__noncachedata_init_end__`) that `.dtcm_bss` has no load image for. Borrowing the name would put
+`ucHeap` in a section whose next reader expects uncached, DMA-visible memory.
+
+That correction is worth more than its size, because it names the migration path this decision
+would take: **when the D-cache is enabled, the four buffers in §4.14.2 move into `NonCacheable` and
+the startup initialiser the SDK already ships is what zeroes them.** `np_app_cache_agreement_tests`
+asserts both halves — that the switch is still in the vendored file, and that this build still does
+not define it.
+
+**OI-SWCI-45 and OI-SWCI-15 are two halves of one fact, and neither named the other.** OI-SWCI-15
+had been asking for a D-cache clean in the staging path for 25 days when phase 10 raised OI-SWCI-45
+for the D-cache being absent — 24 rows apart in the same table in §7, compared by nothing. That is
+the shape this section exists to close, occurring inside the open-items list itself. The decision
+here settles the *clean* half of OI-SWCI-15's cache clause — with the D-cache off there is nothing
+to clean — and settles nothing about the *invalidate* half, because the I-cache is enabled and
+nothing in this repository establishes what the boot ROM leaves behind. OI-SWCI-15's row now says
+so, and the item stays open.
+
+#### 4.14.5 The check: read the state, do not establish it
+
+`np_app_cache_assert_state()` reads `SCB->CCR`, compares the IC and DC bits against
+`NP_SW02_ICACHE_ENABLED` and `NP_SW02_DCACHE_ENABLED`, and halts through
+`np_platform_unimplemented()` on either mismatch — the same designed failure as the core-clock
+check beside it (§4.11): stop the 200 ms heartbeat, let the safety MCU cut every stimulation enable
+line inside 1.5 s. Two distinct trap labels, `main:dcache-state-mismatch` and
+`main:icache-state-mismatch`, because the trap latches the string for a debugger and *which cache*
+is the whole content of the finding.
+
+**It is deliberately not a configuration step**, and the reason is about who ran first. By the time
+`main()` is reached, three things have already executed under whatever cache state the part came up
+in: the boot ROM, the bootloader — whose job in that sequence was to copy *this image* into OCRAM2
+with CPU stores — and `Reset_Handler`. An image that "fixed" `SCB->CCR` from inside would be
+repairing the successor of a fault it had already suffered, silently. Refusing is the honest
+response to finding the machine is not the one the image was built for.
+
+It is the **first statement of `main()`**, ahead of `np_app_dtcm_bss_clear()`. The order is not
+correctness — the clear stores to DTCM, which never goes through L1 whatever `CCR` says, and the
+check reads one register and two compile-time constants, so neither depends on the other. It is
+consequence: if the memory system is not the one this image reasons about, the right next
+instruction is a halt, not 64 KiB of stores.
+
+Cost, from the disassembly: **28 bytes of code and three literal words**, 40 B in all. One `ldr` of
+`SCB->CCR`, two shift-and-branch bit tests, two tail calls to the trap.
+
+#### 4.14.6 Measured
+
+`arm-none-eabi-gcc 13.2.1` (the CI toolchain), `-DCMAKE_BUILD_TYPE=Release`, `--gc-sections`,
+99 targets, 0 warnings, 0 unresolved symbols. Both sides built from the same absolute path, per
+§4.12.5's rule — which is now a rule this document follows rather than one it merely stated.
+
+| | Before (§4.12 tip) | After | |
+|---|---:|---:|---|
+| `.text` | 47,843 B | **47,947 B** | +104 B — the check and its two trap strings |
+| `.data` (DTCM) | 308 B | 308 B | |
+| `.dtcm_bss` (DTCM) | 65,536 B | 65,536 B | |
+| `.bss` (OCRAM2 staging) | 88,404 B | 88,404 B | |
+| `.stack` (DTCM, pinned) | 8,192 B | 8,192 B | |
+| loadable `.bin` | 49,436 B | **49,540 B** | +104 B; 11.0 % of the 440 KiB reservation |
+| host tests | 33 | **34** | `np_app_cache_agreement_tests` |
+
+Cache-instruction census of the linked image, before and after: **1 `ICIALLU` store, 1 `CCR` I-bit
+set, 0 D-cache maintenance operations.** The change adds no cache operation of any kind, which is
+the point — it adds a *reader*.
+
+**Files changed.**
+
+| File | Change |
+|---|---|
+| `firmware/application/include/np_app_cache.h` · `src/np_app_cache.c` | **New.** The one statement of the L1 cache state, and the boot-time comparison of it against `SCB->CCR` |
+| `firmware/application/src/np_app_main.c` | `np_app_cache_assert_state()` as the first statement of `main()`; the boot-contract comment and the `SystemInit()` description corrected |
+| `firmware/application/src/np_app_dtcm.c` | §4.12.4's "the startup cannot be taught about a second region" corrected — it can be switched; why that switch is still not this region's |
+| `firmware/application/linker/app_imxrt1062.ld` | The `.bss` rationale's "through the bus and the L1 D-cache" — the fifth statement of the wrong fact — corrected to uncached, with the decision named |
+| `firmware/application/tests/np_test_strip_code.h` | **New.** `strip_to_code()` extracted from the clock suite rather than copied into the second suite that needed it |
+| `firmware/application/tests/np_app_cache_agreement_tests.c` | **New.** Six cases holding the header, the vendored startup, the vendored SOUP record and the boot path against each other |
+| `firmware/application/tests/np_app_clock_agreement_tests.c` | Uses the extracted helper; no behaviour change |
+| `firmware/application/CMakeLists.txt` · `firmware/CMakeLists.txt` | The new source and the new test target; Class B count 26 → 27, total 33 → 34 |
+| `.github/workflows/firmware-cross-build.yml` | New step `Assert the SW-02 L1 cache state`; `NP_CLASS_B_TEST_COUNT` 27 |
+| `.github/workflows/build-all.yml` | `NP_TOTAL_TEST_COUNT` 34, `NP_CLASS_B_TEST_COUNT` 27 — re-derived by enumerating `ctest`, not by adding one |
+
+#### 4.14.7 What fails if this is undone
+
+Every check here was mutation-tested before commit, and the split is the same one §4.12.6 found.
+
+**Three the host suite catches.** Flipping `NP_SW02_DCACHE_ENABLED` to 1 fails two cases at once —
+the pinned decision, and its disagreement with the vendored startup (measured: 2 assertions).
+Deleting the call from `main()` fails the boot-path probe, *and does so through the prose*: the
+probe strips comments and string literals before looking, which matters because `np_app_main.c`
+names the function three times in its own header comment. Moving the call after
+`np_app_dtcm_bss_clear()` fails the ordering assertion.
+
+**One only CI catches, and it is the one that matters.** Adding `SCB_EnableDCache()` to the image —
+which is what a vendored board file, a new library, or an SDK bump would do — **passes the host
+suite 34/34**, because the suite probes the one SDK file it knows about. Measured on that mutation:
+the census reports 1 D-cache maintenance operation (`str.w r2, [r0, #608]` — `DCISW`) and the step
+fails. That is why the assertion is against the artifact.
+
+The census is a **tripwire, not a proof**, and it is written to fail rather than to reassure when it
+stops being able to see: its two positive controls must match. Blinding it — the mutation was to
+change the register offsets it looks for — fails the step with a message saying to re-derive the
+patterns rather than delete the step. A census that cannot see reporting "no D-cache operations" is
+worse than no census.
+
+#### 4.14.8 What this phase deliberately did NOT do
+
+**It did not touch the bootloader.** OI-SWCI-15's staging-path cache maintenance is a change to the
+Class B boot path that belongs with the other half of that item (re-verifying the staged copy, not
+just the source), and it cannot be validated without a board. What §4.14.3 settles for it is
+recorded in its row; the item stays open. The application-side check does not cover it and does not
+pretend to: if the ROM left the D-cache on, the bootloader's staging copy is already wrong and the
+jump most likely faults before `main()` — the check closes the *silent* path, not the loud one.
+
+**It did not configure the MPU.** Regions are precondition (1) of enabling the D-cache and have no
+value on their own here; writing them now would add Class B code that nothing needs and nothing can
+test.
+
+**One thing it did fix in passing, because leaving it would have been dishonest about the record.**
+`docs/status/document-register.md` carried **two rows each** for `firmware/platform/` and
+`firmware/application/` — the phase-8 versions and the phase-10/§4.11 versions, side by side, in a
+file whose own "How to read this file" block says one row per document. The stale application row
+still described `.bss` as "162 KiB … does not fit the 128 KiB DTCM", the figure §4.12.1 measured as
+wrong. The stale pair is deleted and the one sentence the newer platform row had dropped
+(OI-SWCI-44's scope) is carried across rather than lost. A register that says a thing twice, in two
+vintages, is the same failure this whole section is about, in the file that indexes it.
+
+**It did not touch CLAUDE.md §4.1's "~1.1% CPU at full load".** The open item named it as an
+interaction, and it is one — an uncached data path is exactly the kind of thing that figure would
+have to account for. But the decision does not rest on it, and the figure is supported by no
+measurement in this repository in either direction, while `docs/np_feas_fnirs_001.md` §3 already
+leans on it ("~98.9% idle") to argue an fNIRS modality fits. Changing a locked §4.1 figure on the
+strength of this section would be replacing one unmeasured number with another. It is raised as
+**OI-SWCI-48** instead.
 
 ## 5. Specified workflows
 
@@ -2900,7 +3188,7 @@ a third manual correction. §4.10.7.
 | ~~OI-SWCI-21~~ | **CLOSED 2026-09-01 (phase 8, §4.8) — `np_application` exists and links.** 0 unresolved symbols out of a starting 102; `np_application.elf` 126,224 B; `.bin` 48,208 B of the bootloader's 440 KiB reservation; `__isr_vector` at `0x20210000` exactly. The 92 first-party seams this item said "can never be diagnosed" were diagnosed on the first link and are now trapped, not stubbed (§4.8.4). The item's own prediction held: creating the target was not CI work, and the two defects it surfaced (§4.8.1) were invisible to every compile-only check that preceded it. ~~Firmware~~ | Firmware | ~~Phase 8~~ **Done** |
 | OI-SWCI-14 | Strengthen the host-test absorption guards beyond counts: a checked-in ctest name manifest (catches rename/substitution, which 25 = 6 + 19 cannot) and a per-target case-count or gcov floor in `build-all.yml` (catches intra-target erosion). Also widen `firmware/cmake/**` back to a directory glob if a third toolchain file is ever added. See §6.1.1 | Firmware | — |
 | OI-SWCI-13 | Sweep the five documents still citing the retired `firmware-host-tests.yml` (`np_sw_001.md`, `np_dhf_001.md`, `status/pending-decisions.md`, `status/document-register.md`, `status/completed-decisions.md`). The section-ref guard does not validate workflow filenames, so nothing fails on them | Quality | — |
-| OI-SWCI-15 | **Raised 2026-08-09 during phase 1 review; a firmware finding, not a CI one.** `load_and_jump()` verifies the image in its eMMC bank, then copies it to OCRAM, then jumps — so the signature check covers the *source*, not the copy that actually executes. A bit flip, a truncated copy, or a wrong length yields corrupt code at an entry point the boot record says was verified. Standard practice is to re-hash (or at minimum CRC) the staged image after the copy and before the jump. While in that path, confirm D-cache clean / I-cache invalidate happens after staging — the classic omission in exactly this sequence. Out of scope for phase 1 (which only supplies the C runtime); it touches the same function as the phase-2 OCRAM fix, so the two are naturally worked together | Firmware / Safety SW | — |
+| OI-SWCI-15 | **Raised 2026-08-09 during phase 1 review; a firmware finding, not a CI one.** `load_and_jump()` verifies the image in its eMMC bank, then copies it to OCRAM, then jumps — so the signature check covers the *source*, not the copy that actually executes. A bit flip, a truncated copy, or a wrong length yields corrupt code at an entry point the boot record says was verified. Standard practice is to re-hash (or at minimum CRC) the staged image after the copy and before the jump. While in that path, confirm D-cache clean / I-cache invalidate happens after staging — the classic omission in exactly this sequence. Out of scope for phase 1 (which only supplies the C runtime); it touches the same function as the phase-2 OCRAM fix, so the two are naturally worked together. **Half of the cache clause is settled by §4.14 (phase 11, OI-SWCI-45), and the way it got settled is itself the finding:** this row had been asking for a D-cache clean in the staging path for 25 days when phase 10 raised OI-SWCI-45 for the D-cache being absent, 24 rows apart in this table, with neither naming the other — §4.8's "two statements compared by nothing", occurring inside the open-items list. With the D-cache decided OFF there is **nothing to clean**, so that half is a no-op for as long as the decision holds and for as long as nothing upstream turns the cache on. The **invalidate** half is untouched and is the reason this stays open: the I-cache *is* enabled, nothing in this repository establishes what the boot ROM leaves behind, and the application-side check added at §4.14.5 cannot cover it — a stale-instruction fault at the jump happens before `main()` is ever reached. Re-verifying the staged copy, the other half of this item, is unaffected by any of it | Firmware / Safety SW | — |
 | OI-SWCI-16 | **Raised 2026-08-09.** If `memset` is ever used to zeroise key or signature material in the bootloader, it survives dead-store elimination today only because it is an opaque cross-TU call. Enabling LTO would make those stores removable. Audit the `np_signature.c` scrub sites and give them an explicit volatile-based zeroiser rather than depending on that accident | Firmware / Security | — |
 | OI-SWCI-10 | How should a red `build-all` be surfaced? It is not a PR check and blocks nothing, so a status badge nobody reads is not sufficient — it needs an out-of-band notification | Steve | Phase 0 |
 | OI-SWCI-11 | Per-PR ctest granularity: should a change to one module run only that module's ctest targets, or is the full 25-target host suite cheap enough that selection adds drift risk for no gain? The §5.0 principle argues for selection; the suite's runtime may argue against. Measure before deciding | Firmware | — |
@@ -2924,9 +3212,10 @@ a third manual correction. §4.10.7.
 | OI-SWCI-42 | **Raised 2026-09-01 during phase 8 (§4.8.5); re-scoped 2026-09-02 (phase 9, §4.10.6); CLOSED 2026-09-03 (phase 10, §4.12).** As raised, the item asked *which buffers deserve DTCM*, on a record that re-measurement did not support (§4.11.1): the "162,436 B static footprint" was `.data` + `.bss` + the 8 KiB MSP stack, double-counting a section the linker script already places — the real figure is **154,244 B**; and two of its four named largest contributors, `np_module_map`'s `s_map` and `s_nvram_scratch` (44,948 B together), are dropped by `--gc-sections` and were in no image at phase 8 or since. Its stated cost also named an L1 D-cache that `SystemInit()` never enables, which `firmware/vendor/cmsis_core/VERSION` already said in as many words. **The question is answered for the one buffer it could be answered for.** `ucHeap` (65,536 B) is in `.dtcm_bss` in DTCM: every FreeRTOS task stack is cut from it, which makes its memory class a property of the calling convention rather than a hypothesis about a workload, and it fits the 128 KiB the **default eFuse partition** provides — so it needs nothing from OI-SWCI-39's register writes, and §4.10.6's corruption-vs-fault objection does not reach it (the stack pinned at `0x20080000` already faults first). `NP_DTCM_GUARANTEED_SIZE` and its link assert keep it there. The other 88,404 B of `.bss` stays in OCRAM2 for §4.10.6's reason, and moving any of it is now one attribute per buffer once the bench confirms the partition | Firmware | Closed |
 | OI-SWCI-43 | **Raised 2026-09-02 while closing OI-SWCI-40 (§4.9.4).** **84 symbols are declared by an `extern` inside a `.c` that NO header declares at all** — the `np_mod_*_{init,detect,control,shutdown,telemetry}` registration entry points of 17 module drivers, plus `np_ed25519_verify`, which does have a header (`np_crypto.h`) and is one line from the same fix the 56 seams just got. This is the module-registry idiom and several files state it in as many words (*"module drivers expose no per-module header"*), so it is a deliberate design position and not an oversight — but it is the OI-SWCI-18/40 hazard with the mitigation *absent* rather than merely unused: there is no second declaration to disagree with, so a registry entry point whose definition drifts from every caller's guess compiles and links exactly as the closed items' worst case did. Deliberately out of scope for the §4.9 gate, which reports only seams a header already declares: with nothing to compare against, the only assertion available is "a header ought to exist", which is a design decision about how the registry publishes its modules rather than a build property. Closing it means either a per-module header for 17 drivers or one registry header declaring the vtable entry points, and that choice interacts with the hub cluster-controller fan-out (OI-HUB-C01..C19) still being unimplemented. | Firmware | — |
 | OI-SWCI-44 | **Raised 2026-09-02 during phase 9 (§4.10.7); authored as OI-SWCI-43 and renumbered on rebase, as this revision itself was (see the header note).** PR #310 took 43 for the undeclared-`extern` family above. The two are unrelated. `np_config.h` declares `NP_SCRATCH_SRAM_BASE` = `0x20270000` and `NP_SCRATCH_SRAM_SIZE` = 64 KiB — a window that lies **inside** `.app_staging` (`0x20210000`–`0x2027DFFF`) and overlaps the bootloader's 8 KiB stack at the top of OCRAM2. Nothing references either; they are residue of the pre-Defect-C map (§4.3), where OCRAM was believed to have room the derivation later showed it does not. Harmless while unused and a trap the moment someone uses them — a scratch buffer placed there would be overwritten by the next application image the bootloader stages, after signature verification passed, which is Defect C's failure mode with a different cause. Flagged in place rather than deleted: phase 9's subject was a different memory map, and removing constants is a reviewed decision, not a side effect. The fix is deletion unless someone can name the consumer | Firmware | — |
-| OI-SWCI-45 | **Raised 2026-09-03 during phase 10 (§4.12.1).** **The L1 D-cache is never enabled, and the record assumed it was.** `SystemInit()` enables the I-cache only, under `#if __ICACHE_PRESENT`; nothing in the tree calls `SCB_EnableDCache()`. OI-SWCI-42 described `.bss` in OCRAM2 as going "through the bus and the L1 D-cache", so the cost it recorded was an understatement — the 88,404 B still in OCRAM2 is reached by **uncached** bus access. `firmware/vendor/cmsis_core/VERSION` already recorded the fact, so this is two statements in the tree contradicting each other with nothing comparing them (§4.8's shape, fourth occurrence). Enabling it is not free and is therefore a decision, not a fix: it needs MPU region attributes, and cache maintenance around every DMA buffer the hub fan-out will eventually introduce. Interacts with CLAUDE.md §4.1's "~1.1% CPU at full load" figure, which no measurement in this repository supports either way | Firmware | Device bring-up |
+| OI-SWCI-45 | **Raised 2026-09-03 during phase 10 (§4.12.1); CLOSED 2026-09-08 (phase 11, §4.14).** As raised: **the L1 D-cache is never enabled, and the record assumed it was** — `SystemInit()` enables the I-cache only, nothing calls `SCB_EnableDCache()`, so the 88,404 B in OCRAM2 is reached by **uncached** bus access and the recorded cost was an understatement. Re-measurement found the count one short: there were **five** statements of the wrong fact, not four, and the fifth is `app_imxrt1062.ld`'s own `.bss` rationale — while the likeliest origin of all of them is the vendored `system_MIMXRT1062.c`'s comment *"Enable instruction and data caches"* sitting above code that enables one. **Decision: the D-cache stays OFF**, and the four things enabling it has to arrive with are named — MPU region attributes (nothing configures the MPU, so the ARMv7-M default map makes all of OCRAM2 write-back write-allocate), cache maintenance around every DMA buffer (none exists, because no DMA does), the staging handover (**OI-SWCI-15**, which had been asking for the same clean since 2026-08-09), and a board. **The value of enabling it also shrank the day before the item was raised**: TCM does not go through L1, so §4.12's move of `ucHeap` put every task stack outside the decision, leaving 105,820 B of OCRAM2 data of which 58.6 % of the `.bss` half is one unprofiled buffer. What is new is that the state is no longer an omission: `np_app_cache.h` states it once, `np_app_cache_assert_state()` reads `SCB->CCR` as the first statement of `main()` and halts on mismatch, a host suite holds the header, the vendored startup and the CMSIS SOUP record against each other, and CI censuses the linked image — the only check that catches a `SCB_EnableDCache()` arriving from anywhere the host suite does not probe. Revisiting needs a bench, not new reasoning | Firmware | Closed |
 | ~~OI-SWCI-46~~ | **Raised 2026-09-03 during phase 10 (§4.12.2); CLOSED 2026-09-08 (§4.13) — by deleting the demand, not building the supply.** ~~No external LPSDR4 SDRAM is established, and code already places data in it.~~ The item scoped the answer as "SEMC configuration plus a region"; it is neither, and three measurements say so. **There is no part** — no BOM line in `NP-COST-001`, no schematic, no pinout, no timing set — so a SEMC sequence would be invented register values for silicon nobody has run, and selecting the part is a hardware decision with BOM, layout, EMF and §4.5 power consequences rather than a firmware one. **The name may not denote anything this processor can talk to**: `MIMXRT1062.h` declares one external-memory controller, SEMC, whose SDRAM interface is single-data-rate over an 8- or 16-bit port (`SEMC_SDRAMCR0_PS`), and no DDR/LPDDR controller peripheral at all — split out as OI-SWCI-47 rather than resolved here, because CLAUDE.md §4 is locked. **And the whole demand fits on-chip several times over**: `s_source_power` (9,788 B) + the weight matrix `np_hd_config.h` sizes (205,548 B) = 215,336 B, against a measured 312,716 B free in the staging region and ~439 KB of unallocated established DTCM — a 32 MB part would have carried 0.64 % of itself. `s_source_power` is an ordinary static in `.bss` now (not DTCM — §4.12.3's rule stands), which also puts it inside the one span the vendored startup zeroes, where the orphaned `.lpsdr4` never was. The `.lpsdr4` ASSERT stays as a permanent tripwire and gains the `KEEP()` §4.12.2 could not afford: measured, §4.12.2's script links an unreachable `.lpsdr4` buffer green and §4.13's fails the link | Firmware | ~~Device bring-up~~ |
 | OI-SWCI-47 | **Raised 2026-09-08 during §4.13.2.** **CLAUDE.md §4.1 and `docs/ABBREVIATIONS.md` both state 32 MB of external "LPSDR4" as a hardware fact, and three things in the record disagree with it.** No SDRAM appears in any BOM — `NP-COST-001` has no memory line at all — so the part is unpriced as well as unselected. The vendored device layer declares exactly one external-memory controller, **SEMC** (`SEMC_BASE = 0x402F0000`), with an SDR SDRAM interface over an 8- or 16-bit port (`SEMC_SDRAMCR0_PS`: *0b0..8bit / 0b1..16bit*) and no MMDC or other DRAM controller peripheral anywhere in the header — so if "LPSDR4" means LPDDR4, this processor has no controller for it at any price; if it means low-power SDR SDRAM, the name is non-standard and the spelling is what caused `.lpsdr4` to look like a region someone had declared. And §4.13.3 measured SW-02's entire stated demand for it at 215,336 B, which fits on-chip with 312,716 B of staging free — so nothing in the firmware needs the part to exist. **The decision is whether §4.1 keeps a 32 MB external memory at all**, and if it does, which part and under what name; a 16-bit bus is ~40 signals at up to 166 MHz beside a µV EEG front end inside the §4.3 shielding claim, with BOM, layout and refresh-power consequences reaching §4.5. Not resolved in firmware: §4 is locked, and firmware not needing the memory is not the same claim as the hardware not having it | Hardware / Systems engineering | CLAUDE.md §4.1 accuracy; any SW-02 use of external memory |
+| OI-SWCI-48 | **Raised 2026-09-08 during phase 11 (§4.14.8); authored as OI-SWCI-47 and renumbered on rebase, as this revision itself was (see the header note).** PR #322 took 47 for the 32 MB LPSDR4 claim in the same CLAUDE.md §4.1 line. **The two are siblings and neither subsumes the other:** 47 asks whether a part named there exists, this one asks whether a load figure stated beside it was ever measured. **CLAUDE.md §4.1's "~1.1% CPU at full load (98.9% headroom for future ML)" is supported by no measurement in this repository, in either direction.** OI-SWCI-45 named it as an interaction, correctly: an uncached OCRAM2 data path for 105,820 B of `.bss` and `.rodata` is exactly the kind of thing such a figure would have to account for, and §4.13 declined to move it because that would replace one unmeasured number with another. It is already load-bearing beyond §4.1 — `docs/np_feas_fnirs_001.md` §3 cites "~98.9% idle" to argue an fNIRS modality fits the processor budget. Not answerable today for the same reason as the cache benefit: the image traps a few hundred instructions into `main()` and no board exists. What would answer it is one profiling run on a board, against a session doing real work, with the cache state stated alongside the number so the two cannot drift apart again | Firmware / Systems | Device bring-up |
 
 ## 8. Traceability
 
@@ -2942,9 +3231,9 @@ a third manual correction. §4.10.7.
 | `GPIOA`/`GPIOB` resolve to the correct STM32G071 addresses | §4.1, phase 4 | `objdump` on `np_gpio_mgr.c.obj` — `0x50000000`/`0x50000400` (§6.5). A compile alone proves resolution, not correctness |
 | Bootloader fits its OCRAM allocation | `bootloader_imxrt1062.ld` ASSERT | `firmware-cross-build.yml` — bootloader leg, **gating since phase 3 (§6.4)**. The `ASSERT` fails the link, the link failure fails the job, and the job now fails the run |
 | The FlexRAM partition the memory map assumes is **established by code**, not by eFuses | §4.10, phase 9; OI-SWCI-39 | **VERIFIED — four independent checks.** `np_bootloader_flexram_tests` (GPR17/GPR14 encodings against hand-worked oracles) · `np_app_link_agreement_tests` (`np_config.h` against both linker scripts) · three link-time `ASSERT`s in `bootloader_imxrt1062.ld` · `firmware-cross-build.yml` steps `Assert the bootloader establishes the FlexRAM partition` (the call survived `--gc-sections`) and `Assert the SW-02 image matches the established DTCM partition` (`__StackTop` against the bank count in `np_config.h`) |
-| Host-native logic verified (Class B, 25 targets) | NP-SW-001 Rev 3 | `firmware-cross-build.yml` — `host-tests` job. 24th target `np_app_link_agreement_tests` added at phase 8 (§4.8.3); 25th `np_bootloader_flexram_tests` at phase 9 (§4.10.5) |
+| Host-native logic verified (Class B, 27 targets) | NP-SW-001 Rev 3 | `firmware-cross-build.yml` — `host-tests` job. 24th target `np_app_link_agreement_tests` added at phase 8 (§4.8.3); 25th `np_bootloader_flexram_tests` at phase 9 (§4.10.5); 26th `np_app_clock_agreement_tests` at §4.11; 27th `np_app_cache_agreement_tests` at §4.14. **This row and the one below read 25 and 32 until phase 11** — stale from §4.11 onward, which is the count-in-prose failure §4.10.5 and `firmware/CMakeLists.txt` both warn about, here in the traceability table itself. The authoritative figures are the `NP_*_TEST_COUNT` env vars, asserted against a live `ctest` enumeration |
 | Host-native logic verified (Class C, 7 targets) | NP-SW-001 Rev 3 | `safety-mcu-ci.yml` — `host-tests` job. Seventh target `np_hal_platform_tests` added at phase 7 (§4.4.2) |
-| Host-test partition remains complete (7 + 25 = 32) | OI-SWCI-09 | `build-all.yml` — `host-tests-all` partition guard, weekly, asserted against a live `ctest` enumeration rather than a comment. Moved 7 + 21 = 28 → 7 + 22 = 29 → 7 + 23 = 30 → 7 + 24 = 31 at phase 8 (`np_app_link_agreement_tests`, §4.8.3) → **7 + 25 = 32** at phase 9 (`np_bootloader_flexram_tests`, §4.10.5). **This row read `7 + 24 = 31` while `build-all.yml` itself said `30`** — the guard was asserting a number the document had already moved past, and had been failing every Monday since phase 8. Corrected at phase 9 (§4.10.7); raised against OI-SWCI-37 |
+| Host-test partition remains complete (7 + 27 = 34) | OI-SWCI-09 | `build-all.yml` — `host-tests-all` partition guard, weekly, asserted against a live `ctest` enumeration rather than a comment. Moved 7 + 21 = 28 → 7 + 22 = 29 → 7 + 23 = 30 → 7 + 24 = 31 at phase 8 (`np_app_link_agreement_tests`, §4.8.3) → **7 + 25 = 32** at phase 9 (`np_bootloader_flexram_tests`, §4.10.5). **This row read `7 + 24 = 31` while `build-all.yml` itself said `30`** — the guard was asserting a number the document had already moved past, and had been failing every Monday since phase 8. Corrected at phase 9 (§4.10.7); raised against OI-SWCI-37 |
 | A cross-compile or host-test regression cannot be merged to `main` | §6, phase 6 | `Safety` ruleset (`16412379`) — `required_status_checks` over seven contexts, **applied 2026-08-10** (§6.7.8). Read this row with its limit: it binds the **pull-request** path only. A direct push to `main` still bypasses every check, because `Safety` carries no `pull_request` rule — OI-SWCI-22 |
 | An out-of-scope PR is not blocked by checks it never needed to run | §5.0, phase 6 | Job-level `if:` on every gated job, so out-of-scope jobs report `skipped` rather than not reporting. Measured: a docs-only PR carries five required contexts at `SKIPPED` and reads `CLEAN` (§6.7.5) |
 | The relevance list that decides what to skip is itself checked | §6.7.2 | `changes` job — `ci-changed-scope.sh --self-test` (matcher semantics), `--check-tree` (every pattern resolves to something tracked), and per-workflow scope assertions. All three gate, because `Class B scope` and `Class C scope` are required contexts |
@@ -2954,6 +3243,7 @@ a third manual correction. §4.10.7.
 | The application image is linked for the address the bootloader stages it at | §4.8.3 | `app_imxrt1062.ld` `ASSERT(__isr_vector_start == NP_APP_IMAGE_ORIGIN)` at link time, plus `nm` on the artifact: `__isr_vector` = `0x20210000` = `ORIGIN(OCRAM) + _app_load_offset`. |
 | The two linker scripts agree about the staging reservation | §4.8.3 | `np_app_link_agreement_tests` — parses both scripts, re-derives the bootloader's size from its three declared terms, and asserts the region line is written in terms of the checked constants. Falsified by six mutations, including the one that makes the constants decoration. |
 | Every SW-02 platform seam is accounted for, and none is a driver | §4.8.4 | `firmware/cmake/np_platform_census.cmake` in the build (equality against `NP_SW02_PLATFORM_SYMBOL_COUNT`), re-run independently by `firmware-cross-build.yml`. Falsified in both directions: mutating the constant fails; deleting one trap fails twice, at the census and at the link. |
+| The L1 cache state the SW-02 image assumes is the state it runs under | §4.14, phase 11; OI-SWCI-45 | **VERIFIED — three checks, one per failure mode.** `np_app_cache_agreement_tests` holds `np_app_cache.h`, the vendored `SystemInit()` and `firmware/vendor/cmsis_core/VERSION` against each other and probes the boot path's *code*; `firmware-cross-build.yml` step `Assert the SW-02 L1 cache state` censuses the linked image for D-cache maintenance in `SCB+0x25C..0x274`, with two positive controls so a blinded census fails rather than reassures; and on the device `np_app_cache_assert_state()` reads `SCB->CCR` as the first statement of `main()` and halts into the safety-MCU cutoff on either mismatch. Falsified in five directions (§4.14.7), including the one only the image census catches |
 | Vendored MCUX SDK is byte-exact from its named upstream tag | §9.3 obligation 2 | `firmware/vendor/mcux_sdk/VERSION` — per-file SHA-256, two independent downloads compared with `diff -r`. The five CMSIS files vendored at phase 4 were re-fetched and re-compared at the same time: all still identical, so the tag has not moved under the record. |
 | Every SW-02 library is built for Cortex-M7, hard float | §4.8.1 | The link itself: `--whole-archive` puts every SW-02 translation unit in the image, and ld rejects a float-ABI mismatch. This is what caught `np_crypto` and `np_ota_state` compiling as ARMv4T soft-float; `readelf -A` is the direct check. |
 
