@@ -10,7 +10,7 @@
 **Approved By:** — (pending design review)
 **References:** NP-THERM-CFD-R1-001 Rev 1 (§2 resistance network, §3 inward-flux ceiling, §4 τ_face, §5 BN-boss export study, §5.3 findings, OI-R1-01…05 — the anchor document); NP-THERM-CFD-001 (§4 heat-source model and η_wp, §5 BC spec, §9 decision logic); NP-THERM-CFD-C2-001 (§7 the 1D network, §2 stack-up); NP-THERM-COOL-001 Rev 10 (§5 aggregate cavity ceiling, §7 the 37.9 °C single-tile full-dose ceiling, D-4 the derate-termination rule, OI-THCOOL-08/16/17); NP-PWR-BUDGET-001 Rev 3 (§3.2 the 4–8 tile estimate, §3.3 export efficiency, §3.5 the N = 80 extrapolation, D-4, OI-PWR-01/08/10); NP-PWRSRC-001 Rev 1 (§4.1 the cavity wall, §5 thermal dose, §7.0 coverage 2/23, D-1/D-2, OI-PWRSRC-05/07); NP-SES-PWR-001 Rev 1 (§2.1 the tile-count governor, §4 cascading); NP-HW-HEXTILE-001 Rev 8 (§9.1–9.3 concurrency, OI-HEXTILE-06/09/21); NP-ENV-OPRANGE-001 (§2 ambient/duty envelope — full dose ≤ +30 °C, derate +30→+35, block > +35 °C, 1.0 °C hysteresis, per-protocol efficacy-floor clamp); NP-REQ-FANHEALTH-001 (SR-FAN-03/04); NP-HELMET-GEOM-001 (§2 radial stack, §8 THERM-1a); NP-HW-HUB-001 Rev 5 (OI-HUB-C19 hub thermal budget); NP-DT-001 Rev 2 (DI-REG-01 IEC 60601-1, DI-SAFE-13); NP-CONV-001 Rev 6 (§4 identifiers, §8 a convention worth writing down is worth a script); CLAUDE.md §3 (PBM ceilings), §4.2 (42/62 °C interlocks), §4.3 (EMF stack), §4.5 (power); IEC 60601-1 (42 °C applied part); `hardware/np_socket_map.json`; `scripts/check-thermal-multitile.ts`; `scripts/check-pbm-power.ts`; `scripts/check-thermal-dose.ts`
 **Related Issues:** —
-**Gate:** Does not close THERM-1a. Raises one BLOCKING item (`OI-N1-02`) that gates any quoted tile count.
+**Gate:** Does not close THERM-1a. Raises one BLOCKING item (`OI-N1-02`) that gates any quoted tile count — **`OI-N1-02` was CLOSED 2026-09-08 by `NP-THERM-SINK-001`, and `N1-D-1` is lifted and replaced by `SINK-D-1`. Read the ⚠ note below §1 before quoting any figure in §4a, §5, §6a or §8.**
 **IEC 62304 Class:** — (analysis document; no code)
 **Supersedes:** None — extends NP-THERM-CFD-R1-001 to N tiles
 **Parent Document:** NP-PWR-BUDGET-001 §3.2 (`OI-PWR-01`)
@@ -30,6 +30,35 @@
 > terminus**, which R1 pins at ambient as a modelling idealisation and which **no document in the
 > tree specifies**. The concurrency ceiling is a property of an unspecified component. **`OI-N1-02`
 > is therefore BLOCKING, and no tile count may be quoted until it is closed.**
+
+---
+
+> **⚠ NOTE ADDED 2026-09-08 — `OI-N1-02` is CLOSED, and closing it moved this document's numbers.**
+> `NP-THERM-SINK-001` specifies the term this study leaves open, and finds three things that change
+> how §4a, §5, §6a and §8 should be read.
+>
+> 1. **`R_sink` = 1.08 K/W**, recovered twice — from a decomposition of `NP-THERM-CFD-R1-001`'s own
+>    `R_OUT_BASE`, and independently from a natural-convection correlation over the helmet exterior,
+>    agreeing to 4.7 %. **§5's sweep bracketed the truth: the 1.00 K/W row is the real one, and the
+>    0.50 default this study calls "a small fan-cooled extruded sink" is 2.2× optimistic.**
+> 2. **There is no heatsink, and no fan on this path.** R1's via is a ~32 mm radial conductor
+>    terminating on the outer bowl, not at the hub; no part connects the two and none can inside the
+>    mass budget. §5's "shared external heatsink" is the **helmet's own exterior**, and its
+>    resistance is the external film **already inside `R_OUT_BASE`** — which R1 charges to the cavity
+>    path and simultaneously zeroes for the via path. Restoring it on both paths makes every figure
+>    here optimistic.
+> 3. **The missing component is a spreader, not a heatsink.** A lumped `R_sink` presumes an
+>    isothermal terminus; the bare CFRP bowl spreads over ~63 mm. Under the specification the ceiling
+>    at the library floor and 25 °C is **10 tiles with a 100 µm graphite film and 2 without**, against
+>    the 16–78 range §4a reports. **`N1-D-1` can be lifted — and what replaces it is worse news than
+>    the prohibition was.**
+>
+> **Nothing in this document is rewritten.** Its figures stand as computed, on the single-sink
+> topology and the `R_sink` values named in each table. `scripts/check-thermal-multitile.ts`'s
+> `R_SINK_DEFAULT` is likewise left at 0.5 — changing it would silently move every published figure
+> here — and is routed as `OI-SINK-02`. §6a's per-protocol table is the one to re-run first
+> (`OI-SINK-05`): "recoverable on the heatsink alone" is no longer an available move, because there
+> is no heatsink to improve.
 
 ---
 
@@ -554,7 +583,7 @@ expensive way to learn it.**
 
 | Ref | Decision | Basis | Reversible |
 |---|---|---|---|
-| **N1-D-1** *(principal)* | **No tile count may be quoted as a thermal ceiling until `R_sink` is specified.** The ceiling ranges 16–78 tiles at the library floor across a plausible heatsink range, and 0 at the R-4 point | §4a, §5 | Yes — on `OI-N1-02` |
+| **N1-D-1** *(principal)* | ~~**No tile count may be quoted as a thermal ceiling until `R_sink` is specified.**~~ The ceiling ranges 16–78 tiles at the library floor across a plausible heatsink range, and 0 at the R-4 point. **LIFTED 2026-09-08 — `R_sink` is specified at 1.08 K/W (`NP-THERM-SINK-001` `SPEC-SINK-01`) and `SINK-D-1` replaces this row: a tile count may be quoted only alongside the per-tile drive and the spreader state, because the governed quantity is watts. The specified ceiling is 10 tiles, not 16–78** | §4a, §5; `NP-THERM-SINK-001` §8 | Superseded by `SINK-D-1` |
 | **N1-D-2** | **Drop the montage-clustering term.** Close `OI-PWR-10` rather than carrying it | §6: ≤ 0.22 K worst case across every authored montage | Yes |
 | **N1-D-3** | **Restate `NP-PWR-BUDGET-001` §3.3's lever as rejection (`R_sink`), not export fraction** | §5.1: ~90 % of heat is already in the N-scaling term | Yes |
 | **N1-D-4** | **The governor is watts per tile, and the thermal side now says so independently** — §6b's wall is a per-tile drive limit with no N in it | §6b, and `NP-PWR-BUDGET-001` D-4 from the power side | No — two independent derivations |
@@ -568,7 +597,7 @@ expensive way to learn it.**
 
 | Ref | Hazard | Current control | Verification |
 |---|---|---|---|
-| RISK-N1-01 | Concurrency ceiling quoted from a model with no heatsink in it; a montage is authorised that exceeds the face limit | N1-D-1 — no count quoted until `OI-N1-02` | Heatsink spec + THERM-1b bench (`OI-R1-02`) |
+| RISK-N1-01 | Concurrency ceiling quoted from a model with no heatsink in it; a montage is authorised that exceeds the face limit | ~~N1-D-1~~ → `SINK-D-1` + `SINK-D-4`; the residual is now that the shipped design carries no spreader (`RISK-SINK-01`) | `NP-THERM-SINK-001` §4 + THERM-1b bench (`OI-R1-02`) |
 | RISK-N1-02 | Four protocols in the shipped library are thermally inadmissible at one tile | N1-D-7; `scripts/check-thermal-multitile.ts` §6a is the standing check | **No verification defined** — needs a compile-time gate, `OI-N1-03` |
 | RISK-N1-03 | R1's flux labels carry η_wp twice; downstream margins are ~18 % optimistic | §2.3 reports the ratio; no document rewritten | `OI-N1-01` on R1 |
 | RISK-N1-04 | Idle populated tiles conduct heat into the scalp above ~37 °C ambient; no interlock observes an idle tile | `NP-ENV-OPRANGE-001` blocks PBM > +35 °C ambient — **partial, and in the wrong direction**: it gates PBM *activity*, while this path scales with *population* and is present with every tile idle | **No verification defined** — `OI-N1-04` |
@@ -581,13 +610,15 @@ expensive way to learn it.**
 | Ref | Item | Owner |
 |---|---|---|
 | **OI-N1-01** | **R1's §5.1 flux labels reproduce at 0.649 × their stated value**, consistent with η_wp applied twice to an `NP-THERM-CFD-001` §4 figure that is already `q_heat`. Non-conservative; lands on the 11.3 K that `NP-PWR-BUDGET-001` §3.2 divides. Resolve on the owning document | Thermal |
-| **OI-N1-02** | **BLOCKING — specify the external heatsink at the via terminus (`R_sink`, K/W, and its fan-loss case).** It sets the concurrency ceiling, it is the difference between 0 and >80 tiles for 14 of 23 protocols, and no document in the tree gives it a number. Route with `NP-HW-HUB-001` `OI-HUB-C19` and `NP-TOOL-HUB-001` F-04 | Thermal + ME |
+| **OI-N1-02** | ~~**BLOCKING**~~ — specify the external heatsink at the via terminus (`R_sink`, K/W, and its fan-loss case). It sets the concurrency ceiling, it is the difference between 0 and >80 tiles for 14 of 23 protocols, and no document in the tree gives it a number. Route with `NP-HW-HUB-001` `OI-HUB-C19` and `NP-TOOL-HUB-001` F-04. **CLOSED 2026-09-08 by `NP-THERM-SINK-001`** — `SPEC-SINK-01` `R_sink` = **1.08 K/W** (band 0.83–1.58), `SPEC-SINK-03` **unchanged under fan loss** because the fan is not on this path, and the fault case is vault occlusion at 1.48 K/W. There is no heatsink to specify: the terminus is the outer bowl and the resistance is the external film already inside `R_OUT_BASE`. `OI-HUB-C19` is **decoupled** from the tile field and may close on hub electronics alone. **Succeeded by `OI-SINK-01` (BLOCKING — the spreader), `OI-SINK-02` and `OI-SINK-05`** | Thermal + ME. **CLOSED** |
 | **OI-N1-03** | **No gate stops a thermally inadmissible protocol compiling.** `hubCompiler.ts` has no thermal check, as it had no power check before `OI-HEXTILE-09`. The two should be one check in watts per tile | FW + App |
 | **OI-N1-04** | **Idle populated tiles are conductive paths from the shared sink into the scalp** when ambient exceeds body temperature. Scales with population, not activity; no interlock observes an idle tile. Decide with `OI-HEXTILE-06` | Thermal + FW |
 | **OI-N1-05** | **Re-run `NP-PWRSRC-001` §5's 292 CEM43 cascade** against §6b's admissible drive set rather than the authored one. Direction unaffected; magnitude currently unquotable | Thermal |
 | **OI-N1-06** | Lateral conductances are literature `k·t` estimates. §6's conclusion is robust (it survives an order of magnitude either way, because the competing via path is 200× larger), but the values should be replaced from the shell laminate datasheet with `OI-R1-04` | Thermal |
 | **OI-N1-08** | **`NP-ENV-OPRANGE-001` §2's ambient hard edges have no N input.** The +35 °C block is recorded as more conservative than the physics requires, against `NP-THERM-COOL-001` §7's **single-tile** 37.9 °C ceiling. §4b finds that conservatism inverts at N ≥ 20 at 0.5 K/W (32.9 °C admissible against a 35 °C gate). Give the gate a concurrency or total-watts input, or bound N wherever the flat threshold is relied on. Conditional on `OI-N1-02`; co-decide with `OI-OPR-01`'s derate curve, which `NP-THERM-COOL-001` D-4 already gave a per-protocol termination rule | Thermal + FW |
 | **OI-N1-07** | Socket 3-space coordinates are provisional; topology is used, magnitudes are not (§2.2). Re-run when shell CAD replaces the interim ellipsoid | Thermal + ME |
+
+**Closed since issue:** `OI-N1-02` — `NP-THERM-SINK-001` Rev 1, 2026-09-08 (see the ⚠ note above §1).
 
 **Carried, re-pointed or recommended for closure elsewhere:** `OI-PWR-01` NARROWED (§11) · `OI-PWR-08`
 answered, caveat liftable (§9) · `OI-PWR-10` recommended CLOSED (§6) · `OI-PWRSRC-05` re-pointed at
