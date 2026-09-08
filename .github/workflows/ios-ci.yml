@@ -84,6 +84,19 @@ jobs:
         with:
           bun-version: latest
 
+      # MUST run before any xcodebuild invocation, not merely before the build
+      # phase that also generates it. Localizable.xcstrings is git-ignored
+      # (CLAUDE.md §17), so on a fresh checkout it does not exist when Xcode
+      # computes the build plan — and a file absent at plan time is not compiled
+      # into the bundle no matter what a later phase writes there. The target's
+      # own run-script phase did run and did generate the catalogue, and the app
+      # still shipped with no strings: every String(localized:) returned its raw
+      # key, and eight tests failed asserting on rendered text
+      # (SOCKET_ERR_UNKNOWN_ZONE, ZONE_ANNOUNCE_WITH_TYPE, …). Generating here
+      # puts the file on disk before Xcode looks.
+      - name: Generate locale files from canonical locales/*.json
+        run: bun scripts/sync-locales.ts
+
       - name: Resolve Swift Package dependencies
         run: |
           xcodebuild \

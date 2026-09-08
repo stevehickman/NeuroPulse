@@ -63,11 +63,22 @@ targets:
       - package: PostHog
         product: PostHog
 
-    # Localizable.xcstrings is generated from locales/*.json (CLAUDE.md §17) and
-    # is git-ignored, so it must be produced before the Resources phase copies
-    # it. Kept here as well as in the committed .xcodeproj so regenerating the
-    # project with XcodeGen does not drop the phase and leave a build that
-    # cannot find its own string catalogue.
+    # Keeps the generated Localizable.xcstrings fresh once it exists — for a
+    # canonical edit made during an open Xcode session, this is what picks it up.
+    #
+    # It is NOT what makes the first build work, and cannot be. Xcode computes
+    # the build plan before any phase runs, so a git-ignored catalogue that does
+    # not yet exist is simply not in the plan and never gets compiled into the
+    # bundle — the phase then writes a file nothing reads, and every
+    # String(localized:) renders its raw key. That is exactly what happened on
+    # the first CI run of this arrangement: the phase logged "11 locales, 1420
+    # keys" and eight tests still failed on unrendered keys. Creating the file
+    # ahead of the plan is the scheme build pre-action's job (see schemes: below,
+    # and the explicit step in ios-ci.yml). Both are kept: the pre-action for a
+    # clean build, this phase for freshness within a session.
+    #
+    # Kept in the spec as well as in the committed .xcodeproj so regenerating the
+    # project with XcodeGen does not drop it.
     #
     # basedOnDependencyAnalysis: false because the inputs are 11 JSON files
     # outside SRCROOT; the generator only rewrites files whose content actually
@@ -122,6 +133,24 @@ packages:
 schemes:
   NeurOne:
     build:
+      # Runs BEFORE Xcode computes the build plan, which is the only point at
+      # which a git-ignored generated resource can still enter it. Mirrors the
+      # PreActions block in the committed
+      # NeurOne.xcodeproj/xcshareddata/xcschemes/NeurOne.xcscheme — that file is
+      # what xcodebuild actually reads; this entry keeps an XcodeGen
+      # regeneration from dropping it.
+      preActions:
+        - name: "Generate localized strings"
+          settingsTarget: NeurOne
+          script: |
+            set -eu
+            export PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+            if ! command -v bun >/dev/null 2>&1; then
+              echo "error: bun not found. Run 'bun scripts/sync-locales.ts' from the repository root."
+              exit 1
+            fi
+            cd "${SRCROOT}/../.."
+            bun scripts/sync-locales.ts
       targets:
         NeurOne: all
     run:

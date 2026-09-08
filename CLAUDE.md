@@ -418,8 +418,18 @@ and the code carries only a key.** Never write a string a person will read into 
 - **`locales/*.json` is the single source of truth, and the only place a user-facing string is
   committed.** The three per-platform files are build outputs: git-ignored, and regenerated from
   canonical by each app's own build — a Vite plugin (`canonicalLocales`) for web, the `syncLocales`
-  Gradle task for Android, and the NeurOne target's first build phase for iOS. All three shell out
-  to the one generator, `bun scripts/sync-locales.ts`.
+  Gradle task for Android, and on iOS a **scheme build pre-action** plus the NeurOne target's first
+  build phase. All shell out to the one generator, `bun scripts/sync-locales.ts`.
+- **A generated resource must exist before the build plan is computed, not merely before the phase
+  that consumes it.** This is why iOS takes two hooks and not one. Xcode plans the build first, so a
+  git-ignored `Localizable.xcstrings` that does not yet exist is never in the plan and never
+  compiled into the bundle — a run-script phase that creates it afterwards writes a file nothing
+  reads, and every `String(localized:)` then renders its raw key. The first CI run of this
+  arrangement proved it: the phase logged "11 locales, 1420 keys" and eight tests still failed
+  asserting on rendered text. The **pre-action** (and the explicit generate step in `ios-ci.yml`,
+  which must precede *any* `xcodebuild` invocation) creates the file in time; the target phase keeps
+  it fresh within an open session. Gradle needs no equivalent because a generated res `srcDir` is a
+  declared task output, and Vite's `buildStart` runs before module resolution.
 - **Add a key to `locales/*.json` — all eleven** — then reference it. Nothing else is edited, and
   there is no generated file in the tree to edit by mistake. Run the generator by hand only to
   inspect its output; a build does it anyway.
