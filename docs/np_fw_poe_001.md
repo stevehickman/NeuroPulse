@@ -12,7 +12,8 @@ NP-HEX-ZM-001 §4/§4b
 thermal, SW01-M07 signature verify), NP-REQ-FANHEALTH-001 (SR-FAN ceiling), NP-SW-001 §6.2.
 **IEC 62304 Class:** SW-01 enforcement = **C**; SW-02 derate + SW-03 compute/display = **B**. The
 efficacy-floor refusal added at `poe_version` 0x02 is **B**, deliberately — see §1.1.
-**Date:** 2026-09-03 (§1.1 + `poe_version` 0x02 — the efficacy-floor clamp, closing `OI-THCOOL-17`;
+**Date:** 2026-09-08 (§4 step 4 corrected — the cross-class latch assertion withdrawn, `OI-POE-09`
+raised; §1.1 + `poe_version` 0x02 added 2026-09-03 — the efficacy-floor clamp, closing `OI-THCOOL-17`;
 §6.1 added 2026-09-02 — hysteresis on the hard edges, closing `OI-THCOOL-16`; was 2026-07-21)
 
 ---
@@ -122,8 +123,9 @@ absent and behaviour is exactly `poe_version` 0x01.
 **Worked example — full multi-modal protocol (binding = 1170 TEC), 60 J/cm² over 20 min:**
 `table_version=7`, `flags=LOW_HARD|HIGH_HARD|FAN_REQUIRED|HUMIDITY_NA|HAS_EFFICACY_FLOOR`,
 `binding_module=T2-D`, `t_low_block=+50 (+5.0 °C)`, `dose_full_dJ=600`, `duty_floor_pct=17`,
-`points=[(+300,100),(+350,0)]` → ≤ +30 °C full dose, +30→+35 linear derate, **refused above +34.2 °C on
-the efficacy floor**, > +35 blocked on the thermal table, < +5 blocked. +3 bytes over the 0x01 layout.
+`points=[(+300,100),(+350,0)]` → ≤ +30 °C full dose, +30→+35 linear derate, **refused above
++34.2 °C on the efficacy floor**, > +35 blocked on the thermal table, < +5 blocked. +3 bytes over
+the 0x01 layout.
 
 **And the same descriptor for an EEG-only protocol:** `dose_full_dJ=0`, `duty_floor_pct=0`, bit5 clear —
 no PBM dose to fall below a floor, so the clamp does not apply and `NP-ENV-OPRANGE-001` §5's +5 → +45
@@ -140,11 +142,13 @@ envelope is unaffected. **This is the field that keeps the clamp confined to PBM
    latch**; while that latch is set the admission test is `ambient ≤ T_block_eff − Δ`, not
    `ambient < T_block_eff`.
 4. **SW-02 efficacy-floor admission (Class B, new at 0x02):** recompute `duty_floor_pct` from
-   `dose_full_dJ` and take `max(recomputed, descriptor)` — a **margin composes by `max()`**, per §5's rule, which is why a
-   descriptor cannot loosen its own floor. If `POE_clamp(ambient) < duty_floor` → refuse
-   to start, reason `NP_POE_BELOW_EFFICACY_FLOOR`, **non-dismissible** (§1.1). Skipped entirely when
-   bit5 is clear. A refusal here **sets the §6.1 latch on the floor edge** exactly as a thermal denial
-   does on the block edge; §6.1's anchor is `T_block_eff`, which §3's floor makes per-protocol.
+   `dose_full_dJ` and take `max(recomputed, descriptor)` — a **margin composes by `max()`**, per §5's
+   rule, which is why a descriptor cannot loosen its own floor. If `POE_clamp(ambient) < duty_floor`
+   → refuse to start, reason `NP_POE_BELOW_EFFICACY_FLOOR`, **non-dismissible** (§1.1). Skipped
+   entirely when bit5 is clear. §6.1's anchor is `T_block_eff`, which §3's floor makes per-protocol,
+   so the floor edge is inside §6.1's scope — **but which module holds the latch for a refusal raised
+   here is not yet specified, and is `OI-POE-09`.** §6.1 states the latch is SW-01 state, which was
+   written when both edges were Class C; this edge is Class B.
    **This runs after SW-01 admission, not before** — a thermally-blocked session must
    report the thermal reason, since it is the one the user can act on by cooling the room.
 5. **SW-02 session runner (Class B):** scale commanded duty by `POE_clamp(ambient)` so the device derates
@@ -193,9 +197,9 @@ integrity check, because "cannot cause harm" is not "need not be correct".
 
 ### 6.1 Hysteresis on the hard edges (normative; `OI-THCOOL-16`)
 
-The high block, the low block and — since `OI-THCOOL-17` closed, the efficacy-floor clamp's — the
-floor-clamp edge are **discrete** transitions on a noisy, drifting input. Each carries a band. The derate ramp does
-not: it is continuous, and ambient noise moves duty by a few percent, which is not a transition.
+The high block, the low block and — since `OI-THCOOL-17` closed — the efficacy-floor clamp's edge are
+**discrete** transitions on a noisy, drifting input. Each carries a band. The derate ramp does not:
+it is continuous, and ambient noise moves duty by a few percent, which is not a transition.
 
 **Sizing: Δ = 1.0 °C.** Derived in `NP-THERM-COOL-001` §7.5.1 from three bounds that meet at one number
 — `adc_to_celsius()` returns whole degrees so 1 °C is the smallest band the sense path can express; a
@@ -260,6 +264,9 @@ block, and the descriptor format is unchanged**, because:
   `docs/reference/data-architecture-detail.md` §5.1 boundary resolution first.
 - **No new indicator, and Mode 3 is unaffected.** The latch is SW-01 state, so §8's guarantee holds
   unchanged with no app present.
+  **Ownership on the efficacy-floor edge is open (`OI-POE-09`):** this sentence was written when
+  every hard edge was Class C, and `OI-THCOOL-17` has since put the floor refusal in SW-02 at
+  Class B. Mode 3 is unaffected either way — SW-02 also runs with no app present.
 
 **App display (SW-03, Class B).** While the latch is set the app shows the **re-arm** temperature, not
 the block temperature — "available again at 34.0 °C", not "blocked above 35.0 °C". Showing the block
@@ -327,6 +334,7 @@ a worse place to deliver "a higher-dose protocol may still run" than a screen. W
 | OI-POE-06 | **Ambient sense path resolution and `t_dwell` (§6.1), inherited from `OI-ENV-05`.** The POE block encodes temperatures in 0.1 °C (`i16` dC) but the shipped `adc_to_celsius()` returns whole degrees, so **1.0 °C is the finest band the sense path can currently express**. Fix the ambient source (dedicated NTC vs hub NTC proxy — the MCU config has no ambient channel today), then set `t_dwell` (60 s dedicated; ≥ 5τ_hub as proxy) and decide whether a sub-1 °C band is wanted enough to specify the path at 0.1 °C. Not blocking: the rule holds at Δ = 1.0 °C and the proxy error is fail-safe | FW + Thermal |
 | OI-POE-07 | **Nothing checks `dose_full_dJ` against what the protocol actually commands.** The field is signed, so it is not forgeable by a third party, but it is *asserted* by the authoring tool rather than derived from the command stream — and an overstated value silently disables the clamp for the protocol that most needs it. Specify the consistency check against commanded irradiance × duty × declared length, **where it runs** (app sign-time, SW-02 admission, or both), and what an inconsistency does. Paired with `NP-THERM-COOL-001` `OI-THCOOL-19` | FW + App |
 | OI-POE-08 | **The floor value itself has no home in this encoding.** `duty_floor_pct` is carried and SW-02 recomputes it — but from *what*? 10 J/cm² is inherited from `NP-PWR-BUDGET-001` §3.4 and is currently a constant with no version, no owner and no provisioning path, while the operating-envelope table it sits beside has all three. If `OI-OPR-07` makes the floor per-modality it needs to ride the same versioned artifact as the table (`OI-POE-03`), or app and runner will disagree about a number neither of them owns | FW + Thermal |
+| OI-POE-09 | **Who holds the hysteresis latch on the efficacy-floor edge, and is Δ = 1.0 °C the right band for it?** §6.1 was written when every hard edge was Class C and states plainly that *"the latch is SW-01 state"*. `OI-THCOOL-17` then sited the floor refusal in **SW-02 at Class B** (`NP-THERM-COOL-001` §7.4.4), so one latch now has two candidate owners at two IEC 62304 classes, and §4 step 4 records the gap rather than assuming past it. **Two sub-questions, and they are separable.** **(a) Ownership.** Either SW-02 signals SW-01 to set the shared latch — which makes Class C state writable by Class B code and needs a segregation argument, even though it can only ever *restrict* and so raises no safety hazard — or the two edges carry **independent latches**, one per class, which keeps the boundary clean and costs §6.1's property 2 (*"one boolean and one timer"*), since there would be two of each. Note also that §6.1's anti-chatter argument (*"with no automatic re-entry anywhere, chatter is impossible by construction"*) already holds for this edge on its own, so the case for a latch here rests on the marginal-session argument in (b), not on chatter. **(b) Sizing.** Δ = 1.0 °C was derived in `NP-THERM-COOL-001` §7.5.1 from ADC representation, room thermostat differential and re-arm wait — **three grounds, none of which is about dose.** Carried onto the floor edge it happens to buy a dose margin of **1.8× the floor at 40 J/cm², 2.2× at 60 and 3.4× at 120** (re-arm at 32.75 / 33.17 / 33.58 °C), which is defensible in every row but is inherited rather than chosen. Decide whether this edge wants its own Δ, expressed in **dose** rather than degrees — the quantity it actually guards is *how far above the floor a session must land before it is worth running*, which is `OI-OPR-07`'s question in a second place | FW + Thermal |
 
 ## 12. Cross-references
 

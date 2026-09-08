@@ -115,8 +115,8 @@ every ambient and therefore composes with `NP-FW-POE-001` §5's `min()` unchange
 crossing terminates the session rather than pausing it**, which leaves no automatic re-entry path at all.
 The anchor is the *effective* block, not the constant +35, so the rule survived `OI-THCOOL-17`: that item
 closed on 2026-09-03 and made the effective block per-protocol (33.8 / 34.2 / 34.6 °C at 40 / 60 /
-120 J/cm², §1), and §6.1 needed no revision — the efficacy-floor edge simply inherits the 1.0 °C band and
-the terminate-never-pause rule. Sizing: `NP-THERM-COOL-001` §7.5; normative encoding:
+120 J/cm², §1), and §6.1 needed no revision — the efficacy-floor edge simply inherits the 1.0 °C
+band and the terminate-never-pause rule. Sizing: `NP-THERM-COOL-001` §7.5; normative encoding:
 `NP-FW-POE-001` §6.1. **No bound in this table moves** — the latch can only ever restrict.
 
 ## 3. Shared-electronics base envelope (inherited by every protocol)

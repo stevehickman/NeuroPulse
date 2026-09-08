@@ -2,8 +2,8 @@
 
 **Project:** NeurOne
 **Document:** NP-THERM-COOL-001
-**Revision:** 10
-**Date:** 2026-09-03
+**Revision:** 11
+**Date:** 2026-09-08
 **Status:** DRAFT — DESIGN STUDY. Not a tooling, firmware or release baseline. Modifies no locked section and changes no safety requirement.
 **Effective Date:** —
 **Author:** NeurOne Systems Engineering
@@ -17,6 +17,21 @@
 
 ---
 
+> **Rev 11 (2026-09-08) — one Rev 10 claim is withdrawn, and the gap it papered over is raised as
+> `OI-POE-09`. No decision changes.** Rev 10 sited the efficacy-floor refusal in SW-02 at **Class B**
+> (§7.4.4) while `OI-THCOOL-16`'s hysteresis latch, specified one revision earlier, is **Class C**
+> (`NP-FW-POE-001` §6.1: *"the latch is SW-01 state"* — written when every hard edge was Class C).
+> Rev 10's `NP-FW-POE-001` §4 step 4 bridged that by asserting a floor refusal *"sets the §6.1 latch
+> … exactly as a thermal denial does"*. **That mechanism is specified nowhere, and the assertion is
+> withdrawn.** It is not a safety defect — setting the latch only ever restricts — but a Class B write
+> into Class C state needs a segregation argument, and the alternative (one latch per class) costs
+> §6.1's *"one boolean and one timer"* property. **The choice is real and unmade**, so step 4 now
+> records the gap instead of assuming past it. `OI-POE-09` also asks whether **Δ = 1.0 °C is the right
+> band for this edge at all**: §7.5.1 sized it on ADC representation, thermostat differential and
+> re-arm wait — none of which is about dose — and carried onto the floor edge it buys 1.8× the floor
+> at 40 J/cm², 2.2× at 60 and 3.4× at 120, defensible in every row but inherited rather than chosen.
+> **D-4, the band endpoints and every figure in §7.4 stand unchanged.**
+>
 > **Rev 10 (2026-09-03) — D-4 decides the derate semantics Rev 8 raised: the session length is
 > FIXED, dose scales with duty, and the ramp is clamped at the efficacy floor and refuses below it.
 > `OI-THCOOL-17` closes; §7.4 is rewritten from a proposal into a decision.** Rev 8 stated two
@@ -928,7 +943,12 @@ input."* **The descriptor needs it; the Class C gate must not have it.**
   (app). SW-02 runs on the main processor, so **Mode 3 autonomy is covered without the app present.**
 
 The encoding — `dose_full_dJ`, a derived `duty_floor_pct`, and a distinct refusal reason — is
-specified in `NP-FW-POE-001` §3. Residual: `OI-THCOOL-19`.
+specified in `NP-FW-POE-001` §3. Residuals: `OI-THCOOL-19`, and `OI-POE-09` — **splitting the two
+edges across two classes leaves `OI-THCOOL-16`'s latch with two candidate owners.** §6.1 says the
+latch is SW-01 state, which was written when both edges were Class C; either SW-02 signals SW-01 (a
+Class B write into Class C state — restricting only, so no hazard, but it needs a segregation
+argument) or each class carries its own latch. Nothing here is unsafe in either arrangement; it is
+unspecified, which is why it is raised rather than assumed.
 
 **7.4.5 — One consequence that reads backwards, stated because it will be misread.**
 
@@ -1193,7 +1213,8 @@ alternative *and* costs the ELF magnetic claim. It should not be revisited.
 (BCs, stack-up) · `NP-REQ-FANHEALTH-001` (SR-FAN — **unchanged by this study**) · `NP-PWR-BUDGET-001`
 §3.2/§3.3 (aggregate ceiling, the three levers this adds a fourth to) · `NP-PWRSRC-001` §4.1/§7.0 (the
 cavity wall, 2/23 coverage) · `NP-HEX-ZM-001` §5.1–5.3 (two-bowl shell, the one existing aperture) ·
-`NP-DRV-SHELL-002` §4.3 (share the aperture) · `NP-ENV-OPRANGE-001` (the ambient bounds §7 validates; §1's derate definition, which §7.4 completes) ·
+`NP-DRV-SHELL-002` §4.3 (share the aperture) · `NP-ENV-OPRANGE-001` (the ambient bounds §7
+validates; §1's derate definition, which §7.4 completes) ·
 `NP-FW-POE-001` §1/§3/§4/§5 (the descriptor block that carries §7.4's dose input, and the min() rule
 that keeps the efficacy floor out of the Class C gate) · `NP-PWR-BUDGET-001` §3.4 (the efficacy floor
 §7.4 clamps at) · `NP-PWRSRC-001` §5.5 (the CEM43 accounting that decided D-4) · `NP-HFE-001` /
@@ -1204,6 +1225,7 @@ raises one term of), §12 (the prohibition D-3 invokes), §5.5 (the CEM43 exposu
 §6.8 inherits) · CLAUDE.md §1 (Mode 3 autonomy), §3 (RISK-14 dual-PD), §4.2/§4.3/§4.5 ·
 `scripts/check-pbm-power.ts` (where `maxConcurrent` becomes session length) ·
 `scripts/check-thermal-network.ts` §9–§18 (§17 produces every §7.4 figure, §18 every §7.5 one) ·
-`scripts/check-thermal-dose.ts` (the CEM43 model §7.4.2 uses, and the per-protocol audit §7.4.5 relies on) ·
+`scripts/check-thermal-dose.ts` (the CEM43 model §7.4.2 uses, and the per-protocol audit §7.4.5
+relies on) ·
 `NP-FW-POE-001` §6.1 (the hysteresis §7.5 specifies, whose anchor §7.4 makes per-protocol) ·
 `firmware/safety_mcu/src/np_thermal_interlock.c` (the 62/55 °C junction re-arm precedent)
