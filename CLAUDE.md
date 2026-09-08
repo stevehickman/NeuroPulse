@@ -1,15 +1,17 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 40 (current)  
+**Revision:** 41 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
 > bear on most conversations and names the file holding the rest. Read a subsidiary file when the
 > task needs it — do not assume a figure or a spec detail is here.
 >
-> **Revision history (Rev 33–40, what changed and why): `docs/reference/claude-md-revision-history.md`.**
-> Rev 40 (2026-09-01) relocated detail out of this file; no design decision changed. Read the
-> history file before assuming *why* something is the way it is.
+> **Revision history (Rev 33–41, what changed and why): `docs/reference/claude-md-revision-history.md`.**
+> Rev 41 (2026-09-08) made `locales/*.json` the only committed copy of any user-facing string —
+> the per-platform locale files are build outputs now (§17). Rev 40 (2026-09-01) relocated detail
+> out of this file; no design decision changed. Read the history file before assuming *why*
+> something is the way it is.
 >
 > **Three live constraints that decide whether an answer is safe to give:**
 > 1. **Every T1 configuration is gross-margin negative and every cost figure is a floor** (§2.1).
@@ -401,21 +403,38 @@ null results — is in `docs/reference/consent-engine.md` §6.3.
 appear in full on first use in each document, abbreviated thereafter. Signal names, document IDs,
 `§N` citation form and the other identifier families are `docs/np_conv_001.md` (NP-CONV-001).
 
-## 17. LOCALIZED STRINGS — CODE GENERATION RULE (locked 2026-09-03)
+## 17. LOCALIZED STRINGS — CODE GENERATION RULE (locked 2026-09-03; single-source 2026-09-08)
 
 **Whenever non-firmware code is generated or edited, user-facing text goes into the locale files
 and the code carries only a key.** Never write a string a person will read into a source file.
 
-| Surface | How text is written | How text is read |
+| Surface | Where the text lives | How text is read |
 |---------|--------------------|------------------|
-| Canonical | `locales/<bcp47>.json` — flat `KEY` → string, sorted, all 11 locales carry the same key set | — |
-| Web | — | `t('KEY')`, `tPlural('BASE', n)` from `app/web/src/lib/i18n.ts` |
-| Apple | — | `Text("KEY")`, `String(localized: "KEY")`; with values, `String(format: String(localized: "KEY"), …)` |
-| Android | — | `stringResource(R.string.key)` (lowercased key), `pluralStringResource(R.plurals.base, n, n)` |
+| Canonical | `locales/<bcp47>.json` — flat `KEY` → string, sorted, all 11 locales carry the same key set. **The only committed copy.** | — |
+| Web | *build output* — `app/web/src/generated/locales/*.json` | `t('KEY')`, `tPlural('BASE', n)` from `app/web/src/lib/i18n.ts` |
+| Apple | *build output* — `app/ios/NeurOne/Localizable.xcstrings` | `Text("KEY")`, `String(localized: "KEY")`; with values, `String(format: String(localized: "KEY"), …)` |
+| Android | *build output* — `<buildDir>/generated/res/locales/values*/strings.xml` | `stringResource(R.string.key)` (lowercased key), `pluralStringResource(R.plurals.base, n, n)` |
 
-- **Add a key to `locales/*.json` — all eleven** — then reference it. `bun scripts/sync-locales.ts`
-  regenerates the String Catalog, the web copies and `res/values*/strings.xml`; canonical is the only
-  place a string is edited. **Never hand-edit a generated `strings.xml`.**
+- **`locales/*.json` is the single source of truth, and the only place a user-facing string is
+  committed.** The three per-platform files are build outputs: git-ignored, and regenerated from
+  canonical by each app's own build — a Vite plugin (`canonicalLocales`) for web, the `syncLocales`
+  Gradle task for Android, and the NeurOne target's first build phase for iOS. All three shell out
+  to the one generator, `bun scripts/sync-locales.ts`.
+- **Add a key to `locales/*.json` — all eleven** — then reference it. Nothing else is edited, and
+  there is no generated file in the tree to edit by mistake. Run the generator by hand only to
+  inspect its output; a build does it anyway.
+- **Why they are not committed.** A generated file under version control is a second source of truth
+  whether or not anyone means it to be. The committed String Catalog became exactly that: 26 keys
+  existed only there, 18 of them referenced by iOS source, and the NP-HFE-002 rewording of two setup
+  strings was applied to the catalogue alone — regenerating would have reverted live copy to
+  describing retired hardware. A staleness check caught drift after the fact; it could not stop the
+  edit being made in the wrong file, because the wrong file was sitting in the working tree, tracked
+  and editable. Removing them makes the hand-edit unrepresentable rather than merely detectable.
+  `bun scripts/sync-locales.ts --verify-untracked` fails CI if one is committed again.
+- **A build needs `bun` on `PATH`** — that is now true of the Android and iOS builds, not just the
+  web one, and CI installs it on every leg that compiles either (`android-ci`, `ios-ci`, and both
+  compiled CodeQL legs). A canonical edit also triggers those workflows, which it no longer would by
+  path alone.
 - **Placeholders are `{0}`, `{1}`** in canonical → `%1$@` for Apple, `%1$s` for Android. On Apple
   **a numeric argument must be converted at the call site** (`String(count)`), because `%@` takes an
   object; Android's `%s` accepts any type. Plural keys take `_ONE` / `_OTHER` (`_ZERO` is optional
@@ -448,7 +467,9 @@ and the code carries only a key.** Never write a string a person will read into 
 `bun scripts/check-locale-strings.ts` enforces all of the above and fails CI on a violation; its
 `PENDING_PATHS` names the code the rule has not yet reached — the pure-JVM `:core` Android module
 (no Android plugin by design, so it cannot name `R.string`), Windows, and the simulator — so the
-gate's reach stays legible.
+gate's reach stays legible. Those three, and watchOS, generate nothing today because they read no
+locale file yet; each becomes a fourth generator target when it does, not a fourth committed copy.
+`bun scripts/sync-locales.ts --verify-untracked` guards the single-source rule itself.
 
 ---
 

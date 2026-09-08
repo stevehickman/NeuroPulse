@@ -63,6 +63,34 @@ targets:
       - package: PostHog
         product: PostHog
 
+    # Localizable.xcstrings is generated from locales/*.json (CLAUDE.md §17) and
+    # is git-ignored, so it must be produced before the Resources phase copies
+    # it. Kept here as well as in the committed .xcodeproj so regenerating the
+    # project with XcodeGen does not drop the phase and leave a build that
+    # cannot find its own string catalogue.
+    #
+    # basedOnDependencyAnalysis: false because the inputs are 11 JSON files
+    # outside SRCROOT; the generator only rewrites files whose content actually
+    # changed, so an unconditional run still leaves a no-op build no-op.
+    preBuildScripts:
+      - name: "Generate localized strings"
+        basedOnDependencyAnalysis: false
+        script: |
+          set -eu
+
+          # Xcode build phases do not inherit a login shell PATH, so bun is
+          # looked for where the installers put it before falling back.
+          export PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
+
+          if ! command -v bun >/dev/null 2>&1; then
+            echo "error: bun not found. Localizable.xcstrings is generated from locales/*.json;"
+            echo "note: install bun (https://bun.sh), or run \"bun scripts/sync-locales.ts\" from the repository root."
+            exit 1
+          fi
+
+          cd "${SRCROOT}/../.."
+          bun scripts/sync-locales.ts
+
   NeurOneTests:
     type: bundle.unit-test
     platform: iOS

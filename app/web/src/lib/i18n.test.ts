@@ -2,7 +2,16 @@ import { describe, it, expect } from "vitest";
 import { readdirSync, readFileSync } from "fs";
 import { join } from "path";
 
-const LOCALES_DIR = join(__dirname, "../locales");
+/**
+ * Canonical, not the generated copy under src/generated/locales.
+ *
+ * Every assertion below — parses, key count, key parity across locales — is a
+ * property of the source of truth. Pointed at the generated tree they would
+ * only restate what sync-locales.ts already guarantees by construction, and
+ * would pass just as happily against a stale copy left behind by an older
+ * build. locales/*.json is the file a person edits, so it is the file to test.
+ */
+const LOCALES_DIR = join(__dirname, "..", "..", "..", "..", "locales");
 
 describe("i18n locale files", () => {
   it("all locale JSON files parse without error", () => {

@@ -45,15 +45,14 @@ jobs:
         scripts/sync-locales.ts
         scripts/sync-socket-map.ts
         scripts/test-lateralization-audit.sh
-        # sync-locales.ts --check reads the committed iOS String Catalog as well
-        # as locales/*.json, and the catalogue is a SECOND source of truth that
-        # has already drifted once — 26 keys existed only there, 18 referenced by
-        # iOS source, and regenerating would have reverted the NP-HFE-002
-        # rewording. An edit to it must therefore run that check; it was not in
-        # scope for anything until 2026-09-01. Named exactly rather than as
-        # app/ios/**, because the file is the dependency and --check-tree will
-        # fail here if it ever moves.
-        app/ios/NeurOne/Localizable.xcstrings
+        # The iOS String Catalog was listed here while it was committed, because
+        # it was a SECOND source of truth that had already drifted once — 26 keys
+        # existed only there, 18 referenced by iOS source, and regenerating would
+        # have reverted the NP-HFE-002 rewording. It is now a build output and
+        # not tracked at all (CLAUDE.md §17), so there is no edit to it to bring
+        # into scope: locales/** above covers the only file that can change a
+        # string. --check-tree would in fact reject the entry now, since every
+        # pattern must match something tracked.
         scripts/ci-changed-scope.sh
     steps:
       - name: Checkout
@@ -94,9 +93,9 @@ jobs:
           assert false docs/np_sw_ci_001.md
           assert false CLAUDE.md
           assert true  app/web/src/main.ts
-          # The .xcstrings is an input to sync-locales.ts --check and must reach
-          # it; a sibling Swift file is not and must not.
-          assert true  app/ios/NeurOne/Localizable.xcstrings
+          # A canonical locale edit must reach this job: it is what the web build
+          # generates its locale files from. iOS sources must not.
+          assert true  locales/en.json
           assert false app/ios/NeurOne/ContentView.swift
 
       - name: Changed files
@@ -203,17 +202,14 @@ jobs:
         working-directory: .
         run: bun scripts/sync-socket-map.ts --check
 
-      # The iOS String Catalog and the web locale copies are both generated from
-      # locales/*.json. Without this step, canonical and catalogue drift silently
-      # and re-running the generator destroys live data: 26 keys existed only in
-      # the committed .xcstrings (18 of them referenced by iOS source), and the
-      # NP-HFE-002 rewording of two setup strings had been applied to the
-      # generated catalogue only — regenerating would have reverted them to
-      # instructing users to listen for a bone-conduction tone the firmware no
-      # longer emits (docs/superseded/np_fw_za_001.md, NP-HFE-002 §7.2).
-      - name: Locale catalogues in sync with canonical locales/*.json
+      # src/generated/locales/*.json is a build output, not a committed file
+      # (CLAUDE.md §17), so a fresh checkout does not have it and every import in
+      # i18n.ts would fail to resolve. The Vite plugin generates it for `vite`,
+      # `vite build` and `vitest`, but `tsc --noEmit` never loads vite.config.ts
+      # — so the generator runs explicitly here, before the type-check below.
+      - name: Generate locale files from canonical locales/*.json
         working-directory: .
-        run: bun scripts/sync-locales.ts --check
+        run: bun scripts/sync-locales.ts
 
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .

@@ -41,6 +41,17 @@ simulator/server/node_modules/
 # Bun lockfile is committed; npm lockfile is not (bun-only project)
 package-lock.json
 
+# ── Generated locale artifacts (CLAUDE.md §17) ────────────────────────────────
+# locales/*.json is the single committed copy of every user-facing string. The
+# per-platform files are build outputs, regenerated from canonical by each app's
+# own build (Vite plugin, Gradle syncLocales task, Xcode run-script phase) — see
+# scripts/sync-locales.ts. Committing one makes it a second source of truth,
+# which is how the String Catalog once accumulated 26 keys canonical never had;
+# `bun scripts/sync-locales.ts --verify-untracked` fails CI if one comes back.
+# (Android's output lands under app/android/app/build/, already ignored above.)
+app/ios/NeurOne/Localizable.xcstrings
+app/web/src/generated/
+
 # ── Xcode ─────────────────────────────────────────────────────────────────────
 app/ios/build/
 build/ios/

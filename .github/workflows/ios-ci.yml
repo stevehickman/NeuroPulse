@@ -12,11 +12,20 @@ on:
     paths:
       - 'app/ios/**'
       - 'app/NeurOneShared/**'
+      # Localizable.xcstrings is generated at build time and is not committed
+      # (CLAUDE.md §17), so a string edit no longer touches app/ios/**. Without
+      # these two entries a canonical change that breaks the String Catalog —
+      # a malformed format specifier, a plural family with no sibling — would
+      # not run this workflow at all.
+      - 'locales/**'
+      - 'scripts/sync-locales.ts'
       - '.github/workflows/ios-ci.yml'
   pull_request:
     paths:
       - 'app/ios/**'
       - 'app/NeurOneShared/**'
+      - 'locales/**'
+      - 'scripts/sync-locales.ts'
       - '.github/workflows/ios-ci.yml'
   workflow_dispatch:
 
@@ -67,6 +76,13 @@ jobs:
             echo "No Xcode 16 found; using default: $(xcode-select -p)"
           fi
           xcodebuild -version
+
+      # The NeurOne target's first build phase generates Localizable.xcstrings
+      # from locales/*.json; it fails the build if bun is not on PATH.
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Resolve Swift Package dependencies
         run: |
