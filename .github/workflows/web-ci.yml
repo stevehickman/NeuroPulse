@@ -187,6 +187,21 @@ jobs:
       # script also refuses to emit a bundle containing any protocol content —
       # NP-NPPS-REF-001 §1.6 bans a build-time cache of the library, and this is
       # where that ban is mechanically enforced rather than merely documented.
+      # FIRST of the steps that read app/web/src — src/generated/locales/*.json is
+      # a build output, not a committed file (CLAUDE.md §17), so a fresh checkout
+      # does not have it and anything resolving i18n.ts's imports fails.
+      #
+      # Two later steps need it and neither loads vite.config.ts, so the Vite
+      # plugin cannot cover them: `tsc --noEmit`, and — less obviously —
+      # build-simulator-runtime.ts, which walks the import graph from
+      # nppsParser.ts, reaches i18n.ts, and errors on an import it cannot
+      # resolve. That one also *fingerprints* what it finds, by path and content,
+      # so the locale files must be present and at their final paths before it
+      # runs or the recorded fingerprint is not reproducible.
+      - name: Generate locale files from canonical locales/*.json
+        working-directory: .
+        run: bun scripts/sync-locales.ts
+
       - name: Simulator NPPS runtime bundle is fresh (and content-free)
         working-directory: .
         run: bun scripts/build-simulator-runtime.ts --check
@@ -201,15 +216,6 @@ jobs:
       - name: Socket map in sync + no unreviewed lateralized protocols
         working-directory: .
         run: bun scripts/sync-socket-map.ts --check
-
-      # src/generated/locales/*.json is a build output, not a committed file
-      # (CLAUDE.md §17), so a fresh checkout does not have it and every import in
-      # i18n.ts would fail to resolve. The Vite plugin generates it for `vite`,
-      # `vite build` and `vitest`, but `tsc --noEmit` never loads vite.config.ts
-      # — so the generator runs explicitly here, before the type-check below.
-      - name: Generate locale files from canonical locales/*.json
-        working-directory: .
-        run: bun scripts/sync-locales.ts
 
       - name: Lateralization audit behaves (accept + reject paths)
         working-directory: .
