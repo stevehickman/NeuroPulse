@@ -85,3 +85,8 @@ local.properties
 # ── CI artifacts ──────────────────────────────────────────────────────────────
 build/host-tests/
 *.xcresult
+
+# ── copperhead ────────────────────────────────────────────────────────────────
+# Local model/API config and per-run logs — never committed.
+.env
+.copperhead/runs/
