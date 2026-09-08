@@ -33,10 +33,14 @@
  * ── Waivers are per-platform, and deliberately narrow ────────────────────────
  *
  * A `ui` method waived on one platform is still ENFORCED on the other. That
- * matters: the Android consent dashboard does not exist yet (OI-CONSENT-01), and
- * classing those methods "pending" wholesale would stop the gate noticing if the
- * iOS path — which does exist — were removed. Waivers are printed on every run,
- * never silently tolerated, and each must name an open item.
+ * asymmetry is the point, and OI-CONSENT-01 is what it was written for: while
+ * Android had no consent dashboard, five methods were waived there and still
+ * enforced on iOS, so the gate would have noticed the iOS path being removed.
+ * Waivers are printed on every run, never silently tolerated, and each must name
+ * an open item — and, per the `a waiver with a live caller is caught` self-test,
+ * a waiver cannot outlive the gap it records. OI-CONSENT-01 closed on 2026-09-08
+ * (app/android/.../ui/ConsentDashboardScreen.kt) and its five waivers went with
+ * it; no waiver is in force today. The mechanism stays, tested, for the next one.
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-consent-reachability.ts --self-test
@@ -77,10 +81,11 @@ type Reach =
  * privileged method is meant to be reached — the point of the file.
  */
 const SURFACE: Record<string, Reach> = {
-  // ── Clinician access (§6.1). iOS has ConsentDashboardView; Android has no
-  //    consent dashboard at all, which is OI-CONSENT-01.
-  grantClinicianAccess: { kind: "ui", waived: { android: "OI-CONSENT-01" } },
-  revokeClinicianAccess: { kind: "ui", waived: { android: "OI-CONSENT-01" } },
+  // ── Clinician access (§6.1). Reachable on both: iOS ConsentDashboardView,
+  //    Android ConsentDashboardScreen. The Android waivers these two carried
+  //    under OI-CONSENT-01 are gone with the screen that closed it.
+  grantClinicianAccess: { kind: "ui" },
+  revokeClinicianAccess: { kind: "ui" },
   expandClinicianAccess: {
     kind: "pending",
     oi: "OI-CONSENT-02",
@@ -96,7 +101,8 @@ const SURFACE: Record<string, Reach> = {
     kind: "ui",
     note:
       "the CLAUDE.md Rev 37 defect: correct and tested on both platforms, unreachable from the iOS UI. " +
-      "Reachable on BOTH now — iOS ConsentDashboardView, Android Screens.kt — so it is enforced on both " +
+      "Reachable on BOTH now — iOS ConsentDashboardView, Android ConsentDashboardScreen — so it is " +
+      "enforced on both " +
       "with no waiver. Android routed it correctly even when iOS did not, which is why the Rev 37 " +
       "regression was one-sided",
   },
@@ -116,9 +122,9 @@ const SURFACE: Record<string, Reach> = {
     oi: "OI-CONSENT-03",
     note: "invitations are ingested from the study-descriptor sync layer, which does not exist yet; no UI caller is expected",
   },
-  acceptInvitation: { kind: "ui", waived: { android: "OI-CONSENT-01" } },
-  declineInvitation: { kind: "ui", waived: { android: "OI-CONSENT-01" } },
-  withdrawFromStudy: { kind: "ui", waived: { android: "OI-CONSENT-01" } },
+  acceptInvitation: { kind: "ui" },
+  declineInvitation: { kind: "ui" },
+  withdrawFromStudy: { kind: "ui" },
 };
 
 function definedMethods(root: string, p: Platform): string[] {
@@ -168,7 +174,14 @@ type Audit = {
   callerFileCount: number;
 };
 
-function audit(root: string): Audit {
+/**
+ * `surface` is a parameter rather than a direct read of SURFACE so the self-test can
+ * exercise the waiver machinery on a fixture table. It has to: a waiver is only ever
+ * in SURFACE while a real gap is open, and OI-CONSENT-01's five were the last ones.
+ * Binding the self-test to whatever waivers happen to be live would mean the proof
+ * that waivers work disappears exactly when the last gap closes.
+ */
+function audit(root: string, surface: Record<string, Reach> = SURFACE): Audit {
   const violations: string[] = [];
   const waivers: string[] = [];
 
@@ -190,14 +203,14 @@ function audit(root: string): Audit {
 
   // 2. Declaration completeness, both directions.
   for (const m of all) {
-    if (!SURFACE[m]) {
+    if (!surface[m]) {
       violations.push(
         `${m}: defined but not declared in SURFACE — say how it is meant to be reached ` +
           `(ui | internal | superseded-by | pending)`,
       );
     }
   }
-  for (const m of Object.keys(SURFACE)) {
+  for (const m of Object.keys(surface)) {
     if (!all.includes(m)) {
       violations.push(`${m}: declared in SURFACE but no longer defined on either platform — stale entry`);
     }
@@ -217,7 +230,7 @@ function audit(root: string): Audit {
     callers[p].filter((f) => f.text.includes(`.${m}(`)).map((f) => f.rel);
 
   for (const m of all) {
-    const d = SURFACE[m];
+    const d = surface[m];
     if (!d) continue;
 
     if (d.kind === "ui") {
@@ -262,9 +275,9 @@ function audit(root: string): Audit {
     }
 
     if (d.kind === "superseded-by") {
-      if (!SURFACE[d.by]) {
+      if (!surface[d.by]) {
         violations.push(`${m}: superseded-by names ${d.by}, which is not part of the declared surface`);
-      } else if (SURFACE[d.by]!.kind !== "ui") {
+      } else if (surface[d.by]!.kind !== "ui") {
         violations.push(
           `${m}: superseded-by names ${d.by}, which is not itself a ui path — ` +
             `the supersession claim would leave neither reachable`,
@@ -313,13 +326,24 @@ if (process.argv.includes("--self-test")) {
   const ktFn = (n: string, body = "") => `    fun ${n}() {\n${body}    }\n`;
 
   const failures: string[] = [];
-  const expect = (label: string, root: string, needle: string | null) => {
-    const v = relevant(audit(root).violations);
+  const expect = (
+    label: string,
+    root: string,
+    needle: string | null,
+    surface?: Record<string, Reach>,
+  ) => {
+    const v = relevant(audit(root, surface).violations);
     if (needle === null) {
       if (v.length) failures.push(`${label} — expected clean, got: ${v[0]}`);
     } else if (!v.some((x) => x.includes(needle))) {
       failures.push(`${label} — no violation matching ${JSON.stringify(needle)}`);
     }
+  };
+
+  // The two waiver cases run against a fixture table, not SURFACE: no gap is open
+  // today, so no waiver is live to test with. See audit()'s doc comment.
+  const WAIVED: Record<string, Reach> = {
+    withdrawFromStudy: { kind: "ui", waived: { android: "OI-EXAMPLE-01" } },
   };
 
   // A ui method with a caller on the unwaived platform, waived on the other.
@@ -329,6 +353,17 @@ if (process.argv.includes("--self-test")) {
       "app/ios/NeurOne/Views/V.swift": "store.withdrawFromStudy()\n",
     }),
     null,
+    WAIVED,
+  );
+
+  // Every ui method is enforced on BOTH platforms now that no waiver is in force —
+  // the state OI-CONSENT-01 closing put the table into.
+  expect(
+    "with no waiver, the same fixture is caught on Android",
+    build(iosFn("withdrawFromStudy"), ktFn("withdrawFromStudy"), {
+      "app/ios/NeurOne/Views/V.swift": "store.withdrawFromStudy()\n",
+    }),
+    "this is the CLAUDE.md Rev 37 shape",
   );
 
   // The Rev 37 defect itself: defined, tested, and unreachable.
@@ -365,7 +400,9 @@ if (process.argv.includes("--self-test")) {
     "defined but not declared in SURFACE",
   );
 
-  // A waiver whose gap has closed must be removed, or it rots into a lie.
+  // A waiver whose gap has closed must be removed, or it rots into a lie. This is
+  // the rule that forced the five OI-CONSENT-01 waivers out when the Android
+  // dashboard landed — it is not optional cleanup, the gate fails until they go.
   expect(
     "a waiver with a live caller is caught",
     build(iosFn("withdrawFromStudy"), ktFn("withdrawFromStudy"), {
@@ -373,6 +410,7 @@ if (process.argv.includes("--self-test")) {
       "app/android/app/src/main/kotlin/S.kt": "store.withdrawFromStudy()\n",
     }),
     "the gap it records is closed",
+    WAIVED,
   );
 
   // internal: declared reachable from inside the store, and it must be.
@@ -407,8 +445,8 @@ if (process.argv.includes("--self-test")) {
     for (const f of failures) console.error("  " + f);
     process.exit(1);
   }
-  console.log("  8 case(s): the Rev 37 shape, test-only callers, parity, undeclared,");
-  console.log("  stale waivers and internal reachability all proven to fire");
+  console.log("  9 case(s): the Rev 37 shape, test-only callers, parity, undeclared,");
+  console.log("  stale waivers, waiver enforcement and internal reachability all proven to fire");
   console.log("SELF-TEST PASS — the checker has teeth.");
   process.exit(0);
 }

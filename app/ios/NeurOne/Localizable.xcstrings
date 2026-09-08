@@ -5468,77 +5468,6 @@
         }
       }
     },
-    "AND_UI_INDIVIDUALLY_WITHDRAWN_FROM_THAT_DATASET_WIT": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "individually withdrawn from that dataset. Withdrawing consent immediately and "
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "individually withdrawn from that dataset. Withdrawing consent immediately and "
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "individually withdrawn from that dataset. Withdrawing consent immediately and "
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "individually withdrawn from that dataset. Withdrawing consent immediately and "
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "individually withdrawn from that dataset. Withdrawing consent immediately and "
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "individually withdrawn from that dataset. Withdrawing consent immediately and "
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "individually withdrawn from that dataset. Withdrawing consent immediately and "
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "individually withdrawn from that dataset. Withdrawing consent immediately and "
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "individually withdrawn from that dataset. Withdrawing consent immediately and "
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "individually withdrawn from that dataset. Withdrawing consent immediately and "
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "individually withdrawn from that dataset. Withdrawing consent immediately and "
-          }
-        }
-      }
-    },
     "AND_UI_MANAGE": {
       "extractionState": "manual",
       "localizations": {
@@ -5890,148 +5819,6 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Open research portal"
-          }
-        }
-      }
-    },
-    "AND_UI_PERMANENTLY_STOPS_ANY_FURTHER_DATA_FLOWING_T": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "permanently stops any further data flowing to any future dataset — including "
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "permanently stops any further data flowing to any future dataset — including "
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "permanently stops any further data flowing to any future dataset — including "
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "permanently stops any further data flowing to any future dataset — including "
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "permanently stops any further data flowing to any future dataset — including "
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "permanently stops any further data flowing to any future dataset — including "
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "permanently stops any further data flowing to any future dataset — including "
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "permanently stops any further data flowing to any future dataset — including "
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "permanently stops any further data flowing to any future dataset — including "
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "permanently stops any further data flowing to any future dataset — including "
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "permanently stops any further data flowing to any future dataset — including "
-          }
-        }
-      }
-    },
-    "AND_UI_PRIVACY_RESEARCH": {
-      "extractionState": "manual",
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Privacy & Research"
-          }
-        },
-        "bn": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Privacy & Research"
-          }
-        },
-        "ca": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Privacy & Research"
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Privacy & Research"
-          }
-        },
-        "en-GB": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Privacy & Research"
-          }
-        },
-        "es-419": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Privacy & Research"
-          }
-        },
-        "fr": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Privacy & Research"
-          }
-        },
-        "hi": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Privacy & Research"
-          }
-        },
-        "id": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Privacy & Research"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Privacy & Research"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "needs_review",
-            "value": "Privacy & Research"
           }
         }
       }
@@ -9089,6 +8876,148 @@
         }
       }
     },
+    "CLINICIAN_GRANT_CANNOT_SEE_HEADING": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CANNOT see"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CANNOT see"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CANNOT see"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What they CANNOT see"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CANNOT see"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CANNOT see"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CANNOT see"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CANNOT see"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CANNOT see"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CANNOT see"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CANNOT see"
+          }
+        }
+      }
+    },
+    "CLINICIAN_GRANT_CAN_SEE_HEADING": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CAN see"
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CAN see"
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CAN see"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "What they CAN see"
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CAN see"
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CAN see"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CAN see"
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CAN see"
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CAN see"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CAN see"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "What they CAN see"
+          }
+        }
+      }
+    },
     "CLINICIAN_GRANT_NAME_PLACEHOLDER": {
       "extractionState": "manual",
       "localizations": {
@@ -9227,6 +9156,77 @@
           "stringUnit": {
             "state": "needs_review",
             "value": "Organisation"
+          }
+        }
+      }
+    },
+    "CLINICIAN_GRANT_RESEARCH_TIER_NOTE": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "The Research tier has no fixed element set: what a study may see is defined by its reviewing IRB in the signed study descriptor, and you are asked about each study separately."
+          }
+        },
+        "bn": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "The Research tier has no fixed element set: what a study may see is defined by its reviewing IRB in the signed study descriptor, and you are asked about each study separately."
+          }
+        },
+        "ca": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "The Research tier has no fixed element set: what a study may see is defined by its reviewing IRB in the signed study descriptor, and you are asked about each study separately."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The Research tier has no fixed element set: what a study may see is defined by its reviewing IRB in the signed study descriptor, and you are asked about each study separately."
+          }
+        },
+        "en-GB": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "The Research tier has no fixed element set: what a study may see is defined by its reviewing IRB in the signed study descriptor, and you are asked about each study separately."
+          }
+        },
+        "es-419": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "The Research tier has no fixed element set: what a study may see is defined by its reviewing IRB in the signed study descriptor, and you are asked about each study separately."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "The Research tier has no fixed element set: what a study may see is defined by its reviewing IRB in the signed study descriptor, and you are asked about each study separately."
+          }
+        },
+        "hi": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "The Research tier has no fixed element set: what a study may see is defined by its reviewing IRB in the signed study descriptor, and you are asked about each study separately."
+          }
+        },
+        "id": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "The Research tier has no fixed element set: what a study may see is defined by its reviewing IRB in the signed study descriptor, and you are asked about each study separately."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "The Research tier has no fixed element set: what a study may see is defined by its reviewing IRB in the signed study descriptor, and you are asked about each study separately."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "needs_review",
+            "value": "The Research tier has no fixed element set: what a study may see is defined by its reviewing IRB in the signed study descriptor, and you are asked about each study separately."
           }
         }
       }
@@ -9450,67 +9450,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ — %@"
+            "value": "%1$@ — %2$@"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ — %@"
+            "value": "%1$@ — %2$@"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ — %@"
+            "value": "%1$@ — %2$@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ — %@"
+            "value": "%1$@ — %2$@"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ — %@"
+            "value": "%1$@ — %2$@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ — %@"
+            "value": "%1$@ — %2$@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ — %@"
+            "value": "%1$@ — %2$@"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ — %@"
+            "value": "%1$@ — %2$@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ — %@"
+            "value": "%1$@ — %2$@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ — %@"
+            "value": "%1$@ — %2$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ — %@"
+            "value": "%1$@ — %2$@"
           }
         }
       }
@@ -18538,67 +18538,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Access: %@"
+            "value": "Access: %1$@"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Access: %@"
+            "value": "Access: %1$@"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Access: %@"
+            "value": "Access: %1$@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Access: %@"
+            "value": "Access: %1$@"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Access: %@"
+            "value": "Access: %1$@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Access: %@"
+            "value": "Access: %1$@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Access: %@"
+            "value": "Access: %1$@"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Access: %@"
+            "value": "Access: %1$@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Access: %@"
+            "value": "Access: %1$@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Access: %@"
+            "value": "Access: %1$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Access: %@"
+            "value": "Access: %1$@"
           }
         }
       }
@@ -18822,67 +18822,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Contact: %@"
+            "value": "Contact: %1$@"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Contact: %@"
+            "value": "Contact: %1$@"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Contact: %@"
+            "value": "Contact: %1$@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Contact: %@"
+            "value": "Contact: %1$@"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Contact: %@"
+            "value": "Contact: %1$@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Contact: %@"
+            "value": "Contact: %1$@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Contact: %@"
+            "value": "Contact: %1$@"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Contact: %@"
+            "value": "Contact: %1$@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Contact: %@"
+            "value": "Contact: %1$@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Contact: %@"
+            "value": "Contact: %1$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Contact: %@"
+            "value": "Contact: %1$@"
           }
         }
       }
@@ -18893,67 +18893,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Data shared: %@"
+            "value": "Data shared: %1$@"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Data shared: %@"
+            "value": "Data shared: %1$@"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Data shared: %@"
+            "value": "Data shared: %1$@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Data shared: %@"
+            "value": "Data shared: %1$@"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Data shared: %@"
+            "value": "Data shared: %1$@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Data shared: %@"
+            "value": "Data shared: %1$@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Data shared: %@"
+            "value": "Data shared: %1$@"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Data shared: %@"
+            "value": "Data shared: %1$@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Data shared: %@"
+            "value": "Data shared: %1$@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Data shared: %@"
+            "value": "Data shared: %1$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Data shared: %@"
+            "value": "Data shared: %1$@"
           }
         }
       }
@@ -18964,67 +18964,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Expires %@"
+            "value": "Expires %1$@"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Expires %@"
+            "value": "Expires %1$@"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Expires %@"
+            "value": "Expires %1$@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Expires %@"
+            "value": "Expires %1$@"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Expires %@"
+            "value": "Expires %1$@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Expires %@"
+            "value": "Expires %1$@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Expires %@"
+            "value": "Expires %1$@"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Expires %@"
+            "value": "Expires %1$@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Expires %@"
+            "value": "Expires %1$@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Expires %@"
+            "value": "Expires %1$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Expires %@"
+            "value": "Expires %1$@"
           }
         }
       }
@@ -19035,67 +19035,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Granted %@"
+            "value": "Granted %1$@"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Granted %@"
+            "value": "Granted %1$@"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Granted %@"
+            "value": "Granted %1$@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Granted %@"
+            "value": "Granted %1$@"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Granted %@"
+            "value": "Granted %1$@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Granted %@"
+            "value": "Granted %1$@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Granted %@"
+            "value": "Granted %1$@"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Granted %@"
+            "value": "Granted %1$@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Granted %@"
+            "value": "Granted %1$@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Granted %@"
+            "value": "Granted %1$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Granted %@"
+            "value": "Granted %1$@"
           }
         }
       }
@@ -19674,67 +19674,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Revoke access for %@"
+            "value": "Revoke access for %1$@"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Revoke access for %@"
+            "value": "Revoke access for %1$@"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Revoke access for %@"
+            "value": "Revoke access for %1$@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Revoke access for %@"
+            "value": "Revoke access for %1$@"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Revoke access for %@"
+            "value": "Revoke access for %1$@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Revoke access for %@"
+            "value": "Revoke access for %1$@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Revoke access for %@"
+            "value": "Revoke access for %1$@"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Revoke access for %@"
+            "value": "Revoke access for %1$@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Revoke access for %@"
+            "value": "Revoke access for %1$@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Revoke access for %@"
+            "value": "Revoke access for %1$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Revoke access for %@"
+            "value": "Revoke access for %1$@"
           }
         }
       }
@@ -19887,67 +19887,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ at %@ will immediately lose access to your data."
+            "value": "%1$@ at %2$@ will immediately lose access to your data."
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ at %@ will immediately lose access to your data."
+            "value": "%1$@ at %2$@ will immediately lose access to your data."
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ at %@ will immediately lose access to your data."
+            "value": "%1$@ at %2$@ will immediately lose access to your data."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "%@ at %@ will immediately lose access to your data."
+            "value": "%1$@ at %2$@ will immediately lose access to your data."
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ at %@ will immediately lose access to your data."
+            "value": "%1$@ at %2$@ will immediately lose access to your data."
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ at %@ will immediately lose access to your data."
+            "value": "%1$@ at %2$@ will immediately lose access to your data."
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ at %@ will immediately lose access to your data."
+            "value": "%1$@ at %2$@ will immediately lose access to your data."
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ at %@ will immediately lose access to your data."
+            "value": "%1$@ at %2$@ will immediately lose access to your data."
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ at %@ will immediately lose access to your data."
+            "value": "%1$@ at %2$@ will immediately lose access to your data."
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ at %@ will immediately lose access to your data."
+            "value": "%1$@ at %2$@ will immediately lose access to your data."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "%@ at %@ will immediately lose access to your data."
+            "value": "%1$@ at %2$@ will immediately lose access to your data."
           }
         }
       }
@@ -20881,67 +20881,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Withdraw from %@"
+            "value": "Withdraw from %1$@"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Withdraw from %@"
+            "value": "Withdraw from %1$@"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Withdraw from %@"
+            "value": "Withdraw from %1$@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Withdraw from %@"
+            "value": "Withdraw from %1$@"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Withdraw from %@"
+            "value": "Withdraw from %1$@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Withdraw from %@"
+            "value": "Withdraw from %1$@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Withdraw from %@"
+            "value": "Withdraw from %1$@"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Withdraw from %@"
+            "value": "Withdraw from %1$@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Withdraw from %@"
+            "value": "Withdraw from %1$@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Withdraw from %@"
+            "value": "Withdraw from %1$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Withdraw from %@"
+            "value": "Withdraw from %1$@"
           }
         }
       }
@@ -25212,67 +25212,67 @@
         "ar": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Study ID: %@"
+            "value": "Study ID: %1$@"
           }
         },
         "bn": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Study ID: %@"
+            "value": "Study ID: %1$@"
           }
         },
         "ca": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Study ID: %@"
+            "value": "Study ID: %1$@"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Study ID: %@"
+            "value": "Study ID: %1$@"
           }
         },
         "en-GB": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Study ID: %@"
+            "value": "Study ID: %1$@"
           }
         },
         "es-419": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Study ID: %@"
+            "value": "Study ID: %1$@"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Study ID: %@"
+            "value": "Study ID: %1$@"
           }
         },
         "hi": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Study ID: %@"
+            "value": "Study ID: %1$@"
           }
         },
         "id": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Study ID: %@"
+            "value": "Study ID: %1$@"
           }
         },
         "ru": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Study ID: %@"
+            "value": "Study ID: %1$@"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "needs_review",
-            "value": "Study ID: %@"
+            "value": "Study ID: %1$@"
           }
         }
       }
