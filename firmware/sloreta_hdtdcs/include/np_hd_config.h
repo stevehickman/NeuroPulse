@@ -73,8 +73,33 @@
 #define NP_HD_ELECTRODE_AREA_M2     9.621e-6f /* for A/m² computation            */
 
 /* ── Safety limits (enforced by safety MCU — app cannot override) ───────────── */
+/*
+ * ⚠ THE THREE LIMITS BELOW CANNOT ALL HOLD ON THIS ELECTRODE — OI-TCAP-01.
+ * Surfaced by NP-HW-TCAP-001 §4.2 while specifying what the cap conductor must
+ * carry.  On NP_HD_ELECTRODE_AREA_CM2 = 0.0962 cm²:
+ *
+ *   2 mA  → 207.9 A/m², which is 34.6x NP_HD_MAX_ELECTRODE_DENSITY_A_M2 (6.0).
+ *           Delivering 2 mA within that density needs ~3.33 cm² — a 20.6 mm
+ *           pellet, not 3.5 mm.  3.5 mm is an EEG dimension carried into a
+ *           stimulation duty.
+ *   40 µC/cm² per phase caps a sinusoid at I <= 3.85 µC * pi * f, i.e. 0.48 mA
+ *           at 40 Hz and 1.21 mA at 100 Hz — so the clinical tACS ceiling of
+ *           4 mA is unreachable across the whole band.  The binding limit is
+ *           frequency-dependent and NO CONSTANT HERE EXPRESSES THAT.
+ *
+ * NOT A LIVE HAZARD: the T2 module drivers are stubs (np_mod_t2_stubs.c), no cap
+ * exists, and the safety MCU's charge-density interlock is an independent path.
+ * It is a specification defect, and it must not reach a cap drawing.  Resolving
+ * it (enlarge the electrode / lower the current / revisit the 6.0 A/m² basis for
+ * 3.5 mm HD electrodes) is an EE + Clinical decision — do not pick one here.
+ */
 #define NP_HD_MAX_CURRENT_UA        2000U   /* 2 mA per electrode                */
 #define NP_HD_MAX_CHARGE_DENSITY_UC_CM2   40.0f /* µC/cm² per phase (charge-balanced) */
+/* OI-TCAP-02: this macro and NP_HD_ELECTRODE_AREA_M2 have NO production
+ * consumer.  The only reference in the tree asserts that this constant is
+ * <= 6.0f, which is a tautology over a #define and not a check on any delivered
+ * current.  A declared limit that nothing enforces reads as a control in a
+ * design review and is not one.  Give it a consumer or retire it. */
 #define NP_HD_MAX_ELECTRODE_DENSITY_A_M2   6.0f /* tissue current density limit  */
 #define NP_HD_RAMP_DURATION_S       30U     /* 30 s ramp up and ramp down        */
 
@@ -93,8 +118,10 @@
 #define NP_HD_CATHODE_SPLIT_DENOM   4U
 
 /* ── tACS driver channel mapping ────────────────────────────────────────────── */
-/* 21-ch tACS driver: one channel per cap electrode, no sharing.  See the note  */
-/* above k_driver_channel[] in np_hd_montage.c for why this is not 16.          */
+/* 21-ch tACS driver: one channel per cap electrode, no sharing.  Specified by  */
+/* NP-HW-TCAP-001 §3; see the note above k_driver_channel[] in np_hd_montage.c  */
+/* for why this is not 16.  Must equal NP_CLIN_TACS_CHANNELS (asserted in       */
+/* np_protocol_tests.c) and the §3 row count (checked by check-tcap-map.ts).    */
 #define NP_HD_DRIVER_CHANNELS       21U
 /* Returned by np_hd_electrode_driver_channel() for an out-of-range electrode. */
 #define NP_HD_DRIVER_CH_NONE        0xFFU

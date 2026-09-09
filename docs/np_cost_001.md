@@ -2,14 +2,14 @@
 
 **Project:** NeurOne
 **Document:** NP-COST-001
-**Revision:** 2
-**Date:** 2026-08-16
+**Revision:** 3
+**Date:** 2026-09-09
 **Status:** ACTIVE
 **Effective Date:** 2026-08-16
 **Author:** NeurOne Systems Engineering
 **Approved By:** — (new document)
 **References:** CLAUDE.md §2.1, §2.2, §3, §4.5; `NP-DRV-SHELL-002` Rev 4 §10.1, §10.2; `NP-HW-HEXTILE-001` Rev 6 §4.2, §4.3, §6.4, §8.2.1, §9; `NP-HW-HUB-001` Rev 6 §8, §8.1, §8.2, §8.4; `NP-HEX-ZM-001` §4a, §3.2; `NP-ART-001` §5; `NP-DB-005` Rev 5 §4; `docs/reference/competitive-position.md`
-**Related Issues:** OI-HUB-C08, OI-HEXTILE-02, OI-HEXTILE-06, OI-SHELL2-05, OI-COST-01…10
+**Related Issues:** OI-HUB-C08, OI-HEXTILE-02, OI-HEXTILE-06, OI-SHELL2-05, OI-COST-01…10, OI-TACS-02, OI-TCAP-03, OI-TCAP-04, OI-EEGNET-07
 **Gate:** REG-1 / ACT-1 (socket count is PROVISIONAL — every figure here inherits that)
 **IEC 62304 Class:** N/A (commercial model; no software)
 **Supersedes:** The BOM / COGS / GM% columns of CLAUDE.md §2.1 (Rev 35 and earlier) and `NP-DB-005` Rev 5 §4
@@ -226,6 +226,43 @@ only five slots. **U is therefore very likely positive and large** — every row
 to get worse than better. At a merely illustrative $0.10/emitter (a number that is **not in the
 record** and must not be quoted), Home Standard's floor would deepen by a further ~$169.
 
+### 5.1 A fourth excluded term, bounded rather than priced — the T2 tACS driver (added at Rev 3)
+
+The 21-channel clinical tACS driver belongs in the list above: the 2026-08-05 decision that set the
+channel count records that it had *"no sourcing document, no BOM line, and no named silicon,"* and
+none has been selected since. It is the analog counterpart of `OI-HEXTILE-02` and produces the same
+result — **a term that is not merely unpriced but unpriceable from the record.**
+
+`OI-TACS-02` half (ii) asked for the 16 → 21 delta to be costed against the T2 BOM. It cannot be,
+and `NP-HW-TCAP-001` §7 answers it with a bound instead, derived entirely from this document's own
+figures:
+
+| | Result |
+|---|---|
+| **Materiality threshold** | **$305 per channel.** At 5 channels through Pro Entry's A-3 multiplier (1.639), that is the per-channel cost that would erase Pro Entry's +$2,499. Pro Full's threshold is $1,165, so **Pro Entry binds** |
+| **Upper bound from the record** | **≤$26.75 per channel.** Pro Entry's old BOM ($833) less Home Standard's ($405) leaves **$428 for every T2 hardware addition together** — qEEG cap, 1170 nm deep PBM, tACS driver and the rest. Crediting all $428 to the driver alone gives $26.75 at 16 channels |
+| **Conclusion** | A factor of **11** below the threshold, on an absurdly conservative bound. The delta cannot flip either Pro row or materially dent either margin |
+
+**Stated falsifiably:** if silicon is ever selected above **$305 per channel including its sense
+path**, the conclusion is void and the item reopens. Nothing else needs re-deriving.
+
+**Two things this does not do.** It does not revise any figure in §4 — the bound is an addition to a
+floor, not a correction of one, and term **U** is still excluded. And it does not settle the item as
+scoped: `NP-HW-TCAP-001` §7.3 finds `OI-TACS-02` half (ii) **under-scoped in the same shape as
+`OI-COST-07`** — if the 16-channel baseline never had a BOM line, the uncosted quantity is the whole
+21-channel stage, not the 5-channel delta. **The conclusion survives, though not by the same
+argument** — §7.2's $26.75 ceiling located the driver *inside* the $428 envelope, which this premise
+denies, so carrying it over would be circular. What survives is the threshold, which never depended
+on that decomposition: at $305/channel a 21-channel stage is **$6,403, or 2.9–3.0× the entire Pro
+Full BOM floor** ($2,136–2,198), excluded by inspection. So the conclusion holds and only the item's
+scope is wrong.
+
+> **The larger uncosted term is next door, and no costing owns it.** `OI-EEGNET-07` decides whether
+> the T2 cap tail is **23 conductors or 44** (`NP-HW-EEGNET-001` §6.4 — two conductors per
+> dual-rated site if concurrent TMS and full 21-channel tES is required). That is a doubling of a
+> per-unit harness, and **§2 A-1's table has no row for the T2 cap at all**. It is not costed here
+> either, because costing an undetermined conductor count is the error §5 declines to make.
+
 ## 6. Does OI-HEXTILE-06 rescue it? No.
 
 `NP-HW-HEXTILE-001` §6.4 offers three options. Run against Home Standard (old BOM $405, L1 $208
@@ -349,5 +386,6 @@ a cost that the PD decision then invalidates.** Raised as **OI-COST-10**.
 
 | Rev | Date | Author | Description |
 |---|---|---|---|
+| **3** | **2026-09-09** | NeurOne Systems Engineering | **New §5.1 — the T2 21-channel tACS driver is a fourth excluded term, and `OI-TACS-02` half (ii) is answered with a bound rather than a price.** No silicon is named (the 2026-08-05 decision records *"no BOM line, and no named silicon"*), so the same finding §5 makes against the emitters applies: unpriceable from the record, not merely unpriced. Inverting the question instead gives a **materiality threshold of $305/channel** (Pro Entry binds through its 1.639 multiplier against +$2,499) against a **record-derived ceiling of ≤$26.75/channel** — Pro Entry's $833 old BOM less Home Standard's $405 leaves $428 for *every* T2 hardware addition, all of it credited to the driver. A factor of 11, so the delta cannot move either Pro row; **stated falsifiably** so selection above $305/channel reopens it. §5.1 also records that `NP-HW-TCAP-001` §7.3 finds the item **under-scoped in the `OI-COST-07` shape** — if the 16-channel baseline never had a BOM line, the uncosted term is the whole 21-channel stage — which the *threshold* still excludes without the decomposition the $26.75 ceiling rests on, since 21 channels at $305 is $6,403, or 2.9–3.0× the entire Pro Full BOM floor — and that the **larger uncosted term is the T2 cap tail**, 23 vs 44 conductors on `OI-EEGNET-07`, for which §2 A-1's table has no row at all. **No figure in §1–§4 or §8 is revised, no assumption is adjusted, and no price is set**; term U is still excluded and `OI-COST-10`'s sequencing constraint is untouched. |
 | **2** | **2026-08-16** | NeurOne Systems Engineering | **Retail pricing UNLOCKED by principal direction — new §8.** §1–§7 preserved verbatim as derived *under the lock*, since that is what made margin an output. §8.2 publishes the implied ladder (retail = COGS ÷ (1 − GM target), original targets held): **break-even Home Standard ~$1,196–1,278 and target-margin $1,869–1,997, a 2.20–2.35× increase**; Core $955–1,121; Home Lite $1,445–1,587; Home Premium $2,475–2,637. **These are implied, not set** — unlocking a constraint is not choosing a price, and the six configurations keep their current prices until that separate commercial decision is taken. §8.3 records three consequences the lock was concealing: the T1 ladder **collides with the T2 ladder** (Home Premium $2,637 vs Pro Entry $4,999 — the two-tier structure is a casualty, **OI-COST-08**); Pro's rows are the ones where **the margin target, not the cost, is the thing to question**, since both are profitable today and the unlock is not a mandate to raise T2 prices; and **every competitive price claim is live again** because Rev 1 §7's "safe to use" rationale rested entirely on the lock (**OI-COST-09**) — at $1,997 Home Standard is ~40% of a Vielight, not 17%, and becomes a direct Sens.ai price peer. §8.4 establishes the **binding sequence: decide `OI-HEXTILE-06` before setting a price** (silicon PD + 20 tiles moves the target-margin retail $1,997 → ~$1,383), else the price is set against a cost the PD decision invalidates (**OI-COST-10**). All §8 figures inherit §5 floor status — term U still excluded, so these are the *least* retail would have to be. |
 | **1** | **2026-08-16** | NeurOne Systems Engineering | Initial release. Re-derives CLAUDE.md §2.1 BOM / COGS / GM% against the hex-tile architecture; retail untouched. **Result: all four T1 configurations gross-margin negative**, Pro unaffected. Corrects the commissioning brief's additive framing — `NP-DRV-SHELL-002` Rev 2 §10.1's $175–225 already contains the $114.12 controller tier and the $32–64 socket arrays, and supersedes Rev 1's $125–216. Establishes that **`OI-HUB-C08` cannot be closed from the record** and is under-scoped (OI-COST-07): `OI-HEXTILE-02` has selected no emitter, so the dominant BOM line is unpriced on both sides of the subtraction. Records three unsourced assumptions (tile population, full-L1-per-config, per-config COGS multiplier) as OI-COST-01/04/05 rather than burying them, and the finding that **no single BOM→COGS rule is recoverable** from the six published pairs. Confirms §2.2 charger policy unaffected. Raises OI-COST-01…07. |

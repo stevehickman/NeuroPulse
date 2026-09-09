@@ -125,6 +125,7 @@ jobs:
       redaction: ${{ steps.scope.outputs.redaction }}
       seamdecls: ${{ steps.scope.outputs.seamdecls }}
       localestrings: ${{ steps.scope.outputs.localestrings }}
+      tcapmap: ${{ steps.scope.outputs.tcapmap }}
     env:
       # Eight independent surfaces, eight lists. A simulator-only change should
       # not run the Python gate, and vice versa. Blank lines and `#` comments
@@ -198,6 +199,17 @@ jobs:
         firmware/**
         scripts/check-redaction-shape.ts
         .github/workflows/tooling-ci.yml
+      # The T2 cap map gate reads BOTH sides of the correspondence it checks —
+      # NP-HW-TCAP-001 §3 under docs/, and three firmware tables — so both
+      # directories are in scope. Listing only firmware/** would be the exact
+      # defect OI-SWCI-08 names: the edit most likely to break this gate is a
+      # revision to the document, and a guard that cannot see the edit that
+      # breaks it is not a guard.
+      NP_SCOPE_TCAPMAP: |
+        docs/**
+        firmware/**
+        scripts/check-tcap-map.ts
+        .github/workflows/tooling-ci.yml
       # The locale-string gate (CLAUDE.md §17). Three different edits break it,
       # so all three trees are listed: a literal added to a covered app file,
       # a key added to or removed from locales/, and a locale reference
@@ -253,6 +265,7 @@ jobs:
           printf '%s\n' "$NP_SCOPE_REDACTION" > scope.redaction.paths
           printf '%s\n' "$NP_SCOPE_SEAMDECLS"  > scope.seamdecls.paths
           printf '%s\n' "$NP_SCOPE_LOCALESTRINGS" > scope.localestrings.paths
+          printf '%s\n' "$NP_SCOPE_TCAPMAP" > scope.tcapmap.paths
 
       # A well-formed pattern that matches nothing is a typo, not a scope
       # decision: `simluator/**` would silently take the whole surface out of
@@ -260,7 +273,7 @@ jobs:
       - name: Every relevance pattern still resolves in the tree
         run: |
           set -euo pipefail
-          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths; do
+          for f in scope.scripts.paths scope.gatecov.paths scope.ciscope.paths scope.docnaming.paths scope.simulator.paths scope.python.paths scope.consent.paths scope.redaction.paths scope.seamdecls.paths scope.localestrings.paths scope.tcapmap.paths; do
             echo "--- $f"
             scripts/ci-changed-scope.sh --check-tree "$f"
           done
@@ -323,6 +336,14 @@ jobs:
           assert scope.redaction.paths true  firmware/safety_mcu/src/np_fault_latch.c
           assert scope.redaction.paths true  firmware/hub_control/include/np_hub_config.h
           assert scope.redaction.paths false app/web/src/main.ts
+          # The T2 cap map gate. Both halves of its population are asserted
+          # because the gate compares them to each other: a list that saw only
+          # one side would let the other drift silently, which is the failure
+          # OI-TACS-01 actually was.
+          assert scope.tcapmap.paths   true  docs/np_hw_tcap_001.md
+          assert scope.tcapmap.paths   true  firmware/sloreta_hdtdcs/src/np_hd_montage.c
+          assert scope.tcapmap.paths   true  firmware/hub_control/include/np_hub_types.h
+          assert scope.tcapmap.paths   false app/web/src/main.ts
           # The seam-declaration gate. The first case is the edit it exists to
           # catch — an `extern` re-added to a caller; the second is a seam
           # leaving or joining a contract header. app/ is out of scope because
@@ -395,6 +416,7 @@ jobs:
           emit redaction scope.redaction.paths
           emit seamdecls scope.seamdecls.paths
           emit localestrings scope.localestrings.paths
+          emit tcapmap   scope.tcapmap.paths
 
   scripts-check:
     name: scripts/ type-check
@@ -673,6 +695,34 @@ jobs:
       # comment-stripping in the reporting path" — and kept none of it.
       - name: No reporting path varies its shape with a sensitive predicate
         run: bun scripts/check-redaction-shape.ts
+
+  tcap-map:
+    name: the T2 cap electrode map matches its specification (NP-HW-TCAP-001 §3)
+    runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.tcapmap != 'false' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      # No `bun install`: the checker reads source text with node builtins.
+
+      - name: Guard self-test (prove all four correspondences can fail)
+        run: bun scripts/check-tcap-map.ts --self-test
+
+      # Until NP-HW-TCAP-001 existed, k_driver_channel[] WAS the authority for a
+      # hardware contract — Class B firmware standing in for a controlled
+      # document. The map it replaced aliased five pairs of geometric
+      # neighbours and every one of them reads as reasonable; C4/P4 made the
+      # M1_R ring undeliverable. This is the mechanical diff NP-CONV-001 §8
+      # requires in place of that reading.
+      - name: NP-HW-TCAP-001 §3, the firmware tables and both channel counts agree
+        run: bun scripts/check-tcap-map.ts
 
   locale-strings:
     name: user-facing text lives in locales, not in code (CLAUDE.md §17)
