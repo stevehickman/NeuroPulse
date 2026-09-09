@@ -47,6 +47,29 @@ if(NP_BUILD_TESTS)
         ${CMAKE_CURRENT_SOURCE_DIR}/../vendor/mcux_sdk/devices/MIMXRT1062)
     target_compile_definitions(np_app_clock_agreement_tests PRIVATE
         NP_APP_MAIN_C_PATH="${CMAKE_CURRENT_SOURCE_DIR}/src/np_app_main.c")
+
+    # ── Host test: the L1 cache state, as declared vs as established ─────────
+    # NP-SW-CI-001 §4.14, closes OI-SWCI-45.  Three files in the tree state
+    # what the caches do — np_app_cache.h, the vendored startup that actually
+    # enables one of them, and firmware/vendor/cmsis_core/VERSION — and until
+    # this target existed nothing compared them, which is how four NeurOne
+    # documents came to describe an L1 D-cache SystemInit() has never enabled.
+    #
+    # Needs no ARM toolchain: it includes one first-party header and text-probes
+    # three files.  It deliberately does NOT include the MCUX device header —
+    # SCB is a Cortex-M7 register block and there is none on the host; what the
+    # running part reports is checked on the part, by np_app_cache_assert_state().
+    add_executable(np_app_cache_agreement_tests
+        tests/np_app_cache_agreement_tests.c)
+    target_compile_options(np_app_cache_agreement_tests PRIVATE
+        -std=c11 -Wall -Wextra -O0 -g)
+    target_include_directories(np_app_cache_agreement_tests PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_compile_definitions(np_app_cache_agreement_tests PRIVATE
+        NP_APP_MAIN_C_PATH="${CMAKE_CURRENT_SOURCE_DIR}/src/np_app_main.c"
+        NP_MCUX_SYSTEM_C_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../vendor/mcux_sdk/devices/MIMXRT1062/system_MIMXRT1062.c"
+        NP_MCUX_STARTUP_S_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../vendor/mcux_sdk/devices/MIMXRT1062/gcc/startup_MIMXRT1062.S"
+        NP_CMSIS_VERSION_PATH="${CMAKE_CURRENT_SOURCE_DIR}/../vendor/cmsis_core/VERSION")
     return()
 endif()
 
@@ -79,6 +102,13 @@ add_executable(np_application
     # that region — the vendored startup zeroes only one bss span and is
     # byte-exact, so a second region is first-party work by construction.
     src/np_app_dtcm.c
+    # The L1 cache state this image is built for (NP-SW-CI-001 §4.14, closes
+    # OI-SWCI-45): I-cache on, D-cache OFF.  Reads SCB->CCR at the top of
+    # main() and halts on disagreement — four NeurOne documents stated the
+    # D-cache the other way round, inheriting it from a vendored comment that
+    # contradicts its own code, because nothing compared the claim with the
+    # machine.
+    src/np_app_cache.c
     ${NP_MCUX_DEVICE_DIR}/system_MIMXRT1062.c
     ${NP_MCUX_DEVICE_DIR}/gcc/startup_MIMXRT1062.S
 )

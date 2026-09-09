@@ -53,18 +53,32 @@
  *
  * ── Why the zeroing is here and not in the startup ──────────────────────────
  *
- * The vendored SDK startup zeroes exactly ONE span, __bss_start__ to
- * __bss_end__ (startup_MIMXRT1062.S, under __STARTUP_CLEAR_BSS).  It cannot be
- * taught about a second region: firmware/vendor/mcux_sdk/ is byte-exact under
- * the §9 in-tree rule, and patching it is precisely what that rule forbids.
+ * The vendored SDK startup zeroes exactly ONE span for this build,
+ * __bss_start__ to __bss_end__ (startup_MIMXRT1062.S, under
+ * __STARTUP_CLEAR_BSS).  firmware/vendor/mcux_sdk/ is byte-exact under the §9
+ * in-tree rule, so it cannot be PATCHED to clear a second one.
+ *
+ * It can, however, be SWITCHED, and §4.14.4 corrects this paragraph's original
+ * claim that it could not: the same file carries a second bss-class
+ * initialiser under __STARTUP_INITIALIZE_NONCACHEDATA, tested for by the same
+ * #ifdef idiom this build already uses twice (__STARTUP_CLEAR_BSS,
+ * __START=main).  It is not this region's mechanism, for two reasons that are
+ * about meaning rather than availability: it initialises the SDK's
+ * NonCacheable section — where DMA buffers go once the D-cache is enabled
+ * (OI-SWCI-45) — and it first COPIES an initialised span, __noncachedata_start__
+ * to __noncachedata_init_end__, which .dtcm_bss has no load image for.
+ * Borrowing the name would put ucHeap in a section whose next reader expects
+ * uncached, DMA-visible memory.
  *
  * So a second bss-class region in DTCM is only correct if first-party code
- * zeroes it, and that is np_app_dtcm_bss_clear() below, called as the first
- * statement of main().  "First statement of main()" is early enough and is
- * checkable rather than argued: this image enters main() directly (__START is
- * defined to main in the application CMakeLists), __libc_init_array never
- * runs, and the linker script's .init_array comes out empty — so there is no C
- * code that can run before it.
+ * zeroes it, and that is np_app_dtcm_bss_clear() below, called as the second
+ * statement of main() — after np_app_cache_assert_state(), which reads a
+ * register and no statics and so does not depend on this (§4.14).  Being that
+ * early is enough and is checkable rather than argued: this image enters
+ * main() directly (__START is defined to main in the application
+ * CMakeLists), __libc_init_array never runs, and the linker script's
+ * .init_array comes out empty — so there is no C code that can run before the
+ * two of them.
  *
  * The failure this prevents is silent.  A static in .dtcm_bss that nothing
  * zeroed holds whatever the last image left in that RAM, which on a warm reset
