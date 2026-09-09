@@ -87,6 +87,19 @@ Taken together, these three facts place the hub enclosure **externally mounted a
 
 **Purpose:** the hub fan is safety-relevant — its loss is FMEA-G07-01 / **RISK-26** (fan/heatsink loss → scalp face > 42°C), mitigated by the SW01-M04 face-NTC interlock (`NP-REQ-FANHEALTH-001` Path B1) that derates PBM duty on fan-health loss, and by the SR-FAN-05 predictive-maintenance alert that is meant to catch degradation *before* the safety derate engages. A door that lets the user clear dust/lint/hair from the fan and heatsink fins without tools directly supports the SR-FAN-05 intent: most fan-health degradation in a consumer environment is foulable and user-clearable, and giving the user no way to act on the predictive-maintenance alert would make it useless.
 
+> **⚠ Note added 2026-09-08 — `NP-THERM-SINK-001` removes this feature's stated safety rationale, and does not
+> remove the feature.** The paragraph above justifies F-04 by `FMEA-G07-01` / `RISK-26` ("fan/heatsink loss → scalp
+> face > 42 °C") and by `SR-FAN-05` catching foulable degradation before the safety derate engages. That chain
+> assumes the hub fan is in the **tile** export path. It is not: the BN-boss via terminates on the outer bowl ~32 mm
+> out, a median 188 mm from this enclosure, and `SPEC-SINK-03` finds `R_sink` **unchanged** by fan loss (§2.3, §11 of
+> that document). What does raise the outward resistance is **vault occlusion**, which no fan-RPM signal observes.
+> **F-04 still earns its place** — the hub sink it serves is real, it carries the hub's own electronics load
+> (`OI-HUB-C19`, now decoupled from the tile field), and a user-clearable dust path for a fan is good practice — but
+> the *scalp-safety* framing above overstates what cleaning this fan protects. §2's placement inference is likewise
+> only weakened in its third leg: the EEG-routing and antenna arguments stand, the "physical home of this fan-cooled
+> heatsink" argument does not. Correction routed to the owning files as `OI-SINK-04`; **nothing in this
+> specification's geometry, checklist or FAI items changes.**
+
 **Geometry:**
 - A single access door over the fan + heatsink cavity, opened by **quarter-turn (90°) captive fasteners** (thumb-turn or coin-slot head, no tool required beyond a coin/thumbnail) — captive so the fastener cannot be removed from the door or lost, consistent with the loss-prevention principle applied to F-02's tethered covers.
 - **Two fasteners, diagonally opposed**, sized so the door cannot be removed with only one released (prevents partial opening under vibration or accidental contact).

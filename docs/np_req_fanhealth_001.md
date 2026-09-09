@@ -51,6 +51,24 @@ ms-class of the electrical interlocks, and are justified in §3.
 | **SR-FAN-05** | SW-02 shall sample hub fan RPM, log it to SHDR (existing), compute a forced-convection headroom trend, and raise a **predictive-maintenance alert** (SW03-M05) *before* degradation reaches the SR-FAN-03 safety derate — an availability/comfort layer above, and independent of, the Class C safety function. | **B** |
 | **SR-FAN-06** | The SR-FAN-01/03 decision shall be made in the Class C domain (SW-01) and shall **not depend on SW-02 correctness** (NP-SW-001 §7.2). Any hub-provided fan-health indication used as an input shall be **fail-safe**: absent, stale, or invalid → treated as "forced convection NOT confirmed" → SR-FAN-03 derate. | **C** |
 
+> **⚠ Note added 2026-09-08 — `NP-THERM-SINK-001` finds `SR-FAN-05` is watching the wrong component.**
+> `SR-FAN-01/02/03/04/06` are unaffected and are **strengthened**, because they are all written against the
+> *face temperature*, not against a cause. `SR-FAN-05` is not: it samples **hub fan RPM** and claims a
+> forced-convection headroom trend from it. That claim assumes the hub fan is in the tile export path. It is
+> not — the BN-boss via terminates on the outer bowl ~32 mm out, a median 188 mm from the hub, and
+> `SPEC-SINK-03` finds `R_sink` **unchanged** by fan loss (`NP-THERM-SINK-001` §2.3, §11).
+>
+> What does raise the outward resistance is **vault occlusion** — a hood, a hat, a towel, bedding, a headrest,
+> a pillow under a supine user. Modelled at N = 6 on the library floor at 25 °C ambient it crosses 42 °C at
+> ~90 % coverage, and it is a **far more probable initiator than fan failure** for a 6–30 minute session that
+> Mode 3 explicitly designs for use away from a desk. **Fan RPM cannot observe it**, so the "before degradation
+> reaches the safety derate" promise in `SR-FAN-05` does not hold for the dominant mechanism.
+>
+> **This does not reopen the §4a path selection.** Path B1's scalp-facing NTC reads the face directly and does
+> not care what raised the resistance, so the *control* covers the hazard — Path B1 was the right choice, for a
+> reason narrower than the one that justifies it. What needs revision is `SR-FAN-05`'s stated basis and
+> `FMEA-G07-01` / `RISK-26`'s cause list. Routed as `OI-SINK-04`; **no requirement text is changed here.**
+
 ---
 
 ## 3. Response-time rationale (why seconds, not milliseconds)

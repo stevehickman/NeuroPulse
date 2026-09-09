@@ -13,6 +13,8 @@ N = 1 one, so §5.1 already reports the fully-active limit and §2's *"2D spread
 face"* is correct **for the periodic case only** and must not be read as a general statement about the
 architecture; (ii) §5.1's flux labels reproduce §5.1's own temperatures at 0.649 × their stated value
 (`OI-R1-06` below).
+**Further extended by NP-THERM-SINK-001 Rev 1** (the rejection specification, `OI-N1-02`): §5's *"perfect sink"*
+is the h_ext → ∞ limit of a resistance this document already carries once, on the cavity path — see the note at §5.1.
 **Feeds:** NP-REQ-FANHEALTH-001 (SR-FAN-03/04 path selection + constants) · NP-FMEA-GEOM-001
 (FMEA-G07-01) · NP-ENV-OPRANGE-001 (PBM high-temp bound) · a candidate base-thermal design input.
 **Method:** 1D radial resistance network (per NP-THERM-CFD-C2-001 §7) + cell-centred finite-volume
@@ -91,6 +93,21 @@ shield and the sealed interior (apertures through mu-metal + RF liners), the pro
 Alternative tested: a solid conductive via down the boss centreline to an **external** fan-cooled
 heatsink, **cavity left stagnant** (interior never ventilated). Flux-driven FD, copper via (r 4 mm,
 k 400), **perfect sink** (via end pinned at ambient — the best any fan-cooled heatsink can do).
+
+> **⚠ Note added 2026-09-08 — `NP-THERM-SINK-001` finds the "perfect sink" is not an idealisation close to
+> a real part, and that this section spends one resistance twice.** Three things. **(a)** Against
+> `NP-HELMET-GEOM-001` §2's radial stack this via is **~32 mm** long: it terminates **on the outer bowl**, not
+> at a hub heatsink a median 188 mm away, and no document specifies a part between them (nor can one exist
+> inside the mass budget — 100 g of copper drops 40 K at the N = 6 library floor). **(b)** So the "external
+> fan-cooled heatsink" is the **outside of the helmet**, and its resistance is the **external film that is
+> already the last term of this document's own `R_OUT_BASE = 0.41`** — 0.115 m²K/W, h ≈ 8.7 W/m²K, independently
+> corroborated to 4.7 % by a natural-convection correlation over the vault exterior. §5.1 charges that film in
+> full to the cavity path and simultaneously **sets it to zero for the via path**. Restoring it on both paths
+> makes every temperature below optimistic. **(c)** Consequently §5.2's fault — *"external sink / fan airflow
+> LOST"* — is **not a fault this architecture can have**: no fan serves this path, and the real degradation
+> mode is **vault occlusion**. §5.3's "zero fault benefit" conclusion is unchanged; its stated cause is.
+> Specification: `NP-THERM-SINK-001` §4. **Nothing here is rewritten** — the figures stand as computed under
+> the perfect-sink boundary condition this section declares.
 
 **5.1 Healthy state (43.3 °C ambient, perfect sink):**
 

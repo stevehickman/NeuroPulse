@@ -30,7 +30,11 @@
  *   (b) THE SHARED SINK. R1 pins the via terminus at ambient ("perfect sink"),
  *       which is exact for one cell and false for N: all N tiles export ~90 % of
  *       their heat into ONE external heatsink whose temperature rises with N.
- *       Nothing in the tree specifies that heatsink's resistance.
+ *       Nothing in the tree specified that heatsink's resistance when this was
+ *       written (OI-N1-02). NP-THERM-SINK-001 has since specified it at 1.08 K/W
+ *       and found it is not a heatsink but the helmet's own exterior -- a
+ *       resistance the cavity leg below already spends once. Read that document
+ *       before quoting a ceiling from this one; see R_SINK_DEFAULT.
  *
  * (b) is the binding term, it is invisible to every single-cell model, and it
  * inverts `NP-PWR-BUDGET-001` §3.3: raising export efficiency moves MORE heat
@@ -51,31 +55,31 @@ const VALIDATE_ONLY = process.argv.includes("--validate");
 // ---------------------------------------------------------------------------
 
 /** NP-THERM-CFD-R1-001 §2: inward path, junction -> perfused scalp core. */
-const R_IN = 0.11;
+export const R_IN = 0.11;
 /** NP-THERM-CFD-R1-001 §2: outward path total, fan off. */
-const R_OUT_BASE = 0.41;
+export const R_OUT_BASE = 0.41;
 /** NP-THERM-CFD-R1-001 §2: stagnant inter-bowl air gap term within R_OUT_BASE. */
-const R_GAP_STAGNANT = 0.23;
+export const R_GAP_STAGNANT = 0.23;
 /** NP-THERM-CFD-R1-001 §3: face -> 37 C perfused core, low perfusion. */
-const R_FACE_CORE = 0.105;
+export const R_FACE_CORE = 0.105;
 /** NP-THERM-CFD-R1-001 §5.1 T1-std @ 43.3 C: junction, and via export fraction. */
 const ANCHOR_TJ = 47.5;
 const ANCHOR_EXPORT = 0.87;
 /** NP-ENV-OPRANGE-001 / NP-THERM-CFD-001 §5: worst-case and nominal ambient. */
-const AMB_WORST = 43.3;
-const AMB_NOMINAL = 25.0;
-const T_CORE = 37.0;
+export const AMB_WORST = 43.3;
+export const AMB_NOMINAL = 25.0;
+export const T_CORE = 37.0;
 /** CLAUDE.md §4.2 / IEC 60601-1: applied-part face ceiling. */
-const FACE_LIMIT = 42.0;
+export const FACE_LIMIT = 42.0;
 /** NP-THERM-CFD-001 §4: wall-plug efficiency band, 660/808/1064 nm LED. */
 const ETA_WP_BAND = [0.30, 0.45] as const;
 
 /** NP-HW-HEXTILE-001: hex tile 40 mm flat-to-flat (nominal, not the provisional
  *  ellipsoid coordinates — see §3 for why the two are used for different jobs). */
-const TILE_F2F_M = 0.040;
-const HEX_EDGE_M = TILE_F2F_M / Math.sqrt(3);          // 23.09 mm
-const TILE_AREA = (Math.sqrt(3) / 2) * TILE_F2F_M ** 2; // 13.856 cm^2
-const CENTRE_PITCH_M = TILE_F2F_M;
+export const TILE_F2F_M = 0.040;
+export const HEX_EDGE_M = TILE_F2F_M / Math.sqrt(3);          // 23.09 mm
+export const TILE_AREA = (Math.sqrt(3) / 2) * TILE_F2F_M ** 2; // 13.856 cm^2
+export const CENTRE_PITCH_M = TILE_F2F_M;
 
 // ---------------------------------------------------------------------------
 // §2  Network calibration against R1, and what the calibration exposes
@@ -87,11 +91,11 @@ const CENTRE_PITCH_M = TILE_F2F_M;
 
 /** Split of R_IN, recovered from R1 §5.1 T1-std @ 43.3 C (T_face 46.7, T_scalp 43.3).
  *  Independently confirmed by the 25 C row to within 0.2 C — see validate(). */
-const R_JF = 0.005;  // 1 mm PDMS + 0.6 mm gap (R1 §5.3)
-const R_FS = 0.039;  // module face -> scalp surface
-const R_SC = R_FACE_CORE - R_FS; // 0.066, scalp -> perfused core
+export const R_JF = 0.005;  // 1 mm PDMS + 0.6 mm gap (R1 §5.3)
+export const R_FS = 0.039;  // module face -> scalp surface
+export const R_SC = R_FACE_CORE - R_FS; // 0.066, scalp -> perfused core
 /** Cavity leg of the outward path; the rest of R_OUT_BASE is cavity -> ambient. */
-const R_CAV_AMB = R_OUT_BASE - R_GAP_STAGNANT; // 0.18 (foam + shell + ext film)
+export const R_CAV_AMB = R_OUT_BASE - R_GAP_STAGNANT; // 0.18 (foam + shell + ext film)
 
 /** R_VIA back-solved so the network reproduces R1 §5.1's 87 % export at T_j 47.5. */
 function calibrateVia(): { rVia: number; qAnchor: number } {
@@ -99,7 +103,7 @@ function calibrateVia(): { rVia: number; qAnchor: number } {
   const q = other / (1 - ANCHOR_EXPORT);
   return { rVia: (ANCHOR_TJ - AMB_WORST) / (ANCHOR_EXPORT * q), qAnchor: q };
 }
-const { rVia: R_VIA, qAnchor: Q_ANCHOR } = calibrateVia();
+export const { rVia: R_VIA, qAnchor: Q_ANCHOR } = calibrateVia();
 
 /** R1 §5.1 rows, as published. `label` is the flux the table names. */
 const R1_ROWS = [
@@ -188,7 +192,7 @@ function validate(): boolean {
 //   conductances from them would propagate a coordinate artefact into every
 //   temperature. Topology survives that compression; magnitudes would not.
 
-type Socket = { id: number; xMm: number; yMm: number; zMm: number };
+export type Socket = { id: number; xMm: number; yMm: number; zMm: number };
 
 function loadLattice(): { sockets: Socket[]; neighbours: number[][] } {
   const map = JSON.parse(readFileSync("hardware/np_socket_map.json", "utf8"));
@@ -206,8 +210,8 @@ function loadLattice(): { sockets: Socket[]; neighbours: number[][] } {
   return { sockets, neighbours };
 }
 
-const { sockets: SOCKETS, neighbours: NEIGH } = loadLattice();
-const N_SOCKETS = SOCKETS.length;
+export const { sockets: SOCKETS, neighbours: NEIGH } = loadLattice();
+export const N_SOCKETS = SOCKETS.length;
 
 // Lateral conductances per neighbour pair: G = sum(k*t) * w / L, w = hex edge,
 // L = centre pitch. Each is a named export so a datasheet can replace it.
@@ -224,9 +228,19 @@ export const G_LAT_FACE = lateralG(0.25 * 0.002);
 export const G_LAT_CAV = lateralG(10 * 0.0025 + 30 * 0.0002);
 
 /** External heatsink at the via terminus, absolute K/W. R1 pins this at ambient
- *  ("perfect sink", its §5 upper bound) and NOTHING in the document tree
- *  specifies it — see NP-THERM-CFD-N1-001 §7 and OI-N1-02. 0.5 K/W is a small
- *  fan-cooled extruded sink; the report sweeps it because it is unspecified. */
+ *  ("perfect sink", its §5 upper bound); when this model was written NOTHING in
+ *  the document tree specified it, which is OI-N1-02.
+ *
+ *  SPECIFIED 2026-09-08: NP-THERM-SINK-001 SPEC-SINK-01 gives 1.08 K/W, and
+ *  finds there is no heatsink at all -- the ~32 mm via terminates on the outer
+ *  bowl and the resistance is the external film already inside R_OUT_BASE, which
+ *  this model's cavity leg spends a SECOND time. So 1.08 is only valid here where
+ *  an exterior spreader makes the terminus isothermal; without one this topology
+ *  has no valid lumped value and check-thermal-sink.ts is the model to use.
+ *
+ *  DELIBERATELY LEFT AT 0.5: raising it would silently move every published
+ *  figure in NP-THERM-CFD-N1-001, whose tables name the R_sink they were computed
+ *  at. Changing it is OI-SINK-02, for that document's owner. */
 export const R_SINK_DEFAULT = 0.5;
 
 // ---------------------------------------------------------------------------
@@ -321,7 +335,7 @@ function assemble(qTile: number[], o: Opts = {}) {
 
 export type Field = { j: number[]; f: number[]; s: number[]; c: number[]; sink: number };
 
-function steady(qTile: number[], o: Opts = {}): Field {
+export function steady(qTile: number[], o: Opts = {}): Field {
   const { M, b } = assemble(qTile, o);
   const T = solveLinear(M, b);
   return {
@@ -349,7 +363,7 @@ function interiorSeed(): number {
 }
 
 /** Tightest N-set: region-grow from the interior seed. */
-function clustered(n: number): number[] {
+export function clustered(n: number): number[] {
   const chosen = [interiorSeed()];
   while (chosen.length < n) {
     let best = -1, bestD = Infinity;
@@ -364,7 +378,7 @@ function clustered(n: number): number[] {
 }
 
 /** Most-spread N-set: farthest-point sampling from the same interior seed. */
-function distributed(n: number): number[] {
+export function distributed(n: number): number[] {
   const chosen = [interiorSeed()];
   while (chosen.length < n) {
     let best = -1, bestD = -1;
@@ -380,7 +394,7 @@ function distributed(n: number): number[] {
 
 /** Compactness: mean nearest-active-neighbour distance, mm. Lower = tighter.
  *  This is the montage variable OI-PWR-10 asks whether the flat rule may ignore. */
-function compactness(set: number[]): number {
+export function compactness(set: number[]): number {
   if (set.length < 2) return NaN;
   return set.reduce((acc, i) =>
     acc + Math.min(...set.filter((j) => j !== i).map((j) => dist(SOCKETS[i], SOCKETS[j]))), 0) / set.length;
@@ -410,11 +424,11 @@ function loadZones(): Map<string, number[]> {
 // in W/tile of ELECTRICAL draw. The bridge is NP-THERM-CFD-001 §4:
 // q_heat = P_elec * (1 - eta_wp).
 
-const ETA_WP = 0.35; // mid-band, and the value §2 recovers from R1's own numbers
-const heatW = (elecW: number) => elecW * (1 - ETA_WP);
+export const ETA_WP = 0.35; // mid-band, and the value §2 recovers from R1's own numbers
+export const heatW = (elecW: number) => elecW * (1 - ETA_WP);
 
 /** Named electrical operating points, W/tile. */
-const OP = {
+export const OP = {
   /** NP-HW-HEXTILE-001 §9.2 R-4: the point the "~6 tiles" rule is derived at. */
   r4: 6.25,
   /** NP-SES-PWR-001 §2.1 library floor (Autism, 20 % intensity @ 25 % duty). */
@@ -808,4 +822,4 @@ function main() {
   console.log();
 }
 
-main();
+if (import.meta.main) main();
