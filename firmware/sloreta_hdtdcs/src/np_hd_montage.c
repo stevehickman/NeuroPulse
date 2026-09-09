@@ -57,6 +57,13 @@ static const np_hd_mni_t k_clinical_targets[] = {
 
 /* ── tACS driver channel assignment (T2 cap wiring, 21-ch driver) ────────────── */
 /*
+ * SPECIFIED BY NP-HW-TCAP-001 §3 (REQ-TCAP-02).  This table IMPLEMENTS that
+ * document; it is no longer the authority for the map, as it was from 2026-08-05
+ * until NP-HW-TCAP-001 Rev 1 (OI-TACS-02 half (i)).  If this array and §3
+ * disagree, this array is wrong.  scripts/check-tcap-map.ts diffs the two in CI,
+ * along with k_electrode_names[], k_electrode_mni[] and both channel counts —
+ * per NP-CONV-001 §8, because a 21-row map's off-by-one reads as agreement.
+ *
  * Index = np_hd_electrode_t; value = driver channel 0–20.  One electrode, one
  * driver channel, no sharing.
  *
@@ -78,6 +85,9 @@ static const np_hd_mni_t k_clinical_targets[] = {
  *
  * If cost pressure ever forces sharing again, the rule this table now embodies is:
  * never alias two electrodes within one ring radius (~60 mm) of each other.
+ * That rule is NP-HW-TCAP-001 REQ-TCAP-03, and check-tcap-map.ts re-derives it
+ * from the MNI coordinates rather than trusting this map to be an identity — so
+ * it still bites if sharing is reintroduced.
  */
 static const uint8_t k_driver_channel[NP_HD_CH_COUNT] = {
     /*FP1*/ 0, /*FP2*/ 1, /*F7*/  2, /*F3*/  3, /*FZ*/  4, /*F4*/  5, /*F8*/  6,
