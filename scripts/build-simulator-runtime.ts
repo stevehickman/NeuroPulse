@@ -18,6 +18,16 @@
  * Run after changing simulator/src/ or the web parser:
  *   bun scripts/build-simulator-runtime.ts
  * Pass --check to fail without writing when the bundle is stale (CI).
+ *
+ * **A locale edit is not a source change for this bundle.** The import graph
+ * reaches app/web/src/lib/i18n.ts, which statically imports the generated
+ * en.json, so the fingerprint covered the whole English string table — and
+ * adding a key marked the bundle stale while a rebuild produced a
+ * byte-identical artefact. That is a false alarm with a real cost: it failed CI
+ * on the one PR that touched locales, and the fix was a commit whose entire
+ * diff was the fingerprint line. Locale content is therefore excluded from the
+ * fingerprint (see fingerprintSources), and the exclusion is *checked* rather
+ * than assumed by assertNoLocaleContent below.
  */
 
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
@@ -85,13 +95,41 @@ function sourceGraph(entry: string): string[] {
   return [...seen].sort();
 }
 
-/** SHA-256 over every source path and its contents. */
+/**
+ * Generated locale JSON, reached through i18n.ts's static `en.json` import.
+ * These are build outputs (CLAUDE.md §17), not committed sources, and none of
+ * their content survives into the bundle — see assertNoLocaleContent, which
+ * holds this claim to account on every build.
+ */
+const GENERATED_LOCALE = /app\/web\/src\/generated\/locales\/[^/]+\.json$/;
+
+/** Marker hashed in place of an excluded file's bytes. */
+const CONTENT_EXCLUDED = '<generated-locale: content excluded from fingerprint>';
+
+/**
+ * SHA-256 over every source path and its contents — except generated locale
+ * files, whose PATH is hashed and whose CONTENT is not.
+ *
+ * Exactly one such file is in the graph: app/web/src/generated/locales/en.json,
+ * i18n.ts's static fallback import. The other ten locales arrive through a
+ * dynamic template specifier (`await import(\`…/${bcp47}.json\`)`) that the
+ * walker above cannot resolve and so has never fingerprinted — which is itself
+ * the tell that this content was never load-bearing here. Adding a locale has
+ * always been invisible to this fingerprint; what changes is that editing en
+ * now is too.
+ *
+ * Hashing it made the fingerprint depend on the entire English string table,
+ * none of which the artefact contains. That is not conservatism: an
+ * invalidation that cannot correspond to any change in the output is noise, and
+ * a check that cries wolf is a check people learn to re-run past.
+ */
 function fingerprintSources(files: string[]): string {
   const hash = createHash('sha256');
   for (const file of files) {
-    hash.update(file.slice(ROOT.length));
+    const rel = file.slice(ROOT.length);
+    hash.update(rel);
     hash.update('\0');
-    hash.update(readFileSync(file));
+    hash.update(GENERATED_LOCALE.test(rel) ? CONTENT_EXCLUDED : readFileSync(file));
     hash.update('\0');
   }
   return hash.digest('hex');
@@ -127,6 +165,39 @@ function assertNoProtocolContent(bundle: string): void {
   }
 }
 
+/**
+ * No user-facing string may end up inside the bundle. This is what licenses
+ * fingerprintSources to ignore generated locale content: if a refactor ever
+ * makes i18n.ts's translations survive tree-shaking, the exclusion becomes
+ * unsafe — a locale edit would change the artefact without changing the
+ * fingerprint — and this is where that turns into a failed build instead of a
+ * silently stale bundle.
+ *
+ * The canaries are the canonical KEYS, not the values. Keys are SCREAMING_SNAKE
+ * and unique to the locale table; values are ordinary prose ("Back", "Cancel")
+ * that legitimately appears in code, so matching on them would fire on the
+ * parser doing its job. Read from locales/en.json, which is committed and is
+ * the key set every other locale must carry (CLAUDE.md §17).
+ */
+function assertNoLocaleContent(bundle: string): void {
+  const keys = Object.keys(
+    JSON.parse(readFileSync(join(ROOT, 'locales', 'en.json'), 'utf8')) as Record<string, string>,
+  );
+  if (keys.length === 0) {
+    throw new Error('no canonical locale keys found — the locale content check would be vacuous');
+  }
+  for (const key of keys) {
+    if (bundle.includes(key)) {
+      throw new Error(
+        `bundle contains locale content (key ${key}) — it must contain code only.\n` +
+        'The fingerprint excludes generated locale content on the grounds that none of it\n' +
+        'reaches the bundle. That is no longer true, so the exclusion in fingerprintSources\n' +
+        'is now unsafe and must be revisited before this bundle can be trusted.',
+      );
+    }
+  }
+}
+
 const check = process.argv.includes('--check');
 const fingerprint = fingerprintSources(sourceGraph(ENTRY));
 
@@ -147,8 +218,9 @@ if (check) {
   const committed = readFileSync(OUT, 'utf8');
 
   // The committed artefact is the one that ships, so it is the one worth
-  // checking for baked-in protocol content.
+  // checking for baked-in protocol or locale content.
   assertNoProtocolContent(committed);
+  assertNoLocaleContent(committed);
 
   const line = committed.split('\n').find(l => l.startsWith(FINGERPRINT_TAG));
   const recorded = line?.slice(FINGERPRINT_TAG.length).trim();
@@ -184,6 +256,7 @@ if (!result.success) {
 
 const built = banner(fingerprint) + (await result.outputs[0]!.text());
 assertNoProtocolContent(built);
+assertNoLocaleContent(built);
 
 mkdirSync(dirname(OUT), { recursive: true });
 writeFileSync(OUT, built);

@@ -195,9 +195,11 @@ jobs:
       # plugin cannot cover them: `tsc --noEmit`, and — less obviously —
       # build-simulator-runtime.ts, which walks the import graph from
       # nppsParser.ts, reaches i18n.ts, and errors on an import it cannot
-      # resolve. That one also *fingerprints* what it finds, by path and content,
-      # so the locale files must be present and at their final paths before it
-      # runs or the recorded fingerprint is not reproducible.
+      # resolve. So en.json must exist, at its final path, before that step runs.
+      # Its CONTENT no longer matters: the fingerprint hashes generated locale
+      # files by path only, because none of their strings reach the bundle. That
+      # is why a locale-only PR no longer reports a stale bundle whose rebuild
+      # would be byte-identical — see the script's own header.
       - name: Generate locale files from canonical locales/*.json
         working-directory: .
         run: bun scripts/sync-locales.ts
