@@ -8,10 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -27,8 +24,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import life.neurone.app.NeurOneApplication
 import life.neurone.app.R
-import life.neurone.core.consent.ConsentStore
-import life.neurone.core.session.SessionHistoryStore
 
 // Screen skeletons — structure and privacy wiring in place; visual completion
 // tracked as follow-up work in app/android/ISA.md (Out of Scope note).
@@ -40,56 +35,8 @@ import life.neurone.core.session.SessionHistoryStore
 
 // HistoryScreen lives in HistoryScreen.kt (list + detail + Adaptive Adjustments card).
 // ConsumablesScreen lives in ConsumablesScreen.kt (wired to the core ConsumableTracker).
-
-@Composable
-fun ConsentDashboardScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
-    val store = app.consentStore
-    var blanket by remember { mutableStateOf(store.researchConsent.blanketConsentGranted) }
-    var showPortal by remember { mutableStateOf(false) }
-
-    if (showPortal) {
-        ResearchPortalScreen(
-            store = app.researchSuggestionStore,
-            onBack = { showPortal = false },
-            modifier = modifier,
-        )
-        return
-    }
-
-    Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
-        Text(stringResource(R.string.and_ui_privacy_research), style = MaterialTheme.typography.headlineMedium)
-        Spacer(Modifier.height(16.dp))
-        Text(stringResource(R.string.and_ui_blanket_research_consent))
-        Switch(
-            checked = blanket,
-            onCheckedChange = { on ->
-                if (!on) {
-                    // Blanket withdrawal also tears down research analytics
-                    // (CLAUDE.md §6.0) — handled inside the store.
-                    store.withdrawBlanketResearchConsent()
-                } else {
-                    store.updateResearchConsent(
-                        store.researchConsent.copy(blanketConsentGranted = true),
-                    )
-                }
-                blanket = on
-            },
-        )
-        Spacer(Modifier.height(16.dp))
-        Text(
-            stringResource(R.string.consent_once_your_anonymized_data_has_been_included) +
-                stringResource(R.string.and_ui_individually_withdrawn_from_that_dataset_wit) +
-                stringResource(R.string.and_ui_permanently_stops_any_further_data_flowing_t) +
-                stringResource(R.string.consent_data_from_sessions_that_occurred_before_your),
-            style = MaterialTheme.typography.bodySmall,
-        )
-        Spacer(Modifier.height(24.dp))
-        Text(stringResource(R.string.portal_research_ideas), style = MaterialTheme.typography.titleMedium)
-        Text(stringResource(R.string.and_ui_suggest_studies_vote_and_register_interest_i), style = MaterialTheme.typography.bodySmall)
-        Spacer(Modifier.height(8.dp))
-        OutlinedButton(onClick = { showPortal = true }) { Text(stringResource(R.string.and_ui_open_research_portal)) }
-    }
-}
+// ConsentDashboardScreen lives in ConsentDashboardScreen.kt (the CLAUDE.md §6 consent
+// surface: clinician grants, research consent, study audit trail, invitations).
 
 @Composable
 fun SettingsScreen(app: NeurOneApplication, modifier: Modifier = Modifier) {
