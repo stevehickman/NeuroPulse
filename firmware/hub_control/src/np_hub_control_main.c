@@ -80,8 +80,15 @@ extern void     np_mod_cvns_push_ppg(uint32_t sample, uint32_t timestamp_ms);
 
 static EventGroupHandle_t g_hub_events;
 
-/* Protocol receive buffer — in LPSDR4 RAM (32 MB). Sized for the largest
- * expected protocol blob (NP_HUB_PROTO_BLOB_MAX, defined in np_hub_types.h). */
+/* Protocol receive buffer.  Sized for the largest expected protocol blob
+ * (NP_HUB_PROTO_BLOB_MAX, defined in np_hub_types.h).
+ *
+ * This said "in LPSDR4 RAM (32 MB)" until NP-SW-CI-001 §4.13.  It never was:
+ * an ordinary static goes in .bss, which the application linker script puts in
+ * the OCRAM2 staging reservation, and the §4.12.1 .bss census measured this
+ * buffer there at 6,144 B.  There is no external SDRAM on this device and
+ * OI-SWCI-46 decided there does not need to be — three comments in this
+ * codebase described a placement the compiler was never asked for. */
 static uint8_t g_proto_buf[NP_HUB_PROTO_BLOB_MAX];
 
 /* ── SHDR log callback (wired from module registry to session logger) ─────────── */

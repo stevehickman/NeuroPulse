@@ -222,34 +222,37 @@ SECTIONS
         __dtcm_bss_end__ = .;
     } > DTCM
 
-    /* ── .lpsdr4: declared by code, homed by nothing until now ────────────── */
+    /* ── .lpsdr4: a tripwire for a memory this device does not have ──────── */
     /*                                                                         */
-    /* NP-SW-CI-001 §4.12.2.  np_hd_session.c places s_source_power (9,788 B)  */
-    /* in a section called ".lpsdr4" and its comment said the name "names a    */
-    /* region in the ARM linker script".  It did not.  No linker script in     */
-    /* this repository declared .lpsdr4, or any SDRAM region, or any address   */
-    /* at 0x80000000 — and nothing configures the SEMC controller that would   */
-    /* make external SDRAM answer at all.                                      */
+    /* NP-SW-CI-001 §4.12.2 (raised OI-SWCI-46), §4.13 (closed it).            */
     /*                                                                         */
-    /* It was invisible because --gc-sections drops it: np_hd_session is       */
-    /* unreachable from the entry point today.  Measured with --no-gc-sections */
-    /* (2026-09-03, arm-none-eabi-gcc 13.2.1), ld's orphan placement put       */
-    /* .lpsdr4 at VMA 0x20000554 — inside DTCM, immediately after .data — with */
-    /* an LMA inside the staging image.  Nothing would ever have copied it:    */
-    /* Reset_Handler copies only __etext..__data_end__, and __STARTUP_CLEAR_BSS */
-    /* zeroes only __bss_start__..__bss_end__.  A buffer annotated "put me in  */
-    /* the 32 MB external SDRAM" would have silently become 9,788 B of DTCM    */
-    /* holding whatever was there before, the moment sLORETA became reachable. */
+    /* np_hd_session.c used to place s_source_power (9,788 B) in a section     */
+    /* called ".lpsdr4", and said the name "names a region in the ARM linker   */
+    /* script".  It did not.  No linker script here declared .lpsdr4, or any   */
+    /* SDRAM region, or any address at 0x80000000 — and nothing configures the */
+    /* SEMC controller that would make external SDRAM answer at all.  Measured */
+    /* with --no-gc-sections (2026-09-03, arm-none-eabi-gcc 13.2.1), ld's      */
+    /* orphan placement put .lpsdr4 at VMA 0x20000554 — inside DTCM, right     */
+    /* after .data — with an LMA nothing copies from and no zeroing.           */
     /*                                                                         */
-    /* Giving it an output section is what stops it being an orphan; the       */
-    /* ASSERT below is what stops the section being a place for the problem to */
-    /* hide.  Empty today and the link is unaffected.  Non-empty and the link  */
-    /* FAILS, naming the decision that has to be made first.  Deliberately no  */
-    /* KEEP(): keeping it would defeat the --gc-sections that makes it empty,  */
-    /* and fire the assert on a buffer nothing uses.                           */
+    /* §4.13 closed OI-SWCI-46 by removing the demand rather than establishing */
+    /* the supply: there is no SDRAM part, and the whole stated demand         */
+    /* (9,788 B here plus a ~205 KB weight matrix) fits on-chip with room to   */
+    /* spare.  s_source_power is now an ordinary static in .bss, and NOTHING   */
+    /* in the tree places anything in .lpsdr4.                                 */
+    /*                                                                         */
+    /* WHICH IS WHY THE KEEP() IS HERE NOW, and its absence was right before.  */
+    /* §4.12.2 deliberately omitted KEEP: with s_source_power still carrying   */
+    /* the attribute, keeping the section would have defeated the              */
+    /* --gc-sections that made it empty and fired the assert on a buffer       */
+    /* nothing used.  That cost the gate its timing — the ASSERT could only    */
+    /* fire once the data became REACHABLE, which is exactly the condition     */
+    /* that hid the original defect.  With the section empty at source, KEEP() */
+    /* is free and turns the gate around: a new .lpsdr4 buffer fails the link  */
+    /* the moment it EXISTS, reachable or not.                                 */
     .lpsdr4 (NOLOAD) : {
-        *(.lpsdr4)
-        *(.lpsdr4.*)
+        KEEP(*(.lpsdr4))
+        KEEP(*(.lpsdr4.*))
     } > DTCM
 
     /* ── Zero-initialised data, incl. the FreeRTOS heap_4 pool ─────────────── */
@@ -408,14 +411,15 @@ SECTIONS
     ASSERT(__dtcm_bss_start__ <= __dtcm_bss_end__,
            "ERROR: .dtcm_bss bounds are inverted — np_app_dtcm_bss_clear() would not zero the region")
 
-    /* ── §4.12.2: .lpsdr4 has a section so it cannot orphan, and must be ───── */
-    /* empty because no external SDRAM is established.                         */
+    /* ── §4.13 (OI-SWCI-46): .lpsdr4 is empty, and KEEP() above makes that ── */
+    /* checkable the moment a buffer is added rather than when one is used.    */
     /*                                                                         */
     /* Nothing configures the SEMC controller, no linker script declares an    */
-    /* SDRAM region, and no address at 0x80000000 is mapped.  Until one of     */
-    /* those changes, code that asks for .lpsdr4 is asking for memory this     */
-    /* image does not have, and the honest answer is to refuse to link rather  */
-    /* than to place it somewhere plausible.                                   */
+    /* SDRAM region, no address at 0x80000000 is mapped, and no SDRAM part is  */
+    /* selected in any BOM.  OI-SWCI-46 decided this stays true for SW-02:     */
+    /* the sLORETA buffers that asked for external memory fit on-chip, so the  */
+    /* honest answer to a .lpsdr4 placement is to refuse to link rather than   */
+    /* to put it somewhere plausible.                                          */
     ASSERT(SIZEOF(.lpsdr4) == 0,
-           "ERROR: something was placed in .lpsdr4, but no external LPSDR4 SDRAM is established — nothing configures the SEMC controller and no linker script declares an SDRAM region. Give the data a real home (DTCM, .bss) or establish SDRAM first (NP-SW-CI-001 section 4.12.2)")
+           "ERROR: something was placed in .lpsdr4, but this device has no external SDRAM — nothing configures the SEMC controller, no linker script declares an SDRAM region, and no SDRAM part is selected. Give the data a real home (.bss, or .dtcm_bss with a measurement that earns it): the sLORETA buffers that used to ask for external memory fit on-chip. Establishing SDRAM is a hardware decision, not a linker-script one (NP-SW-CI-001 section 4.13, OI-SWCI-46)")
 }

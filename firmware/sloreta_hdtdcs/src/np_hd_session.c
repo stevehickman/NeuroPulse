@@ -13,43 +13,54 @@
 #include "np_hd_session.h"
 #include <string.h>
 
-/* ── Source power buffer (caller allocates in LPSDR4 or SRAM) ───────────────── */
-/* 2447 voxels × float32 = 9.6 KB — placed in LPSDR4 (32 MB available).        */
-/* For linker purposes, allocated as a file-scope array in LPSDR4 section.      */
-/*                                                                             */
-/* NP_HD_LPSDR4 is the placement attribute for the device build only.  Host
- * object formats have no such section, and Mach-O rejects a section name
- * without a "segment,section" pair outright.  Host test builds (NPTEST_HOST)
- * therefore place the array normally — placement is a link-time concern with no
- * bearing on the logic under test.
+/* ── Source power buffer ─────────────────────────────────────────────────────
  *
- * ── WHAT ".lpsdr4" ACTUALLY GETS YOU TODAY: NOTHING.  NP-SW-CI-001 §4.12.2 ──
+ * 2447 voxels x float32 = 9,788 B.  An ordinary static, so it lands in .bss
+ * and the application linker script puts .bss in the bootloader's OCRAM2
+ * staging reservation.
  *
- * This comment used to say that ".lpsdr4" "names a region in the ARM linker
- * script".  It did not, in any linker script in this repository, and there is
- * no external SDRAM to name: nothing configures the SEMC controller, and no
- * region or address at 0x80000000 is declared anywhere.
+ * ── WHY IT IS NOT IN EXTERNAL SDRAM ANY MORE.  NP-SW-CI-001 §4.13 ────────────
  *
- * That went unnoticed because --gc-sections drops this array — np_hd_session is
- * unreachable from np_application's entry point.  Measured with gc disabled
- * (2026-09-03, arm-none-eabi-gcc 13.2.1), ld's orphan placement put .lpsdr4 at
- * VMA 0x20000554: inside DTCM, right after .data, with a load address inside
- * the staging image that nothing ever copies from.  Reset_Handler copies only
- * __etext..__data_end__ and __STARTUP_CLEAR_BSS zeroes only
- * __bss_start__..__bss_end__, so the array would have held stale RAM.
+ * This array used to carry __attribute__((section(".lpsdr4"))), and the comment
+ * here used to say that ".lpsdr4" "names a region in the ARM linker script".
+ * It did not, in any linker script in this repository: §4.12.2 found that no
+ * SDRAM region and no address at 0x80000000 was declared anywhere, and that
+ * nothing configures the SEMC controller that would make an external part
+ * answer at all.  Measured with --gc-sections off, ld orphan-placed the array
+ * at VMA 0x20000554 — inside DTCM, with a load address nothing copies from and
+ * no zeroing — so it would have become 9,788 B of stale DTCM the moment
+ * np_hd_session became reachable.  §4.12.2 made the link refuse rather than
+ * mis-place, and raised establishing SDRAM as OI-SWCI-46.
  *
- * app_imxrt1062.ld now declares a .lpsdr4 output section that must be EMPTY.
- * So this attribute is currently a marker of intent, and the moment the array
- * becomes reachable the LINK FAILS with a message naming the decision that has
- * to come first — rather than the array silently becoming 9,788 B of DTCM.
- * When SDRAM is established, that assert is the one line to change.           */
-#ifdef NPTEST_HOST
-#define NP_HD_LPSDR4
-#else
-#define NP_HD_LPSDR4 __attribute__((section(".lpsdr4")))
-#endif
+ * OI-SWCI-46 is closed by DELETING THE DEMAND, not by building the supply.
+ * Three measured facts, in the order that decides it:
+ *
+ *   1. There is no part.  No BOM line, no schematic, no pinout, no timings — so
+ *      a SEMC initialisation sequence written now would be invented register
+ *      values for silicon nobody has run, which is the trade
+ *      firmware/vendor/mcux_sdk/VERSION already refuses on the clock sequence.
+ *   2. The demand fits on-chip several times over.  This array plus the ~205 KB
+ *      weight matrix NP_HD_WEIGHT_MATRIX_BYTES describes is 215,336 B.  The
+ *      staging region had 312,716 B unallocated as measured on the phase-10
+ *      image (2026-09-03, arm-none-eabi-gcc 13.2.1), and the established DTCM
+ *      a further ~439 KB.  A 32 MB external part would have been carrying
+ *      0.64 % of itself.
+ *   3. So the external memory is not load-bearing for sLORETA, and the only
+ *      thing the .lpsdr4 attribute bought was a link that could not succeed.
+ *
+ * DTCM was NOT chosen, deliberately.  §4.12.3's rule stands: ucHeap earns DTCM
+ * without a profiler because every task stack is cut from it, and that is a
+ * property of the calling convention.  Which OTHER buffers are hot is a
+ * question about a workload, this image cannot be profiled, and sLORETA has no
+ * better claim than the rest of .bss.  It goes where the rest of .bss goes and
+ * moves when there is a bench measurement to move it on.
+ *
+ * The linker script keeps a .lpsdr4 output section asserted empty, now with
+ * KEEP() so that --gc-sections cannot hide a new one: adding any .lpsdr4 buffer
+ * fails the link immediately rather than when it first becomes reachable.
+ */
 
-static float s_source_power[NP_HD_SLORETA_N_VOXELS] NP_HD_LPSDR4;
+static float s_source_power[NP_HD_SLORETA_N_VOXELS];
 
 /* ── Internal context ────────────────────────────────────────────────────────── */
 

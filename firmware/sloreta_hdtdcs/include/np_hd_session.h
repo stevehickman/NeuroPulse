@@ -25,8 +25,9 @@ typedef struct np_hd_session np_hd_session_t;
 
 /*
  * Create (or return existing) session.
- * weight_matrix: precomputed sLORETA W matrix in LPSDR4.  Must remain
- *   valid for the full session.
+ * weight_matrix: precomputed sLORETA W matrix, on-chip (NP-SW-CI-001 §4.13 —
+ *   this said LPSDR4, and there is no external SDRAM).  Must remain valid for
+ *   the full session.
  * voxel_mni: flash-resident MNI lookup table.
  * config: session parameters from signed app protocol.
  * display_cb: called at each stage transition and during stimulation tick.

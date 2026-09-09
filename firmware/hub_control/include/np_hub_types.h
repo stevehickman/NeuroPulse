@@ -159,7 +159,7 @@ typedef char _np_proto_socket_mask_covers_domain
                                     NP_HUB_PROTO_PARAMS_MAX) +                    \
     NP_HUB_PROTO_SIG_LEN)
 
-/* ── Parsed command (held in LPSDR4 RAM after protocol parse) ─────────────────── */
+/* ── Parsed command (held in the runner context in .bss — NP-SW-CI-001 §4.13) ── */
 
 typedef struct {
     np_hub_mod_type_t mod_type;
@@ -313,7 +313,7 @@ typedef struct __attribute__((packed)) {
     uint8_t  gain;          /* ADS1299 PGA: 0=1× 1=2× 2=4× 3=6× 4=8× 5=12× 6=24× */
     uint8_t  notch;         /* 0=none, 1=50Hz, 2=60Hz */
     uint8_t  ref_mode;      /* 0=linked_ear (A1+A2), 1=Cz, 2=average */
-    uint8_t  sloreta_en;    /* 1=run sLORETA source imaging; target map written to LPSDR4 */
+    uint8_t  sloreta_en;    /* 1=run sLORETA source imaging (buffers on-chip, §4.13) */
 } np_mod_qeeg_21ch_params_t;
 
 /* ── T2: TMS focal figure-8 coil (NP_MOD_TMS) ──────────────────────────────── */
