@@ -50,6 +50,19 @@
                                                      * MCU must not grant CLIN_STIM until a
                                                      * valid area command has been applied */
 
+/* OI-CHARGE-04: the same fail-closed gate for the T1 tDCS channel.  A SEPARATE
+ * bit, not a widening of bit 2, because the gate is per-channel: bit 2 gates
+ * CLIN_STIM only and bit 3 gates TDCS only.  One shared "geometry required"
+ * bit would have coupled them — a session carrying T1 tDCS (geometry declared)
+ * alongside clinical tACS (which shares the CLIN_STIM enable bit and declares
+ * no geometry) would have had clinical tACS gated off by the tDCS declaration.
+ * Both bits are advertised on EVERY heartbeat, so a lost frame cannot disarm
+ * either gate.                                                               */
+#define NP_SESSION_STATUS_GEOM_REQ_TDCS  (1U << 3)  /* OI-CHARGE-04: session needs a tDCS
+                                                     * electrode-geometry declaration; safety
+                                                     * MCU must not grant TDCS until a valid
+                                                     * area command has been applied     */
+
 /* ── Session signature command constants ────────────────────────────────── */
 
 #define NP_SAFETY_CMD_MAGIC_0       0xC0U   /* distinguishes from heartbeat 0xBE */

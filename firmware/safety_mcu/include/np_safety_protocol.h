@@ -149,6 +149,15 @@
  * this identity is why bit positions above 4 must never shift.               */
 #define NP_SAFETY_CH_CLIN_STIM      13U
 
+/* Charge-monitor channel INDEX for the T1 tDCS channel (= bit position of
+ * NP_SAFETY_EN_TDCS above).  OI-CHARGE-04: tDCS now declares its electrode
+ * geometry in the signed session descriptor, the hub delivers that area on
+ * this channel, and the fail-safe geometry gate covers it — so the 25 cm²
+ * NP_ELECTRODE_AREA_CM2 fallback is never what a tDCS session actually runs
+ * against.  Same bit-position ≡ current_ua[] slot ≡ accumulator index
+ * identity as CLIN_STIM; see the reserved-bits note above.                  */
+#define NP_SAFETY_CH_TDCS           6U
+
 /* ── Frame lengths ────────────────────────────────────────────────────────── */
 /* NP_SAFETY_FRAME_LEN is the MCU reply frame length (defined in np_safety_config.h as 8).
  * The heartbeat RX frame is NP_SAFETY_RX_EXT_FRAME_LEN (38 bytes).                      */
@@ -220,8 +229,11 @@ typedef struct {
     bool     session_active;   /* session underway */
     bool     cvns_active;      /* cervical VNS enabled this session */
     bool     geom_required;    /* OI-CHARGE-03: hub declared this session needs an
-                                * electrode-geometry override (from heartbeat
-                                * NP_SESSION_STATUS_GEOM_REQUIRED bit)            */
+                                * electrode-geometry override on CLIN_STIM (from
+                                * heartbeat NP_SESSION_STATUS_GEOM_REQUIRED bit)  */
+    bool     geom_required_tdcs; /* OI-CHARGE-04: hub declared this session needs an
+                                * electrode-geometry declaration on TDCS (from
+                                * heartbeat NP_SESSION_STATUS_GEOM_REQ_TDCS bit)  */
 } np_safety_state_t;
 
 /* np_safety_sig_cmd_t, NP_SAFETY_CMD_MAGIC_0/1, NP_SAFETY_CMD_SESSION_SIG,

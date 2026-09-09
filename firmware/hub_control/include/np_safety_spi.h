@@ -43,7 +43,9 @@
  * NEVER write an np_session_state_t enum value into session_status directly:
  * NP_SESSION_RUNNING (=3) would assert ACTIVE|CVNS_REENABLE and
  * NP_SESSION_PAUSED (=4) would assert GEOM_REQUIRED.  (This was a live bug —
- * fixed with OI-CVNS-HUB-01.)
+ * fixed with OI-CVNS-HUB-01.)  Bit 3 (GEOM_REQ_TDCS, OI-CHARGE-04) makes the
+ * enum-as-flags failure worse still, not better: NP_SESSION_COMPLETE and
+ * anything else with bit 3 set would now gate tDCS off as well.
  *
  * ACTIVE maps from RUNNING, PAUSED, and STOPPING: the MCU resets per-session
  * state (session signature, charge accumulator, impedance checks) on the
@@ -56,7 +58,8 @@
  */
 static inline uint8_t np_safety_session_status_bits(np_session_state_t state,
                                                     bool geom_required,
-                                                    bool cvns_reenable)
+                                                    bool cvns_reenable,
+                                                    bool geom_required_tdcs)
 {
     uint8_t bits = 0U;
     if (state == NP_SESSION_RUNNING ||
@@ -69,6 +72,9 @@ static inline uint8_t np_safety_session_status_bits(np_session_state_t state,
     }
     if (geom_required) {
         bits |= (uint8_t)NP_SESSION_STATUS_GEOM_REQUIRED;
+    }
+    if (geom_required_tdcs) {
+        bits |= (uint8_t)NP_SESSION_STATUS_GEOM_REQ_TDCS;
     }
     return bits;
 }
@@ -119,6 +125,24 @@ np_hub_status_t np_safety_spi_heartbeat(np_session_state_t  session_state,
  * (also cleared by np_safety_spi_disable_all()).
  */
 void np_safety_spi_set_geom_required(bool required);
+
+/*
+ * np_safety_spi_set_geom_required_tdcs — the OI-CHARGE-04 counterpart for the
+ * T1 tDCS channel.  While set, every heartbeat carries
+ * NP_SESSION_STATUS_GEOM_REQ_TDCS and the safety MCU keeps TDCS out of
+ * granted_mask until it has applied a valid electrode-area command for
+ * NP_SAFETY_CH_TDCS.
+ *
+ * Deliberately a SECOND flag rather than a widening of the CLIN_STIM one: the
+ * gates are per-channel, so declaring tDCS geometry must not gate off clinical
+ * tACS, which shares the CLIN_STIM enable bit and declares no geometry.
+ *
+ * The session runner sets this true for EVERY session containing a tDCS
+ * command — including one whose descriptor declares no area, which is exactly
+ * the case that must not run.  Cleared on session end/abort (also cleared by
+ * np_safety_spi_disable_all()).
+ */
+void np_safety_spi_set_geom_required_tdcs(bool required);
 
 /*
  * np_safety_spi_set_cvns_reenable — assert (or clear) the CVNS re-enable bit

@@ -153,7 +153,11 @@ static void test_wire_layout(void)
           "layout: v2 command header is 14 bytes (12 + target_kind + target_len)");
     check(NP_HUB_SOCKET_MASK_BYTES * 8U == 128U,
           "layout: socket bitmap covers the full 7-bit socket domain");
-    check(NP_HUB_PROTO_VERSION == 0x0002U, "layout: protocol version is v2");
+    /* OI-CHARGE-04 bumped v2 → v3: np_mod_tdcs_params_t grew
+     * electrode_area_mcm2, so a v2 descriptor's tDCS block is a different
+     * length for the same modality code.  hubCompiler.ts PROTO_VERSION must
+     * move with this constant or every descriptor is rejected as BAD_VERSION. */
+    check(NP_HUB_PROTO_VERSION == 0x0003U, "layout: protocol version is v3");
 }
 
 /* ── Slot-addressed commands still work ───────────────────────────────────────── */

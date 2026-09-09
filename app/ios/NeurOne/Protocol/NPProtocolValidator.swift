@@ -137,16 +137,29 @@ struct NPProtocolValidator {
             validateModality(block, totalDurationSeconds: totalDurationSeconds, into: &result)
         }
 
-        // Cross-modality charge density check for tDCS (ISC-38).
-        // Charge density (µC/cm²) = I(mA) × t(s) / A(cm²).
-        // Area is estimated as NPHardwareLimits.tdcsDefaultElectrodeAreaCm2 per electrode position.
+        // Charge-density check for tDCS (ISC-38; model corrected by OI-CHARGE-04).
+        // Charge density (µC/cm²) = I(mA) × t(s) / A(cm²), PER ELECTRODE.
+        //
+        // Two things changed here on 2026-09-09, and the second is the larger one:
+        //
+        //  1. The area is `p.electrodeAreaCm2` — declared by the protocol and carried to
+        //     the safety MCU in the signed descriptor — not a global app-side assumption.
+        //     tdcsDefaultElectrodeAreaCm2 is now only what a new block is seeded with.
+        //  2. The denominator is ONE electrode's area, not the sum across the montage.
+        //     The full session current passes through each electrode of a pair, so summing
+        //     (35 × electrodeCount) modelled a current split that never happens and
+        //     under-reported the density at every electrode: 2.8× permissive for one pair
+        //     against the enforcer's 25 cm², 8.4× for three. Fixing only the constant
+        //     would have left most of the gap in place.
+        //
+        // An area of 0 or less is reported by validateModality as an electrodeAreaCm2
+        // error; skipping it here keeps one defect to one message instead of adding an
+        // "Infinity µC/cm²" alongside it.
         if let dur = totalDurationSeconds, dur > 0 {
             for block in enabledModalities {
                 if case .tdcs(let p) = block.params {
-                    let numElectrodes = Double(p.electrodePairs.flatMap { $0 }.count)
-                    guard numElectrodes > 0 else { continue }
-                    let totalAreaCm2 = NPHardwareLimits.tdcsDefaultElectrodeAreaCm2 * numElectrodes
-                    let chargeDensity = p.intensityMilliamps * Double(dur) / totalAreaCm2
+                    guard p.electrodeAreaCm2 > 0 else { continue }
+                    let chargeDensity = p.intensityMilliamps * Double(dur) / p.electrodeAreaCm2
                     if chargeDensity > NPHardwareLimits.tdcsMaxChargeDensityUCcm2 {
                         result.addError(
                             modality: .tdcs,
@@ -155,7 +168,8 @@ struct NPProtocolValidator {
                             limit: "\(Int(NPHardwareLimits.tdcsMaxChargeDensityUCcm2)) µC/cm²",
                             source: .hardware,
                             message: String(format: String(localized: "VALIDATE_MSG_TDCS_CHARGEDENSITY"),
-                                            String(format: "%.1f", chargeDensity))
+                                            String(format: "%.1f", chargeDensity),
+                                            String(Int(NPHardwareLimits.tdcsMaxChargeDensityUCcm2)))
                         )
                     }
                 }
@@ -665,6 +679,24 @@ struct NPProtocolValidator {
                     format: String(localized: "VALIDATE_MSG_GENERAL_ELECTRODEPAIRS"),
                     String(describing: p.electrodePairs.count),
                     String(describing: NPHardwareLimits.tdcsMaxElectrodePairs)
+                )
+            )
+        }
+
+        // Hardware: declared per-electrode pad geometry (OI-CHARGE-04).
+        // An undeclared area is an error, not a fallback: the hub refuses a zero area and
+        // the safety MCU's geometry gate holds tDCS out of granted_mask, so a protocol
+        // that reaches the device without one simply never stimulates.
+        if !(p.electrodeAreaCm2 > 0) || p.electrodeAreaCm2 > NPHardwareLimits.tdcsMaxElectrodeAreaCm2 {
+            result.addError(
+                modality: m, param: "electrodeAreaCm2", displayName: String(localized: "VALIDATE_PARAM_ELECTRODE_AREA"),
+                actual: "\(p.electrodeAreaCm2) cm²",
+                limit: "0 < A ≤ \(NPHardwareLimits.tdcsMaxElectrodeAreaCm2) cm²",
+                source: .hardware,
+                message: String(
+                    format: String(localized: "VALIDATE_MSG_TDCS_ELECTRODEAREA"),
+                    String(describing: p.electrodeAreaCm2),
+                    String(describing: NPHardwareLimits.tdcsMaxElectrodeAreaCm2)
                 )
             )
         }

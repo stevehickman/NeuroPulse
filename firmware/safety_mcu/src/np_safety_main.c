@@ -250,6 +250,9 @@ int main(void)
                  * single lost frame cannot disarm the geometry gate.          */
                 s_state.geom_required =
                     (rx.session_status & NP_SESSION_STATUS_GEOM_REQUIRED) != 0U;
+                /* OI-CHARGE-04: the same, for the T1 tDCS channel's own gate. */
+                s_state.geom_required_tdcs =
+                    (rx.session_status & NP_SESSION_STATUS_GEOM_REQ_TDCS) != 0U;
 
                 /* Reset watchdog on valid heartbeat */
                 np_spi_watchdog_tick(&s_state, &rx, &tx);
@@ -295,11 +298,12 @@ int main(void)
                 }
             }
             /* Bad magic/type/checksum: silently ignored; the hub retries.
-             * RESIDUAL RISK (OI-CHARGE-03): if the command is never applied,
-             * a small-electrode channel keeps the permissive 1000µC default —
-             * fail-OPEN.  The hub must not request CLIN_STIM enable until it has
-             * delivered the area command.  A confirmation/pending-gate for the
-             * charge limit (mirroring SIG_PENDING) is tracked as OI-CHARGE-03. */
+             * The channels that would otherwise keep the permissive 1000µC
+             * default are held OFF meanwhile by np_charge_monitor_geom_gate():
+             * CLIN_STIM on NP_SESSION_STATUS_GEOM_REQUIRED (OI-CHARGE-03) and
+             * TDCS on NP_SESSION_STATUS_GEOM_REQ_TDCS (OI-CHARGE-04).  Both
+             * bits ride every heartbeat, so a lost command cannot disarm
+             * either gate — the modality simply never starts.                 */
         }
 
         /* CVNS re-enable after cardiac cutoff:

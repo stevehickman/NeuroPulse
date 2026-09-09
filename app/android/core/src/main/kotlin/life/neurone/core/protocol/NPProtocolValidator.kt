@@ -134,15 +134,26 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
 
         for (block in enabled) validateModality(block, dur, result)
 
-        // Cross-modality tDCS charge density (ISC-38): µC/cm² = I(mA) × t(s) / A(cm²).
+        // tDCS charge density (ISC-38; model corrected by OI-CHARGE-04):
+        // µC/cm² = I(mA) × t(s) / A(cm²), PER ELECTRODE.
+        //
+        // The denominator is ONE electrode's area, not the sum across the montage. The
+        // full session current passes through each electrode of a pair, so summing
+        // (35 × electrodeCount) modelled a current split that never happens and
+        // under-reported the density at every electrode — 2.8× more permissive than the
+        // safety MCU for a single pair, 8.4× for three. And the area is now the one the
+        // protocol declares and the descriptor carries, not an app-side assumption the
+        // enforcer never saw.
+        //
+        // A non-positive area is reported by the per-modality check as an
+        // electrodeAreaCm2 error; skipping it here keeps one defect to one message.
         if (dur != null && dur > 0) {
             for (block in enabled) {
                 val p = block.params
                 if (p is NPModalityParams.Tdcs) {
-                    val numElectrodes = p.params.electrodePairs.flatten().size.toDouble()
-                    if (numElectrodes <= 0.0) continue
-                    val totalArea = NPHardwareLimits.TDCS_DEFAULT_ELECTRODE_AREA_CM2 * numElectrodes
-                    val chargeDensity = p.params.intensityMilliamps * dur.toDouble() / totalArea
+                    val area = p.params.electrodeAreaCm2
+                    if (area <= 0.0) continue
+                    val chargeDensity = p.params.intensityMilliamps * dur.toDouble() / area
                     if (chargeDensity > NPHardwareLimits.TDCS_MAX_CHARGE_DENSITY_UC_CM2) {
                         result.addError(
                             modality = NPModalityType.TDCS,
@@ -151,7 +162,10 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
                             limit = "${NPHardwareLimits.TDCS_MAX_CHARGE_DENSITY_UC_CM2.toInt()} µC/cm²",
                             source = NPLimitSource.HARDWARE,
                             message = "Estimated tDCS charge density ${fmt1(chargeDensity)} µC/cm² " +
-                                "exceeds the 40 µC/cm² safety ceiling. Reduce current or session duration.",
+                                "per electrode exceeds the " +
+                                "${NPHardwareLimits.TDCS_MAX_CHARGE_DENSITY_UC_CM2.toInt()} µC/cm² " +
+                                "safety ceiling. Reduce current, session duration, or use a " +
+                                "larger electrode.",
                         )
                     }
                 }
@@ -372,6 +386,15 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
             "intensityMilliamps", "Intensity", "${p.intensityMilliamps} mA",
             "${NPHardwareLimits.TDCS_MAX_MILLIAMPS} mA", NPLimitSource.HARDWARE,
             "tDCS intensity ${p.intensityMilliamps} mA exceeds firmware-enforced maximum of ${NPHardwareLimits.TDCS_MAX_MILLIAMPS} mA.")
+        // OI-CHARGE-04: an undeclared or unencodable pad area is an error, not a fallback.
+        // The hub refuses a zero area and the safety MCU's geometry gate holds tDCS out
+        // of granted_mask, so such a protocol would simply never stimulate.
+        if (p.electrodeAreaCm2 <= 0.0 || p.electrodeAreaCm2 > NPHardwareLimits.TDCS_MAX_ELECTRODE_AREA_CM2) r.addError(m,
+            "electrodeAreaCm2", "Electrode Area", "${p.electrodeAreaCm2} cm²",
+            "0 < A ≤ ${NPHardwareLimits.TDCS_MAX_ELECTRODE_AREA_CM2} cm²", NPLimitSource.HARDWARE,
+            "tDCS electrode area is ${p.electrodeAreaCm2} cm². Declare the area of one " +
+                "electrode, greater than 0 and at most " +
+                "${NPHardwareLimits.TDCS_MAX_ELECTRODE_AREA_CM2} cm².")
         if (p.electrodePairs.size > NPHardwareLimits.TDCS_MAX_ELECTRODE_PAIRS) r.addError(m,
             "electrodePairs", "Electrode Pairs", "${p.electrodePairs.size}",
             "${NPHardwareLimits.TDCS_MAX_ELECTRODE_PAIRS}", NPLimitSource.HARDWARE,

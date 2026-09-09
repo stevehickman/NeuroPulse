@@ -2,7 +2,7 @@
 
 **Project:** NeurOne  
 **Document:** NP-NPPS-REF-001  
-**Revision:** 15
+**Revision:** 16
 **Date:** 2026-09-07  
 **Status:** ACTIVE  
 **Effective Date:** 2026-07-17  
@@ -15,6 +15,8 @@
 
 ---
 
+> **Rev 16 (2026-09-09) — `tdcs` gains `electrode_area_cm2`, the geometry the 40 µC/cm² charge-density ceiling divides by (OI-CHARGE-04).** The grammar had no way to say how big a tDCS pad is, so every runtime supplied its own assumption — 35 cm² on iOS and Android, none at all on the web — while the Class C safety MCU enforced against a 25 cm² default of its own. `electrode_pairs` was the only geometry-adjacent field and it names 10-20 *sites*, which say nothing about pad size. The field is therefore new grammar, not a renamed alias, and **it is not advisory**: it is compiled into the signed session descriptor and the safety MCU derives its charge limit from it, so a protocol declaring an area larger than the pads actually fitted raises the real ceiling on the device. A protocol declaring none is refused rather than defaulted. **It has no short alias and carries its unit in the key** (`electrode_area_cm2: 35`, never `35cm2`): the lexer's unit suffixes are `Hz % mA s m`, and since Rev 6 a digit-leading token that is not a number with a known suffix is a parse error rather than a silent identifier — so a `cm2` literal would fail loudly, but adding `cm2` to the lexer would have been a grammar-wide change for one field. §4.5 and §12 updated; all three runtimes read and write it.
+>
 > **Rev 15 (2026-09-07) — `clinical_tacs.channel_count` is 1–21, and it is now enforced rather than clamped (OI-TACS-01 closed).** The driver has carried one channel per T2 cap electrode since 2026-08-05 (`NP_HD_DRIVER_CHANNELS` = 21, superseding "16-ch arbitrary waveform"), but the hub wire format did not follow it: `np_mod_clin_tacs_params_t` held `channel_mask_lo` and `channel_mask_hi` and stopped, so channels 16–20 could not be enabled over the wire. §4.12's `1–16` was therefore the *encoder's* limit, not the hardware's. The struct now carries a third byte, `channel_mask_ext` (channels 16–20 in bits 0–4; bits 5–7 reserved and written clear), taking it from 7 to 8 bytes, and `encodeClinicalTacs()` emits all three.
 >
 > **The second half is the part an author will notice.** Nothing in any runtime validated `channel_count`, so a `.npps` file authoring more channels than the wire could carry was **silently reduced at compile time** — the same shape of failure Rev 14 legislated against for build-time caches: no error, no mismatch, and a clinician left believing a montage ran that never did. All three validators now range-check `channel_count` against `1–21` and report an out-of-range value as a hardware error. The encoder still clamps, but only as a backstop behind that check; it is no longer where the limit lives. §12's two `clinical_tacs` rows and the §4.12 table are corrected from 16 to 21 with them.
@@ -515,12 +517,14 @@ Cortical Priming Stimulation (consumer name) / transcranial direct current stimu
 |-------|-----------|------|--------|
 | `intensity` | `intensity_milliamps` | number | 0.1–2.0 |
 | `electrode_pairs` | `electrode_pairs` | array of `[anode, cathode]` pairs | 10-20 electrode labels |
+| `electrode_area_cm2` | `electrode_area_cm2` | number | 0 < A ≤ 65.535, area of **one** electrode |
 | `ramp` | `ramp_seconds` | number | default 30 |
 
 ```
 tdcs {
     intensity: 1.5mA
     electrode_pairs: [["F3", "Fp2"]]
+    electrode_area_cm2: 35
     ramp: 30s
     interval_on: 20m
     interval_off: 20m
@@ -529,6 +533,25 @@ tdcs {
 ```
 
 The safety MCU enforces the 40 µC/cm² charge density limit regardless of script values. The 30 s ramp is also hardware-enforced; the `ramp` field sets the firmware target.
+
+**`electrode_area_cm2` is the geometry that limit divides by (OI-CHARGE-04, 2026-09-09).** It has
+no short alias and carries its unit in the key, like `frequency_hz` and `ramp_seconds`, because the
+lexer's unit suffixes are `Hz` `%` `mA` `s` `m` — `35cm2` is a digit-leading token that is not a
+number with a known suffix, which §2 makes a parse error rather than a silent identifier.
+
+Three things about it are worth stating plainly, because each is a way of getting it wrong:
+
+- **It is the area of ONE electrode, not the montage total.** Charge density is a per-electrode
+  quantity — the full session current passes through each electrode of a pair — so the value does
+  not change when pairs are added. Every runtime divides by this number alone.
+- **`electrode_pairs` does not imply it.** Those are 10-20 *sites*; a site says nothing about the
+  size of the pad clipped to it, which is why the area has to be authored rather than derived.
+- **It is not advisory.** The value is compiled into the signed session descriptor
+  (`np_mod_tdcs_params_t.electrode_area_mcm2`, floored to milli-cm²) and delivered to the Class C
+  safety MCU, which derives its own charge limit from it. A protocol that declares no area is
+  refused by the hub and held out of `granted_mask` by the safety MCU's geometry gate — it does
+  **not** fall back to a default. Declaring an area larger than the pads actually fitted therefore
+  raises the real ceiling on the device; it must match the hardware.
 
 ---
 
@@ -1389,7 +1412,8 @@ Reading the table:
 | `eeg_biofeedback` | Enum value | `vns_hrv` → `hrv_protocol` | Dual HRV + EEG biofeedback; pacer rate adapts to alpha/theta. |
 | `eeg_electrode` | Element type | `zone` → `types` | Semi-dry hydrogel EEG electrode element. |
 | `eeg_neurofeedback` | Modality block | `protocol`, `limits` | Closed-loop neurofeedback via the EEG electrode array (§4.3). |
-| `electrode_pairs` | Modality field | `tdcs` | Array of `[anode, cathode]` 10-20 label pairs. ≤3 pairs. |
+| `electrode_area_cm2` | Modality field | `tdcs` | Area of ONE electrode, cm². Compiled into the signed descriptor and enforced by the safety MCU; not derivable from `electrode_pairs` (§4.5). |
+| `electrode_pairs` | Modality field | `tdcs` | Array of `[anode, cathode]` 10-20 label pairs. ≤3 pairs. Names sites, not pad geometry — see `electrode_area_cm2`. |
 | `emdr` | Enum value | `visual_stimulation` → `mode`; `limits` → `allowed_modes` | Bilateral left/right alternation. |
 | `emdr_cadence` | Modality field (alias) | `visual_stimulation` | Alias of `emdr_cadence_hz` — left/right alternation rate in Hz. |
 | `emdr_cadence_hz` | Modality field (canonical) | `visual_stimulation` | Canonical name behind `emdr_cadence`. |

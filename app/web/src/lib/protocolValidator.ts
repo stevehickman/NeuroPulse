@@ -217,6 +217,21 @@ function validateModality(
           t('VALIDATE_MSG_TDCS_RAMPSECONDS', { 0: p.params.rampSeconds, 1: hw.tdcsRampSeconds })
         ));
       }
+      // OI-CHARGE-04: the declared pad geometry the 40 µC/cm² ceiling divides
+      // by. An undeclared or unencodable area is an error rather than a
+      // fallback: the hub refuses a 0 area and the safety MCU's geometry gate
+      // holds tDCS off, so a protocol that reaches the device without one
+      // simply never stimulates.
+      if (!(p.params.electrodeAreaCm2 > 0) ||
+          p.params.electrodeAreaCm2 > hw.tdcsMaxElectrodeAreaCm2) {
+        issues.push(issue(
+          'error', 'tdcs', 'electrodeAreaCm2', t('VALIDATE_PARAM_ELECTRODE_AREA'),
+          `${p.params.electrodeAreaCm2} cm²`,
+          `0 < A ≤ ${hw.tdcsMaxElectrodeAreaCm2} cm²`, 'hardware',
+          t('VALIDATE_MSG_TDCS_ELECTRODEAREA',
+            { 0: p.params.electrodeAreaCm2, 1: hw.tdcsMaxElectrodeAreaCm2 })
+        ));
+      }
       // Dosage
       if (l?.maxIntensityMilliamps != null && p.params.intensityMilliamps > l.maxIntensityMilliamps) {
         issues.push(issue(
@@ -576,6 +591,40 @@ export function validateProtocol(
         `${Math.floor(dur / 60)}m`, '120m', 'hardware',
         t('VALIDATE_MSG_GENERAL_DURATION_2')
       ));
+    }
+  }
+
+  // ─── tDCS charge density (OI-CHARGE-04) ──────────────────────────────────
+  // Until 2026-09-09 the web carried tdcsMaxChargeDensityUCcm2 and checked
+  // nothing against it, because it had no electrode area to divide by. It has
+  // one now, and it is the SAME number the safety MCU enforces against —
+  // authored per protocol and transmitted in the signed descriptor.
+  //
+  // Charge density is PER ELECTRODE: the full session current passes through
+  // each electrode of a pair, so the denominator is one electrode's area. It
+  // is not the sum of every electrode's area — that models a current split
+  // across electrodes that never happens, and it under-reports the density at
+  // every one of them. iOS and Android divided by that sum until this change,
+  // which is what made their pre-flight ~2.8× more permissive than the
+  // enforcer for a single pair (35 × 2 = 70 cm² against the MCU's 25).
+  if (definition.timingMode.type === 'duration' && definition.timingMode.seconds > 0) {
+    const hw  = NPHardwareLimits;
+    const dur = definition.timingMode.seconds;
+    for (const block of enabled) {
+      const mp = block.modalityParams;
+      if (mp.type !== 'tdcs') continue;
+      const area = mp.params.electrodeAreaCm2;
+      if (!(area > 0)) continue;   // already reported by the per-modality check
+      const chargeDensity = (mp.params.intensityMilliamps * dur) / area;
+      if (chargeDensity > hw.tdcsMaxChargeDensityUCcm2) {
+        issues.push(issue(
+          'error', 'tdcs', 'chargeDensityUCcm2', t('VALIDATE_PARAM_CHARGE_DENSITY'),
+          `${chargeDensity.toFixed(1)} µC/cm²`,
+          `${hw.tdcsMaxChargeDensityUCcm2} µC/cm²`, 'hardware',
+          t('VALIDATE_MSG_TDCS_CHARGEDENSITY',
+            { 0: chargeDensity.toFixed(1), 1: hw.tdcsMaxChargeDensityUCcm2 })
+        ));
+      }
     }
   }
 

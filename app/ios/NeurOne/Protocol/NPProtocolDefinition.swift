@@ -252,6 +252,11 @@ struct NPTDCSParams: Codable, Equatable {
     var intensityMilliamps: Double = 1.0         // 0.1–2 mA
     var electrodePairs: [[String]] = [["Fp1","P3"]]
     var rampSeconds: Int = 30                    // hardware-enforced, display only
+    /// OI-CHARGE-04: area of ONE electrode, cm². Authored because `electrodePairs` names
+    /// 10-20 SITES and implies nothing about pad size, while the 40 µC/cm² ceiling is a
+    /// per-electrode density. Carried in the signed session descriptor so this app and the
+    /// safety MCU divide by the same number.
+    var electrodeAreaCm2: Double = NPHardwareLimits.tdcsDefaultElectrodeAreaCm2
 }
 
 // MARK: VNS + HRV

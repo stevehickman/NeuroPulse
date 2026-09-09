@@ -57,7 +57,8 @@ extension NPSessionProtocol {
                     amplitudeMilliamps: p.intensityMilliamps,
                     durationSeconds: mod.interval.isContinuous ? durationSeconds : mod.interval.intervalOnSeconds,
                     rampSeconds: p.rampSeconds,
-                    electrodePairs: p.electrodePairs
+                    electrodePairs: p.electrodePairs,
+                    electrodeAreaCm2: p.electrodeAreaCm2
                 )))
             case .vnsHRV(let p):
                 modalities.append(.vnsHRV(VNSHRVConfig(

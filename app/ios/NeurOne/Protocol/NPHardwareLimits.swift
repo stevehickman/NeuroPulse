@@ -22,20 +22,24 @@ enum NPHardwareLimits {
     static let tdcsMinMilliamps: Double = 0.1
     static let tdcsMaxMilliamps: Double = 2.0
     static let tdcsMaxChargeDensityUCcm2: Double = 40.0 // safety MCU enforced, app cannot override
-    /// Assumed area per individual electrode (cm²) used for charge-density estimation when the
-    /// electrode geometry is not explicitly provided. 35 cm² is a standard tDCS sponge pad.
-    /// Total area = tdcsDefaultElectrodeAreaCm2 × number of electrode positions across all pairs.
+    /// Default per-electrode pad area (cm²) for a NEWLY AUTHORED tDCS block — an editor
+    /// default only, not an assumption any check falls back on. 35 cm² is a standard tDCS
+    /// sponge pad, which is what DHF Rev 11 recorded; that record stands, and is now
+    /// transmitted rather than assumed.
     ///
-    /// ⚠ DIVERGES FROM THE ENFORCER. The safety MCU computes the same 40 µC/cm² limit against
-    /// `NP_ELECTRODE_AREA_CM2 = 25` (firmware/safety_mcu/include/np_safety_config.h, per
-    /// OI-CHARGE-02: "correct for a standard 25 cm² tDCS electrode"). This 35.0 comes from
-    /// DHF Rev K. The MCU owns the hard cutoff, so this is NOT a safety hole — but this
-    /// pre-flight check is 40% more permissive than the thing that actually stops the session,
-    /// so the app will accept a protocol the MCU terminates at ~71% (25/35) of its authored
-    /// duration, and nothing links the two constants. Do not "fix" either number in isolation:
-    /// 35.0 is a DHF-recorded decision and 25 is an IEC 62304 Class C constant.
-    /// Tracked as OI-CHARGE-04 in docs/status/pending-decisions.md §13.4.
+    /// OI-CHARGE-04 (closed 2026-09-09): the area a protocol actually validates against is
+    /// `NPTDCSParams.electrodeAreaCm2`, authored per protocol and carried in the signed
+    /// session descriptor (`np_mod_tdcs_params_t.electrode_area_mcm2`). The safety MCU
+    /// derives its charge limit from that same declared number, so there is no longer an
+    /// app-side assumption for the enforcer to disagree with. `NP_ELECTRODE_AREA_CM2 = 25`
+    /// remains the MCU's fallback for channels that declare no geometry — which tDCS no
+    /// longer is, because the MCU's geometry gate keeps the channel disabled rather than
+    /// falling back. Neither 25 nor 35 changed; what changed is that one of them now
+    /// travels to the enforcer instead of being guessed at both ends.
     static let tdcsDefaultElectrodeAreaCm2: Double = 35.0
+    /// Largest declarable per-electrode area. Not a clinical limit — the wire field
+    /// (`electrode_area_mcm2`) is a uint16 of milli-cm², so 65.535 cm² is what fits.
+    static let tdcsMaxElectrodeAreaCm2: Double = 65.535
     static let tdcsRampSeconds: Int = 30                 // hardware-enforced, always applied
     static let tdcsMaxElectrodePairs: Int = 3
 

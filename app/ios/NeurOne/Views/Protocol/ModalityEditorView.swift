@@ -455,6 +455,20 @@ struct TDCSParamsView: View {
                     .font(.caption2)
                     .foregroundColor(.secondary)
             }
+            // OI-CHARGE-04: the pad geometry the 40 µC/cm² ceiling divides by. The pairs
+            // below name 10-20 sites and say nothing about pad size, and the device
+            // enforces against whatever is declared here, so it has to be authored.
+            VStack(alignment: .leading, spacing: 4) {
+                SliderRow(
+                    label: String(localized: "MODALITY_TDCS_ELECTRODE_AREA_LABEL"),
+                    value: $params.electrodeAreaCm2,
+                    range: 1.0...65.0,
+                    format: { String(format: "%.1f cm²", $0) }
+                )
+                Text("MODALITY_TDCS_ELECTRODE_AREA_HELP")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 Text("MODALITY_ELECTRODE_PAIRS_E_G_FP1_P3").font(.caption).foregroundColor(.secondary)
                 ForEach(Array(params.electrodePairs.enumerated()), id: \.offset) { idx, pair in

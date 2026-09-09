@@ -77,7 +77,13 @@ struct TDCSConfig: Codable {
     var amplitudeMilliamps: Double // 0.1–2 mA; 40 µC/cm² hard limit enforced by safety MCU
     var durationSeconds: Int
     var rampSeconds: Int = 30      // hardware-enforced in firmware
-    var electrodePairs: [[String]] // e.g. [["Fp1","P3"]]
+    var electrodePairs: [[String]] // e.g. [["Fp1","P3"]] — 10-20 SITES, not pad geometry
+    /// OI-CHARGE-04: per-electrode pad area, cm². The hub converts this to the milli-cm²
+    /// of `np_mod_tdcs_params_t.electrode_area_mcm2` and hands it to the safety MCU, which
+    /// derives its 40 µC/cm² charge limit from it. Without it the MCU falls back to a
+    /// 25 cm² default that no app ever validated against — which is the defect this field
+    /// closes, so it is not optional and has no default here.
+    var electrodeAreaCm2: Double
 }
 
 struct VNSHRVConfig: Codable {

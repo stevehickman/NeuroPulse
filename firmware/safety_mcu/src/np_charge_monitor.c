@@ -36,6 +36,22 @@
  *   override (heartbeat NP_SESSION_STATUS_GEOM_REQUIRED) but no valid CLIN_STIM
  *   area has been applied — fail-closed.  Clinical tACS (same enable bit, no
  *   override declared) is unaffected.
+ *
+ * OI-CHARGE-04 CLOSED — T1 tDCS declares its electrode geometry too.  Until
+ *   2026-09-09 the tDCS channel had no way to declare an area, so it ran
+ *   against the NP_ELECTRODE_AREA_CM2 = 25 fallback while the app pre-flight
+ *   validated against a 35 cm² assumption of its own — the app accepted
+ *   protocols this monitor then cut short mid-session.  np_mod_tdcs_params_t
+ *   now carries electrode_area_mcm2, the hub delivers it on
+ *   NP_SAFETY_CH_TDCS through the same np_safety_chan_limit_cmd_t frame, and
+ *   the geometry gate below covers TDCS on its own heartbeat bit
+ *   (NP_SESSION_STATUS_GEOM_REQ_TDCS).  A descriptor that declares no area
+ *   leaves TDCS gated off rather than falling back to 25 cm² — the OI-CHARGE-03
+ *   precedent, applied to the channel where the two sides disagreed.
+ *   NEITHER 25 NOR 35 CHANGED: 25 remains this MCU's fallback for channels
+ *   with no declared geometry (now unreachable for tDCS), and 35 became the
+ *   app's authoring default for a standard sponge pad, which is transmitted
+ *   and enforced rather than assumed.
  */
 
 #include "np_safety_config.h"
@@ -52,12 +68,15 @@ static bool     s_limit_reached[NP_SAFETY_MAX_CHANNELS];
  * to set the geometry-correct limit for each channel.                        */
 static uint64_t s_limit_nc[NP_SAFETY_MAX_CHANNELS];
 
-/* OI-CHARGE-03: true once a valid electrode-area command has set a
- * non-default limit on the CLIN_STIM channel this session.  Until then, if the
- * hub declares the session requires a geometry override, the geometry gate
- * keeps CLIN_STIM out of granted_mask (fail-safe, not fail-open).  Reset each
- * session by np_charge_monitor_reset_session().                              */
+/* OI-CHARGE-03 / OI-CHARGE-04: true once a valid electrode-area command has
+ * set a non-default limit on that channel this session.  Until then, if the hub
+ * declares the session requires geometry for the channel, the geometry gate
+ * keeps it out of granted_mask (fail-safe, not fail-open).  Reset each session
+ * by np_charge_monitor_reset_session().  Tracked per channel, not as one
+ * session-wide flag, so a declaration on one gated channel cannot open — or
+ * close — the gate on the other.                                             */
 static bool     s_geom_applied_clin_stim;
+static bool     s_geom_applied_tdcs;
 
 np_safe_status_t np_charge_monitor_init(void)
 {
@@ -68,6 +87,7 @@ np_safe_status_t np_charge_monitor_init(void)
         s_limit_nc[ch] = (uint64_t)NP_CHARGE_LIMIT_UC * 1000ULL;
     }
     s_geom_applied_clin_stim = false;
+    s_geom_applied_tdcs      = false;
     return NP_SAFE_OK;
 }
 
@@ -115,26 +135,36 @@ void np_charge_monitor_set_channel_area_mcm2(uint8_t channel, uint16_t area_mcm2
         s_limit_nc[channel] =
             (uint64_t)NP_CHARGE_LIMIT_UC_CM2 * (uint64_t)area_mcm2;
 
-        /* OI-CHARGE-03: applying a non-default geometry to CLIN_STIM opens the
-         * fail-safe geometry gate for that channel this session.             */
+        /* OI-CHARGE-03 / OI-CHARGE-04: applying a non-default geometry to a
+         * gated channel opens the fail-safe geometry gate for that channel
+         * this session.                                                      */
         if (channel == NP_SAFETY_CH_CLIN_STIM) {
             s_geom_applied_clin_stim = true;
+        } else if (channel == NP_SAFETY_CH_TDCS) {
+            s_geom_applied_tdcs = true;
+        } else {
+            /* no gate on other channels */
         }
     }
 }
 
 /*
- * np_charge_monitor_geom_gate — OI-CHARGE-03 fail-safe electrode-geometry gate.
+ * np_charge_monitor_geom_gate — OI-CHARGE-03 / OI-CHARGE-04 fail-safe
+ * electrode-geometry gate.
  *
- * When the hub has declared this session requires an electrode-geometry
- * override (state->geom_required, from the heartbeat NP_SESSION_STATUS_GEOM_
- * REQUIRED bit) but no valid area command has yet set a non-default limit on
- * CLIN_STIM, this clears CLIN_STIM from granted_mask.  A lost or delayed area
- * command therefore keeps HD-tDCS DISABLED rather than running it at the
+ * When the hub has declared this session requires an electrode geometry on a
+ * gated channel but no valid area command has yet set a non-default limit on
+ * it, this clears that channel from granted_mask.  A lost or delayed area
+ * command therefore keeps the modality DISABLED rather than running it at the
  * permissive 1000µC pad default — fail-closed, not fail-open.
  *
- * Scoped to CLIN_STIM only: clinical tACS shares the same enable bit but does
- * not set geom_required, so it is never blocked by this gate.
+ *   CLIN_STIM — state->geom_required      (NP_SESSION_STATUS_GEOM_REQUIRED)
+ *   TDCS      — state->geom_required_tdcs (NP_SESSION_STATUS_GEOM_REQ_TDCS)
+ *
+ * The two are independent by construction.  Clinical tACS shares the CLIN_STIM
+ * enable bit but declares no geometry, so it is never blocked; and because the
+ * tDCS declaration rides its own bit, a session carrying both tDCS and
+ * clinical tACS gates only the channel whose geometry is actually missing.
  *
  * Call among the interlocks, BEFORE the charge-accumulate loop, so a gated
  * channel accrues no charge while blocked.
@@ -143,6 +173,9 @@ void np_charge_monitor_geom_gate(np_safety_state_t *state)
 {
     if (state->geom_required && !s_geom_applied_clin_stim) {
         state->granted_mask &= (uint16_t)~NP_SAFETY_EN_CLIN_STIM;
+    }
+    if (state->geom_required_tdcs && !s_geom_applied_tdcs) {
+        state->granted_mask &= (uint16_t)~NP_SAFETY_EN_TDCS;
     }
 }
 
@@ -169,8 +202,10 @@ void np_charge_monitor_reset_session(np_safety_state_t *state)
     for (ch = 0U; ch < NP_SAFETY_MAX_CHANNELS; ch++) {
         s_limit_nc[ch] = (uint64_t)NP_CHARGE_LIMIT_UC * 1000ULL;
     }
-    /* OI-CHARGE-03: re-arm the geometry gate for the new session. */
+    /* OI-CHARGE-03 / OI-CHARGE-04: re-arm both geometry gates for the new
+     * session — a declaration never outlives the session that carried it. */
     s_geom_applied_clin_stim = false;
+    s_geom_applied_tdcs      = false;
 
     /* Clear the latched charge fault so the re-armed monitor can grant again. */
     if (state != NULL) {

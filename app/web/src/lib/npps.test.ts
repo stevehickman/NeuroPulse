@@ -88,6 +88,7 @@ protocol "All T1 Modalities" {
     tdcs {
         intensity: 1.5mA
         electrode_pairs: [["Fp1", "P3"]]
+        electrode_area_cm2: 35
         ramp: 30s
     }
 
@@ -309,8 +310,10 @@ describe('parser — new format', () => {
     if (tdcs.type === 'tdcs') {
       expect(tdcs.params.electrodePairs).toEqual([['Fp1', 'P3']]);
       expect(tdcs.params.rampSeconds).toBe(30);
+      expect(tdcs.params.electrodeAreaCm2).toBe(35);
     }
   });
+
 
   it('parses vns_hrv protocol and breathing rate aliases', () => {
     const proto = (parseNPPS(ALL_T1_NPPS)[0] as { kind: 'single'; protocol: NPProtocolDefinition }).protocol;
@@ -443,6 +446,7 @@ describe('serializer', () => {
     expect(out).toContain('electrode_pairs:');
     expect(out).toContain('"Fp1"');
     expect(out).toContain('"P3"');
+    expect(out).toContain('electrode_area_cm2: 35');
     expect(out).toContain('ramp: 30s');
   });
 
@@ -586,6 +590,26 @@ describe('canonical field names shared by every runtime', () => {
   };
 
   const proto = (body: string) => `protocol "T" {\n    duration: 5m\n${body}\n}\n`;
+
+  // OI-CHARGE-04. The area is spelled with its unit in the key
+  // (electrode_area_cm2: 35), not as a unit-suffixed literal (35cm2): the
+  // lexer's suffixes are Hz/%/mA/s/m, and a digit-leading token that is not a
+  // number with a known suffix is a parse error by design (NP-NPPS-REF-001 §2).
+  it('tdcs electrode_area_cm2 parses, and a cm2 suffix does not', () => {
+    const m = modalityOf(proto(`    tdcs {\n        electrode_area_cm2: 25\n    }`), 'tdcs');
+    expect((m.modalityParams.params as { electrodeAreaCm2: number }).electrodeAreaCm2).toBe(25);
+    expect(() => parseNPPS(proto(`    tdcs {\n        electrode_area_cm2: 35cm2\n    }`)))
+      .toThrow(NPPSParseError);
+  });
+
+  it('tdcs falls back to the default electrode area when none is authored', () => {
+    // Absent, not zero: buildModalityParams substitutes defaultParams, so an
+    // older .npps still parses to something the validator can judge rather
+    // than to NaN. It is the validator and the device — not the parser — that
+    // refuse a non-positive area.
+    const m = modalityOf(proto(`    tdcs {\n        intensity: 1mA\n    }`), 'tdcs');
+    expect((m.modalityParams.params as { electrodeAreaCm2: number }).electrodeAreaCm2).toBe(35);
+  });
 
   it('qeeg_21ch sloreta_enabled', () => {
     const m = modalityOf(proto(`    qeeg_21ch {\n        sloreta_enabled: true\n    }`), 'qeeg_21ch');

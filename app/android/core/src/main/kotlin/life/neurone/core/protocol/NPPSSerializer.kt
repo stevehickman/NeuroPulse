@@ -287,6 +287,7 @@ class NPPSSerializer {
             listOf(
                 "intensity: ${formatDouble(p.intensityMilliamps)}mA",
                 "electrode_pairs: [$pairs]",
+                "electrode_area_cm2: ${formatDouble(p.electrodeAreaCm2)}",
                 "ramp: ${p.rampSeconds}s  # hardware-enforced",
             )
         }

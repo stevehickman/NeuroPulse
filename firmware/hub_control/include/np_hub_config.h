@@ -10,7 +10,14 @@
 /* ── Protocol binary format ───────────────────────────────────────────────────── */
 
 #define NP_HUB_PROTO_MAGIC          0x4E504850UL   /* "NPHP" — NeurOne Hub Protocol */
-#define NP_HUB_PROTO_VERSION        0x0002U        /* v2: socket-addressed targets */
+/* v3 (OI-CHARGE-04, 2026-09-09): np_mod_tdcs_params_t grew electrode_area_mcm2
+ * (6 → 8 bytes).  Bumped rather than left at v2 because a v2 descriptor's tDCS
+ * block is a different length for the same modality code — without the bump the
+ * only symptom would be NP_HUB_ERR_INVALID_ARG out of the stim module handler
+ * at command dispatch, which reads as a corrupt descriptor rather than an
+ * out-of-date one.  NP_HUB_ERR_BAD_VERSION at header verification says what
+ * actually happened.  v2: socket-addressed targets.                          */
+#define NP_HUB_PROTO_VERSION        0x0003U
 #define NP_HUB_PROTO_UUID_LEN       16U            /* session UUID (UHDR key) */
 #define NP_HUB_PROTO_SERIAL_LEN     32U            /* ASCII device serial — replay guard */
 #define NP_HUB_PROTO_SIG_LEN        64U            /* Ed25519 signature */
@@ -213,8 +220,8 @@
 
 /* ── Heartbeat session_status bits (hub side) ─────────────────────────────────
  * Bits 0 and 1 are defined per-side (here and in safety_mcu/np_safety_protocol.h)
- * and MUST match; bit 2 (NP_SESSION_STATUS_GEOM_REQUIRED) is shared via
- * np_spi_wire_types.h.  These are BIT FLAGS — never write an np_session_state_t
+ * and MUST match; bits 2 and 3 (NP_SESSION_STATUS_GEOM_REQUIRED,
+ * NP_SESSION_STATUS_GEOM_REQ_TDCS) are shared via np_spi_wire_types.h.  These are BIT FLAGS — never write an np_session_state_t
  * enum value into the session_status byte (use np_safety_session_status_bits()). */
 #define NP_SESSION_STATUS_ACTIVE        (1U << 0)  /* session underway */
 #define NP_SESSION_STATUS_CVNS_REENABLE (1U << 1)  /* explicit CVNS re-enable after cardiac cutoff */

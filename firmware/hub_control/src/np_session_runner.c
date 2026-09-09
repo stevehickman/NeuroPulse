@@ -302,16 +302,35 @@ np_hub_status_t np_runner_run(void)
 
     np_log_session_start(&s_ctx.uhdr);
 
-    /* ── OI-CHARGE-02: deliver electrode geometry to the safety MCU ──────────── */
-    /* Scan the (already-verified) descriptor for HD-tDCS commands using the
-     * small 3.5mm ring/bilateral electrodes and hand the safety MCU their
-     * electrode area so its charge monitor enforces the geometry-correct
-     * 40µC/cm² limit (3.84µC) on CLIN_STIM instead of the 1000µC pad default.
-     * Only the area is sent — the density constant stays on the safety MCU.
-     * Sent during setup, before any CLIN_STIM enable is requested.            */
+    /* ── OI-CHARGE-02 / -04: deliver electrode geometry to the safety MCU ────── */
+    /* Scan the (already-verified) descriptor for the two modalities whose
+     * electrode geometry the safety MCU cannot know on its own, and hand it
+     * their per-electrode area so its charge monitor enforces the
+     * geometry-correct 40µC/cm² limit instead of the 1000µC / 25cm² pad
+     * default.  Only the area is sent — the density constant stays on the
+     * safety MCU.  Sent during setup, before any enable is requested.
+     *
+     *   CLIN_STIM (OI-CHARGE-02) — HD-tDCS ring/bilateral 4×1 montages use the
+     *     3.5mm electrodes, a fixed area the montage code implies (3.84µC).
+     *   TDCS (OI-CHARGE-04) — T1 tDCS pad area is NOT implied by anything the
+     *     descriptor otherwise carries: electrode_pair names 10-20 sites, not
+     *     pad sizes.  It is authored per protocol and travels in the signed
+     *     descriptor as np_mod_tdcs_params_t.electrode_area_mcm2, so the app
+     *     pre-flight and this enforcer divide by the same declared number.
+     *
+     * A tDCS command that declares NO area (0) deliberately leaves
+     * area_mcm2[TDCS] at 0 — "keep default" to the MCU — while still arming
+     * the tDCS geometry gate, so the MCU never grants TDCS at all.  Silently
+     * running such a protocol against the 25cm² fallback is the fail-OPEN
+     * behaviour OI-CHARGE-03 rejected for CLIN_STIM.
+     *
+     * With several tDCS commands the SMALLEST declared area wins: the limit is
+     * per-channel and the accumulator is shared across the session, so the
+     * tightest declared geometry is the only conservative choice.            */
     {
         uint16_t area_mcm2[NP_SAFETY_MAX_CHANNELS];
         bool     have_override = false;
+        bool     have_tdcs     = false;
         memset(area_mcm2, 0, sizeof(area_mcm2));
 
         for (uint8_t i = 0U; i < s_ctx.desc.cmd_count; i++) {
@@ -326,6 +345,18 @@ np_hub_status_t np_runner_run(void)
                         NP_HD_SMALL_ELECTRODE_AREA_MCM2;
                     have_override = true;
                 }
+            } else if (c->mod_type == NP_MOD_TDCS &&
+                       c->params_len >= sizeof(np_mod_tdcs_params_t)) {
+                const np_mod_tdcs_params_t *p =
+                    (const np_mod_tdcs_params_t *)(const void *)c->params;
+                have_tdcs = true;
+                if (p->electrode_area_mcm2 > 0U &&
+                    (area_mcm2[NP_SAFETY_CH_TDCS] == 0U ||
+                     p->electrode_area_mcm2 < area_mcm2[NP_SAFETY_CH_TDCS])) {
+                    area_mcm2[NP_SAFETY_CH_TDCS] = p->electrode_area_mcm2;
+                }
+            } else {
+                /* modality carries no electrode geometry */
             }
         }
 
@@ -335,6 +366,12 @@ np_hub_status_t np_runner_run(void)
              * the area command is lost, the MCU keeps CLIN_STIM disabled until
              * a retry lands — HD-tDCS never runs at the permissive default.   */
             np_safety_spi_set_geom_required(true);
+        }
+        if (have_tdcs) {
+            /* OI-CHARGE-04: same ordering, own bit, own channel. */
+            np_safety_spi_set_geom_required_tdcs(true);
+        }
+        if (have_override || have_tdcs) {
             (void)np_safety_spi_send_channel_limits(area_mcm2,
                                                     NP_SAFETY_MAX_CHANNELS);
         }

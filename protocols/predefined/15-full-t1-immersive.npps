@@ -61,6 +61,7 @@ protocol "Full T1 Immersive" {
     tdcs {
         intensity: 1.0mA
         electrode_pairs: [["Fp1", "P3"]]
+        electrode_area_cm2: 35        # OI-CHARGE-04: standard sponge pad, enforced by the safety MCU
         ramp: 30s  # hardware-enforced
         interval_on: 20m
         interval_off: 10m

@@ -12,6 +12,7 @@ protocol "tDCS — MS Fatigue (S1/DLPFC)" {
     tdcs {
         intensity: 2mA
         electrode_pairs: [["C3", "Fp2"]]
+        electrode_area_cm2: 35        # OI-CHARGE-04: standard sponge pad, enforced by the safety MCU
         ramp: 30s
     }
 }

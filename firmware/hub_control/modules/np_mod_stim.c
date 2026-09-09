@@ -138,6 +138,16 @@ np_hub_status_t np_mod_stim_control(uint8_t slot, const void *params, uint16_t l
         }
         const np_mod_tdcs_params_t *p = (const np_mod_tdcs_params_t *)params;
 
+        /* OI-CHARGE-04: an undeclared pad area is a rejected command, not a
+         * fall back to the safety MCU's 25cm² default.  The MCU's geometry
+         * gate would keep TDCS out of granted_mask anyway, but that presents
+         * as a session where tDCS silently never starts; failing the command
+         * here says why.  The app validators reject the same protocol before
+         * it is ever signed, so reaching this is a compiler defect.          */
+        if (p->electrode_area_mcm2 == 0U) {
+            return NP_HUB_ERR_INVALID_ARG;
+        }
+
         uint16_t current = (p->current_ua > STIM_MAX_AMP_TDCS_UA)
                             ? STIM_MAX_AMP_TDCS_UA : p->current_ua;
         uint16_t ramp_s  = (p->ramp_s < STIM_MIN_RAMP_S) ? STIM_MIN_RAMP_S : p->ramp_s;

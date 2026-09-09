@@ -16,13 +16,19 @@ export const NPHardwareLimits = {
   // tDCS (consumer: Cortical Priming Stimulation)
   tdcsMinMilliamps: 0.1,
   tdcsMaxMilliamps: 2.0,
-  // NOTE: this limit is carried but never checked here. Unlike iOS
-  // (NPHardwareLimits.tdcsDefaultElectrodeAreaCm2) the web table has no electrode-area
-  // constant, and charge density cannot be computed without one — so the web performs no
-  // charge-density pre-flight at all. Adding one means first resolving which area is
-  // correct: iOS assumes 35 cm² (DHF Rev 11), the safety MCU enforces against 25 cm²
-  // (OI-CHARGE-02). See OI-CHARGE-04 in docs/status/pending-decisions.md §13.4.
+  // OI-CHARGE-04 (closed 2026-09-09): this IS checked here now. There is no
+  // web electrode-area constant to add, because there is no longer a global
+  // electrode area on any client — the area is authored per protocol
+  // (TDCSParams.electrodeAreaCm2), travels in the signed session descriptor,
+  // and the safety MCU derives its charge limit from that same declared
+  // number. What used to be a 35-vs-25 disagreement between the app's
+  // assumption and the enforcer's is now one transmitted value.
   tdcsMaxChargeDensityUCcm2: 40.0,  // safety MCU enforced, app cannot override
+  // Largest declarable per-electrode area: the wire field
+  // (np_mod_tdcs_params_t.electrode_area_mcm2) is a uint16 of milli-cm², so
+  // 65535 mcm². Not a clinical limit — an encoding ceiling, well above any
+  // real pad (a large sponge is 35 cm²).
+  tdcsMaxElectrodeAreaCm2: 65.535,
   tdcsRampSeconds: 30,               // hardware-enforced minimum ramp
   tdcsMaxElectrodePairs: 3,
 

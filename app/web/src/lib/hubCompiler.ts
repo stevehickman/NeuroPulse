@@ -15,7 +15,7 @@
  *
  * Header offsets (64 bytes, no padding):
  *   0:  uint32 magic             (NP_HUB_PROTO_MAGIC = 0x4E504850)
- *   4:  uint16 version           (NP_HUB_PROTO_VERSION = 0x0002)
+ *   4:  uint16 version           (NP_HUB_PROTO_VERSION = 0x0003)
  *   6:  uint8  flags             (bit0=T2_tier, bit1=autonomous)
  *   7:  uint8  cmd_count
  *   8:  uint8[16] session_uuid
@@ -75,7 +75,10 @@ import { NPHardwareLimits } from './hardwareLimits';
 // ─── Wire format constants (mirrors np_hub_config.h) ─────────────────────────
 
 const PROTO_MAGIC = 0x4E504850;
-const PROTO_VERSION = 0x0002;
+// v3 (OI-CHARGE-04): np_mod_tdcs_params_t grew electrode_area_mcm2, 6 → 8
+// bytes. Must track NP_HUB_PROTO_VERSION in firmware/hub_control/include/
+// np_hub_config.h — the hub rejects any other value as NP_HUB_ERR_BAD_VERSION.
+const PROTO_VERSION = 0x0003;
 const PROTO_UUID_LEN = 16;
 const PROTO_SERIAL_LEN = 32;
 const PROTO_SIG_LEN = 64;
@@ -618,15 +621,24 @@ function encodeBESTacs(p: BESTacsParams): EncodedParams {
 }
 
 function encodeTDCS(p: TDCSParams): EncodedParams {
-  // np_mod_tdcs_params_t: 6 bytes (electrode_pair, current_ua×2, polarity, ramp_s×2)
+  // np_mod_tdcs_params_t: 8 bytes (electrode_pair, current_ua×2, polarity,
+  // ramp_s×2, electrode_area_mcm2×2). Pinned by np_mod_stim_tests.c.
   const curUa  = Math.min(Math.round(p.intensityMilliamps * 1000), 2000);
   const rampS  = Math.max(p.rampSeconds, 30);  // firmware enforces ≥30s
-  const buf = new Uint8Array(6);
+  // OI-CHARGE-04: declared per-electrode area, cm² → milli-cm². FLOORED, never
+  // rounded: the safety MCU derives its charge limit as 40 µC/cm² × area, so
+  // rounding up would hand it a limit above the true 40 µC/cm² ceiling. Same
+  // convention np_safety_chan_limit_cmd_t documents for the HD-tDCS area.
+  // 0 is not encodable as "unset" here — the validator rejects a non-positive
+  // area before compilation, and the hub refuses a 0 area outright.
+  const areaMcm2 = Math.min(Math.floor(p.electrodeAreaCm2 * 1000), 0xFFFF);
+  const buf = new Uint8Array(8);
   const dv  = new DataView(buf.buffer);
   dv.setUint8(0, resolveElectrodePair(p.electrodePairs[0]));
   dv.setUint16(1, curUa, true);
   dv.setUint8(3, 0);                  // polarity = anode at pair-A
   dv.setUint16(4, rampS, true);
+  dv.setUint16(6, areaMcm2, true);
   return { modType: NP_MOD_TDCS, target: slotTarget(SLOT_TDCS), params: buf };
 }
 

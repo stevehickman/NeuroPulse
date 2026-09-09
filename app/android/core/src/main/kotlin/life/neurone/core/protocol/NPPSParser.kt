@@ -802,6 +802,10 @@ class NPPSParser(private val tokens: List<NPPSLexeme>) {
             "tdcs" -> {
                 val p = NPTDCSParams()
                 fields["intensity"]?.asMilliamps?.let { p.intensityMilliamps = it }
+                // OI-CHARGE-04: the pad geometry the 40 µC/cm² ceiling divides by.
+                // Absent leaves the authoring default, which the validator then judges —
+                // the parser does not decide whether a geometry is acceptable.
+                fields["electrode_area_cm2"]?.asDouble?.let { p.electrodeAreaCm2 = it }
                 return NPModalityParams.Tdcs(p)
             }
 

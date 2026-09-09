@@ -159,6 +159,7 @@ static void test_control_routes_by_slot(void)
     tdcs.electrode_pair = 1U;
     tdcs.current_ua     = 1500U;
     tdcs.ramp_s         = 60U;
+    tdcs.electrode_area_mcm2 = 35000U;   /* OI-CHARGE-04: 35 cm² sponge pad */
 
     reset_stubs();
     check(np_mod_stim_control(NP_HUB_SLOT_TDCS, &tdcs, sizeof tdcs) == NP_HUB_OK,
@@ -180,6 +181,7 @@ static void test_stop_uses_the_right_channel(void)
     tdcs.electrode_pair = 1U;
     tdcs.current_ua     = 1000U;
     tdcs.ramp_s         = 30U;
+    tdcs.electrode_area_mcm2 = 35000U;
     np_mod_stim_control(NP_HUB_SLOT_TDCS, &tdcs, sizeof tdcs);
 
     reset_stubs();
@@ -206,6 +208,7 @@ static void test_channels_hold_independent_state(void)
     memset(&tdcs, 0, sizeof tdcs);
     tdcs.current_ua = 1000U;
     tdcs.ramp_s = 30U;
+    tdcs.electrode_area_mcm2 = 35000U;
     np_mod_stim_control(NP_HUB_SLOT_TDCS, &tdcs, sizeof tdcs);
 
     /* Stop tDCS only; BES must still be active, so its stop must still act. */
@@ -229,8 +232,9 @@ static void test_param_length_is_exact(void)
 
     check(sizeof(np_mod_bes_tacs_params_t) == 7U,
           "layout: np_mod_bes_tacs_params_t is 7 bytes (packed, no padding)");
-    check(sizeof(np_mod_tdcs_params_t) == 6U,
-          "layout: np_mod_tdcs_params_t is 6 bytes");
+    check(sizeof(np_mod_tdcs_params_t) == 8U,
+          "layout: np_mod_tdcs_params_t is 8 bytes (OI-CHARGE-04 added "
+          "electrode_area_mcm2; hubCompiler.ts encodeTDCS is pinned to this)");
 
     uint8_t buf[16];
     memset(buf, 0, sizeof buf);
