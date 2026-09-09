@@ -58,6 +58,31 @@ enum class UHDRElement(val displayName: String) {
         }
 }
 
+/**
+ * One access decision on a clinician grant: a set of UHDR elements, the day from which the
+ * clinician may see data carrying them, and — as a **separate** decision — whether that approval
+ * also reached backwards over data already recorded.
+ *
+ * CLAUDE.md §6.1 requires retroactive and prospective access to be presented as separate consent
+ * decisions "even if made simultaneously". They therefore cannot collapse into one field on the
+ * grant: [ClinicianUseCaseTier.uhdrElements] is timeless, so raising a grant's tier by itself
+ * hands the clinician the new elements over every session ever recorded. A user who approves an
+ * expansion going forward and refuses it over history has taken a position the record has to be
+ * able to hold, and a tier alone cannot hold it.
+ *
+ * Day granularity, like every other date on this model — consistent with SessionRecord and with
+ * TIME-01's discipline of not storing finer time than a decision needs.
+ */
+@Serializable
+data class ClinicianAccessScope(
+    /** The elements this one decision covers — for an expansion, only the newly added ones. */
+    val elements: Set<UHDRElement>,
+    /** Prospective decision: data recorded on or after this day is in scope. "yyyy-MM-dd". */
+    val effectiveFromDay: String,
+    /** Retroactive decision, taken separately: data recorded BEFORE that day is in scope too. */
+    val includesPriorData: Boolean,
+)
+
 @Serializable
 data class ClinicianConsentGrant(
     val id: String,
@@ -67,8 +92,106 @@ data class ClinicianConsentGrant(
     val grantedAtDay: String,      // "yyyy-MM-dd" — day granularity, consistent with SessionRecord
     val expiresAtDay: String? = null, // null = indefinite until revoked
     val isActive: Boolean = true,
+    /**
+     * The access decisions this grant is made of, newest last. Null because a grant written
+     * before the §6.1 expansion workflow existed has none; null is "never went through the
+     * workflow", which is not the same as "went through it and came out with no access".
+     * Read it through [effectiveScopes], never directly.
+     */
+    val accessScopes: List<ClinicianAccessScope>? = null,
 ) {
-    val approvedElements: Set<UHDRElement> get() = tier.uhdrElements
+    /**
+     * The scopes as decided, or the pre-workflow equivalent for a grant that has none: the
+     * tier's elements, effective from the grant day, with prior data included.
+     *
+     * That fallback is deliberately what a bare [tier] has always meant, so introducing the
+     * workflow does not silently re-scope an existing grant. Whether an *initial* grant should
+     * default to prior data at all is a real question, and a separate one from expansion —
+     * `OI-CONSENT-06`.
+     */
+    val effectiveScopes: List<ClinicianAccessScope>
+        get() = accessScopes ?: listOf(
+            ClinicianAccessScope(
+                elements = tier.uhdrElements,
+                effectiveFromDay = grantedAtDay,
+                includesPriorData = true,
+            ),
+        )
+
+    /**
+     * Everything this grant reaches, ignoring when the data was recorded. This is the dashboard's
+     * "what can they see" line; for the time-aware answer use [elementsVisibleForDataRecordedOn].
+     */
+    val approvedElements: Set<UHDRElement>
+        get() = effectiveScopes.flatMap { it.elements }.toSet()
+
+    /**
+     * Elements the clinician may see in data recorded on [day] ("yyyy-MM-dd") — the predicate
+     * that makes the retroactive decision mean something. A scope contributes when the data is on
+     * or after its effective day, or when the user separately approved prior data for it.
+     *
+     * ISO-8601 day strings compare correctly as strings, which is why they are stored that way.
+     */
+    fun elementsVisibleForDataRecordedOn(day: String): Set<UHDRElement> =
+        effectiveScopes
+            .filter { day >= it.effectiveFromDay || it.includesPriorData }
+            .flatMap { it.elements }
+            .toSet()
+
+    /**
+     * Elements this grant reaches only from some day onwards — what the user kept out of the
+     * clinician's view of their earlier sessions. Surfaced on the dashboard so a "going forward
+     * only" answer stays visible after the decision, rather than vanishing into the record.
+     */
+    val forwardOnlyElements: Set<UHDRElement>
+        get() = effectiveScopes.filterNot { it.includesPriorData }.flatMap { it.elements }.toSet()
+}
+
+/**
+ * A clinician's request to widen an existing grant, held until the user decides.
+ *
+ * §6.1's workflow is *differential consent document → persistent user notification → user
+ * approves / denies / asks questions → retroactive access is a separate decision*. This type is
+ * the persistent half: it survives process death because a notification the user can lose by
+ * backgrounding the app is not a notification, and it stays pending after a question is sent,
+ * because asking is not deciding.
+ */
+@Serializable
+data class ClinicianAccessExpansionRequest(
+    val id: String,
+    val grantId: String,
+    val fromTier: ClinicianUseCaseTier,
+    val toTier: ClinicianUseCaseTier,
+    val requestedAtDay: String,
+    val decision: ExpansionDecision? = null,
+) {
+    /**
+     * The two §6.1 decisions are kept apart in the record, not merged into one Boolean:
+     * [ExpansionDecision.Approved] carries the prospective answer, and its [includesPriorData]
+     * carries the retroactive one that was asked separately after it.
+     */
+    @Serializable
+    sealed interface ExpansionDecision {
+        @Serializable
+        data class Approved(val decidedOnDay: String, val includesPriorData: Boolean) :
+            ExpansionDecision
+
+        @Serializable
+        data class Denied(val decidedOnDay: String) : ExpansionDecision
+
+        @Serializable
+        data class QuestionSent(val sentOnDay: String) : ExpansionDecision
+    }
+
+    /**
+     * Still awaiting a decision. A sent question leaves the request pending — the user has not
+     * approved or denied anything, and the notification must not disappear as though they had.
+     */
+    val isPending: Boolean
+        get() = decision == null || decision is ExpansionDecision.QuestionSent
+
+    val questionSentOnDay: String?
+        get() = (decision as? ExpansionDecision.QuestionSent)?.sentOnDay
 }
 
 enum class ContactFrequency { WEEKLY, MONTHLY, QUARTERLY }

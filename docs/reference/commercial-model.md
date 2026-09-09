@@ -123,3 +123,34 @@ Charger scaled to peak draw of configuration. Auto-included at every upgrade by 
 
 **Expansion workflow:** Differential consent document → persistent user notification → user approves/denies/asks questions → retroactive access is a separate decision. Retroactive and prospective access presented as separate consent decisions even if made simultaneously.
 
+**Expansion workflow as implemented (2026-09-09, `OI-CONSENT-02`).** The specification above is
+unchanged; what follows is how it is built, because two of its clauses turn out to constrain the
+data model and not only the screens.
+
+- **A grant is a sequence of access decisions, not a tier.** `ClinicianAccessScope` carries an
+  element set, the point it takes effect from, and — separately — whether it also reaches data
+  recorded before then. `tier.uhdrElements` is timeless, so a tier alone can only ever express
+  *"yes, including everything already recorded"*; the position **"widen it going forward, leave my
+  earlier sessions alone"** is unrepresentable without the scope. The tier still moves on
+  expansion — it is what the subscription and the price are keyed to — but it is no longer the only
+  thing deciding what a clinician can see. A grant with no scopes means the tier's elements from
+  the grant date with prior data included, which is what a bare tier has always meant.
+- **The differential document refuses three changes** rather than describing them:
+  one that adds nothing; one that would *remove* an element (a re-scope, which an expansion
+  document would narrate only in terms of what is gained); and any change touching the **Research**
+  tier, whose element set is IRB-defined per study descriptor, so its emptiness is an absence of
+  information and never a set. Research access changes go through §6.3's per-study path.
+- **The two decisions are on separate steps, not one screen.** Approving answers the
+  forward-looking question only; the retroactive question is then asked on its own, states that
+  either answer is available, and offers both as controls of equal weight. An Approve button with a
+  history checkbox beside it is one decision with a modifier on it, which is what
+  *"presented as separate consent decisions"* rules out.
+- **Asking a question leaves the request pending.** §6.1's third response is not a decision, so it
+  must not clear the notification.
+- **A "from today onwards only" answer stays visible on the grant afterwards**, or the user cannot
+  tell later which of the two answers they gave.
+
+Two halves are deliberately absent and tracked rather than implied: nothing ingests a request or
+delivers a question, because the clinician-portal channel does not exist (`OI-CONSENT-05`); and an
+**initial** grant's retroactive posture is still not separately elicited (`OI-CONSENT-06`).
+

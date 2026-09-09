@@ -1,17 +1,18 @@
 # CLAUDE.md — NeurOne Design program
 **Project:** NeurOne — closed-loop multi-modal neuromodulation wearable platform  
-**Revision:** 41 (current)  
+**Revision:** 42 (current)  
 **Status:** Pre-tooling design phase. No hardware committed yet. All decisions below are locked unless explicitly noted as pending.
 
 > **This file is the always-loaded core: invariants only.** Every section keeps the decisions that
 > bear on most conversations and names the file holding the rest. Read a subsidiary file when the
 > task needs it — do not assume a figure or a spec detail is here.
 >
-> **Revision history (Rev 33–41, what changed and why): `docs/reference/claude-md-revision-history.md`.**
-> Rev 41 (2026-09-08) made `locales/*.json` the only committed copy of any user-facing string —
-> the per-platform locale files are build outputs now (§17). Rev 40 (2026-09-01) relocated detail
-> out of this file; no design decision changed. Read the history file before assuming *why*
-> something is the way it is.
+> **Revision history (Rev 33–42, what changed and why): `docs/reference/claude-md-revision-history.md`.**
+> Rev 42 (2026-09-09) scoped a clinician grant's reach in time, so §6.1's retroactive question has
+> two representable answers rather than one (§6.1); no decision changed. Rev 41 (2026-09-08) made
+> `locales/*.json` the only committed copy of any user-facing string — the per-platform locale files
+> are build outputs now (§17). Rev 40 (2026-09-01) relocated detail out of this file; no design
+> decision changed. Read the history file before assuming *why* something is the way it is.
 >
 > **Three live constraints that decide whether an answer is safe to give:**
 > 1. **Every T1 configuration is gross-margin negative and every cost figure is a floor** (§2.1).
@@ -345,7 +346,11 @@ $599/mo/study. **Key principle: clinicians select *use cases*, never data elemen
 derives the minimum necessary UHDR elements, and users get a plain-language document stating what the
 clinician CAN and CANNOT learn per element. Expansion of access is a differential consent decision,
 and **retroactive and prospective access are always presented as separate decisions** even when made
-at the same time. Tier table and element lists: `docs/reference/commercial-model.md` §6.1.
+at the same time. **A grant's reach is therefore scoped in time and never derived from its tier
+alone** — `tier.uhdrElements` is timeless, so a tier by itself can only answer the retroactive
+question yes, and "widen it going forward, leave my earlier sessions alone" becomes unrepresentable
+(Rev 42). Tier table, element lists and the expansion workflow as implemented:
+`docs/reference/commercial-model.md` §6.1.
 
 ### 6.2 A priori research consent (4 layers, 2 onboarding screens)
 

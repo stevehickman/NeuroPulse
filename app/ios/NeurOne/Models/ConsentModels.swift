@@ -111,6 +111,27 @@ enum UHDRElement: String, CaseIterable, Codable {
     }
 }
 
+// MARK: - Clinician access scope (§6.1 expansion workflow)
+
+/// One access decision on a clinician grant: a set of UHDR elements, the point from which the
+/// clinician may see data carrying them, and — as a **separate** decision — whether that approval
+/// also reached backwards over data already recorded.
+///
+/// §6.1 requires retroactive and prospective access to be presented as separate consent decisions
+/// "even if made simultaneously". They therefore cannot collapse into one field on the grant:
+/// `tier.uhdrElements` is timeless, so raising a grant's tier by itself hands the clinician the
+/// new elements over every session ever recorded. A user who approves an expansion going forward
+/// and refuses it over history has taken a position the record has to be able to hold, and a
+/// tier alone cannot hold it.
+struct ClinicianAccessScope: Codable, Equatable {
+    /// The elements this one decision covers — for an expansion, only the newly added ones.
+    var elements: Set<UHDRElement>
+    /// Prospective decision: data recorded at or after this instant is in scope.
+    var effectiveFrom: Date
+    /// Retroactive decision, taken separately: data recorded BEFORE `effectiveFrom` is in scope too.
+    var includesPriorData: Bool
+}
+
 // MARK: - Clinician consent grant
 
 struct ClinicianConsentGrant: Codable, Identifiable {
@@ -122,7 +143,116 @@ struct ClinicianConsentGrant: Codable, Identifiable {
     var expiresAt: Date?         // nil = indefinite until revoked
     var isActive: Bool
 
-    var approvedElements: Set<UHDRElement> { tier.uhdrElements }
+    /// The access decisions this grant is made of, newest last. Optional because a grant written
+    /// before the §6.1 expansion workflow existed has none; `nil` is "never went through the
+    /// workflow", which is not the same as "went through it and came out with no access".
+    /// Read it through `effectiveScopes`, never directly.
+    var accessScopes: [ClinicianAccessScope]?
+
+    init(
+        id: UUID,
+        clinicianName: String,
+        clinicianOrganization: String,
+        tier: ClinicianUseCaseTier,
+        grantedAt: Date,
+        expiresAt: Date? = nil,
+        isActive: Bool = true,
+        accessScopes: [ClinicianAccessScope]? = nil
+    ) {
+        self.id = id
+        self.clinicianName = clinicianName
+        self.clinicianOrganization = clinicianOrganization
+        self.tier = tier
+        self.grantedAt = grantedAt
+        self.expiresAt = expiresAt
+        self.isActive = isActive
+        self.accessScopes = accessScopes
+    }
+
+    /// The scopes as decided, or the pre-workflow equivalent for a grant that has none: the
+    /// tier's elements, effective from the grant date, with prior data included.
+    ///
+    /// That fallback is deliberately what a bare `tier` has always meant, so introducing the
+    /// workflow does not silently re-scope an existing grant. Whether an *initial* grant should
+    /// default to prior data at all is a real question, and a separate one from expansion —
+    /// `OI-CONSENT-06`.
+    var effectiveScopes: [ClinicianAccessScope] {
+        accessScopes ?? [
+            ClinicianAccessScope(
+                elements: tier.uhdrElements,
+                effectiveFrom: grantedAt,
+                includesPriorData: true
+            )
+        ]
+    }
+
+    /// Everything this grant reaches, ignoring when the data was recorded. This is the
+    /// dashboard's "what can they see" line; for the time-aware answer use
+    /// `elementsVisible(forDataRecordedAt:)`.
+    var approvedElements: Set<UHDRElement> {
+        effectiveScopes.reduce(into: Set<UHDRElement>()) { $0.formUnion($1.elements) }
+    }
+
+    /// Elements the clinician may see in data recorded at `date` — the predicate that makes the
+    /// retroactive decision mean something. A scope contributes when the data is at or after its
+    /// effective instant, or when the user separately approved prior data for it.
+    func elementsVisible(forDataRecordedAt date: Date) -> Set<UHDRElement> {
+        effectiveScopes.reduce(into: Set<UHDRElement>()) { acc, scope in
+            if date >= scope.effectiveFrom || scope.includesPriorData {
+                acc.formUnion(scope.elements)
+            }
+        }
+    }
+
+    /// Elements this grant reaches only from some point onwards — what the user kept out of the
+    /// clinician's view of their earlier sessions. Surfaced on the dashboard so a "going forward
+    /// only" answer stays visible after the decision, rather than vanishing into the record.
+    var forwardOnlyElements: Set<UHDRElement> {
+        effectiveScopes
+            .filter { !$0.includesPriorData }
+            .reduce(into: Set<UHDRElement>()) { $0.formUnion($1.elements) }
+    }
+}
+
+// MARK: - Clinician access expansion request (§6.1)
+
+/// A clinician's request to widen an existing grant, held until the user decides.
+///
+/// §6.1's workflow is *differential consent document → persistent user notification → user
+/// approves / denies / asks questions → retroactive access is a separate decision*. This type is
+/// the persistent half: it survives app restarts because a notification the user can lose by
+/// backgrounding the app is not a notification, and it stays pending after a question is sent,
+/// because asking is not deciding.
+struct ClinicianAccessExpansionRequest: Codable, Identifiable {
+    var id: UUID
+    var grantID: UUID
+    var fromTier: ClinicianUseCaseTier
+    var toTier: ClinicianUseCaseTier
+    var requestedAt: Date
+    var decision: ExpansionDecision?
+
+    /// The two §6.1 decisions are kept apart in the record, not merged into one Bool: `approved`
+    /// carries the prospective answer, and `includesPriorData` carries the retroactive one that
+    /// was asked separately after it.
+    enum ExpansionDecision: Codable, Equatable {
+        case approved(at: Date, includesPriorData: Bool)
+        case denied(at: Date)
+        case questionSent(at: Date)
+    }
+
+    /// Still awaiting a decision. A sent question leaves the request pending — the user has not
+    /// approved or denied anything, and the notification must not disappear as though they had.
+    var isPending: Bool {
+        switch decision {
+        case .none, .some(.questionSent): return true
+        case .some(.approved), .some(.denied): return false
+        }
+    }
+
+    var questionSentAt: Date? {
+        if case let .some(.questionSent(at)) = decision { return at }
+        return nil
+    }
 }
 
 // MARK: - Contact frequency (ISC-69 — three options)

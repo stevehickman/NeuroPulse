@@ -10,6 +10,7 @@ struct ConsentDashboardView: View {
     @State private var showOnboarding = false
     @State private var showNewClinicianGrant = false
     @State private var selectedInvitation: StudyInvitation?
+    @State private var selectedExpansionRequest: ClinicianAccessExpansionRequest?
     @State private var grantPendingRevoke: ClinicianConsentGrant?
     @State private var participationPendingWithdraw: StudyParticipationRecord?
     @State private var showBlanketWithdrawConfirmation = false
@@ -18,6 +19,7 @@ struct ConsentDashboardView: View {
         NavigationStack {
             List {
                 clinicianSection
+                accessRequestsSection
                 researchSection
                 studyHistorySection
                 pendingInvitationsSection
@@ -46,6 +48,10 @@ struct ConsentDashboardView: View {
             }
             .sheet(item: $selectedInvitation) { invitation in
                 StudyInvitationView(invitation: invitation)
+                    .environmentObject(consentStore)
+            }
+            .sheet(item: $selectedExpansionRequest) { request in
+                ClinicianExpansionRequestView(request: request)
                     .environmentObject(consentStore)
             }
             // ISC-76: confirmation before revoking clinician access
@@ -135,6 +141,55 @@ struct ConsentDashboardView: View {
         } footer: {
             Text("DASHBOARD_CLINICIANS_FOOTER")
                 .font(.caption)
+        }
+    }
+
+    // §6.1's persistent user notification. It is a section on the consent dashboard rather than a
+    // transient banner because the request outlives any one launch of the app, and because the
+    // place the user manages clinician access is where a change to it should appear.
+    private var accessRequestsSection: some View {
+        Section {
+            let pending = consentStore.expansionRequests.filter(\.isPending)
+            if pending.isEmpty {
+                Text("EXPANSION_NONE")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(pending) { request in
+                    if let grant = consentStore.clinicianGrants.first(where: { $0.id == request.grantID }),
+                       let differential = ConsentEngine.accessDifferential(for: grant, expandingTo: request.toTier) {
+                        Button {
+                            selectedExpansionRequest = request
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(String(format: String(localized: "EXPANSION_HEADER_FORMAT"),
+                                            differential.clinicianName, differential.organization))
+                                    .font(.subheadline.bold())
+                                Text(String(format: String(localized: "EXPANSION_TIER_CHANGE_FORMAT"),
+                                            differential.fromTier.rawValue, differential.toTier.rawValue))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                if let asked = request.questionSentAt {
+                                    Text(String(format: String(localized: "EXPANSION_ASKED_LABEL"),
+                                                asked.formatted(.dateTime.month().day().year())))
+                                        .font(.caption2)
+                                        .foregroundColor(.orange)
+                                } else {
+                                    Text("EXPANSION_PENDING_BADGE")
+                                        .font(.caption2)
+                                        .foregroundColor(.orange)
+                                }
+                            }
+                        }
+                        .foregroundColor(.primary)
+                    }
+                    // A pending request whose differential no longer holds — the grant was revoked
+                    // or already widened — is not rendered. `approveExpansion` fails closed on the
+                    // same condition, so there is nothing here the user could usefully answer.
+                }
+            }
+        } header: {
+            Text("DASHBOARD_SECTION_ACCESS_REQUESTS")
         }
     }
 
@@ -271,6 +326,17 @@ struct ClinicianGrantRow: View {
                 .foregroundColor(.secondary)
                 .lineLimit(nil)
                 .fixedSize(horizontal: false, vertical: true)
+            // A "from today onwards only" answer to §6.1's retroactive question has to stay
+            // visible after the decision, or the user cannot tell which of the two answers they
+            // gave. Absent when every scope covers prior data, which is the ordinary case.
+            if !grant.forwardOnlyElements.isEmpty {
+                Text(String(format: String(localized: "DASHBOARD_FORWARD_ONLY_FORMAT"),
+                            grant.forwardOnlyElements.map(\.displayName).sorted().joined(separator: ", ")))
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             HStack {
                 Label(String(format: String(localized: "DASHBOARD_GRANTED_FORMAT"),
                              grant.grantedAt.formatted(.dateTime.month().day().year())),
@@ -396,6 +462,179 @@ struct StudyInvitationView: View {
                 Button("COMMON_CANCEL", role: .cancel) {}
             } message: {
                 Text(invitation.irreversibilityNotice)
+            }
+        }
+    }
+}
+
+/// §6.1's access-expansion review: the differential consent document, then the two decisions.
+///
+/// The decisions are on separate steps, not two controls on one screen. §6.1 requires retroactive
+/// and prospective access to be "presented as separate consent decisions even if made
+/// simultaneously", and a single screen carrying an Approve button and a history checkbox presents
+/// one decision with a modifier on it. Approving here answers only the forward-looking question;
+/// the history question is asked afterwards, on its own, and says in as many words that the user
+/// may answer it either way.
+///
+/// There is no "deny" on the second step. By then the user has approved the expansion going
+/// forward, and the two answers to what remains — earlier sessions in, or earlier sessions out —
+/// are both there.
+struct ClinicianExpansionRequestView: View {
+    let request: ClinicianAccessExpansionRequest
+    @EnvironmentObject private var consentStore: ConsentStore
+    @Environment(\.dismiss) private var dismiss
+
+    private enum Step { case review, history, asked }
+    @State private var step: Step = .review
+
+    private var differential: ClinicianAccessDifferential? {
+        guard let grant = consentStore.clinicianGrants.first(where: { $0.id == request.grantID })
+        else { return nil }
+        return ConsentEngine.accessDifferential(for: grant, expandingTo: request.toTier)
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                if let differential {
+                    VStack(alignment: .leading, spacing: 20) {
+                        header(differential)
+                        Divider()
+                        switch step {
+                        case .review:  reviewStep(differential)
+                        case .history: historyStep(differential)
+                        case .asked:   askedStep
+                        }
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle("EXPANSION_TITLE")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("COMMON_CANCEL") { dismiss() }
+                }
+            }
+        }
+    }
+
+    private func header(_ d: ClinicianAccessDifferential) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(String(format: String(localized: "EXPANSION_HEADER_FORMAT"),
+                        d.clinicianName, d.organization))
+                .font(.title3.bold())
+            Text(String(format: String(localized: "EXPANSION_TIER_CHANGE_FORMAT"),
+                        d.fromTier.rawValue, d.toTier.rawValue))
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Text(String(format: String(localized: "EXPANSION_PRICE_FORMAT"), d.toTier.monthlyPrice))
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+
+    /// The differential consent document. What is new is listed first and on its own, because the
+    /// change is the thing being consented to; the unchanged sets are context.
+    private func reviewStep(_ d: ClinicianAccessDifferential) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            elementList("EXPANSION_NEWLY_VISIBLE_HEADING", d.newlyVisibleElements,
+                        icon: "plus.circle.fill", color: .orange)
+            elementList("EXPANSION_ALREADY_VISIBLE_HEADING", d.alreadyVisibleElements,
+                        icon: "checkmark.circle.fill", color: .green)
+            elementList("EXPANSION_STILL_WITHHELD_HEADING", d.stillNotAccessibleElements,
+                        icon: "xmark.circle.fill", color: .secondary)
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("EXPANSION_PROSPECTIVE_HEADING").font(.headline)
+                Text(String(format: String(localized: "EXPANSION_PROSPECTIVE_BODY"), d.clinicianName))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            VStack(spacing: 12) {
+                Button("EXPANSION_APPROVE_BUTTON") { step = .history }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
+                Button("EXPANSION_DENY_BUTTON") {
+                    consentStore.denyExpansion(requestID: request.id)
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .foregroundColor(.red)
+                .frame(maxWidth: .infinity)
+                Button("EXPANSION_ASK_BUTTON") {
+                    consentStore.askQuestionAboutExpansion(requestID: request.id)
+                    step = .asked
+                }
+                .buttonStyle(.bordered)
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    /// The retroactive decision, asked separately and after the fact — never as a checkbox on the
+    /// approval above. Both answers are buttons of equal weight: neither is the default.
+    private func historyStep(_ d: ClinicianAccessDifferential) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            elementList("EXPANSION_NEWLY_VISIBLE_HEADING", d.newlyVisibleElements,
+                        icon: "plus.circle.fill", color: .orange)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("EXPANSION_HISTORY_HEADING").font(.headline)
+                Text(String(format: String(localized: "EXPANSION_HISTORY_BODY"), d.clinicianName))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+            }
+
+            VStack(spacing: 12) {
+                Button("EXPANSION_HISTORY_FORWARD_ONLY_BUTTON") {
+                    consentStore.approveExpansion(requestID: request.id, includePriorData: false)
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .frame(maxWidth: .infinity)
+                Button("EXPANSION_HISTORY_INCLUDE_BUTTON") {
+                    consentStore.approveExpansion(requestID: request.id, includePriorData: true)
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .frame(maxWidth: .infinity)
+            }
+        }
+    }
+
+    /// Asking is not deciding: the request stays pending, and the copy says so rather than
+    /// implying a message was delivered — there is no outbound clinician channel yet
+    /// (`OI-CONSENT-05`).
+    private var askedStep: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("EXPANSION_ASK_BUTTON", systemImage: "questionmark.circle.fill")
+                .font(.headline)
+                .foregroundColor(.orange)
+            Text("EXPANSION_ASK_EXPLAINER")
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+            Button("COMMON_CANCEL") { dismiss() }
+                .buttonStyle(.bordered)
+                .frame(maxWidth: .infinity)
+        }
+    }
+
+    private func elementList(
+        _ heading: LocalizedStringKey,
+        _ elements: Set<UHDRElement>,
+        icon: String,
+        color: Color
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(heading).font(.headline)
+            ForEach(elements.map(\.displayName).sorted(), id: \.self) { name in
+                Label(name, systemImage: icon)
+                    .font(.subheadline)
+                    .foregroundColor(color)
             }
         }
     }

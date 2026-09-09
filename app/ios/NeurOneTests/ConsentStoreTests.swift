@@ -26,7 +26,8 @@ final class ConsentStoreTests: XCTestCase {
     }
 
     private func clearConsentDefaults() {
-        let keys = ["np.consent.clinician-grants", "np.consent.research", "np.consent.study-participations"]
+        let keys = ["np.consent.clinician-grants", "np.consent.research", "np.consent.study-participations",
+                    "np.consent.clinician-expansions"]
         keys.forEach { UserDefaults.standard.removeObject(forKey: $0) }
     }
 
@@ -237,4 +238,218 @@ final class ConsentStoreTests: XCTestCase {
         XCTAssertTrue(reloaded.researchConsent.resultsOptIn)
         XCTAssertFalse(reloaded.researchConsent.suggestionPortalOptIn)
     }
+
+    // MARK: - Clinician access expansion (§6.1, OI-CONSENT-02)
+    //
+    // The property under test throughout is that the two decisions §6.1 requires to be asked
+    // separately are also RECORDED separately. Before this workflow existed,
+    // `expandClinicianAccess` set `tier` and nothing else, and because `approvedElements` derives
+    // from a timeless tier, that handed the clinician the new elements over every session ever
+    // recorded — the retroactive decision taken silently, and taken yes.
+
+    private var yesterday: Date { Date().addingTimeInterval(-86_400) }
+
+    private func makeGrant(_ tier: ClinicianUseCaseTier) -> ClinicianConsentGrant {
+        ClinicianConsentGrant(
+            id: grantID, clinicianName: "Dr. Test", clinicianOrganization: "Test Hospital",
+            tier: tier, grantedAt: yesterday
+        )
+    }
+
+    private func makeRequest(_ id: UUID, to tier: ClinicianUseCaseTier) -> ClinicianAccessExpansionRequest {
+        ClinicianAccessExpansionRequest(
+            id: id, grantID: grantID, fromTier: .monitor, toTier: tier,
+            requestedAt: Date(), decision: nil
+        )
+    }
+
+    private var grantID: UUID { UUID(uuidString: "00000000-0000-0000-0000-0000000000A1")! }
+    private var requestID: UUID { UUID(uuidString: "00000000-0000-0000-0000-0000000000B1")! }
+
+    func testApprovingForwardOnlyLeavesEarlierSessionsOutOfReach() {
+        store.grantClinicianAccess(makeGrant(.monitor))
+        store.addExpansionRequest(makeRequest(requestID, to: .assess))
+
+        store.approveExpansion(requestID: requestID, includePriorData: false)
+
+        let grant = store.clinicianGrants[0]
+        // The tier moves — it is what the subscription is keyed to — and today's data is in reach.
+        XCTAssertEqual(grant.tier, .assess)
+        XCTAssertEqual(grant.approvedElements, ClinicianUseCaseTier.assess.uhdrElements)
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date()),
+                       ClinicianUseCaseTier.assess.uhdrElements)
+
+        // ...but yesterday's sessions still show only what Monitor ever reached. This is the
+        // assertion the old implementation could not have passed.
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: yesterday),
+                       ClinicianUseCaseTier.monitor.uhdrElements)
+        XCTAssertFalse(grant.elementsVisible(forDataRecordedAt: yesterday).contains(.eegWaveforms))
+        XCTAssertEqual(
+            grant.forwardOnlyElements,
+            ClinicianUseCaseTier.assess.uhdrElements
+                .subtracting(ClinicianUseCaseTier.monitor.uhdrElements)
+        )
+    }
+
+    func testApprovingWithPriorDataCoversEarlierSessions() {
+        store.grantClinicianAccess(makeGrant(.monitor))
+        store.addExpansionRequest(makeRequest(requestID, to: .assess))
+
+        store.approveExpansion(requestID: requestID, includePriorData: true)
+
+        let grant = store.clinicianGrants[0]
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: yesterday),
+                       ClinicianUseCaseTier.assess.uhdrElements)
+        XCTAssertTrue(grant.forwardOnlyElements.isEmpty)
+    }
+
+    func testTheTwoDecisionsAreRecordedSeparately() {
+        store.grantClinicianAccess(makeGrant(.monitor))
+        store.addExpansionRequest(makeRequest(requestID, to: .assess))
+
+        store.approveExpansion(requestID: requestID, includePriorData: false)
+
+        // "Approved, and not over history" must be readable back off the record as two answers,
+        // not inferred from a single flag.
+        guard case let .some(.approved(_, includesPriorData)) = store.expansionRequests[0].decision else {
+            return XCTFail("Expected an approved decision.")
+        }
+        XCTAssertFalse(includesPriorData)
+        XCTAssertFalse(store.expansionRequests[0].isPending)
+    }
+
+    func testDenyingChangesNothingAboutTheGrant() {
+        store.grantClinicianAccess(makeGrant(.monitor))
+        store.addExpansionRequest(makeRequest(requestID, to: .assess))
+
+        store.denyExpansion(requestID: requestID)
+
+        XCTAssertEqual(store.clinicianGrants[0].tier, .monitor)
+        XCTAssertEqual(store.clinicianGrants[0].approvedElements,
+                       ClinicianUseCaseTier.monitor.uhdrElements)
+        XCTAssertFalse(store.expansionRequests[0].isPending)
+    }
+
+    func testAskingAQuestionIsNotDeciding() {
+        store.grantClinicianAccess(makeGrant(.monitor))
+        store.addExpansionRequest(makeRequest(requestID, to: .assess))
+
+        store.askQuestionAboutExpansion(requestID: requestID)
+
+        // The notification must survive the question, or the user loses the request by asking
+        // about it — and nothing may change about the grant in the meantime.
+        XCTAssertTrue(store.expansionRequests[0].isPending)
+        XCTAssertNotNil(store.expansionRequests[0].questionSentAt)
+        XCTAssertEqual(store.clinicianGrants[0].tier, .monitor)
+
+        // A question does not spend the request: it can still be approved afterwards.
+        store.approveExpansion(requestID: requestID, includePriorData: false)
+        XCTAssertEqual(store.clinicianGrants[0].tier, .assess)
+    }
+
+    func testRevokingAGrantWithdrawsItsPendingRequest() {
+        store.grantClinicianAccess(makeGrant(.monitor))
+        store.addExpansionRequest(makeRequest(requestID, to: .assess))
+
+        store.revokeClinicianAccess(grantID: grantID)
+
+        XCTAssertTrue(store.expansionRequests.isEmpty)
+        // And approving it afterwards must not resurrect anything.
+        store.approveExpansion(requestID: requestID, includePriorData: true)
+        XCTAssertTrue(store.clinicianGrants.isEmpty)
+    }
+
+    func testApprovingAStaleRequestIsRefused() {
+        let secondID = UUID(uuidString: "00000000-0000-0000-0000-0000000000B2")!
+        store.grantClinicianAccess(makeGrant(.monitor))
+        store.addExpansionRequest(makeRequest(requestID, to: .assess))
+        // The grant is widened past the request's target by a second, later request.
+        store.addExpansionRequest(makeRequest(secondID, to: .fullClinical))
+        store.approveExpansion(requestID: secondID, includePriorData: false)
+
+        // The first was superseded when the second arrived, so there is nothing to approve; and
+        // even if it were reachable, Assess no longer adds anything to a Full Clinical grant.
+        store.approveExpansion(requestID: requestID, includePriorData: true)
+        XCTAssertEqual(store.clinicianGrants[0].tier, .fullClinical)
+        XCTAssertEqual(
+            store.clinicianGrants[0].forwardOnlyElements,
+            ClinicianUseCaseTier.fullClinical.uhdrElements
+                .subtracting(ClinicianUseCaseTier.monitor.uhdrElements)
+        )
+    }
+
+    func testANewRequestSupersedesTheOutstandingOneButNotDecidedHistory() {
+        let secondID = UUID(uuidString: "00000000-0000-0000-0000-0000000000B2")!
+        store.grantClinicianAccess(makeGrant(.monitor))
+        store.addExpansionRequest(makeRequest(requestID, to: .assess))
+        store.denyExpansion(requestID: requestID)
+
+        store.addExpansionRequest(makeRequest(secondID, to: .assess))
+
+        // The denial stays on the record; only the outstanding request is superseded.
+        XCTAssertEqual(store.expansionRequests.count, 2)
+        XCTAssertEqual(store.expansionRequests.filter(\.isPending).count, 1)
+    }
+
+    func testExpansionRequestsAndScopesSurviveAReload() {
+        store.grantClinicianAccess(makeGrant(.monitor))
+        store.addExpansionRequest(makeRequest(requestID, to: .assess))
+        store.approveExpansion(requestID: requestID, includePriorData: false)
+
+        // §6.1 asks for a *persistent* notification, and a retroactive answer that only lives in
+        // memory is not an answer.
+        let reloaded = ConsentStore()
+        guard case let .some(.approved(_, includesPriorData)) = reloaded.expansionRequests[0].decision else {
+            return XCTFail("Expected the approval to survive a reload.")
+        }
+        XCTAssertFalse(includesPriorData)
+        XCTAssertEqual(reloaded.clinicianGrants[0].elementsVisible(forDataRecordedAt: yesterday),
+                       ClinicianUseCaseTier.monitor.uhdrElements)
+    }
+
+    func testAGrantWithNoScopesKeepsItsPreWorkflowMeaning() {
+        // A grant written before the workflow existed has no scopes. Introducing the workflow must
+        // not silently re-scope it: a bare tier has always meant "these elements, all history".
+        let grant = makeGrant(.assess)
+        XCTAssertNil(grant.accessScopes)
+        XCTAssertEqual(grant.approvedElements, ClinicianUseCaseTier.assess.uhdrElements)
+        XCTAssertEqual(grant.elementsVisible(forDataRecordedAt: Date(timeIntervalSince1970: 0)),
+                       ClinicianUseCaseTier.assess.uhdrElements)
+        XCTAssertTrue(grant.forwardOnlyElements.isEmpty)
+    }
+
+    func testAChangeThatIsNotAnExpansionHasNoDifferential() {
+        let monitor = makeGrant(.monitor)
+        // Nothing new.
+        XCTAssertNil(ConsentEngine.accessDifferential(for: monitor, expandingTo: .monitor))
+        // Something lost — a re-scope, not a widening.
+        XCTAssertNil(ConsentEngine.accessDifferential(for: makeGrant(.fullClinical), expandingTo: .assess))
+        // Either side Research: its element set is IRB-defined per study descriptor, not derivable
+        // from the tier, so the emptiness must never be read as a set.
+        XCTAssertNil(ConsentEngine.accessDifferential(for: monitor, expandingTo: .research))
+        XCTAssertNil(ConsentEngine.accessDifferential(for: makeGrant(.research), expandingTo: .fullClinical))
+    }
+
+    func testTheDifferentialSplitsElementsIntoNewAlreadyVisibleAndWithheld() {
+        guard let d = ConsentEngine.accessDifferential(for: makeGrant(.monitor), expandingTo: .assess) else {
+            return XCTFail("Monitor → Assess is an expansion.")
+        }
+        XCTAssertEqual(d.newlyVisibleElements,
+                       ClinicianUseCaseTier.assess.uhdrElements
+                           .subtracting(ClinicianUseCaseTier.monitor.uhdrElements))
+        XCTAssertEqual(d.alreadyVisibleElements, ClinicianUseCaseTier.monitor.uhdrElements)
+        XCTAssertEqual(d.stillNotAccessibleElements,
+                       Set(UHDRElement.allCases).subtracting(ClinicianUseCaseTier.assess.uhdrElements))
+
+        // The three sets partition the element roster: nothing is in two of them, nothing is lost.
+        let union = d.newlyVisibleElements.union(d.alreadyVisibleElements)
+            .union(d.stillNotAccessibleElements)
+        XCTAssertEqual(union, Set(UHDRElement.allCases))
+        XCTAssertEqual(
+            d.newlyVisibleElements.count + d.alreadyVisibleElements.count
+                + d.stillNotAccessibleElements.count,
+            UHDRElement.allCases.count
+        )
+    }
+
 }

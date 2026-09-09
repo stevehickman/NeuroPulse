@@ -23,6 +23,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -35,7 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import life.neurone.app.NeurOneApplication
 import life.neurone.app.R
+import life.neurone.core.consent.ConsentEngine
 import life.neurone.core.consent.ConsentStore
+import life.neurone.core.models.ClinicianAccessExpansionRequest
 import life.neurone.core.models.ClinicianConsentGrant
 import life.neurone.core.models.ClinicianUseCaseTier
 import life.neurone.core.models.ResearchCategory
@@ -80,6 +83,7 @@ private sealed interface DashboardRoute {
     data object Portal : DashboardRoute
     data object NewClinicianGrant : DashboardRoute
     data class Invitation(val invitation: StudyInvitation) : DashboardRoute
+    data class ExpansionRequest(val request: ClinicianAccessExpansionRequest) : DashboardRoute
 }
 
 @Composable
@@ -132,6 +136,17 @@ fun ConsentDashboardScreen(app: NeurOneApplication, modifier: Modifier = Modifie
             modifier = modifier,
         )
 
+        is DashboardRoute.ExpansionRequest -> ClinicianExpansionRequestScreen(
+            store = store,
+            request = current.request,
+            onDecided = {
+                version++
+                route = DashboardRoute.Dashboard
+            },
+            onBack = { route = DashboardRoute.Dashboard },
+            modifier = modifier,
+        )
+
         is DashboardRoute.Dashboard -> DashboardContent(
             store = store,
             version = version,
@@ -155,6 +170,7 @@ private fun DashboardContent(
     val research = remember(version) { store.researchConsent }
     val participations = remember(version) { store.studyParticipations }
     val invitations = remember(version) { store.pendingInvitations.filter { it.hasNoDecision } }
+    val expansions = remember(version) { store.expansionRequests.filter { it.isPending } }
 
     var grantPendingRevoke by remember { mutableStateOf<ClinicianConsentGrant?>(null) }
     var participationPendingWithdraw by remember { mutableStateOf<StudyParticipationRecord?>(null) }
@@ -190,6 +206,67 @@ private fun DashboardContent(
             stringResource(R.string.dashboard_clinicians_footer),
             style = MaterialTheme.typography.bodySmall,
         )
+
+        Spacer(Modifier.height(20.dp))
+        Divider()
+        Spacer(Modifier.height(20.dp))
+
+        // ── Clinician access change requests (§6.1) ──────────────────────
+        // §6.1's persistent user notification. A section on the consent dashboard rather than a
+        // transient banner: the request outlives any one launch of the app, and the place the user
+        // manages clinician access is where a change to it should appear.
+        SectionHeader(stringResource(R.string.dashboard_section_access_requests))
+        if (expansions.isEmpty()) {
+            Text(
+                stringResource(R.string.expansion_none),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        } else {
+            for (request in expansions) {
+                val grant = grants.firstOrNull { it.id == request.grantId }
+                val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier) }
+                // A pending request whose differential no longer holds — the grant was revoked or
+                // already widened — is not rendered. approveExpansion fails closed on the same
+                // condition, so there is nothing here the user could usefully answer.
+                if (differential != null) {
+                    Card(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(
+                                stringResource(
+                                    R.string.expansion_header_format,
+                                    differential.clinicianName,
+                                    differential.organization,
+                                ),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                stringResource(
+                                    R.string.expansion_tier_change_format,
+                                    differential.fromTier.displayName,
+                                    differential.toTier.displayName,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            val askedOn = request.questionSentOnDay
+                            Text(
+                                if (askedOn != null) {
+                                    stringResource(R.string.expansion_asked_label, askedOn)
+                                } else {
+                                    stringResource(R.string.expansion_pending_badge)
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            OutlinedButton(
+                                onClick = { onNavigate(DashboardRoute.ExpansionRequest(request)) },
+                            ) {
+                                Text(stringResource(R.string.expansion_review_button))
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         Spacer(Modifier.height(20.dp))
         Divider()
@@ -442,6 +519,18 @@ private fun ClinicianGrantCard(grant: ClinicianConsentGrant, onRevoke: () -> Uni
                 stringResource(R.string.dashboard_access_format, elementList(grant.approvedElements)),
                 style = MaterialTheme.typography.labelSmall,
             )
+            // A "from today onwards only" answer to §6.1's retroactive question has to stay
+            // visible after the decision, or the user cannot tell which of the two answers they
+            // gave. Absent when every scope covers prior data, which is the ordinary case.
+            if (grant.forwardOnlyElements.isNotEmpty()) {
+                Text(
+                    stringResource(
+                        R.string.dashboard_forward_only_format,
+                        elementList(grant.forwardOnlyElements),
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
             Text(
                 stringResource(R.string.dashboard_granted_format, grant.grantedAtDay),
                 style = MaterialTheme.typography.labelSmall,
@@ -575,6 +664,207 @@ private fun StudyInvitationScreen(
             },
         )
     }
+}
+
+/**
+ * §6.1's access-expansion review — port of iOS ClinicianExpansionRequestView.
+ *
+ * The decisions are on separate steps, not two controls on one screen. §6.1 requires retroactive
+ * and prospective access to be "presented as separate consent decisions even if made
+ * simultaneously", and a single screen carrying an Approve button and a history checkbox presents
+ * one decision with a modifier on it. Approving here answers only the forward-looking question;
+ * the history question is asked afterwards, on its own, and says in as many words that the user
+ * may answer it either way.
+ *
+ * There is no "deny" on the second step. By then the user has approved the expansion going
+ * forward, and the two answers to what remains — earlier sessions in, or earlier sessions out —
+ * are both there, as buttons of equal weight.
+ */
+@Composable
+private fun ClinicianExpansionRequestScreen(
+    store: ConsentStore,
+    request: ClinicianAccessExpansionRequest,
+    onDecided: () -> Unit,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var askingAboutHistory by remember { mutableStateOf(false) }
+    var questionSent by remember { mutableStateOf(false) }
+
+    val grant = store.clinicianGrants.firstOrNull { it.id == request.grantId }
+    val differential = grant?.let { ConsentEngine.accessDifferential(it, request.toTier) }
+    if (differential == null) {
+        // Stale request: the grant went away or was already widened past this tier. Nothing here
+        // can be answered honestly, so the screen renders nothing and leaves. The navigation is a
+        // side effect, so it goes through LaunchedEffect rather than firing during composition.
+        LaunchedEffect(request.id) { onBack() }
+        return
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TextButton(onClick = onBack) { Text(stringResource(R.string.consent_back_button)) }
+            Text(
+                stringResource(R.string.expansion_title),
+                style = MaterialTheme.typography.titleMedium,
+            )
+        }
+        Spacer(Modifier.height(12.dp))
+
+        Text(
+            stringResource(
+                R.string.expansion_header_format,
+                differential.clinicianName,
+                differential.organization,
+            ),
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        Text(
+            stringResource(
+                R.string.expansion_tier_change_format,
+                differential.fromTier.displayName,
+                differential.toTier.displayName,
+            ),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            stringResource(R.string.expansion_price_format, differential.toTier.monthlyPrice),
+            style = MaterialTheme.typography.bodySmall,
+        )
+
+        Spacer(Modifier.height(16.dp))
+        Divider()
+        Spacer(Modifier.height(16.dp))
+
+        when {
+            questionSent -> {
+                // Asking is not deciding: the request stays pending, and the copy says so rather
+                // than implying a message was delivered — there is no outbound clinician channel
+                // yet (OI-CONSENT-05).
+                Text(stringResource(R.string.expansion_ask_button), fontWeight = FontWeight.Medium)
+                Text(
+                    stringResource(R.string.expansion_ask_explainer),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedButton(onClick = onDecided) {
+                    Text(stringResource(R.string.consent_back_button))
+                }
+            }
+
+            askingAboutHistory -> {
+                ElementListBlock(
+                    heading = stringResource(R.string.expansion_newly_visible_heading),
+                    elements = differential.newlyVisibleElements,
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    stringResource(R.string.expansion_history_heading),
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    stringResource(R.string.expansion_history_body, differential.clinicianName),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(16.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = {
+                            store.approveExpansion(request.id, includePriorData = false)
+                            onDecided()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.expansion_history_forward_only_button))
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            store.approveExpansion(request.id, includePriorData = true)
+                            onDecided()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.expansion_history_include_button))
+                    }
+                }
+            }
+
+            else -> {
+                // The differential consent document. What is new is listed first and on its own,
+                // because the change is the thing being consented to; the unchanged sets are
+                // context.
+                ElementListBlock(
+                    heading = stringResource(R.string.expansion_newly_visible_heading),
+                    elements = differential.newlyVisibleElements,
+                )
+                Spacer(Modifier.height(12.dp))
+                ElementListBlock(
+                    heading = stringResource(R.string.expansion_already_visible_heading),
+                    elements = differential.alreadyVisibleElements,
+                )
+                Spacer(Modifier.height(12.dp))
+                ElementListBlock(
+                    heading = stringResource(R.string.expansion_still_withheld_heading),
+                    elements = differential.stillNotAccessibleElements,
+                )
+
+                Spacer(Modifier.height(16.dp))
+                Divider()
+                Spacer(Modifier.height(16.dp))
+
+                Text(
+                    stringResource(R.string.expansion_prospective_heading),
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    stringResource(R.string.expansion_prospective_body, differential.clinicianName),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(16.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Button(
+                        onClick = { askingAboutHistory = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.expansion_approve_button))
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            store.denyExpansion(request.id)
+                            onDecided()
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.expansion_deny_button))
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            store.askQuestionAboutExpansion(request.id)
+                            questionSent = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.expansion_ask_button))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ElementListBlock(heading: String, elements: Set<UHDRElement>) {
+    Text(heading, fontWeight = FontWeight.Medium)
+    Text(elementList(elements), style = MaterialTheme.typography.bodySmall)
 }
 
 /**

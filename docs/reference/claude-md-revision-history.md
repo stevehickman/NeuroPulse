@@ -13,6 +13,32 @@
 
 ## Current revision
 
+**Rev 42 (2026-09-09) — §6.1: a clinician grant's reach is scoped in time, because the tier alone
+could only ever answer §6.1's retroactive question one way.** No decision changed. §6.1 has said
+since it was locked that *retroactive and prospective access are presented as separate consent
+decisions even when made simultaneously*, and the sentence in the core is unchanged. What changed is
+that the sentence is now implementable, and one clause was added saying so.
+
+**Why it needed saying in the core rather than only in the owning file.** `ClinicianConsentGrant`
+derived `approvedElements` from `tier`, and a tier is timeless. Raising it — which was the entire
+body of the unreferenced `expandClinicianAccess()` that `OI-CONSENT-02` was raised about — hands the
+clinician each newly added element over every session ever recorded. The workflow was not merely
+unbuilt: the one piece of it that existed took §6.1's retroactive decision silently, and took it
+yes, and **no model on either platform could express the other answer**. A grant now carries
+`ClinicianAccessScope`s — element set, effective-from, and separately whether prior data is
+included — so *"widen it going forward, leave my earlier sessions alone"* is representable. That is
+the kind of structural fact a later change can quietly undo by re-deriving access from the tier, and
+the core is where such a thing is guarded.
+
+**Where the detail is.** The workflow as implemented — the differential document and the three
+changes it refuses (nothing added; something removed; either side being the Research tier, whose
+element set is IRB-defined per study descriptor so its emptiness is never a set), the two-step
+presentation of the decisions, and the two halves deliberately not built (`OI-CONSENT-05`,
+`OI-CONSENT-06`) — is in `docs/reference/commercial-model.md` §6.1. Record:
+`docs/status/completed-decisions.md`, 2026-09-09.
+
+## Earlier revisions
+
 **Rev 41 (2026-09-08) — §17: the generated locale files leave the repository; `locales/*.json` becomes
 the only committed copy of any user-facing string.** Rev 40's §17 already named canonical as the
 place a string is edited, and `sync-locales.ts --check` failed CI when a generated file drifted from
@@ -51,8 +77,6 @@ than the generated copy: every assertion they make is a property of the source o
 the generated tree they would have restated what the generator guarantees by construction while
 passing just as happily on a stale copy. No key, no string value and no rule from Rev 40's §17
 changed.
-
-## Earlier revisions
 
 > **Rev 40 (2026-09-01) — core/subsidiary split extended; no design decision changed.** The
 > always-loaded core was reduced from ~69 KB to the invariants that bear on most conversations. The
