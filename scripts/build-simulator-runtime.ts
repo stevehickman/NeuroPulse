@@ -18,6 +18,14 @@
  * Run after changing simulator/src/ or the web parser:
  *   bun scripts/build-simulator-runtime.ts
  * Pass --check to fail without writing when the bundle is stale (CI).
+ * Pass --self-test to falsify that check (CI; see the block near the bottom).
+ *
+ * --check is a gate, but this file is named neither check-* nor test_*, so
+ * check-gate-coverage.ts does not scan it — the same filename boundary that
+ * leaves the sync-* generators out, and for the same reason: a generator with a
+ * --check answers to a different rule. That boundary is stated in both files
+ * rather than left to be discovered, and the self-test below is what stands in
+ * for the coverage this file cannot get from that gate.
  *
  * **A locale edit is not a source change for this bundle.** The import graph
  * reaches app/web/src/lib/i18n.ts, which statically imports the generated
@@ -30,9 +38,10 @@
  * than assumed by assertNoLocaleContent below.
  */
 
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'fs';
 import { createHash } from 'crypto';
 import { dirname, join, resolve } from 'path';
+import { tmpdir } from 'os';
 
 const ROOT = join(import.meta.dir, '..');
 const ENTRY = join(ROOT, 'simulator', 'src', 'npps-runtime.ts');
@@ -123,10 +132,10 @@ const CONTENT_EXCLUDED = '<generated-locale: content excluded from fingerprint>'
  * invalidation that cannot correspond to any change in the output is noise, and
  * a check that cries wolf is a check people learn to re-run past.
  */
-function fingerprintSources(files: string[]): string {
+function fingerprintSources(files: string[], root: string = ROOT): string {
   const hash = createHash('sha256');
   for (const file of files) {
-    const rel = file.slice(ROOT.length);
+    const rel = file.slice(root.length);
     hash.update(rel);
     hash.update('\0');
     hash.update(GENERATED_LOCALE.test(rel) ? CONTENT_EXCLUDED : readFileSync(file));
@@ -179,10 +188,13 @@ function assertNoProtocolContent(bundle: string): void {
  * parser doing its job. Read from locales/en.json, which is committed and is
  * the key set every other locale must carry (CLAUDE.md §17).
  */
-function assertNoLocaleContent(bundle: string): void {
-  const keys = Object.keys(
+function canonicalLocaleKeys(): string[] {
+  return Object.keys(
     JSON.parse(readFileSync(join(ROOT, 'locales', 'en.json'), 'utf8')) as Record<string, string>,
   );
+}
+
+function assertNoLocaleContent(bundle: string, keys: string[] = canonicalLocaleKeys()): void {
   if (keys.length === 0) {
     throw new Error('no canonical locale keys found — the locale content check would be vacuous');
   }
@@ -199,6 +211,127 @@ function assertNoLocaleContent(bundle: string): void {
 }
 
 const check = process.argv.includes('--check');
+
+// ── Self-test ─────────────────────────────────────────────────────────────────
+//
+// The staleness check is a gate, and a gate that has only ever run against a
+// fresh tree has demonstrated nothing (NP-CONV-001 §4.0.1a). It was falsified by
+// hand when the locale exclusion landed, and that evidence was thrown away — the
+// exact pattern check-gate-coverage.ts exists to stop. This keeps it.
+//
+// Two directions matter, and they pull against each other. The check must still
+// FIRE when the parser or the runtime changes, which is the only thing it exists
+// to catch; and it must stay QUIET on a locale edit, which is the narrowing that
+// stopped it crying wolf. A regression in either direction is silent otherwise:
+// over-firing looks like a stale bundle, under-firing looks like a green build.
+if (process.argv.includes('--self-test')) {
+  const box = mkdtempSync(join(tmpdir(), 'np-simruntime-'));
+  const failures: string[] = [];
+  const expect = (label: string, ok: boolean) => {
+    if (!ok) failures.push(label);
+  };
+  const throws = (fn: () => void): boolean => {
+    try {
+      fn();
+      return false;
+    } catch {
+      return true;
+    }
+  };
+
+  // A fixture tree shaped like the real one: one committed source, one generated
+  // locale file at the path the exclusion keys on.
+  const fixture = (source: string, locale: string): { root: string; files: string[] } => {
+    const root = mkdtempSync(join(box, 't-'));
+    const put = (rel: string, body: string) => {
+      mkdirSync(join(root, dirname(rel)), { recursive: true });
+      writeFileSync(join(root, rel), body);
+      return join(root, rel);
+    };
+    return {
+      root,
+      files: [
+        put('app/web/src/generated/locales/en.json', locale),
+        put('app/web/src/lib/nppsParser.ts', source),
+      ],
+    };
+  };
+  const hashOf = (source: string, locale: string) => {
+    const f = fixture(source, locale);
+    return fingerprintSources(f.files, f.root);
+  };
+
+  const BASE = hashOf('export const a = 1;', '{"COMMON_CANCEL":"Cancel"}');
+
+  // 1. The thing the gate is for: a source edit must change the fingerprint.
+  expect(
+    'a source edit changes the fingerprint',
+    hashOf('export const a = 2;', '{"COMMON_CANCEL":"Cancel"}') !== BASE,
+  );
+
+  // 2. The narrowing: a locale edit must NOT. This is the case that failed CI on
+  //    #326 and whose rebuild produced a byte-identical artefact.
+  expect(
+    'a locale edit leaves the fingerprint alone',
+    hashOf('export const a = 1;', '{"COMMON_CANCEL":"Cancel","NEW_KEY":"New"}') === BASE,
+  );
+
+  // 3. Paths still count, for every file including the excluded ones — a moved
+  //    or added source is a different bundle.
+  {
+    const f = fixture('export const a = 1;', '{"COMMON_CANCEL":"Cancel"}');
+    const extra = join(f.root, 'app/web/src/lib/extra.ts');
+    mkdirSync(dirname(extra), { recursive: true });
+    writeFileSync(extra, 'export const b = 1;');
+    expect('adding a file to the graph changes the fingerprint',
+      fingerprintSources([...f.files, extra], f.root) !== BASE);
+  }
+
+  // 4. The graph the whole check rests on must actually reach the two files it
+  //    exists to watch. Everything above can hold while this is false, and then
+  //    the gate is watching nothing — the vacuity failure that outlived TOKEN-01.
+  {
+    const graph = sourceGraph(ENTRY).map((f) => f.slice(ROOT.length));
+    expect('the real graph reaches the web parser',
+      graph.includes('/app/web/src/lib/nppsParser.ts'));
+    expect('the real graph reaches the simulator runtime',
+      graph.includes('/simulator/src/npps-runtime.ts'));
+    // Exactly one generated locale file is in it (i18n.ts's static en fallback);
+    // if that ever grows, the exclusion covers more than it was reasoned about.
+    const locales = graph.filter((f) => GENERATED_LOCALE.test(f));
+    expect(`exactly one generated locale file is in the graph (found ${locales.length})`,
+      locales.length === 1);
+  }
+
+  // 5. The canary that licenses the exclusion: locale content in the bundle is a
+  //    build failure, not a silent pass.
+  expect('a locale key in the bundle is caught',
+    throws(() => assertNoLocaleContent('const x = "COMMON_CANCEL";', ['COMMON_CANCEL'])));
+  expect('a clean bundle passes the locale check',
+    !throws(() => assertNoLocaleContent('const x = 1;', ['COMMON_CANCEL'])));
+  expect('an empty key set is refused rather than passing vacuously',
+    throws(() => assertNoLocaleContent('const x = 1;', [])));
+
+  // 6. The pre-existing §1.6 canary, falsified here for the first time.
+  expect('protocol content in the bundle is caught',
+    throws(() => assertNoProtocolContent(readFileSync(
+      join(ROOT, 'protocols', 'predefined', '00-zones.npps'), 'utf8'))));
+  expect('a bundle with no protocol content passes',
+    !throws(() => assertNoProtocolContent('const x = 1;')));
+
+  rmSync(box, { recursive: true, force: true });
+  console.log('build-simulator-runtime self-test');
+  if (failures.length > 0) {
+    console.error(`\nSELF-TEST FAIL — ${failures.length} case(s):`);
+    for (const f of failures) console.error('  ' + f);
+    process.exit(1);
+  }
+  console.log('  10 case(s): a source edit fires, a locale edit does not, the graph');
+  console.log('  reaches the parser and the runtime, and both content canaries bite.');
+  console.log('SELF-TEST PASS — the staleness check has teeth.');
+  process.exit(0);
+}
+
 const fingerprint = fingerprintSources(sourceGraph(ENTRY));
 
 // ── Check mode ────────────────────────────────────────────────────────────────

@@ -46,11 +46,19 @@
  * Files whose name declares them a check or a test: scripts/check-*,
  * ci/test_*, ci/run_*, plus scripts/ci-changed-scope.sh.
  *
- * NOT covered: the sync-* generators. scripts/sync-locales.ts --check and
- * sync-socket-map.ts --check are gates in every meaningful sense and web-ci
- * runs both. They belong to a different rule — a generator must be pure and
- * have a --check that writes nothing (the #237 lesson) — and folding them in
- * here would blur two rules into one. Stated rather than silently omitted.
+ * NOT covered: the generators that carry a --check. scripts/sync-locales.ts,
+ * sync-socket-map.ts and build-simulator-runtime.ts are gates in every
+ * meaningful sense and web-ci runs all three. They belong to a different rule —
+ * a generator must be pure and have a --check that writes nothing (the #237
+ * lesson) — and folding them in here would blur two rules into one. Stated
+ * rather than silently omitted.
+ *
+ * The gap that boundary leaves is real, and build-simulator-runtime.ts paid for
+ * it: its staleness check was narrowed to stop firing on locale edits, the
+ * narrowing was falsified by hand, and nothing kept the evidence — this file's
+ * own opening complaint, one directory over. It now carries
+ * `--self-test`, run by web-ci, on its own initiative rather than this gate's
+ * insistence. If a fourth such generator appears, that is the pattern to copy.
  *
  * CI-Kind: gate
  * CI-Self-Test: bun scripts/check-gate-coverage.ts --self-test
