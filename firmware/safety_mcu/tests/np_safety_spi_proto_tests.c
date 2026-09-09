@@ -395,9 +395,19 @@ static void test_enable_word_matches_hub(void)
     check(hub_union == NP_SAFETY_EN_ALL_MASK,
           "union of hub enable bits == NP_SAFETY_EN_ALL_MASK");
 
-    /* Charge-monitor channel index must agree across the boundary too. */
+    /* Charge-monitor channel indices must agree across the boundary too.
+     * Both are geometry-gated channels (OI-CHARGE-03 / -04): the hub delivers
+     * an electrode area on each, and a mismatch here would apply one
+     * modality's charge limit to another's accumulator. */
     check(np_hub_ch_clin_stim == NP_SAFETY_CH_CLIN_STIM,
           "hub NP_SAFETY_CH_CLIN_STIM == safety MCU value");
+    check(np_hub_ch_tdcs == NP_SAFETY_CH_TDCS,
+          "hub NP_SAFETY_CH_TDCS == safety MCU value");
+    /* Each index is the bit position of its own enable bit. */
+    check((1U << np_hub_ch_clin_stim) == NP_SAFETY_EN_CLIN_STIM,
+          "CH_CLIN_STIM is the bit position of EN_CLIN_STIM");
+    check((1U << np_hub_ch_tdcs) == NP_SAFETY_EN_TDCS,
+          "CH_TDCS is the bit position of EN_TDCS");
 
     /* Audio carries no safety gate on either side. */
     check(np_hub_en_audio == 0U, "hub NP_SAFETY_EN_AUDIO is 0 (not gated)");

@@ -16,6 +16,7 @@ typedef struct {
 extern const np_hub_enable_mirror_t np_hub_enable_mirror[];
 extern const unsigned               np_hub_enable_mirror_count;
 extern const uint8_t                np_hub_ch_clin_stim;
+extern const uint8_t                np_hub_ch_tdcs;
 extern const uint16_t               np_hub_en_audio;
 
 #endif /* NP_HUB_ENABLE_MIRROR_H */

@@ -204,6 +204,18 @@
  * the anode (peak per-electrode) current.  OI-CHARGE-02.                      */
 #define NP_SAFETY_CH_CLIN_STIM      13U
 
+/* Safety-MCU charge-monitor channel INDEX for T1 tDCS (= bit position of
+ * NP_SAFETY_EN_TDCS).  The session runner delivers the protocol's declared
+ * electrode area on this channel (OI-CHARGE-04).
+ *
+ * Defined per-side like NP_SAFETY_CH_CLIN_STIM above and MUST match
+ * safety_mcu/include/np_safety_protocol.h.  np_safety_spi_proto_tests.c
+ * asserts the two agree through np_hub_enable_mirror — OI-CHARGE-04 first
+ * defined this on the MCU side only, and because np_session_runner.c is in
+ * the ARM-cross-only HUB_SOURCES it compiles in no host test, so the ARM
+ * cross-build was the only thing that could catch it, and did.            */
+#define NP_SAFETY_CH_TDCS           6U
+
 /* HD-tDCS electrode geometry for the charge-limit command (OI-CHARGE-02).
  * 3.5mm Ag/AgCl sintered electrode area = 0.0962 cm² (NP_HD_ELECTRODE_AREA_CM2
  * in sloreta_hdtdcs/include/np_hd_config.h).  Expressed in milli-cm² and
