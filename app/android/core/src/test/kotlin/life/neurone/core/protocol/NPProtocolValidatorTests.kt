@@ -6,7 +6,7 @@ import kotlin.test.assertTrue
 
 /**
  * Port of iOS NPProtocolValidatorTests. Verifies the safety guards Android was missing:
- * hardware current ceilings (tDCS 2 mA, BES 1 mA), tDCS charge density (40 µC/cm²),
+ * hardware current ceilings (tDCS 2 mA, BES 1 mA), tDCS charge density (40 mC/cm²),
  * zero-duration rejection, PBM session-dose limit, and configured dosage limits.
  */
 class NPProtocolValidatorTests {
@@ -64,20 +64,20 @@ class NPProtocolValidatorTests {
 
     @Test
     fun chargeDensityOverLimitRejected() {
-        // 2.0 mA × 3600s / 35 cm² (ONE electrode) = 205.7 µC/cm² — over 40.
+        // 2.0 mA × 3600s / 35 cm² (ONE electrode) = 205.7 mC/cm² — over 40.
         val tdcs = NPTDCSParams(intensityMilliamps = 2.0, electrodePairs = listOf(listOf("Fp1", "P3")))
         val result = hardwareOnlyValidator().validate(protocolWith(NPModalityParams.Tdcs(tdcs), durationSeconds = 60 * 60))
         assertTrue(
             result.errors.any { it.parameterKey.lowercase().contains("charge") },
-            "Charge density over 40 µC/cm² must be rejected with a charge-density error.",
+            "Charge density over 40 mC/cm² must be rejected with a charge-density error.",
         )
     }
 
     @Test
     fun chargeDensityBorderlineValid() {
-        // The ceiling is inclusive: 1.4 mA × 1000s / 35 cm² = exactly 40.0 µC/cm².
+        // The ceiling is inclusive: 1.4 mA × 1000s / 35 cm² = exactly 40.0 mC/cm².
         // This was 2.0 mA at the 20-minute default and passed only under the summed-area
-        // model (34.3 µC/cm² across 70 cm²); per electrode that protocol is 68.6 µC/cm².
+        // model (34.3 mC/cm² across 70 cm²); per electrode that protocol is 68.6 mC/cm².
         val tdcs = NPTDCSParams(
             intensityMilliamps = 1.4,
             electrodePairs = listOf(listOf("Fp1", "P3")),
@@ -90,7 +90,7 @@ class NPProtocolValidatorTests {
 
     @Test
     fun chargeDensityDoesNotRelaxWithMoreElectrodePairs() {
-        // 1.0 mA × 1500s / 35 cm² = 42.9 µC/cm² — over 40 whatever the montage. The
+        // 1.0 mA × 1500s / 35 cm² = 42.9 mC/cm² — over 40 whatever the montage. The
         // summed-area model got 2× more permissive with every pair added.
         val montages = listOf(
             listOf(listOf("F3", "F4")),
@@ -110,18 +110,18 @@ class NPProtocolValidatorTests {
 
     @Test
     fun smallerDeclaredElectrodeAreaIsStricter() {
-        // 1.0 mA × 1100s = 1100 µC. On 35 cm²: 31.4 µC/cm², accepted. On 25 cm²: 44.0, rejected.
+        // 1.0 mA × 1100s = 1100 mC. On 35 cm²: 31.4 mC/cm², accepted. On 25 cm²: 44.0, rejected.
         val big = NPTDCSParams(intensityMilliamps = 1.0, electrodePairs = listOf(listOf("F3", "F4")), electrodeAreaCm2 = 35.0)
         val small = NPTDCSParams(intensityMilliamps = 1.0, electrodePairs = listOf(listOf("F3", "F4")), electrodeAreaCm2 = 25.0)
         assertFalse(
             hardwareOnlyValidator().validate(protocolWith(NPModalityParams.Tdcs(big), durationSeconds = 1100))
                 .errors.any { it.parameterKey == "chargeDensityUCcm2" },
-            "35 cm² pad at 31.4 µC/cm² must be accepted.",
+            "35 cm² pad at 31.4 mC/cm² must be accepted.",
         )
         assertTrue(
             hardwareOnlyValidator().validate(protocolWith(NPModalityParams.Tdcs(small), durationSeconds = 1100))
                 .errors.any { it.parameterKey == "chargeDensityUCcm2" },
-            "25 cm² pad at 44.0 µC/cm² must be rejected.",
+            "25 cm² pad at 44.0 mC/cm² must be rejected.",
         )
     }
 

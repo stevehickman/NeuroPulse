@@ -135,7 +135,7 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
         for (block in enabled) validateModality(block, dur, result)
 
         // tDCS charge density (ISC-38; model corrected by OI-CHARGE-04):
-        // µC/cm² = I(mA) × t(s) / A(cm²), PER ELECTRODE.
+        // mC/cm² = I(mA) × t(s) / A(cm²), PER ELECTRODE. (See UNITS below.)
         //
         // The denominator is ONE electrode's area, not the sum across the montage. The
         // full session current passes through each electrode of a pair, so summing
@@ -147,6 +147,13 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
         //
         // A non-positive area is reported by the per-modality check as an
         // electrodeAreaCm2 error; skipping it here keeps one defect to one message.
+        //
+        // UNITS (OI-CHARGE-05, corrected 2026-09-09): I(mA) × t(s) / A(cm²) yields
+        // **mC/cm²**, because mA × s = mC. This check therefore enforces 40 mC/cm² — the
+        // clinically recognised human tDCS figure — and said "µC/cm²" while doing so until
+        // 2026-09-09. The safety MCU enforces 40 µC/cm² for real, so the two sides are
+        // 1000× apart; that gap is larger than the area/model one OI-CHARGE-04 closed, and
+        // the mislabel is what hid it. Only the label changed here.
         if (dur != null && dur > 0) {
             for (block in enabled) {
                 val p = block.params
@@ -158,12 +165,12 @@ class NPProtocolValidator(private val resolvedLimits: NPLimitsSet) {
                         result.addError(
                             modality = NPModalityType.TDCS,
                             param = "chargeDensityUCcm2", displayName = "Charge Density",
-                            actual = fmt1(chargeDensity) + " µC/cm²",
-                            limit = "${NPHardwareLimits.TDCS_MAX_CHARGE_DENSITY_UC_CM2.toInt()} µC/cm²",
+                            actual = fmt1(chargeDensity) + " mC/cm²",
+                            limit = "${NPHardwareLimits.TDCS_MAX_CHARGE_DENSITY_UC_CM2.toInt()} mC/cm²",
                             source = NPLimitSource.HARDWARE,
-                            message = "Estimated tDCS charge density ${fmt1(chargeDensity)} µC/cm² " +
+                            message = "Estimated tDCS charge density ${fmt1(chargeDensity)} mC/cm² " +
                                 "per electrode exceeds the " +
-                                "${NPHardwareLimits.TDCS_MAX_CHARGE_DENSITY_UC_CM2.toInt()} µC/cm² " +
+                                "${NPHardwareLimits.TDCS_MAX_CHARGE_DENSITY_UC_CM2.toInt()} mC/cm² " +
                                 "safety ceiling. Reduce current, session duration, or use a " +
                                 "larger electrode.",
                         )

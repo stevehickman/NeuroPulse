@@ -1007,7 +1007,7 @@
   "VALIDATE_MSG_PBM_TRANSCRANIAL_FREQUENCYHZ": "PBM frequency cannot be negative.",
   "VALIDATE_MSG_PBM_TRANSCRANIAL_FREQUENCYHZ_2": "PBM frequency {0} Hz exceeds limit of {1} Hz.",
   "VALIDATE_MSG_PBM_TRANSCRANIAL_INTENSITYPERCENT": "PBM intensity {0}% exceeds limit of {1}%.",
-  "VALIDATE_MSG_TDCS_CHARGEDENSITY": "Estimated tDCS charge density {0} µC/cm² per electrode exceeds the {1} µC/cm² safety ceiling. Reduce current, session duration, or use a larger electrode.",
+  "VALIDATE_MSG_TDCS_CHARGEDENSITY": "Estimated tDCS charge density {0} mC/cm² per electrode exceeds the {1} mC/cm² safety ceiling. Reduce current, session duration, or use a larger electrode.",
   "VALIDATE_MSG_TDCS_ELECTRODEAREA": "tDCS electrode area is {0} cm². Declare the area of one electrode, greater than 0 and at most {1} cm².",
   "VALIDATE_MSG_TDCS_ELECTRODEPAIRS": "tDCS has {0} electrode pairs; hardware maximum is {1}.",
   "VALIDATE_MSG_TDCS_INTENSITYMILLIAMPS": "tDCS intensity {0} mA is outside hardware range {1}–{2} mA.",

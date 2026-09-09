@@ -217,7 +217,7 @@ function validateModality(
           t('VALIDATE_MSG_TDCS_RAMPSECONDS', { 0: p.params.rampSeconds, 1: hw.tdcsRampSeconds })
         ));
       }
-      // OI-CHARGE-04: the declared pad geometry the 40 µC/cm² ceiling divides
+      // OI-CHARGE-04: the declared pad geometry the charge-density ceiling divides
       // by. An undeclared or unencodable area is an error rather than a
       // fallback: the hub refuses a 0 area and the safety MCU's geometry gate
       // holds tDCS off, so a protocol that reaches the device without one
@@ -607,6 +607,14 @@ export function validateProtocol(
   // every one of them. iOS and Android divided by that sum until this change,
   // which is what made their pre-flight ~2.8× more permissive than the
   // enforcer for a single pair (35 × 2 = 70 cm² against the MCU's 25).
+  // UNITS (OI-CHARGE-05, corrected 2026-09-09): `I(mA) × t(s) / A(cm²)` yields
+  // **mC/cm²**, because mA × s = mC. This check therefore enforces 40 mC/cm² —
+  // the clinically recognised human tDCS figure — and until 2026-09-09 said
+  // "µC/cm²" in its message while doing so. The safety MCU enforces 40 µC/cm²
+  // for real (NP_CHARGE_LIMIT_UC_CM2 against an accumulator genuinely in nC),
+  // so the two sides are 1000× apart. Which is correct is OI-CHARGE-05's to
+  // decide, and it is a larger divergence than the area/model one OI-CHARGE-04
+  // closed; the mislabel is what hid it. Nothing here is changed but the label.
   if (definition.timingMode.type === 'duration' && definition.timingMode.seconds > 0) {
     const hw  = NPHardwareLimits;
     const dur = definition.timingMode.seconds;
@@ -619,8 +627,8 @@ export function validateProtocol(
       if (chargeDensity > hw.tdcsMaxChargeDensityUCcm2) {
         issues.push(issue(
           'error', 'tdcs', 'chargeDensityUCcm2', t('VALIDATE_PARAM_CHARGE_DENSITY'),
-          `${chargeDensity.toFixed(1)} µC/cm²`,
-          `${hw.tdcsMaxChargeDensityUCcm2} µC/cm²`, 'hardware',
+          `${chargeDensity.toFixed(1)} mC/cm²`,
+          `${hw.tdcsMaxChargeDensityUCcm2} mC/cm²`, 'hardware',
           t('VALIDATE_MSG_TDCS_CHARGEDENSITY',
             { 0: chargeDensity.toFixed(1), 1: hw.tdcsMaxChargeDensityUCcm2 })
         ));

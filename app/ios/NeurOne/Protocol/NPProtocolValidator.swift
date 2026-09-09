@@ -138,7 +138,7 @@ struct NPProtocolValidator {
         }
 
         // Charge-density check for tDCS (ISC-38; model corrected by OI-CHARGE-04).
-        // Charge density (µC/cm²) = I(mA) × t(s) / A(cm²), PER ELECTRODE.
+        // Charge density (mC/cm²) = I(mA) × t(s) / A(cm²), PER ELECTRODE. (See UNITS below.)
         //
         // Two things changed here on 2026-09-09, and the second is the larger one:
         //
@@ -154,7 +154,14 @@ struct NPProtocolValidator {
         //
         // An area of 0 or less is reported by validateModality as an electrodeAreaCm2
         // error; skipping it here keeps one defect to one message instead of adding an
-        // "Infinity µC/cm²" alongside it.
+        // "Infinity mC/cm²" alongside it.
+        //
+        // UNITS (OI-CHARGE-05, corrected 2026-09-09): I(mA) × t(s) / A(cm²) yields
+        // **mC/cm²**, because mA × s = mC. This check therefore enforces 40 mC/cm² — the
+        // clinically recognised human tDCS figure — and said "µC/cm²" while doing so until
+        // 2026-09-09. The safety MCU enforces 40 µC/cm² for real, so the two sides are
+        // 1000× apart; that gap is larger than the area/model one OI-CHARGE-04 closed, and
+        // the mislabel is what hid it. Only the label changed here.
         if let dur = totalDurationSeconds, dur > 0 {
             for block in enabledModalities {
                 if case .tdcs(let p) = block.params {
@@ -164,8 +171,8 @@ struct NPProtocolValidator {
                         result.addError(
                             modality: .tdcs,
                             param: "chargeDensityUCcm2", displayName: String(localized: "VALIDATE_PARAM_CHARGE_DENSITY"),
-                            actual: String(format: "%.1f µC/cm²", chargeDensity),
-                            limit: "\(Int(NPHardwareLimits.tdcsMaxChargeDensityUCcm2)) µC/cm²",
+                            actual: String(format: "%.1f mC/cm²", chargeDensity),
+                            limit: "\(Int(NPHardwareLimits.tdcsMaxChargeDensityUCcm2)) mC/cm²",
                             source: .hardware,
                             message: String(format: String(localized: "VALIDATE_MSG_TDCS_CHARGEDENSITY"),
                                             String(format: "%.1f", chargeDensity),

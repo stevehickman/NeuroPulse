@@ -23,7 +23,12 @@ export const NPHardwareLimits = {
   // and the safety MCU derives its charge limit from that same declared
   // number. What used to be a 35-vs-25 disagreement between the app's
   // assumption and the enforcer's is now one transmitted value.
-  tdcsMaxChargeDensityUCcm2: 40.0,  // safety MCU enforced, app cannot override
+  // NAME IS A MISNOMER, kept for now because all three clients share it and
+  // renaming it is OI-CHARGE-05's job, not OI-CHARGE-04's: the value is
+  // compared against `I(mA) × t(s) / A(cm²)`, which is mC/cm². So this is
+  // 40 **mC**/cm². The safety MCU separately enforces 40 µC/cm² — 1000×
+  // stricter — and reconciling the two is OI-CHARGE-05.
+  tdcsMaxChargeDensityUCcm2: 40.0,
   // Largest declarable per-electrode area: the wire field
   // (np_mod_tdcs_params_t.electrode_area_mcm2) is a uint16 of milli-cm², so
   // 65535 mcm². Not a clinical limit — an encoding ceiling, well above any
